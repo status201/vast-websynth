@@ -7,7 +7,7 @@ import type { ParamDef } from '../state/params';
  * would be noise.
  *
  * Lifted out of `Knob`, which was its only caller until the motion sequencer's
- * per-lane readout needed the same answer (motion-sequencer.md REQ-22). Two
+ * per-lane readout needed the same answer (motion-sequencer.md REQ-a-motion-steps-value-is-readable-without-hovering). Two
  * places describing one parameter differently is the drift this prevents.
  */
 export function formatParam(def: ParamDef, v: number): string {

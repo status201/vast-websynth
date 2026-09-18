@@ -81,7 +81,7 @@ describe('drum kits', () => {
     expect(bus.get('drum.t0.tune')).toBe(7);
   });
 
-  // ---- Voice models (drum-kits.md REQ-6 / drum-machine.md REQ-11) ----
+  // ---- Voice models (drum-kits.md REQ-a-kit-may-choose-voice-models / drum-machine.md REQ-a-drum-tracks-algorithm-is-selectable) ----
 
   it('the Percussion kit selects valid voice models', () => {
     const models = DRUM_KITS['Percussion']!.model!;

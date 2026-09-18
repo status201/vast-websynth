@@ -12,7 +12,7 @@ import type { OfflineCopy, OfflineState } from '../../src/utils/offline-copy';
  * One named cache: url → Response. `match` hands out clones, as the real cache
  * hands out fresh responses, and a stored response carrying `Vary` misses
  * unless the lookup passes `ignoreVary` — the real cache compares request
- * headers a URL-only lookup does not carry (REQ-11).
+ * headers a URL-only lookup does not carry (REQ-cache-lookups-ignore-vary).
  */
 export class FakeCache {
   readonly store = new Map<string, Response>();

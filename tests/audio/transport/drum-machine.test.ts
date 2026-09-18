@@ -136,7 +136,7 @@ describe('DrumMachine', () => {
     expect(steps).toEqual([0, 1, 2]);
   });
 
-  // step-settings.md REQ-6/REQ-8 — micro moves the SOUND, not the grid.
+  // step-settings.md REQ-a-step-carries-a-micro-offset/REQ-micro-is-one-pure-offset — micro moves the SOUND, not the grid.
   it('nudges a hit early or late without moving any other lane (v3)', () => {
     const { clock, patterns, dm, spies } = build();
     dm.setEnabled(true);
@@ -150,7 +150,7 @@ describe('DrumMachine', () => {
     expect(spies[2]).toHaveBeenCalledWith(1, 0.7, undefined);
   });
 
-  it('does not move the PLAYHEAD with the nudge (v3, REQ-8)', () => {
+  it('does not move the PLAYHEAD with the nudge (v3, REQ-a-selected-drum-tuning-strip)', () => {
     const { clock, patterns, dm } = build();
     dm.setEnabled(true);
     patterns.setDrumCell(0, 0, { on: true, micro: 12 });
@@ -191,7 +191,7 @@ describe('DrumMachine', () => {
     expect(shaper.curve).toBeInstanceOf(Float32Array);
   });
 
-  it('shapers only oversample while driven: none at drive 0, 2x above (REQ-11)', () => {
+  it('shapers only oversample while driven: none at drive 0, 2x above (REQ-a-drum-tracks-algorithm-is-selectable)', () => {
     const { ctx, dm } = build();
     const shaper = ctx.createWaveShaper.mock.results[0]!.value; // track 0
     expect(shaper.oversample).toBe('none'); // identity curve at boot
@@ -209,7 +209,7 @@ describe('DrumMachine', () => {
   });
 });
 
-/** Voice models (drum-machine.md REQ-11): swap the voice, keep the channel. */
+/** Voice models (drum-machine.md REQ-a-drum-tracks-algorithm-is-selectable): swap the voice, keep the channel. */
 describe('DrumMachine voice models', () => {
   it('setTrackModel swaps the voice and rewires it into the same channel head', () => {
     vi.useFakeTimers();
@@ -224,7 +224,7 @@ describe('DrumMachine voice models', () => {
       // The new voice joined the graph (its output connected somewhere)…
       expect((next.output as unknown as { connect: ReturnType<typeof vi.fn> }).connect).toHaveBeenCalled();
       // …while the old one is ramped down and only detached after the fade
-      // (REQ-19 — it may still be ringing). Pinned in detail in
+      // (REQ-swapping-a-model-never-severs-a-voice — it may still be ringing). Pinned in detail in
       // tests/audio/drums/drum-machine-model.test.ts.
       const gone = (old.output as unknown as { disconnect: ReturnType<typeof vi.fn> }).disconnect;
       expect(gone).not.toHaveBeenCalled();
@@ -257,14 +257,14 @@ describe('DrumMachine voice models', () => {
 });
 
 /**
- * The hat choke group — drum-machine.md REQ-12. Every track is an independent
+ * The hat choke group — drum-machine.md REQ-a-closed-hat-cuts-an-open-hat. Every track is an independent
  * voice here, so before this an open hat rang straight through the closed hats
  * on top of it; on an 808 the two share one voice.
  *
  * Asserted on the per-track choke gain's scheduled ramp, which is the mechanism:
  * `voice → choke → drive → …`, cut and restored inside one call.
  */
-describe('DrumMachine hat choke group (REQ-12)', () => {
+describe('DrumMachine hat choke group (REQ-a-closed-hat-cuts-an-open-hat)', () => {
   /** Ramp targets scheduled on a track's choke gain, in call order. */
   function ramps(dm: DrumMachine, t: number): number[] {
     const g = chokeNode(dm, t);
@@ -298,7 +298,7 @@ describe('DrumMachine hat choke group (REQ-12)', () => {
     dm.setChokeEnabled(true);
     patterns.setDrumCell(2, 0, { on: true });
     clock.fireTick(0);
-    // Down to 0 — the cut — then back to 1 on a ramp of its own (REQ-16).
+    // Down to 0 — the cut — then back to 1 on a ramp of its own (REQ-the-choke-group-restores-on-a-ramp).
     expect(ramps(dm, 3)).toEqual([0, 1]);
   });
 
@@ -315,12 +315,12 @@ describe('DrumMachine hat choke group (REQ-12)', () => {
   });
 
   /**
-   * REQ-16, regression. The down-fade was deliberately 6 ms ("long enough not to
+   * REQ-the-choke-group-restores-on-a-ramp, regression. The down-fade was deliberately 6 ms ("long enough not to
    * click"), but the restore was a bare setValueAtTime — moving the gain 0 -> 1 in
    * one sample while the open hat it had just cut was still ringing underneath.
    * That re-exposed the tail instantly: the click the down-fade existed to avoid.
    */
-  it('restores on a ramp, never a step (REQ-16, regression)', () => {
+  it('restores on a ramp, never a step (REQ-the-choke-group-restores-on-a-ramp, regression)', () => {
     const { clock, patterns, dm } = hats();
     dm.setChokeEnabled(true);
     patterns.setDrumCell(2, 0, { on: true });
@@ -347,7 +347,7 @@ describe('DrumMachine hat choke group (REQ-12)', () => {
     expect(ramps(dm, 0)).toEqual([]); // the kick
   });
 
-  it('follows the voice MODEL, not the track index (REQ-11 makes models movable)', () => {
+  it('follows the voice MODEL, not the track index (REQ-a-drum-tracks-algorithm-is-selectable makes models movable)', () => {
     const { clock, patterns, dm } = hats();
     dm.setChokeEnabled(true);
     // Move the open hat onto track 6 and take it off track 3.
@@ -369,7 +369,7 @@ describe('DrumMachine hat choke group (REQ-12)', () => {
 });
 
 /**
- * The sidechain trigger (sidechain-ducking.md REQ-9). It reports hits that
+ * The sidechain trigger (sidechain-ducking.md REQ-on-hit-reports-only-sounded-hits). It reports hits that
  * *sounded*, at the absolute time they sound — which is what lets a ducker
  * schedule against the pattern without re-deriving mute, probability or
  * ratchets, and makes it impossible to pump on a step that stayed silent.
@@ -438,7 +438,7 @@ describe('DrumMachine.onHit', () => {
   });
 
   /**
-   * REQ-13 v8. The lane mute cuts the bus gain but leaves the pattern running,
+   * REQ-every-sounded-hit-is-reported v8. The lane mute cuts the bus gain but leaves the pattern running,
    * so the machine has to stay quiet about hits it is still playing — otherwise
    * a ducker pumps to a kick nobody can hear.
    */
@@ -490,7 +490,7 @@ describe('DrumMachine.onHit', () => {
 describe('DrumMachine — meter (meter.md)', () => {
   const rateOf = (label: string): number => LANE_RATES.findIndex((x) => x.label === label);
 
-  it('swings a half-rate lane on its own grid (REQ-16, regression)', () => {
+  it('swings a half-rate lane on its own grid (REQ-the-choke-group-restores-on-a-ramp, regression)', () => {
     const { clock, patterns, dm, spies } = build();
     dm.setEnabled(true);
     dm.lane.setRate(rateOf('1/8')); // 2 ticks per cell — only ever even ticks
@@ -510,7 +510,7 @@ describe('DrumMachine — meter (meter.md)', () => {
     expect(times[3]).toBeCloseTo(0.75 + 0.0625, 9);
   });
 
-  it('leaves the default rate byte-identical under swing (REQ-16, regression)', () => {
+  it('leaves the default rate byte-identical under swing (REQ-the-choke-group-restores-on-a-ramp, regression)', () => {
     const { clock, patterns, dm, spies } = build();
     dm.setEnabled(true);
     clock.swing = 0.5;
@@ -525,7 +525,7 @@ describe('DrumMachine — meter (meter.md)', () => {
     expect(spies[0]!.mock.calls.map((c) => c[0] as number)).toEqual(emitted);
   });
 
-  it('lands the fill on the bar\u2019s own last step in 7/8 (REQ-9)', () => {
+  it('lands the fill on the bar\u2019s own last step in 7/8 (REQ-per-hit-nodes-are-disposable)', () => {
     const perf = createPerfStub();
     const { clock, dm, spies } = build(perf);
     dm.setEnabled(true);
@@ -546,7 +546,7 @@ describe('DrumMachine — meter (meter.md)', () => {
     expect(spies[0]!.mock.calls.map((c) => c[0] as number)).toEqual([0, 7 * 0.125]);
   });
 
-  it('keeps the 16-step fill exactly as it was (REQ-9, regression)', () => {
+  it('keeps the 16-step fill exactly as it was (REQ-per-hit-nodes-are-disposable, regression)', () => {
     const perf = createPerfStub();
     const { clock, dm, spies } = build(perf);
     dm.setEnabled(true);

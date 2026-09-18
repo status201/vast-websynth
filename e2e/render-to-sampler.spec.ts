@@ -24,7 +24,7 @@ const contextSampleRate = (page: Page): Promise<number> =>
 /**
  * Render-to-sampler (render-to-sampler.md): the Sequencer tab's "Import into
  * sampler" section resamples the edit bank through the live engine into a
- * bar-exact buffer. The length assertion is the feature's headline REQ-1 —
+ * bar-exact buffer. The length assertion is the feature's headline REQ-the-rendered-buffer-has-exact-length —
  * exactly round(240 / bpm × sampleRate) samples, verified against a real
  * audio graph.
  */
@@ -56,14 +56,14 @@ test.describe('import into sampler', () => {
     // The render runs in real time (2 bars + tail) — poll for the buffer.
     await expect.poll(() => slotBufferLength(page, 2), { timeout: 15000 }).not.toBeNull();
 
-    // REQ-1: exactly one bar. 240 BPM → 1 s → sampleRate samples.
+    // REQ-the-rendered-buffer-has-exact-length: exactly one bar. 240 BPM → 1 s → sampleRate samples.
     const sr = await contextSampleRate(page);
     expect(await slotBufferLength(page, 2)).toBe(Math.round((240 / 240) * sr));
 
     // The capture is real synth audio, not silence.
     expect(await slotBufferPeak(page, 2)).toBeGreaterThan(0.001);
 
-    // REQ-7: derived slot name; the button is usable again.
+    // REQ-the-slot-load-contract: derived slot name; the button is usable again.
     expect(await sampleName(page, 2)).toBe('seq-A-240bpm');
     await expect(renderBtn).toBeEnabled();
   });

@@ -3,7 +3,7 @@ const WAVE_TYPES: OscillatorType[] = ['sine', 'triangle', 'sawtooth', 'square'];
 /** Index of `square` in WAVE_TYPES — the only wave pulse width applies to. */
 const SQUARE = 3;
 
-/** Duty-bank resolution (oscillators.md REQ-6). A full LFO cycle sweeps the bank
+/** Duty-bank resolution (oscillators.md REQ-width-swaps-a-precomputed-wave). A full LFO cycle sweeps the bank
  *  up and back, so this caps smoothness at slow rates where the control loop is
  *  no longer the limit. Each entry is one shared `PeriodicWave`. */
 export const PWM_BANK_SIZE = 128;
@@ -19,7 +19,7 @@ const PWM_HARMONICS = 512;
  * context-bound). All voices index the same waves, so nothing is built per voice.
  *
  * **Sparse: one entry is built the first time that width is used, never the whole
- * bank** (oscillators.md REQ-6b, runtime-performance.md REQ-2). `PWM_BANK_SIZE` is
+ * bank** (oscillators.md REQ-a-wave-bank-entry-is-built-on-first-use, runtime-performance.md REQ-immutable-artefacts-are-shared). `PWM_BANK_SIZE` is
  * the bank's *resolution*, not a wave count a patch pays for up front — Blink
  * expands each `PeriodicWave` into band-limited wave tables costing ~670 KB of
  * **native** memory, so building all 128 eagerly cost ~86 MB in one synchronous
@@ -129,7 +129,7 @@ export class Osc {
   }
 
   /** Pulse width (duty cycle), `0.5`..`0.95` — `0.5` is a plain square wave.
-   *  Ignored unless this oscillator's wave is square (oscillators.md REQ-5).
+   *  Ignored unless this oscillator's wave is square (oscillators.md REQ-oscillators-have-a-pulse-width).
    *  Called from the PWM control loop at `PWM_CONTROL_HZ`, so it must stay cheap
    *  and do nothing when the duty has not moved to a new bank entry. */
   setPulseWidth(width: number): void {
@@ -148,7 +148,7 @@ export class Osc {
       return;
     }
     // Swapping the wave on the *live* node preserves its phase, so a sweep is
-    // continuous and never clicks (oscillators.md REQ-6).
+    // continuous and never clicks (oscillators.md REQ-width-swaps-a-precomputed-wave).
     this.osc.setPeriodicWave(dutyWave(this.ctx, idx));
   }
 

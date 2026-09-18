@@ -32,8 +32,8 @@ from [ADR-012](adr-012-true-bypass-disconnects.md)'s *cheap*:
 - **`PeriodicWave`** — ~670 KB each, independent of the harmonic count (the table
   size follows the sample rate). Building the PWM duty bank eagerly cost ~86 MB.
   *This one was fixed* — entries are now built per width on first use
-  ([oscillators](../features/oscillators.md) REQ-6b,
-  [runtime-performance](../features/runtime-performance.md) REQ-2).
+  ([oscillators](../features/oscillators.md) REQ-a-wave-bank-entry-is-built-on-first-use,
+  [runtime-performance](../features/runtime-performance.md) REQ-immutable-artefacts-are-shared).
 - **`ConvolverNode`** — ~5 MB at a 0.4 s IR, ~13.5 MB at 2.5 s, ~19 MB at 4 s.
   `Reverb`'s constructor assigns an IR unconditionally, so the three FX chains
   commit roughly **30 MB at boot** whether or not any reverb is ever switched on,
@@ -85,7 +85,7 @@ reacquisition is either off the main thread or off the audible path.
 - **Shorten the IR bank so every kernel is cheaper** — rejected: that is a sound
   change ([ADR-010](adr-010-musical-stable-cheap-dsp.md)), not a memory fix. The
   weak tier already caps IR *duration* via `reverbIrMaxS`
-  ([performance-mode](../features/performance-mode.md) REQ-11), which is the
+  ([performance-mode](../features/performance-mode.md) REQ-weak-tier-reduces-fx-cost), which is the
   right lever and is already pulled where it matters.
 - **Do nothing at all and record nothing** — rejected: the ~30 MB is real and
   re-findable, so without this record the next investigation re-derives it and

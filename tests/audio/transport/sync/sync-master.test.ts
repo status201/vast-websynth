@@ -23,7 +23,7 @@ function setup(swing = 0) {
   const sent: Sent = [];
   const idleTimer = new TimeoutTimer();
   let now = 0;
-  // `wire` logs sends and flushes in call order so REQ-18 ordering is assertable.
+  // `wire` logs sends and flushes in call order so REQ-master-flush-is-best-effort ordering is assertable.
   const wire: string[] = [];
   const master = new SyncMaster(
     clock,
@@ -48,7 +48,7 @@ const pulses = (sent: Sent) => sent.filter((s) => s.msg.type === 'pulse');
 const types = (sent: Sent) => sent.map((s) => s.msg.type);
 
 describe('SyncMaster', () => {
-  // midi-clock-sync.md REQ-26 (v7) — `start` restarts every slave at bar 0, so a
+  // midi-clock-sync.md REQ-a-local-start-joins-rather-than-restarts (v7) — `start` restarts every slave at bar 0, so a
   // master resuming mid-song (Pause -> Play, or a seeked cue) must join them
   // where it is instead.
   it('a start from a non-zero step sends songposition + continue, not start (v7)', () => {
@@ -176,7 +176,7 @@ describe('SyncMaster', () => {
     clock.stop();
   });
 
-  it('flushes scheduled sends before start and stop, never around announceTo (REQ-18)', () => {
+  it('flushes scheduled sends before start and stop, never around announceTo (REQ-master-flush-is-best-effort)', () => {
     const { clock, master, wire, idleStep } = setup();
     master.enable(); // stopped -> idle clock queues future-timestamped pulses
     idleStep();
@@ -213,7 +213,7 @@ describe('SyncMaster', () => {
   });
 });
 
-describe('SyncMaster — meter (meter.md REQ-18)', () => {
+describe('SyncMaster — meter (meter.md REQ-meter-travels-on-the-wifi-wire)', () => {
   it('announces the meter before the position, and on demand', () => {
     vi.useFakeTimers();
     const ctx = { currentTime: 0 } as unknown as AudioContext;

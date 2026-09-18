@@ -124,7 +124,7 @@ export function computePeaks(a: CapturedAudio, width: number): Float32Array {
 
 /* ---------------------------------------------------------------- chopping */
 /*
- * sample-chop.md REQ-3/REQ-4. All three are pure and take/return plain sample
+ * sample-chop.md REQ-two-ways-to-place-the-cuts/REQ-detect-onsets-is-pure-and-cheap. All three are pure and take/return plain sample
  * indices, so the modal's drawing, its slice count and its crops are all derived
  * from the same numbers and cannot drift apart.
  *
@@ -172,7 +172,7 @@ export interface OnsetOptions {
 }
 
 /**
- * Interior boundaries at transients (REQ-4).
+ * Interior boundaries at transients (REQ-a-loaded-slot-reopens-for-editing).
  *
  * Short-time RMS over a mono mixdown, then peaks in the *rising* edge of that
  * envelope. Energy alone finds the loudest moment of a hit, which is behind its
@@ -185,7 +185,7 @@ export interface OnsetOptions {
  * merges two real hits.
  *
  * Deliberately simple — no FFT, no spectral flux (ADR-010: cheap, and the user
- * can drag every boundary anyway, REQ-3).
+ * can drag every boundary anyway, REQ-save-or-load-the-recorded-result).
  */
 export function detectOnsets(a: CapturedAudio, opts: OnsetOptions = {}): number[] {
   const len = Math.min(a.left.length, a.right.length);

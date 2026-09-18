@@ -20,7 +20,7 @@ export type DemoMachine = 'seq' | 'drums' | 'sampler' | 'motion';
  * effect with a non-default parameter" fires on **13 of the 15** shipped demos,
  * and the stricter "on but `mix` pinned to 0" fires on **none**. A hint that
  * appears on almost every button is not a hint, and one that never appears is
- * dead code. See demo-library.md REQ-4 before re-adding it.
+ * dead code. See demo-library.md REQ-uses-is-heard-armed-is-playable before re-adding it.
  */
 export type DemoArmed = 'arp' | 'motion';
 
@@ -69,7 +69,7 @@ function hasMotionData(file: SongFile): boolean {
 }
 
 /**
- * Everything about a demo that can be *derived* from it (demo-library.md REQ-1).
+ * Everything about a demo that can be *derived* from it (demo-library.md REQ-demo-facts-are-generated).
  * The blurb is the one thing that cannot, and is merged in by the generator.
  */
 export function demoMetaOf(file: SongFile): Omit<DemoMeta, 'blurb'> {
@@ -91,7 +91,7 @@ export function demoMetaOf(file: SongFile): Omit<DemoMeta, 'blurb'> {
   else if (motion) armed.push('motion');
 
   // The arpeggiator follows the keyboard/MIDI and never the sequencer
-  // (arpeggiator.md REQ-7), so an armed arp is ALWAYS armed and never "used".
+  // (arpeggiator.md REQ-saved-arp-on-is-armed-not-broken), so an armed arp is ALWAYS armed and never "used".
   if (on(params['arp.on'])) armed.push('arp');
 
   const meta: Omit<DemoMeta, 'blurb'> = {
@@ -113,7 +113,7 @@ const ARMED_LABEL: Record<DemoArmed, string> = {
 };
 
 /**
- * The one-line summary a demo button's `title` shows (demo-library.md REQ-6):
+ * The one-line summary a demo button's `title` shows (demo-library.md REQ-demo-row-says-what-it-knows):
  * `124 BPM · 16 bars · seq + drums · arp armed — <blurb>`.
  *
  * Each fact is dropped when it is unknown rather than shown as a zero: "0 bars"

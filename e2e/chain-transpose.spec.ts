@@ -4,7 +4,7 @@ import { gotoAndStart } from './helpers';
 /* eslint-disable @typescript-eslint/no-explicit-any */
 
 /**
- * Per-slot arrangement transpose — arrangement.md REQ-8 and its gesture
+ * Per-slot arrangement transpose — arrangement.md REQ-a-seq-slot-carries-a-transpose and its gesture
  * inventory.
  *
  * Why it exists: a chain slot was a bare bank index, so four banks of sixteen
@@ -75,7 +75,7 @@ test.describe('chain slot transpose', () => {
     // ◀ swaps the slot with its neighbour; the offset belongs to the slot, not
     // to the position, so it must swap too. By testid, not by glyph: the
     // buttons gained real labels when the drag made them the precise path
-    // (arrangement.md REQ-11), and `.first()` was only ever picking the seq
+    // (arrangement.md REQ-a-chip-is-dragged-to-its-place), and `.first()` was only ever picking the seq
     // lane out of four identical glyphs by luck of DOM order.
     await page.getByTestId('chain-move-left-seq').click();
     expect(await transposeOf(page)).toEqual([0, 1, 0]);
@@ -107,7 +107,7 @@ test.describe('chain slot transpose', () => {
     await expect(page.getByTestId('chain-chip-seq-1')).toHaveText('A+7');
 
     // Enable the chain and put the playhead in bar 2. `seqTranspose` is what the
-    // StepSequencer actually adds to each note (sequencer.md REQ-16), so this is
+    // StepSequencer actually adds to each note (sequencer.md REQ-every-note-is-shifted-by-the-slot-transpose), so this is
     // the claim that matters: the gesture reached the audio thread's input.
     await page.evaluate(() => {
       const arr = (window as any).__synth.engine.arrangement;

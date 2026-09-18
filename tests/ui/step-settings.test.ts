@@ -4,7 +4,7 @@ import { TRIGGER_CELL_DEFAULTS, type StepSettings } from '../../src/state/patter
 
 /**
  * The shared per-step edit row. Covers the drag-listener lifecycle
- * (runtime-performance.md REQ-3) — three of these are mounted at once (seq /
+ * (runtime-performance.md REQ-global-listeners-live-only-for-a-gesture) — three of these are mounted at once (seq /
  * drum / sampler), each with three sliders, so a constructor-scoped `window`
  * pointermove handler here runs nine times on every mouse move anywhere on the
  * page (the exact trap Knob documents).
@@ -42,7 +42,7 @@ afterEach(() => {
 });
 
 describe('StepSettingsEditor slider drag lifecycle', () => {
-  it('adds no window pointer listeners on construction (REQ-3)', () => {
+  it('adds no window pointer listeners on construction (REQ-gate-releases-or-cuts)', () => {
     const add = vi.spyOn(window, 'addEventListener');
     build();
     expect(add.mock.calls.filter(([t]) => isPointer(t)).length).toBe(0);
@@ -106,7 +106,7 @@ describe('StepSettingsEditor slider drag lifecycle', () => {
     window.dispatchEvent(new MouseEvent('pointerup'));
   });
 
-  it('paints the fill with a transform, never a width (REQ-3 / layout)', () => {
+  it('paints the fill with a transform, never a width (REQ-gate-releases-or-cuts / layout)', () => {
     const { editor, step } = build();
     step.velocity = 0.25;
     editor.refresh();
@@ -132,7 +132,7 @@ describe('StepSettingsEditor controls', () => {
   });
 });
 
-// step-settings.md REQ-6 + its gesture inventory. Micro is the one bipolar,
+// step-settings.md REQ-a-step-carries-a-micro-offset + its gesture inventory. Micro is the one bipolar,
 // stepped control in the row, and the one that takes keys.
 describe('the Micro slider (v3)', () => {
   const microTrack = (editor: StepSettingsEditor): HTMLElement => {

@@ -26,12 +26,12 @@ hits `UPPER`'s `w: 14` and sounds a D an octave up instead of the bottom C; the
 row's `M` moves to the home row and `,` becomes `;`. QWERTZ swaps Y and Z.
 Dvorak moves nearly everything. The instrument was silently wrong for a large
 part of Europe, and the About modal's keyboard diagram
-([onboarding](onboarding.md) REQ-17c) confidently drew letters that were not on
+([onboarding](onboarding.md) REQ-keys-are-drawn-as-keys) confidently drew letters that were not on
 the user's keys.
 
 This facility supplies **one table per layout, `code → character`**. Everything
 else is derived from it, so the bindings and the picture of the bindings cannot
-disagree — the same reason [input-control](input-control.md) REQ-3 derives the
+disagree — the same reason [input-control](input-control.md) REQ-two-key-rows-an-octave-apart derives the
 diagram from the note maps rather than restating them.
 
 A `code → character` table is also exactly the shape
@@ -40,37 +40,40 @@ than a parallel code path.
 
 ## Requirements
 
-- **REQ-1** — A layout is a `code → character` table covering the codes the app
-  binds. `LAYOUTS` holds one per supported id: `qwerty` (US/UK — they differ only
-  in symbols nothing binds), `azerty` (FR), `qwertz` (DE/CH), `dvorak`.
-- **REQ-2** — The stored preference is `'auto' | LayoutId` under
-  `websynth.keyboard.layout`, read through the `websynth.*` try/catch convention
-  (`state/sync-mode.ts` is the template): an absent, unparseable or throwing
-  read yields the default, never an exception. `'auto'` is the default and
-  resolves through detection.
-- **REQ-3** — **Detection is a hint; the picker is the escape hatch.**
-  `detectLayout()` feature-detects `navigator.keyboard?.getLayoutMap` (async,
-  Chromium-only) and discriminates on a few codes — `KeyQ → 'a'` ⇒ azerty,
-  `KeyZ → 'y'` ⇒ qwertz, `KeyZ → ';'` ⇒ dvorak, `KeyZ → 'z'` ⇒ qwerty. An
-  **unrecognised** map yields `null` — it does not fall through to qwerty — as do
-  an absent API and a rejected promise; `'auto'` then falls back to `qwerty`. The
-  same framing as [performance-mode](performance-mode.md)'s tier detection: a
-  wrong guess must always be overridable, never sticky.
-- **REQ-4** — Changing the layout takes effect **immediately**, with no reload:
-  `onLayoutChange(cb)` returns an unsubscribe, and both consumers (the note maps
-  and the About diagram's labels) re-derive on it.
-- **REQ-5** — **Scope: the note keys only.** `F` (drum fill), `Shift`+`R` and
-  `Ctrl/Cmd`+`Z` keep their `e.key` letters and fixed labels. `Ctrl`+`Z`
-  especially: undo is an OS-level convention that follows the *character*, not
-  the position, so remapping it by layout would break the convention it borrows.
-  The pitch-bend pair stays on `e.code` ([input-control](input-control.md)
-  REQ-12) and is unaffected.
-- **REQ-6** — **Known residual risk.** Because bindings resolve through
-  characters rather than `e.code`, a wrong picker selection — or no detection at
-  all, which is every Firefox and Safari user — means wrong notes. Matching
-  positions directly could not be wrong in that way. This is an accepted
-  trade-off for a picker whose selection is visible and instantly reversible;
-  revisit if support requests say otherwise.
+- **REQ-layout-is-a-code-to-character-table** — A layout is a `code → character`
+  table covering the codes the app binds. `LAYOUTS` holds one per supported id:
+  `qwerty` (US/UK — they differ only in symbols nothing binds), `azerty` (FR),
+  `qwertz` (DE/CH), `dvorak`.
+- **REQ-layout-preference-reads-safely** — The stored preference is `'auto' |
+  LayoutId` under `websynth.keyboard.layout`, read through the `websynth.*`
+  try/catch convention (`state/sync-mode.ts` is the template): an absent,
+  unparseable or throwing read yields the default, never an exception. `'auto'`
+  is the default and resolves through detection.
+- **REQ-layout-detection-is-a-hint-not-a-verdict** — **Detection is a hint; the
+  picker is the escape hatch.** `detectLayout()` feature-detects
+  `navigator.keyboard?.getLayoutMap` (async, Chromium-only) and discriminates on
+  a few codes — `KeyQ → 'a'` ⇒ azerty, `KeyZ → 'y'` ⇒ qwertz, `KeyZ → ';'` ⇒
+  dvorak, `KeyZ → 'z'` ⇒ qwerty. An **unrecognised** map yields `null` — it does
+  not fall through to qwerty — as do an absent API and a rejected promise;
+  `'auto'` then falls back to `qwerty`. The same framing as
+  [performance-mode](performance-mode.md)'s tier detection: a wrong guess must
+  always be overridable, never sticky.
+- **REQ-layout-change-needs-no-reload** — Changing the layout takes effect
+  **immediately**, with no reload: `onLayoutChange(cb)` returns an unsubscribe,
+  and both consumers (the note maps and the About diagram's labels) re-derive on
+  it.
+- **REQ-layout-scope-is-note-keys-only** — **Scope: the note keys only.** `F`
+  (drum fill), `Shift`+`R` and `Ctrl/Cmd`+`Z` keep their `e.key` letters and
+  fixed labels. `Ctrl`+`Z` especially: undo is an OS-level convention that
+  follows the *character*, not the position, so remapping it by layout would
+  break the convention it borrows. The pitch-bend pair stays on `e.code`
+  ([input-control](input-control.md) REQ-pitch-bend-is-quote-and-slash) and is unaffected.
+- **REQ-character-bindings-carry-a-known-risk** — **Known residual risk.**
+  Because bindings resolve through characters rather than `e.code`, a wrong
+  picker selection — or no detection at all, which is every Firefox and Safari
+  user — means wrong notes. Matching positions directly could not be wrong in
+  that way. This is an accepted trade-off for a picker whose selection is
+  visible and instantly reversible; revisit if support requests say otherwise.
 
 ## Technical design
 
@@ -84,7 +87,7 @@ export type LayoutPref = 'auto' | LayoutId;
 export const LAYOUTS: Record<LayoutId, { label: string; keys: Record<string, string> }>;
 
 export function readLayoutPref(): LayoutPref;          // default 'auto'
-export function writeLayoutPref(p: LayoutPref): void;  // notifies REQ-4 listeners
+export function writeLayoutPref(p: LayoutPref): void;  // notifies REQ-layout-change-needs-no-reload listeners
 export function resolveLayout(): LayoutId;             // 'auto' -> detected ?? 'qwerty'
 export function detectLayout(): Promise<LayoutId | null>;
 export function primeDetection(): Promise<void>;       // caches for resolveLayout()
@@ -147,7 +150,7 @@ Scenario: Detection is optional
   Then detectLayout() resolves to null and 'auto' behaves as qwerty
 # pinned by: tests/state/keyboard-layout.test.ts
 
-Scenario: The diagram relabels with the layout (REQ-4)
+Scenario: The diagram relabels with the layout (REQ-layout-change-needs-no-reload)
   Given the About modal is open on qwerty, showing naturals Z X C V B N M ,
   When the user picks AZERTY in the gear's select
   Then the naturals rank reads W X C V B N , ; without the modal reopening
@@ -166,5 +169,5 @@ Scenario: The diagram relabels with the layout (REQ-4)
 - Only the codes the app binds are tabulated. A layout whose *symbol* keys move
   (AZERTY's digit row is unshifted punctuation) is covered for the note rows but
   the tables are not a general keyboard model — don't grow them into one.
-- If REQ-6's risk shows up in practice, the fix is to match note keys on
+- If REQ-character-bindings-carry-a-known-risk's risk shows up in practice, the fix is to match note keys on
   `e.code` and demote the picker to labelling only.

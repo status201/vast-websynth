@@ -172,7 +172,7 @@ describe.runIf(hasCompression())('deflate (method 8)', () => {
   });
 });
 
-// untrusted-input.md REQ-2 / project-export.md REQ-2. A project zip can arrive
+// untrusted-input.md REQ-bounds-in-the-validator-sizes-in-the-codec / project-export.md REQ-zip-codec-is-hand-written-and-budgeted. A project zip can arrive
 // from a share link (#songUrl=…/x.zip), so the reader is budgeted, not trusting.
 describe('zipRead budgets (zip bomb)', () => {
   /** Patch the EOCD's entry count without touching anything else. */

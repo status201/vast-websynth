@@ -23,7 +23,7 @@ describe('drum synth choke', () => {
     kick.trigger(0.5, 0.9);
     expect(mock.createGain).toHaveBeenCalledTimes(1); // env only — no choke gain
     const osc = mock.createOscillator.mock.results[0]!.value;
-    // REQ-15: stops at the end of the ramp to zero, not 50 ms past the 0.001 floor.
+    // REQ-a-voice-envelope-reaches-true-zero: stops at the end of the ramp to zero, not 50 ms past the 0.001 floor.
     expect(osc.stop).toHaveBeenCalledWith(0.5 + 0.4 + 0.005);
   });
 
@@ -73,7 +73,7 @@ describe('drum synth choke', () => {
 });
 
 /**
- * Tune is now real on every voice (REQ-6): a semitone offset scales the noise
+ * Tune is now real on every voice (REQ-tune-is-audible-on-every-voice): a semitone offset scales the noise
  * filters + oscillators by 2^(tune/12). +12 doubles, -12 halves.
  */
 describe('drum synth tune', () => {
@@ -185,7 +185,7 @@ describe('drum synth node cleanup', () => {
 });
 
 /**
- * Percussion voices (drum-machine.md REQ-11): each honours the full DrumSynth
+ * Percussion voices (drum-machine.md REQ-a-drum-tracks-algorithm-is-selectable): each honours the full DrumSynth
  * contract — unchoked + choked triggers build/tear down their one-shot graphs
  * like the classic voices do.
  */
@@ -257,7 +257,7 @@ describe('percussion voices', () => {
 });
 
 /**
- * The click (drum-machine.md REQ-15, regression).
+ * The click (drum-machine.md REQ-a-voice-envelope-reaches-true-zero, regression).
  *
  * `exponentialRampToValueAtTime` cannot reach 0, so every voice lands on a 0.001
  * floor. Stopping a source there truncates the waveform mid-cycle — a step
@@ -266,7 +266,7 @@ describe('percussion voices', () => {
  * residue ~32x, but the defect was in all ten voices. This asserts the shape for
  * every one of them at once, so a new voice cannot reintroduce it.
  */
-describe('drum synth envelope tails reach zero (REQ-15)', () => {
+describe('drum synth envelope tails reach zero (REQ-a-voice-envelope-reaches-true-zero)', () => {
   const VOICES = ['Kick', 'Snare', 'HiHat', 'Clap', 'Conga', 'Bongo', 'Cowbell', 'Clave', 'Shaker'] as const;
 
   const make = (name: string, ctx: AudioContext, noise: AudioBuffer): DrumSynth =>
@@ -316,13 +316,13 @@ describe('drum synth envelope tails reach zero (REQ-15)', () => {
 });
 
 /**
- * A hit clamped out of the past keeps its gate (REQ-17, regression).
+ * A hit clamped out of the past keeps its gate (REQ-a-clamped-hit-carries-its-choke, regression).
  *
  * The start was clamped forward to `currentTime` while `chokeAt` kept the stale
  * time, so a short gate collapsed — cutting the hit mid-attack, or resolving the
  * choke gain to 0 before the hit began and dropping it outright.
  */
-describe('a past-scheduled hit carries its choke (REQ-17)', () => {
+describe('a past-scheduled hit carries its choke (REQ-a-clamped-hit-carries-its-choke)', () => {
   it('shifts the choke by the same delta as the clamped start', () => {
     const { mock, ctx } = setup();
     mock.currentTime = 1;                 // "now" is well past the scheduled time

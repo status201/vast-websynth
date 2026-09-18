@@ -19,7 +19,7 @@ import styles from '../styles/mod.module.css';
  *
  * Rows 0–1 are the two LFOs and are **not** editable as sources: they keep
  * `lfo.dest` / `lfo.amount`, so every preset written before the matrix still means
- * what it meant (mod-matrix.md REQ-2).
+ * what it meant (mod-matrix.md REQ-eight-rows-two-grandfathered).
  *
  * Spec: `specs/features/mod-matrix.md`.
  */
@@ -97,7 +97,7 @@ function buildMatrix(bus: ParamBus): HTMLElement {
   return root;
 }
 
-/** One of the two grandfathered LFO rows (REQ-2). */
+/** One of the two grandfathered LFO rows (REQ-eight-rows-two-grandfathered). */
 function fixedRow(bus: ParamBus, name: string, prefix: 'lfo' | 'lfo2', row: number): HTMLElement {
   const el = document.createElement('div');
   el.className = styles.row!;
@@ -148,12 +148,12 @@ function freeRow(bus: ParamBus, n: number): HTMLElement {
 
   el.appendChild(new Knob({ bus, paramId: `mod.${n}.amt`, label: '', size: 32 }).el);
 
-  // REQ-7: a per-voice source cannot drive a bus-wide destination. Greyed with the
+  // REQ-per-voice-sources-cannot-drive-bus-destinations: a per-voice source cannot drive a bus-wide destination. Greyed with the
   // reason on the option itself, never removed — the list must not reflow, and a
   // hover-only tooltip is an affordance that does not exist on touch (ADR-014 law 6).
   //
   // The ROW is never dimmed, only its cells would be: dimming the row is what would
-  // make an unassigned route's own pickers unreachable (motion-sequencer.md REQ-16).
+  // make an unassigned route's own pickers unreachable (motion-sequencer.md REQ-two-lanes-below-the-xy-lane).
   const refresh = (): void => {
     const s = Math.round(bus.get(`mod.${n}.src`));
     const blocked = blockedDests(s).map((i) => MOD_DEST_LABELS[i]!);

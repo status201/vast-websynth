@@ -1,8 +1,8 @@
 /**
  * Waiting, bounded. Three callers had each open-coded one of these: the
  * Engine's resume verify (audio-lifecycle.md), the factory reset's capped
- * wipes (factory-reset.md REQ-7/REQ-9) and the offline copy's worker poll
- * (play-offline.md REQ-5).
+ * wipes (factory-reset.md REQ-clip-wipe-is-capped-not-unbounded/REQ-reset-never-strands-an-offline-device) and the offline copy's worker poll
+ * (play-offline.md REQ-the-offline-download-runs-in-order).
  */
 
 /** Resolve after `ms`. An abort signal cuts the wait short — it resolves, never rejects. */

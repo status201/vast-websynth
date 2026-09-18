@@ -1,5 +1,5 @@
 /**
- * Factory EQ curves — see `specs/features/equalizer.md` REQ-15.
+ * Factory EQ curves — see `specs/features/equalizer.md` REQ-eq-presets-are-a-table-of-bus-writes.
  *
  * A "preset" here is just a named table of scalar param values applied through
  * the `ParamBus`: no new audio code, no new persistence, and every param it
@@ -7,7 +7,7 @@
  * same shape `audio/drums/drum-kits.ts` uses — the pattern earns its keep twice.
  *
  * The four **De-…** entries are the reason the band centres are where they are
- * (`eq.ts` REQ-2): each one cuts the band sitting inside the matching zone the
+ * (`eq.ts` REQ-eight-fixed-eq-bands): each one cuts the band sitting inside the matching zone the
  * Spectrum names, so "I can see the problem" and "I can fix the problem" use the
  * same vocabulary.
  */
@@ -49,7 +49,7 @@ export const EQ_PRESETS: Record<string, EqPreset> = {
   // registered default, so picking it can never leave a stray value behind.
   [EQ_PRESET_FLAT]: { b: Z, hp: EQ_HP_REF, lp: EQ_LP_REF, width: EQ_WIDTH_DEFAULT },
 
-  // — the filter shapes, which is what the real HP/LP are for (REQ-3) —
+  // — the filter shapes, which is what the real HP/LP are for (REQ-a-real-highpass-and-lowpass) —
   'Low Pass': { b: Z, lp: 800 },
   'High Pass': { b: Z, hp: 300 },
   'Band Pass': { b: Z, hp: 300, lp: 3000 },
@@ -95,7 +95,7 @@ function write(bus: ParamBus, prefix: string, s: EqSettings): void {
 }
 
 /**
- * Apply a named curve to one lane **and engage it** (REQ-15).
+ * Apply a named curve to one lane **and engage it** (REQ-eq-presets-are-a-table-of-bus-writes).
  *
  * Writing `.on` is the load-bearing half: picking a preset is intent to *hear*
  * it, and a preset that silently did nothing because the lane was bypassed would

@@ -4,18 +4,18 @@
 id: section-title
 status: implemented
 version: 4   # v4: a folded section's selected tab dims too — the same yellow burning
-             #     low, never the heading's --text-dim; its LED is untouched (REQ-7)
+             #     low, never the heading's --text-dim; its LED is untouched (REQ-folded-selected-tab-dims)
              # v3: the tabs' smaller type starts at 1030px, not 992px, so the MACHINES icon
-             #     cannot push a tab label onto a second line (REQ-5)
+             #     cannot push a tab label onto a second line (REQ-compact-drops-text-not-icon)
              # v2: FX and MACHINES get new glyphs (the pedal and step grid did not
-             #     read at 14px), and a heading dims while its section is folded (REQ-6)
+             #     read at 14px), and a heading dims while its section is folded (REQ-folded-heading-dims)
 owner: ui
 related:
   - equalizer        # REQ-9 — the first titled TabContainer
   - machine-status   # the pattern row's tab LEDs, beside which MACHINES now sits;
-                     # REQ-7 leaves them exactly as they are
+                     # REQ-folded-selected-tab-dims leaves them exactly as they are
   - iconography      # the three glyphs live in UI_ICONS
-  - typography       # the heading is display type (REQ-1 there)
+  - typography       # the heading is display type (REQ-one-component-draws-every-heading there)
   - ../decisions/adr-014-dont-make-me-think
 source:
   - src/ui/components/section-title.ts
@@ -25,8 +25,8 @@ source:
   - src/ui/app.ts                      # FX bar + the MACHINES row
   - src/ui/panels/eq-panel.ts          # the EQUALIZER row
   - src/ui/styles/layout.module.css    # .fxSectionBar's padding
-  - src/ui/styles/tabs.module.css      # REQ-7: the folded row's selected tab
-  - src/styles/theme.css               # REQ-7: --accent-secondary-dim
+  - src/ui/styles/tabs.module.css      # REQ-folded-selected-tab-dims: the folded row's selected tab
+  - src/styles/theme.css               # REQ-folded-selected-tab-dims: --accent-secondary-dim
 ```
 
 One heading look for the three full-width sections that fold: **FX**,
@@ -38,7 +38,7 @@ the same left inset.
 The three sections grew their headers separately, and it showed. FX had a
 hand-built bar with a sans title in the active tab's yellow. The machine-tabs
 row (Arpeggiator through Song) had no heading. The Equalizer had a serif title
-(first in yellow, then white, [equalizer](equalizer.md) REQ-9). Side by side,
+(first in yellow, then white, [equalizer](equalizer.md) REQ-the-eq-section-is-a-folded-tab-container). Side by side,
 the FX title read like a tab, the machine row looked unlabelled, and no two left
 edges agreed.
 
@@ -49,25 +49,27 @@ yellow heading reads as a control that does nothing when clicked
 
 ## Requirements
 
-- **REQ-1** — **One component draws every section heading.**
-  `createSectionTitle({ text, icon, compact? })` returns the element; both a
-  `TabContainer` (`TabOptions.title`) and the FX bar (`buildFx`) use it. Neither
-  keeps its own title rule, so the three cannot drift apart in type, colour or
-  inset.
+- **REQ-one-component-draws-every-heading** — **One component draws every
+  section heading.** `createSectionTitle({ text, icon, compact? })` returns the
+  element; both a `TabContainer` (`TabOptions.title`) and the FX bar (`buildFx`)
+  use it. Neither keeps its own title rule, so the three cannot drift apart in
+  type, colour or inset.
 
-- **REQ-2** — **The heading is the faceplate's white, undimmed, and inert.**
+- **REQ-heading-is-white-and-inert** — **The heading is the faceplate's white,
+  undimmed, and inert.**
   - Type: `--serif`, 11 px, uppercase, 0.18em tracking, weight 700, the tabs'
-    own legend type ([typography](typography.md) REQ-1, a heading).
+    own legend type ([typography](typography.md) REQ-serif-is-display-type-only, a heading).
   - Colour: `var(--text)` with no `opacity`. No tab state and no other rule in
     the tab stylesheet uses that colour, so white means heading and yellow means
     active tab.
   - `pointer-events: none`: a click lands on the bar, which folds the section,
     exactly as before the heading existed.
-  - That colour is the **open** state; a folded section's heading dims (REQ-6).
+  - That colour is the **open** state; a folded section's heading dims (REQ-folded-heading-dims).
 
-- **REQ-3** — **Icon first, then text, from `UI_ICONS`.**
-  - The glyph comes from `UI_ICONS` ([iconography](iconography.md) REQ-1/REQ-4)
-    and is `aria-hidden`; the text is the accessible name (REQ-3 there).
+- **REQ-heading-is-icon-then-text** — **Icon first, then text, from
+  `UI_ICONS`.**
+  - The glyph comes from `UI_ICONS` ([iconography](iconography.md) REQ-a-control-glyph-is-inline-svg/REQ-one-icon-builder-four-sets)
+    and is `aria-hidden`; the text is the accessible name (REQ-heading-is-icon-then-text there).
   - One glyph per section:
 
     | Section | Icon | Drawing |
@@ -99,7 +101,8 @@ yellow heading reads as a control that does nothing when clicked
     real size and colour, at 1× and 3×. Redraw them the same way, not by
     reasoning about coordinates.
 
-- **REQ-4** — **Every heading's icon sits on the same x.**
+- **REQ-heading-icons-share-one-x** — **Every heading's icon sits on the same
+  x.**
   - The heading carries its own padding (`8px 14px 8px 10px`), and both bars give
     it the same left padding: `.bar` (tabs) is `0 10px 0 6px`, and
     `.fxSectionBar` now matches it exactly.
@@ -113,8 +116,9 @@ yellow heading reads as a control that does nothing when clicked
   - Pinned in e2e at 1400 px and 900 px: the three icons' left edges agree
     within 1 px.
 
-- **REQ-5** — **`compact` drops the text, not the icon, at ≤1140 px.** The
-  pattern row passes `compact: true`, because it cannot fit a title:
+- **REQ-compact-drops-text-not-icon** — **`compact` drops the text, not the
+  icon, at ≤1140 px.** The pattern row passes `compact: true`, because it cannot
+  fit a title:
   - Its seven tabs and fold caret need about 911 px (measured 2026-09-14,
     Chromium, Windows).
   - A full heading adds 113 px of text (the measured EQUALIZER title width) plus
@@ -139,12 +143,12 @@ yellow heading reads as a control that does nothing when clicked
     only 4 px to spare, so a platform whose serif runs wider may still wrap a
     few pixels above 1030. That is the place to look first if one does.
 
-- **REQ-6** (v2) — **A heading dims to `--text-dim` while its section is folded.**
-  Open is `--text`; folded is `--text-dim`, icon included, since it draws in
-  `currentColor`.
+- **REQ-folded-heading-dims** (v2) — **A heading dims to `--text-dim` while its
+  section is folded.** Open is `--text`; folded is `--text-dim`, icon included,
+  since it draws in `currentColor`.
   - It says at a glance which sections are open without reading the caret.
   - It stays clear of the tab colours: `--text-dim` is not a tab state either, so
-    REQ-2's white-means-heading distinction holds in both states.
+    REQ-heading-is-white-and-inert's white-means-heading distinction holds in both states.
   - The rule is `:global(.collapsed) > :first-child > .root`:
     - `createCollapseToggle` puts the global `.collapsed` class on the section
       itself (`TabContainer.el`, or `.fxSection` for FX);
@@ -156,28 +160,28 @@ yellow heading reads as a control that does nothing when clicked
   - There is no transition: a fold is a one-off state change, and the tab colours
     beside it don't animate either.
 
-- **REQ-7** (v4) — **A folded section's selected tab dims as well.** Folding
-  dimmed the heading (REQ-6) but left the selected tab in the bright yellow, glow
-  and underline that mean *this page is on screen* — a promise a folded row
-  cannot keep. The tab is still selected (unfolding shows that page, and a tab
-  click unfolds straight to it), so it keeps the selected *hue* and loses only the
-  brightness:
+- **REQ-folded-selected-tab-dims** (v4) — **A folded section's selected tab dims
+  as well.** Folding dimmed the heading (REQ-folded-heading-dims) but left the
+  selected tab in the bright yellow, glow and underline that mean *this page is
+  on screen* — a promise a folded row cannot keep. The tab is still selected
+  (unfolding shows that page, and a tab click unfolds straight to it), so it
+  keeps the selected *hue* and loses only the brightness:
   - **text** `--accent-secondary-dim` — the active yellow burning low — with **no
     glow**, and the **underline** dimmed to match;
-  - **not `--text-dim`**: that is the heading's dim, and REQ-6 keeps it out of
+  - **not `--text-dim`**: that is the heading's dim, and REQ-folded-heading-dims keeps it out of
     every tab state, because colour is all that tells an icon-less tab from a
     heading. A dim *yellow* is still unmistakably a tab, and still brighter than
     its unselected siblings in `--text-faint`, so "selected, but hidden" reads at
     a glance;
   - it is the vocabulary the tab **LEDs** already speak: their half-lit state is
-    the same red burning low ([machine-status](machine-status.md) REQ-2). Those
+    the same red burning low ([machine-status](machine-status.md) REQ-a-machine-has-three-states). Those
     LEDs are **untouched** by a fold — no rule reaches `.led` — because they
     report the machine, not the view, and a folded row is exactly where that
     report is still wanted;
   - the rule is `.root:global(.collapsed) > .bar > .tab:global(.active)`: child
-    combinators, for the reason REQ-6 gives, so only the folded row's own tabs
+    combinators, for the reason REQ-folded-heading-dims gives, so only the folded row's own tabs
     dim;
-  - no transition, as REQ-6.
+  - no transition, as REQ-folded-heading-dims.
 
 ## Technical design
 
@@ -188,11 +192,11 @@ yellow heading reads as a control that does nothing when clicked
 SectionTitleOptions:
   text: string        # title-case in source; CSS uppercases it
   icon: IconName      # a UI_ICONS key
-  compact?: boolean   # REQ-5 — text visually hidden at <=1140px
+  compact?: boolean   # REQ-compact-drops-text-not-icon — text visually hidden at <=1140px
 createSectionTitle(opts): HTMLElement   # <span class=root [compact]><svg/><span class=icon-label/></span>
 
 # src/ui/components/tabs.ts
-TabOptions.title?: SectionTitleOptions  # was `string` (equalizer.md REQ-9)
+TabOptions.title?: SectionTitleOptions  # was `string` (equalizer.md REQ-the-eq-section-is-a-folded-tab-container)
 ```
 
 ### Layer touchpoints & ordering
@@ -212,36 +216,36 @@ app.ts buildFx   -> first child of .fxSectionBar, before the collapse toggle
 ## Scenarios (BDD)
 
 ```gherkin
-Scenario: A heading is an icon followed by its text (REQ-1, REQ-3)
+Scenario: A heading is an icon followed by its text (REQ-one-component-draws-every-heading, REQ-heading-is-icon-then-text)
   Given createSectionTitle with text "Equalizer" and icon "sliders"
   Then its first child is an aria-hidden svg.ui-icon and its text is "Equalizer"
 # pinned by: tests/ui/section-title.test.ts
 
-Scenario: The heading is white, undimmed, and no tab borrows the colour (REQ-2)
+Scenario: The heading is white, undimmed, and no tab borrows the colour (REQ-heading-is-white-and-inert)
   Given the section-title and tab stylesheets
   Then .root is coloured var(--text) with no opacity
   And no rule in tabs.module.css is coloured var(--text)
 # pinned by: tests/ui/section-title.test.ts
 
-Scenario: Compact keeps the text for assistive tech (REQ-5)
+Scenario: Compact keeps the text for assistive tech (REQ-compact-drops-text-not-icon)
   Given a compact heading
   Then it carries the compact class and its text is still in the DOM
   And the stylesheet hides it without display:none
 # pinned by: tests/ui/section-title.test.ts
 
-Scenario: The three sections carry their headings (REQ-1, REQ-3, REQ-5)
+Scenario: The three sections carry their headings (REQ-one-component-draws-every-heading, REQ-heading-is-icon-then-text, REQ-compact-drops-text-not-icon)
   Given the app is loaded
   Then the FX bar reads FX with the wave burst, the pattern row MACHINES with the pad
     machine (compact), and the equalizer EQUALIZER with the sliders
 # pinned by: e2e/equalizer.spec.ts
 
-Scenario: The icons line up and the bars match (REQ-4)
+Scenario: The icons line up and the bars match (REQ-heading-icons-share-one-x)
   Given a 1400px-wide viewport, and again a 900px one
   Then the three heading icons' left edges agree within 1px
   And at 1400px the FX bar, the pattern row's bar and the equalizer's bar are the same height within 1px
 # pinned by: e2e/equalizer.spec.ts
 
-Scenario: A folded section's heading dims, and brightens when opened (REQ-6)
+Scenario: A folded section's heading dims, and brightens when opened (REQ-folded-heading-dims)
   Given the equalizer, which ships folded
   Then its heading's computed colour is --text-dim
   When the section is unfolded
@@ -249,7 +253,7 @@ Scenario: A folded section's heading dims, and brightens when opened (REQ-6)
   And the FX heading follows its own fold the same way
 # pinned by: tests/ui/section-title.test.ts, e2e/equalizer.spec.ts
 
-Scenario: A folded section's selected tab dims, its LED does not (v4, REQ-7)
+Scenario: A folded section's selected tab dims, its LED does not (v4, REQ-folded-selected-tab-dims)
   Given the pattern row is open with a machine tab selected
   When the row is folded
   Then that tab's text is --accent-secondary-dim, with no glow
@@ -259,13 +263,13 @@ Scenario: A folded section's selected tab dims, its LED does not (v4, REQ-7)
   Then the tab is --accent-secondary again
 # pinned by: tests/ui/section-title.test.ts, e2e/equalizer.spec.ts
 
-Scenario: No machine tab wraps its label just above the 992px step (v3, REQ-5)
+Scenario: No machine tab wraps its label just above the 992px step (v3, REQ-compact-drops-text-not-icon)
   Given a 1010px-wide viewport, inside the band that used to wrap
   Then every machine tab is one line tall, the same height as the equalizer's tabs
   And the tabs use the smaller type, while at 1080px they use the full size
 # pinned by: e2e/equalizer.spec.ts
 
-Scenario: MACHINES shows its word only where it fits (REQ-5)
+Scenario: MACHINES shows its word only where it fits (REQ-compact-drops-text-not-icon)
   Given a 1280px-wide viewport
   Then the MACHINES text is visible and the pattern row's bar does not overflow
   When the viewport is 1140px wide

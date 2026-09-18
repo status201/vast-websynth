@@ -1,6 +1,6 @@
 // The song core, assembled from the real `src/` modules.
 //
-// `makeTools` takes the core INJECTED (mcp-server.md REQ-5), which is what lets
+// `makeTools` takes the core INJECTED (mcp-server.md REQ-five-song-tools), which is what lets
 // the tool suites run against the actual source rather than the Vite lib bundle
 // — no build step, and a broken export shows up as a failing test instead of a
 // stale `dist/`. This file exists so the two suites that need it

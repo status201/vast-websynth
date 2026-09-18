@@ -6,7 +6,7 @@ import {
 
 /**
  * One case per row of the gesture inventory in `specs/features/scope.md`,
- * plus the REQ-21 listener-hygiene contract.
+ * plus the REQ-the-resize-obeys-the-cost-contract listener-hygiene contract.
  */
 
 /** jsdom runs rAF on a real timer; capture the queue so writes flush on demand. */
@@ -134,7 +134,7 @@ describe('ResizeHandle — drag', () => {
     window.dispatchEvent(pointer('pointermove', 490));
     window.dispatchEvent(pointer('pointermove', 480));
     window.dispatchEvent(pointer('pointermove', 470));
-    expect(h.raf.pending).toBe(1); // REQ-21: one write per frame, not per event
+    expect(h.raf.pending).toBe(1); // REQ-the-resize-obeys-the-cost-contract: one write per frame, not per event
     h.raf.flush();
     expect(h.handle.value).toBe(SCOPE_H_DEFAULT + 30);
   });
@@ -274,7 +274,7 @@ describe('ResizeHandle — keyboard', () => {
 });
 
 // Scenario: Pressing the handle never resets the spectrum peak-hold (regression)
-describe('ResizeHandle — sibling of the canvas (scope REQ-13)', () => {
+describe('ResizeHandle — sibling of the canvas (scope REQ-clicking-the-graph-resets-the-peak)', () => {
   it('a stroke on the handle never reaches a sibling canvas click listener', () => {
     const raf = stubRaf();
     // Mirrors .scopeWrap: canvas and handle are siblings, not parent and child.
@@ -312,7 +312,7 @@ describe('ResizeHandle — sibling of the canvas (scope REQ-13)', () => {
   });
 });
 
-// REQ-21: global listeners exist only for the duration of a gesture
+// REQ-the-resize-obeys-the-cost-contract: global listeners exist only for the duration of a gesture
 describe('ResizeHandle — listener hygiene', () => {
   let added: string[];
   let removed: string[];

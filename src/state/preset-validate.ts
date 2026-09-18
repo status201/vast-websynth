@@ -7,7 +7,7 @@ import { MAX_ERRORS, isObject, describeValue, type AddError } from './validate-u
  * The preset/bank **file format** and its validator —
  * `specs/features/preset-authoring.md`. Sibling of `song-validate.ts`, and pure
  * for the same reasons: no `localStorage`, no DOM, so the MCP server's Node
- * bundle can serve it (mcp-server.md REQ-4) and every rule is unit-testable.
+ * bundle can serve it (mcp-server.md REQ-song-core-entry-exports-only-pure-code) and every rule is unit-testable.
  *
  * Two layers, and the difference matters:
  *
@@ -20,7 +20,7 @@ import { MAX_ERRORS, isObject, describeValue, type AddError } from './validate-u
  *   contract: an agent writing a sound wants "osc1.shape is not a parameter"
  *   now, not a silently-clamped patch later.
  *
- * Both callers pass a bus, and they want opposite severities (REQ-8): the MCP
+ * Both callers pass a bus, and they want opposite severities (REQ-modified-is-computed-not-tracked): the MCP
  * tools take the semantic findings as **errors** — an author wants the file
  * refused until it says what they meant — while `parsePresetPayload`
  * (preset-file.ts) asks for **warnings**, because the importer already has the
@@ -59,7 +59,7 @@ export type PresetParse =
     }
   | { ok: false; errors: string[] };
 
-/** How a caller wants the findings that need the registry reported (REQ-8). */
+/** How a caller wants the findings that need the registry reported (REQ-modified-is-computed-not-tracked). */
 export interface PresetValidateOptions {
   /**
    * An unknown id, an out-of-range value, a fractional choice index.
@@ -74,7 +74,7 @@ export interface PresetValidateOptions {
 /**
  * Where a finding goes. `structural` always refuses the file; `songSetting`
  * always only warns; `semantic` is whichever of the two the caller asked for
- * (REQ-8) — which is the only knob, so it is resolved once, by the entry point.
+ * (REQ-modified-is-computed-not-tracked) — which is the only knob, so it is resolved once, by the entry point.
  */
 interface Sinks {
   structural: AddError;
@@ -129,7 +129,7 @@ function checkSnapshot(
 
 /**
  * Validate a parsed preset or bank payload. Errors say what was *expected*
- * rather than "invalid" (presets.md REQ-11) — these files share the
+ * rather than "invalid" (presets.md REQ-a-malformed-preset-is-refused-with-a-reason) — these files share the
  * `.websynth.json` tail with songs, so a wrong-door mistake is the likely cause
  * and the message should say so.
  */
@@ -145,7 +145,7 @@ export function validatePresetPayload(
   const warnings: string[] = [];
   const add: AddError = (msg) => { if (errors.length < MAX_ERRORS) errors.push(msg); };
   const warn: AddError = (msg) => { if (warnings.length < MAX_ERRORS) warnings.push(msg); };
-  // The one place severity is decided (REQ-8); below here nothing asks again.
+  // The one place severity is decided (REQ-modified-is-computed-not-tracked); below here nothing asks again.
   const sinks: Sinks = {
     structural: add,
     semantic: opts?.semantics === 'warning' ? warn : add,
@@ -213,7 +213,7 @@ export function defaultPatchParams(bus: ParamBus): Snapshot {
  * A sparse authored sound → the **complete** patch it means. Without this, a
  * 10-line authored preset would leave every unmentioned parameter at whatever
  * the previously loaded patch left behind — the same non-determinism the
- * factory presets avoid by always setting the full sound (presets.md REQ-2b).
+ * factory presets avoid by always setting the full sound (presets.md REQ-a-factory-preset-sets-the-full-sound).
  */
 export function expandPresetParams(bus: ParamBus, params: Snapshot): Snapshot {
   return { ...defaultPatchParams(bus), ...params };

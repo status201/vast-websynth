@@ -27,7 +27,7 @@ export class Polyphony {
     this.drift = ctx.createConstantSource();
     this.drift.offset.value = 0;
     this.drift.start();
-    // The 110 ms wander interval only runs while drift > 0 (voicing.md REQ-4);
+    // The 110 ms wander interval only runs while drift > 0 (voicing.md REQ-analogue-drift-is-off-by-default);
     // setDrift owns its lifecycle. Default drift is 0 → no recurring timer.
   }
 
@@ -91,7 +91,7 @@ export class Polyphony {
     for (let i = 0; i < count; i++) {
       const v = this.pickVoice();
       // Taking a voice hands it to this note, so whatever note held it before must
-      // stop claiming it (REQ-9). Without this the old note's entry still names the
+      // stop claiming it (REQ-a-stolen-voice-leaves-the-held-list). Without this the old note's entry still names the
       // voice, and releasing that key sends noteOff to a voice now sounding
       // something else — audible as "let go of one key, a different note stops".
       this.evictVoice(v);
@@ -134,7 +134,7 @@ export class Polyphony {
 
   /**
    * Drop `v` from whatever note currently claims it, and forget a note left with
-   * no voices at all (REQ-9). Upholds the invariant `releaseNote` depends on: a
+   * no voices at all (REQ-a-stolen-voice-leaves-the-held-list). Upholds the invariant `releaseNote` depends on: a
    * voice appears in at most one `heldNotes` entry, so the note a voice is filed
    * under is always the note it is actually sounding.
    *

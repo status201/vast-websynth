@@ -7,7 +7,7 @@ import dialogStyles from '../styles/dialog.module.css';
 import styles from '../styles/export-song-modal.module.css';
 
 /**
- * The Export chooser (project-export.md REQ-4): Song (.json) — the unchanged
+ * The Export chooser (project-export.md REQ-export-modal-offers-song-or-project): Song (.json) — the unchanged
  * default — or Project (.zip, song + sampler audio clips). Built on the shared
  * {@link Modal}. The Project row is disabled with an explanation when no
  * sampler slot has audio loaded; picking Project reveals a local-state WAV/MP3
@@ -25,7 +25,7 @@ export interface ExportSongModalOptions {
   /**
    * When provided, renders a "Copy Link" action (testid `song-share-link`)
    * that copies a shareable URL for the current song (song-share-link.md
-   * REQ-5). Independent of the export-kind rows; does not close the modal.
+   * REQ-export-modal-copies-a-link). Independent of the export-kind rows; does not close the modal.
    */
   makeShareUrl?: () => Promise<string>;
 }
@@ -151,7 +151,7 @@ export function openExportSongModal(opts: ExportSongModalOptions): void {
     mp3Note.style.display = kind === 'project' && fmt === 'mp3' ? '' : 'none';
     if (shareBtn) {
       // A share URL embeds only the song JSON — it can never carry the
-      // project's sampler audio (song-share-link.md REQ-5).
+      // project's sampler audio (song-share-link.md REQ-export-modal-copies-a-link).
       shareBtn.disabled = kind === 'project';
       shareBtn.title = kind === 'project'
         ? "Share links can't include sampler audio — choose Song (.json) to copy a link."

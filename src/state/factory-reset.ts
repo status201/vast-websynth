@@ -18,18 +18,18 @@ import { withTimeout } from '../utils/async';
  * helper is testable under jsdom, where `location.reload` is unimplemented.
  *
  * Sampler clips live in IndexedDB (sample-persistence.md), and the service
- * worker's caches in CacheStorage (REQ-8) — both async, so both are awaited but
+ * worker's caches in CacheStorage (REQ-reset-redownloads-the-offline-copy) — both async, so both are awaited but
  * capped: neither a wedged IndexedDB nor a wedged Cache API can hold the reload
  * hostage.
  */
 
-/** How long the async clip-store wipe may delay the reload (REQ-7). */
+/** How long the async clip-store wipe may delay the reload (REQ-clip-wipe-is-capped-not-unbounded). */
 const CLIP_CLEAR_TIMEOUT_MS = 500;
 
-/** How long "is the server there?" may take before the caches are kept (REQ-9). */
+/** How long "is the server there?" may take before the caches are kept (REQ-reset-never-strands-an-offline-device). */
 const REACHABLE_TIMEOUT_MS = 3000;
 
-/** The whole offline-copy step's cap, probe included (REQ-9). */
+/** The whole offline-copy step's cap, probe included (REQ-reset-never-strands-an-offline-device). */
 const CACHE_STEP_TIMEOUT_MS = 4000;
 
 /** The browser's by default; tests inject both. */
@@ -61,7 +61,7 @@ export async function restoreFactorySettings(
 
 /**
  * Delete the app's caches when that is safe, and say whether the offline copy
- * should come back (REQ-8/REQ-9). With nothing cached there is nothing to probe.
+ * should come back (REQ-reset-redownloads-the-offline-copy/REQ-reset-never-strands-an-offline-device). With nothing cached there is nothing to probe.
  */
 async function clearOfflineCopy(deps: FactoryResetDeps): Promise<{ redownload: boolean }> {
   const browser = browserCacheDeps();

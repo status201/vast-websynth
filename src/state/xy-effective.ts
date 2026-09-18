@@ -4,7 +4,7 @@ import type { XyAssign, XyPadStore } from './xy-pad';
 
 /**
  * The *effective* XY axis assignment: what the motion sequencer is actually
- * driving right now (motion-sequencer.md REQ-4). While `motion.on` is set, the
+ * driving right now (motion-sequencer.md REQ-motion-drives-the-xy-assignment). While `motion.on` is set, the
  * motion play bank's per-bank override wins per axis; otherwise (and for any
  * unset axis) it falls back to the XY Pad's base assignment. The XY Pad window
  * displays/drives THIS, so its labels and dot stay truthful as the chain moves
@@ -27,7 +27,7 @@ interface MotionLaneView {
 
 /**
  * The axes a motion bank drives: its per-bank override wins per axis, each unset
- * axis falls back to the XY Pad's base assignment (REQ-4). Shared by the resolver
+ * axis falls back to the XY Pad's base assignment (REQ-motion-drives-the-xy-assignment). Shared by the resolver
  * below, the machine's bar-line carry gate and the Motion panel's graph — all
  * three must agree on which param a bank's anchors mean.
  */
@@ -42,7 +42,7 @@ export function motionAxesFor(
 
 /**
  * `motionAxesFor` into a caller-owned holder, for the frame loop
- * (runtime-performance.md REQ-6). Same resolution rule, no allocation; the
+ * (runtime-performance.md REQ-no-allocation-in-a-hot-loop). Same resolution rule, no allocation; the
  * returning form above stays the default everywhere a shared mutable holder
  * would be a hazard rather than a saving.
  */
@@ -62,7 +62,7 @@ export function motionAxesInto(
  * `motionAxesFor(patterns, bank, base)` field-by-field against `axes`, without
  * building the intermediate object — the machine asks this twice per frame (once
  * per carry neighbour) and never needs the pair itself
- * (runtime-performance.md REQ-6). Kept beside `motionAxesFor` deliberately: the
+ * (runtime-performance.md REQ-no-allocation-in-a-hot-loop). Kept beside `motionAxesFor` deliberately: the
  * two must resolve overrides the same way, so they have to be read together.
  */
 export function motionAxesMatch(
@@ -83,7 +83,7 @@ export function createEffectiveXy(
 ): EffectiveXy {
   const resolve = (): XyAssign => {
     const base = xy.get();
-    // A muted machine is inactive (motion-sequencer.md REQ-12) — base axes apply.
+    // A muted machine is inactive (motion-sequencer.md REQ-motion-mute-is-an-ordinary-param) — base axes apply.
     if (bus.get('motion.on') < 0.5 || bus.get('motion.mute') >= 0.5) return base;
     return motionAxesFor(patterns, arrangement.motionPlayBank, base);
   };

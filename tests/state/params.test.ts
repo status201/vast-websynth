@@ -102,7 +102,7 @@ describe('ParamBus', () => {
     expect(seen).toEqual(['a']);
   });
 
-  // runtime-performance.md REQ-5 — the audio layer's door to the same
+  // runtime-performance.md REQ-automation-is-not-an-edit — the audio layer's door to the same
   // suppression the bulk applies above use.
   it('withoutChangeSignal withholds onChange but keeps per-param listeners', () => {
     const bus = new ParamBus();
@@ -240,7 +240,7 @@ describe('ParamBus', () => {
     expect(bus.def('drum.t7.vol')).toBeDefined();
   });
 
-  // filter-models.md REQ-1, key-tracking.md REQ-1. All three must default to a
+  // filter-models.md REQ-filter-model-is-a-discrete-param, key-tracking.md REQ-keytrack-defaults-to-no-op. All three must default to a
   // no-op or every existing preset, demo and share link changes sound (ADR-006).
   it('registers the filter model, shape and keytrack as no-ops', () => {
     const bus = new ParamBus();
@@ -275,7 +275,7 @@ describe('ParamBus', () => {
     const bus = new ParamBus();
     registerDefaults(bus);
     const def = bus.def('lfo.dest');
-    // An index here is a stored value in every saved patch (lfo.md REQ-3).
+    // An index here is a stored value in every saved patch (lfo.md REQ-destination-is-one-of-the-labels).
     expect(def?.labels).toEqual(['off', 'cutoff', 'pitch', 'amp', 'pulse', 'pan', 'shape']);
     expect(def?.max).toBe(6);
     bus.set('lfo.dest', 7);
@@ -283,7 +283,7 @@ describe('ParamBus', () => {
   });
 
   // Both LFOs come from one lfoParams(prefix) factory, so "identical to the
-  // first one" is structural (lfo.md REQ-10). This is what pins that: any def
+  // first one" is structural (lfo.md REQ-there-are-two-lfos). This is what pins that: any def
   // that drifts apart fails here rather than in someone's ears.
   it('registers LFO 2 as an exact twin of LFO 1', () => {
     const bus = new ParamBus();
@@ -326,7 +326,7 @@ describe('ParamBus', () => {
     }
   });
 
-  // lfo.md REQ-8. Rate is perceived in octaves, so the knob is exponential: the
+  // lfo.md REQ-lfo-rate-is-exponentially-tapered. Rate is perceived in octaves, so the knob is exponential: the
   // sub-1 Hz region that all the classic PWM/pad movement lives in used to be
   // squeezed into the first ~5% of the travel.
   it('tapers lfo.rate exponentially, so equal turns give equal ratios', () => {
@@ -359,7 +359,7 @@ describe('ParamBus', () => {
 });
 
 /**
- * sampler.md REQ-12, regression.
+ * sampler.md REQ-each-slot-has-a-channel, regression.
  *
  * The per-slot channel was added by copying `drumTrackParams()`, where `vol`
  * defaults to 0.85. A sampler slot has always been unity, so inheriting 0.85 with
@@ -368,7 +368,7 @@ describe('ParamBus', () => {
  * is the compatibility surface (ADR-006); this is the one that was easiest to get
  * wrong, so it is pinned rather than trusted.
  */
-describe('the sampler slot family defaults to a no-op (REQ-12/REQ-13)', () => {
+describe('the sampler slot family defaults to a no-op (REQ-a-closed-hat-cuts-an-open-hat/REQ-every-sounded-hit-is-reported)', () => {
   const NO_OP: Record<string, number> = {
     vol: 1, // NOT the drum machine's 0.85
     pan: 0,

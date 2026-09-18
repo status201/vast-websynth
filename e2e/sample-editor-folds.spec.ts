@@ -2,7 +2,7 @@ import { test, expect, type Page } from '@playwright/test';
 import { gotoAndStart, makeWavBuffer } from './helpers';
 
 /**
- * sample-recorder.md REQ-9 — the Edit Sample modal's three sections are one
+ * sample-recorder.md REQ-every-section-below-the-waveform-folds — the Edit Sample modal's three sections are one
  * shape: a title on the left, a caret on the right, a body the whole header
  * folds, and all three closed on a first open.
  *
@@ -33,7 +33,7 @@ async function openEditor(page: Page): Promise<void> {
 }
 
 test.describe('edit sample — section folds', () => {
-  test('all three sections open folded, and say what they are (REQ-9)', async ({ page }) => {
+  test('all three sections open folded, and say what they are (REQ-a-read-outside-the-source-is-silence)', async ({ page }) => {
     await openEditor(page);
 
     for (const { base, title } of SECTIONS) {
@@ -42,7 +42,7 @@ test.describe('edit sample — section folds', () => {
     }
   });
 
-  test('every title sits at the left, every caret at the right (REQ-9, regression)', async ({ page }) => {
+  test('every title sits at the left, every caret at the right (REQ-a-read-outside-the-source-is-silence, regression)', async ({ page }) => {
     await openEditor(page);
 
     for (const { base, title } of SECTIONS) {
@@ -68,7 +68,7 @@ test.describe('edit sample — section folds', () => {
     }
   });
 
-  test('a header folds its own section and no other (REQ-9)', async ({ page }) => {
+  test('a header folds its own section and no other (REQ-a-read-outside-the-source-is-silence)', async ({ page }) => {
     await openEditor(page);
 
     // Clicked mid-row, between the title and the caret: the whole header is the
@@ -79,7 +79,7 @@ test.describe('edit sample — section folds', () => {
     await expect(page.getByTestId('scratch-body')).toBeHidden();
 
     // One fold carries both rows — they are the same question asked twice
-    // (time-stretch.md REQ-18).
+    // (time-stretch.md REQ-fit-and-shift-share-a-folded-section).
     await expect(page.getByTestId('fit-row')).toBeVisible();
     await expect(page.getByTestId('shift-row')).toBeVisible();
 
@@ -89,7 +89,7 @@ test.describe('edit sample — section folds', () => {
     await expect(page.getByTestId('stretch-body')).toBeHidden();
   });
 
-  test('each section remembers its own fold across a reopen (REQ-9)', async ({ page }) => {
+  test('each section remembers its own fold across a reopen (REQ-a-read-outside-the-source-is-silence)', async ({ page }) => {
     await openEditor(page);
     await page.getByTestId('chop-head').click();
     await expect(page.getByTestId('chop-body')).toBeVisible();

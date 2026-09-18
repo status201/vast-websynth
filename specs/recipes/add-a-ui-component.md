@@ -98,7 +98,7 @@ descendant selectors target children (`className: 'switch-label ' + styles.label
   skip the unchanged ones, each independently. Guarding each write (rather than
   returning early from `render`) keeps the DOM exactly in step with the newest
   value. `Knob.render`, `Scope.mirrorPeak` and `StepButton.setViz` all do this;
-  see [runtime-performance](../features/runtime-performance.md) REQ-7. Prefer
+  see [runtime-performance](../features/runtime-performance.md) REQ-dom-writes-are-guarded-on-what-is-rendered. Prefer
   `transform` over layout-triggering properties (`width`, `top`) for anything
   repainted continuously — `GrMeter` and the step-settings slider fill use
   `scaleX`.

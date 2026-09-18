@@ -11,8 +11,8 @@ import rowStyles from '../styles/export-song-modal.module.css';
 import styles from '../styles/export-audio-modal.module.css';
 
 /**
- * Options for rendering the song to audio (audio-export.md REQ-9), and then the
- * render's own progress surface (REQ-10).
+ * Options for rendering the song to audio (audio-export.md REQ-export-opens-an-options-modal), and then the
+ * render's own progress surface (REQ-the-modal-is-the-renders-own-surface).
  *
  * Confirming deliberately does **not** close it. Export runs in real time — ten
  * runs of a long song is a ten-minute wait — and a dialog that vanishes for that
@@ -39,7 +39,7 @@ function describeSeconds(seconds: number): string {
 export function openExportAudioModal(engine: StudioApi, defaultFormat: ExportFormat): void {
   let fmt: ExportFormat = defaultFormat;
   let runs = 1;
-  let tailBar = true; // checked by default (REQ-3) — humans want the tail
+  let tailBar = true; // checked by default (REQ-the-capture-keeps-a-tail) — humans want the tail
   let running = false;
 
   // The same three AUDIBLE lanes the recorder measures, so the length quoted
@@ -127,7 +127,7 @@ export function openExportAudioModal(engine: StudioApi, defaultFormat: ExportFor
   fmtRow.append(fmtLabel, fmtSel);
   options.appendChild(fmtRow);
 
-  // ---- progress view (REQ-10) ----
+  // ---- progress view (REQ-the-modal-is-the-renders-own-surface) ----
   const progress = document.createElement('div');
   progress.className = styles.progress!;
   progress.hidden = true;
@@ -214,12 +214,12 @@ export function openExportAudioModal(engine: StudioApi, defaultFormat: ExportFor
 
   function render(): void {
     for (const b of fmtBtns) b.classList.toggle('active', b.dataset.testid === `export-audio-fmt-${fmt}`);
-    // The song's own bar, so a 7/8 export is estimated in 7/8 bars (meter.md REQ-7).
+    // The song's own bar, so a 7/8 export is estimated in 7/8 bars (meter.md REQ-bar-exact-capture-follows-bar-ticks).
     const seconds = totalBars() * engine.barTicks * sixteenthS;
     const runsPart = runs > 1 ? `${songBars} bars × ${runs}` : `${songBars} bars`;
     lengthNote.textContent =
       `${runsPart}${tailBar ? ' + 1 tail bar' : ''} — about ${describeSeconds(seconds)}, rendered in real time.`;
-    // The button that writes names the format (REQ-8).
+    // The button that writes names the format (REQ-labels-echo-the-chosen-format).
     confirmBtn.textContent = `Export as ${fmt.toUpperCase()}`;
     confirmBtn.disabled = busyReason !== null;
     confirmBtn.title = busyReason ?? `Render the song and download it as ${fmt.toUpperCase()}`;

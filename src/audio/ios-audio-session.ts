@@ -64,7 +64,7 @@ export class IosAudioSession {
     // never a replacement for — the silent-loop workaround below (Safari <17
     // still needs it). Feature-detected rather than iOS-gated: the API is
     // Safari-only anyway and harmless wherever it appears.
-    // See pwa-install.md REQ-4.
+    // See pwa-install.md REQ-audio-session-type-is-playback.
     if (typeof navigator !== 'undefined' && navigator.audioSession) {
       try {
         navigator.audioSession.type = 'playback';

@@ -64,7 +64,7 @@ describe('attachGridGestures', () => {
     vi.useRealTimers();
   });
 
-  describe('tap (REQ-1)', () => {
+  describe('tap (REQ-tap-toggles-a-step)', () => {
     it('toggles the cell on and selects it', () => {
       grid = mount();
       const cell = grid.cells[0]![0]!;
@@ -101,7 +101,7 @@ describe('attachGridGestures', () => {
     });
   });
 
-  describe('long-press (REQ-3)', () => {
+  describe('long-press (REQ-hold-to-edit-selects-without-toggling)', () => {
     it('selects without toggling — the freak-out regression', () => {
       grid = mount();
       grid.on[0]![2] = true;
@@ -147,7 +147,7 @@ describe('attachGridGestures', () => {
     });
   });
 
-  describe('paint-drag (REQ-4)', () => {
+  describe('paint-drag (REQ-drag-paints-steps)', () => {
     it('fills a run when the stroke starts on a dead cell', () => {
       grid = mount(1, 4);
       down(grid.cells[0]![0]!, 0, 0);

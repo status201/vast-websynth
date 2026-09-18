@@ -15,7 +15,7 @@ export type SamplerStepListener = (step: number) => void;
 /** Click-free cut: ramp the per-hit gain to 0 over CHOKE_FADE, stop just after. */
 const CHOKE_FADE = 0.005;
 /**
- * Attack ramp on a slot's per-hit gain (sampler.md REQ-11).
+ * Attack ramp on a slot's per-hit gain (sampler.md REQ-a-slot-starts-from-zero).
  *
  * User audio is exactly the material we cannot assume anything about: a sample
  * whose first frame is not near zero used to start on a full-scale step, which is
@@ -29,9 +29,9 @@ const SAMPLER_ATTACK = 0.0005;
 const CHOKE_STOP = 0.03;
 
 /**
- * The shortest window a `start`/`end` pair may resolve to (sampler.md REQ-13).
+ * The shortest window a `start`/`end` pair may resolve to (sampler.md REQ-a-hit-plays-a-window-of-the-buffer).
  * A crossed or hairline pair clamps to this instead of dropping the hit — the same
- * choice REQ-11 made for a choke that resolved to zero.
+ * choice REQ-song-lane-titles-navigate made for a choke that resolved to zero.
  */
 const MIN_WINDOW = 0.001;
 
@@ -45,7 +45,7 @@ function resQ(res: number): number {
 }
 
 /**
- * Hits one slot may have in flight at once (sampler.md REQ-15).
+ * Hits one slot may have in flight at once (sampler.md REQ-a-slots-polyphony-is-bounded).
  *
  * A guard rail, not a voicing decision: 16 covers a full second of the densest
  * pattern the grid can express (a 1/16 lane with 4x ratchets is 16 hits a
@@ -56,7 +56,7 @@ const MAX_SLOT_VOICES = 16;
 
 /**
  * A hit still sounding, or still scheduled, carrying the ENVELOPE it was
- * scheduled with (sampler.md REQ-14).
+ * scheduled with (sampler.md REQ-a-slot-can-cut-another-slot).
  *
  * The shape is remembered rather than read back because a choke arriving
  * mid-ramp needs the gain's value at a *future* time, and `cancelAndHoldAtTime`
@@ -94,25 +94,25 @@ function gainAt(h: Hit, when: number): number {
  * instead of a synthesized voice. Reads the sampler bank the Arrangement
  * selects each tick. Decoded buffers live here (not in PatternStore).
  *
- * Each slot carries a channel (vol/pan/tone/res, REQ-12) and a per-hit voice
- * window (pitch/start/end/rev/attack/decay, REQ-13). Every one of those defaults
+ * Each slot carries a channel (vol/pan/tone/res, REQ-drop-in-demos-are-fetched-on-click) and a per-hit voice
+ * window (pitch/start/end/rev/attack/decay, REQ-sync-and-audio-pair-up). Every one of those defaults
  * to a no-op, and `play()` skips their branches entirely at those defaults, so a
  * slot nobody has touched sounds exactly as it did before they existed.
  */
 export class SamplerMachine {
-  /** The channel's volume stage — `sampler.t{i}.vol` (REQ-12). */
+  /** The channel's volume stage — `sampler.t{i}.vol` (REQ-drop-in-demos-are-fetched-on-click). */
   readonly slotGains: GainNode[] = [];
   readonly buffers: (AudioBuffer | null)[] = Array(SAMPLER_SLOT_COUNT).fill(null);
   readonly muted: boolean[] = Array(SAMPLER_SLOT_COUNT).fill(false);
 
-  // ---- Per-slot channel (REQ-12): in -> tone -> vol -> pan -> samplerBus ----
-  /** Unity and inert today. It is the node REQ-14's group choke will cut, and it
+  // ---- Per-slot channel (REQ-drop-in-demos-are-fetched-on-click): in -> tone -> vol -> pan -> samplerBus ----
+  /** Unity and inert today. It is the node REQ-a-load-lands-on-bar-one's group choke will cut, and it
    *  sits *upstream* of the filter so a cut tail cannot ring on through resonance. */
   private readonly slotIn: GainNode[] = [];
   private readonly slotTones: BiquadFilterNode[] = [];
   private readonly slotPans: StereoPannerNode[] = [];
 
-  // ---- Per-slot voice window (REQ-13), read by `play()` at trigger time ----
+  // ---- Per-slot voice window (REQ-sync-and-audio-pair-up), read by `play()` at trigger time ----
   private readonly pitch: number[] = Array(SAMPLER_SLOT_COUNT).fill(0);
   private readonly startF: number[] = Array(SAMPLER_SLOT_COUNT).fill(0);
   private readonly endF: number[] = Array(SAMPLER_SLOT_COUNT).fill(1);
@@ -123,7 +123,7 @@ export class SamplerMachine {
    *  Kept when `rev` goes back off — re-reversing on a live toggle would stall the
    *  main thread mid-song (ADR-018). */
   private readonly revBuffers: (AudioBuffer | null)[] = Array(SAMPLER_SLOT_COUNT).fill(null);
-  /** 0 = no group; slots sharing a group cut each other (REQ-14). */
+  /** 0 = no group; slots sharing a group cut each other (REQ-a-load-lands-on-bar-one). */
   private readonly chokeGroup: number[] = Array(SAMPLER_SLOT_COUNT).fill(0);
   private readonly mono: boolean[] = Array(SAMPLER_SLOT_COUNT).fill(false);
 
@@ -131,9 +131,9 @@ export class SamplerMachine {
   private readonly stepListeners = new ListenerSet<[number]>();
   private readonly bufferListeners = new ListenerSet<[number]>();
   /** Hits still sounding (or still scheduled), so a transport stop can cut them
-   *  (REQ-8). Drums self-terminate; a user sample is any length at all. */
+   *  (REQ-an-imported-file-is-validated-first). Drums self-terminate; a user sample is any length at all. */
   private readonly inFlight = new Set<Hit>();
-  /** This machine's loop length + step rate (meter.md REQ-10/REQ-14). */
+  /** This machine's loop length + step rate (meter.md REQ-each-machine-has-a-loop-length/REQ-each-machine-has-a-step-rate). */
   readonly lane: LaneMeter;
 
   constructor(
@@ -146,7 +146,7 @@ export class SamplerMachine {
   ) {
     this.lane = new LaneMeter(clock, (s) => perf.mapStep(s));
     for (let i = 0; i < SAMPLER_SLOT_COUNT; i++) {
-      // The per-slot channel (REQ-12), shaped like the drum machine's per-track one.
+      // The per-slot channel (REQ-drop-in-demos-are-fetched-on-click), shaped like the drum machine's per-track one.
       // Every node is built at its no-op setting, so a slot that is never touched
       // sounds exactly as it did before the channel existed.
       const input = this.ctx.createGain();
@@ -188,7 +188,7 @@ export class SamplerMachine {
    * A slot's buffer was replaced or cleared. The single hook every slot-filling
    * path funnels through (Load, the record modal, ✎ re-edit, render-to-sampler,
    * project-zip import, load-undo, New) — `SampleAutosave` persists off it
-   * without any caller knowing (sample-persistence.md REQ-2).
+   * without any caller knowing (sample-persistence.md REQ-clip-writes-are-debounced-through-one-hook).
    */
   onBufferChange(fn: (slot: number) => void): () => void {
     return this.bufferListeners.add(fn);
@@ -201,14 +201,14 @@ export class SamplerMachine {
   setBuffer(slot: number, buf: AudioBuffer | null): void {
     if (!this.valid(slot)) return;
     this.buffers[slot] = buf;
-    // The reversed copy belongs to the buffer it was made from (REQ-13). Dropping
+    // The reversed copy belongs to the buffer it was made from (REQ-sync-and-audio-pair-up). Dropping
     // it here — the one convergence point every fill path already goes through
-    // (REQ-6) — is what keeps "reversed" from playing the previous slot's audio.
+    // (REQ-mute-and-solo-share-one-rule) — is what keeps "reversed" from playing the previous slot's audio.
     this.revBuffers[slot] = null;
     this.bufferListeners.emit(slot);
   }
 
-  // ---- Per-slot channel (REQ-12) — ramped, so a knob drag never zippers ----
+  // ---- Per-slot channel (REQ-drop-in-demos-are-fetched-on-click) — ramped, so a knob drag never zippers ----
 
   setSlotVol(slot: number, v: number): void {
     const g = this.slotGains[slot];
@@ -232,7 +232,7 @@ export class SamplerMachine {
     if (f) rampTo(f.Q, resQ(amt), this.ctx, RAMP_MEDIUM);
   }
 
-  // ---- Per-slot voice window (REQ-13) — plain fields, read per hit ----
+  // ---- Per-slot voice window (REQ-sync-and-audio-pair-up) — plain fields, read per hit ----
 
   /** Semitones. Varispeed, so a pitched hit also changes length. */
   setSlotPitch(slot: number, semitones: number): void {
@@ -260,18 +260,18 @@ export class SamplerMachine {
     if (this.valid(slot)) this.decayS[slot] = seconds;
   }
 
-  /** 0 = no group. Two slots sharing a group cut each other (REQ-14). */
+  /** 0 = no group. Two slots sharing a group cut each other (REQ-a-load-lands-on-bar-one). */
   setSlotChokeGroup(slot: number, group: number): void {
     if (this.valid(slot)) this.chokeGroup[slot] = Math.max(0, Math.round(group));
   }
 
-  /** Mono: a slot cuts its own previous hit instead of layering (REQ-14). */
+  /** Mono: a slot cuts its own previous hit instead of layering (REQ-a-load-lands-on-bar-one). */
   setSlotMono(slot: number, on: boolean): void {
     if (this.valid(slot)) this.mono[slot] = on;
   }
 
   /**
-   * Fade one hit out and stop it, scheduled AT `when` (REQ-14).
+   * Fade one hit out and stop it, scheduled AT `when` (REQ-a-load-lands-on-bar-one).
    *
    * Not at `currentTime`: hits are scheduled up to a look-ahead ahead, so cutting
    * at "now" would silence the old hit up to 100 ms before the new one arrives —
@@ -295,7 +295,7 @@ export class SamplerMachine {
     return slot >= 0 && slot < SAMPLER_SLOT_COUNT;
   }
 
-  /** The slot's reversed copy, built on first use (REQ-13). */
+  /** The slot's reversed copy, built on first use (REQ-sync-and-audio-pair-up). */
   private reversedBuffer(slot: number, buf: AudioBuffer): AudioBuffer {
     const cached = this.revBuffers[slot];
     if (cached) return cached;
@@ -316,13 +316,13 @@ export class SamplerMachine {
     const src = this.ctx.createBufferSource();
     const g = this.ctx.createGain();
     const vel = clamp01(velocity);
-    // `when` can be in the past (step-settings.md REQ-9); the choke shifts by the
+    // `when` can be in the past (step-settings.md REQ-an-early-offset-is-capped-in-seconds); the choke shifts by the
     // same delta as the start so a short gate keeps its LENGTH instead of
-    // collapsing — or resolving to 0 and dropping the hit (sampler.md REQ-11).
+    // collapsing — or resolving to 0 and dropping the hit (sampler.md REQ-a-slot-starts-from-zero).
     const t = Math.max(when, this.ctx.currentTime);
     const shift = t - when;
 
-    // ---- The voice window (REQ-13) ----
+    // ---- The voice window (REQ-sync-and-audio-pair-up) ----
     // Every branch below is skipped at the slot's defaults, so an untouched slot
     // takes the pre-v8 path exactly: no rate write, no start offset, no scheduled
     // stop. That is what makes ADR-006's promise here a code path, not a claim.
@@ -350,7 +350,7 @@ export class SamplerMachine {
     src.connect(g).connect(out);
     if (offset > 0) src.start(t, offset); else src.start(t);
 
-    // ---- One cut, at whichever reason comes first (REQ-13) ----
+    // ---- One cut, at whichever reason comes first (REQ-sync-and-audio-pair-up) ----
     // The window's end, the step gate's choke, and the decay's end are all known
     // here, so the shortest is picked BEFORE anything is scheduled. Deciding late
     // would mean re-writing an automation curve already in flight, which needs
@@ -388,7 +388,7 @@ export class SamplerMachine {
       stopAt: hardStop ?? (decayEnd !== undefined ? decayEnd + CHOKE_STOP : Infinity),
     };
 
-    // REQ-14 — resolved BEFORE this hit joins the set, so it never cuts itself.
+    // REQ-a-load-lands-on-bar-one — resolved BEFORE this hit joins the set, so it never cuts itself.
     const group = this.chokeGroup[slot] ?? 0;
     if (group > 0) {
       for (const other of this.inFlight) {
@@ -402,7 +402,7 @@ export class SamplerMachine {
 
     this.inFlight.add(hit);
 
-    // REQ-15 — bounded polyphony. Oldest first: a Set preserves insertion order,
+    // REQ-one-name-two-songs-ask — bounded polyphony. Oldest first: a Set preserves insertion order,
     // and the oldest hit is both nearest its own end and least likely to be the
     // one a listener is following.
     let live = 0;
@@ -421,7 +421,7 @@ export class SamplerMachine {
 
   /**
    * Cut every hit still sounding, with the same short fade the gate choke uses so
-   * the cut never clicks (REQ-8). The fade is on the per-hit gain, upstream of
+   * the cut never clicks (REQ-an-imported-file-is-validated-first). The fade is on the per-hit gain, upstream of
    * `samplerBus`, so the FX tails ring out untouched — Stop silences the source,
    * not the room. A hit still scheduled inside the look-ahead simply never plays.
    *

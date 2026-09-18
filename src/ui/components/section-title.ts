@@ -6,13 +6,13 @@ import styles from '../styles/section-title.module.css';
  *
  * FX, MACHINES and EQUALIZER each had their own idea of a title, and the three
  * disagreed on colour, face and left edge. This is the one place any of that is
- * decided, so they cannot drift apart again (REQ-1).
+ * decided, so they cannot drift apart again (REQ-one-component-draws-every-heading).
  */
 export interface SectionTitleOptions {
   /** Title-case in source; the stylesheet uppercases it. */
   text: string;
   icon: IconName;
-  /** Visually hide the text at <=1140px, keeping the icon (REQ-5). For a bar
+  /** Visually hide the text at <=1140px, keeping the icon (REQ-compact-drops-text-not-icon). For a bar
    *  whose tabs already fill the row. */
   compact?: boolean;
 }

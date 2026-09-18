@@ -32,7 +32,7 @@ and listed **before** the hand-authored built-ins so drop-ins lead the demo butt
 row. No registry edit.
 
 The glob keeps only the **URL** — the song itself is `fetch`ed when the user clicks
-its button, not bundled ([song-mode](../features/song-mode.md) REQ-12). Importing
+its button, not bundled ([song-mode](../features/song-mode.md) REQ-drop-in-demos-are-fetched-on-click). Importing
 the demos eagerly instead put ~835 kB of JSON in every visitor's boot payload to
 load at most one of them. The consequence for *this* recipe is that nothing reads
 your file at build time, so the button label cannot come from the `name` inside it —
@@ -108,13 +108,13 @@ failing, which is what the rule now prevents.
   [pwa-install](../features/pwa-install.md)). A device that saved an offline copy
   gets it anyway: the build lists every file it writes, so a new demo joins
   **Play offline** with no step here ([play-offline](../features/play-offline.md)
-  REQ-2).
+  REQ-the-build-writes-the-file-list).
 - Riffs aim to be *recognisable*, not note-perfect transcriptions.
 - A `.json` demo cannot embed sampler audio — only `sampleNames` persist, so it
   shows the needs-reload hint (see [sampler](../features/sampler.md)). A demo that
   **needs its samples** ships as a `*.websynth.zip` project drop-in instead (also
   auto-registered from `src/state/demos/`, fetched on click via the same `?url`
-  treatment — see [project-export](../features/project-export.md) REQ-7).
+  treatment — see [project-export](../features/project-export.md) REQ-zip-demos-auto-register).
 
 ## Scenarios (BDD)
 

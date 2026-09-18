@@ -1,10 +1,10 @@
-// The Debug panel's late-bound row sources (debug-panel.md REQ-4/REQ-5).
+// The Debug panel's late-bound row sources (debug-panel.md REQ-the-debug-extension-contract/REQ-an-unbound-row-reads-n-a).
 //
 // These live outside the About modal on purpose. `main.ts` binds them at boot,
 // and the modal itself is behind a dynamic import — so if the setters shipped
 // with the panel, that one static edge from `main.ts` would drag all ~39 kB of
 // modal back into the entry chunk and undo the split
-// (runtime-performance.md REQ-1). A leaf module with no imports of its own is
+// (runtime-performance.md REQ-boot-cost-matches-the-request). A leaf module with no imports of its own is
 // the cheapest thing a boot-path binder can reach.
 //
 // The idiom is app.ts's live scope knobs: the owner of the state binds a reader,
@@ -18,7 +18,7 @@ import type { ScopeHealth } from '../ui/components/scope';
 
 /**
  * Bound by `main.ts` to the `SampleAutosave` it owns (sample-persistence.md
- * REQ-12). Unbound in a build where clip persistence never started.
+ * REQ-debug-shows-the-clip-store-size). Unbound in a build where clip persistence never started.
  */
 let clipSource: (() => { count: number; bytes: number }) | null = null;
 export function setClipStatsSource(fn: () => { count: number; bytes: number }): void {
@@ -40,7 +40,7 @@ export function midiStats(): { inputs: number; outputs: number } | undefined {
 }
 
 /**
- * Bound by `app.ts`, which owns the `Scope` (scope.md REQ-38). The one row that
+ * Bound by `app.ts`, which owns the `Scope` (scope.md REQ-the-panel-says-whether-it-is-drawing). The one row that
  * answers "is the panel actually painting?" — this symptom has been reported twice
  * from devices with no console, and both times there was nothing to read.
  */

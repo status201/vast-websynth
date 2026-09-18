@@ -8,7 +8,7 @@
  *
  * The scope's other state (Wave/Spectrum, Mono/Stereo, the peak-hold) stays
  * transient by design — that is *view* state. Height is furniture.
- * See `specs/features/scope.md` REQ-19/REQ-20 → Persistence.
+ * See `specs/features/scope.md` REQ-a-scope-resize-handle/REQ-the-scope-height-persists → Persistence.
  *
  * The value is the height of `.bottom`'s first grid track in px, which the
  * scope and the PITCH/OCT/MOD wheel strips share.

@@ -1,6 +1,6 @@
 /**
  * Generic bounded undo stack with time-window coalescing — the storage half of
- * the pattern undo (`specs/features/pattern-undo.md` REQ-1/REQ-4); pure and
+ * the pattern undo (`specs/features/pattern-undo.md` REQ-four-independent-undo-stacks/REQ-same-target-edits-coalesce); pure and
  * reusable for any inverse-state entry type.
  *
  * Coalescing: a push whose `coalesceKey` matches the previous push's key,

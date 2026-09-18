@@ -15,7 +15,8 @@ import {
 } from '../../src/ui/components/scope';
 
 /**
- * The Spectrum's log frequency axis and its scale (scope.md v13, REQ-26..REQ-31).
+ * The Spectrum's log frequency axis and its scale — scope.md
+ * REQ-the-frequency-axis-is-logarithmic through scope.md REQ-hovering-reads-out-a-frequency.
  *
  * The axis used to be linear in bin index, which put 100/500/1k inside the leftmost
  * 7% of the panel and made the whole "mud" band about five pixels wide — a scale
@@ -24,7 +25,7 @@ import {
  * and the column→bin rule that stops the bass drawing as three flat plateaus.
  */
 
-describe('freqToFrac / fracToFreq — the log mapping (REQ-26)', () => {
+describe('freqToFrac / fracToFreq — the log mapping (REQ-the-frequency-axis-is-logarithmic)', () => {
   it('pins the ends of the range to 0 and 1', () => {
     expect(freqToFrac(SPECTRUM_F_MIN)).toBe(0);
     expect(freqToFrac(SPECTRUM_F_MAX)).toBeCloseTo(1, 10);
@@ -76,7 +77,7 @@ describe('freqToFrac / fracToFreq — the log mapping (REQ-26)', () => {
   });
 });
 
-describe('formatHz / formatHzFull (REQ-28/31)', () => {
+describe('formatHz / formatHzFull (REQ-the-scale-is-a-permanent-ruler/31)', () => {
   it('formats the ruler compactly', () => {
     expect(formatHz(100)).toBe('100');
     expect(formatHz(500)).toBe('500');
@@ -99,7 +100,7 @@ describe('formatHz / formatHzFull (REQ-28/31)', () => {
   });
 });
 
-describe('visibleTicks — the bottom ruler (REQ-28)', () => {
+describe('visibleTicks — the bottom ruler (REQ-the-scale-is-a-permanent-ruler)', () => {
   it('returns every requested marker on a wide plot, in ascending order', () => {
     const ticks = visibleTicks(636);
     expect(ticks.map((t) => t.hz)).toEqual([...SPECTRUM_TICKS_HZ]);
@@ -146,7 +147,7 @@ describe('visibleTicks — the bottom ruler (REQ-28)', () => {
 
   it('spans the whole region — no width is reserved for the Zones button', () => {
     // The ruler runs edge to edge; on a panel narrow enough for the two to meet the
-    // top label goes behind the button, which is the accepted trade (REQ-29).
+    // top label goes behind the button, which is the accepted trade (REQ-a-zones-toggle).
     const regionW = 700;
     const top = visibleTicks(regionW).at(-1)!;
     expect(top.x).toBeCloseTo(freqToFrac(10000) * regionW, 10);
@@ -160,8 +161,8 @@ describe('visibleTicks — the bottom ruler (REQ-28)', () => {
   });
 });
 
-describe('columnBinEdges — the column→bin mapping (REQ-27)', () => {
-  // The three perf tiers (performance-mode.md REQ-12).
+describe('columnBinEdges — the column→bin mapping (REQ-bars-are-drawn-per-pixel-column)', () => {
+  // The three perf tiers (performance-mode.md REQ-analyser-fft-size-follows-the-tier).
   for (const fftSize of [256, 512, 1024]) {
     it(`is monotonic and in range at fftSize ${fftSize}`, () => {
       const sampleRate = 48000;
@@ -202,7 +203,7 @@ describe('columnBinEdges — the column→bin mapping (REQ-27)', () => {
   });
 });
 
-describe('SPECTRUM_ZONES — the problem bands (REQ-29)', () => {
+describe('SPECTRUM_ZONES — the problem bands (REQ-a-zones-toggle)', () => {
   it('names the four bands, ascending and non-overlapping', () => {
     expect(SPECTRUM_ZONES.map((z) => z.name)).toEqual(['MUD', 'BOXY', 'NASAL', 'HARSH']);
     for (let i = 0; i < SPECTRUM_ZONES.length; i++) {
@@ -262,7 +263,7 @@ function mountScope(painter = recordingCtx()) {
   return { scope, painter, tick: (ts = 1000) => { const f = frame; frame = null; f?.(ts); } };
 }
 
-describe('Scope — Zones overlay (REQ-29)', () => {
+describe('Scope — Zones overlay (REQ-a-zones-toggle)', () => {
   afterEach(() => { vi.unstubAllGlobals(); vi.restoreAllMocks(); });
 
   it('defaults off and is mirrored only while Spectrum is showing', () => {
@@ -284,7 +285,7 @@ describe('Scope — Zones overlay (REQ-29)', () => {
   });
 });
 
-describe('Scope — hover cursor (REQ-31)', () => {
+describe('Scope — hover cursor (REQ-hovering-reads-out-a-frequency)', () => {
   afterEach(() => { vi.unstubAllGlobals(); vi.restoreAllMocks(); });
 
   /** jsdom has no PointerEvent; offsetX/Y are what the handler actually reads. */
@@ -350,7 +351,7 @@ describe('Scope — hover cursor (REQ-31)', () => {
   });
 });
 
-describe('Scope — haloed labels (REQ-30)', () => {
+describe('Scope — haloed labels (REQ-every-drawn-string-gets-a-halo)', () => {
   afterEach(() => { vi.unstubAllGlobals(); vi.restoreAllMocks(); });
 
   it('strokes every label before it fills it, so a bright bar cannot swallow it', () => {

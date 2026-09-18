@@ -14,11 +14,11 @@ export const RENDER_FADE_MS = 3;
 
 /**
  * Map the render window (the *second* bar) into the captured stream —
- * render-to-sampler REQ-1/REQ-2/REQ-3. Pure.
+ * render-to-sampler REQ-the-rendered-buffer-has-exact-length/REQ-the-buffer-starts-exactly-on-a-bar/REQ-a-two-pass-loop-bake. Pure.
  *
  * `step0Time` is the scheduled (sample-accurate) audio time of step 0;
  * `firstFrame` the absolute frame index of the capture's first sample
- * (audio-export REQ-6). Swing never moves bar boundaries (the clock's grid
+ * (audio-export REQ-each-chunk-is-frame-tagged). Swing never moves bar boundaries (the clock's grid
  * accumulator is unswung), so the bar length is exact regardless of swing.
  */
 export function bankCropRange(
@@ -39,7 +39,7 @@ export function bankCropRange(
  * play the bank twice, crop bar 2 by frame arithmetic.
  *
  * The controller owns only transport + capture. Engine-state juggling
- * (force seq enabled/audible, disable the seq chain lane — REQ-5) lives in the
+ * (force seq enabled/audible, disable the seq chain lane — REQ-meter-is-two-bus-scalars) lives in the
  * injected `prepare()` closure, which returns its own restore function; it is
  * always restored, success or failure. `blocked()` refuses a render while the
  * song recorder is capturing (both restart the clock).
@@ -48,7 +48,7 @@ export class BankRenderController {
   private rendering = false;
   private unsubTick: (() => void) | null = null;
   private readonly stateListeners = new Set<(rendering: boolean) => void>();
-  /** Bar length in 16th ticks (meter.md REQ-7) — a rendered bar must be the
+  /** Bar length in 16th ticks (meter.md REQ-bar-exact-capture-follows-bar-ticks) — a rendered bar must be the
    *  song's bar, not always 16 steps. The Engine pushes changes here. */
   private barTicks = DEFAULT_BAR_TICKS;
 
@@ -97,14 +97,14 @@ export class BankRenderController {
             if (this.unsubTick) { this.unsubTick(); this.unsubTick = null; }
             this.clock.stop();
             window.setTimeout(() => {
-              // `finish` awaits the recorder's flush (audio-export.md REQ-6b),
+              // `finish` awaits the recorder's flush (audio-export.md REQ-chunks-are-batched-then-flushed),
               // so it settles the promise rather than returning into it.
               this.finish(step0Time, sixteenthS).then(resolve, reject);
             }, RENDER_TAIL_MS);
           }
         });
         // Explicit 0: the crop is frame arithmetic off the absolute `step === 0`,
-        // and a plain start() now resumes from the user's cue (transport.md REQ-7).
+        // and a plain start() now resumes from the user's cue (transport.md REQ-the-cue-is-where-start-begins).
         this.clock.start(0);
       });
     } finally {

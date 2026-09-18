@@ -3,7 +3,7 @@ import { attachChipReorder } from '../../src/ui/components/chip-reorder';
 
 /**
  * The drag rows of the chain-chip gesture inventory
- * (specs/features/arrangement.md REQ-11), one describe per row.
+ * (specs/features/arrangement.md REQ-a-chip-is-dragged-to-its-place), one describe per row.
  *
  * jsdom has no layout: `document.elementFromPoint` returns null, so the
  * controller's `e.target` fallback is what resolves the chip under the pointer
@@ -80,7 +80,7 @@ describe('attachChipReorder', () => {
     vi.useRealTimers();
   });
 
-  describe('drag past the slop reorders (REQ-11)', () => {
+  describe('drag past the slop reorders (REQ-a-chip-is-dragged-to-its-place)', () => {
     it('moves the dragged slot to the gap it was dropped in', () => {
       row = mount();
       // A B C D — carry D to the left half of B.
@@ -121,7 +121,7 @@ describe('attachChipReorder', () => {
     });
   });
 
-  describe('a press under the slop is still a tap (REQ-11)', () => {
+  describe('a press under the slop is still a tap (REQ-a-chip-is-dragged-to-its-place)', () => {
     it('does not reorder', () => {
       row = mount();
       down(row.chips[1]!, midOf(1));
@@ -140,7 +140,7 @@ describe('attachChipReorder', () => {
     });
   });
 
-  describe('a drag never doubles as a selection click (REQ-11)', () => {
+  describe('a drag never doubles as a selection click (REQ-a-chip-is-dragged-to-its-place)', () => {
     it('swallows the click the drop produces', () => {
       row = mount();
       down(row.chips[3]!, midOf(3));
@@ -162,7 +162,7 @@ describe('attachChipReorder', () => {
     });
   });
 
-  describe('a cancelled or stray drop writes nothing (REQ-11)', () => {
+  describe('a cancelled or stray drop writes nothing (REQ-a-chip-is-dragged-to-its-place)', () => {
     it('writes nothing on pointercancel', () => {
       row = mount();
       down(row.chips[3]!, midOf(3));
@@ -189,7 +189,7 @@ describe('attachChipReorder', () => {
     });
   });
 
-  describe('a drag never crosses into another lane (REQ-11)', () => {
+  describe('a drag never crosses into another lane (REQ-a-chip-is-dragged-to-its-place)', () => {
     it('ignores chips belonging to a different controller', () => {
       row = mount();
       extra = mount();

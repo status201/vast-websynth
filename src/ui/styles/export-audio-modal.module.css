@@ -1,4 +1,4 @@
-/* Export-audio modal (audio-export.md REQ-9). The format/runs rows reuse
+/* Export-audio modal (audio-export.md REQ-export-opens-an-options-modal). The format/runs rows reuse
    export-song-modal.module.css's `.fmtRow`/`.fmtLabel`/`.note`; only the
    checkbox row and this body spacing are new. */
 
@@ -30,7 +30,7 @@
   accent-color: var(--accent);
 }
 
-/* ---- the in-flight view (REQ-10) ---- */
+/* ---- the in-flight view (REQ-the-modal-is-the-renders-own-surface) ---- */
 
 .progress {
   display: flex;

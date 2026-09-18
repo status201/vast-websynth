@@ -1,10 +1,10 @@
-// The Keyboard Shortcuts section of the About modal (onboarding.md REQ-17): the
+// The Keyboard Shortcuts section of the About modal (onboarding.md REQ-about-key-symbols-are-drawn): the
 // canonical shortcut table, the keycap/keyboard-diagram DSL that draws it, and
 // the keyboard-layout picker in its header.
 //
 // Split out of about.ts, which had grown five unrelated tenants. This one is
 // self-contained — it renders a reference table and owns no app state — and it
-// rides the lazy About chunk (runtime-performance.md REQ-1), which is also what
+// rides the lazy About chunk (runtime-performance.md REQ-boot-cost-matches-the-request), which is also what
 // keeps `dropdown.ts` and `state/keyboard-layout.ts` off the boot path here.
 import { Modal } from './modal';
 import { createButton } from './button';
@@ -27,24 +27,24 @@ type Token = string | { text: string } | { icon: IconName; name: string };
 const t = (text: string): { text: string } => ({ text });
 
 /**
- * A keycap labelled with an icon (iconography.md REQ-1). `name` is not
+ * A keycap labelled with an icon (iconography.md REQ-a-control-glyph-is-inline-svg). `name` is not
  * decoration: the cap holds no text, so it is the only thing a screen reader
- * has to go on (REQ-3 there).
+ * has to go on (REQ-layout-detection-is-a-hint-not-a-verdict there).
  */
 const k = (icon: IconName, name: string): { icon: IconName; name: string } => ({ icon, name });
 
-/** The two note rows are a keyboard diagram, not a token list (REQ-17c). */
+/** The two note rows are a keyboard diagram, not a token list (REQ-keys-are-drawn-as-keys). */
 const notes = (row: Record<string, number>): { notes: Record<string, number> } => ({ notes: row });
 
 type Combo = Token[] | { notes: Record<string, number> };
 
 /**
- * The canonical on-screen shortcut reference (onboarding.md REQ-17) — it must
+ * The canonical on-screen shortcut reference (onboarding.md REQ-about-key-symbols-are-drawn) — it must
  * name every global key. The first `SHORTCUTS_SHOWN` rows are what a first-time
- * player needs; the rest are folded away behind the section header (REQ-17b),
+ * player needs; the rest are folded away behind the section header (REQ-the-key-list-folds-to-six-rows),
  * so the cut point below is load-bearing, not cosmetic.
  *
- * Combos are token lists so only *keys* are drawn as keys (REQ-17c): in
+ * Combos are token lists so only *keys* are drawn as keys (REQ-keys-are-drawn-as-keys): in
  * `Shift + drag` the cap ends at Shift, which is what stops "drag" reading as
  * keyboard input.
  */
@@ -53,11 +53,11 @@ const SHORTCUTS: Array<[Combo, string]> = [
   [notes(NOTE_ROWS.upper), 'Play notes — upper octave'],
   [[k('arrowLeft', 'Left arrow'), k('arrowRight', 'Right arrow')], 'Shift keyboard octave down / up'],
   // Two rows, not one: the keys are stacked vertically on the board, so the
-  // list stacks them too (input-control.md REQ-12).
+  // list stacks them too (input-control.md REQ-pitch-bend-is-quote-and-slash).
   [["'"], 'Pitch bend up'],
   [['/'], 'Pitch bend down'],
   [['Space'], 'Play / stop transport'],
-  // ---- folded by default; everything above ends at Space (REQ-17b) ----
+  // ---- folded by default; everything above ends at Space (REQ-the-key-list-folds-to-six-rows) ----
   [['Home'], 'Move the playhead to bar 1'],
   [['Shift', t(' + '), k('arrowLeft', 'Left arrow'), k('arrowRight', 'Right arrow')], 'Move the playhead one bar'],
   [['F', t(' (hold)')], 'Drum fill'],
@@ -101,9 +101,9 @@ function iconCap(name: IconName, label: string): HTMLElement {
 
 /**
  * A cap standing for a *physical* key: its label is whatever the active layout
- * prints there (keyboard-layout.md REQ-1). `data-code` is what lets a layout
+ * prints there (keyboard-layout.md REQ-layout-is-a-code-to-character-table). `data-code` is what lets a layout
  * switch relabel it in place — the diagram's structure is the piano's and never
- * varies, so only these text nodes move (onboarding.md REQ-17c).
+ * varies, so only these text nodes move (onboarding.md REQ-keys-are-drawn-as-keys).
  */
 function codeCap(code: string, variant?: 'natural' | 'sharp'): HTMLElement {
   const el = cap(labelFor(code).toUpperCase(), variant);
@@ -119,7 +119,7 @@ function relabelCaps(root: HTMLElement): void {
 }
 
 /** A cap-sized hole. The two note ranks stay aligned because the gaps occupy a
- *  real box, so neither rank needs positioning maths (REQ-17c). */
+ *  real box, so neither rank needs positioning maths (REQ-keys-are-drawn-as-keys). */
 function capBlank(): HTMLElement {
   const el = document.createElement('span');
   el.className = `${styles.cap!} ${styles.capBlank!}`;
@@ -136,7 +136,7 @@ const naturalColumn = (rel: number): number =>
 
 /**
  * The two-row keyboard diagram, derived from the real code→semitone map so it
- * can never disagree with the bindings it documents (REQ-17c). The *labels*
+ * can never disagree with the bindings it documents (REQ-keys-are-drawn-as-keys). The *labels*
  * come from the active layout; the shape never does.
  *
  * Naturals form the lower rank in order; each sharp sits in the gap *after* the
@@ -187,7 +187,7 @@ function comboCell(combo: Combo): HTMLElement {
 
 /**
  * The Keyboard Shortcuts section: a foldable header plus the two-column key
- * grid, cut to `SHORTCUTS_SHOWN` rows by default (onboarding.md REQ-17b).
+ * grid, cut to `SHORTCUTS_SHOWN` rows by default (onboarding.md REQ-the-key-list-folds-to-six-rows).
  *
  * The overflow rows live in the **same** grid as the visible ones and are merely
  * `display: none` — a second grid would size its own columns and the key column
@@ -243,7 +243,7 @@ export function buildShortcuts(): { header: HTMLElement; row: HTMLElement; keys:
   header.appendChild(toggle.el);
 
   // Subscribed rather than wired to the picker's own change, so the diagram
-  // also follows a layout settled by detection (keyboard-layout.md REQ-4) —
+  // also follows a layout settled by detection (keyboard-layout.md REQ-layout-change-needs-no-reload) —
   // whatever moved it, the caps follow.
   onLayoutChange(() => relabelCaps(keys));
 

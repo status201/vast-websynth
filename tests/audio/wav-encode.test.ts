@@ -82,7 +82,7 @@ describe('encodeMp3', () => {
     expect(blob.type).toBe('audio/mpeg');
     expect(blob.size).toBeGreaterThan(0);
 
-    // Pin the bitrate (audio-export.md REQ-5): find the first frame sync
+    // Pin the bitrate (audio-export.md REQ-encoding-needs-no-audio-context): find the first frame sync
     // (11 set bits), then read the bitrate index from the header's third
     // byte — MPEG-1 Layer III index 0xB = 192 kbps.
     const bytes = new Uint8Array(await blob.arrayBuffer());

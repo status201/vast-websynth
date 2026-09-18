@@ -3,10 +3,10 @@
 ```yaml
 id: tempo-lock
 status: implemented
-version: 3   # v2: REQ-10 — the glyph hangs in a left gutter, out of flow. Inline
+version: 3   # v2: REQ-the-lock-glyph-hangs-out-of-flow — the glyph hangs in a left gutter, out of flow. Inline
              #     it wrapped the label at the machine tabs' 22px knobs and
              #     dropped that knob's dial below its neighbours'.
-             # v3: REQ-10 — that gutter is now opt-in (machine tabs only). Being
+             # v3: REQ-the-lock-glyph-hangs-out-of-flow — that gutter is now opt-in (machine tabs only). Being
              #     out of flow, the glyph never needed one on the surfaces where
              #     the lockable knob leads its row; reserving it there pushed the
              #     knob off the centre its neighbours share.
@@ -14,9 +14,9 @@ owner: core
 related:
   - architecture
   - tempo-sync-help     # the same division table, advisory; this is the real lock
-  - lfo                 # REQ-9 shipped the first lock; this supersedes its UI
+  - lfo                 # REQ-locking-moves-nothing-on-the-faceplate shipped the first lock; this supersedes its UI
   - effects             # the wah / phaser / delay rates this extends it to
-  - dropdown            # the division menu, incl. REQ-10 disabled options
+  - dropdown            # the division menu, incl. REQ-the-lock-glyph-hangs-out-of-flow disabled options
   - knob-soft-ceiling   # the other per-knob disclosure device; not interchangeable
   - fx-group            # a consuming surface (drum/sampler header FX)
   - testids
@@ -28,7 +28,7 @@ source:
   - src/ui/components/knob.ts           # self-wires the lock, like modDepthDeps
   - src/ui/styles/tempo-lock.module.css
   - src/ui/styles/knob.module.css       # .hasLock — the gutter, off by default
-  - src/ui/styles/fx-group.module.css   # the one surface that opts in (REQ-10)
+  - src/ui/styles/fx-group.module.css   # the one surface that opts in (REQ-the-lock-glyph-hangs-out-of-flow)
 ```
 
 A **tempo lock** is a per-knob toggle that takes a rate or a time off the knob
@@ -43,7 +43,7 @@ spec owns *how* locking behaves.
 
 ## Background / Why
 
-[lfo](lfo.md) REQ-9 gave `lfo.rate` a tempo lock via `lfo.sync`, a discrete param
+[lfo](lfo.md) REQ-lfo-sync-locks-rate-to-tempo gave `lfo.rate` a tempo lock via `lfo.sync`, a discrete param
 whose index 0 is `free`. Nothing else got one. `fx.wah.rate`, `fx.phaser.rate`
 (three bus variants) and `fx.delay.time` (three bus variants) stayed linear,
 free-valued and blind to `transport.bpm` — so a patch dialled in at 120 BPM falls
@@ -57,11 +57,11 @@ What blocked it was **space**, not audio. The LFO's answer was a full-width
 knob to say "not you". Replicated per effect that costs a row each, and the synth
 FX rack has none to give: it is a six-column grid whose panels bottom out at
 ~220 px of content per effect, and the Phaser's four knobs already spend all of
-it ([responsive-synth-panels](responsive-synth-panels.md) REQ-8, which exists
+it ([responsive-synth-panels](responsive-synth-panels.md) REQ-fx-panels-fit-their-knob-run, which exists
 because that margin went to zero). A control that only
 appears when it is in use, inside a footprint that already exists, is the only
 shape that fits — and it happens to be the shape 40 years of hardware and
-plug-ins already use (see REQ-2's precedent).
+plug-ins already use (see REQ-the-lock-is-a-note-glyph's precedent).
 
 The LFO's own dim-in-place treatment is therefore **superseded** here, not
 extended. That was the right call for a picker two rows away — the knob had to
@@ -71,8 +71,9 @@ thing, one of them inert.
 
 ## Requirements
 
-- **REQ-1** — **A lockable param is declared in one table, and the `Knob`
-  self-wires from it.** `TEMPO_LOCKS` (`src/state/tempo-lock.ts`) maps a param id
+- **REQ-one-table-declares-lockable-params** — **A lockable param is declared in
+  one table, and the `Knob` self-wires from it.** `TEMPO_LOCKS`
+  (`src/state/tempo-lock.ts`) maps a param id
   to its `TempoQuantity` (`'freq'` | `'time'`); `tempoLockFor(id)` returns that or
   `undefined`. A `Knob` looks its own param up and builds the lock only on a hit —
   the same self-wiring shape it already uses for `modDepthDeps`
@@ -86,13 +87,13 @@ thing, one of them inert.
     same control or the table is wrong.
   - A knob on a param that is not in the table builds **no extra node** and takes
     **no extra subscription** — the lazy discipline `.dead` and `.modArc` already
-    follow ([knob-soft-ceiling](knob-soft-ceiling.md) REQ-5).
-- **REQ-2** — **The lock is a note glyph on the knob's label line**, left of the
-  label text (see REQ-10 for how it is placed), carrying the global `on` class
-  while locked. It is a
-  `<button type="button">` with `aria-pressed`, a `title` naming the gesture, and
-  an `aria-hidden` inline SVG glyph (local to the component, as `dropdown.ts`
-  keeps its magnifier local).
+    follow ([knob-soft-ceiling](knob-soft-ceiling.md) REQ-capped-region-is-marked).
+- **REQ-the-lock-is-a-note-glyph** — **The lock is a note glyph on the knob's
+  label line**, left of the label text (see REQ-the-lock-glyph-hangs-out-of-flow
+  for how it is placed), carrying the global `on` class while locked. It is a
+  `<button type="button">` with `aria-pressed`, a `title` naming the gesture,
+  and an `aria-hidden` inline SVG glyph (local to the component, as
+  `dropdown.ts` keeps its magnifier local).
   - **Not a padlock.** "Lock" already means *parameter lock* in synth vocabulary
     (Elektron p-locks); a padlock here would read as "freeze this value", which is
     close enough to the truth to be misleading and far enough to be wrong.
@@ -105,11 +106,12 @@ thing, one of them inert.
     Ableton's Delay, Soundtoys EchoBoy, FabFilter Timeless — swaps a time knob's
     continuous readout for a note division. This borrows the behaviour and keeps
     the glyph, because the word does not fit the space this one has.
-- **REQ-3** — **Locked, the division replaces the dial; the readout keeps telling
-  the truth.** The `.dial` is hidden (`display: none`) and a chip takes its place
-  as a **sibling**, never a child — the knob's drag listener lives on `.dial`, so
-  a chip inside it would start a drag. The chip is the `Dropdown` toggle: tapping
-  it opens the division menu.
+- **REQ-locked-the-division-replaces-the-dial** — **Locked, the division
+  replaces the dial; the readout keeps telling the truth.** The `.dial` is
+  hidden (`display: none`) and a chip takes its place as a **sibling**, never a
+  child — the knob's drag listener lives on `.dial`, so a chip inside it would
+  start a drag. The chip is the `Dropdown` toggle: tapping it opens the division
+  menu.
   - The knob's `.num` readout shows the **derived** value — `2.67Hz`, `375ms` —
     formatted through the param's own `format`, so the musical division and the
     real number are visible at once and the user never has to do the arithmetic
@@ -119,65 +121,73 @@ thing, one of them inert.
     is a size decision, not a style one: `1/16D` is ~24 px, which fits inside the
     30 px box a 22 px knob occupies, so **nothing reflows on lock at any knob
     size**. That is the whole reason this shape was chosen over a visible
-    dropdown, and REQ-9 pins it.
-- **REQ-4** — **The lock is a view of `sync > 0`, not a second param.** There is
-  no new state, nothing extra to persist, and no tri-state:
+    dropdown, and REQ-locking-moves-nothing-on-the-faceplate pins it.
+- **REQ-the-lock-is-a-view-of-sync** — **The lock is a view of `sync > 0`, not a
+  second param.** There is no new state, nothing extra to persist, and no
+  tri-state:
   - Pressing the glyph while free sets `<prefix>.sync` to the division **nearest
     the knob's current value at the current BPM**, compared in **log space**
-    (a rate is heard in octaves — [lfo](lfo.md) REQ-8). Locking therefore does not
+    (a rate is heard in octaves — [lfo](lfo.md) REQ-lfo-rate-is-exponentially-tapered). Locking therefore does not
     jump the sound, which is what makes it safe to try mid-performance.
   - Pressing it while locked sets `<prefix>.sync` back to `0`.
   - The rate/time param itself is **never rewritten** — the rule [lfo](lfo.md)
-    REQ-9 already establishes. Unlocking restores the exact previous sound.
-- **REQ-5** — **The menu lists the 18 divisions and no `free` row.** The glyph is
-  the only way in and out ([ADR-014](../decisions/adr-014-dont-make-me-think.md)
-  law 2: one gesture, one outcome — two controls that both unsync is two answers
-  to one question). The **stored encoding is unchanged**: index 0 still means
-  `free`, `SYNC_LABELS` is still append-only, and every preset, song and share
-  link written before this reads back identically.
-- **REQ-6** — **A division that cannot be reached at the current tempo is greyed,
-  not removed.** `1/1` at 60 BPM is 4 s, past `fx.delay.time`'s 1.5 s maximum. The
-  menu recomputes `Dropdown.setDisabledOptions` from `sweetSpotsInRange(bpm,
-  def.min, def.max, quantity)` on every `transport.bpm` change.
-  - Greyed rather than dropped because [dropdown](dropdown.md) REQ-10 says so, and
+    REQ-lfo-sync-locks-rate-to-tempo already establishes. Unlocking restores the exact previous sound.
+- **REQ-the-lock-menu-lists-divisions-only** — **The menu lists the 18 divisions
+  and no `free` row.** The glyph is the only way in and out
+  ([ADR-014](../decisions/adr-014-dont-make-me-think.md) law 2: one gesture, one
+  outcome — two controls that both unsync is two answers to one question). The
+  **stored encoding is unchanged**: index 0 still means `free`, `SYNC_LABELS` is
+  still append-only, and every preset, song and share link written before this
+  reads back identically.
+- **REQ-an-unreachable-division-is-greyed** — **A division that cannot be
+  reached at the current tempo is greyed, not removed.** `1/1` at 60 BPM is 4 s,
+  past `fx.delay.time`'s 1.5 s maximum. The menu recomputes
+  `Dropdown.setDisabledOptions` from `sweetSpotsInRange(bpm, def.min, def.max,
+  quantity)` on every `transport.bpm` change.
+  - Greyed rather than dropped because [dropdown](dropdown.md) REQ-an-option-can-be-unselectable says so, and
     for the reason it says so: `setOptions` silently rewrites a value that leaves
     the list, and a row that vanishes tells the user nothing.
   - **Nothing is clamped in audio.** The greying is UI-only, so no patch that
     already holds an out-of-range division can change how it sounds — including
     the LFO's, which has always allowed a synced rate past `lfo.rate`'s 20 Hz.
-- **REQ-7** — **Audio resolves the lock in one place.** `bindTempoLocked(bus,
-  valueId, syncId, quantity, apply)` (`src/audio/tempo-bind.ts`) computes
-  `synced(sync, bpm) ?? bus.get(valueId)` and subscribes `valueId`, `syncId` **and
-  `transport.bpm`** — so a locked effect tracks a tempo ramp or an incoming MIDI
-  clock ([midi-clock-sync](midi-clock-sync.md)) without the user touching
-  anything. `LFO.bind` and the Wah/Phaser/Delay `bind`s all route through it, so
-  "what does synced mean" has exactly one definition. The `apply` callback keeps
-  each effect's existing setter and therefore its existing `RAMP_SMOOTH` smoothing
-  ([effects](effects.md) REQ-2b) — this feature changes *what* value is applied,
+- **REQ-audio-resolves-the-lock-in-one-place** — **Audio resolves the lock in
+  one place.** `bindTempoLocked(bus, valueId, syncId, quantity, apply)`
+  (`src/audio/tempo-bind.ts`) computes `synced(sync, bpm) ?? bus.get(valueId)`
+  and subscribes `valueId`, `syncId` **and `transport.bpm`** — so a locked
+  effect tracks a tempo ramp or an incoming MIDI clock
+  ([midi-clock-sync](midi-clock-sync.md)) without the user touching anything.
+  `LFO.bind` and the Wah/Phaser/Delay `bind`s all route through it, so "what
+  does synced mean" has exactly one definition. The `apply` callback keeps each
+  effect's existing setter and therefore its existing `RAMP_SMOOTH` smoothing
+  ([effects](effects.md) REQ-an-effects-own-controls-ramp) — this feature changes *what* value is applied,
   never *how*.
-- **REQ-8** — **Every `<prefix>.sync` defaults to `0` (`free`), an exact no-op**
+- **REQ-sync-defaults-to-free** — **Every `<prefix>.sync` defaults to `0`
+  (`free`), an exact no-op**
   ([ADR-006](../decisions/adr-006-no-op-param-defaults.md)). They are additive
   scalar params, so no `SONG_VERSION` bump
-  ([ADR-007](../decisions/adr-007-songfile-additive-versioning.md)). But a
-  no-op default is not enough on its own: `Presets.apply` is a bare
-  `bus.restore(snap)` with no reset, so **any factory bank that turns one of these
-  effects on must pin its `.sync`** or the value leaks in from the previously
-  loaded patch — [presets](presets.md) REQ-2b, the hole `lfo.sync` fell through
-  once already.
-- **REQ-9** — **Locking must not move anything on the faceplate.** The chip
-  occupies the dial's box and no more; the cell's width is unchanged, locked or
-  free. This is load-bearing rather than cosmetic: the Phaser group's four knobs
-  spend 220 px, and [responsive-synth-panels](responsive-synth-panels.md) REQ-8
-  sizes its rack panel to exactly that and no more — so a chip a few pixels wider
-  than its knob box would overflow the panel, or drop a knob onto a second line
-  on the narrow fallback where `.fxKnobs` still wraps. A space-saving feature
-  would cost space at the exact moment it is used.
+  ([ADR-007](../decisions/adr-007-songfile-additive-versioning.md)). But a no-op
+  default is not enough on its own: `Presets.apply` is a bare
+  `bus.restore(snap)` with no reset, so **any factory bank that turns one of
+  these effects on must pin its `.sync`** or the value leaks in from the
+  previously loaded patch — [presets](presets.md) REQ-a-factory-preset-sets-the-full-sound, the hole `lfo.sync`
+  fell through once already.
+- **REQ-locking-moves-nothing-on-the-faceplate** — **Locking must not move
+  anything on the faceplate.** The chip occupies the dial's box and no more; the
+  cell's width is unchanged, locked or free. This is load-bearing rather than
+  cosmetic: the Phaser group's four knobs spend 220 px, and
+  [responsive-synth-panels](responsive-synth-panels.md)
+  REQ-fx-panels-fit-their-knob-run sizes its rack panel to exactly that and no
+  more — so a chip a few pixels wider than its knob box would overflow the
+  panel, or drop a knob onto a second line on the narrow fallback where
+  `.fxKnobs` still wraps. A space-saving feature would cost space at the exact
+  moment it is used.
 
-- **REQ-10** — (v3) **The glyph is out of flow, hanging to the left of the
-  cell** — `position: absolute; right: 100%` against the label, which owns the
-  positioning context. It costs no layout, so the knob keeps the exact box it
-  would have without a lock, and **no gutter is reserved by default**. A surface
-  that needs one opts in with `--lock-gutter` on the row.
+- **REQ-the-lock-glyph-hangs-out-of-flow** — (v3) **The glyph is out of flow,
+  hanging to the left of the cell** — `position: absolute; right: 100%` against
+  the label, which owns the positioning context. It costs no layout, so the knob
+  keeps the exact box it would have without a lock, and **no gutter is reserved
+  by default**. A surface that needs one opts in with `--lock-gutter` on the
+  row.
   - **Why not inline.** It shipped inline, and it wrapped. A knob cell is
     `--knob-size + 8px`, so the machine tabs' 22 px knobs give a **30 px** cell —
     less than the ~39 px the glyph and `RATE` need side by side. The label took a
@@ -200,7 +210,7 @@ thing, one of them inert.
     misalignment of the panel, not as room for a glyph. A gutter is a fact
     about a *row's* packing, so the row declares it.
   - Where it is reserved, it is **permanent, not lock-dependent** — held whether
-    or not the lock is engaged. REQ-9 holds either way, since the glyph is out
+    or not the lock is engaged. REQ-locking-moves-nothing-on-the-faceplate holds either way, since the glyph is out
     of flow: engaging a lock moves nothing on any surface.
 
 ## Technical design
@@ -249,7 +259,7 @@ TEMPO_LOCKS:
 
 # The sync param each one pairs with — registered in params.ts, one per family.
 <prefix>.sync: { discrete, labels: SYNC_LABELS, range: 0..18, default: 0 }
-#   lfo.sync / lfo2.sync          existing (lfo.md REQ-9), unchanged
+#   lfo.sync / lfo2.sync          existing (lfo.md REQ-lfo-sync-locks-rate-to-tempo), unchanged
 #   fx.wah.sync                   NEW, longhand beside fx.wah.rate
 #   fx.{,drum.,sampler.}phaser.sync  NEW, one line in phaserParams(prefix)
 #   fx.{,drum.,sampler.}delay.sync   NEW, one line in delayParams(prefix)
@@ -258,7 +268,7 @@ TEMPO_LOCKS:
 Six of the seven new params come from the two existing factories, so range,
 default, taper and labels cannot drift between the synth, drum and sampler copies
 — the same structural guarantee `lfoParams(prefix)` gives the two LFOs
-([lfo](lfo.md) REQ-10).
+([lfo](lfo.md) REQ-there-are-two-lfos).
 
 ### Gesture inventory
 
@@ -269,13 +279,13 @@ A `—` is a decision; a blank would be an oversight.
 | --- | --- | --- |
 | Tap the note glyph (free) | Lock to the division nearest the current value | SYNC switch on hardware/plug-in delays |
 | Tap the note glyph (locked) | Unlock; the knob returns to its stored value | Same switch, released |
-| Tap the chip | Open the division menu | It **is** a `Dropdown` toggle ([dropdown](dropdown.md) REQ-1) |
-| Pick a division | Sets `<prefix>.sync`, closes the menu | [dropdown](dropdown.md) REQ-2 |
-| Arrows / Home / End in the menu | Walk the divisions | [dropdown](dropdown.md) REQ-8, unchanged |
-| Escape in the menu | Close, focus returns to the chip | [dropdown](dropdown.md) REQ-3/REQ-6 |
+| Tap the chip | Open the division menu | It **is** a `Dropdown` toggle ([dropdown](dropdown.md) REQ-a-toggle-shows-the-current-value) |
+| Pick a division | Sets `<prefix>.sync`, closes the menu | [dropdown](dropdown.md) REQ-selecting-an-option-closes-the-menu |
+| Arrows / Home / End in the menu | Walk the divisions | [dropdown](dropdown.md) REQ-arrow-keys-move-the-selection, unchanged |
+| Escape in the menu | Close, focus returns to the chip | [dropdown](dropdown.md) REQ-the-menu-closes-on-outside-click/REQ-closing-returns-focus-to-the-toggle |
 | Drag the dial (free) | Sets the value, full range | This knob, unchanged |
 | Drag the dial (locked) | — the dial is not on screen; there is nothing to drag | See below |
-| Double-tap the dial (free) | Reset to baseline ([param-reset-baseline](param-reset-baseline.md) REQ-6) | This knob, unchanged |
+| Double-tap the dial (free) | Reset to baseline ([param-reset-baseline](param-reset-baseline.md) REQ-double-tap-and-reset-share-one-path) | This knob, unchanged |
 | Double-tap the chip | — no reset, no unlock | Double-tap is the dial's gesture; the chip is a menu toggle |
 | Long-press either | — | Nothing is hidden behind a hold here |
 | Hover | — | Law 6: no hover-only affordance |
@@ -362,45 +372,45 @@ Scenario: The chip replaces the dial and the readout stays true
   And the knob's readout reads "375ms"
 # pinned by: tests/ui/tempo-lock.test.ts
 
-Scenario: Unlocking restores the stored value (REQ-4)
+Scenario: Unlocking restores the stored value (REQ-the-lock-is-a-view-of-sync)
   Given a knob locked at 1/8 whose stored fx.wah.rate is 6.8
   When the user taps the glyph again
   Then fx.wah.sync is 0 and the wah runs at 6.8 Hz — the value was never rewritten
 # pinned by: tests/ui/tempo-lock.test.ts, tests/audio/fx-tempo-lock.test.ts
 
-Scenario: Free is the default and changes nothing (REQ-8, ADR-006)
+Scenario: Free is the default and changes nothing (REQ-sync-defaults-to-free, ADR-006)
   Given a preset saved before this feature, with no fx.*.sync keys
   When it is loaded and the tempo changes
   Then every effect keeps the rate its knob sets
 # pinned by: tests/state/preset.test.ts
 
-Scenario: An unreachable division is greyed, not removed (edge, REQ-6)
+Scenario: An unreachable division is greyed, not removed (edge, REQ-an-unreachable-division-is-greyed)
   Given transport.bpm 60, where 1/1 is 4 s and fx.delay.time maxes at 1.5
   When the division menu opens
   Then the "1/1" option is present and disabled
   And the currently selected division is unchanged
 # pinned by: tests/ui/tempo-lock.test.ts
 
-Scenario: A knob on a free-valued param grows nothing (REQ-1)
+Scenario: A knob on a free-valued param grows nothing (REQ-one-table-declares-lockable-params)
   Given a Knob on filter.cutoff, which is not in TEMPO_LOCKS
   Then its DOM holds no lock button and no chip
   And it takes no transport.bpm subscription
 # pinned by: tests/ui/tempo-lock.test.ts
 
-Scenario: A lockable knob lines up with its neighbours (v2, REQ-10, regression)
+Scenario: A lockable knob lines up with its neighbours (v2, REQ-the-lock-glyph-hangs-out-of-flow, regression)
   Given the drum machine's PHASER group, whose knobs are 22px
   When it is engaged
   Then all four knobs share one top edge, one height, and one dial baseline
   And the label of the one carrying a lock is still on a single line
 # pinned by: e2e/fx-tempo-lock.spec.ts
 
-Scenario: Locking never reflows the row (REQ-9)
+Scenario: Locking never reflows the row (REQ-locking-moves-nothing-on-the-faceplate)
   Given the synth Phaser group, four knobs in a wrapping flex row
   When RATE is locked to the widest division label
   Then the group still lays out on one line
 # pinned by: e2e/fx-tempo-lock.spec.ts
 
-Scenario: The help badge sets the division while locked (REQ-5)
+Scenario: The help badge sets the division while locked (REQ-the-lock-menu-lists-divisions-only)
   Given the fx.delay.time sweet-spots badge and a locked Delay
   When the user clicks the "1/8" row
   Then fx.delay.sync becomes 1/8 — not fx.delay.time, which would do nothing
@@ -419,11 +429,11 @@ Scenario: The help badge sets the division while locked (REQ-5)
   [`verify-audio-by-ear`](../recipes/verify-audio-by-ear.md)): `npm run bench:audio`,
   A/B'd against a bypassed baseline with the other lanes muted. Two claims only
   listening settles — a locked delay/phaser/wah lands *on* the grid, and engaging
-  the lock does not audibly jump the effect (REQ-4's nearest-division pick is a
+  the lock does not audibly jump the effect (REQ-the-lock-is-a-view-of-sync's nearest-division pick is a
   perceptual claim, not an arithmetic one).
 - **By eye**: `npm run dev` — lock every one of the nine at 1440 px, at the
   ≤992 px breakpoint (36 px knobs, rack drops to 2 columns) and in the drum and
-  sampler header groups (22 px knobs, the tightest case). REQ-9 fails visibly:
+  sampler header groups (22 px knobs, the tightest case). REQ-locking-moves-nothing-on-the-faceplate fails visibly:
   watch the Phaser group for a wrapped knob.
 
 ## Open questions / future
@@ -433,6 +443,6 @@ Scenario: The help badge sets the division while locked (REQ-5)
   harmless, but silent. Neither surface shows the lock state today.
 - A **global** "lock everything to the grid" gesture is the obvious next ask and
   is deliberately not built: it would need a rule for what each effect's nearest
-  division is, and REQ-4 answers that only per control.
+  division is, and REQ-the-lock-is-a-view-of-sync answers that only per control.
 - `syncedValue` dispatches on `TempoQuantity` at every call. If a third quantity
   ever appears, the table in `tempo.ts` is the place to grow, not this dispatch.

@@ -11,7 +11,7 @@ import { clamp } from '../../utils/math';
 import styles from '../styles/eq.module.css';
 
 /**
- * The drawable EQ curve — `specs/features/equalizer.md` REQ-12/REQ-13/REQ-14.
+ * The drawable EQ curve — `specs/features/equalizer.md` REQ-the-curve-is-drawn-by-dragging/REQ-the-graph-computes-from-bus-values/REQ-the-drawn-curve-is-exact.
  *
  * Two properties are worth stating up front because they are what the component
  * is *for*, and both are easy to lose in a later edit:
@@ -23,7 +23,7 @@ import styles from '../styles/eq.module.css';
  * 2. **It reaches for no audio node.** The response comes from `state/eq.ts`,
  *    the same table the filters are built from, so the drawing needs neither an
  *    `AnalyserNode` nor a `StudioApi` member and the UI/audio separation
- *    (architecture REQ-1, ADR-009) is untouched.
+ *    (architecture REQ-ui-and-audio-never-call-each-other, ADR-009) is untouched.
  *
  * The frequency axis is imported from `Scope` rather than re-derived, so a curve
  * drawn here and a spectrum drawn there put the same Hz at the same x.
@@ -89,7 +89,7 @@ export class EqGraph {
   private dirty = true;
   private rafId = 0;
 
-  /** Drag state. Held only for the duration of a gesture (runtime-performance REQ-3). */
+  /** Drag state. Held only for the duration of a gesture (runtime-performance REQ-global-listeners-live-only-for-a-gesture). */
   private dragging = false;
   private lastBand = -1;
   private lastY = 0;
@@ -103,7 +103,7 @@ export class EqGraph {
   private hoverX = -1;
 
   /** Last value written to `data-eq-curve`, so a repaint that changes nothing
-   *  writes no attribute (runtime-performance REQ-7). */
+   *  writes no attribute (runtime-performance REQ-dom-writes-are-guarded-on-what-is-rendered). */
   private mirroredCurve = '';
 
   constructor(opts: EqGraphOpts) {
@@ -142,7 +142,7 @@ export class EqGraph {
   }
 
   /**
-   * Off-screen means off-duty (runtime-performance REQ-4) — and a folded section
+   * Off-screen means off-duty (runtime-performance REQ-no-work-for-offscreen-dom) — and a folded section
    * counts as off screen. Becoming visible repaints once from current values, so
    * a page revealed after a song load is already correct.
    */
@@ -337,7 +337,7 @@ export class EqGraph {
   private draw(): void {
     // A frame scheduled while visible can still arrive after the page was
     // folded away — `invalidate` guards the scheduling, not the callback. Bail
-    // here too, leaving `dirty` set, so REQ-13's "no work off screen" holds for
+    // here too, leaving `dirty` set, so REQ-the-graph-computes-from-bus-values's "no work off screen" holds for
     // the in-flight frame as well and `setVisible(true)` repaints from current
     // values rather than from whatever was true when the frame was queued.
     if (!this.visible) return;
@@ -457,7 +457,7 @@ export class EqGraph {
     }
   }
 
-  /** Frequency and gain under the cursor, like the Spectrum's (scope.md REQ-31). */
+  /** Frequency and gain under the cursor, like the Spectrum's (scope.md REQ-hovering-reads-out-a-frequency). */
   private drawHover(ctx: CanvasRenderingContext2D, s: EqSettings, h: number): void {
     if (this.hoverX < 0 || this.hoverX > this.cssW) return;
     const hz = fracToFreq(this.hoverX / Math.max(1, this.cssW));
@@ -480,7 +480,7 @@ export class EqGraph {
 
   /**
    * The curve at the eight band centres, mirrored onto the element so E2E can
-   * compare it with a real `BiquadFilterNode` (equalizer.md REQ-14). Written
+   * compare it with a real `BiquadFilterNode` (equalizer.md REQ-the-drawn-curve-is-exact). Written
    * only when it changes — a `data-*` write dirties layout.
    */
   private mirror(s: EqSettings): void {

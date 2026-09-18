@@ -4,7 +4,7 @@ import { MOD_SRC, MOD_DST } from '../../src/state/mod-routing';
 import { LFO_DEST_LABELS } from '../../src/state/params';
 
 /**
- * specs/features/mod-matrix.md REQ-8 — how far modulation can move a knob.
+ * specs/features/mod-matrix.md REQ-depth-is-in-the-destinations-unit — how far modulation can move a knob.
  *
  * Pure, so it is tested against a plain map rather than a bus. The value of the arc is
  * that it agrees with what is *heard*, which means these numbers have to match the
@@ -94,7 +94,7 @@ describe('modDepthFor', () => {
 
   it('uses the LFO own shallower scale for an LFO row', () => {
     // The LFO reaches +-24 semitones where a matrix route reaches +-48 (lfo.md
-    // REQ-13). An arc drawn at the matrix scale would promise twice the sweep.
+    // REQ-duplicated-destinations-sum-and-stay-bounded). An arc drawn at the matrix scale would promise twice the sweep.
     const depth = modDepthFor('filter.cutoff', reader({
       'lfo.dest': LFO_CUTOFF, 'lfo.amount': 1,
     }));
@@ -119,7 +119,7 @@ describe('modDepthFor', () => {
     const depth = modDepthFor('filter.cutoff', reader({
       'lfo2.dest': LFO_CUTOFF, 'lfo2.amount': 0.5, 'master.modWheel': 1,
     }));
-    expect(depth).toBe(12);          // the wheel reaches LFO 1 only (lfo.md REQ-11)
+    expect(depth).toBe(12);          // the wheel reaches LFO 1 only (lfo.md REQ-the-mod-wheel-feeds-lfo-one-only)
   });
 
   it('ignores an LFO destination that owns no knob', () => {
@@ -138,7 +138,7 @@ describe('modDepthFor', () => {
 });
 
 /**
- * REQ-11's second half: where a **main-thread-knowable** source currently has the
+ * REQ-a-modulated-knob-shows-its-reach's second half: where a **main-thread-knowable** source currently has the
  * param. Only the mod wheel qualifies today — see `modOffsetFor`'s own note for why
  * the LFOs, envelopes and random do not.
  */
@@ -195,7 +195,7 @@ describe('modOffsetFor', () => {
   });
 });
 
-/** REQ-13's rule: unanimous, not a sum of signs. */
+/** REQ-the-bands-direction-has-a-colour's rule: unanimous, not a sum of signs. */
 describe('modSignFor', () => {
   it('is negative only when every contributing route is', () => {
     expect(modSignFor('filter.cutoff', reader({

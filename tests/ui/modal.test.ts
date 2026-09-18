@@ -55,7 +55,7 @@ describe('Modal', () => {
   // promise BEFORE close() — so the caller runs while the corpse is still in the
   // document. Answering one dialog and raising another inside that window put two
   // in the DOM, which is what made e2e/song.spec.ts's demo-shadow test flaky:
-  // every dialog testid matched twice. (add-a-modal-dialog.md v4, dialog.md REQ-6)
+  // every dialog testid matched twice. (add-a-modal-dialog.md v4, dialog.md REQ-dialog-testids-are-unambiguous)
   describe('a closing modal never overlaps the one that replaces it', () => {
     it('reaps the fading modal when the next one opens', () => {
       vi.useFakeTimers();

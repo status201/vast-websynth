@@ -9,9 +9,9 @@ import styles from '../styles/progress-bar.module.css';
 export interface ProgressBar {
   /** The track. Show or hide it with `el.hidden`. */
   readonly el: HTMLElement;
-  /** 0…1, clamped; a non-finite ratio counts as 0 (REQ-1). */
+  /** 0…1, clamped; a non-finite ratio counts as 0 (REQ-determinate-announces-value). */
   set(ratio: number): void;
-  /** Stripes over a full bar, and no `aria-valuenow` — no claimed length (REQ-2). */
+  /** Stripes over a full bar, and no `aria-valuenow` — no claimed length (REQ-indeterminate-drops-valuenow). */
   setIndeterminate(on: boolean): void;
 }
 

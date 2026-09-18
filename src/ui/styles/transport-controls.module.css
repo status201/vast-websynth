@@ -14,7 +14,7 @@
 /* Same row inside the floating window — the title bar frames it, so no divider.
    The window is shrink-to-fit (floating-window.module.css sets only a min-width),
    so it needs the cap: without one a 64-bar song would grow the window past the
-   viewport instead of scrolling the timeline inside it (REQ-11). */
+   viewport instead of scrolling the timeline inside it (REQ-the-scrubber-presents-as-a-timeline). */
 .window {
   display: flex;
   align-items: center;
@@ -23,14 +23,14 @@
   max-width: min(90vw, 880px);
 }
 
-/* Play/Pause (transport-window.md REQ-13): wide enough for "Pause", so the row
+/* Play/Pause (transport-window.md REQ-pause-and-stop-are-separate-verbs): wide enough for "Pause", so the row
    does not shift sideways every time the label flips. */
 .playPause {
   min-width: 64px;
   text-align: center;
 }
 
-/* bar.step. Monospaced, NOT `--serif` (REQ-6): Georgia's figures are
+/* bar.step. Monospaced, NOT `--serif` (REQ-the-position-readout-is-bar-dot-step): Georgia's figures are
    proportional old-style with no `tnum`, so tabular-nums bought nothing there
    and the counter shifted sideways on every 16th. */
 .readout {
@@ -43,7 +43,7 @@
   text-align: center;
 }
 
-/* A timeline, not a row of links (REQ-11): a near-black bed — the same recessed
+/* A timeline, not a row of links (REQ-the-scrubber-presents-as-a-timeline): a near-black bed — the same recessed
    inset `#0c0905` the bank bar and segmented controls sit in — whose 2px gaps
    read as the dividers between bars. One line; a long song scrolls (scrollbars
    are themed globally in base.css). `position: relative` makes it the cells'
@@ -96,7 +96,7 @@
   box-shadow: inset 0 0 0 1px rgba(255, 246, 214, 0.45);
 }
 
-/* The loop range (transport-loop.md REQ-12) — a bracket of accent rails top and
+/* The loop range (transport-loop.md REQ-what-the-loop-scrubber-shows) — a bracket of accent rails top and
    bottom rather than a fill, so the `playing` segment keeps reading as the
    playhead when it is inside the loop. Inset shadows, not borders: a border
    would change the cell's box and shift the timeline. No transition, as above. */
@@ -110,7 +110,7 @@
   color: #120a04;
 }
 
-/* Loop on: the cells pick instead of seeking (REQ-2), so the mode is drawn on the
+/* Loop on: the cells pick instead of seeking (REQ-with-loop-on-a-click-picks-a-bar), so the mode is drawn on the
    target itself — a dashed outline says "choose me", not "go here". */
 .picking .bar { cursor: crosshair; }
 .picking .bar:hover { outline: 1px dashed var(--accent); outline-offset: -3px; }
@@ -122,7 +122,7 @@
   color: var(--accent);
 }
 
-/* Loop off with a remembered range (REQ-5): the bracket stays, dimmed. */
+/* Loop off with a remembered range (REQ-turning-loop-off-keeps-the-range): the bracket stays, dimmed. */
 .loopIdle .bar:global(.loop) {
   box-shadow: inset 0 3px 0 rgba(244, 205, 94, 0.3), inset 0 -3px 0 rgba(244, 205, 94, 0.3);
   color: var(--text-dim);
@@ -134,7 +134,7 @@
 }
 
 /* Seeking refused (slaved, or a capture in flight) — say so rather than
-   swallowing the click (transport-position.md REQ-6). */
+   swallowing the click (transport-position.md REQ-seeking-is-refused-in-three-states). */
 .off { opacity: 0.4; }
 .off .bar, .off button { cursor: default; }
 .off .bar:hover { background: rgba(255, 255, 255, 0.04); color: var(--text-dim); }

@@ -15,7 +15,7 @@ export interface KnobOptions {
   /**
    * Soft ceiling in **param units** (10 = 10 Hz, not a fraction): above it the
    * value arc stops filling, so travel the engine does not act on reads as dead
-   * rather than live (knob-soft-ceiling.md REQ-1). Paint only — the drag, the
+   * rather than live (knob-soft-ceiling.md REQ-knob-accepts-a-soft-ceiling). Paint only — the drag, the
    * pointer line and the readout still cover the whole registered range.
    */
   uiMax?: number;
@@ -60,14 +60,14 @@ export class Knob {
   /** The dead-travel marker, built on demand — see `paintDead`. */
   private dead: SVGCircleElement | null = null;
   /**
-   * The tempo lock, on the handful of params that have one (tempo-lock.md REQ-1).
+   * The tempo lock, on the handful of params that have one (tempo-lock.md REQ-one-table-declares-lockable-params).
    * `undefined` for every other knob, which therefore grows no extra node and
    * takes no extra subscription.
    */
   private lock: TempoLock | undefined;
   /**
    * The modulation range arc, built on demand — most knobs never have one, and a
-   * knob nothing modulates must cost nothing (mod-matrix.md REQ-8).
+   * knob nothing modulates must cost nothing (mod-matrix.md REQ-depth-is-in-the-destinations-unit).
    */
   private modArc: SVGCircleElement | null = null;
   /** Reach of the routes pointed here, in **param units**. 0 = no arc. */
@@ -157,7 +157,7 @@ export class Knob {
 
     // Self-wiring, ADR-008 — the same shape as the `modDepthDeps` block below:
     // the knob asks whether its *own* param can be locked to the tempo and grows
-    // the control only if so (tempo-lock.md REQ-1). Almost none can, so almost
+    // the control only if so (tempo-lock.md REQ-one-table-declares-lockable-params). Almost none can, so almost
     // every knob builds nothing here. Before the value subscription, so the very
     // first paint already shows the derived readout.
     const quantity = tempoLockFor(opts.paramId);
@@ -175,7 +175,7 @@ export class Knob {
       this.lock = lock;
       // The glyph hangs in the gutter to the left of the label; the chip is a
       // **sibling** of the dial, never a child — the drag listener lives on the
-      // dial, so a chip inside it would start a drag (tempo-lock.md REQ-3).
+      // dial, so a chip inside it would start a drag (tempo-lock.md REQ-locked-the-division-replaces-the-dial).
       this.el.classList.add(styles.hasLock!);
       label.insertBefore(lock.lock, label.firstChild);
       this.el.insertBefore(lock.chip, this.valueLabel);
@@ -197,7 +197,7 @@ export class Knob {
         this.setModDepth(modDepthFor(opts.paramId, read));
         this.setModOffset(modOffsetFor(opts.paramId, read));
         // The band itself carries the sign, so an inverted route is visible on the
-        // faceplate with the matrix window shut (mod-matrix.md REQ-13).
+        // faceplate with the matrix window shut (mod-matrix.md REQ-the-bands-direction-has-a-colour).
         this.setModSign(modSignFor(opts.paramId, read));
       };
       const unsubs = deps.map((id) => bus.subscribe(id, refresh));
@@ -213,7 +213,7 @@ export class Knob {
    * Paint the dial. Each of the three writes is guarded on what it is about to
    * *write* rather than on the incoming value, so the DOM never lags behind the
    * latest value at the resolution actually rendered (the same discipline as
-   * `Scope.mirrorPeak` and `StepButton.setViz`; runtime-performance.md REQ-7).
+   * `Scope.mirrorPeak` and `StepButton.setViz`; runtime-performance.md REQ-dom-writes-are-guarded-on-what-is-rendered).
    *
    * This matters because a knob is not only dragged: the motion sequencer
    * automates up to four params at frame rate, and a slow sweep re-writes the
@@ -232,9 +232,9 @@ export class Knob {
     }
 
     // The arc — and only the arc — stops at the soft ceiling
-    // (knob-soft-ceiling.md REQ-2). Capping *before* the `lastDash` guard means a
+    // (knob-soft-ceiling.md REQ-soft-ceiling-is-paint-only). Capping *before* the `lastDash` guard means a
     // value moving around above the ceiling writes nothing at all, so a capped
-    // knob is cheaper to automate than an uncapped one, never dearer (REQ-7).
+    // knob is cheaper to automate than an uncapped one, never dearer (REQ-the-sync-core-is-transport-agnostic).
     const dashOn = (this.circumference * SWEEP_DEG) / 360;
     const visible = dashOn * Math.min(norm, this.uiMaxNorm);
     const dash = `${visible.toFixed(ARC_PRECISION)} ${(this.circumference - visible).toFixed(ARC_PRECISION)}`;
@@ -245,7 +245,7 @@ export class Knob {
 
     // While tempo-locked the knob is not what sets the value, so the readout
     // shows the one that is — `2.67Hz`, `375ms` — formatted through the param's
-    // own `format` (tempo-lock.md REQ-3). The dial is off screen in that state,
+    // own `format` (tempo-lock.md REQ-locked-the-division-replaces-the-dial). The dial is off screen in that state,
     // so the arc and pointer above keep tracking the stored value undisturbed.
     const label = this.formatValue(this.lock?.effectiveValue() ?? value);
     if (label !== this.lastLabel) {
@@ -259,7 +259,7 @@ export class Knob {
 
   /**
    * A tick showing where a **main-thread-knowable** source currently has this param —
-   * the mod wheel (mod-matrix.md REQ-11).
+   * the mod wheel (mod-matrix.md REQ-a-modulated-knob-shows-its-reach).
    *
    * The band alone says how far a route *can* move the knob; for a control the player
    * is holding, that reads as nothing happening. This is the one source whose live
@@ -296,7 +296,7 @@ export class Knob {
     return c;
   }
 
-  /** Colour the band and tick by which way the routes push (REQ-13). */
+  /** Colour the band and tick by which way the routes push (REQ-tape-stop-is-gated-while-slaved). */
   setModSign(sign: -1 | 0 | 1): void {
     if (sign === this.modSign) return;
     this.modSign = sign;
@@ -323,7 +323,7 @@ export class Knob {
 
   /**
    * The band modulation can move this knob over: `value ± depth`, drawn behind the
-   * value arc (mod-matrix.md REQ-8).
+   * value arc (mod-matrix.md REQ-depth-is-in-the-destinations-unit).
    *
    * Both ends are converted through the param's own taper rather than offsetting the
    * normalized position, so the arc is honest on a `power`-tapered knob like
@@ -405,13 +405,13 @@ export class Knob {
 
   /**
    * Set (or clear, with `null`) the soft ceiling — the point past which the
-   * value arc stops filling (knob-soft-ceiling.md REQ-4). Given in **param
+   * value arc stops filling (knob-soft-ceiling.md REQ-ceiling-is-settable-later). Given in **param
    * units**, so `setUiMax(10)` on `lfo.rate` caps the arc at 10 Hz.
    *
    * Use this where the ceiling only applies in some states — the LFO RATE knob
    * is capped only while `lfo.dest === pulse`, because that is the only path the
-   * engine clamps (oscillators.md REQ-9). Where a control is inert *entirely*,
-   * `setDisabled` is the right treatment instead (REQ-8): a soft ceiling says
+   * engine clamps (oscillators.md REQ-pwm-rate-is-clamped). Where a control is inert *entirely*,
+   * `setDisabled` is the right treatment instead (REQ-a-sync-section-in-the-song-panel): a soft ceiling says
    * "this part of the travel does nothing", dimming says "none of it does".
    */
   setUiMax(max: number | null): void {
@@ -440,7 +440,7 @@ export class Knob {
 
   /**
    * Draw the dead travel: a dim red arc from the ceiling to the end of the sweep
-   * (knob-soft-ceiling.md REQ-5). Built on demand and inserted *under* the value
+   * (knob-soft-ceiling.md REQ-capped-region-is-marked). Built on demand and inserted *under* the value
    * arc, so a knob with no ceiling carries no extra node.
    *
    * Unlike `.track`/`.value` this arc does not start at the sweep origin, so it
@@ -469,7 +469,7 @@ export class Knob {
   }
 
   /**
-   * Disable input (e.g. the BPM knob while slaved — midi-clock-sync REQ-14):
+   * Disable input (e.g. the BPM knob while slaved — midi-clock-sync REQ-the-bpm-knob-shows-slaved):
    * dims the control and blocks both dragging and the double-tap reset. The bus
    * value still repaints, so the dial keeps reflecting the (external) value.
    */

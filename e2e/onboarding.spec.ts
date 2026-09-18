@@ -86,7 +86,7 @@ test('the ⓘ button toggles the badges and ? replays the tour', async ({ page }
   const tittle = page.locator('[data-testid="info-badges"] svg.hdr-icon .dot');
   await expect(disc).toHaveCSS('fill', 'none');
 
-  // One click on ⓘ switches the badges on (onboarding.md REQ-8).
+  // One click on ⓘ switches the badges on (onboarding.md REQ-the-info-button-is-a-toggle).
   await page.getByTestId('info-badges').click();
 
   // The ⓘ button now reads as active (orange) while the badges show.
@@ -94,7 +94,7 @@ test('the ⓘ button toggles the badges and ? replays the tour', async ({ page }
   await expect(page.getByTestId('info-badges')).toHaveAttribute('aria-pressed', 'true');
 
   // …and the glyph itself becomes a badge — the accent disc and --bg-deep ink
-  // the floating badges use — so the control that hides them wears one (REQ-8b).
+  // the floating badges use — so the control that hides them wears one (REQ-the-glyph-inverts-while-badges-show).
   await expect(disc).toHaveCSS('fill', 'rgb(232, 116, 46)'); // --accent
   await expect(tittle).toHaveCSS('fill', 'rgb(5, 3, 2)'); // --bg-deep
 
@@ -106,7 +106,7 @@ test('the ⓘ button toggles the badges and ? replays the tour', async ({ page }
   await expect(subuniDialog).toBeVisible();
   await subuniDialog.getByRole('button', { name: 'Close' }).click();
 
-  // The header preset selector carries its own badge (onboarding.md REQ-12); its
+  // The header preset selector carries its own badge (onboarding.md REQ-a-presets-topic-anchors-to-the-picker); its
   // copy has to separate a preset (one sound) from a song (the arrangement).
   const presetBadge = page.getByTestId('info-badge-presets');
   await expect(presetBadge).toBeVisible();
@@ -145,7 +145,7 @@ test('the ⓘ button toggles the badges and ? replays the tour', async ({ page }
   await page.getByTestId('fx').click({ position: { x: 20, y: 10 } }); // expand again
   await expect(distBadge).toBeVisible();
 
-  // The Sequencer's Render button (onboarding.md REQ-15): its badge must say why
+  // The Sequencer's Render button (onboarding.md REQ-seq-render-has-a-help-badge): its badge must say why
   // the render plays the bar twice, or the wait reads as a hang. The tab row
   // opens on Arpeggiator, so reveal the Sequencer first — the badge repositions
   // via the pattern-row ResizeObserver.
@@ -159,7 +159,7 @@ test('the ⓘ button toggles the badges and ? replays the tour', async ({ page }
   await renderDialog.getByRole('button', { name: 'Close' }).click();
 
   // The playhead ruler carries a badge on every machine tab (onboarding.md
-  // REQ-16) — one topic id per lane, because a hidden tab's anchor measures 0×0
+  // REQ-the-playhead-ruler-carries-a-badge) — one topic id per lane, because a hidden tab's anchor measures 0×0
   // and takes its badge with it. Check two tabs so the per-lane wiring is real.
   await page.getByTestId('ruler-seq').scrollIntoViewIfNeeded();
   const seqRulerBadge = page.getByTestId('info-badge-transport.ruler.seq');
@@ -174,7 +174,7 @@ test('the ⓘ button toggles the badges and ? replays the tour', async ({ page }
   await expect(page.getByTestId('info-badge-transport.ruler.drum')).toBeVisible();
   await expect(page.getByTestId('info-badge-transport.ruler.seq')).toBeHidden();
 
-  // The Song tab's transport row, badged on its launcher (transport-window REQ-10).
+  // The Song tab's transport row, badged on its launcher (transport-window REQ-the-transport-row-carries-a-help-badge).
   await page.getByTestId('tab-song').click();
   await page.getByTestId('transport-open').scrollIntoViewIfNeeded();
   const transportBadge = page.getByTestId('info-badge-transport.song');
@@ -185,7 +185,7 @@ test('the ⓘ button toggles the badges and ? replays the tour', async ({ page }
   await transportDialog.getByRole('button', { name: 'Close' }).click();
 
   // The Live FX row directly below it, badged the same way — its launcher is
-  // its section title too (live-fx-window REQ-7). The two read as a pair.
+  // its section title too (live-fx-window REQ-live-fx-row-carries-a-help-badge). The two read as a pair.
   await page.getByTestId('livefx-open').scrollIntoViewIfNeeded();
   const fxBadge = page.getByTestId('info-badge-song.fx');
   await expect(fxBadge).toBeVisible();
@@ -215,7 +215,7 @@ test('the ⓘ button toggles the badges and ? replays the tour', async ({ page }
   await expect(exportDialog).toContainText('Save'); // Export copy cross-references Save
   await exportDialog.getByRole('button', { name: 'Close' }).click();
 
-  // The same click switches them back off — one gesture, one outcome (REQ-8).
+  // The same click switches them back off — one gesture, one outcome (REQ-the-info-button-is-a-toggle).
   await page.getByTestId('info-badges').click();
   await expect(arpBadge).toBeHidden();
   await expect(page.getByTestId('info-badges')).not.toHaveClass(/toggleActive/);
@@ -227,7 +227,7 @@ test('the ⓘ button toggles the badges and ? replays the tour', async ({ page }
 });
 
 test('the ⓘ button is a pure toggle and the ? button never touches the badges', async ({ page }) => {
-  // onboarding.md REQ-8/REQ-19: the v13 modifier-click and long-press existed to
+  // onboarding.md REQ-the-info-button-is-a-toggle/REQ-the-info-button-gesture-inventory: the v13 modifier-click and long-press existed to
   // skip a chooser modal that no longer exists, so a plain click is the whole
   // inventory — and the modifier click must be no more than a plain click.
   await page.addInitScript(() => {
@@ -256,7 +256,7 @@ test('the ⓘ button is a pure toggle and the ? button never touches the badges'
   await info.click({ modifiers: ['Shift'] });
   await expect(page.getByTestId('info-badge-layer')).toHaveCount(0);
 
-  // The `?` key is the keyboard route to the same toggle (input-control.md REQ-9).
+  // The `?` key is the keyboard route to the same toggle (input-control.md REQ-question-mark-toggles-the-badges).
   await page.keyboard.press('Shift+Slash');
   await expect(page.getByTestId('info-badge-layer')).toBeVisible();
   await page.keyboard.press('Shift+Slash');
@@ -296,14 +296,14 @@ test('the tour showcases the Song tab and ends there, ready to play', async ({ p
   }
   await expect(done).toBeVisible();
 
-  // The two Song-tab steps sit just before the closing one (REQ-10).
+  // The two Song-tab steps sit just before the closing one (REQ-the-tour-showcases-the-song-tab).
   await page.getByTestId('tour-back').click();
   await expect(callout).toContainText('Perform it live');
   await page.getByTestId('tour-back').click();
   await expect(callout).toContainText('Arrange a full song');
 
   // And before those, the gesture step — on the DRUM grid, so the spotlight
-  // actually moves off the sequencer the preceding step highlights (REQ-13).
+  // actually moves off the sequencer the preceding step highlights (REQ-the-tour-teaches-the-grid-gestures).
   await page.getByTestId('tour-back').click();
   await expect(callout).toContainText('Paint a pattern');
   await expect(page.getByTestId('panel-drums')).toBeVisible();
@@ -342,7 +342,7 @@ test('contextual badges hide when their control scrolls off either edge', async 
   const keysBadge = page.getByTestId('info-badge-keyboard');   // content, page bottom
   await expect(oscBadge).toBeVisible();
   await expect(voicingBadge).toBeVisible();
-  // The other half of the rule (onboarding.md REQ-5b): the keyboard is below the
+  // The other half of the rule (onboarding.md REQ-a-badge-shows-only-where-reachable): the keyboard is below the
   // fold at this height, so its badge is hidden rather than pinned off-screen.
   await expect(keysBadge).toBeHidden();
 

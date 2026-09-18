@@ -12,7 +12,7 @@ export interface LaneMuter {
  * instant), so anything keyed off its hits would go on firing against drums
  * nobody can hear — a ducker pumping to a silent kick. It is told the audibility
  * verdict so it can stop *reporting* while still playing
- * (drum-machine.md REQ-13 v8).
+ * (drum-machine.md REQ-every-sounded-hit-is-reported v8).
  */
 export interface LaneReporter {
   setLaneAudible(on: boolean): void;

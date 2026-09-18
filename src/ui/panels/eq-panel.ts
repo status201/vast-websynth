@@ -21,7 +21,7 @@ import styles from '../styles/eq.module.css';
  * already owns the fold, the persistence key, the LED-before-label and the
  * expand-then-activate click, so this is mostly a wiring file.
  *
- * The one thing worth reading twice is the LED (REQ-10). It is **inert** — the
+ * The one thing worth reading twice is the LED (REQ-the-tour-showcases-the-song-tab). It is **inert** — the
  * component gives it `pointer-events: none` so a tab click always navigates —
  * and the real on/off is the `Switch` inside each page. It carries three states,
  * not two: `muted` means *engaged but flat*, which is otherwise invisible state
@@ -30,7 +30,7 @@ import styles from '../styles/eq.module.css';
 
 interface Lane {
   /** TabContainer id. `eq-`-prefixed so `tab-<id>` cannot shadow the pattern
-   *  row's `tab-seq` / `tab-drums` / `tab-sampler` (REQ-11, testids.md REQ-6). */
+   *  row's `tab-seq` / `tab-drums` / `tab-sampler` (REQ-help-copy-covers-the-gesture-model, testids.md REQ-a-catalogue-id-is-not-renamed-alone). */
   id: string;
   /** Tab label. `.tab` uppercases it, so this is the one place it is title-case. */
   label: string;
@@ -66,11 +66,11 @@ export function buildEqPanel(bus: ParamBus, engine: StudioApi): EqPanel {
   const tabs = new TabContainer(pages, LANES[0]!.id, {
     title: { text: 'Equalizer', icon: 'sliders' },
     // Cancels the shell's own horizontal padding, so the graph can reach the
-    // same x as the scope canvas above it (REQ-18).
+    // same x as the scope canvas above it (REQ-the-live-fx-row-carries-a-badge).
     pageClass: styles.pageShell!,
     collapsibleStoreKey: 'websynth.ui.collapsed.eq',
     // Unconditionally, unlike the pattern row's `isCompact`: this is a tool you
-    // reach for, not a surface you live in (REQ-9).
+    // reach for, not a surface you live in (REQ-help-copy-tells-the-truth).
     collapsedByDefault: () => true,
   });
   tabs.el.dataset.testid = 'eq-section';
@@ -86,7 +86,7 @@ export function buildEqPanel(bus: ParamBus, engine: StudioApi): EqPanel {
   }
 
   // Off-screen means off-duty, and a fold counts as off screen
-  // (runtime-performance REQ-4). `onViewChange` fires on both a tab switch and a
+  // (runtime-performance REQ-no-work-for-offscreen-dom). `onViewChange` fires on both a tab switch and a
   // collapse, which is exactly the pair that decides this.
   const syncVisibility = (): void => {
     for (const lane of LANES) graphs.get(lane.id)?.setVisible(tabs.isVisible(lane.id));
@@ -106,7 +106,7 @@ export function buildEqPanel(bus: ParamBus, engine: StudioApi): EqPanel {
   };
 }
 
-/** The lamp's three states (REQ-10). */
+/** The lamp's three states (REQ-the-tour-showcases-the-song-tab). */
 function eqState(bus: ParamBus, prefix: string): MachineState {
   if (bus.get(`${prefix}.on`) < 0.5) return 'off';
   return eqIsFlat(readEqSettings(bus, prefix)) ? 'muted' : 'on';
@@ -119,7 +119,7 @@ function buildLanePage(
   disposers: Array<() => void>,
   graphs: Map<string, EqGraph>,
 ): HTMLElement {
-  // The page IS the grid (REQ-18): one gutter-wide column of controls, then
+  // The page IS the grid (REQ-the-live-fx-row-carries-a-badge): one gutter-wide column of controls, then
   // the graph. Same `--wheel-col 1fr` the wheels and scope use one row up.
   const page = document.createElement('div');
   page.className = styles.page!;
@@ -130,7 +130,7 @@ function buildLanePage(
   // ON and RESET share the top row; together they just fit the column.
   const switchRow = document.createElement('div');
   switchRow.className = styles.switchRow!;
-  // The only control that switches the EQ on or off (REQ-10). Every control
+  // The only control that switches the EQ on or off (REQ-the-tour-showcases-the-song-tab). Every control
   // built here registers its own teardown, so `destroy()` is the whole truth
   // rather than most of it — `Dropdown` in particular holds *document*-level
   // click and keydown listeners for its whole life, not just while open.
@@ -142,7 +142,7 @@ function buildLanePage(
   presetWrap.className = styles.presetWrap!;
   // `Custom` is a *report*, never a choice: it appears in the list only while it
   // is what the curve is, and `setDisabledOptions` renders it unpickable
-  // (dropdown.md REQ-10). Picking it would have to mean something, and there is
+  // (dropdown.md REQ-an-option-can-be-unselectable). Picking it would have to mean something, and there is
   // nothing for it to mean.
   const preset = new Dropdown([...eqPresetNames(), EQ_PRESET_CUSTOM], eqPresetNames()[0]);
   preset.setDisabledOptions([EQ_PRESET_CUSTOM]);
@@ -177,13 +177,13 @@ function buildLanePage(
   // Size 28 is not a taste call: three knob roots (`knob-size + 8`) plus two
   // 2px gaps must fit the column's ~112px of usable width.
   //
-  // The third knob is labelled Q but bound to `.width` (REQ-4 v3): the value IS
+  // The third knob is labelled Q but bound to `.width` (REQ-callout-placement-adapts v3): the value IS
   // the peaking Q, so up means narrower, and "WIDTH" said that backwards. The id
   // stays because every saved song and preset already names it.
   const knobs = document.createElement('div');
   knobs.className = styles.knobs!;
   // The row, not a knob, anchors the info badge: one topic speaks for all three
-  // (onboarding.md REQ-26), and it must be per lane because only the visible
+  // (onboarding.md REQ-the-equalizer-carries-seven-badges), and it must be per lane because only the visible
   // page's anchor has a box.
   knobs.dataset.help = `eq.knobs.${lane.key}`;
   for (const [suffix, label] of [['hp', 'HP'], ['lp', 'LP'], ['width', 'Q']] as const) {

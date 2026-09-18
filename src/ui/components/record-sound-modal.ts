@@ -97,21 +97,21 @@ export function openRecordSoundModal(engine: StudioApi, opts: RecordSoundOptions
   let lastAction = 'Ready';
   let onPlayingChange: ((playing: boolean) => void) | null = null;
   let redrawHook: (() => void) | null = null;
-  /** Interior chop boundaries, absolute sample indices (sample-chop.md REQ-3). */
+  /** Interior chop boundaries, absolute sample indices (sample-chop.md REQ-two-ways-to-place-the-cuts). */
   let marks: number[] = [];
   /** Re-reads `marks` into the chop row's labels and disabled states. */
   let syncChop: (() => void) | null = null;
   /** Re-reads the selection into the Fit row's target list, hint and disabled
-   *  states (time-stretch.md REQ-9/REQ-10). */
+   *  states (time-stretch.md REQ-the-editor-gains-a-fit-row/REQ-the-fit-row-preselects-the-nearest-target). */
   let syncFit: ((repick?: boolean) => void) | null = null;
   /** Re-reads the selection into the Scratch row's hint, grid and disabled state
-   *  (scratch.md REQ-15). */
+   *  (scratch.md REQ-the-scratch-editor-is-a-modal-section). */
   let syncScratch: ((repick?: boolean) => void) | null = null;
   /** Last-rendered Fit target labels, so a meter change rebuilds the list and a
    *  crop drag does not. */
   let fitLabels = '';
   /** The drawn scratch. Lives exactly as long as the modal does — nothing about
-   *  it is persisted (scratch.md REQ-24). */
+   *  it is persisted (scratch.md REQ-scratch-registers-no-params). */
   let scratch: ScratchCurve = scratchPreset('Baby', 16);
   let scratchGraph: ScratchGraph | null = null;
 
@@ -205,7 +205,7 @@ export function openRecordSoundModal(engine: StudioApi, opts: RecordSoundOptions
     session = null;   // claim it first — a second tap must not stop it twice
     // Await the take BEFORE disposing: `dispose()` releases the recorder, and
     // the worklet's final batch is still in flight until `stop()` resolves
-    // (audio-export.md REQ-6b). Disposing first would truncate every take.
+    // (audio-export.md REQ-chunks-are-batched-then-flushed). Disposing first would truncate every take.
     const captured = await live.stop();
     live.dispose();
     if (captured.left.length === 0) {
@@ -321,9 +321,9 @@ export function openRecordSoundModal(engine: StudioApi, opts: RecordSoundOptions
         }
       }
 
-      // Chop boundaries (sample-chop.md REQ-3). Drawn after the waveform so they
+      // Chop boundaries (sample-chop.md REQ-two-ways-to-place-the-cuts). Drawn after the waveform so they
       // read as cuts THROUGH it, and clipped to the selection because that is the
-      // region they divide (REQ-2).
+      // region they divide (REQ-a-curve-carries-rate-not-position).
       for (const m of marks) {
         if (m <= cropStart || m >= cropEnd) continue;
         const x = xOf(m);
@@ -345,7 +345,7 @@ export function openRecordSoundModal(engine: StudioApi, opts: RecordSoundOptions
 
     /**
      * Audition one clip. Split out of `playSelection` so the scratch row can
-     * preview a render it has NOT committed (scratch.md REQ-23) through the same
+     * preview a render it has NOT committed (scratch.md REQ-preview-plays-without-committing) through the same
      * node lifecycle, playhead loop and Play/Stop button as everything else.
      */
     const playClip = (c: CapturedAudio): void => {
@@ -399,7 +399,7 @@ export function openRecordSoundModal(engine: StudioApi, opts: RecordSoundOptions
     dragHandle(hL, 'start');
     dragHandle(hR, 'end');
 
-    // Dragging a chop boundary (REQ-3). Hit-tested on the canvas rather than given
+    // Dragging a chop boundary (REQ-the-integral-is-closed-form-per-segment). Hit-tested on the canvas rather than given
     // handles of its own: there can be seven of them, and the two crop handles are
     // separate elements that keep priority wherever they overlap.
     const GRAB_PX = 8;
@@ -477,7 +477,7 @@ export function openRecordSoundModal(engine: StudioApi, opts: RecordSoundOptions
      * land on a bar keeps both readings in one control instead of two.
      *
      * This sits above both rows rather than inside Fit's, because
-     * time-stretch.md REQ-9 forbids re-deriving what a bar is and a second
+     * time-stretch.md REQ-the-editor-gains-a-fit-row forbids re-deriving what a bar is and a second
      * derivation for the scratch length would be exactly that. */
     const FIT_TARGETS: readonly number[] = [
       ...Array.from({ length: 32 }, (_, i) => i + 1), 48, MAX_SCRATCH_STEPS,
@@ -554,7 +554,7 @@ export function openRecordSoundModal(engine: StudioApi, opts: RecordSoundOptions
      * Run one destructive edit on the current selection: latch the busy state,
      * label the button with it, snapshot for undo, then hand the result to
      * `afterMutate`. Shared by the effect buttons and by the Fit / Shift rows
-     * (time-stretch.md REQ-9) so all of them inherit the same undo, the same busy
+     * (time-stretch.md REQ-the-editor-gains-a-fit-row) so all of them inherit the same undo, the same busy
      * latch and the same marks reset instead of reimplementing them.
      */
     const runOp = (
@@ -634,7 +634,7 @@ export function openRecordSoundModal(engine: StudioApi, opts: RecordSoundOptions
     body.appendChild(editRow);
 
     // Built before the chop row, which needs to know where a spread would start
-    // to decide how many slices fit (sample-chop.md REQ-5).
+    // to decide how many slices fit (sample-chop.md REQ-no-slice-spreads-into-a-missing-slot).
     const slotOptions = Array.from({ length: SAMPLER_SLOT_COUNT }, (_, i) => {
       const name = engine.patterns.sampleNames[i] ?? null;
       const tag = SAMPLER_SLOT_LABELS[i] ?? `S${i + 1}`;
@@ -646,12 +646,12 @@ export function openRecordSoundModal(engine: StudioApi, opts: RecordSoundOptions
     );
     picker.el.dataset.testid = 'mic-slot-select';
 
-    /* ---- Editor sections (sample-recorder.md REQ-9) ----
+    /* ---- Editor sections (sample-recorder.md REQ-every-section-below-the-waveform-folds) ----
      * Chop, Fit & Shift and Scratch are one shape: a title on the LEFT, the
      * shared caret on the RIGHT, and a body the whole header row folds. One
      * factory rather than three hand-rolled headers, and the header itself is
      * the About modal's (`modal.module.css` .secFold) — a second lookalike fold
-     * in a second modal is how two idioms start (onboarding.md REQ-17b).
+     * in a second modal is how two idioms start (onboarding.md REQ-the-key-list-folds-to-six-rows).
      */
     interface FoldSection {
       /** The whole section — header plus body. Append this to the modal. */
@@ -713,7 +713,7 @@ export function openRecordSoundModal(engine: StudioApi, opts: RecordSoundOptions
 
     const startSlot = (): number => Math.max(0, slotOptions.indexOf(picker.value));
     const slotTag = (i: number): string => SAMPLER_SLOT_LABELS[i] ?? `S${i + 1}`;
-    /** REQ-5 — offer only counts that fit from the picker's slot, so a spread can
+    /** REQ-the-result-is-exactly-out-frames — offer only counts that fit from the picker's slot, so a spread can
      *  never quietly drop the slices it has no room for. */
     const fittingCounts = (): string[] => {
       const room = SAMPLER_SLOT_COUNT - startSlot();
@@ -768,7 +768,7 @@ export function openRecordSoundModal(engine: StudioApi, opts: RecordSoundOptions
       countDd.setOptions(noRoom ? ['—'] : fits);
       const room = SAMPLER_SLOT_COUNT - startSlot();
       const n = marks.length + 1;
-      // REQ-5 has to survive the picker MOVING, not just the moment of chopping.
+      // REQ-the-result-is-exactly-out-frames has to survive the picker MOVING, not just the moment of chopping.
       // Filtering the count list is what stops an over-long chop being made; this
       // is what stops one being made and then aimed at a slot with less room
       // behind it. Refuse rather than quietly re-cut: the user chose this many
@@ -807,7 +807,7 @@ export function openRecordSoundModal(engine: StudioApi, opts: RecordSoundOptions
       const targets = Array.from({ length: n }, (_, k) => start + k);
       const occupied = targets.filter((slot) =>
         engine.patterns.sampleNames[slot] != null || engine.sampler.buffers[slot] != null);
-      // REQ-6 — it overwrites up to eight slots at once, so it names them first.
+      // REQ-pitch-rides-speed — it overwrites up to eight slots at once, so it names them first.
       const ok = await confirmDialog({
         title: `Spread ${n} slices`,
         message: `Slices go to ${slotTag(start)}–${slotTag(start + n - 1)}.`,
@@ -821,7 +821,7 @@ export function openRecordSoundModal(engine: StudioApi, opts: RecordSoundOptions
 
       // Captured BEFORE the writes, and held only by the toast's closure — the
       // pattern-undo stack carries steps, never audio, so this mutation owns its
-      // own reversal exactly as `samplerSlotClearRow` does (REQ-6).
+      // own reversal exactly as `samplerSlotClearRow` does (REQ-pitch-rides-speed).
       const base = baseName();
       const prev = targets.map((slot) => ({
         slot,
@@ -853,7 +853,7 @@ export function openRecordSoundModal(engine: StudioApi, opts: RecordSoundOptions
     chopFold.body.appendChild(chopRow);
     body.appendChild(chopFold.wrap);
 
-    // ---- Fit + Shift (time-stretch.md REQ-9/REQ-10) ----
+    // ---- Fit + Shift (time-stretch.md REQ-the-editor-gains-a-fit-row/REQ-the-fit-row-preselects-the-nearest-target) ----
     // The sixteenth arithmetic these read lives above the chop row, shared with
     // the Scratch section.
 
@@ -936,12 +936,13 @@ export function openRecordSoundModal(engine: StudioApi, opts: RecordSoundOptions
 
     // One fold for both rows: they are the same question asked twice — retime and
     // keep the pitch, or repitch and keep the time — and two folds would make the
-    // user open both to find out which one they wanted (time-stretch.md REQ-18).
+    // user open both to find out which one they wanted (time-stretch.md REQ-fit-and-shift-share-a-folded-section).
     const stretchFold = foldSection('Fit & Shift', 'stretch', () => syncFit?.());
     stretchFold.body.append(fitRow, shiftRow);
     body.appendChild(stretchFold.wrap);
 
-    /* ---- Scratch (scratch.md REQ-15 … REQ-23) ----
+    /* ---- Scratch (scratch.md REQ-the-scratch-editor-is-a-modal-section
+     through scratch.md REQ-preview-plays-without-committing) ----
      * A section rather than a second modal: it edits the same selection, and it
      * applies through the same `runOp`, so undo, the busy latch and the crop
      * reset are inherited rather than reimplemented. The most expensive of the
@@ -984,7 +985,7 @@ export function openRecordSoundModal(engine: StudioApi, opts: RecordSoundOptions
     const presetFor = (label: string): ScratchPresetName =>
       SCRATCH_PRESETS[Math.max(0, PRESET_LABELS.indexOf(label))] ?? 'Baby';
 
-    /** Drop the needle so the gesture reads from inside the sample (REQ-20).
+    /** Drop the needle so the gesture reads from inside the sample (REQ-the-cue-auto-places-from-the-excursion).
      *  Recomputed whenever the shape or the length changes, never stored. */
     const recue = (c: ScratchCurve): ScratchCurve =>
       ({ ...c, cue: autoCue(c, selFrames(), scratchFrames()) });
@@ -1014,7 +1015,7 @@ export function openRecordSoundModal(engine: StudioApi, opts: RecordSoundOptions
     const scratchOf = (src: CapturedAudio): CapturedAudio =>
       renderScratch(src, scratch, scratchFrames());
 
-    /** Render and play without committing (REQ-23) — no `working`, no undo
+    /** Render and play without committing (REQ-preview-plays-without-committing) — no `working`, no undo
      *  snapshot, no button flash. The render is a single pass over a bar of
      *  audio, so it is cheap enough to sit behind a tap. */
     function previewScratch(): void {
@@ -1052,7 +1053,7 @@ export function openRecordSoundModal(engine: StudioApi, opts: RecordSoundOptions
 
     scratchBody.append(graph.el, scratchRow);
     // The fold persists that choice like every other panel in the app — the curve
-    // itself is not persisted (REQ-24).
+    // itself is not persisted (REQ-scratch-registers-no-params).
     body.appendChild(scratchFold.wrap);
 
     lenDd.onChange(() => setScratch(scratch));
@@ -1111,7 +1112,7 @@ export function openRecordSoundModal(engine: StudioApi, opts: RecordSoundOptions
         repick = true;
       }
 
-      // REQ-10 — preselect the target nearest what the selection already is, so
+      // REQ-a-segment-may-be-cut — preselect the target nearest what the selection already is, so
       // the offered action is the one that barely moves the audio. Only on a real
       // change of material: re-picking under a dragging crop handle would fight
       // whatever the user had chosen.
@@ -1149,7 +1150,7 @@ export function openRecordSoundModal(engine: StudioApi, opts: RecordSoundOptions
     shiftDd.onChange(() => syncFit?.());
     syncFit(true);
     // Built last so it sees the Fit row settled, then given the length the
-    // material suggests and a cue placed for it (REQ-20).
+    // material suggests and a cue placed for it (REQ-the-cue-auto-places-from-the-excursion).
     syncScratch(true);
     setScratch(scratch);
 

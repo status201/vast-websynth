@@ -3,8 +3,8 @@
 ```yaml
 id: banks
 status: implemented
-version: 5   # v5: a bank stores 16 cells whatever the meter plays (REQ-7)
-             # v4: the per-bank content dot is specified (REQ-6) — it must count
+version: 5   # v5: a bank stores 16 cells whatever the meter plays (REQ-bank-always-stores-sixteen-cells)
+             # v4: the per-bank content dot is specified (REQ-content-dot-covers-every-lane) — it must count
              #     every lane the machine stores in that bank
 owner: core
 related:
@@ -34,52 +34,55 @@ without the editor and the playhead fighting over one buffer.
 
 ## Requirements
 
-- **REQ-1** — 4 banks per machine; `seq`/`drum`/`sampler`/`motion` getters expose
-  the edit bank; `seqBank(i)`/`drumBank(i)`/`samplerBank(i)`/`motionBank(i)`
-  expose any bank for playback.
-- **REQ-2** — `setSeqEditBank`/`setDrumEditBank`/`setSamplerEditBank` re-emit every
-  step so panels repaint.
-- **REQ-3** — Banks are copyable (`copySeqBank(from, to)` etc.). A copy is
-  undoable: the destination bank's prior contents restore via the per-machine
-  undo (see pattern-undo.md REQ-6).
-- **REQ-4** — Bank indices clamp to `0..BANK_COUNT-1`.
-- **REQ-5** — **Follow** toggle on the `BankBar` (`[Follow] [A|B|C|D] [Copy]`),
-  default **on**. While on, the edit bank tracks the play bank on every
-  play-bank change (so the panel — and its playhead, which shows only when
-  edit bank == play bank — follows the arrangement across banks). Turning it
-  on syncs immediately; a manual click on a bank other than the playing one
-  turns it off (click = editing intent). Session-only UI state, never
-  persisted (not in presets/songs/localStorage). Inverse of
-  [arrangement](arrangement.md) REQ-3 (a *disabled* lane's play bank tracks
-  the edit bank) — Follow is a natural no-op there. `BankBar` exposes the state
-  as `get following` + `onFollowChange(fn)` so the panel can gate its
-  rest overlay on it ([arrangement-rest](arrangement-rest.md) REQ-6 — no
-  overlay while the user is editing), plus a public `setFollowing(on)` so a panel
-  can declare editing intent on the user's behalf: arming the sequencer's Step
-  Input turns Follow **off** ([sequencer](sequencer.md) REQ-6) so the arrangement
-  cannot swap the edit bank mid-take. Same rule, same funnel as a manual bank
-  click — it is not a new state, just a second way to reach it.
-- **REQ-6** (v4) — **Content dot.** Each bank button carries a dot that lights
-  (`filled`) while that bank holds pattern data, so the user can see which of
-  A–D are worth switching to without visiting each one. It is distinct from the
-  red *now-playing* dot: a bank can be filled and not playing, or playing and
-  empty. The predicate `hasContent(i)` must cover **every lane the machine
-  stores in that bank** — the sequencer's four tracks, all drum/sampler rows,
-  and, for motion, the XY anchors **and** both extra A/B tracks
-  ([motion-sequencer](motion-sequencer.md) REQ-13/REQ-16); a lane left out
-  renders a full bank as empty. Correspondingly `onContentChange(fn)` must
+- **REQ-four-banks-per-machine** — 4 banks per machine;
+  `seq`/`drum`/`sampler`/`motion` getters expose the edit bank;
+  `seqBank(i)`/`drumBank(i)`/`samplerBank(i)`/`motionBank(i)` expose any bank
+  for playback.
+- **REQ-set-edit-bank-re-emits-steps** —
+  `setSeqEditBank`/`setDrumEditBank`/`setSamplerEditBank` re-emit every step so
+  panels repaint.
+- **REQ-bank-copy-is-undoable** — Banks are copyable (`copySeqBank(from, to)`
+  etc.). A copy is undoable: the destination bank's prior contents restore via
+  the per-machine undo (see pattern-undo.md REQ-undo-restores-a-copied-bank).
+- **REQ-bank-index-clamps** — Bank indices clamp to `0..BANK_COUNT-1`.
+- **REQ-follow-tracks-the-play-bank** — **Follow** toggle on the `BankBar`
+  (`[Follow] [A|B|C|D] [Copy]`), default **on**. While on, the edit bank tracks
+  the play bank on every play-bank change (so the panel — and its playhead,
+  which shows only when edit bank == play bank — follows the arrangement across
+  banks). Turning it on syncs immediately; a manual click on a bank other than
+  the playing one turns it off (click = editing intent). Session-only UI state,
+  never persisted (not in presets/songs/localStorage). Inverse of
+  [arrangement](arrangement.md) REQ-a-disabled-lane-follows-the-edit-bank (a *disabled* lane's play bank tracks the
+  edit bank) — Follow is a natural no-op there. `BankBar` exposes the state as
+  `get following` + `onFollowChange(fn)` so the panel can gate its rest overlay
+  on it ([arrangement-rest](arrangement-rest.md) REQ-a-resting-machine-tab-shows-it — no overlay while the
+  user is editing), plus a public `setFollowing(on)` so a panel can declare
+  editing intent on the user's behalf: arming the sequencer's Step Input turns
+  Follow **off** ([sequencer](sequencer.md) REQ-a-take-is-bank-pinned) so the arrangement cannot
+  swap the edit bank mid-take. Same rule, same funnel as a manual bank click —
+  it is not a new state, just a second way to reach it.
+- **REQ-content-dot-covers-every-lane** (v4) — **Content dot.** Each bank button
+  carries a dot that lights (`filled`) while that bank holds pattern data, so
+  the user can see which of A–D are worth switching to without visiting each
+  one. It is distinct from the red *now-playing* dot: a bank can be filled and
+  not playing, or playing and empty. The predicate `hasContent(i)` must cover
+  **every lane the machine stores in that bank** — the sequencer's four tracks,
+  all drum/sampler rows, and, for motion, the XY anchors **and** both extra A/B
+  tracks ([motion-sequencer](motion-sequencer.md) REQ-two-extra-tracks-per-bank/REQ-two-lanes-below-the-xy-lane); a lane left
+  out renders a full bank as empty. Correspondingly `onContentChange(fn)` must
   subscribe to **every** mutation stream that can change that answer (motion
   needs `onMotionChange` *and* `onMotionTrackChange`), or the dot goes stale
   until the next repaint. Both live in one place per machine — `laneHooks()` in
   `ui/panels/step-panel-scaffold.ts` — so adding a lane to a machine means
   extending its entry there.
 
-- **REQ-7** (v5) — **A bank always stores 16 cells; the meter decides how many
-  *play*.** Nothing about the bank shape moved when time signatures landed
-  ([meter](meter.md) REQ-12) — which is exactly what kept the validators, the
-  published JSON schemas, the authoring dialect and every shipped demo untouched.
-  Shortening a lane hides cells; it never clears them, so lengthening it again
-  returns the steps as they were, and a bank copied while short copies whole.
+- **REQ-bank-always-stores-sixteen-cells** (v5) — **A bank always stores 16
+  cells; the meter decides how many *play*.** Nothing about the bank shape moved
+  when time signatures landed ([meter](meter.md) REQ-pattern-arrays-stay-grid-cells-long) — which is exactly what
+  kept the validators, the published JSON schemas, the authoring dialect and
+  every shipped demo untouched. Shortening a lane hides cells; it never clears
+  them, so lengthening it again returns the steps as they were, and a bank
+  copied while short copies whole.
 
 ## Technical design
 
@@ -90,7 +93,7 @@ PatternStore:  # src/state/patterns.ts
   get seqEditBank / drumEditBank / samplerEditBank / motionEditBank: number
   seqBank(i) / drumBank(i) / samplerBank(i) / motionBank(i)   # any bank, for the transport
   setSeqEditBank(i) / setDrumEditBank(i) / setSamplerEditBank(i) / setMotionEditBank(i)  # re-emit steps
-  setSeqStep(track, index, patch)   # track-indexed since v6's multi-track seq (sequencer.md REQ-13)
+  setSeqStep(track, index, patch)   # track-indexed since v6's multi-track seq (sequencer.md REQ-song-file-v6-adds-seq-tracks)
   setDrumCell(t, s, patch) / setSamplerCell(slot, s, patch) / setMotionStep(index, patch)
   copySeqBank(from, to) / copyDrumBank(...) / copySamplerBank(...) / copyMotionBank(...)  # motion also copies its assign override
   onEditBankChange(fn) -> unsubscribe
@@ -105,7 +108,7 @@ play vs edit:
   a DISABLED arrangement lane's play bank follows that machine's edit bank
 ui: src/ui/components/bank-bar.ts (BankBar) — testid prefix per machine:
     bank-<seq|drum|sampler|motion>-<i>, bank-…-copy, bank-…-follow
-content dot (REQ-6):
+content dot (REQ-content-dot-covers-every-lane):
   BankBar toggles a `filled` class per button from opts.hasContent(i) and
   re-renders on opts.onContentChange. Both are supplied per machine by
   laneHooks() in src/ui/panels/step-panel-scaffold.ts:
@@ -114,7 +117,7 @@ content dot (REQ-6):
     sampler -> any cell on, across all slots           (onSamplerChange)
     motion  -> any XY anchor on OR any A/B track step on
                (onMotionChange + onMotionTrackChange, disposers composed)
-follow (REQ-5):
+follow (REQ-follow-tracks-the-play-bank):
   lives entirely inside BankBar — its opts (getEdit/setEdit/getPlay/onPlayChange)
   already suffice. Surface for the panels: `get following(): boolean`,
   `setFollowing(on): void` and `onFollowChange(fn): () => void` (fires on the
@@ -122,7 +125,7 @@ follow (REQ-5):
   own setFollowing call, e.g. Step Input arming — all funnel through
   setFollowing). On play change while following and
   getPlay() != getEdit(), BankBar calls setEdit(getPlay()); the store re-emits
-  (REQ-2) and the panels' playhead match check turns true by itself.
+  (REQ-set-edit-bank-re-emits-steps) and the panels' playhead match check turns true by itself.
   Timing: Arrangement is built before the machines and notifies inside its
   clock tick, so the edit bank is switched before onStep fires that tick —
   the playhead carries across the bank change without a gap.
@@ -176,7 +179,7 @@ Scenario: Turning Follow on syncs immediately (edge)
 ## Tests & verification
 
 - `tests/state/patterns.test.ts`, `tests/ui/bank-bar.test.ts`,
-  `tests/ui/step-panel-scaffold.test.ts` (REQ-6 per-machine predicates),
+  `tests/ui/step-panel-scaffold.test.ts` (REQ-content-dot-covers-every-lane per-machine predicates),
   `e2e/banks.spec.ts`.
 - `npm test` / `npm run e2e`.
 

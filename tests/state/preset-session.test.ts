@@ -51,7 +51,7 @@ describe('PresetSession', () => {
   });
 });
 
-// presets.md REQ-13 — a loaded song's sound stays selectable while presets are
+// presets.md REQ-a-songs-sound-is-a-selectable-entry — a loaded song's sound stays selectable while presets are
 // auditioned against it.
 describe('PresetSession.songSound', () => {
   it('starts unpinned', () => {
@@ -73,7 +73,7 @@ describe('PresetSession.songSound', () => {
     s.setActiveSong('A Test Song', { 'filter.cutoff': 61 });
     s.setActive('lead');
     expect(s.display).toBe('lead');
-    expect(s.songSound?.name).toBe('A Test Song'); // still reachable — the point of REQ-13
+    expect(s.songSound?.name).toBe('A Test Song'); // still reachable — the point of REQ-motion-joins-the-non-patch-prefixes
   });
 
   it('a second song replaces the pin rather than accumulating history', () => {
@@ -141,7 +141,7 @@ describe('isPatchParam', () => {
     }
   });
 
-  it('excludes the motion sequencer, so a preset cannot switch it off (meter.md REQ-13)', () => {
+  it('excludes the motion sequencer, so a preset cannot switch it off (meter.md REQ-motion-joins-the-non-patch-prefixes)', () => {
     // `motion.` was missing from the prefix list: loading a sound reapplied
     // `motion.on` = 0 from the patch defaults and silently killed a song's
     // automation. It is a song-level machine like seq/drum/sampler.
@@ -151,7 +151,7 @@ describe('isPatchParam', () => {
     }
   });
 
-  it('excludes every meter param, so a preset cannot change the meter (meter.md REQ-5)', () => {
+  it('excludes every meter param, so a preset cannot change the meter (meter.md REQ-meter-is-two-bus-scalars)', () => {
     for (const id of ['transport.beats', 'transport.beatUnit',
       'seq.len', 'seq.rate', 'drum.len', 'drum.rate', 'sampler.len', 'sampler.rate']) {
       expect(isPatchParam(id), id).toBe(false);

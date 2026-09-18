@@ -4,7 +4,7 @@ import { gotoAndStart, revealAllDemos, renderedDemoNames, zipDemos } from './hel
 /* eslint-disable @typescript-eslint/no-explicit-any */
 
 /**
- * The demo shelf — specs/features/demo-library.md REQ-6.
+ * The demo shelf — specs/features/demo-library.md REQ-demo-row-says-what-it-knows.
  *
  * The row used to be nineteen unlabelled buttons: no tempo, no length, no hint
  * of what any of them demonstrates, and ten of nineteen behind a fold. Every
@@ -63,7 +63,7 @@ test.describe('demo library', () => {
   });
 
   /**
-   * song-mode.md REQ-12 (v20). The row used to be the three demo sources
+   * song-mode.md REQ-drop-in-demos-are-fetched-on-click (v20). The row used to be the three demo sources
    * concatenated, which pinned the project zips to the end — so the library's
    * most feature-complete demo sat in the "All Demos" fold purely for being a
    * `.zip`. Which source a demo loads from is not something a listener can see.

@@ -59,7 +59,7 @@ export async function renderEffect(a: CapturedAudio, fx: RenderEffect): Promise<
 }
 
 /**
- * Shift pitch and keep the length (time-stretch.md REQ-8).
+ * Shift pitch and keep the length (time-stretch.md REQ-pitch-shift-keeps-length).
  *
  * Stretch by `2**(st/12)`, then resample by the reciprocal: the stretch moves the
  * clip's duration without touching its pitch, and the resample moves both back —

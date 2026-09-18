@@ -18,18 +18,18 @@ const LFO_NAMES: Record<LfoPrefix, string> = { lfo: 'LFO 1', lfo2: 'LFO 2' };
 /**
  * A built page. Empty since v8: it used to carry `refreshDest()`, which repainted the
  * destinations the *other* LFO had claimed. The mod matrix superseded that rule
- * (lfo.md REQ-12), so a page no longer depends on its sibling's state at all.
+ * (lfo.md REQ-destinations-are-no-longer-exclusive), so a page no longer depends on its sibling's state at all.
  */
 type LfoPage = Record<string, never>;
 
 /**
  * The LFO panel: two identical pages, one per LFO, behind a tab strip in the
- * panel's own title row (lfo.md REQ-15).
+ * panel's own title row (lfo.md REQ-the-two-lfos-share-one-panel).
  *
  * Extracted from `app.ts`, unlike the other seven faceplate panels, because it has
  * two pages and a body that is a parameterised builder rather than a literal. It was
  * also the only panel with cross-instance state until v8, when the mod matrix
- * superseded REQ-12's exclusivity and the two pages became fully independent.
+ * superseded REQ-destinations-are-no-longer-exclusive's exclusivity and the two pages became fully independent.
  */
 export function buildLfoPanel(bus: ParamBus): HTMLElement {
   const pages = {} as Record<LfoPrefix, LfoPage>;
@@ -47,13 +47,13 @@ export function buildLfoPanel(bus: ParamBus): HTMLElement {
   });
 
   LFO_PREFIXES.forEach((prefix, i) => {
-    // No cross-page watching any more: REQ-12's mutual exclusion is superseded by the
+    // No cross-page watching any more: REQ-destinations-are-no-longer-exclusive's mutual exclusion is superseded by the
     // mod matrix (lfo.md v8), so the two LFOs may hold one destination and simply sum
-    // — which REQ-13 always specified and the audio graph always did.
+    // — which REQ-duplicated-destinations-sum-and-stay-bounded always specified and the audio graph always did.
 
     // A modulating LFO on the hidden page would otherwise be invisible state
     // (ADR-014 law 5). The mod wheel only counts for LFO 1, which is the only
-    // one it reaches (REQ-11).
+    // one it reaches (REQ-the-mod-wheel-feeds-lfo-one-only).
     const lit = (): void => {
       const armed = Math.round(bus.get(`${prefix}.dest`)) !== OFF_DEST;
       const depth = bus.get(`${prefix}.amount`) + (prefix === 'lfo' ? bus.get('master.modWheel') : 0);
@@ -78,13 +78,13 @@ function buildLfoPage(bus: ParamBus, prefix: LfoPrefix, b: HTMLElement): LfoPage
 
   const dest = new ParamDropdown(bus, `${prefix}.dest`, LFO_DEST_LABELS);
   // `Dropdown` mints no testid of its own, so the call site does (testids.md
-  // REQ-3). It used to be findable as "the first dropdown on the page"; the RATE
+  // REQ-non-param-buttons-take-an-explicit-testid). It used to be findable as "the first dropdown on the page"; the RATE
   // knob's tempo lock now puts one ahead of it, and position was never a contract.
   dest.el.dataset.testid = `dropdown-${prefix}.dest`;
   b.appendChild(dest.el);
 
   // `${prefix}.sync` has no control of its own here any more: the RATE knob owns
-  // its tempo lock (tempo-lock.md REQ-1/REQ-3), which is a whole row cheaper than
+  // its tempo lock (tempo-lock.md REQ-one-table-declares-lockable-params/REQ-locked-the-division-replaces-the-dial), which is a whole row cheaper than
   // the full-width picker that used to sit here and puts the division on the knob
   // it governs instead of two rows below it.
   b.appendChild(pulseRateDisclosure(bus, prefix, rate));
@@ -102,7 +102,7 @@ function row(children: HTMLElement[]): HTMLElement {
 
 /**
  * The rate is shared by every destination, but the PWM path clamps it
- * (oscillators.md REQ-9) — without this the knob would move above the cap with
+ * (oscillators.md REQ-pwm-rate-is-clamped) — without this the knob would move above the cap with
  * nothing happening. Narrowing the param's own range is not an option: it would
  * make `preset-validate` reject every saved patch with a faster LFO.
  *
@@ -114,7 +114,7 @@ function row(children: HTMLElement[]): HTMLElement {
  * `pulse`: every other destination really does run the full 0.05..20 Hz.
  *
  * The testid is per page: with two LFOs the same sentence appears twice, and
- * selecting it by text would break Playwright's strict mode (testids.md REQ-4).
+ * selecting it by text would break Playwright's strict mode (testids.md REQ-select-by-testid-not-by-label).
  */
 function pulseRateDisclosure(bus: ParamBus, prefix: LfoPrefix, rate: Knob): HTMLElement {
   const el = document.createElement('p');

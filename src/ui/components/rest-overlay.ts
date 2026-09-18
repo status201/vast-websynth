@@ -13,14 +13,14 @@ export interface RestOverlay {
 
 export interface RestOverlayOpts {
   /** The panel's Bank Follow state — Follow off means editing intent, so the
-   *  overlay stays hidden (REQ-6). The caller must refresh() when it flips. */
+   *  overlay stays hidden (REQ-a-resting-machine-tab-shows-it). The caller must refresh() when it flips. */
   following?: () => boolean;
 }
 
 /**
  * A machine-tab overlay that dims the step grid and shows a large centered rest
  * glyph while its arrangement lane is playing a rest bar (arrangement-rest.md
- * REQ-6). Purely visual and `pointer-events: none`, so the grid underneath stays
+ * REQ-a-resting-machine-tab-shows-it). Purely visual and `pointer-events: none`, so the grid underneath stays
  * clickable. Subscribes to `arrangement.onChange`; the caller may also drive
  * `refresh()` from the machine's `onStep` for prompt updates on bar boundaries.
  */

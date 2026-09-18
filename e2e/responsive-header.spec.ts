@@ -11,7 +11,7 @@ const PHONE = { width: 390, height: 844 };
 const DESKTOP = { width: 1280, height: 900 };
 // Inside the 993–1140px dead zone (iPad Pro): the header's min-content width
 // exceeds the viewport, so without the ≤1140px wrap step it overflows and the
-// page's overflow-x:hidden clips the right edge (REQ-7).
+// page's overflow-x:hidden clips the right edge (REQ-the-header-never-clips).
 const TABLET = { width: 1024, height: 768 };
 
 test.describe('responsive header (mobile menu)', () => {
@@ -29,7 +29,7 @@ test.describe('responsive header (mobile menu)', () => {
     await expect(menu).toHaveAttribute('aria-expanded', 'false');
 
     // The toggle is parked at the far right of the brand row, and the header
-    // line break pushes the transport cluster to the row below (REQ-1/REQ-4).
+    // line break pushes the transport cluster to the row below (REQ-below-720-the-preset-cluster-hides/REQ-only-the-preset-cluster-collapses).
     const menuBox = (await menu.boundingBox())!;
     const headerBox = (await page.getByTestId('app-header').boundingBox())!;
     const playBox = (await page.getByTestId('transport-play').boundingBox())!;
@@ -41,7 +41,7 @@ test.describe('responsive header (mobile menu)', () => {
     await expect(preset).toBeVisible();
     await expect(menu).toHaveAttribute('aria-expanded', 'true');
 
-    // REQ-11: the dropdown is width-capped at 90px on phones (the name
+    // REQ-below-720-the-dropdown-drops-its-min-width: the dropdown is width-capped at 90px on phones (the name
     // ellipsizes visually; textContent stays the full name).
     const presetBox = (await preset.boundingBox())!;
     expect(presetBox.width).toBeLessThanOrEqual(91);
@@ -85,11 +85,11 @@ test.describe('responsive header (mobile menu)', () => {
     await expect(page.getByTestId('knob-master.volume')).toBeInViewport({ ratio: 1 });
     await expect(page.getByText('MIXER', { exact: true })).toBeInViewport();
 
-    // ≤1140px drops the "Preset:" text label; the dropdown itself stays (REQ-8).
+    // ≤1140px drops the "Preset:" text label; the dropdown itself stays (REQ-below-1140-the-preset-label-hides).
     await expect(page.getByText('Preset:', { exact: true })).toBeHidden();
     await expect(page.getByTestId('preset-select')).toBeVisible();
 
-    // Two-row layout (REQ-9): the transport cluster leads the second row at
+    // Two-row layout (REQ-below-1140-the-header-wraps-deterministically): the transport cluster leads the second row at
     // the far left; the voicing cluster right-aligns on it.
     const headerBox = (await page.getByTestId('app-header').boundingBox())!;
     const presetBox = (await page.getByTestId('preset-select').boundingBox())!;
@@ -101,7 +101,7 @@ test.describe('responsive header (mobile menu)', () => {
     // Same row: transport and voicing overlap vertically.
     expect(volBox.y).toBeLessThan(playBox.y + playBox.height);
 
-    // Preset-cluster split (REQ-10): dropdown + Save left, the utility icon
+    // Preset-cluster split (REQ-below-1140-the-preset-cluster-splits): dropdown + Save left, the utility icon
     // buttons far right of the first row (Fullscreen is the last of them).
     const saveBox = (await page.getByTestId('preset-save').boundingBox())!;
     const fullBox = (await page.getByTestId('fullscreen').boundingBox())!;

@@ -37,7 +37,7 @@ export type SongValidation =
 
 /**
  * Every automation target in a song that does not name a live parameter
- * (untrusted-input.md REQ-12).
+ * (untrusted-input.md REQ-an-unresolvable-target-warns).
  *
  * `xy`, `motionAssigns` and `motionTracks[].param` are **pointers, not values**.
  * `MotionMachine.write` does `const def = this.bus.def(id); if (!def) return;`,
@@ -88,7 +88,7 @@ type CellValidator = (path: string, value: unknown, add: AddError) => void;
  * *different* signature (`number | undefined`), and that is deliberate: this
  * validator **refuses** a canonical file, while the dialect **coerces and reports**
  * (ADR-013). They are not two copies of one helper — do not merge them into
- * `validate-utils.ts` (untrusted-input.md REQ-3).
+ * `validate-utils.ts` (untrusted-input.md REQ-the-limits-are-one-module).
  */
 function checkUnit(path: string, v: unknown, add: AddError): void {
   if (v === undefined) return;
@@ -104,7 +104,7 @@ function checkRatchet(path: string, v: unknown, add: AddError): void {
   }
 }
 
-/** Signed integer notches, -MICRO_MAX..+MICRO_MAX (step-settings.md REQ-6). */
+/** Signed integer notches, -MICRO_MAX..+MICRO_MAX (step-settings.md REQ-a-step-carries-a-micro-offset). */
 function checkMicro(path: string, v: unknown, add: AddError): void {
   if (v === undefined) return;
   if (typeof v !== 'number' || !Number.isInteger(v) || v < -MICRO_MAX || v > MICRO_MAX) {
@@ -129,7 +129,7 @@ function checkStepSettings(path: string, c: Record<string, unknown>, add: AddErr
 
 /**
  * Refuse a payload object carrying `__proto__` / `constructor` / `prototype`
- * (untrusted-input.md REQ-5). Returns true when the object is clean.
+ * (untrusted-input.md REQ-reserved-keys-are-refused). Returns true when the object is clean.
  */
 function checkKeys(path: string, o: object, add: AddError): boolean {
   const bad = reservedKeyIn(o);
@@ -308,13 +308,13 @@ function checkMotionTracks(v: unknown, add: AddError): void {
 
 /**
  * v7 per-slot transpose — integers in ±MAX_CHAIN_TRANSPOSE, parallel to
- * `seqChain.steps` (arrangement.md REQ-8).
+ * `seqChain.steps` (arrangement.md REQ-a-seq-slot-carries-a-transpose).
  *
  * A length mismatch is **not** an error: `fitTranspose` pads and truncates on
  * load, so a short or long array is well-defined rather than broken, and
  * refusing it would reject a song a future build might legitimately write.
  * It is bounded here because ADR-004 guarantees nothing below re-checks it, and
- * an unbounded offset reaches `midiToHz` (untrusted-input.md REQ-2/REQ-4).
+ * an unbounded offset reaches `midiToHz` (untrusted-input.md REQ-bounds-in-the-validator-sizes-in-the-codec/REQ-payload-values-are-bounded).
  */
 function checkSeqTranspose(v: unknown, add: AddError): void {
   if (!Array.isArray(v)) { add(`seqTranspose must be an array (got ${describe(v)})`); return; }
@@ -393,10 +393,10 @@ export function validateSongFile(value: unknown): SongValidation {
 
   if (errors.length > 0) return { ok: false, errors };
 
-  // REQ-12 — advisory, and only once the shape is known good, so the traversal
+  // REQ-drop-in-demos-are-fetched-on-click — advisory, and only once the shape is known good, so the traversal
   // can trust the fields it walks. `warnings` is omitted rather than empty when
   // there is nothing to say, so a clean song's result stays deep-equal to its
-  // pre-REQ-12 shape and nothing downstream can start depending on the key.
+  // pre-REQ-drop-in-demos-are-fetched-on-click shape and nothing downstream can start depending on the key.
   const file = value as unknown as SongFile;
   const warnings = unresolvedTargets(file);
   return warnings.length > 0 ? { ok: true, file, warnings } : { ok: true, file };

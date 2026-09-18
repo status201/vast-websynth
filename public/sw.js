@@ -1,6 +1,6 @@
 /**
  * Offline service worker — hand-written, dependency-free (ADR-003 discipline;
- * spec: specs/features/pwa-install.md REQ-6).
+ * spec: specs/features/pwa-install.md REQ-service-worker-is-registered).
  *
  * Registered PRODUCTION-ONLY from main.ts as `/sw.js?v=<app version>` — the
  * version query names the cache (`websynth-<version>`) and makes each release
@@ -20,7 +20,7 @@
  * chunks), so that covers only the surfaces the user opened. The whole app is
  * opt-in: the About card's Play offline (specs/features/play-offline.md) fills
  * this cache from the build's `offline-manifest.json` and leaves a marker, and
- * `install` below keeps that copy whole across releases (REQ-7 there).
+ * `install` below keeps that copy whole across releases (REQ-the-copy-survives-a-release there).
  *
  * Pure decision helpers are exposed on `self.__sw` so the Vitest suite
  * (tests/pwa/sw.test.ts) can import this file with stubbed globals — the
@@ -32,7 +32,7 @@
  * Every cache this worker names starts with this, so `activate` and a factory
  * reset can tell them from anything else on the origin. The page spells it
  * `OFFLINE_CACHE_PREFIX` (src/utils/offline-copy.ts); tests/pwa/sw.test.ts pins
- * the two equal (play-offline.md REQ-10).
+ * the two equal (play-offline.md REQ-one-offline-marker-contract).
  */
 var CACHE_PREFIX = 'websynth-';
 
@@ -58,7 +58,7 @@ function isHashedAsset(pathname) {
 
 /**
  * Paths served from this origin by a reverse proxy rather than from `dist/`:
- * the public MCP endpoint (mcp-server.md REQ-9) and its health check.
+ * the public MCP endpoint (mcp-server.md REQ-the-http-transport-is-stateless) and its health check.
  *
  * These were already safe by accident — the traffic is POST, which the non-GET
  * rule below passes through, and `GET /mcp` answers 405, which `fetchAndCache`
@@ -103,7 +103,7 @@ var CACHE = cacheName(self.location.href);
 var VERSION = versionOf(self.location.href);
 
 /**
- * Every lookup ignores `Vary` (play-offline.md REQ-11). Hosts send `Vary: Origin`
+ * Every lookup ignores `Vary` (play-offline.md REQ-cache-lookups-ignore-vary). Hosts send `Vary: Origin`
  * on static files, and a cache honours it by comparing request headers: a module
  * script asks WITH an Origin header, while the page's fetch() that saved the
  * file for Play offline had none — so a file sitting in the cache never matched
@@ -113,7 +113,7 @@ var VERSION = versionOf(self.location.href);
 var MATCH = { ignoreVary: true };
 
 /**
- * The offline copy's marker and file list (play-offline.md REQ-2, REQ-10). The
+ * The offline copy's marker and file list (play-offline.md REQ-the-build-writes-the-file-list, REQ-one-offline-marker-contract). The
  * page spells the marker `OFFLINE_MARKER_URL` in src/utils/offline-copy.ts — this
  * file is outside the bundle, so tests/pwa/sw.test.ts pins the two equal.
  */
@@ -123,7 +123,7 @@ var OFFLINE_MANIFEST = '/offline-manifest.json';
 /**
  * Validate the build's file list: this worker's own version, and every url
  * root-relative and same-origin once resolved (`//x` and `/\x` both escape).
- * Returns the manifest or null (play-offline.md REQ-9).
+ * Returns the manifest or null (play-offline.md REQ-the-manifest-is-same-origin-build-output).
  */
 function parseManifest(raw, version) {
   if (!raw || typeof raw !== 'object' || raw.version !== version || !Array.isArray(raw.files)) return null;
@@ -167,7 +167,7 @@ function runPool(items, limit, task) {
 
 /**
  * Refresh a device's offline copy into this version's cache (play-offline.md
- * REQ-7). An unchanged hashed asset is copied from the older cache instead of
+ * REQ-the-copy-survives-a-release). An unchanged hashed asset is copied from the older cache instead of
  * refetched — a demo that did not change costs no bandwidth. Any failure
  * rejects, which fails the install: the old worker and its complete cache stay
  * in charge, because `activate` (the purge) never runs.

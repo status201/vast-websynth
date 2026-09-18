@@ -3,7 +3,7 @@ import { PatternStore, SEQ_TRACK_COUNT } from '../../src/state/patterns';
 import { PatternUndo } from '../../src/state/pattern-undo';
 import { buildQuantizeTable, diatonicChord, SCALE_LABELS } from '../../src/utils/music';
 
-// chord-tools.md REQ-2/REQ-3/REQ-4, scale-quantization.md REQ-8.
+// chord-tools.md REQ-the-chord-writer-patches-not-replaces/REQ-one-chord-gesture-one-undo/REQ-the-store-stays-free-of-theory, scale-quantization.md REQ-snap-to-scale-is-the-destructive-opt-in.
 // These pin the STORE's two batch mutations, which take plain data and know no
 // music theory — the theory is applied by the caller and tested in utils/music.
 
@@ -30,7 +30,7 @@ describe('writeSeqChord', () => {
     expect(column(patterns, 0)).toEqual([[true, 60], [true, 64], [true, 67], [false, 60]]);
   });
 
-  it('switches off the tracks the chord does not reach (REQ-2)', () => {
+  it('switches off the tracks the chord does not reach (REQ-nearest-tone-ties-break-downward)', () => {
     // A triad over a 7th must not leave the old seventh ringing underneath.
     const { patterns } = build();
     patterns.writeSeqChord(0, [60, 64, 67, 71]);
@@ -38,7 +38,7 @@ describe('writeSeqChord', () => {
     expect(column(patterns, 0)[3]).toEqual([false, 71]);
   });
 
-  it('keeps each step\'s existing shape, patching only on and note (REQ-2)', () => {
+  it('keeps each step\'s existing shape, patching only on and note (REQ-nearest-tone-ties-break-downward)', () => {
     const { patterns } = build();
     patterns.setSeqStep(1, 0, { velocity: 0.3, gate: 0.9, ratchet: 3, tie: true, prob: 0.5 });
     patterns.writeSeqChord(0, [60, 64, 67]);
@@ -56,7 +56,7 @@ describe('writeSeqChord', () => {
     expect(patterns.seqTrack(0)![5]).toMatchObject({ on: true, note: 72 });
   });
 
-  it('costs exactly one undo entry for the whole chord (REQ-3)', () => {
+  it('costs exactly one undo entry for the whole chord (REQ-quantization-is-idempotent-and-bounded)', () => {
     const { patterns, undo } = build();
     const before = patterns.seqBanks[0]!.map((r) => r.map((s) => ({ ...s })));
     patterns.writeSeqChord(0, [60, 64, 67, 71]);
@@ -105,7 +105,7 @@ describe('snapSeqBank', () => {
     expect(undo.canUndo('seq')).toBe(stack); // no new entry
   });
 
-  it('restores all four tracks from one undo (REQ-3)', () => {
+  it('restores all four tracks from one undo (REQ-quantization-is-idempotent-and-bounded)', () => {
     const { patterns, undo } = build();
     patterns.setSeqStep(0, 0, { on: true, note: 61 });
     patterns.setSeqStep(1, 1, { on: true, note: 63 });

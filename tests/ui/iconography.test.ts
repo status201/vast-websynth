@@ -10,7 +10,7 @@
 // font. This reads the source as text and fails the moment an icon character
 // reaches the DOM again.
 //
-// The rule it enforces is REQ-1/REQ-2: a glyph that *labels a control* is drawn
+// The rule it enforces is REQ-a-control-glyph-is-inline-svg/REQ-punctuation-glyphs-stay-text: a glyph that *labels a control* is drawn
 // (`ui-icons.ts`), a glyph that is *punctuation inside a sentence* is text. So
 // the pin does not ban these code points outright — it bans them from the places
 // a control's label is written.
@@ -21,9 +21,9 @@ import { fileURLToPath } from 'node:url';
 const UI_DIR = fileURLToPath(new URL('../../src/ui/', import.meta.url));
 
 /**
- * The code points that must be drawn, never typed (REQ-1). Deliberately *not*
+ * The code points that must be drawn, never typed (REQ-a-control-glyph-is-inline-svg). Deliberately *not*
  * every non-ASCII character: `— – … • − ≤ ≥ ≈ ’ “ ”` are typography, and the
- * flow arrows in prose ("Distortion → Wah") are punctuation under REQ-2.
+ * flow arrows in prose ("Distortion → Wah") are punctuation under REQ-punctuation-glyphs-stay-text.
  *
  * `→` and `↔` are absent for that reason — they are far more often prose here
  * than a label, and `assignments` below catches the label case anyway.
@@ -64,7 +64,7 @@ describe('the icon rule (specs/features/iconography.md)', () => {
     expect(sources.some((s) => s.file === 'components/ui-icons.ts')).toBe(true);
   });
 
-  it('never writes an icon character into a control label (REQ-1, REQ-6)', () => {
+  it('never writes an icon character into a control label (REQ-a-control-glyph-is-inline-svg, REQ-icon-rule-is-pinned-by-a-test)', () => {
     const offenders: string[] = [];
     for (const { file, src } of sources) {
       if (file === 'components/ui-icons.ts') continue; // the set documents its own glyphs
@@ -78,7 +78,7 @@ describe('the icon rule (specs/features/iconography.md)', () => {
     expect(offenders).toEqual([]);
   });
 
-  it('draws every glyph it names, in one set (REQ-4)', () => {
+  it('draws every glyph it names, in one set (REQ-one-icon-builder-four-sets)', () => {
     const icons = sources.find((s) => s.file === 'components/ui-icons.ts')!.src;
     // The set is the single home: each entry is an `icon(...)` call, and the
     // shared `INFO_SHAPE` is what keeps the header's ⓘ from drifting from the
@@ -90,20 +90,20 @@ describe('the icon rule (specs/features/iconography.md)', () => {
     expect(header).toContain("import { INFO_SHAPE } from './ui-icons'");
   });
 
-  it('leaves no inline colour on a glyph (REQ-1)', () => {
+  it('leaves no inline colour on a glyph (REQ-a-control-glyph-is-inline-svg)', () => {
     // `currentColor` is the whole point: it is what lets a state class tint a
     // glyph that knows nothing about that state.
     const icons = sources.find((s) => s.file === 'components/ui-icons.ts')!.src;
     expect(icons).not.toMatch(/(?:fill|stroke)="(?!none")[^"]*"/);
   });
 
-  it('hides every drawn glyph from assistive tech (REQ-3)', () => {
+  it('hides every drawn glyph from assistive tech (REQ-an-icon-is-aria-hidden)', () => {
     const icons = sources.find((s) => s.file === 'components/ui-icons.ts')!.src;
     // One wrapper builds them all, so one `aria-hidden` covers the set.
     expect(icons).toContain('aria-hidden="true"');
   });
 
-  it('keeps prose punctuation as text (REQ-2)', () => {
+  it('keeps prose punctuation as text (REQ-punctuation-glyphs-stay-text)', () => {
     // The boundary, pinned from the other side: these are the same arrow
     // characters, left alone because they join words rather than name controls.
     const help = sources.find((s) => s.file === 'onboarding/help-content.ts')!.src;

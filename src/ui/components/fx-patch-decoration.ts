@@ -9,7 +9,7 @@ import styles from '../styles/fx-patch-decoration.module.css';
  *
  * Two stacked full-bleed SVG layers, because the cell's aspect ratio swings from
  * ~1.7:1 (phone) to ~4.7:1 (992px) — no single viewBox both reaches the edges
- * and keeps the connector round (REQ-4):
+ * and keeps the connector round (REQ-two-layers-undistorted-connector):
  *   - cables: `preserveAspectRatio="none"` + `vector-effect="non-scaling-stroke"`,
  *     so the stretch bends the curves (natural for slack cable) but never the
  *     stroke width, and the runs always meet the cell edges;
@@ -20,7 +20,7 @@ import styles from '../styles/fx-patch-decoration.module.css';
  * Modeled on `wave-icons.ts` / `header-icons.ts`: the markup carries no colour.
  * Each cable is wrapped in a hue class that sets `--wire`/`--wire-lit` (the
  * inline-custom-prop pattern `StepButton` uses), so the whole patch-bay palette
- * lives in the stylesheet. Static by design (REQ-7): lighting is a dark sheath
+ * lives in the stylesheet. Static by design (REQ-the-decoration-is-static-and-cheap): lighting is a dark sheath
  * path doubled by a thin low-opacity sheen, never a filter or drop-shadow.
  */
 export function fxPatchDecoration(): HTMLElement {
@@ -32,7 +32,7 @@ export function fxPatchDecoration(): HTMLElement {
   return el;
 }
 
-/** A sheath path doubled by its sheen — the whole lighting model (REQ-7). */
+/** A sheath path doubled by its sheen — the whole lighting model (REQ-the-decoration-is-static-and-cheap). */
 const cable = (d: string, cls: string, sheen: string, attrs = ''): string =>
   `<path class="${cls}" d="${d}"${attrs}/><path class="${sheen}" d="${d}"${attrs}/>`;
 
@@ -44,7 +44,7 @@ const FIXED_STROKE = ' vector-effect="non-scaling-stroke"';
  * the bottom, plus a few draping in from the panel to the left. Nothing runs to
  * or ends at the **right** edge — this is the last bay in the row, so there is
  * nothing over there to connect to and a cable stopping at that edge reads as a
- * cut-off drawing (REQ-9). Mixed hues and gauges; a patch bay is never tidy.
+ * cut-off drawing (REQ-the-loom-drops-from-the-top). Mixed hues and gauges; a patch bay is never tidy.
  */
 const BG_CABLES: ReadonlyArray<{
   hue: keyof typeof styles;
@@ -98,7 +98,7 @@ function cablesLayer(): string {
 /**
  * The hero lead: drops in through the **top** edge, takes a lazy S under its own
  * weight and dangles a TS plug near-vertically at the end — an unused lead left
- * hanging from the rack above, with nothing to plug into (REQ-5).
+ * hanging from the rack above, with nothing to plug into (REQ-a-lead-left-hanging).
  *
  * Anchored `xMidYMin` so the cable always meets the top edge: a centred `meet`
  * letterboxes on a short cell and the cable would start in mid-air. The content

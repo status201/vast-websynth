@@ -114,7 +114,7 @@ test.describe('scope mono/stereo', () => {
     expect(await peakDb()).toBeNull();
   });
 
-  test('Zones is Spectrum-only and toggles the overlay (scope.md REQ-29)', async ({ page }) => {
+  test('Zones is Spectrum-only and toggles the overlay (scope.md REQ-a-zones-toggle)', async ({ page }) => {
     await gotoAndStart(page);
     const mode = page.getByTestId('scope-toggle');
     const zones = page.getByTestId('scope-zones-toggle');
@@ -142,7 +142,7 @@ test.describe('scope mono/stereo', () => {
     expect(await canvasZones()).toBeNull();
   });
 
-  test('hovering the Spectrum reads out a frequency (scope.md REQ-31)', async ({ page }) => {
+  test('hovering the Spectrum reads out a frequency (scope.md REQ-hovering-reads-out-a-frequency)', async ({ page }) => {
     await gotoAndStart(page);
     const mode = page.getByTestId('scope-toggle');
     const canvas = page.getByTestId('scope-canvas');
@@ -191,7 +191,7 @@ test.describe('scope mono/stereo', () => {
     expect(await waveGain(page)).toBeNull();
   });
 
-  // scope.md REQ-24 — a backgrounded tab can have its canvas backing store
+  // scope.md REQ-canvas-context-loss-is-survivable — a backgrounded tab can have its canvas backing store
   // reclaimed. The recovery is the pair of listeners, and this proves they are
   // wired in a real browser: the loop is still painting after the round trip.
   test('a lost and restored canvas context keeps drawing', async ({ page }) => {
@@ -217,7 +217,8 @@ test.describe('scope mono/stereo', () => {
       .toBeGreaterThanOrEqual(1);
   });
 
-  // scope.md REQ-34/35 — the twin of the case above, and the hole v12 left: here
+  // scope.md REQ-waiting-for-contextrestored-is-bounded/REQ-a-lost-context-is-escaped-by-replacing-the-canvas
+  // — the twin of the case above, and the hole v12 left: here
   // the restore is deliberately NEVER given. `stop()` was the last thing that ever
   // happened to the panel, and no control could undo it. Note there is no
   // visibility change anywhere in this test: the tab is foregrounded throughout,
@@ -249,7 +250,7 @@ test.describe('scope mono/stereo', () => {
     expect(box!.height).toBeGreaterThan(0);
   });
 
-  // scope.md REQ-33 — the only case in the suite that backgrounds the page for
+  // scope.md REQ-a-watchdog-restarts-a-stalled-loop — the only case in the suite that backgrounds the page for
   // real rather than dispatching a synthetic event at it.
   test('the scope comes back from a real backgrounding', async ({ page, context }) => {
     await gotoAndStart(page);
@@ -280,7 +281,8 @@ test.describe('scope mono/stereo', () => {
 });
 
 /**
- * The resize handle (scope.md REQ-19/20). It drags the shared bottom grid row,
+ * The resize handle (scope.md REQ-a-scope-resize-handle/REQ-the-scope-height-persists).
+ * It drags the shared bottom grid row,
  * so the PITCH/OCT/MOD wheel strips grow with the scope — that shared row is the
  * whole mechanism, and the strip assertion is what pins it.
  */

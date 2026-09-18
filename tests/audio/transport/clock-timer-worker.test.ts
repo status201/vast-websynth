@@ -1,7 +1,7 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 
 /**
- * The worker half of the wakeup timer (transport.md REQ-4). `tick-timer.test.ts`
+ * The worker half of the wakeup timer (transport.md REQ-the-wakeup-timer-is-off-the-main-thread). `tick-timer.test.ts`
  * pins the main-thread `WorkerTimer` against a stubbed `Worker`; this pins the
  * other end of that same protocol — the script the real Worker runs.
  *

@@ -6,9 +6,9 @@ import { rampTo, RAMP_FAST, RAMP_MEDIUM } from './param-utils';
 
 export type VoiceState = 'idle' | 'playing' | 'releasing';
 
-/** The note at which key tracking contributes nothing (key-tracking.md REQ-2). */
+/** The note at which key tracking contributes nothing (key-tracking.md REQ-keytrack-offset-is-relative-to-key-centre). */
 const KEY_CENTER = 60;
-/** The worklet's own `cutoffNote` range — key tracking is clamped to it (REQ-5). */
+/** The worklet's own `cutoffNote` range — key tracking is clamped to it (REQ-destinations-are-summing-params). */
 const CUTOFF_MIN = 0;
 const CUTOFF_MAX = 135;
 
@@ -27,7 +27,7 @@ export class Voice {
   readonly filEnvScale: GainNode;
 
   /**
-   * Per-voice modulation sources for the mod matrix (mod-matrix.md REQ-7).
+   * Per-voice modulation sources for the mod matrix (mod-matrix.md REQ-per-voice-sources-cannot-drive-bus-destinations).
    *
    * `ConstantSourceNode`s rather than the plain scalars the envelope depth uses,
    * because the matrix routes them as *signals* into summing `AudioParam`s. Both are
@@ -52,7 +52,7 @@ export class Voice {
   private keytrack = 0;
   /**
    * How much of the filter envelope's depth velocity controls (envelopes.md
-   * REQ-5). A plain scalar, not an `AudioParam`: it is only ever read at
+   * REQ-filter-env-follows-velocity). A plain scalar, not an `AudioParam`: it is only ever read at
    * `noteOn`, so there is nothing to ramp — the value in force when a note
    * starts shapes that note, and the next note picks up any change.
    */
@@ -117,7 +117,7 @@ export class Voice {
     this.filEnv.out.connect(this.filEnvScale);
     this.filEnvScale.connect(this.filter.cutoffNote);
 
-    // Pool voices boot idle — no note yet, so the filter can sleep (REQ-10).
+    // Pool voices boot idle — no note yet, so the filter can sleep (REQ-two-rows-may-share-a-destination).
     this.filter.setActive(false);
   }
 
@@ -144,19 +144,19 @@ export class Voice {
     this.osc2.setFrequency(hz, when, g);
     this.sub.setFrequency(hz, when, g);
     // Key tracking lands with the note, not as a ramp from the previous note's
-    // cutoff — a glide there would whoop (key-tracking.md REQ-4). A no-op write
+    // cutoff — a glide there would whoop (key-tracking.md REQ-keytrack-lands-at-note-on). A no-op write
     // when keytrack is 0, since the value then equals what setFilterCutoff set.
     if (this.keytrack !== 0) {
       this.filter.cutoffNote.setValueAtTime(this.effectiveCutoff(), when);
     }
     // Matrix sources land with the note, like key tracking above — they describe
     // *this* note, so a ramp from the previous note's values would smear two notes
-    // together (mod-matrix.md REQ-7). Key is normalised around middle C over ±4
+    // together (mod-matrix.md REQ-per-voice-sources-cannot-drive-bus-destinations). Key is normalised around middle C over ±4
     // octaves, so a route's depth means the same thing on every destination.
     this.velocitySource.offset.setValueAtTime(velocity, when);
     this.keySource.offset.setValueAtTime(clamp((note - 60) / 48, -1, 1), when);
     this.ampEnv.trigger(when, Math.max(0.01, velocity));
-    // Velocity → filter (envelopes.md REQ-5). `filVelAmount` 0 gives exactly the
+    // Velocity → filter (envelopes.md REQ-filter-env-follows-velocity). `filVelAmount` 0 gives exactly the
     // hard-coded 1 this used to pass, so the default changes nothing; at 1 the
     // sweep scales straight with velocity. Scaling the envelope's PEAK scales the
     // sweep depth in semitones (filEnv → filEnvScale → cutoffNote), so a soft
@@ -196,12 +196,12 @@ export class Voice {
       this.releaseTimer = null;
     }
     // Through the envelope, never on its gain param directly — the envelope's
-    // scheduled-automation model must see every write (envelopes.md REQ-4).
+    // scheduled-automation model must see every write (envelopes.md REQ-envelope-scheduling-is-future-time-safe).
     this.ampEnv.cutFast(when);
     this.state = 'idle';
     this.currentNote = -1;
     // Deactivate only after the 3 ms kill fade has passed, and only if no
-    // noteOn re-claimed the voice meanwhile (it posts its own true) (REQ-10).
+    // noteOn re-claimed the voice meanwhile (it posts its own true) (REQ-two-rows-may-share-a-destination).
     window.setTimeout(() => {
       if (this.state === 'idle') this.filter.setActive(false);
     }, 30);
@@ -232,7 +232,7 @@ export class Voice {
     rampTo(this.filEnvScale.gain, semi, this.ctx, RAMP_MEDIUM);
   }
 
-  /** 0 = LADDER, 1 = POLY (filter-models.md REQ-1). k-rate, so no ramp. */
+  /** 0 = LADDER, 1 = POLY (filter-models.md REQ-filter-model-is-a-discrete-param). k-rate, so no ramp. */
   setFilterModel(m: number): void {
     this.filter.model.setValueAtTime(Math.round(m), this.ctx.currentTime);
   }
@@ -241,7 +241,7 @@ export class Voice {
     rampTo(this.filter.shape, s, this.ctx, RAMP_FAST);
   }
 
-  /** envelopes.md REQ-5. Takes effect on the NEXT note — a held note's sweep is
+  /** envelopes.md REQ-filter-env-follows-velocity. Takes effect on the NEXT note — a held note's sweep is
    *  already scheduled, and re-shaping it mid-flight would click. */
   setFilterVelAmount(amount: number): void {
     this.filVelAmount = Math.max(0, Math.min(1, amount));
@@ -250,15 +250,18 @@ export class Voice {
   setFilterKeytrack(amount: number): void {
     this.keytrack = amount;
     // A held note must follow the knob rather than wait for the next noteOn
-    // (key-tracking.md REQ-6); ramped, because this one is a knob drag.
+    // (key-tracking.md REQ-keytrack-updates-held-voices); ramped, because this one is a knob drag.
     rampTo(this.filter.cutoffNote, this.effectiveCutoff(), this.ctx, RAMP_FAST);
   }
 
   /**
-   * Base cutoff plus key tracking, in semitones (key-tracking.md REQ-2/3/5).
+   * Base cutoff plus key tracking, in semitones
+   * (key-tracking.md REQ-keytrack-stays-in-semitone-space, over the
+   * centre-relative REQ-keytrack-offset-is-relative-to-key-centre).
    * The single place the three cached scalars combine, so `noteOn` and both
    * knob paths cannot drift apart. Clamped to the worklet's `cutoffNote` range
-   * — the envelope and LFO still sum on top at the AudioParam.
+   * (REQ-keytrack-is-clamped-to-range) — the envelope and LFO still sum on top
+   * at the AudioParam.
    */
   private effectiveCutoff(): number {
     const note = this.currentNote < 0 ? KEY_CENTER : this.currentNote;

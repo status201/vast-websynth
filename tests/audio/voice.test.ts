@@ -8,8 +8,8 @@ import {
 } from './mock-audio-context';
 
 /**
- * Voice lifecycle → ladder-filter idle gating (ladder-filter.md REQ-10,
- * voicing.md REQ-7). The filter worklet is the mock node; we assert the
+ * Voice lifecycle → ladder-filter idle gating (ladder-filter.md REQ-the-filter-idles-when-gated,
+ * voicing.md REQ-voice-lifecycle-gates-the-ladder). The filter worklet is the mock node; we assert the
  * active-flag posts on its port.
  */
 describe('Voice filter idle gating', () => {
@@ -97,12 +97,12 @@ describe('Voice filter key tracking', () => {
   const stepped = (p: { setValueAtTime: ReturnType<typeof vi.fn> }) =>
     p.setValueAtTime.mock.calls.at(-1)?.[0] as number | undefined;
 
-  it('raises cutoff with the note, in semitones (REQ-2)', async () => {
+  it('raises cutoff with the note, in semitones (REQ-cutoff-is-note-units)', async () => {
     const { voice, cutoff } = await build();
     voice.setFilterCutoff(90);
     voice.setFilterKeytrack(0.5);
     voice.noteOn(72, 0.8, 0); // an octave above centre
-    // 90 + 0.5 * (72 - 60) = 96, landed at the note rather than ramped (REQ-4).
+    // 90 + 0.5 * (72 - 60) = 96, landed at the note rather than ramped (REQ-filter-modulation-is-additive-semitones).
     expect(stepped(cutoff)).toBe(96);
   });
 
@@ -114,7 +114,7 @@ describe('Voice filter key tracking', () => {
     expect(stepped(cutoff)).toBe(84);
   });
 
-  it('is a no-op at its default, whatever the note (REQ-1)', async () => {
+  it('is a no-op at its default, whatever the note (REQ-four-filter-params)', async () => {
     const { voice, cutoff } = await build();
     voice.setFilterCutoff(90);
     voice.noteOn(96, 0.8, 0);
@@ -123,7 +123,7 @@ describe('Voice filter key tracking', () => {
     expect(ramped(cutoff)).toBe(90);
   });
 
-  it('leaves the centre note untouched at any amount (REQ-2)', async () => {
+  it('leaves the centre note untouched at any amount (REQ-cutoff-is-note-units)', async () => {
     const { voice, cutoff } = await build();
     voice.setFilterCutoff(90);
     voice.noteOn(60, 0.8, 0);
@@ -133,7 +133,7 @@ describe('Voice filter key tracking', () => {
     }
   });
 
-  it('recomputes under a held note rather than waiting for the next one (REQ-6)', async () => {
+  it('recomputes under a held note rather than waiting for the next one (REQ-input-and-poles-are-saturated)', async () => {
     const { voice, cutoff } = await build();
     voice.setFilterCutoff(90);
     voice.noteOn(72, 0.8, 0);
@@ -143,7 +143,7 @@ describe('Voice filter key tracking', () => {
     expect(ramped(cutoff)).toBe(92);
   });
 
-  it('clamps an extreme note to the cutoff range (REQ-5)', async () => {
+  it('clamps an extreme note to the cutoff range (REQ-the-filter-worklet-module-is-awaited)', async () => {
     const { voice, cutoff } = await build();
     voice.setFilterCutoff(130);
     voice.setFilterKeytrack(1);
@@ -153,7 +153,7 @@ describe('Voice filter key tracking', () => {
 });
 
 /**
- * Velocity → filter (envelopes.md REQ-5). The bug this closes: `noteOn`
+ * Velocity → filter (envelopes.md REQ-filter-env-follows-velocity). The bug this closes: `noteOn`
  * triggered the amp envelope at the note's velocity and the filter envelope at a
  * hard-coded 1, so playing harder got louder and never brighter.
  *
@@ -161,7 +161,7 @@ describe('Voice filter key tracking', () => {
  * filter envelope feeds `filEnvScale` (the `envAmount` semitone gain), which
  * sums onto the worklet's `cutoffNote`.
  */
-describe('Voice velocity → filter envelope (REQ-5)', () => {
+describe('Voice velocity → filter envelope (REQ-the-filter-worklet-module-is-awaited)', () => {
   beforeEach(() => {
     vi.useFakeTimers();
     installMockAudioWorkletNode();

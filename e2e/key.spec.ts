@@ -25,7 +25,7 @@ async function choose(
 ): Promise<void> {
   const dd = page.getByTestId(testid);
   await dd.click();
-  // Not by name: the toggle carries the current value too (dropdown.md REQ-13).
+  // Not by name: the toggle carries the current value too (dropdown.md REQ-an-option-carries-the-bridge-class).
   await dd.locator('.dropdown-option', { hasText: new RegExp(`^${label}$`) }).click();
 }
 
@@ -38,7 +38,7 @@ test.describe('key & chord tools', () => {
     await expect(page.getByTestId('tab-key')).toHaveAttribute('aria-label', 'Key — off');
     await choose(page, 'key-scale', 'major');
     expect(await get(page, 'scale.type')).toBeGreaterThan(0);
-    // machine-status.md REQ-10 — readable without opening the tab.
+    // machine-status.md REQ-the-arpeggiator-tab-has-a-lamp — readable without opening the tab.
     await expect(page.getByTestId('tab-key')).toHaveAttribute('aria-label', 'Key — on');
   });
 
@@ -59,7 +59,7 @@ test.describe('key & chord tools', () => {
   });
 
   test('the playable keyboard wears the key, and only while one is set', async ({ page }) => {
-    // scale-quantization.md REQ-10. The roles themselves are unit tested; what only an
+    // scale-quantization.md REQ-the-key-is-shown-where-you-play. The roles themselves are unit tested; what only an
     // E2E can show is that the real app wires the KEY tab's dropdowns through to the
     // keyboard at the bottom of the screen — two surfaces that never touch in a unit test.
     await gotoAndStart(page);
@@ -86,7 +86,7 @@ test.describe('key & chord tools', () => {
     await expect(page.getByTestId('keyboard').locator('[data-role]')).toHaveCount(0);
   });
 
-  test('both info badges resolve their anchors and open (onboarding REQ-20)', async ({ page }) => {
+  test('both info badges resolve their anchors and open (onboarding REQ-about-is-the-single-door-for-help)', async ({ page }) => {
     // The unit test pins the copy; only this pins that the anchors actually resolve —
     // a typo'd testid in ANCHORS silently drops the badge and nothing else notices.
     await gotoAndStart(page);

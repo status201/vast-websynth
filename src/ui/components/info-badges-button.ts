@@ -1,5 +1,5 @@
 // The header's ⓘ button: it toggles the info badges, and that is all it does
-// (onboarding.md REQ-8). The glyph is deliberately the badges' own glyph — the
+// (onboarding.md REQ-the-info-button-is-a-toggle). The glyph is deliberately the badges' own glyph — the
 // button and the thing it switches on look the same, so there is nothing to
 // learn. Help & About lives next door under the ? button.
 import { createButton } from './button';

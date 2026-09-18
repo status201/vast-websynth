@@ -4,7 +4,7 @@ import { type Page, expect } from '@playwright/test';
 
 /**
  * Get a booted app past its start gate — whichever gate this browser gets
- * (audio-lifecycle.md REQ-20). The modal exists only to buy a user gesture, so
+ * (audio-lifecycle.md REQ-the-gesture-is-required-only-when-required). The modal exists only to buy a user gesture, so
  * it is shown only where the browser demands one: the default Chromium project
  * launches with `--autoplay-policy=no-user-gesture-required`, so the context is
  * created running and there is **no modal at all**, while a project without that
@@ -95,7 +95,7 @@ export async function dragKnobUp(page: Page, testid: string): Promise<void> {
 }
 
 /* ------------------------------------------------------------------ *
- * The demo library (song-mode.md REQ-10/REQ-12)
+ * The demo library (song-mode.md REQ-the-demo-row-overflows-into-a-menu/REQ-drop-in-demos-are-fetched-on-click)
  *
  * **Never name a demo in a spec.** `src/state/demos/` is a drop-in directory —
  * adding or editing a song there is a data change that must not touch a test
@@ -163,9 +163,9 @@ export function dropInDemos(): DemoRef[] {
 
 /**
  * Shipped project-zip demos in registration order. The index covers these too
- * now (demo-library.md REQ-3) — the generator opens them in Node — so the name
+ * now (demo-library.md REQ-zip-demos-are-indexed-too) — the generator opens them in Node — so the name
  * comes from there, with the old filename mangling kept as the fallback
- * (project-export.md REQ-7).
+ * (project-export.md REQ-zip-demos-auto-register).
  */
 export function zipDemos(): DemoRef[] {
   const index = demoIndex();
@@ -332,7 +332,7 @@ export const loadedSamplerSlots = (page: Page): Promise<number[]> =>
 
 /**
  * Re-arm the Play cue with a silent-while-stopped action: switch a step machine
- * on (play-button-blink.md REQ-3). `ParamBus.set` no-ops on an unchanged value,
+ * on (play-button-blink.md REQ-silent-actions-arm-a-green-cue). `ParamBus.set` no-ops on an unchanged value,
  * so this must be a real 0 → 1 edge — which machine a demo happens to leave off
  * is not something a spec may assume. Returns the param it drove.
  */

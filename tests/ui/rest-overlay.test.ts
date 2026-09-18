@@ -37,7 +37,7 @@ describe('buildRestOverlay', () => {
     expect(visible(overlay.el)).toBe(false);
   });
 
-  it('stays hidden while Follow is off; re-enabling mid-rest shows it (REQ-6)', () => {
+  it('stays hidden while Follow is off; re-enabling mid-rest shows it (REQ-a-resting-machine-tab-shows-it)', () => {
     const { arrangement, api, notify } = harness();
     let following = true;
     const overlay = buildRestOverlay(api, 'motion', { following: () => following });

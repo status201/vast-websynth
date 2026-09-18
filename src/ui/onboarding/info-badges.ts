@@ -3,7 +3,7 @@
 // chrome, so the synth still looks like a real instrument.
 //
 // The badges are named for the glyph they draw, which is also the glyph on the
-// header button that switches them on (onboarding.md REQ-3/REQ-8). What a badge
+// header button that switches them on (onboarding.md REQ-info-badges-show-per-control-help/REQ-the-info-button-is-a-toggle). What a badge
 // *opens* is still a "help topic" — hence `HELP_TOPICS` and the `data-help`
 // anchors below; the boundary is deliberate.
 import { Modal } from '../components/modal';
@@ -45,8 +45,8 @@ const ANCHORS: Anchor[] = [
   { topic: 'panic', find: () => byTestId('panic') },
   // Covers the whole preset cluster — the selector plus the one door beside it
   // for save / export preset / export bank / import-with-review (presets.md
-  // REQ-9). Pinned to the selector rather than that button (onboarding.md
-  // REQ-12): on Save the badge sat close enough to the ⓘ toggle to pull the eye
+  // REQ-one-door-for-saving). Pinned to the selector rather than that button (onboarding.md
+  // REQ-a-presets-topic-anchors-to-the-picker): on Save the badge sat close enough to the ⓘ toggle to pull the eye
   // off it, and the topic's copy opens on the dropdown anyway.
   { topic: 'presets', find: () => byTestId('preset-select') },
   { topic: 'oscillators', find: () => byHelp('oscillators') },
@@ -73,7 +73,7 @@ const ANCHORS: Anchor[] = [
   // compressor is bypassed (fx-group collapse) and help must stay reachable.
   { topic: 'fx.drum.comp', find: () => byTestId('fxgroup-fx.drum.comp') },
   { topic: 'fx.master.comp', find: () => byTestId('fxgroup-fx.master.comp') },
-  // The Equalizer (onboarding.md REQ-26). The section badge pins to the root, as
+  // The Equalizer (onboarding.md REQ-the-equalizer-carries-seven-badges). The section badge pins to the root, as
   // `fx` does, so it stays reachable while the section is folded. The page badges
   // are one id per lane: only the visible page's anchor has a box.
   { topic: 'eq', find: () => byTestId('eq-section') },
@@ -94,12 +94,12 @@ const ANCHORS: Anchor[] = [
   // The one control on the step row that writes to FOUR tracks at once, and the
   // only one whose options are disabled until something on another tab is set.
   { topic: 'seq.chord', find: () => byTestId('seq-chord') },
-  // "Import into sampler" (render-to-sampler.md REQ-10): the section is
+  // "Import into sampler" (render-to-sampler.md REQ-the-render-button-carries-a-badge): the section is
   // unexplained on screen and the two-pass render looks like a hang.
   { topic: 'seq.render', find: () => byTestId('seq-import-render') },
   { topic: 'drums', find: () => byTestId('tab-drums') },
   { topic: 'sampler', find: () => byTestId('tab-sampler') },
-  // The selected-slot strip (sampler.md REQ-12/REQ-13). These pin to the strip's
+  // The selected-slot strip (sampler.md REQ-each-slot-has-a-channel/REQ-a-hit-plays-a-window-of-the-buffer). These pin to the strip's
   // persistent CELLS, not to the knobs: a Knob binds its paramId at construction,
   // so the strip rebuilds every control when the grid cursor moves to another
   // slot, and a badge holding one of those would be left on a detached node.
@@ -112,7 +112,7 @@ const ANCHORS: Anchor[] = [
   // reads as part of it. On the label it tucks exactly as the knob badges do.
   { topic: 'sampler.choke', find: () => byHelp('sampler.choke') },
   { topic: 'motion', find: () => byTestId('tab-motion') },
-  // Short per-lane Motion badges (onboarding.md REQ-14): pinned to the panel via
+  // Short per-lane Motion badges (onboarding.md REQ-the-motion-tab-carries-two-lane-badges): pinned to the panel via
   // data-help, so they hide/reposition on tab switch like the other in-panel badges.
   { topic: 'motion.xy', find: () => byHelp('motion.xy') },
   { topic: 'motion.tracks', find: () => byHelp('motion.tracks') },
@@ -127,7 +127,7 @@ const ANCHORS: Anchor[] = [
   { topic: 'song.new', find: () => byTestId('song-new') },
   { topic: 'song.exportAudio', find: () => byTestId('song-export-audio') },
   { topic: 'song.record', find: () => byTestId('song-record') },
-  // The playhead ruler on each machine tab (transport-position.md REQ-9). One
+  // The playhead ruler on each machine tab (transport-position.md REQ-a-position-ruler-above-every-grid). One
   // per lane because only the visible tab's anchor has a box — the others
   // measure 0×0 and their badges hide, so a single shared badge would be
   // reachable on exactly one tab.
@@ -136,11 +136,11 @@ const ANCHORS: Anchor[] = [
   { topic: 'transport.ruler.sampler', find: () => byTestId('ruler-sampler') },
   { topic: 'transport.ruler.motion', find: () => byTestId('ruler-motion') },
   // The Song tab's transport row; the launcher doubles as its section title, so
-  // the badge lands on the row's leading control (transport-window.md REQ-3).
+  // the badge lands on the row's leading control (transport-window.md REQ-the-transport-launcher-is-the-section-title).
   { topic: 'transport.song', find: () => byTestId('transport-open') },
   // The Live FX row directly below it — same arrangement, so the same rule:
   // the LIVE FX launcher doubles as the section title (live-fx-window.md
-  // REQ-6/REQ-7), so its badge leads the row too.
+  // REQ-launcher-doubles-as-section-title/REQ-live-fx-row-carries-a-help-badge), so its badge leads the row too.
   { topic: 'song.fx', find: () => byTestId('livefx-open') },
   // The MOD launcher sits in the same row but is NOT a Live FX control — it opens the
   // patch's modulation routing. A divider says so visually; this says what it is.
@@ -236,10 +236,10 @@ export class InfoBadges {
       '[data-testid="fx"]', '[data-testid="pattern-row"]', '[data-testid="panel-seq"]',
       // The LFO panel's first page — a display:none <-> flex shell like
       // panel-seq, so the lfo.rate badge needs it to come back after a page
-      // switch (onboarding.md REQ-5a). Page 2 needs no entry: revealing it is
+      // switch (onboarding.md REQ-a-container-must-tell-badges-when-it-hides). Page 2 needs no entry: revealing it is
       // what collapses page 1, which is what fires this.
       '[data-testid="ppage-lfo-1"]',
-      // The Equalizer's fold and its three page shells (REQ-5a, v27). Neither
+      // The Equalizer's fold and its three page shells (REQ-a-container-must-tell-badges-when-it-hides, v27). Neither
       // gesture reliably resizes the body: unfolding is absorbed by the keyboard
       // row's slack, and the pages share one height (`--scope-h`), so a lane
       // switch changes only the two shells trading places — any pair of lanes
@@ -275,7 +275,7 @@ export class InfoBadges {
   };
 
   private position(): void {
-    // A badge is shown only where it can be reached (onboarding.md REQ-5b), so
+    // A badge is shown only where it can be reached (onboarding.md REQ-a-badge-shows-only-where-reachable), so
     // the viewport is bounded at BOTH ends: the sticky header's bottom edge,
     // which content badges must not scroll up into (they'd paint over it), and
     // the fold, past which a badge is pinned where nothing can click it.

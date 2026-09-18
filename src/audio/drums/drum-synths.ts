@@ -12,7 +12,7 @@ export interface DrumSynth {
   /**
    * `GainNode`, not `AudioNode`: every implementation already builds one, and a
    * model swap has to *ramp* it down before disconnecting rather than severing a
-   * ringing tail (drum-machine.md REQ-19).
+   * ringing tail (drum-machine.md REQ-swapping-a-model-never-severs-a-voice).
    */
   readonly output: GainNode;
   /** `chokeAt` (step gate < 1) cuts the hit early with a fast fade. */
@@ -25,12 +25,12 @@ const CHOKE_FADE = 0.005;
 
 /**
  * How long an envelope takes to reach TRUE zero before its source stops
- * (drum-machine.md REQ-15).
+ * (drum-machine.md REQ-a-voice-envelope-reaches-true-zero).
  *
  * `exponentialRampToValueAtTime` cannot reach 0, so every voice lands on a 0.001
  * floor. Stopping the source there truncates the waveform mid-cycle, and a step
  * discontinuity is a click. At -60 dBFS that would not matter, but the per-track
- * drive (REQ-7) is `tanh(k*x)/tanh(k)` with `k = drive * 50`, whose small-signal
+ * drive (REQ-tone-drive-and-pan-are-a-channel) is `tanh(k*x)/tanh(k)` with `k = drive * 50`, whose small-signal
  * slope is ~`k`: at `drive` 0.28 it lifts the residue ~32x (+30 dB), to about
  * -30 dBFS. On the Kick — a 55 Hz sine, where that step is the only broadband
  * content in the signal — it is plainly audible. The noise voices mask their own,
@@ -53,7 +53,7 @@ function chokeRoute(
   chokeAt: number | undefined,
   start: number,
 ): { dest: AudioNode; stopAt(natural: number): number; choke?: GainNode } {
-  // A stop may never precede its own start (REQ-17): with a choke already past,
+  // A stop may never precede its own start (REQ-a-clamped-hit-carries-its-choke): with a choke already past,
   // `min` alone returned a time before `start` and the source never sounded.
   if (chokeAt === undefined) return { dest: output, stopAt: (n) => Math.max(start, n) };
   const g = ctx.createGain();
@@ -64,10 +64,10 @@ function chokeRoute(
 }
 
 /**
- * One hit's start time and destination (drum-machine.md REQ-17).
+ * One hit's start time and destination (drum-machine.md REQ-a-clamped-hit-carries-its-choke).
  *
  * `when` may be in the past: the clock's guaranteed lead is finite and an early
- * micro nudge eats into it (step-settings.md REQ-9), while the first tick after
+ * micro nudge eats into it (step-settings.md REQ-an-early-offset-is-capped-in-seconds), while the first tick after
  * `start()` and every dropout re-origin carry less lead than `MAX_EARLY_S`. The
  * start is clamped forward — and the choke shifts by **the same delta**, so the
  * gate keeps its LENGTH. Clamping only the start left `chokeAt` behind the hit,
@@ -86,7 +86,7 @@ function voiceStart(
 }
 
 /**
- * Ramp an envelope to TRUE zero and return when its source may stop (REQ-15).
+ * Ramp an envelope to TRUE zero and return when its source may stop (REQ-a-voice-envelope-reaches-true-zero).
  * Call it per envelope, not per voice: the Snare's noise and tone, the Conga's
  * skin and overtone and the Bongo's head and click each have their own tail.
  */

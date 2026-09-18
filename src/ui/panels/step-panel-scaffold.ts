@@ -59,7 +59,7 @@ interface LaneHooks {
   hasContent(i: number): boolean;
   onContentChange(fn: () => void): () => void;
   onStep(fn: (idx: number) => void): () => void;
-  /** Clear the edit bank; true when something was actually cleared (REQ-6). */
+  /** Clear the edit bank; true when something was actually cleared (REQ-motion-has-the-fourth-chain-lane). */
   clearBank(): boolean;
 }
 
@@ -120,7 +120,7 @@ function laneHooks(engine: StudioApi, lane: StepLane): LaneHooks {
         getResting: () => a.motionResting,
         // Motion stores THREE lanes per bank (XY anchors + tracks A/B), so a bank
         // whose tracks are full but whose XY lane is empty is still a filled bank
-        // (banks.md REQ-6) — the same rule the panel's Clear ▾ list uses.
+        // (banks.md REQ-content-dot-covers-every-lane) — the same rule the panel's Clear ▾ list uses.
         hasContent: (i) => p.motionBanks[i]!.some((s) => s.on)
           || p.motionTracks(i).some((t) => t.steps.some((s) => s.on)),
         // Both streams can flip that answer, so both must repaint the bar.
@@ -154,7 +154,7 @@ export function bankBarFor(engine: StudioApi, lane: StepLane): BankBar {
 
 /**
  * `position: relative` wrapper holding the grid plus the rest overlay that
- * covers it while the arrangement plays a rest bar (arrangement-rest.md REQ-6).
+ * covers it while the arrangement plays a rest bar (arrangement-rest.md REQ-a-resting-machine-tab-shows-it).
  * `content` is appended in order *before* the overlay, so the overlay always
  * stays on top (motion passes `[cells, graphSvg]`).
  */
@@ -180,7 +180,7 @@ export function wrapGridWithRestOverlay(
  * live and subscribed: without this gate every one of them repaints its playhead
  * on every 16th — ~50 class writes a tick against DOM nobody can see — and the
  * Motion panel re-projects its SVG graph every bar (runtime-performance.md
- * REQ-4).
+ * REQ-no-work-for-offscreen-dom).
  *
  * Panels are built **before** the `TabContainer` exists, so a gate starts
  * `shown` and is corrected by the first `onViewChange`; a panel can never be
@@ -210,7 +210,7 @@ export class VisibilityGate {
  * only shows while the edit bank *is* the playing bank (so editing bank C while
  * B plays doesn't chase a phantom playhead) *and* the lane is not resting (a
  * rest bar plays no bank, so the highlight is hidden rather than sweeping under
- * the rest overlay — arrangement-rest.md REQ-4). The rest overlay is refreshed
+ * the rest overlay — arrangement-rest.md REQ-a-resting-lane-plays-nothing). The rest overlay is refreshed
  * on the same tick so bar boundaries update promptly.
  *
  * While `gate` reports hidden the tick does nothing at all; revealing the panel
@@ -244,7 +244,7 @@ export function wirePlayhead(
 }
 
 /**
- * The lane's transport-position ruler (transport-position.md REQ-9), testids
+ * The lane's transport-position ruler (transport-position.md REQ-a-position-ruler-above-every-grid), testids
  * namespaced by lane exactly like `bankBarFor`/`clearMenuFor`.
  *
  * The panel places the two pieces itself — `barEl` in its row-label slot,
@@ -268,7 +268,7 @@ export interface LaneControls {
 
 /**
  * The **Chain / Mute / Solo** cluster for a machine header (machine-status.md
- * REQ-8) — the same three controls the Song tab's lane card carries, built from
+ * REQ-no-new-dim-behaviour) — the same three controls the Song tab's lane card carries, built from
  * the same `createChainToggle` and `Switch` so behaviour, state and looks cannot
  * drift between the two surfaces.
  *
@@ -315,7 +315,7 @@ export function laneControlsFor(
 }
 
 /**
- * The **GRID** control for a machine header (meter.md REQ-10/REQ-14) — how many
+ * The **GRID** control for a machine header (meter.md REQ-each-machine-has-a-loop-length/REQ-each-machine-has-a-step-rate) — how many
  * cells this lane loops over and how long each one lasts.
  *
  * A `▾` **popover**, not two inline dropdowns, and that is a measurement rather
@@ -323,7 +323,7 @@ export function laneControlsFor(
  * (responsive-machine-header.md), and it has ~67px of slack there on this
  * machine's own font stack. Two labelled dropdowns are ~169px, which fits
  * locally and wraps on a CI runner's wider fallback font — and a wrapped header
- * pushes the per-step edit row past the fold, where onboarding.md REQ-5b
+ * pushes the per-step edit row past the fold, where onboarding.md REQ-a-badge-shows-only-where-reachable
  * correctly hides its info badge. A 60px toggle cannot be the straw, and the
  * popover then has room to label both controls properly and show what the pair
  * amounts to in words. `Clear ▾` sits two controls away, so the idiom is already
@@ -467,7 +467,7 @@ export function playheadRulerFor(
   gate?: VisibilityGate,
 ): PlayheadRuler {
   // The ruler's readout names the bank while nothing is chained
-  // (transport-position.md REQ-15). Hand it the SAME accessors `bankBarFor` uses,
+  // (transport-position.md REQ-the-readout-never-invents-bars). Hand it the SAME accessors `bankBarFor` uses,
   // so the letter can never disagree with the bank bar sitting beside it.
   const h = laneHooks(engine, lane);
   return buildPlayheadRuler(engine, bus, lane, gate, {
@@ -479,12 +479,12 @@ export function playheadRulerFor(
 /**
  * What every machine tab returns, so `app.ts` can route keyboard actions to the
  * grid that is actually on screen without knowing anything else about the panel
- * (step-grid-editing.md REQ-5). The seq panel extends it with `disarmStepInput`.
+ * (step-grid-editing.md REQ-delete-clears-the-selected-step). The seq panel extends it with `disarmStepInput`.
  */
 export interface MachinePanel {
   readonly el: HTMLElement;
   /** Switch the selected step off (Delete/Backspace). Non-destructive: the
-   *  step keeps its note/velocity/gate, per REQ-2. */
+   *  step keeps its note/velocity/gate, per REQ-set-steps-are-anchors. */
   clearSelectedStep(): void;
   /** Driven by `TabContainer.onViewChange`; see {@link VisibilityGate}. */
   readonly gate: VisibilityGate;
@@ -502,21 +502,21 @@ export interface GatedPanel {
  * A row is normally exactly its steps, and the toast's Undo is the lane's pattern
  * undo. A row that clears **more** than steps sets `undo` and owns reversal
  * outright — it *replaces* the default rather than running beside it, because the
- * pattern stack carries steps only (step-grid-editing.md REQ-7). The sampler's is
+ * pattern stack carries steps only (step-grid-editing.md REQ-one-bulk-action-one-undo-entry). The sampler's is
  * the one such row: its item is labelled with the slot's filename, so it ejects
- * the sample too (sampler.md REQ-9).
+ * the sample too (sampler.md REQ-clear-ejects-the-slot).
  */
 export interface ClearRow {
   label: string;
   /**
    * False when the row holds nothing this item would remove — `clearMenuFor`
    * then drops it, because an item that would do nothing is a dead item
-   * (step-grid-editing.md REQ-6, ADR-014 law 1). Panels return every row they
+   * (step-grid-editing.md REQ-clear-menu-clears-in-bulk, ADR-014 law 1). Panels return every row they
    * have and answer this per row; the filter is central so a fifth machine
    * inherits the rule rather than having to remember it.
    *
    * "Content" must match what the item destroys — which is why the sampler
-   * counts a loaded sample, not just steps (sampler.md REQ-9).
+   * counts a loaded sample, not just steps (sampler.md REQ-clear-ejects-the-slot).
    */
   hasContent: boolean;
   clear(): boolean;
@@ -524,7 +524,7 @@ export interface ClearRow {
 }
 
 /**
- * The sampler's row-scoped clear (sampler.md REQ-9). The menu item says a
+ * The sampler's row-scoped clear (sampler.md REQ-clear-ejects-the-slot). The menu item says a
  * *filename*, so it has to remove the file: the slot's steps in the edit bank,
  * plus the name and the buffer behind it. Ejecting via `setBuffer` is what lets
  * sample-persistence drop the stored clip without this caller knowing.
@@ -546,7 +546,7 @@ export function samplerSlotClearRow(engine: StudioApi, undo: PatternUndo, slot: 
   return {
     label: name ?? SAMPLER_SLOT_LABELS[slot] ?? `S${slot + 1}`,
     // A named slot is content even with an empty grid — the item removes the
-    // name, so offering it is the whole point (REQ-9). Filtering on steps alone
+    // name, so offering it is the whole point (REQ-song-file-v4-adds-motion-banks). Filtering on steps alone
     // is exactly the bug this row exists to fix.
     hasContent: (engine.patterns.sampler[slot]?.some((c) => c.on) ?? false)
       || name !== null || buf !== null,
@@ -571,9 +571,9 @@ export function samplerSlotClearRow(engine: StudioApi, undo: PatternUndo, slot: 
 
 /**
  * The lane's `Clear ▾` header control, wired to the store's bulk-clear entry
- * points (step-grid-editing.md REQ-6/REQ-8). Each clear is ONE PatternStore
+ * points (step-grid-editing.md REQ-clear-menu-clears-in-bulk/REQ-a-bulk-clear-reports-itself). Each clear is ONE PatternStore
  * mutation, so the toast's Undo — and the machine's Undo button, and Ctrl+Z —
- * all reverse the whole thing in a single press (REQ-7).
+ * all reverse the whole thing in a single press (REQ-both-motion-modes-share-one-frame-loop).
  *
  * `rows` is resolved every time the menu opens. A machine with a selection
  * cursor returns its one selected row; Motion has no cursor, so it returns
@@ -590,7 +590,7 @@ export function clearMenuFor(
 
   // Nothing cleared ⇒ no toast and no undo entry: an "Undo" that does nothing
   // is worse than no toast at all. `onUndo` overrides the lane's pattern undo for
-  // a row that cleared more than steps and therefore reverses itself (REQ-7).
+  // a row that cleared more than steps and therefore reverses itself (REQ-both-motion-modes-share-one-frame-loop).
   const report = (what: string, changed: boolean, onUndo?: () => void): void => {
     if (!changed) return;
     showToast({
@@ -607,7 +607,7 @@ export function clearMenuFor(
     onClearBank: () => report(`bank ${bankLabel()}`, h.clearBank()),
     ...(rows
       ? {
-        // The one place the no-dead-item rule lives (REQ-6): panels hand over
+        // The one place the no-dead-item rule lives (REQ-motion-has-the-fourth-chain-lane): panels hand over
         // every row they have, and an empty one never reaches the menu.
         rows: () => rows().filter((r) => r.hasContent).map((r) => ({
           label: r.label,

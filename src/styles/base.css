@@ -83,7 +83,7 @@ button {
    font character — Inter is not bundled, so on Android `--sans` falls back to
    Roboto and then to a symbol/emoji font per character, at its own weight and
    baseline. Global rather than a CSS Module because the class name is
-   hard-coded in the markup strings, which a module would scope away (REQ-5).
+   hard-coded in the markup strings, which a module would scope away (REQ-ui-icons-are-self-stroking).
 
    Sized in `em` so one glyph is correct at every call site's own font-size —
    the 13px keycap, the 11px button, the help paragraph — instead of pinning a

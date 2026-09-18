@@ -1,4 +1,4 @@
-// WiFi sync pairing wizard (webrtc-sync.md REQ-5/REQ-9/REQ-10). Serverless: two
+// WiFi sync pairing wizard (webrtc-sync.md REQ-pairing-is-serverless-and-non-trickle/REQ-pairing-gives-connection-feedback/REQ-the-pair-modal-resists-dismissal). Serverless: two
 // devices swap an offer↔answer blob by QR or copy-paste. A **linear wizard** —
 // Choose a role → (Master: show offer → get answer | Slave: get offer → show
 // answer) → Linked — presenting one step at a time so the two-way handshake is
@@ -19,18 +19,18 @@ import { UI_ICONS, iconLabel, iconTextEl, type IconName } from './ui-icons';
 
 type El = HTMLElement;
 
-// QR render tuning (webrtc-sync REQ-5): 1 device-px per module + a 4-module
+// QR render tuning (webrtc-sync REQ-pairing-is-serverless-and-non-trickle): 1 device-px per module + a 4-module
 // quiet zone, then CSS-upscaled to QR_MAX_PX (never downscaled) so a dense
 // full-SDP code stays camera-scannable.
 const QR_QUIET = 4;
 const QR_MAX_PX = 420;
 
 // Textareas are half the shared modal heights (aiText 320 / aiBrief 84) — the QR
-// + Copy are the primary transfer; the text blob is a fallback (REQ-5).
+// + Copy are the primary transfer; the text blob is a fallback (REQ-pairing-is-serverless-and-non-trickle).
 const READONLY_TA_PX = 160;
 const INPUT_TA_PX = 42;
 
-// Connection-feedback tuning (REQ-9). Causes ordered most-common-first — a
+// Connection-feedback tuning (REQ-pairing-gives-connection-feedback). Causes ordered most-common-first — a
 // firewall is the usual laptop culprit (confirmed in the field).
 const CONNECT_WATCHDOG_MS = 12_000;
 const CONNECT_FAIL_MSG =
@@ -47,7 +47,7 @@ function el<K extends keyof HTMLElementTagNameMap>(tag: K, className?: string, t
 }
 
 /** Sans-serif body/intro/instruction text — the type rule reserves serif for
- *  titles, subtitles and taglines (webrtc-sync REQ-5). */
+ *  titles, subtitles and taglines (webrtc-sync REQ-pairing-is-serverless-and-non-trickle). */
 function bodyText(text: string): HTMLDivElement {
   const p = el('div', undefined, text);
   p.style.fontFamily = 'var(--sans)';
@@ -72,7 +72,7 @@ function hasBarcodeDetector(): boolean {
   return typeof (window as { BarcodeDetector?: unknown }).BarcodeDetector !== 'undefined';
 }
 
-/** A non-blocking reason WiFi pairing may misbehave here (REQ-8); null = fine. */
+/** A non-blocking reason WiFi pairing may misbehave here (REQ-pairing-needs-a-secure-context); null = fine. */
 function insecureWarning(): string | null {
   if (typeof window !== 'undefined' && window.isSecureContext === false) {
     return 'WiFi sync needs a secure connection. Open the app over https:// on both devices — '
@@ -81,7 +81,7 @@ function insecureWarning(): string | null {
   return null;
 }
 
-/** Render the connection-failure guidance readably (REQ-9) — the aiLabel style is
+/** Render the connection-failure guidance readably (REQ-pairing-gives-connection-feedback) — the aiLabel style is
  *  uppercase + letter-spaced, an unreadable wall for a full sentence. */
 function showConnectFailure(target: El): void {
   target.textContent = CONNECT_FAIL_MSG;
@@ -94,14 +94,14 @@ function showConnectFailure(target: El): void {
 /**
  * Open the WiFi-sync pairing wizard. `sync` is narrowed to `setMode` (ISP): the
  * role choice sets Master/Slave so the pairing UI and the Sync section's
- * Off/Master/Slave control agree (REQ-5).
+ * Off/Master/Slave control agree (REQ-pairing-is-serverless-and-non-trickle).
  */
 export function openSyncPairModal(rtc: WebRtcSyncTransport, sync: Pick<SyncController, 'setMode'>): void {
   let stopScan: (() => void) | null = null;
   let unsub: () => void = () => {};
   let unsubDiag: () => void = () => {};
 
-  // Connection-feedback state (REQ-9): once a peer completes its half we wait for
+  // Connection-feedback state (REQ-pairing-gives-connection-feedback): once a peer completes its half we wait for
   // the DataChannels to open. `currentErr` is the active step's inline message.
   let currentErr: El | null = null;
   let awaiting = false;
@@ -125,7 +125,7 @@ export function openSyncPairModal(rtc: WebRtcSyncTransport, sync: Pick<SyncContr
   const modal = new Modal({
     title: 'WiFi sync — pair two devices',
     cardClass: Modal.cardWideClass,
-    dismissOnBackdrop: false, // multi-step flow — an outside click must not discard it (REQ-10)
+    dismissOnBackdrop: false, // multi-step flow — an outside click must not discard it (REQ-the-pair-modal-resists-dismissal)
     onClose: () => { stopScan?.(); stopScan = null; disarmAwaiting(); unsub(); unsubDiag(); },
   });
 
@@ -133,7 +133,7 @@ export function openSyncPairModal(rtc: WebRtcSyncTransport, sync: Pick<SyncContr
 
   const status = el('div', modalStyles.aiLabel);
   /** "Linked ✓" / "Not linked" — the tick is drawn, so it is replaced wholesale
-   *  rather than written as text (iconography.md REQ-1). */
+   *  rather than written as text (iconography.md REQ-a-control-glyph-is-inline-svg). */
   const setStatus = (): void => {
     status.replaceChildren(
       rtc.linked ? iconTextEl('check', 'Linked', 'after') : document.createTextNode('Not linked'),
@@ -150,7 +150,7 @@ export function openSyncPairModal(rtc: WebRtcSyncTransport, sync: Pick<SyncContr
       window.setTimeout(() => modal.close(), 1200);
     } else {
       status.textContent = 'Not linked';
-      // A teardown while we were waiting means the link failed to open (REQ-9).
+      // A teardown while we were waiting means the link failed to open (REQ-pairing-gives-connection-feedback).
       if (awaiting) {
         disarmAwaiting();
         if (currentErr) showConnectFailure(currentErr);
@@ -327,7 +327,7 @@ export function openSyncPairModal(rtc: WebRtcSyncTransport, sync: Pick<SyncContr
     const frame = el('div');
     if (o.step) frame.appendChild(el('div', modalStyles.aiLabel, o.step));
     // A heading mark is drawn, never typed — a ✓ character comes back as a
-    // colour emoji on Android (iconography.md REQ-1).
+    // colour emoji on Android (iconography.md REQ-a-control-glyph-is-inline-svg).
     const h = o.headingIcon
       ? (() => { const d = el('div'); d.innerHTML = iconLabel(o.headingIcon, o.heading, 'after'); return d; })()
       : el('div', undefined, o.heading); // subtitle → serif (per the type rule)
@@ -495,7 +495,7 @@ export function openSyncPairModal(rtc: WebRtcSyncTransport, sync: Pick<SyncContr
   modal.body.appendChild(content);
   modal.body.appendChild(status);
 
-  // Live per-attempt diagnostics under the status/error (REQ-11).
+  // Live per-attempt diagnostics under the status/error (REQ-every-sync-attempt-is-recorded).
   const debug = buildDebugPanel();
   unsubDiag = rtc.onDiagnostics(() => debug.update(rtc.diagnostics));
   modal.body.appendChild(debug.el);
@@ -512,7 +512,7 @@ export function openSyncPairModal(rtc: WebRtcSyncTransport, sync: Pick<SyncContr
 }
 
 /** A collapsible "Connection details" panel fed by the transport's diagnostics
- *  (REQ-11); hidden until a pairing attempt produces data. */
+ *  (REQ-every-sync-attempt-is-recorded); hidden until a pairing attempt produces data. */
 function buildDebugPanel(): { el: HTMLElement; update: (d: WebRtcDiagnostics) => void } {
   const details = document.createElement('details');
   details.dataset.testid = 'sync-pair-debug';
@@ -576,12 +576,12 @@ export function renderDiagnosticsInto(body: HTMLElement, d: WebRtcDiagnostics): 
 const SCAN_SAMPLE_MAX = 640;
 
 /**
- * A per-frame QR reader (webrtc-sync REQ-5): the platform `BarcodeDetector`
+ * A per-frame QR reader (webrtc-sync REQ-pairing-is-serverless-and-non-trickle): the platform `BarcodeDetector`
  * where available (fast, hardware-accelerated), else the vendored jsQR decoder
  * driven off a `<canvas>` frame — so scanning works on Windows desktop and iOS
  * Safari, which ship no BarcodeDetector. Returns the decoded text or null.
  *
- * The jsQR decoder is `import()`ed lazily here (REQ-7), so the ~large bundle is
+ * The jsQR decoder is `import()`ed lazily here (REQ-sync-has-zero-npm-dependencies), so the ~large bundle is
  * fetched only when a device without `BarcodeDetector` actually starts a scan.
  */
 async function makeFrameDetector(): Promise<(video: HTMLVideoElement) => Promise<string | null>> {
@@ -614,7 +614,7 @@ async function makeFrameDetector(): Promise<(video: HTMLVideoElement) => Promise
 
 /**
  * Paint a QR of `text` onto `canvas` (auto version, EC level L) so it is
- * **camera-scannable** (webrtc-sync REQ-5). The bitmap is drawn at **one
+ * **camera-scannable** (webrtc-sync REQ-pairing-is-serverless-and-non-trickle). The bitmap is drawn at **one
  * device-pixel per module** plus a 4-module quiet zone, then CSS-**upscaled**
  * (never downscaled) with `image-rendering: pixelated` to a viewport-responsive
  * display size — crisp, square modules with plenty of pixels each. Exported for

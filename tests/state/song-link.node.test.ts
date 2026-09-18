@@ -41,7 +41,7 @@ describe('song-link payloads (node → real deflate)', () => {
   });
 });
 
-// untrusted-input.md REQ-2 / song-share-link.md REQ-8. deflate tops out around
+// untrusted-input.md REQ-bounds-in-the-validator-sizes-in-the-codec / song-share-link.md REQ-share-payload-is-capped. deflate tops out around
 // 1032:1, so an address-bar-sized hash can inflate to gigabytes — and the cap is
 // only a cap if it fires DURING the read, before the memory is spent.
 describe('song-link payload cap (deflate bomb)', () => {

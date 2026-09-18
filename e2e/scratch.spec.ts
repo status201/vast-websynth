@@ -7,7 +7,7 @@ const slotDuration = (page: Page, slot: number): Promise<number | null> =>
 const slotName = (page: Page, slot: number): Promise<string | null> =>
   page.evaluate((s) => (window as any).__synth.patterns.sampleNames[s] ?? null, slot);
 
-/** One bar in seconds, measured the way the transport measures it (meter.md REQ-7). */
+/** One bar in seconds, measured the way the transport measures it (meter.md REQ-bar-exact-capture-follows-bar-ticks). */
 const barSeconds = (page: Page): Promise<number> =>
   page.evaluate(() => {
     const s = (window as any).__synth;
@@ -49,7 +49,7 @@ async function openScratch(page: Page, slot = 0): Promise<void> {
  * audio rather than the name.
  */
 test.describe('scratch', () => {
-  test('prints a bar-exact scratch into the clip (REQ-5, REQ-15)', async ({ page }) => {
+  test('prints a bar-exact scratch into the clip (REQ-the-result-is-exactly-out-frames, REQ-the-scratch-editor-is-a-modal-section)', async ({ page }) => {
     await loadClip(page);
     expect(await slotDuration(page, 0)).toBeCloseTo(1.7, 2);
 
@@ -68,7 +68,7 @@ test.describe('scratch', () => {
     expect(await slotDuration(page, 0)).toBeCloseTo(bar, 3);
   });
 
-  test('undo restores the audio and never the name (REQ-21, REQ-22)', async ({ page }) => {
+  test('undo restores the audio and never the name (REQ-applying-goes-through-run-op, REQ-a-scratched-clip-is-not-renamed)', async ({ page }) => {
     await loadClip(page);
     await openScratch(page);
     await pick(page, 'scratch-length', /^8 · ½ bar$/);
@@ -77,12 +77,12 @@ test.describe('scratch', () => {
     await page.getByTestId('mic-load').click();
 
     expect(await slotDuration(page, 0)).toBeCloseTo(1.7, 2);
-    // sampler.md REQ-7 evicts a slot's buffer on rename, so a scratched clip that
+    // sampler.md REQ-a-slots-audio-matches-its-label evicts a slot's buffer on rename, so a scratched clip that
     // was renamed would lose the audio this just wrote.
     expect(await slotName(page, 0)).toBe('break.wav');
   });
 
-  test('rolling the dice changes the shape without applying it (REQ-19)', async ({ page }) => {
+  test('rolling the dice changes the shape without applying it (REQ-scratch-presets-are-pure-generators)', async ({ page }) => {
     await loadClip(page);
     await openScratch(page);
     const legend = page.getByTestId('scratch-legend');
@@ -96,7 +96,7 @@ test.describe('scratch', () => {
     expect(await slotDuration(page, 0)).toBeCloseTo(1.7, 2);
   });
 
-  test('preview commits nothing (REQ-23)', async ({ page }) => {
+  test('preview commits nothing (REQ-preview-plays-without-committing)', async ({ page }) => {
     await loadClip(page);
     await openScratch(page);
     await page.getByTestId('scratch-preview').click();
@@ -104,7 +104,7 @@ test.describe('scratch', () => {
     expect(await slotDuration(page, 0)).toBeCloseTo(1.7, 2);
   });
 
-  test('the section starts folded away (REQ-15)', async ({ page }) => {
+  test('the section starts folded away (REQ-the-scratch-editor-is-a-modal-section)', async ({ page }) => {
     await loadClip(page);
     await page.getByTestId('sampler-edit-0').click();
     await expect(page.getByTestId('scratch-section')).toBeVisible();

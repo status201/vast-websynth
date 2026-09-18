@@ -1,5 +1,5 @@
 // The one source of truth for "is this machine on, muted, or off" — read by the
-// tab bar's status LEDs and the Song panel (machine-status.md REQ-1). The rule
+// tab bar's status LEDs and the Song panel (machine-status.md REQ-machine-state-has-one-source-of-truth). The rule
 // layers on top of `audibleLanes` rather than re-deriving mute/solo, so the LED
 // can never disagree with what you hear.
 //
@@ -28,7 +28,7 @@ export const MACHINE_TAB: Record<MachineId, string> = {
 export type MachineFlags = Record<MachineId, boolean>;
 
 /**
- * Pure state rule (machine-status.md REQ-2). A machine that is off stays off
+ * Pure state rule (machine-status.md REQ-a-machine-has-three-states). A machine that is off stays off
  * whatever its mixer state. Otherwise the three audio lanes defer to
  * `audibleLanes` (solo wins over mute); motion has no solo and makes no sound,
  * so it is muted purely by its own flag.
@@ -72,13 +72,13 @@ export function readMachineStatus(bus: ParamBus): Record<MachineId, MachineState
  * The Arpeggiator's tab id. It is deliberately NOT a `MachineId`: `machineFlags`
  * reads `<m>.mute` and `<m>.solo` for every id, and neither param exists for the
  * arp — it is not an audio lane. Same lamp, own two-state rule
- * (machine-status.md REQ-10).
+ * (machine-status.md REQ-the-arpeggiator-tab-has-a-lamp).
  */
 export const ARP_TAB = 'arp';
 
 /**
  * `arp.on` is the whole truth: armed or not. Never `muted` — with no mute, solo
- * or chain there is no mixer state that could dim it (machine-status.md REQ-10).
+ * or chain there is no mixer state that could dim it (machine-status.md REQ-the-arpeggiator-tab-has-a-lamp).
  */
 export function readArpStatus(bus: ParamBus): MachineState {
   return bus.get('arp.on') >= 0.5 ? 'on' : 'off';
@@ -93,7 +93,7 @@ export function subscribeArpStatus(bus: ParamBus, fn: () => void): () => void {
  * The Key tab's id. Not a `MachineId` for the same reason as the arp: no lane, so no
  * mute or solo. Its lamp answers "is anything re-pitching my notes?", which — like an
  * armed arp — changes what the keyboard does and is worth reading without opening the
- * tab (machine-status.md REQ-10).
+ * tab (machine-status.md REQ-the-arpeggiator-tab-has-a-lamp).
  */
 export const KEY_TAB = 'key';
 

@@ -96,10 +96,10 @@ describe('Clock start(fromStep) (Song-Position seek)', () => {
     clock.stop();
   });
 
-  it('keeps fromStep past 16 bits instead of folding it (REQ-10)', () => {
+  it('keeps fromStep past 16 bits instead of folding it (REQ-song-position-pointer-jumps-the-slave)', () => {
     const { clock, ev } = startedClock();
     // Masked to 2 before v7. A fold is only phase-safe for bar lengths dividing
-    // 65536, so meter.md REQ-4 replaced it with an ingress clamp.
+    // 65536, so meter.md REQ-the-step-counter-must-not-wrap replaced it with an ingress clamp.
     clock.start(0x1_0002);
     expect(ev[0]!.step).toBe(0x1_0002);
     clock.stop();
@@ -117,7 +117,7 @@ describe('Clock start(fromStep) (Song-Position seek)', () => {
   });
 });
 
-// transport.md REQ-6/REQ-7 — moving the playhead (transport-position.md).
+// transport.md REQ-seek-moves-a-running-clock/REQ-the-cue-is-where-start-begins — moving the playhead (transport-position.md).
 describe('Clock seek', () => {
   function startedClock() {
     vi.useFakeTimers();
@@ -166,7 +166,7 @@ describe('Clock seek', () => {
     clock.stop();
   });
 
-  it('leaves a plain start() at step 0 when nothing was seeked (REQ-5 regression)', () => {
+  it('leaves a plain start() at step 0 when nothing was seeked (REQ-phase-correction-uses-nudge regression)', () => {
     const { clock, ev } = startedClock();
     expect(clock.cue).toBe(0);
     clock.start();
@@ -192,7 +192,7 @@ describe('Clock seek', () => {
     clock.stop();
   });
 
-  it('keeps the target past 16 bits instead of folding it (REQ-10)', () => {
+  it('keeps the target past 16 bits instead of folding it (REQ-song-position-pointer-jumps-the-slave)', () => {
     const { clock } = startedClock();
     clock.seek(0x1_0005); // masked to 5 before v7
     expect(clock.step).toBe(0x1_0005);
@@ -229,7 +229,7 @@ describe('Clock swing', () => {
   });
 });
 
-// transport.md REQ-8 / ADR-015. The bug this pins: a throwing listener escaped
+// transport.md REQ-a-subscriber-may-not-wedge-the-transport / ADR-015. The bug this pins: a throwing listener escaped
 // the tick loop BEFORE `nextStepTime += sixteenth` and `_step++`, leaving
 // _playing true and the grid unmoved — so the timer re-entered the same step
 // every 25 ms forever and every lane registered after the thrower went silent.
@@ -295,7 +295,7 @@ describe('Clock listener isolation (untrusted-input)', () => {
   });
 });
 
-// transport.md REQ-9 / audio-lifecycle.md. The bug this pins: Chrome on Android
+// transport.md REQ-the-transport-catch-up-is-bounded / audio-lifecycle.md. The bug this pins: Chrome on Android
 // freezes a hidden page's renderer when the screen turns off (a Pixel 8a does; a
 // Samsung tablet does not), so the worker wakeups stop while ctx.currentTime keeps
 // running. The unbounded drain loop then emitted every missed 16th on the next
@@ -376,7 +376,7 @@ describe('Clock dropout recovery (stalled wakeup source)', () => {
   });
 });
 
-describe('Clock step counter — no wrap, bounded at ingress (transport.md REQ-10)', () => {
+describe('Clock step counter — no wrap, bounded at ingress (transport.md REQ-the-step-counter-is-bounded-at-ingress)', () => {
   function startedClock(bpm = 120) {
     vi.useFakeTimers();
     const ctx = { currentTime: 0 } as { currentTime: number };
@@ -425,7 +425,7 @@ describe('Clock step counter — no wrap, bounded at ingress (transport.md REQ-1
   });
 });
 
-describe('Clock.swingOffset (transport.md REQ-11)', () => {
+describe('Clock.swingOffset (transport.md REQ-swing-offset-is-public)', () => {
   it('reports exactly the delay the emitted tick carried', () => {
     vi.useFakeTimers();
     const ctx = { currentTime: 0 } as { currentTime: number };
@@ -475,7 +475,7 @@ function drivenClock() {
   return { ctx, clock, ev, wake };
 }
 
-// transport.md REQ-12 (v8) — Pause is Stop that remembers where it was.
+// transport.md REQ-pause-resumes-where-it-stopped (v8) — Pause is Stop that remembers where it was.
 describe('Clock pause (v8)', () => {
   it('resumes from the first step not yet scheduled', () => {
     const { clock, ev, wake } = drivenClock();
@@ -547,7 +547,7 @@ describe('Clock pause (v8)', () => {
   });
 });
 
-// transport.md REQ-13 (v8) — the loop's jump, applied inside the drain.
+// transport.md REQ-a-step-router-can-redirect-the-next-step (v8) — the loop's jump, applied inside the drain.
 describe('Clock step router (v8)', () => {
   it('a routed step is a jump on the same grid, with onSeek and no cue move', () => {
     const { clock, ev, wake } = drivenClock();

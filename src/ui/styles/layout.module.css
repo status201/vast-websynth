@@ -19,7 +19,7 @@
      never shipped as a webfont, so `normal` resolves against whatever the OS
      substitutes — 14px on Segoe UI, 11px on the Linux CI runner's fallback,
      which put a plain title 3px under the tab row that is supposed to match it
-     (panel-tabs.md REQ-9). Both sides of that match are declared, never
+     (panel-tabs.md REQ-the-strip-replaces-the-title). Both sides of that match are declared, never
      inherited from the font; pinned by tests/ui/panel-header-height.test.ts. */
   line-height: 14px;
   text-transform: uppercase;
@@ -45,7 +45,7 @@
 
 /* The tab strip IS the panel header — it replaces .panelTitle rather than
    sitting beside it, and must occupy the same vertical space so a tabbed panel
-   still lines up with its untabbed neighbours across the grid (REQ-9).
+   still lines up with its untabbed neighbours across the grid (REQ-stereo-on-a-mono-scope-falls-back).
    .panelTitle's footprint is a 14px line + 6px padding + a 1px rule; the tabs
    reach the same total from their own padding + border. */
 .panelTabs {
@@ -56,7 +56,7 @@
 }
 
 .panelTab {
-  /* Even share of the row: 50/50 for two, 33/33/33 for three (REQ-10). */
+  /* Even share of the row: 50/50 for two, 33/33/33 for three (REQ-spectrum-draws-a-peak-hold). */
   flex: 1 1 0;
   min-width: 0;
   position: relative;
@@ -69,10 +69,10 @@
   border: 1px solid var(--panel-border);
   color: var(--text-faint);
   /* Deliberately NO font-family: the active tab has to match .panelTitle, which
-     inherits the sans (typography.md REQ-1). Declaring a serif here would also
+     inherits the sans (typography.md REQ-serif-is-display-type-only). Declaring a serif here would also
      add an entry to the typography drift allowlist. */
   font-size: 10px;
-  /* Explicit, so the row lands on .panelTitle's exact height (REQ-9) rather
+  /* Explicit, so the row lands on .panelTitle's exact height (REQ-stereo-on-a-mono-scope-falls-back) rather
      than on whatever line box the font happens to give: 13 + 3 + 3 + 1 + 1 = 21,
      which is .panelTitle's 14px line + 6px padding + its 1px rule — declared
      there too, for the same reason. Pinned by tests/ui/panel-header-height.test.ts
@@ -102,7 +102,7 @@
   text-shadow: 0 1px 0 rgba(0, 0, 0, 0.7);
 }
 
-/* The off-screen-active lamp (REQ-6). Out of flow, so it cannot pull the label
+/* The off-screen-active lamp (REQ-scope-renderers-are-rect-scoped). Out of flow, so it cannot pull the label
    off centre, and always laid out so lighting it never reflows the row. */
 .panelTabLamp {
   position: absolute;
@@ -130,7 +130,7 @@
 /* Visibility only — the page's own .panelBody child does the centering, so this
    must NOT repeat align-items:center or it would shrink that child below the
    panel width and collapse the full-width dropdowns inside it. Hidden pages
-   stay in the DOM and stay subscribed (REQ-5). */
+   stay in the DOM and stay subscribed (REQ-the-split-layout-is-pure). */
 .panelPage {
   display: none;
   flex: 1;
@@ -164,7 +164,7 @@
   width: 100%;
 }
 
-/* FILTER ENV, once velocity sensitivity joined A/D/S/R (envelopes.md REQ-5).
+/* FILTER ENV, once velocity sensitivity joined A/D/S/R (envelopes.md REQ-filter-env-follows-velocity).
    Five items in a 2-column grid would leave a lone knob hanging in column 1, so
    the fifth spans the row and `justify-items: center` centres it: A D / S R /
    VEL. Deliberate, not ragged — and free between 1281 and 1629px, where FILTER
@@ -211,7 +211,7 @@
 }
 
 /* A one-line caveat under a control whose range is conditionally limited (the
-   LFO rate cap while the pulse destination is selected — oscillators.md REQ-9).
+   LFO rate cap while the pulse destination is selected — oscillators.md REQ-pwm-rate-is-clamped).
    Sans-serif: body text, not a title. Muted and small so it reads as a footnote
    rather than competing with the panel's own label. */
 .paramHint {
@@ -253,7 +253,7 @@
   min-width: 0;
 }
 
-/* Chain / Mute / Solo in a machine header (machine-status.md REQ-9). One cluster
+/* Chain / Mute / Solo in a machine header (machine-status.md REQ-lane-controls-live-on-both-surfaces). One cluster
    so the header's wrap points stay between groups rather than splitting these
    three (responsive-machine-header.md). */
 .laneControls {
@@ -264,7 +264,7 @@
   min-width: 0;
 }
 
-/* ===== Per-machine GRID popover (meter.md REQ-10/REQ-14) ===== */
+/* ===== Per-machine GRID popover (meter.md REQ-each-machine-has-a-loop-length/REQ-each-machine-has-a-step-rate) ===== */
 
 /* The popover's anchor. Nothing but a box: the menu is `position: fixed`, so it
    needs no positioned ancestor, and it must NOT carry `dropdown.module.css`'s
@@ -340,7 +340,7 @@
 
 /* Header-only framing for the shared brand block (components/brand.ts). The
    block itself is styled by brand.module.css and carries no outer framing, so
-   this divider rule can't leak into the About or start modal — brand.md REQ-3. */
+   this divider rule can't leak into the About or start modal — brand.md REQ-brand-block-carries-no-framing. */
 .headerBrand {
   padding-right: 8px;
   border-right: 1px solid rgba(244, 205, 94, 0.18);
@@ -460,7 +460,7 @@
   /* The token every other row uses, not the 22px it is at desktop widths: a
      literal kept FX 14px further in than MACHINES and EQUALIZER once the token
      drops to 8px at <=992px, so the three headings' icons stopped lining up
-     (section-title.md REQ-4). */
+     (section-title.md REQ-heading-icons-share-one-x). */
   margin: 0 var(--side-margin);
 }
 
@@ -469,7 +469,7 @@
   align-items: center;
   /* Exactly the tab bar's padding (tabs.module.css .bar), so the section title's
      icon lands on the same x as the MACHINES and EQUALIZER ones and the title's
-     own vertical padding sets a matching height (section-title.md REQ-4). */
+     own vertical padding sets a matching height (section-title.md REQ-heading-icons-share-one-x). */
   padding: 0 10px 0 6px;
   background: linear-gradient(180deg, #0a0604 0%, #16100b 100%);
   border: 1px solid var(--panel-border);
@@ -545,14 +545,14 @@
    handle on the scope's top edge — app.ts writes --scope-h inline. The default
    stays here in CSS, so no stored value (or no storage at all) renders exactly
    as it always did. Row 2 is the EQUALIZER section, auto-sized: folded it is
-   just its tab bar, expanded it is as tall as its content (equalizer.md REQ-16).
+   just its tab bar, expanded it is as tall as its content (equalizer.md REQ-the-eq-is-a-third-bottom-row).
    Row 3 floors the keyboard at 160px: a growing scope OR an unfolded EQ eats
    the keyboard's slack, stops there, and only then does the page scroll.
-   See specs/features/scope.md REQ-19. */
+   See specs/features/scope.md REQ-a-scope-resize-handle. */
 .bottom {
   /* The left gutter both rows share: the PITCH/OCT/MOD wheels, and the
      EQUALIZER section's control column, which must be EXACTLY as wide so the
-     graph lines up with the scope (equalizer.md REQ-18). Named here rather than
+     graph lines up with the scope (equalizer.md REQ-the-eq-page-mirrors-the-scope-row). Named here rather than
      written twice — two literals would be equal only by coincidence. */
   --wheel-col: 120px;
   display: grid;
@@ -629,7 +629,7 @@
 /* Problem-band overlay toggle — bottom-right, the only corner with no chrome in
    either stereo layout (the L/R labels sit bottom-LEFT). The spectrum reserves no
    width for it: on a narrow panel the button covers the 10k tick label, which is
-   cheaper than costing every panel a dead strip. See specs/features/scope.md REQ-29.
+   cheaper than costing every panel a dead strip. See specs/features/scope.md REQ-a-zones-toggle.
    `!important` for the same reason .scopeToggle needs it: this class and
    switch.module.css's .root are both single-class selectors on the same element,
    so bundle order — not intent — would otherwise decide. */
@@ -654,7 +654,7 @@
    width shrinks with the panel instead of overlapping a button: 140px is the two
    buttons plus their 8px insets plus clearance. Below ~350px viewport there is no
    room left to thread, and the grip is dropped rather than shown unhittable —
-   the stored height still applies. See specs/features/scope.md REQ-19. */
+   the stored height still applies. See specs/features/scope.md REQ-a-scope-resize-handle. */
 .scopeResize {
   position: absolute;
   top: 0;
@@ -700,7 +700,7 @@
    like AMP ENV beside it. Placed by position, not auto-flow, so the shape
    cannot depend on rule order and the DOM (Tab) order is untouched. Label ink
    is no constraint: no two boxes share a column, and VEL shares no label line
-   with a corner. responsive-synth-panels.md REQ-1. */
+   with a corner. responsive-synth-panels.md REQ-quad-panels-use-a-fixed-grid. */
 @media (min-width: 1630px) {
   .hex { grid-template-columns: repeat(3, minmax(0, 1fr)); }
   .quint { grid-template-columns: repeat(3, minmax(0, 1fr)); }
@@ -713,7 +713,7 @@
 }
 
 /* No FX panel is ever narrower than its own knob run — responsive-synth-panels
-   REQ-8. The panels do not hold equal amounts: a four-knob panel (Phaser, Duck)
+   REQ-the-scope-drop-shadow-is-dropped. The panels do not hold equal amounts: a four-knob panel (Phaser, Duck)
    spends 4x52 + 3x4 = 220px on its knob run against a three-knob panel's 164px,
    so one equal column width cannot serve them all. It served none when the rack
    went from five panels to six: at 1440px each column fell to 220px against the

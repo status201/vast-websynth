@@ -8,7 +8,7 @@ import switchStyles from '../styles/switch.module.css';
 import styles from '../styles/song-panel.module.css';
 
 /**
- * The Song panel's "Sync" section (midi-clock-sync REQ-8): a three-way
+ * The Song panel's "Sync" section (midi-clock-sync REQ-a-sync-section-in-the-song-panel): a three-way
  * Off/Master/Slave control plus a status line. Not a bus-bound `Segmented` —
  * the mode is device-scoped state on the SyncController, never a param
  * (precedent: the WAV/MP3 format selector in song-panel.ts).
@@ -58,7 +58,7 @@ export function buildSyncSection(sync: SyncController, rtc: WebRtcSyncTransport)
 
   // WiFi pairing (WebRTC) — coexists with MIDI; opens the serverless pair modal.
   // Lazy-loaded: pairing is rare, so the modal (+ vendored QR encoder) is
-  // code-split out of the initial bundle (webrtc-sync REQ-7). A missing chunk
+  // code-split out of the initial bundle (webrtc-sync REQ-sync-has-zero-npm-dependencies). A missing chunk
   // is reported with a retry rather than swallowed (lazy-load-failure.md) —
   // pairing is the one flow where the *other* device is the thing being blamed.
   const openPairModal = (): void => {
@@ -78,9 +78,9 @@ export function buildSyncSection(sync: SyncController, rtc: WebRtcSyncTransport)
 
   /**
    * The **selected** mode is always the lit segment — that is what makes the
-   * setting visibly remembered across a disconnect (midi-clock-sync REQ-19).
+   * setting visibly remembered across a disconnect (midi-clock-sync REQ-selected-mode-versus-active-role).
    * When it isn't actually running, `armed` desaturates it: selected, not lit
-   * (REQ-22).
+   * (REQ-an-armed-sync-section).
    */
   const paintMode = (s: SyncStatus): void => {
     const armed = s.mode !== 'off' && s.activeMode === 'off';
@@ -130,7 +130,7 @@ function statusText(s: SyncStatus): string {
 
   if (wifi) text += wifi.ins > 0 || wifi.outs > 0 ? ' · WiFi: linked' : ' · WiFi: not linked';
 
-  // Spell out *why* an armed mode isn't doing anything (REQ-22) — otherwise a
+  // Spell out *why* an armed mode isn't doing anything (REQ-an-armed-sync-section) — otherwise a
   // lit-but-inert Slave reads as a bug.
   if (s.mode !== 'off' && s.activeMode === 'off') {
     if (s.mode === 'master') text += ' · Master armed — nothing connected';

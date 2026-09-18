@@ -1,4 +1,4 @@
-// Toasts for offline-copy runs (specs/features/play-offline.md REQ-8, REQ-12):
+// Toasts for offline-copy runs (specs/features/play-offline.md REQ-offline-feedback-while-about-is-closed, REQ-the-copy-is-fetched-again-after-a-reset):
 // the one module that raises `play-offline-toast`.
 //
 // Split from the About section because a run can start with no About card built
@@ -34,7 +34,7 @@ export interface OfflineNotices {
 
 const watchers = new WeakMap<OfflineCopy, OfflineNotices>();
 
-/** The watcher for `copy`, created on first call. Idempotent (REQ-8). */
+/** The watcher for `copy`, created on first call. Idempotent (REQ-offline-feedback-while-about-is-closed). */
 export function watchOfflineRuns(copy: OfflineCopy, reload: () => void): OfflineNotices {
   const existing = watchers.get(copy);
   if (existing) return existing;
@@ -75,7 +75,7 @@ function announce(s: OfflineState, copy: OfflineCopy, reload: () => void): void 
 
 /**
  * After a factory reset deleted a complete offline copy, download it again
- * (REQ-12). Consumes the intent first, so a reload mid-download does not start
+ * (REQ-the-copy-is-fetched-again-after-a-reset). Consumes the intent first, so a reload mid-download does not start
  * it over. Returns whether it started a run.
  */
 export function resumeOfflineRedownload(

@@ -5,7 +5,7 @@ import { SYNC_LABELS } from '../src/utils/tempo';
 /* eslint-disable @typescript-eslint/no-explicit-any */
 
 /**
- * LFO tempo lock — lfo.md REQ-9. A free-running LFO drifts against the song: set
+ * LFO tempo lock — lfo.md REQ-lfo-sync-locks-rate-to-tempo. A free-running LFO drifts against the song: set
  * a wobble at 120 BPM, change to 128, and it lines up with nothing.
  *
  * The rate is asserted on the LFO oscillator's own frequency, which is the
@@ -53,7 +53,7 @@ test.describe('LFO tempo sync', () => {
 
   // v9: the picker no longer sits two rows below the knob, so the knob is no
   // longer dimmed in place beside it — it becomes the picker (tempo-lock.md
-  // REQ-3). The knob keeps its testid, its footprint and its stored value.
+  // REQ-locked-the-division-replaces-the-dial). The knob keeps its testid, its footprint and its stored value.
   test('the rate knob shows the division while synced, and the dial comes back on free', async ({ page }) => {
     await gotoAndStart(page);
     const knob = page.getByTestId('knob-lfo.rate');

@@ -22,18 +22,30 @@ Every spec aims to cover, in roughly this order:
 
 - **Background / the "why"** — the context behind the "what", so a reader (or
   agent) can reason ahead about the steps you'll need.
-- **Requirements** — the technical design broken into discrete, numbered pieces
-  (`REQ-1`, `REQ-2`, …), not a vague one-liner. Written as
-  `- **REQ-n** (vN, optional) — body`, one shape everywhere, so the id is
-  machine-readable.
+- **Requirements** — the technical design broken into discrete, testable pieces,
+  not a vague one-liner. Written as `- **REQ-<slug>** (vN, optional) — body`, one
+  shape everywhere, so the id is machine-readable.
 
-  **A REQ id is permanent.** Other specs cite it (`[x](x.md) REQ-7`) and its
-  `(vN)` marker records when it landed, so a new requirement is **appended** with
-  the next free number — never inserted by renumbering the ones after it. Sub-ids
-  (`REQ-5a`, `REQ-13b`) are for a rule that genuinely refines its parent, and sort
-  directly after it. Keep the bullets in ascending order: if a later REQ belongs
-  beside an earlier one thematically, say so in its text — do not move it up the
-  list. `npm run spec:lint` enforces uniqueness and order.
+  **An id is a slug that names the rule** — `REQ-reset-auto-start`,
+  `REQ-cutoff-is-a-midi-note` — and **never a number** (ADR-021). A number was
+  "the next free one", which is a counter two branches allocate from at the same
+  time: the merge either conflicts, or succeeds and leaves one id covering two
+  unrelated requirements. A slug collides only when two people write the same
+  requirement, and it says what it means at the point of citation.
+
+  **An id is permanent**, and unique across *all* specs — that repo-wide
+  uniqueness is what lets a citation of one resolve on its own. Other specs and
+  code comments cite it, so renaming one is a tree-wide change; its `(vN)` marker
+  records when it landed. New requirements are appended, and there is no order for
+  them to keep. `npm run spec:lint` enforces the grammar, uniqueness, and that no
+  new number appears.
+
+  **There are no numbered ids left.** Every spec was migrated, so
+  `scripts/lib/req-legacy.mjs` — the table that recorded how high each spec's
+  numbering had reached — is empty, and an empty table refuses *every* number
+  rather than none. It is kept precisely for that: it is what makes the rule
+  absolute instead of a convention, and it is where a number would have to be
+  re-admitted deliberately if one ever had to be.
 - **Technical design** — the public **contract/interface**, the **data shapes**,
   the **layer touchpoints** (what collaborates and in what order), and
   **persistence** (storage keys, file format, and what is *deliberately not*
@@ -153,7 +165,7 @@ hooks + CI enforce this (see "Enforcement & exemptions"). By kind of change:
 **Feature / any behaviour change**
 1. **Spec first** — create/update `specs/features/<name>.md` from
    `features/_feature-template.md` (`status: draft`): background, requirements
-   (`REQ-n`), contract, data shapes,
+   (`REQ-<slug>`), contract, data shapes,
    BDD scenarios.
 2. **Review** — a human reads the spec (plan-approval / PR). `status: active`.
 3. **Implement** the code to satisfy the spec.
@@ -187,7 +199,7 @@ SDD is enforced by `scripts/sdd-guard.mjs`, wired as Claude Code hooks
 `src/vendor/**`, and `src/state/demos/**` (demo songs are data drop-ins, not code
 — see `recipes/add-a-demo-song.md`). The demos' two **metadata** files are exempt
 for the same reason and must stay that way: `src/state/demo-notes.json`, the
-hand-written blurbs ([demo-library](features/demo-library.md) REQ-2), and
+hand-written blurbs ([demo-library](features/demo-library.md) REQ-demo-prose-lives-apart), and
 `src/state/demos-index.json`, which `npm run clean:demos` generates — gating the
 latter made `add-a-demo-song.md` unfollowable, since the one command that recipe
 requires would trip the `Stop` hook on a change the allowlist already declares
@@ -201,21 +213,33 @@ spec-free.
 > the human review gate. A companion check, `scripts/spec-lint.mjs`
 > (`npm run spec:lint`), validates spec *structure*: a metadata block, `id`
 > matching the filename, a valid `status`, that `# pinned by:` **and** `source:`
-> paths resolve, that `REQ-n` ids are unique and ascending, that a cross-spec
-> `[x](x.md) … REQ-n` finds that REQ in `x.md`, and that every spec/ADR is listed
+> paths resolve, that REQ ids are well-formed and unique — a **new one is a slug,
+> never a number** (ADR-021), slugs are unique repo-wide, and the legacy numbers
+> stay ascending — that a cross-spec `[x](x.md) … REQ-<id>` finds that REQ in
+> `x.md`, and that every spec/ADR is listed
 > in this folder map **and** the `decisions/` index. It also checks the prose that
-> points *into* specs and code, wherever it is written: every `x.md REQ-n` or bare
-> `x REQ-n` citation — in a spec, a root doc **or a code/test comment** — must find
-> REQ-n in `x.md` (a lettered part such as `REQ-23a` counts when `REQ-23` exists),
+> points *into* specs and code, wherever it is written: every `x.md REQ-<id>` or
+> bare `x REQ-<id>` citation — in a spec, a root doc **or a code/test comment** —
+> must find that id in `x.md` (a lettered part such as `REQ-23a` counts when
+> `REQ-23` exists). A citation **split across a line break** — the spec name
+> ending one line and the id opening the next — is checked too; 130 in the tree
+> are written that way and a line-at-a-time reader sees them as bare ids
+> belonging to whatever file they sit in. A **bare** `REQ-<slug>` that names no
+> spec at all is checked against every slug in the tree — possible only because a
+> slug is unique repo-wide, and the reason ADR-021 was worth the migration: a bare
+> number could never be resolved, so ~3,900 references were unlintable until now.
+> An ADR, and the spec tooling that documents the id grammar, name ids by example
+> and are exempt,
 > and every backticked code name in a spec or doc (`Class.member`, `someFn()`,
 > `camelCase`) must still be an identifier in the code. A line about the past
 > ("was", "removed", "renamed", "v6's"), an `## Open questions` section, a name the
 > document defines as a key in its own fenced block, and ADRs (which name the
 > alternatives they rejected) are exempt; so is a short, commented list of platform
 > names the code deliberately avoids. Those checks live in
-> `scripts/lib/spec-xref.mjs`, and `tests/scripts/spec-xref.test.ts` shows they fail
-> on real drift. Two things are warnings
-> rather than errors: a *gap* in the REQ sequence (a reserved range is plausible,
+> `scripts/lib/spec-xref.mjs` and `scripts/lib/spec-reqs.mjs`, and
+> `tests/scripts/spec-xref.test.ts` / `tests/scripts/spec-reqs.test.ts` show they
+> fail on real drift and refuse the ids they exist to refuse. Two things are warnings
+> rather than errors: a *gap* in the legacy REQ sequence (a reserved range is plausible,
 > a scrambled list is not), and a `Scenario:` that carries no trailing `#` note
 > at all — neither a `# pinned by:` nor an explicit reason there is none. A spec
 > being drafted has scenarios before it has tests, and blocking that would only
@@ -380,6 +404,7 @@ specs/
     adr-019-the-bar-is-a-tick-count.md         ·  meter is ticks, not a signature
     adr-020-remote-mcp-is-authless-and-read-only.md
                                                ·  the public MCP endpoint: no auth, no writes, no SDK
+    adr-021-req-ids-are-slugs.md               ·  a REQ id names its rule, not its position
 ```
 
 > Coverage note: the feature set above documents the current system. New features

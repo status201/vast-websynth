@@ -4,10 +4,10 @@
 id: scale-quantization
 status: implemented
 version: 3   # v3: the playable keyboard wears the key too — same roles, same
-             #     palette, one resolver shared with the map (REQ-10); and the
-             #     map's legend lists its states in dropdown order (REQ-9)
+             #     palette, one resolver shared with the map (REQ-the-key-is-shown-where-you-play); and the
+             #     map's legend lists its states in dropdown order (REQ-the-key-is-drawn-not-just-named)
              # v2: the KEY tab draws a two-octave keyboard map of the current
-             #     root, scale and chord (REQ-9)
+             #     root, scale and chord (REQ-the-key-is-drawn-not-just-named)
 owner: core
 related:
   - architecture
@@ -39,7 +39,7 @@ Before this the instrument had no music-theory layer at all: `SeqStep.note` is a
 MIDI integer and the only pitch transform in the codebase was `transposeNote`. That had
 a concrete musical cost. The authoring dialect already writes chord progressions as bar
 transposes — `"seqChain": "A A+5 A+7 A+3"`, how the *First Light* demo is built
-([song-authoring-dialect](song-authoring-dialect.md) REQ-15) — and those shifts are
+([song-authoring-dialect](song-authoring-dialect.md) REQ-a-chain-letter-may-carry-a-transpose) — and those shifts are
 **chromatic**, so a progression drifts out of key by construction. Quantizing *after*
 the transpose fixes that with no new param and no song-format field.
 
@@ -51,20 +51,22 @@ no allocation on the tick path).
 
 ## Requirements
 
-- **REQ-1** (the key is two params, inert by default) — `scale.root` (0..11) and
-  `scale.type` (index into `SCALE_LABELS`) are ordinary discrete `ParamBus` params.
-  `scale.type` index **0 is `chromatic`**, which is a true no-op, so every preset,
-  song and demo predating this feature loads without the keys and sounds
-  byte-identical ([ADR-006](../decisions/adr-006-no-op-param-defaults.md)). They ride
-  in `file.params` like any scalar, so **no `SONG_VERSION` bump is required** and
+- **REQ-the-key-is-two-inert-params** (the key is two params, inert by default)
+  — `scale.root` (0..11) and `scale.type` (index into `SCALE_LABELS`) are
+  ordinary discrete `ParamBus` params. `scale.type` index **0 is `chromatic`**,
+  which is a true no-op, so every preset, song and demo predating this feature
+  loads without the keys and sounds byte-identical
+  ([ADR-006](../decisions/adr-006-no-op-param-defaults.md)). They ride in
+  `file.params` like any scalar, so **no `SONG_VERSION` bump is required** and
   `serialize.ts`, the JSON schema and `llms.txt` are untouched.
 
-- **REQ-2** (nearest tone, ties break downward) — a note not in the scale snaps to the
-  nearest scale tone by absolute semitone distance. When two tones are equidistant
-  (C♯ in C major is 1 from C and 1 from D) the **lower** wins. This is a musical
-  judgement, not an accident of implementation — it matches the convention on hardware
-  quantizers and favours the more stable tone — so it is pinned by a test rather than
-  left to emerge from the loop order.
+- **REQ-nearest-tone-ties-break-downward** (nearest tone, ties break downward) —
+  a note not in the scale snaps to the nearest scale tone by absolute semitone
+  distance. When two tones are equidistant (C♯ in C major is 1 from C and 1 from
+  D) the **lower** wins. This is a musical judgement, not an accident of
+  implementation — it matches the convention on hardware quantizers and favours
+  the more stable tone — so it is pinned by a test rather than left to emerge
+  from the loop order.
 
   A consequence worth stating plainly, because it surprises: in **any 7-note scale**
   (major, the modes, harmonic minor) every step is 1 or 2 semitones, so *every*
@@ -73,64 +75,73 @@ no allocation on the tick path).
   scales (pentatonic, blues), which is where the "nearest" half of this rule earns
   its keep.
 
-- **REQ-3** (idempotent, and bounded) — `q(q(n)) === q(n)`: a note already in the scale
-  maps to itself. This is what lets [chord-tools](chord-tools.md) emit diatonic notes
-  that pass through the live filter untouched, so the two features cannot fight. The
-  result is always within `MIDI_NOTE_MIN..MIDI_NOTE_MAX`; near the extremes, where the
-  nearest tone would fall outside, the nearest tone **inside** the range is used —
+- **REQ-quantization-is-idempotent-and-bounded** (idempotent, and bounded) —
+  `q(q(n)) === q(n)`: a note already in the scale maps to itself. This is what
+  lets [chord-tools](chord-tools.md) emit diatonic notes that pass through the
+  live filter untouched, so the two features cannot fight. The result is always
+  within `MIDI_NOTE_MIN..MIDI_NOTE_MAX`; near the extremes, where the nearest
+  tone would fall outside, the nearest tone **inside** the range is used —
   clamped, never dropped, for the same reason `transposeNote` clamps
-  ([sequencer](sequencer.md) REQ-16, [untrusted-input](untrusted-input.md) REQ-4).
+  ([sequencer](sequencer.md) REQ-every-note-is-shifted-by-the-slot-transpose, [untrusted-input](untrusted-input.md)
+  REQ-payload-values-are-bounded).
 
-- **REQ-4** (exactly three trigger sites; the port stays dumb) — quantization is applied
-  where each note source resolves its pitch, **not** inside `Engine.playNote`. The three
-  are the [sequencer](sequencer.md)'s `tickTrack`, the [arpeggiator](arpeggiator.md)'s
+- **REQ-exactly-three-quantize-trigger-sites** (exactly three trigger sites; the
+  port stays dumb) — quantization is applied where each note source resolves its
+  pitch, **not** inside `Engine.playNote`. The three are the
+  [sequencer](sequencer.md)'s `tickTrack`, the [arpeggiator](arpeggiator.md)'s
   pool, and the keyboard/MIDI passthrough in `Engine`. `SynthOutput`
-  (`src/audio/transport/note-output.ts`) is a port and must not editorialize pitch: the
-  sequencer and arp hand it notes they have already resolved and whose release they own.
-  The drum machine and sampler have their own unpitched trigger paths and are
-  **unaffected** — quantizing a kick is meaningless.
+  (`src/audio/transport/note-output.ts`) is a port and must not editorialize
+  pitch: the sequencer and arp hand it notes they have already resolved and
+  whose release they own. The drum machine and sampler have their own unpitched
+  trigger paths and are **unaffected** — quantizing a kick is meaningless.
 
-- **REQ-5** (transpose first, then quantize) — in the sequencer the arrangement slot's
-  transpose is applied *before* quantization, so a `+5` bar lands back in key instead of
-  leaving it. This ordering is the whole musical point of the feature (see Background);
-  reversing it would preserve the chromatic drift it exists to remove.
+- **REQ-transpose-first-then-quantize** (transpose first, then quantize) — in
+  the sequencer the arrangement slot's transpose is applied *before*
+  quantization, so a `+5` bar lands back in key instead of leaving it. This
+  ordering is the whole musical point of the feature (see Background); reversing
+  it would preserve the chromatic drift it exists to remove.
 
-- **REQ-6** (resolve once, release through the stored note) — `Polyphony.releaseNote`
-  looks up `heldNotes` **keyed by the note number passed in**, so a note-on that was
-  quantized and a note-off that re-derives the mapping after the key changed would miss
-  the lookup and **strand the voice forever**. The sequencer and arp already obey this
-  (`st.lastPlayedNote`, `arp.lastTriggered` store the resolved note). The passthrough is
-  the one site that re-derived, and it gets `Engine.heldIn: Map<number, number[]>` —
-  raw key → the notes actually sounded. Note-off replays that array and deletes the
-  entry. This is what lets a player change key, or switch on chord memory, **while
-  holding a chord** without stranding a voice. The map is bounded at 128 keys × ≤4
-  notes and is cleared by panic / `killAll`.
+- **REQ-resolve-once-release-the-stored-note** (resolve once, release through
+  the stored note) — `Polyphony.releaseNote` looks up `heldNotes` **keyed by the
+  note number passed in**, so a note-on that was quantized and a note-off that
+  re-derives the mapping after the key changed would miss the lookup and
+  **strand the voice forever**. The sequencer and arp already obey this
+  (`st.lastPlayedNote`, `arp.lastTriggered` store the resolved note). The
+  passthrough is the one site that re-derived, and it gets `Engine.heldIn:
+  Map<number, number[]>` — raw key → the notes actually sounded. Note-off
+  replays that array and deletes the entry. This is what lets a player change
+  key, or switch on chord memory, **while holding a chord** without stranding a
+  voice. The map is bounded at 128 keys × ≤4 notes and is cleared by panic /
+  `killAll`.
 
-- **REQ-7** (cheap enough for the tick path) — the mapping is a 128-entry `Uint8Array`
-  (**not** `Int8Array`: 127 is exactly `Int8Array`'s ceiling, so it would work today
-  and silently wrap the day `MIDI_NOTE_MAX` moved)
-  rebuilt only when `scale.root` or `scale.type` changes, so a note costs one array
-  index and allocates nothing. While `scale.type` is `chromatic` the table is `null` and
-  `get()` early-returns the input, mirroring `transposeNote`'s
-  `if (semitones === 0) return note; // the overwhelmingly common path`. This is
-  [runtime-performance](runtime-performance.md) REQ-6 — cache the derivation, invalidate
-  it from the store's existing change stream, never recompute per iteration.
+- **REQ-the-scale-mapping-is-a-lookup-table** (cheap enough for the tick path) —
+  the mapping is a 128-entry `Uint8Array` (**not** `Int8Array`: 127 is exactly
+  `Int8Array`'s ceiling, so it would work today and silently wrap the day
+  `MIDI_NOTE_MAX` moved) rebuilt only when `scale.root` or `scale.type` changes,
+  so a note costs one array index and allocates nothing. While `scale.type` is
+  `chromatic` the table is `null` and `get()` early-returns the input, mirroring
+  `transposeNote`'s `if (semitones === 0) return note; // the overwhelmingly
+  common path`. This is [runtime-performance](runtime-performance.md)
+  REQ-no-allocation-in-a-hot-loop — cache the derivation, invalidate it from the
+  store's existing change stream, never recompute per iteration.
 
-- **REQ-8** (snap to scale is the destructive opt-in) — the live filter never rewrites
-  stored notes, so turning the scale off restores the original pattern exactly. A
-  separate explicit **SNAP** action in the [sequencer](sequencer.md) panel bakes the
-  current scale into the edit bank's stored notes across all four tracks, as **one**
-  undo entry reusing the existing batch shape `{ kind: 'seq-copy', bank, before }`
-  ([pattern-undo](pattern-undo.md)) rather than 64 single-step entries. It is a no-op
-  while `scale.type` is `chromatic`, and the control says so rather than silently doing
-  nothing.
+- **REQ-snap-to-scale-is-the-destructive-opt-in** (snap to scale is the
+  destructive opt-in) — the live filter never rewrites stored notes, so turning
+  the scale off restores the original pattern exactly. A separate explicit
+  **SNAP** action in the [sequencer](sequencer.md) panel bakes the current scale
+  into the edit bank's stored notes across all four tracks, as **one** undo
+  entry reusing the existing batch shape `{ kind: 'seq-copy', bank, before }`
+  ([pattern-undo](pattern-undo.md)) rather than 64 single-step entries. It is a
+  no-op while `scale.type` is `chromatic`, and the control says so rather than
+  silently doing nothing.
 
-- **REQ-9** (the key is drawn, not just named, v2) — the KEY tab carries a **two-octave
-  keyboard map** showing which notes the current settings actually admit. Three
-  dropdowns describe a key; a keyboard *shows* it, and where the semitones fall is the
-  part that teaches — so the map keeps real **piano topology** (seven white slots per
-  octave with the five black keys inset at their true positions) rather than an even
-  twelve-bar strip.
+- **REQ-the-key-is-drawn-not-just-named** (the key is drawn, not just named, v2)
+  — the KEY tab carries a **two-octave keyboard map** showing which notes the
+  current settings actually admit. Three dropdowns describe a key; a keyboard
+  *shows* it, and where the semitones fall is the part that teaches — so the map
+  keeps real **piano topology** (seven white slots per octave with the five
+  black keys inset at their true positions) rather than an even twelve-bar
+  strip.
 
   It is **stylised, not a literal piano**: both key rows are drawn in muted panel tones
   so that colour is spent entirely on meaning, never on being white-and-black. Four
@@ -147,7 +158,7 @@ no allocation on the tick path).
     chromatically every note is admitted — and choosing a scale then visibly *removes*
     notes, which is the teaching moment the map exists for.
   - Chord tones are drawn for the **tonic** chord of the current `chord.voicing`
-    ([chord-tools](chord-tools.md) REQ-1), because chord memory has no chord until a
+    ([chord-tools](chord-tools.md) REQ-chords-are-stacked-scale-degrees), because chord memory has no chord until a
     key is pressed. So the voicing control shows its effect before anything is played.
 
   The map is display-only: it has **no gestures** and sounds nothing (see the gesture
@@ -170,13 +181,14 @@ no allocation on the tick path).
   keyboard and screen-reader traversal from what is on screen. The three dropdowns
   share a wrapper so they travel as one unit rather than splitting across rows.
 
-- **REQ-10** (the key is shown where you play it, v3) — the **playable keyboard**
-  ([input-control](input-control.md)) carries the same roles as the map, so the key is
-  legible from where the fingers already are instead of only on a tab the user has to
-  leave the performance to open ([ADR-014](../decisions/adr-014-dont-make-me-think.md)
-  law 5: state is visible, not remembered).
+- **REQ-the-key-is-shown-where-you-play** (the key is shown where you play it,
+  v3) — the **playable keyboard** ([input-control](input-control.md)) carries
+  the same roles as the map, so the key is legible from where the fingers
+  already are instead of only on a tab the user has to leave the performance to
+  open ([ADR-014](../decisions/adr-014-dont-make-me-think.md) law 5: state is
+  visible, not remembered).
 
-  Same **roles**, same **precedence**, same **palette** as REQ-9 — resolved by one
+  Same **roles**, same **precedence**, same **palette** as REQ-the-key-is-drawn-not-just-named — resolved by one
   shared module, `src/ui/key-roles.ts`, and coloured from one shared set of
   `--key-role-*` tokens. Neither surface owns the vocabulary, so they cannot drift
   apart into two colour codes for one idea.
@@ -184,7 +196,7 @@ no allocation on the tick path).
   Four things make it an *annotation* rather than a second map, and each is a decision:
 
   - **It is a wash, not a repaint.** The playable keyboard is a literal piano — ivory
-    and black, unlike the map's muted panel tones (REQ-9) — and those key faces are
+    and black, unlike the map's muted panel tones (REQ-the-key-is-drawn-not-just-named) — and those key faces are
     load-bearing for playing it. So the role colour composites *over* the key at low
     alpha instead of replacing it.
   - **Only while a scale is active.** While `chromatic` the keyboard is exactly what it
@@ -195,7 +207,7 @@ no allocation on the tick path).
     UI reading of [ADR-006](../decisions/adr-006-no-op-param-defaults.md).
   - **Out-of-scale keys are left alone**, where the map draws an explicit *out of scale*
     state. On the keyboard they are not out of play: an out-of-scale key still sounds,
-    quantized onto the nearest tone (REQ-2). Dimming them would claim otherwise.
+    quantized onto the nearest tone (REQ-nearest-tone-ties-break-downward). Dimming them would claim otherwise.
   - **Pressed beats annotated.** The `.active` (finger / computer key) and `.seq`
     (sequencer playback) states outrank the tint and suppress it, so what a key is
     *doing* is never in competition with what it *is*.
@@ -204,7 +216,7 @@ no allocation on the tick path).
   octaves, so an element's own pitch class is always its sounding pitch class: an OCT
   change triggers **no repaint at all**. A repaint is at most 36 attribute writes (24
   on a phone), each guarded against writing the value already there
-  ([runtime-performance](runtime-performance.md) REQ-7), and only ever on a
+  ([runtime-performance](runtime-performance.md) REQ-dom-writes-are-guarded-on-what-is-rendered), and only ever on a
   `scale.root` / `scale.type` / `chord.voicing` change — a user-gesture path, never a
   per-frame or per-tick one.
 
@@ -235,14 +247,14 @@ src/ui/key-roles.ts:           # UI-only, pure; the one owner of the role vocabu
   onKeyChange(bus, fn): void                 # subscribes KEY_PARAMS; fires immediately
 
 src/ui/components/keyboard.ts:
-  Keyboard.setKeyRoles(state | null): void   # null clears; see REQ-10 and
-                                             #   input-control.md REQ-14
+  Keyboard.setKeyRoles(state | null): void   # null clears; see REQ-the-key-is-shown-where-you-play and
+                                             #   input-control.md REQ-a-third-highlight-layer
 ```
 
 `KeyState` is derived, never stored: `tones` is every pitch class while chromatic (so
-the map lights everything, REQ-9) and `active` is the flag that tells the *keyboard*
-to show nothing in that same case (REQ-10). `chord` holds the **tonic** chord of the
-current `chord.voicing` ([chord-tools](chord-tools.md) REQ-1), empty when it is off.
+the map lights everything, REQ-the-key-is-drawn-not-just-named) and `active` is the flag that tells the *keyboard*
+to show nothing in that same case (REQ-the-key-is-shown-where-you-play). `chord` holds the **tonic** chord of the
+current `chord.voicing` ([chord-tools](chord-tools.md) REQ-chords-are-stacked-scale-degrees), empty when it is off.
 
 ### Data shapes (registry)
 
@@ -283,7 +295,7 @@ trigger sites:
   arpeggiator.fire:     quantizer.get(n + o * 12)     # after octave stacking
   engine bus.onNote:    quantizer.get(note) -> heldIn.set(raw, played)
 ui: src/ui/panels/key-panel.ts (the KEY tab); src/ui/panels/seq-panel.ts (SNAP)
-ui roles (REQ-10), both fed by src/ui/key-roles.ts and never by each other:
+ui roles (REQ-the-key-is-shown-where-you-play), both fed by src/ui/key-roles.ts and never by each other:
   key-panel.ts:  onKeyChange -> readKeyState -> keyMap.paint(state)      # always paints
   app.ts:        onKeyChange -> readKeyState -> keyboard.setKeyRoles(
                    state.active ? state : null)                          # null = chromatic
@@ -309,137 +321,137 @@ Scenario: Chromatic is a true no-op
   Then the note sounds at exactly the pitch it would have before this feature existed
 # pinned by: tests/utils/music.test.ts, tests/audio/transport/sequencer.test.ts
 
-Scenario: An out-of-scale note snaps to the nearest tone (REQ-2)
+Scenario: An out-of-scale note snaps to the nearest tone (REQ-nearest-tone-ties-break-downward)
   Given scale.root is C and scale.type is pentatonic major
   When a step holding F# (66) is triggered
   Then G (67) sounds, because G is 1 semitone away and E is 2
 # pinned by: tests/utils/music.test.ts
 
-Scenario: An equidistant note breaks downward (REQ-2, musical judgement)
+Scenario: An equidistant note breaks downward (REQ-nearest-tone-ties-break-downward, musical judgement)
   Given scale.root is C and scale.type is major
   When a step holding C# (61) is triggered
   Then C (60) sounds, not D (62)
 # pinned by: tests/utils/music.test.ts
 
-Scenario: Quantizing is idempotent (REQ-3, stability)
+Scenario: Quantizing is idempotent (REQ-quantization-is-idempotent-and-bounded, stability)
   Given any root and scale
   When a note is quantized twice
   Then the second pass returns the first pass unchanged
 # pinned by: tests/utils/music.test.ts
 
-Scenario: A note near the MIDI ceiling is clamped, not dropped (REQ-3, edge)
+Scenario: A note near the MIDI ceiling is clamped, not dropped (REQ-quantization-is-idempotent-and-bounded, edge)
   Given a scale whose nearest tone above note 127 would be 128
   When note 127 is quantized
   Then the nearest in-range scale tone is returned and it is <= 127
 # pinned by: tests/utils/music.test.ts
 
-Scenario: A transposed bar stays in key (REQ-5, the reason this feature exists)
+Scenario: A transposed bar stays in key (REQ-transpose-first-then-quantize, the reason this feature exists)
   Given scale.root is C, scale.type is major, and the arrangement slot transposes +5
   When a step holding C (60) fires
   Then the transpose is applied first (65) and the result is quantized into C major
 # pinned by: tests/audio/transport/sequencer.test.ts
 
-Scenario: Changing key while a key is held does not hang the voice (REQ-6, regression)
+Scenario: Changing key while a key is held does not hang the voice (REQ-resolve-once-release-the-stored-note, regression)
   Given a note is held from the keyboard and sounding quantized
   When scale.root changes and the key is then released
   Then the voice that was started is the voice that is released, and nothing hangs
 # pinned by: tests/audio/engine-scale.test.ts
 
-Scenario: A tie across a transposed bar releases the note it started (REQ-6, edge)
+Scenario: A tie across a transposed bar releases the note it started (REQ-resolve-once-release-the-stored-note, edge)
   Given a tied step started in a bar transposed +5 and quantized
   When the next bar carries a different transpose
   Then the held note is released at the pitch it actually started
 # pinned by: tests/audio/transport/sequencer.test.ts
 
-Scenario: The live filter never rewrites stored notes (REQ-8)
+Scenario: The live filter never rewrites stored notes (REQ-snap-to-scale-is-the-destructive-opt-in)
   Given a pattern holding out-of-scale notes and an active scale
   When the transport plays them
   Then the stored notes are untouched, so chromatic restores the line exactly
 # pinned by: tests/audio/transport/sequencer.test.ts
 
-Scenario: SNAP bakes the scale into the bank as one undo (REQ-8)
+Scenario: SNAP bakes the scale into the bank as one undo (REQ-snap-to-scale-is-the-destructive-opt-in)
   Given an active scale and a bank of out-of-scale notes
   When SNAP is used and then undone once
   Then every note in all four tracks is restored
 # pinned by: tests/state/patterns-chord.test.ts
 
-Scenario: The map lights the scale's notes and dims the rest (v2, REQ-9)
+Scenario: The map lights the scale's notes and dims the rest (v2, REQ-the-key-is-drawn-not-just-named)
   Given scale.root is C and scale.type is major
   Then C D E F G A B are lit in both octaves
   And C# D# F# G# A# are shown out of scale
 # pinned by: tests/ui/key-panel.test.ts
 
-Scenario: The root outranks its other roles (v2, REQ-9, precedence)
+Scenario: The root outranks its other roles (v2, REQ-the-key-is-drawn-not-just-named, precedence)
   Given a scale is chosen and chord.voicing is a triad
   Then the root key reads as the root, not as a chord tone or a scale tone
 # pinned by: tests/ui/key-panel.test.ts
 
-Scenario: Choosing a scale visibly removes notes (v2, REQ-9)
+Scenario: Choosing a scale visibly removes notes (v2, REQ-the-key-is-drawn-not-just-named)
   Given scale.type is chromatic, so every key shows as in scale
   When a scale is chosen
   Then the notes outside it stop being lit
 # pinned by: tests/ui/key-panel.test.ts
 
-Scenario: The voicing control shows its effect before a key is played (v2, REQ-9)
+Scenario: The voicing control shows its effect before a key is played (v2, REQ-the-key-is-drawn-not-just-named)
   Given a scale is chosen and chord.voicing is off
   When chord.voicing becomes a triad
   Then the tonic triad's pitch classes light as chord tones in both octaves
 # pinned by: tests/ui/key-panel.test.ts
 
-Scenario: The tab reads keyboard, controls, hint — in the DOM (v2, REQ-9, layout)
+Scenario: The tab reads keyboard, controls, hint — in the DOM (v2, REQ-the-key-is-drawn-not-just-named, layout)
   Given the KEY tab
   Then the keyboard comes first, then root, scale and chord memory, then the hint
   And that order is the DOM order, so wrapping to a narrow screen preserves it
 # pinned by: tests/ui/key-panel.test.ts
 
-Scenario: The map cannot be played (v2, REQ-9, gesture inventory)
+Scenario: The map cannot be played (v2, REQ-the-key-is-drawn-not-just-named, gesture inventory)
   Given the KEY tab is open
   When a key of the map is clicked
   Then no note sounds and nothing is selected
 # pinned by: tests/ui/key-panel.test.ts
 
-Scenario: The legend reads in the order of the dropdowns (v3, REQ-9, regression)
+Scenario: The legend reads in the order of the dropdowns (v3, REQ-the-key-is-drawn-not-just-named, regression)
   Given the KEY tab, whose dropdowns read Root, Scale, Chord memory
   Then the legend under the map reads root, in scale, chord — in that order
 # pinned by: tests/ui/key-panel.test.ts
 
-Scenario: A legend entry nothing is wearing leaves the layout (v3, REQ-9, regression)
+Scenario: A legend entry nothing is wearing leaves the layout (v3, REQ-the-key-is-drawn-not-just-named, regression)
   Given a scale is chosen and chord.voicing is off, so no key is a chord tone
   Then the chord legend entry is not rendered, not merely marked hidden
 # pinned by: tests/ui/key-panel.test.ts
 
-Scenario: The playable keyboard wears the key (v3, REQ-10)
+Scenario: The playable keyboard wears the key (v3, REQ-the-key-is-shown-where-you-play)
   Given scale.root is C and scale.type is major
   Then every C key on the playable keyboard reads as the root
   And D E F G A B read as in scale in every drawn octave
   And C# D# F# G# A# carry no role at all
 # pinned by: tests/ui/keyboard.test.ts, e2e/key.spec.ts
 
-Scenario: Chromatic leaves the playable keyboard untouched (v3, REQ-10)
+Scenario: Chromatic leaves the playable keyboard untouched (v3, REQ-the-key-is-shown-where-you-play)
   Given a scale is chosen and the keyboard is showing it
   When scale.type returns to chromatic
   Then no key on the playable keyboard carries a role
 # pinned by: tests/ui/keyboard.test.ts, e2e/key.spec.ts
 
-Scenario: The root outranks its other roles on the keyboard too (v3, REQ-10)
+Scenario: The root outranks its other roles on the keyboard too (v3, REQ-the-key-is-shown-where-you-play)
   Given scale.root is C, scale.type is major and chord.voicing is a triad
   Then C reads as the root, E and G read as chord tones, and D F A B as in scale
 # pinned by: tests/ui/keyboard.test.ts
 
-Scenario: An OCT change does not repaint the roles (v3, REQ-10, cost)
+Scenario: An OCT change does not repaint the roles (v3, REQ-the-key-is-shown-where-you-play, cost)
   Given the keyboard is showing C major
   When keyboard.transpose moves by an octave
   Then every key carries exactly the role it carried before
 # pinned by: tests/ui/keyboard.test.ts
 
-Scenario: A pressed key is not in competition with its tint (v3, REQ-10)
+Scenario: A pressed key is not in competition with its tint (v3, REQ-the-key-is-shown-where-you-play)
   Given a key that reads as in scale
   When it is pressed, or the sequencer plays it
   Then the lit state is what shows, and the tint gets out of its way
 # pinned by: tests/ui/keyboard.test.ts (the classes coexist); the suppression itself is
 #   CSS, checked by eye per "Tests & verification" below
 
-Scenario: An old song loads with no scale keys and is unchanged (REQ-1, back-compat)
+Scenario: An old song loads with no scale keys and is unchanged (REQ-the-key-is-two-inert-params, back-compat)
   Given a committed demo saved before this feature
   When it is loaded
   Then scale.type is 0 and the rendered notes are identical to before
@@ -456,7 +468,7 @@ Scenario: An old song loads with no scale keys and is unchanged (REQ-1, back-com
   (`setKeyRoles`, and that it does not disturb the lit bookkeeping)
 - E2E: `e2e/key.spec.ts` — `npm run e2e`
 - Typecheck: `npm run typecheck`
-- **By eye** (v3, REQ-10) — the wash is a *look*, and no assertion can tell you whether
+- **By eye** (v3, REQ-the-key-is-shown-where-you-play) — the wash is a *look*, and no assertion can tell you whether
   it is subtle enough to live under your hands all day. The same argument
   [ADR-010](../decisions/adr-010-musical-stable-cheap-dsp.md) makes for sound applies to
   pixels here: what a test can pin is the role on the element, not whether the colour
@@ -477,5 +489,5 @@ Scenario: An old song loads with no scale keys and is unchanged (REQ-1, back-com
   `SongFile` field and touches [arrangement](arrangement.md), where a global key needs
   neither. Revisit if songs start wanting a bridge in a different key.
 - Making bar transposes shift by scale *degrees* rather than semitones is **not**
-  planned — transpose-then-quantize (REQ-5) already keeps them in key without a second
+  planned — transpose-then-quantize (REQ-transpose-first-then-quantize) already keeps them in key without a second
   mechanism or a new param.

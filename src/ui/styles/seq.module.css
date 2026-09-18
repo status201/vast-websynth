@@ -1,7 +1,7 @@
 /* Seq-panel-specific styles; the per-step edit row lives in
    step-settings.module.css (shared with the drum/sampler panels). */
 
-/* Column count follows the lane's played length (meter.md REQ-11): a 3/4 song
+/* Column count follows the lane's played length (meter.md REQ-cells-beyond-the-length-are-hidden): a 3/4 song
    draws 12 columns, not 16 with four dead ones. `--steps` is set by the panel
    (and by the ruler that shares this class), so the two can never disagree; the
    fallback keeps every other consumer at 16. */
@@ -29,7 +29,7 @@
   font-family: var(--serif);
 }
 
-/* "Import into sampler" resample section (render-to-sampler.md REQ-9). */
+/* "Import into sampler" resample section (render-to-sampler.md REQ-the-sequencer-tab-hosts-import). */
 .importRow {
   display: flex;
   align-items: center;
@@ -51,7 +51,7 @@
   color: var(--text-dim);
 }
 
-/* ---- four track rows (sequencer.md REQ-8/REQ-9/REQ-11) ---- */
+/* ---- four track rows (sequencer.md REQ-four-tracks-per-bank/REQ-poly-voicing-gates-the-extra-tracks/REQ-tracks-two-to-four-collapse) ---- */
 
 .trackGrid {
   display: flex;
@@ -96,5 +96,5 @@
 .folded .trackBody { display: none; }
 
 /* Tracks 2-4 in mono voicing: visibly not playing, but fully editable — the
-   data is intact and one param flip brings them back (REQ-9). */
+   data is intact and one param flip brings them back (REQ-poly-voicing-gates-the-extra-tracks). */
 .monoGated .trackBody { opacity: 0.35; }

@@ -44,7 +44,7 @@ export class MidiSyncTransport implements SyncTransport {
   }
 
   /** Best-effort cancel of queued future-timestamped sends (midi-clock-sync
-   *  REQ-18): without it, a stale idle/run pulse tail can trail an immediate
+   *  REQ-master-flush-is-best-effort): without it, a stale idle/run pulse tail can trail an immediate
    *  0xFA/0xFC on the wire. `MIDIOutput.clear()` may be unimplemented
    *  (Chromium) or the port gone — both non-fatal. */
   flush(): void {

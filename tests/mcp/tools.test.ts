@@ -1,6 +1,6 @@
 // @vitest-environment node
 //
-// The tools take the song core INJECTED (mcp-server.md REQ-5), so this suite
+// The tools take the song core INJECTED (mcp-server.md REQ-five-song-tools), so this suite
 // runs them against the real src modules directly under Vitest — no lib
 // bundle needed.
 import { describe, it, expect } from 'vitest';
@@ -57,7 +57,7 @@ describe('makeTools', () => {
     for (const t of tools) expect(t.inputSchema).toMatchObject({ type: 'object' });
   });
 
-  // mcp-server.md REQ-10. The default must stay `true` or the stdio profile
+  // mcp-server.md REQ-the-remote-profile-is-read-only. The default must stay `true` or the stdio profile
   // silently loses two tools — which is why this asserts the default explicitly
   // rather than trusting the list above to notice.
   it('defaults allowWrites to true, so the local profile is unchanged', () => {
@@ -123,7 +123,7 @@ describe('validate_song', () => {
       .toEqual({ ok: true, errors: [], warnings: [] });
   });
 
-  // untrusted-input.md REQ-12. This is the tool that exists to close the
+  // untrusted-input.md REQ-an-unresolvable-target-warns. This is the tool that exists to close the
   // authoring loop, and before this a typo'd automation target came back
   // `{ok:true, errors:[]}` — then silently never moved anything at play time.
   it('reports an unresolvable automation target as a warning, not an error', async () => {
@@ -205,7 +205,7 @@ describe('make_share_link', () => {
 
   it('defaults the base URL to the published site (WEBSYNTH_BASE_URL absent)', async () => {
     // Was localhost:5173 — a share link the recipient could not open, from a
-    // server that usually runs nowhere near a dev server (mcp-server.md REQ-5e).
+    // server that usually runs nowhere near a dev server (mcp-server.md REQ-base-url-defaults-to-the-published-site).
     const prev = process.env.WEBSYNTH_BASE_URL;
     delete process.env.WEBSYNTH_BASE_URL;
     try {
@@ -234,7 +234,7 @@ const BANK = {
 };
 
 describe('get_params', () => {
-  it('returns the structured catalogue, not prose (param-catalogue.md REQ-8)', async () => {
+  it('returns the structured catalogue, not prose (param-catalogue.md REQ-mcp-serves-the-catalogue)', async () => {
     const cat = jsonOf(await tool('get_params').handler({}));
     const bus = new ParamBus();
     registerDefaults(bus);
@@ -252,7 +252,7 @@ describe('get_params', () => {
 });
 
 describe('the default base URL', () => {
-  it('is the published site, so cited schema URLs resolve (REQ-5e)', async () => {
+  it('is the published site, so cited schema URLs resolve (REQ-base-url-defaults-to-the-published-site)', async () => {
     // No baseUrl and no $WEBSYNTH_BASE_URL: the guides used to hand the model
     // http://localhost:5173 links, dead unless a dev server happened to run.
     const prev = process.env['WEBSYNTH_BASE_URL'];
@@ -374,7 +374,7 @@ describe('save_preset', () => {
   });
 });
 
-// mcp-server.md REQ-5c / untrusted-input.md REQ-11. safeName only sanitizes the
+// mcp-server.md REQ-an-mcp-write-stays-in-the-working-directory / untrusted-input.md REQ-mcp-writes-stay-in-the-working-directory. safeName only sanitizes the
 // FILENAME; `dir` was unconstrained and mkdirSync(…, {recursive:true}) would
 // build the path on the way out. The caller is a model, and a model summarising
 // a hostile song file is a prompt-injection route to an arbitrary file write.

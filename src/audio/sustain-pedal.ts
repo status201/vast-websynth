@@ -1,5 +1,5 @@
 /**
- * Sustain-pedal (MIDI CC64) note-off deferral — input-control.md REQ-8.
+ * Sustain-pedal (MIDI CC64) note-off deferral — input-control.md REQ-the-sustain-pedal-is-midi-layer.
  *
  * Pure state machine, no imports: sits in the MIDI layer *before* the
  * `bus.noteOn`/`noteOff` funnel, so every bus consumer sees the deferral

@@ -1,5 +1,5 @@
 /* Preset manager modal — the Save / Export / Import doors and the import
-   review wizard (specs/features/presets.md REQ-9/REQ-10). Row visuals follow
+   review wizard (specs/features/presets.md REQ-one-door-for-saving/REQ-preset-import-is-a-two-step-wizard). Row visuals follow
    export-song-modal so the two choosers read as the same family. */
 
 .rows {
@@ -112,7 +112,7 @@
 .chipIdentical { color: rgba(255, 255, 255, 0.45); }
 .chipConflict { color: var(--accent); }
 
-/* ---- problem reporting (presets.md REQ-16) ----
+/* ---- problem reporting (presets.md REQ-the-preset-wizard-reports-every-problem) ----
    The count line, then a scroll box built from `.reviewList`'s metrics so the
    two lists in this modal read as one thing. */
 

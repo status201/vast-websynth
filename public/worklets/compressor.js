@@ -65,7 +65,7 @@ class HardwareCompressorProcessor extends AudioWorkletProcessor {
     // asymmetry means it emits ~0.02 for a SILENT input, so `y[0] - 0` was that
     // pedestal at ≈ -34 dBFS, decaying over ~16 ms — a thump every time the
     // processed path was first connected, i.e. the first time the drum
-    // compressor was switched on (compressor.md REQ-8). Priming x[n-1] from the
+    // compressor was switched on (compressor.md REQ-a-silent-input-stays-silent). Priming x[n-1] from the
     // first sample instead makes the first difference 0 and leaves every
     // subsequent sample bit-identical.
     this.dcPrimed = false;
@@ -74,12 +74,12 @@ class HardwareCompressorProcessor extends AudioWorkletProcessor {
     this.lastPosted = 0;
 
     // Functions of the sample rate alone. The rate cannot change under a live
-    // processor, so these are built once instead of per block (REQ-6).
+    // processor, so these are built once instead of per block (REQ-coefficients-derive-on-change).
     const sr = sampleRate;
     this.mkA = Math.exp(-1 / (0.01 * sr)); // ~10 ms makeup smoothing
     this.dcR = 1 - (2 * Math.PI * 10) / sr; // 10 Hz DC blocker pole
 
-    // Coefficient memo (REQ-6/7). Everything below is a function of the k-rate
+    // Coefficient memo (REQ-coefficients-derive-on-change/7). Everything below is a function of the k-rate
     // params alone, so it survives until one of them moves — a knob turn, not a
     // block boundary. Keys seeded NaN so the first block always computes (NaN
     // compares unequal to everything, including itself).
@@ -104,7 +104,7 @@ class HardwareCompressorProcessor extends AudioWorkletProcessor {
    * Recompute the k-rate-derived coefficients, but only when one of the six
    * params actually moved. The expressions are byte-for-byte the ones that used
    * to run per block: a coefficient that came out different in the last bit
-   * would be a sound change, not an optimisation (REQ-7).
+   * would be a sound change, not an optimisation (REQ-the-coefficient-memo-is-bit-exact).
    */
   updateCoefficients(threshold, ratio, attack, release, autoRaw, makeupDb) {
     if (
@@ -240,7 +240,7 @@ class HardwareCompressorProcessor extends AudioWorkletProcessor {
         yR = Math.tanh(d * (yR + 0.02)) / d;
         if (!dcPrimed) {
           // First sample ever through the saturator: adopt it as x[n-1] so the
-          // pedestal is differenced away rather than emitted (REQ-8).
+          // pedestal is differenced away rather than emitted (REQ-a-silent-input-stays-silent).
           dcPrimed = true;
           dcX0 = yL;
           dcX1 = yR;

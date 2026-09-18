@@ -156,7 +156,7 @@ describe('seq banks', () => {
     expect(expandErrors(base({ seq: [{ notes: [], swing: 1 }] }))[0]).toMatch(/swing/);
   });
 
-  // step-settings.md REQ-6 — micro is authorable, cascades like every other
+  // step-settings.md REQ-a-step-carries-a-micro-offset — micro is authorable, cascades like every other
   // step setting, and is refused as an out-of-range or fractional value.
   it('accepts micro on a step, a track and a bank, nearest wins', () => {
     const file = expandOk(base({
@@ -339,7 +339,7 @@ describe('property: expanded output always passes validateSongFile', () => {
   });
 });
 
-describe('expandAuthorSong — machines with hits auto-enable (REQ-11)', () => {
+describe('expandAuthorSong — machines with hits auto-enable (REQ-the-xy-window-axes-follow-motion)', () => {
   it('sets seq.on/drum.on when banks have hits and params omit them', () => {
     const file = expandOk(base({
       seq: [['A2', null, 'C3']],
@@ -372,7 +372,7 @@ describe('expandAuthorSong — machines with hits auto-enable (REQ-11)', () => {
   });
 });
 
-describe('motion dialect (motion-sequencer.md REQ-9)', () => {
+describe('motion dialect (motion-sequencer.md REQ-song-file-v4-adds-motion-banks)', () => {
   it('expands anchor lists onto the bank grid and emits v4 with motion fields', () => {
     const file = expandOk(base({
       motion: [[{ step: 0, x: 0.5, y: 0 }, { step: 8, x: 0.5, y: 1 }]],
@@ -435,7 +435,7 @@ describe('motion dialect (motion-sequencer.md REQ-9)', () => {
   });
 });
 
-describe('expandAuthorSong — extra motion tracks (motion-sequencer.md REQ-17)', () => {
+describe('expandAuthorSong — extra motion tracks (motion-sequencer.md REQ-song-file-v5-adds-motion-tracks)', () => {
   const base = (extra: Record<string, unknown>) => ({
     format: 'websynth-song-author',
     version: 1,
@@ -486,7 +486,7 @@ describe('expandAuthorSong — extra motion tracks (motion-sequencer.md REQ-17)'
   });
 });
 
-describe('expandAuthorSong — four sequencer tracks (sequencer.md REQ-13)', () => {
+describe('expandAuthorSong — four sequencer tracks (sequencer.md REQ-song-file-v6-adds-seq-tracks)', () => {
   it('a plain note list still lands on track 1 and expands to v3', () => {
     const res = expandAuthorSong({
       format: 'websynth-song-author', version: 1, name: 'One', seq: [['A2', null, 'A3']],
@@ -512,7 +512,7 @@ describe('expandAuthorSong — four sequencer tracks (sequencer.md REQ-13)', () 
     expect(res.file.seqTracks![0]![2]![0]!.note).toBe(55);   // G3
   });
 
-  // REQ-12: the author *form* does not pick the version — ON steps on tracks
+  // REQ-motion-mute-is-an-ordinary-param: the author *form* does not pick the version — ON steps on tracks
   // 2-4 do. A single-list `tracks` bank must still expand to the v3 file it
   // would have been before v6 existed.
   it('a one-track "tracks" bank stays a v3 file', () => {
@@ -527,10 +527,10 @@ describe('expandAuthorSong — four sequencer tracks (sequencer.md REQ-13)', () 
     expect(res.file.seqBanks[0]![0]!.note).toBe(48);
   });
 
-  // REQ-13b. These keys used to be a hard error next to `tracks`, which meant
+  // REQ-bank-settings-cascade-into-tracks. These keys used to be a hard error next to `tracks`, which meant
   // the shorthand disappeared exactly where a song gets musical — every chord
   // bank had to repeat the same gate/velocity once per track.
-  it('cascades bank-level settings into every track (REQ-13b)', () => {
+  it('cascades bank-level settings into every track (REQ-bank-settings-cascade-into-tracks)', () => {
     const res = expandAuthorSong({
       format: 'websynth-song-author', version: 1, name: 'Chords',
       params: { 'voicing.mode': 1 },
@@ -538,7 +538,7 @@ describe('expandAuthorSong — four sequencer tracks (sequencer.md REQ-13)', () 
     });
     expect(res.ok).toBe(true);
     if (!res.ok) return;
-    // Track 1 lives in seqBanks; tracks 2-4 in seqTracks (REQ-13).
+    // Track 1 lives in seqBanks; tracks 2-4 in seqTracks (REQ-two-extra-tracks-per-bank).
     expect(res.file.seqBanks[0]![0]).toMatchObject({ on: true, note: 48, gate: 0.9, velocity: 0.6 });
     expect(res.file.seqTracks![0]![1]![0]).toMatchObject({ on: true, note: 52, gate: 0.9, velocity: 0.6 });
     expect(res.file.seqTracks![0]![2]![0]).toMatchObject({ on: true, note: 55, gate: 0.9, velocity: 0.6 });
@@ -592,7 +592,7 @@ describe('expandAuthorSong — four sequencer tracks (sequencer.md REQ-13)', () 
   });
 });
 
-// untrusted-input.md REQ-4. The dialect already bounded NOTES to 0..127 (the
+// untrusted-input.md REQ-payload-values-are-bounded. The dialect already bounded NOTES to 0..127 (the
 // canonical validator was the looser of the two, which is backwards) — these
 // pin the chain bounds it did not have.
 describe('expandAuthorSong — chain bounds', () => {
@@ -627,9 +627,9 @@ describe('expandAuthorSong — chain bounds', () => {
   });
 });
 
-// song-authoring-dialect.md REQ-15 / arrangement.md REQ-8. The headline win: a
+// song-authoring-dialect.md REQ-a-chain-letter-may-carry-a-transpose / arrangement.md REQ-a-seq-slot-carries-a-transpose. The headline win: a
 // four-chord progression that used to consume all four banks is now one bank.
-describe('expandAuthorSong — seqChain transpose suffix (REQ-15)', () => {
+describe('expandAuthorSong — seqChain transpose suffix (REQ-motion-baselines-are-unchanged)', () => {
   const song = (extra: Record<string, unknown>) => expandAuthorSong({
     format: 'websynth-song-author', version: 1, name: 'Prog',
     seq: [['C2', 'E2', 'G2']],

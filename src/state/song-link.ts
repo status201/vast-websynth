@@ -31,7 +31,7 @@ export function parseSongLink(hash: string): SongLink | null {
   const payload = qs.get('song');
   if (payload) return { kind: 'data', payload };
   const url = qs.get('songUrl');
-  // `https:` ONLY (untrusted-input.md REQ-7). The original `https?` test also
+  // `https:` ONLY (untrusted-input.md REQ-a-link-may-not-fetch-silently). The original `https?` test also
   // accepted plain http, which made `#songUrl=http://192.168.1.1/…` a zero-click
   // probe of the visitor's own LAN from their browser. Everything else —
   // `javascript:`, `file://`, a protocol-relative `//host` — fails this too.
@@ -53,7 +53,7 @@ export async function encodeSongPayload(json: string): Promise<string> {
  * Invert {@link encodeSongPayload}. Throws on an undecodable payload, and on one
  * that expands past `MAX_SONG_JSON_BYTES` — deflate reaches ~1032:1, so a hash
  * that fits in an address bar can otherwise inflate to gigabytes
- * (untrusted-input.md REQ-2). The uncompressed `'j:'` form is bounded by the URL
+ * (untrusted-input.md REQ-bounds-in-the-validator-sizes-in-the-codec). The uncompressed `'j:'` form is bounded by the URL
  * itself, but is checked too so both branches carry the same guarantee.
  */
 export async function decodeSongPayload(payload: string): Promise<string> {

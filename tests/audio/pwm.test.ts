@@ -4,7 +4,8 @@ import { PwmDriver, PWM_CONTROL_HZ, PWM_RATE_MAX, type PwmVoice } from '../../sr
 import { PWM_MIN_WIDTH, PWM_MAX_WIDTH } from '../../src/audio/oscillator';
 
 /**
- * The PWM control loop (oscillators.md REQ-7..REQ-10).
+ * The PWM control loop — oscillators.md REQ-pulse-destination-sweeps-unipolar
+ * through oscillators.md REQ-a-background-tab-throttles-pwm.
  *
  * PWM is the one modulation path that is not an audio connection, so this is
  * where its cost contract lives: the timer exists only for the `pulse`
@@ -38,7 +39,7 @@ function build(n = 2) {
   return { pwm, widths, advance };
 }
 
-describe('PwmDriver lifecycle (REQ-8)', () => {
+describe('PwmDriver lifecycle (REQ-lfo-rate-is-exponentially-tapered)', () => {
   beforeEach(() => vi.useFakeTimers());
   afterEach(() => vi.useRealTimers());
 
@@ -103,7 +104,7 @@ describe('PwmDriver lifecycle (REQ-8)', () => {
   });
 });
 
-describe('PwmDriver sweep shape (REQ-7)', () => {
+describe('PwmDriver sweep shape (REQ-shape-destination-sweeps-the-pole-mix)', () => {
   beforeEach(() => vi.useFakeTimers());
   afterEach(() => vi.useRealTimers());
 
@@ -158,7 +159,7 @@ describe('PwmDriver sweep shape (REQ-7)', () => {
   });
 });
 
-describe('PwmDriver rate cap (REQ-9)', () => {
+describe('PwmDriver rate cap (REQ-lfo-sync-locks-rate-to-tempo)', () => {
   beforeEach(() => vi.useFakeTimers());
   afterEach(() => vi.useRealTimers());
 
@@ -204,7 +205,7 @@ describe('PwmDriver rate cap (REQ-9)', () => {
   });
 });
 
-describe('PwmDriver background throttling (REQ-10)', () => {
+describe('PwmDriver background throttling (REQ-there-are-two-lfos)', () => {
   beforeEach(() => vi.useFakeTimers());
   afterEach(() => vi.useRealTimers());
 
@@ -233,13 +234,13 @@ describe('PwmDriver background throttling (REQ-10)', () => {
 });
 
 /**
- * One driver, two LFOs (lfo.md REQ-14 / oscillators.md REQ-8).
+ * One driver, two LFOs (lfo.md REQ-pulse-is-arbitrated / oscillators.md REQ-set-periodic-wave-is-immediate).
  *
  * PWM is a parameter write rather than a summed connection, so it is the one
  * destination two LFOs cannot share. The first test here is the regression the
  * whole owner mechanism exists for, and it is otherwise only audible.
  */
-describe('PwmDriver arbitration (REQ-8)', () => {
+describe('PwmDriver arbitration (REQ-lfo-rate-is-exponentially-tapered)', () => {
   beforeEach(() => vi.useFakeTimers());
   afterEach(() => vi.useRealTimers());
 

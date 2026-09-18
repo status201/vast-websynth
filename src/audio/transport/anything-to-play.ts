@@ -3,7 +3,7 @@ import type { ChainLane } from './arrangement';
 
 /**
  * Would starting the transport make ANY sound right now? The pure rule behind
- * the header's "nothing to play yet" hint (empty-play-hint.md REQ-2).
+ * the header's "nothing to play yet" hint (empty-play-hint.md REQ-anything-to-play-is-pure).
  *
  * A machine counts when it is switched on AND a bank it would actually play —
  * the distinct banks in its chain (RESTs skipped) when the lane is enabled,

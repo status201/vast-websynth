@@ -12,7 +12,7 @@
  * Pure and import-free beyond `params.ts` + `preset-session.ts` +
  * `song-version.ts`: the MCP server bundles this module for Node, and importing
  * `song.ts` would drag its `import.meta.glob` demo registration along
- * (mcp-server.md REQ-4).
+ * (mcp-server.md REQ-song-core-entry-exports-only-pure-code).
  */
 import type { ParamBus, ParamId, Taper } from './params';
 import { isPatchParam } from './preset-session';
@@ -60,7 +60,7 @@ export interface ParamCatalog {
  *
  * No app version is stamped: a release bump must not be able to redden
  * `npm run check:params`, and a version literal in a model-visible file drifts
- * silently (mcp-server.md REQ-5).
+ * silently (mcp-server.md REQ-five-song-tools).
  */
 export function buildParamCatalog(bus: ParamBus): ParamCatalog {
   const params: ParamCatalogEntry[] = [];

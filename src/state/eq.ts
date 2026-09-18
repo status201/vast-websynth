@@ -12,7 +12,7 @@
  */
 import type { ParamBus } from './params';
 
-/** One fixed band of the graphic EQ (equalizer.md REQ-2). */
+/** One fixed band of the graphic EQ (equalizer.md REQ-eight-fixed-eq-bands). */
 export interface EqBand {
   hz: number;
   type: BiquadFilterType;
@@ -53,7 +53,7 @@ export const EQ_GAIN_MAX = 18;
 /**
  * The highpass and lowpass **references**, in Hz. Written to `frequency` once at
  * construction and never again: the knobs ride `detune` in cents instead
- * (equalizer.md REQ-3, the rule `effects.md` REQ-11 and `performance.md` REQ-10
+ * (equalizer.md REQ-a-real-highpass-and-lowpass, the rule `effects.md` REQ-the-wah-lfo-sweeps-in-cents and `performance.md` REQ-the-dj-sweep-rides-detune
  * already impose). A linear-Hz write can walk a biquad onto the `AudioParam`
  * floor where it degenerates; cents cannot reach zero.
  */
@@ -73,7 +73,7 @@ export const EQ_WIDTH_DEFAULT = 1;
 export interface EqSettings {
   /** dB per band, length `EQ_BAND_COUNT`. */
   gains: readonly number[];
-  /** The shared peaking Q (equalizer.md REQ-4). */
+  /** The shared peaking Q (equalizer.md REQ-one-q-knob-over-the-bands). */
   width: number;
   /** Highpass corner in Hz; `EQ_HP_REF` is open. */
   hp: number;
@@ -121,7 +121,7 @@ export function readEqSettings(bus: ParamBus, prefix: string): EqSettings {
 
 /**
  * Is this lane engaged but doing nothing? Drives the tab lamp's middle state
- * (equalizer.md REQ-10) — an EQ that is on and flat is otherwise invisible.
+ * (equalizer.md REQ-the-eq-tab-led-only-indicates) — an EQ that is on and flat is otherwise invisible.
  */
 export function eqIsFlat(s: EqSettings): boolean {
   if (s.hp > EQ_HP_REF || s.lp < EQ_LP_REF) return false;
@@ -155,7 +155,7 @@ export type BiquadCoeffs = [b0: number, b1: number, b2: number, a0: number, a1: 
  * These are the **Web Audio API's own** formulas, not a model of them —
  * `BiquadFilterNode` is specified in terms of the RBJ cookbook, so computing the
  * same formulas here gives the same filter and the drawn curve is exact rather
- * than approximate (equalizer.md REQ-14).
+ * than approximate (equalizer.md REQ-the-drawn-curve-is-exact).
  *
  * The one trap, and the reason each case is written out rather than sharing a
  * single `alpha`: **`Q` does not mean the same thing for every type.** For
@@ -163,7 +163,7 @@ export type BiquadCoeffs = [b0: number, b1: number, b2: number, a0: number, a1: 
  * `highpass` the spec interprets it **in decibels**, `alpha = sin(w0) /
  * (2 * 10^(Q/20))` — so a `Q.value` of 0.7 is a mildly resonant filter, not a
  * Butterworth one. And `lowshelf`/`highshelf` ignore `Q` altogether, using a
- * fixed slope `S = 1`, which is why WIDTH cannot move them (REQ-4).
+ * fixed slope `S = 1`, which is why WIDTH cannot move them (REQ-one-q-knob-over-the-bands).
  *
  * Exported so the closed form can be checked against the filter these numbers
  * actually *are*: `tests/state/eq.test.ts` runs the difference equation from

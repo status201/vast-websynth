@@ -9,7 +9,7 @@ import { EQ_BANDS } from '../../src/state/eq';
 import { formatHzFull } from '../../src/ui/components/scope';
 
 /** The Clear button as help copy renders it — the caret is an icon, not a `▾`
- *  (iconography.md REQ-1), so the assertions go through the same helper. */
+ *  (iconography.md REQ-a-control-glyph-is-inline-svg), so the assertions go through the same helper. */
 const CLEAR_BTN = iconLabel('caretDown', 'Clear', 'after');
 
 /** A topic's authored copy — asserts it exists and is static (not a widget). */
@@ -20,7 +20,7 @@ function bodyOf(id: keyof typeof HELP_TOPICS): string {
   return t.body as string;
 }
 
-/** The two transport-sync help topics (onboarding.md REQ-6 / midi-clock-sync v2). */
+/** The two transport-sync help topics (onboarding.md REQ-the-sync-section-has-two-topics / midi-clock-sync v2). */
 describe('help-content sync topics', () => {
   it('has a `sync` topic explaining Master/Slave + USB-MIDI', () => {
     const t = HELP_TOPICS['sync'];
@@ -44,7 +44,7 @@ describe('help-content sync topics', () => {
   });
 });
 
-/** The Motion machine topic (onboarding.md REQ-7 / motion-sequencer.md REQ-8). */
+/** The Motion machine topic (onboarding.md REQ-a-motion-topic-anchors-to-the-tab / motion-sequencer.md REQ-each-motion-step-is-a-mini-xy-pad). */
 describe('help-content motion topic', () => {
   it('has a `motion` topic explaining the Y/X graph view', () => {
     const t = HELP_TOPICS['motion'];
@@ -62,12 +62,12 @@ describe('help-content motion topic', () => {
     const body = bodyOf('motion');
     expect(body).toContain('two more tracks');
     expect(body).toContain('per bank');
-    // Motion's Clear lists lanes, not a selected row (step-grid-editing REQ-6).
+    // Motion's Clear lists lanes, not a selected row (step-grid-editing REQ-clear-menu-clears-in-bulk).
     // Its caret is drawn, so assert against the helper rather than a character.
     expect(body).toContain(CLEAR_BTN);
   });
 
-  // The two short per-lane badges (onboarding.md REQ-14 / motion-sequencer.md v6).
+  // The two short per-lane badges (onboarding.md REQ-the-motion-tab-carries-two-lane-badges / motion-sequencer.md v6).
   it('has a short `motion.xy` topic for the XY lane', () => {
     const t = HELP_TOPICS['motion.xy'];
     expect(t).toBeTruthy();
@@ -88,7 +88,7 @@ describe('help-content motion topic', () => {
   });
 });
 
-/** The grid gesture vocabulary reaches every step grid (onboarding.md REQ-11). */
+/** The grid gesture vocabulary reaches every step grid (onboarding.md REQ-help-copy-covers-the-gesture-model). */
 describe('help-content grid gestures', () => {
   it.each(['seq', 'drums', 'sampler'] as const)('%s names every gesture', (id) => {
     const body = bodyOf(id);
@@ -108,7 +108,8 @@ describe('help-content grid gestures', () => {
   });
 });
 
-/** The sequencer's four tracks (sequencer.md REQ-8/9/10, onboarding.md REQ-11). */
+/** The sequencer's four tracks (sequencer.md REQ-four-tracks-per-bank/REQ-poly-voicing-gates-the-extra-tracks,
+ *  sequencer.md REQ-per-track-mute, onboarding.md REQ-help-copy-covers-the-gesture-model). */
 describe('help-content seq topic', () => {
   it('explains the four tracks and the poly gate', () => {
     const body = bodyOf('seq');
@@ -118,7 +119,7 @@ describe('help-content seq topic', () => {
   });
 });
 
-/** The Render button's badge (onboarding.md REQ-15 / render-to-sampler.md REQ-10). */
+/** The Render button's badge (onboarding.md REQ-seq-render-has-a-help-badge / render-to-sampler.md REQ-the-render-button-carries-a-badge). */
 describe('help-content seq.render topic', () => {
   it('explains the import and why the bar plays twice', () => {
     const t = HELP_TOPICS['seq.render'];
@@ -129,14 +130,14 @@ describe('help-content seq.render topic', () => {
     // The whole point of the badge: the two-pass tail bake reads as a hang.
     expect(body).toMatch(/twice/i);
     expect(body).toMatch(/reverb/i);
-    // Both disabled reasons (render-to-sampler.md REQ-6).
+    // Both disabled reasons (render-to-sampler.md REQ-a-render-is-refused-while-busy).
     expect(body).toMatch(/no steps/i);
     expect(body).toMatch(/MIDI clock/i);
   });
 });
 
 /**
- * The two topics that teach time-stretch (time-stretch.md REQ-9/REQ-11).
+ * The two topics that teach time-stretch (time-stretch.md REQ-the-editor-gains-a-fit-row/REQ-the-slot-fit-button-is-a-quick-fit).
  *
  * In-app copy has no other gate — it is the surface that goes stale silently when
  * a feature lands, so the claims a user reads are pinned here like any contract.
@@ -165,7 +166,7 @@ describe('help-content time-stretch copy', () => {
   });
 });
 
-/** The header Presets button (onboarding.md REQ-12). */
+/** The header Presets button (onboarding.md REQ-a-presets-topic-anchors-to-the-picker). */
 describe('help-content presets topic', () => {
   it('separates a preset from a song and covers export/import', () => {
     const t = HELP_TOPICS['presets'];
@@ -181,7 +182,7 @@ describe('help-content presets topic', () => {
   });
 });
 
-/** The gesture tour step (onboarding.md REQ-13). */
+/** The gesture tour step (onboarding.md REQ-the-tour-teaches-the-grid-gestures). */
 describe('the tour', () => {
   it('teaches the grid gestures on the drum grid, before the Song-tab steps', () => {
     const i = TOUR_STEPS.findIndex((s) => s.title === 'Paint a pattern');
@@ -196,7 +197,7 @@ describe('the tour', () => {
   });
 });
 
-/** Playhead-ruler + Song-transport badges (onboarding.md REQ-16). */
+/** Playhead-ruler + Song-transport badges (onboarding.md REQ-the-playhead-ruler-carries-a-badge). */
 describe('help-content transport-position topics', () => {
   const LANES = ['seq', 'drum', 'sampler', 'motion'] as const;
 
@@ -232,7 +233,7 @@ describe('help-content transport-position topics', () => {
     expect(body).toMatch(/external clock|export|render/); // when seeking is refused
   });
 
-  // live-fx-window.md REQ-7 — the sibling badge on the row below the transport.
+  // live-fx-window.md REQ-live-fx-row-carries-a-help-badge — the sibling badge on the row below the transport.
   it('has a `song.fx` topic naming every control in the Live FX row', () => {
     const t = HELP_TOPICS['song.fx'];
     expect(t).toBeTruthy();
@@ -248,8 +249,8 @@ describe('help-content transport-position topics', () => {
   });
 });
 
-/** The scale/chord badges (onboarding.md REQ-20). */
-// input-control.md REQ-12 (v15, regression) — the topic taught `.` for five
+/** The scale/chord badges (onboarding.md REQ-about-is-the-single-door-for-help). */
+// input-control.md REQ-pitch-bend-is-quote-and-slash (v15, regression) — the topic taught `.` for five
 // versions after the key was unbound; nothing held it to the real binding.
 describe('help-content pitchBend topic', () => {
   it("names ' (up) and / (down) — never the unbound .", () => {
@@ -297,7 +298,7 @@ describe('help-content key & chord topics', () => {
 });
 
 /**
- * song-mode.md REQ-12 (v18). The tour names its demo by string constant, while
+ * song-mode.md REQ-drop-in-demos-are-fetched-on-click (v18). The tour names its demo by string constant, while
  * `src/state/demos/` is a drop-in directory anyone may rename in. `loadDemo`
  * now falls back to the first demo, so an orphaned constant no longer breaks the
  * tour — but it would quietly demonstrate a song the script was not written for,
@@ -311,7 +312,7 @@ describe('the tour names a demo that exists', () => {
 });
 
 /**
- * The Equalizer's badges (onboarding.md REQ-26, equalizer.md REQ-19). The panel
+ * The Equalizer's badges (onboarding.md REQ-the-equalizer-carries-seven-badges, equalizer.md REQ-the-eq-explains-itself-through-badges). The panel
  * says almost nothing about itself in words: eight abbreviations, a lamp that
  * looks like a switch, a dropdown that switches the EQ on. This is what a player
  * reads instead, so its claims are pinned like any other contract.
@@ -398,7 +399,7 @@ describe('help-content equalizer topics', () => {
   });
 });
 
-/** The mod matrix badge (onboarding.md REQ-21). */
+/** The mod matrix badge (onboarding.md REQ-the-mod-launcher-carries-a-badge). */
 describe('help-content mod topic', () => {
   it('has a `mod` topic covering bipolar depth, the knob colours and the boundary', () => {
     const t = HELP_TOPICS['mod'];

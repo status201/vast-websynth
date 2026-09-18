@@ -31,8 +31,8 @@ turns one held key into a chord. Both derive from the key set by
 ## Background / Why
 
 `SeqStep.note` is a single MIDI integer — there is no chord in the data model and there
-does not need to be one. [sequencer](sequencer.md) REQ-8 already added **four tracks per
-bank** with the explicit intent that "a bank can hold a chord", and REQ-9 gates tracks
+does not need to be one. [sequencer](sequencer.md) REQ-four-tracks-per-bank already added **four tracks per
+bank** with the explicit intent that "a bank can hold a chord", and REQ-degree-labels-show-real-quality gates tracks
 2–4 on poly voicing. So the native chord mechanism already exists; what was missing was
 anything that *writes* one. Building the writer on `setSeqStep` instead of a new
 `notes?: number[]` field means **no `SongFile` version bump, no `serialize.ts` change,
@@ -46,72 +46,84 @@ cheapest implementation and the most musical one.
 
 ## Requirements
 
-- **REQ-1** (chords are stacked scale degrees) — `diatonicChord` takes the chord's root
-  *degree* and returns `[d, d+2, d+4, d+6]` in scale-degree space, wrapped by octave.
-  There is **no chord-quality table**. For scales with fewer than seven tones
-  (pentatonic, blues) the same rule applies — it means "stack every other scale tone",
-  which is the honest generalization, not a special case.
+- **REQ-chords-are-stacked-scale-degrees** (chords are stacked scale degrees) —
+  `diatonicChord` takes the chord's root *degree* and returns `[d, d+2, d+4,
+  d+6]` in scale-degree space, wrapped by octave. There is **no chord-quality
+  table**. For scales with fewer than seven tones (pentatonic, blues) the same
+  rule applies — it means "stack every other scale tone", which is the honest
+  generalization, not a special case.
 
-- **REQ-2** (the writer patches, it does not replace) — writing a chord at step `i` sets
-  `on` and `note` on tracks 1..n and leaves each target step's `velocity`, `gate`,
-  `prob`, `ratchet` and `tie` untouched, so a chord written over a shaped step keeps its
-  shape. A triad writes three tracks and sets track 4 `on: false` rather than leaving a
-  stale fourth note ringing from a previous 7th.
+- **REQ-the-chord-writer-patches-not-replaces** (the writer patches, it does not
+  replace) — writing a chord at step `i` sets `on` and `note` on tracks 1..n and
+  leaves each target step's `velocity`, `gate`, `prob`, `ratchet` and `tie`
+  untouched, so a chord written over a shaped step keeps its shape. A triad
+  writes three tracks and sets track 4 `on: false` rather than leaving a stale
+  fourth note ringing from a previous 7th.
 
-- **REQ-3** (one gesture, one undo) — the writer mutates up to four steps and SNAP
-  mutates up to 64, but each is **one** undo entry. Both reuse the existing whole-bank
-  shape `{ kind: 'seq-copy', bank, before }` and the `emitMutate`-then-mutate-in-place
-  idiom already used by `clearSeqCells` ([pattern-undo](pattern-undo.md)). Emitting one
-  entry per cell would make a single click cost four Ctrl+Z.
+- **REQ-one-chord-gesture-one-undo** (one gesture, one undo) — the writer
+  mutates up to four steps and SNAP mutates up to 64, but each is **one** undo
+  entry. Both reuse the existing whole-bank shape `{ kind: 'seq-copy', bank,
+  before }` and the `emitMutate`-then-mutate-in-place idiom already used by
+  `clearSeqCells` ([pattern-undo](pattern-undo.md)). Emitting one entry per cell
+  would make a single click cost four Ctrl+Z.
 
-- **REQ-4** (the store stays free of music theory) — `PatternStore.writeSeqChord(index,
-  notes)` and `snapSeqBank(map)` take **plain data**: an array of notes, and a mapping
-  function. The theory lives in `src/utils/music.ts` and the caller applies it. This
-  keeps the store a data store ([ADR-004](../decisions/adr-004-patternstore-separate-from-parambus.md))
+- **REQ-the-store-stays-free-of-theory** (the store stays free of music theory)
+  — `PatternStore.writeSeqChord(index, notes)` and `snapSeqBank(map)` take
+  **plain data**: an array of notes, and a mapping function. The theory lives in
+  `src/utils/music.ts` and the caller applies it. This keeps the store a data
+  store ([ADR-004](../decisions/adr-004-patternstore-separate-from-parambus.md))
   and lets both operations be unit-tested without a scale.
 
-- **REQ-5** (chord memory is diatonic, so it composes with the quantizer) — the live
-  path builds its notes from the scale, so its output is already in-scale and the
-  quantizer's pass over it is a no-op by
-  [scale-quantization](scale-quantization.md) REQ-3. One code path, and the two features
-  provably cannot fight. `chord.voicing` index **0 is `off`**, the no-op default
-  ([ADR-006](../decisions/adr-006-no-op-param-defaults.md)); the off-switch is folded
-  into the param rather than carried as a separate `chord.on`, following the
-  `LFO_DEST_LABELS` idiom. The current voicing's **tonic** chord is what both key
-  pictures preview in yellow — the KEY tab's map and, since v3 there, the playable
-  keyboard ([scale-quantization](scale-quantization.md) REQ-9 and REQ-10) — because
-  chord memory has no chord of its own until a key is held.
+- **REQ-chord-memory-is-diatonic** (chord memory is diatonic, so it composes
+  with the quantizer) — the live path builds its notes from the scale, so its
+  output is already in-scale and the quantizer's pass over it is a no-op by
+  [scale-quantization](scale-quantization.md) REQ-quantization-is-idempotent-and-bounded. One code path, and the two
+  features provably cannot fight. `chord.voicing` index **0 is `off`**, the
+  no-op default ([ADR-006](../decisions/adr-006-no-op-param-defaults.md)); the
+  off-switch is folded into the param rather than carried as a separate
+  `chord.on`, following the `LFO_DEST_LABELS` idiom. The current voicing's
+  **tonic** chord is what both key pictures preview in yellow — the KEY tab's
+  map and, since v3 there, the playable keyboard
+  ([scale-quantization](scale-quantization.md) REQ-the-key-is-drawn-not-just-named and
+  REQ-a-chord-lands-in-the-edited-register) — because chord memory has no chord
+  of its own until a key is held.
 
-- **REQ-6** (chord memory reaches the arp) — the arp is driven by `bus.onNote` and does
-  **not** route through the engine's passthrough ([arpeggiator](arpeggiator.md) REQ-1),
-  so expansion happens in *both* consumers: the engine's passthrough and the arp's pool
-  build, at the same place the `n + o * 12` octave stacking already happens. This is
-  what lets one finger drive an arpeggiated progression.
+- **REQ-chord-memory-reaches-the-arp** (chord memory reaches the arp) — the arp
+  is driven by `bus.onNote` and does **not** route through the engine's
+  passthrough ([arpeggiator](arpeggiator.md)
+  REQ-arp-takes-over-the-note-stream), so expansion happens in *both* consumers:
+  the engine's passthrough and the arp's pool build, at the same place the `n +
+  o * 12` octave stacking already happens. This is what lets one finger drive an
+  arpeggiated progression.
 
-- **REQ-7** (mono gates the live path, but not the writer) — while `voicing.mode` is
-  mono, chord memory does **not** expand: four notes into one mono voice would sound
-  only the last, which is worse than not expanding. The **writer** is not blocked in
-  mono — the notes are data, they persist, and [sequencer](sequencer.md) REQ-9 already
-  renders tracks 2–4 dimmed with a hint that switching to poly brings them back. Reuse
-  that affordance; do not invent a second warning.
+- **REQ-mono-gates-the-live-chord-path** (mono gates the live path, but not the
+  writer) — while `voicing.mode` is mono, chord memory does **not** expand: four
+  notes into one mono voice would sound only the last, which is worse than not
+  expanding. The **writer** is not blocked in mono — the notes are data, they
+  persist, and [sequencer](sequencer.md) REQ-poly-voicing-gates-the-extra-tracks already renders tracks 2–4 dimmed
+  with a hint that switching to poly brings them back. Reuse that affordance; do
+  not invent a second warning.
 
-- **REQ-8** (both tools require a scale) — while `scale.type` is `chromatic` there are
-  no degrees to stack, so the CHORD ▾ control is **disabled with the reason shown** and
-  chord memory is inert. A disabled control that says why beats one that silently
-  behaves differently in two modes ([ADR-014](../decisions/adr-014-dont-make-me-think.md)).
-  Precedent: the LFO panel greys RATE while sync is on.
+- **REQ-chord-tools-require-a-scale** (both tools require a scale) — while
+  `scale.type` is `chromatic` there are no degrees to stack, so the CHORD ▾
+  control is **disabled with the reason shown** and chord memory is inert. A
+  disabled control that says why beats one that silently behaves differently in
+  two modes ([ADR-014](../decisions/adr-014-dont-make-me-think.md)). Precedent:
+  the LFO panel greys RATE while sync is on.
 
-- **REQ-9** (degree labels show the real quality) — the writer's menu labels each degree
-  with its Roman numeral cased by what the stacking actually produced (`I ii iii IV V vi
-  vii°` in major, `i ii° III iv v VI VII` in minor) plus the concrete root name. The
-  case and the `°` are **derived** from the returned intervals — a 3-semitone third is
-  minor, a 6-semitone fifth diminished — not stored per scale, so a scale added to
+- **REQ-degree-labels-show-real-quality** (degree labels show the real quality)
+  — the writer's menu labels each degree with its Roman numeral cased by what
+  the stacking actually produced (`I ii iii IV V vi vii°` in major, `i ii° III
+  iv v VI VII` in minor) plus the concrete root name. The case and the `°` are
+  **derived** from the returned intervals — a 3-semitone third is minor, a
+  6-semitone fifth diminished — not stored per scale, so a scale added to
   `SCALE_LABELS` labels itself correctly with no new data.
 
-- **REQ-10** (the chord lands in the register you are editing) — the chord's root is the
-  chosen degree in the octave containing the cursor step's current note, so writing a
-  chord does not jump the line an octave. Track 1 takes the root and 2..4 the upper
-  tones, ascending.
+- **REQ-a-chord-lands-in-the-edited-register** (the chord lands in the register
+  you are editing) — the chord's root is the chosen degree in the octave
+  containing the cursor step's current note, so writing a chord does not jump
+  the line an octave. Track 1 takes the root and 2..4 the upper tones,
+  ascending.
 
 ## Technical design
 
@@ -122,12 +134,12 @@ src/utils/music.ts:                                   # pure
   diatonicChord(anchor, root, scale, degrees: readonly number[], base = 0): number[]
 #   `degrees` is the DEGREE-OFFSET array (e.g. [0,2,4] for a triad), not a count —
 #   callers pass chordDegrees(voicing) or a literal. Returns notes ascending.
-  degreeLabel(root, scale, degree): string                 # 'ii — Dm', cased per REQ-9
+  degreeLabel(root, scale, degree): string                 # 'ii — Dm', cased per REQ-degree-labels-show-real-quality
 
 src/audio/transport/scale-quantizer.ts:
-  ScaleQuantizer.chord(note): number[]   # honours chord.voicing + REQ-7; [note] when inert
+  ScaleQuantizer.chord(note): number[]   # honours chord.voicing + REQ-mono-gates-the-live-chord-path; [note] when inert
 
-src/state/patterns.ts:                                # theory-free (REQ-4)
+src/state/patterns.ts:                                # theory-free (REQ-the-store-stays-free-of-theory)
   writeSeqChord(index: number, notes: readonly number[]): boolean
   snapSeqBank(map: (note: number) => number): boolean
 ```
@@ -154,7 +166,7 @@ including the ones deliberately left unused.
 | pick a degree row | write the chord at the cursor step **immediately**, one undo entry | `Clear ▾` rows act on click; no confirm step |
 | `Esc` / click-away | close without writing | `clear-menu.ts`, `dropdown.ts` |
 | tap `SNAP` | bake the scale into the edit bank, one undo entry, toast with the count changed | the `Undo` button it sits beside |
-| hover either while chromatic | the control is disabled and its `title` says a scale must be chosen (REQ-8) | LFO RATE greyed while sync is on |
+| hover either while chromatic | the control is disabled and its `title` says a scale must be chosen (REQ-chord-tools-require-a-scale) | LFO RATE greyed while sync is on |
 | wheel | — the adjacent note stepper already means ±1 semitone on wheel; a second, different wheel meaning on a neighbouring control would be ambiguous (law 2) | — |
 | double-click | — a single click already commits; a second meaning would be undiscoverable | — |
 | drag | — there is nothing to drag; the target is always the grid cursor | — |
@@ -166,8 +178,8 @@ including the ones deliberately left unused.
 ```yaml
 engine (subscribeParams):
   chord.voicing -> quantizer.setChord(round(x))
-  voicing.mode  -> quantizer.setPoly(v >= 0.5)     # REQ-7 gate for the live path
-live expansion (both consumers, REQ-6):
+  voicing.mode  -> quantizer.setPoly(v >= 0.5)     # REQ-mono-gates-the-live-chord-path gate for the live path
+live expansion (both consumers, REQ-chord-memory-reaches-the-arp):
   engine bus.onNote -> quantizer.chord(note) -> playNote per note; heldIn.set(raw, notes)
   arpeggiator.fire  -> pool built from quantizer.chord(held) before octave stacking
 editor:
@@ -185,62 +197,62 @@ deliberate — there is no chord object to keep in sync.
 ## Scenarios (BDD)
 
 ```gherkin
-Scenario: Writing a degree stacks the right quality (REQ-1, REQ-9)
+Scenario: Writing a degree stacks the right quality (REQ-chords-are-stacked-scale-degrees, REQ-degree-labels-show-real-quality)
   Given scale.root is C and scale.type is major
   When the writer writes degree ii as a triad
   Then tracks 1-3 hold D, F and A
   And the menu labelled that degree minor
 # pinned by: tests/utils/music.test.ts, tests/state/patterns-chord.test.ts
 
-Scenario: A triad clears the fourth track (REQ-2, edge)
+Scenario: A triad clears the fourth track (REQ-the-chord-writer-patches-not-replaces, edge)
   Given step 0 already holds a 7th chord across four tracks
   When a triad is written at step 0
   Then track 4's step is off, not left ringing the old 7th
 # pinned by: tests/state/patterns-chord.test.ts
 
-Scenario: A written chord keeps each step's existing shape (REQ-2)
+Scenario: A written chord keeps each step's existing shape (REQ-the-chord-writer-patches-not-replaces)
   Given step 0 on track 2 has velocity 0.3 and ratchet 3
   When a chord is written at step 0
   Then track 2's note and on change, and velocity and ratchet do not
 # pinned by: tests/state/patterns-chord.test.ts
 
-Scenario: One chord write is one undo (REQ-3)
+Scenario: One chord write is one undo (REQ-one-chord-gesture-one-undo)
   Given a chord is written across four tracks
   When Ctrl+Z is pressed once
   Then all four steps return to their previous state
 # pinned by: tests/state/patterns-chord.test.ts
 
-Scenario: Chord memory turns one key into a chord (REQ-5)
+Scenario: Chord memory turns one key into a chord (REQ-chord-memory-is-diatonic)
   Given scale is C major, chord.voicing is triad and voicing.mode is poly
   When C4 is held
   Then C4, E4 and G4 sound
 # pinned by: tests/audio/engine-scale.test.ts
 
-Scenario: Chord memory feeds the arp (REQ-6)
+Scenario: Chord memory feeds the arp (REQ-chord-memory-reaches-the-arp)
   Given the arp is enabled and chord.voicing is triad
   When one key is held and ticks are dispatched
   Then the arp cycles the chord's notes, not just the held one
 # pinned by: tests/audio/transport/arpeggiator.test.ts
 
-Scenario: Mono does not expand chord memory (REQ-7, edge)
+Scenario: Mono does not expand chord memory (REQ-mono-gates-the-live-chord-path, edge)
   Given voicing.mode is mono and chord.voicing is triad
   When a key is held
   Then exactly one note sounds
 # pinned by: tests/audio/engine-scale.test.ts
 
-Scenario: Releasing a chord-memory key releases every note it started (REQ-5, regression)
+Scenario: Releasing a chord-memory key releases every note it started (REQ-chord-memory-is-diatonic, regression)
   Given a chord is sounding from one held key
   When the key is released
   Then all of its notes are released and none hangs
 # pinned by: tests/audio/engine-scale.test.ts
 
-Scenario: Both tools are inert without a scale (REQ-8)
+Scenario: Both tools are inert without a scale (REQ-chord-tools-require-a-scale)
   Given scale.type is chromatic
   Then the CHORD ▾ control is disabled and says why
   And chord memory sounds a single note
 # pinned by: tests/ui/key-panel.test.ts, tests/audio/engine-scale.test.ts
 
-Scenario: The chord lands in the edited register (REQ-10)
+Scenario: The chord lands in the edited register (REQ-a-chord-lands-in-the-edited-register)
   Given the cursor step holds C5
   When degree I is written
   Then the chord's root is C5, not C3
@@ -263,7 +275,7 @@ Scenario: The chord lands in the edited register (REQ-10)
 
 - **Inversions and drop voicings** — the writer is root-position only. A `voicing`
   control (root / 1st / 2nd) would be additive and needs no new data.
-- **A plain major triad in `chromatic` is blocked by REQ-8**, since there are no degrees without
+- **A plain major triad in `chromatic` is blocked by REQ-chord-tools-require-a-scale**, since there are no degrees without
   a scale. That is one dropdown away and the panel says so, but if it proves annoying
   the alternative is a fixed-interval fallback — at the cost of a second code path and
   a control that means two different things.

@@ -7,19 +7,19 @@ import { SyncSlave } from './sync-slave';
 
 /**
  * Owns the sync mode (off | master | slave) and the role lifecycle. This is
- * the single gate (REQ-7): incoming messages are dropped unless slaved, and
+ * the single gate (REQ-the-sync-core-is-transport-agnostic): incoming messages are dropped unless slaved, and
  * broadcasting exists only while mastered — so two cross-wired instances can
  * never feed back, and Android USB loopback is ignored.
  *
- * v2: **multi-transport** (midi-clock-sync REQ-15). `addTransport(id, t)` keeps
+ * v2: **multi-transport** (midi-clock-sync REQ-midi-and-wifi-coexist). `addTransport(id, t)` keeps
  * a `Map` keyed by `TransportId` (MIDI + WiFi coexist; a same-id add replaces).
  * Broadcasting fans out to every transport; incoming from any is gated the same
  * way. When a transport's outputs go 0 → >0 while master, the controller
  * announces the current transport state to **that transport only** (a broadcast
- * would restart already-locked slaves at bar 0 — REQ-10). Until any transport
+ * would restart already-locked slaves at bar 0 — REQ-song-position-pointer-jumps-the-slave). Until any transport
  * is added, mode switching works but is inert and `status.links` is empty.
  *
- * v4: **selection vs. running role** (REQ-19..21). `mode` is the persisted
+ * v4: **selection vs. running role** (REQ-selected-mode-versus-active-role..21). `mode` is the persisted
  * *preference*; `activeMode` is what actually runs, and it needs a live link —
  * pull the cable or close the DataChannel and a slave releases the transport
  * instead of freezing the BPM knob at a vanished master's tempo. Ports alone
@@ -29,8 +29,8 @@ import { SyncSlave } from './sync-slave';
  * role, so gating them on `activeMode` would deadlock.
  */
 
-/** No sync message for this long ⇒ the slave's link is dead (REQ-20). Well past
- *  the master's 100 ms idle pulses and 2 s tempo heartbeat (REQ-11/12). */
+/** No sync message for this long ⇒ the slave's link is dead (REQ-link-liveness-beats-port-presence). Well past
+ *  the master's 100 ms idle pulses and 2 s tempo heartbeat (REQ-the-master-keeps-an-idle-clock/12). */
 const LINK_IDLE_MS = 3000;
 /** Liveness poll cadence while `mode === 'slave'`. */
 const WATCHDOG_WAKE_MS = 500;
@@ -49,14 +49,14 @@ export interface SyncControllerOptions {
   /** The BPM knob's bus value — the slave's restore target. */
   localBpm: () => number;
   /**
-   * v4 (REQ-21): write the BPM knob. Used once, when the link drops *while
+   * v4 (REQ-tempo-handoff-on-release): write the BPM knob. Used once, when the link drops *while
    * playing*, to adopt the followed tempo so the handoff is jump-free and the
    * knob tells the truth. Omitted in tests that don't exercise the handoff.
    */
   setLocalBpm?: (bpm: number) => void;
-  /** The song's time signature, announced to peers (meter.md REQ-18). */
+  /** The song's time signature, announced to peers (meter.md REQ-meter-travels-on-the-wifi-wire). */
   meter?: () => { beats: number; unit: number };
-  /** Adopt a peer's time signature while slaved (meter.md REQ-18). */
+  /** Adopt a peer's time signature while slaved (meter.md REQ-meter-travels-on-the-wifi-wire). */
   setMeter?: (beats: number, unit: number) => void;
   /** Read/write `websynth.midisync` (default true; tests pass false). */
   persist?: boolean;
@@ -92,13 +92,13 @@ export class SyncController {
     this.syncWatchdog();
     // Play-state is part of the status line; repaint on transport edges. Both
     // edges also re-derive the role: `clock.playing` defers a silence-based
-    // release (REQ-6/REQ-20), so stopping frees a stalled slave at once
+    // release (REQ-a-stalled-pulse-stream-is-tolerated/REQ-link-liveness-beats-port-presence), so stopping frees a stalled slave at once
     // instead of leaving it latched until the next watchdog wake.
     clock.onStart(() => { this.applyActiveRole(); this.emitStatus(); });
     clock.onStop(() => { this.applyActiveRole(); this.emitStatus(); });
     // Every jump of the playhead — a user seek via Engine.seekTo, or a loop wrap
-    // routed inside the clock's drain (transport-loop.md REQ-8) — reaches slaves
-    // from here, once. A no-op in any role but master (REQ-23).
+    // routed inside the clock's drain (transport-loop.md REQ-a-sync-master-announces-every-wrap) — reaches slaves
+    // from here, once. A no-op in any role but master (REQ-a-midi-master-announces-its-seek).
     clock.onSeek(() => this.announcePosition());
   }
 
@@ -108,7 +108,7 @@ export class SyncController {
   }
 
   /**
-   * The role **actually running** (REQ-19): `'off'` whenever the selection is
+   * The role **actually running** (REQ-selected-mode-versus-active-role): `'off'` whenever the selection is
    * armed but nothing is connected. Every "are we slaved?" gate reads this.
    */
   get activeMode(): SyncMode {
@@ -118,8 +118,8 @@ export class SyncController {
   setMode(m: SyncMode): void {
     if (m === this._mode) return;
     this._mode = m;
-    // Explicit: a deliberate exit snaps the tempo back to the knob (REQ-4),
-    // unlike an automatic release, which adopts the followed tempo (REQ-21).
+    // Explicit: a deliberate exit snaps the tempo back to the knob (REQ-slave-follows-tempo-from-pulses),
+    // unlike an automatic release, which adopts the followed tempo (REQ-tempo-handoff-on-release).
     this.applyActiveRole(true);
     this.syncWatchdog();
     if (this.persist) writeSyncMode(m);
@@ -168,12 +168,12 @@ export class SyncController {
   }
 
   /**
-   * Tell every peer where the playhead now is (REQ-23). Runs on every local
+   * Tell every peer where the playhead now is (REQ-a-midi-master-announces-its-seek). Runs on every local
    * `clock.onSeek`: slaves count pulses from their own start, so without this
    * they stay exactly the jump distance behind for the rest of the session.
    *
    * `announceTo` sends `songposition` + `continue` — deliberately not `start`,
-   * which REQ-3 makes a slave honour by restarting at bar 0, the one thing a
+   * which REQ-slave-restarts-from-zero-on-start makes a slave honour by restarting at bar 0, the one thing a
    * mid-song jump must not do. A no-op in any role but a running master.
    */
   announcePosition(): void {
@@ -182,7 +182,7 @@ export class SyncController {
   }
 
   /**
-   * Tell every peer the time signature changed (meter.md REQ-18). Without it a
+   * Tell every peer the time signature changed (meter.md REQ-meter-travels-on-the-wifi-wire). Without it a
    * peer keeps numbering bars by whatever meter it joined with, so the same
    * Song Position lands them on different bars. A no-op in any role but master.
    */
@@ -192,7 +192,7 @@ export class SyncController {
   }
 
   /**
-   * The gate stays on the **selection** (REQ-7/REQ-20), never on `activeMode`:
+   * The gate stays on the **selection** (REQ-the-sync-core-is-transport-agnostic/REQ-link-liveness-beats-port-presence), never on `activeMode`:
    * an arriving message is exactly what proves the link is alive, so it re-arms
    * the role — and it must do so *before* being handled, or the freshly-built
    * slave would miss the very message that woke it.
@@ -206,9 +206,9 @@ export class SyncController {
 
   /**
    * A transport's port counts changed — which may arm or release the role
-   * (REQ-20). If its outputs came up (0 → >0) while we are master, announce the
+   * (REQ-link-liveness-beats-port-presence). If its outputs came up (0 → >0) while we are master, announce the
    * current state to *that transport only* so a newly-linked peer joins in
-   * phase without restarting the others (REQ-10/15).
+   * phase without restarting the others (REQ-song-position-pointer-jumps-the-slave/15).
    */
   private onPortsChange(id: TransportId): void {
     const entry = this.transports.get(id);
@@ -227,7 +227,7 @@ export class SyncController {
   }
 
   /**
-   * The role a live link currently supports (REQ-19/20). A selected mode with
+   * The role a live link currently supports (REQ-selected-mode-versus-active-role/20). A selected mode with
    * nothing connected resolves to `'off'` — armed, but inert.
    */
   private desiredActiveRole(): SyncMode {
@@ -237,7 +237,7 @@ export class SyncController {
     if (!ports.some((p) => p.ins > 0)) return 'off';
     // Ports alone are too weak: a virtual MIDI cable (loopMIDI) outlives the
     // app behind it. Demand recent traffic too — except while playing, where
-    // REQ-6's stall tolerance owns the silence (a hiccup must never yank a
+    // REQ-a-stalled-pulse-stream-is-tolerated's stall tolerance owns the silence (a hiccup must never yank a
     // running performance's tempo); the release then lands on the next stop.
     if (this.clock.playing) return 'slave';
     return this.nowMs() - this.lastMessageAtMs < LINK_IDLE_MS ? 'slave' : 'off';
@@ -248,9 +248,9 @@ export class SyncController {
    * edge (mode change, port change, transport add, clock start/stop, watchdog).
    * Returns whether the role actually changed.
    *
-   * `explicit` marks a deliberate `setMode` change, which keeps REQ-4's
+   * `explicit` marks a deliberate `setMode` change, which keeps REQ-slave-follows-tempo-from-pulses's
    * snap-back to the knob tempo. An *automatic* release while playing instead
-   * adopts the followed tempo (REQ-21).
+   * adopts the followed tempo (REQ-tempo-handoff-on-release).
    */
   private applyActiveRole(explicit = false): boolean {
     const want = this.desiredActiveRole();
@@ -276,7 +276,7 @@ export class SyncController {
         (msg, atMs) => this.broadcast(msg, atMs),
         this.opts.toPerfMs,
         // Fan the start/stop flush out to every transport that can cancel
-        // scheduled sends (REQ-18); transports without flush are untouched.
+        // scheduled sends (REQ-master-flush-is-best-effort); transports without flush are untouched.
         {
           flush: () => { for (const { t } of this.transports.values()) t.flush?.(); },
           ...(this.opts.meter ? { meter: this.opts.meter } : {}),

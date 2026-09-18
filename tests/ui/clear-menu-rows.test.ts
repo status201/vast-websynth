@@ -6,7 +6,7 @@ import { PatternUndo } from '../../src/state/pattern-undo';
 import type { StudioApi } from '../../src/ui/studio-api';
 
 /**
- * step-grid-editing.md REQ-6 (v6) — an item that would do nothing is a dead item,
+ * step-grid-editing.md REQ-clear-menu-clears-in-bulk (v6) — an item that would do nothing is a dead item,
  * on every machine. Through v5 only the Motion panel honoured that, and it did so
  * by choosing what to `push`, so the rule lived in one panel and the other three
  * silently broke it. It now lives in `clearMenuFor`: panels hand over every row
@@ -45,7 +45,7 @@ const filled = (label: string): ClearRow => ({ label, hasContent: true, clear: (
 
 beforeEach(() => { document.body.innerHTML = ''; });
 
-describe('Clear ▾ drops rows with nothing to clear (step-grid-editing.md REQ-6)', () => {
+describe('Clear ▾ drops rows with nothing to clear (step-grid-editing.md REQ-clear-menu-clears-in-bulk)', () => {
   it('offers a filled row', () => {
     const h = harness(() => [filled('track 2')]);
     h.open();

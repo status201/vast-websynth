@@ -59,7 +59,7 @@ function compactSeqStep(s: SeqStep): Record<string, unknown> {
   const tie = s.tie ?? SEQ_EXTRA_DEFAULTS.tie;
   if (tie !== SEQ_EXTRA_DEFAULTS.tie) out.tie = tie;
   // An integer notch count, so no roundNum: micro must survive EXPORT_SIG_FIGS
-  // exactly (step-settings.md REQ-6).
+  // exactly (step-settings.md REQ-a-step-carries-a-micro-offset).
   const micro = s.micro ?? SEQ_EXTRA_DEFAULTS.micro;
   if (micro !== SEQ_EXTRA_DEFAULTS.micro) out.micro = micro;
   return out;
@@ -82,7 +82,7 @@ function compactTriggerCell(c: TriggerCell): Record<string, unknown> {
   if (ratchet !== TRIGGER_CELL_DEFAULTS.ratchet) out.ratchet = ratchet;
   const tie = c.tie ?? TRIGGER_CELL_DEFAULTS.tie;
   if (tie !== TRIGGER_CELL_DEFAULTS.tie) out.tie = tie;
-  // Integer notches — deliberately not rounded (step-settings.md REQ-6).
+  // Integer notches — deliberately not rounded (step-settings.md REQ-a-step-carries-a-micro-offset).
   const micro = c.micro ?? TRIGGER_CELL_DEFAULTS.micro;
   if (micro !== TRIGGER_CELL_DEFAULTS.micro) out.micro = micro;
   return out;
@@ -150,7 +150,7 @@ export function compactSongForExport(file: SongFile): Record<string, unknown> {
   }
   // v7 — and only when it carries information. An all-zero array is what every
   // pre-v7 song has, so dropping it is what keeps those files byte-identical
-  // through this function (song-mode.md REQ-16, ADR-011 default-sparse).
+  // through this function (song-mode.md REQ-song-file-v7-adds-slot-transpose, ADR-011 default-sparse).
   if (file.seqTranspose?.some((t) => t !== 0)) out.seqTranspose = [...file.seqTranspose];
   return out;
 }

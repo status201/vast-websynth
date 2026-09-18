@@ -14,7 +14,8 @@ import { CASE_VERSION, INVALID_MANIFESTS, VALID_MANIFESTS } from '../fixtures/of
 import { FakeCacheStorage, type FakeCache } from '../fixtures/offline-fakes';
 
 /**
- * The Play offline state machine (specs/features/play-offline.md REQ-3..REQ-6),
+ * The Play offline state machine — play-offline.md REQ-one-offline-state-machine-many-views
+ * through play-offline.md REQ-offline-cancel-and-takeover,
  * driven against in-memory stand-ins for CacheStorage, fetch, the service-worker
  * container and StorageManager — no DOM, no network.
  */
@@ -69,7 +70,7 @@ function harness(overrides: Partial<OfflineCopyDeps> = {}): Harness {
 
   const quota = {
     // Never settles, like a Firefox prompt nobody has answered: a download that
-    // awaited it would hang, which is exactly what REQ-5 step 1 forbids.
+    // awaited it would hang, which is exactly what REQ-the-offline-download-runs-in-order step 1 forbids.
     persist: vi.fn(() => new Promise<boolean>(() => {})),
     persisted: vi.fn(async () => true),
     estimate: vi.fn(async () => ({ quota: 1e9, usage: 0 })),
@@ -100,7 +101,7 @@ const writeMarker = (cache: FakeCache, version = VERSION) =>
     version, files: MANIFEST.files.map((f) => f.url), totalBytes: MANIFEST.totalBytes, completedAt: 'x',
   })));
 
-describe('parseOfflineManifest (REQ-9)', () => {
+describe('parseOfflineManifest (REQ-the-manifest-is-same-origin-build-output)', () => {
   it('accepts its own version and recomputes the total', () => {
     const m = parseOfflineManifest({ ...MANIFEST, totalBytes: 1 }, VERSION);
     expect(m?.totalBytes).toBe(1000);
@@ -116,7 +117,7 @@ describe('parseOfflineManifest (REQ-9)', () => {
   });
 });
 
-describe('deleteOfflineCopies (REQ-12)', () => {
+describe('deleteOfflineCopies (REQ-the-copy-is-fetched-again-after-a-reset)', () => {
   it('deletes every app cache, keeps foreign ones, and reports the complete copy', async () => {
     const storage = FakeCacheStorage.with({
       [offlineCacheName('1.0.0')]: [OFFLINE_MARKER_URL, '/'],
@@ -134,7 +135,7 @@ describe('deleteOfflineCopies (REQ-12)', () => {
   });
 });
 
-describe('unsupported (REQ-3, REQ-4)', () => {
+describe('unsupported (REQ-one-offline-state-machine-many-views, REQ-offline-state-is-checked-when-about-opens)', () => {
   it('is unsupported on the dev server, and start() fetches nothing', async () => {
     const h = harness({ enabled: false });
     await h.copy.refresh();
@@ -154,7 +155,7 @@ describe('unsupported (REQ-3, REQ-4)', () => {
   });
 });
 
-describe('refresh (REQ-4)', () => {
+describe('refresh (REQ-offline-state-is-checked-when-about-opens)', () => {
   it('reports the remaining size when part of the app is already cached', async () => {
     const h = harness();
     cacheAll(h.cache, ['/', '/assets/index-abc.js']);
@@ -172,7 +173,7 @@ describe('refresh (REQ-4)', () => {
     expect(h.fetch).not.toHaveBeenCalled();
   });
 
-  it('counts a file the worker cached with a Vary header as saved (REQ-11, regression)', async () => {
+  it('counts a file the worker cached with a Vary header as saved (REQ-cache-lookups-ignore-vary, regression)', async () => {
     const h = harness();
     for (const f of MANIFEST.files) {
       h.cache.store.set(f.url, new Response('runtime-cached', { headers: { Vary: 'Origin' } }));
@@ -224,7 +225,7 @@ describe('refresh (REQ-4)', () => {
   });
 });
 
-describe('start (REQ-5)', () => {
+describe('start (REQ-the-offline-download-runs-in-order)', () => {
   it('downloads what is missing, reports forward-only progress, then writes the marker', async () => {
     const h = harness();
     cacheAll(h.cache, ['/']);
@@ -346,7 +347,7 @@ function hang(h: Harness, url: string): Promise<void> {
   });
 }
 
-describe('cancel and takeover (REQ-6)', () => {
+describe('cancel and takeover (REQ-offline-cancel-and-takeover)', () => {
   it('cancel aborts and lands on the true remaining size', async () => {
     const h = harness();
     const reached = hang(h, '/assets/demo-def.json');

@@ -3,9 +3,9 @@
 ```yaml
 id: project-export
 status: implemented
-version: 5   # v5: REQ-2 budgets the reader (entry count, declared-size pre-flight,
+version: 5   # v5: REQ-zip-codec-is-hand-written-and-budgeted budgets the reader (entry count, declared-size pre-flight,
              #     capped inflate, running total) — a zip is untrusted input
-             # v4: REQ-1 names no canonical version (it had frozen at "v4")
+             # v4: REQ-zip-holds-the-canonical-song names no canonical version (it had frozen at "v4")
              # v3: JSON demos are fetched on click too; loadDemo is async
 owner: core
 related:
@@ -30,69 +30,75 @@ source:
 Sampler slot audio lives only in `SamplerMachine.buffers`; a saved/exported song
 persists just the filenames (`SongFile.sampleNames`), so every export/import loses
 the audio and the sampler panel falls back to the `.needs-reload` hint
-([song-mode](song-mode.md) REQ-5, [sampler](sampler.md) REQ-4). This feature adds a
+([song-mode](song-mode.md) REQ-audio-is-never-embedded-in-the-json, [sampler](sampler.md) REQ-only-sample-filenames-persist). This feature adds a
 **"Project"** export: a `<name>.websynth.zip` containing the canonical compact song
 JSON plus each loaded slot's audio clip, importable in one step, and a loader path
 so future demos can ship as zips with audio. The `.json` song format is untouched.
 
 ## Requirements
 
-- **REQ-1** — A project zip contains the **unmodified canonical compact** song JSON
-  (`Song.toJSON`, ADR-011) as `song.json`, plus one `samples/<slot>-<name>.<ext>`
-  entry per loaded sampler slot. `SongFile` stays whatever the current canonical
-  version is — the zip is a container, never a new song format, so a format bump
-  needs no edit here. Clip slot assignment is keyed by the **slot index in the
-  entry name**; `sampleNames` in `song.json` remains the display-name source of truth.
-- **REQ-2** — The zip codec is **hand-written and dependency-free** (ADR-003):
-  writer emits method 0 (stored) for audio + method 8 (deflate, via
-  `CompressionStream('deflate-raw')` when available) for `.json`; reader accepts
-  methods 0 + 8, locates the EOCD by backward scan (tolerates trailing bytes),
-  trusts central-directory metadata, verifies CRC-32, and throws a typed `ZipError`
-  on zip64 / unknown methods / bad CRC / truncation.
-  **A zip is an untrusted container (v5)**, so the reader is also *budgeted*
-  ([untrusted-input](untrusted-input.md) REQ-2): it refuses a central directory
-  declaring more than `MAX_ZIP_ENTRIES`, uses each entry's **declared
-  uncompressed size as a pre-flight budget** against `MAX_ZIP_ENTRY_BYTES`
-  *before* inflating, caps the inflate itself at the same figure, and refuses
-  once the running total across entries passes `MAX_ZIP_TOTAL_BYTES`. Previously
-  the declared size was read but only compared *after* a full uncapped inflate,
-  so a deflate bomb was spent before it was noticed.
-- **REQ-3** — The shared deflate helpers live in `src/utils/compression.ts`
-  (extracted from `webrtc-signaling.ts`, behaviour identical) so the zip module does
-  not depend on an audio/signaling module.
-- **REQ-4** — **Export** opens a modal offering **Song (.json)** (default) and
-  **Project (.zip)**. The Project row is **disabled with an explanation when no
-  sampler slot has audio loaded**. Project export offers a WAV (default) / MP3
-  clip-format toggle; MP3 shows a caveat that encoder padding slightly alters clip
-  length. Clip extension derives from the encoded blob's MIME type — `encodeMp3`'s
-  unsupported-rate WAV fallback must yield `.wav`. `encodeClip` is **async** (v2)
-  because `encodeMp3` lazily imports lamejs ([audio-export](audio-export.md)
-  REQ-7); the export flow already awaits per clip, so this adds no round trip.
-- **REQ-5** — **Import** auto-detects zip vs JSON by magic bytes (`PK` first,
-  extension fallback). The JSON path is unchanged. The zip path validates
-  `song.json` via `Song.parse` (reused), tolerates one level of folder nesting
-  (Explorer re-zip), and **degrades gracefully**: a missing or undecodable clip
-  never aborts the apply — the slot just keeps the existing `.needs-reload` hint;
-  out-of-range slots are skipped.
-- **REQ-6** — **Save (slots) stays JSON-only** — a zip cannot live in localStorage.
-  After importing a project then reloading the page, `.needs-reload` correctly
-  reappears (the buffers were session-only, as before).
-- **REQ-7** — Demo projects: any `src/state/demos/*.websynth.zip` is auto-registered
-  at build time via an `import.meta.glob` `?url` (fetched lazily on click, which is a
-  user gesture). The display name comes from `demos-index.json`, which
-  `npm run clean:demos` fills by opening every zip through `parseProjectZip` in
-  Node and reading the song's own `name` — so a zip demo is named exactly like a
-  JSON one. The filename-minus-extension mangle (`Run_Away_2.websynth.zip` →
-  "Run Away 2") survives only as the fallback for a zip the index has not seen;
-  export filenames are underscore-sanitized (`projectFilename`), so that fallback
-  round-trips the common case. An empty glob (no zip assets) costs nothing.
-  (v2) The **JSON** drop-in demos are fetched on click the same way — see
-  [song-mode](song-mode.md) REQ-12 — so zips are no longer the odd one out in
+- **REQ-zip-holds-the-canonical-song** — A project zip contains the **unmodified
+  canonical compact** song JSON (`Song.toJSON`, ADR-011) as `song.json`, plus
+  one `samples/<slot>-<name>.<ext>` entry per loaded sampler slot. `SongFile`
+  stays whatever the current canonical version is — the zip is a container,
+  never a new song format, so a format bump needs no edit here. Clip slot
+  assignment is keyed by the **slot index in the entry name**; `sampleNames` in
+  `song.json` remains the display-name source of truth.
+- **REQ-zip-codec-is-hand-written-and-budgeted** — The zip codec is
+  **hand-written and dependency-free** (ADR-003): writer emits method 0 (stored)
+  for audio + method 8 (deflate, via `CompressionStream('deflate-raw')` when
+  available) for `.json`; reader accepts methods 0 + 8, locates the EOCD by
+  backward scan (tolerates trailing bytes), trusts central-directory metadata,
+  verifies CRC-32, and throws a typed `ZipError` on zip64 / unknown methods /
+  bad CRC / truncation. **A zip is an untrusted container (v5)**, so the reader
+  is also *budgeted* ([untrusted-input](untrusted-input.md) REQ-bounds-in-the-validator-sizes-in-the-codec): it refuses a
+  central directory declaring more than `MAX_ZIP_ENTRIES`, uses each entry's
+  **declared uncompressed size as a pre-flight budget** against
+  `MAX_ZIP_ENTRY_BYTES` *before* inflating, caps the inflate itself at the same
+  figure, and refuses once the running total across entries passes
+  `MAX_ZIP_TOTAL_BYTES`. Previously the declared size was read but only compared
+  *after* a full uncapped inflate, so a deflate bomb was spent before it was
+  noticed.
+- **REQ-deflate-helpers-are-shared** — The shared deflate helpers live in
+  `src/utils/compression.ts` (extracted from `webrtc-signaling.ts`, behaviour
+  identical) so the zip module does not depend on an audio/signaling module.
+- **REQ-export-modal-offers-song-or-project** — **Export** opens a modal
+  offering **Song (.json)** (default) and **Project (.zip)**. The Project row is
+  **disabled with an explanation when no sampler slot has audio loaded**.
+  Project export offers a WAV (default) / MP3 clip-format toggle; MP3 shows a
+  caveat that encoder padding slightly alters clip length. Clip extension
+  derives from the encoded blob's MIME type — `encodeMp3`'s unsupported-rate WAV
+  fallback must yield `.wav`. `encodeClip` is **async** (v2) because `encodeMp3`
+  lazily imports lamejs ([audio-export](audio-export.md)
+  REQ-the-mp3-encoder-loads-lazily); the export flow already awaits per clip, so this
+  adds no round trip.
+- **REQ-import-sniffs-magic-bytes** — **Import** auto-detects zip vs JSON by
+  magic bytes (`PK` first, extension fallback). The JSON path is unchanged. The
+  zip path validates `song.json` via `Song.parse` (reused), tolerates one level
+  of folder nesting (Explorer re-zip), and **degrades gracefully**: a missing or
+  undecodable clip never aborts the apply — the slot just keeps the existing
+  `.needs-reload` hint; out-of-range slots are skipped.
+- **REQ-slots-stay-json-only** — **Save (slots) stays JSON-only** — a zip cannot
+  live in localStorage. After importing a project then reloading the page,
+  `.needs-reload` correctly reappears (the buffers were session-only, as
+  before).
+- **REQ-zip-demos-auto-register** — Demo projects: any
+  `src/state/demos/*.websynth.zip` is auto-registered at build time via an
+  `import.meta.glob` `?url` (fetched lazily on click, which is a user gesture).
+  The display name comes from `demos-index.json`, which `npm run clean:demos`
+  fills by opening every zip through `parseProjectZip` in Node and reading the
+  song's own `name` — so a zip demo is named exactly like a JSON one. The
+  filename-minus-extension mangle (`Run_Away_2.websynth.zip` → "Run Away 2")
+  survives only as the fallback for a zip the index has not seen; export
+  filenames are underscore-sanitized (`projectFilename`), so that fallback
+  round-trips the common case. An empty glob (no zip assets) costs nothing. (v2)
+  The **JSON** drop-in demos are fetched on click the same way — see
+  [song-mode](song-mode.md) REQ-drop-in-demos-are-fetched-on-click — so zips are no longer the odd one out in
   either naming or loading.
-- **REQ-8** — Decode/encode is memory-aware: clips are encoded/decoded
-  **sequentially** (8 × multi-MB WAVs), and `decodeAudioData` gets a **copy** of the
-  clip bytes (`.slice()`) because entries are subarray views of the whole zip buffer
-  and `decodeAudioData` detaches its input.
+- **REQ-clip-codec-is-memory-aware** — Decode/encode is memory-aware: clips are
+  encoded/decoded **sequentially** (8 × multi-MB WAVs), and `decodeAudioData`
+  gets a **copy** of the clip bytes (`.slice()`) because entries are subarray
+  views of the whole zip buffer and `decodeAudioData` detaches its input.
 
 ## Technical design
 
@@ -116,7 +122,7 @@ project:  # src/state/project.ts (pure — no AudioContext, no DOM beyond Blob)
   ProjectClipIn:  { slot: number, entryName: string, data: Uint8Array }  # normalized '/' entryName
   encodeClip(a: CapturedAudio, fmt: ClipExt): Promise<{ blob: Blob, ext: ClipExt }>
     # ext from blob.type, not fmt; caller adds slot + materializes data
-    # async since v2: encodeMp3 lazily imports lamejs (audio-export REQ-7)
+    # async since v2: encodeMp3 lazily imports lamejs (audio-export REQ-the-mp3-encoder-loads-lazily)
   buildProjectZip(file: SongFile, clips: ProjectClipOut[]): Promise<Uint8Array>
     # clip entry names derive from file.sampleNames[slot] (sanitized)
   parseProjectZip(bytes): Promise<ProjectParse>
@@ -152,12 +158,12 @@ export (song-panel):
   song-export click -> openExportSongModal({ hasSamplerAudio: sampler.buffers.some(b => b != null) })
   kind json    -> Song.download(Song.capture(...))            # unchanged path
   kind project -> capture; per loaded slot audioBufferToCaptured -> await encodeClip(fmt)
-                  -> await blob.arrayBuffer()  (sequentially — REQ-8)
+                  -> await blob.arrayBuffer()  (sequentially — REQ-clip-codec-is-memory-aware)
                   -> buildProjectZip -> triggerDownload(application/zip, projectFilename)
 import (song-panel):
   fileInput accepts .json,.zip; sniff first 4 bytes (sniffImportKind)
   zip -> parseProjectZip; errors reuse the alertDialog bullet-list idiom
-      -> applyProjectBundle: applySong -> Song.saveSlot (JSON only — REQ-6)
+      -> applyProjectBundle: applySong -> Song.saveSlot (JSON only — REQ-slots-stay-json-only)
          -> decode clips sequentially with ctx.decodeAudioData(clip.data.slice().buffer)
          -> sampler.setBuffer, then ALWAYS setSampleName (the song's own name, or the
             zip entry name as fallback) — its meta event is what tells the sampler
@@ -168,7 +174,7 @@ help copy (onboarding.md): the song.export / song.import topics in
 demo zips (song.ts + song-panel):
   ZIP_DEMOS from import.meta.glob('./demos/*.websynth.zip', { query: '?url' })
   name = DEMO_INDEX[file] (clean:demos reads it out of the zip); the basename
-    mangle is only the fallback (REQ-7)
+    mangle is only the fallback (REQ-zip-demos-auto-register)
   one button per entry, sorted with every other demo by display name
     (compareSongNames) — NOT last (testid song-demo-<name>)
   click -> fetch(url) -> parseProjectZip -> applyProjectBundle
@@ -176,15 +182,15 @@ demo zips (song.ts + song-panel):
     (a project bundle is not a song file)
   loadDemo(name) is async and RESOLVES WHEN APPLIED — it dispatches built-in /
     JSON drop-in / zip; callers that act on the loaded song (the guided tour, the
-    empty-play modal) await it (song-mode.md REQ-12)
+    empty-play modal) await it (song-mode.md REQ-drop-in-demos-are-fetched-on-click)
 ```
 
 ### Persistence
 
 ```yaml
 file:  "<name>.websynth.zip" (download only)
-NOT persisted: the zip itself — localStorage slots stay JSON (REQ-6); decoded
-               buffers stay session-only exactly as before (sampler.md REQ-4)
+NOT persisted: the zip itself — localStorage slots stay JSON (REQ-slots-stay-json-only); decoded
+               buffers stay session-only exactly as before (sampler.md REQ-only-sample-filenames-persist)
 ```
 
 ## Scenarios (BDD)
@@ -221,7 +227,7 @@ Scenario: A missing or undecodable clip degrades to needs-reload (failure)
   Then the song applies, the slot keeps its name, and the needs-reload hint shows
 # pinned by: tests/state/project.test.ts (a clip-less slot or out-of-range clip
 #   never fails the parse); the hint itself is the sampler panel's existing
-#   name-without-buffer behaviour (sampler.md REQ-4) — e2e/export-project.spec.ts
+#   name-without-buffer behaviour (sampler.md REQ-only-sample-filenames-persist) — e2e/export-project.spec.ts
 #   asserts its absence when clips DO decode
 
 Scenario: Corrupt zips are rejected with a typed error (failure)

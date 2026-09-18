@@ -15,14 +15,14 @@ import type { MotionStep, MotionTrackStep } from '../../state/patterns';
  * real param values happens in the machine via fromNorm.
  *
  * The segment spanning the bar line joins this bank's outer anchors to the
- * *neighbouring bars'* banks (motion-sequencer.md REQ-2b): out of the last anchor
+ * *neighbouring bars'* banks (motion-sequencer.md REQ-cross-bank-carry): out of the last anchor
  * toward `next`'s first, into the first anchor from `prev`'s last. Passing the same
  * bank (or nothing) gives the self-wrap a looping bank had before v3.
  *
  * (v4) All of that lives in ONE scalar routine, `scalarAt`, generic over any
  * `{ on }` cell plus a value accessor. The XY lane's `valueAt` is two calls of it
  * and an extra track's `valueAt1D` is one, so the two-axis pad and the
- * single-param tracks cannot drift apart (REQ-14).
+ * single-param tracks cannot drift apart (REQ-tracks-share-the-lanes-curve-semantics).
  */
 
 export type MotionMode = 'step' | 'slide';
@@ -68,7 +68,7 @@ export function anchorIndices(bank: readonly Anchorable[]): number[] {
  * needs three of them (this bar plus both carry neighbours) and the XY lane
  * evaluates twice — once per axis — so an uncached 60 fps frame allocated ~9
  * arrays and rescanned ~144 steps for an answer that only changes when the user
- * edits a step (runtime-performance.md REQ-6).
+ * edits a step (runtime-performance.md REQ-no-allocation-in-a-hot-loop).
  *
  * Banks are mutated **in place**, so identity alone cannot detect a change: the
  * owner must `clear()` on every stream that can alter a bank. That is why this
@@ -104,7 +104,7 @@ const indicesOf = (bank: readonly Anchorable[], cache?: AnchorCache): number[] =
 
 /**
  * How many of `idx`'s ascending anchor positions fall inside a lane of `n`
- * cells (meter.md REQ-10). A shortened lane simply cannot see the anchors past
+ * cells (meter.md REQ-each-machine-has-a-loop-length). A shortened lane simply cannot see the anchors past
  * its loop; the cached index array is shared and must not be rebuilt per call,
  * so the bound is computed instead of the array being filtered. `n` is at most
  * `GRID_CELLS`, so this walks a handful of entries at worst.
@@ -144,7 +144,7 @@ function carryFrom<T extends Anchorable>(
  * `get` reads the value off a cell, which is the only thing that differs between
  * the XY lane's two axes and an extra track.
  *
- * `cells` is the lane's played length (meter.md REQ-10) and defaults to the
+ * `cells` is the lane's played length (meter.md REQ-each-machine-has-a-loop-length) and defaults to the
  * whole bank, so every caller that does not have a meter — the panel, the graph,
  * the tests — is unaffected. When it is shorter, the loop seam moves with it:
  * the slide that spans the bar line has to end at cell `cells`, not at cell 16,
@@ -246,7 +246,7 @@ export function valueAt(
 
 /**
  * `valueAt` into a caller-owned holder, for the frame loop
- * (runtime-performance.md REQ-6). Returns whether the bank produced a value —
+ * (runtime-performance.md REQ-no-allocation-in-a-hot-loop). Returns whether the bank produced a value —
  * `out` is left untouched when it did not, exactly as the `null` return means
  * "this bank has no anchors, write nothing".
  */
@@ -266,7 +266,7 @@ export function valueAtInto(
   return true;
 }
 
-/** One extra single-param track (motion-sequencer.md REQ-13/REQ-14). */
+/** One extra single-param track (motion-sequencer.md REQ-two-extra-tracks-per-bank/REQ-tracks-share-the-lanes-curve-semantics). */
 export function valueAt1D(
   steps: readonly MotionTrackStep[],
   barPos: number,

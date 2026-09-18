@@ -3,7 +3,7 @@
 ```yaml
 id: brand
 status: implemented
-version: 2  # v2: the model badge is optically centred, not geometrically (REQ-6)
+version: 2  # v2: the model badge is optically centred, not geometrically (REQ-model-badge-is-optically-centred)
 owner: ui
 related:
   - architecture
@@ -36,36 +36,40 @@ not a feature — it owns markup and styling only, and has no state.
 
 ## Requirements
 
-- **REQ-1** — `createBrand()` returns the block: a `.brand` column containing a
-  `.brandRow` (`.brandName` `VAST` + `.brandModel` `G1-J8`) and a
-  `.brandTagline` (`Vast Audio Synthesis Technology`). Every consumer renders
-  **identical** markup and typography; there is no size or content variant.
-- **REQ-2** — Consumers: the header (`ui/app.ts` `buildHeader`), the About modal
-  (`ui/components/about-modal.ts`, whose `buildModal` calls `createBrand()`), and
-  the start modal (`main.ts` `showStartModal`).
-  A new surface that shows the name calls this rather than restating it.
-- **REQ-3** — **The block carries no outer framing.** `.brand` styles only its
-  own contents (column flow, gap, line-height). The header's divider rule —
-  `padding-right` / `border-right` / `margin-right` — lives in a header-only
-  `.headerBrand` class in `layout.module.css`, composed on at the call site.
-  Left in the shared class it would draw a stray vertical rule down the inside
-  of a modal card, which is exactly the kind of leak that made the modals
-  hand-roll their own version in the first place.
-- **REQ-4** — Alignment is the **container's** business, not the block's. The
-  header and the About card leave it left-aligned; `.start-card`
-  (`src/styles/base.css`: `flex` + `align-items: center` + `text-align: center`)
-  centres it with no cooperation from this component.
-- **REQ-5** — `Modal.titleClass` / `Modal.tagClass` remain for modals whose
-  heading is a *title*, not the product name (`ai-prompt.ts`). This component
-  does not replace them.
-- **REQ-6** (v2) — **The model badge's padding is optically centred, so it is
-  deliberately asymmetric.** `G1-J8` in a symmetric box sits visibly high and
-  left, because the box is sized from metrics this string never uses: Courier
-  New reserves 5px of descent under a 15px line and a model number has no
-  descender (ink 1px above centre), and `letter-spacing` is applied after the
-  *last* glyph too (0.14em of extra air on the right). The padding takes both
-  back — `4px calc(8px - 0.14em) 2px 8px` — leaving the border-box height
-  unchanged, so nothing in the header row reflows.
+- **REQ-brand-block-has-no-variants** — `createBrand()` returns the block: a
+  `.brand` column containing a `.brandRow` (`.brandName` `VAST` + `.brandModel`
+  `G1-J8`) and a `.brandTagline` (`Vast Audio Synthesis Technology`). Every
+  consumer renders **identical** markup and typography; there is no size or
+  content variant.
+- **REQ-name-surfaces-call-create-brand** — Consumers: the header (`ui/app.ts`
+  `buildHeader`), the About modal (`ui/components/about-modal.ts`, whose
+  `buildModal` calls `createBrand()`), and the start modal (`main.ts`
+  `showStartModal`). A new surface that shows the name calls this rather than
+  restating it.
+- **REQ-brand-block-carries-no-framing** — **The block carries no outer
+  framing.** `.brand` styles only its own contents (column flow, gap,
+  line-height). The header's divider rule — `padding-right` / `border-right` /
+  `margin-right` — lives in a header-only `.headerBrand` class in
+  `layout.module.css`, composed on at the call site. Left in the shared class it
+  would draw a stray vertical rule down the inside of a modal card, which is
+  exactly the kind of leak that made the modals hand-roll their own version in
+  the first place.
+- **REQ-brand-alignment-belongs-to-the-container** — Alignment is the
+  **container's** business, not the block's. The header and the About card leave
+  it left-aligned; `.start-card` (`src/styles/base.css`: `flex` + `align-items:
+  center` + `text-align: center`) centres it with no cooperation from this
+  component.
+- **REQ-modal-title-classes-are-not-replaced** — `Modal.titleClass` /
+  `Modal.tagClass` remain for modals whose heading is a *title*, not the product
+  name (`ai-prompt.ts`). This component does not replace them.
+- **REQ-model-badge-is-optically-centred** (v2) — **The model badge's padding is
+  optically centred, so it is deliberately asymmetric.** `G1-J8` in a symmetric
+  box sits visibly high and left, because the box is sized from metrics this
+  string never uses: Courier New reserves 5px of descent under a 15px line and a
+  model number has no descender (ink 1px above centre), and `letter-spacing` is
+  applied after the *last* glyph too (0.14em of extra air on the right). The
+  padding takes both back — `4px calc(8px - 0.14em) 2px 8px` — leaving the
+  border-box height unchanged, so nothing in the header row reflows.
   - This is a correction to **this string in this face at this size**. If the
     model number, the font or the size changes, re-measure rather than carrying
     the numbers over; a string with a descender would need none of it.
@@ -104,7 +108,7 @@ Scenario: every surface renders the same block
    And the markup and classes are identical across all three
 # pinned by: tests/ui/brand.test.ts
 
-Scenario: the header's divider does not leak into a modal (REQ-3)
+Scenario: the header's divider does not leak into a modal (REQ-brand-block-carries-no-framing)
   Given the About modal is open
   Then its brand block carries no border-right/padding-right framing class
    And the header's block does carry it
@@ -117,7 +121,7 @@ Scenario: the header's divider does not leak into a modal (REQ-3)
   `tests/ui/about.test.ts` (the About card renders it in place of a title/tag).
 - E2E: `e2e/smoke.spec.ts` asserts the header's `G1-J8` once the start gate is
   past — which on an autoplay-permitting browser means no start modal was shown
-  at all ([audio-lifecycle](audio-lifecycle.md) REQ-20), so the header's block is
+  at all ([audio-lifecycle](audio-lifecycle.md) REQ-the-gesture-is-required-only-when-required), so the header's block is
   the only one in the DOM either way. The faceplate splash is therefore a
   first-run-on-a-blocked-browser sight, not a guaranteed one; the header and the
   About card carry the identity on every load.

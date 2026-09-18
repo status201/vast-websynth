@@ -61,7 +61,7 @@ function lastRamp(param: { setTargetAtTime: ReturnType<typeof vi.fn> }): number 
 beforeEach(() => vi.useFakeTimers());
 afterEach(() => vi.useRealTimers());
 
-describe('ModMatrix defaults (REQ-3)', () => {
+describe('ModMatrix defaults (REQ-routes-are-inert-by-default)', () => {
   it('wires nothing at all while every row is off', () => {
     const { sources, voices } = build();
     // Not one connection: the no-op default has to be a true no-op, or every
@@ -70,12 +70,12 @@ describe('ModMatrix defaults (REQ-3)', () => {
     expect(voices[0]!.filEnv.out.connect).not.toHaveBeenCalled();
   });
 
-  it('exposes exactly six free rows, LFO 1/2 being rows 0-1 (REQ-2)', () => {
+  it('exposes exactly six free rows, LFO 1/2 being rows 0-1 (REQ-eight-rows-two-grandfathered)', () => {
     expect(MOD_ROWS).toBe(6);
   });
 });
 
-describe('ModMatrix routing (REQ-1)', () => {
+describe('ModMatrix routing (REQ-one-gain-per-route-rewired-while-silent)', () => {
   it('connects a global source to every voice of a per-voice destination', () => {
     const { m, sources, voices } = build();
     route(m, 0, MOD_SRC.lfo1, MOD_DST.cutoff, 1);
@@ -91,13 +91,13 @@ describe('ModMatrix routing (REQ-1)', () => {
     for (const o of [v.osc1, v.osc2, v.sub]) expect(o.detuneParam).toBeTruthy();
   });
 
-  it('reaches resonance — an a-rate param nothing could address before (REQ-6)', () => {
+  it('reaches resonance — an a-rate param nothing could address before (REQ-resonance-becomes-reachable)', () => {
     const { m, voices } = build(1);
     route(m, 0, MOD_SRC.lfo1, MOD_DST.resonance, 1);
     expect(voices[0]!.filter.resonance).toBeTruthy();
   });
 
-  it('scales depth into the destination own unit (REQ-8)', () => {
+  it('scales depth into the destination own unit (REQ-depth-is-in-the-destinations-unit)', () => {
     const { m, ctx } = build(1);
     const gains = ctx.createGain.mock.results.map((r) => r.value);
     route(m, 0, MOD_SRC.lfo1, MOD_DST.cutoff, 0.5);
@@ -106,14 +106,14 @@ describe('ModMatrix routing (REQ-1)', () => {
     expect(ramped.length).toBeGreaterThan(0);
   });
 
-  it('is bipolar, so a negative amount inverts the route (REQ-9)', () => {
+  it('is bipolar, so a negative amount inverts the route (REQ-route-depth-is-bipolar)', () => {
     const { m, ctx } = build(1);
     const gains = ctx.createGain.mock.results.map((r) => r.value);
     route(m, 0, MOD_SRC.lfo1, MOD_DST.cutoff, -0.5);
     expect(gains.map((g) => lastRamp(g.gain))).toContain(-24);
   });
 
-  it('mutes before it rewires, and only rewires after the ramp (REQ-1)', () => {
+  it('mutes before it rewires, and only rewires after the ramp (REQ-one-gain-per-route-rewired-while-silent)', () => {
     const { m, sources } = build(1);
     route(m, 0, MOD_SRC.lfo1, MOD_DST.cutoff, 1);
     sources.lfo2.connect.mockClear();
@@ -125,7 +125,7 @@ describe('ModMatrix routing (REQ-1)', () => {
     expect(sources.lfo2.connect).toHaveBeenCalled();
   });
 
-  it('settles on the last of two changes inside the mute window (REQ-1, edge)', () => {
+  it('settles on the last of two changes inside the mute window (REQ-one-gain-per-route-rewired-while-silent, edge)', () => {
     const { m, sources } = build(1);
     route(m, 0, MOD_SRC.lfo1, MOD_DST.cutoff, 1);
     sources.lfo2.connect.mockClear();
@@ -150,7 +150,7 @@ describe('ModMatrix routing (REQ-1)', () => {
   });
 });
 
-describe('ModMatrix source liveness (REQ-10b)', () => {
+describe('ModMatrix source liveness (REQ-an-unselected-source-costs-nothing)', () => {
   it('reports no source in use while every row is off', () => {
     const { m } = build();
     expect(m.usesSource(MOD_SRC.random)).toBe(false);
@@ -178,7 +178,7 @@ describe('ModMatrix source liveness (REQ-10b)', () => {
     expect(m.usesSource(MOD_SRC.random)).toBe(false);
   });
 
-  it('ignores a route REQ-7 forbids, since it is held at zero gain anyway', () => {
+  it('ignores a route REQ-per-voice-sources-cannot-drive-bus-destinations forbids, since it is held at zero gain anyway', () => {
     const { m } = build();
     // velocity is per-voice, pan is bus-wide: refused, so nothing reads velocity.
     route(m, 3, MOD_SRC.velocity, MOD_DST.pan, 1);
@@ -193,7 +193,7 @@ describe('ModMatrix source liveness (REQ-10b)', () => {
   });
 });
 
-describe('ModMatrix per-voice sources (REQ-7)', () => {
+describe('ModMatrix per-voice sources (REQ-per-voice-sources-cannot-drive-bus-destinations)', () => {
   it('takes a per-voice source from each voice, not from a shared node', () => {
     const { m, voices } = build(2);
     route(m, 0, MOD_SRC.filEnv, MOD_DST.cutoff, 1);
@@ -226,7 +226,7 @@ describe('ModMatrix per-voice sources (REQ-7)', () => {
   });
 });
 
-describe('the routing rule is pure and shared (REQ-7)', () => {
+describe('the routing rule is pure and shared (REQ-per-voice-sources-cannot-drive-bus-destinations)', () => {
   it('names exactly the per-voice sources', () => {
     for (const s of [MOD_SRC.filEnv, MOD_SRC.ampEnv, MOD_SRC.velocity, MOD_SRC.key]) {
       expect(isPerVoiceSource(s), String(s)).toBe(true);

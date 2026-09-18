@@ -2,7 +2,7 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 import type { TourCtx } from '../../src/ui/onboarding/tour';
 
 /**
- * The onboarding facade's half of runtime-performance.md REQ-1: the body loads
+ * The onboarding facade's half of runtime-performance.md REQ-boot-cost-matches-the-request: the body loads
  * on the first command, and *nothing* about that is visible to a caller.
  *
  * The body is mocked rather than exercised — tour.ts and info-badges.ts have
@@ -25,7 +25,7 @@ const { createOnboarding } = await import('../../src/ui/onboarding');
 
 const ctx = { bus: {}, engine: {} } as unknown as TourCtx;
 
-describe('Onboarding facade (runtime-performance.md REQ-1)', () => {
+describe('Onboarding facade (runtime-performance.md REQ-boot-cost-matches-the-request)', () => {
   let startTour: ReturnType<typeof vi.fn>;
   let toggle: ReturnType<typeof vi.fn>;
 

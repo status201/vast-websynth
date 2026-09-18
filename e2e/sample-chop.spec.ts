@@ -8,7 +8,7 @@ const slotLoaded = (page: Page, slot: number): Promise<boolean> =>
   page.evaluate((s) => (window as any).__synth.engine.sampler.buffers[s] != null, slot);
 
 /** Pick a Dropdown option by its `dropdown-option` bridge class, not by accessible
- *  name — the toggle and the option carry the same one (dropdown.md REQ-13). */
+ *  name — the toggle and the option carry the same one (dropdown.md REQ-an-option-carries-the-bridge-class). */
 async function pick(page: Page, testId: string, label: RegExp): Promise<void> {
   const dd = page.getByTestId(testId);
   await dd.click();
@@ -17,7 +17,7 @@ async function pick(page: Page, testId: string, label: RegExp): Promise<void> {
 
 /**
  * Load a clip into `slot`, open it in the editor via the ✎ button, and unfold the
- * Chop section — every editor section rests closed (sample-recorder.md REQ-9), so
+ * Chop section — every editor section rests closed (sample-recorder.md REQ-every-section-below-the-waveform-folds), so
  * the fold itself belongs to `sample-editor-folds.spec.ts` and not to each test
  * here.
  */
@@ -71,14 +71,14 @@ test.describe('sample chop', () => {
     expect(await slotName(page, 4)).toBeNull();
   });
 
-  test('Spread is unavailable until the selection has been cut (REQ-6)', async ({ page }) => {
+  test('Spread is unavailable until the selection has been cut (REQ-spreading-is-confirmed-then-reversible)', async ({ page }) => {
     await openEditor(page, 0);
     await expect(page.getByTestId('chop-spread')).toBeDisabled();
     await page.getByTestId('chop-equal').click();
     await expect(page.getByTestId('chop-spread')).toBeEnabled();
   });
 
-  test('offers only the slice counts that fit from the chosen slot (REQ-5)', async ({ page }) => {
+  test('offers only the slice counts that fit from the chosen slot (REQ-no-slice-spreads-into-a-missing-slot)', async ({ page }) => {
     await openEditor(page, 0);
 
     // S7 is the seventh slot, so two slices fit below it and eight do not.
@@ -96,12 +96,12 @@ test.describe('sample chop', () => {
   });
 
   /**
-   * REQ-5, regression. The count list is filtered when the chop is MADE, which
+   * REQ-no-slice-spreads-into-a-missing-slot, regression. The count list is filtered when the chop is MADE, which
    * says nothing about moving the picker afterwards. Before the fix the label
    * went on promising four slices — naming "S9", a slot that does not exist —
    * while Spread stayed enabled and quietly wrote three.
    */
-  test('a chop that no longer fits refuses instead of dropping slices (REQ-5)', async ({ page }) => {
+  test('a chop that no longer fits refuses instead of dropping slices (REQ-no-slice-spreads-into-a-missing-slot)', async ({ page }) => {
     await openEditor(page, 0);
     await page.getByTestId('chop-equal').click();
     await expect(page.getByTestId('chop-row')).toContainText('4 slices → S1–S4');
@@ -125,7 +125,7 @@ test.describe('sample chop', () => {
     }
   });
 
-  test('a spread is confirmed first, and cancelling changes nothing (REQ-6)', async ({ page }) => {
+  test('a spread is confirmed first, and cancelling changes nothing (REQ-spreading-is-confirmed-then-reversible)', async ({ page }) => {
     await openEditor(page, 0);
     await page.getByTestId('chop-equal').click();
     await page.getByTestId('chop-spread').click();
@@ -137,7 +137,7 @@ test.describe('sample chop', () => {
     await expect(page.getByTestId('chop-row')).toBeVisible();
   });
 
-  test('Undo restores every overwritten slot, audio and name together (REQ-6)', async ({ page }) => {
+  test('Undo restores every overwritten slot, audio and name together (REQ-spreading-is-confirmed-then-reversible)', async ({ page }) => {
     await openEditor(page, 0);
     // Slot 1 holds something else, so the spread has real work to take back.
     await page.getByTestId('mic-close').click();

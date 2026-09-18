@@ -8,13 +8,13 @@ import type { Performance } from '../../../src/audio/transport/performance';
 import type { TickSubscriber } from '../../../src/audio/transport/tick-source';
 
 /**
- * Swapping a track's voice model (drum-machine.md REQ-11/REQ-19).
+ * Swapping a track's voice model (drum-machine.md REQ-a-drum-tracks-algorithm-is-selectable/REQ-swapping-a-model-never-severs-a-voice).
  *
  * The swap used to call `output.disconnect()` on the outgoing voice in the same
  * turn — a hard cut of whatever it was still sounding. That matters because
  * stopping the transport does **not** silence a drum hit (only the sampler is
  * stopped), so a cymbal rings for seconds after Stop, and a song load writes
- * `drum.t{i}.model` twice per track (song-mode.md REQ-17). It was heard as a
+ * `drum.t{i}.model` twice per track (song-mode.md REQ-applying-a-song-is-click-free). It was heard as a
  * click on loading a demo with the transport stopped.
  */
 
@@ -43,7 +43,7 @@ const otherModel = (track: number): number => (track === 0 ? 1 : 0);
 
 afterEach(() => { vi.useRealTimers(); });
 
-describe('DrumMachine.setTrackModel (REQ-19)', () => {
+describe('DrumMachine.setTrackModel (REQ-swapping-a-model-never-severs-a-voice)', () => {
   it('ramps the outgoing voice down and disconnects it later, never in the same turn', () => {
     vi.useFakeTimers();
     const { dm } = build();

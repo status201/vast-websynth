@@ -34,14 +34,14 @@
 /* The CUE — where Play (or Stop → Play) will begin. An outline, deliberately not
    a fill, so it reads as a marker rather than "this is sounding" and stays
    readable underneath the solid playhead when both land on one tick
-   (transport-position.md REQ-14). Set whether stopped or playing. */
+   (transport-position.md REQ-the-cue-and-the-playhead-are-two-marks). Set whether stopped or playing. */
 .tick:global(.cue) {
   border-color: var(--accent-secondary);
   box-shadow: inset 0 0 0 1px var(--accent-secondary);
   color: var(--accent-secondary);
 }
 
-/* The live playhead — only ever present while PLAYING (REQ-14). Listed after
+/* The live playhead — only ever present while PLAYING (REQ-the-cue-and-the-playhead-are-two-marks). Listed after
    `.cue` so a tick carrying both reads as the playhead, with the cue's border
    still showing through. Uses the global `playing` state class, the same one
    StepButton's playhead carries. */
@@ -52,7 +52,7 @@
   box-shadow: 0 0 6px var(--accent-secondary-glow);
 }
 
-/* Seeking is refused while slaved or mid-capture (REQ-6): say so, don't just
+/* Seeking is refused while slaved or mid-capture (REQ-seeking-is-refused-in-three-states): say so, don't just
    silently ignore the click. */
 .off .tick {
   cursor: default;
@@ -63,7 +63,7 @@
 .off .beat:hover { background: rgba(255, 255, 255, 0.08); }
 
 /* Readout group: `‹ BAR n/N ›`, or just the label while nothing is chained and
-   the arrows are hidden (transport-position.md REQ-16). */
+   the arrows are hidden (transport-position.md REQ-a-bar-stepper-only-where-bars-exist). */
 .barGroup {
   display: inline-flex;
   align-items: center;
@@ -71,7 +71,7 @@
   min-width: 0;
 }
 
-/* Monospaced, NOT `--serif` (typography.md REQ-3): the bar number counts while
+/* Monospaced, NOT `--serif` (typography.md REQ-mono-is-readouts-and-pasted-text): the bar number counts while
    the transport runs, and Georgia's figures are proportional old-style with no
    `tnum`, so `1` and `8` set to different widths and the `/N` after them shifted
    sideways on every bar. Same finding, same fix as `.readout` in
@@ -115,7 +115,7 @@
   color: var(--accent);
 }
 
-/* Same refusal treatment the ticks get (REQ-6/REQ-17). */
+/* Same refusal treatment the ticks get (REQ-seeking-is-refused-in-three-states/REQ-a-refused-seek-says-so). */
 .off .barNav,
 .off.barGroup .barNav {
   cursor: default;

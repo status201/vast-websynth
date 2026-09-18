@@ -30,7 +30,7 @@ export class Distortion extends WrappedEffect {
 
     this.shaper = ctx.createWaveShaper();
     this.shaper.curve = tanhCurve(0.3);
-    // Weak perf tiers skip the 4× up/down-sampling (performance-mode.md REQ-11).
+    // Weak perf tiers skip the 4× up/down-sampling (performance-mode.md REQ-weak-tier-reduces-fx-cost).
     this.shaper.oversample = opts?.oversample === false ? 'none' : '4x';
 
     this.tone = ctx.createBiquadFilter();

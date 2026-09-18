@@ -55,7 +55,7 @@ describe('StepSequencer', () => {
     expect(playNote).toHaveBeenCalledWith(64, 0.7, 0.125);
   });
 
-  // step-settings.md REQ-8 — the sequencer applies micro ITSELF (rather than
+  // step-settings.md REQ-micro-is-one-pure-offset — the sequencer applies micro ITSELF (rather than
   // letting stepHits do it) precisely because the mono release below has to move
   // with the attack.
   it('nudges a step early and releases the previous note at the NUDGED time (v3)', () => {
@@ -109,7 +109,7 @@ describe('StepSequencer', () => {
     expect(playNote).toHaveBeenCalledWith(60, 0.8, 0);
   });
 
-  // sequencer.md REQ-14 — tie/held-note state only ever describes the ADJACENT
+  // sequencer.md REQ-a-seek-releases-every-tracks-note — tie/held-note state only ever describes the ADJACENT
   // step, so a playhead jump must not carry it across.
   it('releases the held note on a transport seek (v4)', () => {
     const { clock, patterns, arrangement, perf } = makeTransportRig();
@@ -123,11 +123,11 @@ describe('StepSequencer', () => {
     clock.fireTick(0);
     releaseNote.mockClear();
     clock.fireSeek(64);
-    // v10: at the step's own gate end (one 16th at 120 BPM), as REQ-15's stop.
+    // v10: at the step's own gate end (one 16th at 120 BPM), as REQ-a-stop-releases-every-tracks-note's stop.
     expect(releaseNote).toHaveBeenCalledWith(60, 0.125);
   });
 
-  // sequencer.md REQ-14 (v10) / transport-loop.md REQ-9 — a loop wrap jumps from
+  // sequencer.md REQ-a-seek-releases-every-tracks-note (v10) / transport-loop.md REQ-a-tied-note-does-not-hang-across-a-wrap — a loop wrap jumps from
   // inside the drain, straight after scheduling the step before it, so that
   // step's note-on is always still ahead of `now`. A release at `now` precedes
   // the attack and is overwritten by it: the tied voice hung on every wrap.
@@ -150,7 +150,7 @@ describe('StepSequencer', () => {
     expect(when).toBeCloseTo(0.08 + 0.125, 9); // after the attack, never `undefined`
   });
 
-  // sequencer.md REQ-15 — a tie schedules NO release of its own (that is the next
+  // sequencer.md REQ-a-stop-releases-every-tracks-note — a tie schedules NO release of its own (that is the next
   // tick's job), so before this the note rang on forever after Stop and only Panic
   // silenced it.
   it('releases a tied note on a transport stop (v5, regression)', () => {
@@ -406,7 +406,7 @@ describe('StepSequencer', () => {
   });
 });
 
-describe('StepSequencer — four tracks (sequencer.md REQ-8/REQ-9/REQ-10)', () => {
+describe('StepSequencer — four tracks (sequencer.md REQ-four-tracks-per-bank/REQ-poly-voicing-gates-the-extra-tracks/REQ-per-track-mute)', () => {
   /** Rig with recording output stubs — the four-track cases care about the SET
    *  of notes per tick, which vi.fn() call order alone makes awkward to read. */
   function build(scale = new ScaleQuantizer()) {
@@ -443,7 +443,7 @@ describe('StepSequencer — four tracks (sequencer.md REQ-8/REQ-9/REQ-10)', () =
     expect(played.map((p) => p.note)).toContain(62);
   });
 
-  it('mono voicing gates tracks 2-4 but keeps track 1 (REQ-9)', () => {
+  it('mono voicing gates tracks 2-4 but keeps track 1 (REQ-poly-voicing-gates-the-extra-tracks)', () => {
     const { patterns, clock, played, seq } = build();
     patterns.setSeqStep(0, 0, { on: true, note: 60, gate: 0.5 });
     patterns.setSeqStep(1, 0, { on: true, note: 64, gate: 0.5 });
@@ -461,7 +461,7 @@ describe('StepSequencer — four tracks (sequencer.md REQ-8/REQ-9/REQ-10)', () =
     expect(played.map((p) => p.note).sort((a, b) => a - b)).toEqual([60, 64]);
   });
 
-  it('a per-track mute silences only that track (REQ-10)', () => {
+  it('a per-track mute silences only that track (REQ-per-track-mute)', () => {
     const { patterns, clock, played, seq } = build();
     patterns.setSeqStep(0, 0, { on: true, note: 60, gate: 0.5 });
     patterns.setSeqStep(1, 0, { on: true, note: 64, gate: 0.5 });
@@ -484,10 +484,10 @@ describe('StepSequencer — four tracks (sequencer.md REQ-8/REQ-9/REQ-10)', () =
     expect(released.map((r) => r.note).sort((a, b) => a - b)).toEqual([60, 64]);
   });
 
-  // sequencer.md REQ-16 / arrangement.md REQ-8. What this buys: four banks of
+  // sequencer.md REQ-every-note-is-shifted-by-the-slot-transpose / arrangement.md REQ-a-seq-slot-carries-a-transpose. What this buys: four banks of
   // sixteen steps used to be a song's entire melodic vocabulary, so a four-chord
   // progression spent every bank.
-  describe('arrangement transpose (REQ-16)', () => {
+  describe('arrangement transpose (REQ-every-note-is-shifted-by-the-slot-transpose)', () => {
     it('shifts the notes a chained slot triggers', () => {
       const { patterns, clock, arrangement, played, seq } = build();
       patterns.setSeqStep(0, 0, { on: true, note: 60, gate: 0.5 });
@@ -500,7 +500,7 @@ describe('StepSequencer — four tracks (sequencer.md REQ-8/REQ-9/REQ-10)', () =
       expect(played.map((p) => p.note)).toEqual([60, 65]);
     });
 
-    it('never rewrites the stored bank (REQ-9)', () => {
+    it('never rewrites the stored bank (REQ-poly-voicing-gates-the-extra-tracks)', () => {
       const { patterns, clock, arrangement, seq } = build();
       patterns.setSeqStep(0, 0, { on: true, note: 60, gate: 0.5 });
       seq.setEnabled(true);
@@ -529,7 +529,7 @@ describe('StepSequencer — four tracks (sequencer.md REQ-8/REQ-9/REQ-10)', () =
       expect(played.map((p) => p.note)).toEqual([127]);
     });
 
-    it('quantizes AFTER transposing, so a shifted bar stays in key (REQ-17)', () => {
+    it('quantizes AFTER transposing, so a shifted bar stays in key (REQ-the-transposed-note-is-then-quantized)', () => {
       // The whole point of the feature. C major, bar 2 transposed +5:
       // 60 -> 65 (F, in key). A step on 62 -> 67 (G, in key).
       const scale = new ScaleQuantizer();
@@ -549,7 +549,7 @@ describe('StepSequencer — four tracks (sequencer.md REQ-8/REQ-9/REQ-10)', () =
       for (const p of played) expect(C_MAJOR).toContain(p.note % 12);
     });
 
-    it('brings an in-key note transposed off-key back into the scale (REQ-17)', () => {
+    it('brings an in-key note transposed off-key back into the scale (REQ-the-transposed-note-is-then-quantized)', () => {
       // 60 (C, in key) + 1 = 61 (C#, NOT in key). Quantize-first would play 61.
       const scale = new ScaleQuantizer();
       scale.setRoot(0);
@@ -562,7 +562,7 @@ describe('StepSequencer — four tracks (sequencer.md REQ-8/REQ-9/REQ-10)', () =
       expect(played.map((p) => p.note)).toEqual([60]);
     });
 
-    it('never rewrites the stored bank when quantizing (REQ-17 + REQ-9)', () => {
+    it('never rewrites the stored bank when quantizing (REQ-the-transposed-note-is-then-quantized + REQ-poly-voicing-gates-the-extra-tracks)', () => {
       const scale = new ScaleQuantizer();
       scale.setRoot(0);
       scale.setScale(SCALE_LABELS.indexOf('major'));
@@ -574,7 +574,7 @@ describe('StepSequencer — four tracks (sequencer.md REQ-8/REQ-9/REQ-10)', () =
       expect(patterns.seqBanks[0]![0]![0]!.note).toBe(61);
     });
 
-    it('leaves every note untouched while chromatic (REQ-17, back-compat)', () => {
+    it('leaves every note untouched while chromatic (REQ-the-transposed-note-is-then-quantized, back-compat)', () => {
       const { patterns, clock, arrangement, played, seq } = build(); // default = chromatic
       patterns.setSeqStep(0, 0, { on: true, note: 61, gate: 0.5 });
       seq.setEnabled(true);
@@ -583,7 +583,7 @@ describe('StepSequencer — four tracks (sequencer.md REQ-8/REQ-9/REQ-10)', () =
       expect(played.map((p) => p.note)).toEqual([66]);
     });
 
-    it('releases a tie at the quantized pitch it started (REQ-17, edge)', () => {
+    it('releases a tie at the quantized pitch it started (REQ-the-transposed-note-is-then-quantized, edge)', () => {
       // The stuck-voice trap: the release goes through lastPlayedNote, which must
       // hold the QUANTIZED note, not the raw stored one.
       const scale = new ScaleQuantizer();
@@ -596,7 +596,7 @@ describe('StepSequencer — four tracks (sequencer.md REQ-8/REQ-9/REQ-10)', () =
       arrangement.setSeqChain([0, 0], true, [0, 5]);
 
       // Bar 1 must actually be played for the step-16 tick to advance the lane —
-      // the first bar-line tick only consumes `expectFirstBar` (arrangement.md REQ-4).
+      // the first bar-line tick only consumes `expectFirstBar` (arrangement.md REQ-start-seeks-every-lane).
       clock.step = 0;
       clock.fireTick(0);        // bar 1, slot 0: 61 -> 60
       clock.step = 15;
@@ -626,7 +626,7 @@ describe('StepSequencer — four tracks (sequencer.md REQ-8/REQ-9/REQ-10)', () =
       arrangement.setSeqChain([0, 0], true, [0, 7]);
 
       // The FIRST bar-line tick only consumes `expectFirstBar` (arrangement.md
-      // REQ-4) — it does not advance — so bar 1 has to actually be played for
+      // REQ-start-seeks-every-lane) — it does not advance — so bar 1 has to actually be played for
       // the tick at step 16 to move the lane to slot 1.
       clock.step = 0;
       clock.fireTick(0);              // bar 1, slot 0 (+0): step 0 plays 62
@@ -691,7 +691,7 @@ describe('StepSequencer — meter (meter.md)', () => {
     return seen;
   }
 
-  it('follows the bar, so one meter change moves the machine (REQ-10)', () => {
+  it('follows the bar, so one meter change moves the machine (REQ-per-track-mute)', () => {
     // 3/4 = 12 ticks: the lane wraps after 12 cells, not 16.
     expect(playhead(rig(0, DEFAULT_LANE_RATE, 12), 14))
       .toEqual([0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 0, 1]);
@@ -704,7 +704,7 @@ describe('StepSequencer — meter (meter.md)', () => {
     expect(playhead(rig(), 18)).toEqual([...Array(16).keys(), 0, 1]);
   });
 
-  it('phases a shorter lane against the bar and re-aligns at the LCM (REQ-10)', () => {
+  it('phases a shorter lane against the bar and re-aligns at the LCM (REQ-per-track-mute)', () => {
     // A 12-cell lane under a 16-tick bar: they only start together every 4 bars.
     const seen = playhead(rig(12), 48);
     expect(seen[0]).toBe(0);
@@ -716,7 +716,7 @@ describe('StepSequencer — meter (meter.md)', () => {
     expect(seen[47]).toBe(11);
   });
 
-  it('keeps the cell index a pure function of the step, across a seek (REQ-3)', () => {
+  it('keeps the cell index a pure function of the step, across a seek (REQ-mute-keeps-the-playhead-advancing)', () => {
     const played = rig(12);
     const seen: number[] = [];
     played.seq.onStep((i) => seen.push(i));
@@ -732,7 +732,7 @@ describe('StepSequencer — meter (meter.md)', () => {
     expect(byPlaying).toBe(40 % 12);
   });
 
-  it('holds a cell twice as long at half rate, gate included (REQ-14)', () => {
+  it('holds a cell twice as long at half rate, gate included (REQ-a-seek-releases-every-tracks-note)', () => {
     const r = rig(0, rateOf('1/8'), 16);
     r.patterns.setSeqStep(0, 0, { on: true, note: 60, velocity: 0.8, gate: 0.5 });
     r.clock.fireTick(0);
@@ -742,12 +742,12 @@ describe('StepSequencer — meter (meter.md)', () => {
     expect(r.releaseNote).toHaveBeenCalledWith(60, 0.125);
   });
 
-  it('skips the ticks a coarser lane does not land on (REQ-15)', () => {
+  it('skips the ticks a coarser lane does not land on (REQ-a-stop-releases-every-tracks-note)', () => {
     expect(playhead(rig(0, rateOf('1/8'), 16), 8)).toEqual([0, 1, 2, 3]);
     expect(playhead(rig(0, rateOf('1/4'), 16), 8)).toEqual([0, 1]);
   });
 
-  it('fires three triplet cells against two ticks, each at its own time (REQ-15)', () => {
+  it('fires three triplet cells against two ticks, each at its own time (REQ-a-stop-releases-every-tracks-note)', () => {
     const r = rig(12, rateOf('1/16 T'), 16);
     for (let t = 0; t < 12; t++) {
       r.patterns.setSeqStep(0, t, { on: true, note: 60 + t, velocity: 0.8, gate: 0.5 });

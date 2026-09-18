@@ -101,7 +101,7 @@ describe('renderTempoSync (delay time)', () => {
   });
 
   // Once the knob is tempo-locked its own param is not what is heard, so a row
-  // that wrote to it would be a click with no outcome (tempo-lock.md REQ-5,
+  // that wrote to it would be a click with no outcome (tempo-lock.md REQ-the-lock-menu-lists-divisions-only,
   // ADR-014 law 2). Both halves of the badge follow the lock instead.
   it('re-locks instead of writing a dead value while the knob is locked', () => {
     const b = bus();
@@ -122,7 +122,7 @@ describe('renderTempoSync (delay time)', () => {
   });
 
   // A 9x11 icon does not announce that it is a button, and this badge is where a
-  // user already comes to ask "how do I get this in time?" (tempo-sync-help REQ-10).
+  // user already comes to ask "how do I get this in time?" (tempo-sync-help REQ-the-badge-introduces-the-tempo-lock).
   it('introduces the lock, and says the opposite thing once it is engaged', () => {
     const b = bus();
     const free = renderTempoSync({ bus: b, close: () => {} }, 'fx.delay.time', 'time');
@@ -137,7 +137,7 @@ describe('renderTempoSync (delay time)', () => {
 
   it('says nothing about a lock on a knob that has none', () => {
     const b = bus();
-    // Every anchor in REQ-7 happens to be lockable, so this guards the branch
+    // Every anchor in REQ-shape-destination-sweeps-the-pole-mix happens to be lockable, so this guards the branch
     // rather than a shipped badge: no lock, no note about one.
     const root = renderTempoSync({ bus: b, close: () => {} }, 'filter.cutoff', 'freq');
     expect(root.textContent).not.toContain('tempo-lock');
@@ -165,7 +165,7 @@ describe('renderTempoSync (delay time)', () => {
 });
 
 /**
- * `lfo.sync` resolution — lfo.md REQ-9. The same division table the advisory
+ * `lfo.sync` resolution — lfo.md REQ-lfo-sync-locks-rate-to-tempo. The same division table the advisory
  * badges recommend from, now driving a real rate, which is why the module had to
  * leave `src/ui/onboarding/` (the audio layer may not import from the UI).
  */
@@ -195,7 +195,7 @@ describe('syncedRateHz', () => {
     expect(syncedRateHz(999, 120)).toBeNull();
     expect(syncedRateHz(-1, 120)).toBeNull();
     // A song payload drives this param directly, and 1/0 would reach an
-    // AudioParam (untrusted-input.md REQ-6).
+    // AudioParam (untrusted-input.md REQ-no-subscriber-can-wedge-the-clock).
     expect(syncedRateHz(1, 0)).toBeNull();
     expect(syncedRateHz(1, NaN)).toBeNull();
     expect(syncedRateHz(1, Infinity)).toBeNull();

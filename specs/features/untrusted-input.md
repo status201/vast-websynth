@@ -3,12 +3,12 @@
 ```yaml
 id: untrusted-input
 status: implemented
-version: 5   # v5: REQ-14 — the public MCP endpoint is an ingest surface, and the
+version: 5   # v5: REQ-the-public-endpoint-is-bounded — the public MCP endpoint is an ingest surface, and the
              #     first one with no user behind it
-             # v4: REQ-13 — a transport position is clamped, not masked
-             # v3: REQ-12 — an unresolvable automation target warns instead of
+             # v4: REQ-a-transport-position-is-bounded-at-ingress — a transport position is clamped, not masked
+             # v3: REQ-an-unresolvable-target-warns — an unresolvable automation target warns instead of
              #     rejecting; the validator gains a `warnings` channel
-             # v2: REQ-9 — "destroy" means a *difference*; an identical slot is
+             # v2: REQ-an-import-may-not-destroy-saved-work — "destroy" means a *difference*; an identical slot is
              #     not an overwrite worth prompting for
 owner: core
 related:
@@ -30,9 +30,9 @@ source:
   - src/utils/compression.ts            # inflateRaw(bytes, maxBytes)
   - src/utils/zip.ts                    # entry/total/count caps + declared-size pre-flight
   - src/state/song-link.ts              # https-only songUrl; payload cap
-  - src/state/params.ts                 # paramIds() — the registered id set (REQ-12)
+  - src/state/params.ts                 # paramIds() — the registered id set (REQ-an-unresolvable-target-warns)
   - src/state/song-validate.ts          # note/chain/param bounds; reserved-key refusal;
-                                        #   unresolvable automation targets (REQ-12)
+                                        #   unresolvable automation targets (REQ-an-unresolvable-target-warns)
   - src/state/song-author.ts            # the same bounds for the dialect
   - src/state/song.ts                   # Song.parse error boundary
   - src/audio/transport/clock.ts        # listener isolation + NaN-safe setBpm
@@ -40,7 +40,7 @@ source:
   - src/main.ts                         # songUrl consent + hardened fetch
   - src/audio/webrtc-sync-transport.ts  # wire type guard
   - scripts/mcp/tools.mjs               # save_song/save_preset dir containment
-  - scripts/mcp/http.mjs                # public endpoint: body cap, rate limit, Origin (REQ-14)
+  - scripts/mcp/http.mjs                # public endpoint: body cap, rate limit, Origin (REQ-the-public-endpoint-is-bounded)
 ```
 
 ## Background / Why
@@ -78,30 +78,33 @@ decision and the alternatives. This spec is the contract.
 
 ## Requirements
 
-- **REQ-1** — **The surfaces are enumerated.** The trust boundary is: `#song=`,
-  `#songUrl=`, the file input (`.json` / `.zip`), the PWA `launchQueue`, paste,
-  demo fetches, the WebRTC data channel, a scanned QR blob, rehydration from
-  `localStorage` / IndexedDB, MCP tool arguments, and (v5) **`POST` bodies to the
-  public MCP endpoint**. Anything reading one of these obeys REQ-2..REQ-8. A new
-  ingest surface owes an entry here.
+- **REQ-the-untrusted-surfaces-are-enumerated** — **The surfaces are
+  enumerated.** The trust boundary is: `#song=`, `#songUrl=`, the file input
+  (`.json` / `.zip`), the PWA `launchQueue`, paste, demo fetches, the WebRTC
+  data channel, a scanned QR blob, rehydration from `localStorage` / IndexedDB,
+  MCP tool arguments, and (v5) **`POST` bodies to the public MCP endpoint**.
+  Anything reading one of these obeys REQ-2..REQ-8. A new ingest surface owes an
+  entry here.
 
-- **REQ-2** — **Bounds live in the validator, sizes live in the codec.** Ranges are
-  checked by `song-validate.ts` / `song-author.ts` / `preset-validate.ts`,
-  because [ADR-004](../decisions/adr-004-patternstore-separate-from-parambus.md)
+- **REQ-bounds-in-the-validator-sizes-in-the-codec** — **Bounds live in the
+  validator, sizes live in the codec.** Ranges are checked by `song-validate.ts`
+  / `song-author.ts` / `preset-validate.ts`, because
+  [ADR-004](../decisions/adr-004-patternstore-separate-from-parambus.md)
   guarantees `PatternStore` will not re-check them. Byte budgets are enforced by
-  `compression.ts` / `zip.ts` **while decoding**, never by measuring the result —
-  a cap applied after the fact has already spent the memory.
+  `compression.ts` / `zip.ts` **while decoding**, never by measuring the result
+  — a cap applied after the fact has already spent the memory.
 
-- **REQ-3** — **The limits are one module.** `src/state/limits.ts` is the only place a
-  bound is written down: the table below, plus `RESERVED_KEYS` and the
-  `reservedKeyIn(o)` helper REQ-5 uses. Every consumer imports from it; no literal
+- **REQ-the-limits-are-one-module** — **The limits are one module.**
+  `src/state/limits.ts` is the only place a bound is written down: the table
+  below, plus `RESERVED_KEYS` and the `reservedKeyIn(o)` helper
+  REQ-reserved-keys-are-refused uses. Every consumer imports from it; no literal
   duplicates.
 
   The validators' shared *machinery* lives in `src/state/validate-utils.ts` for the
   same reason: `isObject`, `describeValue`, the `AddError` type and `MAX_ERRORS`
   had a copy each in `song-validate.ts`, `song-author.ts`, `preset-validate.ts`
   and (for `isObject`) `paste-payload.ts`. `isObject` in particular is a security
-  predicate — it is what REQ-5's reserved-key check and every shape check are built
+  predicate — it is what REQ-reserved-keys-are-refused's reserved-key check and every shape check are built
   on — and four copies is four chances for them to drift apart silently.
 
   What is **not** shared: `checkUnit` and `checkRatchet` exist in both
@@ -112,21 +115,22 @@ decision and the alternatives. This spec is the contract.
   saying so. Unifying them would be a behaviour change to a trust boundary, not a
   deduplication.
 
-- **REQ-4** — **Bounded values.** `SeqStep.note` is an integer `0..127` in **both**
-  the canonical validator and the dialect (the dialect already enforced this; the
-  canonical format was the looser of the two). Chain `steps` is `1..MAX_CHAIN_STEPS`.
-  `params` carries at most `MAX_PARAM_KEYS` keys. Existing checks are unchanged:
-  `Number.isFinite` on every number, exact grid dimensions, `KNOWN_SONG_VERSIONS`.
+- **REQ-payload-values-are-bounded** — **Bounded values.** `SeqStep.note` is an
+  integer `0..127` in **both** the canonical validator and the dialect (the
+  dialect already enforced this; the canonical format was the looser of the
+  two). Chain `steps` is `1..MAX_CHAIN_STEPS`. `params` carries at most
+  `MAX_PARAM_KEYS` keys. Existing checks are unchanged: `Number.isFinite` on
+  every number, exact grid dimensions, `KNOWN_SONG_VERSIONS`.
 
-- **REQ-5** — **Reserved keys are refused where a payload object is copied.** The
-  motivating path is `PatternStore.restore`, which does
-  `Object.assign(cell, DEFAULTS, parsedCell)` — that invokes the `__proto__`
-  setter. Today every read field is an own property so the effect is inert, but
-  that is a coincidence of the defaults covering every field, not a guarantee.
-  So `song-validate.ts` runs `checkKeys()` at exactly the three validators that
-  hand a payload-built object onward — `validateSeqStep`, `validateTriggerCell`
-  and `checkParams` — and `Presets.load` filters `RESERVED_KEYS` before applying
-  a snapshot.
+- **REQ-reserved-keys-are-refused** — **Reserved keys are refused where a
+  payload object is copied.** The motivating path is `PatternStore.restore`,
+  which does `Object.assign(cell, DEFAULTS, parsedCell)` — that invokes the
+  `__proto__` setter. Today every read field is an own property so the effect is
+  inert, but that is a coincidence of the defaults covering every field, not a
+  guarantee. So `song-validate.ts` runs `checkKeys()` at exactly the three
+  validators that hand a payload-built object onward — `validateSeqStep`,
+  `validateTriggerCell` and `checkParams` — and `Presets.load` filters
+  `RESERVED_KEYS` before applying a snapshot.
 
   **This is deliberately narrower than "everywhere", and the gap is known.**
   `preset-validate.ts` does *not* call `checkKeys`, so `validatePresetPayload`
@@ -135,54 +139,61 @@ decision and the alternatives. This spec is the contract.
   is no live hole — but the MCP `validate_preset` tool answers from the validator,
   not the loader. Closing it is tracked under "Open questions" below.
 
-- **REQ-6** — **No subscriber can wedge the clock.** `Clock.tick` isolates each
-  listener and advances `nextStepTime` / `_step` **regardless of a throw**, so a
-  failing lane can never stop the transport or the other lanes. A caught error is
-  reported once per listener (not once per tick — a wedged listener would
-  otherwise flood the console at 40 Hz). `Clock.setBpm` and
-  `Oscillator.setFrequency` reject non-finite input, because the app-wide
-  `Math.max(min, Math.min(max, v))` clamp idiom returns `NaN` for `NaN`.
+- **REQ-no-subscriber-can-wedge-the-clock** — **No subscriber can wedge the
+  clock.** `Clock.tick` isolates each listener and advances `nextStepTime` /
+  `_step` **regardless of a throw**, so a failing lane can never stop the
+  transport or the other lanes. A caught error is reported once per listener
+  (not once per tick — a wedged listener would otherwise flood the console at 40
+  Hz). `Clock.setBpm` and `Oscillator.setFrequency` reject non-finite input,
+  because the app-wide `Math.max(min, Math.min(max, v))` clamp idiom returns
+  `NaN` for `NaN`.
 
-- **REQ-7** — **A link may not fetch silently.** `#song=` carries its own payload —
-  no network, no third party — so it keeps applying at boot unprompted.
-  `#songUrl=` is **`https:` only** (not `https?:`) and requires **consent**: a
-  `confirmDialog` naming the target **origin** before any request. The fetch is
-  `credentials: 'omit'`, `redirect: 'error'`, `mode: 'cors'`, with a timeout, and
-  a `Content-Length` over `MAX_SONG_JSON_BYTES` is refused before buffering.
-  Failures use the shared `alertDialog`, never the native `alert()`.
+- **REQ-a-link-may-not-fetch-silently** — **A link may not fetch silently.**
+  `#song=` carries its own payload — no network, no third party — so it keeps
+  applying at boot unprompted. `#songUrl=` is **`https:` only** (not `https?:`)
+  and requires **consent**: a `confirmDialog` naming the target **origin**
+  before any request. The fetch is `credentials: 'omit'`, `redirect: 'error'`,
+  `mode: 'cors'`, with a timeout, and a `Content-Length` over
+  `MAX_SONG_JSON_BYTES` is refused before buffering. Failures use the shared
+  `alertDialog`, never the native `alert()`.
 
-- **REQ-8** — **Deserialized state is validated, never cast.** Anything reaching
-  `JSON.parse` is passed through a type guard or a validator before use —
-  including the WebRTC wire (`as Wire` is not a check) and rehydration from
-  storage. The model is `SessionAutosave.load()`: validate, and **clear the key**
-  on failure so a poisoned value cannot wedge every subsequent boot.
+- **REQ-deserialized-state-is-validated-never-cast** — **Deserialized state is
+  validated, never cast.** Anything reaching `JSON.parse` is passed through a
+  type guard or a validator before use — including the WebRTC wire (`as Wire` is
+  not a check) and rehydration from storage. The model is
+  `SessionAutosave.load()`: validate, and **clear the key** on failure so a
+  poisoned value cannot wedge every subsequent boot.
 
-- **REQ-9** — **An import may not silently destroy saved work.** A song whose name
-  collides with an existing `localStorage` slot must be confirmed before it
-  overwrites — the load-undo toast restores the *session*, not the persisted
-  slot, so an unconfirmed overwrite is unrecoverable. This mirrors
-  [presets](presets.md) REQ-10 ("never a blind merge") and
-  [ADR-014](../decisions/adr-014-dont-make-me-think.md). **Destroy** is the
-  operative word (v2): a slot already holding byte-identical bytes loses nothing,
-  so re-importing the same link twice does not prompt — a guard that cries wolf
-  is a guard the user learns to click through.
-  [session-autosave](session-autosave.md) REQ-14/14b owns the mechanism.
+- **REQ-an-import-may-not-destroy-saved-work** — **An import may not silently
+  destroy saved work.** A song whose name collides with an existing
+  `localStorage` slot must be confirmed before it overwrites — the load-undo
+  toast restores the *session*, not the persisted slot, so an unconfirmed
+  overwrite is unrecoverable. This mirrors [presets](presets.md) REQ-preset-import-is-a-two-step-wizard ("never
+  a blind merge") and [ADR-014](../decisions/adr-014-dont-make-me-think.md).
+  **Destroy** is the operative word (v2): a slot already holding byte-identical
+  bytes loses nothing, so re-importing the same link twice does not prompt — a
+  guard that cries wolf is a guard the user learns to click through.
+  [session-autosave](session-autosave.md)
+  REQ-the-undo-net-covers-the-session/REQ-an-identical-slot-is-not-a-conflict owns
+  the mechanism.
 
-- **REQ-10** — **Defence in depth at the delivery layer.** `index.html` carries a
-  CSP `<meta>`, and `public/_headers` carries the frame/sniffing/referrer headers
-  that a `<meta>` **cannot** express (`frame-ancestors` is ignored in `<meta>`).
-  There is no XSS to fix today; this keeps the six runtime-computed `innerHTML`
-  sites from becoming one after a careless refactor.
+- **REQ-defence-in-depth-at-delivery** — **Defence in depth at the delivery
+  layer.** `index.html` carries a CSP `<meta>`, and `public/_headers` carries
+  the frame/sniffing/referrer headers that a `<meta>` **cannot** express
+  (`frame-ancestors` is ignored in `<meta>`). There is no XSS to fix today; this
+  keeps the six runtime-computed `innerHTML` sites from becoming one after a
+  careless refactor.
 
-- **REQ-11** — **MCP writes stay inside the working directory.** `save_song` /
-  `save_preset` sanitize the *filename* (`safeName`) **and** contain the `dir`
-  argument: a path resolving outside `cwd` is refused. The caller is an agent,
-  and an agent reading a hostile song file is a prompt-injection path to an
-  arbitrary file write.
+- **REQ-mcp-writes-stay-in-the-working-directory** — **MCP writes stay inside
+  the working directory.** `save_song` / `save_preset` sanitize the *filename*
+  (`safeName`) **and** contain the `dir` argument: a path resolving outside
+  `cwd` is refused. The caller is an agent, and an agent reading a hostile song
+  file is a prompt-injection path to an arbitrary file write.
 
-- **REQ-12** — **An unresolvable automation target warns; it never rejects, and
-  it never passes unremarked.** `xy.x` / `xy.y`, `motionAssigns[i].x` / `.y` and
-  `motionTracks[b][t].param` each name a `ParamBus` id. Three facts collide here:
+- **REQ-an-unresolvable-target-warns** — **An unresolvable automation target
+  warns; it never rejects, and it never passes unremarked.** `xy.x` / `xy.y`,
+  `motionAssigns[i].x` / `.y` and `motionTracks[b][t].param` each name a
+  `ParamBus` id. Three facts collide here:
 
   1. `MotionMachine.write` does `const def = this.bus.def(id); if (!def) return;`
      — an id this build does not register is a **silent** no-op, so one typo
@@ -205,38 +216,41 @@ decision and the alternatives. This spec is the contract.
   order-independent**; a consumer that ignores it behaves exactly as before.
 
   Consumers: `validate_song` / `expand_song` report warnings in their payload
-  ([mcp-server](mcp-server.md) REQ-8), and the app's import surfaces show them
+  ([mcp-server](mcp-server.md) REQ-a-valid-song-can-still-be-wrong), and the app's import surfaces show them
   as a non-blocking toast — never a dialog, because the song did load and
   interrupting a successful import to report a lane that will not sweep is the
-  guard-crying-wolf failure REQ-9 already warns about.
+  guard-crying-wolf failure REQ-an-import-may-not-destroy-saved-work already warns about.
 
-- **REQ-13** (v4) — **A transport position is bounded at ingress, not masked.**
-  `Clock.start(fromStep)` / `Clock.seek(step)` refuse non-finite input and clamp
-  to `0..MAX_STEP` (`state/limits.ts`) — replacing the `& 0xffff` fold, which
-  bounded the value but also wrapped it, jumping lane phase for any bar length
-  that does not divide 65536 ([transport](transport.md) REQ-10). The reachable
-  source is a peer: a Song Position arrives over MIDI and over the WiFi wire.
-  The meter itself is bounded the same way — `barTicks` clamps beats to
-  `MIN_BEATS..MAX_BEATS` and floors a non-finite value, because a `NaN` bar
-  length would make every machine's modulo `NaN` at once ([meter](meter.md)).
+- **REQ-a-transport-position-is-bounded-at-ingress** (v4) — **A transport
+  position is bounded at ingress, not masked.** `Clock.start(fromStep)` /
+  `Clock.seek(step)` refuse non-finite input and clamp to `0..MAX_STEP`
+  (`state/limits.ts`) — replacing the `& 0xffff` fold, which bounded the value
+  but also wrapped it, jumping lane phase for any bar length that does not
+  divide 65536 ([transport](transport.md)
+  REQ-the-step-counter-is-bounded-at-ingress). The reachable source is a peer: a
+  Song Position arrives over MIDI and over the WiFi wire. The meter itself is
+  bounded the same way — `barTicks` clamps beats to `MIN_BEATS..MAX_BEATS` and
+  floors a non-finite value, because a `NaN` bar length would make every
+  machine's modulo `NaN` at once ([meter](meter.md)).
 
-- **REQ-14** (v5) — **The public MCP endpoint is bounded instead of
-  authenticated, and it is the first surface with nobody behind it.** Every other
-  surface in REQ-1 is reached by a *user* who chose to open a link, pick a file
-  or pair a peer; `https://vast.status201.com/mcp` is reachable by anyone, at any
-  rate, forever ([ADR-020](../decisions/adr-020-remote-mcp-is-authless-and-read-only.md)).
+- **REQ-the-public-endpoint-is-bounded** (v5) — **The public MCP endpoint is
+  bounded instead of authenticated, and it is the first surface with nobody
+  behind it.** Every other surface in REQ-the-untrusted-surfaces-are-enumerated
+  is reached by a *user* who chose to open a link, pick a file or pair a peer;
+  `https://vast.status201.com/mcp` is reachable by anyone, at any rate, forever
+  ([ADR-020](../decisions/adr-020-remote-mcp-is-authless-and-read-only.md)).
   That changes what a bound is for. Elsewhere a limit stops one hostile document
-  from wedging one browser tab, and REQ-3's sizing rule — generous, because
-  refusing a real song is the worse failure — is right. Here a limit is the only
-  thing standing between the endpoint and someone's bill, so the four `MAX_MCP_*`
-  constants are deliberately **tighter** than their in-app equivalents:
-  `MAX_MCP_REQUEST_BYTES` is 1 MB where `MAX_SONG_JSON_BYTES` is 8 MB, because a
-  public endpoint pays CPU for everything it parses and no authored song is
-  anywhere near either number.
+  from wedging one browser tab, and REQ-the-limits-are-one-module's sizing rule
+  — generous, because refusing a real song is the worse failure — is right. Here
+  a limit is the only thing standing between the endpoint and someone's bill, so
+  the four `MAX_MCP_*` constants are deliberately **tighter** than their in-app
+  equivalents: `MAX_MCP_REQUEST_BYTES` is 1 MB where `MAX_SONG_JSON_BYTES` is 8
+  MB, because a public endpoint pays CPU for everything it parses and no
+  authored song is anywhere near either number.
 
   Three things follow, and all three are existing rules applied to a new shape
   rather than new rules:
-  - REQ-2's "enforce while decoding" becomes **enforce while reading the
+  - REQ-bounds-in-the-validator-sizes-in-the-codec's "enforce while decoding" becomes **enforce while reading the
     socket**: the byte count runs during the stream and the request is refused
     in transit, never after buffering.
   - **The limiter is a payload-reachable data structure, so it is bounded too.**
@@ -248,16 +262,16 @@ decision and the alternatives. This spec is the contract.
     that, so `DEPLOYMENT.md` carries it next to the directive.
 
   What does **not** change: the tools behind the endpoint are the same
-  validators, so a hostile song `POST`ed here meets REQ-4/REQ-5 exactly as one
+  validators, so a hostile song `POST`ed here meets REQ-payload-values-are-bounded/REQ-reserved-keys-are-refused exactly as one
   pasted into the app does. The endpoint adds a layer; it does not get its own
-  parser ([mcp-server](mcp-server.md) REQ-11).
+  parser ([mcp-server](mcp-server.md) REQ-the-public-endpoint-is-bounded-not-authenticated).
 
 ## Technical design
 
 ### Contract / public interface
 
 ```ts
-// src/state/limits.ts — the single source of truth (REQ-3)
+// src/state/limits.ts — the single source of truth (REQ-the-limits-are-one-module)
 export const MAX_SONG_JSON_BYTES: number;   // decodeSongPayload + fetched songUrl body
 export const MAX_ZIP_ENTRY_BYTES: number;   // one zipRead entry
 export const MAX_ZIP_TOTAL_BYTES: number;   // summed across entries
@@ -266,15 +280,15 @@ export const MAX_SIGNAL_BYTES: number;      // decodeSignal (WebRTC / QR)
 export const MAX_CHAIN_STEPS: number;       // arrangement chain length
 export const MAX_CHAIN_DEPTH: number;       // expandChain recursion
 export const MAX_PARAM_KEYS: number;        // params map size
-export const MAX_CHAIN_TRANSPOSE: number;   // |semitones| on a chain slot (arrangement REQ-8)
+export const MAX_CHAIN_TRANSPOSE: number;   // |semitones| on a chain slot (arrangement REQ-a-seq-slot-carries-a-transpose)
 export const MAX_MCP_REQUEST_BYTES: number;      // one POST body to the public MCP endpoint
-export const MAX_MCP_REQUESTS_PER_MINUTE: number;// per-IP fixed window        } REQ-14
+export const MAX_MCP_REQUESTS_PER_MINUTE: number;// per-IP fixed window        } REQ-the-public-endpoint-is-bounded
 export const MAX_MCP_RATE_KEYS: number;          // IPs the limiter may track  }
 export const MAX_MCP_REQUEST_MS: number;         // wall clock for one request }
 export const MIDI_NOTE_MIN = 0;
 export const MIDI_NOTE_MAX = 127;
 export const RESERVED_KEYS: readonly string[]; // __proto__, constructor, prototype
-export function reservedKeyIn(o: object): string | null;  // REQ-5's shared test
+export function reservedKeyIn(o: object): string | null;  // REQ-reserved-keys-are-refused's shared test
 
 // src/utils/compression.ts
 export function inflateRaw(bytes: Uint8Array, maxBytes?: number): Promise<Uint8Array>;
@@ -283,7 +297,7 @@ export function inflateRaw(bytes: Uint8Array, maxBytes?: number): Promise<Uint8A
 // src/utils/zip.ts — unchanged signature; caps applied internally
 export function zipRead(bytes: Uint8Array): Promise<ZipEntry[]>;  // throws ZipError
 
-// src/state/song-validate.ts — REQ-12: warnings ride the success branch, so
+// src/state/song-validate.ts — REQ-an-unresolvable-target-warns: warnings ride the success branch, so
 // every existing caller keeps compiling and keeps behaving identically.
 export type SongValidation =
   | { ok: true; file: SongFile; warnings?: string[] }
@@ -291,7 +305,7 @@ export type SongValidation =
 
 // src/state/params.ts — the id set, without standing up an Engine. Built once,
 // lazily: the validator is on the boot path via the share-link and session
-// restore, and runtime-performance.md REQ-1 counts module-init work.
+// restore, and runtime-performance.md REQ-boot-cost-matches-the-request counts module-init work.
 export function paramIds(): ReadonlySet<string>;
 ```
 
@@ -310,7 +324,7 @@ MAX_CHAIN_DEPTH:      8           # {enabled,steps:{...}} nesting
 MAX_PARAM_KEYS:       512         # the bus registers ~150
 MAX_CHAIN_TRANSPOSE:  24          # +/- 2 octaves on a chain slot
 
-# REQ-14: the public MCP endpoint. Sized the OTHER way — tight, because there is
+# REQ-the-public-endpoint-is-bounded: the public MCP endpoint. Sized the OTHER way — tight, because there is
 # no user behind the request and no auth in front of it (ADR-020).
 MAX_MCP_REQUEST_BYTES:       1048576   # 1 MB  — 1/8th of MAX_SONG_JSON_BYTES
 MAX_MCP_REQUESTS_PER_MINUTE: 60        # per IP, fixed window
@@ -323,15 +337,15 @@ MAX_MCP_REQUEST_MS:          15000     # socket to response
 ```yaml
 share link (data):  parseSongLink -> decodeSongPayload(payload)         # capped inflate
                     -> Song.parse -> validate -> importSongBytes
-share link (url):   parseSongLink (https only) -> confirmDialog(origin)  # REQ-7
+share link (url):   parseSongLink (https only) -> confirmDialog(origin)  # REQ-a-link-may-not-fetch-silently
                     -> fetch(credentials:omit, redirect:error, timeout)
                     -> Content-Length check -> importSongBytes
 zip:                sniffImportKind -> zipRead (count/entry/total caps)
                     -> parseProjectZip -> Song.parse
-clock:              tick() -> per-listener try/catch -> advance step ALWAYS  # REQ-6
-webrtc:             onmessage -> isWireMessage(guard) -> emit   # REQ-8, drops silently
-mcp (stdio):        save_* -> containedDir(dir) + safeName(name) # REQ-11
-mcp (http):         rate limit -> Origin -> capped body read      # REQ-14
+clock:              tick() -> per-listener try/catch -> advance step ALWAYS  # REQ-no-subscriber-can-wedge-the-clock
+webrtc:             onmessage -> isWireMessage(guard) -> emit   # REQ-deserialized-state-is-validated-never-cast, drops silently
+mcp (stdio):        save_* -> containedDir(dir) + safeName(name) # REQ-mcp-writes-stay-in-the-working-directory
+mcp (http):         rate limit -> Origin -> capped body read      # REQ-the-public-endpoint-is-bounded
                     -> JSON.parse -> dispatch -> the same validators
 ```
 
@@ -340,7 +354,7 @@ The error paths are the **existing** typed ones — `ZipError`,
 surfaces through the import-error dialog the user already knows. No new *error*
 channel is introduced.
 
-REQ-12's `warnings` is deliberately **not** an error path: it rides the `ok: true`
+REQ-an-unresolvable-target-warns's `warnings` is deliberately **not** an error path: it rides the `ok: true`
 branch, nothing rejects on it, and it is the only thing the validator reports
 that is not a refusal. Earlier versions of this spec said "no new error channel
 is introduced" full stop; that still holds for refusals, and the distinction is
@@ -349,8 +363,8 @@ quietly become an error and taken ADR-007's forward-compatibility with it.
 
 ### Persistence
 
-Nothing new persists. REQ-8's validate-or-clear affects how existing keys are
-*read* (`websynth.session.*`, the song slot index, preset snapshots); REQ-9 gates
+Nothing new persists. REQ-deserialized-state-is-validated-never-cast's validate-or-clear affects how existing keys are
+*read* (`websynth.session.*`, the song slot index, preset snapshots); REQ-an-import-may-not-destroy-saved-work gates
 when a song slot is *written*.
 
 ## Scenarios (BDD)
@@ -420,7 +434,7 @@ Scenario: A malformed wire message is dropped, not applied
   Then the message is ignored and the tempo is unchanged
 # pinned by: tests/audio/webrtc-sync-transport.test.ts
 
-Scenario: Re-importing an identical song does not prompt (v2, REQ-9, regression)
+Scenario: Re-importing an identical song does not prompt (v2, REQ-an-import-may-not-destroy-saved-work, regression)
   Given a slot holding exactly the song a share link carries
   When that link is opened again
   Then no overwrite prompt appears — the write would change nothing
@@ -433,37 +447,37 @@ Scenario: An MCP save cannot escape the working directory
   And dir 'sub/dir' still writes normally
 # pinned by: tests/mcp/tools.test.ts
 
-Scenario: The public endpoint refuses an oversized body in transit (v5, REQ-14)
+Scenario: The public endpoint refuses an oversized body in transit (v5, REQ-the-public-endpoint-is-bounded)
   Given a POST to the MCP endpoint larger than MAX_MCP_REQUEST_BYTES
   Then it answers 413 and the body is never fully buffered
 # pinned by: tests/mcp/http.test.ts
 
-Scenario: The public endpoint's rate limiter is itself bounded (v5, REQ-14)
+Scenario: The public endpoint's rate limiter is itself bounded (v5, REQ-the-public-endpoint-is-bounded)
   Given requests from more distinct IPs than MAX_MCP_RATE_KEYS
   Then the limiter evicts and never tracks more than MAX_MCP_RATE_KEYS keys
 # pinned by: tests/mcp/http.test.ts
 
-Scenario: A hostile song meets the same validators over HTTP (v5, REQ-14)
+Scenario: A hostile song meets the same validators over HTTP (v5, REQ-the-public-endpoint-is-bounded)
   Given a song carrying a __proto__ key or a note of 1e6 is POSTed to validate_song
   Then the answer is the same {ok:false, errors:[...]} the in-app import gives
   And the endpoint added no parser of its own
 # pinned by: tests/mcp/http.test.ts
 
-Scenario: A misspelled automation target is reported, not swallowed (v3, REQ-12)
+Scenario: A misspelled automation target is reported, not swallowed (v3, REQ-an-unresolvable-target-warns)
   Given a song with xy.x "filter.cuttoff" and motionTracks[0][0].param "not.a.param"
   When it is validated
   Then ok is true and the song is unchanged
   And warnings names both paths and both offending ids
 # pinned by: tests/state/song-validate.test.ts
 
-Scenario: A forward-authored target still loads (v3, REQ-12, ADR-007)
+Scenario: A forward-authored target still loads (v3, REQ-an-unresolvable-target-warns, ADR-007)
   Given a song whose motion track targets a parameter this build does not register
   When it is imported
   Then the import succeeds and every other lane behaves normally
   And the unknown target is reported as a warning, never as an error
 # pinned by: tests/state/song-validate.test.ts
 
-Scenario: Every shipped demo validates without warnings (v3, REQ-12)
+Scenario: Every shipped demo validates without warnings (v3, REQ-an-unresolvable-target-warns)
   Given each song in src/state/demos and each built-in DEMO_SONGS literal
   When it is validated
   Then ok is true and warnings is empty
@@ -487,7 +501,7 @@ Scenario: Every shipped demo validates without warnings (v3, REQ-12)
 
 ## Open questions / future
 
-- **Widen REQ-5 to the preset validator.** `preset-validate.ts` has no
+- **Widen REQ-reserved-keys-are-refused to the preset validator.** `preset-validate.ts` has no
   `checkKeys` call, so `validatePresetPayload` — and therefore the MCP
   `validate_preset` tool — reports `ok: true` on a preset carrying `__proto__`;
   only `Presets.load` drops it. Adding `reservedKeyIn` to `checkSnapshot` (and to

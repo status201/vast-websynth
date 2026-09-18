@@ -106,11 +106,11 @@ export class ParamBus {
    * bulk apply, exposed so the audio layer can reach it: the motion sequencer
    * writes at frame rate, and letting that reach `onChange` re-armed the session
    * autosave's debounce every frame — so it never elapsed and the session never
-   * saved (see specs/features/runtime-performance.md REQ-5). Re-entrant, and
+   * saved (see specs/features/runtime-performance.md REQ-automation-is-not-an-edit). Re-entrant, and
    * `finally`-guarded so a throwing `fn` cannot wedge the counter.
    *
    * Callers on a per-frame path should pass a **pre-bound** closure rather than
-   * an inline arrow (REQ-6 — no allocation in a per-frame loop).
+   * an inline arrow (REQ-bar-ticks-is-the-arrangement-bar-line — no allocation in a per-frame loop).
    */
   withoutChangeSignal(fn: () => void): void {
     this.suppressChange++;
@@ -223,16 +223,16 @@ const fmtDbRaw = (v: number) => `${v.toFixed(0)}dB`;
 const fmtUs = (v: number) => (v < 0.001 ? `${(v * 1e6).toFixed(0)}µs` : fmtMs(v));
 const fmtNoteFromCutoff = (note: number) => fmtHz(midiToHz(note));
 /** Module-level, so both LFOs share one instance and their defs are identical
- *  by reference as well as by value (lfo.md REQ-10). */
+ *  by reference as well as by value (lfo.md REQ-there-are-two-lfos). */
 const fmtLfoRate = (v: number) => v.toFixed(2) + 'Hz';
 
 export const WAVE_LABELS = ['sine', 'triangle', 'saw', 'square'];
 /** Append-only: an index here is a stored value in every preset, song and share
- *  link, so reordering silently rewrites saved patches (lfo.md REQ-3). */
+ *  link, so reordering silently rewrites saved patches (lfo.md REQ-destination-is-one-of-the-labels). */
 export const LFO_DEST_LABELS = ['off', 'cutoff', 'pitch', 'amp', 'pulse', 'pan', 'shape'];
 // `lfo.sync`'s labels are `SYNC_LABELS` from `utils/tempo`, used directly — the
 // LFO no longer has a division list of its own now that the effects share one
-// (tempo-lock.md REQ-8). Index 0 is free-running, and the array is append-only:
+// (tempo-lock.md REQ-sync-defaults-to-free). Index 0 is free-running, and the array is append-only:
 // an index here is a stored value in every preset, song and share link.
 export const VOICING_LABELS = ['mono', 'poly'];
 export const GLIDE_MODE_LABELS = ['off', 'always', 'legato'];
@@ -244,16 +244,16 @@ export { NOTE_LABELS, SCALE_LABELS, CHORD_LABELS };
 export const ARP_PATTERN_LABELS = ['up', 'down', 'updn', 'rand', 'play'];
 export const ARP_RATE_LABELS = ['1/4', '1/8', '1/16', '1/32'];
 export const DRUM_TRACK_LABELS = ['Kick', 'Snare', 'C.Hat', 'O.Hat', 'L.Tom', 'M.Tom', 'H.Tom', 'Clap'];
-// Selectable voice algorithms (drum-machine.md REQ-11). The first 8 are the
+// Selectable voice algorithms (drum-machine.md REQ-a-drum-tracks-algorithm-is-selectable). The first 8 are the
 // classic voices in track order — a track's default model is its own index —
 // and the order must match MODEL_BUILDERS in drum-machine.ts.
 export const DRUM_MODEL_LABELS = [...DRUM_TRACK_LABELS, 'Conga', 'Bongo', 'Cowbell', 'Clave', 'Shaker'];
-// Selectable filter models (filter-models.md REQ-1). Append-only for the same
+// Selectable filter models (filter-models.md REQ-filter-model-is-a-discrete-param). Append-only for the same
 // reason as LFO_DEST_LABELS. Index 0 is the ladder, so files that predate the
 // switch sound unchanged (ADR-006).
 export const FILTER_MODEL_LABELS = ['ladder', 'poly'];
 
-// The POLY pole-mix morph reads as four named anchors (filter-models.md REQ-6);
+// The POLY pole-mix morph reads as four named anchors (filter-models.md REQ-shape-morphs-the-pole-mix);
 // the knob shows the one it is nearest, which is what a player needs to know.
 const SHAPE_LABELS = ['LP24', 'LP12', 'BP12', 'HP24'];
 const fmtFilterShape = (v: number) =>
@@ -269,7 +269,7 @@ export function registerDefaults(bus: ParamBus): void {
     { id: 'osc1.octave', min: -2, max: 2, default: 0, step: 1, unit: 'oct' },
     { id: 'osc1.detune', min: -50, max: 50, default: 0, unit: 'c', format: fmtCent },
     { id: 'osc1.level', min: 0, max: 1, default: 0.7, format: fmtPct },
-    // 0.5 IS a square wave, so the default is an exact no-op (oscillators.md REQ-5).
+    // 0.5 IS a square wave, so the default is an exact no-op (oscillators.md REQ-oscillators-have-a-pulse-width).
     { id: 'osc1.pulseWidth', min: 0.5, max: 0.95, default: 0.5, format: fmtPct },
 
     // ----- OSC 2 -----
@@ -302,7 +302,7 @@ export function registerDefaults(bus: ParamBus): void {
     { id: 'filter.drive', min: 0.5, max: 6, default: 1.2, format: (v) => v.toFixed(2) + 'x' },
     { id: 'filter.envAmount', min: -48, max: 48, default: 24, format: fmtSemi },
     // How much of the filter envelope's depth velocity controls (envelopes.md
-    // REQ-5). 0 is an exact no-op — the peak stays the hard-coded 1 the filter
+    // REQ-filter-env-follows-velocity). 0 is an exact no-op — the peak stays the hard-coded 1 the filter
     // envelope always used — so no existing preset or song changes (ADR-006).
     { id: 'filter.velAmount', min: 0, max: 1, default: 0, format: fmtPct },
     // Model + its morph (filter-models.md). Both default to a no-op: index 0 is
@@ -325,7 +325,7 @@ export function registerDefaults(bus: ParamBus): void {
     { id: 'env.fil.release', min: 0.001, max: 6, default: 0.4, format: fmtMs },
 
     // ----- LFO 1 and LFO 2 -----
-    // Both from one factory, so "identical to the first one" (lfo.md REQ-10) is
+    // Both from one factory, so "identical to the first one" (lfo.md REQ-there-are-two-lfos) is
     // structural and cannot drift. Kept adjacent so the generated catalogue
     // (public/params.md) lists them together.
     ...lfoParams('lfo'),
@@ -333,7 +333,7 @@ export function registerDefaults(bus: ParamBus): void {
 
     // ----- FX: Equalizer (first in the chain, so first in the catalogue) -----
     // Registration order IS the published catalogue's order
-    // (param-catalogue.md REQ-1b), and the convention here is that it mirrors
+    // (param-catalogue.md REQ-registration-order-is-published), and the convention here is that it mirrors
     // signal order — so the EQ leads each of the three blocks below.
     ...eqParams('fx.eq'),
 
@@ -360,7 +360,7 @@ export function registerDefaults(bus: ParamBus): void {
     // ----- FX: Duck (last in the chain, so the reverb tail ducks too) -----
     ...duckParams('fx.duck'),
 
-    // ----- Drum FX: Equalizer (ahead of the compressor — equalizer.md REQ-1) -----
+    // ----- Drum FX: Equalizer (ahead of the compressor — equalizer.md REQ-one-equalizer-per-lane) -----
     ...eqParams('fx.drum.eq'),
 
     // ----- Drum FX: Phaser -----
@@ -419,7 +419,7 @@ export function registerDefaults(bus: ParamBus): void {
     // ----- Transport -----
     { id: 'transport.bpm', min: 40, max: 240, default: 120, step: 1, format: (v) => `${v.toFixed(0)} bpm` },
     { id: 'transport.swing', min: 0, max: 1, default: 0, format: fmtPct },
-    // Meter (specs/features/meter.md REQ-5, ADR-019). The pair resolves to a bar
+    // Meter (specs/features/meter.md REQ-meter-is-two-bus-scalars, ADR-019). The pair resolves to a bar
     // length in 16th ticks: 4 beats × a quarter = 16 = 4/4, i.e. exactly what
     // every pre-meter song means, so the defaults are no-ops (ADR-006).
     { id: 'transport.beats', min: MIN_BEATS, max: MAX_BEATS, default: DEFAULT_BEATS, step: 1 },
@@ -433,7 +433,7 @@ export function registerDefaults(bus: ParamBus): void {
     { id: 'arp.gate', min: 0.05, max: 1, default: 0.5, format: fmtPct },
 
     // ----- Mod matrix (specs/features/mod-matrix.md, ADR-017) -----
-    // Six free rows; LFO 1/2 are rows 0-1 and keep lfo.dest / lfo.amount (REQ-2).
+    // Six free rows; LFO 1/2 are rows 0-1 and keep lfo.dest / lfo.amount (REQ-meter-ts-names-the-three-jobs).
     // src 0 = off, dst 0 = none, amt 0 = silent: all three are no-ops, so a preset
     // that predates the matrix loads unchanged (ADR-006).
     ...modMatrixParams(),
@@ -453,7 +453,7 @@ export function registerDefaults(bus: ParamBus): void {
     // Song-tab DJ controls. Seq mute stops the sequencer triggering (live keys
     // stay audible); solo silences the other lanes. Defaults are no-ops.
     { id: 'seq.mute', min: 0, max: 1, default: 0, step: 1, taper: 'discrete', labels: ['on', 'mute'] },
-    // Per-track mute (sequencer.md REQ-10) — the drum machine's per-track rule.
+    // Per-track mute (sequencer.md REQ-per-track-mute) — the drum machine's per-track rule.
     // Default 0 is a no-op, so v1-v5 songs are unaffected (ADR-006).
     ...Array.from({ length: SEQ_TRACK_COUNT }, (_, t) => ({
       id: `seq.t${t}.mute`, min: 0, max: 1, default: 0, step: 1,
@@ -464,7 +464,7 @@ export function registerDefaults(bus: ParamBus): void {
 
     // ----- Drum machine -----
     { id: 'drum.on', min: 0, max: 1, default: 0, step: 1, taper: 'discrete', labels: ['off', 'on'] },
-    // Hat choke group (drum-machine.md REQ-12). Default OFF: switching it on
+    // Hat choke group (drum-machine.md REQ-a-closed-hat-cuts-an-open-hat). Default OFF: switching it on
     // changes how an existing song sounds, which is exactly what ADR-006 says a
     // new param's default must not do.
     { id: 'drum.choke', min: 0, max: 1, default: 0, step: 1, taper: 'discrete', labels: ['off', 'on'] },
@@ -488,10 +488,10 @@ export function registerDefaults(bus: ParamBus): void {
 
     // ----- Motion sequencer (param automation; specs/features/motion-sequencer.md) -----
     { id: 'motion.on', min: 0, max: 1, default: 0, step: 1, taper: 'discrete', labels: ['off', 'on'] },
-    // Song-tab mute: active = motion.on && !motion.mute (motion-sequencer.md REQ-12).
+    // Song-tab mute: active = motion.on && !motion.mute (motion-sequencer.md REQ-motion-mute-is-an-ordinary-param).
     { id: 'motion.mute', min: 0, max: 1, default: 0, step: 1, taper: 'discrete', labels: ['on', 'mute'] },
     // slide = linear interpolation between anchors; step = jump-and-hold.
-    // Mode is per lane (motion-sequencer.md REQ-2): this one drives the XY
+    // Mode is per lane (motion-sequencer.md REQ-set-steps-are-anchors): this one drives the XY
     // lane, each track has its own below, so a bank can sweep one param while
     // stepping another. Same default, so nothing changes for existing songs.
     { id: 'motion.slide', min: 0, max: 1, default: 1, step: 1, taper: 'discrete', labels: ['step', 'slide'] },
@@ -510,12 +510,12 @@ let paramIdCache: ReadonlySet<ParamId> | null = null;
  * Every parameter id `registerDefaults` registers.
  *
  * For validators that must tell a real automation target from a typo
- * (`untrusted-input.md` REQ-12) without standing up an Engine or reaching for
+ * (`untrusted-input.md` REQ-an-unresolvable-target-warns) without standing up an Engine or reaching for
  * the live bus — `song-validate.ts` runs in Node inside the MCP server and in
  * tests, where no Engine exists.
  *
  * Built **lazily**, not at module init: the validator sits on the boot path via
- * the share-link and session-restore routes, and `runtime-performance.md` REQ-1
+ * the share-link and session-restore routes, and `runtime-performance.md` REQ-boot-cost-matches-the-request
  * counts work done before first paint. A song with no automation targets never
  * pays for this at all.
  */
@@ -530,14 +530,14 @@ export function paramIds(): ReadonlySet<ParamId> {
 
 /**
  * One LFO's five params. Called once per prefix (`lfo`, `lfo2`) so the two LFOs
- * cannot drift apart in range, default, taper or label array — lfo.md REQ-10.
+ * cannot drift apart in range, default, taper or label array — lfo.md REQ-there-are-two-lfos.
  *
  * Every default is a no-op: `amount` 0 and `dest` 0 (`off`) mean a patch that
  * predates a given LFO sounds exactly as it did (ADR-006), which is what lets
  * LFO 2 ship without a song-format version bump.
  */
 /**
- * The mod matrix's six free rows (mod-matrix.md REQ-2/REQ-3). A factory for the same
+ * The mod matrix's six free rows (mod-matrix.md REQ-eight-rows-two-grandfathered/REQ-routes-are-inert-by-default). A factory for the same
  * reason `lfoParams` is one: six identical triples written out by hand is six chances
  * to typo an index.
  */
@@ -547,7 +547,7 @@ function modMatrixParams(): ParamDef[] {
     out.push(
       { id: `mod.${n}.src`, min: 0, max: MOD_SOURCE_LABELS.length - 1, default: 0, step: 1, taper: 'discrete', labels: MOD_SOURCE_LABELS },
       { id: `mod.${n}.dst`, min: 0, max: MOD_DEST_LABELS.length - 1, default: 0, step: 1, taper: 'discrete', labels: MOD_DEST_LABELS },
-      // Bipolar (REQ-9): a negative amount inverts the route, so no source needs an
+      // Bipolar (REQ-the-drum-fill-is-relative-to-its-lane): a negative amount inverts the route, so no source needs an
       // inverted twin. 0 is the no-op.
       { id: `mod.${n}.amt`, min: -1, max: 1, default: 0, format: fmtPct },
     );
@@ -565,7 +565,7 @@ function fxOnParam(prefix: string): ParamDef {
 }
 
 /**
- * The tempo lock every rate/time knob carries (tempo-lock.md REQ-8), for the
+ * The tempo lock every rate/time knob carries (tempo-lock.md REQ-sync-defaults-to-free), for the
  * same reason `fxOnParam` exists: nine identical copies otherwise.
  *
  * Index 0 is `free` — what every existing patch has, and an exact no-op: the
@@ -578,7 +578,9 @@ function syncParam(prefix: string): ParamDef {
 }
 
 /**
- * The four insert effects that appear on more than one chain (effects.md REQ-3/4/5).
+ * The four insert effects that appear on more than one chain
+ * (effects.md REQ-the-synth-chain-order/REQ-the-drum-bus-chain-order,
+ * effects.md REQ-fx-on-below-half-is-bypassed).
  * Written once each and instantiated per prefix, so `fx.delay.*`, `fx.drum.delay.*`
  * and `fx.sampler.delay.*` cannot drift into three different delays — the same
  * reasoning `lfoParams` applies to LFO 1 and 2.
@@ -650,7 +652,7 @@ function reverbParams(prefix: string): ParamDef[] {
 }
 
 /**
- * The per-lane equalizer (equalizer.md REQ-6): a highpass, eight fixed band
+ * The per-lane equalizer (equalizer.md REQ-eq-params-come-from-one-factory): a highpass, eight fixed band
  * gains, a lowpass and one shared WIDTH.
  *
  * **Every default is a no-op** — `.on` off, every band at 0 dB, HP at its floor
@@ -691,7 +693,7 @@ function eqParams(prefix: string): ParamDef[] {
 
 function lfoParams(prefix: 'lfo' | 'lfo2'): ParamDef[] {
   return [
-    // Exponentially tapered (lfo.md REQ-8): rate is heard in octaves, so equal
+    // Exponentially tapered (lfo.md REQ-lfo-rate-is-exponentially-tapered): rate is heard in octaves, so equal
     // turns give equal ratios. Linear spent half the dial above 10 Hz and
     // crammed the useful sub-1 Hz region into its first ~5%. Stored values are
     // in Hz and unaffected — only the knob position they map to moves.
@@ -699,14 +701,14 @@ function lfoParams(prefix: 'lfo' | 'lfo2'): ParamDef[] {
     { id: `${prefix}.amount`, min: 0, max: 1, default: 0, format: fmtPct },
     { id: `${prefix}.wave`, min: 0, max: 3, default: 0, step: 1, taper: 'discrete', labels: WAVE_LABELS },
     { id: `${prefix}.dest`, min: 0, max: LFO_DEST_LABELS.length - 1, default: 0, step: 1, taper: 'discrete', labels: LFO_DEST_LABELS },
-    // Tempo lock (lfo.md REQ-9) — now the same def the effects get, so the LFO's
-    // lock and theirs cannot drift apart (tempo-lock.md REQ-8).
+    // Tempo lock (lfo.md REQ-lfo-sync-locks-rate-to-tempo) — now the same def the effects get, so the LFO's
+    // lock and theirs cannot drift apart (tempo-lock.md REQ-sync-defaults-to-free).
     syncParam(prefix),
   ];
 }
 
 /**
- * One machine's loop length + step rate (meter.md REQ-10/REQ-14).
+ * One machine's loop length + step rate (meter.md REQ-each-machine-has-a-loop-length/REQ-each-machine-has-a-step-rate).
  *
  * Both defaults are no-ops (ADR-006): `LEN_FOLLOW` means "as many cells of this
  * rate as the bar holds", and the default rate is one cell per tick — together,
@@ -724,7 +726,7 @@ function laneMeterParams(prefix: string): ParamDef[] {
 }
 
 /**
- * The per-slot channel + voice window (sampler.md REQ-12/REQ-13).
+ * The per-slot channel + voice window (sampler.md REQ-each-slot-has-a-channel/REQ-a-hit-plays-a-window-of-the-buffer).
  *
  * Sibling of {@link drumTrackParams} below, and deliberately shaped like it — but
  * note `vol` defaults to **1**, not the drum machine's 0.85. A default is the
@@ -741,12 +743,12 @@ function samplerTrackParams(): ParamDef[] {
   const out: ParamDef[] = [];
   for (let i = 0; i < SAMPLER_SLOT_COUNT; i++) {
     out.push({ id: `sampler.t${i}.mute`, min: 0, max: 1, default: 0, step: 1, taper: 'discrete', labels: ['on', 'mute'] });
-    // Channel — ramped AudioParams (REQ-12).
+    // Channel — ramped AudioParams (REQ-pattern-arrays-stay-grid-cells-long).
     out.push({ id: `sampler.t${i}.vol`, min: 0, max: 1, default: 1, format: fmtPct });
     out.push({ id: `sampler.t${i}.pan`, min: -1, max: 1, default: 0, format: fmtPan });
     out.push({ id: `sampler.t${i}.tone`, min: 0, max: 1, default: 1, format: fmtPct });
     out.push({ id: `sampler.t${i}.res`, min: 0, max: 1, default: 0, format: fmtPct });
-    // Voice window — read by play() at trigger time (REQ-13).
+    // Voice window — read by play() at trigger time (REQ-motion-joins-the-non-patch-prefixes).
     // fmtSemi, not the bare `unit`: formatParam reads only `format`, so a unit on
     // its own renders as "0.00" — which is what a semitone knob must never say.
     out.push({ id: `sampler.t${i}.pitch`, min: -24, max: 24, default: 0, step: 1, unit: 'st', format: fmtSemi });
@@ -755,7 +757,7 @@ function samplerTrackParams(): ParamDef[] {
     out.push({ id: `sampler.t${i}.rev`, min: 0, max: 1, default: 0, step: 1, taper: 'discrete', labels: ['fwd', 'rev'] });
     out.push({ id: `sampler.t${i}.attack`, min: 0, max: 0.5, default: 0, format: fmtMs });
     out.push({ id: `sampler.t${i}.decay`, min: 0, max: 4, default: 0, format: fmtMs });
-    // Choke group + mono (REQ-14). Both default to what the machine already did:
+    // Choke group + mono (REQ-each-machine-has-a-step-rate). Both default to what the machine already did:
     // no group, and hits that layer.
     out.push({ id: `sampler.t${i}.choke`, min: 0, max: 4, default: 0, step: 1, taper: 'discrete', labels: ['off', '1', '2', '3', '4'] });
     out.push({ id: `sampler.t${i}.poly`, min: 0, max: 1, default: 0, step: 1, taper: 'discrete', labels: ['poly', 'mono'] });
@@ -768,7 +770,7 @@ function drumTrackParams(): ParamDef[] {
   for (let i = 0; i < DRUM_TRACK_COUNT; i++) {
     out.push({ id: `drum.t${i}.vol`, min: 0, max: 1, default: 0.85, format: fmtPct });
     // fmtSemi, not the bare `unit`: formatParam consults only `format`, so a unit
-    // on its own leaves the knob reading "0.00" (drum-machine.md REQ-18). `unit`
+    // on its own leaves the knob reading "0.00" (drum-machine.md REQ-tune-reads-in-semitones). `unit`
     // stays because the generated param catalogue does read it.
     out.push({ id: `drum.t${i}.tune`, min: -24, max: 24, default: 0, step: 1, unit: 'st', format: fmtSemi });
     out.push({ id: `drum.t${i}.decay`, min: 0.02, max: 1.5, default: 0.3, format: fmtMs });
@@ -778,7 +780,7 @@ function drumTrackParams(): ParamDef[] {
     out.push({ id: `drum.t${i}.pan`, min: -1, max: 1, default: 0, format: fmtPan });
     out.push({ id: `drum.t${i}.mute`, min: 0, max: 1, default: 0, step: 1, taper: 'discrete', labels: ['on', 'mute'] });
     // Voice model — defaults to the track's own classic voice, so files that
-    // omit it (every pre-model song/preset) sound unchanged (REQ-11).
+    // omit it (every pre-model song/preset) sound unchanged (REQ-cells-beyond-the-length-are-hidden).
     out.push({ id: `drum.t${i}.model`, min: 0, max: DRUM_MODEL_LABELS.length - 1, default: i, step: 1, taper: 'discrete', labels: DRUM_MODEL_LABELS });
   }
   return out;

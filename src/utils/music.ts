@@ -14,7 +14,7 @@ export const NOTE_LABELS = ['C', 'C#', 'D', 'D#', 'E', 'F', 'F#', 'G', 'G#', 'A'
  * **APPEND-ONLY.** A song stores the *index*, so inserting or reordering silently
  * re-keys every song that predates the change. Index 0 must stay `chromatic`: it is
  * the no-op default that keeps pre-feature presets and songs byte-identical
- * (ADR-006, scale-quantization.md REQ-1).
+ * (ADR-006, scale-quantization.md REQ-the-key-is-two-inert-params).
  */
 export const SCALE_LABELS = [
   'chromatic', 'major', 'minor', 'dorian', 'mixolydian', 'phrygian',
@@ -65,11 +65,11 @@ export function scaleTones(root: number, scale: number): number[] {
  * the caller can skip the lookup entirely.
  *
  * Built once per (root, scale) change and then indexed per note, which is what keeps
- * the tick path allocation-free (runtime-performance.md REQ-6). `Uint8Array`, not
+ * the tick path allocation-free (runtime-performance.md REQ-no-allocation-in-a-hot-loop). `Uint8Array`, not
  * `Int8Array`: 127 is exactly `Int8Array`'s ceiling, so it would work today and
  * silently wrap the day MIDI_NOTE_MAX moved.
  *
- * **Ties break downward** (scale-quantization.md REQ-2). C# in C major is 1 semitone
+ * **Ties break downward** (scale-quantization.md REQ-nearest-tone-ties-break-downward). C# in C major is 1 semitone
  * from both C and D; we take C. That is a deliberate musical choice — it matches the
  * convention on hardware quantizers and favours the more stable tone — so the search
  * below walks outward and tests the *lower* candidate first at each distance.
@@ -81,7 +81,7 @@ export function scaleTones(root: number, scale: number): number[] {
  *
  * Notes near the MIDI extremes are clamped into range rather than dropped: the search
  * simply never accepts an out-of-range candidate, so it keeps widening until it finds
- * an in-range tone (scale-quantization.md REQ-3).
+ * an in-range tone (scale-quantization.md REQ-quantization-is-idempotent-and-bounded).
  */
 export function buildQuantizeTable(root: number, scale: number): Uint8Array | null {
   if (!isScaleActive(scale)) return null;
@@ -111,7 +111,7 @@ export function buildQuantizeTable(root: number, scale: number): Uint8Array | nu
  * Stacking degrees rather than semitones is what makes the quality come out right for
  * free — in a major scale `ii` lands minor and `V` major because the scale's own
  * interval pattern produces them, with no chord-quality table anywhere
- * (chord-tools.md REQ-1).
+ * (chord-tools.md REQ-chords-are-stacked-scale-degrees).
  */
 export const CHORD_LABELS = ['off', 'triad', '7th', 'sus4', 'power'];
 const CHORD_DEGREES: readonly (readonly number[])[] = [
@@ -160,7 +160,7 @@ export function degreeOf(note: number, root: number, scale: number): number {
 /**
  * Build a chord by stacking scale degrees from `base`, anchored so the chord's root
  * lands in the octave of `anchor` — writing a chord should not jump the line an octave
- * (chord-tools.md REQ-10).
+ * (chord-tools.md REQ-a-chord-lands-in-the-edited-register).
  *
  * `base` shifts every degree, so the caller can reuse one shared `degrees` array
  * (`[0,2,4]`) for any chord root without allocating a shifted copy per note.
@@ -190,7 +190,7 @@ const ROMAN = ['I', 'II', 'III', 'IV', 'V', 'VI', 'VII'];
  * Case and the `°` are **derived from the intervals the stacking actually produced**
  * (a 3-semitone third is minor, a 6-semitone fifth diminished), not stored per scale,
  * so a scale appended to `SCALE_LABELS` labels itself correctly with no new data
- * (chord-tools.md REQ-9).
+ * (chord-tools.md REQ-degree-labels-show-real-quality).
  */
 export function degreeLabel(root: number, scale: number, degree: number): string {
   const notes = diatonicChord(60, root, scale, [degree, degree + 2, degree + 4]);

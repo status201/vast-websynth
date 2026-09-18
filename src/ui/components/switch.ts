@@ -8,7 +8,7 @@ export class Switch {
   /**
    * `testId` overrides the default `switch-<paramId>`. Needed where the SAME
    * param is switchable from two surfaces — the lane mute/solo now appear both
-   * on the Song tab and in the machine header (machine-status.md REQ-9) — since
+   * on the Song tab and in the machine header (machine-status.md REQ-lane-controls-live-on-both-surfaces) — since
    * two elements sharing a testid break Playwright's strict mode. Both instances
    * stay in sync for free: each subscribes to the bus.
    */

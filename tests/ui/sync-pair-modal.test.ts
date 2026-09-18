@@ -118,7 +118,7 @@ describe('sync-pair-modal (wizard)', () => {
     expect(byId('sync-pair-error')!.textContent).toBeTruthy();
   });
 
-  it('does not close on a backdrop click; Close does (REQ-10)', () => {
+  it('does not close on a backdrop click; Close does (REQ-the-pair-modal-resists-dismissal)', () => {
     openSyncPairModal(transport(), syncStub());
     const backdrop = document.querySelector(`.${Modal.backdropClass}`) as HTMLElement;
     backdrop.dispatchEvent(new Event('pointerdown')); // target === backdrop
@@ -162,14 +162,14 @@ describe('sync-pair-modal (wizard)', () => {
     }
   });
 
-  // Regression (webrtc-sync REQ-5): the QR must be drawn 1px/module and upscaled,
+  // Regression (webrtc-sync REQ-pairing-is-serverless-and-non-trickle): the QR must be drawn 1px/module and upscaled,
   // never a big bitmap CSS-clamped down (the v1 ~2px/module unscannable bug).
   it('has a (hidden) debug panel wired on open', () => {
     openSyncPairModal(transport(), syncStub());
     expect(byId('sync-pair-debug')).toBeTruthy(); // present, revealed once an attempt has data
   });
 
-  it('renders diagnostics (candidates + hint) into the debug panel (REQ-11)', () => {
+  it('renders diagnostics (candidates + hint) into the debug panel (REQ-every-sync-attempt-is-recorded)', () => {
     const body = document.createElement('div');
     const d = emptyDiagnostics();
     d.iceHistory = ['checking', 'disconnected'];

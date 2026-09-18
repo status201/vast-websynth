@@ -73,7 +73,7 @@ suggests `pool: 'vmThreads'` or `isolate: false` instead — **both break this
 suite**, and `isolate: false` breaks it for a reason worth knowing: sharing one
 environment across files turns every process-wide cache into a cross-file leak,
 and this repo has three by design (the reverb IR bank
-[effects](../features/effects.md) REQ-6, the drive-curve cache, the PWM wave
+[effects](../features/effects.md) REQ-the-reverb-ir-bank-is-lazy-and-shared, the drive-curve cache, the PWM wave
 tables). `fx-cost.test.ts` catches it, because it asserts the IR bank is built
 cold.
 
@@ -86,7 +86,7 @@ Run: `npm test` (or `npm run test:watch`).
 - Get past the start gate with **`startAudio(page)`** (or `gotoAndStart`), never
   by clicking "Tap to start" yourself: the modal is shown only where the browser
   demands a gesture, and this suite runs with autoplay permitted, so usually there
-  is no modal at all ([audio-lifecycle](../features/audio-lifecycle.md) REQ-20).
+  is no modal at all ([audio-lifecycle](../features/audio-lifecycle.md) REQ-the-gesture-is-required-only-when-required).
   Playwright clicks are trusted gestures, so the modal path really does unlock.
 - Assert engine state through the DEV bridge `window.__synth` (e.g.
   `window.__synth.bus.get('filter.cutoff')`).

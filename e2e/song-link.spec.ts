@@ -84,7 +84,7 @@ test.describe('song share links', () => {
     expect(await page.evaluate(() => window.location.hash)).toBe(`#song=${payload}`);
   });
 
-  // song-mode.md REQ-18 / dialog.md REQ-9. The dialog renders the first 8 of up
+  // song-mode.md REQ-a-rejected-import-is-copyable-in-full / dialog.md REQ-an-alert-may-offer-copyable-text. The dialog renders the first 8 of up
   // to 50 validator messages and the rest are written NOWHERE else — no console,
   // no log — so before the Copy button, dismissing this dialog destroyed them.
   test('Copy errors puts the whole error list on the clipboard, not the shown 8',
@@ -129,7 +129,7 @@ test.describe('song share links', () => {
       await expect(page.getByText('Import failed')).toHaveCount(0);
     });
 
-  // untrusted-input.md REQ-7. Before this, a #songUrl= link made any visitor's
+  // untrusted-input.md REQ-a-link-may-not-fetch-silently. Before this, a #songUrl= link made any visitor's
   // browser issue an attacker-chosen GET at page load, with no interaction.
   test('a #songUrl= link asks before it fetches, naming the origin', async ({ page }) => {
     let requested = 0;
@@ -176,7 +176,7 @@ test.describe('song share links', () => {
     await page.getByRole('button', { name: 'Cancel' }).click();
 
     expect(requested).toBe(0);
-    // The hash survives so the user can inspect or retry it (REQ-4).
+    // The hash survives so the user can inspect or retry it (REQ-legacy-step-cells-still-sound-right).
     expect(await page.evaluate(() => window.location.hash)).toBe(hash);
   });
 

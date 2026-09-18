@@ -16,11 +16,11 @@ async function openDebug(page: import('@playwright/test').Page): Promise<void> {
 }
 
 /**
- * pwa-install.md REQ-1 — the wake lock must be taken on the auto-start path.
+ * pwa-install.md REQ-wake-lock-follows-the-context — the wake lock must be taken on the auto-start path.
  *
  * A regression guard with a specific history: the lock was driven purely off the
  * AudioContext's `statechange`, which never fires for a context the browser
- * created already `running` (audio-lifecycle.md REQ-20) — and resuming an
+ * created already `running` (audio-lifecycle.md REQ-the-gesture-is-required-only-when-required) — and resuming an
  * already-running one does not fire it either. So on exactly the devices that
  * skip the start modal, the screen was free to sleep mid-performance, while the
  * unit tests for `WakeLockManager` stayed green because nothing ever called it.
@@ -55,7 +55,7 @@ test('the Debug panel reports live state and acts on it', async ({ page }) => {
 
   // Live rows, against the real context. The row appends the autoplay verdict
   // that decided whether a start modal was shown at all (audio-lifecycle.md
-  // REQ-20) — and this suite runs with autoplay permitted, so it reads `ok`.
+  // REQ-the-gesture-is-required-only-when-required) — and this suite runs with autoplay permitted, so it reads `ok`.
   await expect(page.getByTestId('debug-ctx-state')).toHaveText('running · autoplay ok');
   await expect(page.getByTestId('debug-transport')).toContainText('stopped');
   await expect(page.getByTestId('debug-storage')).toContainText('keys');
@@ -66,7 +66,7 @@ test('the Debug panel reports live state and acts on it', async ({ page }) => {
   await toggle.click();
   await expect(page.getByTestId('debug-ctx-state')).toHaveText('suspended · autoplay ok');
   await expect(toggle).toHaveText('Resume');
-  // REQ-15 regression: the statechange re-arm now runs on every platform, so a
+  // REQ-an-unasked-suspension-is-recovered regression: the statechange re-arm now runs on every platform, so a
   // deliberate suspend has to survive the event its own suspend() fires. If the
   // intent flag were missing this would be back to 'running' immediately.
   await page.waitForTimeout(400);

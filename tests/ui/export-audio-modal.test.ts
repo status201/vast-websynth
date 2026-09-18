@@ -4,7 +4,7 @@ import { openExportAudioModal } from '../../src/ui/components/export-audio-modal
 import { MAX_RUNS, type RecorderPhase } from '../../src/audio/recorder/recorder-controller';
 import type { StudioApi } from '../../src/ui/studio-api';
 
-/** The export options modal, and the render surface it becomes (REQ-9/REQ-10). */
+/** The export options modal, and the render surface it becomes (REQ-export-opens-an-options-modal/REQ-the-modal-is-the-renders-own-surface). */
 
 const byId = (id: string) => document.querySelector(`[data-testid="${id}"]`) as HTMLElement;
 const btn = (id: string) => byId(id) as HTMLButtonElement;
@@ -25,7 +25,7 @@ function harness(over: { songBars?: number; phase?: RecorderPhase } = {}) {
   const engine = {
     arrangement: { songBars: () => over.songBars ?? 4 },
     // 4/4 — what `registerDefaults` resolves the meter params to, so every
-    // assertion here still describes a 16-tick bar (meter.md REQ-6).
+    // assertion here still describes a 16-tick bar (meter.md REQ-bar-ticks-is-the-arrangement-bar-line).
     barTicks: 16,
 
     clock: {
@@ -81,7 +81,7 @@ describe('the options view', () => {
     expect(byId('export-audio-modal')).toBeTruthy();
     expect(byId('export-audio-fmt-wav')).toBeTruthy();
     expect(byId('export-audio-runs')).toBeTruthy();
-    // REQ-3's deliberate split: the API defaults tailBar off (the bench needs
+    // REQ-the-capture-keeps-a-tail's deliberate split: the API defaults tailBar off (the bench needs
     // bar-exact takes), the human-facing checkbox defaults on.
     expect((byId('export-audio-tail') as HTMLInputElement).checked).toBe(true);
   });
@@ -106,7 +106,7 @@ describe('the options view', () => {
     expect(labels).not.toContain(String(MAX_RUNS + 1));
   });
 
-  it('names the format on the button that writes the file (REQ-8)', () => {
+  it('names the format on the button that writes the file (REQ-labels-echo-the-chosen-format)', () => {
     open();
     expect(btn('export-audio-confirm').textContent).toBe('Export as WAV');
     btn('export-audio-fmt-mp3').click();
@@ -142,9 +142,9 @@ describe('the options view', () => {
   });
 });
 
-// REQ-10 — the whole point: a real-time render must not happen behind a closed
+// REQ-the-modal-is-the-renders-own-surface — the whole point: a real-time render must not happen behind a closed
 // dialog. v7.0 closed on confirm and showed nothing for up to ten minutes.
-describe('the in-flight view (REQ-10)', () => {
+describe('the in-flight view (REQ-the-modal-is-the-renders-own-surface)', () => {
   it('stays open on confirm and swaps the options for a progress bar', () => {
     const { exportSong } = open();
     btn('export-audio-fmt-mp3').click();

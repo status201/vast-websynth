@@ -53,61 +53,69 @@ Two properties carry the whole design:
   applies anything itself. A song goes through `SongPanel.importBytes` — the
   exact path the file input uses — so error dialogs, the undo toast, the slot
   save and the Play cue all come free. A preset/bank goes into the existing
-  import wizard's review step ([presets](presets.md) REQ-10), so the conflict
+  import wizard's review step ([presets](presets.md) REQ-preset-import-is-a-two-step-wizard), so the conflict
   policy and counts are the ones already specified.
 
-That second property is also the answer to [presets](presets.md) REQ-11's
+That second property is also the answer to [presets](presets.md) REQ-a-malformed-preset-is-refused-with-a-reason's
 wrong-door problem. The file input can only *point* at the other door ("that is a
 preset file — open it from Preset ▸ Import"). Paste has no such excuse: both
 formats arrive through one textarea, so it simply routes.
 
 ## Requirements
 
-- **REQ-1** — **Extraction before parsing.** `extractJson(text)` returns the JSON
-  body of a pasted reply, or `null`. It prefers the contents of the first fenced
-  code block (```` ``` ```` with an optional language tag) and otherwise takes the
-  whole text, then slices from the first `{` to the **last** `}`. Leading and
-  trailing prose therefore never reaches the parser.
-- **REQ-2** — **Classification is pure and total.** `classifyPayload(text)`
+- **REQ-extraction-comes-before-parsing** — **Extraction before parsing.**
+  `extractJson(text)` returns the JSON body of a pasted reply, or `null`. It
+  prefers the contents of the first fenced code block (```` ``` ```` with an
+  optional language tag) and otherwise takes the whole text, then slices from
+  the first `{` to the **last** `}`. Leading and trailing prose therefore never
+  reaches the parser.
+- **REQ-classification-is-pure-and-total** — **Classification is pure and
+  total.** `classifyPayload(text)`
   returns exactly one of `song` | `author` | `preset` | `bank` | `unknown`, plus
   the extracted `json`, the payload's `name`, and (for presets/banks) a `count`.
   Routing keys off the `format` tag: `websynth-song`, `websynth-song-author`
   (`AUTHOR_FORMAT`), `websynth-preset` (`PRESET_FORMAT`),
   `websynth-preset-bank` (`BANK_FORMAT`).
-- **REQ-3** — **A missing `format` tag is inferred, not rejected.** A JSON object
-  carrying `seqBanks`/`drumBanks` classifies as `song`, and one carrying
-  `seq`/`drums` as `author`, with `assumed: true`. The status line says the tag is
-  missing and that loading will check it — the real validator then produces the
-  precise error. An agent that drops one field must not hit a dead end.
-- **REQ-4** — **`unknown` always carries a `reason`**, and the reason names what
-  is wrong: no JSON found, malformed/incomplete JSON, no `format` field, or an
-  unrecognized `format` value (quoting it). The status line shows it verbatim
-  ([ADR-014](../decisions/adr-014-dont-make-me-think.md) law 1: never "invalid").
-- **REQ-5** — **One fragment, two placements.** `buildPasteImport(opts)` returns a
-  self-contained element (label, textarea `paste-input`, status line
-  `paste-status`, *Paste from clipboard* `paste-read-clipboard`, confirm
-  `paste-confirm`). `openPasteImportModal(opts)` wraps that same fragment in the
-  shared `Modal` (`paste-modal`, wide card). The ✨ AI Prompt modal embeds the
-  fragment inline as its third step. There is exactly one implementation.
-- **REQ-6** — **Live feedback.** The status line and the confirm button's
-  **label** re-render on every `input`: the label states the action it will take
-  (`Load song`, `Review 4 presets`), and the button is **disabled** while the
-  classification is `unknown`. Nothing is applied until it is pressed.
-- **REQ-7** — **Routing.** Confirm sends `song`/`author` to
-  `onSong(TextEncoder().encode(json), 'pasted-song.json')` — i.e.
-  `SongPanel.importBytes`, unchanged — and `preset`/`bank` to
+- **REQ-a-missing-format-tag-is-inferred** — **A missing `format` tag is
+  inferred, not rejected.** A JSON object carrying `seqBanks`/`drumBanks`
+  classifies as `song`, and one carrying `seq`/`drums` as `author`, with
+  `assumed: true`. The status line says the tag is missing and that loading will
+  check it — the real validator then produces the precise error. An agent that
+  drops one field must not hit a dead end.
+- **REQ-unknown-always-carries-a-reason** — **`unknown` always carries a
+  `reason`**, and the reason names what is wrong: no JSON found,
+  malformed/incomplete JSON, no `format` field, or an unrecognized `format`
+  value (quoting it). The status line shows it verbatim
+  ([ADR-014](../decisions/adr-014-dont-make-me-think.md) law 1: never
+  "invalid").
+- **REQ-one-paste-fragment-two-placements** — **One fragment, two placements.**
+  `buildPasteImport(opts)` returns a self-contained element (label, textarea
+  `paste-input`, status line `paste-status`, *Paste from clipboard*
+  `paste-read-clipboard`, confirm `paste-confirm`). `openPasteImportModal(opts)`
+  wraps that same fragment in the shared `Modal` (`paste-modal`, wide card). The
+  ✨ AI Prompt modal embeds the fragment inline as its third step. There is
+  exactly one implementation.
+- **REQ-paste-status-updates-live** — **Live feedback.** The status line and the
+  confirm button's **label** re-render on every `input`: the label states the
+  action it will take (`Load song`, `Review 4 presets`), and the button is
+  **disabled** while the classification is `unknown`. Nothing is applied until
+  it is pressed.
+- **REQ-paste-confirm-routes-by-kind** — **Routing.** Confirm sends
+  `song`/`author` to `onSong(TextEncoder().encode(json), 'pasted-song.json')` —
+  i.e. `SongPanel.importBytes`, unchanged — and `preset`/`bank` to
   `onPresets(parsePresetPayload(json))`, the existing pure parser, which the
   preset manager opens **straight into its review step**. Paste itself never
   writes a preset, applies a song, or shows a validation error.
-- **REQ-8** — **A refused load leaves the text alone.** `onSong` resolves to
-  whether the song applied; on `false` (validation failed — the import path has
-  already shown its own error dialog) the modal stays open with the pasted text
-  intact, so the user can fix a line rather than paste again. On success the host
-  closes (`onDone`).
-- **REQ-9** — **Clipboard read is a convenience, never a dependency.**
-  `readClipboardText()` resolves to `null` when the API is missing or permission
-  is denied (Safari/Firefox without a user gesture), and the button then does
-  nothing visible — the textarea is always the supported path.
+- **REQ-a-refused-load-leaves-the-text** — **A refused load leaves the text
+  alone.** `onSong` resolves to whether the song applied; on `false` (validation
+  failed — the import path has already shown its own error dialog) the modal
+  stays open with the pasted text intact, so the user can fix a line rather than
+  paste again. On success the host closes (`onDone`).
+- **REQ-clipboard-read-is-a-convenience** — **Clipboard read is a convenience,
+  never a dependency.** `readClipboardText()` resolves to `null` when the API is
+  missing or permission is denied (Safari/Firefox without a user gesture), and
+  the button then does nothing visible — the textarea is always the supported
+  path.
 
 ## Technical design
 
@@ -145,8 +153,8 @@ PasteClassification:
   json?: string      # the extracted body — present whenever kind != unknown
   name?: string      # the payload's own name
   count?: number     # presets in the payload (1 for a preset file)
-  assumed?: true     # REQ-3 — kind inferred from keys, no format tag
-  reason?: string    # REQ-4 — only when kind == unknown
+  assumed?: true     # REQ-a-missing-format-tag-is-inferred — kind inferred from keys, no format tag
+  reason?: string    # REQ-unknown-always-carries-a-reason — only when kind == unknown
 ```
 
 ### Layer touchpoints & ordering

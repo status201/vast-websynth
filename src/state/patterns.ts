@@ -22,7 +22,7 @@ export interface StepSettings {
   /**
    * Micro-timing: a signed integer in `-MICRO_MAX..+MICRO_MAX` notches of
    * `1/MICRO_UNITS` of **this lane's cell** — negative early, positive late
-   * (step-settings.md REQ-6). 0 is the no-op default, so a step that predates the
+   * (step-settings.md REQ-a-step-carries-a-micro-offset). 0 is the no-op default, so a step that predates the
    * field sounds exactly as it did (ADR-006). Applied as a pure `when` offset by
    * `microOffset` in step-hits.ts; nothing in the clock or the meter knows about it.
    */
@@ -74,7 +74,7 @@ export interface MotionAssign {
 export const MOTION_STEP_DEFAULTS: MotionStep = { on: false, x: 0.5, y: 0.5 };
 
 /**
- * One step of an extra single-param motion track (motion-sequencer.md REQ-13).
+ * One step of an extra single-param motion track (motion-sequencer.md REQ-two-extra-tracks-per-bank).
  * `v` is 0..1 in the same normalized taper space as MotionStep's x/y. A dead
  * cell keeps its level so toggling a step off and on doesn't lose the value.
  */
@@ -121,12 +121,12 @@ export function makeMotionTracks(): MotionTrack[] {
  * columns of UI — and every bar line in the app was written `step % SEQ_LENGTH`.
  * `meter.ts` now owns the other two (`barTicks`, `LANE_RATES`); this name is
  * kept, aliasing `GRID_CELLS`, purely because 17 modules import it. New code
- * should say which one it means (meter.md REQ-2, ADR-019).
+ * should say which one it means (meter.md REQ-meter-ts-names-the-three-jobs, ADR-019).
  */
 export const SEQ_LENGTH = GRID_CELLS;
 
-/** Sequencer tracks per bank (sequencer.md REQ-8). Track 0 is the pre-v3
- *  sequencer; 1..3 are the additions and only sound in poly voicing (REQ-9). */
+/** Sequencer tracks per bank (sequencer.md REQ-four-tracks-per-bank). Track 0 is the pre-v3
+ *  sequencer; 1..3 are the additions and only sound in poly voicing (REQ-song-file-v4-adds-motion-banks). */
 export const SEQ_TRACK_COUNT = 4;
 export const SEQ_TRACK_LABELS = ['1', '2', '3', '4'];
 
@@ -169,7 +169,7 @@ export type PatternMutation =
       beforeTracks: MotionTrack[] };
 
 export interface PatternSnapshot {
-  /** [bank][track][step] since v3 (sequencer.md REQ-8). */
+  /** [bank][track][step] since v3 (sequencer.md REQ-four-tracks-per-bank). */
   seqBanks: SeqStep[][][];
   drumBanks: DrumCell[][][];
   seqEditBank: number;
@@ -201,11 +201,11 @@ export function clampChainStep(i: number): number {
 
 /**
  * Clamp an arrangement-chain slot's transpose to a whole number of semitones
- * within `±MAX_CHAIN_TRANSPOSE` (arrangement.md REQ-8).
+ * within `±MAX_CHAIN_TRANSPOSE` (arrangement.md REQ-a-seq-slot-carries-a-transpose).
  *
  * `Math.round` before the clamp, and a non-finite input floored to 0: the
  * app-wide `Math.max(min, Math.min(max, v))` idiom returns `NaN` for `NaN`
- * (untrusted-input.md REQ-6), and a `NaN` here would reach the oscillator as a
+ * (untrusted-input.md REQ-no-subscriber-can-wedge-the-clock), and a `NaN` here would reach the oscillator as a
  * note offset.
  */
 export function clampTranspose(n: number): number {
@@ -227,7 +227,7 @@ export function makeSeqTrack(): SeqStep[] {
   }));
 }
 
-/** One bank: SEQ_TRACK_COUNT tracks (sequencer.md REQ-8). */
+/** One bank: SEQ_TRACK_COUNT tracks (sequencer.md REQ-four-tracks-per-bank). */
 export function makeSeqBank(): SeqStep[][] {
   return Array.from({ length: SEQ_TRACK_COUNT }, makeSeqTrack);
 }
@@ -276,7 +276,7 @@ export function emptyPatternBanks(): {
  * so `restore()` applies it authoritatively (an absent section can't slip through
  * `restore`'s skip-on-undefined and be inherited). This is the single source of
  * blank shared by New Song and the load path (`Song.apply`): both start here so an
- * authoritative clear can't drift between them (song-mode.md REQ-3). Extends
+ * authoritative clear can't drift between them (song-mode.md REQ-apply-resets-to-defaults-first). Extends
  * `emptyPatternBanks()` with the two per-slot/per-bank sections it omits.
  */
 export function emptyPatternSnapshot(): {
@@ -306,7 +306,7 @@ export class PatternStore {
   readonly motionBanks: MotionStep[][];
   /** Per-bank axis override (null = inherit the XY Pad assignment). */
   readonly motionAssigns: (MotionAssign | null)[];
-  /** motionTrackBanks[bank][track] — the extra single-param tracks (REQ-13). */
+  /** motionTrackBanks[bank][track] — the extra single-param tracks (REQ-two-extra-tracks-per-bank). */
   readonly motionTrackBanks: MotionTrack[][];
 
   /** Filename per sampler slot (null = empty). Decoded audio lives in the
@@ -421,11 +421,11 @@ export class PatternStore {
 
   /**
    * Write `notes` down the tracks at one step index — the chord writer's one mutation
-   * (chord-tools.md REQ-2/REQ-3).
+   * (chord-tools.md REQ-the-chord-writer-patches-not-replaces/REQ-one-chord-gesture-one-undo).
    *
    * Takes **plain notes**, never a scale or a degree: the theory lives in
    * `utils/music.ts` and the caller applies it, so the store stays a data store
-   * (ADR-004) and this is testable without a key (REQ-4).
+   * (ADR-004) and this is testable without a key (REQ-motion-drives-the-xy-assignment).
    *
    * Only `on` and `note` are written, so a chord dropped onto shaped steps keeps their
    * velocity/gate/prob/ratchet/tie/micro. Tracks past `notes.length` are switched **off**
@@ -459,7 +459,7 @@ export class PatternStore {
 
   /**
    * Rewrite every stored note in the edit bank through `map` — the destructive
-   * counterpart of the live key filter (scale-quantization.md REQ-8).
+   * counterpart of the live key filter (scale-quantization.md REQ-snap-to-scale-is-the-destructive-opt-in).
    *
    * `map` is a plain function for the same reason as above: no music theory in here.
    * Returns false when nothing moved, so the caller can report "already in key"
@@ -560,12 +560,12 @@ export class PatternStore {
     for (const l of this.sampleMetaListeners) l(slot, name);
   }
 
-  // ---- Bulk clears (step-grid-editing.md REQ-6/REQ-7) ----
+  // ---- Bulk clears (step-grid-editing.md REQ-clear-menu-clears-in-bulk/REQ-one-bulk-action-one-undo-entry) ----
   //
   // Each emits exactly ONE `*-copy` mutation carrying a clone of the whole
   // pre-clear bank, so a single Undo press restores everything — emitting N
   // per-cell mutations would cost N undo presses to reverse one click. Only
-  // `on` is reset (REQ-2): a cleared step keeps its note/velocity/gate, so
+  // `on` is reset (REQ-set-steps-are-anchors): a cleared step keeps its note/velocity/gate, so
   // re-toggling it restores the step exactly. Each returns whether anything
   // changed, so a caller can skip the toast on an already-empty bank.
 
@@ -578,7 +578,7 @@ export class PatternStore {
   }
 
   /** `track === null` clears every track of the edit bank; the mutation is
-   *  whole-bank either way, so one undo kind covers both scopes (REQ-7). */
+   *  whole-bank either way, so one undo kind covers both scopes (REQ-both-motion-modes-share-one-frame-loop). */
   private clearSeqCells(track: number | null): boolean {
     const bank = this.seqBanks[this._seqEdit]!;
     const rows = track === null ? [...bank.keys()] : [track];
@@ -629,11 +629,11 @@ export class PatternStore {
   }
 
   /**
-   * The one motion clear (step-grid-editing.md REQ-7): whichever lanes are
+   * The one motion clear (step-grid-editing.md REQ-one-bulk-action-one-undo-entry): whichever lanes are
    * named, cleared under a SINGLE `motion-copy` mutation carrying the whole
    * pre-clear bank — anchors, axis override and both tracks — so one Undo
    * press restores everything however narrow the clear was. Only `on` is reset
-   * (REQ-2) and the axis override / track params survive: they are
+   * (REQ-set-steps-are-anchors) and the axis override / track params survive: they are
    * configuration, not step data.
    */
   private clearMotionCells(xy: boolean, tracks: readonly number[]): boolean {
@@ -674,7 +674,7 @@ export class PatternStore {
   }
 
   /** `track === null` clears the whole bank; the mutation is whole-bank either
-   *  way, so one undo kind per machine covers both scopes (REQ-7). */
+   *  way, so one undo kind per machine covers both scopes (REQ-both-motion-modes-share-one-frame-loop). */
   private clearDrumCells(track: number | null): boolean {
     const bank = this.drumBanks[this._drumEdit]!;
     const rows = track === null ? bank.keys() : [track];
@@ -778,7 +778,7 @@ export class PatternStore {
     for (let i = 0; i < dst.length; i++) Object.assign(assertIndex(dst, i, 'motionSteps'), assertIndex(src, i, 'motionSteps'));
     const srcAssign = this.motionAssigns[a] ?? null;
     this.motionAssigns[b] = srcAssign ? { ...srcAssign } : null;
-    // The extra tracks travel with the bank, params included (REQ-13): copying a
+    // The extra tracks travel with the bank, params included (REQ-two-extra-tracks-per-bank): copying a
     // bank you just built must not mean re-picking every parameter.
     this.motionTrackBanks[b] = cloneMotionTracks(this.motionTrackBanks[a]!);
     if (b === this._motionEdit) { this.emitBankMotion(); this.emitAllMotionTracks(); }
@@ -813,7 +813,7 @@ export class PatternStore {
 
   /**
    * Pre-state of every mutation-entry-point call (the undo capture hook —
-   * pattern-undo.md REQ-2). `restore()` and `setSampleName` never emit.
+   * pattern-undo.md REQ-capture-happens-at-the-mutation-entry). `restore()` and `setSampleName` never emit.
    */
   onMutate(fn: (m: PatternMutation) => void): () => void {
     this.mutateListeners.add(fn);
@@ -912,7 +912,7 @@ export class PatternStore {
 
   restore(snap: Partial<PatternSnapshot>): void {
     // A whole-store overwrite: undo stacks must drop their (now stale) history
-    // before the new state lands (pattern-undo.md REQ-7).
+    // before the new state lands (pattern-undo.md REQ-restore-fires-a-bulk-hook).
     for (const l of this.bulkRestoreListeners) l();
     // Legacy files may lack the newer per-step fields — spread defaults first
     // so a load resets anything the incoming cell doesn't carry.
@@ -987,7 +987,7 @@ export class PatternStore {
           const track = assertIndex(dst, t, 'motionTracks');
           // Authoritative like the rest of restore: a track absent from the file
           // comes back blank and unassigned rather than lingering from the
-          // previous song (REQ-17 — v1-v4 files have none at all).
+          // previous song (REQ-song-file-v5-adds-motion-tracks — v1-v4 files have none at all).
           if (src?.param) track.param = src.param;
           else delete track.param;
           for (let i = 0; i < track.steps.length; i++) {

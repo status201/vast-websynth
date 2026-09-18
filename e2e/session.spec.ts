@@ -7,7 +7,7 @@ const drumOn = (page: Page, t: number, s: number): Promise<boolean> =>
 
 /**
  * The autosaved session, whichever per-tab key holds it — since v8 the key is
- * `websynth.session.<tabId>` (session-autosave.md REQ-12), so naming one is
+ * `websynth.session.<tabId>` (session-autosave.md REQ-each-tab-autosaves-to-its-own-key), so naming one is
  * wrong by construction.
  */
 const autosaveRaw = (page: Page): Promise<string | null> =>

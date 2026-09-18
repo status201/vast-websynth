@@ -3,7 +3,7 @@
 // it is a pure sink — it never doubles audio into the destination. Only
 // buffers/posts while `recording` is true.
 //
-// Frames are BATCHED (audio-export.md REQ-6b): one message per
+// Frames are BATCHED (audio-export.md REQ-chunks-are-batched-then-flushed): one message per
 // RECORD_BATCH_QUANTA quanta rather than one per quantum, which at 48 kHz is
 // ~23 messages/s instead of ~375. The main thread had to drain every one of
 // those transfers, and a stall (a big repaint, a demo load) queued them with
@@ -26,7 +26,7 @@ class RecorderProcessor extends AudioWorkletProcessor {
     super();
     this.recording = false;
     // The partial batch: two channel buffers, how many frames are in them, and
-    // the absolute frame index of the first one (REQ-6's `f`).
+    // the absolute frame index of the first one (REQ-each-chunk-is-frame-tagged's `f`).
     this.batchL = null;
     this.batchR = null;
     this.filled = 0;
@@ -80,7 +80,7 @@ class RecorderProcessor extends AudioWorkletProcessor {
       this.batchR = new Float32Array(BATCH_QUANTA * n);
       this.filled = 0;
     }
-    // f = absolute sample index of this batch's first frame (REQ-6): lets the
+    // f = absolute sample index of this batch's first frame (REQ-each-chunk-is-frame-tagged): lets the
     // main thread map a scheduled AudioContext time to an exact offset in the
     // captured stream.
     if (this.filled === 0) this.batchFirstFrame = currentFrame;

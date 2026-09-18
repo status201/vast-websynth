@@ -52,7 +52,7 @@ auto-stops. `--note` takes are a fixed wall-clock duration (the manual capture
 verbs), so compare them by character rather than sample-for-sample.
 
 `--runs` and `--tail-bar` expose the two export options
-([audio-export](../features/audio-export.md) REQ-2/REQ-3), and both default
+([audio-export](../features/audio-export.md) REQ-export-song-renders-from-the-top/REQ-the-capture-keeps-a-tail), and both default
 **off** precisely so a plain take stays bar-exact and comparable with every take
 rendered before they existed. Reach for `--tail-bar` when the thing you are
 judging is a *decay* — the default 350 ms grace cuts a long reverb mid-tail, and
@@ -89,7 +89,7 @@ npm run bench:audio -- --name solo --demo "Night Rider" --set drum.mute=1 --set 
 
 **Hearing the sampler needs `--project` or `--sample`, and they answer different
 questions.** A *song* stores only its slots' filenames ([sampler](../features/sampler.md)
-REQ-4), so a plain `--demo` of a `.json` demo renders a silent sampler lane. A
+REQ-only-sample-filenames-persist), so a plain `--demo` of a `.json` demo renders a silent sampler lane. A
 **project zip** carries the audio ([project-export](../features/project-export.md)),
 and shipped zip demos exist — so `--project <file.websynth.zip>` renders the whole
 arrangement with its slots filled, which answers *does the song sound right?*
@@ -113,7 +113,7 @@ npm run bench:audio -- --name steal --note 60,62,64,65,67,69,71,72,74 \
 ```
 
 The early keys have already lost their voices to the late ones, so each release is a
-test of which note stops (`voicing.md` REQ-9). Render the same command against the
+test of which note stops (`voicing.md` REQ-a-stolen-voice-leaves-the-held-list). Render the same command against the
 commit before the change and compare: the regression sounds like letting go of one
 key and hearing a *different* note cut out.
 
@@ -160,7 +160,7 @@ cannot come back silently. The render finds it; the unit test keeps it found.
 - **`audio-metrics` measures the MONO down-mix — so it sees stereo damage that a
   per-channel check cannot.** Any process that decides something *per channel*
   can drift the two apart, and two channels that have drifted cancel when summed.
-  [time-stretch](../features/time-stretch.md) REQ-5 hit exactly this: each channel
+  [time-stretch](../features/time-stretch.md) REQ-both-algorithms-decide-from-the-mid hit exactly this: each channel
   on its own measured −0.2 dB while the take measured **−5.7 dB**, because the
   phase vocoder was integrating each channel's phase separately. If the numbers
   here disagree with a per-channel unit test, the down-mix is usually right and
@@ -180,7 +180,7 @@ cannot come back silently. The render finds it; the unit test keeps it found.
   cancel-then-ramp semantics at all. The DJ filter crackled on Firefox alone for
   two releases because of it — a `cancelScheduledValues` that pinned nothing,
   which Blink continues from and Gecko restarts from the constructed value
-  ([performance](../features/performance.md) REQ-10). Render both when a change
+  ([performance](../features/performance.md) REQ-the-dj-sweep-rides-detune). Render both when a change
   touches automation:
 
   ```bash
@@ -199,7 +199,7 @@ cannot come back silently. The render finds it; the unit test keeps it found.
   a *rate*: one discontinuity a second is plainly visible against a sparse take
   (Around renders at 34 bursts/s) and completely invisible against a dense one
   (Haçienda renders at 2330/s, so the wah defect of [effects](../features/effects.md)
-  REQ-11 moved it by 26 — noise). When you are chasing something that fires once a
+  REQ-the-wah-lfo-sweeps-in-cents moved it by 26 — noise). When you are chasing something that fires once a
   cycle or once a toggle, build the smallest graph that contains it, feed it a
   **sum of sines** — no inherent steps, so every step found is the artefact — and
   measure the peak single-sample step in a *window*. REQ-11's 10x cliff shows up

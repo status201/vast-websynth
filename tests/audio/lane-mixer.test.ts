@@ -50,13 +50,13 @@ describe('LaneMixer', () => {
   });
 
   /**
-   * drum-machine.md REQ-13 v8. Cutting the bus gain is not enough on its own:
+   * drum-machine.md REQ-every-sounded-hit-is-reported v8. Cutting the bus gain is not enough on its own:
    * the machine keeps playing so un-mute is instant, so anything keyed off its
    * hits kept firing against drums nobody could hear — a ducker pumping to a
    * silent kick. The rule is reported ⇔ audible, which is why this reads the
    * same `audibleLanes` verdict the bus gain does.
    */
-  describe('hit reporting follows audibility (REQ-13 v8, regression)', () => {
+  describe('hit reporting follows audibility (REQ-every-sounded-hit-is-reported v8, regression)', () => {
     it('silences the reports when the drum lane is muted, and restores them', () => {
       const { drums, mix } = build();
       mix.setMute('drum', true);

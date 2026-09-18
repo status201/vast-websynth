@@ -20,7 +20,7 @@ function stubKeyboard(entries: Record<string, string> | null): void {
   };
 }
 
-describe('keyboard-layout store (keyboard-layout.md REQ-1/REQ-2)', () => {
+describe('keyboard-layout store (keyboard-layout.md REQ-layout-is-a-code-to-character-table/REQ-layout-preference-reads-safely)', () => {
   let store: Map<string, string>;
 
   beforeEach(() => {
@@ -77,7 +77,7 @@ describe('keyboard-layout store (keyboard-layout.md REQ-1/REQ-2)', () => {
     expect(labelFor('NoSuchCode')).toBe('');
   });
 
-  it('notifies listeners on write, and stops after unsubscribe (REQ-4)', () => {
+  it('notifies listeners on write, and stops after unsubscribe (REQ-layout-change-needs-no-reload)', () => {
     const cb = vi.fn();
     const off = onLayoutChange(cb);
     writeLayoutPref('qwertz');
@@ -88,7 +88,7 @@ describe('keyboard-layout store (keyboard-layout.md REQ-1/REQ-2)', () => {
   });
 });
 
-describe('keyboard-layout detection (keyboard-layout.md REQ-3)', () => {
+describe('keyboard-layout detection (keyboard-layout.md REQ-layout-detection-is-a-hint-not-a-verdict)', () => {
   beforeEach(() => {
     installLocalStorageMock();
     resetDetectionForTests();
@@ -132,7 +132,7 @@ describe('keyboard-layout detection (keyboard-layout.md REQ-3)', () => {
     expect(resolveLayout()).toBe('azerty');
   });
 
-  it('an explicit choice outranks detection (REQ-3)', async () => {
+  it('an explicit choice outranks detection (REQ-layout-detection-is-a-hint-not-a-verdict)', async () => {
     stubKeyboard({ KeyQ: 'a', KeyZ: 'w' });
     await primeDetection();
     writeLayoutPref('dvorak');

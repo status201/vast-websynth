@@ -17,7 +17,7 @@ import { fileURLToPath } from 'node:url';
  * on every write and re-issued a scheduled ramp; on Firefox every write
  * restarted from the constructed 20 kHz, so the cutoff sawtoothed open at the
  * write rate — 60 Hz from the motion loop — and crackled the master bus
- * (`specs/features/performance.md` REQ-10). It was invisible to the suite: the
+ * (`specs/features/performance.md` REQ-the-dj-sweep-rides-detune). It was invisible to the suite: the
  * mock `AudioParam` has a static `value` and no event list, so cancel-then-ramp
  * semantics cannot be observed by a behavioural test at all.
  *
@@ -129,7 +129,7 @@ describe('AudioParam automation is never cancelled without being anchored', () =
     expect(unanchored, unanchored.join('\n')).toEqual([]);
   });
 
-  it('leaves the DJ filter cancelling nothing at all (performance.md REQ-10)', () => {
+  it('leaves the DJ filter cancelling nothing at all (performance.md REQ-the-dj-sweep-rides-detune)', () => {
     // Not merely anchored — the sweep is a continuous control, so it must use
     // `setTargetAtTime` and never reach for a cancel again.
     expect(hits.filter((h) => h.file.endsWith('transport/performance.ts'))).toEqual([]);

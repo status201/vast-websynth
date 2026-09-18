@@ -14,7 +14,7 @@ test.describe('machine status', () => {
     await expect(page.locator('[data-testid="panel-song"]')).toBeVisible();
   });
 
-  test('a lane title opens that machine tab (REQ-5)', async ({ page }) => {
+  test('a lane title opens that machine tab (REQ-lane-titles-navigate)', async ({ page }) => {
     // The lane prefix is `drum` but the tab id is `drums` — the mapping is the
     // thing under test here.
     await page.locator('[data-testid="song-lane-title-drum"]').click();
@@ -27,7 +27,7 @@ test.describe('machine status', () => {
     await expect(page.locator('[data-testid="panel-motion"]')).toBeVisible();
   });
 
-  test('every machine lane title navigates (REQ-5)', async ({ page }) => {
+  test('every machine lane title navigates (REQ-lane-titles-navigate)', async ({ page }) => {
     for (const [prefix, tab] of [
       ['seq', 'seq'],
       ['drum', 'drums'],
@@ -40,7 +40,7 @@ test.describe('machine status', () => {
     }
   });
 
-  test('the tab LED tracks enable and mute state (REQ-2/REQ-4)', async ({ page }) => {
+  test('the tab LED tracks enable and mute state (REQ-a-machine-has-three-states/REQ-machine-state-is-not-colour-only)', async ({ page }) => {
     await busSet(page, 'drum.on', 1);
     await busSet(page, 'drum.mute', 0);
     await expect(led(page, 'drums')).toHaveAttribute('data-state', 'on');
@@ -58,7 +58,7 @@ test.describe('machine status', () => {
     );
   });
 
-  test('another lane soloing mutes the others but not motion (REQ-2)', async ({ page }) => {
+  test('another lane soloing mutes the others but not motion (REQ-a-machine-has-three-states)', async ({ page }) => {
     for (const m of ['seq', 'drum', 'sampler', 'motion']) {
       await busSet(page, `${m}.on`, 1);
       await busSet(page, `${m}.mute`, 0);
@@ -72,7 +72,7 @@ test.describe('machine status', () => {
     await expect(led(page, 'motion')).toHaveAttribute('data-state', 'on');
   });
 
-  // --- v2: the lane controls live on both surfaces (REQ-9) ---
+  // --- v2: the lane controls live on both surfaces (REQ-lane-controls-live-on-both-surfaces) ---
   test('every machine header carries Chain / Mute / Solo, motion without Solo', async ({ page }) => {
     for (const [tab, lane] of [['seq', 'seq'], ['drums', 'drum'], ['sampler', 'sampler']] as const) {
       await page.getByTestId(`tab-${tab}`).click();
@@ -86,7 +86,7 @@ test.describe('machine status', () => {
     await expect(page.getByTestId('machine-motion-chain')).toBeVisible();
     await expect(page.getByTestId('machine-motion-mute')).toBeVisible();
     // Motion is not an audio lane, so there is nothing to solo — same as its
-    // Song-tab card (motion-sequencer.md REQ-6/REQ-12).
+    // Song-tab card (motion-sequencer.md REQ-motion-has-the-fourth-chain-lane/REQ-motion-mute-is-an-ordinary-param).
     await expect(page.getByTestId('machine-motion-solo')).toHaveCount(0);
   });
 
@@ -115,7 +115,7 @@ test.describe('machine status', () => {
     await expect(page.getByTestId('machine-drum-chain')).not.toHaveClass(/\bon\b/);
   });
 
-  // --- v4: the Arpeggiator's lamp (REQ-10) ---
+  // --- v4: the Arpeggiator's lamp (REQ-the-arpeggiator-tab-has-a-lamp) ---
   test('the arp LED follows arp.on from another tab', async ({ page }) => {
     // Still on the Song tab from beforeEach — the whole point is that the lamp
     // answers "am I armed?" without opening the Arpeggiator.
@@ -147,7 +147,7 @@ test.describe('machine status', () => {
     await expect(led(page, 'song')).toHaveCount(0);
   });
 
-  test('the LED is inert — clicking it navigates and changes no param (REQ-3)', async ({ page }) => {
+  test('the LED is inert — clicking it navigates and changes no param (REQ-the-tab-led-is-not-a-control)', async ({ page }) => {
     await busSet(page, 'drum.on', 1);
     await expect(led(page, 'drums')).toHaveAttribute('data-state', 'on');
 

@@ -15,7 +15,7 @@ function mount(): { bus: ParamBus; kb: Keyboard; keyEl: (note: number) => HTMLEl
   };
 }
 
-// Regression guard for input-control.md REQ-2: the on-screen keyboard's
+// Regression guard for input-control.md REQ-a-key-emits-exactly-one-note-on: the on-screen keyboard's
 // `highlight` is the UiBridge target for computer-keyboard / MIDI input, so it
 // must repaint the key WITHOUT firing the note funnel. The note-on itself is the
 // input source's job (installShortcuts) — if highlight also called the bus, a
@@ -41,7 +41,7 @@ describe('Keyboard.highlight is visual-only', () => {
 });
 
 /**
- * input-control.md REQ-10. The OCT strip (`keyboard.transpose`) moves the
+ * input-control.md REQ-a-lit-key-is-remembered-as-an-element. The OCT strip (`keyboard.transpose`) moves the
  * note→element mapping: an element sounds `note + transpose * 12`. Lit state used
  * to be keyed by note and re-resolved at light-off, so any OCT change between the
  * sequencer's two deferred timers — including a demo load, which restores the
@@ -117,7 +117,7 @@ describe('Keyboard lit state survives an OCT change', () => {
 });
 
 /**
- * input-control.md REQ-11: `onPointerUp` used to send `noteOff(tr(note))` with the
+ * input-control.md REQ-a-note-off-names-the-pressed-note: `onPointerUp` used to send `noteOff(tr(note))` with the
  * transpose in effect at *release* time, so moving OCT mid-hold released a
  * different MIDI number and hung the voice.
  */
@@ -157,7 +157,7 @@ describe('Keyboard pointer hold survives an OCT change', () => {
 });
 
 /**
- * scale-quantization.md REQ-10 / input-control.md REQ-14 — the third highlight layer.
+ * scale-quantization.md REQ-the-key-is-shown-where-you-play / input-control.md REQ-a-third-highlight-layer — the third highlight layer.
  *
  * Unlike `active` and `seq` this one is *static*: a standing property of a pitch class,
  * written as an attribute and rewritten wholesale, never routed through the refcounted
@@ -186,7 +186,7 @@ describe('Keyboard.setKeyRoles', () => {
     expect(withRole(kb, 'scale')).toContain(50); // D3
     expect(withRole(kb, 'scale')).toContain(74); // D5
     // Out of scale carries no role at all: those keys still sound (quantized), so
-    // dimming them would claim otherwise (REQ-10).
+    // dimming them would claim otherwise (REQ-a-lit-key-is-remembered-as-an-element).
     expect(withRole(kb, 'out')).toEqual([]);
     expect(kb.el.querySelector('[data-note="49"]')!.getAttribute('data-role')).toBeNull();
   });
@@ -212,7 +212,7 @@ describe('Keyboard.setKeyRoles', () => {
     expect(roled(kb)).toBe(0);
   });
 
-  it('needs no repaint when OCT moves (REQ-10, cost)', () => {
+  it('needs no repaint when OCT moves (REQ-a-lit-key-is-remembered-as-an-element, cost)', () => {
     // Roles are keyed by pitch class and `keyboard.transpose` moves in whole octaves,
     // so an element's own pitch class IS its sounding pitch class. Nothing to redo.
     const { bus, kb } = mount();
@@ -224,7 +224,7 @@ describe('Keyboard.setKeyRoles', () => {
     expect(withRole(kb, 'root')).toEqual(before);
   });
 
-  it('does not disturb a lit key (input-control.md REQ-14)', () => {
+  it('does not disturb a lit key (input-control.md REQ-a-third-highlight-layer)', () => {
     const { bus, kb, keyEl } = mount();
     bus.set('scale.type', MAJOR);
     kb.setKeyRoles(readKeyState(bus));
@@ -245,7 +245,7 @@ describe('Keyboard.setKeyRoles', () => {
     expect(keyEl(60).dataset.role).toBe('scale');             // and leaves the role
   });
 
-  it('skips a write for a role already in place (runtime-performance.md REQ-7)', () => {
+  it('skips a write for a role already in place (runtime-performance.md REQ-dom-writes-are-guarded-on-what-is-rendered)', () => {
     const { bus, kb } = mount();
     const obs = new MutationObserver(() => {});
     obs.observe(kb.el, { attributes: true, subtree: true, attributeFilter: ['data-role'] });

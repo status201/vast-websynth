@@ -17,7 +17,9 @@ import { type TickTimer, defaultTickTimer } from '../tick-timer';
  * the injected `toPerfMs` so `MIDIOutput.send(data, timestamp)` fires them
  * with hardware timing.
  *
- * v2 additions (midi-clock-sync REQ-10/11/12):
+ * v2 additions (midi-clock-sync
+ * REQ-song-position-pointer-jumps-the-slave/REQ-the-master-keeps-an-idle-clock,
+ * midi-clock-sync REQ-an-explicit-tempo-message):
  * - `announceTo(send)` — a targeted "join here" for a newly-opened transport:
  *   `tempo`, plus `songposition` + `continue` while playing (never a bare
  *   `start`, which would restart already-locked slaves at bar 0).
@@ -40,11 +42,11 @@ export interface SyncMasterOptions {
   timer?: TickTimer;
   /** performance.now() (injectable for tests). */
   nowMs?: () => number;
-  /** Best-effort cancel of scheduled-but-unsent messages (REQ-18): called
+  /** Best-effort cancel of scheduled-but-unsent messages (REQ-master-flush-is-best-effort): called
    *  before the start/stop sends so a stale queued pulse tail cannot trail
    *  them on a scheduled-send transport (Web MIDI). */
   flush?: () => void;
-  /** The song's time signature, for the `meter` announce (meter.md REQ-18).
+  /** The song's time signature, for the `meter` announce (meter.md REQ-meter-travels-on-the-wifi-wire).
    *  Omitted in tests that don't exercise it — the announce is then skipped
    *  rather than sending a fabricated 4/4 over a peer's real 7/8. */
   meter?: () => { beats: number; unit: number };
@@ -76,7 +78,7 @@ export class SyncMaster {
   }
 
   /**
-   * Re-announce the time signature (meter.md REQ-18). Called when the local
+   * Re-announce the time signature (meter.md REQ-meter-travels-on-the-wifi-wire). Called when the local
    * meter changes, so a peer that is already following does not keep numbering
    * bars by the meter it joined with. A no-op while nothing can hear it.
    */
@@ -112,7 +114,8 @@ export class SyncMaster {
   /**
    * Announce the current transport state to one `send` sink — used by the
    * controller when a transport link opens mid-session so the newcomer joins
-   * in phase without a bar-0 restart of the others (midi-clock-sync REQ-10/15).
+   * in phase without a bar-0 restart of the others (midi-clock-sync
+ * REQ-song-position-pointer-jumps-the-slave/REQ-midi-and-wifi-coexist).
    */
   announceTo(send: (msg: SyncMessage, atMs?: number) => void): void {
     const bpm = this.currentBpm();
@@ -120,7 +123,7 @@ export class SyncMaster {
     this.lastSentBpm = bpm;
     // Before the position: a peer resolves `songposition` into a BAR through its
     // own bar length, so it has to know the meter first or it lands on the bar
-    // its OWN meter implies (meter.md REQ-18).
+    // its OWN meter implies (meter.md REQ-meter-travels-on-the-wifi-wire).
     const m = this.readMeter?.();
     if (m) send({ type: 'meter', beats: m.beats, unit: m.unit });
     if (this.clock.playing) {
@@ -131,12 +134,12 @@ export class SyncMaster {
 
   private onLocalStart = (): void => {
     this.stopIdle();
-    this.flush?.(); // drop the queued idle-pulse tail so it can't trail 'start' (REQ-18)
-    // `clock.step` is seeded before onStart fires (transport.md REQ-5). From the
+    this.flush?.(); // drop the queued idle-pulse tail so it can't trail 'start' (REQ-master-flush-is-best-effort)
+    // `clock.step` is seeded before onStart fires (transport.md REQ-start-seeds-the-step). From the
     // top, `start` realigns slaves to bar 0 as it always has; from anywhere else
     // (a Pause → Play, or a seeked cue) `start` would drag every slave back to
     // bar 0 while we play on mid-song — so join them where we are, with MIDI's
-    // own Song Position + Continue (midi-clock-sync.md REQ-26).
+    // own Song Position + Continue (midi-clock-sync.md REQ-a-local-start-joins-rather-than-restarts).
     const step = this.clock.step;
     if (step === 0) {
       this.send({ type: 'start' });
@@ -148,7 +151,7 @@ export class SyncMaster {
   };
 
   private onLocalStop = (): void => {
-    this.flush?.(); // drop the queued run-pulse tail so it can't trail 'stop' (REQ-18)
+    this.flush?.(); // drop the queued run-pulse tail so it can't trail 'stop' (REQ-master-flush-is-best-effort)
     this.send({ type: 'stop' });
     this.startIdle(); // keep warming slaves while stopped
   };

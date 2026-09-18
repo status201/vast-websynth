@@ -64,9 +64,9 @@ new files degrade gracefully. The procedure is captured in
 
 > **Follow-up (2026-07-27):** two more, both still additive-optional. **v5** —
 > `motionTracks`, motion's two extra single-param tracks per bank
-> ([`features/motion-sequencer`](../features/motion-sequencer.md) REQ-17); absent
+> ([`features/motion-sequencer`](../features/motion-sequencer.md) REQ-song-file-v5-adds-motion-tracks); absent
 > means the tracks are unassigned and write nothing. **v6** — `seqTracks`,
-> sequencer tracks 2-4 ([`features/sequencer`](../features/sequencer.md) REQ-13);
+> sequencer tracks 2-4 ([`features/sequencer`](../features/sequencer.md) REQ-song-file-v6-adds-seq-tracks);
 > `seqBanks` keeps its exact v1–v5 meaning (track 1), the new field is **omitted
 > entirely** when unused, so a one-track song serializes byte-identically to its
 > pre-v6 form. v1–v5 files load as one-track songs. The decision is unchanged.
@@ -78,7 +78,7 @@ new files degrade gracefully. The procedure is captured in
 
 > **Follow-up (2026-08-09):** **v7** — the optional `seqTranspose`, one semitone
 > offset per `seqChain` slot ([`features/arrangement`](../features/arrangement.md)
-> REQ-8). Additive in the strictest form the contract allows: it is a **sibling**
+> REQ-a-seq-slot-carries-a-transpose). Additive in the strictest form the contract allows: it is a **sibling**
 > of `seqChain` rather than a field inside `ChainData`, so `steps` keeps its exact
 > meaning and no existing reader changes; and it is **omitted entirely when every
 > offset is 0**, the same trick v6's `seqTracks` used, so a song that does not

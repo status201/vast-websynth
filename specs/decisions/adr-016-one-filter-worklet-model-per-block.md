@@ -38,7 +38,7 @@ by a k-rate `model` AudioParam, with the branch outside the sample loop.**
 of two sample loops. The ladder loop's body is byte-for-byte what it was, so its
 output stays bit-identical to the frozen reference that
 `tests/audio/ladder-filter-worklet.test.ts` pins — the standard
-`runtime-performance.md` REQ-8 bar ("bit-exact or it is a sound change"). The two
+`runtime-performance.md` REQ-a-worklet-optimisation-is-bit-exact bar ("bit-exact or it is a sound change"). The two
 models share the four pole states, which mean the same thing in both, so a switch
 carries state over as a character crossfade; the ladder's carried saturations are
 re-primed on the switching block so its recurrence resumes self-consistent.

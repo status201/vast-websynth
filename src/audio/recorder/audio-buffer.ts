@@ -18,7 +18,7 @@ export function capturedToAudioBuffer(ctx: BaseAudioContext, a: CapturedAudio): 
 
 /**
  * A reversed copy of an `AudioBuffer`, **channel count preserved**
- * (sampler.md REQ-13).
+ * (sampler.md REQ-a-hit-plays-a-window-of-the-buffer).
  *
  * Deliberately not `buffer-dsp.ts`'s `reverse()`: that one works on
  * `CapturedAudio`, which is always stereo, so routing a slot's playback through it

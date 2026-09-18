@@ -72,13 +72,13 @@
   fill: rgba(255, 176, 81, 0.9);
 }
 /* The bar-line carry: what the curve does between this bar and its neighbours
-   (motion-sequencer.md REQ-2b). Dashed + dimmer so it reads as "leaving the bar". */
+   (motion-sequencer.md REQ-cross-bank-carry). Dashed + dimmer so it reads as "leaving the bar". */
 .graph polyline.carry {
   stroke: rgba(255, 176, 81, 0.32);
   stroke-dasharray: 3 3;
 }
 
-/* The XY lane's own header (motion-sequencer.md REQ-8): launcher, view toggle,
+/* The XY lane's own header (motion-sequencer.md REQ-each-motion-step-is-a-mini-xy-pad): launcher, view toggle,
    Slide/Step, the axes it drives and the hint reading them back — one row,
    directly above its pads, so the toggle sits beside the readout it controls. */
 .xyHeader {
@@ -103,7 +103,7 @@
   color: #8f7a63;
 }
 /* An axis dropdown showing an inherited (non-overridden) assignment is dimmed via
-   `Dropdown.setDimmed` (dropdown.md REQ-9), which owns the styling. There is no
+   `Dropdown.setDimmed` (dropdown.md REQ-a-dropdown-can-be-dimmed), which owns the styling. There is no
    rule here on purpose: this used to be `.inheritedSel { opacity }` on the
    dropdown ROOT, which faded the open option list and trapped it behind the pads. */
 .hint {
@@ -111,7 +111,7 @@
   color: #77664f;
 }
 
-/* Per-lane value readout (motion-sequencer.md REQ-22). Permanent chrome, not a
+/* Per-lane value readout (motion-sequencer.md REQ-a-motion-steps-value-is-readable-without-hovering). Permanent chrome, not a
    hover popup — the pads are far too small to carry their own label, and
    ADR-014 law 6 rules out putting the value somewhere only a mouse can reach.
    Modelled on the Knob's `.num`: a reserved height so appearing text never
@@ -133,7 +133,7 @@
   text-shadow: 0 0 6px var(--accent-glow);
 }
 
-/* ---- extra single-param tracks (motion-sequencer.md REQ-16) ---- */
+/* ---- extra single-param tracks (motion-sequencer.md REQ-two-lanes-below-the-xy-lane) ---- */
 
 /* Level cell: same box as the XY pad, but the value reads as a bottom-up fill
    instead of a dot, so a row of them is legible as a bar graph at a glance. */
@@ -161,7 +161,7 @@
 
 /* A track lane: its controls above its own full-width cells, so all three
    lanes share one 16-column grid and step n reads vertically across them
-   (REQ-16). A left gutter would indent the cells and break that. */
+   (REQ-two-lanes-below-the-xy-lane). A left gutter would indent the cells and break that. */
 .trackRow {
   display: flex;
   flex-direction: column;
@@ -202,7 +202,7 @@
    extra gap, so the cells get narrower automatically. The full-width grid keeps
    step 0 / step 15 aligned with the XY lane above; only interior cells sit a few
    px off the decorative graph overlay (pointer-events:none), which is fine. */
-/* Column count follows the lane's played length (meter.md REQ-11): a 3/4 song
+/* Column count follows the lane's played length (meter.md REQ-cells-beyond-the-length-are-hidden): a 3/4 song
    draws 12 columns, not 16 with four dead ones. `--steps` is set by the panel
    (and by the ruler that shares this class), so the two can never disagree; the
    fallback keeps every other consumer at 16. */

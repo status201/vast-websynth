@@ -1,5 +1,6 @@
 /**
- * The websynth MCP tools (specs/features/mcp-server.md REQ-5/6). The song
+ * The websynth MCP tools (mcp-server.md
+ * REQ-five-song-tools/REQ-tool-input-errors-are-json-rpc-errors). The song
  * core is *injected* so this module unit-tests against the real src modules
  * under Vitest without the Node bundle. Zero deps beyond node builtins.
  *
@@ -28,7 +29,7 @@ const SONG_ARG = {
 /**
  * Parse + validate either song format. Returns `{ok:true, file}` — a canonical
  * `websynth-song`, at whatever version the expander picked (the lowest that
- * holds the content; song-authoring-dialect.md REQ-12) — or `{ok:false, errors}`.
+ * holds the content; song-authoring-dialect.md REQ-the-emitted-version-is-the-lowest-that-fits) — or `{ok:false, errors}`.
  */
 function resolveSong(core, song) {
   let value = song;
@@ -78,7 +79,7 @@ const safeName = (name) => `${String(name).replace(/[^a-z0-9_-]+/gi, '_') || 'so
 
 /**
  * Resolve a caller-supplied `dir` **inside** the working directory
- * (mcp-server.md REQ-5c). `safeName` only sanitizes the filename; `dir` was
+ * (mcp-server.md REQ-an-mcp-write-stays-in-the-working-directory). `safeName` only sanitizes the filename; `dir` was
  * unconstrained, and `mkdirSync(…, {recursive:true})` would happily build the
  * path on the way out — an absolute path or `../../..` wrote anywhere the
  * process could. The caller here is a model, and a model summarising a hostile
@@ -98,7 +99,7 @@ function containedDir(cwd, dir) {
 
 const toBase64Url = (buf) => buf.toString('base64url');
 
-/** The tools omitted from the read-only profile (mcp-server.md REQ-10). */
+/** The tools omitted from the read-only profile (mcp-server.md REQ-the-remote-profile-is-read-only). */
 const WRITE_TOOLS = new Set(['save_song', 'save_preset']);
 
 /**
@@ -110,7 +111,7 @@ const WRITE_TOOLS = new Set(['save_song', 'save_preset']);
  * @param {{baseUrl?: string, cwd?: string, allowWrites?: boolean}} [opts]
  */
 export function makeTools(core, opts = {}) {
-  // Whether the two write tools exist (mcp-server.md REQ-10). Defaults TRUE, so
+  // Whether the two write tools exist (mcp-server.md REQ-the-remote-profile-is-read-only). Defaults TRUE, so
   // the stdio profile is exactly what it always was; the HTTP transport passes
   // false. This is a property of the transport, not of a deployment: a write
   // here lands in the *server's* working directory, which for a local agent is
@@ -144,7 +145,7 @@ export function makeTools(core, opts = {}) {
   /**
    * A validated payload → the file the app would export: params expanded from
    * the synth defaults, so the sound is complete and deterministic wherever it
-   * is loaded (preset-authoring.md REQ-4).
+   * is loaded (preset-authoring.md REQ-expansion-fills-every-patch-param).
    */
   const presetFileOf = (parse) => {
     if (parse.kind === 'preset') {
@@ -210,7 +211,7 @@ export function makeTools(core, opts = {}) {
       },
       handler: async ({ song }) => {
         const res = resolveSong(core, song);
-        // untrusted-input.md REQ-12: warnings ride the success branch. They are
+        // untrusted-input.md REQ-an-unresolvable-target-warns: warnings ride the success branch. They are
         // the whole point of this tool for an agent — a misspelled motion target
         // is otherwise accepted here and then silently dropped at play time.
         return json(res.ok
@@ -221,7 +222,7 @@ export function makeTools(core, opts = {}) {
     {
       name: 'expand_song',
       // No version literal in this text: it is model-visible and drifted from v3
-      // through three format bumps before anyone noticed (mcp-server.md REQ-5).
+      // through three format bumps before anyone noticed (mcp-server.md REQ-five-song-tools).
       description:
         'Expand a compact "websynth-song-author" song into the canonical "websynth-song" ' +
         'JSON the app exports (also accepts an already-canonical song and returns its compact ' +
@@ -264,7 +265,7 @@ export function makeTools(core, opts = {}) {
         mkdirSync(target, { recursive: true });
         const path = resolve(target, safeName(res.file.name));
         writeFileSync(path, compactJson(res.file));
-        // A write is a commitment, so REQ-12's warnings are worth repeating here
+        // A write is a commitment, so REQ-an-unresolvable-target-warns's warnings are worth repeating here
         // rather than making the agent call validate_song separately to learn
         // that the song it just saved has an automation lane that cannot move.
         return json({ ok: true, path, name: res.file.name, warnings: res.warnings ?? [] });
@@ -380,7 +381,7 @@ export function makeTools(core, opts = {}) {
   ];
 
   // Filtered, not conditionally assembled: the read-only profile keeps the
-  // remaining eight in exactly the order above, which mcp-server.md REQ-10
+  // remaining eight in exactly the order above, which mcp-server.md REQ-the-remote-profile-is-read-only
   // pins by name. Building two lists would let them drift.
   return allowWrites ? tools : tools.filter((t) => !WRITE_TOOLS.has(t.name));
 }

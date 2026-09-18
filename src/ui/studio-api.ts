@@ -26,7 +26,7 @@ import type { AudioRecoveryState } from '../audio/engine';
  * the check fires where `main.ts` passes the real `Engine` to `mountApp` /
  * `installShortcuts`.
  *
- * Scalar params still flow UI→audio through `ParamBus` (architecture REQ-1); this
+ * Scalar params still flow UI→audio through `ParamBus` (architecture REQ-ui-and-audio-never-call-each-other); this
  * facade is only for the non-param interactions: transport, pattern grids, the
  * recorder, GR meters, and sample decode/preview.
  */
@@ -83,20 +83,20 @@ export interface StudioApi {
 
   /**
    * Whether a resume failed and the app is waiting for a real user gesture
-   * (audio-lifecycle.md REQ-13/REQ-14). Read by the Debug panel's context row.
+   * (audio-lifecycle.md REQ-a-resume-that-does-not-take-is-retried/REQ-a-stuck-context-is-visible). Read by the Debug panel's context row.
    */
   readonly audioRecovery: AudioRecoveryState;
 
   /**
    * Whether the browser let the AudioContext start without a user gesture
-   * (audio-lifecycle.md REQ-20). Decides whether the "Tap to start" modal is
+   * (audio-lifecycle.md REQ-the-gesture-is-required-only-when-required). Decides whether the "Tap to start" modal is
    * shown at all; read by the Debug panel's context row.
    */
   readonly autoplayAllowed: boolean;
 
   /**
    * Run `fn` once on the next real user gesture anywhere; returns a disarm
-   * (audio-lifecycle.md REQ-21). The auto-start path uses it for the work that
+   * (audio-lifecycle.md REQ-post-gesture-work-is-deferred). The auto-start path uses it for the work that
    * wants a gesture but is not about the AudioContext — Web MIDI's permission
    * prompt and the Android keep-alive retry.
    */
@@ -104,7 +104,7 @@ export interface StudioApi {
 
   /**
    * Bar length in 16th ticks, as `transport.beats` + `transport.beatUnit`
-   * currently resolve it (meter.md REQ-6). Read by the ruler, the `bar.step`
+   * currently resolve it (meter.md REQ-bar-ticks-is-the-arrangement-bar-line). Read by the ruler, the `bar.step`
    * readout and the export estimate, so every surface measures a bar exactly
    * the way the transport does — deriving it twice is how they drift.
    */
@@ -114,7 +114,7 @@ export interface StudioApi {
   panic(): void;
   /**
    * Move the playhead to an absolute 16th; `false` when refused (slaved, or a
-   * capture is in flight — transport-position.md REQ-6/REQ-8). UI surfaces call
+   * capture is in flight — transport-position.md REQ-seeking-is-refused-in-three-states/REQ-one-seek-entry-point). UI surfaces call
    * this, never `clock.seek`, so the guard lives in exactly one place (the
    * sync-master announce follows from `clock.onSeek`).
    */
@@ -126,11 +126,11 @@ export interface StudioApi {
   /**
    * Suspend the context *deliberately* (the Debug panel's Suspend). Distinct
    * from `ctx.suspend()`: this is what tells the automatic re-arm to leave it
-   * alone (audio-lifecycle.md REQ-15).
+   * alone (audio-lifecycle.md REQ-an-unasked-suspension-is-recovered).
    */
   suspendForDebug(): Promise<void>;
   /**
-   * Subscribe to "audio is stuck and needs a tap" (audio-lifecycle.md REQ-14).
+   * Subscribe to "audio is stuck and needs a tap" (audio-lifecycle.md REQ-a-stuck-context-is-visible).
    * Returns an unsubscribe. The Engine never touches the DOM — this is the
    * seam the toast hangs off (ADR-001).
    */

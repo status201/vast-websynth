@@ -3,9 +3,9 @@
 ```yaml
 id: compressor
 status: implemented
-version: 3      # v3: REQ-8 — the FET path's DC blocker is primed from its first
+version: 3      # v3: REQ-a-silent-input-stays-silent — the FET path's DC blocker is primed from its first
                 #     sample, so activating the compressor no longer emits the
-                #     saturator's zero-input pedestal as a step (song-mode REQ-17)
+                #     saturator's zero-input pedestal as a step (song-mode REQ-applying-a-song-is-click-free)
                 # v2: coefficients are memoized on their k-rate inputs (REQ-6/7)
 owner: core
 related:
@@ -39,7 +39,7 @@ fixed per instance via `processorOptions.mode`:
 - **`vca`** (SSL G-bus style): feed-forward detector, 6 dB soft knee ("glue"),
   clean VCA gain, auto-release. Sits `djLow → djHigh → masterComp → analyser` on
   the **master** bus (`engine.masterComp`); the DJ filter is a series pair, see
-  [performance](performance.md) REQ-9.
+  [performance](performance.md) REQ-the-dj-filter-is-a-series-pair.
 
 The UI exposes musician-friendly **discrete** ratio/release switches (e.g. `4:1`,
 `8:1`, … `ALL`); the engine maps those indices to the real numeric values the
@@ -55,45 +55,51 @@ boundedness) and runs cheaply on the audio thread.
 
 ## Requirements
 
-- **REQ-1** — A single worklet (`hardware-compressor`) supports both `fet` and
-  `vca` via `processorOptions.mode`, fixed at construction.
-- **REQ-2** — Drum compressor sits on the drum bus (`fet`); master compressor sits
-  `djLow → djHigh → masterComp → analyser` (`vca`).
-- **REQ-3** — Ratio/release params are stored as **indices**; the engine maps each
-  index to a real value. FET ratio index → `[4, 8, 12, 20, 100]` (`100` = "all
-  buttons in"). Master release index **past the table end** → auto-release.
-- **REQ-4** — The worklet posts current gain reduction (dB) on its `port` at
-  ~31 Hz; the `GrMeter` UI renders it.
-- **REQ-5** — The graph is wired **synchronously** in `Engine`'s constructor;
-  the worklet node is **spliced in after** `loadModule` via `attachWorklet()`,
-  replaying cached setter values.
-- **REQ-6** — **Coefficients are derived when their inputs move, not per block.**
-  The envelope and makeup coefficients are functions of the six k-rate params
-  alone, and `mkA`/`dcR` of the sample rate alone. A processor computes the
-  rate-only pair **once at construction**, and the param-derived set **only when
-  one of those params changes** — a knob turn, not a block boundary. Recomputing
-  them per block cost seven `Math.exp`/`Math.pow` per block per instance (~5,000
-  per second across the drum and master processors) to arrive at the same numbers.
-  This is ADR-010's *cheap*, and it must not cost *musical*: see REQ-7.
-- **REQ-7** — **The memo is bit-exact.** Caching a coefficient MUST produce the
-  identical value the per-block computation produced — same expression, same
-  operand order — and the cache MUST be invalidated by every param it reads.
-  A stale coefficient after a knob turn is an audible bug, and a re-derived one
-  that differs in the last bit is a sound change under
-  `runtime-performance.md` REQ-8. Pinned by frozen-reference vectors that include
-  a mid-stream k-rate param change.
+- **REQ-one-worklet-two-models** — A single worklet (`hardware-compressor`)
+  supports both `fet` and `vca` via `processorOptions.mode`, fixed at
+  construction.
+- **REQ-two-compressors-two-buses** — Drum compressor sits on the drum bus
+  (`fet`); master compressor sits `djLow → djHigh → masterComp → analyser`
+  (`vca`).
+- **REQ-ratio-and-release-are-indices** — Ratio/release params are stored as
+  **indices**; the engine maps each index to a real value. FET ratio index →
+  `[4, 8, 12, 20, 100]` (`100` = "all buttons in"). Master release index **past
+  the table end** → auto-release.
+- **REQ-worklet-posts-gain-reduction** — The worklet posts current gain
+  reduction (dB) on its `port` at ~31 Hz; the `GrMeter` UI renders it.
+- **REQ-compressor-graph-is-wired-synchronously** — The graph is wired
+  **synchronously** in `Engine`'s constructor; the worklet node is **spliced in
+  after** `loadModule` via `attachWorklet()`, replaying cached setter values.
+- **REQ-coefficients-derive-on-change** — **Coefficients are derived when their
+  inputs move, not per block.** The envelope and makeup coefficients are
+  functions of the six k-rate params alone, and `mkA`/`dcR` of the sample rate
+  alone. A processor computes the rate-only pair **once at construction**, and
+  the param-derived set **only when one of those params changes** — a knob turn,
+  not a block boundary. Recomputing them per block cost seven
+  `Math.exp`/`Math.pow` per block per instance (~5,000 per second across the
+  drum and master processors) to arrive at the same numbers. This is ADR-010's
+  *cheap*, and it must not cost *musical*: see
+  REQ-the-coefficient-memo-is-bit-exact.
+- **REQ-the-coefficient-memo-is-bit-exact** — **The memo is bit-exact.** Caching
+  a coefficient MUST produce the identical value the per-block computation
+  produced — same expression, same operand order — and the cache MUST be
+  invalidated by every param it reads. A stale coefficient after a knob turn is
+  an audible bug, and a re-derived one that differs in the last bit is a sound
+  change under `runtime-performance.md` REQ-a-worklet-optimisation-is-bit-exact. Pinned by frozen-reference
+  vectors that include a mid-stream k-rate param change.
 
-- **REQ-8** (v3) — **A silent input produces a silent first block.** The FET
-  saturator is deliberately asymmetric — `tanh(d·(y + 0.02))/d` — which is where
-  its second harmonic comes from, and it means the shaper outputs ≈ `+0.02` for an
-  input of **zero**. The 10 Hz DC blocker below it removes that in steady state,
-  but it starts from zeroed state, so the very first sample came out as a full
-  `0.02` step (≈ −34 dBFS) decaying over ~16 ms — a thump.
+- **REQ-a-silent-input-stays-silent** (v3) — **A silent input produces a silent
+  first block.** The FET saturator is deliberately asymmetric — `tanh(d·(y +
+  0.02))/d` — which is where its second harmonic comes from, and it means the
+  shaper outputs ≈ `+0.02` for an input of **zero**. The 10 Hz DC blocker below
+  it removes that in steady state, but it starts from zeroed state, so the very
+  first sample came out as a full `0.02` step (≈ −34 dBFS) decaying over ~16 ms
+  — a thump.
 
   A worklet only runs while its processed path is connected, so this fired the
   first time the drum compressor was un-bypassed after page load: `fx.drum.comp.on`
   defaults to 0 and demos ship it at 1, which made *clicking a demo* the trigger,
-  with no prior audio needed ([song-mode](song-mode.md) REQ-17).
+  with no prior audio needed ([song-mode](song-mode.md) REQ-applying-a-song-is-click-free).
 
   The blocker's state is therefore **primed from the first sample it sees**
   (`x[0]` taken as the previous input rather than 0) instead of differencing
@@ -101,7 +107,7 @@ boundedness) and runs cheaply on the audio thread.
   the old code emits `0.02` on sample 0 decaying over ~16 ms; the new one emits
   **exact zero**.
 
-  **This is a real output change and REQ-7's frozen vectors moved for it** — the
+  **This is a real output change and REQ-the-coefficient-memo-is-bit-exact's frozen vectors moved for it** — the
   honest accounting, because "bit-exact or it is a sound change" is the standing
   rule. What moved is only the transient: across the four `fet` digests the
   per-sample picks are identical bar the last float32 bit, and the *sums* shift by
@@ -229,14 +235,14 @@ Scenario: DSP curve under signal (failure guard)
   Then gain reduction is produced and posted on the port
 # pinned by: tests/audio/compressor-worklet.test.ts (worklet DSP imported directly)
 
-Scenario: The coefficient memo survives a block boundary (REQ-6)
+Scenario: The coefficient memo survives a block boundary (REQ-coefficients-derive-on-change)
   Given a processor has rendered a block with a given set of k-rate params
   When the next block arrives with those params unchanged
   Then the envelope coefficients are reused rather than recomputed
   And the output samples are identical to recomputing them
 # pinned by: tests/audio/compressor-worklet.test.ts (bit-exact digests)
 
-Scenario: A knob turn invalidates the memo mid-stream (REQ-7, regression)
+Scenario: A knob turn invalidates the memo mid-stream (REQ-the-coefficient-memo-is-bit-exact, regression)
   Given a processor is compressing with one set of k-rate params
   When threshold, ratio, attack, release, autoRelease and makeup all change
        between two blocks
@@ -250,7 +256,7 @@ Scenario: A knob turn invalidates the memo mid-stream (REQ-7, regression)
 
 - Worklet DSP, directly: `tests/audio/compressor-worklet.test.ts` (stubs worklet
   globals, imports `public/worklets/compressor.js`). Two layers: physics
-  assertions with loose tolerances, and the REQ-7 **frozen-reference digests**
+  assertions with loose tolerances, and the REQ-the-coefficient-memo-is-bit-exact **frozen-reference digests**
   covering both modes, `all` buttons, both `blend` release paths, the mono
   input/output fallbacks and a mid-stream k-rate param change. The digests
   observe the float32 output — what is heard — so they catch any rewrite that
@@ -277,6 +283,6 @@ Scenario: A knob turn invalidates the memo mid-stream (REQ-7, regression)
 - **The per-sample `Math.log10` and `Math.pow` are the real cost** (~192,000 calls
   per second across the two instances) and are deliberately untouched here.
   Replacing them with a dB↔linear lookup table is **not bit-exact**, so under
-  `runtime-performance.md` REQ-8 it is a *sound change*, not an optimisation —
+  `runtime-performance.md` REQ-a-worklet-optimisation-is-bit-exact it is a *sound change*, not an optimisation —
   it needs its own spec and an ADR-010 justification, in the spirit of `sat()`
   in `ladder-filter.js` replacing `tanh`.

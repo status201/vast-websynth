@@ -9,9 +9,9 @@ import { gotoAndStart, busGet, dragKnobUp } from './helpers';
  * class since their effect (step remap / drum roll) isn't directly observable here.
  *
  * The DJ filter is a SERIES lowpass -> highpass pair whose types never change
- * (performance.md REQ-9), so the observable is which side has moved off rest,
+ * (performance.md REQ-the-dj-filter-is-a-series-pair), so the observable is which side has moved off rest,
  * not a `.type` string. The sweep rides `detune` in cents and each side's
- * `frequency` is a fixed reference that is never written (REQ-10), so rest is
+ * `frequency` is a fixed reference that is never written (REQ-the-strip-rebuilds-only-on-selection), so rest is
  * 0 cents on both — negative is the lowpass working, positive the highpass.
  */
 
@@ -37,7 +37,7 @@ test.describe('song panel live FX', () => {
   });
 
   // Both sides move by retargeting `detune`, never by a type flip (performance.md
-  // REQ-9/REQ-10), so every assertion here polls: `setTargetAtTime` approaches
+  // REQ-the-dj-filter-is-a-series-pair/REQ-the-dj-sweep-rides-detune), so every assertion here polls: `setTargetAtTime` approaches
   // its target rather than arriving, over ~60 ms for the knob and ~500 ms for
   // Filter Drop. Reading once immediately after the gesture races the curve.
   test('the DJ filter knob sweeps the master pair into a highpass', async ({ page }) => {

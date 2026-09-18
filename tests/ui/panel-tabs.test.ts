@@ -28,7 +28,7 @@ const page = (t: PanelTabs, id: string) =>
   t.body.querySelector<HTMLElement>(`[data-testid="ppage-demo-${id}"]`)!;
 
 describe('PanelTabs', () => {
-  it('returns the strip and the page stack as separate elements (REQ-1)', () => {
+  it('returns the strip and the page stack as separate elements (REQ-panel-tabs-return-bar-and-pages)', () => {
     const t = makeTabs();
     expect(t.bar).not.toBe(t.body);
     expect(t.bar.contains(t.body)).toBe(false);
@@ -37,7 +37,7 @@ describe('PanelTabs', () => {
     expect(t.body.children).toHaveLength(2);
   });
 
-  it('mints prefix-namespaced testids and no bare tab-<id> (REQ-3)', () => {
+  it('mints prefix-namespaced testids and no bare tab-<id> (REQ-panel-tab-testids-are-prefixed)', () => {
     const t = makeTabs();
     expect(tab(t, '1')).not.toBeNull();
     expect(page(t, '2')).not.toBeNull();
@@ -83,7 +83,7 @@ describe('PanelTabs', () => {
     expect(seen).toEqual(['2']);
   });
 
-  it('keeps every page mounted across a switch (REQ-5)', () => {
+  it('keeps every page mounted across a switch (REQ-every-page-stays-in-the-dom)', () => {
     const t = makeTabs();
     tab(t, '2').click();
     // Hidden, not unmounted — the page keeps its bus subscriptions so it is
@@ -102,7 +102,7 @@ describe('PanelTabs', () => {
     expect(t.activeId).toBe('1');
   });
 
-  it('paints the off-screen-active lamp (REQ-6)', () => {
+  it('paints the off-screen-active lamp (REQ-set-lit-puts-a-lamp-on-a-tab)', () => {
     const t = makeTabs();
     expect(tab(t, '2').classList.contains('lit')).toBe(false);
 
@@ -136,7 +136,7 @@ describe('createTabbedPanel', () => {
     ],
   });
 
-  it('puts data-help on the tab row, never on a tab (REQ-7)', () => {
+  it('puts data-help on the tab row, never on a tab (REQ-data-help-sits-on-the-tab-row)', () => {
     const { el, tabs } = twoPage('lfo');
     const helped = el.querySelectorAll('[data-help]');
     expect(helped).toHaveLength(1);
@@ -146,11 +146,11 @@ describe('createTabbedPanel', () => {
 
   it('builds every page before the strip activates', () => {
     const { el } = twoPage();
-    // The hidden page is present and built — that is what REQ-5 buys.
+    // The hidden page is present and built — that is what REQ-every-page-stays-in-the-dom buys.
     expect(el.querySelector('[data-testid="ppage-lfo-2"]')!.textContent).toBe('two');
   });
 
-  it('is a header row plus a page stack, with no leftover empty body (REQ-9)', () => {
+  it('is a header row plus a page stack, with no leftover empty body (REQ-the-strip-replaces-the-title)', () => {
     const { el, tabs } = twoPage();
     // The strip REPLACES the title; an orphaned .panelBody sibling would be the
     // blank-panel trap in src/ui/CLAUDE.md.
@@ -162,7 +162,7 @@ describe('createTabbedPanel', () => {
     expect(el.querySelector('[data-testid="ptab-lfo-2"]')!.textContent).toBe('LFO 2');
   });
 
-  it('leaves the untabbed panel shape unchanged (REQ-8)', () => {
+  it('leaves the untabbed panel shape unchanged (REQ-panel-and-tabbed-panel-share-a-box)', () => {
     const el = createPanel('MIXER', (b) => { b.textContent = 'knobs'; }, 'mixer');
     expect(el.children).toHaveLength(2);
     expect(el.children[0]!.textContent).toBe('MIXER');

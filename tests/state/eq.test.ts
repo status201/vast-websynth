@@ -25,7 +25,7 @@ const withBand = (i: number, db: number, width = EQ_WIDTH_DEFAULT): EqSettings =
   return flat({ gains, width });
 };
 
-describe('band layout (equalizer.md REQ-2)', () => {
+describe('band layout (equalizer.md REQ-eight-fixed-eq-bands)', () => {
   it('puts a band inside every problem zone the Spectrum names', () => {
     // This is the feature's musical claim: you read a problem off the analyser
     // and the band above it is the one that fixes it. If a centre ever moves out
@@ -55,7 +55,7 @@ describe('band layout (equalizer.md REQ-2)', () => {
   });
 });
 
-describe('response (REQ-5, REQ-14)', () => {
+describe('response (REQ-the-eq-is-a-no-op-by-default, REQ-the-drawn-curve-is-exact)', () => {
   it('is flat at every default, right across the axis', () => {
     // The other half of ADR-006: not just "the effect is off", but "even
     // engaged, the defaults change nothing".
@@ -126,7 +126,7 @@ describe('response (REQ-5, REQ-14)', () => {
   });
 });
 
-describe('detuneCents (REQ-3)', () => {
+describe('detuneCents (REQ-a-real-highpass-and-lowpass)', () => {
   it('is zero at the reference and an octave per 1200', () => {
     expect(detuneCents(EQ_HP_REF, EQ_HP_REF)).toBe(0);
     expect(detuneCents(40, 20)).toBeCloseTo(1200, 9);
@@ -139,7 +139,7 @@ describe('detuneCents (REQ-3)', () => {
   });
 });
 
-describe('eqIsFlat — the lamp’s middle state (REQ-10)', () => {
+describe('eqIsFlat — the lamp’s middle state (REQ-the-eq-tab-led-only-indicates)', () => {
   it('is true at the defaults and false once anything moves', () => {
     expect(eqIsFlat(flat())).toBe(true);
     expect(eqIsFlat(withBand(2, -6))).toBe(false);
@@ -150,7 +150,7 @@ describe('eqIsFlat — the lamp’s middle state (REQ-10)', () => {
   });
 });
 
-describe('registry (REQ-6)', () => {
+describe('registry (REQ-eq-params-come-from-one-factory)', () => {
   const bus = new ParamBus();
   registerDefaults(bus);
 
@@ -204,7 +204,7 @@ describe('registry (REQ-6)', () => {
   });
 });
 
-describe('the magnitude formula describes the filter it claims to (REQ-14)', () => {
+describe('the magnitude formula describes the filter it claims to (REQ-the-drawn-curve-is-exact)', () => {
   /**
    * `eqResponseDb` is a closed-form expression; the filter is a difference
    * equation. This runs the difference equation from the very same coefficients

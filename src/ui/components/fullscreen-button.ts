@@ -3,7 +3,7 @@ import { HEADER_ICONS } from './header-icons';
 import tourStyles from '../styles/tour.module.css';
 
 /**
- * Header fullscreen toggle (specs/features/pwa-install.md REQ-2).
+ * Header fullscreen toggle (specs/features/pwa-install.md REQ-manifest-and-button-drive-fullscreen).
  *
  * Returns `null` when the Fullscreen API is unavailable (iPhone Safari) —
  * the caller simply doesn't render the button. State follows the real

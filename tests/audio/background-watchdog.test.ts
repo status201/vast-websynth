@@ -3,7 +3,9 @@ import { BackgroundAudioWatchdog } from '../../src/audio/background-watchdog';
 import type { TickTimer } from '../../src/audio/transport/tick-timer';
 
 /**
- * The background watchdog (audio-lifecycle.md REQ-9..REQ-12).
+ * The background watchdog — audio-lifecycle.md
+ * REQ-breaking-up-background-audio-is-suspended/REQ-the-trip-is-measured-never-inferred,
+ * audio-lifecycle.md REQ-the-trip-never-interrupts-a-capture/REQ-the-measurement-is-visible-either-way.
  *
  * Everything it depends on is injected — the document, the sampling timer, the
  * wall clock — so a test drives real time, audio time and the audio thread's own
@@ -155,7 +157,7 @@ describe('BackgroundAudioWatchdog', () => {
     expect(h.onGlitch).not.toHaveBeenCalled();
   });
 
-  // REQ-11 — an export records the live output; suspending truncates the file.
+  // REQ-the-trip-never-interrupts-a-capture — an export records the live output; suspending truncates the file.
   it('never suspends while a capture is running', () => {
     const h = harness({ busy: true });
     h.hide();
@@ -163,7 +165,7 @@ describe('BackgroundAudioWatchdog', () => {
     expect(h.onGlitch).not.toHaveBeenCalled();
   });
 
-  // REQ-17 — the trip exists to stop audible break-up. With nothing sounding
+  // REQ-nothing-suspends-for-silent-crackle — the trip exists to stop audible break-up. With nothing sounding
   // there is none, and the suspend/resume cycle is pure risk.
   it('never suspends an instrument that is not making a sound', () => {
     const h = harness({ silent: true });
@@ -172,7 +174,7 @@ describe('BackgroundAudioWatchdog', () => {
     expect(h.onGlitch).not.toHaveBeenCalled();
   });
 
-  it('does suspend the same windows once the transport is playing (REQ-17)', () => {
+  it('does suspend the same windows once the transport is playing (REQ-nothing-suspends-for-silent-crackle)', () => {
     const h = harness({ silent: false });
     h.hide();
     h.underruns(0.5);   // severe — one window is the whole verdict

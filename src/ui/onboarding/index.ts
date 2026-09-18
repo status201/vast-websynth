@@ -3,7 +3,7 @@
 // runtime hooks the steps need.
 //
 // The interface below is deliberately unchanged by the lazy split
-// (runtime-performance.md REQ-1): app.ts wires `toggleInfoBadges`, `isActive`
+// (runtime-performance.md REQ-boot-cost-matches-the-request): app.ts wires `toggleInfoBadges`, `isActive`
 // and `onChange` into the ⓘ button and `UiBridge.toggleInfoBadges` while it
 // builds the header — before any gesture — so every method has to answer
 // synchronously whether or not the body exists yet. The two commands return
@@ -56,7 +56,7 @@ export function createOnboarding(ctx: TourCtx): Onboarding {
   // the ⓘ button and the `?` key racing each other must not end up with two
   // InfoBadges instances fighting over the same anchors.
   //
-  // A *rejection* must not be memoized though (onboarding.md REQ-24): the cache
+  // A *rejection* must not be memoized though (onboarding.md REQ-the-help-door-never-fails-silently): the cache
   // would make one offline click permanent, leaving the tour dead for the rest
   // of the session even once the network came back. Clearing `pending` before
   // rethrowing keeps the state-sharing guarantee — a failed load constructed

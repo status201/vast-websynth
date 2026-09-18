@@ -34,10 +34,10 @@ function bankButtons(el: HTMLElement): HTMLButtonElement[] {
 const filled = (b: HTMLButtonElement | undefined): boolean =>
   b?.classList.contains('filled') ?? false;
 
-// banks.md REQ-6 — the content dot must count every lane a machine stores in a
+// banks.md REQ-content-dot-covers-every-lane — the content dot must count every lane a machine stores in a
 // bank. Motion has three (XY anchors + tracks A/B); counting only the XY lane
 // rendered a track-only bank as empty.
-describe('bankBarFor content dot (banks.md REQ-6)', () => {
+describe('bankBarFor content dot (banks.md REQ-content-dot-covers-every-lane)', () => {
   it('lights a motion bank whose A track holds steps but whose XY lane is empty', () => {
     const { patterns, api } = harness();
     patterns.setMotionEditBank(1);
@@ -90,7 +90,7 @@ describe('bankBarFor content dot (banks.md REQ-6)', () => {
 });
 
 /**
- * Off-screen repaint gating (runtime-performance.md REQ-4). TabContainer hides
+ * Off-screen repaint gating (runtime-performance.md REQ-no-work-for-offscreen-dom). TabContainer hides
  * inactive panels with a class, so all four stay subscribed and would otherwise
  * sweep a playhead every 16th against DOM nobody can see. The risk the gate
  * introduces is *staleness*, so that is what these pin.
@@ -130,7 +130,7 @@ describe('VisibilityGate', () => {
   });
 });
 
-describe('wirePlayhead visibility gating (runtime-performance.md REQ-4)', () => {
+describe('wirePlayhead visibility gating (runtime-performance.md REQ-no-work-for-offscreen-dom)', () => {
   /** A one-row grid of fake cells plus a step emitter and a refresh counter. */
   function playheadHarness() {
     const { patterns, api } = harness();

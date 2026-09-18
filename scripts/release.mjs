@@ -465,7 +465,7 @@ async function main() {
     writeFileSync(ZIP_PATH, zip);
 
     // The MCP server ships prebuilt: production has no node_modules, and
-    // core.mjs refuses to self-build there (mcp-server.md REQ-3). The same
+    // core.mjs refuses to self-build there (mcp-server.md REQ-local-entries-self-build-the-core). The same
     // packer backs `npm run pack:mcp`, so what a tester deploys before a
     // release is the layout the release then ships.
     heading('Building MCP core bundle (npm run build:mcp)');

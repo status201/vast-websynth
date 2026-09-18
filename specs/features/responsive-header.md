@@ -4,7 +4,7 @@
 id: responsive-header
 status: implemented
 version: 6  # v6: a glyph may carry per-part hook classes for a state stylesheet
-            #     to recolour (the ⓘ disc/stem/dot, onboarding.md REQ-8b)
+            #     to recolour (the ⓘ disc/stem/dot, onboarding.md REQ-the-glyph-inverts-while-badges-show)
             # v5: the two ⓘ/? utility buttons swap roles — ⓘ toggles the info
             #     badges, ? opens Help & About (onboarding.md v15)
 owner: ui
@@ -44,72 +44,76 @@ end of the row.
 
 ## Requirements
 
-- **REQ-1** — Below **720px** the preset cluster is hidden by default and a ☰
-  toggle button is shown, parked at the **far right** of the header's first row
-  (the brand row): the REQ-9 line break keeps the transport cluster off that
-  row, so the toggle's `margin-left: auto` has the whole first row's free
-  space to absorb.
-- **REQ-2** — Tapping ☰ expands the preset cluster **inline** as its own
-  full-width header row; tapping again hides it. The button's `aria-expanded`
-  reflects the open state, and it shows a visible active (gold "on") style while
-  the menu is open.
-- **REQ-3** — At **≥721px** there is no hamburger and the preset cluster is shown
-  inline (desktop/tablet behaviour unchanged). Crossing the breakpoint needs no
-  JS: the CSS shows the cluster / hides the toggle regardless of the open class.
-- **REQ-4** — Only the preset cluster collapses. The transport cluster
-  (Play/BPM/Swing) and the voicing cluster (Mono-Poly/Panic/Vol) stay visible at
-  every width; whenever the header wraps they sit on the row **below** the
-  first row (REQ-9) instead of crowding it.
-- **REQ-5** — The cluster's utility buttons are **icon-only**: Save (floppy),
-  Perf (gauge), **Info badges (ⓘ)**, **Help & About (?-in-circle)**, Fullscreen
-  (expand corners, swapping to compress corners while fullscreen), appended
-  **in that order** —
-  fullscreen last, still omitted entirely where `document.fullscreenEnabled`
-  is false. Icons are inline SVG strings coloured via CSS `currentColor`
-  (never Unicode emoji, which render coloured on some platforms), so the Perf
-  button's tier classes tint its glyph automatically. That rule is no longer
-  local to this header — it is app-wide and lives in
-  [iconography](iconography.md); what stays here is the header's own
-  specialisation of it (the `hdr-icon` class, its state hooks, its 20px paint
-  size). The ⓘ's drawing is now the shared `INFO_SHAPE`, so this button and the
-  one help copy points at cannot diverge.
-- **REQ-6** — Every icon button carries a descriptive `title` (hover tooltip)
-  **and** an `aria-label`, so accessible names survive the loss of text labels
-  (`createButton` defaults `aria-label` to the `label` option when an icon is
-  set). Stable testids: `preset-save`, `perf-settings`, `info-badges`,
-  `about-button`, `fullscreen`. Note the ids follow **function, not position**
-  (v5): `about-button` is the ? glyph, because that is the button that opens
-  About; the ⓘ glyph beside it is `info-badges` because that is what it toggles
-  ([onboarding.md](onboarding.md) REQ-8). The retired `help-button` id is not
-  reused.
-- **REQ-7** — The header must never clip content off the right edge at any
-  width. Its clusters' combined min-content width (~1140px) exceeds the
-  viewport well before the 992px reflow, so from **≤1140px** the header row
-  wraps (`flex-wrap`, spacer hidden) instead of overflowing — otherwise the
-  page's `overflow-x: hidden` cuts off the voicing cluster *and*, because the
-  over-wide header widens the single `.app` grid column, the `.main` panel
-  grid's right column (MIXER) with it.
-- **REQ-8** — From **≤1140px** the `Preset:` text label is hidden to save
-  header width; the preset dropdown and the utility icon buttons remain. At
-  ≥1141px the label shows as before.
-- **REQ-9** — From **≤1140px** (the wrap step) the header is a deterministic
-  two-row layout: a zero-height line-break element before the transport
-  cluster forces it to **lead the second row** (far left), and the voicing
-  cluster right-aligns on that row via `margin-left: auto`. Row 1 holds the
-  brand + preset cluster (or brand + ☰ below 720px).
-- **REQ-10** — From **≤1140px** the preset cluster splits: the preset dropdown
-  + Save stay left-aligned while the four utility icon buttons (Perf / Info /
-  Help / Fullscreen) push to the **far right** of the cluster's row — an inner
-  spacer between Save and Perf grows to fill the row (the cluster itself grows
-  to fill the remaining first-row width). The same split applies to the
-  expanded hamburger row below 720px. At ≥1141px the cluster stays a single
-  content-sized run, unchanged.
-- **REQ-11** — Below **720px** the preset dropdown drops its 120px min-width
-  and is capped at `max-width: 90px`; a longer selected name truncates with an
-  ellipsis. The clipping is visual only — the label's `textContent` stays the
-  full name (test assertions on the text keep passing). This applies inside
-  the expanded hamburger row (the only place the dropdown is visible ≤720px);
-  every other `Dropdown` instance and every width ≥721px is unchanged.
+- **REQ-below-720-the-preset-cluster-hides** — Below **720px** the preset
+  cluster is hidden by default and a ☰ toggle button is shown, parked at the
+  **far right** of the header's first row (the brand row): the
+  REQ-below-1140-the-header-wraps-deterministically line break keeps the
+  transport cluster off that row, so the toggle's `margin-left: auto` has the
+  whole first row's free space to absorb.
+- **REQ-the-hamburger-expands-inline** — Tapping ☰ expands the preset cluster
+  **inline** as its own full-width header row; tapping again hides it. The
+  button's `aria-expanded` reflects the open state, and it shows a visible
+  active (gold "on") style while the menu is open.
+- **REQ-above-720-there-is-no-hamburger** — At **≥721px** there is no hamburger
+  and the preset cluster is shown inline (desktop/tablet behaviour unchanged).
+  Crossing the breakpoint needs no JS: the CSS shows the cluster / hides the
+  toggle regardless of the open class.
+- **REQ-only-the-preset-cluster-collapses** — Only the preset cluster collapses.
+  The transport cluster (Play/BPM/Swing) and the voicing cluster
+  (Mono-Poly/Panic/Vol) stay visible at every width; whenever the header wraps
+  they sit on the row **below** the first row
+  (REQ-below-1140-the-header-wraps-deterministically) instead of crowding it.
+- **REQ-utility-buttons-are-icon-only** — The cluster's utility buttons are
+  **icon-only**: Save (floppy), Perf (gauge), **Info badges (ⓘ)**, **Help &
+  About (?-in-circle)**, Fullscreen (expand corners, swapping to compress
+  corners while fullscreen), appended **in that order** — fullscreen last, still
+  omitted entirely where `document.fullscreenEnabled` is false. Icons are inline
+  SVG strings coloured via CSS `currentColor` (never Unicode emoji, which render
+  coloured on some platforms), so the Perf button's tier classes tint its glyph
+  automatically. That rule is no longer local to this header — it is app-wide
+  and lives in [iconography](iconography.md); what stays here is the header's
+  own specialisation of it (the `hdr-icon` class, its state hooks, its 20px
+  paint size). The ⓘ's drawing is now the shared `INFO_SHAPE`, so this button
+  and the one help copy points at cannot diverge.
+- **REQ-every-icon-button-has-a-title** — Every icon button carries a
+  descriptive `title` (hover tooltip) **and** an `aria-label`, so accessible
+  names survive the loss of text labels (`createButton` defaults `aria-label` to
+  the `label` option when an icon is set). Stable testids: `preset-save`,
+  `perf-settings`, `info-badges`, `about-button`, `fullscreen`. Note the ids
+  follow **function, not position** (v5): `about-button` is the ? glyph, because
+  that is the button that opens About; the ⓘ glyph beside it is `info-badges`
+  because that is what it toggles ([onboarding.md](onboarding.md) REQ-the-info-button-is-a-toggle). The
+  retired `help-button` id is not reused.
+- **REQ-the-header-never-clips** — The header must never clip content off the
+  right edge at any width. Its clusters' combined min-content width (~1140px)
+  exceeds the viewport well before the 992px reflow, so from **≤1140px** the
+  header row wraps (`flex-wrap`, spacer hidden) instead of overflowing —
+  otherwise the page's `overflow-x: hidden` cuts off the voicing cluster *and*,
+  because the over-wide header widens the single `.app` grid column, the `.main`
+  panel grid's right column (MIXER) with it.
+- **REQ-below-1140-the-preset-label-hides** — From **≤1140px** the `Preset:`
+  text label is hidden to save header width; the preset dropdown and the utility
+  icon buttons remain. At ≥1141px the label shows as before.
+- **REQ-below-1140-the-header-wraps-deterministically** — From **≤1140px** (the
+  wrap step) the header is a deterministic two-row layout: a zero-height
+  line-break element before the transport cluster forces it to **lead the second
+  row** (far left), and the voicing cluster right-aligns on that row via
+  `margin-left: auto`. Row 1 holds the brand + preset cluster (or brand + ☰
+  below 720px).
+- **REQ-below-1140-the-preset-cluster-splits** — From **≤1140px** the preset
+  cluster splits: the preset dropdown + Save stay left-aligned while the four
+  utility icon buttons (Perf / Info / Help / Fullscreen) push to the **far
+  right** of the cluster's row — an inner spacer between Save and Perf grows to
+  fill the row (the cluster itself grows to fill the remaining first-row width).
+  The same split applies to the expanded hamburger row below 720px. At ≥1141px
+  the cluster stays a single content-sized run, unchanged.
+- **REQ-below-720-the-dropdown-drops-its-min-width** — Below **720px** the
+  preset dropdown drops its 120px min-width and is capped at `max-width: 90px`;
+  a longer selected name truncates with an ellipsis. The clipping is visual only
+  — the label's `textContent` stays the full name (test assertions on the text
+  keep passing). This applies inside the expanded hamburger row (the only place
+  the dropdown is visible ≤720px); every other `Dropdown` instance and every
+  width ≥721px is unchanged.
 
 ## Technical design
 
@@ -126,24 +130,24 @@ addition to the shared `headerGroup` class.
 - The brand cluster is `createBrand()` ([brand.md](brand.md)), shared with the
   About and start modals. The header composes its own `headerBrand` class on top
   for the divider rule to its right — that framing is not part of the shared
-  block (brand.md REQ-3).
+  block (brand.md REQ-brand-block-carries-no-framing).
 - DOM order in the header: `brand, menuToggle, presetGroup, spacer,
   headerBreak, transport, right`. The toggle sits right after `brand` so, on a
   narrow screen, CSS `margin-left: auto` parks it at the right end of the
   first wrapped line. `headerBreak` is an empty `div` (`display: none` by
   default); at ≤1140px it becomes a zero-height `flex-basis: 100%` item, so
-  the transport cluster always starts the second flex line (REQ-9), the
+  the transport cluster always starts the second flex line (REQ-below-1140-the-header-wraps-deterministically), the
   voicing cluster (`voicingGroup` hook class, `margin-left: auto`) right-aligns
   on it, and below 720px the toggle's auto margin claims the whole first row
-  (REQ-1/REQ-4). With the menu open the expanded preset cluster (its own
+  (REQ-below-720-the-preset-cluster-hides/REQ-only-the-preset-cluster-collapses). With the menu open the expanded preset cluster (its own
   `flex-basis: 100%` row) sits between the brand row and the transport row.
 - The `Preset:` label span carries the `presetLabel` module class, hidden in
-  the ≤1140px media block (REQ-8).
+  the ≤1140px media block (REQ-below-1140-the-preset-label-hides).
 - Inside the preset cluster the child order is `presetLabel, dropdown, save,
   presetSpacer, perf, infoBadges, about, fullscreen`. `presetSpacer` is an empty
   `div` (`display: none` by default, the `headerSpacer` precedent); at ≤1140px
   it becomes a `flex: 1` filler and the cluster gets `flex: 1`, splitting the
-  row left/right (REQ-10). The menu-open rule's `flex-basis: 100%` outranks
+  row left/right (REQ-below-1140-the-preset-cluster-splits). The menu-open rule's `flex-basis: 100%` outranks
   the cluster's `flex: 1` basis below 720px, so the expanded row still spans
   full width.
 - Icon buttons (REQ-5/6): `createButton` grows optional `icon` (inline SVG
@@ -158,7 +162,7 @@ addition to the shared `headerGroup` class.
   A glyph may also carry **per-part hook classes** that some *state* stylesheet
   recolours — the ⓘ's `.disc` / `.stem` / `.dot`, inverted from
   `tour.module.css` while the info badges show
-  ([onboarding.md](onboarding.md) REQ-8b). They stay inert here: `header-icons.ts`
+  ([onboarding.md](onboarding.md) REQ-the-glyph-inverts-while-badges-show). They stay inert here: `header-icons.ts`
   still declares no colour, and a glyph with no state stylesheet behind it
   renders exactly as before. Hooks belong to one glyph, so a class shared with
   another button's state (ⓘ and Fullscreen both wear `toggleActive`) cannot
@@ -173,16 +177,16 @@ addition to the shared `headerGroup` class.
   block (placed **after** the existing `≤992px` block so it wins at narrow
   widths) shows the toggle, hides `.presetGroup`, reveals it via
   `.header.menuOpen .presetGroup { display: flex; flex-basis: 100% }`, and
-  caps the preset dropdown (REQ-11): `.presetGroup :global(.dropdown) >
+  caps the preset dropdown (REQ-below-720-the-dropdown-drops-its-min-width): `.presetGroup :global(.dropdown) >
   button { min-width: 0; max-width: 90px }` — scoped via the global
   `dropdown` bridge class so no other `Dropdown` instance is affected; the
   ellipsis itself lives on `dropdown.module.css` `.label` (component-level,
   inert until something constrains the toggle's width). The
-  `≤1140px` block (REQ-7) holds the header/cluster `flex-wrap: wrap` rules,
-  `.presetLabel { display: none }` (REQ-8), the two-row layout (REQ-9):
+  `≤1140px` block (REQ-the-header-never-clips) holds the header/cluster `flex-wrap: wrap` rules,
+  `.presetLabel { display: none }` (REQ-below-1140-the-preset-label-hides), the two-row layout (REQ-below-1140-the-header-wraps-deterministically):
   `.headerBreak { display: block; flex-basis: 100%; height: 0 }` +
   `.voicingGroup { margin-left: auto }`, and the preset-cluster split
-  (REQ-10): `.presetGroup { flex: 1 }` + `.presetSpacer { display: block;
+  (REQ-below-1140-the-preset-cluster-splits): `.presetGroup { flex: 1 }` + `.presetSpacer { display: block;
   flex: 1 }` — so the revealed cluster wraps its buttons at every narrower
   width; the `≤992px` block keeps only the tighter gap/padding. Breakpoint
   cascade order in the file: 1280 → 1140 → 992 → 720.

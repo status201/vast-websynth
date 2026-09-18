@@ -22,13 +22,13 @@ const DJ_HP_REST_HZ = 20;
 const DJ_REST_Q = 0.7;
 
 /**
- * The sweep is `detune`, in cents, not `frequency` in Hz (performance.md REQ-10).
+ * The sweep is `detune`, in cents, not `frequency` in Hz (performance.md REQ-the-dj-sweep-rides-detune).
  * Each node's frequency is a fixed reference the Engine sets once; these spans
  * are how far detune travels to reach the ends of the curve v6 drew with
  * `Math.pow`. Cents are log-frequency, so a linear approach in cents *is* that
  * curve — which is what lets the whole path use `setTargetAtTime` and so never
  * cancel (an unanchored cancel restarts the ramp from the constructed value on
- * Gecko: the crackle REQ-10 fixes).
+ * Gecko: the crackle REQ-the-dj-sweep-rides-detune fixes).
  */
 const DJ_LP_SPAN_CENTS = 1200 * Math.log2(130 / DJ_OPEN_HZ);      // ≈ -8800
 const DJ_HP_SPAN_CENTS = 1200 * Math.log2(4000 / DJ_HP_REST_HZ);  // ≈ +9171
@@ -52,7 +52,7 @@ export class Performance {
    * Gate for Tape Stop's clock-BPM ramp (per-frame *and* the final restore).
    * Default allows it; the Engine sets it to `() => sync.mode !== 'slave'` so a
    * slaved instance's Tape Stop bends pitch only and never fights the followed
-   * clock (midi-clock-sync REQ-13). The pitch-bend ramp is unaffected.
+   * clock (midi-clock-sync REQ-tape-stop-is-gated-while-slaved). The pitch-bend ramp is unaffected.
    */
   clockRampAllowed: () => boolean = () => true;
 
@@ -76,7 +76,7 @@ export class Performance {
   ) {
     // The stutter window is anchored to an absolute step, so after a playhead
     // jump `mapStep` would fold the new position back into the *old* window —
-    // a backwards jump replaying it forever (performance.md REQ-7). Nothing to
+    // a backwards jump replaying it forever (performance.md REQ-a-seek-re-anchors-stutter). Nothing to
     // do while stutter is off: mapStep is the identity then.
     clock.onSeek(() => { if (this.stutterOn) this.anchor = this.clock.step; });
   }
@@ -108,7 +108,7 @@ export class Performance {
    *
    * `mapStep` still folds the **absolute** step, so a stutter over a 12-cell
    * lane repeats 12-cell material and a stutter window is unaffected by the
-   * lane's length or rate (meter.md REQ-17). Only the modulo that follows it is
+   * lane's length or rate (meter.md REQ-stutter-composes-with-length-and-rate). Only the modulo that follows it is
    * lane-aware.
    */
   stepIndex(step: number, cells: number = SEQ_LENGTH, rateIdx: number = DEFAULT_LANE_RATE): number {
@@ -126,14 +126,14 @@ export class Performance {
   setDrop(on: boolean): void {
     this.dropActive = on;
     if (on) {
-      // REQ-3 — the drop OVERRIDES the knob, so the highpass side is opened back
+      // REQ-filter-drop-is-momentary — the drop OVERRIDES the knob, so the highpass side is opened back
       // out as the lowpass dives. Leaving it where the knob had it would band-pass
       // the dive instead of replacing it (which is what the single-node version
       // did implicitly, by owning the only filter there was).
       //
-      // The dive glides from wherever the filter is (REQ-10). v6 forced it to
+      // The dive glides from wherever the filter is (REQ-the-dj-sweep-rides-detune). v6 forced it to
       // start at >=400 Hz, which from a knob already parked at 130 Hz was an
-      // instantaneous jump *up* — the coefficient step REQ-9 exists to abolish —
+      // instantaneous jump *up* — the coefficient step REQ-the-dj-filter-is-a-series-pair exists to abolish —
       // and read a live `.value` to do it, which Gecko does not keep current.
       this.side(this.djLow, DJ_DROP_CENTS, DJ_DROP_Q, DJ_DROP_TAU);
       this.side(this.djHigh, 0, DJ_REST_Q, DJ_DROP_TAU);
@@ -151,12 +151,12 @@ export class Performance {
   }
 
   /**
-   * Drive both sides of the pair (REQ-9). Neither node's `type` is touched: the
+   * Drive both sides of the pair (REQ-the-dj-filter-is-a-series-pair). Neither node's `type` is touched: the
    * side that is not working is retargeted to transparency instead, so crossing
    * centre is two continuous sweeps rather than a coefficient swap on a live
    * biquad. Each side's own curve is exactly what it was when this was one node,
    * so the sweep is unchanged either side of zero — the mapping is the same, read
-   * in cents rather than Hz (REQ-10).
+   * in cents rather than Hz (REQ-the-dj-sweep-rides-detune).
    */
   private applyDjFilter(x: number, tau: number): void {
     const lo = -Math.min(0, x); // 0..1 of lowpass
@@ -169,7 +169,7 @@ export class Performance {
   }
 
   /**
-   * Retarget one side. `setTargetAtTime` only (REQ-10): it continues from the
+   * Retarget one side. `setTargetAtTime` only (REQ-the-dj-sweep-rides-detune): it continues from the
    * value the previous curve has reached, so it needs no `cancelScheduledValues`
    * and may be re-issued at any rate — which is the whole fix, since a cancel
    * that pins nothing restarts the ramp from the constructed value on Gecko.
@@ -206,11 +206,11 @@ export class Performance {
     const t0 = performance.now();
 
     // The ramp is the machine bending the pitch, not the user editing a param, so
-    // its per-frame writes stay off `bus.onChange` (runtime-performance.md REQ-5)
+    // its per-frame writes stay off `bus.onChange` (runtime-performance.md REQ-automation-is-not-an-edit)
     // — otherwise a 650 ms tape stop re-arms the session autosave ~40 times and
     // can capture a mid-ramp pitchBend as the saved session. `ease` is carried on
     // the closure so the suppressed body is allocated once per gesture, not per
-    // frame (REQ-6).
+    // frame (REQ-a-clock-ramp-gate-predicate).
     let ease = 0;
     const applyEase = (): void => {
       // Skip the clock ramp while slaved — an incoming clock owns the tempo.

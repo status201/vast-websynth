@@ -5,7 +5,7 @@ import {
 } from '../../src/state/mod-routing';
 
 /**
- * specs/features/mod-matrix.md REQ-3/REQ-4 — the half of the matrix that has to be
+ * specs/features/mod-matrix.md REQ-routes-are-inert-by-default/REQ-label-arrays-are-append-only — the half of the matrix that has to be
  * true forever: the params are inert by default, and the label arrays are append-only.
  *
  * A saved route stores an **index**, so a reorder silently re-targets every preset and
@@ -18,7 +18,7 @@ function freshBus(): ParamBus {
   return bus;
 }
 
-describe('mod matrix params are inert by default (REQ-3)', () => {
+describe('mod matrix params are inert by default (REQ-routes-are-inert-by-default)', () => {
   it('registers three params per free row, all at zero', () => {
     const bus = freshBus();
     for (let n = 0; n < MOD_ROWS; n++) {
@@ -37,7 +37,7 @@ describe('mod matrix params are inert by default (REQ-3)', () => {
     expect(MOD_DST.none).toBe(0);
   });
 
-  it('lets amount go negative, so a route can invert (REQ-9)', () => {
+  it('lets amount go negative, so a route can invert (REQ-route-depth-is-bipolar)', () => {
     const bus = freshBus();
     expect(bus.def('mod.0.amt')?.min).toBe(-1);
     expect(bus.def('mod.0.amt')?.max).toBe(1);
@@ -55,7 +55,7 @@ describe('mod matrix params are inert by default (REQ-3)', () => {
   });
 });
 
-describe('the label arrays are append-only (REQ-4)', () => {
+describe('the label arrays are append-only (REQ-label-arrays-are-append-only)', () => {
   // Spelled out, not derived: the point is that changing the source must break this
   // test, so it cannot be written in terms of the thing it guards.
   it('keeps the known source prefix in order', () => {
@@ -80,7 +80,7 @@ describe('the label arrays are append-only (REQ-4)', () => {
   });
 });
 
-describe('a preset written before the matrix (REQ-3, back-compat)', () => {
+describe('a preset written before the matrix (REQ-routes-are-inert-by-default, back-compat)', () => {
   it('falls back to inert when the keys are absent', () => {
     const bus = freshBus();
     bus.set('mod.0.src', MOD_SRC.lfo1);
@@ -99,7 +99,7 @@ describe('a preset written before the matrix (REQ-3, back-compat)', () => {
     expect(bus.get('mod.0.amt')).toBe(0);
   });
 
-  it('leaves the two LFO rows on their own params, untouched (REQ-2)', () => {
+  it('leaves the two LFO rows on their own params, untouched (REQ-eight-rows-two-grandfathered)', () => {
     // Rows 0-1 are grandfathered: no migration runs, so these keep their meaning.
     const bus = freshBus();
     expect(bus.def('lfo.dest')).toBeDefined();

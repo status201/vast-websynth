@@ -5,7 +5,7 @@
 //
 // The bundle is deliberately NOT pre-built here. It used to be — one `vite
 // build` up front so the server start was fast — but that skipped `ensureCore`'s
-// spawn path entirely, leaving "self-build keeps stdout protocol-pure" (REQ-1)
+// spawn path entirely, leaving "self-build keeps stdout protocol-pure" (REQ-two-transports-one-dispatcher)
 // unpinned: the interesting case is precisely a server that runs a Vite build
 // while a client is talking to it. It costs nothing, because the pre-build was
 // running that same single build unconditionally anyway; it has only moved
@@ -58,7 +58,7 @@ beforeAll(async () => {
     try {
       msg = JSON.parse(line) as Record<string, any>;
     } catch {
-      impure.push(line); // REQ-1 violation — asserted below
+      impure.push(line); // REQ-two-transports-one-dispatcher violation — asserted below
       return;
     }
     const resolve = pending.get(msg.id);
@@ -77,7 +77,7 @@ afterAll(() => {
   child?.kill();
 });
 
-// mcp-server.md REQ-1 / REQ-3. The build runs in a child process whose stdout is
+// mcp-server.md REQ-two-transports-one-dispatcher / REQ-local-entries-self-build-the-core. The build runs in a child process whose stdout is
 // relayed to our stderr, so a chatty toolchain cannot reach the protocol stream.
 describe('the self-build', () => {
   it('produces the bundle on a checkout that had none', () => {
@@ -135,7 +135,7 @@ describe('websynth MCP server over stdio', () => {
     expect(cat.params.some((p: { id: string }) => p.id === 'filter.cutoff')).toBe(true);
   }, 30_000);
 
-  // The preset half rides the same bundle (mcp-server.md REQ-4): proving one
+  // The preset half rides the same bundle (mcp-server.md REQ-song-core-entry-exports-only-pure-code): proving one
   // preset tool answers over real stdio proves song-core-entry's new exports
   // survived the Vite lib build.
   it('validate_preset: an invented parameter id → ok:false, not isError', async () => {
@@ -162,7 +162,7 @@ describe('websynth MCP server over stdio', () => {
       },
     });
     expect(res.result.isError).toBeFalsy();
-    // `warnings` is always present on the success payload (mcp-server.md REQ-8)
+    // `warnings` is always present on the success payload (mcp-server.md REQ-a-valid-song-can-still-be-wrong)
     // — empty here because every automation target in this song resolves.
     expect(JSON.parse(res.result.content[0].text)).toEqual({ ok: true, errors: [], warnings: [] });
   }, 30_000);

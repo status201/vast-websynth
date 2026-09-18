@@ -1,6 +1,7 @@
 /**
  * Pure JSON-RPC 2.0 / MCP dispatch for the websynth MCP server
- * (specs/features/mcp-server.md REQ-2/6). No stdio in here — the entry
+ * (mcp-server.md
+ * REQ-initialize-echoes-the-protocol-version/REQ-tool-input-errors-are-json-rpc-errors). No stdio in here — the entry
  * (websynth-mcp.mjs) owns framing, this module just maps a parsed request
  * to a response object (or null for notifications). Hand-rolled, zero deps
  * (ADR-003).

@@ -3,8 +3,9 @@ import { PRESET_FORMAT, BANK_FORMAT } from './preset-file';
 import { isObject } from './validate-utils';
 
 /**
- * Pasted-payload extraction + classification — `specs/features/paste-import.md`
- * REQ-1..REQ-4.
+ * Pasted-payload extraction + classification —
+ * paste-import.md REQ-extraction-comes-before-parsing/REQ-classification-is-pure-and-total,
+ * paste-import.md REQ-a-missing-format-tag-is-inferred/REQ-unknown-always-carries-a-reason.
  *
  * Deliberately pure (no DOM, no `song.ts` — its `import.meta.glob` would poison
  * any Node bundle, same rule as `song-author.ts`): the whole "what did the user
@@ -29,9 +30,9 @@ export interface PasteClassification {
   name?: string;
   /** Sounds in the payload (1 for a preset file). */
   count?: number;
-  /** REQ-3 — the kind was inferred from keys because no `format` tag was present. */
+  /** REQ-a-missing-format-tag-is-inferred — the kind was inferred from keys because no `format` tag was present. */
   assumed?: true;
-  /** REQ-4 — why it was refused. Only set when `kind` is `unknown`. */
+  /** REQ-unknown-always-carries-a-reason — why it was refused. Only set when `kind` is `unknown`. */
   reason?: string;
 }
 
@@ -45,7 +46,7 @@ const NO_FORMAT =
 const FENCE_RE = /```[a-zA-Z]*[ \t]*\r?\n?([\s\S]*?)```/;
 
 /**
- * The JSON body of a pasted reply, or null (REQ-1). Prefers the first fenced
+ * The JSON body of a pasted reply, or null (REQ-extraction-comes-before-parsing). Prefers the first fenced
  * code block, then slices first `{` … last `}` so surrounding prose never
  * reaches `JSON.parse`.
  */
@@ -65,8 +66,8 @@ function nameOf(o: Record<string, unknown>): string | undefined {
 
 /**
  * What did the user paste? Total (never throws) and always explains a refusal
- * (REQ-2/REQ-4). Routing is by `format` tag, with a key-shape fallback for a
- * payload that dropped it (REQ-3).
+ * (REQ-classification-is-pure-and-total/REQ-unknown-always-carries-a-reason). Routing is by `format` tag, with a key-shape fallback for a
+ * payload that dropped it (REQ-a-missing-format-tag-is-inferred).
  */
 export function classifyPayload(text: string): PasteClassification {
   const json = extractJson(text);
@@ -97,7 +98,7 @@ export function classifyPayload(text: string): PasteClassification {
     }
   }
 
-  // REQ-3 — no (or an unrecognized) tag: infer from the keys that only one
+  // REQ-a-missing-format-tag-is-inferred — no (or an unrecognized) tag: infer from the keys that only one
   // format has, so an agent that dropped one field still reaches the validator
   // instead of a dead end.
   if (parsed['format'] === undefined) {

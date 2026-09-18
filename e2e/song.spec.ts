@@ -46,7 +46,7 @@ test.describe('song mode', () => {
   });
 
   /**
-   * song-mode.md REQ-3b / sampler.md REQ-7 (regression): a slot's audio belongs
+   * song-mode.md REQ-stale-sampler-audio-is-evicted / sampler.md REQ-a-slots-audio-matches-its-label (regression): a slot's audio belongs
    * to the name beside it. Loading a song that doesn't name slot 0 used to leave
    * the previous sample loaded and playable under the new song's label.
    */
@@ -86,7 +86,7 @@ test.describe('song mode', () => {
   });
 
   /**
-   * song-mode.md REQ-14 (regression): a song carries no playhead, so an apply
+   * song-mode.md REQ-a-load-lands-on-bar-one (regression): a song carries no playhead, so an apply
    * that leaves the old one in place hands the incoming song a position it never
    * had. New was the worst case — the readout kept quoting a bar number from the
    * song it had just cleared, beside a scrubber that now had one cell.
@@ -152,7 +152,7 @@ test.describe('song mode', () => {
     await expect.poll(seqSteps).toBe(1);
   });
 
-  // song-mode.md REQ-13: Sync leads Audio (export is the tab's terminal action),
+  // song-mode.md REQ-sync-and-audio-pair-up: Sync leads Audio (export is the tab's terminal action),
   // and above 1280px the two short rows share one line instead of spending two.
   test('Sync leads Audio, sharing one row only on a wide screen', async ({ page }) => {
     await gotoAndStart(page);
@@ -185,7 +185,7 @@ test.describe('song mode', () => {
     expect(await sessionDisplay(page)).toBe('basic');
 
     // Stopped transport: the Play LED runs the idle attract pulse
-    // (play-button-blink.md REQ-2).
+    // (play-button-blink.md REQ-stopped-led-pulses-to-attract).
     await expect(page.getByTestId('transport-play')).toHaveClass(/\battract\b/);
 
     await page.getByTestId('tab-song').click();
@@ -197,7 +197,7 @@ test.describe('song mode', () => {
     await expect(page.getByTestId('preset-select')).toContainText(demo.name);
 
     // The demo load arms the fast green "press play" cue while stopped
-    // (play-button-blink.md REQ-3); starting the transport consumes it (REQ-4).
+    // (play-button-blink.md REQ-silent-actions-arm-a-green-cue); starting the transport consumes it (REQ-legacy-step-cells-still-sound-right).
     await expect(page.getByTestId('transport-play')).toHaveClass(/\bcue\b/);
     await page.getByTestId('transport-play').click();
     await expect(page.getByTestId('transport-play')).not.toHaveClass(/\bcue\b/);
@@ -206,13 +206,13 @@ test.describe('song mode', () => {
     await expect(page.getByTestId('transport-play')).toHaveClass(/\battract\b/);
 
     // Any silent-while-stopped action re-arms the cue — here, enabling a
-    // machine via the bus (play-button-blink.md REQ-3). The helper picks one the
+    // machine via the bus (play-button-blink.md REQ-silent-actions-arm-a-green-cue). The helper picks one the
     // demo left off, so the write is a real 0 → 1 edge whatever the song enables.
     await armPlayCueViaMachine(page);
     await expect(page.getByTestId('transport-play')).toHaveClass(/\bcue\b/);
   });
 
-  // song-mode.md REQ-10, asserted structurally: how many demos exist is data, so
+  // song-mode.md REQ-the-demo-row-overflows-into-a-menu, asserted structurally: how many demos exist is data, so
   // the spec is "at most DEMO_ROW_LIMIT inline, the rest behind the toggle" —
   // never "this named demo is hidden", which is only true at one library size.
   test('the demo row shows at most DEMO_ROW_LIMIT inline, rest behind All Demos', async ({ page }) => {
@@ -220,7 +220,7 @@ test.describe('song mode', () => {
     await page.getByTestId('tab-song').click();
 
     // Mirrors DEMO_ROW_LIMIT in src/ui/panels/song-panel.ts — a production
-    // constant governed by REQ-10, so changing it is already a spec change.
+    // constant governed by REQ-the-demo-row-overflows-into-a-menu, so changing it is already a spec change.
     const LIMIT = 10;
     const all = await renderedDemoNames(page);
     const more = page.getByTestId('song-demo-more');
@@ -252,7 +252,7 @@ test.describe('song mode', () => {
     await expect.poll(() => sessionDisplay(page)).toBe(hidden.name);
   });
 
-  // song-mode.md REQ-12: the row IS the shipped library, and each drop-in wears
+  // song-mode.md REQ-drop-in-demos-are-fetched-on-click: the row IS the shipped library, and each drop-in wears
   // the name from inside its own file (via the generated index), not its
   // filename. Since v20 the row is one alphabetical list rather than the three
   // sources concatenated, so membership is what this asserts — the ordering rule
@@ -277,7 +277,7 @@ test.describe('song mode', () => {
     }
   });
 
-  // song-mode.md REQ-12: drop-in demos are no longer bundled — clicking one
+  // song-mode.md REQ-drop-in-demos-are-fetched-on-click: drop-in demos are no longer bundled — clicking one
   // fetches its JSON, validates it and applies it. The built-in path above is
   // synchronous; this is the fetched one, and it is the only place the generated
   // name index is exercised end to end (the button label IS the index entry).
@@ -306,7 +306,7 @@ test.describe('song mode', () => {
   });
 
   /**
-   * song-mode.md REQ-15 + session-autosave.md REQ-14d. Saving your own song
+   * song-mode.md REQ-one-name-two-songs-ask + session-autosave.md REQ-a-demo-click-never-writes-a-slot. Saving your own song
    * under a demo's name leaves two different songs behind one label, and each
    * door used to silently pick its own: the slot list gave you yours, the demo
    * button gave you the demo, and nothing said so. Now the demo doors ask.
@@ -326,7 +326,7 @@ test.describe('song mode', () => {
     const jsonDownload = page.waitForEvent('download');
     await page.getByTestId('song-save').click();
     await page.getByTestId('dialog-input').fill(demo.name);
-    // No slot holds that name yet, so the save itself is silent (REQ-14c) — the
+    // No slot holds that name yet, so the save itself is silent (REQ-every-slot-write-is-guarded) — the
     // guard fires on a real clash, not on borrowing a demo's name.
     await page.getByTestId('dialog-confirm').click();
     await jsonDownload;
@@ -360,7 +360,7 @@ test.describe('song mode', () => {
   });
 
   /**
-   * session-autosave.md REQ-14d (regression): the zip demos persisted themselves
+   * session-autosave.md REQ-a-demo-click-never-writes-a-slot (regression): the zip demos persisted themselves
    * because they rode the *import* path, so clicking 1973 offered to replace a
    * saved 1973 while clicking a JSON demo ignored yours entirely. Demos are
    * content, not the user's work — neither kind writes a slot now.
@@ -393,7 +393,7 @@ test.describe('song mode', () => {
   });
 
   /**
-   * session-autosave.md REQ-14c: Save was the one write with no guard at all —
+   * session-autosave.md REQ-every-slot-write-is-guarded: Save was the one write with no guard at all —
    * typing a name another song already held destroyed it, with no dialog and no
    * undo. It asks now, except when the name IS the slot this session came from.
    */
@@ -461,7 +461,7 @@ test.describe('song mode', () => {
     await page.getByTestId('tab-song').click();
     // v7: the button opens the options modal but keeps naming the format —
     // that is what tells it apart from the neighbouring Export (.json) button
-    // (audio-export.md REQ-8) — and the confirm names the overridable one.
+    // (audio-export.md REQ-labels-echo-the-chosen-format) — and the confirm names the overridable one.
     await expect(page.getByTestId('song-export-audio')).toHaveText('Export Song as WAV…');
     await page.getByTestId('song-export-audio').click();
     await expect(page.getByTestId('export-audio-modal')).toBeVisible();
@@ -472,7 +472,7 @@ test.describe('song mode', () => {
     const wavDownload = page.waitForEvent('download', { timeout: 20000 });
     await page.getByTestId('export-audio-confirm').click();
 
-    // REQ-10: the modal STAYS and reports the render, rather than vanishing for
+    // REQ-the-demo-row-overflows-into-a-menu: the modal STAYS and reports the render, rather than vanishing for
     // however long a real-time render takes.
     await expect(page.getByTestId('export-audio-progress')).toBeVisible();
     await expect(page.getByTestId('export-audio-status')).toContainText(/Rendering… bar \d+ of \d+/);
@@ -489,7 +489,7 @@ test.describe('song mode', () => {
   });
 
   /**
-   * audio-export.md REQ-10: a ten-minute render needs a Cancel that genuinely
+   * audio-export.md REQ-the-modal-is-the-renders-own-surface: a ten-minute render needs a Cancel that genuinely
    * cancels, not a dead button beside a progress bar.
    */
   test('a render in flight can be cancelled, and writes nothing', async ({ page }) => {
@@ -516,7 +516,7 @@ test.describe('song mode', () => {
   });
 
   /**
-   * audio-export.md REQ-2/REQ-3 (v7): nothing pinned the rendered *length* in a
+   * audio-export.md REQ-export-song-renders-from-the-top/REQ-the-capture-keeps-a-tail (v7): nothing pinned the rendered *length* in a
    * real browser before. The WAV header's data-chunk size gives it exactly, so
    * two runs of a one-bar song must be ~2× one run, and the tail bar must add
    * roughly a bar on top.
@@ -528,7 +528,7 @@ test.describe('song mode', () => {
 
     /** Seconds of stereo 16-bit audio in a downloaded WAV, from its header. */
     const renderSeconds = async (runs: string, tail: boolean): Promise<number> => {
-      // The modal now lingers on its "Done" state and then fades (REQ-10), so
+      // The modal now lingers on its "Done" state and then fades (REQ-the-demo-row-overflows-into-a-menu), so
       // wait for the previous one to fully detach before opening the next —
       // otherwise its testids are still in the DOM. Same idiom the Save/New
       // dialogs above use.
@@ -536,7 +536,7 @@ test.describe('song mode', () => {
       await page.getByTestId('song-export-audio').click();
       // The toggle shows the current value, so it and the matching option are
       // two buttons with the same accessible name — pick the option by its
-      // `dropdown-option` bridge class, not by name (dropdown.md REQ-13).
+      // `dropdown-option` bridge class, not by name (dropdown.md REQ-an-option-carries-the-bridge-class).
       const dd = page.getByTestId('export-audio-runs');
       await dd.click();
       await dd.locator('.dropdown-option', { hasText: new RegExp(`^${runs}$`) }).click();
@@ -561,7 +561,7 @@ test.describe('song mode', () => {
     expect(twoBare).toBeGreaterThan(oneBare + 1.5);   // the second pass
   });
 
-  // audio-export.md REQ-7: the MP3 encoder (lamejs) is a lazily-imported chunk,
+  // audio-export.md REQ-the-mp3-encoder-loads-lazily: the MP3 encoder (lamejs) is a lazily-imported chunk,
   // so this is the only check that the dynamic import actually resolves in a
   // real browser. We inspect bytes rather than decode — CI Chromium has no MP3
   // decoder, but an MPEG frame sync is just a bit pattern.
@@ -570,7 +570,7 @@ test.describe('song mode', () => {
     await page.evaluate(() => (window as any).__synth.engine.arrangement.setSeqChain([0], true));
 
     await page.getByTestId('tab-song').click();
-    // The Song tab's Format is the global DEFAULT (REQ-9): the modal opens
+    // The Song tab's Format is the global DEFAULT (REQ-serialization-is-optimised-at-the-boundary): the modal opens
     // seeded from it rather than always on WAV.
     await page.getByTestId('song-export-fmt-mp3').click();
     await expect(page.getByTestId('song-export-audio')).toHaveText('Export Song as MP3…');

@@ -143,7 +143,7 @@ describe('renderScratch — the identity cases', () => {
   it('a flat unity curve reproduces the source', () => {
     const src = cap(noise(8000));
     const r = renderScratch(src, curve([[0, 1]]), 8000);
-    // The edge fades touch the first and last few ms (REQ-11), so compare the body.
+    // The edge fades touch the first and last few ms (REQ-the-scratch-result-is-edge-faded), so compare the body.
     for (let i = 500; i < 7500; i += 37) {
       expect(r.left[i]!).toBeCloseTo(src.left[i]!, 5);
     }

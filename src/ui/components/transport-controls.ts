@@ -24,7 +24,7 @@ export interface TransportControlsOpts {
 
 /** Global state class marking the current bar — as the rulers use. */
 const AT_CLASS = 'playing';
-/** Global state classes for the loop (transport-loop.md REQ-12) — global for the
+/** Global state classes for the loop (transport-loop.md REQ-what-the-loop-scrubber-shows) — global for the
  *  same reason as `playing`: E2E has nothing else to select past CSS Modules. */
 const LOOP_CLASS = 'loop';
 const ANCHOR_CLASS = 'loop-anchor';
@@ -40,16 +40,16 @@ function djButton(label: string, testid: string): HTMLButtonElement {
 
 /**
  * `[Play/Pause, |◀, bar.step, Loop, scrubber]` — the same set on both surfaces
- * (transport-window.md REQ-1).
+ * (transport-window.md REQ-one-transport-control-builder).
  *
  * Takes the `UiBridge` because Play must click the *real* header button
- * (transport-window.md REQ-5): that is what carries the empty-play hint and the
+ * (transport-window.md REQ-play-pause-is-not-a-second-truth): that is what carries the empty-play hint and the
  * LED blink state machine, and it is the only way the Play buttons can be
  * guaranteed to agree. Pause goes to the clock — the header's click means Stop.
  *
  * Takes no `ParamBus` for the same reason in the other direction: it owns no
  * params, so it cannot mint a second BPM/SWING knob behind the header's back
- * (transport-window.md REQ-2 — the header's copy is the one that knows to
+ * (transport-window.md REQ-transport-is-a-floating-window — the header's copy is the one that knows to
  * disable itself while slaved).
  */
 export function buildTransportControls(
@@ -61,7 +61,7 @@ export function buildTransportControls(
   const out: HTMLElement[] = [];
 
   /** Playing: the live step. Stopped: the cue, i.e. where Play will begin —
-   *  which after a Pause is the resume point (transport.md REQ-12). */
+   *  which after a Pause is the resume point (transport.md REQ-pause-resumes-where-it-stopped). */
   const position = (): number => (engine.clock.playing ? engine.clock.step : engine.clock.cue);
 
   // `-toggle`, not `-play`: the header's own Play button is `transport-play`,
@@ -71,7 +71,7 @@ export function buildTransportControls(
   play.classList.add(styles.playPause!);
   play.addEventListener('click', () => {
     // Two outcomes, each named by the label the user just read
-    // (transport-window.md REQ-13): Pause stays here, Play goes via the header.
+    // (transport-window.md REQ-pause-and-stop-are-separate-verbs): Pause stays here, Play goes via the header.
     if (engine.clock.playing) engine.clock.pause();
     else bridge.toggleTransport();
   });
@@ -104,8 +104,8 @@ export function buildTransportControls(
   out.push(readout);
 
   // Loop sits against the scrubber because that is where its picks land
-  // (transport-window.md REQ-14). Inert while seeking is refused: a wrap is a
-  // seek, so an armable loop that cannot wrap would be a lie (transport-loop.md REQ-6).
+  // (transport-window.md REQ-loop-lives-on-the-transport-row). Inert while seeking is refused: a wrap is a
+  // seek, so an armable loop that cannot wrap would be a lie (transport-loop.md REQ-a-loop-that-cannot-jump-does-not).
   const loopBtn = djButton('Loop', `${p}-loop`);
   loopBtn.addEventListener('click', () => {
     if (engine.canSeek()) engine.loop.toggle();
@@ -135,7 +135,7 @@ export function buildTransportControls(
       c.dataset.testid = `${p}-scrub-${i}`;
       c.textContent = String(i + 1);
       c.addEventListener('click', () => {
-        // Loop on turns a click into a pick (transport-loop.md REQ-2) — a mode,
+        // Loop on turns a click into a pick (transport-loop.md REQ-with-loop-on-a-click-picks-a-bar) — a mode,
         // so its state is drawn on these very cells by paintLoop, not only on
         // the button.
         if (!engine.loop.enabled) engine.seekTo(bar * engine.barTicks);
@@ -156,8 +156,8 @@ export function buildTransportControls(
 
   /**
    * Loop button state, the range on the cells, the anchor and every cell's title
-   * (transport-loop.md REQ-1/REQ-2/REQ-12). Runs on a loop change, a rebuild and
-   * an arrangement change (a shorter chain clamps the range, REQ-7) — never per
+   * (transport-loop.md REQ-a-loop-button-on-both-surfaces/REQ-with-loop-on-a-click-picks-a-bar/REQ-what-the-loop-scrubber-shows). Runs on a loop change, a rebuild and
+   * an arrangement change (a shorter chain clamps the range, REQ-the-loop-range-is-limited-to-the-song) — never per
    * tick, and a no-op unless what it would draw differs.
    */
   const paintLoop = (): void => {
@@ -191,7 +191,7 @@ export function buildTransportControls(
   };
 
   /**
-   * The timeline is one scrolling line (REQ-11), so a long song can put the
+   * The timeline is one scrolling line (REQ-loop-bars-are-the-songs-bars), so a long song can put the
    * current bar off-screen. Scrolled by hand rather than with `scrollIntoView`,
    * which is free to scroll *ancestors* too and would yank the page. Guarded on
    * a laid-out scroller, so a hidden tab (and jsdom) simply skip it — and it
@@ -213,15 +213,15 @@ export function buildTransportControls(
     if (bars !== builtBars) renderStructure(bars);
 
     const pos = position();
-    // The song's own bar, not a fixed 16 (meter.md REQ-6): in 7/8 bar 2 begins
+    // The song's own bar, not a fixed 16 (meter.md REQ-bar-ticks-is-the-arrangement-bar-line): in 7/8 bar 2 begins
     // at tick 14, and a readout counting 16s would disagree with the transport.
     const ticks = engine.barTicks;
     const bar = Math.floor(pos / ticks);
     const step = pos % ticks;
-    // The SAME wrapped bar the scrubber lights (REQ-6): computed once, so the
+    // The SAME wrapped bar the scrubber lights (REQ-a-loop-that-cannot-jump-does-not): computed once, so the
     // number and the lit cell cannot disagree. Printing the absolute bar made a
     // one-bar song count 1.01, 2.01, 3.01 … beside a single lit cell — a bar the
-    // song does not have (transport-position.md REQ-15, same rule for the rulers).
+    // song does not have (transport-position.md REQ-the-readout-never-invents-bars, same rule for the rulers).
     const cell = bar % bars;
     readout.textContent = `${cell + 1}.${String(step + 1).padStart(2, '0')}`;
 
@@ -239,7 +239,7 @@ export function buildTransportControls(
   engine.clock.onStart(paint);
   engine.clock.onStop(paint);
   engine.arrangement.onChange(paint);
-  // A chain edit can shorten the song under a range (transport-loop.md REQ-7).
+  // A chain edit can shorten the song under a range (transport-loop.md REQ-the-loop-range-is-limited-to-the-song).
   engine.arrangement.onChange(paintLoop);
   engine.loop.onChange(paintLoop);
 

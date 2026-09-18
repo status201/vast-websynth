@@ -29,7 +29,7 @@ export interface RecordWindowLauncher {
   toggle(): void;
 }
 
-/** `m:ss`. Seconds precision is enough for a take (record-window.md REQ-4). */
+/** `m:ss`. Seconds precision is enough for a take (record-window.md REQ-the-timer-reports-the-take). */
 export function formatElapsed(seconds: number): string {
   const total = Math.max(0, Math.floor(seconds));
   return `${Math.floor(total / 60)}:${String(total % 60).padStart(2, '0')}`;
@@ -54,7 +54,7 @@ export function createRecordWindowLauncher(
 
   let win: FloatingWindow | null = null;
   /** Per-window format override, seeded from the Song tab's global default and
-   *  never written back (audio-export.md REQ-9). */
+   *  never written back (audio-export.md REQ-export-opens-an-options-modal). */
   let fmt: ExportFormat = defaultFormat();
   let timer: number | undefined;
   let lastTimerText = '';
@@ -110,7 +110,7 @@ export function createRecordWindowLauncher(
 
   toggleBtn.addEventListener('click', () => {
     const p = engine.recorder.phase;
-    // Pause/stop await the recorder's flush (audio-export.md REQ-6b); the window
+    // Pause/stop await the recorder's flush (audio-export.md REQ-chunks-are-batched-then-flushed); the window
     // repaints off `onPhase`, so neither needs its promise here.
     if (p === 'recording') void engine.recorder.pauseManual();
     else if (p === 'paused') engine.recorder.resumeManual();
@@ -161,12 +161,12 @@ export function createRecordWindowLauncher(
 
     // An Export Song pass moves the SAME phases, so without this the window
     // would read "REC" with a climbing timer for a capture that is not the
-    // user's take and that none of these buttons can touch (REQ-11).
+    // user's take and that none of these buttons can touch (REQ-an-export-is-named-as-an-export).
     const exporting = engine.recorder.isExporting();
     status.dataset.phase = exporting ? 'busy' : phase;
     statusText.textContent = exporting ? 'Exporting the song…' : PHASE_TEXT[phase];
     // Class off the moment it stops being true — the pulse must never outlive
-    // the capture it is reporting (record-window.md REQ-6).
+    // the capture it is reporting (record-window.md REQ-the-red-dot-earns-its-animation).
     dot.classList.toggle(styles.live!, phase === 'recording' && !exporting);
     paintTimer();
     syncTimer();
@@ -189,7 +189,7 @@ export function createRecordWindowLauncher(
       : phase === 'recording' ? 'Pause' : phase === 'paused' ? 'Resume' : 'Record';
     toggleBtn.classList.toggle('on', phase === 'recording' && !exporting);
     // One RecorderNode, one transport: an export owns both. Say so rather than
-    // being a button whose click does nothing (REQ-11).
+    // being a button whose click does nothing (REQ-an-export-is-named-as-an-export).
     toggleBtn.disabled = exporting;
     toggleBtn.title = exporting
       ? 'Busy exporting the song — wait for that render to finish'
@@ -212,13 +212,13 @@ export function createRecordWindowLauncher(
       fb.classList.toggle('active', fb.dataset.testid === `record-fmt-${fmt}`);
     }
 
-    // REQ-7 — a take running behind a closed window. An export is not one, so
-    // it must not light the launcher either (REQ-11).
+    // REQ-the-launcher-shows-capture-state — a take running behind a closed window. An export is not one, so
+    // it must not light the launcher either (REQ-an-export-is-named-as-an-export).
     b.classList.toggle('on', engine.recorder.isCapturing() && !exporting);
   }
 
   // Subscribed by the LAUNCHER, not the window, so the button keeps reporting a
-  // capture running behind a closed window (REQ-7).
+  // capture running behind a closed window (REQ-the-launcher-shows-capture-state).
   engine.recorder.onPhase(render);
 
   const ensure = (): FloatingWindow => {

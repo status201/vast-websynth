@@ -36,42 +36,46 @@ machine stacks.
 
 ## Requirements
 
-- **REQ-1** — Four independent undo stacks (seq/drum/sampler/motion), depth 50,
-  undo-only (no redo — predictability over power).
-- **REQ-2** — Capture happens at the `PatternStore` mutation entry points via a
-  new `onMutate` hook, so every caller (panel clicks, `StepSettingsEditor`,
-  the seq note dial, motion pads, `BankBar` copies) is covered without
-  per-call-site wiring. Captured `before` state is always a **clone** — the
-  store mutates cells in place.
-- **REQ-3** — Pre-state cloning is skipped entirely when no `onMutate`
-  listener is registered (zero cost for headless/store-only users).
-- **REQ-4** — Same-target edits within a refreshing 400 ms window coalesce
-  into one undo step (oldest `before` wins) — a slider drag, note-dial drag,
-  or motion-pad drag is ONE undo. Known quirk: double-toggling one cell
-  within the window coalesces to a net no-op entry. Bank copies never
+- **REQ-four-independent-undo-stacks** — Four independent undo stacks
+  (seq/drum/sampler/motion), depth 50, undo-only (no redo — predictability over
+  power).
+- **REQ-capture-happens-at-the-mutation-entry** — Capture happens at the
+  `PatternStore` mutation entry points via a new `onMutate` hook, so every
+  caller (panel clicks, `StepSettingsEditor`, the seq note dial, motion pads,
+  `BankBar` copies) is covered without per-call-site wiring. Captured `before`
+  state is always a **clone** — the store mutates cells in place.
+- **REQ-cloning-is-skipped-without-a-listener** — Pre-state cloning is skipped
+  entirely when no `onMutate` listener is registered (zero cost for
+  headless/store-only users).
+- **REQ-same-target-edits-coalesce** — Same-target edits within a refreshing 400
+  ms window coalesce into one undo step (oldest `before` wins) — a slider drag,
+  note-dial drag, or motion-pad drag is ONE undo. Known quirk: double-toggling
+  one cell within the window coalesces to a net no-op entry. Bank copies never
   coalesce.
-- **REQ-5** — Undo applies into the **bank the change was made in**: if the
-  edit bank moved since, undo switches it back first, so the revert is always
-  visible. Application goes through the standard setters (normal listeners
-  repaint panels and arm the session autosave).
-- **REQ-6** — Bank Copy is undoable: the destination bank's full prior
-  contents restore (motion copies also restore the per-bank axis override).
-- **REQ-7** — `PatternStore.restore()` fires a new `onBulkRestore` hook;
-  `PatternUndo` clears **all** stacks on it. Song load / import / New / boot
-  recovery / session-undo therefore reset machine undo (stale banks would
-  otherwise lie).
-- **REQ-8** — `PatternUndo` ignores mutations it applies itself (an
-  `applying` latch), so undo never records undo.
-- **REQ-9** — UI: an Undo button per machine panel header (testids
-  `undo-seq` / `undo-drum` / `undo-sampler` / `undo-motion`), disabled while
-  that stack is empty.
-- **REQ-10** — Ctrl/Cmd+Z triggers undo for the **active machine tab** only
-  (tab ids seq/drums/sampler/motion); inert on the Arp/Song tabs, inside
-  editable fields (native text undo preserved), and with Shift/Alt held.
-  `preventDefault` only when an undo actually ran.
-- **REQ-11** — `setSampleName` is deliberately NOT captured: undoing a slot
-  name without its decoded buffer would lie about what plays. Sample identity
-  rides the session-level undo (session-autosave.md REQ-8).
+- **REQ-undo-applies-into-its-own-bank** — Undo applies into the **bank the
+  change was made in**: if the edit bank moved since, undo switches it back
+  first, so the revert is always visible. Application goes through the standard
+  setters (normal listeners repaint panels and arm the session autosave).
+- **REQ-undo-restores-a-copied-bank** — Bank Copy is undoable: the destination
+  bank's full prior contents restore (motion copies also restore the per-bank
+  axis override).
+- **REQ-restore-fires-a-bulk-hook** — `PatternStore.restore()` fires a new
+  `onBulkRestore` hook; `PatternUndo` clears **all** stacks on it. Song load /
+  import / New / boot recovery / session-undo therefore reset machine undo
+  (stale banks would otherwise lie).
+- **REQ-undo-ignores-its-own-mutations** — `PatternUndo` ignores mutations it
+  applies itself (an `applying` latch), so undo never records undo.
+- **REQ-each-panel-header-has-an-undo-button** — UI: an Undo button per machine
+  panel header (testids `undo-seq` / `undo-drum` / `undo-sampler` /
+  `undo-motion`), disabled while that stack is empty.
+- **REQ-ctrl-z-undoes-the-active-machine** — Ctrl/Cmd+Z triggers undo for the
+  **active machine tab** only (tab ids seq/drums/sampler/motion); inert on the
+  Arp/Song tabs, inside editable fields (native text undo preserved), and with
+  Shift/Alt held. `preventDefault` only when an undo actually ran.
+- **REQ-sample-name-is-not-captured** — `setSampleName` is deliberately NOT
+  captured: undoing a slot name without its decoded buffer would lie about what
+  plays. Sample identity rides the session-level undo (session-autosave.md
+  REQ-undo-restores-the-stashed-file).
 
 ## Technical design
 

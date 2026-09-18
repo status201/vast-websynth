@@ -24,7 +24,7 @@ function build() {
   return { bus, xy, patterns, lane, eff };
 }
 
-describe('createEffectiveXy (motion-sequencer.md REQ-11)', () => {
+describe('createEffectiveXy (motion-sequencer.md REQ-the-xy-window-axes-follow-motion)', () => {
   it('resolves to the base assignment while motion is off, even with an override', () => {
     const { patterns, eff } = build();
     patterns.setMotionAssign({ x: 'fx.delay.time', y: 'fx.delay.mix' });
@@ -66,7 +66,7 @@ describe('createEffectiveXy (motion-sequencer.md REQ-11)', () => {
     expect(cb).toHaveBeenLastCalledWith({ x: XY_DEFAULT_ASSIGN.x, y: 'lfo.amount' });
   });
 
-  it('muting falls back to the base assignment; unmuting restores the override (REQ-12)', () => {
+  it('muting falls back to the base assignment; unmuting restores the override (REQ-motion-mute-is-an-ordinary-param)', () => {
     const { bus, patterns, eff } = build();
     bus.set('motion.on', 1);
     patterns.setMotionAssign({ x: 'fx.delay.time' });
@@ -90,7 +90,7 @@ describe('createEffectiveXy (motion-sequencer.md REQ-11)', () => {
 
 /**
  * The allocation-free companion to `motionAxesFor`, used by the motion machine's
- * per-frame carry gate (runtime-performance.md REQ-6). It must answer exactly
+ * per-frame carry gate (runtime-performance.md REQ-no-allocation-in-a-hot-loop). It must answer exactly
  * what comparing `motionAxesFor(...)` field-by-field would — that is the whole
  * reason the two live in one file.
  */

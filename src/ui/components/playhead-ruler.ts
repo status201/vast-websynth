@@ -13,14 +13,14 @@ export type RulerLane = 'seq' | 'drum' | 'sampler' | 'motion';
 export const AT_CLASS = 'playing';
 /**
  * Global state class marking the cue — where Play will begin (transport-position.md
- * REQ-14). Global for the same reason `AT_CLASS` is: every other class here is
+ * REQ-the-cue-and-the-playhead-are-two-marks). Global for the same reason `AT_CLASS` is: every other class here is
  * CSS-Module hashed, so E2E has nothing else to select. The name is already a
  * global state class in this app (the Play button's demo cue).
  */
 export const CUE_CLASS = 'cue';
 
 /**
- * The bank accessors behind the readout (REQ-15), threaded in from `laneHooks` so
+ * The bank accessors behind the readout (REQ-the-readout-never-invents-bars), threaded in from `laneHooks` so
  * the letter uses the SAME source as the `BankBar` beside it and the two can
  * never disagree. Passed in rather than imported because `laneHooks` lives in the
  * scaffold, which imports *this* module.
@@ -47,8 +47,8 @@ export interface PlayheadRuler {
   readonly cellsEl: HTMLElement;
   /**
    * The position readout — place it in the panel's row-label slot. `BANK A` with
-   * no stepper while nothing is chained, `‹ BAR n/N ›` once bars exist (REQ-15,
-   * REQ-16).
+   * no stepper while nothing is chained, `‹ BAR n/N ›` once bars exist (REQ-the-readout-never-invents-bars,
+   * REQ-a-bar-stepper-only-where-bars-exist).
    */
   readonly barEl: HTMLElement;
   destroy(): void;
@@ -56,7 +56,7 @@ export interface PlayheadRuler {
 
 /**
  * The transport-position ruler that sits above a machine's step grid
- * (transport-position.md REQ-9). Two jobs, both of which the grid playhead
+ * (transport-position.md REQ-a-position-ruler-above-every-grid). Two jobs, both of which the grid playhead
  * cannot do:
  *
  *  - **Show where the transport is, unconditionally.** The cell highlight is
@@ -66,10 +66,10 @@ export interface PlayheadRuler {
  *    bank's step sounding?", not "where are we?". This ruler rides the **clock**
  *    instead and is therefore always truthful.
  *  - **Move the playhead.** A click seeks to that 16th of the current bar. The
- *    grid's own gestures are saturated (step-grid-editing.md REQ-13), which is
+ *    grid's own gestures are saturated (step-grid-editing.md REQ-the-ruler-is-separate-chrome), which is
  *    exactly why this is a separate target rather than a modifier down there.
  *
- * Two marks, never one (REQ-14): a solid **playhead** at the live step while
+ * Two marks, never one (REQ-the-cue-and-the-playhead-are-two-marks): a solid **playhead** at the live step while
  * playing, and a **cue** ring at the step Play will begin from. Conflating them
  * meant a stopped ruler looked exactly like a running one, so clicking a tick
  * gave no "starts here" feedback at all.
@@ -81,7 +81,7 @@ export function buildPlayheadRuler(
   gate?: VisibilityGate,
   hooks?: RulerLaneHooks,
 ): PlayheadRuler {
-  // The grid this lane is drawing right now (meter.md REQ-8/REQ-10). Re-read on
+  // The grid this lane is drawing right now (meter.md REQ-accents-and-ruler-derive-from-the-meter/REQ-each-machine-has-a-loop-length). Re-read on
   // any meter change rather than captured, so the ticks, the accents and the
   // playhead all move together and cannot end up describing different bars.
   let grid = laneGrid(bus, lane);
@@ -90,7 +90,7 @@ export function buildPlayheadRuler(
   cellsEl.setAttribute('role', 'group');
   cellsEl.setAttribute('aria-label', 'Transport position');
 
-  // --- Readout: `BANK A` (nothing chained) or `‹ BAR n/N ›` (REQ-15/REQ-16) ---
+  // --- Readout: `BANK A` (nothing chained) or `‹ BAR n/N ›` (REQ-the-readout-never-invents-bars/REQ-a-bar-stepper-only-where-bars-exist) ---
   const barEl = document.createElement('div');
   barEl.className = styles.barGroup!;
 
@@ -104,7 +104,7 @@ export function buildPlayheadRuler(
       const pos = position();
       const bars = api.arrangement.songBars();
       // Preserve the 16th — the whole point of this control, since Shift+arrows
-      // zero it (REQ-16). Clamp inside the song rather than wandering past it.
+      // zero it (REQ-a-bar-stepper-only-where-bars-exist). Clamp inside the song rather than wandering past it.
       const ticks = api.barTicks;
       const bar = Math.floor(pos / ticks) + delta;
       const max = bars > 0 ? bars - 1 : bar;
@@ -121,7 +121,7 @@ export function buildPlayheadRuler(
 
   // Every cell is built once; the ones past the lane's length are hidden rather
   // than removed, so a meter change is a class flip and never a DOM rebuild
-  // (meter.md REQ-11 — the grid below does exactly the same).
+  // (meter.md REQ-cells-beyond-the-length-are-hidden — the grid below does exactly the same).
   const ticks: HTMLButtonElement[] = [];
   for (let i = 0; i < GRID_CELLS; i++) {
     const t = document.createElement('button');
@@ -155,7 +155,7 @@ export function buildPlayheadRuler(
       // wiped them would leave the strip blank until the next tick moved them.
       t.classList.toggle(styles.beat!, live && isBeatCell(i, grid));
       // Only the beat columns are labelled — sixteen numerals do not fit at tick
-      // width — so the title names the beat too, not a second numbering (REQ-17).
+      // width — so the title names the beat too, not a second numbering (REQ-a-refused-seek-says-so).
       const beat = beatOfCell(i, grid);
       t.textContent = live && beat !== null && isBeatCell(i, grid) ? String(beat) : '';
     });
@@ -171,7 +171,7 @@ export function buildPlayheadRuler(
 
   const paint = (): void => {
     // The live playhead exists only while playing: a stopped strip must not look
-    // like a running one (REQ-14).
+    // like a running one (REQ-the-cue-and-the-playhead-are-two-marks).
     const at = api.clock.playing ? laneCellAt(api.clock.step, grid) : -1;
     if (at !== paintedAt) {
       ticks[paintedAt]?.classList.remove(AT_CLASS);
@@ -188,7 +188,7 @@ export function buildPlayheadRuler(
     }
 
     // Readout. `songBars() === 0` means no lane is chained, so the song is one
-    // bank looping and a bar number would be fiction (REQ-15).
+    // bank looping and a bar number would be fiction (REQ-the-readout-never-invents-bars).
     const bars = api.arrangement.songBars();
     let text: string;
     if (bars === 0) {
@@ -213,7 +213,7 @@ export function buildPlayheadRuler(
   // Cheap enough to run per tick (at most two class writes), but pointless while
   // the panel is off screen — the gate is the same one wirePlayhead obeys, and
   // revealing replays the live position rather than a stale column
-  // (transport-position.md REQ-10).
+  // (transport-position.md REQ-the-ruler-costs-nothing-off-screen).
   const sync = (): void => { if (!gate || gate.shown) paint(); };
 
   const unsubs: (() => void)[] = [
@@ -236,7 +236,7 @@ export function buildPlayheadRuler(
     const can = api.canSeek();
     cellsEl.classList.toggle(styles.off!, !can);
     barEl.classList.toggle(styles.off!, !can);
-    // Don't keep promising a move that is refused (REQ-17). The buttons stay
+    // Don't keep promising a move that is refused (REQ-a-refused-seek-says-so). The buttons stay
     // un-`disabled`: the refusal is Engine.seekTo's silent no-op, not the DOM's.
     const why = 'Moving the playhead is unavailable right now';
     ticks.forEach((t, i) => {

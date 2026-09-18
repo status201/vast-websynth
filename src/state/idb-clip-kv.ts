@@ -6,7 +6,7 @@ import type { ClipKv, StoredClip } from './sample-autosave';
  * so `sample-autosave.ts` stays free of `indexedDB` and is unit-testable under
  * jsdom (which has no IndexedDB) with an in-memory `ClipKv`.
  *
- * Every operation is failure-tolerant by contract (REQ-10): no IndexedDB,
+ * Every operation is failure-tolerant by contract (REQ-every-clip-storage-failure-is-survivable): no IndexedDB,
  * private mode, quota, a blocked upgrade — all surface as a rejected promise
  * the caller swallows, never as a broken app.
  */

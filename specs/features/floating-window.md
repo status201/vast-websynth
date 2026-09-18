@@ -3,12 +3,12 @@
 ```yaml
 id: floating-window
 status: implemented
-version: 4  # v4: a window may veto its own close (REQ-9)
+version: 4  # v4: a window may veto its own close (REQ-a-window-may-veto-its-close)
 owner: core
 related:
   - architecture
-  - dialog            # REQ-9's confirm is a Modal, which outranks a window
-  - record-window     # REQ-9's first and only user
+  - dialog            # REQ-a-window-may-veto-its-close's confirm is a Modal, which outranks a window
+  - record-window     # REQ-a-window-may-veto-its-close's first and only user
   - ../recipes/add-a-floating-window.md
 source:
   - src/ui/components/floating-window.ts
@@ -28,64 +28,69 @@ matrix) reuse it.
 
 ## Requirements
 
-- **REQ-1** — Non-modal: no backdrop element is ever added to the DOM, so pointer
-  events on the synth behind the window are never intercepted. The window itself is
-  `position: fixed`.
-- **REQ-2** — Re-openable toggle: one instance may `open()` → `close()` → `open()`
-  repeatedly (unlike single-use `Modal`). `open()`/`close()` are each idempotent;
-  `onClose` fires **once per close transition** (a double `close()` fires it once).
-  `isOpen` reflects the current logical state.
-- **REQ-3** — Draggable by its title bar: a pointerdown on the title bar (but not on
-  the close button) drags the whole window, updating `style.left`/`style.top`,
-  clamped so it stays within the viewport. Uses `setPointerCapture?.()`
-  (optional-chained — jsdom has no capture).
-- **REQ-4** — No Escape binding: pressing Escape does **not** close it (that key is
-  owned by the global panic handler; a non-modal tool must not steal it). Closing is
-  via the window's own × button or the caller toggling it.
-- **REQ-5** — Fades like `Modal`: `close()` adds the global `.hidden` class and
-  removes the node after the 200 ms transition; a re-`open()` before removal cancels
-  the pending removal and reveals it again.
-- **REQ-6** — Optional **leading title-bar slot**: `opts.leading` (an
-  `HTMLElement`) is inserted **after** the built-in minimise button (REQ-7),
-  still left of the title, for a caller-owned control (e.g. the XY Pad's gear
-  toggle). Its `pointerdown` is stopped so dragging never starts from it (same
-  guard as the close button). Layout keeps the minimise button + leading control
-  + title on the left and the close button on the right regardless of child count.
-- **REQ-7** — Built-in **minimise / restore button**: every floating window has a
-  `[−]` button as the **far-left** child of the title bar (before `opts.leading`,
-  `minBtn`). Clicking it **collapses** the window to just its title bar — the
-  `.body` is hidden (global `collapsed` class on the root) — and flips the glyph
-  to `[+]`; clicking again **restores** the body. The button updates
-  `aria-expanded` (`true` when expanded) and `aria-label` (Minimise / Restore),
-  and stops its `pointerdown` so a drag never starts from it. Collapse state is
-  **ephemeral**: it is not persisted, and `open()` always reveals the window
-  **expanded** (predictable re-open), even for an instance kept alive across
-  closes. `isCollapsed` reflects the current state.
-- **REQ-8** — Stays inside the viewport across viewport changes: because a
-  window is positioned with fixed `left`/`top` (px) and an instance is kept alive
-  across closes, a position computed for one viewport must not leave the window
-  (and its drag-handle title bar) unreachable in a smaller/rotated one.
-  `open()` re-clamps the current position to the live viewport (using the same
-  max-`left`/`top` math as the drag, REQ-3). While open, a `resize` **and**
+- **REQ-floating-window-is-non-modal** — Non-modal: no backdrop element is ever
+  added to the DOM, so pointer events on the synth behind the window are never
+  intercepted. The window itself is `position: fixed`.
+- **REQ-floating-window-reopens** — Re-openable toggle: one instance may
+  `open()` → `close()` → `open()` repeatedly (unlike single-use `Modal`).
+  `open()`/`close()` are each idempotent; `onClose` fires **once per close
+  transition** (a double `close()` fires it once). `isOpen` reflects the current
+  logical state.
+- **REQ-dragged-by-its-title-bar** — Draggable by its title bar: a pointerdown
+  on the title bar (but not on the close button) drags the whole window,
+  updating `style.left`/`style.top`, clamped so it stays within the viewport.
+  Uses `setPointerCapture?.()` (optional-chained — jsdom has no capture).
+- **REQ-escape-does-not-close-a-window** — No Escape binding: pressing Escape
+  does **not** close it (that key is owned by the global panic handler; a
+  non-modal tool must not steal it). Closing is via the window's own × button or
+  the caller toggling it.
+- **REQ-floating-window-fades-like-modal** — Fades like `Modal`: `close()` adds
+  the global `.hidden` class and removes the node after the 200 ms transition; a
+  re-`open()` before removal cancels the pending removal and reveals it again.
+- **REQ-title-bar-has-a-leading-slot** — Optional **leading title-bar slot**:
+  `opts.leading` (an `HTMLElement`) is inserted **after** the built-in minimise
+  button (REQ-every-window-can-minimise), still left of the title, for a
+  caller-owned control (e.g. the XY Pad's gear toggle). Its `pointerdown` is
+  stopped so dragging never starts from it (same guard as the close button).
+  Layout keeps the minimise button + leading control + title on the left and the
+  close button on the right regardless of child count.
+- **REQ-every-window-can-minimise** — Built-in **minimise / restore button**:
+  every floating window has a `[−]` button as the **far-left** child of the
+  title bar (before `opts.leading`, `minBtn`). Clicking it **collapses** the
+  window to just its title bar — the `.body` is hidden (global `collapsed` class
+  on the root) — and flips the glyph to `[+]`; clicking again **restores** the
+  body. The button updates `aria-expanded` (`true` when expanded) and
+  `aria-label` (Minimise / Restore), and stops its `pointerdown` so a drag never
+  starts from it. Collapse state is **ephemeral**: it is not persisted, and
+  `open()` always reveals the window **expanded** (predictable re-open), even
+  for an instance kept alive across closes. `isCollapsed` reflects the current
+  state.
+- **REQ-window-stays-inside-the-viewport** — Stays inside the viewport across
+  viewport changes: because a window is positioned with fixed `left`/`top` (px)
+  and an instance is kept alive across closes, a position computed for one
+  viewport must not leave the window (and its drag-handle title bar) unreachable
+  in a smaller/rotated one. `open()` re-clamps the current position to the live
+  viewport (using the same max-`left`/`top` math as the drag,
+  REQ-dragged-by-its-title-bar). While open, a `resize` **and**
   `orientationchange` listener re-clamps on every viewport change (added on
   `open()`, removed on `close()`, mirroring `Dropdown`'s reposition listeners).
-  Restoring from minimised also re-clamps (the body re-grows `offsetHeight`, which
-  could otherwise overflow the bottom edge). All clamping shares one helper with
-  the drag so the bounds are identical.
-- **REQ-9** (a window may veto its own close, v4) — Optional
-  `opts.confirmClose?: () => Promise<boolean>`; when present, `close()` awaits it
-  and **aborts the close entirely** on `false` — the window stays open, `onClose`
-  does not fire, and `isOpen` never flips. Until v4 a close could not be
-  questioned: the ✕ handler called `close()` unconditionally and `onClose` fired
-  *after* the fact, purely as cleanup. A window holding unsaved work
-  ([record-window](record-window.md), the only user) needs to ask first.
+  Restoring from minimised also re-clamps (the body re-grows `offsetHeight`,
+  which could otherwise overflow the bottom edge). All clamping shares one
+  helper with the drag so the bounds are identical.
+- **REQ-a-window-may-veto-its-close** (a window may veto its own close, v4) —
+  Optional `opts.confirmClose?: () => Promise<boolean>`; when present, `close()`
+  awaits it and **aborts the close entirely** on `false` — the window stays
+  open, `onClose` does not fire, and `isOpen` never flips. Until v4 a close
+  could not be questioned: the ✕ handler called `close()` unconditionally and
+  `onClose` fired *after* the fact, purely as cleanup. A window holding unsaved
+  work ([record-window](record-window.md), the only user) needs to ask first.
   Three rules keep it honest:
     - **One guard, every door.** The check lives inside `close()`, so the ✕, the
       launcher's toggle and any keyboard shortcut inherit it — nothing can route
       around it by calling `close()` directly.
     - **Re-entrancy is latched.** A second ✕ click while the confirm is up must
       not stack a second dialog; the pending check is tracked and the extra call
-      is a no-op. Idempotence (REQ-2) is preserved: a vetoed close leaves the
+      is a no-op. Idempotence (REQ-floating-window-reopens) is preserved: a vetoed close leaves the
       window exactly as it was.
     - **Layering already works.** The confirm is a [`Modal`](dialog.md) at
       z-index 1000 against the window's 950, so it renders above the window it is
@@ -103,7 +108,7 @@ FloatingWindow:   # src/ui/components/floating-window.ts (a class, like Modal)
   readonly body: HTMLElement          # caller appends content here
   open(): void                        # idempotent; mounts + reveals; always EXPANDED
   close(): void                       # idempotent; hides, fires onClose once, removes after fade
-                                      # with confirmClose: awaits it; false aborts (REQ-9)
+                                      # with confirmClose: awaits it; false aborts (REQ-a-window-may-veto-its-close)
   get isOpen(): boolean
   get isCollapsed(): boolean          # true while minimised (body hidden)
   # static class getters (parity with Modal, for consistent markup/testing):
@@ -115,10 +120,10 @@ FloatingWindowOptions:
   initial?: { left: number; top: number }   # start position (px); defaults centred-ish near the top
   windowClass?: string                # extra class on the root (width/layout variant)
   leading?: HTMLElement               # caller control, appended AFTER the built-in
-                                      # minimise button (so: second child) — REQ-6/REQ-7
+                                      # minimise button (so: second child) — REQ-title-bar-has-a-leading-slot/REQ-every-window-can-minimise
                                       # (pointerdown stopped)
   onClose?: () => void                # caller cleanup, once per close
-  confirmClose?: () => Promise<boolean>   # REQ-9; false vetoes the close (guards EVERY door)
+  confirmClose?: () => Promise<boolean>   # REQ-a-window-may-veto-its-close; false vetoes the close (guards EVERY door)
 ```
 
 ### Layer touchpoints & ordering
@@ -130,7 +135,7 @@ drag: pointerdown on .titleBar -> record start pointer + window pos; window-leve
       on the title bar retargets moves to it (optional-chained for jsdom).
       The clamp (against window.innerWidth/innerHeight minus the window size) is a
       single shared helper, also invoked on open(), on resize/orientationchange
-      while open, and on restore-from-minimised (REQ-8).
+      while open, and on restore-from-minimised (REQ-window-stays-inside-the-viewport).
 minimise button: far-left child; click stops propagation (no drag) and toggles the
       global `collapsed` class on the root + the glyph/aria; open() clears it.
 close button: click stops propagation so it never starts a drag; calls close().
@@ -194,7 +199,7 @@ Scenario: close() is idempotent
   Then onClose fires exactly once
 # pinned by: tests/ui/floating-window.test.ts
 
-Scenario: A confirmClose that resolves false vetoes the close (v4, REQ-9)
+Scenario: A confirmClose that resolves false vetoes the close (v4, REQ-a-window-may-veto-its-close)
   Given an open FloatingWindow whose confirmClose resolves false
   When the user clicks the ✕
   Then the window is still open, onClose never fired, and isOpen is true

@@ -1,6 +1,6 @@
 /**
  * Iterative in-place radix-2 complex FFT — the one piece of spectral machinery
- * the app owns (time-stretch.md REQ-1).
+ * the app owns (time-stretch.md REQ-time-stretching-is-pure).
  *
  * Everything else spectral here is the platform's: `AnalyserNode` does the scope's
  * FFT on the audio thread, and it is useless for offline work because it only ever
@@ -58,7 +58,7 @@ export function isPowerOfTwo(n: number): boolean {
  *
  * Both arrays must be the same power-of-two length; a mismatch is a no-op rather
  * than a throw, because every caller here is reached from a user-supplied buffer
- * and this module keeps the "nothing throws" contract time-stretch.md REQ-6 makes.
+ * and this module keeps the "nothing throws" contract time-stretch.md REQ-every-stretch-entry-point-is-total makes.
  */
 export function fftInPlace(re: Float32Array, im: Float32Array, inverse = false): void {
   const n = re.length;

@@ -19,7 +19,7 @@ export function deflateRaw(bytes: Uint8Array): Promise<Uint8Array> {
 }
 
 /**
- * Inflate, refusing to produce more than `maxBytes` (untrusted-input.md REQ-2).
+ * Inflate, refusing to produce more than `maxBytes` (untrusted-input.md REQ-bounds-in-the-validator-sizes-in-the-codec).
  *
  * The cap is enforced **inside** the read loop, not by measuring the result:
  * deflate's ratio tops out around 1032:1, so an address-bar-sized payload can

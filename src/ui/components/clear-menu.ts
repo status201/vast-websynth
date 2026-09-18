@@ -3,7 +3,7 @@ import switchStyles from '../styles/switch.module.css';
 import { iconLabel } from './ui-icons';
 
 /**
- * The `Clear ▾` header control — `specs/features/step-grid-editing.md` REQ-6.
+ * The `Clear ▾` header control — `specs/features/step-grid-editing.md` REQ-clear-menu-clears-in-bulk.
  * Sits beside the machine's Undo button, which is its natural sibling: both
  * undo work, one at a time and one bank at a time.
  *

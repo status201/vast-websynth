@@ -19,7 +19,7 @@ import type { AudioRecoveryState } from '../../src/audio/engine';
 vi.mock('../../src/state/factory-reset', () => ({ restoreFactorySettings: vi.fn() }));
 
 /** The onboarding hook the modal's "Take the guided tour" button calls
- *  (onboarding.md REQ-20). Injected, so about.ts never imports onboarding. */
+ *  (onboarding.md REQ-about-is-the-single-door-for-help). Injected, so about.ts never imports onboarding. */
 const TOUR = { startTour: vi.fn() };
 
 const INERT_IOS: IosAudioDiagnostics = { active: false, status: 'n/a', routed: false, paused: null, currentTime: null };
@@ -29,7 +29,7 @@ const INERT_MEDIA: MediaSessionDiagnostics = {
 const IDLE_BG: WatchdogDiagnostics = {
   supported: true, watching: false, underrunRatio: 0, worstUnderrunRatio: 0, driftRatio: 1, suspensions: 0,
 };
-/** Nothing has gone wrong with a resume (audio-lifecycle.md REQ-13). */
+/** Nothing has gone wrong with a resume (audio-lifecycle.md REQ-a-resume-that-does-not-take-is-retried). */
 const OK_RECOVERY: AudioRecoveryState = { blocked: false, attempts: 0, gestureArmed: false };
 
 /** Minimal StudioApi — the Debug panel reads the context, the clock/sync state,
@@ -95,7 +95,7 @@ const clipsClearBtn = () => document.querySelector('[data-testid="debug-clips-cl
 /**
  * Open the modal and wait for the card.
  *
- * The body loads behind a dynamic `import()` (runtime-performance.md REQ-1), so
+ * The body loads behind a dynamic `import()` (runtime-performance.md REQ-boot-cost-matches-the-request), so
  * the click no longer builds the card synchronously and a bare `click()` would
  * assert against an empty document. One `await Promise.resolve()` is not enough
  * either — the import settles later than a single microtask. The tour button is
@@ -141,7 +141,7 @@ function waitForCard(): Promise<void> {
 
 /**
  * The shortcuts key/value grid: the element directly above the Play offline
- * section (play-offline.md REQ-1), which itself sits above the factory reset.
+ * section (play-offline.md REQ-the-about-card-hosts-play-offline), which itself sits above the factory reset.
  */
 function keysGrid(): HTMLElement {
   const offline = document.querySelector('[data-testid="play-offline"]') as HTMLElement;
@@ -156,7 +156,7 @@ function closeOpenModal(): void {
 
 /**
  * The section is default-collapsed and only refreshes while expanded
- * (debug-panel.md REQ-3), so any test that wants *live* rows must open it
+ * (debug-panel.md REQ-debug-refreshes-while-expanded), so any test that wants *live* rows must open it
  * first. The header above the body is the click target.
  */
 function expandDebug(): void {
@@ -183,7 +183,7 @@ describe('About modal — Debug section', () => {
     expect(ctxStateRow()?.textContent).toBe('running');
   });
 
-  // runtime-performance.md REQ-1 — the card is behind a dynamic import, so both
+  // runtime-performance.md REQ-boot-cost-matches-the-request — the card is behind a dynamic import, so both
   // clicks of a double-click get past the `if (!backdrop)` guard if that guard
   // is read before the await. Checking it afterwards is what makes this pass.
   it('builds one card when two clicks race the lazy import', async () => {
@@ -204,7 +204,7 @@ describe('About modal — Debug section', () => {
     const btn = createAboutButton(engine, TOUR);
     document.body.appendChild(btn);
     await openModal(btn);
-    expandDebug(); // REQ-3 — a folded section reads nothing.
+    expandDebug(); // REQ-info-badges-show-per-control-help — a folded section reads nothing.
 
     expect(ctxStateRow()?.textContent).toBe('suspended');
 
@@ -225,7 +225,7 @@ describe('About modal — Debug section', () => {
     expect(unlockRow()?.textContent).toBe('playing · routed');
   });
 
-  // media-session.md REQ-8 — on the phone where the crackle reproduces, this row
+  // media-session.md REQ-session-is-observable-on-device — on the phone where the crackle reproduces, this row
   // is the only way to tell "the session never formed" from "it formed anyway".
   it('renders the Android keep-alive row, and n/a off Android', async () => {
     const media: MediaSessionDiagnostics = {
@@ -242,7 +242,7 @@ describe('About modal — Debug section', () => {
     expect(mediaRow()?.textContent).toBe('n/a');
   });
 
-  // audio-lifecycle.md REQ-12 — the reading that says whether a background
+  // audio-lifecycle.md REQ-the-measurement-is-visible-either-way — the reading that says whether a background
   // crackle is even ours: zero underruns means it happened downstream of us.
   it('renders the background-watchdog readings', async () => {
     const bg: WatchdogDiagnostics = {
@@ -261,13 +261,13 @@ describe('About modal — Debug section', () => {
     expect(bgRow()?.textContent).toContain('underrun n/a');
   });
 
-  // debug-panel.md REQ-4/REQ-5 — the late-bound row idiom, used by
+  // debug-panel.md REQ-the-debug-extension-contract/REQ-an-unbound-row-reads-n-a — the late-bound row idiom, used by
   // sample-persistence.md for the IndexedDB clip store.
   it('reads the sampler-clip row from its late-bound source, or n/a when unbound', async () => {
     const { engine } = stubEngine('running');
     await openModal(document.body.appendChild(createAboutButton(engine, TOUR)));
     expect(clipsRow()?.textContent).toBe('n/a');
-    // REQ-8 — the action-side mirror: an unbound source disables its action
+    // REQ-the-info-button-is-a-toggle — the action-side mirror: an unbound source disables its action
     // rather than offering a button that cannot work. (This runs before any
     // other test binds the module-level source, so it pins the real thing.)
     expect(clipsClearBtn()?.disabled).toBe(true);
@@ -288,7 +288,7 @@ describe('About modal — Debug section', () => {
     const reset = document.querySelector('[data-testid="factory-reset"]') as HTMLElement;
     expect(reset).not.toBeNull();
     expect(reset.textContent).toBe('Restore to Factory Settings');
-    // play-offline.md REQ-1 / factory-reset.md REQ-1 (v4): shortcuts grid →
+    // play-offline.md REQ-the-about-card-hosts-play-offline / factory-reset.md REQ-about-modal-has-a-reset-button (v4): shortcuts grid →
     // Play offline → Restore to Factory Settings → Debug header.
     const offline = reset.previousElementSibling as HTMLElement;
     expect(offline.dataset.testid).toBe('play-offline');
@@ -306,7 +306,7 @@ describe('About modal — Debug section', () => {
     // The styled confirm carries the Nintendo exit line, italic via .detail.
     const detail = document.querySelector('[data-testid="dialog-detail"]') as HTMLElement;
     expect(detail.textContent).toBe('“Everything not saved will be lost.”');
-    // factory-reset.md REQ-8 (v5): the message says what happens to an offline copy.
+    // factory-reset.md REQ-reset-redownloads-the-offline-copy (v5): the message says what happens to an offline copy.
     expect(detail.previousElementSibling?.textContent).toMatch(/A saved offline copy is downloaded again, fresh\.$/);
 
     (document.querySelector('[data-testid="dialog-confirm"]') as HTMLButtonElement).click();
@@ -345,7 +345,8 @@ describe('About modal — Debug section', () => {
     expect(restoreFactorySettings).not.toHaveBeenCalled();
   });
 
-  // ---- v3: interactive actions (debug-panel.md REQ-6..REQ-9) ----
+  // ---- v3: interactive actions — debug-panel.md REQ-a-debug-row-may-carry-one-action
+  // through debug-panel.md REQ-nothing-an-action-starts-outlives-the-panel ----
 
   const openAbout = async (engine: StudioApi): Promise<void> => {
     const btn = createAboutButton(engine, TOUR);
@@ -358,7 +359,7 @@ describe('About modal — Debug section', () => {
   it('offers the panel actions and follows the context state', async () => {
     const { engine, ctx, api } = stubEngine('suspended');
     await openAbout(engine);
-    expandDebug(); // REQ-3 — the label only follows the ctx while expanded.
+    expandDebug(); // REQ-info-badges-show-per-control-help — the label only follows the ctx while expanded.
 
     const toggle = byId<HTMLButtonElement>('debug-ctx-toggle');
     expect(byId('debug-actions')).not.toBeNull();
@@ -369,7 +370,7 @@ describe('About modal — Debug section', () => {
 
     // Running: it offers the opposite, and suspends the real context — through
     // the Engine, so the suspend is marked deliberate and the automatic re-arm
-    // leaves it alone (audio-lifecycle.md REQ-15).
+    // leaves it alone (audio-lifecycle.md REQ-an-unasked-suspension-is-recovered).
     ctx.state = 'running';
     const handler = ctx.addEventListener.mock.calls.find((c) => c[0] === 'statechange')?.[1] as () => void;
     handler();
@@ -379,7 +380,7 @@ describe('About modal — Debug section', () => {
     expect(ctx.suspend).not.toHaveBeenCalled();
   });
 
-  it('says when a resume is waiting for a gesture (audio-lifecycle REQ-13)', async () => {
+  it('says when a resume is waiting for a gesture (audio-lifecycle REQ-a-resume-that-does-not-take-is-retried)', async () => {
     const { engine } = stubEngine('suspended', INERT_IOS, INERT_MEDIA, IDLE_BG, {
       blocked: true, attempts: 1, gestureArmed: true,
     });
@@ -406,12 +407,12 @@ describe('About modal — Debug section', () => {
     expect(ctx.createOscillator).toHaveBeenCalledTimes(1);
     expect(tone.textContent).toBe('Playing…');
 
-    // REQ-9 — closing the panel stops it.
+    // REQ-help-copy-tells-the-truth — closing the panel stops it.
     closeOpenModal();
     expect(osc.stop).toHaveBeenCalled();
   });
 
-  it('copies a report of every row plus the version and UA (REQ-7)', async () => {
+  it('copies a report of every row plus the version and UA (REQ-a-motion-topic-anchors-to-the-tab)', async () => {
     const writeText = vi.fn(async () => {});
     Object.defineProperty(navigator, 'clipboard', { value: { writeText }, configurable: true });
     const { engine } = stubEngine('running');
@@ -426,7 +427,7 @@ describe('About modal — Debug section', () => {
     expect(report).toContain('Transport: stopped · 120.0 BPM · sync off');
   });
 
-  // REQ-6 — a destructive action never fires on the click alone.
+  // REQ-the-sync-section-has-two-topics — a destructive action never fires on the click alone.
   it('confirms before clearing the autosaved session', async () => {
     const { engine } = stubEngine('running');
     localStorage.setItem('websynth.session', JSON.stringify({ v: 1, savedAt: Date.now(), file: {} }));
@@ -458,7 +459,7 @@ describe('About modal — Debug section', () => {
     // debug-panel.md v12: one key reads '1 key', and a few bytes read in kB, not '0.0 MB'.
     expect(byId('debug-storage').textContent).toMatch(/^1 key · \d+ kB$/);
     expect(byId('debug-latency').textContent).toBe('base 5.0 ms · output 12.0 ms');
-    // Unbound late-bound sources read n/a rather than crashing (REQ-5).
+    // Unbound late-bound sources read n/a rather than crashing (REQ-song-file-buttons-carry-badges).
     expect(byId('debug-midi').textContent).toBe('n/a');
     expect(byId('debug-wake').textContent).toBe('n/a');
     // jsdom has no service worker.
@@ -479,9 +480,9 @@ describe('About modal — Debug section', () => {
     expect(section.classList.contains('collapsed')).toBe(false);
   });
 
-  // ---- v4: the panel costs nothing it doesn't have to (REQ-3/REQ-11) ----
+  // ---- v4: the panel costs nothing it doesn't have to (REQ-info-badges-show-per-control-help/REQ-help-copy-covers-the-gesture-model) ----
 
-  it('reads nothing at all while the Debug section is collapsed (REQ-3)', async () => {
+  it('reads nothing at all while the Debug section is collapsed (REQ-info-badges-show-per-control-help)', async () => {
     vi.useFakeTimers();
     try {
       const { engine, ctx } = stubEngine('suspended');
@@ -499,7 +500,7 @@ describe('About modal — Debug section', () => {
     }
   });
 
-  it('repaints immediately when the section is expanded, before any tick (REQ-3)', async () => {
+  it('repaints immediately when the section is expanded, before any tick (REQ-info-badges-show-per-control-help)', async () => {
     const { engine, ctx } = stubEngine('suspended');
     await openAbout(engine);
 
@@ -510,7 +511,7 @@ describe('About modal — Debug section', () => {
     expect(ctxStateRow()?.textContent).toBe('running');
   });
 
-  it('re-reads the localStorage-backed rows on the slow tier only (REQ-11)', async () => {
+  it('re-reads the localStorage-backed rows on the slow tier only (REQ-help-copy-covers-the-gesture-model)', async () => {
     vi.useFakeTimers();
     try {
       const { engine } = stubEngine('running');
@@ -536,7 +537,7 @@ describe('About modal — Debug section', () => {
   });
 });
 
-// onboarding.md REQ-17 — the About list is the canonical on-screen shortcut
+// onboarding.md REQ-about-key-symbols-are-drawn — the About list is the canonical on-screen shortcut
 // reference, and its arrow rows were unreadable.
 describe('About modal — keyboard shortcut list', () => {
   beforeEach(() => {
@@ -589,8 +590,8 @@ describe('About modal — keyboard shortcut list', () => {
     expect(text).not.toContain('Shift + click Help');
   });
 
-  // onboarding.md REQ-17b — folded is the resting state; the full list is one
-  // click away, which is what keeps REQ-17's "names every global key" true.
+  // onboarding.md REQ-the-key-list-folds-to-six-rows — folded is the resting state; the full list is one
+  // click away, which is what keeps REQ-about-key-symbols-are-drawn's "names every global key" true.
   it('shows rows through Space by default, and no further', async () => {
     const keys = await openAbout();
     expect(keys.classList.contains('collapsed')).toBe(true);
@@ -617,7 +618,7 @@ describe('About modal — keyboard shortcut list', () => {
     expect(keys.textContent).toContain('Fine knob control');
   });
 
-  // input-control.md REQ-12 — the list mirrors the keys: up above down.
+  // input-control.md REQ-pitch-bend-is-quote-and-slash — the list mirrors the keys: up above down.
   it('stacks the two pitch-bend keys, and drops the old . binding', async () => {
     const keys = await openAbout();
     const cells = [...keys.children].map((c) => c.textContent);
@@ -640,7 +641,7 @@ describe('About modal — keyboard shortcut list', () => {
     expect(localStorage.getItem('websynth.debug.about')).not.toBe('0');
   });
 
-  // onboarding.md REQ-20 — the modal is the only tour-replay route.
+  // onboarding.md REQ-about-is-the-single-door-for-help — the modal is the only tour-replay route.
   it('carries the guided-tour button above the shortcuts header', async () => {
     const keys = await openAbout();
     const tourBtn = document.querySelector('[data-testid="start-tour"]') as HTMLButtonElement;
@@ -658,7 +659,7 @@ describe('About modal — keyboard shortcut list', () => {
     expect(document.querySelector('[data-testid="start-tour"]')?.closest('.hidden')).not.toBeNull();
   });
 
-  it('draws every arrow cap rather than typing it (REQ-17, iconography.md)', async () => {
+  it('draws every arrow cap rather than typing it (REQ-about-key-symbols-are-drawn, iconography.md)', async () => {
     const keys = await openAbout();
     const caps = [...keys.querySelectorAll(`.${modalStyles.cap!}`)];
     const drawn = caps.filter((c) => c.querySelector('svg.ui-icon'));
@@ -666,7 +667,7 @@ describe('About modal — keyboard shortcut list', () => {
 
     for (const a of drawn) {
       // The cap holds no text at all, so `role=img` + a label are the only
-      // thing a screen reader has to go on (iconography.md REQ-3).
+      // thing a screen reader has to go on (iconography.md REQ-an-icon-is-aria-hidden).
       expect(a.getAttribute('role')).toBe('img');
       expect(a.getAttribute('aria-label')).toBeTruthy();
       expect(a.classList.contains(modalStyles.iconCap!)).toBe(true);
@@ -678,7 +679,7 @@ describe('About modal — keyboard shortcut list', () => {
     expect(keys.textContent).not.toMatch(/[←→↑↓⌫⏮]/);
   });
 
-  // onboarding.md REQ-17c — the row must not read as a keyboard shortcut.
+  // onboarding.md REQ-keys-are-drawn-as-keys — the row must not read as a keyboard shortcut.
   it('caps only the real key in "Shift + drag"', async () => {
     const keys = await openAbout();
     const cell = [...keys.children].find((k) => k.textContent === 'Shift + drag');
@@ -698,7 +699,7 @@ describe('About modal — keyboard shortcut list', () => {
   });
 });
 
-// onboarding.md REQ-17c — the note rows are a keyboard diagram derived from the
+// onboarding.md REQ-keys-are-drawn-as-keys — the note rows are a keyboard diagram derived from the
 // real bindings, so it cannot disagree with the keys it documents.
 describe('About modal — the note-row keyboard diagram', () => {
   beforeEach(() => {
@@ -748,7 +749,7 @@ describe('About modal — the note-row keyboard diagram', () => {
     expect(blanks).toEqual([2, 6]); // E-F and B-C
   });
 
-  it('tints the two ranks apart (REQ-17c)', async () => {
+  it('tints the two ranks apart (REQ-keys-are-drawn-as-keys)', async () => {
     const cell = await lowerDiagram();
     const [sharpRank, naturalRank] = [...cell.children];
     for (const c of rankCaps(naturalRank!)) {
@@ -779,7 +780,7 @@ describe('About modal — the note-row keyboard diagram', () => {
     expect(rankCaps(cell.lastElementChild!)).toHaveLength(8);
   });
 
-  // keyboard-layout.md REQ-4 / onboarding.md REQ-17c.
+  // keyboard-layout.md REQ-layout-change-needs-no-reload / onboarding.md REQ-keys-are-drawn-as-keys.
   it('relabels in place when the layout changes, keeping its shape', async () => {
     const cell = await lowerDiagram();
     const naturals = () =>
@@ -793,7 +794,7 @@ describe('About modal — the note-row keyboard diagram', () => {
   });
 });
 
-// keyboard-layout.md REQ-4 — the gear must not fight the fold it sits in.
+// keyboard-layout.md REQ-layout-change-needs-no-reload — the gear must not fight the fold it sits in.
 describe('About modal — the keyboard-layout picker', () => {
   beforeEach(() => {
     installLocalStorageMock();
@@ -839,7 +840,7 @@ describe('About modal — the keyboard-layout picker', () => {
   // and `stroke: currentColor` from rules scoped to the *header* button classes.
   // The fix was to use the app's existing in-panel gear instead — the same one
   // the XY Pad's axis-assignment button draws, now from `ui-icons.ts`, which
-  // `base.css` strokes wherever it lands (iconography.md REQ-5).
+  // `base.css` strokes wherever it lands (iconography.md REQ-ui-icons-are-self-stroking).
   it('draws the same gear glyph as the XY Pad, beside the section title', async () => {
     const { gear } = await openAbout();
     expect(gear.querySelector('svg.ui-icon')).not.toBeNull();

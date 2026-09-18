@@ -38,7 +38,7 @@ export function buildDrumPanel(
   header.className = layout.patternPanelHeader!;
   header.appendChild(new Switch(bus, 'drum.on', 'drums').el);
   // Chain / Mute / Solo, right after the machine switch — the same three
-  // controls the Song tab's lane card carries (machine-status.md REQ-9).
+  // controls the Song tab's lane card carries (machine-status.md REQ-lane-controls-live-on-both-surfaces).
   header.appendChild(laneControlsFor(bus, engine, 'drum', bridge).el);
   header.appendChild(laneMeterControlsFor(bus, 'drum').el);
   header.appendChild(new Knob({ bus, paramId: 'drum.master', label: 'MASTER' }).el);
@@ -88,7 +88,7 @@ export function buildDrumPanel(
   // built before the grid and needs the same gate.
   const gate = new VisibilityGate();
 
-  // ---- Transport-position ruler (transport-position.md REQ-9) ----
+  // ---- Transport-position ruler (transport-position.md REQ-a-position-ruler-above-every-grid) ----
   // Outside the rest-overlay wrapper on purpose: a rest bar dims the *pattern*,
   // but where the transport is stays readable. It borrows the panel's own row
   // and cells classes, so its ticks line up with the steps beneath them.
@@ -111,7 +111,7 @@ export function buildDrumPanel(
   const trackLabels: HTMLButtonElement[] = [];
 
   // A row's display name follows its selected voice model (drum-machine.md
-  // REQ-11); DRUM_TRACK_LABELS stays the canonical slot naming.
+  // REQ-a-drum-tracks-algorithm-is-selectable); DRUM_TRACK_LABELS stays the canonical slot naming.
   const modelName = (t: number): string =>
     DRUM_MODEL_LABELS[Math.round(bus.get(`drum.t${t}.model`))] ?? DRUM_TRACK_LABELS[t] ?? `T${t}`;
 
@@ -152,7 +152,7 @@ export function buildDrumPanel(
     cellRows.push(cells);
     const trackBtns: StepButton[] = [];
     // Every cell is built; `bindLaneGrid` below decides which are live and where
-    // the beat accents fall, so the meter owns both (meter.md REQ-8/REQ-11).
+    // the beat accents fall, so the meter owns both (meter.md REQ-accents-and-ruler-derive-from-the-meter/REQ-cells-beyond-the-length-are-hidden).
     for (let s = 0; s < ALL_CELLS; s++) {
       const cell = engine.patterns.drum[t]![s]!;
       const sb = new StepButton('');
@@ -205,7 +205,7 @@ export function buildDrumPanel(
   let modelDd: ParamDropdown | null = null;
   const renderTuning = (): void => {
     // The knobs bind per-track paramIds, so the strip only needs rebuilding when
-    // the selected track changes — not on every step click (drum-machine.md REQ-10).
+    // the selected track changes — not on every step click (drum-machine.md REQ-the-strip-rebuilds-only-on-selection).
     if (cursor.selRow === tuningTrack) return;
     tuningTrack = cursor.selRow;
     for (const k of tuningCells) k.destroy();
@@ -213,7 +213,7 @@ export function buildDrumPanel(
     modelDd?.destroy();
     tuningKnobs.innerHTML = '';
     tuningLabel.textContent = `${modelName(cursor.selRow)} — sound`;
-    // Voice model picker leads the strip (drum-machine.md REQ-11).
+    // Voice model picker leads the strip (drum-machine.md REQ-a-drum-tracks-algorithm-is-selectable).
     modelDd = new ParamDropdown(bus, `drum.t${cursor.selRow}.model`, DRUM_MODEL_LABELS);
     modelDd.el.dataset.testid = 'drum-model';
     tuningKnobs.appendChild(modelDd.el);
@@ -249,7 +249,7 @@ export function buildDrumPanel(
     onClick: () => randomizeKit(bus),
   });
 
-  // The hat choke group (drum-machine.md REQ-12) sits with the kit controls
+  // The hat choke group (drum-machine.md REQ-a-closed-hat-cuts-an-open-hat) sits with the kit controls
   // rather than the per-track strip: it is a property of the *kit*, not of the
   // selected track, and it is keyed on voice models across all eight.
   const choke = new Switch(bus, 'drum.choke', 'CHOKE');

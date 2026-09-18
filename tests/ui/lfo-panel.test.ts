@@ -4,11 +4,11 @@ import { LFO_DEST_LABELS, ParamBus, registerDefaults } from '../../src/state/par
 import { SYNC_LABELS } from '../../src/utils/tempo';
 
 /**
- * The two-page LFO panel: mutually exclusive destinations (lfo.md REQ-12) and
- * the off-screen-active lamp (REQ-15).
+ * The two-page LFO panel: mutually exclusive destinations (lfo.md REQ-destinations-are-no-longer-exclusive) and
+ * the off-screen-active lamp (REQ-the-two-lfos-share-one-panel).
  *
  * Both pages are built and subscribed at boot, so every assertion here can read
- * the hidden page directly — which is the point of REQ-5.
+ * the hidden page directly — which is the point of REQ-amplitude-destinations-are-smoothed.
  */
 
 const CUTOFF = LFO_DEST_LABELS.indexOf('cutoff');
@@ -26,7 +26,7 @@ function build() {
 function destOption(el: HTMLElement, page: '1' | '2', label: string): HTMLButtonElement {
   const prefix = page === '1' ? 'lfo' : 'lfo2';
   // By testid, not by position: the RATE knob's tempo lock is a dropdown too, and
-  // it sits ahead of this one (tempo-lock.md REQ-3).
+  // it sits ahead of this one (tempo-lock.md REQ-locked-the-division-replaces-the-dial).
   const dd = el.querySelector<HTMLElement>(`[data-testid="dropdown-${prefix}.dest"]`)!;
   const opts = [...dd.querySelectorAll<HTMLButtonElement>('button')];
   return opts.find((o) => o.textContent === label)!;
@@ -38,7 +38,7 @@ const tab = (el: HTMLElement, page: '1' | '2') =>
   el.querySelector<HTMLButtonElement>(`[data-testid="ptab-lfo-${page}"]`)!;
 
 describe('LFO panel', () => {
-  it('builds both pages, each bound to its own params (REQ-10)', () => {
+  it('builds both pages, each bound to its own params (REQ-there-are-two-lfos)', () => {
     const { el } = build();
     for (const id of ['knob-lfo.rate', 'knob-lfo.amount', 'seg-lfo.wave',
       'knob-lfo2.rate', 'knob-lfo2.amount', 'seg-lfo2.wave']) {
@@ -46,17 +46,17 @@ describe('LFO panel', () => {
     }
   });
 
-  it('shows page 1 first and keeps page 2 mounted (REQ-15, REQ-5)', () => {
+  it('shows page 1 first and keeps page 2 mounted (REQ-the-two-lfos-share-one-panel, REQ-amplitude-destinations-are-smoothed)', () => {
     const { el } = build();
     expect(el.querySelector('[data-testid="ppage-lfo-1"]')!.classList.contains('visible')).toBe(true);
     expect(el.querySelector('[data-testid="ppage-lfo-2"]')!.classList.contains('visible')).toBe(false);
     expect(el.querySelector('[data-testid="knob-lfo2.rate"]')).not.toBeNull();
   });
 
-  // REQ-12's mutual exclusion is superseded by the mod matrix (lfo.md v8). What was
+  // REQ-destinations-are-no-longer-exclusive's mutual exclusion is superseded by the mod matrix (lfo.md v8). What was
   // three tests enforcing the block is now one test enforcing its ABSENCE — the pair
-  // may share a destination, and REQ-13 has always said what that sounds like.
-  it('lets both LFOs hold one destination (v8, REQ-12 superseded)', () => {
+  // may share a destination, and REQ-duplicated-destinations-sum-and-stay-bounded has always said what that sounds like.
+  it('lets both LFOs hold one destination (v8, REQ-destinations-are-no-longer-exclusive superseded)', () => {
     const { bus, el } = build();
     expect(destOption(el, '2', 'cutoff').disabled).toBe(false);
 
@@ -77,7 +77,7 @@ describe('LFO panel', () => {
     expect(destOption(el, '2', 'cutoff').disabled).toBe(false);
   });
 
-  it('no longer carries a holder hint (v8, REQ-12 superseded)', () => {
+  it('no longer carries a holder hint (v8, REQ-destinations-are-no-longer-exclusive superseded)', () => {
     const { bus, el } = build();
     bus.set('lfo.dest', CUTOFF);
     expect(el.querySelector('[data-testid="dest-taken-lfo2"]')).toBeNull();
@@ -94,9 +94,9 @@ describe('LFO panel', () => {
   });
 
   // v9: the synced rate knob is no longer dimmed in place next to a full-width
-  // picker two rows below — the picker IS the knob now (tempo-lock.md REQ-3), so
+  // picker two rows below — the picker IS the knob now (tempo-lock.md REQ-locked-the-division-replaces-the-dial), so
   // what marks the synced page is the `synced` state class on its rate knob.
-  it('swaps the dial for the division on the LFO that is synced, not the other (REQ-9)', () => {
+  it('swaps the dial for the division on the LFO that is synced, not the other (REQ-lfo-sync-locks-rate-to-tempo)', () => {
     const { bus, el } = build();
     bus.set('lfo2.sync', SYNC_LABELS.indexOf('1/4'));
     expect(el.querySelector('[data-testid="knob-lfo2.rate"]')!.classList.contains('synced')).toBe(true);
@@ -111,7 +111,7 @@ describe('LFO panel', () => {
     expect(el.querySelector('[data-testid="tempolock-lfo2.rate"]')).not.toBeNull();
   });
 
-  it('lights the tab of a modulating page and darkens it again (REQ-15)', () => {
+  it('lights the tab of a modulating page and darkens it again (REQ-the-two-lfos-share-one-panel)', () => {
     const { bus, el } = build();
     expect(tab(el, '2').classList.contains('lit')).toBe(false);
 
@@ -124,7 +124,7 @@ describe('LFO panel', () => {
     expect(tab(el, '2').classList.contains('lit')).toBe(false);
   });
 
-  it('lights LFO 1 from the mod wheel, and never LFO 2 (REQ-11)', () => {
+  it('lights LFO 1 from the mod wheel, and never LFO 2 (REQ-the-mod-wheel-feeds-lfo-one-only)', () => {
     const { bus, el } = build();
     bus.set('lfo.dest', CUTOFF);
     bus.set('lfo2.dest', PAN);
@@ -134,7 +134,7 @@ describe('LFO panel', () => {
     expect(tab(el, '2').classList.contains('lit')).toBe(false);
   });
 
-  it('keeps the help anchor on the tab row, not on a tab (REQ-7)', () => {
+  it('keeps the help anchor on the tab row, not on a tab (REQ-shape-destination-sweeps-the-pole-mix)', () => {
     const { el } = build();
     const helped = el.querySelectorAll('[data-help="lfo"]');
     expect(helped).toHaveLength(1);

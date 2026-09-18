@@ -4,43 +4,43 @@
 id: testids
 status: implemented
 version: 21 # v21: debug-scope — the Debug panel's scope-liveness row (scope.md
-            #      REQ-38)
-            # v20: the song transport's Loop button (transport-loop.md REQ-1)
+            #      REQ-the-panel-says-whether-it-is-drawing)
+            # v20: the song transport's Loop button (transport-loop.md REQ-a-loop-button-on-both-surfaces)
             #      and the global `loop` / `loop-anchor` cell classes (REQ-12);
             #      the Song row now carries `transport-toggle` too
-            # v19: the About card's Play offline section (play-offline.md REQ-1)
-            #      and its toast (REQ-8)
-            # v18: the EQUALIZER section (equalizer.md REQ-11). Its tabs are
+            # v19: the About card's Play offline section (play-offline.md REQ-the-about-card-hosts-play-offline)
+            #      and its toast (REQ-data-derived-ids-are-enumerated)
+            # v18: the EQUALIZER section (equalizer.md REQ-eq-tab-ids-are-namespaced). Its tabs are
             #      eq-NAMESPACED — tab-eq-seq, not tab-seq — because the
             #      pattern row already owns the bare machine ids and a
             #      TabContainer mints tab-<id>/panel-<id> from whatever it
             #      is given. Shadowing them would make every machine-tab
             #      selector ambiguous.
             # v17: scope-zones-toggle — the Spectrum-only problem-band overlay
-            #      (scope.md REQ-29)
+            #      (scope.md REQ-a-zones-toggle)
             # v16: the preset import wizard's error strip, its copy button and
-            #      the review step's warnings (presets.md REQ-16)
+            #      the review step's warnings (presets.md REQ-the-preset-wizard-reports-every-problem)
             # v15: dialog-copy — an alert's optional "copy the full text"
-            #      button (dialog.md REQ-9)
+            #      button (dialog.md REQ-an-alert-may-offer-copyable-text)
             # v14: the Edit Sample modal's three fold headers —
             #      <chop|stretch|scratch>-section/-head/-toggle/-body
-            #      (sample-recorder.md REQ-9)
+            #      (sample-recorder.md REQ-every-section-below-the-waveform-folds)
             # v13: the Fit / Shift rows and the slot-row FIT button
             #      (time-stretch.md)
             # v12: lazy-load-failed-toast, the deferred-surface load report
-            #      (onboarding.md REQ-24)
+            #      (onboarding.md REQ-the-help-door-never-fails-silently)
             # v11: the per-step edit row's micro slider exposes its PARTS
-            #      (-micro-track/-dec/-inc/-value), step-settings.md REQ-6
+            #      (-micro-track/-dec/-inc/-value), step-settings.md REQ-a-step-carries-a-micro-offset
             # v10: meter-picker + machine-<lane>-len/-rate/-meter-hint
             # v9: tempolock-/tempodiv-<paramId> and dropdown-<prefix>.dest
             #     (tempo-lock.md, lfo.md v9)
-            # v8: scope-resize-handle (scope.md REQ-19)
-            # v7: createPanelTabs' ptab-/ppage- namespace (panel-tabs.md REQ-3) and
-            #     the LFO panel's per-page ids (lfo.md REQ-12, REQ-15)
-            # v6: chain-transpose-<up|down>-seq (arrangement.md REQ-8)
+            # v8: scope-resize-handle (scope.md REQ-a-scope-resize-handle)
+            # v7: createPanelTabs' ptab-/ppage- namespace (panel-tabs.md REQ-panel-tab-testids-are-prefixed) and
+            #     the LFO panel's per-page ids (lfo.md REQ-destinations-are-no-longer-exclusive, REQ-the-two-lfos-share-one-panel)
+            # v6: chain-transpose-<up|down>-seq (arrangement.md REQ-a-seq-slot-carries-a-transpose)
             # v5: ids interpolated from DATA (song-demo-<name>) must be enumerated
-            #     by a test, never spelled — see REQ-8
-            # v4: chooseDialog's dialog-choice-<id> (dialog.md REQ-8); dialog-cancel
+            #     by a test, never spelled — see REQ-data-derived-ids-are-enumerated
+            # v4: chooseDialog's dialog-choice-<id> (dialog.md REQ-choose-dialog-offers-several-options); dialog-cancel
             #     was always emitted but never catalogued
             # v3: the About modal's keyboard-layout picker (keyboard-layout.md)
             # v2: the header's ⓘ/? swap — info-badges replaces help-button, the
@@ -85,59 +85,66 @@ through the shared factories gets a correct, predictable testid for free.
 
 ## Requirements
 
-- **REQ-1** — Param-bound controls mint from the **param id**, inside the factory:
-  `knob-<paramId>`, `switch-<paramId>`, `seg-<paramId>` (+ `seg-<paramId>-<idx>`
-  per button), `strip-<paramId>`. Renaming a param renames its testid; no call site
-  restates it. `Switch` accepts an explicit override for its non-param uses.
+- **REQ-param-controls-mint-from-the-param-id** — Param-bound controls mint from
+  the **param id**, inside the factory: `knob-<paramId>`, `switch-<paramId>`,
+  `seg-<paramId>` (+ `seg-<paramId>-<idx>` per button), `strip-<paramId>`.
+  Renaming a param renames its testid; no call site restates it. `Switch`
+  accepts an explicit override for its non-param uses.
   - (v9) A `Knob` on a lockable param mints two more from the **same** param id:
     `tempolock-<paramId>` (the note glyph) and `tempodiv-<paramId>` (the division
-    chip) — [tempo-lock](tempo-lock.md) REQ-2/REQ-3. Keyed off the *rate/time*
+    chip) — [tempo-lock](tempo-lock.md) REQ-the-lock-is-a-note-glyph/REQ-locked-the-division-replaces-the-dial. Keyed off the *rate/time*
     param the lock governs, not off the `.sync` param it writes, so the three ids
     on one knob share one stem and a selector reads as one control.
     `tempodiv-` wraps a whole `Dropdown`, so its own text includes the closed
     menu — assert against the toggle's label span, not the chip.
-- **REQ-2** — Structural containers mint from their own id — `tab-<id>` /
-  `panel-<id>` (`tabs.ts`) — and reusable multi-instance components namespace
-  through a **prefix option** so one component can appear many times without
-  colliding: `BankBar`'s `testidPrefix` (`bank-<lane>-…`), `createClearMenu`'s `lane`
-  (`clear-<lane>-…`), `buildLiveFxControls`' `testIdPrefix` (`perf` on the Song
-  tab, `livefx` in the floating window), `buildTransportControls`' `testIdPrefix`
-  (`transport` in the Song panel row, `transportw` in the floating window),
-  `createPanelTabs`' `prefix` (`ptab-<prefix>-<page>`).
+- **REQ-containers-mint-from-their-own-id** — Structural containers mint from
+  their own id — `tab-<id>` / `panel-<id>` (`tabs.ts`) — and reusable
+  multi-instance components namespace through a **prefix option** so one
+  component can appear many times without colliding: `BankBar`'s `testidPrefix`
+  (`bank-<lane>-…`), `createClearMenu`'s `lane` (`clear-<lane>-…`),
+  `buildLiveFxControls`' `testIdPrefix` (`perf` on the Song tab, `livefx` in the
+  floating window), `buildTransportControls`' `testIdPrefix` (`transport` in the
+  Song panel row, `transportw` in the floating window), `createPanelTabs`'
+  `prefix` (`ptab-<prefix>-<page>`).
   - **`ptab-`/`ppage-` is deliberately distinct from `tab-`/`panel-`.** Two
     different components page two different things: `TabContainer` owns the
     machine row, and its `tab-<id>` ids are anchored by e2e specs, the guided
     tour's spotlight targets, `info-badges.ts` and `UiBridge.showTab`.
     `createPanelTabs` pages the body of one faceplate panel
-    ([panel-tabs](panel-tabs.md) REQ-3). Reusing `tab-<id>` for both would let a
+    ([panel-tabs](panel-tabs.md) REQ-panel-tab-testids-are-prefixed). Reusing `tab-<id>` for both would let a
     panel page shadow a machine tab.
-- **REQ-3** — Non-param buttons take an explicit `testId` (`createButton` →
-  `opts.testId`); per-instance panel ids encode their coordinates
-  (`drum-step-<track>-<step>`, `sampler-step-<slot>-<step>`).
-- **REQ-4** — **Select by testid, not by label.** Capitalised button text collides
-  with lowercase siblings under Playwright's case-insensitive matching.
-- **REQ-5** — The transport row's play button is `<prefix>-toggle`, **never**
-  `-play`: `transport-play` is the *header* button, and a default-prefixed instance
-  minting a second one would break every spec that drives the transport by that id.
-- **REQ-6** — An id in the catalogue below is not renamed without updating the
-  specs that name it (cross-referenced inline).
-- **REQ-7** — Engine/state assertions go through the DEV-only `window.__synth`
-  bridge, never through the DOM (see [architecture](../architecture.md) → Global
-  conventions).
-- **REQ-8** (ids interpolated from data) — Most ids are minted from a fixed
-  vocabulary, so the catalogue below is the whole set and REQ-6 protects it. A few
-  interpolate **runtime data** instead: `song-demo-<name>` takes the demo's own
-  song name (via `demos-index.json`). That set changes whenever the data does —
-  with no spec change, since `src/state/demos/` is a drop-in directory — so a test
-  must **enumerate** those ids rather than spell one:
+- **REQ-non-param-buttons-take-an-explicit-testid** — Non-param buttons take an
+  explicit `testId` (`createButton` → `opts.testId`); per-instance panel ids
+  encode their coordinates (`drum-step-<track>-<step>`,
+  `sampler-step-<slot>-<step>`).
+- **REQ-select-by-testid-not-by-label** — **Select by testid, not by label.**
+  Capitalised button text collides with lowercase siblings under Playwright's
+  case-insensitive matching.
+- **REQ-transport-play-is-prefix-toggle** — The transport row's play button is
+  `<prefix>-toggle`, **never** `-play`: `transport-play` is the *header* button,
+  and a default-prefixed instance minting a second one would break every spec
+  that drives the transport by that id.
+- **REQ-a-catalogue-id-is-not-renamed-alone** — An id in the catalogue below is
+  not renamed without updating the specs that name it (cross-referenced inline).
+- **REQ-state-assertions-use-the-dev-bridge** — Engine/state assertions go
+  through the DEV-only `window.__synth` bridge, never through the DOM (see
+  [architecture](../architecture.md) → Global conventions).
+- **REQ-data-derived-ids-are-enumerated** (ids interpolated from data) — Most
+  ids are minted from a fixed vocabulary, so the catalogue below is the whole
+  set and REQ-a-catalogue-id-is-not-renamed-alone protects it. A few interpolate
+  **runtime data** instead: `song-demo-<name>` takes the demo's own song name
+  (via `demos-index.json`). That set changes whenever the data does — with no
+  spec change, since `src/state/demos/` is a drop-in directory — so a test must
+  **enumerate** those ids rather than spell one:
   `[data-testid^="song-demo-"]:not([data-testid="song-demo-more"])`, wrapped by
-  the helpers in `e2e/helpers.ts`. Spelling one couples the suite to data it does
-  not own; `tests/no-shipped-demo-names.test.ts` fails any test that does, and
-  [write-a-test](../recipes/write-a-test.md) has the full rule.
-  Two consequences worth knowing: the enumeration must exclude `song-demo-more`,
-  which shares the prefix but is a toggle, not a demo — and a demo literally named
-  `more` would mint a colliding id. Nothing prevents that today; it has not
-  happened, and the fix (slugging the name) would break every existing selector.
+  the helpers in `e2e/helpers.ts`. Spelling one couples the suite to data it
+  does not own; `tests/no-shipped-demo-names.test.ts` fails any test that does,
+  and [write-a-test](../recipes/write-a-test.md) has the full rule. Two
+  consequences worth knowing: the enumeration must exclude `song-demo-more`,
+  which shares the prefix but is a toggle, not a demo — and a demo literally
+  named `more` would mint a colliding id. Nothing prevents that today; it has
+  not happened, and the fix (slugging the name) would break every existing
+  selector.
 
 ## Technical design
 
@@ -170,30 +177,30 @@ Grouped by surface; `<…>` is interpolated at build time.
 ```yaml
 shell (app.ts):
   app-header · pattern-row · fx · keyboard · panic · header-menu
-  transport-play                     # the HEADER play button (see REQ-5)
+  transport-play                     # the HEADER play button (see REQ-transport-play-is-prefix-toggle)
   preset-select · preset-save        # preset-save opens the manager
   scope-toggle · scope-channels-toggle · scope-canvas    # features/scope.md
-  scope-resize-handle                # features/scope.md REQ-19 — drags the panel taller
-  scope-zones-toggle                 # features/scope.md REQ-29 — hidden unless Spectrum
+  scope-resize-handle                # features/scope.md REQ-a-scope-resize-handle — drags the panel taller
+  scope-zones-toggle                 # features/scope.md REQ-a-zones-toggle — hidden unless Spectrum
   eq-section                         # features/equalizer.md — the whole folded section
-  tab-eq-<seq|drums|sampler>         # equalizer.md REQ-11 — NOT tab-<lane>: those
-  panel-eq-<seq|drums|sampler>       #   belong to the pattern row (REQ-6)
+  tab-eq-<seq|drums|sampler>         # equalizer.md REQ-eq-tab-ids-are-namespaced — NOT tab-<lane>: those
+  panel-eq-<seq|drums|sampler>       #   belong to the pattern row (REQ-a-catalogue-id-is-not-renamed-alone)
   eq-graph-<lane> · eq-canvas-<lane> # the wrapper carries data-eq-curve (REQ-14);
                                      #   the curve itself is canvas strokes, so the
                                      #   eight bands mint no ids of their own
-  eq-preset-<lane> · eq-reset-<lane> # equalizer.md REQ-15
+  eq-preset-<lane> · eq-reset-<lane> # equalizer.md REQ-eq-presets-are-a-table-of-bus-writes
   # Its switches and knobs mint from param ids like every other control
-  # (REQ-1): switch-fx.eq.on, knob-fx.drum.eq.hp, and so on.
+  # (REQ-param-controls-mint-from-the-param-id): switch-fx.eq.on, knob-fx.drum.eq.hp, and so on.
   info-badges · about-button · fullscreen   # ⓘ toggles badges, ? opens About;
                                             # ids follow function, not glyph order
-                                            # (features/responsive-header.md REQ-6)
+                                            # (features/responsive-header.md REQ-every-icon-button-has-a-title)
 
 synth faceplate panels:
   # The seven panel() panels carry no id of their own — their controls mint from
-  # param ids (REQ-1). Only the LFO panel's pages and hints are named:
-  ptab-lfo-<1|2> · ppage-lfo-<1|2>   # features/panel-tabs.md REQ-3
-  pulse-hint-<lfo|lfo2>              # features/oscillators.md REQ-9 — per page, so
-                                     #   the two hints don't collide by text (REQ-4)
+  # param ids (REQ-param-controls-mint-from-the-param-id). Only the LFO panel's pages and hints are named:
+  ptab-lfo-<1|2> · ppage-lfo-<1|2>   # features/panel-tabs.md REQ-panel-tab-testids-are-prefixed
+  pulse-hint-<lfo|lfo2>              # features/oscillators.md REQ-pwm-rate-is-clamped — per page, so
+                                     #   the two hints don't collide by text (REQ-select-by-testid-not-by-label)
   # dest-taken-<lfo|lfo2> REMOVED in lfo.md v8 — REQ-12 is superseded by the matrix
 
 step grids, rulers & overlays:
@@ -210,7 +217,7 @@ step grids, rulers & overlays:
   ruler-<lane> · ruler-<lane>-<0..15> · ruler-<lane>-bar   # lane = seq|drum|sampler|motion
   ruler-<lane>-bar-<prev|next>                             # the ‹ › bar steppers
   # A tick past the lane's played length is `hidden`, not removed (meter.md
-  # REQ-11) — so all 16 ids always resolve, and `:visible` is what counts them.
+  # REQ-cells-beyond-the-length-are-hidden) — so all 16 ids always resolve, and `:visible` is what counts them.
   # `ruler-<lane>-bar` shares the `ruler-<lane>-` prefix and is NOT a tick: count
   # ticks inside `ruler-<lane>`, or assert the last live index directly.
   rest-overlay-<lane>                # features/arrangement-rest.md
@@ -221,7 +228,7 @@ per-step edit row (StepSettingsEditor):                    # features/step-setti
   <seq|drum|sampler>-vel · -gate · -prob · -ratchet · -ratchet-<n> · -tie
   <seq|drum|sampler>-micro · -micro-track · -micro-dec · -micro-inc · -micro-value
   # micro is the one slider whose PARTS are addressable: it grew −/+ buttons, so a
-  # positional selector into the row breaks (features/step-settings.md REQ-6)
+  # positional selector into the row breaks (features/step-settings.md REQ-a-step-carries-a-micro-offset)
 
 banks, clear menus & undo:                          # features/banks.md, step-grid-editing.md
   bank-<lane>-<i> · bank-<lane>-follow · bank-<lane>-copy
@@ -236,7 +243,7 @@ banks, clear menus & undo:                          # features/banks.md, step-gr
 
 key tab:                     # features/scale-quantization.md, features/chord-tools.md
   # scale.root / scale.type / chord.voicing are ParamDropdowns, which mint no id of
-  # their own (REQ-1 covers factory-minted ids; Dropdown takes one per call site):
+  # their own (REQ-param-controls-mint-from-the-param-id covers factory-minted ids; Dropdown takes one per call site):
   key-root · key-scale · key-chord · key-hint
   key-map · key-map-<0..23> · key-legend   # the two-octave map; the per-key id is
                                            #   the SEMITONE, so 0..11 is octave 1
@@ -245,7 +252,7 @@ mod matrix window:                                  # features/mod-matrix.md
   mod-window · mod-row-<0..7> · mod-hint
   mod-src-<2..7> · mod-dst-<0..7>    # rows 0-1 are the LFOs: fixed source, so no
                                      #   src picker, and their dst/amt bind to
-                                     #   lfo.dest / lfo.amount (REQ-2)
+                                     #   lfo.dest / lfo.amount (REQ-containers-mint-from-their-own-id)
   perf-mod                           # the launcher, beside perf-xypad
 
 motion tab:                                         # features/motion-sequencer.md
@@ -260,10 +267,10 @@ sampler slots:                                      # features/sampler.md
   sampler-load-<slot> · sampler-name-<slot> · sampler-edit-<slot> ·
   sampler-file-<slot> · sampler-record ·
   sampler-fit-<slot>                                # the row's FIT button
-    # (sampler.md REQ-16 / time-stretch.md REQ-11). Hidden with sampler-edit-<slot>
+    # (sampler.md REQ-a-slot-row-carries-a-fit-button / time-stretch.md REQ-the-slot-fit-button-is-a-quick-fit). Hidden with sampler-edit-<slot>
     # while the slot holds no buffer, so assert on visibility, not presence.
   sampler-slot-reset                                # the selected-slot strip's
-    # Reset (sampler.md REQ-12). The strip's own controls mint no ids of their own:
+    # Reset (sampler.md REQ-each-slot-has-a-channel). The strip's own controls mint no ids of their own:
     # they are Knob/Switch, so they are knob-sampler.t<slot>.<param> and
     # switch-sampler.t<slot>.rev — and the <slot> moves with the grid cursor.
   seq-import-slot · seq-import-render               # features/render-to-sampler.md
@@ -285,10 +292,10 @@ song panel — lanes, chains & live FX:
   #   data-dragging="true" · data-drag-over="before|after"
   chain-transpose-<up|down>-seq                     # SEQ ONLY — the other lanes are
                                                     #   unpitched, so the control is
-                                                    #   absent, not disabled (REQ-8)
+                                                    #   absent, not disabled (REQ-data-derived-ids-are-enumerated)
   perf-fill · perf-stutter · perf-stutter-size-<n> · perf-drop · perf-tapestop
   perf-xypad                         # the Song-panel XY launcher; livefx-xypad and
-                                     #   motion-xypad open the SAME window (REQ-3 there)
+                                     #   motion-xypad open the SAME window (REQ-non-param-buttons-take-an-explicit-testid there)
   livefx-open · livefx-window · livefx-xypad + the same five under the `livefx`
     prefix                                          # features/live-fx-window.md
   sync-mode-<off|master|slave> · sync-status · sync-wifi-link   # features/midi-clock-sync.md
@@ -300,7 +307,7 @@ song panel — lanes, chains & live FX:
 song panel — files:
   song-save · song-load · song-new · song-slot-select
   song-export · song-import · song-import-file · song-undo-toast
-  song-demo-<name> · song-demo-more    # <name> is DATA — see REQ-8, never spell one
+  song-demo-<name> · song-demo-more    # <name> is DATA — see REQ-data-derived-ids-are-enumerated, never spell one
   song-paste + paste-modal · paste-input · paste-status · paste-confirm ·
     paste-cancel · paste-read-clipboard             # features/paste-import.md
   export-modal · export-kind-<json|project> · export-project-note ·
@@ -315,7 +322,7 @@ transport row & window:                             # features/transport-window.
     transportw-scrub · transportw-scrub-<bar>
   # scrub cells carry GLOBAL state classes: `playing` (current bar), `loop` (in
   # the effective loop range), `loop-anchor` (a pending first pick) —
-  # features/transport-loop.md REQ-12
+  # features/transport-loop.md REQ-what-the-loop-scrubber-shows
 
 audio capture:
   song-export-audio · song-export-fmt-<wav|mp3> · song-record
@@ -333,7 +340,7 @@ audio capture:
     # The editor modal's three sections all mint the same four ids —
     # <base>-section (the wrapper), -head (the clickable title row), -toggle
     # (the caret button) and -body (what folds). One shape, so a fold test can
-    # be written once and parameterised. # features/sample-recorder.md REQ-9
+    # be written once and parameterised. # features/sample-recorder.md REQ-every-section-below-the-waveform-folds
     # The boundaries themselves are canvas strokes, not elements, so they mint no
     # ids — a chop is asserted through the slots it fills, not through its markers.
   stretch-section · stretch-head · stretch-toggle · stretch-body ·
@@ -359,7 +366,7 @@ presets:                                            # features/presets.md
     preset-import-policy-<rename|overwrite|skip> · preset-import-confirm ·
     preset-import-back
   preset-import-errors · preset-import-copy ·
-    preset-import-warnings                          # presets.md REQ-16 (v16)
+    preset-import-warnings                          # presets.md REQ-the-preset-wizard-reports-every-problem (v16)
                                                     # rows inside carry no ids of
                                                     # their own — query the container
 
@@ -371,7 +378,7 @@ shared UI:
   dropdown-lfo.dest · dropdown-lfo2.dest            # features/lfo.md (v9)
   meter-picker                                      # features/meter.md (v10)
   toast · toast-host · toast-action · toast-dismiss # `toast` is showToast's DEFAULT
-                                                    #   root id (features/toast.md REQ-8)
+                                                    #   root id (features/toast.md REQ-toast-testids)
   value-bubble                                      # the drag readout's default id;
                                                     #   motion-value-bubble overrides it
   fxgroup-<prefix> · fx-patch-decoration            # features/fx-group.md
@@ -382,9 +389,9 @@ shared UI:
                                                     # features/sample-persistence.md
   audio-suspended-toast                             # "tap to resume" when every
                                                     #   automatic resume failed
-                                                    # features/audio-lifecycle.md REQ-14
+                                                    # features/audio-lifecycle.md REQ-a-stuck-context-is-visible
   lazy-load-failed-toast                            # a deferred surface's import()
-                                                    #   rejected (onboarding.md REQ-24)
+                                                    #   rejected (onboarding.md REQ-the-help-door-never-fails-silently)
   empty-play-modal · empty-play-demo · empty-play-dismiss · empty-play-close
                                                     # features/empty-play-hint.md
   perf-settings · perf-status · perf-mode · perf-mode-<tier> · perf-reload ·
@@ -393,7 +400,7 @@ shared UI:
                                                     # About card, above factory-reset
                                                     # features/play-offline.md
   play-offline-toast                                # a download that ended behind a
-                                                    #   closed About (play-offline REQ-8),
+                                                    #   closed About (play-offline REQ-offline-feedback-while-about-is-closed),
                                                     #   or the re-download after a
                                                     #   factory reset (REQ-12)
   factory-reset                                     # features/factory-reset.md
@@ -437,13 +444,13 @@ Scenario: Testids disambiguate a case-insensitive label collision
   Then it drives the header button only
 # pinned by: e2e/smoke.spec.ts, e2e/arp.spec.ts
 
-Scenario: One component serves many surfaces without id collisions (REQ-2)
+Scenario: One component serves many surfaces without id collisions (REQ-containers-mint-from-their-own-id)
   Given each machine builds a BankBar with its own testidPrefix
   When a spec selects [data-testid="bank-drum-2"]
   Then it finds the drum machine's bank C button, not the sequencer's
 # pinned by: e2e/banks.spec.ts
 
-Scenario: The transport window's play button does not shadow the header's (REQ-5)
+Scenario: The transport window's play button does not shadow the header's (REQ-transport-play-is-prefix-toggle)
   Given the floating transport window is open
   When a spec selects [data-testid="transport-play"]
   Then exactly one element matches — the header button
@@ -460,5 +467,5 @@ Scenario: The transport window's play button does not shadow the header's (REQ-5
 
 ## Open questions / future
 
-- A new interactive component should mint its id in the factory (REQ-1/REQ-2)
+- A new interactive component should mint its id in the factory (REQ-param-controls-mint-from-the-param-id/REQ-containers-mint-from-their-own-id)
   rather than take one per call site, and add a row to the catalogue above.

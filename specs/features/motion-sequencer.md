@@ -3,30 +3,30 @@
 ```yaml
 id: motion-sequencer
 status: implemented
-version: 16  # v16: the graph follows the lane's length, not the bank's (REQ-24b),
+version: 16  # v16: the graph follows the lane's length, not the bank's (REQ-the-motion-graph-follows-the-lane),
              #      and a bank parks at its last anchor when the chain hands
              #      over, so a lane that does not tile the bar stops stranding
-             #      its params mid-sweep (REQ-25). REQ-8's account of the overlay
+             #      its params mid-sweep (REQ-a-bank-parks-at-its-last-anchor). REQ-each-motion-step-is-a-mini-xy-pad's account of the overlay
              #      is corrected to what it draws — a line whose anchor markers
              #      the stretched viewBox flattens into ticks; the DOT is the
              #      pad's, and the two mark different quantities. It also still
              #      said "16 squares" three versions after the lane stopped
-             #      being 16 (REQ-24)
-             # v15: the lane follows the meter, curve included (REQ-24)
+             #      being 16 (REQ-the-automation-lane-follows-the-meter)
+             # v15: the lane follows the meter, curve included (REQ-the-automation-lane-follows-the-meter)
              # v14: the A/B lanes' repaint is visibility-gated like the XY graph
-             #      beside them — it was rebuilding SVG every bar off-screen (REQ-16b)
+             #      beside them — it was rebuilding SVG every bar off-screen (REQ-the-ab-lane-repaint-is-gated-on-visibility)
              # v13: an unresolvable automation target is reported as a warning
-             #      instead of silently no-op'ing (REQ-17b; untrusted-input REQ-12)
+             #      instead of silently no-op'ing (REQ-an-unresolved-motion-target-is-reported; untrusted-input REQ-an-unresolvable-target-warns)
              # v12: an inherited axis picker is dimmed on its TOGGLE, not its root —
-             #      dimming the root buried its own menu under the pads (REQ-8)
+             #      dimming the root buried its own menu under the pads (REQ-each-motion-step-is-a-mini-xy-pad)
              # v11: the step value is visible while editing — per-lane readout + drag
-             #      bubble (REQ-22); the pad's write is deferred so a hold PEEKS,
-             #      plus snap-to-1/20 and Shift+drag fine (REQ-23)
-             # v10: a transport seek drops the tick latch but KEEPS the baselines (REQ-21)
+             #      bubble (REQ-a-motion-steps-value-is-readable-without-hovering); the pad's write is deferred so a hold PEEKS,
+             #      plus snap-to-1/20 and Shift+drag fine (REQ-the-pads-gesture-set-peek-snap-fine)
+             # v10: a transport seek drops the tick latch but KEEPS the baselines (REQ-a-seek-clears-the-tick-latch)
              # v9: the frame loop is visibility-independent — worker timer while the
-             #     document is hidden, rAF while visible (REQ-20)
-             # v8: automation writes are withheld from ParamBus.onChange (REQ-18);
-             #     the frame loop is allocation-free (REQ-19)
+             #     document is hidden, rAF while visible (REQ-the-motion-frame-loop-is-visibility-independent)
+             # v8: automation writes are withheld from ParamBus.onChange (REQ-motion-automation-is-not-an-edit);
+             #     the frame loop is allocation-free (REQ-the-motion-frame-loop-allocates-nothing)
              # v7: the bank bar's content dot counts the A/B track lanes, not just XY
              # v6: A/B lanes visually distinct (wider grid gap, no fill animation) + playhead;
              #     per-lane help badges (motion.xy / motion.tracks); solid divider above the XY lane
@@ -38,15 +38,15 @@ owner: core
 related:
   - xy-pad
   - arrangement
-  - runtime-performance   # REQ-5/REQ-6/REQ-9 — automation is not an edit; frame-loop cost; hidden-document loops
-  - transport             # REQ-20 shares the clock's worker-timer guarantee
-  - transport-position    # REQ-21 — the seek reaction
-  - session-autosave      # what REQ-18 stopped starving
+  - runtime-performance   # REQ-motion-writes-go-through-bus-set/REQ-motion-has-the-fourth-chain-lane/REQ-song-file-v4-adds-motion-banks — automation is not an edit; frame-loop cost; hidden-document loops
+  - transport             # REQ-the-motion-frame-loop-is-visibility-independent shares the clock's worker-timer guarantee
+  - transport-position    # REQ-a-seek-clears-the-tick-latch — the seek reaction
+  - session-autosave      # what REQ-motion-automation-is-not-an-edit stopped starving
   - step-grid-editing
   - song-mode
   - banks
   - song-authoring-dialect
-  - dropdown              # REQ-8's axis pickers; setDimmed + REQ-9's root invariant
+  - dropdown              # REQ-each-motion-step-is-a-mini-xy-pad's axis pickers; setDimmed + REQ-song-file-v4-adds-motion-banks's root invariant
 source:
   - src/audio/transport/motion-curve.ts     # pure anchor/interpolation math
   - src/audio/transport/motion-machine.ts   # transport-driven param writer
@@ -86,81 +86,90 @@ The tab sits between Sampler and Song.
 
 ## Requirements
 
-- **REQ-1** — A Motion step is an optional anchor `{ on, x, y }`, x/y **normalized
-  0..1** in taper space (the XY Pad surface's space). Dead step = `{on:false}`.
-  4 banks (A–D) × 16 steps, stored in `PatternStore` beside the other machines.
-- **REQ-2** — Set steps are **anchors**. In **Slide** mode the driven value ramps
-  linearly between consecutive anchors, *across* unset gaps. In **Step** mode the
-  value jumps at each anchor's tick and holds. Mode is **per lane** (v5):
-  `motion.slide` governs the **XY lane only**, and each extra track has its own
-  `motion.t<i>.slide` — so a bank can sweep one param while stepping another.
-  All are `0=step, 1=slide, default 1` and persist in songs/presets like any
-  param. Splitting a formerly global param is safe here because the tracks it
-  would have governed (v4) are unreleased and no demo uses them; a song that
-  never set `motion.slide` is unaffected either way, since the defaults match.
-- **REQ-2b** — (v3) **Cross-bank carry.** The segment spanning the bar line does not
-  wrap within the bank: the ramp *out* of the last anchor targets the **next play
-  bank's first anchor** and the ramp *into* the first anchor continues from the
-  **previous play bank's last anchor**, so a chained curve is continuous bar to bar
-  (step mode carries the previous bank's last anchor as its pre-first-anchor hold).
-  The span is unchanged (`n - lastIdx + firstIdx`, measured across the bar line), so
-  when both neighbours resolve to the *same* bank — a repeating chain slot, a
-  single-slot chain, or a disabled lane (which follows the edit bank) — the curve is
-  identical to the pre-v3 self-wrap. A neighbour that **rests**, holds **no anchors**,
-  or drives a **different param** on either axis (its effective assignment differs,
-  REQ-4) is unusable: the value then **holds flat** to/from the bar line rather than
-  ramping toward a meaningless target. Rationale: a bank's last anchor is the value
-  the author expects to hand to the next bar — the self-wrap silently undid it inside
-  the final step (e.g. a delay throw built at the end of bank D collapsed at the
-  seam, and bank A's low ending sprang back up and froze there through anchorless
-  banks).
-- **REQ-3** — A bank with **zero anchors writes nothing** (params stay put). This is
-  the "no automation" state: to localize a one-step peak the user anchors the
-  neighbouring steps at the base value.
-- **REQ-4** — The driven params are the XY Pad's assignment (`XyPadStore`), resolved
-  **per play bank, per axis**: a bank may carry an optional override
+- **REQ-a-motion-step-is-an-optional-anchor** — A Motion step is an optional
+  anchor `{ on, x, y }`, x/y **normalized 0..1** in taper space (the XY Pad
+  surface's space). Dead step = `{on:false}`. 4 banks (A–D) × 16 steps, stored
+  in `PatternStore` beside the other machines.
+- **REQ-set-steps-are-anchors** — Set steps are **anchors**. In **Slide** mode
+  the driven value ramps linearly between consecutive anchors, *across* unset
+  gaps. In **Step** mode the value jumps at each anchor's tick and holds. Mode
+  is **per lane** (v5): `motion.slide` governs the **XY lane only**, and each
+  extra track has its own `motion.t<i>.slide` — so a bank can sweep one param
+  while stepping another. All are `0=step, 1=slide, default 1` and persist in
+  songs/presets like any param. Splitting a formerly global param is safe here
+  because the tracks it would have governed (v4) are unreleased and no demo uses
+  them; a song that never set `motion.slide` is unaffected either way, since the
+  defaults match.
+- **REQ-cross-bank-carry** — (v3) **Cross-bank carry.** The segment spanning the
+  bar line does not wrap within the bank: the ramp *out* of the last anchor
+  targets the **next play bank's first anchor** and the ramp *into* the first
+  anchor continues from the **previous play bank's last anchor**, so a chained
+  curve is continuous bar to bar (step mode carries the previous bank's last
+  anchor as its pre-first-anchor hold). The span is unchanged (`n - lastIdx +
+  firstIdx`, measured across the bar line), so when both neighbours resolve to
+  the *same* bank — a repeating chain slot, a single-slot chain, or a disabled
+  lane (which follows the edit bank) — the curve is identical to the pre-v3
+  self-wrap. A neighbour that **rests**, holds **no anchors**, or drives a
+  **different param** on either axis (its effective assignment differs,
+  REQ-motion-drives-the-xy-assignment) is unusable: the value then **holds
+  flat** to/from the bar line rather than ramping toward a meaningless target.
+  Rationale: a bank's last anchor is the value the author expects to hand to the
+  next bar — the self-wrap silently undid it inside the final step (e.g. a delay
+  throw built at the end of bank D collapsed at the seam, and bank A's low
+  ending sprang back up and froze there through anchorless banks).
+- **REQ-a-bank-with-no-anchors-writes-nothing** — A bank with **zero anchors
+  writes nothing** (params stay put). This is the "no automation" state: to
+  localize a one-step peak the user anchors the neighbouring steps at the base
+  value.
+- **REQ-motion-drives-the-xy-assignment** — The driven params are the XY Pad's
+  assignment (`XyPadStore`), resolved **per play bank, per axis**: a bank may
+  carry an optional override
   `MotionAssign = { x?: string; y?: string } | null`; each unset axis falls back to
   `xyStore.get()` (which itself defaults to `XY_DEFAULT_ASSIGN`). Norm→value mapping
   is taper-correct via `fromNorm(def, n)` (`src/utils/taper.ts`).
-- **REQ-5** — Writes go through `bus.set` (generic path; knobs and the XY-pad dot
-  track automatically). **Baseline discipline**: the machine records a param's value
-  the first time it writes it in a play session (`Map<paramId, baseline>`) and
-  restores *all* recorded baselines on transport stop and on `motion.on → 0`. It
-  never subscribes to the params it writes (no feedback loop).
-- **REQ-6** — Motion has the 4th `Arrangement` chain lane (`motionPlayBank`,
-  `motionResting`, `setMotionChain`); it respects rests (no writes) and a disabled
-  lane follows the edit bank. (v3) The lane also resolves its **neighbour bars** —
-  `motion{Prev,Next}PlayBank` + `motion{Prev,Next}Resting`, the same `resolveLane`
-  at `motionPos ± 1` (wrapped) — which REQ-2b's carry needs; motion is the only lane
+- **REQ-motion-writes-go-through-bus-set** — Writes go through `bus.set`
+  (generic path; knobs and the XY-pad dot track automatically). **Baseline
+  discipline**: the machine records a param's value the first time it writes it
+  in a play session (`Map<paramId, baseline>`) and restores *all* recorded
+  baselines on transport stop and on `motion.on → 0`. It never subscribes to the
+  params it writes (no feedback loop).
+- **REQ-motion-has-the-fourth-chain-lane** — Motion has the 4th `Arrangement`
+  chain lane (`motionPlayBank`, `motionResting`, `setMotionChain`); it respects
+  rests (no writes) and a disabled lane follows the edit bank. (v3) The lane
+  also resolves its **neighbour bars** — `motion{Prev,Next}PlayBank` +
+  `motion{Prev,Next}Resting`, the same `resolveLane` at `motionPos ± 1`
+  (wrapped) — which REQ-cross-bank-carry's carry needs; motion is the only lane
   that exposes them. It is **not** an audio lane: excluded from
   `LaneId`/`LaneMixer`/`audibleLanes`; its Song-panel card carries the chain
-  controls plus a **Mute** switch (v2, REQ-12) but no solo/volume (nothing to
-  mix). The card dims (the same `silenced` visual as the audio lanes) while
-  muted.
-- **REQ-7** — Both modes evaluate on **one frame loop** (active only while
-  playing ∧ enabled, throttled to the perf-tier fps; what *drives* that loop is
-  REQ-20) against the **audio clock's
-  now** — clock ticks arrive with `when` scheduled ahead, so tick-time writes would
-  run early relative to the heard step. Slide moves every frame; step mode's curve
-  only changes value at anchor boundaries and `bus.set` early-returns unchanged
-  values, so its idle frames cost nothing. The pure curve math is
-  `motion-curve.ts` (`valueAt(bank, barPos, mode)`), fully unit-testable.
-  The same discipline applies to **arrangement state**: the rest gate, the play
-  bank and (v3) the neighbour banks flip on the *scheduled* bar-boundary tick, up to
-  `scheduleAheadS` before
-  it is heard — the machine latches them per tick and evaluates against the tick
-  whose **audible** window contains now, so rests and bank switches land on the
-  heard bar boundary (reading them live truncated the final `scheduleAheadS` of
-  every bar before a rest, freezing the previous anchor's value through the
-  rest — the "value never comes back down" bug).
-- **REQ-8** — UI: each step is a **mini XY pad** square — drag sets `(x,y)` in one
-  gesture, double-click/double-tap clears; the dot sits at the literal coordinate.
-  (v11) *When* that set commits, and the snap/fine/peek modifiers around it, are
-  REQ-23; the value it shows while you do it is REQ-22.
-  An SVG polyline overlay traces the **selected axis** across the lane's cells
-  (view toggle Y/X, default Y — a local view state, not a param; the *pads'* dots
-  never move, since each is its cell's literal `(x, y)` and neither axis is a
-  projection).
+  controls plus a **Mute** switch (v2, REQ-motion-mute-is-an-ordinary-param) but
+  no solo/volume (nothing to mix). The card dims (the same `silenced` visual as
+  the audio lanes) while muted.
+- **REQ-both-motion-modes-share-one-frame-loop** — Both modes evaluate on **one
+  frame loop** (active only while playing ∧ enabled, throttled to the perf-tier
+  fps; what *drives* that loop is
+  REQ-the-motion-frame-loop-is-visibility-independent) against the **audio
+  clock's now** — clock ticks arrive with `when` scheduled ahead, so tick-time
+  writes would run early relative to the heard step. Slide moves every frame;
+  step mode's curve only changes value at anchor boundaries and `bus.set`
+  early-returns unchanged values, so its idle frames cost nothing. The pure
+  curve math is `motion-curve.ts` (`valueAt(bank, barPos, mode)`), fully
+  unit-testable. The same discipline applies to **arrangement state**: the rest
+  gate, the play bank and (v3) the neighbour banks flip on the *scheduled*
+  bar-boundary tick, up to `scheduleAheadS` before it is heard — the machine
+  latches them per tick and evaluates against the tick whose **audible** window
+  contains now, so rests and bank switches land on the heard bar boundary
+  (reading them live truncated the final `scheduleAheadS` of every bar before a
+  rest, freezing the previous anchor's value through the rest — the "value never
+  comes back down" bug).
+- **REQ-each-motion-step-is-a-mini-xy-pad** — UI: each step is a **mini XY pad**
+  square — drag sets `(x,y)` in one gesture, double-click/double-tap clears; the
+  dot sits at the literal coordinate. (v11) *When* that set commits, and the
+  snap/fine/peek modifiers around it, are
+  REQ-the-pads-gesture-set-peek-snap-fine; the value it shows while you do it is
+  REQ-a-motion-steps-value-is-readable-without-hovering. An SVG polyline overlay
+  traces the **selected axis** across the lane's cells (view toggle Y/X, default
+  Y — a local view state, not a param; the *pads'* dots never move, since each
+  is its cell's literal `(x, y)` and neither axis is a projection).
 
   **What the overlay actually draws** is a line, not dots. Its SVG is a 0–100
   `viewBox` with `preserveAspectRatio="none"` stretched over a row that is ~1170
@@ -181,7 +190,7 @@ The tab sits between Sampler and Song.
   anchor, including the last→first wrap hold before the first anchor — a single
   anchor draws a flat line), mirroring `valueAt`'s semantics. (v3) It also draws the
   **carry**: up to two dashed edge segments joining the first/last anchor to the bar
-  edges at the values REQ-2b will actually play, so the bar-line behaviour is visible
+  edges at the values REQ-cross-bank-carry will actually play, so the bar-line behaviour is visible
   while authoring instead of implied (pre-v3 the slide line simply stopped at the
   outer anchors and the wrap was invisible). The graph resolves its neighbours from
   the motion chain lane around the edit bank (lane disabled or bank absent from the
@@ -191,10 +200,10 @@ The tab sits between Sampler and Song.
   (`ui/components/motion-graph.ts`), whose edge values come from `valueAt` itself so
   the picture cannot drift from playback;
   the panel redraws on its lane's `slide` param, chain and assignment changes, and
-  (v16) on any meter change — `cells` is part of the geometry now (REQ-24b).
+  (v16) on any meter change — `cells` is part of the geometry now (REQ-the-motion-graph-follows-the-lane).
   (v5) The panel is **one header per lane**, each naming what that lane drives
   and how it interpolates, with its cells full width beneath — so all three
-  lanes share one grid, sized by the meter (v15, REQ-24), and step *n* reads
+  lanes share one grid, sized by the meter (v15, REQ-the-automation-lane-follows-the-meter), and step *n* reads
   vertically across them:
     - the **machine header** carries only machine-level controls — `motion.on`
       switch, BankBar (`bank-motion-*`), undo, `Clear ▾`;
@@ -206,10 +215,10 @@ The tab sits between Sampler and Song.
       (v12) an axis with **no bank override** shows its picker **dimmed**, so the
       row reads at a glance as "inherited, not chosen here" — the same cue the
       "inherited from XY Pad" hint spells out. The dim goes through
-      [`Dropdown.setDimmed`](dropdown.md) REQ-9, which scopes it to the toggle:
+      [`Dropdown.setDimmed`](dropdown.md) REQ-a-dropdown-can-be-dimmed, which scopes it to the toggle:
       applied to the dropdown *root* it composited the open option list to 62%
       alpha and formed a stacking context that trapped the fixed-position menu
-      **behind the pads below**. Same shape as REQ-16's rule further down — dim
+      **behind the pads below**. Same shape as REQ-two-lanes-below-the-xy-lane's rule further down — dim
       the label, never the container the picker lives in;
     - a single **dashed divider** separates the XY lane from the tracks below (A
       and B are the same kind of lane, so nothing divides them from each other),
@@ -219,107 +228,117 @@ The tab sits between Sampler and Song.
   the tracks read as a visually distinct, more spaced-out lane; the full-width
   grid keeps step 0 / step 15 aligned across all three lanes (only interior cells
   drift a few px from the decorative overlay line, which is `pointer-events:none`).
-  Help-mode badges ([onboarding](onboarding.md) REQ-3/REQ-14) explain the panel at
+  Help-mode badges ([onboarding](onboarding.md) REQ-info-badges-show-per-control-help/REQ-the-motion-tab-carries-two-lane-badges) explain the panel at
   three grains: the machine-level `motion` topic (anchored to `tab-motion`) covers
   the Y/X graph projection and the whole machine; short per-lane topics `motion.xy`
   (the XY lane header) and `motion.tracks` (one shared badge on the A track's row,
   covering both A and B) give the quick version.
-- **REQ-9** — SongFile **v4** adds optional `motionBanks` (4×16 `MotionStep`),
+- **REQ-song-file-v4-adds-motion-banks** — SongFile **v4** adds optional
+  `motionBanks` (4×16 `MotionStep`),
   `motionAssigns` (4 × `MotionAssign|null`) and `motionChain` (`ChainData`) —
   additive per ADR-007; old files load with empty motion state. Export is
   default-sparse (dead step → `{on:false}`, x/y rounded to 4 sig-figs, ADR-011).
   The authoring dialect gains a `motion` key (anchor lists per bank, optionally
   `{assign, steps}`) + `motionChain`; both public schemas and the authoring guide
   document it; `motion.on` auto-enables when anchors are present.
-- **REQ-10** — Restore/`apply` spreads defaults under incoming cells so sparse and
-  legacy files sound identical (mirrors the other machines).
-- **REQ-11** — The XY Pad window's **axes** (on-surface labels, dot, drag/wheel
-  targets) follow the *effective* assignment — `createEffectiveXy`
-  (`state/xy-effective.ts`) resolves the motion **play bank's** override per
-  axis while the machine is active (`motion.on` set and not muted, v2), falling
-  back to the base `XyPadStore` — and re-resolves as the chain crosses banks, on
-  override edits, on base reassignment, and on `motion.on`/`motion.mute` toggles.
-  The pad's gear dropdowns keep showing/editing the **base** assignment (the
-  store stays its single writer).
-- **REQ-12** — (v2) **Mute**: an ordinary param `motion.mute` (default 0, persists
-  with songs like the audio lanes' `<lane>.mute`), toggled from the Song-tab
-  Motion card (`switch-motion.mute`). The machine is effective-active only while
-  `motion.on ≥ 0.5 && motion.mute < 0.5` (`MotionMachine.setMuted`, the
-  `StepSequencer.setMuted` precedent): muting stops the write loop and
-  **restores every recorded baseline** (REQ-5), so the driven params — and the
-  XY Pad's dot, assignments and values — return to their pre-play state;
-  unmuting mid-play resumes on the next frame. Motion stays outside
-  `audibleLanes` (it makes no sound); the card's dim visual is driven directly
-  off `motion.mute`.
+- **REQ-restore-spreads-defaults-under-cells** — Restore/`apply` spreads
+  defaults under incoming cells so sparse and legacy files sound identical
+  (mirrors the other machines).
+- **REQ-the-xy-window-axes-follow-motion** — The XY Pad window's **axes**
+  (on-surface labels, dot, drag/wheel targets) follow the *effective* assignment
+  — `createEffectiveXy` (`state/xy-effective.ts`) resolves the motion **play
+  bank's** override per axis while the machine is active (`motion.on` set and
+  not muted, v2), falling back to the base `XyPadStore` — and re-resolves as the
+  chain crosses banks, on override edits, on base reassignment, and on
+  `motion.on`/`motion.mute` toggles. The pad's gear dropdowns keep
+  showing/editing the **base** assignment (the store stays its single writer).
+- **REQ-motion-mute-is-an-ordinary-param** — (v2) **Mute**: an ordinary param
+  `motion.mute` (default 0, persists with songs like the audio lanes'
+  `<lane>.mute`), toggled from the Song-tab Motion card (`switch-motion.mute`).
+  The machine is effective-active only while `motion.on ≥ 0.5 && motion.mute <
+  0.5` (`MotionMachine.setMuted`, the `StepSequencer.setMuted` precedent):
+  muting stops the write loop and **restores every recorded baseline**
+  (REQ-motion-writes-go-through-bus-set), so the driven params — and the XY
+  Pad's dot, assignments and values — return to their pre-play state; unmuting
+  mid-play resumes on the next frame. Motion stays outside `audibleLanes` (it
+  makes no sound); the card's dim visual is driven directly off `motion.mute`.
 
 ### v4 — extra tracks
 
-- **REQ-13** — **Two extra tracks per bank**, A and B, each a
-  `MotionTrack = { param?: string; steps: MotionTrackStep[16] }` where
-  `MotionTrackStep = { on, v }` and `v` is **0..1 normalized taper space** exactly
-  like the XY lane's `x`/`y`. The parameter is chosen **per bank, per track** —
-  the same scope as REQ-4's `MotionAssign` override, so one song can drive eight
-  different params across a four-bank chain. A track with **no `param`** writes
-  nothing: that is the no-op default ([ADR-006](../decisions/adr-006-no-op-param-defaults.md)),
-  and unlike REQ-4's axes there is no global fallback to inherit from (there is no
-  pad behind these tracks). `copyMotionBank` copies the tracks *and* their param
-  choices, so building one bank and copying it does not mean re-picking params.
-- **REQ-14** — **Tracks share the XY lane's curve semantics**, but each track
-  reads its **own** slide: `motion.t<i>.slide` via `setTrackSlide`, not the XY
-  lane's `motion.slide` (REQ-2 owns that split, added in v5 —
-  `frameTracks` passes `trackModes[t]`, never `this.mode`). Otherwise identical:
-  set steps are anchors, a track with **zero anchors writes
-  nothing** (REQ-3), and the bar-line **cross-bank carry** of REQ-2b applies with
-  the same usability gate — a neighbour bar that rests, whose same-index track has
-  no anchors, or whose same-index track drives a **different param**, is unusable,
-  so the value holds flat to/from the bar line. This is guaranteed rather than
-  re-implemented: the interpolation core is extracted as the scalar `scalarAt`,
-  and XY's `valueAt` becomes two calls of it, so the two cannot drift.
-- **REQ-15** — **Baselines are unchanged** (REQ-5): the machine's baseline map is
-  keyed by param id, so track writes join it with no new mechanism. Stop,
-  `motion.on → 0` and `motion.mute → 1` restore every recorded baseline including
-  the tracks'.
-- **REQ-16** — **UI**: two lanes below the XY lane, each a **header row** (label,
-  param dropdown, and its own Slide/Step segmented — `seg-motion.t<i>.slide`)
-  above its full-width **level pads** — one per lane cell (v15, REQ-24: all 16 are
-  built, and the ones past the lane are `hidden`, so they leave the grid rather
-  than wrapping onto a second row) — drag up/down to set the value (the pad
-  fills from the bottom), double-click/double-tap to clear, matching the XY pads'
-  gesture family ([step-grid-editing](step-grid-editing.md) REQ-9) — the same
-  component, so REQ-22's readout and REQ-23's peek/snap/fine apply here
-  identically (v11). (v6) Clearing
-  returns the cell to the **default step** (its level reset too), so a cleared
-  cell reads like an untouched one instead of keeping its old parked height. The fill
-  **snaps** to its value (no CSS height animation), and the lanes show the moving
-  **playhead** while playing — the same `PlayheadHighlighter` glow the XY lane and
-  the other machines carry (all three motion lanes are wired into one highlighter,
-  so the playing column lights across them together). Each lane
-  draws the same mode-aware polyline the XY lane does — **using its own mode** —
-  so slide interpolation and the bar-line carry stay visible while authoring. A
-  lane with no param chosen renders dimmed with its pads inert; the row itself
-  never goes inert, or its param picker would be unreachable and the lane could
-  never be assigned ([ADR-014](../decisions/adr-014-dont-make-me-think.md) law 2).
-  The parameter is the switch, so there is no separate on/off to keep in sync.
-  A level pad drops the XY pad's **vertical** centre line: `onSet` discards `x`,
-  so a cell's horizontal position means nothing, and drawing that axis would
-  make a one-dimensional cell read as a mini XY pad. The horizontal line stays —
-  on a level cell it is a 50% mark.
-  (v7) The bank bar's **content dot** counts all three lanes the same way: a bank
-  whose A/B tracks hold steps is a filled bank even with an empty XY lane, and the
-  dot updates on track edits as well as anchor edits — see
-  [banks](banks.md) REQ-6.
+- **REQ-two-extra-tracks-per-bank** — **Two extra tracks per bank**, A and B,
+  each a `MotionTrack = { param?: string; steps: MotionTrackStep[16] }` where
+  `MotionTrackStep = { on, v }` and `v` is **0..1 normalized taper space**
+  exactly like the XY lane's `x`/`y`. The parameter is chosen **per bank, per
+  track** — the same scope as REQ-motion-drives-the-xy-assignment's
+  `MotionAssign` override, so one song can drive eight different params across a
+  four-bank chain. A track with **no `param`** writes nothing: that is the no-op
+  default ([ADR-006](../decisions/adr-006-no-op-param-defaults.md)), and unlike
+  REQ-motion-drives-the-xy-assignment's axes there is no global fallback to
+  inherit from (there is no pad behind these tracks). `copyMotionBank` copies
+  the tracks *and* their param choices, so building one bank and copying it does
+  not mean re-picking params.
+- **REQ-tracks-share-the-lanes-curve-semantics** — **Tracks share the XY lane's
+  curve semantics**, but each track reads its **own** slide: `motion.t<i>.slide`
+  via `setTrackSlide`, not the XY lane's `motion.slide`
+  (REQ-set-steps-are-anchors owns that split, added in v5 — `frameTracks` passes
+  `trackModes[t]`, never `this.mode`). Otherwise identical: set steps are
+  anchors, a track with **zero anchors writes nothing**
+  (REQ-a-bank-with-no-anchors-writes-nothing), and the bar-line **cross-bank
+  carry** of REQ-cross-bank-carry applies with the same usability gate — a
+  neighbour bar that rests, whose same-index track has no anchors, or whose
+  same-index track drives a **different param**, is unusable, so the value holds
+  flat to/from the bar line. This is guaranteed rather than re-implemented: the
+  interpolation core is extracted as the scalar `scalarAt`, and XY's `valueAt`
+  becomes two calls of it, so the two cannot drift.
+- **REQ-motion-baselines-are-unchanged** — **Baselines are unchanged**
+  (REQ-motion-writes-go-through-bus-set): the machine's baseline map is keyed by
+  param id, so track writes join it with no new mechanism. Stop, `motion.on → 0`
+  and `motion.mute → 1` restore every recorded baseline including the tracks'.
+- **REQ-two-lanes-below-the-xy-lane** — **UI**: two lanes below the XY lane,
+  each a **header row** (label, param dropdown, and its own Slide/Step segmented
+  — `seg-motion.t<i>.slide`) above its full-width **level pads** — one per lane
+  cell (v15, REQ-the-automation-lane-follows-the-meter: all 16 are built, and
+  the ones past the lane are `hidden`, so they leave the grid rather than
+  wrapping onto a second row) — drag up/down to set the value (the pad fills
+  from the bottom), double-click/double-tap to clear, matching the XY pads'
+  gesture family ([step-grid-editing](step-grid-editing.md)
+  REQ-motion-keeps-its-own-gesture) — the same component, so
+  REQ-a-motion-steps-value-is-readable-without-hovering's readout and
+  REQ-the-pads-gesture-set-peek-snap-fine's peek/snap/fine apply here
+  identically (v11). (v6) Clearing returns the cell to the **default step** (its
+  level reset too), so a cleared cell reads like an untouched one instead of
+  keeping its old parked height. The fill **snaps** to its value (no CSS height
+  animation), and the lanes show the moving **playhead** while playing — the
+  same `PlayheadHighlighter` glow the XY lane and the other machines carry (all
+  three motion lanes are wired into one highlighter, so the playing column
+  lights across them together). Each lane draws the same mode-aware polyline the
+  XY lane does — **using its own mode** — so slide interpolation and the
+  bar-line carry stay visible while authoring. A lane with no param chosen
+  renders dimmed with its pads inert; the row itself never goes inert, or its
+  param picker would be unreachable and the lane could never be assigned
+  ([ADR-014](../decisions/adr-014-dont-make-me-think.md) law 2). The parameter
+  is the switch, so there is no separate on/off to keep in sync. A level pad
+  drops the XY pad's **vertical** centre line: `onSet` discards `x`, so a cell's
+  horizontal position means nothing, and drawing that axis would make a
+  one-dimensional cell read as a mini XY pad. The horizontal line stays — on a
+  level cell it is a 50% mark. (v7) The bank bar's **content dot** counts all
+  three lanes the same way: a bank whose A/B tracks hold steps is a filled bank
+  even with an empty XY lane, and the dot updates on track edits as well as
+  anchor edits — see [banks](banks.md) REQ-content-dot-covers-every-lane.
   Clearing: Motion has no selection cursor, so its `Clear ▾` lists **every lane
   holding steps** rather than "the selected row" — see
-  [step-grid-editing](step-grid-editing.md) REQ-6. `Clear bank` empties all
-  three lanes; the axis override and the tracks' param choices survive every
-  clear, being configuration rather than step data.
-- **REQ-16b** — (v14) **The A/B lane repaint is gated on visibility, like the XY
-  lane's graph.** `arrangement.onChange` fires every bar while playing, and a
-  lane's repaint clears and rebuilds its SVG polyline plus up to 16 `<circle>`s
-  and re-levels 16 pads — per lane, per bar, whether or not the Motion tab is on
-  screen. That is [runtime-performance](runtime-performance.md) REQ-4's rule, and
-  the XY lane's graph in the same panel already obeyed it while the A/B lanes,
-  added later (REQ-16), were never wired into the same gate.
+  [step-grid-editing](step-grid-editing.md) REQ-clear-menu-clears-in-bulk.
+  `Clear bank` empties all three lanes; the axis override and the tracks' param
+  choices survive every clear, being configuration rather than step data.
+- **REQ-the-ab-lane-repaint-is-gated-on-visibility** — (v14) **The A/B lane
+  repaint is gated on visibility, like the XY lane's graph.**
+  `arrangement.onChange` fires every bar while playing, and a lane's repaint
+  clears and rebuilds its SVG polyline plus up to 16 `<circle>`s and re-levels
+  16 pads — per lane, per bar, whether or not the Motion tab is on screen. That
+  is [runtime-performance](runtime-performance.md)
+  REQ-no-work-for-offscreen-dom's rule, and the XY lane's graph in the same
+  panel already obeyed it while the A/B lanes, added later
+  (REQ-two-lanes-below-the-xy-lane), were never wired into the same gate.
 
   A repaint requested while hidden is **coalesced into one on reveal**, so the
   lanes are never stale — the `graphDirty` idiom the XY graph already uses, not a
@@ -327,43 +346,49 @@ The tab sits between Sampler and Song.
   one: an off-screen panel has nothing to show either way, and routing both
   through one path is what keeps the dirty flag honest.
 
-- **REQ-17** — **SongFile v5** adds optional `motionTracks` (4 banks × 2 tracks),
-  additive per [ADR-007](../decisions/adr-007-songfile-additive-versioning.md):
-  v1–v4 files load with both tracks empty and unassigned, writing nothing. Export
-  is default-sparse (a dead step is `{on:false}`, `v` rounded to 4 sig-figs) and a
-  track that is entirely empty *and* unassigned is omitted. The authoring dialect
-  gains a matching key; both public schemas and the authoring guide document it.
-- **REQ-17b** — **A target that does not resolve is reported, not swallowed.**
-  `write(id, norm)` starts `const def = this.bus.def(id); if (!def) return;` —
-  correct at play time (a lane must never throw its way into the clock) but it
-  makes a misspelled `motionTracks[].param` or `motionAssigns[].x` a *silent*
-  dead lane. [untrusted-input](untrusted-input.md) REQ-12 owns the contract:
-  `unresolvedTargets(file)` names them, validation reports them as **warnings**
-  (never errors — ADR-007 forward-compat), and the import toast says how many.
-  The runtime guard above stays exactly as it is; it is the last line of defence,
-  not the place to report.
-- **REQ-18** — **Automation is not an edit** (v8). Every write the machine makes —
-  the XY axes, the extra tracks, and the baseline restore that undoes them — runs
-  inside `ParamBus.withoutChangeSignal`. Per-param listeners still fire, so knobs,
-  the XY pad dot and the audio graph track the automation exactly as before; only
+- **REQ-song-file-v5-adds-motion-tracks** — **SongFile v5** adds optional
+  `motionTracks` (4 banks × 2 tracks), additive per
+  [ADR-007](../decisions/adr-007-songfile-additive-versioning.md): v1–v4 files
+  load with both tracks empty and unassigned, writing nothing. Export is
+  default-sparse (a dead step is `{on:false}`, `v` rounded to 4 sig-figs) and a
+  track that is entirely empty *and* unassigned is omitted. The authoring
+  dialect gains a matching key; both public schemas and the authoring guide
+  document it.
+- **REQ-an-unresolved-motion-target-is-reported** — **A target that does not
+  resolve is reported, not swallowed.** `write(id, norm)` starts `const def =
+  this.bus.def(id); if (!def) return;` — correct at play time (a lane must never
+  throw its way into the clock) but it makes a misspelled `motionTracks[].param`
+  or `motionAssigns[].x` a *silent* dead lane.
+  [untrusted-input](untrusted-input.md) REQ-an-unresolvable-target-warns owns
+  the contract: `unresolvedTargets(file)` names them, validation reports them as
+  **warnings** (never errors — ADR-007 forward-compat), and the import toast
+  says how many. The runtime guard above stays exactly as it is; it is the last
+  line of defence, not the place to report.
+- **REQ-motion-automation-is-not-an-edit** — **Automation is not an edit** (v8).
+  Every write the machine makes — the XY axes, the extra tracks, and the
+  baseline restore that undoes them — runs inside
+  `ParamBus.withoutChangeSignal`. Per-param listeners still fire, so knobs, the
+  XY pad dot and the audio graph track the automation exactly as before; only
   the global `onChange` signal, which means *"the user changed the sound"*, is
   withheld. That signal drives the [session autosave](session-autosave.md)
   debounce and the header's preset-dirty marker, and at frame rate it starved
   both: a slide-mode lane re-armed the 1.5 s debounce every ~16 ms, so **the
-  session was never written while the transport ran**, and merely pressing Play on
-  a motion song marked the patch dirty. The suppression belongs at the writer, not
-  at the listener — only the writer knows the write is not the user's. It is the
-  same counter the bulk `restore`/`resetDefaults` applies use, and the bracketed
-  body is pre-bound (not an inline arrow) because this is a 60 fps path; see
-  [`runtime-performance.md`](runtime-performance.md) REQ-5/REQ-6. Contrast the XY
-  Pad's own spring-back ramp, which also writes per frame but *is* a user gesture
-  and stays on the normal path.
-- **REQ-19** — **The frame loop allocates nothing per frame** (v8,
-  [runtime-performance](runtime-performance.md) REQ-6). One evaluation needs three
-  anchor sets (this bar plus both carry neighbours) and the XY lane evaluates
-  twice, once per axis — so the naive form built ~9 arrays and rescanned ~144
-  steps **60 times a second** for an answer that only changes when the user edits
-  a step. Three changes, none of which alter a single output value:
+  session was never written while the transport ran**, and merely pressing Play
+  on a motion song marked the patch dirty. The suppression belongs at the
+  writer, not at the listener — only the writer knows the write is not the
+  user's. It is the same counter the bulk `restore`/`resetDefaults` applies use,
+  and the bracketed body is pre-bound (not an inline arrow) because this is a 60
+  fps path; see [`runtime-performance.md`](runtime-performance.md)
+  REQ-automation-is-not-an-edit/REQ-no-allocation-in-a-hot-loop. Contrast the XY
+  Pad's own spring-back ramp, which also writes per frame but *is* a user
+  gesture and stays on the normal path.
+- **REQ-the-motion-frame-loop-allocates-nothing** — **The frame loop allocates
+  nothing per frame** (v8, [runtime-performance](runtime-performance.md)
+  REQ-no-allocation-in-a-hot-loop). One evaluation needs three anchor sets (this
+  bar plus both carry neighbours) and the XY lane evaluates twice, once per axis
+  — so the naive form built ~9 arrays and rescanned ~144 steps **60 times a
+  second** for an answer that only changes when the user edits a step. Three
+  changes, none of which alter a single output value:
   - `createAnchorCache()` memoizes `anchorIndices` by bank identity. It is
     **handed in**, never module state: banks are mutated in place, so identity
     cannot detect a change and the cache is only correct next to an owner who
@@ -379,37 +404,43 @@ The tab sits between Sampler and Song.
   The cache is optional throughout `motion-curve.ts`, so the panel, the graph and
   the tests keep calling the pure functions with no cache and no invalidation
   duty.
-- **REQ-20** — **The frame loop is visibility-independent** (v9,
-  [runtime-performance](runtime-performance.md) REQ-9). Browsers suspend
-  `requestAnimationFrame` entirely for a hidden document, so a bare rAF loop stopped
-  writing the moment the tab was backgrounded or the PWA left the foreground — every
-  other machine kept playing (they ride `Clock`, whose wakeups come from a Worker,
-  [transport](transport.md) REQ-4) and the song simply lost its automation, params
-  frozen at whatever the last visible frame wrote. The loop therefore carries **two
-  drivers for one body**: rAF while the document is visible (free vsync alignment for
-  the knob and XY-dot repaints the writes trigger), and the worker-backed `TickTimer`
-  while it is hidden, at the **same** perf-tier fps — so motion sounds identical
-  whether or not anyone is looking. One `visibilitychange` listener swaps between them
-  (a low-frequency global listener, exempt under runtime-performance REQ-3), and it
-  swaps *only* the driver: hiding MUST NOT deactivate the machine or restore baselines
-  (REQ-5) — that would be an audible jump on every tab switch. Nothing else needs
-  repair on return, because the tick latch keeps running while hidden (ticks are
-  worker-driven) and position is recomputed from `(tick.idx, tick.when, now)` on every
-  evaluation, never accumulated. The hidden driver already fires at the frame
-  interval, so it bypasses the rAF throttle rather than dropping every other wakeup
-  to jitter. The `TickTimer`'s Worker is spawned on its first `start()`, so a session
-  that is never backgrounded pays nothing for this.
-- **REQ-21** — **A transport seek clears the tick latch and nothing else** (v10,
-  [transport-position](transport-position.md) REQ-5). The frame loop derives its
-  position by interpolating between the two latched ticks `prev` and `curr`; after
-  a playhead jump those two are no longer adjacent, so for up to `scheduleAheadS`
-  the loop would ramp a param from the old position's anchor toward the new one —
-  an audible glide to a value the curve never contains. `clock.onSeek` therefore
-  sets `curr = prev = null`, exactly as `clock.onStart` does, and the next tick
-  re-latches cleanly.
-  It **must not** call `restoreBaselines()`. The baseline map (REQ-5) records each
-  automated param's value from *before* automation first touched it, for the whole
-  play session; restoring mid-seek would snap every automated param and then
+- **REQ-the-motion-frame-loop-is-visibility-independent** — **The frame loop is
+  visibility-independent** (v9, [runtime-performance](runtime-performance.md)
+  REQ-visibility-gating-is-for-pixels-not-sound). Browsers suspend
+  `requestAnimationFrame` entirely for a hidden document, so a bare rAF loop
+  stopped writing the moment the tab was backgrounded or the PWA left the
+  foreground — every other machine kept playing (they ride `Clock`, whose
+  wakeups come from a Worker, [transport](transport.md)
+  REQ-the-wakeup-timer-is-off-the-main-thread) and the song simply lost its
+  automation, params frozen at whatever the last visible frame wrote. The loop
+  therefore carries **two drivers for one body**: rAF while the document is
+  visible (free vsync alignment for the knob and XY-dot repaints the writes
+  trigger), and the worker-backed `TickTimer` while it is hidden, at the
+  **same** perf-tier fps — so motion sounds identical whether or not anyone is
+  looking. One `visibilitychange` listener swaps between them (a low-frequency
+  global listener, exempt under runtime-performance
+  REQ-global-listeners-live-only-for-a-gesture), and it swaps *only* the driver:
+  hiding MUST NOT deactivate the machine or restore baselines
+  (REQ-motion-writes-go-through-bus-set) — that would be an audible jump on
+  every tab switch. Nothing else needs repair on return, because the tick latch
+  keeps running while hidden (ticks are worker-driven) and position is
+  recomputed from `(tick.idx, tick.when, now)` on every evaluation, never
+  accumulated. The hidden driver already fires at the frame interval, so it
+  bypasses the rAF throttle rather than dropping every other wakeup to jitter.
+  The `TickTimer`'s Worker is spawned on its first `start()`, so a session that
+  is never backgrounded pays nothing for this.
+- **REQ-a-seek-clears-the-tick-latch** — **A transport seek clears the tick
+  latch and nothing else** (v10, [transport-position](transport-position.md)
+  REQ-motion-baselines-survive-a-seek). The frame loop derives its position by
+  interpolating between the two latched ticks `prev` and `curr`; after a
+  playhead jump those two are no longer adjacent, so for up to `scheduleAheadS`
+  the loop would ramp a param from the old position's anchor toward the new one
+  — an audible glide to a value the curve never contains. `clock.onSeek`
+  therefore sets `curr = prev = null`, exactly as `clock.onStart` does, and the
+  next tick re-latches cleanly. It **must not** call `restoreBaselines()`. The
+  baseline map (REQ-motion-writes-go-through-bus-set) records each automated
+  param's value from *before* automation first touched it, for the whole play
+  session; restoring mid-seek would snap every automated param and then
   re-capture baselines **from automated values**, so the user's original sound
   would be unrecoverable on stop. Copying `onStop`'s reset here — the obvious
   mistake, since `onStart` and `onStop` sit side by side — is a data-losing bug,
@@ -417,10 +448,11 @@ The tab sits between Sampler and Song.
 
 ### v11 — the value is visible while you edit it
 
-- **REQ-22** — **A step's value is readable without hovering** (v11). Before v11
-  the only place a step's level existed was the pad's native `title`: it appeared
-  after a hover delay, never during the drag that was changing it, and **never at
-  all on touch** — an affordance that exists only on hover, which
+- **REQ-a-motion-steps-value-is-readable-without-hovering** — **A step's value
+  is readable without hovering** (v11). Before v11 the only place a step's level
+  existed was the pad's native `title`: it appeared after a hover delay, never
+  during the drag that was changing it, and **never at all on touch** — an
+  affordance that exists only on hover, which
   [ADR-014](../decisions/adr-014-dont-make-me-think.md) law 6 forbids outright.
   The value now shows in two places, both fed by **one string**:
   - a **per-lane readout** (XY, A and B each own one) living in that lane's
@@ -450,7 +482,7 @@ The tab sits between Sampler and Song.
   formatter lifted out of `Knob` so the two agree on how a parameter reads. An
   A/B track with no parameter chosen has nothing to convert and shows `—`; its
   cells are already inert, so no gesture or hover can put anything else there.
-  The XY lane always has axes — unset ones inherit from the XY Pad (REQ-4) — so
+  The XY lane always has axes — unset ones inherit from the XY Pad (REQ-motion-drives-the-xy-assignment) — so
   it never reaches that state.
 
   The header readout **follows the pointer within its own lane** — `pointerenter`
@@ -465,9 +497,10 @@ The tab sits between Sampler and Song.
   Pointer Events, so a finger and a mouse take the same path into `onGesture` and
   therefore into both surfaces. Hover is the only mouse-specific branch, and it
   is additive — everything a mouse can read, a touch gesture reads too.
-- **REQ-23** — **The pad's gesture set: peek, snap and fine** (v11). Three
-  changes to `MotionStepPad`, which both the XY lane and the A/B lanes share, so
-  all three land in the component rather than per lane.
+- **REQ-the-pads-gesture-set-peek-snap-fine** — **The pad's gesture set: peek,
+  snap and fine** (v11). Three changes to `MotionStepPad`, which both the XY
+  lane and the A/B lanes share, so all three land in the component rather than
+  per lane.
 
   **(a) The write is deferred, which buys a peek.** Pressing a pad used to write
   at `pointerdown`, so *reading* a value on a phone meant destroying it — exactly
@@ -488,7 +521,7 @@ The tab sits between Sampler and Song.
   shows the cell's actual value**, and during a drag the actual value is the one
   being changed. There is no flip at the 350 ms boundary. Long-press is the same
   "inspect without disturbing" meaning the trigger grids already give it
-  ([step-grid-editing](step-grid-editing.md) REQ-3), so the gesture arrives
+  ([step-grid-editing](step-grid-editing.md) REQ-hold-to-edit-selects-without-toggling), so the gesture arrives
   already learned. A fired peek also resets the double-tap latch: the peek
   threshold and the double-tap window are the same 350 ms today, so a peek
   cannot currently be read as the first half of a clear — the reset is what
@@ -525,22 +558,40 @@ The tab sits between Sampler and Song.
   Shift is desktop-only by nature. It is an enhancement, not the only route to a
   value: (b) is what gives touch exact, repeatable levels, so law 6 holds.
 
-- **REQ-24** (v15) — **The automation lane follows the meter too.** `motion.len`
-  / `motion.rate` size the XY lane *and* both A/B lanes together
-  ([meter](meter.md) REQ-10/REQ-14) — one binding, so the three rows and the
-  ruler above them cannot end up drawing different bars. The curve is evaluated
-  over the lane's own length: `scalarAt` takes a `cells` argument (defaulting to
-  the whole bank, so the panel, the graph and the tests are untouched) and
-  anchors beyond it are invisible. That matters most for **slide**, whose
-  bar-line segment must end at the lane's seam — otherwise a shortened lane
-  ramps toward a boundary it never reaches. The machine keeps reading the **raw**
-  step: automation must not follow a stutter remap ([meter](meter.md) REQ-17).
+<!-- The three parts above are cited individually — by six scenarios below and by
+     `ui/components/motion-step-pad.ts` — so each one is declared here rather than
+     living only as a bold heading inside the parent. Under numbered ids they
+     resolved by the lint's lettered-part leniency (`REQ-23a` finding `REQ-23`),
+     which a slug has no equivalent of: an id is either declared or it is not. -->
 
-- **REQ-24b** (v16) — **The graph follows the lane too.** `motionGraphPoints` /
-  `motionGraphPoints1D` take the same `cells` REQ-24 gave `scalarAt`, and every
-  coordinate they produce is a fraction of *that* — anchor centres at
-  `(s + 0.5) / cells`, the trailing edge sampled at the lane's seam, and anchors
-  past `cells` (invisible to the curve) not drawn at all. The panel passes
+- **REQ-the-pad-write-is-deferred** — (a) of the gesture set above. A pad press
+  commits on **release**, not on press, so holding one reads the cell's value
+  without writing it; a drag still commits on its first movement.
+- **REQ-a-coarse-pad-drag-snaps** — (b) of the gesture set above. A coarse drag
+  quantizes to `0.05` on both axes, so two lanes set to the same step hold the
+  identical double rather than two values that merely round to the same text.
+- **REQ-shift-drag-is-fine-and-unsnapped** — (c) of the gesture set above.
+  `Shift`+drag is relative and unsnapped, the desktop escape hatch from (b).
+
+- **REQ-the-automation-lane-follows-the-meter** (v15) — **The automation lane
+  follows the meter too.** `motion.len` / `motion.rate` size the XY lane *and*
+  both A/B lanes together ([meter](meter.md)
+  REQ-each-machine-has-a-loop-length/REQ-each-machine-has-a-step-rate) — one
+  binding, so the three rows and the ruler above them cannot end up drawing
+  different bars. The curve is evaluated over the lane's own length: `scalarAt`
+  takes a `cells` argument (defaulting to the whole bank, so the panel, the
+  graph and the tests are untouched) and anchors beyond it are invisible. That
+  matters most for **slide**, whose bar-line segment must end at the lane's seam
+  — otherwise a shortened lane ramps toward a boundary it never reaches. The
+  machine keeps reading the **raw** step: automation must not follow a stutter
+  remap ([meter](meter.md) REQ-stutter-composes-with-length-and-rate).
+
+- **REQ-the-motion-graph-follows-the-lane** (v16) — **The graph follows the lane
+  too.** `motionGraphPoints` / `motionGraphPoints1D` take the same `cells`
+  REQ-the-automation-lane-follows-the-meter gave `scalarAt`, and every
+  coordinate they produce is a fraction of *that* — anchor centres at `(s + 0.5)
+  / cells`, the trailing edge sampled at the lane's seam, and anchors past
+  `cells` (invisible to the curve) not drawn at all. The panel passes
   `laneGrid(bus, 'motion').cells` and repaints all three lanes on any meter
   change, alongside the column count `bindLaneGrid` already owns.
 
@@ -553,19 +604,19 @@ The tab sits between Sampler and Song.
   plays; drawing them at a different scale broke that claim in the one place a
   reader would blame the sequencer rather than the drawing code.
 
-- **REQ-25** (v16) — **A bank parks at its last anchor when the chain leaves
-  it.** On the frame the governing tick's play bank changes (or goes to a rest),
-  the machine evaluates the **outgoing** bank once more at its lane seam
-  (`barPos → 1⁻`, no carry — which in both modes is exactly its last in-lane
-  anchor) and writes that, for every param the incoming bar does **not** drive
-  itself. Params the incoming bar keeps driving are skipped: it writes them this
-  same frame, and parking them first would insert a value the curve never
-  contains between the two.
+- **REQ-a-bank-parks-at-its-last-anchor** (v16) — **A bank parks at its last
+  anchor when the chain leaves it.** On the frame the governing tick's play bank
+  changes (or goes to a rest), the machine evaluates the **outgoing** bank once
+  more at its lane seam (`barPos → 1⁻`, no carry — which in both modes is
+  exactly its last in-lane anchor) and writes that, for every param the incoming
+  bar does **not** drive itself. Params the incoming bar keeps driving are
+  skipped: it writes them this same frame, and parking them first would insert a
+  value the curve never contains between the two.
 
   This is the guarantee the Pitfalls section has claimed since v3 — "the held
   value is the bank's last anchor, which is what the author drew" — made true
   again. It held for free while every lane was 16 cells against a 16-tick bar,
-  because the bar line and the lane seam were the same instant. REQ-24's lane
+  because the bar line and the lane seam were the same instant. REQ-the-automation-lane-follows-the-meter's lane
   lengths broke that: a lane that does not tile the bar ends its bar wherever the
   phase happens to fall, so the bank parked on an arbitrary mid-sweep value and
   — with nothing else driving those params — held it until the bank came round
@@ -573,9 +624,9 @@ The tab sits between Sampler and Song.
   value written here is the one already there and nothing about those songs
   changes.
 
-  The park records baselines like any other write (REQ-5), so stop still returns
+  The park records baselines like any other write (REQ-motion-writes-go-through-bus-set), so stop still returns
   everything to its pre-play value; it is bracketed by the same
-  `withoutChangeSignal` as the frame that contains it (REQ-15/REQ-18); and it is
+  `withoutChangeSignal` as the frame that contains it (REQ-motion-baselines-are-unchanged/REQ-motion-automation-is-not-an-edit); and it is
   armed only by a *played* handover — `onStart`, `onSeek` and every baseline
   restore clear it, so a seek or a stop never parks a bank the transport never
   left.
@@ -600,13 +651,13 @@ the same component, so one table serves them; `—` is a decision, not a gap.
 | hover (mouse) | update **that lane's header readout only** — never the bubble | DAW status-bar readouts |
 | right-click | — long-press already reads without writing, and works on a phone | — |
 | wheel | — the pad is ~47 px wide and sits in a scrollable panel; a wheel gesture here would fight the page scroll | — |
-| `Delete` / `⌫` | — motion has no selection cursor ([step-grid-editing](step-grid-editing.md) REQ-9, unchanged) | — |
+| `Delete` / `⌫` | — motion has no selection cursor ([step-grid-editing](step-grid-editing.md) REQ-motion-keeps-its-own-gesture, unchanged) | — |
 
 Checked against law 2: every row has exactly one outcome. `tap` and `long-press`
 share a press but split on **duration and travel**, which is the same
 disambiguation the trigger grids use, and the deferred commit is what keeps them
 from both firing. Note the previously "saturated" motion column in
-[step-grid-editing](step-grid-editing.md) REQ-13 no longer holds — `wheel` and
+[step-grid-editing](step-grid-editing.md) REQ-the-ruler-is-separate-chrome no longer holds — `wheel` and
 `right-click` are deliberately free.
 
 ### Contract / public interface
@@ -644,16 +695,16 @@ from both firing. Note the previously "saturated" motion column in
   element on `document.body`, `position: fixed` from the anchor's rect, placed
   above it and clamped to the viewport, `pointer-events: none`. Writes
   `textContent` only when the string changed, since it runs per `pointermove`
-  ([runtime-performance](runtime-performance.md) REQ-6). `opts.peek` marks a
+  ([runtime-performance](runtime-performance.md) REQ-no-allocation-in-a-hot-loop). `opts.peek` marks a
   read-only gesture so it does not read as a write.
 - `MotionMachine` (`src/audio/transport/motion-machine.ts`):
   `setEnabled(on)`, `setMuted(m)` (v2 — effective-active = enabled ∧ ¬muted; either
   deactivation restores baselines), `setSlide(on)` (the XY lane) and
   `setTrackSlide(track, on)` (v5 — one mode per extra track), `onStep(cb)` (playhead),
   `stop()` restore hook via `clock.onStop`, plus a `clock.onSeek` hook that clears
-  the `prev`/`curr` latch **without** touching the baselines (v10, REQ-21).
+  the `prev`/`curr` latch **without** touching the baselines (v10, REQ-a-seek-clears-the-tick-latch).
   (v16) One more piece of latch state, `held` — the bank whose writes are live, or
-  `-1` while resting and before the first frame — drives REQ-25's handover park.
+  `-1` while resting and before the first frame — drives REQ-a-bank-parks-at-its-last-anchor's handover park.
   It is cleared wherever the latch is (`onStart`, `onSeek`) and by every baseline
   restore, so only a handover the transport actually played can park a bank.
   Constructed by `Engine.init()` after
@@ -662,7 +713,7 @@ from both firing. Note the previously "saturated" motion column in
   `now` (audio-clock time) + `fps` (Engine passes both), and `raf`/`caf`, plus (v9)
   `timer?: TickTimer` — the hidden-document driver, defaulting to
   `defaultTickTimer()` — and `doc?` — the visibility source, defaulting to
-  `document`, injectable so the REQ-20 swap is unit-testable under jsdom. Engine
+  `document`, injectable so the REQ-the-motion-frame-loop-is-visibility-independent swap is unit-testable under jsdom. Engine
   passes neither: the defaults are the production wiring. The machine lives as long
   as the page, so its one `visibilitychange` listener is never removed (there is no
   `destroy()`).
@@ -673,9 +724,9 @@ from both firing. Note the previously "saturated" motion column in
   generic over any `{ on }` cell plus a value accessor; `valueAt` is two calls of
   it (`s => s.x`, `s => s.y`) and `valueAt1D(steps, …)` — the extra tracks' entry
   point — is one (`s => s.v`). One implementation of anchors, slide, step and the
-  bar-line carry, so XY and the tracks cannot diverge (REQ-14).
+  bar-line carry, so XY and the tracks cannot diverge (REQ-tracks-share-the-lanes-curve-semantics).
   `MotionNeighbours = { prev?, next?: readonly MotionStep[] | null }` are the banks
-  of the adjacent *bars* (REQ-2b); omitted ⇒ this bank (the pre-v3 self-wrap),
+  of the adjacent *bars* (REQ-cross-bank-carry); omitted ⇒ this bank (the pre-v3 self-wrap),
   `null`/anchorless ⇒ hold flat at the bar line. The module stays free of
   assignment/`XyPadStore` knowledge — deciding whether a neighbour is *usable* is the
   caller's job.
@@ -687,13 +738,13 @@ from both firing. Note the previously "saturated" motion column in
   `clearMotionTrack(track)`, `onMotionTrackChange(fn)`. Track mutations emit the
   `motion-track` / `motion-track-param` undo kinds; `clearMotionBank` and
   `copyMotionBank` keep carrying the whole bank (tracks included) in their single
-  `motion-copy` entry (step-grid-editing.md REQ-7).
+  `motion-copy` entry (step-grid-editing.md REQ-one-bulk-action-one-undo-entry).
 - `Arrangement`: `motionPlayBank`, `motionResting`, `setMotionChain(steps, enabled)`,
   `motionChainPos`, `motion{Prev,Next}PlayBank`, `motion{Prev,Next}Resting` (v3).
 - `src/utils/taper.ts`: `toNorm(def, v)`, `fromNorm(def, n)` — moved out of the
   UI layer so the audio layer can map taper-correctly without importing UI code.
 - `src/state/xy-effective.ts`: `motionAxesFor(patterns, bank, base) → XyAssign`
-  (v3) — the one-line per-axis override/fallback rule (REQ-4), shared by
+  (v3) — the one-line per-axis override/fallback rule (REQ-motion-drives-the-xy-assignment), shared by
   `createEffectiveXy`, `MotionMachine`'s neighbour gate and the panel's graph.
 - `src/ui/components/motion-graph.ts` (pure, v2):
   `motionGraphPoints(bank, view, mode, neighbours?, cells?)
@@ -702,8 +753,8 @@ from both firing. Note the previously "saturated" motion column in
   the wrap-aware staircase; `carry` holds the 0–2 dashed bar-edge segments, v3).
   `dots` is *geometry*, not the visible anchor marker: the panel strokes each as a
   `<circle r="1.1">` that the non-uniform viewBox flattens into a tick on the line
-  (REQ-8) — the round dot a reader sees belongs to the pad underneath.
-  `cells` (v16, REQ-24b) is the lane's played length and defaults to the whole
+  (REQ-each-motion-step-is-a-mini-xy-pad) — the round dot a reader sees belongs to the pad underneath.
+  `cells` (v16, REQ-the-motion-graph-follows-the-lane) is the lane's played length and defaults to the whole
   bank, exactly as it does on `scalarAt` — one argument, threaded from the same
   `laneGrid` the columns come from, is what keeps the drawing and the playing on
   the same grid. `motionGraphPoints1D(steps, mode, neighbours?, cells?)` is the
@@ -811,14 +862,14 @@ Scenario: The A/B tracks show the playhead while playing (v6)
   Then the playing column lights on the A and B track cells, not only the XY pads
 # pinned by: e2e/motion.spec.ts
 
-Scenario: A hidden Motion tab repaints no lane per bar (v14, REQ-16b)
+Scenario: A hidden Motion tab repaints no lane per bar (v14, REQ-the-ab-lane-repaint-is-gated-on-visibility)
   Given the Motion tab is not the active tab
   And the transport is playing
   When the arrangement advances a bar
   Then neither A/B lane rebuilds its graph or re-levels its pads
 # pinned by: tests/ui/motion-panel.test.ts
 
-Scenario: A revealed Motion tab shows the current lanes at once (v14, REQ-16b)
+Scenario: A revealed Motion tab shows the current lanes at once (v14, REQ-the-ab-lane-repaint-is-gated-on-visibility)
   Given the Motion tab was hidden while its lanes changed
   When it is revealed
   Then both lanes repaint once, showing the current steps rather than stale ones
@@ -832,33 +883,33 @@ Scenario: The XY lane and the tracks each carry a short help badge (v6)
     essay-length `motion` badge on the tab
 # pinned by: tests/ui/help-content.test.ts (topic presence)
 
-Scenario: Holding a pad reads its value without changing it (v11, REQ-23a)
+Scenario: Holding a pad reads its value without changing it (v11, REQ-the-pad-write-is-deferred)
   Given track A step 5 holds 0.40
   When the user presses that cell near its top and holds still for 400ms
   Then the readout shows 0.40 — the value that is THERE, not the press position
   And releasing writes nothing: step 5 still holds 0.40
 # pinned by: tests/ui/motion-step-pad.test.ts, e2e/motion.spec.ts
 
-Scenario: A tap still sets the value, on release (v11, REQ-23a)
+Scenario: A tap still sets the value, on release (v11, REQ-the-pad-write-is-deferred)
   Given track A step 5 is empty
   When the user taps it 25% up from the bottom and releases within 350ms
   Then step 5 is on at 0.25
 # pinned by: tests/ui/motion-step-pad.test.ts
 
-Scenario: A drag commits from its first movement (v11, REQ-23a)
+Scenario: A drag commits from its first movement (v11, REQ-the-pad-write-is-deferred)
   Given the user presses a pad and moves more than 6px without pausing
   Then the peek never fires and the value tracks the pointer for the rest of the
     stroke
 # pinned by: tests/ui/motion-step-pad.test.ts
 
-Scenario: Coarse values land on the same level in both lanes (v11, REQ-23b)
+Scenario: Coarse values land on the same level in both lanes (v11, REQ-a-coarse-pad-drag-snaps)
   Given the user drags track A step 5 and track B step 5 to roughly the same height
   Then both values are multiples of 0.05
   And two drags that land within half a snap step of each other produce the
     IDENTICAL number, which is what makes the lanes match
 # pinned by: tests/ui/motion-step-pad.test.ts
 
-Scenario: Shift+drag is fine, and pressing with Shift does not jump (v11, REQ-23c)
+Scenario: Shift+drag is fine, and pressing with Shift does not jump (v11, REQ-shift-drag-is-fine-and-unsnapped)
   Given track A step 5 holds 0.40
   When the user presses it near the top with Shift held
   Then the value stays 0.40 — no absolute jump to the press position
@@ -866,14 +917,14 @@ Scenario: Shift+drag is fine, and pressing with Shift does not jump (v11, REQ-23
   Then the value rises by about 0.10 (400px spans the full range), unsnapped
 # pinned by: tests/ui/motion-step-pad.test.ts
 
-Scenario: Releasing Shift mid-drag re-anchors instead of jumping (v11, REQ-23c)
+Scenario: Releasing Shift mid-drag re-anchors instead of jumping (v11, REQ-shift-drag-is-fine-and-unsnapped)
   Given a fine drag in progress
   When Shift is released and the pointer moves on
   Then the value continues from where it was, at coarse sensitivity
   And it does not jump to the pointer's absolute position
 # pinned by: tests/ui/motion-step-pad.test.ts
 
-Scenario: The value is visible while dragging, on touch as well (v11, REQ-22)
+Scenario: The value is visible while dragging, on touch as well (v11, REQ-a-motion-steps-value-is-readable-without-hovering)
   Given the Motion tab is open
   When the user drags track A step 5
   Then a bubble above the pad and the A lane's header readout both show the same
@@ -883,7 +934,7 @@ Scenario: The value is visible while dragging, on touch as well (v11, REQ-22)
   Then the bubble is gone and the header readout stays, still naming step 5
 # pinned by: tests/ui/value-bubble.test.ts, e2e/motion.spec.ts
 
-Scenario: A lane with no parameter has nothing to convert (v11, REQ-22, edge)
+Scenario: A lane with no parameter has nothing to convert (v11, REQ-a-motion-steps-value-is-readable-without-hovering, edge)
   Given track B has no parameter chosen
   Then its readout shows "—" rather than a bare normalized number
 # pinned by: e2e/motion.spec.ts
@@ -927,17 +978,17 @@ Scenario: Step mode graphs as a square line (v2)
   And in slide mode the same anchors draw the plain anchor-to-anchor polyline
 # pinned by: tests/ui/motion-graph.test.ts
 
-Scenario: The graph is drawn on the lane's cells, not the bank's 16 (v16, REQ-24b, regression)
+Scenario: The graph is drawn on the lane's cells, not the bank's 16 (v16, REQ-the-motion-graph-follows-the-lane, regression)
   Given motion.len is 9 and the XY lane has anchors on steps 1, 5 and 9
   When the graph is drawn
   Then the anchor points sit at the centres of cells 1, 5 and 9 of the NINE the grid
     draws — the step-5 anchor's staircase edge over its own pad, not over step 3
   And an anchor on a step past the lane's length is not drawn at all, matching the
-    curve that cannot see it (REQ-24)
+    curve that cannot see it (REQ-the-automation-lane-follows-the-meter)
   And changing motion.len, motion.rate or the meter repaints all three lanes
 # pinned by: tests/ui/motion-graph.test.ts, tests/ui/motion-panel.test.ts
 
-Scenario: A bank parks at its last anchor when the chain hands over (v16, REQ-25, regression)
+Scenario: A bank parks at its last anchor when the chain hands over (v16, REQ-a-bank-parks-at-its-last-anchor, regression)
   Given a 12/8 bar (24 ticks) and a motion lane of 9 cells at 1/8 — 18 ticks, so it
     does not tile the bar
   And bank B overrides the axes to params no other bank drives, sweeping up on its
@@ -948,11 +999,11 @@ Scenario: A bank parks at its last anchor when the chain hands over (v16, REQ-25
   And the param stays there instead of holding the sweep until bank B comes round again
 # pinned by: tests/audio/transport/motion-machine.test.ts
 
-Scenario: A handover parks nothing the incoming bar drives itself (v16, REQ-25)
+Scenario: A handover parks nothing the incoming bar drives itself (v16, REQ-a-bank-parks-at-its-last-anchor)
   Given a chain A → B where both banks drive the same param
   When the bar line between them is crossed
   Then only bank B's value is written on that frame — A's seam value is never put
-    in front of it, so the carry (REQ-2b) is bit-for-bit what it was
+    in front of it, so the carry (REQ-cross-bank-carry) is bit-for-bit what it was
   And a lane that tiles the bar is unchanged either way: its bar already ends on
     its last cell, so the parked value is the one already there
 # pinned by: tests/audio/transport/motion-machine.test.ts
@@ -1023,7 +1074,7 @@ Scenario: Baselines restore on stop
   Then filter.cutoff returns to its pre-play value
 # pinned by: tests/audio/transport/motion-machine.test.ts, e2e/motion.spec.ts
 
-Scenario: A seek keeps the baselines (v10, REQ-21)
+Scenario: A seek keeps the baselines (v10, REQ-a-seek-clears-the-tick-latch)
   Given motion drove filter.cutoff away from its saved value
   When the playhead is seeked mid-play
   Then the prev/curr latch is cleared, so cutoff jumps to the curve's value at the
@@ -1032,19 +1083,19 @@ Scenario: A seek keeps the baselines (v10, REQ-21)
        ORIGINAL pre-play value, not an automated one
 # pinned by: tests/audio/transport/motion-machine.test.ts
 
-Scenario: A cached anchor set still sees an edit (REQ-19, regression)
+Scenario: A cached anchor set still sees an edit (REQ-the-motion-frame-loop-allocates-nothing, regression)
   Given the machine has already evaluated a bank this play session
   When the user adds, removes, or loads over one of its steps
   Then the next frame automates from the edited anchors, not the memoized ones
 # pinned by: tests/audio/transport/motion-machine.test.ts, tests/audio/transport/motion-curve.test.ts
 
-Scenario: Caching changes no value (REQ-19)
+Scenario: Caching changes no value (REQ-the-motion-frame-loop-allocates-nothing)
   Given a bank with both carry neighbours, in slide and in step mode
   When it is evaluated across the whole bar with and without a cache
   Then the two agree at every position
 # pinned by: tests/audio/transport/motion-curve.test.ts
 
-Scenario: Motion keeps automating while the document is hidden (REQ-20, regression)
+Scenario: Motion keeps automating while the document is hidden (REQ-the-motion-frame-loop-is-visibility-independent, regression)
   Given the transport is playing and motion is enabled with anchors
   When the document becomes hidden
   Then the rAF driver is cancelled and the worker-backed timer drives the loop at the perf fps
@@ -1054,14 +1105,14 @@ Scenario: Motion keeps automating while the document is hidden (REQ-20, regressi
   Then the timer is stopped and the rAF driver is re-armed
 # pinned by: tests/audio/transport/motion-machine.test.ts, e2e/motion.spec.ts
 
-Scenario: Stopping while hidden still restores the baselines (REQ-20/REQ-5)
+Scenario: Stopping while hidden still restores the baselines (REQ-the-motion-frame-loop-is-visibility-independent/REQ-motion-writes-go-through-bus-set)
   Given the transport is playing with the document hidden and motion writing
   When the transport stops
   Then the hidden driver is stopped
   And every automated param is back at its pre-automation value
 # pinned by: tests/audio/transport/motion-machine.test.ts
 
-Scenario: Automation reaches the knobs but not the change signal (REQ-18)
+Scenario: Automation reaches the knobs but not the change signal (REQ-motion-automation-is-not-an-edit)
   Given a subscriber on filter.cutoff and a global bus.onChange listener
   When motion slides filter.cutoff across a bar and the transport then stops
   Then the per-param subscriber saw every written value, including the restore
@@ -1093,7 +1144,7 @@ Scenario: Old songs load unchanged
   When it is applied — even directly after a song that HAD motion banks/tracks
   Then motion banks are empty, the chain is disabled and nothing is written
   # authoritative apply: an absent motion section is blanked, not inherited
-  # (song-mode.md REQ-3). The store is reset via emptyPatternSnapshot(), so a
+  # (song-mode.md REQ-apply-resets-to-defaults-first). The store is reset via emptyPatternSnapshot(), so a
   # previously-loaded song's anchors/tracks/assigns can never linger.
 # pinned by: tests/state/song-validate.test.ts, tests/state/song.test.ts
 
@@ -1116,19 +1167,19 @@ Scenario: Dialect motion bank expands
 - E2E: `e2e/motion.spec.ts` — `npm run e2e`
 - Typecheck: `npm run typecheck`
 - Dev-bridge assertions: `window.__synth.bus.get('<assigned id>')` while playing.
-- By ear (v16, REQ-25): the park changes what is *heard* after a handover, which
+- By ear (v16, REQ-a-bank-parks-at-its-last-anchor): the park changes what is *heard* after a handover, which
   [ADR-010](../decisions/adr-010-musical-stable-cheap-dsp.md) says a green suite cannot
   settle. Load **Gankogui** — the one demo whose lanes deliberately run three
   cycles against a 12/8 bar — play a full chain cycle and listen for the DJ filter
   returning to centre after bank B's bar instead of staying open until the sweep
   comes round again. A/B it against a 4/4 demo with per-bank overrides
   (**First_Light**), which must sound exactly as it did.
-- By hand (v11): REQ-22/REQ-23 are a *feel* change and no suite covers feel.
+- By hand (v11): REQ-a-motion-steps-value-is-readable-without-hovering/REQ-the-pads-gesture-set-peek-snap-fine are a *feel* change and no suite covers feel.
   Check that a coarse drag steps cleanly between snap levels rather than
   stuttering, that Shift never jumps on press or on release, that the bubble
   never covers the pad under the pointer, and that the header readouts stay
   legible at phone width, where the A/B cells are ~13 px wide.
-- Device (REQ-20): play a motion song, background the tab/PWA for ~30 s and listen —
+- Device (REQ-the-motion-frame-loop-is-visibility-independent): play a motion song, background the tab/PWA for ~30 s and listen —
   the sweep must continue and be where the curve says on return. Headless Chromium
   never truly suspends rAF, so `e2e/motion.spec.ts` fakes it (neuters
   `requestAnimationFrame` + `document.hidden`); only a real backgrounded window
@@ -1147,14 +1198,14 @@ Scenario: Dialect motion bank expands
   the bank's *first* anchor, because the self-wrap ran back up inside the final step.
   Up to v15 that came for free from the carry holding flat toward an unusable
   neighbour, and only because the bar line *was* the lane seam; since v16 the
-  handover park (REQ-25) is what makes it true for a lane that does not tile the bar.
+  handover park (REQ-a-bank-parks-at-its-last-anchor) is what makes it true for a lane that does not tile the bar.
   To bring a param home during anchorless bars, anchor them — the last anchor is the
   resting place, so give it the value you want left behind.
-- A lane that does not tile the bar ([meter](meter.md) REQ-10) sees its anchors more
+- A lane that does not tile the bar ([meter](meter.md) REQ-each-machine-has-a-loop-length) sees its anchors more
   than once, or not at all, within a single bar: Gankogui's 9 cells of 1/8 against a
   24-tick 12/8 bar play cells 3,4,5,6,7,8,0,1,2,3,4,5. That is the point of
   polymeter, but it means a bank's bar can *end* anywhere in its loop, and no anchor
-  placement can change which cell that is. REQ-25's park is what keeps the bank's
+  placement can change which cell that is. REQ-a-bank-parks-at-its-last-anchor's park is what keeps the bank's
   resting value authorable regardless.
 
 ## Open questions / future

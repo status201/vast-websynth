@@ -61,12 +61,12 @@ describe('Polyphony', () => {
   });
 
   /**
-   * voicing.md REQ-9. `heldNotes` maps a note to the voices playing it, and
+   * voicing.md REQ-a-stolen-voice-leaves-the-held-list. `heldNotes` maps a note to the voices playing it, and
    * `releaseNote` sends noteOff to whatever that entry names — so a stolen voice
    * left in its old note's entry means releasing the old key stops the new note.
    * Reachable by holding VOICE_COUNT notes and playing one more.
    */
-  describe('voice stealing keeps heldNotes honest (REQ-9, regression)', () => {
+  describe('voice stealing keeps heldNotes honest (REQ-a-stolen-voice-leaves-the-held-list, regression)', () => {
     it('releasing the robbed note does not stop the voice that stole it', () => {
       const { voices, poly } = build(2);
       poly.playNote(60, 0.8, 0); // → voice0
@@ -158,7 +158,7 @@ describe('Polyphony', () => {
     for (const v of voices) expect(v.kill).not.toHaveBeenCalled();
   });
 
-  it('runs the drift interval only while drift > 0 (voicing.md REQ-4)', () => {
+  it('runs the drift interval only while drift > 0 (voicing.md REQ-analogue-drift-is-off-by-default)', () => {
     const { ctx, poly } = build();
     const offset = ctx.createConstantSource.mock.results[0]!.value.offset;
 

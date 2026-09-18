@@ -1,7 +1,7 @@
 // @vitest-environment node
 //
-// The Streamable HTTP transport (mcp-server.md REQ-1b/REQ-9/REQ-11,
-// untrusted-input.md REQ-14, ADR-020).
+// The Streamable HTTP transport (mcp-server.md REQ-streamable-http-is-one-message-per-post/REQ-the-http-transport-is-stateless/REQ-the-public-endpoint-is-bounded-not-authenticated,
+// untrusted-input.md REQ-the-public-endpoint-is-bounded, ADR-020).
 //
 // These run against a REAL ephemeral node:http server rather than a faked
 // req/res pair. The things this file is actually pinning — a body refused
@@ -17,7 +17,7 @@ import { createRequestListener, createRateLimiter, clientKey, originAllowed } fr
 
 const LIMITS = { requestBytes: 1024, perMinute: 3, rateKeys: 4, requestMs: 5000 };
 
-/** Tools the read-only profile exposes, in REQ-10's order. */
+/** Tools the read-only profile exposes, in REQ-the-remote-profile-is-read-only's order. */
 const READ_ONLY_TOOLS = [
   'get_params', 'get_song_format', 'validate_song', 'expand_song',
   'make_share_link', 'get_preset_format', 'validate_preset', 'expand_preset',
@@ -58,14 +58,14 @@ const post = (base: string, body: unknown, headers: Record<string, string> = {})
 const rpc = (id: number, method: string, params?: unknown) =>
   ({ jsonrpc: '2.0', id, method, ...(params === undefined ? {} : { params }) });
 
-describe('MCP over HTTP — the handshake (REQ-1b/REQ-9)', () => {
+describe('MCP over HTTP — the handshake (REQ-streamable-http-is-one-message-per-post/REQ-the-http-transport-is-stateless)', () => {
   it('answers initialize with the same payload stdio gives, and no session id', async () => {
     const { base } = await serve();
     const res = await post(base, rpc(1, 'initialize', { protocolVersion: '2025-06-18' }));
 
     expect(res.status).toBe(200);
     expect(res.headers.get('content-type')).toMatch(/application\/json/);
-    // REQ-9a: stateless. A session id would imply state there is none of.
+    // REQ-no-mcp-session-id-is-issued: stateless. A session id would imply state there is none of.
     expect(res.headers.get('mcp-session-id')).toBeNull();
     expect(await res.json()).toEqual({
       jsonrpc: '2.0',
@@ -78,7 +78,7 @@ describe('MCP over HTTP — the handshake (REQ-1b/REQ-9)', () => {
     });
   });
 
-  it('lists exactly the eight read-only tools, in order (REQ-10)', async () => {
+  it('lists exactly the eight read-only tools, in order (REQ-the-remote-profile-is-read-only)', async () => {
     const { base } = await serve();
     const body = await (await post(base, rpc(2, 'tools/list'))).json();
     expect(body.result.tools.map((t: { name: string }) => t.name)).toEqual(READ_ONLY_TOOLS);
@@ -97,14 +97,14 @@ describe('MCP over HTTP — the handshake (REQ-1b/REQ-9)', () => {
     expect(await res.text()).toBe('');
   });
 
-  it('never routes a write tool, because the profile does not carry one (REQ-10)', async () => {
+  it('never routes a write tool, because the profile does not carry one (REQ-the-remote-profile-is-read-only)', async () => {
     const { base } = await serve();
     const body = await (await post(base, rpc(4, 'tools/call', { name: 'save_song', arguments: { song: {} } }))).json();
     expect(body.error.code).toBe(-32602);
     expect(body.error.message).toMatch(/save_song/);
   });
 
-  it('ignores MCP-Protocol-Version, including one from the future (REQ-9d)', async () => {
+  it('ignores MCP-Protocol-Version, including one from the future (REQ-the-protocol-version-header-is-ignored)', async () => {
     const { base } = await serve();
     const versions = ['2025-03-26', '2025-06-18', '2099-01-01', 'nonsense'];
     for (const [i, v] of versions.entries()) {
@@ -116,7 +116,7 @@ describe('MCP over HTTP — the handshake (REQ-1b/REQ-9)', () => {
     }
   });
 
-  it('accepts the POST on any path, so the proxy mount point is not a constant (REQ-9e)', async () => {
+  it('accepts the POST on any path, so the proxy mount point is not a constant (REQ-the-request-path-is-not-matched)', async () => {
     const { base } = await serve();
     const paths = ['/', '/mcp', '/mcp/', '/some/other/mount'];
     for (const [i, path] of paths.entries()) {
@@ -132,7 +132,7 @@ describe('MCP over HTTP — the handshake (REQ-1b/REQ-9)', () => {
   });
 });
 
-describe('MCP over HTTP — malformed requests (REQ-9)', () => {
+describe('MCP over HTTP — malformed requests (REQ-the-http-transport-is-stateless)', () => {
   it('answers 400 with a JSON-RPC parse error for an unparseable body', async () => {
     const { base } = await serve();
     const res = await post(base, '{not json');
@@ -152,7 +152,7 @@ describe('MCP over HTTP — malformed requests (REQ-9)', () => {
     expect(res.status).toBe(415);
   });
 
-  it('answers 405 + Allow on GET and DELETE — there is no stream (REQ-9b)', async () => {
+  it('answers 405 + Allow on GET and DELETE — there is no stream (REQ-no-sse-every-response-is-one-json-body)', async () => {
     const { base } = await serve();
     for (const method of ['GET', 'DELETE']) {
       const res = await fetch(`${base}/mcp`, { method });
@@ -161,7 +161,7 @@ describe('MCP over HTTP — malformed requests (REQ-9)', () => {
     }
   });
 
-  it('answers by method, never by path — there is no 404 (REQ-9e)', async () => {
+  it('answers by method, never by path — there is no 404 (REQ-the-request-path-is-not-matched)', async () => {
     const { base } = await serve();
     // The server does not route on path, so it has no notion of a path being
     // "wrong". A GET to an unrouted path is the same 405 as a GET to /mcp, and
@@ -180,14 +180,14 @@ describe('MCP over HTTP — malformed requests (REQ-9)', () => {
     expect(await res.json()).toEqual({ ok: true, version: '9.9.9' });
   });
 
-  it('marks every response no-store, so nothing caches the API (REQ-9b)', async () => {
+  it('marks every response no-store, so nothing caches the API (REQ-no-sse-every-response-is-one-json-body)', async () => {
     const { base } = await serve();
     const res = await post(base, rpc(7, 'tools/list'));
     expect(res.headers.get('cache-control')).toBe('no-store');
   });
 });
 
-describe('MCP over HTTP — Origin (REQ-9c)', () => {
+describe('MCP over HTTP — Origin (REQ-an-absent-origin-is-allowed)', () => {
   it('allows a request with no Origin at all — that is what Claude sends', async () => {
     const { base } = await serve();
     const res = await post(base, rpc(8, 'tools/list'));
@@ -229,7 +229,7 @@ describe('MCP over HTTP — Origin (REQ-9c)', () => {
   });
 });
 
-describe('MCP over HTTP — bounds (REQ-11, untrusted-input REQ-14)', () => {
+describe('MCP over HTTP — bounds (REQ-the-public-endpoint-is-bounded-not-authenticated, untrusted-input REQ-the-public-endpoint-is-bounded)', () => {
   it('answers 413 for a body over the cap, without buffering it', async () => {
     const { base } = await serve();
     const res = await post(base, 'x'.repeat(LIMITS.requestBytes * 4));
@@ -311,7 +311,7 @@ describe('MCP over HTTP — bounds (REQ-11, untrusted-input REQ-14)', () => {
   });
 });
 
-describe('the rate limiter is itself bounded (REQ-11)', () => {
+describe('the rate limiter is itself bounded (REQ-the-public-endpoint-is-bounded-not-authenticated)', () => {
   it('never tracks more than maxKeys addresses', () => {
     const limiter = createRateLimiter({ perMinute: 10, maxKeys: 8, now: () => 0 });
     for (let i = 0; i < 500; i++) limiter.hit(`10.0.0.${i}`);
@@ -339,7 +339,7 @@ describe('the rate limiter is itself bounded (REQ-11)', () => {
   });
 });
 
-describe('the endpoint adds no parser of its own (untrusted-input REQ-14)', () => {
+describe('the endpoint adds no parser of its own (untrusted-input REQ-the-public-endpoint-is-bounded)', () => {
   it('a hostile song meets the same validators it would in the app', async () => {
     // Not a stub dispatcher here: the point is that the HTTP layer hands the
     // arguments straight to the real tool, so a payload gets the identical

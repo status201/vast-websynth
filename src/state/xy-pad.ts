@@ -26,7 +26,7 @@ export class XyPadStore {
 
   /**
    * `get()` into a caller-owned holder, for the frame loop
-   * (runtime-performance.md REQ-6). Copies the fields out for the same reason
+   * (runtime-performance.md REQ-no-allocation-in-a-hot-loop). Copies the fields out for the same reason
    * `get` does — the store's own object is never handed to a caller.
    */
   readAssignInto(out: XyAssign): void {

@@ -33,32 +33,38 @@ default, exactly as before.
 
 ## Requirements
 
-- **REQ-1** — `ParamBus` keeps a per-param **baseline** map, separate from the
-  live `values`. Baselines are never persisted (they are derived from whatever
-  preset/song is active).
-- **REQ-2** — `reset(id)` sets the param to its baseline if one exists, else the
-  registered `def.default`. `resetValue(id)` returns that target without applying
-  it. Unregistered ids fall back to `0` (as `get`/`set` already do).
-- **REQ-3** — `restore(snapshot)` **merges** baselines: every *registered* id in
-  the snapshot records its clamped value as the baseline; ids absent from the
-  snapshot keep their existing baseline. (A factory preset only covers the synth
-  patch, so it must not wipe song-set drum/sampler baselines.)
-- **REQ-4** — `resetDefaults()` **clears** all baselines. Because `Song.apply`
-  does `resetDefaults()` then `restore(fullSnapshot)`, a song load replaces every
-  baseline; a preset load (`restore` only) merges.
-- **REQ-5** — `setBaselines(snapshot)` applies the REQ-3 merge without touching
-  live values, so **saving** a preset/song makes the just-saved state the new
-  reset target. Called by the Save-preset and Save-song handlers.
-- **REQ-6** — The knob double-tap and the drum per-track Reset button both go
-  through `bus.reset(id)`, so they share one baseline. A **disabled** knob
-  (`Knob.setDisabled(true)`, e.g. the BPM knob while sync-slaved) blocks the
-  double-tap along with dragging — no reset fires (see
-  [midi-clock-sync](midi-clock-sync.md) REQ-14).
-- **REQ-7** — Setting a baseline never fires per-param listeners or the global
-  `onChange` signal (it is not an edit); `reset()` fires them like any `set()`.
-- **REQ-8** — Boot emergent behaviour: `main.ts` applies the `basic` preset via
-  `restore`, so a fresh session's baselines match `basic` (the active sound shown
-  in the header). This is intended, not special-cased.
+- **REQ-bus-keeps-a-baseline-map** — `ParamBus` keeps a per-param **baseline**
+  map, separate from the live `values`. Baselines are never persisted (they are
+  derived from whatever preset/song is active).
+- **REQ-reset-prefers-the-baseline** — `reset(id)` sets the param to its
+  baseline if one exists, else the registered `def.default`. `resetValue(id)`
+  returns that target without applying it. Unregistered ids fall back to `0` (as
+  `get`/`set` already do).
+- **REQ-restore-merges-baselines** — `restore(snapshot)` **merges** baselines:
+  every *registered* id in the snapshot records its clamped value as the
+  baseline; ids absent from the snapshot keep their existing baseline. (A
+  factory preset only covers the synth patch, so it must not wipe song-set
+  drum/sampler baselines.)
+- **REQ-reset-defaults-clears-baselines** — `resetDefaults()` **clears** all
+  baselines. Because `Song.apply` does `resetDefaults()` then
+  `restore(fullSnapshot)`, a song load replaces every baseline; a preset load
+  (`restore` only) merges.
+- **REQ-set-baselines-merges-without-applying** — `setBaselines(snapshot)`
+  applies the REQ-restore-merges-baselines merge without touching live values,
+  so **saving** a preset/song makes the just-saved state the new reset target.
+  Called by the Save-preset and Save-song handlers.
+- **REQ-double-tap-and-reset-share-one-path** — The knob double-tap and the drum
+  per-track Reset button both go through `bus.reset(id)`, so they share one
+  baseline. A **disabled** knob (`Knob.setDisabled(true)`, e.g. the BPM knob
+  while sync-slaved) blocks the double-tap along with dragging — no reset fires
+  (see [midi-clock-sync](midi-clock-sync.md) REQ-the-bpm-knob-shows-slaved).
+- **REQ-setting-a-baseline-is-silent** — Setting a baseline never fires
+  per-param listeners or the global `onChange` signal (it is not an edit);
+  `reset()` fires them like any `set()`.
+- **REQ-boot-preset-becomes-the-baseline** — Boot emergent behaviour: `main.ts`
+  applies the `basic` preset via `restore`, so a fresh session's baselines match
+  `basic` (the active sound shown in the header). This is intended, not
+  special-cased.
 
 ## Technical design
 

@@ -110,7 +110,7 @@ describe('fitToFrames — pitch is preserved', () => {
   });
 });
 
-describe('fitToFrames — the no-op path (REQ-4)', () => {
+describe('fitToFrames — the no-op path (REQ-a-ratio-of-one-does-no-analysis)', () => {
   it('a target equal to the source length is a clone, sample for sample', () => {
     const src = cap(sine(440, 8192));
     const out = fitToFrames(src, 8192);
@@ -127,7 +127,7 @@ describe('fitToFrames — the no-op path (REQ-4)', () => {
   });
 });
 
-describe('fitToFrames — stability (REQ-6)', () => {
+describe('fitToFrames — stability (REQ-every-stretch-entry-point-is-total)', () => {
   it.each(MODES)('silence in, silence out, nothing non-finite (%s)', (mode) => {
     const out = fitToFrames(cap(new Float32Array(20_000)), 30_000, mode);
     expect(out.left.length).toBe(30_000);
@@ -194,9 +194,9 @@ describe('fitToFrames — stability (REQ-6)', () => {
   });
 });
 
-describe('fitToFrames — stereo (REQ-5)', () => {
+describe('fitToFrames — stereo (REQ-both-algorithms-decide-from-the-mid)', () => {
   /**
-   * The regression that motivated REQ-5 covering the vocoder too.
+   * The regression that motivated REQ-both-algorithms-decide-from-the-mid covering the vocoder too.
    *
    * Integrating the phase per channel is the obvious shape, and it decorrelates
    * them: each channel drifts to its own phase and the two cancel when anything

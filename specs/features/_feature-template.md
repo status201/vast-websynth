@@ -29,13 +29,16 @@ source:                      # the code that implements this spec
 
 ## Requirements
 
-<!-- The design broken into discrete, testable pieces. Ids are PERMANENT and
-     ascending: append the next free number, never renumber to insert. Other
-     specs cite them. `npm run spec:lint` enforces both. -->
+<!-- The design broken into discrete, testable pieces.
+     An id is a SLUG that names the rule, never a number (ADR-021) — a number was
+     "the next free one", which two branches allocate at the same time and merge
+     into one id covering two requirements. Kebab-case, lower-case, unique across
+     ALL specs, and PERMANENT: other specs and code comments cite it, so renaming
+     one is a tree-wide change. Append new ones; there is no order to keep.
+     `npm run spec:lint` enforces the grammar, uniqueness and the no-numbers rule. -->
 
-- **REQ-1** — …
-- **REQ-2** — …
-- **REQ-3** — …
+- **REQ-<names-the-rule>** — …
+- **REQ-<names-another-rule>** — …
 
 ## Technical design
 

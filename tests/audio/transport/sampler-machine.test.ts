@@ -110,7 +110,7 @@ describe('SamplerMachine', () => {
     const src = ctx.createBufferSource.mock.results[0]!.value;
     const g = ctx.createGain.mock.results.at(-1)!.value;
     // "No cut" is a ramp DOWN to 0 that never happens — not "no scheduling at
-    // all": every hit now ramps up from 0 as its attack (REQ-11).
+    // all": every hit now ramps up from 0 as its attack (REQ-a-slot-starts-from-zero).
     const down = g.gain.linearRampToValueAtTime.mock.calls.filter((c: number[]) => c[0] === 0);
     expect(down).toHaveLength(0);
     expect(src.stop).not.toHaveBeenCalled();
@@ -127,11 +127,11 @@ describe('SamplerMachine', () => {
     rnd.mockRestore();
   });
 
-  // sampler.md REQ-8 — a tied cell gets no choke at all, so before this a long
+  // sampler.md REQ-a-stop-cuts-in-flight-one-shots — a tied cell gets no choke at all, so before this a long
   // sample played out in full after Stop, and Panic could not silence it either
   // (that only kills synth voices). Engine owns *when* to call this: a stop that
   // ends a capture must keep its tail, so the machine only owns the mechanism.
-  describe('stopAll cuts in-flight one-shots (v4, REQ-8)', () => {
+  describe('stopAll cuts in-flight one-shots (v4, REQ-a-stop-cuts-in-flight-one-shots)', () => {
     it('fades and stops a tied hit that had no choke of its own', () => {
       const { ctx, clock, patterns, sm } = build();
       sm.setEnabled(true);
@@ -179,7 +179,7 @@ describe('SamplerMachine', () => {
     });
   });
 
-  // sampler.md REQ-6 — the single hook sample-persistence.md mirrors slots off.
+  // sampler.md REQ-set-buffer-is-the-one-door — the single hook sample-persistence.md mirrors slots off.
   it('notifies onBufferChange for a filled and a cleared slot', () => {
     const { sm } = build();
     const seen: number[] = [];
@@ -197,7 +197,7 @@ describe('SamplerMachine', () => {
 });
 
 /**
- * sampler.md REQ-11, regression.
+ * sampler.md REQ-a-slot-starts-from-zero, regression.
  *
  * The per-hit gain was assigned (`gain.value = velocity`) rather than ramped, so a
  * sample whose first frame is not near zero started on a full-scale step — a click
@@ -205,7 +205,7 @@ describe('SamplerMachine', () => {
  * about. And the start was clamped out of the past while `chokeAt` kept the stale
  * time, so a short gate collapsed and could drop the hit entirely.
  */
-describe('a slot starts from zero and carries its choke (v7, REQ-11)', () => {
+describe('a slot starts from zero and carries its choke (v7, REQ-a-slot-starts-from-zero)', () => {
   it('ramps up from 0 instead of jumping to velocity', () => {
     const { ctx, clock, patterns, sm } = build();
     sm.setEnabled(true);
@@ -245,7 +245,7 @@ describe('a slot starts from zero and carries its choke (v7, REQ-11)', () => {
 });
 
 /**
- * sampler.md REQ-12 / REQ-13 (v8).
+ * sampler.md REQ-each-slot-has-a-channel / REQ-a-hit-plays-a-window-of-the-buffer (v8).
  *
  * A slot used to be a bare BufferSource: no level, pan, filter, pitch, trim,
  * reverse or envelope, while every synthesised drum track had all of them. The
@@ -253,7 +253,7 @@ describe('a slot starts from zero and carries its choke (v7, REQ-11)', () => {
  * default and silently re-voices the whole demo corpus (ADR-006) — so the second
  * test here pins the default CODE PATH, not just the default values.
  */
-describe('the per-slot channel and voice window (v8, REQ-12/REQ-13)', () => {
+describe('the per-slot channel and voice window (v8, REQ-each-slot-has-a-channel/REQ-a-hit-plays-a-window-of-the-buffer)', () => {
   const ATK = 0.0005; // SAMPLER_ATTACK
   const twoSec = () => makeStubBuffer(88200, 44100); // 2.0 s
 
@@ -372,7 +372,7 @@ describe('the per-slot channel and voice window (v8, REQ-12/REQ-13)', () => {
     expect(lastSrc(rig.ctx).stop).toHaveBeenCalledWith(ATK + 0.5 + 0.03);
   });
 
-  it('honours a longer attack (REQ-11 still floors a shorter one)', () => {
+  it('honours a longer attack (REQ-a-slot-starts-from-zero still floors a shorter one)', () => {
     const rig = build();
     rig.sm.setBuffer(0, twoSec());
     rig.sm.setSlotAttack(0, 0.2);
@@ -440,7 +440,7 @@ describe('the per-slot channel and voice window (v8, REQ-12/REQ-13)', () => {
 });
 
 /**
- * sampler.md REQ-14 / REQ-15 (v9).
+ * sampler.md REQ-a-slot-can-cut-another-slot / REQ-a-slots-polyphony-is-bounded (v9).
  *
  * A slot could neither cut another slot nor cut itself, and nothing capped how
  * many hits one slot could stack. The subtle half is *when* a choke is scheduled:
@@ -448,7 +448,7 @@ describe('the per-slot channel and voice window (v8, REQ-12/REQ-13)', () => {
  * old hit before the new one arrives — a hole precisely where a choke is meant to
  * be seamless, and one that sounds like a dropout rather than like a bug.
  */
-describe('choke groups, mono and the voice cap (v9, REQ-14/REQ-15)', () => {
+describe('choke groups, mono and the voice cap (v9, REQ-a-slot-can-cut-another-slot/REQ-a-slots-polyphony-is-bounded)', () => {
   const twoSec = () => makeStubBuffer(88200, 44100);
 
   function loaded() {
@@ -546,7 +546,7 @@ describe('choke groups, mono and the voice cap (v9, REQ-14/REQ-15)', () => {
     expect(other.stop).not.toHaveBeenCalled();
   });
 
-  it('steals the oldest hit rather than stacking without limit (REQ-15)', () => {
+  it('steals the oldest hit rather than stacking without limit (REQ-a-slots-polyphony-is-bounded)', () => {
     const { ctx, sm } = loaded();
     sm.triggerSlot(0);
     const oldest = ctx.createBufferSource.mock.results.at(-1)!.value;
@@ -555,7 +555,7 @@ describe('choke groups, mono and the voice cap (v9, REQ-14/REQ-15)', () => {
     expect(oldest.stop).toHaveBeenCalled();
   });
 
-  it('does not steal below the cap (REQ-15, edge)', () => {
+  it('does not steal below the cap (REQ-a-slots-polyphony-is-bounded, edge)', () => {
     const { ctx, sm } = loaded();
     sm.triggerSlot(0);
     const oldest = ctx.createBufferSource.mock.results.at(-1)!.value;

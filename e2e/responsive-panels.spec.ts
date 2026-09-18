@@ -97,7 +97,7 @@ async function shapeAt(page: Page, width: number, panel: readonly string[]): Pro
 }
 
 test.describe('responsive synth panels', () => {
-  // REQ-3/REQ-5: at/below 1280px the panels widen enough for one row each.
+  // REQ-below-1280-quads-are-one-row/REQ-spread-rows-distribute-when-wide: at/below 1280px the panels widen enough for one row each.
   test('the wide panels each collapse to a single row on a tablet', async ({ page }) => {
     await page.setViewportSize({ width: 820, height: 1180 }); // iPad Air
     await gotoAndStart(page);
@@ -105,13 +105,13 @@ test.describe('responsive synth panels', () => {
 
     expect(shape(boxes, PANELS.subuni)).toEqual([4]);
     expect(shape(boxes, PANELS.ampenv)).toEqual([4]);
-    // .quint's last-child span is undone here — five fit one row (REQ-1).
+    // .quint's last-child span is undone here — five fit one row (REQ-quad-panels-use-a-fixed-grid).
     expect(shape(boxes, PANELS.filterenv)).toEqual([5]);
-    // Six knobs go 3x2, never 4+2 or 5+1 (REQ-6).
+    // Six knobs go 3x2, never 4+2 or 5+1 (REQ-filter-hex-has-three-even-shapes).
     expect(shape(boxes, PANELS.filter)).toEqual([3, 3]);
   });
 
-  // REQ-3/REQ-4: the same reflow spreads the 3-knob rows across the widened
+  // REQ-below-1280-quads-are-one-row/REQ-quads-never-wrap-asymmetrically: the same reflow spreads the 3-knob rows across the widened
   // panel, instead of leaving them clustered beside their generous neighbours.
   test('3-knob rows spread on a tablet and stay a centred cluster on the desktop', async ({ page }) => {
     await page.setViewportSize({ width: 820, height: 1180 });
@@ -151,7 +151,7 @@ test.describe('responsive synth panels', () => {
     }
   });
 
-  // REQ-2: the whole point of a grid over flex-wrap — a 4-knob panel is a 2x2
+  // REQ-above-1280-quads-are-two-by-two: the whole point of a grid over flex-wrap — a 4-knob panel is a 2x2
   // block on a narrow 8-column panel and is never allowed to wrap 3+1.
   test('4-knob panels are a 2x2 block on the desktop, never 3+1', async ({ page }) => {
     await page.setViewportSize({ width: 1440, height: 900 });
@@ -163,7 +163,7 @@ test.describe('responsive synth panels', () => {
     }
   });
 
-  // REQ-1: FILTER ENV's five knobs take three shapes. The wide one is the point:
+  // REQ-quad-panels-use-a-fixed-grid: FILTER ENV's five knobs take three shapes. The wide one is the point:
   // a third knob row there stood taller than every neighbour and set the height
   // of the whole faceplate row, so from 1630px it is a dice-five, two rows tall.
   test('the 5-knob FILTER ENV panel takes each of its three shapes', async ({ page }) => {
@@ -218,7 +218,7 @@ test.describe('responsive synth panels', () => {
     expect(await shapeAt(page, 1280, PANELS.filterenv)).toEqual([5]);
   });
 
-  // REQ-6: FILTER is the one panel with three shapes, and the middle one is a
+  // REQ-filter-hex-has-three-even-shapes: FILTER is the one panel with three shapes, and the middle one is a
   // *narrower* column count than the widths either side of it.
   test('the 6-knob FILTER panel takes each of its three shapes', async ({ page }) => {
     await page.setViewportSize({ width: 1920, height: 900 });
@@ -236,7 +236,7 @@ test.describe('responsive synth panels', () => {
 });
 
 /**
- * REQ-7 — a measurement, not an eyeball. A knob's label may ink wider than its
+ * REQ-a-cell-is-never-narrower-than-a-knob — a measurement, not an eyeball. A knob's label may ink wider than its
  * box (the box is a fixed `--knob-size + 8px`), so two knobs whose boxes merely
  * sit side by side can still have their *labels* touch.
  *
@@ -299,7 +299,7 @@ test('no knob label ever reaches its neighbour', async ({ page }) => {
 });
 
 /**
- * REQ-8 — the FX rack sizes its panels to their knob runs.
+ * REQ-fx-panels-fit-their-knob-run — the FX rack sizes its panels to their knob runs.
  *
  * The rack holds panels of unequal content (PHASER and DUCK carry four knobs,
  * the rest three), so equal columns size every panel for the widest or for
@@ -308,7 +308,7 @@ test('no knob label ever reaches its neighbour', async ({ page }) => {
  * onto a second row, and the rack grew 177px -> 255px — which, on a faceplate
  * that does not scroll, pushed the panel below it past the fold.
  *
- * Measured rather than eyeballed, for the reason REQ-7 is: this is rendered
+ * Measured rather than eyeballed, for the reason REQ-a-cell-is-never-narrower-than-a-knob is: this is rendered
  * geometry, and the failure is a wrap, not a class name. `.fxPanel` carries no
  * testid, so panels are recovered from their knobs' shared `offsetTop` exactly
  * as the panel rows above are.
@@ -324,11 +324,11 @@ const RACK = {
 
 test('no FX rack panel wraps its knob run', async ({ page }) => {
   await gotoAndStart(page);
-  // Engaged, not bypassed: a bypassed panel hides its knobs (fx-group REQ-2)
+  // Engaged, not bypassed: a bypassed panel hides its knobs (fx-group REQ-bypassed-group-collapses-its-knobs)
   // and would measure nothing at all.
   for (const name of Object.keys(RACK)) await busSet(page, `fx.${name}.on`, 1);
 
-  // 1360px is REQ-8's step itself — the tightest width the rule claims — and
+  // 1360px is REQ-fx-panels-fit-their-knob-run's step itself — the tightest width the rule claims — and
   // 1920px is where six equal columns would also have fitted, so a regression
   // that only restores the wide case still fails here.
   for (const width of [1360, 1440, 1600, 1920]) {

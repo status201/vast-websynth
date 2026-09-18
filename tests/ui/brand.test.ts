@@ -10,7 +10,7 @@ import layoutStyles from '../../src/ui/styles/layout.module.css';
  * block stays one thing with no per-surface variants.
  */
 describe('brand block (brand.md)', () => {
-  it('renders VAST + a boxed G1-J8 + the tagline (REQ-1)', () => {
+  it('renders VAST + a boxed G1-J8 + the tagline (REQ-brand-block-has-no-variants)', () => {
     const el = createBrand();
     expect(el.classList.contains(brandStyles.brand!)).toBe(true);
 
@@ -26,11 +26,11 @@ describe('brand block (brand.md)', () => {
     expect(el.children[1]).toBe(tagline);
   });
 
-  it('gives every caller the same markup — there is no variant (REQ-1)', () => {
+  it('gives every caller the same markup — there is no variant (REQ-brand-block-has-no-variants)', () => {
     expect(createBrand().outerHTML).toBe(createBrand().outerHTML);
   });
 
-  it('carries no header framing of its own (REQ-3)', () => {
+  it('carries no header framing of its own (REQ-brand-block-carries-no-framing)', () => {
     // The divider rule to the right of the header's block is composed on at
     // that call site; baked in here it would draw a stray vertical line down
     // the inside of the About and start modal cards.

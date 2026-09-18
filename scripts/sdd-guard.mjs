@@ -51,12 +51,12 @@ function isProductionPath(rel) {
     p.includes('/styles/') ||
     p.startsWith('src/vendor/') ||
     p.startsWith('src/state/demos/') ||
-    // Hand-written prose ABOUT the demos (demo-library.md REQ-2). Same category
+    // Hand-written prose ABOUT the demos (demo-library.md REQ-demo-prose-lives-apart). Same category
     // as the demos themselves: pure data, no behaviour, and writing a line for a
     // song must not require a spec change — that is exactly the filler-spec
     // ritual the demos allowlist exists to avoid.
     p === 'src/state/demo-notes.json' ||
-    // GENERATED metadata about those same demos (demo-library.md REQ-1), rewritten
+    // GENERATED metadata about those same demos (demo-library.md REQ-demo-facts-are-generated), rewritten
     // by `npm run clean:demos` — which add-a-demo-song.md step 2 makes MANDATORY for
     // every drop-in this allowlist already declares spec-exempt. Gating it made the
     // recipe unfollowable: adding a demo needs no spec, yet the one command the

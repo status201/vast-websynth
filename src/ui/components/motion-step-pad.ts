@@ -2,13 +2,13 @@ import type { MotionStep } from '../../state/patterns';
 import styles from '../styles/motion.module.css';
 import { clamp01 } from '../../utils/math';
 
-/** Peek threshold, and the double-tap window it shares (motion-sequencer REQ-23a). */
+/** Peek threshold, and the double-tap window it shares (motion-sequencer REQ-the-pad-write-is-deferred). */
 export const HOLD_MS = 350;
 /** Travel that turns a press into a drag — the same slop `grid-gestures.ts` uses. */
 export const SLOP_PX = 6;
-/** Coarse quantization: 20 steps, so two lanes can land on the same level (REQ-23b). */
+/** Coarse quantization: 20 steps, so two lanes can land on the same level (REQ-a-coarse-pad-drag-snaps). */
 export const SNAP_STEPS = 20;
-/** Px of travel spanning the full 0..1 range under Shift (REQ-23c). */
+/** Px of travel spanning the full 0..1 range under Shift (REQ-shift-drag-is-fine-and-unsnapped). */
 export const FINE_PX = 400;
 
 /** Quantize to `SNAP_STEPS`. Integer division, so 8/20 is exactly 0.4 — two
@@ -31,7 +31,7 @@ export interface MotionStepPadOpts {
   /**
    * 'xy' (default) — the two-axis pad: a dot at the literal (x, y).
    * 'level' — an extra motion track's single-param cell (motion-sequencer.md
-   * REQ-16): only y is meaningful and it renders as a bottom-up fill bar. The
+   * REQ-two-lanes-below-the-xy-lane): only y is meaningful and it renders as a bottom-up fill bar. The
    * gesture handling is identical, which is the point of sharing the component.
    */
   mode?: 'xy' | 'level';
@@ -40,7 +40,7 @@ export interface MotionStepPadOpts {
   /** Double-click / double-tap cleared the step. */
   onClear: () => void;
   /**
-   * The live gesture, for the panel's readout (motion-sequencer.md REQ-22).
+   * The live gesture, for the panel's readout (motion-sequencer.md REQ-a-motion-steps-value-is-readable-without-hovering).
    * Fires on press, on every value change and once with `null` on release. The
    * pad reports normalized numbers only — the panel owns the parameter, so it
    * owns the formatting.
@@ -51,17 +51,17 @@ export interface MotionStepPadOpts {
 type Phase = 'idle' | 'pending' | 'drag' | 'peek';
 
 /**
- * One motion-sequencer step: a mini XY pad (motion-sequencer.md REQ-8), or a
- * single-value level cell for the A/B lanes (REQ-16). The dot sits at the
+ * One motion-sequencer step: a mini XY pad (motion-sequencer.md REQ-each-motion-step-is-a-mini-xy-pad), or a
+ * single-value level cell for the A/B lanes (REQ-two-lanes-below-the-xy-lane). The dot sits at the
  * literal (x, y); double-click (or a fast double-tap) clears the anchor.
  * Rendering is driven by `setStep`/`setLevel` so the panel's PatternStore
  * subscriptions stay the one source of truth (the pad never mutates state).
  *
- * The write is **deferred** (REQ-23a): a press commits on first travel or on
+ * The write is **deferred** (REQ-the-pad-write-is-deferred): a press commits on first travel or on
  * release, never at `pointerdown`, which is what leaves a stationary hold free
  * to *peek* — read the value without disturbing it. Coarse values snap to
- * 1/20 (REQ-23b) and Shift makes the drag fine, relative and unsnapped
- * (REQ-23c).
+ * 1/20 (REQ-a-coarse-pad-drag-snaps) and Shift makes the drag fine, relative and unsnapped
+ * (REQ-shift-drag-is-fine-and-unsnapped).
  */
 export class MotionStepPad {
   readonly el: HTMLDivElement;
@@ -83,7 +83,7 @@ export class MotionStepPad {
   private curX = 0.5;
   private curY = 0.5;
   /** What a tap would commit — the press position, or the cell's own value when
-   *  Shift is held (REQ-23c: pressing with Shift must not jump). */
+   *  Shift is held (REQ-shift-drag-is-fine-and-unsnapped: pressing with Shift must not jump). */
   private pendingX = 0.5;
   private pendingY = 0.5;
   /**
@@ -175,7 +175,7 @@ export class MotionStepPad {
   }
 
   /** Re-base the relative mapping at the pointer's current position and value,
-   *  so entering or leaving fine mode never jumps (REQ-23c). */
+   *  so entering or leaving fine mode never jumps (REQ-shift-drag-is-fine-and-unsnapped). */
   private reanchor(e: PointerEvent): void {
     this.anchorClientX = e.clientX;
     this.anchorClientY = e.clientY;
@@ -255,7 +255,7 @@ export class MotionStepPad {
 
   /** Repaint from the store's cell: lit state + dot position. */
   /**
-   * Move the beat accent (meter.md REQ-8) — the same surface `StepButton`
+   * Move the beat accent (meter.md REQ-accents-and-ruler-derive-from-the-meter) — the same surface `StepButton`
    * exposes, so `bindLaneGrid` can drive an XY lane and a trigger grid through
    * one code path. `'orange'` here means "not a beat column".
    */
@@ -266,7 +266,7 @@ export class MotionStepPad {
     this.el.classList.toggle(styles.beat!, beat);
   }
 
-  /** Hide a cell the lane does not reach (meter.md REQ-11); the step is kept. */
+  /** Hide a cell the lane does not reach (meter.md REQ-cells-beyond-the-length-are-hidden); the step is kept. */
   setLive(live: boolean): void {
     this.el.hidden = !live;
   }
@@ -283,7 +283,7 @@ export class MotionStepPad {
       : 'Drag to set an XY anchor (Shift: fine)';
   }
 
-  /** Repaint a level-mode cell from an extra track's step (REQ-16). */
+  /** Repaint a level-mode cell from an extra track's step (REQ-two-lanes-below-the-xy-lane). */
   setLevel(on: boolean, v: number, paramLabel?: string): void {
     this.cellY = v;
     this.el.classList.toggle('on', on);
@@ -296,7 +296,7 @@ export class MotionStepPad {
   }
 
   /** A track with no parameter chosen has nothing to write, so its cells are
-   *  inert — the parameter IS the on/off (REQ-16). */
+   *  inert — the parameter IS the on/off (REQ-two-lanes-below-the-xy-lane). */
   setInert(inert: boolean): void {
     this.el.classList.toggle(styles.inert!, inert);
   }

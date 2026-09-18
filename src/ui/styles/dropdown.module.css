@@ -1,7 +1,7 @@
 /* `position: relative` only — z-index stays `auto` so this is deliberately NOT a
    stacking context. `.menu` is fixed but still a DOM child, so anything here
    that forms one (opacity/transform/filter) traps it behind later siblings and
-   fades the options with the toggle (dropdown.md REQ-9). Dim `.toggle` instead. */
+   fades the options with the toggle (dropdown.md REQ-a-dropdown-can-be-dimmed). Dim `.toggle` instead. */
 .root {
   position: relative;
   display: inline-block;
@@ -29,7 +29,7 @@
     0 1px 0 rgba(244, 205, 94, 0.04);
 }
 
-/* An inherited / not-explicitly-set value (dropdown.md REQ-9). Compounded with
+/* An inherited / not-explicitly-set value (dropdown.md REQ-a-dropdown-can-be-dimmed). Compounded with
    `.toggle` so it can only ever land on the toggle — see the `.root` note above
    for what happens when this treatment reaches the root instead. */
 .toggle.dimmed {
@@ -64,7 +64,7 @@
   min-width: 100%;
   max-height: 280px;
   /* Column so the filter row can stay pinned above the scrolling option box;
-     `.list` owns the overflow, not this element (dropdown.md REQ-7). */
+     `.list` owns the overflow, not this element (dropdown.md REQ-a-long-list-carries-a-filter). */
   flex-direction: column;
   overflow: hidden;
   background: linear-gradient(180deg, #221c16 0%, #15110d 100%);
@@ -89,7 +89,7 @@
   overflow-y: auto;
 }
 
-/* --- Live filter (dropdown.md REQ-7) --- */
+/* --- Live filter (dropdown.md REQ-a-long-list-carries-a-filter) --- */
 .filterRow {
   display: flex;
   align-items: center;
@@ -120,7 +120,7 @@
   border-radius: 3px;
   color: var(--text);
   /* Sans, not the faceplate serif: this is a field the user types into, not a
-     legend (typography.md REQ-2/REQ-4). Georgia at 10px with legend tracking
+     legend (typography.md REQ-sans-is-content-type/REQ-text-entry-declares-no-face). Georgia at 10px with legend tracking
      was barely readable. Tracking goes with it — that is a legend treatment. */
   font-family: var(--sans);
   font-size: 11px;
@@ -137,7 +137,7 @@
   text-transform: none;
 }
 
-/* "No match" — a sentence addressed to the user, so sans (typography.md REQ-2).
+/* "No match" — a sentence addressed to the user, so sans (typography.md REQ-sans-is-content-type).
    Italic and dim keep it reading as status rather than as a pickable option. */
 .empty {
   flex: none;
@@ -166,7 +166,7 @@
 }
 
 /* Filtered out. `.option`'s own `display: block` outranks the UA `[hidden]`
-   rule, so the hide has to be spelled out (dropdown.md REQ-7). */
+   rule, so the hide has to be spelled out (dropdown.md REQ-a-long-list-carries-a-filter). */
 .option[hidden] {
   display: none;
 }
@@ -176,7 +176,7 @@
   color: var(--accent-secondary);
 }
 
-/* Spoken for by something else, so listed but not choosable (REQ-10). Greyed
+/* Spoken for by something else, so listed but not choosable (REQ-an-option-can-be-unselectable). Greyed
    rather than hidden: a row that vanishes tells the reader nothing. The hover
    rule above is cancelled so the surface stops inviting the click. */
 .option:disabled {
@@ -197,7 +197,7 @@
   box-shadow: inset 0 1px 0 rgba(244, 205, 94, 0.15);
 }
 
-/* Group rule (dropdown.md REQ-11) — a border on the last option of the first
+/* Group rule (dropdown.md REQ-a-list-can-be-split-by-dividers) — a border on the last option of the first
    group, so there is no extra element for the arrow keys to land on. Sits below
    `.active` so a selected divider option keeps its own background. */
 .option.divider {

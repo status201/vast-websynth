@@ -3,10 +3,10 @@
 ```yaml
 id: machine-status
 status: implemented
-version: 4  # v4: the Arpeggiator tab gets a lamp too, driven by arp.on (REQ-10)
-            # v3: the lane-title ↗ glyph is dropped below 720px (REQ-6)
+version: 4  # v4: the Arpeggiator tab gets a lamp too, driven by arp.on (REQ-the-arpeggiator-tab-has-a-lamp)
+            # v3: the lane-title ↗ glyph is dropped below 720px (REQ-the-navigation-link-is-visible-at-rest)
             # v2: Chain/Mute/Solo in every machine header, shared with the Song
-            #     tab's lane cards (REQ-9)
+            #     tab's lane cards (REQ-lane-controls-live-on-both-surfaces)
 owner: core
 related:
   - song-mode
@@ -47,56 +47,59 @@ answers "is this on?" and clicking it leads to where the real toggle lives.
 
 ## Requirements
 
-- **REQ-1** (one source of truth) — Machine state derives from one pure function,
-  `machineStatus`, which **reuses** `audibleLanes` (`lane-mix.ts`) rather than
-  re-deriving the mute/solo rule. Every consumer (tab LED, Song panel) reads
-  through it.
-- **REQ-2** (three states) — Each machine is `off` (its `<m>.on` param is 0),
-  `muted` (enabled but inaudible — its own mute, or another lane's solo), or `on`
-  (enabled and audible). Motion has no solo and makes no sound, so its `muted`
-  state is driven by `motion.mute` alone (`params.ts` documents its active rule as
-  `motion.on && !motion.mute`).
-- **REQ-3** (the LED is not a control) — The tab indicator is `pointer-events:
-  none` with no hover, focus or cursor styling of its own. The tab highlights as
-  one uniform unit; every click in the tab navigates. There is no code path by
-  which the LED mutates a param.
-- **REQ-4** (not colour-only) — The tab button carries a `title`/`aria-label`
-  naming the machine and its state (e.g. "Drums — muted"), so the state survives
-  colour-blindness and screen readers.
-- **REQ-5** (titles navigate) — Each Song-panel lane title is a `<button>`
+- **REQ-machine-state-has-one-source-of-truth** (one source of truth) — Machine
+  state derives from one pure function, `machineStatus`, which **reuses**
+  `audibleLanes` (`lane-mix.ts`) rather than re-deriving the mute/solo rule.
+  Every consumer (tab LED, Song panel) reads through it.
+- **REQ-a-machine-has-three-states** (three states) — Each machine is `off` (its
+  `<m>.on` param is 0), `muted` (enabled but inaudible — its own mute, or
+  another lane's solo), or `on` (enabled and audible). Motion has no solo and
+  makes no sound, so its `muted` state is driven by `motion.mute` alone
+  (`params.ts` documents its active rule as `motion.on && !motion.mute`).
+- **REQ-the-tab-led-is-not-a-control** (the LED is not a control) — The tab
+  indicator is `pointer-events: none` with no hover, focus or cursor styling of
+  its own. The tab highlights as one uniform unit; every click in the tab
+  navigates. There is no code path by which the LED mutates a param.
+- **REQ-machine-state-is-not-colour-only** (not colour-only) — The tab button
+  carries a `title`/`aria-label` naming the machine and its state (e.g. "Drums —
+  muted"), so the state survives colour-blindness and screen readers.
+- **REQ-lane-titles-navigate** (titles navigate) — Each Song-panel lane title is
+  a `<button>`
   (testid `song-lane-title-<seq|drum|sampler|motion>`) that reveals that
   machine's tab via `UiBridge.showTab`. The lane prefix `drum` maps to the tab id
   `drums`; the other three are identity.
-- **REQ-6** (the link is visible at rest) — The title carries a `↗` glyph that is
-  legible without hover. A hover-only affordance is invisible on touch, and this
-  ships as an installable PWA used on phones. The glyph is `aria-hidden` — the
-  button's `aria-label` already names the destination, so it must not be
-  announced as "north east arrow".
-  (v3) **It is dropped below 720 px**, the app's phone breakpoint. The four lane
-  cards are already two-up by 992 px, so on a phone each title shares a very
-  narrow card with its Chain/Mute/Solo controls, and the glyph costs width the
-  machine's *name* needs more. Nothing is lost there that the arrow was carrying:
-  the affordance it exists to replace is hover, which a touch device does not
-  have, and the whole card is visibly a control surface. `display: none`, not
+- **REQ-the-navigation-link-is-visible-at-rest** (the link is visible at rest) —
+  The title carries a `↗` glyph that is legible without hover. A hover-only
+  affordance is invisible on touch, and this ships as an installable PWA used on
+  phones. The glyph is `aria-hidden` — the button's `aria-label` already names
+  the destination, so it must not be announced as "north east arrow". (v3) **It
+  is dropped below 720 px**, the app's phone breakpoint. The four lane cards are
+  already two-up by 992 px, so on a phone each title shares a very narrow card
+  with its Chain/Mute/Solo controls, and the glyph costs width the machine's
+  *name* needs more. Nothing is lost there that the arrow was carrying: the
+  affordance it exists to replace is hover, which a touch device does not have,
+  and the whole card is visibly a control surface. `display: none`, not
   `visibility: hidden` — the point is to give the width back.
-- **REQ-7** (reveal beats activate) — `TabContainer.reveal(id)` expands a
-  collapsed tab bar *then* activates, matching what a real tab click does. Plain
-  `activate()` does not expand and must not be the external entry point.
-- **REQ-8** (no new dim behaviour) — The Song panel's existing "silenced" dimming
-  continues to key off audibility only. A machine whose `<m>.on` is 0 does **not**
-  dim its card; that state is carried by the LED alone.
-- **REQ-9** (the lane controls live on both surfaces, v2) — **Chain, Mute and
-  Solo** sit in every machine header, immediately after that machine's on/off
-  switch (`SEQ` / `DRUMS` / `SAMPLER` / `MOTION`) — the same three controls the
-  Song tab's lane card carries, in the same order.
-  The LED indicator (REQ-3) answers *"is this on?"* but the fix for it was always
-  "go to where the toggle lives", and for mute/solo/chain that meant the Song tab.
-  Reading a machine's own tab and wanting to silence it, or to hear it in
-  isolation while editing, meant a round trip. Duplicating the controls where the
-  work happens removes it.
+- **REQ-reveal-beats-activate** (reveal beats activate) —
+  `TabContainer.reveal(id)` expands a collapsed tab bar *then* activates,
+  matching what a real tab click does. Plain `activate()` does not expand and
+  must not be the external entry point.
+- **REQ-no-new-dim-behaviour** (no new dim behaviour) — The Song panel's
+  existing "silenced" dimming continues to key off audibility only. A machine
+  whose `<m>.on` is 0 does **not** dim its card; that state is carried by the
+  LED alone.
+- **REQ-lane-controls-live-on-both-surfaces** (the lane controls live on both
+  surfaces, v2) — **Chain, Mute and Solo** sit in every machine header,
+  immediately after that machine's on/off switch (`SEQ` / `DRUMS` / `SAMPLER` /
+  `MOTION`) — the same three controls the Song tab's lane card carries, in the
+  same order. The LED indicator (REQ-the-tab-led-is-not-a-control) answers *"is
+  this on?"* but the fix for it was always "go to where the toggle lives", and
+  for mute/solo/chain that meant the Song tab. Reading a machine's own tab and
+  wanting to silence it, or to hear it in isolation while editing, meant a round
+  trip. Duplicating the controls where the work happens removes it.
   - **Motion gets no Solo**, exactly as on the Song tab: it is not an audio lane,
     so there is nothing to solo (`audibleLanes` has no motion entry —
-    [motion-sequencer](motion-sequencer.md) REQ-6/REQ-12). Volume stays off the
+    [motion-sequencer](motion-sequencer.md) REQ-motion-has-the-fourth-chain-lane/REQ-motion-mute-is-an-ordinary-param). Volume stays off the
     machine headers entirely: each already has its own `MASTER` knob.
   - **One implementation, two hosts.** Mute/Solo are the same `Switch` bound to
     the same `<lane>.mute` / `.solo` params, so the two surfaces stay in lock-step
@@ -113,11 +116,13 @@ answers "is this on?" and clicking it leads to where the real toggle lives.
   - Sizing is the one deliberate difference: the Song tab's compact `.ctl` padding
     exists for its cramped lane cards, so the header copies take the default
     switch size and match the switches beside them.
-- **REQ-10** (the Arpeggiator has a lamp too, v4) — The Arpeggiator tab carries
-  the same indicator, driven by **`arp.on` alone**: `on` at ≥ 0.5, `off` below.
-  It is the same `Tab.indicator` lamp, so REQ-3 (inert — every click navigates)
-  and REQ-4 (never colour-only — "Arpeggiator — on") hold unchanged.
-  The arp is not a machine, and this requirement exists precisely to say so:
+- **REQ-the-arpeggiator-tab-has-a-lamp** (the Arpeggiator has a lamp too, v4) —
+  The Arpeggiator tab carries the same indicator, driven by **`arp.on` alone**:
+  `on` at ≥ 0.5, `off` below. It is the same `Tab.indicator` lamp, so
+  REQ-the-tab-led-is-not-a-control (inert — every click navigates) and
+  REQ-machine-state-is-not-colour-only (never colour-only — "Arpeggiator — on")
+  hold unchanged. The arp is not a machine, and this requirement exists
+  precisely to say so:
   - **It never reads `muted`.** There is no `arp.mute`, `arp.solo` or arp chain —
     it is not an audio lane, it has no pattern and it does not appear on the Song
     tab. Two states are the whole truth.
@@ -125,18 +130,18 @@ answers "is this on?" and clicking it leads to where the real toggle lives.
     `machineFlags`, which reads `<m>.mute` and `<m>.solo` for every id; an `arp`
     entry would read params that do not exist. The arp gets its own two-line
     adapter (`readArpStatus` / `subscribeArpStatus`) *in the same module*, so
-    REQ-1 still holds where it means something — every tab lamp in the app is
+    REQ-machine-state-has-one-source-of-truth still holds where it means something — every tab lamp in the app is
     minted from `machine-status.ts`, and no call site re-derives a lamp state.
   - **Why it earns one anyway.** With the arp engaged, key and MIDI presses stop
     sounding directly — the arp owns note triggering — and a held key can start
-    the transport ([arpeggiator](arpeggiator.md) REQ-1/REQ-3). Whether it is
+    the transport ([arpeggiator](arpeggiator.md) REQ-arp-takes-over-the-note-stream/REQ-a-held-key-starts-the-transport). Whether it is
     armed changes what the keyboard *does*, which is exactly what a player needs
     to read at a glance mid-performance. Before v4 the Arpeggiator was the only
     tab holding an on/off switch that could not answer "am I armed?" without
     being opened.
   - **Song stays lampless.** It is the one tab with nothing to report: no on/off
     param, no engaged state — its lane cards carry their own status already
-    (REQ-8).
+    (REQ-no-new-dim-behaviour).
 
 ## Technical design
 
@@ -152,11 +157,11 @@ machine-status:  # src/ui/machine-status.ts (pure core + bus adapter)
   laneFlags(bus, suffix): LaneFlags             # shared bus reader (seq/drum/sampler)
   readMachineStatus(bus): Record<MachineId, MachineState>
   subscribeMachineStatus(bus, fn): () => void   # returns a disposer
-  # the arp is not a MachineId — same lamp, its own two-state adapter (REQ-10)
+  # the arp is not a MachineId — same lamp, its own two-state adapter (REQ-the-arpeggiator-tab-has-a-lamp)
   ARP_TAB: 'arp'
   readArpStatus(bus): MachineState              # 'on' | 'off' only, never 'muted'
   subscribeArpStatus(bus, fn): () => void       # returns a disposer
-  # the key/scale tab has the same shape again, over one param (REQ-10)
+  # the key/scale tab has the same shape again, over one param (REQ-the-arpeggiator-tab-has-a-lamp)
   KEY_TAB: 'key'
   readKeyStatus(bus): MachineState              # 'on' when scale.type is not chromatic
   subscribeKeyStatus(bus, fn): () => void       # returns a disposer
@@ -164,11 +169,11 @@ machine-status:  # src/ui/machine-status.ts (pure core + bus adapter)
 TabContainer:  # src/ui/components/tabs.ts
   Tab { id, label, content, indicator?: boolean }
   # The lamp and its three states are reused verbatim by the EQUALIZER section
-  # (equalizer.md REQ-10), which is not a machine: there `off` is bypassed,
+  # (equalizer.md REQ-the-eq-tab-led-only-indicates), which is not a machine: there `off` is bypassed,
   # `muted` is engaged-but-flat and `on` is engaged-and-shaping. Same idea —
   # enabled, enabled-but-doing-nothing, audible — so the type is shared rather
   # than copied. It stays inert there too: the switch lives inside the tab.
-  reveal(id): void                              # expand-then-activate (REQ-7)
+  reveal(id): void                              # expand-then-activate (REQ-reveal-beats-activate)
   setIndicator(id, state: MachineState): void   # writes led.dataset.state + aria-label
                                                 # no-op for tabs without `indicator`
 
@@ -187,7 +192,7 @@ per machine:
     motion.mute >= 0.5            -> 'muted' else 'on'
 params read: seq|drum|sampler .on/.mute/.solo  (9) + motion.on/.mute  (2) = 11
 
-arp (REQ-10, outside the rule above):
+arp (REQ-the-arpeggiator-tab-has-a-lamp, outside the rule above):
   arp.on >= 0.5                   -> 'on' else 'off'    # no third state
 params read: arp.on  (1)
 ```
@@ -227,7 +232,7 @@ off:   --led-off + inset shadow    # unlit     — disabled (the .led base)
 ```
 
 The Arpeggiator's lamp reuses the same three-state stylesheet and simply never
-reaches the middle brightness (REQ-10) — no new CSS, no arp-specific look. A lamp
+reaches the middle brightness (REQ-the-arpeggiator-tab-has-a-lamp) — no new CSS, no arp-specific look. A lamp
 that only ever swings between the two extremes is the correct read for a control
 that is either armed or not.
 
@@ -239,7 +244,7 @@ Scenario: A disabled machine reads off
   Then the drum machine's state is 'off' regardless of its mute/solo
 # pinned by: tests/ui/machine-status.test.ts
 
-Scenario: Solo elsewhere mutes an enabled machine (REQ-1)
+Scenario: Solo elsewhere mutes an enabled machine (REQ-machine-state-has-one-source-of-truth)
   Given drum.on is 1, drum is not muted, and the seq lane is soloed
   Then the drum machine's state is 'muted' and seq's is 'on'
 # pinned by: tests/ui/machine-status.test.ts
@@ -250,38 +255,38 @@ Scenario: Motion has no solo (edge)
   And setting motion.mute to 1 makes it 'muted'
 # pinned by: tests/ui/machine-status.test.ts
 
-Scenario: A lane title opens its machine tab (REQ-5)
+Scenario: A lane title opens its machine tab (REQ-lane-titles-navigate)
   Given the Song tab is active
   When the user clicks song-lane-title-drum
   Then panel-drums becomes visible
 # pinned by: e2e/machine-status.spec.ts
 
-Scenario: reveal expands a collapsed tab bar (REQ-7)
+Scenario: reveal expands a collapsed tab bar (REQ-reveal-beats-activate)
   Given the pattern row is collapsed
   When reveal('seq') runs
   Then the body is no longer collapsed and tab-seq is active
 # pinned by: tests/ui/tabs.test.ts
 
-Scenario: The LED tracks the bus without being clickable (REQ-3)
+Scenario: The LED tracks the bus without being clickable (REQ-the-tab-led-is-not-a-control)
   Given the app is booted
   When drum.on is set to 0 via the bus
   Then tab-drums' LED carries the 'off' state and its aria-label says so
   And the LED element is not an event target (pointer-events: none)
 # pinned by: e2e/machine-status.spec.ts, tests/ui/tabs.test.ts
 
-Scenario: Every machine header carries Chain, Mute and Solo (v2, REQ-9)
+Scenario: Every machine header carries Chain, Mute and Solo (v2, REQ-lane-controls-live-on-both-surfaces)
   Given the Sequencer, Drums and Sampler tabs
   Then each header holds machine-<lane>-chain, -mute and -solo, in that order,
     directly after that machine's on/off switch
 # pinned by: e2e/machine-status.spec.ts
 
-Scenario: Motion's header has no Solo (edge, v2, REQ-9)
+Scenario: Motion's header has no Solo (edge, v2, REQ-lane-controls-live-on-both-surfaces)
   Given the Motion tab
   Then its header holds machine-motion-chain and machine-motion-mute
   And machine-motion-solo does not exist — motion is not an audio lane
 # pinned by: e2e/machine-status.spec.ts
 
-Scenario: The header controls and the Song tab stay in lock-step (v2, REQ-9)
+Scenario: The header controls and the Song tab stay in lock-step (v2, REQ-lane-controls-live-on-both-surfaces)
   Given help of neither surface — both bind the same params
   When the user mutes from the Drums header
   Then the Song tab's drum lane Mute reads muted too, and the tab LED goes amber
@@ -294,7 +299,7 @@ Scenario: A tab without an indicator renders no LED (edge)
   Then its button contains no LED span and setIndicator on it is a no-op
 # pinned by: tests/ui/tabs.test.ts
 
-Scenario: The Arpeggiator lamp follows arp.on (v4, REQ-10)
+Scenario: The Arpeggiator lamp follows arp.on (v4, REQ-the-arpeggiator-tab-has-a-lamp)
   Given the app is booted with arp.on at its default 0
   Then tab-arp's LED carries the 'off' state
   When the user switches the ARP on from its panel
@@ -302,13 +307,13 @@ Scenario: The Arpeggiator lamp follows arp.on (v4, REQ-10)
     "Arpeggiator — on"
 # pinned by: e2e/machine-status.spec.ts, tests/ui/machine-status.test.ts
 
-Scenario: The Arpeggiator is never 'muted' (edge, v4, REQ-10)
+Scenario: The Arpeggiator is never 'muted' (edge, v4, REQ-the-arpeggiator-tab-has-a-lamp)
   Given arp.on is 1 and every audio lane is soloed, muted or off
   Then tab-arp's LED still reads 'on' — the arp is not a lane, so no mixer
     state can dim it
 # pinned by: tests/ui/machine-status.test.ts
 
-Scenario: Song is the only tab without a lamp (v4, REQ-10)
+Scenario: Song is the only tab without a lamp (v4, REQ-the-arpeggiator-tab-has-a-lamp)
   Given the app is booted
   Then tab-arp, tab-seq, tab-drums, tab-sampler and tab-motion each hold an LED
   And tab-song holds none — it has no on/off state to report
@@ -326,5 +331,5 @@ Scenario: Song is the only tab without a lamp (v4, REQ-10)
 ## Open questions / future
 
 - The Song panel's lane cards could carry the same LED next to their titles. Left
-  out for now: the cards already dim when silenced (REQ-8), so a second signal in
+  out for now: the cards already dim when silenced (REQ-no-new-dim-behaviour), so a second signal in
   the same place would be redundant.

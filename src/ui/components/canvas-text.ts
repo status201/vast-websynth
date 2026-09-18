@@ -2,7 +2,7 @@
  * Canvas text that stays readable on top of whatever is behind it.
  *
  * Hoisted out of `Scope` when the EQ graph needed the same treatment
- * (scope.md REQ-30, equalizer.md REQ-13). Both draw small mono labels over
+ * (scope.md REQ-every-drawn-string-gets-a-halo, equalizer.md REQ-the-graph-computes-from-bus-values). Both draw small mono labels over
  * saturated shapes — the Spectrum's bars, the EQ's filled curve — and the
  * alternative was a second copy that would drift the first time either was
  * tuned. It is deliberately a plain function rather than a mixin or a base
@@ -13,7 +13,7 @@
  * A dark outline under the fill, so a label sitting on a full-height bar stays
  * legible. An outline rather than `shadowBlur`: omnidirectional, crisper at
  * 10px, and it does not reintroduce canvas shadows to components that dropped
- * them for cost (scope.md REQ-8). A handful of short strings a frame is a
+ * them for cost (scope.md REQ-the-scope-drop-shadow-is-dropped). A handful of short strings a frame is a
  * different order of expense from shadowing every bar.
  *
  * Sets `lineWidth`, `lineJoin`, `strokeStyle` and `fillStyle` on the context and

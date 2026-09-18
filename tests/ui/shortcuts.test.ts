@@ -26,7 +26,7 @@ function setup(seekOpts: { refuse?: boolean } = {}) {
     perf: { setFill: vi.fn() },
     clock,
     // 4/4 — what `registerDefaults` resolves the meter params to, so every
-    // assertion here still describes a 16-tick bar (meter.md REQ-6).
+    // assertion here still describes a 16-tick bar (meter.md REQ-bar-ticks-is-the-arrangement-bar-line).
     barTicks: 16,
     seekTo,
     canSeek: () => !seekOpts.refuse,
@@ -64,7 +64,7 @@ describe('installShortcuts editable-field guard', () => {
   });
 });
 
-describe('installShortcuts Ctrl/Cmd+Z routing (pattern-undo.md REQ-10)', () => {
+describe('installShortcuts Ctrl/Cmd+Z routing (pattern-undo.md REQ-ctrl-z-undoes-the-active-machine)', () => {
   // ONE install for the whole describe: every setup() adds a window-level
   // handler that never detaches, and a leaked bridge returning true would
   // preventDefault in later tests. The per-test mock is reassigned instead.
@@ -109,9 +109,9 @@ describe('installShortcuts Ctrl/Cmd+Z routing (pattern-undo.md REQ-10)', () => {
   });
 });
 
-// input-control.md REQ-9 / onboarding.md REQ-19. One install for the describe,
+// input-control.md REQ-question-mark-toggles-the-badges / onboarding.md REQ-the-info-button-gesture-inventory. One install for the describe,
 // like the others above: every setup() leaks a window handler.
-describe('installShortcuts ? toggles the info badges (input-control.md REQ-9)', () => {
+describe('installShortcuts ? toggles the info badges (input-control.md REQ-question-mark-toggles-the-badges)', () => {
   const { bus, bridge } = setup();
 
   afterEach(() => {
@@ -123,7 +123,7 @@ describe('installShortcuts ? toggles the info badges (input-control.md REQ-9)', 
     const toggle = vi.fn();
     bridge.toggleInfoBadges = toggle;
     // A real Shift+/ carries code 'Slash', which is what the bend branch now
-    // matches — so this also pins that `?` keeps winning the race (REQ-12).
+    // matches — so this also pins that `?` keeps winning the race (REQ-a-presets-topic-anchors-to-the-picker).
     const unprevented = modKeydown(document.body, '?', { shiftKey: true, code: 'Slash' });
     expect(toggle).toHaveBeenCalledTimes(1);
     expect(unprevented).toBe(false);
@@ -148,10 +148,10 @@ describe('installShortcuts ? toggles the info badges (input-control.md REQ-9)', 
   });
 });
 
-// input-control.md REQ-13 / keyboard-layout.md. The note maps are composed from
+// input-control.md REQ-note-keys-follow-the-layout / keyboard-layout.md. The note maps are composed from
 // the piano shape (code -> semitone) and the active layout (code -> character),
 // so a switch moves which characters reach the instrument.
-describe('installShortcuts keyboard layout (input-control.md REQ-13)', () => {
+describe('installShortcuts keyboard layout (input-control.md REQ-note-keys-follow-the-layout)', () => {
   const { bus, bridge, engine: engineStub } = setup();
   const notes: Array<[boolean, number]> = [];
   bus.onNote((on, note) => { notes.push([on, note]); });
@@ -216,7 +216,7 @@ describe('installShortcuts keyboard layout (input-control.md REQ-13)', () => {
     expect(notes).toEqual([]);
   });
 
-  it('leaves the non-note letters alone (keyboard-layout.md REQ-5)', () => {
+  it('leaves the non-note letters alone (keyboard-layout.md REQ-layout-scope-is-note-keys-only)', () => {
     writeLayoutPref('azerty');
     // F is still F: drum fill is a command, not part of the instrument.
     keydown(document.body, 'f');
@@ -225,10 +225,10 @@ describe('installShortcuts keyboard layout (input-control.md REQ-13)', () => {
   });
 });
 
-// input-control.md REQ-12. `'` sits directly above `/` on the board, so the
+// input-control.md REQ-pitch-bend-is-quote-and-slash. `'` sits directly above `/` on the board, so the
 // physical arrangement states which way is up — `.` and `/` were side by side.
 // Both are matched on e.code, because position is the whole premise.
-describe('installShortcuts pitch bend keys (input-control.md REQ-12)', () => {
+describe('installShortcuts pitch bend keys (input-control.md REQ-pitch-bend-is-quote-and-slash)', () => {
   const { bus } = setup();
 
   const keyup = (key: string, code?: string) => {
@@ -263,7 +263,7 @@ describe('installShortcuts pitch bend keys (input-control.md REQ-12)', () => {
     expect(bus.get('master.pitchBend')).toBe(1);
   });
 
-  it('is suppressed inside an editable field like every other key (REQ-5)', () => {
+  it('is suppressed inside an editable field like every other key (REQ-song-file-buttons-carry-badges)', () => {
     const input = document.createElement('input');
     document.body.appendChild(input);
     keydown(input, "'", 'Quote');
@@ -271,7 +271,7 @@ describe('installShortcuts pitch bend keys (input-control.md REQ-12)', () => {
   });
 
   // The bug that made this positional: Shift flips e.key on the way out, so a
-  // key-matched release missed and the bend stayed pinned. Same failure REQ-11
+  // key-matched release missed and the bend stayed pinned. Same failure REQ-help-copy-covers-the-gesture-model
   // fixes for note-offs — nothing may hold state whose release depends on a
   // value free to change mid-hold.
   it('releases even when Shift is pressed mid-hold (regression)', () => {
@@ -299,10 +299,10 @@ describe('installShortcuts pitch bend keys (input-control.md REQ-12)', () => {
   });
 });
 
-// transport-position.md REQ-11. One install for the whole describe (see the
+// transport-position.md REQ-home-and-shift-arrows-seek. One install for the whole describe (see the
 // note above): every setup() leaks a window handler, so a second one would
 // double-count the seeks asserted here.
-describe('installShortcuts transport position (transport-position.md REQ-11)', () => {
+describe('installShortcuts transport position (transport-position.md REQ-home-and-shift-arrows-seek)', () => {
   const { bridge, clock, seekTo } = setup();
 
   afterEach(() => {
@@ -366,12 +366,12 @@ describe('installShortcuts transport position (transport-position.md REQ-11)', (
 });
 
 /**
- * input-control.md REQ-11. `keyup` used to recompute the note with `keyToMidi(k)`
+ * input-control.md REQ-a-note-off-names-the-pressed-note. `keyup` used to recompute the note with `keyToMidi(k)`
  * against the CURRENT baseOctave, so an arrow-key octave shift mid-hold produced a
  * different note, missed the held-key latch and skipped `release()` entirely — the
  * voice hung and the on-screen key stayed lit until the window lost focus.
  */
-describe('installShortcuts octave shift mid-hold (input-control.md REQ-11)', () => {
+describe('installShortcuts octave shift mid-hold (input-control.md REQ-a-note-off-names-the-pressed-note)', () => {
   const keyup = (key: string) =>
     document.body.dispatchEvent(new KeyboardEvent('keyup', { key, bubbles: true }));
 
@@ -415,7 +415,7 @@ describe('installShortcuts octave shift mid-hold (input-control.md REQ-11)', () 
   });
 });
 
-// record-window.md REQ-9. Same one-install-per-describe shape as above.
+// record-window.md REQ-shift-r-toggles-the-record-window. Same one-install-per-describe shape as above.
 describe('installShortcuts Shift+R toggles the Record window', () => {
   const { bus, bridge } = setup();
 

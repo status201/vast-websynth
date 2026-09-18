@@ -54,7 +54,7 @@ import {
 import { openExportSongModal } from '../components/export-song-modal';
 /**
  * The export dialog loads on the click that opens it — a player who never
- * exports never pays for it (runtime-performance.md REQ-1). A missing chunk is
+ * exports never pays for it (runtime-performance.md REQ-boot-cost-matches-the-request). A missing chunk is
  * reported with a retry rather than swallowed (lazy-load-failure.md).
  */
 async function openExportAudioModal(engine: StudioApi, fmt: ExportFormat): Promise<void> {
@@ -73,7 +73,7 @@ import { triggerDownload } from '../../audio/recorder/encode';
 import { audioBufferToCaptured } from '../../audio/recorder/audio-buffer';
 import { plural } from '../../utils/format';
 
-/** Demo buttons shown inline; the rest hide behind "All Demos" (song-mode.md REQ-10).
+/** Demo buttons shown inline; the rest hide behind "All Demos" (song-mode.md REQ-the-demo-row-overflows-into-a-menu).
  *  Was 6, which hid most of a growing library; 10 is what fits a desktop row. */
 const DEMO_ROW_LIMIT = 10;
 
@@ -89,7 +89,7 @@ export interface SongPanel {
   /**
    * Load a demo by name AND sync the slot dropdown (shared with the demo
    * buttons). Resolves once applied — all but the built-in demo are
-   * fetched on click (song-mode.md REQ-12), so callers that act on the loaded
+   * fetched on click (song-mode.md REQ-drop-in-demos-are-fetched-on-click), so callers that act on the loaded
    * song must await it.
    */
   loadDemo: (name: string) => Promise<void>;
@@ -97,7 +97,9 @@ export interface SongPanel {
    * Import raw song/project bytes exactly like the Import button (sniff →
    * parse → apply, errors shown in the same dialogs). Driven by the installed
    * PWA's launchQueue and by share links via `UiBridge.importSongBytes`
-   * (pwa-install.md REQ-5/7, song-share-link.md REQ-3). Resolves to whether
+   * (pwa-install.md REQ-manifest-declares-install-extras and
+   * pwa-install.md REQ-one-import-parse-path, song-share-link.md REQ-boot-consumes-a-present-hash).
+   * Resolves to whether
    * the song applied (share links clear their hash only on success).
    */
   importBytes: (bytes: Uint8Array, name: string) => Promise<boolean>;
@@ -109,23 +111,23 @@ export function buildSongPanel(bus: ParamBus, engine: StudioApi, session: Preset
   // Apply a song AND label the selector with its name (all apply sites route
   // through here so the header reflects the loaded song). Each apply bumps the
   // token so async work from a superseded apply (project-zip clip decodes)
-  // can detect it lost the session (session-autosave.md REQ-9).
+  // can detect it lost the session (session-autosave.md REQ-superseded-async-work-must-not-leak).
   let applyToken = 0;
   const applySong = (file: SongFile): void => {
     applyToken++;
     // `engine.sampler` lets apply evict audio the incoming song renames, so a
-    // slot's label can never outlive the sound under it (song-mode.md REQ-3b).
+    // slot's label can never outlive the sound under it (song-mode.md REQ-stale-sampler-audio-is-evicted).
     Song.apply(file, bus, engine.patterns, engine.arrangement, xy, engine.sampler);
     // Pin the song's sound so the selector can offer it back (presets.md
-    // REQ-13). Snapshotted from the bus AFTER the apply, never from
+    // REQ-a-songs-sound-is-a-selectable-entry). Snapshotted from the bus AFTER the apply, never from
     // `file.params`: `Song.apply` resets to defaults first, so this is the
-    // *effective* patch — a sparse map would re-open the leak REQ-2b closes.
+    // *effective* patch — a sparse map would re-open the leak REQ-cross-bank-carry closes.
     session.setActiveSong(file.name, patchSnapshot(bus.snapshot()));
     toTop();
   };
 
   /**
-   * Return the playhead to bar 1 (song-mode.md REQ-14). A song carries no
+   * Return the playhead to bar 1 (song-mode.md REQ-a-load-lands-on-bar-one). A song carries no
    * position — the cue is transient (transport-position.md → Persistence) — so
    * without this the incoming song inherits the outgoing one's playhead and cue:
    * a demo clicked mid-play started wherever the last arrangement had reached,
@@ -139,13 +141,13 @@ export function buildSongPanel(bus: ParamBus, engine: StudioApi, session: Preset
    */
   const toTop = (): void => {
     // Clear first: the loop driver cues a stopped transport into an engaged
-    // range, which must not race this seek (song-mode.md REQ-14, v26). A range
-    // names bars of the OUTGOING song (transport-loop.md REQ-10).
+    // range, which must not race this seek (song-mode.md REQ-a-load-lands-on-bar-one, v26). A range
+    // names bars of the OUTGOING song (transport-loop.md REQ-loading-a-song-clears-the-loop).
     engine.loop.clear();
     engine.seekTo(0);
   };
 
-  // ---- Load-undo safety net (session-autosave.md REQ-7/REQ-8) ----
+  // ---- Load-undo safety net (session-autosave.md REQ-every-destructive-apply-stashes-first/REQ-undo-restores-the-stashed-file) ----
   // Every destructive apply stashes the session it overwrites — the captured
   // SongFile PLUS the live sampler AudioBuffer refs (a SongFile only carries
   // names) — and offers Undo via a toast. The stash lives solely in the
@@ -154,7 +156,7 @@ export function buildSongPanel(bus: ParamBus, engine: StudioApi, session: Preset
     file: SongFile;
     buffers: (AudioBuffer | null)[];
     slot: string;
-    /** `sessionSlot` at stash time — Undo must not leave the Save guard (REQ-14c)
+    /** `sessionSlot` at stash time — Undo must not leave the Save guard (REQ-every-slot-write-is-guarded)
      *  describing a session that no longer exists. */
     sourceSlot: string | null;
   }
@@ -162,7 +164,7 @@ export function buildSongPanel(bus: ParamBus, engine: StudioApi, session: Preset
   /**
    * The stored slot this session was last read from or written to — `null` after
    * a demo, a New, or an import that did not persist (session-autosave.md
-   * REQ-14c). It is what tells Save "this name is *your* song, save it" apart
+   * REQ-every-slot-write-is-guarded). It is what tells Save "this name is *your* song, save it" apart
    * from "this name is someone else's song, ask first". Deliberately NOT
    * `dropdown.value`: a demo click sets that to the demo's name, and saving over
    * a slot that merely shares a demo's name is exactly the silent loss the guard
@@ -200,7 +202,7 @@ export function buildSongPanel(bus: ParamBus, engine: StudioApi, session: Preset
   const applySongWithUndo = (file: SongFile, verb = 'Loaded'): void => {
     const stash = stashCurrent();
     applySong(file);
-    // untrusted-input.md REQ-12. Asked here rather than threaded from each
+    // untrusted-input.md REQ-an-unresolvable-target-warns. Asked here rather than threaded from each
     // importer because every route in — file, paste, share link, zip, demo —
     // funnels through this one call, so one question covers all of them.
     //
@@ -208,7 +210,7 @@ export function buildSongPanel(bus: ParamBus, engine: StudioApi, session: Preset
     // is single-slot, so a second toast would replace this one and take the Undo
     // affordance with it. And never a dialog — the song loaded fine, and
     // interrupting a good import to report a lane that will not sweep is the
-    // guard-crying-wolf failure REQ-9 warns about.
+    // guard-crying-wolf failure REQ-song-file-v4-adds-motion-banks warns about.
     const dead = unresolvedTargets(file);
     const note = dead.length > 0
       ? ` — ${plural(dead.length, 'automation target')} not recognised`
@@ -234,7 +236,7 @@ export function buildSongPanel(bus: ParamBus, engine: StudioApi, session: Preset
   };
   for (const id of LANE_IDS) chains.appendChild(laneEls[id]);
   // Motion is not an audio lane (no solo/volume, outside audibleLanes) — its
-  // card is chain + Mute (motion-sequencer.md REQ-6/REQ-12): muting deactivates
+  // card is chain + Mute (motion-sequencer.md REQ-motion-has-the-fourth-chain-lane/REQ-motion-mute-is-an-ordinary-param): muting deactivates
   // the machine and restores every driven param's baseline.
   const motionEl = buildChainLane(
     'Motion', 'motion', bus, engine.arrangement.motion,
@@ -263,8 +265,8 @@ export function buildSongPanel(bus: ParamBus, engine: StudioApi, session: Preset
   // bar-per-slot view of the chains right above it, so it reads as their ruler.
   // The launcher doubles as the section title; the row carries the same set as
   // the floating window — Play/Pause and Loop included (transport-window.md
-  // REQ-1, v5). BPM and SWING are on neither surface: they are permanently in
-  // the header, and only that copy knows to disable itself while slaved (REQ-2).
+  // REQ-one-transport-control-builder, v5). BPM and SWING are on neither surface: they are permanently in
+  // the header, and only that copy knows to disable itself while slaved (REQ-set-steps-are-anchors).
   const transport = el('div', transportRowClass);
   transport.appendChild(createTransportWindowLauncher(engine, bridge));
   for (const c of buildTransportControls(engine, bridge)) {
@@ -313,11 +315,11 @@ export function buildSongPanel(bus: ParamBus, engine: StudioApi, session: Preset
    * The import rejection dialog. It renders the first 8 messages and summarises
    * the rest — but the validator collects up to MAX_ERRORS (50) and they are
    * written nowhere else, so the Copy button gets the **whole array**, and the
-   * truncation line names it (song-mode.md REQ-18, dialog.md REQ-9).
+   * truncation line names it (song-mode.md REQ-a-rejected-import-is-copyable-in-full, dialog.md REQ-an-alert-may-offer-copyable-text).
    */
   /**
    * Report a list of parse failures: the first few bulleted, **all** of them on
-   * the clipboard (song-mode.md REQ-18, dialog.md REQ-9). The two callers below
+   * the clipboard (song-mode.md REQ-a-rejected-import-is-copyable-in-full, dialog.md REQ-an-alert-may-offer-copyable-text). The two callers below
    * are the app's only multi-error alerts, so the composition lives here rather
    * than in `failure-report.ts`, which stays pure.
    */
@@ -334,8 +336,9 @@ export function buildSongPanel(bus: ParamBus, engine: StudioApi, session: Preset
 
   /**
    * Persist an imported song to its slot — but never *silently* over a
-   * **different** existing one (session-autosave.md REQ-14/14b,
-   * untrusted-input.md REQ-9).
+   * **different** existing one (session-autosave.md
+   * REQ-the-undo-net-covers-the-session/REQ-an-identical-slot-is-not-a-conflict,
+   * untrusted-input.md REQ-an-import-may-not-destroy-saved-work).
    *
    * The name comes from the file, so with a share link it is attacker-chosen: a
    * song called "My Song" would otherwise destroy the user's slot of that name
@@ -343,7 +346,7 @@ export function buildSongPanel(bus: ParamBus, engine: StudioApi, session: Preset
    * in-memory session, not localStorage. Declining still leaves the song
    * applied; only the persistence is skipped, so nothing is lost either way.
    * Re-importing a song the slot already holds asks nothing (`planImportSave`
-   * compares contents, not just the name — REQ-14b). Returns whether the slot
+   * compares contents, not just the name — REQ-an-identical-slot-is-not-a-conflict). Returns whether the slot
    * was written.
    */
   const saveImportedSlot = async (file: SongFile): Promise<boolean> => {
@@ -366,10 +369,10 @@ export function buildSongPanel(bus: ParamBus, engine: StudioApi, session: Preset
   /**
    * Shared project-bundle apply (import + demo zips): apply the song, persist it
    * if it is the user's, then decode the clips into the sampler — sequentially
-   * (8 × multi-MB WAVs, project-export.md REQ-8). A failed clip never aborts: the
+   * (8 × multi-MB WAVs, project-export.md REQ-clip-codec-is-memory-aware). A failed clip never aborts: the
    * slot just keeps the .needs-reload hint; failures collect into ONE alert.
    *
-   * `persist` is what separates the two callers (session-autosave.md REQ-14d).
+   * `persist` is what separates the two callers (session-autosave.md REQ-a-demo-click-never-writes-a-slot).
    * An import is the user's work arriving and earns a slot; a **demo** is
    * read-only content and must not write one — this path persisting
    * unconditionally is why clicking the 1973 zip demo offered to replace your
@@ -381,7 +384,7 @@ export function buildSongPanel(bus: ParamBus, engine: StudioApi, session: Preset
   ): Promise<void> => {
     applySongWithUndo(file, persist ? 'Imported' : 'Loaded');
     // Undo (or any newer apply) during the sequential decodes below must win:
-    // a late clip may not touch the restored session's slots (REQ-9).
+    // a late clip may not touch the restored session's slots (REQ-song-file-v4-adds-motion-banks).
     const token = applyToken;
     // JSON only — after a reload, .needs-reload correctly reappears.
     const saved = persist && await saveImportedSlot(file);
@@ -392,7 +395,7 @@ export function buildSongPanel(bus: ParamBus, engine: StudioApi, session: Preset
       dropdown.setValue(name);
     }
     sessionSlot = saved ? file.name : null;
-    bridge.cuePlay(); // imports + zip demos are silent until Play (play-button-blink.md REQ-3)
+    bridge.cuePlay(); // imports + zip demos are silent until Play (play-button-blink.md REQ-silent-actions-arm-a-green-cue)
     const failures: string[] = [];
     for (const clip of clips) {
       if (token !== applyToken) return;
@@ -428,7 +431,7 @@ export function buildSongPanel(bus: ParamBus, engine: StudioApi, session: Preset
    * A demo whose file would not parse. Both demo paths used to collapse this to
    * `errors[0]` before the dialog existed, so the Copy button faithfully copied
    * the one message that survived — the diagnosis was already gone by then
-   * (song-mode.md REQ-18 v25).
+   * (song-mode.md REQ-a-rejected-import-is-copyable-in-full v25).
    */
   const showDemoFailure = (name: string, errors: string[]): Promise<void> =>
     failureAlert('Demo failed to load', `Could not load "${name}"`, errors, name);
@@ -442,7 +445,7 @@ export function buildSongPanel(bus: ParamBus, engine: StudioApi, session: Preset
         await showDemoFailure(name, res.errors.length > 0 ? res.errors : ['invalid project zip']);
         return;
       }
-      // A demo, not the user's work: no slot is written (REQ-14d), and the
+      // A demo, not the user's work: no slot is written (REQ-a-demo-click-never-writes-a-slot), and the
       // dropdown follows the DEMO's name — the button's label is the promise.
       await applyProjectBundle(res, { persist: false, name });
     } catch (e) {
@@ -461,27 +464,28 @@ export function buildSongPanel(bus: ParamBus, engine: StudioApi, session: Preset
     refreshList();
     dropdown.setValue(name);
     // A demo is content, not a slot of the user's — so Save must still guard
-    // this name (session-autosave.md REQ-14c/14d).
+    // this name (session-autosave.md
+    // REQ-every-slot-write-is-guarded/REQ-a-demo-click-never-writes-a-slot).
     sessionSlot = null;
-    bridge.cuePlay(); // nudge Play (play-button-blink.md REQ-3)
+    bridge.cuePlay(); // nudge Play (play-button-blink.md REQ-silent-actions-arm-a-green-cue)
   };
 
-  /** Load a STORED slot: the Load button's main branch, and REQ-15's "Load mine". */
+  /** Load a STORED slot: the Load button's main branch, and REQ-motion-baselines-are-unchanged's "Load mine". */
   const loadStoredSlot = (name: string, file: SongFile): void => {
     applySongWithUndo(file);
     sessionSlot = name; // the session now IS this slot — Save it back freely
-    bridge.cuePlay();   // a loaded song is silent until Play (play-button-blink.md REQ-3)
+    bridge.cuePlay();   // a loaded song is silent until Play (play-button-blink.md REQ-silent-actions-arm-a-green-cue)
   };
 
   /**
-   * One name, two songs (song-mode.md REQ-15). A demo's name is not reserved, so
+   * One name, two songs (song-mode.md REQ-one-name-two-songs-ask). A demo's name is not reserved, so
    * saving your own "1979" leaves the demo button and the slot list offering
    * different music under one label — and each door used to silently pick its
    * own. Ask instead, but only when a **stored** slot shadows the name:
    * `hasSlot`, not `list()`, which reports demos too.
    *
    * Returns whether the caller should go on to load the demo. A dismissal loads
-   * neither — the case a boolean confirm could not express (dialog.md REQ-8).
+   * neither — the case a boolean confirm could not express (dialog.md REQ-choose-dialog-offers-several-options).
    */
   const demoWinsOverSavedSong = async (name: string): Promise<boolean> => {
     if (!Song.hasSlot(name)) return true;
@@ -532,15 +536,15 @@ export function buildSongPanel(bus: ParamBus, engine: StudioApi, session: Preset
   //
   // **Resolves when the song has actually been applied.** Only the built-in is
   // immediate; the drop-in JSON and the project zips are fetched on click
-  // (song-mode.md REQ-12), so any caller that acts on the loaded song — the tour
+  // (song-mode.md REQ-drop-in-demos-are-fetched-on-click), so any caller that acts on the loaded song — the tour
   // starting the transport, the empty-play modal pressing Play — must await this
   // or it will run against the song that was there before.
   //
-  // The shadow question (REQ-15) is asked HERE, on the one door all three demo
+  // The shadow question (REQ-motion-baselines-are-unchanged) is asked HERE, on the one door all three demo
   // sources and all four callers share, so no surface can reintroduce the silent
   // guess. It resolves before any fetch: a declined demo costs no network.
   // A name no source owns resolves to the first demo rather than to silence
-  // (REQ-12, v18) — demo files are data, so the tour's `DEMO_FOR_TOUR` constant
+  // (REQ-motion-mute-is-an-ordinary-param, v18) — demo files are data, so the tour's `DEMO_FOR_TOUR` constant
   // can be orphaned by a rename that touches no code. Resolving BEFORE the
   // shadow question keeps the dialog naming the song that is actually loading.
   const loadDemo = async (name: string): Promise<void> => {
@@ -563,7 +567,7 @@ export function buildSongPanel(bus: ParamBus, engine: StudioApi, session: Preset
   loadBtn.addEventListener('click', () => {
     const f = Song.loadSlot(dropdown.value);
     if (f) {
-      // No REQ-15 question here: loadSlot already resolved the name in the
+      // No REQ-motion-baselines-are-unchanged question here: loadSlot already resolved the name in the
       // user's favour, so this branch never reaches loadDemo for a stored slot.
       // (A built-in demo name with no slot also lands here — sessionSlot then
       // marks a demo, not a slot, so `hasSlot` decides.)
@@ -572,7 +576,7 @@ export function buildSongPanel(bus: ParamBus, engine: StudioApi, session: Preset
       return;
     }
     // The list also carries the drop-in demos, which `loadSlot` cannot return
-    // because they are fetched rather than bundled (song-mode.md REQ-12).
+    // because they are fetched rather than bundled (song-mode.md REQ-drop-in-demos-are-fetched-on-click).
     // `loadDemo` knows all three demo sources and cues Play itself — but this
     // one caller opts OUT of its unknown-name fallback: every picker entry is a
     // slot or a drop-in, so we only land here when a slot vanished mid-click
@@ -593,7 +597,7 @@ export function buildSongPanel(bus: ParamBus, engine: StudioApi, session: Preset
     if (!name) return;
     const file = Song.capture(bus, engine.patterns, engine.arrangement, name, xy);
     // Save is a slot write like any other, so it is guarded like any other
-    // (session-autosave.md REQ-14c) — it was the one path that could destroy a
+    // (session-autosave.md REQ-every-slot-write-is-guarded) — it was the one path that could destroy a
     // saved song with no dialog and no undo. Silent when this IS the slot the
     // session came from: re-saving your own song after an edit is the normal
     // loop and must stay one click.
@@ -622,7 +626,7 @@ export function buildSongPanel(bus: ParamBus, engine: StudioApi, session: Preset
   fileInput.accept = '.json,.zip,application/json,application/zip';
   fileInput.style.display = 'none';
   fileInput.dataset.testid = 'song-import-file';
-  // One import surface for both formats (pwa-install.md REQ-7): sniff the
+  // One import surface for both formats (pwa-install.md REQ-one-import-parse-path): sniff the
   // magic bytes (PK first, extension fallback) and route to the project-zip
   // or plain-JSON parser — shared verbatim by the file input and the
   // installed-PWA file-launch path (SongPanel.importBytes).
@@ -631,7 +635,7 @@ export function buildSongPanel(bus: ParamBus, engine: StudioApi, session: Preset
     if (!res.ok) {
       // Preset and bank files share the `.websynth.json` tail with songs, so
       // users land here by mistake. Point at the right door instead of reporting
-      // a schema failure they can do nothing with (presets.md REQ-11).
+      // a schema failure they can do nothing with (presets.md REQ-a-malformed-preset-is-refused-with-a-reason).
       const wrongDoor = describePresetPayload(new TextDecoder().decode(bytes));
       if (wrongDoor) {
         await alertDialog({
@@ -671,7 +675,7 @@ export function buildSongPanel(bus: ParamBus, engine: StudioApi, session: Preset
   const pasteRoutes = {
     onSong: importBytes,
     onPresets: (parse: PresetParse) => bridge.openPresetImport(parse),
-    bus, // so a pasted preset is checked against the registry too (REQ-8)
+    bus, // so a pasted preset is checked against the registry too (REQ-each-motion-step-is-a-mini-xy-pad)
   };
   const pasteBtn = el('button', `${switchStyles.root!} ${styles.ctl!}`, 'Paste') as HTMLButtonElement;
   pasteBtn.dataset.testid = 'song-paste';
@@ -679,7 +683,7 @@ export function buildSongPanel(bus: ParamBus, engine: StudioApi, session: Preset
   pasteBtn.addEventListener('click', () => openPasteImportModal(pasteRoutes));
 
   // Export: Song (.json, the unchanged path) or Project (.zip with the loaded
-  // sampler clips) — chosen in a modal (project-export.md REQ-4).
+  // sampler clips) — chosen in a modal (project-export.md REQ-export-modal-offers-song-or-project).
   const doExport = async (kind: 'json' | 'project', fmt: 'wav' | 'mp3'): Promise<void> => {
     const name = dropdown.value || 'My Song';
     const file = Song.capture(bus, engine.patterns, engine.arrangement, name, xy);
@@ -691,7 +695,7 @@ export function buildSongPanel(bus: ParamBus, engine: StudioApi, session: Preset
     for (let slot = 0; slot < SAMPLER_SLOT_COUNT; slot++) {
       const buf = engine.sampler.buffers[slot];
       if (!buf) continue;
-      // Encode + materialize one clip at a time (8 × multi-MB WAVs — REQ-8).
+      // Encode + materialize one clip at a time (8 × multi-MB WAVs — REQ-each-motion-step-is-a-mini-xy-pad).
       const { blob, ext } = await encodeClip(audioBufferToCaptured(buf), fmt);
       clips.push({ slot, data: new Uint8Array(await blob.arrayBuffer()), ext });
     }
@@ -705,7 +709,7 @@ export function buildSongPanel(bus: ParamBus, engine: StudioApi, session: Preset
     openExportSongModal({
       hasSamplerAudio: engine.sampler.buffers.some((b) => b != null),
       onExport: (kind, fmt) => { void doExport(kind, fmt); },
-      // Copy Link: the current song as a #song= URL (song-share-link.md REQ-5).
+      // Copy Link: the current song as a #song= URL (song-share-link.md REQ-export-modal-copies-a-link).
       makeShareUrl: async () => {
         const name = dropdown.value || 'My Song';
         const file = Song.capture(bus, engine.patterns, engine.arrangement, name, xy);
@@ -724,12 +728,12 @@ export function buildSongPanel(bus: ParamBus, engine: StudioApi, session: Preset
       danger: true,
     });
     if (!ok) return;
-    // Confirmed — but still stash + toast (session-autosave.md REQ-7): New is
+    // Confirmed — but still stash + toast (session-autosave.md REQ-every-destructive-apply-stashes-first): New is
     // the one path that also nulls the sampler buffers, so Undo is the only
     // way back to a stash with its audio intact.
     const stash = stashCurrent();
     applyToken++; // a confirmed New also supersedes any in-flight clip decodes
-    // Same authoritative blank the load path uses (song-mode.md REQ-3).
+    // Same authoritative blank the load path uses (song-mode.md REQ-apply-resets-to-defaults-first).
     engine.patterns.restore(emptyPatternSnapshot());
     for (let i = 0; i < SAMPLER_SLOT_COUNT; i++) engine.sampler.setBuffer(i, null);
     engine.arrangement.setSeqChain([0], false);
@@ -737,10 +741,10 @@ export function buildSongPanel(bus: ParamBus, engine: StudioApi, session: Preset
     engine.arrangement.setSamplerChain([0], false);
     engine.arrangement.setMotionChain([0], false);
     // New does not route through applySong, so it resets the playhead itself
-    // (song-mode.md REQ-14) — otherwise a blank one-bar song kept the cleared
+    // (song-mode.md REQ-a-load-lands-on-bar-one) — otherwise a blank one-bar song kept the cleared
     // song's bar number in the readout.
     toTop();
-    sessionSlot = null; // a blank session belongs to no slot (REQ-14c)
+    sessionSlot = null; // a blank session belongs to no slot (REQ-every-slot-write-is-guarded)
     showUndoToast('Started a new song', stash);
   });
 
@@ -758,7 +762,7 @@ export function buildSongPanel(bus: ParamBus, engine: StudioApi, session: Preset
   const mkDemoBtn = (name: string, onClick: () => void): HTMLButtonElement => {
     const d = el('button', `${switchStyles.root!} ${styles.demo!}`, name) as HTMLButtonElement;
     d.dataset.testid = `song-demo-${name}`;
-    // Say what the demo IS without needing a click (demo-library.md REQ-6).
+    // Say what the demo IS without needing a click (demo-library.md REQ-demo-row-says-what-it-knows).
     // The row was nineteen unlabelled buttons; the visible label stays the name
     // because the row is already tight on mobile, so the answer is a richer
     // tooltip, not nineteen wider buttons.
@@ -778,10 +782,10 @@ export function buildSongPanel(bus: ParamBus, engine: StudioApi, session: Preset
   // Drop-in JSON, then the built-in, then the project-zip demos. `demoNames()`
   // owns that order; everything routes through `loadDemo`, which knows which of
   // the three a name belongs to (the fetched ones need a user gesture anyway, so
-  // decodeAudioData is unlocked — project-export.md REQ-7).
+  // decodeAudioData is unlocked — project-export.md REQ-zip-demos-auto-register).
   const demoButtons = demoNames().map((name) => mkDemoBtn(name, () => { void loadDemo(name); }));
   // Only the first DEMO_ROW_LIMIT stay inline; the rest tuck behind an
-  // "All Demos" toggle so the row doesn't crowd the panel (song-mode.md REQ-10).
+  // "All Demos" toggle so the row doesn't crowd the panel (song-mode.md REQ-the-demo-row-overflows-into-a-menu).
   // `.io` is a wrapping flex, so a higher limit costs horizontal space only.
   for (const d of demoButtons.slice(0, DEMO_ROW_LIMIT)) io.appendChild(d);
   const overflowDemos = demoButtons.slice(DEMO_ROW_LIMIT);
@@ -805,13 +809,13 @@ export function buildSongPanel(bus: ParamBus, engine: StudioApi, session: Preset
   // ---- Sync + Audio ----
   // One wrapper so the two rows can pair up on a wide screen — Sync hard left,
   // Audio hard right — and dissolve back into two stacked rows below the
-  // breakpoint (`display: contents`, song-mode.md REQ-13). Sync leads in DOM
+  // breakpoint (`display: contents`, song-mode.md REQ-sync-and-audio-pair-up). Sync leads in DOM
   // order, which is also the stacked order.
   const ioPair = el('div', styles.ioPair!);
 
   // ---- Audio (WAV / MP3) ----
   // Neither button writes a file any more: one opens the export options modal,
-  // the other the Record window (audio-export.md REQ-9, record-window.md). The
+  // the other the Record window (audio-export.md REQ-export-opens-an-options-modal, record-window.md). The
   // Format switch below is therefore the GLOBAL DEFAULT both surfaces seed from
   // — each may override it for one use without writing back here.
   const aio = el('div', styles.io!);
@@ -821,7 +825,7 @@ export function buildSongPanel(bus: ParamBus, engine: StudioApi, session: Preset
 
   // Names the format even though the modal can still override it: this button
   // sits a few pixels from the Song panel's other `Export` (the .json one), and
-  // "as WAV" is what tells them apart at a glance (audio-export.md REQ-8).
+  // "as WAV" is what tells them apart at a glance (audio-export.md REQ-labels-echo-the-chosen-format).
   const expSongBtn = el('button', `${switchStyles.root!} ${styles.ctl!}`) as HTMLButtonElement;
   expSongBtn.dataset.testid = 'song-export-audio';
   expSongBtn.title = 'Render the arrangement to audio — choose runs and format';
@@ -829,7 +833,7 @@ export function buildSongPanel(bus: ParamBus, engine: StudioApi, session: Preset
 
   const recLauncher = createRecordWindowLauncher(engine, () => fmt);
   // Reach was the original complaint: a floating window only solves it once
-  // open, so Shift+R opens it from any tab (record-window.md REQ-9).
+  // open, so Shift+R opens it from any tab (record-window.md REQ-shift-r-toggles-the-record-window).
   bridge.toggleRecordWindow = recLauncher.toggle;
 
   const syncExportLabel = (): void => {
@@ -883,13 +887,13 @@ function buildChainLane(
   root.dataset.testid = `song-lane-${prefix}`;
 
   // Only the seq lane is pitched, so only it gets the transpose gestures at all
-  // — an absent control, not a disabled one (arrangement.md REQ-8: drums and the
+  // — an absent control, not a disabled one (arrangement.md REQ-a-seq-slot-carries-a-transpose: drums and the
   // sampler are unpitched, motion carries parameters).
   const pitched = prefix === 'seq';
   /** Write one slot's semitone offset, clamped, and re-render. */
   const setSlotTranspose = (idx: number, semis: number): void => {
     if (!pitched || idx < 0 || idx >= lane.steps.length) return;
-    if (lane.steps[idx] === REST) return; // nothing to shift (REQ-8)
+    if (lane.steps[idx] === REST) return; // nothing to shift (REQ-each-motion-step-is-a-mini-xy-pad)
     const next = [...lane.transpose];
     next[idx] = clampTranspose(semis);
     if (next[idx] === lane.transpose[idx]) return;
@@ -900,7 +904,7 @@ function buildChainLane(
 
   const head = el('div', styles.head!);
 
-  // The title navigates to that machine's tab (machine-status.md REQ-5/REQ-6).
+  // The title navigates to that machine's tab (machine-status.md REQ-lane-titles-navigate/REQ-the-navigation-link-is-visible-at-rest).
   // The launch glyph is aria-hidden — the aria-label already names the
   // destination, so it must not be announced twice.
   const titleBtn = document.createElement('button');
@@ -916,13 +920,13 @@ function buildChainLane(
   titleBtn.addEventListener('click', () => { bridge.showTab(MACHINE_TAB[prefix]); });
   head.appendChild(titleBtn);
 
-  // Shared with the machine headers' Chain button (machine-status.md REQ-9), so
+  // Shared with the machine headers' Chain button (machine-status.md REQ-lane-controls-live-on-both-surfaces), so
   // the two surfaces cannot drift. `.ctl` keeps this one compact for the lane
   // card; the machine headers take the default switch size beside their switches.
   const chainToggle = createChainToggle({
     getLane: () => lane,
     setChain,
-    cuePlay: () => bridge.cuePlay(), // enabling is silent until Play (play-button-blink.md REQ-3)
+    cuePlay: () => bridge.cuePlay(), // enabling is silent until Play (play-button-blink.md REQ-silent-actions-arm-a-green-cue)
     testId: `song-chain-${prefix}`,
     className: styles.ctl!,
   });
@@ -995,7 +999,7 @@ function buildChainLane(
   };
   /**
    * Move a slot to an arbitrary position — the drag's commit (arrangement.md
-   * REQ-11). A splice rather than `moveSel`'s swap, so a chip can travel the
+   * REQ-a-chip-is-dragged-to-its-place). A splice rather than `moveSel`'s swap, so a chip can travel the
    * length of the chain in one gesture; over a single position the two agree
    * exactly, which is what keeps the drag and the buttons one behaviour.
    */
@@ -1014,7 +1018,7 @@ function buildChainLane(
   /**
    * Name a toolbar button three ways at once — testid, tooltip, screen reader.
    * `◀ ▶ ✕` had none of the three while `− + Clear` beside them had all of
-   * them; REQ-11 makes the move buttons the precise path a drag falls back to,
+   * them; REQ-the-xy-window-axes-follow-motion makes the move buttons the precise path a drag falls back to,
    * so they owe the same tooltip everything else in the row has
    * (recipes/design-an-interaction.md step 4).
    */
@@ -1133,7 +1137,7 @@ function buildChainLane(
     });
     // Re-bound to the fresh buttons on every structural rebuild — including the
     // one a drop itself triggers, which is why the controller never touches the
-    // DOM order and only reports the move (arrangement.md REQ-11).
+    // DOM order and only reports the move (arrangement.md REQ-a-chip-is-dragged-to-its-place).
     detachReorder = attachChipReorder({ container: chips, chips: chipEls, onReorder: reorderSlot });
   };
 

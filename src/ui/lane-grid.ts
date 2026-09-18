@@ -7,7 +7,7 @@ import {
 export type GridLane = 'seq' | 'drum' | 'sampler' | 'motion';
 
 /**
- * What a lane's grid looks like right now (meter.md REQ-8/REQ-10/REQ-11).
+ * What a lane's grid looks like right now (meter.md REQ-accents-and-ruler-derive-from-the-meter/REQ-each-machine-has-a-loop-length/REQ-cells-beyond-the-length-are-hidden).
  *
  * Every UI surface that draws or measures a step grid — the four panels, the
  * position ruler, the LEN/RATE controls — resolves it through here rather than
@@ -17,7 +17,7 @@ export type GridLane = 'seq' | 'drum' | 'sampler' | 'motion';
  * drawing code.
  */
 export interface LaneGrid {
-  /** Cells this lane actually plays; the rest of the 16 are dark (REQ-11). */
+  /** Cells this lane actually plays; the rest of the 16 are dark (REQ-cells-beyond-the-length-are-hidden). */
   readonly cells: number;
   /** Index into `LANE_RATES` — the lane's ticks-per-cell. */
   readonly rate: number;
@@ -44,7 +44,7 @@ export function laneGrid(bus: ParamBus, lane: GridLane): LaneGrid {
   };
 }
 
-/** Whether cell `i` starts a beat — the red accent column (REQ-8). */
+/** Whether cell `i` starts a beat — the red accent column (REQ-accents-and-ruler-derive-from-the-meter). */
 export function isBeatCell(i: number, grid: LaneGrid): boolean {
   return grid.cellsPerBeat > 0 && i % grid.cellsPerBeat === 0;
 }
@@ -80,7 +80,7 @@ export interface LaneGridCell {
 
 /**
  * Keep a machine's grid in step with its meter: the container's column count,
- * which cells are live, and where the beat accents fall (meter.md REQ-8/REQ-11).
+ * which cells are live, and where the beat accents fall (meter.md REQ-accents-and-ruler-derive-from-the-meter/REQ-cells-beyond-the-length-are-hidden).
  *
  * `rows()` is called on each update rather than captured, because two of the
  * four panels rebuild their rows (the drum kit's track list, the motion tracks)

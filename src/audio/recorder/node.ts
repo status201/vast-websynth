@@ -5,7 +5,7 @@
  * we accumulate, then concatenate into one contiguous buffer on stop().
  */
 /**
- * Quanta the worklet accumulates per message (audio-export.md REQ-6b). Mirrors
+ * Quanta the worklet accumulates per message (audio-export.md REQ-chunks-are-batched-then-flushed). Mirrors
  * `BATCH_QUANTA` in `public/worklets/recorder.js`, which cannot import it — the
  * worklet is loaded as a bare module by URL, outside the bundle. Declared here
  * so the contract has one written-down home and the tests can name it.
@@ -23,12 +23,12 @@ export class RecorderNode {
 
   private chunksL: Float32Array[] = [];
   private chunksR: Float32Array[] = [];
-  /** Absolute frame index of the first captured sample (audio-export REQ-6);
+  /** Absolute frame index of the first captured sample (audio-export REQ-each-chunk-is-frame-tagged);
    *  null until the first chunk of the current capture arrives. */
   private _firstFrame: number | null = null;
   /** Frames captured so far — what `stop()` is about to return the length of.
    *  Reset by `start()` and, deliberately, NOT by `pause()`: it is the take's
-   *  true duration with paused time excluded (audio-export REQ-4). */
+   *  true duration with paused time excluded (audio-export REQ-capture-is-a-five-phase-machine). */
   private _capturedFrames = 0;
   /** Set by `dispose()` — a released node posts nothing and captures nothing. */
   private disposed = false;
@@ -51,7 +51,7 @@ export class RecorderNode {
         this._capturedFrames += d.l.length;
       }
       // The flush reply lands after its own frames are appended above, so a
-      // waiter always sees the complete take (audio-export.md REQ-6b).
+      // waiter always sees the complete take (audio-export.md REQ-chunks-are-batched-then-flushed).
       if (d.done) {
         const waiters = this.pendingFlush;
         this.pendingFlush = [];
@@ -79,7 +79,7 @@ export class RecorderNode {
   }
 
   /**
-   * REQ-6. Only meaningful for an **un-paused** capture: a pause removes real
+   * REQ-each-chunk-is-frame-tagged. Only meaningful for an **un-paused** capture: a pause removes real
    * time from the stream, so `firstFrame + n` stops naming frame `n` of the
    * take. The one consumer that does this arithmetic (render-to-sampler) is
    * automatic and never pauses.
@@ -113,7 +113,7 @@ export class RecorderNode {
   }
 
   /**
-   * Suspend capture, keeping everything taken so far (audio-export REQ-4).
+   * Suspend capture, keeping everything taken so far (audio-export REQ-capture-is-a-five-phase-machine).
    * The worklet has only ever understood `start`/`stop` — the *destructive*
    * half of a restart is `start()`'s chunk-clearing, right here on the node.
    * So pause/resume are those same two messages with the clearing left out, and
@@ -142,7 +142,7 @@ export class RecorderNode {
   }
 
   /**
-   * Release the node for good (sample-recorder.md REQ-6).
+   * Release the node for good (sample-recorder.md REQ-the-recorder-node-is-released-with-the-session).
    *
    * Only for a node with an *end* — the mic session's fresh one. The engine's two
    * master-tapped recorders live as long as the graph and must never be disposed.

@@ -5,7 +5,7 @@ import { SCALE_LABELS, CHORD_LABELS } from '../../src/utils/music';
 
 /**
  * The keyboard/MIDI note passthrough under an active key and chord memory
- * (voicing.md REQ-8, scale-quantization.md REQ-6, chord-tools.md REQ-5/REQ-7).
+ * (voicing.md REQ-passthrough-remembers-what-it-played, scale-quantization.md REQ-resolve-once-release-the-stored-note, chord-tools.md REQ-chord-memory-is-diatonic/REQ-mono-gates-the-live-chord-path).
  *
  * A real `Engine` needs an AudioContext, worklet modules and an async `init()`, none
  * of which `handleNote` touches — it reads `scale` / `heldIn` and calls
@@ -68,7 +68,7 @@ describe('note passthrough — key quantization', () => {
     expect(notes(releaseNote)).toEqual([60]);
   });
 
-  it('releases what it started when the key changes mid-hold (REQ-6, regression)', () => {
+  it('releases what it started when the key changes mid-hold (REQ-resolve-once-release-the-stored-note, regression)', () => {
     // THE hanging-note bug this map exists to prevent: re-deriving the mapping on
     // release would look up a note Polyphony never started, and the voice would
     // ring forever.
@@ -115,7 +115,7 @@ describe('note passthrough — chord memory', () => {
     return engineLike(scale);
   }
 
-  it('turns one held key into a triad (chord-tools.md REQ-5)', () => {
+  it('turns one held key into a triad (chord-tools.md REQ-chord-memory-is-diatonic)', () => {
     const { playNote, noteOn } = withChord('triad');
     noteOn(60);
     expect(notes(playNote)).toEqual([60, 64, 67]);
@@ -134,7 +134,7 @@ describe('note passthrough — chord memory', () => {
     expect(notes(releaseNote)).toEqual([60, 64, 67, 71]);
   });
 
-  it('does not expand in mono (chord-tools.md REQ-7)', () => {
+  it('does not expand in mono (chord-tools.md REQ-mono-gates-the-live-chord-path)', () => {
     const { playNote, noteOn } = withChord('triad', false);
     noteOn(60);
     expect(notes(playNote)).toEqual([60]);

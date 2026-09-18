@@ -7,11 +7,11 @@ import { gotoAndStart } from './helpers';
  *
  * It is currently **dormant**: sidechain-ducking added a sixth effect panel, so
  * the row divides evenly at both widths and `buildFx`'s parity guard appends
- * nothing (fx-patch-decoration.md REQ-2 — anticipated, not a regression). What
+ * nothing (fx-patch-decoration.md REQ-decoration-is-parity-keyed — anticipated, not a regression). What
  * is pinned here is therefore the parity guard itself. A seventh effect brings
  * the scenery back with no code change, and the rendering assertions this file
  * used to make live on in tests/ui/fx-patch-decoration.test.ts, which builds the
- * component directly and still covers REQ-3..REQ-10.
+ * component directly and still covers REQ-the-decoration-is-inert..REQ-sheens-are-centred-not-offset.
  */
 const NARROW = { width: 900, height: 800 }; // 2-column .fxRow
 const WIDE = { width: 1400, height: 900 };  // 6-column .fxRow
@@ -31,7 +31,7 @@ async function bootWithFxOpen(page: Page, viewport: { width: number; height: num
 }
 
 test.describe('FX patch decoration', () => {
-  test('is not built while the effect count is even (REQ-2)', async ({ page }) => {
+  test('is not built while the effect count is even (REQ-decoration-is-parity-keyed)', async ({ page }) => {
     await bootWithFxOpen(page, NARROW);
 
     // Six panels divide evenly into the 2-column grid, so there is no gap to

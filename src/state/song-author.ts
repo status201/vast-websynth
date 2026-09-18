@@ -42,7 +42,7 @@ const ALLOWED_KEYS = new Set([
   'format', 'version', 'name', 'params',
   'seq', 'drums', 'sampler', 'motion',
   'seqChain', 'drumChain', 'samplerChain', 'motionChain', 'motionTracks',
-  'seqTranspose', // v7 — the explicit form of seqChain's "A+5" suffix (REQ-15)
+  'seqTranspose', // v7 — the explicit form of seqChain's "A+5" suffix (REQ-motion-baselines-are-unchanged)
   'sampleNames', 'xy',
   '$schema', // tolerated so schema-aware editors/agents can self-reference
 ]);
@@ -118,7 +118,7 @@ function parseNote(path: string, v: unknown, add: AddError): number | null {
  * The dialect's unit check: reports *and returns* the accepted value, because an
  * authored field is coerced into a cell rather than refused. `song-validate.ts`
  * has the same name returning `void` — it rejects instead. Same name, different
- * contract, deliberately not shared (untrusted-input.md REQ-3, ADR-013).
+ * contract, deliberately not shared (untrusted-input.md REQ-the-limits-are-one-module, ADR-013).
  */
 function checkUnit(path: string, v: unknown, add: AddError): number | undefined {
   if (v === undefined) return undefined;
@@ -138,7 +138,7 @@ function checkRatchet(path: string, v: unknown, add: AddError): number | undefin
   return v;
 }
 
-/** Signed integer notches, -MICRO_MAX..+MICRO_MAX (step-settings.md REQ-6). The
+/** Signed integer notches, -MICRO_MAX..+MICRO_MAX (step-settings.md REQ-a-step-carries-a-micro-offset). The
  *  canonical validator has a same-named check that REFUSES; this one reports and
  *  drops the value so the rest of the song still imports (ADR-013). */
 function checkMicro(path: string, v: unknown, add: AddError): number | undefined {
@@ -174,7 +174,7 @@ interface StepOverrides {
 const STEP_SETTING_KEYS = ['velocity', 'gate', 'prob', 'ratchet', 'tie', 'micro'] as const;
 /** …plus the note list, for the `{notes: […], …}` bank-defaults form. */
 const SEQ_NOTES_BANK_KEYS: readonly string[] = ['notes', ...STEP_SETTING_KEYS];
-/** …plus the track list, for the `{tracks: […], …}` multi-track form (REQ-13b). */
+/** …plus the track list, for the `{tracks: […], …}` multi-track form (REQ-bank-settings-cascade-into-tracks). */
 const SEQ_BANK_SETTING_KEYS: readonly string[] = ['tracks', ...STEP_SETTING_KEYS];
 
 /** Pull the optional velocity/gate/prob/ratchet/tie/micro overrides off an object. */
@@ -241,7 +241,7 @@ function expandSeqEntry(
  * Expand one seq bank — positional array or the {notes, ...defaults} form.
  *
  * `inherited` carries the settings a surrounding `{tracks: […]}` bank set for
- * all of its tracks (REQ-13b). Precedence runs outward-in, nearest wins:
+ * all of its tracks (REQ-bank-settings-cascade-into-tracks). Precedence runs outward-in, nearest wins:
  * bank → track → step.
  */
 function expandSeqBank(
@@ -287,7 +287,7 @@ function expandSeqBank(
 }
 
 /**
- * One bank, four tracks (sequencer.md REQ-8). A bank entry is either a plain
+ * One bank, four tracks (sequencer.md REQ-four-tracks-per-bank). A bank entry is either a plain
  * note list — the pre-v6 form, which lands on track 1 and keeps every existing
  * dialect song byte-identical — or `{ tracks: [list, list, …] }` for chords and
  * counter-lines.
@@ -300,7 +300,7 @@ function expandSeqBankTracks(path: string, v: unknown, add: AddError): SeqStep[]
   // exactly as it was and lands on track 1.
   if (isObject(v) && !Array.isArray(v) && v.tracks !== undefined) {
     // Bank-level step settings cascade into every track that does not set its
-    // own (REQ-13b). They used to be a hard error here, which cost the shorthand
+    // own (REQ-bank-settings-cascade-into-tracks). They used to be a hard error here, which cost the shorthand
     // exactly where a song gets musical: a three-track chord bank had to repeat
     // the same `gate` three times.
     for (const k of Object.keys(v)) {
@@ -499,7 +499,7 @@ function expandMotionBank(
 /**
  * Expand one extra single-param track: `{ param, steps: [{step, v}, …] }` or
  * null. An unassigned/empty track expands to null so the canonical file stays
- * default-sparse (motion-sequencer.md REQ-17).
+ * default-sparse (motion-sequencer.md REQ-song-file-v5-adds-motion-tracks).
  */
 function expandMotionTrack(path: string, v: unknown, add: AddError): MotionTrack | null {
   if (v === null || v === undefined) return null;
@@ -600,7 +600,7 @@ const isDigit = (c: string | undefined): boolean => c !== undefined && c >= '0' 
 
 /**
  * Scan a chain string into slots and their transposes
- * (song-authoring-dialect.md REQ-15): `"A A+5 A+7 A+3"`.
+ * (song-authoring-dialect.md REQ-a-chain-letter-may-carry-a-transpose): `"A A+5 A+7 A+3"`.
  *
  * A **scanner**, not a per-character loop, because `+`/`-` and the digits after
  * a letter belong to that letter — and whitespace stays insignificant, so
@@ -662,7 +662,7 @@ function scanChainString(
 }
 
 /**
- * A `seqChain` plus its per-slot transposes (REQ-15). Only the string form
+ * A `seqChain` plus its per-slot transposes (REQ-motion-baselines-are-unchanged). Only the string form
  * carries the `+n` suffix; the array and object forms are numbers, so they take
  * a parallel `seqTranspose` key at the top level instead.
  */
@@ -706,7 +706,7 @@ function chainTransposeOf(chain: ChainData): number[] {
  *
  * `expandChain` returns `ChainData`, which is the *canonical* shape and must not
  * grow a field the format does not have (`seqTranspose` is a sibling of
- * `seqChain`, never a member — song-mode.md REQ-16). A `WeakMap` keyed on the
+ * `seqChain`, never a member — song-mode.md REQ-song-file-v7-adds-slot-transpose). A `WeakMap` keyed on the
  * returned object keeps the parse result reachable without widening that type or
  * threading an out-parameter through the recursive `{steps: {...}}` form.
  */
@@ -886,7 +886,7 @@ export function expandAuthorSong(value: unknown): SongValidation {
 
   if (errors.length > 0) return { ok: false, errors };
 
-  // REQ-11: a machine whose banks carry hits auto-enables, unless the author
+  // REQ-the-xy-window-axes-follow-motion: a machine whose banks carry hits auto-enables, unless the author
   // set its on/off param explicitly — seq.on/drum.on/sampler.on default to 0
   // and Song.apply resets params first, so the song would import silent.
   const hasHits = (banks: { on: boolean }[][]): boolean =>
@@ -911,7 +911,7 @@ export function expandAuthorSong(value: unknown): SongValidation {
         ? 6 : motionTracks ? 5 : motion ? 4 : 3,
     name: o.name as string,
     params,
-    // Track 1 in the v1-v5 field; 2-4 only when used (sequencer.md REQ-13).
+    // Track 1 in the v1-v5 field; 2-4 only when used (sequencer.md REQ-song-file-v6-adds-seq-tracks).
     seqBanks: seqBanks.map((bank) => bank[0]!),
     ...(seqBanks.some((bank) => bank.slice(1).some((row) => row.some((st) => st.on)))
       ? {
@@ -936,7 +936,7 @@ export function expandAuthorSong(value: unknown): SongValidation {
   }
   if (motionTracks) file.motionTracks = motionTracks;
   // Only when it says something, matching capture()/compactSongForExport — an
-  // all-zero array would push every song to v7 for no behaviour (REQ-15).
+  // all-zero array would push every song to v7 for no behaviour (REQ-motion-baselines-are-unchanged).
   if (seqTranspose.some((t) => t !== 0)) file.seqTranspose = seqTranspose;
 
   // Final gate: the expansion must yield a file the canonical validator accepts.

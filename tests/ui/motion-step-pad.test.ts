@@ -31,7 +31,7 @@ const up = (): MouseEvent => new MouseEvent('pointerup');
 const lastY = (onSet: ReturnType<typeof vi.fn>): number =>
   onSet.mock.calls[onSet.mock.calls.length - 1]![1] as number;
 
-describe('MotionStepPad (motion-sequencer.md REQ-23)', () => {
+describe('MotionStepPad (motion-sequencer.md REQ-the-pads-gesture-set-peek-snap-fine)', () => {
   beforeEach(() => {
     document.body.innerHTML = '';
     vi.useFakeTimers();
@@ -41,7 +41,7 @@ describe('MotionStepPad (motion-sequencer.md REQ-23)', () => {
     vi.useRealTimers();
   });
 
-  describe('deferred write + peek (REQ-23a)', () => {
+  describe('deferred write + peek (REQ-the-pad-write-is-deferred)', () => {
     it('a press alone writes nothing — the commit waits for travel or release', () => {
       const { pad, onSet } = mount();
       pad.el.dispatchEvent(down(25, 75));
@@ -136,7 +136,7 @@ describe('MotionStepPad (motion-sequencer.md REQ-23)', () => {
     });
   });
 
-  describe('snap to a grid (REQ-23b)', () => {
+  describe('snap to a grid (REQ-a-coarse-pad-drag-snaps)', () => {
     it('a coarse drag only ever writes multiples of 1/20', () => {
       const { pad, onSet } = mount();
       pad.el.dispatchEvent(down(50, 50));
@@ -169,7 +169,7 @@ describe('MotionStepPad (motion-sequencer.md REQ-23)', () => {
     });
   });
 
-  describe('Shift = fine, relative, unsnapped (REQ-23c)', () => {
+  describe('Shift = fine, relative, unsnapped (REQ-shift-drag-is-fine-and-unsnapped)', () => {
     it('pressing with Shift does not jump to the pointer', () => {
       const { pad, onSet } = mount({ mode: 'level' });
       pad.setLevel(true, 0.4);
@@ -204,7 +204,7 @@ describe('MotionStepPad (motion-sequencer.md REQ-23)', () => {
     });
   });
 
-  describe('the readout feed (REQ-22)', () => {
+  describe('the readout feed (REQ-a-motion-steps-value-is-readable-without-hovering)', () => {
     it('reports press, then drag, then null on release', () => {
       const { pad, onGesture } = mount();
       pad.el.dispatchEvent(down(50, 50));

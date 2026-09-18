@@ -23,7 +23,7 @@ describe('parseSongLink', () => {
       .toEqual({ kind: 'url', url: 'HTTPS://example.com/x.json' });
   });
 
-  // untrusted-input.md REQ-7: plain http was the LAN-probe shape — a link could
+  // untrusted-input.md REQ-a-link-may-not-fetch-silently: plain http was the LAN-probe shape — a link could
   // make the visitor's browser GET their own router at page load.
   it('refuses every non-https #songUrl= scheme (v3, regression)', () => {
     for (const url of [

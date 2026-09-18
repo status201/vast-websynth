@@ -46,7 +46,7 @@ function paintStep(sb: StepButton, s: SeqStep): void {
 export interface SeqPanel extends MachinePanel {
   /**
    * Turn Step Input off from outside — `app.ts` calls this the moment the panel
-   * stops being on screen (sequencer.md REQ-5), so the arm can never outlive
+   * stops being on screen (sequencer.md REQ-step-input-arms-only-on-screen), so the arm can never outlive
    * the grid it writes to.
    */
   disarmStepInput(): void;
@@ -66,14 +66,14 @@ export function buildSeqPanel(
   header.className = layout.patternPanelHeader!;
   header.appendChild(new Switch(bus, 'seq.on', 'seq').el);
   // Chain / Mute / Solo, right after the machine switch — the same three
-  // controls the Song tab's lane card carries (machine-status.md REQ-9).
+  // controls the Song tab's lane card carries (machine-status.md REQ-lane-controls-live-on-both-surfaces).
   header.appendChild(laneControlsFor(bus, engine, 'seq', bridge).el);
   header.appendChild(laneMeterControlsFor(bus, 'seq').el);
   const bankBar = bankBarFor(engine, 'seq');
   header.appendChild(bankBar.el);
   header.appendChild(createUndoButton(undo, 'seq'));
   // SNAP bakes the live key into the stored notes — the destructive counterpart of
-  // the filter (scale-quantization.md REQ-8). No confirm dialog on purpose: it is one
+  // the filter (scale-quantization.md REQ-snap-to-scale-is-the-destructive-opt-in). No confirm dialog on purpose: it is one
   // Ctrl+Z away, and the Clear ▾ beside it wipes a whole bank without asking either.
   const snapBtn = createButton({
     label: 'Snap',
@@ -124,8 +124,8 @@ export function buildSeqPanel(
   header.appendChild(recBtn);
 
   // The ONE writer of `armed` and its two visual affordances (sequencer.md
-  // REQ-7). Arming also drops Bank Follow so the arrangement can't swap the edit
-  // bank mid-take and spray the notes across banks (REQ-6) — the same
+  // REQ-the-armed-flag-is-the-single-truth). Arming also drops Bank Follow so the arrangement can't swap the edit
+  // bank mid-take and spray the notes across banks (REQ-a-take-is-bank-pinned) — the same
   // editing-intent rule a manual bank click already applies. Disarming leaves
   // Follow off for the user to re-enable.
   function setArmed(on: boolean): void {
@@ -137,7 +137,7 @@ export function buildSeqPanel(
   }
 
   // A whole-store overwrite (song / demo / import / New / session-undo) must not
-  // leave a recorder armed over someone else's song (REQ-5).
+  // leave a recorder armed over someone else's song (REQ-step-input-arms-only-on-screen).
   engine.patterns.onBulkRestore(() => setArmed(false));
 
   const selectedLabel = document.createElement('div');
@@ -153,19 +153,19 @@ export function buildSeqPanel(
       + `  vel ${(s.velocity * 100).toFixed(0)}%  gate ${(s.gate * 100).toFixed(0)}%`;
   };
 
-  // ---- Track rows (sequencer.md REQ-8/REQ-11) ----
+  // ---- Track rows (sequencer.md REQ-four-tracks-per-bank/REQ-tracks-two-to-four-collapse) ----
   // Four independent tracks. Track 1 is the pre-v3 sequencer and never folds;
   // 2-4 fold, and start folded when empty so a fresh session still shows one
   // row while a loaded four-track song shows everything it uses.
   /** Re-run on every bank change / song load: reveal a track that has content
-   *  but no explicit user preference (REQ-11). */
+   *  but no explicit user preference (REQ-tracks-two-to-four-collapse). */
   const trackAutoReveal: (() => void)[] = [];
 
   // Declared here rather than beside wirePlayhead below, because the ruler is
   // built before the grid and needs the same gate.
   const gate = new VisibilityGate();
 
-  // ---- Transport-position ruler (transport-position.md REQ-9) ----
+  // ---- Transport-position ruler (transport-position.md REQ-a-position-ruler-above-every-grid) ----
   // Outside the rest-overlay wrapper on purpose: a rest bar dims the *pattern*,
   // but where the transport is stays readable. It borrows the panel's own track
   // row / step-grid classes so its ticks line up with the steps beneath them.
@@ -229,7 +229,7 @@ export function buildSeqPanel(
     stepRowEl.className = styles.stepRow!;
     const btns: StepButton[] = [];
     // Every cell is built; `bindLaneGrid` below decides which are live, so the
-    // meter owns the played length (meter.md REQ-11).
+    // meter owns the played length (meter.md REQ-cells-beyond-the-length-are-hidden).
     for (let i = 0; i < ALL_CELLS; i++) {
       const index = i;
       const cell = engine.patterns.seqTrack(track)![i]!;
@@ -273,7 +273,7 @@ export function buildSeqPanel(
       foldBtn.addEventListener('click', () => {
         setFolded(!row.classList.contains(styles.folded!), true);
       });
-      // A loaded song that uses this track must never arrive hidden (REQ-11).
+      // A loaded song that uses this track must never arrive hidden (REQ-tracks-two-to-four-collapse).
       trackAutoReveal.push(() => {
         if (localStorage.getItem(collapseKey(track)) === null && trackHasSteps(track)) {
           setFolded(false, false);
@@ -285,7 +285,7 @@ export function buildSeqPanel(
   // The shared gesture model (step-grid-editing.md): tap toggles, drag paints,
   // long-press / right-click selects without toggling. While Step Input is
   // armed a press only moves the cursor — the notes come from the keyboard, so
-  // a toggle there would fight the take (sequencer.md REQ-5).
+  // a toggle there would fight the take (sequencer.md REQ-step-input-arms-only-on-screen).
   attachGridGestures({
     cells: stepBtns.map((row) => row.map((sb) => sb.el)),
     isOn: (t, i) => engine.patterns.seqTrack(t)?.[i]?.on ?? false,
@@ -303,13 +303,13 @@ export function buildSeqPanel(
   root.appendChild(gridWrap);
 
   // Step record: while armed, played notes (keyboard / QWERTY / MIDI) land in the
-  // selected step of the FOCUSED track (REQ-12) and the cursor advances.
+  // selected step of the FOCUSED track (REQ-step-input-targets-the-focused-track) and the cursor advances.
   // Audition is automatic — bus.onNote also reaches the engine, so the note
   // sounds while transport passthrough isn't suppressed.
   //
   // `bus.onNote` is the *global* note funnel and cannot tell a note meant for this
   // grid from one played anywhere else, so `armed` carries the whole gate — and
-  // REQ-5 keeps it true only while this panel is on screen. No visibility check
+  // REQ-step-input-arms-only-on-screen keeps it true only while this panel is on screen. No visibility check
   // belongs here: one source of truth, checked once.
   bus.onNote((on, note) => {
     if (!armed || !on) return;
@@ -405,7 +405,7 @@ export function buildSeqPanel(
     chordDd.setOptions(opts);
     const active = Math.round(bus.get('scale.type')) > 0;
     // No scale means no degrees to stack, so every option is spoken for. A disabled
-    // control that says why beats one that quietly does nothing (chord-tools.md REQ-8).
+    // control that says why beats one that quietly does nothing (chord-tools.md REQ-chord-tools-require-a-scale).
     chordDd.setDisabledOptions(active ? [] : opts);
     chordCtrl.title = active
       ? 'Write this degree as a chord across the four tracks, at the selected step'
@@ -440,7 +440,7 @@ export function buildSeqPanel(
 
   root.appendChild(edit);
 
-  // ---- Import into sampler ---- (render-to-sampler.md REQ-9)
+  // ---- Import into sampler ---- (render-to-sampler.md REQ-the-sequencer-tab-hosts-import)
   // Resample the edit bank through the live synth + FX into a bar-exact buffer
   // and drop it into a sampler slot — layering without a second synth instance.
   const importRow = document.createElement('div');
@@ -500,7 +500,7 @@ export function buildSeqPanel(
     }
   }
 
-  // Busy while rendering; otherwise gated on bank content + sync mode (REQ-6):
+  // Busy while rendering; otherwise gated on bank content + sync mode (REQ-a-take-is-bank-pinned):
   // a slave doesn't own the clock, and estimator BPM writes would break the
   // bar-exact length.
   let rendering = false;
@@ -532,7 +532,7 @@ export function buildSeqPanel(
     if (track === cursor.selRow && idx === cursor.selCol) refresh();
   });
 
-  // Tracks 2-4 only sound in poly voicing (REQ-9): dim them and say why, rather
+  // Tracks 2-4 only sound in poly voicing (REQ-poly-voicing-gates-the-extra-tracks): dim them and say why, rather
   // than letting four tracks fight over one mono voice.
   bus.subscribe('voicing.mode', (v) => {
     const poly = v >= 0.5;

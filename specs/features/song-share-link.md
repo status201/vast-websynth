@@ -34,70 +34,73 @@ the Import button, so canonical files, authoring-dialect files, and (via
 
 ## Requirements
 
-- **REQ-1** — `parseSongLink(hash)` recognises `#song=<payload>` (embedded,
-  `{kind:'data'}`) and `#songUrl=<https url>` (fetched, `{kind:'url'}`);
-  anything else returns `null`. **`https:` only** (v3): a `http://`,
-  `javascript:`, `file://` or protocol-relative `songUrl` is ignored. Plain
-  `http` was accepted by the original `https?` test, which made
+- **REQ-parse-song-link-recognises-the-hash** — `parseSongLink(hash)` recognises
+  `#song=<payload>` (embedded, `{kind:'data'}`) and `#songUrl=<https url>`
+  (fetched, `{kind:'url'}`); anything else returns `null`. **`https:` only**
+  (v3): a `http://`, `javascript:`, `file://` or protocol-relative `songUrl` is
+  ignored. Plain `http` was accepted by the original `https?` test, which made
   `#songUrl=http://192.168.1.1/…` a zero-click LAN probe from the victim's
-  browser ([untrusted-input](untrusted-input.md) REQ-7).
+  browser ([untrusted-input](untrusted-input.md) REQ-a-link-may-not-fetch-silently).
 
-- **REQ-2** — `encodeSongPayload(json)` deflate-raws the UTF-8 bytes and
-  base64url-encodes them. When the platform lacks Compression Streams
-  (`hasCompression()` false, e.g. jsdom), it falls back to `'j:'` +
-  base64url(utf8) — unambiguous because base64url never contains `:`.
-  `decodeSongPayload` inverts both forms. Byte→binary-string conversion is
-  chunked (no spread on large arrays).
+- **REQ-share-payload-is-deflated-and-encoded** — `encodeSongPayload(json)`
+  deflate-raws the UTF-8 bytes and base64url-encodes them. When the platform
+  lacks Compression Streams (`hasCompression()` false, e.g. jsdom), it falls
+  back to `'j:'` + base64url(utf8) — unambiguous because base64url never
+  contains `:`. `decodeSongPayload` inverts both forms. Byte→binary-string
+  conversion is chunked (no spread on large arrays).
 
-- **REQ-3** — At boot (`main.ts`, beside the launchQueue consumer) a present
-  song link is decoded/fetched and driven through `UiBridge.importSongBytes` —
-  the same one-import-path as the Import button and OS file launches
-  (pwa-install.md REQ-7), so parse errors surface in the existing import-error
-  dialog. Applying is pure state, so it works behind the start modal. Errors use
-  the shared `alertDialog`, **never the native `alert()`** (v3 — it was `alert()`,
-  which contradicted this requirement and put payload-derived text in browser
-  chrome).
+- **REQ-boot-consumes-a-present-hash** — At boot (`main.ts`, beside the
+  launchQueue consumer) a present song link is decoded/fetched and driven
+  through `UiBridge.importSongBytes` — the same one-import-path as the Import
+  button and OS file launches (pwa-install.md REQ-one-import-parse-path), so
+  parse errors surface in the existing import-error dialog. Applying is pure
+  state, so it works behind the start modal. Errors use the shared
+  `alertDialog`, **never the native `alert()`** (v3 — it was `alert()`, which
+  contradicted this requirement and put payload-derived text in browser chrome).
 
-- **REQ-4** — On a **successful** import the hash is consumed via
-  `history.replaceState(null, '', pathname + search)`; on failure the hash
-  stays in the address bar so the user can copy/inspect/retry it.
+- **REQ-hash-clears-only-on-success** — On a **successful** import the hash is
+  consumed via `history.replaceState(null, '', pathname + search)`; on failure
+  the hash stays in the address bar so the user can copy/inspect/retry it.
   `SongPanel.importBytes` (and the `UiBridge` hook) therefore resolve to a
   boolean success flag.
 
-- **REQ-5** — The export modal gains a **Copy Link** action (testid
-  `song-share-link`): `Song.capture` → `toJSON` → `encodeSongPayload` →
-  `buildShareUrl(origin, payload)` → clipboard via the shared
-  `copyText`/`flashCopied`. The action does not close the modal. It is
+- **REQ-export-modal-copies-a-link** — The export modal gains a **Copy Link**
+  action (testid `song-share-link`): `Song.capture` → `toJSON` →
+  `encodeSongPayload` → `buildShareUrl(origin, payload)` → clipboard via the
+  shared `copyText`/`flashCopied`. The action does not close the modal. It is
   **disabled while the Project (.zip) kind is selected** (v2): a share URL
-  embeds only the song JSON and can never carry the project's sampler audio,
-  so offering it there would mislead — the disabled button's `title` explains
-  why and points back to Song (.json). Selecting Song (.json) re-enables it
-  and restores its normal tooltip.
+  embeds only the song JSON and can never carry the project's sampler audio, so
+  offering it there would mislead — the disabled button's `title` explains why
+  and points back to Song (.json). Selecting Song (.json) re-enables it and
+  restores its normal tooltip.
 
-- **REQ-6** — `buildShareUrl` produces `<origin>/#song=<payload>`. Payloads are
-  base64url so they never need percent-encoding.
+- **REQ-share-url-is-origin-plus-hash** — `buildShareUrl` produces
+  `<origin>/#song=<payload>`. Payloads are base64url so they never need
+  percent-encoding.
 
-- **REQ-7** — **A fetch needs consent (v3).** `#song=` carries its own payload —
-  no network, no third party — so it keeps applying at boot, unprompted.
-  `#songUrl=` first shows a `confirmDialog` naming the **target origin**;
-  declining leaves the hash in place and applies nothing. That prompt is raised
-  **from the start handler, not from boot's own body**: applying a song is pure
-  state and works behind the start modal, but a *dialog* raised there renders
-  underneath it and cannot be reached — the same reason the restored-clips toast
-  waits (sample-persistence.md REQ-8). **(v6 of audio-lifecycle)** That reason is
-  the modal, not the gesture, so on the auto-start path — where no modal is shown
-  at all ([audio-lifecycle](audio-lifecycle.md) REQ-20/REQ-21) — the prompt is
-  raised immediately. Nothing waits for a tap that is never asked for. The request is then
-  `credentials: 'omit'`, `redirect: 'error'`, `mode: 'cors'`, with a timeout, and
-  a `Content-Length` over `MAX_SONG_JSON_BYTES` is refused before the body is
-  buffered. Without this, one link made any visitor's browser issue an
-  attacker-chosen GET at page load.
+- **REQ-a-linked-fetch-needs-consent** — **A fetch needs consent (v3).**
+  `#song=` carries its own payload — no network, no third party — so it keeps
+  applying at boot, unprompted. `#songUrl=` first shows a `confirmDialog` naming
+  the **target origin**; declining leaves the hash in place and applies nothing.
+  That prompt is raised **from the start handler, not from boot's own body**:
+  applying a song is pure state and works behind the start modal, but a *dialog*
+  raised there renders underneath it and cannot be reached — the same reason the
+  restored-clips toast waits (sample-persistence.md REQ-a-clip-restore-raises-a-toast). **(v6 of
+  audio-lifecycle)** That reason is the modal, not the gesture, so on the
+  auto-start path — where no modal is shown at all
+  ([audio-lifecycle](audio-lifecycle.md) REQ-the-gesture-is-required-only-when-required/REQ-post-gesture-work-is-deferred) — the prompt is raised
+  immediately. Nothing waits for a tap that is never asked for. The request is
+  then `credentials: 'omit'`, `redirect: 'error'`, `mode: 'cors'`, with a
+  timeout, and a `Content-Length` over `MAX_SONG_JSON_BYTES` is refused before
+  the body is buffered. Without this, one link made any visitor's browser issue
+  an attacker-chosen GET at page load.
 
-- **REQ-8** — **The payload is capped (v3).** `decodeSongPayload` inflates
-  through `inflateRaw(bytes, MAX_SONG_JSON_BYTES)`, which throws **during** the
-  read rather than after — deflate's ~1032:1 ratio otherwise lets an
-  address-bar-sized hash expand to gigabytes ([untrusted-input](untrusted-input.md)
-  REQ-2).
+- **REQ-share-payload-is-capped** — **The payload is capped (v3).**
+  `decodeSongPayload` inflates through `inflateRaw(bytes, MAX_SONG_JSON_BYTES)`,
+  which throws **during** the read rather than after — deflate's ~1032:1 ratio
+  otherwise lets an address-bar-sized hash expand to gigabytes
+  ([untrusted-input](untrusted-input.md)
+  REQ-bounds-in-the-validator-sizes-in-the-codec).
 
 ## Technical design
 
@@ -214,6 +217,6 @@ Scenario: Round-trip encode/decode
 - A QR code for the share URL (the WiFi-sync pair modal already renders QR).
 - A **remembered per-origin allow-list** for `#songUrl=`, so a host the user
   already trusted stops prompting. (The size cap and the consent gate that this
-  bullet used to defer both landed in v3 — see REQ-7/REQ-8.)
+  bullet used to defer both landed in v3 — see REQ-a-linked-fetch-needs-consent/REQ-share-payload-is-capped.)
 - Streaming the fetched body so an over-cap response is abandoned mid-flight,
   rather than trusting a `Content-Length` a hostile server may simply omit.

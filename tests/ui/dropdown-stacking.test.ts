@@ -1,6 +1,6 @@
 // @vitest-environment node
 //
-// Drift pin for dropdown.md REQ-9: nothing may form a stacking context on a
+// Drift pin for dropdown.md REQ-a-dropdown-can-be-dimmed: nothing may form a stacking context on a
 // Dropdown *root*.
 //
 // The menu is `position: fixed`, which escapes every `overflow` ancestor — so
@@ -19,7 +19,7 @@
 // consumer that declares `opacity` in its *own* module and hangs the class on
 // `dd.el` from TypeScript, which is exactly how the original bug happened —
 // there is no signal in the CSS to find. That path is closed instead by
-// `Dropdown.setDimmed` being the obvious way to do this at all, by REQ-9 saying
+// `Dropdown.setDimmed` being the obvious way to do this at all, by REQ-a-dropdown-can-be-dimmed saying
 // so out loud, and by `dropdown.test.ts` proving `setDimmed` skips the root.
 import { describe, it, expect } from 'vitest';
 import { readdirSync, readFileSync } from 'node:fs';
@@ -87,7 +87,7 @@ const declares = (body: string, prop: string) =>
 const rules = readRules();
 const dropdownRules = rules.filter((r) => r.file === DROPDOWN_CSS);
 
-describe('Dropdown stacking contexts (specs/features/dropdown.md REQ-9)', () => {
+describe('Dropdown stacking contexts (specs/features/dropdown.md REQ-a-dropdown-can-be-dimmed)', () => {
   it('parsed the stylesheets at all', () => {
     // Guards the guard: a parser matching nothing makes everything below
     // vacuously true.

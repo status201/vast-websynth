@@ -46,7 +46,7 @@ export function chain(input: AudioNode, fx: Effect[], output: AudioNode): void {
  * How long after bypassing before the processed path is disconnected — must
  * comfortably outlast the `RAMP_BYPASS` crossfade. Twelve of its 25 ms time
  * constants, so the wet gain is at -104 dB by the time the edge is cut. Moved
- * from 150 ms along with the crossfade's constant (effects.md REQ-12).
+ * from 150 ms along with the crossfade's constant (effects.md REQ-toggling-an-effect-must-not-step-the-level).
  * See ADR-012.
  */
 export const DISCONNECT_DELAY_MS = 300;
@@ -55,7 +55,7 @@ export const DISCONNECT_DELAY_MS = 300;
  * How long a stateless effect needs, fed silence, before what it holds *is*
  * silence — one `RAMP_MEDIUM`-ish settle for a biquad or a gain, no more. An
  * effect with real memory (a delay line, a convolver) overrides `drainSeconds`;
- * see effects.md REQ-2c for why the drain happens on the way out.
+ * see effects.md REQ-a-bypassed-effect-drains-before-disconnect for why the drain happens on the way out.
  */
 export const DRAIN_DEFAULT_S = 0.02;
 
@@ -69,7 +69,7 @@ export const DRAIN_DEFAULT_S = 0.02;
  * defines it, which is how Wah and the compressors — which have no `.mix` param
  * registered — opt out of a dry/wet. Declaring it here would make all six claim a
  * mix and subscribe a param that does not exist. Effects with a crossfade declare
- * the one-liner themselves; its presence is the declaration (effects.md REQ-1).
+ * the one-liner themselves; its presence is the declaration (effects.md REQ-every-effect-implements-the-interface).
  */
 export abstract class WrappedEffect implements Effect {
   readonly input: AudioNode;
@@ -91,13 +91,13 @@ export abstract class WrappedEffect implements Effect {
 
   /**
    * How long this effect's DSP must be fed silence before it holds none of the
-   * old audio (effects.md REQ-2c). The wrapper waits this long after cutting the
+   * old audio (effects.md REQ-a-bypassed-effect-drains-before-disconnect). The wrapper waits this long after cutting the
    * input before it detaches the output — so a later re-enable resumes a
    * subgraph full of silence rather than the last song's tail.
    *
    * Override only if the effect actually has memory: a delay line's buffer, a
    * convolver's IR length. Its presence is the declaration, the same way
-   * `setMix`'s is (REQ-1).
+   * `setMix`'s is (REQ-every-effect-implements-the-interface).
    */
   protected drainSeconds(): number { return DRAIN_DEFAULT_S; }
 
@@ -112,7 +112,7 @@ export abstract class WrappedEffect implements Effect {
 
 /**
  * What the wrapper needs to know about its host's DSP to drain it safely
- * (effects.md REQ-2c). `WrappedEffect` supplies these from its two overridable
+ * (effects.md REQ-a-bypassed-effect-drains-before-disconnect). `WrappedEffect` supplies these from its two overridable
  * methods, so the wrapper stays ignorant of what is inside the processed path.
  */
 export interface DrainHooks {
@@ -134,7 +134,7 @@ export interface DrainHooks {
  * wrapper's own edges are ever touched; splices inside the processed path
  * (e.g. `Compressor.attachWorklet`) are unaffected.
  *
- * Those two edges come down in **two stages** (effects.md REQ-2c): dropping both
+ * Those two edges come down in **two stages** (effects.md REQ-a-bypassed-effect-drains-before-disconnect): dropping both
  * at once freezes the DSP instead of clearing it, and a delay line or convolver
  * then replays the audio it was holding the next time the effect is switched on.
  * So the input edge goes at `DISCONNECT_DELAY_MS`, the effect quiesces any
@@ -209,7 +209,7 @@ export class BypassWrapper {
   }
 
   /**
-   * Bypass teardown, in two stages (effects.md REQ-2c). Cutting both edges at
+   * Bypass teardown, in two stages (effects.md REQ-a-bypassed-effect-drains-before-disconnect). Cutting both edges at
    * once *freezes* the DSP rather than clearing it — the renderer stops pulling
    * an unreachable subgraph, so a delay line keeps its ring buffer and a
    * convolver its tail, indefinitely, and re-enabling replays them. So the input

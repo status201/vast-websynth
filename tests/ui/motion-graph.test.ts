@@ -13,7 +13,7 @@ function bank(anchors: Record<number, { x: number; y: number }>): MotionStep[] {
 /** Anchor-centre x in viewBox space. */
 const cx = (s: number): number => ((s + 0.5) / 16) * 100;
 
-describe('motionGraphPoints (motion-sequencer.md REQ-8)', () => {
+describe('motionGraphPoints (motion-sequencer.md REQ-each-motion-step-is-a-mini-xy-pad)', () => {
   it('slide mode returns the plain anchor polyline', () => {
     const b = bank({ 2: { x: 0.25, y: 1 }, 10: { x: 0.75, y: 0 } });
     const { line, dots } = motionGraphPoints(b, 'y', 'slide');
@@ -54,7 +54,7 @@ describe('motionGraphPoints (motion-sequencer.md REQ-8)', () => {
     expect(motionGraphPoints(bank({}), 'y', 'slide')).toEqual(empty);
   });
 
-  describe('bar-line carry (REQ-2b, v3)', () => {
+  describe('bar-line carry (REQ-cross-bank-carry, v3)', () => {
     const b = bank({ 2: { x: 0.25, y: 1 }, 10: { x: 0.75, y: 0 } });
 
     it('slide mode dashes both bar edges, tracing the self-wrap by default', () => {
@@ -91,7 +91,7 @@ describe('motionGraphPoints (motion-sequencer.md REQ-8)', () => {
     });
   });
 
-  describe("drawn on the lane's cells, not the bank's 16 (v16, REQ-24b)", () => {
+  describe("drawn on the lane's cells, not the bank's 16 (v16, REQ-the-motion-graph-follows-the-lane)", () => {
     /** Anchor-centre x for a lane of `cells` columns. */
     const cxOf = (s: number, cells: number): number => ((s + 0.5) / cells) * 100;
     /** Gankogui's shape: a home anchor, a raised one, home again. */
@@ -113,7 +113,7 @@ describe('motionGraphPoints (motion-sequencer.md REQ-8)', () => {
     });
 
     it('does not draw an anchor the lane is too short to reach', () => {
-      // Cell 8 is past a 6-cell lane, so the curve cannot see it (REQ-24) and
+      // Cell 8 is past a 6-cell lane, so the curve cannot see it (REQ-the-automation-lane-follows-the-meter) and
       // neither can the graph — the line ends holding cell 4's value.
       const { dots, line } = motionGraphPoints(swept, 'y', 'step', {}, 6);
       expect(dots).toEqual([[cxOf(0, 6), 60], [cxOf(4, 6), 25]]);

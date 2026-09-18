@@ -45,14 +45,14 @@ test.describe('Transport loop', () => {
     await expect(loopBtn).toHaveClass(/(^|\s)on(\s|$)/);
     await expect(loopBtn).toHaveAttribute('aria-pressed', 'true');
 
-    // REQ-2: while Loop is on a click picks — it does not move the playhead.
+    // REQ-with-loop-on-a-click-picks-a-bar: while Loop is on a click picks — it does not move the playhead.
     await page.getByTestId('transport-scrub-2').click();
     await expect(page.getByTestId('transport-scrub-2')).toHaveClass(/loop-anchor/);
     expect(await cue(page)).toBe(0);
     await page.getByTestId('transport-scrub-1').click();
     expect(await loopRange(page)).toEqual({ start: 1, end: 2 });
     expect(await inLoop(page)).toEqual([false, true, true, false]);
-    // REQ-4: stopped and outside it, the cue moved in — Play starts in the loop.
+    // REQ-turning-loop-on-moves-the-cue: stopped and outside it, the cue moved in — Play starts in the loop.
     expect(await cue(page)).toBe(SEQ_LENGTH);
     await expect(page.getByTestId('transport-readout')).toHaveText('2.01');
 
@@ -83,14 +83,14 @@ test.describe('Transport loop', () => {
     await page.getByTestId('transport-scrub-2').click();
     await loopBtn.click(); // off
     await expect(loopBtn).toHaveAttribute('aria-pressed', 'false');
-    expect(await inLoop(page)).toEqual([false, true, true, false]); // remembered (REQ-5)
+    expect(await inLoop(page)).toEqual([false, true, true, false]); // remembered (REQ-turning-loop-off-keeps-the-range)
     expect(await loopRange(page)).toEqual({ start: 1, end: 2 });
 
     await page.getByTestId('transport-scrub-3').click();
     expect(await cue(page)).toBe(SEQ_LENGTH * 3); // a seek, not a pick
   });
 
-  // song-mode.md REQ-14 (v26) / transport-loop.md REQ-10.
+  // song-mode.md REQ-a-load-lands-on-bar-one (v26) / transport-loop.md REQ-loading-a-song-clears-the-loop.
   test('loading a song clears the loop', async ({ page }) => {
     await gotoAndStart(page);
     await setSeqChain(page, [0, 1, 0, 1]);

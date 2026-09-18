@@ -66,12 +66,12 @@ test('anchors drive the assigned params while playing and restore on stop', asyn
   const b = await busGet(page, 'filter.resonance');
   expect(b).not.toBe(a);
 
-  // Stop → the baseline is restored (REQ-5).
+  // Stop → the baseline is restored (REQ-motion-writes-go-through-bus-set).
   await page.getByTestId('transport-play').click();
   await expect.poll(() => busGet(page, 'filter.resonance')).toBe(resBefore);
 });
 
-test('automation keeps running while the document is hidden (REQ-20)', async ({ page }) => {
+test('automation keeps running while the document is hidden (REQ-the-motion-frame-loop-is-visibility-independent)', async ({ page }) => {
   await gotoAndStart(page);
   await openMotionTab(page);
 
@@ -124,7 +124,7 @@ test('the playhead lights the A/B track cells while playing (v6)', async ({ page
   await page.getByTestId('switch-motion.on').click();
   await page.getByTestId('transport-play').click();
 
-  // The playing column lights on track A's cells, not only the XY pads (REQ-16).
+  // The playing column lights on track A's cells, not only the XY pads (REQ-two-lanes-below-the-xy-lane).
   // `.playing` is a global (unhashed) state class, so it selects directly.
   await expect(page.locator('[data-testid^="motion-trk-0-step-"].playing'))
     .toHaveCount(1, { timeout: 5_000 });
@@ -132,7 +132,7 @@ test('the playhead lights the A/B track cells while playing (v6)', async ({ page
   await page.getByTestId('transport-play').click();
 });
 
-test('a resting motion lane dims all three lanes and hides the playhead (arrangement-rest REQ-4/REQ-6)', async ({ page }) => {
+test('a resting motion lane dims all three lanes and hides the playhead (arrangement-rest REQ-a-resting-lane-plays-nothing/REQ-a-resting-machine-tab-shows-it)', async ({ page }) => {
   await gotoAndStart(page);
   await openMotionTab(page);
 
@@ -182,7 +182,7 @@ test('the graph traces the selected axis and the view toggle switches it', async
 });
 
 /**
- * The value readout + peek (motion-sequencer.md REQ-22/REQ-23). These are the
+ * The value readout + peek (motion-sequencer.md REQ-a-motion-steps-value-is-readable-without-hovering/REQ-the-pads-gesture-set-peek-snap-fine). These are the
  * gestures that make "give lane A and lane B the same value" workable, so they
  * are checked against the real panel rather than only in jsdom.
  */
@@ -232,7 +232,7 @@ test('holding a pad reads its value without writing it', async ({ page }) => {
 
   // `setTrackLevel` above tapped this same cell, and a second press within
   // MotionStepPad's HOLD_MS is a double-tap — it clears instead of peeking
-  // (motion-sequencer.md REQ-23a; the two windows share one constant). Playwright
+  // (motion-sequencer.md REQ-the-pad-write-is-deferred; the two windows share one constant). Playwright
   // gets from that tap to this press in ~120ms, so without stepping outside the
   // window the hold below is swallowed and nothing is under test. Deterministic
   // coverage of the window itself is in tests/ui/motion-step-pad.test.ts.
@@ -300,7 +300,7 @@ test('the Song panel Motion card has chain controls + Mute (no solo/volume)', as
   const card = page.getByTestId('song-lane-motion');
   await expect(card).toBeVisible();
   // Chain controls + the Mute switch; no solo/volume (motion is not an audio
-  // lane — motion-sequencer.md REQ-6/REQ-12).
+  // lane — motion-sequencer.md REQ-motion-has-the-fourth-chain-lane/REQ-motion-mute-is-an-ordinary-param).
   await expect(page.getByTestId('chain-add-motion-0')).toBeVisible();
   await expect(page.getByTestId('switch-motion.mute')).toBeVisible();
   await expect(card.getByTestId('switch-motion.solo')).toHaveCount(0);
@@ -342,7 +342,7 @@ test('the XY Pad axes follow the motion bank override (effective assignment)', a
 
 /**
  * The two extra single-param tracks — specs/features/motion-sequencer.md
- * REQ-13/REQ-16. The curve maths is unit-tested; this pins the panel wiring and
+ * REQ-two-extra-tracks-per-bank/REQ-two-lanes-below-the-xy-lane. The curve maths is unit-tested; this pins the panel wiring and
  * that a track really drives its param through the live engine.
  */
 test('an extra motion track drives its own param and restores on stop', async ({ page }) => {
@@ -409,7 +409,7 @@ test('extra motion tracks survive a save → new → load round-trip', async ({ 
 });
 
 /**
- * Panel layout — specs/features/motion-sequencer.md REQ-8/REQ-16: each lane's
+ * Panel layout — specs/features/motion-sequencer.md REQ-each-motion-step-is-a-mini-xy-pad/REQ-two-lanes-below-the-xy-lane: each lane's
  * controls sit above its own cells, and Slide/Step is per lane.
  */
 test('each lane carries its own controls above its cells', async ({ page }) => {
@@ -445,7 +445,7 @@ test('each lane carries its own controls above its cells', async ({ page }) => {
 });
 
 /**
- * motion-sequencer.md REQ-8 / dropdown.md REQ-9 — regression. An inherited axis
+ * motion-sequencer.md REQ-each-motion-step-is-a-mini-xy-pad / dropdown.md REQ-a-dropdown-can-be-dimmed — regression. An inherited axis
  * picker is dimmed, and that dim used to sit on the dropdown ROOT: `opacity`
  * composited the fixed-position menu with it (unreadable options) and opened a
  * stacking context that trapped the menu's z-index behind the pads below.
@@ -545,7 +545,7 @@ test('Motion’s Clear menu lists every lane that holds steps', async ({ page })
 });
 
 /**
- * banks.md REQ-6 — the bank bar's content dot counts all three motion lanes. A
+ * banks.md REQ-content-dot-covers-every-lane — the bank bar's content dot counts all three motion lanes. A
  * bank filled only in its A/B tracks used to read as empty, so it was easy to
  * lose track of where the automation lived.
  */

@@ -65,7 +65,7 @@ export function renderTempoSync(
   // halves of this badge move to the lock: the marked row is the locked division,
   // and clicking a row re-locks rather than writing a value nothing reads. A row
   // that did nothing would be a gesture with no outcome (ADR-014 law 2) — one this
-  // badge introduced the day the lock shipped (tempo-lock.md REQ-5). Read before
+  // badge introduced the day the lock shipped (tempo-lock.md REQ-the-lock-menu-lists-divisions-only). Read before
   // the intro paragraph, which has to say which of the two a tap will do.
   const syncId = tempoLockFor(paramId) === undefined ? null : syncIdFor(paramId);
   const lockedIndex = syncId === null ? 0 : Math.round(bus.get(syncId));
@@ -130,7 +130,7 @@ export function renderTempoSync(
   );
 
   // The note glyph is a button, and nothing about a 9x11 icon says so
-  // (tempo-sync-help.md REQ-10). This badge is already the place a user looks to
+  // (tempo-sync-help.md REQ-the-badge-introduces-the-tempo-lock). This badge is already the place a user looks to
   // ask "how do I get this in time?", so it is where the lock gets introduced —
   // ADR-014 law 1 puts self-evident above explained, but an icon that opens a
   // whole mode has to be explained *somewhere*, and it is one rung up from the

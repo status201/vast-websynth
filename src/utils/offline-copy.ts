@@ -2,12 +2,12 @@
  * The page side of **Play offline** — saves every file the build lists into the
  * service worker's cache, with progress (specs/features/play-offline.md).
  *
- * The worker (`public/sw.js`, pwa-install.md REQ-6) caches only what a visit
+ * The worker (`public/sw.js`, pwa-install.md REQ-service-worker-is-registered) caches only what a visit
  * fetched, and the build is many files: demo songs fetched on click, dialogs
  * behind `import()`. This class walks `offline-manifest.json` (written by the
- * build, play-offline.md REQ-2) and fills `websynth-<version>` with all of it,
+ * build, play-offline.md REQ-the-build-writes-the-file-list) and fills `websynth-<version>` with all of it,
  * then leaves a marker the worker's `install` reads to keep the copy whole across
- * releases (REQ-7).
+ * releases (REQ-the-copy-survives-a-release).
  *
  * The download runs here rather than in the worker on purpose: a page has no
  * event-lifetime cap, can report progress synchronously and can abort its own
@@ -20,7 +20,7 @@
 import { ListenerSet } from './listeners';
 import { delay } from './async';
 
-// ---- the contract shared with sw.js (REQ-10) ----
+// ---- the contract shared with sw.js (REQ-one-offline-marker-contract) ----
 
 /** The marker's cache key. Mirrored by `OFFLINE_MARKER` in sw.js. */
 export const OFFLINE_MARKER_URL = '/__offline-copy';
@@ -35,7 +35,7 @@ export const OFFLINE_CACHE_PREFIX = 'websynth-';
 export const offlineCacheName = (version: string): string => `${OFFLINE_CACHE_PREFIX}${version}`;
 
 /**
- * Every lookup ignores `Vary` (REQ-11). A host's `Vary: Origin` makes the cache
+ * Every lookup ignores `Vary` (REQ-cache-lookups-ignore-vary). A host's `Vary: Origin` makes the cache
  * compare request headers, and a URL-only lookup here carries none of the ones a
  * worker-cached script request did — so a file on the device would read as
  * missing. The app's files never differ by request header.
@@ -78,7 +78,7 @@ export type OfflineState =
 export type OfflineFetch = (input: string, init?: RequestInit) => Promise<Response>;
 
 export interface OfflineCopyDeps {
-  /** False on the dev server — the worker is production-only (pwa-install.md REQ-6). */
+  /** False on the dev server — the worker is production-only (pwa-install.md REQ-service-worker-is-registered). */
   enabled: boolean;
   version: string;
   caches?: CacheStorage;
@@ -118,7 +118,7 @@ function isSameOriginPath(url: unknown): url is string {
 const sumBytes = (files: readonly OfflineFile[]): number => files.reduce((sum, f) => sum + f.bytes, 0);
 
 /**
- * Validate the manifest's shape (REQ-9). It is our own build output, so this is
+ * Validate the manifest's shape (REQ-the-manifest-is-same-origin-build-output). It is our own build output, so this is
  * not a byte budget — it only guarantees no entry can point a fetch elsewhere and
  * that the list belongs to this version. `totalBytes` is recomputed, not trusted.
  */
@@ -168,7 +168,7 @@ async function missingFiles(cache: Cache, files: readonly OfflineFile[]): Promis
 /**
  * Delete every app cache — the saved offline copy and the worker's runtime cache
  * alike — and report whether any held a complete copy. Foreign caches on the
- * origin are left alone. Factory reset's half of REQ-12 (factory-reset.md REQ-8).
+ * origin are left alone. Factory reset's half of REQ-the-copy-is-fetched-again-after-a-reset (factory-reset.md REQ-reset-redownloads-the-offline-copy).
  */
 export async function deleteOfflineCopies(cacheStorage: CacheStorage): Promise<{ hadCopy: boolean }> {
   const names = (await cacheStorage.keys()).filter((n) => n.startsWith(OFFLINE_CACHE_PREFIX));
@@ -222,7 +222,7 @@ export class OfflineCopy {
     return this.listeners.add(fn);
   }
 
-  /** Re-read what this device holds (REQ-4). A no-op while downloading. */
+  /** Re-read what this device holds (REQ-offline-state-is-checked-when-about-opens). A no-op while downloading. */
   async refresh(): Promise<void> {
     if (this.job) return;
     const unsupported = this.unsupportedReason();
@@ -235,7 +235,7 @@ export class OfflineCopy {
     if (!this.job) this.set(next);
   }
 
-  /** Download everything (REQ-5). A second call while running joins the first. */
+  /** Download everything (REQ-the-offline-download-runs-in-order). A second call while running joins the first. */
   start(): Promise<void> {
     if (this.job) return this.job;
     const unsupported = this.unsupportedReason();
@@ -258,7 +258,7 @@ export class OfflineCopy {
     return this.job;
   }
 
-  /** Abort the download and land on the true remaining size (REQ-6). */
+  /** Abort the download and land on the true remaining size (REQ-offline-cancel-and-takeover). */
   cancel(): void {
     this.stop('cancel');
   }
@@ -368,7 +368,7 @@ export class OfflineCopy {
     this.set(next);
   }
 
-  /** REQ-5, in order. An aborted run's result is replaced by `run`. */
+  /** REQ-the-offline-download-runs-in-order, in order. An aborted run's result is replaced by `run`. */
   private async download(signal: AbortSignal): Promise<OfflineState> {
     const plan = await this.prepare(signal);
     if (!('cache' in plan)) return plan;
@@ -450,7 +450,7 @@ export class OfflineCopy {
   /**
    * Step 2: wait until this version's worker is active. A worker of ours
    * installing or waiting is worth waiting for however long it takes — its
-   * install may itself be refreshing an offline copy (REQ-7). Anything else gets
+   * install may itself be refreshing an offline copy (REQ-the-copy-survives-a-release). Anything else gets
    * `readyTimeoutMs`.
    */
   private async waitForWorker(signal: AbortSignal): Promise<'ready' | 'other' | 'none' | 'aborted'> {
@@ -472,7 +472,7 @@ declare const __APP_VERSION__: string;
 
 let instance: OfflineCopy | null = null;
 
-/** The page's one instance, so a download outlives the About card (REQ-3). */
+/** The page's one instance, so a download outlives the About card (REQ-one-offline-state-machine-many-views). */
 export function getOfflineCopy(): OfflineCopy {
   instance ??= new OfflineCopy({
     enabled: import.meta.env.PROD,

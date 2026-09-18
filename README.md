@@ -104,7 +104,7 @@ npm run e2e:ui       # playwright's interactive UI runner
 
 # Specs and generated files. The three checks run in CI too — check:demos and
 # check:params in the test job, spec:lint in the SDD workflow.
-npm run spec:lint    # spec structure, the README/ADR indexes, REQ citations + code names
+npm run spec:lint    # spec structure, the README/ADR indexes, REQ slug ids + citations + code names
 npm run gen:params   # regenerate public/params.{json,md} from the live registry
 npm run check:params # fail if a parameter was added without regenerating
 npm run clean:demos  # rewrite src/state/demos/ to canonical form + reindex

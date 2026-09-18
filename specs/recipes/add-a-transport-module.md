@@ -99,7 +99,7 @@ it owns a `LaneMeter` (`audio/transport/lane-meter.ts`) and asks
 coarser lane skips, two or three inside one tick for a rate finer than a 16th.
 That is what gives it a length, a step rate and lane-relative swing for free,
 and keeps its cell index a pure function of `clock.step` so a seek needs no
-repair ([features/meter.md](../features/meter.md) REQ-3). A module that merely
+repair ([features/meter.md](../features/meter.md) REQ-a-cell-index-is-a-pure-function-of-step). A module that merely
 counts **bars** reads `barTicks` instead. Build the `LaneMeter` with the
 `Performance.mapStep` fold if the module should follow stutter, and without it
 if it should not (the motion sequencer does not).

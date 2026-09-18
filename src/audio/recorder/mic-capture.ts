@@ -17,7 +17,7 @@ export class MicCaptureError extends Error {
 
 export interface MicSession {
   start(): void;
-  /** Async because the recorder waits for the worklet's flush (audio-export REQ-6b). */
+  /** Async because the recorder waits for the worklet's flush (audio-export REQ-chunks-are-batched-then-flushed). */
   stop(): Promise<CapturedAudio>;
   /** Stop tracks (clears the OS mic indicator) and tear down the graph. */
   dispose(): void;
@@ -89,10 +89,10 @@ export async function openMicSession(ctx: AudioContext): Promise<MicSession> {
       }
       try { src.disconnect(); } catch { /* already disconnected */ }
       try { sink.disconnect(); } catch { /* already disconnected */ }
-      // The session owns this recorder (REQ-1 makes a fresh one per session), so
+      // The session owns this recorder (REQ-record-through-a-fresh-recorder-node makes a fresh one per session), so
       // it must release it too — otherwise every modal open strands a worklet
       // node, its render-thread processor and the chunks its port handler holds
-      // (REQ-6). The engine's master-tapped recorders are never disposed.
+      // (REQ-the-recorder-node-is-released-with-the-session). The engine's master-tapped recorders are never disposed.
       recorder.dispose();
       for (const t of stream.getTracks()) t.stop();
     },

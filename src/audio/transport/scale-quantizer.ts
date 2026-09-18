@@ -10,7 +10,7 @@ import {
  * Spec: `specs/features/scale-quantization.md`, `specs/features/chord-tools.md`.
  *
  * Nothing here allocates on the note path except `chord()`, which runs per note-on
- * rather than per sample (scale-quantization.md REQ-7).
+ * rather than per sample (scale-quantization.md REQ-the-scale-mapping-is-a-lookup-table).
  */
 export class ScaleQuantizer {
   private root = 0;
@@ -23,7 +23,7 @@ export class ScaleQuantizer {
   /** True when a real scale is chosen. The UI gates the chord tools on this. */
   get active(): boolean { return this.table !== null; }
 
-  /** True when chord memory would actually expand a note (chord-tools.md REQ-7). */
+  /** True when chord memory would actually expand a note (chord-tools.md REQ-mono-gates-the-live-chord-path). */
   get chordActive(): boolean {
     return this.table !== null && this.degrees.length > 0 && this.poly;
   }
@@ -57,7 +57,7 @@ export class ScaleQuantizer {
    * off, mono, or the note is not in the scale.
    *
    * The result is diatonic by construction, so passing it back through `get()` is a
-   * no-op (scale-quantization.md REQ-3) — which is why the two features compose
+   * no-op (scale-quantization.md REQ-quantization-is-idempotent-and-bounded) — which is why the two features compose
    * without an ordering rule.
    */
   chord(note: number): number[] {

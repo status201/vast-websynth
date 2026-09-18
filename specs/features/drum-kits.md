@@ -3,7 +3,7 @@
 ```yaml
 id: drum-kits
 status: implemented
-version: 2   # v2: KitDef.model row + the Percussion kit (voice models, drum-machine.md REQ-11)
+version: 2   # v2: KitDef.model row + the Percussion kit (voice models, drum-machine.md REQ-a-drum-tracks-algorithm-is-selectable)
 owner: core
 related:
   - architecture
@@ -31,34 +31,39 @@ sub-ranges; reset writes each param back to its registered default.
 
 ## Requirements
 
-- **REQ-1** — A small set of factory kits (e.g. Default, 808, 909, LoFi,
-  Acoustic, Techno, Percussion), each a sparse per-track table merged over the
-  registered defaults.
+- **REQ-factory-kits-are-sparse-tables** — A small set of factory kits (e.g.
+  Default, 808, 909, LoFi, Acoustic, Techno, Percussion), each a sparse
+  per-track table merged over the registered defaults.
 
-- **REQ-2** — `applyKit(bus, name)` writes every per-track param for all tracks:
-  the kit's value where given, otherwise the param's registered default (so
-  switching kits is deterministic and fully overwrites the previous kit).
+- **REQ-apply-kit-overwrites-every-track** — `applyKit(bus, name)` writes every
+  per-track param for all tracks: the kit's value where given, otherwise the
+  param's registered default (so switching kits is deterministic and fully
+  overwrites the previous kit).
 
-- **REQ-3** — `randomKitValues(rand?)` is **pure** (takes an injectable RNG) and
-  returns param→value entries within musical sub-ranges (not the full param
-  range). `randomizeKit(bus, rand?)` applies them via `bus.set`.
+- **REQ-random-kit-is-pure-and-musical** — `randomKitValues(rand?)` is **pure**
+  (takes an injectable RNG) and returns param→value entries within musical
+  sub-ranges (not the full param range). `randomizeKit(bus, rand?)` applies them
+  via `bus.set`.
 
-- **REQ-4** — UI: a KIT dropdown + a Randomize button lead the **sound-design
-  row below the grid** (alongside the per-drum tuning strip), not the panel
-  header — the header is already full and widening it pushes the drum-compressor
-  help badge off-screen. Selecting a kit applies it, Randomize rolls a new one;
-  both repaint the tuning strip via the knobs' own bus subscriptions.
+- **REQ-kit-controls-sit-below-the-grid** — UI: a KIT dropdown + a Randomize
+  button lead the **sound-design row below the grid** (alongside the per-drum
+  tuning strip), not the panel header — the header is already full and widening
+  it pushes the drum-compressor help badge off-screen. Selecting a kit applies
+  it, Randomize rolls a new one; both repaint the tuning strip via the knobs'
+  own bus subscriptions.
 
-- **REQ-5** — No-op safety: the Default kit and reset reproduce the registered
-  defaults exactly, so existing presets/songs are unaffected.
+- **REQ-default-kit-is-a-no-op** — No-op safety: the Default kit and reset
+  reproduce the registered defaults exactly, so existing presets/songs are
+  unaffected.
 
-- **REQ-6** (v2) — A kit may also choose each track's **voice model**
-  (`KitDef.model`, writing `drum.t{i}.model` — drum-machine.md REQ-11). The
-  **Percussion** kit uses this to turn the machine into a percussion section
-  (congas/bongo/clave/shaker/cowbell over tuned toms' slots). Randomize
-  deliberately does **not** touch models — it stays a timbre shuffle of the
-  current voices; `applyKit` still resets the model row to defaults for kits
-  that omit it (REQ-2 semantics).
+- **REQ-a-kit-may-choose-voice-models** (v2) — A kit may also choose each
+  track's **voice model** (`KitDef.model`, writing `drum.t{i}.model` —
+  drum-machine.md REQ-a-drum-tracks-algorithm-is-selectable). The **Percussion** kit uses this to turn the machine
+  into a percussion section (congas/bongo/clave/shaker/cowbell over tuned toms'
+  slots). Randomize deliberately does **not** touch models — it stays a timbre
+  shuffle of the current voices; `applyKit` still resets the model row to
+  defaults for kits that omit it (REQ-apply-kit-overwrites-every-track
+  semantics).
 
 ## Technical design
 
@@ -85,7 +90,7 @@ KitDef:
   drive?: number[]   # 0..1 per track
   pan?:   number[]   # -1..1 per track
   vol?:   number[]   # 0..1 per track
-  model?: number[]   # voice model index per track (v2; drum-machine.md REQ-11)
+  model?: number[]   # voice model index per track (v2; drum-machine.md REQ-a-drum-tracks-algorithm-is-selectable)
 ```
 
 ### Layer touchpoints & ordering

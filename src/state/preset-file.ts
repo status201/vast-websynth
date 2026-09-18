@@ -5,7 +5,8 @@ import { PRESET_FORMAT, BANK_FORMAT, validatePresetPayload } from './preset-vali
 import type { PresetFile, PresetBankFile, PresetParse } from './preset-validate';
 
 /**
- * Preset / bank **files** — `specs/features/presets.md` REQ-7..REQ-11.
+ * Preset / bank **files** — presets.md REQ-two-preset-file-shapes through
+ * presets.md REQ-a-malformed-preset-is-refused-with-a-reason.
  *
  * Deliberately pure: no `localStorage`, no DOM, no `ParamBus`. The whole import
  * decision is `planImport(incoming, existing, policy)`, a function of its
@@ -17,7 +18,7 @@ import type { PresetFile, PresetBankFile, PresetParse } from './preset-validate'
  * hand — see `specs/features/preset-authoring.md`. It is re-exported here so
  * this module stays the one door for preset files.
  *
- * Vintage naming (REQ-7): a **preset** is one sound, a **bank** is a collection.
+ * Vintage naming (REQ-two-preset-file-shapes): a **preset** is one sound, a **bank** is a collection.
  * That is Roland (PATCH/BANK) and Yamaha (VOICE/32-VOICE BANK) usage; "patch"
  * is never used here for a collection.
  */
@@ -39,7 +40,7 @@ export interface ImportWrite {
 }
 
 export interface ImportPlan {
-  /** Every incoming preset, in file order — the review list (REQ-10). */
+  /** Every incoming preset, in file order — the review list (REQ-preset-import-is-a-two-step-wizard). */
   rows: ImportWrite[];
   /** The subset confirm will actually write. */
   writes: ImportWrite[];
@@ -47,7 +48,7 @@ export interface ImportPlan {
 }
 
 /** Rounded-value equality — the same 4-sig-fig boundary `save()` writes at, so
- *  a stored preset and its re-imported file compare equal (REQ-8). */
+ *  a stored preset and its re-imported file compare equal (REQ-modified-is-computed-not-tracked). */
 export function sameSnapshot(a: Snapshot, b: Snapshot): boolean {
   const ra = roundParams(a);
   const rb = roundParams(b);
@@ -85,7 +86,7 @@ export function bankFilename(name: string): string {
  * (see preset-validate.ts).
  */
 /**
- * The app's door onto the validator (preset-authoring.md REQ-8). Given a `bus`
+ * The app's door onto the validator (preset-authoring.md REQ-semantic-severity-is-the-callers-choice). Given a `bus`
  * it runs the registry checks too, but asks for them as **warnings**: the bus
  * clamps an out-of-range value and ignores an unknown id, so the sound still
  * loads and refusing the file would be a regression. `ok` is decided by the
@@ -102,7 +103,7 @@ export function parsePresetPayload(text: string, bus?: ParamBus): PresetParse {
 }
 
 /** Is this payload a preset/bank file? Used by the *song* importer to hand the
- *  user a pointer instead of a generic parse failure (REQ-11). */
+ *  user a pointer instead of a generic parse failure (REQ-a-malformed-preset-is-refused-with-a-reason). */
 export function describePresetPayload(text: string): 'preset' | 'bank' | null {
   try {
     const f = (JSON.parse(text) as { format?: unknown })?.format;
@@ -121,7 +122,7 @@ function freeName(base: string, taken: Set<string>): string {
 }
 
 /**
- * Decide what an import would do, without doing any of it (REQ-10). `existing`
+ * Decide what an import would do, without doing any of it (REQ-preset-import-is-a-two-step-wizard). `existing`
  * is the current store contents; a name absent from it is `new`, a name present
  * with the same rounded values is `identical` (a no-op under every policy —
  * re-importing your own export must not spawn "lead 2"), anything else is a

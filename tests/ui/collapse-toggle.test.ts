@@ -49,7 +49,7 @@ describe('createCollapseToggle', () => {
     expect(target.classList.contains('collapsed')).toBe(false);
   });
 
-  // sequencer.md REQ-5 — TabContainer turns this into a view change, so a fold
+  // sequencer.md REQ-step-input-arms-only-on-screen — TabContainer turns this into a view change, so a fold
   // disarms an off-screen-unsafe panel mode.
   it('onChange reports every write of the collapsed state', () => {
     const seen: boolean[] = [];

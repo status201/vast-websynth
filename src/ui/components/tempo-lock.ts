@@ -14,12 +14,12 @@ import {
  * The tempo lock a `Knob` grows when its param is in `TEMPO_LOCKS` —
  * tempo-lock.md. Two pieces, mounted into the knob's existing footprint:
  *
- *   - a note glyph in the label row, lit while locked (REQ-2)
+ *   - a note glyph in the label row, lit while locked (REQ-the-lock-is-a-note-glyph)
  *   - a chip that takes the dial's place while locked and opens the division
- *     menu (REQ-3)
+ *     menu (REQ-locked-the-division-replaces-the-dial)
  *
  * The lock holds **no state of its own**: it is a view of `<prefix>.sync > 0`
- * (REQ-4), so there is nothing extra to persist and nothing that can disagree
+ * (REQ-the-lock-is-a-view-of-sync), so there is nothing extra to persist and nothing that can disagree
  * with a loaded preset.
  */
 
@@ -44,7 +44,7 @@ export interface TempoLock {
 /**
  * Division labels with the space stripped — `1/16 D` becomes `1/16D`.
  *
- * A size decision, not a style one (REQ-3/REQ-9): the chip has to fit inside the
+ * A size decision, not a style one (REQ-locked-the-division-replaces-the-dial/REQ-locking-moves-nothing-on-the-faceplate): the chip has to fit inside the
  * 30 px box a 22 px knob occupies, or locking would reflow the drum and sampler
  * FX rows. Used for the menu too, so the row you pick and the chip you get read
  * the same. `SYNC_LABELS` — the param's registered labels, and the thing every
@@ -55,7 +55,7 @@ const DIVISION_LABELS: string[] = DIVISIONS.map((d) => d.label.replace(/\s+/g, '
 /**
  * An eighth note. Local to this component, as `dropdown.ts` keeps its magnifier —
  * but **exported**, because the help badge shows the same glyph inline when it
- * explains the lock (tempo-sync-help.md REQ-10). Drawing it twice would let the
+ * explains the lock (tempo-sync-help.md REQ-the-badge-introduces-the-tempo-lock). Drawing it twice would let the
  * explanation and the button drift apart.
  */
 export function noteGlyph(): SVGSVGElement {
@@ -111,7 +111,7 @@ export function createTempoLock(opts: {
 
   // 18 divisions, no `free` row: the glyph is the only way in and out, so a
   // second control that also unsyncs would be two answers to one question
-  // (REQ-5, ADR-014 law 2).
+  // (REQ-the-lock-menu-lists-divisions-only, ADR-014 law 2).
   const menu = new Dropdown(DIVISION_LABELS, DIVISION_LABELS[0]);
   menu.el.title = 'Note division';
   chip.appendChild(menu.el);
@@ -130,7 +130,7 @@ export function createTempoLock(opts: {
 
   lock.addEventListener('click', () => {
     // Engaging picks the division nearest the knob's current value, so locking
-    // does not jump the sound (REQ-4). Disengaging is a plain return to `free` —
+    // does not jump the sound (REQ-the-lock-is-a-view-of-sync). Disengaging is a plain return to `free` —
     // the knob's own value was never rewritten, so it comes back exactly.
     bus.set(
       syncId,
@@ -139,10 +139,10 @@ export function createTempoLock(opts: {
   });
 
   /**
-   * Grey the divisions this param cannot reach at the current tempo (REQ-6) —
+   * Grey the divisions this param cannot reach at the current tempo (REQ-an-unreachable-division-is-greyed) —
    * `1/1` is 4 s at 60 BPM, past a delay's 1.5 s. Greyed rather than dropped:
    * `setOptions` would silently rewrite a value that left the list
-   * (dropdown.md REQ-10). Nothing is clamped in audio, so this cannot change how
+   * (dropdown.md REQ-an-option-can-be-unselectable). Nothing is clamped in audio, so this cannot change how
    * any existing patch sounds.
    */
   const refreshReach = (): void => {

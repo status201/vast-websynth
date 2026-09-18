@@ -1,5 +1,5 @@
 /**
- * Loading the song-core bundle, shared by every entry (mcp-server.md REQ-3).
+ * Loading the song-core bundle, shared by every entry (mcp-server.md REQ-local-entries-self-build-the-core).
  * Extracted from websynth-mcp.mjs when the HTTP transport arrived and needed
  * the same staleness check with the opposite answer for a missing bundle.
  *
@@ -54,7 +54,7 @@ async function ensureCore() {
   // whose native binding Windows locks for the lifetime of whatever loaded it —
   // in a server that outlives the client's session that pins node_modules, and
   // the next `npm ci` dies with EPERM on a file nobody can see is in use. It
-  // also makes REQ-1a structural: the child has no handle on our stdout, so
+  // also makes REQ-stdio-is-newline-delimited-json-rpc structural: the child has no handle on our stdout, so
   // nothing it prints can corrupt the protocol stream.
   await new Promise((resolve, reject) => {
     const child = spawn(
@@ -75,7 +75,7 @@ async function ensureCore() {
 }
 
 /**
- * The song core, built first if this entry is allowed to build (REQ-3).
+ * The song core, built first if this entry is allowed to build (REQ-local-entries-self-build-the-core).
  * @param {{selfBuild?: boolean}} [opts]
  */
 export async function loadCore({ selfBuild = true } = {}) {

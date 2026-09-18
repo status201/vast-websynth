@@ -1,11 +1,11 @@
-/* The KEY tab's two-octave keyboard map (scale-quantization.md REQ-9).
+/* The KEY tab's two-octave keyboard map (scale-quantization.md REQ-the-key-is-drawn-not-just-named).
    Deliberately NOT a white-and-black piano: both rows sit in muted panel tones so
    every bit of colour in here means something. Topology is real, palette is not. */
 
 /* One vertically centred row: keyboard, the three dropdowns, then the hint.
    `wrap` is the whole responsive story — items keep their DOM order and drop to the
    next line when they no longer fit, so a phone stacks keyboard / dropdowns / hint in
-   that same reading order without a single media query (REQ-9). */
+   that same reading order without a single media query (REQ-the-key-is-drawn-not-just-named). */
 .row {
   display: flex;
   flex-wrap: wrap;
@@ -57,7 +57,7 @@
   max-width: 380px;
   width: 100%;
   padding: 0;
-  /* A readout, not an instrument — nothing here is grabbable (REQ-9). */
+  /* A readout, not an instrument — nothing here is grabbable (REQ-the-key-is-drawn-not-just-named). */
   user-select: none;
   cursor: default;
 }
@@ -110,7 +110,7 @@
    translucent fill composites against whatever is behind it. `out` is the base above.
    (The playable keyboard makes the opposite call for the same palette — it washes, so
    the ivory shows through — because there the key face is load-bearing for playing it.
-   scale-quantization.md REQ-10.)
+   scale-quantization.md REQ-the-key-is-shown-where-you-play.)
 
    The colours themselves are `--key-role-*` in theme.css: this map and the playable
    keyboard are two surfaces on ONE palette, and neither owns it. */
@@ -177,7 +177,7 @@
 /* A legend entry for a colour nothing is currently wearing leaves the layout. There is
    no global `.hidden { display: none }` in this app (see modal.module.css), so the
    class the painter toggles needs a rule here or the hide is a no-op — which is exactly
-   what it was. scale-quantization.md REQ-9. */
+   what it was. scale-quantization.md REQ-the-key-is-drawn-not-just-named. */
 .legendItem:global(.hidden) {
   display: none;
 }

@@ -221,10 +221,10 @@ describe('FloatingWindow', () => {
     expect(root.style.left).toBe('30px');
   });
 
-  // REQ-9 (v4) — the first window able to refuse its own close, for one holding
+  // REQ-a-window-may-veto-its-close (v4) — the first window able to refuse its own close, for one holding
   // unsaved work. Until v4 the ✕ closed unconditionally and onClose was pure
   // after-the-fact cleanup, so there was nowhere to ask.
-  describe('confirmClose (REQ-9)', () => {
+  describe('confirmClose (REQ-a-window-may-veto-its-close)', () => {
     const closeBtn = () => inDoc()!.querySelector(`.${FloatingWindow.closeBtnClass}`) as HTMLButtonElement;
 
     it('a false answer aborts the close entirely', async () => {

@@ -6,7 +6,7 @@ import type { StudioApi } from '../../src/ui/studio-api';
 
 /**
  * The RECORD window is a pure view over `RecorderController.phase`
- * (record-window.md REQ-2), so a scripted recorder is enough to drive every
+ * (record-window.md REQ-the-window-renders-only-the-phase), so a scripted recorder is enough to drive every
  * state — and asserting against one is what proves the window holds no capture
  * state of its own.
  */
@@ -63,15 +63,15 @@ describe('formatElapsed', () => {
 });
 
 describe('the Record window launcher', () => {
-  it('keeps the song-record testid and opens a window (REQ-1)', async () => {
+  it('keeps the song-record testid and opens a window (REQ-record-window-is-a-floating-window)', async () => {
     const { api } = harness();
     const l = createRecordWindowLauncher(api, () => 'wav');
     document.body.appendChild(l.el);
-    // The id is the stable handle: the help badge and song-mode REQ-13's layout
+    // The id is the stable handle: the help badge and song-mode REQ-sync-and-audio-pair-up's layout
     // probe both anchor to it.
     expect(l.el.dataset.testid).toBe('song-record');
     expect(l.el.getAttribute('aria-label')).toBe('Open Record window');
-    // The "opens a window" glyph is drawn, not typed (iconography.md REQ-1).
+    // The "opens a window" glyph is drawn, not typed (iconography.md REQ-a-control-glyph-is-inline-svg).
     expect(l.el.querySelector('svg.ui-icon')).not.toBeNull();
 
     expect(byId('record-window')).toBeNull();
@@ -84,7 +84,7 @@ describe('the Record window launcher', () => {
     expect(byId('record-window').classList.contains('hidden')).toBe(true);
   });
 
-  it('shows a capture running behind a CLOSED window (REQ-7)', () => {
+  it('shows a capture running behind a CLOSED window (REQ-the-launcher-shows-capture-state)', () => {
     const { api, setPhase } = harness();
     const l = createRecordWindowLauncher(api, () => 'wav');
     document.body.appendChild(l.el);
@@ -96,7 +96,7 @@ describe('the Record window launcher', () => {
   });
 });
 
-describe('the Record window phases (REQ-2)', () => {
+describe('the Record window phases (REQ-the-window-renders-only-the-phase)', () => {
   const open = (over?: { exporting?: boolean }) => {
     const h = harness(over);
     const l = createRecordWindowLauncher(h.api, () => 'wav');
@@ -129,7 +129,7 @@ describe('the Record window phases (REQ-2)', () => {
     expect(calls).toEqual(['start', 'pause', 'resume', 'stop']);
   });
 
-  it('says the transport keeps playing while the RECORDER is paused (REQ-3)', () => {
+  it('says the transport keeps playing while the RECORDER is paused (REQ-pause-pauses-the-recorder-not-the-transport)', () => {
     const { setPhase } = open();
     setPhase('paused');
     expect(byId('record-status').textContent).toContain('PAUSED');
@@ -138,7 +138,7 @@ describe('the Record window phases (REQ-2)', () => {
     expect(btn('record-toggle').title).toMatch(/transport keeps playing/i);
   });
 
-  it('swaps to Save / Discard in review, and Save names the format (REQ-2/REQ-10)', () => {
+  it('swaps to Save / Discard in review, and Save names the format (REQ-the-window-renders-only-the-phase/REQ-the-record-format-is-seeded-not-owned)', () => {
     const { setPhase, recorder } = open();
     setPhase('review');
     expect(visible('record-toggle')).toBe(false);
@@ -151,7 +151,7 @@ describe('the Record window phases (REQ-2)', () => {
     expect(recorder.saveTake).toHaveBeenCalledWith('mp3');
   });
 
-  it('pulses the dot only while recording (REQ-6)', () => {
+  it('pulses the dot only while recording (REQ-the-red-dot-earns-its-animation)', () => {
     const { setPhase } = open();
     const dot = byId('record-status').firstElementChild!;
     const lit = () => [...dot.classList].some((c) => c.includes('live'));
@@ -162,14 +162,14 @@ describe('the Record window phases (REQ-2)', () => {
     expect(lit()).toBe(false); // the pulse must never outlive the capture
   });
 
-  it('reads the elapsed time off the recorder, not a stopwatch (REQ-4)', () => {
+  it('reads the elapsed time off the recorder, not a stopwatch (REQ-the-timer-reports-the-take)', () => {
     const { setSeconds, setPhase } = open();
     setSeconds(64);
     setPhase('recording'); // any phase change repaints
     expect(byId('record-timer').textContent).toBe('1:04');
   });
 
-  // REQ-4 regression: the window showed the PREVIOUS take's length once the
+  // REQ-the-timer-reports-the-take regression: the window showed the PREVIOUS take's length once the
   // recorder went idle, which reads as a recording you still have.
   it('clears the timer when the recorder reports no take', () => {
     const { setSeconds, setPhase } = open();
@@ -182,7 +182,7 @@ describe('the Record window phases (REQ-2)', () => {
     expect(byId('record-timer').textContent).toBe('0:00');
   });
 
-  // REQ-11: an export walks the SAME phases, so a phase-only render would show
+  // REQ-an-export-is-named-as-an-export: an export walks the SAME phases, so a phase-only render would show
   // "REC" and a climbing timer for a capture that isn't the user's.
   it('names an export as an export rather than showing it as your take', () => {
     const { setPhase, setSeconds } = open({ exporting: true });
@@ -204,7 +204,7 @@ describe('the Record window phases (REQ-2)', () => {
     expect(visible('record-discard')).toBe(false);
   });
 
-  it('does not light the launcher for an export either (REQ-7/REQ-11)', () => {
+  it('does not light the launcher for an export either (REQ-the-launcher-shows-capture-state/REQ-an-export-is-named-as-an-export)', () => {
     const h = harness({ exporting: true });
     const l = createRecordWindowLauncher(h.api, () => 'wav');
     document.body.appendChild(l.el);
@@ -212,7 +212,7 @@ describe('the Record window phases (REQ-2)', () => {
     expect(l.el.classList.contains('on')).toBe(false);
   });
 
-  it('seeds the format from the Song tab default without writing back (REQ-10)', () => {
+  it('seeds the format from the Song tab default without writing back (REQ-the-record-format-is-seeded-not-owned)', () => {
     const h = harness();
     let songDefault: 'wav' | 'mp3' = 'mp3';
     const l = createRecordWindowLauncher(h.api, () => songDefault);
@@ -226,7 +226,7 @@ describe('the Record window phases (REQ-2)', () => {
   });
 });
 
-describe('closing with a take in flight (REQ-8)', () => {
+describe('closing with a take in flight (REQ-closing-mid-take-asks-first)', () => {
   const openWindow = (phase: RecorderPhase) => {
     const h = harness();
     const l = createRecordWindowLauncher(h.api, () => 'wav');

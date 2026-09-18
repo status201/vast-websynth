@@ -8,7 +8,7 @@ export interface Tab {
   id: string;
   label: string;
   content: HTMLElement;
-  /** Show a machine status LED before the label (machine-status.md REQ-3). */
+  /** Show a machine status LED before the label (machine-status.md REQ-the-tab-led-is-not-a-control). */
   indicator?: boolean;
 }
 
@@ -19,7 +19,7 @@ export interface TabOptions {
   collapsedByDefault?: () => boolean;
   /**
    * A heading for the whole row, ahead of the tabs — the shared section title
-   * (section-title.md; equalizer.md REQ-9). Without one a row of tabs says
+   * (section-title.md; equalizer.md REQ-the-eq-section-is-a-folded-tab-container). Without one a row of tabs says
    * nothing about what the section is, and beside the FX bar's heading an
    * untitled row looks unfinished. Rendered as the bar's FIRST child, which
    * matters: the fold caret carries `margin-left: auto`, so a title appended
@@ -27,7 +27,7 @@ export interface TabOptions {
    */
   title?: SectionTitleOptions;
   /**
-   * An extra class on every page shell (equalizer.md REQ-18). The shell carries
+   * An extra class on every page shell (equalizer.md REQ-the-eq-page-mirrors-the-scope-row). The shell carries
    * `padding: 10px 12px` of its own, which is right for the pattern row and
    * wrong for a panel whose content has to line up with something outside it —
    * and the shell is shared, so it cannot be changed for one consumer.
@@ -121,7 +121,7 @@ export class TabContainer {
     this.activate(initialId ?? tabs[0]?.id ?? '');
   }
 
-  /** The active tab's id (e.g. Ctrl+Z scoping — pattern-undo.md REQ-10). */
+  /** The active tab's id (e.g. Ctrl+Z scoping — pattern-undo.md REQ-ctrl-z-undoes-the-active-machine). */
   get activeId(): string {
     return this.active;
   }
@@ -129,7 +129,7 @@ export class TabContainer {
   /**
    * Is this tab's content actually on screen? Active *and* unfolded — a
    * collapsed bar hides the active panel just like another tab would. Panels
-   * with a mode that must not act off-screen gate on this (sequencer.md REQ-5).
+   * with a mode that must not act off-screen gate on this (sequencer.md REQ-step-input-arms-only-on-screen).
    */
   isVisible(id: string): boolean {
     return this.active === id && !this.el.classList.contains('collapsed');
@@ -151,7 +151,7 @@ export class TabContainer {
   }
 
   /**
-   * Expand-then-activate — what a real tab click does (machine-status.md REQ-7).
+   * Expand-then-activate — what a real tab click does (machine-status.md REQ-reveal-beats-activate).
    * External callers should prefer this over `activate`, which leaves a
    * collapsed bar collapsed and so appears to do nothing.
    */
@@ -163,7 +163,7 @@ export class TabContainer {
   /**
    * Paint a tab's status LED. No-op for tabs registered without `indicator`.
    * Also writes the state into the button's aria-label/title so it is never
-   * conveyed by colour alone (machine-status.md REQ-4).
+   * conveyed by colour alone (machine-status.md REQ-machine-state-is-not-colour-only).
    */
   setIndicator(id: string, state: MachineState): void {
     const led = this.leds.get(id);

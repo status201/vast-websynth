@@ -5,7 +5,7 @@ import dropdownStyles from '../styles/dropdown.module.css';
 import styles from '../styles/meter-picker.module.css';
 
 /**
- * The time-signature control (meter.md REQ-5).
+ * The time-signature control (meter.md REQ-meter-is-two-bus-scalars).
  *
  * One dropdown over two params. `transport.beats` and `transport.beatUnit` are
  * what the audio layer actually reads, but nobody thinks in "7 beats of an

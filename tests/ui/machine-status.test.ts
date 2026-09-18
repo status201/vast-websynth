@@ -63,7 +63,7 @@ describe('machineStatus', () => {
   });
 });
 
-// machine-status.md REQ-10 — the arp lamp. Two states, not three: the arp is not
+// machine-status.md REQ-the-arpeggiator-tab-has-a-lamp — the arp lamp. Two states, not three: the arp is not
 // an audio lane, so it has no mute, solo or chain to dim it.
 //
 // The defs must be registered: `ParamBus.set` on an *unregistered* id writes once

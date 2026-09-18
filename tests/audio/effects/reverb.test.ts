@@ -4,7 +4,7 @@ import { Reverb } from '../../../src/audio/effects/reverb';
 import { makeMockAudioContext, type MockAudioContext } from '../mock-audio-context';
 
 /**
- * The impulse-response bank (runtime-performance.md REQ-1/REQ-2). An IR is a
+ * The impulse-response bank (runtime-performance.md REQ-boot-cost-matches-the-request/REQ-immutable-artefacts-are-shared). An IR is a
  * pure function of (sampleRate, duration) and a ConvolverNode only reads its
  * buffer, so the bank is generated lazily and shared across every Reverb —
  * three chains used to render five IRs each (2.65 M samples, ~10.6 MB) up front
@@ -29,7 +29,7 @@ const generated = (ctx: MockAudioContext): number => ctx.createBuffer.mock.calls
 
 /**
  * `setSize` ducks the effect's output, swaps the IR on a 40 ms timer and ramps
- * back (effects.md REQ-10), so the buffer only lands after that window. Every
+ * back (effects.md REQ-a-reverb-size-change-ducks), so the buffer only lands after that window. Every
  * assertion on `convolver.buffer` goes through this. Note the IR *generation* is
  * still synchronous inside `setSize`, so the `generated()` counts below need no
  * timer at all — which is the point: the duck defers the swap, not the work.
@@ -108,7 +108,7 @@ describe('Reverb IR bank', () => {
     expect(buf()).toBe(longest);
   });
 
-  // performance-mode.md REQ-11: the cap shortens the tails, it does not shrink
+  // performance-mode.md REQ-weak-tier-reduces-fx-cost: the cap shortens the tails, it does not shrink
   // the bank — so `size` keeps its meaning and presets sound the same shape.
   it('a perf-tier IR cap shortens tails without collapsing the bank', () => {
     const ctx = freshCtx();
@@ -131,7 +131,7 @@ describe('Reverb IR bank', () => {
   });
 
   /**
-   * The shape a song load makes (song-mode.md REQ-17): `resetDefaults()` writes
+   * The shape a song load makes (song-mode.md REQ-applying-a-song-is-click-free): `resetDefaults()` writes
    * the default size, then `restore()` writes the song's — both in one turn,
    * inside the swap's mute window. Reported from the field: a demo asking for
    * 11% played at the 60% default, intermittently, and nudging the knob one

@@ -15,7 +15,7 @@ related:
 
 ## Context / Forces
 
-The hard UI/audio separation (architecture REQ-1) only governs *scalar params*:
+The hard UI/audio separation (architecture REQ-ui-and-audio-never-call-each-other) only governs *scalar params*:
 the UI writes them via `ParamBus.set` and the `Engine` applies them via
 `subscribe`. Everything else — transport, pattern grids, the recorder, GR meters,
 sample decoding — had no such contract. Panels were handed the **whole `Engine`**

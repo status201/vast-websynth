@@ -18,10 +18,10 @@
 //   --seconds <n>      take length in note mode                      [default 6]
 //   --velocity <0..1>  note velocity in note mode                    [default 0.9]
 //                      Needed to hear anything velocity-sensitive — `filter.velAmount`
-//                      only differs BETWEEN velocities (envelopes.md REQ-5).
+//                      only differs BETWEEN velocities (envelopes.md REQ-filter-env-follows-velocity).
 //
 // Hearing the SAMPLER needs one of two flags, because they answer two questions.
-// A *song* carries only its slots' filenames (sampler.md REQ-4) — but a *project
+// A *song* carries only its slots' filenames (sampler.md REQ-only-sample-filenames-persist) — but a *project
 // zip* carries the audio too (project-export.md), and shipped zip demos exist.
 //
 //   --project <path>   import a .websynth.zip and render a song pass. The whole
@@ -46,7 +46,7 @@
 //                      more notes than there are voices and the early keys
 //                      have already lost their voice to the late ones, so
 //                      which note stops on each release is the whole test
-//                      (voicing.md REQ-9). Default 0 = release together.
+//                      (voicing.md REQ-a-stolen-voice-leaves-the-held-list). Default 0 = release together.
 //   --set id=value     ParamBus write applied before the take (repeatable)
 //   --url <url>        drive an already-running server (skips spawning vite)
 //   --format wav|mp3   capture format                                [default wav]
@@ -59,7 +59,7 @@
 //                      and Blink disagree on AudioParam automation in ways that
 //                      are audible and that no unit test can see — the DJ filter
 //                      crackled on Firefox alone for two releases
-//                      (performance.md REQ-10). A take is written to
+//                      (performance.md REQ-the-dj-sweep-rides-detune). A take is written to
 //                      bench/<name>.<engine>.<fmt> for anything but chromium, so
 //                      the same --name renders an A/B pair instead of one file
 //                      overwriting the other. Needs the browser installed:
@@ -115,7 +115,7 @@ const opts = {
   channel: flag('channel'),
   headed: argv.includes('--headed'),
   sets: flags('set').filter(Boolean),
-  // Export options (audio-export.md REQ-2/REQ-3), --demo mode only. Both
+  // Export options (audio-export.md REQ-export-song-renders-from-the-top/REQ-the-capture-keeps-a-tail), --demo mode only. Both
   // default OFF so a plain `--demo` take stays bar-exact and comparable with
   // every take rendered before they existed.
   runs: Number(flag('runs', 1)),
@@ -140,7 +140,7 @@ if (!ENGINES[opts.browser]) {
  * Wait for a project's clips to finish landing in their slots.
  *
  * `applyProjectBundle` applies the song first and then decodes the clips
- * **sequentially** (8 x multi-MB WAVs, project-export.md REQ-8), so the song is
+ * **sequentially** (8 x multi-MB WAVs, project-export.md REQ-clip-codec-is-memory-aware), so the song is
  * live well before the sampler is. A fixed timeout either races the decodes or
  * pads every take; polling the slots settles as soon as they do and gives the
  * caller the count to report.
@@ -259,7 +259,7 @@ try {
   });
   await page.goto(url);
 
-  // Get past whichever start gate this browser gets (audio-lifecycle.md REQ-20).
+  // Get past whichever start gate this browser gets (audio-lifecycle.md REQ-the-gesture-is-required-only-when-required).
   // The modal exists only to buy a user gesture, so it is shown only where the
   // browser demands one — and Playwright launches both engines with autoplay
   // already permitted, so usually there is no modal at all. Waiting for the
@@ -290,7 +290,7 @@ try {
 
   if (opts.demo) {
     // The demo buttons live on the Song tab, and only the first few are inline —
-    // the rest sit behind "All Demos" (song-mode.md REQ-10).
+    // the rest sit behind "All Demos" (song-mode.md REQ-the-demo-row-overflows-into-a-menu).
     await page.getByTestId('tab-song').click();
     const btn = page.getByTestId(`song-demo-${opts.demo}`);
     if (await btn.count() === 0) {
@@ -312,7 +312,7 @@ try {
   if (opts.sample) {
     // Decode in the page, through the app's own AudioContext, and hand the buffer
     // to the one entry point every slot-filling path already uses (sampler.md
-    // REQ-6) — so persistence and the UI react exactly as they do for a Load.
+    // REQ-set-buffer-is-the-one-door) — so persistence and the UI react exactly as they do for a Load.
     const bytes = readFileSync(opts.sample).toString('base64');
     await page.evaluate(async (a) => {
       const synth = window.__synth;
@@ -365,7 +365,7 @@ try {
     await page.evaluate(async (f) => {
       const rec = window.__synth.engine.recorder;
       // stopManual awaits the worklet's final batch and only THEN parks the take
-      // in `review` — saveTake is a no-op until it has (audio-export.md REQ-4).
+      // in `review` — saveTake is a no-op until it has (audio-export.md REQ-capture-is-a-five-phase-machine).
       await rec.stopManual();
       return rec.saveTake(f);
     }, opts.format);
@@ -396,7 +396,7 @@ try {
     }
     await page.waitForTimeout(1000);
     // Stop parks the take in `review` and writes nothing — saving is the
-    // separate, explicit step now (audio-export.md REQ-4).
+    // separate, explicit step now (audio-export.md REQ-capture-is-a-five-phase-machine).
     await page.evaluate(async (f) => {
       const rec = window.__synth.engine.recorder;
       await rec.stopManual();

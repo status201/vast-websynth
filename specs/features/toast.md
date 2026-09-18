@@ -25,26 +25,29 @@ and have a guaranteed release signal.
 
 ## Requirements
 
-- **REQ-1** — `showToast(opts)` renders a message with an optional single
-  action button and an always-present ✕ dismiss button, in a fixed
-  bottom-center host overlaying the app.
-- **REQ-2** — Single-slot: at most one toast exists at a time. Showing a new
-  toast dismisses the previous one first (its `onDismiss` fires before the new
-  toast mounts).
-- **REQ-3** — Auto-dismiss after `durationMs` (default 8000 ms);
-  `durationMs: 0` means sticky (only manual/action/replacement dismissal).
-- **REQ-4** — The action callback fires **at most once**, then the toast
-  dismisses itself.
-- **REQ-5** — `onDismiss` listeners fire exactly once, on every exit path:
-  timeout, ✕ click, action click, programmatic `dismiss()`, or replacement.
-  This is the contract that lets consumers release closure-held state.
-- **REQ-6** — Non-modal and accessible: `role="status"` + `aria-live="polite"`,
-  never steals focus, never blocks pointer input outside its own box (the host
-  is `pointer-events: none`; the toast re-enables them).
-- **REQ-7** — Layering: above panels and floating windows, **below** the Modal
-  backdrop (z 1000) and the tour overlay (z 1100) — an alert or tour opened
-  over a live toast must cover it.
-- **REQ-8** — Stable testids: `toast-host`, `toast` (overridable via
+- **REQ-toast-renders-message-and-actions** — `showToast(opts)` renders a
+  message with an optional single action button and an always-present ✕ dismiss
+  button, in a fixed bottom-center host overlaying the app.
+- **REQ-only-one-toast-at-a-time** — Single-slot: at most one toast exists at a
+  time. Showing a new toast dismisses the previous one first (its `onDismiss`
+  fires before the new toast mounts).
+- **REQ-toast-auto-dismisses-unless-sticky** — Auto-dismiss after `durationMs`
+  (default 8000 ms); `durationMs: 0` means sticky (only
+  manual/action/replacement dismissal).
+- **REQ-toast-action-fires-once** — The action callback fires **at most once**,
+  then the toast dismisses itself.
+- **REQ-on-dismiss-fires-on-every-exit** — `onDismiss` listeners fire exactly
+  once, on every exit path: timeout, ✕ click, action click, programmatic
+  `dismiss()`, or replacement. This is the contract that lets consumers release
+  closure-held state.
+- **REQ-toast-is-non-modal-and-polite** — Non-modal and accessible:
+  `role="status"` + `aria-live="polite"`, never steals focus, never blocks
+  pointer input outside its own box (the host is `pointer-events: none`; the
+  toast re-enables them).
+- **REQ-toast-sits-below-the-modal-backdrop** — Layering: above panels and
+  floating windows, **below** the Modal backdrop (z 1000) and the tour overlay
+  (z 1100) — an alert or tour opened over a live toast must cover it.
+- **REQ-toast-testids** — Stable testids: `toast-host`, `toast` (overridable via
   `opts.testId`), `toast-action`, `toast-dismiss`.
 
 ## Technical design

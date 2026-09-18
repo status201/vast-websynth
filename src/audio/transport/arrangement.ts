@@ -20,7 +20,7 @@ export interface ChainLane {
   steps: number[]; // bank indices
   /**
    * Semitone offset per slot, **parallel to `steps`** and always the same length
-   * (arrangement.md REQ-8). `0` — the value every existing path produces — means
+   * (arrangement.md REQ-a-seq-slot-carries-a-transpose). `0` — the value every existing path produces — means
    * "as written", so this is a no-op field for every song that predates it.
    *
    * Only the **seq** lane acts on it: drums and the sampler are unpitched and
@@ -47,7 +47,7 @@ export class Arrangement {
 
   /**
    * The semitone offset of the seq lane's current slot — what `StepSequencer`
-   * adds to every note it triggers (sequencer.md REQ-16). `0` whenever the lane
+   * adds to every note it triggers (sequencer.md REQ-every-note-is-shifted-by-the-slot-transpose). `0` whenever the lane
    * is disabled or resting, so the un-chained path is untouched.
    *
    * Recomputed in `recompute()` alongside the play banks, for the same reason
@@ -64,7 +64,7 @@ export class Arrangement {
 
   // The motion lane alone also resolves its neighbouring *bars*: the motion
   // curve's bar-line segment ramps between banks, so it needs to know what
-  // played before and what plays next (motion-sequencer.md REQ-2b). The audio
+  // played before and what plays next (motion-sequencer.md REQ-cross-bank-carry). The audio
   // lanes have no such continuity, hence no neighbour fields.
   motionPrevPlayBank = 0;
   motionNextPlayBank = 0;
@@ -79,7 +79,7 @@ export class Arrangement {
   private readonly changeListeners = new Set<() => void>();
 
   /**
-   * Bar length in 16th ticks (meter.md REQ-6). `DEFAULT_BAR_TICKS` is 4/4, so an
+   * Bar length in 16th ticks (meter.md REQ-bar-ticks-is-the-arrangement-bar-line). `DEFAULT_BAR_TICKS` is 4/4, so an
    * Arrangement nobody has told about the meter behaves exactly as it always
    * did. The Engine pushes changes here from `transport.beats`/`beatUnit`.
    */
@@ -87,11 +87,11 @@ export class Arrangement {
 
   constructor(private readonly patterns: PatternStore, private readonly clock: TickSubscriber) {
     // Seek to the bar implied by the start step (0 for a plain start, nonzero
-    // for a clock-sync Song-Position join — arrangement.md REQ-4). Reading
+    // for a clock-sync Song-Position join — arrangement.md REQ-start-seeks-every-lane). Reading
     // clock.step here is safe: Clock.start seeds _step before firing onStart.
     clock.onStart(() => this.seekTo(this.clock.step));
 
-    // A manual playhead move needs the identical re-base (arrangement.md REQ-7).
+    // A manual playhead move needs the identical re-base (arrangement.md REQ-a-mid-play-seek-re-seeks-every-lane).
     // Lane positions are counted *relatively* — +1 per bar line — so without
     // this a jump leaves every chain off by (bars jumped - 1) and keeps playing
     // the wrong banks for the rest of the song.
@@ -125,7 +125,7 @@ export class Arrangement {
 
   /**
    * Re-base every lane onto the bar `step` implies. Shared by `clock.onStart`
-   * and `clock.onSeek` (arrangement.md REQ-4/REQ-7) — the two moments the
+   * and `clock.onSeek` (arrangement.md REQ-start-seeks-every-lane/REQ-a-mid-play-seek-re-seeks-every-lane) — the two moments the
    * absolute step number changes without a bar line having elapsed.
    */
   seekTo(step: number): void {
@@ -167,19 +167,19 @@ export class Arrangement {
   get motionChainPos(): number { return this.motionPos; }
 
   /**
-   * @param transpose per-slot semitone offsets (arrangement.md REQ-8). Omitted
+   * @param transpose per-slot semitone offsets (arrangement.md REQ-a-seq-slot-carries-a-transpose). Omitted
    * by every caller that does not arrange pitch — including the whole pre-v7
    * corpus — in which case the lane keeps the offsets it already had, resized to
    * the new chain. That is what lets `◀ ▶ ✕` and the bank-add buttons keep
    * calling this with two arguments and still do the right thing.
    */
   /**
-   * Set the bar length in 16th ticks (meter.md REQ-6). Idempotent, so the
+   * Set the bar length in 16th ticks (meter.md REQ-bar-ticks-is-the-arrangement-bar-line). Idempotent, so the
    * Engine can push it on any param change.
    *
    * A meter change moves every bar line, which makes the lane positions counted
    * against the old grid stale — so it re-bases through the same `seekTo` a
-   * playhead jump uses (arrangement.md REQ-7). Without that, switching to 7/8
+   * playhead jump uses (arrangement.md REQ-a-mid-play-seek-re-seeks-every-lane). Without that, switching to 7/8
    * mid-play leaves each chain on whatever slot the 4/4 grid had reached and the
    * next boundary double-advances.
    */
@@ -240,7 +240,7 @@ export class Arrangement {
     this.seqPlayBank = seq.playBank;
     this.seqResting = seq.resting;
     // A disabled lane is live editing, not an arrangement, and a rest bar plays
-    // nothing — neither has a slot whose transpose could mean anything (REQ-8).
+    // nothing — neither has a slot whose transpose could mean anything (REQ-a-seq-slot-carries-a-transpose).
     this.seqTranspose = this.seq.enabled && !seq.resting
       ? this.seq.transpose[this.seqPos % (this.seq.transpose.length || 1)] ?? 0
       : 0;
@@ -268,7 +268,7 @@ export class Arrangement {
 
 /**
  * A transpose array resized to exactly `len` — padded with 0, truncated when the
- * chain shrinks (arrangement.md REQ-8).
+ * chain shrinks (arrangement.md REQ-a-seq-slot-carries-a-transpose).
  *
  * The invariant this exists to hold: `transpose.length === steps.length`, always.
  * Two parallel arrays are only safe while nothing can desynchronize them, so

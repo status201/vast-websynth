@@ -126,7 +126,7 @@ describe('forEachActiveHit', () => {
   });
 });
 
-describe('microOffset (step-settings.md REQ-6/REQ-7/REQ-9)', () => {
+describe('microOffset (step-settings.md REQ-a-step-carries-a-micro-offset/REQ-micro-range-is-half-a-cell/REQ-an-early-offset-is-capped-in-seconds)', () => {
   /** A 16th at 125 BPM: 0.12 s. Half of it is exactly MAX_EARLY_S, so the full
    *  micro range is representable here and the cap never bites. */
   const CELL_125 = 0.12;
@@ -149,12 +149,12 @@ describe('microOffset (step-settings.md REQ-6/REQ-7/REQ-9)', () => {
     expect(slow).toBeCloseTo(microOffset({ micro: 3 }, CELL_125) * 2, 12);
   });
 
-  it('reaches exactly half a cell at the range ends (REQ-7)', () => {
+  it('reaches exactly half a cell at the range ends (REQ-tone-drive-and-pan-are-a-channel)', () => {
     expect(microOffset({ micro: MICRO_MAX }, CELL_125)).toBeCloseTo(CELL_125 / 2, 12);
     expect(microOffset({ micro: -MICRO_MAX }, CELL_125)).toBeCloseTo(-CELL_125 / 2, 12);
   });
 
-  it('lets neighbouring steps MEET but never CROSS — the ordering invariant (REQ-7)', () => {
+  it('lets neighbouring steps MEET but never CROSS — the ordering invariant (REQ-tone-drive-and-pan-are-a-channel)', () => {
     // Step n pushed fully late vs. step n+1 pulled fully early: the worst case.
     const nLate = 0 + microOffset({ micro: MICRO_MAX }, CELL_125);
     const nextEarly = CELL_125 + microOffset({ micro: -MICRO_MAX }, CELL_125);
@@ -171,7 +171,7 @@ describe('microOffset (step-settings.md REQ-6/REQ-7/REQ-9)', () => {
     }
   });
 
-  it('caps an EARLY offset at MAX_EARLY_S so nothing is scheduled into the past (REQ-9)', () => {
+  it('caps an EARLY offset at MAX_EARLY_S so nothing is scheduled into the past (REQ-per-hit-nodes-are-disposable)', () => {
     const slowCell = 0.75; // a 16th at 20 BPM — half of it is 375 ms
     expect(microOffset({ micro: -MICRO_MAX }, slowCell)).toBe(-MAX_EARLY_S);
     // A shallow nudge at the same tempo is still exact — the cap is a ceiling,
@@ -179,7 +179,7 @@ describe('microOffset (step-settings.md REQ-6/REQ-7/REQ-9)', () => {
     expect(microOffset({ micro: -1 }, slowCell)).toBeCloseTo(-slowCell / MICRO_UNITS, 12);
   });
 
-  it('never caps a LATE offset — a later time is always schedulable (REQ-9)', () => {
+  it('never caps a LATE offset — a later time is always schedulable (REQ-per-hit-nodes-are-disposable)', () => {
     const slowCell = 0.75;
     expect(microOffset({ micro: MICRO_MAX }, slowCell)).toBeCloseTo(slowCell / 2, 12);
     expect(microOffset({ micro: MICRO_MAX }, slowCell)).toBeGreaterThan(MAX_EARLY_S);
@@ -197,7 +197,7 @@ describe('forEachActiveHit + micro', () => {
     return out;
   };
 
-  it('offsets each lane independently — the point of PER-STEP micro (REQ-8)', () => {
+  it('offsets each lane independently — the point of PER-STEP micro (REQ-a-selected-drum-tuning-strip)', () => {
     const [straight, late, early] = times([[cell()], [cell({ micro: 6 })], [cell({ micro: -6 })]]);
     expect(straight).toBe(1);
     expect(late).toBeCloseTo(1 + 0.06, 12);

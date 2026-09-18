@@ -1,4 +1,5 @@
-/* The mod matrix window (specs/features/mod-matrix.md REQ-1..REQ-9).
+/* The mod matrix window — mod-matrix.md REQ-one-gain-per-route-rewired-while-silent
+   through mod-matrix.md REQ-route-depth-is-bipolar.
    A table of routes: source -> destination -> depth, one row each. */
 
 .matrix {
@@ -34,7 +35,7 @@
 }
 
 /* An unassigned route fades its cells — never the row itself, or its own pickers
-   would become unreachable (motion-sequencer.md REQ-16). The source picker is
+   would become unreachable (motion-sequencer.md REQ-two-lanes-below-the-xy-lane). The source picker is
    deliberately left at full strength: it is the one control you need to click. */
 .idle > *:not(:first-child) {
   opacity: 0.45;

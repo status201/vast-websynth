@@ -18,7 +18,7 @@ related:
 Every scalar parameter (oscillator mix, filter cutoff, FX amounts, …) needs a
 single home so that the UI and the audio graph agree on its value, presets/songs
 can snapshot it, and it can be clamped to a valid range. The defining constraint
-is the hard **UI/audio separation** (`architecture.md` REQ-1): a knob must not
+is the hard **UI/audio separation** (`architecture.md` REQ-ui-and-audio-never-call-each-other): a knob must not
 call into the `Engine`, and the `Engine` must not read the DOM. We also commit to
 **zero runtime dependencies** (see [ADR-003](adr-003-no-runtime-dependencies.md)),
 so a generic state library is off the table on principle as well as on need.

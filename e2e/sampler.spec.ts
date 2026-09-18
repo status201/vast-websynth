@@ -50,7 +50,7 @@ test.describe('sampler', () => {
     await expect
       .poll(
         () =>
-          // Per-tab key since v8 (session-autosave.md REQ-12) — scan, don't name.
+          // Per-tab key since v8 (session-autosave.md REQ-each-tab-autosaves-to-its-own-key) — scan, don't name.
           page.evaluate(
             () => Object.keys(localStorage).find((k) => k.startsWith('websynth.session.')) ?? null,
           ),
@@ -72,7 +72,7 @@ test.describe('sampler', () => {
   });
 
   /**
-   * sampler.md REQ-9 — the Clear ▾ row item is labelled with the FILENAME, so it
+   * sampler.md REQ-clear-ejects-the-slot — the Clear ▾ row item is labelled with the FILENAME, so it
    * removes the file. Before v5 it cleared steps only, which left no gesture at
    * all that could empty a slot: the name stayed on screen and kept riding along
    * in every saved song. This drives the real panel, so it also pins that
@@ -102,7 +102,7 @@ test.describe('sampler', () => {
       (window as any).__synth.patterns.sampleNames[0])).toBeNull();
 
     // Instantly reversible, which is what buys the no-confirmation rule
-    // (step-grid-editing.md REQ-6): name and audio both return.
+    // (step-grid-editing.md REQ-clear-menu-clears-in-bulk): name and audio both return.
     await page.getByTestId('clear-toast-sampler').getByTestId('toast-action').click();
     await expect(page.getByTestId('sampler-name-0')).toHaveText('beep.wav');
     await expect(page.getByTestId('sampler-name-0')).not.toHaveClass(/needs-reload/);
@@ -111,7 +111,7 @@ test.describe('sampler', () => {
 });
 
 /**
- * sampler.md REQ-12/REQ-13 — the selected-slot strip.
+ * sampler.md REQ-each-slot-has-a-channel/REQ-a-hit-plays-a-window-of-the-buffer — the selected-slot strip.
  *
  * The strip is one shared row bound to the grid cursor's slot, so the thing that
  * can break is the binding, not the knobs: point it at slot 3 and every control
@@ -184,7 +184,7 @@ test.describe('the selected-slot strip', () => {
     expect(values).toEqual({ pitch: 0, vol: 1, rev: 0, end: 1, poly: 0, choke: 0 });
   });
 
-  test('carries the choke group and mono switch too (REQ-14)', async ({ page }) => {
+  test('carries the choke group and mono switch too (REQ-a-slot-can-cut-another-slot)', async ({ page }) => {
     await gotoAndStart(page);
     await page.getByTestId('tab-sampler').click();
 
@@ -200,7 +200,7 @@ test.describe('the selected-slot strip', () => {
 });
 
 /**
- * onboarding.md REQ-25 — the slot strip's info badges.
+ * onboarding.md REQ-the-sampler-strip-carries-five-badges — the slot strip's info badges.
  *
  * The regression these exist for is invisible in a unit test: a `Knob` binds its
  * paramId at construction, so the strip rebuilds every control when the cursor
@@ -213,7 +213,7 @@ test.describe('the slot strip info badges', () => {
   const TOPICS = ['sampler.pitch', 'sampler.window', 'sampler.env', 'sampler.tone', 'sampler.choke'];
 
   /** A badge below the fold is pinned where nothing can click it, so `position()`
-   *  hides it (onboarding.md REQ-5b). The strip sits low on the page — scroll it
+   *  hides it (onboarding.md REQ-a-badge-shows-only-where-reachable). The strip sits low on the page — scroll it
    *  into view and let the scroll listener reflow before asserting. */
   const showStrip = async (page: Page): Promise<void> => {
     await page.getByTestId('sampler-slot-reset').scrollIntoViewIfNeeded();
@@ -265,7 +265,7 @@ test.describe('the slot strip info badges', () => {
     await showStrip(page);
     await expect(page.getByTestId('info-badge-sampler.tone')).toBeVisible();
 
-    // A hidden anchor measures 0x0 and its badge hides (onboarding.md REQ-5b);
+    // A hidden anchor measures 0x0 and its badge hides (onboarding.md REQ-a-badge-shows-only-where-reachable);
     // the reflow observer is what brings it back.
     await page.getByTestId('tab-drums').click();
     await expect(page.getByTestId('info-badge-sampler.tone')).toBeHidden();

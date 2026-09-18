@@ -17,7 +17,7 @@ const recorderStub = {
   input: { connect: vi.fn(), disconnect: vi.fn() },
   start: vi.fn(),
   // Async like the real node: it awaits the worklet's final batch before the
-  // take is complete (audio-export.md REQ-6b).
+  // take is complete (audio-export.md REQ-chunks-are-batched-then-flushed).
   stop: vi.fn(async () => ({
     left: new Float32Array(4), right: new Float32Array(4), sampleRate: 44100,
   })),
@@ -164,7 +164,7 @@ describe('a live mic session', () => {
 
     for (const t of tracks) expect(t.stop).toHaveBeenCalledTimes(1);
     expect(src.disconnect).toHaveBeenCalled();
-    // REQ-6: the session made this recorder, so the session releases it. Without
+    // REQ-the-recorder-node-is-released-with-the-session: the session made this recorder, so the session releases it. Without
     // this, every open of the modal strands a worklet node and its processor.
     expect(recorderStub.dispose).toHaveBeenCalledTimes(1);
   });

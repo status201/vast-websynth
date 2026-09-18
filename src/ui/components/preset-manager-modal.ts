@@ -18,7 +18,7 @@ import styles from '../styles/preset-manager.module.css';
 import { plural } from '../../utils/format';
 
 /**
- * The preset manager — `specs/features/presets.md` REQ-9/REQ-10. One door for
+ * The preset manager — `specs/features/presets.md` REQ-one-door-for-saving/REQ-preset-import-is-a-two-step-wizard. One door for
  * everything you can do with a sound, rather than four sibling buttons in an
  * already-crowded header (ADR-014 law 1).
  *
@@ -34,7 +34,7 @@ export interface PresetManagerOptions {
   onPresetsChanged: () => void;
   /**
    * Open straight on the import review step with an already-parsed payload —
-   * what the paste door hands over (paste-import.md REQ-7). A failed parse
+   * what the paste door hands over (paste-import.md REQ-paste-confirm-routes-by-kind). A failed parse
    * lands on the home step showing its reason, exactly like a bad file.
    */
   initialImport?: PresetParse;
@@ -121,7 +121,7 @@ export function openPresetManagerModal(opts: PresetManagerOptions): void {
   rows.append(saveRow, exportPresetRow, exportBankRow, importRow);
   home.appendChild(rows);
 
-  // Bank scope — which presets the bank export includes (REQ-8).
+  // Bank scope — which presets the bank export includes (REQ-modified-is-computed-not-tracked).
   let scope: BankScope = 'modified';
   const scopeRow = document.createElement('div');
   scopeRow.className = styles.scopeRow!;
@@ -204,7 +204,7 @@ export function openPresetManagerModal(opts: PresetManagerOptions): void {
 
   exportPresetRow.addEventListener('click', () => {
     // The LIVE sound, not a stored slot: Export and Save must never disagree
-    // about what "this preset" means (REQ-9).
+    // about what "this preset" means (REQ-one-door-for-saving).
     const name = opts.session.label;
     download(presetFilename(name), buildPresetFile(name, Presets.capture(opts.bus)));
   });
@@ -223,7 +223,7 @@ export function openPresetManagerModal(opts: PresetManagerOptions): void {
       fileInput.value = '';
       if (!f) return;
       // With the bus the registry checks run too — as warnings, so a preset from
-      // a newer build still imports (preset-authoring.md REQ-8).
+      // a newer build still imports (preset-authoring.md REQ-semantic-severity-is-the-callers-choice).
       const parsed = parsePresetPayload(await f.text(), opts.bus);
       if (!parsed.ok) {
         showErrors(parsed.errors, f.name);
@@ -277,7 +277,7 @@ export function openPresetManagerModal(opts: PresetManagerOptions): void {
   policyRow.appendChild(policySel);
   review.appendChild(policyRow);
 
-  // ---- the problem strip (REQ-16) ----
+  // ---- the problem strip (REQ-the-preset-wizard-reports-every-problem) ----
   // A count line, every message in a scroll box built from the review list's
   // metrics, and a Copy control. It used to be one <div> holding errors[0].
   const errorBlock = document.createElement('div');
@@ -300,14 +300,14 @@ export function openPresetManagerModal(opts: PresetManagerOptions): void {
     label: COPY_LABEL,
     className: switchStyles.root!,
     testId: 'preset-import-copy',
-    // Built from the message array, not read back off the rows (REQ-16).
+    // Built from the message array, not read back off the rows (REQ-the-preset-wizard-reports-every-problem).
     onClick: () => flashCopied(copyErrors, COPY_LABEL, copyText(errorReport)),
   });
   errorActions.appendChild(copyErrors);
   errorBlock.appendChild(errorActions);
   home.insertBefore(errorBlock, homeActions);
 
-  // ---- the warning block (REQ-16) ----
+  // ---- the warning block (REQ-the-preset-wizard-reports-every-problem) ----
   // On the review step, beside the rows the user is deciding about. A warning
   // says what will not survive the load, so it never blocks Import.
   const warnBlock = document.createElement('div');
@@ -386,7 +386,7 @@ export function openPresetManagerModal(opts: PresetManagerOptions): void {
       ? 'Nothing to import'
       : `Import ${plural(c.writes, 'preset')}`;
 
-    // What the file gets wrong but can still be loaded with (REQ-16). Rendered
+    // What the file gets wrong but can still be loaded with (REQ-the-preset-wizard-reports-every-problem). Rendered
     // here, next to the decision, and never touching confirmBtn.disabled.
     const w = incomingWarnings;
     warnBlock.style.display = w.length === 0 ? 'none' : '';
@@ -409,7 +409,7 @@ export function openPresetManagerModal(opts: PresetManagerOptions): void {
   }
 
   /**
-   * Report a refused file — **every** message it produced (REQ-16). This strip is
+   * Report a refused file — **every** message it produced (REQ-the-preset-wizard-reports-every-problem). This strip is
    * the only place they are ever shown: the paste door raises no dialog of its
    * own, so its failures land here too.
    */
@@ -451,7 +451,7 @@ export function openPresetManagerModal(opts: PresetManagerOptions): void {
       incomingWarnings = opts.initialImport.warnings ?? [];
       showReview();
     } else {
-      // The paste door shows no errors of its own (paste-import.md REQ-7), so
+      // The paste door shows no errors of its own (paste-import.md REQ-paste-confirm-routes-by-kind), so
       // this strip is the only place a bad pasted payload is ever explained.
       showErrors(opts.initialImport.errors, 'pasted text');
     }

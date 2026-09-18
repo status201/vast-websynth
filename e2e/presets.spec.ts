@@ -22,7 +22,7 @@ test.describe('presets', () => {
   test('saving a preset persists to localStorage and the dropdown', async ({ page }) => {
     await gotoAndStart(page);
     // The header button opens the manager; Save names the preset via the custom
-    // prompt dialog (no native prompt) — presets.md REQ-9.
+    // prompt dialog (no native prompt) — presets.md REQ-one-door-for-saving.
     await page.getByTestId('preset-save').click();
     await page.getByTestId('preset-mgr-save').click();
     await page.getByTestId('dialog-input').fill('e2e-preset');
@@ -58,7 +58,8 @@ test.describe('presets', () => {
 });
 
 /**
- * Preset / bank files — specs/features/presets.md REQ-7..REQ-12. Exercises the
+ * Preset / bank files — presets.md REQ-two-preset-file-shapes through
+ * presets.md REQ-importing-never-changes-the-live-sound. Exercises the
  * real download + file-picker path; the import wizard's arithmetic itself is
  * unit-tested in tests/state/preset-file.test.ts.
  */
@@ -101,7 +102,7 @@ test.describe('preset files', () => {
     await expect(page.getByTestId('preset-manager')).toContainText('1 preset: mine-1');
   });
 
-  // presets.md REQ-16. The strip rendered errors[0] and dropped the rest, and it
+  // presets.md REQ-the-preset-wizard-reports-every-problem. The strip rendered errors[0] and dropped the rest, and it
   // is the only place they are ever shown — so a bank with five bad presets cost
   // the user one round trip per problem.
   test('a refused file lists every problem and copies them all', async ({ page, context }) => {
@@ -151,7 +152,7 @@ test.describe('preset files', () => {
       })),
     });
 
-    // preset-authoring.md REQ-8: the bus clamps, so the file still imports.
+    // preset-authoring.md REQ-semantic-severity-is-the-callers-choice: the bus clamps, so the file still imports.
     await expect(page.getByTestId('preset-import-errors')).toBeHidden();
     await expect(page.getByTestId('preset-import-review')).toBeVisible();
     await expect(page.getByTestId('preset-import-warnings')).toContainText('filter.cutoff');
@@ -190,18 +191,18 @@ test.describe('preset files', () => {
     await page.getByTestId('preset-import-confirm').click();
 
     expect(await page.evaluate(() => localStorage.getItem('websynth.preset.e2e-new'))).not.toBeNull();
-    // The rename kept the factory "lead" untouched (REQ-10).
+    // The rename kept the factory "lead" untouched (REQ-preset-import-is-a-two-step-wizard).
     const lead = await page.evaluate(() => localStorage.getItem('websynth.preset.lead'));
     expect(JSON.parse(lead!)['filter.cutoff']).not.toBe(21);
     const renamed = await page.evaluate(() => localStorage.getItem('websynth.preset.lead 2'));
     expect(JSON.parse(renamed!)['filter.cutoff']).toBe(21);
-    // The live patch is untouched (REQ-12).
+    // The live patch is untouched (REQ-importing-never-changes-the-live-sound).
     expect(await busGet(page, 'filter.cutoff')).toBe(before);
     await expect(page.getByTestId('preset-select')).toContainText('basic');
   });
 
   /**
-   * presets.md REQ-13 — auditioning a preset against a demo used to destroy the
+   * presets.md REQ-a-songs-sound-is-a-selectable-entry — auditioning a preset against a demo used to destroy the
    * demo's sound: its name labelled the selector but was never an option, so the
    * only way back was reloading the demo and losing every other edit.
    *
@@ -240,9 +241,9 @@ test.describe('preset files', () => {
   });
 
   /**
-   * presets.md REQ-14 (regression) — `setOptions` falls back to the first option
+   * presets.md REQ-rebuilding-options-never-relabels (regression) — `setOptions` falls back to the first option
    * when the current value is absent, so an import (which changes no sound at
-   * all, REQ-12) silently relabelled the header from the song's name to "acid".
+   * all, REQ-importing-never-changes-the-live-sound) silently relabelled the header from the song's name to "acid".
    */
   test('importing presets does not relabel the selector', async ({ page }) => {
     await gotoAndStart(page);

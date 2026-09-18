@@ -5,15 +5,15 @@
  * unit-tests under vitest+jsdom exactly like `buffer-dsp.ts`. It is a sibling of
  * `scratch.ts` rather than part of it because the *model* is shared with the
  * editor while the *reader* is not: the graph needs the position map on every
- * pointer move (scratch.md REQ-17) and must never pull the resampler in to get it.
+ * pointer move (scratch.md REQ-the-preview-lane-remaps-cached-peaks) and must never pull the resampler in to get it.
  *
- * The user draws a **rate**, not a position (REQ-2). A turntablist thinks in
+ * The user draws a **rate**, not a position (REQ-a-curve-carries-rate-not-position). A turntablist thinks in
  * strokes — push, pull, push long — and rate is what makes the vertical axis mean
  * pitch, so dragging a point up is audibly "faster and higher". The needle's
  * position is the integral of that rate, and this module owns that integral.
  *
  * **The integral is closed-form per segment, never accumulated per sample**
- * (REQ-3). A ramp integrates to `(v0+v1)/2 · dt` and a hold to `v0 · dt`; both
+ * (REQ-the-integral-is-closed-form-per-segment). A ramp integrates to `(v0+v1)/2 · dt` and a hold to `v0 · dt`; both
  * are exact. The obvious shape — walk the output adding `v` each frame — drifts,
  * and drift here is a clip that misses the bar it was drawn against, which is the
  * one failure this feature exists to avoid.
@@ -57,7 +57,7 @@ export const DEFAULT_SCRATCH_STEPS = 16;
 /**
  * Non-finite is rejected *before* the clamp, not by it: the app-wide
  * `max(min, min(max, v))` idiom returns `NaN` for `NaN`
- * (untrusted-input.md REQ-6), so a bare clamp would let it straight through into
+ * (untrusted-input.md REQ-no-subscriber-can-wedge-the-clock), so a bare clamp would let it straight through into
  * a length calculation.
  */
 function clampNum(v: number, min: number, max: number, fallback: number): number {
@@ -67,7 +67,7 @@ function clampNum(v: number, min: number, max: number, fallback: number): number
 
 /**
  * Put a curve in the shape every other function here assumes: finite, ordered,
- * bounded, and starting at `t = 0` (REQ-13/REQ-14). Total and idempotent — hand
+ * bounded, and starting at `t = 0` (REQ-every-scratch-entry-point-is-total/REQ-scratch-bounds-live-in-limits). Total and idempotent — hand
  * it anything and a usable curve comes back.
  */
 export function normalizeCurve(c: ScratchCurve): ScratchCurve {
@@ -160,7 +160,7 @@ export function scratchPlan(c: ScratchCurve): ScratchPlan {
 /**
  * Which segment holds `t`. `hint` lets a forward walk start where it left off, so
  * the renderer pays O(1) per frame while a one-off lookup pays O(n) — the *same*
- * arithmetic either way, which is what keeps REQ-4 honest.
+ * arithmetic either way, which is what keeps REQ-position-at-is-the-only-description honest.
  */
 export function segmentAt(plan: ScratchPlan, t: number, hint = 0): number {
   if (plan.n === 0) return -1;
@@ -181,7 +181,7 @@ export function rateIn(plan: ScratchPlan, seg: number, t: number): number {
 }
 
 /**
- * Position inside a known segment — the closed form of REQ-3.
+ * Position inside a known segment — the closed form of REQ-the-integral-is-closed-form-per-segment.
  *
  * A ramp is `v0·dt' + (v1−v0)·dt'²/(2·dt)`: the integral of a straight line, not
  * a sum of samples off one. The quadratic term is the whole reason this is exact.
@@ -207,7 +207,7 @@ export function cutIn(plan: ScratchPlan, seg: number): boolean {
 /*
  * The convenience wrappers. Each builds a plan and calls the same three functions
  * the renderer calls, so there is exactly one description of where the needle is
- * (REQ-4) — what the editor draws cannot drift from what the reader plays.
+ * (REQ-position-at-is-the-only-description) — what the editor draws cannot drift from what the reader plays.
  */
 
 export function rateAt(c: ScratchCurve, t: number): number {
@@ -253,7 +253,7 @@ export function curveExtent(c: ScratchCurve): { min: number; max: number } {
 }
 
 /**
- * Where to drop the needle so the gesture reads from inside the sample (REQ-20).
+ * Where to drop the needle so the gesture reads from inside the sample (REQ-the-cue-auto-places-from-the-excursion).
  *
  * A preset that pulls backwards first would otherwise start off the front of the
  * record and play its opening stroke as silence. The cue is pushed just far enough
@@ -272,14 +272,14 @@ export function autoCue(c: ScratchCurve, srcFrames: number, outFrames: number): 
 }
 
 /**
- * The preview lane (REQ-17): the source's peak envelope resampled *through* the
+ * The preview lane (REQ-the-preview-lane-remaps-cached-peaks): the source's peak envelope resampled *through* the
  * position map, so the drawing shows what the reader will produce.
  *
  * This is index arithmetic over an array `computePeaks` already built, not an
  * audio render — O(cols) with no allocation per pointer move, which is what lets
  * the preview follow a drag. A column whose needle is off the record, or whose
  * fader is cut, is drawn as silence for the same reason the reader outputs
- * silence there (REQ-9/REQ-10): the preview would otherwise promise audio the
+ * silence there (REQ-a-read-outside-the-source-is-silence/REQ-a-segment-may-be-cut): the preview would otherwise promise audio the
  * apply does not deliver.
  *
  * `peaks` is `buffer-dsp`'s interleaved `[min0,max0,min1,max1,…]`.
@@ -333,7 +333,7 @@ export function warpPeaks(
 
 /* ------------------------------------------------------------------ presets */
 /*
- * REQ-19. Every preset is written on a NORMALISED time axis, so one definition
+ * REQ-scratch-presets-are-pure-generators. Every preset is written on a NORMALISED time axis, so one definition
  * plays at any length: choose 8 sixteenths instead of 16 and the same gesture
  * happens twice as fast, which is what a shorter scratch means.
  *
@@ -425,7 +425,7 @@ export function scratchPreset(name: ScratchPresetName, steps: number): ScratchCu
 }
 
 /**
- * Roll a new scratch (REQ-19).
+ * Roll a new scratch (REQ-scratch-presets-are-pure-generators).
  *
  * Strokes land on an eighth or sixteenth grid and alternate direction, because a
  * scratch that does not come back is a pitch slide; rates are drawn from a small

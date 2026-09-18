@@ -2,7 +2,7 @@
 // of help copy both read. Everything here is reachable only through `index.ts`'s
 // `import()`, so this module is the boundary of the lazy chunk — a static import
 // of it from anywhere else would put all of it back on the boot path
-// (runtime-performance.md REQ-1).
+// (runtime-performance.md REQ-boot-cost-matches-the-request).
 //
 // The facade owns the parts that must answer synchronously (the first-visit flag,
 // the badge listeners); this owns the parts that need the code. `onBadgeChange`

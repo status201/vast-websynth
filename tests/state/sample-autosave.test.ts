@@ -48,7 +48,7 @@ describe('SampleAutosave', () => {
   beforeEach(() => { vi.useFakeTimers(); });
   afterEach(() => { vi.useRealTimers(); });
 
-  it('debounces a filled slot into one WAV write (REQ-1/REQ-2)', async () => {
+  it('debounces a filled slot into one WAV write (REQ-clips-persist-in-indexeddb/REQ-clip-writes-are-debounced-through-one-hook)', async () => {
     const { kv, rows, calls } = makeKv();
     const sampler = makeSampler();
     const store = new SampleAutosave(sampler, kv, { debounceMs: 800 });
@@ -68,7 +68,7 @@ describe('SampleAutosave', () => {
     expect(new TextDecoder().decode(rec.data.subarray(8, 12))).toBe('WAVE');
   });
 
-  it('never re-encodes an unchanged buffer (REQ-3)', async () => {
+  it('never re-encodes an unchanged buffer (REQ-a-write-pass-reconciles-every-slot)', async () => {
     const { kv, calls } = makeKv();
     const sampler = makeSampler();
     const store = new SampleAutosave(sampler, kv, { debounceMs: 10 });
@@ -86,7 +86,7 @@ describe('SampleAutosave', () => {
     expect(calls.write).toBe(2); // slot 3 only — slot 0 was skipped
   });
 
-  it('deletes a cleared slot (REQ-3)', async () => {
+  it('deletes a cleared slot (REQ-a-write-pass-reconciles-every-slot)', async () => {
     const { kv, rows, calls } = makeKv();
     const sampler = makeSampler();
     const store = new SampleAutosave(sampler, kv, { debounceMs: 10 });
@@ -121,7 +121,7 @@ describe('SampleAutosave', () => {
     expect(calls.write).toBe(1); // slot 2 only
   });
 
-  it('reports count and bytes for the Debug panel (REQ-12)', async () => {
+  it('reports count and bytes for the Debug panel (REQ-debug-shows-the-clip-store-size)', async () => {
     const { kv, rows } = makeKv();
     const sampler = makeSampler();
     const store = new SampleAutosave(sampler, kv, { debounceMs: 10 });
@@ -137,7 +137,7 @@ describe('SampleAutosave', () => {
     expect(store.stats()).toEqual({ count: 2, bytes: expected });
   });
 
-  it('is a silent no-op when storage fails (REQ-10)', async () => {
+  it('is a silent no-op when storage fails (REQ-every-clip-storage-failure-is-survivable)', async () => {
     const sampler = makeSampler();
     const store = new SampleAutosave(sampler, makeFailingKv(), { debounceMs: 10 });
     store.attach();

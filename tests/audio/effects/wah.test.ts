@@ -4,7 +4,7 @@ import { Wah, makeupFor } from '../../../src/audio/effects/wah';
 import { makeMockAudioContext, type MockAudioContext } from '../mock-audio-context';
 
 /**
- * effects.md REQ-11 (v9): the wah sweeps its bandpass in **cents**, not Hz.
+ * effects.md REQ-the-wah-lfo-sweeps-in-cents (v9): the wah sweeps its bandpass in **cents**, not Hz.
  *
  * The v1 mapping modulated `bp.frequency` by `depth * 1500` linear Hz around a
  * 622.25 Hz centre, so from depth 0.415 up the LFO trough drove the computed
@@ -20,9 +20,9 @@ import { makeMockAudioContext, type MockAudioContext } from '../mock-audio-conte
  * `frequency` is a construction-time constant. `frequency * 2^(detune/1200)`
  * cannot reach zero however deep the sweep goes.
  */
-describe('Wah sweeps in cents (effects.md REQ-11)', () => {
+describe('Wah sweeps in cents (effects.md REQ-the-wah-lfo-sweeps-in-cents)', () => {
   const CENTER_HZ = 440 * Math.pow(2, (75 - 69) / 12); // midiToHz(75) = 622.25
-  /** The mapping REQ-11 specifies, restated so the test fails if it drifts. */
+  /** The mapping REQ-the-wah-lfo-sweeps-in-cents specifies, restated so the test fails if it drifts. */
   const cents = (d: number) => 1200 * Math.log2(1 + (d * 1500) / CENTER_HZ);
 
   function build() {
@@ -100,13 +100,13 @@ describe('Wah sweeps in cents (effects.md REQ-11)', () => {
 });
 
 /**
- * effects.md REQ-12 (v10): toggling an effect must not step the level. The wah
+ * effects.md REQ-toggling-an-effect-must-not-step-the-level (v10): toggling an effect must not step the level. The wah
  * is the only insert with no `setMix`, so enabling it replaces the whole signal
  * with a Q ~ 4 bandpass — measured at -13 to -15.5 dB going in and +19 dB coming
  * back out, in 10-20 ms. Continuous samples, but plainly a click. The bandpass
  * now carries makeup for its own insertion loss.
  */
-describe('Wah makeup gain (effects.md REQ-12)', () => {
+describe('Wah makeup gain (effects.md REQ-toggling-an-effect-must-not-step-the-level)', () => {
   function build() {
     const ctx = makeMockAudioContext(48000);
     const wah = new Wah(ctx as unknown as AudioContext);
@@ -128,7 +128,7 @@ describe('Wah makeup gain (effects.md REQ-12)', () => {
     expect(bp.connect).toHaveBeenCalledWith(makeup);
   });
 
-  it('tracks the Q knob, smoothed like any other control (REQ-2b)', () => {
+  it('tracks the Q knob, smoothed like any other control (REQ-an-effects-own-controls-ramp)', () => {
     const { wah, makeup } = build();
     wah.setQ(9);
     const call = makeup.gain.setTargetAtTime.mock.calls.at(-1)!;

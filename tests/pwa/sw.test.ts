@@ -50,7 +50,7 @@ const keyOf = (req: unknown): string => {
 /**
  * A stored entry flagged `vary: true` stands for a response carrying `Vary:
  * Origin` that was saved by a request without that header — the real cache then
- * misses unless the lookup passes `ignoreVary` (play-offline.md REQ-11).
+ * misses unless the lookup passes `ignoreVary` (play-offline.md REQ-cache-lookups-ignore-vary).
  */
 const hitOf = (entry: unknown, opts?: { ignoreVary?: boolean }): unknown =>
   entry && (entry as { vary?: boolean }).vary && !opts?.ignoreVary ? undefined : entry;
@@ -163,7 +163,7 @@ describe('strategyFor', () => {
     expect(sw.strategyFor(new URL('https://elsewhere.com/x.js'), 'no-cors', 'GET', ORIGIN)).toBe('passthrough');
   });
 
-  // pwa-install.md REQ-6 / mcp-server.md REQ-9b. The POST case above already
+  // pwa-install.md REQ-service-worker-is-registered / mcp-server.md REQ-no-sse-every-response-is-one-json-body. The POST case above already
   // covers real MCP traffic; these pin the GET shapes, which is where the
   // guarantee stops being accidental — a 405 happens not to be cacheable, but
   // that is the endpoint's business, not the worker's.
@@ -241,7 +241,7 @@ describe('fetch', () => {
     expect(cacheStores.get('websynth-9.9.9')!.get('/site.webmanifest')).toEqual({ cloned: true });
   });
 
-  // play-offline.md REQ-11 (regression). The first real-browser pass saved every
+  // play-offline.md REQ-cache-lookups-ignore-vary (regression). The first real-browser pass saved every
   // file and still failed its offline boot: the host sent `Vary: Origin`, the
   // page's fetch() had no Origin header, and the module script asking for the
   // chunk did — so the lookup missed a file that was sitting in the cache.
@@ -280,20 +280,20 @@ describe('fetch', () => {
   });
 });
 
-// ---- the offline copy across releases (play-offline.md REQ-7, REQ-9, REQ-10) ----
+// ---- the offline copy across releases (play-offline.md REQ-the-copy-survives-a-release, REQ-the-manifest-is-same-origin-build-output, REQ-one-offline-marker-contract) ----
 
-describe('page and worker agree (play-offline.md REQ-10)', () => {
+describe('page and worker agree (play-offline.md REQ-one-offline-marker-contract)', () => {
   it('spell the marker, the manifest, the cache prefix and the cache name the same way', () => {
     expect(sw.OFFLINE_MARKER).toBe(OFFLINE_MARKER_URL);
     expect(sw.OFFLINE_MANIFEST).toBe(OFFLINE_MANIFEST_URL);
-    // A factory reset deletes by the page's prefix (play-offline.md REQ-12), so a
+    // A factory reset deletes by the page's prefix (play-offline.md REQ-the-copy-is-fetched-again-after-a-reset), so a
     // renamed worker cache would otherwise outlive it.
     expect(sw.CACHE_PREFIX).toBe(OFFLINE_CACHE_PREFIX);
     expect(sw.cacheName('https://x/sw.js?v=4.5.6')).toBe(offlineCacheName('4.5.6'));
   });
 });
 
-describe('parseManifest (play-offline.md REQ-9)', () => {
+describe('parseManifest (play-offline.md REQ-the-manifest-is-same-origin-build-output)', () => {
   // The same table tests/utils/offline-copy.test.ts runs against the page's parser.
   it.each(VALID_MANIFESTS)('accepts %s', (_label, raw) => {
     expect(sw.parseManifest(raw, CASE_VERSION)).not.toBeNull();
@@ -304,7 +304,7 @@ describe('parseManifest (play-offline.md REQ-9)', () => {
   });
 });
 
-describe('install refreshes an offline copy (play-offline.md REQ-7)', () => {
+describe('install refreshes an offline copy (play-offline.md REQ-the-copy-survives-a-release)', () => {
   const OLD = 'websynth-1.0.0';
   const NEW = 'websynth-9.9.9';
   const MANIFEST = {
@@ -333,7 +333,7 @@ describe('install refreshes an offline copy (play-offline.md REQ-7)', () => {
     resetCaches([OLD]);
     const old = cacheStores.get(OLD)!;
     old.set('/__offline-copy', { marker: true });
-    // Saved by the page's fetch() under a host that sends Vary (REQ-11).
+    // Saved by the page's fetch() under a host that sends Vary (REQ-the-public-endpoint-is-bounded-not-authenticated).
     old.set('/assets/demo-abc.json', { body: 'old demo', vary: true });
   }
 

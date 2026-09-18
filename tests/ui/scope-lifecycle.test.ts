@@ -9,7 +9,8 @@ import {
 } from '../../src/ui/components/scope';
 
 /**
- * Scope recovery (scope.md v12, REQ-22..REQ-25).
+ * Scope recovery — scope.md REQ-the-redraw-loop-can-always-restart through
+ * scope.md REQ-becoming-visible-re-measures.
  *
  * A device report: the scope went black while the app was backgrounded and
  * **stayed** black on return, even once audio was running again. The canvas is
@@ -19,7 +20,7 @@ import {
  * These cases drive a real `Scope` over jsdom with an injected frame scheduler,
  * so "is a frame queued" and "did it draw" are both directly observable.
  *
- * v16 (REQ-32..38): it happened again, on Chrome desktop, with a *frozen* last
+ * v16 (REQ-the-scope-proves-it-is-painting..38): it happened again, on Chrome desktop, with a *frozen* last
  * frame rather than a black one — so the backing store was fine and the loop had
  * simply stopped. v12 made `start()` restartable but left every trigger for it
  * event-driven and one-shot, and left `contextlost` -> `stop()` waiting forever.
@@ -85,7 +86,7 @@ function recordingCtx() {
     drew: () => calls.includes('clearRect'),
     reset: () => { calls.length = 0; },
     breakNextDraw: () => { failNextClear = true; },
-    /** What a browser that HAS the API answers once the context is gone (REQ-36). */
+    /** What a browser that HAS the API answers once the context is gone (REQ-scope-detection-is-free-or-it-does-not-happen). */
     loseContext: () => { target['isContextLost'] = () => true; },
   };
 }
@@ -125,7 +126,7 @@ function mountScope(painter = recordingCtx()) {
   vi.spyOn(HTMLCanvasElement.prototype, 'getContext').mockReturnValue(
     painter.ctx as unknown as RenderingContext,
   );
-  // A real parent, so REQ-35's `replaceWith` is exercised rather than silently
+  // A real parent, so REQ-a-lost-context-is-escaped-by-replacing-the-canvas's `replaceWith` is exercised rather than silently
   // no-oping the way it does on an unparented node.
   const wrap = document.createElement('div');
   document.body.appendChild(wrap);
@@ -147,7 +148,7 @@ afterEach(() => {
 });
 
 describe('Scope redraw loop recovery', () => {
-  it('comes back after the tab was hidden (REQ-25)', () => {
+  it('comes back after the tab was hidden (REQ-becoming-visible-re-measures)', () => {
     const frames = frameScheduler();
     const { scope, painter } = mountScope();
     expect(frames.queued).toBe(1); // the constructor started it
@@ -166,7 +167,7 @@ describe('Scope redraw loop recovery', () => {
     scope.destroy();
   });
 
-  it('restarts after a frame the browser dropped (REQ-22, regression)', () => {
+  it('restarts after a frame the browser dropped (REQ-the-redraw-loop-can-always-restart, regression)', () => {
     const frames = frameScheduler();
     const { scope, painter } = mountScope();
 
@@ -185,7 +186,7 @@ describe('Scope redraw loop recovery', () => {
     scope.destroy();
   });
 
-  it('never queues more than one frame, however often it is restarted (REQ-22)', () => {
+  it('never queues more than one frame, however often it is restarted (REQ-the-redraw-loop-can-always-restart)', () => {
     const frames = frameScheduler();
     const { scope } = mountScope();
     setHidden(false);
@@ -195,7 +196,7 @@ describe('Scope redraw loop recovery', () => {
     scope.destroy();
   });
 
-  it('survives a frame that throws (REQ-23)', () => {
+  it('survives a frame that throws (REQ-one-bad-frame-cannot-end-the-loop)', () => {
     const frames = frameScheduler();
     const { scope, painter } = mountScope();
 
@@ -213,7 +214,7 @@ describe('Scope redraw loop recovery', () => {
     scope.destroy();
   });
 
-  it('restarts from a pageshow, which a bfcache restore fires (REQ-25)', () => {
+  it('restarts from a pageshow, which a bfcache restore fires (REQ-becoming-visible-re-measures)', () => {
     const frames = frameScheduler();
     const { scope, painter } = mountScope();
     frames.dropQueued();
@@ -243,7 +244,7 @@ describe('Scope redraw loop recovery', () => {
   });
 });
 
-describe('Scope canvas context loss (REQ-24)', () => {
+describe('Scope canvas context loss (REQ-canvas-context-loss-is-survivable)', () => {
   it('asks for the context back and pauses until it arrives', () => {
     const frames = frameScheduler();
     const { scope } = mountScope();
@@ -281,7 +282,7 @@ describe('Scope canvas context loss (REQ-24)', () => {
   });
 });
 
-describe('Scope.setFps guard (REQ-25)', () => {
+describe('Scope.setFps guard (REQ-becoming-visible-re-measures)', () => {
   it.each([0, -30, NaN, Infinity])('keeps drawing when given %p', (fps) => {
     const frames = frameScheduler();
     const { scope, painter } = mountScope();
@@ -313,7 +314,7 @@ describe('Scope.setFps guard (REQ-25)', () => {
 });
 
 /**
- * v16 — the supervisor (REQ-32..38). These run on fake timers so the ~1 Hz watchdog
+ * v16 — the supervisor (REQ-the-scope-proves-it-is-painting..38). These run on fake timers so the ~1 Hz watchdog
  * and the component's `performance.now()` comparisons advance together; `now` starts
  * well above zero so no age is accidentally measured from the epoch.
  */
@@ -326,7 +327,7 @@ describe('Scope liveness watchdog (v16)', () => {
   /** Advance the shared clock past `ms` and let every due watchdog tick run. */
   const tick = (ms: number): void => { vi.advanceTimersByTime(ms); };
 
-  it('restarts a loop the browser stopped delivering (REQ-33)', () => {
+  it('restarts a loop the browser stopped delivering (REQ-a-watchdog-restarts-a-stalled-loop)', () => {
     const frames = frameScheduler();
     const { scope, painter } = mountScope();
 
@@ -346,7 +347,7 @@ describe('Scope liveness watchdog (v16)', () => {
     scope.destroy();
   });
 
-  it('does nothing at all while the tab is hidden (REQ-33, perf-mode REQ-6)', () => {
+  it('does nothing at all while the tab is hidden (REQ-a-watchdog-restarts-a-stalled-loop, perf-mode REQ-scope-renderers-are-rect-scoped)', () => {
     const frames = frameScheduler();
     const { scope, painter } = mountScope();
 
@@ -365,7 +366,7 @@ describe('Scope liveness watchdog (v16)', () => {
     scope.destroy();
   });
 
-  it('leaves a healthy loop completely alone (REQ-33)', () => {
+  it('leaves a healthy loop completely alone (REQ-a-watchdog-restarts-a-stalled-loop)', () => {
     const frames = frameScheduler();
     const { scope } = mountScope();
     const cancelsAtStart = frames.cancels;
@@ -386,7 +387,7 @@ describe('Scope liveness watchdog (v16)', () => {
     scope.destroy();
   });
 
-  it('measures rather than rebuilding when the layout box is gone (REQ-33)', () => {
+  it('measures rather than rebuilding when the layout box is gone (REQ-a-watchdog-restarts-a-stalled-loop)', () => {
     const frames = frameScheduler();
     const { scope } = mountScope();
     const before = scope.el;
@@ -407,7 +408,7 @@ describe('Scope liveness watchdog (v16)', () => {
     scope.destroy();
   });
 
-  it('stops waiting for a contextrestored that never comes (REQ-34, regression)', () => {
+  it('stops waiting for a contextrestored that never comes (REQ-waiting-for-contextrestored-is-bounded, regression)', () => {
     const frames = frameScheduler();
     const { scope, painter, wrap } = mountScope();
     const before = scope.el;
@@ -417,7 +418,7 @@ describe('Scope liveness watchdog (v16)', () => {
     expect(lost.defaultPrevented).toBe(true);
     expect(frames.queued).toBe(0);
 
-    // REQ-24's pause is honoured for the window we asked for...
+    // REQ-canvas-context-loss-is-survivable's pause is honoured for the window we asked for...
     tick(CONTEXT_RESTORE_MS / 2);
     expect(frames.queued).toBe(0);
 
@@ -441,14 +442,14 @@ describe('Scope liveness watchdog (v16)', () => {
     painter.reset();
     frames.run(16);
     expect(painter.drew()).toBe(true);
-    // REQ-15's change-only mirror was cleared with the element, so the readouts
+    // REQ-the-scope-canvas-carries-a-testid's change-only mirror was cleared with the element, so the readouts
     // come back rather than being suppressed for the life of the page.
     expect(scope.el.dataset.waveGain).toBeDefined();
 
     scope.destroy();
   });
 
-  it('carries the click listener onto the replacement (REQ-35)', () => {
+  it('carries the click listener onto the replacement (REQ-a-lost-context-is-escaped-by-replacing-the-canvas)', () => {
     frameScheduler();
     const { scope } = mountScope();
     scope.el.dispatchEvent(new Event('contextlost', { cancelable: true }));
@@ -469,7 +470,7 @@ describe('Scope liveness watchdog (v16)', () => {
     scope.destroy();
   });
 
-  it('never trades a live canvas for one it cannot draw into (REQ-35, edge)', () => {
+  it('never trades a live canvas for one it cannot draw into (REQ-a-lost-context-is-escaped-by-replacing-the-canvas, edge)', () => {
     frameScheduler();
     const { scope } = mountScope();
     const before = scope.el;
@@ -485,7 +486,7 @@ describe('Scope liveness watchdog (v16)', () => {
     scope.destroy();
   });
 
-  it('the watchdog dies with the scope (REQ-33)', () => {
+  it('the watchdog dies with the scope (REQ-a-watchdog-restarts-a-stalled-loop)', () => {
     const frames = frameScheduler();
     const { scope, painter } = mountScope();
     scope.destroy();
@@ -497,7 +498,7 @@ describe('Scope liveness watchdog (v16)', () => {
     expect(painter.drew()).toBe(false);
   });
 
-  it('reports what the panel is doing (REQ-38)', () => {
+  it('reports what the panel is doing (REQ-the-panel-says-whether-it-is-drawing)', () => {
     frameScheduler();
     const { scope } = mountScope();
 
@@ -509,7 +510,7 @@ describe('Scope liveness watchdog (v16)', () => {
     expect(scope.health.losses).toBe(1);
     tick(CONTEXT_RESTORE_MS + SCOPE_WATCHDOG_MS);
     expect(scope.health.rebuilds).toBe(1);
-    // Written on increment only, per REQ-15's change-only rule.
+    // Written on increment only, per REQ-the-scope-canvas-carries-a-testid's change-only rule.
     expect(scope.el.dataset.rebuilds).toBe('1');
 
     scope.destroy();
@@ -517,11 +518,11 @@ describe('Scope liveness watchdog (v16)', () => {
 });
 
 /**
- * Every control is a way back (REQ-37). The user's instinct on a dead panel is to
+ * Every control is a way back (REQ-every-public-mutator-is-a-recovery-path). The user's instinct on a dead panel is to
  * poke a button, and until v16 that was the one thing that could not help — these
  * setters write a field the loop was going to read.
  */
-describe('Scope controls as recovery paths (v16, REQ-37)', () => {
+describe('Scope controls as recovery paths (v16, REQ-every-public-mutator-is-a-recovery-path)', () => {
   const mutators: [string, (s: Scope) => void][] = [
     ['setMode', (s) => s.setMode('spectrum')],
     ['setChannels', (s) => s.setChannels('mono')],
@@ -622,7 +623,7 @@ describe('Scope controls as recovery paths (v16, REQ-37)', () => {
   });
 });
 
-describe('Scope lost-context detection (v16, REQ-36)', () => {
+describe('Scope lost-context detection (v16, REQ-scope-detection-is-free-or-it-does-not-happen)', () => {
   it('replaces the canvas as soon as the browser says the context is gone', () => {
     frameScheduler();
     const { scope, painter } = mountScope();

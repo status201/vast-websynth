@@ -3,7 +3,7 @@ import type { SongFile } from '../../src/state/song';
 /**
  * The drop-in demo songs, keyed by the song's own `name` — what
  * `DEMO_SONGS` used to contain before the app switched to fetching them on
- * click (song-mode.md REQ-11, runtime-performance.md REQ-1).
+ * click (song-mode.md REQ-song-lane-titles-navigate, runtime-performance.md REQ-boot-cost-matches-the-request).
  *
  * The app must not bundle 835 kB of JSON to load at most one of them; the *test*
  * bundle happily can, and should: these files ship, so "every shipped demo is a

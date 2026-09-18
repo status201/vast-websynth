@@ -7,7 +7,7 @@ import { LAYOUTS, resolveLayout, onLayoutChange } from '../state/keyboard-layout
  * The piano shape: which **physical** key is which semitone, two rows of C..C.
  * Layout-independent by construction — this describes the instrument, not the
  * keyboard, so it is also what the About modal's diagram is drawn from
- * (input-control.md REQ-3, onboarding.md REQ-17c). A picture of the keyboard
+ * (input-control.md REQ-two-key-rows-an-octave-apart, onboarding.md REQ-keys-are-drawn-as-keys). A picture of the keyboard
  * that disagrees with the keyboard is worse than no picture, so both the
  * bindings below and that diagram come from here.
  */
@@ -26,7 +26,7 @@ export const NOTE_ROWS: { lower: Record<string, number>; upper: Record<string, n
 
 /**
  * `character -> semitone`, composed from `NOTE_ROWS` and the active layout
- * (keyboard-layout.md REQ-1). Matching stays on `e.key`, so these are rebuilt
+ * (keyboard-layout.md REQ-layout-is-a-code-to-character-table). Matching stays on `e.key`, so these are rebuilt
  * **in place** on a layout change — `installShortcuts` closes over them.
  */
 const LOWER: Record<string, number> = {};
@@ -54,7 +54,7 @@ function isEditableTarget(e: Event): boolean {
 export function installShortcuts(engine: StudioApi, bus: ParamBus, bridge: UiBridge): void {
   let baseOctave = 4; // bottom row starts at C4
   // key → the note it PRESSED, never the note the current baseOctave now names
-  // (input-control.md REQ-11): an octave shift mid-hold used to make keyup miss
+  // (input-control.md REQ-a-note-off-names-the-pressed-note): an octave shift mid-hold used to make keyup miss
   // this map entirely, so the note was never released and its key stayed lit
   // until the window lost focus.
   const held = new Map<string, number>();
@@ -83,8 +83,8 @@ export function installShortcuts(engine: StudioApi, bus: ParamBus, bridge: UiBri
 
   // A layout switch re-keys `held` out from under itself: an entry stored under
   // the old character can never match a future keyup, so it would hang exactly
-  // like the octave shift in REQ-11. Release everything first, then remap —
-  // same rule the `blur` handler follows (input-control.md REQ-13).
+  // like the octave shift in REQ-home-and-shift-arrows-seek. Release everything first, then remap —
+  // same rule the `blur` handler follows (input-control.md REQ-note-keys-follow-the-layout).
   onLayoutChange(() => {
     for (const note of held.values()) release(note);
     held.clear();
@@ -95,7 +95,7 @@ export function installShortcuts(engine: StudioApi, bus: ParamBus, bridge: UiBri
     if (isEditableTarget(e)) return; // let text fields receive their keystrokes
     if (e.repeat) return;
 
-    // Ctrl/Cmd+Z — undo on the active machine tab (pattern-undo.md REQ-10).
+    // Ctrl/Cmd+Z — undo on the active machine tab (pattern-undo.md REQ-ctrl-z-undoes-the-active-machine).
     // Must run before the generic modifier bail-out; Shift/Alt variants
     // (redo conventions) fall through untouched.
     if ((e.ctrlKey || e.metaKey) && !e.shiftKey && !e.altKey && e.key.toLowerCase() === 'z') {
@@ -106,7 +106,7 @@ export function installShortcuts(engine: StudioApi, bus: ParamBus, bridge: UiBri
     if (e.ctrlKey || e.metaKey || e.altKey) return;
     const k = e.key;
 
-    // --- Transport position (transport-position.md REQ-11) ---
+    // --- Transport position (transport-position.md REQ-home-and-shift-arrows-seek) ---
     // Home = back to the top; Shift+arrows = ±1 bar. Both must be tested BEFORE
     // the bare-arrow octave shift below, which otherwise fires on Shift+Arrow
     // too. A refused seek (slaved, or a capture in flight) falls through without
@@ -125,7 +125,7 @@ export function installShortcuts(engine: StudioApi, bus: ParamBus, bridge: UiBri
       return;
     }
 
-    // Shift+R — the RECORD window, from any tab (record-window.md REQ-9).
+    // Shift+R — the RECORD window, from any tab (record-window.md REQ-shift-r-toggles-the-record-window).
     // Above the note handling for the same reason the Shift+Arrow branch is:
     // `keyId` case-folds, so a bare `r` is a note key and Shift+R would
     // otherwise play it. Shift makes it un-typable by accident while playing.
@@ -136,14 +136,14 @@ export function installShortcuts(engine: StudioApi, bus: ParamBus, bridge: UiBri
     }
 
     // Delete/Backspace — clear the selected step on the active machine tab
-    // (step-grid-editing.md REQ-5). Scoped exactly like Ctrl+Z above, so it can
+    // (step-grid-editing.md REQ-delete-clears-the-selected-step). Scoped exactly like Ctrl+Z above, so it can
     // never reach a grid that is off screen.
     if (k === 'Delete' || k === 'Backspace') {
       if (bridge.clearSelectedStep()) e.preventDefault();
       return;
     }
 
-    // `?` — show/hide the info badges (input-control.md REQ-9). Ordered ABOVE
+    // `?` — show/hide the info badges (input-control.md REQ-question-mark-toggles-the-badges). Ordered ABOVE
     // the pitch-bend branch below: `e.key` for Shift+/ is '?', so '/' never
     // matches today, but a layout quirk must not turn a help request into a bend.
     if (k === '?') {
@@ -152,7 +152,7 @@ export function installShortcuts(engine: StudioApi, bus: ParamBus, bridge: UiBri
       return;
     }
 
-    // Pitch bend, springs back on release (input-control.md REQ-12). `'` sits
+    // Pitch bend, springs back on release (input-control.md REQ-pitch-bend-is-quote-and-slash). `'` sits
     // directly above `/` on the board, so the keys state which way is up — `.`
     // and `/` were side by side, which made the mapping pure memorisation. `.`
     // is deliberately left unbound rather than kept as an alias.
@@ -206,7 +206,7 @@ export function installShortcuts(engine: StudioApi, bus: ParamBus, bridge: UiBri
     if (isEditableTarget(e)) return; // let text fields receive their keystrokes
     const k = e.key;
     // Same `e.code` the press used, so a Shift pressed or released mid-hold
-    // cannot strand the bend (REQ-12; the note-key twin of this is REQ-11).
+    // cannot strand the bend (REQ-the-look-ahead-horizon-is-not-cancelled; the note-key twin of this is REQ-home-and-shift-arrows-seek).
     if (e.code === 'Quote' || e.code === 'Slash') { bus.set('master.pitchBend', 0); return; }
     if (k === 'f' || k === 'F') {
       if (fillHeld) { fillHeld = false; engine.perf.setFill(false); }

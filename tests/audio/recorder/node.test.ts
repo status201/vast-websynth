@@ -2,8 +2,8 @@ import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { RecorderNode, RECORD_BATCH_QUANTA } from '../../../src/audio/recorder/node';
 
 /**
- * `RecorderNode`'s teardown (sample-recorder.md REQ-6) and its batched capture
- * (audio-export.md REQ-6b).
+ * `RecorderNode`'s teardown (sample-recorder.md REQ-the-recorder-node-is-released-with-the-session) and its batched capture
+ * (audio-export.md REQ-chunks-are-batched-then-flushed).
  *
  * The worklet accumulates `RECORD_BATCH_QUANTA` quanta per message, which is
  * only safe because `stop`/`pause` make it flush the partial batch and the node
@@ -69,7 +69,7 @@ function deliver(frames: Float32Array, at: number): void {
   node.port.onmessage?.({ data: { l: frames, r: frames, f: at } } as MessageEvent);
 }
 
-describe('RecorderNode batched capture (audio-export REQ-6b)', () => {
+describe('RecorderNode batched capture (audio-export REQ-chunks-are-batched-then-flushed)', () => {
   it('concatenates batches in order, with no gap at a boundary', async () => {
     const rec = await make();
     rec.start();
@@ -122,7 +122,7 @@ describe('RecorderNode batched capture (audio-export REQ-6b)', () => {
     deliver(ramp(576, 512), 99999);         // a later moment in the timeline
     const take = await rec.stop();
 
-    // One continuous buffer — the paused time is simply absent (REQ-4).
+    // One continuous buffer — the paused time is simply absent (REQ-capture-is-a-five-phase-machine).
     expect(take.left.length).toBe(1088);
     for (let i = 0; i < take.left.length; i++) expect(take.left[i]).toBe(i);
   });
@@ -135,7 +135,7 @@ describe('RecorderNode batched capture (audio-export REQ-6b)', () => {
   });
 });
 
-describe('RecorderNode.dispose (sample-recorder REQ-6)', () => {
+describe('RecorderNode.dispose (sample-recorder REQ-the-recorder-node-is-released-with-the-session)', () => {
   it('clears the port handler and disconnects the node', async () => {
     const rec = await make();
     expect(node.port.onmessage).toBeTypeOf('function');

@@ -36,9 +36,9 @@ function setup(persist = false) {
   const ctx = { currentTime: 0 } as unknown as AudioContext;
   const clock = new Clock(ctx, { timer: new TimeoutTimer() });
   clock.setBpm(120);
-  // v4: the link-liveness watchdog reads an injected clock (REQ-20) so tests
+  // v4: the link-liveness watchdog reads an injected clock (REQ-link-liveness-beats-port-presence) so tests
   // can age a link deterministically; `knobBpm` doubles as the bus so the
-  // tempo handoff (REQ-21) is observable.
+  // tempo handoff (REQ-tempo-handoff-on-release) is observable.
   let nowMs = 0;
   const knobBpm = { value: 120 };
   const ctrl = new SyncController(clock, {
@@ -178,7 +178,7 @@ describe('SyncController', () => {
     expect(clockBpm(clock)).toBeCloseTo(120, 6);
   });
 
-  it('is inert but switchable before a transport is added (REQ-9)', () => {
+  it('is inert but switchable before a transport is added (REQ-no-web-midi-degrades-gracefully)', () => {
     const { clock, ctrl, transport } = setup();
     ctrl.setMode('master');
     expect(ctrl.status.links).toEqual([]);
@@ -198,7 +198,7 @@ describe('SyncController', () => {
     expect(reborn.mode).toBe('slave');
   });
 
-  // ---- v4: a disconnected link must release the transport (REQ-19..22) ----
+  // ---- v4: a disconnected link must release the transport (REQ-selected-mode-versus-active-role..22) ----
 
   it('a slave with a link but no traffic is armed, not active', () => {
     const { ctrl, transport } = setup();
@@ -236,7 +236,7 @@ describe('SyncController', () => {
     expect(clock.playing).toBe(false);
   });
 
-  it('clock silence releases only once stopped (REQ-6 stall tolerance held)', () => {
+  it('clock silence releases only once stopped (REQ-a-stalled-pulse-stream-is-tolerated stall tolerance held)', () => {
     const { clock, ctrl, transport, advance } = setup();
     ctrl.addTransport('midi', transport);
     ctrl.setMode('slave');
@@ -277,7 +277,7 @@ describe('SyncController', () => {
     expect(Math.abs(clockBpm(clock) - 140)).toBeLessThan(0.5); // and nothing lurched
   });
 
-  it('an explicit Off still snaps back to the knob tempo (REQ-4, not the handoff)', () => {
+  it('an explicit Off still snaps back to the knob tempo (REQ-slave-follows-tempo-from-pulses, not the handoff)', () => {
     const { clock, ctrl, transport, knobBpm } = setup();
     ctrl.addTransport('midi', transport);
     ctrl.setMode('slave');
@@ -307,7 +307,7 @@ describe('SyncController', () => {
     clock.stop();
   });
 
-  // midi-clock-sync.md REQ-23 — a slave counts pulses from its own start, so an
+  // midi-clock-sync.md REQ-a-midi-master-announces-its-seek — a slave counts pulses from its own start, so an
   // unannounced local jump leaves it permanently behind.
   it('announcePosition tells peers where the playhead went (v5)', () => {
     const { clock, ctrl, transport } = setup();
@@ -323,15 +323,15 @@ describe('SyncController', () => {
     expect(types.filter((t) => t === 'songposition')).toHaveLength(1); // once, not twice
     expect(types).toContain('continue');
     // `start` would realign every slave to bar 0 — the one thing a mid-song
-    // jump must never do (REQ-3).
+    // jump must never do (REQ-slave-restarts-from-zero-on-start).
     expect(types).not.toContain('start');
     const spp = transport.sent.find((s) => s.msg.type === 'songposition');
     expect(spp && 'beat' in spp.msg ? spp.msg.beat : -1).toBe(clock.step);
     clock.stop();
   });
 
-  // transport-loop.md REQ-8 — a loop wrap is a jump no click started, routed
-  // inside the clock's drain (transport.md REQ-13). Slaves must hear it, or they
+  // transport-loop.md REQ-a-sync-master-announces-every-wrap — a loop wrap is a jump no click started, routed
+  // inside the clock's drain (transport.md REQ-a-step-router-can-redirect-the-next-step). Slaves must hear it, or they
   // fall one loop behind per pass.
   it('a routed loop wrap announces the new position too (v7)', () => {
     const { clock, ctrl, transport, ctx } = setup();

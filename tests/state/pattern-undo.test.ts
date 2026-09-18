@@ -143,14 +143,14 @@ describe('PatternUndo', () => {
     expect(fn).toHaveBeenCalledTimes(2);
   });
 
-  it('setSampleName is not captured (pattern-undo.md REQ-11)', () => {
+  it('setSampleName is not captured (pattern-undo.md REQ-sample-name-is-not-captured)', () => {
     const { patterns, undo } = build();
     patterns.setSampleName(0, 'kick.wav');
     expect(undo.canUndo('sampler')).toBe(false);
   });
 });
 
-describe('PatternUndo — bulk clears (step-grid-editing.md REQ-7)', () => {
+describe('PatternUndo — bulk clears (step-grid-editing.md REQ-one-bulk-action-one-undo-entry)', () => {
   it('one Undo press restores a whole cleared drum bank', () => {
     // Bank A boots with the seeded groove, so nothing has to be edited first —
     // the stack starts empty and its final size is the entry count of the clear.
@@ -206,7 +206,7 @@ describe('PatternUndo — bulk clears (step-grid-editing.md REQ-7)', () => {
   });
 });
 
-describe('PatternUndo — extra motion tracks (motion-sequencer.md REQ-13)', () => {
+describe('PatternUndo — extra motion tracks (motion-sequencer.md REQ-two-extra-tracks-per-bank)', () => {
   it('undoes a track step and a track param independently', () => {
     const { patterns, undo } = build();
     patterns.setMotionTrackParam(0, 'fx.delay.mix');
@@ -247,7 +247,7 @@ describe('PatternUndo — extra motion tracks (motion-sequencer.md REQ-13)', () 
   });
 });
 
-describe('PatternUndo — scoped motion clears (step-grid-editing.md REQ-6/REQ-7)', () => {
+describe('PatternUndo — scoped motion clears (step-grid-editing.md REQ-clear-menu-clears-in-bulk/REQ-one-bulk-action-one-undo-entry)', () => {
   it('one Undo after Clear bank restores every motion lane', () => {
     const { patterns, undo } = build();
     patterns.setMotionStep(1, { on: true, x: 0.2, y: 0.4 });

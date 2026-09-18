@@ -21,7 +21,7 @@ describe('export-song-modal', () => {
     expect(share.title).toBe('Copy a shareable URL that opens this song');
   });
 
-  it('disables Copy Link with an explanatory title while Project (.zip) is selected (REQ-5 v2)', () => {
+  it('disables Copy Link with an explanatory title while Project (.zip) is selected (REQ-export-modal-copies-a-link v2)', () => {
     openExportSongModal({
       hasSamplerAudio: true,
       onExport: vi.fn(),

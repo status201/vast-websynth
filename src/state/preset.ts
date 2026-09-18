@@ -14,7 +14,7 @@ export interface FactoryBank {
 
 // Every factory preset sets the FULL sound — all osc/sub/unison/drift/mixer/
 // glide/filter/env/LFO params plus every synth-FX `.on` flag — so switching
-// between presets never leaks a param from the previous patch (REQ-2b).
+// between presets never leaks a param from the previous patch (REQ-a-factory-preset-sets-the-full-sound).
 const FACTORY: FactoryBank = {
   basic: {
     'osc1.wave': 2, 'osc1.octave': 0, 'osc1.detune': 0, 'osc1.level': 0.7,
@@ -408,7 +408,7 @@ export const Presets = {
   /**
    * A stored snapshot, else the factory one of that name.
    *
-   * Validated, not cast (untrusted-input.md REQ-8). The *import* path already
+   * Validated, not cast (untrusted-input.md REQ-deserialized-state-is-validated-never-cast). The *import* path already
    * validates, so this only guards tampered/corrupt storage — but a string value
    * here survives `clamp` (`'abc' < 30` is false) and reaches an `AudioParam` as
    * `NaN`, which throws. Non-numeric entries are dropped rather than failing the
@@ -446,7 +446,7 @@ export const Presets = {
   },
 
   /**
-   * Every preset the user actually made or changed — presets.md REQ-8. Derived,
+   * Every preset the user actually made or changed — presets.md REQ-modified-is-computed-not-tracked. Derived,
    * never tracked: a name absent from `FACTORY` is user-made, and a factory name
    * counts when its stored snapshot differs from the factory definition. No
    * dirty flag is persisted, so this can never go stale or need migrating.

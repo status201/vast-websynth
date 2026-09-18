@@ -58,11 +58,11 @@ describe('Dropdown', () => {
     expect(dd.el.querySelector(`.${styles.option!}.active`)?.textContent).toBe('B');
   });
 
-  // REQ-9. The class MUST land on the toggle: on the root, `opacity` composites
+  // REQ-a-dropdown-can-be-dimmed. The class MUST land on the toggle: on the root, `opacity` composites
   // the fixed-position menu with it (transparent options) and opens a stacking
   // context that buries the menu under later siblings. jsdom can't see the real
   // CSS, but it can prove the class never reaches the root — which is the bug.
-  describe('dimmed state (REQ-9)', () => {
+  describe('dimmed state (REQ-a-dropdown-can-be-dimmed)', () => {
     it('marks the toggle and leaves the root untouched', () => {
       dd = new Dropdown(['A', 'B'], 'A');
       document.body.appendChild(dd.el);
@@ -141,7 +141,7 @@ describe('Dropdown', () => {
     expect(dd.el.classList.contains('open')).toBe(true);
   });
 
-  // --- Live filter (dropdown.md REQ-7) ---
+  // --- Live filter (dropdown.md REQ-a-long-list-carries-a-filter) ---
   describe('live filter', () => {
     /** `n` distinct labels; index 3.. are `opt-<i>` so `cut` matches nothing
      *  unless a test asks for it. */
@@ -293,7 +293,7 @@ describe('Dropdown', () => {
     });
   });
 
-  // --- Arrow-key navigation (dropdown.md REQ-8) ---
+  // --- Arrow-key navigation (dropdown.md REQ-arrow-keys-move-the-selection) ---
   describe('arrow-key navigation', () => {
     const focused = (): string | null | undefined => document.activeElement?.textContent;
     /** Bubbles from wherever focus is, like a real keypress, so the component's
@@ -348,7 +348,7 @@ describe('Dropdown', () => {
 
     it('stops Home from reaching the global shortcuts (regression)', () => {
       // installShortcuts listens on window and seeks the transport on Home
-      // (transport-position.md REQ-11) — an open dropdown must not move the
+      // (transport-position.md REQ-home-and-shift-arrows-seek) — an open dropdown must not move the
       // playhead just because the user is walking a list.
       const onWindow = vi.fn();
       window.addEventListener('keydown', onWindow);
@@ -444,7 +444,7 @@ describe('Dropdown', () => {
       });
     });
   });
-  describe('disabled options (v6, REQ-10)', () => {
+  describe('disabled options (v6, REQ-an-option-can-be-unselectable)', () => {
     const optionsOf = (d: Dropdown) =>
       [...d.el.querySelectorAll<HTMLButtonElement>(`.${styles.option!}`)];
     const optionOf = (d: Dropdown, label: string) =>
@@ -501,11 +501,11 @@ describe('Dropdown', () => {
       expect(optionOf(dd, 'B').disabled).toBe(false);
     });
 
-    it('arrow keys step over a disabled option instead of stalling (REQ-8)', () => {
+    it('arrow keys step over a disabled option instead of stalling (REQ-arrow-keys-move-the-selection)', () => {
       dd = new Dropdown(['A', 'B', 'C'], 'A');
       document.body.appendChild(dd.el);
       dd.setDisabledOptions(['B']);
-      // Opening lands on the current selection (REQ-5), so A already has focus.
+      // Opening lands on the current selection (REQ-the-selected-option-scrolls-into-view), so A already has focus.
       toggleOf(dd).click();
       expect(document.activeElement).toBe(optionOf(dd, 'A'));
 
@@ -518,8 +518,8 @@ describe('Dropdown', () => {
     });
   });
 
-  // dropdown.md REQ-11 — a group rule, so the preset selector can separate the
-  // loaded song's pinned sound from the preset list (presets.md REQ-13).
+  // dropdown.md REQ-a-list-can-be-split-by-dividers — a group rule, so the preset selector can separate the
+  // loaded song's pinned sound from the preset list (presets.md REQ-a-songs-sound-is-a-selectable-entry).
   describe('dividerAfter', () => {
     const optionsOf = (d: Dropdown) =>
       [...d.el.querySelectorAll<HTMLButtonElement>(`.${styles.option!}`)];
@@ -544,7 +544,7 @@ describe('Dropdown', () => {
       expect(optionsOf(dd).some((o) => o.classList.contains(styles.divider!))).toBe(false);
     });
 
-    it('adds no extra element, so the arrow-key walk is unchanged (REQ-8)', () => {
+    it('adds no extra element, so the arrow-key walk is unchanged (REQ-arrow-keys-move-the-selection)', () => {
       dd = new Dropdown([]);
       document.body.appendChild(dd.el);
       dd.setOptions(['A Test Song', 'acid'], { dividerAfter: 1 });
@@ -554,7 +554,7 @@ describe('Dropdown', () => {
     });
   });
 
-  // dropdown.md REQ-12 — the regression behind presets.md REQ-14: a rebuild used
+  // dropdown.md REQ-set-options-never-strands-the-value — the regression behind presets.md REQ-rebuilding-options-never-relabels: a rebuild used
   // to repaint the header from a song's name to the first preset, silently.
   describe('setOptions and a value the list never held', () => {
     it('falls back to the first option, so the caller must re-assert setValue', () => {

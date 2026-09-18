@@ -61,7 +61,7 @@ export class MyFx extends WrappedEffect {
 
 **Does your DSP remember anything?** A delay line, a convolver, any feedback loop
 — if so it must declare how to empty itself, or re-enabling it replays whatever
-was inside when it was switched off ([effects](../features/effects.md) REQ-2c):
+was inside when it was switched off ([effects](../features/effects.md) REQ-a-bypassed-effect-drains-before-disconnect):
 
 ```ts
   /** Longest the DSP can hold audio: feed it silence for this and it holds none. */
@@ -82,7 +82,7 @@ so a resonant one (the wah's bandpass, a formant peak) holds audio for longer th
 **Does switching it on change the level?** Bypass is a crossfade, which keeps the
 samples continuous — it does *not* keep the loudness continuous, and a 16 dB step
 in 20 ms is heard as a click no matter how smooth the waveform is
-([effects](../features/effects.md) REQ-12). Two things to check before you ship:
+([effects](../features/effects.md) REQ-toggling-an-effect-must-not-step-the-level). Two things to check before you ship:
 
 - If your effect has **no `setMix`**, `initialMix` is 1 and enabling it replaces
   the dry signal outright. Whatever your DSP does to the level *is* the toggle.

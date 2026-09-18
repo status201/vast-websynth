@@ -1,6 +1,7 @@
 /**
  * Lib-mode build of the pure song core for the MCP server (mcp-server.md
- * REQ-3/4): scripts/mcp/song-core-entry.ts → scripts/mcp/dist/song-core.mjs
+ * REQ-local-entries-self-build-the-core/REQ-song-core-entry-exports-only-pure-code):
+ * scripts/mcp/song-core-entry.ts → scripts/mcp/dist/song-core.mjs
  * (gitignored). Run via `npm run build:mcp`, or let websynth-mcp.mjs
  * self-build on start. Unminified, Node-target ES module.
  */

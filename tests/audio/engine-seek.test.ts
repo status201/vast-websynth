@@ -3,7 +3,9 @@ import { Engine } from '../../src/audio/engine';
 
 /**
  * `Engine.seekTo` / `canSeek` — the single guard every playhead-moving surface
- * goes through (transport-position.md REQ-6/REQ-8, midi-clock-sync.md REQ-23/24).
+ * goes through (transport-position.md
+ * REQ-seeking-is-refused-in-three-states/REQ-one-seek-entry-point, midi-clock-sync.md
+ * REQ-a-midi-master-announces-its-seek/REQ-a-slave-refuses-to-seek-locally).
  *
  * A real `Engine` needs an AudioContext, worklet modules and an async `init()`,
  * none of which these two methods touch: they read `sync` / `recorder` /
@@ -56,7 +58,7 @@ describe('Engine.seekTo guard', () => {
     expect(stub.clock.seek).toHaveBeenLastCalledWith(13);
   });
 
-  // midi-clock-sync.md REQ-24 — the remote transport owns the playhead.
+  // midi-clock-sync.md REQ-a-slave-refuses-to-seek-locally — the remote transport owns the playhead.
   it('refuses while slaved, and moves nothing', () => {
     const { stub, seekTo, canSeek } = engineLike({ activeMode: 'slave' });
     expect(canSeek()).toBe(false);
@@ -65,7 +67,7 @@ describe('Engine.seekTo guard', () => {
     expect(stub.sync.announcePosition).not.toHaveBeenCalled();
   });
 
-  // audio-export.md REQ-2 / render-to-sampler.md REQ-6 — both bound their
+  // audio-export.md REQ-export-song-renders-from-the-top / render-to-sampler.md REQ-a-render-is-refused-while-busy — both bound their
   // capture by absolute step, so a jump would truncate it silently.
   it('refuses while a song EXPORT is in flight', () => {
     const { stub, seekTo, canSeek } = engineLike({ exporting: true });
@@ -74,7 +76,7 @@ describe('Engine.seekTo guard', () => {
     expect(stub.clock.seek).not.toHaveBeenCalled();
   });
 
-  // transport-position.md REQ-6 (v3): the guard narrowed from "a capture is
+  // transport-position.md REQ-seeking-is-refused-in-three-states (v3): the guard narrowed from "a capture is
   // running" to "an EXPORT is running". A free-form take has no step bounds to
   // protect, and jumping around mid-take is what recording one is for — it used
   // to lock the playhead and every machine ruler for the whole take.
@@ -92,7 +94,7 @@ describe('Engine.seekTo guard', () => {
     expect(stub.clock.seek).not.toHaveBeenCalled();
   });
 
-  // midi-clock-sync.md REQ-23 (v7) / transport-position.md REQ-7 (v6) — slaves
+  // midi-clock-sync.md REQ-a-midi-master-announces-its-seek (v7) / transport-position.md REQ-a-sync-master-announces-its-seek (v6) — slaves
   // still hear every jump, but from SyncController's `clock.onSeek`, which also
   // catches loop wraps no click started. A second call here would announce a
   // user seek twice (pinned in sync-controller.test.ts).

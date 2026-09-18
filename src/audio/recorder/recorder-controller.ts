@@ -9,7 +9,7 @@ export type ExportFormat = 'wav' | 'mp3';
 
 /**
  * `idle → recording ⇄ paused → review → encoding → idle` (audio-export.md
- * REQ-4). `review` holds a finished manual take that has not been written yet;
+ * REQ-capture-is-a-five-phase-machine). `review` holds a finished manual take that has not been written yet;
  * an automatic export pass skips it. `encoding` is held across the encode+
  * download await so a UI can say "preparing your download" rather than going
  * inert and reading as stalled.
@@ -46,18 +46,18 @@ export const MAX_RUNS = 10;
  */
 export class RecorderController {
   private _phase: RecorderPhase = 'idle';
-  /** True while an automatic export pass owns the transport (REQ-2's seek guard
+  /** True while an automatic export pass owns the transport (REQ-meter-ts-names-the-three-jobs's seek guard
    *  keys off this, NOT off "a capture is running"). */
   private exporting = false;
   private finishing = false;
-  /** True while `stopManual` awaits the worklet's flush (REQ-6b). */
+  /** True while `stopManual` awaits the worklet's flush (REQ-chunks-are-batched-then-flushed). */
   private stopping = false;
   private unsubTick: (() => void) | null = null;
   /** Absolute step the in-flight export ends at; 0 when none. Drives progress. */
   private stopAtStep = 0;
   /** Ticks seen since this export began — the wrap-free counterpart to `stopAtStep`. */
   private elapsedSteps = 0;
-  /** Bar length in 16th ticks (meter.md REQ-7): an export of a 7/8 song has to
+  /** Bar length in 16th ticks (meter.md REQ-bar-exact-capture-follows-bar-ticks): an export of a 7/8 song has to
    *  be 7/8 bars long, and its tail bar one of those. Pushed by the Engine. */
   private barTicks = DEFAULT_BAR_TICKS;
 
@@ -83,7 +83,7 @@ export class RecorderController {
   isCapturing(): boolean { return this._phase === 'recording' || this._phase === 'paused'; }
 
   /** An automatic pass owns the transport, so its absolute step bounds must not
-   *  move under it (transport-position.md REQ-6). A manual take has no bounds
+   *  move under it (transport-position.md REQ-seeking-is-refused-in-three-states). A manual take has no bounds
    *  and deliberately does not take that guard. */
   isExporting(): boolean { return this.exporting; }
 
@@ -146,9 +146,9 @@ export class RecorderController {
   }
 
   /** End the take and park it for review. Writes nothing; leaves the transport
-   *  running (audio-export.md REQ-4).
+   *  running (audio-export.md REQ-capture-is-a-five-phase-machine).
    *
-   *  Async because the recorder waits for the worklet's final batch (REQ-6b).
+   *  Async because the recorder waits for the worklet's final batch (REQ-chunks-are-batched-then-flushed).
    *  The phase only becomes `review` once the take is actually in hand, or the
    *  window would offer Save with nothing to save; `stopping` guards the gap,
    *  since `isCapturing()` stays true across the await. */
@@ -165,7 +165,7 @@ export class RecorderController {
 
   /**
    * Encode and download the reviewed take. Async only because MP3 lazily
-   * imports lamejs (REQ-7); the buffer is released before the await.
+   * imports lamejs (REQ-bar-exact-capture-follows-bar-ticks); the buffer is released before the await.
    *
    * The phase is `encoding` *across* the await, not `idle` — those seconds are
    * work, and reporting them as nothing is what made the UI look stalled.
@@ -200,13 +200,13 @@ export class RecorderController {
    * `opts` is optional and defaults to v6's exact behaviour — one pass, a
    * TAIL_MS grace — because `scripts/audio-bench.mjs` calls this with no
    * options and `verify-audio-by-ear.md` depends on those takes being bar-exact
-   * and repeatable. The UI checkbox defaults the other way (audio-export REQ-3).
+   * and repeatable. The UI checkbox defaults the other way (audio-export REQ-the-capture-keeps-a-tail).
    */
   exportSong(format: ExportFormat, opts?: ExportOpts): void {
     if (this._phase !== 'idle') return; // a capture (or an unsaved take) is in the way
     // The three AUDIBLE lanes only — the motion lane is param automation, and
     // widening the rendered length to include it would change what every
-    // existing song exports (audio-export.md REQ-2, transport-window.md).
+    // existing song exports (audio-export.md REQ-export-song-renders-from-the-top, transport-window.md).
     const bars = this.arrangement.songBars(['seq', 'drum', 'sampler']) || FALLBACK_BARS;
     const runs = Math.round(clamp(opts?.runs ?? 1, 1, MAX_RUNS));
     // Repeats need nothing from the arrangement: every lane already wraps its
@@ -228,10 +228,10 @@ export class RecorderController {
     // Count steps ELAPSED rather than testing the clock's absolute step. When
     // `_step` still wrapped at `& 0xffff`, `step >= stopAtStep` was unreachable
     // once `bars × runs > 4096` and the export simply never stopped, recording
-    // into memory indefinitely. The wrap is gone (transport.md REQ-10) and this
+    // into memory indefinitely. The wrap is gone (transport.md REQ-the-step-counter-is-bounded-at-ingress) and this
     // is now merely the clearer of two correct forms: the capture starts at
     // step 0 but a cued clock need not, so elapsed steps say what we mean
-    // (audio-export.md REQ-2).
+    // (audio-export.md REQ-export-song-renders-from-the-top).
     this.unsubTick = this.clock.onTick(() => {
       // Post-increment, so `step` is 0,1,2,… — exactly what `clock.step` read
       // before. The rendered length is therefore
@@ -245,7 +245,7 @@ export class RecorderController {
       }
     });
     // The 0 is explicit: the capture must begin at the top of the arrangement,
-    // and a plain start() now resumes from the user's cue (transport.md REQ-7),
+    // and a plain start() now resumes from the user's cue (transport.md REQ-the-cue-is-where-start-begins),
     // which would truncate the export silently. Fires onStart → arrangement.
     this.clock.start(0);
   }
@@ -261,7 +261,7 @@ export class RecorderController {
   }
 
   /**
-   * Abort a render in flight and write nothing (REQ-10). Export is real time —
+   * Abort a render in flight and write nothing (REQ-each-machine-has-a-loop-length). Export is real time —
    * ten runs of a long song is a ten-minute wait — so the progress UI needs a
    * Cancel that genuinely cancels; a dead button beside a long bar is worse than
    * no button. A no-op unless a pass is actually recording.
@@ -299,7 +299,7 @@ export class RecorderController {
     this.tailTimer = undefined;
     this.stopAtStep = 0;
     this.elapsedSteps = 0;
-    // Enter `encoding` before awaiting the recorder's flush (REQ-6b), so the tail
+    // Enter `encoding` before awaiting the recorder's flush (REQ-chunks-are-batched-then-flushed), so the tail
     // firing still moves the phase synchronously. The alternative left a window
     // where the transport had stopped but the modal still read `recording`.
     this.setPhase('encoding');

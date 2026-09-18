@@ -1,5 +1,5 @@
 /**
- * The app's general icon set (iconography.md REQ-1/REQ-4) — every glyph that
+ * The app's general icon set (iconography.md REQ-a-control-glyph-is-inline-svg/REQ-one-icon-builder-four-sets) — every glyph that
  * labels a control, drawn rather than typed.
  *
  * These used to be Unicode characters set as text, which quietly made the
@@ -12,7 +12,7 @@
  * Modeled on `rest-glyph.ts` rather than `header-icons.ts`: no per-context
  * stylesheet is required, because `base.css` strokes `svg.ui-icon` globally and
  * sizes it in `em` — so one icon renders correctly on a keycap, in a button and
- * inside a help paragraph, at each one's own font-size (REQ-5).
+ * inside a help paragraph, at each one's own font-size (REQ-compact-drops-text-not-icon).
  *
  * No inline colour anywhere: `currentColor` is what lets a state class tint a
  * glyph that knows nothing about that state. Solid sub-shapes opt out of the
@@ -20,13 +20,13 @@
  */
 
 /** Wrap one glyph's shapes. `aria-hidden` always — the name lives on the
- *  control, never on the drawing (REQ-3). */
+ *  control, never on the drawing (REQ-heading-is-icon-then-text). */
 export const icon = (inner: string): string =>
   `<svg class="ui-icon" viewBox="0 0 16 16" aria-hidden="true">${inner}</svg>`;
 
 /**
  * The ⓘ mark's shapes, shared with `header-icons.ts` so the button in the
- * header and the one help copy points at are the same drawing (REQ-4). The part
+ * header and the one help copy points at are the same drawing (REQ-heading-icons-share-one-x). The part
  * classes are hooks `tour.module.css` recolours on the *header* copy only —
  * they are inert here, as they are there until the badges show.
  */
@@ -131,10 +131,10 @@ export const UI_ICONS = {
   launch: icon('<path d="M4.5 11.5 L11.5 4.5"/><path d="M6.5 4.5 H11.5 V9.5"/>'),
 
   /** Download — an arrow landing in a tray: About's Play offline, which saves
-   *  the whole app on the device (play-offline.md REQ-3). */
+   *  the whole app on the device (play-offline.md REQ-one-offline-state-machine-many-views). */
   download: icon('<path d="M8 2.5 V9.5"/><path d="M4.8 6.6 L8 9.8 L11.2 6.6"/><path d="M2.5 10.5 V13 H13.5 V10.5"/>'),
 
-  // — section headings (section-title.md REQ-3). No character stood in for
+  // — section headings (section-title.md REQ-heading-is-icon-then-text). No character stood in for
   //   these; they are drawn at ~14px, which is what the detail is sized for. —
 
   /** FX — one burst of sound on a scope: a flat line in, a run of narrow peaks
@@ -142,14 +142,14 @@ export const UI_ICONS = {
    *  trough), a flat line out. Traced from the user's reference drawing, then
    *  made taller, with narrower peaks, so they keep ~1px apart at 14px. It replaced
    *  a stompbox, a hard-clipped sine and a sine with a spike, none of which read
-   *  at this size (section-title.md REQ-3). */
+   *  at this size (section-title.md REQ-heading-is-icon-then-text). */
   waveBurst: icon('<path d="M0.8 8.4 H1.9 C2.2 8.4 2.6 10.78 2.9 10.78 C3.46 10.78 4.22 6.4 4.78 6.4 C5.38 6.4 6.17 11.84 6.77 11.84 C7.55 11.84 8.59 3.03 9.37 3.03 C9.87 3.03 10.53 11.4 11.03 11.4 C11.71 11.4 12.62 6.65 13.3 6.65 C13.6 6.65 14 8.4 14.3 8.4 H15.2"/>'),
 
   /** MACHINES — a groovebox seen from above: a landscape body, a display and a
    *  knob across the top, a row of three pads below. The silhouette of the thing
    *  the row holds. Landscape on purpose: an upright box with a display over a 2x2
    *  pad block reads as a calculator at 14px, and a step grid read as noise
-   *  (section-title.md REQ-3). */
+   *  (section-title.md REQ-heading-is-icon-then-text). */
   padMachine: icon(
     '<rect x="0.8" y="3" width="14.4" height="10" rx="1.8"/>' +
     '<rect class="fill" x="3" y="5" width="5.2" height="2" rx="0.4"/>' +
@@ -173,7 +173,7 @@ export type IconName = keyof typeof UI_ICONS;
 /**
  * An icon as an element. Pass `label` for an icon standing alone where no
  * button carries the name — a bare `<span>` is invisible to a screen reader,
- * so it needs both `role="img"` and the label (REQ-3).
+ * so it needs both `role="img"` and the label (REQ-heading-is-icon-then-text).
  */
 export function iconEl(name: IconName, label?: string): HTMLElement {
   const el = document.createElement('span');
@@ -188,7 +188,7 @@ export function iconEl(name: IconName, label?: string): HTMLElement {
 /**
  * Icon + text as one markup string. The icon is `aria-hidden` and the text is
  * the accessible name, which deliberately **shortens** it: "AI Prompt", never
- * "sparkles AI Prompt" (REQ-3).
+ * "sparkles AI Prompt" (REQ-heading-is-icon-then-text).
  */
 export function iconLabel(
   name: IconName,

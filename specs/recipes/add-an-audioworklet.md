@@ -32,7 +32,7 @@ priority order: perceived behaviour over circuit accuracy, bounded/no-NaN output
 always, and minimal per-sample cost — multiplied by however many instances and
 channels *your* node runs at, so be exact about it: the ladder filter is one
 per voice at 1 channel (8 voices, `channelCount: 1` — see
-[ladder-filter](../features/ladder-filter.md) REQ-9), the compressors are two bus
+[ladder-filter](../features/ladder-filter.md) REQ-the-filter-worklet-is-mono), the compressors are two bus
 instances at 2 channels. Prefer a rational approximation to a transcendental, keep feedback
 loops bounded (saturate the loop), and add a boundedness unit test. See
 [ADR-010](../decisions/adr-010-musical-stable-cheap-dsp.md).

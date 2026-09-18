@@ -68,7 +68,7 @@
 }
 
 /* Elapsed. Monospaced tabular figures for the same reason the transport readout
-   is (transport-window.md REQ-6): it must not shift sideways as it counts. */
+   is (transport-window.md REQ-the-position-readout-is-bar-dot-step): it must not shift sideways as it counts. */
 .timer {
   font-family: var(--mono);
   font-size: 17px;

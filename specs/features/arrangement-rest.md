@@ -24,8 +24,8 @@ source:
   - src/ui/panels/drum-panel.ts                  # rest overlay wiring
   - src/ui/panels/sampler-panel.ts               # rest overlay wiring
   - src/ui/panels/motion-panel.ts                # rest overlay wiring (XY + both track lanes)
-  - src/ui/panels/step-panel-scaffold.ts        # bankBarFor + wirePlayhead resting gate (REQ-4/REQ-6)
-  - src/ui/components/bank-bar.ts                # Follow state read by the overlay + resting dot recolour (REQ-6)
+  - src/ui/panels/step-panel-scaffold.ts        # bankBarFor + wirePlayhead resting gate (REQ-a-resting-lane-plays-nothing/REQ-a-resting-machine-tab-shows-it)
+  - src/ui/components/bank-bar.ts                # Follow state read by the overlay + resting dot recolour (REQ-a-resting-machine-tab-shows-it)
 ```
 
 A fifth arrangement-chain option that is **always an empty bar** ("rest"), so a
@@ -44,58 +44,65 @@ banks stay fully usable and existing songs are unaffected.
 
 ## Requirements
 
-- **REQ-1** — `PatternStore` exports `REST` (a sentinel `< 0`, distinct from any
-  bank index) and `clampChainStep(i)` which returns `REST` when `i === REST` and
-  otherwise clamps to `0..BANK_COUNT-1`. `clampBank` (edit/play-bank access) is
-  unchanged — an *edit* bank can never be a rest.
+- **REQ-rest-is-a-negative-sentinel** — `PatternStore` exports `REST` (a
+  sentinel `< 0`, distinct from any bank index) and `clampChainStep(i)` which
+  returns `REST` when `i === REST` and otherwise clamps to `0..BANK_COUNT-1`.
+  `clampBank` (edit/play-bank access) is unchanged — an *edit* bank can never be
+  a rest.
 
-- **REQ-2** — `Arrangement` chain steps may hold `REST`; `setSeqChain` /
-  `setDrumChain` / `setSamplerChain` / `setMotionChain` map incoming steps through
-  `clampChainStep` (preserving `REST`), so `Song.apply` round-trips a rest.
+- **REQ-chain-steps-may-hold-rest** — `Arrangement` chain steps may hold `REST`;
+  `setSeqChain` / `setDrumChain` / `setSamplerChain` / `setMotionChain` map
+  incoming steps through `clampChainStep` (preserving `REST`), so `Song.apply`
+  round-trips a rest.
 
-- **REQ-3** — `Arrangement` exposes `seqResting` / `drumResting` / `samplerResting`
-  / `motionResting` booleans recomputed each bar in `recompute()`. A lane is resting **iff** it is
-  enabled and its current chain step is `REST`. A disabled lane is never resting;
-  when resting the lane's `*PlayBank` is a safe real index (0) that is never read
-  for triggering.
+- **REQ-arrangement-exposes-resting-flags** — `Arrangement` exposes `seqResting`
+  / `drumResting` / `samplerResting` / `motionResting` booleans recomputed each
+  bar in `recompute()`. A lane is resting **iff** it is enabled and its current
+  chain step is `REST`. A disabled lane is never resting; when resting the
+  lane's `*PlayBank` is a safe real index (0) that is never read for triggering.
 
-- **REQ-4** — When a lane is resting, its machine (`StepSequencer` / `DrumMachine`
-  / `SamplerMachine` / `MotionMachine`) triggers/writes nothing for that bar; the
-  sequencer additionally releases any note tied into the rest. The transport clock
-  advances normally (positions still step internally). The machine tab's **playhead
-  is hidden while resting** — `wirePlayhead` gates the highlight on the lane *not*
-  resting, so it doesn't chase across a bank (index 0) that isn't playing under the
-  rest overlay. A panel whose tab is not on screen skips both the highlight and the
-  per-tick overlay refresh entirely and re-syncs on reveal
-  ([step-grid-editing](step-grid-editing.md) REQ-12); the overlay's own
+- **REQ-a-resting-lane-plays-nothing** — When a lane is resting, its machine
+  (`StepSequencer` / `DrumMachine` / `SamplerMachine` / `MotionMachine`)
+  triggers/writes nothing for that bar; the sequencer additionally releases any
+  note tied into the rest. The transport clock advances normally (positions
+  still step internally). The machine tab's **playhead is hidden while resting**
+  — `wirePlayhead` gates the highlight on the lane *not* resting, so it doesn't
+  chase across a bank (index 0) that isn't playing under the rest overlay. A
+  panel whose tab is not on screen skips both the highlight and the per-tick
+  overlay refresh entirely and re-syncs on reveal
+  ([step-grid-editing](step-grid-editing.md) REQ-an-offscreen-grid-repaints-nothing); the overlay's own
   `arrangement.onChange` subscription is **not** gated, so a hidden lane's rest
   state still tracks the bar — the gate only drops the redundant per-tick nudge.
 
-- **REQ-5** — The Song-tab chain builder has a rest add-button that appends `REST`
-  and renders a `REST` chip with a rest glyph (`.rest` style, not a letter).
-  Move / delete / clear operate on rest chips like any other slot.
+- **REQ-chain-builder-has-a-rest-button** — The Song-tab chain builder has a
+  rest add-button that appends `REST` and renders a `REST` chip with a rest
+  glyph (`.rest` style, not a letter). Move / delete / clear operate on rest
+  chips like any other slot.
 
-- **REQ-6** — While a lane is resting, its machine tab (Seq / Drum / Sampler /
-  Motion) overlays the step grid with a dimming backdrop + a large centered rest
-  glyph; the overlay hides when the lane stops resting, its chain is disabled, or
-  the panel's Bank **Follow** toggle is off — Follow off means editing intent
-  ([banks](banks.md) REQ-5), and an overlay over the bank being edited discourages
-  edits. The grid stays clickable underneath (overlay is `pointer-events: none`).
-  The **Motion** tab has three lanes (the XY lane plus tracks A and B); **each** is
-  wrapped in its own overlay, so all three dim together off the shared
-  `motionResting`. The `ctrls`/header rows stay outside the dim (as the XY lane's
-  axis header does), keeping the param pickers usable.
+- **REQ-a-resting-machine-tab-shows-it** — While a lane is resting, its machine
+  tab (Seq / Drum / Sampler / Motion) overlays the step grid with a dimming
+  backdrop + a large centered rest glyph; the overlay hides when the lane stops
+  resting, its chain is disabled, or the panel's Bank **Follow** toggle is off —
+  Follow off means editing intent ([banks](banks.md)
+  REQ-follow-tracks-the-play-bank), and an overlay over the bank being edited
+  discourages edits. The grid stays clickable underneath (overlay is
+  `pointer-events: none`). The **Motion** tab has three lanes (the XY lane plus
+  tracks A and B); **each** is wrapped in its own overlay, so all three dim
+  together off the shared `motionResting`. The `ctrls`/header rows stay outside
+  the dim (as the XY lane's axis header does), keeping the param pickers usable.
 
-- **REQ-7** — A `REST` in a chain persists through save / load and passes import
-  validation. Legacy songs (no `REST`) load unchanged; an older build that predates
-  this feature clamps `REST` → bank A (graceful degradation, ADR-007).
+- **REQ-rest-survives-save-and-import** — A `REST` in a chain persists through
+  save / load and passes import validation. Legacy songs (no `REST`) load
+  unchanged; an older build that predates this feature clamps `REST` → bank A
+  (graceful degradation, ADR-007).
 
-- **REQ-8** — While a lane is resting, the panel's Bank bar draws the current
-  play bank's dot **amber** (the resting colour, matching the overlay) instead of
-  the red "now-playing" colour — during a rest no bank is actually playing, so a
-  red dot misreads. The edit bank stays selected (with Follow on it is synced to
-  the play bank, so bank A remains highlighted and shown). The recolour is applied
-  whenever the lane rests, independent of the Follow toggle.
+- **REQ-resting-bank-bar-marks-itself** — While a lane is resting, the panel's
+  Bank bar draws the current play bank's dot **amber** (the resting colour,
+  matching the overlay) instead of the red "now-playing" colour — during a rest
+  no bank is actually playing, so a red dot misreads. The edit bank stays
+  selected (with Follow on it is synced to the play bank, so bank A remains
+  highlighted and shown). The recolour is applied whenever the lane rests,
+  independent of the Follow toggle.
 
 ## Technical design
 
@@ -203,21 +210,21 @@ Scenario: Follow off hides the overlay; re-enabling Follow mid-rest brings it ba
   And turning Follow back on while the lane still rests shows the overlay again
 # pinned by: tests/ui/rest-overlay.test.ts, e2e/arrangement-rest.spec.ts
 
-Scenario: The playhead is hidden while a lane rests (REQ-4)
+Scenario: The playhead is hidden while a lane rests (REQ-a-resting-lane-plays-nothing)
   Given a seq chain [A, rest] is enabled and playing with Follow on
   When the rest bar plays and the Seq tab is open
   Then no step cell carries the playing highlight
   And on the next (non-rest) bar the playhead resumes sweeping bank A
 # pinned by: e2e/arrangement-rest.spec.ts
 
-Scenario: The bank dot is amber, not red, while resting (REQ-8)
+Scenario: The bank dot is amber, not red, while resting (REQ-resting-bank-bar-marks-itself)
   Given a BankBar whose resting() reports true and play bank is A
   When it renders
   Then the bar root carries the "resting" class (CSS recolours A's playing dot amber)
   And bank A stays selected (active)
 # pinned by: tests/ui/bank-bar.test.ts
 
-Scenario: All three Motion lanes dim while the motion lane rests (REQ-6)
+Scenario: All three Motion lanes dim while the motion lane rests (REQ-a-resting-machine-tab-shows-it)
   Given a motion chain [A, rest] is enabled and playing with Follow on
   When the rest bar plays and the Motion tab is open
   Then the XY lane and both track lanes (A and B) each show a rest overlay
@@ -229,7 +236,7 @@ Scenario: All three Motion lanes dim while the motion lane rests (REQ-6)
 - Unit: `tests/state/patterns.test.ts`, `tests/audio/transport/arrangement.test.ts`,
   `tests/audio/transport/sequencer.test.ts` (+ drum/sampler),
   `tests/state/song.test.ts`, `tests/state/song-validate.test.ts`,
-  `tests/ui/rest-overlay.test.ts` (Follow gating, REQ-6) — `npm test`
+  `tests/ui/rest-overlay.test.ts` (Follow gating, REQ-a-resting-machine-tab-shows-it) — `npm test`
 - E2E: `e2e/arrangement-rest.spec.ts` — `npm run e2e`
 - Typecheck: `npm run typecheck`
 - Dev-bridge assertions: `window.__synth.engine.arrangement.seqResting` (DEV only)

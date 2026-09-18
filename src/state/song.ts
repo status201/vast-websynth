@@ -32,7 +32,7 @@ const store = new SlotStore('websynth.song.');
 /**
  * How every user-facing song/demo name is ordered — the demo row (`demoNames`)
  * and the slot picker (`Song.list`), so the two cannot disagree about where a
- * name sits (song-mode.md REQ-12).
+ * name sits (song-mode.md REQ-drop-in-demos-are-fetched-on-click).
  *
  * `numeric` so the year-named demos read as numbers (1973 · 1979 · 1983 ·
  * 1985-1 · 1985-2) rather than lexically; `sensitivity: 'base'` so an accent
@@ -54,7 +54,7 @@ export interface SongFile {
   name: string;
   params: Record<string, number>;
   /** v1-v5: one track per bank. Since v6 this is still **track 1** only —
-   *  tracks 2-4 live in the additive `seqTracks` (sequencer.md REQ-13). */
+   *  tracks 2-4 live in the additive `seqTracks` (sequencer.md REQ-song-file-v6-adds-seq-tracks). */
   seqBanks: SeqStep[][];
   /**
    * v6 — `seqTracks[bank][track]`, indexed by the REAL track number, so index 0
@@ -81,7 +81,7 @@ export interface SongFile {
   motionTracks?: (MotionTrack | null)[][];
   /**
    * v7 — one semitone offset per `seqChain` slot, parallel to `seqChain.steps`
-   * (arrangement.md REQ-8). A **sibling** of `seqChain`, not a field inside it,
+   * (arrangement.md REQ-a-seq-slot-carries-a-transpose). A **sibling** of `seqChain`, not a field inside it,
    * so `ChainData` keeps its exact shape and every v1-v6 file round-trips
    * byte-identically. Omitted when every offset is 0.
    */
@@ -90,7 +90,7 @@ export interface SongFile {
 
 /**
  * The narrow sampler view `apply` needs to evict stale audio (song-mode.md
- * REQ-3b). Structural, so `state/` never imports the audio layer —
+ * REQ-stale-sampler-audio-is-evicted). Structural, so `state/` never imports the audio layer —
  * `SamplerMachine` satisfies it.
  */
 export interface SamplerSlots {
@@ -155,7 +155,7 @@ export const Song = {
       // v7, and only when it says something: an all-zero array is what every
       // pre-v7 song has, so omitting it keeps those files byte-identical and
       // lets compactSongForExport's version floor stay below 7 (song-mode.md
-      // REQ-16). Same trick seqTracks uses.
+      // REQ-song-file-v7-adds-slot-transpose). Same trick seqTracks uses.
       ...(arr.seq.transpose.some((t) => t !== 0)
         ? { seqTranspose: [...arr.seq.transpose] }
         : {}),
@@ -173,11 +173,11 @@ export const Song = {
     bus.resetDefaults();      // authoritative: clear stale params before applying
     bus.restore(file.params);
     // A slot's decoded buffer belongs to the NAME beside it, so evict the audio
-    // of every slot this file renames (song-mode.md REQ-3b) — otherwise the
+    // of every slot this file renames (song-mode.md REQ-stale-sampler-audio-is-evicted) — otherwise the
     // previous song's sample keeps playing under the new song's label, with no
     // .needs-reload hint to betray it. Done BEFORE restore so the store's own
     // sample-meta emit repaints each slot against the settled buffers. A file
-    // that OMITS sampleNames renames nothing, so the REQ-3 inherit exception
+    // that OMITS sampleNames renames nothing, so the REQ-a-bank-with-no-anchors-writes-nothing inherit exception
     // below still holds for v1 files.
     if (sampler && file.sampleNames) {
       for (let i = 0; i < patterns.sampleNames.length; i++) {
@@ -187,7 +187,7 @@ export const Song = {
       }
     }
     // Motion is authoritative: a file that omits a motion section has it BLANKED,
-    // never inherited from the previously-loaded song (song-mode.md REQ-3,
+    // never inherited from the previously-loaded song (song-mode.md REQ-apply-resets-to-defaults-first,
     // motion-sequencer.md "Old songs load unchanged"). Without the `?? blank`
     // fallbacks, restore's skip-on-undefined leaves the prior song's anchors /
     // tracks live and still automating. Sampler banks/names are deliberately left
@@ -203,7 +203,7 @@ export const Song = {
       motionAssigns: file.motionAssigns ?? blank.motionAssigns,
       motionTracks: file.motionTracks ?? blank.motionTracks,
     });
-    // `?? []` — not "leave it alone": apply() is authoritative (REQ-3), so a file
+    // `?? []` — not "leave it alone": apply() is authoritative (REQ-a-bank-with-no-anchors-writes-nothing), so a file
     // without transposes must clear the last song's, not inherit them. fitTranspose
     // pads to the chain length, so [] means every slot at 0.
     arr.setSeqChain(
@@ -246,7 +246,7 @@ export const Song = {
     // every ingest surface (Import, launchQueue, project zips, share links,
     // MCP) accepts it automatically. Input-only — see ADR-013.
     //
-    // The expand/validate pass is inside a `try` too (untrusted-input.md REQ-2):
+    // The expand/validate pass is inside a `try` too (untrusted-input.md REQ-bounds-in-the-validator-sizes-in-the-codec):
     // both walk payload-shaped structures, so a pathological one can still raise
     // a RangeError (stack) or similar. A refused song must look like a failed
     // validation to every caller, never an exception escaping the import path.
@@ -282,7 +282,7 @@ export const Song = {
   /**
    * Slot-picker contents: every JSON demo name (drop-in and built-in) plus the
    * user's stored slots, deduped and sorted. Drop-ins are listed even though
-   * `loadSlot` cannot return them — they are fetched, not bundled (REQ-12) — so
+   * `loadSlot` cannot return them — they are fetched, not bundled (REQ-motion-mute-is-an-ordinary-param) — so
    * the Song panel's Load button falls back to `loadDemo` for a name with no
    * stored slot. Zip demos stay out, as they always have: they are project
    * bundles, not song files.
@@ -312,7 +312,8 @@ export const Song = {
   /**
    * Is there a stored slot under this song's name holding something **else**?
    * The one test behind every "may I overwrite?" dialog (session-autosave.md
-   * REQ-14b/14c) — no slot, or a slot already holding these exact bytes, is
+   * REQ-an-identical-slot-is-not-a-conflict/REQ-every-slot-write-is-guarded)
+   * — no slot, or a slot already holding these exact bytes, is
    * false: there is nothing to lose, so there is nothing to ask.
    *
    * A name match alone is NOT the question. When the slot holds the exact bytes
@@ -330,7 +331,8 @@ export const Song = {
 
   /**
    * Would writing this song to its slot destroy work the user would miss?
-   * (session-autosave.md REQ-14/14b/14c.)
+   * (session-autosave.md REQ-the-undo-net-covers-the-session/REQ-an-identical-slot-is-not-a-conflict,
+   * session-autosave.md REQ-every-slot-write-is-guarded.)
    *
    * A *plan*, not an action — the same idiom as `preset-file.ts` `planImport`:
    * the decision is pure and testable here, and the UI owns the dialog.
@@ -346,8 +348,8 @@ export const Song = {
 
   /**
    * `planSlotSave` for an import, which never has provenance: nothing about an
-   * arriving file makes its name *yours* (session-autosave.md REQ-14,
-   * untrusted-input.md REQ-9). The name comes from the file, so with a share
+   * arriving file makes its name *yours* (session-autosave.md REQ-the-undo-net-covers-the-session,
+   * untrusted-input.md REQ-an-import-may-not-destroy-saved-work). The name comes from the file, so with a share
    * link it is attacker-chosen: a song called "My Song" would otherwise destroy
    * that slot at boot, and the load-undo toast cannot bring it back — it
    * restores the in-memory session, not localStorage.
@@ -359,7 +361,7 @@ export const Song = {
   /**
    * A stored slot, else a **built-in** demo. Stays synchronous and JSON-only, so
    * the fetched demos (drop-in JSON and zip alike) are not reachable here —
-   * `SongPanel.loadDemo` is the door that knows about all three (REQ-12).
+   * `SongPanel.loadDemo` is the door that knows about all three (REQ-motion-mute-is-an-ordinary-param).
    */
   loadSlot(name: string): SongFile | null {
     const raw = store.readRaw(name);
@@ -456,7 +458,7 @@ const MOR_DRUM_B = drumFrom({
  * by filename, and listed *before* the hand-authored built-in below so
  * dropped-in songs lead the demo button row.
  *
- * **Fetched on click, not bundled** (song-mode.md REQ-11). Eagerly importing
+ * **Fetched on click, not bundled** (song-mode.md REQ-song-lane-titles-navigate). Eagerly importing
  * them put the whole library — hundreds of kB of JSON — into the boot payload,
  * parsed as JS object literals and held resident, so the user could load one.
  * A `?url` glob keeps only the URLs (a handful of strings); the same treatment
@@ -542,7 +544,7 @@ const BUILTIN_DEMOS: Record<string, SongFile> = {
  */
 export const DEMO_SONGS: Record<string, SongFile> = { ...BUILTIN_DEMOS };
 
-// Project-zip demos (project-export.md REQ-7): any *.websynth.zip dropped into
+// Project-zip demos (project-export.md REQ-zip-demos-auto-register): any *.websynth.zip dropped into
 // ./demos registers as a demo button, fetched lazily on click (a user gesture)
 // and applied via the song-panel's project-bundle path — so a demo can ship
 // WITH its sampler audio. `?url` keeps the (potentially large) zip out of the
@@ -558,7 +560,7 @@ export const ZIP_DEMOS: DemoRef[] = Object.keys(ZIP_URLS)
   .sort()
   .map((path) => {
     const file = path.replace(/^.*\//, '');
-    // The index now covers zips too (demo-library.md REQ-3) — the generator
+    // The index now covers zips too (demo-library.md REQ-zip-demos-are-indexed-too) — the generator
     // opens them in Node. The fallback stays: filename minus extension,
     // underscores → spaces, since export filenames underscore-sanitize
     // (projectFilename), so "Run_Away_2" round-trips to "Run Away 2".
@@ -577,7 +579,7 @@ export const ZIP_DEMOS: DemoRef[] = Object.keys(ZIP_URLS)
  * order so the button row, the tour's fallback and the empty-play modal's random
  * pick cannot disagree about what exists.
  *
- * Which source a demo comes from is a loading detail (song-mode.md REQ-12), and
+ * Which source a demo comes from is a loading detail (song-mode.md REQ-drop-in-demos-are-fetched-on-click), and
  * it used to leak into the shelf: the list was the three sources concatenated,
  * each sorted by *filename*. So the project zips always sat last — `1973`, the
  * most feature-complete demo in the library, was pushed past DEMO_ROW_LIMIT into
@@ -593,7 +595,7 @@ export function demoNames(): string[] {
 }
 
 /**
- * What the shelf knows about a demo (demo-library.md REQ-6), or `null` for a
+ * What the shelf knows about a demo (demo-library.md REQ-demo-row-says-what-it-knows), or `null` for a
  * name no source owns.
  *
  * The drop-ins and zips read it straight out of the generated index — they are
@@ -611,7 +613,7 @@ export function demoMetaFor(name: string): DemoMeta | null {
 
 /**
  * Does any of the three sources own this exact name? No fallback — for the one
- * caller that must stay strict (song-mode.md REQ-12).
+ * caller that must stay strict (song-mode.md REQ-drop-in-demos-are-fetched-on-click).
  */
 export function isDemoName(name: string): boolean {
   return name in DEMO_SONGS
@@ -621,7 +623,7 @@ export function isDemoName(name: string): boolean {
 
 /**
  * The demo a name refers to: itself when a source owns it, otherwise the **first
- * demo in button order** (song-mode.md REQ-12, v18).
+ * demo in button order** (song-mode.md REQ-drop-in-demos-are-fetched-on-click, v18).
  *
  * Demo names are data — `src/state/demos/` is a drop-in directory, so renaming or
  * deleting a file is a legitimate change that touches no code. Callers name one

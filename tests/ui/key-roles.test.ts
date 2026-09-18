@@ -4,7 +4,7 @@ import { ParamBus, registerDefaults } from '../../src/state/params';
 import { SCALE_LABELS, CHORD_LABELS } from '../../src/utils/music';
 
 /**
- * The one owner of the role vocabulary (scale-quantization.md REQ-9 / REQ-10).
+ * The one owner of the role vocabulary (scale-quantization.md REQ-the-key-is-drawn-not-just-named / REQ-the-key-is-shown-where-you-play).
  *
  * Two surfaces colour keys by musical role — the KEY tab's map and the playable
  * keyboard — and the reason this module exists is that they must never disagree about
@@ -26,8 +26,8 @@ const sorted = (s: ReadonlySet<number>) => [...s].sort((a, b) => a - b);
 describe('readKeyState', () => {
   it('reports chromatic as inactive, with every pitch class admitted', () => {
     // Both halves matter and they are read by different surfaces: the map lights
-    // everything (REQ-9), while `active` is what tells the keyboard to show nothing
-    // at all (REQ-10).
+    // everything (REQ-the-key-is-drawn-not-just-named), while `active` is what tells the keyboard to show nothing
+    // at all (REQ-the-key-is-shown-where-you-play).
     const s = readKeyState(bus());
     expect(s.active).toBe(false);
     expect(sorted(s.tones)).toHaveLength(12);

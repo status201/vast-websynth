@@ -31,12 +31,12 @@ export function buildKeyPanel(bus: ParamBus): HTMLElement {
 
   // Reading order, and therefore DOM order: the picture, then the controls that set
   // it, then the sentence saying what they add up to. One centred row when there is
-  // room; wraps in place when there is not, never reorders (REQ-9).
+  // room; wraps in place when there is not, never reorders (REQ-wah-phaser-and-delay-can-be-tempo-locked).
   const body = document.createElement('div');
   body.className = map.row!;
 
   // Three dropdowns *describe* a key; a keyboard *shows* it, and where the semitones
-  // fall is the part that teaches (REQ-9).
+  // fall is the part that teaches (REQ-wah-phaser-and-delay-can-be-tempo-locked).
   const keyMap = buildKeyMap();
   const mapGroup = group('Notes in this key', keyMap.el);
   mapGroup.className += ` ${map.mapGroup!}`;
@@ -70,8 +70,8 @@ export function buildKeyPanel(bus: ParamBus): HTMLElement {
 
   const refresh = (): void => {
     // Chromatic admits every note, so every key lights — and choosing a scale then
-    // visibly *removes* notes, which is the teaching moment (REQ-9). `key-roles` owns
-    // that derivation; the playable keyboard reads the very same state (REQ-10).
+    // visibly *removes* notes, which is the teaching moment (REQ-wah-phaser-and-delay-can-be-tempo-locked). `key-roles` owns
+    // that derivation; the playable keyboard reads the very same state (REQ-a-reverb-size-change-ducks).
     const state = readKeyState(bus);
     const { active } = state;
     const voicing = Math.round(bus.get('chord.voicing'));
@@ -79,7 +79,8 @@ export function buildKeyPanel(bus: ParamBus): HTMLElement {
 
     keyMap.paint(state);
     // Chord memory has two ways of being inert, and a silent control is exactly what
-    // the hint exists to prevent — name whichever one applies (chord-tools.md REQ-7/8).
+    // the hint exists to prevent — name whichever one applies
+    // (chord-tools.md REQ-mono-gates-the-live-chord-path/REQ-chord-tools-require-a-scale).
     if (!active) {
       hint.textContent = 'Chromatic — notes play exactly as written. '
         + 'Choose a scale to quantize every note and unlock the chord tools.';
@@ -114,7 +115,7 @@ const ROLE_TEXT: Record<string, string> = {
 };
 
 /**
- * A two-octave keyboard map (scale-quantization.md REQ-9).
+ * A two-octave keyboard map (scale-quantization.md REQ-the-key-is-drawn-not-just-named).
  *
  * Real piano topology — the five black keys inset at their true positions — because
  * *where* the semitones fall is what teaches. Stylised palette: both rows are muted
@@ -158,7 +159,7 @@ function buildKeyMap(): { el: HTMLElement; legend: HTMLElement; paint: (s: KeySt
   legend.className = map.legend!;
   legend.dataset.testid = 'key-legend';
   // Dropdown order, not precedence order: the legend sits directly under Root / Scale /
-  // Chord memory and a reader pairs them positionally (REQ-9).
+  // Chord memory and a reader pairs them positionally (REQ-wah-phaser-and-delay-can-be-tempo-locked).
   const legendItems = (['root', 'scale', 'chord'] as const).map((role) => {
     const item = document.createElement('span');
     item.className = map.legendItem!;

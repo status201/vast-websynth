@@ -3,7 +3,7 @@ import { jsQR } from '../../src/vendor/jsqr';
 import { qrcode } from '../../src/vendor/qr';
 
 /**
- * Pins the vendored jsQR decoder end-to-end (webrtc-sync REQ-5/REQ-7): a QR the
+ * Pins the vendored jsQR decoder end-to-end (webrtc-sync REQ-pairing-is-serverless-and-non-trickle/REQ-sync-has-zero-npm-dependencies): a QR the
  * vendored *encoder* produces, rasterized the way the pair modal renders it
  * (1px/module + a 4-module quiet zone, upscaled), decodes back to the exact
  * blob. This is the scan path on devices without a platform BarcodeDetector.

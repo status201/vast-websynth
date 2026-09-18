@@ -14,14 +14,14 @@ import { ListenerSet } from '../../utils/listeners';
 export type MotionStepListener = (step: number) => void;
 
 /**
- * "Evaluate this bank alone." Shared by the handover park (REQ-25), whose whole
+ * "Evaluate this bank alone." Shared by the handover park (REQ-a-bank-parks-at-its-last-anchor), whose whole
  * point is the value the bank rests at rather than anything it was ramping
  * toward — and which only ever runs for params the next bar does not drive, i.e.
  * exactly where `carryBank` would have returned null anyway.
  */
 const NO_CARRY = { prev: null, next: null };
 
-/** The slice of `document` the frame loop's driver swap needs (REQ-20). */
+/** The slice of `document` the frame loop's driver swap needs (REQ-the-motion-frame-loop-is-visibility-independent). */
 export interface VisibilitySource {
   readonly hidden: boolean;
   addEventListener(type: 'visibilitychange', fn: () => void): void;
@@ -36,7 +36,7 @@ interface LatchedTick {
   dur: number;
   resting: boolean;
   playBank: number;
-  /** Neighbouring bars, for the bar-line carry (REQ-2b) — latched with the rest. */
+  /** Neighbouring bars, for the bar-line carry (REQ-cross-bank-carry) — latched with the rest. */
   prevBank: number;
   prevResting: boolean;
   nextBank: number;
@@ -51,9 +51,9 @@ interface MotionMachineOpts {
   /** rAF/cAF injection for tests (jsdom has no real frame loop). */
   raf?: (cb: () => void) => number;
   caf?: (id: number) => void;
-  /** Wakeup source driving the loop while the document is hidden (REQ-20). */
+  /** Wakeup source driving the loop while the document is hidden (REQ-the-motion-frame-loop-is-visibility-independent). */
   timer?: TickTimer;
-  /** Visibility source; injectable so the driver swap is testable (REQ-20). */
+  /** Visibility source; injectable so the driver swap is testable (REQ-the-motion-frame-loop-is-visibility-independent). */
   doc?: VisibilitySource;
 }
 
@@ -69,24 +69,24 @@ interface MotionMachineOpts {
  * at the audio clock's *now* each frame — slide mode moves every frame, step
  * mode only produces a new value at anchor boundaries (`bus.set` no-ops on
  * unchanged values, so idle frames cost nothing). That one loop body has **two
- * drivers** (REQ-20): rAF while the document is visible, and the worker-backed
+ * drivers** (REQ-the-motion-frame-loop-is-visibility-independent): rAF while the document is visible, and the worker-backed
  * `TickTimer` while it is hidden, since browsers suspend rAF for a hidden
  * document and this loop decides what is *heard*, not what is drawn.
  * Arrangement state (rest
  * gate, play bank) advances with the scheduled tick too, so it is latched per
- * tick and applied at the tick's audible time (REQ-7) — reading it live would
+ * tick and applied at the tick's audible time (REQ-both-motion-modes-share-one-frame-loop) — reading it live would
  * truncate the final scheduleAheadS of every bar before a rest. The neighbouring
  * bars' banks are latched the same way and handed to the curve, so the segment
- * crossing the bar line ramps into the bank that actually plays next (REQ-2b).
+ * crossing the bar line ramps into the bank that actually plays next (REQ-cross-bank-carry).
  *
- * Baseline discipline (REQ-5): the first write to a param in a play session
+ * Baseline discipline (REQ-motion-writes-go-through-bus-set): the first write to a param in a play session
  * records its prior value; stop / disable restores every recorded baseline.
  * The machine never subscribes to the params it writes.
  */
 export class MotionMachine {
   private enabled = false;
   private muted = false;
-  /** The XY lane's interpolation mode; each extra track carries its own (REQ-2). */
+  /** The XY lane's interpolation mode; each extra track carries its own (REQ-set-steps-are-anchors). */
   private mode: MotionMode = 'slide';
   private readonly trackModes: MotionMode[] =
     Array.from({ length: MOTION_TRACK_COUNT }, () => 'slide' as MotionMode);
@@ -94,7 +94,7 @@ export class MotionMachine {
   private prev: LatchedTick | null = null;
   /**
    * The bank whose writes are live — `-1` while resting, and before the first
-   * frame of a play session or of a seek. The handover park (REQ-25) reads it to
+   * frame of a play session or of a seek. The handover park (REQ-a-bank-parks-at-its-last-anchor) reads it to
    * know which bank the chain just *left*; clearing it wherever the latch is
    * cleared is what keeps a seek or a stop from parking a bank nobody left.
    */
@@ -114,7 +114,7 @@ export class MotionMachine {
   private readonly caf: (id: number) => void;
   private readonly timer: TickTimer;
   private readonly doc: VisibilitySource | null;
-  /** This machine's loop length + step rate (meter.md REQ-10/REQ-14). */
+  /** This machine's loop length + step rate (meter.md REQ-each-machine-has-a-loop-length/REQ-each-machine-has-a-step-rate). */
   readonly lane: LaneMeter;
 
   constructor(
@@ -134,18 +134,18 @@ export class MotionMachine {
     // so a session that is never backgrounded pays nothing for this.
     this.timer = opts.timer ?? defaultTickTimer();
     this.doc = opts.doc ?? (typeof document !== 'undefined' ? document : null);
-    // One low-frequency global listener (runtime-performance.md REQ-3 exempts
+    // One low-frequency global listener (runtime-performance.md REQ-global-listeners-live-only-for-a-gesture exempts
     // these). Never removed: the machine lives as long as the page does.
     this.doc?.addEventListener('visibilitychange', this.onVisibility);
 
     clock.onTick((step, when) => {
       // The LaneMeter is built with no stutter map on purpose: automation must
-      // not follow a stutter remap (meter.md REQ-17). A cell finer than a tick
+      // not follow a stutter remap (meter.md REQ-stutter-composes-with-length-and-rate). A cell finer than a tick
       // would report several times per tick; the latch keeps the last, which is
       // what the frame loop interpolates from.
       // Scalars rather than an object the callback fills, because this runs on
       // every tick and the frame loop is already the app's tightest budget
-      // (runtime-performance.md REQ-6). The initialisers are never read: `fired`
+      // (runtime-performance.md REQ-no-allocation-in-a-hot-loop). The initialisers are never read: `fired`
       // gates every use of them.
       let idx = 0;
       let at = 0;
@@ -185,10 +185,10 @@ export class MotionMachine {
     // as onStart does. Emphatically NOT restoreBaselines(): those record each
     // param's value from before automation first touched it, for the whole play
     // session, and re-capturing them from automated values would lose the user's
-    // original sound for good (motion-sequencer.md REQ-21).
+    // original sound for good (motion-sequencer.md REQ-a-seek-clears-the-tick-latch).
     // `held` goes with the latch (v16): a seek lands wherever it lands, and the
     // bank it left was never *played* out of — parking it would write a value
-    // the transport never reached (REQ-25).
+    // the transport never reached (REQ-a-bank-parks-at-its-last-anchor).
     clock.onSeek(() => { this.curr = this.prev = null; this.held = -1; });
 
     // Anchor sets are cached across frames, and banks are mutated in place — so
@@ -201,7 +201,7 @@ export class MotionMachine {
     patterns.onBulkRestore(invalidate);
   }
 
-  /** Effective-active: enabled (motion.on) and not muted (motion.mute, REQ-12). */
+  /** Effective-active: enabled (motion.on) and not muted (motion.mute, REQ-motion-mute-is-an-ordinary-param). */
   private get active(): boolean {
     return this.enabled && !this.muted;
   }
@@ -253,9 +253,9 @@ export class MotionMachine {
    * so tests can drive it deterministically without a real rAF.
    *
    * Every write inside runs under `bus.withoutChangeSignal`: automation is not
-   * a user edit (REQ-15). `frameAt` holds the clock time for the bracketed body
+   * a user edit (REQ-motion-baselines-are-unchanged). `frameAt` holds the clock time for the bracketed body
    * and `runFrame` is bound once in the constructor, so a 60 fps frame
-   * allocates no closure (runtime-performance.md REQ-6).
+   * allocates no closure (runtime-performance.md REQ-no-allocation-in-a-hot-loop).
    */
   frame(nowS: number): void {
     this.frameAt = nowS;
@@ -276,7 +276,7 @@ export class MotionMachine {
     if (tick.dur <= 0) return;
 
     // The chain has moved on — park the bank it left at its last anchor before
-    // this bar writes anything (REQ-25). A rest holds nothing of its own, so it
+    // this bar writes anything (REQ-a-bank-parks-at-its-last-anchor). A rest holds nothing of its own, so it
     // reads as "no bank live" on both sides of the comparison.
     const live = tick.resting ? -1 : tick.playBank;
     if (this.held >= 0 && this.held !== live) this.parkBank(this.held, tick);
@@ -285,7 +285,7 @@ export class MotionMachine {
 
     const bank = this.patterns.motionBank(tick.playBank);
     // Read into the frame's reusable holders rather than taking three fresh
-    // objects per frame (runtime-performance.md REQ-6) — the same reason
+    // objects per frame (runtime-performance.md REQ-no-allocation-in-a-hot-loop) — the same reason
     // `neighbours` below is refilled instead of rebuilt.
     const base = this.base;
     const axes = this.axes;
@@ -296,7 +296,7 @@ export class MotionMachine {
     // ahead of now — valueAt wraps, matching the loop seam).
     const pos = tick.idx + (nowS - tick.when) / tick.dur;
     // `neighbours` is reused rather than rebuilt: this runs up to 60x/s
-    // (runtime-performance.md REQ-6), and valueAt only reads it.
+    // (runtime-performance.md REQ-no-allocation-in-a-hot-loop), and valueAt only reads it.
     this.neighbours.prev = this.carryBank(tick.prevBank, tick.prevResting, axes, base);
     this.neighbours.next = this.carryBank(tick.nextBank, tick.nextResting, axes, base);
     const cells = this.lane.cells;
@@ -309,7 +309,7 @@ export class MotionMachine {
   };
 
   /**
-   * Frame scratch, refilled each frame rather than rebuilt (REQ-6): the XY Pad's
+   * Frame scratch, refilled each frame rather than rebuilt (REQ-motion-has-the-fourth-chain-lane): the XY Pad's
    * base assignment, the axes this bank actually drives, and the value read off
    * the curve. Private and never handed out, so the sharing is invisible.
    */
@@ -328,14 +328,14 @@ export class MotionMachine {
   private readonly driven = new Set<string>();
 
   /**
-   * The chain has left `outBank` (REQ-25). Write its **last in-lane anchor** —
+   * The chain has left `outBank` (REQ-a-bank-parks-at-its-last-anchor). Write its **last in-lane anchor** —
    * the curve at the lane's seam, with no carry, which is that anchor in both
    * modes — for every param the incoming bar does not drive itself.
    *
    * Without this a bank parks wherever the bar line happened to fall inside its
    * loop. While every lane was 16 cells against a 16-tick bar those were the
    * same instant, so the bank always ended on its last cell for free; a lane
-   * that does not tile the bar (meter.md REQ-10) ends its bar mid-sweep, and
+   * that does not tile the bar (meter.md REQ-each-machine-has-a-loop-length) ends its bar mid-sweep, and
    * with nothing else driving those params they held that arbitrary value until
    * the bank came round again. A lane that *does* tile the bar writes the value
    * already there, so nothing about those songs changes.
@@ -343,10 +343,10 @@ export class MotionMachine {
    * Params the incoming bar keeps driving are skipped rather than written and
    * immediately overwritten: it evaluates them later in this same frame, and
    * putting the outgoing seam in front of that would insert a value the curve
-   * never contains — exactly what REQ-2b's carry exists to avoid.
+   * never contains — exactly what REQ-cross-bank-carry's carry exists to avoid.
    *
    * Runs at most once per bar, so it may allocate nothing per *frame* but is not
-   * on the 60 fps path itself (runtime-performance.md REQ-6); the scratch above
+   * on the 60 fps path itself (runtime-performance.md REQ-no-allocation-in-a-hot-loop); the scratch above
    * is reused all the same, since `runFrame` refills its own straight after.
    */
   private parkBank(outBank: number, incoming: LatchedTick): void {
@@ -391,7 +391,7 @@ export class MotionMachine {
   }
 
   /**
-   * The extra single-param tracks (REQ-13/REQ-14). Each is evaluated with the
+   * The extra single-param tracks (REQ-two-extra-tracks-per-bank/REQ-tracks-share-the-lanes-curve-semantics). Each is evaluated with the
    * same scalar core the XY axes use, so slide/step and the bar-line carry are
    * identical by construction. An unassigned track — or one with no anchors —
    * writes nothing; that is the no-op default, and it is why the tracks need no
@@ -432,7 +432,7 @@ export class MotionMachine {
   }
 
   /**
-   * The neighbouring bar's bank as a carry target (REQ-2b), or null when there is
+   * The neighbouring bar's bank as a carry target (REQ-cross-bank-carry), or null when there is
    * nothing meaningful to ramp toward: a rest bar writes nothing, and a bank
    * driving *other* params holds its anchors in a different value space — ramping
    * into either would move this bar's params for no authored reason.
@@ -445,7 +445,7 @@ export class MotionMachine {
   ): readonly MotionStep[] | null {
     if (resting) return null;
     // `motionAxesMatch`, not `motionAxesFor(...)` compared field-by-field: same
-    // answer, no object per neighbour per frame (runtime-performance.md REQ-6).
+    // answer, no object per neighbour per frame (runtime-performance.md REQ-no-allocation-in-a-hot-loop).
     if (!motionAxesMatch(this.patterns, bank, base, axes)) return null;
     return this.patterns.motionBank(bank);
   }
@@ -467,7 +467,7 @@ export class MotionMachine {
     for (const [id, v] of this.baselines) this.bus.set(id, v);
     this.baselines.clear();
     // Nothing is live any more, so the next frame must not park what this just
-    // undid (REQ-25) — a stop, a mute or motion.on → 0 is not a handover.
+    // undid (REQ-a-bank-parks-at-its-last-anchor) — a stop, a mute or motion.on → 0 is not a handover.
     this.held = -1;
   };
 
@@ -484,7 +484,7 @@ export class MotionMachine {
   }
 
   /**
-   * Arm whichever driver suits the document's current visibility (REQ-20).
+   * Arm whichever driver suits the document's current visibility (REQ-the-motion-frame-loop-is-visibility-independent).
    * rAF is suspended for a hidden document, and this loop drives what is heard —
    * so hidden falls back to the worker timer the transport clock already uses.
    */
@@ -503,14 +503,14 @@ export class MotionMachine {
 
   /** Swap drivers under a running loop — never start, stop or restore anything:
    *  hiding the tab is not a transport event, and restoring baselines here would
-   *  jump the sound on every tab switch (REQ-5). */
+   *  jump the sound on every tab switch (REQ-motion-writes-go-through-bus-set). */
   private readonly onVisibility = (): void => {
     if (!this.looping) return;
     this.detachDriver();
     this.attachDriver();
   };
 
-  /** Bound once, so re-arming the loop allocates no closure (REQ-19). */
+  /** Bound once, so re-arming the loop allocates no closure (REQ-the-motion-frame-loop-allocates-nothing). */
   private readonly rafStep = (): void => {
     this.rafId = this.raf(this.rafStep);
     const nowMs = Date.now();

@@ -8,7 +8,7 @@ import { SYNC_LABELS } from '../src/utils/tempo';
  * The FX tempo lock in a real browser — tempo-lock.md.
  *
  * Two things only a browser settles: that the lock actually reaches the
- * `DelayNode` through the whole ParamBus → Effect chain, and REQ-9's layout
+ * `DelayNode` through the whole ParamBus → Effect chain, and REQ-wah-phaser-and-delay-can-be-tempo-locked's layout
  * claim, which is about measured boxes and therefore cannot be unit-tested (the
  * jsdom suite has no CSS at all).
  */
@@ -89,7 +89,7 @@ test.describe('FX tempo lock', () => {
     await expect(page.getByTestId('knob-fx.delay.time')).toContainText('250ms');
   });
 
-  // REQ-9. `.fxKnobs` wraps, and the four-knob Phaser spends 220 px of its
+  // REQ-wah-phaser-and-delay-can-be-tempo-locked. `.fxKnobs` wraps, and the four-knob Phaser spends 220 px of its
   // ~246 px column, so a chip even slightly wider than the knob box it replaces
   // would drop a knob onto a second row — turning a space-saving feature into a
   // space-costing one at the exact moment it is used.
@@ -113,7 +113,7 @@ test.describe('FX tempo lock', () => {
   // The machine tabs run 22 px knobs, so their cell is 30 px wide — narrow
   // enough that the glyph and the label do not fit on one line. When the label
   // wrapped, the RATE knob grew a second line and its dial dropped below its
-  // neighbours' (tempo-lock.md REQ-10).
+  // neighbours' (tempo-lock.md REQ-the-lock-glyph-hangs-out-of-flow).
   test('a lockable knob stays aligned with its neighbours in a machine tab', async ({ page }) => {
     await gotoAndStart(page);
     await page.getByTestId('tab-drums').click();

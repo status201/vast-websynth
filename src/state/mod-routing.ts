@@ -1,10 +1,10 @@
 /**
- * The mod matrix's vocabulary and its one routing rule — mod-matrix.md REQ-4/REQ-7.
+ * The mod matrix's vocabulary and its one routing rule — mod-matrix.md REQ-label-arrays-are-append-only/REQ-per-voice-sources-cannot-drive-bus-destinations.
  *
  * Pure and DOM-free, and deliberately in `state/` rather than `audio/`: the param
  * registry names these labels, the panel greys options with this rule, and the audio
  * layer refuses the same combination. One definition, so the three cannot disagree.
- * (`src/state/lfo-routing.ts` held the superseded REQ-12 rule in exactly this shape.)
+ * (`src/state/lfo-routing.ts` held the superseded REQ-a-known-source-shows-its-position rule in exactly this shape.)
  */
 
 /**
@@ -21,7 +21,7 @@ export const MOD_DEST_LABELS = [
   'none', 'cutoff', 'resonance', 'pitch', 'shape', 'amp', 'drive', 'pan',
 ];
 
-/** The six user-assignable rows. LFO 1/2 are rows 0-1 and keep their own params (REQ-2). */
+/** The six user-assignable rows. LFO 1/2 are rows 0-1 and keep their own params (REQ-eight-rows-two-grandfathered). */
 export const MOD_ROWS = 6;
 
 /** Source indices, named so the rules below read as prose. */
@@ -36,7 +36,7 @@ export const MOD_DST = {
 } as const;
 
 /**
- * Full-scale depth per destination, in that destination's own unit (REQ-8).
+ * Full-scale depth per destination, in that destination's own unit (REQ-depth-is-in-the-destinations-unit).
  *
  * Lives here, with the vocabulary, because **two** things read it and they must not
  * drift: the audio layer scales a route's gain by it, and the faceplate draws its
@@ -72,7 +72,7 @@ export function isBusWideDest(dst: number): boolean {
 }
 
 /**
- * Destination indices that must be greyed out for `src` (REQ-7).
+ * Destination indices that must be greyed out for `src` (REQ-per-voice-sources-cannot-drive-bus-destinations).
  *
  * Eight voices' envelopes summing into one `StereoPannerNode` is mush, not modulation —
  * so a per-voice source may not drive a bus-wide destination. Greyed, never removed:

@@ -7,7 +7,7 @@ import {
 import { MAX_SCRATCH_POINTS, MAX_SCRATCH_RATE } from '../../state/limits';
 
 /**
- * The scratch editor's canvas (scratch.md REQ-16/REQ-17/REQ-18).
+ * The scratch editor's canvas (scratch.md REQ-the-graph-is-two-lanes-on-output-time/REQ-the-preview-lane-remaps-cached-peaks/REQ-the-scratch-gesture-inventory).
  *
  * Four lanes, three of them sharing one x-axis of **output time** gridded in
  * sixteenths, so what the user draws is read against the bar it will be played
@@ -168,7 +168,7 @@ export class ScratchGraph {
   /**
    * The grid the gesture is drawn against, and the output length it will fill.
    *
-   * `barTicks` is the bar in sixteenths (meter.md REQ-6) — the line that matters,
+   * `barTicks` is the bar in sixteenths (meter.md REQ-bar-ticks-is-the-arrangement-bar-line) — the line that matters,
    * because locking to it is the point of the feature. The lighter line every
    * {@link QUARTER} sixteenths is a *quarter note*, not "the beat": a sixteenth
    * count alone cannot tell 3/4 from 6/8, and drawing a beat grid that is wrong
@@ -454,7 +454,7 @@ export class ScratchGraph {
     const half = PREVIEW_H / 2 - 1;
 
     // Off-record first, underneath: the shading is the answer to "why is this
-    // stretch of my scratch silent?" (REQ-20), and it has to read as a region.
+    // stretch of my scratch silent?" (REQ-the-cue-auto-places-from-the-excursion), and it has to read as a region.
     if (this.srcFrames > 0 && this.outFrames > 0) {
       g.fillStyle = COL_OFF;
       let seg = 0;

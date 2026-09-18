@@ -1,6 +1,6 @@
 /**
  * Screen Wake Lock manager — keeps the display awake while the synth is
- * audibly running (specs/features/pwa-install.md REQ-1).
+ * audibly running (specs/features/pwa-install.md REQ-wake-lock-follows-the-context).
  *
  * Policy is intent-based: `enable()` records that the lock is *wanted* and
  * requests it; the OS silently releases the lock whenever the tab is hidden,

@@ -10,13 +10,13 @@ import {
 } from '../../scripts/lib/offline-manifest.mjs';
 
 /**
- * The build's file list for Play offline (specs/features/play-offline.md REQ-2):
+ * The build's file list for Play offline (specs/features/play-offline.md REQ-the-build-writes-the-file-list):
  * everything the app can request, minus a named set of files it never does.
  */
 
 const entry = (path: string, bytes = 10) => ({ path, bytes });
 
-describe('buildOfflineManifest (REQ-2)', () => {
+describe('buildOfflineManifest (REQ-the-build-writes-the-file-list)', () => {
   const tree = [
     entry('index.html', 7834),
     entry('assets/index-B-idqKpf.js', 453385),
@@ -84,7 +84,7 @@ describe('buildOfflineManifest (REQ-2)', () => {
   });
 });
 
-describe('offlineManifestPlugin (REQ-2)', () => {
+describe('offlineManifestPlugin (REQ-the-build-writes-the-file-list)', () => {
   let dir: string | null = null;
   afterEach(() => {
     if (dir) rmSync(dir, { recursive: true, force: true });

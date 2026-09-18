@@ -4,7 +4,7 @@
 id: media-session
 status: implemented
 version: 2   # v2: the notification's pause is the transport's real Pause — play
-             #     resumes where it paused; only stop panics (REQ-4)
+             #     resumes where it paused; only stop panics (REQ-notification-controls-work)
 owner: core
 related:
   - audio-lifecycle
@@ -30,7 +30,7 @@ metadata, artwork and working transport controls.
 
 ## Background / Why
 
-Bounding the transport's catch-up ([`transport`](transport.md) REQ-9) fixed the
+Bounding the transport's catch-up ([`transport`](transport.md) REQ-the-transport-catch-up-is-bounded) fixed the
 *runaway clock* on a Pixel 8a but **not** the crackle, which rules out "a burst of
 missed steps" as its cause and leaves the other half of the problem: Chrome on
 Android protects a page it recognises as a **media player** — audio focus, a
@@ -54,71 +54,77 @@ never touches `ParamBus`, presets or songs.
 
 ## Requirements
 
-- **REQ-1** — **Android only, and only where the API exists.**
-  `isAndroid()` (`src/platform/android.ts`) is a UA match for `Android`, `false`
-  when `navigator` is absent — the sibling of `isIOS()`, deliberately separate
-  from `detectTier()` (OS identity vs. hardware capability). The keep-alive is
-  `active` only when `isAndroid()` **and** `navigator.mediaSession` exists.
-  Deliberately **not** enabled off Android: everywhere else it would add an
-  unasked-for media notification and hand the OS's hardware media keys control of
-  the transport.
-- **REQ-2** — **A silent, looping `<audio>` element creates the session**, built
-  lazily on first unlock from the same silent-WAV builder iOS uses (REQ-7) and
+- **REQ-keep-alive-is-android-only** — **Android only, and only where the API
+  exists.** `isAndroid()` (`src/platform/android.ts`) is a UA match for
+  `Android`, `false` when `navigator` is absent — the sibling of `isIOS()`,
+  deliberately separate from `detectTier()` (OS identity vs. hardware
+  capability). The keep-alive is `active` only when `isAndroid()` **and**
+  `navigator.mediaSession` exists. Deliberately **not** enabled off Android:
+  everywhere else it would add an unasked-for media notification and hand the
+  OS's hardware media keys control of the transport.
+- **REQ-a-silent-loop-creates-the-session** — **A silent, looping `<audio>`
+  element creates the session**, built lazily on first unlock from the same
+  silent-WAV builder iOS uses (REQ-one-silent-loop-builder-two-callers) and
   played from the start gesture. Unlike iOS it is **detached** — *not* routed
   through the `AudioContext` — for two reasons: the routing exists to change the
   *context's* session category, which is an iOS-only concept; and a detached
   element keeps playing (and keeps the session alive) even while the context is
   suspended, which is exactly when the session must persist.
-- **REQ-3** — **The session identifies the app**: `navigator.mediaSession.metadata`
-  = title `VAST G1-J8`, artist `Vast Audio Synthesis Technology`, artwork from the
-  existing `/icon-192.png` + `/icon-512.png`. Constructing `MediaMetadata` is
-  feature-detected and guarded — it is absent in jsdom and older browsers, and a
-  missing notification must never cost the synth its audio.
-- **REQ-4** — **The notification's controls work.** `setActionHandler` is
-  registered for `play`, `pause` and `stop`: **play** resumes the context and
-  starts the transport, **pause** pauses it, and **stop** panics (stop the
-  transport and silence every voice — [`architecture`](../architecture.md)
-  `Engine.panic`). A handler that the browser refuses is skipped without failing
-  the others. Not registering `pause` would leave Android pausing our own
-  keep-alive element, which is the one thing that must not happen.
-  (v2) **Pause is the transport's real Pause** ([transport](transport.md)
-  REQ-12), not a panic. Until the song transport had a Pause, panic was the
-  nearest thing; now a lock-screen pause and play continue the song from where it
-  stopped, exactly like the TRANSPORT row's Play/Pause
-  ([transport-window](transport-window.md) REQ-13). Play needed no change: a plain
-  `clock.start()` already begins at the cue, which after a pause *is* the resume
-  point. Stop keeps panicking, so the two buttons still mean two different things.
-  A pause with the transport already stopped changes nothing audible — there is
-  no run to pause, and a held key played by hand is the player's to release. The
-  mapping lives in `transportMediaHandlers`, a pure function beside the class, so
-  it is tested without constructing an `Engine`.
-- **REQ-5** — **`playbackState` mirrors the audio session, not the transport.**
-  It is set to `'playing'` at unlock and stays there while the transport is
-  stopped, because this is an *instrument*: the keyboard makes sound with the
-  transport stopped, so `'paused'` would be a lie — and Android treats a paused
-  session as a candidate for teardown, which is the failure being fixed. It flips
-  to `'paused'` only when the user pauses from the notification, and back on play.
-  The transport's own state is not mirrored (and the clock is not subscribed to).
-- **REQ-6** — **Re-armed on return to the foreground**, alongside the context
-  re-arm ([`audio-lifecycle`](audio-lifecycle.md) REQ-4): `rearm()` replays the
-  element if the OS paused it. No-op before the first unlock, and never throws (a
+- **REQ-session-identifies-the-app** — **The session identifies the app**:
+  `navigator.mediaSession.metadata` = title `VAST G1-J8`, artist `Vast Audio
+  Synthesis Technology`, artwork from the existing `/icon-192.png` +
+  `/icon-512.png`. Constructing `MediaMetadata` is feature-detected and guarded
+  — it is absent in jsdom and older browsers, and a missing notification must
+  never cost the synth its audio.
+- **REQ-notification-controls-work** — **The notification's controls work.**
+  `setActionHandler` is registered for `play`, `pause` and `stop`: **play**
+  resumes the context and starts the transport, **pause** pauses it, and
+  **stop** panics (stop the transport and silence every voice —
+  [`architecture`](../architecture.md) `Engine.panic`). A handler that the
+  browser refuses is skipped without failing the others. Not registering `pause`
+  would leave Android pausing our own keep-alive element, which is the one thing
+  that must not happen. (v2) **Pause is the transport's real Pause**
+  ([transport](transport.md) REQ-pause-resumes-where-it-stopped), not a panic. Until the song transport had
+  a Pause, panic was the nearest thing; now a lock-screen pause and play
+  continue the song from where it stopped, exactly like the TRANSPORT row's
+  Play/Pause ([transport-window](transport-window.md) REQ-pause-and-stop-are-separate-verbs). Play needed no
+  change: a plain `clock.start()` already begins at the cue, which after a pause
+  *is* the resume point. Stop keeps panicking, so the two buttons still mean two
+  different things. A pause with the transport already stopped changes nothing
+  audible — there is no run to pause, and a held key played by hand is the
+  player's to release. The mapping lives in `transportMediaHandlers`, a pure
+  function beside the class, so it is tested without constructing an `Engine`.
+- **REQ-playback-state-mirrors-the-session** — **`playbackState` mirrors the
+  audio session, not the transport.** It is set to `'playing'` at unlock and
+  stays there while the transport is stopped, because this is an *instrument*:
+  the keyboard makes sound with the transport stopped, so `'paused'` would be a
+  lie — and Android treats a paused session as a candidate for teardown, which
+  is the failure being fixed. It flips to `'paused'` only when the user pauses
+  from the notification, and back on play. The transport's own state is not
+  mirrored (and the clock is not subscribed to).
+- **REQ-session-rearms-on-foreground** — **Re-armed on return to the
+  foreground**, alongside the context re-arm
+  ([`audio-lifecycle`](audio-lifecycle.md) REQ-foreground-return-rearms-the-context): `rearm()` replays the element
+  if the OS paused it. No-op before the first unlock, and never throws (a
   rejected `play()` is caught into the diagnostic status, exactly as iOS does).
-- **REQ-7** — **One silent-loop builder, two callers.** `createSilentLoop(ctx?)`
-  (`src/audio/silent-loop.ts`) owns the encode-a-silent-WAV → object-URL →
-  `loop`/`playsinline`/`preload` element construction, and routes it through the
-  context when given one (iOS) or leaves it detached when not (Android). It is a
-  pure extraction: [`ios-audio`](ios-audio.md) REQ-2's behaviour is unchanged.
-- **REQ-8** — **Observable from the device.** `MediaSessionKeepAlive.diagnostics`
-  (`{ active, status, playbackState, handlers, paused, currentTime }`) is
-  re-exported as `Engine.mediaSession`, is part of `StudioApi`, and renders as one
-  **Media session** row (`debug-media-session`) in the
-  [`debug-panel`](debug-panel.md). This reproduces on one phone with no console;
-  the row is how we tell "the session never formed" from "it formed and the
-  crackle is something else".
-- **REQ-9** — **Inert and silent about it everywhere else.** Off Android nothing
-  is built, no element plays, no handler is registered, `diagnostics.active` is
-  `false` and the Debug row reads `n/a`. Nothing here is persisted — it describes
-  the device, not the sound.
+- **REQ-one-silent-loop-builder-two-callers** — **One silent-loop builder, two
+  callers.** `createSilentLoop(ctx?)` (`src/audio/silent-loop.ts`) owns the
+  encode-a-silent-WAV → object-URL → `loop`/`playsinline`/`preload` element
+  construction, and routes it through the context when given one (iOS) or leaves
+  it detached when not (Android). It is a pure extraction:
+  [`ios-audio`](ios-audio.md) REQ-silent-loop-routes-through-the-context's
+  behaviour is unchanged.
+- **REQ-session-is-observable-on-device** — **Observable from the device.**
+  `MediaSessionKeepAlive.diagnostics` (`{ active, status, playbackState,
+  handlers, paused, currentTime }`) is re-exported as `Engine.mediaSession`, is
+  part of `StudioApi`, and renders as one **Media session** row
+  (`debug-media-session`) in the [`debug-panel`](debug-panel.md). This
+  reproduces on one phone with no console; the row is how we tell "the session
+  never formed" from "it formed and the crackle is something else".
+- **REQ-off-android-the-session-is-inert** — **Inert and silent about it
+  everywhere else.** Off Android nothing is built, no element plays, no handler
+  is registered, `diagnostics.active` is `false` and the Debug row reads `n/a`.
+  Nothing here is persisted — it describes the device, not the sound.
 
 ## Technical design
 
@@ -128,7 +134,7 @@ never touches `ParamBus`, presets or songs.
 # src/platform/android.ts
 isAndroid(): boolean                       # UA match; false without navigator
 
-# src/audio/silent-loop.ts                 # shared with ios-audio (REQ-7)
+# src/audio/silent-loop.ts                 # shared with ios-audio (REQ-one-silent-loop-builder-two-callers)
 createSilentLoop(ctx?: AudioContext): { el: HTMLAudioElement; src: MediaElementAudioSourceNode | null }
   # ~0.5 s silent stereo WAV (encodeWav) → object URL; loop + playsinline + preload
   # ctx given  → createMediaElementSource(el).connect(ctx.destination)  (iOS)
@@ -137,9 +143,9 @@ createSilentLoop(ctx?: AudioContext): { el: HTMLAudioElement; src: MediaElementA
 # src/audio/media-session.ts
 MediaSessionDiagnostics: { active, status, playbackState, handlers, paused, currentTime }
 MediaTransport: { resume(): void | Promise<void>; start(): void; pause(): void; panic(): void }
-transportMediaHandlers(t: MediaTransport): MediaSessionHandlers   # v2 (REQ-4)
+transportMediaHandlers(t: MediaTransport): MediaSessionHandlers   # v2 (REQ-notification-controls-work)
   # play  -> void t.resume(); t.start()   (start = from the cue = the resume point)
-  # pause -> t.pause()                    (Clock.pause, transport.md REQ-12)
+  # pause -> t.pause()                    (Clock.pause, transport.md REQ-pause-resumes-where-it-stopped)
   # stop  -> t.panic()
 class MediaSessionKeepAlive:
   constructor(handlers: { play(): void; pause(): void; stop(): void })
@@ -163,7 +169,7 @@ engine ctor:    this.media = new MediaSessionKeepAlive(transportMediaHandlers({.
 engine.resume(): iosSession.unlock(); media.unlock()   # both in-gesture, both no-ops off their OS
 engine.installContextRearm(): on foreground → media.rearm() alongside the context resume
 ui (about.ts):  one row reading engine.mediaSession (panel owned by debug-panel.md)
-NOT wired:      clock.onStart/onStop — playbackState tracks the audio session (REQ-5)
+NOT wired:      clock.onStart/onStop — playbackState tracks the audio session (REQ-playback-state-mirrors-the-session)
 ```
 
 ### Persistence
@@ -177,14 +183,14 @@ the sound: no `ParamBus` param, no `SongFile` field, no `localStorage` key.
 Scenario: The session forms on Android at the start gesture
   Given an Android device
   When Engine.resume() runs from the start handler (Tap-to-start, or the first
-    real gesture after an auto-start — audio-lifecycle.md REQ-21)
+    real gesture after an auto-start — audio-lifecycle.md REQ-post-gesture-work-is-deferred)
   Then a silent looping element is playing, detached from the AudioContext
    And mediaSession.metadata names the app and carries its icons
    And play / pause / stop action handlers are registered
    And playbackState is 'playing'
 # pinned by: tests/audio/media-session.test.ts
 
-Scenario: The notification's pause pauses the transport (v2, REQ-4/REQ-5)
+Scenario: The notification's pause pauses the transport (v2, REQ-notification-controls-work/REQ-playback-state-mirrors-the-session)
   Given the session is active and the transport is playing
   When the OS invokes the 'pause' action
   Then the transport pauses — it does not panic
@@ -195,12 +201,12 @@ Scenario: The notification's pause pauses the transport (v2, REQ-4/REQ-5)
   And 'stop' still panics
 # pinned by: tests/audio/media-session.test.ts
 
-Scenario: A stopped transport is still a playing session (REQ-5, edge)
+Scenario: A stopped transport is still a playing session (REQ-playback-state-mirrors-the-session, edge)
   Given the session is active and the transport is stopped
   Then playbackState is still 'playing'
 # pinned by: tests/audio/media-session.test.ts
 
-Scenario: Off Android nothing happens at all (REQ-9)
+Scenario: Off Android nothing happens at all (REQ-off-android-the-session-is-inert)
   Given a desktop or iOS browser
   When Engine.resume() runs
   Then no element is built, no handler is registered, no metadata is set
@@ -229,7 +235,7 @@ Scenario: Playing with the screen off (device)
   `navigator`/`MediaMetadata`/`HTMLMediaElement.play` stubbed as
   `ios-audio-session.test.ts` does).
 - `tests/audio/ios-audio-session.test.ts` — unchanged, and must stay green: the
-  silent-loop extraction (REQ-7) is behaviour-preserving.
+  silent-loop extraction (REQ-one-silent-loop-builder-two-callers) is behaviour-preserving.
 - **The verdict is the device.** Screen off on the phone that crackles, with the
   Debug panel's Media session row and dropout count as the evidence
   ([ADR-010](../decisions/adr-010-musical-stable-cheap-dsp.md)).
@@ -241,7 +247,7 @@ Scenario: Playing with the screen off (device)
   glitch-resistant buffer, but it is fixed when the `AudioContext` is built
   ([`performance-mode`](performance-mode.md)), so it would have to become a
   device-scoped setting rather than a silent default.
-- A detached element (REQ-2) means Android could in principle report the page as
+- A detached element (REQ-a-silent-loop-creates-the-session) means Android could in principle report the page as
   playing media while the context is dead. Harmless — the element is silent and
   the Debug row shows both — but it is the reason `status` and `playbackState` are
   reported separately from the context state.

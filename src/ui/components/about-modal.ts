@@ -4,9 +4,9 @@
 //
 // This is the lazy half of the About split — `about-button.ts` stays on the boot
 // path and `import()`s this module on the click that opens it
-// (runtime-performance.md REQ-1). The card's section order is a cross-spec
-// invariant (factory-reset.md REQ-1, onboarding.md REQ-20, play-offline.md
-// REQ-1), written down once in factory-reset.md "Layer touchpoints" — the
+// (runtime-performance.md REQ-boot-cost-matches-the-request). The card's section order is a cross-spec
+// invariant (factory-reset.md REQ-about-modal-has-a-reset-button, onboarding.md REQ-about-is-the-single-door-for-help, play-offline.md
+// REQ-the-about-card-hosts-play-offline), written down once in factory-reset.md "Layer touchpoints" — the
 // appends below are that list. Do not reorder them.
 import { Modal } from './modal';
 import { createButton } from './button';
@@ -40,7 +40,7 @@ export function buildModal(close: () => void, engine: StudioApi, deps: AboutDeps
   card.setAttribute('role', 'dialog');
   card.setAttribute('aria-label', 'About VAST G1-J8');
 
-  // The real faceplate, not a flattened restatement of it (brand.md REQ-1).
+  // The real faceplate, not a flattened restatement of it (brand.md REQ-brand-block-has-no-variants).
   const brand = createBrand();
 
   const meta = document.createElement('div');
@@ -61,7 +61,7 @@ export function buildModal(close: () => void, engine: StudioApi, deps: AboutDeps
   meta.appendChild(source);
 
   // The one action in an otherwise reference-only modal, so it sits above the
-  // reference (onboarding.md REQ-20). It is the app's only tour-replay route.
+  // reference (onboarding.md REQ-about-is-the-single-door-for-help). It is the app's only tour-replay route.
   const tourBtn = createButton({
     label: 'Take the guided tour',
     className: `${switchStyles.root!} ${Modal.closeBtnClass}`,
@@ -118,7 +118,7 @@ function buildFactoryResetButton(): HTMLButtonElement {
       const ok = await confirmDialog({
         title: 'Restore to Factory Settings',
         message: 'Are you sure? This erases all presets, songs, and settings saved on this device, then reloads the app. '
-          // What happens to a saved offline copy (factory-reset.md REQ-8/REQ-9).
+          // What happens to a saved offline copy (factory-reset.md REQ-reset-redownloads-the-offline-copy/REQ-reset-never-strands-an-offline-device).
           // onLine is only a hint; the reset itself probes the server before deleting.
           + (navigator.onLine === false
             ? "You're offline, so a saved offline copy is kept."

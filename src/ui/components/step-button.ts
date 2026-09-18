@@ -51,7 +51,7 @@ export class StepButton {
   }
 
   /**
-   * Move the beat accent (meter.md REQ-8). Which columns start a beat is no
+   * Move the beat accent (meter.md REQ-accents-and-ruler-derive-from-the-meter). Which columns start a beat is no
    * longer fixed at construction: in 7/8 the accents fall on every second cell,
    * and a lane at 1/8 accents every fourth. Cheap and idempotent, so a panel can
    * call it for every cell on any meter change.
@@ -66,7 +66,7 @@ export class StepButton {
     if (cls) this.el.classList.add(cls);
   }
 
-  /** Hide a cell the lane does not reach (meter.md REQ-11). The DOM and the
+  /** Hide a cell the lane does not reach (meter.md REQ-cells-beyond-the-length-are-hidden). The DOM and the
    *  stored step stay exactly as they were, so lengthening restores them. */
   setLive(live: boolean): void {
     this.el.hidden = !live;
@@ -121,7 +121,7 @@ export class StepButton {
   static get rootClass(): string { return styles.root!; }
   static get drumCellClass(): string { return styles['drum-cell']!; }
   static get selectedClass(): string { return styles.selected!; }
-  /** Ring shown while a long-press is registered (step-grid-editing.md REQ-3). */
+  /** Ring shown while a long-press is registered (step-grid-editing.md REQ-hold-to-edit-selects-without-toggling). */
   static get heldClass(): string { return styles.held!; }
   static get onClass(): string { return styles.on!; }
   static get fillClass(): string { return styles.fill!; }

@@ -4,7 +4,7 @@ import { gotoAndStart } from './helpers';
 /**
  * The EQUALIZER section — `specs/features/equalizer.md`.
  *
- * One of these cases is the reason this file exists at all. REQ-14 claims the
+ * One of these cases is the reason this file exists at all. REQ-the-drawn-curve-is-exact claims the
  * drawn curve is **exact**: `eqResponseDb` computes the RBJ coefficients that
  * `BiquadFilterNode` is specified to use, so the picture is the filter rather
  * than a model of it. jsdom has no biquads, so that claim is uncheckable in the
@@ -84,7 +84,7 @@ test.describe('EQUALIZER section', () => {
     });
     expect(cased.title).toBe('uppercase');
     expect(cased.tab).toBe('uppercase');
-    // …and the title is the bar's first child, ahead of every tab (REQ-9).
+    // …and the title is the bar's first child, ahead of every tab (REQ-the-eq-section-is-a-folded-tab-container).
     expect(cased.order).toBe('Equalizer');
   });
 
@@ -97,14 +97,14 @@ test.describe('EQUALIZER section', () => {
 
     await page.getByTestId('switch-fx.drum.eq.on').click();
     expect(await param(page, 'fx.drum.eq.on')).toBe(1);
-    // Engaged but flat — the state that would otherwise be invisible (REQ-10).
+    // Engaged but flat — the state that would otherwise be invisible (REQ-the-eq-tab-led-only-indicates).
     await expect(lamp).toHaveAttribute('data-state', 'muted');
 
     await setParam(page, 'fx.drum.eq.b2', -8);
     await expect(lamp).toHaveAttribute('data-state', 'on');
   });
 
-  test('a preset writes the curve and engages the EQ (REQ-15)', async ({ page }) => {
+  test('a preset writes the curve and engages the EQ (REQ-eq-presets-are-a-table-of-bus-writes)', async ({ page }) => {
     await gotoAndStart(page);
     await openLane(page, 'seq');
     expect(await param(page, 'fx.eq.on')).toBe(0);
@@ -117,7 +117,7 @@ test.describe('EQUALIZER section', () => {
     expect(await param(page, 'fx.eq.b6')).toBeLessThan(0);
   });
 
-  test('dragging the graph writes band gains (REQ-12)', async ({ page }) => {
+  test('dragging the graph writes band gains (REQ-the-curve-is-drawn-by-dragging)', async ({ page }) => {
     await gotoAndStart(page);
     await openLane(page, 'seq');
 
@@ -135,7 +135,7 @@ test.describe('EQUALIZER section', () => {
     expect(gains.some((g) => g < -1), `drew nothing: ${gains.join(',')}`).toBe(true);
   });
 
-  test('a wheel over the graph writes nothing (REQ-12)', async ({ page }) => {
+  test('a wheel over the graph writes nothing (REQ-the-curve-is-drawn-by-dragging)', async ({ page }) => {
     await gotoAndStart(page);
     await openLane(page, 'seq');
     await setParam(page, 'fx.eq.b3', -6);
@@ -149,7 +149,7 @@ test.describe('EQUALIZER section', () => {
   });
 
   /**
-   * REQ-14, the pin that matters: build the very same filter chain in a real
+   * REQ-the-drawn-curve-is-exact, the pin that matters: build the very same filter chain in a real
    * `OfflineAudioContext` and ask the browser what its response is. If the
    * drawing and the audio ever disagree, the panel is confidently lying about
    * what the instrument sounds like — and nothing else in the suite can see it.
@@ -166,7 +166,7 @@ test.describe('EQUALIZER section', () => {
       'fx.eq.width': 2.5, 'fx.eq.hp': 60, 'fx.eq.lp': 12000,
     };
     for (const [id, v] of Object.entries(curve)) await setParam(page, id, v);
-    // The graph coalesces a burst of writes into one frame (REQ-13), so the
+    // The graph coalesces a burst of writes into one frame (REQ-the-graph-computes-from-bus-values), so the
     // mirror is a frame behind the last `set`. Let two land before reading it.
     await settleFrames(page);
 
@@ -224,12 +224,12 @@ test.describe('EQUALIZER section', () => {
   });
 
   /**
-   * REQ-18. The EQ page reuses the bottom row's own grid, so its graph should
+   * REQ-the-eq-page-mirrors-the-scope-row. The EQ page reuses the bottom row's own grid, so its graph should
    * sit exactly under the scope. Only a browser can see this: the alignment is
    * the product of a shared custom property, a grid, two paddings and a border,
    * and every one of those is invisible to a jsdom assertion.
    */
-  test('the graph lines up with the scope above it (REQ-18)', async ({ page }) => {
+  test('the graph lines up with the scope above it (REQ-the-eq-page-mirrors-the-scope-row)', async ({ page }) => {
     await gotoAndStart(page);
     await openLane(page, 'seq');
 
@@ -245,7 +245,7 @@ test.describe('EQUALIZER section', () => {
       .toBeLessThanOrEqual(2);
   });
 
-  test('the control column is exactly the wheels\' width (REQ-18)', async ({ page }) => {
+  test('the control column is exactly the wheels\' width (REQ-the-eq-page-mirrors-the-scope-row)', async ({ page }) => {
     await gotoAndStart(page);
     await openLane(page, 'seq');
 
@@ -260,7 +260,7 @@ test.describe('EQUALIZER section', () => {
     expect(Math.abs(controls.width - wheels.width)).toBeLessThanOrEqual(1);
   });
 
-  test('resizing the scope resizes the EQ graph with it (REQ-18)', async ({ page }) => {
+  test('resizing the scope resizes the EQ graph with it (REQ-the-eq-page-mirrors-the-scope-row)', async ({ page }) => {
     await gotoAndStart(page);
     await openLane(page, 'seq');
     const before = (await page.getByTestId('eq-canvas-seq').boundingBox())!.height;
@@ -282,7 +282,7 @@ test.describe('EQUALIZER section', () => {
   });
 
   /**
-   * onboarding.md REQ-26 + REQ-5a (v27). Neither opening the section (absorbed by
+   * onboarding.md REQ-the-equalizer-carries-seven-badges + REQ-a-container-must-tell-badges-when-it-hides (v27). Neither opening the section (absorbed by
    * the keyboard row) nor a lane switch (three pages of one height) resizes the
    * body, so the badges only follow either if the section and its page shells are
    * observed — without them this fails at the unfold. The tab is therefore
@@ -357,7 +357,7 @@ test.describe('section headings', () => {
     return out;
   }, SECTIONS);
 
-  test('each section wears its heading, and the icons line up (REQ-1, REQ-4)', async ({ page }) => {
+  test('each section wears its heading, and the icons line up (REQ-one-equalizer-per-lane, REQ-one-q-knob-over-the-bands)', async ({ page }) => {
     await page.setViewportSize({ width: 1400, height: 900 });
     await gotoAndStart(page);
     const h = await headings(page);
@@ -380,7 +380,7 @@ test.describe('section headings', () => {
     expect(Math.abs(narrow.eq!.iconX - narrow.machines!.iconX)).toBeLessThanOrEqual(1);
   });
 
-  test('MACHINES shows its word only where the tabs leave room (REQ-5)', async ({ page }) => {
+  test('MACHINES shows its word only where the tabs leave room (REQ-the-eq-is-a-no-op-by-default)', async ({ page }) => {
     await page.setViewportSize({ width: 1280, height: 900 });
     await gotoAndStart(page);
     const wide = await headings(page);
@@ -397,7 +397,7 @@ test.describe('section headings', () => {
     expect(compact.fx!.labelW).toBeGreaterThan(10);
   });
 
-  test('no machine tab wraps its label just above the 992px step (REQ-5 v3)', async ({ page }) => {
+  test('no machine tab wraps its label just above the 992px step (REQ-the-eq-is-a-no-op-by-default v3)', async ({ page }) => {
     await gotoAndStart(page);
     /** Tallest tab in each tabbed bar, and the machine tabs' font size. */
     const tabs = () => page.evaluate(() => {
@@ -422,7 +422,7 @@ test.describe('section headings', () => {
     expect(wide.machines).toBeLessThanOrEqual(wide.eq + 1);
   });
 
-  test('a heading dims while its section is folded (REQ-6)', async ({ page }) => {
+  test('a heading dims while its section is folded (REQ-eq-params-come-from-one-factory)', async ({ page }) => {
     await page.setViewportSize({ width: 1400, height: 900 });
     await gotoAndStart(page);
 
@@ -461,8 +461,8 @@ test.describe('section headings', () => {
     expect((await read('eq-section')).heading, 'the equalizer stays open').toBe(fxOpen.text);
   });
 
-  // section-title.md REQ-7 — selected but folded: the yellow burns low, the LEDs don't move.
-  test("a folded row's selected tab dims to the dim yellow and its LEDs stay as they are (REQ-7)", async ({ page }) => {
+  // section-title.md REQ-folded-selected-tab-dims — selected but folded: the yellow burns low, the LEDs don't move.
+  test("a folded row's selected tab dims to the dim yellow and its LEDs stay as they are (REQ-the-eq-declares-a-longer-drain)", async ({ page }) => {
     await page.setViewportSize({ width: 1400, height: 900 });
     await gotoAndStart(page);
     const row = page.getByTestId('pattern-row');
