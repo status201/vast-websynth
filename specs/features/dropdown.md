@@ -148,7 +148,7 @@ without anyone remembering to ask.
     transparent *and* buried them under the XY pad lane
     ([motion-sequencer](motion-sequencer.md) REQ-each-motion-step-is-a-mini-xy-pad). Both symptoms, one
     declaration. Consumers get `setDimmed` so the safe target is the easy one —
-    the same reason [motion-sequencer](motion-sequencer.md) REQ-two-lanes-below-the-xy-lane dims a lane's
+    the same reason [motion-sequencer](motion-sequencer.md) REQ-single-param-lanes-below-the-xy-lane dims a lane's
     label rather than its row.
   - The dim is **presentation only**: a dimmed dropdown stays fully interactive
     ([ADR-014](../decisions/adr-014-dont-make-me-think.md) law 2 — the control

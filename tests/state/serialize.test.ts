@@ -4,7 +4,11 @@ import { Song } from '../../src/state/song';
 import { fixtureSong, FIXTURE } from '../fixtures/song-fixture';
 import type { SongFile } from '../../src/state/song';
 import { ParamBus, registerDefaults } from '../../src/state/params';
-import { PatternStore, TRIGGER_CELL_DEFAULTS } from '../../src/state/patterns';
+import {
+  PatternStore, TRIGGER_CELL_DEFAULTS, SEQ_LENGTH,
+  MOTION_TRACK_COUNT, MIN_MOTION_TRACK_COUNT, MOTION_TRACK_STEP_DEFAULTS,
+  type MotionTrack,
+} from '../../src/state/patterns';
 import type { SeqStep, TriggerCell } from '../../src/state/patterns';
 import { fakeArrangement } from '../fixtures/fake-arrangement';
 
@@ -199,5 +203,76 @@ describe('compactSongForExport — motion (v4)', () => {
     expect(bare.motionBanks).toBeUndefined();
     expect(bare.motionAssigns).toBeUndefined();
     expect(bare.motionChain).toBeUndefined();
+  });
+});
+
+
+/**
+ * The motion lanes' export depth — motion-sequencer.md REQ-the-motion-track-array-length-is-the-count.
+ *
+ * The array's LENGTH is how many lanes a bank carries, floored at two. That
+ * floor is not tidiness: every v5-v7 song carries exactly two lanes, so trimming
+ * to it is what keeps those files — and every committed demo — byte-for-byte
+ * identical through an export after the machine grew to four.
+ */
+const lane = (o: Partial<MotionTrack> & { at?: number } = {}): MotionTrack => ({
+  ...(o.param !== undefined ? { param: o.param } : {}),
+  steps: Array.from({ length: SEQ_LENGTH }, (_, i) =>
+    (o.at === i ? { on: true, v: 0.5 } : { ...MOTION_TRACK_STEP_DEFAULTS })),
+});
+const blankLanes = (): MotionTrack[] =>
+  Array.from({ length: MOTION_TRACK_COUNT }, () => lane());
+const exported = (banks: (MotionTrack | null)[][]): unknown[][] =>
+  compactSongForExport(songWith({ motionTracks: banks })).motionTracks as unknown[][];
+
+describe('compactSongForExport — motion lane depth', () => {
+  it('writes the floor when only A and B are used, whatever the machine holds', () => {
+    // The in-memory bank is MOTION_TRACK_COUNT wide, as the store always makes it.
+    const bank = blankLanes();
+    bank[0] = lane({ param: 'filter.cutoff', at: 0 });
+    bank[1] = lane({ param: 'fx.delay.mix', at: 4 });
+
+    const out = exported([bank]);
+    expect(out[0]).toHaveLength(MIN_MOTION_TRACK_COUNT);
+  });
+
+  it('writes [null, null] for a bank that uses nothing', () => {
+    expect(exported([blankLanes()])[0]).toEqual([null, null]);
+  });
+
+  it('grows to reach the deepest lane that carries something', () => {
+    const withC = blankLanes();
+    withC[2] = lane({ param: 'fx.reverb.mix', at: 2 });
+    expect(exported([withC])[0]).toHaveLength(3);
+
+    const withD = blankLanes();
+    withD[3] = lane({ param: 'fx.reverb.mix', at: 2 });
+    expect(exported([withD])[0]).toHaveLength(MOTION_TRACK_COUNT);
+  });
+
+  it('counts a lane that is assigned but empty, and one with anchors but no param', () => {
+    const assignedOnly = blankLanes();
+    assignedOnly[2] = lane({ param: 'fx.reverb.mix' });   // no anchors yet
+    expect(exported([assignedOnly])[0]).toHaveLength(3);
+
+    const anchorsOnly = blankLanes();
+    anchorsOnly[3] = lane({ at: 7 });                     // anchors, no param
+    expect(exported([anchorsOnly])[0]).toHaveLength(MOTION_TRACK_COUNT);
+  });
+
+  it('leaves a two-entry bank from a v5 file exactly as it found it', () => {
+    // The shape every committed demo is stored in — it must survive untouched.
+    const legacy: (MotionTrack | null)[] = [lane({ param: 'filter.cutoff', at: 0 }), null];
+    const out = exported([legacy]);
+    expect(out[0]).toHaveLength(2);
+    expect(out[0]![1]).toBeNull();
+  });
+
+  it('is idempotent, so re-exporting an already-compact file changes nothing', () => {
+    const bank = blankLanes();
+    bank[2] = lane({ param: 'fx.reverb.mix', at: 2 });
+    const once = compactSongForExport(songWith({ motionTracks: [bank] }));
+    const twice = compactSongForExport(once as unknown as SongFile);
+    expect(twice.motionTracks).toEqual(once.motionTracks);
   });
 });

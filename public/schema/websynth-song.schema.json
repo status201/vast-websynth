@@ -13,7 +13,7 @@
     "version": {
       "type": "integer",
       "enum": [1, 2, 3, 4, 5, 6, 7, 8],
-      "description": "Format version. capture() always writes 8 (the highest in this enum); every earlier version still loads because each addition is optional — v1 files (incl. some built-in demos) lack the sampler fields, v2 files lack the XY Pad assignment, v3 files lack the motion-sequencer fields, v4 files lack 'motionTracks', v5 files lack 'seqTracks', v6 files lack 'seqTranspose', and v1-v7 files always carry exactly 4 banks per machine. Versions beyond those this build knows are rejected."
+      "description": "Format version. capture() always writes 8 (the highest in this enum); every earlier version still loads because each addition is optional — v1 files (incl. some built-in demos) lack the sampler fields, v2 files lack the XY Pad assignment, v3 files lack the motion-sequencer fields, v4 files lack 'motionTracks', v5 files lack 'seqTracks', v6 files lack 'seqTranspose', and v1-v7 files always carry exactly 4 banks per machine and exactly 2 motion lanes per bank. v8 widened both of those dimensions — it adds no field of its own. Versions beyond those this build knows are rejected."
     },
     "name": {
       "type": "string",
@@ -156,10 +156,10 @@
       "type": "array",
       "minItems": 4,
       "maxItems": 8,
-      "description": "v5 (optional). Per motion bank, 2 extra single-param tracks (A, B). Each picks its own ParamBus id and holds its own 16 anchors, so a bank can automate up to 4 params, or just these 2 while keeping the XY Pad free for live playing. A track that is unassigned and empty is null and writes nothing.",
+      "description": "v5 (optional). Per motion bank, up to 4 extra single-param lanes (A-D). Each picks its own ParamBus id and holds its own 16 anchors, so a bank can automate up to 6 params, or just these 4 while keeping the XY Pad free for live playing. PREFER these lanes over motionBanks/motionAssigns: the XY lane is the only one that costs the performer the pad. A track that is unassigned and empty is null and writes nothing. The inner array's length is the bank's lane depth: trailing nulls are trimmed, floored at 2, so every v5-v7 file (which always carries exactly 2) round-trips byte-for-byte. A bank deeper than 2 makes the file v8.",
       "items": {
         "type": "array",
-        "maxItems": 2,
+        "maxItems": 4,
         "items": {
           "oneOf": [
             { "type": "null" },

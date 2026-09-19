@@ -115,7 +115,7 @@ describe('mod matrix window — the per-voice rule (REQ-per-voice-sources-cannot
   });
 });
 
-describe('mod matrix window — idle rows (motion-sequencer.md REQ-two-lanes-below-the-xy-lane)', () => {
+describe('mod matrix window — idle rows (motion-sequencer.md REQ-single-param-lanes-below-the-xy-lane)', () => {
   it('never dims the row itself, or its own pickers become unreachable', () => {
     const { root } = build();
     const row = byId(root, 'mod-row-2');

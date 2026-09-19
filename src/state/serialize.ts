@@ -23,7 +23,9 @@
  */
 import type { SongFile, ChainData } from './song';
 import type { SeqStep, TriggerCell, MotionStep, MotionTrackStep } from './patterns';
-import { TRIGGER_CELL_DEFAULTS, SEQ_EXTRA_DEFAULTS } from './patterns';
+import {
+  TRIGGER_CELL_DEFAULTS, SEQ_EXTRA_DEFAULTS, motionTrackDepth, motionTrackIsEmpty,
+} from './patterns';
 
 /** Significant figures kept for every exported number. */
 export const EXPORT_SIG_FIGS = 4;
@@ -139,13 +141,17 @@ export function compactSongForExport(file: SongFile): Record<string, unknown> {
   }
   if (file.motionChain !== undefined) out.motionChain = cloneChain(file.motionChain);
   if (file.motionTracks !== undefined) {
-    // A track that is both unassigned and empty carries no information, so it
-    // writes as null rather than 16 dead cells (ADR-011 default-sparse).
+    // Two trims, both ADR-011 default-sparse. Within a bank, a track that is
+    // unassigned AND empty writes as null rather than 16 dead cells. Across the
+    // bank, the trailing nulls go entirely: the array's LENGTH is how many lanes
+    // the bank carries (motion-sequencer.md REQ-the-motion-track-array-length-is-the-count), floored at
+    // two so that every song written before there were four still exports
+    // byte-for-byte — which is what keeps the committed demos from churning.
     out.motionTracks = file.motionTracks.map((bank) =>
-      (bank ?? []).map((t) => {
-        if (!t || (!t.param && !t.steps.some((s: MotionTrackStep) => s.on))) return null;
-        const cells = t.steps.map((s: MotionTrackStep) => (s.on ? { on: true, v: roundNum(s.v) } : { on: false }));
-        return t.param ? { param: t.param, steps: cells } : { steps: cells };
+      (bank ?? []).slice(0, motionTrackDepth(bank)).map((t) => {
+        if (motionTrackIsEmpty(t)) return null;
+        const cells = t!.steps.map((s: MotionTrackStep) => (s.on ? { on: true, v: roundNum(s.v) } : { on: false }));
+        return t!.param ? { param: t!.param, steps: cells } : { steps: cells };
       }));
   }
   // v7 — and only when it carries information. An all-zero array is what every

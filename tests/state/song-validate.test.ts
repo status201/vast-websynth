@@ -8,7 +8,9 @@ import { DROP_IN_DEMOS } from './demo-files';
 import { fixtureSong } from '../fixtures/song-fixture';
 import type { SongFile } from '../../src/state/song';
 import { ParamBus, registerDefaults } from '../../src/state/params';
-import { PatternStore, MIN_BANK_COUNT, MAX_BANK_COUNT } from '../../src/state/patterns';
+import {
+  PatternStore, MIN_BANK_COUNT, MAX_BANK_COUNT, MOTION_TRACK_COUNT, SEQ_LENGTH,
+} from '../../src/state/patterns';
 import { MAX_CHAIN_STEPS, MAX_PARAM_KEYS } from '../../src/state/limits';
 import { fakeArr } from '../fixtures/fake-arrangement';
 
@@ -389,6 +391,38 @@ describe('validateSongFile — unresolvable automation targets warn (REQ-motion-
     expect(w).toHaveLength(1);
     expect(w[0]).toContain('motionTracks[0][0].param');
     expect(w[0]).toContain('not.a.param');
+  });
+
+  it('accepts a bank carrying every lane the machine has', () => {
+    const f = clone(captureValid()) as Record<string, unknown>;
+    const lane = (p: string): unknown =>
+      ({ param: p, steps: Array.from({ length: SEQ_LENGTH }, () => ({ on: false })) });
+    const full = Array.from({ length: MOTION_TRACK_COUNT }, (_, i) => lane(`filter.cutoff${i}`));
+    f.motionTracks = [full, [null, null], [null, null], [null, null]];
+    expect(validateSongFile(f as unknown as SongFile).ok).toBe(true);
+  });
+
+  it('a SHORT bank is fine — every v5-v7 file carries two lanes', () => {
+    const f = clone(captureValid()) as Record<string, unknown>;
+    f.motionTracks = [[null, null], [null, null], [null, null], [null, null]];
+    expect(validateSongFile(f as unknown as SongFile).ok).toBe(true);
+  });
+
+  it('rejects a bank with more lanes than the machine has', () => {
+    // Until v17 this validated clean and was then silently truncated by
+    // `restore`, which loses data rather than refusing it
+    // (motion-sequencer.md REQ-the-motion-track-array-length-is-the-count).
+    const f = clone(captureValid()) as Record<string, unknown>;
+    const lane = (): unknown =>
+      ({ param: 'filter.cutoff', steps: Array.from({ length: SEQ_LENGTH }, () => ({ on: false })) });
+    f.motionTracks = [
+      Array.from({ length: MOTION_TRACK_COUNT + 1 }, lane),
+      [null, null], [null, null], [null, null],
+    ];
+    const res = validateSongFile(f as unknown as SongFile);
+    expect(res.ok).toBe(false);
+    if (res.ok) return;
+    expect(res.errors.some((e) => e.includes('motionTracks[0]'))).toBe(true);
   });
 
   it('warns on an unknown per-bank motionAssigns override', () => {

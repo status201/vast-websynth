@@ -21,7 +21,10 @@
  */
 import type { SongFile } from './song';
 import { KNOWN_SONG_VERSIONS } from './song-version';
-import { MIN_BANK_COUNT, MAX_BANK_COUNT, REST, SEQ_LENGTH, SEQ_TRACK_COUNT, DRUM_TRACK_COUNT, SAMPLER_SLOT_COUNT } from './patterns';
+import {
+  MIN_BANK_COUNT, MAX_BANK_COUNT, REST, SEQ_LENGTH, SEQ_TRACK_COUNT, DRUM_TRACK_COUNT,
+  SAMPLER_SLOT_COUNT, MOTION_TRACK_COUNT,
+} from './patterns';
 import { paramIds } from './params';
 import {
   MAX_ERRORS, isObject, describeValue as describe, type AddError,
@@ -303,14 +306,22 @@ function checkSeqTracks(v: unknown, add: AddError): void {
   });
 }
 
-/** v5 extra motion tracks — 4..8 banks × MOTION_TRACK_COUNT, each null or
- *  { param?, steps: 16 × {on, v?} }. */
+/** v5 extra motion tracks — 4..8 banks × up to MOTION_TRACK_COUNT, each null or
+ *  { param?, steps: 16 × {on, v?} }. A bank may be SHORT (every v5-v7 file
+ *  carries two), which `restore` pads; it may not be long. */
 function checkMotionTracks(v: unknown, add: AddError): void {
   if (!Array.isArray(v)) { add(`motionTracks must be an array of ${BANKS_PHRASE} (got ${describe(v)})`); return; }
   checkBankLength('motionTracks', v.length, add);
   v.forEach((bank: unknown, b) => {
     if (bank === null || bank === undefined) return;
     if (!Array.isArray(bank)) { add(`motionTracks[${b}] must be an array (got ${describe(bank)})`); return; }
+    // The bound its sibling checkSeqTracks always had. Without it an over-long
+    // bank validated clean and was then silently truncated by `restore`, which
+    // reads as data loss rather than as a rejected file
+    // (motion-sequencer.md REQ-the-motion-track-array-length-is-the-count).
+    if (bank.length > MOTION_TRACK_COUNT) {
+      add(`motionTracks[${b}] has ${bank.length} tracks — motion has ${MOTION_TRACK_COUNT}`);
+    }
     bank.forEach((t: unknown, i) => {
       if (t === null) return;
       const path = `motionTracks[${b}][${i}]`;

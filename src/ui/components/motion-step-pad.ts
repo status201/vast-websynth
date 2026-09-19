@@ -31,7 +31,7 @@ export interface MotionStepPadOpts {
   /**
    * 'xy' (default) — the two-axis pad: a dot at the literal (x, y).
    * 'level' — an extra motion track's single-param cell (motion-sequencer.md
-   * REQ-two-lanes-below-the-xy-lane): only y is meaningful and it renders as a bottom-up fill bar. The
+   * REQ-single-param-lanes-below-the-xy-lane): only y is meaningful and it renders as a bottom-up fill bar. The
    * gesture handling is identical, which is the point of sharing the component.
    */
   mode?: 'xy' | 'level';
@@ -52,7 +52,7 @@ type Phase = 'idle' | 'pending' | 'drag' | 'peek';
 
 /**
  * One motion-sequencer step: a mini XY pad (motion-sequencer.md REQ-each-motion-step-is-a-mini-xy-pad), or a
- * single-value level cell for the A/B lanes (REQ-two-lanes-below-the-xy-lane). The dot sits at the
+ * single-value level cell for the A/B lanes (REQ-single-param-lanes-below-the-xy-lane). The dot sits at the
  * literal (x, y); double-click (or a fast double-tap) clears the anchor.
  * Rendering is driven by `setStep`/`setLevel` so the panel's PatternStore
  * subscriptions stay the one source of truth (the pad never mutates state).
@@ -283,7 +283,7 @@ export class MotionStepPad {
       : 'Drag to set an XY anchor (Shift: fine)';
   }
 
-  /** Repaint a level-mode cell from an extra track's step (REQ-two-lanes-below-the-xy-lane). */
+  /** Repaint a level-mode cell from an extra track's step (REQ-single-param-lanes-below-the-xy-lane). */
   setLevel(on: boolean, v: number, paramLabel?: string): void {
     this.cellY = v;
     this.el.classList.toggle('on', on);
@@ -296,7 +296,7 @@ export class MotionStepPad {
   }
 
   /** A track with no parameter chosen has nothing to write, so its cells are
-   *  inert — the parameter IS the on/off (REQ-two-lanes-below-the-xy-lane). */
+   *  inert — the parameter IS the on/off (REQ-single-param-lanes-below-the-xy-lane). */
   setInert(inert: boolean): void {
     this.el.classList.toggle(styles.inert!, inert);
   }

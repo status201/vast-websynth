@@ -27,6 +27,9 @@ import {
   TRIGGER_CELL_DEFAULTS,
   MOTION_STEP_DEFAULTS,
   MOTION_TRACK_COUNT,
+  MOTION_TRACK_LABELS,
+  MIN_MOTION_TRACK_COUNT,
+  motionTrackDepth,
   makeMotionTrack,
   highestChainBank,
 } from './patterns';
@@ -566,7 +569,8 @@ function expandMotionTracks(v: unknown, add: AddError): (MotionTrack | null)[][]
       continue;
     }
     if (bank.length > MOTION_TRACK_COUNT) {
-      add(`motionTracks[${b}] has ${bank.length} tracks — motion has ${MOTION_TRACK_COUNT} (A, B)`);
+      add(`motionTracks[${b}] has ${bank.length} tracks — motion has ${MOTION_TRACK_COUNT}`
+        + ` (${MOTION_TRACK_LABELS.join(', ')})`);
     }
     // Grow FIRST: `out` is pre-sized to the floor, so a fifth authored bank would
     // otherwise be an indexed write into an element that does not exist. The sibling
@@ -576,7 +580,12 @@ function expandMotionTracks(v: unknown, add: AddError): (MotionTrack | null)[][]
       out[b]![t] = expandMotionTrack(`motionTracks[${b}][${t}]`, bank[t], add);
     }
   }
-  return out;
+  // Trim each bank to its lane depth, exactly as the exporter does
+  // (motion-sequencer.md REQ-the-motion-track-array-length-is-the-count). `blankBank` pads to the
+  // machine's width so the indexed writes above are safe; emitting that width
+  // would make every dialect song that uses only A and B expand to a file two
+  // nulls wider than the one it expanded to before there were four lanes.
+  return out.map((bank) => bank.slice(0, motionTrackDepth(bank)));
 }
 
 function expandMotionBanks(
@@ -924,6 +933,15 @@ export function expandAuthorSong(value: unknown): SongValidation {
   // to replace (ADR-022).
   const anyChainGrown = [seqChain, drumChain, samplerChain, motionChain]
     .some((c) => highestChainBank(c?.steps) >= MIN_BANK_COUNT);
+  // ...and the same shape one level in: a motion bank using a lane past the
+  // serialized floor. The expander pads every bank to MOTION_TRACK_COUNT, so the
+  // array's own length says nothing — the DEPTH is what carries the fact
+  // (motion-sequencer.md REQ-the-motion-track-array-length-is-the-count). Stamped v5, a song using
+  // lane C would be ACCEPTED by a build that only knows two lanes, which would
+  // then drop it in silence; v8 is refused outright, which is the whole point of
+  // the rung (ADR-022).
+  const anyMotionTrackGrown = (motionTracks ?? [])
+    .some((bank) => motionTrackDepth(bank) > MIN_MOTION_TRACK_COUNT);
 
   const file: SongFile = {
     format: 'websynth-song',
@@ -931,7 +949,7 @@ export function expandAuthorSong(value: unknown): SongValidation {
     // still expands to the same v3 file it always did (ADR-007). Each bump adds a
     // NEW TOP rung; replacing an existing one with SONG_VERSION would make every
     // simple song jump version (recipes/evolve-the-song-format.md).
-    version: anyMachineGrown || anyChainGrown
+    version: anyMachineGrown || anyChainGrown || anyMotionTrackGrown
       ? 8
       : seqTranspose.some((t) => t !== 0)
         ? 7

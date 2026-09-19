@@ -42,12 +42,14 @@ Two JSON formats are accepted on import:
   Schema: /schema/websynth-song-author.schema.json
 - `websynth-song` (v8) — the canonical full format the app exports. Requires
   literal grids: seqBanks[4..8][16], drumBanks[4..8][8][16], optional
-  samplerBanks[4..8][8][16] and motionBanks[4..8][16] (XY param automation).
+  samplerBanks[4..8][8][16], motionBanks[4..8][16] (XY param automation) and
+  motionTracks[4..8][2..4][16] (single-parameter lanes — PREFER THESE, see below).
   Older versions still load: every addition is optional. v8 raises the per-machine
-  bank count from exactly 4 to 4..8 (the array length IS that machine's count),
+  bank count from exactly 4 to 4..8 (the array length IS that machine's count) and
+  the per-bank motion lane count from exactly 2 to 2..4 (same rule, one level in),
   v7 adds seqTranspose (a semitone offset per seqChain slot), v6 seqTracks
-  (note-sequencer tracks 2-4) and v5 motionTracks (motion's two extra
-  single-parameter tracks).
+  (note-sequencer tracks 2-4) and v5 motionTracks (motion's extra
+  single-parameter lanes).
   Schema: /schema/websynth-song.schema.json
 
 Dimensions: 4 to 8 banks (A-H) per machine, counted INDEPENDENTLY per machine
@@ -59,10 +61,20 @@ optional seqTracks[bank][track], which is indexed by the real track number so
 index 0 is always null); 8 drum tracks (0=Kick 1=Snare 2=C.Hat 3=O.Hat 4=L.Tom
 5=M.Tom 6=H.Tom 7=Clap); 8 sampler slots. Per-step settings: velocity/gate/prob
 0..1, ratchet 1..4, tie boolean. `filter.cutoff` is a MIDI note number, not Hz.
-The motion sequencer (dialect key `motion`) steps/interpolates the XY Pad's two
-assigned params through per-step anchors {step, x, y} in normalized 0..1, plus
-two optional single-parameter tracks per bank (motionTracks) that each name
-their own parameter id and carry 16 levels. A seqChain slot may also carry a
+The motion sequencer automates parameters over the bar, and it has TWO surfaces.
+`motionTracks` gives each bank up to FOUR single-parameter lanes (A-D), each
+naming its own parameter id and carrying 16 levels. The XY lane (dialect key
+`motion`, plus `xy`/`motionAssigns`) steps/interpolates the XY Pad's two assigned
+params through per-step anchors {step, x, y} in normalized 0..1.
+
+PREFER `motionTracks`. The XY lane is the only one that costs the performer the
+XY Pad: while it is driving, the pad's two axes are taken and a human cannot play
+them live. Four single-param lanes plus the pad's two axes is six parameters per
+bank, so there is almost never a reason to spend the pad — automate through the
+lanes and leave `xy`/`motion` out unless the song genuinely wants a recorded
+pad performance. A song that leaves the pad free is one a person can play over.
+
+A seqChain slot may also carry a
 transpose in semitones (-24..24) — `seqTranspose[]` in the canonical format,
 or an `A+5` suffix in the dialect's chain string — so one bank can play a
 whole chord progression. It shifts the note the sequencer triggers, never the
@@ -137,10 +149,11 @@ versions 1..8 still load and there is no migration step. Each version added:
 - v2 — the sampler fields
 - v3 — the XY Pad axis assignment
 - v4 — the motion sequencer (XY anchors)
-- v5 — `motionTracks` (motion's two extra single-parameter tracks)
+- v5 — `motionTracks` (motion's extra single-parameter lanes)
 - v6 — `seqTracks` (note-sequencer tracks 2-4)
 - v7 — `seqTranspose` (a semitone offset per `seqChain` slot)
-- v8 — 4..8 banks per machine (no new field: an existing dimension widened)
+- v8 — 4..8 banks per machine, and 2..4 motion lanes per bank
+       (no new field: two existing dimensions widened)
 
 So a v1 file lacks all of the above; a v7 file lacks only the extra banks. Versions
 beyond those a build knows are rejected. The authoring dialect expands to the

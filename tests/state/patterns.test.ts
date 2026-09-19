@@ -536,11 +536,11 @@ describe('PatternStore bulk clears (step-grid-editing.md REQ-clear-menu-clears-i
   });
 });
 
-describe('PatternStore — extra motion tracks (motion-sequencer.md REQ-two-extra-tracks-per-bank)', () => {
-  it('boots with two blank, unassigned tracks per bank', () => {
+describe('PatternStore — extra motion tracks (motion-sequencer.md REQ-extra-single-param-tracks-per-bank)', () => {
+  it('boots with MOTION_TRACK_COUNT blank, unassigned lanes per bank', () => {
     const p = new PatternStore();
     const tracks = p.motionTracks(0);
-    expect(tracks).toHaveLength(2);
+    expect(tracks).toHaveLength(MOTION_TRACK_COUNT);
     expect(tracks[0]!.param).toBeUndefined();
     expect(tracks[0]!.steps).toHaveLength(SEQ_LENGTH);
     expect(tracks[0]!.steps.every((s) => !s.on)).toBe(true);
@@ -620,7 +620,7 @@ describe('emptyPatternBanks — New Song blanks the extra motion tracks (regress
     const blank = emptyPatternBanks();
     expect(blank.motionTracks).toHaveLength(MIN_BANK_COUNT);
     for (const bank of blank.motionTracks) {
-      expect(bank).toHaveLength(2);
+      expect(bank).toHaveLength(MOTION_TRACK_COUNT);
       for (const t of bank) {
         expect(t.param).toBeUndefined();
         expect(t.steps.every((c) => !c.on)).toBe(true);
@@ -698,7 +698,7 @@ describe('per-machine bank count (banks.md REQ-a-machine-owns-its-bank-count)', 
     expect(ps.motionAssigns).toHaveLength(MIN_BANK_COUNT + 1);
     expect(ps.motionTrackBanks).toHaveLength(MIN_BANK_COUNT + 1);
     expect(ps.motionAssign(MIN_BANK_COUNT)).toBeNull();
-    expect(ps.motionTracks(MIN_BANK_COUNT)).toHaveLength(2);
+    expect(ps.motionTracks(MIN_BANK_COUNT)).toHaveLength(MOTION_TRACK_COUNT);
     // The new tracks are unassigned, so they automate nothing (ADR-006).
     expect(ps.motionTracks(MIN_BANK_COUNT).every((t) => t.param === undefined)).toBe(true);
   });

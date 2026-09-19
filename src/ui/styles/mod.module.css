@@ -35,7 +35,7 @@
 }
 
 /* An unassigned route fades its cells — never the row itself, or its own pickers
-   would become unreachable (motion-sequencer.md REQ-two-lanes-below-the-xy-lane). The source picker is
+   would become unreachable (motion-sequencer.md REQ-single-param-lanes-below-the-xy-lane). The source picker is
    deliberately left at full strength: it is the one control you need to click. */
 .idle > *:not(:first-child) {
   opacity: 0.45;

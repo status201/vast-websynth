@@ -391,7 +391,7 @@ export class MotionMachine {
   }
 
   /**
-   * The extra single-param tracks (REQ-two-extra-tracks-per-bank/REQ-tracks-share-the-lanes-curve-semantics). Each is evaluated with the
+   * The extra single-param tracks (REQ-extra-single-param-tracks-per-bank/REQ-tracks-share-the-lanes-curve-semantics). Each is evaluated with the
    * same scalar core the XY axes use, so slide/step and the bar-line carry are
    * identical by construction. An unassigned track — or one with no anchors —
    * writes nothing; that is the no-op default, and it is why the tracks need no

@@ -95,9 +95,11 @@ one argument for the sentinel; it was never the only one.
   Follow off means editing intent ([banks](banks.md)
   REQ-follow-tracks-the-play-bank), and an overlay over the bank being edited
   discourages edits. The grid stays clickable underneath (overlay is
-  `pointer-events: none`). The **Motion** tab has three lanes (the XY lane plus
-  tracks A and B); **each** is wrapped in its own overlay, so all three dim
-  together off the shared `motionResting`. The `ctrls`/header rows stay outside
+  `pointer-events: none`). The **Motion** tab has the XY lane plus
+  `MOTION_TRACK_COUNT` single-param lanes; **each** is wrapped in its own
+  overlay, so they all dim together off the shared `motionResting`. A folded
+  lane ([motion-sequencer](motion-sequencer.md) REQ-an-empty-motion-lane-starts-folded) still carries its
+  overlay — the fold hides the body, it does not unbuild it. The `ctrls`/header rows stay outside
   the dim (as the XY lane's axis header does), keeping the param pickers usable.
 
 - **REQ-rest-survives-save-and-import** — A `REST` in a chain persists through
@@ -158,7 +160,7 @@ machines: each onTick checks arrangement.<lane>Resting FIRST -> (seq releases ti
 ui (song tab): buildChainLane add-row appends REST; renderStructure draws restIcon() + .rest chip
 ui (machine tabs): step grid wrapped position:relative; buildRestOverlay(api, lane) appended;
                    refresh() driven by arrangement.onChange + the machine's onStep
-                   (motion wraps all 3 lanes — XY + tracks A/B — each its own overlay);
+                   (motion wraps every lane — XY + the single-param lanes — each its own overlay);
                    wirePlayhead gates the highlight on !laneHooks.getResting()
                      AND on the panel VisibilityGate (hidden => no per-tick work);
                    BankBar.render toggles a 'resting' root class (amber play-bank dot)
@@ -234,10 +236,10 @@ Scenario: The bank dot is amber, not red, while resting (REQ-resting-bank-bar-ma
   And bank A stays selected (active)
 # pinned by: tests/ui/bank-bar.test.ts
 
-Scenario: All three Motion lanes dim while the motion lane rests (REQ-a-resting-machine-tab-shows-it)
+Scenario: Every Motion lane dims while the motion lane rests (REQ-a-resting-machine-tab-shows-it)
   Given a motion chain [A, rest] is enabled and playing with Follow on
   When the rest bar plays and the Motion tab is open
-  Then the XY lane and both track lanes (A and B) each show a rest overlay
+  Then the XY lane and every single-param lane each show a rest overlay
 # pinned by: e2e/motion.spec.ts
 ```
 

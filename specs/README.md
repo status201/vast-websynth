@@ -283,6 +283,7 @@ specs/
     transport-loop.md  ·  loop a range of bars (Loop button + two scrubber picks, bar-line wrap)
     arpeggiator.md     ·  held-note arp + transport ownership
     sequencer.md       ·  the 16-step synth sequencer
+    lane-fold.md       ·  the per-lane fold caret shared by the sequencer and motion
     scale-quantization.md ·  key/scale as a live pitch filter over every note source
     chord-tools.md     ·  diatonic chord writer (4 tracks) + live chord memory
     drum-machine.md    ·  8-track synth drums
@@ -293,7 +294,7 @@ specs/
     banks.md           ·  A–H banks (4..8 per machine), edit-vs-play bank
     pattern-undo.md    ·  per-machine step-grid undo (button + scoped Ctrl+Z)
     arrangement.md     ·  the four chain lanes
-    motion-sequencer.md ·  XY param automation machine (anchors, slide/step)
+    motion-sequencer.md ·  XY param automation machine (anchors, slide/step) + four single-param lanes
     arrangement-rest.md ·  the always-empty "rest" chain slot
     performance.md     ·  live DJ FX (stutter/fill/drop/tape-stop)
     midi-clock-sync.md ·  master/slave transport sync over MIDI real-time (24 PPQN)

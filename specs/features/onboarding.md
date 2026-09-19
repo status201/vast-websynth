@@ -312,8 +312,9 @@ thing.
   two short per-lane badges** beside the essay-length `motion` topic
   (REQ-a-motion-topic-anchors-to-the-tab): `motion.xy` anchored to the **XY lane
   header** (`data-help="motion.xy"`) and `motion.tracks` anchored to the **A
-  track's row** (`data-help="motion.tracks"`, one shared badge covering both A
-  and B). Each is a 2–3 sentence quick explainer — the XY-pad automation and the
+  lane's row** (`data-help="motion.tracks"`, one shared badge covering every
+  single-param lane — two of them until v17, four since, which is why the badge
+  was never anchored per lane). Each is a 2–3 sentence quick explainer — the XY-pad automation and the
   single-param tracks respectively — for users who don't want the full Motion
   write-up. See [motion-sequencer.md](motion-sequencer.md)
   REQ-each-motion-step-is-a-mini-xy-pad.

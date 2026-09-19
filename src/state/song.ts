@@ -94,7 +94,7 @@ export interface SongFile {
   /** Per-bank axis override; null = inherit the song's XY Pad assignment. */
   motionAssigns?: (MotionAssign | null)[];
   motionChain?: ChainData;
-  /** v5 — the two extra single-param motion tracks per bank. */
+  /** v5 — the extra single-param motion tracks per bank (four since v17). */
   motionTracks?: (MotionTrack | null)[][];
   /**
    * v7 — one semitone offset per `seqChain` slot, parallel to `seqChain.steps`

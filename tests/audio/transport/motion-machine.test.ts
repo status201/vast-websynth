@@ -1,7 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import { MotionMachine } from '../../../src/audio/transport/motion-machine';
 import { Arrangement } from '../../../src/audio/transport/arrangement';
-import { PatternStore, SEQ_LENGTH } from '../../../src/state/patterns';
+import { PatternStore, SEQ_LENGTH, MOTION_TRACK_COUNT } from '../../../src/state/patterns';
 import { LANE_RATES } from '../../../src/state/meter';
 import { ParamBus, registerDefaults } from '../../../src/state/params';
 import { XyPadStore } from '../../../src/state/xy-pad';
@@ -600,7 +600,7 @@ describe('MotionMachine', () => {
   });
 });
 
-describe('MotionMachine — extra single-param tracks (motion-sequencer.md REQ-two-extra-tracks-per-bank/REQ-motion-baselines-are-unchanged)', () => {
+describe('MotionMachine — extra single-param tracks (motion-sequencer.md REQ-extra-single-param-tracks-per-bank/REQ-motion-baselines-are-unchanged)', () => {
   /** Assign a track and anchor two of its steps on the edit bank. */
   const setupTrack = (patterns: PatternStore, track: number, param: string,
     anchors: Record<number, number>): void => {
@@ -645,6 +645,56 @@ describe('MotionMachine — extra single-param tracks (motion-sequencer.md REQ-t
     clock.fireTick(0);
     machine.frame(0);
     expect(bus.get('fx.delay.mix')).toBe(before);
+  });
+
+  it('every lane runs at once, so one bank can drive MOTION_TRACK_COUNT + 2 params', () => {
+    // The point of growing the lanes to four: six moving params in a bank, with
+    // the XY Pad still free unless the XY lane is the one you spend
+    // (REQ-extra-single-param-tracks-per-bank).
+    const { bus, patterns, clock, machine } = build();
+    // Taken from the bus rather than written out, so the test keeps finding
+    // enough distinct targets if the lane count or the FX list ever moves.
+    const targets = bus.ids()
+      .filter((id) => id.startsWith('fx.') && id.endsWith('.mix') && id.split('.').length === 3)
+      .slice(0, MOTION_TRACK_COUNT);
+    expect(targets).toHaveLength(MOTION_TRACK_COUNT);
+    anchor(patterns, 0, 0.25, 0.75);
+    targets.forEach((id, i) => setupTrack(patterns, i, id, { 0: 1 }));
+
+    machine.setEnabled(true);
+    clock.fireStart();
+    clock.fireTick(0);
+    machine.frame(0);
+
+    for (const id of targets) {
+      expect(bus.get(id)).toBeCloseTo(fromNorm(bus.def(id)!, 1), 6);
+    }
+    expect(bus.get('filter.cutoff')).toBeCloseTo(fromNorm(bus.def('filter.cutoff')!, 0.25), 6);
+
+    // And every one of them comes home on stop (REQ-motion-baselines-are-unchanged).
+    clock.fireStop();
+    for (const id of targets) {
+      expect(bus.get(id)).toBeCloseTo(bus.def(id)!.default, 6);
+    }
+  });
+
+  it('a lane past the original two reads its OWN slide mode', () => {
+    // Each lane interpolates on motion.t<i>.slide, so lane C can step while
+    // lane A ramps (REQ-tracks-share-the-lanes-curve-semantics).
+    const { bus, patterns, clock, machine } = build();
+    setupTrack(patterns, 2, 'fx.reverb.mix', { 0: 0, 8: 1 });
+    machine.setTrackSlide(2, false);          // STEP: jump and hold
+    machine.setEnabled(true);
+    clock.fireStart();
+    clock.fireTick(0);
+
+    machine.frame(4 * STEP_DUR);              // halfway to the step-8 anchor
+    const held = bus.get('fx.reverb.mix');
+    expect(held).toBeCloseTo(fromNorm(bus.def('fx.reverb.mix')!, 0), 6);
+
+    machine.setTrackSlide(2, true);           // SLIDE: ramp between anchors
+    machine.frame(4 * STEP_DUR);
+    expect(bus.get('fx.reverb.mix')).toBeGreaterThan(held);
   });
 
   it('both tracks run at once, so one bank can drive four params', () => {

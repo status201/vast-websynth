@@ -206,7 +206,7 @@ describe('PatternUndo — bulk clears (step-grid-editing.md REQ-one-bulk-action-
   });
 });
 
-describe('PatternUndo — extra motion tracks (motion-sequencer.md REQ-two-extra-tracks-per-bank)', () => {
+describe('PatternUndo — extra motion tracks (motion-sequencer.md REQ-extra-single-param-tracks-per-bank)', () => {
   it('undoes a track step and a track param independently', () => {
     const { patterns, undo } = build();
     patterns.setMotionTrackParam(0, 'fx.delay.mix');

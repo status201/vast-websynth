@@ -76,7 +76,7 @@ export interface MotionAssign {
 export const MOTION_STEP_DEFAULTS: MotionStep = { on: false, x: 0.5, y: 0.5 };
 
 /**
- * One step of an extra single-param motion track (motion-sequencer.md REQ-two-extra-tracks-per-bank).
+ * One step of an extra single-param motion track (motion-sequencer.md REQ-extra-single-param-tracks-per-bank).
  * `v` is 0..1 in the same normalized taper space as MotionStep's x/y. A dead
  * cell keeps its level so toggling a step off and on doesn't lose the value.
  */
@@ -97,9 +97,32 @@ export interface MotionTrack {
 
 export const MOTION_TRACK_STEP_DEFAULTS: MotionTrackStep = { on: false, v: 0.5 };
 
-/** Extra single-param tracks per motion bank (beyond the XY lane). */
-export const MOTION_TRACK_COUNT = 2;
-export const MOTION_TRACK_LABELS = ['A', 'B'];
+/**
+ * Extra single-param tracks per motion bank, beyond the XY lane
+ * (motion-sequencer.md REQ-extra-single-param-tracks-per-bank). Four since v17: two was
+ * enough to prove the idea and not enough to use it, since the third moving
+ * parameter had to spend the XY lane — the one surface the lanes exist to keep
+ * free. The count lives HERE and only here; the params, the engine's
+ * subscriptions, the machine's loops and the panel's rows all derive from it.
+ */
+export const MOTION_TRACK_COUNT = 4;
+
+/**
+ * Derived, not hand-kept beside the count — the same rule (and the same past
+ * bug) as {@link BANK_LABELS}: a written-out list next to a written-out number
+ * is two things that can disagree.
+ */
+export const MOTION_TRACK_LABELS: readonly string[] =
+  Array.from({ length: MOTION_TRACK_COUNT }, (_, i) => String.fromCharCode(65 + i));
+
+/**
+ * The serialized floor for a bank's track array
+ * (motion-sequencer.md REQ-the-motion-track-array-length-is-the-count). Every v5-v7 song carries
+ * exactly two tracks per bank, so trimming to this floor rather than to zero is
+ * what keeps those files — and every committed demo — byte-for-byte identical
+ * through an export.
+ */
+export const MIN_MOTION_TRACK_COUNT = 2;
 
 export function makeMotionTrack(): MotionTrack {
   return { steps: Array.from({ length: SEQ_LENGTH }, () => ({ ...MOTION_TRACK_STEP_DEFAULTS })) };
@@ -114,6 +137,36 @@ export function cloneMotionTracks(tracks: readonly MotionTrack[]): MotionTrack[]
 
 export function makeMotionTracks(): MotionTrack[] {
   return Array.from({ length: MOTION_TRACK_COUNT }, makeMotionTrack);
+}
+
+/**
+ * A track carries information only when it names a param or holds an anchor;
+ * anything else is indistinguishable from an untouched one, so it serializes as
+ * `null` (ADR-011 default-sparse). Shared so the export's "is this worth
+ * writing" test and {@link motionTrackDepth}'s "how deep is this bank" test
+ * cannot drift apart — they are the same question asked twice.
+ */
+export function motionTrackIsEmpty(t: MotionTrack | null | undefined): boolean {
+  return !t || (!t.param && !t.steps.some((s) => s.on));
+}
+
+/**
+ * How many of a bank's tracks are worth serializing: the highest one carrying
+ * information, plus one, floored at {@link MIN_MOTION_TRACK_COUNT} and capped at
+ * {@link MOTION_TRACK_COUNT} (motion-sequencer.md REQ-the-motion-track-array-length-is-the-count).
+ *
+ * Two callers, and that is the whole reason this is a function: the exporter
+ * trims with it and the authoring dialect's version ladder decides `v8` with it.
+ * Written out twice, the depth a file is stamped for and the depth it actually
+ * carries could disagree — which is exactly the class of bug the v8 chain-
+ * reference rung was added to close.
+ */
+export function motionTrackDepth(bank: readonly (MotionTrack | null)[] | null | undefined): number {
+  const n = Math.min(bank?.length ?? 0, MOTION_TRACK_COUNT);
+  for (let t = n - 1; t >= MIN_MOTION_TRACK_COUNT; t--) {
+    if (!motionTrackIsEmpty(bank![t])) return t + 1;
+  }
+  return MIN_MOTION_TRACK_COUNT;
 }
 
 /**
@@ -389,7 +442,7 @@ export class PatternStore {
   readonly motionBanks: MotionStep[][];
   /** Per-bank axis override (null = inherit the XY Pad assignment). */
   readonly motionAssigns: (MotionAssign | null)[];
-  /** motionTrackBanks[bank][track] — the extra single-param tracks (REQ-two-extra-tracks-per-bank). */
+  /** motionTrackBanks[bank][track] — the extra single-param tracks (REQ-extra-single-param-tracks-per-bank). */
   readonly motionTrackBanks: MotionTrack[][];
 
   /** Filename per sampler slot (null = empty). Decoded audio lives in the
@@ -1043,7 +1096,7 @@ export class PatternStore {
     for (let i = 0; i < dst.length; i++) Object.assign(assertIndex(dst, i, 'motionSteps'), assertIndex(src, i, 'motionSteps'));
     const srcAssign = this.motionAssigns[a] ?? null;
     this.motionAssigns[b] = srcAssign ? { ...srcAssign } : null;
-    // The extra tracks travel with the bank, params included (REQ-two-extra-tracks-per-bank): copying a
+    // The extra tracks travel with the bank, params included (REQ-extra-single-param-tracks-per-bank): copying a
     // bank you just built must not mean re-picking every parameter.
     this.motionTrackBanks[b] = cloneMotionTracks(this.motionTrackBanks[a]!);
     if (b === this._motionEdit) { this.emitBankMotion(); this.emitAllMotionTracks(); }

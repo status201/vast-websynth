@@ -2,7 +2,7 @@
   "format": "websynth-params",
   "version": 1,
   "songVersion": 8,
-  "count": 395,
+  "count": 397,
   "params": [
     {
       "id": "voicing.mode",
@@ -4039,6 +4039,32 @@
     },
     {
       "id": "motion.t1.slide",
+      "min": 0,
+      "max": 1,
+      "default": 1,
+      "patch": false,
+      "step": 1,
+      "taper": "discrete",
+      "labels": [
+        "step",
+        "slide"
+      ]
+    },
+    {
+      "id": "motion.t2.slide",
+      "min": 0,
+      "max": 1,
+      "default": 1,
+      "patch": false,
+      "step": 1,
+      "taper": "discrete",
+      "labels": [
+        "step",
+        "slide"
+      ]
+    },
+    {
+      "id": "motion.t3.slide",
       "min": 0,
       "max": 1,
       "default": 1,

@@ -3,7 +3,12 @@
 ```yaml
 id: testids
 status: implemented
-version: 21 # v21: debug-scope — the Debug panel's scope-liveness row (scope.md
+version: 22 # v22: motion's single-param lanes go from two to four, so four id
+            #      families widen to <0..3> and the lane fold caret joins them
+            #      (motion-sequencer.md REQ-extra-single-param-tracks-per-bank/REQ-an-empty-motion-lane-starts-folded).
+            #      seq-track-fold-<t> is unchanged in name and meaning although
+            #      its implementation moved into the shared lane-fold component
+            # v21: debug-scope — the Debug panel's scope-liveness row (scope.md
             #      REQ-the-panel-says-whether-it-is-drawing)
             # v20: the song transport's Loop button (transport-loop.md REQ-a-loop-button-on-both-surfaces)
             #      and the global `loop` / `loop-anchor` cell classes (REQ-12);
@@ -207,7 +212,7 @@ synth faceplate panels:
 step grids, rulers & overlays:
   seq-step-<i>                       # sequencer track 1
   seq-step-<t>-<i>                   # sequencer tracks 2-4  (features/sequencer.md)
-  seq-track-<t> · seq-track-fold-<t> · seq-step-input
+  seq-track-<t> · seq-track-fold-<t> · seq-step-input   # fold: features/lane-fold.md
   seq-chord · seq-snap · seq-snap-toast      # features/chord-tools.md — the degree
                                              #   writer and SNAP. `seq-chord` is a
                                              #   Dropdown, which mints no per-row ids.
@@ -261,9 +266,10 @@ mod matrix window:                                  # features/mod-matrix.md
 motion tab:                                         # features/motion-sequencer.md
   motion-view · motion-view-<x|y> · motion-graph · motion-xypad
   motion-assign-<x|y> · motion-assign-reset
-  motion-trk-<0|1>-param · motion-trk-<0|1>-step-<s> · motion-trk-<0|1>-graph
-  seg-motion.t<0|1>.slide
-  motion-readout-xy · motion-readout-trk-<0|1>   # per-lane value readout (v11)
+  motion-trk-<0..3>-param · motion-trk-<0..3>-step-<s> · motion-trk-<0..3>-graph
+  motion-trk-<0..3>-fold                         # the lane fold caret (v17, features/lane-fold.md)
+  seg-motion.t<0..3>.slide
+  motion-readout-xy · motion-readout-trk-<0..3>  # per-lane value readout (v11)
   motion-value-bubble                            # the drag bubble; absent when idle
 
 sampler slots:                                      # features/sampler.md

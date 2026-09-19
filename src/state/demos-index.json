@@ -23,6 +23,15 @@
       "drums"
     ]
   },
+  "1982.websynth.json": {
+    "name": "1982",
+    "bpm": 115,
+    "bars": 12,
+    "uses": [
+      "seq",
+      "drums"
+    ]
+  },
   "1983.websynth.json": {
     "name": "1983",
     "bpm": 101,
