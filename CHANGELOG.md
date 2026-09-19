@@ -16,6 +16,20 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+### Added
+
+- **Up to eight pattern banks per machine.** The Sequencer, Drum machine,
+  Sampler and Motion sequencer each still start with four banks (A–D), and a
+  **+** at the end of the bank bar adds a fifth, then a sixth, seventh and
+  eighth (A–H). Each machine counts its own — growing the Sequencer leaves the
+  Drums at four — and every new bank is empty, so nothing you already have
+  changes. A **−** beside it removes the highest bank again, and stays greyed
+  out (saying why) while that bank still holds steps or is used in a Song chain.
+  Grown banks appear in the Song tab's chain palette like any other, and save,
+  export and share links carry them. Songs written before this keep loading and
+  sounding exactly as they did, and a four-bank song's pattern data still exports
+  byte-for-byte as it used to — only the format version stamped on it moves.
+
 ### Changed
 
 - **The phone's Pause button pauses the song.** On Android, the Pause button in

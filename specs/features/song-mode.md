@@ -3,7 +3,9 @@
 ```yaml
 id: song-mode
 status: implemented
-version: 26  # v26: REQ-a-load-lands-on-bar-one's reset also clears the transport loop (transport-loop REQ-loading-a-song-clears-the-loop)
+version: 27  # v27: REQ-song-file-v8-widens-the-bank-count — SongFile v8 lets each machine carry 4..8
+             #      banks; the array length IS that machine's count (banks.md, ADR-022)
+             # v26: REQ-a-load-lands-on-bar-one's reset also clears the transport loop (transport-loop REQ-loading-a-song-clears-the-loop)
              # v25: REQ-a-rejected-import-is-copyable-in-full also covers the two demo-load paths, which collapsed
              #      their parse errors to errors[0] before the dialog saw them
              # v24: REQ-a-rejected-import-is-copyable-in-full — a rejected import can be copied in full. The dialog
@@ -81,7 +83,7 @@ best stress test of the spec format.
 
 ## Background / Why
 
-Song mode turns the synth from a live instrument into an arranger: 4 banks each of
+Song mode turns the synth from a live instrument into an arranger: 4..8 banks each of
 sequencer / drum / sampler / motion patterns, ordered into per-lane **chains**,
 played back bar-by-bar, with live DJ FX and a per-lane mixer on top. A whole song
 (params + all banks + all four chains) is captured into one portable JSON file and
@@ -94,13 +96,14 @@ demos, the load path **must stay backward compatible** as the format grows.
   snapshot + all seq/drum/sampler/motion banks + all four chain lanes into one
   `SongFile`.
 - **REQ-song-file-is-a-versioned-union** — `SongFile` is a **versioned union**
-  (`version: 1 | … | 7`); v2 adds optional sampler fields, v3 adds the optional
+  (`version: 1 | … | 8`); v2 adds optional sampler fields, v3 adds the optional
   [XY Pad](xy-pad.md) axis assignment (`xy`), v4 adds the optional [motion
   sequencer](motion-sequencer.md) fields
   (`motionBanks`/`motionAssigns`/`motionChain`), v5 the optional `motionTracks`
   (motion's two extra single-param tracks) and v6 the optional `seqTracks`
-  ([sequencer](sequencer.md) tracks 2–4), and v7 the optional `seqTranspose`
-  (REQ-song-file-v7-adds-slot-transpose). Older files (incl. built-in demos)
+  ([sequencer](sequencer.md) tracks 2–4), v7 the optional `seqTranspose`
+  (REQ-song-file-v7-adds-slot-transpose) and v8 the widened per-machine bank
+  count (REQ-song-file-v8-widens-the-bank-count). Older files (incl. built-in demos)
   must still load. The version `capture()` writes is the exported
   **`SONG_VERSION`** constant, not a literal — the published schema and
   `llms.txt` are pinned to it by `tests/state/authoring-docs.test.ts`, which is
@@ -366,6 +369,29 @@ demos, the load path **must stay backward compatible** as the format grows.
   lower for it. `apply()` defaults it to all-zeros, per REQ-apply-resets-to-defaults-first's
   reset-then-restore contract, so a pre-v7 file plays exactly as written.
 
+- **REQ-song-file-v8-widens-the-bank-count** (SongFile v8 — 4..8 banks per
+  machine, v27) — v8 adds **no field**. It widens an existing dimension: each
+  machine's bank array may be 4..8 long instead of exactly 4, and that length *is*
+  that machine's bank count ([banks](banks.md) REQ-a-machine-owns-its-bank-count,
+  ADR-022). The five exact-length checks in `validateSongFile` became range
+  checks — a relaxation, so every v1–v7 file still passes untouched — and
+  `compactSongForExport` needed no edit at all, because its bank paths were
+  already length-agnostic `.map()`s. A four-bank song therefore serializes
+  **byte-for-byte** as it did before v8, which `npm run check:demos` enforces
+  across every shipped demo.
+
+  The version bump exists for the error message, not for the format: an older
+  build meets "unsupported song version 8" rather than "seqBanks must have 4
+  banks", which reads like a corrupt file.
+
+  A chain step is validated against the **ceiling** (`0..MAX_BANK_COUNT-1`), not
+  against the sibling array's length, so a chain naming a bank the arrays omit is
+  a legal file — `apply()` grows that machine to fit it
+  ([banks](banks.md) REQ-a-chain-reference-grows-the-machine). Two reasons: JSON
+  Schema cannot express "≤ the length of a sibling array", so a stricter validator
+  would disagree with the published schema; and growing honours what the author
+  wrote instead of silently playing a different bank.
+
 - **REQ-applying-a-song-is-click-free** (applying a song is click-free, v23) —
   **`apply()` writes every registered param twice, and a structural side effect
   fires twice with it.** REQ-apply-resets-to-defaults-first's `resetDefaults()`
@@ -475,25 +501,27 @@ Nested beyond ~3 levels, so as flat YAML:
 ```yaml
 SongFile:
   format: 'websynth-song'            # required discriminator
-  version: 1 | 2 | 3 | 4 | 5 | 6 | 7
+  version: 1 | 2 | 3 | 4 | 5 | 6 | 7 | 8
   name: string
   params: Record<string, number>     # = ParamBus.snapshot()
-  seqBanks:  SeqStep[][]             # 4 banks × 16 steps — since v6 this is TRACK 1 only
-  drumBanks: DrumCell[][][]          # 4 banks × 8 tracks × 16 steps
+  seqBanks:  SeqStep[][]             # 4..8 banks × 16 steps — since v6 this is TRACK 1 only
+                                     # the LENGTH is the sequencer's bank count (v8, ADR-022)
+  drumBanks: DrumCell[][][]          # 4..8 banks × 8 tracks × 16 steps, counted separately
   seqChain:  ChainData
   drumChain: ChainData
   # ---- v2 additions (optional, so v1 files still parse) ----
-  samplerBanks?: SamplerStep[][][]   # 4 banks × 8 slots × 16 steps
+  samplerBanks?: SamplerStep[][][]   # 4..8 banks × 8 slots × 16 steps
   samplerChain?: ChainData
   sampleNames?: (string | null)[]    # filenames ONLY — audio is not embedded
   # ---- v3 addition (optional, so v1/v2 files still parse) ----
   xy?: { x: string; y: string }      # XY Pad axis assignment (ParamBus ids) — see xy-pad.md
   # ---- v4 additions (optional, so v1-v3 files still parse) ----
-  motionBanks?: MotionStep[][]       # 4 banks × 16 steps of {on, x, y} anchors — see motion-sequencer.md
+  motionBanks?: MotionStep[][]       # 4..8 banks × 16 steps of {on, x, y} anchors — see motion-sequencer.md
   motionAssigns?: (MotionAssign | null)[]  # per-bank axis override; null = inherit xy
+                                           # same length as motionBanks — the motion trio resizes as one
   motionChain?: ChainData
   # ---- v5 addition (optional, so v1-v4 files still parse) ----
-  motionTracks?: (MotionTrack | null)[][]  # 4 banks × 2 extra single-param tracks — see motion-sequencer.md
+  motionTracks?: (MotionTrack | null)[][]  # per motion bank × 2 extra single-param tracks — see motion-sequencer.md
   # ---- v6 addition (optional, so v1-v5 files still parse) ----
   seqTracks?: (SeqStep[] | null)[][]  # [bank][track], indexed by the REAL track number:
                                       # index 0 is ALWAYS null (track 1 stays in seqBanks) and an
@@ -517,10 +545,10 @@ ChainData:
 ### Versioning & backward-compat (the load-bearing detail)
 
 ```yaml
-capture: always writes SONG_VERSION (7)
+capture: always writes SONG_VERSION (8)
 fromJSON: delegates to parse() -> expandAuthorSong + validateSongFile, so it is
-          the FULL field-level check (dims, ranges, KNOWN_SONG_VERSIONS = 1..7),
-          not a presence test. Every v1..v7 file still parses because each
+          the FULL field-level check (dims, ranges, KNOWN_SONG_VERSIONS = 1..8),
+          not a presence test. Every v1..v8 file still parses because each
           addition is optional — see "Import validation" below.
 apply (migration point):
   1. bus.resetDefaults()                 # omitted params revert to default
@@ -529,11 +557,16 @@ apply (migration point):
      # Before patterns.restore, so the store's sample-meta emit repaints each
      # slot against settled buffers. A file omitting sampleNames renames nothing.
   3. patterns.restore({ seqBanks, drumBanks, samplerBanks, sampleNames,
-        motionBanks/motionAssigns/motionTracks ?? emptyPatternSnapshot().<section> })
+        motionBanks/motionAssigns/motionTracks ?? emptyPatternSnapshot().<section> },
+        { seq, drum, sampler, motion })   # v8 per-machine bank counts, computed ONCE here as
+                                          # max(arrayLength, highestChainRef+1, MIN_BANK_COUNT)
      # absent MOTION section -> blanked, never inherited; sampler banks/names inherit
      # (buffers live in SamplerMachine; full sampler clear is New Song's job)
      # seqBanks is rebuilt to [bank][track][step] first: track 1 from seqBanks,
      # 2-4 from seqTracks when present (absent pre-v6 -> a one-track song)
+  # ORDER IS LOAD-BEARING since v8: the chain setters clamp each step against the
+  # machine's count, so they must run AFTER restore has resized the arrays. Reversed,
+  # a big song's chain outlives its banks (banks.md REQ-an-omitted-bank-restores-blank).
   4. arr.setSeqChain(file.seqChain?.steps ?? [0], file.seqChain?.enabled ?? false,
                      file.seqTranspose ?? [])         # v7; older files -> no transpose
      arr.setDrumChain(... ?? [0], ... ?? false)
@@ -558,13 +591,16 @@ strict (reject + name the path):
   root:        object; format === 'websynth-song'; version ∈ KNOWN_SONG_VERSIONS (= 1..SONG_VERSION); name: string
   params:      object of string -> finite number   # keys NOT restricted (forward-compat)
   xy?:         { x: non-empty string, y: non-empty string }   # v3; param-id existence NOT checked
-  seqBanks:    SeqStep[4][16]                       # exact dims
-  seqTracks?:  (SeqStep[16]|null)[4][4]             # if present; index 0 of each bank MUST be null
-  drumBanks:   DrumCell[4][8][16]
-  samplerBanks?: SamplerStep[4][8][16]              # if present
-  motionTracks?: (MotionTrack|null)[4][2]           # if present
+  seqBanks:    SeqStep[4..8][16]                    # bank count is a RANGE since v8; steps exact
+  seqTracks?:  (SeqStep[16]|null)[4..8][4]          # if present; index 0 of each bank MUST be null
+  drumBanks:   DrumCell[4..8][8][16]
+  samplerBanks?: SamplerStep[4..8][8][16]           # if present
+  motionTracks?: (MotionTrack|null)[4..8][2]        # if present
   sampleNames?:  (string|null)[8]                   # if present
-  chainData:   { enabled: boolean, steps: int[1..MAX_CHAIN_STEPS], each 0..3 or REST }
+  chainData:   { enabled: boolean, steps: int[1..MAX_CHAIN_STEPS],
+                 each 0..MAX_BANK_COUNT-1 or REST }   # the CEILING, not the sibling
+                 # array's length — a chain may name a bank the file omits, and
+                 # apply() grows that machine to fit (banks.md REQ-a-chain-reference-grows-the-machine)
   cell fields when present, by type/range:
     velocity/gate/prob: number 0..1 ; ratchet: int 1..4 ; tie: boolean
     SeqStep.note: int 0..127                        # MIDI range (untrusted-input REQ-payload-values-are-bounded)

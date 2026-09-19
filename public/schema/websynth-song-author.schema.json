@@ -35,32 +35,32 @@
     },
     "seq": {
       "type": "array",
-      "maxItems": 4,
-      "description": "0..4 melody banks (A/B/C/D). A missing bank is empty.",
+      "maxItems": 8,
+      "description": "0..8 melody banks (A-H). A missing bank is empty; fewer than 4 are padded to 4.",
       "items": {
         "$ref": "#/$defs/seqBank"
       }
     },
     "drums": {
       "type": "array",
-      "maxItems": 4,
-      "description": "0..4 drum banks. Track keys: kick, snare, chat/hat/hihat/closedhat, ohat/openhat, ltom/lowtom, mtom/midtom, htom/hightom, clap, or '0'..'7'.",
+      "maxItems": 8,
+      "description": "0..8 drum banks (A-H). Track keys: kick, snare, chat/hat/hihat/closedhat, ohat/openhat, ltom/lowtom, mtom/midtom, htom/hightom, clap, or '0'..'7'.",
       "items": {
         "$ref": "#/$defs/hitBank"
       }
     },
     "sampler": {
       "type": "array",
-      "maxItems": 4,
-      "description": "0..4 sampler banks. Slot keys: 's1'..'s8' or '0'..'7'. Slots play user-loaded audio; audio is never embedded.",
+      "maxItems": 8,
+      "description": "0..8 sampler banks (A-H). Slot keys: 's1'..'s8' or '0'..'7'. Slots play user-loaded audio; audio is never embedded.",
       "items": {
         "$ref": "#/$defs/hitBank"
       }
     },
     "motion": {
       "type": "array",
-      "maxItems": 4,
-      "description": "0..4 motion-sequencer banks: XY param automation over the bar. Each bank is an anchor list, or {assign, steps} to override which two params this bank drives (an unset axis inherits 'xy'). 'motion.slide' param: 1 (default) ramps linearly between anchors, 0 jumps and holds.",
+      "maxItems": 8,
+      "description": "0..8 motion-sequencer banks (A-H): XY param automation over the bar. Each bank is an anchor list, or {assign, steps} to override which two params this bank drives (an unset axis inherits 'xy'). 'motion.slide' param: 1 (default) ramps linearly between anchors, 0 jumps and holds.",
       "items": {
         "$ref": "#/$defs/motionBank"
       }
@@ -83,8 +83,8 @@
     },
     "motionTracks": {
       "type": "array",
-      "maxItems": 4,
-      "description": "0..4 banks, each 0..2 extra single-param motion tracks. Each track picks one ParamBus id and its own anchors, so a bank can automate up to 4 params (the XY pair plus these two). Use null for an unused track.",
+      "maxItems": 8,
+      "description": "0..8 banks, each 0..2 extra single-param motion tracks. Each track picks one ParamBus id and its own anchors, so a bank can automate up to 4 params (the XY pair plus these two). Use null for an unused track.",
       "items": {
         "type": "array",
         "maxItems": 2,
@@ -465,7 +465,7 @@
       "oneOf": [
         {
           "type": "string",
-          "pattern": "^[A-Da-d.\\s-]+$",
+          "pattern": "^[A-Ha-h.\\s-]+$",
           "minLength": 1
         },
         {
@@ -474,7 +474,7 @@
           "items": {
             "type": "integer",
             "minimum": -1,
-            "maximum": 3
+            "maximum": 7
           }
         },
         {
@@ -493,7 +493,7 @@
               "items": {
                 "type": "integer",
                 "minimum": -1,
-                "maximum": 3
+                "maximum": 7
               }
             }
           },
@@ -506,7 +506,7 @@
       "oneOf": [
         {
           "type": "string",
-          "pattern": "^\\s*([A-Da-d.-]([+-]\\d{1,2})?\\s*)+$",
+          "pattern": "^\\s*([A-Ha-h.-]([+-]\\d{1,2})?\\s*)+$",
           "minLength": 1
         },
         {
@@ -515,7 +515,7 @@
           "items": {
             "type": "integer",
             "minimum": -1,
-            "maximum": 3
+            "maximum": 7
           }
         },
         {
@@ -537,12 +537,12 @@
                   "items": {
                     "type": "integer",
                     "minimum": -1,
-                    "maximum": 3
+                    "maximum": 7
                   }
                 },
                 {
                   "type": "string",
-                  "pattern": "^\\s*([A-Da-d.-]([+-]\\d{1,2})?\\s*)+$",
+                  "pattern": "^\\s*([A-Ha-h.-]([+-]\\d{1,2})?\\s*)+$",
                   "minLength": 1
                 }
               ]

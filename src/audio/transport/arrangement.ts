@@ -1,4 +1,4 @@
-import type { PatternStore } from '../../state/patterns';
+import type { Machine, PatternStore } from '../../state/patterns';
 import { REST, clampChainStep, clampTranspose } from '../../state/patterns';
 import { DEFAULT_BAR_TICKS } from '../../state/meter';
 import type { TickSubscriber } from './tick-source';
@@ -30,7 +30,8 @@ export interface ChainLane {
   transpose: number[];
 }
 
-export type LaneName = 'seq' | 'drum' | 'sampler' | 'motion';
+/** Alias of `PatternStore`'s `Machine`, so a lane and its machine are one union. */
+export type LaneName = Machine;
 
 const ALL_LANES: readonly LaneName[] = ['seq', 'drum', 'sampler', 'motion'];
 
@@ -191,7 +192,10 @@ export class Arrangement {
   }
 
   setSeqChain(steps: number[], enabled: boolean, transpose?: number[]): void {
-    this.seq.steps = steps.length ? steps.map(clampChainStep) : [0];
+    // NOT `steps.map(clampChainStep)` — Array.map passes the INDEX as the
+    // second argument, which would silently become the bank bound.
+    const n = this.laneBankCount('seq');
+    this.seq.steps = steps.length ? steps.map((s) => clampChainStep(s, n)) : [0];
     this.seq.transpose = fitTranspose(transpose ?? this.seq.transpose, this.seq.steps.length);
     this.seq.enabled = enabled;
     this.seqPos = 0;
@@ -200,7 +204,10 @@ export class Arrangement {
   }
 
   setDrumChain(steps: number[], enabled: boolean): void {
-    this.drum.steps = steps.length ? steps.map(clampChainStep) : [0];
+    // NOT `steps.map(clampChainStep)` — Array.map passes the INDEX as the
+    // second argument, which would silently become the bank bound.
+    const n = this.laneBankCount('drum');
+    this.drum.steps = steps.length ? steps.map((s) => clampChainStep(s, n)) : [0];
     this.drum.transpose = fitTranspose(this.drum.transpose, this.drum.steps.length);
     this.drum.enabled = enabled;
     this.drumPos = 0;
@@ -209,7 +216,10 @@ export class Arrangement {
   }
 
   setSamplerChain(steps: number[], enabled: boolean): void {
-    this.sampler.steps = steps.length ? steps.map(clampChainStep) : [0];
+    // NOT `steps.map(clampChainStep)` — Array.map passes the INDEX as the
+    // second argument, which would silently become the bank bound.
+    const n = this.laneBankCount('sampler');
+    this.sampler.steps = steps.length ? steps.map((s) => clampChainStep(s, n)) : [0];
     this.sampler.transpose = fitTranspose(this.sampler.transpose, this.sampler.steps.length);
     this.sampler.enabled = enabled;
     this.samplerPos = 0;
@@ -218,7 +228,10 @@ export class Arrangement {
   }
 
   setMotionChain(steps: number[], enabled: boolean): void {
-    this.motion.steps = steps.length ? steps.map(clampChainStep) : [0];
+    // NOT `steps.map(clampChainStep)` — Array.map passes the INDEX as the
+    // second argument, which would silently become the bank bound.
+    const n = this.laneBankCount('motion');
+    this.motion.steps = steps.length ? steps.map((s) => clampChainStep(s, n)) : [0];
     this.motion.transpose = fitTranspose(this.motion.transpose, this.motion.steps.length);
     this.motion.enabled = enabled;
     this.motionPos = 0;
@@ -235,8 +248,24 @@ export class Arrangement {
     for (const l of this.changeListeners) l();
   }
 
+  /** That lane's machine's bank count — the bound every chain index clamps to. */
+  private laneBankCount(name: LaneName): number {
+    return this.patterns.bankCount(name);
+  }
+
+  /**
+   * Does any lane's chain name `bank` of machine `m`? The other half of
+   * `PatternStore.canRemoveBank` (banks.md REQ-a-bank-is-removed-only-when-unused):
+   * the store owns emptiness, the arrangement owns whether anything still points
+   * at it. Only the lane that plays that machine can, so this is a single lane's
+   * question despite the name.
+   */
+  chainReferences(m: LaneName, bank: number): boolean {
+    return this[m].steps.includes(bank);
+  }
+
   private recompute(): void {
-    const seq = resolveLane(this.seq, this.seqPos, this.patterns.seqEditBank);
+    const seq = resolveLane(this.seq, this.seqPos, this.patterns.seqEditBank, this.laneBankCount('seq'));
     this.seqPlayBank = seq.playBank;
     this.seqResting = seq.resting;
     // A disabled lane is live editing, not an arrangement, and a rest bar plays
@@ -244,23 +273,25 @@ export class Arrangement {
     this.seqTranspose = this.seq.enabled && !seq.resting
       ? this.seq.transpose[this.seqPos % (this.seq.transpose.length || 1)] ?? 0
       : 0;
-    const drum = resolveLane(this.drum, this.drumPos, this.patterns.drumEditBank);
+    const drum = resolveLane(this.drum, this.drumPos, this.patterns.drumEditBank, this.laneBankCount('drum'));
     this.drumPlayBank = drum.playBank;
     this.drumResting = drum.resting;
-    const sampler = resolveLane(this.sampler, this.samplerPos, this.patterns.samplerEditBank);
+    const sampler = resolveLane(this.sampler, this.samplerPos, this.patterns.samplerEditBank,
+      this.laneBankCount('sampler'));
     this.samplerPlayBank = sampler.playBank;
     this.samplerResting = sampler.resting;
     const motionEdit = this.patterns.motionEditBank;
-    const motion = resolveLane(this.motion, this.motionPos, motionEdit);
+    const motionN = this.laneBankCount('motion');
+    const motion = resolveLane(this.motion, this.motionPos, motionEdit, motionN);
     this.motionPlayBank = motion.playBank;
     this.motionResting = motion.resting;
     // `resolveLane` mods, so keep the index non-negative. A disabled lane returns
     // the edit bank for all three, which is exactly what plays.
     const len = this.motion.steps.length || 1;
-    const before = resolveLane(this.motion, this.motionPos + len - 1, motionEdit);
+    const before = resolveLane(this.motion, this.motionPos + len - 1, motionEdit, motionN);
     this.motionPrevPlayBank = before.playBank;
     this.motionPrevResting = before.resting;
-    const after = resolveLane(this.motion, this.motionPos + 1, motionEdit);
+    const after = resolveLane(this.motion, this.motionPos + 1, motionEdit, motionN);
     this.motionNextPlayBank = after.playBank;
     this.motionNextResting = after.resting;
   }
@@ -298,9 +329,10 @@ function resolveLane(
   lane: ChainLane,
   pos: number,
   editBank: number,
+  bankCount: number,
 ): { playBank: number; resting: boolean } {
   if (!lane.enabled || !lane.steps.length) return { playBank: editBank, resting: false };
   const step = lane.steps[pos % lane.steps.length] ?? 0;
   if (step === REST) return { playBank: 0, resting: true };
-  return { playBank: clampChainStep(step), resting: false };
+  return { playBank: clampChainStep(step, bankCount), resting: false };
 }

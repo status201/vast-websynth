@@ -8,7 +8,7 @@ import { DROP_IN_DEMOS } from './demo-files';
 import { fixtureSong } from '../fixtures/song-fixture';
 import type { SongFile } from '../../src/state/song';
 import { ParamBus, registerDefaults } from '../../src/state/params';
-import { PatternStore } from '../../src/state/patterns';
+import { PatternStore, MIN_BANK_COUNT, MAX_BANK_COUNT } from '../../src/state/patterns';
 import { MAX_CHAIN_STEPS, MAX_PARAM_KEYS } from '../../src/state/limits';
 import { fakeArr } from '../fixtures/fake-arrangement';
 
@@ -210,8 +210,31 @@ describe('validateSongFile — rejects', () => {
 
   it('a chain bank index out of range', () => {
     const f = clone(captureValid());
-    f.seqChain = { enabled: true, steps: [7] };
+    // The bound is the CEILING, not this file's own 4-long seqBanks: a chain may
+    // legally name a bank the arrays omit, and apply() grows the machine to fit
+    // (banks.md REQ-a-chain-reference-grows-the-machine).
+    f.seqChain = { enabled: true, steps: [MAX_BANK_COUNT] };
     expectReject(f, 'seqChain.steps[0]');
+  });
+
+  it('accepts a chain naming a bank beyond the arrays it ships with', () => {
+    const f = clone(captureValid());
+    f.seqChain = { enabled: true, steps: [0, MAX_BANK_COUNT - 1] };
+    expect(validateSongFile(f).ok).toBe(true);
+  });
+
+  it('accepts 4..8 banks and rejects either side (banks.md REQ-a-machine-owns-its-bank-count)', () => {
+    for (const n of [MIN_BANK_COUNT, 5, MAX_BANK_COUNT]) {
+      const f = clone(captureValid());
+      f.drumBanks = Array.from({ length: n }, () => clone(f.drumBanks[0]));
+      expect(validateSongFile(f).ok, `${n} banks`).toBe(true);
+    }
+    const short = clone(captureValid());
+    short.drumBanks = short.drumBanks.slice(0, MIN_BANK_COUNT - 1);
+    expectReject(short, `must have ${MIN_BANK_COUNT}..${MAX_BANK_COUNT} banks`);
+    const long = clone(captureValid());
+    long.drumBanks = Array.from({ length: MAX_BANK_COUNT + 1 }, () => clone(long.drumBanks[0]));
+    expectReject(long, `must have ${MIN_BANK_COUNT}..${MAX_BANK_COUNT} banks`);
   });
 
   it('a chain index below the REST sentinel', () => {
@@ -320,7 +343,7 @@ describe('validateSongFile — v4 motion fields', () => {
   it('rejects a wrong motionAssigns shape', () => {
     const f = withMotion();
     f.motionAssigns = [null, null, null]; // 3 entries
-    expectReject(f, 'motionAssigns must have 4 entries');
+    expectReject(f, `motionAssigns must have ${MIN_BANK_COUNT}..${MAX_BANK_COUNT} entries`);
     const g = withMotion();
     (g.motionAssigns as unknown[])[1] = { x: '' };
     expectReject(g, 'motionAssigns[1].x');

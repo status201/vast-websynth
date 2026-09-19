@@ -1,14 +1,21 @@
 import { describe, it, expect } from 'vitest';
-import { PatternStore, SEQ_LENGTH, BANK_COUNT, SAMPLER_SLOT_COUNT, REST, clampChainStep, emptyPatternBanks, emptyPatternSnapshot, type SeqStep, type DrumCell } from '../../src/state/patterns';
+import { PatternStore, SEQ_LENGTH, MIN_BANK_COUNT, MAX_BANK_COUNT, MOTION_TRACK_COUNT, SAMPLER_SLOT_COUNT, REST, clampChainStep, emptyPatternBanks, emptyPatternSnapshot, type SeqStep, type DrumCell } from '../../src/state/patterns';
 
 describe('clampChainStep', () => {
   it('passes the REST sentinel through untouched', () => {
-    expect(clampChainStep(REST)).toBe(REST);
+    expect(clampChainStep(REST, MIN_BANK_COUNT)).toBe(REST);
   });
   it('clamps out-of-range indices to a real bank', () => {
-    expect(clampChainStep(9)).toBe(BANK_COUNT - 1);
-    expect(clampChainStep(-5)).toBe(0); // not REST → clamped to 0
-    expect(clampChainStep(2)).toBe(2);
+    expect(clampChainStep(9, MIN_BANK_COUNT)).toBe(MIN_BANK_COUNT - 1);
+    expect(clampChainStep(-5, MIN_BANK_COUNT)).toBe(0); // not REST → clamped to 0
+    expect(clampChainStep(2, MIN_BANK_COUNT)).toBe(2);
+  });
+  it('clamps against the count it is GIVEN, not a global constant', () => {
+    // The whole point of the required argument (ADR-022): bank 5 is out of range
+    // for a four-bank machine and perfectly valid for a grown one.
+    expect(clampChainStep(5, MIN_BANK_COUNT)).toBe(MIN_BANK_COUNT - 1);
+    expect(clampChainStep(5, MAX_BANK_COUNT)).toBe(5);
+    expect(clampChainStep(99, MAX_BANK_COUNT)).toBe(MAX_BANK_COUNT - 1);
   });
 });
 
@@ -51,10 +58,10 @@ describe('PatternStore', () => {
 
   it('clamps out-of-range bank indices', () => {
     const ps = new PatternStore();
-    expect(ps.seqBank(99)).toBe(ps.seqBanks[BANK_COUNT - 1]);
+    expect(ps.seqBank(99)).toBe(ps.seqBanks[MIN_BANK_COUNT - 1]);
     expect(ps.seqBank(-5)).toBe(ps.seqBanks[0]);
     ps.setSeqEditBank(99);
-    expect(ps.seqEditBank).toBe(BANK_COUNT - 1);
+    expect(ps.seqEditBank).toBe(MIN_BANK_COUNT - 1);
   });
 
   it('setSeqEditBank fires batch bank listener once (not per-step)', () => {
@@ -108,7 +115,7 @@ describe('PatternStore', () => {
 
   it('sampler banks default empty across all banks', () => {
     const ps = new PatternStore();
-    for (let b = 0; b < BANK_COUNT; b++) {
+    for (let b = 0; b < MIN_BANK_COUNT; b++) {
       expect(ps.samplerBank(b).length).toBe(SAMPLER_SLOT_COUNT);
       expect(ps.samplerBank(b).every((sl) => sl.every((c) => !c.on))).toBe(true);
     }
@@ -276,7 +283,7 @@ describe('PatternStore', () => {
 describe('PatternStore — motion banks (motion-sequencer.md REQ-a-motion-step-is-an-optional-anchor/REQ-motion-drives-the-xy-assignment)', () => {
   it('motion banks default empty (center coordinates, all off)', () => {
     const p = new PatternStore();
-    for (let b = 0; b < BANK_COUNT; b++) {
+    for (let b = 0; b < MIN_BANK_COUNT; b++) {
       expect(p.motionBanks[b]!.length).toBe(SEQ_LENGTH);
       expect(p.motionBanks[b]!.every((s) => !s.on && s.x === 0.5 && s.y === 0.5)).toBe(true);
       expect(p.motionAssign(b)).toBeNull();
@@ -611,7 +618,7 @@ describe('PatternStore — extra motion tracks (motion-sequencer.md REQ-two-extr
 describe('emptyPatternBanks — New Song blanks the extra motion tracks (regression)', () => {
   it('returns unassigned, empty tracks for every bank', () => {
     const blank = emptyPatternBanks();
-    expect(blank.motionTracks).toHaveLength(BANK_COUNT);
+    expect(blank.motionTracks).toHaveLength(MIN_BANK_COUNT);
     for (const bank of blank.motionTracks) {
       expect(bank).toHaveLength(2);
       for (const t of bank) {
@@ -637,16 +644,257 @@ describe('emptyPatternBanks — New Song blanks the extra motion tracks (regress
 describe('emptyPatternSnapshot — the complete blank shared by Load + New Song', () => {
   it('defines every section (incl. sampleNames + motionAssigns) so restore is authoritative', () => {
     const snap = emptyPatternSnapshot();
-    expect(snap.seqBanks).toHaveLength(BANK_COUNT);
-    expect(snap.drumBanks).toHaveLength(BANK_COUNT);
-    expect(snap.samplerBanks).toHaveLength(BANK_COUNT);
-    expect(snap.motionBanks).toHaveLength(BANK_COUNT);
-    expect(snap.motionTracks).toHaveLength(BANK_COUNT);
+    expect(snap.seqBanks).toHaveLength(MIN_BANK_COUNT);
+    expect(snap.drumBanks).toHaveLength(MIN_BANK_COUNT);
+    expect(snap.samplerBanks).toHaveLength(MIN_BANK_COUNT);
+    expect(snap.motionBanks).toHaveLength(MIN_BANK_COUNT);
+    expect(snap.motionTracks).toHaveLength(MIN_BANK_COUNT);
     // The two sections emptyPatternBanks omits — present here so a load can never
     // leave them undefined (which restore skips → the prior song's state inherited).
     expect(snap.sampleNames).toHaveLength(SAMPLER_SLOT_COUNT);
     expect(snap.sampleNames.every((n) => n === null)).toBe(true);
-    expect(snap.motionAssigns).toHaveLength(BANK_COUNT);
+    expect(snap.motionAssigns).toHaveLength(MIN_BANK_COUNT);
     expect(snap.motionAssigns.every((a) => a === null)).toBe(true);
+  });
+});
+
+describe('per-machine bank count (banks.md REQ-a-machine-owns-its-bank-count)', () => {
+  it('starts every machine at the floor and reports it lane-keyed', () => {
+    const ps = new PatternStore();
+    for (const m of ['seq', 'drum', 'sampler', 'motion'] as const) {
+      expect(ps.bankCount(m), m).toBe(MIN_BANK_COUNT);
+    }
+    expect(ps.seqBankCount).toBe(MIN_BANK_COUNT);
+    expect(ps.motionBankCount).toBe(MIN_BANK_COUNT);
+  });
+
+  it('addBank grows one machine at a time, up to the ceiling', () => {
+    const ps = new PatternStore();
+    expect(ps.addBank('seq')).toBe(true);
+    expect(ps.seqBanks).toHaveLength(MIN_BANK_COUNT + 1);
+    // Per machine: the others are untouched (REQ-a-machine-owns-its-bank-count).
+    expect(ps.drumBanks).toHaveLength(MIN_BANK_COUNT);
+    while (ps.canAddBank('seq')) ps.addBank('seq');
+    expect(ps.seqBankCount).toBe(MAX_BANK_COUNT);
+    expect(ps.addBank('seq')).toBe(false);
+    expect(ps.seqBanks).toHaveLength(MAX_BANK_COUNT);
+  });
+
+  it('a new bank is blank and fully shaped', () => {
+    const ps = new PatternStore();
+    ps.setSeqStep(0, 0, { on: true, note: 72 });
+    ps.addBank('seq');
+    const fresh = ps.seqBanks[MIN_BANK_COUNT]!;
+    expect(fresh).toHaveLength(4); // SEQ_TRACK_COUNT tracks
+    expect(fresh[0]).toHaveLength(SEQ_LENGTH);
+    expect(fresh.every((t) => t.every((s) => !s.on))).toBe(true);
+    expect(ps.bankHasContent('seq', MIN_BANK_COUNT)).toBe(false);
+  });
+
+  it('addBank(motion) grows all THREE parallel arrays as one step', () => {
+    const ps = new PatternStore();
+    ps.addBank('motion');
+    expect(ps.motionBanks).toHaveLength(MIN_BANK_COUNT + 1);
+    expect(ps.motionAssigns).toHaveLength(MIN_BANK_COUNT + 1);
+    expect(ps.motionTrackBanks).toHaveLength(MIN_BANK_COUNT + 1);
+    expect(ps.motionAssign(MIN_BANK_COUNT)).toBeNull();
+    expect(ps.motionTracks(MIN_BANK_COUNT)).toHaveLength(2);
+    // The new tracks are unassigned, so they automate nothing (ADR-006).
+    expect(ps.motionTracks(MIN_BANK_COUNT).every((t) => t.param === undefined)).toBe(true);
+  });
+
+  it('onBankCountChange fires for add/remove but NOT for a bank click', () => {
+    const ps = new PatternStore();
+    let counts = 0;
+    ps.onBankCountChange(() => counts++);
+    ps.setSeqEditBank(2);
+    expect(counts).toBe(0); // else the BankBar would rebuild mid-gesture
+    ps.addBank('seq');
+    expect(counts).toBe(1);
+    ps.removeBank('seq');
+    expect(counts).toBe(2);
+  });
+
+  it('adding or removing a bank is not an undoable mutation', () => {
+    const ps = new PatternStore();
+    const kinds: string[] = [];
+    ps.onMutate((m) => kinds.push(m.kind));
+    ps.addBank('seq');
+    ps.removeBank('seq');
+    expect(kinds).toEqual([]);
+  });
+
+  it('removeBank drops only the highest bank, and only while it is empty', () => {
+    const ps = new PatternStore();
+    ps.addBank('seq');
+    ps.setSeqEditBank(MIN_BANK_COUNT);
+    ps.setSeqStep(0, 0, { on: true });
+    expect(ps.canRemoveBank('seq')).toBe(false);
+    expect(ps.removeBank('seq')).toBe(false);
+    ps.clearSeqBank();
+    expect(ps.canRemoveBank('seq')).toBe(true);
+    expect(ps.removeBank('seq')).toBe(true);
+    expect(ps.seqBanks).toHaveLength(MIN_BANK_COUNT);
+    // The edit cursor was parked on the bank that just went.
+    expect(ps.seqEditBank).toBe(MIN_BANK_COUNT - 1);
+  });
+
+  it('repaints the grid when the removed bank was the one being edited', () => {
+    const p = new PatternStore();
+    p.addBank('seq');
+    p.setSeqEditBank(4);
+    let banks = 0;
+    p.onSeqBankChange(() => { banks++; });
+    expect(p.removeBank('seq')).toBe(true);
+    // The cursor moved, so the panel is painting a bank that no longer exists
+    // until it is told (banks.md REQ-a-bank-is-removed-only-when-unused).
+    expect(p.seqEditBank).toBe(3);
+    expect(banks).toBe(1);
+  });
+
+  it('does not repaint when the cursor was elsewhere', () => {
+    const p = new PatternStore();
+    p.addBank('drum');
+    p.setDrumEditBank(1);
+    let banks = 0;
+    p.onDrumBankChange(() => { banks++; });
+    expect(p.removeBank('drum')).toBe(true);
+    expect(p.drumEditBank).toBe(1);
+    expect(banks).toBe(0);
+  });
+
+  it('motion repaints its extra tracks as well as its anchors', () => {
+    const p = new PatternStore();
+    p.addBank('motion');
+    p.setMotionEditBank(4);
+    let anchors = 0, tracks = 0;
+    p.onMotionBankChange(() => { anchors++; });
+    p.onMotionTrackChange(() => { tracks++; });
+    expect(p.removeBank('motion')).toBe(true);
+    expect(anchors).toBe(1);
+    // One per track — a motion panel paints three lanes, not one.
+    expect(tracks).toBe(MOTION_TRACK_COUNT);
+  });
+
+  it('never shrinks below the floor', () => {
+    const ps = new PatternStore();
+    expect(ps.canRemoveBank('drum')).toBe(false);
+    expect(ps.removeBank('drum')).toBe(false);
+    expect(ps.drumBanks).toHaveLength(MIN_BANK_COUNT);
+  });
+
+  it('bankHasContent answers false past the count rather than throwing', () => {
+    // A BankBar can outlive a shrink by one repaint (REQ-content-dot-covers-every-lane).
+    const ps = new PatternStore();
+    for (const m of ['seq', 'drum', 'sampler', 'motion'] as const) {
+      expect(() => ps.bankHasContent(m, MAX_BANK_COUNT + 5)).not.toThrow();
+      expect(ps.bankHasContent(m, MAX_BANK_COUNT + 5), m).toBe(false);
+    }
+  });
+});
+
+describe('restore resizes authoritatively (REQ-an-omitted-bank-restores-blank)', () => {
+  /** A store grown to `n` banks with a recognisable note in the top one. */
+  const grown = (n: number) => {
+    const ps = new PatternStore();
+    while (ps.bankCount('seq') < n) ps.addBank('seq');
+    while (ps.bankCount('drum') < n) ps.addBank('drum');
+    ps.setSeqEditBank(n - 1);
+    ps.setSeqStep(0, 0, { on: true, note: 99 });
+    return ps;
+  };
+
+  it('shrinks to the incoming length and re-clamps a parked edit cursor', () => {
+    const ps = grown(MAX_BANK_COUNT);
+    expect(ps.seqEditBank).toBe(MAX_BANK_COUNT - 1);
+    // A SongFile carries no edit banks, so this is exactly the load path: the
+    // cursor is parked high and the snapshot says nothing about it.
+    const small = new PatternStore().snapshot();
+    delete (small as { seqEditBank?: number }).seqEditBank;
+    expect(() => ps.restore(small)).not.toThrow();
+    expect(ps.seqBanks).toHaveLength(MIN_BANK_COUNT);
+    expect(ps.seqEditBank).toBe(MIN_BANK_COUNT - 1);
+    expect(() => ps.seq).not.toThrow();
+  });
+
+  it('leaves no residue from the previous song in banks the file omits', () => {
+    const big = grown(MAX_BANK_COUNT);
+    const four = new PatternStore();
+    big.restore(four.snapshot());
+    big.restore(four.snapshot(), { seq: MAX_BANK_COUNT });
+    // Re-grown to eight, but bank H must be BLANK, not the note from before.
+    expect(big.seqBanks).toHaveLength(MAX_BANK_COUNT);
+    expect(big.seqBanks[MAX_BANK_COUNT - 1]!.every((t) => t.every((s) => !s.on))).toBe(true);
+  });
+
+  it('blanks an omitted ROW and an omitted CELL, not just an omitted bank', () => {
+    // The same inherit bug lived at all three nesting levels; varying lengths
+    // made it reachable, so all three are pinned.
+    const ps = new PatternStore();
+    ps.setDrumCell(0, 0, { on: true });
+    ps.setDrumCell(3, 5, { on: true });
+    const snap = ps.snapshot();
+    // A bank with one row missing entirely, and a row shortened to one cell.
+    snap.drumBanks[0]!.splice(3, 1);
+    snap.drumBanks[0]![0] = [{ on: false } as DrumCell];
+    ps.restore(snap);
+    expect(ps.drumBanks[0]![0]!.every((c) => !c.on)).toBe(true);
+    expect(ps.drumBanks[0]![3]!.every((c) => !c.on)).toBe(true);
+  });
+
+  it('floors a too-short snapshot and caps a too-long one', () => {
+    const ps = new PatternStore();
+    const snap = ps.snapshot();
+    snap.seqBanks = snap.seqBanks.slice(0, 2);
+    ps.restore(snap);
+    expect(ps.seqBanks).toHaveLength(MIN_BANK_COUNT);
+
+    const ps2 = new PatternStore();
+    const big = ps2.snapshot();
+    const extra = new PatternStore().snapshot().seqBanks[0]!;
+    while (big.seqBanks.length < MAX_BANK_COUNT + 3) big.seqBanks.push(extra);
+    ps2.restore(big);
+    expect(ps2.seqBanks).toHaveLength(MAX_BANK_COUNT);
+  });
+
+  it('grows past the incoming arrays when the caller asks (chain fit)', () => {
+    const ps = new PatternStore();
+    ps.restore(new PatternStore().snapshot(), { seq: 6, motion: 5 });
+    expect(ps.seqBanks).toHaveLength(6);
+    expect(ps.motionBanks).toHaveLength(5);
+    expect(ps.motionAssigns).toHaveLength(5);
+    expect(ps.motionTrackBanks).toHaveLength(5);
+    // Untouched machines stay at their own length.
+    expect(ps.drumBanks).toHaveLength(MIN_BANK_COUNT);
+  });
+
+  it('an absent section inherits the LENGTH too, even when a count is passed', () => {
+    // `Song.apply` always passes all four counts, so the absent-section branch is
+    // never reached from the load path — which is how a v1 file with no sampler
+    // section used to truncate a grown sampler and destroy banks E..H of the kit
+    // it was deliberately keeping (song-mode.md REQ-apply-resets-to-defaults-first).
+    const p = new PatternStore();
+    for (let i = MIN_BANK_COUNT; i < 6; i++) p.addBank('sampler');
+    p.setSamplerEditBank(5);
+    p.setSamplerCell(0, 3, { on: true });
+    p.restore({ seqBanks: p.snapshot().seqBanks }, { sampler: MIN_BANK_COUNT });
+    expect(p.bankCount('sampler')).toBe(6);
+    expect(p.bankHasContent('sampler', 5)).toBe(true);
+  });
+
+  it('a count may still RAISE an inherited length, never lower it', () => {
+    const p = new PatternStore();
+    p.restore({}, { sampler: 6 });
+    expect(p.bankCount('sampler')).toBe(6);
+  });
+
+  it('leaves a machine alone when its section is absent (the sampler inherit rule)', () => {
+    const ps = new PatternStore();
+    ps.addBank('sampler');
+    ps.setSamplerCell(0, 0, { on: true });
+    // A v1 file has no sampler section at all; it must not shrink or clear it.
+    ps.restore({ seqBanks: new PatternStore().snapshot().seqBanks });
+    expect(ps.samplerBanks).toHaveLength(MIN_BANK_COUNT + 1);
+    expect(ps.samplerBanks[0]![0]![0]!.on).toBe(true);
   });
 });

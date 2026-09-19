@@ -15,7 +15,7 @@ import { StepButton } from '../components/step-button';
 import { createClearMenu } from '../components/clear-menu';
 import { showToast } from '../components/toast';
 import type { PatternUndo } from '../../state/pattern-undo';
-import { BANK_LABELS, SAMPLER_SLOT_LABELS } from '../../state/patterns';
+import { BANK_LABELS, MIN_BANK_COUNT, SAMPLER_SLOT_LABELS } from '../../state/patterns';
 import { GRID_CELLS, LANE_RATE_LABELS, meterLabel, ticksPerCell } from '../../state/meter';
 import { Dropdown } from '../components/dropdown';
 import { laneGrid, onLaneGridChange } from '../lane-grid';
@@ -61,6 +61,13 @@ interface LaneHooks {
   onStep(fn: (idx: number) => void): () => void;
   /** Clear the edit bank; true when something was actually cleared (REQ-motion-has-the-fourth-chain-lane). */
   clearBank(): boolean;
+  /** This machine's bank count, 4..8 (banks.md REQ-a-machine-owns-its-bank-count). */
+  bankCount(): number;
+  addBank(): void;
+  removeBank(): void;
+  /** Why the highest bank cannot be dropped, or null when it can. */
+  removeBlockedBy(): string | null;
+  onBankCountChange(fn: () => void): () => void;
 }
 
 function laneHooks(engine: StudioApi, lane: StepLane): LaneHooks {
@@ -69,6 +76,28 @@ function laneHooks(engine: StudioApi, lane: StepLane): LaneHooks {
   const common = {
     onEditChange: (fn: () => void) => p.onEditBankChange(fn),
     onPlayChange: (fn: () => void) => a.onChange(fn),
+    // The count API is uniform across the machines, so it is written ONCE here
+    // rather than four times below — `lane` is all that differs.
+    bankCount: () => p.bankCount(lane),
+    addBank: () => { p.addBank(lane); },
+    removeBank: () => { p.removeBank(lane); },
+    onBankCountChange: (fn: () => void) => p.onBankCountChange(fn),
+    /**
+     * The two halves of "may this bank go?" live in different stores by design
+     * (banks.md REQ-a-bank-is-removed-only-when-unused): the pattern store owns
+     * emptiness, the arrangement owns whether a chain still points at it. This
+     * is the one place they meet, and it returns the REASON rather than a
+     * boolean so the arm can say why it is dead.
+     */
+    removeBlockedBy: (): string | null => {
+      const n = p.bankCount(lane);
+      const top = n - 1;
+      const letter = BANK_LABELS[top] ?? String(top + 1);
+      if (n <= MIN_BANK_COUNT) return `${MIN_BANK_COUNT} banks is the minimum`;
+      if (p.bankHasContent(lane, top)) return `Bank ${letter} has steps — clear it first`;
+      if (a.chainReferences(lane, top)) return `Bank ${letter} is used in the Song chain`;
+      return null;
+    },
   };
   switch (lane) {
     case 'seq':
@@ -79,7 +108,7 @@ function laneHooks(engine: StudioApi, lane: StepLane): LaneHooks {
         copy: (f, t) => p.copySeqBank(f, t),
         getPlay: () => a.seqPlayBank,
         getResting: () => a.seqResting,
-        hasContent: (i) => p.seqBanks[i]!.some((track) => track.some((s) => s.on)),
+        hasContent: (i) => p.bankHasContent('seq', i),
         onContentChange: (fn) => p.onSeqChange(fn),
         onStep: (fn) => engine.seq.onStep(fn),
         clearBank: () => p.clearSeqBank(),
@@ -92,7 +121,7 @@ function laneHooks(engine: StudioApi, lane: StepLane): LaneHooks {
         copy: (f, t) => p.copyDrumBank(f, t),
         getPlay: () => a.drumPlayBank,
         getResting: () => a.drumResting,
-        hasContent: (i) => p.drumBanks[i]!.some((tr) => tr.some((c) => c.on)),
+        hasContent: (i) => p.bankHasContent('drum', i),
         onContentChange: (fn) => p.onDrumChange(fn),
         onStep: (fn) => engine.drums.onStep(fn),
         clearBank: () => p.clearDrumBank(),
@@ -105,7 +134,7 @@ function laneHooks(engine: StudioApi, lane: StepLane): LaneHooks {
         copy: (f, t) => p.copySamplerBank(f, t),
         getPlay: () => a.samplerPlayBank,
         getResting: () => a.samplerResting,
-        hasContent: (i) => p.samplerBanks[i]!.some((sl) => sl.some((c) => c.on)),
+        hasContent: (i) => p.bankHasContent('sampler', i),
         onContentChange: (fn) => p.onSamplerChange(fn),
         onStep: (fn) => engine.sampler.onStep(fn),
         clearBank: () => p.clearSamplerBank(),
@@ -121,8 +150,9 @@ function laneHooks(engine: StudioApi, lane: StepLane): LaneHooks {
         // Motion stores THREE lanes per bank (XY anchors + tracks A/B), so a bank
         // whose tracks are full but whose XY lane is empty is still a filled bank
         // (banks.md REQ-content-dot-covers-every-lane) — the same rule the panel's Clear ▾ list uses.
-        hasContent: (i) => p.motionBanks[i]!.some((s) => s.on)
-          || p.motionTracks(i).some((t) => t.steps.some((s) => s.on)),
+        // The predicate lives in the store so it stays index-safe: a BankBar can
+        // ask about a bank one repaint after a load shortened the machine.
+        hasContent: (i) => p.bankHasContent('motion', i),
         // Both streams can flip that answer, so both must repaint the bar.
         onContentChange: (fn) => {
           const offXy = p.onMotionChange(fn);
@@ -135,7 +165,7 @@ function laneHooks(engine: StudioApi, lane: StepLane): LaneHooks {
   }
 }
 
-/** The lane's A/B/C/D bank bar, testids namespaced by the lane name. */
+/** The lane's A–H bank bar, testids namespaced by the lane name. */
 export function bankBarFor(engine: StudioApi, lane: StepLane): BankBar {
   const h = laneHooks(engine, lane);
   return new BankBar({
@@ -148,6 +178,11 @@ export function bankBarFor(engine: StudioApi, lane: StepLane): BankBar {
     resting: h.getResting,
     hasContent: h.hasContent,
     onContentChange: h.onContentChange,
+    bankCount: h.bankCount,
+    addBank: h.addBank,
+    removeBank: h.removeBank,
+    removeBlockedBy: h.removeBlockedBy,
+    onBankCountChange: h.onBankCountChange,
     testidPrefix: lane,
   });
 }

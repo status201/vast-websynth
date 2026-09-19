@@ -85,3 +85,19 @@ new files degrade gracefully. The procedure is captured in
 > transpose still serializes byte-for-byte as it did before v7 and still declares
 > the lowest version that holds it. v1–v6 files load with every slot at 0 and
 > sound identical. The decision is unchanged.
+
+> **Follow-up (2026-09-18):** **v8** — the first bump that adds **no field at
+> all**. It widens an existing dimension: each machine's bank array may now be
+> 4..8 long instead of exactly 4 ([`features/banks`](../features/banks.md)
+> REQ-a-machine-owns-its-bank-count, [ADR-022](adr-022-bank-count-is-the-array-length.md)).
+> That reads at first like a breach of "additive, optional, defaulted", so state
+> the contract the way v8 satisfies it: **a v(N) reader accepts every v(<N)
+> file**. A widened range satisfies that — a four-bank file is still a legal
+> eight-bank-capable file and serializes byte-for-byte as it did — while a
+> narrowed one never could. The five exact-length checks in `validateSongFile`
+> became range checks, which is a relaxation, and no field changed meaning.
+> Because nothing is added, `compactSongForExport` needed no edit and a song that
+> never grows a machine is unchanged down to the byte but for the version number.
+> The bump exists only so an older build says "unsupported song version 8" rather
+> than "seqBanks must have 4 banks", which reads like a corrupt file. The decision
+> is unchanged.

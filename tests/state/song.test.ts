@@ -8,9 +8,9 @@ import { fixtureSong, FIXTURE } from '../fixtures/song-fixture';
 import type { SongFile } from '../../src/state/song';
 import { compactSongForExport } from '../../src/state/serialize';
 import { ParamBus, registerDefaults } from '../../src/state/params';
-import { PatternStore } from '../../src/state/patterns';
+import { PatternStore, MIN_BANK_COUNT, MAX_BANK_COUNT } from '../../src/state/patterns';
 import { XyPadStore, XY_DEFAULT_ASSIGN } from '../../src/state/xy-pad';
-import { fakeArrangement } from '../fixtures/fake-arrangement';
+import { fakeArrangement, fakeArr } from '../fixtures/fake-arrangement';
 import { SONG_VERSION } from '../../src/state/song-version';
 import {
   barTicks, DEFAULT_BAR_TICKS, DEFAULT_BEATS, DEFAULT_BEAT_UNIT, DEFAULT_LANE_RATE, LEN_FOLLOW,
@@ -752,5 +752,102 @@ describe('Song — meter back-compat (meter.md REQ-meter-needs-no-song-file-bump
     expect(barTicks(bus2.get('transport.beats'), bus2.get('transport.beatUnit'))).toBe(14);
     expect(bus2.get('drum.len')).toBe(12);
     expect(bus2.get('drum.rate')).toBe(0);
+  });
+});
+
+describe('SongFile v8 — 4..8 banks per machine (song-mode.md REQ-song-file-v8-widens-the-bank-count)', () => {
+  const applyTo = (file: SongFile) => {
+    const bus = new ParamBus();
+    registerDefaults(bus);
+    const patterns = new PatternStore();
+    const arr = fakeArrangement();
+    Song.apply(file, bus, patterns, arr as unknown as never, new XyPadStore());
+    return { patterns, arr };
+  };
+
+  it('capture writes the current version', () => {
+    const bus = new ParamBus();
+    registerDefaults(bus);
+    const file = Song.capture(bus, new PatternStore(), fakeArr(), 'x', new XyPadStore());
+    expect(file.version).toBe(SONG_VERSION);
+    expect(SONG_VERSION).toBe(8);
+  });
+
+  it('an eight-bank store round-trips through capture/validate/apply', () => {
+    const bus = new ParamBus();
+    registerDefaults(bus);
+    const patterns = new PatternStore();
+    while (patterns.canAddBank('seq')) patterns.addBank('seq');
+    patterns.setSeqEditBank(MAX_BANK_COUNT - 1);
+    patterns.setSeqStep(0, 2, { on: true, note: 77 });
+    const file = Song.capture(bus, patterns, fakeArr(), 'eight', new XyPadStore());
+    expect(file.seqBanks).toHaveLength(MAX_BANK_COUNT);
+
+    const reparsed = Song.parse(JSON.stringify(compactSongForExport(file)));
+    if (!reparsed.ok) throw new Error(reparsed.errors.join('; '));
+    const { patterns: p2 } = applyTo(reparsed.file);
+    expect(p2.seqBanks).toHaveLength(MAX_BANK_COUNT);
+    expect(p2.seqBanks[MAX_BANK_COUNT - 1]![0]![2]!.note).toBe(77);
+    // Per machine: the ones never grown come back at the floor.
+    expect(p2.drumBanks).toHaveLength(MIN_BANK_COUNT);
+  });
+
+  it('a four-bank song is byte-identical through the serializer but for the version', () => {
+    // The whole compatibility claim of v8 in one assertion (ADR-022): widening a
+    // bound must cost an existing song nothing at all.
+    const four = demo();
+    const before = JSON.stringify(compactSongForExport({ ...four, version: 7 }));
+    const after = JSON.stringify(compactSongForExport({ ...four, version: 8 }));
+    expect(after.replace('"version":8', '"version":7')).toBe(before);
+  });
+
+  it('a chain naming a bank the file omits grows that machine (REQ-a-chain-reference-grows-the-machine)', () => {
+    const file = demo();
+    expect(file.seqBanks).toHaveLength(MIN_BANK_COUNT);
+    file.seqChain = { enabled: true, steps: [0, 1, MIN_BANK_COUNT] }; // names bank E
+    const { patterns, arr } = applyTo(file);
+    expect(patterns.seqBanks).toHaveLength(MIN_BANK_COUNT + 1);
+    // Grown, not clamped: the chain still says E, and E is blank (so: silence).
+    expect(arr.seq.steps).toEqual([0, 1, MIN_BANK_COUNT]);
+    expect(patterns.bankHasContent('seq', MIN_BANK_COUNT)).toBe(false);
+    // And only that machine grew.
+    expect(patterns.drumBanks).toHaveLength(MIN_BANK_COUNT);
+  });
+
+  it('a chain beyond the ceiling cannot be honoured and is refused by the validator', () => {
+    const file = demo();
+    file.seqChain = { enabled: true, steps: [MAX_BANK_COUNT] };
+    const res = Song.parse(JSON.stringify(file));
+    expect(res.ok).toBe(false);
+  });
+
+  it('applies restore BEFORE the chains, so a chain never outlives its banks', () => {
+    // The ordering inside Song.apply is load-bearing since v8. Reversed, the big
+    // song's chain would be clamped against the big arrays and then survive into
+    // the small song, naming banks that no longer exist.
+    const bus = new ParamBus();
+    registerDefaults(bus);
+    const patterns = new PatternStore();
+    const arr = fakeArrangement();
+
+    const big = demo();
+    big.seqChain = { enabled: true, steps: [0, MAX_BANK_COUNT - 1] };
+    Song.apply(big, bus, patterns, arr as unknown as never, new XyPadStore());
+    expect(patterns.seqBanks).toHaveLength(MAX_BANK_COUNT);
+
+    const small = demo();
+    small.seqChain = { enabled: true, steps: [0, 1] };
+    Song.apply(small, bus, patterns, arr as unknown as never, new XyPadStore());
+    expect(patterns.seqBanks).toHaveLength(MIN_BANK_COUNT);
+    for (const step of arr.seq.steps) expect(step).toBeLessThan(patterns.seqBankCount);
+    expect(() => patterns.seq).not.toThrow();
+  });
+
+  it('every known version still loads, including the pre-v8 ones', () => {
+    for (const v of [1, 2, 3, 4, 5, 6, 7, 8]) {
+      const file = { ...demo(), version: v } as SongFile;
+      const { patterns } = applyTo(file);
+      expect(patterns.seqBanks, `v${v}`).toHaveLength(MIN_BANK_COUNT);
+    }
   });
 });

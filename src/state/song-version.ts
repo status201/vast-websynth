@@ -16,7 +16,7 @@
  */
 
 /** The version `Song.capture()` writes. Bumping the format starts here. */
-export const SONG_VERSION = 7;
+export const SONG_VERSION = 8;
 
 /**
  * Every version this build loads, oldest first. Versioning is additive — each

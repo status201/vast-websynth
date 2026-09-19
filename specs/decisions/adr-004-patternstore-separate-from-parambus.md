@@ -52,3 +52,18 @@ snapshots **both** stores together, so a saved song still round-trips as one uni
 - **Trade-off:** there are **two** listener mechanisms to understand, and any
   full-state operation (`Song.capture`/`restore`, reset) must remember to touch
   both stores, not one.
+
+## Follow-ups
+
+> **Follow-up (2026-09-18):** the grids gained a **variable** dimension — each
+> machine now holds 4..8 banks and counts independently
+> ([ADR-022](adr-022-bank-count-is-the-array-length.md)). The separation this ADR
+> chose is what made that cheap: because the banks live in their own store with
+> their own listeners rather than as scalars on the bus, growing one is an array
+> resize plus a new `onBankCountChange` signal, not a re-registration of hundreds
+> of param ids. It also sharpened the trade-off below. Nothing downstream
+> re-checks a bank index once the store has clamped it, so the clamp had to stop
+> closing over a global constant: `clampChainStep` now takes the machine's count
+> as a **required** argument, because a defaulted one is exactly how a lane-blind
+> caller would silently squash a grown machine back to four. The decision is
+> unchanged.

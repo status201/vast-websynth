@@ -12,8 +12,8 @@
     },
     "version": {
       "type": "integer",
-      "enum": [1, 2, 3, 4, 5, 6, 7],
-      "description": "Format version. capture() always writes 7 (the highest in this enum); every earlier version still loads because each addition is optional — v1 files (incl. some built-in demos) lack the sampler fields, v2 files lack the XY Pad assignment, v3 files lack the motion-sequencer fields, v4 files lack 'motionTracks', v5 files lack 'seqTracks' and v6 files lack 'seqTranspose'. Versions beyond those this build knows are rejected."
+      "enum": [1, 2, 3, 4, 5, 6, 7, 8],
+      "description": "Format version. capture() always writes 8 (the highest in this enum); every earlier version still loads because each addition is optional — v1 files (incl. some built-in demos) lack the sampler fields, v2 files lack the XY Pad assignment, v3 files lack the motion-sequencer fields, v4 files lack 'motionTracks', v5 files lack 'seqTracks', v6 files lack 'seqTranspose', and v1-v7 files always carry exactly 4 banks per machine. Versions beyond those this build knows are rejected."
     },
     "name": {
       "type": "string",
@@ -32,8 +32,8 @@
     "seqBanks": {
       "type": "array",
       "minItems": 4,
-      "maxItems": 4,
-      "description": "4 sequencer banks (A/B/C/D), each exactly 16 steps.",
+      "maxItems": 8,
+      "description": "4 to 8 sequencer banks (A-H), each exactly 16 steps. Each machine counts its banks independently and the array length IS that count; v1-v7 files always have exactly 4.",
       "items": {
         "type": "array",
         "minItems": 16,
@@ -44,8 +44,8 @@
     "drumBanks": {
       "type": "array",
       "minItems": 4,
-      "maxItems": 4,
-      "description": "4 drum banks, each 8 tracks (Kick, Snare, C.Hat, O.Hat, L.Tom, M.Tom, H.Tom, Clap) x 16 steps.",
+      "maxItems": 8,
+      "description": "4 to 8 drum banks (A-H), each 8 tracks (Kick, Snare, C.Hat, O.Hat, L.Tom, M.Tom, H.Tom, Clap) x 16 steps.",
       "items": {
         "type": "array",
         "minItems": 8,
@@ -69,8 +69,8 @@
     "samplerBanks": {
       "type": "array",
       "minItems": 4,
-      "maxItems": 4,
-      "description": "v2 (optional). 4 sampler banks, each 8 slots x 16 steps.",
+      "maxItems": 8,
+      "description": "v2 (optional). 4 to 8 sampler banks (A-H), each 8 slots x 16 steps. Counted independently of the other machines.",
       "items": {
         "type": "array",
         "minItems": 8,
@@ -103,8 +103,8 @@
     "motionBanks": {
       "type": "array",
       "minItems": 4,
-      "maxItems": 4,
-      "description": "v4 (optional). 4 motion-sequencer banks, each exactly 16 steps of XY anchors. During playback the motion machine drives the XY-assigned params through the ON steps (slide = linear interpolation between anchors, step = jump-and-hold; 'motion.slide' param).",
+      "maxItems": 8,
+      "description": "v4 (optional). 4 to 8 motion-sequencer banks (A-H), each exactly 16 steps of XY anchors. During playback the motion machine drives the XY-assigned params through the ON steps (slide = linear interpolation between anchors, step = jump-and-hold; 'motion.slide' param).",
       "items": {
         "type": "array",
         "minItems": 16,
@@ -115,8 +115,8 @@
     "motionAssigns": {
       "type": "array",
       "minItems": 4,
-      "maxItems": 4,
-      "description": "v4 (optional). Per-bank axis override; null = the bank inherits the song's 'xy' assignment. An entry may override only one axis.",
+      "maxItems": 8,
+      "description": "v4 (optional). One entry per motion bank (so 4 to 8, the same length as 'motionBanks'). Per-bank axis override; null = the bank inherits the song's 'xy' assignment. An entry may override only one axis.",
       "items": {
         "oneOf": [
           { "type": "null" },
@@ -134,7 +134,7 @@
     "seqTracks": {
       "type": "array",
       "minItems": 4,
-      "maxItems": 4,
+      "maxItems": 8,
       "description": "v6 (optional). Sequencer tracks 2-4 per bank, indexed by the REAL track number — index 0 is always null because track 1 lives in 'seqBanks'. An unused track is null. Tracks 2-4 only sound in poly voicing.",
       "items": {
         "type": "array",
@@ -155,7 +155,7 @@
     "motionTracks": {
       "type": "array",
       "minItems": 4,
-      "maxItems": 4,
+      "maxItems": 8,
       "description": "v5 (optional). Per motion bank, 2 extra single-param tracks (A, B). Each picks its own ParamBus id and holds its own 16 anchors, so a bank can automate up to 4 params, or just these 2 while keeping the XY Pad free for live playing. A track that is unassigned and empty is null and writes nothing.",
       "items": {
         "type": "array",
@@ -242,8 +242,8 @@
           "type": "array",
           "minItems": 1,
           "maxItems": 1024,
-          "description": "Ordered bank indices (0..3 = A/B/C/D), or -1 for a rest (an always-empty bar). At most 1024 slots — 1024 bars is ~34 minutes at 120 BPM.",
-          "items": { "type": "integer", "minimum": -1, "maximum": 3 }
+          "description": "Ordered bank indices (0..7 = A-H), or -1 for a rest (an always-empty bar). The upper bound is the CEILING, not this machine's own bank count: JSON Schema cannot say '<= the length of a sibling array', and a chain naming a bank the arrays omit is legal — it grows the machine on load. At most 1024 slots — 1024 bars is ~34 minutes at 120 BPM.",
+          "items": { "type": "integer", "minimum": -1, "maximum": 7 }
         }
       }
     }

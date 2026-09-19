@@ -16,7 +16,9 @@
 import type { SongFile, ChainData } from './song';
 import type { SeqStep, TriggerCell, MotionStep, MotionAssign, MotionTrack } from './patterns';
 import {
-  BANK_COUNT,
+  MIN_BANK_COUNT,
+  MAX_BANK_COUNT,
+  BANK_LABELS,
   SEQ_LENGTH,
   SEQ_TRACK_COUNT,
   DRUM_TRACK_COUNT,
@@ -26,6 +28,7 @@ import {
   MOTION_STEP_DEFAULTS,
   MOTION_TRACK_COUNT,
   makeMotionTrack,
+  highestChainBank,
 } from './patterns';
 import { validateSongFile, type SongValidation } from './song-validate';
 import { MAX_CHAIN_STEPS, MAX_CHAIN_DEPTH, MAX_CHAIN_TRANSPOSE, MICRO_MAX } from './limits';
@@ -327,15 +330,15 @@ function expandSeqBankTracks(path: string, v: unknown, add: AddError): SeqStep[]
 }
 
 function expandSeqBanks(v: unknown, add: AddError): SeqStep[][][] {
-  const banks: SeqStep[][][] = Array.from({ length: BANK_COUNT },
+  const banks: SeqStep[][][] = Array.from({ length: MIN_BANK_COUNT },
     () => Array.from({ length: SEQ_TRACK_COUNT }, makeEmptySeqBank));
   if (v === undefined) return banks;
   if (!Array.isArray(v)) {
-    add(`seq must be an array of up to ${BANK_COUNT} banks (got ${describe(v)})`);
+    add(`seq must be an array of up to ${MAX_BANK_COUNT} banks (got ${describe(v)})`);
     return banks;
   }
-  if (v.length > BANK_COUNT) add(`seq has ${v.length} banks — the synth has ${BANK_COUNT} (A..D)`);
-  for (let b = 0; b < Math.min(v.length, BANK_COUNT); b++) {
+  if (v.length > MAX_BANK_COUNT) add(`seq has ${v.length} banks — the most is ${MAX_BANK_COUNT} (A..${BANK_LABELS[MAX_BANK_COUNT - 1]})`);
+  for (let b = 0; b < Math.min(v.length, MAX_BANK_COUNT); b++) {
     banks[b] = expandSeqBankTracks(`seq[${b}]`, v[b], add);
   }
   return banks;
@@ -410,14 +413,14 @@ function expandHitBanks(
   rows: number,
   add: AddError,
 ): TriggerCell[][][] {
-  const banks: TriggerCell[][][] = Array.from({ length: BANK_COUNT }, () => makeTriggerGrid(rows));
+  const banks: TriggerCell[][][] = Array.from({ length: MIN_BANK_COUNT }, () => makeTriggerGrid(rows));
   if (v === undefined) return banks;
   if (!Array.isArray(v)) {
-    add(`${kind} must be an array of up to ${BANK_COUNT} banks (got ${describe(v)})`);
+    add(`${kind} must be an array of up to ${MAX_BANK_COUNT} banks (got ${describe(v)})`);
     return banks;
   }
-  if (v.length > BANK_COUNT) add(`${kind} has ${v.length} banks — the synth has ${BANK_COUNT} (A..D)`);
-  for (let b = 0; b < Math.min(v.length, BANK_COUNT); b++) {
+  if (v.length > MAX_BANK_COUNT) add(`${kind} has ${v.length} banks — the most is ${MAX_BANK_COUNT} (A..${BANK_LABELS[MAX_BANK_COUNT - 1]})`);
+  for (let b = 0; b < Math.min(v.length, MAX_BANK_COUNT); b++) {
     banks[b] = expandHitBank(kind, `${kind}[${b}]`, v[b], rows, add);
   }
   return banks;
@@ -547,14 +550,15 @@ function expandMotionTrack(path: string, v: unknown, add: AddError): MotionTrack
 
 function expandMotionTracks(v: unknown, add: AddError): (MotionTrack | null)[][] | undefined {
   if (v === undefined) return undefined;
-  const out: (MotionTrack | null)[][] = Array.from(
-    { length: BANK_COUNT }, () => Array<MotionTrack | null>(MOTION_TRACK_COUNT).fill(null));
+  const blankBank = (): (MotionTrack | null)[] =>
+    Array<MotionTrack | null>(MOTION_TRACK_COUNT).fill(null);
+  const out: (MotionTrack | null)[][] = Array.from({ length: MIN_BANK_COUNT }, blankBank);
   if (!Array.isArray(v)) {
-    add(`motionTracks must be an array of up to ${BANK_COUNT} banks (got ${describe(v)})`);
+    add(`motionTracks must be an array of up to ${MAX_BANK_COUNT} banks (got ${describe(v)})`);
     return out;
   }
-  if (v.length > BANK_COUNT) add(`motionTracks has ${v.length} banks — the synth has ${BANK_COUNT} (A..D)`);
-  for (let b = 0; b < Math.min(v.length, BANK_COUNT); b++) {
+  if (v.length > MAX_BANK_COUNT) add(`motionTracks has ${v.length} banks — the most is ${MAX_BANK_COUNT} (A..${BANK_LABELS[MAX_BANK_COUNT - 1]})`);
+  for (let b = 0; b < Math.min(v.length, MAX_BANK_COUNT); b++) {
     const bank = v[b];
     if (bank === null || bank === undefined) continue;
     if (!Array.isArray(bank)) {
@@ -564,6 +568,10 @@ function expandMotionTracks(v: unknown, add: AddError): (MotionTrack | null)[][]
     if (bank.length > MOTION_TRACK_COUNT) {
       add(`motionTracks[${b}] has ${bank.length} tracks — motion has ${MOTION_TRACK_COUNT} (A, B)`);
     }
+    // Grow FIRST: `out` is pre-sized to the floor, so a fifth authored bank would
+    // otherwise be an indexed write into an element that does not exist. The sibling
+    // expanders escape this only because they assign whole banks, which auto-extends.
+    while (out.length <= b) out.push(blankBank());
     for (let t = 0; t < Math.min(bank.length, MOTION_TRACK_COUNT); t++) {
       out[b]![t] = expandMotionTrack(`motionTracks[${b}][${t}]`, bank[t], add);
     }
@@ -575,15 +583,15 @@ function expandMotionBanks(
   v: unknown,
   add: AddError,
 ): { banks: MotionStep[][]; assigns: (MotionAssign | null)[] } {
-  const banks: MotionStep[][] = Array.from({ length: BANK_COUNT }, makeEmptyMotionBank);
-  const assigns: (MotionAssign | null)[] = Array(BANK_COUNT).fill(null);
+  const banks: MotionStep[][] = Array.from({ length: MIN_BANK_COUNT }, makeEmptyMotionBank);
+  const assigns: (MotionAssign | null)[] = Array(MIN_BANK_COUNT).fill(null);
   if (v === undefined) return { banks, assigns };
   if (!Array.isArray(v)) {
-    add(`motion must be an array of up to ${BANK_COUNT} banks (got ${describe(v)})`);
+    add(`motion must be an array of up to ${MAX_BANK_COUNT} banks (got ${describe(v)})`);
     return { banks, assigns };
   }
-  if (v.length > BANK_COUNT) add(`motion has ${v.length} banks — the synth has ${BANK_COUNT} (A..D)`);
-  for (let b = 0; b < Math.min(v.length, BANK_COUNT); b++) {
+  if (v.length > MAX_BANK_COUNT) add(`motion has ${v.length} banks — the most is ${MAX_BANK_COUNT} (A..${BANK_LABELS[MAX_BANK_COUNT - 1]})`);
+  for (let b = 0; b < Math.min(v.length, MAX_BANK_COUNT); b++) {
     const r = expandMotionBank(`motion[${b}]`, v[b], add);
     banks[b] = r.steps;
     assigns[b] = r.assign;
@@ -594,7 +602,7 @@ function expandMotionBanks(
 /* ---------------- chains ---------------- */
 
 const CHAIN_HELP =
-  'a string of bank letters A..D ("." or "-" = rest), an array of bank indices (-1 = rest), or {enabled, steps}';
+  `a string of bank letters A..${BANK_LABELS[MAX_BANK_COUNT - 1]} ("." or "-" = rest), an array of bank indices (-1 = rest), or {enabled, steps}`;
 
 const isDigit = (c: string | undefined): boolean => c !== undefined && c >= '0' && c <= '9';
 
@@ -629,8 +637,8 @@ function scanChainString(
       slot = REST;
     } else {
       const idx = ch.toUpperCase().charCodeAt(0) - 65; // 'A' -> 0
-      if (idx < 0 || idx >= BANK_COUNT) {
-        add(`${path} has an invalid bank letter "${ch}" — use A..${String.fromCharCode(64 + BANK_COUNT)}, "." or "-" for a rest`);
+      if (idx < 0 || idx >= MAX_BANK_COUNT) {
+        add(`${path} has an invalid bank letter "${ch}" — use A..${BANK_LABELS[MAX_BANK_COUNT - 1]}, "." or "-" for a rest`);
         continue;
       }
       slot = idx;
@@ -755,9 +763,9 @@ function expandChain(
     }
     const steps: number[] = [];
     v.forEach((s: unknown, i) => {
-      const ok = typeof s === 'number' && Number.isInteger(s) && (s === REST || (s >= 0 && s <= BANK_COUNT - 1));
+      const ok = typeof s === 'number' && Number.isInteger(s) && (s === REST || (s >= 0 && s <= MAX_BANK_COUNT - 1));
       if (!ok) {
-        add(`${path}[${i}] must be an integer 0..${BANK_COUNT - 1} or ${REST} (rest) (got ${describe(s)})`);
+        add(`${path}[${i}] must be an integer 0..${MAX_BANK_COUNT - 1} or ${REST} (rest) (got ${describe(s)})`);
         return;
       }
       steps.push(s);
@@ -901,14 +909,34 @@ export function expandAuthorSong(value: unknown): SongValidation {
     bank.some((t) => t?.param && t.steps.some((c) => c.on)));
   if (motion) autoEnable('motion.on', hasHits([motion.banks.flat()]) || trackHasAnchors);
 
+  // v8: any machine carrying more than the mandatory floor of banks. Only the
+  // count matters, not whether the extra banks hold anything — an author who
+  // wrote five banks gets five back (banks.md REQ-a-machine-owns-its-bank-count).
+  const anyMachineGrown = [
+    seqBanks.length, drumBanks.length, samplerBanks?.length ?? 0,
+    motion?.banks.length ?? 0, motionTracks?.length ?? 0,
+  ].some((n) => n > MIN_BANK_COUNT);
+  // ...and a chain naming a bank past the floor, even when the arrays stop AT the
+  // floor: that reference is legal and grows the machine on load (banks.md
+  // REQ-a-chain-reference-grows-the-machine), so it is v8 content with no array
+  // length to give it away. Stamped lower, the file meets an older build as
+  // "steps[i] must be an integer 0..3" — the corrupt-looking error the bump exists
+  // to replace (ADR-022).
+  const anyChainGrown = [seqChain, drumChain, samplerChain, motionChain]
+    .some((c) => highestChainBank(c?.steps) >= MIN_BANK_COUNT);
+
   const file: SongFile = {
     format: 'websynth-song',
     // The lowest version that can hold what was authored — so a simple song
-    // still expands to the same v3 file it always did (ADR-007).
-    version: seqTranspose.some((t) => t !== 0)
-      ? 7
-      : seqBanks.some((bank) => bank.slice(1).some((row) => row.some((st) => st.on)))
-        ? 6 : motionTracks ? 5 : motion ? 4 : 3,
+    // still expands to the same v3 file it always did (ADR-007). Each bump adds a
+    // NEW TOP rung; replacing an existing one with SONG_VERSION would make every
+    // simple song jump version (recipes/evolve-the-song-format.md).
+    version: anyMachineGrown || anyChainGrown
+      ? 8
+      : seqTranspose.some((t) => t !== 0)
+        ? 7
+        : seqBanks.some((bank) => bank.slice(1).some((row) => row.some((st) => st.on)))
+          ? 6 : motionTracks ? 5 : motion ? 4 : 3,
     name: o.name as string,
     params,
     // Track 1 in the v1-v5 field; 2-4 only when used (sequencer.md REQ-song-file-v6-adds-seq-tracks).

@@ -957,22 +957,35 @@ function buildChainLane(
 
   const controls = el('div', styles.controls!);
   const addRow = el('div', styles.addRow!);
-  BANK_LABELS.forEach((label, i) => {
-    const a = el('button', `${bankStyles.btn!} ${styles.add!}`, '') as HTMLButtonElement;
-    a.dataset.testid = `chain-add-${prefix}-${i}`;
-    a.title = `Add bank ${label}`;
-    a.innerHTML = `<span class="${bankStyles.letter!}">${label}</span>`;
-    a.addEventListener('click', () => { setChain([...lane.steps, i], lane.enabled); });
-    addRow.appendChild(a);
-  });
-  // Rest: an always-empty bar. Appends the REST sentinel instead of a bank index,
-  // so a lane can sit out a bar without spending one of the four banks.
-  const rest = el('button', `${bankStyles.btn!} ${styles.add!} ${styles.addRest!}`, '') as HTMLButtonElement;
-  rest.dataset.testid = `chain-add-rest-${prefix}`;
-  rest.title = 'Add a rest (an empty bar)';
-  rest.innerHTML = restIcon();
-  rest.addEventListener('click', () => { setChain([...lane.steps, REST], lane.enabled); });
-  addRow.appendChild(rest);
+  /**
+   * The palette offers exactly the banks this machine HAS (banks.md
+   * REQ-a-machine-owns-its-bank-count), so it is rebuilt whenever that count
+   * changes. There is no + arm here on purpose: growing a machine is an act on
+   * the machine's own tab; the Song tab arranges what exists.
+   */
+  const renderAddRow = (): void => {
+    addRow.replaceChildren();
+    BANK_LABELS.slice(0, engine.patterns.bankCount(prefix)).forEach((label, i) => {
+      const a = el('button', `${bankStyles.btn!} ${styles.add!}`, '') as HTMLButtonElement;
+      a.dataset.testid = `chain-add-${prefix}-${i}`;
+      a.title = `Add bank ${label}`;
+      a.innerHTML = `<span class="${bankStyles.letter!}">${label}</span>`;
+      a.addEventListener('click', () => { setChain([...lane.steps, i], lane.enabled); });
+      addRow.appendChild(a);
+    });
+    // Rest: an always-empty bar. Appends the REST sentinel instead of a bank
+    // index, so a lane can sit out a bar without spending a bank at all — still
+    // the right tool for that even now banks are no longer scarce
+    // (arrangement-rest.md REQ-rest-is-a-negative-sentinel). Always last.
+    const rest = el('button', `${bankStyles.btn!} ${styles.add!} ${styles.addRest!}`, '') as HTMLButtonElement;
+    rest.dataset.testid = `chain-add-rest-${prefix}`;
+    rest.title = 'Add a rest (an empty bar)';
+    rest.innerHTML = restIcon();
+    rest.addEventListener('click', () => { setChain([...lane.steps, REST], lane.enabled); });
+    addRow.appendChild(rest);
+  };
+  renderAddRow();
+  engine.patterns.onBankCountChange(renderAddRow);
   controls.appendChild(addRow);
 
   const mk = (label: string, fn: () => void) => {

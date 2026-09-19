@@ -3,7 +3,11 @@
 ```yaml
 id: evolve-the-song-format
 status: implemented
-version: 5   # v5: step 4b's authoring-guide appendix bullet gains a backstop — the
+version: 6   # v6: there are TWO kinds of bump. v8 added no field at all — it widened an
+             #     existing dimension — which makes steps 2 and 5 near no-ops and moves
+             #     every risk into the validator, the schemas and llms.txt's DIMENSION
+             #     prose, which no version pin can see (banks.md, ADR-022)
+             # v5: step 4b's authoring-guide appendix bullet gains a backstop — the
              #     v7 bump skipped it and shipped a canonical shape with no
              #     `seqTranspose`, which every version pin passed
              # v4: rebased on v6 -> v7 (it still walked v4 -> v5); SONG_VERSION and
@@ -36,6 +40,20 @@ added optional sampler fields; `2 → 3` the optional [XY Pad](../features/xy-pa
 `6 → 7` the `seqTranspose` offsets on the seq chain lane,
 [song-mode](../features/song-mode.md) REQ-song-file-v7-adds-slot-transpose).
 The contract: **additive, optional, defaulted** — never required, never repurposed.
+
+> **Two kinds of bump.** Most add an optional field, which is what the steps below
+> walk through. A few instead **widen an existing dimension** — v8 let each machine
+> carry 4..8 banks instead of exactly 4 ([banks](../features/banks.md)
+> REQ-a-machine-owns-its-bank-count, [ADR-022](../decisions/adr-022-bank-count-is-the-array-length.md)).
+> For that kind, steps 2 and 5 are near no-ops (nothing new to declare, nothing new
+> to compact — `compactSongForExport`'s bank paths were already length-agnostic
+> `.map()`s and needed no edit at all), and **all** the risk lands in step 4b: the
+> validator's exact-length checks, the `minItems`/`maxItems` and range bounds in
+> both published schemas, the chain-letter regexes, and `llms.txt`'s dimension
+> prose. Those last are invisible to every version pin, so a dimension bump owes
+> the backstop new assertions of its own — that is what makes the *next* raise a
+> one-line change. "Additive" still holds, read as: **a v(N) reader accepts every
+> v(<N) file**. A widened range satisfies that; a narrowed one never could.
 
 ## Steps (going from v6 → v7)
 
@@ -96,16 +114,22 @@ rather than as caution:
   `version.description`'s "capture() always writes N" sentence, and add the optional
   property (docs/tooling mirror).
 - `public/llms.txt` — it is what crawling agents read, and it states the version in
-  **four** places. Change all of them:
+  **four** places — plus two more that state *dimensions*. Change all of them:
   1. the `websynth-song` bullet under *Song formats* — `` `websynth-song` (vN) ``,
      plus a line saying what the new version added;
   2. the **Formats and versions table** row;
   3. the "all versions 1..N still load" sentence;
   4. the closing "expands to the LOWEST canonical version …, not always N".
 
+  5. the grid-shape line under the `websynth-song` bullet
+     (`seqBanks[…][16]`, `drumBanks[…][8][16]`, …);
+  6. the **`Dimensions:`** paragraph, which states the counts in prose.
+
   The v7 bump updated the bullet and left the table advertising v6, because the
   backstop below pinned only the bullet. It now pins all four and counts the history
-  list, so a partial edit fails.
+  list, so a partial edit fails. Sites 5 and 6 are **dimension** text rather than
+  version text, so no version pin can see them go stale — v8 added its own
+  assertions for them, and a bump that changes a dimension must do the same.
 
 - `src/state/authoring-guide.ts` (which `buildSongPrompt` and the MCP
   `get_song_format` tool both serve) interpolates `SONG_VERSION`, so its version

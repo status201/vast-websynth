@@ -1,5 +1,5 @@
 import { describe, it, expect, vi } from 'vitest';
-import { PatternStore, SEQ_LENGTH, REST } from '../../../src/state/patterns';
+import { PatternStore, SEQ_LENGTH, REST, MIN_BANK_COUNT } from '../../../src/state/patterns';
 import { Arrangement } from '../../../src/audio/transport/arrangement';
 import { TestClock } from './test-clock';
 
@@ -538,5 +538,61 @@ describe('Arrangement — meter (meter.md REQ-bar-ticks-is-the-arrangement-bar-l
     clock.fireStart(0);
     const seen = [0, 1, 2, 3].map((bar) => playMeterBar(clock, arr, bar, SEQ_LENGTH));
     expect(seen).toEqual([0, 0, 1, 0]);
+  });
+});
+
+/** A store + arrangement + clock, the shape every test below wants. */
+function build() {
+  const clock = new TestClock();
+  const patterns = new PatternStore();
+  const arr = new Arrangement(patterns, clock);
+  return { clock, patterns, arr };
+}
+
+describe('chain bounds follow each machine (banks.md REQ-a-machine-owns-its-bank-count)', () => {
+  it('clamps a chain step to the LANE machine s own count, not a global one', () => {
+    const { arr, patterns } = build();
+    // Four banks: E is out of range and clamps to D.
+    arr.setSeqChain([MIN_BANK_COUNT], true);
+    expect(arr.seq.steps).toEqual([MIN_BANK_COUNT - 1]);
+    // Grow the sequencer only; the same step is now legal for it...
+    patterns.addBank('seq');
+    arr.setSeqChain([MIN_BANK_COUNT], true);
+    expect(arr.seq.steps).toEqual([MIN_BANK_COUNT]);
+    // ...and still out of range for the drum machine, which did not grow.
+    arr.setDrumChain([MIN_BANK_COUNT], true);
+    expect(arr.drum.steps).toEqual([MIN_BANK_COUNT - 1]);
+  });
+
+  it('clamps every slot, not just the first (the Array.map arity trap)', () => {
+    // `steps.map(clampChainStep)` type-checks and passes the INDEX as the bank
+    // bound, which clamps early slots hardest and leaves later ones alone. This
+    // asserts the shape that bug would break.
+    const { arr } = build();
+    arr.setSeqChain([9, 9, 9, 9, 9], true);
+    expect(arr.seq.steps).toEqual(Array(5).fill(MIN_BANK_COUNT - 1));
+  });
+
+  it('a REST survives the clamp at every position', () => {
+    const { arr } = build();
+    arr.setSeqChain([REST, 1, REST], true);
+    expect(arr.seq.steps).toEqual([REST, 1, REST]);
+  });
+
+  it('resolves a grown bank as the play bank', () => {
+    const { arr, patterns, clock } = build();
+    patterns.addBank('seq');
+    arr.setSeqChain([MIN_BANK_COUNT], true);
+    clock.fireStart();
+    playBar(clock, 0);
+    expect(arr.seqPlayBank).toBe(MIN_BANK_COUNT);
+  });
+
+  it('chainReferences answers per lane, for the - arm', () => {
+    const { arr, patterns } = build();
+    patterns.addBank('seq');
+    arr.setSeqChain([0, MIN_BANK_COUNT], true);
+    expect(arr.chainReferences('seq', MIN_BANK_COUNT)).toBe(true);
+    expect(arr.chainReferences('drum', MIN_BANK_COUNT)).toBe(false);
   });
 });

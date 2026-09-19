@@ -1,5 +1,5 @@
 import { describe, it, expect, vi } from 'vitest';
-import { PatternStore } from '../../src/state/patterns';
+import { PatternStore, MIN_BANK_COUNT } from '../../src/state/patterns';
 import { PatternUndo } from '../../src/state/pattern-undo';
 
 function build(opts?: { depth?: number; coalesceMs?: number }) {
@@ -273,5 +273,49 @@ describe('PatternUndo — scoped motion clears (step-grid-editing.md REQ-clear-m
     undo.undo('motion');            // reverses the whole clear
     expect(patterns.motionTrack(1)!.steps[2]!.on).toBe(true);
     expect(patterns.motionTrack(1)!.steps[9]!.on).toBe(true);
+  });
+});
+
+describe('removing a bank prunes its history (banks.md REQ-a-bank-is-removed-only-when-unused)', () => {
+  it('drops entries naming the removed bank and keeps the rest', () => {
+    const { patterns, undo } = build();
+    // One edit in bank A, then an edit in a freshly added bank E that we clear
+    // again — so E is empty (removable) while undo history still names it.
+    patterns.setSeqStep(0, 1, { on: true });
+    patterns.addBank('seq');
+    patterns.setSeqEditBank(MIN_BANK_COUNT);
+    patterns.setSeqStep(0, 2, { on: true });
+    patterns.clearSeqBank();
+    expect(undo.canUndo('seq')).toBe(true);
+
+    expect(patterns.removeBank('seq')).toBe(true);
+
+    // The bank-E entries are gone; the bank-A edit is still undoable.
+    undo.undo('seq');
+    expect(patterns.seqBanks[0]![0]![1]!.on).toBe(false);
+    expect(undo.canUndo('seq')).toBe(false);
+    expect(patterns.seqBanks).toHaveLength(MIN_BANK_COUNT);
+  });
+
+  it('leaves the other machines alone', () => {
+    const { patterns, undo } = build();
+    patterns.setDrumCell(0, 3, { on: true });
+    patterns.addBank('seq');
+    patterns.removeBank('seq');
+    expect(undo.canUndo('drum')).toBe(true);
+  });
+
+  it('never leaves an undo that would restore into a bank that is gone', () => {
+    const { patterns, undo } = build();
+    patterns.addBank('seq');
+    patterns.setSeqEditBank(MIN_BANK_COUNT);
+    patterns.setSeqStep(0, 0, { on: true });
+    patterns.clearSeqBank();
+    patterns.removeBank('seq');
+    // Whatever is left must apply without throwing and without touching a bank
+    // index past the count.
+    while (undo.canUndo('seq')) undo.undo('seq');
+    expect(patterns.seqBanks).toHaveLength(MIN_BANK_COUNT);
+    expect(() => patterns.seq).not.toThrow();
   });
 });

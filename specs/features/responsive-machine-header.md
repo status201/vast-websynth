@@ -3,7 +3,11 @@
 ```yaml
 id: responsive-machine-header
 status: implemented
-version: 3   # v3: .laneControls joins .fxCluster as a wrapped header cluster (REQ-lane-controls-are-the-second-cluster)
+version: 4   # v4: the BankBar is VARIABLE width — a machine holds 4..8 banks plus two
+             #     resize arms (banks.md REQ-a-machine-owns-its-bank-count), so the ~57px
+             #     budget below is spent several times over at the ceiling and the row
+             #     wraps as the common case rather than the edge
+             # v3: .laneControls joins .fxCluster as a wrapped header cluster (REQ-lane-controls-are-the-second-cluster)
              # v2: the wide row's fit is font-metric-dependent, so REQ-above-1140-the-cluster-is-content-sized is pinned from computed style
 owner: ui
 related:
@@ -51,6 +55,18 @@ on Linux CI, where the cluster then wraps. That wrap is **correct** behaviour
 (REQ-machine-header-wraps-at-every-width), which is why REQ-above-1140-the-cluster-is-content-sized is pinned from computed style rather than from
 whether the row happens to fit at any one width. Anything else added to this row
 should be measured against that ~57 px, not assumed free.
+
+**And the `BankBar` is no longer a fixed width.** A machine now holds 4 to 8 banks
+([banks](banks.md) REQ-a-machine-owns-its-bank-count), each button ~30 px plus a
+2 px gap, plus the two resize arms — so a machine grown to eight spends roughly
+180 px more than the four-bank row this budget was measured against. A fully grown
+Sampler header therefore **wraps at 1280 px**, and at wider widths too. That is
+still correct under REQ-machine-header-wraps-at-every-width rather than a
+regression: the row wraps, the `.seg` stays one piece, and no bank is hidden. It
+is called out because it inverts the assumption above — wrapping is now the
+ordinary case for a grown machine, not a font-metric edge case. Hiding banks
+behind a media query is **not** an option: a bank that holds data must stay
+reachable.
 
 This row was the last non-wrapping control row in the app — `panelRow`,
 `djFx`, `fxKnobs`, `tabs.bar`, `step-settings.edit` and the rest all already

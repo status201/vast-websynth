@@ -9,7 +9,9 @@ import { fileURLToPath } from 'node:url';
 import {
   SEQ_LENGTH,
   SEQ_TRACK_COUNT,
-  BANK_COUNT,
+  MIN_BANK_COUNT,
+  MAX_BANK_COUNT,
+  BANK_LABELS,
   DRUM_TRACKS,
   SAMPLER_SLOT_COUNT,
 } from '../../src/state/patterns';
@@ -35,8 +37,10 @@ describe('websynth-song-author.schema.json', () => {
   });
 
   it('bank/step/slot dimensions match patterns.ts', () => {
-    for (const key of ['seq', 'drums', 'sampler', 'motion']) {
-      expect(schema.properties[key].maxItems, key).toBe(BANK_COUNT);
+    // The CEILING, not the floor: the dialect accepts up to MAX_BANK_COUNT banks
+    // and pads anything shorter up to MIN_BANK_COUNT (banks.md REQ-a-machine-owns-its-bank-count).
+    for (const key of ['seq', 'drums', 'sampler', 'motion', 'motionTracks']) {
+      expect(schema.properties[key].maxItems, key).toBe(MAX_BANK_COUNT);
     }
     const [positional, defaults, tracks] = schema.$defs.seqBank.oneOf;
     expect(positional.maxItems).toBe(SEQ_LENGTH);
@@ -48,10 +52,21 @@ describe('websynth-song-author.schema.json', () => {
     const [hitIdx, hitObj] = schema.$defs.hit.oneOf;
     expect(hitIdx.maximum).toBe(SEQ_LENGTH - 1);
     expect(hitObj.properties.step.maximum).toBe(SEQ_LENGTH - 1);
-    const [, chainArr, chainObj] = schema.$defs.chain.oneOf;
+    const [chainStr, chainArr, chainObj] = schema.$defs.chain.oneOf;
     expect(chainArr.items.minimum).toBe(-1);
-    expect(chainArr.items.maximum).toBe(BANK_COUNT - 1);
-    expect(chainObj.properties.steps.items.maximum).toBe(BANK_COUNT - 1);
+    expect(chainArr.items.maximum).toBe(MAX_BANK_COUNT - 1);
+    expect(chainObj.properties.steps.items.maximum).toBe(MAX_BANK_COUNT - 1);
+    // The chain LETTER alphabet has to move with the ceiling too. A regex is the
+    // one form that cannot derive from the constant, and it is exactly the form
+    // that silently fell behind before (ADR-022) — so pin it by behaviour: the
+    // last legal bank's letter must match, and the one past it must not.
+    const lastLetter = BANK_LABELS[MAX_BANK_COUNT - 1]!;
+    const pastEnd = String.fromCharCode(lastLetter.charCodeAt(0) + 1);
+    for (const pattern of [chainStr.pattern, chainObj.properties.steps.oneOf?.[1]?.pattern]) {
+      if (!pattern) continue;
+      expect(new RegExp(pattern).test(lastLetter), pattern).toBe(true);
+      expect(new RegExp(pattern).test(pastEnd), pattern).toBe(false);
+    }
   });
 
   it('motion anchors mirror the expander (steps 0..15, coords 0..1)', () => {
@@ -299,9 +314,23 @@ describe('llms.txt', () => {
   });
 
   it('pins the grid dimensions and drum track names', () => {
-    expect(txt).toContain(`seqBanks[${BANK_COUNT}][${SEQ_LENGTH}]`);
-    expect(txt).toContain(`drumBanks[${BANK_COUNT}][${DRUM_TRACKS.length}][${SEQ_LENGTH}]`);
+    // These two lines are DIMENSION text, not version text, so none of the
+    // version pins above can see them going stale (ADR-022). A bank count is a
+    // range now, so the literals name both ends.
+    const banks = `${MIN_BANK_COUNT}..${MAX_BANK_COUNT}`;
+    expect(txt).toContain(`seqBanks[${banks}][${SEQ_LENGTH}]`);
+    expect(txt).toContain(`drumBanks[${banks}][${DRUM_TRACKS.length}][${SEQ_LENGTH}]`);
+    expect(txt).toContain(`samplerBanks[${banks}][${SAMPLER_SLOT_COUNT}][${SEQ_LENGTH}]`);
+    expect(txt).toContain(`motionBanks[${banks}][${SEQ_LENGTH}]`);
     for (const t of DRUM_TRACKS) expect(txt).toContain(t);
+  });
+
+  it('states the per-machine bank range in prose, not just in the grid shapes', () => {
+    // The "Dimensions:" paragraph is the first thing an agent reads about banks,
+    // and it is prose — the only thing that can hold it honest is this pin.
+    expect(txt).toContain(
+      `${MIN_BANK_COUNT} to ${MAX_BANK_COUNT} banks (A-${BANK_LABELS[MAX_BANK_COUNT - 1]}) per machine`);
+    expect(txt).not.toContain('4 banks (A/B/C/D) per machine');
   });
 
   it('links the generated params reference instead of duplicating the table', () => {

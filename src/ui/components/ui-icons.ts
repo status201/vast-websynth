@@ -65,6 +65,12 @@ export const UI_ICONS = {
 
   /** ✕ — close a floating window, dismiss a toast, remove a chain slot. */
   close: icon('<path d="M4 4 L12 12"/><path d="M12 4 L4 12"/>'),
+  /** ＋ — "add one more": the bank bar's grow arm (banks.md REQ-a-bank-is-added-on-demand).
+   *  Deliberately the same two-stroke construction as `close`, so the pair reads
+   *  as one family at the same optical weight. */
+  plus: icon('<path d="M8 3.5 V12.5"/><path d="M3.5 8 H12.5"/>'),
+  /** − — its counterpart, the bank bar's shrink arm. */
+  minus: icon('<path d="M3.5 8 H12.5"/>'),
   /** ✓ — "Linked", and the tour's confirmation. */
   check: icon('<path d="M3.5 8.5 L6.5 11.5 L12.5 4.5"/>'),
 

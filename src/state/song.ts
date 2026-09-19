@@ -5,7 +5,8 @@
  */
 import type { ParamBus } from './params';
 import type { PatternStore, SeqStep, DrumCell, SamplerStep, MotionStep, MotionAssign, MotionTrack } from './patterns';
-import { SEQ_LENGTH, DRUM_TRACK_COUNT, makeDrumBank, makeSeqBank, emptyPatternSnapshot } from './patterns';
+import { SEQ_LENGTH, DRUM_TRACK_COUNT, MIN_BANK_COUNT, makeDrumBank, makeSeqBank,
+  emptyPatternSnapshot, clampBankCount, highestChainBank } from './patterns';
 import type { Arrangement } from '../audio/transport/arrangement';
 import type { XyPadStore, XyAssign } from './xy-pad';
 import { XY_DEFAULT_ASSIGN } from './xy-pad';
@@ -46,11 +47,27 @@ export interface ChainData {
   steps: number[];
 }
 
+/**
+ * How many banks a machine should have after a load: the longer of what its bank
+ * array carries and what its chain names, floored at MIN_BANK_COUNT and capped at
+ * MAX_BANK_COUNT (banks.md REQ-a-chain-reference-grows-the-machine, ADR-022).
+ *
+ * The floor is what keeps a v1 file legal: it has no `samplerBanks` at all, yet a
+ * `samplerChain` of [0,1,2,3] has always been valid, because the machine is padded
+ * to four regardless (ADR-007).
+ */
+function chainFit(banks: readonly unknown[] | undefined, chain: ChainData | undefined): number {
+  return clampBankCount(Math.max(
+    banks?.length ?? MIN_BANK_COUNT,
+    highestChainBank(chain?.steps) + 1,
+  ));
+}
+
 export interface SongFile {
   format: 'websynth-song';
   /** Hand-maintained alongside `SONG_VERSION` — TS cannot derive `1|…|N` from a
    *  number without recursive-type machinery this codebase doesn't use. */
-  version: 1 | 2 | 3 | 4 | 5 | 6 | 7;
+  version: 1 | 2 | 3 | 4 | 5 | 6 | 7 | 8;
   name: string;
   params: Record<string, number>;
   /** v1-v5: one track per bank. Since v6 this is still **track 1** only —
@@ -115,9 +132,16 @@ function splitSeqTracks(banks: SeqStep[][][]): { seqTracks?: (SeqStep[] | null)[
 /** The inverse: rebuild `[bank][track][step]` for the store. Every version
  *  before 6 simply has no `seqTracks`, so its banks come back one-track. */
 function mergeSeqTracks(file: SongFile): SeqStep[][][] {
-  return file.seqBanks.map((track0, b) => {
+  // Over the LONGER of the two arrays. Each is length-checked independently since
+  // v8, so a hand-written file may carry more `seqTracks` banks than `seqBanks`,
+  // and mapping over `seqBanks` alone would drop tracks 2-4 of the rest in
+  // silence — the same desync `restore` sizes motion's trio as one step to avoid
+  // (banks.md REQ-a-machine-owns-its-bank-count).
+  const n = Math.max(file.seqBanks.length, file.seqTracks?.length ?? 0);
+  return Array.from({ length: n }, (_, b) => {
     const bank = makeSeqBank();
-    bank[0] = track0;
+    const track0 = file.seqBanks[b];
+    if (track0) bank[0] = track0;
     const extra = file.seqTracks?.[b];
     if (extra) {
       for (let t = 1; t < bank.length; t++) {
@@ -194,6 +218,18 @@ export const Song = {
     // to inherit (see the v1-apply test): a file with no sampler section keeps the
     // user's loaded kit rather than orphaning it.
     const blank = emptyPatternSnapshot();
+    // Each machine's bank count is the length of its own array — EXCEPT that a
+    // chain naming a bank the arrays omit grows the machine to fit rather than
+    // being clamped down to something the author did not write
+    // (banks.md REQ-a-chain-reference-grows-the-machine, ADR-022). This is the one
+    // place the two halves meet, and it happens BEFORE restore, so nothing has to
+    // resize the store afterwards.
+    const counts = {
+      seq: chainFit(file.seqBanks, file.seqChain),
+      drum: chainFit(file.drumBanks, file.drumChain),
+      sampler: chainFit(file.samplerBanks, file.samplerChain),
+      motion: chainFit(file.motionBanks, file.motionChain),
+    };
     patterns.restore({
       seqBanks: mergeSeqTracks(file),
       drumBanks: file.drumBanks,
@@ -202,7 +238,12 @@ export const Song = {
       motionBanks: file.motionBanks ?? blank.motionBanks,
       motionAssigns: file.motionAssigns ?? blank.motionAssigns,
       motionTracks: file.motionTracks ?? blank.motionTracks,
-    });
+    }, counts);
+    // The chain setters run AFTER restore, and that ordering is load-bearing since
+    // v8: they clamp each step against the machine's count, so they must see the
+    // freshly-sized arrays. Reversed, a chain from a big song would survive into a
+    // small one and name banks that no longer exist (banks.md REQ-an-omitted-bank-restores-blank).
+
     // `?? []` — not "leave it alone": apply() is authoritative (REQ-a-bank-with-no-anchors-writes-nothing), so a file
     // without transposes must clear the last song's, not inherit them. fitTranspose
     // pads to the chain length, so [] means every slot at 0.
@@ -430,12 +471,19 @@ function drumFrom(rows: Record<number, number[]>): DrumCell[][] {
   return bank;
 }
 
-function pad4Seq(a: SeqStep[], b: SeqStep[]): SeqStep[][] {
-  return [a, b, a.map((s) => ({ ...s })), a.map((s) => ({ ...s }))];
+/** Two authored banks, padded out to the mandatory floor with copies of the
+ *  first. Named for what it does rather than for "4", which since v8 is a
+ *  minimum rather than the shape (banks.md REQ-a-machine-owns-its-bank-count). */
+function padBlankSeq(a: SeqStep[], b: SeqStep[]): SeqStep[][] {
+  const out: SeqStep[][] = [a, b];
+  while (out.length < MIN_BANK_COUNT) out.push(a.map((s) => ({ ...s })));
+  return out;
 }
-function pad4Drum(a: DrumCell[][], b: DrumCell[][]): DrumCell[][][] {
+function padBlankDrum(a: DrumCell[][], b: DrumCell[][]): DrumCell[][][] {
   const copy = (g: DrumCell[][]) => g.map((r) => r.map((c) => ({ ...c })));
-  return [a, b, copy(a), copy(a)];
+  const out: DrumCell[][][] = [a, b];
+  while (out.length < MIN_BANK_COUNT) out.push(copy(a));
+  return out;
 }
 
 // --- Mordor: hypnotic mono octave-pulse bass through a resonant ladder ---
@@ -527,8 +575,8 @@ const BUILTIN_DEMOS: Record<string, SongFile> = {
       'transport.bpm': 125,
       'drum.master': 0.9,
     },
-    seqBanks: pad4Seq(MOR_A, MOR_B),
-    drumBanks: pad4Drum(MOR_DRUM_A, MOR_DRUM_B),
+    seqBanks: padBlankSeq(MOR_A, MOR_B),
+    drumBanks: padBlankDrum(MOR_DRUM_A, MOR_DRUM_B),
     seqChain: { enabled: true, steps: [0, 0, 0, 1] },   // A A A B
     drumChain: { enabled: true, steps: [0, 1] },
   },

@@ -21,7 +21,7 @@
  */
 import type { SongFile } from './song';
 import { KNOWN_SONG_VERSIONS } from './song-version';
-import { BANK_COUNT, REST, SEQ_LENGTH, SEQ_TRACK_COUNT, DRUM_TRACK_COUNT, SAMPLER_SLOT_COUNT } from './patterns';
+import { MIN_BANK_COUNT, MAX_BANK_COUNT, REST, SEQ_LENGTH, SEQ_TRACK_COUNT, DRUM_TRACK_COUNT, SAMPLER_SLOT_COUNT } from './patterns';
 import { paramIds } from './params';
 import {
   MAX_ERRORS, isObject, describeValue as describe, type AddError,
@@ -160,10 +160,27 @@ const validateTriggerCell: CellValidator = (path, value, add) => {
   checkStepSettings(path, value, add);
 };
 
+/**
+ * A bank array's length, checked as a RANGE rather than an exact count
+ * (banks.md REQ-a-machine-owns-its-bank-count, ADR-022). Each machine carries
+ * its own count as the length of its own array, so a file may hold anywhere
+ * from MIN_BANK_COUNT to MAX_BANK_COUNT banks per machine. Every v1-v7 file has
+ * exactly MIN_BANK_COUNT and still passes unchanged.
+ */
+function checkBankLength(path: string, len: number, add: AddError, noun = 'banks'): void {
+  if (len < MIN_BANK_COUNT || len > MAX_BANK_COUNT) {
+    add(`${path} must have ${MIN_BANK_COUNT}..${MAX_BANK_COUNT} ${noun} (got ${len})`);
+  }
+}
+
+const BANKS_PHRASE = `${MIN_BANK_COUNT}..${MAX_BANK_COUNT} banks`;
+/** `motionAssigns` is one entry per bank rather than a bank, so it keeps its noun. */
+const ENTRIES_PHRASE = `${MIN_BANK_COUNT}..${MAX_BANK_COUNT} entries`;
+
 /** 2-D bank grid: `banks × steps` of cells (the sequencer). */
 function check2D(path: string, v: unknown, steps: number, cell: CellValidator, add: AddError): void {
-  if (!Array.isArray(v)) { add(`${path} must be an array of ${BANK_COUNT} banks (got ${describe(v)})`); return; }
-  if (v.length !== BANK_COUNT) add(`${path} must have ${BANK_COUNT} banks (got ${v.length})`);
+  if (!Array.isArray(v)) { add(`${path} must be an array of ${BANKS_PHRASE} (got ${describe(v)})`); return; }
+  checkBankLength(path, v.length, add);
   v.forEach((bank: unknown, b) => {
     if (!Array.isArray(bank)) { add(`${path}[${b}] must be an array of ${steps} steps (got ${describe(bank)})`); return; }
     if (bank.length !== steps) add(`${path}[${b}] must have ${steps} steps (got ${bank.length})`);
@@ -173,8 +190,8 @@ function check2D(path: string, v: unknown, steps: number, cell: CellValidator, a
 
 /** 3-D bank grid: `banks × rows × steps` of cells (drum + sampler). */
 function check3D(path: string, v: unknown, rows: number, steps: number, cell: CellValidator, add: AddError): void {
-  if (!Array.isArray(v)) { add(`${path} must be an array of ${BANK_COUNT} banks (got ${describe(v)})`); return; }
-  if (v.length !== BANK_COUNT) add(`${path} must have ${BANK_COUNT} banks (got ${v.length})`);
+  if (!Array.isArray(v)) { add(`${path} must be an array of ${BANKS_PHRASE} (got ${describe(v)})`); return; }
+  checkBankLength(path, v.length, add);
   v.forEach((bank: unknown, b) => {
     if (!Array.isArray(bank)) { add(`${path}[${b}] must be an array of ${rows} rows (got ${describe(bank)})`); return; }
     if (bank.length !== rows) add(`${path}[${b}] must have ${rows} rows (got ${bank.length})`);
@@ -220,10 +237,16 @@ function checkChain(path: string, v: unknown, optional: boolean, add: AddError):
     return;
   }
   steps.forEach((s: unknown, i) => {
-    // A step is a bank index 0..BANK_COUNT-1 or the REST sentinel (an empty bar).
-    const ok = typeof s === 'number' && Number.isInteger(s) && (s === REST || (s >= 0 && s <= BANK_COUNT - 1));
+    // A step is a bank index or the REST sentinel (an empty bar). The bound is
+    // the CEILING, not the sibling array's length, on purpose: a chain naming a
+    // bank the arrays omit is legal and grows the machine at apply time
+    // (banks.md REQ-a-chain-reference-grows-the-machine). It also keeps this
+    // check identical to the published JSON schema's, which cannot express
+    // "<= the length of a sibling array" at all (ADR-022).
+    const ok = typeof s === 'number' && Number.isInteger(s)
+      && (s === REST || (s >= 0 && s <= MAX_BANK_COUNT - 1));
     if (!ok) {
-      add(`${path}.steps[${i}] must be an integer 0..${BANK_COUNT - 1} or ${REST} (rest) (got ${describe(s)})`);
+      add(`${path}.steps[${i}] must be an integer 0..${MAX_BANK_COUNT - 1} or ${REST} (rest) (got ${describe(s)})`);
     }
   });
 }
@@ -256,13 +279,13 @@ const validateMotionStep: CellValidator = (path, value, add) => {
 };
 
 /**
- * v6 sequencer tracks — BANK_COUNT banks × SEQ_TRACK_COUNT entries, each null or
+ * v6 sequencer tracks — 4..8 banks × SEQ_TRACK_COUNT entries, each null or
  * 16 SeqSteps. Index 0 must be null: track 1 lives in `seqBanks`, and accepting
  * it here would create two sources of truth for the same notes.
  */
 function checkSeqTracks(v: unknown, add: AddError): void {
-  if (!Array.isArray(v)) { add(`seqTracks must be an array of ${BANK_COUNT} banks (got ${describe(v)})`); return; }
-  if (v.length !== BANK_COUNT) add(`seqTracks must have ${BANK_COUNT} banks (got ${v.length})`);
+  if (!Array.isArray(v)) { add(`seqTracks must be an array of ${BANKS_PHRASE} (got ${describe(v)})`); return; }
+  checkBankLength('seqTracks', v.length, add);
   v.forEach((bank: unknown, b) => {
     if (bank === null || bank === undefined) return;
     if (!Array.isArray(bank)) { add(`seqTracks[${b}] must be an array (got ${describe(bank)})`); return; }
@@ -280,11 +303,11 @@ function checkSeqTracks(v: unknown, add: AddError): void {
   });
 }
 
-/** v5 extra motion tracks — BANK_COUNT banks × MOTION_TRACK_COUNT, each null or
+/** v5 extra motion tracks — 4..8 banks × MOTION_TRACK_COUNT, each null or
  *  { param?, steps: 16 × {on, v?} }. */
 function checkMotionTracks(v: unknown, add: AddError): void {
-  if (!Array.isArray(v)) { add(`motionTracks must be an array of ${BANK_COUNT} banks (got ${describe(v)})`); return; }
-  if (v.length !== BANK_COUNT) add(`motionTracks must have ${BANK_COUNT} banks (got ${v.length})`);
+  if (!Array.isArray(v)) { add(`motionTracks must be an array of ${BANKS_PHRASE} (got ${describe(v)})`); return; }
+  checkBankLength('motionTracks', v.length, add);
   v.forEach((bank: unknown, b) => {
     if (bank === null || bank === undefined) return;
     if (!Array.isArray(bank)) { add(`motionTracks[${b}] must be an array (got ${describe(bank)})`); return; }
@@ -333,10 +356,10 @@ function checkSeqTranspose(v: unknown, add: AddError): void {
   });
 }
 
-/** v4 per-bank axis overrides — BANK_COUNT entries, each null or {x?, y?} of ids. */
+/** v4 per-bank axis overrides — 4..8 entries, each null or {x?, y?} of ids. */
 function checkMotionAssigns(v: unknown, add: AddError): void {
-  if (!Array.isArray(v)) { add(`motionAssigns must be an array of ${BANK_COUNT} entries (got ${describe(v)})`); return; }
-  if (v.length !== BANK_COUNT) add(`motionAssigns must have ${BANK_COUNT} entries (got ${v.length})`);
+  if (!Array.isArray(v)) { add(`motionAssigns must be an array of ${ENTRIES_PHRASE} (got ${describe(v)})`); return; }
+  checkBankLength('motionAssigns', v.length, add, 'entries');
   v.forEach((a: unknown, i) => {
     if (a === null) return;
     if (!isObject(a)) { add(`motionAssigns[${i}] must be null or an object (got ${describe(a)})`); return; }

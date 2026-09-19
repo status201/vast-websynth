@@ -53,6 +53,22 @@ export class UndoHistory<T> {
     this.emit();
   }
 
+  /**
+   * Drop every entry matching `pred`, keeping the rest in order. For history
+   * that has become *unapplyable* rather than merely old — a bank that no longer
+   * exists (banks.md REQ-a-bank-is-removed-only-when-unused). Clearing the whole
+   * stack would be simpler and would throw away edits that are still perfectly
+   * undoable.
+   */
+  drop(pred: (entry: T) => boolean): void {
+    const kept = this.entries.filter((e) => !pred(e));
+    if (kept.length === this.entries.length) return;
+    this.entries.length = 0;
+    this.entries.push(...kept);
+    this.lastKey = undefined; // the top may have changed out from under a coalesce
+    this.emit();
+  }
+
   get size(): number {
     return this.entries.length;
   }

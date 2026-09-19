@@ -139,8 +139,8 @@ the song format.
   reintroduces the bug — filter on steps alone and the name-only slot is
   unreachable again; filter on nothing and an empty slot gets an inert item.
   **`Clear bank` deliberately does NOT do this.** `sampleNames` is per-slot and
-  shared by all four banks while steps are per-bank, so a bank-scoped eject would
-  silently un-sound the same slots in the three banks the user is not looking at.
+  shared by every bank while steps are per-bank, so a bank-scoped eject would
+  silently un-sound the same slots in every bank the user is not looking at.
   Because the pattern-undo stack carries steps only
   ([step-grid-editing](step-grid-editing.md) REQ-one-bulk-action-one-undo-entry), the row owns its own
   reversal: the toast's **Undo** puts the name and the buffer back — the

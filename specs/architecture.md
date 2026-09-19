@@ -189,7 +189,9 @@ UiBridge:        # src/ui/ui-bridge.ts  (the UI's *internal* seam — see featur
   openPresetImport(parse)        # paste door -> the header-owned preset wizard
 
 PatternStore:    # src/state/patterns.ts
-  # 4 seq + 4 drum + 4 sampler + 4 motion banks; edit-bank (UI) vs play-bank (transport)
+  # 4..8 banks per machine, counted INDEPENDENTLY per machine and stored as the
+  # array's own length (features/banks.md REQ-a-machine-owns-its-bank-count, ADR-022);
+  # edit-bank (UI) vs play-bank (transport)
   snapshot() / restore(...)
 
 Song:            # src/state/song.ts
@@ -276,7 +278,7 @@ the panel bodies genuinely differ (note labels, a tuning strip, slot loaders, an
 SVG graph). One internal `laneHooks(engine, lane)` switch maps the systematic
 per-lane accessor families (PatternStore edit/copy/content, Arrangement play
 bank, the machine's `onStep`), and the exported helpers read from it:
-`bankBarFor` (the A/B/C/D bar, `testidPrefix` = lane), `wrapGridWithRestOverlay`
+`bankBarFor` (the A–H bar, `testidPrefix` = lane), `wrapGridWithRestOverlay`
 (the `position: relative` wrapper + overlay + follow wiring),
 `wirePlayhead` (highlight only while edit bank === play bank, refreshing the
 overlay on the same tick — and only while the panel's `VisibilityGate` reports it
@@ -570,7 +572,7 @@ rather than throwing. Project **zips** are not slot-storable (localStorage is
 text-only), so save slots stay JSON-only.
 
 Blank step grids likewise have one source: `emptyPatternBanks()`
-(`state/patterns.ts`) returns `BANK_COUNT` banks per machine from the same
+(`state/patterns.ts`) returns `MIN_BANK_COUNT` banks per machine from the same
 `makeSeqBank`/`makeDrumBank`/`makeSamplerBank`/`makeMotionBank` builders
 `PatternStore` boots with, so "New Song" can never drift from a fresh store.
 (The demo-authoring helper in `song.ts` — `seqFromNotes` — stays
