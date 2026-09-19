@@ -290,7 +290,7 @@ specs/
     sampler.md         ·  8-slot one-shot sampler
     step-settings.md   ·  per-step vel/gate/prob/ratchet/tie/micro + hit math
     step-grid-editing.md ·  the shared grid gesture model (tap/paint/hold, Clear ▾)
-    banks.md           ·  A/B/C/D banks, edit-vs-play bank
+    banks.md           ·  A–H banks (4..8 per machine), edit-vs-play bank
     pattern-undo.md    ·  per-machine step-grid undo (button + scoped Ctrl+Z)
     arrangement.md     ·  the four chain lanes
     motion-sequencer.md ·  XY param automation machine (anchors, slide/step)
@@ -405,6 +405,7 @@ specs/
     adr-020-remote-mcp-is-authless-and-read-only.md
                                                ·  the public MCP endpoint: no auth, no writes, no SDK
     adr-021-req-ids-are-slugs.md               ·  a REQ id names its rule, not its position
+    adr-022-bank-count-is-the-array-length.md  ·  how many banks a machine has is the array's length
 ```
 
 > Coverage note: the feature set above documents the current system. New features

@@ -27,7 +27,8 @@ import { MAX_CHAIN_TRANSPOSE } from './limits';
 import {
   SEQ_LENGTH,
   SEQ_TRACK_COUNT,
-  BANK_COUNT,
+  MIN_BANK_COUNT,
+  MAX_BANK_COUNT,
   BANK_LABELS,
   DRUM_TRACK_COUNT,
   SAMPLER_SLOT_COUNT,
@@ -108,9 +109,9 @@ COMPACT AUTHOR FORMAT (recommended output)
   "version": 1,                        // literal, required
   "name": "string",                    // song title
   "params": { "<id>": number },        // OPTIONAL and SPARSE — set only what matters; omitted params keep their defaults (see PARAMS)
-  "seq": [ SeqBank, … up to ${BANK_COUNT} ],   // a bank may be {"tracks": [notes, notes, …]} for chords        // melody banks ${BANK_LABELS.join('/')}; a missing bank is empty
-  "drums": [ HitBank, … up to ${BANK_COUNT} ],      // drum banks
-  "sampler": [ HitBank, … up to ${BANK_COUNT} ],    // OPTIONAL — sampler banks (slots play user-loaded audio files)
+  "seq": [ SeqBank, … up to ${MAX_BANK_COUNT} ],   // a bank may be {"tracks": [notes, notes, …]} for chords        // melody banks ${BANK_LABELS.slice(0, MIN_BANK_COUNT).join('/')}…${BANK_LABELS[MAX_BANK_COUNT - 1]}; a missing bank is empty
+  "drums": [ HitBank, … up to ${MAX_BANK_COUNT} ],      // drum banks
+  "sampler": [ HitBank, … up to ${MAX_BANK_COUNT} ],    // OPTIONAL — sampler banks (slots play user-loaded audio files)
   "seqChain": Chain,                   // OPTIONAL — bar-by-bar bank order (omitted = just play bank A)
                                        //   letters may carry a transpose: "A A+5 A+7 A+3" (see TRANSPOSE)
   "seqTranspose": [0, 5, 7, 3],        // OPTIONAL — the same offsets for the non-string chain forms
@@ -118,7 +119,7 @@ COMPACT AUTHOR FORMAT (recommended output)
   "samplerChain": Chain,
   "sampleNames": ["kick.wav", …],      // OPTIONAL — display names per sampler slot (max ${SAMPLER_SLOT_COUNT}; audio is NEVER embedded)
   "xy": { "x": "<param id>", "y": "<param id>" },   // OPTIONAL — XY-pad axis assignment
-  "motion": [ MotionBank, … up to ${BANK_COUNT} ],  // OPTIONAL — motion sequencer (XY param automation over the bar)
+  "motion": [ MotionBank, … up to ${MAX_BANK_COUNT} ],  // OPTIONAL — motion sequencer (XY param automation over the bar)
   "motionChain": Chain,                // OPTIONAL — motion bank order per bar
   "motionTracks": [ [Track, Track], … ] // OPTIONAL — 2 extra 1-param tracks per motion bank
 }
@@ -154,10 +155,10 @@ MotionBank — one bar of XY param automation: anchors the synth moves through w
 
 TRANSPOSE — a "seqChain" bank letter may carry "+n"/"-n" semitones (max ${MAX_CHAIN_TRANSPOSE}):
   "seqChain": "A A+5 A+7 A+3"  — one bank, four bars, a whole chord progression.
-  This is the biggest lever in the format: there are only 4 banks of 16 steps, so
-  without it a four-chord progression spends every bank and leaves nothing for a
-  variation. Write ONE good bar and transpose it; save the other banks for a
-  different part. It shifts the note the sequencer plays (clamped to 0-127), never
+  This is the biggest lever in the format: a machine has ${MIN_BANK_COUNT}-${MAX_BANK_COUNT}
+  banks of ${SEQ_LENGTH} steps, so without it a four-chord progression spends most of them
+  and leaves little for a variation. Write ONE good bar and transpose it; save the
+  other banks for a different part. It shifts the note the sequencer plays (clamped to 0-127), never
   the stored bank. Only "seqChain" is pitched — drums/sampler/motion chains reject
   a suffix, and so does a rest (".+5"). The array/object chain forms take a
   parallel "seqTranspose": [0,5,7,3] instead.
@@ -240,22 +241,22 @@ or when editing a file the synth exported. Every grid must be written out to ful
 TOP-LEVEL SHAPE
 {
   "format": "websynth-song",          // literal, required
-  "version": ${SONG_VERSION},                        // ${SONG_VERSION} (6 lacks the seq-chain transpose; 5 also lacks seq tracks 2-4; 4 also lacks the extra motion tracks; 3 also lacks the motion fields; 2 also lacks the XY Pad assignment; 1 also lacks the sampler fields)
+  "version": ${SONG_VERSION},                        // ${SONG_VERSION} (7 lacks the extra banks — it is always ${MIN_BANK_COUNT}; 6 also lacks the seq-chain transpose; 5 also lacks seq tracks 2-4; 4 also lacks the extra motion tracks; 3 also lacks the motion fields; 2 also lacks the XY Pad assignment; 1 also lacks the sampler fields)
   "name": "string",
   "params": { "<id>": number, ... },
-  "seqBanks":  SeqStep[${BANK_COUNT}][${SEQ_LENGTH}],          // ${BANK_COUNT} banks, ${SEQ_LENGTH} steps each
-  "drumBanks": DrumCell[${BANK_COUNT}][${DRUM_TRACK_COUNT}][${SEQ_LENGTH}],   // ${BANK_COUNT} banks, ${DRUM_TRACK_COUNT} tracks, ${SEQ_LENGTH} steps
-  "seqChain":  { "enabled": boolean, "steps": number[] },   // bank order, indices 0..${BANK_COUNT - 1}, -1 = rest
+  "seqBanks":  SeqStep[${MIN_BANK_COUNT}..${MAX_BANK_COUNT}][${SEQ_LENGTH}],       // ${MIN_BANK_COUNT}-${MAX_BANK_COUNT} banks, ${SEQ_LENGTH} steps each
+  "drumBanks": DrumCell[${MIN_BANK_COUNT}..${MAX_BANK_COUNT}][${DRUM_TRACK_COUNT}][${SEQ_LENGTH}],   // ${DRUM_TRACK_COUNT} tracks, ${SEQ_LENGTH} steps
+  "seqChain":  { "enabled": boolean, "steps": number[] },   // bank order, indices 0..${MAX_BANK_COUNT - 1}, -1 = rest
   "drumChain": { "enabled": boolean, "steps": number[] },
   // ---- v2 sampler fields, all OPTIONAL ----
-  "samplerBanks": SamplerStep[${BANK_COUNT}][${SAMPLER_SLOT_COUNT}][${SEQ_LENGTH}],
+  "samplerBanks": SamplerStep[${MIN_BANK_COUNT}..${MAX_BANK_COUNT}][${SAMPLER_SLOT_COUNT}][${SEQ_LENGTH}],
   "samplerChain": { "enabled": boolean, "steps": number[] },
   "sampleNames":  (string | null)[${SAMPLER_SLOT_COUNT}],
   // ---- v3 XY Pad field, OPTIONAL ----
   "xy": { "x": "<param id>", "y": "<param id>" },
   // ---- v4 motion sequencer fields, all OPTIONAL ----
-  "motionBanks": MotionStep[${BANK_COUNT}][${SEQ_LENGTH}],
-  "motionAssigns": (MotionAssign | null)[${BANK_COUNT}],   // per-bank axis override; null = inherit "xy"
+  "motionBanks": MotionStep[${MIN_BANK_COUNT}..${MAX_BANK_COUNT}][${SEQ_LENGTH}],
+  "motionAssigns": (MotionAssign | null)[${MIN_BANK_COUNT}..${MAX_BANK_COUNT}],   // per-bank axis override; null = inherit "xy"
   "motionChain": { "enabled": boolean, "steps": number[] },
 
   // ---- v5 extra motion tracks, OPTIONAL ----
@@ -265,12 +266,12 @@ TOP-LEVEL SHAPE
   // A track is { "param": "<ParamBus id>", "steps": [{ "step": 0-15, "v": 0-1 }] }
   // or null. Same slide/step curve rules as the XY anchors, but each track has
   // its OWN mode param: "motion.t0.slide" / "motion.t1.slide" (1 = slide, default).
-  "motionTracks": ((Track | null)[2])[${BANK_COUNT}],
+  "motionTracks": ((Track | null)[2])[${MIN_BANK_COUNT}..${MAX_BANK_COUNT}],
 
   // ---- v6 sequencer tracks 2-4, OPTIONAL ----
   // Indexed by the REAL track number, so index 0 is always null (track 1 is
   // "seqBanks"). An unused track is null. Tracks 2-4 sound only in poly voicing.
-  "seqTracks": ((SeqStep[${SEQ_LENGTH}] | null)[${SEQ_TRACK_COUNT}])[${BANK_COUNT}],
+  "seqTracks": ((SeqStep[${SEQ_LENGTH}] | null)[${SEQ_TRACK_COUNT}])[${MIN_BANK_COUNT}..${MAX_BANK_COUNT}],
 
   // ---- v7 seq-chain transpose, OPTIONAL ----
   // One semitone offset per "seqChain" slot, parallel to seqChain.steps, so ONE
@@ -304,11 +305,11 @@ EXAMPLE SHAPE (illustrative — fill EVERY array to full size; "…" marks omiss
   "seqBanks": [
     [ { "on": true, "note": 48, "velocity": 0.9, "gate": 0.5 },
       { "on": false, "note": 48 }, "… ${SEQ_LENGTH} steps total" ],
-    "… ${BANK_COUNT} banks total"
+    "… ${MIN_BANK_COUNT}-${MAX_BANK_COUNT} banks total"
   ],
   "drumBanks": [
     [ [ { "on": true }, { "on": false }, "… ${SEQ_LENGTH} steps total" ], "… ${DRUM_TRACK_COUNT} tracks total" ],
-    "… ${BANK_COUNT} banks total"
+    "… ${MIN_BANK_COUNT}-${MAX_BANK_COUNT} banks total"
   ],
   "seqChain":  { "enabled": false, "steps": [0] },
   "drumChain": { "enabled": false, "steps": [0] }

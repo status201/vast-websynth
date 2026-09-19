@@ -82,7 +82,7 @@ tick listener settles the play banks first.
   every note it triggers (REQ-16 there).
 
   **Why the format needed this.** A chain slot was a bare bank index, and there
-  are four banks of sixteen steps, so **four bars was the entire melodic
+  were four banks of sixteen steps, so **four bars was the entire melodic
   vocabulary of any song** — a four-chord progression consumed every bank and
   left nothing for a variation. The strain shows in the shipped corpus: the
   `Nocturne` demo spends *both* of its motion automation tracks on
@@ -189,7 +189,9 @@ Arrangement:  # src/audio/transport/arrangement.ts
   # subscribes clock.onStart (seekTo(clock.step)) + clock.onSeek (v4)
   #          + clock.onTick (advance per bar)
 ChainLane: { enabled: boolean, steps: number[], transpose: number[] }
-  # steps ∈ { REST, 0..BANK_COUNT-1 }; transpose ∈ ±MAX_CHAIN_TRANSPOSE, same length as steps
+  # steps ∈ { REST } ∪ 0..(that machine's bank count - 1); transpose ∈ ±MAX_CHAIN_TRANSPOSE,
+  # same length as steps. The bound is PER LANE (banks.md REQ-bank-index-clamps): the
+  # sequencer may have grown to eight banks while the drum machine is still at four.
 
 # src/state/limits.ts
 MAX_CHAIN_TRANSPOSE = 24    # ±2 octaves, matching drum.t*.tune's range
@@ -222,7 +224,10 @@ construction (engine): new Arrangement(patterns, clock) BEFORE
   new StepSequencer/DrumMachine/SamplerMachine
 why: Arrangement.clock.onTick runs first -> *PlayBank settled before machines read
 machines read: patterns.seqBank(arrangement.seqPlayBank) etc. each tick
-bank clamp: clampBank -> 0..BANK_COUNT-1
+bank clamp: clampChainStep(step, patterns.bankCount(lane)) -> 0..count-1 (or REST)
+            the count argument is REQUIRED; see ADR-022 for why a default is a trap
+chainReferences(lane, bank): whether any slot still names it — the arrangement half
+            of banks.md REQ-a-bank-is-removed-only-when-unused
 transpose:   seq only. StepSequencer reads arrangement.seqTranspose at trigger
              time and shifts the note it plays (sequencer.md REQ-every-note-is-shifted-by-the-slot-transpose); the stored
              SeqStep is never rewritten (REQ-transposition-is-applied-at-trigger)
@@ -306,7 +311,7 @@ Scenario: A pre-v7 song loads with every slot at +0 (v5, ADR-007)
 # pinned by: tests/state/song.test.ts
 
 Scenario: A chip is dragged to a new place in the chain (v7, REQ-a-chip-is-dragged-to-its-place)
-  Given a chain of A B C D
+  Given a chain of A B C D (a four-bank machine)
   When the user drags the D chip and drops it before the B chip
   Then the chain is A D B C, written with ONE setChain call
   And the dropped slot is the selected one

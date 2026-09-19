@@ -71,9 +71,25 @@
 .add {
   min-width: 26px;
   padding: 5px 7px;
+  /* The arms borrow `.btn`, which is a COLUMN flex sized for a letter above a
+     content dot. An arm has only the glyph, so the default flex-start parked it
+     at the letter's height while the box carried on down past the dot row —
+     visibly high in a bar whose other six buttons are two rows tall. */
+  justify-content: center;
   background: linear-gradient(180deg, #1a1410, #0a0805);
   border: 1px solid var(--panel-border);
   border-radius: 3px;
   color: var(--text-dim);
 }
-.add:hover { color: var(--accent-secondary); }
+.add:hover:not(:disabled) { color: var(--accent-secondary); }
+
+/* The shrink arm spends most of its life disabled — at the floor, or while the
+   top bank still holds steps or a chain names it (features/banks.md
+   REQ-a-bank-is-removed-only-when-unused). Without this it looked and hovered
+   exactly like a live control and simply did nothing when pressed; the reason is
+   in its tooltip, but the fact has to be visible before anyone hovers. Matches
+   the .fit/.trackFold disabled look rather than inventing a third. */
+.add:disabled {
+  opacity: 0.35;
+  cursor: not-allowed;
+}

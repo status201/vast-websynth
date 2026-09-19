@@ -28,27 +28,36 @@ source:
   - src/ui/components/bank-bar.ts                # Follow state read by the overlay + resting dot recolour (REQ-a-resting-machine-tab-shows-it)
 ```
 
-A fifth arrangement-chain option that is **always an empty bar** ("rest"), so a
-composer can make a lane sit out a bar without spending one of the four
-[banks](banks.md). It exists only in the Song-tab [arrangement](arrangement.md)
-builder.
+An arrangement-chain option that is **always an empty bar** ("rest"), so a
+composer can make a lane sit out a bar without spending a [bank](banks.md) on
+silence. It exists only in the Song-tab [arrangement](arrangement.md) builder.
 
 ## Background / Why
 
-In Song mode each machine lane arranges just **4 banks (A B C D)**. The only way
-to make a lane play nothing for a bar was to sacrifice a bank and fill it with an
-empty pattern — leaving 3 usable banks. Expanding `BANK_COUNT` is out of scope (it
-would enlarge every machine tab's `BankBar` and every bank array). Instead a rest
-is a **sentinel value carried in the chain**, confined to the Song tab, so the four
-banks stay fully usable and existing songs are unaffected.
+When this landed, each machine lane arranged exactly **4 banks (A B C D)**, and
+the only way to make a lane play nothing for a bar was to sacrifice a bank and
+fill it with an empty pattern — leaving 3 usable banks. Growing the count was
+ruled out here as too costly. A rest is instead a **sentinel value carried in the
+chain**, confined to the Song tab, so the banks stay fully usable and existing
+songs are unaffected.
+
+That premise has since changed and the conclusion has not. Banks are no longer
+fixed at four — a machine grows on demand up to `MAX_BANK_COUNT`
+([banks](banks.md) REQ-a-machine-owns-its-bank-count, ADR-022) — but a rest is
+still the right tool for *play nothing*: it costs no bank, no memory and no
+bytes, it reads as an intent rather than as an empty pattern someone forgot to
+fill, and it works identically on a machine already at the ceiling. Scarcity was
+one argument for the sentinel; it was never the only one.
 
 ## Requirements
 
 - **REQ-rest-is-a-negative-sentinel** — `PatternStore` exports `REST` (a
-  sentinel `< 0`, distinct from any bank index) and `clampChainStep(i)` which
-  returns `REST` when `i === REST` and otherwise clamps to `0..BANK_COUNT-1`.
-  `clampBank` (edit/play-bank access) is unchanged — an *edit* bank can never be
-  a rest.
+  sentinel `< 0`, distinct from any bank index) and `clampChainStep(i, bankCount)`
+  which returns `REST` when `i === REST` and otherwise clamps to
+  `0..bankCount-1`. The count is a **required** argument, per that machine's own
+  bank count — see [banks](banks.md) REQ-bank-index-clamps. Edit/play-bank access
+  clamps the same way and is otherwise unchanged — an *edit* bank can never be a
+  rest.
 
 - **REQ-chain-steps-may-hold-rest** — `Arrangement` chain steps may hold `REST`;
   `setSeqChain` / `setDrumChain` / `setSamplerChain` / `setMotionChain` map
@@ -131,12 +140,13 @@ The chain-step domain widens; the on-disk shape (`ChainData.steps: number[]`) is
 unchanged, so no `SongFile.version` bump is needed.
 
 ```yaml
-ChainData.steps: number[]   # each entry ∈ { REST(-1), 0, 1, 2, 3 }   (was 0..3)
+ChainData.steps: number[]   # each entry ∈ { REST(-1) } ∪ 0..MAX_BANK_COUNT-1
 ```
 
 Back-compat (ADR-007 additive rule): new builds may write `-1`; an older build
 reading it clamps `-1` → `0` (plays bank A instead of a rest) — a graceful, silent
-degradation, never a crash. `song-validate` accepts `REST` alongside `0..BANK_COUNT-1`.
+degradation, never a crash. `song-validate` accepts `REST` alongside
+`0..MAX_BANK_COUNT-1`.
 
 ### Layer touchpoints & ordering
 
@@ -176,8 +186,8 @@ Scenario: A rest bar plays silence but the transport keeps moving
 
 Scenario: clampChainStep preserves the rest sentinel
   Given a chain step value of REST
-  Then clampChainStep(REST) === REST
-  And clampChainStep(9) === BANK_COUNT - 1
+  Then clampChainStep(REST, n) === REST for any n
+  And clampChainStep(9, n) === n - 1
 # pinned by: tests/state/patterns.test.ts
 
 Scenario: A rest round-trips through save/load and validation

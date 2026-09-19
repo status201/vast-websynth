@@ -1,7 +1,7 @@
 import type { SongFile } from '../../src/state/song';
 import type { SeqStep, DrumCell } from '../../src/state/patterns';
 import {
-  SEQ_LENGTH, BANK_COUNT, DRUM_TRACK_COUNT, TRIGGER_CELL_DEFAULTS,
+  SEQ_LENGTH, MIN_BANK_COUNT, DRUM_TRACK_COUNT, TRIGGER_CELL_DEFAULTS,
 } from '../../src/state/patterns';
 
 /**
@@ -115,8 +115,8 @@ export function fixtureSong(): SongFile {
     version: 1,
     name: FIXTURE.name,
     params: fixtureParams(),
-    seqBanks: Array.from({ length: BANK_COUNT }, (_, b) => fixtureSeqBank(b)),
-    drumBanks: Array.from({ length: BANK_COUNT }, (_, b) => fixtureDrumBank(b)),
+    seqBanks: Array.from({ length: MIN_BANK_COUNT }, (_, b) => fixtureSeqBank(b)),
+    drumBanks: Array.from({ length: MIN_BANK_COUNT }, (_, b) => fixtureDrumBank(b)),
     seqChain: { enabled: true, steps: [...FIXTURE.seqChain] },
     drumChain: { enabled: true, steps: [...FIXTURE.drumChain] },
     xy: { ...FIXTURE.xy },

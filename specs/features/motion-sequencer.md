@@ -79,7 +79,7 @@ a strip of levels under the pattern, one parameter each.
 
 Songs vary notes and hits over time (banks + chains) but every *parameter* is static —
 no filter sweeps, no delay throws, no per-bar sound scenes. Motion is a 4th machine
-(16 steps × 4 banks, like the others) whose steps hold optional **XY coordinates**;
+(16 steps × 4..8 banks, like the others) whose steps hold optional **XY coordinates**;
 during playback it drives the two params assigned to the XY Pad through those
 coordinates. "Motion sequencing" is the established hardware term (Korg Electribe).
 The tab sits between Sampler and Song.
@@ -88,7 +88,8 @@ The tab sits between Sampler and Song.
 
 - **REQ-a-motion-step-is-an-optional-anchor** — A Motion step is an optional
   anchor `{ on, x, y }`, x/y **normalized 0..1** in taper space (the XY Pad
-  surface's space). Dead step = `{on:false}`. 4 banks (A–D) × 16 steps, stored
+  surface's space). Dead step = `{on:false}`. 4..8 banks (A–H, [banks](banks.md)
+  REQ-a-machine-owns-its-bank-count) × 16 steps, stored
   in `PatternStore` beside the other machines.
 - **REQ-set-steps-are-anchors** — Set steps are **anchors**. In **Slide** mode
   the driven value ramps linearly between consecutive anchors, *across* unset
@@ -347,7 +348,7 @@ The tab sits between Sampler and Song.
   through one path is what keeps the dirty flag honest.
 
 - **REQ-song-file-v5-adds-motion-tracks** — **SongFile v5** adds optional
-  `motionTracks` (4 banks × 2 tracks), additive per
+  `motionTracks` (one entry per motion bank × 2 tracks), additive per
   [ADR-007](../decisions/adr-007-songfile-additive-versioning.md): v1–v4 files
   load with both tracks empty and unassigned, writing nothing. Export is
   default-sparse (a dead step is `{on:false}`, `v` rounded to 4 sig-figs) and a
@@ -780,16 +781,16 @@ Params (v5):         # mode is per lane, not global
   motion.slide:       { discrete, labels: [step, slide], default: 1 }   # XY lane
   motion.t<i>.slide:  { discrete, labels: [step, slide], default: 1 }   # each track
 SongFile v5 (additive):
-  motionTracks: (MotionTrack | null)[4][2] | absent
+  motionTracks: (MotionTrack | null)[4..8][2] | absent   # outer length == motionBanks'
 Author dialect (v4):
-  motionTracks: [ [TrackSpec, TrackSpec], ... up to 4 banks ]
+  motionTracks: [ [TrackSpec, TrackSpec], ... up to MAX_BANK_COUNT banks ]
   # TrackSpec = { param, steps: [ {step, v}, ... ] } | null
 SongFile v4 (additive):
-  motionBanks: MotionStep[4][16] | absent
-  motionAssigns: (MotionAssign | null)[4] | absent
+  motionBanks: MotionStep[4..8][16] | absent
+  motionAssigns: (MotionAssign | null)[4..8] | absent
   motionChain: ChainData | absent
 Author dialect:
-  motion: [ MotionBank, ... up to 4 ]
+  motion: [ MotionBank, ... up to MAX_BANK_COUNT ]
   # MotionBank = [ {step, x, y}, ... ]  |  { assign?: {x?, y?}, steps: [ {step,x,y}, ... ] }
   motionChain: Chain
 ```

@@ -42,7 +42,8 @@ export {
 } from '../../src/state/preset-file';
 export {
   SEQ_LENGTH,
-  BANK_COUNT,
+  MIN_BANK_COUNT,
+  MAX_BANK_COUNT,
   DRUM_TRACK_COUNT,
   SAMPLER_SLOT_COUNT,
 } from '../../src/state/patterns';

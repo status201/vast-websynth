@@ -2,7 +2,7 @@ import { describe, it, expect } from 'vitest';
 import { isAuthorSong, expandAuthorSong, AUTHOR_FORMAT } from '../../src/state/song-author';
 import { validateSongFile } from '../../src/state/song-validate';
 import type { SongFile } from '../../src/state/song';
-import { SEQ_LENGTH, BANK_COUNT, DRUM_TRACK_COUNT, SAMPLER_SLOT_COUNT } from '../../src/state/patterns';
+import { SEQ_LENGTH, MIN_BANK_COUNT, MAX_BANK_COUNT, DRUM_TRACK_COUNT, SAMPLER_SLOT_COUNT } from '../../src/state/patterns';
 import { MAX_CHAIN_STEPS } from '../../src/state/limits';
 
 /** A minimal valid author file to spread per-test variations over. */
@@ -39,9 +39,9 @@ describe('expandAuthorSong — happy path', () => {
     expect(file.version).toBe(3);
     expect(file.name).toBe('Test');
     expect(file.params).toEqual({});
-    expect(file.seqBanks).toHaveLength(BANK_COUNT);
+    expect(file.seqBanks).toHaveLength(MIN_BANK_COUNT);
     expect(file.seqBanks[0]).toHaveLength(SEQ_LENGTH);
-    expect(file.drumBanks).toHaveLength(BANK_COUNT);
+    expect(file.drumBanks).toHaveLength(MIN_BANK_COUNT);
     expect(file.drumBanks[0]).toHaveLength(DRUM_TRACK_COUNT);
     expect(file.drumBanks[0]![0]).toHaveLength(SEQ_LENGTH);
     expect(file.seqChain).toEqual({ enabled: false, steps: [0] });
@@ -133,11 +133,23 @@ describe('seq banks', () => {
     expect(file.seqBanks[0]![0]).toMatchObject({ gate: 0.9, tie: true });
   });
 
-  it('missing banks are empty; more than 4 banks errors', () => {
+  it('missing banks are empty and pad up to the floor', () => {
     const file = expandOk(base({ seq: [['C4']] }));
+    expect(file.seqBanks).toHaveLength(MIN_BANK_COUNT);
     expect(file.seqBanks[1]!.every((s) => !s.on)).toBe(true);
     expect(file.seqBanks[3]!.every((s) => !s.on)).toBe(true);
-    expect(expandErrors(base({ seq: [[], [], [], [], []] }))[0]).toMatch(/4/);
+  });
+
+  it('accepts up to the ceiling, and errors past it (banks.md REQ-a-machine-owns-its-bank-count)', () => {
+    // Five banks was an error before v8 and is ordinary now; the count a machine
+    // ends up with is simply how many banks were authored, floored at 4.
+    const five = expandOk(base({ seq: [['C4'], ['D4'], ['E4'], ['F4'], ['G4']] }));
+    expect(five.seqBanks).toHaveLength(5);
+    expect(five.seqBanks[4]!.some((s) => s.on)).toBe(true);
+    const eight = expandOk(base({ seq: Array.from({ length: MAX_BANK_COUNT }, () => ['C4']) }));
+    expect(eight.seqBanks).toHaveLength(MAX_BANK_COUNT);
+    const tooMany = Array.from({ length: MAX_BANK_COUNT + 1 }, () => []);
+    expect(expandErrors(base({ seq: tooMany }))[0]).toMatch(new RegExp(String(MAX_BANK_COUNT)));
   });
 
   it('a bank longer than 16 steps errors', () => {
@@ -252,7 +264,8 @@ describe('chains', () => {
   it('bad chains error in authoring terms', () => {
     expect(expandErrors(base({ seqChain: 'AXB' }))[0]).toMatch(/bank letter "X"/);
     expect(expandErrors(base({ seqChain: '' }))[0]).toMatch(/empty/);
-    expect(expandErrors(base({ seqChain: [4] }))[0]).toMatch(/0\.\.3/);
+    expect(expandErrors(base({ seqChain: [MAX_BANK_COUNT] }))[0])
+      .toContain(`0..${MAX_BANK_COUNT - 1}`);
     expect(expandErrors(base({ seqChain: [] }))[0]).toMatch(/at least 1/);
     expect(expandErrors(base({ seqChain: 42 }))[0]).toMatch(/seqChain/);
     expect(expandErrors(base({ seqChain: { enabled: 'yes', steps: [0] } }))[0]).toMatch(/boolean/);
@@ -263,11 +276,11 @@ describe('sampler presence + passthrough fields', () => {
   it('sampler fields are emitted only when the author provided sampler content', () => {
     expect(expandOk(base()).samplerBanks).toBeUndefined();
     const withBanks = expandOk(base({ sampler: [{ s1: [0] }] }));
-    expect(withBanks.samplerBanks).toHaveLength(BANK_COUNT);
+    expect(withBanks.samplerBanks).toHaveLength(MIN_BANK_COUNT);
     expect(withBanks.samplerChain).toEqual({ enabled: false, steps: [0] });
     expect(withBanks.sampleNames).toEqual(Array(SAMPLER_SLOT_COUNT).fill(null));
     const withChain = expandOk(base({ samplerChain: 'AB' }));
-    expect(withChain.samplerBanks).toHaveLength(BANK_COUNT);
+    expect(withChain.samplerBanks).toHaveLength(MIN_BANK_COUNT);
     const withNames = expandOk(base({ sampleNames: ['kick.wav'] }));
     expect(withNames.sampleNames).toEqual(['kick.wav', null, null, null, null, null, null, null]);
   });
@@ -483,6 +496,19 @@ describe('expandAuthorSong — extra motion tracks (motion-sequencer.md REQ-song
       motionTracks: [[{ param: 'a', steps: [] }, { param: 'b', steps: [] }, { param: 'c', steps: [] }]],
     }));
     expect(res.ok).toBe(false);
+  });
+
+  it('expands five motion-track banks instead of throwing past the floor', () => {
+    // `out` is pre-sized to the floor, so a fifth bank used to be an indexed
+    // write into an element that did not exist — a TypeError the user met as
+    // "This file could not be read", for input the schema advertises.
+    const track = (step: number) => [{ param: 'filter.cutoff', steps: [{ step, v: 0.5 }] }, null];
+    const file = expandOk(base({
+      motionTracks: [track(0), null, null, null, track(2)],
+    }));
+    expect(file.motionTracks).toHaveLength(5);
+    expect(file.motionTracks?.[4]?.[0]?.param).toBe('filter.cutoff');
+    expect(file.motionTracks?.[4]?.[1]).toBeNull();
   });
 });
 
@@ -712,5 +738,41 @@ describe('expandAuthorSong — seqChain transpose suffix (REQ-motion-baselines-a
     expect(res.ok).toBe(true);
     if (!res.ok) return;
     expect(res.file.seqTranspose).toEqual([0, 5]);
+  });
+});
+
+describe('the version ladder (recipes/evolve-the-song-format.md)', () => {
+  it('a simple song still expands to the same v3 file it always did', () => {
+    const file = expandOk(base({ seq: [['C4']], drums: [{ kick: [0, 4, 8, 12] }] }));
+    expect(file.version).toBe(3);
+  });
+
+  it('a grown machine is the new TOP rung, v8', () => {
+    const five = expandOk(base({ seq: [['C4'], [], [], [], ['G4']] }));
+    expect(five.seqBanks).toHaveLength(5);
+    expect(five.version).toBe(8);
+    // Any machine counts, not just the sequencer.
+    const drums = expandOk(base({ drums: [{}, {}, {}, {}, { kick: [0] }] }));
+    expect(drums.version).toBe(8);
+  });
+
+  it('a CHAIN naming a bank past the floor is v8 too, with four banks written', () => {
+    // The reference is legal and grows the machine on load, so it is v8 content
+    // with no array length to give it away (banks.md
+    // REQ-a-chain-reference-grows-the-machine). Stamped lower, an older build
+    // would refuse the file over the chain index instead of over the version.
+    const seq = expandOk(base({ seq: [['C4']], seqChain: 'A A E' }));
+    expect(seq.seqBanks).toHaveLength(4);
+    expect(seq.seqChain.steps).toEqual([0, 0, 4]);
+    expect(seq.version).toBe(8);
+    // Every lane's chain, and the int-array form as well as the letter form.
+    expect(expandOk(base({ drums: [{ kick: [0] }], drumChain: [0, 5] })).version).toBe(8);
+  });
+
+  it('does not disturb the rungs below it', () => {
+    // A four-bank song with a transpose is still v7, not v8.
+    expect(expandOk(base({ seq: [['C4']], seqChain: 'A A+5' })).version).toBe(7);
+    // A chain that stays inside the floor is not v8 either, rest sentinel included.
+    expect(expandOk(base({ seq: [['C4']], seqChain: 'A . D' })).version).toBe(3);
   });
 });

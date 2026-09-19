@@ -59,7 +59,7 @@ for the grid from one played anywhere else in the app. Left ungated it recorded 
 the user was on another tab entirely (holding chords on the Arpeggiator silently
 overwrote the bank, with the lit LED off-screen), and because `setSeqStep` writes to
 the **edit** bank while [banks](banks.md) REQ-follow-tracks-the-play-bank Follow drags that bank along with the
-arrangement, a take during playback sprayed across all four banks. REQ-5..REQ-7 make
+arrangement, a take during playback sprayed across every bank it touched. REQ-5..REQ-7 make
 the arm a deliberate, visible, bank-pinned mode instead: it exists only while its own
 grid is on screen, so "armed" and "visible" cannot disagree.
 

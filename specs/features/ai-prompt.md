@@ -193,7 +193,7 @@ prepends the intro + SONG REQUEST.
 ### Layer touchpoints & ordering
 
 - `src/state/authoring-guide.ts` — the prompt/guide text. Imports
-  `DRUM_TRACK_LABELS` (state/params) and `SEQ_LENGTH`/`BANK_COUNT`/`BANK_LABELS`/
+  `DRUM_TRACK_LABELS` (state/params) and `SEQ_LENGTH`/`MIN_BANK_COUNT`/`MAX_BANK_COUNT`/`BANK_LABELS`/
   `DRUM_TRACK_COUNT`/`SAMPLER_SLOT_COUNT` (state/patterns). It must **never**
   import `song.ts` (whose `import.meta.glob` demo registration would poison the
   MCP server's Node bundle — same constraint as `song-author.ts`).

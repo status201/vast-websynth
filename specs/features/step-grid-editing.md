@@ -242,6 +242,11 @@ step-1 artefact). "Trigger grids" = seq / drum / sampler.
 | `Clear ▾` → bank | clear the edit bank | clear the edit bank | — |
 | `Clear ▾` → row | clear the selected row | clear a named lane (XY/A/B) | — |
 
+`Clear ▾` → bank is also the way a bank becomes *removable*: the bank bar's `−`
+arm refuses while the highest bank still holds steps ([banks](banks.md)
+REQ-a-bank-is-removed-only-when-unused), and its tooltip says so. The two share
+one predicate rather than each deciding what "empty" means.
+
 Every gesture has exactly one outcome, independent of hidden state — there is no
 mode anywhere in this table. On the **trigger** grids it is still **full**: every
 gesture a cell can receive is spoken for, which is why the position ruler

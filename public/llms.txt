@@ -40,16 +40,20 @@ Two JSON formats are accepted on import:
   structure is a chain string like "AABA". Input-only: the app expands it to
   the canonical format on import.
   Schema: /schema/websynth-song-author.schema.json
-- `websynth-song` (v7) — the canonical full format the app exports. Requires
-  literal grids: seqBanks[4][16], drumBanks[4][8][16], optional
-  samplerBanks[4][8][16] and motionBanks[4][16] (XY param automation).
-  Older versions still load: every addition is optional. v7 adds seqTranspose
-  (a semitone offset per seqChain slot), v6 seqTracks (note-sequencer tracks
-  2-4) and v5 motionTracks (motion's two extra single-parameter tracks).
+- `websynth-song` (v8) — the canonical full format the app exports. Requires
+  literal grids: seqBanks[4..8][16], drumBanks[4..8][8][16], optional
+  samplerBanks[4..8][8][16] and motionBanks[4..8][16] (XY param automation).
+  Older versions still load: every addition is optional. v8 raises the per-machine
+  bank count from exactly 4 to 4..8 (the array length IS that machine's count),
+  v7 adds seqTranspose (a semitone offset per seqChain slot), v6 seqTracks
+  (note-sequencer tracks 2-4) and v5 motionTracks (motion's two extra
+  single-parameter tracks).
   Schema: /schema/websynth-song.schema.json
 
-Dimensions: 4 banks (A/B/C/D) per machine; 16 sixteenth-note step CELLS per
-bank (always exactly 16, whatever the meter — see below);
+Dimensions: 4 to 8 banks (A-H) per machine, counted INDEPENDENTLY per machine
+(a file's bank-array length is that machine's count; v1-v7 files are always
+exactly 4); 16 sixteenth-note step CELLS per bank (always exactly 16, whatever
+the meter — see below);
 4 note-sequencer tracks per bank (track 1 in seqBanks, tracks 2-4 in the
 optional seqTracks[bank][track], which is indexed by the real track number so
 index 0 is always null); 8 drum tracks (0=Kick 1=Snare 2=C.Hat 3=O.Hat 4=L.Tom
@@ -122,13 +126,13 @@ server above (`get_params` for the JSON catalogue, `get_song_format` /
 
 | Format | Version | Schema | Written by |
 | --- | --- | --- | --- |
-| `websynth-song` | 7 | /schema/websynth-song.schema.json | the app (export) |
+| `websynth-song` | 8 | /schema/websynth-song.schema.json | the app (export) |
 | `websynth-song-author` | 1 | /schema/websynth-song-author.schema.json | agents (input only) |
 | `websynth-preset` | 1 | /schema/websynth-preset.schema.json | the app + agents |
 | `websynth-preset-bank` | 1 | /schema/websynth-preset-bank.schema.json | the app + agents |
 
 Song versioning is ADDITIVE: every bump only adds optional fields, so all
-versions 1..7 still load and there is no migration step. Each version added:
+versions 1..8 still load and there is no migration step. Each version added:
 
 - v2 — the sampler fields
 - v3 — the XY Pad axis assignment
@@ -136,10 +140,11 @@ versions 1..7 still load and there is no migration step. Each version added:
 - v5 — `motionTracks` (motion's two extra single-parameter tracks)
 - v6 — `seqTracks` (note-sequencer tracks 2-4)
 - v7 — `seqTranspose` (a semitone offset per `seqChain` slot)
+- v8 — 4..8 banks per machine (no new field: an existing dimension widened)
 
-So a v1 file lacks all of the above; a v6 file lacks only `seqTranspose`. Versions
+So a v1 file lacks all of the above; a v7 file lacks only the extra banks. Versions
 beyond those a build knows are rejected. The authoring dialect expands to the
-LOWEST canonical version that holds its content, not always 7.
+LOWEST canonical version that holds its content, not always 8.
 
 ## For developers
 

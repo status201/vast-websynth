@@ -195,7 +195,7 @@ const RULER_HELP: HelpTopic = {
     'and Play again and you return to it. After a <strong>Pause</strong> on the Song tab, the ' +
     'outline marks where Play will carry on.</p>' +
     '<p>The readout on the left says where you are. With no chains switched on, your song is ' +
-    'one bank looping, so it names that bank — <strong>BANK A</strong> — matching the A/B/C/D ' +
+    'one bank looping, so it names that bank — <strong>BANK A</strong> — matching the lettered ' +
     'buttons. Switch on a <strong>Chain</strong> and it becomes <strong>BAR 3/4</strong> with ' +
     g('chevronLeft', 'Previous bar') + ' ' + g('chevronRight', 'Next bar') +
     ' arrows that step a bar at a time, keeping the same ' +
@@ -836,7 +836,8 @@ export const HELP_TOPICS: Record<TopicId, HelpTopic> = {
       'rewritten. An empty track folds away to its header until you open it, and each has its own ' +
       '<strong>mute</strong>.</p>' +
       GRID_GESTURES +
-      '<p>It has four banks (<strong>A–D</strong>) you can fill with different riffs and chain ' +
+      '<p>It starts with four banks (<strong>A–D</strong>) — tap <strong>+</strong> on the bank bar for up to eight — '
+      + 'which you fill with different riffs and chain ' +
       'together in Song mode. Switch the sequencer on with its <strong>on</strong> toggle.</p>',
   },
   'seq.prob': {
@@ -905,8 +906,9 @@ export const HELP_TOPICS: Record<TopicId, HelpTopic> = {
       'cells to place hits; each track has a <strong>mute</strong> and you can audition a sound ' +
       'by clicking its name. Runs while the transport plays.</p>' +
       GRID_GESTURES +
-      '<p><strong>MASTER</strong> sets the kit volume, and there are dedicated drum effects. Four ' +
-      'banks (<strong>A–D</strong>) chain together in Song mode.</p>',
+      '<p><strong>MASTER</strong> sets the kit volume, and there are dedicated drum effects. It ' +
+      'starts with four banks (<strong>A–D</strong>) — tap <strong>+</strong> on the bank bar for ' +
+      'up to eight — which chain together in Song mode.</p>',
   },
   sampler: {
     title: 'Sampler',

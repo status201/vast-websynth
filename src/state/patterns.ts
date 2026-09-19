@@ -6,11 +6,13 @@ import { GRID_CELLS } from './meter';
  * Non-scalar state — step grids for the sequencer and drum machine.
  * Lives outside ParamBus because the shapes are arrays of objects.
  *
- * The sequencer and the drum machine each have BANK_COUNT independent
- * "banks" (A/B/C/D). The UI edits one bank per machine (the *edit* bank);
- * the transport plays whichever bank the Arrangement selects (which may
- * differ when a chain lane is running). Subscribers are notified on any
- * mutation and whenever the edit bank changes (every step re-emitted).
+ * Each machine holds its own independent "banks" (A..H) — 4 by default and up
+ * to MAX_BANK_COUNT, counted per machine, where the count IS the length of that
+ * machine's array (banks.md REQ-a-machine-owns-its-bank-count, ADR-022). The UI
+ * edits one bank per machine (the *edit* bank); the transport plays whichever
+ * bank the Arrangement selects (which may differ when a chain lane is running).
+ * Subscribers are notified on any mutation, whenever the edit bank changes
+ * (every step re-emitted) and whenever a count changes.
  */
 /** Per-step settings shared by all three machines (seq / drum / sampler). */
 export interface StepSettings {
@@ -136,8 +138,30 @@ export const DRUM_TRACK_COUNT = DRUM_TRACKS.length;
 export const SAMPLER_SLOT_COUNT = 8;
 export const SAMPLER_SLOT_LABELS = ['S1', 'S2', 'S3', 'S4', 'S5', 'S6', 'S7', 'S8'];
 
-export const BANK_COUNT = 4;
-export const BANK_LABELS = ['A', 'B', 'C', 'D'];
+/**
+ * Bank counts (banks.md REQ-a-machine-owns-its-bank-count, ADR-022).
+ *
+ * A machine always has at least MIN_BANK_COUNT banks and never more than
+ * MAX_BANK_COUNT; the count *is* the length of that machine's bank array, so
+ * there is no separate field to keep honest. Raising the ceiling is this one
+ * line — everything below derives from it, and the literals that cannot
+ * (the two published JSON schemas, llms.txt) are pinned to it by
+ * `tests/state/authoring-docs.test.ts`.
+ */
+export const MIN_BANK_COUNT = 4;
+export const MAX_BANK_COUNT = 8;
+
+/**
+ * One label per POSSIBLE bank, derived rather than written out: a hand-kept list
+ * beside a hand-kept count is two things that can disagree, and they did — this
+ * pair was `4` and `['A','B','C','D']` with nothing asserting they matched.
+ * Surfaces slice it by the machine's own count.
+ */
+export const BANK_LABELS: readonly string[] =
+  Array.from({ length: MAX_BANK_COUNT }, (_, i) => String.fromCharCode(65 + i));
+
+/** The four pattern machines. `Arrangement`'s `LaneName` aliases this. */
+export type Machine = 'seq' | 'drum' | 'sampler' | 'motion';
 
 /**
  * Sentinel for an arrangement-chain "rest" slot: an always-empty bar. It lives
@@ -186,17 +210,74 @@ export interface PatternSnapshot {
   motionTracks?: (MotionTrack | null)[][];
 }
 
-function clampBank(i: number): number {
-  return Math.max(0, Math.min(BANK_COUNT - 1, Math.round(i)));
+/** Clamp into `0..count-1`. `count` is the owning machine's, never a constant. */
+function clampBankIn(i: number, count: number): number {
+  return Math.max(0, Math.min(count - 1, Math.round(i)));
 }
 
 /**
  * Clamp an arrangement-chain step: the `REST` sentinel passes through untouched,
  * any other value is clamped to a real bank index. Used when ingesting chains
  * (arrangement setters, song import) so a rest survives while bad indices don't.
+ *
+ * `bankCount` is **required on purpose** (ADR-022). Defaulting it to
+ * `MIN_BANK_COUNT` would let a lane-blind caller keep compiling and silently
+ * squash a grown machine back to four — and `steps.map(clampChainStep)` would
+ * quietly pass the array index as the count, which is wrong in a way that looks
+ * plausible. Make every caller name the machine it means.
  */
-export function clampChainStep(i: number): number {
-  return i === REST ? REST : clampBank(i);
+export function clampChainStep(i: number, bankCount: number): number {
+  return i === REST ? REST : clampBankIn(i, bankCount);
+}
+
+/** Clamp a bank count itself into the legal range; absent/garbage ⇒ the floor. */
+export function clampBankCount(n: number | undefined): number {
+  if (typeof n !== 'number' || !Number.isFinite(n)) return MIN_BANK_COUNT;
+  return Math.max(MIN_BANK_COUNT, Math.min(MAX_BANK_COUNT, Math.floor(n)));
+}
+
+/** Per-machine bank counts, as `Song.apply` computes them and `restore` takes them. */
+export type BankCounts = Partial<Record<Machine, number>>;
+
+/**
+ * How long a machine's arrays should be after a restore.
+ *
+ * A section the snapshot omits leaves the machine's current length alone — that
+ * is what keeps the sampler's documented inherit-across-a-load behaviour
+ * (song-mode.md REQ-apply-resets-to-defaults-first) and what lets a v1 file's
+ * `samplerChain` stay legal with no `samplerBanks` at all. `want` may still
+ * RAISE an inherited length (a chain that names a bank past it) but never lower
+ * it: the inherit is of the whole machine, count included, so a v1 file cannot
+ * quietly destroy banks E..H of the kit it is deliberately keeping. A section that
+ * IS present is authoritative — the longer of what arrived and what the caller
+ * asked for, floored and capped.
+ */
+function sectionCount(
+  section: { length: number } | undefined,
+  want: number | undefined,
+  current: number,
+): number {
+  return clampBankCount(Math.max(section?.length ?? current, want ?? MIN_BANK_COUNT));
+}
+
+/** The longest of several optional parallel sections, or undefined if all absent. */
+function longest(...sections: ({ length: number } | undefined)[]): { length: number } | undefined {
+  let best: { length: number } | undefined;
+  for (const s of sections) if (s && (!best || s.length > best.length)) best = s;
+  return best;
+}
+
+function sameCounts(a: readonly number[], b: readonly number[]): boolean {
+  return a.length === b.length && a.every((n, i) => n === b[i]);
+}
+
+/** The highest bank index a chain names, or -1 for an empty/rest-only chain. */
+export function highestChainBank(steps: readonly number[] | undefined): number {
+  let hi = -1;
+  for (const s of steps ?? []) {
+    if (typeof s === 'number' && Number.isFinite(s) && s > hi) hi = Math.floor(s);
+  }
+  return hi;
 }
 
 /**
@@ -253,21 +334,22 @@ export function makeMotionBank(): MotionStep[] {
  * what `PatternStore` boots with. Shares the per-machine builders above so a
  * blank bank can never drift between the two.
  */
-export function emptyPatternBanks(): {
+export function emptyPatternBanks(count: number = MIN_BANK_COUNT): {
   seqBanks: SeqStep[][][];
   drumBanks: DrumCell[][][];
   samplerBanks: SamplerStep[][][];
   motionBanks: MotionStep[][];
   motionTracks: MotionTrack[][];
 } {
+  const n = clampBankCount(count);
   return {
-    seqBanks: Array.from({ length: BANK_COUNT }, makeSeqBank),
-    drumBanks: Array.from({ length: BANK_COUNT }, makeDrumBank),
-    samplerBanks: Array.from({ length: BANK_COUNT }, makeSamplerBank),
-    motionBanks: Array.from({ length: BANK_COUNT }, makeMotionBank),
+    seqBanks: Array.from({ length: n }, makeSeqBank),
+    drumBanks: Array.from({ length: n }, makeDrumBank),
+    samplerBanks: Array.from({ length: n }, makeSamplerBank),
+    motionBanks: Array.from({ length: n }, makeMotionBank),
     // Blank AND unassigned: a New Song that inherited the previous song's track
     // parameters would silently keep automating them.
-    motionTracks: Array.from({ length: BANK_COUNT }, makeMotionTracks),
+    motionTracks: Array.from({ length: n }, makeMotionTracks),
   };
 }
 
@@ -279,7 +361,7 @@ export function emptyPatternBanks(): {
  * authoritative clear can't drift between them (song-mode.md REQ-apply-resets-to-defaults-first). Extends
  * `emptyPatternBanks()` with the two per-slot/per-bank sections it omits.
  */
-export function emptyPatternSnapshot(): {
+export function emptyPatternSnapshot(count: number = MIN_BANK_COUNT): {
   seqBanks: SeqStep[][][];
   drumBanks: DrumCell[][][];
   samplerBanks: SamplerStep[][][];
@@ -288,10 +370,11 @@ export function emptyPatternSnapshot(): {
   motionAssigns: (MotionAssign | null)[];
   motionTracks: MotionTrack[][];
 } {
+  const n = clampBankCount(count);
   return {
-    ...emptyPatternBanks(),
+    ...emptyPatternBanks(n),
     sampleNames: Array(SAMPLER_SLOT_COUNT).fill(null),
-    motionAssigns: Array(BANK_COUNT).fill(null),
+    motionAssigns: Array(n).fill(null),
   };
 }
 
@@ -329,16 +412,18 @@ export class PatternStore {
   private readonly motionTrackListeners = new Set<(track: number, index: number) => void>();
   private readonly sampleMetaListeners = new Set<(slot: number, name: string | null) => void>();
   private readonly editBankListeners = new Set<() => void>();
+  private readonly bankCountListeners = new Set<() => void>();
+  private readonly bankDropListeners = new Set<(m: Machine, bank: number) => void>();
   private readonly mutateListeners = new Set<(m: PatternMutation) => void>();
   private readonly bulkRestoreListeners = new Set<() => void>();
 
   constructor() {
-    this.seqBanks = Array.from({ length: BANK_COUNT }, makeSeqBank);
-    this.drumBanks = Array.from({ length: BANK_COUNT }, makeDrumBank);
-    this.samplerBanks = Array.from({ length: BANK_COUNT }, makeSamplerBank);
-    this.motionBanks = Array.from({ length: BANK_COUNT }, makeMotionBank);
-    this.motionAssigns = Array(BANK_COUNT).fill(null);
-    this.motionTrackBanks = Array.from({ length: BANK_COUNT }, makeMotionTracks);
+    this.seqBanks = Array.from({ length: MIN_BANK_COUNT }, makeSeqBank);
+    this.drumBanks = Array.from({ length: MIN_BANK_COUNT }, makeDrumBank);
+    this.samplerBanks = Array.from({ length: MIN_BANK_COUNT }, makeSamplerBank);
+    this.motionBanks = Array.from({ length: MIN_BANK_COUNT }, makeMotionBank);
+    this.motionAssigns = Array(MIN_BANK_COUNT).fill(null);
+    this.motionTrackBanks = Array.from({ length: MIN_BANK_COUNT }, makeMotionTracks);
 
     // Seed a friendly default groove into drum bank A only
     // (basic 4-on-the-floor + offbeat hats + snare on 5/13).
@@ -363,21 +448,197 @@ export class PatternStore {
   get sampler(): SamplerStep[][] { return this.samplerBanks[this._samplerEdit]!; }
   get motion(): MotionStep[] { return this.motionBanks[this._motionEdit]!; }
 
+  // ---- Bank count, per machine (REQ-a-machine-owns-its-bank-count) ----
+
+  get seqBankCount(): number { return this.seqBanks.length; }
+  get drumBankCount(): number { return this.drumBanks.length; }
+  get samplerBankCount(): number { return this.samplerBanks.length; }
+  get motionBankCount(): number { return this.motionBanks.length; }
+
+  /**
+   * How many banks a machine has right now. The lane-keyed primitive the rest of
+   * the count API is written against — `addBank` has to touch every parallel
+   * array a machine owns, and four hand-written copies of that is how six
+   * parallel arrays drift apart.
+   */
+  bankCount(m: Machine): number {
+    switch (m) {
+      case 'seq': return this.seqBanks.length;
+      case 'drum': return this.drumBanks.length;
+      case 'sampler': return this.samplerBanks.length;
+      case 'motion': return this.motionBanks.length;
+    }
+  }
+
+  canAddBank(m: Machine): boolean { return this.bankCount(m) < MAX_BANK_COUNT; }
+
+  /** The four counts, for cheap before/after comparison across a restore. */
+  private countsSnapshot(): [number, number, number, number] {
+    return [this.seqBanks.length, this.drumBanks.length,
+      this.samplerBanks.length, this.motionBanks.length];
+  }
+
+  private emitBankCount(): void {
+    for (const l of this.bankCountListeners) l();
+  }
+
+  /** Re-clamp every edit cursor into its machine's current count. */
+  private clampEditBanks(): void {
+    this._seqEdit = clampBankIn(this._seqEdit, this.seqBanks.length);
+    this._drumEdit = clampBankIn(this._drumEdit, this.drumBanks.length);
+    this._samplerEdit = clampBankIn(this._samplerEdit, this.samplerBanks.length);
+    this._motionEdit = clampBankIn(this._motionEdit, this.motionBanks.length);
+  }
+
+  /**
+   * Grow or shrink a machine to exactly `n` banks, minting new banks from the
+   * same builders a blank store boots with — never by retaining an old object,
+   * which is what would let one song's banks survive into the next.
+   */
+  private resizeMachine(m: Machine, n: number): void {
+    const grow = <T>(arr: T[], make: () => T): void => {
+      while (arr.length < n) arr.push(make());
+      if (arr.length > n) arr.length = n;
+    };
+    switch (m) {
+      case 'seq': grow(this.seqBanks, makeSeqBank); break;
+      case 'drum': grow(this.drumBanks, makeDrumBank); break;
+      case 'sampler': grow(this.samplerBanks, makeSamplerBank); break;
+      case 'motion':
+        grow(this.motionBanks, makeMotionBank);
+        grow(this.motionAssigns, () => null);
+        grow(this.motionTrackBanks, makeMotionTracks);
+        break;
+    }
+  }
+
+  /**
+   * Append one blank bank. Motion grows **three** arrays as one step — its
+   * anchors, its per-bank axis override and its extra tracks — because a
+   * half-resized motion machine is a crash one `motionTrackBanks[b]!` away.
+   *
+   * Deliberately emits no `PatternMutation`: minting a blank bank destroys
+   * nothing, so there is nothing for undo to restore (REQ-a-bank-is-added-on-demand).
+   */
+  addBank(m: Machine): boolean {
+    if (!this.canAddBank(m)) return false;
+    switch (m) {
+      case 'seq': this.seqBanks.push(makeSeqBank()); break;
+      case 'drum': this.drumBanks.push(makeDrumBank()); break;
+      case 'sampler': this.samplerBanks.push(makeSamplerBank()); break;
+      case 'motion':
+        this.motionBanks.push(makeMotionBank());
+        this.motionAssigns.push(null);
+        this.motionTrackBanks.push(makeMotionTracks());
+        break;
+    }
+    this.emitBankCount();
+    return true;
+  }
+
+  /**
+   * Whether the machine's **highest** bank could be dropped: it must not be the
+   * last of the mandatory floor, and it must be empty. The caller adds the third
+   * condition — that no chain lane names it — because the chains live in
+   * `Arrangement`, which owns this store rather than the other way round
+   * (REQ-a-bank-is-removed-only-when-unused).
+   */
+  canRemoveBank(m: Machine): boolean {
+    const n = this.bankCount(m);
+    return n > MIN_BANK_COUNT && !this.bankHasContent(m, n - 1);
+  }
+
+  /** Does bank `i` of `m` hold anything? False for an index past the count. */
+  bankHasContent(m: Machine, i: number): boolean {
+    switch (m) {
+      case 'seq':
+        return (this.seqBanks[i] ?? []).some((track) => track.some((s) => s.on));
+      case 'drum':
+        return (this.drumBanks[i] ?? []).some((row) => row.some((c) => c.on));
+      case 'sampler':
+        return (this.samplerBanks[i] ?? []).some((row) => row.some((c) => c.on));
+      case 'motion':
+        return (this.motionBanks[i] ?? []).some((s) => s.on)
+          || (this.motionTrackBanks[i] ?? []).some((t) => t.steps.some((s) => s.on));
+    }
+  }
+
+  /**
+   * Drop the machine's **highest** bank. Never any other one: every bank index
+   * in the app — chain slots, undo entries, the edit cursors — is a bare
+   * integer, so removing from the middle would renumber the banks above it and
+   * silently rewrite every reference (ADR-022).
+   *
+   * An emptied bank can still be named by undo history (a clear is itself
+   * undoable), so the stale entries are pruned here rather than left to restore
+   * into a bank that no longer exists.
+   */
+  removeBank(m: Machine): boolean {
+    if (!this.canRemoveBank(m)) return false;
+    const gone = this.bankCount(m) - 1;
+    // Was the user looking at the bank about to go? Then the cursor is about to
+    // move, and a moved cursor owes the panel a re-emit — exactly what
+    // setSeqEditBank does. `editBankListeners` alone repaints the BankBar's dots,
+    // not the grid, so without this the step grid keeps painting the bank that no
+    // longer exists (banks.md REQ-a-bank-is-removed-only-when-unused).
+    const wasEditing = this.editBank(m) === gone;
+    switch (m) {
+      case 'seq': this.seqBanks.length = gone; break;
+      case 'drum': this.drumBanks.length = gone; break;
+      case 'sampler': this.samplerBanks.length = gone; break;
+      case 'motion':
+        this.motionBanks.length = gone;
+        this.motionAssigns.length = gone;
+        this.motionTrackBanks.length = gone;
+        break;
+    }
+    this.clampEditBanks();
+    if (wasEditing) this.emitBank(m);
+    for (const l of this.bankDropListeners) l(m, gone);
+    this.emitBankCount();
+    for (const l of this.editBankListeners) l();
+    return true;
+  }
+
+  /** That machine's edit cursor, lane-keyed like `bankCount`. */
+  private editBank(m: Machine): number {
+    switch (m) {
+      case 'seq': return this._seqEdit;
+      case 'drum': return this._drumEdit;
+      case 'sampler': return this._samplerEdit;
+      case 'motion': return this._motionEdit;
+    }
+  }
+
+  /**
+   * Re-emit one machine's edit bank, every step of it. Motion emits its extra
+   * tracks too — the same pair `setMotionEditBank` sends, because a motion panel
+   * paints three lanes and one signal only repaints one of them.
+   */
+  private emitBank(m: Machine): void {
+    switch (m) {
+      case 'seq': this.emitBankSeq(); break;
+      case 'drum': this.emitBankDrum(); break;
+      case 'sampler': this.emitBankSampler(); break;
+      case 'motion': this.emitBankMotion(); this.emitAllMotionTracks(); break;
+    }
+  }
+
   /** Direct bank access (used by the transport for the *playing* bank). */
-  seqBank(i: number): SeqStep[][] { return this.seqBanks[clampBank(i)]!; }
-  drumBank(i: number): DrumCell[][] { return this.drumBanks[clampBank(i)]!; }
-  samplerBank(i: number): SamplerStep[][] { return this.samplerBanks[clampBank(i)]!; }
-  motionBank(i: number): MotionStep[] { return this.motionBanks[clampBank(i)]!; }
-  motionAssign(i: number): MotionAssign | null { return this.motionAssigns[clampBank(i)] ?? null; }
+  seqBank(i: number): SeqStep[][] { return this.seqBanks[clampBankIn(i, this.seqBanks.length)]!; }
+  drumBank(i: number): DrumCell[][] { return this.drumBanks[clampBankIn(i, this.drumBanks.length)]!; }
+  samplerBank(i: number): SamplerStep[][] { return this.samplerBanks[clampBankIn(i, this.samplerBanks.length)]!; }
+  motionBank(i: number): MotionStep[] { return this.motionBanks[clampBankIn(i, this.motionBanks.length)]!; }
+  motionAssign(i: number): MotionAssign | null { return this.motionAssigns[clampBankIn(i, this.motionBanks.length)] ?? null; }
   /** A bank's extra tracks (the transport reads the *play* bank's). */
-  motionTracks(i: number): MotionTrack[] { return this.motionTrackBanks[clampBank(i)]!; }
+  motionTracks(i: number): MotionTrack[] { return this.motionTrackBanks[clampBankIn(i, this.motionBanks.length)]!; }
   /** One extra track of the *edit* bank (what the panel edits). */
   motionTrack(track: number): MotionTrack | undefined {
     return this.motionTrackBanks[this._motionEdit]?.[track];
   }
 
   setSeqEditBank(i: number): void {
-    const n = clampBank(i);
+    const n = clampBankIn(i, this.seqBanks.length);
     if (n === this._seqEdit) return;
     this._seqEdit = n;
     this.emitBankSeq();
@@ -385,7 +646,7 @@ export class PatternStore {
   }
 
   setDrumEditBank(i: number): void {
-    const n = clampBank(i);
+    const n = clampBankIn(i, this.drumBanks.length);
     if (n === this._drumEdit) return;
     this._drumEdit = n;
     this.emitBankDrum();
@@ -393,7 +654,7 @@ export class PatternStore {
   }
 
   setSamplerEditBank(i: number): void {
-    const n = clampBank(i);
+    const n = clampBankIn(i, this.samplerBanks.length);
     if (n === this._samplerEdit) return;
     this._samplerEdit = n;
     this.emitBankSampler();
@@ -401,7 +662,7 @@ export class PatternStore {
   }
 
   setMotionEditBank(i: number): void {
-    const n = clampBank(i);
+    const n = clampBankIn(i, this.motionBanks.length);
     if (n === this._motionEdit) return;
     this._motionEdit = n;
     this.emitBankMotion();
@@ -720,7 +981,8 @@ export class PatternStore {
   }
 
   copySeqBank(from: number, to: number): void {
-    const a = clampBank(from), b = clampBank(to);
+    const n = this.seqBanks.length;
+    const a = clampBankIn(from, n), b = clampBankIn(to, n);
     if (a === b) return;
     const src = assertIndex(this.seqBanks, a, 'seqBanks');
     const dst = assertIndex(this.seqBanks, b, 'seqBanks');
@@ -734,7 +996,8 @@ export class PatternStore {
   }
 
   copyDrumBank(from: number, to: number): void {
-    const a = clampBank(from), b = clampBank(to);
+    const n = this.drumBanks.length;
+    const a = clampBankIn(from, n), b = clampBankIn(to, n);
     if (a === b) return;
     const src = assertIndex(this.drumBanks, a, 'drumBanks');
     const dst = assertIndex(this.drumBanks, b, 'drumBanks');
@@ -748,7 +1011,8 @@ export class PatternStore {
   }
 
   copySamplerBank(from: number, to: number): void {
-    const a = clampBank(from), b = clampBank(to);
+    const n = this.samplerBanks.length;
+    const a = clampBankIn(from, n), b = clampBankIn(to, n);
     if (a === b) return;
     const src = assertIndex(this.samplerBanks, a, 'samplerBanks');
     const dst = assertIndex(this.samplerBanks, b, 'samplerBanks');
@@ -762,7 +1026,8 @@ export class PatternStore {
   }
 
   copyMotionBank(from: number, to: number): void {
-    const a = clampBank(from), b = clampBank(to);
+    const n = this.motionBanks.length;
+    const a = clampBankIn(from, n), b = clampBankIn(to, n);
     if (a === b) return;
     const src = assertIndex(this.motionBanks, a, 'motionBanks');
     const dst = assertIndex(this.motionBanks, b, 'motionBanks');
@@ -804,6 +1069,28 @@ export class PatternStore {
   onSampleMetaChange(fn: (slot: number, name: string | null) => void): () => void {
     this.sampleMetaListeners.add(fn);
     return () => { this.sampleMetaListeners.delete(fn); };
+  }
+
+  /**
+   * Fires when any machine's bank count changes — an add, a remove, or a song
+   * load that resized one. Deliberately **separate** from `onEditBankChange`:
+   * the `BankBar` rebuilds its letter row on this, and the edit-bank signal
+   * fires on every bank click, which would tear the row down mid-gesture and
+   * take the copy-armed state with it (banks.md REQ-a-machine-owns-its-bank-count).
+   */
+  onBankCountChange(fn: () => void): () => void {
+    this.bankCountListeners.add(fn);
+    return () => { this.bankCountListeners.delete(fn); };
+  }
+
+  /**
+   * Fires with the machine and index of a bank that has just been removed, so
+   * the undo layer can drop entries naming it (REQ-a-bank-is-removed-only-when-unused).
+   * A removed bank is always the highest one, so no surviving index shifts.
+   */
+  onBankDrop(fn: (m: Machine, bank: number) => void): () => void {
+    this.bankDropListeners.add(fn);
+    return () => { this.bankDropListeners.delete(fn); };
   }
 
   onEditBankChange(fn: () => void): () => void {
@@ -910,19 +1197,47 @@ export class PatternStore {
     };
   }
 
-  restore(snap: Partial<PatternSnapshot>): void {
+  /**
+   * Overwrite the whole store from a snapshot.
+   *
+   * `counts` lets the caller size a machine **above** what its incoming array
+   * carries — `Song.apply` uses it so a chain naming a bank the file omits grows
+   * the machine instead of clamping (REQ-a-chain-reference-grows-the-machine).
+   * It can only raise the floor, never truncate below the incoming data.
+   *
+   * Every section is applied **authoritatively**: a bank, row or cell the
+   * snapshot omits comes back blank rather than lingering from the previous song
+   * (REQ-an-omitted-bank-restores-blank). With a fixed bank count that was merely
+   * latent; once lengths vary, loading a four-bank song after an eight-bank one
+   * would otherwise leave E..H holding the last song's patterns.
+   */
+  restore(snap: Partial<PatternSnapshot>, counts?: BankCounts): void {
     // A whole-store overwrite: undo stacks must drop their (now stale) history
     // before the new state lands (pattern-undo.md REQ-restore-fires-a-bulk-hook).
     for (const l of this.bulkRestoreListeners) l();
+
+    // Size every machine BEFORE filling it, so the fill loops can run over the
+    // destination and stay authoritative.
+    const before = this.countsSnapshot();
+    this.resizeMachine('seq', sectionCount(snap.seqBanks, counts?.seq, this.seqBanks.length));
+    this.resizeMachine('drum', sectionCount(snap.drumBanks, counts?.drum, this.drumBanks.length));
+    this.resizeMachine('sampler',
+      sectionCount(snap.samplerBanks, counts?.sampler, this.samplerBanks.length));
+    // Motion's three parallel arrays are sized as ONE step from the longest of
+    // them: `restore` is public and takes a Partial, so motionTracks can arrive
+    // without motionBanks, and independent resizes would desync them.
+    this.resizeMachine('motion', sectionCount(
+      longest(snap.motionBanks, snap.motionTracks, snap.motionAssigns),
+      counts?.motion, this.motionBanks.length));
+
     // Legacy files may lack the newer per-step fields — spread defaults first
     // so a load resets anything the incoming cell doesn't carry.
     if (snap.seqBanks) {
-      for (let b = 0; b < BANK_COUNT; b++) {
+      for (let b = 0; b < this.seqBanks.length; b++) {
         const incoming = snap.seqBanks[b];
-        if (!incoming) continue;
         const bank = assertIndex(this.seqBanks, b, 'seqBanks');
         for (let t = 0; t < bank.length; t++) {
-          const row = incoming[t];
+          const row = incoming?.[t];
           const rowDst = assertIndex(bank, t, 'seqTracks');
           for (let i = 0; i < rowDst.length; i++) {
             const step = row?.[i];
@@ -936,50 +1251,44 @@ export class PatternStore {
       }
     }
     if (snap.drumBanks) {
-      for (let b = 0; b < BANK_COUNT; b++) {
+      for (let b = 0; b < this.drumBanks.length; b++) {
         const incoming = snap.drumBanks[b];
-        if (!incoming) continue;
         const bank = assertIndex(this.drumBanks, b, 'drumBanks');
         for (let t = 0; t < bank.length; t++) {
-          const row = incoming[t];
-          if (!row) continue;
+          const row = incoming?.[t];
           const rowDst = assertIndex(bank, t, 'drumTracks');
           for (let s = 0; s < rowDst.length; s++) {
-            const cell = row[s];
-            if (cell) Object.assign(assertIndex(rowDst, s, 'drumCells'), TRIGGER_CELL_DEFAULTS, cell);
+            // `?? {}` rather than `if (cell)`: an omitted row or cell must reset
+            // to the defaults, not keep the previous song's hit.
+            Object.assign(assertIndex(rowDst, s, 'drumCells'), TRIGGER_CELL_DEFAULTS, row?.[s] ?? {});
           }
         }
       }
     }
     if (snap.samplerBanks) {
-      for (let b = 0; b < BANK_COUNT; b++) {
+      for (let b = 0; b < this.samplerBanks.length; b++) {
         const incoming = snap.samplerBanks[b];
-        if (!incoming) continue;
         const bank = assertIndex(this.samplerBanks, b, 'samplerBanks');
         for (let t = 0; t < bank.length; t++) {
-          const row = incoming[t];
-          if (!row) continue;
+          const row = incoming?.[t];
           const rowDst = assertIndex(bank, t, 'samplerTracks');
           for (let s = 0; s < rowDst.length; s++) {
-            const cell = row[s];
-            if (cell) Object.assign(assertIndex(rowDst, s, 'samplerCells'), TRIGGER_CELL_DEFAULTS, cell);
+            Object.assign(assertIndex(rowDst, s, 'samplerCells'), TRIGGER_CELL_DEFAULTS, row?.[s] ?? {});
           }
         }
       }
     }
     if (snap.motionBanks) {
-      for (let b = 0; b < BANK_COUNT; b++) {
+      for (let b = 0; b < this.motionBanks.length; b++) {
         const incoming = snap.motionBanks[b];
-        if (!incoming) continue;
         const bank = assertIndex(this.motionBanks, b, 'motionBanks');
         for (let i = 0; i < bank.length; i++) {
-          const step = incoming[i];
-          if (step) Object.assign(assertIndex(bank, i, 'motionSteps'), MOTION_STEP_DEFAULTS, step);
+          Object.assign(assertIndex(bank, i, 'motionSteps'), MOTION_STEP_DEFAULTS, incoming?.[i] ?? {});
         }
       }
     }
     if (snap.motionTracks) {
-      for (let b = 0; b < BANK_COUNT; b++) {
+      for (let b = 0; b < this.motionTrackBanks.length; b++) {
         const incoming = snap.motionTracks[b];
         const dst = assertIndex(this.motionTrackBanks, b, 'motionTrackBanks');
         for (let t = 0; t < MOTION_TRACK_COUNT; t++) {
@@ -999,7 +1308,7 @@ export class PatternStore {
       }
     }
     if (snap.motionAssigns) {
-      for (let b = 0; b < BANK_COUNT; b++) {
+      for (let b = 0; b < this.motionAssigns.length; b++) {
         const a = snap.motionAssigns[b];
         this.motionAssigns[b] = a && (a.x || a.y) ? { ...a } : null;
       }
@@ -1009,10 +1318,16 @@ export class PatternStore {
         this.sampleNames[i] = snap.sampleNames[i] ?? null;
       }
     }
-    if (typeof snap.seqEditBank === 'number') this._seqEdit = clampBank(snap.seqEditBank);
-    if (typeof snap.drumEditBank === 'number') this._drumEdit = clampBank(snap.drumEditBank);
-    if (typeof snap.samplerEditBank === 'number') this._samplerEdit = clampBank(snap.samplerEditBank);
-    if (typeof snap.motionEditBank === 'number') this._motionEdit = clampBank(snap.motionEditBank);
+    // Unconditional, and AFTER the resize. The conditional form this replaces
+    // never ran on the load path at all — a SongFile carries no edit banks, so
+    // `Song.apply` never passes one — which meant a cursor parked on a high bank
+    // survived a load into a shorter song and then indexed past the array on the
+    // next read (REQ-an-omitted-bank-restores-blank).
+    this._seqEdit = clampBankIn(snap.seqEditBank ?? this._seqEdit, this.seqBanks.length);
+    this._drumEdit = clampBankIn(snap.drumEditBank ?? this._drumEdit, this.drumBanks.length);
+    this._samplerEdit = clampBankIn(snap.samplerEditBank ?? this._samplerEdit, this.samplerBanks.length);
+    this._motionEdit = clampBankIn(snap.motionEditBank ?? this._motionEdit, this.motionBanks.length);
+    if (!sameCounts(before, this.countsSnapshot())) this.emitBankCount();
     // Repaint whatever bank is now selected for editing.
     this.emitBankSeq();
     this.emitBankDrum();

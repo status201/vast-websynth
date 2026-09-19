@@ -1,17 +1,44 @@
 import { describe, it, expect } from 'vitest';
 import { BankBar } from '../../src/ui/components/bank-bar';
-import { BANK_LABELS } from '../../src/state/patterns';
+import { BANK_LABELS, MIN_BANK_COUNT, MAX_BANK_COUNT } from '../../src/state/patterns';
 
 function harness(opts?: {
   play?: number;
   filled?: (i: number) => boolean;
   resting?: () => boolean;
+  /** Starting bank count; omitted means the default floor. */
+  count?: number;
+  /** Supply the grow/shrink arms. Omitted = a bar that cannot resize. */
+  resizable?: boolean;
+  removeBlockedBy?: () => string | null;
 }) {
   let edit = 0;
   let play = opts?.play ?? 0;
+  let count = opts?.count ?? MIN_BANK_COUNT;
   const editListeners = new Set<() => void>();
   const playListeners = new Set<() => void>();
-  const calls = { setEdit: [] as number[], copy: [] as Array<[number, number]> };
+  const countListeners = new Set<() => void>();
+  const calls = {
+    setEdit: [] as number[],
+    copy: [] as Array<[number, number]>,
+    addBank: 0,
+    removeBank: 0,
+  };
+  const resize = opts?.resizable
+    ? {
+      addBank: () => {
+        calls.addBank++;
+        if (count < MAX_BANK_COUNT) count++;
+        countListeners.forEach((l) => l());
+      },
+      removeBank: () => {
+        calls.removeBank++;
+        if (count > MIN_BANK_COUNT) count--;
+        countListeners.forEach((l) => l());
+      },
+      removeBlockedBy: opts.removeBlockedBy ?? (() => null),
+    }
+    : {};
   const bar = new BankBar({
     getEdit: () => edit,
     setEdit: (i) => { calls.setEdit.push(i); edit = i; editListeners.forEach((l) => l()); },
@@ -22,21 +49,37 @@ function harness(opts?: {
     ...(opts?.resting ? { resting: opts.resting } : {}),
     hasContent: (i) => (opts?.filled ?? ((j) => j === 0))(i),
     onContentChange: () => () => {},
+    bankCount: () => count,
+    onBankCountChange: (fn) => { countListeners.add(fn); return () => countListeners.delete(fn); },
+    ...resize,
+    testidPrefix: 'seq',
   });
-  const buttons = [...bar.el.querySelectorAll('button')] as HTMLButtonElement[];
-  const followBtn = buttons[0]!;
-  const banks = buttons.slice(1, 1 + BANK_LABELS.length);
-  const copyBtn = buttons[1 + BANK_LABELS.length]!;
+  // By testid, never by position: the bar's button order now depends on the
+  // bank count AND on whether the resize arms are present, so an index-based
+  // harness breaks for reasons that have nothing to do with what is being tested.
+  const pick = (id: string) =>
+    bar.el.querySelector(`[data-testid="bank-seq-${id}"]`) as HTMLButtonElement | null;
+  const bankBtns = (): HTMLButtonElement[] =>
+    [...bar.el.querySelectorAll('[data-testid^="bank-seq-"]')]
+      .filter((b) => /^bank-seq-\d+$/.test((b as HTMLElement).dataset.testid ?? ''))
+      .map((b) => b as HTMLButtonElement);
   /** Advance the "arrangement" to a new play bank and notify. */
   const setPlay = (i: number) => { play = i; playListeners.forEach((l) => l()); };
-  return { bar, calls, banks, copyBtn, followBtn, setPlay, getEdit: () => edit };
+  return {
+    bar, calls, setPlay, pick, bankBtns,
+    get banks() { return bankBtns(); },
+    get copyBtn() { return pick('copy')!; },
+    get followBtn() { return pick('follow')!; },
+    getEdit: () => edit,
+    getCount: () => count,
+  };
 }
 
 describe('BankBar', () => {
   it('renders Follow, one button per bank, and Copy', () => {
     const { followBtn, banks, copyBtn } = harness();
     expect(followBtn.textContent).toBe('Follow');
-    expect(banks.length).toBe(BANK_LABELS.length);
+    expect(banks.length).toBe(MIN_BANK_COUNT);
     expect(banks[0]?.textContent).toContain('A');
     expect(copyBtn.textContent).toBe('Copy');
   });
@@ -172,5 +215,104 @@ describe('BankBar', () => {
     expect(followBtn.classList.contains('on')).toBe(true);
     setPlay(2);
     expect(calls.setEdit).toEqual([1, 1, 2]); // click re-sets 1, then follow → 2
+  });
+});
+
+describe('BankBar grow/shrink arms (banks.md REQ-a-bank-is-added-on-demand)', () => {
+  it('shows no arms at all on a bar that cannot resize', () => {
+    const h = harness();
+    expect(h.pick('add')).toBeNull();
+    expect(h.pick('remove')).toBeNull();
+    expect(h.banks.length).toBe(MIN_BANK_COUNT);
+  });
+
+  it('+ appends one bank and the row follows', () => {
+    const h = harness({ resizable: true });
+    expect(h.banks.length).toBe(MIN_BANK_COUNT);
+    expect(h.pick(String(MIN_BANK_COUNT))).toBeNull();
+    h.pick('add')!.click();
+    expect(h.calls.addBank).toBe(1);
+    expect(h.banks.length).toBe(MIN_BANK_COUNT + 1);
+    const fresh = h.pick(String(MIN_BANK_COUNT))!;
+    expect(fresh.textContent).toContain(BANK_LABELS[MIN_BANK_COUNT]);
+  });
+
+  it('the + arm names the letter it will mint, never the sign', () => {
+    // The glyph is drawn SVG, so the accessible name is the only label there is
+    // (iconography.md REQ-a-control-glyph-is-inline-svg).
+    const h = harness({ resizable: true });
+    const plus = h.pick('add')!;
+    expect(plus.getAttribute('aria-label')).toBe(`Add bank ${BANK_LABELS[MIN_BANK_COUNT]}`);
+    expect(plus.textContent).not.toContain('+');
+    expect(plus.querySelector('svg')).not.toBeNull();
+  });
+
+  it('+ disappears at the ceiling rather than sitting there dead', () => {
+    const h = harness({ count: MAX_BANK_COUNT, resizable: true });
+    expect(h.banks.length).toBe(MAX_BANK_COUNT);
+    expect(h.pick('add')).toBeNull();
+  });
+
+  it('- is disabled with the reason when the top bank is in use', () => {
+    const h = harness({
+      count: 5, resizable: true,
+      removeBlockedBy: () => 'Bank E has steps - clear it first',
+    });
+    const minus = h.pick('remove')!;
+    expect(minus.disabled).toBe(true);
+    expect(minus.title).toContain('clear it first');
+    // The reason has to reach a screen reader too: a title is never announced,
+    // and the aria-label is minted once when the row is built (banks.md
+    // REQ-a-bank-is-removed-only-when-unused).
+    expect(minus.getAttribute('aria-label')).toContain('clear it first');
+    minus.click();
+    expect(h.calls.removeBank).toBe(0);
+  });
+
+  it('- drops the top bank once it is free', () => {
+    const h = harness({ count: 5, resizable: true });
+    const minus = h.pick('remove')!;
+    expect(minus.disabled).toBe(false);
+    minus.click();
+    expect(h.calls.removeBank).toBe(1);
+    expect(h.banks.length).toBe(MIN_BANK_COUNT);
+  });
+
+  it('a rebuild keeps Copy armed and still copies into the new bank', () => {
+    // The row is torn down and rebuilt on every count change; the armed state
+    // lives on the bar, not on the buttons, and must survive that.
+    const h = harness({ resizable: true });
+    h.copyBtn.click();
+    expect(h.bar.el.classList.contains('copy-armed')).toBe(true);
+    h.pick('add')!.click();
+    expect(h.bar.el.classList.contains('copy-armed')).toBe(true);
+    h.pick(String(MIN_BANK_COUNT))!.click();
+    expect(h.calls.copy).toEqual([[0, MIN_BANK_COUNT]]);
+    expect(h.bar.el.classList.contains('copy-armed')).toBe(false);
+  });
+
+  it('re-evaluates the - arm on every repaint, not just on a rebuild', () => {
+    // The blocker depends on CONTENT and on the chain, which change far more
+    // often than the count does. Computing it only while rebuilding the row left
+    // a stale enabled arm sitting over a bank that had just been filled.
+    let blocked: string | null = null;
+    const h = harness({ count: 5, resizable: true, removeBlockedBy: () => blocked });
+    expect(h.pick('remove')!.disabled).toBe(false);
+    blocked = 'Bank E has steps - clear it first';
+    h.setPlay(1); // any repaint, no count change
+    expect(h.pick('remove')!.disabled).toBe(true);
+    expect(h.pick('remove')!.title).toContain('clear it first');
+    blocked = null;
+    h.setPlay(0);
+    expect(h.pick('remove')!.disabled).toBe(false);
+  });
+
+  it('a rebuilt row still paints active/playing/filled', () => {
+    const h = harness({ play: 1, resizable: true, filled: (i) => i === 2 });
+    h.pick('add')!.click();
+    expect(h.banks[0]!.classList.contains('active')).toBe(true);
+    expect(h.banks[1]!.classList.contains('playing')).toBe(true);
+    expect(h.banks[2]!.classList.contains('filled')).toBe(true);
+    expect(h.banks[MIN_BANK_COUNT]!.classList.contains('filled')).toBe(false);
   });
 });

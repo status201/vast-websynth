@@ -110,7 +110,8 @@ test.describe('song share links', () => {
       await expect(page.getByText(/…and \d+ more — use Copy errors/)).toBeVisible();
 
       // The 9th error is past the cut: on screen it does not exist.
-      const hidden = 'samplerBanks must be an array of 4 banks';
+      // (The bank count is a RANGE since SongFile v8 — banks.md REQ-a-machine-owns-its-bank-count.)
+      const hidden = 'samplerBanks must be an array of 4..8 banks';
       await expect(page.getByText(hidden)).toHaveCount(0);
 
       const copyBtn = page.getByTestId('dialog-copy');

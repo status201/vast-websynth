@@ -1,7 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import { demoMetaOf, demoSummary, type DemoMeta } from '../../src/state/demo-meta';
 import type { SongFile } from '../../src/state/song';
-import { SEQ_LENGTH, DRUM_TRACK_COUNT, BANK_COUNT } from '../../src/state/patterns';
+import { SEQ_LENGTH, DRUM_TRACK_COUNT, MIN_BANK_COUNT } from '../../src/state/patterns';
 
 /**
  * specs/features/demo-library.md. Built from hand-made fixtures, never from a
@@ -11,9 +11,9 @@ import { SEQ_LENGTH, DRUM_TRACK_COUNT, BANK_COUNT } from '../../src/state/patter
 
 const offSeq = () => Array.from({ length: SEQ_LENGTH }, () => ({ on: false, note: 60, velocity: 0.85, gate: 0.5 }));
 const offTrig = () => Array.from({ length: SEQ_LENGTH }, () => ({ on: false }));
-const seqBanks = () => Array.from({ length: BANK_COUNT }, offSeq);
+const seqBanks = () => Array.from({ length: MIN_BANK_COUNT }, offSeq);
 const drumBanks = () =>
-  Array.from({ length: BANK_COUNT }, () => Array.from({ length: DRUM_TRACK_COUNT }, offTrig));
+  Array.from({ length: MIN_BANK_COUNT }, () => Array.from({ length: DRUM_TRACK_COUNT }, offTrig));
 
 function song(over: Partial<SongFile> = {}): SongFile {
   return {
@@ -64,9 +64,9 @@ describe('demoMetaOf — the facts (REQ-demo-facts-are-generated)', () => {
   it('lists machines in a stable order regardless of which are present', () => {
     const f = song({ params: { 'motion.on': 1 } });
     f.drumBanks[0]![0]![0]!.on = true;
-    f.samplerBanks = Array.from({ length: BANK_COUNT }, () => Array.from({ length: 8 }, offTrig));
+    f.samplerBanks = Array.from({ length: MIN_BANK_COUNT }, () => Array.from({ length: 8 }, offTrig));
     f.samplerBanks[0]![0]![0]!.on = true;
-    f.motionBanks = Array.from({ length: BANK_COUNT }, () =>
+    f.motionBanks = Array.from({ length: MIN_BANK_COUNT }, () =>
       Array.from({ length: SEQ_LENGTH }, () => ({ on: false, x: 0.5, y: 0.5 })));
     f.motionBanks[0]![0] = { on: true, x: 0.2, y: 0.8 };
     expect(demoMetaOf(f).uses).toEqual(['drums', 'sampler', 'motion']);
@@ -84,7 +84,7 @@ describe('demoMetaOf — armed vs used (REQ-uses-is-heard-armed-is-playable)', (
 
   it('reports motion data behind motion.on 0 as armed, not as missing', () => {
     const f = song({ params: { 'motion.on': 0 } });
-    f.motionBanks = Array.from({ length: BANK_COUNT }, () =>
+    f.motionBanks = Array.from({ length: MIN_BANK_COUNT }, () =>
       Array.from({ length: SEQ_LENGTH }, () => ({ on: false, x: 0.5, y: 0.5 })));
     f.motionBanks[0]![0] = { on: true, x: 0.2, y: 0.8 };
     const meta = demoMetaOf(f);
@@ -94,7 +94,7 @@ describe('demoMetaOf — armed vs used (REQ-uses-is-heard-armed-is-playable)', (
 
   it('the same motion data with motion.on 1 is used, not armed', () => {
     const f = song({ params: { 'motion.on': 1 } });
-    f.motionBanks = Array.from({ length: BANK_COUNT }, () =>
+    f.motionBanks = Array.from({ length: MIN_BANK_COUNT }, () =>
       Array.from({ length: SEQ_LENGTH }, () => ({ on: false, x: 0.5, y: 0.5 })));
     f.motionBanks[0]![0] = { on: true, x: 0.2, y: 0.8 };
     const meta = demoMetaOf(f);

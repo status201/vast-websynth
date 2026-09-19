@@ -63,6 +63,15 @@ export class PatternUndo {
       this.stacks[machineOf(m)].push(m, coalesceKey(m));
     });
     patterns.onBulkRestore(() => this.clearAll());
+    // A bank can be empty *because it was cleared*, and a clear is undoable — so
+    // history can still name a bank that has just been removed. Undoing into it
+    // would restore through a clamped setter and land in the wrong bank, so the
+    // unapplyable entries go (banks.md REQ-a-bank-is-removed-only-when-unused).
+    // Only that machine's stack is touched, and only the entries naming that
+    // bank: everything else is still perfectly undoable.
+    patterns.onBankDrop((m, bank) => {
+      this.stacks[m].drop((e) => e.bank === bank);
+    });
   }
 
   canUndo(m: UndoMachine): boolean {

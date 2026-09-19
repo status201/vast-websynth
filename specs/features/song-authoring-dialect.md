@@ -28,7 +28,7 @@ source:
 ## Background / Why
 
 Only the strongest LLMs reliably emit a full canonical `SongFile`: the literal
-`seqBanks[4][16]` + `drumBanks[4][8][16]` grids are 576+ cells and thousands of
+`seqBanks[4..8][16]` + `drumBanks[4..8][8][16]` grids are 576+ cells and thousands of
 output tokens, so weaker agents truncate mid-JSON or refuse to emit the file at
 all. The **authoring dialect** is a compact, *input-only* format
 (`format: "websynth-song-author"`) that says the same thing in ~40 lines:
@@ -66,7 +66,9 @@ exported — see ADR-013.
   bank-level settings apply to every ON step (per-entry objects still override).
   On-step defaults: `velocity 0.85, gate 0.5, prob 1, ratchet 1, tie false`;
   off steps expand to `{on: false, note: 60}` + the same defaults. `seq` itself
-  is 0..4 banks; missing banks are empty. A bank may also take the **multi-track
+  is 0..`MAX_BANK_COUNT` banks; missing banks are empty and anything shorter than
+  `MIN_BANK_COUNT` is padded up to it ([banks](banks.md)
+  REQ-a-machine-owns-its-bank-count). A bank may also take the **multi-track
   form** of REQ-a-seq-bank-may-carry-four-tracks.
 
 - **REQ-a-drums-bank-maps-track-keys** — A `drums` bank maps **track keys** to
@@ -79,10 +81,17 @@ exported — see ADR-013.
   same shape with slot keys `s1..s8` or `"0".."7"`.
 
 - **REQ-a-chain-is-a-string-of-letters** — A chain
-  (`seqChain`/`drumChain`/`samplerChain`) is a **string** of bank letters `A..D`
-  where `.` or `-` is a rest (whitespace ignored), an **int array** (−1..3, −1 =
-  rest), or the full `{enabled, steps}` object. String/array shorthands imply
-  `enabled: true`; an omitted chain expands to `{enabled: false, steps: [0]}`.
+  (`seqChain`/`drumChain`/`samplerChain`) is a **string** of bank letters
+  `A..H` where `.` or `-` is a rest (whitespace ignored), an **int array**
+  (−1..`MAX_BANK_COUNT`−1, −1 = rest), or the full `{enabled, steps}` object.
+  The letter range is the **ceiling**, not the machine's own count: naming a bank
+  the authored arrays omit is legal and grows that machine on load
+  ([banks](banks.md) REQ-a-chain-reference-grows-the-machine) — and because that
+  is v8 content with no array length to give it away, such a chain puts the
+  expanded file on **v8** exactly as a fifth authored bank would
+  ([song-mode](song-mode.md) REQ-song-file-v8-widens-the-bank-count). String/array
+  shorthands imply `enabled: true`; an omitted chain expands to
+  `{enabled: false, steps: [0]}`.
 
 - **REQ-sampler-fields-are-optional** — Sampler fields
   (`samplerBanks`/`samplerChain`/`sampleNames`) are emitted in the canonical
@@ -157,7 +166,7 @@ exported — see ADR-013.
   still overrides, so no existing song changes.
 
 - **REQ-motion-tracks-is-a-top-level-key** — **`motionTracks` is a top-level
-  author key**: 0..4 banks × 0..2 (`MOTION_TRACK_COUNT`) extra single-param
+  author key**: 0..`MAX_BANK_COUNT` banks × 0..2 (`MOTION_TRACK_COUNT`) extra single-param
   automation tracks, each `{param: "<ParamBus id>", steps: [{step: 0..15, v:
   0..1}, …]}` or `null`. A track that names no param **and** has no ON anchor
   expands to `null`, keeping the canonical file default-sparse
@@ -176,7 +185,8 @@ exported — see ADR-013.
   canonical `seqTranspose` array ([song-mode](song-mode.md) REQ-song-file-v7-adds-slot-transpose). This is the
   dialect's headline win from [arrangement](arrangement.md)
   REQ-a-seq-slot-carries-a-transpose: a four-chord progression that used to need
-  all four banks is now one bank and one chain string.
+  all four banks is now one bank and one chain string — still the compact way to
+  say it now that a machine can hold eight.
     - The suffix is **`seqChain`-only** — `drumChain`/`samplerChain`/`motionChain`
       reject it with a message saying so, rather than parsing it and dropping it,
       which is the silent-loss failure Stage 1 spent its effort removing.

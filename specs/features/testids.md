@@ -159,7 +159,8 @@ auto-minting factories (src/ui/components/):
   TabContainer(tabs)             -> tab-<id> · panel-<id>
   createButton({ testId })       -> the given id (opt-in)
 prefix-namespaced components:
-  BankBar({ testidPrefix: L })   -> bank-<L>-<i> · bank-<L>-follow · bank-<L>-copy
+  BankBar({ testidPrefix: L })   -> bank-<L>-<i> · bank-<L>-follow · bank-<L>-copy ·
+                                    bank-<L>-add · bank-<L>-remove   # the grow/shrink arms
   createClearMenu({ lane: L })   -> clear-<L> · clear-<L>-bank · clear-<L>-row-<i>
   buildLiveFxControls({ testIdPrefix: P = 'perf' })
                                  -> <P>-fill · <P>-stutter · <P>-stutter-size-<n> ·
@@ -232,6 +233,8 @@ per-step edit row (StepSettingsEditor):                    # features/step-setti
 
 banks, clear menus & undo:                          # features/banks.md, step-grid-editing.md
   bank-<lane>-<i> · bank-<lane>-follow · bank-<lane>-copy
+  bank-<lane>-add · bank-<lane>-remove              # <i> runs 0..7 now (banks.md)
+                                                    # -add is ABSENT at the ceiling
   clear-<lane> · clear-<lane>-bank · clear-<lane>-row-<i> · clear-toast-<lane>
   undo-<lane>                                       # features/pattern-undo.md
   machine-<lane>-chain · machine-<lane>-mute · machine-<lane>-solo
@@ -283,7 +286,8 @@ song panel — lanes, chains & live FX:
   song-lane-<seq|drum|sampler>       # + switch-<lane>.mute / .solo / knob-<lane>.master
   song-lane-motion                   # chain + switch-motion.mute only — no solo/volume
   song-lane-title-<lane>             # opens that machine's tab (features/machine-status.md)
-  song-chain-<lane> · chain-chip-<lane>-<idx> · chain-add-<lane>-<i> ·
+  song-chain-<lane> · chain-chip-<lane>-<idx> · chain-add-<lane>-<i> ·   # <i> 0..7,
+                                                    # only as many as that machine has
   chain-add-rest-<lane> · chain-clear-<lane>        # features/arrangement.md
   chain-move-<left|right>-<lane> · chain-remove-<lane>   # the precise reorder path
                                                     #   REQ-11 keeps beside the drag
