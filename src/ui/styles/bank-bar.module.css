@@ -71,6 +71,11 @@
 .add {
   min-width: 26px;
   padding: 5px 7px;
+  /* The arms borrow `.btn`, which is a COLUMN flex sized for a letter above a
+     content dot. An arm has only the glyph, so the default flex-start parked it
+     at the letter's height while the box carried on down past the dot row —
+     visibly high in a bar whose other six buttons are two rows tall. */
+  justify-content: center;
   background: linear-gradient(180deg, #1a1410, #0a0805);
   border: 1px solid var(--panel-border);
   border-radius: 3px;
