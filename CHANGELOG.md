@@ -16,6 +16,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+## [2.14.0] - 2026-09-19
+
 ### Added
 
 - **Four Motion lanes instead of two.** Under the Motion tab's XY lane there are
@@ -2509,7 +2511,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
   in-app sample recorder/editor. See the git history prior to this changelog
   for the detailed evolution.
 
-[Unreleased]: https://github.com/status201/vast-websynth/compare/v2.13.0...HEAD
+[Unreleased]: https://github.com/status201/vast-websynth/compare/v2.14.0...HEAD
+[2.14.0]: https://github.com/status201/vast-websynth/compare/v2.13.0...v2.14.0
 [2.13.0]: https://github.com/status201/vast-websynth/compare/v2.12.0...v2.13.0
 [2.12.0]: https://github.com/status201/vast-websynth/compare/v2.11.2...v2.12.0
 [2.11.2]: https://github.com/status201/vast-websynth/compare/v2.11.1...v2.11.2
