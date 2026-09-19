@@ -26,10 +26,11 @@
   "1982.websynth.json": {
     "name": "1982",
     "bpm": 115,
-    "bars": 12,
+    "bars": 29,
     "uses": [
       "seq",
-      "drums"
+      "drums",
+      "motion"
     ]
   },
   "1983.websynth.json": {
