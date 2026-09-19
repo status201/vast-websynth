@@ -2,7 +2,7 @@ import { describe, it, expect } from 'vitest';
 import { isAuthorSong, expandAuthorSong, AUTHOR_FORMAT } from '../../src/state/song-author';
 import { validateSongFile } from '../../src/state/song-validate';
 import type { SongFile } from '../../src/state/song';
-import { SEQ_LENGTH, MIN_BANK_COUNT, MAX_BANK_COUNT, DRUM_TRACK_COUNT, SAMPLER_SLOT_COUNT } from '../../src/state/patterns';
+import { SEQ_LENGTH, MIN_BANK_COUNT, MAX_BANK_COUNT, DRUM_TRACK_COUNT, SAMPLER_SLOT_COUNT, MOTION_TRACK_COUNT, MIN_MOTION_TRACK_COUNT } from '../../src/state/patterns';
 import { MAX_CHAIN_STEPS } from '../../src/state/limits';
 
 /** A minimal valid author file to spread per-test variations over. */
@@ -491,10 +491,12 @@ describe('expandAuthorSong — extra motion tracks (motion-sequencer.md REQ-song
     }
   });
 
-  it('rejects more tracks than the machine has', () => {
-    const res = expandAuthorSong(base({
-      motionTracks: [[{ param: 'a', steps: [] }, { param: 'b', steps: [] }, { param: 'c', steps: [] }]],
-    }));
+  it('rejects more lanes than the machine has', () => {
+    const lanes = Array.from(
+      { length: MOTION_TRACK_COUNT + 1 },
+      (_, i) => ({ param: `p${i}`, steps: [] }),
+    );
+    const res = expandAuthorSong(base({ motionTracks: [lanes] }));
     expect(res.ok).toBe(false);
   });
 
@@ -564,7 +566,7 @@ describe('expandAuthorSong — four sequencer tracks (sequencer.md REQ-song-file
     });
     expect(res.ok).toBe(true);
     if (!res.ok) return;
-    // Track 1 lives in seqBanks; tracks 2-4 in seqTracks (REQ-two-extra-tracks-per-bank).
+    // Track 1 lives in seqBanks; tracks 2-4 in seqTracks (REQ-extra-single-param-tracks-per-bank).
     expect(res.file.seqBanks[0]![0]).toMatchObject({ on: true, note: 48, gate: 0.9, velocity: 0.6 });
     expect(res.file.seqTracks![0]![1]![0]).toMatchObject({ on: true, note: 52, gate: 0.9, velocity: 0.6 });
     expect(res.file.seqTracks![0]![2]![0]).toMatchObject({ on: true, note: 55, gate: 0.9, velocity: 0.6 });
@@ -767,6 +769,28 @@ describe('the version ladder (recipes/evolve-the-song-format.md)', () => {
     expect(seq.version).toBe(8);
     // Every lane's chain, and the int-array form as well as the letter form.
     expect(expandOk(base({ drums: [{ kick: [0] }], drumChain: [0, 5] })).version).toBe(8);
+  });
+
+  it('a motion bank using a lane past the floor is v8, with no array to give it away', () => {
+    // The expander pads every bank to the machine's width, so the array length
+    // says nothing — the DEPTH is what carries the fact
+    // (motion-sequencer.md REQ-the-motion-track-array-length-is-the-count). Stamped v5, a build that
+    // knows only two lanes would ACCEPT this file and drop lane C in silence.
+    const anchors = [{ step: 0, v: 0 }, { step: 8, v: 1 }];
+    const laneC = expandOk(base({
+      motionTracks: [[null, null, { param: 'fx.reverb.mix', steps: anchors }]],
+    }));
+    expect(laneC.version).toBe(8);
+    expect(laneC.motionTracks![0]).toHaveLength(3);
+  });
+
+  it('a song using only the first two lanes is still v5', () => {
+    const anchors = [{ step: 0, v: 0 }, { step: 8, v: 1 }];
+    const ab = expandOk(base({
+      motionTracks: [[{ param: 'filter.cutoff', steps: anchors }, { param: 'fx.delay.mix', steps: anchors }]],
+    }));
+    expect(ab.version).toBe(5);
+    expect(ab.motionTracks![0]).toHaveLength(MIN_MOTION_TRACK_COUNT);
   });
 
   it('does not disturb the rungs below it', () => {

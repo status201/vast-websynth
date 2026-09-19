@@ -1,7 +1,7 @@
 import switchStyles from '../styles/switch.module.css';
 import layout from '../styles/layout.module.css';
 import styles from '../styles/seq.module.css';
-import { iconLabel } from '../components/ui-icons';
+import { createLaneFold } from '../components/lane-fold';
 import editStyles from '../styles/step-settings.module.css';
 import type { ParamBus } from '../../state/params';
 import type { StudioApi } from '../studio-api';
@@ -211,12 +211,26 @@ export function buildSeqPanel(
     ctrls.className = styles.trackCtrls!;
 
     // Track 1 has nothing to fold; the others get a chevron that is also the
-    // row's label, so the whole header is one target.
-    const foldBtn = document.createElement('button');
-    foldBtn.type = 'button';
-    foldBtn.className = styles.trackFold!;
-    foldBtn.dataset.testid = `seq-track-fold-${t}`;
-    ctrls.appendChild(foldBtn);
+    // row's label, so the whole header is one target. The fold itself is
+    // `lane-fold.ts`, shared with the motion panel (lane-fold.md) — same
+    // testid, same storage key, same strings as before the move.
+    const fold = createLaneFold({
+      label: String(SEQ_TRACK_LABELS[track] ?? track + 1),
+      storeKey: collapseKey(track),
+      row,
+      foldedClass: styles.folded!,
+      foldClass: styles.trackFold!,
+      testId: `seq-track-fold-${t}`,
+      locked: track === 0,
+      lockedTitle: 'Track 1 is always shown',
+      title: (folded) => (folded ? 'Show this track' : 'Hide this track'),
+      defaultFolded: () => !trackHasSteps(track),
+    });
+    ctrls.appendChild(fold.el);
+    // A loaded song that uses this track must never arrive hidden (REQ-tracks-two-to-four-collapse).
+    // Track 1 is in the list too; `reveal` returns early for a locked lane, so
+    // the rule lives in the component rather than at both call sites.
+    trackAutoReveal.push(() => fold.reveal());
 
     const mute = new Switch(bus, `seq.t${t}.mute`, 'mute');
     mute.el.classList.add(styles.trackMute!);
@@ -254,32 +268,6 @@ export function buildSeqPanel(
     trackBodies.push(body);
     trackNotes.push(stepRowEl);
 
-    const setFolded = (folded: boolean, persist: boolean): void => {
-      row.classList.toggle(styles.folded!, folded);
-      foldBtn.innerHTML = iconLabel(
-        folded ? 'caretRight' : 'caretDown',
-        String(SEQ_TRACK_LABELS[track] ?? track + 1),
-      );
-      foldBtn.title = folded ? 'Show this track' : 'Hide this track';
-      if (persist) localStorage.setItem(collapseKey(track), folded ? '1' : '0');
-    };
-    if (track === 0) {
-      foldBtn.innerHTML = iconLabel('caretDown', String(SEQ_TRACK_LABELS[0]));
-      foldBtn.disabled = true;
-      foldBtn.title = 'Track 1 is always shown';
-    } else {
-      const stored = localStorage.getItem(collapseKey(track));
-      setFolded(stored !== null ? stored === '1' : !trackHasSteps(track), false);
-      foldBtn.addEventListener('click', () => {
-        setFolded(!row.classList.contains(styles.folded!), true);
-      });
-      // A loaded song that uses this track must never arrive hidden (REQ-tracks-two-to-four-collapse).
-      trackAutoReveal.push(() => {
-        if (localStorage.getItem(collapseKey(track)) === null && trackHasSteps(track)) {
-          setFolded(false, false);
-        }
-      });
-    }
   }
 
   // The shared gesture model (step-grid-editing.md): tap toggles, drag paints,

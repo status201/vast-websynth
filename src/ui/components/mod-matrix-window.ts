@@ -153,7 +153,7 @@ function freeRow(bus: ParamBus, n: number): HTMLElement {
   // hover-only tooltip is an affordance that does not exist on touch (ADR-014 law 6).
   //
   // The ROW is never dimmed, only its cells would be: dimming the row is what would
-  // make an unassigned route's own pickers unreachable (motion-sequencer.md REQ-two-lanes-below-the-xy-lane).
+  // make an unassigned route's own pickers unreachable (motion-sequencer.md REQ-single-param-lanes-below-the-xy-lane).
   const refresh = (): void => {
     const s = Math.round(bus.get(`mod.${n}.src`));
     const blocked = blockedDests(s).map((i) => MOD_DEST_LABELS[i]!);

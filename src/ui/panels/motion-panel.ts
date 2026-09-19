@@ -13,6 +13,7 @@ import { showValueBubble, hideValueBubble } from '../components/value-bubble';
 import { formatParam } from '../format-param';
 import { fromNorm } from '../../utils/taper';
 import { motionGraphPoints, motionGraphPoints1D } from '../components/motion-graph';
+import { createLaneFold } from '../components/lane-fold';
 import {
   bankBarFor, wrapGridWithRestOverlay, wirePlayhead, playheadRulerFor, laneControlsFor, laneMeterControlsFor, clearMenuFor,
   VisibilityGate, type ClearRow, type GatedPanel,
@@ -22,6 +23,7 @@ import type { MotionNeighbours, MotionTrackNeighbours } from '../../audio/transp
 import { motionAxesFor } from '../../state/xy-effective';
 import {
   REST, MOTION_TRACK_COUNT, MOTION_TRACK_LABELS, MOTION_TRACK_STEP_DEFAULTS,
+  motionTrackIsEmpty,
   type MotionStep, type MotionTrackStep,
 } from '../../state/patterns';
 import { ALL_CELLS, bindLaneGrid, laneGrid, onLaneGridChange } from '../lane-grid';
@@ -392,13 +394,30 @@ export function buildMotionPanel(
       : `inherited from XY Pad — graph: ${effective}`;
   };
 
-  // ---- Extra single-param tracks (REQ-two-extra-tracks-per-bank/REQ-two-lanes-below-the-xy-lane) ----
+  // ---- Extra single-param tracks (REQ-extra-single-param-tracks-per-bank/REQ-single-param-lanes-below-the-xy-lane) ----
   // One row per track: a param picker plus 16 level cells sharing the XY pads'
   // gesture family (drag = set, double-tap = clear) via MotionStepPad's level
   // mode, and the same mode-aware polyline so slide interpolation and the
   // bar-line carry stay visible while authoring.
   const NONE = '— none —';
-  const buildTrackRow = (track: number): { repaint: () => void; pads: MotionStepPad[]; cells: HTMLElement } => {
+  /** `websynth.ui.collapsed.motiontrack.<i>` (lane-fold.md "Persistence"). */
+  const foldKey = (t: number): string => `websynth.ui.collapsed.motiontrack.${t}`;
+  /**
+   * A lane is "empty" — and so folds by default — with no param AND no anchors.
+   * The predicate itself is the store's (`motionTrackIsEmpty`), not a third copy
+   * of it: the exporter's "is this worth writing" test, `motionTrackDepth`'s
+   * "how deep is this bank" test and this one are the same question, and a lane
+   * that folded on a different answer than the one that serializes it would be
+   * a drift nobody would think to look for.
+   */
+  const trackIsEmpty = (t: number): boolean => motionTrackIsEmpty(patterns.motionTrack(t));
+  interface TrackRow {
+    repaint: () => void;
+    pads: MotionStepPad[];
+    cells: HTMLElement;
+    reveal: () => void;
+  }
+  const buildTrackRow = (track: number): TrackRow => {
     const row = document.createElement('div');
     // The first track carries the one divider — A and B are the same kind of
     // lane, so only the XY lane above is fenced off (REQ-each-motion-step-is-a-mini-xy-pad).
@@ -409,16 +428,19 @@ export function buildMotionPanel(
 
     const ctrls = document.createElement('div');
     ctrls.className = styles.trackHeader!;
-    const label = document.createElement('span');
-    label.className = styles.trackLabel!;
-    label.textContent = MOTION_TRACK_LABELS[track] ?? String(track + 1);
-    ctrls.appendChild(label);
 
     const picker = new Dropdown([NONE, ...paramIds], NONE);
     picker.el.dataset.testid = `motion-trk-${track}-param`;
-    picker.onChange((id) => patterns.setMotionTrackParam(track, id === NONE ? null : id));
+    picker.onChange((id) => {
+      patterns.setMotionTrackParam(track, id === NONE ? null : id);
+      // Assigning a lane you cannot see would be a write with no feedback, so
+      // picking a param opens it. Clearing back to NONE deliberately does NOT
+      // re-fold: the fold is a gesture with a remembered answer, not a
+      // projection of the lane's content (REQ-an-empty-motion-lane-starts-folded).
+      if (id !== NONE) fold.expand();
+    });
     ctrls.appendChild(picker.el);
-    // This lane's own interpolation mode (REQ-set-steps-are-anchors/REQ-two-lanes-below-the-xy-lane). Segmented mints
+    // This lane's own interpolation mode (REQ-set-steps-are-anchors/REQ-single-param-lanes-below-the-xy-lane). Segmented mints
     // `seg-motion.t<i>.slide` itself, so there is no testid to hand-maintain.
     ctrls.appendChild(new Segmented(bus, `motion.t${track}.slide`, ['STEP', 'SLIDE']).el);
     const readout = makeReadout(`motion-readout-trk-${track}`);
@@ -434,7 +456,7 @@ export function buildMotionPanel(
 
     const cells = document.createElement('div');
     // Wider-gap grid than the XY lane's (styles.trackCells vs drumStyles.cells),
-    // so the tracks read as a distinct lane (REQ-each-motion-step-is-a-mini-xy-pad/REQ-two-lanes-below-the-xy-lane).
+    // so the tracks read as a distinct lane (REQ-each-motion-step-is-a-mini-xy-pad/REQ-single-param-lanes-below-the-xy-lane).
     cells.className = styles.trackCells!;
     const pads: MotionStepPad[] = [];
     for (let sIdx = 0; sIdx < ALL_CELLS; sIdx++) {
@@ -444,7 +466,7 @@ export function buildMotionPanel(
         onSet: (_x, y) => patterns.setMotionTrackStep(track, step, { on: true, v: y }),
         // Clearing returns the cell to the default step (level included), so a
         // cleared cell reads like an untouched one instead of keeping its old
-        // parked height (motion-sequencer.md REQ-two-lanes-below-the-xy-lane).
+        // parked height (motion-sequencer.md REQ-single-param-lanes-below-the-xy-lane).
         onClear: () => patterns.setMotionTrackStep(track, step, { ...MOTION_TRACK_STEP_DEFAULTS }),
         // Only y is meaningful on a level cell, so only y reaches the readout.
         onGesture: (g) =>
@@ -474,10 +496,19 @@ export function buildMotionPanel(
     // + bankBar.onFollowChange, so it needs no extra refresh plumbing; the header
     // (ctrls) stays outside the dim so the param picker remains usable.
     const { el: gridWrap } = wrapGridWithRestOverlay(engine, 'motion', bankBar, grid);
+    // This is what a fold hides — the cells and the graph, never the header
+    // above them (lane-fold.md REQ-a-lane-fold-hides-the-body-not-the-header).
+    gridWrap.classList.add(styles.trackBody!);
     row.appendChild(gridWrap);
     root.appendChild(row);
 
-    const repaint = (): void => {
+    /**
+     * What the lane IS — the half of the repaint that survives a fold
+     * (lane-fold.md REQ-a-lane-fold-hides-the-body-not-the-header). Every control
+     * here stays on screen while the body is away, so every one of them has to
+     * keep tracking the store.
+     */
+    const paintHeader = (): void => {
       const t = patterns.motionTrack(track);
       if (!t) return;
       const assigned = !!t.param;
@@ -490,6 +521,14 @@ export function buildMotionPanel(
       // assigned one keeps whatever the readout was last showing — that
       // stickiness is what makes two lanes comparable (REQ-a-motion-steps-value-is-readable-without-hovering).
       if (!assigned) readout.textContent = EMPTY_READOUT;
+    };
+
+    /** What the lane HOLDS — 16 pad levels plus a rebuilt polyline. This is the
+     *  expensive half, and the half a fold hides (REQ-a-folded-motion-lane-does-no-repaint). */
+    const paintBody = (): void => {
+      const t = patterns.motionTrack(track);
+      if (!t) return;
+      const assigned = !!t.param;
       for (let i = 0; i < ALL_CELLS; i++) {
         const cell = t.steps[i]!;
         pads[i]!.setLevel(cell.on, cell.v, t.param);
@@ -509,7 +548,47 @@ export function buildMotionPanel(
         graph.appendChild(c);
       }
     };
-    return { repaint, pads, cells };
+
+    // The per-lane half of the repaint gate (REQ-a-folded-motion-lane-does-no-repaint). A folded lane has
+    // even less to show than an off-screen one, and four lanes double exactly
+    // the per-bar work REQ-the-ab-lane-repaint-is-gated-on-visibility was written to bound. Nested inside
+    // the panel's gate, not replacing it: the panel asks "is the tab showing",
+    // the lane asks "am I open", and a repaint needs both.
+    let dirty = false;
+    const repaint = (): void => {
+      // The header is painted either way. A folded lane still shows it, so a
+      // picker reading "— none —" over a lane that is driving a param is worse
+      // than a hidden one: the next pick from it would silently overwrite the
+      // assignment a song just made (lane-fold.md REQ-a-lane-fold-hides-the-body-not-the-header).
+      paintHeader();
+      if (fold.folded) { dirty = true; return; }
+      dirty = false;
+      paintBody();
+    };
+
+    // Built last so `paintBody`/`dirty` are already in scope, then moved to the
+    // head of the header row where the lane's label belongs.
+    const fold = createLaneFold({
+      label: MOTION_TRACK_LABELS[track] ?? String(track + 1),
+      storeKey: foldKey(track),
+      row,
+      foldedClass: styles.folded!,
+      foldClass: styles.trackFold!,
+      testId: `motion-trk-${track}-fold`,
+      title: (folded) => (folded ? 'Show this lane' : 'Hide this lane'),
+      defaultFolded: () => trackIsEmpty(track),
+      onChange: (folded) => {
+        // Catch up on the way open — but only if anyone can see it. An unfold
+        // can come from `reveal()` during a song load on another tab, and
+        // painting there would step straight over the panel's own gate; that
+        // case is already covered, because whatever changed set `tracksDirty`.
+        if (folded || !dirty || !gate.shown) return;
+        repaint();
+      },
+    });
+    ctrls.prepend(fold.el);
+
+    return { repaint, pads, cells, reveal: () => fold.reveal() };
   };
 
   const trackRows = Array.from({ length: MOTION_TRACK_COUNT }, (_, t) => buildTrackRow(t));
@@ -539,20 +618,49 @@ export function buildMotionPanel(
     if (!gate.shown) { tracksDirty = true; return; }
     repaintTracks();
   };
+  /**
+   * One lane's repaint, for a signal that names the lane it changed.
+   * `emitAllMotionTracks` fires the listener once PER LANE, so a handler that
+   * repaints all of them turns a bank switch into MOTION_TRACK_COUNT² lane
+   * repaints — and with Follow on, a bank switch is every bar
+   * (REQ-a-folded-motion-lane-does-no-repaint). Off-screen it still coalesces into
+   * the one whole-panel repaint on reveal, which is why the flag is shared.
+   */
+  const repaintTrackIfShown = (t: number): void => {
+    if (!gate.shown) { tracksDirty = true; return; }
+    trackRows[t]?.repaint();
+  };
   gate.whenShown(() => {
     if (!tracksDirty) return;
     tracksDirty = false;
     repaintTracks();
   });
 
-  patterns.onMotionTrackChange(repaintTracksIfShown);
+  /**
+   * Re-derive the changed lane's fold from what it now holds, so a song that
+   * uses lanes C and D never arrives with them hidden
+   * (REQ-an-empty-motion-lane-starts-folded; lane-fold.md REQ-an-untouched-lane-re-derives-its-default). A lane the user
+   * folded by hand is left alone, and this never folds anything.
+   *
+   * Per lane, not all of them: a bank switch and a song restore both emit this
+   * once for EVERY lane (`emitAllMotionTracks`), and each emission names the
+   * lane it is about, so revealing all four on each one would re-read storage
+   * MOTION_TRACK_COUNT² times per bar for an answer that cannot have changed.
+   */
+  patterns.onMotionTrackChange((track) => {
+    trackRows[track]?.reveal();
+    repaintTrackIfShown(track);
+  });
   // Per lane (REQ-set-steps-are-anchors): a track's staircase-vs-ramp follows its own param, so the
-  // XY lane's STEP/SLIDE no longer redraws the tracks. Off-screen this coalesces
+  // XY lane's STEP/SLIDE no longer redraws the tracks — and one lane's mode
+  // redraws that lane, not its neighbours. Off-screen this coalesces
   // into the same reveal repaint as everything else — a per-lane redraw of a
   // panel nobody is looking at is the same waste as a per-bar one.
   for (let t = 0; t < MOTION_TRACK_COUNT; t++) {
-    bus.subscribe(`motion.t${t}.slide`, repaintTracksIfShown);
+    bus.subscribe(`motion.t${t}.slide`, () => repaintTrackIfShown(t));
   }
+  // A bar advance is the one signal that really is about every lane: it moves
+  // which banks border this one, and the carry each lane draws with it.
   engine.arrangement.onChange(repaintTracksIfShown);
 
   // ---- Wiring ----
@@ -563,7 +671,7 @@ export function buildMotionPanel(
   };
 
   // Light the playing column across all three lanes (XY + A + B), not just the XY
-  // pads — the tracks were added later (v4) and were never wired in (REQ-two-lanes-below-the-xy-lane).
+  // pads — the tracks were added later (v4) and were never wired in (REQ-single-param-lanes-below-the-xy-lane).
   const highlighter = wirePlayhead(
     engine, 'motion', [pads, ...trackRows.map((r) => r.pads)], restOverlay, gate,
   );
@@ -586,6 +694,11 @@ export function buildMotionPanel(
   patterns.onMotionBankChange((bank) => {
     highlighter.clear();
     paintAll(bank);
+    // Deliberately no fold re-derive here. Every emitter that changes what the
+    // lanes hold — the edit-bank switch, a bank copy, a song restore — follows
+    // this with `emitAllMotionTracks`, which re-derives each lane above; the one
+    // that does not (`setMotionAssign`) touches only the XY axis override and so
+    // can never change a lane's answer.
   });
   patterns.onMotionChange((idx, step) => {
     pads[idx]?.setStep(step);

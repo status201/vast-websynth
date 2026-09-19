@@ -38,8 +38,14 @@ export interface CollapseToggleOptions {
   onChange?(collapsed: boolean): void;
 }
 
-/** Raw stored choice, or null when the user has never toggled this panel. */
-function readStored(key: string): boolean | null {
+/**
+ * Raw stored choice, or null when the user has never toggled this panel.
+ *
+ * Exported because `lane-fold.ts` stores its folds under the same
+ * `websynth.ui.collapsed.*` convention, and a second copy of the try/catch is a
+ * second place for private-mode behaviour to drift.
+ */
+export function readStoredCollapse(key: string): boolean | null {
   try {
     const v = localStorage.getItem(key);
     return v === null ? null : v === '1';
@@ -48,7 +54,7 @@ function readStored(key: string): boolean | null {
   }
 }
 
-function writeStored(key: string, collapsed: boolean): void {
+export function writeStoredCollapse(key: string, collapsed: boolean): void {
   try {
     localStorage.setItem(key, collapsed ? '1' : '0');
   } catch {
@@ -75,10 +81,10 @@ export function createCollapseToggle(
 
   const set = (collapsed: boolean): void => {
     apply(collapsed);
-    writeStored(storeKey, collapsed);
+    writeStoredCollapse(storeKey, collapsed);
   };
 
-  const stored = readStored(storeKey);
+  const stored = readStoredCollapse(storeKey);
   apply(stored ?? opts?.defaultCollapsed?.() ?? false);
 
   const toggle = (): void => set(!target.classList.contains('collapsed'));

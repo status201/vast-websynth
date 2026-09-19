@@ -3,7 +3,11 @@
 ```yaml
 id: sequencer
 status: implemented
-version: 10  # v10: REQ-a-seek-releases-every-tracks-note's seek release lands at each track's gate end, not
+version: 11  # v11: REQ-tracks-two-to-four-collapse's fold moved into the shared lane-fold
+             #      component so motion's single-param lanes could use it. Same
+             #      behaviour, same testids, same storage keys — the contract is
+             #      unchanged and this bump only records where the code went
+             # v10: REQ-a-seek-releases-every-tracks-note's seek release lands at each track's gate end, not
              #      now — a loop wrap otherwise hangs a tied voice (transport-loop)
              # v9: REQ-the-sequencer-triggers-the-active-step also honours per-step `micro` — and applies it here
              #     rather than inside stepHits, so the mono release moves with
@@ -19,6 +23,7 @@ related:
   - transport-position
   - step-settings
   - step-grid-editing
+  - lane-fold                  # REQ-tracks-two-to-four-collapse's fold, shared with motion since v17
   - banks
   - arrangement
   - input-control
@@ -34,6 +39,7 @@ source:
   - src/ui/app.ts                        # ties the arm to tab visibility (REQ-step-input-arms-only-on-screen)
   - src/ui/components/tabs.ts            # isVisible / onViewChange (REQ-step-input-arms-only-on-screen)
   - src/ui/components/collapse-toggle.ts # onChange, so a fold is a view change (REQ-step-input-arms-only-on-screen)
+  - src/ui/components/lane-fold.ts       # the per-track fold itself (lane-fold.md)
   - src/ui/components/bank-bar.ts        # setFollowing — the take is bank-pinned (REQ-a-take-is-bank-pinned)
 ```
 
@@ -134,7 +140,11 @@ and tracks 2–4 start empty and silent.
   preference an *empty* track 2–4 starts folded (nothing to show) and one
   carrying steps starts open — so loading a song that uses all four never hides
   its content, and a fresh session shows one track, as before v3. Track 1 never
-  collapses.
+  collapses. The mechanism is [lane-fold](lane-fold.md), extracted from this
+  panel when the motion sequencer needed the same behaviour for its single-param
+  lanes ([motion-sequencer](motion-sequencer.md) REQ-an-empty-motion-lane-starts-folded);
+  nothing about this requirement's behaviour, testids or storage keys changed in
+  the move.
 - **REQ-step-input-targets-the-focused-track** — **Step Input targets the
   focused track** (REQ-step-input-arms-only-on-screen..7 otherwise unchanged):
   notes land in the track holding the selection cursor, so the arm stays the

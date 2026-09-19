@@ -521,7 +521,7 @@ SongFile:
                                            # same length as motionBanks — the motion trio resizes as one
   motionChain?: ChainData
   # ---- v5 addition (optional, so v1-v4 files still parse) ----
-  motionTracks?: (MotionTrack | null)[][]  # per motion bank × 2 extra single-param tracks — see motion-sequencer.md
+  motionTracks?: (MotionTrack | null)[][]  # per motion bank × 2..4 extra single-param tracks — see motion-sequencer.md
   # ---- v6 addition (optional, so v1-v5 files still parse) ----
   seqTracks?: (SeqStep[] | null)[][]  # [bank][track], indexed by the REAL track number:
                                       # index 0 is ALWAYS null (track 1 stays in seqBanks) and an
@@ -595,7 +595,7 @@ strict (reject + name the path):
   seqTracks?:  (SeqStep[16]|null)[4..8][4]          # if present; index 0 of each bank MUST be null
   drumBanks:   DrumCell[4..8][8][16]
   samplerBanks?: SamplerStep[4..8][8][16]           # if present
-  motionTracks?: (MotionTrack|null)[4..8][2]        # if present
+  motionTracks?: (MotionTrack|null)[4..8][2..4]     # if present; inner length is the lane depth
   sampleNames?:  (string|null)[8]                   # if present
   chainData:   { enabled: boolean, steps: int[1..MAX_CHAIN_STEPS],
                  each 0..MAX_BANK_COUNT-1 or REST }   # the CEILING, not the sibling

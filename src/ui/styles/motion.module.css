@@ -133,7 +133,7 @@
   text-shadow: 0 0 6px var(--accent-glow);
 }
 
-/* ---- extra single-param tracks (motion-sequencer.md REQ-two-lanes-below-the-xy-lane) ---- */
+/* ---- extra single-param tracks (motion-sequencer.md REQ-single-param-lanes-below-the-xy-lane) ---- */
 
 /* Level cell: same box as the XY pad, but the value reads as a bottom-up fill
    instead of a dot, so a row of them is legible as a bar graph at a glance. */
@@ -161,7 +161,7 @@
 
 /* A track lane: its controls above its own full-width cells, so all three
    lanes share one 16-column grid and step n reads vertically across them
-   (REQ-two-lanes-below-the-xy-lane). A left gutter would indent the cells and break that. */
+   (REQ-single-param-lanes-below-the-xy-lane). A left gutter would indent the cells and break that. */
 .trackRow {
   display: flex;
   flex-direction: column;
@@ -177,7 +177,8 @@
 }
 
 /* The single divider, carried by the first track: it fences the XY lane off
-   from the tracks. A and B are the same kind of lane, so nothing divides them.
+   from the tracks. The single-param lanes are all the same kind of lane, so
+   nothing divides them from each other.
    Same dashed section rule the Song panel uses (song-panel.module.css .djFx). */
 .laneDivider {
   border-top: 1px dashed rgba(244, 205, 94, 0.18);
@@ -185,12 +186,36 @@
   margin-top: 10px;
 }
 
-.trackLabel {
+/* The fold caret IS the lane's label (lane-fold.md REQ-the-fold-caret-is-an-icon-not-a-glyph), so it
+   carries the label's type. Wider than the sequencer's 40px chip: this one sits
+   at the head of a row of value pads and wants a real target
+   (ADR-014 law 6). */
+.trackFold {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 46px;
+  min-height: 24px;
+  padding: 2px 8px;
+  font-family: inherit;
   font-size: 10px;
   text-transform: uppercase;
   letter-spacing: 0.06em;
+  color: inherit;
   opacity: 0.7;
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  border-radius: 4px;
+  cursor: pointer;
 }
+
+.trackFold:hover { opacity: 1; }
+
+/* A folded lane keeps its whole header row — caret, param picker, STEP/SLIDE,
+   readout — so it can still be assigned and reopened; only the cells and the
+   graph go away (motion-sequencer.md REQ-an-empty-motion-lane-starts-folded). */
+.trackBody { min-width: 0; }
+.folded .trackBody { display: none; }
 
 .trackGrid {
   position: relative;
@@ -217,7 +242,14 @@
 /* An unassigned track reads as "not doing anything" without becoming
    unusable — its cells carry .inert (pointer-events: none), the row itself
    never does, or the param picker inside it would be unreachable. */
-.trackDim .trackLabel { opacity: 0.45; }
+.trackDim .trackFold { opacity: 0.45; }
+
+/* ...but the dim must not eat the caret's hover. Since v17 this label is a
+   BUTTON, and an unassigned lane is exactly when you reach for it — it is the
+   fold on an empty lane. The rule above outranks the plain `.trackFold:hover`
+   by source order at equal specificity, so the hover is restated here rather
+   than left to lose (ADR-014 law 6: a control has to feel like one). */
+.trackDim .trackFold:hover { opacity: 1; }
 
 /* A level cell is one-dimensional: `onSet` discards x, so its horizontal
    position carries no meaning. The vertical centre line would advertise an axis

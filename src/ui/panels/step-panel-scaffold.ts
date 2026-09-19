@@ -147,7 +147,8 @@ function laneHooks(engine: StudioApi, lane: StepLane): LaneHooks {
         copy: (f, t) => p.copyMotionBank(f, t),
         getPlay: () => a.motionPlayBank,
         getResting: () => a.motionResting,
-        // Motion stores THREE lanes per bank (XY anchors + tracks A/B), so a bank
+        // Motion stores several lanes per bank (XY anchors + the single-param
+        // lanes A..D), so a bank
         // whose tracks are full but whose XY lane is empty is still a filled bank
         // (banks.md REQ-content-dot-covers-every-lane) — the same rule the panel's Clear ▾ list uses.
         // The predicate lives in the store so it stays index-safe: a BankBar can

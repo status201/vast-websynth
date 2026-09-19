@@ -298,7 +298,7 @@ The window is a table of rows, each `[source ▾] → [dest ▾] [amount] [range
 | `Escape` | — deliberately nothing: Escape is panic, app-wide | [floating-window](floating-window.md) REQ-escape-does-not-close-a-window |
 | drag a row onto another | — no reordering. Rows are independent summands, so their order carries no meaning; a drag would imply one | — |
 | a delete button per row | — none: `source = off` is the same act with one fewer control, and it is not destructive (the row keeps its settings) | ADR-014 law 3 |
-| disabling an unassigned row | — never. The row stays live or its own pickers become unreachable | [motion-sequencer](motion-sequencer.md) REQ-two-lanes-below-the-xy-lane |
+| disabling an unassigned row | — never. The row stays live or its own pickers become unreachable | [motion-sequencer](motion-sequencer.md) REQ-single-param-lanes-below-the-xy-lane |
 
 ### Layer touchpoints & ordering
 

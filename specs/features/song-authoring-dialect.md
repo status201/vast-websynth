@@ -166,17 +166,20 @@ exported — see ADR-013.
   still overrides, so no existing song changes.
 
 - **REQ-motion-tracks-is-a-top-level-key** — **`motionTracks` is a top-level
-  author key**: 0..`MAX_BANK_COUNT` banks × 0..2 (`MOTION_TRACK_COUNT`) extra single-param
-  automation tracks, each `{param: "<ParamBus id>", steps: [{step: 0..15, v:
-  0..1}, …]}` or `null`. A track that names no param **and** has no ON anchor
-  expands to `null`, keeping the canonical file default-sparse
+  author key**: 0..`MAX_BANK_COUNT` banks × 0..`MOTION_TRACK_COUNT` (four
+  since v17) extra single-param automation tracks, each
+  `{param: "<ParamBus id>", steps: [{step: 0..15, v: 0..1}, …]}` or `null`. A
+  track that names no param **and** has no ON anchor expands to `null`, keeping the canonical file default-sparse
   ([motion-sequencer](motion-sequencer.md) REQ-song-file-v5-adds-motion-tracks). Over-long bank/track arrays
   are authoring errors naming the real counts. `motionTracks` counts as motion
   content for REQ-sampler-fields-are-optional's presence rule — it alone is
   enough to emit `motionBanks`/`motionAssigns`/`motionChain` — and lifts the
-  emitted version to 5 (REQ-the-emitted-version-is-the-lowest-that-fits). It
-  also feeds REQ-machines-with-content-auto-enable's auto-enable: a track that
-  names a param **and** carries at least one anchor sets `motion.on = 1` exactly
+  emitted version to 5 — or to **8** when a bank carries a track past
+  `MIN_MOTION_TRACK_COUNT`, since a lane an older build cannot hold must not
+  wear a version that build would accept
+  ([motion-sequencer](motion-sequencer.md) REQ-the-motion-track-array-length-is-the-count)
+  (REQ-the-emitted-version-is-the-lowest-that-fits). It also feeds
+  REQ-machines-with-content-auto-enable's auto-enable: a track that names a param **and** carries at least one anchor sets `motion.on = 1` exactly
   as an XY anchor does.
 
 - **REQ-a-chain-letter-may-carry-a-transpose** — **A `seqChain` letter may carry
@@ -222,11 +225,13 @@ AuthorSong:
   version: 1                          # required literal
   name: string                        # required
   params: 'Record<paramId, number>'   # optional, sparse
-  seq: 'AuthorSeqBank[] (0..4)'       # optional
-  drums: 'AuthorHitBank[] (0..4)'     # optional; track-name keys
-  sampler: 'AuthorHitBank[] (0..4)'   # optional; slot keys s1..s8 / "0".."7"
-  motion: 'AuthorMotionBank[] (0..4)' # optional; XY param automation (motion-sequencer.md)
-  motionTracks: 'AuthorMotionTrackBank[] (0..4)'  # optional; the 2 extra 1-param tracks per bank (REQ-motion-tracks-is-a-top-level-key)
+  # (0..N) is the BANK count throughout — MAX_BANK_COUNT since v8 (banks.md), for
+  # every machine alike. The per-bank inner dimensions are the shapes below.
+  seq: 'AuthorSeqBank[] (0..8)'       # optional
+  drums: 'AuthorHitBank[] (0..8)'     # optional; track-name keys
+  sampler: 'AuthorHitBank[] (0..8)'   # optional; slot keys s1..s8 / "0".."7"
+  motion: 'AuthorMotionBank[] (0..8)' # optional; XY param automation (motion-sequencer.md)
+  motionTracks: 'AuthorMotionTrackBank[] (0..8)'  # optional; the single-param lanes per bank (REQ-motion-tracks-is-a-top-level-key)
   seqChain: 'string | int[] | {enabled, steps}'   # optional; default {enabled:false, steps:[0]}
   drumChain: 'same'
   samplerChain: 'same'
@@ -238,7 +243,7 @@ entry: 'null | midi 0..127 | "A2"-style name | {note, velocity?, gate?, prob?, r
 AuthorHitBank: '{ <trackKey>: (step | {step, velocity?, gate?, prob?, ratchet?, tie?})[] }'
 AuthorMotionBank: 'anchor[] | {assign?: {x?: paramId, y?: paramId}, steps: anchor[]}'
 anchor: '{step: 0..15, x: 0..1, y: 0..1}'   # normalized taper-space coordinates
-AuthorMotionTrackBank: '(AuthorMotionTrack | null)[] (≤2)'
+AuthorMotionTrackBank: '(AuthorMotionTrack | null)[] (≤MOTION_TRACK_COUNT, 4 since v17)'
 AuthorMotionTrack: '{param: paramId, steps: [{step: 0..15, v: 0..1}, …]} | null'
 ```
 

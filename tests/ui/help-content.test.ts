@@ -6,6 +6,7 @@ import {
 import { iconLabel } from '../../src/ui/components/ui-icons';
 import { demoNames } from '../../src/state/song';
 import { EQ_BANDS } from '../../src/state/eq';
+import { MOTION_TRACK_COUNT, MOTION_TRACK_LABELS } from '../../src/state/patterns';
 import { formatHzFull } from '../../src/ui/components/scope';
 
 /** The Clear button as help copy renders it — the caret is an icon, not a `▾`
@@ -58,9 +59,9 @@ describe('help-content motion topic', () => {
     expect(body).toContain('never move');
   });
 
-  it('explains the two extra single-param tracks (v7)', () => {
+  it('explains the extra single-param lanes (v7)', () => {
     const body = bodyOf('motion');
-    expect(body).toContain('two more tracks');
+    expect(body).toContain('four more lanes');
     expect(body).toContain('per bank');
     // Motion's Clear lists lanes, not a selected row (step-grid-editing REQ-clear-menu-clears-in-bulk).
     // Its caret is drawn, so assert against the helper rather than a character.
@@ -78,13 +79,19 @@ describe('help-content motion topic', () => {
     expect(body).toContain('Y / X');
   });
 
-  it('has a short `motion.tracks` topic for the A/B tracks', () => {
+  it('has a short `motion.tracks` topic for the single-param lanes', () => {
     const t = HELP_TOPICS['motion.tracks'];
     expect(t).toBeTruthy();
-    expect(t.title).toMatch(/A & B/);
+    // The lane letters run A..MOTION_TRACK_COUNT, so the title names the range
+    // rather than the two it used to have (motion-sequencer.md REQ-extra-single-param-tracks-per-bank).
+    expect(t.title).toMatch(
+      new RegExp(`A-${MOTION_TRACK_LABELS[MOTION_TRACK_COUNT - 1]!}`),
+    );
     const body = bodyOf('motion.tracks');
     expect(body).toContain('per bank');
     expect(body).toContain('SLIDE');
+    // The fold is the reason four lanes fit where two did (REQ-an-empty-motion-lane-starts-folded).
+    expect(body).toContain('folded');
   });
 });
 

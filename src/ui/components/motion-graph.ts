@@ -114,7 +114,7 @@ export function motionGraphPoints(
   return graphPoints(bank, view === 'x' ? getX : getY, mode, neighbours, cells);
 }
 
-/** An extra single-param track's graph (REQ-two-lanes-below-the-xy-lane). */
+/** An extra single-param track's graph (REQ-single-param-lanes-below-the-xy-lane). */
 export function motionGraphPoints1D(
   steps: readonly MotionTrackStep[],
   mode: MotionMode,

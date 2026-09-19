@@ -3,7 +3,16 @@
 ```yaml
 id: motion-sequencer
 status: implemented
-version: 16  # v16: the graph follows the lane's length, not the bank's (REQ-the-motion-graph-follows-the-lane),
+version: 17  # v17: four single-param lanes instead of two (REQ-extra-single-param-tracks-per-bank), so a bank
+             #      drives up to SIX params — or four with the XY Pad left free,
+             #      which is the whole point of the lanes. An empty lane arrives
+             #      FOLDED (REQ-an-empty-motion-lane-starts-folded) and a folded one repaints nothing
+             #      (REQ-a-folded-motion-lane-does-no-repaint), so four lanes cost no height and no
+             #      frames until they are used. The per-bank track array's LENGTH
+             #      is how many lanes it carries (REQ-the-motion-track-array-length-is-the-count), floored at two,
+             #      so every existing song still exports byte-for-byte. The two
+             #      REQ ids that named the old count are renamed, not reworded.
+             # v16: the graph follows the lane's length, not the bank's (REQ-the-motion-graph-follows-the-lane),
              #      and a bank parks at its last anchor when the chain hands
              #      over, so a lane that does not tile the bar stops stranding
              #      its params mid-sweep (REQ-a-bank-parks-at-its-last-anchor). REQ-each-motion-step-is-a-mini-xy-pad's account of the overlay
@@ -47,6 +56,7 @@ related:
   - banks
   - song-authoring-dialect
   - dropdown              # REQ-each-motion-step-is-a-mini-xy-pad's axis pickers; setDimmed + REQ-song-file-v4-adds-motion-banks's root invariant
+  - lane-fold             # REQ-an-empty-motion-lane-starts-folded's fold button, shared with the sequencer
 source:
   - src/audio/transport/motion-curve.ts     # pure anchor/interpolation math
   - src/audio/transport/motion-machine.ts   # transport-driven param writer
@@ -60,7 +70,9 @@ source:
   - src/ui/components/motion-step-pad.ts
   - src/ui/components/motion-graph.ts       # pure graph-polyline geometry (v2)
   - src/ui/components/value-bubble.ts       # transient anchored readout (v11)
+  - src/ui/components/lane-fold.ts          # the per-lane fold, shared with the sequencer (v17)
   - src/ui/format-param.ts                  # ParamDef -> display string (v11)
+  - src/state/serialize.ts                  # motionTrackDepth trimming (v17)
   - src/ui/panels/song-panel.ts             # Motion card: chain + Mute (v2)
   - src/ui/onboarding/help-content.ts       # `motion` help topic (v2)
   - src/state/song.ts                       # SongFile v4 fields
@@ -70,12 +82,23 @@ source:
 ## Background / Why
 
 (v4) The XY lane is bound to the XY Pad's two params, which means automating
-anything costs you the pad — the one surface you want free for live playing. Two
-extra **single-param tracks** per bank fix that: each picks its own parameter and
-holds its own anchors, so a bank can drive up to four parameters — or drive just
-these two and keep the pad free to grab (only the XY lane costs you the pad).
+anything costs you the pad — the one surface you want free for live playing.
+Extra **single-param tracks** per bank fix that: each picks its own parameter and
+holds its own anchors, so a bank can drive up to six parameters — or drive just
+these four and keep the pad free to grab (only the XY lane costs you the pad).
 They are the Korg Electribe / MPC "motion lane" idea:
 a strip of levels under the pattern, one parameter each.
+
+(v17) There are **four** of them, not two. Two was enough to prove the idea and
+not enough to use it: an author wanting a filter sweep, a delay throw and a
+reverb swell had to spend the XY lane on the third, which is the one move the
+lanes exist to avoid — and the AI-facing docs, which describe the format to
+agents that cannot see the pad, were recommending exactly that. Four lanes would
+cost ~130 px of grid on a tab that is already the tallest, so an **empty lane
+arrives folded**: its header row stays — caret, letter, parameter picker,
+Slide/Step, readout — and only its cells and graph collapse. Picking a parameter
+opens it. The fold is the sequencer's own, extracted
+([lane-fold](lane-fold.md)) rather than copied.
 
 Songs vary notes and hits over time (banks + chains) but every *parameter* is static —
 no filter sweeps, no delay throws, no per-bar sound scenes. Motion is a 4th machine
@@ -219,7 +242,7 @@ The tab sits between Sampler and Song.
       [`Dropdown.setDimmed`](dropdown.md) REQ-a-dropdown-can-be-dimmed, which scopes it to the toggle:
       applied to the dropdown *root* it composited the open option list to 62%
       alpha and formed a stacking context that trapped the fixed-position menu
-      **behind the pads below**. Same shape as REQ-two-lanes-below-the-xy-lane's rule further down — dim
+      **behind the pads below**. Same shape as REQ-single-param-lanes-below-the-xy-lane's rule further down — dim
       the label, never the container the picker lives in;
     - a single **dashed divider** separates the XY lane from the tracks below (A
       and B are the same kind of lane, so nothing divides them from each other),
@@ -264,20 +287,31 @@ The tab sits between Sampler and Song.
   mid-play resumes on the next frame. Motion stays outside `audibleLanes` (it
   makes no sound); the card's dim visual is driven directly off `motion.mute`.
 
-### v4 — extra tracks
+### v4 — extra tracks (four of them since v17)
 
-- **REQ-two-extra-tracks-per-bank** — **Two extra tracks per bank**, A and B,
-  each a `MotionTrack = { param?: string; steps: MotionTrackStep[16] }` where
+- **REQ-extra-single-param-tracks-per-bank** — **`MOTION_TRACK_COUNT` extra
+  tracks per bank** — four since v17, labelled A–D — each a
+  `MotionTrack = { param?: string; steps: MotionTrackStep[16] }` where
   `MotionTrackStep = { on, v }` and `v` is **0..1 normalized taper space**
   exactly like the XY lane's `x`/`y`. The parameter is chosen **per bank, per
   track** — the same scope as REQ-motion-drives-the-xy-assignment's
-  `MotionAssign` override, so one song can drive eight different params across a
-  four-bank chain. A track with **no `param`** writes nothing: that is the no-op
-  default ([ADR-006](../decisions/adr-006-no-op-param-defaults.md)), and unlike
-  REQ-motion-drives-the-xy-assignment's axes there is no global fallback to
-  inherit from (there is no pad behind these tracks). `copyMotionBank` copies
-  the tracks *and* their param choices, so building one bank and copying it does
-  not mean re-picking params.
+  `MotionAssign` override, so one song can drive sixteen different params across
+  a four-bank chain — twenty-four counting the XY axes. A track with **no
+  `param`** writes nothing: that is
+  the no-op default ([ADR-006](../decisions/adr-006-no-op-param-defaults.md)),
+  and unlike REQ-motion-drives-the-xy-assignment's axes there is no global
+  fallback to inherit from (there is no pad behind these tracks).
+  `copyMotionBank` copies the tracks *and* their param choices, so building one
+  bank and copying it does not mean re-picking params.
+
+  The count lives **once**, as `MOTION_TRACK_COUNT` in `src/state/patterns.ts`,
+  and `MOTION_TRACK_LABELS` is **derived** from it rather than hand-kept beside
+  it — the [banks](banks.md) REQ-a-machine-owns-its-bank-count rule applied one
+  level in, for the same reason ADR-022 gives: a hand-kept list beside a
+  hand-kept count is two things that can disagree. Raising it again is one
+  edit; everything downstream (the `motion.t<i>.slide` params, the engine's
+  subscriptions, the machine's per-track loops, the panel's rows, the clear
+  menu, undo) already derives.
 - **REQ-tracks-share-the-lanes-curve-semantics** — **Tracks share the XY lane's
   curve semantics**, but each track reads its **own** slide: `motion.t<i>.slide`
   via `setTrackSlide`, not the XY lane's `motion.slide`
@@ -295,9 +329,11 @@ The tab sits between Sampler and Song.
   (REQ-motion-writes-go-through-bus-set): the machine's baseline map is keyed by
   param id, so track writes join it with no new mechanism. Stop, `motion.on → 0`
   and `motion.mute → 1` restore every recorded baseline including the tracks'.
-- **REQ-two-lanes-below-the-xy-lane** — **UI**: two lanes below the XY lane,
-  each a **header row** (label, param dropdown, and its own Slide/Step segmented
-  — `seg-motion.t<i>.slide`) above its full-width **level pads** — one per lane
+- **REQ-single-param-lanes-below-the-xy-lane** — **UI**: `MOTION_TRACK_COUNT`
+  lanes below the XY lane, each a **header row** (the fold button, which carries
+  the caret *and* the lane's letter and so replaces the separate label; the param
+  dropdown; and its own Slide/Step segmented — `seg-motion.t<i>.slide`) above its
+  full-width **level pads** — one per lane
   cell (v15, REQ-the-automation-lane-follows-the-meter: all 16 are built, and
   the ones past the lane are `hidden`, so they leave the grid rather than
   wrapping onto a second row) — drag up/down to set the value (the pad fills
@@ -310,8 +346,8 @@ The tab sits between Sampler and Song.
   level reset too), so a cleared cell reads like an untouched one instead of
   keeping its old parked height. The fill **snaps** to its value (no CSS height
   animation), and the lanes show the moving **playhead** while playing — the
-  same `PlayheadHighlighter` glow the XY lane and the other machines carry (all
-  three motion lanes are wired into one highlighter, so the playing column
+  same `PlayheadHighlighter` glow the XY lane and the other machines carry (every
+  motion lane is wired into one highlighter, so the playing column
   lights across them together). Each lane draws the same mode-aware polyline the
   XY lane does — **using its own mode** — so slide interpolation and the
   bar-line carry stay visible while authoring. A lane with no param chosen
@@ -322,15 +358,84 @@ The tab sits between Sampler and Song.
   drops the XY pad's **vertical** centre line: `onSet` discards `x`, so a cell's
   horizontal position means nothing, and drawing that axis would make a
   one-dimensional cell read as a mini XY pad. The horizontal line stays — on a
-  level cell it is a 50% mark. (v7) The bank bar's **content dot** counts all
-  three lanes the same way: a bank whose A/B tracks hold steps is a filled bank
+  level cell it is a 50% mark. (v7) The bank bar's **content dot** counts every
+  lane the same way: a bank whose A–D tracks hold steps is a filled bank
   even with an empty XY lane, and the dot updates on track edits as well as
   anchor edits — see [banks](banks.md) REQ-content-dot-covers-every-lane.
   Clearing: Motion has no selection cursor, so its `Clear ▾` lists **every lane
   holding steps** rather than "the selected row" — see
   [step-grid-editing](step-grid-editing.md) REQ-clear-menu-clears-in-bulk.
-  `Clear bank` empties all three lanes; the axis override and the tracks' param
+  `Clear bank` empties every lane; the axis override and the tracks' param
   choices survive every clear, being configuration rather than step data.
+- **REQ-an-empty-motion-lane-starts-folded** — (v17) **An empty single-param
+  lane arrives folded.** Four always-open lanes would add ~130 px to the tallest
+  tab in the app for a session that uses none of them, so a lane with **no
+  `param` and no set steps** starts folded: the header row stays and the cells +
+  graph collapse. It is [lane-fold](lane-fold.md)'s component, the sequencer's
+  own fold extracted rather than copied, so both machines agree on the storage
+  shape and on what a fold means.
+
+  What the fold does and does not do:
+  - The **param picker stays in the header**, never inside the folded body. A
+    folded lane must still be assignable, or the fold would have a different
+    outcome depending on invisible state
+    ([ADR-014](../decisions/adr-014-dont-make-me-think.md) law 2) — the same
+    dead-end this requirement's dimmed-but-never-inert row already avoids.
+  - **Picking a parameter unfolds** the lane, because assigning a lane you
+    cannot see would be a write with no feedback.
+  - **Clearing the parameter back to none does NOT re-fold it.** The fold is a
+    gesture with a remembered answer, not a projection of the lane's content; a
+    row that collapsed under the pointer the moment a picker returned to
+    "— none —" would take the next pick's target with it.
+  - The choice **persists per lane** under
+    `websynth.ui.collapsed.motiontrack.<i>` and beats the empty-default
+    ([lane-fold](lane-fold.md) REQ-a-lane-folds-on-a-stored-preference-first). A
+    lane the user has never touched re-derives its default when a bank or a song
+    arrives ([lane-fold](lane-fold.md) REQ-an-untouched-lane-re-derives-its-default),
+    so a song that uses lanes C and D never opens with them hidden.
+  - The XY lane does **not** fold. It is the live-play surface and the reason the
+    single-param lanes exist; hiding it would invert the tab's subject.
+  - Four open lanes plus the XY lane can exceed the screen. The stack
+    **scrolls** rather than the rows sharing a fixed height, because a shorter
+    pad is a less hittable pad and the cells are already ~13 px wide at phone
+    width (REQ-a-motion-steps-value-is-readable-without-hovering). No new layout
+    was needed for this: the panel already grows to its content and the **page**
+    is what scrolls. Measured at 390x560 with all four lanes open — every pad
+    keeps its full 64 px, the last lane scrolls into view, and nothing overflows
+    horizontally.
+- **REQ-a-folded-motion-lane-does-no-repaint** — (v17) **A folded lane repaints
+  its body and not its header**, and one body repaint is coalesced onto its
+  unfold. Doubling the lanes doubles the work
+  REQ-the-ab-lane-repaint-is-gated-on-visibility was written to bound — an SVG
+  polyline plus up to 16 `<circle>`s plus 16 pad levels, per lane, per bar — and
+  a folded lane has even less of that to show than an off-screen one. It is the
+  same dirty-flag idiom, one flag per lane, nested **inside** the panel's
+  existing visibility gate rather than replacing it: the panel asks "is the tab
+  showing", the lane asks "am I open", and a body repaint runs only when both
+  say yes ([runtime-performance](runtime-performance.md)
+  REQ-no-work-for-offscreen-dom).
+
+  Two things this gate must not swallow:
+
+  - **The header is painted either way.** `paintHeader` (the param picker's
+    value, the `.trackDim` state, the readout) runs on every repaint; only
+    `paintBody` is gated. A folded lane still *shows* its header
+    ([lane-fold](lane-fold.md) REQ-a-lane-fold-hides-the-body-not-the-header), so a picker
+    left reading "— none —" over a lane a loaded song has just assigned would be
+    worse than a hidden one: the next pick from it would silently overwrite that
+    assignment. Gating the whole repaint is the obvious implementation and the
+    wrong one.
+  - **A per-lane signal repaints one lane.** `onMotionTrackChange` is emitted
+    once **per lane** on a bank switch, a bank copy and a song restore
+    (`emitAllMotionTracks`), and each emission names the lane it is about. A
+    handler that answered each one by repainting every lane would make a bank
+    switch `MOTION_TRACK_COUNT`² lane repaints — and with Follow on, a bank
+    switch is every bar, which is the exact path this requirement exists to
+    bound. The panel routes by the emitted index; only the whole-panel catch-up
+    on reveal still repaints all of them, which is the one time that is right.
+    The same applies to the fold re-derive: `reveal()` reads `localStorage`, so
+    revealing all four lanes on each of four emissions is sixteen synchronous
+    storage reads per bar for an answer that cannot have changed.
 - **REQ-the-ab-lane-repaint-is-gated-on-visibility** — (v14) **The A/B lane
   repaint is gated on visibility, like the XY lane's graph.**
   `arrangement.onChange` fires every bar while playing, and a lane's repaint
@@ -339,7 +444,7 @@ The tab sits between Sampler and Song.
   is [runtime-performance](runtime-performance.md)
   REQ-no-work-for-offscreen-dom's rule, and the XY lane's graph in the same
   panel already obeyed it while the A/B lanes, added later
-  (REQ-two-lanes-below-the-xy-lane), were never wired into the same gate.
+  (REQ-single-param-lanes-below-the-xy-lane), were never wired into the same gate.
 
   A repaint requested while hidden is **coalesced into one on reveal**, so the
   lanes are never stale — the `graphDirty` idiom the XY graph already uses, not a
@@ -348,13 +453,45 @@ The tab sits between Sampler and Song.
   through one path is what keeps the dirty flag honest.
 
 - **REQ-song-file-v5-adds-motion-tracks** — **SongFile v5** adds optional
-  `motionTracks` (one entry per motion bank × 2 tracks), additive per
+  `motionTracks` (one entry per motion bank × 2..`MOTION_TRACK_COUNT` tracks),
+  additive per
   [ADR-007](../decisions/adr-007-songfile-additive-versioning.md): v1–v4 files
-  load with both tracks empty and unassigned, writing nothing. Export is
+  load with every track empty and unassigned, writing nothing. Export is
   default-sparse (a dead step is `{on:false}`, `v` rounded to 4 sig-figs) and a
   track that is entirely empty *and* unassigned is omitted. The authoring
   dialect gains a matching key; both public schemas and the authoring guide
-  document it.
+  document it. (v17) The inner dimension widened from exactly 2 to `2..4` — see
+  REQ-the-motion-track-array-length-is-the-count, which is why that widening
+  rides **v8** rather than a version of its own.
+- **REQ-the-motion-track-array-length-is-the-count** — (v17) **A bank's track
+  array length is how many lanes it carries**, floored at 2 and capped at
+  `MOTION_TRACK_COUNT`. This is [ADR-022](../decisions/adr-022-bank-count-is-the-array-length.md)
+  applied one level in: the count is nowhere stored twice, so there is nothing
+  that can disagree with the array.
+  - **Export trims trailing empties to the floor.** `compactSongForExport` cuts
+    each bank to `motionTrackDepth(bank)` — the highest track carrying
+    information, plus one, never below 2. A song using only A and B therefore
+    still writes `[null, null]` and every existing song, every committed demo
+    and every share link is **byte-for-byte what it was**; `npm run check:demos`
+    stays green with no demo churn. A bank that uses C or D writes 3 or 4
+    entries. The floor is 2 rather than 0 for exactly that byte-identity: v5–v7
+    files all carry two.
+  - **Load pads, never truncates.** `restore` is authoritative per track and
+    loops the destination, so a two-entry file arrives with C and D blank and
+    unassigned — writing nothing ([ADR-006](../decisions/adr-006-no-op-param-defaults.md)).
+  - **A deeper bank is v8 content.** The authoring dialect's version ladder gains
+    `anyMotionTrackGrown` beside `anyMachineGrown` / `anyChainGrown`
+    ([song-mode](song-mode.md) REQ-song-file-v8-widens-the-bank-count). Without
+    it a dialect song using lane C would stamp **v5**, and a build that predates
+    this one would accept that version and silently drop the lane — the same
+    trap `anyChainGrown` exists to close, and for the same reason: this is
+    content whose *shape* is legal in the older version, so nothing else gives
+    it away.
+  - **The validator bounds the inner array.** A bank carrying more than
+    `MOTION_TRACK_COUNT` tracks is an error, as its sibling `checkSeqTracks`
+    already made one. Until v17 `checkMotionTracks` bounded only the outer
+    array, so a five-track bank validated clean and was then silently truncated
+    by `restore` — a gap, not a leniency.
 - **REQ-an-unresolved-motion-target-is-reported** — **A target that does not
   resolve is reported, not swallowed.** `write(id, norm)` starts `const def =
   this.bus.def(id); if (!def) return;` — correct at play time (a lane must never
@@ -661,6 +798,22 @@ from both firing. Note the previously "saturated" motion column in
 [step-grid-editing](step-grid-editing.md) REQ-the-ruler-is-separate-chrome no longer holds — `wheel` and
 `right-click` are deliberately free.
 
+The **fold button**'s own inventory (v17, REQ-an-empty-motion-lane-starts-folded).
+It is a plain `<button type="button">`, so the keyboard rows are native:
+
+| Gesture | Outcome | Precedent |
+| --- | --- | --- |
+| tap / click | fold or unfold this lane, and remember the answer | the sequencer's own track fold; Serum LFO pages |
+| `Tab` / `Shift+Tab` | move focus across the lane headers | native |
+| `Enter` / `Space` | same as tap (native button activation) | native |
+| double-tap | — tap already toggles, and a second tap simply toggles back | — |
+| long-press / right-click / drag / wheel | — the button sits directly above a column of value pads where all four already mean something | — |
+| — | picking a parameter in this lane's picker | Opens the lane. Not a gesture *on the button*; recorded here because it is the second route to the same outcome and law 2 is about collisions, not about routes. |
+
+Checked against law 2: tap has exactly one outcome whatever the lane holds — it
+inverts the fold. The empty-lane default is not a second meaning for the
+gesture; it is the state the gesture starts from.
+
 ### Contract / public interface
 
 - `MotionStepPad` (`src/ui/components/motion-step-pad.ts`), the v11 additions:
@@ -734,12 +887,23 @@ from both firing. Note the previously "saturated" motion column in
 - `PatternStore`: `motionEditBank`, `motion`, `motionBank(i)`, `setMotionEditBank`,
   `setMotionStep(step, cell)`, `copyMotionBank(from,to)`, `motionAssign(i)`,
   `setMotionAssign(i, a|null)`, `onMotionChange`, `onMotionBankChange`.
-  (v4) `motionTracks(bank) → MotionTrack[2]`, `motionTrack(track)` (edit bank),
+  (v4) `motionTracks(bank) → MotionTrack[]` (length `MOTION_TRACK_COUNT`),
+  `motionTrack(track)` (edit bank),
   `setMotionTrackStep(track, step, patch)`, `setMotionTrackParam(track, id|null)`,
   `clearMotionTrack(track)`, `onMotionTrackChange(fn)`. Track mutations emit the
   `motion-track` / `motion-track-param` undo kinds; `clearMotionBank` and
   `copyMotionBank` keep carrying the whole bank (tracks included) in their single
   `motion-copy` entry (step-grid-editing.md REQ-one-bulk-action-one-undo-entry).
+  (v17) `MOTION_TRACK_COUNT` is 4, `MOTION_TRACK_LABELS` derives from it, and
+  `MIN_MOTION_TRACK_COUNT` is the serialized floor.
+- `src/state/patterns.ts`: `motionTrackDepth(bank) → number` (v17) — the highest
+  track in a bank that carries information, plus one, clamped to
+  `MIN_MOTION_TRACK_COUNT..MOTION_TRACK_COUNT`. It has exactly two callers and
+  they are the reason it is shared rather than inlined: `compactSongForExport`
+  trims with it, and the authoring dialect's version ladder decides `v8` with it
+  (REQ-the-motion-track-array-length-is-the-count). Inlined twice, the file a
+  song exports and the version stamped on it could disagree about how deep a
+  bank is.
 - `Arrangement`: `motionPlayBank`, `motionResting`, `setMotionChain(steps, enabled)`,
   `motionChainPos`, `motion{Prev,Next}PlayBank`, `motion{Prev,Next}Resting` (v3).
 - `src/utils/taper.ts`: `toNorm(def, v)`, `fromNorm(def, n)` — moved out of the
@@ -779,12 +943,18 @@ MotionTrack:         # v4 — per bank, per track
   steps: MotionTrackStep[16]
 Params (v5):         # mode is per lane, not global
   motion.slide:       { discrete, labels: [step, slide], default: 1 }   # XY lane
-  motion.t<i>.slide:  { discrete, labels: [step, slide], default: 1 }   # each track
+  motion.t<i>.slide:  { discrete, labels: [step, slide], default: 1 }   # each track, i in 0..3
+Constants (v17):     # src/state/patterns.ts — the count lives once
+  MOTION_TRACK_COUNT:     4          # lanes per bank; LABELS derive from it (A..D)
+  MIN_MOTION_TRACK_COUNT: 2          # the serialized floor — every v5..v7 song has two
 SongFile v5 (additive):
-  motionTracks: (MotionTrack | null)[4..8][2] | absent   # outer length == motionBanks'
+  motionTracks: (MotionTrack | null)[4..8][2..4] | absent   # outer length == motionBanks'
+  # inner length == motionTrackDepth(bank): trailing nulls trimmed, floored at 2 (v17)
 Author dialect (v4):
-  motionTracks: [ [TrackSpec, TrackSpec], ... up to MAX_BANK_COUNT banks ]
+  motionTracks: [ [TrackSpec x up to MOTION_TRACK_COUNT], ... up to MAX_BANK_COUNT banks ]
   # TrackSpec = { param, steps: [ {step, v}, ... ] } | null
+  # short banks are padded with nulls on expand; a bank deeper than
+  # MIN_MOTION_TRACK_COUNT stamps the file v8 (REQ-the-motion-track-array-length-is-the-count)
 SongFile v4 (additive):
   motionBanks: MotionStep[4..8][16] | absent
   motionAssigns: (MotionAssign | null)[4..8] | absent
@@ -939,6 +1109,80 @@ Scenario: A lane with no parameter has nothing to convert (v11, REQ-a-motion-ste
   Given track B has no parameter chosen
   Then its readout shows "—" rather than a bare normalized number
 # pinned by: e2e/motion.spec.ts
+
+Scenario: A third lane drives a third param with the pad still free (v17, REQ-extra-single-param-tracks-per-bank)
+  Given lanes A, B and C are each assigned to a different param with anchors
+  When the transport plays that bank
+  Then all three follow their own curves, on their own slide modes
+  And the XY lane's anchors are the only thing driving the pad's two params
+  And stopping restores every one of them
+# pinned by: tests/audio/transport/motion-machine.test.ts, e2e/motion.spec.ts
+
+Scenario: An empty lane arrives folded and picking a param opens it (v17, REQ-an-empty-motion-lane-starts-folded)
+  Given no stored fold preference and the Motion tab open
+  Then lanes with no param and no steps are folded, and their cells are not shown
+  And each folded lane's param picker is still in the DOM and still usable
+  When a param is chosen on a folded lane
+  Then that lane unfolds
+# pinned by: tests/ui/motion-panel.test.ts, e2e/motion.spec.ts
+
+Scenario: Clearing a lane's param leaves it open (v17, REQ-an-empty-motion-lane-starts-folded)
+  Given an open lane with a param chosen
+  When the param is set back to none
+  Then the lane stays open, so the next param can be picked in the same place
+# pinned by: tests/ui/motion-panel.test.ts
+
+Scenario: A song that uses lanes C and D does not arrive with them hidden (v17, REQ-an-empty-motion-lane-starts-folded)
+  Given lanes C and D are folded by default, with no stored preference
+  When a song is loaded that assigns and fills them
+  Then both lanes are open
+  And a lane the user had folded by hand stays folded
+# pinned by: tests/ui/motion-panel.test.ts
+
+Scenario: A folded lane repaints nothing and catches up on unfold (v17, REQ-a-folded-motion-lane-does-no-repaint)
+  Given the Motion tab is showing and a lane is folded
+  When the arrangement advances a bar, or the lane's steps change
+  Then that lane rebuilds no graph and re-levels no pads
+  When it is unfolded
+  Then it repaints exactly once, showing the current steps rather than stale ones
+# pinned by: tests/ui/motion-panel.test.ts
+
+Scenario: A folded lane's header still tracks the store (v17, REQ-a-folded-motion-lane-does-no-repaint)
+  Given a lane the user folded by hand, so a song load leaves it folded
+  When a song arrives that assigns that lane a parameter
+  Then the lane stays folded
+  But its param picker reads that parameter, and the row is no longer dimmed —
+    the header is on screen, so it may not report the lane as unassigned
+# pinned by: tests/ui/motion-panel.test.ts
+
+Scenario: A per-lane change repaints that lane only (v17, REQ-a-folded-motion-lane-does-no-repaint)
+  Given all four lanes are open and the Motion tab is showing
+  When one lane's steps change, or a bank switch emits once per lane
+  Then each emission repaints the lane it names, not all four
+  And a bank switch therefore costs MOTION_TRACK_COUNT lane repaints, not its square
+# pinned by: tests/ui/motion-panel.test.ts
+
+Scenario: A four-track song is stamped v8, a two-track one is not (v17, REQ-the-motion-track-array-length-is-the-count)
+  Given an authoring-dialect song whose motion bank assigns lane C
+  When expandAuthorSong runs
+  Then the canonical file is version 8 — not 5, which an older build would accept
+    before silently dropping the lane
+  And the same song using only lanes A and B still expands to version 5
+# pinned by: tests/state/song-author.test.ts
+
+Scenario: A song using only A and B exports byte-for-byte as before (v17, REQ-the-motion-track-array-length-is-the-count)
+  Given a song whose motion banks use at most lanes A and B
+  When it is exported
+  Then each bank's motionTracks entry still has exactly 2 elements
+  And a bank that assigns lane C writes 3, and one that assigns D writes 4
+# pinned by: tests/state/serialize.test.ts
+
+Scenario: A file with too many tracks in a bank is rejected, not truncated (v17, REQ-the-motion-track-array-length-is-the-count)
+  Given a canonical song whose motionTracks bank holds 5 tracks
+  When it is validated
+  Then it reports an error naming the bank
+  And a 2-entry bank from a v5 file still validates and loads with C and D blank
+# pinned by: tests/state/song-validate.test.ts, tests/state/song.test.ts
 
 Scenario: An unassigned extra track writes nothing (v4)
   Given motion track B has anchors but no parameter chosen
@@ -1162,6 +1406,7 @@ Scenario: Dialect motion bank expands
   `tests/audio/transport/motion-machine.test.ts`, `tests/audio/transport/arrangement.test.ts`,
   `tests/state/{patterns,song-validate,serialize,song-author,authoring-docs}.test.ts`,
   `tests/ui/motion-step-pad.test.ts`, `tests/ui/motion-graph.test.ts`,
+  `tests/ui/motion-panel.test.ts` + `tests/ui/lane-fold.test.ts` (v17 — the fold),
   `tests/ui/value-bubble.test.ts` + `tests/ui/format-param.test.ts` (v11),
   `tests/ui/help-content.test.ts` (the `motion` / `motion.xy` / `motion.tracks`
   topics) — `npm test`
@@ -1175,6 +1420,18 @@ Scenario: Dialect motion bank expands
   returning to centre after bank B's bar instead of staying open until the sweep
   comes round again. A/B it against a 4/4 demo with per-bank overrides
   (**First_Light**), which must sound exactly as it did.
+- By hand (v17, REQ-an-empty-motion-lane-starts-folded): open the Motion tab on a fresh profile —
+  lanes A–D are all folded and the tab is no taller than it was with two lanes.
+  Open all four and check the stack **scrolls** rather than squashing the pads,
+  at phone width as well. Load a demo that uses A/B (**Kutmuziek**,
+  **Titulaer**): its lanes arrive open, C and D folded. Re-export it and diff
+  against the committed file — it must be byte-identical
+  (REQ-the-motion-track-array-length-is-the-count).
+- By ear (v17, REQ-extra-single-param-tracks-per-bank): the point of the change is that four params
+  can move while the pad stays grabbable. Assign C and D on top of a demo that
+  already uses A/B, play a full chain cycle, and work the XY Pad by hand
+  throughout — [ADR-010](../decisions/adr-010-musical-stable-cheap-dsp.md) says a
+  green suite cannot settle whether that is musical.
 - By hand (v11): REQ-a-motion-steps-value-is-readable-without-hovering/REQ-the-pads-gesture-set-peek-snap-fine are a *feel* change and no suite covers feel.
   Check that a coarse drag steps cleanly between snap levels rather than
   stuttering, that Shift never jumps on press or on release, that the bubble
@@ -1211,4 +1468,13 @@ Scenario: Dialect motion bank expands
 
 ## Open questions / future
 
-- More than two axes / free per-step param choice (would decouple from the XY Pad).
+- Free per-step param choice, which would decouple the XY lane from the XY Pad
+  entirely. (v17 answered the *count* half of the old "more than two axes"
+  question by making the single-param lanes four; the remaining half is whether
+  a lane's parameter could change *within* a bank.)
+- The lane count is fixed at four, not grown on demand like a bank
+  ([banks](banks.md) REQ-a-bank-is-added-on-demand). Folding is what buys the
+  space back, and a `+`/`−` arm would add a second dimension to a machine that
+  already has banks on one. If four ever stops being enough, the count is one
+  constant and everything derives — but the per-bank array would then need the
+  bank bar's shrink rules too, which is its own change.

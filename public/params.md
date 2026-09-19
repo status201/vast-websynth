@@ -415,5 +415,7 @@ Schemas: [`llms.txt`](llms.txt).
 - "motion.slide": number  // range 0..1, default 1, step 1, values 0=step 1=slide
 - "motion.t0.slide": number  // range 0..1, default 1, step 1, values 0=step 1=slide
 - "motion.t1.slide": number  // range 0..1, default 1, step 1, values 0=step 1=slide
+- "motion.t2.slide": number  // range 0..1, default 1, step 1, values 0=step 1=slide
+- "motion.t3.slide": number  // range 0..1, default 1, step 1, values 0=step 1=slide
 - "motion.len": number  // range 0..16, default 0, step 1
 - "motion.rate": number  // range 0..8, default 2, step 1, values 0=1/32 1=1/16 T 2=1/16 3=1/8 T 4=1/16 D 5=1/8 6=1/4 T 7=1/8 D 8=1/4

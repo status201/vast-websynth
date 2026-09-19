@@ -32,6 +32,8 @@ import {
   BANK_LABELS,
   DRUM_TRACK_COUNT,
   SAMPLER_SLOT_COUNT,
+  MOTION_TRACK_COUNT,
+  MIN_MOTION_TRACK_COUNT,
 } from './patterns';
 
 /** Stand-in for the SONG REQUEST section when the user typed no brief. */
@@ -121,7 +123,7 @@ COMPACT AUTHOR FORMAT (recommended output)
   "xy": { "x": "<param id>", "y": "<param id>" },   // OPTIONAL — XY-pad axis assignment
   "motion": [ MotionBank, … up to ${MAX_BANK_COUNT} ],  // OPTIONAL — motion sequencer (XY param automation over the bar)
   "motionChain": Chain,                // OPTIONAL — motion bank order per bar
-  "motionTracks": [ [Track, Track], … ] // OPTIONAL — 2 extra 1-param tracks per motion bank
+  "motionTracks": [ [Track, … up to ${MOTION_TRACK_COUNT}], … ] // OPTIONAL and PREFERRED — 1-param automation lanes per motion bank
 }
 
 SeqBank — one bar of melody (${SEQ_LENGTH} sixteenth-note step cells; a bank is
@@ -230,6 +232,12 @@ NOTES
 - An automation target — "xy", a per-bank "assign", or a "motionTracks" param — must name a REAL param id
   from PARAMS below. An id that does not exist is not an error, but nothing will move: validate_song
   reports it as a warning, so check those before you call a song done.
+- AUTOMATE THROUGH "motionTracks", NOT THROUGH THE XY LANE. Each motion bank has ${MOTION_TRACK_COUNT}
+  single-parameter lanes, and each one names its own param — that is ${MOTION_TRACK_COUNT} moving params per bank
+  before you touch the pad. The XY lane ("motion" anchors + "xy"/"assign") drives the XY Pad's own two
+  axes, which means that while it plays, a human cannot grab the pad: you have spent the one surface the
+  instrument keeps for live performance. Reach for "xy"/"motion" only when the song really wants a
+  recorded pad move; otherwise leave them out and let the player have the pad.
 
 PARAMS (id, range, default, discrete value map)
 ${params}
@@ -259,14 +267,16 @@ TOP-LEVEL SHAPE
   "motionAssigns": (MotionAssign | null)[${MIN_BANK_COUNT}..${MAX_BANK_COUNT}],   // per-bank axis override; null = inherit "xy"
   "motionChain": { "enabled": boolean, "steps": number[] },
 
-  // ---- v5 extra motion tracks, OPTIONAL ----
-  // Per bank, 2 more automation tracks that each drive ONE param of your choice —
-  // so a bank can move up to 4 params, or move just these 2 and keep the XY Pad
-  // free to play live (the XY lane is what costs you the pad).
-  // A track is { "param": "<ParamBus id>", "steps": [{ "step": 0-15, "v": 0-1 }] }
-  // or null. Same slide/step curve rules as the XY anchors, but each track has
-  // its OWN mode param: "motion.t0.slide" / "motion.t1.slide" (1 = slide, default).
-  "motionTracks": ((Track | null)[2])[${MIN_BANK_COUNT}..${MAX_BANK_COUNT}],
+  // ---- v5 extra motion lanes, OPTIONAL — and the PREFERRED way to automate ----
+  // Per bank, ${MOTION_TRACK_COUNT} automation lanes (A-D) that each drive ONE param of your
+  // choice — so a bank can move up to ${MOTION_TRACK_COUNT + 2} params, or move just these ${MOTION_TRACK_COUNT} and keep
+  // the XY Pad free to play live (the XY lane is what costs you the pad).
+  // A lane is { "param": "<ParamBus id>", "steps": [{ "step": 0-15, "v": 0-1 }] }
+  // or null. Same slide/step curve rules as the XY anchors, but each lane has
+  // its OWN mode param: "motion.t0.slide" … "motion.t${MOTION_TRACK_COUNT - 1}.slide" (1 = slide, default).
+  // Trailing unused lanes may be omitted; a bank carrying more than ${MIN_MOTION_TRACK_COUNT} makes the
+  // file v8, so a song that uses only A and B still emits v5 exactly as before.
+  "motionTracks": ((Track | null)[${MIN_MOTION_TRACK_COUNT}..${MOTION_TRACK_COUNT}])[${MIN_BANK_COUNT}..${MAX_BANK_COUNT}],
 
   // ---- v6 sequencer tracks 2-4, OPTIONAL ----
   // Indexed by the REAL track number, so index 0 is always null (track 1 is

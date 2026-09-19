@@ -266,7 +266,7 @@ export function valueAtInto(
   return true;
 }
 
-/** One extra single-param track (motion-sequencer.md REQ-two-extra-tracks-per-bank/REQ-tracks-share-the-lanes-curve-semantics). */
+/** One extra single-param track (motion-sequencer.md REQ-extra-single-param-tracks-per-bank/REQ-tracks-share-the-lanes-curve-semantics). */
 export function valueAt1D(
   steps: readonly MotionTrackStep[],
   barPos: number,

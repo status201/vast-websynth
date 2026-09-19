@@ -18,6 +18,22 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ### Added
 
+- **Four Motion lanes instead of two.** Under the Motion tab's XY lane there are
+  now **four** single-parameter lanes (A–D) rather than two, so one bank can
+  move up to six parameters — or four with the **XY Pad left free to play live**,
+  which is the whole reason the lanes exist: automating through the XY lane is
+  what costs you the pad. An **empty lane arrives folded** to its header row, so
+  four lanes take no more height than the two used to. Picking a parameter opens
+  a lane, and so does the caret beside its letter; clearing the parameter leaves
+  it open, and the caret remembers what you chose. Songs written before this keep
+  loading unchanged, and a song that uses only lanes A and B still exports
+  byte-for-byte as it did — only a song that reaches for C or D writes anything
+  new. The song format stays at version 8.
+- **AI-written songs are steered to the Motion lanes.** `llms.txt`, the published
+  JSON Schemas and the AI Prompt's format guide now tell an agent to automate
+  through `motionTracks` and to leave the XY lane alone unless the song really
+  wants a recorded pad move — so a generated song arrives with the XY Pad still
+  playable.
 - **Up to eight pattern banks per machine.** The Sequencer, Drum machine,
   Sampler and Motion sequencer each still start with four banks (A–D), and a
   **+** at the end of the bank bar adds a fifth, then a sixth, seventh and

@@ -84,10 +84,10 @@
     "motionTracks": {
       "type": "array",
       "maxItems": 8,
-      "description": "0..8 banks, each 0..2 extra single-param motion tracks. Each track picks one ParamBus id and its own anchors, so a bank can automate up to 4 params (the XY pair plus these two). Use null for an unused track.",
+      "description": "0..8 banks, each 0..4 extra single-param motion lanes (A-D). Each lane picks one ParamBus id and its own anchors, so a bank can automate up to 6 params (the XY pair plus these four). PREFER these lanes over the 'motion'/'xy' keys: the XY lane is the only one that costs the performer the pad, and a song that leaves it free can be played live over. Use null for an unused lane.",
       "items": {
         "type": "array",
-        "maxItems": 2,
+        "maxItems": 4,
         "items": {
           "oneOf": [
             {

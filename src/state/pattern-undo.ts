@@ -157,7 +157,7 @@ export class PatternUndo {
         entry.before.forEach((s, i) => p.setMotionStep(i, { ...s }));
         p.setMotionAssign(entry.beforeAssign ? { ...entry.beforeAssign } : null);
         // The extra tracks ride in the same entry, so one press restores the
-        // whole bank — anchors, axis override and tracks (REQ-two-extra-tracks-per-bank).
+        // whole bank — anchors, axis override and tracks (REQ-extra-single-param-tracks-per-bank).
         entry.beforeTracks.forEach((t, ti) => {
           p.setMotionTrackParam(ti, t.param ?? null);
           t.steps.forEach((s, i) => p.setMotionTrackStep(ti, i, { ...s }));

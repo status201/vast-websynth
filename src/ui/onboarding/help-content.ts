@@ -1018,16 +1018,16 @@ export const HELP_TOPICS: Record<TopicId, HelpTopic> = {
       'plays. Each of the 16 mini pads is an optional <em>anchor</em>: drag inside one to set an ' +
       'X/Y position for that step, double-click to clear it. <strong>SLIDE</strong> ramps ' +
       'smoothly between anchors; <strong>STEP</strong> jumps at each anchor and holds. Each ' +
-      'lane has its own SLIDE/STEP switch, so the XY sweep and the two extra tracks can ' +
+      'lane has its own SLIDE/STEP switch, so the XY sweep and the single-param lanes can ' +
       'differ.</p>' +
-      '<p>Under the XY lane sit <strong>two more tracks</strong>, each driving a single ' +
+      '<p>Under the XY lane sit <strong>four more lanes</strong>, each driving a single ' +
       'parameter you choose yourself — and you choose it <em>per bank</em>, so bank A can ride the ' +
       'delay mix while bank B moves the drive. Drag a cell to set its level, double-click to clear ' +
-      'it. Between the XY pair and these two, one bank can move up to <strong>four</strong> ' +
-      'parameters at once — or move just these two and leave the XY Pad free for you to play ' +
+      'it. Between the XY pair and these four, one bank can move up to <strong>six</strong> ' +
+      'parameters at once — or move just these four and leave the XY Pad free for you to play ' +
       'live (using the XY lane is what costs you the pad).</p>' +
       '<p>There is no on/off tap here — a cell either holds a value or it does not — so ' +
-      CLEAR_BTN + ' lists whichever lanes currently hold steps (XY, A, B) rather than ' +
+      CLEAR_BTN + ' lists whichever lanes currently hold steps (XY, A-D) rather than ' +
       'a selected row. <strong>Ctrl+Z</strong> undoes the last edit, a bulk clear included.</p>' +
       '<p><strong>Reading the graph:</strong> every dot stores <em>two</em> values (X and Y), but ' +
       'the overlay line can only trace one at a time. The <strong>Y / X</strong> toggle picks ' +
@@ -1052,15 +1052,20 @@ export const HELP_TOPICS: Record<TopicId, HelpTopic> = {
       'traces — the dots never move.</p>',
   },
   'motion.tracks': {
-    title: 'Motion tracks A & B',
+    title: 'Motion lanes A-D',
     body:
-      '<p>Two extra lanes that each automate <strong>one parameter you choose</strong> — and you ' +
-      'choose it <em>per bank</em> — so you can move two params here and keep the XY Pad ' +
-      '<strong>free to play live</strong>, or add the XY lane on top for up to four in all.</p>' +
+      '<p>Four lanes that each automate <strong>one parameter you choose</strong> — and you ' +
+      'choose it <em>per bank</em> — so you can move four params here and keep the XY Pad ' +
+      '<strong>free to play live</strong>, or add the XY lane on top for six in all. Automate ' +
+      'here first: the XY lane is the one that costs you the pad.</p>' +
+      '<p>An <strong>empty lane is folded</strong> to its header row, so four lanes cost no more ' +
+      'height than the two used to. Pick a parameter, or click the <strong>caret</strong> beside ' +
+      'the lane letter, and it opens. Clearing the parameter leaves it open — the caret folds it ' +
+      'again when you are done.</p>' +
       '<p>Drag a cell up or down to set its level, double-click to clear it. Each lane has its own ' +
       '<strong>SLIDE / STEP</strong>, so it can move differently from the XY sweep and from the ' +
-      'other track.</p>' +
-      '<p>Giving A and B the <em>same</em> value is the common case, so drags land on ' +
+      'other lanes.</p>' +
+      '<p>Giving two lanes the <em>same</em> value is the common case, so drags land on ' +
       '<strong>steps of 0.05</strong> and each lane shows its value in the readout at the end of ' +
       'its row (plus a bubble above the cell while you drag). <strong>Hold a cell still</strong> ' +
       'to read it without changing it — that is how you check A before setting B. Hold ' +

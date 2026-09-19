@@ -1,13 +1,14 @@
 // @vitest-environment jsdom
-import { describe, it, expect } from 'vitest';
+import { describe, it, expect, beforeEach } from 'vitest';
 import { buildMotionPanel } from '../../src/ui/panels/motion-panel';
 import { ParamBus, registerDefaults } from '../../src/state/params';
-import { PatternStore } from '../../src/state/patterns';
+import { PatternStore, MOTION_TRACK_COUNT } from '../../src/state/patterns';
 import type { StudioApi } from '../../src/ui/studio-api';
 import type { XyPadStore } from '../../src/state/xy-pad';
 import type { XyPadWindowController } from '../../src/ui/components/xy-pad-window';
 import type { PatternUndo } from '../../src/state/pattern-undo';
 import type { UiBridge } from '../../src/ui/ui-bridge';
+import { installLocalStorageMock } from '../storage-mock';
 
 /**
  * The Motion panel's cost gate — motion-sequencer.md REQ-the-ab-lane-repaint-is-gated-on-visibility,
@@ -83,6 +84,10 @@ function harness() {
   const advanceBar = (): void => { for (const fn of barListeners) fn(); };
   return { bus, patterns, panel, advanceBar };
 }
+
+/** Every lane's fold is read from storage at construction, so the file needs a
+ *  clean one per test or one suite's clicks would set the next suite's folds. */
+beforeEach(() => installLocalStorageMock());
 
 /** The A lane's graph — rebuilt wholesale by that lane's repaint. */
 const laneGraph = (el: HTMLElement): SVGElement =>
@@ -205,5 +210,174 @@ describe('Motion panel draws on the lane, not the bank (REQ-the-motion-graph-fol
     expect(xyGraph(panel.el).innerHTML).toBe(stale);   // nothing rebuilt off-screen
     panel.gate.set(true);
     expect(dotCx(xyGraph(panel.el))).toBe(centre(4, 9));
+  });
+});
+
+
+/**
+ * The fold — motion-sequencer.md REQ-an-empty-motion-lane-starts-folded and
+ * REQ-a-folded-motion-lane-does-no-repaint, over lane-fold.md's component.
+ *
+ * Read the fold off the button's `title` rather than off a CSS-Module class:
+ * the title is what the user actually gets, and it does not depend on how the
+ * bundler happens to hash `.folded`.
+ */
+const foldBtn = (el: HTMLElement, t: number): HTMLButtonElement =>
+  el.querySelector<HTMLButtonElement>(`[data-testid="motion-trk-${t}-fold"]`)!;
+const isFolded = (el: HTMLElement, t: number): boolean =>
+  foldBtn(el, t).title === 'Show this lane';
+const picker = (el: HTMLElement, t: number): HTMLElement =>
+  el.querySelector<HTMLElement>(`[data-testid="motion-trk-${t}-param"]`)!;
+
+describe('Motion panel lane fold (REQ-an-empty-motion-lane-starts-folded)', () => {
+  it('folds every empty lane and leaves its header usable', () => {
+    const { panel } = harness();
+    for (let t = 0; t < MOTION_TRACK_COUNT; t++) {
+      expect(isFolded(panel.el, t)).toBe(true);
+      // The one thing a folded lane must keep: the control that assigns it.
+      // Folding that away would make an empty lane impossible to fill
+      // (ADR-014 law 2).
+      const row = foldBtn(panel.el, t).closest('div');
+      expect(row).not.toBeNull();
+      expect(row!.contains(picker(panel.el, t))).toBe(true);
+      expect(foldBtn(panel.el, t).disabled).toBe(false);
+    }
+  });
+
+  it('opens a lane when a parameter is picked, and leaves it open when cleared', () => {
+    const { patterns, panel } = harness();
+    expect(isFolded(panel.el, 2)).toBe(true);
+
+    patterns.setMotionTrackParam(2, 'filter.cutoff');
+    expect(isFolded(panel.el, 2)).toBe(false);
+
+    // Clearing is NOT a re-fold: the row would otherwise collapse under the
+    // pointer just as the next parameter is about to be chosen.
+    patterns.setMotionTrackParam(2, null);
+    expect(isFolded(panel.el, 2)).toBe(false);
+  });
+
+  it('the caret toggles the lane and remembers the answer', () => {
+    const { panel } = harness();
+    foldBtn(panel.el, 1).click();
+    expect(isFolded(panel.el, 1)).toBe(false);
+    expect(localStorage.getItem('websynth.ui.collapsed.motiontrack.1')).toBe('0');
+
+    foldBtn(panel.el, 1).click();
+    expect(isFolded(panel.el, 1)).toBe(true);
+    expect(localStorage.getItem('websynth.ui.collapsed.motiontrack.1')).toBe('1');
+  });
+
+  it('a song that fills lanes C and D does not arrive with them hidden', () => {
+    const { patterns, panel } = harness();
+    // A lane the user folded ON PURPOSE stays folded, whatever arrives in it.
+    foldBtn(panel.el, 3).click();   // open
+    foldBtn(panel.el, 3).click();   // and shut again — now stored as '1'
+
+    patterns.restore({
+      motionTracks: [[
+        null,
+        null,
+        { param: 'fx.delay.mix', steps: patterns.motionTrack(2)!.steps.map((s, i) => ({ ...s, on: i === 0 })) },
+        { param: 'fx.reverb.mix', steps: patterns.motionTrack(3)!.steps.map((s, i) => ({ ...s, on: i === 0 })) },
+      ]],
+    });
+
+    expect(isFolded(panel.el, 2)).toBe(false);  // untouched, and now used
+    expect(isFolded(panel.el, 3)).toBe(true);   // the user's own answer wins
+  });
+});
+
+describe('Motion panel folded-lane cost (REQ-a-folded-motion-lane-does-no-repaint)', () => {
+  it('repaints nothing while folded, then once on unfold', () => {
+    // Fold lane B deliberately, so filling it cannot auto-reveal it.
+    localStorage.setItem('websynth.ui.collapsed.motiontrack.1', '1');
+    const { patterns, panel, advanceBar } = harness();
+    expect(isFolded(panel.el, 1)).toBe(true);
+
+    const graph = (): string =>
+      panel.el.querySelector<SVGElement>('[data-testid="motion-trk-1-graph"]')!.innerHTML;
+    const blank = graph();
+
+    patterns.setMotionTrackParam(1, 'filter.cutoff');
+    patterns.setMotionTrackStep(1, 0, { on: true, v: 0.2 });
+    patterns.setMotionTrackStep(1, 8, { on: true, v: 0.9 });
+    advanceBar();
+    advanceBar();
+    // The panel is SHOWN — this is the per-lane half of the gate, not the
+    // per-panel one the suite above pins.
+    expect(graph()).toBe(blank);
+
+    foldBtn(panel.el, 1).click();
+    expect(isFolded(panel.el, 1)).toBe(false);
+    // The coalesced repaint lands on the unfold, so the lane is never stale.
+    expect(graph()).not.toBe(blank);
+  });
+
+  it('an open lane still repaints per bar', () => {
+    const { patterns, panel, advanceBar } = harness();
+    patterns.setMotionTrackParam(0, 'filter.cutoff');   // auto-reveals lane A
+    expect(isFolded(panel.el, 0)).toBe(false);
+    patterns.setMotionTrackStep(0, 0, { on: true, v: 0.2 });
+    advanceBar();
+    const drawn = laneGraph(panel.el).innerHTML;
+
+    patterns.setMotionTrackStep(0, 4, { on: true, v: 0.9 });
+    advanceBar();
+    expect(laneGraph(panel.el).innerHTML).not.toBe(drawn);
+  });
+
+  it('paints the header of a folded lane, so it cannot advertise stale state', () => {
+    // The user folded lane C deliberately, so the song load below must leave it
+    // folded — which is exactly the case where a gated header would start lying.
+    localStorage.setItem('websynth.ui.collapsed.motiontrack.2', '1');
+    const { patterns, panel } = harness();
+    const row = (): HTMLElement => foldBtn(panel.el, 2).closest('div')!.parentElement!;
+    const dimmed = (): boolean => /trackDim/.test(row().className);
+    // A Dropdown shows its current value on its toggle button; the options live
+    // in the menu beside it (dropdown.md).
+    const shows = (): string => picker(panel.el, 2).querySelector('button')!.textContent!;
+
+    expect(isFolded(panel.el, 2)).toBe(true);
+    expect(shows()).toBe('— none —');
+    expect(dimmed()).toBe(true);
+
+    // A song arrives and assigns the lane, store-side — not through the picker,
+    // which would `expand()` the lane and hide the bug.
+    patterns.setMotionTrackParam(2, 'fx.delay.mix');
+
+    expect(isFolded(panel.el, 2)).toBe(true);        // the user's answer still wins
+    expect(shows()).toBe('fx.delay.mix');            // ...but the header tells the truth
+    expect(dimmed()).toBe(false);
+  });
+
+  it('routes a per-lane signal to that lane alone', () => {
+    // `emitAllMotionTracks` fires once PER LANE, so a handler that answered each
+    // emission by repainting every lane would make a bank switch
+    // MOTION_TRACK_COUNT² lane repaints — and with Follow on that is every bar.
+    //
+    // Compared by DOM MUTATION, not by markup: a wasted repaint of unchanged
+    // data rebuilds the same nodes and would compare equal, which is precisely
+    // the cost this pins. `takeRecords` reads the queue synchronously.
+    const { patterns, panel } = harness();
+    for (let t = 0; t < MOTION_TRACK_COUNT; t++) {
+      patterns.setMotionTrackParam(t, 'filter.cutoff');
+      patterns.setMotionTrackStep(t, 0, { on: true, v: 0.3 });
+    }
+
+    const observers = Array.from({ length: MOTION_TRACK_COUNT }, (_, t) => {
+      const o = new MutationObserver(() => {});
+      o.observe(
+        panel.el.querySelector(`[data-testid="motion-trk-${t}-graph"]`)!,
+        { childList: true, subtree: true },
+      );
+      return o;
+    });
+
+    patterns.setMotionTrackStep(1, 8, { on: true, v: 0.95 });
+
+    const touched = observers.map((o) => o.takeRecords().length > 0);
+    for (const o of observers) o.disconnect();
+    expect(touched).toEqual([false, true, false, false]);
   });
 });

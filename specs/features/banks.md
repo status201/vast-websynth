@@ -79,8 +79,8 @@ through an eighth on demand, per machine. Nothing about a four-bank song changes
   one. It is distinct from the red *now-playing* dot: a bank can be filled and
   not playing, or playing and empty. The predicate `hasContent(i)` must cover
   **every lane the machine stores in that bank** — the sequencer's four tracks,
-  all drum/sampler rows, and, for motion, the XY anchors **and** both extra A/B
-  tracks ([motion-sequencer](motion-sequencer.md) REQ-two-extra-tracks-per-bank/REQ-two-lanes-below-the-xy-lane); a lane left
+  all drum/sampler rows, and, for motion, the XY anchors **and** every one of the
+  extra single-param lanes ([motion-sequencer](motion-sequencer.md) REQ-extra-single-param-tracks-per-bank/REQ-single-param-lanes-below-the-xy-lane); a lane left
   out renders a full bank as empty. Correspondingly `onContentChange(fn)` must
   subscribe to **every** mutation stream that can change that answer (motion
   needs `onMotionChange` *and* `onMotionTrackChange`), or the dot goes stale
@@ -204,7 +204,7 @@ content dot (REQ-content-dot-covers-every-lane):
     seq     -> any step on, across all 4 tracks        (onSeqChange)
     drum    -> any cell on, across all rows            (onDrumChange)
     sampler -> any cell on, across all slots           (onSamplerChange)
-    motion  -> any XY anchor on OR any A/B track step on
+    motion  -> any XY anchor on OR any single-param lane step on
                (onMotionChange + onMotionTrackChange, disposers composed)
 count (v6, REQ-a-machine-owns-its-bank-count):
   laneHooks() also supplies bankCount/addBank/removeBank/removeBlockedBy/onBankCountChange,
@@ -273,7 +273,7 @@ Scenario: Manual bank click while following disables Follow (edge)
   Then bank A becomes the edit bank and Follow turns off (no snap-back next bar)
 # pinned by: tests/ui/bank-bar.test.ts, e2e/banks.spec.ts
 
-Scenario: A motion bank filled only in its A/B tracks shows as filled (v4, regression)
+Scenario: A motion bank filled only in its single-param lanes shows as filled (v4, regression)
   Given motion bank B has no XY anchors but its A track holds steps
   Then bank B's dot is lit in the Motion tab's bank bar
   And editing a track step lights (or clears) the dot without a bank switch

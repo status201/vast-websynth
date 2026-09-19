@@ -4,6 +4,7 @@ import { gotoAndStart, busGet } from './helpers';
 // read the constant without dragging the app in. Asserting the literal instead
 // is what made this spec fail on the v7 bump while testing nothing about v6.
 import { SONG_VERSION } from '../src/state/song-version';
+import { MOTION_TRACK_COUNT } from '../src/state/patterns';
 
 /**
  * Motion sequencer (specs/features/motion-sequencer.md): anchor input on the
@@ -41,6 +42,18 @@ async function setTrackLevel(page: Page, track: number, step: number, v: number)
 async function openMotionTab(page: Page): Promise<void> {
   await page.getByTestId('tab-motion').click();
   await expect(page.getByTestId('motion-step-0')).toBeVisible();
+}
+
+/**
+ * Unfold a single-param lane if it is folded. An EMPTY lane ships folded
+ * (motion-sequencer.md REQ-an-empty-motion-lane-starts-folded), so a test that reaches straight for its
+ * cells would be clicking something with no box. Picking a parameter opens a
+ * lane by itself, so this is only needed before touching an UNASSIGNED one.
+ */
+async function openLane(page: Page, track: number): Promise<void> {
+  const btn = page.getByTestId(`motion-trk-${track}-fold`);
+  if ((await btn.getAttribute('title')) === 'Show this lane') await btn.click();
+  await expect(btn).toHaveAttribute('title', 'Hide this lane');
 }
 
 test('anchors drive the assigned params while playing and restore on stop', async ({ page }) => {
@@ -124,7 +137,8 @@ test('the playhead lights the A/B track cells while playing (v6)', async ({ page
   await page.getByTestId('switch-motion.on').click();
   await page.getByTestId('transport-play').click();
 
-  // The playing column lights on track A's cells, not only the XY pads (REQ-two-lanes-below-the-xy-lane).
+  await openLane(page, 0);
+  // The playing column lights on lane A's cells, not only the XY pads (REQ-single-param-lanes-below-the-xy-lane).
   // `.playing` is a global (unhashed) state class, so it selects directly.
   await expect(page.locator('[data-testid^="motion-trk-0-step-"].playing'))
     .toHaveCount(1, { timeout: 5_000 });
@@ -132,7 +146,7 @@ test('the playhead lights the A/B track cells while playing (v6)', async ({ page
   await page.getByTestId('transport-play').click();
 });
 
-test('a resting motion lane dims all three lanes and hides the playhead (arrangement-rest REQ-a-resting-lane-plays-nothing/REQ-a-resting-machine-tab-shows-it)', async ({ page }) => {
+test('a resting motion lane dims every lane and hides the playhead (arrangement-rest REQ-a-resting-lane-plays-nothing/REQ-a-resting-machine-tab-shows-it)', async ({ page }) => {
   await gotoAndStart(page);
   await openMotionTab(page);
 
@@ -145,9 +159,12 @@ test('a resting motion lane dims all three lanes and hides the playhead (arrange
     .poll(() => page.evaluate(() => (window as any).__synth.engine.arrangement.motionResting))
     .toBe(true);
 
-  // Fix D: all three lanes — the XY lane plus tracks A and B — show a rest
-  // overlay (previously only the XY lane did).
-  await expect(page.getByTestId('rest-overlay-motion')).toHaveCount(3);
+  // Fix D: every lane — the XY lane plus each single-param lane — shows a rest
+  // overlay (previously only the XY lane did). Each lane owns one, folded or
+  // not: the fold hides a lane's body, it does not unbuild it. Open them all so
+  // the dim is something a player could actually see.
+  await expect(page.getByTestId('rest-overlay-motion')).toHaveCount(1 + MOTION_TRACK_COUNT);
+  for (let t = 0; t < MOTION_TRACK_COUNT; t++) await openLane(page, t);
   for (const overlay of await page.getByTestId('rest-overlay-motion').all()) {
     await expect(overlay).toBeVisible();
   }
@@ -341,21 +358,24 @@ test('the XY Pad axes follow the motion bank override (effective assignment)', a
 });
 
 /**
- * The two extra single-param tracks — specs/features/motion-sequencer.md
- * REQ-two-extra-tracks-per-bank/REQ-two-lanes-below-the-xy-lane. The curve maths is unit-tested; this pins the panel wiring and
- * that a track really drives its param through the live engine.
+ * The extra single-param lanes — specs/features/motion-sequencer.md
+ * REQ-extra-single-param-tracks-per-bank/REQ-single-param-lanes-below-the-xy-lane. The curve maths is unit-tested; this pins the panel wiring and
+ * that a lane really drives its param through the live engine.
  */
-test('an extra motion track drives its own param and restores on stop', async ({ page }) => {
+test('an extra motion lane drives its own param and restores on stop', async ({ page }) => {
   await gotoAndStart(page);
   await page.getByTestId('tab-motion').click();
 
-  // A track with no param chosen is inert — the parameter IS the on/off.
+  // An empty lane ships folded, so its cells are away until it is opened
+  // (REQ-an-empty-motion-lane-starts-folded) — the picker above them is what stays reachable.
   const cell = page.getByTestId('motion-trk-0-step-0');
-  await expect(cell).toBeVisible();
+  await expect(cell).toBeHidden();
 
   const picker = page.getByTestId('motion-trk-0-param');
   await picker.click();
   await picker.getByText('fx.delay.mix', { exact: true }).click();
+  // Picking a parameter opens the lane, so the cells are there to draw on.
+  await expect(cell).toBeVisible();
 
   const baseline = await page.evaluate(() => (window as any).__synth.bus.get('fx.delay.mix'));
 
@@ -409,7 +429,7 @@ test('extra motion tracks survive a save → new → load round-trip', async ({ 
 });
 
 /**
- * Panel layout — specs/features/motion-sequencer.md REQ-each-motion-step-is-a-mini-xy-pad/REQ-two-lanes-below-the-xy-lane: each lane's
+ * Panel layout — specs/features/motion-sequencer.md REQ-each-motion-step-is-a-mini-xy-pad/REQ-single-param-lanes-below-the-xy-lane: each lane's
  * controls sit above its own cells, and Slide/Step is per lane.
  */
 test('each lane carries its own controls above its cells', async ({ page }) => {
@@ -431,16 +451,18 @@ test('each lane carries its own controls above its cells', async ({ page }) => {
   });
   expect(order).toEqual({ xypad: true, view: true, slide: true, assignX: true });
 
-  // Each track's picker and its own Slide/Step precede that track's first cell.
-  for (const t of [0, 1]) {
+  // Each lane's picker, fold caret and own Slide/Step precede that lane's first cell.
+  for (let t = 0; t < MOTION_TRACK_COUNT; t++) {
     const ok = await page.evaluate((track) => {
       const at = (id: string) => document.querySelector(`[data-testid="${id}"]`)!;
       const cell = at(`motion-trk-${track}-step-0`);
       const before = (id: string) =>
         !!(at(id).compareDocumentPosition(cell) & Node.DOCUMENT_POSITION_FOLLOWING);
-      return before(`motion-trk-${track}-param`) && before(`seg-motion.t${track}.slide`);
+      return before(`motion-trk-${track}-param`)
+        && before(`seg-motion.t${track}.slide`)
+        && before(`motion-trk-${track}-fold`);
     }, t);
-    expect(ok, `track ${t}`).toBe(true);
+    expect(ok, `lane ${t}`).toBe(true);
   }
 });
 
@@ -570,4 +592,98 @@ test('a bank filled only in its A/B tracks lights its bank dot', async ({ page }
   await page.getByTestId('clear-motion').click();
   await page.getByTestId('clear-motion-row-0').click();
   await expect(bankB).not.toHaveClass(/filled/);
+});
+
+/**
+ * The fold — specs/features/motion-sequencer.md REQ-an-empty-motion-lane-starts-folded, over
+ * features/lane-fold.md's shared component. Four lanes only fit because the
+ * empty ones are folded, and only a real browser can say whether a cell has a
+ * box, so the height claim is pinned here rather than in jsdom.
+ */
+test('empty single-param lanes ship folded, and open on a param or the caret', async ({ page }) => {
+  await gotoAndStart(page);
+  await openMotionTab(page);
+
+  // Every lane starts empty, so every lane starts folded — and every lane's
+  // param picker is still reachable, which is what makes the fold safe.
+  for (let t = 0; t < MOTION_TRACK_COUNT; t++) {
+    await expect(page.getByTestId(`motion-trk-${t}-step-0`)).toBeHidden();
+    await expect(page.getByTestId(`motion-trk-${t}-param`)).toBeVisible();
+    await expect(page.getByTestId(`motion-trk-${t}-fold`)).toBeVisible();
+  }
+
+  // The caret opens a lane without assigning it...
+  await page.getByTestId('motion-trk-3-fold').click();
+  await expect(page.getByTestId('motion-trk-3-step-0')).toBeVisible();
+  await page.getByTestId('motion-trk-3-fold').click();
+  await expect(page.getByTestId('motion-trk-3-step-0')).toBeHidden();
+
+  // ...and picking a parameter opens it too.
+  const picker = page.getByTestId('motion-trk-2-param');
+  await picker.click();
+  await picker.getByText('fx.reverb.mix', { exact: true }).click();
+  await expect(page.getByTestId('motion-trk-2-step-0')).toBeVisible();
+
+  // Clearing the parameter leaves the lane open, so the next pick lands in the
+  // same place instead of collapsing under the pointer.
+  await picker.click();
+  await picker.getByText('— none —', { exact: true }).click();
+  await expect(page.getByTestId('motion-trk-2-step-0')).toBeVisible();
+});
+
+/**
+ * REQ-extra-single-param-tracks-per-bank — the third and fourth lanes are the point of v17: a bank
+ * can move four params with the XY Pad left entirely free for the player.
+ */
+test('lanes C and D drive their own params alongside A and B', async ({ page }) => {
+  await gotoAndStart(page);
+  await openMotionTab(page);
+
+  const targets = ['fx.delay.mix', 'fx.reverb.mix', 'fx.phaser.mix', 'fx.dist.mix'];
+  const used = targets.slice(0, MOTION_TRACK_COUNT);
+
+  const before: number[] = [];
+  for (let t = 0; t < used.length; t++) {
+    const picker = page.getByTestId(`motion-trk-${t}-param`);
+    await picker.click();
+    await picker.getByText(used[t]!, { exact: true }).click();
+    before.push(await page.evaluate((id) => (window as any).__synth.bus.get(id), used[t]!));
+    // Every step high, so any playhead position drives the same value.
+    for (const s of [0, 4, 8, 12]) await setTrackLevel(page, t, s, 1);
+  }
+
+  // The XY Pad's default axes, read before play: no XY anchor was set, so the
+  // lanes must drive their four params while these two stay exactly put. That
+  // is the whole claim of the feature, so it is asserted rather than asserted in
+  // a comment.
+  const AXES = ['filter.cutoff', 'filter.resonance'];
+  const axesBefore = await page.evaluate(
+    (ids) => ids.map((id) => (window as any).__synth.bus.get(id)), AXES,
+  );
+
+  await page.evaluate(() => (window as any).__synth.bus.set('motion.on', 1));
+  await page.getByTestId('transport-play').click();
+
+  // Moved away from its resting value — not "higher": a pad click lands a hair
+  // under the top, and some of these params already default to full.
+  for (let t = 0; t < used.length; t++) {
+    await expect
+      .poll(() => page.evaluate((id) => (window as any).__synth.bus.get(id), used[t]!),
+        { timeout: 5_000 })
+      .not.toBeCloseTo(before[t]!, 2);
+  }
+
+  // ...and with all four lanes driving, the pad's own axes have not moved: it is
+  // still there to be played (REQ-single-param-lanes-below-the-xy-lane).
+  for (let a = 0; a < AXES.length; a++) {
+    expect(await page.evaluate((id) => (window as any).__synth.bus.get(id), AXES[a]!))
+      .toBeCloseTo(axesBefore[a]!, 4);
+  }
+
+  await page.getByTestId('transport-play').click();
+  for (let t = 0; t < used.length; t++) {
+    await expect
+      .poll(() => page.evaluate((id) => (window as any).__synth.bus.get(id), used[t]!))
+      .toBeCloseTo(before[t]!, 4);
+  }
 });
