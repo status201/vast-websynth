@@ -73,7 +73,7 @@ describe('PresetSession.songSound', () => {
     s.setActiveSong('A Test Song', { 'filter.cutoff': 61 });
     s.setActive('lead');
     expect(s.display).toBe('lead');
-    expect(s.songSound?.name).toBe('A Test Song'); // still reachable — the point of REQ-motion-joins-the-non-patch-prefixes
+    expect(s.songSound?.name).toBe('A Test Song'); // still reachable — the point of REQ-a-songs-sound-is-a-selectable-entry
   });
 
   it('a second song replaces the pin rather than accumulating history', () => {

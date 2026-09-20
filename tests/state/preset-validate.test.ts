@@ -74,7 +74,7 @@ describe('semantic layer (with a bus)', () => {
   // preset-authoring.md REQ-semantic-severity-is-the-callers-choice — the same findings, two severities. The MCP
   // tools want an author's file refused; the app's importer wants it to load,
   // because the bus clamps a range and ignores an unknown id.
-  it('demotes the registry findings to warnings when the caller asks (REQ-lfo-rate-is-exponentially-tapered)', () => {
+  it('demotes the registry findings to warnings when the caller asks (REQ-semantic-severity-is-the-callers-choice)', () => {
     const payload = PRESET({ 'osc1.shape': 1, 'filter.resonance': 99 });
     const res = validatePresetPayload(payload, bus(), { semantics: 'warning' });
     expect(res.ok).toBe(true);

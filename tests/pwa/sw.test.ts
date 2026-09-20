@@ -333,7 +333,7 @@ describe('install refreshes an offline copy (play-offline.md REQ-the-copy-surviv
     resetCaches([OLD]);
     const old = cacheStores.get(OLD)!;
     old.set('/__offline-copy', { marker: true });
-    // Saved by the page's fetch() under a host that sends Vary (REQ-the-public-endpoint-is-bounded-not-authenticated).
+    // Saved by the page's fetch() under a host that sends Vary (REQ-cache-lookups-ignore-vary).
     old.set('/assets/demo-abc.json', { body: 'old demo', vary: true });
   }
 

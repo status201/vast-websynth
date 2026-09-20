@@ -300,7 +300,7 @@ describe('Knob soft ceiling', () => {
     expect(knob.el.dataset.uimax).toBeUndefined();
   });
 
-  it('costs nothing to automate above the ceiling (REQ-the-sync-core-is-transport-agnostic)', () => {
+  it('costs nothing to automate above the ceiling (REQ-ceiling-applies-before-repaint-guard)', () => {
     const b = bus();
     const knob = new Knob({ bus: b, paramId: 'lfo.rate', uiMax: 10 });
     b.set('lfo.rate', 15);
@@ -313,7 +313,7 @@ describe('Knob soft ceiling', () => {
     expect(setAttr).not.toHaveBeenCalled();
   });
 
-  it('still lets a drag reach the true top of the range (REQ-master-broadcasts-start-and-stop)', () => {
+  it('still lets a drag reach the true top of the range (REQ-soft-ceiling-is-paint-only)', () => {
     vi.spyOn(performance, 'now').mockReturnValue(10_000); // skip the double-tap branch
     const b = bus();
     const knob = new Knob({ bus: b, paramId: 'lfo.rate', uiMax: 10 });

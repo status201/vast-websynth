@@ -123,7 +123,7 @@ describe('installShortcuts ? toggles the info badges (input-control.md REQ-quest
     const toggle = vi.fn();
     bridge.toggleInfoBadges = toggle;
     // A real Shift+/ carries code 'Slash', which is what the bend branch now
-    // matches — so this also pins that `?` keeps winning the race (REQ-a-presets-topic-anchors-to-the-picker).
+    // matches — so this also pins that `?` keeps winning the race (REQ-pitch-bend-is-quote-and-slash).
     const unprevented = modKeydown(document.body, '?', { shiftKey: true, code: 'Slash' });
     expect(toggle).toHaveBeenCalledTimes(1);
     expect(unprevented).toBe(false);
@@ -263,7 +263,7 @@ describe('installShortcuts pitch bend keys (input-control.md REQ-pitch-bend-is-q
     expect(bus.get('master.pitchBend')).toBe(1);
   });
 
-  it('is suppressed inside an editable field like every other key (REQ-song-file-buttons-carry-badges)', () => {
+  it('is suppressed inside an editable field like every other key (REQ-shortcuts-are-suppressed-in-a-field)', () => {
     const input = document.createElement('input');
     document.body.appendChild(input);
     keydown(input, "'", 'Quote');
