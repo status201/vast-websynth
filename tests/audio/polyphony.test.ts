@@ -175,4 +175,46 @@ describe('Polyphony', () => {
     vi.advanceTimersByTime(1000);
     expect(offset.setTargetAtTime.mock.calls.length).toBe(calls);
   });
+  // v6 regression (voicing.md REQ-a-stolen-voice-leaves-the-held-list). In mono
+  // every note plays the SAME voices, so each held key left an entry naming
+  // them — two keys down meant two entries pointing at one voice, and releasing
+  // the older one sent noteOff to the voice sounding the newer note. Letting go
+  // of a key you could no longer hear stopped the one you could.
+  describe('mono holds the invariant too', () => {
+    it('releasing an older key does not cut the note that is sounding', () => {
+      const { voices, poly } = build();
+      poly.setPoly(false);
+
+      poly.playNote(48, 0.8, 0);   // C3
+      poly.playNote(52, 0.8, 0);   // E3 — same voice, mono
+      voices[0]!.noteOff.mockClear();
+
+      poly.releaseNote(48, 0);     // let go of the key that is no longer heard
+
+      expect(voices[0]!.noteOff).not.toHaveBeenCalled();
+      expect(voices[0]!.state).toBe('playing');
+    });
+
+    it('releasing the sounding key still stops it', () => {
+      const { voices, poly } = build();
+      poly.setPoly(false);
+
+      poly.playNote(48, 0.8, 0);
+      poly.playNote(52, 0.8, 0);
+      poly.releaseNote(52, 0);
+
+      expect(voices[0]!.noteOff).toHaveBeenCalledTimes(1);
+    });
+
+    it('still releases a single held note', () => {
+      const { voices, poly } = build();
+      poly.setPoly(false);
+
+      poly.playNote(48, 0.8, 0);
+      poly.releaseNote(48, 0);
+
+      expect(voices[0]!.noteOff).toHaveBeenCalledTimes(1);
+    });
+  });
+
 });

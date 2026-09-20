@@ -3,7 +3,9 @@
 ```yaml
 id: voicing
 status: implemented
-version: 5   # v5: a glide's cancel is ANCHORED, and the anchor is computed rather than
+version: 6   # v6: MONO obeys REQ-a-stolen-voice-leaves-the-held-list too — every mono note
+             #     claimed the same voices, so releasing an older key cut the newer note
+             # v5: a glide's cancel is ANCHORED, and the anchor is computed rather than
              #     read back — on Gecko a bare cancel made portamento start from the
              #     last assigned value, not the note being left (REQ-glide-controls-portamento)
              # v3: the passthrough stores what it played, so a re-pitched or
@@ -141,6 +143,26 @@ time 0 reproduces the pre-song-mode behaviour, keeping existing presets unchange
   which is what makes REQ-passthrough-remembers-what-it-played's "release through the stored note" rule sound, since that
   rule assumes the stored note still owns the voice it names.
 
+  **(v6) Mono is not exempt.** The rule was applied on the poly branch only, and
+  the mono branch violates it *by construction* rather than occasionally: in mono
+  every note plays `voices[0..count-1]`, so each held key adds a `heldNotes`
+  entry naming **the same voices**. Two keys down means two entries pointing at
+  one voice, which is precisely what the invariant forbids — and the consequence
+  is the one the poly comment describes: releasing the older key sends `noteOff`
+  to the voice now sounding the newer note, so letting go of a key you are no
+  longer hearing stops the note you are.
+
+  It needs no new machinery. `evictVoice` already removes a voice from every
+  entry that claims it and drops an entry left empty, so calling it on the mono
+  path leaves exactly one entry — the newest note. `releaseNote` no-ops on a
+  note it cannot find, so the older key correctly does nothing.
+
+  *Not in scope:* this gives **last-note priority without fallback** — releasing
+  the newest key while an older is still held leaves silence rather than
+  returning to the older note. Fallback is a feature (and a choice: last / low /
+  high priority), not this fix, which only stops a release cutting a note it
+  does not own.
+
   This is deliberately **not** refcounting, and not a change to the stealing order:
   the oldest playing voice is still the one taken, and the note it was playing is simply
   no longer claimed. The old note goes silent when it is stolen — that is what voice
@@ -179,6 +201,13 @@ ui: src/ui/app.ts (VOICE / UNISON / GLIDE controls; pitch-bend + transpose)
 ## Scenarios (BDD)
 
 ```gherkin
+Scenario: Releasing an older key in mono does not cut the sounding note (v6, regression)
+  Given voicing.mode is mono
+  And the user holds C3, then holds E3 while still holding C3
+  When the user releases C3
+  Then E3 is still sounding
+  And releasing E3 then stops it
+
 Scenario: A glide leaves from the pitch in flight, not the last one assigned (v5, regression)
   Given mixer.glide is above zero and a note is gliding from C3 toward C4
   When a new note arrives before the glide has settled

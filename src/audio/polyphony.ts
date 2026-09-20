@@ -73,6 +73,13 @@ export class Polyphony {
       const used: Voice[] = [];
       for (let i = 0; i < count; i++) {
         const v = this.voices[i]!;
+        // Mono reuses the SAME voices for every note, so without this each held
+        // key keeps an entry naming them and releasing an older key sends
+        // noteOff to the voice now sounding the newer note — the invariant of
+        // REQ-a-stolen-voice-leaves-the-held-list, violated by construction
+        // rather than by stealing. Evicting leaves exactly one entry: the
+        // newest note.
+        this.evictVoice(v);
         v.noteOn(note, velocity, t, { detuneCents: this.unisonOffset(i, count), glide });
         used.push(v);
       }
