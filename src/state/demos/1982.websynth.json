@@ -1043,7 +1043,8 @@
         "on": true,
         "note": 42,
         "velocity": 0.8,
-        "gate": 0.5
+        "gate": 1,
+        "tie": true
       },
       {
         "on": false,
