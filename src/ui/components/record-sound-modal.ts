@@ -323,7 +323,7 @@ export function openRecordSoundModal(engine: StudioApi, opts: RecordSoundOptions
 
       // Chop boundaries (sample-chop.md REQ-two-ways-to-place-the-cuts). Drawn after the waveform so they
       // read as cuts THROUGH it, and clipped to the selection because that is the
-      // region they divide (REQ-a-curve-carries-rate-not-position).
+      // region they divide (REQ-chop-divides-the-selection).
       for (const m of marks) {
         if (m <= cropStart || m >= cropEnd) continue;
         const x = xOf(m);
@@ -399,7 +399,7 @@ export function openRecordSoundModal(engine: StudioApi, opts: RecordSoundOptions
     dragHandle(hL, 'start');
     dragHandle(hR, 'end');
 
-    // Dragging a chop boundary (REQ-the-integral-is-closed-form-per-segment). Hit-tested on the canvas rather than given
+    // Dragging a chop boundary (REQ-two-ways-to-place-the-cuts). Hit-tested on the canvas rather than given
     // handles of its own: there can be seven of them, and the two crop handles are
     // separate elements that keep priority wherever they overlap.
     const GRAB_PX = 8;
@@ -807,7 +807,7 @@ export function openRecordSoundModal(engine: StudioApi, opts: RecordSoundOptions
       const targets = Array.from({ length: n }, (_, k) => start + k);
       const occupied = targets.filter((slot) =>
         engine.patterns.sampleNames[slot] != null || engine.sampler.buffers[slot] != null);
-      // REQ-pitch-rides-speed — it overwrites up to eight slots at once, so it names them first.
+      // REQ-spreading-is-confirmed-then-reversible — it overwrites up to eight slots at once, so it names them first.
       const ok = await confirmDialog({
         title: `Spread ${n} slices`,
         message: `Slices go to ${slotTag(start)}–${slotTag(start + n - 1)}.`,

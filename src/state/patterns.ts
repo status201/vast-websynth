@@ -739,7 +739,7 @@ export class PatternStore {
    *
    * Takes **plain notes**, never a scale or a degree: the theory lives in
    * `utils/music.ts` and the caller applies it, so the store stays a data store
-   * (ADR-004) and this is testable without a key (REQ-motion-drives-the-xy-assignment).
+   * (ADR-004) and this is testable without a key (REQ-the-store-stays-free-of-theory).
    *
    * Only `on` and `note` are written, so a chord dropped onto shaped steps keeps their
    * velocity/gate/prob/ratchet/tie/micro. Tracks past `notes.length` are switched **off**
@@ -892,7 +892,7 @@ export class PatternStore {
   }
 
   /** `track === null` clears every track of the edit bank; the mutation is
-   *  whole-bank either way, so one undo kind covers both scopes (REQ-both-motion-modes-share-one-frame-loop). */
+   *  whole-bank either way, so one undo kind covers both scopes (REQ-one-bulk-action-one-undo-entry). */
   private clearSeqCells(track: number | null): boolean {
     const bank = this.seqBanks[this._seqEdit]!;
     const rows = track === null ? [...bank.keys()] : [track];
@@ -988,7 +988,7 @@ export class PatternStore {
   }
 
   /** `track === null` clears the whole bank; the mutation is whole-bank either
-   *  way, so one undo kind per machine covers both scopes (REQ-both-motion-modes-share-one-frame-loop). */
+   *  way, so one undo kind per machine covers both scopes (REQ-one-bulk-action-one-undo-entry). */
   private clearDrumCells(track: number | null): boolean {
     const bank = this.drumBanks[this._drumEdit]!;
     const rows = track === null ? bank.keys() : [track];

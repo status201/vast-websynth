@@ -121,7 +121,7 @@ export function buildSongPanel(bus: ParamBus, engine: StudioApi, session: Preset
     // Pin the song's sound so the selector can offer it back (presets.md
     // REQ-a-songs-sound-is-a-selectable-entry). Snapshotted from the bus AFTER the apply, never from
     // `file.params`: `Song.apply` resets to defaults first, so this is the
-    // *effective* patch — a sparse map would re-open the leak REQ-cross-bank-carry closes.
+    // *effective* patch — a sparse map would re-open the leak REQ-a-factory-preset-sets-the-full-sound closes.
     session.setActiveSong(file.name, patchSnapshot(bus.snapshot()));
     toTop();
   };
@@ -470,7 +470,7 @@ export function buildSongPanel(bus: ParamBus, engine: StudioApi, session: Preset
     bridge.cuePlay(); // nudge Play (play-button-blink.md REQ-silent-actions-arm-a-green-cue)
   };
 
-  /** Load a STORED slot: the Load button's main branch, and REQ-motion-baselines-are-unchanged's "Load mine". */
+  /** Load a STORED slot: the Load button's main branch, and REQ-one-name-two-songs-ask's "Load mine". */
   const loadStoredSlot = (name: string, file: SongFile): void => {
     applySongWithUndo(file);
     sessionSlot = name; // the session now IS this slot — Save it back freely
@@ -540,7 +540,7 @@ export function buildSongPanel(bus: ParamBus, engine: StudioApi, session: Preset
   // starting the transport, the empty-play modal pressing Play — must await this
   // or it will run against the song that was there before.
   //
-  // The shadow question (REQ-motion-baselines-are-unchanged) is asked HERE, on the one door all three demo
+  // The shadow question (REQ-one-name-two-songs-ask) is asked HERE, on the one door all three demo
   // sources and all four callers share, so no surface can reintroduce the silent
   // guess. It resolves before any fetch: a declined demo costs no network.
   // A name no source owns resolves to the first demo rather than to silence
@@ -567,7 +567,7 @@ export function buildSongPanel(bus: ParamBus, engine: StudioApi, session: Preset
   loadBtn.addEventListener('click', () => {
     const f = Song.loadSlot(dropdown.value);
     if (f) {
-      // No REQ-motion-baselines-are-unchanged question here: loadSlot already resolved the name in the
+      // No REQ-one-name-two-songs-ask question here: loadSlot already resolved the name in the
       // user's favour, so this branch never reaches loadDemo for a stored slot.
       // (A built-in demo name with no slot also lands here — sessionSlot then
       // marks a demo, not a slot, so `hasSlot` decides.)
@@ -675,7 +675,7 @@ export function buildSongPanel(bus: ParamBus, engine: StudioApi, session: Preset
   const pasteRoutes = {
     onSong: importBytes,
     onPresets: (parse: PresetParse) => bridge.openPresetImport(parse),
-    bus, // so a pasted preset is checked against the registry too (REQ-each-motion-step-is-a-mini-xy-pad)
+    bus, // so a pasted preset is checked against the registry too (REQ-deserialized-state-is-validated-never-cast)
   };
   const pasteBtn = el('button', `${switchStyles.root!} ${styles.ctl!}`, 'Paste') as HTMLButtonElement;
   pasteBtn.dataset.testid = 'song-paste';
@@ -695,7 +695,7 @@ export function buildSongPanel(bus: ParamBus, engine: StudioApi, session: Preset
     for (let slot = 0; slot < SAMPLER_SLOT_COUNT; slot++) {
       const buf = engine.sampler.buffers[slot];
       if (!buf) continue;
-      // Encode + materialize one clip at a time (8 × multi-MB WAVs — REQ-each-motion-step-is-a-mini-xy-pad).
+      // Encode + materialize one clip at a time (8 × multi-MB WAVs — REQ-clip-codec-is-memory-aware).
       const { blob, ext } = await encodeClip(audioBufferToCaptured(buf), fmt);
       clips.push({ slot, data: new Uint8Array(await blob.arrayBuffer()), ext });
     }

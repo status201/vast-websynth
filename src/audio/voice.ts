@@ -8,7 +8,7 @@ export type VoiceState = 'idle' | 'playing' | 'releasing';
 
 /** The note at which key tracking contributes nothing (key-tracking.md REQ-keytrack-offset-is-relative-to-key-centre). */
 const KEY_CENTER = 60;
-/** The worklet's own `cutoffNote` range — key tracking is clamped to it (REQ-destinations-are-summing-params). */
+/** The worklet's own `cutoffNote` range — key tracking is clamped to it (REQ-keytrack-is-clamped-to-range). */
 const CUTOFF_MIN = 0;
 const CUTOFF_MAX = 135;
 
@@ -117,7 +117,7 @@ export class Voice {
     this.filEnv.out.connect(this.filEnvScale);
     this.filEnvScale.connect(this.filter.cutoffNote);
 
-    // Pool voices boot idle — no note yet, so the filter can sleep (REQ-two-rows-may-share-a-destination).
+    // Pool voices boot idle — no note yet, so the filter can sleep (REQ-the-filter-idles-when-gated).
     this.filter.setActive(false);
   }
 
@@ -201,7 +201,7 @@ export class Voice {
     this.state = 'idle';
     this.currentNote = -1;
     // Deactivate only after the 3 ms kill fade has passed, and only if no
-    // noteOn re-claimed the voice meanwhile (it posts its own true) (REQ-two-rows-may-share-a-destination).
+    // noteOn re-claimed the voice meanwhile (it posts its own true) (REQ-the-filter-idles-when-gated).
     window.setTimeout(() => {
       if (this.state === 'idle') this.filter.setActive(false);
     }, 30);

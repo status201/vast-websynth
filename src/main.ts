@@ -394,7 +394,7 @@ function showStartModal(engine: Engine, onboarding: Onboarding, onStart: () => v
   card.setAttribute('aria-label', 'Start VAST G1-J8');
 
   // The first thing anyone sees, so it shows the real faceplate (brand.md).
-  // `.start-card` centres it — the block itself has no alignment (REQ-callout-placement-adapts).
+  // `.start-card` centres it — the block itself has no alignment (REQ-brand-alignment-belongs-to-the-container).
   const brand = createBrand();
 
   const startBtn = document.createElement('button');

@@ -59,7 +59,7 @@ export type PresetParse =
     }
   | { ok: false; errors: string[] };
 
-/** How a caller wants the findings that need the registry reported (REQ-modified-is-computed-not-tracked). */
+/** How a caller wants the findings that need the registry reported (REQ-semantic-severity-is-the-callers-choice). */
 export interface PresetValidateOptions {
   /**
    * An unknown id, an out-of-range value, a fractional choice index.
@@ -74,7 +74,7 @@ export interface PresetValidateOptions {
 /**
  * Where a finding goes. `structural` always refuses the file; `songSetting`
  * always only warns; `semantic` is whichever of the two the caller asked for
- * (REQ-modified-is-computed-not-tracked) — which is the only knob, so it is resolved once, by the entry point.
+ * (REQ-semantic-severity-is-the-callers-choice) — which is the only knob, so it is resolved once, by the entry point.
  */
 interface Sinks {
   structural: AddError;
@@ -145,7 +145,7 @@ export function validatePresetPayload(
   const warnings: string[] = [];
   const add: AddError = (msg) => { if (errors.length < MAX_ERRORS) errors.push(msg); };
   const warn: AddError = (msg) => { if (warnings.length < MAX_ERRORS) warnings.push(msg); };
-  // The one place severity is decided (REQ-modified-is-computed-not-tracked); below here nothing asks again.
+  // The one place severity is decided (REQ-semantic-severity-is-the-callers-choice); below here nothing asks again.
   const sinks: Sinks = {
     structural: add,
     semantic: opts?.semantics === 'warning' ? warn : add,

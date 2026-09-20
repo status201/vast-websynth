@@ -110,7 +110,7 @@ export class ParamBus {
    * `finally`-guarded so a throwing `fn` cannot wedge the counter.
    *
    * Callers on a per-frame path should pass a **pre-bound** closure rather than
-   * an inline arrow (REQ-bar-ticks-is-the-arrangement-bar-line — no allocation in a per-frame loop).
+   * an inline arrow (REQ-no-allocation-in-a-hot-loop — no allocation in a per-frame loop).
    */
   withoutChangeSignal(fn: () => void): void {
     this.suppressChange++;
@@ -743,12 +743,12 @@ function samplerTrackParams(): ParamDef[] {
   const out: ParamDef[] = [];
   for (let i = 0; i < SAMPLER_SLOT_COUNT; i++) {
     out.push({ id: `sampler.t${i}.mute`, min: 0, max: 1, default: 0, step: 1, taper: 'discrete', labels: ['on', 'mute'] });
-    // Channel — ramped AudioParams (REQ-pattern-arrays-stay-grid-cells-long).
+    // Channel — ramped AudioParams (REQ-each-slot-has-a-channel).
     out.push({ id: `sampler.t${i}.vol`, min: 0, max: 1, default: 1, format: fmtPct });
     out.push({ id: `sampler.t${i}.pan`, min: -1, max: 1, default: 0, format: fmtPan });
     out.push({ id: `sampler.t${i}.tone`, min: 0, max: 1, default: 1, format: fmtPct });
     out.push({ id: `sampler.t${i}.res`, min: 0, max: 1, default: 0, format: fmtPct });
-    // Voice window — read by play() at trigger time (REQ-motion-joins-the-non-patch-prefixes).
+    // Voice window — read by play() at trigger time (REQ-a-hit-plays-a-window-of-the-buffer).
     // fmtSemi, not the bare `unit`: formatParam reads only `format`, so a unit on
     // its own renders as "0.00" — which is what a semitone knob must never say.
     out.push({ id: `sampler.t${i}.pitch`, min: -24, max: 24, default: 0, step: 1, unit: 'st', format: fmtSemi });

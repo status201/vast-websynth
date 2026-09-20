@@ -407,7 +407,7 @@ function buildHeader(
     cueArmed = true;
     refreshIdleBlink();
   };
-  // Turning a step machine on is silent until Play, so it cues too (REQ-studio-api-exposes-both-channels).
+  // Turning a step machine on is silent until Play, so it cues too (REQ-silent-actions-arm-a-green-cue).
   // Listening on the bus catches every surface (panel switch, song apply,
   // author-dialect auto-enable). The arp is excluded: it auto-starts the
   // transport on a held key, so there is no silent dead-end.
@@ -421,7 +421,7 @@ function buildHeader(
   // Capture the BPM knob so it can dim + refuse input while slaved — the tempo
   // is then driven by the sync master (midi-clock-sync REQ-the-bpm-knob-shows-slaved). Keyed on the
   // *running* role, so a selected-but-disconnected Slave leaves the knob live
-  // instead of freezing it at a vanished master's tempo (REQ-a-scope-resize-handle/REQ-the-redraw-loop-can-always-restart).
+  // instead of freezing it at a vanished master's tempo (REQ-selected-mode-versus-active-role/REQ-an-armed-sync-section).
   const bpmKnob = new Knob({ bus, paramId: 'transport.bpm', label: 'BPM' });
   const applySlaved = (s: SyncStatus): void => {
     const slaved = s.activeMode === 'slave';
@@ -515,7 +515,7 @@ function buildPatternRow(
 
   // Delete/Backspace clears the selected step of the machine behind the active
   // tab (step-grid-editing.md REQ-delete-clears-the-selected-step) — the same routing shape as Ctrl+Z above.
-  // Motion is absent on purpose: it has no selection cursor (REQ-stereo-on-a-mono-scope-falls-back).
+  // Motion is absent on purpose: it has no selection cursor (REQ-motion-keeps-its-own-gesture).
   const TAB_PANEL: Record<string, MachinePanel> = { seq, drums, sampler };
   bridge.clearSelectedStep = () => {
     const panel = TAB_PANEL[tabs.activeId];

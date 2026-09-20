@@ -234,7 +234,7 @@ export class Knob {
     // The arc — and only the arc — stops at the soft ceiling
     // (knob-soft-ceiling.md REQ-soft-ceiling-is-paint-only). Capping *before* the `lastDash` guard means a
     // value moving around above the ceiling writes nothing at all, so a capped
-    // knob is cheaper to automate than an uncapped one, never dearer (REQ-the-sync-core-is-transport-agnostic).
+    // knob is cheaper to automate than an uncapped one, never dearer (REQ-ceiling-applies-before-repaint-guard).
     const dashOn = (this.circumference * SWEEP_DEG) / 360;
     const visible = dashOn * Math.min(norm, this.uiMaxNorm);
     const dash = `${visible.toFixed(ARC_PRECISION)} ${(this.circumference - visible).toFixed(ARC_PRECISION)}`;
@@ -296,7 +296,7 @@ export class Knob {
     return c;
   }
 
-  /** Colour the band and tick by which way the routes push (REQ-tape-stop-is-gated-while-slaved). */
+  /** Colour the band and tick by which way the routes push (REQ-the-bands-direction-has-a-colour). */
   setModSign(sign: -1 | 0 | 1): void {
     if (sign === this.modSign) return;
     this.modSign = sign;
