@@ -3,7 +3,10 @@
 ```yaml
 id: step-grid-editing
 status: implemented
-version: 7   # v7: cells past the lane's length are hidden, not dead (REQ-cells-past-the-lane-length-are-hidden)
+version: 8   # v8: a CANCELLED pointer writes nothing — `pointercancel` was routed to the
+             #     release path, so an interrupted touch committed the tap it was
+             #     still "pending" for (REQ-tap-toggles-a-step + the inventory's cancel row)
+             # v7: cells past the lane's length are hidden, not dead (REQ-cells-past-the-lane-length-are-hidden)
              # v6: the no-dead-item rule covers ALL four machines, not just
              #     Motion — an empty row is not offered anywhere (REQ-clear-menu-clears-in-bulk)
              # v5: a row may clear more than steps and own its own undo — the
@@ -77,6 +80,18 @@ answer to "inspect this step without disturbing it".
   lit red cell shows the same accent-secondary ring as any other. An invisible
   cursor is a functional defect, not a cosmetic one: selection is what the
   per-step edit row and `Delete` (REQ-delete-clears-the-selected-step) act on.
+
+  **(v8) A cancelled pointer writes nothing.** `pointercancel` is not a release:
+  the OS took the gesture away (a notification pull-down, an edge-swipe back,
+  palm rejection), so the user never completed a tap. It must therefore tear the
+  stroke down and commit **nothing** — not the toggle, not the paint. The
+  distinction is invisible until it is wrong, because a cancelled pointer is by
+  definition still "pending", which is exactly the state a plain release reads as
+  *"neither a drag nor a hold ⇒ a plain tap"*. Routing cancel to the release path
+  therefore silently flips a step on a phone. `chip-reorder.ts` — the sibling
+  controller built on the same idiom — already keeps a separate `onCancel` that
+  resets and writes nothing; this is the same rule for the grids. The selection
+  cursor moved on press and stays where it is: selection is not a write.
 - **REQ-toggling-off-is-non-destructive** — **Toggling off is non-destructive.**
   Switching a step off clears only `on`; `note` / `velocity` / `gate` / `prob` /
   `ratchet` / `tie` (and motion's `x`/`y`) are preserved, so toggling back on
@@ -241,6 +256,7 @@ step-1 artefact). "Trigger grids" = seq / drum / sampler.
 | `Delete` / `Backspace` | clear selected step | clear selected step | DAW piano roll |
 | `Clear ▾` → bank | clear the edit bank | clear the edit bank | — |
 | `Clear ▾` → row | clear the selected row | clear a named lane (XY/A/B) | — |
+| pointer **cancelled** (v8) | write nothing, drop the stroke | write nothing, drop the stroke | every drag in this app |
 
 `Clear ▾` → bank is also the way a bank becomes *removable*: the bank bar's `−`
 arm refuses while the highest bank still holds steps ([banks](banks.md)
@@ -346,6 +362,19 @@ Scenario: Editing a lit step no longer switches it off
   Then step 4 becomes the selected step and stays on
   And the edit row shows C4, ready to change
 # pinned by: tests/ui/grid-gestures.test.ts, e2e/patterns.spec.ts
+
+Scenario: A cancelled pointer does not toggle the step (v8, regression)
+  Given the user presses step 4, which is off
+  When the OS cancels the pointer instead of releasing it
+  Then step 4 is still off
+  And the stroke's document listeners are gone
+# pinned by: tests/ui/grid-gestures.test.ts
+
+Scenario: A cancelled paint drag commits nothing further (v8, regression)
+  Given the user has pressed a lit step and painted across two more
+  When the OS cancels the pointer
+  Then no further cell changes, and the release path does not fire a tap
+# pinned by: tests/ui/grid-gestures.test.ts
 
 Scenario: Tap still toggles, and toggling off keeps the step's settings
   Given step 4 is on with note C4, velocity 0.6 and ratchet 3

@@ -233,5 +233,10 @@ export function installShortcuts(engine: StudioApi, bus: ParamBus, bridge: UiBri
     if (fillHeld) { fillHeld = false; engine.perf.setFill(false); }
     for (const note of held.values()) release(note);
     held.clear();
+    // The bend is a held-key state too, so it strands the same way a note does:
+    // no keyup arrives once focus is gone, and it springs back only on a key the
+    // user is no longer pressing (REQ-pitch-bend-is-quote-and-slash). Matching
+    // `e.code` closed every other way this pair could stick; blur was the last.
+    bus.set('master.pitchBend', 0);
   });
 }

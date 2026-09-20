@@ -254,6 +254,23 @@ describe('installShortcuts pitch bend keys (input-control.md REQ-pitch-bend-is-q
     expect(bus.get('master.pitchBend')).toBe(0);
   });
 
+  // v16 regression. Matching `e.code` closed every other way the pair could
+  // strand (dead keys, non-US layouts, Shift mid-hold); blur was the last one.
+  // Hold `'`, Alt-Tab, and the keyup never arrives — the synth stayed sharp.
+  it('springs back when the window loses focus mid-hold', () => {
+    keydown(document.body, "'", 'Quote');
+    expect(bus.get('master.pitchBend')).toBe(1);
+    window.dispatchEvent(new Event('blur'));
+    expect(bus.get('master.pitchBend')).toBe(0);
+  });
+
+  it('springs back from a downward bend on blur too', () => {
+    keydown(document.body, '/', 'Slash');
+    expect(bus.get('master.pitchBend')).toBe(-1);
+    window.dispatchEvent(new Event('blur'));
+    expect(bus.get('master.pitchBend')).toBe(0);
+  });
+
   it('. is unbound — not kept as a second way to bend up', () => {
     keydown(document.body, '.', 'Period');
     expect(bus.get('master.pitchBend')).toBe(0);

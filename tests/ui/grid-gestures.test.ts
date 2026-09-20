@@ -50,6 +50,9 @@ const move = (el: HTMLElement, x: number, y = 0): void => {
 const up = (el: HTMLElement, x = 0, y = 0): void => {
   el.dispatchEvent(new MouseEvent('pointerup', { clientX: x, clientY: y, bubbles: true }));
 };
+const cancel = (el: HTMLElement): void => {
+  el.dispatchEvent(new MouseEvent('pointercancel', { bubbles: true }));
+};
 
 describe('attachGridGestures', () => {
   let grid: Grid | null = null;
@@ -238,6 +241,54 @@ describe('attachGridGestures', () => {
       const cell = grid.cells[0]![0]!;
       cell.dispatchEvent(new MouseEvent('pointerdown', { button: 2, bubbles: true }));
       up(cell);
+      expect(grid.toggles).not.toHaveBeenCalled();
+    });
+  });
+
+  // v8. `pointercancel` used to be routed to the release path, and a cancelled
+  // pointer is by definition still "pending" — the exact state that path reads
+  // as "a plain tap". So an interrupted touch (notification pull-down,
+  // edge-swipe back, palm rejection) silently flipped a step on a phone.
+  describe('pointer cancel (REQ-tap-toggles-a-step)', () => {
+    it('writes nothing when a press is cancelled instead of released', () => {
+      grid = mount();
+      const cell = grid.cells[0]![0]!;
+      down(cell);
+      cancel(cell);
+      expect(grid.toggles).not.toHaveBeenCalled();
+      expect(grid.on[0]![0]).toBe(false);
+    });
+
+    it('still moves the selection, which is not a write', () => {
+      grid = mount();
+      const cell = grid.cells[0]![1]!;
+      down(cell);
+      cancel(cell);
+      // Selection follows every press, before the gesture resolves.
+      expect(grid.selects).toHaveBeenCalledWith(0, 1);
+      expect(grid.toggles).not.toHaveBeenCalled();
+    });
+
+    it('commits nothing further when a paint drag is cancelled', () => {
+      grid = mount(1, 4);
+      const [a, b, c] = [grid.cells[0]![0]!, grid.cells[0]![1]!, grid.cells[0]![2]!];
+      down(a);
+      move(b, 20);   // past the 6px slop -> painting
+      move(c, 40);
+      const painted = grid.toggles.mock.calls.length;
+      cancel(c);
+      // The cancel itself adds nothing, and no tap follows it.
+      expect(grid.toggles.mock.calls.length).toBe(painted);
+    });
+
+    it('leaves no stroke listeners behind, so a later move paints nothing', () => {
+      grid = mount(1, 4);
+      const [a, b] = [grid.cells[0]![0]!, grid.cells[0]![1]!];
+      down(a);
+      cancel(a);
+      grid.toggles.mockClear();
+      move(b, 40); // no stroke is in flight any more
+      up(b);
       expect(grid.toggles).not.toHaveBeenCalled();
     });
   });

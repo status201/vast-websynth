@@ -3,7 +3,9 @@
 ```yaml
 id: input-control
 status: implemented
-version: 15  # v15: the Pitch wheel help topic names the keys REQ-pitch-bend-is-quote-and-slash binds — it
+version: 16  # v16: losing the window releases the BEND too, not just the notes and Fill —
+             #      hold `'`, Alt-Tab, and the keyup never arrives (REQ-pitch-bend-is-quote-and-slash)
+             # v15: the Pitch wheel help topic names the keys REQ-pitch-bend-is-quote-and-slash binds — it
              #      still said `.` five versions after `.` was unbound (REQ-pitch-bend-is-quote-and-slash)
              # v14: the keyboard carries a third highlight layer — static musical
              #      roles, written as an attribute, outranked by the lit classes
@@ -198,6 +200,15 @@ notes played on another tab no longer overwrite its bank.
     silent alias would keep teaching the arrangement this REQ exists to replace.
   - `'` collides with nothing — it is in neither note row, `keyToMidi` returns
     null for it.
+  - **(v16) Losing the window releases the bend.** The bend is a held-key state,
+    so it has the same failure as a held note: no `keyup` ever arrives if focus
+    leaves mid-hold, and it springs back only on a key the user is no longer
+    pressing. Hold `'`, Alt-Tab, and the synth stays a semitone sharp until you
+    press and release the key again. The `blur` handler already performs the
+    bulk release for held notes and Fill — the bend belongs in the same place
+    and for the same reason. Every other way this pair could strand (a dead-key
+    layout, a non-US layout, `Shift` pressed or released mid-hold) is already
+    closed by matching `e.code`; blur was the one left open.
   - **(v15) The `pitchBend` help topic names the same two keys.** Its copy kept
     "the `.` and `/` keys bend it too" from v10 until v15 — a binding that no
     longer existed, taught by the one place a new player reads about the wheel.
@@ -454,6 +465,13 @@ Scenario: Pitch bend sits on the vertically stacked keys (v10, REQ-pitch-bend-is
   Then master.pitchBend went to -1 and sprang back to 0
   When the user presses .
   Then nothing happens — it is unbound, not an alias for bend up
+# pinned by: tests/ui/shortcuts.test.ts
+
+Scenario: Losing the window releases a held bend (regression, v16, REQ-pitch-bend-is-quote-and-slash)
+  Given the user is holding Quote and master.pitchBend is 1
+  When the window loses focus, so no keyup ever arrives
+  Then master.pitchBend returns to 0
+  And the held notes and Fill are released as before
 # pinned by: tests/ui/shortcuts.test.ts
 
 Scenario: Shift pressed mid-hold still releases the bend (regression, v12, REQ-pitch-bend-is-quote-and-slash)

@@ -127,10 +127,26 @@ export function attachGridGestures(opts: GridGestureOptions): () => void {
     reset();
   };
 
+  /**
+   * A cancelled pointer is NOT a release: the OS took the gesture (notification
+   * pull-down, edge-swipe back, palm rejection), so nothing was completed and
+   * nothing is written (step-grid-editing.md REQ-tap-toggles-a-step).
+   *
+   * This cannot share `onUp`: a cancelled stroke is by definition still
+   * `pending`, which is exactly the state `onUp` reads as "a plain tap" — so
+   * routing cancel there silently toggled a step on every interrupted touch.
+   * `chip-reorder.ts` keeps the same split for the same reason.
+   */
+  const onCancel = (e: PointerEvent): void => {
+    if (pointerId === null || idOf(e) !== pointerId) return;
+    detachStroke();
+    reset();
+  };
+
   function detachStroke(): void {
     document.removeEventListener('pointermove', onMove);
     document.removeEventListener('pointerup', onUp);
-    document.removeEventListener('pointercancel', onUp);
+    document.removeEventListener('pointercancel', onCancel);
   }
 
   const disposers: (() => void)[] = [];
@@ -161,7 +177,7 @@ export function attachGridGestures(opts: GridGestureOptions): () => void {
       }, holdMs);
       document.addEventListener('pointermove', onMove);
       document.addEventListener('pointerup', onUp);
-      document.addEventListener('pointercancel', onUp);
+      document.addEventListener('pointercancel', onCancel);
     };
 
     // Desktop alias for hold-to-edit. Never the only route to it — a phone has
