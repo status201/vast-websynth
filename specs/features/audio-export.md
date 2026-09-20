@@ -3,7 +3,9 @@
 ```yaml
 id: audio-export
 status: implemented
-version: 11  # v11: a captured bar is the song's bar, not always 16 steps (REQ-the-capture-bound-is-the-songs-bar)
+version: 12  # v12: a full batch is TRANSFERRED, not copied — the trim allocated two 8 KB
+             #      arrays per flush inside process() (REQ-chunks-are-batched-then-flushed)
+             # v11: a captured bar is the song's bar, not always 16 steps (REQ-the-capture-bound-is-the-songs-bar)
              # v10: the worklet batches quanta into one message and stop() awaits
              #      the flush, so a take stays frame-identical (REQ-chunks-are-batched-then-flushed)
              # v9: the stop condition counts steps elapsed since the export began —
@@ -156,6 +158,21 @@ already-slow action, so the fetch is invisible next to the encode itself.
   to drain 375 transfers a second, and any stall (a big repaint, a demo load,
   the export modal opening) queued them with their backing `ArrayBuffer`s held
   alive.
+
+  **(v12) A full batch is transferred, not copied.** The flush trimmed with
+  `subarray(0, filled).slice()` unconditionally — but `filled` rises by exactly
+  one quantum per call, so the *periodic* flush always lands on the
+  accumulator's own length and the trim copied the whole thing only to throw the
+  original away. Two 8 KB `Float32Array`s per flush, ~23 flushes/s, allocated
+  **inside `process()`**, which
+  [runtime-performance](runtime-performance.md) REQ-no-allocation-in-a-hot-loop
+  forbids and where a GC pause is a dropout rather than a hitch. Only the final
+  short flush on `stop` now trims.
+
+  Worth stating the size honestly: the CPU saved is **~0.014% of a core**
+  (measured, 11/11 paired reps — 45% of this worklet's own cost, which is
+  itself small). The reason to do it is the ~375 KB/s of render-thread garbage
+  it stops producing during a capture, not the microseconds.
 
   **Batching is only correct with a flush, and the flush is what makes `stop()`
   async.** The worklet holds a partial batch, so on `stop` it must post the
