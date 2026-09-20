@@ -3,7 +3,10 @@
 ```yaml
 id: runtime-performance
 status: implemented
-version: 9   # v9: REQ-visibility-gating-is-for-pixels-not-sound — a draw-only loop may hold a visibility-gated,
+version: 10  # v10: REQ-a-worklet-optimisation-is-bit-exact also says how to MEASURE one — a
+             #      microbenchmark of the call is not evidence, and got two of three
+             #      answers wrong here
+             # v9: REQ-visibility-gating-is-for-pixels-not-sound — a draw-only loop may hold a visibility-gated,
              #     low-frequency watchdog to prove it came back (scope.md REQ-a-watchdog-restarts-a-stalled-loop)
              # v8: REQ-no-work-for-offscreen-dom — a folded section counts as off screen (scratch.md)
              # v7: REQ-boot-cost-matches-the-request — the time-stretch DSP defers behind the FIT button
@@ -253,6 +256,34 @@ so a reviewer has something concrete to hold a new feature against.
   produce identical output for identical input (same operands, same order) and
   be pinned by an equivalence test. Anything that alters the output is a sound
   change and needs its own spec + ADR-010 justification.
+
+  "Identical output" is judged **at the output**, not at every intermediate: an
+  identity that is exact in real arithmetic but rounds differently in the last
+  double bit is bit-exact here if no sample rounds differently once stored as
+  float32. A double's last bit is ~2e-16 relative and a float32 ULP is ~6e-8, so
+  there are eight orders of margin — but that is an argument for *checking*
+  against the frozen vectors, never for assuming.
+
+  **(v10) And it MUST be measured in situ.** A microbenchmark of the operation
+  alone is not evidence, because in isolation the call is the critical path
+  while in the real loop it overlaps with the surrounding work. Measured against
+  the whole `process()`, in a **paired** A/B (interleaved reps, judged on the
+  consistency of the sign, not on a difference of minima), because this machine's
+  run-to-run spread routinely exceeds the effect.
+
+  Three worked examples, all from the same afternoon, all of which a
+  microbenchmark got wrong:
+
+  | change | isolated | in situ | verdict |
+  | --- | --- | --- | --- |
+  | ladder filter: hoist the `shape` scan under `model === 1` | 176 ns/scan ⇒ 0.05% of a core | — | below the floor; **not worth the edit** |
+  | ladder filter: `pow(2,x)` → `exp(x·ln2)` | 4.8× faster | **8/15 reps, t=0.3** | a coin flip; **discarded** |
+  | compressor: `pow(10,y)` → `exp(y·k)` and `log10` → `log` | said `log10` was *faster* | **11/11 reps, t=34, 61% of the processor** | **taken** |
+
+  The ladder's per-sample path is heavy (four saturators in a recurrence), so its
+  transcendental hides in the shadow of work already in flight. The compressor's
+  is light, so the same call really is the critical path there. That difference
+  is invisible from outside the loop, which is the whole reason for the rule.
 
 - **REQ-visibility-gating-is-for-pixels-not-sound** — **Visibility gating is for
   pixels, not for sound** (v2). A loop that only *draws* SHOULD stop while the

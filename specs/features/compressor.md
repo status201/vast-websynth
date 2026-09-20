@@ -3,7 +3,9 @@
 ```yaml
 id: compressor
 status: implemented
-version: 4      # v4: a DISCRETE param snaps, it does not approach — ratio and autoRelease
+version: 5      # v5: the two per-sample dB conversions are exp/log rather than pow/log10 —
+                #     61% of the processor's cost, bit-exact at the output (REQ-the-coefficient-memo-is-bit-exact)
+                # v4: a DISCRETE param snaps, it does not approach — ratio and autoRelease
                 #     were smoothed like a knob, so "all buttons in" engaged a third of a
                 #     second late and swept ratios the UI never offers (REQ-ratio-and-release-are-indices)
                 # v3: REQ-a-silent-input-stays-silent — the FET path's DC blocker is primed from its first
@@ -110,6 +112,21 @@ boundedness) and runs cheaply on the audio thread.
   an audible bug, and a re-derived one that differs in the last bit is a sound
   change under `runtime-performance.md` REQ-a-worklet-optimisation-is-bit-exact. Pinned by frozen-reference
   vectors that include a mid-stream k-rate param change.
+
+  **(v5) The same bar, met by the per-sample dB conversions.** The detector's
+  `20·log10(sc)` and the gain's `10^(-gr/20)` are written as `k·log` and
+  `exp(y·k)`. Together they were **61% of this processor's entire cost** —
+  `Math.pow(10, y)` is roughly four times `Math.exp(y·k)` on V8 — so the
+  compressor now costs about 2.6× less per sample, which is what a user pays
+  the moment either compressor is switched on (both default off, and
+  [ADR-012](../decisions/adr-012-true-bypass-disconnects.md) disconnects an idle
+  one, so this is a cost of *use*, not of existing).
+
+  It is bit-exact **at the output**: the identities are exact in real
+  arithmetic, and the double-rounding differs by ~2e-15 relative — some 2.7e7
+  times finer than a float32 ULP — so no sample rounds differently. The frozen
+  vectors above are what certify that, and they were run before the change was
+  kept rather than after it was assumed.
 
 - **REQ-a-silent-input-stays-silent** (v3) — **A silent input produces a silent
   first block.** The FET saturator is deliberately asymmetric — `tanh(d·(y +

@@ -207,6 +207,7 @@ Scenario: Releasing an older key in mono does not cut the sounding note (v6, reg
   When the user releases C3
   Then E3 is still sounding
   And releasing E3 then stops it
+# pinned by: tests/audio/polyphony.test.ts
 
 Scenario: A glide leaves from the pitch in flight, not the last one assigned (v5, regression)
   Given mixer.glide is above zero and a note is gliding from C3 toward C4
