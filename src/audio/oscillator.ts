@@ -82,6 +82,13 @@ export class Osc {
    *  when the duty actually moves to a new entry. */
   private appliedIdx = -1;
 
+  /** The last frequency commanded, and the node's own starting value until one
+   *  is (matching the constructor's `frequency.value = 440`). */
+  private lastFreq = 440;
+  /** The glide in flight, so `freqAt` can compute where the curve has reached
+   *  rather than reading `AudioParam.value` back — see `setFrequency`. */
+  private glide: { from: number; to: number; at: number; tau: number } | null = null;
+
   constructor(private readonly ctx: AudioContext) {
     this.osc = ctx.createOscillator();
     this.osc.type = 'sawtooth';
@@ -105,13 +112,44 @@ export class Osc {
   setFrequency(hz: number, when: number, glideSec: number): void {
     if (!Number.isFinite(hz)) return;
     const f = this.osc.frequency;
+    const from = this.freqAt(when);
     if (glideSec <= 0.001) {
       f.cancelScheduledValues(when);
       f.setValueAtTime(hz, when);
+      this.glide = null;
     } else {
+      const tau = glideSec / 3;
+      // ANCHORED cancel (architecture.md "Never cancel automation without
+      // anchoring it"). The cancel itself is load-bearing: `osc.frequency` is
+      // written only from here, so a voice stolen from the sequencer still has
+      // that note's pitch scheduled up to a lookahead ahead, and without the
+      // cancel it would fire mid-glide. But a bare cancel leaves no event at
+      // `when`, and `setTargetAtTime` then starts from "the param's value" —
+      // which Blink reads off the automation curve and Gecko reads as the last
+      // explicitly assigned value. That is the documented divergence, and on
+      // Firefox it made a glide slide from the wrong origin (often the 440 Hz
+      // the node was constructed with) instead of from the note being left.
       f.cancelScheduledValues(when);
-      f.setTargetAtTime(hz, when, glideSec / 3);
+      f.setValueAtTime(from, when);
+      f.setTargetAtTime(hz, when, tau);
+      this.glide = { from, to: hz, at: when, tau };
     }
+    this.lastFreq = hz;
+  }
+
+  /**
+   * The frequency the curve has actually reached at `t`, computed rather than
+   * read back: `AudioParam.value` is not reliable mid-automation on Gecko, which
+   * is the same reason `SamplerMachine.cutHit` derives its gain analytically
+   * instead of sampling it.
+   *
+   * `setTargetAtTime` is a one-pole approach, so the value is closed-form.
+   */
+  private freqAt(t: number): number {
+    const g = this.glide;
+    if (!g) return this.lastFreq;
+    if (t <= g.at) return g.from;
+    return g.to + (g.from - g.to) * Math.exp(-(t - g.at) / g.tau);
   }
 
   setWave(idx: number): void {

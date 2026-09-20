@@ -3,7 +3,10 @@
 ```yaml
 id: voicing
 status: implemented
-version: 4   # v3: the passthrough stores what it played, so a re-pitched or
+version: 5   # v5: a glide's cancel is ANCHORED, and the anchor is computed rather than
+             #     read back — on Gecko a bare cancel made portamento start from the
+             #     last assigned value, not the note being left (REQ-glide-controls-portamento)
+             # v3: the passthrough stores what it played, so a re-pitched or
              #     chord-expanded key still releases correctly (REQ-passthrough-remembers-what-it-played)
              # v4: a stolen voice is evicted from its old note's held list, so
              #     releasing that key no longer cuts the new note (REQ-a-stolen-voice-leaves-the-held-list)
@@ -43,6 +46,30 @@ time 0 reproduces the pre-song-mode behaviour, keeping existing presets unchange
 
 - **REQ-glide-controls-portamento** — Glide time + mode control portamento;
   defaults reproduce the legacy no-glide behaviour.
+
+  **(v5) A glide starts from the pitch the previous one had reached, on both
+  engines.** `Osc.setFrequency` cancels before it schedules, and the cancel is
+  load-bearing: `osc.frequency` is written from that one method, so a voice
+  stolen from the sequencer still carries that note's pitch scheduled up to a
+  lookahead ahead, and without the cancel it would fire mid-glide. But a bare
+  cancel leaves **no event** at `when`, and `setTargetAtTime` then begins at
+  "the param's value" — which Blink reads off the automation curve and Gecko
+  reads as the last value explicitly assigned. On Firefox a glide therefore slid
+  from the wrong origin (often the 440 Hz the node was constructed with) rather
+  than from the note being left: a wrong-sounding portamento, on one engine
+  only, invisible to the suite because the mock `AudioParam` has a static
+  `value` and no event list.
+
+  The cancel is therefore **anchored** (architecture.md "Never cancel automation
+  without anchoring it"), and the anchor value is **computed, not read back**:
+  `AudioParam.value` is exactly what is unreliable here. `setTargetAtTime` is a
+  one-pole approach, so the value in flight is closed-form, and `Osc` keeps the
+  `{from, to, at, tau}` of the glide it scheduled to evaluate it — the same
+  move `SamplerMachine.cutHit` makes for its gain, and for the same reason.
+
+  `tests/audio/no-unanchored-cancel.test.ts` now refuses `setTargetAtTime` as an
+  anchor, which is how this hid: it was listed as one, so the source rule read
+  the defect as compliant.
 
 - **REQ-analogue-drift-is-off-by-default** — Analogue drift adds subtle
   per-voice pitch wander (default 0 = off). The 110 ms drift interval runs
@@ -142,6 +169,13 @@ ui: src/ui/app.ts (VOICE / UNISON / GLIDE controls; pitch-bend + transpose)
 ## Scenarios (BDD)
 
 ```gherkin
+Scenario: A glide leaves from the pitch in flight, not the last one assigned (v5, regression)
+  Given mixer.glide is above zero and a note is gliding from C3 toward C4
+  When a new note arrives before the glide has settled
+  Then the frequency curve is pinned at the value the glide had reached
+  And the new approach starts from that value on Blink and on Gecko alike
+# pinned by: tests/audio/oscillator-glide.test.ts, recipes/verify-audio-by-ear.md
+
 Scenario: Switching mono<->poly never leaves a hanging note
   Given a note is sounding
   When the user toggles voicing.mode

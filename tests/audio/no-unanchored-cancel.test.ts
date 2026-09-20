@@ -1,6 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import { readdirSync, readFileSync, statSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
+import { sep } from 'node:path';
 
 /**
  * **`cancelScheduledValues` must pin the value it cancelled.**
@@ -24,10 +25,12 @@ import { fileURLToPath } from 'node:url';
  * Hence a source rule instead, of the same kind as
  * `tests/no-shipped-demo-names.test.ts` and `tests/ui/iconography.test.ts`: the
  * **first** thing scheduled on that same param after a cancel must be a
- * `setValueAtTime` (pin it) or a `setTargetAtTime` (retarget from it), never a
- * ramp. It has to be the *first* — `ducker.ts` cancels, pins, ramps, then
- * settles with a `setTargetAtTime` four lines later, so merely finding an anchor
- * somewhere nearby would accept the very defect this is here to catch.
+ * `setValueAtTime` — nothing else pins a value. It has to be the *first*:
+ * `ducker.ts` cancels, pins, ramps, then settles with a `setTargetAtTime` four
+ * lines later, so merely finding an anchor somewhere nearby would accept the
+ * very defect this is here to catch. A `setTargetAtTime` in first position is
+ * **not** an anchor either, though it was treated as one until it hid a real bug
+ * — see `APPROACHES`.
  *
  * The rule and the way out of it are `specs/architecture.md` — a *continuous*
  * control should not be cancelling in the first place; `setTargetAtTime`
@@ -44,9 +47,23 @@ const SCANNED = ['src/audio', 'public/worklets'];
 const WINDOW = 8;
 
 /** Anchors: these establish a value to continue from. */
-const ANCHORS = ['setValueAtTime', 'setTargetAtTime'];
+const ANCHORS = ['setValueAtTime'];
 /** Ramps: these need a value to start from, and a bare cancel leaves none. */
 const RAMPS = ['linearRampToValueAtTime', 'exponentialRampToValueAtTime', 'setValueCurveAtTime'];
+/**
+ * `setTargetAtTime` needs no cancel at all — it continues from wherever the
+ * curve has reached, which is the way *out* of this rule, not a way to satisfy
+ * it. It used to be listed as an anchor, and that is exactly how a real bug hid
+ * here: `Osc.setFrequency`'s glide branch cancelled and then approached, so the
+ * start value was "the param's value", which Blink reads off the automation
+ * curve and Gecko reads as the last explicitly assigned one — an audible
+ * Firefox-only portamento from the wrong note.
+ *
+ * So: approaching after a cancel is a defect. Either drop the cancel, or pin a
+ * value with `setValueAtTime` first (which is then the anchor, and this list
+ * never sees it, because the FIRST subsequent write decides).
+ */
+const APPROACHES = ['setTargetAtTime'];
 
 /**
  * Cancel sites that legitimately pin nothing. Keyed `path:line`, and every entry
@@ -92,7 +109,10 @@ describe('AudioParam automation is never cancelled without being anchored', () =
 
   for (const root of SCANNED) {
     for (const abs of walk(repo(root))) {
-      const rel = abs.slice(abs.indexOf(root));
+      // `abs` is OS-separated; the scanned roots are written with `/`, so this
+      // has to normalise or `indexOf` misses and the report names one character.
+      const posix = abs.split(sep).join('/');
+      const rel = posix.slice(posix.indexOf(root));
       const lines = readFileSync(abs, 'utf-8').replace(/\r\n/g, '\n').split('\n');
       lines.forEach((text, idx) => {
         const at = text.indexOf('.cancelScheduledValues(');
@@ -100,11 +120,11 @@ describe('AudioParam automation is never cancelled without being anchored', () =
         const recv = receiverBefore(text, at);
         hits.push({ file: rel, line: idx + 1, recv });
         // The FIRST subsequent write on this same param decides it.
-        let verdict: 'anchored' | 'ramp' | 'none' = 'none';
+        let verdict: 'anchored' | 'ramp' | 'approach' | 'none' = 'none';
         outer: for (const next of lines.slice(idx + 1, idx + 1 + WINDOW)) {
-          for (const m of [...ANCHORS, ...RAMPS]) {
+          for (const m of [...ANCHORS, ...RAMPS, ...APPROACHES]) {
             if (next.includes(recv + '.' + m + '(')) {
-              verdict = ANCHORS.includes(m) ? 'anchored' : 'ramp';
+              verdict = ANCHORS.includes(m) ? 'anchored' : RAMPS.includes(m) ? 'ramp' : 'approach';
               break outer;
             }
           }
@@ -112,7 +132,10 @@ describe('AudioParam automation is never cancelled without being anchored', () =
         if (verdict !== 'anchored' && !(`${rel}:${idx + 1}` in ALLOWED)) {
           const why = verdict === 'ramp'
             ? 'the next write is a ramp, which has no value to start from'
-            : 'nothing pins a value afterwards';
+            : verdict === 'approach'
+              ? 'the next write is setTargetAtTime, whose start value is the one the '
+                + 'cancel just erased — drop the cancel, or pin a value with setValueAtTime first'
+              : 'nothing pins a value afterwards';
           unanchored.push(`${rel}:${idx + 1}  ${recv}.cancelScheduledValues(...) — ${why}`);
         }
       });
