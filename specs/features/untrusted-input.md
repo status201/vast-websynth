@@ -3,7 +3,9 @@
 ```yaml
 id: untrusted-input
 status: implemented
-version: 5   # v5: REQ-the-public-endpoint-is-bounded — the public MCP endpoint is an ingest surface, and the
+version: 6   # v6: REQ-a-slot-name-cannot-reach-the-index — a slot called "index" landed ON the
+             #     name index and emptied the user's saved list
+             # v5: REQ-the-public-endpoint-is-bounded — the public MCP endpoint is an ingest surface, and the
              #     first one with no user behind it
              # v4: REQ-a-transport-position-is-bounded-at-ingress — a transport position is clamped, not masked
              # v3: REQ-an-unresolvable-target-warns — an unresolvable automation target warns instead of
@@ -176,6 +178,32 @@ decision and the alternatives. This spec is the contract.
   [session-autosave](session-autosave.md)
   REQ-the-undo-net-covers-the-session/REQ-an-identical-slot-is-not-a-conflict owns
   the mechanism.
+
+- **REQ-a-slot-name-cannot-reach-the-index** — (v6) **A slot name can never
+  address the name index.** `SlotStore` keys a slot at `<prefix><name>` and its
+  index at `<prefix>index`, so the single name `index` addresses the index
+  itself. Saving a song or preset called "index" therefore writes the payload
+  **over** the list of every saved name. Nothing crashes — `readIndex` is
+  defensive and a non-array reads as empty (REQ-deserialized-state-is-validated-never-cast doing its job) — which
+  is precisely what makes it silent: the next `addToIndex` rewrites the list as
+  `['index']`, and every other saved song disappears from `Song.list()`. The
+  values are still in `localStorage`, orphaned and unreachable through the UI.
+
+  The name is user-chosen on the Save dialog and **payload-chosen** on every
+  ingest surface of REQ-the-untrusted-surfaces-are-enumerated, so this is
+  REQ-an-import-may-not-destroy-saved-work's failure by a different route: that
+  requirement guards the *collision prompt*, and the prompt does fire here
+  (`slotDiffers` sees the index JSON and reports a difference), but it names the
+  wrong stakes — it offers to replace "a saved song called index" when what is
+  actually at risk is the whole list.
+
+  The fix belongs in `SlotStore`, at the one place a name becomes a key, and it
+  is an **escape rather than a refusal**: "index" is a legitimate thing to call a
+  song. Any name matching `/^_*index$/` gains one leading `_`, which keeps the
+  mapping injective (`index` → `_index`, `_index` → `__index`, …) and leaves the
+  index key unreachable from any name. Escaping rather than re-namespacing the
+  slot keys is deliberate: a new namespace would strand every song and preset
+  already saved under the old one.
 
 - **REQ-defence-in-depth-at-delivery** — **Defence in depth at the delivery
   layer.** `index.html` carries a CSP `<meta>`, and `public/_headers` carries

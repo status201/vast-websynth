@@ -68,19 +68,38 @@ export class SlotStore {
     this.writeIndex(this.readIndex().filter((n) => n !== name));
   }
 
+  /**
+   * The storage key for a slot. The **one** place a name becomes a key.
+   *
+   * `index` would otherwise address the name index itself (`<prefix>index`), so
+   * a song or preset called "index" overwrote the list of every saved name —
+   * silently, because `readIndex` reads a non-array as empty and the next
+   * `addToIndex` then rewrote the list as `['index']`
+   * (untrusted-input.md REQ-a-slot-name-cannot-reach-the-index). The name is
+   * user-chosen on the Save dialog and payload-chosen on every import surface.
+   *
+   * Escaped rather than refused — "index" is a fair name for a song — and the
+   * escape is injective, so no two names can collide: `index` → `_index`,
+   * `_index` → `__index`, and anything else is left alone. Re-namespacing the
+   * slot keys instead would strand everything already saved under the old one.
+   */
+  private keyFor(name: string): string {
+    return this.prefix + (/^_*index$/.test(name) ? `_${name}` : name);
+  }
+
   /** The stored JSON for `name`, or null when the slot is empty. */
   readRaw(name: string): string | null {
-    return localStorage.getItem(this.prefix + name);
+    return localStorage.getItem(this.keyFor(name));
   }
 
   /** Write the slot value only — the index is the caller's concern. */
   writeRaw(name: string, json: string): void {
-    localStorage.setItem(this.prefix + name, json);
+    localStorage.setItem(this.keyFor(name), json);
   }
 
   /** Drop the slot and its index entry. */
   remove(name: string): void {
-    localStorage.removeItem(this.prefix + name);
+    localStorage.removeItem(this.keyFor(name));
     this.removeFromIndex(name);
   }
 }
