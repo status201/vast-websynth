@@ -20,8 +20,8 @@ import { type WebRtcDiagnostics, type CandInfo, emptyDiagnostics, parseCandidate
  * Timestamps on the wire are the **sender's** `performance.now()`; the receiver
  * converts a pulse's `at` into its own domain via `ClockOffsetEstimator` before
  * handing it to the sync core, so `SyncSlave`'s math is byte-for-byte identical
- * to the MIDI path (REQ-meter-ts-names-the-three-jobs). Ping/pong (both peers ping; pong replies always)
- * feed the estimator on a burst-then-1 Hz cadence (REQ-a-cell-index-is-a-pure-function-of-step).
+ * to the MIDI path (REQ-wire-timestamps-are-the-senders). Ping/pong (both peers ping; pong replies always)
+ * feed the estimator on a burst-then-1 Hz cadence (REQ-offset-estimation-is-pure).
  *
  * LAN-only: `iceServers: []` (no STUN) — offline-capable, no third party.
  */
@@ -30,8 +30,8 @@ const PING_BURST_COUNT = 8;
 const PING_BURST_MS = 150;
 const PING_STEADY_MS = 1000;
 const ICE_TIMEOUT_MS = 3000;
-const DISCONNECT_GRACE_MS = 5000; // 'disconnected' recovery window before teardown (REQ-bar-ticks-is-the-arrangement-bar-line)
-const STATS_POLL_MS = 800;        // diagnostics getStats cadence (REQ-cells-beyond-the-length-are-hidden)
+const DISCONNECT_GRACE_MS = 5000; // 'disconnected' recovery window before teardown (REQ-a-closed-channel-ends-the-session)
+const STATS_POLL_MS = 800;        // diagnostics getStats cadence (REQ-every-sync-attempt-is-recorded)
 
 /** Wire envelope (keyed `t`) — kept distinct from the semantic `SyncMessage`. */
 type Wire =
@@ -114,7 +114,7 @@ export class WebRtcSyncTransport implements SyncTransport {
     return () => { this.portListeners.delete(cb); };
   }
 
-  /** Live diagnostics for the current/last pairing attempt (REQ-cells-beyond-the-length-are-hidden). */
+  /** Live diagnostics for the current/last pairing attempt (REQ-every-sync-attempt-is-recorded). */
   get diagnostics(): WebRtcDiagnostics {
     return this.diag;
   }
@@ -169,7 +169,7 @@ export class WebRtcSyncTransport implements SyncTransport {
 
   private newConnection(): RTCPeerConnection {
     const pc = new this.RtcCtor({ iceServers: [] });
-    this.diag = emptyDiagnostics(); // fresh diagnostics per attempt (REQ-cells-beyond-the-length-are-hidden)
+    this.diag = emptyDiagnostics(); // fresh diagnostics per attempt (REQ-every-sync-attempt-is-recorded)
     this.disconnectTimer = 0;
 
     pc.onconnectionstatechange = () => {
@@ -178,7 +178,7 @@ export class WebRtcSyncTransport implements SyncTransport {
       this.fireDiag();
       if (s === 'failed' || s === 'closed') { this.teardownLink(); return; }
       if (s === 'disconnected') {
-        // Transient/recoverable per spec (REQ-bar-ticks-is-the-arrangement-bar-line): give it a grace window rather
+        // Transient/recoverable per spec (REQ-a-closed-channel-ends-the-session): give it a grace window rather
         // than killing a connection that's still completing ICE checks / flapping.
         window.clearTimeout(this.disconnectTimer);
         this.disconnectTimer = window.setTimeout(() => {
@@ -190,7 +190,7 @@ export class WebRtcSyncTransport implements SyncTransport {
       if (s === 'connected') { window.clearTimeout(this.disconnectTimer); this.disconnectTimer = 0; }
     };
 
-    // Diagnostics wiring (REQ-cells-beyond-the-length-are-hidden) — a no-op on the test double (its addEventListener
+    // Diagnostics wiring (REQ-every-sync-attempt-is-recorded) — a no-op on the test double (its addEventListener
     // never dispatches); the real peer feeds the debug panel.
     pc.addEventListener('iceconnectionstatechange', () => {
       this.diag.iceHistory.push(pc.iceConnectionState);
@@ -217,7 +217,7 @@ export class WebRtcSyncTransport implements SyncTransport {
     return pc;
   }
 
-  /** Poll getStats for the selected candidate pair + remote count (REQ-cells-beyond-the-length-are-hidden). */
+  /** Poll getStats for the selected candidate pair + remote count (REQ-every-sync-attempt-is-recorded). */
   private startStatsPoll(pc: RTCPeerConnection): void {
     window.clearInterval(this.statsTimer);
     if (typeof pc.getStats !== 'function') return; // test double / unsupported

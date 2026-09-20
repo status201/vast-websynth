@@ -62,7 +62,7 @@ export class Clock implements TickSubscriber {
   /** A one-shot resume point set by `pause()`, used by the next start and
    *  cleared by anything that sets a position (transport.md REQ-pause-resumes-where-it-stopped). */
   private _resume: number | null = null;
-  /** Consulted after each emitted step while a loop is engaged (REQ-tape-stop-is-gated-while-slaved). */
+  /** Consulted after each emitted step while a loop is engaged (REQ-a-step-router-can-redirect-the-next-step). */
   private router: StepRouter | null = null;
   /** The router that threw this run, reported once (see `route`). */
   private routerFaulted = false;
@@ -73,7 +73,7 @@ export class Clock implements TickSubscriber {
   private readonly listeners = new Set<TickListener>();
   /** Listeners already reported as throwing this run (see reportListenerError). */
   private readonly faultedListeners = new Set<TickListener>();
-  /** Stalled-wakeup recoveries this session (REQ-no-web-midi-degrades-gracefully); read by the Debug panel. */
+  /** Stalled-wakeup recoveries this session (REQ-the-transport-catch-up-is-bounded); read by the Debug panel. */
   private _dropouts = 0;
   private readonly startListeners = new Set<() => void>();
   private readonly stopListeners = new Set<() => void>();
@@ -88,10 +88,10 @@ export class Clock implements TickSubscriber {
   get step(): number { return this._step; }
   /** Where a plain `start()` begins. 0 until the first `seek` (transport.md
    *  REQ-the-cue-is-where-start-begins), so a transport nobody has moved behaves exactly as it always did.
-   *  While paused it is the resume point (REQ-an-explicit-tempo-message) — so every surface that shows
+   *  While paused it is the resume point (REQ-pause-resumes-where-it-stopped) — so every surface that shows
    *  "where Play begins" shows the pause without knowing pauses exist. */
   get cue(): number { return this._resume ?? this._cue; }
-  /** A `pause()` is waiting to be resumed (REQ-an-explicit-tempo-message). */
+  /** A `pause()` is waiting to be resumed (REQ-pause-resumes-where-it-stopped). */
   get paused(): boolean { return this._resume !== null; }
   /** The tempo the transport is actually running at. Worth reading directly:
    *  a slaved clock is driven by `setBpm` from incoming MIDI pulses and never
@@ -159,7 +159,7 @@ export class Clock implements TickSubscriber {
   start(fromStep = this.cue): void {
     if (this._playing) return;
     this._playing = true;
-    this._resume = null; // a pause resumes once (REQ-an-explicit-tempo-message)
+    this._resume = null; // a pause resumes once (REQ-pause-resumes-where-it-stopped)
     this.faultedListeners.clear(); // a new run reports its faults afresh
     this.faultedSeekListeners.clear();
     this.routerFaulted = false;
@@ -312,7 +312,7 @@ export class Clock implements TickSubscriber {
    * Unlike `seek()` the cue does not move: nobody chose this position.
    *
    * Everything here runs inside the drain loop, so a throw would escape it
-   * exactly as REQ-a-sync-section-in-the-song-panel describes for tick listeners. Both the router and each seek
+   * exactly as REQ-a-subscriber-may-not-wedge-the-transport describes for tick listeners. Both the router and each seek
    * listener are isolated; a throwing router counts as "no jump".
    */
   private route(): void {
