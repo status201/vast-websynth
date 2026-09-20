@@ -204,7 +204,7 @@
     "seq.master": 0.4548,
     "seq.mute": 0,
     "seq.t0.mute": 0,
-    "seq.t1.mute": 0,
+    "seq.t1.mute": 1,
     "seq.t2.mute": 0,
     "seq.t3.mute": 0,
     "seq.solo": 0,
