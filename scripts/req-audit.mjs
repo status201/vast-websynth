@@ -79,7 +79,7 @@ const REQ_DEF_SLUG = /^\s*-\s+\*\*(REQ-[a-z][a-z0-9]*(?:-[a-z0-9]+)*)\*\*/gm;
 const REQ_DEF_PROSE =
   /^\s*-\s+\*\*(REQ-[a-z][a-z0-9]*(?:-[a-z0-9]+)*)\*\*\s*(?:\([^)]*\))?\s*—?([^\n]*(?:\n(?!\s*-\s+\*\*REQ)[^\n]*){0,3})/gm;
 
-/** `- **REQ-x** — <prose>`, with the two following lines, for a tag pattern. */
+/** A declaration line (`- **REQ-<tag>** - <prose>`) plus its two following lines. */
 const declRe = (tagPat) =>
   new RegExp(
     String.raw`^[ \t]*-[ \t]+\*\*(REQ-${tagPat})\*\*[ \t]*(?:\([^)]*\))?[ \t]*—?[ \t]*`

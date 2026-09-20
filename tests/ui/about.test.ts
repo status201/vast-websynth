@@ -204,7 +204,7 @@ describe('About modal — Debug section', () => {
     const btn = createAboutButton(engine, TOUR);
     document.body.appendChild(btn);
     await openModal(btn);
-    expandDebug(); // REQ-info-badges-show-per-control-help — a folded section reads nothing.
+    expandDebug(); // REQ-debug-refreshes-while-expanded — a folded section reads nothing.
 
     expect(ctxStateRow()?.textContent).toBe('suspended');
 
@@ -267,7 +267,7 @@ describe('About modal — Debug section', () => {
     const { engine } = stubEngine('running');
     await openModal(document.body.appendChild(createAboutButton(engine, TOUR)));
     expect(clipsRow()?.textContent).toBe('n/a');
-    // REQ-the-info-button-is-a-toggle — the action-side mirror: an unbound source disables its action
+    // REQ-an-unbound-action-renders-disabled — the action-side mirror: an unbound source disables its action
     // rather than offering a button that cannot work. (This runs before any
     // other test binds the module-level source, so it pins the real thing.)
     expect(clipsClearBtn()?.disabled).toBe(true);
@@ -359,7 +359,7 @@ describe('About modal — Debug section', () => {
   it('offers the panel actions and follows the context state', async () => {
     const { engine, ctx, api } = stubEngine('suspended');
     await openAbout(engine);
-    expandDebug(); // REQ-info-badges-show-per-control-help — the label only follows the ctx while expanded.
+    expandDebug(); // REQ-debug-refreshes-while-expanded — the label only follows the ctx while expanded.
 
     const toggle = byId<HTMLButtonElement>('debug-ctx-toggle');
     expect(byId('debug-actions')).not.toBeNull();
@@ -407,12 +407,12 @@ describe('About modal — Debug section', () => {
     expect(ctx.createOscillator).toHaveBeenCalledTimes(1);
     expect(tone.textContent).toBe('Playing…');
 
-    // REQ-help-copy-tells-the-truth — closing the panel stops it.
+    // REQ-nothing-an-action-starts-outlives-the-panel — closing the panel stops it.
     closeOpenModal();
     expect(osc.stop).toHaveBeenCalled();
   });
 
-  it('copies a report of every row plus the version and UA (REQ-a-motion-topic-anchors-to-the-tab)', async () => {
+  it('copies a report of every row plus the version and UA (REQ-a-panel-level-actions-block)', async () => {
     const writeText = vi.fn(async () => {});
     Object.defineProperty(navigator, 'clipboard', { value: { writeText }, configurable: true });
     const { engine } = stubEngine('running');
@@ -427,7 +427,7 @@ describe('About modal — Debug section', () => {
     expect(report).toContain('Transport: stopped · 120.0 BPM · sync off');
   });
 
-  // REQ-the-sync-section-has-two-topics — a destructive action never fires on the click alone.
+  // REQ-a-debug-row-may-carry-one-action — a destructive action never fires on the click alone.
   it('confirms before clearing the autosaved session', async () => {
     const { engine } = stubEngine('running');
     localStorage.setItem('websynth.session', JSON.stringify({ v: 1, savedAt: Date.now(), file: {} }));
@@ -459,7 +459,7 @@ describe('About modal — Debug section', () => {
     // debug-panel.md v12: one key reads '1 key', and a few bytes read in kB, not '0.0 MB'.
     expect(byId('debug-storage').textContent).toMatch(/^1 key · \d+ kB$/);
     expect(byId('debug-latency').textContent).toBe('base 5.0 ms · output 12.0 ms');
-    // Unbound late-bound sources read n/a rather than crashing (REQ-song-file-buttons-carry-badges).
+    // Unbound late-bound sources read n/a rather than crashing (REQ-an-unbound-row-reads-n-a).
     expect(byId('debug-midi').textContent).toBe('n/a');
     expect(byId('debug-wake').textContent).toBe('n/a');
     // jsdom has no service worker.
@@ -480,9 +480,9 @@ describe('About modal — Debug section', () => {
     expect(section.classList.contains('collapsed')).toBe(false);
   });
 
-  // ---- v4: the panel costs nothing it doesn't have to (REQ-info-badges-show-per-control-help/REQ-help-copy-covers-the-gesture-model) ----
+  // ---- v4: the panel costs nothing it doesn't have to (REQ-debug-refreshes-while-expanded/REQ-debug-refresh-is-tiered-by-row-cost) ----
 
-  it('reads nothing at all while the Debug section is collapsed (REQ-info-badges-show-per-control-help)', async () => {
+  it('reads nothing at all while the Debug section is collapsed (REQ-debug-refreshes-while-expanded)', async () => {
     vi.useFakeTimers();
     try {
       const { engine, ctx } = stubEngine('suspended');
@@ -500,7 +500,7 @@ describe('About modal — Debug section', () => {
     }
   });
 
-  it('repaints immediately when the section is expanded, before any tick (REQ-info-badges-show-per-control-help)', async () => {
+  it('repaints immediately when the section is expanded, before any tick (REQ-debug-refreshes-while-expanded)', async () => {
     const { engine, ctx } = stubEngine('suspended');
     await openAbout(engine);
 
@@ -511,7 +511,7 @@ describe('About modal — Debug section', () => {
     expect(ctxStateRow()?.textContent).toBe('running');
   });
 
-  it('re-reads the localStorage-backed rows on the slow tier only (REQ-help-copy-covers-the-gesture-model)', async () => {
+  it('re-reads the localStorage-backed rows on the slow tier only (REQ-debug-refresh-is-tiered-by-row-cost)', async () => {
     vi.useFakeTimers();
     try {
       const { engine } = stubEngine('running');

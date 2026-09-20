@@ -52,7 +52,7 @@ const scrubCells = (root: HTMLElement): HTMLButtonElement[] =>
   [...root.querySelectorAll('[data-testid="transport-scrub"] button')] as HTMLButtonElement[];
 
 describe('buildTransportControls', () => {
-  // REQ-a-song-captures-the-whole-session/REQ-legacy-step-cells-still-sound-right (v5) — the Song row is no longer compact: same set as the window.
+  // REQ-one-transport-control-builder/REQ-the-song-panel-transport-row (v5) — the Song row is no longer compact: same set as the window.
   it('renders Play/Pause, ⏮, readout, Loop and scrubber, in that order', () => {
     const { api, bridge } = harness();
     const root = host(buildTransportControls(api, bridge));
@@ -62,7 +62,7 @@ describe('buildTransportControls', () => {
     ]);
   });
 
-  // REQ-song-file-is-a-versioned-union — the header owns BPM/SWING. A copy here would be a second control
+  // REQ-transport-is-a-floating-window — the header owns BPM/SWING. A copy here would be a second control
   // for one param that does NOT know to disable itself while slaved.
   it('mints no BPM or SWING knob on either surface', () => {
     const { api, bridge } = harness();
@@ -76,14 +76,14 @@ describe('buildTransportControls', () => {
     }
   });
 
-  it('namespaces every testid so two instances coexist (REQ-a-song-captures-the-whole-session)', () => {
+  it('namespaces every testid so two instances coexist (REQ-one-transport-control-builder)', () => {
     const { api, bridge } = harness();
     const w = host(buildTransportControls(api, bridge, { testIdPrefix: 'transportw' }));
     expect(byId(w, 'transportw-toggle')).toBeTruthy();
     expect(byId(w, 'transportw-readout')).toBeTruthy();
   });
 
-  // REQ-audio-is-never-embedded-in-the-json — never a second source of truth for the transport.
+  // REQ-play-pause-is-not-a-second-truth — never a second source of truth for the transport.
   it('routes Play through the UiBridge, not the clock', () => {
     const { api, bridge, clock, toggleTransport } = harness();
     const root = host(buildTransportControls(api, bridge));
@@ -92,7 +92,7 @@ describe('buildTransportControls', () => {
     expect(clock.playing).toBe(false); // the bridge owns it — we did not
   });
 
-  // REQ-audio-is-never-embedded-in-the-json/REQ-sync-and-audio-pair-up (v5) — Pause is the clock's; the header's click means Stop.
+  // REQ-play-pause-is-not-a-second-truth/REQ-pause-and-stop-are-separate-verbs (v5) — Pause is the clock's; the header's click means Stop.
   it('pauses through the clock while playing, never through the bridge', () => {
     const { api, bridge, clock, toggleTransport } = harness();
     const root = host(buildTransportControls(api, bridge));
@@ -103,11 +103,11 @@ describe('buildTransportControls', () => {
     expect(pause).toHaveBeenCalledTimes(1);
     expect(toggleTransport).not.toHaveBeenCalled();
     expect(clock.playing).toBe(false);
-    // Stopped, the readout shows where Play continues — the resume point (REQ-mute-and-solo-share-one-rule).
+    // Stopped, the readout shows where Play continues — the resume point (REQ-the-position-readout-is-bar-dot-step).
     expect(byId(root, 'transport-readout').textContent).toBe('1.06');
   });
 
-  it('mirrors the clock state on its Play / Pause label (REQ-audio-is-never-embedded-in-the-json)', () => {
+  it('mirrors the clock state on its Play / Pause label (REQ-play-pause-is-not-a-second-truth)', () => {
     const { api, bridge, clock } = harness();
     const root = host(buildTransportControls(api, bridge));
     const play = byId(root, 'transport-toggle');
@@ -123,7 +123,7 @@ describe('buildTransportControls', () => {
     expect(play.title).not.toMatch(/paused/);
   });
 
-  // REQ-mute-and-solo-share-one-rule — the readout and the machine-tab rulers must agree.
+  // REQ-the-position-readout-is-bar-dot-step — the readout and the machine-tab rulers must agree.
   it('reads bar.step, 1-based, and shows the CUE while stopped', () => {
     const { api, bridge, clock, arrangement } = harness();
     const root = host(buildTransportControls(api, bridge));
@@ -140,7 +140,7 @@ describe('buildTransportControls', () => {
     expect(byId(root, 'transport-readout').textContent).toBe('3.09');
   });
 
-  // REQ-mute-and-solo-share-one-rule (regression) — the readout used to print the ABSOLUTE bar, so a
+  // REQ-the-position-readout-is-bar-dot-step (regression) — the readout used to print the ABSOLUTE bar, so a
   // one-bar song counted 1.01, 2.01, 3.01 … next to a single lit scrubber cell.
   it('wraps the bar at song length — never a bar the song does not have', () => {
     const { api, bridge, clock, arrangement } = harness();
@@ -158,7 +158,7 @@ describe('buildTransportControls', () => {
     expect(scrubCells(root).findIndex((c) => c.classList.contains('playing'))).toBe(1);
   });
 
-  // REQ-play-banks-settle-before-the-machines-read — the scrubber is the song, not the bar.
+  // REQ-the-bar-scrubber — the scrubber is the song, not the bar.
   it('shows one cell per bar of the longest enabled chain', () => {
     const { api, bridge, arrangement } = harness();
     const root = host(buildTransportControls(api, bridge));
@@ -171,7 +171,7 @@ describe('buildTransportControls', () => {
     expect(scrubCells(root)).toHaveLength(6);
   });
 
-  it('rebuilds the cells only when the length changes (REQ-play-banks-settle-before-the-machines-read)', () => {
+  it('rebuilds the cells only when the length changes (REQ-the-bar-scrubber)', () => {
     const { api, bridge, arrangement, clock } = harness();
     const root = host(buildTransportControls(api, bridge));
     arrangement.setDrumChain([0, 1, 2], true);
@@ -184,7 +184,7 @@ describe('buildTransportControls', () => {
     expect(after[0]).toBe(before[0]); // same nodes — no teardown per tick
   });
 
-  it('clicking a scrubber cell seeks to the top of that bar (REQ-play-banks-settle-before-the-machines-read)', () => {
+  it('clicking a scrubber cell seeks to the top of that bar (REQ-the-bar-scrubber)', () => {
     const { api, bridge, arrangement, seekTo } = harness();
     const root = host(buildTransportControls(api, bridge));
     arrangement.setSeqChain([0, 0, 1, 0], true);
@@ -208,7 +208,7 @@ describe('buildTransportControls', () => {
     expect(lit()).toBe(1);
   });
 
-  // REQ-song-lane-titles-navigate — the timeline is one scrolling line, so the lit cell can leave the
+  // REQ-the-scrubber-presents-as-a-timeline — the timeline is one scrolling line, so the lit cell can leave the
   // view. jsdom has no layout: stub the three metrics the math reads (and
   // scrollLeft, which jsdom pins at 0) so the arithmetic itself is under test.
   it('scrolls the lit cell back into view, and only on a bar change', () => {
@@ -238,7 +238,7 @@ describe('buildTransportControls', () => {
     expect(scrub.scrollLeft).toBe(0);
   });
 
-  it('⏮ returns to the top (REQ-legacy-step-cells-still-sound-right)', () => {
+  it('⏮ returns to the top (REQ-the-song-panel-transport-row)', () => {
     const { api, bridge, clock, seekTo } = harness();
     const root = host(buildTransportControls(api, bridge));
     clock.fireSeek(SEQ_LENGTH * 7 + 3);
@@ -247,7 +247,7 @@ describe('buildTransportControls', () => {
     expect(byId(root, 'transport-readout').textContent).toBe('1.01');
   });
 
-  // REQ-an-imported-file-is-validated-first — the one guard, surfaced.
+  // REQ-seeking-respects-the-one-guard — the one guard, surfaced.
   it('marks the row inert while seeking is refused', () => {
     const { api, bridge, seekTo } = harness({ canSeek: false });
     const root = host(buildTransportControls(api, bridge));
@@ -260,7 +260,7 @@ describe('buildTransportControls', () => {
 });
 
 describe('createTransportWindowLauncher', () => {
-  it('opens a TRANSPORT window carrying the full control set (REQ-song-file-is-a-versioned-union/REQ-apply-resets-to-defaults-first)', () => {
+  it('opens a TRANSPORT window carrying the full control set (REQ-transport-is-a-floating-window/REQ-the-transport-launcher-is-the-section-title)', () => {
     const { api, bridge } = harness();
     const b = createTransportWindowLauncher(api, bridge);
     expect(b.dataset.testid).toBe('transport-open');
@@ -284,7 +284,7 @@ describe('createTransportWindowLauncher', () => {
 describe('transport loop controls', () => {
   const loopBtn = (root: HTMLElement) => byId(root, 'transport-loop') as HTMLButtonElement;
 
-  // REQ-a-song-captures-the-whole-session — lit, pressed, and titled by state.
+  // REQ-a-loop-button-on-both-surfaces — lit, pressed, and titled by state.
   it('toggles Loop and mirrors it on the button', () => {
     const { api, bridge, loop } = harness();
     const root = host(buildTransportControls(api, bridge));
@@ -296,7 +296,7 @@ describe('transport loop controls', () => {
     expect(loopBtn(root).title).toMatch(/first and last bar/);
   });
 
-  // REQ-song-file-is-a-versioned-union — Loop on turns a click into a pick, and says so on the cells.
+  // REQ-with-loop-on-a-click-picks-a-bar — Loop on turns a click into a pick, and says so on the cells.
   it('while Loop is on, a scrubber click picks instead of seeking', () => {
     const { api, bridge, arrangement, loop, seekTo } = harness();
     const root = host(buildTransportControls(api, bridge));
@@ -318,7 +318,7 @@ describe('transport loop controls', () => {
     expect(loopBtn(root).title).toMatch(/Looping bars 2–3/);
   });
 
-  // REQ-song-file-is-a-versioned-union — the old range stays drawn until the second pick replaces it.
+  // REQ-with-loop-on-a-click-picks-a-bar — the old range stays drawn until the second pick replaces it.
   it('a first pick on a looping range keeps the range drawn', () => {
     const { api, bridge, arrangement } = harness();
     const root = host(buildTransportControls(api, bridge));
@@ -331,7 +331,7 @@ describe('transport loop controls', () => {
     expect(scrubCells(root)[3]!.classList.contains('loop-anchor')).toBe(true);
   });
 
-  // REQ-audio-is-never-embedded-in-the-json — off keeps the range, drawn dimmed; clicks seek again.
+  // REQ-turning-loop-off-keeps-the-range — off keeps the range, drawn dimmed; clicks seek again.
   it('Loop off keeps the range on the cells and restores seeking', () => {
     const { api, bridge, arrangement, seekTo } = harness();
     const root = host(buildTransportControls(api, bridge));
@@ -350,7 +350,7 @@ describe('transport loop controls', () => {
     expect(seekTo).toHaveBeenLastCalledWith(SEQ_LENGTH * 3);
   });
 
-  // REQ-play-banks-settle-before-the-machines-read — a shorter song clamps what is drawn, not what was picked.
+  // REQ-the-loop-range-is-limited-to-the-song — a shorter song clamps what is drawn, not what was picked.
   it('draws the range clamped to the song length', () => {
     const { api, bridge, arrangement, loop } = harness();
     const root = host(buildTransportControls(api, bridge));
@@ -363,7 +363,7 @@ describe('transport loop controls', () => {
     expect(loop.range).toEqual({ start: 2, end: 5 });
   });
 
-  // REQ-mute-and-solo-share-one-rule — a wrap is a seek; where seeking is refused, so is looping.
+  // REQ-a-loop-that-cannot-jump-does-not — a wrap is a seek; where seeking is refused, so is looping.
   it('the Loop button and the picks do nothing while seeking is refused', () => {
     const { api, bridge, arrangement, loop } = harness({ canSeek: false });
     const root = host(buildTransportControls(api, bridge));
