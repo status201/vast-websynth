@@ -71,6 +71,16 @@ time 0 reproduces the pre-song-mode behaviour, keeping existing presets unchange
   anchor, which is how this hid: it was listed as one, so the source rule read
   the defect as compliant.
 
+  *Verification status (v5):* the automation shape is pinned by
+  `tests/audio/oscillator-glide.test.ts`, and a Blink A/B through `bench:audio`
+  shows **no** audible change — the expected result, since the fix reproduces on
+  both engines what Blink already did. The **Gecko** correction, which is the
+  point of the change, has been reasoned but **not yet heard**: Playwright's
+  Firefox was not installed on the machine that made the change. It is the first
+  thing to listen for the next time this is played in Firefox
+  ([ADR-010](../decisions/adr-010-musical-stable-cheap-dsp.md) — a green suite is
+  not evidence that a glide sounds right).
+
 - **REQ-analogue-drift-is-off-by-default** — Analogue drift adds subtle
   per-voice pitch wander (default 0 = off). The 110 ms drift interval runs
   **only while drift > 0** (v2): `setDrift` starts it on a 0→>0 transition and

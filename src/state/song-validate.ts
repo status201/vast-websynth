@@ -27,11 +27,11 @@ import {
 } from './patterns';
 import { paramIds } from './params';
 import {
-  MAX_ERRORS, isObject, describeValue as describe, type AddError,
+  MAX_ERRORS, isObject, describeValue as describe, type AddError, checkKeys,
 } from './validate-utils';
 import {
   MAX_CHAIN_STEPS, MAX_CHAIN_TRANSPOSE, MAX_PARAM_KEYS,
-  MICRO_MAX, MIDI_NOTE_MIN, MIDI_NOTE_MAX, reservedKeyIn,
+  MICRO_MAX, MIDI_NOTE_MIN, MIDI_NOTE_MAX,
 } from './limits';
 
 export type SongValidation =
@@ -134,13 +134,6 @@ function checkStepSettings(path: string, c: Record<string, unknown>, add: AddErr
  * Refuse a payload object carrying `__proto__` / `constructor` / `prototype`
  * (untrusted-input.md REQ-reserved-keys-are-refused). Returns true when the object is clean.
  */
-function checkKeys(path: string, o: object, add: AddError): boolean {
-  const bad = reservedKeyIn(o);
-  if (bad === null) return true;
-  add(`${path} must not carry a "${bad}" key`);
-  return false;
-}
-
 const validateSeqStep: CellValidator = (path, value, add) => {
   if (!isObject(value)) { add(`${path} must be an object (got ${describe(value)})`); return; }
   if (!checkKeys(path, value, add)) return;
@@ -228,6 +221,7 @@ function checkParams(v: unknown, add: AddError): void {
 function checkChain(path: string, v: unknown, optional: boolean, add: AddError): void {
   if (v === undefined) { if (!optional) add(`${path} is required`); return; }
   if (!isObject(v)) { add(`${path} must be an object (got ${describe(v)})`); return; }
+  if (!checkKeys(path, v, add)) return;
   checkBool(`${path}.enabled`, v.enabled, add, false);
   const steps = v.steps;
   if (!Array.isArray(steps)) { add(`${path}.steps must be an array (got ${describe(steps)})`); return; }
@@ -265,6 +259,7 @@ function checkSampleNames(v: unknown, add: AddError): void {
 /** v3 XY Pad axis assignment — each axis is a non-empty ParamBus id string. */
 function checkXy(v: unknown, add: AddError): void {
   if (!isObject(v)) { add(`xy must be an object (got ${describe(v)})`); return; }
+  if (!checkKeys('xy', v, add)) return;
   for (const axis of ['x', 'y'] as const) {
     const id = v[axis];
     if (typeof id !== 'string' || id.length === 0) {
@@ -276,6 +271,9 @@ function checkXy(v: unknown, add: AddError): void {
 /** v4 motion step — an optional XY anchor; x/y checked only when present. */
 const validateMotionStep: CellValidator = (path, value, add) => {
   if (!isObject(value)) { add(`${path} must be an object (got ${describe(value)})`); return; }
+  // A motion cell reaches `Object.assign(cell, MOTION_STEP_DEFAULTS, parsed)`
+  // exactly like a seq step does (REQ-reserved-keys-are-refused).
+  if (!checkKeys(path, value, add)) return;
   checkBool(`${path}.on`, value.on, add, false);
   checkUnit(`${path}.x`, value.x, add);
   checkUnit(`${path}.y`, value.y, add);
@@ -326,6 +324,7 @@ function checkMotionTracks(v: unknown, add: AddError): void {
       if (t === null) return;
       const path = `motionTracks[${b}][${i}]`;
       if (!isObject(t)) { add(`${path} must be null or an object (got ${describe(t)})`); return; }
+      if (!checkKeys(path, t, add)) return;
       if (t.param !== undefined && (typeof t.param !== 'string' || t.param.length === 0)) {
         add(`${path}.param must be a non-empty string (got ${describe(t.param)})`);
       }
@@ -333,6 +332,7 @@ function checkMotionTracks(v: unknown, add: AddError): void {
       if (t.steps.length !== SEQ_LENGTH) add(`${path}.steps must have ${SEQ_LENGTH} entries (got ${t.steps.length})`);
       t.steps.forEach((cell: unknown, si) => {
         if (!isObject(cell)) { add(`${path}.steps[${si}] must be an object (got ${describe(cell)})`); return; }
+        if (!checkKeys(`${path}.steps[${si}]`, cell, add)) return;
         checkBool(`${path}.steps[${si}].on`, cell.on, add, false);
         checkUnit(`${path}.steps[${si}].v`, cell.v, add);
       });
@@ -374,6 +374,7 @@ function checkMotionAssigns(v: unknown, add: AddError): void {
   v.forEach((a: unknown, i) => {
     if (a === null) return;
     if (!isObject(a)) { add(`motionAssigns[${i}] must be null or an object (got ${describe(a)})`); return; }
+    if (!checkKeys(`motionAssigns[${i}]`, a, add)) return;
     for (const axis of ['x', 'y'] as const) {
       const id = a[axis];
       if (id !== undefined && (typeof id !== 'string' || id.length === 0)) {

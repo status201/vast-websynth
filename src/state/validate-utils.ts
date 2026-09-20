@@ -13,12 +13,30 @@
  * the canonical validator refuses what the dialect coerces. That divergence is
  * the whole point of having two parsers (ADR-013), so it stays per-file.
  */
+import { reservedKeyIn } from './limits';
 
 /** How many errors a validator collects before it stops walking the payload. */
 export const MAX_ERRORS = 50;
 
 /** Sink a validator pushes a path-prefixed message into. */
 export type AddError = (msg: string) => void;
+
+/**
+ * Refuse a payload object carrying a reserved key
+ * (untrusted-input.md REQ-reserved-keys-are-refused). Returns true when clean.
+ *
+ * Shared rather than per-validator, and for the same reason `isObject` is: it
+ * guards `Object.assign(cell, DEFAULTS, parsed)` in `PatternStore.restore` and
+ * the keyed writes in the preset validator, and a copy one validator has and
+ * another does not is exactly how the motion cells and every preset path ended
+ * up unguarded while the seq and trigger cells were covered.
+ */
+export function checkKeys(path: string, o: object, add: AddError): boolean {
+  const bad = reservedKeyIn(o);
+  if (bad === null) return true;
+  add(`${path} must not carry a "${bad}" key`);
+  return false;
+}
 
 /**
  * A plain object — not null, not an array. Arrays are excluded deliberately:

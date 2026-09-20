@@ -1,7 +1,8 @@
 import type { ParamBus } from './params';
 import type { Snapshot } from './preset';
 import { isPatchParam } from './preset-session';
-import { MAX_ERRORS, isObject, describeValue, type AddError } from './validate-utils';
+import { MAX_ERRORS, isObject, describeValue, type AddError, checkKeys } from './validate-utils';
+import { MAX_PARAM_KEYS } from './limits';
 
 /**
  * The preset/bank **file format** and its validator —
@@ -96,8 +97,20 @@ function checkSnapshot(
     sinks.structural(`${path} must be a map of parameter id -> number (got ${describeValue(raw)}).`);
     return null;
   }
+  // The same two guards the song validator puts on its `params` map
+  // (untrusted-input.md REQ-reserved-keys-are-refused / REQ-payload-values-are-bounded). A preset
+  // reaches `ParamBus.restore` the same way a song's params do, and the bus
+  // KEEPS unregistered ids in its snapshot — so an unbounded junk map would
+  // ride into every later save. This path had neither check, and it is the one
+  // the authless MCP `validate_preset` endpoint runs.
+  if (!checkKeys(path, raw, sinks.structural)) return null;
+  const entries = Object.entries(raw);
+  if (entries.length > MAX_PARAM_KEYS) {
+    sinks.structural(`${path} has ${entries.length} parameters — the limit is ${MAX_PARAM_KEYS}.`);
+    return null;
+  }
   const snap: Snapshot = {};
-  for (const [id, value] of Object.entries(raw)) {
+  for (const [id, value] of entries) {
     if (typeof value !== 'number' || !Number.isFinite(value)) {
       sinks.structural(`${path}."${id}" must be a finite number (got ${describeValue(value)}).`);
       continue;
@@ -158,9 +171,14 @@ export function validatePresetPayload(
     const name = typeof value['name'] === 'string' && value['name'] ? value['name'] : 'preset';
     const snap = checkSnapshot('params', value['params'], bus, sinks);
     if (!snap) {
-      // Keep the pre-existing one-liner for the "no params at all" case; the
-      // per-key paths above cover everything more specific.
-      return { ok: false, errors: ['Preset file has no valid `params` map of numbers.'] };
+      // Keep the pre-existing one-liner for the "no params at all" case, but
+      // only when nothing more specific was said: a refusal for a reserved key
+      // or an over-limit map explains itself, and replacing it with "no valid
+      // params map" tells the user to fix the wrong thing.
+      return {
+        ok: false,
+        errors: errors.length > 0 ? errors : ['Preset file has no valid `params` map of numbers.'],
+      };
     }
     if (errors.length > 0) return { ok: false, errors };
     return { ok: true, kind: 'preset', name, presets: { [name]: snap }, ...(warnings.length ? { warnings } : {}) };
@@ -171,6 +189,11 @@ export function validatePresetPayload(
     const raw = value['presets'];
     if (!isObject(raw)) return { ok: false, errors: ['Bank file has no `presets` map.'] };
     const presets: Record<string, Snapshot> = {};
+    // `presets[n] = …` is a [[Set]] on a key straight out of `JSON.parse`, so a
+    // `__proto__` entry re-points this map's prototype (REQ-reserved-keys-are-refused).
+    if (!checkKeys('presets', raw, (m) => errors.push(m))) {
+      return { ok: false, errors };
+    }
     for (const [n, snap] of Object.entries(raw)) {
       const checked = checkSnapshot(`presets["${n}"]`, snap, bus, sinks);
       if (checked) presets[n] = checked;

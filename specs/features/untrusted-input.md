@@ -4,7 +4,9 @@
 id: untrusted-input
 status: implemented
 version: 6   # v6: REQ-a-slot-name-cannot-reach-the-index — a slot called "index" landed ON the
-             #     name index and emptied the user's saved list
+             #     name index and emptied the user's saved list; and
+             #     REQ-reserved-keys-are-refused closes its own recorded gap — checkKeys is
+             #     shared and reaches the motion cells and both preset paths
              # v5: REQ-the-public-endpoint-is-bounded — the public MCP endpoint is an ingest surface, and the
              #     first one with no user behind it
              # v4: REQ-a-transport-position-is-bounded-at-ingress — a transport position is clamped, not masked
@@ -129,17 +131,26 @@ decision and the alternatives. This spec is the contract.
   which does `Object.assign(cell, DEFAULTS, parsedCell)` — that invokes the
   `__proto__` setter. Today every read field is an own property so the effect is
   inert, but that is a coincidence of the defaults covering every field, not a
-  guarantee. So `song-validate.ts` runs `checkKeys()` at exactly the three
-  validators that hand a payload-built object onward — `validateSeqStep`,
-  `validateTriggerCell` and `checkParams` — and `Presets.load` filters
-  `RESERVED_KEYS` before applying a snapshot.
+  guarantee. `Presets.load` also filters `RESERVED_KEYS` before applying a
+  snapshot.
 
-  **This is deliberately narrower than "everywhere", and the gap is known.**
-  `preset-validate.ts` does *not* call `checkKeys`, so `validatePresetPayload`
-  reports `ok: true` for a preset file carrying `__proto__`; the key is dropped
-  later, at `Presets.load`. Every real import goes through that filter, so there
-  is no live hole — but the MCP `validate_preset` tool answers from the validator,
-  not the loader. Closing it is tracked under "Open questions" below.
+  **(v6) "Everywhere" is now true as written.** The check was at three
+  validators — `validateSeqStep`, `validateTriggerCell`, `checkParams` — and the
+  narrowness was recorded here as a known gap. It is closed: `checkKeys` moved
+  into `validate-utils.ts` beside `isObject` (a copy one validator has and
+  another does not is exactly how this drifted), and every payload object a
+  validator reads now goes through it — adding `validateMotionStep`, the
+  `motionTracks[]` entries and their step cells, `checkXy`, `checkChain`,
+  `checkMotionAssigns`, and both preset paths (`checkSnapshot` and the bank's
+  `presets` map).
+
+  Two of those were live rather than theoretical. The motion cells reach the
+  same `Object.assign(cell, DEFAULTS, parsed)` the seq cells do, so they were
+  the motivating path with no guard on it. And the bank loop writes
+  `presets[n] = …` with `n` straight out of `JSON.parse`, which for `__proto__`
+  is a `[[Set]]` that re-points that map's prototype. The rest read named fields
+  and were never copies; they are guarded for uniformity, because a rule with
+  exceptions is a rule nobody can apply without checking.
 
 - **REQ-no-subscriber-can-wedge-the-clock** — **No subscriber can wedge the
   clock.** `Clock.tick` isolates each listener and advances `nextStepTime` /
@@ -529,15 +540,6 @@ Scenario: Every shipped demo validates without warnings (v3, REQ-an-unresolvable
 
 ## Open questions / future
 
-- **Widen REQ-reserved-keys-are-refused to the preset validator.** `preset-validate.ts` has no
-  `checkKeys` call, so `validatePresetPayload` — and therefore the MCP
-  `validate_preset` tool — reports `ok: true` on a preset carrying `__proto__`;
-  only `Presets.load` drops it. Adding `reservedKeyIn` to `checkSnapshot` (and to
-  the song validators that build objects but skip the check: `validateMotionStep`,
-  `checkXy`, `checkChain`, `checkMotionAssigns`, `checkMotionTracks`) would make
-  "refused everywhere" true as written, which is what ADR-015's defence-in-depth
-  argument asks for. Needs a regression scenario + test, so it is a `/fix`, not a
-  spec edit.
 - **`#songUrl=` allow-list.** Consent covers the drive-by; a remembered
   per-origin allow-list would remove the prompt for a host the user trusts.
 - **Streaming the fetched body** so an over-cap response is abandoned mid-flight
