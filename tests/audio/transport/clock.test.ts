@@ -281,6 +281,67 @@ describe('Clock listener isolation (untrusted-input)', () => {
     err.mockRestore();
   });
 
+  // (v9) The same rule, on the three fan-outs that were still bare. `start()` is
+  // the one that bit: it fired its listeners with `_playing` already true and
+  // BEFORE `tick()` / `timer.start(...)`, so a throw left a clock that believed
+  // it was playing with no timer armed — and `start()` early-returns on
+  // `_playing`, so every retry did nothing. Only `stop()` could unstick it.
+  it('keeps the transport startable when a start listener throws', () => {
+    const err = vi.spyOn(console, 'error').mockImplementation(() => {});
+    const { ctx, clock } = startedClock();
+    const seenByGood: number[] = [];
+    clock.onStart(() => { throw new Error('a lane refused to arm'); });
+    let goodStarts = 0;
+    clock.onStart(() => { goodStarts++; });
+    clock.onTick((step) => seenByGood.push(step));
+
+    clock.start();
+    // The listener registered after the thrower still ran...
+    expect(goodStarts).toBe(1);
+    // ...the first tick was still emitted synchronously...
+    expect(seenByGood).toEqual([0]);
+    // ...and the timer was still armed, so the grid keeps moving.
+    for (let i = 0; i < 3; i++) {
+      ctx.currentTime += 0.125;
+      vi.advanceTimersByTime(25);
+    }
+    expect(clock.step).toBeGreaterThan(1);
+    expect(clock.playing).toBe(true);
+    clock.stop();
+    err.mockRestore();
+  });
+
+  it('does not strand the later stop listeners when an earlier one throws', () => {
+    const err = vi.spyOn(console, 'error').mockImplementation(() => {});
+    const { clock } = startedClock();
+    clock.onStop(() => { throw new Error('a lane refused to release'); });
+    let released = 0;
+    // Registration order is load-bearing: the sequencer's note release and the
+    // motion machine's baseline restore are downstream of earlier subscribers.
+    clock.onStop(() => { released++; });
+
+    clock.start();
+    clock.stop();
+
+    expect(released).toBe(1);
+    expect(err).toHaveBeenCalledTimes(1);
+    err.mockRestore();
+  });
+
+  it('isolates a throwing seek listener on a direct scrub, not just a routed wrap', () => {
+    const err = vi.spyOn(console, 'error').mockImplementation(() => {});
+    const { clock } = startedClock();
+    clock.onSeek(() => { throw new Error('a lane refused to re-base'); });
+    let reseated = 0;
+    clock.onSeek(() => { reseated++; });
+
+    clock.seek(12); // the user scrubbing, NOT route()
+
+    expect(reseated).toBe(1);
+    expect(clock.step).toBe(12);
+    err.mockRestore();
+  });
+
   it('ignores a non-finite tempo or swing instead of stalling', () => {
     // Math.max(20, Math.min(400, NaN)) is NaN, which makes `sixteenth` NaN and
     // stops the scheduler. A paired WiFi peer can send {t:'tempo', bpm}.

@@ -3,7 +3,10 @@
 ```yaml
 id: transport
 status: implemented
-version: 8   # v8: REQ-pause-resumes-where-it-stopped pause() — a one-shot resume point the cue reports while
+version: 9   # v9: REQ-a-subscriber-may-not-wedge-the-transport covers ALL FIVE listener fan-outs, not just
+             #     tick and the routed seek — start/stop/seek were bare, and a throwing
+             #     start listener wedged the transport permanently
+             # v8: REQ-pause-resumes-where-it-stopped pause() — a one-shot resume point the cue reports while
              #     paused; REQ-a-step-router-can-redirect-the-next-step a step router, which the loop wraps through
              # v7: REQ-the-step-counter-is-bounded-at-ingress the step counter no longer wraps (bounded at ingress
              #     instead), REQ-swing-offset-is-public swingOffset is public — both for meter.md
@@ -109,9 +112,27 @@ untouched.
   capture bounds from absolute step numbers and call `start(0)` explicitly — a
   cued clock would otherwise truncate the capture silently.
 
-- **REQ-a-subscriber-may-not-wedge-the-transport** (v5) — **A subscriber may not
-  wedge the transport.** `tick()` calls each listener inside its own `try`, and
-  advances `nextStepTime` / `_step` **whether or not one throws**. Previously a
+- **REQ-a-subscriber-may-not-wedge-the-transport** (v5, v9) — **A subscriber may not
+  wedge the transport.** **(v9) This holds for every listener fan-out the clock
+  owns — `onTick`, `onStart`, `onStop`, `onSeek` and the routed seek — not just
+  the two that had it.** Each listener runs inside its own `try`, the fan-out
+  continues to the remaining listeners, and the caller's own work after the
+  fan-out runs whether or not one threw. One helper (`fanOut`) does this for all
+  five, so a sixth cannot be added without it.
+
+  The three that were bare are the ones that mattered most. `start()` fires its
+  listeners **before** `this.tick()` and `this.timer.start(...)`, with
+  `_playing` already `true` — so a throw escaped past both, leaving a transport
+  that believed it was playing with no timer armed and an early return
+  (`if (this._playing) return`) on every retry: permanently wedged, and
+  unrecoverable without `stop()`. `halt()` fires stop listeners in registration
+  order, so a throw in an early one stranded every later one — hanging the
+  sequencer's notes (`releaseAllAtGateEnd`) and the motion machine's baselines
+  (`restoreBaselines`). `seek()` is the same loop `route()` already guarded,
+  reached instead by a user scrub.
+
+  `tick()` additionally advances `nextStepTime` / `_step` **whether or not one
+  throws**. Previously a
   throwing listener escaped the `while` body *before* those two lines, leaving
   `_playing` true and `nextStepTime` unmoved — so the worker re-entered the same
   step every 25 ms forever and every later-registered lane (drums, sampler,
@@ -350,6 +371,28 @@ Scenario: A throwing subscriber cannot wedge the clock (v5, regression)
   Then the step counter still advances and nextStepTime still moves
   And the other subscribers still receive their ticks
   And the error is reported once for that listener, not once per tick
+# pinned by: tests/audio/transport/clock.test.ts
+
+Scenario: A throwing start listener cannot wedge the transport (v9, regression)
+  Given a stopped clock with an onStart listener that throws
+  When start() is called
+  Then the remaining start listeners still run
+  And the first tick is still emitted and the timer is still armed
+  And a later stop() then start() plays normally
+# pinned by: tests/audio/transport/clock.test.ts
+
+Scenario: A throwing stop listener does not strand the later ones (v9, regression)
+  Given a running clock with two onStop listeners, the first of which throws
+  When stop() is called
+  Then the second stop listener still runs
+  And the error is reported once for that listener
+# pinned by: tests/audio/transport/clock.test.ts
+
+Scenario: A throwing seek listener does not escape a user scrub (v9, regression)
+  Given a clock with an onSeek listener that throws
+  When seek(n) is called directly, not through the router
+  Then the remaining seek listeners still run
+  And the step counter is still at n
 # pinned by: tests/audio/transport/clock.test.ts
 
 Scenario: A non-finite tempo leaves the clock alone (v5, edge)

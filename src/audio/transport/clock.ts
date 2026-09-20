@@ -66,8 +66,12 @@ export class Clock implements TickSubscriber {
   private router: StepRouter | null = null;
   /** The router that threw this run, reported once (see `route`). */
   private routerFaulted = false;
-  /** Seek listeners already reported as throwing from a jump (see `route`). */
+  /** Seek listeners already reported as throwing (see `fanOut`). */
   private readonly faultedSeekListeners = new Set<() => void>();
+  /** Start listeners already reported as throwing (see `fanOut`). */
+  private readonly faultedStartListeners = new Set<() => void>();
+  /** Stop listeners already reported as throwing (see `fanOut`). */
+  private readonly faultedStopListeners = new Set<() => void>();
   private readonly timer: TickTimer;
   private readonly scheduleAheadS: number;
   private readonly listeners = new Set<TickListener>();
@@ -162,10 +166,15 @@ export class Clock implements TickSubscriber {
     this._resume = null; // a pause resumes once (REQ-pause-resumes-where-it-stopped)
     this.faultedListeners.clear(); // a new run reports its faults afresh
     this.faultedSeekListeners.clear();
+    this.faultedStartListeners.clear();
+    this.faultedStopListeners.clear();
     this.routerFaulted = false;
     this.nextStepTime = this.ctx.currentTime + 0.05;
     this._step = Clock.clampStep(fromStep);
-    for (const l of this.startListeners) l();
+    // Isolated, and the two lines below run either way (REQ-a-subscriber-may-not-wedge-the-transport).
+    // A throw used to escape here with `_playing` already true — so the timer
+    // was never armed and `start()` early-returned forever after.
+    this.fanOut(this.startListeners, this.faultedStartListeners, 'start');
     this.tick(); // schedule the first horizon synchronously
     this.timer.start(this.tick, LOOKAHEAD_MS);
   }
@@ -184,7 +193,9 @@ export class Clock implements TickSubscriber {
   seek(step: number): void {
     this._cue = this._step = Clock.clampStep(step);
     this._resume = null; // the user chose a position; it outranks a pause
-    for (const l of this.seekListeners) l();
+    // The same loop `route()` guards, reached by a user scrub instead of a wrap
+    // (REQ-a-subscriber-may-not-wedge-the-transport).
+    this.fanOut(this.seekListeners, this.faultedSeekListeners, 'seek');
   }
 
   /**
@@ -213,7 +224,10 @@ export class Clock implements TickSubscriber {
     if (!this._playing) return;
     this._playing = false;
     this.timer.stop();
-    for (const l of this.stopListeners) l();
+    // Registration order matters here — the sequencer's note release and the
+    // motion machine's baseline restore are downstream of earlier subscribers,
+    // so a throw used to strand them (REQ-a-subscriber-may-not-wedge-the-transport).
+    this.fanOut(this.stopListeners, this.faultedStopListeners, 'stop');
   }
 
   /**
@@ -328,13 +342,27 @@ export class Clock implements TickSubscriber {
     }
     if (next === this._step) return;
     this._step = Clock.clampStep(next);
-    for (const l of this.seekListeners) {
+    this.fanOut(this.seekListeners, this.faultedSeekListeners, 'seek');
+  }
+
+  /**
+   * Run a listener set with each callback isolated, reporting a throw **once per
+   * listener** rather than once per call — at tick rate the latter is a console
+   * flood that buries the first, most useful stack. The set is cleared on
+   * `start()`, so a fresh run reports afresh.
+   *
+   * Every fan-out the clock owns goes through here (transport.md
+   * REQ-a-subscriber-may-not-wedge-the-transport): one helper rather than five
+   * copies of the idiom is what stops a sixth being added without it.
+   */
+  private fanOut(listeners: Iterable<() => void>, faulted: Set<() => void>, what: string): void {
+    for (const l of listeners) {
       try {
         l();
       } catch (e) {
-        if (this.faultedSeekListeners.has(l)) continue;
-        this.faultedSeekListeners.add(l);
-        console.error('Clock: a seek listener threw during a routed jump and was isolated.', e);
+        if (faulted.has(l)) continue;
+        faulted.add(l);
+        console.error(`Clock: a ${what} listener threw and was isolated; the transport continues.`, e);
       }
     }
   }
