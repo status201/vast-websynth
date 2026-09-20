@@ -34,7 +34,7 @@ export function createXyPad(
   bus: ParamBus,
   xy: XyPadStore,
   effective?: EffectiveXy,
-): { el: HTMLElement; gear: HTMLElement; destroy(): void } {
+): { el: HTMLElement; gear: HTMLElement; destroy(): void; endGesture(): void } {
   const ids = bus.ids().slice().sort();
   // The axes source: the effective assignment when provided, else the store.
   const axes: EffectiveXy = effective ?? {
@@ -299,6 +299,19 @@ export function createXyPad(
     unsubY = bus.subscribe(ay, setDotY);
   });
 
+  /**
+   * End a gesture that is still live, springing the params back
+   * (xy-pad.md REQ-wheel-nudges-the-dot). Idle is a no-op.
+   *
+   * The window needs this and cannot use `destroy()`: it keeps the pad alive
+   * across closes so the axis assignment survives. A wheel gesture's only other
+   * exit is `pointerleave`, which a removed element never fires — so without
+   * this, closing the window mid-scroll parked both params at the swept value.
+   */
+  function endGesture(): void {
+    if (state !== 'idle') springBack();
+  }
+
   function destroy(): void {
     abortGesture();
     unsubX();
@@ -309,7 +322,7 @@ export function createXyPad(
     ddY.destroy();
   }
 
-  return { el, gear, destroy };
+  return { el, gear, destroy, endGesture };
 }
 
 function labeled(text: string, control: HTMLElement): HTMLElement {

@@ -167,6 +167,40 @@ describe('createXyPad', () => {
     expect(bus.get('filter.cutoff')).toBe(preCut);
   });
 
+  // v4 regression. `pointerleave` was a wheel gesture's ONLY exit, and a removed
+  // element never fires one — so two-finger scrolling the pad and then closing
+  // the window left both assigned params parked at the swept value, for good.
+  // The window calls `endGesture()` rather than `destroy()` because it keeps the
+  // pad alive across closes so the axis assignment survives.
+  it('ends a live wheel gesture on demand, for the window to call when it closes', () => {
+    const raf = installRaf();
+    const bus = mkBus();
+    const { pad, surface } = mountPad(bus, new XyPadStore());
+    pads.push(pad);
+    const preCut = bus.get('filter.cutoff');
+    const cutDef = bus.def('filter.cutoff')!;
+
+    surface.dispatchEvent(new WheelEvent('wheel', { deltaX: 400, deltaY: 0 }));
+    expect(bus.get('filter.cutoff')).toBe(fromNorm(cutDef, 1));
+
+    // No pointerleave — the window is simply gone.
+    pad.endGesture();
+    raf.complete();
+    expect(bus.get('filter.cutoff')).toBe(preCut);
+  });
+
+  it('ending an idle pad is a no-op', () => {
+    const bus = mkBus();
+    const { pad } = mountPad(bus, new XyPadStore());
+    pads.push(pad);
+    const preCut = bus.get('filter.cutoff');
+
+    pad.endGesture();
+    pad.endGesture();
+
+    expect(bus.get('filter.cutoff')).toBe(preCut);
+  });
+
   it('reassigning the X axis via the store re-subscribes the dot to the new param', () => {
     const bus = mkBus();
     const xy = new XyPadStore();

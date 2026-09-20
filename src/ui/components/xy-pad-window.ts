@@ -33,7 +33,11 @@ export function createXyPadWindowController(bus: ParamBus, xy: XyPadStore, effec
       title: 'XY Pad',
       testId: 'xypad-window',
       leading: pad.gear,
-      onClose: () => emit(false),
+      // Every close routes through here — the ✕ and the launcher toggle alike —
+      // so it is the one place a live gesture can be ended. A wheel gesture
+      // otherwise ends only on `pointerleave`, which a removed element never
+      // fires, leaving both params swept (xy-pad.md REQ-wheel-nudges-the-dot).
+      onClose: () => { pad.endGesture(); emit(false); },
     });
     win.body.appendChild(pad.el);
     return win;

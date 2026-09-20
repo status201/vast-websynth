@@ -3,7 +3,9 @@
 ```yaml
 id: xy-pad
 status: implemented
-version: 3
+version: 4   # v4: closing the window ends a live gesture — a wheel gesture ended only on
+             #     `pointerleave`, which a removed element never fires, so the swept
+             #     params stayed swept (REQ-wheel-nudges-the-dot)
 owner: core
 related:
   - architecture
@@ -69,6 +71,19 @@ subscribes to the assigned params.
   deltaY·K`, `K ≈ 1/400`); a visible hint (`xypad-hint`) advertises it. A wheel
   gesture ends — and springs back — when the pointer **leaves** the pad
   (`pointerleave`).
+
+  **(v4) Closing the window also ends it.** `pointerleave` is the only exit a
+  wheel gesture has, and a removed element never fires one — so two-finger
+  scrolling the pad and then closing the window (from its ✕, or by toggling the
+  launcher) left both assigned params parked at the swept value, permanently and
+  invisibly. That contradicts *momentary* as stated above: the pad is a
+  performance control, and nothing it does may outlive the gesture.
+
+  The window controller therefore ends any live gesture on close. It calls
+  `endGesture()`, **not** `destroy()`: the window is deliberately kept alive
+  across closes so the axis assignment survives, and tearing the pad down would
+  take that with it. A drag cannot reach this — it ends on `pointerup` — so in
+  practice this is the wheel's missing exit.
 - **REQ-only-the-axis-assignment-persists** — **Persistence**: the axis
   assignment is saved in songs via SongFile **v3** (an additive, optional `xy`
   field). Loading a file without it restores the defaults. Only the *assignment*
