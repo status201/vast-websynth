@@ -3,7 +3,10 @@
 ```yaml
 id: sample-recorder
 status: implemented
-version: 5   # v5: REQ-every-section-below-the-waveform-folds — every editor section is a titled fold: Chop and
+version: 6   # v6: REQ-the-editor-owns-its-teardown — the modal destroys the controls it builds;
+             #     its seven Dropdowns each left four document/window listeners
+             #     behind on every close
+             # v5: REQ-every-section-below-the-waveform-folds — every editor section is a titled fold: Chop and
              #     Fit & Shift join Scratch, title left, caret right
              # v4: REQ-the-recorder-modal-hosts-scratch — the Scratch section (scratch.md)
              # v3: REQ-the-recorder-modal-hosts-fit-and-shift — the Fit and Shift rows (time-stretch.md)
@@ -86,6 +89,29 @@ modal says so.
   behind** — the leak grows with how often the player records, which is exactly the
   usage the feature invites. `RecorderNode.dispose()` is the node's own teardown so
   the knowledge of what it holds stays with it rather than at the call site.
+- **REQ-the-editor-owns-its-teardown** — (v6) **The editor destroys the controls
+  it builds, not just the resources it opens.**
+  REQ-the-recorder-node-is-released-with-the-session covers what the *session*
+  holds; this covers what the *modal* holds. The rule is the same and the reason
+  is the same: a thing whose listeners live outside the modal's own subtree is
+  not released by the card being removed from the DOM.
+
+  The case that made this a requirement is `Dropdown`, which registers **four**
+  listeners in its constructor — `click` and `keydown` on `document`, `scroll`
+  and `resize` on `window` — and removes them only in `destroy()`. The editor
+  builds **seven** of them (slot picker, chop count, fit target, fit mode, shift
+  amount, scratch length, scratch preset), so every open-and-close left 28
+  handlers running on every click and keystroke in the app, each retaining a
+  detached menu subtree. Opening the editor is not a rare act — "Edit sample" is
+  on every loaded slot — so this grows with ordinary use, exactly like the v2
+  leak did.
+
+  The modal therefore keeps **one list of what it owns** and empties it in the
+  same `cleanup()` that disposes the session, the scratch graph and the
+  `ResizeObserver`; a control that is built and not registered is the only way
+  to reintroduce the leak. The panels that rebuild dropdowns per row
+  (`sampler-panel.ts`, `drum-panel.ts`) already destroy before rebuilding — this
+  is that discipline for a surface built once per open rather than once per row.
 - **REQ-the-recorder-modal-hosts-fit-and-shift** — (v3) **The modal hosts a Fit
   row and a Shift row**, below the chop row: retime the selection to a musical
   length with its pitch preserved, and shift its pitch with its length
@@ -182,6 +208,12 @@ secure context: openMicSession returns MicCaptureError('insecure-context') off H
 ## Scenarios (BDD)
 
 ```gherkin
+Scenario: Closing the editor leaves no listeners behind (v6, regression)
+  Given the sample editor has been opened and closed twenty times
+  Then the number of document-level listeners is the same as before the first open
+  And no detached dropdown menu is still reachable
+# pinned by: tests/ui/record-sound-modal.test.ts
+
 Scenario: Record from the mic and load into a slot
   Given microphone permission is granted on a secure context
   When the user records, trims, and loads the result into slot 0

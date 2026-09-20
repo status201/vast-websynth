@@ -115,6 +115,22 @@ export function openRecordSoundModal(engine: StudioApi, opts: RecordSoundOptions
   let scratch: ScratchCurve = scratchPreset('Baby', 16);
   let scratchGraph: ScratchGraph | null = null;
 
+  /**
+   * Everything the modal builds that owns listeners outside its own subtree.
+   * A `Dropdown` registers four — `click` and `keydown` on `document`, `scroll`
+   * and `resize` on `window` — in its constructor, and only `destroy()` takes
+   * them off again. Removing the card from the DOM does not, so without this a
+   * modal that is opened and closed repeatedly leaves a handler on every click
+   * and keystroke in the app, plus a detached menu subtree, per dropdown per
+   * open. `sampler-panel.ts` and `drum-panel.ts` already destroy theirs before
+   * rebuilding; this is the same discipline for a surface built once per open.
+   */
+  const owned: Array<{ destroy(): void }> = [];
+  const own = <T extends { destroy(): void }>(d: T): T => {
+    owned.push(d);
+    return d;
+  };
+
   const stopPreview = (): void => {
     cancelAnimationFrame(playRaf);
     playRaf = 0;
@@ -145,6 +161,11 @@ export function openRecordSoundModal(engine: StudioApi, opts: RecordSoundOptions
     scratchGraph = null;
     resizeObs?.disconnect();
     resizeObs = null;
+    // Every Dropdown built above, whose listeners live on document/window
+    // and so survive the card being removed (sample-recorder.md
+    // REQ-the-editor-owns-its-teardown).
+    for (const d of owned) d.destroy();
+    owned.length = 0;
   };
 
   const editing = opts.source != null;
@@ -640,10 +661,10 @@ export function openRecordSoundModal(engine: StudioApi, opts: RecordSoundOptions
       const tag = SAMPLER_SLOT_LABELS[i] ?? `S${i + 1}`;
       return `${tag} — ${name ?? 'empty'}`;
     });
-    const picker = new Dropdown(
+    const picker = own(new Dropdown(
       slotOptions,
       slotOptions[Math.max(0, Math.min(defaultSlot, SAMPLER_SLOT_COUNT - 1))],
-    );
+    ));
     picker.el.dataset.testid = 'mic-slot-select';
 
     /* ---- Editor sections (sample-recorder.md REQ-every-section-below-the-waveform-folds) ----
@@ -721,7 +742,7 @@ export function openRecordSoundModal(engine: StudioApi, opts: RecordSoundOptions
     };
     // `—` rather than an empty list: a dropdown with no options reads as broken,
     // and this state is legitimate (the last slot has no room to spread into).
-    const countDd = new Dropdown(fittingCounts().length ? fittingCounts() : ['—'], '4 slices');
+    const countDd = own(new Dropdown(fittingCounts().length ? fittingCounts() : ['—'], '4 slices'));
     countDd.el.dataset.testid = 'chop-count';
     chopRow.appendChild(countDd.el);
     const wantCount = (): number => parseInt(countDd.value, 10) || 2;
@@ -874,12 +895,12 @@ export function openRecordSoundModal(engine: StudioApi, opts: RecordSoundOptions
     fitHint.dataset.testid = 'fit-hint';
     fitRow.appendChild(fitHint);
 
-    const targetDd = new Dropdown(FIT_TARGETS.map(fitLabel), fitLabel(16));
+    const targetDd = own(new Dropdown(FIT_TARGETS.map(fitLabel), fitLabel(16)));
     targetDd.el.dataset.testid = 'fit-target';
     fitRow.appendChild(targetDd.el);
 
     const MODE_LABELS = ['Rhythmic', 'Tonal'] as const;
-    const modeDd = new Dropdown([...MODE_LABELS], MODE_LABELS[0]);
+    const modeDd = own(new Dropdown([...MODE_LABELS], MODE_LABELS[0]));
     modeDd.el.dataset.testid = 'fit-mode';
     modeDd.el.title = 'Rhythmic keeps transients (drums, loops). Tonal is smoother '
       + 'on sustained sounds and washes drums out.';
@@ -914,7 +935,7 @@ export function openRecordSoundModal(engine: StudioApi, opts: RecordSoundOptions
       { length: MAX_PITCH_SHIFT_SEMITONES * 2 + 1 },
       (_, i) => i - MAX_PITCH_SHIFT_SEMITONES,
     );
-    const shiftDd = new Dropdown(SHIFT_STEPS.map(shiftLabel), shiftLabel(0));
+    const shiftDd = own(new Dropdown(SHIFT_STEPS.map(shiftLabel), shiftLabel(0)));
     shiftDd.el.dataset.testid = 'shift-amount';
     shiftRow.appendChild(shiftDd.el);
 
@@ -961,7 +982,7 @@ export function openRecordSoundModal(engine: StudioApi, opts: RecordSoundOptions
     scratchHint.dataset.testid = 'scratch-hint';
     scratchRow.appendChild(scratchHint);
 
-    const lenDd = new Dropdown(FIT_TARGETS.map(fitLabel), fitLabel(16));
+    const lenDd = own(new Dropdown(FIT_TARGETS.map(fitLabel), fitLabel(16)));
     lenDd.el.dataset.testid = 'scratch-length';
     lenDd.el.title = 'How long the scratch lasts, in sixteenths at the current tempo.';
     scratchRow.appendChild(lenDd.el);
@@ -974,7 +995,7 @@ export function openRecordSoundModal(engine: StudioApi, opts: RecordSoundOptions
       ...SCRATCH_PRESETS.map((n) => (n === 'Baby' ? 'Baby (short-short-long)' : n)),
       CUSTOM,
     ];
-    const presetDd = new Dropdown([...PRESET_LABELS], PRESET_LABELS[0]);
+    const presetDd = own(new Dropdown([...PRESET_LABELS], PRESET_LABELS[0]));
     presetDd.el.dataset.testid = 'scratch-preset';
     presetDd.el.title = 'Classic patterns. Baby is a push, a pull and a long push — '
       + 'the one that reads as a scratch straight away.';

@@ -61,6 +61,9 @@ export function openExportAudioModal(engine: StudioApi, defaultFormat: ExportFor
       unsubs.length = 0;
       window.clearTimeout(doneTimer);
       if (running) engine.recorder.cancelExport();
+      // The Runs dropdown's listeners are on document/window, so removing the
+      // card does not take them off (sample-recorder.md REQ-the-editor-owns-its-teardown).
+      runsDd.destroy();
     },
   });
   modal.body.dataset.testid = 'export-audio-modal';
