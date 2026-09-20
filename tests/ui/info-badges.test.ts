@@ -131,3 +131,53 @@ describe('InfoBadges.position visibility (onboarding.md REQ-a-badge-shows-only-w
     expect(display('keyboard')).toBe('none');
   });
 });
+
+/**
+ * runtime-performance.md REQ-layout-reads-precede-writes. `position()` walks 86
+ * badges; reading a rect and writing a style per iteration made each read force
+ * a synchronous reflow, because the write just before it marked layout dirty.
+ * Measured in real Chromium at 0.330 ms/frame against 0.135 ms when split.
+ *
+ * jsdom has no layout engine, so the COST is invisible here — but the ORDER is
+ * not, and the order is the whole fix. This records the sequence and asserts no
+ * read follows a write. It needs **several** badges on screen: with one, the
+ * interleaved and split sequences are identical and the test proves nothing.
+ */
+describe('InfoBadges.position batches its layout reads (REQ-layout-reads-precede-writes)', () => {
+  it('performs every rect read before any style write', () => {
+    // Three visible anchors, so an interleaved loop would read-write-read.
+    anchor('transport-play', 200);
+    anchor('knob-transport.swing', 260);
+    anchor('panic', 320);
+
+    const seq: string[] = [];
+    show();
+
+    // `place()` assigns an OWN getBoundingClientRect per element, which shadows
+    // the prototype — so wrap the own method, not the prototype.
+    for (const el of document.querySelectorAll<HTMLElement>('[data-testid]')) {
+      const own = el.getBoundingClientRect.bind(el);
+      el.getBoundingClientRect = () => { seq.push('read'); return own(); };
+    }
+
+    for (const el of document.querySelectorAll<HTMLElement>('[data-testid^="info-badge-"]')) {
+      for (const prop of ['display', 'left', 'top'] as const) {
+        let v = '';
+        Object.defineProperty(el.style, prop, {
+          configurable: true,
+          get: () => v,
+          set: (next: string) => { seq.push('write'); v = next; },
+        });
+      }
+    }
+
+    seq.length = 0;
+    window.dispatchEvent(new Event('scroll'));
+
+    const reads = seq.filter((s) => s === 'read').length;
+    const writes = seq.filter((s) => s === 'write').length;
+    expect(reads).toBeGreaterThan(2);   // several anchors measured
+    expect(writes).toBeGreaterThan(2);  // several badges positioned
+    expect(seq.lastIndexOf('read')).toBeLessThan(seq.indexOf('write'));
+  });
+});

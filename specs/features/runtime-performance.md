@@ -3,7 +3,9 @@
 ```yaml
 id: runtime-performance
 status: implemented
-version: 10  # v10: REQ-a-worklet-optimisation-is-bit-exact also says how to MEASURE one — a
+version: 11  # v11: REQ-layout-reads-precede-writes — a loop that measures and positions many
+             #      elements does all its reading before any of its writing
+             # v10: REQ-a-worklet-optimisation-is-bit-exact also says how to MEASURE one — a
              #      microbenchmark of the call is not evidence, and got two of three
              #      answers wrong here
              # v9: REQ-visibility-gating-is-for-pixels-not-sound — a draw-only loop may hold a visibility-gated,
@@ -243,6 +245,33 @@ so a reviewer has something concrete to hold a new feature against.
   per active lane per tick and is deliberately left alone, because the API change would
   push a shared mutable buffer through the one piece of hit math the sequencer, drum
   machine and sampler are required to agree on.
+
+- **REQ-layout-reads-precede-writes** — (v11) **A loop that measures and
+  positions many elements does all of its reading before any of its writing.**
+
+  Layout is invalidated lazily: a style write marks it dirty, and the next
+  `getBoundingClientRect()` / `offsetWidth` / `clientHeight` forces the engine to
+  recompute it *synchronously* before it can answer. So a loop shaped
+  `read a; write a; read b; write b; …` pays **one forced reflow per
+  iteration**, where `read all; write all` pays one for the whole loop. The two
+  loops produce identical output — this is purely about the order.
+
+  The instance that motivated it is `InfoBadges.position()`, which repositions
+  **86** badges against their anchors from a capturing `scroll` listener. The
+  interleaved form cost **0.330 ms per frame**; split, **0.135 ms** — 2.4×,
+  measured in real Chromium over 11 paired reps (t=23). Against a 16.7 ms frame
+  that is 2.0% → 0.8%, and it scales with the badge count and with how slow the
+  device is.
+
+  **jsdom cannot see this**, having no layout engine — which is why the unit
+  test asserts the *order* of reads and writes rather than a duration, and why
+  the cost was measured in a real browser instead. A test for this needs at
+  least two elements: with one, interleaved and split are the same sequence.
+
+  The related rule for a **drag** is *measure once per gesture, not once per
+  move*: a rect that cannot change during the stroke is read on `pointerdown`
+  and reused (`eq-graph.ts`, `step-settings.ts`, `resize-handle.ts` all say so
+  in as many words). Same principle, different cadence.
 
 - **REQ-dom-writes-are-guarded-on-what-is-rendered** — **DOM writes are guarded
   on the rendered representation.** A repaint driven by a continuous value
