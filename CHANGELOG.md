@@ -16,6 +16,51 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+### Fixed
+
+- **A cancelled touch no longer writes a step.** On the seq, drum and sampler
+  grids, a press the OS took away — a notification pull-down, an edge-swipe
+  back, palm rejection — was treated as a release and toggled the step you were
+  touching. It now writes nothing.
+- **Pitch bend releases when the window loses focus.** Holding `'` or `/` and
+  switching away left the synth bent, because the key-up never arrived; the bend
+  springs back with the held notes now.
+- **Glide starts from the note you are leaving.** On Firefox a portamento slid
+  from whatever pitch was last set outright — often the oscillator's 440 Hz —
+  rather than from the note in flight. Chromium was always correct; this makes
+  the two agree.
+- **Mono no longer cuts the note you are holding.** With voicing set to mono,
+  letting go of an *older* key stopped the newer note that was actually
+  sounding.
+- **The arpeggiator survives a key released mid-bounce.** On the up-down
+  pattern, releasing keys while the pattern was out near the top of its range
+  dropped a note and logged an error.
+- **"All buttons in" engages when you click it.** The drum compressor's ratio
+  was smoothed like a knob, so selecting ALL took about a third of a second to
+  arrive and passed through ratios the control does not offer.
+- **Stopping the transport cuts samples cleanly on Firefox**, and no longer
+  extends a one-shot that was already being cut.
+- **The sample editor stops leaking.** Every open of "Record a sound" / "Edit
+  sample" left fourteen listeners behind on every click and keystroke in the app.
+  Same fix for the audio-export dialog.
+- **The XY Pad springs back when its window closes.** Two-finger scrolling the
+  pad and then closing the window left both assigned parameters stuck at the
+  swept value.
+- **A song or preset called "index" no longer hides your saved list.** The name
+  collided with the index of saved names, so saving one emptied the list; the
+  songs themselves were never deleted.
+- **A throwing subscriber can no longer wedge the transport.** Play, Stop and
+  seek now isolate their listeners the way the tick already did — previously a
+  failure during Play could leave the transport believing it was running with
+  nothing driving it.
+
+### Security
+
+- **Reserved keys are refused on every import path.** `__proto__` and friends
+  were rejected on some payload shapes and not others; motion cells and every
+  preset path were among the gaps. A preset's parameter map is now size-bounded
+  like a song's.
+
 ## [2.14.0] - 2026-09-19
 
 ### Added
