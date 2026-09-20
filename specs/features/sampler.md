@@ -3,7 +3,10 @@
 ```yaml
 id: sampler
 status: implemented
-version: 11  # v11: the editor gains a Scratch section (scratch.md); no new
+version: 12  # v12: `stopAll` cuts through the same `cutHit` a choke does, so it stops
+             #     reading a live `gain.value` (unreliable on Gecko) and stops
+             #     re-stopping a hit already ending (REQ-a-stop-cuts-in-flight-one-shots)
+             # v11: the editor gains a Scratch section (scratch.md); no new
              #     sampler REQ - the slot rows are untouched
              # v10: REQ-a-slot-row-carries-a-fit-button — a FIT button on every slot row, fitting the clip to
              #     the nearest bar length (time-stretch.md)
@@ -99,7 +102,25 @@ the song format.
   choke uses before `src.stop()` — no click, and a hit still scheduled inside
   the look-ahead simply never plays. The fade is on the per-hit gain, upstream
   of `samplerBus`, so the [FX](effects.md) tails ring out untouched: Stop
-  silences the *source*, never the room. **`stopAll` is public and `Engine`
+  silences the *source*, never the room.
+
+  **(v12) That cut is `cutHit`, not a second copy of it.** `stopAll` open-coded
+  the same four lines the choke path uses and drifted from them in two ways,
+  both of which `cutHit` had already got right and said why:
+
+  - it anchored the fade with `h.g.gain.value`, a **live read of a param under
+    automation**. Gecko does not write automation results back to the intrinsic
+    value, so on Firefox the fade pinned the wrong level and stepped the output
+    — the same read that `performance.ts` documents as the DJ-filter crackle.
+    `cutHit` computes the level analytically with `gainAt(h, at)` instead.
+  - it had no *already ending sooner* guard, so stopping the transport within
+    `CHOKE_STOP` of a hit that was already choked **pushed that hit's end
+    later** — the last `stop()` call is the one that counts.
+
+  One implementation, two call sites: a choke and a transport stop are the same
+  act on the same handle, differing only in who asks.
+
+  **`stopAll` is public and `Engine`
   subscribes `clock.onStop`, not the machine**
   ([ADR-008](../decisions/adr-008-components-self-wire-params.md)) — because the
   one exception is Engine's to know. A stop that *ends a capture*

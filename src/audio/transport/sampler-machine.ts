@@ -431,14 +431,13 @@ export class SamplerMachine {
    */
   stopAll(): void {
     const now = this.ctx.currentTime;
-    for (const h of this.inFlight) {
-      h.g.gain.cancelScheduledValues(now);
-      h.g.gain.setValueAtTime(h.g.gain.value, now);
-      h.g.gain.linearRampToValueAtTime(0, now + CHOKE_FADE);
-      h.src.stop(now + CHOKE_STOP);
-      h.stopAt = now + CHOKE_STOP;
-    }
-    // `onended` empties the set as each source actually stops.
+    // The same cut a choke makes — `cutHit` computes the fade's anchor with
+    // `gainAt` rather than reading a live `gain.value` (which Gecko does not
+    // keep current under automation) and refuses to re-stop a hit already
+    // ending sooner, which would push its end LATER
+    // (REQ-a-stop-cuts-in-flight-one-shots). Copied here, both were wrong.
+    // Iterated over a snapshot: `onended` empties the set as sources stop.
+    for (const h of [...this.inFlight]) this.cutHit(h, now);
   }
 
   private onTick(step: number, when: number): void {

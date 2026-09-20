@@ -77,15 +77,53 @@ describe('Compressor.bind — index mapping', () => {
   beforeEach(() => { installMockAudioWorkletNode(); });
   afterEach(() => { vi.unstubAllGlobals(); });
 
-  it('maps the discrete ratio index to the real ratio', () => {
+  // v4: the ratio is a CHOICE, so it is set rather than approached
+  // (compressor.md REQ-ratio-and-release-are-indices). It used to be smoothed
+  // like a knob: selecting 'ALL' from 20 crossed 50:1, 80:1, 95:1 on the way and
+  // only reached exactly 100 after ~10 time constants — and the worklet gates
+  // "all buttons in" on `ratio >= 100`, so the mode arrived ~1/3 s after the
+  // click, having first run at ratios the UI never offers.
+  it('snaps the discrete ratio index to the real ratio', () => {
     const comp = new Compressor(ctx(), 'fet');
     comp.attachWorklet();
     const bus = busWithDefaults();
     comp.bind(bus, 'fx.drum.comp', [4, 8, 12, 20, 100]);
 
     const node = MockAudioWorkletNode.instances[0]!;
+    const ratio = node.parameters.get('ratio');
+    ratio.setValueAtTime.mockClear();
+    ratio.setTargetAtTime.mockClear();
+
     bus.set('fx.drum.comp.ratio', 4); // label 'ALL' → ratio 100
-    expect(node.parameters.get('ratio').setTargetAtTime).toHaveBeenCalledWith(100, 0, 0.02);
+
+    expect(ratio.setValueAtTime).toHaveBeenCalledWith(100, 0);
+    expect(ratio.setTargetAtTime).not.toHaveBeenCalled();
+  });
+
+  it('snaps autoRelease, which is a flag rather than a quantity', () => {
+    const comp = new Compressor(ctx(), 'vca');
+    comp.attachWorklet();
+    const node = MockAudioWorkletNode.instances[0]!;
+    const auto = node.parameters.get('autoRelease');
+    auto.setValueAtTime.mockClear();
+    auto.setTargetAtTime.mockClear();
+
+    comp.setAutoRelease(true);
+
+    expect(auto.setValueAtTime).toHaveBeenCalledWith(1, 0);
+    expect(auto.setTargetAtTime).not.toHaveBeenCalled();
+  });
+
+  it('still smooths a continuous param, which would zipper if snapped', () => {
+    const comp = new Compressor(ctx(), 'fet');
+    comp.attachWorklet();
+    const node = MockAudioWorkletNode.instances[0]!;
+    const thr = node.parameters.get('threshold');
+    thr.setTargetAtTime.mockClear();
+
+    comp.setThreshold(-18);
+
+    expect(thr.setTargetAtTime).toHaveBeenCalledWith(-18, 0, 0.02);
   });
 
   it('a master release index past the table means auto-release', () => {

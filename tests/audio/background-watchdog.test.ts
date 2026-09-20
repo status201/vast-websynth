@@ -15,9 +15,15 @@ import type { TickTimer } from '../../src/audio/transport/tick-timer';
 function harness(opts: { renderCapacity?: boolean; busy?: boolean; silent?: boolean } = {}) {
   let hidden = false;
   let visibilityFn: (() => void) | null = null;
+  // Counted, not just stored: a second subscription would overwrite the single
+  // slot and be invisible, which is exactly the bug being guarded against.
+  let visibilitySubs = 0;
   const doc = {
     get hidden() { return hidden; },
-    addEventListener: (_t: 'visibilitychange', fn: () => void) => { visibilityFn = fn; },
+    addEventListener: (_t: 'visibilitychange', fn: () => void) => {
+      visibilitySubs++;
+      visibilityFn = fn;
+    },
   };
 
   // Injected timer: the test fires sampling wakeups by hand.
@@ -63,6 +69,7 @@ function harness(opts: { renderCapacity?: boolean; busy?: boolean; silent?: bool
     onGlitch,
     ctx,
     renderCapacity,
+    visibilitySubs: () => visibilitySubs,
     hide: () => { hidden = true; visibilityFn?.(); },
     show: () => { hidden = false; visibilityFn?.(); },
     /** Report one window from the audio thread. */
@@ -243,4 +250,15 @@ describe('BackgroundAudioWatchdog', () => {
     expect(d.underrunRatio).toBe(0);
     expect(d.watching).toBe(false);
   });
+  // The listener was an inline arrow: no handle to remove, nothing to compare,
+  // so a second start() stacked a second handler and every visibility change
+  // ran beginWatch/endWatch twice.
+  it('start() twice subscribes once', () => {
+    const h = harness();
+    h.watchdog.start();
+    h.watchdog.start();
+    h.watchdog.start();
+    expect(h.visibilitySubs()).toBe(1);
+  });
+
 });

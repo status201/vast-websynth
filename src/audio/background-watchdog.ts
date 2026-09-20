@@ -108,13 +108,31 @@ export class BackgroundAudioWatchdog {
     this.isSilent = opts.isSilent ?? (() => false);
   }
 
-  /** Begin following the page's visibility. Call once, after the graph exists. */
+  /**
+   * Begin following the page's visibility. Call once, after the graph exists —
+   * and calling it twice is a no-op rather than a second subscription.
+   *
+   * The listener was an inline arrow, so there was no handle to remove and
+   * nothing to compare: a second `start()` stacked a second handler, and every
+   * visibility change then ran `beginWatch`/`endWatch` twice. One caller today,
+   * so this is a guard on a trap rather than a live fix — but "call once" as a
+   * comment is not the same as "calling twice is harmless" as a behaviour, and
+   * a page-lifetime singleton is exactly the kind of thing a later
+   * multi-instance path re-enters.
+   */
   start(): void {
-    this.doc?.addEventListener('visibilitychange', () => {
-      if (this.doc?.hidden) this.beginWatch();
-      else this.endWatch();
-    });
+    if (this.started) return;
+    this.started = true;
+    this.doc?.addEventListener('visibilitychange', this.onVisibility);
   }
+
+  /** Stored rather than inline, so `start` has something to compare and remove. */
+  private readonly onVisibility = (): void => {
+    if (this.doc?.hidden) this.beginWatch();
+    else this.endWatch();
+  };
+
+  private started = false;
 
   get diagnostics(): WatchdogDiagnostics {
     return {

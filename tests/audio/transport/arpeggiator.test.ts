@@ -95,6 +95,50 @@ describe('Arpeggiator pattern generation', () => {
     expect(played(playNote)).toEqual([60, 64, 67, 60]);
   });
 
+  // v5 regression (REQ-the-cursor-is-bounded-by-the-live-pool). The pool is
+  // rebuilt from the held keys every note, so it shrinks the instant one is
+  // released — but `cursor` kept the value the LARGER pool left it at, and
+  // up-down is the one pattern that indexes `pool[cursor]` without a modulo.
+  // `pool[i]!` then handed `undefined` to `Voice.noteOn`, where
+  // `clamp((note-60)/48, -1, 1)` returns NaN and the AudioParam write throws.
+  // The clock's listener isolation caught it, so it read as one dropped note.
+  it('keeps playing real notes when keys are released mid-bounce on "up-down"', () => {
+    const { clock, bus, arp, playNote } = setup();
+    arp.setEnabled(true);
+    arp.setPattern(2); // up-down
+    bus.noteOn(60);
+    bus.noteOn(64);
+    bus.noteOn(67);
+    bus.noteOn(72);
+
+    clock.fireTicks(3); // walk out toward the top of the 4-note pool
+    playNote.mockClear();
+
+    bus.noteOff(72);
+    bus.noteOff(67); // pool is now [60, 64] while the cursor sits past it
+    clock.fireTicks(4);
+
+    const notes = played(playNote);
+    expect(notes.length).toBe(4);
+    for (const n of notes) {
+      expect(Number.isFinite(n)).toBe(true);
+      expect([60, 64]).toContain(n);
+    }
+  });
+
+  it('still bounces within a pool that has not changed', () => {
+    const { clock, bus, arp, playNote } = setup();
+    arp.setEnabled(true);
+    arp.setPattern(2); // up-down
+    bus.noteOn(60);
+    bus.noteOn(64);
+    bus.noteOn(67);
+
+    clock.fireTicks(6);
+    // Up to the top, then back down — never past either end.
+    expect(played(playNote)).toEqual([60, 64, 67, 64, 60, 64]);
+  });
+
   it('walks the pool downward on the "down" pattern', () => {
     const { clock, bus, arp, playNote } = setup();
     arp.setEnabled(true);

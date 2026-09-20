@@ -153,6 +153,14 @@ export class Arpeggiator {
         if (pool.length === 1) {
           note = pool[0]!;
         } else {
+          // Re-clamp against the pool we are ABOUT to read. Every other pattern
+          // wraps with `% pool.length`; this one indexes directly because the
+          // bounce needs a real position — so a pool that shrank since the last
+          // note (a key released) would otherwise read past the end, and
+          // `pool[i]!` hands `undefined` to an AudioParam, which throws
+          // (REQ-the-cursor-is-bounded-by-the-live-pool).
+          if (this.cursor > pool.length - 1) { this.cursor = pool.length - 1; this.direction = -1; }
+          if (this.cursor < 0) { this.cursor = 0; this.direction = 1; }
           note = pool[this.cursor]!;
           this.cursor += this.direction;
           if (this.cursor >= pool.length - 1) { this.cursor = pool.length - 1; this.direction = -1; }

@@ -3,7 +3,10 @@
 ```yaml
 id: compressor
 status: implemented
-version: 3      # v3: REQ-a-silent-input-stays-silent — the FET path's DC blocker is primed from its first
+version: 4      # v4: a DISCRETE param snaps, it does not approach — ratio and autoRelease
+                #     were smoothed like a knob, so "all buttons in" engaged a third of a
+                #     second late and swept ratios the UI never offers (REQ-ratio-and-release-are-indices)
+                # v3: REQ-a-silent-input-stays-silent — the FET path's DC blocker is primed from its first
                 #     sample, so activating the compressor no longer emits the
                 #     saturator's zero-input pedestal as a step (song-mode REQ-applying-a-song-is-click-free)
                 # v2: coefficients are memoized on their k-rate inputs (REQ-6/7)
@@ -65,6 +68,26 @@ boundedness) and runs cheaply on the audio thread.
   **indices**; the engine maps each index to a real value. FET ratio index →
   `[4, 8, 12, 20, 100]` (`100` = "all buttons in"). Master release index **past
   the table end** → auto-release.
+
+  **(v4) A discrete param snaps; only a continuous one is smoothed.** Every
+  param went to the worklet through one `setTargetAtTime` — correct for
+  threshold, attack, release and makeup, where a jump would zipper, and wrong
+  for the two that are **choices rather than quantities**: `ratio`, which is a
+  point on the table above, and `autoRelease`, which is a boolean.
+
+  `setTargetAtTime` approaches asymptotically, so selecting *all buttons in*
+  from `20` did not set `100` — it crossed `50`, `80`, `95` on the way, and the
+  k-rate float only rounded up to exactly `100` after roughly ten time
+  constants. The worklet tests `ratio >= 100` to engage the near-limiting slope
+  (REQ-one-worklet-two-models), so the mode arrived about a third of a second
+  after the click, having first run the compressor at ratios the UI does not
+  offer. `autoRelease` has the same shape: a boolean that spends ~340 ms
+  somewhere between false and true.
+
+  `attachWorklet` already used `setValueAtTime` for all six when seeding the
+  node; it was only the live setter that smoothed. So the rule is the seeding
+  path's, applied to the live one: **a param whose value is an index or a flag
+  is written with `setValueAtTime`.**
 - **REQ-worklet-posts-gain-reduction** — The worklet posts current gain
   reduction (dB) on its `port` at ~31 Hz; the `GrMeter` UI renders it.
 - **REQ-compressor-graph-is-wired-synchronously** — The graph is wired

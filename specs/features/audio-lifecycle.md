@@ -204,7 +204,16 @@ to the first one the user makes anyway, rather than demanded up front.
   page is **hidden** and the context is **running**, a watchdog samples how the
   audio thread is actually doing every `SAMPLE_S` (0.25 s) and, when the windows
   come back bad (REQ-the-trip-is-measured-never-inferred), fades the master out
-  and suspends the context. Returning to the foreground resumes and fades back
+  and suspends the context.
+
+  **Arming it is idempotent.** `start()` is called once, from `Engine.init()`,
+  and its subscription used to be an inline arrow — no handle to remove and
+  nothing to compare, so a second call stacked a second handler and every
+  visibility change ran `beginWatch`/`endWatch` twice. The listener is stored
+  and the second call is a no-op. This is a guard on a trap rather than a live
+  fix: "call once" written in a comment is not the same property as "calling
+  twice is harmless", and a page-lifetime singleton is precisely what a later
+  multi-instance path re-enters. Returning to the foreground resumes and fades back
   in through the existing path
   (REQ-foreground-return-rearms-the-context/REQ-a-start-is-click-free), and
   because a suspended context freezes `currentTime`, the transport's grid is

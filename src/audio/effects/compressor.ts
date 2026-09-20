@@ -63,7 +63,7 @@ export class Compressor extends WrappedEffect {
   /** Actual ratio (not a UI index); >= 100 = "all buttons in" (fet mode). */
   setRatio(r: number): void {
     this.ratio = r;
-    this.apply(this.node?.ratio, r);
+    this.snap(this.node?.ratio, r);
   }
 
   setAttack(seconds: number): void {
@@ -78,7 +78,7 @@ export class Compressor extends WrappedEffect {
 
   setAutoRelease(on: boolean): void {
     this.autoRelease = on;
-    this.apply(this.node?.autoRelease, on ? 1 : 0);
+    this.snap(this.node?.autoRelease, on ? 1 : 0);
   }
 
   setMakeup(db: number): void {
@@ -109,7 +109,24 @@ export class Compressor extends WrappedEffect {
     bus.subscribe(`${prefix}.makeup`, (x) => this.setMakeup(x));
   }
 
+  /** A continuous quantity — smoothed, because a jump would zipper. */
   private apply(param: AudioParam | undefined, v: number): void {
     param?.setTargetAtTime(v, this.ctx.currentTime, RAMP_SMOOTH);
+  }
+
+  /**
+   * A discrete choice — an index or a flag. Set, never approached
+   * (compressor.md REQ-ratio-and-release-are-indices).
+   *
+   * `setTargetAtTime` converges asymptotically, so smoothing `ratio` from 20 to
+   * 100 ran the compressor through 50:1, 80:1, 95:1 — ratios the UI does not
+   * offer — and the k-rate value only rounded up to exactly 100 after ~10 time
+   * constants. The worklet gates "all buttons in" on `ratio >= 100`, so the
+   * mode engaged about a third of a second after the click. `attachWorklet`
+   * already seeds every param with `setValueAtTime`; this is the same rule for
+   * the live path.
+   */
+  private snap(param: AudioParam | undefined, v: number): void {
+    param?.setValueAtTime(v, this.ctx.currentTime);
   }
 }

@@ -151,6 +151,49 @@ describe('SamplerMachine', () => {
       expect(src.stop).toHaveBeenCalledWith(4.03);
     });
 
+    // v12 regression. `stopAll` open-coded the four lines `cutHit` owns and had
+    // drifted from them: it anchored the fade with a LIVE `gain.value` read,
+    // which Gecko does not keep current under automation, and it had no
+    // "already ending sooner" guard — so a stop within CHOKE_STOP of an
+    // existing choke pushed that hit's end LATER, the last stop() winning.
+    it('anchors the fade analytically rather than reading gain.value', () => {
+      const { ctx, clock, patterns, sm } = build();
+      sm.setEnabled(true);
+      sm.setBuffer(0, makeStubBuffer());
+      patterns.setSamplerCell(0, 0, { on: true, velocity: 0.6, gate: 1, tie: true });
+      clock.fireTick(0);
+      const g = ctx.createGain.mock.results.at(-1)!.value;
+
+      // A value a Gecko read-back would return wrongly; the analytic path must
+      // not consult it at all.
+      const spy = vi.spyOn(g.gain, 'value', 'get');
+      ctx.currentTime = 4;
+      sm.stopAll();
+
+      expect(spy).not.toHaveBeenCalled();
+      expect(g.gain.setValueAtTime).toHaveBeenCalled();
+      spy.mockRestore();
+    });
+
+    it('does not push the end of a hit that is already ending sooner', () => {
+      const { ctx, clock, patterns, sm } = build();
+      sm.setEnabled(true);
+      sm.setBuffer(0, makeStubBuffer());
+      patterns.setSamplerCell(0, 0, { on: true, velocity: 0.6, gate: 1, tie: true });
+      clock.fireTick(0);
+      const src = ctx.createBufferSource.mock.results[0]!.value;
+
+      ctx.currentTime = 4;
+      sm.stopAll();                       // schedules the end at 4.03
+      const calls = src.stop.mock.calls.length;
+
+      ctx.currentTime = 4.01;             // within CHOKE_STOP of that end
+      sm.stopAll();
+
+      // A second stop() here would move the end to 4.04 — later, not sooner.
+      expect(src.stop.mock.calls.length).toBe(calls);
+    });
+
     it('leaves a finished hit alone — onended drops it from the in-flight set', () => {
       const { ctx, clock, patterns, sm } = build();
       sm.setEnabled(true);

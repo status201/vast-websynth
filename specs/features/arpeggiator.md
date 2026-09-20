@@ -3,7 +3,10 @@
 ```yaml
 id: arpeggiator
 status: implemented
-version: 4  # v4: the pool is chord-expanded and key-quantized (REQ-arp-pool-is-expanded-then-quantized)
+version: 5  # v5: the cursor is re-clamped against the CURRENT pool — releasing a key
+            #     mid-bounce indexed past the end and pushed `undefined` into an
+            #     AudioParam (REQ-the-cursor-is-bounded-by-the-live-pool)
+            # v4: the pool is chord-expanded and key-quantized (REQ-arp-pool-is-expanded-then-quantized)
             # v3: 1/32 actually plays 1/32 (REQ-a-sub-16th-rate-schedules-its-own-hits); `arp.on` in a saved song is
             #     an *armed* control, by design, and is documented as one (REQ-saved-arp-on-is-armed-not-broken)
             # v2: the tab carries a status LED for `arp.on` (REQ-armed-arp-is-visible-outside-the-tab)
@@ -41,6 +44,33 @@ releasing the last key stops it again (only if the arp was what started it).
   suppressed at the engine; the arp generates timed notes on `clock.onTick`.
 - **REQ-held-notes-keep-press-order** — Held notes are tracked in **press
   order**; patterns reorder them.
+- **REQ-the-cursor-is-bounded-by-the-live-pool** — (v5) **The pattern cursor is
+  bounded by the pool it is about to read, not the one it last walked.**
+  The pool is rebuilt every note from the held keys × octaves, so it **shrinks
+  the moment a key is released** — while `cursor` keeps whatever value the
+  previous, larger pool left it at. It is reset only when *every* key goes
+  (REQ-held-notes-keep-press-order's `heldOrder` emptying), which is exactly the
+  case that does not matter.
+
+  Every pattern but one reads `pool[cursor % pool.length]`, so the stale cursor
+  is harmless. **Up-down** was the exception: it indexes `pool[cursor]` directly,
+  because its bounce needs a real position rather than a wrapped one. Hold four
+  notes, let it bounce out to the top, release two, and the next note reads past
+  the end.
+
+  That is not a silent miss. `pool[i]!` hands `undefined` onward, and
+  `Voice.noteOn` computes `clamp((note - 60) / 48, -1, 1)` — `clamp` returns
+  `NaN` for `NaN` (both comparisons are false) — so an `AudioParam` receives
+  `NaN` and **throws**, an `AudioParam` value being a WebIDL *restricted*
+  double. The clock's listener isolation
+  ([transport](transport.md) REQ-a-subscriber-may-not-wedge-the-transport)
+  catches it, so the audible symptom is one dropped note and a single console
+  error rather than a dead transport — which is precisely why it survived: the
+  layer that makes it survivable also makes it quiet.
+
+  So up-down re-clamps into the live pool *before* it reads, reversing at the
+  new top exactly as it would have at the old one.
+
 - **REQ-a-held-key-starts-the-transport** — Holding a key auto-starts the
   transport; releasing the last key auto-stops it — but only if the arp started
   it (`startedTransport`).
@@ -139,6 +169,14 @@ ui: src/ui/panels/arp-panel.ts
 ## Scenarios (BDD)
 
 ```gherkin
+Scenario: Releasing a key mid-bounce does not read past the pool (v5, regression)
+  Given arp.pattern is up-down and four keys are held
+  And the cursor has bounced out to the top of the pool
+  When two of the keys are released
+  Then the next arp note is a real note from the smaller pool
+  And no AudioParam is written NaN
+# pinned by: tests/audio/transport/arpeggiator.test.ts
+
 Scenario: Holding a key auto-starts the arp transport
   Given arp.on is 1 and the transport is stopped
   When the user holds a key
