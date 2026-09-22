@@ -134,6 +134,9 @@ always ${SEQ_LENGTH} cells, but how many of them a BAR is depends on the meter �
   tracks 2-4 sound only in POLY voicing ("voicing.mode": 1), so set that when you
   use them. Settings next to "tracks" apply to EVERY track, so a chord bank sets
   its gate once: { "tracks": [["C3"],["E3"],["G3"]], "gate": 0.9 }.
+  Spread them across the stereo field with the "seq.t<i>.pan" params (-1..1,
+  0 = centre) in the flat "params" map — a chord sitting in one spot in the
+  middle is the commonest thing to fix about a generated song.
   Entry = null (rest) | MIDI number 0-127 | note name "A2"/"C#4"/"Db3" (C4 = 60)
         | { "note": <midi|name>, "velocity"?: 0-1, "gate"?: 0-1, "prob"?: 0-1, "ratchet"?: 1-4, "tie"?: bool, "micro"?: -12..12 }
 - Bank-defaults form { "notes": [entries…], "velocity"?, "gate"?, "prob"?, "ratchet"?, "tie"?, "micro"? } —

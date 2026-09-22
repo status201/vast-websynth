@@ -7,9 +7,11 @@ import { createSynthChain, createDrumChain, createSamplerChain } from './effects
 import { CompressorNode } from './compressor/node';
 import { ParamBus, registerDefaults } from '../state/params';
 import { rampTo, RAMP_FAST, RAMP_MEDIUM } from './param-utils';
+import { forceStereo } from './stereo';
+import { DISCONNECT_DELAY_MS } from './effects/effect';
 import { Polyphony } from './polyphony';
 import { LaneMixer } from './lane-mixer';
-import type { SynthOutput } from './transport/note-output';
+import type { SynthOutput, NoteOpts } from './transport/note-output';
 import { Clock } from './transport/clock';
 import { Arpeggiator } from './transport/arpeggiator';
 import { StepSequencer } from './transport/sequencer';
@@ -122,6 +124,17 @@ export interface EngineOptions {
 export class Engine {
   readonly ctx: AudioContext;
   readonly voices: Voice[] = [];
+
+  /**
+   * The four sequencer track pans, mirrored here so the spread stage can be
+   * decided from all of them at once (sequencer.md REQ-the-spread-stage-engages-off-centre).
+   * `seq` holds the same values for scheduling; this copy answers a different
+   * question — "is ANY track off centre?" — and keeping it beside the timer that
+   * acts on it is cheaper than asking the bus for four params on every write.
+   */
+  private readonly seqPans: number[] = Array.from({ length: SEQ_TRACK_COUNT }, () => 0);
+  private spreadOn = false;
+  private spreadTimer: number | null = null;
   readonly voiceBus: GainNode;
   readonly master: GainNode;
   readonly analyser: AnalyserNode;
@@ -355,6 +368,16 @@ export class Engine {
     // so a mono input convolves to two. Centred until the LFO's `pan` drives it.
     this.synthPan = this.ctx.createStereoPanner();
     this.synthPan.pan.value = 0;
+    // A StereoPanner is only transparent at centre for a STEREO input; a mono one
+    // gets the equal-power law and loses 3.01 dB. Whether this node saw one
+    // channel or two used to depend on the REVERB — the only thing in the chain
+    // that makes a second — so switching the reverb on raised the dry synth by
+    // 3 dB, and the sweep changed law with it (measured: -40.03 dB against
+    // -37.02 dB, ratio 0.7075). Pinning the input to two channels makes the
+    // channel's level and the sweep's law independent of anything upstream, which
+    // is also what lets the spread stage splice in and out inaudibly
+    // (lfo.md REQ-the-auto-pan-reads-a-stereo-input, ADR-023).
+    forceStereo(this.synthPan);
 
     // Each chain owns its own effect order + param prefixes (effects/fx-chain.ts).
     this.synthFx.wire(this.voiceBus, this.synthPan);
@@ -444,7 +467,9 @@ export class Engine {
 
     for (let i = 0; i < this.voiceCount; i++) {
       const v = await Voice.create(this.ctx);
-      v.out.connect(this.voiceBus);
+      // Wires the dry edge now and the panned one only once a track leaves
+      // centre (sequencer.md REQ-the-spread-stage-engages-off-centre).
+      v.connectTo(this.voiceBus);
       this.noise.connect(v.noiseGain);
 
       // LFO routing — every target is a summing AudioParam, so both LFOs can
@@ -480,7 +505,7 @@ export class Engine {
 
     // Transport modules — created after voices so they can call engine.playNote
     const synthOutput: SynthOutput = {
-      playNote: (n, v, w) => this.playNote(n, v, w),
+      playNote: (n, v, w, o) => this.playNote(n, v, w, o),
       releaseNote: (n, w) => this.releaseNote(n, w),
     };
     this.arp = new Arpeggiator(synthOutput, this.bus, this.clock, this.scale);
@@ -924,9 +949,14 @@ export class Engine {
 
   // ---------- Note handling ----------
 
-  /** Play a note at the given audio time (defaults to now). Delegates to Polyphony. */
-  playNote(note: number, velocity = 0.8, when?: number): void {
-    this.polyphony.playNote(note, velocity, when);
+  /**
+   * Play a note at the given audio time (defaults to now). Delegates to Polyphony.
+   *
+   * `opts` carries the sequencer track's pan (sequencer.md REQ-a-seq-track-carries-a-pan).
+   * Every other caller — live keys, MIDI, the arpeggiator — omits it and is centred.
+   */
+  playNote(note: number, velocity = 0.8, when?: number, opts?: NoteOpts): void {
+    this.polyphony.playNote(note, velocity, when, opts);
   }
 
   /** Release a note at the given audio time (defaults to now). */
@@ -1039,6 +1069,37 @@ export class Engine {
   }
 
   // ---------- Param subscriptions ----------
+
+  /**
+   * Engage the per-voice spread stage while any sequencer track is off centre,
+   * and drop it again when they all come home (sequencer.md
+   * REQ-the-spread-stage-engages-off-centre, ADR-023).
+   *
+   * The disconnect is delayed, and by the same constant a bypassed effect uses,
+   * for the same reason: the panned edge has to stay attached long enough to
+   * carry the crossfade out. Cutting it immediately would leave the fade
+   * half-done and audible. One timer for the pool, not one per voice — the pool
+   * moves in lockstep.
+   *
+   * Re-engaging cancels a pending drop, so a knob wiggled across centre does not
+   * tear the graph down behind itself.
+   */
+  private updateSpread(): void {
+    const wanted = this.seqPans.some((p) => p !== 0);
+    if (wanted === this.spreadOn) return;
+    this.spreadOn = wanted;
+    if (this.spreadTimer !== null) {
+      clearTimeout(this.spreadTimer);
+      this.spreadTimer = null;
+    }
+    this.polyphony.setSpread(wanted);
+    if (!wanted) {
+      this.spreadTimer = window.setTimeout(() => {
+        this.spreadTimer = null;
+        this.polyphony.dropSpread();
+      }, DISCONNECT_DELAY_MS);
+    }
+  }
 
   private subscribeParams(): void {
     const bus = this.bus;
@@ -1206,6 +1267,16 @@ export class Engine {
     for (let t = 0; t < SEQ_TRACK_COUNT; t++) {
       const track = t;
       bus.subscribe(`seq.t${t}.mute`, (v) => this.seq.setTrackMuted(track, v >= 0.5));
+      // Per-track pan (REQ-a-seq-track-carries-a-pan). Three jobs on one write:
+      // the sequencer stamps it on the notes it schedules from now on, the voices
+      // already sounding this track follow it live, and the spread stage decides
+      // whether the panned edges belong in the graph at all.
+      bus.subscribe(`seq.t${t}.pan`, (v) => {
+        this.seqPans[track] = v;
+        this.seq.setTrackPan(track, v);
+        this.polyphony.setGroupPan(track, v);
+        this.updateSpread();
+      });
     }
     // Synth voice-bus volume (independent of mute: seq mute stops triggering,
     // not the bus, so live keys keep playing at this level).

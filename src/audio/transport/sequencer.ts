@@ -25,10 +25,15 @@ interface SeqTrackState {
   lastReleaseAt: number;
   prevTied: boolean;
   muted: boolean;
+  /** Stereo position, -1..1; 0 (centre) is the no-op (REQ-a-seq-track-carries-a-pan). */
+  pan: number;
+  /** Its own index, so a scheduled note can name the knob it should keep
+   *  following without `tickTrack` having to be handed one more argument. */
+  readonly index: number;
 }
 
-const newTrackState = (): SeqTrackState =>
-  ({ lastPlayedNote: -1, lastReleaseAt: 0, prevTied: false, muted: false });
+const newTrackState = (_unused: unknown, index: number): SeqTrackState =>
+  ({ lastPlayedNote: -1, lastReleaseAt: 0, prevTied: false, muted: false, pan: 0, index });
 
 /**
  * A stored note shifted by an arrangement slot's transpose, clamped to the MIDI
@@ -112,6 +117,16 @@ export class StepSequencer {
     if (!st || st.muted === muted) return;
     st.muted = muted;
     if (muted) this.releaseTrack(st);
+  }
+
+  /**
+   * Per-track pan (REQ-a-seq-track-carries-a-pan). The sequencer holds the value
+   * and hands it to each note it schedules; it never touches the graph itself,
+   * which is what keeps this side of the UI/audio split free of nodes (ADR-001).
+   */
+  setTrackPan(track: number, pan: number): void {
+    const st = this.tracks[track];
+    if (st) st.pan = pan;
   }
 
   private releaseTrack(st: SeqTrackState, when?: number): void {
@@ -227,7 +242,7 @@ export class StepSequencer {
     // REQ-each-machine-has-a-step-rate). At the default rate the two are the same number.
     const hits = stepHits(s, at, cellDur);
     for (const h of hits) {
-      this.output.playNote(note, s.velocity, h.t);
+      this.output.playNote(note, s.velocity, h.t, { pan: st.pan, panGroup: st.index });
       // The final sub-hit holds (no release) when the step ties into the next.
       if (!h.holds) this.output.releaseNote(note, h.gateEnd);
     }

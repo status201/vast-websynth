@@ -834,7 +834,12 @@ export const HELP_TOPICS: Record<TopicId, HelpTopic> = {
       'counter-line under the melody. Tracks 2–4 need <strong>Poly</strong> voicing — in Mono they ' +
       'dim and say so, and flipping back to Poly brings them straight back; nothing is ever ' +
       'rewritten. An empty track folds away to its header until you open it, and each has its own ' +
-      '<strong>mute</strong>.</p>' +
+      '<strong>mute</strong> and <strong>PAN</strong> — pan them apart and a four-track bank ' +
+      'spreads right across the stereo field instead of stacking up in the middle. Panning is ' +
+      'constant power, so a track does not get louder as you move it, and an auto-pan LFO still ' +
+      'sweeps the whole picture over the top. Double-tap PAN to recentre it, or ' +
+      'give it a <strong>Motion</strong> lane to move a track across the field ' +
+      'as the song plays.</p>' +
       GRID_GESTURES +
       '<p>It starts with four banks (<strong>A–D</strong>) — tap <strong>+</strong> on the bank bar for up to eight — '
       + 'which you fill with different riffs and chain ' +

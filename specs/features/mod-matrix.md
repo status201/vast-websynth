@@ -3,7 +3,9 @@
 ```yaml
 id: mod-matrix
 status: implemented
-version: 3   # v3: the modulation BAND's direction is coloured — green up,
+version: 4   # v4: REQ-per-voice-sources-cannot-drive-bus-destinations says outright that the sequencer's
+             #     per-voice pan stage is NOT a matrix destination, so `pan` is still the only bus-wide one
+             # v3: the modulation BAND's direction is coloured — green up,
              #     yellow down; a knob's own arc never is (REQ-the-bands-direction-has-a-colour)
              # v2: a mod-wheel route also draws its live position (REQ-a-known-source-shows-its-position)
 owner: core
@@ -113,7 +115,11 @@ concern.**
   destination is therefore **greyed in the list with the reason shown, never
   removed** — the `Dropdown.setDisabledOptions` idiom lfo.md
   REQ-destinations-are-no-longer-exclusive already used. `pan` is the only bus-wide
-  destination today.
+  destination today, and it stays the only one: the per-voice panners the
+  sequencer's per-track pan adds ([sequencer](sequencer.md)
+  REQ-a-seq-track-carries-a-pan) are **not** matrix destinations. They are written
+  once per note from the owning track's value, not driven by a source, so this
+  rule is untouched — `pan` still means the one `synthPan` on the bus.
 
 - **REQ-depth-is-in-the-destinations-unit** (depth is in the destination's own
   unit) — a route's amount is scaled by the destination, not by the source:

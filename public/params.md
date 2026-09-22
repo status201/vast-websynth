@@ -226,6 +226,10 @@ Schemas: [`llms.txt`](llms.txt).
 - "seq.t1.mute": number  // range 0..1, default 0, step 1, values 0=on 1=mute
 - "seq.t2.mute": number  // range 0..1, default 0, step 1, values 0=on 1=mute
 - "seq.t3.mute": number  // range 0..1, default 0, step 1, values 0=on 1=mute
+- "seq.t0.pan": number  // range -1..1, default 0
+- "seq.t1.pan": number  // range -1..1, default 0
+- "seq.t2.pan": number  // range -1..1, default 0
+- "seq.t3.pan": number  // range -1..1, default 0
 - "seq.solo": number  // range 0..1, default 0, step 1, values 0=off 1=solo
 - "seq.len": number  // range 0..16, default 0, step 1
 - "seq.rate": number  // range 0..8, default 2, step 1, values 0=1/32 1=1/16 T 2=1/16 3=1/8 T 4=1/16 D 5=1/8 6=1/4 T 7=1/8 D 8=1/4

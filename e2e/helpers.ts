@@ -76,8 +76,14 @@ export const sessionDisplay = (page: Page): Promise<string> =>
 
 /** Drag a knob upward (= increase) by its testid. */
 export async function dragKnobUp(page: Page, testid: string): Promise<void> {
-  const knob = page.getByTestId(testid);
-  await expect(knob).toBeVisible();
+  const root = page.getByTestId(testid);
+  await expect(root).toBeVisible();
+  // Drag the DIAL, which is where the component listens — not the root, whose
+  // centre is only over the dial by accident of the default column layout. An
+  // `inline` knob (sequencer.md REQ-the-pan-knob-costs-the-row-no-height) puts
+  // the label and the readout beside the dial, and a root-centred drag then
+  // starts on neither and silently does nothing.
+  const knob = root.locator('.knob-dial');
   // `toBeVisible` is satisfied by an element that is merely BELOW the fold, and
   // page.mouse works in viewport coordinates — so without this a knob pushed off
   // screen by a layout change makes the drag land on nothing and silently do

@@ -20,6 +20,15 @@ export interface KnobOptions {
    * pointer line and the readout still cover the whole registered range.
    */
   uiMax?: number;
+  /**
+   * Lay the control out as one **row** — label, dial, readout — instead of the
+   * default column. For a knob that has to live inside an existing control row
+   * without setting its height: a column knob is ~50px tall whatever `size` is,
+   * because the label and the readout stack above and below the dial, and four
+   * of those would have added ~104px to the sequencer's track grid
+   * (sequencer.md REQ-a-seq-track-carries-a-pan).
+   */
+  inline?: boolean;
 }
 
 const SWEEP_DEG = 280; // Knob sweeps from -140° to +140°
@@ -98,15 +107,25 @@ export class Knob {
     this.el.className = styles.root!;
     this.el.dataset.testid = `knob-${opts.paramId}`;
     if (opts.size) this.el.style.setProperty('--knob-size', `${opts.size}px`);
-
     const label = document.createElement('div');
     label.className = styles.label!;
     const labelText = opts.label ?? this.deriveLabel(opts.paramId);
     label.textContent = labelText;
     this.el.appendChild(label);
 
+    if (opts.inline) {
+      this.el.classList.add(styles.inline!);
+      // The text label is dropped on a narrow viewport (knob.module.css), so the
+      // name has to survive somewhere the pointer and a screen reader can reach.
+      this.el.title = labelText;
+    }
+
     const dial = document.createElement('div');
-    dial.className = styles.dial!;
+    // A global class alongside the module one, the `switch-label` idiom: the dial
+    // is where the drag actually lands, and with `inline` it is no longer at the
+    // root's centre — so a test (or anything else outside this module) needs a
+    // stable way to point at it. See src/ui/CLAUDE.md.
+    dial.className = `knob-dial ${styles.dial!}`;
 
     this.indicator = document.createElement('div');
     this.indicator.className = styles.indicator!;

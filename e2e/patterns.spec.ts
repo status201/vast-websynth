@@ -1,5 +1,5 @@
 import { test, expect } from '@playwright/test';
-import { gotoAndStart, busSet } from './helpers';
+import { gotoAndStart, busSet, busGet, dragKnobUp } from './helpers';
 // Import-free by design, so a spec can read it without pulling in the app —
 // see the header of src/state/song-version.ts.
 import { SONG_VERSION } from '../src/state/song-version';
@@ -447,6 +447,24 @@ test.describe('sequencer tracks', () => {
 
     await busSet(page, 'voicing.mode', 1); // poly
     await expect(page.getByTestId('seq-track-1')).toHaveAttribute('title', '');
+  });
+
+  test('every track row carries a PAN knob that writes its own param', async ({ page }) => {
+    await gotoAndStart(page);
+    await page.getByTestId('tab-seq').click();
+
+    // One per row, beside the mute (sequencer.md REQ-a-seq-track-carries-a-pan),
+    // and all four start centred — the no-op default a pre-v12 song relies on.
+    for (let t = 0; t < 4; t++) {
+      await expect(page.getByTestId(`knob-seq.t${t}.pan`)).toBeVisible();
+      expect(await busGet(page, `seq.t${t}.pan`)).toBe(0);
+    }
+
+    await dragKnobUp(page, 'knob-seq.t0.pan');
+    expect(await busGet(page, 'seq.t0.pan')).toBeGreaterThan(0);
+    // And only that one — a per-track control that moved its neighbours would be
+    // the whole feature broken.
+    expect(await busGet(page, 'seq.t1.pan')).toBe(0);
   });
 });
 

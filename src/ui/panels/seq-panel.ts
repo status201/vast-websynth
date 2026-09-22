@@ -9,6 +9,7 @@ import type { PatternUndo } from '../../state/pattern-undo';
 import type { UiBridge } from '../ui-bridge';
 import { createUndoButton } from '../components/undo-button';
 import { Switch } from '../components/switch';
+import { Knob } from '../components/knob';
 import { createButton } from '../components/button';
 import { StepButton } from '../components/step-button';
 import {
@@ -235,6 +236,15 @@ export function buildSeqPanel(
     const mute = new Switch(bus, `seq.t${t}.mute`, 'mute');
     mute.el.classList.add(styles.trackMute!);
     ctrls.appendChild(mute.el);
+
+    // Per-track pan, beside the mute because the two are the same kind of
+    // decision about a whole track (sequencer.md REQ-a-seq-track-carries-a-pan).
+    // A row-static paramId, so unlike the drum panel's cursor-driven strip this
+    // is built once and never rebuilt; range, centre detent and the L/C/R readout
+    // all come from the ParamDef, and the double-tap reset with them.
+    const pan = new Knob({ bus, paramId: `seq.t${t}.pan`, label: 'PAN', size: 22, inline: true });
+    pan.el.classList.add(styles.trackPan!);
+    ctrls.appendChild(pan.el);
     row.appendChild(ctrls);
 
     const body = document.createElement('div');

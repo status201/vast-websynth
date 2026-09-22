@@ -8,6 +8,52 @@
   touch-action: none;
 }
 
+/* One row instead of a column, so the control is as tall as its dial and can sit
+   inside an existing control row (sequencer.md REQ-a-seq-track-carries-a-pan).
+   The readout keeps a fixed width so the row does not twitch as the value goes
+   from "C" to "L100" mid-drag. */
+.inline {
+  flex-direction: row;
+  gap: 4px;
+  /* `.root` sizes a COLUMN: a width of one dial and a height with room for the
+     label above and the readout below. Both are wrong once the three sit in a
+     row — the width left the readout overhanging the element by 42px, painting
+     it over whatever stood to the right (here, the first step buttons), and the
+     min-height put back the row height this layout exists to save. */
+  width: auto;
+  min-height: 0;
+}
+
+/* `flex: none` on all three, and it is load-bearing on the DIAL: a flex item's
+   default is `shrink: 1`, so in a row that runs out of width the dial is the one
+   thing that collapses — and because its arc is an absolutely-positioned SVG it
+   goes on LOOKING right at 0px wide while the drag target it also is has nothing
+   left to hit. Caught by an e2e drag that moved nothing, not by the screenshot. */
+.inline .label,
+.inline .dial,
+.inline .num {
+  flex: none;
+}
+
+.inline .label {
+  letter-spacing: 0.06em;
+  white-space: nowrap;
+}
+
+.inline .num {
+  min-width: 26px;
+  text-align: left;
+}
+
+/* Below the app's tablet breakpoint the row it sits in is fighting a step grid
+   for every pixel, and the readout (C / L40 / R75) already says what the control
+   is — so the word goes and the dial + value stay. `title` carries the name for
+   a hover or a long-press. Paired with `seq.module.css`'s `.trackCtrls` width at
+   this same breakpoint — change one, change the other. */
+@media (max-width: 720px) {
+  .inline .label { display: none; }
+}
+
 .label {
   font-size: 9px;
   color: var(--text-dim);

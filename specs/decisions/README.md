@@ -38,6 +38,7 @@ the old one rather than rewriting it. An ADR's `status` is its own lifecycle —
 | [020](adr-020-remote-mcp-is-authless-and-read-only.md) | The public MCP endpoint is authless, read-only, and hand-rolled | accepted |
 | [021](adr-021-req-ids-are-slugs.md) | A REQ id is a slug, not a number | accepted |
 | [022](adr-022-bank-count-is-the-array-length.md) | A machine's bank count is its array length, not a stored field | accepted |
+| [023](adr-023-the-synth-channel-goes-stereo-on-demand.md) | The synth channel goes stereo on demand, and its level never depends on that | accepted |
 
 New ADRs copy [`_adr-template.md`](_adr-template.md) to `adr-NNN-<slug>.md`, numbered
 contiguously. Keep this index and the folder map in [`../README.md`](../README.md) in

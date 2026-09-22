@@ -3,7 +3,10 @@
 ```yaml
 id: sequencer
 status: implemented
-version: 11  # v11: REQ-tracks-two-to-four-collapse's fold moved into the shared lane-fold
+version: 12  # v12: REQ-a-seq-track-carries-a-pan — a PAN knob beside each track's mute. The four
+             #      tracks share one voice pool, so pan rides the note and is applied per
+             #      voice by a spread stage that is only in circuit off centre (ADR-023)
+             # v11: REQ-tracks-two-to-four-collapse's fold moved into the shared lane-fold
              #      component so motion's single-param lanes could use it. Same
              #      behaviour, same testids, same storage keys — the contract is
              #      unchanged and this bump only records where the code went
@@ -19,6 +22,8 @@ version: 11  # v11: REQ-tracks-two-to-four-collapse's fold moved into the shared
 owner: core
 related:
   - architecture
+  - lfo                        # REQ-track-pan-places-and-the-auto-pan-moves — the bus auto-pan it composes with
+  - voicing                    # REQ-two-tracks-on-one-pitch-share-a-pan — the shared pool's held-note map
   - transport
   - transport-position
   - step-settings
@@ -33,6 +38,10 @@ related:
 source:
   - src/audio/transport/sequencer.ts
   - src/audio/transport/scale-quantizer.ts   # REQ-the-transposed-note-is-then-quantized
+  - src/audio/transport/note-output.ts       # REQ-a-seq-track-carries-a-pan — the opts bag pan rides in
+  - src/audio/polyphony.ts                   # REQ-a-seq-track-carries-a-pan — threads pan to the picked voice
+  - src/audio/voice.ts                       # REQ-a-seq-track-carries-a-pan — the per-voice pan + spread stage
+  - src/audio/stereo.ts                      # REQ-a-seq-track-carries-a-pan — the forced up-mix (lfo.md REQ-the-auto-pan-reads-a-stereo-input)
   - src/state/patterns.ts
   - src/audio/engine.ts
   - src/ui/panels/seq-panel.ts
@@ -40,6 +49,10 @@ source:
   - src/ui/components/tabs.ts            # isVisible / onViewChange (REQ-step-input-arms-only-on-screen)
   - src/ui/components/collapse-toggle.ts # onChange, so a fold is a view change (REQ-step-input-arms-only-on-screen)
   - src/ui/components/lane-fold.ts       # the per-track fold itself (lane-fold.md)
+  - src/ui/components/knob.ts            # REQ-the-pan-knob-costs-the-row-no-height — the inline layout
+  - src/ui/styles/knob.module.css        # REQ-the-pan-knob-costs-the-row-no-height — its row rules + the 720px drop
+  - src/ui/styles/seq.module.css         # REQ-the-pan-knob-costs-the-row-no-height — the matching cluster width
+  - e2e/helpers.ts                       # REQ-the-pan-knob-costs-the-row-no-height — dragKnobUp aims at the dial
   - src/ui/components/bank-bar.ts        # setFollowing — the take is bank-pinned (REQ-a-take-is-bank-pinned)
 ```
 
@@ -240,6 +253,129 @@ and tracks 2–4 start empty and silent.
   of a 16th, so a step at 1/8 holds for twice as long; at the default rate the
   two numbers are identical. This closes the "Open questions" note below.
 
+### v12 — per-track pan
+
+- **REQ-a-seq-track-carries-a-pan** — **Each track carries a pan**
+  (`seq.t<i>.pan`, range `-1..1`, default `0` — centre, a no-op per
+  [ADR-006](../decisions/adr-006-no-op-param-defaults.md)), the same `ParamDef`
+  shape and the same `fmtPan` readout as `drum.t<i>.pan` and
+  `sampler.t<i>.pan`. It is a registered scalar, so it rides `bus.snapshot()` in
+  the flat `params` map and needs **no** `SongFile` version bump: every v1–v8
+  song and every preset lacking the key loads centred and sounds identical
+  ([ADR-007](../decisions/adr-007-songfile-additive-versioning.md)).
+
+  Unlike those two machines, the sequencer does **not** own a per-track channel
+  to hang a panner on: all four tracks call the track-agnostic
+  `SynthOutput.playNote` into one shared voice pool. The pan therefore **rides
+  the note** — `playNote(note, velocity, when, { pan, panGroup })` — and is
+  applied by a `StereoPannerNode` inside the voice that plays it, written at the
+  note's own start time. `panGroup` names the knob, so a voice keeps following it
+  while it sounds: turning a pan over a held or tied note moves that note rather
+  than waiting for the next one. Live keyboard, MIDI and the
+  [arpeggiator](arpeggiator.md) pass neither and stay centred. See
+  [ADR-023](../decisions/adr-023-the-synth-channel-goes-stereo-on-demand.md).
+
+- **REQ-panning-a-track-does-not-change-its-level** — **Panning is constant
+  power.** The voice panner is fed **mono**, which is what selects
+  `StereoPannerNode`'s equal-power `cos/sin` law; the panned edge then carries a
+  fixed `sqrt(2)` to undo that law's 3.01 dB centre dip, so centre delivers
+  exactly what the dry edge does and a hard-panned track keeps the power it had
+  centred. Measured over a demo pass: hard left moved the synth 4.55 dB across
+  the channels for **-0.19 dB** of total power.
+
+  Feeding the panner *stereo* instead — as `synthPan` deliberately is — is the
+  trap, and it was caught by rendering rather than by any test: a stereo input
+  selects the **fold** law, where hard left is `L + R` on one side, and the same
+  take gained **+1.34 dB** of mix power. The two nodes want opposite treatment
+  because they do opposite jobs: one *places* a mono source, the other *moves* an
+  already-stereo bus (lfo.md REQ-the-auto-pan-reads-a-stereo-input).
+
+- **REQ-the-spread-stage-engages-off-centre** — **The spread stage is only in
+  circuit while a track is off centre.** The synth voice path is 1-channel end to
+  end, and the insert chain upstream of the reverb is 1-channel with it
+  ([architecture](../architecture.md), [ADR-010](../decisions/adr-010-musical-stable-cheap-dsp.md)
+  *cheap*) — a per-voice panner ends that, because a `StereoPannerNode` always
+  outputs two channels. So each voice carries a dry edge and a panned edge, and
+  `Engine` splices the panned one in only while some `seq.t<i>.pan` is non-zero,
+  using the [true-bypass](../decisions/adr-012-true-bypass-disconnects.md) idiom:
+  reconnect *before* ramping on the way in; ramp, then disconnect after the
+  crossfade has settled on the way out. Disconnecting is the point — a channel
+  count follows *connections*, not gains, so an edge left attached at gain 0
+  would hold the chain at two channels and keep paying for them.
+
+  The crossfade is transparent by construction: at centre the panned edge
+  delivers `0.7071x * sqrt(2) = x` per channel
+  (REQ-panning-a-track-does-not-change-its-level) and the dry edge delivers the
+  same `x`, so the two paths are identical there and two complementary
+  `setTargetAtTime` ramps of equal time constant sum to the input the whole way
+  across. **A song that never pans therefore
+  keeps the pre-v12 graph, its mono inserts and its CPU exactly.** The graph is
+  never edited per note or per tick ([ADR-017](../decisions/adr-017-modulation-in-graph.md)),
+  and it cannot be edited per frame either: `seq.t<i>.pan` is a registered param,
+  so a [motion lane](motion-sequencer.md) can sweep it like any other, and a lane
+  crossing centre every frame must not tear the graph down and back up at frame
+  rate. It does not — engaging is idempotent while the edge is attached, and
+  disengaging only *schedules* the disconnect, which a re-engage cancels. A
+  sustained return to centre is therefore the only thing that drops it, and the
+  per-frame cost of an automated pan is eight ramps, the same shape as any other
+  per-voice param.
+
+- **REQ-track-pan-places-and-the-auto-pan-moves** — **Track pan places; the bus
+  auto-pan moves.** Per-track pan sits *upstream* of the insert chain and the LFO
+  `pan` destination's `synthPan` sits *downstream* of it ([lfo](lfo.md)
+  REQ-pan-sweeps-a-stereo-panner), so the two compose rather than compete: the
+  tracks are placed across the field and the sweep then moves that whole field.
+  Because `synthPan` reads a stereo input (lfo.md REQ-the-auto-pan-reads-a-stereo-input)
+  it applies the stereo law, which **folds** toward one side at the extremes
+  instead of rotating — a full-depth sweep collapses the spread at the ends of
+  its travel and restores it in the middle. Per-voice pan is **not** a
+  [mod-matrix](mod-matrix.md) destination and does not change
+  REQ-per-voice-sources-cannot-drive-bus-destinations: `synthPan` is still the
+  only bus-wide one.
+
+- **REQ-two-tracks-on-one-pitch-share-a-pan** — **Two tracks sounding the same
+  pitch share one pan, and the later one wins.** `Polyphony` keys held notes by
+  MIDI note number ([voicing](voicing.md)), so a second track playing a note the
+  first is already holding **re-triggers that voice** rather than taking one of
+  its own — there is one voice, so there is one pan. Tracks on different pitches
+  are unaffected, which is every ordinary chord or counter-line. This is recorded
+  rather than fixed: keying the held map per track would burn a voice per
+  duplicated pitch out of a pool of eight and rewrite the stealing invariant
+  ([voicing](voicing.md) REQ-a-stolen-voice-leaves-the-held-list) to spread a
+  unison that is better arranged an octave apart.
+
+  For the same reason a voice **stolen** between tracks takes the new track's pan
+  at the moment the new note starts — the pan is written at `when`, with the
+  short ramp every per-voice write uses, so the hand-off glides rather than
+  clicks.
+
+- **REQ-the-pan-knob-costs-the-row-no-height** — **The knob sits in the track
+  row without making it taller.** A `Knob` is a column — label above the dial,
+  readout below — and is ~50px tall whatever `size` says, so four of them would
+  have added ~104px to the track grid and pushed the panel's neighbours down.
+  `KnobOptions.inline` lays it out as a **row** instead (`PAN ( ) C`), which
+  leaves the row exactly as tall as the 32px step buttons already make it. It
+  costs width rather than height, so below the app's 720px breakpoint the word
+  `PAN` is dropped and the dial and its readout carry the control — the readout
+  already reads `C` / `L40` / `R75`, and `title` keeps the name reachable by
+  hover and by a screen reader. The cluster's width narrows at the same
+  breakpoint, and the two rules are commented as a pair.
+
+  The cluster's width stays a **constant** and must not become `auto`: the
+  [transport-position](transport-position.md) ruler's row wears the same
+  `.trackCtrls` class with entirely different content, so sizing to content puts
+  the ruler and the step grids on different left edges — measured 162px apart,
+  and seen only by `npm run e2e`.
+
+  Three traps this hit, all invisible to a screenshot and worth the record:
+  `.root` sizes a *column* — a fixed `width` of one dial and a `min-height` with
+  room for the stacked text — and in a row that width left the readout painting
+  42px over the first step buttons while the `min-height` put back the very row
+  height the layout exists to save. And a flex item shrinks by default, so the
+  **dial** collapsed to 0px wide while its absolutely-positioned arc went on
+  looking perfect, leaving the drag target with nothing to hit; an e2e drag that
+  moved nothing is what found it.
+
 ## Technical design
 
 ### Contract / public interface
@@ -249,6 +385,7 @@ StepSequencer:  # src/audio/transport/sequencer.ts
   setEnabled(on)
   setMuted(muted)        # DJ mute: stop triggering, keep advancing
   setTrackMuted(track, muted)   # v3, REQ-per-track-mute
+  setTrackPan(track, p)         # v12, REQ-a-seq-track-carries-a-pan — -1..1, rides the next note
   setPolyphonic(poly)           # v3, REQ-poly-voicing-gates-the-extra-tracks — gates tracks 2..4
   onStep(fn) / onNote(fn) -> unsubscribe      # playhead + note viz
   # onNote's releaseAt is the LAST sub-hit's gate end (v5) — same value
@@ -278,6 +415,19 @@ CollapseToggleOptions.onChange?(collapsed): void   # src/ui/components/collapse-
   # the bar-click trigger and expand() all report through it
 
 BankBar.setFollowing(on): void   # src/ui/components/bank-bar.ts — public (REQ-a-take-is-bank-pinned)
+
+SynthOutput (v12):     # src/audio/transport/note-output.ts
+  playNote(note, velocity, when?, opts?)   # opts.pan -1..1, REQ-a-seq-track-carries-a-pan
+  releaseNote(note, when?)
+  # opts is optional at every layer, so the arp and live keys stay centred
+  # unchanged
+
+Polyphony.playNote(note, velocity, when?, opts?)   # src/audio/polyphony.ts — threads opts.pan
+Voice (v12):           # src/audio/voice.ts
+  noteOn(note, velocity, when, opts?)   # opts.pan joins detuneCents/glide
+  connectTo(dest)                       # wires BOTH output edges (dry + panned)
+  setSpread(on)                         # REQ-the-spread-stage-engages-off-centre
+forceStereo(node)      # src/audio/stereo.ts — the 2-channel up-mix a panner needs
 ```
 
 ### Data shapes (registry)
@@ -285,6 +435,7 @@ BankBar.setFollowing(on): void   # src/ui/components/bank-bar.ts — public (REQ
 ```yaml
 seq.on:     { discrete, labels: [off, on], default: 0 }
 seq.t<i>.mute: { discrete, labels: [on, mute], default: 0 }   # v3, i = 0..3
+seq.t<i>.pan:  { range: -1..1, default: 0, format: fmtPan }   # v12, i = 0..3 (REQ-a-seq-track-carries-a-pan)
 seq.master: { range: 0..1, default: 1 }      # voice-bus volume (no-op default)
 seq.mute:   { discrete, labels: [on, mute], default: 0 }   # lane mixer (song-mode)
 seq.solo:   { discrete, labels: [off, solo], default: 0 }
@@ -297,6 +448,8 @@ seq.solo:   { discrete, labels: [off, solo], default: 0 }
 engine (subscribeParams):
   seq.on     -> this.seq.setEnabled(v >= 0.5)
   seq.master -> rampTo(voiceBus.gain, v)      # independent of mute
+  seq.t<i>.pan -> this.seq.setTrackPan(i, v)  # v12; Engine also holds the four
+    # values and drives voice.setSpread(some non-zero) (REQ-the-spread-stage-engages-off-centre)
   seq.mute/solo -> laneMixer.setMute/setSolo (-> seq.setMuted), see song-mode.md
 hit math: stepHits / rollProb (step-hits.ts); releases voice at gateEnd
 ui: src/ui/panels/seq-panel.ts (16 seq-step-<i> buttons + StepSettingsEditor)
@@ -436,6 +589,42 @@ Scenario: A chromatic key leaves every triggered note untouched (v7, REQ-the-tra
   When any step fires
   Then the note sounding is exactly the pre-v7 note
 # pinned by: tests/audio/transport/sequencer.test.ts
+
+Scenario: A track's pan reaches only that track's notes (v12, REQ-a-seq-track-carries-a-pan)
+  Given tracks 1 and 2 both hold notes on the same step at different pitches
+  When track 2 is panned hard right
+  Then track 2's note plays with pan 1 and track 1's with pan 0
+  And a live keyboard note played over them is still centred
+# pinned by: tests/audio/transport/sequencer.test.ts
+
+Scenario: An old song loads centred (v12, REQ-a-seq-track-carries-a-pan, back-compat)
+  Given a song file that predates the param and carries no seq.t<i>.pan key
+  When it loads
+  Then all four pans sit at 0 and the song sounds exactly as it did
+  And the spread stage never engages, so the graph is the pre-v12 one
+# pinned by: tests/state/params.test.ts, tests/audio/transport/sequencer.test.ts
+
+Scenario: The spread stage stays out of circuit while every track is centred (v12, REQ-the-spread-stage-engages-off-centre)
+  Given a fresh engine with all four pans at 0
+  Then no voice's panned edge is connected, and the insert chain is 1-channel
+  When one track is panned off centre
+  Then the panned edges connect and the pan takes effect
+  And returning every track to centre disconnects them again after the crossfade
+# pinned by: tests/audio/voice-spread.test.ts
+
+Scenario: The bus auto-pan moves the spread field rather than flattening it (v12, REQ-track-pan-places-and-the-auto-pan-moves)
+  Given track 1 panned left and track 2 panned right
+  When an LFO sweeps the `pan` destination
+  Then the pair moves together across the field, keeping its relative placement
+  And at the extremes of the sweep the image folds toward one side
+# pinned by: no automated test — verified by ear (ADR-010), specs/recipes/verify-audio-by-ear.md
+
+Scenario: Two tracks on one pitch collapse to one pan (v12, REQ-two-tracks-on-one-pitch-share-a-pan, known limit)
+  Given track 1 panned hard left and track 2 panned hard right
+  When both fire the SAME note on the same step
+  Then one voice sounds, carrying the pan of whichever track fired last
+  And nothing is dropped or doubled — this is the shared pool, documented not fixed
+# pinned by: tests/audio/transport/sequencer.test.ts
 ```
 
 ## Tests & verification
@@ -445,6 +634,21 @@ Scenario: A chromatic key leaves every triggered note untouched (v7, REQ-the-tra
   the bank pin), `tests/ui/tabs.test.ts` (`isVisible`/`onViewChange`),
   `tests/ui/collapse-toggle.test.ts` (`onChange`), `tests/ui/bank-bar.test.ts`
   (public `setFollowing`).
+- Per-track pan (v12): `tests/audio/transport/sequencer.test.ts` (the pan rides
+  the note), `tests/audio/voice-spread.test.ts` (the stage engages and
+  disconnects, and the hand-off to the voice pool), `tests/audio/engine-stereo.test.ts`
+  (the two channel-count rules and the adapter's arity),
+  `tests/state/params.test.ts` (registration + clamp), `e2e/patterns.spec.ts`
+  (a knob per row, writing only its own param).
+- **Per-track pan is a sound change, so the gate is listening, not the suite**
+  ([ADR-010](../decisions/adr-010-musical-stable-cheap-dsp.md),
+  [verify-audio-by-ear](../recipes/verify-audio-by-ear.md)). Three takes:
+  everything centred against a pre-v12 build (must be identical — that is the
+  whole claim of REQ-the-spread-stage-engages-off-centre), tracks spread hard
+  L/R, and the same pattern with an LFO on `pan`. Render Firefox too: this writes
+  an `AudioParam` at note-on and relies on channel up-mixing, and the engines
+  disagree on both. `audio-metrics` reads the **mono down-mix** and is blind to
+  exactly the damage this feature can do — check per channel.
 - `npm test` / `npm run e2e`.
 
 ## Open questions / future

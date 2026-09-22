@@ -1,5 +1,6 @@
 import { Voice } from './voice';
 import { assertIndex } from '../utils/array';
+import type { NoteOpts } from './transport/note-output';
 
 /**
  * Voice allocation + the "how it plays" voicing controls: poly/mono, unison
@@ -62,8 +63,12 @@ export class Polyphony {
   // ---------- Note handling ----------
 
   /** Play a note at the given audio time (defaults to now). */
-  playNote(note: number, velocity = 0.8, when?: number): void {
+  playNote(note: number, velocity = 0.8, when?: number, opts?: NoteOpts): void {
     const t = when ?? this.ctx.currentTime;
+    // Threaded straight through to every voice this note uses, unison copies
+    // included — a spread chord is still one track, in one place.
+    const pan = opts?.pan ?? 0;
+    const panGroup = opts?.panGroup;
     const count = Math.max(1, Math.min(this.unisonCount, this.voices.length));
     // Legato = glide only when another note is already sounding.
     const anySounding = this.heldNotes.size > 0;
@@ -80,7 +85,7 @@ export class Polyphony {
         // rather than by stealing. Evicting leaves exactly one entry: the
         // newest note.
         this.evictVoice(v);
-        v.noteOn(note, velocity, t, { detuneCents: this.unisonOffset(i, count), glide });
+        v.noteOn(note, velocity, t, { detuneCents: this.unisonOffset(i, count), glide, pan, panGroup });
         used.push(v);
       }
       this.heldNotes.set(note, used);
@@ -90,7 +95,7 @@ export class Polyphony {
     const existing = this.heldNotes.get(note);
     if (existing && existing.some((v) => v.state !== 'idle')) {
       for (let i = 0; i < existing.length; i++) {
-        existing[i]!.noteOn(note, velocity, t, { detuneCents: this.unisonOffset(i, existing.length), glide });
+        existing[i]!.noteOn(note, velocity, t, { detuneCents: this.unisonOffset(i, existing.length), glide, pan, panGroup });
       }
       return;
     }
@@ -102,10 +107,33 @@ export class Polyphony {
       // voice, and releasing that key sends noteOff to a voice now sounding
       // something else — audible as "let go of one key, a different note stops".
       this.evictVoice(v);
-      v.noteOn(note, velocity, t, { detuneCents: this.unisonOffset(i, count), glide });
+      v.noteOn(note, velocity, t, { detuneCents: this.unisonOffset(i, count), glide, pan, panGroup });
       used.push(v);
     }
     this.heldNotes.set(note, used);
+  }
+
+  /**
+   * A sequencer track's pan knob moved (sequencer.md REQ-a-seq-track-carries-a-pan).
+   * Every voice decides for itself whether it is sounding that track, so a knob
+   * turned over a held note moves it rather than waiting for the next one.
+   */
+  setGroupPan(group: number, pan: number): void {
+    for (const v of this.voices) v.setGroupPan(group, pan);
+  }
+
+  /**
+   * Engage or drop the per-voice spread stage across the whole pool
+   * (sequencer.md REQ-the-spread-stage-engages-off-centre). Both halves are
+   * pool-wide because the decision is: the panned edges are in circuit, or none
+   * of them are.
+   */
+  setSpread(on: boolean): void {
+    for (const v of this.voices) v.setSpread(on);
+  }
+
+  dropSpread(): void {
+    for (const v of this.voices) v.dropSpread();
   }
 
   /** Release a note at the given audio time (defaults to now). */
