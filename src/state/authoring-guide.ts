@@ -198,9 +198,10 @@ NOTES
 - There are TWO LFOs: "lfo.*" and "lfo2.*", same params, same destinations, both off by default
   ("lfo2.dest": 0 and "lfo2.amount": 0). Use the second for a slow pad movement under a faster first —
   e.g. "lfo.dest": 1 for a filter wobble plus "lfo2.dest": 5 for a drifting auto-pan.
-  Give them DIFFERENT destinations: the app itself won't let a player pick a destination the other LFO
-  holds. A file that puts both on one destination still loads and simply sums them (which is louder
-  modulation, not two movements) — except "lfo.dest": 4 (PWM), where LFO 1 wins and LFO 2 does nothing.
+  Prefer DIFFERENT destinations: two LFOs on one destination sum, which is louder modulation rather
+  than two movements — except "lfo.dest": 4 (PWM), where LFO 1 wins and LFO 2 does nothing. Sharing is
+  allowed, though: the app stopped blocking it once every route gained its own depth (lfo.md
+  REQ-destinations-are-no-longer-exclusive), and duplicates stay bounded.
   The mod wheel adds depth to LFO 1 only.
 - Use "prob" (< 1) for evolving hats/ghost notes, "ratchet" (2-4) for rolls, and "tie" + "mixer.glide"
   in Mono voicing ("voicing.mode": 0) for acid slides.

@@ -3,7 +3,10 @@
 ```yaml
 id: ai-prompt
 status: implemented
-version: 6   # v6: REQ-the-modal-offers-the-connector — the modal names the hosted MCP connector as the
+version: 7   # v7: the guide no longer tells agents the app blocks two LFOs sharing a
+             #     destination — that rule was removed in lfo.md v8, and this text ships
+             #     over the public MCP `get_song_format`
+             # v6: REQ-the-modal-offers-the-connector — the modal names the hosted MCP connector as the
              #     shorter route; the PROMPT TEXT deliberately does not
              # v5: REQ-the-params-table-is-generated — the worked example is the built-in "Mordor", renamed
              #     from "I Feel Love"
