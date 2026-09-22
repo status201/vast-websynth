@@ -3,7 +3,9 @@
 ```yaml
 id: architecture
 status: implemented
-version: 11  # v11: four more shared helpers, each replacing a verbatim copy —
+version: 12  # v12: the faceplate's panel builders leave app.ts for panels/synth-panels.ts
+             #      and panels/fx-rack.ts; `row`/`isCompact` move to ui/layout-helpers.ts
+             # v11: four more shared helpers, each replacing a verbatim copy —
              #      safeBarTicks, Arrangement.applyChain, WrappedEffect.quiesceParam,
              #      createDjButton; and the label lists derive from their counts
              # v10: typecheck also refuses unused locals and parameters
@@ -274,6 +276,21 @@ cancel that pins nothing; the two bugs that taught this are
 `ListenerSet` backs every `onStep`/`onNote`/`onFollowChange` hook (the four
 transport machines and `BankBar`), which had each open-coded the same
 `Set` + `add → return () => delete` pair.
+
+**`ui/app.ts` is the assembly, not the parts.** It had grown to 945 lines by
+keeping builders that never needed to be there: `buildMain` (the eight synth
+panels) and `buildFx` (the insert-effect rack) each take only the bus and return
+an element, reading none of the shell's closure state. They now live in
+`ui/panels/synth-panels.ts` and `ui/panels/fx-rack.ts`, and `app.ts` is 717
+lines. The two layout helpers they share — `row()` and `isCompact()` — moved to
+`ui/layout-helpers.ts` rather than being exported *from* `app.ts`, which would
+have pointed the panels back at the shell that composes them.
+
+What legitimately stays in `app.ts` is the `mountApp` assembly order, the
+late-bound `UiBridge` wiring, and the pattern row's keyboard/tab routing. The
+header, the play-button LED state machine and the scope chrome are still there
+and are the next candidates; they carry closure state, so moving them is a
+different kind of change from this one.
 
 The four machine tabs share their **chrome** through
 `ui/panels/step-panel-scaffold.ts` — composable helpers, not one template, since

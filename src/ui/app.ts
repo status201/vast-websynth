@@ -6,18 +6,11 @@ import type { XyPadStore } from '../state/xy-pad';
 import type { PatternUndo, UndoMachine } from '../state/pattern-undo';
 import type { UiBridge } from './ui-bridge';
 import type { SyncStatus } from '../audio/transport/sync/sync-types';
-import {
-  WAVE_LABELS, VOICING_LABELS, GLIDE_MODE_LABELS, FILTER_MODEL_LABELS,
-} from '../state/params';
+import { VOICING_LABELS } from '../state/params';
 import { Knob } from './components/knob';
-import { Switch } from './components/switch';
 import { Segmented } from './components/segmented';
 import { MeterPicker } from './components/meter-picker';
-import { WAVE_ICONS } from './components/wave-icons';
 import { HEADER_ICONS } from './components/header-icons';
-import { fxPatchDecoration } from './components/fx-patch-decoration';
-import { createPanel } from './components/panel';
-import { createCollapseToggle } from './components/collapse-toggle';
 import { Strip } from './components/strip';
 import { Scope } from './components/scope';
 import { ResizeHandle } from './components/resize-handle';
@@ -28,7 +21,6 @@ import {
 import { Keyboard } from './components/keyboard';
 import { onKeyChange, readKeyState } from './key-roles';
 import { TabContainer } from './components/tabs';
-import { createSectionTitle } from './components/section-title';
 import {
   ARP_TAB, KEY_TAB, MACHINE_IDS, MACHINE_TAB,
   readArpStatus, readKeyStatus, readMachineStatus,
@@ -49,6 +41,9 @@ import { PERF_PROFILES, resolveTier, type PerfTier } from '../state/perf-mode';
 import { createOnboarding, type Onboarding } from './onboarding';
 import type { TourCtx } from './onboarding/tour';
 import styles from './styles/layout.module.css';
+import { isCompact } from './layout-helpers';
+import { buildMain } from './panels/synth-panels';
+import { buildFx } from './panels/fx-rack';
 import { UI_ICONS } from './components/ui-icons';
 import { setScopeStatsSource } from '../state/debug-sources';
 import { Presets } from '../state/preset';
@@ -83,7 +78,6 @@ import type { MachinePanel } from './panels/step-panel-scaffold';
 import { buildMotionPanel } from './panels/motion-panel';
 import { buildSongPanel } from './panels/song-panel';
 import { buildEqPanel } from './panels/eq-panel';
-import { buildLfoPanel } from './panels/lfo-panel';
 import { createXyPadWindowController } from './components/xy-pad-window';
 import { createModMatrixWindowController } from './components/mod-matrix-window';
 import { createEffectiveXy } from '../state/xy-effective';
@@ -94,7 +88,6 @@ import { createEffectiveXy } from '../state/xy-effective';
  * scrolling; an explicit user toggle is remembered and overrides this.
  * Evaluated once at mount (no resize re-mount in this app).
  */
-const isCompact = (): boolean => window.matchMedia('(max-width: 1280px)').matches;
 
 /** True on phone-sized viewports — keyboard drops to 2 octaves so the keys
  *  stay large enough to play. */
@@ -174,7 +167,6 @@ export function mountApp(
 
 /** The faceplate panel shell now lives in `components/panel.ts`, so a tabbed
  *  panel can share it (panel-tabs.md REQ-panel-and-tabbed-panel-share-a-box). Same signature, same call sites. */
-const panel = createPanel;
 
 function buildHeader(
   engine: StudioApi, bus: ParamBus, bridge: UiBridge, onboarding: Onboarding, session: PresetSession,
@@ -565,220 +557,6 @@ function buildPatternRow(
   return { el: tabs.el, loadDemo: song.loadDemo, importSongBytes: song.importBytes };
 }
 
-function buildMain(bus: ParamBus): HTMLElement {
-  const main = document.createElement('div');
-  main.className = styles.main!;
-
-  main.appendChild(panel('OSC 1', (b) => {
-    b.appendChild(new Segmented(bus, 'osc1.wave', WAVE_LABELS, WAVE_ICONS).el);
-    b.appendChild(row([
-      new Knob({ bus, paramId: 'osc1.octave', label: 'OCT' }).el,
-      new Knob({ bus, paramId: 'osc1.detune', label: 'TUNE' }).el,
-      new Knob({ bus, paramId: 'osc1.level', label: 'LEVEL' }).el,
-    ], styles.spread!));
-    b.appendChild(pulseWidthRow(bus, 'osc1'));
-  }, 'oscillators'));
-
-  main.appendChild(panel('OSC 2', (b) => {
-    b.appendChild(new Segmented(bus, 'osc2.wave', WAVE_LABELS, WAVE_ICONS).el);
-    b.appendChild(row([
-      new Knob({ bus, paramId: 'osc2.octave', label: 'OCT' }).el,
-      new Knob({ bus, paramId: 'osc2.detune', label: 'TUNE' }).el,
-      new Knob({ bus, paramId: 'osc2.level', label: 'LEVEL' }).el,
-    ], styles.spread!));
-    b.appendChild(pulseWidthRow(bus, 'osc2'));
-  }));
-
-  main.appendChild(panel('SUB / UNI', (b) => {
-    b.appendChild(new Segmented(bus, 'sub.wave', WAVE_LABELS, WAVE_ICONS).el);
-    // One .quad grid: 2x2 above 1280px, a single row on wider tablet panels.
-    b.appendChild(row([
-      new Knob({ bus, paramId: 'sub.octave', label: 'S.OCT' }).el,
-      new Knob({ bus, paramId: 'sub.level', label: 'S.LVL' }).el,
-      new Knob({ bus, paramId: 'unison.voices', label: 'UNISON' }).el,
-      new Knob({ bus, paramId: 'unison.detune', label: 'SPREAD' }).el,
-    ], styles.quad!));
-  }, 'subuni'));
-
-  main.appendChild(panel('MIXER', (b) => {
-    b.appendChild(row([
-      new Knob({ bus, paramId: 'mixer.noise', label: 'NOISE' }).el,
-      new Knob({ bus, paramId: 'mixer.glide', label: 'GLIDE' }).el,
-      new Knob({ bus, paramId: 'analog.drift', label: 'DRIFT' }).el,
-    ], styles.spread!));
-    b.appendChild(new Segmented(bus, 'glide.mode', GLIDE_MODE_LABELS).el);
-  }, 'mixer'));
-
-  main.appendChild(panel('FILTER', (b) => {
-    b.appendChild(new Segmented(bus, 'filter.model', FILTER_MODEL_LABELS).el);
-    // One .hex grid: 3x2 above 1280px, a single row on wider tablet panels.
-    // Row 1 shapes the tone, row 2 drives and modulates it.
-    const shape = new Knob({ bus, paramId: 'filter.shape', label: 'SHAPE' });
-    b.appendChild(row([
-      new Knob({ bus, paramId: 'filter.cutoff', label: 'CUTOFF' }).el,
-      new Knob({ bus, paramId: 'filter.resonance', label: 'RESO' }).el,
-      shape.el,
-      new Knob({ bus, paramId: 'filter.drive', label: 'DRIVE' }).el,
-      new Knob({ bus, paramId: 'filter.envAmount', label: 'ENV' }).el,
-      new Knob({ bus, paramId: 'filter.keytrack', label: 'KEYTRK' }).el,
-    ], styles.hex!));
-    // SHAPE belongs to POLY — the ladder's saturated taps cannot make a clean
-    // high-pass, so the worklet ignores it there (filter-models.md REQ-shape-is-poly-only). Dim
-    // rather than hide: the control keeps its place, so the switch reads as
-    // "this model has more to offer", not as a jumping layout (ADR-014).
-    bus.subscribe('filter.model', (m) => shape.setDisabled(Math.round(m) === 0));
-  }, 'filter'));
-
-  main.appendChild(panel('AMP ENV', (b) => {
-    b.appendChild(row([
-      new Knob({ bus, paramId: 'env.amp.attack', label: 'A' }).el,
-      new Knob({ bus, paramId: 'env.amp.decay', label: 'D' }).el,
-      new Knob({ bus, paramId: 'env.amp.sustain', label: 'S' }).el,
-      new Knob({ bus, paramId: 'env.amp.release', label: 'R' }).el,
-    ], styles.quad!));
-  }, 'ampenv'));
-
-  main.appendChild(panel('FILTER ENV', (b) => {
-    // VEL sits with the filter envelope, not on the FILTER panel, because it
-    // scales *this* envelope's depth (envelopes.md REQ-filter-env-follows-velocity) — the same pairing
-    // hardware uses. At its default 0 it does nothing, so the panel reads
-    // exactly as it did until someone reaches for it.
-    b.appendChild(row([
-      new Knob({ bus, paramId: 'env.fil.attack', label: 'A' }).el,
-      new Knob({ bus, paramId: 'env.fil.decay', label: 'D' }).el,
-      new Knob({ bus, paramId: 'env.fil.sustain', label: 'S' }).el,
-      new Knob({ bus, paramId: 'env.fil.release', label: 'R' }).el,
-      new Knob({ bus, paramId: 'filter.velAmount', label: 'VEL' }).el,
-    ], styles.quint!));
-  }, 'filterenv'));
-
-  // Two LFOs behind a tab strip, so the pair costs one grid column, not two
-  // (lfo.md REQ-the-two-lfos-share-one-panel). Its own module — see the note there.
-  main.appendChild(buildLfoPanel(bus));
-
-  return main;
-}
-
-const SQUARE_WAVE = WAVE_LABELS.indexOf('square');
-
-/**
- * The pulse-width knob, shown only while that oscillator is on `square` —
- * width is meaningless for the other waveforms (oscillators.md REQ-oscillators-have-a-pulse-width).
- *
- * It gets its own row rather than joining the 3-knob `.spread` row above: a
- * fourth knob there would flex-wrap 3+1, which is the exact layout `.quad`
- * exists to prevent (responsive-synth-panels.md).
- */
-function pulseWidthRow(bus: ParamBus, osc: 'osc1' | 'osc2'): HTMLElement {
-  const el = row([new Knob({ bus, paramId: `${osc}.pulseWidth`, label: 'WIDTH' }).el]);
-  // `subscribe` fires immediately, so the initial visibility is correct.
-  bus.subscribe(`${osc}.wave`, (w) => {
-    el.style.display = Math.round(w) === SQUARE_WAVE ? '' : 'none';
-  });
-  return el;
-}
-
-
-function buildFx(bus: ParamBus): { el: HTMLElement; expand: () => void } {
-  const section = document.createElement('div');
-  section.className = styles.fxSection!;
-  section.dataset.testid = 'fx';
-
-  const bar = document.createElement('div');
-  bar.className = styles.fxSectionBar!;
-  // The same heading the tabbed sections wear (section-title.md REQ-one-component-draws-every-heading).
-  bar.appendChild(createSectionTitle({ text: 'FX', icon: 'waveBurst' }));
-  const collapse = createCollapseToggle(section, 'websynth.ui.collapsed.fx', {
-    defaultCollapsed: isCompact,
-    trigger: bar, // whole FX bar toggles, not just the chevron
-  });
-  bar.appendChild(collapse.el);
-  section.appendChild(bar);
-
-  const fx = document.createElement('div');
-  fx.className = styles.fxRow!;
-
-  fx.appendChild(fxPanel('Distortion', bus, 'fx.dist.on', [
-    { id: 'fx.dist.drive', label: 'DRIVE' },
-    { id: 'fx.dist.tone', label: 'TONE' },
-    { id: 'fx.dist.mix', label: 'MIX' },
-  ], 'fx.dist'));
-
-  fx.appendChild(fxPanel('Wah', bus, 'fx.wah.on', [
-    { id: 'fx.wah.rate', label: 'RATE' },
-    { id: 'fx.wah.depth', label: 'DEPTH' },
-    { id: 'fx.wah.q', label: 'Q' },
-  ], 'fx.wah'));
-
-  fx.appendChild(fxPanel('Phaser', bus, 'fx.phaser.on', [
-    { id: 'fx.phaser.rate', label: 'RATE' },
-    { id: 'fx.phaser.depth', label: 'DEPTH' },
-    { id: 'fx.phaser.feedback', label: 'FB' },
-    { id: 'fx.phaser.mix', label: 'MIX' },
-  ], 'fx.phaser'));
-
-  fx.appendChild(fxPanel('Delay', bus, 'fx.delay.on', [
-    { id: 'fx.delay.time', label: 'TIME' },
-    { id: 'fx.delay.feedback', label: 'FB' },
-    { id: 'fx.delay.mix', label: 'MIX' },
-  ], 'fx.delay'));
-
-  fx.appendChild(fxPanel('Reverb', bus, 'fx.reverb.on', [
-    { id: 'fx.reverb.size', label: 'SIZE' },
-    { id: 'fx.reverb.damp', label: 'DAMP' },
-    { id: 'fx.reverb.mix', label: 'MIX' },
-  ], 'fx.reverb'));
-
-  // Last in the rack because it is last in the chain (sidechain-ducking.md
-  // REQ-the-ducker-is-last-in-the-chain/REQ-ducking-adds-no-new-gesture): SRC is a discrete knob over the drum lanes + Any, the same
-  // shape as the drum compressor's RATIO.
-  fx.appendChild(fxPanel('Duck', bus, 'fx.duck.on', [
-    { id: 'fx.duck.amount', label: 'AMT' },
-    { id: 'fx.duck.attack', label: 'ATK' },
-    { id: 'fx.duck.release', label: 'REL' },
-    { id: 'fx.duck.src', label: 'SRC' },
-  ], 'fx.duck'));
-
-  // An odd effect count in the ≤992px 2-column grid leaves one cell empty; fill
-  // it with the unpatched-cable scenery (fx-patch-decoration.md). Parity-keyed,
-  // so the six effects shipping today drop it rather than push it onto a row of
-  // its own — a seventh would bring it back with no change here.
-  if (fx.childElementCount % 2 === 1) fx.appendChild(fxPatchDecoration());
-
-  section.appendChild(fx);
-  return { el: section, expand: collapse.expand };
-}
-
-function fxPanel(
-  title: string,
-  bus: ParamBus,
-  onParam: string,
-  knobs: Array<{ id: string; label: string }>,
-  helpId: string,
-): HTMLElement {
-  const el = document.createElement('div');
-  el.className = styles.fxPanel!;
-
-  const header = document.createElement('div');
-  header.className = styles.fxHeader!;
-  const t = document.createElement('div');
-  t.className = styles.fxTitle!;
-  t.textContent = title;
-  t.dataset.help = helpId;
-  header.appendChild(t);
-  header.appendChild(new Switch(bus, onParam, 'on').el);
-  el.appendChild(header);
-
-  const knobsEl = document.createElement('div');
-  knobsEl.className = styles.fxKnobs!;
-  for (const k of knobs) {
-    knobsEl.appendChild(new Knob({ bus, paramId: k.id, label: k.label }).el);
-  }
-  el.appendChild(knobsEl);
-
-  return el;
-}
-
 function buildBottom(
   engine: StudioApi, bus: ParamBus, bridge: UiBridge,
 ): { el: HTMLElement; scope: Scope; scopeResize: ResizeHandle } {
@@ -937,9 +715,3 @@ function buildBottom(
   return { el: bottom, scope, scopeResize };
 }
 
-function row(children: HTMLElement[], extraClass?: string): HTMLElement {
-  const r = document.createElement('div');
-  r.className = extraClass ? `${styles.panelRow!} ${extraClass}` : styles.panelRow!;
-  for (const c of children) r.appendChild(c);
-  return r;
-}
