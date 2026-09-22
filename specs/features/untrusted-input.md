@@ -3,7 +3,9 @@
 ```yaml
 id: untrusted-input
 status: implemented
-version: 6   # v6: REQ-a-slot-name-cannot-reach-the-index — a slot called "index" landed ON the
+version: 7   # v7: REQ-the-limits-are-one-module gains MAX_RATCHET, and the CANONICAL
+             #     schema's numbers are pinned to limits.ts like the author one's already were
+             # v6: REQ-a-slot-name-cannot-reach-the-index — a slot called "index" landed ON the
              #     name index and emptied the user's saved list; and
              #     REQ-reserved-keys-are-refused closes its own recorded gap — checkKeys is
              #     shared and reaches the motion cells and both preset paths
@@ -110,6 +112,22 @@ decision and the alternatives. This spec is the contract.
   and (for `isObject`) `paste-payload.ts`. `isObject` in particular is a security
   predicate — it is what REQ-reserved-keys-are-refused's reserved-key check and every shape check are built
   on — and four copies is four chances for them to drift apart silently.
+
+  **(v7) `MAX_RATCHET` joins them**, for the same reason `MICRO_MAX` is there:
+  it is the other per-step integer bound, and `4` was written out in the
+  canonical validator, in the dialect's coercing twin, in the editor's button
+  loop and in the published JSON schema — four places, three languages, one
+  rule. The *minimum* stays a literal `1`, which is what a step is rather than
+  something tunable.
+
+  **The published schema is pinned to this module too.** The *author* schema's
+  structural constants already were; the **canonical** one had only its version
+  enum and its field names checked, so its numbers could drift freely. Raising a
+  bound here would have left `public/schema/websynth-song.schema.json` rejecting
+  files the runtime accepts, with every test green — the same silent-drift
+  failure the version pin exists to prevent. `tests/state/authoring-docs.test.ts`
+  now walks the schema for `ratchet`, `micro`, `note` and `seqTranspose` and
+  checks each against its constant.
 
   What is **not** shared: `checkUnit` and `checkRatchet` exist in both
   `song-validate.ts` and `song-author.ts` under the same names with **different

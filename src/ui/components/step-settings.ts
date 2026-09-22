@@ -1,7 +1,7 @@
 import switchStyles from '../styles/switch.module.css';
 import styles from '../styles/step-settings.module.css';
 import type { StepSettings, TriggerCell } from '../../state/patterns';
-import { MICRO_MAX, MICRO_UNITS } from '../../state/limits';
+import { MICRO_MAX, MICRO_UNITS, MAX_RATCHET} from '../../state/limits';
 import { createButton } from './button';
 import type { StepButton } from './step-button';
 import { plural } from '../../utils/format';
@@ -72,7 +72,7 @@ export class StepSettingsEditor {
     ratchetLabel.textContent = 'Ratchet';
     ratchetCtrl.appendChild(ratchetLabel);
     const ratchetBtns: HTMLButtonElement[] = [];
-    for (let n = 1; n <= 4; n++) {
+    for (let n = 1; n <= MAX_RATCHET; n++) {
       const b = document.createElement('button');
       b.className = switchStyles.root!;
       b.textContent = String(n);

@@ -31,8 +31,7 @@ import {
 } from './validate-utils';
 import {
   MAX_CHAIN_STEPS, MAX_CHAIN_TRANSPOSE, MAX_PARAM_KEYS,
-  MICRO_MAX, MIDI_NOTE_MIN, MIDI_NOTE_MAX,
-} from './limits';
+  MICRO_MAX, MIDI_NOTE_MIN, MIDI_NOTE_MAX, MAX_RATCHET} from './limits';
 
 export type SongValidation =
   | { ok: true; file: SongFile; warnings?: string[] }
@@ -102,8 +101,8 @@ function checkUnit(path: string, v: unknown, add: AddError): void {
 
 function checkRatchet(path: string, v: unknown, add: AddError): void {
   if (v === undefined) return;
-  if (typeof v !== 'number' || !Number.isInteger(v) || v < 1 || v > 4) {
-    add(`${path} must be an integer 1..4 (got ${describe(v)})`);
+  if (typeof v !== 'number' || !Number.isInteger(v) || v < 1 || v > MAX_RATCHET) {
+    add(`${path} must be an integer 1..${MAX_RATCHET} (got ${describe(v)})`);
   }
 }
 

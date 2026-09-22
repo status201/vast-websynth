@@ -34,7 +34,7 @@ import {
   highestChainBank,
 } from './patterns';
 import { validateSongFile, type SongValidation } from './song-validate';
-import { MAX_CHAIN_STEPS, MAX_CHAIN_DEPTH, MAX_CHAIN_TRANSPOSE, MICRO_MAX } from './limits';
+import { MAX_CHAIN_STEPS, MAX_CHAIN_DEPTH, MAX_CHAIN_TRANSPOSE, MICRO_MAX, MAX_RATCHET} from './limits';
 import {
   MAX_ERRORS, isObject, describeValue as describe, type AddError,
 } from './validate-utils';
@@ -137,8 +137,8 @@ function checkUnit(path: string, v: unknown, add: AddError): number | undefined 
 
 function checkRatchet(path: string, v: unknown, add: AddError): number | undefined {
   if (v === undefined) return undefined;
-  if (typeof v !== 'number' || !Number.isInteger(v) || v < 1 || v > 4) {
-    add(`${path} must be an integer 1..4 (got ${describe(v)})`);
+  if (typeof v !== 'number' || !Number.isInteger(v) || v < 1 || v > MAX_RATCHET) {
+    add(`${path} must be an integer 1..${MAX_RATCHET} (got ${describe(v)})`);
     return undefined;
   }
   return v;

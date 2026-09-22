@@ -4,6 +4,9 @@
 // Schema and llms.txt are static files, so these tests fail loudly if the
 // structural constants in patterns.ts ever change without them.
 import { describe, it, expect } from 'vitest';
+import {
+  MAX_RATCHET, MICRO_MAX, MAX_CHAIN_TRANSPOSE, MIDI_NOTE_MAX,
+} from '../../src/state/limits';
 import { readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import {
@@ -349,5 +352,63 @@ describe('llms.txt', () => {
     }
     // The version matrix must reach the version the app actually writes.
     expect(txt).toContain(`- v${SONG_VERSION} —`);
+  });
+});
+
+/**
+ * The CANONICAL schema's numeric bounds, pinned to `limits.ts`.
+ *
+ * The author schema's structural constants were already pinned above; the
+ * canonical one had only its version enum and its field *names* checked, so its
+ * numbers were free to drift. Raise `MICRO_MAX` or `MAX_CHAIN_TRANSPOSE` and
+ * the published schema would quietly start rejecting files the runtime accepts
+ * — with every test green, which is precisely the failure the version-enum pin
+ * was added to close (untrusted-input.md REQ-the-limits-are-one-module).
+ */
+describe('the canonical schema agrees with limits.ts', () => {
+  const schema = (): Record<string, any> =>
+    JSON.parse(read('schema/websynth-song.schema.json')) as Record<string, any>;
+
+  /** Walk the schema for every property of this name, wherever it is defined. */
+  const propsNamed = (node: unknown, name: string, out: Record<string, any>[] = []): Record<string, any>[] => {
+    if (!node || typeof node !== 'object') return out;
+    const o = node as Record<string, any>;
+    if (o.properties && o.properties[name]) out.push(o.properties[name]);
+    for (const v of Object.values(o)) propsNamed(v, name, out);
+    return out;
+  };
+
+  it('bounds ratchet at MAX_RATCHET', () => {
+    const found = propsNamed(schema(), 'ratchet');
+    expect(found.length).toBeGreaterThan(0);
+    for (const p of found) {
+      expect(p.minimum).toBe(1);
+      expect(p.maximum).toBe(MAX_RATCHET);
+    }
+  });
+
+  it('bounds micro at MICRO_MAX either way', () => {
+    const found = propsNamed(schema(), 'micro');
+    expect(found.length).toBeGreaterThan(0);
+    for (const p of found) {
+      expect(p.minimum).toBe(-MICRO_MAX);
+      expect(p.maximum).toBe(MICRO_MAX);
+    }
+  });
+
+  it('bounds a step note to the MIDI range', () => {
+    const found = propsNamed(schema(), 'note');
+    expect(found.length).toBeGreaterThan(0);
+    for (const p of found) expect(p.maximum).toBe(MIDI_NOTE_MAX);
+  });
+
+  it('bounds a slot transpose at MAX_CHAIN_TRANSPOSE', () => {
+    const found = propsNamed(schema(), 'seqTranspose');
+    expect(found.length).toBeGreaterThan(0);
+    for (const p of found) {
+      const items = p.items ?? p;
+      expect(items.minimum).toBe(-MAX_CHAIN_TRANSPOSE);
+      expect(items.maximum).toBe(MAX_CHAIN_TRANSPOSE);
+    }
   });
 });

@@ -105,6 +105,20 @@ export const MIDI_NOTE_MAX = 127;
 export const MICRO_UNITS = 24;
 
 /**
+ * Sub-hits within one step (step-settings.md). Four is the ceiling because the
+ * fifth would land on the next step's onset at the default lane rate, and
+ * because the row of ratchet buttons is drawn from this number.
+ *
+ * Here for the same reason as {@link MICRO_MAX}, the other per-step integer
+ * bound: it was a literal `4` in the canonical validator, in the dialect's
+ * coercing twin, in the editor's button loop and in the published JSON schema —
+ * four places to change, in three languages, for one rule
+ * (untrusted-input.md REQ-the-limits-are-one-module). The minimum stays a
+ * literal 1: "at least one hit" is what a step *is*, not a tunable.
+ */
+export const MAX_RATCHET = 4;
+
+/**
  * The bound on `micro`, in notches: half a cell either way (step-settings.md
  * REQ-micro-range-is-half-a-cell). Chosen because it is exactly the point at which a fully-late step and
  * the fully-early step after it *meet* rather than **cross** — which is what keeps
