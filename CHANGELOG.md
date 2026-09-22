@@ -54,6 +54,21 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
   failure during Play could leave the transport believing it was running with
   nothing driving it.
 
+### Performance
+
+- **The compressor costs ~2.6× less per sample.** Its two per-sample decibel
+  conversions were ~61% of the whole processor; they are the same arithmetic
+  written a faster way, and produce bit-identical output. You pay this whenever
+  either compressor is switched on.
+- **Auditioning a sample no longer re-scans it 60 times a second.** The sample
+  editor recomputed the entire waveform every animation frame just to move the
+  playhead — about 17% of a frame's budget for a 10-second clip and over half of
+  it for a 30-second one.
+- **Scrolling with the ⓘ badges on is ~2.4× cheaper.** Positioning the 86 badges
+  forced the browser to recompute layout once per badge instead of once in total.
+- **Recording allocates nothing per batch on the audio thread**, where a pause
+  for garbage collection is a dropout rather than a hitch.
+
 ### Security
 
 - **Reserved keys are refused on every import path.** `__proto__` and friends
