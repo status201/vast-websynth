@@ -155,9 +155,10 @@ versions 1..8 still load and there is no migration step. Each version added:
 - v8 — 4..8 banks per machine, and 2..4 motion lanes per bank
        (no new field: two existing dimensions widened)
 
-So a v1 file lacks all of the above; a v7 file lacks only the extra banks. Versions
-beyond those a build knows are rejected. The authoring dialect expands to the
-LOWEST canonical version that holds its content, not always 8.
+So a v1 file lacks all of the above; a v7 file lacks only the extra banks
+and motion lanes. Versions beyond those a build knows are rejected. The
+authoring dialect expands to the LOWEST canonical version that holds its
+content, not always 8.
 
 ## For developers
 

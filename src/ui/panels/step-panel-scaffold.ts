@@ -566,7 +566,7 @@ export interface ClearRow {
  * sample-persistence drop the stored clip without this caller knowing.
  *
  * `Clear bank` deliberately does none of it — `sampleNames` is per-slot and shared
- * by all four banks, so a bank-scoped eject would silently un-sound the same slots
+ * by every bank, so a bank-scoped eject would silently un-sound the same slots
  * in the banks the user is not looking at.
  *
  * Lives here rather than inside the panel closure so a unit test can reach it, and

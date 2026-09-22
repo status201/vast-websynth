@@ -88,7 +88,7 @@ export function buildSamplerPanel(
   header.appendChild(createUndoButton(undo, 'sampler'));
   // The row item is labelled with the slot's filename, so it removes the file
   // too — steps, name and buffer (sampler.md REQ-clear-ejects-the-slot). `Clear bank` stays
-  // step-only: names are shared by all four banks.
+  // step-only: names are shared by every bank.
   header.appendChild(clearMenuFor(engine, 'sampler', undo,
     () => [samplerSlotClearRow(engine, undo, cursor.selRow)]));
 
