@@ -49,6 +49,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 - **A song or preset called "index" no longer hides your saved list.** The name
   collided with the index of saved names, so saving one emptied the list; the
   songs themselves were never deleted.
+- **The song-format guide no longer misinforms AI tools.** It told them the app
+  prevents the two LFOs sharing a destination — a rule removed some versions
+  ago. That text is what the hosted MCP connector serves, so songs were being
+  written around a restriction that no longer exists.
 - **A throwing subscriber can no longer wedge the transport.** Play, Stop and
   seek now isolate their listeners the way the tick already did — previously a
   failure during Play could leave the transport believing it was running with

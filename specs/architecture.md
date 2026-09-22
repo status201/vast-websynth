@@ -3,8 +3,8 @@
 ```yaml
 id: architecture
 status: implemented
-version: 12  # v12: the faceplate's panel builders leave app.ts for panels/synth-panels.ts
-             #      and panels/fx-rack.ts; `row`/`isCompact` move to ui/layout-helpers.ts
+version: 12  # v12: app.ts's IMPORT ORDER is load-bearing for layout — recorded, because it
+             #      blocks the panel extraction that would otherwise be obvious
              # v11: four more shared helpers, each replacing a verbatim copy —
              #      safeBarTicks, Arrangement.applyChain, WrappedEffect.quiesceParam,
              #      createDjButton; and the label lists derive from their counts
@@ -277,20 +277,27 @@ cancel that pins nothing; the two bugs that taught this are
 transport machines and `BankBar`), which had each open-coded the same
 `Set` + `add → return () => delete` pair.
 
-**`ui/app.ts` is the assembly, not the parts.** It had grown to 945 lines by
-keeping builders that never needed to be there: `buildMain` (the eight synth
-panels) and `buildFx` (the insert-effect rack) each take only the bus and return
-an element, reading none of the shell's closure state. They now live in
-`ui/panels/synth-panels.ts` and `ui/panels/fx-rack.ts`, and `app.ts` is 717
-lines. The two layout helpers they share — `row()` and `isCompact()` — moved to
-`ui/layout-helpers.ts` rather than being exported *from* `app.ts`, which would
-have pointed the panels back at the shell that composes them.
+**`ui/app.ts` is 945 lines, and splitting it is blocked on its import order.**
+The obvious extraction is `buildMain` (the eight synth panels) and `buildFx`
+(the insert-effect rack): each takes only the bus, returns an element, and reads
+none of the shell's closure state. It was tried and **reverted**, because moving
+them takes their component imports with them — and **CSS Modules inject in
+import order**, so where an import sits in `app.ts` is part of the app's layout,
+not just its dependency graph.
 
-What legitimately stays in `app.ts` is the `mountApp` assembly order, the
-late-bound `UiBridge` wiring, and the pattern row's keyboard/tab routing. The
-header, the play-button LED state machine and the scope chrome are still there
-and are the next candidates; they carry closure state, so moving them is a
-different kind of change from this one.
+Moving the panels below `layout.module.css` made the **pattern row 71px
+taller**, which pushed the scope's centre out of the viewport and failed a hover
+assertion three files from anything edited. Moving them above `knob` instead
+un-hid the header's **hamburger on a wide screen**. There is no single position
+that reproduces the original cascade, because the moved code pulled six
+stylesheets that sat at six different points in the original list.
+
+None of this is visible to the type system or the unit suite: `tsc` passed and
+all 3,479 unit tests passed at every step. Only `npm run e2e` saw it. So the
+extraction is worth doing, but it is **a CSS-layering change first** — give the
+component styles an explicit order (a cascade layer, or one module that imports
+them in a fixed sequence) and the file split becomes the trivial part. Attempting
+it the other way round is how this was learned.
 
 The four machine tabs share their **chrome** through
 `ui/panels/step-panel-scaffold.ts` — composable helpers, not one template, since
