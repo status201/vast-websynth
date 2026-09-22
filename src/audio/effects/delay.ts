@@ -60,8 +60,7 @@ export class Delay extends WrappedEffect {
    */
   protected override quiesce(on: boolean): void {
     this.quiesced = on;
-    this.feedback.gain.cancelScheduledValues(this.ctx.currentTime);
-    this.feedback.gain.setValueAtTime(on ? 0 : this.fb, this.ctx.currentTime);
+    this.quiesceParam(this.feedback.gain, on, this.fb);
   }
 
   bind(bus: ParamBus, prefix: string): void {

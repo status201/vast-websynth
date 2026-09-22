@@ -1,6 +1,6 @@
 import type { Machine, PatternStore } from '../../state/patterns';
 import { REST, clampChainStep, clampTranspose } from '../../state/patterns';
-import { DEFAULT_BAR_TICKS } from '../../state/meter';
+import { DEFAULT_BAR_TICKS, safeBarTicks} from '../../state/meter';
 import type { TickSubscriber } from './tick-source';
 
 /**
@@ -185,58 +185,56 @@ export class Arrangement {
    * next boundary double-advances.
    */
   setBarTicks(ticks: number): void {
-    const n = Number.isFinite(ticks) ? Math.max(1, Math.round(ticks)) : DEFAULT_BAR_TICKS;
+    const n = safeBarTicks(ticks);
     if (n === this.barTicks) return;
     this.barTicks = n;
     this.seekTo(this.clock.step);
   }
 
-  setSeqChain(steps: number[], enabled: boolean, transpose?: number[]): void {
+  /**
+   * The body all four `set<Lane>Chain` methods share. They differed only in
+   * which lane they wrote, which position counter they reset, and whether a
+   * transpose came in — so the interesting line (and the warning above it) was
+   * written out four times, which is four places for it to stop agreeing.
+   *
+   * The position counters stay separate fields rather than becoming a map: they
+   * are read on the tick path and by four public getters, and moving them would
+   * be a change to the hot path for no benefit here. The caller passes a reset
+   * instead.
+   */
+  private applyChain(
+    name: LaneName,
+    lane: ChainLane,
+    steps: number[],
+    enabled: boolean,
+    transpose: number[] | undefined,
+    resetPos: () => void,
+  ): void {
     // NOT `steps.map(clampChainStep)` — Array.map passes the INDEX as the
     // second argument, which would silently become the bank bound.
-    const n = this.laneBankCount('seq');
-    this.seq.steps = steps.length ? steps.map((s) => clampChainStep(s, n)) : [0];
-    this.seq.transpose = fitTranspose(transpose ?? this.seq.transpose, this.seq.steps.length);
-    this.seq.enabled = enabled;
-    this.seqPos = 0;
+    const n = this.laneBankCount(name);
+    lane.steps = steps.length ? steps.map((s) => clampChainStep(s, n)) : [0];
+    lane.transpose = fitTranspose(transpose ?? lane.transpose, lane.steps.length);
+    lane.enabled = enabled;
+    resetPos();
     this.recompute();
     this.notify();
+  }
+
+  setSeqChain(steps: number[], enabled: boolean, transpose?: number[]): void {
+    this.applyChain('seq', this.seq, steps, enabled, transpose, () => { this.seqPos = 0; });
   }
 
   setDrumChain(steps: number[], enabled: boolean): void {
-    // NOT `steps.map(clampChainStep)` — Array.map passes the INDEX as the
-    // second argument, which would silently become the bank bound.
-    const n = this.laneBankCount('drum');
-    this.drum.steps = steps.length ? steps.map((s) => clampChainStep(s, n)) : [0];
-    this.drum.transpose = fitTranspose(this.drum.transpose, this.drum.steps.length);
-    this.drum.enabled = enabled;
-    this.drumPos = 0;
-    this.recompute();
-    this.notify();
+    this.applyChain('drum', this.drum, steps, enabled, undefined, () => { this.drumPos = 0; });
   }
 
   setSamplerChain(steps: number[], enabled: boolean): void {
-    // NOT `steps.map(clampChainStep)` — Array.map passes the INDEX as the
-    // second argument, which would silently become the bank bound.
-    const n = this.laneBankCount('sampler');
-    this.sampler.steps = steps.length ? steps.map((s) => clampChainStep(s, n)) : [0];
-    this.sampler.transpose = fitTranspose(this.sampler.transpose, this.sampler.steps.length);
-    this.sampler.enabled = enabled;
-    this.samplerPos = 0;
-    this.recompute();
-    this.notify();
+    this.applyChain('sampler', this.sampler, steps, enabled, undefined, () => { this.samplerPos = 0; });
   }
 
   setMotionChain(steps: number[], enabled: boolean): void {
-    // NOT `steps.map(clampChainStep)` — Array.map passes the INDEX as the
-    // second argument, which would silently become the bank bound.
-    const n = this.laneBankCount('motion');
-    this.motion.steps = steps.length ? steps.map((s) => clampChainStep(s, n)) : [0];
-    this.motion.transpose = fitTranspose(this.motion.transpose, this.motion.steps.length);
-    this.motion.enabled = enabled;
-    this.motionPos = 0;
-    this.recompute();
-    this.notify();
+    this.applyChain('motion', this.motion, steps, enabled, undefined, () => { this.motionPos = 0; });
   }
 
   onChange(fn: () => void): () => void {

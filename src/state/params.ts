@@ -243,7 +243,14 @@ export const UNISON_LABELS = ['off', '2', '3', '4'];
 export { NOTE_LABELS, SCALE_LABELS, CHORD_LABELS };
 export const ARP_PATTERN_LABELS = ['up', 'down', 'updn', 'rand', 'play'];
 export const ARP_RATE_LABELS = ['1/4', '1/8', '1/16', '1/32'];
-export const DRUM_TRACK_LABELS = ['Kick', 'Snare', 'C.Hat', 'O.Hat', 'L.Tom', 'M.Tom', 'H.Tom', 'Clap'];
+/**
+ * The drum track names, taken from `PatternStore`'s `DRUM_TRACKS` rather than
+ * written out again. The same eight strings used to live in both files — and
+ * this one already imported the other copy for `duck.src`, so a rename would
+ * have left the knob labels, the duck source list and the authoring guide
+ * disagreeing about what track 3 is called.
+ */
+export const DRUM_TRACK_LABELS: string[] = [...DRUM_TRACKS];
 // Selectable voice algorithms (drum-machine.md REQ-a-drum-tracks-algorithm-is-selectable). The first 8 are the
 // classic voices in track order — a track's default model is its own index —
 // and the order must match MODEL_BUILDERS in drum-machine.ts.

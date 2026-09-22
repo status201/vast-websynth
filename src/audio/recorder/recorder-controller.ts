@@ -1,7 +1,7 @@
 import type { Clock } from '../transport/clock';
 import type { Arrangement } from '../transport/arrangement';
 import type { CapturedAudio, RecorderNode } from './node';
-import { DEFAULT_BAR_TICKS } from '../../state/meter';
+import { DEFAULT_BAR_TICKS, safeBarTicks} from '../../state/meter';
 import { clamp } from '../../utils/math';
 import { encodeWav, encodeMp3, triggerDownload } from './encode';
 
@@ -62,7 +62,7 @@ export class RecorderController {
   private barTicks = DEFAULT_BAR_TICKS;
 
   setBarTicks(ticks: number): void {
-    this.barTicks = Number.isFinite(ticks) ? Math.max(1, Math.round(ticks)) : DEFAULT_BAR_TICKS;
+    this.barTicks = safeBarTicks(ticks);
   }
   /** The tail-grace timeout, so a cancel can disarm it. */
   private tailTimer: number | undefined;

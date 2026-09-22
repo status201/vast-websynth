@@ -6,8 +6,7 @@ import {
   cellOffsetTicks,
   cellsInTick,
   laneCells,
-  ticksPerCell,
-} from '../../state/meter';
+  ticksPerCell, safeBarTicks} from '../../state/meter';
 
 /** What a machine does with one cell that fell inside this tick. */
 export type LaneHitListener = (
@@ -54,7 +53,7 @@ export class LaneMeter {
   }
 
   setBarTicks(ticks: number): void {
-    this.bar = Number.isFinite(ticks) ? Math.max(1, Math.round(ticks)) : DEFAULT_BAR_TICKS;
+    this.bar = safeBarTicks(ticks);
   }
 
   /** How many grid cells this lane actually plays. */

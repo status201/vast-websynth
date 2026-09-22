@@ -108,6 +108,24 @@ export abstract class WrappedEffect implements Effect {
    * path is at zero by the time this runs, so there is nothing to hear a step in.
    */
   protected quiesce(_on: boolean): void { /* stateless by default */ }
+
+  /**
+   * The body every feedback effect's {@link quiesce} shares: pin the loop's
+   * gain to zero for the drain, and back to its held value on the way out.
+   *
+   * `Delay` and `Phaser` had this written out identically — same four lines,
+   * same anchored cancel — differing only in which `AudioParam` and which
+   * remembered value. That is one rule with two copies, and the rule is subtle
+   * enough to be worth stating once: the cancel is **anchored** by the
+   * `setValueAtTime` that follows it (architecture.md "Never cancel automation
+   * without anchoring it"), and the write is deliberately not ramped, because
+   * the wet path is already at zero and there is nothing to hear a step in.
+   */
+  protected quiesceParam(p: AudioParam, on: boolean, held: number): void {
+    const t = this.ctx.currentTime;
+    p.cancelScheduledValues(t);
+    p.setValueAtTime(on ? 0 : held, t);
+  }
 }
 
 /**

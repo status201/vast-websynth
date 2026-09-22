@@ -1,5 +1,5 @@
 import type { Clock } from './clock';
-import { DEFAULT_BAR_TICKS } from '../../state/meter';
+import { DEFAULT_BAR_TICKS, safeBarTicks} from '../../state/meter';
 import { type LoopRange, type TransportLoop, effectiveLoopRange, routeLoopStep } from './transport-loop';
 
 export interface LoopDriverDeps {
@@ -35,7 +35,7 @@ export class LoopDriver {
 
   /** The song's bar in ticks, pushed from `Engine.applyMeter` (REQ-loop-bars-are-the-songs-bars). */
   setBarTicks(ticks: number): void {
-    this.barTicks = Number.isFinite(ticks) ? Math.max(1, Math.round(ticks)) : DEFAULT_BAR_TICKS;
+    this.barTicks = safeBarTicks(ticks);
   }
 
   private readonly route = (next: number): number => {

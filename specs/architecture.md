@@ -3,7 +3,10 @@
 ```yaml
 id: architecture
 status: implemented
-version: 10  # v10: typecheck also refuses unused locals and parameters
+version: 11  # v11: four more shared helpers, each replacing a verbatim copy —
+             #      safeBarTicks, Arrangement.applyChain, WrappedEffect.quiesceParam,
+             #      createDjButton; and the label lists derive from their counts
+             # v10: typecheck also refuses unused locals and parameters
              # v9: the smoothing vocabulary is four constants and `rampTo` —
              #     the unused `rampCancelAndSet` / `RAMP_SLOW` are gone
              # v8: the audio graph gains a per-lane EQ at the HEAD of all
@@ -308,6 +311,35 @@ ticks-per-bar and columns-of-UI at once; `state/meter.ts` names the three apart
 of the first. New code says which one it means — and in the UI goes through
 `ui/lane-grid.ts`, so a grid, its ruler and its beat accents cannot disagree.
 See [ADR-019](decisions/adr-019-the-bar-is-a-tick-count.md).
+
+Four more helpers exist for the same reason — each replaced a body that had been
+written out verbatim more than once, where the copies agreed and the risk was
+that one day they would not:
+
+- **`safeBarTicks(ticks)`** (`state/meter.ts`) — `LaneMeter`, `Arrangement`,
+  `LoopDriver`, `RecorderController` and `BankRenderController` each clamped the
+  bar length by hand, identically. One number leaves `Engine.applyMeter()` and
+  reached five copies of one rule (ADR-019). Note the fallback is
+  `DEFAULT_BAR_TICKS`, not `1`: a one-tick bar would wrap every lane every tick.
+- **`Arrangement.applyChain(...)`** — the four `set<Lane>Chain` methods differed
+  only in which lane they wrote and which position counter they reset, so the
+  load-bearing warning above the clamp (*not* `steps.map(clampChainStep)`, since
+  `map` passes the index) was repeated four times. The position counters stay
+  separate fields: they are read on the tick path, and the caller passes a reset.
+- **`WrappedEffect.quiesceParam(p, on, held)`** — `Delay` and `Phaser` had the
+  same anchored cancel for their feedback loop. The subtlety worth stating once
+  is *why* it is anchored, and why it is not ramped.
+- **`createDjButton(label, testid)`** (`ui/components/button.ts`) — the transport
+  row and the LIVE FX row each had a private `djButton`. They looked different
+  and were not: both local aliases resolved to `song-panel.module.css`.
+
+The **label lists** follow the same rule as their counts: `SEQ_TRACK_LABELS` and
+`SAMPLER_SLOT_LABELS` are derived from `SEQ_TRACK_COUNT` / `SAMPLER_SLOT_COUNT`
+the way `MOTION_TRACK_LABELS` and `BANK_LABELS` already were, and
+`DRUM_TRACK_LABELS` is spread from `PatternStore`'s `DRUM_TRACKS` rather than
+retyped — `params.ts` already imported that array for `duck.src`, so a rename
+would have left the knob labels, the duck source list and the authoring guide
+disagreeing about what track 3 is called.
 
 Insert effects additionally share `bindBypassMix(bus, prefix, fx)`
 (`audio/effects/effect.ts`) — the `${prefix}.on` → `setBypass` and

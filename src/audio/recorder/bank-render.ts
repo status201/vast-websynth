@@ -1,6 +1,6 @@
 import type { Clock } from '../transport/clock';
 import type { CapturedAudio, RecorderNode } from './node';
-import { DEFAULT_BAR_TICKS } from '../../state/meter';
+import { DEFAULT_BAR_TICKS, safeBarTicks} from '../../state/meter';
 import { crop, fadeIn, fadeOut } from './buffer-dsp';
 
 /** Passes played per render: bar 1 primes delay/reverb/release tails, bar 2 is
@@ -53,7 +53,7 @@ export class BankRenderController {
   private barTicks = DEFAULT_BAR_TICKS;
 
   setBarTicks(ticks: number): void {
-    this.barTicks = Number.isFinite(ticks) ? Math.max(1, Math.round(ticks)) : DEFAULT_BAR_TICKS;
+    this.barTicks = safeBarTicks(ticks);
   }
 
   constructor(

@@ -1,7 +1,7 @@
 import type { StudioApi } from '../studio-api';
 import type { UiBridge } from '../ui-bridge';
 import { FloatingWindow } from './floating-window';
-import switchStyles from '../styles/switch.module.css';
+import { createDjButton } from './button';
 import songStyles from '../styles/song-panel.module.css';
 import styles from '../styles/transport-controls.module.css';
 import { UI_ICONS } from './ui-icons';
@@ -28,15 +28,6 @@ const AT_CLASS = 'playing';
  *  same reason as `playing`: E2E has nothing else to select past CSS Modules. */
 const LOOP_CLASS = 'loop';
 const ANCHOR_CLASS = 'loop-anchor';
-
-function djButton(label: string, testid: string): HTMLButtonElement {
-  const b = document.createElement('button');
-  b.type = 'button';
-  b.className = `${switchStyles.root!} ${songStyles.djBtn!}`;
-  b.textContent = label;
-  b.dataset.testid = testid;
-  return b;
-}
 
 /**
  * `[Play/Pause, |◀, bar.step, Loop, scrubber]` — the same set on both surfaces
@@ -67,7 +58,7 @@ export function buildTransportControls(
   // `-toggle`, not `-play`: the header's own Play button is `transport-play`,
   // and a default-prefixed instance minting a second one would break every
   // spec that drives the transport by that id.
-  const play = djButton('Play', `${p}-toggle`);
+  const play = createDjButton('Play', `${p}-toggle`);
   play.classList.add(styles.playPause!);
   play.addEventListener('click', () => {
     // Two outcomes, each named by the label the user just read
@@ -91,7 +82,7 @@ export function buildTransportControls(
 
   // Built empty, then drawn: `djButton` sets `textContent`, which would print
   // the SVG source rather than render it.
-  const toStart = djButton('', `${p}-tostart`);
+  const toStart = createDjButton('', `${p}-tostart`);
   toStart.innerHTML = UI_ICONS.toStart;
   toStart.title = 'Back to bar 1 (Home)';
   toStart.setAttribute('aria-label', 'Back to the start');
@@ -106,7 +97,7 @@ export function buildTransportControls(
   // Loop sits against the scrubber because that is where its picks land
   // (transport-window.md REQ-loop-lives-on-the-transport-row). Inert while seeking is refused: a wrap is a
   // seek, so an armable loop that cannot wrap would be a lie (transport-loop.md REQ-a-loop-that-cannot-jump-does-not).
-  const loopBtn = djButton('Loop', `${p}-loop`);
+  const loopBtn = createDjButton('Loop', `${p}-loop`);
   loopBtn.addEventListener('click', () => {
     if (engine.canSeek()) engine.loop.toggle();
   });
@@ -273,7 +264,7 @@ export function createTransportWindowLauncher(
   engine: StudioApi,
   bridge: UiBridge,
 ): HTMLButtonElement {
-  const b = djButton('TRANSPORT', 'transport-open');
+  const b = createDjButton('TRANSPORT', 'transport-open');
   // The "opens a new window" glyph, drawn rather than typed (iconography.md).
   // aria-hidden — the button's own aria-label carries the meaning.
   const glyph = document.createElement('span');

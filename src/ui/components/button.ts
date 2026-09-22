@@ -1,4 +1,5 @@
 import styles from '../styles/switch.module.css';
+import djStyles from '../styles/song-panel.module.css';
 
 /**
  * Shared button factory. Every button in the app is a switch-styled
@@ -85,4 +86,22 @@ export function setButtonLabel(btn: HTMLButtonElement, text: string): void {
 /** Swap an icon-only button's SVG (e.g. fullscreen expand ↔ compress). */
 export function setButtonIcon(btn: HTMLButtonElement, icon: string): void {
   btn.innerHTML = icon;
+}
+
+/**
+ * A DJ-row button: switch-styled, plus the song panel's `.djBtn`.
+ *
+ * The transport row and the LIVE FX row each had a private `djButton` of their
+ * own — identical bodies, and identical in effect too, since the two local
+ * aliases (`styles` there, `songStyles` here) both resolved to
+ * `song-panel.module.css`. Eight call sites between them, so the duplication
+ * was load-bearing rather than incidental.
+ */
+export function createDjButton(label: string, testid: string): HTMLButtonElement {
+  const b = document.createElement('button');
+  b.type = 'button';
+  b.className = `${styles.root!} ${djStyles.djBtn!}`;
+  b.textContent = label;
+  b.dataset.testid = testid;
+  return b;
 }

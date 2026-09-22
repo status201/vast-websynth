@@ -101,6 +101,23 @@ function clampInt(v: number, min: number, max: number): number {
   return Math.max(min, Math.min(max, Math.round(v)));
 }
 
+/**
+ * Sanitise a bar length arriving from outside `meter.ts`.
+ *
+ * Five modules take the same number from `Engine.applyMeter()` and each wrote
+ * this clamp out by hand — `LaneMeter`, `Arrangement`, `LoopDriver`,
+ * `RecorderController` and `BankRenderController`. They agreed, which is
+ * exactly the problem: one bar length reaching five copies of a rule is five
+ * chances for it to stop being one rule (ADR-019).
+ *
+ * Non-finite falls back to {@link DEFAULT_BAR_TICKS} rather than to 1, which is
+ * what the hand-written copies did and what callers depend on: a bar of 1 tick
+ * would make every lane wrap every tick, where 16 is merely the default meter.
+ */
+export function safeBarTicks(ticks: number): number {
+  return Number.isFinite(ticks) ? Math.max(1, Math.round(ticks)) : DEFAULT_BAR_TICKS;
+}
+
 /** Ticks per beat for a `transport.beatUnit` index. */
 export function ticksPerBeat(unitIdx: number): number {
   return BEAT_UNITS[clampInt(unitIdx, 0, BEAT_UNITS.length - 1)]!;

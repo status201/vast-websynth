@@ -183,13 +183,17 @@ export const SEQ_LENGTH = GRID_CELLS;
 /** Sequencer tracks per bank (sequencer.md REQ-four-tracks-per-bank). Track 0 is the pre-v3
  *  sequencer; 1..3 are the additions and only sound in poly voicing (REQ-song-file-v4-adds-motion-banks). */
 export const SEQ_TRACK_COUNT = 4;
-export const SEQ_TRACK_LABELS = ['1', '2', '3', '4'];
+/** Derived, for the reason {@link MOTION_TRACK_LABELS} gives. */
+export const SEQ_TRACK_LABELS: string[] =
+  Array.from({ length: SEQ_TRACK_COUNT }, (_, i) => String(i + 1));
 
 export const DRUM_TRACKS = ['Kick', 'Snare', 'C.Hat', 'O.Hat', 'L.Tom', 'M.Tom', 'H.Tom', 'Clap'] as const;
 export const DRUM_TRACK_COUNT = DRUM_TRACKS.length;
 
 export const SAMPLER_SLOT_COUNT = 8;
-export const SAMPLER_SLOT_LABELS = ['S1', 'S2', 'S3', 'S4', 'S5', 'S6', 'S7', 'S8'];
+/** Derived, for the reason {@link MOTION_TRACK_LABELS} gives. */
+export const SAMPLER_SLOT_LABELS: string[] =
+  Array.from({ length: SAMPLER_SLOT_COUNT }, (_, i) => `S${i + 1}`);
 
 /**
  * Bank counts (banks.md REQ-a-machine-owns-its-bank-count, ADR-022).

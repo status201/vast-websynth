@@ -5,6 +5,7 @@ import type { ModMatrixWindowController } from './mod-matrix-window';
 import { Knob } from './knob';
 import { FloatingWindow } from './floating-window';
 import switchStyles from '../styles/switch.module.css';
+import { createDjButton } from './button';
 import segmentedStyles from '../styles/segmented.module.css';
 import styles from '../styles/song-panel.module.css';
 import { UI_ICONS } from './ui-icons';
@@ -35,15 +36,6 @@ function momentary(label: string, on: () => void, off: () => void, testid: strin
 }
 
 /** A plain DJ-styled toggle button (used by the XY Pad / LIVE FX launchers). */
-function djButton(label: string, testid: string): HTMLButtonElement {
-  const b = document.createElement('button');
-  b.type = 'button';
-  b.className = `${switchStyles.root!} ${styles.djBtn!}`;
-  b.textContent = label;
-  b.dataset.testid = testid;
-  return b;
-}
-
 /**
  * Build the momentary DJ controls: `[Fill, Stutter(+size), Drop, Tape Stop]`.
  * `testIdPrefix` (default `'perf'`) namespaces every testid so a second instance
@@ -90,7 +82,7 @@ export function buildLiveFxControls(engine: StudioApi, opts: { testIdPrefix?: st
  * single window and all reflect its open state (`.on`).
  */
 export function xyPadLaunchButton(win: XyPadWindowController, testId: string): HTMLButtonElement {
-  const b = djButton('XY Pad', testId);
+  const b = createDjButton('XY Pad', testId);
   b.addEventListener('click', () => win.toggle());
   win.onChange((open) => b.classList.toggle('on', open));
   return b;
@@ -107,7 +99,7 @@ export function createLiveFxWindowLauncher(
   bus: ParamBus,
   xyWin: XyPadWindowController,
 ): HTMLButtonElement {
-  const b = djButton('LIVE FX', 'livefx-open');
+  const b = createDjButton('LIVE FX', 'livefx-open');
   // The "opens a new window" glyph, drawn rather than typed (iconography.md).
   // aria-hidden — the button's own aria-label carries the meaning.
   const glyph = document.createElement('span');
@@ -149,7 +141,7 @@ export function createLiveFxWindowLauncher(
 export function modMatrixLaunchButton(
   win: ModMatrixWindowController, testId: string,
 ): HTMLButtonElement {
-  const b = djButton('MOD', testId);
+  const b = createDjButton('MOD', testId);
   b.title = 'Modulation matrix';
   b.addEventListener('click', () => win.toggle());
   win.onChange((open) => b.classList.toggle('on', open));
