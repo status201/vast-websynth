@@ -6,6 +6,7 @@ import { formatParam } from '../format-param';
 import { modDepthDeps, modDepthFor, modOffsetFor, modSignFor } from '../../state/mod-depth';
 import { tempoLockFor } from '../../state/tempo-lock';
 import { createTempoLock, type TempoLock } from './tempo-lock';
+import { DOUBLE_TAP_MS } from './gesture-timing';
 
 export interface KnobOptions {
   bus: ParamBus;
@@ -485,7 +486,7 @@ export class Knob {
     (e.target as Element).setPointerCapture?.(e.pointerId);
 
     const now = performance.now();
-    if (now - this.lastTap < 300) {
+    if (now - this.lastTap < DOUBLE_TAP_MS) {
       // Reset to the active preset/song value if one set it, else the global
       // default (see specs/features/param-reset-baseline.md).
       this.opts.bus.reset(this.opts.paramId);

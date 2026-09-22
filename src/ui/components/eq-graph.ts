@@ -9,6 +9,7 @@ import {
 import { haloText } from './canvas-text';
 import { clamp } from '../../utils/math';
 import styles from '../styles/eq.module.css';
+import { DOUBLE_TAP_MS } from './gesture-timing';
 
 /**
  * The drawable EQ curve — `specs/features/equalizer.md` REQ-the-curve-is-drawn-by-dragging/REQ-the-graph-computes-from-bus-values/REQ-the-drawn-curve-is-exact.
@@ -56,7 +57,6 @@ const RESET_GRAB_PX = 26;
 
 /** Hand-rolled, because `dblclick` is unreliable on touch (the scratch graph's
  *  finding, and the same constant). */
-const DOUBLE_MS = 300;
 
 export interface EqGraphOpts {
   bus: ParamBus;
@@ -245,8 +245,8 @@ export class EqGraph {
     const { x, y } = this.posOf(e);
     const band = this.bandAtX(x);
 
-    const now = Date.now();
-    const isDouble = now - this.lastTapAt < DOUBLE_MS
+    const now = performance.now();
+    const isDouble = now - this.lastTapAt < DOUBLE_TAP_MS
       && this.lastTapBand === band
       && Math.abs(x - this.xForHz(EQ_BANDS[band]!.hz)) < RESET_GRAB_PX;
     this.lastTapAt = now;

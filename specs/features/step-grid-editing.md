@@ -3,7 +3,9 @@
 ```yaml
 id: step-grid-editing
 status: implemented
-version: 8   # v8: a CANCELLED pointer writes nothing — `pointercancel` was routed to the
+version: 9   # v9: the five hand-rolled double-tap windows live in one module, and the
+             #     two-tolerance divergence between them is recorded rather than hidden
+             # v8: a CANCELLED pointer writes nothing — `pointercancel` was routed to the
              #     release path, so an interrupted touch committed the tap it was
              #     still "pending" for (REQ-tap-toggles-a-step + the inventory's cancel row)
              # v7: cells past the lane's length are hidden, not dead (REQ-cells-past-the-lane-length-are-hidden)
@@ -257,6 +259,23 @@ step-1 artefact). "Trigger grids" = seq / drum / sampler.
 | `Clear ▾` → bank | clear the edit bank | clear the edit bank | — |
 | `Clear ▾` → row | clear the selected row | clear a named lane (XY/A/B) | — |
 | pointer **cancelled** (v8) | write nothing, drop the stroke | write nothing, drop the stroke | every drag in this app |
+
+**(v9) Double-tap is hand-rolled, and its window is not yet one number.**
+`dblclick` is unreliable on touch, so five controls time a double-tap off
+timestamps themselves — the knob, the EQ graph, the scratch graph, the resize
+handle and the motion pad. The numbers now live together in
+`ui/components/gesture-timing.ts`, which makes visible something that was
+scattered across five files: **there are two tolerances**, 300 ms and 350 ms,
+and which one you get depends on which control you tap. That is the sort of
+invisible state [ADR-014](../decisions/adr-014-dont-make-me-think.md)'s *one
+gesture, one outcome* argues against.
+
+It is left as two on purpose. Collapsing them changes how the app **feels**, and
+feel is not something to normalise quietly in a de-duplication pass — it wants
+someone at the controls. The same applies to the clock: three of the five read
+wall time, two have moved to the monotonic `performance.now()`, and the motion
+pad's is blocked on how its suite fakes time. Both are recorded in that module
+rather than papered over.
 
 `Clear ▾` → bank is also the way a bank becomes *removable*: the bank bar's `−`
 arm refuses while the highest bank still holds steps ([banks](banks.md)

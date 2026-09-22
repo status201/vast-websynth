@@ -1,6 +1,7 @@
 import type { MotionStep } from '../../state/patterns';
 import styles from '../styles/motion.module.css';
 import { clamp01 } from '../../utils/math';
+import { LONG_DOUBLE_TAP_MS } from './gesture-timing';
 
 /** Peek threshold, and the double-tap window it shares (motion-sequencer REQ-the-pad-write-is-deferred). */
 export const HOLD_MS = 350;
@@ -116,7 +117,7 @@ export class MotionStepPad {
       // Manual double-tap detection: dblclick is unreliable for touch, and we
       // want the clear to win over any set the first tap applied.
       const now = Date.now();
-      if (now - this.lastTapMs < HOLD_MS) {
+      if (now - this.lastTapMs < LONG_DOUBLE_TAP_MS) {
         this.lastTapMs = 0;
         this.endGesture();
         this.opts.onClear();

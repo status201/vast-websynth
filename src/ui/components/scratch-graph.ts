@@ -5,6 +5,7 @@ import {
   type ScratchCurve, type ScratchPoint,
 } from '../../audio/recorder/scratch-curve';
 import { MAX_SCRATCH_POINTS, MAX_SCRATCH_RATE } from '../../state/limits';
+import { DOUBLE_TAP_MS } from './gesture-timing';
 
 /**
  * The scratch editor's canvas (scratch.md REQ-the-graph-is-two-lanes-on-output-time/REQ-the-preview-lane-remaps-cached-peaks/REQ-the-scratch-gesture-inventory).
@@ -49,9 +50,6 @@ const GRAB_PX = 22;
 /** Drawn radius. Deliberately far smaller than the target — a 44 px dot would
  *  hide the curve it sits on. */
 const DOT_PX = 4;
-/** Two taps closer together than this are a double-tap. Matches `knob.ts`;
- *  `dblclick` is unreliable on touch, so it is hand-rolled off timestamps. */
-const DOUBLE_MS = 300;
 /** Sub-divisions of a sixteenth the horizontal drag snaps to (a 32nd). */
 const SNAP_DIV = 2;
 /**
@@ -246,8 +244,8 @@ export class ScratchGraph {
 
     const idx = this.hitPoint(x, y);
     if (idx >= 0) {
-      const now = Date.now();
-      if (idx === this.lastTapIdx && now - this.lastTapAt < DOUBLE_MS) {
+      const now = performance.now();
+      if (idx === this.lastTapIdx && now - this.lastTapAt < DOUBLE_TAP_MS) {
         e.preventDefault();
         this.lastTapAt = 0;
         this.lastTapIdx = -1;

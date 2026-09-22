@@ -1,4 +1,5 @@
 import styles from '../styles/resize-handle.module.css';
+import { LONG_DOUBLE_TAP_MS as DOUBLE_TAP_MS } from './gesture-timing';
 
 /**
  * A vertical resize handle — the ARIA window-splitter.
@@ -15,8 +16,6 @@ import styles from '../styles/resize-handle.module.css';
  * is its only consumer; a second one is what would earn it the promotion.
  */
 
-/** ms — hand-rolled double-tap window (`dblclick` is unreliable on touch). */
-const DOUBLE_TAP_MS = 350;
 
 export interface ResizeHandleOptions {
   /** Element the custom property is written on. */
