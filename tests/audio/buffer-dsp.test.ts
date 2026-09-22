@@ -8,6 +8,7 @@ import {
   fadeIn,
   fadeOut,
   computePeaks,
+  createPeakCache,
   peakDb,
   sliceEqual,
   sliceRanges,
@@ -272,5 +273,71 @@ describe('chopping', () => {
     const ranges = sliceRanges(0, a.left.length, sliceEqual(a, 4));
     const total = ranges.reduce((n, [s, e]) => n + crop(a, s, e).left.length, 0);
     expect(total).toBe(a.left.length);
+  });
+});
+
+/**
+ * runtime-performance.md REQ-immutable-artefacts-are-shared. The sample editor
+ * redraws its waveform once per animation frame while a preview plays, and
+ * `computePeaks` walks the WHOLE clip — so auditioning re-scanned the entire
+ * buffer 60 times a second to move a 1 px playhead: 2.8 ms a frame for a 10 s
+ * clip (17% of a 60 fps budget), 9.0 ms for a 30 s one (54%).
+ *
+ * The cache is keyed by buffer IDENTITY, which is only sound because every op
+ * in this module is pure — the tests below pin that too.
+ */
+describe('createPeakCache', () => {
+  const buf = (n: number, fill: number): CapturedAudio => ({
+    left: new Float32Array(n).fill(fill),
+    right: new Float32Array(n).fill(fill),
+    sampleRate: 48000,
+  });
+
+  it('returns the very same array for a repeated (buffer, width)', () => {
+    const peaks = createPeakCache();
+    const a = buf(1000, 0.5);
+    const first = peaks(a, 64);
+    expect(peaks(a, 64)).toBe(first);   // identity: nothing was recomputed
+    expect(peaks(a, 64)).toBe(first);
+  });
+
+  it('recomputes when the width changes', () => {
+    const peaks = createPeakCache();
+    const a = buf(1000, 0.5);
+    const at64 = peaks(a, 64);
+    const at32 = peaks(a, 32);
+    expect(at32).not.toBe(at64);
+    expect(at32).toHaveLength(64);       // 32 columns x (min, max)
+  });
+
+  it('recomputes when the buffer changes, and agrees with computePeaks', () => {
+    const peaks = createPeakCache();
+    const a = buf(1000, 0.25);
+    const b = buf(1000, 0.75);
+    peaks(a, 8);
+    const forB = peaks(b, 8);
+    expect(Array.from(forB)).toEqual(Array.from(computePeaks(b, 8)));
+  });
+
+  it('notices an edit, because every op here returns a new buffer', () => {
+    const peaks = createPeakCache();
+    const a = buf(1000, 0.5);
+    const before = Array.from(peaks(a, 8));
+
+    const louder = gain(a, 2); // a NEW object — this is what makes identity safe
+    expect(louder).not.toBe(a);
+    const after = Array.from(peaks(louder, 8));
+
+    expect(after).not.toEqual(before);
+    expect(after).toEqual(Array.from(computePeaks(louder, 8)));
+  });
+
+  it('holds only the latest entry, so alternating buffers always recompute', () => {
+    const peaks = createPeakCache();
+    const a = buf(500, 0.2);
+    const b = buf(500, 0.8);
+    const firstA = peaks(a, 16);
+    peaks(b, 16);
+    expect(peaks(a, 16)).not.toBe(firstA); // one entry, deliberately
   });
 });

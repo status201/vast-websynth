@@ -122,6 +122,43 @@ export function computePeaks(a: CapturedAudio, width: number): Float32Array {
   return out;
 }
 
+/**
+ * A one-entry memo for {@link computePeaks}, keyed by the buffer's **identity**
+ * and the column count.
+ *
+ * `computePeaks` walks the whole clip, and the sample editor redraws its
+ * waveform once per animation frame while a preview plays — so auditioning
+ * re-scanned the entire buffer 60 times a second just to move a 1 px playhead:
+ * 2.8 ms a frame for a 10 s clip (17% of a 60 fps budget), 9.0 ms for a 30 s
+ * one (54%). The peaks are a pure function of those two inputs and neither
+ * changes as the playhead moves
+ * (runtime-performance.md REQ-immutable-artefacts-are-shared).
+ *
+ * Identity is a sound key precisely because every operation in this module is
+ * **pure** — `crop`, `gain`, `normalize`, `reverse` and the fades all return a
+ * NEW `CapturedAudio` rather than writing through the one they were given — so
+ * an edit always produces a different object and cannot be missed. A cache
+ * keyed this way in a module whose ops mutated would serve a stale waveform.
+ *
+ * One entry, not a map: the editor shows one clip at a time, and a map would
+ * hold every intermediate edit's buffers alive for as long as the modal lived.
+ */
+export function createPeakCache(): (a: CapturedAudio, width: number) => Float32Array {
+  let lastBuf: CapturedAudio | null = null;
+  let lastWidth = -1;
+  // Typed off `computePeaks` itself: a bare `new Float32Array(0)` narrows to
+  // `Float32Array<ArrayBuffer>`, which the wider return type will not fit.
+  let peaks: ReturnType<typeof computePeaks> = new Float32Array(0);
+  return (a, width) => {
+    if (a !== lastBuf || width !== lastWidth) {
+      peaks = computePeaks(a, width);
+      lastBuf = a;
+      lastWidth = width;
+    }
+    return peaks;
+  };
+}
+
 /* ---------------------------------------------------------------- chopping */
 /*
  * sample-chop.md REQ-two-ways-to-place-the-cuts/REQ-detect-onsets-is-pure-and-cheap. All three are pure and take/return plain sample

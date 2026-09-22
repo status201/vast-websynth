@@ -3,7 +3,9 @@
 ```yaml
 id: sample-recorder
 status: implemented
-version: 6   # v6: REQ-the-editor-owns-its-teardown — the modal destroys the controls it builds;
+version: 7   # v7: the waveform's peaks are memoised — the preview loop re-scanned the whole
+             #     clip every frame to move a playhead (REQ-the-waveform-redraw-is-cheap)
+             # v6: REQ-the-editor-owns-its-teardown — the modal destroys the controls it builds;
              #     its seven Dropdowns each left four document/window listeners
              #     behind on every close
              # v5: REQ-every-section-below-the-waveform-folds — every editor section is a titled fold: Chop and
@@ -112,6 +114,30 @@ modal says so.
   to reintroduce the leak. The panels that rebuild dropdowns per row
   (`sampler-panel.ts`, `drum-panel.ts`) already destroy before rebuilding — this
   is that discipline for a surface built once per open rather than once per row.
+- **REQ-the-waveform-redraw-is-cheap** — (v7) **Redrawing the waveform does not
+  re-measure the clip.**
+  The editor's `redraw()` runs once per animation frame while a preview plays —
+  that is how the playhead moves — and it called `computePeaks`, which walks the
+  **whole** buffer. So auditioning a clip re-scanned every sample 60 times a
+  second to move a 1 px line: **2.8 ms a frame for a 10 s clip (17% of a 60 fps
+  budget) and 9.0 ms for a 30 s one (54%)**, on the main thread, while audio was
+  playing.
+
+  The peaks are a pure function of the buffer and the column count, and neither
+  moves with the playhead, so they are memoised
+  ([runtime-performance](runtime-performance.md) REQ-immutable-artefacts-are-shared).
+  The memo lives in `buffer-dsp.ts` as `createPeakCache()` rather than inline in
+  the modal, because that is what makes it testable without a canvas — jsdom
+  implements no 2-D context, so a test driven through `redraw()` would be
+  testing the stub.
+
+  It is keyed by buffer **identity**, which is sound only because every
+  operation in `buffer-dsp.ts` is pure: `crop`, `gain`, `normalize`, `reverse`
+  and the fades all return a NEW `CapturedAudio`, so an edit always yields a
+  different object and cannot be missed. That property is pinned by its own test
+  beside the cache's. One entry, not a map — the editor shows one clip at a
+  time, and a map would hold every intermediate edit alive for the modal's life.
+
 - **REQ-the-recorder-modal-hosts-fit-and-shift** — (v3) **The modal hosts a Fit
   row and a Shift row**, below the chop row: retime the selection to a musical
   length with its pitch preserved, and shift its pitch with its length

@@ -14,6 +14,7 @@ import { openMicSession, MicCaptureError, type MicSession } from '../../audio/re
 import type { CapturedAudio } from '../../audio/recorder/node';
 import {
   cloneCaptured, crop, reverse, normalize, gain, fadeIn, fadeOut, computePeaks, peakDb,
+  createPeakCache,
   sliceEqual, sliceRanges, detectOnsets,
 } from '../../audio/recorder/buffer-dsp';
 import { confirmDialog } from './dialog';
@@ -283,6 +284,14 @@ export function openRecordSoundModal(engine: StudioApi, opts: RecordSoundOptions
 
     let bw = 0;
     let bh = 0;
+    /**
+     * Waveform peaks, memoised (buffer-dsp.ts `createPeakCache`). `redraw()`
+     * runs once per animation frame while a preview plays, and `computePeaks`
+     * walks the whole clip — so this was re-scanning the entire buffer 60 times
+     * a second to move a 1 px playhead.
+     */
+    const peaksFor = createPeakCache();
+
     const redraw = (): void => {
       const buf = working;
       if (!buf) return;
@@ -306,7 +315,7 @@ export function openRecordSoundModal(engine: StudioApi, opts: RecordSoundOptions
       g.stroke();
 
       const cols = Math.max(1, Math.floor(w));
-      const peaks = computePeaks(buf, cols);
+      const peaks = peaksFor(buf, cols);
       const len = sampleLen();
       for (let c = 0; c < cols; c++) {
         const min = peaks[c * 2] ?? 0;
