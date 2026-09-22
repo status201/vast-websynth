@@ -3,7 +3,9 @@
 ```yaml
 id: drum-machine
 status: implemented
-version: 12  # v12: REQ-swapping-a-model-never-severs-a-voice — a model swap ramps the outgoing voice down and
+version: 13  # v13: the ten voices share `decayEnv` and `finishHit` instead of writing the
+             #      envelope and the teardown out each (REQ-a-voice-envelope-reaches-true-zero)
+             # v12: REQ-swapping-a-model-never-severs-a-voice — a model swap ramps the outgoing voice down and
              #      disconnects it later; it used to sever a ringing tail, which
              #      a song load fires twice per track (song-mode.md REQ-applying-a-song-is-click-free)
              # v11: REQ-tune-reads-in-semitones — TUNE reads in semitones; `unit` alone never reached
@@ -222,6 +224,19 @@ randomize) are layered on top in [drum-kits](drum-kits.md).
   Stopping at the end of the ramp instead of `+0.05` also frees each hit's nodes
   ~45 ms sooner (REQ-per-hit-nodes-are-disposable).
 
+
+  **The shape is one function, not ten copies.** Every voice wrote out the same
+  three calls — silent at `t`, up to its peak over its attack, then an
+  exponential fall to the -60 dB floor at `t + decay` — differing only in the
+  peak and the attack. `decayEnv()` owns them, and `finishHit()` owns the
+  matching teardown tail, whose easily-forgotten line is that the **choke gain
+  is a per-hit node too** and must be disconnected with the rest.
+
+  The extraction is behaviour-preserving in the strict sense: every
+  `AudioParam` call, every value and their order were captured for all nine
+  voices before and after and are identical. That is the bar
+  `runtime-performance.md` REQ-a-worklet-optimisation-is-bit-exact sets for DSP,
+  applied to a refactor of the scheduling around it.
 - **REQ-the-choke-group-restores-on-a-ramp** (v10) — **The choke group restores
   on a ramp, never a step.** REQ-a-closed-hat-cuts-an-open-hat fades the group
   gain down over `CHOKE_GROUP_FADE` and must put it back for the next hit.

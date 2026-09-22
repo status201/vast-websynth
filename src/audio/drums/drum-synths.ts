@@ -110,6 +110,36 @@ function disposeAfter(sources: AudioScheduledSourceNode[], nodes: AudioNode[]): 
   for (const s of sources) s.onended = done;
 }
 
+/**
+ * The one-shot amplitude envelope every voice shares: silent at `t`, up to
+ * `peak` over `attack`, then an exponential fall to the -60 dB floor at
+ * `t + decay`. Ten voices wrote these three lines out, differing only in the
+ * peak and the attack — and the order matters (the floor ramp must follow the
+ * attack), so it is worth having in one place rather than ten.
+ *
+ * It does NOT end the envelope: {@link endAt} takes it to true zero, and is
+ * called per envelope rather than per voice because a voice may have two.
+ */
+function decayEnv(g: AudioParam, t: number, peak: number, attack: number, decay: number): void {
+  g.setValueAtTime(0, t);
+  g.linearRampToValueAtTime(peak, t + attack);
+  g.exponentialRampToValueAtTime(0.001, t + decay);
+}
+
+/**
+ * Tear one hit down. The choke gain, when the hit has one, is a per-hit node
+ * like any other and must be disconnected with them — which is the line every
+ * voice repeated, and the one a new voice would be most likely to forget.
+ */
+function finishHit(
+  r: ReturnType<typeof voiceStart>['r'],
+  sources: AudioScheduledSourceNode[],
+  nodes: AudioNode[],
+): void {
+  if (r.choke) nodes.push(r.choke);
+  disposeAfter(sources, nodes);
+}
+
 export class Kick implements DrumSynth {
   readonly output: GainNode;
   private tune = 0;
@@ -132,17 +162,13 @@ export class Kick implements DrumSynth {
     osc.frequency.exponentialRampToValueAtTime(baseHz, t + 0.05);
     osc.type = 'sine';
 
-    env.gain.setValueAtTime(0, t);
-    env.gain.linearRampToValueAtTime(velocity, t + 0.001);
-    env.gain.exponentialRampToValueAtTime(0.001, t + this.decay);
+    decayEnv(env.gain, t, velocity, 0.001, this.decay);
 
     osc.connect(env).connect(r.dest);
     osc.start(t);
     osc.stop(r.stopAt(endAt(env.gain, t + this.decay)));
 
-    const nodes: AudioNode[] = [osc, env];
-    if (r.choke) nodes.push(r.choke);
-    disposeAfter([osc], nodes);
+    finishHit(r, [osc], [osc, env]);
   }
 }
 
@@ -171,9 +197,7 @@ export class Snare implements DrumSynth {
     noiseFilter.type = 'highpass';
     noiseFilter.frequency.value = 1500 * f;
     const noiseEnv = this.ctx.createGain();
-    noiseEnv.gain.setValueAtTime(0, t);
-    noiseEnv.gain.linearRampToValueAtTime(velocity * 0.9, t + 0.002);
-    noiseEnv.gain.exponentialRampToValueAtTime(0.001, t + this.decay);
+    decayEnv(noiseEnv.gain, t, velocity * 0.9, 0.002, this.decay);
     noise.connect(noiseFilter).connect(noiseEnv).connect(r.dest);
     noise.start(t);
     noise.stop(r.stopAt(endAt(noiseEnv.gain, t + this.decay)));
@@ -184,16 +208,12 @@ export class Snare implements DrumSynth {
     tone.frequency.setValueAtTime(220 * f, t);
     tone.frequency.exponentialRampToValueAtTime(120 * f, t + 0.05);
     const toneEnv = this.ctx.createGain();
-    toneEnv.gain.setValueAtTime(0, t);
-    toneEnv.gain.linearRampToValueAtTime(velocity * 0.5, t + 0.001);
-    toneEnv.gain.exponentialRampToValueAtTime(0.001, t + 0.08);
+    decayEnv(toneEnv.gain, t, velocity * 0.5, 0.001, 0.08);
     tone.connect(toneEnv).connect(r.dest);
     tone.start(t);
     tone.stop(r.stopAt(endAt(toneEnv.gain, t + 0.08)));
 
-    const nodes: AudioNode[] = [noise, noiseFilter, noiseEnv, tone, toneEnv];
-    if (r.choke) nodes.push(r.choke);
-    disposeAfter([noise, tone], nodes);
+    finishHit(r, [noise, tone], [noise, noiseFilter, noiseEnv, tone, toneEnv]);
   }
 }
 
@@ -229,17 +249,13 @@ export class HiHat implements DrumSynth {
     peak.Q.value = 1.2;
 
     const env = this.ctx.createGain();
-    env.gain.setValueAtTime(0, t);
-    env.gain.linearRampToValueAtTime(velocity * 0.6, t + 0.001);
-    env.gain.exponentialRampToValueAtTime(0.001, t + this.decay);
+    decayEnv(env.gain, t, velocity * 0.6, 0.001, this.decay);
 
     noise.connect(hp).connect(peak).connect(env).connect(r.dest);
     noise.start(t);
     noise.stop(r.stopAt(endAt(env.gain, t + this.decay)));
 
-    const nodes: AudioNode[] = [noise, hp, peak, env];
-    if (r.choke) nodes.push(r.choke);
-    disposeAfter([noise], nodes);
+    finishHit(r, [noise], [noise, hp, peak, env]);
   }
 }
 
@@ -267,17 +283,13 @@ export class Tom implements DrumSynth {
     osc.frequency.exponentialRampToValueAtTime(f, t + 0.05);
 
     const env = this.ctx.createGain();
-    env.gain.setValueAtTime(0, t);
-    env.gain.linearRampToValueAtTime(velocity * 0.9, t + 0.002);
-    env.gain.exponentialRampToValueAtTime(0.001, t + this.decay);
+    decayEnv(env.gain, t, velocity * 0.9, 0.002, this.decay);
 
     osc.connect(env).connect(r.dest);
     osc.start(t);
     osc.stop(r.stopAt(endAt(env.gain, t + this.decay)));
 
-    const nodes: AudioNode[] = [osc, env];
-    if (r.choke) nodes.push(r.choke);
-    disposeAfter([osc], nodes);
+    finishHit(r, [osc], [osc, env]);
   }
 }
 
@@ -320,9 +332,7 @@ export class Clap implements DrumSynth {
     noise.start(t);
     noise.stop(r.stopAt(endAt(env.gain, t + this.decay)));
 
-    const nodes: AudioNode[] = [noise, bp, env];
-    if (r.choke) nodes.push(r.choke);
-    disposeAfter([noise], nodes);
+    finishHit(r, [noise], [noise, bp, env]);
   }
 }
 
@@ -350,18 +360,14 @@ export class Conga implements DrumSynth {
     osc.frequency.setValueAtTime(f * 1.35, t);
     osc.frequency.exponentialRampToValueAtTime(f, t + 0.02);
     const env = this.ctx.createGain();
-    env.gain.setValueAtTime(0, t);
-    env.gain.linearRampToValueAtTime(velocity * 0.9, t + 0.003);
-    env.gain.exponentialRampToValueAtTime(0.001, t + this.decay);
+    decayEnv(env.gain, t, velocity * 0.9, 0.003, this.decay);
 
     // A faint octave overtone gives the open-tone "song" of a conga.
     const ovt = this.ctx.createOscillator();
     ovt.type = 'triangle';
     ovt.frequency.setValueAtTime(f * 2, t);
     const ovtEnv = this.ctx.createGain();
-    ovtEnv.gain.setValueAtTime(0, t);
-    ovtEnv.gain.linearRampToValueAtTime(velocity * 0.15, t + 0.003);
-    ovtEnv.gain.exponentialRampToValueAtTime(0.001, t + Math.min(this.decay, 0.09));
+    decayEnv(ovtEnv.gain, t, velocity * 0.15, 0.003, Math.min(this.decay, 0.09));
 
     osc.connect(env).connect(r.dest);
     ovt.connect(ovtEnv).connect(r.dest);
@@ -370,9 +376,7 @@ export class Conga implements DrumSynth {
     osc.stop(r.stopAt(endAt(env.gain, t + this.decay)));
     ovt.stop(r.stopAt(endAt(ovtEnv.gain, t + Math.min(this.decay, 0.09))));
 
-    const nodes: AudioNode[] = [osc, env, ovt, ovtEnv];
-    if (r.choke) nodes.push(r.choke);
-    disposeAfter([osc, ovt], nodes);
+    finishHit(r, [osc, ovt], [osc, env, ovt, ovtEnv]);
   }
 }
 
@@ -399,9 +403,7 @@ export class Bongo implements DrumSynth {
     osc.frequency.setValueAtTime(f * 1.25, t);
     osc.frequency.exponentialRampToValueAtTime(f, t + 0.012);
     const env = this.ctx.createGain();
-    env.gain.setValueAtTime(0, t);
-    env.gain.linearRampToValueAtTime(velocity * 0.85, t + 0.002);
-    env.gain.exponentialRampToValueAtTime(0.001, t + this.decay);
+    decayEnv(env.gain, t, velocity * 0.85, 0.002, this.decay);
 
     // Woody fingertip click: a short burst of band-passed noise at the head pitch.
     const click = this.ctx.createBufferSource();
@@ -422,9 +424,7 @@ export class Bongo implements DrumSynth {
     osc.stop(r.stopAt(endAt(env.gain, t + this.decay)));
     click.stop(r.stopAt(endAt(clickEnv.gain, t + 0.015)));
 
-    const nodes: AudioNode[] = [osc, env, click, bp, clickEnv];
-    if (r.choke) nodes.push(r.choke);
-    disposeAfter([osc, click], nodes);
+    finishHit(r, [osc, click], [osc, env, click, bp, clickEnv]);
   }
 }
 
@@ -451,9 +451,7 @@ export class Cowbell implements DrumSynth {
     bp.frequency.value = 700 * f;
     bp.Q.value = 1.1;
     const env = this.ctx.createGain();
-    env.gain.setValueAtTime(0, t);
-    env.gain.linearRampToValueAtTime(velocity * 0.8, t + 0.001);
-    env.gain.exponentialRampToValueAtTime(0.001, t + this.decay);
+    decayEnv(env.gain, t, velocity * 0.8, 0.001, this.decay);
 
     // One envelope downstream of both oscillators, so its ramp is scheduled once
     // and every source stops at the same end-of-ramp time.
@@ -499,17 +497,13 @@ export class Clave implements DrumSynth {
     osc.frequency.setValueAtTime(f * 1.08, t);
     osc.frequency.exponentialRampToValueAtTime(f, t + 0.006);
     const env = this.ctx.createGain();
-    env.gain.setValueAtTime(0, t);
-    env.gain.linearRampToValueAtTime(velocity * 0.9, t + 0.001);
-    env.gain.exponentialRampToValueAtTime(0.001, t + this.decay);
+    decayEnv(env.gain, t, velocity * 0.9, 0.001, this.decay);
 
     osc.connect(env).connect(r.dest);
     osc.start(t);
     osc.stop(r.stopAt(endAt(env.gain, t + this.decay)));
 
-    const nodes: AudioNode[] = [osc, env];
-    if (r.choke) nodes.push(r.choke);
-    disposeAfter([osc], nodes);
+    finishHit(r, [osc], [osc, env]);
   }
 }
 
@@ -541,17 +535,13 @@ export class Shaker implements DrumSynth {
     // The soft ~10 ms swell is what separates a shaker from a closed hat —
     // grains build up rather than snap.
     const env = this.ctx.createGain();
-    env.gain.setValueAtTime(0, t);
-    env.gain.linearRampToValueAtTime(velocity * 0.55, t + 0.012);
-    env.gain.exponentialRampToValueAtTime(0.001, t + Math.max(this.decay, 0.03));
+    decayEnv(env.gain, t, velocity * 0.55, 0.012, Math.max(this.decay, 0.03));
 
     noise.connect(bp).connect(env).connect(r.dest);
     noise.start(t);
     noise.stop(r.stopAt(endAt(env.gain, t + Math.max(this.decay, 0.03))));
 
-    const nodes: AudioNode[] = [noise, bp, env];
-    if (r.choke) nodes.push(r.choke);
-    disposeAfter([noise], nodes);
+    finishHit(r, [noise], [noise, bp, env]);
   }
 }
 

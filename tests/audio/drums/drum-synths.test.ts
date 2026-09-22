@@ -351,3 +351,53 @@ describe('a past-scheduled hit carries its choke (REQ-a-clamped-hit-carries-its-
     expect(stopAt).toBeGreaterThanOrEqual(startAt);
   });
 });
+
+/**
+ * The amplitude envelope itself, which `decayEnv` now owns for every voice.
+ *
+ * Ten voices had these three lines written out; the shape is identical and only
+ * the peak and the attack differ. Order is load-bearing — the fall to the
+ * -60 dB floor has to follow the attack ramp, not race it — so it is pinned
+ * here rather than left to ten copies to agree
+ * (drum-machine.md REQ-a-voice-envelope-reaches-true-zero).
+ */
+describe('drum voice envelope shape', () => {
+  it('rises to the velocity peak, then falls to the floor at the decay time', () => {
+    const { mock, ctx } = setup();
+    const kick = new Kick(ctx); // default decay 0.4
+    mock.createGain.mockClear();
+
+    kick.trigger(0.5, 0.9);
+
+    const env = mock.createGain.mock.results[0]!.value;
+    expect(env.gain.setValueAtTime).toHaveBeenCalledWith(0, 0.5);
+    expect(env.gain.linearRampToValueAtTime).toHaveBeenCalledWith(0.9, 0.5 + 0.001);
+    expect(env.gain.exponentialRampToValueAtTime).toHaveBeenNthCalledWith(1, 0.001, 0.5 + 0.4);
+  });
+
+  it('schedules the attack before the fall, never the other way round', () => {
+    const { mock, ctx } = setup();
+    const kick = new Kick(ctx);
+    mock.createGain.mockClear();
+
+    kick.trigger(0.5, 0.9);
+
+    const g = mock.createGain.mock.results[0]!.value.gain;
+    const at = (fn: { mock: { invocationCallOrder: number[] } }) => fn.mock.invocationCallOrder[0]!;
+    expect(at(g.setValueAtTime)).toBeLessThan(at(g.linearRampToValueAtTime));
+    // The floor ramp is scheduled after the attack; `endAt`'s ramp to true zero
+    // is the later linear one and is asserted by the choke tests above.
+    expect(at(g.linearRampToValueAtTime)).toBeLessThan(at(g.exponentialRampToValueAtTime));
+  });
+
+  it('scales the peak with velocity', () => {
+    const { mock, ctx } = setup();
+    const kick = new Kick(ctx);
+    mock.createGain.mockClear();
+
+    kick.trigger(0.5, 0.25);
+
+    expect(mock.createGain.mock.results[0]!.value.gain.linearRampToValueAtTime)
+      .toHaveBeenCalledWith(0.25, 0.5 + 0.001);
+  });
+});
