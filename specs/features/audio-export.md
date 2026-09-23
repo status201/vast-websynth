@@ -3,7 +3,9 @@
 ```yaml
 id: audio-export
 status: implemented
-version: 12  # v12: a full batch is TRANSFERRED, not copied — the trim allocated two 8 KB
+version: 13  # v13: correction only — v12 saved the copy, not the allocation: a transferred
+             #      batch still costs a fresh pair of arrays in process()
+             # v12: a full batch is TRANSFERRED, not copied — the trim allocated two 8 KB
              #      arrays per flush inside process() (REQ-chunks-are-batched-then-flushed)
              # v11: a captured bar is the song's bar, not always 16 steps (REQ-the-capture-bound-is-the-songs-bar)
              # v10: the worklet batches quanta into one message and stop() awaits
@@ -163,16 +165,19 @@ already-slow action, so the fetch is invisible next to the encode itself.
   `subarray(0, filled).slice()` unconditionally — but `filled` rises by exactly
   one quantum per call, so the *periodic* flush always lands on the
   accumulator's own length and the trim copied the whole thing only to throw the
-  original away. Two 8 KB `Float32Array`s per flush, ~23 flushes/s, allocated
-  **inside `process()`**, which
-  [runtime-performance](runtime-performance.md) REQ-no-allocation-in-a-hot-loop
-  forbids and where a GC pause is a dropout rather than a hitch. Only the final
-  short flush on `stop` now trims.
+  original away. Only the final short flush on `stop` now trims.
 
   Worth stating the size honestly: the CPU saved is **~0.014% of a core**
   (measured, 11/11 paired reps — 45% of this worklet's own cost, which is
-  itself small). The reason to do it is the ~375 KB/s of render-thread garbage
-  it stops producing during a capture, not the microseconds.
+  itself small), and the copy is **all** it saves. (v13) v12 also claimed it
+  ended the allocation, and it does not: transferring the accumulator detaches
+  it, so the next `process()` allocates a fresh pair of 8 KB `Float32Array`s —
+  two per flush, ~23 flushes/s, exactly the count the `slice()` made. That is
+  still an allocation **inside `process()`**, which
+  [runtime-performance](runtime-performance.md) REQ-no-allocation-in-a-hot-loop
+  forbids, where a GC pause is a dropout rather than a hitch. It is a known,
+  standing violation, not a fixed one; ending it takes a small pool of batch
+  buffers that the main thread transfers back once it has read them.
 
   **Batching is only correct with a flush, and the flush is what makes `stop()`
   async.** The worklet holds a partial batch, so on `stop` it must post the

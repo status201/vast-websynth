@@ -59,12 +59,14 @@ class RecorderProcessor extends AudioWorkletProcessor {
     // accumulator's own length and the buffer can be transferred as it stands.
     // Only the final flush on stop is short, and only that one pays to trim.
     //
-    // The copy it replaces was two 8 KB Float32Arrays per flush, ~23 flushes/s,
-    // allocated INSIDE `process()` — which
-    // runtime-performance.md REQ-no-allocation-in-a-hot-loop forbids, and where
-    // a GC pause is a dropout rather than a hitch. Worth stating plainly: the
-    // CPU saved is ~0.014% of a core (measured, 11/11 paired reps) — the point
-    // is the ~375 KB/s of render-thread garbage, not the microseconds.
+    // What this saves is the COPY — ~0.014% of a core (measured, 11/11 paired
+    // reps). It does NOT stop the allocation: transferring detaches `batchL`,
+    // so the next `process()` allocates a fresh pair of 8 KB arrays, exactly as
+    // often as the `slice()` it replaced did (~23 flushes/s). That is still an
+    // allocation inside `process()`, which
+    // runtime-performance.md REQ-no-allocation-in-a-hot-loop forbids; ending it
+    // would take a buffer pool the main thread hands back (audio-export.md
+    // REQ-chunks-are-batched-then-flushed).
     const full = this.filled === this.batchL.length;
     const l = full ? this.batchL : this.batchL.subarray(0, this.filled).slice();
     const r = full ? this.batchR : this.batchR.subarray(0, this.filled).slice();
