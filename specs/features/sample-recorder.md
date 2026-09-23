@@ -3,7 +3,9 @@
 ```yaml
 id: sample-recorder
 status: implemented
-version: 7   # v7: the waveform's peaks are memoised — the preview loop re-scanned the whole
+version: 8   # v8: REQ-the-editor-owns-its-teardown — a take finishing after the modal closed builds
+             #     no editor (its controls leaked past the only cleanup)
+             # v7: the waveform's peaks are memoised — the preview loop re-scanned the whole
              #     clip every frame to move a playhead (REQ-the-waveform-redraw-is-cheap)
              # v6: REQ-the-editor-owns-its-teardown — the modal destroys the controls it builds;
              #     its seven Dropdowns each left four document/window listeners
@@ -92,7 +94,12 @@ modal says so.
   usage the feature invites. `RecorderNode.dispose()` is the node's own teardown so
   the knowledge of what it holds stays with it rather than at the call site.
 - **REQ-the-editor-owns-its-teardown** — (v6) **The editor destroys the controls
-  it builds, not just the resources it opens.**
+  it builds, not just the resources it opens.** (v8) **And builds none after it has
+  closed.** Stopping a take awaits the worklet's final batch; a modal closed in
+  that window had already run its cleanup, and the editor was then built into the
+  closed card — its dropdowns and resize observer created after the one teardown
+  that would ever release them. A take that finishes after the close is disposed
+  and dropped.
   REQ-the-recorder-node-is-released-with-the-session covers what the *session*
   holds; this covers what the *modal* holds. The rule is the same and the reason
   is the same: a thing whose listeners live outside the modal's own subtree is
@@ -291,6 +298,12 @@ Scenario: Insecure context is reported, not crashed (edge)
   When the user opens the record modal
   Then it shows an insecure-context message instead of throwing
 # pinned by: tests/audio/recorder/mic-capture.test.ts (openMicSession refusals)
+
+Scenario: A take that finishes after the modal closed builds no editor (v8, REQ-the-editor-owns-its-teardown, regression)
+  Given a take being stopped, its final batch still in flight
+  When the modal is closed before the stop resolves
+  Then the session is disposed and no editor or dropdown is built
+# pinned by: tests/ui/record-sound-modal.test.ts
 ```
 
 ## Tests & verification
