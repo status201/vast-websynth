@@ -413,6 +413,8 @@ is a transport event, so sync has to have an opinion about it in both roles.
   [meter](meter.md) REQ-meter-travels-on-the-wifi-wire), so a peer already holds it.
 ## v8 — a join is timed by its first pulse
 
+The decision and the alternatives it beat are [ADR-024](../decisions/adr-024-a-sync-join-is-timed-by-its-first-pulse.md).
+
 A field-shaped bug, reproduced end-to-end in a loopback of two real `Clock`s, a
 real `SyncMaster` and a real `SyncSlave` on one simulated time base, messages
 delivered at their timestamps as Web MIDI does:

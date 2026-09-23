@@ -410,6 +410,7 @@ specs/
     adr-021-req-ids-are-slugs.md               ·  a REQ id names its rule, not its position
     adr-022-bank-count-is-the-array-length.md  ·  how many banks a machine has is the array's length
     adr-023-the-synth-channel-goes-stereo-on-demand.md  ·  per-voice width is spliced in on a gesture, and no channel count decides a level
+    adr-024-a-sync-join-is-timed-by-its-first-pulse.md  ·  a slave's new position sounds on its first pulse; a following slave jumps, never restarts
 ```
 
 > Coverage note: the feature set above documents the current system. New features
