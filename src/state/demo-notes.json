@@ -8,5 +8,6 @@
   "Slouch.websynth.json": "Swing sits at zero — every bit of the drag is per-step micro-timing. The snare is five notches late, the clap trails it by another two, the kick pushes ahead, and one hi-hat lands a third of a step off.",
   "Tosti.websynth.json": "Three sequencer tracks over a conga-and-clave kit.",
   "hacienda_neworder.json": "A nod to the Haçienda.",
-  "Maison.websynth.json": "French house, built around the ducker: the kick keys it, everything else breathes. Two bars of silence, a filter riser, then the drop. Mute the drum lane and the pumping stops with it."
+  "Maison.websynth.json": "French house, built around the ducker: the kick keys it, everything else breathes. Two bars of silence, a filter riser, then the drop. Mute the drum lane and the pumping stops with it.",
+  "Sweet_Dreams.websynth.json": "The sequencer runs at 1/8 over all 16 cells, so every bank holds two bars — the riff and the vocal line each fit one bank, which is how eight banks cover the whole song. Four POLY tracks: bass, both riff lines and the melody or chord on top."
 }
