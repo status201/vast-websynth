@@ -62,7 +62,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
   recovery always restarted from the slowest speed, so releasing before the
   stop had finished dropped the tempo to a crawl for an instant before winding
   back up — and pressing again mid-recovery snapped back to full speed. Both now
-  carry on from wherever the tape had got to.
+  carry on from wherever the tape had got to. Tape Stop also finishes when the
+  tab is in the background: switching away mid-gesture used to freeze the tempo
+  and pitch wherever they were until you came back.
 - **Motion bank switches and rest bars land on time at fast tempos.** Above
   about 150 BPM a motion lane could switch to the next bank, or fall silent for
   a rest bar, slightly before the bar line — up to ~60 ms early at 400 BPM.

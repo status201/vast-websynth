@@ -3,6 +3,10 @@ import { RAMP_SMOOTH } from '../param-utils';
 import { SEQ_LENGTH } from '../../state/patterns';
 import { cellIndex, DEFAULT_LANE_RATE } from '../../state/meter';
 import type { TickSubscriber } from './tick-source';
+import { defaultTickTimer, type TickTimer } from './tick-timer';
+
+/** Tape Stop's ramp rate — a frame's worth, so the sweep is as smooth as rAF's. */
+const TAPE_TICK_MS = 16;
 
 /**
  * Live performance / DJ effects. Owned by the Engine; the sequencer and
@@ -71,8 +75,14 @@ export class Performance {
   private lowQ = NaN;
   private highCents = NaN;
   private highQ = NaN;
-  private tapeRaf = 0;
   private tapeActive = false;
+  /**
+   * Drives the Tape Stop ramp (REQ-tape-stop-ramps-bpm-and-pitch). A worker
+   * timer, not rAF: rAF is suspended for a hidden document, which froze a ramp
+   * caught mid-gesture. The Worker is spawned on the first `start()`, so a
+   * session that never touches Tape Stop pays nothing for it.
+   */
+  private readonly tapeTimer: TickTimer;
 
   constructor(
     private readonly ctx: AudioContext,
@@ -80,7 +90,10 @@ export class Performance {
     private readonly bus: ParamBus,
     private readonly djLow: BiquadFilterNode,
     private readonly djHigh: BiquadFilterNode,
+    /** Injectable for tests; defaults to a Worker timer (main-thread fallback). */
+    tapeTimer: TickTimer = defaultTickTimer(),
   ) {
+    this.tapeTimer = tapeTimer;
     // The stutter window is anchored to an absolute step, so after a playhead
     // jump `mapStep` would fold the new position back into the *old* window —
     // a backwards jump replaying it forever (performance.md REQ-a-seek-re-anchors-stutter). Nothing to
@@ -201,7 +214,7 @@ export class Performance {
   setTapeStop(on: boolean): void {
     if (on === this.tapeActive) return;
     this.tapeActive = on;
-    if (this.tapeRaf) cancelAnimationFrame(this.tapeRaf);
+    this.tapeTimer.stop();
 
     const origBpm = this.bus.get('transport.bpm');
     const minBpm = 20;
@@ -235,17 +248,17 @@ export class Performance {
       this.bus.set('master.pitchBend', 0);
     };
 
+    // Timed by the clock, not by counting wakeups, so a late or dropped one costs
+    // smoothness only — the ramp still lasts `durMs` (REQ-tape-stop-ramps-bpm-and-pitch).
     const tick = (): void => {
       const k = Math.min(1, (performance.now() - t0) / durMs);
       ease = on ? k * k : 1 - (1 - k) * (1 - k);
       this.bus.withoutChangeSignal(applyEase);
-      if (k < 1) {
-        this.tapeRaf = requestAnimationFrame(tick);
-      } else {
-        this.tapeRaf = 0;
+      if (k >= 1) {
+        this.tapeTimer.stop();
         if (!on) this.bus.withoutChangeSignal(settle);
       }
     };
-    this.tapeRaf = requestAnimationFrame(tick);
+    this.tapeTimer.start(tick, TAPE_TICK_MS);
   }
 }

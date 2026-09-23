@@ -3,7 +3,9 @@
 ```yaml
 id: performance
 status: implemented
-version: 8   # v8: REQ-tape-stop-ramps-bpm-and-pitch — both Tape Stop ramps start from the clock's
+version: 9   # v9: REQ-tape-stop-ramps-bpm-and-pitch — the Tape Stop ramp runs on a worker timer,
+             #     not rAF, so a hidden tab no longer freezes it mid-gesture
+             # v8: REQ-tape-stop-ramps-bpm-and-pitch — both Tape Stop ramps start from the clock's
              #     actual tempo; an early release lurched to the 20 BPM floor first.
              #     The DJ filter's side cache stops allocating per write
              # v7: REQ-the-dj-sweep-rides-detune — the DJ filter sweeps `detune` with `setTargetAtTime`
@@ -52,7 +54,15 @@ so the Song panel can drive momentary controls without reaching into the machine
 - **REQ-dj-filter-is-a-manual-sweep** — **DJ Filter**: manual bipolar sweep on
   the same pair (`fx.djfilter`, LP ← 0 → HP).
 - **REQ-tape-stop-ramps-bpm-and-pitch** — **Tape Stop**: ramp `Clock` BPM down +
-  pitch-bend down via rAF, then recover on release. (v8) **Each ramp starts from
+  pitch-bend down, then recover on release. (v9) **The ramp runs on a
+  `TickTimer`, not rAF**, so it keeps running while the document is hidden:
+  browsers suspend rAF for a hidden page, and a Tape Stop caught mid-gesture by
+  a tab switch — or triggered by a MIDI controller with the tab in the
+  background — froze the tempo and the pitch wherever they were until the tab
+  came back. It is the worker timer the transport clock already uses, spawned
+  on the first Tape Stop, at ~60 Hz. The ramp is timed by `performance.now()`,
+  not by counting wakeups, so a late or dropped wakeup only costs smoothness,
+  never duration. (v8) **Each ramp starts from
   the tempo the transport is actually running at**, read off the clock, exactly
   as the pitch ramp already started from the live `master.pitchBend`. The
   release ramp used to start from the 20 BPM floor unconditionally, so letting
@@ -64,7 +74,7 @@ so the Song panel can drive momentary controls without reaching into the machine
 - **REQ-a-clock-ramp-gate-predicate** (v3) — **Clock-ramp gate**: a public
   settable predicate `clockRampAllowed: () => boolean` (default `() => true`)
   guards *both* the per-frame `clock.setBpm(...)` and the final
-  `clock.setBpm(origBpm)` restore in Tape Stop's rAF tick — an ungated restore
+  `clock.setBpm(origBpm)` restore in Tape Stop's ramp tick — an ungated restore
   would stomp an externally-followed tempo with the local knob value. The
   pitch-bend ramp is unaffected. Engine wires `perf.clockRampAllowed = () =>
   sync.activeMode !== 'slave'` — the mode that is actually RUNNING, not the
@@ -80,7 +90,7 @@ so the Song panel can drive momentary controls without reaching into the machine
   forward jump goes nowhere. `Performance` subscribes `clock.onSeek` and,
   **while stutter is engaged**, re-anchors to the new `clock.step`; with stutter
   off there is nothing to do (`mapStep` is the identity). Fill / Drop / DJ
-  Filter hold no position state and are unaffected; Tape Stop's rAF ramp is a
+  Filter hold no position state and are unaffected; Tape Stop's ramp is a
   BPM ramp, not a position, so it too is untouched.
 
 - **REQ-stutter-composes-with-lane-length** (v5) — **Stutter composes with a
@@ -213,7 +223,7 @@ Performance:  # src/audio/transport/performance.ts
   setDjFilter(x)                    # manual sweep, -1..1 (LP..HP)
   # v7 (REQ-the-dj-sweep-rides-detune): both write djLow/djHigh `detune` (cents) via setTargetAtTime only.
   #              `frequency` is a fixed reference, never written after construction.
-  setTapeStop(on)                   # BPM + pitch ramp via rAF
+  setTapeStop(on)                   # BPM + pitch ramp on a TickTimer (v9: runs hidden)
   clockRampAllowed: () => boolean   # v3: default () => true; gates Tape Stop's clock ramp + restore
 ctor deps: (ctx, clock, bus, djLow: BiquadFilterNode, djHigh: BiquadFilterNode)  # v6: a series pair (REQ-the-dj-filter-is-a-series-pair)
 # v4: subscribes clock.onSeek -> re-anchor the stutter window (REQ-a-seek-re-anchors-stutter)
@@ -291,8 +301,14 @@ Scenario: Filter Drop overrides the manual DJ filter while held (edge)
 
 Scenario: Tape Stop bends BPM and pitch down then recovers
   When the user holds then releases Tape Stop
-  Then BPM + pitch ramp down (rAF) and recover on release
+  Then BPM + pitch ramp down and recover on release
 # pinned by: e2e/song-fx.spec.ts
+
+Scenario: Tape Stop finishes in a hidden tab (v9, REQ-tape-stop-ramps-bpm-and-pitch, regression)
+  Given the document is hidden, so rAF never fires
+  When Tape Stop is pressed and released
+  Then both ramps still run to their ends — the tempo back on the knob, the bend at 0
+# pinned by: tests/audio/transport/performance.test.ts
 
 Scenario: Releasing Tape Stop early recovers from where it got to (v8, REQ-tape-stop-ramps-bpm-and-pitch, regression)
   Given Tape Stop has been held long enough to slow 120 BPM to about 110
