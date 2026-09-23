@@ -5,7 +5,7 @@ import { PatternStore, SEQ_LENGTH, MOTION_TRACK_COUNT } from '../../../src/state
 import { LANE_RATES } from '../../../src/state/meter';
 import { ParamBus, registerDefaults } from '../../../src/state/params';
 import { XyPadStore } from '../../../src/state/xy-pad';
-import { fromNorm } from '../../../src/utils/taper';
+import { fromNorm, toNorm } from '../../../src/utils/taper';
 import { TestClock } from './test-clock';
 
 /**
@@ -226,6 +226,95 @@ describe('MotionMachine', () => {
     expect(bus.get('filter.cutoff')).toBe(fromNorm(defX, 1));
     machine.frame(16 * STEP_DUR);
     expect(bus.get('filter.cutoff')).toBe(fromNorm(defX, 0));
+  });
+
+  // motion-sequencer.md v18 — the playhead under swing and at high tempo. These
+  // drive the clock the way the real one does: every tick handed over up to the
+  // 100 ms look-ahead before it sounds, at its swung time.
+  describe('the playhead against real look-ahead (v18)', () => {
+    const LOOKAHEAD = 0.1;
+
+    /** Run frames every `frameS` up to `untilS`, ticking the clock ahead of each. */
+    function play(
+      clock: TestClock,
+      machine: MotionMachine,
+      untilS: number,
+      frameS: number,
+      onFrame: (now: number) => void,
+    ): void {
+      const dur = clock.sixteenthDuration();
+      let next = 0;
+      for (let now = 0; now <= untilS + 1e-9; now += frameS) {
+        while (next * dur <= now + LOOKAHEAD) {
+          clock.fireTick(next * dur + clock.swingOffset(clock.step));
+          next++;
+        }
+        machine.frame(now);
+        onFrame(now);
+      }
+    }
+
+    it('a slide stays a line under swing (REQ-the-motion-playhead-follows-the-swung-grid, regression)', () => {
+      const { bus, patterns, clock, machine } = build();
+      clock.swing = 1;
+      machine.setEnabled(true);
+      anchor(patterns, 0, 0, 0);
+      anchor(patterns, 15, 1, 1);
+      clock.fireStart();
+      const defX = bus.def('filter.cutoff')!;
+      const dur = clock.sixteenthDuration();
+
+      // The bug: the value stepped back ~0.03 at every odd 16th and leapt
+      // forward at every even one. A straight sweep must never go down.
+      const seen: number[] = [];
+      play(clock, machine, 14 * dur, 0.005, () => seen.push(toNorm(defX, bus.get('filter.cutoff'))));
+      for (let i = 1; i < seen.length; i++) expect(seen[i]!).toBeGreaterThanOrEqual(seen[i - 1]! - 1e-9);
+
+      // …and it passes each cell's anchor-line value exactly at that cell's
+      // swung onset: an odd cell sounds half a 16th late at swing 1.
+      const odd = 5;
+      const onset = odd * dur + clock.swingOffset(odd);
+      machine.frame(onset);
+      expect(toNorm(defX, bus.get('filter.cutoff'))).toBeCloseTo(odd / 15, 6);
+    });
+
+    it('straight time is unchanged (REQ-the-motion-playhead-follows-the-swung-grid, back-compat)', () => {
+      const { bus, patterns, clock, machine } = build();
+      machine.setEnabled(true);
+      anchor(patterns, 0, 0, 0);
+      anchor(patterns, 15, 1, 1);
+      clock.fireStart();
+      const defX = bus.def('filter.cutoff')!;
+      const dur = clock.sixteenthDuration();
+      // The pre-v18 position, idx + (now - when) / cellDur, is now / dur here.
+      play(clock, machine, 14 * dur, 0.01, (now) => {
+        expect(bus.get('filter.cutoff')).toBeCloseTo(fromNorm(defX, now / dur / 15), 9);
+      });
+    });
+
+    it('a bank switch lands on the heard boundary at 400 BPM (REQ-the-governing-cell-is-the-latest-heard, regression)', () => {
+      const { bus, patterns, clock, arrangement, machine } = build();
+      clock.setBpm(400); // a 16th is 37.5 ms, so ~3 ticks sit inside the look-ahead
+      machine.setEnabled(true);
+      machine.setSlide(false);
+      anchor(patterns, 0, 1, 1);                 // bank A: high
+      patterns.setMotionEditBank(1);
+      anchor(patterns, 0, 0, 0);                 // bank B: low
+      patterns.setMotionEditBank(0);
+      arrangement.setMotionChain([0, 1], true);
+      clock.fireStart();
+      const defX = bus.def('filter.cutoff')!;
+      const dur = clock.sixteenthDuration();
+
+      // 20 ms before bank B's first tick sounds: tick 15 is being heard, while
+      // ticks 16 and 17 (bank B) are both already queued. The old loop took the
+      // tick before the newest — 16, bank B — and switched early.
+      let before = NaN;
+      play(clock, machine, 16 * dur - 0.02, 0.005, () => { before = bus.get('filter.cutoff'); });
+      expect(before).toBe(fromNorm(defX, 1));
+      machine.frame(16 * dur);
+      expect(bus.get('filter.cutoff')).toBe(fromNorm(defX, 0));
+    });
   });
 
   describe('bar-line carry across banks (REQ-cross-bank-carry)', () => {

@@ -3,7 +3,8 @@
 ```yaml
 id: meter
 status: implemented
-version: 1
+version: 2  # v2: REQ-swing-is-computed-on-the-lanes-grid — each hit also reports its span to the
+            #     next cell's onset on the swung grid, for the motion playhead
 owner: core
 related:
   - architecture
@@ -221,6 +222,15 @@ alone.
   even ticks and would play dead straight under swung hats. A lane whose rate is
   not 1 subtracts the clock's offset for its tick and adds the offset its own
   alternating cells imply. At the default rate this is arithmetically nil.
+
+  (v2) Every hit also reports its **span**: the seconds from this cell's onset
+  to the next cell's, on the same swung grid. Straight, that is the cell's
+  duration; swung, an even cell's span is longer by the next cell's delay and an
+  odd cell's shorter by its own. The trigger machines ignore it — gate and
+  ratchet are fractions of the cell, not of its swung slot — but the motion
+  sequencer interpolates its playhead across it, which is what keeps a slide
+  continuous under swing
+  ([motion-sequencer](motion-sequencer.md) REQ-the-motion-playhead-follows-the-swung-grid).
 
 - **REQ-stutter-composes-with-length-and-rate** — **Stutter composes with length
   and rate.** `Performance.mapStep` keeps folding the *absolute* step; only the

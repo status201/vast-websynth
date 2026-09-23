@@ -51,6 +51,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
   exactly where it was; only the bottom moves up. Songs that use the phaser —
   most noticeably `Gankogui`, `Neon` and `apex-twin` — sweep more evenly and a
   touch quieter.
+- **Motion slides stay smooth with swing on.** A sliding motion lane used to
+  jitter back and forth every 16th under swing — the automated value stepped
+  back on each late off-beat and leapt ahead on the next beat — so a filter
+  sweep came out as a stepped sawtooth instead of a line. The sweep now follows
+  the swung groove continuously, and a stepped anchor on an off-beat still lands
+  with its swung note. Ten demos swing a sliding lane and are affected, most of
+  all `Nocturne` and `Bunk`; songs without swing are unchanged.
+- **Motion bank switches and rest bars land on time at fast tempos.** Above
+  about 150 BPM a motion lane could switch to the next bank, or fall silent for
+  a rest bar, slightly before the bar line — up to ~60 ms early at 400 BPM.
 
 ## [2.14.1] - 2026-09-22
 

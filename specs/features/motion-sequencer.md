@@ -3,7 +3,12 @@
 ```yaml
 id: motion-sequencer
 status: implemented
-version: 17  # v17: four single-param lanes instead of two (REQ-extra-single-param-tracks-per-bank), so a bank
+version: 18  # v18: the playhead follows the swung grid, so a slide stays a line under swing
+             #      (REQ-the-motion-playhead-follows-the-swung-grid); the frame loop evaluates the latest
+             #      HEARD cell from a ring, so bank switches land on time above
+             #      150 BPM (REQ-the-governing-cell-is-the-latest-heard); the bar-line carry and the
+             #      latch stop allocating per frame (REQ-the-motion-frame-loop-allocates-nothing)
+             # v17: four single-param lanes instead of two (REQ-extra-single-param-tracks-per-bank), so a bank
              #      drives up to SIX params — or four with the XY Pad left free,
              #      which is the whole point of the lanes. An empty lane arrives
              #      FOLDED (REQ-an-empty-motion-lane-starts-folded) and a folded one repaints nothing
@@ -538,6 +543,12 @@ The tab sits between Sampler and Song.
     The two functions sit together so they cannot drift.
   - The `Neighbours` pair handed to `valueAt`/`valueAt1D` is a reused scratch
     object; the curve module only ever reads it.
+  - (v18) The carry across the bar line resolves to a bank and an anchor count,
+    not to a fresh `{ bank, idx, len }` record. That record used to be built on
+    every frame the playhead sat before a bank's first anchor or after its last
+    — for a slide, most frames, once per axis and per track.
+  - (v18) The tick latch is a fixed ring of reused records
+    (REQ-the-governing-cell-is-the-latest-heard), not a new object per tick.
 
   The cache is optional throughout `motion-curve.ts`, so the panel, the graph and
   the tests keep calling the pure functions with no cache and no invalidation
@@ -569,13 +580,14 @@ The tab sits between Sampler and Song.
   is never backgrounded pays nothing for this.
 - **REQ-a-seek-clears-the-tick-latch** — **A transport seek clears the tick
   latch and nothing else** (v10, [transport-position](transport-position.md)
-  REQ-motion-baselines-survive-a-seek). The frame loop derives its position by
-  interpolating between the two latched ticks `prev` and `curr`; after a
-  playhead jump those two are no longer adjacent, so for up to `scheduleAheadS`
-  the loop would ramp a param from the old position's anchor toward the new one
-  — an audible glide to a value the curve never contains. `clock.onSeek`
-  therefore sets `curr = prev = null`, exactly as `clock.onStart` does, and the
-  next tick re-latches cleanly. It **must not** call `restoreBaselines()`. The
+  REQ-motion-baselines-survive-a-seek). The frame loop derives its position from
+  the latched cells (v18: a ring of them, REQ-the-governing-cell-is-the-latest-heard);
+  after a playhead jump the ones queued before it are no longer adjacent to the
+  ones after, so for up to `scheduleAheadS` the loop would ramp a param from the
+  old position's anchor toward the new one — an audible glide to a value the
+  curve never contains. `clock.onSeek` therefore empties the latch, exactly as
+  `clock.onStart` does, and the next tick re-latches cleanly. It **must not**
+  call `restoreBaselines()`. The
   baseline map (REQ-motion-writes-go-through-bus-set) records each automated
   param's value from *before* automation first touched it, for the whole play
   session; restoring mid-seek would snap every automated param and then
@@ -584,7 +596,41 @@ The tab sits between Sampler and Song.
   mistake, since `onStart` and `onStop` sit side by side — is a data-losing bug,
   not a cosmetic one.
 
-### v11 — the value is visible while you edit it
+### v18 — the playhead under swing and at high tempo
+
+- **REQ-the-motion-playhead-follows-the-swung-grid** — **The playhead passes
+  each cell exactly when that cell's swung onset sounds, and moves continuously
+  between them.** Every cell reaches the machine with the transport's swing
+  already in its time — an odd 16th late by up to half a 16th. Before v18 the
+  position between cells was `idx + (now - when) / cellDur`, which assumes the
+  cells are evenly spaced; under swing they are not, so the playhead ran ahead
+  of an odd cell, then snapped back by the swing delay when it landed, and leapt
+  forward again at the next even one. Measured with a straight slide from anchor
+  0 to 15 at swing 1: the written value stepped back by ~0.03 of the param's
+  range at every odd 16th and forward at every even one — a sawtooth on a sweep
+  that should be a line, eight times a bar. Now the position is
+  `idx + (now - when) / span`, where `span` is the time from this cell's onset
+  to the next cell's on the same swung grid
+  ([meter](meter.md) REQ-swing-is-computed-on-the-lanes-grid). The playhead
+  therefore reaches `idx + 1` at the very moment the next cell sounds: continuous,
+  and a step-mode anchor on an odd cell still lands with the swung note it
+  belongs to. Straight time is unchanged — `span` equals the cell duration
+  there — so no unswung song moves by a sample.
+- **REQ-the-governing-cell-is-the-latest-heard** — **The frame loop evaluates
+  the latest latched cell whose onset has already been heard.** Before v18 it
+  kept two latched ticks and took the previous one whenever the latest was
+  still ahead — right only while at most one tick lies inside the look-ahead.
+  Above ~150 BPM a 16th is shorter than `scheduleAheadS`, two ticks can both be
+  queued ahead of `now`, and the loop then applied the arrangement state of a
+  tick nobody had heard yet: a bank switch or rest bar landed up to ~12 ms
+  early at 170 BPM and ~60 ms at 400. The latch is now a small preallocated ring
+  of every cell (a finer rate latches each of its cells, not only a tick's
+  last), sized to hold the widest look-ahead at the fastest tempo, and the frame
+  loop scans it back from the newest cell to the first one at or before `now`.
+  Only when nothing has been heard yet — the first frames after start or a
+  seek — does it evaluate the oldest queued cell, from a position still before
+  its onset, as the old loop did.
+
 
 - **REQ-a-motion-steps-value-is-readable-without-hovering** — **A step's value
   is readable without hovering** (v11). Before v11 the only place a step's level
@@ -1305,6 +1351,25 @@ Scenario: Bank switches apply at the audible bar boundary, not at schedule time
   When the new bar's first tick arrives ahead of its audible time
   Then frames before the audible boundary still evaluate bank A
   And frames from the boundary on evaluate bank B
+# pinned by: tests/audio/transport/motion-machine.test.ts
+
+Scenario: A slide stays a line under swing (v18, REQ-the-motion-playhead-follows-the-swung-grid, regression)
+  Given a straight slide from anchor 0 to anchor 15 and transport.swing 1
+  When frames run every 10 ms with ticks arriving up to 100 ms early
+  Then the written value never decreases
+   And it reaches each cell's anchor-line value exactly at that cell's swung onset
+# pinned by: tests/audio/transport/motion-machine.test.ts
+
+Scenario: Straight time is unchanged by the swung grid (v18, REQ-the-motion-playhead-follows-the-swung-grid, back-compat)
+  Given transport.swing 0
+  Then every frame writes exactly what it wrote before v18
+# pinned by: tests/audio/transport/motion-machine.test.ts
+
+Scenario: A bank switch lands on the heard boundary above 150 BPM (v18, REQ-the-governing-cell-is-the-latest-heard, regression)
+  Given 400 BPM, so several ticks sit inside the look-ahead at once
+   And the chain moves from bank A to bank B
+  When a frame runs after the last bank-A tick is heard but before bank B's first
+  Then it still evaluates bank A — not the queued bank-B tick nobody has heard
 # pinned by: tests/audio/transport/motion-machine.test.ts
 
 Scenario: Empty bank writes nothing
