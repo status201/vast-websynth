@@ -3,7 +3,9 @@
 ```yaml
 id: sequencer
 status: implemented
-version: 12  # v12: REQ-a-seq-track-carries-a-pan — a PAN knob beside each track's mute. The four
+version: 13  # v13: REQ-the-note-releases-at-gate-end — a tie into a different pitch releases the
+             #      tied note at the new attack; in poly it used to hang forever
+             # v12: REQ-a-seq-track-carries-a-pan — a PAN knob beside each track's mute. The four
              #      tracks share one voice pool, so pan rides the note and is applied per
              #      voice by a spread stage that is only in circuit off centre (ADR-023)
              # v11: REQ-tracks-two-to-four-collapse's fold moved into the shared lane-fold
@@ -96,7 +98,12 @@ and tracks 2–4 start empty and silent.
   `micro` nudges the step off the grid and is applied here rather than inside
   `stepHits`, REQ-four-tracks-per-bank).
 - **REQ-the-note-releases-at-gate-end** — Release the held note at `gateEnd`;
-  `tie` holds the last ratchet sub-hit into the next step.
+  `tie` holds the last ratchet sub-hit into the next step. (v13) **A tie only
+  carries its voice into the same pitch.** When the next step sounds a
+  *different* note, the tied note is released at that step's attack: in mono
+  the new note takes over the same voices anyway (a no-op), but in poly the
+  new pitch gets a voice of its own, and the tied one — no longer the track's
+  `lastPlayedNote` — was never released by anything, stop and seek included.
 - **REQ-mute-keeps-the-playhead-advancing** — `setMuted` stops triggering but
   keeps the playhead advancing and leaves live-keyboard play + the voice bus
   untouched.
@@ -536,6 +543,15 @@ Scenario: Stopping the song ends a tied note instead of hanging it (v5, REQ-a-st
   Then the note is released at that step's own gate end, not left ringing
   And the reverb/delay tail keeps ringing out, because a release is not a kill
   And the user never has to reach for Panic to silence it
+# pinned by: tests/audio/transport/sequencer.test.ts
+
+Scenario: A tie into a different pitch releases the tied note (v13, REQ-the-note-releases-at-gate-end, regression)
+  Given voicing is poly and a step holding note 60 ties into a step holding note 64
+  When the second step fires
+  Then note 60 is released at the second step's attack while 64 sounds
+  And after a stop no voice is left sounding
+  And a tie into the SAME pitch still keeps its voice, unreleased
+  And in mono the release is a no-op, because 64 already took 60's voices
 # pinned by: tests/audio/transport/sequencer.test.ts
 
 Scenario: The stop release is never scheduled before the note-on (v5, edge)

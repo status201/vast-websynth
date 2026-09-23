@@ -37,6 +37,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
   it. Its input is now always stereo. Three demos run with the synth reverb off
   (`1983`, `Bunk`, `Run Away`) and get that 3 dB back; `Bunk`, which also
   auto-pans, changes the character of its sweep.
+- **A sequencer tie into a different note no longer leaves the first note
+  ringing forever.** In poly voicing (the default) the tied note kept its own
+  voice while the next note took another, and nothing ever released it — not
+  the next step, not Stop, not a seek — so a looping pattern piled up droning
+  voices until Panic. The tied note now ends as the next note starts. A tie
+  into the same note, and every tie in mono, sounds exactly as before.
 
 ## [2.14.1] - 2026-09-22
 

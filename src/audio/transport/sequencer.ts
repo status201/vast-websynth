@@ -246,6 +246,15 @@ export class StepSequencer {
       // The final sub-hit holds (no release) when the step ties into the next.
       if (!h.holds) this.output.releaseNote(note, h.gateEnd);
     }
+    // A tie carries its voice only into the SAME pitch (REQ-the-note-releases-at-gate-end).
+    // In poly the new pitch took a voice of its own, and the tied one is about
+    // to stop being `lastPlayedNote` — the only handle stop and seek release
+    // through — so it would ring forever. After the attack, not before: in mono
+    // the new note has already taken over those voices, which makes this a no-op
+    // there instead of a release racing the glide.
+    if (st.prevTied && st.lastPlayedNote >= 0 && st.lastPlayedNote !== note) {
+      this.output.releaseNote(st.lastPlayedNote, at);
+    }
     st.lastPlayedNote = note;
     st.lastReleaseAt = hits[hits.length - 1]!.gateEnd;
     st.prevTied = s.tie;
