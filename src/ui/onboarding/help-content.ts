@@ -1289,8 +1289,8 @@ export const HELP_TOPICS: Record<TopicId, HelpTopic> = {
       '<p>Click the on-screen keys to play, or use your computer keyboard: the bottom letter ' +
       'row is the lower octave, the top one the upper, with the sharps on the row above each — ' +
       'a piano laid over the keys. <strong>Help &amp; About</strong> draws the exact mapping for ' +
-      'your keyboard layout. The ' + g('arrowLeft', 'Left arrow') + ' / ' +
-      g('arrowRight', 'Right arrow') + ' arrow keys shift octave.</p>' +
+      'your keyboard layout. The <strong>-</strong> and <strong>=</strong> keys (right of 0) shift ' +
+      'octave.</p>' +
       '<p>Notes sound immediately, with or without the transport running.</p>',
   },
   pitchBend: {

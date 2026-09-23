@@ -27,8 +27,30 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
   the knob is live over a held note. The bus auto-pan still sweeps the whole
   picture over the top. Old songs, presets and share links are unaffected and the
   song format is unchanged.
+- **Every knob works from the keyboard.** Tab onto a knob and turn it with the
+  arrow keys — Shift for fine steps, Page Up/Down for big ones, Home/End for the
+  ends of the range, Delete to reset it to the preset's value. Screen readers
+  now announce each knob by name, with its value exactly as it is displayed.
+
+### Changed
+
+- **The computer-keyboard octave shift moved to `-` and `=`** (the two keys
+  right of 0, or the numpad's `-` and `+`). The arrow keys now belong to
+  whatever knob or list has focus. Shift + arrows still move the playhead a
+  bar.
 
 ### Fixed
+
+- **Pressing Escape to close a dropdown no longer stops the song.** It closed
+  the menu and then also triggered Panic, stopping the transport and silencing
+  every note.
+- **Escape closes the dialog on top.** With a confirmation open over another
+  window (asking to delete a preset in the preset manager, say), Escape closed
+  the window underneath and left the confirmation standing — and its OK still
+  did the deed.
+- **Keyboard shortcuts stay quiet while a dialog is open.** Behind an open
+  dialog, Delete cleared the selected step, Space started or stopped the song
+  instead of pressing the dialog's button, and the letter keys played notes.
 
 - **Switching the synth reverb on no longer turns the dry synth up by 3 dB.**
   `synthPan` received one channel with the reverb bypassed and two with it on,

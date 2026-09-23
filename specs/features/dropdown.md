@@ -3,7 +3,9 @@
 ```yaml
 id: dropdown
 status: implemented
-version: 8  # v8: options carry the `dropdown-option` bridge class — the toggle and
+version: 9  # v9: REQ-the-menu-closes-on-outside-click — the Escape that closes a menu stops there;
+            #     it used to reach the global Panic shortcut and stop the song
+            # v8: options carry the `dropdown-option` bridge class — the toggle and
             #     the matching option share an accessible name (REQ-an-option-carries-the-bridge-class)
             # v7: setOptions takes a dividerAfter group separator, and REQ-a-list-can-be-split-by-dividers writes
             #     down that a rebuild can strand the displayed value
@@ -61,6 +63,11 @@ without anyone remembering to ask.
   (falling back to the first option if the current value disappears).
 - **REQ-the-menu-closes-on-outside-click** — The open menu closes on outside
   click and on Escape. `destroy()` removes every document/window listener.
+  (v9) **The Escape that closes a menu is consumed there**, as the arrow keys
+  already were (REQ-arrow-keys-move-the-selection): it used to close the menu
+  and then bubble on to the window, where `installShortcuts` reads Escape as
+  **Panic** — so dismissing any dropdown with Escape stopped the transport and
+  killed every voice. A closed menu still lets Escape through untouched.
 - **REQ-the-menu-is-fixed-and-anchored** — The menu is `position: fixed`,
   anchored to the toggle's viewport rect, flips above when it would overflow the
   bottom edge, and re-anchors on scroll/resize while open. It is capped at
@@ -360,6 +367,13 @@ Scenario: setOptions across the threshold keeps the menu coherent (edge, v2)
   When setOptions is called with fewer than FILTER_MIN_OPTIONS (30) options
   Then the filter row is removed and every new option renders
   And calling it again with 30+ restores the row (the input is not a stale node)
+# pinned by: tests/ui/dropdown.test.ts
+
+Scenario: Escape closes an open menu without triggering Panic (v9, REQ-the-menu-closes-on-outside-click, regression)
+  Given a dropdown whose menu is open while the transport plays
+  When the user presses Escape
+  Then the menu closes and the keydown never reaches the window
+   And with the menu closed, Escape reaches the window as before
 # pinned by: tests/ui/dropdown.test.ts
 
 Scenario: Arrow keys walk the list, not just its first row (v3, REQ-arrow-keys-move-the-selection)

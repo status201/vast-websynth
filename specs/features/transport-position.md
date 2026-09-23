@@ -3,7 +3,9 @@
 ```yaml
 id: transport-position
 status: implemented
-version: 6  # v6: every clock seek announces itself from SyncController — so a
+version: 7  # v7: the bare arrows no longer shift the octave (input-control.md REQ-octave-shift-is-minus-and-equal);
+            #     Shift+arrows still seek a bar, unchanged
+            # v6: every clock seek announces itself from SyncController — so a
             #     loop wrap does too (REQ-a-sync-master-announces-its-seek/REQ-one-seek-entry-point); the sequencer's seek release
             #     lands at each track's gate end (REQ-every-relative-consumer-reacts-to-a-seek table)
             # v5: a tick sits over the step it marks — a panel that widens its
@@ -189,7 +191,9 @@ counter silently desynchronises all four.
 - **REQ-home-and-shift-arrows-seek** — **Keyboard: `Home` and `Shift`+arrows.**
   `Home` returns to bar 1 step 1; `Shift+ArrowLeft`/`Shift+ArrowRight` move ∓/±
   one bar. The shifted arrows must be handled **before** the existing bare-arrow
-  octave shift, which currently also fires when Shift is held. A refused seek
+  octave shift, which currently also fires when Shift is held (v7: the octave
+  shift moved to `-`/`=`, input-control.md REQ-octave-shift-is-minus-and-equal, so a bare arrow
+  no longer does anything globally). A refused seek
   (REQ-seeking-is-refused-in-three-states) does not `preventDefault`, so the key
   falls through — the `boolean`-returning idiom `UiBridge.undoActiveMachine` /
   `clearSelectedStep` already use.
@@ -369,7 +373,7 @@ recorders: recorder-controller.ts and bank-render.ts must call start(0)
         cue default breaks. Silently truncated exports otherwise.
 ui ruler: driven by clock.onTick + clock.onSeek (NOT machine onStep); gated by the
         panel's VisibilityGate, re-synced on whenShown
-shortcuts.ts: the Shift+Arrow branch goes ABOVE the bare-arrow octave shift
+shortcuts.ts: the Shift+Arrow branch goes ABOVE the bare-arrow branch (v7: none — the octave is on -/=)
 ```
 
 ### Ruler alignment

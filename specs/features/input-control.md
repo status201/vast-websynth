@@ -3,7 +3,11 @@
 ```yaml
 id: input-control
 status: implemented
-version: 16  # v16: losing the window releases the BEND too, not just the notes and Fill —
+version: 17  # v17: the shortcuts stand down while a modal is open (REQ-shortcuts-yield-to-an-open-modal —
+             #      Delete used to clear a step BEHIND a confirm), and the octave moves
+             #      from the arrows to - and = (REQ-octave-shift-is-minus-and-equal), freeing the
+             #      arrows for keyboard navigation of the knobs
+             # v16: losing the window releases the BEND too, not just the notes and Fill —
              #      hold `'`, Alt-Tab, and the keyup never arrives (REQ-pitch-bend-is-quote-and-slash)
              # v15: the Pitch wheel help topic names the keys REQ-pitch-bend-is-quote-and-slash binds — it
              #      still said `.` five versions after `.` was unbound (REQ-pitch-bend-is-quote-and-slash)
@@ -99,6 +103,34 @@ notes played on another tab no longer overwrite its bank.
   toggle transport, bend pitch, shift octave, or trigger a drum fill. (Same
   `closest(...)` rule the `contextmenu` guard already uses.)
 
+- **REQ-shortcuts-yield-to-an-open-modal** (v17) — **While a modal is open, the
+  global shortcuts do nothing.** A dialog is the whole of the user's attention,
+  and the keys belong to it: Space and Enter press its focused button, Tab moves
+  through it, Escape closes it (owned by `Modal`,
+  [add-a-modal-dialog](../recipes/add-a-modal-dialog.md)). Before v17 only text
+  fields were exempt, so behind any open confirm **Delete / Backspace cleared
+  the selected step** on the tab underneath, **Space toggled the transport**
+  instead of pressing the focused button (the shortcut's `preventDefault`
+  cancelled the click), Home and Shift+arrows seeked, letters played notes and
+  `F` held a fill. `installShortcuts` asks `Modal.anyOpen()` at the top of
+  `keydown`. `keyup` and `blur` are **not** gated: a key held when the dialog
+  opened must still be released when it comes up, or its note would hang.
+  Non-modal floating windows do not count — they are tools you play alongside.
+
+- **REQ-octave-shift-is-minus-and-equal** (v17) — **The keyboard octave shifts
+  on `-` and `=`, not the arrow keys.** The bare arrows are navigation — a focused
+  slider, knob or list owns them ([knob-keyboard-access](knob-keyboard-access.md),
+  [dropdown](dropdown.md) REQ-arrow-keys-move-the-selection) — and binding them
+  app-wide made every such control a tug-of-war with the octave. `-` shifts
+  down and `=` up, matched on `e.code` (`Minus` / `Equal`) for the reason the bend
+  is (REQ-pitch-bend-is-quote-and-slash): the pair is chosen for *where it sits*,
+  the two keys right of `0`, and on QWERTZ/AZERTY those codes carry other
+  characters (one of them a dead key). The numpad's `-` / `+`
+  (`NumpadSubtract` / `NumpadAdd`) do the same. The range is unchanged (base
+  octave 0..7). Shift+arrows still move the playhead a bar
+  ([transport-position](transport-position.md) REQ-home-and-shift-arrows-seek); a
+  bare arrow now does nothing globally.
+
 - **REQ-midi-access-follows-a-gesture** — MIDI access is requested only after a
   **user gesture** — the "Tap to start" click where there is one, and otherwise
   the first touch anywhere after an auto-start
@@ -178,7 +210,7 @@ notes played on another tab no longer overwrite its bank.
       `pointerdown` and releases *that*, so moving OCT while a key is held no
       longer sends `noteOff` for a different MIDI number (a hung voice);
     - **`installShortcuts`** keys its held-note map by the *case-folded key* and
-      stores the note it pressed, so neither the `←`/`→` octave shift nor a Shift
+      stores the note it pressed, so neither the octave shift (`-`/`=` since v17) nor a Shift
       press mid-hold (which flips `e.key` between `z` and `Z`) can make `keyup`
       compute a different identity, miss the map, and skip `release()` entirely
       (a hung voice *and* a stuck-lit key until the window lost focus).
@@ -388,7 +420,7 @@ Scenario: Moving OCT while a key is held does not hang the voice (v9, REQ-a-note
 
 Scenario: Shifting octave while a computer key is held releases it (v9, REQ-a-note-off-names-the-pressed-note, regression)
   Given the user holds 'z'
-  When they press the right-arrow octave shift and then release 'z'
+  When they press the octave-up key (`=`, v17) and then release 'z'
   Then exactly one bus.noteOff fires, for the note 'z' originally played
   And the on-screen key un-lights — previously both waited for a window blur
 # pinned by: tests/ui/shortcuts.test.ts
@@ -505,6 +537,21 @@ Scenario: Typing in a text field does not play notes
   When the user presses 'z'
   Then no note is played (UiBridge.pressKey is not called)
   And a 'z' that originates outside an editable field still plays a note
+# pinned by: tests/ui/shortcuts.test.ts
+
+Scenario: An open modal silences the shortcuts behind it (v17, REQ-shortcuts-yield-to-an-open-modal, regression)
+  Given a confirm dialog is open over a machine tab with a selected step
+  When the user presses Delete, Space, Home or 'z'
+  Then no step is cleared, the transport does not toggle, nothing seeks and no note plays
+   And a note held when the dialog opened is still released on its keyup
+# pinned by: tests/ui/shortcuts.test.ts
+
+Scenario: - and = shift the octave; the bare arrows do not (v17, REQ-octave-shift-is-minus-and-equal)
+  Given the default base octave
+  When the user presses = and then 'z'
+  Then 'z' plays one octave higher, and - brings it back
+   And the numpad - and + do the same
+   And a bare ArrowRight changes nothing
 # pinned by: tests/ui/shortcuts.test.ts
 ```
 

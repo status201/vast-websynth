@@ -343,7 +343,13 @@ export class Dropdown {
    */
   private onKey = (e: KeyboardEvent): void => {
     if (!this.open) return;
-    if (e.key === 'Escape') { this.setOpen(false); return; }
+    if (e.key === 'Escape') {
+      // Consumed, like the arrows below (REQ-the-menu-closes-on-outside-click): on the window
+      // Escape is Panic, so letting it through stopped the song with the menu.
+      e.stopPropagation();
+      this.setOpen(false);
+      return;
+    }
 
     const step = e.key === 'ArrowDown' ? 1 : e.key === 'ArrowUp' ? -1 : 0;
     if (step === 0 && e.key !== 'Home' && e.key !== 'End') return;

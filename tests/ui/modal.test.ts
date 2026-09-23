@@ -152,3 +152,35 @@ describe('Modal', () => {
     expect(onClose).toHaveBeenCalledTimes(1);
   });
 });
+
+// add-a-modal-dialog.md v5 — every open modal listens on window in the capture
+// phase, and same-phase listeners run oldest first: the OLDEST modal used to
+// answer Escape, closing the preset manager from under the confirm on it.
+describe('Modal stacking (v5)', () => {
+  it('Escape closes the top modal only, then the next one down (regression)', () => {
+    const closed: string[] = [];
+    const under = new Modal({ title: 'Preset manager', onClose: () => closed.push('under') });
+    const over = new Modal({ title: 'Confirm', onClose: () => closed.push('over') });
+    try {
+      under.open();
+      over.open();
+      const esc = () => window.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true, cancelable: true }));
+      esc();
+      expect(closed).toEqual(['over']);
+      esc();
+      expect(closed).toEqual(['over', 'under']);
+    } finally {
+      over.close();
+      under.close();
+    }
+  });
+
+  it('anyOpen reports an open modal, and not one that is only fading out', () => {
+    expect(Modal.anyOpen()).toBe(false);
+    const m = new Modal({ title: 'One' });
+    m.open();
+    expect(Modal.anyOpen()).toBe(true);
+    m.close(); // still mounted for its fade, but closed
+    expect(Modal.anyOpen()).toBe(false);
+  });
+});

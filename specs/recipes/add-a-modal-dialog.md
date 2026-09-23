@@ -3,7 +3,10 @@
 ```yaml
 id: add-a-modal-dialog
 status: implemented
-version: 4   # v4: a modal still playing its close fade is reaped the moment
+version: 5   # v5: open modals form a stack — only the top one answers Escape (the oldest used
+             #     to, closing the modal UNDER a confirm); Modal.anyOpen() lets the
+             #     global shortcuts stand down while one is open
+             # v4: a modal still playing its close fade is reaped the moment
              #     any modal opens — a closed dialog must not outlive its answer
              # v3: the backdrop carries no backdrop-filter
              #     (runtime-performance.md REQ-no-viewport-scaled-compositing-on-hot-surfaces)
@@ -79,6 +82,19 @@ business seeing it. This is deliberately *not* a one-modal-at-a-time rule —
 dialogs legitimately stack on top of open modals (a confirm raised from the
 preset manager) and that keeps working. Only the *dying* ones are collected.
 
+**Only the top modal answers Escape** (v5). Every open modal used to add its own
+capture-phase `keydown` listener to `window`, and listeners on one target in one
+phase run in the order they were added — so the *oldest* modal saw Escape
+first, closed itself and stopped the event. With a confirm raised from the
+preset manager, Escape closed the manager and left the confirm standing, its
+question still pending and its OK still live. So open modals form a **stack**:
+each still listens, but a modal that is not the top one lets the key pass, and
+the top one closes alone. The next Escape closes the next one down.
+
+**While any modal is open, the global shortcuts stand down** (v5,
+[input-control](../features/input-control.md) REQ-shortcuts-yield-to-an-open-modal).
+`Modal.anyOpen()` is the query they ask; a fading modal no longer counts.
+
 ### 3. Verify
 
 ```bash
@@ -121,6 +137,18 @@ Scenario: A closing modal never overlaps the one that replaces it (v4)
   When another modal opens before the fade has finished
   Then the closing one is removed on the spot
   And exactly one modal card is in the document
+# pinned by: tests/ui/modal.test.ts
+
+Scenario: Escape closes the top modal only (v5, regression)
+  Given a confirm open on top of an open preset manager
+  When the user presses Escape
+  Then the confirm closes and the preset manager stays open
+   And a second Escape closes the preset manager
+# pinned by: tests/ui/modal.test.ts
+
+Scenario: anyOpen reports an open modal, not a fading one (v5)
+  Given no modal, then one opened, then that one closed
+  Then Modal.anyOpen() is false, true, then false — even while it still fades
 # pinned by: tests/ui/modal.test.ts
 
 Scenario: Stacking an OPEN modal still works (v4, edge)

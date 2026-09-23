@@ -5,6 +5,7 @@ import { UiBridge } from '../../src/ui/ui-bridge';
 import { writeLayoutPref, resetDetectionForTests } from '../../src/state/keyboard-layout';
 import { installLocalStorageMock } from '../storage-mock';
 import type { StudioApi } from '../../src/ui/studio-api';
+import { Modal } from '../../src/ui/components/modal';
 
 function setup(seekOpts: { refuse?: boolean } = {}) {
   const bus = new ParamBus();
@@ -399,7 +400,7 @@ describe('installShortcuts octave shift mid-hold (input-control.md REQ-a-note-of
     bridge.releaseKey = vi.fn();
 
     keydown(document.body, 'z');       // C4 = 60 at the default base octave
-    document.body.dispatchEvent(new KeyboardEvent('keydown', { key: 'ArrowRight', bubbles: true }));
+    document.body.dispatchEvent(new KeyboardEvent('keydown', { key: '=', code: 'Equal', bubbles: true })); // octave up (v17: = not ArrowRight)
     keyup('z');                        // 'z' now names 72 — must not matter
 
     expect(notes).toEqual([[true, 60], [false, 60]]);
@@ -422,7 +423,7 @@ describe('installShortcuts octave shift mid-hold (input-control.md REQ-a-note-of
     const notes: Array<[boolean, number]> = [];
 
     keydown(document.body, 'z');
-    document.body.dispatchEvent(new KeyboardEvent('keydown', { key: 'ArrowRight', bubbles: true }));
+    document.body.dispatchEvent(new KeyboardEvent('keydown', { key: '=', code: 'Equal', bubbles: true })); // octave up (v17: = not ArrowRight)
     keyup('z');
 
     bus.onNote((on, note) => notes.push([on, note]));
@@ -476,5 +477,64 @@ describe('installShortcuts Shift+R toggles the Record window', () => {
     document.body.appendChild(input);
     modKeydown(input, 'R', { shiftKey: true });
     expect(toggle).not.toHaveBeenCalled();
+  });
+});
+
+// input-control.md REQ-shortcuts-yield-to-an-open-modal (v17) — behind an open confirm, Delete
+// cleared the selected step, Space toggled the transport instead of pressing the
+// focused button, and letters played notes.
+describe('installShortcuts under an open modal (v17)', () => {
+  const keyup = (key: string) =>
+    document.body.dispatchEvent(new KeyboardEvent('keyup', { key, bubbles: true }));
+  it('does nothing while a modal is open, and still releases a held note (regression)', () => {
+    const { bridge, seekTo, bus } = setup();
+    const clearSelectedStep = vi.spyOn(bridge, 'clearSelectedStep').mockReturnValue(true);
+    const toggleTransport = vi.spyOn(bridge, 'toggleTransport').mockImplementation(() => {});
+    const notes: Array<[boolean, number]> = [];
+    bus.onNote((on, note) => notes.push([on, note]));
+
+    keydown(document.body, 'z'); // held before the dialog opens
+    const modal = new Modal({ title: 'Delete this preset?' });
+    modal.open();
+    try {
+      for (const key of ['Delete', ' ', 'Home', 'x']) modKeydown(document.body, key);
+      expect(clearSelectedStep).not.toHaveBeenCalled();
+      expect(toggleTransport).not.toHaveBeenCalled();
+      expect(seekTo).not.toHaveBeenCalled();
+      keyup('z'); // keyup is not gated: the held note must not hang
+    } finally {
+      modal.close();
+    }
+    expect(notes).toEqual([[true, 60], [false, 60]]);
+  });
+});
+
+// input-control.md REQ-octave-shift-is-minus-and-equal (v17) — the bare arrows are navigation now.
+describe('installShortcuts octave shift on - and = (v17)', () => {
+  const keyup = (key: string) =>
+    document.body.dispatchEvent(new KeyboardEvent('keyup', { key, bubbles: true }));
+  const zAfter = (code: string, key: string): number => {
+    const { bus } = setup();
+    const notes: number[] = [];
+    bus.onNote((on, note) => { if (on) notes.push(note); });
+    keydown(document.body, key, code);
+    keydown(document.body, 'z');
+    keyup('z');
+    return notes[0]!;
+  };
+
+  it('= and numpad + shift up, - and numpad - shift down', () => {
+    expect(zAfter('Equal', '=')).toBe(72);
+    expect(zAfter('NumpadAdd', '+')).toBe(72);
+    expect(zAfter('Minus', '-')).toBe(48);
+    expect(zAfter('NumpadSubtract', '-')).toBe(48);
+  });
+
+  it('matches on the key position, so a layout that types another character still shifts', () => {
+    expect(zAfter('Equal', '´')).toBe(72); // QWERTZ: the key right of 0 is a dead acute
+  });
+
+  it('a bare arrow no longer moves the octave', () => {
+    expect(zAfter('ArrowRight', 'ArrowRight')).toBe(60);
   });
 });

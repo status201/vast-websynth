@@ -3,7 +3,9 @@
 ```yaml
 id: iconography
 status: implemented
-version: 3   # v3: `download` — the About card's Play offline button (play-offline.md)
+version: 4   # v4: the octave-shift row is `-` / `=` (input-control.md REQ-octave-shift-is-minus-and-equal); the
+             #     arrow caps this spec was written for live on in the Shift+arrows row
+             # v3: `download` — the About card's Play offline button (play-offline.md)
              # v2: iconTextEl emits the bare svg beside its label, as iconLabel does —
              #     its span wrapper had silently dropped the icon/text gap (regression)
 owner: ui
@@ -286,7 +288,7 @@ None.
 ```gherkin
 Scenario: the octave-shift keycaps draw identically on any device (REQ-a-control-glyph-is-inline-svg)
   Given the About modal's Keyboard Shortcuts list
-  When the "Shift keyboard octave down / up" row renders
+  When the "Move the playhead one bar" row renders (v4: the octave row is - / = now, plain keycaps)
   Then each arrow cap contains an svg.ui-icon and no arrow character
 # pinned by: tests/ui/about.test.ts
 
