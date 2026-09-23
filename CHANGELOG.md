@@ -41,6 +41,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ### Fixed
 
+- **A key held while the arpeggiator switches on no longer rings forever.** Its
+  release was ignored once the arp took over the keyboard, so the note kept
+  sounding until Panic — whether the arp came on from its switch, a preset or
+  song, or a motion lane.
 - **Starting an export during a render to the sampler no longer breaks the
   sequencer until you reload.** The export stopped the render halfway, which
   left the sequencer's settings changed and seeking, Loop and the Render button

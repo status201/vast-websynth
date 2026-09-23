@@ -30,6 +30,8 @@ function engineLike(scale = new ScaleQuantizer(), suppressed = false) {
     heldIn: (stub as unknown as { heldIn: Map<number, number[]> }).heldIn,
     noteOn: (n: number, v = 0.8) => stub.handleNote(true, n, v),
     noteOff: (n: number) => stub.handleNote(false, n, 0),
+    /** Switch the arp's gate mid-test (voicing.md REQ-passthrough-remembers-what-it-played v8). */
+    setSuppressed: (on: boolean) => { (stub as unknown as { arpPassthroughSuppressed: boolean }).arpPassthroughSuppressed = on; },
   };
 }
 
@@ -150,5 +152,25 @@ describe('note passthrough — chord memory', () => {
     const { playNote, noteOn } = withChord('triad');
     noteOn(61);                                  // C# -> C, so the chord is C E G
     expect(notes(playNote)).toEqual([60, 64, 67]);
+  });
+});
+
+// voicing.md REQ-passthrough-remembers-what-it-played (v8) — the arp gate used to swallow note-offs as well.
+describe('Engine.handleNote across the arp switching on', () => {
+  it('releases a key held as the arp came on (regression)', () => {
+    const e = engineLike();
+    e.noteOn(60);                 // sounds through the passthrough
+    e.setSuppressed(true);        // the arp is switched on mid-hold
+    e.noteOff(60);                // the bug: this release was dropped and the voice rang on
+    expect(notes(e.releaseNote)).toEqual([60]);
+    expect(e.heldIn.size).toBe(0);
+  });
+
+  it('neither plays nor releases a key pressed while the arp owns the stream', () => {
+    const e = engineLike(new ScaleQuantizer(), true);
+    e.noteOn(64);
+    e.noteOff(64);
+    expect(e.playNote).not.toHaveBeenCalled();
+    expect(e.releaseNote).not.toHaveBeenCalled();
   });
 });
