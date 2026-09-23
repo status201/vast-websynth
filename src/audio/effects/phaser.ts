@@ -6,10 +6,31 @@ import type { ParamBus } from '../../state/params';
 
 const STAGES = 4;
 
+/**
+ * The swing the v1 linear-Hz mapping gave at full depth. Kept only so
+ * `stageCents` can reproduce that mapping's top exactly — see
+ * effects.md REQ-the-phaser-sweeps-in-cents.
+ */
+const SWEEP_TOP_HZ = 1500;
+
+/**
+ * One stage's LFO swing, in **cents** (effects.md REQ-the-phaser-sweeps-in-cents,
+ * ADR-005). The v1 mapping added `depth * 1500` linear Hz to every stage, which
+ * drove any stage centred under the swing to the 0 Hz floor for part of each
+ * cycle — an allpass there is a pass-through, so the stage dropped out of the
+ * phaser. This is the cents equivalent of that old *upward* excursion, so the
+ * top of every stage's sweep is exactly where it was and only the bottom moves.
+ * Per stage, because the stages have different centres.
+ */
+export function stageCents(depth: number, centreHz: number): number {
+  return 1200 * Math.log2(1 + depth * SWEEP_TOP_HZ / centreHz);
+}
+
 export class Phaser extends WrappedEffect {
   private readonly stages: BiquadFilterNode[];
   private readonly lfo: OscillatorNode;
-  private readonly lfoDepth: GainNode;
+  /** One swing per stage, in cents on its `detune` (REQ-the-phaser-sweeps-in-cents). */
+  private readonly lfoDepths: GainNode[] = [];
   private readonly feedback: GainNode;
   private readonly fbDelay: DelayNode;
   /** Last commanded feedback, held across a quiesce so it can be restored. */
@@ -17,7 +38,7 @@ export class Phaser extends WrappedEffect {
   private quiesced = false;
   private readonly inGain: GainNode;
 
-  private depthOct = 1.5;
+  private depth = 0.75;
 
   constructor(ctx: AudioContext) {
     super(ctx, 0.5);
@@ -35,12 +56,14 @@ export class Phaser extends WrappedEffect {
     this.lfo.type = 'sine';
     this.lfo.frequency.value = 0.5;
 
-    this.lfoDepth = ctx.createGain();
-    this.lfoDepth.gain.value = this.depthHz();
-
-    // LFO modulates each stage's frequency (additively around its center)
+    // The LFO sweeps each stage's detune, in cents, around a centre `frequency`
+    // written once above and never again (REQ-the-phaser-sweeps-in-cents):
+    // `frequency * 2^(detune/1200)` cannot reach 0 Hz however deep the sweep.
     for (const s of this.stages) {
-      this.lfo.connect(this.lfoDepth).connect(s.frequency);
+      const g = ctx.createGain();
+      g.gain.value = stageCents(this.depth, s.frequency.value);
+      this.lfo.connect(g).connect(s.detune);
+      this.lfoDepths.push(g);
     }
     this.lfo.start();
 
@@ -70,8 +93,11 @@ export class Phaser extends WrappedEffect {
     this.lfo.frequency.setTargetAtTime(hz, this.ctx.currentTime, RAMP_SMOOTH);
   }
   setDepth(d: number): void {
-    this.depthOct = clamp01(d) * 2;
-    this.lfoDepth.gain.setTargetAtTime(this.depthHz(), this.ctx.currentTime, RAMP_SMOOTH);
+    this.depth = clamp01(d);
+    for (let i = 0; i < STAGES; i++) {
+      const cents = stageCents(this.depth, this.stages[i]!.frequency.value);
+      this.lfoDepths[i]!.gain.setTargetAtTime(cents, this.ctx.currentTime, RAMP_SMOOTH);
+    }
   }
   setFeedback(f: number): void {
     // Recorded even while quiesced, so the restore lands on the current knob.
@@ -97,10 +123,5 @@ export class Phaser extends WrappedEffect {
     bindTempoLocked(bus, `${prefix}.rate`, `${prefix}.sync`, 'freq', (x) => this.setRate(x));
     bus.subscribe(`${prefix}.depth`, (x) => this.setDepth(x));
     bus.subscribe(`${prefix}.feedback`, (x) => this.setFeedback(x));
-  }
-
-  private depthHz(): number {
-    // Sweep the center frequency by ~1500 Hz at full depth
-    return this.depthOct * 750;
   }
 }

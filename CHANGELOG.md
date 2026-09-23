@@ -43,6 +43,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
   the next step, not Stop, not a seek — so a looping pattern piled up droning
   voices until Panic. The tied note now ends as the next note starts. A tie
   into the same note, and every tie in mono, sounds exactly as before.
+- **The phaser sweeps its whole range again, instead of stalling at the
+  bottom.** Its sweep was measured in plain hertz, so the lower stages were
+  pushed below 0 Hz and sat there, doing nothing, for up to a third of every
+  cycle — a fifth of it even at the synth phaser's default depth. It now sweeps
+  in musical intervals, as the wah already does. The top of every sweep is
+  exactly where it was; only the bottom moves up. Songs that use the phaser —
+  most noticeably `Gankogui`, `Neon` and `apex-twin` — sweep more evenly and a
+  touch quieter.
 
 ## [2.14.1] - 2026-09-22
 
