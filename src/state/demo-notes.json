@@ -9,5 +9,6 @@
   "Tosti.websynth.json": "Three sequencer tracks over a conga-and-clave kit.",
   "hacienda_neworder.json": "A nod to the Haçienda.",
   "Maison.websynth.json": "French house, built around the ducker: the kick keys it, everything else breathes. Two bars of silence, a filter riser, then the drop. Mute the drum lane and the pumping stops with it.",
-  "Sweet_Dreams.websynth.json": "The sequencer runs at 1/8 over all 16 cells, so every bank holds two bars — the riff and the vocal line each fit one bank, which is how eight banks cover the whole song. Four POLY tracks: bass, both riff lines and the melody or chord on top."
+  "Sweet_Dreams.websynth.json": "The sequencer runs at 1/8 over all 16 cells, so every bank holds two bars — the riff and the vocal line each fit one bank, which is how eight banks cover the whole song. Four POLY tracks: bass, both riff lines and the melody or chord on top.",
+  "Blue_Monday.websynth.json": "Two four-bar halves: the pulsing sequence with its two out-of-phase lines, and the octave bass under the hook and the melody. The drums carry the breaks — the kick roll, the dotted stop, a 32nd-note kick ratchet and the snare-and-clap rolls — over bars where the sequencer rests."
 }

@@ -63,6 +63,17 @@
       "drums"
     ]
   },
+  "Blue_Monday.websynth.json": {
+    "name": "Blue Monday",
+    "bpm": 130,
+    "bars": 90,
+    "uses": [
+      "seq",
+      "drums",
+      "motion"
+    ],
+    "blurb": "Two four-bar halves: the pulsing sequence with its two out-of-phase lines, and the octave bass under the hook and the melody. The drums carry the breaks — the kick roll, the dotted stop, a 32nd-note kick ratchet and the snare-and-clap rolls — over bars where the sequencer rests."
+  },
   "Bunk.websynth.json": {
     "name": "Bunk",
     "bpm": 96,
