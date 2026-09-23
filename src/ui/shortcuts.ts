@@ -2,6 +2,9 @@ import type { StudioApi } from './studio-api';
 import type { ParamBus } from '../state/params';
 import type { UiBridge } from './ui-bridge';
 import { LAYOUTS, resolveLayout, onLayoutChange } from '../state/keyboard-layout';
+// The stack alone, not Modal: importing Modal would pull its stylesheet in here
+// and move it in the cascade (src/ui/CLAUDE.md, "import order is cascade order").
+import { anyModalOpen } from './modal-stack';
 
 /**
  * The piano shape: which **physical** key is which semitone, two rows of C..C.
@@ -93,6 +96,11 @@ export function installShortcuts(engine: StudioApi, bus: ParamBus, bridge: UiBri
 
   window.addEventListener('keydown', (e: KeyboardEvent) => {
     if (isEditableTarget(e)) return; // let text fields receive their keystrokes
+    // A dialog owns the keyboard while it is up (input-control.md REQ-shortcuts-yield-to-an-open-modal):
+    // Delete used to clear a step behind a confirm, and Space to toggle the
+    // transport instead of pressing the focused button. keyup and blur stay
+    // ungated, so a key held when the dialog opened is still released.
+    if (anyModalOpen()) return;
     if (e.repeat) return;
 
     // Ctrl/Cmd+Z — undo on the active machine tab (pattern-undo.md REQ-ctrl-z-undoes-the-active-machine).
@@ -107,10 +115,11 @@ export function installShortcuts(engine: StudioApi, bus: ParamBus, bridge: UiBri
     const k = e.key;
 
     // --- Transport position (transport-position.md REQ-home-and-shift-arrows-seek) ---
-    // Home = back to the top; Shift+arrows = ±1 bar. Both must be tested BEFORE
-    // the bare-arrow octave shift below, which otherwise fires on Shift+Arrow
-    // too. A refused seek (slaved, or a capture in flight) falls through without
-    // preventDefault, the same boolean idiom Ctrl+Z and Delete use above.
+    // Home = back to the top; Shift+arrows = ±1 bar. (The octave shift used to be
+    // the bare arrows and had to come after this; it is `-` / `=` now, and a bare
+    // arrow belongs to whatever control has focus.) A refused seek (slaved, or a
+    // capture in flight) falls through without preventDefault, the same boolean
+    // idiom Ctrl+Z and Delete use above.
     if (k === 'Home') {
       if (engine.seekTo(0)) e.preventDefault();
       return;
@@ -166,12 +175,17 @@ export function installShortcuts(engine: StudioApi, bus: ParamBus, bridge: UiBri
     if (e.code === 'Quote') { bus.set('master.pitchBend', 1); return; }
     if (e.code === 'Slash') { bus.set('master.pitchBend', -1); return; }
 
-    // Octave shift
-    if (k === 'ArrowLeft') {
+    // Octave shift — `-` / `=` and the numpad pair, on `e.code` like the bend
+    // (input-control.md REQ-octave-shift-is-minus-and-equal): chosen for where the keys sit, the two
+    // right of `0`, which QWERTZ/AZERTY label differently. Not the bare arrows:
+    // those are navigation, owned by whatever focused knob, slider or list has them.
+    if (e.code === 'Minus' || e.code === 'NumpadSubtract') {
+      e.preventDefault();
       baseOctave = Math.max(0, baseOctave - 1);
       return;
     }
-    if (k === 'ArrowRight') {
+    if (e.code === 'Equal' || e.code === 'NumpadAdd') {
+      e.preventDefault();
       baseOctave = Math.min(7, baseOctave + 1);
       return;
     }

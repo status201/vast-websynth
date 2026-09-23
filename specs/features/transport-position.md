@@ -3,7 +3,9 @@
 ```yaml
 id: transport-position
 status: implemented
-version: 6  # v6: every clock seek announces itself from SyncController — so a
+version: 7  # v7: the bare arrows no longer shift the octave (input-control.md REQ-octave-shift-is-minus-and-equal);
+            #     Shift+arrows still seek a bar, unchanged
+            # v6: every clock seek announces itself from SyncController — so a
             #     loop wrap does too (REQ-a-sync-master-announces-its-seek/REQ-one-seek-entry-point); the sequencer's seek release
             #     lands at each track's gate end (REQ-every-relative-consumer-reacts-to-a-seek table)
             # v5: a tick sits over the step it marks — a panel that widens its
@@ -112,7 +114,7 @@ counter silently desynchronises all four.
   the table in *Technical design*. Specifically: the arrangement re-seeks its
   four lanes from `floor(step / SEQ_LENGTH)` and re-arms `expectFirstBar`; the
   sequencer releases held notes and clears `prevTied` per track; the motion
-  machine drops its `prev`/`curr` latch pair **without** restoring baselines;
+  machine empties its tick latch (motion-sequencer v18: a ring) **without** restoring baselines;
   and `Performance` re-anchors stutter. The drum and sampler machines hold no
   position state and need nothing.
 
@@ -189,7 +191,9 @@ counter silently desynchronises all four.
 - **REQ-home-and-shift-arrows-seek** — **Keyboard: `Home` and `Shift`+arrows.**
   `Home` returns to bar 1 step 1; `Shift+ArrowLeft`/`Shift+ArrowRight` move ∓/±
   one bar. The shifted arrows must be handled **before** the existing bare-arrow
-  octave shift, which currently also fires when Shift is held. A refused seek
+  octave shift, which currently also fires when Shift is held (v7: the octave
+  shift moved to `-`/`=`, input-control.md REQ-octave-shift-is-minus-and-equal, so a bare arrow
+  no longer does anything globally). A refused seek
   (REQ-seeking-is-refused-in-three-states) does not `preventDefault`, so the key
   falls through — the `boolean`-returning idiom `UiBridge.undoActiveMachine` /
   `clearSelectedStep` already use.
@@ -351,7 +355,7 @@ playheadRulerFor(engine, lane, gate?): PlayheadRuler      # src/ui/panels/step-p
 | --- | --- | --- |
 | `Arrangement` | `seqPos`/`drumPos`/`samplerPos`/`motionPos` advance `+1` per bar line and are never derived from `clock.step`, so a jump leaves the chain off by (bars jumped − 1) — plus a spurious double-advance when the jump lands exactly on a bar line. | `seekTo(step)`: `laneSeek` per lane, `expectFirstBar = step % SEQ_LENGTH === 0`, `recompute()`, `notify()`. |
 | `StepSequencer` | Per-track `prevTied` / `lastPlayedNote`: a note tied at the old position slurs into the new one, or a held note is never released. | Release every track's held note **at that track's last gate end** (v6) and clear `prevTied`. Releasing *now* was overwritten by a note-on still in the look-ahead, which hung the voice — deterministically on a loop wrap ([sequencer](sequencer.md) REQ-a-seek-releases-every-tracks-note). Subscribed inside the constructor so the release stays private. |
-| `MotionMachine` | `prev`/`curr` become non-adjacent, so the frame loop interpolates from a stale anchor for up to `scheduleAheadS` — an audible param glide to the wrong value. | `curr = prev = null` only. **Not** `restoreBaselines()` (REQ-motion-baselines-survive-a-seek). |
+| `MotionMachine` | the latched cells before and after the jump are no longer adjacent, so the frame loop interpolates from a stale anchor for up to `scheduleAheadS` — an audible param glide to the wrong value. | empty the latch only. **Not** `restoreBaselines()` (REQ-motion-baselines-survive-a-seek). |
 | `Performance` | `mapStep` returns `anchor + ((step - anchor) mod n)`, so with stutter engaged a jump is clamped into the *old* window and a backwards jump replays it forever. | Re-anchor to the new step while stutter is on. |
 | `DrumMachine`, `SamplerMachine` | none — stateless per tick. | none. |
 
@@ -369,7 +373,7 @@ recorders: recorder-controller.ts and bank-render.ts must call start(0)
         cue default breaks. Silently truncated exports otherwise.
 ui ruler: driven by clock.onTick + clock.onSeek (NOT machine onStep); gated by the
         panel's VisibilityGate, re-synced on whenShown
-shortcuts.ts: the Shift+Arrow branch goes ABOVE the bare-arrow octave shift
+shortcuts.ts: the Shift+Arrow branch goes ABOVE the bare-arrow branch (v7: none — the octave is on -/=)
 ```
 
 ### Ruler alignment

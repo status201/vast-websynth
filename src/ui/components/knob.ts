@@ -55,6 +55,8 @@ export class Knob {
   private readonly indicator: HTMLElement;
   private readonly arc: SVGCircleElement;
   private readonly valueLabel: HTMLElement;
+  /** The drag target and the keyboard slider (knob-keyboard-access.md). */
+  private readonly dial: HTMLElement;
   private readonly def: ParamDef;
   private unsubscribe: () => void = () => {};
   private dragging = false;
@@ -171,6 +173,17 @@ export class Knob {
     // pointer move.
     dial.addEventListener('pointerdown', this.onPointerDown);
 
+    // A focusable slider (knob-keyboard-access.md REQ-a-knob-is-a-focusable-slider). The dial, not the
+    // root: it is what the pointer drags, and a tempo-locked knob hides it —
+    // taking it out of the tab order with it, so the lock chip is reached instead.
+    this.dial = dial;
+    dial.setAttribute('role', 'slider');
+    dial.tabIndex = 0;
+    dial.setAttribute('aria-label', labelText);
+    dial.setAttribute('aria-valuemin', String(def.min));
+    dial.setAttribute('aria-valuemax', String(def.max));
+    dial.addEventListener('keydown', this.onKeyDown);
+
     // Before the subscribe: `subscribe` fires immediately, so the very first
     // paint already honours the ceiling and no separate repaint is needed.
     if (opts.uiMax !== undefined) this.applyUiMax(opts.uiMax);
@@ -271,6 +284,10 @@ export class Knob {
     if (label !== this.lastLabel) {
       this.lastLabel = label;
       this.valueLabel.textContent = label;
+      // Behind the readout's own guard (knob-keyboard-access.md REQ-the-aria-value-is-written-like-the-dial),
+      // so an automated sweep writes these no more often than the label.
+      this.dial.setAttribute('aria-valuenow', String(value));
+      this.dial.setAttribute('aria-valuetext', label);
     }
 
     if (this.modDepth > 0) this.paintModRange(value);
@@ -522,6 +539,43 @@ export class Knob {
     window.addEventListener('pointermove', this.onPointerMove);
     window.addEventListener('pointerup', this.onPointerUp);
     window.addEventListener('pointercancel', this.onPointerUp);
+  };
+
+  /**
+   * The keys a focused knob owns (knob-keyboard-access.md REQ-the-keys-a-focused-knob-owns). Each goes
+   * through `bus.set` like a drag, and is consumed so neither the page nor the
+   * global shortcuts see it — `Home` would seek, Shift+arrows move a bar,
+   * `Delete` clear a step. Every other key passes through: a letter still plays.
+   */
+  private onKeyDown = (e: KeyboardEvent): void => {
+    if (this.disabled || e.ctrlKey || e.metaKey || e.altKey) return;
+    const { bus, paramId } = this.opts;
+    const discrete = this.def.taper === 'discrete';
+    // 1 % of travel, a quarter of that with Shift (the drag's 200 : 600 fine
+    // ratio, rounded to a keyboard notch), 10 % a page; a discrete param moves
+    // exactly one step for any of them.
+    const nudge = (fraction: number, dir: 1 | -1): void => {
+      const v = bus.get(paramId);
+      if (discrete) {
+        bus.set(paramId, v + dir * (this.def.step ?? 1));
+        return;
+      }
+      bus.set(paramId, this.denormalize(this.normalize(v) + dir * fraction));
+    };
+    const fine = e.shiftKey ? 0.0025 : 0.01;
+    switch (e.key) {
+      case 'ArrowUp': case 'ArrowRight': nudge(fine, 1); break;
+      case 'ArrowDown': case 'ArrowLeft': nudge(fine, -1); break;
+      case 'PageUp': nudge(0.1, 1); break;
+      case 'PageDown': nudge(0.1, -1); break;
+      case 'Home': bus.set(paramId, this.def.min); break;
+      case 'End': bus.set(paramId, this.def.max); break;
+      // The double-tap's reset, so the keyboard reaches the preset/song value.
+      case 'Delete': case 'Backspace': bus.reset(paramId); break;
+      default: return;
+    }
+    e.preventDefault();
+    e.stopPropagation();
   };
 
   private onPointerMove = (e: PointerEvent): void => {

@@ -7,8 +7,8 @@ import { makeMockAudioContext, makeMockBiquadFilter } from '../mock-audio-contex
 /**
  * Tests for the Performance module's pure-logic paths.
  * `mapStep` (stutter) is pure math — no AudioContext required.
- * Filter Drop / DJ Filter / Tape Stop need real AudioContext / rAF
- * so they are tested via integration only.
+ * Filter Drop / DJ Filter / Tape Stop run against a mock AudioContext and an
+ * injected, hand-driven timer (see makePerf).
  */
 describe('Performance.mapStep (stutter)', () => {
   // Replicate the production math inline so we can test it without
@@ -67,7 +67,22 @@ const DJ_LP_SPAN_CENTS = 1200 * Math.log2(130 / 20000);  // ~ -8800
 const DJ_HP_SPAN_CENTS = 1200 * Math.log2(4000 / 20);    // ~ +9171
 const DJ_DROP_CENTS = 1200 * Math.log2(160 / 20000);     // ~ -8368
 
+/**
+ * A hand-driven TickTimer for the Tape Stop ramp (REQ-tape-stop-ramps-bpm-and-pitch):
+ * `fire()` is one wakeup. It owes nothing to rAF or visibility, which is the point.
+ */
+function makeFakeTimer() {
+  let cb: (() => void) | null = null;
+  return {
+    start(fn: () => void): void { cb = fn; },
+    stop(): void { cb = null; },
+    get running(): boolean { return cb !== null; },
+    fire(): void { cb?.(); },
+  };
+}
+
 function makePerf() {
+  const timer = makeFakeTimer();
   const ctx = makeMockAudioContext();
   const clock = new TestClock();
   const bus = new ParamBus();
@@ -84,8 +99,9 @@ function makePerf() {
     bus,
     djLow as unknown as BiquadFilterNode,
     djHigh as unknown as BiquadFilterNode,
+    timer,
   );
-  return { ctx, clock, bus, djLow, djHigh, perf };
+  return { ctx, clock, bus, djLow, djHigh, perf, timer };
 }
 
 /** Last detune (cents) a side was retargeted to, or null if it was never touched. */
@@ -265,50 +281,139 @@ describe('Performance.setTapeStop', () => {
   let now = 0;
   afterEach(() => vi.unstubAllGlobals());
 
-  function stubRaf() {
-    // One synchronous frame that advances the clock past the ramp duration so
-    // the ease reaches its endpoint in a single step.
-    vi.stubGlobal('requestAnimationFrame', (cb: FrameRequestCallback) => { now += 100000; cb(now); return 1; });
-    vi.stubGlobal('cancelAnimationFrame', () => {});
+  /** The ramp is timed by `performance.now()`; the injected timer only wakes it. */
+  function stubNow() {
     vi.stubGlobal('performance', { now: () => now });
+  }
+
+  /** One wakeup far past the ramp's end, so the ease lands on its endpoint. */
+  function finish(timer: ReturnType<typeof makeFakeTimer>) {
+    now += 100000;
+    timer.fire();
   }
 
   it('ramps the BPM and pitch down on press', () => {
     now = 1000;
-    stubRaf();
-    const { perf, clock, bus } = makePerf();
+    stubNow();
+    const { perf, clock, bus, timer } = makePerf();
     const setBpm = vi.spyOn(clock, 'setBpm');
 
     perf.setTapeStop(true);
+    finish(timer);
     expect(setBpm).toHaveBeenLastCalledWith(20); // dives to the floor BPM
     expect(bus.get('master.pitchBend')).toBe(-1); // and bends pitch fully down
+    expect(timer.running).toBe(false);            // and the timer is released
   });
 
   it('recovers the BPM and pitch on release', () => {
     now = 1000;
-    stubRaf();
-    const { perf, clock, bus } = makePerf();
+    stubNow();
+    const { perf, clock, bus, timer } = makePerf();
     perf.setTapeStop(true);
+    finish(timer);
     const setBpm = vi.spyOn(clock, 'setBpm');
 
     perf.setTapeStop(false);
+    finish(timer);
     expect(setBpm).toHaveBeenLastCalledWith(120); // back to the original BPM
     expect(bus.get('master.pitchBend')).toBe(0);
+    expect(timer.running).toBe(false);
   });
 
   it('gates the clock ramp while slaved: pitch bends but the clock is never set', () => {
     now = 1000;
-    stubRaf();
-    const { perf, clock, bus } = makePerf();
+    stubNow();
+    const { perf, clock, bus, timer } = makePerf();
     perf.clockRampAllowed = () => false; // as the Engine sets it while slaved
     const setBpm = vi.spyOn(clock, 'setBpm');
 
     perf.setTapeStop(true);
+    finish(timer);
     expect(setBpm).not.toHaveBeenCalled();        // per-frame ramp skipped
     expect(bus.get('master.pitchBend')).toBe(-1); // pitch still bends fully down
 
     perf.setTapeStop(false);
+    finish(timer);
     expect(setBpm).not.toHaveBeenCalled();        // the restore is skipped too
     expect(bus.get('master.pitchBend')).toBe(0);  // pitch still recovers
+  });
+
+  // performance.md REQ-tape-stop-ramps-bpm-and-pitch (v9, regression) — rAF is
+  // suspended for a hidden document, and the ramp used to be driven by it, so a
+  // Tape Stop caught by a tab switch froze mid-gesture. Here rAF never fires at
+  // all, exactly as in a hidden tab, and both ramps must still complete.
+  it('finishes in a hidden tab, where rAF never fires (v9, regression)', () => {
+    now = 1000;
+    stubNow();
+    vi.stubGlobal('requestAnimationFrame', () => 1); // accepted, never called back
+    vi.stubGlobal('cancelAnimationFrame', () => {});
+    const { perf, clock, bus, timer } = makePerf();
+
+    perf.setTapeStop(true);
+    finish(timer);
+    expect(clock.bpm).toBe(20);
+    expect(bus.get('master.pitchBend')).toBe(-1);
+
+    perf.setTapeStop(false);
+    finish(timer);
+    expect(clock.bpm).toBe(120);
+    expect(bus.get('master.pitchBend')).toBe(0);
+  });
+
+  // performance.md REQ-tape-stop-ramps-bpm-and-pitch (v8, regression) — the ramps
+  // above jump straight to their ends, so an early release was never exercised.
+  // These step real ~16 ms wakeups.
+  describe('released or re-pressed mid-ramp', () => {
+    function build() {
+      stubNow();
+      const { perf, clock, timer } = makePerf();
+      const bpms: number[] = [];
+      const set = clock.setBpm.bind(clock);
+      clock.setBpm = (b: number) => { bpms.push(b); set(b); };
+      const run = (ms: number): void => {
+        const end = now + ms;
+        while (now < end) {
+          now += 16;
+          timer.fire();
+        }
+      };
+      return { perf, clock, bpms, run };
+    }
+
+    it('an early release recovers from where the dive got to, never dipping first', () => {
+      now = 1000;
+      const { perf, clock, bpms, run } = build();
+      perf.setTapeStop(true);
+      run(200); // part of the 650 ms dive
+      const reached = clock.bpm;
+      expect(reached).toBeLessThan(120);
+      expect(reached).toBeGreaterThan(100);
+
+      bpms.length = 0;
+      perf.setTapeStop(false);
+      run(600);
+      // The bug: the first release frame was ~27 BPM — a lurch to the floor.
+      expect(Math.min(...bpms)).toBeGreaterThanOrEqual(reached - 1e-9);
+      for (let i = 1; i < bpms.length; i++) expect(bpms[i]!).toBeGreaterThanOrEqual(bpms[i - 1]! - 1e-9);
+      expect(bpms.at(-1)).toBe(120);
+    });
+
+    it('a press mid-recovery dives from wherever the recovery had reached', () => {
+      now = 1000;
+      const { perf, clock, bpms, run } = build();
+      perf.setTapeStop(true);
+      run(700); // all the way down
+      perf.setTapeStop(false);
+      run(100); // part of the way back up
+      const reached = clock.bpm;
+      expect(reached).toBeGreaterThan(20);
+      expect(reached).toBeLessThan(120);
+
+      bpms.length = 0;
+      perf.setTapeStop(true);
+      run(100);
+      // The mirror fault: the press jumped straight back to 120 first.
+      expect(Math.max(...bpms)).toBeLessThanOrEqual(reached + 1e-9);
+    });
   });
 });

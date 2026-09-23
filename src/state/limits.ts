@@ -29,6 +29,13 @@ export const MAX_ZIP_ENTRIES = 64;
 /** A WebRTC signalling blob (`WS2.…`) or a scanned QR. A deflated SDP is ~700 bytes. */
 export const MAX_SIGNAL_BYTES = 256 * 1024;
 
+/**
+ * How far ahead of now a WiFi peer's `start`/`continue` time may point
+ * (midi-clock-sync.md REQ-a-join-is-timed-by-its-first-pulse). A real join is at most one look-ahead
+ * (~225 ms) ahead; clamping stops a hostile peer parking a slave indefinitely.
+ */
+export const MAX_SYNC_JOIN_LEAD_MS = 1000;
+
 /** Arrangement chain length. 1024 bars is ~34 minutes at 120 BPM. */
 export const MAX_CHAIN_STEPS = 1024;
 

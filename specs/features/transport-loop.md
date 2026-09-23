@@ -449,10 +449,10 @@ Scenario: No router unless engaged (REQ-loop-costs-nothing-unless-engaged)
   or a 16th-resolution loop set there, would reuse its geometry
   ([transport-position](transport-position.md) → Open questions), but it is a
   separate, step-level feature.
-- **A slave follows a wrap by re-joining.** REQ-a-sync-master-announces-every-wrap reuses REQ-23's
-  `songposition` + `continue`, which makes a slave restart its clock at each
-  wrap, and the phase correction then settles it again. A seamless follow would
-  need a slave that is already playing to *seek* on `continue` rather than
-  restart. That changes slave phase tracking, so it is left for its own change.
+- ~~**A slave follows a wrap by re-joining.**~~ Resolved by midi-clock-sync v8:
+  a slave that is already following jumps in place on `continue`
+  (REQ-a-following-slave-jumps-in-place), timed to the wrap's first pulse
+  (REQ-a-join-is-timed-by-its-first-pulse). The restart it used to do had also
+  been leaving the slave a 16th off after a few wraps.
 - **Keyboard shortcuts** for Loop and Pause are not assigned. Most letter keys
   already play the on-screen keyboard ([keyboard-layout](keyboard-layout.md)).

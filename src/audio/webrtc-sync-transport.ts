@@ -35,7 +35,8 @@ const STATS_POLL_MS = 800;        // diagnostics getStats cadence (REQ-every-syn
 
 /** Wire envelope (keyed `t`) — kept distinct from the semantic `SyncMessage`. */
 type Wire =
-  | { t: 'start' } | { t: 'continue' } | { t: 'stop' }
+  // `at` (v8, REQ-a-join-carries-its-time): the sender's schedule for a join. Optional — older peers omit it.
+  | { t: 'start'; at?: number } | { t: 'continue'; at?: number } | { t: 'stop' }
   | { t: 'songposition'; beat: number } | { t: 'tempo'; bpm: number }
   | { t: 'meter'; beats: number; unit: number }
   | { t: 'pulse'; at: number }
@@ -85,6 +86,10 @@ export class WebRtcSyncTransport implements SyncTransport {
         break;
       case 'start':
       case 'continue':
+        // A DataChannel sends at once, so the join's schedule rides the wire
+        // instead of the send (REQ-a-join-carries-its-time).
+        this.sendControl(atMs === undefined ? { t: msg.type } : { t: msg.type, at: atMs });
+        break;
       case 'stop':
         this.sendControl({ t: msg.type });
         break;
@@ -325,8 +330,8 @@ export class WebRtcSyncTransport implements SyncTransport {
     if (!w) return;
     const now = this.nowMs();
     switch (w.t) {
-      case 'start': this.emit({ type: 'start' }, now); break;
-      case 'continue': this.emit({ type: 'continue' }, now); break;
+      case 'start': this.emit(this.join('start', w.at), now); break;
+      case 'continue': this.emit(this.join('continue', w.at), now); break;
       case 'stop': this.emit({ type: 'stop' }, now); break;
       case 'songposition': this.emit({ type: 'songposition', beat: w.beat }, now); break;
       case 'tempo': this.emit({ type: 'tempo', bpm: w.bpm }, now); break;
@@ -352,6 +357,17 @@ export class WebRtcSyncTransport implements SyncTransport {
         break;
       }
     }
+  }
+
+  /**
+   * A join with its sender-scheduled time moved into our domain
+   * (REQ-a-join-carries-its-time). No estimate yet means no conversion, and an
+   * unconverted sender time means nothing here — so the time is left off and
+   * the slave falls back to the first pulse.
+   */
+  private join(type: 'start' | 'continue', at: number | undefined): SyncMessage {
+    if (at === undefined || this.offset.offsetMs === null) return { type };
+    return { type, at: this.offset.toLocal(at) };
   }
 
   // ---- send helpers ----
@@ -401,7 +417,10 @@ function isWire(v: unknown): v is Wire {
   if (typeof v !== 'object' || v === null) return false;
   const o = v as Record<string, unknown>;
   switch (o.t) {
-    case 'start': case 'continue': case 'stop': return true;
+    // A join's `at` is optional, but a present one must be a finite number
+    // (REQ-a-join-carries-its-time) — otherwise it would reach Clock.start as NaN.
+    case 'start': case 'continue': return o.at === undefined || num(o, 'at');
+    case 'stop': return true;
     case 'songposition': return num(o, 'beat');
     case 'tempo': return num(o, 'bpm');
     case 'meter': return num(o, 'beats') && num(o, 'unit');

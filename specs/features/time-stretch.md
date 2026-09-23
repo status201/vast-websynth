@@ -3,7 +3,9 @@
 ```yaml
 id: time-stretch
 status: implemented
-version: 2 # v2: REQ-fit-and-shift-share-a-folded-section — the Fit and Shift rows share one titled fold
+version: 3 # v3: REQ-the-quick-fit-is-reversible — the toast's Undo refuses once the slot holds
+           #     something newer (it used to overwrite a newly loaded clip)
+           # v2: REQ-fit-and-shift-share-a-folded-section — the Fit and Shift rows share one titled fold
            # v1: Fit / Shift in the editor, and the slot-row FIT button
 owner: core
 related:
@@ -143,7 +145,12 @@ out. The user picks, and the default is the rhythmic one.
   REQ-spreading-is-confirmed-then-reversible's spread does. A confirm dialog
   would defeat a one-click action; the pattern-undo stack carries steps and
   never audio, so the action owns its own reversal. Inside the modal the
-  existing one-level `undoSnapshot` covers it and no toast is raised.
+  existing one-level `undoSnapshot` covers it and no toast is raised. (v3) **The
+  Undo reverts only the fit it offers**: it restores the previous audio only while
+  the slot still holds exactly the clip the fit wrote. A file loaded, recorded or
+  cleared into the slot while the toast was up used to be overwritten by the old
+  clip — under the new file's name, the disagreement [sampler](sampler.md)
+  REQ-a-slots-audio-matches-its-label forbids. Past that point Undo does nothing.
 - **REQ-a-fitted-clip-is-not-renamed** — A fitted clip is **not renamed**. It is
   the same sound at a new length, and [sampler](sampler.md)
   REQ-a-slots-audio-matches-its-label makes a rename evict the slot's audio.
@@ -358,12 +365,21 @@ Scenario: the app explains the feature it shipped (docs)
   Then it names FIT, both modes, and that the pitch does not move
   And the slot PITCH topic points at Fit and Shift for one without the other
 # pinned by: tests/ui/help-content.test.ts
+
+Scenario: The fit's Undo does not overwrite a newer clip (v3, REQ-the-quick-fit-is-reversible, regression)
+  Given a slot that was just fitted, its Undo toast still showing
+  When another file is loaded into that slot and then Undo is pressed
+  Then the new file's audio stays, and Undo changes nothing
+   And with the fitted clip still in place, Undo restores the pre-fit audio as before
+# pinned by: tests/ui/sampler-panel.test.ts
 ```
 
 ## Tests & verification
 
 - Unit: `tests/audio/fft.test.ts`, `tests/audio/time-stretch.test.ts`,
   `tests/audio/recorder/offline-render.test.ts` — `npm test`
+- Panel: `tests/ui/sampler-panel.test.ts` — FIT's Undo reverts only its own fit
+  (v3, REQ-the-quick-fit-is-reversible).
 - In-app copy: `tests/ui/help-content.test.ts` — the `sampler` and
   `sampler.pitch` topics. Help text has no other gate, so what the app *claims*
   about this feature is pinned like any other contract.

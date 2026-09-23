@@ -10,8 +10,11 @@ import type { StudioApi } from '../../src/ui/studio-api';
  * state — and asserting against one is what proves the window holds no capture
  * state of its own.
  */
-function harness(over: { exporting?: boolean } = {}) {
+function harness(over: { exporting?: boolean; saveFails?: boolean } = {}) {
   let phase: RecorderPhase = 'idle';
+  // A render to the sampler, which blocks a new take (audio-export.md REQ-a-capture-waits-for-a-bank-render).
+  let rendering = false;
+  const renderListeners = new Set<(r: boolean) => void>();
   let seconds = 0;
   const listeners = new Set<(p: RecorderPhase) => void>();
   const emit = () => { for (const l of listeners) l(phase); };
@@ -25,20 +28,32 @@ function harness(over: { exporting?: boolean } = {}) {
     get phase() { return phase; },
     isCapturing: () => phase === 'recording' || phase === 'paused',
     isExporting: () => over.exporting ?? false,
+    isBlocked: () => rendering,
     capturedSeconds: () => seconds,
     onPhase: (fn: (p: RecorderPhase) => void) => { listeners.add(fn); return () => listeners.delete(fn); },
     startManual: rec('start', 'recording'),
     pauseManual: rec('pause', 'paused'),
     resumeManual: rec('resume', 'recording'),
     stopManual: rec('stop', 'review'),
-    saveTake: vi.fn(async (f: string) => { calls.push(`save:${f}`); phase = 'idle'; emit(); }),
+    // A failing save puts the take back in review and resolves false
+    // (audio-export.md REQ-a-failed-encode-keeps-the-take).
+    saveTake: vi.fn(async (f: string) => {
+      calls.push(`save:${f}`);
+      phase = over.saveFails ? 'review' : 'idle';
+      emit();
+      return !over.saveFails;
+    }),
     discardTake: rec('discard', 'idle'),
   };
 
-  const api = { recorder } as unknown as StudioApi;
+  const bankRender = {
+    onState: (fn: (r: boolean) => void) => { renderListeners.add(fn); return () => renderListeners.delete(fn); },
+  };
+  const api = { recorder, bankRender } as unknown as StudioApi;
   return {
     api,
     calls,
+    setRendering: (r: boolean) => { rendering = r; for (const l of renderListeners) l(r); },
     setPhase: (p: RecorderPhase) => { phase = p; emit(); },
     setSeconds: (s: number) => { seconds = s; },
     recorder,
@@ -269,5 +284,36 @@ describe('closing with a take in flight (REQ-closing-mid-take-asks-first)', () =
     await Promise.resolve();
     expect(calls).toContain('discard');
     expect(win.classList.contains('hidden')).toBe(true);
+  });
+});
+
+// audio-export.md v14 — the Record window's side of the two new recorder rules.
+describe('record window and the v14 recorder rules', () => {
+  const open = (h: ReturnType<typeof harness>) => {
+    const l = createRecordWindowLauncher(h.api, () => 'mp3');
+    document.body.appendChild(l.el);
+    l.el.click();
+  };
+
+  it('Record is disabled, with its reason, while a render to the sampler runs (REQ-a-capture-waits-for-a-bank-render)', () => {
+    const h = harness();
+    open(h);
+    h.setRendering(true);
+    expect(btn('record-toggle').disabled).toBe(true);
+    expect(btn('record-toggle').title).toMatch(/rendering to the sampler/i);
+    h.setRendering(false);
+    expect(btn('record-toggle').disabled).toBe(false);
+  });
+
+  it('a failed save keeps the take in review and says why (REQ-a-failed-encode-keeps-the-take)', async () => {
+    const h = harness({ saveFails: true });
+    open(h);
+    h.setPhase('review');
+    btn('record-save').click();
+    await Promise.resolve();
+    await Promise.resolve();
+    expect(visible('record-save')).toBe(true);    // still offered, to retry or pick WAV
+    expect(visible('record-discard')).toBe(true);
+    expect(byId('record-window').textContent).toMatch(/Couldn't write/);
   });
 });

@@ -51,7 +51,9 @@ type Combo = Token[] | { notes: Record<string, number> };
 const SHORTCUTS: Array<[Combo, string]> = [
   [notes(NOTE_ROWS.lower), 'Play notes — lower octave'],
   [notes(NOTE_ROWS.upper), 'Play notes — upper octave'],
-  [[k('arrowLeft', 'Left arrow'), k('arrowRight', 'Right arrow')], 'Shift keyboard octave down / up'],
+  // `-` / `=`, not the arrows (input-control.md REQ-octave-shift-is-minus-and-equal): the arrows
+  // are navigation, owned by a focused knob or list.
+  [['-', '='], 'Shift keyboard octave down / up'],
   // Two rows, not one: the keys are stacked vertically on the board, so the
   // list stacks them too (input-control.md REQ-pitch-bend-is-quote-and-slash).
   [["'"], 'Pitch bend up'],
@@ -67,6 +69,8 @@ const SHORTCUTS: Array<[Combo, string]> = [
   [['Ctrl/Cmd', t(' + '), 'Z'], 'Undo the last grid edit'],
   [['?'], 'Show / hide the info badges'],
   [['Shift', t(' + drag')], 'Fine knob control'],
+  // knob-keyboard-access.md — every knob is a focusable slider.
+  [['Tab', t(' to a knob, then '), k('arrowLeft', 'Left arrow'), k('arrowRight', 'Right arrow')], 'Turn a knob from the keyboard (Shift = fine)'],
 ];
 
 /** Rows visible before the fold. The rule is "through `Space`", not the number

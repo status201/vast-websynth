@@ -68,13 +68,31 @@ export class RecorderController {
   private tailTimer: number | undefined;
   /** The finished take awaiting Save/Discard; null in every other phase. */
   private take: CapturedAudio | null = null;
+  /** Bumped by every begin and discard, so a stop that resolves for an older take
+   *  drops it (REQ-a-discarded-take-stays-discarded). */
+  private takeGen = 0;
+  /** Whether the last export failed to encode or write (REQ-a-failed-encode-keeps-the-take). */
+  private exportFailed = false;
   private readonly phaseListeners = new Set<(phase: RecorderPhase) => void>();
 
+  /**
+   * @param blocked  refuses a new capture while something else owns the transport
+   *   — the Engine passes `bankRender.isRendering()` (REQ-a-capture-waits-for-a-bank-render): an export
+   *   started mid-render stopped the clock under it and stranded the render.
+   */
   constructor(
     private readonly clock: Clock,
     private readonly arrangement: Arrangement,
     private readonly node: RecorderNode,
+    private readonly blocked: () => boolean = () => false,
   ) {}
+
+  /** Whether a new capture would be refused right now (REQ-a-capture-waits-for-a-bank-render). */
+  isBlocked(): boolean { return this.blocked(); }
+
+  /** Whether the last export failed to encode or write, rather than landing on
+   *  disk — "back to idle" alone cannot tell the two apart (REQ-a-failed-encode-keeps-the-take). */
+  lastExportFailed(): boolean { return this.exportFailed; }
 
   get phase(): RecorderPhase { return this._phase; }
 
@@ -118,6 +136,7 @@ export class RecorderController {
   private begin(): void {
     if (this._phase !== 'idle') return;
     this.take = null;
+    this.takeGen++;
     this.node.start();
     this.finishing = false;
     this.setPhase('recording');
@@ -125,10 +144,13 @@ export class RecorderController {
 
   // ---------- Manual take (record-window.md) ----------
 
-  startManual(): void {
-    if (this._phase !== 'idle' || this.exporting) return;
+  /** Returns whether the take started — false while idle is not the phase, an
+   *  export runs, or a bank render owns the transport (REQ-a-capture-waits-for-a-bank-render). */
+  startManual(): boolean {
+    if (this._phase !== 'idle' || this.exporting || this.blocked()) return false;
     this.begin();
     if (!this.clock.playing) this.clock.start();
+    return true;
   }
 
   /** Suspend capture. The TRANSPORT keeps running — you drop out of the take
@@ -155,8 +177,13 @@ export class RecorderController {
   async stopManual(): Promise<void> {
     if (!this.isCapturing() || this.exporting || this.stopping) return;
     this.stopping = true;
+    const gen = this.takeGen;
     try {
-      this.take = await this.node.stop();
+      const take = await this.node.stop();
+      // Discarded (or superseded) while the final batch flushed: it stays gone
+      // (REQ-a-discarded-take-stays-discarded).
+      if (gen !== this.takeGen) return;
+      this.take = take;
       this.setPhase('review');
     } finally {
       this.stopping = false;
@@ -165,21 +192,30 @@ export class RecorderController {
 
   /**
    * Encode and download the reviewed take. Async only because MP3 lazily
-   * imports lamejs (REQ-bar-exact-capture-follows-bar-ticks); the buffer is released before the await.
+   * imports lamejs (REQ-the-mp3-encoder-loads-lazily).
    *
    * The phase is `encoding` *across* the await, not `idle` — those seconds are
    * work, and reporting them as nothing is what made the UI look stalled.
+   *
+   * The take is kept until the file is written (REQ-a-failed-encode-keeps-the-take). It used to be
+   * dropped first, so an encoder that failed to load — offline — lost the
+   * performance for good. On failure the phase returns to `review` with the
+   * take intact, to retry or save as WAV, and this resolves `false`.
    */
-  async saveTake(format: ExportFormat): Promise<void> {
+  async saveTake(format: ExportFormat): Promise<boolean> {
     const take = this.take;
-    if (this._phase !== 'review' || !take) return;
-    this.take = null;
+    if (this._phase !== 'review' || !take) return false;
     this.setPhase('encoding');
     try {
       await download(take, format);
-    } finally {
-      this.setPhase('idle');
+    } catch (err) {
+      console.warn('saveTake: the take could not be written', err);
+      this.setPhase('review');
+      return false;
     }
+    this.take = null;
+    this.setPhase('idle');
+    return true;
   }
 
   /** Throw the take away. Must null the buffer — a minute of stereo 48 k float
@@ -189,6 +225,7 @@ export class RecorderController {
     // there is nothing to wait for — but the worklet must still stop capturing.
     if (this.isCapturing()) void this.node.stop();
     this.take = null;
+    this.takeGen++; // a stop still flushing must not bring it back (REQ-a-discarded-take-stays-discarded)
     this.setPhase('idle');
   }
 
@@ -202,8 +239,12 @@ export class RecorderController {
    * options and `verify-audio-by-ear.md` depends on those takes being bar-exact
    * and repeatable. The UI checkbox defaults the other way (audio-export REQ-the-capture-keeps-a-tail).
    */
-  exportSong(format: ExportFormat, opts?: ExportOpts): void {
-    if (this._phase !== 'idle') return; // a capture (or an unsaved take) is in the way
+  exportSong(format: ExportFormat, opts?: ExportOpts): boolean {
+    if (this._phase !== 'idle') return false; // a capture (or an unsaved take) is in the way
+    // A bank render owns the transport; stopping the clock under it stranded
+    // the render and its restore (REQ-a-capture-waits-for-a-bank-render).
+    if (this.blocked()) return false;
+    this.exportFailed = false;
     // The three AUDIBLE lanes only — the motion lane is param automation, and
     // widening the rendered length to include it would change what every
     // existing song exports (audio-export.md REQ-export-song-renders-from-the-top, transport-window.md).
@@ -248,6 +289,7 @@ export class RecorderController {
     // and a plain start() now resumes from the user's cue (transport.md REQ-the-cue-is-where-start-begins),
     // which would truncate the export silently. Fires onStart → arrangement.
     this.clock.start(0);
+    return true;
   }
 
   /**
@@ -306,6 +348,11 @@ export class RecorderController {
     const captured = await this.node.stop();
     try {
       await download(captured, format);
+    } catch (err) {
+      // Reported, not thrown: this runs off a timer, where a rejection is
+      // unhandled, and "back to idle" alone read as success (REQ-a-failed-encode-keeps-the-take).
+      console.warn('exportSong: the render could not be written', err);
+      this.exportFailed = true;
     } finally {
       this.exporting = false;
       this.setPhase('idle');

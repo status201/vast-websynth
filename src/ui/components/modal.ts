@@ -1,4 +1,5 @@
 import styles from '../styles/modal.module.css';
+import { pushModal, removeModal, isTopModal, anyModalOpen } from '../modal-stack';
 
 /**
  * Reusable modal dialog — the backdrop / card / title / Escape /
@@ -41,6 +42,7 @@ export interface ModalOptions {
  */
 const fading = new Set<() => void>();
 
+
 export class Modal {
   /** Caller appends its content here. */
   readonly body: HTMLElement;
@@ -64,6 +66,10 @@ export class Modal {
   static get keyClass(): string { return styles.key!; }
   static get actClass(): string { return styles.act!; }
   static get closeBtnClass(): string { return styles.closeBtn!; }
+
+  /** Whether any modal is open — what the global shortcuts ask before acting
+   *  (input-control.md REQ-shortcuts-yield-to-an-open-modal). One still fading out is closed already. */
+  static anyOpen(): boolean { return anyModalOpen(); }
 
   constructor(opts: ModalOptions) {
     this.onCloseCb = opts.onClose;
@@ -95,6 +101,12 @@ export class Modal {
 
   private readonly onKey = (e: KeyboardEvent): void => {
     if (e.key === 'Escape') {
+      // Only the top modal closes; the ones beneath let the key pass on to it.
+      // Each modal's capture listener sits on `window`, and listeners on one
+      // target run in the order they were added — so without this the OLDEST
+      // modal saw Escape first and closed itself from under a confirm raised on
+      // it (specs/recipes/add-a-modal-dialog.md v5).
+      if (!isTopModal(this)) return;
       // Beat the global Escape→panic handler in shortcuts.ts.
       e.preventDefault();
       e.stopImmediatePropagation();
@@ -112,12 +124,14 @@ export class Modal {
     // Force reflow so the opacity transition runs from the .hidden state.
     void this.backdrop.offsetWidth;
     this.backdrop.classList.remove('hidden');
+    pushModal(this);
     window.addEventListener('keydown', this.onKey, true);
   }
 
   close(): void {
     if (this.closed) return;
     this.closed = true;
+    removeModal(this);
     window.removeEventListener('keydown', this.onKey, true);
     this.backdrop.classList.add('hidden');
     const el = this.backdrop;

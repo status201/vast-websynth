@@ -249,3 +249,40 @@ describe('SyncMaster — meter (meter.md REQ-meter-travels-on-the-wifi-wire)', (
     expect(sent).toEqual([]);
   });
 });
+
+// midi-clock-sync.md REQ-a-join-is-timed-by-its-first-pulse (v8) — a join sent at once overtook the
+// pre-jump pulses already queued in the look-ahead: slaves restarted up to a
+// look-ahead early and settled a 16th off, and a hardware slave counted those
+// pulses as the new position. Every join is scheduled just before the first
+// pulse at the new position — the next step the clock emits.
+describe('SyncMaster join timing (v8)', () => {
+  const JOIN_LEAD_MS = 1;
+
+  it('schedules a local start just before its first pulse', () => {
+    const { clock, master, sent } = setup();
+    master.enable();
+    sent.length = 0;
+    clock.start();
+    const start = sent.find((s) => s.msg.type === 'start')!;
+    const first = pulses(sent)[0]!;
+    expect(start.atMs).toBeCloseTo(first.atMs! - JOIN_LEAD_MS, 9);
+    clock.stop();
+  });
+
+  it('schedules a seek announce after every pre-jump pulse and before the first post-jump one', () => {
+    const { clock, master, sent, advance } = setup();
+    master.enable();
+    clock.start();
+    advance(0.125);
+    const nextAt = clock.nextStepAt * 1000; // the jump sounds here
+    sent.length = 0;
+    master.announceTo((msg, atMs) => sent.push({ msg, atMs }));
+    const sp = sent.find((s) => s.msg.type === 'songposition')!;
+    const cont = sent.find((s) => s.msg.type === 'continue')!;
+    expect(sp.atMs).toBeCloseTo(nextAt - JOIN_LEAD_MS, 9);
+    expect(cont.atMs).toBeCloseTo(nextAt - JOIN_LEAD_MS, 9);
+    // tempo and meter carry no position, so they still go at once.
+    expect(sent.find((s) => s.msg.type === 'tempo')!.atMs).toBeUndefined();
+    clock.stop();
+  });
+});

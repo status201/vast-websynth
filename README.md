@@ -244,7 +244,8 @@ built `dist/`.
 
 - **Computer keyboard**: `z s x d c v g b h n j m ,` = lower octave,
   `q 2 w 3 e r 5 t 6 y 7 u i` = upper octave
-- **Arrow Left/Right**: shift keyboard octave
+- **`-` / `=`** (the two keys right of 0, or numpad `-` / `+`): shift keyboard octave
+- **Tab** onto any knob, then the arrow keys turn it (Shift = fine, Page Up/Down = big steps, Home/End = min/max, Delete = reset)
 - **`'` / `/`**: pitch bend up / down — the keys are stacked, so up really is
   the upper one (springs back on release)
 - **Space**: transport play / stop
@@ -253,6 +254,7 @@ built `dist/`.
 - **F** (hold): drum fill
 - **Shift + R**: open / close the Record window
 - **Esc**: panic (all notes off)
+- While a **dialog** is open the keys are its own: Esc closes it (the top one, if two are stacked) and the shortcuts above wait until it closes
 - **?**: show / hide the info badges — the ⓘ markers that explain a control where
   it sits, rather than in a manual
 - **Playhead ruler**: the strip above every step grid — click a tick to move the

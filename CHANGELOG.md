@@ -27,8 +27,55 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
   the knob is live over a held note. The bus auto-pan still sweeps the whole
   picture over the top. Old songs, presets and share links are unaffected and the
   song format is unchanged.
+- **Every knob works from the keyboard.** Tab onto a knob and turn it with the
+  arrow keys — Shift for fine steps, Page Up/Down for big ones, Home/End for the
+  ends of the range, Delete to reset it to the preset's value. Screen readers
+  now announce each knob by name, with its value exactly as it is displayed.
+
+### Changed
+
+- **The computer-keyboard octave shift moved to `-` and `=`** (the two keys
+  right of 0, or the numpad's `-` and `+`). The arrow keys now belong to
+  whatever knob or list has focus. Shift + arrows still move the playhead a
+  bar.
 
 ### Fixed
+
+- **A key held while the arpeggiator switches on no longer rings forever.** Its
+  release was ignored once the arp took over the keyboard, so the note kept
+  sounding until Panic — whether the arp came on from its switch, a preset or
+  song, or a motion lane.
+- **Starting an export during a render to the sampler no longer breaks the
+  sequencer until you reload.** The export stopped the render halfway, which
+  left the sequencer's settings changed and seeking, Loop and the Render button
+  locked. Export and Record now wait for the render and say so while it runs.
+- **A failed MP3 save no longer loses your take.** If the MP3 encoder can't load
+  (offline, before it was ever downloaded), the take stays in the Record window
+  with the reason, so you can retry or save it as WAV. A failed song export now
+  says it failed instead of "Done — check your downloads."
+- **Discarding a take just as you stop it keeps it discarded.**
+- **Scrolling a note or a bar's transpose on a touchpad moves it a semitone or
+  so, not thirty.** The chain chips and the sequencer's steps moved one semitone
+  per scroll *event*; a touchpad sends dozens per swipe, so a gentle swipe sent
+  the value straight to its limit. They now move by scroll distance — one mouse
+  notch is still exactly one semitone.
+- **FIT's Undo no longer overwrites a sample you loaded since.** Loading a new
+  file into a slot while the FIT toast was still up, then pressing Undo, put the
+  old clip back under the new file's name.
+- **The last file you pick into a sampler slot is the one it keeps**, even if an
+  earlier, larger file finishes decoding after it.
+- **Closing the sample recorder just as a take finishes no longer leaves its
+  editor running invisibly** in the background.
+- **Pressing Escape to close a dropdown no longer stops the song.** It closed
+  the menu and then also triggered Panic, stopping the transport and silencing
+  every note.
+- **Escape closes the dialog on top.** With a confirmation open over another
+  window (asking to delete a preset in the preset manager, say), Escape closed
+  the window underneath and left the confirmation standing — and its OK still
+  did the deed.
+- **Keyboard shortcuts stay quiet while a dialog is open.** Behind an open
+  dialog, Delete cleared the selected step, Space started or stopped the song
+  instead of pressing the dialog's button, and the letter keys played notes.
 
 - **Switching the synth reverb on no longer turns the dry synth up by 3 dB.**
   `synthPan` received one channel with the reverb bypassed and two with it on,
@@ -37,6 +84,44 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
   it. Its input is now always stereo. Three demos run with the synth reverb off
   (`1983`, `Bunk`, `Run Away`) and get that 3 dB back; `Bunk`, which also
   auto-pans, changes the character of its sweep.
+- **A sequencer tie into a different note no longer leaves the first note
+  ringing forever.** In poly voicing (the default) the tied note kept its own
+  voice while the next note took another, and nothing ever released it — not
+  the next step, not Stop, not a seek — so a looping pattern piled up droning
+  voices until Panic. The tied note now ends as the next note starts. A tie
+  into the same note, and every tie in mono, sounds exactly as before.
+- **The phaser sweeps its whole range again, instead of stalling at the
+  bottom.** Its sweep was measured in plain hertz, so the lower stages were
+  pushed below 0 Hz and sat there, doing nothing, for up to a third of every
+  cycle — a fifth of it even at the synth phaser's default depth. It now sweeps
+  in musical intervals, as the wah already does. The top of every sweep is
+  exactly where it was; only the bottom moves up. Songs that use the phaser —
+  most noticeably `Gankogui`, `Neon` and `apex-twin` — sweep more evenly and a
+  touch quieter.
+- **Motion slides stay smooth with swing on.** A sliding motion lane used to
+  jitter back and forth every 16th under swing — the automated value stepped
+  back on each late off-beat and leapt ahead on the next beat — so a filter
+  sweep came out as a stepped sawtooth instead of a line. The sweep now follows
+  the swung groove continuously, and a stepped anchor on an off-beat still lands
+  with its swung note. Ten demos swing a sliding lane and are affected, most of
+  all `Nocturne` and `Bunk`; songs without swing are unchanged.
+- **Letting go of Tape Stop early no longer lurches the tempo down first.** The
+  recovery always restarted from the slowest speed, so releasing before the
+  stop had finished dropped the tempo to a crawl for an instant before winding
+  back up — and pressing again mid-recovery snapped back to full speed. Both now
+  carry on from wherever the tape had got to. Tape Stop also finishes when the
+  tab is in the background: switching away mid-gesture used to freeze the tempo
+  and pitch wherever they were until you came back.
+- **A synced slave stays in step when the master loops or jumps.** Each loop
+  wrap or scrub on the master used to restart the slave a little early, and
+  after a few wraps it settled a whole 16th ahead and stayed there. A slave that
+  is already following now jumps along in place, exactly on the master's beat,
+  over both MIDI and WiFi. Following a hardware MIDI master is tighter too: the
+  slave now starts on the master's first clock pulse, where it used to start
+  50 ms late and stay about 40 ms behind for the whole song.
+- **Motion bank switches and rest bars land on time at fast tempos.** Above
+  about 150 BPM a motion lane could switch to the next bank, or fall silent for
+  a rest bar, slightly before the bar line — up to ~60 ms early at 400 BPM.
 
 ## [2.14.1] - 2026-09-22
 

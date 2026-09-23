@@ -3,7 +3,9 @@
 ```yaml
 id: webrtc-sync
 status: implemented
-version: 7   # v7: the wire carries the time signature (REQ-the-wire-carries-the-time-signature) — meter.md
+version: 8   # v8: REQ-a-join-carries-its-time — start/continue carry an optional `at`, so a WiFi
+             #     slave joins on the master's schedule rather than on arrival
+             # v7: the wire carries the time signature (REQ-the-wire-carries-the-time-signature) — meter.md
              # v6: REQ-the-transport-opens-two-channels type-guards the wire (a peer can't inject NaN into the
              #     clock); the signal blob decodes under MAX_SIGNAL_BYTES
 owner: core
@@ -93,6 +95,22 @@ follows whichever delivers.
   its timing math is byte-for-byte identical to the MIDI path. Before the offset
   is warm (or a message carries no `at`), the transport falls back to local
   receipt time (`performance.now()`).
+
+- **REQ-a-join-carries-its-time** (v8) — **`start` and `continue` carry the
+  time they take effect.** The master schedules them for just before the first
+  pulse at the new position ([midi-clock-sync](midi-clock-sync.md)
+  REQ-a-join-is-timed-by-its-first-pulse). Web MIDI honours that schedule
+  itself; a DataChannel sends at once, so the wire carries it instead —
+  `{t:'continue', at}` — and the receiver hands the core a `SyncMessage` whose
+  optional `at` is that time converted into its own domain. The control and
+  timing channels are separate (REQ-the-transport-opens-two-channels), so the
+  first pulse after a join can overtake the join itself; a time on the message
+  is what makes that race harmless. `at` is **optional in both directions**: an
+  older peer neither sends nor reads it (additive, no version bump); a receiver
+  with no offset estimate yet passes no `at`, since an unconverted sender time
+  means nothing locally; and a present `at` must be a finite number or the whole
+  message is dropped, like every other field. How far ahead it may point is
+  bounded by the slave (`MAX_SYNC_JOIN_LEAD_MS`, untrusted-input.md).
 
 - **REQ-offset-estimation-is-pure** — Offset estimation is a pure
   `ClockOffsetEstimator` (no clocks, no `performance`, no RTC). NTP-style: for a
@@ -499,6 +517,15 @@ Scenario: A QR from the encoder round-trips through the vendored jsQR decoder
   Then jsQR returns the exact original blob string
    And the Scan button is offered whenever a camera is present, with or without BarcodeDetector
 # pinned by: tests/vendor/jsqr.test.ts, tests/ui/sync-pair-modal.test.ts
+
+Scenario: A join's time crosses the wire in the receiver's domain (v8, REQ-a-join-carries-its-time)
+  Given a linked pair whose offset estimate says remote = local + 40 ms
+  When the master sends continue scheduled at its 1000 ms
+  Then the wire carries {t:'continue', at: 1000}
+   And the receiver's core sees continue with at 960
+   And with no offset estimate yet, or from an older peer, it sees continue with no at
+   And a non-finite or non-numeric at drops the message
+# pinned by: tests/audio/webrtc-sync-transport.test.ts
 
 Scenario: Insecure origin shows a non-blocking HTTPS banner (edge)
   Given window.isSecureContext is false

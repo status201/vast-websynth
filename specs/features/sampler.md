@@ -3,7 +3,9 @@
 ```yaml
 id: sampler
 status: implemented
-version: 12  # v12: `stopAll` cuts through the same `cutHit` a choke does, so it stops
+version: 13  # v13: REQ-slots-are-filled-by-load-or-record — the last file picked wins, not the
+             #      last decode to finish
+             # v12: `stopAll` cuts through the same `cutHit` a choke does, so it stops
              #     reading a live `gain.value` (unreliable on Gecko) and stops
              #     re-stopping a hit already ending (REQ-a-stop-cuts-in-flight-one-shots)
              # v11: the editor gains a Scratch section (scratch.md); no new
@@ -71,7 +73,11 @@ the song format.
   loaded `AudioBuffer` one-shot, honouring the shared [per-step
   settings](step-settings.md).
 - **REQ-slots-are-filled-by-load-or-record** — Slots filled by **Load**
-  (WAV/MP3) or the [record-sound modal](sample-recorder.md).
+  (WAV/MP3) or the [record-sound modal](sample-recorder.md). (v13) **The last file
+  picked wins.** Decoding is asynchronous, so a second Load into a slot before the
+  first has finished used to race: whichever decode *finished* last filled the
+  slot. Each Load now takes a ticket for its slot, and a decode whose ticket is no
+  longer the newest is discarded, audio and name both.
 - **REQ-the-sampler-reads-its-play-bank** — Reads
   `patterns.samplerBank(arrangement.samplerPlayBank)` each tick; buffers live in
   the machine, **not** in `PatternStore`.
@@ -575,6 +581,12 @@ Scenario: Filling a slot notifies exactly once
   When setBuffer(3, buf) runs
   Then the listener fires once with slot 3
 # pinned by: tests/audio/transport/sampler-machine.test.ts
+
+Scenario: The last file picked into a slot wins (v13, REQ-slots-are-filled-by-load-or-record, regression)
+  Given a first file whose decode is slow and a second, picked after it, whose decode is fast
+  When both decodes finish, the first one last
+  Then the slot holds the second file's audio and name
+# pinned by: tests/ui/sampler-panel.test.ts
 ```
 
 ## Tests & verification
@@ -583,6 +595,9 @@ Scenario: Filling a slot notifies exactly once
   (WAV via `setInputFiles` + a Node-built fixture).
 - `tests/ui/clear-menu-sampler.test.ts` — REQ-clear-ejects-the-slot's row clear, its undo, and the
   bank clear that must *not* eject.
+- `tests/ui/sampler-panel.test.ts` — the real panel's asynchronous slot writes:
+  the last file picked wins (v13, REQ-slots-are-filled-by-load-or-record), and FIT's Undo
+  (time-stretch.md REQ-the-quick-fit-is-reversible).
 - `npm test` / `npm run e2e`.
 
 ## Open questions / future

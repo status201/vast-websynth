@@ -115,27 +115,18 @@ function anchorsWithin(idx: number[], n: number): number {
   return c;
 }
 
-/** An adjacent bar's anchors, or null when there is nothing to carry to/from. */
-interface Carry<T> {
-  bank: readonly T[];
-  idx: number[];
-  /** Anchors visible within the lane's length — see {@link anchorsWithin}. */
-  len: number;
-}
-
-/** Absent neighbour ⇒ `bank` itself (the looping-bank self-wrap); null or
- *  anchorless ⇒ no carry, so the caller holds its outer anchor flat. */
-function carryFrom<T extends Anchorable>(
-  neighbour: readonly T[] | null | undefined,
-  bank: readonly T[],
-  n: number,
-  cache?: AnchorCache,
-): Carry<T> | null {
-  const b = neighbour === undefined ? bank : neighbour;
-  if (!b) return null;
-  const idx = indicesOf(b, cache);
-  const len = anchorsWithin(idx, n);
-  return len ? { bank: b, idx, len } : null;
+/**
+ * The bank an adjacent bar carries to/from: absent ⇒ `bank` itself (the
+ * looping-bank self-wrap); null ⇒ no carry. The caller then reads that bank's
+ * anchors and treats an anchorless one as no carry too, holding its outer
+ * anchor flat.
+ *
+ * Returns the bank alone, never a `{ bank, idx, len }` record: this runs on most
+ * frames of a slide, once per axis and per track, and a record per call was the
+ * frame loop's last allocation (motion-sequencer.md REQ-the-motion-frame-loop-allocates-nothing).
+ */
+function carryBankOf<T>(neighbour: readonly T[] | null | undefined, bank: readonly T[]): readonly T[] | null {
+  return neighbour === undefined ? bank : neighbour;
 }
 
 /**
@@ -183,8 +174,13 @@ export function scalarAt<T extends Anchorable>(
   if (mode === 'step') {
     if (prev >= 0) return get(bank[prev]!);
     // Before the first anchor: whatever the previous bar left holds.
-    const carry = carryFrom(neighbours.prev, bank, n, cache);
-    return get(carry ? carry.bank[carry.idx[carry.len - 1]!]! : bank[firstIdx]!);
+    const cb = carryBankOf(neighbours.prev, bank);
+    if (cb) {
+      const cidx = indicesOf(cb, cache);
+      const clen = anchorsWithin(cidx, n);
+      if (clen) return get(cb[cidx[clen - 1]!]!);
+    }
+    return get(bank[firstIdx]!);
   }
 
   // Slide: find the surrounding segment a→b (the outer two span the bar line).
@@ -193,20 +189,24 @@ export function scalarAt<T extends Anchorable>(
   if (prev < 0) {
     // Before the first anchor: still inside the segment carried in from the
     // previous bar, which ends on this bank's first anchor.
-    const carry = carryFrom(neighbours.prev, bank, n, cache);
-    if (!carry) return get(bank[firstIdx]!);
-    const a = carry.idx[carry.len - 1]!;
-    sa = carry.bank[a]!;
+    const cb = carryBankOf(neighbours.prev, bank);
+    const cidx = cb ? indicesOf(cb, cache) : null;
+    const clen = cidx ? anchorsWithin(cidx, n) : 0;
+    if (!cb || !cidx || !clen) return get(bank[firstIdx]!);
+    const a = cidx[clen - 1]!;
+    sa = cb[a]!;
     sb = bank[firstIdx]!;
     span = n - a + firstIdx;
     dist = p + n - a;
   } else if (prev === lastIdx) {
     // After the last anchor: head for the next bar's first anchor.
-    const carry = carryFrom(neighbours.next, bank, n, cache);
-    if (!carry) return get(bank[lastIdx]!);
-    const b = carry.idx[0]!;
+    const cb = carryBankOf(neighbours.next, bank);
+    const cidx = cb ? indicesOf(cb, cache) : null;
+    const clen = cidx ? anchorsWithin(cidx, n) : 0;
+    if (!cb || !cidx || !clen) return get(bank[lastIdx]!);
+    const b = cidx[0]!;
     sa = bank[lastIdx]!;
-    sb = carry.bank[b]!;
+    sb = cb[b]!;
     span = n - lastIdx + b;
     dist = p - lastIdx;
   } else {

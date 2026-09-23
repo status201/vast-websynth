@@ -663,3 +663,90 @@ describe('Clock step router (v8)', () => {
     err.mockRestore();
   });
 });
+
+// transport.md v10 — the two primitives a sync slave joins with
+// (midi-clock-sync.md REQ-a-join-is-timed-by-its-first-pulse / REQ-a-following-slave-jumps-in-place).
+describe('Clock first-step time and scheduled jumps (v10)', () => {
+  function rig() {
+    vi.useFakeTimers();
+    const ctx = { currentTime: 0 } as { currentTime: number };
+    const clock = new Clock(ctx as unknown as AudioContext, { timer: new TimeoutTimer() });
+    clock.setBpm(120); // one 16th = 0.125 s
+    const ev: Array<{ step: number; when: number }> = [];
+    clock.onTick((step, when) => ev.push({ step, when }));
+    const wake = (n: number): void => {
+      for (let i = 0; i < n; i++) { ctx.currentTime += 0.025; vi.advanceTimersByTime(25); }
+    };
+    return { ctx, clock, ev, wake };
+  }
+
+  it('start can put its first step at a given time (REQ-a-start-can-name-its-first-step-time)', () => {
+    const a = rig();
+    a.ctx.currentTime = 1.0;
+    a.clock.start(4, 1.3);
+    a.wake(10);
+    expect(a.ev[0]).toEqual({ step: 4, when: expect.closeTo(1.3, 9) as unknown as number });
+    a.clock.stop();
+
+    const b = rig();
+    b.ctx.currentTime = 1.0;
+    b.clock.start(4); // the default lead is unchanged
+    expect(b.ev[0]!.when).toBeCloseTo(1.05, 9);
+    b.clock.stop();
+
+    const c = rig();
+    c.ctx.currentTime = 1.0;
+    c.clock.start(4, 0.2); // a time in the past sounds now, never earlier
+    expect(c.ev[0]!.when).toBeCloseTo(1.0, 9);
+    c.clock.stop();
+  });
+
+  it('a scheduled jump lands on the step nearest its time (REQ-a-jump-can-be-scheduled)', () => {
+    const { clock, ev, wake } = rig();
+    clock.start(0); // steps at 0.05, 0.175, 0.3, …
+    const seeks = vi.fn();
+    clock.onSeek(seeks);
+    const target = 0.05 + 6 * 0.125; // step 6's grid time, well past the look-ahead
+    const nextBefore = clock.nextStepAt;
+    clock.seekAt(32, target);
+    expect(clock.nextStepAt).toBe(nextBefore); // held, not applied yet
+    wake(40);
+    const landed = ev.find((e) => Math.abs(e.when - target) < 1e-9);
+    expect(landed?.step).toBe(32);
+    // The steps before it kept counting, the grid was not re-seeded, and the
+    // cue did not move: a jump, not a seek or a restart.
+    expect(ev.filter((e) => e.when < target).map((e) => e.step)).toEqual([0, 1, 2, 3, 4, 5]);
+    expect(ev.find((e) => e.step === 33)!.when).toBeCloseTo(target + 0.125, 9);
+    expect(seeks).toHaveBeenCalledTimes(1);
+    expect(clock.cue).toBe(0);
+    clock.stop();
+  });
+
+  it('a scheduled jump the look-ahead already passed is caught up (REQ-a-jump-can-be-scheduled, edge)', () => {
+    const { ctx, clock, ev } = rig();
+    clock.start(0);
+    expect(ev.map((e) => e.step)).toEqual([0]);
+    // Let the look-ahead emit the steps at 0.175 and 0.3, then a join says
+    // step 32 was due at 0.175.
+    ctx.currentTime = 0.2; vi.advanceTimersByTime(25);
+    const emitted = ev.length;
+    clock.seekAt(32, 0.175);
+    ctx.currentTime = 0.4; vi.advanceTimersByTime(25);
+    // Steps at 0.175 (and any later) already went out; the next emitted one is
+    // where the new position has got to by then.
+    const next = ev[emitted]!;
+    const k = Math.round((next.when - 0.175) / 0.125);
+    expect(next.step).toBe(32 + k);
+    clock.stop();
+  });
+
+  it('stop, start and seek drop a held jump', () => {
+    const { clock, ev, wake } = rig();
+    clock.start(0);
+    clock.seekAt(32, 0.05 + 6 * 0.125);
+    clock.seek(10); // a chosen position outranks a scheduled one
+    wake(40);
+    expect(ev.some((e) => e.step === 32)).toBe(false);
+    clock.stop();
+  });
+});

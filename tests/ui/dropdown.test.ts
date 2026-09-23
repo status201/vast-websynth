@@ -576,3 +576,26 @@ describe('Dropdown', () => {
     });
   });
 });
+
+// dropdown.md REQ-the-menu-closes-on-outside-click (v9) — the Escape that closes a menu used to
+// bubble on to the window, where installShortcuts reads it as Panic.
+describe('Dropdown Escape (v9)', () => {
+  it('closes an open menu without the key reaching the window (regression)', () => {
+    const dd = new Dropdown(['A', 'B', 'C'], 'B');
+    document.body.appendChild(dd.el);
+    const onWindow = vi.fn();
+    window.addEventListener('keydown', onWindow);
+    try {
+      (dd.el.querySelector('button') as HTMLButtonElement).click(); // open
+      document.body.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true, cancelable: true }));
+      expect(onWindow).not.toHaveBeenCalled();
+      // Closed now: the next Escape is the app's again.
+      document.body.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true, cancelable: true }));
+      expect(onWindow).toHaveBeenCalledTimes(1);
+    } finally {
+      window.removeEventListener('keydown', onWindow);
+      dd.destroy();
+      dd.el.remove();
+    }
+  });
+});

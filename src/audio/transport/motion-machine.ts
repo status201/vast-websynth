@@ -21,19 +21,34 @@ export type MotionStepListener = (step: number) => void;
  */
 const NO_CARRY = { prev: null, next: null };
 
+/**
+ * Cells the latch ring holds (REQ-the-governing-cell-is-the-latest-heard). It must
+ * reach back past every cell queued ahead of `now` to the one being heard: the
+ * weak tier's 0.2 s look-ahead plus a 25 ms wakeup, at 400 BPM and the finest
+ * rate's two cells per tick, is ~12 cells. 32 leaves room; overflowing only
+ * degrades to evaluating the oldest queued cell, never to a crash.
+ */
+const LATCH_SIZE = 32;
+
+const newLatchedTick = (): LatchedTick => ({
+  idx: 0, when: 0, span: 0, resting: false, playBank: 0,
+  prevBank: 0, prevResting: false, nextBank: 0, nextResting: false,
+});
+
 /** The slice of `document` the frame loop's driver swap needs (REQ-the-motion-frame-loop-is-visibility-independent). */
 export interface VisibilitySource {
   readonly hidden: boolean;
   addEventListener(type: 'visibilitychange', fn: () => void): void;
 }
 
-/** One scheduled tick plus the arrangement state captured with it — that state
+/** One scheduled cell plus the arrangement state captured with it — that state
  *  flips ahead of audible time, so frame() applies it only once `now` crosses
- *  the tick's `when`. */
+ *  the cell's `when`. */
 interface LatchedTick {
   idx: number;
   when: number;
-  dur: number;
+  /** Seconds to the next cell's onset on the swung grid (REQ-the-motion-playhead-follows-the-swung-grid). */
+  span: number;
   resting: boolean;
   playBank: number;
   /** Neighbouring bars, for the bar-line carry (REQ-cross-bank-carry) — latched with the rest. */
@@ -90,8 +105,16 @@ export class MotionMachine {
   private mode: MotionMode = 'slide';
   private readonly trackModes: MotionMode[] =
     Array.from({ length: MOTION_TRACK_COUNT }, () => 'slide' as MotionMode);
-  private curr: LatchedTick | null = null;
-  private prev: LatchedTick | null = null;
+  /**
+   * Every latched cell, newest at `latchHead - 1` (REQ-the-governing-cell-is-the-latest-heard).
+   * Preallocated and overwritten in place, so latching allocates nothing
+   * (REQ-the-motion-frame-loop-allocates-nothing).
+   */
+  private readonly latch: LatchedTick[] = Array.from({ length: LATCH_SIZE }, newLatchedTick);
+  private latchHead = 0;
+  private latchCount = 0;
+  /** The last cell index latched this tick, for the one step emit per tick. */
+  private lastIdx = -1;
   /**
    * The bank whose writes are live — `-1` while resting, and before the first
    * frame of a play session or of a seek. The handover park (REQ-a-bank-parks-at-its-last-anchor) reads it to
@@ -141,37 +164,16 @@ export class MotionMachine {
     clock.onTick((step, when) => {
       // The LaneMeter is built with no stutter map on purpose: automation must
       // not follow a stutter remap (meter.md REQ-stutter-composes-with-length-and-rate). A cell finer than a tick
-      // would report several times per tick; the latch keeps the last, which is
-      // what the frame loop interpolates from.
-      // Scalars rather than an object the callback fills, because this runs on
-      // every tick and the frame loop is already the app's tightest budget
-      // (runtime-performance.md REQ-no-allocation-in-a-hot-loop). The initialisers are never read: `fired`
-      // gates every use of them.
-      let idx = 0;
-      let at = 0;
-      let dur = 0;
-      let fired = false;
-      this.lane.forEachHit(step, when, (i, t, cellDur) => {
-        idx = i; at = t; dur = cellDur; fired = true;
-      });
-      if (!fired) return; // a coarser lane skips this tick entirely
-      this.prev = this.curr;
-      this.curr = {
-        idx,
-        when: at,
-        dur,
-        resting: this.arrangement.motionResting,
-        playBank: this.arrangement.motionPlayBank,
-        prevBank: this.arrangement.motionPrevPlayBank,
-        prevResting: this.arrangement.motionPrevResting,
-        nextBank: this.arrangement.motionNextPlayBank,
-        nextResting: this.arrangement.motionNextResting,
-      };
+      // reports several times per tick, and each is latched — the frame loop
+      // picks whichever one is being heard (REQ-the-governing-cell-is-the-latest-heard).
+      this.lastIdx = -1;
+      this.lane.forEachHit(step, when, this.latchCell);
+      if (this.lastIdx < 0) return; // a coarser lane skips this tick entirely
       if (!this.enabled) return;
-      this.stepListeners.emit(idx);
+      this.stepListeners.emit(this.lastIdx);
     });
     clock.onStart(() => {
-      this.curr = this.prev = null;
+      this.latchCount = 0;
       this.held = -1;
       if (this.active) this.startLoop();
     });
@@ -189,7 +191,7 @@ export class MotionMachine {
     // `held` goes with the latch (v16): a seek lands wherever it lands, and the
     // bank it left was never *played* out of — parking it would write a value
     // the transport never reached (REQ-a-bank-parks-at-its-last-anchor).
-    clock.onSeek(() => { this.curr = this.prev = null; this.held = -1; });
+    clock.onSeek(() => { this.latchCount = 0; this.held = -1; });
 
     // Anchor sets are cached across frames, and banks are mutated in place — so
     // every stream that can flip a step's `on` must drop the memo. Cheap to be
@@ -199,6 +201,45 @@ export class MotionMachine {
     patterns.onMotionBankChange(invalidate);
     patterns.onMotionTrackChange(invalidate);
     patterns.onBulkRestore(invalidate);
+  }
+
+  /**
+   * Latch one cell into the ring, with the arrangement state of the tick it
+   * belongs to. Bound once, so a tick allocates no closure and no record
+   * (REQ-the-motion-frame-loop-allocates-nothing).
+   */
+  private readonly latchCell = (idx: number, when: number, _cellDur: number, span: number): void => {
+    const slot = this.latch[this.latchHead]!;
+    slot.idx = idx;
+    slot.when = when;
+    slot.span = span;
+    slot.resting = this.arrangement.motionResting;
+    slot.playBank = this.arrangement.motionPlayBank;
+    slot.prevBank = this.arrangement.motionPrevPlayBank;
+    slot.prevResting = this.arrangement.motionPrevResting;
+    slot.nextBank = this.arrangement.motionNextPlayBank;
+    slot.nextResting = this.arrangement.motionNextResting;
+    this.latchHead = (this.latchHead + 1) % LATCH_SIZE;
+    if (this.latchCount < LATCH_SIZE) this.latchCount++;
+    this.lastIdx = idx;
+  };
+
+  /**
+   * The cell being heard at `nowS` (REQ-the-governing-cell-is-the-latest-heard):
+   * the newest latched cell whose onset is at or before now. Cells arrive in
+   * time order — swing delays an odd cell by less than a cell — so the scan
+   * back from the newest stops at the first one heard. Before anything has been
+   * heard (just after a start or seek) it is the oldest queued cell, evaluated
+   * from a position still before its onset.
+   */
+  private governing(nowS: number): LatchedTick | null {
+    const n = this.latchCount;
+    if (n === 0) return null;
+    for (let k = 1; k <= n; k++) {
+      const slot = this.latch[(this.latchHead - k + LATCH_SIZE) % LATCH_SIZE]!;
+      if (slot.when <= nowS) return slot;
+    }
+    return this.latch[(this.latchHead - n + LATCH_SIZE) % LATCH_SIZE]!;
   }
 
   /** Effective-active: enabled (motion.on) and not muted (motion.mute, REQ-motion-mute-is-an-ordinary-param). */
@@ -266,14 +307,13 @@ export class MotionMachine {
   private readonly runFrame = (): void => {
     const nowS = this.frameAt;
     if (!this.active || !this.clock.playing) return;
-    const curr = this.curr;
-    if (!curr) return;
-    // Evaluate against the tick whose *audible* window contains now: the
-    // latest tick arrives (with its arrangement state) up to scheduleAheadS
-    // early, so until now crosses its `when` the previous tick still governs —
-    // rests and bank switches land on the heard bar boundary.
-    const tick = nowS < curr.when && this.prev ? this.prev : curr;
-    if (tick.dur <= 0) return;
+    // Evaluate against the cell whose *audible* window contains now: cells
+    // arrive (with their arrangement state) up to scheduleAheadS early, so a
+    // queued one governs only once now crosses its `when` — rests and bank
+    // switches land on the heard bar boundary, at any tempo
+    // (REQ-the-governing-cell-is-the-latest-heard).
+    const tick = this.governing(nowS);
+    if (!tick || tick.span <= 0) return;
 
     // The chain has moved on — park the bank it left at its last anchor before
     // this bar writes anything (REQ-a-bank-parks-at-its-last-anchor). A rest holds nothing of its own, so it
@@ -291,10 +331,13 @@ export class MotionMachine {
     const axes = this.axes;
     this.xy.readAssignInto(base);
     motionAxesInto(this.patterns, tick.playBank, base, axes);
-    // True playhead position in step units: the governing tick's index plus
-    // the fraction of a step elapsed since (negative while that tick is still
-    // ahead of now — valueAt wraps, matching the loop seam).
-    const pos = tick.idx + (nowS - tick.when) / tick.dur;
+    // True playhead position in step units: the governing cell's index plus
+    // the fraction of its span elapsed since (negative while that cell is still
+    // ahead of now — valueAt wraps, matching the loop seam). Over the *span*,
+    // not the cell duration: under swing the cells are not evenly spaced, and
+    // only the span reaches `idx + 1` exactly when the next cell sounds
+    // (REQ-the-motion-playhead-follows-the-swung-grid).
+    const pos = tick.idx + (nowS - tick.when) / tick.span;
     // `neighbours` is reused rather than rebuilt: this runs up to 60x/s
     // (runtime-performance.md REQ-no-allocation-in-a-hot-loop), and valueAt only reads it.
     this.neighbours.prev = this.carryBank(tick.prevBank, tick.prevResting, axes, base);

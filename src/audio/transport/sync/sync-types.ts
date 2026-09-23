@@ -15,9 +15,24 @@ export type TransportId = 'midi' | 'wifi';
  * each to a byte where one exists (`tempo` has none — MIDI carries tempo
  * implicitly in pulse spacing — so `MidiSyncTransport.send` drops it).
  */
+/**
+ * How far before the first pulse at a new position a master schedules the
+ * `start` / `continue` that announces it (midi-clock-sync.md
+ * REQ-a-join-is-timed-by-its-first-pulse): late enough to follow every pre-jump
+ * pulse on a Web MIDI wire, early enough to precede the first post-jump one. A
+ * slave given the message's time adds it back to find the first step.
+ */
+export const JOIN_LEAD_MS = 1;
+
+/**
+ * `at` on `start` / `continue` (webrtc-sync.md REQ-a-join-carries-its-time): the
+ * time the sender scheduled it for, already in the RECEIVER's performance.now()
+ * domain. Only a transport that carries a schedule sets it (WiFi); MIDI
+ * delivers the message at its scheduled time instead, and leaves it absent.
+ */
 export type SyncMessage =
-  | { type: 'start' }                    // 0xFA — (re)start from step 0
-  | { type: 'continue' }                 // 0xFB — resume from the last song position
+  | { type: 'start'; at?: number }       // 0xFA — (re)start from step 0
+  | { type: 'continue'; at?: number }    // 0xFB — resume from the last song position
   | { type: 'stop' }                     // 0xFC
   | { type: 'pulse' }                    // 0xF8, 24 PPQN
   | { type: 'tempo'; bpm: number }       // v2: explicit tempo (no MIDI byte)

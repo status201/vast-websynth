@@ -230,6 +230,10 @@ export function openRecordSoundModal(engine: StudioApi, opts: RecordSoundOptions
     // (audio-export.md REQ-chunks-are-batched-then-flushed). Disposing first would truncate every take.
     const captured = await live.stop();
     live.dispose();
+    // Closed while the final batch was in flight: cleanup has already run, and
+    // it is the only teardown there will be — so build nothing it cannot release
+    // (sample-recorder.md REQ-the-editor-owns-its-teardown).
+    if (cleaned) return;
     if (captured.left.length === 0) {
       showIdle('Nothing was recorded — try again.');
       return;

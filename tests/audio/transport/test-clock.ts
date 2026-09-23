@@ -21,7 +21,9 @@ export class TestClock implements TickSubscriber {
   private readonly startListeners = new Set<() => void>();
   private readonly stopListeners = new Set<() => void>();
   private readonly seekListeners = new Set<() => void>();
-  private bpm = 120;
+  private _bpm = 120;
+  /** Mirrors `Clock.bpm`: the tempo actually running. */
+  get bpm(): number { return this._bpm; }
 
   onTick(fn: TickListener): () => void {
     this.tickListeners.add(fn);
@@ -44,11 +46,11 @@ export class TestClock implements TickSubscriber {
   }
 
   sixteenthDuration(): number {
-    return 60 / this.bpm / 4;
+    return 60 / this._bpm / 4;
   }
 
   setBpm(bpm: number): void {
-    this.bpm = Math.max(20, Math.min(400, bpm));
+    this._bpm = Math.max(20, Math.min(400, bpm));
   }
 
   /** Settable so a test can drive lane-relative swing (meter.md REQ-swing-is-computed-on-the-lanes-grid) without

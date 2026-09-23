@@ -278,9 +278,10 @@ function makeSlider(
       write(get() + dir * keyStep);
       e.preventDefault();
       // shortcuts.ts binds its global keys on `window` in the BUBBLE phase and
-      // only skips text inputs, so an unstopped bare arrow would ALSO shift the
-      // playable keyboard's octave — one gesture, two outcomes (ADR-014 law 2).
-      // Stopping here keeps the fix local: shortcuts.ts stays untouched.
+      // only skips text inputs, so an unstopped Shift+arrow would ALSO move the
+      // playhead a bar — one gesture, two outcomes (ADR-014 law 2). (Until
+      // input-control.md v17 a bare arrow shifted the octave too.) Stopping here
+      // keeps the rule local to the control that owns the keys.
       e.stopPropagation();
     });
   }

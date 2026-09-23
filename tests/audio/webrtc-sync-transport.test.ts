@@ -186,3 +186,43 @@ describe('WebRtcSyncTransport wire guard', () => {
     expect(await injectAtGuest('{"t":"start"}', 0)).toEqual([{ type: 'start' }]);
   });
 });
+
+// webrtc-sync.md REQ-a-join-carries-its-time (v8). A DataChannel sends at once, so a join's
+// schedule rides the wire: without it a WiFi slave had only the arrival time,
+// and the timing channel's first post-jump pulse could overtake the join.
+describe('WebRtcSyncTransport join time (v8)', () => {
+  it('carries a scheduled join on the wire, converted into the receiver domain', async () => {
+    const { host, guest, rtc, hostTimer, guestTimer } = await linkPair(5000, 1000);
+    guestTimer.fire(); // warm both estimators: guest offset = 5000 - 1000
+    hostTimer.fire();
+    const control = rtc.peers[0]!.channel(0)!;
+    const cSpy = vi.spyOn(control, 'send');
+    const seen: SyncMessage[] = [];
+    guest.onMessage((m) => seen.push(m));
+    host.send({ type: 'continue' }, 6000);
+    host.send({ type: 'start' }, 6100);
+    expect(cSpy).toHaveBeenCalledWith(JSON.stringify({ t: 'continue', at: 6000 }));
+    expect(seen).toEqual([{ type: 'continue', at: 2000 }, { type: 'start', at: 2100 }]);
+  });
+
+  it('passes no time while the offset is cold, or from a peer that sends none', async () => {
+    const { host, guest } = await linkPair(5000, 1000);
+    const seen: SyncMessage[] = [];
+    guest.onMessage((m) => seen.push(m));
+    host.send({ type: 'continue' }, 6000); // cold: an unconverted sender time means nothing here
+    host.send({ type: 'start' });          // unscheduled, as an older peer sends it
+    expect(seen).toEqual([{ type: 'continue' }, { type: 'start' }]);
+  });
+});
+
+describe('WebRtcSyncTransport join time guard (v8)', () => {
+  it('drops a join whose time is present but not a finite number', async () => {
+    for (const raw of ['{"t":"continue","at":"soon"}', '{"t":"start","at":null}', '{"t":"start","at":[]}']) {
+      const { guest, rtc } = await linkPair();
+      const seen: SyncMessage[] = [];
+      guest.onMessage((m) => seen.push(m));
+      rtc.peers[1]!.channel(0)!.onmessage?.({ data: raw });
+      expect(seen, raw).toEqual([]);
+    }
+  });
+});

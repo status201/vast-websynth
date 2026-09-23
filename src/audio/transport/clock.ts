@@ -28,6 +28,13 @@ const LOOKAHEAD_MS = 25;
 const SCHEDULE_AHEAD_S = 0.1;
 
 /**
+ * How long after `start()` its first step sounds, unless the caller names a time
+ * (transport.md REQ-a-start-can-name-its-first-step-time). Also the re-origin a
+ * dropout recovers to. Exported because a sync master's join is timed against it.
+ */
+export const START_LEAD_S = 0.05;
+
+/**
  * How far the step grid may fall behind `currentTime` before a wakeup counts as
  * a **dropout** rather than jitter (transport.md REQ-the-transport-catch-up-is-bounded). The look-ahead horizon
  * absorbs ordinary lateness; 0.25 s is well past it — two 16ths at 120 BPM — so
@@ -64,6 +71,8 @@ export class Clock implements TickSubscriber {
   private _resume: number | null = null;
   /** Consulted after each emitted step while a loop is engaged (REQ-a-step-router-can-redirect-the-next-step). */
   private router: StepRouter | null = null;
+  /** A jump held for the grid step nearest `at` (REQ-a-jump-can-be-scheduled). */
+  private pendingJump: { step: number; at: number } | null = null;
   /** The router that threw this run, reported once (see `route`). */
   private routerFaulted = false;
   /** Seek listeners already reported as throwing (see `fanOut`). */
@@ -106,6 +115,9 @@ export class Clock implements TickSubscriber {
    *  (transport.md REQ-the-transport-catch-up-is-bounded). Monotonic for the session — the Debug panel is the
    *  only way to see this on the phone where it happens (audio-lifecycle.md). */
   get dropouts(): number { return this._dropouts; }
+  /** Grid (unswung) audio time of the next step to be emitted — when a jump
+   *  announced now would sound (REQ-a-jump-can-be-scheduled). */
+  get nextStepAt(): number { return this.nextStepTime; }
 
   /** Non-finite is refused before the clamp: `Math.max(20, Math.min(400, NaN))`
    *  is `NaN`, which would make `sixteenth` NaN and stall the scheduler. The
@@ -159,17 +171,25 @@ export class Clock implements TickSubscriber {
    * moved the playhead — 0 until they do, so `start()` on an untouched transport
    * is unchanged. Callers that genuinely require step 0 (the recorders, which
    * bound their captures by absolute step number) must pass `0` explicitly.
+   *
+   * `firstStepAt` puts the first step at that audio time instead of
+   * `START_LEAD_S` from now (REQ-a-start-can-name-its-first-step-time) — never
+   * earlier than now. A sync slave passes its master's first pulse.
    */
-  start(fromStep = this.cue): void {
+  start(fromStep = this.cue, firstStepAt?: number): void {
     if (this._playing) return;
     this._playing = true;
     this._resume = null; // a pause resumes once (REQ-pause-resumes-where-it-stopped)
+    this.pendingJump = null;
     this.faultedListeners.clear(); // a new run reports its faults afresh
     this.faultedSeekListeners.clear();
     this.faultedStartListeners.clear();
     this.faultedStopListeners.clear();
     this.routerFaulted = false;
-    this.nextStepTime = this.ctx.currentTime + 0.05;
+    const now = this.ctx.currentTime;
+    this.nextStepTime = firstStepAt !== undefined && Number.isFinite(firstStepAt)
+      ? Math.max(now, firstStepAt)
+      : now + START_LEAD_S;
     this._step = Clock.clampStep(fromStep);
     // Isolated, and the two lines below run either way (REQ-a-subscriber-may-not-wedge-the-transport).
     // A throw used to escape here with `_playing` already true — so the timer
@@ -193,6 +213,7 @@ export class Clock implements TickSubscriber {
   seek(step: number): void {
     this._cue = this._step = Clock.clampStep(step);
     this._resume = null; // the user chose a position; it outranks a pause
+    this.pendingJump = null; // a chosen position outranks a scheduled one
     // The same loop `route()` guards, reached by a user scrub instead of a wrap
     // (REQ-a-subscriber-may-not-wedge-the-transport).
     this.fanOut(this.seekListeners, this.faultedSeekListeners, 'seek');
@@ -220,9 +241,38 @@ export class Clock implements TickSubscriber {
     this.halt();
   }
 
+  /**
+   * Jump to `step` at audio time `at`, on the unchanged grid (REQ-a-jump-can-be-scheduled) —
+   * a jump in the router's sense: the counter moves, the grid and the cue do
+   * not, and `onSeek` fires. It lands on the grid step nearest `at`: held until
+   * the drain reaches it, or — if the look-ahead already emitted that step and
+   * perhaps more — applied now, advanced by the `k` steps already out, so the
+   * next emitted step is where the new position has got to. Stopped, it is a
+   * plain `seek`.
+   */
+  seekAt(step: number, at: number): void {
+    if (!this._playing || !Number.isFinite(at)) { this.seek(step); return; }
+    this.pendingJump = { step, at };
+    this.applyDueJump();
+  }
+
+  /** Apply the held jump once the next step to emit is the one nearest its time. */
+  private applyDueJump(): void {
+    const p = this.pendingJump;
+    const sixteenth = this.sixteenthDuration();
+    if (!p || this.nextStepTime < p.at - sixteenth / 2) return;
+    this.pendingJump = null;
+    // Steps already emitted at or after `at` carried their old numbers; count
+    // past them so the next one is in the new position's place.
+    const k = Math.max(0, Math.round((this.nextStepTime - p.at) / sixteenth));
+    this._step = Clock.clampStep(p.step + k);
+    this.fanOut(this.seekListeners, this.faultedSeekListeners, 'seek');
+  }
+
   private halt(): void {
     if (!this._playing) return;
     this._playing = false;
+    this.pendingJump = null;
     this.timer.stop();
     // Registration order matters here — the sequencer's note release and the
     // motion machine's baseline restore are downstream of earlier subscribers,
@@ -283,7 +333,7 @@ export class Clock implements TickSubscriber {
     // See transport.md REQ-the-transport-catch-up-is-bounded / audio-lifecycle.md.
     if (this.nextStepTime < this.ctx.currentTime - DROPOUT_S) {
       this._dropouts++;
-      this.nextStepTime = this.ctx.currentTime + 0.05;
+      this.nextStepTime = this.ctx.currentTime + START_LEAD_S;
       return;
     }
     let emitted = 0;
@@ -315,6 +365,9 @@ export class Clock implements TickSubscriber {
       // their phase. Bounded at ingress (start/seek) instead.
       this._step++;
       if (this.router) this.route();
+      // After the router, so a scheduled jump (REQ-a-jump-can-be-scheduled) outranks a loop wrap
+      // landing on the same step. One null check while nothing is held.
+      if (this.pendingJump) this.applyDueJump();
     }
   };
 

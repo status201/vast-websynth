@@ -4,6 +4,7 @@ import { createButton } from './button';
 import { createProgressBar } from './progress-bar';
 import type { StudioApi } from '../studio-api';
 import { FALLBACK_BARS, MAX_RUNS, type ExportFormat } from '../../audio/recorder/recorder-controller';
+import { encodeFailureText } from '../encode-failure';
 import switchStyles from '../styles/switch.module.css';
 import segmentedStyles from '../styles/segmented.module.css';
 import dialogStyles from '../styles/dialog.module.css';
@@ -46,9 +47,14 @@ export function openExportAudioModal(engine: StudioApi, defaultFormat: ExportFor
   // here can never describe a different song than the one that gets rendered.
   const songBars = engine.arrangement.songBars(['seq', 'drum', 'sampler']) || FALLBACK_BARS;
   const sixteenthS = engine.clock.sixteenthDuration();
-  const busyReason = engine.recorder.phase === 'idle'
-    ? null
-    : 'A recording is in progress — save or discard it first';
+  /** Why Export cannot start right now, or null. Re-read on every paint: a render
+   *  to the sampler lasts seconds and ends while the modal is open
+   *  (audio-export.md REQ-a-capture-waits-for-a-bank-render). */
+  const busyReason = (): string | null => {
+    if (engine.recorder.phase !== 'idle') return 'A recording is in progress — save or discard it first';
+    if (engine.recorder.isBlocked()) return 'A render to the sampler is in progress — wait for it to finish';
+    return null;
+  };
 
   const modal = new Modal({
     title: 'Export audio',
@@ -190,7 +196,19 @@ export function openExportAudioModal(engine: StudioApi, defaultFormat: ExportFor
     bar.set(ratio);
   }
 
+  /** Back to the options view — a start the recorder refused after all. */
+  function showOptions(): void {
+    running = false;
+    options.hidden = false;
+    progress.hidden = true;
+    cancelBtn.hidden = false;
+    confirmBtn.hidden = false;
+    abortBtn.hidden = true;
+    render();
+  }
+
   function start(): void {
+    if (busyReason() !== null) { render(); return; }
     running = true;
     options.hidden = true;
     progress.hidden = false;
@@ -204,15 +222,30 @@ export function openExportAudioModal(engine: StudioApi, defaultFormat: ExportFor
     unsubs.push(engine.recorder.onPhase((p) => {
       if (p === 'encoding') { paintProgress(); return; }
       if (p !== 'idle') return;
+      running = false;
+      bar.setIndeterminate(false);
+      // Back to idle is not the same as written (REQ-a-failed-encode-keeps-the-take): a failed
+      // encode used to be reported as "Done". Say what went wrong and stay open.
+      if (engine.recorder.lastExportFailed()) {
+        status.textContent = encodeFailureText(fmt);
+        status.dataset.failed = 'true';
+        abortBtn.hidden = true;
+        cancelBtn.hidden = false;
+        cancelBtn.textContent = 'Close';
+        return;
+      }
       // Back to idle with the render finished: the file is written. The
       // browser's own download is the receipt, so a dialog the user has to
       // dismiss to acknowledge what they asked for buys nothing.
-      running = false;
       status.textContent = 'Done — check your downloads.';
-      bar.setIndeterminate(false);
       doneTimer = window.setTimeout(() => modal.close(), DONE_MS);
     }));
-    engine.recorder.exportSong(fmt, { runs, tailBar });
+    if (!engine.recorder.exportSong(fmt, { runs, tailBar })) {
+      unsubs.forEach((u) => u());
+      unsubs.length = 0;
+      subscribeBusy();
+      showOptions();
+    }
   }
 
   function render(): void {
@@ -224,10 +257,17 @@ export function openExportAudioModal(engine: StudioApi, defaultFormat: ExportFor
       `${runsPart}${tailBar ? ' + 1 tail bar' : ''} — about ${describeSeconds(seconds)}, rendered in real time.`;
     // The button that writes names the format (REQ-labels-echo-the-chosen-format).
     confirmBtn.textContent = `Export as ${fmt.toUpperCase()}`;
-    confirmBtn.disabled = busyReason !== null;
-    confirmBtn.title = busyReason ?? `Render the song and download it as ${fmt.toUpperCase()}`;
+    const busy = busyReason();
+    confirmBtn.disabled = busy !== null;
+    confirmBtn.title = busy ?? `Render the song and download it as ${fmt.toUpperCase()}`;
   }
 
+  /** A render to the sampler starting or ending changes whether Export can run. */
+  function subscribeBusy(): void {
+    unsubs.push(engine.bankRender.onState(() => { if (!running) render(); }));
+  }
+
+  subscribeBusy();
   render();
   modal.open();
   confirmBtn.focus();

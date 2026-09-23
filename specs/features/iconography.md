@@ -3,7 +3,9 @@
 ```yaml
 id: iconography
 status: implemented
-version: 3   # v3: `download` — the About card's Play offline button (play-offline.md)
+version: 4   # v4: the octave-shift row is `-` / `=` (input-control.md REQ-octave-shift-is-minus-and-equal); the
+             #     arrow caps this spec was written for live on in the Shift+arrows row
+             # v3: `download` — the About card's Play offline button (play-offline.md)
              # v2: iconTextEl emits the bare svg beside its label, as iconLabel does —
              #     its span wrapper had silently dropped the icon/text gap (regression)
 owner: ui
@@ -83,8 +85,8 @@ is that rule's real home; REQ-ui-icons-are-self-stroking there now references it
   arrows in help prose, and the `↔` in "dark ↔ bright".
 
   The test: **could the reader click it?** A glyph standing in for something on
-  screen is an icon even when it appears mid-sentence — help copy that says "the
-  `←` / `→` arrow keys shift octave" is naming two keys, and draws icons.
+  screen is an icon even when it appears mid-sentence — help copy that says
+  "`Shift` + `←` / `→` moves a bar" is naming two keys, and draws icons.
 
 - **REQ-an-icon-is-aria-hidden** — **An icon is `aria-hidden`; the control
   carries the name.** Three cases, and the third is the one that gets forgotten:
@@ -286,7 +288,7 @@ None.
 ```gherkin
 Scenario: the octave-shift keycaps draw identically on any device (REQ-a-control-glyph-is-inline-svg)
   Given the About modal's Keyboard Shortcuts list
-  When the "Shift keyboard octave down / up" row renders
+  When the "Move the playhead one bar" row renders (v4: the octave row is - / = now, plain keycaps)
   Then each arrow cap contains an svg.ui-icon and no arrow character
 # pinned by: tests/ui/about.test.ts
 

@@ -242,13 +242,18 @@ export function buildSamplerPanel(
     if (engine.sampler.buffers[slot] !== prev) return;
 
     const out = m.fitToFrames(audioBufferToCaptured(prev), plan.frames, 'rhythmic');
-    engine.sampler.setBuffer(slot, capturedToAudioBuffer(engine.ctx, out));
+    const fitted = capturedToAudioBuffer(engine.ctx, out);
+    engine.sampler.setBuffer(slot, fitted);
     refreshLabel(slot);
     showToast({
       message: `Fitted to ${plan.label} · ${plan.ratio.toFixed(2)}x`,
       actionLabel: 'Undo',
       testId: 'fit-toast',
       onAction: () => {
+        // Only the fit this toast offers (time-stretch.md REQ-the-quick-fit-is-reversible): a file loaded,
+        // recorded or cleared here since would otherwise be overwritten by the
+        // old clip, under the new file's name.
+        if (engine.sampler.buffers[slot] !== fitted) return;
         engine.sampler.setBuffer(slot, prev);
         refreshLabel(slot);
       },
@@ -290,6 +295,9 @@ export function buildSamplerPanel(
     }
   };
 
+  /** Per slot, the newest Load's ticket (sampler.md REQ-slots-are-filled-by-load-or-record). */
+  const loadTickets: number[] = Array(SAMPLER_SLOT_COUNT).fill(0);
+
   for (let t = 0; t < SAMPLER_SLOT_COUNT; t++) {
     const slot = t;
     const row = document.createElement('div');
@@ -307,11 +315,17 @@ export function buildSamplerPanel(
     fileInput.addEventListener('change', async () => {
       const f = fileInput.files?.[0];
       if (!f) return;
+      // The last file picked wins, not the last decode to finish
+      // (sampler.md REQ-slots-are-filled-by-load-or-record): a second Load before the first decoded
+      // used to be overwritten by it if the first happened to finish later.
+      const ticket = ++loadTickets[slot]!;
       try {
         const buf = await engine.ctx.decodeAudioData(await f.arrayBuffer());
+        if (loadTickets[slot] !== ticket) return;
         engine.sampler.setBuffer(slot, buf);
         engine.patterns.setSampleName(slot, f.name);
       } catch {
+        if (loadTickets[slot] !== ticket) return; // a newer pick owns the slot and its error
         await alertDialog({
           title: 'Load failed',
           message: 'Unsupported or corrupt audio file.',

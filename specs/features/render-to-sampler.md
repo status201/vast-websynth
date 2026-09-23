@@ -3,7 +3,8 @@
 ```yaml
 id: render-to-sampler
 status: implemented
-version: 4   # v4: a rendered bar is the song's bar, not always 16 steps (REQ-one-bar-means-the-songs-bar)
+version: 5   # v5: REQ-a-render-is-refused-while-busy — the reverse guard: a capture waits for a render
+             # v4: a rendered bar is the song's bar, not always 16 steps (REQ-one-bar-means-the-songs-bar)
              # v3: explicit start(0) + a render blocks a playhead seek (REQ-the-buffer-starts-exactly-on-a-bar/REQ-a-render-is-refused-while-busy)
              # v2: a `seq.render` help badge explains the section + the two-pass tail bake
 owner: core
@@ -79,7 +80,11 @@ the loop drifts against the grid and is unusable.
   **playhead seek is refused while a render is in flight**
   ([transport-position](transport-position.md) REQ-seeking-is-refused-in-three-states) — the crop is pure frame
   arithmetic off `step === 0` and `stopAtStep`, so a jump would truncate or
-  unbound it.
+  unbound it. (v5) **And the reverse:** an export or a manual take is refused
+  while a render is in flight ([audio-export](audio-export.md)
+  REQ-a-capture-waits-for-a-bank-render) — an export started mid-render used to
+  stop the transport under it and strand the render with its preconditions
+  never restored.
 - **REQ-the-slot-load-contract** (slot load contract) — On success the buffer
   lands in the chosen slot via the settled pair `SamplerMachine.setBuffer(slot,
   buf)` + `PatternStore.setSampleName(slot, name)`, name `seq-<bank

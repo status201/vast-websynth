@@ -159,8 +159,8 @@ test.describe('transport position', () => {
     await page.keyboard.press('Shift+ArrowRight');
     await page.keyboard.press('Shift+ArrowRight');
 
-    // The bare arrows own the octave shift, and the shifted ones must not have
-    // reached that branch: 'z' still plays C4 (MIDI 60).
+    // Shift+arrows seek; they must never move the octave (which is on - / = since
+    // input-control.md v17): 'z' still plays C4 (MIDI 60).
     const notes: number[] = [];
     await page.exposeFunction('__seenNote', (n: number) => { notes.push(n); });
     await page.evaluate(() => {

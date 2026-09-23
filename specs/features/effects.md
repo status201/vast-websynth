@@ -3,7 +3,11 @@
 ```yaml
 id: effects
 status: implemented
-version: 12  # v12: REQ-the-synth-chain-order — the synth chain is 1-channel only while no
+version: 13  # v13: REQ-the-phaser-sweeps-in-cents — the phaser sweeps each stage in CENTS, as v9
+             #      made the wah do. Its linear-Hz swing pinned the low stages
+             #      at 0 Hz for up to 37% of every cycle — measured a stall,
+             #      not a burst — including at the synth phaser's own default
+             # v12: REQ-the-synth-chain-order — the synth chain is 1-channel only while no
              #      sequencer track is panned off centre (sequencer.md, ADR-023)
              # v11: REQ-the-synth-chain-order/REQ-the-drum-bus-chain-order — an EQ heads all three chains
              #      (equalizer.md). It is a plain chain member, so nothing
@@ -332,6 +336,39 @@ subsets, so a song can colour each bus independently.
   at the default 0.4, `22 .. 1222 Hz` becomes `317 .. 1222 Hz`; at Around's 0.18,
   `352 .. 892 Hz` becomes `434 .. 892 Hz`.
 
+- **REQ-the-phaser-sweeps-in-cents** (v13) — **The phaser's LFO sweeps each
+  allpass stage in cents, too.** v9 fixed the wah and left the phaser on the
+  same linear-Hz mapping: one `depth * 1500` Hz swing added to four
+  stages centred at 600, 739, 909 and 1119 Hz. Any stage whose centre is under
+  the swing is driven below 0 Hz for part of every cycle and clamps there.
+  Measured in Blink and Gecko: an allpass held at the floor is an exact
+  pass-through — no NaN, no burst, unlike the wah's bandpass — so the failure is
+  a **stall**, not a click: that stage simply drops out of the phaser.
+
+  | depth | swing | share of the cycle each stage sits at 0 Hz |
+  | --- | --- | --- |
+  | 0.5 (the synth default) | 750 Hz | 20.5% · 5.5% · 0 · 0 |
+  | 0.7 (drum / sampler default) | 1050 Hz | 30.6% · 25.2% · 16.7% · 0 |
+  | 1 | 1500 Hz | 36.9% · 33.6% · 29.3% · 23.2% |
+
+  Three shipped demos play it past the floor (`Gankogui` 0.405, `Neon` 0.45,
+  `apex-twin` 0.65), and so does the synth phaser's own default.
+
+  So each stage's `detune` carries the sweep, and its `frequency` is its fixed
+  centre, written once. As with the wah, the mapping **keeps the top of every
+  stage's sweep exactly where it was**, so no stored song changes its brightest
+  point — which, because the stages have different centres, takes one depth
+  gain per stage rather than one shared one:
+
+  ```
+  stageCents(d, fc) = 1200 * log2(1 + d * 1500 / fc)
+  ```
+
+  Only the bottoms move, from a dive toward 0 Hz to the mirror of the top: the
+  lowest stage at the default 0.5 goes from `-150 .. 1350 Hz` (clamped at 0) to
+  `267 .. 1350 Hz`; at Around's 0.195, from `308 .. 893 Hz` to `403 .. 893 Hz`.
+  Depth 0 is still no sweep at all.
+
 
 - **REQ-toggling-an-effect-must-not-step-the-level** (v10) — **Toggling an
   effect must not step the level, and the wah's bandpass carries makeup gain so
@@ -545,6 +582,19 @@ Scenario: A stored song keeps the top of its wah sweep (v9, REQ-the-wah-lfo-swee
    And only the bottom of the sweep moves, from 352 Hz up to 434 Hz
 # pinned by: tests/audio/effects/wah.test.ts
 
+Scenario: No phaser stage stalls at 0 Hz, at any depth (v13, REQ-the-phaser-sweeps-in-cents, regression)
+  Given a phaser at depth 1 (the widest the param allows)
+  When the LFO is at the bottom of its cycle
+  Then every stage sits at fc / 2^(stageCents/1200), the lowest still above 150 Hz
+   And no stage's frequency is ever written after construction — the sweep is detune
+# pinned by: tests/audio/effects/phaser.test.ts
+
+Scenario: A stored song keeps the top of each phaser stage's sweep (v13, REQ-the-phaser-sweeps-in-cents, edge)
+  Given a phaser at any depth, including the 0.5 default
+  Then each stage still peaks at its centre + depth * 1500 Hz, as it did in linear Hz
+   And depth 0 leaves every stage unswept
+# pinned by: tests/audio/effects/phaser.test.ts
+
 Scenario: Boot builds one IR, not fifteen (REQ-the-reverb-ir-bank-is-lazy-and-shared, perf)
   Given the three FX chains each construct a Reverb on one context
   Then exactly one impulse response has been generated
@@ -597,7 +647,9 @@ Scenario: Drive 0 stays an exact no-op after bucketing (REQ-drive-curves-are-buc
   ADR-012), `tests/audio/effects/reverb.test.ts` (the lazy/shared IR bank),
   `tests/audio/drive-curve.test.ts` (bucketed curve cache),
   `tests/audio/effects/fx-cost.test.ts` (perf-tier caps), `e2e/controls.spec.ts`,
-  `tests/audio/fx-tempo-lock.test.ts` + `e2e/fx-tempo-lock.spec.ts` (v6, REQ-wah-phaser-and-delay-can-be-tempo-locked).
+  `tests/audio/fx-tempo-lock.test.ts` + `e2e/fx-tempo-lock.spec.ts` (v6, REQ-wah-phaser-and-delay-can-be-tempo-locked),
+  `tests/audio/effects/phaser.test.ts` (v13, REQ-the-phaser-sweeps-in-cents — and the phaser's sound
+  change was verified by ear, ADR-010).
 - `npm test` / `npm run e2e`.
 
 ## Open questions / future

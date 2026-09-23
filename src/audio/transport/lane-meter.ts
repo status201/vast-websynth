@@ -16,6 +16,13 @@ export type LaneHitListener = (
   when: number,
   /** How long this cell lasts, in seconds — the gate/ratchet unit. */
   cellDur: number,
+  /**
+   * Seconds from this cell's onset to the next cell's, on the same swung grid
+   * (meter.md REQ-swing-is-computed-on-the-lanes-grid). Equal to `cellDur` in
+   * straight time. Only the motion playhead reads it
+   * (motion-sequencer.md REQ-the-motion-playhead-follows-the-swung-grid).
+   */
+  span: number,
 ) => void;
 
 /**
@@ -96,7 +103,10 @@ export class LaneMeter {
     const cellDur = perCell * this.clock.sixteenthDuration();
 
     if (perCell === 1) {
-      fn(((src % cells) + cells) % cells, when, cellDur);
+      // The clock swung this tick by `swingOffset(step)` and will swing the next
+      // by `swingOffset(step + 1)`, so that is the gap to the next onset.
+      const span = cellDur + this.clock.swingOffset(step + 1) - this.clock.swingOffset(step);
+      fn(((src % cells) + cells) % cells, when, cellDur, span);
       return;
     }
 
@@ -106,10 +116,11 @@ export class LaneMeter {
     const gridWhen = when - this.clock.swingOffset(step);
     for (let i = 0; i < count; i++) {
       const cell = from + i;
-      const at = gridWhen
-        + cellOffsetTicks(cell, this.rateIdx, src) * sixteenth
-        + this.clock.swingOffset(cell) * perCell;
-      fn(((cell % cells) + cells) % cells, at, cellDur);
+      const swing = this.clock.swingOffset(cell) * perCell;
+      const at = gridWhen + cellOffsetTicks(cell, this.rateIdx, src) * sixteenth + swing;
+      // Cells are `cellDur` apart on the grid; only their swing differs.
+      const span = cellDur + this.clock.swingOffset(cell + 1) * perCell - swing;
+      fn(((cell % cells) + cells) % cells, at, cellDur, span);
     }
   }
 }

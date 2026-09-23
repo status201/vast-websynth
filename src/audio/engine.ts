@@ -535,7 +535,12 @@ export class Engine {
     // zero outputs so it is a pure sink and never doubles into destination.
     this.recorderNode = await RecorderNode.create(this.ctx);
     this.master.connect(this.recorderNode.input);
-    this.recorder = new RecorderController(this.clock, this.arrangement, this.recorderNode);
+    // A capture waits for a bank render (audio-export.md REQ-a-capture-waits-for-a-bank-render), the reverse of the
+    // guard the renderer takes below. Read lazily: the renderer is built next.
+    this.recorder = new RecorderController(
+      this.clock, this.arrangement, this.recorderNode,
+      () => this.bankRender.isRendering(),
+    );
 
     // Bank resample (render-to-sampler.md): a second zero-output tap on the
     // synth channel output (post-reverb, post-pan, pre-preMaster) — the drum/
@@ -978,18 +983,26 @@ export class Engine {
    * structural stub, as `seekTo`/`canSeek` are.
    */
   handleNote(on: boolean, note: number, velocity: number): void {
-    if (this.arpPassthroughSuppressed) return;
+    const suppressed = this.arpPassthroughSuppressed;
     if (on) {
+      if (suppressed) return; // an engaged arp owns the note stream
       const notes = this.scale.chord(note);
       this.heldIn.set(note, notes);
       for (const n of notes) this.playNote(n, velocity);
-    } else {
-      // The fallback only matters for a note-off with no matching note-on (a stuck
-      // MIDI message, or a key held across a panic) — otherwise the map always hits.
-      const notes = this.heldIn.get(note) ?? [this.scale.get(note)];
-      this.heldIn.delete(note);
-      for (const n of notes) this.releaseNote(n);
+      return;
     }
+    // Note-offs are NOT gated by the arp (voicing.md REQ-passthrough-remembers-what-it-played): a key held as
+    // the arp came on already sounded through here, and dropping its release left
+    // the voice ringing until Panic. What this path played, it always releases.
+    const played = this.heldIn.get(note);
+    // A key pressed while the arp owned the stream was never played here; its
+    // release is the arp's business.
+    if (!played && suppressed) return;
+    // The fallback only matters for a note-off with no matching note-on (a stuck
+    // MIDI message, or a key held across a panic) — otherwise the map always hits.
+    const notes = played ?? [this.scale.get(note)];
+    this.heldIn.delete(note);
+    for (const n of notes) this.releaseNote(n);
   }
 
   /** Stop the transport AND silence everything (Panic button / Esc). */

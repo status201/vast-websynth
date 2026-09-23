@@ -34,6 +34,7 @@ import {
   type SeqStep,
 } from '../../state/patterns';
 import { ALL_CELLS, bindLaneGrid } from '../lane-grid';
+import { createWheelStepper } from '../wheel-steps';
 
 // Repaint a step cell: lit state, note label, the per-step settings viz
 // (gate/velocity/prob/ratchet/tie/micro) and a tooltip with the exact values.
@@ -262,10 +263,15 @@ export function buildSeqPanel(
       // it; the other tracks are namespaced.
       sb.el.dataset.testid = track === 0 ? `seq-step-${i}` : `seq-step-${track}-${i}`;
       paintStep(sb, cell);
+      // By scroll distance, not per event (wheel-steps.md REQ-a-wheel-gesture-steps-by-distance): a
+      // touchpad swipe is dozens of events and used to leap the note to the clamp.
+      const wheelStep = createWheelStepper();
       sb.el.addEventListener('wheel', (e) => {
         e.preventDefault();
+        const dir = wheelStep(e);
+        if (dir === 0) return;
         setSelected(track, index);
-        bumpNote((e.deltaY < 0 ? 1 : -1) * (e.shiftKey ? 12 : 1), track, index);
+        bumpNote(dir * (e.shiftKey ? 12 : 1), track, index);
       }, { passive: false });
       btns.push(sb);
       stepRowEl.appendChild(sb.el);
@@ -361,9 +367,11 @@ export function buildSeqPanel(
   const noteDisplay = document.createElement('div');
   noteDisplay.className = styles.noteDisplay!;
   noteDisplay.title = 'Scroll to change pitch — Shift+scroll for octaves';
+  const noteWheelStep = createWheelStepper(); // wheel-steps.md REQ-a-wheel-gesture-steps-by-distance
   noteDisplay.addEventListener('wheel', (e) => {
     e.preventDefault();
-    bumpNote((e.deltaY < 0 ? 1 : -1) * (e.shiftKey ? 12 : 1));
+    const dir = noteWheelStep(e);
+    if (dir !== 0) bumpNote(dir * (e.shiftKey ? 12 : 1));
   }, { passive: false });
   noteCtrl.appendChild(noteDisplay);
   const upBtn = document.createElement('button');

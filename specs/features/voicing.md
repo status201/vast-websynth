@@ -3,7 +3,9 @@
 ```yaml
 id: voicing
 status: implemented
-version: 7   # v7: heldNotes being keyed by NOTE is what makes two sequencer tracks on one
+version: 8   # v8: REQ-passthrough-remembers-what-it-played — a key held as the arp comes on is still
+             #     released when you let go (the arp gate swallowed note-offs too)
+             # v7: heldNotes being keyed by NOTE is what makes two sequencer tracks on one
              #     pitch share a voice, and so one pan (sequencer.md REQ-two-tracks-on-one-pitch-share-a-pan)
              # v6: MONO obeys REQ-a-stolen-voice-leaves-the-held-list too — every mono note
              #     claimed the same voices, so releasing an older key cut the newer note
@@ -121,6 +123,17 @@ time 0 reproduces the pre-song-mode behaviour, keeping existing presets unchange
   chord memory, **while holding a chord**. The map is bounded at 128 keys × ≤4 notes and
   is cleared alongside `killAll` — REQ-mode-switch-kills-all-voices's mode switch and panic both go through it, so
   no entry outlives the voices it names.
+
+  (v8) **A note the passthrough played is always released, arp or no arp.** An
+  engaged arpeggiator takes the note stream (`passthroughSuppressed`,
+  [arpeggiator](arpeggiator.md)), and `handleNote` used to drop note-*offs* as well
+  as note-ons while it did. A key held as the arp came on — its switch, a preset or
+  song that turns it on, a motion lane on `arp.on` — had already sounded through the
+  passthrough, and its release was then thrown away: the voice rang until Panic.
+  So the gate applies to **note-on only**; a note-off still replays whatever
+  `heldIn` holds for that key. A note-off for a key the passthrough never played
+  (it was pressed while the arp owned the stream) is still ignored while
+  suppressed — its release belongs to the arp.
 
   *Accepted consequence:* two raw keys can quantize onto the same note, so releasing one
   stops it while the other is still held. That is inherent to quantization and is how
@@ -266,12 +279,21 @@ Scenario: Glide defaults reproduce legacy behaviour (backward compat, edge)
   Given glide.mode is 'always' (1) and mixer.glide is 0
   Then notes retrigger with no audible portamento, exactly as before song mode
 # pinned by: tests/state/preset.test.ts (existing presets unchanged)
+
+Scenario: A key held as the arp comes on still releases (v8, REQ-passthrough-remembers-what-it-played, regression)
+  Given a key held and sounding through the passthrough
+  When the arpeggiator is switched on, and then the key is let go
+  Then its note is released — it used to ring until Panic
+   And a key pressed after the arp came on is neither played nor released by the passthrough
+# pinned by: tests/audio/engine-scale.test.ts
 ```
 
 ## Tests & verification
 
 - `tests/state/params.test.ts`, `tests/state/preset.test.ts`, `e2e/controls.spec.ts`.
 - REQ-a-stolen-voice-leaves-the-held-list stealing/eviction: `tests/audio/polyphony.test.ts`.
+- REQ-passthrough-remembers-what-it-played: `tests/audio/engine-scale.test.ts`, against the production
+  `Engine.handleNote` — including v8's release of a key held as the arp comes on.
 - `npm test` / `npm run e2e`.
 - **Verified by ear (REQ-a-stolen-voice-leaves-the-held-list)**, which is the part the tests cannot do
   ([ADR-010](../decisions/adr-010-musical-stable-cheap-dsp.md)): a nine-note

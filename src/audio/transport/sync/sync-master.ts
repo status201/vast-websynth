@@ -1,5 +1,5 @@
 import type { Clock } from '../clock';
-import type { SyncMessage } from './sync-types';
+import { JOIN_LEAD_MS, type SyncMessage } from './sync-types';
 import { type TickTimer, defaultTickTimer } from '../tick-timer';
 
 /**
@@ -127,9 +127,21 @@ export class SyncMaster {
     const m = this.readMeter?.();
     if (m) send({ type: 'meter', beats: m.beats, unit: m.unit });
     if (this.clock.playing) {
-      send({ type: 'songposition', beat: this.clock.step & SONG_POSITION_MASK });
-      send({ type: 'continue' });
+      const at = this.joinAtMs();
+      send({ type: 'songposition', beat: this.clock.step & SONG_POSITION_MASK }, at);
+      send({ type: 'continue' }, at);
     }
+  }
+
+  /**
+   * When to send a join (midi-clock-sync REQ-a-join-is-timed-by-its-first-pulse): just before the
+   * first pulse at the new position, which is the next step the clock emits.
+   * Sent sooner, it overtook the pre-jump pulses already queued in the look-ahead
+   * — a slave restarted up to a look-ahead early and settled a 16th off, and a
+   * hardware slave counted those pulses as the new position.
+   */
+  private joinAtMs(): number {
+    return this.toPerfMs(this.clock.nextStepAt) - JOIN_LEAD_MS;
   }
 
   private onLocalStart = (): void => {
@@ -141,11 +153,12 @@ export class SyncMaster {
     // bar 0 while we play on mid-song — so join them where we are, with MIDI's
     // own Song Position + Continue (midi-clock-sync.md REQ-a-local-start-joins-rather-than-restarts).
     const step = this.clock.step;
+    const at = this.joinAtMs();
     if (step === 0) {
-      this.send({ type: 'start' });
+      this.send({ type: 'start' }, at);
     } else {
-      this.send({ type: 'songposition', beat: step & SONG_POSITION_MASK });
-      this.send({ type: 'continue' });
+      this.send({ type: 'songposition', beat: step & SONG_POSITION_MASK }, at);
+      this.send({ type: 'continue' }, at);
     }
     this.sendTempo();
   };

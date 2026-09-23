@@ -4,6 +4,25 @@ import { openRecordSoundModal } from '../../src/ui/components/record-sound-modal
 import type { StudioApi } from '../../src/ui/studio-api';
 import type { CapturedAudio } from '../../src/audio/recorder/node';
 
+// The record path's mic session, so a take can be held mid-stop
+// (sample-recorder.md REQ-the-editor-owns-its-teardown, v8). The tests above open with a
+// source clip and never reach it.
+const mic = vi.hoisted(() => ({
+  resolveStop: null as ((c: import('../../src/audio/recorder/node').CapturedAudio) => void) | null,
+  disposed: 0,
+}));
+vi.mock('../../src/audio/recorder/mic-capture', async (importOriginal) => {
+  const real = await importOriginal<typeof import('../../src/audio/recorder/mic-capture')>();
+  return {
+    ...real,
+    openMicSession: async () => ({
+      start: () => {},
+      stop: () => new Promise((res) => { mic.resolveStop = res; }),
+      dispose: () => { mic.disposed++; },
+    }),
+  };
+});
+
 /**
  * sample-recorder.md REQ-the-editor-owns-its-teardown. The bug this pins: the
  * editor builds seven `Dropdown`s, each of which registers four listeners
@@ -108,6 +127,44 @@ describe('record-sound modal teardown (REQ-the-editor-owns-its-teardown)', () =>
       close();
     }
 
+    expect(doc.outstanding()).toEqual({});
+    expect(win.outstanding()).toEqual({});
+    doc.restore();
+    win.restore();
+  });
+});
+
+describe('record-sound modal closed while a take finishes (v8, REQ-the-editor-owns-its-teardown)', () => {
+  beforeEach(() => {
+    document.body.innerHTML = '';
+    (globalThis as unknown as { ResizeObserver: unknown }).ResizeObserver = class {
+      observe(): void {}
+      unobserve(): void {}
+      disconnect(): void {}
+    };
+  });
+  afterEach(() => { document.body.innerHTML = ''; vi.restoreAllMocks(); });
+
+  it('builds no editor, and leaks nothing, when closed before the stop resolves (regression)', async () => {
+    const flush = (): Promise<void> => new Promise((r) => setTimeout(r, 0));
+    const doc = trackListeners(document, 'document');
+    const win = trackListeners(window, 'window');
+
+    openRecordSoundModal(harness(), { slot: 0 });
+    const rec = (): HTMLButtonElement =>
+      document.querySelector<HTMLButtonElement>('[data-testid="mic-record-toggle"]')!;
+    rec().click();          // open the mic, start the take
+    await flush();
+    rec().click();          // stop: the final batch is now in flight
+    await flush();
+    document.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true })); // close meanwhile
+    mic.resolveStop!(clip()); // the take lands after the close
+    await flush();
+
+    expect(mic.disposed).toBeGreaterThan(0);
+    // The bug: the editor — seven dropdowns, each with document/window
+    // listeners — was built into the closed card, after its only cleanup.
+    expect(document.querySelector('.dropdown')).toBeNull(); // the editor's controls
     expect(doc.outstanding()).toEqual({});
     expect(win.outstanding()).toEqual({});
     doc.restore();

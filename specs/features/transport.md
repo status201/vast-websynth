@@ -3,7 +3,10 @@
 ```yaml
 id: transport
 status: implemented
-version: 9   # v9: REQ-a-subscriber-may-not-wedge-the-transport covers ALL FIVE listener fan-outs, not just
+version: 10  # v10: REQ-a-start-can-name-its-first-step-time start(fromStep, firstStepAt) and
+             #      REQ-a-jump-can-be-scheduled seekAt(step, at) / nextStepAt — for a sync slave
+             #      that joins on the master's first pulse and follows a jump in place
+             # v9: REQ-a-subscriber-may-not-wedge-the-transport covers ALL FIVE listener fan-outs, not just
              #     tick and the routed seek — start/stop/seek were bare, and a throwing
              #     start listener wedged the transport permanently
              # v8: REQ-pause-resumes-where-it-stopped pause() — a one-shot resume point the cue reports while
@@ -268,6 +271,36 @@ untouched.
   [transport-loop](transport-loop.md), which keeps the clock's hot path at one
   `null` check while nothing is installed.
 
+- **REQ-a-start-can-name-its-first-step-time** (v10) — **`start(fromStep,
+  firstStepAt?)` can say when its first step sounds.** Without it the first step
+  sounds `START_LEAD_S` (50 ms) after `start()` is called, exactly as before —
+  the default is unchanged, and `START_LEAD_S` is the named constant the literal
+  `0.05` used to be. With it, `nextStepTime = max(firstStepAt, currentTime)`: a
+  time in the past sounds now, never earlier. A sync slave uses it to put its
+  first step on the master's first pulse rather than on the moment a message
+  happened to arrive ([midi-clock-sync](midi-clock-sync.md)
+  REQ-a-join-is-timed-by-its-first-pulse). Bounding a remote-supplied time is
+  the caller's job; the clock only refuses non-finite input (it falls back to
+  the default lead).
+
+- **REQ-a-jump-can-be-scheduled** (v10) — **`seekAt(step, at)` jumps at an audio
+  time, on the unchanged grid.** It is a jump in exactly the router's sense
+  (REQ-a-step-router-can-redirect-the-next-step): the counter moves, the grid does
+  not, `onSeek` fires, the cue does not move. What it adds is *when*: the jump
+  lands on the grid step nearest `at`.
+  - If that step has **not been emitted yet**, the jump is held and applied
+    inside the drain, just before that step is emitted — so it sounds as the
+    new position.
+  - If the look-ahead has **already emitted** it (and perhaps more), the jump
+    applies at once, advanced by the `k` steps already emitted at or after `at`:
+    the next emitted step is `step + k`, which is where the new position has
+    got to by then. Those `k` steps have gone out with their old numbers; that
+    cannot be undone, only not compounded.
+  Stopped, it is a plain `seek(step)`. `start`, `stop` and `seek` drop a held
+  jump. `nextStepAt` exposes the grid time of the next step to be emitted —
+  unswung, the time a jump announced now would sound
+  ([midi-clock-sync](midi-clock-sync.md) REQ-a-join-is-timed-by-its-first-pulse).
+
 ## Technical design
 
 ### Contract / public interface
@@ -506,6 +539,26 @@ Scenario: A throwing router or seek listener cannot wedge the drain (v8, REQ-a-s
   Given a router that throws, or an onSeek listener that throws on a jump
   When the timer fires
   Then the step counter still advances and later tick listeners still run
+# pinned by: tests/audio/transport/clock.test.ts
+
+Scenario: A start can put its first step at a given time (v10, REQ-a-start-can-name-its-first-step-time)
+  Given a stopped clock and currentTime 1.0
+  When start(4, 1.3) is called
+  Then step 4 is emitted with when 1.3
+   And start(4) alone still puts it at 1.05, and start(4, 0.2) at 1.0
+# pinned by: tests/audio/transport/clock.test.ts
+
+Scenario: A scheduled jump lands on the step nearest its time (v10, REQ-a-jump-can-be-scheduled)
+  Given a playing clock whose look-ahead has not reached time T
+  When seekAt(32, T) is called
+  Then the step emitted at T's grid time is 32, the steps before it keep counting
+   And onSeek fired once, the cue did not move, and the grid was not re-seeded
+# pinned by: tests/audio/transport/clock.test.ts
+
+Scenario: A scheduled jump the look-ahead has passed is caught up (v10, REQ-a-jump-can-be-scheduled, edge)
+  Given a playing clock that has already emitted the steps at T and T + one 16th
+  When seekAt(32, T) is called
+  Then the next emitted step is 34 — where the new position has got to by then
 # pinned by: tests/audio/transport/clock.test.ts
 ```
 

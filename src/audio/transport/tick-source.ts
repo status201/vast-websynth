@@ -11,6 +11,9 @@ export interface TickSubscriber {
    *  REQ-every-relative-consumer-reacts-to-a-seek). Like `onStart`, subscribers read `step` themselves. */
   onSeek(fn: () => void): () => void;
   sixteenthDuration(): number;
+  /** The tempo actually running — which a Tape Stop ramp or a followed clock can
+   *  hold away from `transport.bpm` (performance.md REQ-tape-stop-ramps-bpm-and-pitch). */
+  readonly bpm: number;
   /** The swing delay this tick's `when` already carries, in seconds. A lane
    *  running coarser than a 16th subtracts it and applies swing on its own grid
    *  (transport.md REQ-swing-offset-is-public, meter.md REQ-swing-is-computed-on-the-lanes-grid). */
