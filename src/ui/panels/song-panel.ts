@@ -72,6 +72,7 @@ import { encodeSongPayload, buildShareUrl } from '../../state/song-link';
 import { triggerDownload } from '../../audio/recorder/encode';
 import { audioBufferToCaptured } from '../../audio/recorder/audio-buffer';
 import { plural } from '../../utils/format';
+import { createWheelStepper } from '../wheel-steps';
 
 /** Demo buttons shown inline; the rest hide behind "All Demos" (song-mode.md REQ-the-demo-row-overflows-into-a-menu).
  *  Was 6, which hid most of a growing library; 10 is what fits a desktop row. */
@@ -1091,6 +1092,14 @@ function buildChainLane(
   // avoids tearing down and re-creating buttons (and re-attaching listeners)
   // on every bar advance during playback.
   let chipEls: HTMLButtonElement[] = [];
+  /**
+   * The chips' wheel, by scroll distance rather than per event (wheel-steps.md
+   * REQ-a-wheel-gesture-steps-by-distance) — a touchpad swipe used to send a bar's transpose straight to
+   * the clamp. One per LANE, outside `renderStructure`: each step rewrites a chip's
+   * label and so rebuilds the chips, and a stepper rebuilt with them would start
+   * a fresh gesture on every event, which is the bug over again.
+   */
+  const chipWheelStep = createWheelStepper();
   let lastKey = '';
   /** Disposer for the drag controller bound to the CURRENT chip DOM. */
   let detachReorder: (() => void) | null = null;
@@ -1140,7 +1149,8 @@ function buildChainLane(
         // scrolls out from under the chip you are editing.
         c.addEventListener('wheel', (e) => {
           e.preventDefault();
-          nudgeSlot(idx, e.deltaY < 0 ? 1 : -1);
+          const dir = chipWheelStep(e);
+          if (dir !== 0) nudgeSlot(idx, dir);
         }, { passive: false });
         // Double-click resets to +0, matching the knob double-tap idiom.
         c.addEventListener('dblclick', () => { setSlotTranspose(idx, 0); });

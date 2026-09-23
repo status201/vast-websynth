@@ -3,7 +3,9 @@
 ```yaml
 id: arrangement
 status: implemented
-version: 7   # v7: drag a chip to reorder a lane (REQ-a-chip-is-dragged-to-its-place); the chip's three
+version: 8   # v8: the chip wheel steps by scroll distance (wheel-steps.md) — a touchpad swipe
+             #     used to send a bar's transpose straight to the clamp
+             # v7: drag a chip to reorder a lane (REQ-a-chip-is-dragged-to-its-place); the chip's three
              #     facts get three visual channels (REQ-a-chip-says-three-things-three-ways)
              # v6: the bar is barTicks, not 16 (REQ-an-arrangement-bar-is-bar-ticks) — meter.md
              # v5: per-slot transpose on the seq lane (REQ-a-seq-slot-carries-a-transpose) — SongFile v7
@@ -206,7 +208,7 @@ the ones left unused.
 | Gesture                | Outcome                                          | Precedent |
 | ---------------------- | ------------------------------------------------ | --------- |
 | tap / click            | select / deselect the slot — a press travelling less than the 6 px slop is a tap, so REQ-a-chip-is-dragged-to-its-place's drag does not take this away | existing |
-| wheel over a chip      | ±1 semitone, **seq lane only**                   | `recipes/design-an-interaction.md`'s own worked example; Elektron per-pattern transpose |
+| wheel over a chip      | ±1 semitone per notch, **seq lane only** — by distance, not per event (v8, [wheel-steps](wheel-steps.md) REQ-a-wheel-gesture-steps-by-distance) | `recipes/design-an-interaction.md`'s own worked example; Elektron per-pattern transpose |
 | double-click a chip    | reset that slot to `+0`                          | knob double-tap resets to the loaded value (README → Controls) |
 | `−` / `+` in the controls row | ±1 semitone on the selected slot; the **touch-reachable** path, since wheel is desktop-only and this app ships as an Android/iOS PWA | the row's existing `◀ ▶ ✕ Clear` idiom |
 | Shift + wheel          | — Shift means **finer** everywhere here (knobs, motion pads) and a semitone is already the finest step; making it mean *coarser* would invert the app's own convention | — |

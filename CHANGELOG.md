@@ -41,6 +41,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ### Fixed
 
+- **Scrolling a note or a bar's transpose on a touchpad moves it a semitone or
+  so, not thirty.** The chain chips and the sequencer's steps moved one semitone
+  per scroll *event*; a touchpad sends dozens per swipe, so a gentle swipe sent
+  the value straight to its limit. They now move by scroll distance — one mouse
+  notch is still exactly one semitone.
+- **FIT's Undo no longer overwrites a sample you loaded since.** Loading a new
+  file into a slot while the FIT toast was still up, then pressing Undo, put the
+  old clip back under the new file's name.
+- **The last file you pick into a sampler slot is the one it keeps**, even if an
+  earlier, larger file finishes decoding after it.
+- **Closing the sample recorder just as a take finishes no longer leaves its
+  editor running invisibly** in the background.
 - **Pressing Escape to close a dropdown no longer stops the song.** It closed
   the menu and then also triggered Panic, stopping the transport and silencing
   every note.

@@ -3,7 +3,8 @@
 ```yaml
 id: step-grid-editing
 status: implemented
-version: 9   # v9: the five hand-rolled double-tap windows live in one module, and the
+version: 10  # v10: the seq step wheel steps by scroll distance (wheel-steps.md REQ-a-wheel-gesture-steps-by-distance)
+             # v9: the five hand-rolled double-tap windows live in one module, and the
              #     two-tolerance divergence between them is recorded rather than hidden
              # v8: a CANCELLED pointer writes nothing — `pointercancel` was routed to the
              #     release path, so an interrupted touch committed the tap it was
@@ -254,7 +255,7 @@ step-1 artefact). "Trigger grids" = seq / drum / sampler.
 | Shift + drag | — | fine, relative, unsnapped (v4) | this app's knobs |
 | right-click | select only | — | — |
 | double-tap | — (tap already toggles) | clear the anchor | Electribe |
-| wheel | ±1 semitone (seq only) | — | — |
+| wheel | ±1 semitone per notch (seq only; by distance since v10, [wheel-steps](wheel-steps.md)) | — | — |
 | `Delete` / `Backspace` | clear selected step | clear selected step | DAW piano roll |
 | `Clear ▾` → bank | clear the edit bank | clear the edit bank | — |
 | `Clear ▾` → row | clear the selected row | clear a named lane (XY/A/B) | — |
