@@ -1,14 +1,21 @@
 import type { Clock } from '../clock';
-import type { SyncMessage } from './sync-types';
+import { JOIN_LEAD_MS, type SyncMessage } from './sync-types';
 import { PulseBpmEstimator } from './bpm-estimator';
+import { MAX_SYNC_JOIN_LEAD_MS } from '../../../state/limits';
 
 /**
  * Slave role: follow a remote transport arriving as `SyncMessage`s.
  *
- * - 'start' (re)starts the local clock **from step 0** — a restart even if
- *   already playing, so bars realign (REQ-slave-restarts-from-zero-on-start). 'songposition' records a pending
- *   beat and 'continue' starts **from that beat** (REQ-song-position-pointer-jumps-the-slave) — a slave joining
+ * - 'start' moves the local clock to **step 0**, so bars realign
+ *   (REQ-slave-restarts-from-zero-on-start). 'songposition' records a pending
+ *   beat and 'continue' moves **to that beat** (REQ-song-position-pointer-jumps-the-slave) — a slave joining
  *   mid-song lands on the right bar instead of restarting at 0.
+ * - (v8) Either join sounds on its **first pulse** (REQ-a-join-is-timed-by-its-first-pulse): at the
+ *   message's own `at` when the transport carries one, otherwise at the first
+ *   pulse at or after the message — never at "arrival + 50 ms", which was right
+ *   only for this app's own master. A slave already following this master
+ *   jumps in place on its phase-locked grid (REQ-a-following-slave-jumps-in-place); one playing on
+ *   its own restarts.
  * - 'stop' stops it.
  * - 'pulse' (24 PPQN) feeds tempo estimation and phase correction. After a
  *   (re)start, pulses are ignored for a settle window (REQ-a-post-start-settle-window): a
@@ -52,7 +59,7 @@ const REANCHOR_MIN_S = 0.015;    // re-anchor floor so delivery-jitter spikes ca
 const PHASE_MISS_REANCHOR = 2;   // consecutive unmeasurable pulses -> re-anchor
 const START_SETTLE_BASE_MS = 300; // + 12 pulse intervals: post-(re)start pulse-ignore span (REQ-a-post-start-settle-window)
 const STALL_S = 1.0;             // pulse silence -> stalled
-const TICK_MEMORY = 16;          // recorded grid times (steps)
+const TICK_MEMORY = 16;          // recorded grid times (steps) — a look-ahead-sized window
 const TEMPO_MSG_FRESH_MS = 2500; // while a 'tempo' msg is this fresh, suppress pulse-estimate writes
 const TEMPO_WRITE_MIN_DELTA = 0.05; // ignore a 'tempo' within this of the last written BPM
 
@@ -77,7 +84,9 @@ export class SyncSlave {
   private unsubs: Array<() => void> = [];
   private readonly changeListeners = new Set<() => void>();
 
-  /** Recent local grid times, newest last (even steps only — never swung). */
+  /** Recent local grid times, newest last — every step, at its UNSWUNG time (v8: a
+   *  jump to an odd step puts pulse 0 on an odd step, which even-only records
+   *  could never measure). */
   private tickTimes: Array<{ step: number; when: number }> = [];
   private pulseCount = 0;
   private startStep = 0;           // the step the current run started on (Song-Position join)
@@ -92,12 +101,29 @@ export class SyncSlave {
   private settleUntilMs = -Infinity; // pulses before this are a reordered in-flight tail
   private needsAnchor = false;       // first post-settle pulse derives the counter from time
   private _stalled = false;
+  /** Our clock was started by a join and has not stopped or been restarted
+   *  locally since — so its grid is phase-locked and a join can jump it in place
+   *  (REQ-a-following-slave-jumps-in-place). */
+  private following = false;
+  /** Set around our own `clock.start`, so onStart can tell it from a local Play. */
+  private starting = false;
+  /** A join with no time on it, waiting for its first pulse (REQ-a-join-is-timed-by-its-first-pulse). */
+  private pendingJoin: { fromStep: number; afterMs: number } | null = null;
+  /** An in-place jump whose pulse numbering switches at `atMs` (REQ-a-following-slave-jumps-in-place). */
+  private pendingSwitch: { fromStep: number; atMs: number } | null = null;
+  /** Where the current pulse numbering begins; an older pulse arriving late belongs to the run before. */
+  private runStartMs = -Infinity;
 
   constructor(private readonly clock: Clock, private readonly opts: SyncSlaveOptions) {}
 
   enable(): void {
     if (this.unsubs.length) return;
-    this.unsubs.push(this.clock.onTick(this.onTick));
+    this.unsubs.push(
+      this.clock.onTick(this.onTick),
+      // A local Play, or any stop, means the grid is no longer one a join set.
+      this.clock.onStart(() => { if (!this.starting) this.following = false; }),
+      this.clock.onStop(() => { this.following = false; }),
+    );
   }
 
   /** Ends the role: local tempo comes back; a playing clock keeps playing. */
@@ -107,6 +133,8 @@ export class SyncSlave {
     this.unsubs = [];
     this.clock.setBpm(this.opts.localBpm());
     this.resetFollowState();
+    this.pendingJoin = null;
+    this.following = false;
     this.estimator.reset();
     this._stalled = false;
     this.lastTempoMsgAtMs = -Infinity;
@@ -116,10 +144,10 @@ export class SyncSlave {
     switch (msg.type) {
       case 'start':
         this.pendingBeat = 0;
-        this.restart(0, receivedAtMs);
+        this.join(0, msg.at, receivedAtMs);
         break;
       case 'continue':
-        this.restart(this.pendingBeat, receivedAtMs);
+        this.join(this.pendingBeat, msg.at, receivedAtMs);
         break;
       case 'songposition':
         this.pendingBeat = msg.beat & 0xffff;
@@ -130,6 +158,8 @@ export class SyncSlave {
         this.opts.setMeter?.(msg.beats, msg.unit);
         break;
       case 'stop':
+        this.pendingJoin = null; // a join still waiting for its pulse is cancelled too
+        this.pendingSwitch = null;
         this.clock.stop();
         this.setStalled(false);
         this.emitChange();
@@ -156,21 +186,80 @@ export class SyncSlave {
     return () => { this.changeListeners.delete(cb); };
   }
 
-  /** (Re)start the local clock from `fromStep`; the clock seeds its step before
-   *  onStart so the Arrangement seeks to the right bar (midi-clock-sync REQ-song-position-pointer-jumps-the-slave). */
-  private restart(fromStep: number, atMs: number): void {
+  /**
+   * A `start` / `continue` arrived (REQ-a-join-is-timed-by-its-first-pulse). With a time on it the
+   * first step is that time plus the master's lead — clamped, since a peer
+   * supplies it; without one it waits for the first pulse at or after the
+   * message, which is exactly what MIDI hardware counts from.
+   */
+  private join(fromStep: number, at: number | undefined, receivedAtMs: number): void {
+    this.pendingJoin = null;
+    if (at !== undefined && Number.isFinite(at)) {
+      this.applyJoin(fromStep, Math.min(at, receivedAtMs + MAX_SYNC_JOIN_LEAD_MS) + JOIN_LEAD_MS);
+    } else {
+      this.pendingJoin = { fromStep, afterMs: receivedAtMs };
+    }
+  }
+
+  /**
+   * Put `fromStep` at `firstMs`. Following, that is a jump on the phase-locked
+   * grid (REQ-a-following-slave-jumps-in-place): no restart, no settle, and the pulse numbering
+   * switches at the jump's time. Otherwise the clock (re)starts there — the
+   * clock seeds its step before onStart so the Arrangement seeks to the right
+   * bar (REQ-song-position-pointer-jumps-the-slave).
+   */
+  private applyJoin(fromStep: number, firstMs: number): void {
+    const firstS = this.opts.toAudioTime(firstMs);
+    if (this.clock.playing && this.following) {
+      this.clock.seekAt(fromStep, firstS);
+      this.pendingSwitch = { fromStep, atMs: firstMs };
+      this.emitChange();
+      return;
+    }
     if (this.clock.playing) this.clock.stop();
     this.resetFollowState(fromStep);
-    // Scheduled-send transports reorder: pulses already queued with future
-    // timestamps arrive *after* this message. Ignore the whole possible
-    // in-flight span (idle horizon / look-ahead + one 12-pulse batch, in
-    // current-tempo terms) rather than trying to tell streams apart —
-    // burst-jitter makes per-pulse filtering unreliable (REQ-a-post-start-settle-window). The first
-    // pulse after the settle re-anchors the counter (REQ-sync-phase-re-anchor).
-    this.settleUntilMs = atMs + START_SETTLE_BASE_MS + 2000 * this.clock.sixteenthDuration();
+    this.runStartMs = firstMs;
+    // Scheduled-send transports reorder: an idle tail the flush could not
+    // cancel still arrives after this. Ignore the whole possible in-flight span
+    // (idle horizon + one 12-pulse batch, in current-tempo terms), counted from
+    // the first step rather than from the message (REQ-a-post-start-settle-window). The first pulse
+    // after it re-anchors the counter (REQ-sync-phase-re-anchor), on a grid that
+    // now starts in the right place.
+    this.settleUntilMs = firstMs + START_SETTLE_BASE_MS + 2000 * this.clock.sixteenthDuration();
     this.needsAnchor = true;
-    this.clock.start(fromStep);
+    this.starting = true;
+    try {
+      this.clock.start(fromStep, firstS);
+    } finally {
+      this.starting = false;
+    }
+    this.following = true;
     this.emitChange();
+  }
+
+  /**
+   * The in-place jump's time has come, as far as pulses are concerned
+   * (REQ-a-following-slave-jumps-in-place): number pulses afresh from it, keep the recorded grid at
+   * and after it under the new step numbers, and drop the rest — a looped bar
+   * reuses its step numbers, so an old record would match a pulse to the wrong
+   * pass. The first pulse's index comes from its time, which also absorbs one
+   * that overtook the join on another channel.
+   */
+  private switchRun(atMs: number, fromStep: number, pulseAtMs: number): void {
+    const sixteenth = this.clock.sixteenthDuration();
+    const atS = this.opts.toAudioTime(atMs);
+    const kept: Array<{ step: number; when: number }> = [];
+    for (const rec of this.tickTimes) {
+      if (rec.when < atS - sixteenth / 2) continue;
+      kept.push({ step: fromStep + Math.round((rec.when - atS) / sixteenth), when: rec.when });
+    }
+    this.tickTimes = kept;
+    this.startStep = Math.max(0, Math.floor(fromStep));
+    this.pulseCount = Math.max(0, Math.round((pulseAtMs - atMs) / ((sixteenth / 6) * 1000)));
+    this.phaseErr = null;
+    this.phaseMisses = 0;
+    this.pulsesSinceNudge = 0;
+    this.runStartMs = atMs;
   }
 
   private onTempo(bpm: number, receivedAtMs: number): void {
@@ -189,6 +278,22 @@ export class SyncSlave {
     // is alive.
     this.lastPulseAudioT = this.opts.toAudioTime(receivedAtMs);
     this.setStalled(false);
+    const halfPulseMs = (this.clock.sixteenthDuration() / 12) * 1000;
+    // A join waiting for its first pulse (REQ-a-join-is-timed-by-its-first-pulse): this is it.
+    const pj = this.pendingJoin;
+    if (pj && receivedAtMs >= pj.afterMs) {
+      this.pendingJoin = null;
+      this.applyJoin(pj.fromStep, receivedAtMs);
+    }
+    // An in-place jump's numbering switches on its first pulse (REQ-a-following-slave-jumps-in-place).
+    const sw = this.pendingSwitch;
+    if (sw && receivedAtMs >= sw.atMs - halfPulseMs) {
+      this.pendingSwitch = null;
+      this.switchRun(sw.atMs, sw.fromStep, receivedAtMs);
+    }
+    // A pulse from before the current run, delivered late (the WiFi timing
+    // channel is unordered): it belongs to numbering that no longer exists.
+    if (receivedAtMs < this.runStartMs - halfPulseMs) return;
     // Post-(re)start settle (REQ-a-post-start-settle-window): a reordered stale tail may trail the
     // start/continue — drop the whole span so it can neither spike the
     // estimator nor skew the pulse counter.
@@ -293,10 +398,9 @@ export class SyncSlave {
   }
 
   private onTick = (step: number, when: number): void => {
-    if ((step & 1) === 0) {
-      this.tickTimes.push({ step, when });
-      if (this.tickTimes.length > TICK_MEMORY) this.tickTimes.shift();
-    }
+    // Every step, unswung: MIDI clock is straight, and pulses map to the grid.
+    this.tickTimes.push({ step, when: when - this.clock.swingOffset(step) });
+    if (this.tickTimes.length > TICK_MEMORY) this.tickTimes.shift();
     // Stall check rides the tick (fires every 16th while playing — no extra
     // timer). `when` is look-ahead time, close enough for a 1 s threshold.
     if (this.lastPulseAudioT !== null && when - this.lastPulseAudioT > STALL_S) {
@@ -313,6 +417,8 @@ export class SyncSlave {
     this.pulsesSinceNudge = 0;
     this.settleUntilMs = -Infinity;
     this.needsAnchor = false;
+    this.pendingSwitch = null;
+    this.runStartMs = -Infinity;
   }
 
   private setStalled(v: boolean): void {

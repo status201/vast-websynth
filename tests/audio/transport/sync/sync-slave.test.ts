@@ -41,9 +41,12 @@ const clockBpm = (clock: Clock): number => 15 / clock.sixteenthDuration();
 const jitter = (i: number): number => [3, -3, 1.5, -1.5, 0][i % 5]!;
 
 describe('SyncSlave', () => {
-  it('start begins playback; stop ends it', () => {
+  it('start begins playback on its first pulse; stop ends it', () => {
     const { clock, slave } = setup();
     slave.handleMessage({ type: 'start' }, 0);
+    // v8 (REQ-a-join-is-timed-by-its-first-pulse): the first pulse is the new position.
+    expect(clock.playing).toBe(false);
+    slave.handleMessage({ type: 'pulse' }, 0);
     expect(clock.playing).toBe(true);
     slave.handleMessage({ type: 'stop' }, 100);
     expect(clock.playing).toBe(false);
@@ -74,16 +77,67 @@ describe('SyncSlave', () => {
     for (const [v] of setBpm.mock.calls) expect(Math.abs((v as number) - 120)).toBeLessThan(1.5);
   });
 
-  it('a start while already playing restarts from step 0 (bar realign)', () => {
+  it('a start while following jumps to step 0 in place (bar realign, REQ-a-following-slave-jumps-in-place)', () => {
     const { clock, slave, advance } = setup();
-    const steps: number[] = [];
-    clock.onTick((step) => steps.push(step));
+    const ticks: Array<[number, number]> = [];
+    clock.onTick((step, when) => ticks.push([step, when]));
     slave.handleMessage({ type: 'start' }, 0);
+    slave.handleMessage({ type: 'pulse' }, 0); // grid: a 16th every 125 ms from 0
     advance(0.25); // move a few steps in
-    expect(steps[steps.length - 1]!).toBeGreaterThan(0);
-    slave.handleMessage({ type: 'start' }, 300);
+    expect(ticks[ticks.length - 1]![0]).toBeGreaterThan(0);
+    const stop = vi.spyOn(clock, 'stop');
+    // A start whose first pulse lands on the grid's 375 ms step.
+    slave.handleMessage({ type: 'start' }, 375);
+    slave.handleMessage({ type: 'pulse' }, 375);
+    advance(0.1);
+    expect(stop).not.toHaveBeenCalled(); // no restart — the phase lock is kept
+    const at = ticks.find(([, w]) => Math.abs(w - 0.375) < 1e-6);
+    expect(at?.[0]).toBe(0); // bar realigned on the same grid
+  });
+
+  it('a join waits for its first pulse, and a stop cancels it (REQ-a-join-is-timed-by-its-first-pulse)', () => {
+    const { clock, slave, advance } = setup();
+    const ticks: Array<[number, number]> = [];
+    clock.onTick((step, when) => ticks.push([step, when]));
+    slave.handleMessage({ type: 'start' }, 100);
+    slave.handleMessage({ type: 'pulse' }, 90); // before the start: not its first pulse
+    expect(clock.playing).toBe(false);
+    slave.handleMessage({ type: 'stop' }, 95);
+    slave.handleMessage({ type: 'pulse' }, 110); // the cancelled join must not start now
+    expect(clock.playing).toBe(false);
+
+    slave.handleMessage({ type: 'start' }, 200);
+    slave.handleMessage({ type: 'pulse' }, 210);
     expect(clock.playing).toBe(true);
-    expect(steps[steps.length - 1]!).toBe(0); // restarted grid
+    advance(0.25); // let the look-ahead reach it
+    expect(ticks[0]).toEqual([0, 0.21]); // step 0 on that pulse, not arrival + 50 ms
+  });
+
+  it('a join with a time on it starts there, clamped to MAX_SYNC_JOIN_LEAD_MS (REQ-a-join-is-timed-by-its-first-pulse)', () => {
+    const { clock, slave } = setup();
+    const ticks: Array<[number, number]> = [];
+    clock.onTick((step, when) => ticks.push([step, when]));
+    // WiFi: the master's schedule rides the message (webrtc-sync REQ-a-join-carries-its-time).
+    slave.handleMessage({ type: 'start', at: 79 }, 20);
+    expect(clock.playing).toBe(true); // no pulse needed — the time is known
+    clock.stop();
+    // A hostile peer pointing a day ahead is held to the bound, not parked.
+    const s2 = setup();
+    const start = vi.spyOn(s2.clock, 'start');
+    s2.slave.handleMessage({ type: 'start', at: 86_400_000 }, 0);
+    expect(start).toHaveBeenCalledWith(0, (1000 + 1) / 1000);
+  });
+
+  it('a locally started slave restarts on a join, rather than jumping a grid of unknown phase', () => {
+    const { clock, slave } = setup();
+    clock.start(); // the user pressed Play: not a join
+    const stop = vi.spyOn(clock, 'stop');
+    const seekAt = vi.spyOn(clock, 'seekAt');
+    slave.handleMessage({ type: 'start' }, 30);
+    slave.handleMessage({ type: 'pulse' }, 30);
+    expect(seekAt).not.toHaveBeenCalled();
+    expect(stop).toHaveBeenCalled();
+    expect(clock.playing).toBe(true);
   });
 
   it('keeps playing at the last tempo through a pulse stall, and reports it', () => {
@@ -114,6 +168,7 @@ describe('SyncSlave', () => {
     clock.onTick((step) => steps.push(step));
     slave.handleMessage({ type: 'songposition', beat: 32 }, 0);
     slave.handleMessage({ type: 'continue' }, 0);
+    slave.handleMessage({ type: 'pulse' }, 0); // v8: the join's first pulse
     expect(clock.playing).toBe(true);
     expect(steps[0]!).toBe(32); // seeded step, not 0
   });
@@ -124,6 +179,7 @@ describe('SyncSlave', () => {
     clock.onTick((step) => steps.push(step));
     slave.handleMessage({ type: 'songposition', beat: 32 }, 0);
     slave.handleMessage({ type: 'start' }, 0);
+    slave.handleMessage({ type: 'pulse' }, 0); // v8: the join's first pulse
     expect(steps[0]!).toBe(0);
   });
 

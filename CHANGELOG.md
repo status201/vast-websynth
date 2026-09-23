@@ -65,6 +65,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
   carry on from wherever the tape had got to. Tape Stop also finishes when the
   tab is in the background: switching away mid-gesture used to freeze the tempo
   and pitch wherever they were until you came back.
+- **A synced slave stays in step when the master loops or jumps.** Each loop
+  wrap or scrub on the master used to restart the slave a little early, and
+  after a few wraps it settled a whole 16th ahead and stayed there. A slave that
+  is already following now jumps along in place, exactly on the master's beat,
+  over both MIDI and WiFi. Following a hardware MIDI master is tighter too: the
+  slave now starts on the master's first clock pulse, where it used to start
+  50 ms late and stay about 40 ms behind for the whole song.
 - **Motion bank switches and rest bars land on time at fast tempos.** Above
   about 150 BPM a motion lane could switch to the next bank, or fall silent for
   a rest bar, slightly before the bar line — up to ~60 ms early at 400 BPM.

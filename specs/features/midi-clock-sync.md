@@ -3,7 +3,11 @@
 ```yaml
 id: midi-clock-sync
 status: implemented
-version: 7   # v7: a local start from a non-zero step joins slaves there instead
+version: 8   # v8: a join sounds on its first pulse (REQ-a-join-is-timed-by-its-first-pulse) and a
+             #     following slave jumps in place (REQ-a-following-slave-jumps-in-place) — a
+             #     master's wrap no longer leaves slaves a 16th off, nor a
+             #     hardware master leave them two pulses late
+             # v7: a local start from a non-zero step joins slaves there instead
              #     of restarting them at bar 0 (REQ-a-local-start-joins-rather-than-restarts); REQ-a-midi-master-announces-its-seek's announce is
              #     driven by clock.onSeek, so a loop wrap announces too
              # v6: MIDI carries no meter — stated, not hidden (REQ-midi-cannot-carry-a-meter)
@@ -63,7 +67,10 @@ the timing code.
   pulses spanning two 16ths. No pulses are sent while stopped (v1).
 - **REQ-slave-restarts-from-zero-on-start** — Slave: incoming 0xFA/0xFB
   (re)starts the local clock **from step 0** — a restart even if already
-  playing, so bars realign; 0xFC stops it. Local transport controls (Play
+  playing, so bars realign; 0xFC stops it. (v8: a slave already *following*
+  this master jumps in place instead of restarting, and every join is timed by
+  its first pulse — REQ-a-join-is-timed-by-its-first-pulse,
+  REQ-a-following-slave-jumps-in-place. Bars still realign.) Local transport controls (Play
   button, arp auto-start) remain live in every mode — a slave with no master
   attached is still a fully playable instrument.
 - **REQ-slave-follows-tempo-from-pulses** — Slave tempo-follow: tempo is
@@ -212,8 +219,11 @@ exists at Stop and at a mid-play `announceTo` (queued *run* pulses overtaken by
 that delays the slave's start by up to `idleHorizonMs`, a worse initial phase
 error than the one being fixed.
 
-- **REQ-a-post-start-settle-window** — **Post-start settle window.** After a
-  slave (re)start (`start`/`continue`), pulses are **ignored wholesale** for
+- **REQ-a-post-start-settle-window** — **Post-start settle window.** (v8: it
+  now runs only when a join *starts* a stopped slave, and is counted from the
+  join's first-step time rather than from the message's arrival; a following
+  slave's in-place jump needs none — REQ-a-following-slave-jumps-in-place.)
+  After a slave (re)start (`start`/`continue`), pulses are **ignored wholesale** for
   `startSettleBaseMs (300) + 12 pulse intervals` past the message's arrival —
   covering the possible in-flight scheduled span (`idleHorizonMs` after a Start;
   look-ahead + one 12-pulse batch after a continue-join) plus delivery jitter.
@@ -399,6 +409,76 @@ is a transport event, so sync has to have an opinion about it in both roles.
   The REQ-master-flush-is-best-effort flush and the trailing `tempo` are unchanged in both branches. The
   meter is not re-sent here: it is announced whenever it changes (REQ-midi-cannot-carry-a-meter /
   [meter](meter.md) REQ-meter-travels-on-the-wifi-wire), so a peer already holds it.
+## v8 — a join is timed by its first pulse
+
+A field-shaped bug, reproduced end-to-end in a loopback of two real `Clock`s, a
+real `SyncMaster` and a real `SyncSlave` on one simulated time base, messages
+delivered at their timestamps as Web MIDI does:
+
+- **A master's jump left slaves a step off.** The seek / wrap announce
+  (REQ-a-midi-master-announces-its-seek) went out *immediately*, while the jump
+  does not sound until the master's look-ahead reaches it — 100–225 ms later at
+  120 BPM, with that span's pre-jump pulses already queued. The slave restarted
+  that much early, and the phase re-anchor (REQ-sync-phase-re-anchor) then took
+  the offset for a miscounted pulse and absorbed it. Measured with a one-bar
+  loop at 120 BPM: after a few wraps the slave sat one 16th ahead for good
+  (master step 8 against slave step 9, and so on round the bar).
+- **A hardware master left the slave two pulses late.** The slave put its first
+  step 50 ms after the Start *arrived* — right only for this app's own master,
+  which sends Start 50 ms before its first step. A hardware master sends Start
+  and then clock straight away, so the slave began 50 ms late and the re-anchor
+  locked in 41.7 ms (two pulses) of it.
+
+Both have one cause: the slave took its timing from **when a message arrived**,
+where MIDI's own rule is that the first clock pulse *after* Start/Continue is
+the new position.
+
+- **REQ-a-join-is-timed-by-its-first-pulse** (v8) — **A join sounds on its first
+  pulse.**
+  - **Master.** `start`, and `songposition` + `continue` — from a local start,
+    a seek, a wrap, or an announce to a newly linked peer — are scheduled
+    `JOIN_LEAD_MS` (1 ms) before the first pulse at the new position:
+    `toPerfMs(clock.nextStepAt) − JOIN_LEAD_MS` (transport.md
+    REQ-a-jump-can-be-scheduled). Web MIDI then delivers them after every
+    pre-jump pulse and before the first post-jump one, which is exactly what a
+    **hardware** slave counts from. v3 rejected timestamping 0xFA *past the idle
+    tail* (it would delay the start by up to the idle horizon); this is a
+    different time — the first run pulse — and the flush
+    (REQ-master-flush-is-best-effort) still goes first.
+  - **Slave.** The new position's first step sounds at the first pulse at or
+    after the join: at the message's own `at` plus `JOIN_LEAD_MS` when the
+    transport carries one ([webrtc-sync](webrtc-sync.md)
+    REQ-a-join-carries-its-time), otherwise at the first pulse whose time is at
+    or after the message's. Until that pulse arrives the join is pending; a
+    `stop` cancels it. A remote `at` is clamped to at most
+    `MAX_SYNC_JOIN_LEAD_MS` ahead ([untrusted-input](untrusted-input.md)), so a
+    hostile peer cannot park a slave indefinitely. A stopped slave then starts
+    with that first-step time (transport.md
+    REQ-a-start-can-name-its-first-step-time) and its settle window
+    (REQ-a-post-start-settle-window) counts from it.
+  A master that sends **no clock at all** never starts a slave: MIDI's real-time
+  protocol has no Start-without-clock, and every master this app pairs with
+  sends one.
+- **REQ-a-following-slave-jumps-in-place** (v8) — **A slave that is following
+  this master jumps in place.** Once the slave's clock was started by a join
+  (and neither stopped nor restarted locally since), a further `start` or
+  `continue` is a jump on its phase-locked grid — `clock.seekAt(step, firstStepAt)`
+  — not a stop and restart. So the grid never slips and there is no settle to
+  sit through. The pulse numbering follows the jump at its time: pulses before
+  it still count in the old run, the first pulse at or after it is pulse 0 of
+  the new one, the recorded grid times at or after it are renumbered from the
+  new step, and older ones are dropped (a looped bar reuses step numbers, so
+  keeping them would match pulses to the wrong pass). Over WiFi the join
+  arrives ahead of the jump and it lands exactly. Over MIDI it arrives only as
+  the jump is due, when the look-ahead has already emitted up to ~100 ms of old
+  steps; `seekAt` catches the count up instead (transport.md
+  REQ-a-jump-can-be-scheduled), so for that one look-ahead the slave plays the
+  old material on the right grid and then continues in step. A slave playing on
+  its own — started locally, with a grid of unknown phase — still restarts.
+- The recorded grid now holds **every** step at its unswung time
+  (`when − swingOffset(step)`), not only even ones: a jump to an odd step puts
+  pulse 0 on an odd step, and even-only records could never measure it.
+
 ## Technical design
 
 ### Contract / public interface
@@ -790,6 +870,37 @@ Scenario: Every clock seek announces once — a loop wrap included (v7, REQ-a-mi
   When clock.onSeek fires, whether from Engine.seekTo or a loop wrap
   Then announcePosition runs once, and Engine.seekTo does not add a second call
 # pinned by: tests/audio/transport/sync/sync-controller.test.ts, tests/audio/engine-seek.test.ts
+
+Scenario: A slave stays in step through a master's loop wraps (v8, REQ-a-following-slave-jumps-in-place, regression)
+  Given a master and a slave linked over MIDI timing, both playing in step
+  When the master loops one bar several times
+  Then the slave plays the master's step at every sampled beat, within the link latency
+   And over WiFi timing it does too
+# pinned by: tests/audio/transport/sync/sync-loopback.test.ts
+
+Scenario: A slave starts on a hardware master's first pulse (v8, REQ-a-join-is-timed-by-its-first-pulse, regression)
+  Given a master that sends Start and then clock pulses straight away
+  Then the slave's step 0 sounds on the first pulse, and every later step on its pulse
+# pinned by: tests/audio/transport/sync/sync-loopback.test.ts
+
+Scenario: A master times its join just before the first pulse at the new position (v8, REQ-a-join-is-timed-by-its-first-pulse)
+  Given a playing master whose next step sounds at T
+  When it announces a seek
+  Then songposition and continue are scheduled at T − JOIN_LEAD_MS, after every pre-jump pulse
+# pinned by: tests/audio/transport/sync/sync-master.test.ts
+
+Scenario: A join waits for its first pulse, and a stop cancels it (v8, REQ-a-join-is-timed-by-its-first-pulse, edge)
+  Given a stopped slave that receives start with no time on it
+  Then it does not start until a pulse at or after the start arrives, and then starts on it
+   And a stop before that pulse leaves it stopped
+   And a remote at more than MAX_SYNC_JOIN_LEAD_MS ahead is clamped to it
+# pinned by: tests/audio/transport/sync/sync-slave.test.ts
+
+Scenario: A locally started slave still restarts on a join (v8, REQ-a-following-slave-jumps-in-place, edge)
+  Given a slave whose clock the user started with Play, not a join
+  When a start arrives
+  Then it stops and restarts on the start's first pulse, rather than jumping a grid of unknown phase
+# pinned by: tests/audio/transport/sync/sync-slave.test.ts
 ```
 
 ## Tests & verification

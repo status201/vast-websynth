@@ -3,7 +3,9 @@
 ```yaml
 id: untrusted-input
 status: implemented
-version: 7   # v7: REQ-the-limits-are-one-module gains MAX_RATCHET, and the CANONICAL
+version: 8   # v8: REQ-the-limits-are-one-module gains MAX_SYNC_JOIN_LEAD_MS — a WiFi peer's join
+             #     time is clamped so it cannot park a slave indefinitely
+             # v7: REQ-the-limits-are-one-module gains MAX_RATCHET, and the CANONICAL
              #     schema's numbers are pinned to limits.ts like the author one's already were
              # v6: REQ-a-slot-name-cannot-reach-the-index — a slot called "index" landed ON the
              #     name index and emptied the user's saved list; and
@@ -334,6 +336,7 @@ export const MAX_ZIP_ENTRY_BYTES: number;   // one zipRead entry
 export const MAX_ZIP_TOTAL_BYTES: number;   // summed across entries
 export const MAX_ZIP_ENTRIES: number;       // central-directory count
 export const MAX_SIGNAL_BYTES: number;      // decodeSignal (WebRTC / QR)
+export const MAX_SYNC_JOIN_LEAD_MS: number; // how far ahead a peer's join `at` may point (midi-clock-sync REQ-a-join-is-timed-by-its-first-pulse)
 export const MAX_CHAIN_STEPS: number;       // arrangement chain length
 export const MAX_CHAIN_DEPTH: number;       // expandChain recursion
 export const MAX_PARAM_KEYS: number;        // params map size
@@ -376,6 +379,7 @@ MAX_ZIP_ENTRY_BYTES:  67108864    # 64 MB  — one sampler clip (multi-MB WAVs)
 MAX_ZIP_TOTAL_BYTES:  268435456   # 256 MB — 8 slots of clip audio + headroom
 MAX_ZIP_ENTRIES:      64          # 8 clips + song.json + folder entries
 MAX_SIGNAL_BYTES:     262144      # 256 KB — an SDP blob is ~700 bytes
+MAX_SYNC_JOIN_LEAD_MS: 1000       # 1 s — a real join is at most one look-ahead (~225 ms) ahead
 MAX_CHAIN_STEPS:      1024        # 1024 bars is ~34 min at 120 BPM
 MAX_CHAIN_DEPTH:      8           # {enabled,steps:{...}} nesting
 MAX_PARAM_KEYS:       512         # the bus registers ~150

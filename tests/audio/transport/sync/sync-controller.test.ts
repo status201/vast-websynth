@@ -94,6 +94,8 @@ describe('SyncController', () => {
     ctrl.addTransport('midi', transport);
     ctrl.setMode('slave');
     transport.emit({ type: 'start' });
+    // v8: a join sounds on its first pulse (REQ-a-join-is-timed-by-its-first-pulse).
+    transport.emit({ type: 'pulse' });
     expect(clock.playing).toBe(true);
     transport.emit({ type: 'stop' });
     expect(clock.playing).toBe(false);
@@ -133,6 +135,7 @@ describe('SyncController', () => {
     ctrl.addTransport('wifi', wifi);
     ctrl.setMode('slave');
     wifi.emit({ type: 'start' });
+    wifi.emit({ type: 'pulse' }); // v8: the join's first pulse
     expect(clock.playing).toBe(true);
   });
 
@@ -216,6 +219,7 @@ describe('SyncController', () => {
     expect(ctrl.activeMode).toBe('off');
     transport.emit({ type: 'start' });
     expect(ctrl.activeMode).toBe('slave'); // activated by the message...
+    transport.emit({ type: 'pulse' });     // (v8: a join sounds on its first pulse)
     expect(clock.playing).toBe(true);      // ...and that same message still landed
   });
 
@@ -240,7 +244,8 @@ describe('SyncController', () => {
     const { clock, ctrl, transport, advance } = setup();
     ctrl.addTransport('midi', transport);
     ctrl.setMode('slave');
-    transport.emit({ type: 'start' }); // ports linger (loopMIDI), traffic stops
+    transport.emit({ type: 'start' });
+    transport.emit({ type: 'pulse' }); // the join's first pulse — then ports linger (loopMIDI), traffic stops
     expect(clock.playing).toBe(true);
 
     advance(4000); // past LINK_IDLE_MS, but mid-performance
