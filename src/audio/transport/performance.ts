@@ -61,9 +61,16 @@ export class Performance {
   private anchor = 0;
 
   private dropActive = false;
-  /** Last commanded (cents, Q) per side, so an unchanged side is not rewritten. */
-  private lastLow: { cents: number; q: number } | null = null;
-  private lastHigh: { cents: number; q: number } | null = null;
+  /**
+   * Last commanded (cents, Q) per side, so an unchanged side is not rewritten.
+   * Plain numbers, not a record per write: a motion lane can drive `fx.djfilter`
+   * every frame (REQ-the-dj-sweep-rides-detune). NaN until first written, which
+   * no target compares equal to.
+   */
+  private lowCents = NaN;
+  private lowQ = NaN;
+  private highCents = NaN;
+  private highQ = NaN;
   private tapeRaf = 0;
   private tapeActive = false;
 
@@ -180,13 +187,13 @@ export class Performance {
    * commands through here too and the cache stays honest.
    */
   private side(node: BiquadFilterNode, cents: number, q: number, tau: number): void {
-    const last = node === this.djLow ? this.lastLow : this.lastHigh;
-    if (last && last.cents === cents && last.q === q) return;
+    const low = node === this.djLow;
+    if (low ? cents === this.lowCents && q === this.lowQ : cents === this.highCents && q === this.highQ) return;
     const now = this.ctx.currentTime;
     node.detune.setTargetAtTime(cents, now, tau);
     node.Q.setTargetAtTime(q, now, tau);
-    if (node === this.djLow) this.lastLow = { cents, q };
-    else this.lastHigh = { cents, q };
+    if (low) { this.lowCents = cents; this.lowQ = q; }
+    else { this.highCents = cents; this.highQ = q; }
   }
 
   // ---- Tape Stop (momentary) ----
@@ -198,7 +205,12 @@ export class Performance {
 
     const origBpm = this.bus.get('transport.bpm');
     const minBpm = 20;
-    const startBpm = on ? origBpm : minBpm;
+    // From the tempo the transport is actually at, not the ramp's nominal start
+    // (REQ-tape-stop-ramps-bpm-and-pitch): a release before the dive finished
+    // used to restart from the 20 BPM floor, lurching down before recovering,
+    // and a press mid-recovery jumped back to full tempo. The pitch ramp below
+    // has always started from the live bend for the same reason.
+    const startBpm = this.clock.bpm;
     const endBpm = on ? minBpm : origBpm;
     const startBend = this.bus.get('master.pitchBend');
     const endBend = on ? -1 : 0;

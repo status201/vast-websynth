@@ -58,6 +58,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
   the swung groove continuously, and a stepped anchor on an off-beat still lands
   with its swung note. Ten demos swing a sliding lane and are affected, most of
   all `Nocturne` and `Bunk`; songs without swing are unchanged.
+- **Letting go of Tape Stop early no longer lurches the tempo down first.** The
+  recovery always restarted from the slowest speed, so releasing before the
+  stop had finished dropped the tempo to a crawl for an instant before winding
+  back up — and pressing again mid-recovery snapped back to full speed. Both now
+  carry on from wherever the tape had got to.
 - **Motion bank switches and rest bars land on time at fast tempos.** Above
   about 150 BPM a motion lane could switch to the next bank, or fall silent for
   a rest bar, slightly before the bar line — up to ~60 ms early at 400 BPM.

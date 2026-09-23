@@ -311,4 +311,64 @@ describe('Performance.setTapeStop', () => {
     expect(setBpm).not.toHaveBeenCalled();        // the restore is skipped too
     expect(bus.get('master.pitchBend')).toBe(0);  // pitch still recovers
   });
+
+  // performance.md REQ-tape-stop-ramps-bpm-and-pitch (v8, regression) — the ramps
+  // above jump straight to their ends, so an early release was never exercised.
+  // These step real ~16 ms frames.
+  describe('released or re-pressed mid-ramp', () => {
+    function build() {
+      const frames: (() => void)[] = [];
+      vi.stubGlobal('requestAnimationFrame', (cb: () => void) => { frames.push(cb); return frames.length; });
+      vi.stubGlobal('cancelAnimationFrame', () => { frames.length = 0; });
+      vi.stubGlobal('performance', { now: () => now });
+      const { perf, clock } = makePerf();
+      const bpms: number[] = [];
+      const set = clock.setBpm.bind(clock);
+      clock.setBpm = (b: number) => { bpms.push(b); set(b); };
+      const run = (ms: number): void => {
+        const end = now + ms;
+        while (now < end) {
+          now += 16;
+          for (const cb of frames.splice(0)) cb();
+        }
+      };
+      return { perf, clock, bpms, run };
+    }
+
+    it('an early release recovers from where the dive got to, never dipping first', () => {
+      now = 1000;
+      const { perf, clock, bpms, run } = build();
+      perf.setTapeStop(true);
+      run(200); // part of the 650 ms dive
+      const reached = clock.bpm;
+      expect(reached).toBeLessThan(120);
+      expect(reached).toBeGreaterThan(100);
+
+      bpms.length = 0;
+      perf.setTapeStop(false);
+      run(600);
+      // The bug: the first release frame was ~27 BPM — a lurch to the floor.
+      expect(Math.min(...bpms)).toBeGreaterThanOrEqual(reached - 1e-9);
+      for (let i = 1; i < bpms.length; i++) expect(bpms[i]!).toBeGreaterThanOrEqual(bpms[i - 1]! - 1e-9);
+      expect(bpms.at(-1)).toBe(120);
+    });
+
+    it('a press mid-recovery dives from wherever the recovery had reached', () => {
+      now = 1000;
+      const { perf, clock, bpms, run } = build();
+      perf.setTapeStop(true);
+      run(700); // all the way down
+      perf.setTapeStop(false);
+      run(100); // part of the way back up
+      const reached = clock.bpm;
+      expect(reached).toBeGreaterThan(20);
+      expect(reached).toBeLessThan(120);
+
+      bpms.length = 0;
+      perf.setTapeStop(true);
+      run(100);
+      // The mirror fault: the press jumped straight back to 120 first.
+      expect(Math.max(...bpms)).toBeLessThanOrEqual(reached + 1e-9);
+    });
+  });
 });
