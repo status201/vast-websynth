@@ -3,7 +3,10 @@
 ```yaml
 id: audio-export
 status: implemented
-version: 13  # v13: correction only — v12 saved the copy, not the allocation: a transferred
+version: 14  # v14: a capture waits for a bank render (REQ-a-capture-waits-for-a-bank-render — an export mid-render
+             #      stranded it), a failed encode keeps the take (REQ-a-failed-encode-keeps-the-take), and a
+             #      discarded take stays discarded (REQ-a-discarded-take-stays-discarded)
+             # v13: correction only — v12 saved the copy, not the allocation: a transferred
              #      batch still costs a fresh pair of arrays in process()
              # v12: a full batch is TRANSFERRED, not copied — the trim allocated two 8 KB
              #      arrays per flush inside process() (REQ-chunks-are-batched-then-flushed)
@@ -273,6 +276,40 @@ already-slow action, so the fetch is invisible next to the encode itself.
     rendering, aborts it. Whatever closes the modal mid-render cancels it: the
     modal *is* the render's surface, so it can never outlive it or be outlived.
 
+- **REQ-a-capture-waits-for-a-bank-render** (v14) — **An export or a manual take
+  is refused while a render to the sampler is in flight.** The bank render
+  already refused to start while the recorder captured
+  ([render-to-sampler](render-to-sampler.md) REQ-a-render-is-refused-while-busy),
+  because both restart the transport; the other direction had no guard. An
+  export started mid-render called `clock.stop()` under it, the render's promise
+  never settled, and the restore it always runs never ran: the sequencer stayed
+  forced on with its mute, solo and chain lane changed, and seeking, Loop, the
+  render button and the audio watchdog stayed locked until a reload. So
+  `RecorderController` takes a `blocked()` predicate, the Engine wires it to
+  `bankRender.isRendering()`, and `exportSong` / `startManual` return
+  `false` rather than starting. The surfaces say why instead of offering a dead
+  button: the export modal's Export and the Record window's Record are disabled
+  while a render runs, with the reason as their tooltip, and re-enable when it
+  ends.
+- **REQ-a-failed-encode-keeps-the-take** (v14) — **A save that fails keeps the
+  take, and an export that fails says so.** The MP3 encoder is a lazy chunk
+  (REQ-the-mp3-encoder-loads-lazily) and can fail to load — offline, with the
+  boot warm-up having failed too. `saveTake` used to drop the take *before*
+  encoding, so a failure lost the performance for good; it now keeps it until
+  the download is written, returns to `review` on failure (so the user can retry
+  or pick WAV), and resolves `false`. An export's failure used to read as success
+  — the modal took "back to idle" for "written" and said *Done — check your
+  downloads* — and `lastExportFailed()` now tells the two apart; the modal says
+  what went wrong and stays open. Neither path leaves an unhandled rejection.
+  The wording is the lazy-load one (lazy-load-failure.md's operation shape):
+  offline, *this part of the app isn't downloaded yet*; online, *the download
+  failed*.
+- **REQ-a-discarded-take-stays-discarded** (v14) — **A take discarded while its
+  stop is still flushing does not come back.** `stopManual` awaits the worklet's
+  final batch (REQ-chunks-are-batched-then-flushed); a Discard in that window
+  dropped the take, and then the stop resolved and parked it in `review` again.
+  Every take has a generation, bumped by `begin` and `discardTake`; a stop that
+  resolves for an older generation is dropped.
 - **REQ-the-capture-bound-is-the-songs-bar** (v11) — **A bar is the song's
   bar.** The capture bound (`bars × runs × barTicks`) and the optional tail bar
   both measure in `barTicks` ([meter](meter.md) REQ-bar-exact-capture-follows-bar-ticks), so a 7/8 song exports
@@ -488,6 +525,32 @@ Scenario: An unsupported rate never loads the encoder (v4, edge)
   Then it resolves to an audio/wav blob with a console warning
   And the lamejs chunk is never fetched
 # pinned by: tests/audio/wav-encode.test.ts
+
+Scenario: An export waits for a render to the sampler (v14, REQ-a-capture-waits-for-a-bank-render, regression)
+  Given a render to the sampler in flight
+  When an export or a manual take is started
+  Then it is refused, the render finishes and restores the engine state as always
+   And the export modal's Export and the Record window's Record are disabled until it does
+# pinned by: tests/audio/recorder/recorder-controller.test.ts, tests/ui/record-window.test.ts
+
+Scenario: A failed MP3 save keeps the take (v14, REQ-a-failed-encode-keeps-the-take, regression)
+  Given a take in review and an MP3 encoder that fails to load
+  When the user saves it as MP3
+  Then saveTake resolves false, the phase is review again and the take is still there
+   And saving it as WAV then writes it
+# pinned by: tests/audio/recorder/recorder-controller.test.ts
+
+Scenario: A failed export is not reported as done (v14, REQ-a-failed-encode-keeps-the-take)
+  Given an export whose MP3 encode fails
+  When the recorder returns to idle
+  Then lastExportFailed() is true and the modal says what went wrong
+# pinned by: tests/audio/recorder/recorder-controller.test.ts
+
+Scenario: A take discarded mid-stop stays discarded (v14, REQ-a-discarded-take-stays-discarded, edge)
+  Given a stop awaiting its final batch
+  When the user discards before it resolves
+  Then the phase stays idle and no take is held
+# pinned by: tests/audio/recorder/recorder-controller.test.ts
 ```
 
 ## Tests & verification

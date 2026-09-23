@@ -17,9 +17,17 @@ const btn = (id: string) => byId(id) as HTMLButtonElement;
 function harness(over: { songBars?: number; phase?: RecorderPhase } = {}) {
   let phase: RecorderPhase = over.phase ?? 'idle';
   let progress = 0;
+  // A render to the sampler, and a failed encode (audio-export.md v14).
+  let rendering = false;
+  let failed = false;
+  const renderListeners = new Set<(r: boolean) => void>();
   const phaseListeners = new Set<(p: RecorderPhase) => void>();
   const tickListeners = new Set<() => void>();
-  const exportSong = vi.fn((_f: string, _o: unknown) => { phase = 'recording'; });
+  const exportSong = vi.fn((_f: string, _o: unknown): boolean => {
+    if (rendering) return false; // REQ-a-capture-waits-for-a-bank-render
+    phase = 'recording';
+    return true;
+  });
   const cancelExport = vi.fn(() => { phase = 'idle'; });
 
   const engine = {
@@ -37,15 +45,22 @@ function harness(over: { songBars?: number; phase?: RecorderPhase } = {}) {
       exportProgress: () => progress,
       exportSong,
       cancelExport,
+      isBlocked: () => rendering,
+      lastExportFailed: () => failed,
       onPhase: (fn: (p: RecorderPhase) => void) => {
         phaseListeners.add(fn);
         return () => phaseListeners.delete(fn);
       },
     },
+    bankRender: {
+      onState: (fn: (r: boolean) => void) => { renderListeners.add(fn); return () => renderListeners.delete(fn); },
+    },
   } as unknown as StudioApi;
 
   return {
     engine,
+    setRendering: (r: boolean) => { rendering = r; for (const l of [...renderListeners]) l(r); },
+    setFailed: (x: boolean) => { failed = x; },
     exportSong,
     cancelExport,
     tickListeners,
@@ -224,5 +239,30 @@ describe('the in-flight view (REQ-the-modal-is-the-renders-own-surface)', () => 
     expect(tickListeners.size).toBe(1);
     btn('export-audio-abort').click();
     expect(tickListeners.size).toBe(0);
+  });
+});
+
+// audio-export.md v14 — the modal's side of the two new recorder rules.
+describe('export modal and the v14 recorder rules', () => {
+  it('disables Export while a render to the sampler runs, then re-enables (REQ-a-capture-waits-for-a-bank-render)', () => {
+    const h = harness();
+    h.setRendering(true);
+    openExportAudioModal(h.engine, 'wav');
+    expect(btn('export-audio-confirm').disabled).toBe(true);
+    expect(btn('export-audio-confirm').title).toMatch(/render to the sampler/i);
+    h.setRendering(false); // the render ends while the modal is open
+    expect(btn('export-audio-confirm').disabled).toBe(false);
+  });
+
+  it('says a failed export failed, and stays open (REQ-a-failed-encode-keeps-the-take, regression)', () => {
+    const h = open();
+    btn('export-audio-confirm').click();
+    h.setFailed(true);
+    h.setPhase('encoding');
+    h.setPhase('idle');
+    // The bug: "Done — check your downloads." with nothing downloaded.
+    expect(byId('export-audio-status').textContent).toMatch(/Couldn't write/);
+    expect(byId('export-audio-status').textContent).not.toMatch(/Done/);
+    expect(btn('export-audio-cancel').hidden).toBe(false); // a way out, since it no longer auto-closes
   });
 });

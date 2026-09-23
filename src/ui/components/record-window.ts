@@ -7,6 +7,7 @@ import segmentedStyles from '../styles/segmented.module.css';
 import songStyles from '../styles/song-panel.module.css';
 import styles from '../styles/record-window.module.css';
 import { UI_ICONS } from './ui-icons';
+import { encodeFailureText } from '../encode-failure';
 
 /**
  * The free-form recorder's floating transport (record-window.md).
@@ -58,6 +59,9 @@ export function createRecordWindowLauncher(
   let fmt: ExportFormat = defaultFormat();
   let timer: number | undefined;
   let lastTimerText = '';
+  /** Why the last Save failed, shown while that take is still in review
+   *  (audio-export.md REQ-a-failed-encode-keeps-the-take). */
+  let saveError: string | null = null;
 
   // ---- window contents (built once, with the window) ----
   const status = document.createElement('div');
@@ -117,8 +121,19 @@ export function createRecordWindowLauncher(
     else engine.recorder.startManual();
   });
   stopBtn.addEventListener('click', () => { void engine.recorder.stopManual(); });
-  saveBtn.addEventListener('click', () => { void engine.recorder.saveTake(fmt); });
-  discardBtn.addEventListener('click', () => engine.recorder.discardTake());
+  saveBtn.addEventListener('click', () => {
+    saveError = null;
+    const format = fmt;
+    void engine.recorder.saveTake(format).then((ok) => {
+      // The take is still here, back in review (audio-export.md REQ-a-failed-encode-keeps-the-take): say why,
+      // and leave Save (to retry, or as WAV) and Discard where they were.
+      if (!ok && engine.recorder.phase === 'review') {
+        saveError = encodeFailureText(format);
+        render();
+      }
+    });
+  });
+  discardBtn.addEventListener('click', () => { saveError = null; engine.recorder.discardTake(); });
 
   // ---- rendering ----
 
@@ -163,8 +178,15 @@ export function createRecordWindowLauncher(
     // would read "REC" with a climbing timer for a capture that is not the
     // user's take and that none of these buttons can touch (REQ-an-export-is-named-as-an-export).
     const exporting = engine.recorder.isExporting();
-    status.dataset.phase = exporting ? 'busy' : phase;
-    statusText.textContent = exporting ? 'Exporting the song…' : PHASE_TEXT[phase];
+    // A render to the sampler owns the transport (audio-export.md REQ-a-capture-waits-for-a-bank-render).
+    const blocked = phase === 'idle' && engine.recorder.isBlocked();
+    if (phase !== 'review') saveError = null; // it describes the take in review only
+    status.dataset.phase = exporting || blocked ? 'busy' : phase;
+    statusText.textContent = exporting
+      ? 'Exporting the song…'
+      : blocked
+        ? 'Rendering to the sampler…'
+        : saveError ?? PHASE_TEXT[phase];
     // Class off the moment it stops being true — the pulse must never outlive
     // the capture it is reporting (record-window.md REQ-the-red-dot-earns-its-animation).
     dot.classList.toggle(styles.live!, phase === 'recording' && !exporting);
@@ -190,9 +212,11 @@ export function createRecordWindowLauncher(
     toggleBtn.classList.toggle('on', phase === 'recording' && !exporting);
     // One RecorderNode, one transport: an export owns both. Say so rather than
     // being a button whose click does nothing (REQ-an-export-is-named-as-an-export).
-    toggleBtn.disabled = exporting;
+    toggleBtn.disabled = exporting || blocked;
     toggleBtn.title = exporting
       ? 'Busy exporting the song — wait for that render to finish'
+      : blocked
+        ? 'Busy rendering to the sampler — wait for it to finish'
       : phase === 'recording'
         ? 'Pause the RECORDER (the transport keeps playing)'
         : phase === 'paused'
@@ -220,6 +244,8 @@ export function createRecordWindowLauncher(
   // Subscribed by the LAUNCHER, not the window, so the button keeps reporting a
   // capture running behind a closed window (REQ-the-launcher-shows-capture-state).
   engine.recorder.onPhase(render);
+  // A render to the sampler starting or ending decides whether Record can run.
+  engine.bankRender.onState(render);
 
   const ensure = (): FloatingWindow => {
     if (win) return win;

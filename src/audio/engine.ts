@@ -535,7 +535,12 @@ export class Engine {
     // zero outputs so it is a pure sink and never doubles into destination.
     this.recorderNode = await RecorderNode.create(this.ctx);
     this.master.connect(this.recorderNode.input);
-    this.recorder = new RecorderController(this.clock, this.arrangement, this.recorderNode);
+    // A capture waits for a bank render (audio-export.md REQ-a-capture-waits-for-a-bank-render), the reverse of the
+    // guard the renderer takes below. Read lazily: the renderer is built next.
+    this.recorder = new RecorderController(
+      this.clock, this.arrangement, this.recorderNode,
+      () => this.bankRender.isRendering(),
+    );
 
     // Bank resample (render-to-sampler.md): a second zero-output tap on the
     // synth channel output (post-reverb, post-pan, pre-preMaster) — the drum/

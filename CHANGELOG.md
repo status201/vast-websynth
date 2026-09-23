@@ -41,6 +41,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ### Fixed
 
+- **Starting an export during a render to the sampler no longer breaks the
+  sequencer until you reload.** The export stopped the render halfway, which
+  left the sequencer's settings changed and seeking, Loop and the Render button
+  locked. Export and Record now wait for the render and say so while it runs.
+- **A failed MP3 save no longer loses your take.** If the MP3 encoder can't load
+  (offline, before it was ever downloaded), the take stays in the Record window
+  with the reason, so you can retry or save it as WAV. A failed song export now
+  says it failed instead of "Done — check your downloads."
+- **Discarding a take just as you stop it keeps it discarded.**
 - **Scrolling a note or a bar's transpose on a touchpad moves it a semitone or
   so, not thirty.** The chain chips and the sequencer's steps moved one semitone
   per scroll *event*; a touchpad sends dozens per swipe, so a gentle swipe sent

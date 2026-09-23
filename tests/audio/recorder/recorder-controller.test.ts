@@ -9,6 +9,20 @@ import { TimeoutTimer } from '../../../src/audio/transport/tick-timer';
 import { Arrangement } from '../../../src/audio/transport/arrangement';
 import { PatternStore, SEQ_LENGTH } from '../../../src/state/patterns';
 
+// The MP3 encoder, failable on demand — it is a lazy chunk that can fail to load
+// offline (audio-export.md REQ-a-failed-encode-keeps-the-take). Real everywhere else.
+const enc = vi.hoisted(() => ({ mp3Fails: false }));
+vi.mock('../../../src/audio/recorder/encode', async (importOriginal) => {
+  const real = await importOriginal<typeof import('../../../src/audio/recorder/encode')>();
+  return {
+    ...real,
+    encodeMp3: async (...a: Parameters<typeof real.encodeMp3>) => {
+      if (enc.mp3Fails) throw new Error('Failed to fetch dynamically imported module');
+      return real.encodeMp3(...a);
+    },
+  };
+});
+
 /**
  * The first direct test of `RecorderController` — v7 turned a single `armed`
  * bool into a four-phase machine with export options, and none of it was pinned.
@@ -48,7 +62,7 @@ function fakeNode() {
   return node as typeof node & RecorderNode;
 }
 
-function harness() {
+function harness(blocked?: () => boolean) {
   vi.useFakeTimers();
   const ctx = { currentTime: 0 } as { currentTime: number };
   const clock = new Clock(ctx as unknown as AudioContext, { timer: new TimeoutTimer() });
@@ -56,7 +70,7 @@ function harness() {
   const patterns = new PatternStore();
   const arrangement = new Arrangement(patterns, clock);
   const node = fakeNode();
-  const ctrl = new RecorderController(clock, arrangement, node);
+  const ctrl = new RecorderController(clock, arrangement, node, blocked);
   /**
    * Run the transport until the controller stops it, advancing both clocks
    * together in look-ahead-sized wakeups exactly like the real thing. NOT one
@@ -423,5 +437,68 @@ describe('the capture predicates', () => {
     await ctrl.stopManual();
     expect(ctrl.phase).toBe('idle');
     expect(node.calls).toEqual([]);
+  });
+});
+
+// audio-export.md v14.
+describe('RecorderController v14 guards', () => {
+  afterEach(() => { enc.mp3Fails = false; vi.useRealTimers(); });
+
+  it('refuses an export and a take while a bank render owns the transport (REQ-a-capture-waits-for-a-bank-render, regression)', () => {
+    let rendering = true;
+    const h = harness(() => rendering);
+    const stop = vi.spyOn(h.clock, 'stop');
+    // The bug: exportSong stopped the clock under the render and stranded it.
+    expect(h.ctrl.exportSong('wav')).toBe(false);
+    expect(h.ctrl.startManual()).toBe(false);
+    expect(stop).not.toHaveBeenCalled();
+    expect(h.ctrl.phase).toBe('idle');
+    expect(h.ctrl.isBlocked()).toBe(true);
+    rendering = false;
+    expect(h.ctrl.exportSong('wav')).toBe(true);
+    h.ctrl.cancelExport();
+  });
+
+  it('a failed MP3 save keeps the take in review, and WAV then writes it (REQ-a-failed-encode-keeps-the-take, regression)', async () => {
+    const h = harness();
+    h.ctrl.startManual();
+    h.node.feed(800);
+    await h.ctrl.stopManual();
+    enc.mp3Fails = true;
+    // The bug: the take was dropped before the encode, so this lost it for good.
+    expect(await h.ctrl.saveTake('mp3')).toBe(false);
+    expect(h.ctrl.phase).toBe('review');
+    expect(h.ctrl.capturedSeconds()).toBeCloseTo(800 / SAMPLE_RATE, 9);
+    expect(await h.ctrl.saveTake('wav')).toBe(true);
+    expect(h.ctrl.phase).toBe('idle');
+    h.clock.stop();
+  });
+
+  it('a failed export is flagged, not reported as written (REQ-a-failed-encode-keeps-the-take)', async () => {
+    const h = harness();
+    enc.mp3Fails = true;
+    h.ctrl.exportSong('mp3');
+    h.node.feed(800);
+    await h.finish(400);
+    await vi.waitFor(() => expect(h.ctrl.phase).toBe('idle'));
+    expect(h.ctrl.lastExportFailed()).toBe(true);
+    // The next export starts clean.
+    enc.mp3Fails = false;
+    h.ctrl.exportSong('wav');
+    expect(h.ctrl.lastExportFailed()).toBe(false);
+    h.ctrl.cancelExport();
+  });
+
+  it('a take discarded while its stop flushes stays discarded (REQ-a-discarded-take-stays-discarded, edge)', async () => {
+    const h = harness();
+    h.ctrl.startManual();
+    h.node.feed(800);
+    const stopping = h.ctrl.stopManual(); // awaiting the final batch
+    h.ctrl.discardTake();                 // Discard lands in that window
+    await stopping;
+    // The bug: the stop resolved and put the discarded take back in review.
+    expect(h.ctrl.phase).toBe('idle');
+    expect(h.ctrl.capturedSeconds()).toBe(0);
+    h.clock.stop();
   });
 });
