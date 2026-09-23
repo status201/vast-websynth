@@ -2,6 +2,7 @@ import { describe, it, expect, afterEach, vi } from 'vitest';
 import { Knob } from '../../src/ui/components/knob';
 import { ParamBus, registerDefaults } from '../../src/state/params';
 import styles from '../../src/ui/styles/knob.module.css';
+import { toNorm, fromNorm } from '../../src/utils/taper';
 
 function bus() {
   const b = new ParamBus();
@@ -501,5 +502,117 @@ describe('Knob modulation direction colouring', () => {
     expect(cls).not.toContain(styles.modNeg!);
     // ...and nothing else got added either: the class list is just the root.
     expect(cls.trim()).toBe(styles.root!);
+  });
+});
+
+// knob-keyboard-access.md — every knob is a focusable slider a keyboard can turn.
+describe('Knob keyboard access', () => {
+  const dialOf = (knob: Knob): HTMLElement => knob.el.querySelector('.' + styles.dial!) as HTMLElement;
+  const press = (el: HTMLElement, key: string, init: KeyboardEventInit = {}): KeyboardEvent => {
+    const e = new KeyboardEvent('keydown', { key, bubbles: true, cancelable: true, ...init });
+    el.dispatchEvent(e);
+    return e;
+  };
+
+  it('is a slider a screen reader can read (REQ-a-knob-is-a-focusable-slider)', () => {
+    const b = bus();
+    const knob = new Knob({ bus: b, paramId: 'filter.cutoff', label: 'CUTOFF' });
+    const dial = dialOf(knob);
+    const def = b.def('filter.cutoff')!;
+    expect(dial.getAttribute('role')).toBe('slider');
+    expect(dial.tabIndex).toBe(0);
+    expect(dial.getAttribute('aria-label')).toBe('CUTOFF');
+    expect(dial.getAttribute('aria-valuemin')).toBe(String(def.min));
+    expect(dial.getAttribute('aria-valuemax')).toBe(String(def.max));
+    // The same string the readout shows, so a screen reader says what you see.
+    const readout = knob.el.querySelector('.' + styles.num!)!.textContent;
+    expect(dial.getAttribute('aria-valuetext')).toBe(readout);
+    expect(dial.getAttribute('aria-valuenow')).toBe(String(b.get('filter.cutoff')));
+  });
+
+  it('turns by 1 %, a quarter of that with Shift, and 10 % a page (REQ-the-keys-a-focused-knob-owns)', () => {
+    const b = bus();
+    const knob = new Knob({ bus: b, paramId: 'filter.cutoff' });
+    const dial = dialOf(knob);
+    const def = b.def('filter.cutoff')!;
+    const norm = (): number => toNorm(def, b.get('filter.cutoff'));
+    b.set('filter.cutoff', fromNorm(def, 0.5));
+
+    press(dial, 'ArrowUp');
+    expect(norm()).toBeCloseTo(0.51, 6);
+    press(dial, 'ArrowUp', { shiftKey: true });
+    expect(norm()).toBeCloseTo(0.5125, 6);
+    press(dial, 'PageDown');
+    expect(norm()).toBeCloseTo(0.4125, 6);
+    press(dial, 'ArrowLeft');
+    expect(norm()).toBeCloseTo(0.4025, 6);
+  });
+
+  it('moves a discrete param exactly one step per key', () => {
+    const b = bus();
+    const knob = new Knob({ bus: b, paramId: 'osc1.wave' });
+    const dial = dialOf(knob);
+    b.set('osc1.wave', 1);
+    press(dial, 'ArrowUp');
+    expect(b.get('osc1.wave')).toBe(2);
+    press(dial, 'PageDown');
+    expect(b.get('osc1.wave')).toBe(1);
+    press(dial, 'ArrowDown', { shiftKey: true });
+    expect(b.get('osc1.wave')).toBe(0);
+  });
+
+  it('owns Home, End and Delete, so they never reach the transport shortcuts (edge)', () => {
+    const b = bus();
+    const knob = new Knob({ bus: b, paramId: 'filter.cutoff' });
+    document.body.appendChild(knob.el);
+    const dial = dialOf(knob);
+    const def = b.def('filter.cutoff')!;
+    const onWindow = vi.fn();
+    window.addEventListener('keydown', onWindow);
+    try {
+      press(dial, 'Home');
+      expect(b.get('filter.cutoff')).toBe(def.min);
+      press(dial, 'End');
+      expect(b.get('filter.cutoff')).toBe(def.max);
+      b.restore({ 'filter.cutoff': 60 }); // a loaded preset's value is the reset target
+      b.set('filter.cutoff', 110);
+      press(dial, 'Delete');
+      expect(b.get('filter.cutoff')).toBe(60); // the double-tap's reset, not the default
+      expect(onWindow).not.toHaveBeenCalled(); // nothing seeked, no step cleared
+
+      // Everything else passes through: a letter still plays, Space still toggles.
+      press(dial, 'z');
+      press(dial, ' ');
+      expect(onWindow).toHaveBeenCalledTimes(2);
+    } finally {
+      window.removeEventListener('keydown', onWindow);
+      knob.el.remove();
+    }
+  });
+
+  it('a disabled knob can be read but not turned, and lets the key through (REQ-a-disabled-knob-ignores-keys)', () => {
+    const b = bus();
+    const knob = new Knob({ bus: b, paramId: 'filter.cutoff' });
+    knob.setDisabled(true);
+    const dial = dialOf(knob);
+    const before = b.get('filter.cutoff');
+    const e = press(dial, 'ArrowUp');
+    expect(b.get('filter.cutoff')).toBe(before);
+    expect(e.defaultPrevented).toBe(false);
+    expect(dial.tabIndex).toBe(0); // still reachable, still announced
+  });
+
+  it('writes its ARIA value only when the readout changes (REQ-the-aria-value-is-written-like-the-dial)', () => {
+    const b = bus();
+    const knob = new Knob({ bus: b, paramId: 'filter.cutoff' });
+    const dial = dialOf(knob);
+    const set = vi.spyOn(dial, 'setAttribute');
+    const v = b.get('filter.cutoff');
+    // Automation sub-resolution moves: the formatted readout does not change.
+    b.set('filter.cutoff', v + 1e-9);
+    b.set('filter.cutoff', v + 2e-9);
+    expect(set.mock.calls.filter(([name]) => name === 'aria-valuetext')).toHaveLength(0);
+    b.set('filter.cutoff', v + 5);
+    expect(set.mock.calls.filter(([name]) => name === 'aria-valuetext')).toHaveLength(1);
   });
 });

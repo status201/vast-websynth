@@ -77,6 +77,21 @@
   cursor: ns-resize;
 }
 
+/*
+ * The keyboard focus ring (knob-keyboard-access.md REQ-a-knob-is-a-focusable-slider). `:focus-visible`,
+ * never `:focus`: a pointer drag focuses the dial too, and must not leave a ring
+ * behind. Same accent and weight as the resize handle's ring; offset outward
+ * because the dial is round and its value arc sits on the edge.
+ */
+.dial:focus {
+  outline: none;
+}
+
+.dial:focus-visible {
+  outline: 1px solid var(--accent-secondary);
+  outline-offset: 3px;
+}
+
 .indicator {
   position: absolute;
   left: 50%;
