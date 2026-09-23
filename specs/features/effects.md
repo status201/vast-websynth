@@ -3,7 +3,9 @@
 ```yaml
 id: effects
 status: implemented
-version: 11  # v11: REQ-the-synth-chain-order/REQ-the-drum-bus-chain-order — an EQ heads all three chains
+version: 12  # v12: REQ-the-synth-chain-order — the synth chain is 1-channel only while no
+             #      sequencer track is panned off centre (sequencer.md, ADR-023)
+             # v11: REQ-the-synth-chain-order/REQ-the-drum-bus-chain-order — an EQ heads all three chains
              #      (equalizer.md). It is a plain chain member, so nothing
              #      here changes except the order arrays — but the order is
              #      the contract, and the drum bus's "compressor first" now
@@ -165,6 +167,12 @@ subsets, so a song can colour each bus independently.
     ([equalizer](equalizer.md) REQ-one-equalizer-per-lane): an EQ ahead of the drive shapes what the
     drive bites on, and on this bus it is also the cheap position — the synth
     path is 1-channel until the reverb, so its ten biquads run on one channel.
+    (v12) That holds *until a sequencer track is panned off centre*, which
+    splices a per-voice pan stage in ahead of the chain and makes the whole thing
+    2-channel for as long as it is engaged — the cost that
+    [ADR-023](../decisions/adr-023-the-synth-channel-goes-stereo-on-demand.md)
+    weighs and that [sequencer](sequencer.md) REQ-the-spread-stage-engages-off-centre
+    keeps off every song that does not ask for it.
   - (v7) The **duck** is last so the reverb tail ducks with everything else,
     which is the sound it exists to make. It is the one member that is not a
     self-contained DSP span: its envelope is scheduled from drum-machine hits, so
@@ -612,7 +620,13 @@ Scenario: Drive 0 stays an exact no-op after bucketing (REQ-drive-curves-are-buc
     always-on for whichever instances are un-bypassed. [ADR-010](../decisions/adr-010-musical-stable-cheap-dsp.md)'s
     *cheap* is the standing objection; [ADR-012](../decisions/adr-012-true-bypass-disconnects.md)
     softens it (a bypassed effect is disconnected, so idle cost stays nil) but
-    an enabled one doubles.
+    an enabled one doubles. (v12) There is now a worked precedent for the shape
+    this would have to take:
+    [ADR-023](../decisions/adr-023-the-synth-channel-goes-stereo-on-demand.md)
+    splices the sequencer's per-voice pan stage in **on a gesture** and
+    disconnects it again, so the width is paid for only while it is asked for —
+    and it states the rule any such stage inherits, which is that no channel
+    count may decide a level.
   - **It changes how every shipped preset and demo sounds.** A width change is
     not a no-op default ([ADR-006](../decisions/adr-006-no-op-param-defaults.md)),
     so it either needs a `width`/`spread` param defaulting to today's mono

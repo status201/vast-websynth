@@ -19,7 +19,7 @@ describe('StepSequencer', () => {
     patterns.setSeqStep(0, 0, { on: true, note: 60, velocity: 0.8, gate: 0.5 });
 
     clock.fireTick(0); // step 0 → should trigger note 60
-    expect(playNote).toHaveBeenCalledWith(60, 0.8, 0);
+    expect(playNote).toHaveBeenCalledWith(60, 0.8, 0, { pan: 0, panGroup: 0 });
     // gate 0.5 of one 16th (60/120/4 = 0.125s) → 0.0625s
     expect(releaseNote).toHaveBeenCalledWith(60, 0.0625);
   });
@@ -52,7 +52,7 @@ describe('StepSequencer', () => {
     clock.fireTick(0); // plays note 60 (released at 0 + 0.125*0.5 = 0.0625)
     clock.fireTick(0.125); // when = 0.125 → release 60, then play 64
     expect(releaseNote).toHaveBeenCalledWith(60, 0.125);
-    expect(playNote).toHaveBeenCalledWith(64, 0.7, 0.125);
+    expect(playNote).toHaveBeenCalledWith(64, 0.7, 0.125, { pan: 0, panGroup: 0 });
   });
 
   // step-settings.md REQ-micro-is-one-pure-offset — the sequencer applies micro ITSELF (rather than
@@ -74,7 +74,7 @@ describe('StepSequencer', () => {
     clock.fireTick(0.125);
 
     const nudged = 0.125 - 0.03125;
-    expect(playNote).toHaveBeenCalledWith(64, 0.7, nudged);
+    expect(playNote).toHaveBeenCalledWith(64, 0.7, nudged, { pan: 0, panGroup: 0 });
     // The bug this pins: releasing at the grid time (0.125) would land AFTER the
     // new attack and cut the note that had just started.
     expect(releaseNote).toHaveBeenCalledWith(60, nudged);
@@ -92,7 +92,7 @@ describe('StepSequencer', () => {
     patterns.setSeqStep(0, 0, { on: true, note: 60, velocity: 0.8, gate: 0.5, micro: 6 });
 
     clock.fireTick(0);
-    expect(playNote).toHaveBeenCalledWith(60, 0.8, 0.03125);
+    expect(playNote).toHaveBeenCalledWith(60, 0.8, 0.03125, { pan: 0, panGroup: 0 });
     // gate 0.5 of a 0.125 s cell, measured from the NUDGED attack.
     expect(releaseNote).toHaveBeenCalledWith(60, 0.03125 + 0.0625);
   });
@@ -106,7 +106,7 @@ describe('StepSequencer', () => {
     seq.setEnabled(true);
     patterns.setSeqStep(0, 0, { on: true, note: 60, velocity: 0.8, gate: 0.5 });
     clock.fireTick(0);
-    expect(playNote).toHaveBeenCalledWith(60, 0.8, 0);
+    expect(playNote).toHaveBeenCalledWith(60, 0.8, 0, { pan: 0, panGroup: 0 });
   });
 
   // sequencer.md REQ-a-seek-releases-every-tracks-note — tie/held-note state only ever describes the ADJACENT
@@ -211,7 +211,7 @@ describe('StepSequencer', () => {
     clock.fireStart(1);
     clock.fireTick(0.125);
 
-    expect(playNote).toHaveBeenCalledWith(67, 0.8, 0.125);
+    expect(playNote).toHaveBeenCalledWith(67, 0.8, 0.125, { pan: 0, panGroup: 0 });
     // prevTied was cleared by the stop, so nothing is left to slur out of.
     expect(releaseNote).not.toHaveBeenCalledWith(60, 0.125);
   });
@@ -234,7 +234,7 @@ describe('StepSequencer', () => {
     clock.fireTick(0.125);   // now step 1
     // prevTied cleared, so step 1 is played fresh rather than treated as a
     // continuation of the note that was tied into it.
-    expect(playNote).toHaveBeenCalledWith(67, 0.8, 0.125);
+    expect(playNote).toHaveBeenCalledWith(67, 0.8, 0.125, { pan: 0, panGroup: 0 });
   });
 
   it('does nothing when disabled', () => {
@@ -296,7 +296,7 @@ describe('StepSequencer', () => {
 
     rng.mockReturnValue(0.1); // 0.1 <= 0.5 → fire
     clock.fireTick(0.125); // step 1
-    expect(playNote).toHaveBeenCalledWith(60, expect.any(Number), 0.125);
+    expect(playNote).toHaveBeenCalledWith(60, expect.any(Number), 0.125, { pan: 0, panGroup: 0 });
     rng.mockRestore();
   });
 
@@ -312,9 +312,9 @@ describe('StepSequencer', () => {
     clock.fireTick(0);
     expect(playNote).toHaveBeenCalledTimes(3);
     const sub = 0.125 / 3; // one 16th split three ways
-    expect(playNote).toHaveBeenNthCalledWith(1, 60, expect.any(Number), 0);
-    expect(playNote).toHaveBeenNthCalledWith(2, 60, expect.any(Number), sub);
-    expect(playNote).toHaveBeenNthCalledWith(3, 60, expect.any(Number), 2 * sub);
+    expect(playNote).toHaveBeenNthCalledWith(1, 60, expect.any(Number), 0, { pan: 0, panGroup: 0 });
+    expect(playNote).toHaveBeenNthCalledWith(2, 60, expect.any(Number), sub, { pan: 0, panGroup: 0 });
+    expect(playNote).toHaveBeenNthCalledWith(3, 60, expect.any(Number), 2 * sub, { pan: 0, panGroup: 0 });
   });
 
   it('tie holds into the next step instead of releasing first (legato)', () => {
@@ -329,12 +329,12 @@ describe('StepSequencer', () => {
     patterns.setSeqStep(0, 1, { on: true, note: 64, gate: 0.5 });
 
     clock.fireTick(0); // tied step: plays 60 but schedules no release
-    expect(playNote).toHaveBeenCalledWith(60, expect.any(Number), 0);
+    expect(playNote).toHaveBeenCalledWith(60, expect.any(Number), 0, { pan: 0, panGroup: 0 });
     expect(releaseNote).not.toHaveBeenCalled();
 
     clock.fireTick(0.125); // next step attacks without first releasing the tied note
     expect(releaseNote).not.toHaveBeenCalledWith(60, 0.125);
-    expect(playNote).toHaveBeenCalledWith(64, expect.any(Number), 0.125);
+    expect(playNote).toHaveBeenCalledWith(64, expect.any(Number), 0.125, { pan: 0, panGroup: 0 });
   });
 
   it('a tie into a rest releases the held note rather than ringing forever', () => {
@@ -411,10 +411,12 @@ describe('StepSequencer — four tracks (sequencer.md REQ-four-tracks-per-bank/R
    *  of notes per tick, which vi.fn() call order alone makes awkward to read. */
   function build(scale = new ScaleQuantizer()) {
     const { clock, patterns, arrangement, perf } = makeTransportRig();
-    const played: { note: number; when: number }[] = [];
+    const played: { note: number; when: number; pan?: number; panGroup?: number }[] = [];
     const released: { note: number }[] = [];
     const output: SynthOutput = {
-      playNote: (note, _vel, when) => { played.push({ note, when: when ?? 0 }); },
+      playNote: (note, _vel, when, opts) => {
+        played.push({ note, when: when ?? 0, pan: opts?.pan, panGroup: opts?.panGroup });
+      },
       releaseNote: (note) => { released.push({ note }); },
     };
     const seq = new StepSequencer(output, clock, patterns, arrangement, perf, scale);
@@ -459,6 +461,48 @@ describe('StepSequencer — four tracks (sequencer.md REQ-four-tracks-per-bank/R
     clock.step = 0;
     clock.fireTick(0);
     expect(played.map((p) => p.note).sort((a, b) => a - b)).toEqual([60, 64]);
+  });
+
+  it('a track pan rides only that track’s notes (v12, REQ-a-seq-track-carries-a-pan)', () => {
+    const { patterns, clock, played, seq } = build();
+    patterns.setSeqStep(0, 0, { on: true, note: 60, gate: 0.5 });
+    patterns.setSeqStep(1, 0, { on: true, note: 64, gate: 0.5 });
+    seq.setEnabled(true);
+    seq.setTrackPan(1, 1);           // track 2 hard right
+    clock.fireTick(0);
+
+    const byNote = new Map(played.map((p) => [p.note, p]));
+    expect(byNote.get(64)!.pan).toBe(1);
+    expect(byNote.get(60)!.pan).toBe(0);
+    // Each note names the knob its voice should keep following while it sounds.
+    expect(byNote.get(64)!.panGroup).toBe(1);
+    expect(byNote.get(60)!.panGroup).toBe(0);
+  });
+
+  it('every track is centred until asked otherwise (v12, REQ-a-seq-track-carries-a-pan, back-compat)', () => {
+    const { patterns, clock, played, seq } = build();
+    for (let t = 0; t < 4; t++) patterns.setSeqStep(t, 0, { on: true, note: 60 + t, gate: 0.5 });
+    seq.setEnabled(true);
+    clock.fireTick(0);
+    // A song that predates the param carries no key for it, so the bus hands the
+    // registered default through and nothing moves off centre (ADR-006).
+    expect(played.every((p) => p.pan === 0)).toBe(true);
+  });
+
+  it('two tracks on ONE pitch collapse to a single pan (v12, REQ-two-tracks-on-one-pitch-share-a-pan, known limit)', () => {
+    const { patterns, clock, played, seq } = build();
+    patterns.setSeqStep(0, 0, { on: true, note: 60, gate: 0.5 });
+    patterns.setSeqStep(1, 0, { on: true, note: 60, gate: 0.5 });  // the SAME note
+    seq.setEnabled(true);
+    seq.setTrackPan(0, -1);
+    seq.setTrackPan(1, 1);
+    clock.fireTick(0);
+
+    // Both tracks do fire — nothing is dropped here. What collapses is
+    // downstream: `Polyphony` keys held notes by note number, so the second call
+    // re-triggers the first's voice and the later pan wins. Pinning the order
+    // keeps that documented rather than surprising.
+    expect(played.map((p) => p.pan)).toEqual([-1, 1]);
   });
 
   it('a per-track mute silences only that track (REQ-per-track-mute)', () => {
@@ -736,7 +780,7 @@ describe('StepSequencer — meter (meter.md)', () => {
     const r = rig(0, rateOf('1/8'), 16);
     r.patterns.setSeqStep(0, 0, { on: true, note: 60, velocity: 0.8, gate: 0.5 });
     r.clock.fireTick(0);
-    expect(r.playNote).toHaveBeenCalledWith(60, 0.8, 0);
+    expect(r.playNote).toHaveBeenCalledWith(60, 0.8, 0, { pan: 0, panGroup: 0 });
     // One cell is two 16ths (0.25s); gate 0.5 of it is 0.125s — twice the
     // default rate's 0.0625s, because the gate is a fraction of the cell.
     expect(r.releaseNote).toHaveBeenCalledWith(60, 0.125);

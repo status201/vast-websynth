@@ -8,6 +8,7 @@ import type { TickSubscriber } from './tick-source';
 import { ListenerSet } from '../../utils/listeners';
 import { LaneMeter } from './lane-meter';
 import { rampTo, RAMP_MEDIUM, toneCutoff } from '../param-utils';
+import { forceStereo } from '../stereo';
 import { reverseBuffer } from '../recorder/audio-buffer';
 
 export type SamplerStepListener = (step: number) => void;
@@ -156,16 +157,13 @@ export class SamplerMachine {
       tone.Q.value = RES_Q_MIN;              // flat
       const g = this.ctx.createGain();
       g.gain.value = 1;                      // unity — what a slot has always been
-      // Force the panner's input stereo. At pan 0 a StereoPannerNode passes a
-      // STEREO input straight through, but applies equal-power gain to a MONO one
-      // — so without this a mono sample would arrive 3 dB quieter than it did
-      // before the channel existed, which is precisely the silent re-voicing
+      // Force the panner's input stereo, or a mono sample arrives 3 dB quieter
+      // than it did before the channel existed — precisely the silent re-voicing
       // ADR-006 exists to prevent. Up-mixing here (L = R = input, unity) is what
       // the graph did downstream anyway, so stereo material is unaffected and the
-      // filter upstream still runs mono for a mono clip.
-      g.channelCount = 2;
-      g.channelCountMode = 'explicit';
-      g.channelInterpretation = 'speakers';
+      // filter upstream still runs mono for a mono clip. The rule and its
+      // measurement now live in one place (`forceStereo`, ADR-023).
+      forceStereo(g);
       const pan = this.ctx.createStereoPanner();
 
       input.connect(tone).connect(g).connect(pan).connect(this.samplerBus);

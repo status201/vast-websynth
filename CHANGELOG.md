@@ -16,6 +16,28 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+### Added
+
+- **A PAN knob on every sequencer track**, beside its mute, so the four tracks
+  spread across the stereo field instead of stacking in the middle. Centre is the
+  default and changes nothing: a song that never pans keeps the graph, the mono
+  insert chain and the CPU it has always had, because the per-voice panners are
+  *disconnected* rather than merely centred until a track leaves the middle.
+  Panning is constant power — a track does not get louder as you move it — and
+  the knob is live over a held note. The bus auto-pan still sweeps the whole
+  picture over the top. Old songs, presets and share links are unaffected and the
+  song format is unchanged.
+
+### Fixed
+
+- **Switching the synth reverb on no longer turns the dry synth up by 3 dB.**
+  `synthPan` received one channel with the reverb bypassed and two with it on,
+  and a StereoPanner treats those differently — so the whole synth channel ran
+  3.01 dB quiet whenever the reverb was off, and the auto-pan changed law with
+  it. Its input is now always stereo. Three demos run with the synth reverb off
+  (`1983`, `Bunk`, `Run Away`) and get that 3 dB back; `Bunk`, which also
+  auto-pans, changes the character of its sweep.
+
 ## [2.14.1] - 2026-09-22
 
 ### Fixed

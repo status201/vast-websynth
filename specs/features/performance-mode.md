@@ -345,6 +345,14 @@ Scenario: Drum-track shapers only oversample when driven (all tiers, v3)
   out for now (glitch-prone, platform-dependent).
 - A future adaptive mode could *measure* underruns and step the tier automatically;
   today detection is static.
+- **The weak tier does not touch the sequencer's spread stage, deliberately.** A
+  panned track makes the synth insert chain 2-channel for as long as it is off
+  centre ([sequencer](sequencer.md) REQ-the-spread-stage-engages-off-centre), and
+  the weak tier could refuse it — but every lever this tier pulls today costs
+  *headroom*, not *notes*: fewer voices, a shorter IR, a bigger buffer. Silently
+  re-centring a track the player panned would change the mix instead, which is a
+  sound change to save CPU and not this tier's bargain. Revisit only with
+  evidence that a weak device actually underruns with a track panned.
 - Phone detection thresholds: a Pixel-8a-class phone (9 cores, `deviceMemory` 8)
   resolves to **medium** and struggled before the v3 work. Decision (2026-07-02):
   keep detection as-is and revisit the thresholds once the worker clock / idle

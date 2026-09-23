@@ -2,7 +2,7 @@ import { Osc } from './oscillator';
 import { Envelope } from './envelope';
 import { LadderFilterNode } from './ladder-filter/node';
 import { clamp, midiToHz } from '../utils/math';
-import { rampTo, RAMP_FAST, RAMP_MEDIUM } from './param-utils';
+import { rampTo, RAMP_FAST, RAMP_MEDIUM, RAMP_BYPASS } from './param-utils';
 
 export type VoiceState = 'idle' | 'playing' | 'releasing';
 
@@ -11,6 +11,16 @@ const KEY_CENTER = 60;
 /** The worklet's own `cutoffNote` range — key tracking is clamped to it (REQ-keytrack-is-clamped-to-range). */
 const CUTOFF_MIN = 0;
 const CUTOFF_MAX = 135;
+
+/** A voice that is following no track's pan knob (sequencer.md REQ-a-seq-track-carries-a-pan). */
+const NO_PAN_GROUP = -1;
+
+/**
+ * The panned edge's engaged gain: the equal-power law's centre is 3.01 dB down,
+ * and this is what makes centre equal unity again so the stage can be spliced in
+ * and out inaudibly (sequencer.md REQ-the-spread-stage-engages-off-centre).
+ */
+const SPREAD_UNITY = Math.SQRT2;
 
 export class Voice {
   readonly out: GainNode;
@@ -25,6 +35,31 @@ export class Voice {
   readonly ampEnv: Envelope;
   readonly filEnv: Envelope;
   readonly filEnvScale: GainNode;
+
+  /**
+   * The spread stage (sequencer.md REQ-the-spread-stage-engages-off-centre, ADR-023):
+   * `out` fans into a dry edge and a panned one, and the panned one is
+   * **disconnected** from the bus unless some sequencer track is off centre. A
+   * channel count follows connections rather than gains, so leaving it attached
+   * at gain 0 would hold the whole insert chain at two channels and keep paying
+   * for them — hence a real disconnect, exactly as ADR-012 bypasses an effect.
+   *
+   * The panner is fed **mono**, deliberately, so it uses the equal-power law —
+   * the one that places a mono source at constant power, `cos/sin` across the
+   * sweep. Feeding it stereo instead would put it in the *fold* law, where hard
+   * left is `L + R` on one side: measured +3 dB of total power for a hard-panned
+   * track, i.e. a pan knob that is also a volume knob.
+   *
+   * Equal-power costs 3.01 dB at centre, so `spreadWet` carries `SPREAD_UNITY`
+   * (= sqrt(2)) to put it back. That is what makes the crossfade below
+   * transparent: at centre the panned edge delivers `0.7071x * sqrt(2) = x` per
+   * channel, exactly what the dry edge delivers, so two complementary
+   * `setTargetAtTime` ramps of equal time constant sum to exactly the input the
+   * whole way across — and a hard-panned track keeps the power it had centred.
+   */
+  readonly spreadDry: GainNode;
+  readonly spreadWet: GainNode;
+  readonly panner: StereoPannerNode;
 
   /**
    * Per-voice modulation sources for the mod matrix (mod-matrix.md REQ-per-voice-sources-cannot-drive-bus-destinations).
@@ -46,6 +81,16 @@ export class Voice {
   private readonly ctx: AudioContext;
   private glideTime = 0;
   private releaseTimer: number | null = null;
+  /** Where `connectTo` wired this voice, so the panned edge can be re-attached. */
+  private spreadDest: AudioNode | null = null;
+  private spreadAttached = false;
+  /**
+   * Which sequencer track's pan knob this voice is currently following, so a
+   * knob turned over a ringing note moves it instead of waiting for the next
+   * one. `NO_PAN_GROUP` for live keys, MIDI and the arpeggiator — they are
+   * centred and stay centred.
+   */
+  private panGroup = NO_PAN_GROUP;
   // Key tracking's two cached scalars (key-tracking.md). The effective cutoff
   // is derived from these plus `currentNote`, never stored.
   private baseCutoff = 90;
@@ -95,6 +140,15 @@ export class Voice {
     this.out = ctx.createGain();
     this.out.gain.value = 1 / 4;
 
+    // Spread stage — boots disengaged, i.e. dry at unity and the panned edge
+    // unconnected, which is bit-for-bit the pre-v12 voice output.
+    this.spreadDry = ctx.createGain();
+    this.spreadDry.gain.value = 1;
+    this.spreadWet = ctx.createGain();
+    this.spreadWet.gain.value = 0;
+    this.panner = ctx.createStereoPanner();
+    this.panner.pan.value = 0;
+
     this.velocitySource = ctx.createConstantSource();
     this.velocitySource.offset.value = 0;
     this.velocitySource.start();
@@ -111,6 +165,10 @@ export class Voice {
     this.filter.output.connect(this.tremolo);
     this.tremolo.connect(this.ampVCA);
     this.ampVCA.connect(this.out);
+    this.out.connect(this.spreadDry);
+    this.out.connect(this.spreadWet).connect(this.panner);
+    // Neither edge reaches a bus yet — `connectTo` does that, and the panned one
+    // only while the stage is engaged.
 
     // Modulation
     this.ampEnv.out.connect(this.ampVCA.gain);
@@ -121,11 +179,57 @@ export class Voice {
     this.filter.setActive(false);
   }
 
+  /**
+   * Wire both output edges to the voice bus. The panned one is held back until
+   * {@link setSpread} engages it (sequencer.md REQ-the-spread-stage-engages-off-centre).
+   */
+  connectTo(dest: AudioNode): void {
+    this.spreadDest = dest;
+    this.spreadDry.connect(dest);
+    if (this.spreadAttached) this.panner.connect(dest);
+  }
+
+  /**
+   * Crossfade between the dry and the panned edge, attaching the panned one on
+   * the way in so signal never arrives at an edge that is about to be connected
+   * (ADR-012's order). The two ramps share a time constant and complementary
+   * targets, so at centre they sum to exactly 1 and the move is inaudible.
+   *
+   * Detaching is NOT done here: the edge has to keep carrying the crossfade out.
+   * The caller drops it with {@link dropSpread} once the ramp has settled.
+   */
+  setSpread(on: boolean): void {
+    if (on && !this.spreadAttached) {
+      this.spreadAttached = true;
+      if (this.spreadDest) this.panner.connect(this.spreadDest);
+    }
+    rampTo(this.spreadDry.gain, on ? 0 : 1, this.ctx, RAMP_BYPASS);
+    rampTo(this.spreadWet.gain, on ? SPREAD_UNITY : 0, this.ctx, RAMP_BYPASS);
+  }
+
+  /** Cut the panned edge, so the bus goes back to one channel (and stops paying
+   *  for the panner at all — an unreachable node is not rendered). */
+  dropSpread(): void {
+    if (!this.spreadAttached) return;
+    this.spreadAttached = false;
+    this.panner.disconnect();
+  }
+
+  /**
+   * A track's pan knob moved. Only the voices currently sounding that track
+   * follow it, which is what makes the knob live over a held or tied note
+   * instead of taking effect on the next one.
+   */
+  setGroupPan(group: number, pan: number): void {
+    if (this.panGroup !== group) return;
+    rampTo(this.panner.pan, pan, this.ctx, RAMP_MEDIUM);
+  }
+
   noteOn(
     note: number,
     velocity: number,
     when: number,
-    opts?: { detuneCents?: number; glide?: boolean },
+    opts?: { detuneCents?: number; glide?: boolean; pan?: number; panGroup?: number },
   ): void {
     if (this.releaseTimer !== null) {
       clearTimeout(this.releaseTimer);
@@ -136,6 +240,13 @@ export class Voice {
     this.currentNote = note;
     this.state = 'playing';
     this.noteOnAt = when;
+    // Pan lands AT the note, not now: a voice stolen from a differently panned
+    // track must not drag its new position back over the tail it is replacing.
+    // A short target rather than a step, so the hand-off glides (sequencer.md
+    // REQ-two-tracks-on-one-pitch-share-a-pan). No cancel, so nothing needs
+    // anchoring — each target simply supersedes the last from its own time.
+    this.panGroup = opts?.panGroup ?? NO_PAN_GROUP;
+    this.panner.pan.setTargetAtTime(opts?.pan ?? 0, when, RAMP_FAST);
     const detune = opts?.detuneCents ?? 0;
     const hz = midiToHz(note) * Math.pow(2, detune / 1200);
     const doGlide = opts?.glide ?? this.glideTime > 0;

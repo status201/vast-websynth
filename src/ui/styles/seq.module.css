@@ -69,8 +69,23 @@
   display: flex;
   align-items: center;
   gap: 6px;
-  width: 118px;
+  /* Fold + mute + PAN. A CONSTANT, never `auto`: the transport-position ruler's
+     row wears this same class with entirely different content
+     (transport-position.md REQ-a-position-ruler-above-every-grid), so sizing to
+     content puts the ruler and the step grids on different left edges — 162px
+     apart, which only `npm run e2e` saw. The step grid beside it is
+     `flex: 1; min-width: 0`, so the width comes out of the cells, which shrink
+     rather than wrap — and the knob is `inline`, so it costs width here but NOT
+     height. Paired with the knob's own 720px rule below; change one, change the
+     other. */
+  width: 196px;
   flex: none;
+}
+
+/* The inline knob drops its "PAN" word at this breakpoint (knob.module.css), so
+   the cluster hands the width back to the step grid. */
+@media (max-width: 720px) {
+  .trackCtrls { width: 172px; }
 }
 
 .trackFold {
@@ -88,6 +103,12 @@
 .trackFold:disabled { opacity: 0.5; cursor: default; }
 
 .trackMute { transform: scale(0.85); transform-origin: left center; }
+
+/* The knob's own label sits under it and would double the row height, so the
+   row stays as tall as the mute switch and the knob centres in it
+   (sequencer.md REQ-a-seq-track-carries-a-pan). */
+.trackPan { flex: none; margin-left: auto; }
+
 
 .trackBody { flex: 1; min-width: 0; }
 

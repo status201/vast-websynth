@@ -3,7 +3,9 @@
 ```yaml
 id: equalizer
 status: implemented
-version: 3   # v3: REQ-one-q-knob-over-the-bands — the knob is labelled Q, not WIDTH: turning it up
+version: 4   # v4: the "ten 1-channel biquads" cost note is now conditional — a panned
+             #     sequencer track makes the synth chain 2-channel (sequencer.md, ADR-023)
+             # v3: REQ-one-q-knob-over-the-bands — the knob is labelled Q, not WIDTH: turning it up
              #     narrows the bands, which the old name said backwards.
              #     REQ-the-eq-explains-itself-through-badges — the section's info badges (onboarding.md REQ-the-equalizer-carries-seven-badges)
              #     REQ-the-eq-section-is-a-folded-tab-container — the row title is drawn white, not in a tab colour
@@ -98,7 +100,9 @@ curve from bus values so it needs no analyser and runs no animation loop.
   the reason [effects](effects.md) REQ-the-drum-bus-chain-order puts that compressor first in the first
   place. It is where an EQ is *cheap*: the synth path is 1-channel until the
   reverb ([architecture](../architecture.md)), so a head-position EQ runs ten
-  1-channel biquads instead of ten 2-channel ones. And it leaves `FxChain.tail`
+  1-channel biquads instead of ten 2-channel ones — unless a sequencer track is
+  panned off centre, which makes the chain 2-channel while it is
+  ([sequencer](sequencer.md) REQ-the-spread-stage-engages-off-centre). And it leaves `FxChain.tail`
   and the bank-render tap alone, so
   [render-to-sampler](render-to-sampler.md) needs no thought.
 

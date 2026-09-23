@@ -368,6 +368,56 @@ describe('ParamBus', () => {
  * is the compatibility surface (ADR-006); this is the one that was easiest to get
  * wrong, so it is pinned rather than trusted.
  */
+describe('the sequencer track pan family (sequencer.md REQ-a-seq-track-carries-a-pan)', () => {
+  it('registers all four centred, with the drum/sampler pan shape', () => {
+    const bus = new ParamBus();
+    registerDefaults(bus);
+    for (let t = 0; t < 4; t++) {
+      const def = bus.def(`seq.t${t}.pan`);
+      expect(def, `seq.t${t}.pan is not registered`).toBeDefined();
+      expect(def!.min).toBe(-1);
+      expect(def!.max).toBe(1);
+      // Centre is the no-op, so a song that predates the param is unaffected
+      // (ADR-006) — and the graph reads "all four at 0" as "stay mono" (ADR-023).
+      expect(def!.default).toBe(0);
+      expect(bus.get(`seq.t${t}.pan`)).toBe(0);
+    }
+  });
+
+  it('is the same definition as the drum and sampler pans', () => {
+    const bus = new ParamBus();
+    registerDefaults(bus);
+    const shape = (id: string) => {
+      const d = bus.def(id)!;
+      return { min: d.min, max: d.max, default: d.default };
+    };
+    expect(shape('seq.t0.pan')).toEqual(shape('drum.t0.pan'));
+    expect(shape('seq.t0.pan')).toEqual(shape('sampler.t0.pan'));
+    // The readout too: a pan knob says C / L40 / R75 wherever it appears.
+    expect(bus.def('seq.t0.pan')!.format).toBe(bus.def('drum.t0.pan')!.format);
+  });
+
+  it('clamps an imported value to the registered range', () => {
+    const bus = new ParamBus();
+    registerDefaults(bus);
+    bus.set('seq.t0.pan', 9);
+    expect(bus.get('seq.t0.pan')).toBe(1);
+    bus.set('seq.t0.pan', -9);
+    expect(bus.get('seq.t0.pan')).toBe(-1);
+  });
+
+  it('a song written before the param loads centred (back-compat)', () => {
+    const bus = new ParamBus();
+    registerDefaults(bus);
+    bus.set('seq.t2.pan', -0.8);
+    // A pre-v12 snapshot simply has no key for it; `restore` after
+    // `resetDefaults` is what every song load does.
+    bus.resetDefaults();
+    bus.restore({ 'seq.t2.mute': 1 });
+    expect(bus.get('seq.t2.pan')).toBe(0);
+  });
+});
+
 describe('the sampler slot family defaults to a no-op (REQ-a-closed-hat-cuts-an-open-hat/REQ-every-sounded-hit-is-reported)', () => {
   const NO_OP: Record<string, number> = {
     vol: 1, // NOT the drum machine's 0.85

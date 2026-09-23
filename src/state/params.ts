@@ -466,6 +466,14 @@ export function registerDefaults(bus: ParamBus): void {
       id: `seq.t${t}.mute`, min: 0, max: 1, default: 0, step: 1,
       taper: 'discrete' as const, labels: ['on', 'mute'],
     })),
+    // Per-track pan (sequencer.md REQ-a-seq-track-carries-a-pan) — the same def as
+    // `drum.t{i}.pan` and `sampler.t{i}.pan`, deliberately, down to the readout.
+    // Centre is a no-op (ADR-006) and is enforced as one all the way into the
+    // graph: while all four sit here the panners are disconnected, so an untouched
+    // song keeps the mono voice path it has always had (ADR-023).
+    ...Array.from({ length: SEQ_TRACK_COUNT }, (_, t) => ({
+      id: `seq.t${t}.pan`, min: -1, max: 1, default: 0, format: fmtPan,
+    })),
     { id: 'seq.solo', min: 0, max: 1, default: 0, step: 1, taper: 'discrete', labels: ['off', 'solo'] },
     ...laneMeterParams('seq'),
 

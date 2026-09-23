@@ -3,7 +3,9 @@
 ```yaml
 id: scope
 status: implemented          # draft | active | implemented
-version: 16  # v16: the loop stopped AGAIN (REQ-the-scope-proves-it-is-painting..38). v12 made start() restartable
+version: 17  # v17: the stereo-sources list goes from three to five — it had never gained the
+             #      sampler's per-slot pans, and the sequencer's per-track pans are new (sequencer.md)
+             # v16: the loop stopped AGAIN (REQ-the-scope-proves-it-is-painting..38). v12 made start() restartable
              #      but left every trigger for it event-driven and ONE-SHOT, and
              #      left contextlost -> stop() waiting forever. A ~1 Hz watchdog
              #      now proves the panel is painting, every control is a recovery
@@ -54,9 +56,13 @@ The bottom panel hosts a live oscilloscope/analyser (`Scope`) tapped **pre-maste
 so the display is independent of the master-volume knob. It already toggles between
 a **Wave** (time-domain) and a **Spectrum** (frequency) view via a single button.
 
-The synth's signal is **stereo** — three things produce L≠R content: the
+The synth's signal is **stereo** — five things produce L≠R content: the
 **reverb** (a 2-channel decorrelated IR, so it is mono-in/stereo-out), the **LFO
-auto-pan** (`synthPan`), and the **drum tracks' per-track pans**. Everything else
+auto-pan** (`synthPan`), the **drum tracks' per-track pans**, the **sampler
+slots' per-slot pans**, and the **sequencer tracks' per-track pans**
+([sequencer](sequencer.md) REQ-a-seq-track-carries-a-pan — the newest, and the
+only one that is *disconnected* rather than merely centred while unused).
+Everything else
 in the chain is channel-transparent: it can carry an existing stereo image but
 cannot create one. The scope down-mixes to mono, so that motion is invisible.
 (This list has now shed three wrong entries. A "ping-pong delay" went in v9 —

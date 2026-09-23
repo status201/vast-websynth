@@ -3,7 +3,9 @@
 ```yaml
 id: testids
 status: implemented
-version: 22 # v22: motion's single-param lanes go from two to four, so four id
+version: 23 # v23: the seq track row's mute and pan are named in the catalogue as
+            #      param-minted ids, so knob-seq.t<t>.pan is findable from here
+            # v22: motion's single-param lanes go from two to four, so four id
             #      families widen to <0..3> and the lane fold caret joins them
             #      (motion-sequencer.md REQ-extra-single-param-tracks-per-bank/REQ-an-empty-motion-lane-starts-folded).
             #      seq-track-fold-<t> is unchanged in name and meaning although
@@ -213,6 +215,8 @@ step grids, rulers & overlays:
   seq-step-<i>                       # sequencer track 1
   seq-step-<t>-<i>                   # sequencer tracks 2-4  (features/sequencer.md)
   seq-track-<t> · seq-track-fold-<t> · seq-step-input   # fold: features/lane-fold.md
+  # the row's mute and pan mint from their param ids (REQ-param-controls-mint-from-the-param-id):
+  #   switch-seq.t<t>.mute · knob-seq.t<t>.pan          # pan: features/sequencer.md
   seq-chord · seq-snap · seq-snap-toast      # features/chord-tools.md — the degree
                                              #   writer and SNAP. `seq-chord` is a
                                              #   Dropdown, which mints no per-row ids.

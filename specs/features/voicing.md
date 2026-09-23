@@ -3,7 +3,9 @@
 ```yaml
 id: voicing
 status: implemented
-version: 6   # v6: MONO obeys REQ-a-stolen-voice-leaves-the-held-list too — every mono note
+version: 7   # v7: heldNotes being keyed by NOTE is what makes two sequencer tracks on one
+             #     pitch share a voice, and so one pan (sequencer.md REQ-two-tracks-on-one-pitch-share-a-pan)
+             # v6: MONO obeys REQ-a-stolen-voice-leaves-the-held-list too — every mono note
              #     claimed the same voices, so releasing an older key cut the newer note
              # v5: a glide's cancel is ANCHORED, and the anchor is computed rather than
              #     read back — on Gecko a bare cancel made portamento start from the
@@ -142,6 +144,15 @@ time 0 reproduces the pre-song-mode behaviour, keeping existing presets unchange
   is dropped. The invariant is *a voice appears in at most one `heldNotes` entry* —
   which is what makes REQ-passthrough-remembers-what-it-played's "release through the stored note" rule sound, since that
   rule assumes the stored note still owns the voice it names.
+
+  **(v7) The map is keyed by note number, and that has a musical consequence
+  now.** Two sequencer tracks playing the *same* pitch land on one entry, so the
+  second re-triggers the first's voices rather than taking its own — one voice,
+  therefore one stereo position, and the later track's pan wins
+  ([sequencer](sequencer.md) REQ-two-tracks-on-one-pitch-share-a-pan). Keying per
+  track would spread them, at the cost of a voice per duplicated pitch out of
+  eight and a rewrite of the invariant above; it is recorded there rather than
+  paid for here.
 
   **(v6) Mono is not exempt.** The rule was applied on the poly branch only, and
   the mono branch violates it *by construction* rather than occasionally: in mono

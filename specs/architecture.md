@@ -3,7 +3,9 @@
 ```yaml
 id: architecture
 status: implemented
-version: 12  # v12: app.ts's IMPORT ORDER is load-bearing for layout — recorded, because it
+version: 13  # v13: the voice path is 1-channel until the SPREAD STAGE engages — a panned
+             #      sequencer track puts two channels through the inserts (ADR-023)
+             # v12: app.ts's IMPORT ORDER is load-bearing for layout — recorded, because it
              #      blocks the panel extraction that would otherwise be obvious
              # v11: four more shared helpers, each replacing a verbatim copy —
              #      safeBarTicks, Arrangement.applyChain, WrappedEffect.quiesceParam,
@@ -481,7 +483,7 @@ back into the engine.
 ### Audio graph (system diagram)
 
 ```
-voices ─→ voiceBus ─→ eq → distortion → wah → phaser → delay → reverb → duck → synthPan ─┐
+voices ─(spread)→ voiceBus ─→ eq → distortion → wah → phaser → delay → reverb → duck → synthPan ─┐
             drumBus ─→ eq → drumComp → drumPhaser → drumDelay → drumReverb ──────────────┤
             samplerBus ─→ eq (+ sampler dist/phaser/delay/reverb/duck) ──────────────────┤
                                                                                          ▼
@@ -501,8 +503,22 @@ voices ─→ voiceBus ─→ eq → distortion → wah → phaser → delay →
   synth stage so that nothing upstream of it pays for two channels it does not
   need: the voice path is mono end to end (mono oscillators/noise → gains →
   1-channel filter worklet → gains), and the insert chain stays 1-channel through
-  `dist → wah → phaser → delay`. The **reverb**, last in the chain, is where the
-  synth channel actually becomes stereo — its impulse response is a 2-channel
+  `dist → wah → phaser → delay`.
+
+  **`(spread)` in the diagram is the one thing that can end that**, and it is off
+  unless asked for: a voice also carries a panned output edge, and `Engine`
+  connects it only while some `seq.t<i>.pan` is off centre, which is what gives
+  the four sequencer tracks a stereo position ([`features/sequencer.md`](features/sequencer.md)
+  REQ-the-spread-stage-engages-off-centre, [ADR-023](decisions/adr-023-the-synth-channel-goes-stereo-on-demand.md)).
+  While every track is centred the edge is **disconnected**, not merely silent —
+  a channel count follows connections, not gains — so the mono path above is
+  exactly what a centred song still gets. `synthPan` itself is pinned to a
+  2-channel input either way (`forceStereo`, `src/audio/stereo.ts`), so no
+  channel count decides the channel's level
+  ([`features/lfo.md`](features/lfo.md) REQ-the-auto-pan-reads-a-stereo-input).
+
+  The **reverb**, last in the chain, is where the
+  synth channel actually becomes stereo on its own — its impulse response is a 2-channel
   buffer whose channels are independently randomised and phase-offset, so a
   1-channel input convolves to two decorrelated ones. That is generated stereo,
   not a speaker up-mix; a speaker up-mix (L = R) is what the drum panners and the

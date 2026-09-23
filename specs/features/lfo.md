@@ -3,7 +3,10 @@
 ```yaml
 id: lfo
 status: implemented
-version: 10                 # v10: `otherLfo` removed from lfo-routing.ts — nothing called it
+version: 11                 # v11: REQ-the-auto-pan-reads-a-stereo-input — synthPan's input is forced to
+                            #      2 channels, so the sweep's law and the channel's level no
+                            #      longer depend on whether the reverb happens to be on (ADR-023)
+                            # v10: `otherLfo` removed from lfo-routing.ts — nothing called it
                             # v9: REQ-lfo-sync-locks-rate-to-tempo's UI half is SUPERSEDED by tempo-lock.md — the
                             #     rate knob carries the lock itself, so the standalone
                             #     sync picker and the dim-in-place are both gone. The
@@ -35,6 +38,7 @@ source:
   - src/audio/pwm.ts       # the `pulse` destination's control loop (v3)
   - src/state/params.ts
   - src/audio/engine.ts    # panner construction + LFO fan-out
+  - src/audio/stereo.ts    # v11: forceStereo — REQ-the-auto-pan-reads-a-stereo-input
   - src/state/lfo-routing.ts   # v8: the two-LFO vocabulary; the REQ-destinations-are-no-longer-exclusive rule is gone
   - src/ui/panels/lfo-panel.ts # v7: the two-page panel
 ```
@@ -81,6 +85,27 @@ destinations, genuinely cannot be shared (REQ-pulse-is-arbitrated).
   first becomes stereo; the panner then pans that stereo signal rather than
   up-mixing a mono one. Either way the CPU argument holds for the four inserts
   ahead of it and for the eight voices behind them.
+- **REQ-the-auto-pan-reads-a-stereo-input** — (v11) **`synthPan`'s input is
+  forced to two channels.** REQ-pan-sweeps-a-stereo-panner's last sentence was
+  true only while the reverb was *on*. A `StereoPannerNode` passes a **stereo**
+  input through untouched at centre but applies the **equal-power** law to a
+  **mono** one, and with the reverb bypassed ([ADR-012](../decisions/adr-012-true-bypass-disconnects.md)
+  disconnects its wet edge, so nothing upstream supplies a second channel) the
+  synth channel arrived mono — measured at exactly **3.01 dB** down, ratio
+  0.7075, on a held note with the reverb off against the same note with the
+  reverb on and its mix at 0. Switching the reverb on therefore also made the
+  dry synth 3 dB louder, and changed the sweep from a point source to a stereo
+  fold. One node's channel count decided the level of the whole channel.
+
+  `forceStereo` (`src/audio/stereo.ts`) pins `synthPan` to `channelCount 2`,
+  `channelCountMode 'explicit'`, `channelInterpretation 'speakers'`, so a mono
+  input up-mixes to `L = R = x` and passes at unity whatever is upstream. The
+  reverb-on path is unchanged (it was already 2-channel); the reverb-off path
+  gains the 3 dB it should always have had, and the sweep uses one law
+  everywhere. This is what lets [sequencer](sequencer.md)
+  REQ-the-spread-stage-engages-off-centre splice per-track pan in and out without
+  the level moving. The same helper is what the sampler's per-slot pan already
+  did by hand ([sampler](sampler.md) REQ-each-slot-has-a-channel).
 - **REQ-amplitude-destinations-are-smoothed** — (v2) The **amplitude-domain**
   destinations (`amp`, `pan`) — and, from v4, the coefficient-domain `shape`
   (REQ-shape-destination-sweeps-the-pole-mix) — are fed through a shared
@@ -368,6 +393,14 @@ Scenario: Amount is clamped at full (edge)
   Given a summed amount of 1.3 reaches the LFO
   Then the depth used is the full-scale value, not 1.3x it
 # pinned by: tests/audio/lfo.test.ts
+
+Scenario: The synth channel's level does not depend on the reverb (v11, regression, REQ-the-auto-pan-reads-a-stereo-input)
+  Given a held note with the synth reverb bypassed
+  And the same held note with the reverb on and its mix at 0
+  Then the two render at the same level
+  And before v11 the bypassed one was 3.01 dB quieter, because synthPan
+    applied the equal-power law to a mono input
+# pinned by: tests/audio/engine-stereo.test.ts (channel config), and by ear per ADR-010
 
 Scenario: Selecting pan drives the synth bus panner
   Given lfo.dest is set to "pan" and lfo.amount is 1

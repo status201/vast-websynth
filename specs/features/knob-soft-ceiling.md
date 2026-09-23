@@ -3,7 +3,9 @@
 ```yaml
 id: knob-soft-ceiling
 status: implemented
-version: 2                      # v2: the dead region is marked, not left bare (REQ-capped-region-is-marked)
+version: 3                      # v3: KnobOptions.inline — a row layout for a knob that has to sit
+                                #     inside a control row (sequencer.md REQ-the-pan-knob-costs-the-row-no-height)
+                                # v2: the dead region is marked, not left bare (REQ-capped-region-is-marked)
 owner: core
 related:
   - architecture
@@ -111,6 +113,8 @@ KnobOptions:                    # src/ui/components/knob.ts
   label?: string
   size?: number
   uiMax?: number                # NEW — soft ceiling, in param units
+  inline?: boolean              # row layout instead of a column, and a `title`
+                                # (sequencer.md REQ-a-seq-track-carries-a-pan)
 
 Knob:
   setUiMax(max: number | null): void   # NEW — set/clear, repaints immediately

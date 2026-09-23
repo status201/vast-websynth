@@ -3,7 +3,9 @@
 ```yaml
 id: verify-audio-by-ear
 status: implemented
-version: 2  # v2: the mono-down-mix gotcha — per-channel checks miss stereo
+version: 3  # v3: a StereoPanner's law is chosen by its INPUT channel count, and
+            #     beating hides a 3 dB effect — both from ADR-023
+            # v2: the mono-down-mix gotcha — per-channel checks miss stereo
             #     decorrelation, and pure tones do not reproduce it
 owner: core
 related:
@@ -169,6 +171,19 @@ cannot come back silently. The render finds it; the unit test keeps it found.
   every bin, so per-channel processing happens to agree. Reach for broadband
   material with an independent per-channel component, and confirm the test fails
   against the bug before trusting it.
+- **(v3) A `StereoPannerNode` has two laws, and its INPUT's channel count picks
+  one.** Mono in gets *equal power* (`cos/sin`, centre 3.01 dB down, constant
+  power across the sweep); stereo in gets the *fold* (centre is a passthrough,
+  hard left is `L + R` on one side). Neither is wrong; using the one you did not
+  mean is. Both halves of ADR-023 were found this way and neither was visible to
+  a test: `synthPan` fed mono ran the whole synth channel 3.01 dB quiet whenever
+  the reverb was off (**−40.03 dB against −37.02**, ratio 0.7075), and a voice
+  panner fed stereo put **+1.34 dB** of mix power into one hard-panned track — a
+  pan knob that was also a volume knob. **Check a pan by rendering it centred and
+  hard over, and comparing total power, not just the L/R split.** Kill the
+  beating first (`--set osc2.level=0`): two detuned oscillators move the RMS of a
+  1.5 s window by ~1 dB run to run, which is enough to hide a 3 dB effect — the
+  first measurement of this bug read 2.3 dB and looked like noise.
 - **When the pinned browser cannot be downloaded**, `--channel chrome` renders
   through an installed Chrome. It covers the Blink half only, so a change to
   `AudioParam` automation still owes a Gecko take before it is signed off — see
