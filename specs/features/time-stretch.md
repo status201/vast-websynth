@@ -378,6 +378,8 @@ Scenario: The fit's Undo does not overwrite a newer clip (v3, REQ-the-quick-fit-
 
 - Unit: `tests/audio/fft.test.ts`, `tests/audio/time-stretch.test.ts`,
   `tests/audio/recorder/offline-render.test.ts` — `npm test`
+- Panel: `tests/ui/sampler-panel.test.ts` — FIT's Undo reverts only its own fit
+  (v3, REQ-the-quick-fit-is-reversible).
 - In-app copy: `tests/ui/help-content.test.ts` — the `sampler` and
   `sampler.pitch` topics. Help text has no other gate, so what the app *claims*
   about this feature is pinned like any other contract.

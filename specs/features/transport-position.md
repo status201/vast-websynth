@@ -114,7 +114,7 @@ counter silently desynchronises all four.
   the table in *Technical design*. Specifically: the arrangement re-seeks its
   four lanes from `floor(step / SEQ_LENGTH)` and re-arms `expectFirstBar`; the
   sequencer releases held notes and clears `prevTied` per track; the motion
-  machine drops its `prev`/`curr` latch pair **without** restoring baselines;
+  machine empties its tick latch (motion-sequencer v18: a ring) **without** restoring baselines;
   and `Performance` re-anchors stutter. The drum and sampler machines hold no
   position state and need nothing.
 
@@ -355,7 +355,7 @@ playheadRulerFor(engine, lane, gate?): PlayheadRuler      # src/ui/panels/step-p
 | --- | --- | --- |
 | `Arrangement` | `seqPos`/`drumPos`/`samplerPos`/`motionPos` advance `+1` per bar line and are never derived from `clock.step`, so a jump leaves the chain off by (bars jumped − 1) — plus a spurious double-advance when the jump lands exactly on a bar line. | `seekTo(step)`: `laneSeek` per lane, `expectFirstBar = step % SEQ_LENGTH === 0`, `recompute()`, `notify()`. |
 | `StepSequencer` | Per-track `prevTied` / `lastPlayedNote`: a note tied at the old position slurs into the new one, or a held note is never released. | Release every track's held note **at that track's last gate end** (v6) and clear `prevTied`. Releasing *now* was overwritten by a note-on still in the look-ahead, which hung the voice — deterministically on a loop wrap ([sequencer](sequencer.md) REQ-a-seek-releases-every-tracks-note). Subscribed inside the constructor so the release stays private. |
-| `MotionMachine` | `prev`/`curr` become non-adjacent, so the frame loop interpolates from a stale anchor for up to `scheduleAheadS` — an audible param glide to the wrong value. | `curr = prev = null` only. **Not** `restoreBaselines()` (REQ-motion-baselines-survive-a-seek). |
+| `MotionMachine` | the latched cells before and after the jump are no longer adjacent, so the frame loop interpolates from a stale anchor for up to `scheduleAheadS` — an audible param glide to the wrong value. | empty the latch only. **Not** `restoreBaselines()` (REQ-motion-baselines-survive-a-seek). |
 | `Performance` | `mapStep` returns `anchor + ((step - anchor) mod n)`, so with stutter engaged a jump is clamped into the *old* window and a backwards jump replays it forever. | Re-anchor to the new step while stutter is on. |
 | `DrumMachine`, `SamplerMachine` | none — stateless per tick. | none. |
 

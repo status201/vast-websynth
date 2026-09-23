@@ -567,6 +567,9 @@ Scenario: - and = shift the octave; the bare arrows do not (v17, REQ-octave-shif
   and REQ-one-module-owns-the-midi-access's sole ownership of `onmidimessage`, driven through `initMIDI`
   against `tests/audio/fake-midi-access.ts`).
 - `tests/audio/sustain-pedal.test.ts` (the CC64 deferral state machine, REQ-the-sustain-pedal-is-midi-layer).
+- `tests/ui/shortcuts.test.ts` — every global key, including v17's octave on `-`/`=`
+  (REQ-octave-shift-is-minus-and-equal) and the shortcuts standing down under a modal
+  (REQ-shortcuts-yield-to-an-open-modal); `tests/ui/modal.test.ts` for the stack it asks.
 - `npm run e2e` / `npm test` / `npm run typecheck`.
 
 ## Open questions / future

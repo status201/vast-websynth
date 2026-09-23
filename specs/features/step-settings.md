@@ -239,10 +239,13 @@ control the way the unipolar sliders' percentage does.
 The arrow keys are **scoped by focus, not by tab**: the slider is `tabindex="0"` and
 its own `keydown` handler calls `preventDefault()` *and* `stopPropagation()`.
 `shortcuts.ts` binds its global keys on `window` in the **bubble** phase and guards
-only `isEditableTarget`, so an unstopped bare arrow would *also* shift the playable
-keyboard's octave — one gesture, two outcomes, which
-[ADR-014](../decisions/adr-014-dont-make-me-think.md) law 2 forbids. Stopping
-propagation at the element keeps the fix local: `shortcuts.ts` is not modified.
+only `isEditableTarget`, so an unstopped Shift+arrow would *also* move the playhead
+a bar ([transport-position](transport-position.md) REQ-home-and-shift-arrows-seek) — one
+gesture, two outcomes, which [ADR-014](../decisions/adr-014-dont-make-me-think.md)
+law 2 forbids. (Until [input-control](input-control.md) v17 a *bare* arrow shifted
+the playable keyboard's octave too; that moved to `-` / `=`.) Stopping propagation
+at the element keeps the rule local to the control that owns the keys — the same
+one every focused knob now follows ([knob-keyboard-access](knob-keyboard-access.md)).
 `Home` is deliberately left alone — it is the transport's seek-to-top
 ([transport-position](transport-position.md)).
 
@@ -348,7 +351,7 @@ Scenario: A legacy song has no micro and loads at 0 (v3, REQ-a-step-carries-a-mi
   And re-exporting it emits no micro key at all
 # pinned by: tests/state/patterns.test.ts, tests/state/song.test.ts
 
-Scenario: The Micro slider takes arrow keys without moving the octave (v3, REQ-an-early-offset-is-capped-in-seconds)
+Scenario: The Micro slider takes arrow keys without reaching the global shortcuts (v3, REQ-an-early-offset-is-capped-in-seconds)
   Given the Micro slider has focus and the step's micro is 0
   When the right arrow key is pressed
   Then micro becomes +1

@@ -85,8 +85,8 @@ is that rule's real home; REQ-ui-icons-are-self-stroking there now references it
   arrows in help prose, and the `↔` in "dark ↔ bright".
 
   The test: **could the reader click it?** A glyph standing in for something on
-  screen is an icon even when it appears mid-sentence — help copy that says "the
-  `←` / `→` arrow keys shift octave" is naming two keys, and draws icons.
+  screen is an icon even when it appears mid-sentence — help copy that says
+  "`Shift` + `←` / `→` moves a bar" is naming two keys, and draws icons.
 
 - **REQ-an-icon-is-aria-hidden** — **An icon is `aria-hidden`; the control
   carries the name.** Three cases, and the third is the one that gets forgotten:

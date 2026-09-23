@@ -898,8 +898,9 @@ export const HELP_TOPICS: Record<TopicId, HelpTopic> = {
       'it like any sample: put it on the sampler grid, retune it, or re-open it with ' +
       g('edit', 'Edit') + '.</p>' +
       '<p><strong>Button greyed out?</strong> Either the bank has no steps yet (there would be ' +
-      'nothing to record), or the synth is slaved to an external MIDI clock — it needs to own the ' +
-      'tempo to cut the bar exactly.</p>' +
+      'nothing to record), a recording or song export is running (both need the transport), or ' +
+      'the synth is slaved to an external MIDI clock — it needs to own the tempo to cut the bar ' +
+      'exactly.</p>' +
       '<p>The recorded audio is <em>not</em> saved inside a song file (only the slot name is), the ' +
       'same as any loaded sample. Render it again after loading, or save it to disk from the ' +
       'slot’s ' + g('edit', 'Edit') + ' editor.</p>',
@@ -1242,7 +1243,11 @@ export const HELP_TOPICS: Record<TopicId, HelpTopic> = {
       'and punch back in.</p>' +
       '<p><strong>Stop</strong> ends the take but writes nothing yet: you then choose ' +
       '<strong>Save</strong> or <strong>Discard</strong>, so a fluffed take never lands in your ' +
-      'downloads. Closing the window with a take still unsaved asks first.</p>' +
+      'downloads. Closing the window with a take still unsaved asks first. If a save fails — an ' +
+      'MP3 while you are offline, say — the take stays put, so you can try again or save it as ' +
+      'WAV.</p>' +
+      '<p>Record is greyed out while a render to the sampler runs; both need the transport, and ' +
+      'it frees up by itself a few seconds later.</p>' +
       '<p>Use it to grab a jam; use <strong>Export Song</strong> for a clean, automatic render of ' +
       'the whole arrangement.</p>',
   },

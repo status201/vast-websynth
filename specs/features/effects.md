@@ -647,7 +647,9 @@ Scenario: Drive 0 stays an exact no-op after bucketing (REQ-drive-curves-are-buc
   ADR-012), `tests/audio/effects/reverb.test.ts` (the lazy/shared IR bank),
   `tests/audio/drive-curve.test.ts` (bucketed curve cache),
   `tests/audio/effects/fx-cost.test.ts` (perf-tier caps), `e2e/controls.spec.ts`,
-  `tests/audio/fx-tempo-lock.test.ts` + `e2e/fx-tempo-lock.spec.ts` (v6, REQ-wah-phaser-and-delay-can-be-tempo-locked).
+  `tests/audio/fx-tempo-lock.test.ts` + `e2e/fx-tempo-lock.spec.ts` (v6, REQ-wah-phaser-and-delay-can-be-tempo-locked),
+  `tests/audio/effects/phaser.test.ts` (v13, REQ-the-phaser-sweeps-in-cents — and the phaser's sound
+  change was verified by ear, ADR-010).
 - `npm test` / `npm run e2e`.
 
 ## Open questions / future

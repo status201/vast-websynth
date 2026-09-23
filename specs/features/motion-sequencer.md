@@ -902,7 +902,7 @@ gesture; it is the state the gesture starts from.
   deactivation restores baselines), `setSlide(on)` (the XY lane) and
   `setTrackSlide(track, on)` (v5 — one mode per extra track), `onStep(cb)` (playhead),
   `stop()` restore hook via `clock.onStop`, plus a `clock.onSeek` hook that clears
-  the `prev`/`curr` latch **without** touching the baselines (v10, REQ-a-seek-clears-the-tick-latch).
+  the tick latch (a ring of latched cells since v18) **without** touching the baselines (v10, REQ-a-seek-clears-the-tick-latch).
   (v16) One more piece of latch state, `held` — the bank whose writes are live, or
   `-1` while resting and before the first frame — drives REQ-a-bank-parks-at-its-last-anchor's handover park.
   It is cleared wherever the latch is (`onStart`, `onSeek`) and by every baseline

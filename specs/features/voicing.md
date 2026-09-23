@@ -292,6 +292,8 @@ Scenario: A key held as the arp comes on still releases (v8, REQ-passthrough-rem
 
 - `tests/state/params.test.ts`, `tests/state/preset.test.ts`, `e2e/controls.spec.ts`.
 - REQ-a-stolen-voice-leaves-the-held-list stealing/eviction: `tests/audio/polyphony.test.ts`.
+- REQ-passthrough-remembers-what-it-played: `tests/audio/engine-scale.test.ts`, against the production
+  `Engine.handleNote` — including v8's release of a key held as the arp comes on.
 - `npm test` / `npm run e2e`.
 - **Verified by ear (REQ-a-stolen-voice-leaves-the-held-list)**, which is the part the tests cannot do
   ([ADR-010](../decisions/adr-010-musical-stable-cheap-dsp.md)): a nine-note

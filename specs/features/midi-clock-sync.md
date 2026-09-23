@@ -133,7 +133,8 @@ clauses noted inline. The `SyncMessage` union grows two variants (`tempo`,
   `continue` while playing; `enable()` mid-play calls `announceTo(broadcast)`
   instead of v1's bare `start` (supersedes REQ-master-broadcasts-start-and-stop's mid-play `start`).
   **Slave:** `songposition` stores `pendingBeat`; `start` sets `pendingBeat = 0`
-  and starts at 0 (v1 behaviour); `continue` calls `clock.start(pendingBeat)`.
+  and starts at 0 (v1 behaviour); `continue` starts at `pendingBeat` (v8: on the join's
+  first pulse, and in place when already following — REQ-a-join-is-timed-by-its-first-pulse).
   `resetFollowState(startStep)` records `startStep`, and the phase-step mapping
   becomes `startStep + pulse/6` (v1 hardcoded pulse 0 ↔ step 0; masked
   `& 0xffff` until [transport](transport.md) REQ-the-step-counter-is-bounded-at-ingress removed the wrap).
@@ -224,7 +225,8 @@ error than the one being fixed.
   join's first-step time rather than from the message's arrival; a following
   slave's in-place jump needs none — REQ-a-following-slave-jumps-in-place.)
   After a slave (re)start (`start`/`continue`), pulses are **ignored wholesale** for
-  `startSettleBaseMs (300) + 12 pulse intervals` past the message's arrival —
+  `startSettleBaseMs (300) + 12 pulse intervals` past the join's first step (v8; it
+  was the message's arrival) —
   covering the possible in-flight scheduled span (`idleHorizonMs` after a Start;
   look-ahead + one 12-pulse batch after a continue-join) plus delivery jitter.
   Only stall bookkeeping still runs (a settling pulse proves the wire is alive).
@@ -550,10 +552,14 @@ MidiSyncTransport(access) implements SyncTransport:
 Clock.nudge(seconds): void        # nextStepTime += clamp(s, ±0.05); no-op stopped
 # v5 note: Clock.seek/onSeek (transport.md REQ-seek-moves-a-running-clock) is a *local* user gesture, not a
 # sync primitive. A slave refuses it (REQ-a-slave-refuses-to-seek-locally); a master announces it (REQ-a-midi-master-announces-its-seek).
-# It is NOT how incoming songposition is applied — that still goes through
-# restart -> clock.start(pendingBeat), which must reset the follow state (REQ-song-position-pointer-jumps-the-slave).
-Clock.start(fromStep = 0): void   # v2: seeds _step = fromStep before firing onStart
-                                  # (clamped 0..MAX_STEP since transport.md REQ-the-step-counter-is-bounded-at-ingress)
+# It is NOT how incoming songposition is applied — that goes through the slave's join:
+# clock.start(pendingBeat, firstStepAt) when stopped, clock.seekAt(pendingBeat, at) when
+# already following (v8, REQ-a-join-is-timed-by-its-first-pulse / REQ-a-following-slave-jumps-in-place).
+Clock.start(fromStep = 0, firstStepAt?): void   # v2: seeds _step = fromStep before firing onStart
+                                  # (clamped 0..MAX_STEP since transport.md REQ-the-step-counter-is-bounded-at-ingress);
+                                  # v8: firstStepAt puts the first step on the join's first pulse
+Clock.seekAt(step, at): void      # v8: a jump on the unchanged grid at audio time `at` (transport.md REQ-a-jump-can-be-scheduled)
+Clock.nextStepAt: number          # v8: grid time of the next emitted step — what a master's join is timed against
 
 # src/ui/components/sync-section.ts
 buildSyncSection(sync: SyncController, rtc: WebRtcSyncTransport): HTMLElement  # v2: WiFi link button + links status
@@ -659,9 +665,9 @@ Scenario: Jittered pulses do not make the tempo flap (edge)
 # pinned by: tests/audio/transport/sync/bpm-estimator.test.ts, sync-slave.test.ts
 
 Scenario: Start while already playing realigns to step 0
-  Given a slave whose clock is already playing
-  When a 'start' message arrives
-  Then the clock restarts from step 0
+  Given a slave whose clock is already playing, following this master
+  When a 'start' message and its first pulse arrive
+  Then the clock jumps to step 0 on that pulse, on its unchanged grid (v8: in place, not a restart)
 # pinned by: tests/audio/transport/sync/sync-slave.test.ts
 
 Scenario: Pulse stall keeps the music playing (failure)
@@ -915,6 +921,11 @@ Scenario: A locally started slave still restarts on a join (v8, REQ-a-following-
   `tests/ui/{sync-section,knob}.test.ts` — `npm test`. The v2 WiFi transport,
   offset estimator, signaling codec and pair modal are tested under
   `webrtc-sync.md`.
+- End to end (v8): `tests/audio/transport/sync/sync-loopback.test.ts` — two real
+  Clocks, a real master and slave, and a wire that delivers like Web MIDI or like a
+  DataChannel. It is the only test that joins the two halves, and the one that
+  caught the loop-wrap and hardware-master offsets
+  (REQ-a-join-is-timed-by-its-first-pulse, REQ-a-following-slave-jumps-in-place).
 - E2E: `e2e/sync.spec.ts` (UI presence + persistence + WiFi status/link button;
   headless Chromium has no MIDI ports — which makes it the end-to-end proof of
   v4's armed state: selecting Slave there must leave the BPM knob live) —

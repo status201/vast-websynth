@@ -595,6 +595,9 @@ Scenario: The last file picked into a slot wins (v13, REQ-slots-are-filled-by-lo
   (WAV via `setInputFiles` + a Node-built fixture).
 - `tests/ui/clear-menu-sampler.test.ts` — REQ-clear-ejects-the-slot's row clear, its undo, and the
   bank clear that must *not* eject.
+- `tests/ui/sampler-panel.test.ts` — the real panel's asynchronous slot writes:
+  the last file picked wins (v13, REQ-slots-are-filled-by-load-or-record), and FIT's Undo
+  (time-stretch.md REQ-the-quick-fit-is-reversible).
 - `npm test` / `npm run e2e`.
 
 ## Open questions / future

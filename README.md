@@ -254,6 +254,7 @@ built `dist/`.
 - **F** (hold): drum fill
 - **Shift + R**: open / close the Record window
 - **Esc**: panic (all notes off)
+- While a **dialog** is open the keys are its own: Esc closes it (the top one, if two are stacked) and the shortcuts above wait until it closes
 - **?**: show / hide the info badges — the ⓘ markers that explain a control where
   it sits, rather than in a manual
 - **Playhead ruler**: the strip above every step grid — click a tick to move the
