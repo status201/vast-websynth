@@ -212,7 +212,7 @@ cannot come back silently. The render finds it; the unit test keeps it found.
   next one.
 - **The whole-song burst rate is the wrong instrument for a rare artefact.** It is
   a *rate*: one discontinuity a second is plainly visible against a sparse take
-  (Around renders at 34 bursts/s) and completely invisible against a dense one
+  (a sparse demo rendered at 34 bursts/s) and completely invisible against a dense one
   (Haçienda renders at 2330/s, so the wah defect of [effects](../features/effects.md)
   REQ-the-wah-lfo-sweeps-in-cents moved it by 26 — noise). When you are chasing something that fires once a
   cycle or once a toggle, build the smallest graph that contains it, feed it a

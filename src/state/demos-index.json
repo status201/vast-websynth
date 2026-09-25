@@ -63,6 +63,17 @@
       "drums"
     ]
   },
+  "Around_the_World.websynth.json": {
+    "name": "Around the World",
+    "bpm": 121,
+    "bars": 80,
+    "uses": [
+      "seq",
+      "drums",
+      "motion"
+    ],
+    "blurb": "The four sequencer tracks are the four instruments of the video — bass, the vocal, the guitar riff and the synth — playing one four-bar phrase, and motion lanes on the track mutes bring each part in and out, so the whole arrangement lives in the Motion card. Swing is at 27% for the lazy late 16ths of the pickups."
+  },
   "Blue_Monday.websynth.json": {
     "name": "Blue Monday",
     "bpm": 130,
@@ -268,16 +279,6 @@
     "uses": [
       "seq",
       "drums"
-    ]
-  },
-  "around_and_around.websynth.json": {
-    "name": "Around",
-    "bpm": 121,
-    "bars": 23,
-    "uses": [
-      "seq",
-      "drums",
-      "motion"
     ]
   },
   "fat.json": {

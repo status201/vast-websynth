@@ -64,7 +64,7 @@ describe('Wah sweeps in cents (effects.md REQ-the-wah-lfo-sweeps-in-cents)', () 
     expect(top / CENTER_HZ).toBeCloseTo(CENTER_HZ / bottom, 6); // symmetric in log f
   });
 
-  it('leaves the top of a stored sweep where it was (0.4 default, 0.18 in Around)', () => {
+  it('leaves the top of a stored sweep where it was (0.4 default, 0.18 shallow)', () => {
     const { wah, lfoDepth } = build();
     const topFor = (d: number) => {
       wah.setDepth(d);

@@ -68,7 +68,7 @@ describe('Phaser sweeps in cents (effects.md REQ-the-phaser-sweeps-in-cents)', (
   it('leaves the top of every stage where the linear mapping put it', () => {
     const { phaser, depths } = build();
 
-    // 0.5 is the synth default, 0.7 the drum/sampler one, 0.195 Around's.
+    // 0.5 is the synth default, 0.7 the drum/sampler one, 0.195 a shallow sweep.
     for (const d of [0.195, 0.5, 0.7, 1]) {
       phaser.setDepth(d);
       swings(depths).forEach((swing, i) => {

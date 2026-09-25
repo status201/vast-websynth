@@ -333,7 +333,7 @@ subsets, so a song can colour each bus independently.
 
   which is the cents equivalent of the old upward excursion. Only the bottom
   moves, from a dive toward 0 Hz to the symmetric reflection of the top:
-  at the default 0.4, `22 .. 1222 Hz` becomes `317 .. 1222 Hz`; at Around's 0.18,
+  at the default 0.4, `22 .. 1222 Hz` becomes `317 .. 1222 Hz`; at a shallow 0.18,
   `352 .. 892 Hz` becomes `434 .. 892 Hz`.
 
 - **REQ-the-phaser-sweeps-in-cents** (v13) — **The phaser's LFO sweeps each
@@ -366,7 +366,7 @@ subsets, so a song can colour each bus independently.
 
   Only the bottoms move, from a dive toward 0 Hz to the mirror of the top: the
   lowest stage at the default 0.5 goes from `-150 .. 1350 Hz` (clamped at 0) to
-  `267 .. 1350 Hz`; at Around's 0.195, from `308 .. 893 Hz` to `403 .. 893 Hz`.
+  `267 .. 1350 Hz`; at a shallow 0.195, from `308 .. 893 Hz` to `403 .. 893 Hz`.
   Depth 0 is still no sweep at all.
 
 
@@ -381,7 +381,7 @@ subsets, so a song can colour each bus independently.
 
   ```
                        enable            bypass
-  wah (Around's Q 3.9)  -13.0 / -15.5 dB  +19.0 / +18.6 dB   in 10-20 ms
+  wah (Q 3.9)          -13.0 / -15.5 dB  +19.0 / +18.6 dB   in 10-20 ms
   delay (mix 0.3)        -5.1 /  -1.1 dB   +6.8 /  +5.8 dB
                         Blink /  Gecko    Blink /  Gecko
   ```
