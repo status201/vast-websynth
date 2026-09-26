@@ -16,8 +16,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+## [2.15.0] - 2026-09-26
+
 ### Added
 
+- **Three new demo songs: `Around the World`, `Blue Monday` and `Sweet
+  Dreams`.** `Around the World` replaces the older `Around` demo — its four
+  sequencer tracks are the song's four instruments, with motion lanes on the
+  track mutes carrying the whole arrangement. `Blue Monday` lets the drum
+  machine carry the breaks over bars where the sequencer rests, and `Sweet
+  Dreams` runs the sequencer at 1/8 so every bank holds two bars.
 - **A PAN knob on every sequencer track**, beside its mute, so the four tracks
   spread across the stereo field instead of stacking in the middle. Centre is the
   default and changes nothing: a song that never pans keeps the graph, the mono
@@ -103,7 +111,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
   back on each late off-beat and leapt ahead on the next beat — so a filter
   sweep came out as a stepped sawtooth instead of a line. The sweep now follows
   the swung groove continuously, and a stepped anchor on an off-beat still lands
-  with its swung note. Ten demos swing a sliding lane and are affected, most of
+  with its swung note. Nine demos swing a sliding lane and are affected, most of
   all `Nocturne` and `Bunk`; songs without swing are unchanged.
 - **Letting go of Tape Stop early no longer lurches the tempo down first.** The
   recovery always restarted from the slowest speed, so releasing before the
@@ -2684,7 +2692,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
   in-app sample recorder/editor. See the git history prior to this changelog
   for the detailed evolution.
 
-[Unreleased]: https://github.com/status201/vast-websynth/compare/v2.14.1...HEAD
+[Unreleased]: https://github.com/status201/vast-websynth/compare/v2.15.0...HEAD
+[2.15.0]: https://github.com/status201/vast-websynth/compare/v2.14.1...v2.15.0
 [2.14.1]: https://github.com/status201/vast-websynth/compare/v2.14.0...v2.14.1
 [2.14.0]: https://github.com/status201/vast-websynth/compare/v2.13.0...v2.14.0
 [2.13.0]: https://github.com/status201/vast-websynth/compare/v2.12.0...v2.13.0
