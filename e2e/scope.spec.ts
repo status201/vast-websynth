@@ -282,7 +282,7 @@ test.describe('scope mono/stereo', () => {
 
 /**
  * The resize handle (scope.md REQ-a-scope-resize-handle/REQ-the-scope-height-persists).
- * It drags the shared bottom grid row,
+ * It drags the shared bottom row (the scope row's minimum since scope v18),
  * so the PITCH/OCT/MOD wheel strips grow with the scope — that shared row is the
  * whole mechanism, and the strip assertion is what pins it.
  */

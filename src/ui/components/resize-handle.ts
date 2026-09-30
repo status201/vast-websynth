@@ -6,7 +6,7 @@ import { LONG_DOUBLE_TAP_MS as DOUBLE_TAP_MS } from './gesture-timing';
  *
  * Deliberately generic: it writes a CSS custom property on a target element and
  * reports commits. It knows nothing about what it is resizing, so the layout
- * rule lives in CSS (`grid-template-rows: var(--scope-h, 130px) …`) and the
+ * rule lives in CSS (`min-height: var(--scope-h, 130px)` on the scope row) and the
  * default stays expressed there — an app with no stored value, or with storage
  * unavailable, renders exactly as it always did.
  *

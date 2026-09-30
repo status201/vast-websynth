@@ -3,7 +3,10 @@
 ```yaml
 id: scope
 status: implemented          # draft | active | implemented
-version: 17  # v17: the stereo-sources list goes from three to five — it had never gained the
+version: 18  # v18: the scope row's height is now a MINIMUM (REQ-a-scope-resize-handle): .bottom is a flex column and
+             #      the scope takes the spare height a capped keyboard cannot use (keyboard-range.md
+             #      REQ-spare-height-goes-to-the-scope).
+             # v17: v17: the stereo-sources list goes from three to five — it had never gained the
              #      sampler's per-slot pans, and the sequencer's per-track pans are new (sequencer.md)
              # v16: the loop stopped AGAIN (REQ-the-scope-proves-it-is-painting..38). v12 made start() restartable
              #      but left every trigger for it event-driven and ONE-SHOT, and
@@ -177,9 +180,12 @@ to guess which event the platform will send.
 
 Where the extra space comes from is a question the layout had already answered
 before this feature existed: `.app`'s bottom row is `1fr` under a `100dvh`
-`min-height`, and `.bottom` floors the keyboard at `minmax(160px, 1fr)`. So a
-growing scope consumes the keyboard's slack first, stops at the keyboard's floor,
-and only then does the page scroll. The keyboard is never squeezed out of reach.
+`min-height`, and the keyboard below the scope has a floor. So a growing scope
+consumes the keyboard's slack first, stops at the keyboard's floor, and only then
+does the page scroll. The keyboard is never squeezed out of reach. (v18: the
+keyboard also has a *cap* now — keyboard-range.md REQ-key-height-follows-key-width
+— and spare height past it comes to the scope, so the scope can stand taller than
+its handle says; REQ-a-scope-resize-handle.)
 
 **A spectrum you can read a frequency off (v13).** The Spectrum view had no
 frequency reference of any kind — you could see a bump but not *where* it was, so
@@ -376,20 +382,29 @@ Two consequences worth naming up front, because they are visible:
   performs no per-frame attribute write.
 - **REQ-a-scope-resize-handle** (v11) — A **resize handle**
   (`data-testid="scope-resize-handle"`) sits on the scope panel's **top edge**.
-  Dragging it vertically resizes the shared bottom grid row between
+  Dragging it vertically resizes the shared bottom row between
   `SCOPE_H_MIN` (130 px, the pre-v11 fixed height) and `SCOPE_H_MAX` (260 px,
   exactly twice it), by writing a single CSS custom property `--scope-h` as an
-  inline style on the `.bottom` element; `.bottom`'s first grid track is
-  `var(--scope-h, 130px)`, so the **default is still expressed in CSS** and the
+  inline style on the `.bottom` element; the scope row (`.bottomTop`) takes
+  `min-height: var(--scope-h, 130px)`, so the **default is still expressed in CSS** and the
   app renders identically when nothing has been dragged and when storage is
   unavailable. Because the wheel strips share that row, they resize with the
   scope — this is a consequence of the row, not separate code.
   - (v15) The EQUALIZER section's graph reads `--scope-h` too
     ([equalizer](equalizer.md) REQ-the-eq-page-mirrors-the-scope-row), so the grip now sizes **two** panels. It
     is a different row of the same grid and is not part of this one's track — the
-    first track is still `var(--scope-h, 130px)` and this handle still writes only
+    scope row still reads `var(--scope-h, 130px)` and this handle still writes only
     that property. What the EQ borrows is the *number*, so the two panels cannot
-    be resized out of alignment with each other. The handle is a **sibling of the canvas**
+    be resized out of alignment with each other.
+  - (v18) **The dragged height is the scope's minimum, not its height.** While
+    the keyboard below is at its cap (keyboard-range.md
+    REQ-key-height-follows-key-width) the spare height comes to the scope
+    (REQ-spare-height-goes-to-the-scope there), so the scope can stand taller
+    than `--scope-h`, and a drag smaller shows nothing until that spare is used
+    up. The EQ graph keeps the dragged height — it borrows the number, not the
+    rendered row. With no spare, which is every default layout up to 2560px wide,
+    the drag behaves exactly as before.
+  The handle is a **sibling of the canvas**
   (appended to `.scopeWrap`, like the two corner toggle buttons), so a press on it can
   never reach the canvas `click` listener and reset the peak-hold (REQ-clicking-the-graph-resets-the-peak) — the same
   structural dodge, with no `stopPropagation`. `Scope` itself is **not modified**: the
@@ -949,9 +964,12 @@ SCOPE_H_DEFAULT: 130   # px, == MIN
 SCOPE_H_STEP: 8        # px, arrow-key increment
 DOUBLE_TAP_MS: 350     # ms window for the hand-rolled double-tap
 
-# .bottom  grid-template-rows: var(--scope-h, 130px) minmax(160px, 1fr)
-#            row 1 = .bottomTop (wheels 120px | scope 1fr)  <- the resized row
-#            row 2 = keyboard, floored at 160px
+# .bottom  flex column (v18; a grid before):
+#            .bottomTop (wheels 120px | scope 1fr)  flex 1 1 0, min-height var(--scope-h, 130px)
+#                                                    <- the resized row; a MINIMUM since v18
+#            EQ section                              auto
+#            keyboard  flex 1000 1 0, floored at 160px, capped by key width
+#                      (keyboard-range.md REQ-key-height-follows-key-width)
 # drag: h = clamp(startH + (startY - clientY), MIN, MAX)    # up = taller
 # clampScopeHeight(px) = Number.isFinite(px) ? min(max(round(px), MIN), MAX) : DEFAULT
 ```
@@ -1023,7 +1041,8 @@ DOUBLE_TAP_MS: 350     # ms window for the hand-rolled double-tap
   (`?? 48000`) because the unit suites' analyser stubs carry no `context`.
 - **`ResizeHandle` + `buildBottom`** own the resize (v11), and **nothing else does**.
   `layout.module.css` changes one declaration — `.bottom`'s first grid track becomes
-  `var(--scope-h, 130px)`. `buildBottom` reads `readScopeHeight()`, sets `--scope-h`
+  `var(--scope-h, 130px)` (since v18 the scope row's `min-height`; `.bottom` is a
+  flex column). `buildBottom` reads `readScopeHeight()`, sets `--scope-h`
   on the `.bottom` element *before* it is mounted (REQ-the-scope-height-persists: no first-paint jump), and
   appends a `ResizeHandle` to `.scopeWrap` after the two toggle buttons, with
   `onCommit: writeScopeHeight`. The handle is returned alongside the `Scope` so its

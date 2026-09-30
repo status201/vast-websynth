@@ -1,6 +1,7 @@
 import styles from '../styles/keyboard.module.css';
 import { type KeyState, keyRole } from '../key-roles';
 import type { ParamBus } from '../../state/params';
+import { type KeyboardRange, WHITES_PER_OCTAVE } from '../keyboard-range';
 
 const WHITE_OFFSETS = [0, 2, 4, 5, 7, 9, 11];          // C D E F G A B
 const BLACK_OFFSETS: Array<{ semi: number; whiteIdx: number }> = [
@@ -13,10 +14,9 @@ const BLACK_OFFSETS: Array<{ semi: number; whiteIdx: number }> = [
 
 const NOTE_NAMES = ['C', 'C#', 'D', 'D#', 'E', 'F', 'F#', 'G', 'G#', 'A', 'A#', 'B'];
 
-export interface KeyboardOptions {
+/** The drawn range defaults to C3–B5 (3 octaves from octave 3). */
+export interface KeyboardOptions extends Partial<KeyboardRange> {
   bus: ParamBus;
-  startOctave?: number;  // octave of first white key; default 3 → C3
-  octaves?: number;      // default 3
 }
 
 /** A key currently carrying one of the lit classes, remembered as the ELEMENT it
@@ -37,22 +37,77 @@ export class Keyboard {
   private readonly litSeq: Map<number, LitKey> = new Map();
   private readonly bus: ParamBus;
   private _transpose = 0;
-  private readonly labelKeys: HTMLElement[] = [];
+  private labelKeys: HTMLElement[] = [];
+  private range: KeyboardRange;
+  /** The last `setKeyRoles` state, re-applied when a rebuild replaces the keys
+   *  (keyboard-range.md REQ-a-rebuild-strands-nothing). */
+  private roles: KeyState | null = null;
 
   constructor(opts: KeyboardOptions) {
     this.bus = opts.bus;
-    const startOct = opts.startOctave ?? 3;
-    const octaves = opts.octaves ?? 3;
+    this.range = { startOctave: opts.startOctave ?? 3, octaves: opts.octaves ?? 3 };
 
     this.el = document.createElement('div');
     this.el.className = styles.root!;
+    this.build();
 
-    const totalWhites = octaves * 7;
+    this.el.addEventListener('pointerdown', this.onPointerDown);
+    this.el.addEventListener('pointermove', this.onPointerMove);
+    this.el.addEventListener('pointerup', this.onPointerUp);
+    this.el.addEventListener('pointercancel', this.onPointerUp);
+    this.el.addEventListener('pointerleave', this.onPointerUp);
+    this.el.addEventListener('contextmenu', (e) => e.preventDefault());
+
+    // Moving OCT re-points the note→element mapping under everything currently
+    // lit or held. Nothing needs clearing: lit keys remember their element and
+    // pointer holds remember the note they sounded (REQ-a-lit-key-is-remembered-as-an-element/REQ-a-note-off-names-the-pressed-note), so every
+    // pending release still lands on what it took. Only the labels move.
+    opts.bus.subscribe('keyboard.transpose', (v) => {
+      this._transpose = Math.round(v);
+      this.updateLabels();
+    });
+  }
+
+  /**
+   * Redraw the keys for another octave range — the width-driven range of
+   * keyboard-range.md. A no-op when the range is unchanged
+   * (REQ-a-resize-rebuilds-only-on-a-change), and it strands nothing
+   * (REQ-a-rebuild-strands-nothing): pointer holds are released while their
+   * element still exists, lit keys move onto the element that now sounds their
+   * note, and roles + labels are re-applied.
+   */
+  setRange(range: KeyboardRange): void {
+    if (range.startOctave === this.range.startOctave && range.octaves === this.range.octaves) return;
+    for (const id of [...this.activeByPointer.keys()]) this.releasePointer(id);
+    this.range = { ...range };
+    this.build();
+    for (const [lit, cls] of [[this.litActive, 'active'], [this.litSeq, 'seq']] as const) {
+      for (const [note, held] of lit) {
+        const el = this.keyFor(note);
+        // Off the new board: keep the entry (and its refcount) on the detached
+        // element, so the light-off still has something to land on.
+        if (!el) continue;
+        el.classList.add(cls);
+        held.el = el;
+      }
+    }
+    if (this.roles) this.setKeyRoles(this.roles);
+    this.updateLabels();
+  }
+
+  /** (Re)create every key for `this.range`, replacing whatever was drawn. */
+  private build(): void {
+    const { startOctave: startOct, octaves } = this.range;
+    this.el.replaceChildren();
+    this.keys.clear();
+    this.labelKeys = [];
+
+    const totalWhites = octaves * WHITES_PER_OCTAVE;
 
     // White keys
     for (let i = 0; i < totalWhites; i++) {
-      const oct = startOct + Math.floor(i / 7);
-      const wIdxInOct = i % 7;
+      const oct = startOct + Math.floor(i / WHITES_PER_OCTAVE);
+      const wIdxInOct = i % WHITES_PER_OCTAVE;
       const midi = (oct + 1) * 12 + (WHITE_OFFSETS[wIdxInOct] ?? 0);
       const key = document.createElement('div');
       key.className = `${styles.key!} ${styles.white!}`;
@@ -81,7 +136,7 @@ export class Keyboard {
         key.dataset.note = String(midi);
         key.style.pointerEvents = 'auto';
         // Position: place over the right edge of white key at column (o*7 + whiteIdx)
-        const col = o * 7 + whiteIdx;
+        const col = o * WHITES_PER_OCTAVE + whiteIdx;
         const widthPct = 100 / totalWhites;
         key.style.left = `calc(${(col + 1) * widthPct}% - ${(widthPct * 0.6) / 2}%)`;
         key.style.width = `${widthPct * 0.6}%`;
@@ -89,22 +144,6 @@ export class Keyboard {
         blackOverlay.appendChild(key);
       }
     }
-
-    this.el.addEventListener('pointerdown', this.onPointerDown);
-    this.el.addEventListener('pointermove', this.onPointerMove);
-    this.el.addEventListener('pointerup', this.onPointerUp);
-    this.el.addEventListener('pointercancel', this.onPointerUp);
-    this.el.addEventListener('pointerleave', this.onPointerUp);
-    this.el.addEventListener('contextmenu', (e) => e.preventDefault());
-
-    // Moving OCT re-points the note→element mapping under everything currently
-    // lit or held. Nothing needs clearing: lit keys remember their element and
-    // pointer holds remember the note they sounded (REQ-a-lit-key-is-remembered-as-an-element/REQ-a-note-off-names-the-pressed-note), so every
-    // pending release still lands on what it took. Only the labels move.
-    opts.bus.subscribe('keyboard.transpose', (v) => {
-      this._transpose = Math.round(v);
-      this.updateLabels();
-    });
   }
 
   private tr(note: number): number {
@@ -232,6 +271,7 @@ export class Keyboard {
    * that IS its sounding pitch class: an OCT change needs no repaint at all.
    */
   setKeyRoles(state: KeyState | null): void {
+    this.roles = state;
     for (const [midi, el] of this.keys) {
       const role = state ? keyRole(midi % 12, state) : 'out';
       // `out` is written as *no* attribute, where the KEY tab's map draws it as a

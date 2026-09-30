@@ -7,7 +7,7 @@ import { gotoAndStart, busSet } from './helpers';
  *
  * Everything here is *rendered geometry*, which is why it lives in Playwright
  * and not jsdom: `.quad` / `.quint` / `.hex` are CSS grids whose column count
- * changes at 1280px and 1630px, and the claim under test is the resulting row
+ * changes at 1280px, 1630px, 2561px and 3200px, and the claim under test is the resulting row
  * shape, not the class name. Panels carry no testid (`createPanel`'s third
  * argument is a help id), so rows are recovered from the knob testids — stable,
  * specced ids — grouped by their shared `offsetTop`.
@@ -233,6 +233,89 @@ test.describe('responsive synth panels', () => {
     expect(await shapeAt(page, 1630, PANELS.filter)).toEqual([3, 3]);
     expect(await shapeAt(page, 1280, PANELS.filter)).toEqual([3, 3]);
   });
+
+  // REQ-ultrawide-panels-are-one-row: past 2560px the panels keep growing, so every knob group spreads
+  // evenly and goes to one row once a row of boxes fits — FILTER's six last.
+  test('an ultrawide lays each panel on one even row', async ({ page }) => {
+    await page.setViewportSize({ width: 2560, height: 1440 });
+    await gotoAndStart(page);
+
+    /** space-evenly: equal free space either side of every knob, the row's own
+     *  4px gap on top of the space between (the tablet test's measure). ±1.5px:
+     *  offsetLeft rounds each edge to a whole pixel, and the difference of two
+     *  rounded distances can land a pixel either side. */
+    const expectSpread = (row: KnobBox[], where: string) => {
+      const lead = row[0]!.left - row[0]!.rowLeft;
+      const between = row[1]!.left - (row[0]!.left + row[0]!.width);
+      expect(lead, `${where}: spread, not clustered`).toBeGreaterThan(4);
+      expect(Math.abs(between - lead - 4), `${where}: evenly`).toBeLessThanOrEqual(1.5);
+    };
+
+    // 2560 is untouched: the 1630px shapes.
+    expect(await shapeAt(page, 2560, PANELS.subuni)).toEqual([2, 2]);
+    expect(await shapeAt(page, 2560, PANELS.filterenv)).toEqual([2, 1, 2]);
+    expect(await shapeAt(page, 2560, PANELS.filter)).toEqual([3, 3]);
+
+    // Between the steps: everything that fits is one row; FILTER's six do not yet.
+    for (const width of [2800, 3199]) {
+      await page.setViewportSize({ width, height: 1440 });
+      const boxes = await readKnobs(page, ALL_IDS);
+      expect(shape(boxes, PANELS.subuni), `SUB/UNI at ${width}px`).toEqual([4]);
+      expect(shape(boxes, PANELS.ampenv), `AMP ENV at ${width}px`).toEqual([4]);
+      expect(shape(boxes, PANELS.filterenv), `FILTER ENV at ${width}px`).toEqual([5]);
+      expect(shape(boxes, PANELS.filter), `FILTER at ${width}px`).toEqual([3, 3]);
+      for (const panel of [PANELS.osc1, PANELS.mixer]) {
+        expectSpread(rowsOf(boxes, panel)[0]!, `${panel[0]} at ${width}px`);
+      }
+    }
+
+    for (const width of [3200, 3440, 5120]) {
+      await page.setViewportSize({ width, height: 1440 });
+      const boxes = await readKnobs(page, ALL_IDS);
+      for (const panel of Object.values(PANELS)) {
+        expect(shape(boxes, panel), `${panel[0]}'s panel at ${width}px`).toEqual([panel.length]);
+      }
+      for (const panel of [PANELS.osc1, PANELS.mixer]) {
+        expectSpread(rowsOf(boxes, panel)[0]!, `${panel[0]} at ${width}px`);
+      }
+    }
+  });
+
+  // Regression (REQ-ultrawide-panels-are-one-row): the square wave's WIDTH knob was a row of its own,
+  // out of reach of the one-row rule, so it stayed below OCT/TUNE/LEVEL on an ultrawide.
+  test('OSC WIDTH joins its row on an ultrawide', async ({ page }) => {
+    await page.setViewportSize({ width: 2800, height: 1440 });
+    await gotoAndStart(page);
+    const withWidth = [...['osc2.octave', 'osc2.detune', 'osc2.level'], 'osc2.pulseWidth'] as const;
+    await busSet(page, 'osc2.wave', 3); // square — WIDTH shows
+
+    const rows = rowsOf(await readKnobs(page, withWidth), withWidth);
+    expect(rows.map((r) => r.length), 'OSC 2 on square at 2800px').toEqual([4]);
+    const [first, second] = rows[0]!;
+    const lead = first!.left - first!.rowLeft;
+    expect(lead, 'spread, not clustered').toBeGreaterThan(4);
+    expect(Math.abs(second!.left - (first!.left + first!.width) - lead - 4), 'evenly').toBeLessThanOrEqual(1.5);
+
+    // Up to 2560px the break holds: WIDTH alone and centred on the line below —
+    // never 3+1 — and on the narrow desktop panel it stays the last line too.
+    expect(await shapeAt(page, 2560, withWidth), 'OSC 2 on square at 2560px').toEqual([3, 1]);
+    const width = rowsOf(await readKnobs(page, withWidth), withWidth)[1]![0]!;
+    const rowCentre = width.rowLeft + width.rowWidth / 2;
+    expect(Math.abs(width.left + width.width / 2 - rowCentre), 'WIDTH centred').toBeLessThanOrEqual(1);
+    expect(await shapeAt(page, 1440, withWidth), 'OSC 2 on square at 1440px').toEqual([2, 1, 1]);
+
+    // Off square, WIDTH and its break hide together: no empty line either side.
+    await busSet(page, 'osc2.wave', 2); // saw
+    const osc2 = withWidth.slice(0, 3);
+    const rowHeight = (id: string) => page.evaluate((i) =>
+      (document.querySelector(`[data-testid="knob-${i}"]`) as HTMLElement).parentElement!.offsetHeight, id);
+    for (const w of [2560, 2800]) {
+      expect(await shapeAt(page, w, osc2), `OSC 2 on saw at ${w}px`).toEqual([3]);
+      // OSC 1 has been on saw throughout: a stranded break would make OSC 2's row taller.
+      expect(await rowHeight('osc2.octave'), `no empty line at ${w}px`).toBe(await rowHeight('osc1.octave'));
+    }
+    await expect(page.getByTestId('knob-osc2.pulseWidth')).toBeHidden();
+  });
 });
 
 /**
@@ -264,7 +347,8 @@ test('no knob label ever reaches its neighbour', async ({ page }) => {
   // strict. Delete this block when that Open question is closed.
   const NARROW_EXCEPTION = { panel: PANELS.subuni as readonly string[], belowWidth: 768, maxOverlapPx: 20 };
 
-  const widths = [360, 414, 480, 600, 768, 820, 992, 1024, 1280, 1400, 1440, 1630, 1920, 2560];
+  const widths = [360, 414, 480, 600, 768, 820, 992, 1024, 1280, 1400, 1440, 1630, 1920, 2560,
+    2561, 3200, 3440, 5120];
   const collisions: string[] = [];
   const tolerated: string[] = [];
 

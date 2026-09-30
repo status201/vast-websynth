@@ -3,7 +3,9 @@
 ```yaml
 id: equalizer
 status: implemented
-version: 4   # v4: the "ten 1-channel biquads" cost note is now conditional — a panned
+version: 5   # v5: REQ-the-eq-is-a-third-bottom-row — .bottom is a flex column now, not a grid; the EQ is its
+             #     middle item (keyboard-range.md REQ-spare-height-goes-to-the-scope).
+             # v4: v4: the "ten 1-channel biquads" cost note is now conditional — a panned
              #     sequencer track makes the synth chain 2-channel (sequencer.md, ADR-023)
              # v3: REQ-one-q-knob-over-the-bands — the knob is labelled Q, not WIDTH: turning it up
              #     narrows the bands, which the old name said backwards.
@@ -327,10 +329,12 @@ curve from bus values so it needs no analyser and runs no animation loop.
   the rule the scratch presets already follow.
 
 - **REQ-the-eq-is-a-third-bottom-row** — **The section is a third row of the
-  bottom grid, between the scope and the keyboard.** `.bottom` becomes
-  `grid-template-rows: var(--scope-h, 130px) auto minmax(160px, 1fr)`. The
-  scope's `ResizeHandle` still writes `--scope-h` and still governs **row 1
-  alone**, so its contract is unchanged; an expanded EQ is absorbed by the same
+  bottom grid, between the scope and the keyboard.** (v5: `.bottom` is now a
+  flex column — scope row, this section, keyboard — and the section is its
+  middle item, sized by its own content. It was the `auto` row of
+  `var(--scope-h, 130px) auto minmax(160px, 1fr)`.) The
+  scope's `ResizeHandle` still writes `--scope-h` and still governs **the scope
+  row alone** (as its minimum since scope v18), so its contract is unchanged; an expanded EQ is absorbed by the same
   keyboard floor that [scope](scope.md) REQ-a-scope-resize-handle already has absorbing a grown
   scope — *"a growing scope eats the keyboard's slack, stops there, and only
   then does the page scroll."* The EQ is a second grower under a rule that was

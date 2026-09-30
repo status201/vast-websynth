@@ -260,3 +260,92 @@ describe('Keyboard.setKeyRoles', () => {
     obs.disconnect();
   });
 });
+
+/**
+ * keyboard-range.md — the width-driven range. A rebuild replaces every key element,
+ * so what the lit maps and pointer holds remember must survive it
+ * (REQ-a-rebuild-strands-nothing), and an unchanged range must not rebuild at all
+ * (REQ-a-resize-rebuilds-only-on-a-change).
+ */
+describe('Keyboard.setRange', () => {
+  afterEach(() => {
+    Reflect.deleteProperty(document, 'elementFromPoint');
+  });
+
+  const keyCount = (kb: Keyboard) => kb.el.querySelectorAll('[data-note]').length;
+
+  it('draws the new range', () => {
+    const { kb, keyEl } = mount();
+    expect(keyCount(kb)).toBe(36);
+
+    kb.setRange({ startOctave: 1, octaves: 6 });
+    expect(keyCount(kb)).toBe(72);
+    expect(keyEl(24)).not.toBeNull();   // C1
+    expect(keyEl(95)).not.toBeNull();   // B6
+    expect(keyEl(96)).toBeNull();       // C7 is past the top
+  });
+
+  it('touches no key when the range is unchanged', () => {
+    const { kb, keyEl } = mount();
+    const before = keyEl(60);
+    kb.setRange({ startOctave: 3, octaves: 3 });
+    expect(keyEl(60)).toBe(before);
+  });
+
+  it('releases a pointer-held key exactly once before rebuilding', () => {
+    const { bus, kb, keyEl } = mount();
+    const notes: Array<[boolean, number]> = [];
+    bus.onNote((on, note) => notes.push([on, note]));
+    const target = keyEl(60);
+    Object.defineProperty(document, 'elementFromPoint', { configurable: true, value: () => target });
+    const down = new MouseEvent('pointerdown', { clientX: 1, clientY: 1, bubbles: true });
+    Object.defineProperty(down, 'pointerId', { value: 3 });
+    kb.el.dispatchEvent(down);
+
+    kb.setRange({ startOctave: 2, octaves: 4 });
+    const up = new MouseEvent('pointerup', { bubbles: true });
+    Object.defineProperty(up, 'pointerId', { value: 3 });
+    kb.el.dispatchEvent(up);                         // the finger lifts later
+
+    expect(notes).toEqual([[true, 60], [false, 60]]);
+    expect(kb.el.querySelectorAll('.active')).toHaveLength(0);
+  });
+
+  it('carries a lit key onto its new element, and the light-off still lands', () => {
+    const { kb, keyEl } = mount();
+    kb.highlight(64, true);
+    kb.seqHighlight(67, true);
+    kb.seqHighlight(67, true);                       // two tracks on one note
+
+    kb.setRange({ startOctave: 2, octaves: 4 });
+    expect(keyEl(64).classList.contains('active')).toBe(true);
+    expect(keyEl(67).classList.contains('seq')).toBe(true);
+
+    kb.highlight(64, false);
+    kb.seqHighlight(67, false);
+    expect(keyEl(67).classList.contains('seq')).toBe(true);   // refcount kept
+    kb.seqHighlight(67, false);
+    expect(kb.el.querySelectorAll('.active, .seq')).toHaveLength(0);
+  });
+
+  it('lights a note the old range did not draw once the new one does', () => {
+    const { kb, keyEl } = mount();
+    kb.seqHighlight(36, true);                       // C2 — off the C3–B5 board
+    kb.setRange({ startOctave: 2, octaves: 4 });
+    expect(keyEl(36).classList.contains('seq')).toBe(false); // lit before it was drawn: stays unlit
+    kb.seqHighlight(36, false);
+    kb.seqHighlight(36, true);
+    expect(keyEl(36).classList.contains('seq')).toBe(true);
+  });
+
+  it('re-applies the key roles and labels', () => {
+    const { bus, kb, keyEl } = mount();
+    bus.set('scale.type', SCALE_LABELS.indexOf('major'));
+    kb.setKeyRoles(readKeyState(bus));
+    bus.set('keyboard.transpose', 1);
+
+    kb.setRange({ startOctave: 1, octaves: 6 });
+    expect(keyEl(24).dataset.role).toBe('root');     // C1, new
+    expect(keyEl(24).textContent).toBe('C2');        // labelled with what it sounds
+  });
+});

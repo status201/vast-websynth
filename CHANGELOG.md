@@ -16,6 +16,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+### Changed
+
+- The on-screen keyboard adds octaves on wide screens instead of stretching its keys: 4 octaves on a 3440-wide ultrawide, 6 (C1–B6) on 5120. Screens up to 2560 and phones are unchanged.
+- Above 2560px wide, the synth panels spread their knobs evenly and lay each group on one row (FILTER from 3200px), instead of mixing tight clusters with 2×2 and 3×2 blocks. 2560 and below are unchanged.
+- The keyboard's keys stay between 1.6× and 4.5× as tall as they are wide, so folding panels no longer stretches them into long piano keys. The height they can't use goes to the scope; the scope grip now sets the scope's minimum height.
+
 ## [2.15.0] - 2026-09-26
 
 ### Added

@@ -26,6 +26,7 @@ import {
   readScopeHeight, writeScopeHeight,
 } from '../state/scope-height';
 import { Keyboard } from './components/keyboard';
+import { keyboardRange, whiteKeyPx } from './keyboard-range';
 import { onKeyChange, readKeyState } from './key-roles';
 import { TabContainer } from './components/tabs';
 import { createSectionTitle } from './components/section-title';
@@ -96,8 +97,8 @@ import { createEffectiveXy } from '../state/xy-effective';
  */
 const isCompact = (): boolean => window.matchMedia('(max-width: 1280px)').matches;
 
-/** True on phone-sized viewports — keyboard drops to 2 octaves so the keys
- *  stay large enough to play. */
+/** True on phone-sized viewports — the keyboard's base range drops to 2 octaves
+ *  so the keys stay large enough to play (keyboard-range.md REQ-the-range-follows-the-width). */
 const isPhone = (): boolean => window.matchMedia('(max-width: 767px)').matches;
 
 export function mountApp(
@@ -575,8 +576,8 @@ function buildMain(bus: ParamBus): HTMLElement {
       new Knob({ bus, paramId: 'osc1.octave', label: 'OCT' }).el,
       new Knob({ bus, paramId: 'osc1.detune', label: 'TUNE' }).el,
       new Knob({ bus, paramId: 'osc1.level', label: 'LEVEL' }).el,
+      ...pulseWidthKnob(bus, 'osc1'),
     ], styles.spread!));
-    b.appendChild(pulseWidthRow(bus, 'osc1'));
   }, 'oscillators'));
 
   main.appendChild(panel('OSC 2', (b) => {
@@ -585,8 +586,8 @@ function buildMain(bus: ParamBus): HTMLElement {
       new Knob({ bus, paramId: 'osc2.octave', label: 'OCT' }).el,
       new Knob({ bus, paramId: 'osc2.detune', label: 'TUNE' }).el,
       new Knob({ bus, paramId: 'osc2.level', label: 'LEVEL' }).el,
+      ...pulseWidthKnob(bus, 'osc2'),
     ], styles.spread!));
-    b.appendChild(pulseWidthRow(bus, 'osc2'));
   }));
 
   main.appendChild(panel('SUB / UNI', (b) => {
@@ -665,17 +666,24 @@ const SQUARE_WAVE = WAVE_LABELS.indexOf('square');
  * The pulse-width knob, shown only while that oscillator is on `square` —
  * width is meaningless for the other waveforms (oscillators.md REQ-oscillators-have-a-pulse-width).
  *
- * It gets its own row rather than joining the 3-knob `.spread` row above: a
- * fourth knob there would flex-wrap 3+1, which is the exact layout `.quad`
- * exists to prevent (responsive-synth-panels.md).
+ * It joins the 3-knob `.spread` row behind a `.rowBreak`: up to 2560px the break
+ * takes a full line, so WIDTH sits alone and centred below the others rather
+ * than wrapping 3+1 — the layout `.quad` exists to prevent — and on an ultrawide
+ * the break is dropped and the four share one row (responsive-synth-panels.md
+ * REQ-ultrawide-panels-are-one-row). Both hide together, so a hidden WIDTH
+ * leaves no empty line behind.
  */
-function pulseWidthRow(bus: ParamBus, osc: 'osc1' | 'osc2'): HTMLElement {
-  const el = row([new Knob({ bus, paramId: `${osc}.pulseWidth`, label: 'WIDTH' }).el]);
+function pulseWidthKnob(bus: ParamBus, osc: 'osc1' | 'osc2'): HTMLElement[] {
+  const brk = document.createElement('div');
+  brk.className = styles.rowBreak!;
+  const knob = new Knob({ bus, paramId: `${osc}.pulseWidth`, label: 'WIDTH' }).el;
   // `subscribe` fires immediately, so the initial visibility is correct.
   bus.subscribe(`${osc}.wave`, (w) => {
-    el.style.display = Math.round(w) === SQUARE_WAVE ? '' : 'none';
+    const display = Math.round(w) === SQUARE_WAVE ? '' : 'none';
+    brk.style.display = display;
+    knob.style.display = display;
   });
-  return el;
+  return [brk, knob];
 }
 
 
@@ -879,9 +887,9 @@ function buildBottom(
   bottom.appendChild(top);
 
   // The EQUALIZER section, between the scope and the keyboard (equalizer.md
-  // REQ-the-eq-is-a-third-bottom-row). It is an `auto` row of the same grid: `--scope-h` still sizes row 1
-  // alone, so the scope's resize handle is untouched, and an expanded EQ is
-  // absorbed by the keyboard's `minmax(160px, 1fr)` floor — the behaviour
+  // REQ-the-eq-is-a-third-bottom-row). It is the content-sized middle item of the same column: `--scope-h`
+  // still sizes the scope row alone, so the scope's resize handle is untouched, and an
+  // expanded EQ is absorbed by the keyboard's floor — the behaviour
   // scope.md REQ-a-scope-resize-handle already describes for a grown scope, now with a second
   // grower under it. Folded by default, so the resting layout costs only the bar.
   const eq = buildEqPanel(bus, engine);
@@ -890,15 +898,27 @@ function buildBottom(
   const kbWrap = document.createElement('div');
   kbWrap.className = styles.keyboardWrap!;
   kbWrap.dataset.testid = 'keyboard';
-  // Phones get 2 octaves (centred higher) so individual keys stay tappable;
-  // wider screens keep the full 3-octave C3–C6 range.
+  // The octave count follows the width the keys get (keyboard-range.md): the base
+  // range until laid out — 2 octaves on a phone, 3 elsewhere — then the observer,
+  // which fires after layout and before paint, grows it on a wide screen so no
+  // white key outgrows MAX_WHITE_PX. setRange is a no-op unless the count changes.
+  // The same observation hands CSS the white-key width, which bounds the key
+  // height (keyboard-range.md REQ-key-height-follows-key-width). Whole px, and written
+  // only when it changes (runtime-performance.md REQ-dom-writes-are-guarded-on-what-is-rendered);
+  // the width never depends on the height, so this cannot feed back.
   const phone = isPhone();
-  const keyboard = new Keyboard({
-    bus,
-    startOctave: phone ? 4 : 3,
-    octaves: phone ? 2 : 3,
-  });
+  const keyboard = new Keyboard({ bus, ...keyboardRange(0, phone) });
   kbWrap.appendChild(keyboard.el);
+  if (typeof ResizeObserver !== 'undefined') {
+    let keyW = '';
+    new ResizeObserver((entries) => {
+      const width = entries[entries.length - 1]!.contentRect.width;
+      const range = keyboardRange(width, isPhone());
+      keyboard.setRange(range);
+      const next = `${whiteKeyPx(width, range.octaves)}px`;
+      if (next !== keyW) bottom.style.setProperty('--kb-key-w', (keyW = next));
+    }).observe(keyboard.el);
+  }
   bottom.appendChild(kbWrap);
 
   // Visual-only: reflect computer-keyboard input on the on-screen keys. The note

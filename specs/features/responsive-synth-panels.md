@@ -3,7 +3,10 @@
 ```yaml
 id: responsive-synth-panels
 status: implemented
-version: 6   # v6: REQ-quad-panels-use-a-fixed-grid — FILTER ENV goes dice-five (A · D / VEL / S · R) at
+version: 7   # v7: REQ-ultrawide-panels-are-one-row — above 2560px every knob group spreads
+             #     evenly and goes to one row where it fits (FILTER from 3200px).
+             #     The 1630px shapes had stayed put while panels doubled in width.
+             # v6: REQ-quad-panels-use-a-fixed-grid — FILTER ENV goes dice-five (A · D / VEL / S · R) at
              #     ≥1630px. Its third knob row stood ~42px taller than every
              #     neighbour there and set the height of the whole faceplate row.
              # v5: REQ-fx-panels-fit-their-knob-run — the FX rack sizes panels to their knob runs above
@@ -51,6 +54,14 @@ panels' generosity. Above 1280px (narrow 8-column panels) they stay centred as
 before. `space-evenly` on the flex row (rather than a rigid grid) keeps the
 2-knob LFO from over-spreading to the far quarters.
 
+The wide end has the mirror problem. `.main` stays 8 columns at every width
+above 1280px, so on an ultrawide the panels keep growing — a 281px knob row at
+2560px is 601px at 5120px — while the 1630px shapes stay put. The result mixes
+three looks side by side: `.spread` rows clustered in the middle at a 4px gap,
+grid panels flung to their quarters, and 2×2 / 3×2 / dice-five blocks with room
+for a whole row to spare. REQ-ultrawide-panels-are-one-row applies the reflow's
+answer at that end too: spread evenly, and one row wherever a row fits.
+
 The **FX rack** (`.fxRow`) is a second grid of panels holding knobs, and REQ-fx-panels-fit-their-knob-run
 brings it under the same rule for the same reason: a column count that ignores
 what a panel actually holds eventually meets a panel it cannot hold. It is here
@@ -70,7 +81,8 @@ count changes.
 
   | width | `.quint` | shape | why |
   | --- | --- | --- | --- |
-  | ≥1630px | 3 columns × 2 rows | **dice-five**: A · D over S · R in the corners, VEL in the middle column, spanning both rows and vertically centred | three rows stood ~42px taller than any neighbour (3×74 + 2×8 = 238px of knobs against a segmented + two rows ≈ 196px), and the faceplate row takes its tallest panel's height, out of the section below it. The panel fits three columns from here on (the `.hex` step, REQ-filter-hex-has-three-even-shapes) |
+  | ≥2561px | 5 columns | one row; the dice-five placements are undone | REQ-ultrawide-panels-are-one-row — five 52px boxes fit a 281px row |
+  | 1630–2560px | 3 columns × 2 rows | **dice-five**: A · D over S · R in the corners, VEL in the middle column, spanning both rows and vertically centred | three rows stood ~42px taller than any neighbour (3×74 + 2×8 = 238px of knobs against a segmented + two rows ≈ 196px), and the faceplate row takes its tallest panel's height, out of the section below it. The panel fits three columns from here on (the `.hex` step, REQ-filter-hex-has-three-even-shapes) |
   | 1281–1629px | 2 columns | A D / S R / VEL, the fifth spanning the row and centred | FILTER (`.hex` 2×3 + its segmented) and OSC 1 already stand taller, so the third row costs nothing |
   | ≤1280px | 5 columns | one row; the span is undone | panels widen on the reflow, where five fit |
 
@@ -85,7 +97,7 @@ count changes.
   - **The corners mirror AMP ENV.** Its 2×2 spreads across the panel the same
     way, so the two envelope panels side by side read as the same instrument,
     with VEL filling the space AMP ENV leaves empty.
-- **REQ-above-1280-quads-are-two-by-two** — **Above 1280px** (the 8-column
+- **REQ-above-1280-quads-are-two-by-two** — **From 1281px to 2560px** (the 8-column
   `.main` grid, narrow panels) `.quad` is a **2-column** grid → the knobs render
   as a **2×2** block. Row-major fill preserves each panel's pairing (SUB/UNI:
   S.OCT/S.LVL over UNISON/SPREAD; envelopes: A/D over S/R).
@@ -94,15 +106,17 @@ count changes.
   knobs render as a **single row**. This holds across the whole ≤1280px range
   (knobs total ≤204px; the panel body is ≥205px throughout).
 - **REQ-quads-never-wrap-asymmetrically** — No 3+1 (or other asymmetric) wrap at
-  any width: because `.quad` is a fixed-column grid keyed to the same breakpoint
-  as `.main`, the only two layouts possible are 2×2 (>1280px) and one row
-  (≤1280px).
+  any width: because `.quad` is a fixed-column grid keyed to fixed breakpoints,
+  the only two layouts possible are 2×2 (1281–2560px) and one row (≤1280px and
+  ≥2561px).
 - **REQ-spread-rows-distribute-when-wide** — The **3-knob** (OSC 1, OSC 2,
   MIXER) and **2-knob** (LFO) panels carry a `.spread` modifier on their knob
-  row. **Above 1280px** it is inert — the row stays a centred flex cluster
-  (`.panelRow`), unchanged. **At/below 1280px** the row distributes its knobs
-  `space-evenly` across the widened panel, so their spacing matches the
-  neighbouring `.quad` panels rather than clustering in the middle.
+  row. **From 1281px to 2560px** it is inert — the row stays a centred flex
+  cluster (`.panelRow`), unchanged. **At/below 1280px and from 2561px** the row
+  distributes its knobs `space-evenly` across the widened panel, so their
+  spacing matches the neighbouring grid panels rather than clustering in the
+  middle. The LFO keeps its three rows (wave, knobs, destination); only its
+  knob row spreads.
   - (v4) The LFO panel's **title row is a two-tab strip**
     ([panel-tabs](panel-tabs.md), [lfo](lfo.md) REQ-the-two-lfos-share-one-panel). It replaces the title
     rather than joining it, holds a plain `.panelTitle`'s height so the panel
@@ -116,9 +130,41 @@ count changes.
 
   | width | `.hex` | shape | why |
   | --- | --- | --- | --- |
-  | ≥1630px | 3 columns | 3×2 | the panel finally fits three, so it stops standing a row taller than the whole faceplate and reads like the 3-up OSC/MIXER rows next to it |
+  | ≥3200px | 6 columns | one row | REQ-ultrawide-panels-are-one-row — the row is ≥361px, 60px cells for a 52px box |
+  | 1630–3199px | 3 columns | 3×2 | the panel finally fits three, so it stops standing a row taller than the whole faceplate and reads like the 3-up OSC/MIXER rows next to it |
   | 1281–1629px | 2 columns | 2×3 | `.quad`'s desktop ceiling is 2 per row; six knobs cannot beat it |
   | ≤1280px | 3 columns | 3×2 | panels widen on the reflow, where `.quad` fits 4 — three long labels sit comfortably inside that |
+
+- **REQ-ultrawide-panels-are-one-row** — (v7) **Above 2560px every synth panel
+  spreads its knobs evenly and lays them on one row as soon as that row fits.**
+  A knob row there is `(W − 312) / 8` px wide (281 @2560, 391 @3440, 601 @5120)
+  and a one-row layout needs `n × 52 + (n − 1) × 4` px — the boxes, not the
+  labels (≤41px ink), are the constraint:
+
+  | from | change | row needed | row at the step |
+  | --- | --- | --- | --- |
+  | 2561px | `.spread` goes `space-evenly` (OSC 1, OSC 2, MIXER, LFO); `.quad` 4 columns (SUB/UNI, AMP ENV); `.quint` 5 columns, dice-five undone (FILTER ENV) | 220 / 276px | 281px |
+  | 3200px | `.hex` 6 columns (FILTER) | 332px | 361px — 60px cells |
+
+  - **OSC 1/2's WIDTH joins the row.** On the square wave each oscillator
+    shows a fourth knob, WIDTH (oscillators.md REQ-oscillators-have-a-pulse-width).
+    It is a child of the same `.spread` row, after a zero-height `.rowBreak`
+    that takes a full line (`flex-basis: 100%`) up to 2560px — so there it sits
+    on its own centred line exactly as before, never a 3+1 wrap, and the two
+    4px row gaps either side of the break give the 8px a separate row had. From
+    2561px the break is `display: none`, and the four knobs share one even row
+    (220px of boxes in a ≥281px row). WIDTH's show/hide toggles the break with
+    it, so a hidden WIDTH leaves no empty line.
+  - **Why ≤2560px is untouched.** 2560 is where the user judged the faceplate
+    right, and where FILTER's six would not fit anyway (47px cells for a 52px
+    box — REQ-a-cell-is-never-narrower-than-a-knob).
+  - **Why FILTER waits for 3200px.** Six boxes first fit at ~2970px with no air
+    between them; 3200px gives 8px, the same comfort `.hex`'s 1630px step chose.
+    Between the two steps FILTER is the one 3×2 panel — and so sets the row's
+    height exactly as it does at 2560px; nothing grows.
+  - **The row gets shorter.** From 3200px the tallest panel is the LFO (tabs +
+    wave + knobs + destination), and the faceplate row drops from 245px to
+    ~203px — height the scope and keyboard below take up.
 
 - **REQ-a-cell-is-never-narrower-than-a-knob** — **A column count may never make
   a cell narrower than a knob's ink.** The knob box is a fixed `--knob-size +
@@ -328,8 +374,32 @@ Scenario: The 6-knob FILTER panel takes each of its three shapes (REQ-filter-hex
 # pinned by: e2e/responsive-panels.spec.ts (the 6-knob FILTER panel takes each of
 #            its three shapes — including the 1629/1630 and 1280 thresholds)
 
+Scenario: An ultrawide lays each panel on one even row (REQ-ultrawide-panels-are-one-row)
+  Given the app is open at a 2800px-wide viewport
+  Then the SUB / UNI, AMP ENV and FILTER ENV knobs each share one row
+  And the FILTER knobs still render 3x2
+  And the OSC 1 and MIXER knobs are distributed evenly across their panels
+  When the viewport widens to 3200px
+  Then the six FILTER knobs share one row
+  And at 3440px and 5120px every panel's knobs share one row
+  When the viewport narrows to 2560px
+  Then every panel takes its 1630px shape again
+# pinned by: e2e/responsive-panels.spec.ts (an ultrawide lays each panel on one
+#            even row — 2560/2800/3199/3200/3440/5120px)
+
+Scenario: OSC WIDTH joins its row on an ultrawide (regression)
+  Given OSC 2 is on the square wave, so its WIDTH knob is shown
+  When the app is open at a 2800px-wide viewport
+  Then OCT, TUNE, LEVEL and WIDTH share one row, spread evenly
+  When the viewport narrows to 2560px
+  Then WIDTH sits alone on the line below OCT, TUNE and LEVEL, centred
+  And on the saw wave the row holds only OCT, TUNE and LEVEL at either width
+# Bug: WIDTH was a separate row element, so the ultrawide one-row rule could not
+# reach it and it stayed below the others at every width.
+# pinned by: e2e/responsive-panels.spec.ts (OSC WIDTH joins its row on an ultrawide)
+
 Scenario: No knob's label ever reaches its neighbour (REQ-a-cell-is-never-narrower-than-a-knob)
-  Given the app is open at any width from 360px to 2560px
+  Given the app is open at any width from 360px to 5120px
   Then for every pair of knobs sharing a row in a panel
   And measuring each label's ink as its centre plus/minus scrollWidth/2
   Then the two extents do not overlap
@@ -354,7 +424,8 @@ Scenario: No FX rack panel wraps its knob run at desktop widths (REQ-fx-panels-f
 ## Tests & verification
 
 - E2E: `e2e/responsive-panels.spec.ts` — `npm run e2e`. Row shapes at
-  820/1281/1400/1440/1629/1630/1920/2560px (viewports changed *within* a test:
+  820/1281/1400/1440/1629/1630/1920/2560px, and 2800/3199/3200/3440/5120px for
+  REQ-ultrawide-panels-are-one-row (viewports changed *within* a test:
   each boot is a full AudioContext), plus REQ-a-cell-is-never-narrower-than-a-knob's label-ink sweep and REQ-fx-panels-fit-their-knob-run's
   FX rack sweep at 1360/1440/1600/1920px.
 - Typecheck: `npm run typecheck` (confirms `styles.quad` / `.hex` / `.quint` compile).

@@ -347,6 +347,7 @@ specs/
     machine-status.md  ·  on/muted/off LEDs in the tab bar + Song-tab title links
     input-control.md   ·  keyboard, computer-key shortcuts, MIDI
     keyboard-layout.md ·  QWERTY/AZERTY/QWERTZ/Dvorak note-key mapping + picker
+    keyboard-range.md  ·  on-screen keyboard size: octaves follow its width, key height is bounded by key width
     testids.md         ·  the stable `data-testid` contract + full catalogue
     onboarding.md      ·  guided tour + info badges
     play-button-blink.md ·  Play LED states: beat blink, idle attract pulse, demo cue

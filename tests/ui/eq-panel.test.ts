@@ -233,19 +233,25 @@ describe('teardown', () => {
   });
 });
 
-describe('the bottom grid keeps its shape (REQ-the-eq-is-a-third-bottom-row)', () => {
+describe('the bottom column keeps its shape (REQ-the-eq-is-a-third-bottom-row)', () => {
   const css = read('src/ui/styles/layout.module.css');
+  /** The declarations of the first top-level rule for `selector`. */
+  const rule = (selector: string): string => {
+    const m = new RegExp(`(?:^|\\n)${selector.replace('.', '\\.')}\\s*\\{([^}]*)\\}`).exec(css);
+    expect(m, `${selector} rule not found`).not.toBeNull();
+    return m![1]!;
+  };
 
-  it('declares three rows, with --scope-h still sizing only the first', () => {
-    // The scope's ResizeHandle writes `--scope-h` on this element; if the EQ row
-    // were ever folded into that track, dragging the scope would resize the EQ.
-    const m = /\.bottom\s*\{[^}]*grid-template-rows:\s*([^;]+);/.exec(css);
-    expect(m, '.bottom grid-template-rows not found').not.toBeNull();
-    const rows = m![1]!.trim();
-    expect(rows.startsWith('var(--scope-h, 130px)')).toBe(true);
-    expect(rows).toContain('auto');
-    // …and the keyboard floor is what absorbs an expanded EQ.
-    expect(rows.endsWith('minmax(160px, 1fr)')).toBe(true);
+  it('is a flex column, with --scope-h sizing only the scope row', () => {
+    // keyboard-range.md REQ-spare-height-goes-to-the-scope: a grid track capped at a max grows to it
+    // whenever the page's height is content-sized, so the column is flex.
+    expect(rule('.bottom')).toMatch(/display:\s*flex/);
+    expect(rule('.bottom')).toMatch(/flex-direction:\s*column/);
+    // The scope's ResizeHandle writes `--scope-h` on `.bottom`; only the scope row
+    // reads it for its size — if the EQ ever did, dragging the scope would resize it.
+    expect(rule('.bottomTop')).toMatch(/min-height:\s*var\(--scope-h, 130px\)/);
+    // …and the keyboard's floor is what absorbs an expanded EQ.
+    expect(rule('.keyboardWrap')).toMatch(/min-height:\s*max\(160px,/);
   });
 });
 
