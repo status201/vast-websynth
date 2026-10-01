@@ -3,7 +3,9 @@
 ```yaml
 id: debug-panel
 status: implemented
-version: 14  # v14: an Errors row keeps the last uncaught errors and rejections
+version: 15  # v15: an Offline copy row (debug-offline) — play-offline.md's state, via the
+             #      extension contract (REQ-the-debug-extension-contract), no contract change
+             # v14: an Errors row keeps the last uncaught errors and rejections
              #      (REQ-the-panel-keeps-the-last-errors), and Share report hands the
              #      readout to the OS share sheet (REQ-the-report-can-be-shared)
              # v13: a Scope row (debug-scope) reports whether the visualizer is
@@ -147,7 +149,10 @@ instead of transcribing it from a phone screen.
   `setMidiStatsSource`), the wake lock (**Wake lock**, `debug-wake`, via
   `setWakeLockSource`) and [`scope`](scope.md) (**Scope**, `debug-scope`, via
   `setScopeStatsSource` — whether the visualizer is painting, and how often it
-  had to recover; scope.md REQ-the-panel-says-whether-it-is-drawing).
+  had to recover; scope.md REQ-the-panel-says-whether-it-is-drawing) and (v15)
+  [`play-offline`](play-offline.md) (**Offline copy**, `debug-offline`, from
+  `getOfflineCopy().state` via `formatOfflineState` — whether this device holds a
+  full offline copy, which is the answer to "why did that part not open offline?").
 - **REQ-an-unbound-row-reads-n-a** — A row whose late-bound source is unbound
   reads **"n/a"** rather than blank or a crash, so the panel degrades cleanly in
   any boot order.
@@ -305,7 +310,7 @@ buildModal(close, engine, deps): { backdrop, refreshDebug, disposeDebug }
 #          debug-panic, debug-test-tone, debug-copy, debug-latency, debug-transport,
 #          debug-storage, debug-session(+-clear), debug-sw(+-unregister), debug-midi,
 #          debug-wake, debug-sampler-clips(+ debug-clips-clear), debug-perf-tier,
-#          debug-ios-*, debug-errors, debug-share (only where navigator.share exists)
+#          debug-ios-*, debug-errors, debug-offline, debug-share (only where navigator.share exists)
 
 # what the rows read (owned by their own specs)
 SessionAutosave.stats(): { bytes, savedAt: number | null } | null   # session-autosave.ts

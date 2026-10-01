@@ -16,6 +16,7 @@ import type { SyncController } from '../../audio/transport/sync/sync-controller'
 import { type WebRtcDiagnostics, summarizeDiagnostics } from '../../audio/webrtc-diagnostics';
 import modalStyles from '../styles/modal.module.css';
 import { UI_ICONS, iconLabel, iconTextEl, type IconName } from './ui-icons';
+import { NOT_DOWNLOADED_YET, PLAY_OFFLINE_HINT } from '../offline-wording';
 
 type El = HTMLElement;
 
@@ -634,8 +635,7 @@ async function makeFrameDetector(): Promise<(video: HTMLVideoElement) => Promise
 function scanDecoderFailureText(): string {
   return navigator.onLine
     ? "Couldn't start the scanner — the QR decoder failed to download. Try again, or paste the code instead."
-    : "Couldn't start the scanner — you're offline and this part of the app isn't downloaded yet. "
-      + 'Paste the code instead.';
+    : `Couldn't start the scanner — ${NOT_DOWNLOADED_YET}. Paste the code instead. ${PLAY_OFFLINE_HINT}`;
 }
 
 /**

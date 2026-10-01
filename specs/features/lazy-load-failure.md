@@ -3,7 +3,7 @@
 ```yaml
 id: lazy-load-failure
 status: implemented
-version: 1
+version: 2   # v2: the offline sentence points at Play offline (REQ-the-offline-sentence-points-at-play-offline)
 owner: core
 related:
   - runtime-performance   # REQ-every-lazy-trigger-reports — the split that creates this failure mode
@@ -66,7 +66,7 @@ would drift.
 
   | `navigator.onLine` | message |
   | --- | --- |
-  | `false` | `Couldn't open <surface> — you're offline and this part of the app isn't downloaded yet.` |
+  | `false` | `Couldn't open <surface> — you're offline and this part of the app isn't downloaded yet. Next time you're online, About → Play offline saves all of it.` |
   | `true` | `Couldn't open <surface> — the download failed.` |
 
   The split is not decoration: offline names a cause the user can act on
@@ -75,6 +75,16 @@ would drift.
   that may be fine. `surface` is a lowercase noun phrase that reads after
   "open" — `'the preset manager'`, `'the guided tour'` — except for proper names
   of UI surfaces, which keep their capitals (`'Help & About'`).
+
+- **REQ-the-offline-sentence-points-at-play-offline** (v2) — **Offline, the
+  report says what prevents it next time.** The cause is only half of an
+  actionable message; the other half is that [play-offline](play-offline.md)
+  saves every chunk. So every offline missing-chunk sentence — this toast and the
+  three operation-owned ones (the MP3 encoder, the QR decoder, the clip fitter) —
+  ends with the same hint, and both clauses come from one leaf module,
+  `src/ui/offline-wording.ts` (`NOT_DOWNLOADED_YET`, `PLAY_OFFLINE_HINT`), so the
+  four cannot drift. The online branch never carries the hint: there the fetch
+  failed for some other reason, and an offline copy is not the answer.
 
 - **REQ-retry-reruns-the-whole-gesture** (Retry is a real retry) — `retry`
   re-runs the **whole gesture**, not the bare import, so the surface opens with
@@ -187,6 +197,7 @@ Scenario: the wording distinguishes offline from a failed fetch (REQ-one-wording
   Given a trigger whose import will reject
   When navigator.onLine is false
   Then the toast says "you're offline and this part of the app isn't downloaded yet"
+  And it ends with the Play offline hint (v2, REQ-the-offline-sentence-points-at-play-offline)
   When navigator.onLine is true
   Then the toast says "the download failed" and does not mention being offline
 # pinned by: tests/ui/lazy-load-failure.test.ts

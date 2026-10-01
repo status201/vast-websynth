@@ -3,7 +3,8 @@
 ```yaml
 id: testids
 status: implemented
-version: 24 # v24: debug-errors and debug-share (debug-panel.md REQ-the-panel-keeps-the-last-errors,
+version: 25 # v25: debug-offline (debug-panel.md v15)
+            # v24: debug-errors and debug-share (debug-panel.md REQ-the-panel-keeps-the-last-errors,
             #      REQ-the-report-can-be-shared)
             # v23: the seq track row's mute and pan are named in the catalogue as
             #      param-minted ids, so knob-seq.t<t>.pan is findable from here
@@ -432,7 +433,7 @@ about → debug panel:                                # features/debug-panel.md
   debug-section · debug-actions
   rows:    debug-ctx-state · -latency · -transport · -perf-tier · -sampler-clips ·
            -session · -storage · -sw · -midi · -wake · -scope · -ios-unlock ·
-           -ios-loop · -media-session · -background · -errors
+           -ios-loop · -media-session · -background · -errors · -offline
   actions: debug-ctx-toggle · debug-panic · debug-test-tone · debug-copy ·
            debug-share (only where navigator.share exists)
   inline:  debug-clips-clear · debug-session-clear · debug-sw-unregister

@@ -142,6 +142,8 @@ describe('A deferred help surface that cannot load (onboarding.md REQ-the-help-d
 
     expect(toastText()).toContain("you're offline");
     expect(toastText()).toContain('downloaded');
+    // lazy-load-failure.md REQ-the-offline-sentence-points-at-play-offline — what prevents it next time.
+    expect(toastText()).toContain('About → Play offline');
   });
 
   it('blames the download, not the connection state, while online', async () => {

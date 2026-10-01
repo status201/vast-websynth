@@ -1,4 +1,5 @@
 import { showToast } from './toast';
+import { NOT_DOWNLOADED_YET, PLAY_OFFLINE_HINT } from '../offline-wording';
 
 /**
  * The report a deferred surface owes the user when its `import()` rejects
@@ -24,7 +25,7 @@ export function showLazyLoadFailure(surface: string, retry: () => void): void {
   const offline = navigator.onLine === false;
   showToast({
     message: offline
-      ? `Couldn't open ${surface} — you're offline and this part of the app isn't downloaded yet.`
+      ? `Couldn't open ${surface} — ${NOT_DOWNLOADED_YET}. ${PLAY_OFFLINE_HINT}`
       : `Couldn't open ${surface} — the download failed.`,
     actionLabel: 'Retry',
     onAction: retry,

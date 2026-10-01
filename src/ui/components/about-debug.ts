@@ -19,6 +19,7 @@ import { storageUsage } from '../../state/slot-store';
 import { SAMPLER_SLOT_COUNT } from '../../state/patterns';
 import { clipStats, midiStats, scopeStats, wakeState } from '../../state/debug-sources';
 import { errorLog } from '../../state/error-log';
+import { getOfflineCopy, type OfflineState } from '../../utils/offline-copy';
 import { formatBytes, plural } from '../../utils/format';
 import type { StudioApi } from '../studio-api';
 import switchStyles from '../styles/switch.module.css';
@@ -67,6 +68,22 @@ function formatScopeHealth(h: ReturnType<typeof scopeStats>): string {
     h.losses ? `${h.losses} losses` : null,
   ].filter((s) => s !== null);
   return counts.length ? `${state} · ${counts.join(' · ')}` : state;
+}
+
+/** The offline copy's state in one line (REQ-the-debug-extension-contract — play-offline.md's row). */
+export function formatOfflineState(s: OfflineState): string {
+  switch (s.kind) {
+    case 'unsupported': return s.reason === 'dev' ? 'unavailable (dev build)' : 'unsupported';
+    case 'checking': return 'checking';
+    case 'none': return 'not saved';
+    case 'downloading':
+      return s.totalFiles ? `downloading ${s.doneFiles}/${s.totalFiles}` : 'preparing';
+    case 'complete':
+      return `saved · ${plural(s.files, 'file')} · ${formatBytes(s.totalBytes)}`
+        + (s.persisted ? ' · persistent' : ' · may be evicted');
+    case 'error': return `failed (${s.reason})`;
+    case 'needs-reload': return 'saved · reload to use';
+  }
 }
 
 /**
@@ -208,6 +225,11 @@ export function buildDebugSection(engine: StudioApi): {
     onClick: () => { void unregisterServiceWorkers(); },
   });
   swVal.dataset.testid = 'debug-sw';
+  // Whether this device holds a full offline copy (play-offline.md) — the
+  // answer to "why did that part not open offline?". Read from the page's one
+  // state machine, which About's own Play offline section keeps current.
+  const offlineVal = addRow('Offline copy');
+  offlineVal.dataset.testid = 'debug-offline';
   const midiVal = addRow('MIDI ports');
   midiVal.dataset.testid = 'debug-midi';
   const wakeVal = addRow('Wake lock');
@@ -393,6 +415,7 @@ export function buildDebugSection(engine: StudioApi): {
       + (bg.supported ? `underrun ${pct(bg.underrunRatio)} (worst ${pct(bg.worstUnderrunRatio)})` : 'underrun n/a')
       + ` · clock ${pct(bg.driftRatio)} · ${bg.suspensions} suspends`;
     const media = engine.mediaSession;
+    offlineVal.textContent = formatOfflineState(getOfflineCopy().state);
     const log = errorLog();
     const last = log.entries[log.entries.length - 1];
     errorsVal.textContent = last

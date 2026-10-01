@@ -1,6 +1,7 @@
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 import { recordError, clearErrorLog } from '../../src/state/error-log';
 import { createAboutButton } from '../../src/ui/components/about-button';
+import { formatOfflineState } from '../../src/ui/components/about-debug';
 import { setClipStatsSource } from '../../src/state/debug-sources';
 import { restoreFactorySettings } from '../../src/state/factory-reset';
 import { installLocalStorageMock } from '../storage-mock';
@@ -915,5 +916,25 @@ describe('About modal — the keyboard-layout picker', () => {
     for (const id of Object.keys(LAYOUTS) as Array<keyof typeof LAYOUTS>) {
       expect(text, id).toContain(LAYOUTS[id].label);
     }
+  });
+});
+
+// debug-panel.md v15 — play-offline.md's row, through the extension contract.
+describe('Debug panel — Offline copy row', () => {
+  it('names every state of the offline copy in one line', () => {
+    expect(formatOfflineState({ kind: 'unsupported', reason: 'dev' })).toBe('unavailable (dev build)');
+    expect(formatOfflineState({ kind: 'unsupported', reason: 'browser' })).toBe('unsupported');
+    expect(formatOfflineState({ kind: 'checking' })).toBe('checking');
+    expect(formatOfflineState({ kind: 'none', totalBytes: null, remainingBytes: null })).toBe('not saved');
+    expect(formatOfflineState({ kind: 'downloading', doneFiles: 3, totalFiles: 40, doneBytes: 0, totalBytes: 0 }))
+      .toBe('downloading 3/40');
+    expect(formatOfflineState({ kind: 'downloading', doneFiles: 0, totalFiles: 0, doneBytes: 0, totalBytes: 0 }))
+      .toBe('preparing');
+    expect(formatOfflineState({ kind: 'complete', files: 40, totalBytes: 2_500_000, persisted: true }))
+      .toMatch(/^saved · 40 files · .+ · persistent$/);
+    expect(formatOfflineState({ kind: 'complete', files: 40, totalBytes: 2_500_000, persisted: false }))
+      .toMatch(/may be evicted$/);
+    expect(formatOfflineState({ kind: 'error', reason: 'storage', failed: 2 })).toBe('failed (storage)');
+    expect(formatOfflineState({ kind: 'needs-reload' })).toBe('saved · reload to use');
   });
 });

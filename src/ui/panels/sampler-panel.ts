@@ -21,6 +21,7 @@ import { showLazyLoadFailure } from '../components/lazy-load-toast';
 import { StepSettingsEditor, paintTriggerCell } from '../components/step-settings';
 import { audioBufferToCaptured, capturedToAudioBuffer } from '../../audio/recorder/audio-buffer';
 import { showToast } from '../components/toast';
+import { NOT_DOWNLOADED_YET, PLAY_OFFLINE_HINT } from '../offline-wording';
 import { MIN_STRETCH_RATIO, MAX_STRETCH_RATIO } from '../../state/limits';
 import { SAMPLER_SLOT_COUNT, SAMPLER_SLOT_LABELS } from '../../state/patterns';
 import { ALL_CELLS, bindLaneGrid } from '../lane-grid';
@@ -230,8 +231,7 @@ export function buildSamplerPanel(
       showToast({
         message: navigator.onLine
           ? "Couldn't fit the clip — the download failed."
-          : "Couldn't fit the clip — you're offline and this part of the app isn't "
-            + 'downloaded yet.',
+          : `Couldn't fit the clip — ${NOT_DOWNLOADED_YET}. ${PLAY_OFFLINE_HINT}`,
         actionLabel: 'Retry',
         testId: 'fit-load-failed-toast',
         onAction: () => void quickFit(slot),

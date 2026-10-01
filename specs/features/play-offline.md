@@ -555,6 +555,7 @@ Firefox has not been run.
 
 ## Open questions / future
 
-- The debug panel's service-worker row could also report the offline copy's state.
-- The [lazy-load-failure](lazy-load-failure.md) offline wording could point at
-  this button ("…save it with Play offline next time you're online").
+- ~~The debug panel could report the offline copy's state~~ — its **Offline
+  copy** row (`debug-offline`, [debug-panel](debug-panel.md) v15).
+- ~~The lazy-load offline wording could point at this button~~ —
+  [lazy-load-failure](lazy-load-failure.md) REQ-the-offline-sentence-points-at-play-offline.

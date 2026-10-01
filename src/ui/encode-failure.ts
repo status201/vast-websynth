@@ -1,4 +1,5 @@
 import type { ExportFormat } from '../audio/recorder/recorder-controller';
+import { NOT_DOWNLOADED_YET, PLAY_OFFLINE_HINT } from './offline-wording';
 
 /**
  * What to tell the user when a take or an export could not be written
@@ -12,6 +13,5 @@ export function encodeFailureText(format: ExportFormat): string {
   if (format !== 'mp3') return "Couldn't write the file.";
   return navigator.onLine
     ? "Couldn't write the MP3 — the encoder failed to download. Try again, or save as WAV."
-    : "Couldn't write the MP3 — you're offline and this part of the app isn't downloaded yet. "
-      + 'Save as WAV instead.';
+    : `Couldn't write the MP3 — ${NOT_DOWNLOADED_YET}. Save as WAV instead. ${PLAY_OFFLINE_HINT}`;
 }

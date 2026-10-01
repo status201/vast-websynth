@@ -64,6 +64,7 @@ describe('QR scan failure paths', () => {
       (byId('sync-pair-scan') as HTMLElement).click();
       await waitFor(() => errorText() !== '');
       expect(errorText()).toContain("you're offline");
+      expect(errorText()).toContain('About → Play offline');
       expect(getUserMedia).not.toHaveBeenCalled();
     } finally {
       vi.restoreAllMocks();
