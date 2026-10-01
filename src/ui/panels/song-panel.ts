@@ -187,7 +187,7 @@ export function buildSongPanel(bus: ParamBus, engine: StudioApi, session: Preset
       engine.patterns.setSampleName(i, stash.file.sampleNames?.[i] ?? null);
     }
     refreshList();
-    dropdown.setValue(stash.slot);
+    selectSlot(stash.slot);
     sessionSlot = stash.sourceSlot;
   };
   const showUndoToast = (message: string, stash: SessionStash): void => {
@@ -308,7 +308,22 @@ export function buildSongPanel(bus: ParamBus, engine: StudioApi, session: Preset
 
   const dropdown = new Dropdown(Song.list(), Song.list()[0] ?? '');
   dropdown.el.dataset.testid = 'song-slot-select';
-  const refreshList = () => dropdown.setOptions(Song.list());
+
+  // Delete acts on the picked slot, and only a stored one (song-mode.md
+  // REQ-a-saved-song-can-be-deleted) — so its state follows every way the pick changes.
+  const deleteBtn = el('button', `${switchStyles.root!} ${styles.ctl!}`, 'Delete') as HTMLButtonElement;
+  deleteBtn.dataset.testid = 'song-delete';
+  const syncDelete = (): void => {
+    const stored = Song.hasSlot(dropdown.value);
+    deleteBtn.disabled = !stored;
+    deleteBtn.title = stored
+      ? `Delete the saved song "${dropdown.value}" from this browser`
+      : 'Only a song you saved can be deleted — demos stay';
+  };
+  const refreshList = (): void => { dropdown.setOptions(Song.list()); syncDelete(); };
+  /** Show `name` in the picker — the one write path, so Delete keeps up. */
+  const selectSlot = (name: string): void => { dropdown.setValue(name); syncDelete(); };
+  dropdown.onChange(() => syncDelete());
 
   /**
    * The import rejection dialog. It renders the first 8 messages and summarises
@@ -391,7 +406,7 @@ export function buildSongPanel(bus: ParamBus, engine: StudioApi, session: Preset
     // once its slot exists (a declined overwrite leaves the old selection).
     if (saved || !persist) {
       refreshList();
-      dropdown.setValue(name);
+      selectSlot(name);
     }
     sessionSlot = saved ? file.name : null;
     bridge.cuePlay(); // imports + zip demos are silent until Play (play-button-blink.md REQ-silent-actions-arm-a-green-cue)
@@ -461,7 +476,7 @@ export function buildSongPanel(bus: ParamBus, engine: StudioApi, session: Preset
   const applyDemo = (name: string, file: SongFile): void => {
     applySongWithUndo(file);
     refreshList();
-    dropdown.setValue(name);
+    selectSlot(name);
     // A demo is content, not a slot of the user's — so Save must still guard
     // this name (session-autosave.md
     // REQ-every-slot-write-is-guarded/REQ-a-demo-click-never-writes-a-slot).
@@ -501,7 +516,7 @@ export function buildSongPanel(bus: ParamBus, engine: StudioApi, session: Preset
       // fall through to the demo rather than loading nothing.
       if (file) {
         loadStoredSlot(name, file);
-        dropdown.setValue(name);
+        selectSlot(name);
         return false;
       }
     }
@@ -617,7 +632,27 @@ export function buildSongPanel(bus: ParamBus, engine: StudioApi, session: Preset
     bus.setBaselines(file.params);
     Song.download(file);
     refreshList();
-    dropdown.setValue(name);
+    selectSlot(name);
+  });
+
+  deleteBtn.addEventListener('click', async () => {
+    const name = dropdown.value;
+    if (!Song.hasSlot(name)) return;
+    const ok = await confirmDialog({
+      title: `Delete "${name}"?`,
+      message: 'The saved song is removed from this browser. What is loaded now is not touched.',
+      detail: 'That cannot be undone — export the song first if you may want it back.',
+      confirmLabel: 'Delete',
+      danger: true,
+    });
+    if (!ok) return;
+    Song.deleteSlot(name);
+    // The session no longer comes from a slot, so the next Save of this name is
+    // a new slot, not a silent overwrite (session-autosave.md REQ-every-slot-write-is-guarded).
+    if (sessionSlot === name) sessionSlot = null;
+    refreshList();
+    selectSlot(Song.list()[0] ?? '');
+    showToast({ message: `Deleted "${name}"`, testId: 'song-delete-toast' });
   });
 
   const fileInput = document.createElement('input');
@@ -751,6 +786,7 @@ export function buildSongPanel(bus: ParamBus, engine: StudioApi, session: Preset
   io.appendChild(dropdown.el);
   io.appendChild(loadBtn);
   io.appendChild(saveBtn);
+  io.appendChild(deleteBtn);
   io.appendChild(importBtn);
   io.appendChild(pasteBtn);
   io.appendChild(exportBtn);

@@ -3,7 +3,9 @@
 ```yaml
 id: presets
 status: implemented
-version: 10  # v10: REQ-the-preset-wizard-reports-every-problem — the import wizard reports EVERY problem, not the
+version: 11  # v11: a stored preset can be deleted, and an edited factory preset reverted
+             #      (REQ-a-stored-preset-can-be-deleted)
+             # v10: REQ-the-preset-wizard-reports-every-problem — the import wizard reports EVERY problem, not the
              #      first, and the ones it can only warn about are shown too
              # v9: the motion sequencer is not part of a sound (REQ-motion-is-not-part-of-a-sound)
              # v8: REQ-a-factory-preset-sets-the-full-sound covers the FX tempo locks — a bank that ENGAGES an
@@ -245,6 +247,27 @@ can do with a sound ([ADR-014](../decisions/adr-014-dont-make-me-think.md) law 1
   will not survive the load, not that the file is unusable
   ([preset-authoring](preset-authoring.md) REQ-semantic-severity-is-the-callers-choice).
 
+- **REQ-a-stored-preset-can-be-deleted** (v11) — **A stored preset can be
+  deleted.** Saving had no inverse: a list grown by experiments could only be
+  pruned by a factory reset. The manager's **Delete or revert…** row
+  (`preset-mgr-delete`) opens a third step listing exactly the presets
+  `Presets.modified()` names (REQ-modified-is-computed-not-tracked) — the ones
+  there is something to undo — each with one action named for its outcome:
+  - a **user** preset → **Delete**: `Presets.remove(name)` drops the slot and its
+    index entry, and it leaves the selector;
+  - an **edited factory** preset → **Revert**: the same `remove`, after which
+    `load()` falls back to the factory definition — the stored edit is gone, the
+    name stays, and the factory sound is back under it.
+
+  Each asks first (`confirmDialog`, danger), naming what will happen. **Neither
+  changes the live sound** (REQ-importing-never-changes-the-live-sound's
+  reasoning: a manager action is not an audition). If the removed preset was the
+  active one, the selector marks the session edited (`*`), because what you hear
+  is no longer what that entry holds — Save puts it back. The step's empty state
+  says there is nothing to delete, rather than hiding the row: a door that
+  appears and disappears is harder to find again. Factory presets that were
+  never edited are not listed; there is nothing of yours to remove.
+
 ## Technical design
 
 ### Contract / public interface
@@ -382,6 +405,23 @@ NOT persisted:   PresetSession.songSound (REQ-a-songs-sound-is-a-selectable-entr
 ## Scenarios (BDD)
 
 ```gherkin
+Scenario: A user preset is deleted, an edited factory one reverted (v11, REQ-a-stored-preset-can-be-deleted)
+  Given a user preset "My Lead" and an edited factory preset "bass"
+  When the manager's Delete or revert step is opened
+  Then it lists "My Lead" with Delete and "bass" with Revert, and no unedited factory preset
+  When Delete on "My Lead" is confirmed
+  Then "My Lead" is gone from storage and the selector
+  When Revert on "bass" is confirmed
+  Then loading "bass" yields the factory sound again
+  And the live sound did not change either time
+# pinned by: tests/state/preset.test.ts, tests/ui/preset-manager-modal.test.ts
+
+Scenario: Removing the active preset marks the session edited (v11, REQ-a-stored-preset-can-be-deleted, edge)
+  Given "My Lead" is the active preset
+  When it is deleted
+  Then the selector shows "My Lead *" and what you hear is unchanged
+# pinned by: tests/ui/preset-manager-modal.test.ts
+
 Scenario: Saving then loading a preset round-trips the sound
   Given the user tweaks several knobs and saves "MyLead"
   When they load another preset then reload "MyLead"

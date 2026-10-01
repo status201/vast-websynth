@@ -437,6 +437,21 @@ export const Presets = {
     store.addToIndex(name);
   },
 
+  /**
+   * Drop a stored preset (presets.md REQ-a-stored-preset-can-be-deleted). For a
+   * user preset that is a delete; for an edited factory one it is a revert —
+   * `load()` falls back to `FACTORY` once the slot is gone, and `list()` keeps
+   * the factory name.
+   */
+  remove(name: string): void {
+    store.remove(name);
+  },
+
+  /** Whether `name` is a factory preset (so removing it reverts, not deletes). */
+  isFactory(name: string): boolean {
+    return Object.prototype.hasOwnProperty.call(FACTORY, name);
+  },
+
   capture(bus: ParamBus): Snapshot {
     return bus.snapshot();
   },

@@ -298,3 +298,32 @@ describe('Presets.modified() / entries() (presets.md REQ-modified-is-computed-no
     expect(Object.keys(Presets.entries(Presets.modified())).sort()).toEqual(['MyLead', 'bass']);
   });
 });
+
+// presets.md REQ-a-stored-preset-can-be-deleted.
+describe('Presets.remove', () => {
+  beforeEach(() => {
+    installLocalStorageMock();
+    Presets.ensureFactoryPresets();
+  });
+
+  it('deletes a user preset outright', () => {
+    Presets.save('Mine', { 'filter.cutoff': 50 });
+    expect(Presets.list()).toContain('Mine');
+    Presets.remove('Mine');
+    expect(Presets.list()).not.toContain('Mine');
+    expect(Presets.load('Mine')).toBeNull();
+  });
+
+  it('reverts an edited factory preset to its factory sound', () => {
+    const name = Object.keys(Presets.factory())[0]!;
+    const factory = Presets.factory()[name]!;
+    Presets.save(name, { ...factory, 'filter.cutoff': 12.5 });
+    expect(Presets.modified()).toContain(name);
+    Presets.remove(name);
+    expect(Presets.list()).toContain(name);
+    expect(Presets.load(name)).toEqual(factory);
+    expect(Presets.modified()).not.toContain(name);
+    expect(Presets.isFactory(name)).toBe(true);
+    expect(Presets.isFactory('Mine')).toBe(false);
+  });
+});

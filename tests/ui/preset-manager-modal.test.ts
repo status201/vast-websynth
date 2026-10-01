@@ -4,6 +4,7 @@ import { ParamBus, registerDefaults } from '../../src/state/params';
 import { PresetSession } from '../../src/state/preset-session';
 import { parsePresetPayload } from '../../src/state/preset-file';
 import { installLocalStorageMock } from '../storage-mock';
+import { Presets } from '../../src/state/preset';
 import styles from '../../src/ui/styles/preset-manager.module.css';
 
 // presets.md REQ-the-preset-wizard-reports-every-problem. The wizard's error strip used to render `errors[0]` and
@@ -130,5 +131,69 @@ describe('preset manager import warnings', () => {
       params: { 'filter.cutoff': 90 },
     });
     expect(shown('preset-import-warnings')).toBe(false);
+  });
+});
+
+// presets.md REQ-a-stored-preset-can-be-deleted — step 3 of the manager.
+describe('preset manager delete / revert', () => {
+  beforeEach(() => {
+    installLocalStorageMock();
+    document.body.innerHTML = '';
+    Presets.ensureFactoryPresets();
+  });
+
+  const rows = () => Array.from(document.querySelectorAll<HTMLElement>('[data-testid="preset-delete-row"]'));
+  const confirm = async (): Promise<void> => {
+    await vi.waitFor(() => expect(byId('dialog-confirm')).toBeTruthy());
+    byId('dialog-confirm')!.click();
+  };
+
+  function open(session = new PresetSession(), b = bus()) {
+    const changed = vi.fn();
+    openPresetManagerModal({ bus: b, session, onPresetsChanged: changed });
+    byId('preset-mgr-delete')!.click();
+    return { session, b, changed };
+  }
+
+  it('lists only presets with something to undo, each with the action that undoes it', () => {
+    const factoryName = Object.keys(Presets.factory())[0]!;
+    Presets.save('My Lead', { 'filter.cutoff': 50 });
+    Presets.save(factoryName, { ...Presets.factory()[factoryName]!, 'filter.cutoff': 12.5 });
+    open();
+    expect(shown('preset-delete-step')).toBe(true);
+    const listed = rows().map((r) => [r.dataset.preset, r.querySelector('button')!.textContent]);
+    expect(listed).toContainEqual(['My Lead', 'Delete']);
+    expect(listed).toContainEqual([factoryName, 'Revert']);
+    expect(listed).toHaveLength(2);   // no unedited factory preset
+  });
+
+  it('deletes after a confirm, never touching the live sound', async () => {
+    Presets.save('My Lead', { 'filter.cutoff': 50 });
+    const b = bus();
+    b.set('filter.cutoff', 77);
+    const { changed } = open(new PresetSession(), b);
+    rows().find((r) => r.dataset.preset === 'My Lead')!.querySelector('button')!.click();
+    await confirm();
+    await vi.waitFor(() => expect(Presets.list()).not.toContain('My Lead'));
+    expect(changed).toHaveBeenCalled();
+    expect(b.get('filter.cutoff')).toBe(77);
+    expect(rows()).toHaveLength(0);
+    expect(byId('preset-delete-step')!.textContent).toContain('Nothing to delete');
+  });
+
+  it('marks the session edited when the active preset is removed', async () => {
+    Presets.save('My Lead', { 'filter.cutoff': 50 });
+    const session = new PresetSession();
+    session.setActive('My Lead');
+    open(session);
+    rows()[0]!.querySelector('button')!.click();
+    await confirm();
+    await vi.waitFor(() => expect(session.display).toBe('My Lead *'));
+  });
+
+  it('Back returns to the home step', () => {
+    open();
+    byId('preset-delete-back')!.click();
+    expect(shown('preset-delete-step')).toBe(false);
   });
 });

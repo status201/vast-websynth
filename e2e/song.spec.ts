@@ -45,6 +45,40 @@ test.describe('song mode', () => {
     await expect.poll(() => seqOn(page, 5)).toBe(true);
   });
 
+  // song-mode.md REQ-a-saved-song-can-be-deleted.
+  test('Delete removes a saved song after a confirm, and is off for a demo', async ({ page }) => {
+    await gotoAndStart(page);
+    await page.getByTestId('tab-seq').click();
+    await page.getByTestId('seq-step-5').click();
+    await page.getByTestId('tab-song').click();
+
+    const jsonDownload = page.waitForEvent('download');
+    await page.getByTestId('song-save').click();
+    await page.getByTestId('dialog-input').fill('test-delete-me');
+    await page.getByTestId('dialog-confirm').click();
+    await jsonDownload;
+    await expect(page.getByTestId('dialog-confirm')).toHaveCount(0);
+    const stored = () => page.evaluate(() => localStorage.getItem('websynth.song.test-delete-me'));
+    expect(await stored()).not.toBeNull();
+
+    const del = page.getByTestId('song-delete');
+    await expect(del).toBeEnabled();
+    // Cancelling keeps it.
+    await del.click();
+    await page.getByTestId('dialog-cancel').click();
+    await expect(page.getByTestId('dialog-confirm')).toHaveCount(0);
+    expect(await stored()).not.toBeNull();
+
+    await del.click();
+    await page.getByTestId('dialog-confirm').click();
+    await expect.poll(stored).toBeNull();
+    await expect(page.getByTestId('song-delete-toast')).toBeVisible();
+    // The session itself is untouched.
+    expect(await seqOn(page, 5)).toBe(true);
+    // Whatever the picker falls back to now is a demo, which cannot be deleted.
+    await expect(del).toBeDisabled();
+  });
+
   /**
    * song-mode.md REQ-stale-sampler-audio-is-evicted / sampler.md REQ-a-slots-audio-matches-its-label (regression): a slot's audio belongs
    * to the name beside it. Loading a song that doesn't name slot 0 used to leave

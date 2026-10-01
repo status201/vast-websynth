@@ -1,6 +1,6 @@
 import { Modal } from './modal';
 import { createButton } from './button';
-import { promptDialog } from './dialog';
+import { confirmDialog, promptDialog } from './dialog';
 import { showToast } from './toast';
 import type { ParamBus } from '../../state/params';
 import type { PresetSession } from '../../state/preset-session';
@@ -75,8 +75,13 @@ export function openPresetManagerModal(opts: PresetManagerOptions): void {
   const review = document.createElement('div');
   review.dataset.testid = 'preset-import-review';
   review.style.display = 'none';
+  // Step 3 (REQ-a-stored-preset-can-be-deleted): delete a user preset, revert an edited factory one.
+  const manage = document.createElement('div');
+  manage.dataset.testid = 'preset-delete-step';
+  manage.style.display = 'none';
   modal.body.appendChild(home);
   modal.body.appendChild(review);
+  modal.body.appendChild(manage);
 
   const makeRow = (title: string, desc: string, testId: string): HTMLButtonElement => {
     const b = document.createElement('button');
@@ -118,7 +123,12 @@ export function openPresetManagerModal(opts: PresetManagerOptions): void {
     'Read a preset or bank file. You review what lands before anything is written.',
     'preset-mgr-import',
   );
-  rows.append(saveRow, exportPresetRow, exportBankRow, importRow);
+  const deleteRow = makeRow(
+    'Delete or revert…',
+    'Remove a sound you saved, or put an edited factory preset back. What you hear is not touched.',
+    'preset-mgr-delete',
+  );
+  rows.append(saveRow, exportPresetRow, exportBankRow, importRow, deleteRow);
   home.appendChild(rows);
 
   // Bank scope — which presets the bank export includes (REQ-modified-is-computed-not-tracked).
@@ -217,6 +227,77 @@ export function openPresetManagerModal(opts: PresetManagerOptions): void {
   });
 
   importRow.addEventListener('click', () => fileInput.click());
+  deleteRow.addEventListener('click', () => showManage());
+
+  // ================= step 3: delete / revert =================
+  const manageIntro = document.createElement('p');
+  manageIntro.className = styles.note!;
+  manage.appendChild(manageIntro);
+  const manageList = document.createElement('div');
+  manageList.className = styles.reviewList!;
+  manage.appendChild(manageList);
+  const manageActions = document.createElement('div');
+  manageActions.className = dialogStyles.actions!;
+  manageActions.appendChild(createButton({
+    label: 'Back',
+    className: switchStyles.root!,
+    testId: 'preset-delete-back',
+    onClick: () => showHome(),
+  }));
+  manage.appendChild(manageActions);
+
+  /** Remove one preset after a confirm; the live sound is never touched. */
+  async function removePreset(name: string): Promise<void> {
+    const factory = Presets.isFactory(name);
+    const ok = await confirmDialog(factory
+      ? {
+        title: `Revert "${name}"?`,
+        message: `Your edits to the factory preset "${name}" are removed and its factory sound comes back.`,
+        confirmLabel: 'Revert',
+        danger: true,
+      }
+      : {
+        title: `Delete "${name}"?`,
+        message: `The preset "${name}" is removed from this browser.`,
+        detail: 'That cannot be undone — export it first if you may want it back.',
+        confirmLabel: 'Delete',
+        danger: true,
+      });
+    if (!ok) return;
+    Presets.remove(name);
+    // What you hear is no longer what that entry holds — say so with the `*`.
+    if (opts.session.label === name) opts.session.markDirty();
+    opts.onPresetsChanged();
+    renderManage();
+    showToast({ message: factory ? `Reverted "${name}"` : `Deleted "${name}"`, testId: 'preset-toast' });
+  }
+
+  function renderManage(): void {
+    const names = Presets.modified();
+    manageIntro.textContent = names.length === 0
+      ? 'Nothing to delete — you have not saved or edited any presets.'
+      : 'Delete a preset you saved, or revert a factory preset you changed.';
+    manageList.innerHTML = '';
+    manageList.style.display = names.length === 0 ? 'none' : '';
+    for (const name of names) {
+      const row = document.createElement('div');
+      row.className = styles.reviewRow!;
+      row.dataset.testid = 'preset-delete-row';
+      row.dataset.preset = name;
+      const label = document.createElement('span');
+      label.className = styles.reviewName!;
+      label.textContent = name;
+      row.appendChild(label);
+      const factory = Presets.isFactory(name);
+      row.appendChild(createButton({
+        label: factory ? 'Revert' : 'Delete',
+        className: `${switchStyles.root!} ${dialogStyles.danger!}`,
+        title: factory ? `Put the factory "${name}" back` : `Delete "${name}"`,
+        onClick: () => void removePreset(name),
+      }));
+      manageList.appendChild(row);
+    }
+  }
   fileInput.addEventListener('change', () => {
     void (async () => {
       const f = fileInput.files?.[0];
@@ -431,6 +512,7 @@ export function openPresetManagerModal(opts: PresetManagerOptions): void {
   function showHome(): void {
     errorBlock.style.display = 'none';
     review.style.display = 'none';
+    manage.style.display = 'none';
     home.style.display = '';
     renderHome();
   }
@@ -438,8 +520,17 @@ export function openPresetManagerModal(opts: PresetManagerOptions): void {
   function showReview(): void {
     errorBlock.style.display = 'none';
     home.style.display = 'none';
+    manage.style.display = 'none';
     review.style.display = '';
     renderReview();
+  }
+
+  function showManage(): void {
+    errorBlock.style.display = 'none';
+    home.style.display = 'none';
+    review.style.display = 'none';
+    manage.style.display = '';
+    renderManage();
   }
 
   renderHome();

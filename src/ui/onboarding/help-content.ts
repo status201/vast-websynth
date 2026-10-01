@@ -1184,7 +1184,9 @@ export const HELP_TOPICS: Record<TopicId, HelpTopic> = {
       'stores it in your browser so it appears in the <strong>Slot</strong> list (ready to ' +
       '<strong>Load</strong> later) <em>and</em> downloads a <strong>.json</strong> backup file.</p>' +
       '<p>This is the one to use to keep a song you are working on. By contrast, ' +
-      '<strong>Export</strong> only downloads the file — it does <em>not</em> add a slot.</p>',
+      '<strong>Export</strong> only downloads the file — it does <em>not</em> add a slot.</p>' +
+      '<p><strong>Delete</strong>, beside it, removes the selected saved song from your browser ' +
+      'after asking. It leaves what is loaded alone, and demos cannot be deleted.</p>',
   },
   'song.import': {
     title: 'Import',

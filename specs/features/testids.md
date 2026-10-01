@@ -3,7 +3,9 @@
 ```yaml
 id: testids
 status: implemented
-version: 25 # v25: debug-offline (debug-panel.md v15)
+version: 26 # v26: song-delete + song-delete-toast (song-mode.md REQ-a-saved-song-can-be-deleted); preset-mgr-delete,
+            #      preset-delete-step, preset-delete-row, preset-delete-back (presets.md REQ-a-stored-preset-can-be-deleted)
+            # v25: debug-offline (debug-panel.md v15)
             # v24: debug-errors and debug-share (debug-panel.md REQ-the-panel-keeps-the-last-errors,
             #      REQ-the-report-can-be-shared)
             # v23: the seq track row's mute and pan are named in the catalogue as
@@ -322,7 +324,7 @@ song panel — lanes, chains & live FX:
                                                     # features/webrtc-sync.md
 
 song panel — files:
-  song-save · song-load · song-new · song-slot-select
+  song-save · song-load · song-delete · song-delete-toast · song-new · song-slot-select
   song-export · song-import · song-import-file · song-undo-toast
   song-demo-<name> · song-demo-more    # <name> is DATA — see REQ-data-derived-ids-are-enumerated, never spell one
   song-paste + paste-modal · paste-input · paste-status · paste-confirm ·
@@ -379,6 +381,8 @@ presets:                                            # features/presets.md
   preset-manager · preset-mgr-save · preset-mgr-export-preset ·
     preset-mgr-export-bank · preset-mgr-bank-scope-<modified|all> ·
     preset-mgr-import · preset-mgr-file · preset-mgr-close · preset-toast
+  preset-mgr-delete · preset-delete-step · preset-delete-back ·
+    preset-delete-row (data-preset="<name>" — DATA, never spelled in a test)
   preset-import-review · preset-import-row-<name> ·
     preset-import-policy-<rename|overwrite|skip> · preset-import-confirm ·
     preset-import-back

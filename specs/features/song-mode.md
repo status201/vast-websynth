@@ -3,7 +3,8 @@
 ```yaml
 id: song-mode
 status: implemented
-version: 27  # v27: REQ-song-file-v8-widens-the-bank-count — SongFile v8 lets each machine carry 4..8
+version: 28  # v28: a saved song can be deleted (REQ-a-saved-song-can-be-deleted)
+             # v27: REQ-song-file-v8-widens-the-bank-count — SongFile v8 lets each machine carry 4..8
              #      banks; the array length IS that machine's count (banks.md, ADR-022)
              # v26: REQ-a-load-lands-on-bar-one's reset also clears the transport loop (transport-loop REQ-loading-a-song-clears-the-loop)
              # v25: REQ-a-rejected-import-is-copyable-in-full also covers the two demo-load paths, which collapsed
@@ -456,6 +457,19 @@ demos, the load path **must stay backward compatible** as the format grows.
   that reduces a list to its first element has already lost the diagnosis, and no
   amount of copying downstream gets it back.
 
+- **REQ-a-saved-song-can-be-deleted** (v28) — **A saved song can be
+  deleted.** `Song.deleteSlot` existed with no caller. A **Delete** button
+  (`song-delete`) sits after Save and acts on the slot the picker shows. It is
+  enabled only when that entry **is a stored slot** (`Song.hasSlot`) — a demo is
+  not yours to delete — and its `title` says why when it is not. It asks first
+  (`confirmDialog`, danger) and then removes the slot; **the session is not
+  touched** (nothing you hear or see in the grids changes). If the session came
+  from that slot, it no longer does: the Save guard
+  ([session-autosave](session-autosave.md) REQ-every-slot-write-is-guarded)
+  treats the next Save of that name as a new slot, not a silent overwrite of
+  something that is gone. A stored slot that shadowed a demo of the same name
+  reveals the demo again.
+
 ## Technical design
 
 ### Contract / public interface
@@ -740,6 +754,15 @@ ParamBus.restore ── PatternStore.restore ── Arrangement.set*Chain
 ## Scenarios (BDD)
 
 ```gherkin
+Scenario: A saved song is deleted after a confirm (v28, REQ-a-saved-song-can-be-deleted)
+  Given a saved song "Jam" selected in the slot picker
+  When Delete is pressed and confirmed
+  Then "Jam" is no longer stored and leaves the picker
+  And the session (params, patterns, chains) is unchanged
+  When a built-in demo is selected
+  Then Delete is disabled and its title says demos cannot be deleted
+# pinned by: e2e/song.spec.ts
+
 Scenario: Round-trip a song through a slot
   Given an edited song
   When the user saves it to a slot, starts a new song, then loads the slot
