@@ -249,6 +249,8 @@ built `dist/`.
 - **`'` / `/`**: pitch bend up / down — the keys are stacked, so up really is
   the upper one (springs back on release)
 - **Space**: transport play / stop
+- **Shift + Space**: pause / continue from where you paused
+- **Shift + L**: loop on / off
 - **Home**: move the playhead back to bar 1
 - **Shift + Arrow Left/Right**: move the playhead one bar back / forward
 - **F** (hold): drum fill

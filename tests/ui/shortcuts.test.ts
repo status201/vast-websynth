@@ -16,7 +16,7 @@ function setup(seekOpts: { refuse?: boolean } = {}) {
   // Every install adds a window-level handler that never detaches, so the seek
   // members must be present on ALL of them — a Home press reaches every stub,
   // and a missing `seekTo` would throw inside a leaked listener.
-  const clock = { playing: false, step: 0, cue: 0 };
+  const clock = { playing: false, step: 0, cue: 0, pause: vi.fn() };
   const seekTo = vi.fn((step: number) => {
     if (seekOpts.refuse) return false;
     clock.step = clock.cue = step;
@@ -31,6 +31,7 @@ function setup(seekOpts: { refuse?: boolean } = {}) {
     barTicks: 16,
     seekTo,
     canSeek: () => !seekOpts.refuse,
+    loop: { toggle: vi.fn() },
   } as unknown as StudioApi;
   installShortcuts(engine, bus, bridge);
   return { bus, bridge, clock, seekTo, engine };
@@ -536,5 +537,53 @@ describe('installShortcuts octave shift on - and = (v17)', () => {
 
   it('a bare arrow no longer moves the octave', () => {
     expect(zAfter('ArrowRight', 'ArrowRight')).toBe(60);
+  });
+});
+
+// transport-loop.md REQ-shift-l-toggles-the-loop, transport-window.md REQ-shift-space-pauses.
+describe('installShortcuts Shift+L loops and Shift+Space pauses', () => {
+  afterEach(() => { document.body.innerHTML = ''; });
+
+  it('Shift+L toggles the loop and plays no note', () => {
+    const { bus, engine } = setup();
+    const played: number[] = [];
+    bus.onNote((on, note) => { if (on) played.push(note); });
+    const unprevented = modKeydown(document.body, 'L', { shiftKey: true });
+    expect(engine.loop.toggle).toHaveBeenCalledTimes(1);
+    expect(unprevented).toBe(false);
+    expect(played).toEqual([]);
+  });
+
+  it('a bare l does not toggle the loop', () => {
+    const { engine } = setup();
+    keydown(document.body, 'l');
+    expect(engine.loop.toggle).not.toHaveBeenCalled();
+  });
+
+  it('Shift+L does nothing while seeking is refused', () => {
+    const { engine } = setup({ refuse: true });
+    modKeydown(document.body, 'L', { shiftKey: true });
+    expect(engine.loop.toggle).not.toHaveBeenCalled();
+  });
+
+  it('Shift+Space pauses a running transport; Space still stops it', () => {
+    const { bridge, clock } = setup();
+    const toggle = vi.fn();
+    bridge.toggleTransport = toggle;
+    clock.playing = true;
+    modKeydown(document.body, ' ', { shiftKey: true });
+    expect(clock.pause).toHaveBeenCalledTimes(1);
+    expect(toggle).not.toHaveBeenCalled();
+    modKeydown(document.body, ' ');
+    expect(toggle).toHaveBeenCalledTimes(1);
+  });
+
+  it('Shift+Space on a stopped transport continues from the cue', () => {
+    const { bridge, clock } = setup();
+    const toggle = vi.fn();
+    bridge.toggleTransport = toggle;
+    modKeydown(document.body, ' ', { shiftKey: true });
+    expect(toggle).toHaveBeenCalledTimes(1);
+    expect(clock.pause).not.toHaveBeenCalled();
   });
 });

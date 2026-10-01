@@ -71,8 +71,8 @@ export function buildTransportControls(
     play.classList.toggle('on', playing);
     play.textContent = playing ? 'Pause' : 'Play';
     play.title = playing
-      ? 'Pause — Play continues from here'
-      : engine.clock.paused ? 'Continue from where you paused' : 'Play';
+      ? 'Pause — Play continues from here (Shift+Space)'
+      : engine.clock.paused ? 'Continue from where you paused (Shift+Space)' : 'Play';
   };
   engine.clock.onStart(syncPlay);
   engine.clock.onStop(syncPlay);
@@ -163,9 +163,10 @@ export function buildTransportControls(
     const span = range
       ? range.start === range.end ? `bar ${range.start + 1}` : `bars ${range.start + 1}–${range.end + 1}`
       : '';
-    loopBtn.title = !on
+    loopBtn.title = (!on
       ? range ? `Loop ${span} again` : 'Loop — then click the first and last bar'
-      : range ? `Looping ${span} — click two bars to change, or Loop to stop` : 'Click the first and last bar to loop';
+      : range ? `Looping ${span} — click two bars to change, or Loop to stop` : 'Click the first and last bar to loop')
+      + ' (Shift+L)';
     scrub.classList.toggle(styles.picking!, on);
     scrub.classList.toggle(styles.loopIdle!, !on && range !== null);
 

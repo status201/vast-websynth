@@ -144,6 +144,15 @@ export function installShortcuts(engine: StudioApi, bus: ParamBus, bridge: UiBri
       return;
     }
 
+    // Shift+L — Loop on/off (transport-loop.md REQ-shift-l-toggles-the-loop). Shift
+    // like Shift+R: bare letters are left to the note rows. Consumed even when
+    // refused, exactly like the button going inert.
+    if (e.shiftKey && (k === 'L' || k === 'l')) {
+      e.preventDefault();
+      if (engine.canSeek()) engine.loop.toggle();
+      return;
+    }
+
     // Delete/Backspace — clear the selected step on the active machine tab
     // (step-grid-editing.md REQ-delete-clears-the-selected-step). Scoped exactly like Ctrl+Z above, so it can
     // never reach a grid that is off screen.
@@ -193,10 +202,14 @@ export function installShortcuts(engine: StudioApi, bus: ParamBus, bridge: UiBri
     // Panic
     if (k === 'Escape') { engine.panic(); return; }
 
-    // Transport play/stop
+    // Transport: Space is Play/Stop, Shift+Space is Pause/continue — the two
+    // verbs of transport-window.md REQ-pause-and-stop-are-separate-verbs, one key each
+    // (REQ-shift-space-pauses). Not playing, both start from the cue, which after
+    // a pause is the resume point.
     if (k === ' ' || k === 'Spacebar') {
       e.preventDefault();
-      bridge.toggleTransport();
+      if (e.shiftKey && engine.clock.playing) engine.clock.pause();
+      else bridge.toggleTransport();
       return;
     }
 

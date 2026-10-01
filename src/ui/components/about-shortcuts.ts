@@ -63,6 +63,8 @@ const SHORTCUTS: Array<[Combo, string]> = [
   [['Home'], 'Move the playhead to bar 1'],
   [['Shift', t(' + '), k('arrowLeft', 'Left arrow'), k('arrowRight', 'Right arrow')], 'Move the playhead one bar'],
   [['F', t(' (hold)')], 'Drum fill'],
+  [['Shift', t(' + '), 'Space'], 'Pause / continue'],
+  [['Shift', t(' + '), 'L'], 'Loop on / off'],
   [['Shift', t(' + '), 'R'], 'Open / close the Record window'],
   [['Esc'], 'Panic — all notes off'],
   [['Delete'], 'Clear the selected step'],

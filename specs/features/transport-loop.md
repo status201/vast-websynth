@@ -3,7 +3,7 @@
 ```yaml
 id: transport-loop
 status: implemented
-version: 1
+version: 2   # v2: Shift+L toggles Loop from the keyboard (REQ-shift-l-toggles-the-loop)
 owner: core
 related:
   - transport            # REQ-loop-discoverability: the step router the wrap runs through
@@ -195,6 +195,15 @@ old position.
   REQ-the-transport-row-carries-a-help-badge) cover it. The help topic explains
   Loop, the two picks, the dimmed remembered range and when looping is
   unavailable.
+
+- **REQ-shift-l-toggles-the-loop** (v2) — **`Shift`+`L` toggles Loop** from any
+  tab, exactly as the Loop button does: refused (and still consumed) while seeking
+  is refused (REQ-a-loop-that-cannot-jump-does-not). Shift, following
+  [record-window](record-window.md) REQ-shift-r-toggles-the-record-window: bare
+  letters belong to the note rows ([keyboard-layout](keyboard-layout.md)) — `L`
+  is not one today, but a loop toggled by a stray key mid-take is a surprise, and
+  the note rows may grow. A bare `l` does nothing. The Loop button's `title`
+  names the key, and the About shortcut list carries it.
 
 - **REQ-loop-costs-nothing-unless-engaged** — **Costs nothing unless engaged.**
   The clock's step router is `null` unless Loop is on **and** a range exists, so
@@ -415,6 +424,14 @@ Scenario: Loading a song clears the loop (REQ-loading-a-song-clears-the-loop)
   Then Loop is off and no range is remembered
 # pinned by: e2e/transport-loop.spec.ts
 
+Scenario: Shift+L toggles Loop, and only Loop (v2, REQ-shift-l-toggles-the-loop)
+  Given the transport can seek
+  When the user presses Shift+L
+  Then Loop toggles and no note plays
+  And a bare l does not toggle Loop
+  And while seeking is refused, Shift+L does nothing
+# pinned by: tests/ui/shortcuts.test.ts
+
 Scenario: The wrap measures the song's bar (REQ-loop-bars-are-the-songs-bars)
   Given a 3/4 meter (barTicks 12) and the range bars 2–3
   Then the loop runs over steps 12..35 and step 36 goes back to 12
@@ -454,5 +471,6 @@ Scenario: No router unless engaged (REQ-loop-costs-nothing-unless-engaged)
   (REQ-a-following-slave-jumps-in-place), timed to the wrap's first pulse
   (REQ-a-join-is-timed-by-its-first-pulse). The restart it used to do had also
   been leaving the slave a 16th off after a few wraps.
-- **Keyboard shortcuts** for Loop and Pause are not assigned. Most letter keys
-  already play the on-screen keyboard ([keyboard-layout](keyboard-layout.md)).
+- ~~**Keyboard shortcuts** for Loop and Pause~~ — v2: Shift+L
+  (REQ-shift-l-toggles-the-loop); Pause is Shift+Space ([transport-window](transport-window.md)
+  REQ-shift-space-pauses).

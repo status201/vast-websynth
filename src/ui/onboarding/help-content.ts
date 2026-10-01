@@ -1091,14 +1091,14 @@ export const HELP_TOPICS: Record<TopicId, HelpTopic> = {
       'waiting. ' + g('toStart', 'Back to the start') + ' goes back to the start.</p>' +
       '<p>Each cell lines up with a slot in the chains above, so cell&nbsp;3 and the third chip ' +
       'in a lane are the same bar.</p>' +
-      '<p><strong>Play / Pause</strong> continues from where you paused. The header\'s ' +
+      '<p><strong>Play / Pause</strong> (<strong>Shift+Space</strong>) continues from where you paused. The header\'s ' +
       '<strong>Stop</strong> is the other half: it goes back to where you started, or to the ' +
       'last bar you clicked.</p>' +
       '<p><strong>Loop</strong> repeats a stretch of the song. Switch it on, then click the first ' +
       'and the last bar you want (the same bar twice loops one bar). While Loop is on, clicking ' +
       'a bar picks it rather than jumping there. Playback always changes over on a bar line, so ' +
       'the loop never cuts in mid-bar. Switching Loop off keeps the bars dimmed, ready for next ' +
-      'time; loading a song clears them.</p>' +
+      'time; loading a song clears them. <strong>Shift+L</strong> switches Loop on and off.</p>' +
       '<p><strong>TRANSPORT</strong> opens all of this in a floating window that keeps working ' +
       'on every other tab, so you can start, pause, loop and relocate while designing a ' +
       'sound.</p>' +

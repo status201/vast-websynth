@@ -3,7 +3,8 @@
 ```yaml
 id: transport-window
 status: implemented
-version: 5  # v5: Play/Pause on BOTH surfaces (REQ-play-pause-is-not-a-second-truth/REQ-pause-and-stop-are-separate-verbs) and a Loop button
+version: 6  # v6: Shift+Space is Pause/continue from the keyboard (REQ-shift-space-pauses)
+           # v5: Play/Pause on BOTH surfaces (REQ-play-pause-is-not-a-second-truth/REQ-pause-and-stop-are-separate-verbs) and a Loop button
             #     (transport-loop.md); `compact` is gone (REQ-one-transport-control-builder)
             # v4: `bar.step` counts the song's bar, not a fixed 16 (REQ-bar-step-counts-the-songs-bar)
             # v3: the readout wraps at song length — it no longer counts bars the
@@ -194,6 +195,13 @@ keep in step.
   shift when the label changes. Precedent: Elektron's PLAY, which pauses and
   resumes, sits beside its STOP. The MPC has PLAY and PLAY START.
 
+- **REQ-shift-space-pauses** (v6) — **`Shift`+`Space` is the keyboard's Pause.**
+  `Space` stays Play/Stop (the header's verbs); `Shift`+`Space` does what the song
+  transport's Play/Pause button does — pause when running, continue from the cue
+  when not — so the two verbs of REQ-pause-and-stop-are-separate-verbs each have a
+  key. Shift turns Space into the gentler verb. The Play/Pause button's `title`
+  names the key, and the About shortcut list carries it.
+
 - **REQ-loop-lives-on-the-transport-row** (v5) — **Loop lives on this row.**
   Between the readout and the scrubber, because its picks land on the scrubber.
   The button, the picking mode and the range drawn on the cells are specified in
@@ -281,6 +289,15 @@ near-black bed whose 2px gaps are the dividers. One line; a long song scrolls:
 ## Scenarios (BDD)
 
 ```gherkin
+Scenario: Shift+Space pauses and continues (v6, REQ-shift-space-pauses)
+  Given the transport is playing
+  When the user presses Shift+Space
+  Then the clock pauses, holding its place as the cue
+  When the user presses Shift+Space again
+  Then the transport continues from that cue
+  And a bare Space still toggles Play/Stop
+# pinned by: tests/ui/shortcuts.test.ts
+
 Scenario: The Song row and the window carry the same controls (v5, REQ-one-transport-control-builder/REQ-the-song-panel-transport-row)
   Given the Song tab is open
   Then its transport row carries Play/Pause, ⏮, the readout, Loop and the scrubber
