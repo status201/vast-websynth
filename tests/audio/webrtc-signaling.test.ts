@@ -3,6 +3,7 @@ import {
   encodeSignal,
   decodeSignal,
   SignalDecodeError,
+  looksLikeSdp,
 } from '../../src/audio/webrtc-signaling';
 
 const SDP = [
@@ -68,5 +69,29 @@ describe('webrtc-signaling', () => {
     // Valid base64url of raw JSON that is missing the sdp field.
     const bad = 'WS2.r.' + Buffer.from(JSON.stringify({ k: 'offer' })).toString('base64url');
     await expect(decodeSignal(bad)).rejects.toBeInstanceOf(SignalDecodeError);
+  });
+});
+
+// untrusted-input.md REQ-a-pairing-sdp-is-shape-checked.
+describe('the SDP shape check', () => {
+  const blobOf = (sdp: string) =>
+    'WS2.r.' + Buffer.from(JSON.stringify({ k: 'offer', s: sdp })).toString('base64url');
+
+  it('accepts a real description, CRLF or LF', () => {
+    expect(looksLikeSdp(SDP)).toBe(true);
+    expect(looksLikeSdp(SDP.replace(/\r\n/g, '\n'))).toBe(true);
+  });
+
+  it('refuses what is plainly not an SDP', () => {
+    expect(looksLikeSdp('hello')).toBe(false);
+    expect(looksLikeSdp('o=- 1 2 IN IP4 x\r\nv=0')).toBe(false);          // must open with v=0
+    expect(looksLikeSdp('v=0\r\n<script>alert(1)</script>')).toBe(false);  // not an x= line
+    expect(looksLikeSdp('v=0\r\na=bad\u0000byte')).toBe(false);           // control character
+    expect(looksLikeSdp('v=0\r\nA=upper')).toBe(false);                    // types are lowercase
+  });
+
+  it('decodeSignal rejects a well-formed envelope around a non-SDP', async () => {
+    await expect(decodeSignal(blobOf('not an sdp'))).rejects.toBeInstanceOf(SignalDecodeError);
+    await expect(decodeSignal(blobOf(SDP))).resolves.toEqual({ kind: 'offer', sdp: SDP });
   });
 });

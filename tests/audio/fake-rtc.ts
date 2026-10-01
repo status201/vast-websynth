@@ -4,7 +4,9 @@
  * the WebRtcSyncTransport uses. Two connections built from the SAME factory
  * loopback: negotiated channels with matching ids are paired at answer time,
  * and `send` delivers synchronously to the peer's `onmessage` (deterministic
- * under fake timers). SDP is a `FAKE:<token>` string; a shared registry links
+ * under fake timers). SDP is a minimal real-shaped description carrying the peer's
+ * token in its `o=` line (decodeSignal shape-checks it — untrusted-input.md
+ * REQ-a-pairing-sdp-is-shape-checked); a shared registry links
  * the two peers by token — modelling the offer→answer handshake.
  *
  * Model of a full pairing: host.createOffer registers under its token; guest
@@ -68,12 +70,12 @@ class FakePeerConnection {
 
   async createOffer(): Promise<{ type: string; sdp: string }> {
     this.registry.set(this.token, this);
-    return { type: 'offer', sdp: `FAKE:${this.token}` };
+    return { type: 'offer', sdp: fakeSdp(this.token) };
   }
 
   async createAnswer(): Promise<{ type: string; sdp: string }> {
     this.registry.set(this.token, this);
-    return { type: 'answer', sdp: `FAKE:${this.token}` };
+    return { type: 'answer', sdp: fakeSdp(this.token) };
   }
 
   async setLocalDescription(desc: { type: string; sdp: string }): Promise<void> {
@@ -81,7 +83,7 @@ class FakePeerConnection {
   }
 
   async setRemoteDescription(desc: { type: string; sdp: string }): Promise<void> {
-    const other = this.registry.get(desc.sdp.replace('FAKE:', ''));
+    const other = this.registry.get(/^o=- (\S+)/m.exec(desc.sdp)?.[1] ?? '');
     if (!other) return;
     this.remote = other;
     other.remote = this;
@@ -142,3 +144,8 @@ export function makeFakeRtc(): FakeRtc {
 }
 
 export type { FakePeerConnection };
+
+/** The smallest SDP `looksLikeSdp` accepts, with the pairing token as the session id. */
+function fakeSdp(token: string): string {
+  return ['v=0', `o=- ${token} 1 IN IP4 127.0.0.1`, 's=-', 't=0 0', ''].join('\r\n');
+}

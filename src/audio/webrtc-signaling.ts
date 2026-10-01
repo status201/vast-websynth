@@ -75,7 +75,27 @@ export async function decodeSignal(blob: string): Promise<DecodedSignal> {
   if (!rec || (rec.k !== 'offer' && rec.k !== 'answer') || typeof rec.s !== 'string') {
     throw new SignalDecodeError('Corrupt sync link (unexpected shape).');
   }
+  if (!looksLikeSdp(rec.s)) throw new SignalDecodeError('Corrupt sync link (not a pairing description).');
   return { kind: rec.k, sdp: rec.s };
+}
+
+/**
+ * A cheap shape check before the SDP reaches `setRemoteDescription`
+ * (untrusted-input.md REQ-a-pairing-sdp-is-shape-checked). The browser's parser
+ * is the hardened thing; this only refuses what is plainly not an SDP, so a
+ * hostile code fails here with our message instead of deep inside WebRTC. An
+ * SDP opens with `v=0`, is printable ASCII in `x=` lines separated by CRLF
+ * (a bare LF is tolerated: some stacks send it), and the envelope already
+ * bounds its size (`MAX_SIGNAL_BYTES`).
+ */
+export function looksLikeSdp(sdp: string): boolean {
+  if (!sdp.startsWith('v=0')) return false;
+  for (const line of sdp.split('\n')) {
+    const l = line.endsWith('\r') ? line.slice(0, -1) : line;
+    if (l === '') continue;
+    if (!/^[a-z]=[\x20-\x7e]*$/.test(l)) return false;
+  }
+  return true;
 }
 
 // ---- platform helpers ----

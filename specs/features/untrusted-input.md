@@ -3,7 +3,9 @@
 ```yaml
 id: untrusted-input
 status: implemented
-version: 9   # v9: REQ-a-link-may-not-fetch-silently reads the songUrl body under the cap as it
+version: 10  # v10: REQ-a-pairing-sdp-is-shape-checked — a scanned or pasted pairing code's SDP is
+             #      shape-checked before it reaches setRemoteDescription
+             # v9: REQ-a-link-may-not-fetch-silently reads the songUrl body under the cap as it
              #     streams — a server that omits Content-Length could make the tab buffer anything
              # v8: REQ-the-limits-are-one-module gains MAX_SYNC_JOIN_LEAD_MS — a WiFi peer's join
              #     time is clamped so it cannot park a slave indefinitely
@@ -330,6 +332,15 @@ decision and the alternatives. This spec is the contract.
   pasted into the app does. The endpoint adds a layer; it does not get its own
   parser ([mcp-server](mcp-server.md) REQ-the-public-endpoint-is-bounded-not-authenticated).
 
+- **REQ-a-pairing-sdp-is-shape-checked** (v10) — **A pairing code's SDP is
+  shape-checked.** The envelope (`k`, `s`, size) was validated but the SDP body
+  went to `setRemoteDescription` as-is. The browser's parser is the hardened
+  layer and stays the real defence; `looksLikeSdp` is the cheap one in front of
+  it: the body must open with `v=0` and every line must be a lowercase `x=`
+  type followed by printable ASCII, CRLF- or LF-separated. Anything else is
+  refused as a `SignalDecodeError` with the app's own message, before WebRTC
+  sees it.
+
 ## Technical design
 
 ### Contract / public interface
@@ -436,6 +447,13 @@ when a song slot is *written*.
 ## Scenarios (BDD)
 
 ```gherkin
+Scenario: A pairing code whose SDP is not an SDP is refused (v10, REQ-a-pairing-sdp-is-shape-checked)
+  Given a well-formed pairing envelope whose s field is not an SDP (no v=0, or a control character)
+  When it is decoded
+  Then decodeSignal rejects with SignalDecodeError before setRemoteDescription is called
+  And a real offer's SDP still decodes
+# pinned by: tests/audio/webrtc-signaling.test.ts
+
 Scenario: An out-of-range note is refused instead of wedging the transport
   Given a song whose seqBanks contain a step with note 1e6
   When it is imported
@@ -578,8 +596,7 @@ Scenario: Every shipped demo validates without warnings (v3, REQ-an-unresolvable
 - **`#songUrl=` allow-list.** Consent covers the drive-by; a remembered
   per-origin allow-list would remove the prompt for a host the user trusts.
 - ~~**Streaming the fetched body**~~ — done in v9 (REQ-a-link-may-not-fetch-silently, `readCappedBody`).
-- **The SDP from a scanned QR** reaches `setRemoteDescription` unvalidated. The
-  envelope is checked; the SDP body is handed to the browser's own parser, which
-  is the hardened thing here — but a shape check would still be cheap.
+- ~~**The SDP from a scanned QR** reaches `setRemoteDescription` unvalidated.~~
+  v10: REQ-a-pairing-sdp-is-shape-checked.
 - **Dropping `style-src 'unsafe-inline'`** once the `<noscript>` block's inline
   `style=` attributes move to a class.
