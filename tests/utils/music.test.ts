@@ -1,7 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import {
   NOTE_LABELS, SCALE_LABELS, CHORD_LABELS, isScaleActive, scaleSize, scaleTones,
-  buildQuantizeTable, chordDegrees, diatonicChord, degreeLabel,
+  buildQuantizeTable, chordDegrees, diatonicChord, degreeLabel, invertChord,
 } from '../../src/utils/music';
 
 // specs/features/scale-quantization.md, specs/features/chord-tools.md
@@ -160,5 +160,33 @@ describe('degreeLabel', () => {
   it('labels a minor scale from the same rule, with no per-scale data', () => {
     expect(degreeLabel(A, MINOR, 0)).toBe('i — Am');
     expect(degreeLabel(A, MINOR, 2)).toBe('III — C');
+  });
+});
+
+// chord-tools.md REQ-the-writer-can-invert.
+describe('invertChord', () => {
+  const cMajor = [60, 64, 67];   // C4 E4 G4
+
+  it('raises the lowest tones an octave, keeping the chord ascending', () => {
+    expect(invertChord(cMajor, 0)).toEqual([60, 64, 67]);
+    expect(invertChord(cMajor, 1)).toEqual([64, 67, 72]);
+    expect(invertChord(cMajor, 2)).toEqual([67, 72, 76]);
+    expect(invertChord([60, 64, 67, 71], 3)).toEqual([71, 72, 76, 79]);
+  });
+
+  it('clamps an inversion past the chord to the last one it has', () => {
+    expect(invertChord(cMajor, 3)).toEqual(invertChord(cMajor, 2));
+    expect(invertChord([60, 67], 2)).toEqual([67, 72]);   // a power chord has only 1st
+    expect(invertChord(cMajor, -1)).toEqual(cMajor);
+  });
+
+  it('clamps into the MIDI range and de-duplicates', () => {
+    expect(invertChord([120, 124, 127], 2)).toEqual([127]);
+  });
+
+  it('works on what diatonicChord writes', () => {
+    const MAJOR_ = SCALE_LABELS.indexOf('major');
+    const triad = diatonicChord(60, C, MAJOR_, chordDegrees(1));
+    expect(invertChord(triad, 1)).toEqual([64, 67, 72]);
   });
 });

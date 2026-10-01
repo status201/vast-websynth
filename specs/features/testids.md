@@ -3,7 +3,8 @@
 ```yaml
 id: testids
 status: implemented
-version: 27 # v27: sync-midi-channel (input-control.md REQ-the-midi-input-channel-is-selectable)
+version: 28 # v28: seq-chord-inversion (chord-tools.md REQ-the-writer-can-invert)
+            # v27: sync-midi-channel (input-control.md REQ-the-midi-input-channel-is-selectable)
             # v26: song-delete + song-delete-toast (song-mode.md REQ-a-saved-song-can-be-deleted); preset-mgr-delete,
             #      preset-delete-step, preset-delete-row, preset-delete-back (presets.md REQ-a-stored-preset-can-be-deleted)
             # v25: debug-offline (debug-panel.md v15)
@@ -223,7 +224,7 @@ step grids, rulers & overlays:
   seq-track-<t> · seq-track-fold-<t> · seq-step-input   # fold: features/lane-fold.md
   # the row's mute and pan mint from their param ids (REQ-param-controls-mint-from-the-param-id):
   #   switch-seq.t<t>.mute · knob-seq.t<t>.pan          # pan: features/sequencer.md
-  seq-chord · seq-snap · seq-snap-toast      # features/chord-tools.md — the degree
+  seq-chord · seq-chord-inversion · seq-snap · seq-snap-toast   # features/chord-tools.md — the degree
                                              #   writer and SNAP. `seq-chord` is a
                                              #   Dropdown, which mints no per-row ids.
   drum-step-<track>-<step> · drum-track-<track>

@@ -182,6 +182,25 @@ export function diatonicChord(
   return out;
 }
 
+/**
+ * An inversion of an ascending chord: its lowest `inversion` tones raised an
+ * octave (chord-tools.md REQ-the-writer-can-invert). Clamped to the chord's own
+ * size (a triad has no 3rd inversion), clamped into the MIDI range and
+ * de-duplicated, returned ascending. `0` returns the chord unchanged.
+ */
+export function invertChord(notes: readonly number[], inversion: number): number[] {
+  const k = Math.max(0, Math.min(Math.round(inversion), notes.length - 1));
+  const out: number[] = [];
+  notes.forEach((n, i) => {
+    const raised = i < k ? Math.min(MIDI_NOTE_MAX, n + 12) : n;
+    if (!out.includes(raised)) out.push(raised);
+  });
+  return out.sort((a, b) => a - b);
+}
+
+/** The inversion picker's labels, indexed by inversion (REQ-the-writer-can-invert). */
+export const INVERSION_LABELS = ['Root', '1st', '2nd', '3rd'];
+
 const ROMAN = ['I', 'II', 'III', 'IV', 'V', 'VI', 'VII'];
 
 /**

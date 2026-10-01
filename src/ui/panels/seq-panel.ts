@@ -22,7 +22,7 @@ import { StepSettingsEditor, stepTitle } from '../components/step-settings';
 import { Dropdown } from '../components/dropdown';
 import { showToast } from '../components/toast';
 import {
-  buildQuantizeTable, chordDegrees, degreeLabel, diatonicChord, scaleSize,
+  buildQuantizeTable, chordDegrees, degreeLabel, diatonicChord, invertChord, INVERSION_LABELS, scaleSize,
 } from '../../utils/music';
 import { capturedToAudioBuffer } from '../../audio/recorder/audio-buffer';
 import {
@@ -397,6 +397,20 @@ export function buildSeqPanel(
   chordCtrl.appendChild(chordDd.el);
   edit.insertBefore(chordCtrl, noteCtrl.nextSibling);
 
+  // Which tone the written chord puts in the bass (chord-tools.md REQ-the-writer-can-invert).
+  // Panel state only — it shapes what is written, never what plays.
+  const invCtrl = document.createElement('div');
+  invCtrl.className = editStyles.ctrl!;
+  const invLabel = document.createElement('div');
+  invLabel.className = editStyles.ctrlLabel!;
+  invLabel.textContent = 'Inversion';
+  invCtrl.appendChild(invLabel);
+  const invDd = new Dropdown(INVERSION_LABELS, INVERSION_LABELS[0]);
+  invDd.el.dataset.testid = 'seq-chord-inversion';
+  invCtrl.title = 'Which chord tone the Chord writer puts in the bass';
+  invCtrl.appendChild(invDd.el);
+  edit.insertBefore(invCtrl, chordCtrl.nextSibling);
+
   /** Degree labels for the current key, or a single placeholder when chromatic. */
   function chordOptions(): string[] {
     const scale = Math.round(bus.get('scale.type'));
@@ -431,7 +445,8 @@ export function buildSeqPanel(
     // The writer stands on its own: `chord.voicing` is the live-performance control,
     // so a triad is the sensible thing to write when it is off rather than nothing.
     const degrees = chordDegrees(voicing === 0 ? 1 : voicing);
-    const notes = diatonicChord(anchor, root, scale, degrees, degree);
+    const inversion = Math.max(0, INVERSION_LABELS.indexOf(invDd.value));
+    const notes = invertChord(diatonicChord(anchor, root, scale, degrees, degree), inversion);
     if (notes.length === 0) return;
     engine.patterns.writeSeqChord(cursor.selCol, notes);
   });

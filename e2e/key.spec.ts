@@ -115,6 +115,21 @@ test.describe('key & chord tools', () => {
     await expect(page.getByTestId('key-hint')).toContainText('Chromatic');
   });
 
+  // chord-tools.md REQ-the-writer-can-invert — the picker reaches the writer.
+  test('the chord writer writes the chosen inversion', async ({ page }) => {
+    await gotoAndStart(page);
+    await page.getByTestId('tab-key').click();
+    await choose(page, 'key-scale', 'major');
+    await page.getByTestId('tab-seq').click();
+    await page.evaluate(() =>
+      (window as any).__synth.patterns.setSeqStep(0, 0, { on: true, note: 60 }));
+
+    await choose(page, 'seq-chord-inversion', '1st');
+    await choose(page, 'seq-chord', 'I — C');
+    const notes = await Promise.all([0, 1, 2].map((t) => seqNote(page, t, 0)));
+    expect(notes).toEqual([64, 67, 72]);   // E4 G4 C5: the third in the bass
+  });
+
   test('SNAP rewrites the bank into the scale and one undo restores it', async ({ page }) => {
     await gotoAndStart(page);
     await page.getByTestId('tab-key').click();

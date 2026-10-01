@@ -3,7 +3,7 @@
 ```yaml
 id: chord-tools
 status: implemented
-version: 1
+version: 2   # v2: the chord writer can write inversions (REQ-the-writer-can-invert)
 owner: core
 related:
   - architecture
@@ -125,6 +125,20 @@ cheapest implementation and the most musical one.
   the line an octave. Track 1 takes the root and 2..4 the upper tones,
   ascending.
 
+- **REQ-the-writer-can-invert** (v2) — **The writer can write an inversion.**
+  Root position only meant every chord change jumped the whole stack, so a
+  progression written with it never voice-led. An **Inversion** picker beside the
+  Chord dropdown (`seq-chord-inversion`) offers **Root**, **1st**, **2nd** and,
+  for a 7th, **3rd**. An inversion `k` raises the chord's lowest `k` tones an
+  octave (`invertChord`), so the chord keeps its notes and its register while a
+  different tone sits in the bass, and track 1 still takes the lowest note,
+  2..4 the rest ascending (REQ-a-chord-lands-in-the-edited-register). An
+  inversion past the chord's size clamps to the last one it has (a power chord
+  has only 1st). A tone raised past MIDI 127 clamps and de-duplicates, as
+  `diatonicChord` already does. It shapes what the writer *writes*: nothing new
+  is stored, nothing plays differently, and Root — the default — writes exactly
+  what v1 wrote. The choice lasts as long as the panel, like the cursor.
+
 ## Technical design
 
 ### Contract / public interface
@@ -197,6 +211,14 @@ deliberate — there is no chord object to keep in sync.
 ## Scenarios (BDD)
 
 ```gherkin
+Scenario: The writer writes the chosen inversion (v2, REQ-the-writer-can-invert)
+  Given C major and the cursor on a step whose note is C4
+  When the I chord is written in 1st inversion
+  Then the tracks get E4, G4, C5 — the same chord with its third in the bass
+  And 2nd inversion writes G4, C5, E5, and Root writes C4, E4, G4 as before
+  And a power chord asked for its 2nd inversion writes its 1st
+# pinned by: tests/utils/music.test.ts, e2e/key.spec.ts
+
 Scenario: Writing a degree stacks the right quality (REQ-chords-are-stacked-scale-degrees, REQ-degree-labels-show-real-quality)
   Given scale.root is C and scale.type is major
   When the writer writes degree ii as a triad
@@ -273,8 +295,13 @@ Scenario: The chord lands in the edited register (REQ-a-chord-lands-in-the-edite
 
 ## Open questions / future
 
-- **Inversions and drop voicings** — the writer is root-position only. A `voicing`
-  control (root / 1st / 2nd) would be additive and needs no new data.
+- ~~**Inversions**~~ — v2, REQ-the-writer-can-invert. **Drop voicings** (drop-2:
+  the second-highest tone down an octave) remain open; they are the same pure
+  shape on the same notes, but a menu of five voicings is past the point where the
+  choice helps more than it costs.
+- Live **chord memory** (`chord.voicing`) still plays root position. Inverting it
+  would need a param (it is a performance control that songs carry), and so a
+  no-op default and a reason to want it live.
 - **A plain major triad in `chromatic` is blocked by REQ-chord-tools-require-a-scale**, since there are no degrees without
   a scale. That is one dropdown away and the panel says so, but if it proves annoying
   the alternative is a fixed-interval fallback — at the cost of a second code path and
