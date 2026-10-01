@@ -3,7 +3,7 @@
  * both chain lanes. Portable as a JSON file and storable in localStorage
  * slots (mirrors the Presets pattern in `preset.ts`).
  */
-import type { ParamBus } from './params';
+import { savedParams, type ParamBus } from './params';
 import type { PatternStore, SeqStep, DrumCell, SamplerStep, MotionStep, MotionAssign, MotionTrack } from './patterns';
 import { SEQ_LENGTH, DRUM_TRACK_COUNT, MIN_BANK_COUNT, makeDrumBank, makeSeqBank,
   emptyPatternSnapshot, clampBankCount, highestChainBank } from './patterns';
@@ -160,7 +160,9 @@ export const Song = {
       format: 'websynth-song',
       version: SONG_VERSION,
       name,
-      params: bus.snapshot(),
+      // Never the performer's hands (REQ-cc11-is-expression): a song saved with the
+      // expression pedal heel-down must not load silent.
+      params: savedParams(bus.snapshot()),
       // Track 1 keeps the v1-v5 field; 2-4 ride in the additive one, omitted
       // entirely when empty so a one-track song is byte-identical to before.
       seqBanks: snap.seqBanks.map((bank) => bank[0]!.map((s) => ({ ...s }))),

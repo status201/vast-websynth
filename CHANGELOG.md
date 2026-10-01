@@ -22,7 +22,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 - Drag a song, project zip or preset file onto the window to import it. Dropping a file no longer makes the browser leave the app.
 - The **Clear ▾** menu on the sequencer, drum and sampler grids can **shift the bank one step left or right**. The pattern wraps around within the bar, every step keeps its settings, and one Undo puts it back.
 - The sequencer's chord writer has an **Inversion** picker (Root, 1st, 2nd, 3rd), so a written progression can move smoothly instead of jumping the whole chord at every change.
-- MIDI: **channel 10 plays the sampler** — pads from C1 (note 36) trigger slots 1–8 with their velocity, and never the synth. **CC11** (expression pedal) now rides inside the master volume, and **channel aftertouch** drives the mod wheel destination (the larger of the two wins). The Song tab's Sync section has a **MIDI in** picker to choose which channel plays the synth (Omni by default).
+- MIDI: **channel 10 plays the sampler** — pads from C1 (note 36) trigger slots 1–8 with their velocity, and never the synth. **CC11** (expression pedal) now rides inside the master volume (and is never saved into a song or preset, so a pedal left heel-down cannot make a song load silent), and **channel aftertouch** drives the mod wheel destination (the larger of the two wins). The Song tab's Sync section has a **MIDI in** picker to choose which channel plays the synth (Omni by default).
 - Saved songs and presets can be deleted. The Song panel has a **Delete** button for the selected saved song, and **Presets → Delete or revert…** removes a preset you saved or puts an edited factory preset back. Neither changes what you are hearing.
 - The Record window has a level meter beside the timer, so you can see that sound is actually reaching the recording — it turns red if the take clips.
 - Keyboard shortcuts for the song transport: **Shift+L** turns Loop on and off, and **Shift+Space** pauses and continues (Space is still Play/Stop).
@@ -45,6 +45,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 ### Security
 
 - The Content Security Policy no longer allows inline styles (`style-src 'unsafe-inline'` is gone from the shipped build), which closes off CSS injection if markup were ever injected.
+- A WiFi pairing code is checked to really be a connection description before it reaches the browser's WebRTC stack.
 - A `#songUrl=` link's download is now cut off as soon as it passes the 8 MB song limit. Before, a server that left out its size header could make the tab hold everything it sent before the limit was checked.
 
 ## [2.15.0] - 2026-09-26

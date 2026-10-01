@@ -851,3 +851,17 @@ describe('SongFile v8 — 4..8 banks per machine (song-mode.md REQ-song-file-v8-
     }
   });
 });
+
+// input-control.md REQ-cc11-is-expression — the performer's hands are never saved.
+describe('captures leave out the expression pedal', () => {
+  it('Song.capture and Presets.capture omit master.expression', async () => {
+    const { Presets } = await import('../../src/state/preset');
+    const bus = new ParamBus();
+    registerDefaults(bus);
+    bus.set('master.expression', 0);   // pedal heel-down at Save time
+    const file = Song.capture(bus, new PatternStore(), fakeArrangement() as never, 'Quiet?');
+    expect(file.params).not.toHaveProperty('master.expression');
+    expect(file.params['master.volume']).toBe(0.8);
+    expect(Presets.capture(bus)).not.toHaveProperty('master.expression');
+  });
+});

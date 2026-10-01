@@ -1,4 +1,4 @@
-import type { ParamBus } from './params';
+import { savedParams, type ParamBus } from './params';
 import { roundParams } from './serialize';
 import { sameSnapshot } from './preset-file';
 import { SlotStore } from './slot-store';
@@ -453,7 +453,8 @@ export const Presets = {
   },
 
   capture(bus: ParamBus): Snapshot {
-    return bus.snapshot();
+    // Never the performer's hands (input-control.md REQ-cc11-is-expression).
+    return savedParams(bus.snapshot());
   },
 
   apply(bus: ParamBus, snap: Snapshot): void {

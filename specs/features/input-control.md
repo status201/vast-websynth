@@ -323,7 +323,9 @@ notes played on another tab no longer overwrite its bank.
   also play a lead. This is the one input that does not go through the bus
   (REQ-all-input-goes-through-the-bus): a slot trigger is not a note, and the
   sampler panel's own click already calls `triggerSlot` directly. Sustain does
-  not apply. The sampler's mute and solo apply as they do to the pattern.
+  not apply. The sampler **lane's** mute and solo apply — they act on its bus —
+  but a **slot's** own mute does not: it filters the pattern's hits, and a pad
+  is played by hand, like the slot-name audition.
 - **REQ-the-midi-input-channel-is-selectable** (v18) — **The synth's MIDI
   channel is selectable.** With two devices on one interface, omni plays both
   into the synth. A **MIDI in** picker in the Song tab's Sync section
@@ -342,6 +344,11 @@ notes played on another tab no longer overwrite its bank.
   inside it instead of fighting it for one value. It is a performance control,
   not part of a sound (`isPatchParam` excludes it, like the mod wheel), and the
   graph gains no node: the one master gain value is computed from both.
+  It is also **never saved** — not in a song, the session autosave or a preset
+  (`UNSAVED_PARAMS` / `savedParams`, applied by `Song.capture` and
+  `Presets.capture`): a pedal resting heel-down when Save is pressed would
+  otherwise produce a song that loads silent. Loading a song resets it to 1, its
+  default, until the pedal next moves.
 - **REQ-aftertouch-joins-the-mod-wheel** (v18) — **Channel aftertouch joins the
   mod wheel.** Pressing into the keys (0xD0) is the most common expressive
   gesture a keyboard offers. It drives the same destination as the mod wheel —
@@ -438,8 +445,8 @@ Scenario: CC11 rides inside the volume (v18, REQ-cc11-is-expression)
   Given master.volume is 0.8
   When CC11 sends 64
   Then master.expression is 64/127 and master.volume is unchanged
-  And a preset never carries master.expression
-# pinned by: tests/audio/midi.test.ts, tests/state/preset-session.test.ts, tests/audio/engine-resume.test.ts
+  And neither a preset nor a saved song carries master.expression
+# pinned by: tests/audio/midi.test.ts, tests/state/preset-session.test.ts, tests/audio/engine-resume.test.ts, tests/state/song.test.ts
 
 Scenario: Aftertouch and the mod wheel take the larger (v18, REQ-aftertouch-joins-the-mod-wheel)
   Given the mod wheel at 0.25
@@ -642,6 +649,12 @@ Scenario: - and = shift the octave; the bare arrows do not (v17, REQ-octave-shif
   and REQ-one-module-owns-the-midi-access's sole ownership of `onmidimessage`, driven through `initMIDI`
   against `tests/audio/fake-midi-access.ts`).
 - `tests/audio/sustain-pedal.test.ts` (the CC64 deferral state machine, REQ-the-sustain-pedal-is-midi-layer).
+- v18: `tests/audio/midi.test.ts` (channel 10 → pads, the input channel, CC11,
+  aftertouch), `tests/state/midi-channel.test.ts` (the remembered channel and its
+  untrusted stored value), `tests/audio/engine-resume.test.ts` (the fade lands on
+  volume² × expression²), `tests/state/song.test.ts` (expression is never saved).
+  **By ear, with a pedal**: CC11 is the one v18 change to the output level —
+  sweep it during a demo and confirm a smooth swell with no zipper or click.
 - `tests/ui/shortcuts.test.ts` — every global key, including v17's octave on `-`/`=`
   (REQ-octave-shift-is-minus-and-equal) and the shortcuts standing down under a modal
   (REQ-shortcuts-yield-to-an-open-modal); `tests/ui/modal.test.ts` for the stack it asks.

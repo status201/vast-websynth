@@ -266,6 +266,21 @@ const SHAPE_LABELS = ['LP24', 'LP12', 'BP12', 'HP24'];
 const fmtFilterShape = (v: number) =>
   SHAPE_LABELS[Math.min(SHAPE_LABELS.length - 1, Math.round(v * 3))]!;
 
+/**
+ * Params that describe the performer's hands rather than the song or the sound,
+ * and so are never written into a song, a session autosave or a preset
+ * (input-control.md REQ-cc11-is-expression). An expression pedal resting heel-down
+ * when Save is pressed must not produce a song that loads silent.
+ */
+export const UNSAVED_PARAMS: ReadonlySet<ParamId> = new Set(['master.expression']);
+
+/** `snap` without the `UNSAVED_PARAMS` — what a song or preset capture stores. */
+export function savedParams(snap: Record<ParamId, number>): Record<ParamId, number> {
+  const out: Record<ParamId, number> = {};
+  for (const [id, v] of Object.entries(snap)) if (!UNSAVED_PARAMS.has(id)) out[id] = v;
+  return out;
+}
+
 export function registerDefaults(bus: ParamBus): void {
   bus.registerMany([
     // ----- Voicing -----
