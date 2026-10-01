@@ -158,3 +158,11 @@ describe('isPatchParam', () => {
     }
   });
 });
+
+// input-control.md REQ-cc11-is-expression — a performance control, never part of a sound.
+describe('master.expression is not a patch param', () => {
+  it('is excluded from presets like the mod wheel', () => {
+    expect(isPatchParam('master.expression')).toBe(false);
+    expect(patchSnapshot({ 'master.expression': 0.3, 'master.volume': 0.8 })).toEqual({ 'master.volume': 0.8 });
+  });
+});

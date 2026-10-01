@@ -3,7 +3,11 @@
 ```yaml
 id: input-control
 status: implemented
-version: 17  # v17: the shortcuts stand down while a modal is open (REQ-shortcuts-yield-to-an-open-modal —
+version: 18  # v18: MIDI channel 10 plays the sampler's slots (REQ-channel-ten-plays-the-sampler),
+             #      the synth's input channel is selectable (REQ-the-midi-input-channel-is-selectable),
+             #      CC11 is expression (REQ-cc11-is-expression) and channel aftertouch
+             #      joins the mod wheel (REQ-aftertouch-joins-the-mod-wheel)
+             # v17: the shortcuts stand down while a modal is open (REQ-shortcuts-yield-to-an-open-modal —
              #      Delete used to clear a step BEHIND a confirm), and the octave moves
              #      from the arrows to - and = (REQ-octave-shift-is-minus-and-equal), freeing the
              #      arrows for keyboard navigation of the knobs
@@ -305,6 +309,48 @@ notes played on another tab no longer overwrite its bank.
   - **The lit classes win.** A key that is pressed or sequenced shows that, and its
     role tint steps aside — enforced in CSS, so no JS ordering can get it wrong.
 
+### v18 — channels, expression, pressure
+
+- **REQ-channel-ten-plays-the-sampler** (v18) — **MIDI channel 10 plays the
+  sampler's slots.** The sampler was programmable but not playable: clicking a
+  slot name at a fixed velocity was the only manual trigger. Channel 10 is the
+  General MIDI drum channel, where every pad controller and drum module already
+  sends, so it needs no setup: a note-on on channel 10 triggers slot
+  `note − 36` (C1 = slot 1 … G1 = slot 8) through `SamplerMachine.triggerSlot`
+  at the note's velocity. Notes outside 36..43 are ignored; note-offs are
+  ignored (a slot plays its own length, like a step). **Channel 10 never reaches
+  the synth** — not its notes, CCs, bend or pressure — so a drum pad cannot
+  also play a lead. This is the one input that does not go through the bus
+  (REQ-all-input-goes-through-the-bus): a slot trigger is not a note, and the
+  sampler panel's own click already calls `triggerSlot` directly. Sustain does
+  not apply. The sampler's mute and solo apply as they do to the pattern.
+- **REQ-the-midi-input-channel-is-selectable** (v18) — **The synth's MIDI
+  channel is selectable.** With two devices on one interface, omni plays both
+  into the synth. A **MIDI in** picker in the Song tab's Sync section
+  (`sync-midi-channel`) offers **Omni** and channels 1–16 except 10 (which is
+  the sampler's). Omni is the default and means every channel but 10. The
+  choice is device-scoped and remembered (`websynth.midi.channel`,
+  `src/state/midi-channel.ts`), like the sync mode — not a param, because it
+  describes the rig, not the song. A stored value that is not a valid channel
+  reads as omni. It filters channel-voice messages only; clock and Song Position
+  have no channel.
+- **REQ-cc11-is-expression** (v18) — **CC11 is expression.** An expression
+  pedal or breath controller sends CC11, which did nothing. It writes
+  `master.expression` (0..1, **default 1 — a no-op**, ADR-006), which scales the
+  master gain together with the volume: the gain is `volume² × expression²`,
+  the same law the volume already uses, so CC7 sets the level and CC11 rides
+  inside it instead of fighting it for one value. It is a performance control,
+  not part of a sound (`isPatchParam` excludes it, like the mod wheel), and the
+  graph gains no node: the one master gain value is computed from both.
+- **REQ-aftertouch-joins-the-mod-wheel** (v18) — **Channel aftertouch joins the
+  mod wheel.** Pressing into the keys (0xD0) is the most common expressive
+  gesture a keyboard offers. It drives the same destination as the mod wheel —
+  LFO 1 depth and the matrix's mod-wheel source — so it means something on every
+  patch with no new routing. The two do not fight: `master.modWheel` takes the
+  **larger** of the last CC1 and the last pressure, so letting go of the keys
+  falls back to wherever the wheel was left. Polyphonic aftertouch (0xA0) stays
+  unmapped.
+
 ## Technical design
 
 ### Contract / public interface
@@ -373,6 +419,34 @@ arp ownership: when the arp's passthroughSuppressed is set, the engine gates raw
 ## Scenarios (BDD)
 
 ```gherkin
+Scenario: Channel 10 plays the sampler, never the synth (v18, REQ-channel-ten-plays-the-sampler)
+  Given MIDI input
+  When a note-on for note 36 velocity 100 arrives on channel 10
+  Then sampler slot 1 is triggered at velocity 100/127 and no synth note plays
+  And note 43 triggers slot 8, and note 44 or a channel-10 CC does nothing
+# pinned by: tests/audio/midi.test.ts
+
+Scenario: The input channel filters what plays the synth (v18, REQ-the-midi-input-channel-is-selectable)
+  Given the MIDI in channel is set to 2
+  When notes arrive on channels 1 and 2
+  Then only the channel 2 note plays
+  And with Omni, both play
+  And a stored channel of 10 or 99 reads as Omni
+# pinned by: tests/audio/midi.test.ts, tests/state/midi-channel.test.ts
+
+Scenario: CC11 rides inside the volume (v18, REQ-cc11-is-expression)
+  Given master.volume is 0.8
+  When CC11 sends 64
+  Then master.expression is 64/127 and master.volume is unchanged
+  And a preset never carries master.expression
+# pinned by: tests/audio/midi.test.ts, tests/state/preset-session.test.ts, tests/audio/engine-resume.test.ts
+
+Scenario: Aftertouch and the mod wheel take the larger (v18, REQ-aftertouch-joins-the-mod-wheel)
+  Given the mod wheel at 0.25
+  When channel pressure rises to 1 and falls back to 0
+  Then master.modWheel goes to 1 and returns to 0.25
+# pinned by: tests/audio/midi.test.ts
+
 Scenario: A computer key plays a note and lights the on-screen key
   Given the audio context is running
   When the user presses 'z'
@@ -576,6 +650,8 @@ Scenario: - and = shift the octave; the bare arrows do not (v17, REQ-octave-shif
 ## Open questions / future
 
 - ~~MIDI CC mapping (mod wheel, pitch bend)~~ — done: CC1/7/71/74 + pitch bend
-  map to bus params, CC64 is the sustain pedal (REQ-the-sustain-pedal-is-midi-layer). Still unmapped: channel
-  aftertouch, CC11 expression, CC64 half-pedalling (we treat it as a switch),
-  program change, per-channel filtering.
+  map to bus params, CC64 is the sustain pedal (REQ-the-sustain-pedal-is-midi-layer). v18 adds CC11, channel
+  aftertouch and the input channel. Still unmapped: CC64 half-pedalling (we treat
+  it as a switch), polyphonic aftertouch, and program change — which would need a
+  decision about what a program number names (a factory preset by index? a saved
+  slot?) before it could mean anything.

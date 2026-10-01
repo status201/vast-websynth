@@ -104,7 +104,7 @@ const NON_PATCH_PREFIXES = [
   'motion.',
 ];
 const NON_PATCH_IDS = new Set<ParamId>([
-  'master.pitchBend', 'master.modWheel', 'fx.djfilter', 'keyboard.transpose',
+  'master.pitchBend', 'master.modWheel', 'master.expression', 'fx.djfilter', 'keyboard.transpose',
 ]);
 
 export function isPatchParam(id: ParamId): boolean {

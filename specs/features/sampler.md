@@ -629,7 +629,7 @@ Scenario: The last file picked into a slot wins (v13, REQ-slots-are-filled-by-lo
 - **Per-slot drive** — deliberately not added with the rest of REQ-each-slot-has-a-channel's channel: the
   sampler bus already has a distortion, and eight waveshapers is a real idle cost
   ([runtime-performance](runtime-performance.md)) for a duplicate capability.
-- **Playing a slot by hand** — the only manual trigger is clicking the slot's name, at
-  a fixed velocity of 0.9. Pads (QWERTY / MIDI, velocity-sensitive) would make the
-  machine playable rather than only programmable; `src/audio/midi.ts` currently routes
-  note-on to the synth alone.
+- **Playing a slot by hand** — ~~MIDI~~ done: MIDI channel 10 plays the slots,
+  velocity-sensitive ([input-control](input-control.md) REQ-channel-ten-plays-the-sampler).
+  QWERTY pads are still open: every letter row is already the synth keyboard, so it
+  would need a mode, and a mode is a design question of its own.

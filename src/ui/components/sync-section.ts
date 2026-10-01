@@ -2,6 +2,8 @@ import type { SyncController } from '../../audio/transport/sync/sync-controller'
 import type { SyncMode, SyncStatus } from '../../audio/transport/sync/sync-types';
 import type { WebRtcSyncTransport } from '../../audio/webrtc-sync-transport';
 import { createButton } from './button';
+import { Dropdown } from './dropdown';
+import { DRUM_CHANNEL, midiInputChannel, setMidiInputChannel } from '../../state/midi-channel';
 import { showLazyLoadFailure } from './lazy-load-toast';
 import segmentedStyles from '../styles/segmented.module.css';
 import switchStyles from '../styles/switch.module.css';
@@ -55,6 +57,21 @@ export function buildSyncSection(sync: SyncController, rtc: WebRtcSyncTransport)
   status.className = styles.ioLabel!;
   status.dataset.testid = 'sync-status';
   root.appendChild(status);
+
+  // Which channel plays the synth (input-control.md REQ-the-midi-input-channel-is-selectable).
+  // 10 is not offered: it is the sampler's pads (REQ-channel-ten-plays-the-sampler).
+  const chLabel = document.createElement('span');
+  chLabel.className = styles.ioLabel!;
+  chLabel.textContent = 'MIDI in:';
+  root.appendChild(chLabel);
+  const channelOptions = ['Omni', ...Array.from({ length: 16 }, (_, i) => i + 1)
+    .filter((c) => c !== DRUM_CHANNEL).map((c) => `Ch ${c}`)];
+  const labelOf = (ch: number): string => (ch === 0 ? 'Omni' : `Ch ${ch}`);
+  const chDd = new Dropdown(channelOptions, labelOf(midiInputChannel()));
+  chDd.el.dataset.testid = 'sync-midi-channel';
+  chDd.el.title = 'Which MIDI channel plays the synth — channel 10 always plays the sampler pads';
+  chDd.onChange((v) => setMidiInputChannel(v === 'Omni' ? 0 : Number(v.slice(3))));
+  root.appendChild(chDd.el);
 
   // WiFi pairing (WebRTC) — coexists with MIDI; opens the serverless pair modal.
   // Lazy-loaded: pairing is rare, so the modal (+ vendored QR encoder) is

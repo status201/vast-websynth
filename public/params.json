@@ -2,7 +2,7 @@
   "format": "websynth-params",
   "version": 1,
   "songVersion": 8,
-  "count": 401,
+  "count": 402,
   "params": [
     {
       "id": "voicing.mode",
@@ -1647,6 +1647,13 @@
       "min": 0,
       "max": 1,
       "default": 0,
+      "patch": false
+    },
+    {
+      "id": "master.expression",
+      "min": 0,
+      "max": 1,
+      "default": 1,
       "patch": false
     },
     {

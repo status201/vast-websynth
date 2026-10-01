@@ -3,7 +3,8 @@
 ```yaml
 id: testids
 status: implemented
-version: 26 # v26: song-delete + song-delete-toast (song-mode.md REQ-a-saved-song-can-be-deleted); preset-mgr-delete,
+version: 27 # v27: sync-midi-channel (input-control.md REQ-the-midi-input-channel-is-selectable)
+            # v26: song-delete + song-delete-toast (song-mode.md REQ-a-saved-song-can-be-deleted); preset-mgr-delete,
             #      preset-delete-step, preset-delete-row, preset-delete-back (presets.md REQ-a-stored-preset-can-be-deleted)
             # v25: debug-offline (debug-panel.md v15)
             # v24: debug-errors and debug-share (debug-panel.md REQ-the-panel-keeps-the-last-errors,
@@ -318,6 +319,7 @@ song panel — lanes, chains & live FX:
   livefx-open · livefx-window · livefx-xypad + the same five under the `livefx`
     prefix                                          # features/live-fx-window.md
   sync-mode-<off|master|slave> · sync-status · sync-wifi-link   # features/midi-clock-sync.md
+  sync-midi-channel                                 # features/input-control.md (v18)
   sync-pair-<create|join|generate|scan|next|back|apply|close|qr|status|error|insecure|debug>
   sync-pair-<offer|answer> · sync-pair-<offer|answer>-copy   # the blob textareas +
                                                     #   their copy buttons

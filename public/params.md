@@ -209,6 +209,7 @@ Schemas: [`llms.txt`](llms.txt).
 - "fx.djfilter": number  // range -1..1, default 0
 - "master.pitchBend": number  // range -1..1, default 0
 - "master.modWheel": number  // range 0..1, default 0
+- "master.expression": number  // range 0..1, default 1
 - "keyboard.transpose": number  // range -2..2, default 0, step 1
 - "transport.bpm": number  // range 40..240, default 120, step 1
 - "transport.swing": number  // range 0..1, default 0

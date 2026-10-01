@@ -855,10 +855,10 @@ export class Engine {
     // Same law as the master.volume subscription, so the fade lands exactly
     // where the knob says — and its setTargetAtTime (scheduled while suspended
     // by the boot patch) is superseded by the events below.
-    const v = this.bus.get('master.volume');
+    const level = masterLevel(this.bus.get('master.volume'), this.bus.get('master.expression'));
     this.master.gain.cancelScheduledValues(t);
     this.master.gain.setValueAtTime(0, t);
-    this.master.gain.linearRampToValueAtTime(v * v, t + RESUME_FADE_S);
+    this.master.gain.linearRampToValueAtTime(level, t + RESUME_FADE_S);
   }
 
   /**
@@ -1225,7 +1225,13 @@ export class Engine {
       // created running. `fadeInMaster()` reads the bus at fade time, so the
       // first ramp lands on whatever the knob says by then; nothing is lost.
       if (!this.everRan) return;
-      rampTo(this.master.gain, x * x, this.ctx, RAMP_MEDIUM);
+      rampTo(this.master.gain, masterLevel(x, this.bus.get('master.expression')), this.ctx, RAMP_MEDIUM);
+    });
+    // CC11 rides inside the volume (input-control.md REQ-cc11-is-expression) —
+    // the same gain, the same gate, the same law.
+    bus.subscribe('master.expression', (e) => {
+      if (!this.everRan) return;
+      rampTo(this.master.gain, masterLevel(this.bus.get('master.volume'), e), this.ctx, RAMP_MEDIUM);
     });
     bus.subscribe('master.pitchBend', (x) => {
       rampTo(this.pitchBend.offset, x * PITCH_BEND_RANGE_CENTS, this.ctx, RAMP_FAST);
@@ -1365,4 +1371,14 @@ export class Engine {
     src.start();
     return src;
   }
+}
+
+/**
+ * The master gain for a volume and an expression (input-control.md REQ-cc11-is-expression):
+ * both on the squared law the volume knob has always used, multiplied — so CC7
+ * sets the level and CC11 rides inside it. Expression defaults to 1, which makes
+ * this exactly `volume²`, the pre-v18 value.
+ */
+export function masterLevel(volume: number, expression: number): number {
+  return volume * volume * expression * expression;
 }

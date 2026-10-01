@@ -421,6 +421,8 @@ export function registerDefaults(bus: ParamBus): void {
     { id: 'master.volume', min: 0, max: 1, default: 0.8, format: fmtDb },
     { id: 'master.pitchBend', min: -1, max: 1, default: 0, format: fmtSemi },
     { id: 'master.modWheel', min: 0, max: 1, default: 0, format: fmtPct },
+    // CC11 (input-control.md REQ-cc11-is-expression). Default 1 = full: a no-op (ADR-006).
+    { id: 'master.expression', min: 0, max: 1, default: 1, format: fmtPct },
     { id: 'keyboard.transpose', min: -2, max: 2, default: 0, step: 1, taper: 'discrete', format: (v) => v >= 0 ? `+${v}` : `${v}` },
 
     // ----- Transport -----

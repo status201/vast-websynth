@@ -39,7 +39,9 @@ afterEach(() => {
 });
 
 function engineLike(
-  over: { state?: string; volume?: number; ios?: boolean; playing?: boolean; everRan?: boolean } = {},
+  over: {
+    state?: string; volume?: number; expression?: number; ios?: boolean; playing?: boolean; everRan?: boolean;
+  } = {},
 ) {
   // The production seed is 0 (REQ-nothing-is-audible-before-the-first-start) — the master is silent until a fade.
   const gain: MockAudioParam = makeParam(0);
@@ -57,7 +59,9 @@ function engineLike(
   const engine = Object.assign(Object.create(Engine.prototype) as object, {
     ctx,
     master: { gain },
-    bus: { get: vi.fn(() => over.volume ?? 0.8) },
+    // Per id: the master level is volume² × expression² (input-control.md
+    // REQ-cc11-is-expression), and expression's default 1 keeps it volume².
+    bus: { get: vi.fn((id: string) => (id === 'master.expression' ? over.expression ?? 1 : over.volume ?? 0.8)) },
     iosSession,
     media,
     clock: { playing: over.playing ?? false },
@@ -102,6 +106,14 @@ describe('Engine.resume fade-in (click-free start)', () => {
     // Target is the master-volume law (v²), matching the bus subscription.
     expect(gain.linearRampToValueAtTime).toHaveBeenCalledWith(0.8 * 0.8, 12.5 + 0.15);
     expect(ctx.resume).toHaveBeenCalled();
+  });
+
+  // input-control.md REQ-cc11-is-expression — the fade lands where volume AND expression say.
+  it('fades to volume² × expression², so a held-back pedal is not overridden at start', async () => {
+    const { ctx, gain, resume } = engineLike({ volume: 0.8, expression: 0.5 });
+    ctx.resume.mockImplementation(() => { ctx.state = 'running'; return Promise.resolve(); });
+    await resume();
+    expect(gain.linearRampToValueAtTime).toHaveBeenCalledWith(0.8 * 0.8 * 0.5 * 0.5, 12.5 + 0.15);
   });
 
   it('schedules the ramp BEFORE the resume is awaited (REQ-the-ramp-is-scheduled-before-the-await)', async () => {

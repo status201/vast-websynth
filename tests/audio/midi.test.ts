@@ -1,5 +1,7 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { initMIDI } from '../../src/audio/midi';
+import { setMidiInputChannel, resetMidiInputChannelForTests } from '../../src/state/midi-channel';
+import { installLocalStorageMock } from '../storage-mock';
 import { ParamBus, registerDefaults } from '../../src/state/params';
 import { MidiSyncTransport } from '../../src/audio/midi-sync-transport';
 import { makeFakeMidiAccess, type FakeMidiAccess, type FakeMidiInput } from './fake-midi-access';
@@ -26,6 +28,8 @@ interface Rig {
   midi: FakeMidiAccess;
   input: FakeMidiInput;
   addTransport: ReturnType<typeof vi.fn>;
+  /** Sampler slot triggers from channel 10 (input-control.md REQ-channel-ten-plays-the-sampler). */
+  pads: Array<[slot: number, velocity: number]>;
 }
 
 /** A bus with the real catalogue, so the CC map meets the real param ranges. */
@@ -53,7 +57,11 @@ async function makeRig(ins = 1): Promise<Rig> {
   bus.onNote((on, note, velocity) => notes.push({ on, note, velocity }));
 
   const addTransport = vi.fn();
-  const engine = { sync: { addTransport } } as unknown as Engine;
+  const pads: Rig['pads'] = [];
+  const engine = {
+    sync: { addTransport },
+    sampler: { triggerSlot: (slot: number, v: number) => pads.push([slot, v]) },
+  } as unknown as Engine;
   const access = await initMIDI(engine, bus);
   expect(access).toBe(midi.access);
 
@@ -63,10 +71,12 @@ async function makeRig(ins = 1): Promise<Rig> {
   let ports = 0;
   sync.onPortsChange(() => { ports++; });
 
-  return { bus, notes, sync, syncMsgs, portChanges: () => ports, midi, input: midi.inputs[0]!, addTransport };
+  return { bus, notes, sync, syncMsgs, portChanges: () => ports, midi, input: midi.inputs[0]!, addTransport, pads };
 }
 
 beforeEach(() => {
+  installLocalStorageMock();
+  resetMidiInputChannelForTests();
   vi.spyOn(console, 'info').mockImplementation(() => {});
   vi.spyOn(console, 'warn').mockImplementation(() => {});
 });
@@ -285,5 +295,69 @@ describe('malformed input', () => {
     expect(() => r.input.receive([0x90])).not.toThrow();
     expect(() => r.input.receive([0xb0, 74])).not.toThrow();
     expect(() => r.input.receive([0xf2, 44])).not.toThrow();
+  });
+});
+
+// input-control.md v18 — channel 10, the input channel, CC11 and aftertouch.
+describe('channel 10 plays the sampler (REQ-channel-ten-plays-the-sampler)', () => {
+  it('maps C1 upward onto slots 1..8 at the note velocity, and never the synth', async () => {
+    const r = await makeRig();
+    r.input.receive([0x99, 36, 100]);   // note-on, channel 10, C1
+    r.input.receive([0x99, 43, 127]);   // G1 = slot 8
+    expect(r.pads).toEqual([[0, 100 / 127], [7, 1]]);
+    expect(r.notes).toEqual([]);
+  });
+
+  it('ignores notes outside the pads, note-offs, and every other channel-10 message', async () => {
+    const r = await makeRig();
+    const before = r.bus.snapshot();
+    r.input.receive([0x99, 35, 100]);
+    r.input.receive([0x99, 44, 100]);
+    r.input.receive([0x99, 36, 0]);     // velocity-0 note-on is a note-off
+    r.input.receive([0x89, 36, 0]);
+    r.input.receive([0xb9, 7, 0]);      // a CC on 10 must not move the volume
+    r.input.receive([0xe9, 0, 0]);      // nor a bend
+    expect(r.pads).toEqual([]);
+    expect(r.notes).toEqual([]);
+    expect(r.bus.snapshot()).toEqual(before);
+  });
+});
+
+describe('the synth input channel (REQ-the-midi-input-channel-is-selectable)', () => {
+  it('omni plays every channel but 10', async () => {
+    const r = await makeRig();
+    r.input.receive([0x90, 60, 100]);
+    r.input.receive([0x91, 62, 100]);
+    expect(r.notes.map((n) => n.note)).toEqual([60, 62]);
+  });
+
+  it('a chosen channel plays alone', async () => {
+    setMidiInputChannel(2);
+    const r = await makeRig();
+    r.input.receive([0x90, 60, 100]);   // channel 1
+    r.input.receive([0x91, 62, 100]);   // channel 2
+    r.input.receive([0xb0, 7, 0]);      // a channel-1 CC is filtered too
+    expect(r.notes.map((n) => n.note)).toEqual([62]);
+    expect(r.bus.get('master.volume')).toBe(0.8);
+  });
+});
+
+describe('CC11 and aftertouch', () => {
+  it('CC11 writes expression and leaves the volume alone (REQ-cc11-is-expression)', async () => {
+    const r = await makeRig();
+    r.input.receive([0xb0, 11, 64]);
+    expect(r.bus.get('master.expression')).toBeCloseTo(64 / 127, 6);
+    expect(r.bus.get('master.volume')).toBe(0.8);
+  });
+
+  it('pressure and the wheel share the mod wheel, the larger winning (REQ-aftertouch-joins-the-mod-wheel)', async () => {
+    const r = await makeRig();
+    r.input.receive([0xb0, 1, 32]);     // wheel at ~0.25
+    const wheel = 32 / 127;
+    expect(r.bus.get('master.modWheel')).toBeCloseTo(wheel, 6);
+    r.input.receive([0xd0, 127]);       // press hard
+    expect(r.bus.get('master.modWheel')).toBe(1);
+    r.input.receive([0xd0, 0]);         // let go: back to the wheel
+    expect(r.bus.get('master.modWheel')).toBeCloseTo(wheel, 6);
   });
 });

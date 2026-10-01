@@ -2,6 +2,14 @@ import type { Engine } from './engine';
 import type { ParamBus } from '../state/params';
 import { MidiSyncTransport } from './midi-sync-transport';
 import { SustainPedal } from './sustain-pedal';
+import { SAMPLER_SLOT_COUNT } from '../state/patterns';
+import { DRUM_CHANNEL, midiInputChannel } from '../state/midi-channel';
+
+/** The note that plays sampler slot 1 on channel 10 — C1, where GM kicks and pad banks start. */
+export const PAD_BASE_NOTE = 36;
+
+/** The two inputs that share `master.modWheel` (REQ-aftertouch-joins-the-mod-wheel). */
+interface ModSources { wheel: number; pressure: number }
 
 /**
  * Request Web MIDI and wire it up. Resolves the `MIDIAccess` on success (and
@@ -27,8 +35,9 @@ export async function initMIDI(engine: Engine, bus: ParamBus): Promise<MIDIAcces
     const sync = new MidiSyncTransport(access);
     engine.sync.addTransport('midi', sync);
     const pedal = new SustainPedal();
+    const mod: ModSources = { wheel: 0, pressure: 0 };
     const wire = (input: MIDIInput) => {
-      input.onmidimessage = (ev: MIDIMessageEvent) => handleMessage(ev, bus, sync, pedal);
+      input.onmidimessage = (ev: MIDIMessageEvent) => handleMessage(ev, engine, bus, sync, pedal, mod);
     };
     access.inputs.forEach(wire);
     access.onstatechange = () => {
@@ -42,7 +51,14 @@ export async function initMIDI(engine: Engine, bus: ParamBus): Promise<MIDIAcces
   }
 }
 
-function handleMessage(ev: MIDIMessageEvent, bus: ParamBus, sync: MidiSyncTransport, pedal: SustainPedal): void {
+function handleMessage(
+  ev: MIDIMessageEvent,
+  engine: Engine,
+  bus: ParamBus,
+  sync: MidiSyncTransport,
+  pedal: SustainPedal,
+  mod: ModSources,
+): void {
   const data = ev.data;
   if (!data || data.length < 1) return;
   // System Real-Time (0xF8..0xFF) first: single-byte messages that must never
@@ -59,8 +75,22 @@ function handleMessage(ev: MIDIMessageEvent, bus: ParamBus, sync: MidiSyncTransp
     return;
   }
   const status = data[0]! & 0xf0;
+  const channel = (data[0]! & 0x0f) + 1; // 1-based, as players name channels
   const d1 = data[1] ?? 0;
   const d2 = data[2] ?? 0;
+
+  // Channel 10 is the sampler's pads and nothing else (input-control.md
+  // REQ-channel-ten-plays-the-sampler): C1 upward are slots 1..8, velocity-sensitive.
+  if (channel === DRUM_CHANNEL) {
+    if (status === 0x90 && d2 > 0) {
+      const slot = d1 - PAD_BASE_NOTE;
+      if (slot >= 0 && slot < SAMPLER_SLOT_COUNT) engine.sampler.triggerSlot(slot, d2 / 127);
+    }
+    return;
+  }
+  // The synth's channel (REQ-the-midi-input-channel-is-selectable): 0 is omni.
+  const wanted = midiInputChannel();
+  if (wanted !== 0 && channel !== wanted) return;
 
   switch (status) {
     case 0x90: // Note on (vel 0 = note off, so it obeys the pedal too)
@@ -74,7 +104,11 @@ function handleMessage(ev: MIDIMessageEvent, bus: ParamBus, sync: MidiSyncTransp
       noteOff(d1, bus, pedal);
       break;
     case 0xb0: // CC
-      handleCC(d1, d2, bus, pedal);
+      handleCC(d1, d2, bus, pedal, mod);
+      break;
+    case 0xd0: // Channel pressure — shares the mod wheel (REQ-aftertouch-joins-the-mod-wheel)
+      mod.pressure = d1 / 127;
+      bus.set('master.modWheel', Math.max(mod.wheel, mod.pressure));
       break;
     case 0xe0: // Pitch bend
       {
@@ -91,11 +125,15 @@ function noteOff(note: number, bus: ParamBus, pedal: SustainPedal): void {
   if (pedal.noteOff(note)) bus.noteOff(note);
 }
 
-function handleCC(cc: number, value: number, bus: ParamBus, pedal: SustainPedal): void {
+function handleCC(cc: number, value: number, bus: ParamBus, pedal: SustainPedal, mod: ModSources): void {
   const n = value / 127;
   switch (cc) {
-    case 1: bus.set('master.modWheel', n); break;
+    case 1: // the larger of wheel and pressure wins (REQ-aftertouch-joins-the-mod-wheel)
+      mod.wheel = n;
+      bus.set('master.modWheel', Math.max(mod.wheel, mod.pressure));
+      break;
     case 7: bus.set('master.volume', n); break;
+    case 11: bus.set('master.expression', n); break; // REQ-cc11-is-expression
     case 64: // Sustain pedal: >= 64 down; release flushes deferred note-offs
       for (const note of pedal.setPedal(value >= 64)) bus.noteOff(note);
       break;
