@@ -16,6 +16,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+### Added
+
+- About ▸ Debug has an **Errors** row showing the app's last uncaught errors, and Copy report lists them, so a problem on a phone can be reported without a console. On devices that can share, a **Share report** button sends the report straight to another app.
+
 ### Changed
 
 - The on-screen keyboard adds octaves on wide screens instead of stretching its keys: 4 octaves on a 3440-wide ultrawide, 6 (C1–B6) on 5120. Screens up to 2560 and phones are unchanged.

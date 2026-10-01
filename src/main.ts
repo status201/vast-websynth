@@ -22,6 +22,7 @@ import { buildFailureReportFor } from './ui/failure-report';
 import { WakeLockManager } from './utils/wake-lock';
 import { showToast, type ToastHandle } from './ui/components/toast';
 import { setClipStatsSource, setMidiStatsSource, setWakeLockSource } from './state/debug-sources';
+import { installErrorLog } from './state/error-log';
 import { offlineRedownloadPending } from './state/offline-redownload';
 import { plural } from './utils/format';
 import type { Onboarding } from './ui/onboarding';
@@ -462,6 +463,10 @@ async function fetchSharedSong(url: string): Promise<Uint8Array | null> {
   if (!bytes) throw new Error(`That song is larger than the ${MAX_SONG_JSON_BYTES} byte limit.`);
   return bytes;
 }
+
+// Before boot, so an error during boot is kept for the Debug panel too
+// (debug-panel.md REQ-the-panel-keeps-the-last-errors).
+installErrorLog();
 
 boot().catch((err) => {
   console.error(err);

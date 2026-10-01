@@ -1,4 +1,5 @@
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
+import { recordError, clearErrorLog } from '../../src/state/error-log';
 import { createAboutButton } from '../../src/ui/components/about-button';
 import { setClipStatsSource } from '../../src/state/debug-sources';
 import { restoreFactorySettings } from '../../src/state/factory-reset';
@@ -425,6 +426,57 @@ describe('About modal — Debug section', () => {
     expect(report).toContain('AudioContext: running');
     expect(report).toContain('Sample rate: 48000 Hz');
     expect(report).toContain('Transport: stopped · 120.0 BPM · sync off');
+  });
+
+  // ---- v14: debug-panel.md REQ-the-panel-keeps-the-last-errors / REQ-the-report-can-be-shared ----
+
+  it('the Errors row reads none, then the last error once one is recorded', async () => {
+    clearErrorLog();
+    const { engine } = stubEngine('running');
+    await openAbout(engine);
+    expandDebug();
+    expect(byId('debug-errors').textContent).toBe('none');
+    // No navigator.share in jsdom: the control is absent, not disabled.
+    expect(byId('debug-share')).toBeNull();
+  });
+
+  it('shows the last error and puts every kept one in the report', async () => {
+    clearErrorLog();
+    recordError('error', new TypeError('x is undefined'));
+    recordError('rejection', 'decode failed');
+    const writeText = vi.fn(async () => {});
+    Object.defineProperty(navigator, 'clipboard', { value: { writeText }, configurable: true });
+    const { engine } = stubEngine('running');
+    await openAbout(engine);
+    expandDebug();
+    expect(byId('debug-errors').textContent).toBe('2 · last just now: decode failed');
+
+    byId<HTMLButtonElement>('debug-copy').click();
+    await vi.waitFor(() => expect(writeText).toHaveBeenCalled());
+    const report = writeText.mock.calls[0]![0] as unknown as string;
+    expect(report).toContain('Errors: 2 · last just now: decode failed');
+    expect(report).toContain('Errors (last 2 of 2):');
+    expect(report).toMatch(/Z error: x is undefined/);
+    expect(report).toMatch(/Z rejection: decode failed/);
+    clearErrorLog();
+  });
+
+  it('Share report hands the report text to navigator.share', async () => {
+    // A dismissed sheet rejects with AbortError; that must not surface.
+    const share = vi.fn(() => Promise.reject(new DOMException('dismissed', 'AbortError')));
+    Object.defineProperty(navigator, 'share', { value: share, configurable: true });
+    try {
+      const { engine } = stubEngine('running');
+      await openAbout(engine);
+      byId<HTMLButtonElement>('debug-share').click();
+      expect(share).toHaveBeenCalledTimes(1);
+      const arg = (share.mock.calls[0] as unknown as [{ title: string; text: string }])[0];
+      expect(arg.title).toBe('VAST G1-J8 debug report');
+      expect(arg.text).toContain(navigator.userAgent);
+      expect(arg.text).toContain('AudioContext: running');
+    } finally {
+      delete (navigator as unknown as { share?: unknown }).share;
+    }
   });
 
   // REQ-a-debug-row-may-carry-one-action — a destructive action never fires on the click alone.

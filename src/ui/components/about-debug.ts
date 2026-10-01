@@ -18,6 +18,7 @@ import { SampleAutosave } from '../../state/sample-autosave';
 import { storageUsage } from '../../state/slot-store';
 import { SAMPLER_SLOT_COUNT } from '../../state/patterns';
 import { clipStats, midiStats, scopeStats, wakeState } from '../../state/debug-sources';
+import { errorLog } from '../../state/error-log';
 import { formatBytes, plural } from '../../utils/format';
 import type { StudioApi } from '../studio-api';
 import switchStyles from '../styles/switch.module.css';
@@ -228,6 +229,10 @@ export function buildDebugSection(engine: StudioApi): {
   // one reading that says whether a background crackle is ours (audio-lifecycle).
   const bgVal = addRow('Background audio');
   bgVal.dataset.testid = 'debug-background';
+  // The one class of problem the panel could not show without a console
+  // (REQ-the-panel-keeps-the-last-errors).
+  const errorsVal = addRow('Errors');
+  errorsVal.dataset.testid = 'debug-errors';
 
   // ---- service-worker state (async, so polled far slower than the rows) ----
   let swText = 'unsupported';
@@ -287,13 +292,21 @@ export function buildDebugSection(engine: StudioApi): {
     },
   });
 
-  const report = (): string => [
-    `VAST G1-J8 ${__APP_VERSION__}`,
-    new Date().toISOString(),
-    navigator.userAgent,
-    '',
-    ...rows.map((r) => `${r.name}: ${r.el.textContent ?? ''}`),
-  ].join('\n');
+  const report = (): string => {
+    const log = errorLog();
+    return [
+      `VAST G1-J8 ${__APP_VERSION__}`,
+      new Date().toISOString(),
+      navigator.userAgent,
+      '',
+      ...rows.map((r) => `${r.name}: ${r.el.textContent ?? ''}`),
+      // Every kept entry, not just the row's last one (REQ-the-panel-keeps-the-last-errors).
+      ...(log.entries.length
+        ? ['', `Errors (last ${log.entries.length} of ${log.total}):`,
+          ...log.entries.map((e) => `${new Date(e.at).toISOString()} ${e.kind}: ${e.message}`)]
+        : []),
+    ].join('\n');
+  };
 
   const copyBtn = createButton({
     label: 'Copy report',
@@ -305,6 +318,18 @@ export function buildDebugSection(engine: StudioApi): {
   });
 
   actions.append(ctxToggle, panicBtn, toneBtn, copyBtn);
+
+  // Only where the platform has a share sheet — an absent control, not a
+  // disabled one (REQ-the-report-can-be-shared).
+  if (typeof navigator.share === 'function') {
+    actions.appendChild(createButton({
+      label: 'Share report',
+      className: `${switchStyles.root!} ${styles.debugBtn!}`,
+      testId: 'debug-share',
+      // A dismissed sheet rejects with AbortError — not an error, nothing to do.
+      onClick: () => { navigator.share({ title: 'VAST G1-J8 debug report', text: report() }).catch(() => {}); },
+    }));
+  }
   body.appendChild(actions);
 
   // ---- polling tiers (REQ-debug-refresh-is-tiered-by-row-cost) ---------------------------------------------
@@ -368,6 +393,11 @@ export function buildDebugSection(engine: StudioApi): {
       + (bg.supported ? `underrun ${pct(bg.underrunRatio)} (worst ${pct(bg.worstUnderrunRatio)})` : 'underrun n/a')
       + ` · clock ${pct(bg.driftRatio)} · ${bg.suspensions} suspends`;
     const media = engine.mediaSession;
+    const log = errorLog();
+    const last = log.entries[log.entries.length - 1];
+    errorsVal.textContent = last
+      ? `${log.total} · last ${ago(last.at)}: ${last.message}`
+      : 'none';
     mediaVal.textContent = !media.active
       ? 'n/a'
       : `${media.status} · ${media.playbackState} · ${media.handlers} actions`

@@ -3,7 +3,10 @@
 ```yaml
 id: debug-panel
 status: implemented
-version: 13  # v13: a Scope row (debug-scope) reports whether the visualizer is
+version: 14  # v14: an Errors row keeps the last uncaught errors and rejections
+             #      (REQ-the-panel-keeps-the-last-errors), and Share report hands the
+             #      readout to the OS share sheet (REQ-the-report-can-be-shared)
+             # v13: a Scope row (debug-scope) reports whether the visualizer is
              #      actually painting — scope.md REQ-the-panel-says-whether-it-is-drawing, a REQ-the-debug-extension-contract extension, no
              #      contract change.
              # v12: sizes read in kB below a megabyte ("1 key · 3 kB", not
@@ -225,6 +228,36 @@ instead of transcribing it from a phone screen.
   it is opened to diagnose. `refresh(force)` runs **all** tiers, and is used for the
   initial build and for the expand repaint (REQ-debug-refreshes-while-expanded).
 
+### v14 — errors and sharing
+
+- **REQ-the-panel-keeps-the-last-errors** — **The panel keeps the last
+  errors.** An uncaught error or unhandled promise rejection was the one class
+  of problem the panel could not show without a console, and a console is
+  exactly what the phones this panel exists for do not have.
+  `state/error-log.ts` — an eager leaf like `debug-sources.ts`, with no imports
+  — is installed by `main.ts` before boot and listens for `error` and
+  `unhandledrejection` on `window`. It keeps:
+  - the **last 10** entries (a ring: the oldest drops off), each the time, the
+    kind (`error` / `rejection`) and the message — the `Error`'s message, else
+    `String(reason)` — **cut to 300 characters**, so a runaway error can never
+    grow memory or the report without bound;
+  - a **total** count, so "10 shown of 2,000" is visible.
+
+  It only observes: it never calls `preventDefault()` (the console still shows
+  every error) and a failure inside the logger is swallowed — a logger that
+  throws from an error handler would feed itself. The **Errors** row
+  (`debug-errors`) is an every-tick row, as it reads in-memory state: `none`, or
+  the count, how long ago the last one was, and its message. **Copy report**
+  appends an `Errors` block listing every kept entry with its ISO time and kind.
+
+- **REQ-the-report-can-be-shared** — **The report can be shared.** On a phone,
+  copy-then-switch-app-then-paste is three steps that lose people. A **Share
+  report** button (`debug-share`) sits beside Copy report and hands the same
+  text to `navigator.share({ title, text })`. It is rendered **only where
+  `navigator.share` exists** — an absent control, not a disabled one — so desktop
+  browsers without a share sheet keep the panel they had. Closing the share
+  sheet without picking a target is not an error and changes nothing.
+
 ## Technical design
 
 ### Contract / public interface
@@ -250,6 +283,14 @@ midiStats(): { inputs: number; outputs: number } | undefined
 wakeState(): { supported: boolean; held: boolean } | undefined
 scopeStats(): ScopeHealth | undefined              # ScopeHealth imported type-only
 
+# src/state/error-log.ts  — EAGER leaf, no imports (v14, REQ-the-panel-keeps-the-last-errors).
+installErrorLog(target: Window = window): void   # idempotent; main.ts calls it before boot
+errorLog(): { entries: readonly ErrorLogEntry[]; total: number }
+ErrorLogEntry: { at: number; kind: 'error' | 'rejection'; message: string }
+ERROR_LOG_CAPACITY = 10 · ERROR_MESSAGE_MAX = 300
+recordError(kind, reason): void                  # the listeners' body; exported for tests
+clearErrorLog(): void                            # test seam
+
 # src/ui/components/about-modal.ts     — LAZY. buildModal + buildFactoryResetButton.
 buildModal(close, engine, deps): { backdrop, refreshDebug, disposeDebug }
 
@@ -264,7 +305,7 @@ buildModal(close, engine, deps): { backdrop, refreshDebug, disposeDebug }
 #          debug-panic, debug-test-tone, debug-copy, debug-latency, debug-transport,
 #          debug-storage, debug-session(+-clear), debug-sw(+-unregister), debug-midi,
 #          debug-wake, debug-sampler-clips(+ debug-clips-clear), debug-perf-tier,
-#          debug-ios-*
+#          debug-ios-*, debug-errors, debug-share (only where navigator.share exists)
 
 # what the rows read (owned by their own specs)
 SessionAutosave.stats(): { bytes, savedAt: number | null } | null   # session-autosave.ts
@@ -374,6 +415,28 @@ Scenario: Expensive rows are not re-read on every tick (REQ-debug-refresh-is-tie
   When more than 2 s of ticks have fired
   Then the Local storage and Session autosave rows are re-read
 # pinned by: tests/ui/about.test.ts
+
+Scenario: An uncaught error shows up in the panel and the report (v14, REQ-the-panel-keeps-the-last-errors)
+  Given the error log is installed
+  When a listener throws and a promise rejects unhandled
+  Then the Errors row shows 2 and the last message
+  And Copy report lists both with their kind
+# pinned by: tests/state/error-log.test.ts, tests/ui/about.test.ts
+
+Scenario: The error log is bounded (v14, REQ-the-panel-keeps-the-last-errors, edge)
+  When 25 errors are recorded, one with a 10,000-character message
+  Then only the last 10 are kept, the total reads 25
+  And no kept message is longer than 300 characters
+# pinned by: tests/state/error-log.test.ts
+
+Scenario: Share report appears only where the platform can share (v14, REQ-the-report-can-be-shared)
+  Given navigator.share is absent
+  Then there is no Share report button
+  Given navigator.share exists
+  When Share report is pressed
+  Then navigator.share receives the same text Copy report would copy
+  And a dismissed share sheet leaves no error behind
+# pinned by: tests/ui/about.test.ts
 ```
 
 ## Tests & verification
@@ -389,8 +452,5 @@ Scenario: Expensive rows are not re-read on every tick (REQ-debug-refresh-is-tie
 
 ## Open questions / future
 
-- A rolling in-app error log (last N `window.onerror` / unhandled rejections)
-  would be the natural next row — it is the one class of problem the panel still
-  cannot show without a console.
-- The report is plain text; a "share" action (Web Share API) would beat
-  clipboard-then-paste on phones.
+- ~~A rolling in-app error log~~ and ~~a "share" action~~ — both v14
+  (REQ-the-panel-keeps-the-last-errors, REQ-the-report-can-be-shared).
