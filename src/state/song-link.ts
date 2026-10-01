@@ -72,6 +72,43 @@ export async function decodeSongPayload(payload: string): Promise<string> {
   );
 }
 
+/**
+ * Read a fetched `#songUrl=` body, refusing anything over `cap` bytes
+ * (untrusted-input.md REQ-a-link-may-not-fetch-silently). Resolves `null` when
+ * the body is too large.
+ *
+ * `Content-Length` is advisory — a hostile server can omit it or understate it —
+ * so the body is counted as it streams and the read is cancelled the moment it
+ * crosses the cap. `arrayBuffer()` followed by a length check would buffer
+ * whatever arrived before the timeout first.
+ */
+export async function readCappedBody(resp: Response, cap: number): Promise<Uint8Array | null> {
+  const declared = Number(resp.headers.get('content-length'));
+  if (Number.isFinite(declared) && declared > cap) return null;
+  if (!resp.body) {
+    // No stream to count (a body-less response, or a non-streaming fetch).
+    const bytes = new Uint8Array(await resp.arrayBuffer());
+    return bytes.length > cap ? null : bytes;
+  }
+  const reader = resp.body.getReader();
+  const chunks: Uint8Array[] = [];
+  let total = 0;
+  for (;;) {
+    const { done, value } = await reader.read();
+    if (done) break;
+    total += value.length;
+    if (total > cap) {
+      await reader.cancel().catch(() => {});
+      return null;
+    }
+    chunks.push(value);
+  }
+  const out = new Uint8Array(total);
+  let at = 0;
+  for (const c of chunks) { out.set(c, at); at += c.length; }
+  return out;
+}
+
 /** `<origin>/#song=<payload>` — base64url payloads never need percent-encoding. */
 export function buildShareUrl(origin: string, payload: string): string {
   return `${origin}/#song=${payload}`;

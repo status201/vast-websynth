@@ -3,7 +3,9 @@
 ```yaml
 id: untrusted-input
 status: implemented
-version: 8   # v8: REQ-the-limits-are-one-module gains MAX_SYNC_JOIN_LEAD_MS — a WiFi peer's join
+version: 9   # v9: REQ-a-link-may-not-fetch-silently reads the songUrl body under the cap as it
+             #     streams — a server that omits Content-Length could make the tab buffer anything
+             # v8: REQ-the-limits-are-one-module gains MAX_SYNC_JOIN_LEAD_MS — a WiFi peer's join
              #     time is clamped so it cannot park a slave indefinitely
              # v7: REQ-the-limits-are-one-module gains MAX_RATCHET, and the CANONICAL
              #     schema's numbers are pinned to limits.ts like the author one's already were
@@ -186,9 +188,12 @@ decision and the alternatives. This spec is the contract.
   applying at boot unprompted. `#songUrl=` is **`https:` only** (not `https?:`)
   and requires **consent**: a `confirmDialog` naming the target **origin**
   before any request. The fetch is `credentials: 'omit'`, `redirect: 'error'`,
-  `mode: 'cors'`, with a timeout, and a `Content-Length` over
-  `MAX_SONG_JSON_BYTES` is refused before buffering. Failures use the shared
-  `alertDialog`, never the native `alert()`.
+  `mode: 'cors'`, with a timeout, and the body is read **under**
+  `MAX_SONG_JSON_BYTES` (`readCappedBody`): a `Content-Length` over the cap is
+  refused before any read, and a body without one — or one that lies — is
+  cancelled the moment it crosses the cap, never buffered whole and measured
+  afterwards (**v9**). Failures use the shared `alertDialog`, never the native
+  `alert()`.
 
 - **REQ-deserialized-state-is-validated-never-cast** — **Deserialized state is
   validated, never cast.** Anything reaching `JSON.parse` is passed through a
@@ -400,7 +405,7 @@ share link (data):  parseSongLink -> decodeSongPayload(payload)         # capped
                     -> Song.parse -> validate -> importSongBytes
 share link (url):   parseSongLink (https only) -> confirmDialog(origin)  # REQ-a-link-may-not-fetch-silently
                     -> fetch(credentials:omit, redirect:error, timeout)
-                    -> Content-Length check -> importSongBytes
+                    -> readCappedBody (cancels past the cap) -> importSongBytes
 zip:                sniffImportKind -> zipRead (count/entry/total caps)
                     -> parseProjectZip -> Song.parse
 clock:              tick() -> per-listener try/catch -> advance step ALWAYS  # REQ-no-subscriber-can-wedge-the-clock
@@ -483,6 +488,14 @@ Scenario: songUrl requires https and consent
   And an https:// link prompts with the target origin before any request is made
 # pinned by: tests/state/song-link.test.ts, e2e/song-link.spec.ts
 
+Scenario: A songUrl body is cut off at the cap, with or without Content-Length (v9)
+  Given a response with no Content-Length whose body streams past MAX_SONG_JSON_BYTES
+  When readCappedBody reads it
+  Then it resolves null and cancels the stream without reading the rest
+  And a declared Content-Length over the cap is refused before any read
+  And a body under the cap comes back byte-for-byte
+# pinned by: tests/state/song-link.node.test.ts
+
 Scenario: An embedded #song= link still loads unprompted (regression)
   Given a valid #song= payload
   When the app boots
@@ -564,8 +577,7 @@ Scenario: Every shipped demo validates without warnings (v3, REQ-an-unresolvable
 
 - **`#songUrl=` allow-list.** Consent covers the drive-by; a remembered
   per-origin allow-list would remove the prompt for a host the user trusts.
-- **Streaming the fetched body** so an over-cap response is abandoned mid-flight
-  rather than relying on `Content-Length` (which a hostile server may omit).
+- ~~**Streaming the fetched body**~~ — done in v9 (REQ-a-link-may-not-fetch-silently, `readCappedBody`).
 - **The SDP from a scanned QR** reaches `setRemoteDescription` unvalidated. The
   envelope is checked; the SDP body is handed to the browser's own parser, which
   is the hardened thing here — but a shape check would still be cheap.

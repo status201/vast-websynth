@@ -3,7 +3,8 @@
 ```yaml
 id: song-share-link
 status: implemented
-version: 3   # v3: https-only songUrl + consent dialog + payload/fetch caps (REQ-7/8)
+version: 4   # v4: the fetched body is read under the cap as it streams (REQ-a-linked-fetch-needs-consent)
+             # v3: https-only songUrl + consent dialog + payload/fetch caps (REQ-7/8)
 owner: state
 related:
   - song-mode
@@ -91,8 +92,10 @@ the Import button, so canonical files, authoring-dialect files, and (via
   ([audio-lifecycle](audio-lifecycle.md) REQ-the-gesture-is-required-only-when-required/REQ-post-gesture-work-is-deferred) — the prompt is raised
   immediately. Nothing waits for a tap that is never asked for. The request is
   then `credentials: 'omit'`, `redirect: 'error'`, `mode: 'cors'`, with a
-  timeout, and a `Content-Length` over `MAX_SONG_JSON_BYTES` is refused before
-  the body is buffered. Without this, one link made any visitor's browser issue
+  timeout, and the body is read under `MAX_SONG_JSON_BYTES` as it streams
+  (`readCappedBody`, v4): a `Content-Length` over the cap is refused before any
+  read, and a body that omits or understates it is cancelled the moment it
+  crosses the cap. Without this, one link made any visitor's browser issue
   an attacker-chosen GET at page load.
 
 - **REQ-share-payload-is-capped** — **The payload is capped (v3).**
@@ -218,5 +221,4 @@ Scenario: Round-trip encode/decode
 - A **remembered per-origin allow-list** for `#songUrl=`, so a host the user
   already trusted stops prompting. (The size cap and the consent gate that this
   bullet used to defer both landed in v3 — see REQ-a-linked-fetch-needs-consent/REQ-share-payload-is-capped.)
-- Streaming the fetched body so an over-cap response is abandoned mid-flight,
-  rather than trusting a `Content-Length` a hostile server may simply omit.
+- ~~Streaming the fetched body~~ — done in v4 (REQ-a-linked-fetch-needs-consent).

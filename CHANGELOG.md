@@ -27,6 +27,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 - Editing a song chain while it plays no longer sends that lane back to its first bar. A transpose nudge, adding a bank or rest, moving or removing a bar now leaves the lane on the bar it was playing; removing the playing bar moves on to the next one.
 - WiFi pairing: if the QR decoder couldn't be downloaded (for example offline), pressing Scan QR left the camera on and said "Camera unavailable". The camera now stays off, and the message says the decoder didn't download.
 
+### Security
+
+- A `#songUrl=` link's download is now cut off as soon as it passes the 8 MB song limit. Before, a server that left out its size header could make the tab hold everything it sent before the limit was checked.
+
 ## [2.15.0] - 2026-09-26
 
 ### Added

@@ -13,7 +13,7 @@ import { PatternUndo } from './state/pattern-undo';
 import { Song } from './state/song';
 import { XyPadStore } from './state/xy-pad';
 import { UiBridge } from './ui/ui-bridge';
-import { parseSongLink, decodeSongPayload } from './state/song-link';
+import { parseSongLink, decodeSongPayload, readCappedBody } from './state/song-link';
 import { MAX_SONG_JSON_BYTES } from './state/limits';
 import { Modal } from './ui/components/modal';
 import { createBrand } from './ui/components/brand';
@@ -455,17 +455,11 @@ async function fetchSharedSong(url: string): Promise<Uint8Array | null> {
   });
   if (!resp.ok) throw new Error(`The download failed (HTTP ${resp.status}).`);
 
-  // Refuse an oversized body before buffering it. `Content-Length` is advisory —
-  // a hostile server can omit it — so the post-read length is checked too, and
-  // a zip inside is capped again by the zip reader.
-  const declared = Number(resp.headers.get('content-length'));
-  if (Number.isFinite(declared) && declared > MAX_SONG_JSON_BYTES) {
-    throw new Error(`That song is larger than the ${MAX_SONG_JSON_BYTES} byte limit.`);
-  }
-  const bytes = new Uint8Array(await resp.arrayBuffer());
-  if (bytes.length > MAX_SONG_JSON_BYTES) {
-    throw new Error(`That song is larger than the ${MAX_SONG_JSON_BYTES} byte limit.`);
-  }
+  // Read under the cap as it streams — `Content-Length` is advisory, so the
+  // read is cancelled mid-flight past the cap. A zip inside is capped again by
+  // the zip reader.
+  const bytes = await readCappedBody(resp, MAX_SONG_JSON_BYTES);
+  if (!bytes) throw new Error(`That song is larger than the ${MAX_SONG_JSON_BYTES} byte limit.`);
   return bytes;
 }
 

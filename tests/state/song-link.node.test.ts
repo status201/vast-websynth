@@ -4,7 +4,7 @@
 // payload path (jsdom only reaches the 'j:' fallback).
 import { describe, it, expect } from 'vitest';
 import { deflateRawSync } from 'node:zlib';
-import { encodeSongPayload, decodeSongPayload } from '../../src/state/song-link';
+import { encodeSongPayload, decodeSongPayload, readCappedBody } from '../../src/state/song-link';
 import { hasCompression, inflateRaw, InflateLimitError } from '../../src/utils/compression';
 import { MAX_SONG_JSON_BYTES } from '../../src/state/limits';
 
@@ -75,5 +75,53 @@ describe('inflateRaw cap', () => {
     const raw = new Uint8Array([1, 2, 3, 4, 5]);
     const compressed = new Uint8Array(deflateRawSync(raw));
     expect(await inflateRaw(compressed, 1024)).toEqual(raw);
+  });
+});
+
+// untrusted-input.md REQ-a-link-may-not-fetch-silently (v9): the #songUrl= body is
+// counted as it streams and cut off at the cap; Content-Length is only advisory.
+describe('readCappedBody', () => {
+  /** A response streaming `chunks` chunks of `size` bytes, recording how far it was read. */
+  const streaming = (chunks: number, size: number, headers: HeadersInit = {}) => {
+    const seen = { pulled: 0, cancelled: false };
+    const body = new ReadableStream<Uint8Array>({
+      pull(ctrl) {
+        if (seen.pulled >= chunks) { ctrl.close(); return; }
+        ctrl.enqueue(new Uint8Array(size).fill(seen.pulled % 256));
+        seen.pulled++;
+      },
+      cancel() { seen.cancelled = true; },
+    });
+    return { resp: new Response(body, { headers }), seen };
+  };
+
+  it('cancels a body without Content-Length the moment it crosses the cap', async () => {
+    const { resp, seen } = streaming(1000, 100);   // 100 kB on offer
+    expect(await readCappedBody(resp, 1000)).toBeNull();
+    expect(seen.cancelled).toBe(true);
+    expect(seen.pulled).toBeLessThan(20);         // stopped near 1 kB, not at 100 kB
+  });
+
+  it('refuses a declared Content-Length over the cap before reading', async () => {
+    const { resp, seen } = streaming(1, 10, { 'content-length': '5000' });
+    expect(await readCappedBody(resp, 1000)).toBeNull();
+    expect(seen.pulled).toBeLessThanOrEqual(1);   // at most the stream's own eager first pull
+  });
+
+  it('catches a body that understates its Content-Length', async () => {
+    const { resp, seen } = streaming(50, 100, { 'content-length': '10' });
+    expect(await readCappedBody(resp, 1000)).toBeNull();
+    expect(seen.cancelled).toBe(true);
+  });
+
+  it('returns a body under the cap byte-for-byte, chunks in order', async () => {
+    const { resp } = streaming(3, 4);
+    const bytes = await readCappedBody(resp, 1000);
+    expect(Array.from(bytes!)).toEqual([0, 0, 0, 0, 1, 1, 1, 1, 2, 2, 2, 2]);
+  });
+
+  it('accepts a body of exactly the cap', async () => {
+    const { resp } = streaming(10, 100);
+    expect((await readCappedBody(resp, 1000))!.length).toBe(1000);
   });
 });
