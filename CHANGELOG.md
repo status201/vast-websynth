@@ -18,6 +18,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ### Added
 
+- The drum and sampler grids work from the keyboard: Tab into a grid, move with the arrow keys and press Enter to toggle a step. Space still plays and stops.
 - Drag a song, project zip or preset file onto the window to import it. Dropping a file no longer makes the browser leave the app.
 - The **Clear ▾** menu on the sequencer, drum and sampler grids can **shift the bank one step left or right**. The pattern wraps around within the bar, every step keeps its settings, and one Undo puts it back.
 - The sequencer's chord writer has an **Inversion** picker (Root, 1st, 2nd, 3rd), so a written progression can move smoothly instead of jumping the whole chord at every change.

@@ -419,6 +419,13 @@ export function buildSamplerPanel(
     onSelect: setSelected,
     heldClass: StepButton.heldClass,
   });
+  // Keyboard reach (step-grid-editing.md REQ-a-trigger-grid-is-reachable-by-keyboard).
+  cursor.enableKeyboard({
+    isOn: (sl, s) => engine.patterns.sampler[sl]?.[s]?.on ?? false,
+    onToggle: (sl, s, on) => engine.patterns.setSamplerCell(sl, s, { on }),
+    cols: () => laneGrid(bus, 'sampler').cells,
+    rowLabel: (sl) => engine.patterns.sampleNames[sl] ?? SAMPLER_SLOT_LABELS[sl] ?? `S${sl + 1}`,
+  });
 
   // ---- Selected-slot strip (sound design for the selected slot) ----
   // The drum panel's tuning strip, applied to a sampler slot

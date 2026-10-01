@@ -3,7 +3,8 @@
 ```yaml
 id: step-grid-editing
 status: implemented
-version: 11  # v11: Clear ▾ can shift the bank a step left or right (REQ-shift-rotates-the-played-window)
+version: 12  # v12: the drum and sampler grids are reachable by keyboard (REQ-a-trigger-grid-is-reachable-by-keyboard)
+             # v11: Clear ▾ can shift the bank a step left or right (REQ-shift-rotates-the-played-window)
              # v10: the seq step wheel steps by scroll distance (wheel-steps.md REQ-a-wheel-gesture-steps-by-distance)
              # v9: the five hand-rolled double-tap windows live in one module, and the
              #     two-tolerance divergence between them is recorded rather than hidden
@@ -265,6 +266,29 @@ answer to "inspect this step without disturbing it".
     control; the menu's name undersells it, which the items' own labels make up
     for.
 
+- **REQ-a-trigger-grid-is-reachable-by-keyboard** (v12) — **The drum and
+  sampler grids are reachable by keyboard.** Every cell was a `<button>`, so Tab
+  walked all 128 of them one by one, and a focused cell did nothing with any key
+  — the grids were pointer-only. The selection cursor (`GridCursor`) now owns
+  focus, the way a focused knob does ([knob-keyboard-access](knob-keyboard-access.md)
+  REQ-the-keys-a-focused-knob-owns):
+  - **One Tab stop per grid** (roving `tabIndex`): the selected cell is `0`,
+    every other `-1`, and the stop follows the selection however it moved —
+    pointer, label click or key — so Tab into a grid lands where you were.
+  - **Arrows** move the selection and focus with it; left/right stop at the
+    lane's played window (`laneGrid` cells, [meter](meter.md)), never on a dark
+    cell. **Home / End** go to the row's first / last played cell.
+  - **Enter** toggles the selected step, through the same `onToggle` a tap uses.
+  - Each of these is `preventDefault` + `stopPropagation`. **Every other key
+    passes through**: **Space** still plays and stops (a step toggled by the key
+    every musician presses to start the music would be a trap), **Delete**
+    still clears the selected step (REQ-delete-clears-the-selected-step),
+    Shift+arrows still move the playhead and the letter keys still play notes.
+  - A cell carries an `aria-label` naming its row, step and state, written only
+    when it changes. The focus ring is `:focus-visible` only, so a pointer press
+    does not ring.
+  The sequencer grid keeps its own cursor and is not covered here.
+
 ## Technical design
 
 ### Gesture inventory
@@ -401,6 +425,15 @@ selection cursor, the paint latch, the long-press timer.
 ## Scenarios (BDD)
 
 ```gherkin
+Scenario: A keyboard user programs a drum pattern (v12, REQ-a-trigger-grid-is-reachable-by-keyboard)
+  Given the drum grid, where only the selected cell is in the Tab order
+  When the user tabs in and presses ArrowRight three times, then Enter
+  Then step 4 of that row is selected, focused and switched on
+  And ArrowDown moves to the next row, the same step
+  And ArrowRight at the last played cell stays put
+  And Space still toggles the transport, and Shift+ArrowRight still seeks
+# pinned by: tests/ui/grid-keyboard.test.ts
+
 Scenario: Shift rotates the played window and is one undo (v11, REQ-shift-rotates-the-played-window)
   Given a drum bank whose kick has steps on cells 0 and 12, and a 16-cell window
   When Shift bank right is chosen

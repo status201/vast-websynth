@@ -155,7 +155,8 @@ Scenario: An automated knob writes its ARIA value only when its readout changes 
 
 ## Open questions / future
 
-- The drum and sampler step grids and the XY pad are still pointer-only. The XY
-  pad is two-dimensional and wants its own gesture design (arrows for one axis,
-  Shift+arrows for the other collides with seeking), so it is left for a change
-  of its own.
+- ~~The drum and sampler step grids~~ are keyboard-reachable now
+  ([step-grid-editing](step-grid-editing.md) REQ-a-trigger-grid-is-reachable-by-keyboard).
+  The **XY pad** is still pointer-only: it is two-dimensional and wants its own
+  gesture design (arrows for one axis, Shift+arrows for the other collides with
+  seeking), so it is left for a change of its own.

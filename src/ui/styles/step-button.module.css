@@ -157,3 +157,11 @@
   z-index: 1;
   pointer-events: none;
 }
+
+/* The keyboard focus ring (step-grid-editing.md REQ-a-trigger-grid-is-reachable-by-keyboard).
+   :focus-visible only, so a pointer press does not ring — the knob's rule. */
+.root:focus { outline: none; }
+.root:focus-visible {
+  outline: 1px solid var(--accent-secondary);
+  outline-offset: 1px;
+}

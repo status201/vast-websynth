@@ -176,6 +176,14 @@ export function buildDrumPanel(
     heldClass: StepButton.heldClass,
   });
 
+  // Keyboard reach (step-grid-editing.md REQ-a-trigger-grid-is-reachable-by-keyboard).
+  cursor.enableKeyboard({
+    isOn: (t, s) => engine.patterns.drum[t]?.[s]?.on ?? false,
+    onToggle: (t, s, on) => engine.patterns.setDrumCell(t, s, { on }),
+    cols: () => laneGrid(bus, 'drum').cells,
+    rowLabel: (t) => modelName(t),
+  });
+
   // Column count, live cells and beat accents, all from the meter. Not
   // unsubscribed: the panel is built once and lives as long as the page does.
   bindLaneGrid(bus, 'drum', () => cellRows, () => stepBtns);
