@@ -924,6 +924,8 @@ export const HELP_TOPICS: Record<TopicId, HelpTopic> = {
       '<strong>Load</strong> a WAV/MP3 into a slot, or use <strong>Record a sound</strong> to ' +
       'capture from your mic and edit it. The ' + g('edit', 'Edit') +
       ' button re-opens a loaded sound in the editor.</p>' +
+      '<p>With a MIDI pad controller, <strong>channel 10</strong> plays the slots: C1 (note 36) ' +
+      'is slot 1, up to slot 8, and how hard you hit is how loud it plays.</p>' +
       GRID_GESTURES +
       '<p>Select a slot and the strip below the grid becomes <em>that slot\'s</em> voice: ' +
       'tune it, trim it, reverse it, filter it, place it in the stereo field. The controls ' +
@@ -1240,8 +1242,9 @@ export const HELP_TOPICS: Record<TopicId, HelpTopic> = {
       'notes, patterns, knob tweaks. It floats above the app, so once it is open you can record ' +
       'while working on <em>any</em> tab. <strong>Shift + R</strong> opens and closes it from ' +
       'anywhere.</p>' +
-      '<p><strong>Record</strong> starts the take (and the transport, if it is stopped) and a timer ' +
-      'shows how much you have. <strong>Pause</strong> pauses the <em>recorder</em> — the music ' +
+      '<p><strong>Record</strong> starts the take (and the transport, if it is stopped); a timer ' +
+      'shows how much you have, and the meter beside it shows that sound is actually reaching ' +
+      'the recording (red if it clips). <strong>Pause</strong> pauses the <em>recorder</em> — the music ' +
       'keeps playing, and the paused stretch is simply left out of the file, so you can drop out ' +
       'and punch back in.</p>' +
       '<p><strong>Stop</strong> ends the take but writes nothing yet: you then choose ' +

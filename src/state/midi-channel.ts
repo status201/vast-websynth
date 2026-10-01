@@ -13,7 +13,6 @@ export type MidiInputChannel = number;
 
 const KEY = 'websynth.midi.channel';
 let current: MidiInputChannel | null = null;
-const listeners = new Set<(ch: MidiInputChannel) => void>();
 
 /** A stored value is untrusted (tampered storage): anything but a valid channel is omni. */
 function valid(n: number): MidiInputChannel {
@@ -32,12 +31,6 @@ export function midiInputChannel(): MidiInputChannel {
 export function setMidiInputChannel(ch: MidiInputChannel): void {
   current = valid(ch);
   try { localStorage.setItem(KEY, String(current)); } catch { /* storage blocked: session-only */ }
-  for (const l of listeners) l(current);
-}
-
-export function onMidiInputChannelChange(fn: (ch: MidiInputChannel) => void): () => void {
-  listeners.add(fn);
-  return () => { listeners.delete(fn); };
 }
 
 /** Test seam: forget the cached value so the next read goes back to storage. */

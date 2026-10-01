@@ -390,7 +390,8 @@ Scenario: The row carries a help badge on its launcher (REQ-the-transport-row-ca
 
 ## Tests & verification
 
-- Unit: `tests/ui/transport-controls.test.ts` — `npm test`
+- Unit: `tests/ui/transport-controls.test.ts`, `tests/ui/shortcuts.test.ts`
+  (v6 — Shift+Space) — `npm test`
 - E2E: `e2e/transport-window.spec.ts` — `npm run e2e`
 - Typecheck: `npm run typecheck`
 - Dev-bridge assertions: `window.__synth.engine.clock.step` / `.cue` (DEV only)

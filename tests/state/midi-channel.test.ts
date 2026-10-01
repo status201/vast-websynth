@@ -1,8 +1,8 @@
 // input-control.md REQ-the-midi-input-channel-is-selectable — a remembered, device-scoped
 // setting whose stored value is untrusted.
-import { describe, it, expect, beforeEach, vi } from 'vitest';
+import { describe, it, expect, beforeEach } from 'vitest';
 import {
-  midiInputChannel, setMidiInputChannel, onMidiInputChannelChange, resetMidiInputChannelForTests,
+  midiInputChannel, setMidiInputChannel, resetMidiInputChannelForTests,
 } from '../../src/state/midi-channel';
 import { installLocalStorageMock } from '../storage-mock';
 
@@ -28,15 +28,5 @@ describe('MIDI input channel', () => {
       resetMidiInputChannelForTests();
       expect(midiInputChannel()).toBe(0);
     }
-  });
-
-  it('tells listeners about a change', () => {
-    const seen = vi.fn();
-    const off = onMidiInputChannelChange(seen);
-    setMidiInputChannel(3);
-    off();
-    setMidiInputChannel(4);
-    expect(seen).toHaveBeenCalledTimes(1);
-    expect(seen).toHaveBeenCalledWith(3);
   });
 });

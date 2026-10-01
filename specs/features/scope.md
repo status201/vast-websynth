@@ -1576,6 +1576,8 @@ Scenario: The handle holds no global listener at rest (REQ-the-resize-obeys-the-
   gate, the `WAVE_MAX_GAIN` ceiling, monotonic drawn height, asymmetric fall/rise,
   frame-rate independence); and `Scope.resetPeak()` clearing the dataset mirror —
   `npm test`.
+- Unit: `tests/ui/scope-trigger.test.ts` (v19) — `findRisingZeroCrossing`: the
+  first upward crossing at any phase, none for silence or a too-long period.
 - Unit: `tests/ui/scope-lifecycle.test.ts` (v12) — one case per recovery route:
   hidden→visible restarts and measures; a `draw()` that throws once still draws on
   the following frame; `start()` re-arms after the frame chain was broken with

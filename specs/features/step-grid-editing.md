@@ -590,7 +590,9 @@ Scenario: Revealing a tab shows the step playing NOW (REQ-an-offscreen-grid-repa
   `tests/ui/step-panel-scaffold.test.ts` (the visibility gate + reveal re-sync),
   `tests/ui/clear-menu-sampler.test.ts` (v5 — a row that clears more than steps
   and owns its undo), `tests/ui/clear-menu-rows.test.ts` (v6 — the no-dead-item
-  rule on all four machines) — `npm test`
+  rule on all four machines), `tests/state/patterns-rotate.test.ts` +
+  `tests/ui/clear-menu.test.ts` (v11 — the shift), `tests/ui/grid-keyboard.test.ts`
+  (v12 — keyboard reach) — `npm test`
 - E2E: `e2e/patterns.spec.ts` (hold-to-edit, paint-drag, Clear + toast Undo,
   tab-scoped Delete), `e2e/motion.spec.ts` (REQ-motion-keeps-its-own-gesture) — `npm run e2e`
 - Typecheck: `npm run typecheck`

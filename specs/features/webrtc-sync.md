@@ -575,8 +575,9 @@ Scenario: Two real pages link and follow (E2E loopback)
   `tests/audio/webrtc-signaling.test.ts`,
   `tests/audio/webrtc-sync-transport.test.ts` (fake RTC in
   `tests/audio/fake-rtc.ts`), `tests/audio/transport/sync/sync-controller.test.ts`
-  (multi-transport + targeted announce), `tests/ui/sync-pair-modal.test.ts` —
-  `npm test`
+  (multi-transport + targeted announce), `tests/ui/sync-pair-modal.test.ts`,
+  `tests/ui/sync-pair-scan.test.ts` (a decoder that will not load never starts
+  the camera) — `npm test`
 - E2E: `e2e/webrtc-sync.spec.ts` (real two-page RTC loopback),
   `e2e/sync.spec.ts` (WiFi status + link button present) — `npm run e2e`
 - Typecheck: `npm run typecheck`

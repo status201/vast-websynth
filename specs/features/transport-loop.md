@@ -451,7 +451,8 @@ Scenario: No router unless engaged (REQ-loop-costs-nothing-unless-engaged)
   `TimeoutTimer`), `tests/audio/transport/clock.test.ts` (the router),
   `tests/audio/transport/sequencer.test.ts`,
   `tests/audio/transport/sync/sync-controller.test.ts`,
-  `tests/audio/engine-seek.test.ts`, `tests/ui/transport-controls.test.ts` — `npm test`
+  `tests/audio/engine-seek.test.ts`, `tests/ui/transport-controls.test.ts`,
+  `tests/ui/shortcuts.test.ts` (v2 — Shift+L) — `npm test`
 - E2E: `e2e/transport-loop.spec.ts` — `npm run e2e`
 - Typecheck: `npm run typecheck`
 - By ear ([ADR-010](../decisions/adr-010-musical-stable-cheap-dsp.md)): a loop across a

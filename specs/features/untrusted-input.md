@@ -609,6 +609,10 @@ Scenario: Every shipped demo validates without warnings (v3, REQ-an-unresolvable
 - Unit: the files named in the scenarios above — `npm test`
 - E2E: `e2e/song-link.spec.ts` (consent prompt on `#songUrl=`; `#song=` still
   silent) — `npm run e2e`
+- **The shipped CSP (v11)** cannot be seen by e2e, which drives the dev server
+  where `csp-dev-styles` relaxes it. `tests/csp.test.ts` pins its shape; its
+  effect is checked by `npm run build`, `npx vite preview`, then driving the app
+  with a `securitypolicyviolation` listener installed — no event may fire.
 - Typecheck: `npm run typecheck`
 - **Regression corpus:** every existing demo, share link and project zip must
   still load — the limits are the risk. `npm run check:demos`, then load each

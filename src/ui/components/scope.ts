@@ -296,15 +296,6 @@ export function visibleTicks(regionW: number, fMax: number = SPECTRUM_F_MAX): Sp
 }
 
 /**
- * Fractional bin index at each column's left edge (length `cols + 1`, monotonic).
- * This is the whole of the log mapping the bar loop needs: a column whose span
- * covers a whole bin takes the max over those bins, one narrower than a bin
- * interpolates between its neighbours. (REQ-bars-are-drawn-per-pixel-column)
- *
- * Pure, but allocating — `Scope` caches it per `(cols, fftSize, sampleRate)` and
- * drops the cache exactly where it drops the gradient cache.
- */
-/**
  * The first index `i` in `1..limit` where the signal crosses zero going up
  * (`data[i-1] < 0 <= data[i]`), or `-1` when there is none — silence, or a period
  * longer than the search (scope.md REQ-the-wave-trace-is-triggered). Pure and
@@ -318,6 +309,15 @@ export function findRisingZeroCrossing(data: Float32Array, limit: number): numbe
   return -1;
 }
 
+/**
+ * Fractional bin index at each column's left edge (length `cols + 1`, monotonic).
+ * This is the whole of the log mapping the bar loop needs: a column whose span
+ * covers a whole bin takes the max over those bins, one narrower than a bin
+ * interpolates between its neighbours. (REQ-bars-are-drawn-per-pixel-column)
+ *
+ * Pure, but allocating — `Scope` caches it per `(cols, fftSize, sampleRate)` and
+ * drops the cache exactly where it drops the gradient cache.
+ */
 export function columnBinEdges(cols: number, fftSize: number, sampleRate: number): Float32Array {
   const n = cols > 0 ? Math.floor(cols) : 1;
   const fMax = Math.min(SPECTRUM_F_MAX, sampleRate / 2);

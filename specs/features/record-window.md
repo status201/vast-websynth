@@ -320,8 +320,9 @@ Scenario: An export is not shown as your recording (REQ-an-export-is-named-as-an
 
 - `tests/ui/record-window.test.ts` (jsdom — phases, timer formatting, close guard,
   launcher state), `e2e/record-window.spec.ts` (the real recorder end to end,
-  including a downloaded WAV), `tests/audio/recorder/recorder-controller.test.ts`
-  (the phase machine underneath).
+  including a downloaded WAV, and v2's meter rising on a real note),
+  `tests/audio/recorder/recorder-controller.test.ts` (the phase machine
+  underneath), `tests/audio/recorder/node.test.ts` (v2 — `takePeak`).
 - `npm test` / `npm run e2e`.
 
 ## Open questions / future

@@ -560,7 +560,9 @@ Scenario: An import does not relabel the selector (REQ-rebuilding-options-never-
 - Unit: `tests/state/preset-file.test.ts` (build/parse/`planImport`/filenames —
   pure, no Storage mock), `tests/state/preset.test.ts` (`modified`, `entries`,
   seeding), `tests/state/preset-session.test.ts` (`patchSnapshot`, the REQ-a-songs-sound-is-a-selectable-entry
-  pin/replace rules), `tests/ui/dropdown.test.ts` (REQ-rebuilding-options-never-relabels's re-assert) — `npm test`
+  pin/replace rules), `tests/ui/dropdown.test.ts` (REQ-rebuilding-options-never-relabels's re-assert),
+  `tests/state/song-pin.test.ts` (apply-then-pin through the real `Song.apply`),
+  `tests/ui/preset-manager-modal.test.ts` (v11 — delete / revert) — `npm test`
 - E2E: `e2e/presets.spec.ts` (manager save, export download, import wizard
   round-trip, the song-importer pointer) — `npm run e2e`
 - Typecheck: `npm run typecheck`

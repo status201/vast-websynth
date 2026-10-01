@@ -450,7 +450,8 @@ Scenario: Share report appears only where the platform can share (v14, REQ-the-r
   expand + every action, plus the v4 cost gates: collapsed does nothing, expanding
   repaints, and the expensive rows tick on the slow schedule — under fake timers),
   `tests/state/session-autosave.test.ts` (`stats`),
-  `tests/state/storage-usage.test.ts` (`storageUsage`) — `npm test`
+  `tests/state/storage-usage.test.ts` (`storageUsage`),
+  `tests/state/error-log.test.ts` (v14 — capture, bounds, never throws) — `npm test`
 - E2E: `e2e/debug-panel.spec.ts` (the actions against a real AudioContext +
   clipboard) — `npm run e2e`
 - Typecheck: `npm run typecheck`

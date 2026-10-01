@@ -1020,7 +1020,7 @@ Scenario: With no overflow there is no toggle (REQ-the-demo-row-overflows-into-a
   `tests/audio/transport/lane-mix.test.ts`,
   `tests/audio/transport/sampler-machine.test.ts`,
   `tests/audio/transport/performance.test.ts`.
-- E2E: `e2e/song.spec.ts` (save→new→load + WAV export RIFF/WAVE header),
+- E2E: `e2e/song.spec.ts` (save→new→load + WAV export RIFF/WAVE header; v28: Delete),
   `e2e/song-fx.spec.ts` (live DJ FX), `e2e/song-mixer.spec.ts` (mute/solo/volume).
 - `npm test` / `npm run e2e` / `npm run typecheck`.
 

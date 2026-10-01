@@ -261,9 +261,11 @@ Scenario: A failed import keeps the pasted text (edge)
 
 - Unit: `tests/state/paste-payload.test.ts` (extraction + every classification),
   `tests/ui/paste-import.test.ts` (status line, disabled confirm, routing),
-  `tests/ui/ai-prompt.test.ts` (the embedded step 3) — `npm test`
+  `tests/ui/ai-prompt.test.ts` (the embedded step 3), `tests/ui/file-drop.test.ts`
+  (v2 — the dropped-file routes and the size gate) — `npm test`
 - E2E: `e2e/paste-import.spec.ts` (a fenced song pasted through `song-paste`
-  applies; a bank reaches `preset-import-review`) — `npm run e2e`
+  applies; a bank reaches `preset-import-review`; v2: a dropped file imports and
+  the tab does not navigate away) — `npm run e2e`
 - Typecheck: `npm run typecheck`
 
 ## Open questions / future
