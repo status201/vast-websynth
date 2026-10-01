@@ -67,6 +67,10 @@ export class LFO {
   readonly modTap: GainNode;
 
   private readonly osc: OscillatorNode;
+
+  /** The running rate in Hz — what the tempo-lock e2e reads instead of the
+   *  private oscillator (lfo.md). */
+  get rateHz(): number { return this.osc.frequency.value; }
   private amount = 0;
   private dest: LfoDest = LfoDest.Off;
 

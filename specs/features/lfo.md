@@ -558,9 +558,8 @@ Scenario: A modulating LFO on the hidden page lights its tab (v7, REQ-the-two-lf
   becomes another matrix source.
 - `Engine` never calls `pwm.dispose()`. Pre-existing; one shared driver (REQ-pulse-is-arbitrated)
   keeps it a single gap rather than two.
-- `e2e/lfo-sync.spec.ts` and `e2e/lfo2.spec.ts` read `engine.lfo.osc` /
-  `engine.lfo2.osc`, reaching a `private` field through an `any` cast at runtime.
-  A `get rateHz()` accessor on `LFO` would be cleaner.
+- ~~The LFO e2e specs reached the private `osc` through an `any` cast.~~ They read
+  `LFO.rateHz` now.
 - `pulse` was a dead label until v3 — `update()` routed only pitch/cutoff/amp, so
   selecting it silenced all modulation while the UI advertised "PWM movement".
   Kept at index 4 rather than reclaimed, so no saved patch changed meaning.

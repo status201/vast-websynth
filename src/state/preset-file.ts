@@ -1,7 +1,7 @@
 import { roundParams } from './serialize';
 import type { Snapshot } from './preset';
 import type { ParamBus } from './params';
-import { PRESET_FORMAT, BANK_FORMAT, validatePresetPayload } from './preset-validate';
+import { PRESET_FORMAT, BANK_FORMAT, PRESET_VERSION, BANK_VERSION, validatePresetPayload } from './preset-validate';
 import type { PresetFile, PresetBankFile, PresetParse } from './preset-validate';
 
 /**
@@ -58,13 +58,13 @@ export function sameSnapshot(a: Snapshot, b: Snapshot): boolean {
 }
 
 export function buildPresetFile(name: string, snap: Snapshot): PresetFile {
-  return { format: PRESET_FORMAT, version: 1, name, params: roundParams(snap) };
+  return { format: PRESET_FORMAT, version: PRESET_VERSION, name, params: roundParams(snap) };
 }
 
 export function buildBankFile(name: string, entries: Record<string, Snapshot>): PresetBankFile {
   const presets: Record<string, Snapshot> = {};
   for (const [n, snap] of Object.entries(entries)) presets[n] = roundParams(snap);
-  return { format: BANK_FORMAT, version: 1, name, presets };
+  return { format: BANK_FORMAT, version: BANK_VERSION, name, presets };
 }
 
 /** `Song.download`'s sanitize idiom, so all three file families name alike. */

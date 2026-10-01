@@ -16,7 +16,7 @@ const QUARTER = SYNC_LABELS.indexOf('1/4');
 const EIGHTH = SYNC_LABELS.indexOf('1/8');
 
 const lfoHz = (page: any): Promise<number> =>
-  page.evaluate(() => (window as any).__synth.engine.lfo.osc.frequency.value as number);
+  page.evaluate(() => (window as any).__synth.engine.lfo.rateHz as number);
 
 test.describe('LFO tempo sync', () => {
   test('a synced LFO takes its rate from the tempo, and follows a tempo change', async ({ page }) => {

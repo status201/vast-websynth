@@ -236,9 +236,9 @@ Scenario: an agent fetches the catalogue over MCP
 
 ## Open questions / future
 
-- `websynth-song-author`, `websynth-preset` and `websynth-preset-bank` still carry their
-  version as a bare literal at each use site; only `SONG_VERSION` is a named constant.
-  The format table in `llms.txt` is hand-kept for those three until they get one.
+- ~~The author, preset and bank versions were bare literals.~~ They are named now
+  (`AUTHOR_VERSION`, `PRESET_VERSION`, `BANK_VERSION`). The format table in
+  `llms.txt` is still hand-kept; generating it from these is the remaining step.
 - The JSON Schemas still describe `params` as an open `{string: number}` map
   ([preset-authoring](preset-authoring.md) REQ-preset-schemas-are-published). Now that a machine-readable id list
   exists, a generated `enum` is possible — but it would make every schema reject files

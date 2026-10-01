@@ -533,8 +533,10 @@ Scenario: a worklet speed rewrite changes no samples
 
 - ~~REQ-boot-cost-matches-the-request has no automated gate.~~ Done: `scripts/check-bundle.mjs`
   plus CI's `build` job enforce the 500 kB entry ceiling.
-- REQ-global-listeners-live-only-for-a-gesture has no automated repo-wide gate; a lint rule banning constructor-scope
-  `window.addEventListener('pointermove', …)` would make it self-enforcing.
+- ~~REQ-global-listeners-live-only-for-a-gesture has no automated gate.~~
+  `tests/global-move-listeners.test.ts` scans `src/`: every global
+  `pointermove`/`mousemove`/`touchmove` listener must be removed, with the same
+  handler, by the file that adds it.
 - The oscillators of a fully idle voice still run (only the ladder filter is
   idle-gated). Gating them would need a per-voice start/stop model — worth measuring
   before attempting.

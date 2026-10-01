@@ -45,6 +45,14 @@ describe('demos-index.json', () => {
     if (meta.armed) expect(meta.armed.length).toBeGreaterThan(0);
   });
 
+  // demo-library.md REQ-every-machine-has-a-demo — read from the index, never a named demo.
+  it('every machine is used by at least one demo', () => {
+    const used = new Set(entries.flatMap(([, meta]) => meta.uses));
+    for (const m of ['seq', 'drums', 'sampler', 'motion']) {
+      expect(used.has(m), `no demo uses ${m}`).toBe(true);
+    }
+  });
+
   it('every shipped demo actually plays something', () => {
     // A demo whose machines are all silent is a broken drop-in, and the index
     // is now the cheapest place to notice.

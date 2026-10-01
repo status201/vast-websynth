@@ -20,7 +20,7 @@ const QUARTER = SYNC_LABELS.indexOf('1/4');
 
 /** The LFO 2 oscillator's live frequency, as `lfo-sync.spec.ts` reads LFO 1's. */
 const lfo2Hz = (page: any): Promise<number> =>
-  page.evaluate(() => (window as any).__synth.engine.lfo2.osc.frequency.value as number);
+  page.evaluate(() => (window as any).__synth.engine.lfo2.rateHz as number);
 
 /** How far LFO 2's pan output is opened — 0 until something routes it there. */
 const lfo2PanGain = (page: any): Promise<number> =>

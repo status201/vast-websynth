@@ -40,6 +40,8 @@ import {
 } from './validate-utils';
 
 export const AUTHOR_FORMAT = 'websynth-song-author';
+/** The one author-dialect version (param-catalogue.md — named, like `SONG_VERSION`). */
+export const AUTHOR_VERSION = 1;
 
 /** Defaults for an authored seq step that is ON (off steps get the same + note 60). */
 const SEQ_ON_DEFAULTS = { velocity: 0.85, gate: 0.5, prob: 1, ratchet: 1, tie: false, micro: 0 };
@@ -850,7 +852,7 @@ export function expandAuthorSong(value: unknown): SongValidation {
   const o = value;
 
   if (o.format !== AUTHOR_FORMAT) add(`format must be "${AUTHOR_FORMAT}" (got ${describe(o.format)})`);
-  if (o.version !== 1) add(`version must be 1 (got ${describe(o.version)})`);
+  if (o.version !== AUTHOR_VERSION) add(`version must be ${AUTHOR_VERSION} (got ${describe(o.version)})`);
   if (typeof o.name !== 'string') add(`name must be a string (got ${describe(o.name)})`);
 
   // Form-mixing is the likeliest agent failure: canonical grids in an author

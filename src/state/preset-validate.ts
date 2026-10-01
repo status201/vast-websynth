@@ -33,17 +33,20 @@ import { MAX_PARAM_KEYS } from './limits';
 
 export const PRESET_FORMAT = 'websynth-preset';
 export const BANK_FORMAT = 'websynth-preset-bank';
+/** The file versions these build (param-catalogue.md — named, like `SONG_VERSION`). */
+export const PRESET_VERSION = 1;
+export const BANK_VERSION = 1;
 
 export interface PresetFile {
   format: typeof PRESET_FORMAT;
-  version: 1;
+  version: typeof PRESET_VERSION;
   name: string;
   params: Snapshot;
 }
 
 export interface PresetBankFile {
   format: typeof BANK_FORMAT;
-  version: 1;
+  version: typeof BANK_VERSION;
   name: string;
   presets: Record<string, Snapshot>;
 }

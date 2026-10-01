@@ -3,7 +3,7 @@
 ```yaml
 id: demo-library
 status: implemented
-version: 1
+version: 2   # v2: every machine is exercised by at least one demo (REQ-every-machine-has-a-demo)
 owner: core
 related:
   - architecture
@@ -135,6 +135,15 @@ what a demo owes the shelf.
   falls back to its filename ([song-mode](song-mode.md) REQ-drop-in-demos-are-fetched-on-click) rather than
   breaking the row.
 
+- **REQ-every-machine-has-a-demo** (v2) — **Every machine is heard in at least
+  one demo.** The library is how a new user meets the instrument, and a machine
+  no demo uses is one they may never find. `demos-index.json` already records
+  each demo's `uses`, so the check is cheap and stays true without naming a
+  demo: the union of `uses` across the index must contain `seq`, `drums`,
+  `sampler` and `motion`. Removing the last demo that exercises one fails the
+  suite — the prompt to replace it, not to delete the check. Zip demos count:
+  today they are the only ones that use the sampler.
+
 ## Technical design
 
 ### Contract / public interface
@@ -197,6 +206,11 @@ second is written by hand and never rewritten by a tool.
 ## Scenarios (BDD)
 
 ```gherkin
+Scenario: Every machine is used by some demo (v2, REQ-every-machine-has-a-demo)
+  Given the shipped demos-index.json
+  Then the union of every entry's uses contains seq, drums, sampler and motion
+# pinned by: tests/state/demo-index.test.ts
+
 Scenario: The index carries a demo's tempo, length and machines
   Given a demo with transport.bpm 124, a 16-bar seq chain and drum steps
   When clean:demos runs
@@ -267,6 +281,5 @@ Scenario: A demo button says what it is without being clicked (REQ-demo-row-says
   the same change.
 - **Coverage is lopsided and the index now makes it measurable**: zero JSON demos
   use the sampler, motion is live in a minority of the corpus, and the tour's demo
-  is a v2 file with no XY and no motion. A future check could fail when no demo
-  exercises a machine at all — and unlike a number in this spec, it would stay
-  true.
+  is a v2 file with no XY and no motion. The floor is now enforced
+  (REQ-every-machine-has-a-demo); the lopsidedness above it is not, on purpose.
