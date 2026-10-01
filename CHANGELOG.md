@@ -25,6 +25,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ### Changed
 
+- The Wave view of the scope now holds a steady note still instead of letting it drift sideways. Very low notes still drift, as before.
 - Offline "this part of the app isn't downloaded yet" messages now say how to avoid it next time: About → Play offline. About ▸ Debug shows whether this device has an offline copy.
 - The on-screen keyboard adds octaves on wide screens instead of stretching its keys: 4 octaves on a 3440-wide ultrawide, 6 (C1–B6) on 5120. Screens up to 2560 and phones are unchanged.
 - Above 2560px wide, the synth panels spread their knobs evenly and lay each group on one row (FILTER from 3200px), instead of mixing tight clusters with 2×2 and 3×2 blocks. 2560 and below are unchanged.

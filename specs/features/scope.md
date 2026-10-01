@@ -3,7 +3,9 @@
 ```yaml
 id: scope
 status: implemented          # draft | active | implemented
-version: 18  # v18: the scope row's height is now a MINIMUM (REQ-a-scope-resize-handle): .bottom is a flex column and
+version: 19  # v19: the Wave trace is triggered on a rising zero crossing, so a steady tone
+             #      stands still instead of drifting (REQ-the-wave-trace-is-triggered)
+             # v18: the scope row's height is now a MINIMUM (REQ-a-scope-resize-handle): .bottom is a flex column and
              #      the scope takes the spare height a capped keyboard cannot use (keyboard-range.md
              #      REQ-spare-height-goes-to-the-scope).
              # v17: v17: the stereo-sources list goes from three to five — it had never gained the
@@ -380,6 +382,21 @@ Two consequences worth naming up front, because they are visible:
   to `el.dataset.waveGain` under the same change-only-write rule as the peak
   mirror (REQ-the-scope-canvas-carries-a-testid), so a steady scope still
   performs no per-frame attribute write.
+- **REQ-the-wave-trace-is-triggered** (v19) — **The Wave trace is triggered.**
+  Each frame drew the analyser buffer from index 0, wherever in the waveform's
+  cycle that happened to fall, so a steady tone slid sideways and never read like
+  a scope. Now each channel's trace starts at the **first rising zero crossing**
+  (`prev < 0 <= cur`) within the buffer's first quarter
+  (`findRisingZeroCrossing`), and draws a fixed **three quarters** of the buffer
+  from there. Fixed, so the time span never jumps between frames: the trace is
+  the same width whether a trigger was found or not. When none is found — a note
+  whose period is longer than the search quarter (below `sampleRate / (fftSize/4)`,
+  ~190 Hz at the strong tier's 1024), or silence — the trace starts at 0 and
+  free-runs exactly as before; triggering is an improvement where it can be had,
+  never a gate. The search is one pass over at most a quarter of the samples the
+  draw loop already visits, and allocates nothing (REQ-the-wave-read-is-float's
+  cost rule). The auto-gain peak is taken over the drawn samples.
+
 - **REQ-a-scope-resize-handle** (v11) — A **resize handle**
   (`data-testid="scope-resize-handle"`) sits on the scope panel's **top edge**.
   Dragging it vertically resizes the shared bottom row between
@@ -1147,6 +1164,15 @@ Web Audio nodes (built-in): `AnalyserNode`, `ChannelSplitterNode`,
 ## Scenarios (BDD)
 
 ```gherkin
+Scenario: A steady tone stands still in the Wave view (v19, REQ-the-wave-trace-is-triggered)
+  Given a sine whose period fits in a quarter of the analyser buffer, at any phase
+  When the trigger point is found
+  Then it is the first sample where the signal crosses zero going up
+  And the trace drawn from it starts at the same point of the cycle every frame
+  Given silence, or a period longer than the search window
+  Then no trigger is found and the trace starts at sample 0
+# pinned by: tests/ui/scope-trigger.test.ts
+
 Scenario: Mono is the default channel layout
   Given the app has booted and audio is running
   Then the scope channels toggle reads "Mono"
@@ -1685,6 +1711,8 @@ Scenario: The handle holds no global listener at rest (REQ-the-resize-obeys-the-
   Mono/Stereo (see Persistence). If mixing sessions turn out to leave it on
   permanently, that is the evidence that would move it into the device-scoped
   workspace family beside the panel height — not before.
-- There is still **no trigger / zero-crossing sync**, so the trace free-runs and
-  drifts horizontally. Unrelated to the gain, but the next thing that would make the
-  Wave view read like a scope.
+- ~~There is still **no trigger / zero-crossing sync**~~ — v19,
+  REQ-the-wave-trace-is-triggered. Low notes (below ~190 Hz at the strong tier)
+  still free-run, because the search is a quarter of the buffer; a longer
+  analyser on the Wave view would reach them, at an always-on FFT cost the
+  perf tiers were set to avoid.

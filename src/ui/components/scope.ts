@@ -304,6 +304,20 @@ export function visibleTicks(regionW: number, fMax: number = SPECTRUM_F_MAX): Sp
  * Pure, but allocating — `Scope` caches it per `(cols, fftSize, sampleRate)` and
  * drops the cache exactly where it drops the gradient cache.
  */
+/**
+ * The first index `i` in `1..limit` where the signal crosses zero going up
+ * (`data[i-1] < 0 <= data[i]`), or `-1` when there is none — silence, or a period
+ * longer than the search (scope.md REQ-the-wave-trace-is-triggered). Pure and
+ * allocation-free: it runs every Wave frame.
+ */
+export function findRisingZeroCrossing(data: Float32Array, limit: number): number {
+  const end = Math.min(limit, data.length - 1);
+  for (let i = 1; i <= end; i++) {
+    if (data[i - 1]! < 0 && data[i]! >= 0) return i;
+  }
+  return -1;
+}
+
 export function columnBinEdges(cols: number, fftSize: number, sampleRate: number): Float32Array {
   const n = cols > 0 ? Math.floor(cols) : 1;
   const fMax = Math.min(SPECTRUM_F_MAX, sampleRate / 2);
@@ -1051,14 +1065,19 @@ export class Scope {
     ctx.lineWidth = 1.8;
     ctx.strokeStyle = '#e8742e';
     ctx.beginPath();
-    const len = data.length;
+    // Triggered (REQ-the-wave-trace-is-triggered): start at the first rising zero
+    // crossing in the first quarter, draw a fixed three quarters — so the span is
+    // the same whether or not a trigger was found, and silence free-runs from 0.
+    const search = data.length >> 2;
+    const len = data.length - search;
+    const start = Math.max(0, findRisingZeroCrossing(data, search));
     // One pass: draw the scaled sample *and* accumulate the raw peak that will set
     // the next frame's gain. The two extra ops per sample sit inside a loop already
     // issuing a lineTo, so the auto-gain costs nothing measurable. (REQ-the-wave-read-is-float)
     let peak = this.wavePeak;
     for (let i = 0; i < len; i++) {
       const x = r.x + (i / (len - 1)) * r.w;
-      const v = data[i] ?? 0;
+      const v = data[start + i] ?? 0;
       const a = v < 0 ? -v : v;
       if (a > peak) peak = a;
       // Clamp *after* the gain: there is no ctx.clip(), so an un-clamped overshoot
