@@ -30,6 +30,21 @@ export interface RecordWindowLauncher {
   toggle(): void;
 }
 
+/** The meter's floor: a peak this quiet or quieter draws an empty bar. */
+const METER_FLOOR_DB = -60;
+
+/**
+ * A peak (linear, 0..1+) as the meter's fill fraction on a dB scale —
+ * `METER_FLOOR_DB` is empty, 0 dBFS is full (record-window.md
+ * REQ-the-meter-shows-what-reaches-the-recorder). Linear would leave a mix at
+ * −20 dBFS as a 10% sliver that reads as "nothing is reaching it".
+ */
+export function meterFraction(peak: number): number {
+  if (!(peak > 0)) return 0;
+  const db = 20 * Math.log10(peak);
+  return Math.min(1, Math.max(0, (db - METER_FLOOR_DB) / -METER_FLOOR_DB));
+}
+
 /** `m:ss`. Seconds precision is enough for a take (record-window.md REQ-the-timer-reports-the-take). */
 export function formatElapsed(seconds: number): string {
   const total = Math.max(0, Math.floor(seconds));
@@ -78,6 +93,20 @@ export function createRecordWindowLauncher(
   timerEl.className = styles.timer!;
   timerEl.dataset.testid = 'record-timer';
   timerEl.textContent = '0:00';
+
+  // The peak meter (REQ-the-meter-shows-what-reaches-the-recorder): the timer
+  // says a capture runs, this says whether anything is in it.
+  const meter = document.createElement('div');
+  meter.className = styles.meter!;
+  meter.dataset.testid = 'record-meter';
+  meter.setAttribute('role', 'meter');
+  meter.setAttribute('aria-label', 'Recording level');
+  meter.setAttribute('aria-valuemin', String(METER_FLOOR_DB));
+  meter.setAttribute('aria-valuemax', '0');
+  const meterFill = document.createElement('div');
+  meterFill.className = styles.meterFill!;
+  meter.appendChild(meterFill);
+  let lastMeterKey = '';
 
   const mkBtn = (testid: string): HTMLButtonElement => {
     const el = document.createElement('button');
@@ -147,11 +176,31 @@ export function createRecordWindowLauncher(
     timerEl.textContent = text;
   };
 
+  /** Draw a peak; a write only when the drawn value changes (runtime-performance). */
+  const paintMeter = (peak: number): void => {
+    const frac = meterFraction(peak);
+    const clip = peak >= 1;
+    const key = `${frac.toFixed(3)}|${clip}`;
+    if (key === lastMeterKey) return;
+    lastMeterKey = key;
+    // scaleX, not width: no layout, and never a transition — this is
+    // high-frequency state (REQ-the-meter-shows-what-reaches-the-recorder).
+    meterFill.style.transform = `scaleX(${frac})`;
+    meter.toggleAttribute('data-clip', clip);
+    meter.setAttribute('aria-valuenow', peak > 0 ? (20 * Math.log10(peak)).toFixed(1) : String(METER_FLOOR_DB));
+  };
+
+  /** One tick, one read of each derived value. */
+  const tick = (): void => {
+    paintTimer();
+    paintMeter(engine.recorder.takePeak());
+  };
+
   /** Runs only while the window is open AND capturing — a closed window costs
    *  nothing, and the value is derived, so a reopen is instantly correct. */
   const syncTimer = (): void => {
     const wanted = (win?.isOpen ?? false) && engine.recorder.phase === 'recording';
-    if (wanted && timer === undefined) timer = window.setInterval(paintTimer, TICK_MS);
+    if (wanted && timer === undefined) timer = window.setInterval(tick, TICK_MS);
     else if (!wanted && timer !== undefined) {
       window.clearInterval(timer);
       timer = undefined;
@@ -191,6 +240,9 @@ export function createRecordWindowLauncher(
     // the capture it is reporting (record-window.md REQ-the-red-dot-earns-its-animation).
     dot.classList.toggle(styles.live!, phase === 'recording' && !exporting);
     paintTimer();
+    // Empty in every phase but recording a take — a paused or finished take is
+    // not reaching the recorder, and an export is not yours.
+    if (phase !== 'recording' || exporting) paintMeter(0);
     syncTimer();
 
     // Encoding keeps the review pair on screen but inert, so the window neither
@@ -277,7 +329,7 @@ export function createRecordWindowLauncher(
     win.body.className += ` ${styles.window!}`;
     const row = document.createElement('div');
     row.className = styles.row!;
-    row.append(status, timerEl, toggleBtn, stopBtn, saveBtn, discardBtn);
+    row.append(status, meter, timerEl, toggleBtn, stopBtn, saveBtn, discardBtn);
     win.body.append(row, fmtSel);
     return win;
   };

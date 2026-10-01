@@ -67,6 +67,28 @@
   .dot.live { animation: none; }
 }
 
+/* The peak meter (record-window.md REQ-the-meter-shows-what-reaches-the-recorder).
+   The fill is scaled, never resized, and has no transition: it changes five
+   times a second while recording. */
+.meter {
+  flex: 0 0 auto;
+  width: 64px;
+  height: 6px;
+  border-radius: 3px;
+  background: var(--bg-deep);
+  overflow: hidden;
+}
+
+.meterFill {
+  width: 100%;
+  height: 100%;
+  background: var(--accent-good);
+  transform: scaleX(0);
+  transform-origin: left center;
+}
+
+.meter[data-clip] .meterFill { background: var(--accent-bad); }
+
 /* Elapsed. Monospaced tabular figures for the same reason the transport readout
    is (transport-window.md REQ-the-position-readout-is-bar-dot-step): it must not shift sideways as it counts. */
 .timer {

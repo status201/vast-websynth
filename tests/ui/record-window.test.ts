@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
-import { createRecordWindowLauncher, formatElapsed } from '../../src/ui/components/record-window';
+import { createRecordWindowLauncher, formatElapsed, meterFraction } from '../../src/ui/components/record-window';
 import type { RecorderPhase } from '../../src/audio/recorder/recorder-controller';
 import type { StudioApi } from '../../src/ui/studio-api';
 
@@ -16,6 +16,7 @@ function harness(over: { exporting?: boolean; saveFails?: boolean } = {}) {
   let rendering = false;
   const renderListeners = new Set<(r: boolean) => void>();
   let seconds = 0;
+  let peak = 0;
   const listeners = new Set<(p: RecorderPhase) => void>();
   const emit = () => { for (const l of listeners) l(phase); };
   const calls: string[] = [];
@@ -30,6 +31,7 @@ function harness(over: { exporting?: boolean; saveFails?: boolean } = {}) {
     isExporting: () => over.exporting ?? false,
     isBlocked: () => rendering,
     capturedSeconds: () => seconds,
+    takePeak: () => { const p = peak; peak = 0; return p; },
     onPhase: (fn: (p: RecorderPhase) => void) => { listeners.add(fn); return () => listeners.delete(fn); },
     startManual: rec('start', 'recording'),
     pauseManual: rec('pause', 'paused'),
@@ -56,6 +58,7 @@ function harness(over: { exporting?: boolean; saveFails?: boolean } = {}) {
     setRendering: (r: boolean) => { rendering = r; for (const l of renderListeners) l(r); },
     setPhase: (p: RecorderPhase) => { phase = p; emit(); },
     setSeconds: (s: number) => { seconds = s; },
+    setPeak: (p: number) => { peak = p; },
     recorder,
   };
 }
@@ -315,5 +318,46 @@ describe('record window and the v14 recorder rules', () => {
     expect(visible('record-save')).toBe(true);    // still offered, to retry or pick WAV
     expect(visible('record-discard')).toBe(true);
     expect(byId('record-window').textContent).toMatch(/Couldn't write/);
+  });
+});
+
+// record-window.md REQ-the-meter-shows-what-reaches-the-recorder.
+describe('the Record window level meter', () => {
+  it('maps a peak onto a 60 dB scale', () => {
+    expect(meterFraction(0)).toBe(0);
+    expect(meterFraction(1)).toBe(1);
+    expect(meterFraction(2)).toBe(1);             // over full scale stays full
+    expect(meterFraction(0.5)).toBeCloseTo(0.9, 2); // -6 dBFS
+    expect(meterFraction(0.0001)).toBe(0);        // -80 dBFS: below the floor
+  });
+
+  it('fills on the timer tick while recording, flags a clip, and empties on pause', () => {
+    vi.useFakeTimers();
+    try {
+      const h = harness();
+      const l = createRecordWindowLauncher(h.api, () => 'wav');
+      document.body.appendChild(l.el);
+      l.el.click();
+      const meter = byId('record-meter');
+      const fill = meter.firstElementChild as HTMLElement;
+      expect(meter.getAttribute('role')).toBe('meter');
+
+      h.setPhase('recording');
+      h.setPeak(0.5);
+      vi.advanceTimersByTime(250);
+      expect(fill.style.transform).toMatch(/^scaleX\(0\.(89|90)/); // -6 dBFS
+      expect(meter.hasAttribute('data-clip')).toBe(false);
+
+      h.setPeak(1.2);
+      vi.advanceTimersByTime(250);
+      expect(fill.style.transform).toBe('scaleX(1)');
+      expect(meter.hasAttribute('data-clip')).toBe(true);
+
+      h.setPhase('paused');
+      expect(fill.style.transform).toBe('scaleX(0)');
+      expect(meter.hasAttribute('data-clip')).toBe(false);
+    } finally {
+      vi.useRealTimers();
+    }
   });
 });

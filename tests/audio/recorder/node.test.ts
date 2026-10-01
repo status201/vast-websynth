@@ -188,3 +188,26 @@ describe('RecorderNode.dispose (sample-recorder REQ-the-recorder-node-is-release
     await expect(pending).resolves.toBeDefined();
   });
 });
+
+// record-window.md REQ-the-meter-shows-what-reaches-the-recorder — the peak comes off the
+// batches the node already receives; no worklet change.
+describe('RecorderNode.takePeak', () => {
+  const batch = (peak: number, at: number): void => {
+    const l = new Float32Array(64);
+    const r = new Float32Array(64);
+    l[10] = peak * 0.5;
+    r[20] = -peak;           // the right channel, and negative, still counts
+    node.port.onmessage?.({ data: { l, r, f: at } } as MessageEvent);
+  };
+
+  it('reports the loudest |sample| since the last read, then resets', async () => {
+    const rec = await make();
+    rec.start();
+    batch(0.25, 0);
+    batch(0.5, 64);
+    expect(rec.takePeak()).toBe(0.5);
+    expect(rec.takePeak()).toBe(0);   // drained
+    batch(0.125, 128);
+    expect(rec.takePeak()).toBe(0.125);
+  });
+});

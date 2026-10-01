@@ -54,6 +54,28 @@ test.describe('Record window', () => {
     await expect.poll(() => phase(page)).toBe('idle');
   });
 
+  // record-window.md REQ-the-meter-shows-what-reaches-the-recorder — against the real worklet's batches.
+  test('the meter rises when sound reaches the recorder', async ({ page }) => {
+    await gotoAndStart(page);
+    await page.getByTestId('tab-song').click();
+    await page.getByTestId('song-record').click();
+    const fill = page.getByTestId('record-meter').locator('div');
+    const scale = async (): Promise<number> => {
+      const t = await fill.evaluate((el) => (el as HTMLElement).style.transform);
+      return Number(/scaleX\(([\d.]+)\)/.exec(t)?.[1] ?? 0);
+    };
+
+    await page.getByTestId('record-toggle').click();
+    await expect.poll(() => phase(page)).toBe('recording');
+    await page.evaluate(() => (window as any).__synth.bus.noteOn(60));
+    await expect.poll(scale, { timeout: 5000 }).toBeGreaterThan(0.2);
+    await page.evaluate(() => (window as any).__synth.bus.noteOff(60));
+
+    await page.getByTestId('record-toggle').click(); // pause
+    await expect.poll(() => phase(page)).toBe('paused');
+    expect(await scale()).toBe(0);
+  });
+
   test('Discard throws the take away and writes nothing', async ({ page }) => {
     await gotoAndStart(page);
     await page.getByTestId('tab-song').click();

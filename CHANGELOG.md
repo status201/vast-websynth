@@ -18,6 +18,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ### Added
 
+- The Record window has a level meter beside the timer, so you can see that sound is actually reaching the recording — it turns red if the take clips.
 - Keyboard shortcuts for the song transport: **Shift+L** turns Loop on and off, and **Shift+Space** pauses and continues (Space is still Play/Stop).
 - About ▸ Debug has an **Errors** row showing the app's last uncaught errors, and Copy report lists them, so a problem on a phone can be reported without a console. On devices that can share, a **Share report** button sends the report straight to another app.
 

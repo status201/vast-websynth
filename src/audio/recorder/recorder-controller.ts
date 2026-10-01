@@ -122,6 +122,17 @@ export class RecorderController {
     return this.node.capturedFrames / this.node.sampleRate;
   }
 
+  /**
+   * The loudest sample captured since the last read (record-window.md
+   * REQ-the-meter-shows-what-reaches-the-recorder). Always read, so the node's
+   * running peak is drained either way; reported only while a take is recording
+   * — an export drives the same node, and its level is not your take's.
+   */
+  takePeak(): number {
+    const p = this.node.takePeak();
+    return this._phase === 'recording' && !this.exporting ? p : 0;
+  }
+
   onPhase(fn: (phase: RecorderPhase) => void): () => void {
     this.phaseListeners.add(fn);
     return () => { this.phaseListeners.delete(fn); };

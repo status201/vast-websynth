@@ -30,6 +30,9 @@ export class RecorderNode {
    *  Reset by `start()` and, deliberately, NOT by `pause()`: it is the take's
    *  true duration with paused time excluded (audio-export REQ-capture-is-a-five-phase-machine). */
   private _capturedFrames = 0;
+  /** Loudest |sample| since the last `takePeak()` (record-window.md
+   *  REQ-the-meter-shows-what-reaches-the-recorder). */
+  private _peak = 0;
   /** Set by `dispose()` — a released node posts nothing and captures nothing. */
   private disposed = false;
 
@@ -49,6 +52,7 @@ export class RecorderNode {
         this.chunksL.push(d.l);
         this.chunksR.push(d.r);
         this._capturedFrames += d.l.length;
+        this._peak = Math.max(this._peak, peakOf(d.l), peakOf(d.r));
       }
       // The flush reply lands after its own frames are appended above, so a
       // waiter always sees the complete take (audio-export.md REQ-chunks-are-batched-then-flushed).
@@ -87,6 +91,17 @@ export class RecorderNode {
   get firstFrame(): number | null { return this._firstFrame; }
 
   get capturedFrames(): number { return this._capturedFrames; }
+
+  /**
+   * The loudest |sample| captured since the previous call, then reset — so a
+   * meter polling at its own rate sees every batch's peak exactly once
+   * (record-window.md REQ-the-meter-shows-what-reaches-the-recorder).
+   */
+  takePeak(): number {
+    const p = this._peak;
+    this._peak = 0;
+    return p;
+  }
 
   static async loadModule(ctx: AudioContext): Promise<void> {
     await ctx.audioWorklet.addModule('/worklets/recorder.js');
@@ -181,4 +196,14 @@ function concat(chunks: Float32Array[]): Float32Array {
     offset += c.length;
   }
   return out;
+}
+
+/** Largest absolute sample — a plain loop: this runs per batch on the main thread. */
+function peakOf(a: Float32Array): number {
+  let m = 0;
+  for (let i = 0; i < a.length; i++) {
+    const v = Math.abs(a[i]!);
+    if (v > m) m = v;
+  }
+  return m;
 }

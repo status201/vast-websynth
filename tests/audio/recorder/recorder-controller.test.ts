@@ -58,6 +58,9 @@ function fakeNode() {
     },
     get capturedFrames(): number { return frames; },
     get sampleRate(): number { return SAMPLE_RATE; },
+    /** The level the next takePeak() reports (record-window REQ-the-meter-shows-what-reaches-the-recorder). */
+    peak: 0,
+    takePeak(): number { const p = node.peak; node.peak = 0; return p; },
   };
   return node as typeof node & RecorderNode;
 }
@@ -500,5 +503,20 @@ describe('RecorderController v14 guards', () => {
     expect(h.ctrl.phase).toBe('idle');
     expect(h.ctrl.capturedSeconds()).toBe(0);
     h.clock.stop();
+  });
+});
+
+// record-window.md REQ-the-meter-shows-what-reaches-the-recorder: the level is your take's only.
+describe('RecorderController.takePeak', () => {
+  it('reports the node peak while a take records, and 0 otherwise', () => {
+    const { ctrl, node } = harness();
+    node.peak = 0.5;
+    expect(ctrl.takePeak()).toBe(0);    // idle: no take — and the stale peak is drained
+    ctrl.startManual();
+    node.peak = 0.5;
+    expect(ctrl.takePeak()).toBe(0.5);
+    ctrl.pauseManual();
+    node.peak = 0.5;
+    expect(ctrl.takePeak()).toBe(0);
   });
 });

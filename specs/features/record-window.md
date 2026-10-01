@@ -3,7 +3,7 @@
 ```yaml
 id: record-window
 status: implemented
-version: 1
+version: 2   # v2: a peak meter shows what is reaching the recorder (REQ-the-meter-shows-what-reaches-the-recorder)
 owner: core
 related:
   - audio-export        # REQ-the-timer-reports-the-take there: the phase machine this window drives
@@ -115,6 +115,25 @@ TRANSPORT do. (2) and (3) are what this spec adds on top of
   removed the instant the phase leaves `recording`. "A capture is running" is
   precisely the message a static glyph fails to carry across a tab switch, which
   is the standard this repo holds animation to.
+- **REQ-the-meter-shows-what-reaches-the-recorder** (v2) — **A peak meter shows
+  what is actually reaching the recorder.** The timer proves a capture is running;
+  it cannot tell a take of music from four minutes of silence, which is what you
+  get when every lane is muted or the master is down. A thin horizontal bar
+  (`record-meter`) beside the timer shows the loudest sample captured since the
+  last paint, on a dB scale from −60 dBFS (empty) to 0 dBFS (full); a peak at or
+  above 0 dBFS turns it red (`data-clip`), because a clipped take is the other
+  thing worth knowing before you save it.
+
+  The data is already there: the recorder worklet posts every batch to the main
+  thread to build the take, so `RecorderNode` takes the peak of each batch as it
+  appends it (`takePeak()` returns the loudest since the previous read and
+  resets) — no worklet change, no new audio-thread work. The meter paints on the
+  timer's tick (REQ-the-timer-costs-nothing-when-hidden), so it shares its
+  gating: nothing runs unless the window is open and the phase is `recording`,
+  and every other phase shows it empty. It moves by `transform: scaleX`, never a
+  CSS transition — this is high-frequency state. `role="meter"` carries the dB
+  value for assistive tech.
+
 - **REQ-the-launcher-shows-capture-state** — **The launcher shows capture state
   with the window closed.** It carries `.on` while `isCapturing()`, so a take
   running behind a closed window is never invisible from the Song tab.
@@ -180,6 +199,7 @@ testids:
   record-discard      # Discard         (review only)
   record-status       # the phase word: REC / PAUSED / captured
   record-timer        # m:ss
+  record-meter        # v2: peak meter (role=meter, data-clip at 0 dBFS)
   record-fmt-<wav|mp3>
 ```
 
@@ -190,6 +210,9 @@ state:    NONE of its own. Every render reads RecorderController.phase +
           capturedSeconds(); the window is a pure view (REQ-the-window-renders-only-the-phase).
 subscribe: engine.recorder.onPhase(render) — one subscription, taken by the
           LAUNCHER not the window, so `.on` (REQ-the-launcher-shows-capture-state) keeps working while closed.
+meter:    RecorderNode.takePeak(): number  # loudest |sample| since the last read, then reset
+          RecorderController.takePeak(): number  # 0 unless recording a take (not an export)
+          painted on the timer's tick; empty in every other phase (REQ-the-meter-shows-what-reaches-the-recorder)
 timer:    one setInterval(200ms), started only when (open && phase==='recording'),
           cleared on every other transition and on close (REQ-the-timer-costs-nothing-when-hidden).
 close:    confirmClose supplied only while phase !== 'idle' (REQ-closing-mid-take-asks-first); confirming
@@ -263,6 +286,16 @@ Scenario: The window stays live off the Song tab (REQ-record-window-is-a-floatin
   Then the window is still visible and the timer is still advancing
 # pinned by: e2e/record-window.spec.ts
 
+Scenario: The meter shows what reaches the recorder (v2, REQ-the-meter-shows-what-reaches-the-recorder)
+  Given the Record window is open and a take is recording
+  When batches arrive whose loudest sample is 0.5
+  Then the meter fills to about 90% (-6 dBFS on a 60 dB scale)
+  When a batch peaks at 1.0 or above
+  Then the meter is marked clipping
+  When the take is paused or stopped
+  Then the meter is empty
+# pinned by: tests/audio/recorder/node.test.ts, tests/ui/record-window.test.ts, e2e/record-window.spec.ts
+
 Scenario: Shift+R toggles it from any tab (REQ-shift-r-toggles-the-record-window)
   Given the Sequencer tab is active and the Record window is closed
   When the user presses Shift+R
@@ -299,6 +332,5 @@ Scenario: An export is not shown as your recording (REQ-an-export-is-named-as-an
   button per window. This is now the third window, and the first with a keyboard
   shortcut; if a header cluster ever lands, the shortcut and the Song-tab launcher
   should fold into it rather than becoming a fourth way in.
-- A level meter in the window would answer "is anything actually reaching the
-  recorder?", which the timer does not. It needs a metering tap the recorder
-  worklet does not currently post.
+- ~~A level meter in the window~~ — v2, REQ-the-meter-shows-what-reaches-the-recorder. The spec used to say it
+  needed a new worklet tap; it did not — the worklet already posts every batch.
