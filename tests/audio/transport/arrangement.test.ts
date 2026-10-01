@@ -1,6 +1,6 @@
 import { describe, it, expect, vi } from 'vitest';
 import { PatternStore, SEQ_LENGTH, REST, MIN_BANK_COUNT } from '../../../src/state/patterns';
-import { Arrangement } from '../../../src/audio/transport/arrangement';
+import { Arrangement, followSlot } from '../../../src/audio/transport/arrangement';
 import { TestClock } from './test-clock';
 
 const playBar = (clock: TestClock, bar: number): void => {
@@ -594,5 +594,113 @@ describe('chain bounds follow each machine (banks.md REQ-a-machine-owns-its-bank
     arr.setSeqChain([0, MIN_BANK_COUNT], true);
     expect(arr.chainReferences('seq', MIN_BANK_COUNT)).toBe(true);
     expect(arr.chainReferences('drum', MIN_BANK_COUNT)).toBe(false);
+  });
+});
+
+// arrangement.md REQ-an-edit-keeps-the-lane-on-its-bar (v9): an edit carries the
+// playhead with its slot; only a replacement (no origin) restarts the lane.
+describe('an edit keeps the lane on its bar (REQ-an-edit-keeps-the-lane-on-its-bar)', () => {
+  /** A seq chain [0,1,2,3] playing its third slot (pos 2, bank 2). */
+  const playingOnSlot2 = () => {
+    const clock = new TestClock();
+    const patterns = new PatternStore();
+    const a = new Arrangement(patterns, clock);
+    a.setSeqChain([0, 1, 2, 3], true);
+    clock.fireStart();
+    for (let bar = 0; bar < 3; bar++) playBar(clock, bar);
+    expect(a.seqChainPos).toBe(2);
+    expect(a.seqPlayBank).toBe(2);
+    return { a, clock };
+  };
+
+  it('a transpose nudge keeps the position (the regression)', () => {
+    const { a } = playingOnSlot2();
+    a.setSeqChain([0, 1, 2, 3], true, [0, 1, 0, 0], [0, 1, 2, 3]);
+    expect(a.seqChainPos).toBe(2);
+    expect(a.seqPlayBank).toBe(2);
+  });
+
+  it('appending a bank or a rest keeps the position', () => {
+    const { a } = playingOnSlot2();
+    a.setSeqChain([0, 1, 2, 3, 1], true, undefined, [0, 1, 2, 3, -1]);
+    expect(a.seqChainPos).toBe(2);
+    a.setSeqChain([0, 1, 2, 3, 1, REST], true, undefined, [0, 1, 2, 3, 4, -1]);
+    expect(a.seqChainPos).toBe(2);
+    expect(a.seqPlayBank).toBe(2);
+  });
+
+  it('removing an earlier slot moves the playhead back with its bar', () => {
+    const { a } = playingOnSlot2();
+    a.setSeqChain([1, 2, 3], true, undefined, [1, 2, 3]);
+    expect(a.seqChainPos).toBe(1);
+    expect(a.seqPlayBank).toBe(2);
+  });
+
+  it('moving the playing slot moves the playhead with it', () => {
+    const { a } = playingOnSlot2();
+    a.setSeqChain([2, 0, 1, 3], true, undefined, [2, 0, 1, 3]);
+    expect(a.seqChainPos).toBe(0);
+    expect(a.seqPlayBank).toBe(2);
+  });
+
+  it('removing the playing slot lands on the slot that followed it', () => {
+    const { a } = playingOnSlot2();
+    a.setSeqChain([0, 1, 3], true, undefined, [0, 1, 3]);
+    expect(a.seqChainPos).toBe(2);
+    expect(a.seqPlayBank).toBe(3);
+  });
+
+  it('the next bar line advances from the kept position', () => {
+    const { a, clock } = playingOnSlot2();
+    a.setSeqChain([0, 1, 2, 3, 1], true, undefined, [0, 1, 2, 3, -1]);
+    playBar(clock, 3);
+    expect(a.seqChainPos).toBe(3);
+    expect(a.seqPlayBank).toBe(3);
+  });
+
+  it('every lane follows its slot, not just the sequencer', () => {
+    const clock = new TestClock();
+    const a = new Arrangement(new PatternStore(), clock);
+    a.setDrumChain([0, 1, 2], true);
+    a.setSamplerChain([0, 1, 2], true);
+    a.setMotionChain([0, 1, 2], true);
+    clock.fireStart();
+    playBar(clock, 0);
+    playBar(clock, 1);
+    a.setDrumChain([0, 1, 2, 0], true, [0, 1, 2, -1]);
+    a.setSamplerChain([1, 2], true, [1, 2]);
+    a.setMotionChain([1, 0, 2], true, [1, 0, 2]);
+    expect(a.drumChainPos).toBe(1);
+    expect(a.samplerChainPos).toBe(0);
+    expect(a.motionChainPos).toBe(0);
+  });
+
+  it('a replacement (no origin) still restarts the lane at slot 0', () => {
+    const { a } = playingOnSlot2();
+    a.setSeqChain([0, 1, 2, 3], true);
+    expect(a.seqChainPos).toBe(0);
+  });
+
+  it('a lane being switched on starts at slot 0 even with an origin', () => {
+    const clock = new TestClock();
+    const a = new Arrangement(new PatternStore(), clock);
+    a.setSeqChain([0, 1, 2], false);
+    a.setSeqChain([0, 1, 2], true, undefined, [0, 1, 2]);
+    expect(a.seqChainPos).toBe(0);
+  });
+
+  describe('followSlot', () => {
+    it('finds the slot by its origin', () => {
+      expect(followSlot([3, 0, 1, 2], 1, 4)).toBe(2);
+    });
+    it('a removed last slot wraps to 0', () => {
+      expect(followSlot([0, 1, 2], 3, 3)).toBe(0);
+    });
+    it('a removed slot goes to the nearest later survivor, wherever it now sits', () => {
+      expect(followSlot([4, 0, 3, 1], 2, 4)).toBe(2);
+    });
+    it('ignores added slots', () => {
+      expect(followSlot([-1, 0, -1], 0, 3)).toBe(1);
+    });
   });
 });

@@ -199,8 +199,13 @@ export class Arrangement {
    *
    * The position counters stay separate fields rather than becoming a map: they
    * are read on the tick path and by four public getters, and moving them would
-   * be a change to the hot path for no benefit here. The caller passes a reset
-   * instead.
+   * be a change to the hot path for no benefit here. The caller passes its old
+   * position; the new one is written back through `setPos`.
+   *
+   * @param origin for each new slot, the index it held before this edit, or -1
+   * for a slot the edit added (arrangement.md REQ-an-edit-keeps-the-lane-on-its-bar).
+   * Given, the playhead follows its slot; omitted, the call is a replacement
+   * (load, New, Clear, the Chain toggle) and the lane restarts at slot 0.
    */
   private applyChain(
     name: LaneName,
@@ -208,33 +213,43 @@ export class Arrangement {
     steps: number[],
     enabled: boolean,
     transpose: number[] | undefined,
-    resetPos: () => void,
+    origin: readonly number[] | undefined,
+    pos: number,
   ): void {
     // NOT `steps.map(clampChainStep)` — Array.map passes the INDEX as the
     // second argument, which would silently become the bank bound.
     const n = this.laneBankCount(name);
+    const wasEnabled = lane.enabled;
     lane.steps = steps.length ? steps.map((s) => clampChainStep(s, n)) : [0];
     lane.transpose = fitTranspose(transpose ?? lane.transpose, lane.steps.length);
     lane.enabled = enabled;
-    resetPos();
+    this.setPos(name, enabled && wasEnabled && origin ? followSlot(origin, pos, lane.steps.length) : 0);
     this.recompute();
     this.notify();
   }
 
-  setSeqChain(steps: number[], enabled: boolean, transpose?: number[]): void {
-    this.applyChain('seq', this.seq, steps, enabled, transpose, () => { this.seqPos = 0; });
+  /** The one write path into the four position counters `applyChain` needs. */
+  private setPos(name: LaneName, pos: number): void {
+    if (name === 'seq') this.seqPos = pos;
+    else if (name === 'drum') this.drumPos = pos;
+    else if (name === 'sampler') this.samplerPos = pos;
+    else this.motionPos = pos;
   }
 
-  setDrumChain(steps: number[], enabled: boolean): void {
-    this.applyChain('drum', this.drum, steps, enabled, undefined, () => { this.drumPos = 0; });
+  setSeqChain(steps: number[], enabled: boolean, transpose?: number[], origin?: readonly number[]): void {
+    this.applyChain('seq', this.seq, steps, enabled, transpose, origin, this.seqPos);
   }
 
-  setSamplerChain(steps: number[], enabled: boolean): void {
-    this.applyChain('sampler', this.sampler, steps, enabled, undefined, () => { this.samplerPos = 0; });
+  setDrumChain(steps: number[], enabled: boolean, origin?: readonly number[]): void {
+    this.applyChain('drum', this.drum, steps, enabled, undefined, origin, this.drumPos);
   }
 
-  setMotionChain(steps: number[], enabled: boolean): void {
-    this.applyChain('motion', this.motion, steps, enabled, undefined, () => { this.motionPos = 0; });
+  setSamplerChain(steps: number[], enabled: boolean, origin?: readonly number[]): void {
+    this.applyChain('sampler', this.sampler, steps, enabled, undefined, origin, this.samplerPos);
+  }
+
+  setMotionChain(steps: number[], enabled: boolean, origin?: readonly number[]): void {
+    this.applyChain('motion', this.motion, steps, enabled, undefined, origin, this.motionPos);
   }
 
   onChange(fn: () => void): () => void {
@@ -309,6 +324,24 @@ function fitTranspose(src: readonly number[], len: number): number[] {
   const out = new Array<number>(len);
   for (let i = 0; i < len; i++) out[i] = clampTranspose(src[i] ?? 0);
   return out;
+}
+
+/**
+ * Where a lane's playhead lands after an edit (arrangement.md
+ * REQ-an-edit-keeps-the-lane-on-its-bar): the new index of the slot it was on.
+ * If the edit removed that slot, it lands on the first surviving slot that came
+ * after it — wrapping to 0 when the removed slot was the last — so the next bar
+ * line plays what would have followed anyway.
+ */
+export function followSlot(origin: readonly number[], pos: number, len: number): number {
+  const same = origin.indexOf(pos);
+  if (same >= 0 && same < len) return same;
+  let best = -1;
+  for (let i = 0; i < origin.length && i < len; i++) {
+    const o = origin[i]!;
+    if (o > pos && (best < 0 || o < origin[best]!)) best = i;
+  }
+  return best >= 0 ? best : 0;
 }
 
 /** Chain position for a lane at absolute bar `bar` — the wrapped slot index,

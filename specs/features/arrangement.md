@@ -3,7 +3,9 @@
 ```yaml
 id: arrangement
 status: implemented
-version: 8   # v8: the chip wheel steps by scroll distance (wheel-steps.md) — a touchpad swipe
+version: 9   # v9: an edit keeps a playing lane on its bar (REQ-an-edit-keeps-the-lane-on-its-bar) —
+             #     it used to restart the lane at slot 1
+             # v8: the chip wheel steps by scroll distance (wheel-steps.md) — a touchpad swipe
              #     used to send a bar's transpose straight to the clamp
              # v7: drag a chip to reorder a lane (REQ-a-chip-is-dragged-to-its-place); the chip's three
              #     facts get three visual channels (REQ-a-chip-says-three-things-three-ways)
@@ -174,6 +176,30 @@ tick listener settles the play banks first.
   rules must compose rather than override, which is what separating the channels
   buys. `--accent-good` is an existing palette entry, not a new colour.
 
+- **REQ-an-edit-keeps-the-lane-on-its-bar** (v9) — **Editing a chain does not
+  move the lane's playhead.** Until v9 every `set*Chain` call zeroed the lane's
+  position, so on a playing song a transpose nudge, an added bank, a `◀`/`▶`,
+  `✕` or a drag all snapped that lane back to slot 1 mid-song — while the other
+  lanes and the bar readout carried on. The playhead now travels with the
+  **slot** it is on, exactly as the transpose does
+  (REQ-a-chip-is-dragged-to-its-place):
+
+  - Each edit passes `origin`: for every slot of the new chain, the index it
+    held before the edit, or `-1` for a slot the edit added. The caller knows
+    the operation, so it builds `origin` by applying the same splice/swap to an
+    index array — nothing is inferred from comparing two chains (which is
+    ambiguous the moment a chain repeats a bank: `A A B A`).
+  - The lane's new position is the index whose `origin` is the old position.
+    Appending or transposing therefore leaves it where it is, and moving the
+    playing slot moves the playhead with it.
+  - If the playing slot was **removed**, the lane goes to the slot that followed
+    it (wrapping to slot 1 at the end), so the next bar line plays the bar after
+    that one, as it would have anyway.
+  - **No `origin`** keeps the old meaning, a reset to slot 1: song load, New,
+    Clear, the Chain on/off toggle and the engine's render pass are
+    replacements, not edits, and each re-bases the lane on its own terms.
+  - A disabled lane has no playhead to keep. Its position stays 0.
+
 ## Technical design
 
 ### Contract / public interface
@@ -184,7 +210,10 @@ Arrangement:  # src/audio/transport/arrangement.ts
   seqPlayBank / drumPlayBank / samplerPlayBank / motionPlayBank: number   # read by the machines
   seqResting / drumResting / samplerResting / motionResting: boolean      # rest slot -> silence (arrangement-rest.md)
   seqTranspose: number      # v5: the CURRENT slot's semitone offset (0 when disabled/resting)
-  setSeqChain(steps, enabled, transpose?) / setDrumChain(...) / setSamplerChain(...) / setMotionChain(...)
+  setSeqChain(steps, enabled, transpose?, origin?) / setDrumChain(steps, enabled, origin?)
+  setSamplerChain(steps, enabled, origin?) / setMotionChain(steps, enabled, origin?)
+                            # v9: origin[i] = the pre-edit index of new slot i (-1 = added);
+                            # given, the playhead follows its slot; omitted, it resets to 0
   seekTo(step): void        # v4: re-seek every lane to floor(step/SEQ_LENGTH),
                             # re-arm expectFirstBar, recompute + notify
   onChange(fn) -> unsubscribe
@@ -349,6 +378,24 @@ Scenario: A transposed chip can still show that it is selected (v7, REQ-a-chip-s
   Then it ALSO shows the selection border — the two facts use different
     channels, so neither hides the other
 # pinned by: tests/ui/chip-states.test.ts
+
+Scenario: Editing a playing chain keeps the lane on its bar (v9 regression, REQ-an-edit-keeps-the-lane-on-its-bar)
+  Given seqChain = { enabled: true, steps: [0,1,2,3] } playing its third slot (pos 2)
+  When the user nudges a slot's transpose, or appends a bank
+  Then the lane is still on pos 2 and plays the same bank
+  When slot 0 is removed
+  Then the lane is on pos 1, the same bar, one place earlier
+  When the playing slot is dragged to the front
+  Then the lane is on pos 0, still playing that bar
+  When the playing slot itself is removed
+  Then the lane is on the slot that followed it
+# pinned by: tests/audio/transport/arrangement.test.ts, e2e/chain-transpose.spec.ts
+
+Scenario: A replacement still resets the lane (v9, REQ-an-edit-keeps-the-lane-on-its-bar, edge)
+  Given a playing lane on pos 2
+  When the chain is set without an origin (load, New, Clear, Chain toggle)
+  Then the lane is on pos 0
+# pinned by: tests/audio/transport/arrangement.test.ts
 ```
 
 ## Tests & verification
@@ -368,13 +415,8 @@ Scenario: A transposed chip can still show that it is selected (v7, REQ-a-chip-s
 
 ## Open questions / future
 
-- **Any chain edit restarts that lane at slot 1 while playing.** `set*Chain`
-  ends with `<lane>Pos = 0`, so add, `◀`/`▶`, `✕` and now a drag all snap a
-  playing lane back to the top of its chain. That predates REQ-a-chip-is-dragged-to-its-place and is left
-  alone here, but REQ-a-chip-is-dragged-to-its-place makes editing-while-playing far more likely, so it is
-  now the most visible rough edge in this spec. The fix would be to carry the
-  *slot* through the rewrite rather than the index — reordering should move the
-  playhead with the bar it is on, exactly as the transpose moves with its slot.
+- ~~Any chain edit restarts that lane at slot 1 while playing.~~ Fixed in v9 by
+  REQ-an-edit-keeps-the-lane-on-its-bar: the playhead travels with its slot.
 
 - ~~Lanes share one bar grid (`SEQ_LENGTH`)~~ — they still share one grid, but it
   is now `barTicks` (REQ-an-arrangement-bar-is-bar-ticks). Per-lane *phrasing* against that grid is a machine

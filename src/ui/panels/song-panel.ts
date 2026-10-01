@@ -224,15 +224,15 @@ export function buildSongPanel(bus: ParamBus, engine: StudioApi, session: Preset
   const laneEls: Record<LaneId, HTMLElement> = {
     seq: buildChainLane(
       'Sequencer', 'seq', bus, engine.arrangement.seq,
-      (s, en, tr) => engine.arrangement.setSeqChain(s, en, tr),
+      (s, en, tr, o) => engine.arrangement.setSeqChain(s, en, tr, o),
       () => engine.arrangement.seqChainPos, engine, bridge),
     drum: buildChainLane(
       'Drums', 'drum', bus, engine.arrangement.drum,
-      (s, en) => engine.arrangement.setDrumChain(s, en),
+      (s, en, _tr, o) => engine.arrangement.setDrumChain(s, en, o),
       () => engine.arrangement.drumChainPos, engine, bridge),
     sampler: buildChainLane(
       'Sampler', 'sampler', bus, engine.arrangement.sampler,
-      (s, en) => engine.arrangement.setSamplerChain(s, en),
+      (s, en, _tr, o) => engine.arrangement.setSamplerChain(s, en, o),
       () => engine.arrangement.samplerChainPos, engine, bridge),
   };
   for (const id of LANE_IDS) chains.appendChild(laneEls[id]);
@@ -241,7 +241,7 @@ export function buildSongPanel(bus: ParamBus, engine: StudioApi, session: Preset
   // the machine and restores every driven param's baseline.
   const motionEl = buildChainLane(
     'Motion', 'motion', bus, engine.arrangement.motion,
-    (s, en) => engine.arrangement.setMotionChain(s, en),
+    (s, en, _tr, o) => engine.arrangement.setMotionChain(s, en, o),
     () => engine.arrangement.motionChainPos, engine, bridge, { mixer: 'mute' });
   chains.appendChild(motionEl);
   root.appendChild(chains);
@@ -878,7 +878,7 @@ function buildChainLane(
   prefix: LaneId | 'motion',
   bus: ParamBus,
   lane: ChainLane,
-  setChain: (steps: number[], enabled: boolean, transpose?: number[]) => void,
+  setChain: (steps: number[], enabled: boolean, transpose?: number[], origin?: number[]) => void,
   getPos: () => number,
   engine: StudioApi,
   bridge: UiBridge,
@@ -891,6 +891,12 @@ function buildChainLane(
   // — an absent control, not a disabled one (arrangement.md REQ-a-seq-slot-carries-a-transpose: drums and the
   // sampler are unpitched, motion carries parameters).
   const pitched = prefix === 'seq';
+  /**
+   * Each slot's own index — the `origin` an edit rearranges alongside the steps,
+   * so a playing lane stays on the bar it is on (arrangement.md
+   * REQ-an-edit-keeps-the-lane-on-its-bar). `-1` marks a slot the edit adds.
+   */
+  const slotIds = (): number[] => lane.steps.map((_, i) => i);
   /** Write one slot's semitone offset, clamped, and re-render. */
   const setSlotTranspose = (idx: number, semis: number): void => {
     if (!pitched || idx < 0 || idx >= lane.steps.length) return;
@@ -898,7 +904,7 @@ function buildChainLane(
     const next = [...lane.transpose];
     next[idx] = clampTranspose(semis);
     if (next[idx] === lane.transpose[idx]) return;
-    setChain([...lane.steps], lane.enabled, next);
+    setChain([...lane.steps], lane.enabled, next, slotIds());
   };
   const nudgeSlot = (idx: number, delta: number): void =>
     setSlotTranspose(idx, (lane.transpose[idx] ?? 0) + delta);
@@ -971,7 +977,7 @@ function buildChainLane(
       a.dataset.testid = `chain-add-${prefix}-${i}`;
       a.title = `Add bank ${label}`;
       a.innerHTML = `<span class="${bankStyles.letter!}">${label}</span>`;
-      a.addEventListener('click', () => { setChain([...lane.steps, i], lane.enabled); });
+      a.addEventListener('click', () => { setChain([...lane.steps, i], lane.enabled, undefined, [...slotIds(), -1]); });
       addRow.appendChild(a);
     });
     // Rest: an always-empty bar. Appends the REST sentinel instead of a bank
@@ -982,7 +988,9 @@ function buildChainLane(
     rest.dataset.testid = `chain-add-rest-${prefix}`;
     rest.title = 'Add a rest (an empty bar)';
     rest.innerHTML = restIcon();
-    rest.addEventListener('click', () => { setChain([...lane.steps, REST], lane.enabled); });
+    rest.addEventListener('click', () => {
+      setChain([...lane.steps, REST], lane.enabled, undefined, [...slotIds(), -1]);
+    });
     addRow.appendChild(rest);
   };
   renderAddRow();
@@ -1006,10 +1014,12 @@ function buildChainLane(
     if (sel < 0 || to < 0 || to >= lane.steps.length) return;
     const s = [...lane.steps];
     const t = [...lane.transpose];
+    const o = slotIds();
     [s[to], s[sel]] = [s[sel]!, s[to]!];
     [t[to], t[sel]] = [t[sel]!, t[to]!];
+    [o[to], o[sel]] = [o[sel]!, o[to]!];
     sel = to;
-    setChain(s, lane.enabled, t);
+    setChain(s, lane.enabled, t, o);
   };
   /**
    * Move a slot to an arbitrary position — the drag's commit (arrangement.md
@@ -1022,11 +1032,13 @@ function buildChainLane(
     if (to < 0 || to >= lane.steps.length || to === fromIdx) return;
     const s = [...lane.steps];
     const t = [...lane.transpose];
+    const o = slotIds();
     // The inner splice removes; `to` is already in post-removal coordinates.
     s.splice(to, 0, ...s.splice(fromIdx, 1));
     t.splice(to, 0, ...t.splice(fromIdx, 1));
+    o.splice(to, 0, ...o.splice(fromIdx, 1));
     sel = to; // the chip you dropped is the one − / + / ✕ now act on
-    setChain(s, lane.enabled, t);
+    setChain(s, lane.enabled, t, o);
   };
 
   /**
@@ -1052,10 +1064,12 @@ function buildChainLane(
     if (sel >= 0) {
       const s = [...lane.steps];
       const t = [...lane.transpose];
+      const o = slotIds();
       s.splice(sel, 1);
       t.splice(sel, 1);   // the offset belongs to the slot, so it goes with it
+      o.splice(sel, 1);
       sel = -1;
-      setChain(s, lane.enabled, t);
+      setChain(s, lane.enabled, t, o);
     }
   }), `chain-remove-${prefix}`, 'Remove the selected bar from the chain'));
   // Transpose the selected slot. Wheel is the fast path on a desktop, but this

@@ -85,6 +85,34 @@ test.describe('chain slot transpose', () => {
     expect(await transposeOf(page)).toEqual([0, 0]);
   });
 
+  // arrangement.md REQ-an-edit-keeps-the-lane-on-its-bar: the panel passes each edit's
+  // origin, so a lane on its third bar stays there. Before v9 every one of these
+  // sent it back to slot 1.
+  test('editing the chain keeps the lane on the bar it is playing', async ({ page }) => {
+    await gotoAndStart(page);
+    await page.getByTestId('tab-song').click();
+    const pos = () => page.evaluate(() => (window as any).__synth.engine.arrangement.seqChainPos);
+    await page.evaluate(() => {
+      const arr = (window as any).__synth.engine.arrangement;
+      arr.setSeqChain([0, 1, 2, 3], true);
+      arr.seekTo(2 * 16); // bar 3 of the song: slot 2 (4/4)
+    });
+    expect(await pos()).toBe(2);
+    await expect(page.getByTestId('chain-chip-seq-2')).toHaveClass(/playing/);
+
+    await page.getByTestId('chain-chip-seq-0').click();
+    await page.getByTestId('chain-transpose-up-seq').click();
+    expect(await pos()).toBe(2);
+
+    await page.getByTestId('chain-add-seq-1').click();
+    expect(await pos()).toBe(2);
+
+    // Removing slot 0 moves the playhead back one place, with its bar.
+    await page.getByTestId('chain-remove-seq').click();
+    expect(await pos()).toBe(1);
+    await expect(page.getByTestId('chain-chip-seq-1')).toHaveClass(/playing/);
+  });
+
   test('unpitched lanes have no transpose control at all', async ({ page }) => {
     await gotoAndStart(page);
     await page.getByTestId('tab-song').click();
