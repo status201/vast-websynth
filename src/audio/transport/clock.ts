@@ -1,6 +1,7 @@
 import type { TickSubscriber, TickListener } from './tick-source';
 import { type TickTimer, defaultTickTimer } from './tick-timer';
 import { MAX_STEP } from '../../state/limits';
+import { MAX_EARLY_S } from './step-hits';
 
 /**
  * Look-ahead transport clock. Subscribers receive a callback with the
@@ -41,6 +42,15 @@ export const START_LEAD_S = 0.05;
  * anything beyond means the wakeup source itself stalled.
  */
 const DROPOUT_S = 0.25;
+
+/**
+ * The re-origin lead after a dropout (transport.md REQ-the-transport-catch-up-is-bounded,
+ * v11). Longer than `START_LEAD_S` on purpose: the first step after recovery may
+ * carry an early micro-nudge of up to `MAX_EARLY_S`, and with only 50 ms of lead
+ * it clamped to on-time. 40 ms past the cap leaves the same margin for timer
+ * jitter the cap itself leaves.
+ */
+export const DROPOUT_LEAD_S = MAX_EARLY_S + 0.04;
 
 /**
  * Hard cap on ticks emitted per wakeup. The drain condition re-reads
@@ -333,7 +343,7 @@ export class Clock implements TickSubscriber {
     // See transport.md REQ-the-transport-catch-up-is-bounded / audio-lifecycle.md.
     if (this.nextStepTime < this.ctx.currentTime - DROPOUT_S) {
       this._dropouts++;
-      this.nextStepTime = this.ctx.currentTime + START_LEAD_S;
+      this.nextStepTime = this.ctx.currentTime + DROPOUT_LEAD_S;
       return;
     }
     let emitted = 0;

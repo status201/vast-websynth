@@ -3,7 +3,10 @@
 ```yaml
 id: transport
 status: implemented
-version: 10  # v10: REQ-a-start-can-name-its-first-step-time start(fromStep, firstStepAt) and
+version: 11  # v11: a dropout re-origins with DROPOUT_LEAD_S (0.1 s), not start()'s 0.05 s, so an
+             #      early-nudged first step after a backgrounded tab returns is still
+             #      schedulable (REQ-the-transport-catch-up-is-bounded)
+             # v10: REQ-a-start-can-name-its-first-step-time start(fromStep, firstStepAt) and
              #      REQ-a-jump-can-be-scheduled seekAt(step, at) / nextStepAt — for a sync slave
              #      that joins on the master's first pulse and follows a jump in place
              # v9: REQ-a-subscriber-may-not-wedge-the-transport covers ALL FIVE listener fan-outs, not just
@@ -162,8 +165,14 @@ untouched.
   it:
   - **Dropout recovery.** A wakeup that finds `nextStepTime < now - DROPOUT_S`
     (0.25 s — well past what the look-ahead horizon absorbs) treats it as a
-    dropout: it re-origins the grid to `now + 0.05` exactly as `start()` does,
-    increments `dropouts`, and **returns without emitting anything**. The missed
+    dropout: it re-origins the grid to `now + DROPOUT_LEAD_S`, increments
+    `dropouts`, and **returns without emitting anything**. (**v11**) The lead is
+    0.1 s — `MAX_EARLY_S` plus 40 ms — rather than `start()`'s 0.05 s: 50 ms is
+    less than the deepest early micro-nudge
+    ([step-settings](step-settings.md) REQ-an-early-offset-is-capped-in-seconds),
+    so the first hit after a backgrounded tab came back used to clamp to on-time.
+    `start()` keeps 0.05 s: it is the step under the Play press, and its lead is
+    part of the sync join timing. The missed
     steps are never played. The next healthy wakeup drains a grid that is in the
     present, so recovery costs one skipped horizon and no burst — and while the
     source stays stalled, every wakeup takes this path, so a frozen renderer is
@@ -475,6 +484,12 @@ Scenario: A stalled wakeup source drops the gap instead of bursting it (v6, regr
    And `dropouts` has incremented once
    And the following wakeup emits again, from the step the clock was on
    And its `when` is in the future, not the past
+# pinned by: tests/audio/transport/clock.test.ts
+
+Scenario: The step after a dropout has room for an early nudge (v11, REQ-the-transport-catch-up-is-bounded)
+  Given the clock has just recovered from a dropout
+  When the next wakeup emits the first step
+  Then that step's `when` is at least MAX_EARLY_S after the wakeup's currentTime
 # pinned by: tests/audio/transport/clock.test.ts
 
 Scenario: A jitter-sized delay is still absorbed, not treated as a dropout (v6, edge)

@@ -388,9 +388,9 @@ Scenario: The Micro slider takes arrow keys without reaching the global shortcut
 - **The first step after `start()`** carries only 50 ms of lead
   (`nextStepTime = ctx.currentTime + 0.05`), which is less than `MAX_EARLY_S`, so a
   deep early nudge on it clamps to on-time. It is the step under the Play press;
-  not worth re-origining the grid for. The same 50 ms hole reopens on every
-  dropout re-origin (`clock.ts`), which is less forgivable — it lands whenever a
-  backgrounded tab comes back.
+  not worth re-origining the grid for. ~~The same 50 ms hole reopens on every
+  dropout re-origin.~~ Closed by [transport](transport.md) v11: a dropout
+  re-origins with `DROPOUT_LEAD_S` (0.1 s), past `MAX_EARLY_S`.
 
   "Clamps to on-time" was true of the **envelope** and false of the **choke**,
   which kept the unclamped time and so cut a short-gated hit mid-attack or

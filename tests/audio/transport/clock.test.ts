@@ -1,6 +1,7 @@
 // @vitest-environment jsdom
 import { describe, it, expect, vi, afterEach } from 'vitest';
-import { Clock } from '../../../src/audio/transport/clock';
+import { Clock, DROPOUT_LEAD_S } from '../../../src/audio/transport/clock';
+import { MAX_EARLY_S } from '../../../src/audio/transport/step-hits';
 import { TimeoutTimer } from '../../../src/audio/transport/tick-timer';
 import { MAX_STEP } from '../../../src/state/limits';
 
@@ -393,6 +394,22 @@ describe('Clock dropout recovery (stalled wakeup source)', () => {
     expect(ev[2]!.step).toBe(2);
     expect(ev[2]!.when).toBeGreaterThan(ctx.currentTime);
     expect(clock.dropouts).toBe(1);
+    clock.stop();
+  });
+
+  // transport.md v11: the re-origin leads by DROPOUT_LEAD_S, past MAX_EARLY_S, so
+  // an early-nudged first step after recovery is still schedulable.
+  it('leaves room for an early nudge on the first step after recovery', () => {
+    const { ctx, clock, ev } = startedClock();
+    clock.start();
+    ev.length = 0;
+    ctx.currentTime += 60;
+    vi.advanceTimersByTime(25);    // the dropout: re-origin, nothing emitted
+    ctx.currentTime += 0.025;
+    vi.advanceTimersByTime(25);    // the first healthy wakeup
+    expect(ev).toHaveLength(1);
+    expect(ev[0]!.when - ctx.currentTime).toBeGreaterThanOrEqual(MAX_EARLY_S);
+    expect(DROPOUT_LEAD_S).toBeGreaterThan(MAX_EARLY_S);
     clock.stop();
   });
 
