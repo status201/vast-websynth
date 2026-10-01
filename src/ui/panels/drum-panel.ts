@@ -20,7 +20,7 @@ import { DRUM_KITS, applyKit, randomizeKit } from '../../audio/drums/drum-kits';
 import { ParamDropdown } from '../components/param-dropdown';
 import { DRUM_TRACK_LABELS, DRUM_MODEL_LABELS } from '../../state/params';
 import { DRUM_TRACK_COUNT } from '../../state/patterns';
-import { ALL_CELLS, bindLaneGrid } from '../lane-grid';
+import { ALL_CELLS, bindLaneGrid, laneGrid } from '../lane-grid';
 import layout from '../styles/layout.module.css';
 import styles from '../styles/drum.module.css';
 import editStyles from '../styles/step-settings.module.css';
@@ -49,7 +49,7 @@ export function buildDrumPanel(
     label: modelName(cursor.selRow),
     hasContent: engine.patterns.drum[cursor.selRow]?.some((c) => c.on) ?? false,
     clear: () => engine.patterns.clearDrumTrack(cursor.selRow),
-  }]));
+  }], () => laneGrid(bus, 'drum').cells));
 
   // FX groups mirror the drum bus chain order: comp → phaser → delay → reverb.
   // One cluster so the header breaks between machine controls and FX rather

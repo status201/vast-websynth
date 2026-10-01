@@ -18,6 +18,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ### Added
 
+- The **Clear ▾** menu on the sequencer, drum and sampler grids can **shift the bank one step left or right**. The pattern wraps around within the bar, every step keeps its settings, and one Undo puts it back.
 - The sequencer's chord writer has an **Inversion** picker (Root, 1st, 2nd, 3rd), so a written progression can move smoothly instead of jumping the whole chord at every change.
 - MIDI: **channel 10 plays the sampler** — pads from C1 (note 36) trigger slots 1–8 with their velocity, and never the synth. **CC11** (expression pedal) now rides inside the master volume, and **channel aftertouch** drives the mod wheel destination (the larger of the two wins). The Song tab's Sync section has a **MIDI in** picker to choose which channel plays the synth (Omni by default).
 - Saved songs and presets can be deleted. The Song panel has a **Delete** button for the selected saved song, and **Presets → Delete or revert…** removes a preset you saved or puts an edited factory preset back. Neither changes what you are hearing.

@@ -620,6 +620,8 @@ export function clearMenuFor(
   lane: StepLane,
   undo: PatternUndo,
   rows?: () => ClearRow[],
+  /** The played window to shift within (REQ-shift-rotates-the-played-window); omit to offer no shift. */
+  shiftCells?: () => number,
 ): HTMLElement {
   const h = laneHooks(engine, lane);
   const bankLabel = (): string => BANK_LABELS[h.getEdit()] ?? String(h.getEdit() + 1);
@@ -637,10 +639,32 @@ export function clearMenuFor(
     });
   };
 
+  const rotate = (dir: 1 | -1, cells: number): boolean => {
+    const p = engine.patterns;
+    if (lane === 'seq') return p.rotateSeqBank(dir, cells);
+    if (lane === 'drum') return p.rotateDrumBank(dir, cells);
+    if (lane === 'sampler') return p.rotateSamplerBank(dir, cells);
+    return false;
+  };
+
   return createClearMenu({
     lane,
     bankLabel,
     onClearBank: () => report(`bank ${bankLabel()}`, h.clearBank()),
+    ...(shiftCells && lane !== 'motion'
+      ? {
+        onShift: (dir: 1 | -1) => {
+          const what = `bank ${bankLabel()} ${dir < 0 ? 'left' : 'right'}`;
+          if (!rotate(dir, shiftCells())) return;
+          showToast({
+            message: `Shifted ${what}`,
+            actionLabel: 'Undo',
+            onAction: () => undo.undo(lane),
+            testId: `clear-toast-${lane}`,
+          });
+        },
+      }
+      : {}),
     ...(rows
       ? {
         // The one place the no-dead-item rule lives (REQ-motion-has-the-fourth-chain-lane): panels hand over

@@ -24,7 +24,7 @@ import { showToast } from '../components/toast';
 import { NOT_DOWNLOADED_YET, PLAY_OFFLINE_HINT } from '../offline-wording';
 import { MIN_STRETCH_RATIO, MAX_STRETCH_RATIO } from '../../state/limits';
 import { SAMPLER_SLOT_COUNT, SAMPLER_SLOT_LABELS } from '../../state/patterns';
-import { ALL_CELLS, bindLaneGrid } from '../lane-grid';
+import { ALL_CELLS, bindLaneGrid, laneGrid } from '../lane-grid';
 import layout from '../styles/layout.module.css';
 import drumStyles from '../styles/drum.module.css';
 import samplerStyles from '../styles/sampler.module.css';
@@ -91,7 +91,8 @@ export function buildSamplerPanel(
   // too — steps, name and buffer (sampler.md REQ-clear-ejects-the-slot). `Clear bank` stays
   // step-only: names are shared by every bank.
   header.appendChild(clearMenuFor(engine, 'sampler', undo,
-    () => [samplerSlotClearRow(engine, undo, cursor.selRow)]));
+    () => [samplerSlotClearRow(engine, undo, cursor.selRow)],
+    () => laneGrid(bus, 'sampler').cells));
 
   const recBtn = document.createElement('button');
   recBtn.className = `${samplerStyles.rec!}`;

@@ -1037,6 +1037,36 @@ export class PatternStore {
     return true;
   }
 
+  // ---- Shift (step-grid-editing.md REQ-shift-rotates-the-played-window) ----
+  //
+  // Rotate every row of the edit bank by one cell within the played window
+  // (`cells`, the lane's laneCells — the store stays free of the meter and is
+  // told). One `*-copy` mutation, so one Undo. Returns whether anything moved.
+
+  rotateSeqBank(dir: 1 | -1, cells: number): boolean {
+    const b = this._seqEdit;
+    const bank = this.seqBanks[b]!;
+    return rotateRows(bank, cells, dir,
+      () => this.emitMutate(() => ({ kind: 'seq-copy', bank: b, before: bank.map((r) => r.map((s) => ({ ...s }))) })),
+      (t, i, s) => { for (const l of this.seqListeners) l(t, i, s); });
+  }
+
+  rotateDrumBank(dir: 1 | -1, cells: number): boolean {
+    const b = this._drumEdit;
+    const bank = this.drumBanks[b]!;
+    return rotateRows(bank, cells, dir,
+      () => this.emitMutate(() => ({ kind: 'drum-copy', bank: b, before: bank.map((r) => r.map((c) => ({ ...c }))) })),
+      (t, i, c) => { for (const l of this.drumListeners) l(t, i, c); });
+  }
+
+  rotateSamplerBank(dir: 1 | -1, cells: number): boolean {
+    const b = this._samplerEdit;
+    const bank = this.samplerBanks[b]!;
+    return rotateRows(bank, cells, dir,
+      () => this.emitMutate(() => ({ kind: 'sampler-copy', bank: b, before: bank.map((r) => r.map((c) => ({ ...c }))) })),
+      (t, i, c) => { for (const l of this.samplerListeners) l(t, i, c); });
+  }
+
   copySeqBank(from: number, to: number): void {
     const n = this.seqBanks.length;
     const a = clampBankIn(from, n), b = clampBankIn(to, n);
@@ -1396,4 +1426,31 @@ export class PatternStore {
     }
     for (const l of this.editBankListeners) l();
   }
+}
+
+/**
+ * Rotate each row's first `cells` steps by one (`dir` 1 = later, -1 = earlier),
+ * copying values into the existing step objects so nothing holding a step loses
+ * it (step-grid-editing.md REQ-shift-rotates-the-played-window). `before` runs once,
+ * before the first write — the caller's undo snapshot. Returns false, writing
+ * nothing, when no step in the window is on.
+ */
+function rotateRows<T extends { on: boolean }>(
+  bank: T[][],
+  cells: number,
+  dir: 1 | -1,
+  before: () => void,
+  notify: (row: number, index: number, cell: T) => void,
+): boolean {
+  const n = Math.max(1, Math.min(Math.floor(cells), ...bank.map((r) => r.length)));
+  if (n < 2 || !bank.some((row) => row.slice(0, n).some((c) => c.on))) return false;
+  before();
+  bank.forEach((row, r) => {
+    const vals = row.slice(0, n).map((c) => ({ ...c }));
+    for (let i = 0; i < n; i++) {
+      Object.assign(row[i]!, vals[(i - dir + n) % n]!);
+      notify(r, i, row[i]!);
+    }
+  });
+  return true;
 }

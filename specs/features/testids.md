@@ -3,7 +3,8 @@
 ```yaml
 id: testids
 status: implemented
-version: 28 # v28: seq-chord-inversion (chord-tools.md REQ-the-writer-can-invert)
+version: 29 # v29: clear-<lane>-shift-<left|right> (step-grid-editing.md REQ-shift-rotates-the-played-window)
+            # v28: seq-chord-inversion (chord-tools.md REQ-the-writer-can-invert)
             # v27: sync-midi-channel (input-control.md REQ-the-midi-input-channel-is-selectable)
             # v26: song-delete + song-delete-toast (song-mode.md REQ-a-saved-song-can-be-deleted); preset-mgr-delete,
             #      preset-delete-step, preset-delete-row, preset-delete-back (presets.md REQ-a-stored-preset-can-be-deleted)
@@ -252,6 +253,7 @@ banks, clear menus & undo:                          # features/banks.md, step-gr
   bank-<lane>-add · bank-<lane>-remove              # <i> runs 0..7 now (banks.md)
                                                     # -add is ABSENT at the ceiling
   clear-<lane> · clear-<lane>-bank · clear-<lane>-row-<i> · clear-toast-<lane>
+  clear-<lane>-shift-<left|right>        # seq / drum / sampler only (REQ-shift-rotates-the-played-window)
   undo-<lane>                                       # features/pattern-undo.md
   machine-<lane>-chain · machine-<lane>-mute · machine-<lane>-solo
                                                     # features/machine-status.md

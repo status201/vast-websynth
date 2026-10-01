@@ -33,7 +33,7 @@ import {
   SEQ_TRACK_LABELS,
   type SeqStep,
 } from '../../state/patterns';
-import { ALL_CELLS, bindLaneGrid } from '../lane-grid';
+import { ALL_CELLS, bindLaneGrid, laneGrid } from '../lane-grid';
 import { createWheelStepper } from '../wheel-steps';
 
 // Repaint a step cell: lit state, note label, the per-step settings viz
@@ -111,7 +111,7 @@ export function buildSeqPanel(
     label: `track ${SEQ_TRACK_LABELS[cursor.selRow] ?? cursor.selRow + 1}`,
     hasContent: engine.patterns.seq[cursor.selRow]?.some((s) => s.on) ?? false,
     clear: () => engine.patterns.clearSeqTrack(cursor.selRow),
-  }]));
+  }], () => laneGrid(bus, 'seq').cells));
 
   // Step-record arm toggle. While armed, played notes fill steps (see below).
   let armed = false;

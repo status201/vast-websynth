@@ -175,7 +175,8 @@ const GRID_GESTURES =
   'run at once — starting on a lit step erases instead of filling. <strong>Press and hold</strong> ' +
   'a step (or right-click it) to select it for editing <em>without</em> switching it off, and ' +
   '<strong>Delete</strong> clears the selected step. ' + CLEAR_BTN + ' wipes the whole bank ' +
-  'or just the row you have selected, and <strong>Ctrl+Z</strong> undoes the last edit on the tab ' +
+  'or just the row you have selected, or <strong>shifts</strong> the bank one step left or right ' +
+  '(it wraps around within the bar). <strong>Ctrl+Z</strong> undoes the last edit on the tab ' +
   'you are looking at — even a bulk clear comes back in one press.</p>';
 
 /**

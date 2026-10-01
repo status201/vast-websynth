@@ -3,7 +3,8 @@
 ```yaml
 id: step-grid-editing
 status: implemented
-version: 10  # v10: the seq step wheel steps by scroll distance (wheel-steps.md REQ-a-wheel-gesture-steps-by-distance)
+version: 11  # v11: Clear ▾ can shift the bank a step left or right (REQ-shift-rotates-the-played-window)
+             # v10: the seq step wheel steps by scroll distance (wheel-steps.md REQ-a-wheel-gesture-steps-by-distance)
              # v9: the five hand-rolled double-tap windows live in one module, and the
              #     two-tolerance divergence between them is recorded rather than hidden
              # v8: a CANCELLED pointer writes nothing — `pointercancel` was routed to the
@@ -240,6 +241,30 @@ answer to "inspect this step without disturbing it".
   removed: the DOM, the selection cursor and the stored steps are all untouched,
   so the gesture model below needs no new rule.
 
+- **REQ-shift-rotates-the-played-window** (v11) — **`Clear ▾` can shift the
+  bank a step.** Moving a groove one 16th later — or a fill one earlier — meant
+  re-entering every step. `Clear ▾` now ends with **Shift bank X left** and
+  **Shift bank X right** (`clear-<lane>-shift-left` / `-right`) on the
+  sequencer, drum and sampler grids. A shift **rotates** every row of the edit
+  bank by one cell: what falls off one end comes back at the other, so nothing
+  is lost and two opposite shifts restore the bank exactly.
+  - It rotates **the played window** — the lane's `laneCells()` from
+    `laneGrid` ([meter](meter.md)), not all 16: in 3/4 a 12-cell lane wraps at
+    cell 12, and the dark cells past the window are left alone. Rotating them in
+    would push a step into a cell that never plays.
+  - **The whole step moves**: on/off, note, velocity, gate, probability,
+    ratchet, tie and micro-offset travel together, because a step is the unit
+    the player programmed. Values are copied into the existing step objects, as
+    `copySeqBank` does, so nothing holding a step loses it.
+  - It is **one bulk mutation** (`*-copy`, REQ-one-bulk-action-one-undo-entry):
+    one Undo, one toast (`Shifted bank A right` with Undo, REQ-a-bulk-clear-reports-itself).
+  - A bank with no step on in the window shifts nothing and reports nothing —
+    an Undo that does nothing is worse than no toast.
+  - It lives in `Clear ▾` rather than a new button because it is a whole-bank
+    edit with the same Undo contract, and the header has no room for another
+    control; the menu's name undersells it, which the items' own labels make up
+    for.
+
 ## Technical design
 
 ### Gesture inventory
@@ -376,6 +401,17 @@ selection cursor, the paint latch, the long-press timer.
 ## Scenarios (BDD)
 
 ```gherkin
+Scenario: Shift rotates the played window and is one undo (v11, REQ-shift-rotates-the-played-window)
+  Given a drum bank whose kick has steps on cells 0 and 12, and a 16-cell window
+  When Shift bank right is chosen
+  Then the kick is on cells 1 and 13, every step's settings moved with it
+  And one Undo restores cells 0 and 12
+  Given a 12-cell window (3/4) with a step on cell 11
+  When Shift bank right is chosen
+  Then that step lands on cell 0, and cells 12..15 are untouched
+  And an empty bank offers the shift but reports nothing
+# pinned by: tests/state/patterns-rotate.test.ts, tests/ui/clear-menu.test.ts
+
 Scenario: Editing a lit step no longer switches it off
   Given step 4 of the sequencer is on with note C4
   When the user presses and holds it for 400ms
@@ -532,7 +568,10 @@ Scenario: Revealing a tab shows the step playing NOW (REQ-an-offscreen-grid-repa
 - **Multi-select / marquee** is deliberately out of scope: the store has no
   selection model beyond a single cursor, and `Clear ▾` plus paint-drag covers
   the cases it would serve. Revisit only if copy/paste of step *ranges* is added.
-- **Nudge / rotate a pattern** (shift all steps left/right) is a natural
-  neighbour of `Clear ▾` and would reuse the same one-bulk-mutation rule.
+- ~~**Nudge / rotate a pattern**~~ — v11, REQ-shift-rotates-the-played-window, for
+  the sequencer, drums and sampler. **Motion** is left out: its anchors are
+  interpolated against neighbours across the bar line (motion-sequencer.md
+  REQ-cross-bank-carry), so "one cell later" does not mean what it means on a
+  trigger grid, and its extra tracks would each need the same decision.
 - The 350 ms hold window is a first guess from the `MotionStepPad` double-tap
   window; if it proves long on touch it is one constant in `grid-gestures.ts`.

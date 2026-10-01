@@ -34,6 +34,11 @@ export interface ClearMenuOptions {
    * every lane worth offering. Omit entirely on single-row grids.
    */
   rows?: () => ClearMenuRow[];
+  /**
+   * Rotate the bank one cell (step-grid-editing.md REQ-shift-rotates-the-played-window):
+   * `-1` earlier, `1` later. Omitted on a lane that cannot shift (Motion).
+   */
+  onShift?: (dir: 1 | -1) => void;
 }
 
 export function createClearMenu(opts: ClearMenuOptions): HTMLElement {
@@ -45,7 +50,9 @@ export function createClearMenu(opts: ClearMenuOptions): HTMLElement {
   toggle.className = switchStyles.root!;
   toggle.dataset.testid = `clear-${opts.lane}`;
   toggle.innerHTML = iconLabel('caretDown', 'Clear', 'after');
-  toggle.title = 'Clear this bank — or just the selected row. Undoable.';
+  toggle.title = opts.onShift
+    ? 'Clear or shift this bank — or clear just the selected row. Undoable.'
+    : 'Clear this bank — or just the selected row. Undoable.';
   root.appendChild(toggle);
 
   const menu = document.createElement('div');
@@ -96,6 +103,11 @@ export function createClearMenu(opts: ClearMenuOptions): HTMLElement {
       item(`clear-${opts.lane}-row-${i}`, `Clear ${row.label}`, row.run);
     });
     item(`clear-${opts.lane}-bank`, `Clear bank ${opts.bankLabel()}`, opts.onClearBank);
+    const shift = opts.onShift;
+    if (shift) {
+      item(`clear-${opts.lane}-shift-left`, `Shift bank ${opts.bankLabel()} left`, () => shift(-1));
+      item(`clear-${opts.lane}-shift-right`, `Shift bank ${opts.bankLabel()} right`, () => shift(1));
+    }
     position();
   }
 
