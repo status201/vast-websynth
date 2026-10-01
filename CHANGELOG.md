@@ -22,6 +22,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 - Above 2560px wide, the synth panels spread their knobs evenly and lay each group on one row (FILTER from 3200px), instead of mixing tight clusters with 2×2 and 3×2 blocks. 2560 and below are unchanged.
 - The keyboard's keys stay between 1.6× and 4.5× as tall as they are wide, so folding panels no longer stretches them into long piano keys. The height they can't use goes to the scope; the scope grip now sets the scope's minimum height.
 
+### Fixed
+
+- WiFi pairing: if the QR decoder couldn't be downloaded (for example offline), pressing Scan QR left the camera on and said "Camera unavailable". The camera now stays off, and the message says the decoder didn't download.
+
 ## [2.15.0] - 2026-09-26
 
 ### Added

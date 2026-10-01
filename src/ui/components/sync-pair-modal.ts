@@ -448,9 +448,20 @@ export function openSyncPairModal(rtc: WebRtcSyncTransport, sync: Pick<SyncContr
 
   async function startScan(err: El, mount: El, onResult: (text: string) => void): Promise<void> {
     stopScan?.();
+    // Decoder first (webrtc-sync REQ-a-failed-scan-leaves-the-camera-off): a jsQR
+    // chunk that will not load must never have started the camera.
+    let detect: (video: HTMLVideoElement) => Promise<string | null>;
     try {
-      const stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: 'environment' } });
-      const video = el('video');
+      detect = await makeFrameDetector(); // BarcodeDetector fast path, else jsQR
+    } catch {
+      err.textContent = scanDecoderFailureText();
+      return;
+    }
+    let stream: MediaStream | null = null;
+    let video: HTMLVideoElement | null = null;
+    try {
+      stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: 'environment' } });
+      video = el('video');
       video.setAttribute('playsinline', '');
       video.srcObject = stream;
       video.style.width = '220px';
@@ -458,24 +469,26 @@ export function openSyncPairModal(rtc: WebRtcSyncTransport, sync: Pick<SyncContr
       video.style.margin = '10px 0 0';
       mount.appendChild(video);
       await video.play().catch(() => {});
-      const detect = await makeFrameDetector(); // BarcodeDetector fast path, else jsQR
+      const live = stream, shown = video;
       let timer = 0;
       const stop = (): void => {
         window.clearTimeout(timer);
-        stream.getTracks().forEach((t) => t.stop());
-        video.remove();
+        live.getTracks().forEach((t) => t.stop());
+        shown.remove();
         stopScan = null;
       };
       stopScan = stop;
       const poll = async (): Promise<void> => {
         try {
-          const text = await detect(video);
+          const text = await detect(shown);
           if (text) { onResult(text); stop(); return; }
         } catch { /* transient decode error — keep polling */ }
         timer = window.setTimeout(() => void poll(), 300);
       };
       timer = window.setTimeout(() => void poll(), 300);
     } catch {
+      stream?.getTracks().forEach((t) => t.stop());
+      video?.remove();
       err.textContent = 'Camera unavailable — paste the code instead.';
     }
   }
@@ -610,6 +623,19 @@ async function makeFrameDetector(): Promise<(video: HTMLVideoElement) => Promise
     const res = jsQR(ctx.getImageData(0, 0, w, h).data, w, h);
     return res ? res.data : null;
   };
+}
+
+/**
+ * What the error line says when the scan's decoder chunk would not load — the
+ * lazy-load sentence (lazy-load-failure.md) in the scan's own words, never
+ * "Camera unavailable", which is not what went wrong
+ * (webrtc-sync REQ-a-failed-scan-leaves-the-camera-off).
+ */
+function scanDecoderFailureText(): string {
+  return navigator.onLine
+    ? "Couldn't start the scanner — the QR decoder failed to download. Try again, or paste the code instead."
+    : "Couldn't start the scanner — you're offline and this part of the app isn't downloaded yet. "
+      + 'Paste the code instead.';
 }
 
 /**

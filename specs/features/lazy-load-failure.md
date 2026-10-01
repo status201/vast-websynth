@@ -251,8 +251,8 @@ Scenario: no deferred surface is left silent (REQ-every-lazy-trigger-reports, dr
 
 ## Open questions / future
 
-- REQ-lazy-scope-is-surfaces-not-operations's two mid-operation imports (`lamejs`, `jsqr`) are still weakly
-  reported: an MP3 export whose encoder chunk is missing ends back at idle with
-  no message, and a QR scan whose decoder is missing shows "Camera unavailable",
-  which is not what went wrong. Both want a fix in their own feature's error
-  path, not this toast.
+- ~~REQ-lazy-scope-is-surfaces-not-operations's two mid-operation imports
+  (`lamejs`, `jsqr`) are weakly reported.~~ Both are fixed in their own
+  feature's error path, not this toast: the MP3 encoder by
+  [audio-export](audio-export.md) REQ-a-failed-encode-keeps-the-take, the QR
+  decoder by [webrtc-sync](webrtc-sync.md) REQ-a-failed-scan-leaves-the-camera-off.

@@ -225,6 +225,17 @@ follows whichever delivers.
   `http://<lan-ip>` is the common first-time trap — same constraint the mic
   modal already guards.)
 
+- **REQ-a-failed-scan-leaves-the-camera-off** — **A failed scan turns nothing
+  on.** The scan obtains its decoder (`BarcodeDetector`, or the lazily imported
+  jsQR chunk) **before** it asks for the camera, so a decoder that fails to load
+  never starts a stream. Any failure after the stream exists stops every track
+  and removes the `<video>`. The error line says what actually went wrong:
+  a decoder that would not load reads as the lazy-load sentence in the scan's
+  own words (offline: this part of the app isn't downloaded yet; online: it
+  failed to download — [lazy-load-failure](lazy-load-failure.md)
+  REQ-lazy-scope-is-surfaces-not-operations), and only a refused or missing
+  camera reads "Camera unavailable". Both end with the paste fallback.
+
 - **REQ-pairing-gives-connection-feedback** — **Connection feedback.** After a
   peer completes its half — host accepts the guest's answer, or guest generates
   its answer — the modal enters a **"Connecting…"** state instead of sitting
@@ -517,6 +528,15 @@ Scenario: A QR from the encoder round-trips through the vendored jsQR decoder
   Then jsQR returns the exact original blob string
    And the Scan button is offered whenever a camera is present, with or without BarcodeDetector
 # pinned by: tests/vendor/jsqr.test.ts, tests/ui/sync-pair-modal.test.ts
+
+Scenario: A scan whose decoder fails to load never turns the camera on (regression, REQ-a-failed-scan-leaves-the-camera-off)
+  Given a device without BarcodeDetector whose jsQR chunk import rejects
+  When the user presses Scan QR
+  Then getUserMedia is never called and no <video> is mounted
+   And the error line names the decoder (offline vs failed download), not "Camera unavailable"
+  Given the decoder loads but the camera is refused
+  Then the error line reads "Camera unavailable — paste the code instead."
+# pinned by: tests/ui/sync-pair-scan.test.ts
 
 Scenario: A join's time crosses the wire in the receiver's domain (v8, REQ-a-join-carries-its-time)
   Given a linked pair whose offset estimate says remote = local + 40 ms
