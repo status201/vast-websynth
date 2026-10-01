@@ -449,11 +449,13 @@ back to its default instead of lingering from the previous patch — see REQ-new
 
 ```
 bus.onNote ─→ Engine.playNote / releaseNote ─→ Polyphony
-   (unless passthroughSuppressed — then the arpeggiator/sequencer own triggering)
+   (unless the arp's passthroughSuppressed — then the arpeggiator owns triggering)
 ```
 
-The arp sets `passthroughSuppressed` when it takes ownership of held notes, so
-raw key passthrough is gated while it (or the sequencer) drives the voices.
+The arp sets `passthroughSuppressed` when it takes ownership of held notes, and
+`Engine.handleNote` reads it (`arpPassthroughSuppressed`), so raw key passthrough
+is gated while the arp drives the voices. The sequencer never gates it: a key
+played over a running pattern sounds alongside it.
 
 **4 — Machine automation** (the motion sequencer; Tape Stop's ramp is the same
 shape)

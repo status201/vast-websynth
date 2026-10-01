@@ -242,5 +242,7 @@ Scenario: One held key arpeggiates a whole chord (v4, REQ-arp-pool-is-expanded-t
 
 ## Open questions / future
 
-- The arp and [sequencer](sequencer.md) both suppress passthrough; only one should
-  own triggering at a time (engine arbitrates).
+- ~~The arp and the sequencer both suppress passthrough.~~ Stale: only the arp
+  ever did. `Engine.handleNote` gates on `arpPassthroughSuppressed`; the sequencer
+  plays its pattern alongside live keys and suppresses nothing. The engine's own
+  `passthroughSuppressed` field, which nothing set or read, was removed.

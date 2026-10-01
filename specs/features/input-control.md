@@ -366,7 +366,8 @@ on-screen keyboard: src/ui/components/keyboard.ts -> bus.noteOn/noteOff directly
 app.ts wiring: bridge.pressKey/releaseKey -> keyboard.highlight(note, true/false)
   onKeyChange(bus, ...) -> keyboard.setKeyRoles(...)  # v14 — src/ui/key-roles.ts owns
     the vocabulary; the component takes a state object and stays free of music theory
-arp/seq ownership: when passthroughSuppressed, the engine gates raw note passthrough
+arp ownership: when the arp's passthroughSuppressed is set, the engine gates raw note
+  passthrough (Engine.arpPassthroughSuppressed); the sequencer never does
 ```
 
 ## Scenarios (BDD)

@@ -98,8 +98,8 @@ time 0 reproduces the pre-song-mode behaviour, keeping existing presets unchange
   transpose (`±2` oct) shift pitch globally.
 
 - **REQ-note-events-flow-through-the-bus** — Note events flow `bus.onNote →
-  Engine.playNote / releaseNote` unless `passthroughSuppressed` (arp/sequencer
-  own triggering then).
+  Engine.playNote / releaseNote` unless the arp's `passthroughSuppressed` (the
+  arpeggiator owns triggering then; the sequencer never suppresses).
 
 - **REQ-voice-lifecycle-gates-the-ladder** — (v2) The voice lifecycle drives the
   ladder filter's **idle gating**: voices boot inactive, `noteOn` activates the

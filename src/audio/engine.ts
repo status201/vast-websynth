@@ -223,9 +223,8 @@ export class Engine {
    */
   private readonly heldIn = new Map<number, number[]>();
 
-  /** When true, bus.noteOn/Off do not directly play notes — arp/seq do. */
-  passthroughSuppressed = false;
-  /** True when the arpeggiator is suppressing direct note input. */
+  /** True when the arpeggiator is suppressing direct note input — the only
+   *  thing that gates the passthrough (arpeggiator.md; the sequencer never does). */
   get arpPassthroughSuppressed(): boolean { return this.arp?.passthroughSuppressed ?? false; }
 
   private readonly voiceCount: number;
