@@ -44,6 +44,21 @@ jobs:
       # fails if a param was added without `npm run gen:params`.
       - run: npm run check:params
 
+  # The production build — e2e runs against the dev server, so nothing else
+  # builds. The entry chunk must stay under the 500 kB boot-payload ceiling
+  # (runtime-performance.md REQ-boot-cost-matches-the-request).
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v5
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+      - run: npm ci
+      - run: npm run build
+      - run: npm run check:bundle
+
   e2e:
     runs-on: ubuntu-latest
     steps:

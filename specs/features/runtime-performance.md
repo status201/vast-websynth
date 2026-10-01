@@ -143,9 +143,10 @@ so a reviewer has something concrete to hold a new feature against.
   app now routes through. (A *warm* is the exception that proves it — it swallows its
   error precisely because it is not a gesture.)
 
-  **The gate is `npm run build`:** the entry chunk stays under Vite's 500 kB warning
-  threshold, and the warning firing is the signal that something joined the boot path
-  that should not have.
+  **The gate is `npm run build` + `npm run check:bundle`:** the entry chunk stays
+  under Vite's 500 kB warning threshold, and `scripts/check-bundle.mjs` fails when
+  `dist/assets/index-*.js` crosses it — the signal that something joined the boot
+  path that should not have. CI's `build` job runs both.
 
 - **REQ-immutable-artefacts-are-shared** — **Expensive immutable artefacts are
   shared, not rebuilt per instance.** An artefact that is a pure function of its
@@ -512,11 +513,13 @@ Scenario: a worklet speed rewrite changes no samples
   surfaces), `tests/ui/overlay-cost.test.ts` (REQ-no-viewport-scaled-compositing-on-hot-surfaces's drift pin) — `npm test`
 - E2E: `e2e/session.spec.ts`, `e2e/motion.spec.ts`, `e2e/patterns.spec.ts` — `npm run e2e`
 - Typecheck: `npm run typecheck`
-- Boot payload: `npm run build` — the entry + `demos` chunk sizes are the REQ-boot-cost-matches-the-request metric.
-  Nothing in CI runs it, so REQ-boot-cost-matches-the-request regressions are caught only by a human reading the
-  500 kB warning; that is how the onboarding layer stayed eager for a release after
-  this spec said it was lazy. A `dist/assets/index-*.js` that grows without a
-  deliberate reason is the signal to re-check what joined the boot path.
+- Boot payload: `npm run build && npm run check:bundle` — the entry + `demos` chunk
+  sizes are the REQ-boot-cost-matches-the-request metric, and CI's `build` job fails
+  the entry chunk over 500 kB. Before that gate, regressions were caught only by a
+  human reading the build warning; that is how the onboarding layer stayed eager for
+  a release after this spec said it was lazy. The ceiling only catches the cliff: a
+  `dist/assets/index-*.js` that grows without a deliberate reason is still the signal
+  to re-check what joined the boot path (477 kB at the time the gate landed).
 - Profiling: a DevTools Performance trace of boot (REQ-boot-cost-matches-the-request/REQ-immutable-artefacts-are-shared) and a 10 s trace of a
   motion-heavy demo playing (REQ-automation-is-not-an-edit/REQ-no-allocation-in-a-hot-loop/REQ-dom-writes-are-guarded-on-what-is-rendered — watch the GC sawtooth).
 - REQ-no-viewport-scaled-compositing-on-hot-surfaces is a *frame-rate* rule that its unit test can only pin by proxy (the absence
@@ -528,10 +531,8 @@ Scenario: a worklet speed rewrite changes no samples
 
 ## Open questions / future
 
-- REQ-boot-cost-matches-the-request has no automated gate either — CI never runs `npm run build`, so the entry
-  chunk can grow silently between releases. A `scripts/check-bundle.mjs` asserting a
-  ceiling on `dist/assets/index-*.js`, plus a CI `build` job, would make the 500 kB
-  rule self-enforcing instead of a thing a reviewer has to remember.
+- ~~REQ-boot-cost-matches-the-request has no automated gate.~~ Done: `scripts/check-bundle.mjs`
+  plus CI's `build` job enforce the 500 kB entry ceiling.
 - REQ-global-listeners-live-only-for-a-gesture has no automated repo-wide gate; a lint rule banning constructor-scope
   `window.addEventListener('pointermove', …)` would make it self-enforcing.
 - The oscillators of a fully idle voice still run (only the ladder filter is
