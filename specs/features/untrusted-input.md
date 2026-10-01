@@ -92,7 +92,7 @@ decision and the alternatives. This spec is the contract.
 
 - **REQ-the-untrusted-surfaces-are-enumerated** — **The surfaces are
   enumerated.** The trust boundary is: `#song=`, `#songUrl=`, the file input
-  (`.json` / `.zip`), the PWA `launchQueue`, paste, demo fetches, the WebRTC
+  (`.json` / `.zip`) and (v10) a **file dropped on the window**, the PWA `launchQueue`, paste, demo fetches, the WebRTC
   data channel, a scanned QR blob, rehydration from `localStorage` / IndexedDB,
   MCP tool arguments, and (v5) **`POST` bodies to the public MCP endpoint**.
   Anything reading one of these obeys REQ-2..REQ-8. A new ingest surface owes an

@@ -126,3 +126,35 @@ test('the AI Prompt modal embeds the same paste step', async ({ page }) => {
   await expect(page.getByTestId('paste-input')).toBeHidden();
   expect(await busGet(page, 'transport.bpm')).toBe(137);
 });
+
+/**
+ * paste-import.md REQ-a-dropped-file-takes-the-paste-routes — a real File through a
+ * real DataTransfer, dispatched where the browser would: on the page. Left
+ * unclaimed, Chromium would navigate the tab to the file.
+ */
+test.describe('dropping a file on the window', () => {
+  const drop = async (page: import('@playwright/test').Page, name: string, body: string): Promise<void> => {
+    const dt = await page.evaluateHandle(([n, b]) => {
+      const d = new DataTransfer();
+      d.items.add(new File([b], n, { type: 'application/json' }));
+      return d;
+    }, [name, body] as const);
+    await page.dispatchEvent('body', 'dragenter', { dataTransfer: dt });
+    await page.dispatchEvent('body', 'dragover', { dataTransfer: dt });
+    await page.dispatchEvent('body', 'drop', { dataTransfer: dt });
+  };
+
+  test('a song file imports, and the tab stays on the app', async ({ page }) => {
+    await gotoAndStart(page);
+    const url = page.url();
+    await drop(page, 'dropped.json', JSON.stringify({ ...SONG, name: 'Dropped Loop' }));
+    await expect.poll(() => busGet(page, 'transport.bpm')).toBe(137);
+    expect(page.url()).toBe(url);
+  });
+
+  test('a preset bank opens the import review', async ({ page }) => {
+    await gotoAndStart(page);
+    await drop(page, 'bank.json', JSON.stringify(BANK));
+    await expect(page.getByTestId('preset-import-review')).toBeVisible();
+  });
+});

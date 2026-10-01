@@ -3,7 +3,8 @@
 ```yaml
 id: testids
 status: implemented
-version: 29 # v29: clear-<lane>-shift-<left|right> (step-grid-editing.md REQ-shift-rotates-the-played-window)
+version: 30 # v30: file-drop-overlay, file-drop-toast (paste-import.md REQ-a-dropped-file-takes-the-paste-routes)
+            # v29: clear-<lane>-shift-<left|right> (step-grid-editing.md REQ-shift-rotates-the-played-window)
             # v28: seq-chord-inversion (chord-tools.md REQ-the-writer-can-invert)
             # v27: sync-midi-channel (input-control.md REQ-the-midi-input-channel-is-selectable)
             # v26: song-delete + song-delete-toast (song-mode.md REQ-a-saved-song-can-be-deleted); preset-mgr-delete,
@@ -332,6 +333,7 @@ song panel — files:
   song-save · song-load · song-delete · song-delete-toast · song-new · song-slot-select
   song-export · song-import · song-import-file · song-undo-toast
   song-demo-<name> · song-demo-more    # <name> is DATA — see REQ-data-derived-ids-are-enumerated, never spell one
+  file-drop-overlay · file-drop-toast    # paste-import.md v2 — the window-wide drop
   song-paste + paste-modal · paste-input · paste-status · paste-confirm ·
     paste-cancel · paste-read-clipboard             # features/paste-import.md
   export-modal · export-kind-<json|project> · export-project-note ·

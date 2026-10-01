@@ -18,6 +18,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ### Added
 
+- Drag a song, project zip or preset file onto the window to import it. Dropping a file no longer makes the browser leave the app.
 - The **Clear ▾** menu on the sequencer, drum and sampler grids can **shift the bank one step left or right**. The pattern wraps around within the bar, every step keeps its settings, and one Undo puts it back.
 - The sequencer's chord writer has an **Inversion** picker (Root, 1st, 2nd, 3rd), so a written progression can move smoothly instead of jumping the whole chord at every change.
 - MIDI: **channel 10 plays the sampler** — pads from C1 (note 36) trigger slots 1–8 with their velocity, and never the synth. **CC11** (expression pedal) now rides inside the master volume, and **channel aftertouch** drives the mod wheel destination (the larger of the two wins). The Song tab's Sync section has a **MIDI in** picker to choose which channel plays the synth (Omni by default).

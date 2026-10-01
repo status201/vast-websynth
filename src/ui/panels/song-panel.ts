@@ -28,6 +28,7 @@ import {
 import { describePresetPayload, type PresetParse } from '../../state/preset-file';
 import { openPasteImportModal } from '../components/paste-import';
 import { showToast } from '../components/toast';
+import { installFileDrop } from '../file-drop';
 import { showLazyLoadFailure } from '../components/lazy-load-toast';
 import { unresolvedTargets } from '../../state/song-validate';
 import {
@@ -715,6 +716,10 @@ export function buildSongPanel(bus: ParamBus, engine: StudioApi, session: Preset
   pasteBtn.dataset.testid = 'song-paste';
   pasteBtn.title = 'Paste song or preset JSON (e.g. an AI reply)';
   pasteBtn.addEventListener('click', () => openPasteImportModal(pasteRoutes));
+  // A file dropped anywhere on the window takes the same routes
+  // (paste-import.md REQ-a-dropped-file-takes-the-paste-routes) — and is never left
+  // to the browser, which would navigate away from the session.
+  installFileDrop(pasteRoutes);
 
   // Export: Song (.json, the unchanged path) or Project (.zip with the loaded
   // sampler clips) — chosen in a modal (project-export.md REQ-export-modal-offers-song-or-project).

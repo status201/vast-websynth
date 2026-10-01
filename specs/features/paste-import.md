@@ -3,7 +3,7 @@
 ```yaml
 id: paste-import
 status: implemented
-version: 1
+version: 2   # v2: a file dropped on the window takes the same routes (REQ-a-dropped-file-takes-the-paste-routes)
 owner: ui
 related:
   - song-mode
@@ -117,6 +117,28 @@ formats arrive through one textarea, so it simply routes.
   the button then does nothing visible — the textarea is always the supported
   path.
 
+- **REQ-a-dropped-file-takes-the-paste-routes** (v2) — **A file dropped on the
+  window imports through the same routes.** Desktop users drag files; until v2 a
+  file dropped on the app was handled by the *browser*, which navigates the tab
+  to it — throwing the session away. `installFileDrop` (`src/ui/file-drop.ts`),
+  installed by the Song panel with the Paste button's own routes, now claims
+  every file drop (`preventDefault`, even a refused one) and routes the first
+  file by kind:
+  - a **`.zip`** → `SongPanel.importBytes`, exactly as Import → a project;
+  - **`.json`/`.txt`** → `classifyPayload`: a song or author song →
+    `importBytes`; a preset or bank → the preset manager's review step
+    (REQ-paste-confirm-routes-by-kind); anything else → a toast carrying the
+    classifier's reason (REQ-unknown-always-carries-a-reason);
+  - an **audio** file → a toast saying audio loads into a sampler slot;
+  - anything else → a toast naming the file.
+
+  The size is checked **before the file is read**: JSON over
+  `MAX_SONG_JSON_BYTES`, a zip over `MAX_ZIP_TOTAL_BYTES` is refused from
+  `File.size` alone (untrusted-input.md REQ-the-untrusted-surfaces-are-enumerated).
+  While a file is over the window an overlay (`file-drop-overlay`) says what a
+  drop will do; it takes no pointer events and has no transition. While a dialog
+  is open the drop is claimed and ignored, as the shortcuts are.
+
 ## Technical design
 
 ### Contract / public interface
@@ -182,6 +204,17 @@ had come from a file.
 ## Scenarios (BDD)
 
 ```gherkin
+Scenario: A dropped file imports through the paste routes (v2, REQ-a-dropped-file-takes-the-paste-routes)
+  Given the app is open with no dialog
+  When a song .json is dropped on the window
+  Then it imports exactly as Import would, and the tab does not navigate away
+  When a preset bank .json is dropped
+  Then the preset manager opens on its review step
+  When a .wav, a .pdf, or a JSON with no websynth format is dropped
+  Then a toast says why nothing was imported
+  And a .json larger than the song cap is refused without being read
+# pinned by: tests/ui/file-drop.test.ts, e2e/paste-import.spec.ts
+
 Scenario: A fenced AI reply loads as a song
   Given an author-dialect song wrapped in a ```json fence with prose around it
   When it is pasted and the confirm button pressed
@@ -237,4 +270,7 @@ Scenario: A failed import keeps the pasted text (edge)
 
 - Accept a **project zip** by paste (base64) — the clipboard carries text only,
   so this needs a wire format that does not exist yet.
-- Drag-and-drop a file onto the app window, sharing this module's routing.
+- ~~Drag-and-drop a file onto the app window~~ — v2, REQ-a-dropped-file-takes-the-paste-routes.
+  Dropping an **audio** file only explains where audio goes; dropping one onto a
+  sampler slot to load it would be the natural next door, and needs a per-slot
+  drop target the grid does not have.

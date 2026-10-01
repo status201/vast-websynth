@@ -1,0 +1,23 @@
+/* The drop target shown while a file is dragged over the window
+   (paste-import.md REQ-a-dropped-file-takes-the-paste-routes). It never takes the
+   pointer — the window's own listeners receive the drop — and it has no
+   transition: it appears and goes with the drag. */
+.overlay {
+  position: fixed;
+  inset: 12px;
+  z-index: 2000;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: 2px dashed var(--accent);
+  border-radius: 12px;
+  background: rgba(5, 3, 2, 0.72);
+  color: var(--accent);
+  font-family: var(--sans);
+  font-size: 16px;
+  text-align: center;
+  padding: 16px;
+  pointer-events: none;
+}
+
+.overlay[hidden] { display: none; }
