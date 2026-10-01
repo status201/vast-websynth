@@ -10,7 +10,7 @@
  */
 import { Song, type SongFile } from './song';
 import { SAMPLER_SLOT_COUNT } from './patterns';
-import { zipWrite, zipRead, ZipError, type ZipEntry } from '../utils/zip';
+import type { ZipEntry } from '../utils/zip';
 import { encodeWav, encodeMp3 } from '../audio/recorder/encode';
 import type { CapturedAudio } from '../audio/recorder/node';
 
@@ -34,6 +34,16 @@ export interface ProjectClipIn {
 export type ProjectParse =
   | { ok: true; file: SongFile; clips: ProjectClipIn[] }
   | { ok: false; errors: string[] };
+
+/** An import refused because the zip codec chunk could not be fetched. */
+export const ZIP_READER_UNAVAILABLE =
+  'The project reader could not be loaded — check your connection and try again.';
+
+/**
+ * The codec is fetched with the first zip, never at boot — a JSON import does
+ * not need it (project-export.md REQ-the-zip-codec-loads-with-the-first-zip).
+ */
+const loadZip = (): Promise<typeof import('../utils/zip')> => import('../utils/zip');
 
 const SONG_ENTRY = 'song.json';
 /** Tolerates folder nesting from an Explorer re-zip: match by path suffix. */
@@ -67,10 +77,18 @@ export async function buildProjectZip(file: SongFile, clips: ProjectClipOut[]): 
     const name = sanitizeClipName(file.sampleNames?.[c.slot]);
     entries.push({ name: `samples/${c.slot}-${name}.${c.ext}`, data: c.data });
   }
+  const { zipWrite } = await loadZip();
   return zipWrite(entries);
 }
 
 export async function parseProjectZip(bytes: Uint8Array): Promise<ProjectParse> {
+  let zip: typeof import('../utils/zip');
+  try {
+    zip = await loadZip();
+  } catch {
+    return { ok: false, errors: [ZIP_READER_UNAVAILABLE] };
+  }
+  const { zipRead, ZipError } = zip;
   let entries: ZipEntry[];
   try {
     entries = await zipRead(bytes);
@@ -86,7 +104,7 @@ export async function parseProjectZip(bytes: Uint8Array): Promise<ProjectParse> 
   if (!songEntry) {
     return { ok: false, errors: ['The zip does not contain a song.json.'] };
   }
-  const res = Song.parse(new TextDecoder().decode(songEntry.data));
+  const res = await Song.parse(new TextDecoder().decode(songEntry.data));
   if (!res.ok) return res;
 
   const clips: ProjectClipIn[] = [];
@@ -122,6 +140,6 @@ export async function parseSongOrProject(bytes: Uint8Array, filename: string): P
   if (sniffImportKind(bytes.subarray(0, 4), filename) === 'zip') {
     return parseProjectZip(bytes);
   }
-  const res = Song.parse(new TextDecoder().decode(bytes));
+  const res = await Song.parse(new TextDecoder().decode(bytes));
   return res.ok ? { ok: true, file: res.file, clips: [] } : res;
 }

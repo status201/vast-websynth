@@ -39,9 +39,10 @@ import {
   MAX_ERRORS, isObject, describeValue as describe, type AddError,
 } from './validate-utils';
 
-export const AUTHOR_FORMAT = 'websynth-song-author';
-/** The one author-dialect version (param-catalogue.md — named, like `SONG_VERSION`). */
-export const AUTHOR_VERSION = 1;
+import { AUTHOR_FORMAT, AUTHOR_VERSION } from './song-author-format';
+// The routing test lives on the boot path; this module is the lazy expander
+// (song-authoring-dialect.md REQ-the-expander-loads-with-the-first-author-file).
+export { AUTHOR_FORMAT, AUTHOR_VERSION, isAuthorSong } from './song-author-format';
 
 /** Defaults for an authored seq step that is ON (off steps get the same + note 60). */
 const SEQ_ON_DEFAULTS = { velocity: 0.85, gate: 0.5, prob: 1, ratchet: 1, tie: false, micro: 0 };
@@ -74,11 +75,6 @@ const DRUM_KEY_HELP =
   'kick, snare, chat/hat/hihat/closedhat, ohat/openhat, ltom/lowtom, mtom/midtom, htom/hightom, clap, or "0".."7"';
 const SAMPLER_KEY_HELP = 's1..s8 or "0".."7"';
 
-
-/** `format === 'websynth-song-author'` on a JSON object — the routing test used by `Song.parse`. */
-export function isAuthorSong(value: unknown): boolean {
-  return isObject(value) && value.format === AUTHOR_FORMAT;
-}
 
 /* ---------------- note parsing ---------------- */
 

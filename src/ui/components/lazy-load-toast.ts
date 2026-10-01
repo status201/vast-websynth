@@ -32,3 +32,18 @@ export function showLazyLoadFailure(surface: string, retry: () => void): void {
     testId: 'lazy-load-failed-toast',
   });
 }
+
+/**
+ * Import a deferred surface's module at its trigger, or report the failure and
+ * resolve `null` (lazy-load-failure.md REQ-every-lazy-trigger-reports). `retry`
+ * must re-run the whole gesture, not just the import
+ * (REQ-retry-reruns-the-whole-gesture).
+ */
+export async function loadSurface<T>(surface: string, load: () => Promise<T>, retry: () => void): Promise<T | null> {
+  try {
+    return await load();
+  } catch {
+    showLazyLoadFailure(surface, retry);
+    return null;
+  }
+}

@@ -35,12 +35,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 - The on-screen keyboard adds octaves on wide screens instead of stretching its keys: 4 octaves on a 3440-wide ultrawide, 6 (C1–B6) on 5120. Screens up to 2560 and phones are unchanged.
 - Above 2560px wide, the synth panels spread their knobs evenly and lay each group on one row (FILTER from 3200px), instead of mixing tight clusters with 2×2 and 3×2 blocks. 2560 and below are unchanged.
 - The keyboard's keys stay between 1.6× and 4.5× as tall as they are wide, so folding panels no longer stretches them into long piano keys. The height they can't use goes to the scope; the scope grip now sets the scope's minimum height.
+- The app downloads about 26 kB less before it starts. The reader for compact (AI-written) songs, the project zip reader, and the Export, Paste, AI Prompt and Performance dialogs now load the first time they are used, and are fetched in the background afterwards so they still work offline.
 
 ### Fixed
 
 - When a backgrounded tab comes back mid-song, the first step after the restart keeps its early micro-timing instead of snapping to the beat.
 - Editing a song chain while it plays no longer sends that lane back to its first bar. A transpose nudge, adding a bank or rest, moving or removing a bar now leaves the lane on the bar it was playing; removing the playing bar moves on to the next one.
 - WiFi pairing: if the QR decoder couldn't be downloaded (for example offline), pressing Scan QR left the camera on and said "Camera unavailable". The camera now stays off, and the message says the decoder didn't download.
+- A project export that fails now says so in an "Export failed" message, instead of silently downloading nothing.
 
 ### Security
 

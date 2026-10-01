@@ -3,7 +3,8 @@
 ```yaml
 id: ai-prompt
 status: implemented
-version: 7   # v7: the guide no longer tells agents the app blocks two LFOs sharing a
+version: 8   # v8: REQ-the-modal-body-loads-on-click — the modal body is a lazy chunk beside the guide; the button stays eager
+             # v7: the guide no longer tells agents the app blocks two LFOs sharing a
              #     destination — that rule was removed in lfo.md v8, and this text ships
              #     over the public MCP `get_song_format`
              # v6: REQ-the-modal-offers-the-connector — the modal names the hosted MCP connector as the
@@ -21,7 +22,8 @@ related:
   - mcp-server
 source:
   - src/state/authoring-guide.ts          # buildAuthoringGuide + buildSongPrompt (pure, no song.ts)
-  - src/ui/components/ai-prompt.ts        # createAiPromptButton (its ONLY export); buildModal is local
+  - src/ui/components/ai-prompt.ts        # createAiPromptButton + the open/close lifecycle
+  - src/ui/components/ai-prompt-modal.ts  # buildModal — the modal body, loaded on click
   - src/ui/clipboard.ts                   # copyText / flashCopied (shared clipboard util)
   - src/ui/styles/modal.module.css        # .aiText / .aiBrief / .aiActions
   - src/ui/panels/song-panel.ts           # mounts the ✨ AI Prompt button in the io row
@@ -148,6 +150,15 @@ is ~40 lines. The prompt-building logic moved to the pure
 
   The URL is **plain text, never an anchor.** The endpoint answers `POST` only,
   so a click would show a `405` JSON body and read as a broken link.
+
+- **REQ-the-modal-body-loads-on-click** — **The modal body loads on click**
+  (v8, [runtime-performance](runtime-performance.md)
+  REQ-boot-cost-matches-the-request). `ai-prompt.ts` keeps the button and the
+  open/close lifecycle; `ai-prompt-modal.ts` (`buildModal`, with the paste fragment
+  it embeds) is fetched alongside the guide on the first click, and either
+  rejecting is the same one report ([lazy-load-failure](lazy-load-failure.md)).
+  It is **not** warmed on idle: the round trip needs an AI, so offline the modal
+  has nothing to offer.
 
 ## Technical design
 

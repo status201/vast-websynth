@@ -26,10 +26,10 @@ import {
   buildFailureReport, buildFailureReportFor, failureMessage, isCapped,
 } from '../failure-report';
 import { describePresetPayload, type PresetParse } from '../../state/preset-file';
-import { openPasteImportModal } from '../components/paste-import';
+// The Paste dialog loads on its click (runtime-performance.md REQ-boot-cost-matches-the-request).
 import { showToast } from '../components/toast';
 import { installFileDrop } from '../file-drop';
-import { showLazyLoadFailure } from '../components/lazy-load-toast';
+import { showLazyLoadFailure, loadSurface } from '../components/lazy-load-toast';
 import { unresolvedTargets } from '../../state/song-validate';
 import {
   BANK_LABELS, REST, SAMPLER_SLOT_COUNT, emptyPatternSnapshot, clampTranspose,
@@ -52,7 +52,7 @@ import {
   buildProjectZip, parseProjectZip, encodeClip, projectFilename, parseSongOrProject,
   type ProjectClipOut, type ProjectClipIn,
 } from '../../state/project';
-import { openExportSongModal } from '../components/export-song-modal';
+// The Export dialog loads on its click (project-export.md REQ-the-zip-codec-loads-with-the-first-zip).
 /**
  * The export dialog loads on the click that opens it — a player who never
  * exports never pays for it (runtime-performance.md REQ-boot-cost-matches-the-request). A missing chunk is
@@ -530,7 +530,7 @@ export function buildSongPanel(bus: ParamBus, engine: StudioApi, session: Preset
       if (!resp.ok) throw new Error(`fetch failed (${resp.status})`);
       // Same validator the Import button uses, so a corrupt drop-in reports
       // what is actually wrong with it rather than "not a song".
-      const res = Song.parse(await resp.text());
+      const res = await Song.parse(await resp.text());
       if (!res.ok) {
         await showDemoFailure(name, res.errors.length > 0 ? res.errors : ['not a valid song file']);
         return;
@@ -715,7 +715,11 @@ export function buildSongPanel(bus: ParamBus, engine: StudioApi, session: Preset
   const pasteBtn = el('button', `${switchStyles.root!} ${styles.ctl!}`, 'Paste') as HTMLButtonElement;
   pasteBtn.dataset.testid = 'song-paste';
   pasteBtn.title = 'Paste song or preset JSON (e.g. an AI reply)';
-  pasteBtn.addEventListener('click', () => openPasteImportModal(pasteRoutes));
+  const openPaste = async (): Promise<void> => {
+    const m = await loadSurface('the paste dialog', () => import('../components/paste-import'), () => void openPaste());
+    m?.openPasteImportModal(pasteRoutes);
+  };
+  pasteBtn.addEventListener('click', () => void openPaste());
   // A file dropped anywhere on the window takes the same routes
   // (paste-import.md REQ-a-dropped-file-takes-the-paste-routes) — and is never left
   // to the browser, which would navigate away from the session.
@@ -741,13 +745,28 @@ export function buildSongPanel(bus: ParamBus, engine: StudioApi, session: Preset
     const bytes = await buildProjectZip(file, clips);
     triggerDownload(new Blob([bytes as BlobPart], { type: 'application/zip' }), projectFilename(name));
   };
+  // An export that fails says so — the zip codec is a lazy chunk now, and a
+  // rejection here used to vanish into `void` (project-export.md REQ-the-zip-codec-loads-with-the-first-zip).
+  const runExport = async (kind: 'json' | 'project', fmt: 'wav' | 'mp3'): Promise<void> => {
+    try {
+      await doExport(kind, fmt);
+    } catch (e) {
+      await alertDialog({
+        title: 'Export failed',
+        message: 'The song could not be exported: ' + (e as Error).message,
+        copyable: buildFailureReportFor('Export failed', (e as Error).message, dropdown.value || 'My Song'),
+        copyLabel: 'Copy error',
+      });
+    }
+  };
 
   const exportBtn = el('button', `${switchStyles.root!} ${styles.ctl!}`, 'Export') as HTMLButtonElement;
   exportBtn.dataset.testid = 'song-export';
-  exportBtn.addEventListener('click', () => {
-    openExportSongModal({
+  const openExportSong = async (): Promise<void> => {
+    const m = await loadSurface('the export dialog', () => import('../components/export-song-modal'), () => void openExportSong());
+    m?.openExportSongModal({
       hasSamplerAudio: engine.sampler.buffers.some((b) => b != null),
-      onExport: (kind, fmt) => { void doExport(kind, fmt); },
+      onExport: (kind, fmt) => { void runExport(kind, fmt); },
       // Copy Link: the current song as a #song= URL (song-share-link.md REQ-export-modal-copies-a-link).
       makeShareUrl: async () => {
         const name = dropdown.value || 'My Song';
@@ -755,7 +774,8 @@ export function buildSongPanel(bus: ParamBus, engine: StudioApi, session: Preset
         return buildShareUrl(window.location.origin, await encodeSongPayload(Song.toJSON(file)));
       },
     });
-  });
+  };
+  exportBtn.addEventListener('click', () => void openExportSong());
 
   const newBtn = el('button', `${switchStyles.root!} ${styles.ctl!}`, 'New') as HTMLButtonElement;
   newBtn.dataset.testid = 'song-new';

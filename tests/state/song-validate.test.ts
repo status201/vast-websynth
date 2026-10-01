@@ -253,20 +253,20 @@ describe('validateSongFile — rejects', () => {
 });
 
 describe('Song.parse / fromJSON', () => {
-  it('parse() returns the file for valid JSON', () => {
-    const res = Song.parse(Song.toJSON(captureValid()));
+  it('parse() returns the file for valid JSON', async () => {
+    const res = await Song.parse(Song.toJSON(captureValid()));
     expect(res.ok).toBe(true);
     if (res.ok) expect(res.file.name).toBe('Valid');
   });
 
-  it('parse() reports a JSON syntax error distinctly', () => {
-    const res = Song.parse('{ not json');
+  it('parse() reports a JSON syntax error distinctly', async () => {
+    const res = await Song.parse('{ not json');
     expect(res.ok).toBe(false);
     if (!res.ok) expect(res.errors.join('\n')).toContain('JSON');
   });
 
-  it('parse() reports structural errors for valid-JSON-but-wrong-shape', () => {
-    const res = Song.parse(JSON.stringify({ format: 'websynth-song' }));
+  it('parse() reports structural errors for valid-JSON-but-wrong-shape', async () => {
+    const res = await Song.parse(JSON.stringify({ format: 'websynth-song' }));
     expect(res.ok).toBe(false);
     if (!res.ok) expect(res.errors.length).toBeGreaterThan(0);
   });

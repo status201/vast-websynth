@@ -63,6 +63,12 @@ vi.mock('../../src/ui/components/sync-pair-modal', () => {
   throw new Error('Failed to fetch dynamically imported module');
 });
 
+// The second sweep's surfaces (runtime-performance.md REQ-boot-cost-matches-the-request v12),
+// which reach their bodies through `loadSurface`. No recovery case either.
+vi.mock('../../src/ui/components/perf-settings-modal', () => {
+  throw new Error('Failed to fetch dynamically imported module');
+});
+
 const startTour = vi.fn();
 const toggleInfoBadges = vi.fn();
 
@@ -70,6 +76,7 @@ const { createAboutButton } = await import('../../src/ui/components/about-button
 const { createOnboarding } = await import('../../src/ui/onboarding');
 const { createAiPromptButton } = await import('../../src/ui/components/ai-prompt');
 const { buildSyncSection } = await import('../../src/ui/components/sync-section');
+const { createPerfSettingsButton } = await import('../../src/ui/components/perf-settings');
 
 const toast = () => document.querySelector('[data-testid="lazy-load-failed-toast"]');
 const toastText = () => toast()?.querySelector('span')?.textContent ?? '';
@@ -217,6 +224,15 @@ describe('A deferred help surface that cannot load (onboarding.md REQ-the-help-d
 
     expect(toastText()).toContain('WiFi pairing');
   });
+
+  it('reports when the Performance settings will not load', async () => {
+    const btn = createPerfSettingsButton();
+    document.body.appendChild(btn);
+    btn.click();
+    await vi.waitFor(() => expect(toast()).toBeTruthy());
+    expect(toastText()).toContain('the performance settings');
+    expect(document.querySelector('[data-testid="perf-mode"]')).toBeNull();
+  });
 });
 
 /**
@@ -233,13 +249,17 @@ describe('Every deferred-surface trigger is guarded (lazy-load-failure.md REQ-ev
    * Runtime `import()`s only. Type positions (`typeof import('x').T`,
    * `: import('x').T`) carry no fetch and must not be flagged.
    */
-  const RUNTIME_IMPORT = /\bawait import\(|\bimport\([^)]*\)\s*\.(then|catch)\b/;
+  const RUNTIME_IMPORT = /\bawait import\(|\bimport\([^)]*\)\s*\.(then|catch)\b|=>\s*import\(/;
+  /** A trigger reports either directly or through the `loadSurface` wrapper. */
+  const reports = (src: string): boolean => src.includes('showLazyLoadFailure') || src.includes('loadSurface(');
 
   /** REQ-lazy-report-is-the-backstop and REQ-lazy-scope-is-surfaces-not-operations: the imports that legitimately do not report. */
   const EXEMPT = new Map<string, string>([
     ['src/main.ts', 'REQ-lazy-report-is-the-backstop — idle warms; not a gesture, so a toast would be noise'],
     ['src/audio/recorder/encode.ts', 'REQ-lazy-scope-is-surfaces-not-operations — lamejs mid-export, owned by audio-export.md'],
     ['src/ui/components/sync-pair-modal.ts', 'REQ-lazy-scope-is-surfaces-not-operations — jsqr mid-scan, owned by webrtc-sync.md'],
+    ['src/state/song.ts', 'REQ-lazy-scope-is-surfaces-not-operations — the dialect expander mid-parse, a refused parse (song-authoring-dialect.md)'],
+    ['src/state/project.ts', 'REQ-lazy-scope-is-surfaces-not-operations — the zip codec mid-import/export (project-export.md)'],
   ]);
 
   it('leaves no runtime import() in src/ without a report or a documented exemption', async () => {
@@ -256,7 +276,7 @@ describe('Every deferred-surface trigger is guarded (lazy-load-failure.md REQ-ev
       const src = readFileSync(f, 'utf8');
       if (!RUNTIME_IMPORT.test(src)) return false;
       if (EXEMPT.has(f)) return false;
-      return !src.includes('showLazyLoadFailure');
+      return !reports(src);
     });
 
     expect(unguarded).toEqual([]);
@@ -272,11 +292,12 @@ describe('Every deferred-surface trigger is guarded (lazy-load-failure.md REQ-ev
       'src/ui/panels/sampler-panel.ts',
       'src/ui/components/sync-section.ts',
       'src/ui/components/ai-prompt.ts',
+      'src/ui/components/perf-settings.ts',
     ];
     for (const f of TRIGGERS) {
       const src = readFileSync(f, 'utf8');
       expect(RUNTIME_IMPORT.test(src), `${f} no longer defers anything`).toBe(true);
-      expect(src.includes('showLazyLoadFailure'), `${f} does not report a failed load`).toBe(true);
+      expect(reports(src), `${f} does not report a failed load`).toBe(true);
     }
   });
 });

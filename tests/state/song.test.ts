@@ -64,7 +64,7 @@ describe('Song', () => {
   });
 
   describe('authoring-dialect routing (parse)', () => {
-    it('parse() expands an author-format file to a canonical v3 SongFile', () => {
+    it('parse() expands an author-format file to a canonical v3 SongFile', async () => {
       const author = JSON.stringify({
         format: 'websynth-song-author',
         version: 1,
@@ -74,7 +74,7 @@ describe('Song', () => {
         drums: [{ kick: [0, 4, 8, 12] }],
         seqChain: 'AABA',
       });
-      const res = Song.parse(author);
+      const res = await Song.parse(author);
       expect(res.ok).toBe(true);
       if (!res.ok) return;
       expect(res.file.format).toBe('websynth-song');
@@ -90,18 +90,26 @@ describe('Song', () => {
       expect(bus.get('transport.bpm')).toBe(124);
     });
 
-    it('parse() reports author-dialect errors in authoring terms', () => {
-      const res = Song.parse(JSON.stringify({
+    it('parse() reports author-dialect errors in authoring terms', async () => {
+      const res = await Song.parse(JSON.stringify({
         format: 'websynth-song-author', version: 1, name: 'X', seq: [['H4']],
       }));
       expect(res.ok).toBe(false);
       if (!res.ok) expect(res.errors[0]).toMatch(/seq\[0\]\[0\]/);
     });
 
-    it('parse() of a canonical file is unchanged by the routing branch', () => {
-      const res = Song.parse(Song.toJSON(demo()));
+    it('parse() of a canonical file is unchanged by the routing branch', async () => {
+      const res = await Song.parse(Song.toJSON(demo()));
       expect(res.ok).toBe(true);
       if (res.ok) expect(res.file).toEqual(compactSongForExport(demo()));
+    });
+
+    // song-authoring-dialect.md REQ-the-expander-loads-with-the-first-author-file:
+    // fromJSON reads what this app wrote, and the dialect is never written.
+    it('fromJSON() is canonical-only: an author file is refused, not expanded', async () => {
+      const author = JSON.stringify({ format: 'websynth-song-author', version: 1, name: 'A', seq: [['C3']] });
+      expect((await Song.parse(author)).ok).toBe(true);
+      expect(Song.fromJSON(author)).toBeNull();
     });
   });
 
@@ -773,7 +781,7 @@ describe('SongFile v8 — 4..8 banks per machine (song-mode.md REQ-song-file-v8-
     expect(SONG_VERSION).toBe(8);
   });
 
-  it('an eight-bank store round-trips through capture/validate/apply', () => {
+  it('an eight-bank store round-trips through capture/validate/apply', async () => {
     const bus = new ParamBus();
     registerDefaults(bus);
     const patterns = new PatternStore();
@@ -783,7 +791,7 @@ describe('SongFile v8 — 4..8 banks per machine (song-mode.md REQ-song-file-v8-
     const file = Song.capture(bus, patterns, fakeArr(), 'eight', new XyPadStore());
     expect(file.seqBanks).toHaveLength(MAX_BANK_COUNT);
 
-    const reparsed = Song.parse(JSON.stringify(compactSongForExport(file)));
+    const reparsed = await Song.parse(JSON.stringify(compactSongForExport(file)));
     if (!reparsed.ok) throw new Error(reparsed.errors.join('; '));
     const { patterns: p2 } = applyTo(reparsed.file);
     expect(p2.seqBanks).toHaveLength(MAX_BANK_COUNT);
@@ -814,10 +822,10 @@ describe('SongFile v8 — 4..8 banks per machine (song-mode.md REQ-song-file-v8-
     expect(patterns.drumBanks).toHaveLength(MIN_BANK_COUNT);
   });
 
-  it('a chain beyond the ceiling cannot be honoured and is refused by the validator', () => {
+  it('a chain beyond the ceiling cannot be honoured and is refused by the validator', async () => {
     const file = demo();
     file.seqChain = { enabled: true, steps: [MAX_BANK_COUNT] };
-    const res = Song.parse(JSON.stringify(file));
+    const res = await Song.parse(JSON.stringify(file));
     expect(res.ok).toBe(false);
   });
 

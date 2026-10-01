@@ -10,8 +10,8 @@ import { SEQ_LENGTH, DRUM_TRACK_COUNT, MIN_BANK_COUNT, makeDrumBank, makeSeqBank
 import type { Arrangement } from '../audio/transport/arrangement';
 import type { XyPadStore, XyAssign } from './xy-pad';
 import { XY_DEFAULT_ASSIGN } from './xy-pad';
-import { validateSongFile } from './song-validate';
-import { isAuthorSong, expandAuthorSong } from './song-author';
+import { validateSongFile, type SongValidation } from './song-validate';
+import { isAuthorSong } from './song-author-format';
 import { compactSongForExport } from './serialize';
 import { SlotStore } from './slot-store';
 import { SONG_VERSION } from './song-version';
@@ -153,6 +153,32 @@ function mergeSeqTracks(file: SongFile): SeqStep[][][] {
   });
 }
 
+/** Shown when an author file arrives but its expander chunk could not be fetched. */
+export const AUTHOR_READER_UNAVAILABLE =
+  'The song reader could not be loaded — check your connection and try again.';
+
+function parseJsonText(text: string): { ok: true; value: unknown } | { ok: false; res: SongValidation } {
+  try {
+    return { ok: true, value: JSON.parse(text) };
+  } catch (e) {
+    return { ok: false, res: { ok: false, errors: ['File is not valid JSON: ' + (e as Error).message] } };
+  }
+}
+
+/**
+ * The expand/validate pass is inside a `try` (untrusted-input.md REQ-bounds-in-the-validator-sizes-in-the-codec):
+ * both walk payload-shaped structures, so a pathological one can still raise
+ * a RangeError (stack) or similar. A refused song must look like a failed
+ * validation to every caller, never an exception escaping the import path.
+ */
+function validateUntrusted(value: unknown, validate: (v: unknown) => SongValidation = validateSongFile): SongValidation {
+  try {
+    return validate(value);
+  } catch (e) {
+    return { ok: false, errors: ['This file could not be read: ' + (e as Error).message] };
+  }
+}
+
 export const Song = {
   capture(bus: ParamBus, patterns: PatternStore, arr: Arrangement, name: string, xy?: XyPadStore): SongFile {
     const snap = patterns.snapshot();
@@ -272,33 +298,43 @@ export const Song = {
     return JSON.stringify(compactSongForExport(file), null, pretty ? 2 : undefined);
   },
 
+  /**
+   * Synchronous and **canonical-only**: its callers (`loadSlot`, `readFile`) read
+   * what this app wrote, and the authoring dialect is never written
+   * (song-authoring-dialect.md REQ-the-expander-loads-with-the-first-author-file),
+   * so an author file here is refused rather than expanded.
+   */
   fromJSON(text: string): SongFile | null {
-    const res = Song.parse(text);
+    const parsed = parseJsonText(text);
+    if (!parsed.ok) return null;
+    const res = validateUntrusted(parsed.value);
     return res.ok ? res.file : null;
   },
 
-  /** Like `fromJSON` but returns field-level errors instead of collapsing to null. */
-  parse(text: string): import('./song-validate').SongValidation {
-    let parsed: unknown;
-    try {
-      parsed = JSON.parse(text);
-    } catch (e) {
-      return { ok: false, errors: ['File is not valid JSON: ' + (e as Error).message] };
-    }
-    // The compact authoring dialect expands to a canonical v3 file here, so
+  /**
+   * Like `fromJSON` but returns field-level errors instead of collapsing to null,
+   * and accepts the authoring dialect. Async because the dialect's expander is a
+   * lazy chunk, fetched only for an author file
+   * (song-authoring-dialect.md REQ-the-expander-loads-with-the-first-author-file).
+   */
+  async parse(text: string): Promise<SongValidation> {
+    const parsed = parseJsonText(text);
+    if (!parsed.ok) return parsed.res;
+    // The compact authoring dialect expands to a canonical file here, so
     // every ingest surface (Import, launchQueue, project zips, share links,
-    // MCP) accepts it automatically. Input-only — see ADR-013.
-    //
-    // The expand/validate pass is inside a `try` too (untrusted-input.md REQ-bounds-in-the-validator-sizes-in-the-codec):
-    // both walk payload-shaped structures, so a pathological one can still raise
-    // a RangeError (stack) or similar. A refused song must look like a failed
-    // validation to every caller, never an exception escaping the import path.
-    try {
-      if (isAuthorSong(parsed)) return expandAuthorSong(parsed);
-      return validateSongFile(parsed);
-    } catch (e) {
-      return { ok: false, errors: ['This file could not be read: ' + (e as Error).message] };
+    // paste, file drop) accepts it automatically. Input-only — see ADR-013.
+    if (isAuthorSong(parsed.value)) {
+      let expandAuthorSong: typeof import('./song-author').expandAuthorSong;
+      try {
+        ({ expandAuthorSong } = await import('./song-author'));
+      } catch {
+        // An operation's failure, reported by the import flow that owns it
+        // (lazy-load-failure.md REQ-lazy-scope-is-surfaces-not-operations).
+        return { ok: false, errors: [AUTHOR_READER_UNAVAILABLE] };
+      }
+      return validateUntrusted(parsed.value, expandAuthorSong);
     }
+    return validateUntrusted(parsed.value);
   },
 
   download(file: SongFile): void {
@@ -316,7 +352,7 @@ export const Song = {
   },
 
   /** Like `readFile` but returns field-level validation errors for the import UI. */
-  parseFile(f: File): Promise<import('./song-validate').SongValidation> {
+  parseFile(f: File): Promise<SongValidation> {
     return f.text().then((t) => Song.parse(t));
   },
 

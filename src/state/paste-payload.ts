@@ -1,4 +1,4 @@
-import { AUTHOR_FORMAT } from './song-author';
+import { AUTHOR_FORMAT } from './song-author-format';
 import { PRESET_FORMAT, BANK_FORMAT } from './preset-file';
 import { isObject } from './validate-utils';
 

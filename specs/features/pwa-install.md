@@ -3,7 +3,10 @@
 ```yaml
 id: pwa-install
 status: implemented
-version: 4   # v4: REQ-service-worker-is-registered — an opt-in full offline copy (play-offline.md): the
+version: 5   # v5: REQ-service-worker-is-registered — the second sweep's deferred chunks (song-author
+             #     expander, zip codec, Paste/Export dialogs, Performance settings) join
+             #     the idle warm set
+             # v4: REQ-service-worker-is-registered — an opt-in full offline copy (play-offline.md): the
              #     build writes offline-manifest.json, and install refreshes the
              #     whole copy when an older cache holds its marker
              # v3: REQ-service-worker-is-registered — /mcp and /healthz are passthrough by path, not by
@@ -130,7 +133,12 @@ vite-plugin-pwa/workbox), per ADR-003's precedent.
   **The About card is warmed on idle too** (v2): it is the app's single help
   door ([onboarding](onboarding.md) REQ-about-is-the-single-door-for-help/REQ-the-help-door-never-fails-silently), so leaving *it* cold made
   the `?` button dead offline while the tour behind it was fetched and ready —
-  the warm list had covered the room but not the door to it. All three warms
+  the warm list had covered the room but not the door to it. **(v5) The second
+  sweep's chunks are warmed too** ([runtime-performance](runtime-performance.md)
+  REQ-boot-cost-matches-the-request v12): the authoring-dialect expander and the
+  zip codec (importing or pasting a song offline), the Paste and Export dialogs
+  and the Performance settings — each a thing a player does offline. The AI Prompt body is deliberately left cold: its round
+  trip needs an AI, so offline it has nothing to offer. All the warms
   share one `requestIdleCallback`-with-timeout-fallback in `main.ts` and swallow
   their errors: the real `import()` at the trigger retries. A warm is
   prevention, never a guarantee — a first visit that goes offline before idle

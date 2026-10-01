@@ -2,30 +2,17 @@
 // exactly describes the song formats (the compact authoring dialect first,
 // canonical as appendix; the PARAMS table is generated live from ParamBus so
 // it can never drift from registerDefaults) plus the built-in "Mordor"
-// demo as a worked, downloadable example. Reuses the Modal lifecycle and the
-// modal.module.css styling. The prompt text itself lives in the pure
-// state/authoring-guide.ts (shared with the MCP server); this module keeps
-// only the modal.
+// demo as a worked, downloadable example. The prompt text itself lives in the
+// pure state/authoring-guide.ts (shared with the MCP server), and the modal
+// body in ai-prompt-modal.ts; both load with the first click
+// (runtime-performance.md REQ-boot-cost-matches-the-request). This module keeps
+// only the button and the open/close lifecycle.
 import type { ParamBus } from '../../state/params';
-
-import { Song, DEMO_SONGS } from '../../state/song';
-import switchStyles from '../styles/switch.module.css';
+import type { PasteImportOptions } from './paste-import';
 import { createButton } from './button';
 import { showLazyLoadFailure } from './lazy-load-toast';
-import { copyText, flashCopied } from '../clipboard';
-import { buildPasteImport, type PasteImportOptions } from './paste-import';
-import { Modal } from './modal';
-import modalStyles from '../styles/modal.module.css';
 import songStyles from '../styles/song-panel.module.css';
 import { UI_ICONS } from './ui-icons';
-
-const EXAMPLE_NAME = 'Mordor';
-
-/** Greyed example shown in the "Describe your song" field (placeholder only). */
-const BRIEF_PLACEHOLDER =
-  "e.g. a song in the style of Herbie Hancock's breakdance hit Rockit — a " +
-  '12-bar loop with some crazy breaks. Take advantage of the fact that ' +
-  "you're a robot yourself and you'd be dancing to it too.";
 
 /**
  * The two routes the embedded paste step hands its payload to — the Song panel
@@ -36,6 +23,7 @@ export type AiPromptRoutes = Pick<PasteImportOptions, 'onSong' | 'onPresets'>;
 
 /** Type-only reference — carries no runtime edge to the lazy chunk. */
 type BuildSongPrompt = typeof import('../../state/authoring-guide').buildSongPrompt;
+type BuildModal = typeof import('./ai-prompt-modal').buildModal;
 
 export function createAiPromptButton(bus: ParamBus, routes: AiPromptRoutes): HTMLButtonElement {
   // `open` is a hoisted function declaration, so wiring it here is safe.
@@ -67,24 +55,26 @@ export function createAiPromptButton(bus: ParamBus, routes: AiPromptRoutes): HTM
   }
 
   /**
-   * The authoring guide is ~22 kB of prompt copy that only this modal reads, so
-   * it loads with the click rather than at boot (runtime-performance.md REQ-boot-cost-matches-the-request).
+   * The authoring guide is ~22 kB of prompt copy that only this modal reads, and
+   * the modal body (with the paste fragment it embeds) is the rest; both load
+   * with the click rather than at boot (runtime-performance.md REQ-boot-cost-matches-the-request).
    * Awaited before the modal is built so the textarea is never briefly empty.
-   */
-  /**
-   * Fetch just `buildSongPrompt`, or report and return null
-   * (lazy-load-failure.md) — without this the button silently did nothing.
+   * Either rejecting is reported and returns null (lazy-load-failure.md) —
+   * without this the button silently did nothing.
    *
-   * The destructure stays **inside** the `import()` expression. That is what
-   * lets rollup shake the guide's other exports (`buildPresetGuide`,
+   * The guide's destructure stays **inside** the `import()` expression. That is
+   * what lets rollup shake the guide's other exports (`buildPresetGuide`,
    * `buildAuthoringGuide`, `paramTable`) out of the chunk; binding the
    * namespace to a variable first and destructuring after re-attaches them —
-   * measured at +3.7 kB of prompt copy nothing on this path reads.
+   * measured at +3.7 kB of prompt copy nothing on this path reads. The body is
+   * wanted whole, so its fetch starts first and runs alongside.
    */
-  async function loadBuildSongPrompt(): Promise<BuildSongPrompt | null> {
+  async function loadModal(): Promise<{ buildSongPrompt: BuildSongPrompt; buildModal: BuildModal } | null> {
+    const body = import('./ai-prompt-modal');
+    body.catch(() => {}); // awaited below; never an unhandled rejection if the guide fails first
     try {
       const { buildSongPrompt } = await import('../../state/authoring-guide');
-      return buildSongPrompt;
+      return { buildSongPrompt, buildModal: (await body).buildModal };
     } catch {
       showLazyLoadFailure('the AI prompt', () => void open());
       return null;
@@ -93,9 +83,9 @@ export function createAiPromptButton(bus: ParamBus, routes: AiPromptRoutes): HTM
 
   async function open(): Promise<void> {
     window.clearTimeout(closeTimer);
-    const buildSongPrompt = await loadBuildSongPrompt();
-    if (!buildSongPrompt) return;
-    backdrop ??= buildModal(bus, close, routes, buildSongPrompt);
+    const m = await loadModal();
+    if (!m) return;
+    backdrop ??= m.buildModal(bus, close, routes, m.buildSongPrompt);
     document.body.appendChild(backdrop);
     // Force reflow so the opacity transition runs from the .hidden state.
     void backdrop.offsetWidth;
@@ -104,146 +94,4 @@ export function createAiPromptButton(bus: ParamBus, routes: AiPromptRoutes): HTM
   }
 
   return btn;
-}
-
-function buildModal(
-  bus: ParamBus,
-  close: () => void,
-  routes: AiPromptRoutes,
-  buildSongPrompt: (bus: ParamBus, brief: string) => string,
-): HTMLElement {
-  const backdrop = document.createElement('div');
-  backdrop.className = `${Modal.backdropClass} hidden`;
-  backdrop.addEventListener('pointerdown', (e) => {
-    if (e.target === backdrop) close();
-  });
-
-  const card = document.createElement('div');
-  // Base .card gives the 86vh cap + internal scroll (so the title/actions stay
-  // reachable on small screens); .cardWide widens it (wins on width by source
-  // order) — the same composition the reusable Modal helper uses.
-  card.className = `${Modal.cardClass} ${Modal.cardWideClass}`;
-  card.setAttribute('role', 'dialog');
-  card.setAttribute('aria-label', 'Generate a song with AI');
-
-  const title = document.createElement('div');
-  title.className = Modal.titleClass;
-  title.textContent = 'Generate a song with AI';
-
-  const tag = document.createElement('div');
-  tag.className = Modal.tagClass;
-  tag.textContent =
-    'Describe your song, copy the prompt into any AI agent, then paste the ' +
-    'JSON it answers with straight back here.';
-
-  // The shorter route, offered before the three-step round trip (REQ-the-modal-offers-the-connector). An
-  // agent with MCP connector support does not need this modal at all, and the
-  // person most likely to benefit is the one who just opened it.
-  //
-  // Origin-resolved like REQ-the-prompt-cites-absolute-schema-urls's schema URLs, so a fork points at its own host
-  // rather than advertising ours. Plain text, NOT an anchor: the endpoint
-  // answers POST only, so a click would render a 405 JSON body and read as a
-  // broken link (mcp-server.md REQ-no-sse-every-response-is-one-json-body).
-  //
-  // Nothing about this goes into the prompt text — REQ-the-modal-offers-the-connector has the reasoning.
-  const connector = document.createElement('div');
-  connector.className = modalStyles.aiConnector!;
-
-  const connectorText = document.createElement('span');
-  connectorText.textContent =
-    'Using an AI that supports MCP connectors? Add this and it can validate ' +
-    'and fix songs directly — no copy-paste round trip:';
-
-  const connectorUrl = document.createElement('span');
-  connectorUrl.className = modalStyles.aiConnectorUrl!;
-  const origin =
-    typeof window !== 'undefined' && window.location ? window.location.origin : '';
-  connectorUrl.textContent = `${origin}/mcp`;
-
-  const copyConnector = createButton({
-    label: 'Copy URL',
-    onClick: () =>
-      flashCopied(copyConnector, 'Copy URL', copyText(connectorUrl.textContent!)),
-  });
-
-  connector.appendChild(connectorText);
-  connector.appendChild(connectorUrl);
-  connector.appendChild(copyConnector);
-
-  // Editable creative brief. Seeded only as a placeholder so an un-typed copy
-  // never injects the example text; the prompt updates live as the user types.
-  const briefLabel = document.createElement('label');
-  briefLabel.className = modalStyles.aiLabel!;
-  briefLabel.textContent = '1 · Describe your song';
-  briefLabel.htmlFor = 'ai-prompt-brief';
-
-  const brief = document.createElement('textarea');
-  brief.id = 'ai-prompt-brief';
-  brief.className = modalStyles.aiBrief!;
-  brief.placeholder = BRIEF_PLACEHOLDER;
-
-  const example = Song.toJSON(DEMO_SONGS[EXAMPLE_NAME]!);
-
-  const promptLabel = document.createElement('div');
-  promptLabel.className = modalStyles.aiLabel!;
-  promptLabel.textContent = '2 · Copy this prompt into any AI agent';
-
-  const ta = document.createElement('textarea');
-  ta.className = modalStyles.aiText!;
-  ta.readOnly = true;
-  ta.value = buildSongPrompt(bus, brief.value);
-  ta.addEventListener('focus', () => ta.select());
-
-  // Rebuild the prompt's SONG REQUEST section live as the brief changes.
-  brief.addEventListener('input', () => {
-    ta.value = buildSongPrompt(bus, brief.value);
-  });
-
-  const actions = document.createElement('div');
-  actions.className = modalStyles.aiActions!;
-
-  const copyPrompt = createButton({
-    label: 'Copy Prompt',
-    onClick: () => flashCopied(copyPrompt, 'Copy Prompt', copyText(ta.value)),
-  });
-  const copyExample = createButton({
-    label: 'Copy Example JSON',
-    onClick: () => flashCopied(copyExample, 'Copy Example JSON', copyText(example)),
-  });
-  const downloadExample = createButton({
-    label: 'Download Example',
-    onClick: () => Song.download(DEMO_SONGS[EXAMPLE_NAME]!),
-  });
-  const closeBtn = createButton({
-    label: 'Close',
-    className: `${switchStyles.root!} ${Modal.closeBtnClass}`,
-    onClick: close,
-  });
-
-  actions.appendChild(copyPrompt);
-  actions.appendChild(copyExample);
-  actions.appendChild(downloadExample);
-
-  // Step 3 — the shared paste fragment (paste-import.md REQ-one-paste-fragment-two-placements). Agents answer
-  // in chat rather than with a download, so the round trip closes here instead
-  // of via a save-to-disk detour. A successful load closes the modal so the
-  // user sees the song that just landed.
-  const paste = buildPasteImport({
-    ...routes,
-    label: '3 · Paste the reply here',
-    onDone: close,
-  });
-
-  card.appendChild(title);
-  card.appendChild(tag);
-  card.appendChild(connector);
-  card.appendChild(briefLabel);
-  card.appendChild(brief);
-  card.appendChild(promptLabel);
-  card.appendChild(ta);
-  card.appendChild(actions);
-  card.appendChild(paste.el);
-  card.appendChild(closeBtn);
-  backdrop.appendChild(card);
-  return backdrop;
 }

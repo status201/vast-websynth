@@ -78,7 +78,7 @@ Scripts are in `package.json`. Only the non-obvious ones need saying:
 - `npm run clean:demos` / `check:demos` keep `src/state/demos-index.json` in sync;
   `check:demos` fails the build if it drifts.
 - `npm run check:bundle` (after `npm run build`) fails the entry chunk over 500 kB —
-  CI's `build` job runs both. Anything new at boot comes out of ~13 kB of headroom;
+  CI's `build` job runs both. Anything new at boot comes out of ~36 kB of headroom;
   defer it behind an `import()` instead (`runtime-performance.md`).
 - A CSP change is only checked against `npm run build && npx vite preview`: `vite dev`
   relaxes `style-src` for Vite's injected styles, so e2e never sees the shipped policy.

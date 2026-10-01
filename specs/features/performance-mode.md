@@ -3,7 +3,8 @@
 ```yaml
 id: performance-mode
 status: implemented
-version: 7   # v7: REQ-scope-fps-and-fft-apply-live's pause is now SUPERVISED, not softened — the scope still
+version: 8   # v8: REQ-the-settings-modal-loads-on-click — the modal body is a lazy chunk; the tier-coloured button stays eager
+             # v7: REQ-scope-fps-and-fft-apply-live's pause is now SUPERVISED, not softened — the scope still
              #     stops dead while hidden, and a ~1 Hz watchdog that returns on its
              #     first line while hidden makes sure it starts again (scope.md REQ-a-watchdog-restarts-a-stalled-loop)
              # v6: analyser fftSize halved per tier (256/512/1024)
@@ -18,6 +19,7 @@ source:
   - src/main.ts
   - src/ui/components/scope.ts
   - src/ui/components/perf-settings.ts
+  - src/ui/components/perf-settings-modal.ts  # the modal body, loaded on click
   - src/ui/components/about-debug.ts   # buildDebugSection: the perf-tier row
   - src/ui/app.ts
 ```
@@ -177,6 +179,14 @@ differ only by live-applied scope fps + fftSize).
   ([scope](scope.md) REQ-all-analysers-share-fft-settings). Because it
   applies live, it is **not** a boot-time field and is **excluded** from
   `sameAudioProfile` (so Medium↔Strong needs no reload).
+
+- **REQ-the-settings-modal-loads-on-click** — **The settings modal loads on
+  click** (v8, [runtime-performance](runtime-performance.md)
+  REQ-boot-cost-matches-the-request). The header button stays eager — it shows the
+  resolved tier, and the pending pulse, from boot — and owns `bootTier` and its own
+  re-colouring; `perf-settings-modal.ts` is imported on click and handed both, so
+  the modal and the button can never disagree about the tier the engine was built
+  with. A failed load is reported ([lazy-load-failure](lazy-load-failure.md)).
 
 ## Technical design
 

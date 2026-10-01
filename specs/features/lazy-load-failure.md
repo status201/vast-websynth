@@ -24,6 +24,8 @@ source:
   - src/ui/panels/sampler-panel.ts         # trigger: the sound recorder
   - src/ui/components/sync-section.ts      # trigger: WiFi pairing
   - src/ui/components/ai-prompt.ts         # trigger: the authoring guide
+  - src/ui/components/lazy-load-toast.ts   # loadSurface: import-or-report, for the triggers below
+  - src/ui/components/perf-settings.ts     # trigger: the Performance settings
   - src/main.ts                            # the idle warms (prevention)
 ```
 
@@ -122,6 +124,8 @@ would drift.
 ```ts
 // src/ui/components/lazy-load-toast.ts
 export function showLazyLoadFailure(surface: string, retry: () => void): void;
+// The trigger-side wrapper: import the surface's module, or report and resolve null.
+export function loadSurface<T>(surface: string, load: () => Promise<T>, retry: () => void): Promise<T | null>;
 ```
 
 The canonical trigger shape, for a surface with no local state:

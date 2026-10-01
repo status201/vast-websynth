@@ -320,6 +320,21 @@ async function boot() {
   // the ? button dead offline, doing nothing at all. Same split, same warm.
   // onboarding.md REQ-the-help-door-never-fails-silently, pwa-install.md REQ-service-worker-is-registered.
   const warmAbout = () => void import('./ui/components/about-modal').catch(() => {});
+  // The second sweep of deferred surfaces and operations (runtime-performance.md
+  // REQ-boot-cost-matches-the-request v12) — every one is something a player uses
+  // offline: importing or pasting a song (the dialect expander, the zip codec, the
+  // Paste dialog), exporting it, and the Performance settings. The AI Prompt body is left cold: its round trip needs an AI, so
+  // offline it has nothing to offer, and its trigger reports a failed load.
+  // pwa-install.md REQ-service-worker-is-registered.
+  const warmDeferred = () => {
+    for (const load of [
+      () => import('./state/song-author'),
+      () => import('./utils/zip'),
+      () => import('./ui/components/paste-import'),
+      () => import('./ui/components/export-song-modal'),
+      () => import('./ui/components/perf-settings-modal'),
+    ]) void load().catch(() => {});
+  };
   // A factory reset that deleted a saved offline copy asked for it back
   // (factory-reset.md REQ-reset-redownloads-the-offline-copy). One sessionStorage read decides; without the
   // intent nothing is imported. A failed import leaves the intent in place for
@@ -334,6 +349,7 @@ async function boot() {
     warmMp3();
     warmOnboarding();
     warmAbout();
+    warmDeferred();
     resumeOffline();
   };
   // requestIdleCallback only reached Safari in 17.4, and we target installed

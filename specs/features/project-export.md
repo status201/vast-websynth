@@ -3,7 +3,10 @@
 ```yaml
 id: project-export
 status: implemented
-version: 5   # v5: REQ-zip-codec-is-hand-written-and-budgeted budgets the reader (entry count, declared-size pre-flight,
+version: 6   # v6: REQ-the-zip-codec-loads-with-the-first-zip — the codec and the Export dialog
+             #     leave the entry chunk; a codec that cannot load is a refused import or
+             #     a reported export, never a silent click
+             # v5: REQ-zip-codec-is-hand-written-and-budgeted budgets the reader (entry count, declared-size pre-flight,
              #     capped inflate, running total) — a zip is untrusted input
              # v4: REQ-zip-holds-the-canonical-song names no canonical version (it had frozen at "v4")
              # v3: JSON demos are fetched on click too; loadDemo is async
@@ -59,6 +62,18 @@ so future demos can ship as zips with audio. The `.json` song format is untouche
   `MAX_ZIP_TOTAL_BYTES`. Previously the declared size was read but only compared
   *after* a full uncapped inflate, so a deflate bomb was spent before it was
   noticed.
+- **REQ-the-zip-codec-loads-with-the-first-zip** — **The zip codec loads with the
+  first zip** (v6, [runtime-performance](runtime-performance.md)
+  REQ-boot-cost-matches-the-request). `project.ts` stays on the boot path — it is
+  the import router — but `import()`s `utils/zip.ts` inside `parseProjectZip` and
+  `buildProjectZip`, so a JSON import never fetches it. A codec that cannot load
+  is an *operation's* failure, owned by the flow that asked
+  ([lazy-load-failure](lazy-load-failure.md) REQ-lazy-scope-is-surfaces-not-operations):
+  on import it is a refused parse (`ZIP_READER_UNAVAILABLE`), shown in the normal
+  import-error dialog; on export it is an **Export failed** alert, not a click that
+  does nothing. The **Export** dialog itself is a surface and loads on its click
+  through `loadSurface`. Both chunks are warmed on idle
+  ([pwa-install](pwa-install.md) REQ-service-worker-is-registered).
 - **REQ-deflate-helpers-are-shared** — The shared deflate helpers live in
   `src/utils/compression.ts` (extracted from `webrtc-signaling.ts`, behaviour
   identical) so the zip module does not depend on an audio/signaling module.

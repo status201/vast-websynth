@@ -3,7 +3,9 @@
 ```yaml
 id: song-authoring-dialect
 status: implemented
-version: 5   # v5: a seqChain letter may carry a +n/-n transpose suffix (REQ-a-chain-letter-may-carry-a-transpose)
+version: 6   # v6: the expander loads with the first author file, not at boot; Song.parse is async
+             #     and fromJSON is canonical-only (REQ-the-expander-loads-with-the-first-author-file)
+             # v5: a seqChain letter may carry a +n/-n transpose suffix (REQ-a-chain-letter-may-carry-a-transpose)
              # v4: bank-level step settings cascade into `tracks` instead of being
              #     refused next to it (REQ-bank-settings-cascade-into-tracks)
              # v3: the emitted canonical version is the LOWEST that holds the content
@@ -18,7 +20,8 @@ related:
   - ../decisions/adr-013-authoring-dialect-input-only
   - ../decisions/adr-007-songfile-additive-versioning
 source:
-  - src/state/song-author.ts              # isAuthorSong, expandAuthorSong
+  - src/state/song-author.ts              # expandAuthorSong (+ re-exports the routing test)
+  - src/state/song-author-format.ts       # AUTHOR_FORMAT, AUTHOR_VERSION, isAuthorSong — the boot-side half
   - src/state/song.ts                     # Song.parse routes author files to the expander
   - src/state/authoring-guide.ts          # buildAuthoringGuide / buildSongPrompt (the docs surface)
   - public/schema/websynth-song-author.schema.json  # machine-readable mirror
@@ -202,20 +205,49 @@ exported — see ADR-013.
       instead; mixing a suffix into a non-string chain is not a thing, because
       those forms carry numbers, not letters.
 
+- **REQ-the-expander-loads-with-the-first-author-file** — **The expander loads
+  with the first author file, not at boot** (v6). `song-author.ts` is ~15 kB of
+  the entry chunk that no visitor needs until they import a compact file
+  ([runtime-performance](runtime-performance.md) REQ-boot-cost-matches-the-request).
+  So the module is split in two:
+    - `song-author-format.ts` holds the routing test — `AUTHOR_FORMAT`,
+      `AUTHOR_VERSION`, `isAuthorSong` — and is all the boot path imports
+      (`song.ts`, `paste-payload.ts`). `song-author.ts` re-exports all three, so the
+      MCP bundle and the tests keep one import.
+    - `Song.parse` is **async**: it `import()`s `song-author.ts` only when
+      `isAuthorSong(parsed)` holds, so a canonical file never fetches it. A
+      rejected import is a refused parse —
+      `{ ok: false, errors: ['The song reader could not be loaded …'] }` — never an
+      exception, the same never-throws contract the try block already keeps. That
+      makes it an *operation's* failure, reported by the import flow that owns it,
+      not a `showLazyLoadFailure` toast
+      ([lazy-load-failure](lazy-load-failure.md) REQ-lazy-scope-is-surfaces-not-operations).
+    - `Song.fromJSON` stays **synchronous and canonical-only**. Its callers
+      (`loadSlot`, `readFile`) read what this app wrote, and the dialect is never
+      written (REQ-the-dialect-is-input-only), so an author string there is
+      refused (`null`) rather than expanded.
+    - The expander's chunk is warmed on idle with the other deferred surfaces
+      ([pwa-install](pwa-install.md) REQ-service-worker-is-registered), so pasting
+      an AI reply works offline after one online visit.
+
 ## Technical design
 
 ### Contract / public interface
 
 ```ts
-// src/state/song-author.ts
+// src/state/song-author-format.ts (boot path; re-exported by song-author.ts)
 export const AUTHOR_FORMAT = 'websynth-song-author';
 export function isAuthorSong(value: unknown): boolean;
+// src/state/song-author.ts (lazy chunk)
 export function expandAuthorSong(value: unknown): SongValidation; // author-term errors OR {ok:true, file: canonical, version per REQ-the-emitted-version-is-the-lowest-that-fits}
+// src/state/song.ts
+Song.parse(text: string): Promise<SongValidation>; // async since v6
+Song.fromJSON(text: string): SongFile | null;      // sync, canonical only
 ```
 
 Hook (the only integration point): `Song.parse` —
-`if (isAuthorSong(parsed)) return expandAuthorSong(parsed);` before
-`validateSongFile(parsed)`.
+`if (isAuthorSong(parsed)) return (await import('./song-author')).expandAuthorSong(parsed);`
+before `validateSongFile(parsed)` (REQ-the-expander-loads-with-the-first-author-file).
 
 ### Data shapes
 
@@ -280,8 +312,10 @@ v3 file.
 - `song-author.ts` (pure) ← imports `patterns.ts` constants/defaults +
   `validateSongFile`; type-only `SongFile`/`ChainData` from `song.ts`.
 - `song.ts` → `Song.parse` branches on `isAuthorSong` (REQ-the-dialect-is-detected-by-shape). Every consumer of
-  `Song.parse`/`parseFile`/`fromJSON` (song-panel import, `parseSongOrProject`
-  in `project.ts`, launchQueue, song links, MCP tools) inherits the dialect.
+  `Song.parse`/`parseFile` (song-panel import, `parseSongOrProject`
+  in `project.ts`, launchQueue, song links, file drop, paste) inherits the dialect;
+  the MCP tools call `expandAuthorSong` directly. `fromJSON` does not
+  (REQ-the-expander-loads-with-the-first-author-file).
 - The published author schema and the prompt/guide are documentation mirrors —
   the expander is the runtime source of truth (same relationship as
   `websynth-song.schema.json` ↔ `validateSongFile`).
@@ -407,6 +441,20 @@ Scenario: Expanded output always passes the canonical validator
   Given any author file that expandAuthorSong accepts
   Then validateSongFile(file) is ok
 # pinned by: tests/state/song-author.test.ts, tests/state/song.test.ts, tests/state/project.test.ts
+
+Scenario: A canonical file never loads the expander (REQ-the-expander-loads-with-the-first-author-file)
+  Given the song-author module fails to load
+  When Song.parse receives a canonical song's JSON text
+  Then the result is ok
+  And when it receives an author file instead
+  Then the result is a refused parse naming the reader, and nothing is thrown
+# pinned by: tests/state/song-author-lazy.test.ts
+
+Scenario: fromJSON is canonical-only (edge — REQ-the-expander-loads-with-the-first-author-file)
+  Given a valid author file's JSON text
+  When Song.fromJSON receives it
+  Then it returns null
+# pinned by: tests/state/song.test.ts
 ```
 
 ## Tests & verification

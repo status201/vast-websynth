@@ -3,7 +3,12 @@
 ```yaml
 id: runtime-performance
 status: implemented
-version: 11  # v11: REQ-layout-reads-precede-writes — a loop that measures and positions many
+version: 12  # v12: REQ-boot-cost-matches-the-request — the second sweep: the authoring-dialect
+             #      expander, the project zip codec and four click-only surfaces leave the
+             #      boot path (519.8 → 493.5 kB of boot JS); the boot payload is the entry
+             #      PLUS its static chunks, and a split that fragments the entry CSS is
+             #      refused (the Record window and Mod Matrix splits were measured and dropped)
+             # v11: REQ-layout-reads-precede-writes — a loop that measures and positions many
              #      elements does all its reading before any of its writing
              # v10: REQ-a-worklet-optimisation-is-bit-exact also says how to MEASURE one — a
              #      microbenchmark of the call is not evidence, and got two of three
@@ -105,7 +110,14 @@ so a reviewer has something concrete to hold a new feature against.
   preset manager, the audio-export dialog, the WiFi pair modal (which also defers
   `jsqr`), the MP3 encoder (`lamejs`), the authoring-guide prompt text behind the
   AI Prompt button, the time-stretch DSP behind a slot row's FIT button
-  ([time-stretch](time-stretch.md) REQ-the-slot-fit-button-is-a-quick-fit), and the Help & About modal. The onboarding layer — the tour, the
+  ([time-stretch](time-stretch.md) REQ-the-slot-fit-button-is-a-quick-fit), and the Help & About modal. (v12) Also the
+  song **Export** and **Paste** dialogs, the **AI Prompt** modal body and the
+  **Performance** settings modal ([performance-mode](performance-mode.md)) — and two
+  *operations* rather than
+  surfaces: the authoring-dialect expander, fetched by `Song.parse` only for an
+  author file ([song-authoring-dialect](song-authoring-dialect.md)
+  REQ-the-expander-loads-with-the-first-author-file), and the zip codec, fetched by
+  `project.ts` only for a project zip ([project-export](project-export.md)). The onboarding layer — the tour, the
   info badges and the ~54 kB of help copy they read — loads on the first `startTour()`
   or badge toggle, behind the synchronous `Onboarding` facade so no caller learns that
   it is lazy.
@@ -132,6 +144,24 @@ so a reviewer has something concrete to hold a new feature against.
   cutting only the button would have left `main.ts` holding the modal in the entry
   chunk. A deferred surface the user can reach *offline* is warmed on idle
   ([`pwa-install.md`](pwa-install.md) REQ-service-worker-is-registered).
+
+  **The boot payload is the entry chunk plus every chunk it imports statically**
+  (v12). The bundler (rolldown) only merges a module shared by the entry and a lazy
+  chunk back into the entry when that creates no circular chunk dependency; when it
+  cannot, the module becomes a sibling chunk that the entry still loads at boot
+  (`dist/index.html` lists each as a `modulepreload`). The bytes do not go away —
+  `index-*.js` just stops counting them — and **its CSS moves with it**: a
+  `<link>` loaded *before* `index-*.css` instead of its place inside it, which
+  reorders the cascade. That happened in this sweep: splitting the Record window
+  and the Mod Matrix bodies pushed `collapse-toggle`, `modal`, `dialog` and `toast`
+  out of the entry, saved ~1 kB of real boot JS each, and grew the arp panel from
+  169 to 240 px. Both splits were dropped. So a split is judged by the **boot set**
+  (entry + modulepreloads), and the entry's CSS links must be unchanged by it —
+  a side-effect `import '…module.css'` does not hold a stylesheet in place (it is
+  tree-shaken), so a split whose stylesheet leaves the entry CSS is acceptable only
+  when every class it styles lives in the deferred body itself (the Export dialog's
+  `export-song-modal.module.css` is the one case, verified by a computed-style
+  comparison of the dialog against the previous build).
 
   **Deferring makes a surface's load fallible, and that cost is the trigger's to pay**
   (v6). A static import cannot fail after boot; an `import()` can, and the default —
@@ -519,7 +549,10 @@ Scenario: a worklet speed rewrite changes no samples
   human reading the build warning; that is how the onboarding layer stayed eager for
   a release after this spec said it was lazy. The ceiling only catches the cliff: a
   `dist/assets/index-*.js` that grows without a deliberate reason is still the signal
-  to re-check what joined the boot path (477 kB at the time the gate landed).
+  to re-check what joined the boot path (477 kB at the time the gate landed; 486.9 kB
+  before the v12 sweep). The gate reads `index-*.js` only, which understates the boot
+  set by whatever rolldown hoists into sibling chunks (33 kB before v12) — see the
+  boot-payload paragraph under REQ-boot-cost-matches-the-request.
 - Profiling: a DevTools Performance trace of boot (REQ-boot-cost-matches-the-request/REQ-immutable-artefacts-are-shared) and a 10 s trace of a
   motion-heavy demo playing (REQ-automation-is-not-an-edit/REQ-no-allocation-in-a-hot-loop/REQ-dom-writes-are-guarded-on-what-is-rendered — watch the GC sawtooth).
 - REQ-no-viewport-scaled-compositing-on-hot-surfaces is a *frame-rate* rule that its unit test can only pin by proxy (the absence

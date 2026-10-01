@@ -5,6 +5,12 @@ import { readPerfPref } from '../../src/state/perf-mode';
 
 const sel = (id: string) => document.querySelector<HTMLElement>(`[data-testid="${id}"]`);
 
+/** The modal body is a lazy chunk (performance-mode.md REQ-the-settings-modal-loads-on-click). */
+async function openModal(btn: HTMLButtonElement): Promise<void> {
+  btn.click();
+  await vi.waitFor(() => { if (!sel('perf-mode')) throw new Error('modal not open yet'); });
+}
+
 describe('createPerfSettingsButton', () => {
   beforeEach(() => {
     installLocalStorageMock();
@@ -16,11 +22,11 @@ describe('createPerfSettingsButton', () => {
     document.body.innerHTML = '';
   });
 
-  it('opens a modal with a four-way Auto/Weak/Medium/Strong control defaulting to the stored pref', () => {
+  it('opens a modal with a four-way Auto/Weak/Medium/Strong control defaulting to the stored pref', async () => {
     const btn = createPerfSettingsButton();
     expect(sel('perf-mode')).toBeNull(); // closed until clicked
 
-    btn.click();
+    await openModal(btn);
     expect(sel('perf-mode')).not.toBeNull();
     for (const v of ['auto', 'weak', 'medium', 'strong']) {
       expect(sel(`perf-mode-${v}`)).not.toBeNull();
@@ -30,9 +36,9 @@ describe('createPerfSettingsButton', () => {
     expect(sel('perf-mode-strong')!.classList.contains('active')).toBe(false);
   });
 
-  it('persists the chosen preference and moves the active marker', () => {
+  it('persists the chosen preference and moves the active marker', async () => {
     const btn = createPerfSettingsButton();
-    btn.click();
+    await openModal(btn);
 
     sel('perf-mode-weak')!.click();
     expect(readPerfPref()).toBe('weak');
@@ -40,10 +46,10 @@ describe('createPerfSettingsButton', () => {
     expect(sel('perf-mode-auto')!.classList.contains('active')).toBe(false);
   });
 
-  it('applies the resolved tier fps live via the onTierPreview callback', () => {
+  it('applies the resolved tier fps live via the onTierPreview callback', async () => {
     const onTierPreview = vi.fn();
     const btn = createPerfSettingsButton({ onTierPreview });
-    btn.click();
+    await openModal(btn);
 
     sel('perf-mode-medium')!.click();
     expect(onTierPreview).toHaveBeenLastCalledWith('medium');
@@ -56,9 +62,9 @@ describe('createPerfSettingsButton', () => {
     expect(onTierPreview).toHaveBeenLastCalledWith('strong');
   });
 
-  it('shows the reload hint only when the choice changes the audio profile', () => {
+  it('shows the reload hint only when the choice changes the audio profile', async () => {
     const btn = createPerfSettingsButton();
-    btn.click(); // booted as 'strong' (capable desktop)
+    await openModal(btn); // booted as 'strong' (capable desktop)
 
     // Weak changes buffer + voices → needs a reload.
     sel('perf-mode-weak')!.click();
@@ -71,9 +77,9 @@ describe('createPerfSettingsButton', () => {
     expect(sel('perf-reload')!.classList.contains('hidden')).toBe(true);
   });
 
-  it('states the resolved tier, disambiguating the Auto preference', () => {
+  it('states the resolved tier, disambiguating the Auto preference', async () => {
     const btn = createPerfSettingsButton();
-    btn.click(); // capable desktop, pref 'auto'
+    await openModal(btn); // capable desktop, pref 'auto'
 
     const status = sel('perf-status')!;
     expect(status.textContent!.toLowerCase()).toContain('auto selected');
@@ -84,12 +90,12 @@ describe('createPerfSettingsButton', () => {
     expect(status.textContent!.toLowerCase()).toContain('weak');
   });
 
-  it('reflects the resolved tier on the header button itself', () => {
+  it('reflects the resolved tier on the header button itself', async () => {
     const btn = createPerfSettingsButton(); // capable desktop, default pref 'auto' → strong
     expect(btn.dataset.perfTier).toBe('strong');
     expect(btn.dataset.perfPending).toBe('0');
 
-    btn.click();
+    await openModal(btn);
     sel('perf-mode-weak')!.click();
     expect(btn.dataset.perfTier).toBe('weak');
     expect(btn.dataset.perfPref).toBe('weak');
