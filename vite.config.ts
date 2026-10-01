@@ -5,6 +5,22 @@ import { offlineManifestPlugin } from './scripts/lib/offline-manifest.mjs';
 
 const pkg = JSON.parse(readFileSync(new URL('./package.json', import.meta.url), 'utf-8'));
 
+/**
+ * The shipped CSP has no `style-src 'unsafe-inline'` (untrusted-input.md
+ * REQ-defence-in-depth-at-delivery), but `vite dev` injects every module's CSS as
+ * a `<style>` element. Relax it for the dev server ONLY — `apply: 'serve'` keeps
+ * the built index.html, and so every host, on the strict policy.
+ */
+function cspDevStyles() {
+  return {
+    name: 'csp-dev-styles',
+    apply: 'serve' as const,
+    transformIndexHtml(html: string): string {
+      return html.replace("style-src 'self';", "style-src 'self' 'unsafe-inline';");
+    },
+  };
+}
+
 export default defineConfig({
   root: '.',
   publicDir: 'public',
@@ -14,7 +30,7 @@ export default defineConfig({
   // Writes dist/offline-manifest.json — every file the app can request, for the
   // About card's Play offline and the worker's release refresh
   // (specs/features/play-offline.md REQ-the-build-writes-the-file-list).
-  plugins: [offlineManifestPlugin(pkg.version)],
+  plugins: [offlineManifestPlugin(pkg.version), cspDevStyles()],
   build: {
     target: 'es2022',
     sourcemap: true,

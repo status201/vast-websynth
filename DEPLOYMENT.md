@@ -37,7 +37,10 @@ for long** (`Cache-Control: no-cache` is right for them):
 
 The **Content-Security-Policy is a `<meta>` tag in `index.html`**, so it ships
 with the build and needs no host configuration anywhere
-(`specs/features/untrusted-input.md` REQ-defence-in-depth-at-delivery).
+(`specs/features/untrusted-input.md` REQ-defence-in-depth-at-delivery). Its
+`style-src` has **no `'unsafe-inline'`**; only `vite dev` adds it (for Vite's
+injected styles), so check a CSP change against `npm run build && npx vite preview`,
+not the dev server.
 
 Four more headers cannot ride in that tag — `<meta http-equiv>` carries no header
 but `Content-Security-Policy`, and `frame-ancestors` is ignored even inside that

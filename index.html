@@ -2,10 +2,11 @@
 <html lang="en">
   <head>
     <meta charset="UTF-8" />
-    <!-- CSP: see untrusted-input.md REQ-defence-in-depth-at-delivery; frame-ancestors is in public/_headers -->
+    <!-- CSP: see untrusted-input.md REQ-defence-in-depth-at-delivery; frame-ancestors is in public/_headers.
+         No 'unsafe-inline' in style-src: vite.config.ts adds it for `vite dev` ONLY. -->
     <meta
       http-equiv="Content-Security-Policy"
-      content="default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; media-src 'self' blob:; font-src 'self'; connect-src 'self' https:; worker-src 'self' blob:; manifest-src 'self'; object-src 'none'; base-uri 'self'; form-action 'none'"
+      content="default-src 'self'; script-src 'self'; style-src 'self'; img-src 'self' data: blob:; media-src 'self' blob:; font-src 'self'; connect-src 'self' https:; worker-src 'self' blob:; manifest-src 'self'; object-src 'none'; base-uri 'self'; form-action 'none'"
     />
     <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover, user-scalable=no" />
     <meta name="theme-color" content="#1a1a1a" />
@@ -99,12 +100,12 @@
   </head>
   <body>
     <div id="app" class="app">
-      <noscript><img src="vast-websynth.png" style="max-width:100%;height:auto;" alt="VAST open-source Web Synth"></noscript>
+      <noscript><img src="vast-websynth.png" class="noscript-hero" alt="VAST open-source Web Synth"></noscript>
     </div>
 
 
     <noscript>
-      <main style="max-width: 42rem; margin: 3rem auto; padding: 0 1.25rem; color: #e8d8b6; font-family: Georgia, serif; line-height: 1.6;">
+      <main class="noscript-page">
         <h1>VAST G1-J8 — Open Source Browser Synthesizer</h1>
         <p>
           VAST G1-J8 is a free, in-browser polyphonic subtractive synthesizer
@@ -123,7 +124,7 @@
         </ul>
         <p>
           VAST G1-J8 is free and open source — the full source code is on
-          <a href="https://github.com/status201/vast-websynth" style="color: #f4cd5e;">GitHub</a>.
+          <a href="https://github.com/status201/vast-websynth" class="noscript-link">GitHub</a>.
         </p>
         <p>Please enable JavaScript to use the synthesizer.</p>
       </main>

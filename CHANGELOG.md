@@ -44,6 +44,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ### Security
 
+- The Content Security Policy no longer allows inline styles (`style-src 'unsafe-inline'` is gone from the shipped build), which closes off CSS injection if markup were ever injected.
 - A `#songUrl=` link's download is now cut off as soon as it passes the 8 MB song limit. Before, a server that left out its size header could make the tab hold everything it sent before the limit was checked.
 
 ## [2.15.0] - 2026-09-26

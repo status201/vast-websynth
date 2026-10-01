@@ -141,3 +141,16 @@ svg.ui-icon + .icon-label {
 *::-webkit-scrollbar-corner {
   background: var(--bg-deep);
 }
+
+/* The no-JavaScript fallback in index.html. Classes, not style attributes: the
+   shipped CSP has no 'unsafe-inline' (untrusted-input.md REQ-defence-in-depth-at-delivery). */
+.noscript-hero { max-width: 100%; height: auto; }
+.noscript-page {
+  max-width: 42rem;
+  margin: 3rem auto;
+  padding: 0 1.25rem;
+  color: #e8d8b6;
+  font-family: Georgia, serif;
+  line-height: 1.6;
+}
+.noscript-link { color: #f4cd5e; }

@@ -3,7 +3,9 @@
 ```yaml
 id: untrusted-input
 status: implemented
-version: 10  # v10: REQ-a-pairing-sdp-is-shape-checked — a scanned or pasted pairing code's SDP is
+version: 11  # v11: the shipped CSP drops style-src 'unsafe-inline' (REQ-defence-in-depth-at-delivery);
+             #      only the dev server relaxes it, for Vite's injected styles
+             # v10: REQ-a-pairing-sdp-is-shape-checked — a scanned or pasted pairing code's SDP is
              #      shape-checked before it reaches setRemoteDescription
              # v9: REQ-a-link-may-not-fetch-silently reads the songUrl body under the cap as it
              #     streams — a server that omits Content-Length could make the tab buffer anything
@@ -250,6 +252,24 @@ decision and the alternatives. This spec is the contract.
   keeps the six runtime-computed `innerHTML` sites from becoming one after a
   careless refactor.
 
+  (**v11**) **`style-src` is `'self'` only** — no `'unsafe-inline'`, so a
+  style attribute or `<style>` element smuggled into markup is not applied
+  (the CSS-injection half of an HTML injection: overlaying UI, exfiltrating via
+  attribute selectors). What that rules out, and what it does not:
+  - **No `style="…"` in markup and no `<style>` element** anywhere the app
+    renders — `index.html`'s noscript fallback uses classes from `base.css`.
+  - **CSSOM writes are untouched**: `el.style.x = …`, `style.setProperty('--steps', …)`
+    are not governed by `style-src`, and they are how the app positions and
+    sizes things at runtime.
+  - **The dev server is the one exception.** Vite injects module CSS as
+    `<style>` elements during `vite dev`, so the `csp-dev-styles` plugin in
+    `vite.config.ts` (`apply: 'serve'`) adds `'unsafe-inline'` back **only
+    there**. The built `index.html` — what `vite preview` and every host
+    serve — carries the strict policy. `npm run e2e` drives the dev server, so
+    it never sees the strict policy; the check for the shipped one is a build
+    plus `vite preview` with no `securitypolicyviolation` event fired
+    (Tests & verification).
+
 - **REQ-mcp-writes-stay-in-the-working-directory** — **MCP writes stay inside
   the working directory.** `save_song` / `save_preset` sanitize the *filename*
   (`safeName`) **and** contain the `dir` argument: a path resolving outside
@@ -447,6 +467,13 @@ when a song slot is *written*.
 ## Scenarios (BDD)
 
 ```gherkin
+Scenario: The shipped CSP refuses inline styles (v11, REQ-defence-in-depth-at-delivery)
+  Given index.html as the build serves it
+  Then its style-src is 'self' with no 'unsafe-inline'
+  And no element in it carries a style attribute
+  And only the dev server's transform adds 'unsafe-inline' back
+# pinned by: tests/csp.test.ts
+
 Scenario: A pairing code whose SDP is not an SDP is refused (v10, REQ-a-pairing-sdp-is-shape-checked)
   Given a well-formed pairing envelope whose s field is not an SDP (no v=0, or a control character)
   When it is decoded
@@ -598,5 +625,4 @@ Scenario: Every shipped demo validates without warnings (v3, REQ-an-unresolvable
 - ~~**Streaming the fetched body**~~ — done in v9 (REQ-a-link-may-not-fetch-silently, `readCappedBody`).
 - ~~**The SDP from a scanned QR** reaches `setRemoteDescription` unvalidated.~~
   v10: REQ-a-pairing-sdp-is-shape-checked.
-- **Dropping `style-src 'unsafe-inline'`** once the `<noscript>` block's inline
-  `style=` attributes move to a class.
+- ~~**Dropping `style-src 'unsafe-inline'`**~~ — v11, REQ-defence-in-depth-at-delivery.
