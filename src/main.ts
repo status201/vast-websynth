@@ -6,7 +6,7 @@ import { installShortcuts } from './ui/shortcuts';
 import { primeDetection } from './state/keyboard-layout';
 import { initMIDI } from './audio/midi';
 import { Presets } from './state/preset';
-import { PresetSession, isPatchParam, patchSnapshot } from './state/preset-session';
+import { PresetSession, isPatchParam, pinAppliedSong } from './state/preset-session';
 import { SessionAutosave } from './state/session-autosave';
 import { SampleAutosave, type StoredClip } from './state/sample-autosave';
 import { PatternUndo } from './state/pattern-undo';
@@ -83,7 +83,7 @@ async function boot() {
     // Same pin the Song panel's applySong makes (presets.md REQ-a-songs-sound-is-a-selectable-entry) — which is
     // why the pinned sound needs no persistence of its own: restoring the song
     // restores it.
-    session.setActiveSong(restored.name, patchSnapshot(bus.snapshot()));
+    pinAppliedSong(session, restored.name, bus);
   }
 
   // …and its sampler audio (sample-persistence.md). Awaited here, still before

@@ -1,7 +1,7 @@
 import type { StudioApi } from './studio-api';
 import type { ParamBus } from '../state/params';
 import type { PresetSession } from '../state/preset-session';
-import { patchSnapshot } from '../state/preset-session';
+import { pinAppliedSong } from '../state/preset-session';
 import type { XyPadStore } from '../state/xy-pad';
 import type { PatternUndo, UndoMachine } from '../state/pattern-undo';
 import type { UiBridge } from './ui-bridge';
@@ -129,7 +129,7 @@ export function mountApp(
     const file = DEMO_SONGS[name] ?? Object.values(DEMO_SONGS)[0];
     if (file) {
       Song.apply(file, bus, engine.patterns, engine.arrangement, xy, engine.sampler);
-      session.setActiveSong(file.name, patchSnapshot(bus.snapshot()));
+      pinAppliedSong(session, file.name, bus);
     }
   };
 

@@ -495,12 +495,12 @@ Scenario: The pinned sound is the effective patch, not the file's sparse map (RE
   When the song is applied
   Then the pinned patch carries that id at its registered default
   So re-selecting it cannot leak the previous song's value
-# The mechanism is the CALL SITE: every caller pins
-# `patchSnapshot(bus.snapshot())` — the settled bus, read after `Song.apply` has
-# run `resetDefaults()` — never `file.params`. app.ts, song-panel.ts and main.ts
-# all do this, and `apply`'s resetDefaults is what makes the omitted id revert.
-# pinned by: tests/state/preset-session.test.ts (patchSnapshot's filter only —
-#   see Open questions: no test exercises the apply-then-pin path end to end)
+# The mechanism is one helper: every caller (app.ts, song-panel.ts, main.ts) pins
+# through `pinAppliedSong`, which reads the settled bus after `Song.apply` has run
+# `resetDefaults()` — never `file.params`. apply's resetDefaults is what makes the
+# omitted id revert.
+# pinned by: tests/state/preset-session.test.ts, tests/state/song-pin.test.ts
+#   (the real Song.apply → pinAppliedSong → re-select path)
 
 Scenario: Loading another song replaces the pinned sound (REQ-a-songs-sound-is-a-selectable-entry, edge)
   Given one demo is loaded and pinned
@@ -527,12 +527,10 @@ Scenario: An import does not relabel the selector (REQ-rebuilding-options-never-
 
 ## Open questions / future
 
-- **No test covers apply-then-pin end to end.** `patchSnapshot`'s filter is unit
-  tested and `PresetSession`'s bookkeeping is unit tested, but nothing applies a
-  song and then asserts the pinned snapshot — the one place REQ-a-songs-sound-is-a-selectable-entry's "effective
-  patch, not the sparse map" actually lives is the three call sites. An e2e that
-  loads a demo, loads a second demo whose `params` omits an id the first set, and
-  re-selects the first would close it.
+- ~~**No test covers apply-then-pin end to end.**~~ The three call sites now share
+  `pinAppliedSong`, and `tests/state/song-pin.test.ts` runs the real `Song.apply`
+  → pin → audition a preset → re-select path with two synthetic songs (never
+  shipped demos, so the test cannot drift with the demo library).
 
 - New params join presets automatically via `snapshot()`; their **no-op defaults**
   keep old presets sounding the same (see [add-a-parameter](../recipes/add-a-parameter.md)).

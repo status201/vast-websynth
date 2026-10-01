@@ -113,6 +113,22 @@ export function isPatchParam(id: ParamId): boolean {
 }
 
 /**
+ * Pin the song just applied (presets.md REQ-a-songs-sound-is-a-selectable-entry). The one place the
+ * rule lives that three call sites used to restate: the pin is read from the
+ * **bus after `Song.apply`**, never from `file.params`. `apply` resets every param
+ * to its default first, so this is the *effective* patch — an id the file omits
+ * is pinned at its default, and re-selecting the song can never leak the
+ * previous song's value for it.
+ */
+export function pinAppliedSong(
+  session: PresetSession,
+  name: string,
+  bus: { snapshot(): Snapshot },
+): void {
+  session.setActiveSong(name, patchSnapshot(bus.snapshot()));
+}
+
+/**
  * The patch half of a snapshot — what the selector calls "the sound"
  * (presets.md REQ-a-songs-sound-is-a-selectable-entry).
  *

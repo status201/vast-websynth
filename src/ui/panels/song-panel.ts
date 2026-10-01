@@ -1,6 +1,6 @@
 import type { ParamBus } from '../../state/params';
 import type { PresetSession } from '../../state/preset-session';
-import { patchSnapshot } from '../../state/preset-session';
+import { pinAppliedSong } from '../../state/preset-session';
 import type { XyPadStore } from '../../state/xy-pad';
 import type { StudioApi } from '../studio-api';
 import type { UiBridge } from '../ui-bridge';
@@ -120,10 +120,8 @@ export function buildSongPanel(bus: ParamBus, engine: StudioApi, session: Preset
     // slot's label can never outlive the sound under it (song-mode.md REQ-stale-sampler-audio-is-evicted).
     Song.apply(file, bus, engine.patterns, engine.arrangement, xy, engine.sampler);
     // Pin the song's sound so the selector can offer it back (presets.md
-    // REQ-a-songs-sound-is-a-selectable-entry). Snapshotted from the bus AFTER the apply, never from
-    // `file.params`: `Song.apply` resets to defaults first, so this is the
-    // *effective* patch — a sparse map would re-open the leak REQ-a-factory-preset-sets-the-full-sound closes.
-    session.setActiveSong(file.name, patchSnapshot(bus.snapshot()));
+    // REQ-a-songs-sound-is-a-selectable-entry) — from the bus after the apply; `pinAppliedSong` says why.
+    pinAppliedSong(session, file.name, bus);
     toTop();
   };
 
