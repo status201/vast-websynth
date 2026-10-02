@@ -169,7 +169,7 @@ PasteImportOptions:
 readClipboardText(): Promise<string | null>
 
 # src/ui/ui-bridge.ts
-openPresetImport: (parse: PresetParse) => void    # late-bound in app.ts
+openPresetImport: (parse: PresetParse) => void    # late-bound in shell/header.ts
 
 # src/ui/components/preset-manager-modal.ts
 PresetManagerOptions.initialImport?: PresetParse  # opens on the review step
@@ -195,7 +195,7 @@ song-panel:   Paste button -> openPasteImportModal({ onSong: importBytes,
                 onPresets: bridge.openPresetImport })
 ai-prompt:    createAiPromptButton(bus, { onSong, onPresets }) -> the same
                 fragment inline as step 3; onDone closes the AI modal
-app.ts:       bridge.openPresetImport = (parse) => openPresetManagerModal({
+header.ts:    bridge.openPresetImport = (parse) => openPresetManagerModal({
                 bus, session, onPresetsChanged, initialImport: parse })
 ```
 

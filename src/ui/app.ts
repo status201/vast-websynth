@@ -5,12 +5,6 @@ import { pinAppliedSong } from '../state/preset-session';
 import type { XyPadStore } from '../state/xy-pad';
 import type { PatternUndo, UndoMachine } from '../state/pattern-undo';
 import type { UiBridge } from './ui-bridge';
-import type { SyncStatus } from '../audio/transport/sync/sync-types';
-import { VOICING_LABELS } from '../state/params';
-import { Knob } from './components/knob';
-import { Segmented } from './components/segmented';
-import { MeterPicker } from './components/meter-picker';
-import { HEADER_ICONS } from './components/header-icons';
 import { Strip } from './components/strip';
 import { Scope } from './components/scope';
 import { ResizeHandle } from './components/resize-handle';
@@ -27,48 +21,15 @@ import {
   readArpStatus, readKeyStatus, readMachineStatus,
   subscribeArpStatus, subscribeKeyStatus, subscribeMachineStatus,
 } from './machine-status';
-import { Dropdown } from './components/dropdown';
-import { createButton, setButtonLabel } from './components/button';
-import { showLazyLoadFailure } from './components/lazy-load-toast';
-import { openEmptyPlayModal, emptyPlayHintDismissed } from './components/empty-play-modal';
-import { anythingToPlay } from '../audio/transport/anything-to-play';
 import switchStyles from './styles/switch.module.css';
-import { createAboutButton } from './components/about-button';
-import { createBrand } from './components/brand';
-import { createInfoBadgesButton } from './components/info-badges-button';
-import { createPerfSettingsButton } from './components/perf-settings';
-import { createFullscreenButton } from './components/fullscreen-button';
 import { PERF_PROFILES, resolveTier, type PerfTier } from '../state/perf-mode';
 import { createOnboarding, type Onboarding } from './onboarding';
 import type { TourCtx } from './onboarding/tour';
-import headerStyles from './styles/header.module.css';
 import patternRowStyles from './styles/pattern-row.module.css';
 import bottomStyles from './styles/bottom.module.css';
-import { UI_ICONS } from './components/ui-icons';
 import { setScopeStatsSource } from '../state/debug-sources';
-import { Presets } from '../state/preset';
-import type { PresetManagerOptions } from './components/preset-manager-modal';
 
-/**
- * The preset manager loads on the click that opens it (runtime-performance.md
- * REQ-boot-cost-matches-the-request) — both the header button and the `openPresetImport` bridge hook, so a
- * dropped preset file pulls it in exactly like the button does.
- *
- * Only the import is guarded: a rejection means the chunk is missing and the
- * user gets a retry (lazy-load-failure.md), whereas a throw from the modal
- * itself is a bug and must not be dressed up as one.
- */
-async function openPresetManagerModal(opts: PresetManagerOptions): Promise<void> {
-  let m: typeof import('./components/preset-manager-modal');
-  try {
-    m = await import('./components/preset-manager-modal');
-  } catch {
-    showLazyLoadFailure('the preset manager', () => void openPresetManagerModal(opts));
-    return;
-  }
-  m.openPresetManagerModal(opts);
-}
-import { Song, DEMO_SONGS, demoNames } from '../state/song';
+import { Song, DEMO_SONGS } from '../state/song';
 import { buildArpPanel } from './panels/arp-panel';
 import { buildKeyPanel } from './panels/key-panel';
 import { buildSeqPanel } from './panels/seq-panel';
@@ -78,6 +39,7 @@ import type { MachinePanel } from './panels/step-panel-scaffold';
 import { buildMotionPanel } from './panels/motion-panel';
 import { buildSongPanel } from './panels/song-panel';
 import { buildEqPanel } from './panels/eq-panel';
+import { buildHeader } from './shell/header';
 import { buildSynthPanels } from './panels/synth-panels';
 import { buildFxRack } from './panels/fx-rack';
 import { isCompact, isPhone } from './viewport';
@@ -155,289 +117,6 @@ export function mountApp(
   root.appendChild(bottom.el);
 
   return onboarding;
-}
-
-function buildHeader(
-  engine: StudioApi, bus: ParamBus, bridge: UiBridge, onboarding: Onboarding, session: PresetSession,
-  previewScopeTier: (tier: PerfTier) => void, loadDemo: (name: string) => Promise<void>,
-): HTMLElement {
-  const el = document.createElement('div');
-  el.className = headerStyles.header!;
-  el.dataset.testid = 'app-header';
-
-  // Brand block (brand.md) — shared with the About and start modals. Only the
-  // divider rule to its right is the header's own (brand.md REQ-brand-block-carries-no-framing).
-  const brand = createBrand();
-  brand.classList.add(headerStyles.headerBrand!);
-  el.appendChild(brand);
-
-  // Below 720px the preset cluster collapses behind this hamburger to keep the
-  // sticky header compact; CSS parks it top-right and expands the cluster inline
-  // while `.menuOpen` is set (see specs/features/responsive-header.md).
-  const menuToggle = createButton({
-    label: 'Toggle preset menu',
-    icon: UI_ICONS.menu,
-    testId: 'header-menu',
-    className: `${switchStyles.root!} ${headerStyles.menuToggle!}`,
-    onClick: () => {
-      const open = el.classList.toggle(headerStyles.menuOpen!);
-      menuToggle.setAttribute('aria-expanded', String(open));
-    },
-  });
-  menuToggle.setAttribute('aria-expanded', 'false');
-  el.appendChild(menuToggle);
-
-  const presetGroup = document.createElement('div');
-  presetGroup.className = `${headerStyles.headerGroup!} ${headerStyles.presetGroup!}`;
-
-  const dropdown = new Dropdown(Presets.list(), Presets.list()[0] ?? '');
-  dropdown.el.dataset.testid = 'preset-select';
-
-  /**
-   * The preset list, with the loaded song's sound pinned on top (presets.md
-   * REQ-a-songs-sound-is-a-selectable-entry). A stored preset of the same name drops out while the song is
-   * loaded, so one label never renders twice and the pinned sound wins.
-   */
-  const presetOptions = (): string[] => {
-    const song = session.songSound;
-    if (!song) return Presets.list();
-    return [song.name, ...Presets.list().filter((n) => n !== song.name)];
-  };
-
-  /** The pinned name currently rendered, so a rebuild happens only when the
-   *  list actually changes (see `syncSelector`). */
-  let pinnedInList: string | null = null;
-
-  /**
-   * Rebuild the options, then re-assert the label.
-   *
-   * The order is the requirement (presets.md REQ-rebuilding-options-never-relabels): `setOptions` falls back to
-   * the first option when the current value is absent (dropdown.md REQ-selecting-an-option-closes-the-menu/REQ-set-options-never-strands-the-value),
-   * and the displayed value here is often absent — a song name, or a dirty
-   * "Ember *". Without the re-assert, a preset *import* — which changes no sound
-   * at all — silently relabelled the header to "acid".
-   */
-  const refreshPresetOptions = (): void => {
-    pinnedInList = session.songSound?.name ?? null;
-    dropdown.setOptions(presetOptions(), { dividerAfter: pinnedInList ? 1 : 0 });
-    dropdown.setValue(session.display);
-  };
-
-  /**
-   * The selector mirrors the active sound (preset/song name + dirty marker) and
-   * owns the pinned entry — one subscription keeps label, marker and list in step.
-   *
-   * Most emissions (`setActive`, `markDirty`) change only the *label*, so the
-   * option list is rebuilt only when the pinned song changed. That keeps a dirty
-   * transition off the DOM (runtime-performance.md) and, more to the point, stops
-   * a stray param edit from tearing down an open menu under the user's focus.
-   */
-  const syncSelector = (): void => {
-    if ((session.songSound?.name ?? null) !== pinnedInList) refreshPresetOptions();
-    else dropdown.setValue(session.display);
-  };
-  session.subscribe(syncSelector);
-
-  dropdown.onChange((name) => {
-    const song = session.songSound;
-    // The pinned entry restores the song's patch; everything else is a preset.
-    const snap = song && name === song.name ? song.patch : Presets.load(name);
-    if (snap) Presets.apply(bus, snap);
-    session.setActive(name);
-  });
-
-  // One door for everything you can do with a sound — save, export a preset or
-  // a bank, import (presets.md REQ-one-door-for-saving). The header stays a single button.
-  const saveBtn = createButton({
-    label: 'Presets — save, export, import',
-    icon: HEADER_ICONS.save,
-    title: 'Presets — save, export, import',
-    testId: 'preset-save',
-    onClick: () => void openPresetManagerModal({
-      bus,
-      session,
-      onPresetsChanged: refreshPresetOptions,
-    }),
-  });
-
-  // The paste door lives in the Song panel but preset imports belong to this
-  // manager (and must refresh the dropdown above) — so they meet on the bridge
-  // (paste-import.md REQ-paste-confirm-routes-by-kind).
-  bridge.openPresetImport = (parse) => void openPresetManagerModal({
-    bus,
-    session,
-    onPresetsChanged: refreshPresetOptions,
-    initialImport: parse,
-  });
-
-  const presetLabel = document.createElement('span');
-  presetLabel.className = headerStyles.presetLabel!;
-  presetLabel.textContent = 'Preset:';
-  presetGroup.appendChild(presetLabel);
-  presetGroup.appendChild(dropdown.el);
-  presetGroup.appendChild(saveBtn);
-  // Inner spacer, active at the ≤1140px wrap step: keeps the dropdown + Save
-  // left-aligned while pushing the utility icon buttons to the far right.
-  const presetSpacer = document.createElement('div');
-  presetSpacer.className = headerStyles.presetSpacer!;
-  presetGroup.appendChild(presetSpacer);
-  presetGroup.appendChild(
-    createPerfSettingsButton({ onTierPreview: previewScopeTier }),
-  );
-  // ⓘ then ? — one toggles the badges, the other opens Help & About, and each
-  // does only that (onboarding.md REQ-the-info-button-is-a-toggle/REQ-about-is-the-single-door-for-help).
-  presetGroup.appendChild(
-    createInfoBadgesButton({
-      toggle: onboarding.toggleInfoBadges,
-      isActive: onboarding.isInfoBadgesActive,
-      onChange: onboarding.onInfoBadgesChange,
-    }),
-  );
-  presetGroup.appendChild(
-    createAboutButton(engine, { startTour: onboarding.startTour }),
-  );
-  // The `?` key's route to the badges (input-control.md REQ-question-mark-toggles-the-badges) — here rather
-  // than in shortcuts.ts, which must not import the onboarding layer.
-  bridge.toggleInfoBadges = onboarding.toggleInfoBadges;
-  // Last in the row; absent (null) where the Fullscreen API is missing — iPhone Safari.
-  const fullscreenBtn = createFullscreenButton();
-  if (fullscreenBtn) presetGroup.appendChild(fullscreenBtn);
-  el.appendChild(presetGroup);
-
-  const spacer = document.createElement('div');
-  spacer.className = headerStyles.headerSpacer!;
-  el.appendChild(spacer);
-
-  // Zero-height flex line break, active whenever the header wraps (≤1140px):
-  // the transport cluster always starts the second row (voicing right-aligns
-  // via auto margin), and below 720px the hamburger's auto margin owns row 1.
-  const headerBreak = document.createElement('div');
-  headerBreak.className = headerStyles.headerBreak!;
-  el.appendChild(headerBreak);
-
-  // Transport group
-  const transport = document.createElement('div');
-  transport.className = `${headerStyles.headerGroup!} ${headerStyles.transportGroup!}`;
-
-  const playBtn = createButton({
-    label: 'Play',
-    className: `${switchStyles.root!} ${headerStyles.playBtn!}`,
-    led: true,
-    testId: 'transport-play',
-    onClick: () => {
-      // Starting an all-silent transport helps nobody — explain instead
-      // (empty-play-hint.md REQ-play-on-empty-shows-the-hint). Stops are never intercepted, nor is a
-      // sync master/slave (an empty clock legitimately drives external gear).
-      if (!engine.clock.playing
-        && !emptyPlayHintDismissed()
-        && engine.sync.activeMode === 'off'
-        && !anythingToPlay((id) => bus.get(id), engine.patterns, engine.arrangement, engine.sampler.buffers)) {
-        openEmptyPlayModal({
-          // Awaited: all but the built-in demo are fetched (song-mode.md
-          // REQ-drop-in-demos-are-fetched-on-click), and the re-entry below re-runs the has-anything-to-play
-          // check — clicking Play before the song lands just reopens this modal.
-          onPlayDemo: async () => {
-            const names = demoNames();
-            await loadDemo(names[Math.floor(Math.random() * names.length)]!);
-            playBtn.click(); // re-entry: the demo gives the check something to play
-          },
-        });
-        return;
-      }
-      engine.clock.toggle();
-      syncPlay();
-    },
-  });
-  // Reflect the clock state so Panic/Esc (which stop the transport
-  // directly) and the Space-bar shortcut all keep the button in sync.
-  const syncPlay = () => {
-    const playing = engine.clock.playing;
-    playBtn.classList.toggle('on', playing); // keeps `on` global state class for :global(.on) selectors in CSS
-
-    setButtonLabel(playBtn, playing ? 'Stop' : 'Play');
-  };
-  engine.clock.onStart(syncPlay);
-  engine.clock.onStop(syncPlay);
-
-  // --- Play-button LED blink (specs/features/play-button-blink.md) ---
-  // Playing: red, blinking with the beat. Stopped: a slow orange "attract"
-  // pulse so the transport is discoverable; loading a demo escalates it to a
-  // fast green cue until playback starts.
-  let blinkVisible = true;
-
-  const setBlink = (v: boolean) => {
-    blinkVisible = v;
-    playBtn.classList.toggle('blink', !v);
-  };
-
-  engine.clock.onTick((step) => {
-    const nb = (step & 3) < 2;
-    if (nb !== blinkVisible) setBlink(nb);
-  });
-
-  let cueArmed = false;
-  const refreshIdleBlink = () => {
-    const stopped = !engine.clock.playing;
-    playBtn.classList.toggle('attract', stopped && !cueArmed);
-    playBtn.classList.toggle('cue', stopped && cueArmed);
-  };
-  engine.clock.onStart(() => { setBlink(true); cueArmed = false; refreshIdleBlink(); });
-  engine.clock.onStop(() => { setBlink(true); refreshIdleBlink(); });
-  bridge.cuePlay = () => {
-    if (engine.clock.playing) return; // already audible — nothing to nudge
-    cueArmed = true;
-    refreshIdleBlink();
-  };
-  // Turning a step machine on is silent until Play, so it cues too (REQ-silent-actions-arm-a-green-cue).
-  // Listening on the bus catches every surface (panel switch, song apply,
-  // author-dialect auto-enable). The arp is excluded: it auto-starts the
-  // transport on a held key, so there is no silent dead-end.
-  for (const id of ['seq.on', 'drum.on', 'sampler.on']) {
-    bus.subscribe(id, (v) => { if (v >= 0.5) bridge.cuePlay(); });
-  }
-  refreshIdleBlink();
-
-  bridge.toggleTransport = () => playBtn.click();
-  transport.appendChild(playBtn);
-  // Capture the BPM knob so it can dim + refuse input while slaved — the tempo
-  // is then driven by the sync master (midi-clock-sync REQ-the-bpm-knob-shows-slaved). Keyed on the
-  // *running* role, so a selected-but-disconnected Slave leaves the knob live
-  // instead of freezing it at a vanished master's tempo (REQ-selected-mode-versus-active-role/REQ-an-armed-sync-section).
-  const bpmKnob = new Knob({ bus, paramId: 'transport.bpm', label: 'BPM' });
-  const applySlaved = (s: SyncStatus): void => {
-    const slaved = s.activeMode === 'slave';
-    bpmKnob.setDisabled(slaved);
-    bpmKnob.el.title = slaved
-      ? 'Tempo follows the sync master while slaved'
-      : s.mode !== 'off'
-        ? 'Sync is armed but nothing is connected — the tempo is yours'
-        : '';
-  };
-  applySlaved(engine.sync.status);
-  engine.sync.onStatus(applySlaved);
-  transport.appendChild(bpmKnob.el);
-  transport.appendChild(new Knob({ bus, paramId: 'transport.swing', label: 'SWING' }).el);
-  // Beside BPM and SWING, because a meter is the third thing that defines the
-  // grid everything else is written against (meter.md REQ-meter-is-two-bus-scalars).
-  transport.appendChild(new MeterPicker(bus).el);
-
-  el.appendChild(transport);
-
-  const right = document.createElement('div');
-  right.className = `${headerStyles.headerGroup!} ${headerStyles.voicingGroup!}`;
-
-  const voicing = new Segmented(bus, 'voicing.mode', VOICING_LABELS);
-  right.appendChild(voicing.el);
-
-  const panicBtn = createButton({ label: 'Panic', testId: 'panic', onClick: () => engine.panic() });
-  right.appendChild(panicBtn);
-
-  const masterKnob = new Knob({ bus, paramId: 'master.volume', label: 'VOL' });
-  right.appendChild(masterKnob.el);
-
-  el.appendChild(right);
-
-  return el;
 }
 
 function buildPatternRow(

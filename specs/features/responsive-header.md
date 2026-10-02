@@ -15,7 +15,7 @@ related:
   - onboarding
   - brand              # the header's brand cluster is that shared block
 source:
-  - src/ui/app.ts                      # buildHeader: hamburger toggle + preset cluster
+  - src/ui/shell/header.ts             # buildHeader: hamburger toggle + preset cluster
   - src/ui/styles/header.module.css    # .menuToggle / .presetGroup / .menuOpen rules
   - src/ui/styles/dropdown.module.css  # .label ellipsis truncation
   - src/ui/components/header-icons.ts  # inline-SVG glyphs for the utility buttons
@@ -119,7 +119,7 @@ end of the row.
 
 ### Contract / public interface
 
-No new module. `buildHeader` (`src/ui/app.ts`) builds the toggle with the shared
+No new module. `buildHeader` (`src/ui/shell/header.ts`) builds the toggle with the shared
 `createButton` factory (`ui/components/button.ts`) and toggles a module class on
 the header element via `classList.toggle` (the same convention as the Play
 button). The preset cluster carries a distinct `presetGroup` hook class in
@@ -170,7 +170,7 @@ addition to the shared `headerGroup` class.
 
 ### Layer touchpoints & ordering
 
-- `src/ui/app.ts` — adds the toggle + `presetGroup` class; all other header
+- `src/ui/shell/header.ts` — adds the toggle + `presetGroup` class; all other header
   construction unchanged.
 - `src/ui/styles/header.module.css` — `.menuToggle { display: none }` and
   `.headerBreak { display: none }` by default; an `@media (max-width: 720px)`

@@ -233,7 +233,7 @@ offline-copy refresh when an older cache holds the marker
   `bridge.importSongBytes` (a song applies fine behind the start modal —
   state is pure and `decodeAudioData` works on a suspended context); the
   prod-gated SW registration on window `load`.
-- `app.ts` appends the fullscreen button (when non-null) into the header's
+- `shell/header.ts` appends the fullscreen button (when non-null) into the header's
   collapsible cluster next to the Perf button (responsive-header.md), and
   rewires `bridge.importSongBytes = songPanel.importBytes`.
 - `src/types/pwa.d.ts` declares the not-yet-in-lib.dom surfaces:

@@ -237,7 +237,7 @@ describe('A deferred help surface that cannot load (onboarding.md REQ-the-help-d
 
 /**
  * The behavioural cases above reach the four triggers a jsdom test can build
- * cheaply. The other three live inside `app.ts` / `song-panel.ts` /
+ * cheaply. The other three live inside `shell/header.ts` / `song-panel.ts` /
  * `sampler-panel.ts` as private functions behind a whole panel's dependency
  * graph, and — more to the point — no behavioural test can pin the *set*: the
  * regression this spec exists to prevent is someone adding an eighth deferred
@@ -287,7 +287,7 @@ describe('Every deferred-surface trigger is guarded (lazy-load-failure.md REQ-ev
     const TRIGGERS = [
       'src/ui/components/about-button.ts',
       'src/ui/onboarding/index.ts',
-      'src/ui/app.ts',
+      'src/ui/shell/header.ts',
       'src/ui/panels/song-panel.ts',
       'src/ui/panels/sampler-panel.ts',
       'src/ui/components/sync-section.ts',

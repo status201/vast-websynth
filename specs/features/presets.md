@@ -32,9 +32,9 @@ source:
   - src/state/serialize.ts               # roundParams (export precision)
   - src/state/preset-session.ts          # v7: isPatchParam/patchSnapshot + the song-sound slot
   - src/audio/engine.ts                  # main.ts seeds on boot
-  - src/ui/app.ts                        # preset-select dropdown + the manager button
+  - src/ui/shell/header.ts               # preset-select dropdown + the manager button
   - src/ui/panels/song-panel.ts          # v7: applySong pins the song's sound
-  - src/ui/components/preset-manager-modal.ts   # v4: save / export / import
+  - src/ui/components/preset-manager-modal.ts # v4: save / export / import
 ```
 
 Save/recall of a **sound** (the scalar param snapshot only) — distinct from a
@@ -352,7 +352,7 @@ step and the writer handle one shape (REQ-preset-import-is-a-two-step-wizard) ra
 ### Layer touchpoints & ordering
 
 ```yaml
-app.ts:        presetOptions()  = songSound ? [song.name, ...list() minus that name]
+header.ts:     presetOptions()  = songSound ? [song.name, ...list() minus that name]
                                             : Presets.list()          # REQ-a-songs-sound-is-a-selectable-entry
                refreshPresetOptions() = setOptions(presetOptions(), {dividerAfter})
                                         THEN setValue(session.display) # REQ-rebuilding-options-never-relabels

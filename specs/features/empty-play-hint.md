@@ -13,7 +13,7 @@ related:
 source:
   - src/audio/transport/anything-to-play.ts   # the pure "would it sound?" rule
   - src/ui/components/empty-play-modal.ts     # the modal + persisted opt-out
-  - src/ui/app.ts                             # buildHeader — Play-click intercept
+  - src/ui/shell/play-button.ts               # createPlayButton — Play-click intercept
   - src/ui/styles/empty-play-modal.module.css
 ```
 
@@ -95,7 +95,7 @@ testids: empty-play-modal, empty-play-demo, empty-play-close, empty-play-dismiss
 ### Layer touchpoints & ordering
 
 ```yaml
-buildHeader (app.ts): playBtn onClick gates start on
+createPlayButton (shell/play-button.ts): playBtn onClick gates start on
   !dismissed && sync.activeMode === 'off' && !anythingToPlay(...)
   onPlayDemo -> await loadDemo(random demoNames() entry) -> playBtn.click()
     (re-entry passes; the await is load-bearing — see REQ-hint-demo-action-awaits-the-load)

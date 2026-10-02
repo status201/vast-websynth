@@ -19,7 +19,7 @@ source:
   - src/ui/components/lazy-load-toast.ts   # the helper — the whole contract
   - src/ui/components/about-button.ts      # trigger: Help & About
   - src/ui/onboarding/index.ts             # triggers: the tour, the info badges
-  - src/ui/app.ts                          # trigger: the preset manager
+  - src/ui/shell/header.ts                 # trigger: the preset manager
   - src/ui/panels/song-panel.ts            # trigger: the audio-export dialog
   - src/ui/panels/sampler-panel.ts         # trigger: the sound recorder
   - src/ui/components/sync-section.ts      # trigger: WiFi pairing

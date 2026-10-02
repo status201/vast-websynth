@@ -11,9 +11,9 @@ related:
   - song-mode
 source:
   - src/state/params.ts                 # baselines map + reset/resetValue/setBaselines
-  - src/ui/components/knob.ts            # double-tap → bus.reset
+  - src/ui/components/knob.ts           # double-tap → bus.reset
   - src/ui/panels/drum-panel.ts         # per-track Reset button → bus.reset
-  - src/ui/app.ts                       # Save preset → bus.setBaselines
+  - src/ui/components/preset-manager-modal.ts # Save preset → bus.setBaselines
   - src/ui/panels/song-panel.ts         # Save song → bus.setBaselines
 ```
 

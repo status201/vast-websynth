@@ -179,7 +179,7 @@ clauses noted inline. The `SyncMessage` union grows two variants (`tempo`,
 - **REQ-the-bpm-knob-shows-slaved** — **BPM-knob slaved indicator.**
   `Knob.setDisabled(on)` toggles a `disabled` style class + `aria-disabled` and
   early-returns in `onPointerDown` (blocks drag **and** double-tap reset).
-  `app.ts` captures the BPM knob and subscribes `engine.sync.onStatus` →
+  `shell/header.ts` captures the BPM knob and subscribes `engine.sync.onStatus` →
   `setDisabled(activeMode === 'slave')` (v4 — the *running* role, not the
   selection; REQ-selected-mode-versus-active-role) with a tooltip "Tempo follows
   the sync master while slaved".

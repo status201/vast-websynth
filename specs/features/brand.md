@@ -41,7 +41,7 @@ not a feature — it owns markup and styling only, and has no state.
   `G1-J8`) and a `.brandTagline` (`Vast Audio Synthesis Technology`). Every
   consumer renders **identical** markup and typography; there is no size or
   content variant.
-- **REQ-name-surfaces-call-create-brand** — Consumers: the header (`ui/app.ts`
+- **REQ-name-surfaces-call-create-brand** — Consumers: the header (`ui/shell/header.ts`
   `buildHeader`), the About modal (`ui/components/about-modal.ts`, whose
   `buildModal` calls `createBrand()`), and the start modal (`main.ts`
   `showStartModal`). A new surface that shows the name calls this rather than

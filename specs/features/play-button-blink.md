@@ -10,7 +10,7 @@ related:
   - song-mode
   - onboarding
 source:
-  - src/ui/app.ts                       # buildHeader — blink state machine
+  - src/ui/shell/play-button.ts         # createPlayButton — blink state machine
   - src/ui/ui-bridge.ts                 # cuePlay hook
   - src/ui/panels/song-panel.ts         # demo loads fire the cue
   - src/ui/styles/header.module.css     # attract / cue keyframes
@@ -88,7 +88,7 @@ state classes on the play button (global, like `.on`/`.blink`):
 ### Layer touchpoints & ordering
 
 ```yaml
-buildHeader (app.ts): owns the cueArmed flag + refreshIdleBlink(); subscribes
+createPlayButton (shell/play-button.ts): owns the cueArmed flag + refreshIdleBlink(); subscribes
   clock.onStart (clear + consume cue) / onStop (back to attract); assigns
   bridge.cuePlay AND subscribes bus 'seq.on'/'drum.on'/'sampler.on' (value on
   -> cuePlay). Runs before buildPatternRow, so the hook is live before any

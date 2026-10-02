@@ -207,7 +207,7 @@ src/ui/panels/song-panel.ts:
   Song New        -> confirmDialog({ danger:true })  (was confirm('Clear all banks and chains?'))
   Import errors   -> alertDialog + copyable (v5; the full list, not the shown 8)
   import/demo/clip failures -> alertDialog + copyable   # failure-report.md REQ-every-failure-surface-emits-one
-src/ui/app.ts:            Preset Save  -> promptDialog   (was prompt('Preset name:'))
+src/ui/shell/header.ts: Preset Save  -> promptDialog   (was prompt('Preset name:'))
 src/ui/panels/sampler-panel.ts: decode error -> alertDialog + copyable (was alert('Unsupported…'))
 src/main.ts:              boot-failure alert() stays NATIVE (app graph never
                           initialised — must not depend on healthy app DOM/CSS)
