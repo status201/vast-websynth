@@ -1,5 +1,5 @@
 // @vitest-environment jsdom
-import { describe, it, expect } from 'vitest';
+import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 import { Wah } from '../../src/audio/effects/wah';
 import { Phaser } from '../../src/audio/effects/phaser';
 import { Delay } from '../../src/audio/effects/delay';
@@ -32,6 +32,13 @@ function targeted(p: MockAudioParam): number | undefined {
   const calls = p.setTargetAtTime.mock.calls;
   return calls.length === 0 ? undefined : (calls[calls.length - 1]![0] as number);
 }
+
+// An effect boots bypassed, so its constructor arms a real 300 ms disconnect
+// timer whose callback calls `window.setTimeout` — on the real clock it can fire
+// after this file's jsdom environment is torn down (`window is not defined`, an
+// unhandled error that fails the run). Fake timers keep it inside the test.
+beforeEach(() => { vi.useFakeTimers(); });
+afterEach(() => { vi.clearAllTimers(); vi.useRealTimers(); });
 
 describe('FX tempo lock', () => {
   describe('a rate effect (freq)', () => {

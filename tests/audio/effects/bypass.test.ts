@@ -9,6 +9,13 @@ import { Phaser } from '../../../src/audio/effects/phaser';
 import { Distortion } from '../../../src/audio/effects/distortion';
 import { makeMockAudioContext, installMockAudioWorkletNode, MockAudioWorkletNode } from '../mock-audio-context';
 
+// An effect boots bypassed, so its constructor arms a real 300 ms disconnect
+// timer whose callback calls `window.setTimeout` — on the real clock it can fire
+// after this file's jsdom environment is torn down (`window is not defined`, an
+// unhandled error that fails the run). Fake timers keep it inside the test.
+beforeEach(() => { vi.useFakeTimers(); });
+afterEach(() => { vi.clearAllTimers(); vi.useRealTimers(); });
+
 /**
  * True bypass (ADR-012, effects.md REQ-bypass-and-mix-are-a-crossfade/REQ-a-bypassed-effect-drains-before-disconnect): a bypassed wrapper disconnects
  * its own two edges so the processed DSP stops being rendered; un-bypassing

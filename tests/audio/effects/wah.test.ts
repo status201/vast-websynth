@@ -1,7 +1,14 @@
 // @vitest-environment jsdom
-import { describe, it, expect } from 'vitest';
+import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 import { Wah, makeupFor } from '../../../src/audio/effects/wah';
 import { makeMockAudioContext, type MockAudioContext } from '../mock-audio-context';
+
+// An effect boots bypassed, so its constructor arms a real 300 ms disconnect
+// timer whose callback calls `window.setTimeout` — on the real clock it can fire
+// after this file's jsdom environment is torn down (`window is not defined`, an
+// unhandled error that fails the run). Fake timers keep it inside the test.
+beforeEach(() => { vi.useFakeTimers(); });
+afterEach(() => { vi.clearAllTimers(); vi.useRealTimers(); });
 
 /**
  * effects.md REQ-the-wah-lfo-sweeps-in-cents (v9): the wah sweeps its bandpass in **cents**, not Hz.
