@@ -2,7 +2,7 @@
    header, the About modal and the start modal.
 
    Deliberately no outer framing: the header's divider rule to the right of the
-   block lives in layout.module.css `.headerBrand` and is composed on at that
+   block lives in header.module.css `.headerBrand` and is composed on at that
    call site (REQ-brand-block-carries-no-framing). A border-right here would draw a stray vertical line down
    the inside of a modal card. Alignment is the container's business too (REQ-brand-alignment-belongs-to-the-container)
    — `.start-card` centres it, the header and About card do not. */

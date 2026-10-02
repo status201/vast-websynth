@@ -83,7 +83,7 @@ fxGroup(bus, title, onPrefix, knobs, opts?): HTMLElement   # src/ui/components/f
 collapse mechanism:
   bus.subscribe(`${onPrefix}.on`, v => root.classList.toggle('collapsed', v < 0.5))
   css: .root:global(.collapsed) .knobs { display: none; }   # fx-group.module.css
-        (same pattern as the synth rack's .fxSection collapse in layout.module.css)
+        (same pattern as the synth rack's .fxSection collapse in fx-rack.module.css)
 ```
 
 `.collapsed` is one of the repo's global state classes (like `.on`/`.active`),

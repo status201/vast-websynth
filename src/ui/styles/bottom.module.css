@@ -1,0 +1,158 @@
+/* The bottom column: pitch/mod wheels beside the scope, the EQUALIZER section,
+   and the keyboard (scope.md, equalizer.md, keyboard-range.md). */
+
+@layer shell {
+  /* ===== Bottom section ===== */
+
+  /* A flex column of three: the scope row, the EQUALIZER section, the keyboard.
+     Flex, not grid (keyboard-range.md REQ-spare-height-goes-to-the-scope): a
+     capped `minmax(min, max)` track grows to its max whenever the grid's height
+     comes from its content — `.app`'s does — so the page scrolled to fit a maxed
+     keyboard. Flex items size from basis 0 and their floors, so this column asks
+     only for its minimums and fills whatever the viewport adds on top.
+
+     - Scope row (wheels | scope): at least --scope-h, which the drag handle on the
+       scope's top edge writes inline (130–260px; the default stays here in CSS,
+       so no stored value renders as it always did — scope.md
+       REQ-a-scope-resize-handle). A minimum, not a height: it also takes the
+       spare the keyboard cannot use.
+     - EQUALIZER: its content's height — folded, just its tab bar
+       (equalizer.md REQ-the-eq-is-a-third-bottom-row).
+     - Keyboard: first claim on spare height (flex-grow 1000 to the scope's 1),
+       up to its cap. A growing scope OR an unfolded EQ eats the keyboard's slack,
+       stops at its floor, and only then does the page scroll. */
+  .bottom {
+    /* The left gutter both rows share: the PITCH/OCT/MOD wheels, and the
+       EQUALIZER section's control column, which must be EXACTLY as wide so the
+       graph lines up with the scope (equalizer.md REQ-the-eq-page-mirrors-the-scope-row). Named here rather than
+       written twice — two literals would be equal only by coincidence. */
+    --wheel-col: 120px;
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    margin: 0 var(--side-margin);
+    min-height: 0;
+  }
+
+  .bottomTop {
+    display: grid;
+    grid-template-columns: var(--wheel-col) 1fr;
+    gap: 10px;
+    flex: 1 1 0;
+    min-height: var(--scope-h, 130px);
+  }
+
+  .wheels {
+    display: flex;
+    align-items: stretch;
+    gap: 8px;
+    padding: 8px 8px 22px;
+    background: var(--panel);
+    border: 1px solid var(--panel-border);
+    border-radius: 6px;
+    box-shadow: var(--panel-shadow);
+  }
+
+  .scopeWrap {
+    background: var(--panel);
+    border: 1px solid var(--panel-border);
+    border-radius: 6px;
+    box-shadow: var(--panel-shadow);
+    padding: 8px;
+    position: relative;
+    min-height: 0;
+    display: flex;
+  }
+
+  /* Static CRT "screen" behind the transparent scope canvas: the radial gradient +
+     inset vignette painted once into their own layer, so the 60fps canvas redraw
+     never re-rasters them. Covers exactly the canvas box (the 8px padding inset). */
+  .scopeScreen {
+    position: absolute;
+    inset: 8px;
+    border-radius: 3px;
+    background: radial-gradient(ellipse at center, #0a0604 0%, #050302 100%);
+    box-shadow:
+      inset 0 0 20px rgba(0, 0, 0, 0.8),
+      inset 0 0 0 1px rgba(244, 205, 94, 0.05);
+    pointer-events: none;
+    z-index: 0;
+  }
+
+  .scopeToggle {
+    position: absolute;
+    top: 8px;
+    right: 8px;
+    z-index: 1;
+    min-height: 28px !important;
+    padding: 4px 10px !important;
+    font-size: 10px !important;
+  }
+
+  .scopeChannelsToggle {
+    position: absolute;
+    top: 8px;
+    left: 8px;
+    z-index: 1;
+    min-height: 28px !important;
+    padding: 4px 10px !important;
+    font-size: 10px !important;
+  }
+
+  /* Problem-band overlay toggle — bottom-right, the only corner with no chrome in
+     either stereo layout (the L/R labels sit bottom-LEFT). The spectrum reserves no
+     width for it: on a narrow panel the button covers the 10k tick label, which is
+     cheaper than costing every panel a dead strip. See specs/features/scope.md REQ-a-zones-toggle.
+     `!important` for the same reason .scopeToggle needs it: this class and
+     switch.module.css's .root are both single-class selectors on the same element,
+     so bundle order — not intent — would otherwise decide. */
+  .scopeZonesToggle {
+    position: absolute;
+    bottom: 8px;
+    right: 8px;
+    z-index: 1;
+    min-height: 28px !important;
+    padding: 4px 10px !important;
+    font-size: 10px !important;
+  }
+
+  /* Resize grip, top-centre — the only edge of this panel free of chrome, since
+     the two toggles above take the corners. It has to thread between them, so the
+     width shrinks with the panel instead of overlapping a button: 140px is the two
+     buttons plus their 8px insets plus clearance. Below ~350px viewport there is no
+     room left to thread, and the grip is dropped rather than shown unhittable —
+     the stored height still applies. See specs/features/scope.md REQ-a-scope-resize-handle. */
+  .scopeResize {
+    position: absolute;
+    top: 0;
+    left: 50%;
+    transform: translateX(-50%);
+    width: min(64px, calc(100% - 140px));
+    height: 16px;
+    z-index: 2;
+  }
+
+  @media (max-width: 350px) {
+    /* !important for the same reason .scopeToggle needs it above: this class and
+       resize-handle.module.css's .root are both single-class selectors on the same
+       element, so bundle order — not intent — would otherwise decide. */
+    .scopeResize { display: none !important; }
+  }
+
+  /* A white key stays between 1.6x and 4.5x as tall as it is wide, over a 160px
+     floor that wins wherever keys are narrow (keyboard-range.md
+     REQ-key-height-follows-key-width). --kb-key-w is the white-key width, written
+     by app.ts's keyboard ResizeObserver; unset before the first observation, the
+     min falls back to the floor and the max to no cap. The 30px is this wrap's
+     chrome around the keys: padding 2x8 + border 2x1 + the keyboard's padding 2x6. */
+  .keyboardWrap {
+    background: var(--panel);
+    border: 1px solid var(--panel-border);
+    border-radius: 6px;
+    box-shadow: var(--panel-shadow);
+    padding: 8px;
+    flex: 1000 1 0;
+    min-height: max(160px, calc(var(--kb-key-w, 0px) * 1.6 + 30px));
+    max-height: max(160px, calc(var(--kb-key-w, 100vh) * 4.5 + 30px));
+  }
+}

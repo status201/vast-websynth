@@ -235,7 +235,7 @@ audio:
 ui:
   src/ui/app.ts                  # sixth fxPanel, last
   src/ui/panels/sampler-panel.ts # fifth fxGroup, last
-  src/ui/styles/layout.module.css  # .fxRow repeat(5) -> repeat(6); the panel
+  src/ui/styles/fx-rack.module.css  # .fxRow repeat(5) -> repeat(6); the panel
                                    # sizing that needed is responsive-synth-panels REQ-fx-panels-fit-their-knob-run
   src/ui/onboarding/{help-content,info-badges}.ts  # the fx.duck topic
 ```

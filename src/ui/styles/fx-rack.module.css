@@ -1,0 +1,123 @@
+/* The insert-effect rack under the synth panels (effects.md; its odd-count
+   filler is fx-patch-decoration.md). */
+
+@layer shell {
+  /* ===== FX section ===== */
+
+  .fxSection {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    min-width: 0;
+    /* The token every other row uses, not the 22px it is at desktop widths: a
+       literal kept FX 14px further in than MACHINES and EQUALIZER once the token
+       drops to 8px at <=992px, so the three headings' icons stopped lining up
+       (section-title.md REQ-heading-icons-share-one-x). */
+    margin: 0 var(--side-margin);
+  }
+
+  .fxSectionBar {
+    display: flex;
+    align-items: center;
+    /* Exactly the tab bar's padding (tabs.module.css .bar), so the section title's
+       icon lands on the same x as the MACHINES and EQUALIZER ones and the title's
+       own vertical padding sets a matching height (section-title.md REQ-heading-icons-share-one-x). */
+    padding: 0 10px 0 6px;
+    background: linear-gradient(180deg, #0a0604 0%, #16100b 100%);
+    border: 1px solid var(--panel-border);
+    border-radius: 6px;
+    box-shadow: var(--panel-shadow);
+    cursor: pointer;
+  }
+
+  .fxSection:global(.collapsed) .fxRow { display: none; }
+
+  /* Six equal columns. Equal is the wrong shape once a panel holds four knobs —
+     see the min-width:1360px step below, which sizes panels to their knobs where
+     there is room to. This stays the narrow fallback, where nothing fits anyway
+     and shrinking evenly beats overflowing. */
+  .fxRow {
+    display: grid;
+    grid-template-columns: repeat(6, minmax(0, 1fr));
+    gap: 10px;
+  }
+
+  .fxPanel {
+    background: var(--panel);
+    border: 1px solid var(--panel-border);
+    border-radius: 6px;
+    box-shadow: var(--panel-shadow);
+    padding: 8px 10px 10px;
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    min-width: 0;
+  }
+
+  .fxHeader {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px;
+    border-bottom: 1px dashed rgba(244, 205, 94, 0.18);
+    padding-bottom: 4px;
+  }
+
+  .fxTitle {
+    font-size: 11px;
+    text-transform: uppercase;
+    letter-spacing: 0.18em;
+    color: var(--accent-secondary);
+    font-weight: 700;
+    text-shadow: 0 1px 0 rgba(0, 0, 0, 0.7);
+  }
+
+  .fxKnobs {
+    display: flex;
+    align-items: center;
+    justify-content: space-around;
+    gap: 4px;
+    flex-wrap: wrap;
+  }
+
+  /* No FX panel is ever narrower than its own knob run — responsive-synth-panels
+     REQ-the-scope-drop-shadow-is-dropped. The panels do not hold equal amounts: a four-knob panel (Phaser, Duck)
+     spends 4x52 + 3x4 = 220px on its knob run against a three-knob panel's 164px,
+     so one equal column width cannot serve them all. It served none when the rack
+     went from five panels to six: at 1440px each column fell to 220px against the
+     242px a four-knob panel needs, both wrapped a knob onto a second row, and the
+     rack grew 177px -> 255px. That 78px is not free. The faceplate is a
+     fixed-height grid that does not scroll, and it pushed the sequencer's
+     step-settings row past the fold.
+
+     `minmax(min-content, 1fr)` is an equal share with a floor: 1fr hands every
+     panel the same width, and min-content lifts a four-knob panel off it when
+     that share drops below its 242px. So above ~1546px, where the share clears
+     242px unaided, the rack is equal-width exactly as before; only the tight band
+     is treated specially (at 1440px: 242px against 210px).
+
+     `.fxKnobs` must stop wrapping for the floor to mean anything: a wrapping
+     row's min-content is ONE knob, so the track would ask for 52px and we would
+     be back to equal columns. Nowrap is safe here and only here — the track is
+     guaranteed >= the run, and the run is font-independent (fixed knob boxes), so
+     there is nothing left to wrap for.
+
+     The 1360px step is where the six panels' minimums (2x242 + 4x186 + 5x10 gaps
+     + 44px of side margin = ~1350px) first fit. Below it the rule would spill
+     past the rack's right edge and be clipped silently, so the equal-column
+     fallback takes over and wraps knobs instead — which is what this rack did
+     below ~1294px before the sixth panel existed. */
+  @media (min-width: 1360px) {
+    .fxRow { grid-template-columns: repeat(6, minmax(min-content, 1fr)); }
+    .fxPanel { min-width: auto; }
+    .fxKnobs { flex-wrap: nowrap; }
+  }
+
+  @media (max-width: 992px) {
+    /* An odd effect count in two columns leaves the last cell empty; the
+       patch-cable decoration fills it. Six effects divide evenly, so it is
+       currently absent. fx-patch-decoration.module.css mirrors this breakpoint
+       (it is display:none above it) — keep the two in sync. */
+    .fxRow { grid-template-columns: repeat(2, 1fr); }
+  }
+}

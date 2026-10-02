@@ -16,7 +16,7 @@ related:
   - brand              # the header's brand cluster is that shared block
 source:
   - src/ui/app.ts                      # buildHeader: hamburger toggle + preset cluster
-  - src/ui/styles/layout.module.css    # .menuToggle / .presetGroup / .menuOpen rules
+  - src/ui/styles/header.module.css    # .menuToggle / .presetGroup / .menuOpen rules
   - src/ui/styles/dropdown.module.css  # .label ellipsis truncation
   - src/ui/components/header-icons.ts  # inline-SVG glyphs for the utility buttons
   - src/ui/components/button.ts        # createButton icon/title/ariaLabel options
@@ -172,7 +172,7 @@ addition to the shared `headerGroup` class.
 
 - `src/ui/app.ts` — adds the toggle + `presetGroup` class; all other header
   construction unchanged.
-- `src/ui/styles/layout.module.css` — `.menuToggle { display: none }` and
+- `src/ui/styles/header.module.css` — `.menuToggle { display: none }` and
   `.headerBreak { display: none }` by default; an `@media (max-width: 720px)`
   block (placed **after** the existing `≤992px` block so it wins at narrow
   widths) shows the toggle, hides `.presetGroup`, reveals it via

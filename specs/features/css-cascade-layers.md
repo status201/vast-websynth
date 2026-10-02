@@ -110,10 +110,12 @@ controls:    leaf controls other modules decorate — switch, segmented, tabs,
 components:  widgets and dialogs built from controls — modal, dialog, toast,
              bank-bar, step-settings, scope, keyboard, xy-pad, tour, the export /
              preset / record dialogs, …
-chrome:      the shared panel chrome every machine panel wears
+chrome:      panel.module.css — the panel box, tabbed-panel strip, knob-row grids and
+             machine header row every panel wears
 panels:      the synth and machine panels — arp, key, seq, drum, sampler,
              motion, song-panel, eq, mod
-shell:       the app shell — header, FX rack, pattern row, bottom section
+shell:       the app shell, one module per region — header, synth-panels (the
+             8-panel grid), fx-rack, pattern-row, bottom
 ```
 
 **Picking a layer for a new module** (REQ-a-composer-outranks-what-it-composes):

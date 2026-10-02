@@ -1,0 +1,198 @@
+/* The app header — brand, preset cluster, transport, voicing — and its reflow
+   (responsive-header.md) and the Play button's LED (play-button-blink.md). */
+
+@layer shell {
+  /* ===== Header ===== */
+
+  .header {
+    display: flex;
+    align-items: center;
+    gap: 14px;
+    padding: 0 16px;
+    margin: 0 var(--side-margin);
+    background: var(--panel);
+    border: 1px solid var(--panel-border);
+    border-radius: 6px;
+    box-shadow: var(--panel-shadow);
+    position: sticky;
+    top: 0;
+    z-index: 10;
+  }
+
+  /* Header-only framing for the shared brand block (components/brand.ts). The
+     block itself is styled by brand.module.css and carries no outer framing, so
+     this divider rule can't leak into the About or start modal — brand.md REQ-brand-block-carries-no-framing. */
+  .headerBrand {
+    padding-right: 8px;
+    border-right: 1px solid rgba(244, 205, 94, 0.18);
+    margin-right: 4px;
+  }
+
+  .headerSpacer { flex: 1; }
+
+  .headerGroup {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    font-size: 11px;
+    text-transform: uppercase;
+    letter-spacing: 0.1em;
+    color: var(--text-dim);
+  }
+
+  .transportGroup .playBtn {
+    min-width: 64px;
+    justify-content: center;
+  }
+
+  /* Mobile preset-cluster toggle (hamburger). Hidden until the phone breakpoint. */
+  .menuToggle { display: none; }
+
+  /* Flex line break before the transport cluster. Inert until the phone
+     breakpoint, where it pushes Play/BPM/Swing below the brand/☰ row. */
+  .headerBreak { display: none; }
+
+  /* Inner preset-cluster spacer (headerSpacer precedent). Inert until the
+     ≤1140px wrap step, where it splits the cluster: dropdown + Save left,
+     utility icon buttons far right. */
+  .presetSpacer { display: none; }
+
+  .playBtn:global(.on) :global(.switch-label) {
+    color: var(--accent-secondary);
+  }
+
+  .playBtn:global(.blink) :global(.switch-led) {
+    opacity: 0.15;
+    box-shadow: none;
+  }
+
+  /* Idle blinks (specs/features/play-button-blink.md): the transport is easy to
+     miss, so while stopped the LED pulses orange slowly; a freshly loaded demo
+     escalates to a fast green "press play" cue. Playing keeps the red beat
+     blink above.
+
+     Both pulse a lit `::after` overlay's OPACITY rather than animating the LED's
+     own background/box-shadow. These are the only infinite animations in the app
+     — the attract pulse runs the whole time the transport is stopped — and
+     background/box-shadow are paint-bound, so the old keyframes repainted the LED
+     every frame, forever. Opacity on a composited layer costs nothing per frame
+     and the LED looks identical. */
+  .playBtn :global(.switch-led) { position: relative; }
+
+  .playBtn:global(.attract) :global(.switch-led)::after,
+  .playBtn:global(.cue) :global(.switch-led)::after {
+    content: '';
+    position: absolute;
+    inset: 0;
+    border-radius: 50%;
+    opacity: 0;
+    /* The base `.led` keeps the outer 1px ring underneath; this is the lit face. */
+    box-shadow: 0 0 8px rgba(232, 116, 46, 0.85), inset 0 1px 1px rgba(255, 255, 255, 0.4);
+    background: #e8742e;
+    will-change: opacity;
+  }
+
+  .playBtn:global(.attract) :global(.switch-led)::after {
+    animation: ledPulse 2s ease-in-out infinite;
+  }
+
+  .playBtn:global(.cue) :global(.switch-led)::after {
+    background: #4ade50;
+    box-shadow: 0 0 8px rgba(74, 222, 80, 0.9), inset 0 1px 1px rgba(255, 255, 255, 0.4);
+    animation: ledFlash 0.4s linear infinite;
+  }
+
+  @keyframes ledPulse {
+    0%, 100% { opacity: 0; }
+    50% { opacity: 1; }
+  }
+
+  @keyframes ledFlash {
+    0%, 49% { opacity: 1; }
+    50%, 100% { opacity: 0; }
+  }
+
+  /* Reduced motion: hold the lit face rather than dropping the signal entirely —
+     the point of both states is "the transport is over here". */
+  @media (prefers-reduced-motion: reduce) {
+    .playBtn:global(.attract) :global(.switch-led)::after,
+    .playBtn:global(.cue) :global(.switch-led)::after {
+      animation: none;
+      opacity: 1;
+    }
+  }
+
+  /* The header's four clusters have a min-content width of ~1140px — wider than
+     the viewport well before the 992px reflow. Without this step the header can
+     neither shrink nor wrap in the 993–1140px range, so it (and the .app grid
+     column it widens) overflows right and is clipped by the page's
+     overflow-x:hidden. Let it wrap onto a second row instead. */
+  @media (max-width: 1140px) {
+    .header { flex-wrap: wrap; }
+    .headerSpacer { display: none; }
+    .headerGroup { flex-wrap: wrap; }
+    /* The dropdown is self-explanatory; drop the label to save header width. */
+    .presetLabel { display: none; }
+    /* Deterministic two-row layout: the break forces the transport cluster to
+       lead the second row (far left); the voicing cluster right-aligns on it. */
+    .headerBreak {
+      display: block;
+      flex-basis: 100%;
+      height: 0;
+    }
+    .voicingGroup { margin-left: auto; }
+    /* Preset-cluster split: the cluster fills the rest of row 1 and its inner
+       spacer pushes the utility icon buttons to the far right; dropdown + Save
+       stay left. (The menu-open flex-basis:100% row outranks the basis below
+       720px, so the expanded row keeps its full width.) */
+    .presetGroup { flex: 1; }
+    .presetSpacer {
+      display: block;
+      flex: 1;
+    }
+  }
+
+  @media (max-width: 992px) {
+    .header {
+      gap: 8px 10px;
+      padding: 8px 10px;
+      min-height: 0;
+    }
+    .headerGroup { gap: 8px 10px; }
+  }
+
+  @media (max-width: 720px) {
+    /* Collapse the preset cluster behind the hamburger so the sticky header stays
+       compact; it expands inline as its own row only while the menu is open. */
+    .menuToggle {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      margin-left: auto; /* park the hamburger at the top-right of the brand row */
+      font-size: 16px;
+      line-height: 1;
+    }
+    .presetGroup { display: none; }
+    .header.menuOpen .presetGroup {
+      display: flex;
+      flex-basis: 100%; /* reveal as its own full-width row below the brand */
+    }
+    /* Cap the preset dropdown on phones: the 120px min-width becomes a 90px
+       max-width; the label ellipsizes (dropdown.module.css .label). */
+    .presetGroup :global(.dropdown) > button {
+      min-width: 0;
+      max-width: 90px;
+    }
+    /* Active (open) state — the gold "on" look shared by the Play button + the
+       segmented controls, so the hamburger reads as toggled on. The descendant
+       compound outranks switch.module's base `.root`. */
+    .header.menuOpen .menuToggle {
+      background: linear-gradient(180deg, #4a3525, #2a1c10);
+      border-color: rgba(244, 205, 94, 0.5);
+      color: var(--accent-secondary);
+      box-shadow:
+        0 0 8px var(--accent-secondary-glow),
+        inset 0 1px 0 rgba(244, 205, 94, 0.15);
+    }
+  }
+}

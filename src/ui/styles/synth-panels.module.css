@@ -1,0 +1,25 @@
+/* The grid the eight synth panels sit in, 8 → 4 → 2 columns
+   (responsive-synth-panels.md). The knob rows inside a panel are panel chrome
+   (panel.module.css). */
+
+@layer shell {
+  /* ===== Main panel grid ===== */
+
+  .main {
+    display: grid;
+    grid-template-columns: repeat(8, minmax(0, 1fr));
+    gap: 10px;
+    margin: 0 var(--side-margin);
+  }
+
+  @media (max-width: 1280px) {
+    .main { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+  }
+
+  @media (max-width: 992px) {
+    .main {
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 8px;
+    }
+  }
+}

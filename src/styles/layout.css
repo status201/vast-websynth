@@ -62,7 +62,7 @@
     }
   }
 
-  /* The header wraps onto extra rows from 1140px down (layout.module.css), so
+  /* The header wraps onto extra rows from 1140px down (header.module.css), so
      its fixed 80px track must size to content or the wrapped row paints over
      the panels below. */
   @media (max-width: 1140px) {

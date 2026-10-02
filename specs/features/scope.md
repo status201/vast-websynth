@@ -51,7 +51,7 @@ source:
   - src/audio/engine.ts
   - src/ui/studio-api.ts
   - src/ui/app.ts
-  - src/ui/styles/layout.module.css
+  - src/ui/styles/bottom.module.css
   - src/ui/onboarding/help-content.ts
 ```
 
@@ -427,7 +427,7 @@ Two consequences worth naming up front, because they are visible:
   structural dodge, with no `stopPropagation`. `Scope` itself is **not modified**: the
   height change reaches it through its existing `ResizeObserver` (REQ-no-per-frame-layout-read).
   The handle's **appearance and interaction** come from its own CSS module; its
-  **position and size** come from a consumer class in `layout.module.css`
+  **position and size** come from a consumer class in `bottom.module.css`
   (`.scopeResize`), the same split `.scopeToggle` already makes against
   `switch.module.css` — only the consumer knows what the handle must sit clear of.
   That width shrinks to fit and drops out below 350 px; see the Gesture inventory.
@@ -1010,7 +1010,7 @@ DOUBLE_TAP_MS: 350     # ms window for the hand-rolled double-tap
   (perf-mode), and adds the
   `scope-channels-toggle` button beside the existing `scope-toggle`.
 - **`help-content.ts`** `scope` topic text mentions the Mono/Stereo split and the
-  peak-hold (click to reset). CSS for the new button lives in `layout.module.css`
+  peak-hold (click to reset). CSS for the new button lives in `bottom.module.css`
   (style-exempt from SDD).
 - **Sizing / redraw cost (REQ-no-per-frame-layout-read)** — the constructor creates a `ResizeObserver` on
   the canvas that, on resize, reads `clientWidth`/`clientHeight` + `devicePixelRatio`
@@ -1057,7 +1057,7 @@ DOUBLE_TAP_MS: 350     # ms window for the hand-rolled double-tap
   from the audio layer is `analyser.context.sampleRate`, read defensively
   (`?? 48000`) because the unit suites' analyser stubs carry no `context`.
 - **`ResizeHandle` + `buildBottom`** own the resize (v11), and **nothing else does**.
-  `layout.module.css` changes one declaration — `.bottom`'s first grid track becomes
+  `bottom.module.css` changes one declaration — `.bottom`'s first grid track becomes
   `var(--scope-h, 130px)` (since v18 the scope row's `min-height`; `.bottom` is a
   flex column). `buildBottom` reads `readScopeHeight()`, sets `--scope-h`
   on the `.bottom` element *before* it is mounted (REQ-the-scope-height-persists: no first-paint jump), and

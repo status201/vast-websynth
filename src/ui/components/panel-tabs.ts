@@ -1,5 +1,5 @@
 import { ListenerSet } from '../../utils/listeners';
-import layout from '../styles/layout.module.css';
+import panelStyles from '../styles/panel.module.css';
 
 /** One page of a tabbed panel. `id` is the testid suffix, not a param. */
 export interface PanelTabPage {
@@ -37,7 +37,7 @@ export interface PanelTabs {
  * one panel's body (panel-tabs.md).
  *
  * Not `TabContainer`: that one's `el` is a `.root` carrying its own background,
- * border and shadow — a whole panel — so nesting it inside a `layout.panel`
+ * border and shadow — a whole panel — so nesting it inside a `panelStyles.panel`
  * would double-frame it, and its tab metrics (`padding: 8px 18px`) overflow an
  * 8-column faceplate cell. What was missing was a **decomposed** strip, which is
  * why this returns `bar` and `body` separately for the caller to place.
@@ -59,10 +59,10 @@ export function createPanelTabs(opts: PanelTabsOptions): PanelTabs {
   let active = '';
 
   const bar = document.createElement('div');
-  bar.className = layout.panelTabs!;
+  bar.className = panelStyles.panelTabs!;
 
   const body = document.createElement('div');
-  body.className = layout.panelPages!;
+  body.className = panelStyles.panelPages!;
 
   const activate = (id: string): void => {
     if (active === id || !shells.has(id)) return;
@@ -77,14 +77,14 @@ export function createPanelTabs(opts: PanelTabsOptions): PanelTabs {
   for (const page of opts.pages) {
     const b = document.createElement('button');
     b.type = 'button';
-    b.className = layout.panelTab!;
+    b.className = panelStyles.panelTab!;
     b.dataset.testid = `ptab-${opts.prefix}-${page.id}`;
     b.title = `Show the ${page.label} page`;
     // The lamp is a separate span so setLit can repaint it without textContent
     // wiping the label — the same reason TabContainer splits its LED out. It is
     // positioned out of flow, so it cannot pull the label off centre.
     const lamp = document.createElement('span');
-    lamp.className = layout.panelTabLamp!;
+    lamp.className = panelStyles.panelTabLamp!;
     const text = document.createElement('span');
     text.textContent = page.label;
     b.append(lamp, text);
@@ -93,7 +93,7 @@ export function createPanelTabs(opts: PanelTabsOptions): PanelTabs {
     buttons.set(page.id, b);
 
     const shell = document.createElement('div');
-    shell.className = layout.panelPage!;
+    shell.className = panelStyles.panelPage!;
     shell.dataset.testid = `ppage-${opts.prefix}-${page.id}`;
     shell.appendChild(page.content);
     body.appendChild(shell);

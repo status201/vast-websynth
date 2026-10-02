@@ -1,7 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import { createBrand } from '../../src/ui/components/brand';
 import brandStyles from '../../src/ui/styles/brand.module.css';
-import layoutStyles from '../../src/ui/styles/layout.module.css';
+import headerStyles from '../../src/ui/styles/header.module.css';
 
 /**
  * The shared brand block (specs/features/brand.md). Before it existed, the
@@ -35,7 +35,7 @@ describe('brand block (brand.md)', () => {
     // that call site; baked in here it would draw a stray vertical line down
     // the inside of the About and start modal cards.
     const el = createBrand();
-    expect(el.classList.contains(layoutStyles.headerBrand!)).toBe(false);
-    expect(layoutStyles.headerBrand).toBeTruthy(); // the class still exists
+    expect(el.classList.contains(headerStyles.headerBrand!)).toBe(false);
+    expect(headerStyles.headerBrand).toBeTruthy(); // the class still exists
   });
 });

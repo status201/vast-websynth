@@ -57,7 +57,7 @@ describe('whiteKeyPx', () => {
  * the way tests/ui/panel-header-height.test.ts pins its sum.
  */
 describe('the key-height band’s 30px is the keyboard’s actual chrome', () => {
-  const layout = readFileSync('src/ui/styles/layout.module.css', 'utf8');
+  const bottom = readFileSync('src/ui/styles/bottom.module.css', 'utf8');
   const keys = readFileSync('src/ui/styles/keyboard.module.css', 'utf8');
   /** The declarations of the first top-level `selector { … }` rule — top level within the
    *  file's `@layer` block, so indented exactly its two spaces (css-cascade-layers.md). */
@@ -75,7 +75,7 @@ describe('the key-height band’s 30px is the keyboard’s actual chrome', () =>
   };
 
   it('adds up to the wrap padding + border + the keys’ padding, top and bottom', () => {
-    const wrap = rule(layout, '.keyboardWrap');
+    const wrap = rule(bottom, '.keyboardWrap');
     const chrome = 2 * (px(wrap, 'padding') + px(wrap, 'border') + px(rule(keys, '.root'), 'padding'));
     expect(chrome).toBe(30);
     // …and it is what both bounds add.

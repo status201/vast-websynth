@@ -21,7 +21,7 @@ import { readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 
 const CSS = readFileSync(
-  fileURLToPath(new URL('../../src/ui/styles/layout.module.css', import.meta.url)),
+  fileURLToPath(new URL('../../src/ui/styles/panel.module.css', import.meta.url)),
   'utf8',
 ).replace(/\/\*[\s\S]*?\*\//g, '');
 

@@ -27,7 +27,7 @@ import {
   type MotionStep, type MotionTrackStep,
 } from '../../state/patterns';
 import { ALL_CELLS, bindLaneGrid, laneGrid, onLaneGridChange } from '../lane-grid';
-import layout from '../styles/layout.module.css';
+import panelStyles from '../styles/panel.module.css';
 import switchStyles from '../styles/switch.module.css';
 import drumStyles from '../styles/drum.module.css';
 import segmentedStyles from '../styles/segmented.module.css';
@@ -52,7 +52,7 @@ export function buildMotionPanel(
   bridge: UiBridge,
 ): GatedPanel {
   const root = document.createElement('div');
-  root.className = layout.patternPanel!;
+  root.className = panelStyles.patternPanel!;
   const patterns = engine.patterns;
 
   // Which axis the graph traces — a local view state, never persisted (REQ-each-motion-step-is-a-mini-xy-pad).
@@ -60,7 +60,7 @@ export function buildMotionPanel(
 
   // ---- Header ----
   const header = document.createElement('div');
-  header.className = layout.patternPanelHeader!;
+  header.className = panelStyles.patternPanelHeader!;
   header.appendChild(new Switch(bus, 'motion.on', 'motion').el);
   // Chain / Mute / Solo, right after the machine switch — the same three
   // controls the Song tab's lane card carries (machine-status.md REQ-lane-controls-live-on-both-surfaces).

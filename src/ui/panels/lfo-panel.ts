@@ -7,7 +7,7 @@ import { Segmented } from '../components/segmented';
 import { ParamDropdown } from '../components/param-dropdown';
 import { WAVE_ICONS } from '../components/wave-icons';
 import { createTabbedPanel } from '../components/panel';
-import styles from '../styles/layout.module.css';
+import styles from '../styles/panel.module.css';
 
 const PULSE_DEST = LFO_DEST_LABELS.indexOf('pulse');
 const OFF_DEST = LFO_DEST_LABELS.indexOf('off');

@@ -1,5 +1,5 @@
 import switchStyles from '../styles/switch.module.css';
-import layout from '../styles/layout.module.css';
+import panelStyles from '../styles/panel.module.css';
 import styles from '../styles/seq.module.css';
 import { createLaneFold } from '../components/lane-fold';
 import editStyles from '../styles/step-settings.module.css';
@@ -61,11 +61,11 @@ export function buildSeqPanel(
   bridge: UiBridge,
 ): SeqPanel {
   const root = document.createElement('div');
-  root.className = `${layout.patternPanel!} seq-panel`;
+  root.className = `${panelStyles.patternPanel!} seq-panel`;
 
   // ---- Header ----
   const header = document.createElement('div');
-  header.className = layout.patternPanelHeader!;
+  header.className = panelStyles.patternPanelHeader!;
   header.appendChild(new Switch(bus, 'seq.on', 'seq').el);
   // Chain / Mute / Solo, right after the machine switch — the same three
   // controls the Song tab's lane card carries (machine-status.md REQ-lane-controls-live-on-both-surfaces).

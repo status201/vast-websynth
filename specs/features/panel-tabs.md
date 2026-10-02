@@ -17,7 +17,7 @@ related:
 source:
   - src/ui/components/panel-tabs.ts
   - src/ui/components/panel.ts
-  - src/ui/styles/layout.module.css
+  - src/ui/styles/panel.module.css
 ```
 
 A tab strip that lives **inside an existing panel's title row**, paging that one
@@ -26,14 +26,14 @@ two separate elements for the caller to place.
 
 ## Background / Why
 
-The synth faceplate is a fixed 8-column grid (`layout.module.css` `.main`), and
+The synth faceplate is a fixed 8-column grid (`synth-panels.module.css` `.main`), and
 all eight columns are taken. Any feature that wants a ninth panel either wraps the
 grid to a second row or shares an existing panel. [lfo](lfo.md) REQ-the-two-lfos-share-one-panel needed the
 second, so a panel had to grow pages.
 
 `TabContainer` (`src/ui/components/tabs.ts`) already does tabs — but it builds its
 **own panel chrome**: `TabContainer.el` is a `.root` with background, border,
-radius and shadow, i.e. a whole panel. Dropping it inside a `layout.panel` would
+radius and shadow, i.e. a whole panel. Dropping it inside a `panelStyles.panel` would
 double-frame it, and its `.bar` is sized for the full-width pattern row
 (`padding: 0 10px 0 6px`, a gradient, `.tab` at `padding: 8px 18px`). Two tabs at
 those metrics measure ~230 px against an ~191 px faceplate cell. What was missing
@@ -82,7 +82,7 @@ whole of this component.
     so a serif here would fail the suite until someone added the
     whitespace-normalised selector string.
   - All of this component's classes (`.panelTabs`, `.panelTab`, `.panelPages`,
-    `.panelPage`, `.panelTabLamp`) live in `layout.module.css` — the component
+    `.panelPage`, `.panelTabLamp`) live in `panel.module.css` — the component
     imports that stylesheet and no other — and set no `font-family`.
 
 - **REQ-every-page-stays-in-the-dom** — **Every page stays in the DOM**;
@@ -280,7 +280,7 @@ Scenario: Tabs share the header evenly (REQ-panel-tabs-share-the-row-evenly)
 # pinned by: e2e/lfo2.spec.ts
 
 Scenario: The component declares no new serif rule (REQ-a-panel-tab-declares-no-font)
-  Given the strip's classes all live in layout.module.css (its only import)
+  Given the strip's classes all live in panel.module.css (its only import)
   When the typography drift pin runs
   Then the serif selector set still equals its allowlist, with no new entry
 # pinned by: tests/ui/typography.test.ts

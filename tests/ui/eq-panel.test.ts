@@ -234,7 +234,7 @@ describe('teardown', () => {
 });
 
 describe('the bottom column keeps its shape (REQ-the-eq-is-a-third-bottom-row)', () => {
-  const css = read('src/ui/styles/layout.module.css');
+  const css = read('src/ui/styles/bottom.module.css');
   /** The declarations of the first top-level rule for `selector` — top level within the
    *  file's `@layer` block, so indented exactly its two spaces (css-cascade-layers.md). */
   const rule = (selector: string): string => {
@@ -257,7 +257,7 @@ describe('the bottom column keeps its shape (REQ-the-eq-is-a-third-bottom-row)',
 });
 
 describe('the page mirrors the scope row (REQ-the-eq-page-mirrors-the-scope-row)', () => {
-  const layout = read('src/ui/styles/layout.module.css');
+  const bottom = read('src/ui/styles/bottom.module.css');
   const eqCss = read('src/ui/styles/eq.module.css');
 
   it('takes its gutter from the same custom property the wheels do', () => {
@@ -265,8 +265,8 @@ describe('the page mirrors the scope row (REQ-the-eq-page-mirrors-the-scope-row)
     // 120px values would be equal only by coincidence and would drift the first
     // time anyone retuned the wheels — which is exactly the kind of thing no
     // screenshot review catches.
-    expect(layout).toContain('--wheel-col: 120px;');
-    expect(decl(layout, '.bottomTop', 'grid-template-columns'))
+    expect(bottom).toContain('--wheel-col: 120px;');
+    expect(decl(bottom, '.bottomTop', 'grid-template-columns'))
       .toBe('var(--wheel-col) 1fr');
 
     const eqCols = decl(eqCss, '.page', 'grid-template-columns');
@@ -277,7 +277,7 @@ describe('the page mirrors the scope row (REQ-the-eq-page-mirrors-the-scope-row)
   });
 
   it('uses the same 10px gap as the row it mirrors', () => {
-    expect(decl(eqCss, '.page', 'gap')).toBe(decl(layout, '.bottomTop', 'gap'));
+    expect(decl(eqCss, '.page', 'gap')).toBe(decl(bottom, '.bottomTop', 'gap'));
   });
 
   it('takes the graph height from the scope, not a literal of its own', () => {

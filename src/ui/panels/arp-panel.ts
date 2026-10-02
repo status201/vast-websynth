@@ -3,14 +3,14 @@ import { ARP_PATTERN_LABELS, ARP_RATE_LABELS } from '../../state/params';
 import { Switch } from '../components/switch';
 import { Segmented } from '../components/segmented';
 import { Knob } from '../components/knob';
-import layout from '../styles/layout.module.css';
+import panelStyles from '../styles/panel.module.css';
 import styles from '../styles/arp.module.css';
 
 export function buildArpPanel(bus: ParamBus): HTMLElement {
   const root = document.createElement('div');
-  root.className = `${layout.patternPanel!} arp-panel`;
+  root.className = `${panelStyles.patternPanel!} arp-panel`;
   const header = document.createElement('div');
-  header.className = layout.patternPanelHeader!;
+  header.className = panelStyles.patternPanelHeader!;
   header.appendChild(new Switch(bus, 'arp.on', 'arp').el);
   root.appendChild(header);
 

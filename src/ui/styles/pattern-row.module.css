@@ -1,0 +1,10 @@
+/* The MACHINES row's place in the app column. Its frame is the tab
+   container's own (tabs.module.css). */
+
+@layer shell {
+  /* ===== Pattern row ===== */
+
+  .patternRow {
+    margin: 0 var(--side-margin);
+  }
+}

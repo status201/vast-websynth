@@ -25,7 +25,7 @@ import { NOT_DOWNLOADED_YET, PLAY_OFFLINE_HINT } from '../offline-wording';
 import { MIN_STRETCH_RATIO, MAX_STRETCH_RATIO } from '../../state/limits';
 import { SAMPLER_SLOT_COUNT, SAMPLER_SLOT_LABELS } from '../../state/patterns';
 import { ALL_CELLS, bindLaneGrid, laneGrid } from '../lane-grid';
-import layout from '../styles/layout.module.css';
+import panelStyles from '../styles/panel.module.css';
 import drumStyles from '../styles/drum.module.css';
 import samplerStyles from '../styles/sampler.module.css';
 import editStyles from '../styles/step-settings.module.css';
@@ -73,11 +73,11 @@ export function buildSamplerPanel(
   bridge: UiBridge,
 ): MachinePanel {
   const root = document.createElement('div');
-  root.className = layout.patternPanel!;
+  root.className = panelStyles.patternPanel!;
 
   // ---- Header ----
   const header = document.createElement('div');
-  header.className = layout.patternPanelHeader!;
+  header.className = panelStyles.patternPanelHeader!;
   header.appendChild(new Switch(bus, 'sampler.on', 'sampler').el);
   // Chain / Mute / Solo, right after the machine switch — the same three
   // controls the Song tab's lane card carries (machine-status.md REQ-lane-controls-live-on-both-surfaces).
@@ -105,7 +105,7 @@ export function buildSamplerPanel(
   // One cluster so the header breaks between machine controls and FX rather
   // than mid-cluster (responsive-machine-header.md).
   const fx = document.createElement('div');
-  fx.className = layout.fxCluster!;
+  fx.className = panelStyles.fxCluster!;
   fx.appendChild(fxGroup(bus, 'DIST', 'fx.sampler.dist', [
     { id: 'fx.sampler.dist.drive', label: 'DRIVE' },
     { id: 'fx.sampler.dist.tone', label: 'TONE' },

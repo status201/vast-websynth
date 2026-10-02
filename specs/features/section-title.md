@@ -24,7 +24,7 @@ source:
   - src/ui/components/ui-icons.ts      # waveBurst / padMachine / sliders
   - src/ui/app.ts                      # FX bar + the MACHINES row
   - src/ui/panels/eq-panel.ts          # the EQUALIZER row
-  - src/ui/styles/layout.module.css    # .fxSectionBar's padding
+  - src/ui/styles/fx-rack.module.css    # .fxSectionBar's padding
   - src/ui/styles/tabs.module.css      # REQ-folded-selected-tab-dims: the folded row's selected tab
   - src/styles/theme.css               # REQ-folded-selected-tab-dims: --accent-secondary-dim
 ```

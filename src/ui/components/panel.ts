@@ -1,4 +1,4 @@
-import styles from '../styles/layout.module.css';
+import styles from '../styles/panel.module.css';
 import { createPanelTabs, type PanelTabs } from './panel-tabs';
 
 /** One page of a tabbed panel, built in place like a plain panel's body. */

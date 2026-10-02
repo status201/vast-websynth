@@ -16,7 +16,7 @@ source:
   - src/ui/keyboard-range.ts
   - src/ui/components/keyboard.ts
   - src/ui/app.ts            # buildBottom: the ResizeObserver that drives it
-  - src/ui/styles/layout.module.css  # .bottom / .bottomTop / .keyboardWrap: the height bounds
+  - src/ui/styles/bottom.module.css  # .bottom / .bottomTop / .keyboardWrap: the height bounds
 ```
 
 How many octaves the on-screen keyboard draws, which ones — and how tall its
@@ -147,7 +147,7 @@ ui/components/keyboard.ts: owns the rebuild (REQ-a-rebuild-strands-nothing); the
   range rule itself stays out of the component.
 ui/app.ts buildBottom (v2): the same observer writes --kb-key-w (whole px, and only
   when it changes) on .bottom. Width never depends on height, so it cannot loop.
-ui/styles/layout.module.css (v2): .bottom is a flex column; .bottomTop
+ui/styles/bottom.module.css (v2): .bottom is a flex column; .bottomTop
   flex 1 1 0 + min-height var(--scope-h, 130px); .keyboardWrap flex 1000 1 0 with
   the REQ-key-height-follows-key-width min/max-height read from --kb-key-w. Until
   the first observation the var is unset: the min falls back to the 160px floor

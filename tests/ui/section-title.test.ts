@@ -65,7 +65,8 @@ describe('compact (REQ-compact-drops-text-not-icon)', () => {
 describe('the heading look (REQ-heading-is-white-and-inert)', () => {
   const css = readSource('src/ui/styles/section-title.module.css');
   const tabsCss = readSource('src/ui/styles/tabs.module.css');
-  const layoutCss = readSource('src/ui/styles/layout.module.css');
+  const fxCss = readSource('src/ui/styles/fx-rack.module.css');
+  const patternRowCss = readSource('src/ui/styles/pattern-row.module.css');
 
   it('is the faceplate white, undimmed and inert', () => {
     expect(cssDecl(css, '.root', 'color')).toBe('var(--text)');
@@ -102,21 +103,21 @@ describe('the heading look (REQ-heading-is-white-and-inert)', () => {
   it('is the only heading rule — no bar keeps a title of its own', () => {
     // A leftover per-bar title rule is how the three drifted apart before.
     expect(cssDecl(tabsCss, '.title', 'color')).toBeNull();
-    expect(layoutCss).not.toContain('.fxSectionTitle');
+    expect(fxCss).not.toContain('.fxSectionTitle');
     // …and no tab state (idle, active, the caret's hover) borrows the white.
     expect(tabsCss).not.toMatch(/(^|[\s;{])color:\s*var\(--text\)/m);
   });
 
   it('gives both kinds of bar the same padding, so the icons line up (REQ-heading-icons-share-one-x)', () => {
-    expect(cssDecl(layoutCss, '.fxSectionBar', 'padding'))
+    expect(cssDecl(fxCss, '.fxSectionBar', 'padding'))
       .toBe(cssDecl(tabsCss, '.bar', 'padding'));
   });
 
   it('insets the FX section by the same token as the tabbed rows (REQ-heading-icons-share-one-x)', () => {
     // A literal 22px equals the token only on desktop; below 992px it put the FX
     // icon 14px right of the other two.
-    expect(cssDecl(layoutCss, '.fxSection', 'margin')).toBe('0 var(--side-margin)');
-    expect(cssDecl(layoutCss, '.fxSection', 'margin'))
-      .toBe(cssDecl(layoutCss, '.patternRow', 'margin'));
+    expect(cssDecl(fxCss, '.fxSection', 'margin')).toBe('0 var(--side-margin)');
+    expect(cssDecl(fxCss, '.fxSection', 'margin'))
+      .toBe(cssDecl(patternRowCss, '.patternRow', 'margin'));
   });
 });

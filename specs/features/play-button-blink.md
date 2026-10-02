@@ -13,7 +13,7 @@ source:
   - src/ui/app.ts                       # buildHeader — blink state machine
   - src/ui/ui-bridge.ts                 # cuePlay hook
   - src/ui/panels/song-panel.ts         # demo loads fire the cue
-  - src/ui/styles/layout.module.css     # attract / cue keyframes
+  - src/ui/styles/header.module.css     # attract / cue keyframes
 ```
 
 The header Play button's LED as a discoverability affordance: it always shows
@@ -97,7 +97,7 @@ song-panel.ts: applyDemo (the tail EVERY demo branch ends on — built-in,
   fetched JSON drop-in, and the tour), the Load button, applyProjectBundle
   (imports + zip demos + share links + OS launches) and buildChainLane's
   Chain-enable click call bridge.cuePlay().
-layout.module.css: .playBtn:global(.attract)/.playBtn:global(.cue) animate the
+header.module.css: .playBtn:global(.attract)/.playBtn:global(.cue) animate the
   OPACITY of a lit ::after overlay on the :global(.switch-led) dot (REQ-blinks-animate-opacity-only) —
   ledPulse / ledFlash, module-scoped. The dot itself is only made
   `position: relative` so the overlay can sit on it; its base colour, inset and

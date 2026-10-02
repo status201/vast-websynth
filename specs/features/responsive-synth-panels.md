@@ -22,12 +22,13 @@ related:
   - filter-models
 source:
   - src/ui/app.ts                    # buildMain: the .quad/.hex rows + row() helper
-  - src/ui/styles/layout.module.css  # .quad + .hex grid rules, .fxRow (REQ-fx-panels-fit-their-knob-run)
+  - src/ui/styles/panel.module.css   # .quad + .hex grid rules
+  - src/ui/styles/fx-rack.module.css # .fxRow (REQ-fx-panels-fit-their-knob-run)
 ```
 
 ## Background / Why
 
-The synth faceplate is an 8-column grid of panels (`.main`, `layout.module.css`)
+The synth faceplate is an 8-column grid of panels (`.main`, `synth-panels.module.css`)
 that reflows to 4 columns ≤1280px and 2 columns ≤992px (`src/styles/layout.css`
 also shrinks `--knob-size` at each step). As panels widen on the reflow, a panel
 holding **four** knobs has ample room to lay them on a single row.
@@ -240,7 +241,7 @@ function row(children: HTMLElement[], extraClass?: string): HTMLElement {
 
 ### Layer touchpoints & ordering
 
-- `src/ui/styles/layout.module.css` — `.quad` layers additively over `.panelRow`
+- `src/ui/styles/panel.module.css` — `.quad` layers additively over `.panelRow`
   (declared after it), overriding `display: flex` with a grid:
 
   ```css

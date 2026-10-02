@@ -291,7 +291,8 @@ not just its dependency graph. Every stylesheet now declares a cascade layer
 ([css-cascade-layers](features/css-cascade-layers.md)), which takes source order
 out of the cascade between modules; the history below is why that came first.
 
-Moving the panels below `layout.module.css` made the **pattern row 71px
+Moving the panels below the shell's stylesheet (then one file for shell and
+panel chrome alike, since split by region) made the **pattern row 71px
 taller**, which pushed the scope's centre out of the viewport and failed a hover
 assertion three files from anything edited. Moving them above `knob` instead
 un-hid the header's **hamburger on a wide screen**. There is no single position

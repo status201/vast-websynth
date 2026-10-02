@@ -49,7 +49,12 @@ import { createFullscreenButton } from './components/fullscreen-button';
 import { PERF_PROFILES, resolveTier, type PerfTier } from '../state/perf-mode';
 import { createOnboarding, type Onboarding } from './onboarding';
 import type { TourCtx } from './onboarding/tour';
-import styles from './styles/layout.module.css';
+import headerStyles from './styles/header.module.css';
+import synthStyles from './styles/synth-panels.module.css';
+import fxStyles from './styles/fx-rack.module.css';
+import patternRowStyles from './styles/pattern-row.module.css';
+import bottomStyles from './styles/bottom.module.css';
+import panelStyles from './styles/panel.module.css';
 import { UI_ICONS } from './components/ui-icons';
 import { setScopeStatsSource } from '../state/debug-sources';
 import { Presets } from '../state/preset';
@@ -182,13 +187,13 @@ function buildHeader(
   previewScopeTier: (tier: PerfTier) => void, loadDemo: (name: string) => Promise<void>,
 ): HTMLElement {
   const el = document.createElement('div');
-  el.className = styles.header!;
+  el.className = headerStyles.header!;
   el.dataset.testid = 'app-header';
 
   // Brand block (brand.md) — shared with the About and start modals. Only the
   // divider rule to its right is the header's own (brand.md REQ-brand-block-carries-no-framing).
   const brand = createBrand();
-  brand.classList.add(styles.headerBrand!);
+  brand.classList.add(headerStyles.headerBrand!);
   el.appendChild(brand);
 
   // Below 720px the preset cluster collapses behind this hamburger to keep the
@@ -198,9 +203,9 @@ function buildHeader(
     label: 'Toggle preset menu',
     icon: UI_ICONS.menu,
     testId: 'header-menu',
-    className: `${switchStyles.root!} ${styles.menuToggle!}`,
+    className: `${switchStyles.root!} ${headerStyles.menuToggle!}`,
     onClick: () => {
-      const open = el.classList.toggle(styles.menuOpen!);
+      const open = el.classList.toggle(headerStyles.menuOpen!);
       menuToggle.setAttribute('aria-expanded', String(open));
     },
   });
@@ -208,7 +213,7 @@ function buildHeader(
   el.appendChild(menuToggle);
 
   const presetGroup = document.createElement('div');
-  presetGroup.className = `${styles.headerGroup!} ${styles.presetGroup!}`;
+  presetGroup.className = `${headerStyles.headerGroup!} ${headerStyles.presetGroup!}`;
 
   const dropdown = new Dropdown(Presets.list(), Presets.list()[0] ?? '');
   dropdown.el.dataset.testid = 'preset-select';
@@ -291,7 +296,7 @@ function buildHeader(
   });
 
   const presetLabel = document.createElement('span');
-  presetLabel.className = styles.presetLabel!;
+  presetLabel.className = headerStyles.presetLabel!;
   presetLabel.textContent = 'Preset:';
   presetGroup.appendChild(presetLabel);
   presetGroup.appendChild(dropdown.el);
@@ -299,7 +304,7 @@ function buildHeader(
   // Inner spacer, active at the ≤1140px wrap step: keeps the dropdown + Save
   // left-aligned while pushing the utility icon buttons to the far right.
   const presetSpacer = document.createElement('div');
-  presetSpacer.className = styles.presetSpacer!;
+  presetSpacer.className = headerStyles.presetSpacer!;
   presetGroup.appendChild(presetSpacer);
   presetGroup.appendChild(
     createPerfSettingsButton({ onTierPreview: previewScopeTier }),
@@ -325,23 +330,23 @@ function buildHeader(
   el.appendChild(presetGroup);
 
   const spacer = document.createElement('div');
-  spacer.className = styles.headerSpacer!;
+  spacer.className = headerStyles.headerSpacer!;
   el.appendChild(spacer);
 
   // Zero-height flex line break, active whenever the header wraps (≤1140px):
   // the transport cluster always starts the second row (voicing right-aligns
   // via auto margin), and below 720px the hamburger's auto margin owns row 1.
   const headerBreak = document.createElement('div');
-  headerBreak.className = styles.headerBreak!;
+  headerBreak.className = headerStyles.headerBreak!;
   el.appendChild(headerBreak);
 
   // Transport group
   const transport = document.createElement('div');
-  transport.className = `${styles.headerGroup!} ${styles.transportGroup!}`;
+  transport.className = `${headerStyles.headerGroup!} ${headerStyles.transportGroup!}`;
 
   const playBtn = createButton({
     label: 'Play',
-    className: `${switchStyles.root!} ${styles.playBtn!}`,
+    className: `${switchStyles.root!} ${headerStyles.playBtn!}`,
     led: true,
     testId: 'transport-play',
     onClick: () => {
@@ -444,7 +449,7 @@ function buildHeader(
   el.appendChild(transport);
 
   const right = document.createElement('div');
-  right.className = `${styles.headerGroup!} ${styles.voicingGroup!}`;
+  right.className = `${headerStyles.headerGroup!} ${headerStyles.voicingGroup!}`;
 
   const voicing = new Segmented(bus, 'voicing.mode', VOICING_LABELS);
   right.appendChild(voicing.el);
@@ -499,7 +504,7 @@ function buildPatternRow(
     collapsibleStoreKey: 'websynth.ui.collapsed.pattern',
     collapsedByDefault: isCompact,
   });
-  tabs.el.classList.add(styles.patternRow!);
+  tabs.el.classList.add(patternRowStyles.patternRow!);
   tabs.el.dataset.testid = 'pattern-row';
 
   // Ctrl/Cmd+Z routes to the machine behind the active tab (pattern-undo.md
@@ -568,7 +573,7 @@ function buildPatternRow(
 
 function buildMain(bus: ParamBus): HTMLElement {
   const main = document.createElement('div');
-  main.className = styles.main!;
+  main.className = synthStyles.main!;
 
   main.appendChild(panel('OSC 1', (b) => {
     b.appendChild(new Segmented(bus, 'osc1.wave', WAVE_LABELS, WAVE_ICONS).el);
@@ -577,7 +582,7 @@ function buildMain(bus: ParamBus): HTMLElement {
       new Knob({ bus, paramId: 'osc1.detune', label: 'TUNE' }).el,
       new Knob({ bus, paramId: 'osc1.level', label: 'LEVEL' }).el,
       ...pulseWidthKnob(bus, 'osc1'),
-    ], styles.spread!));
+    ], panelStyles.spread!));
   }, 'oscillators'));
 
   main.appendChild(panel('OSC 2', (b) => {
@@ -587,7 +592,7 @@ function buildMain(bus: ParamBus): HTMLElement {
       new Knob({ bus, paramId: 'osc2.detune', label: 'TUNE' }).el,
       new Knob({ bus, paramId: 'osc2.level', label: 'LEVEL' }).el,
       ...pulseWidthKnob(bus, 'osc2'),
-    ], styles.spread!));
+    ], panelStyles.spread!));
   }));
 
   main.appendChild(panel('SUB / UNI', (b) => {
@@ -598,7 +603,7 @@ function buildMain(bus: ParamBus): HTMLElement {
       new Knob({ bus, paramId: 'sub.level', label: 'S.LVL' }).el,
       new Knob({ bus, paramId: 'unison.voices', label: 'UNISON' }).el,
       new Knob({ bus, paramId: 'unison.detune', label: 'SPREAD' }).el,
-    ], styles.quad!));
+    ], panelStyles.quad!));
   }, 'subuni'));
 
   main.appendChild(panel('MIXER', (b) => {
@@ -606,7 +611,7 @@ function buildMain(bus: ParamBus): HTMLElement {
       new Knob({ bus, paramId: 'mixer.noise', label: 'NOISE' }).el,
       new Knob({ bus, paramId: 'mixer.glide', label: 'GLIDE' }).el,
       new Knob({ bus, paramId: 'analog.drift', label: 'DRIFT' }).el,
-    ], styles.spread!));
+    ], panelStyles.spread!));
     b.appendChild(new Segmented(bus, 'glide.mode', GLIDE_MODE_LABELS).el);
   }, 'mixer'));
 
@@ -622,7 +627,7 @@ function buildMain(bus: ParamBus): HTMLElement {
       new Knob({ bus, paramId: 'filter.drive', label: 'DRIVE' }).el,
       new Knob({ bus, paramId: 'filter.envAmount', label: 'ENV' }).el,
       new Knob({ bus, paramId: 'filter.keytrack', label: 'KEYTRK' }).el,
-    ], styles.hex!));
+    ], panelStyles.hex!));
     // SHAPE belongs to POLY — the ladder's saturated taps cannot make a clean
     // high-pass, so the worklet ignores it there (filter-models.md REQ-shape-is-poly-only). Dim
     // rather than hide: the control keeps its place, so the switch reads as
@@ -636,7 +641,7 @@ function buildMain(bus: ParamBus): HTMLElement {
       new Knob({ bus, paramId: 'env.amp.decay', label: 'D' }).el,
       new Knob({ bus, paramId: 'env.amp.sustain', label: 'S' }).el,
       new Knob({ bus, paramId: 'env.amp.release', label: 'R' }).el,
-    ], styles.quad!));
+    ], panelStyles.quad!));
   }, 'ampenv'));
 
   main.appendChild(panel('FILTER ENV', (b) => {
@@ -650,7 +655,7 @@ function buildMain(bus: ParamBus): HTMLElement {
       new Knob({ bus, paramId: 'env.fil.sustain', label: 'S' }).el,
       new Knob({ bus, paramId: 'env.fil.release', label: 'R' }).el,
       new Knob({ bus, paramId: 'filter.velAmount', label: 'VEL' }).el,
-    ], styles.quint!));
+    ], panelStyles.quint!));
   }, 'filterenv'));
 
   // Two LFOs behind a tab strip, so the pair costs one grid column, not two
@@ -675,7 +680,7 @@ const SQUARE_WAVE = WAVE_LABELS.indexOf('square');
  */
 function pulseWidthKnob(bus: ParamBus, osc: 'osc1' | 'osc2'): HTMLElement[] {
   const brk = document.createElement('div');
-  brk.className = styles.rowBreak!;
+  brk.className = panelStyles.rowBreak!;
   const knob = new Knob({ bus, paramId: `${osc}.pulseWidth`, label: 'WIDTH' }).el;
   // `subscribe` fires immediately, so the initial visibility is correct.
   bus.subscribe(`${osc}.wave`, (w) => {
@@ -689,11 +694,11 @@ function pulseWidthKnob(bus: ParamBus, osc: 'osc1' | 'osc2'): HTMLElement[] {
 
 function buildFx(bus: ParamBus): { el: HTMLElement; expand: () => void } {
   const section = document.createElement('div');
-  section.className = styles.fxSection!;
+  section.className = fxStyles.fxSection!;
   section.dataset.testid = 'fx';
 
   const bar = document.createElement('div');
-  bar.className = styles.fxSectionBar!;
+  bar.className = fxStyles.fxSectionBar!;
   // The same heading the tabbed sections wear (section-title.md REQ-one-component-draws-every-heading).
   bar.appendChild(createSectionTitle({ text: 'FX', icon: 'waveBurst' }));
   const collapse = createCollapseToggle(section, 'websynth.ui.collapsed.fx', {
@@ -704,7 +709,7 @@ function buildFx(bus: ParamBus): { el: HTMLElement; expand: () => void } {
   section.appendChild(bar);
 
   const fx = document.createElement('div');
-  fx.className = styles.fxRow!;
+  fx.className = fxStyles.fxRow!;
 
   fx.appendChild(fxPanel('Distortion', bus, 'fx.dist.on', [
     { id: 'fx.dist.drive', label: 'DRIVE' },
@@ -765,12 +770,12 @@ function fxPanel(
   helpId: string,
 ): HTMLElement {
   const el = document.createElement('div');
-  el.className = styles.fxPanel!;
+  el.className = fxStyles.fxPanel!;
 
   const header = document.createElement('div');
-  header.className = styles.fxHeader!;
+  header.className = fxStyles.fxHeader!;
   const t = document.createElement('div');
-  t.className = styles.fxTitle!;
+  t.className = fxStyles.fxTitle!;
   t.textContent = title;
   t.dataset.help = helpId;
   header.appendChild(t);
@@ -778,7 +783,7 @@ function fxPanel(
   el.appendChild(header);
 
   const knobsEl = document.createElement('div');
-  knobsEl.className = styles.fxKnobs!;
+  knobsEl.className = fxStyles.fxKnobs!;
   for (const k of knobs) {
     knobsEl.appendChild(new Knob({ bus, paramId: k.id, label: k.label }).el);
   }
@@ -791,7 +796,7 @@ function buildBottom(
   engine: StudioApi, bus: ParamBus, bridge: UiBridge,
 ): { el: HTMLElement; scope: Scope; scopeResize: ResizeHandle } {
   const bottom = document.createElement('div');
-  bottom.className = styles.bottom!;
+  bottom.className = bottomStyles.bottom!;
   // Read once here; the ResizeHandle below writes it onto `bottom` in its
   // constructor — which happens before this subtree is mounted, so a taller
   // scope is there from the first paint rather than jumping into place
@@ -799,21 +804,21 @@ function buildBottom(
   const scopeHeight = readScopeHeight();
 
   const top = document.createElement('div');
-  top.className = styles.bottomTop!;
+  top.className = bottomStyles.bottomTop!;
 
   const wheels = document.createElement('div');
-  wheels.className = styles.wheels!;
+  wheels.className = bottomStyles.wheels!;
   wheels.appendChild(new Strip({ bus, paramId: 'master.pitchBend', label: 'PITCH', springBack: true }).el);
   wheels.appendChild(new Strip({ bus, paramId: 'keyboard.transpose', label: 'OCT' }).el);
   wheels.appendChild(new Strip({ bus, paramId: 'master.modWheel', label: 'MOD' }).el);
   top.appendChild(wheels);
 
   const scopeWrap = document.createElement('div');
-  scopeWrap.className = styles.scopeWrap!;
+  scopeWrap.className = bottomStyles.scopeWrap!;
   // Static CRT screen underlay (gradient + inset vignette) behind the transparent
   // canvas, so the 60fps redraw never re-rasters the decoration. (scope REQ-no-per-frame-layout-read)
   const scopeScreen = document.createElement('div');
-  scopeScreen.className = styles.scopeScreen!;
+  scopeScreen.className = bottomStyles.scopeScreen!;
   scopeWrap.appendChild(scopeScreen);
   const scope = new Scope(
     { mono: engine.analyser, left: engine.analyserL, right: engine.analyserR },
@@ -821,7 +826,7 @@ function buildBottom(
   );
   scopeWrap.appendChild(scope.el);
   const toggle = document.createElement('button');
-  toggle.className = `${switchStyles.root!} ${styles.scopeToggle!}`;
+  toggle.className = `${switchStyles.root!} ${bottomStyles.scopeToggle!}`;
   toggle.dataset.testid = 'scope-toggle';
   toggle.textContent = 'Wave';
   let isWave = true;
@@ -836,7 +841,7 @@ function buildBottom(
   scopeWrap.appendChild(toggle);
   // Mono/Stereo toggle — orthogonal to Wave/Spectrum. Defaults to Mono.
   const chanToggle = document.createElement('button');
-  chanToggle.className = `${switchStyles.root!} ${styles.scopeChannelsToggle!}`;
+  chanToggle.className = `${switchStyles.root!} ${bottomStyles.scopeChannelsToggle!}`;
   chanToggle.dataset.testid = 'scope-channels-toggle';
   chanToggle.textContent = 'Mono';
   let isStereo = false;
@@ -852,7 +857,7 @@ function buildBottom(
   // Wave/Spectrum handler above runs, but after that button so tab order still
   // reads left-to-right, top-to-bottom.
   const zonesToggle = document.createElement('button');
-  zonesToggle.className = `${switchStyles.root!} ${styles.scopeZonesToggle!}`;
+  zonesToggle.className = `${switchStyles.root!} ${bottomStyles.scopeZonesToggle!}`;
   zonesToggle.dataset.testid = 'scope-zones-toggle';
   zonesToggle.textContent = 'Zones';
   zonesToggle.title = 'Shade the four problem bands — mud, boxy, nasal, harsh';
@@ -879,7 +884,7 @@ function buildBottom(
     testId: 'scope-resize-handle',
     label: 'Scope height',
     title: 'Drag to resize the scope — double-click to reset',
-    className: styles.scopeResize!,
+    className: bottomStyles.scopeResize!,
   });
   scopeWrap.appendChild(scopeResize.el);
   top.appendChild(scopeWrap);
@@ -896,7 +901,7 @@ function buildBottom(
   bottom.appendChild(eq.el);
 
   const kbWrap = document.createElement('div');
-  kbWrap.className = styles.keyboardWrap!;
+  kbWrap.className = bottomStyles.keyboardWrap!;
   kbWrap.dataset.testid = 'keyboard';
   // The octave count follows the width the keys get (keyboard-range.md): the base
   // range until laid out — 2 octaves on a phone, 3 elsewhere — then the observer,
@@ -959,7 +964,7 @@ function buildBottom(
 
 function row(children: HTMLElement[], extraClass?: string): HTMLElement {
   const r = document.createElement('div');
-  r.className = extraClass ? `${styles.panelRow!} ${extraClass}` : styles.panelRow!;
+  r.className = extraClass ? `${panelStyles.panelRow!} ${extraClass}` : panelStyles.panelRow!;
   for (const c of children) r.appendChild(c);
   return r;
 }

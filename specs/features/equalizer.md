@@ -46,7 +46,7 @@ source:
   - src/ui/components/tabs.ts          # TabOptions.title (a section-title) + .pageClass
   - src/ui/app.ts                      # buildBottom mounts it
   - src/ui/styles/eq.module.css
-  - src/ui/styles/layout.module.css    # the third .bottom row + --wheel-col
+  - src/ui/styles/bottom.module.css    # the third .bottom row + --wheel-col
 ```
 
 A bypass-able **equalizer on each of the three lane buses**, drawn as a curve

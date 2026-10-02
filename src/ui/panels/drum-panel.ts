@@ -21,7 +21,7 @@ import { ParamDropdown } from '../components/param-dropdown';
 import { DRUM_TRACK_LABELS, DRUM_MODEL_LABELS } from '../../state/params';
 import { DRUM_TRACK_COUNT } from '../../state/patterns';
 import { ALL_CELLS, bindLaneGrid, laneGrid } from '../lane-grid';
-import layout from '../styles/layout.module.css';
+import panelStyles from '../styles/panel.module.css';
 import styles from '../styles/drum.module.css';
 import editStyles from '../styles/step-settings.module.css';
 import { UI_ICONS } from '../components/ui-icons';
@@ -33,9 +33,9 @@ export function buildDrumPanel(
   bridge: UiBridge,
 ): MachinePanel {
   const root = document.createElement('div');
-  root.className = `${layout.patternPanel!} drum-panel`;
+  root.className = `${panelStyles.patternPanel!} drum-panel`;
   const header = document.createElement('div');
-  header.className = layout.patternPanelHeader!;
+  header.className = panelStyles.patternPanelHeader!;
   header.appendChild(new Switch(bus, 'drum.on', 'drums').el);
   // Chain / Mute / Solo, right after the machine switch — the same three
   // controls the Song tab's lane card carries (machine-status.md REQ-lane-controls-live-on-both-surfaces).
@@ -57,7 +57,7 @@ export function buildDrumPanel(
   const drumGr = new GrMeter('grmeter-fx.drum.comp');
   engine.drumComp.onGr((db) => drumGr.update(db));
   const fx = document.createElement('div');
-  fx.className = layout.fxCluster!;
+  fx.className = panelStyles.fxCluster!;
   fx.appendChild(fxGroup(bus, 'COMP', 'fx.drum.comp', [
     { id: 'fx.drum.comp.threshold', label: 'THR' },
     { id: 'fx.drum.comp.ratio', label: 'RATIO' },

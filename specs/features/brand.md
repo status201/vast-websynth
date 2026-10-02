@@ -50,7 +50,7 @@ not a feature — it owns markup and styling only, and has no state.
   framing.** `.brand` styles only its own contents (column flow, gap,
   line-height). The header's divider rule — `padding-right` / `border-right` /
   `margin-right` — lives in a header-only `.headerBrand` class in
-  `layout.module.css`, composed on at the call site. Left in the shared class it
+  `header.module.css`, composed on at the call site. Left in the shared class it
   would draw a stray vertical rule down the inside of a modal card, which is
   exactly the kind of leak that made the modals hand-roll their own version in
   the first place.

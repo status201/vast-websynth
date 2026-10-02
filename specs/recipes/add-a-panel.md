@@ -48,16 +48,16 @@ state, `engine: StudioApi` (arp-panel takes only `bus`; song-panel also takes a
 `PresetSession` + `XyPadStore`):
 
 ```ts
-import layout from '../styles/layout.module.css';
+import panelStyles from '../styles/panel.module.css';
 import type { ParamBus } from '../../state/params';
 import type { StudioApi } from '../studio-api';
 import { Switch } from '../components/switch';
 
 export function buildMyPanel(bus: ParamBus, engine: StudioApi): HTMLElement {
   const root = document.createElement('div');
-  root.className = `${layout.patternPanel!} my-panel`;   // stable class for tests
+  root.className = `${panelStyles.patternPanel!} my-panel`;   // stable class for tests
   const header = document.createElement('div');
-  header.className = layout.patternPanelHeader!;
+  header.className = panelStyles.patternPanelHeader!;
   header.appendChild(new Switch(bus, 'my.on', 'my').el);
   root.appendChild(header);                              // append EVERY sub-container
   // …compose components bound to the bus; read state via `engine` (StudioApi)…
@@ -91,7 +91,7 @@ npm run e2e         # e2e/controls.spec.ts sees the new tab/panel
   rather than reaching for the concrete engine.
 - **`appendChild` every sub-container to the root.** A built-but-unappended
   subtree renders blank — the known `drum-panel` bug (see `src/ui/CLAUDE.md`).
-- Style with a `*.module.css` and the shared `layout.patternPanel` /
+- Style with a `*.module.css` and the shared `panelStyles.patternPanel` /
   `patternPanelHeader` classes; reference global state classes (`.on`,
   `.active`) via `:global(...)`.
 - **Group effect groups into `layout.fxCluster`.** If the panel has inline

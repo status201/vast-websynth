@@ -7,7 +7,7 @@ import { Switch } from '../components/switch';
 import switchStyles from '../styles/switch.module.css';
 import { iconLabel } from '../components/ui-icons';
 import { createChainToggle } from '../components/chain-toggle';
-import layout from '../styles/layout.module.css';
+import panelStyles from '../styles/panel.module.css';
 import { PlayheadHighlighter, type PlayheadCell } from '../components/playhead-highlighter';
 import { buildPlayheadRuler, type PlayheadRuler } from '../components/playhead-ruler';
 import { buildRestOverlay, type RestLane, type RestOverlay } from '../components/rest-overlay';
@@ -318,7 +318,7 @@ export function laneControlsFor(
   bridge: UiBridge,
 ): LaneControls {
   const el = document.createElement('div');
-  el.className = layout.laneControls!;
+  el.className = panelStyles.laneControls!;
 
   const chain = createChainToggle({
     getLane: () => engine.arrangement[lane] as ChainLane,
@@ -376,7 +376,7 @@ export function laneMeterControlsFor(bus: ParamBus, lane: StepLane): LaneControl
   // lists sprang open with the popover. `createClearMenu` never nests a dropdown
   // and so never met this. Visibility is driven inline below instead, which
   // leaves each inner Dropdown in sole charge of its own.
-  root.className = layout.laneMeterRoot!;
+  root.className = panelStyles.laneMeterRoot!;
 
   const toggle = document.createElement('button');
   toggle.type = 'button';
@@ -393,7 +393,7 @@ export function laneMeterControlsFor(bus: ParamBus, lane: StepLane): LaneControl
   menu.className = dropdownStyles.menu!;
   menu.style.display = 'none';
   const body = document.createElement('div');
-  body.className = layout.laneMeter!;
+  body.className = panelStyles.laneMeter!;
   menu.appendChild(body);
   root.appendChild(menu);
 
@@ -408,7 +408,7 @@ export function laneMeterControlsFor(bus: ParamBus, lane: StepLane): LaneControl
   rate.onChange((v) => bus.set(`${lane}.rate`, LANE_RATE_LABELS.indexOf(v)));
 
   const hint = document.createElement('div');
-  hint.className = layout.laneMeterHint!;
+  hint.className = panelStyles.laneMeterHint!;
   hint.dataset.testid = `machine-${lane}-meter-hint`;
 
   body.append(
@@ -472,7 +472,7 @@ export function laneMeterControlsFor(bus: ParamBus, lane: StepLane): LaneControl
     hint.textContent = inMeter
       ? `${grid.cells} steps of ${rateLabel} = one ${meter} bar`
       : `${grid.cells} steps of ${rateLabel} vs a ${meter} bar — polyrhythm`;
-    hint.classList.toggle(layout.laneMeterOff!, !inMeter);
+    hint.classList.toggle(panelStyles.laneMeterOff!, !inMeter);
     // The same sentence on the closed toggle, so it is readable without opening.
     toggle.title = hint.textContent;
     toggle.classList.toggle('on', !inMeter);
@@ -487,10 +487,10 @@ export function laneMeterControlsFor(bus: ParamBus, lane: StepLane): LaneControl
 /** One labelled row inside the GRID popover. */
 function field(label: string, title: string, control: HTMLElement): HTMLElement {
   const row = document.createElement('div');
-  row.className = layout.laneMeterField!;
+  row.className = panelStyles.laneMeterField!;
   row.title = title;
   const cap = document.createElement('span');
-  cap.className = layout.laneMeterLabel!;
+  cap.className = panelStyles.laneMeterLabel!;
   cap.textContent = label;
   row.append(cap, control);
   return row;

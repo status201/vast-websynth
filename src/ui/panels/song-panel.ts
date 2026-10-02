@@ -42,7 +42,7 @@ import bankStyles from '../styles/bank-bar.module.css';
 import segmentedStyles from '../styles/segmented.module.css';
 import styles from '../styles/song-panel.module.css';
 import { UI_ICONS } from '../components/ui-icons';
-import layout from '../styles/layout.module.css';
+import panelStyles from '../styles/panel.module.css';
 import {
   Song, DEMO_SONGS, JSON_DEMOS, ZIP_DEMOS, demoNames, demoMetaFor, isDemoName, resolveDemoName,
   type SongFile,
@@ -108,7 +108,7 @@ export interface SongPanel {
 }
 
 export function buildSongPanel(bus: ParamBus, engine: StudioApi, session: PresetSession, xy: XyPadStore, bridge: UiBridge, xyWin: XyPadWindowController, modWin: ModMatrixWindowController): SongPanel {
-  const root = el('div', `${layout.patternPanel!} ${styles.panel!}`);
+  const root = el('div', `${panelStyles.patternPanel!} ${styles.panel!}`);
 
   // Apply a song AND label the selector with its name (all apply sites route
   // through here so the header reflects the loaded song). Each apply bumps the

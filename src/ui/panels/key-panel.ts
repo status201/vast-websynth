@@ -2,7 +2,7 @@ import type { ParamBus } from '../../state/params';
 import { NOTE_LABELS, SCALE_LABELS, CHORD_LABELS } from '../../state/params';
 import { ParamDropdown } from '../components/param-dropdown';
 import { type KeyState, keyRole, onKeyChange, readKeyState } from '../key-roles';
-import layout from '../styles/layout.module.css';
+import panelStyles from '../styles/panel.module.css';
 import styles from '../styles/arp.module.css';
 import map from '../styles/key.module.css';
 
@@ -27,7 +27,7 @@ const WHITE_TOTAL = WHITE_PER_OCTAVE * OCTAVES;
  */
 export function buildKeyPanel(bus: ParamBus): HTMLElement {
   const root = document.createElement('div');
-  root.className = `${layout.patternPanel!} key-panel`;
+  root.className = `${panelStyles.patternPanel!} key-panel`;
 
   // Reading order, and therefore DOM order: the picture, then the controls that set
   // it, then the sentence saying what they add up to. One centred row when there is
@@ -64,7 +64,7 @@ export function buildKeyPanel(bus: ParamBus): HTMLElement {
   // One line that says what the current combination will actually do, rather than
   // three controls the user has to simulate in their head (ADR-014).
   const hint = document.createElement('p');
-  hint.className = `${layout.paramHint!} ${map.hint!}`;
+  hint.className = `${panelStyles.paramHint!} ${map.hint!}`;
   hint.dataset.testid = 'key-hint';
   body.appendChild(hint);
 

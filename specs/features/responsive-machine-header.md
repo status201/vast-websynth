@@ -18,7 +18,7 @@ related:
   - banks
   - step-grid-editing
 source:
-  - src/ui/styles/layout.module.css   # .patternPanelHeader wrap + .fxCluster
+  - src/ui/styles/panel.module.css   # .patternPanelHeader wrap + .fxCluster
   - src/ui/panels/sampler-panel.ts    # DIST / PHASER / DELAY / REVERB cluster
   - src/ui/panels/drum-panel.ts       # COMP (+GR meter) / PHASER / DELAY / REVERB cluster
 ```
@@ -180,7 +180,7 @@ header.appendChild(fx);
 
 ### Layer touchpoints & ordering
 
-- `src/ui/styles/layout.module.css` — `flex-wrap` added to
+- `src/ui/styles/panel.module.css` — `flex-wrap` added to
   `.patternPanelHeader` (~line 54); new `.fxCluster` rule beside it; the
   `flex-basis: 100%` line goes in the **existing** `@media (max-width: 1140px)`
   block, preserving the file's fixed breakpoint cascade order
