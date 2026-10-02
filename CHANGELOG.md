@@ -36,6 +36,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 - Above 2560px wide, the synth panels spread their knobs evenly and lay each group on one row (FILTER from 3200px), instead of mixing tight clusters with 2×2 and 3×2 blocks. 2560 and below are unchanged.
 - The keyboard's keys stay between 1.6× and 4.5× as tall as they are wide, so folding panels no longer stretches them into long piano keys. The height they can't use goes to the scope; the scope grip now sets the scope's minimum height.
 - The app downloads about 26 kB less before it starts. The reader for compact (AI-written) songs, the project zip reader, and the Export, Paste, AI Prompt and Performance dialogs now load the first time they are used, and are fetched in the background afterwards so they still work offline.
+- Under the hood, the main screen is now built from separate parts — the header, the synth panels, the FX rack, the Machines row and the bottom section — and every stylesheet has a fixed place in the cascade, so moving code around can no longer shift the layout. Nothing looks or behaves differently: every screen and dialog was compared pixel-for-pixel, at five window widths, before and after. The app also downloads about 1 kB less at startup.
 
 ### Fixed
 
