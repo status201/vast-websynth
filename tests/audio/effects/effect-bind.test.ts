@@ -19,6 +19,13 @@ function busWithDefaults(): ParamBus {
 
 const ctx = () => makeMockAudioContext() as unknown as AudioContext;
 
+// An effect boots bypassed, so its constructor arms a real 300 ms disconnect
+// timer whose callback calls `window.setTimeout` — on the real clock it can fire
+// after this file's jsdom environment is torn down (`window is not defined`, an
+// unhandled error that fails the run). Fake timers keep it inside the test.
+beforeEach(() => { vi.useFakeTimers(); });
+afterEach(() => { vi.clearAllTimers(); vi.useRealTimers(); });
+
 describe('Effect.bind — simple effects (self-wiring, ADR-008)', () => {
   it('subscribes its params and applies on change (immediate + later)', () => {
     const fx = new Distortion(ctx());

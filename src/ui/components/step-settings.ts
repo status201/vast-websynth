@@ -1,7 +1,7 @@
 import switchStyles from '../styles/switch.module.css';
 import styles from '../styles/step-settings.module.css';
-import type { StepSettings, TriggerCell } from '../../state/patterns';
-import { MICRO_MAX, MICRO_UNITS, MAX_RATCHET} from '../../state/limits';
+import { BEND_SHAPES, type SeqStep, type StepSettings, type TriggerCell } from '../../state/patterns';
+import { BEND_MAX, MICRO_MAX, MICRO_UNITS, MAX_RATCHET} from '../../state/limits';
 import { createButton } from './button';
 import type { StepButton } from './step-button';
 import { plural } from '../../utils/format';
@@ -11,13 +11,23 @@ import { plural } from '../../utils/format';
  * panels: velocity / gate / prob / micro sliders, the ratchet 1–4 group and the
  * tie LED button. The panel owns the selection cursor and hands in get/set for
  * the selected step; extra controls (the seq's note picker) can be prepended
- * into `el`. Testids: `<prefix>-vel/-gate/-prob/-micro/-ratchet(-<n>)/-tie`.
+ * into `el`. Testids: `<prefix>-vel/-gate/-prob/-micro/-ratchet(-<n>)/-tie`, plus
+ * `<prefix>-bend` and `<prefix>-bend-scoop/-fall` when `bend` is passed (the seq).
  */
+/** The seq-only bend fields (step-settings.md REQ-a-seq-step-carries-a-bend). */
+type BendFields = Pick<SeqStep, 'bend' | 'bendShape'>;
+
 export interface StepSettingsEditorOpts {
   testidPrefix: string; // 'seq' | 'drum' | 'sampler'
   get: () => StepSettings | undefined;
   set: (patch: Partial<StepSettings>) => void;
   gateMin?: number; // default 0.05
+  /** The seq's bend controls; absent on the drum and sampler rows, which have no
+   *  pitched voice to bend (step-settings.md REQ-a-seq-step-carries-a-bend). */
+  bend?: {
+    get: () => BendFields | undefined;
+    set: (patch: Partial<BendFields>) => void;
+  };
 }
 
 export class StepSettingsEditor {
@@ -60,8 +70,15 @@ export class StepSettingsEditor {
         testid: `${prefix}-micro`,
         title: 'Micro-timing — drag, −/+ or the arrow keys to nudge this step early/late;'
           + ' double-click to reset',
+        stepTitles: ['Earlier by one notch', 'Later by one notch'],
       });
     this.el.appendChild(microSlider.el);
+    this.refreshers.push(microSlider.refresh);
+
+    // Bend — the seq's per-step pitch bend (step-settings.md v5): the Micro
+    // slider's factory again, in semitones, then the shape as two labelled
+    // buttons (a toggle would read as on/off, and "fall" is not "scoop off").
+    if (opts.bend) this.mountBend(prefix, opts.bend);
 
     // Ratchet — 1..4 sub-hits within the step.
     const ratchetCtrl = document.createElement('div');
@@ -100,8 +117,53 @@ export class StepSettingsEditor {
     this.el.appendChild(tieBtn);
 
     this.refreshers.push(velSlider.refresh, gateSlider.refresh, probSlider.refresh,
-      microSlider.refresh, refreshRatchet, refreshTie);
+      refreshRatchet, refreshTie);
     this.refresh();
+  }
+
+  private mountBend(prefix: string, bend: NonNullable<StepSettingsEditorOpts['bend']>): void {
+    const slider = makeSlider('Bend', -BEND_MAX, BEND_MAX, () => bend.get()?.bend ?? 0,
+      (v) => bend.set({ bend: v }), {
+        center: true,
+        stepper: true,
+        snap: 1,
+        keyStep: 1,
+        resetTo: 0,
+        format: bendLabel,
+        testid: `${prefix}-bend`,
+        title: 'Pitch bend — drag, −/+ or the arrow keys to set how many semitones'
+          + ' this note bends; double-click for none',
+        stepTitles: ['Down a semitone', 'Up a semitone'],
+      });
+    this.el.appendChild(slider.el);
+
+    const shapeCtrl = document.createElement('div');
+    shapeCtrl.className = styles.ctrl!;
+    shapeCtrl.dataset.testid = `${prefix}-bend-shape`;
+    const shapeTitles = {
+      scoop: 'Scoop — start the bend away and slide onto the note',
+      fall: 'Fall — start on the note and bend away from it',
+    } as const;
+    const shapeBtns = BEND_SHAPES.map((shape) => {
+      const b = document.createElement('button');
+      b.className = switchStyles.root!;
+      b.textContent = shape === 'scoop' ? 'Scoop' : 'Fall';
+      b.dataset.testid = `${prefix}-bend-${shape}`;
+      b.title = shapeTitles[shape];
+      b.addEventListener('click', () => bend.set({ bendShape: shape }));
+      shapeCtrl.appendChild(b);
+      return b;
+    });
+    this.el.appendChild(shapeCtrl);
+
+    this.refreshers.push(slider.refresh, () => {
+      const s = bend.get();
+      const shape = s?.bendShape ?? 'scoop';
+      shapeBtns.forEach((b, i) => b.classList.toggle('on', BEND_SHAPES[i] === shape));
+      // Still editable at bend 0 — shape first, amount second is a fine order —
+      // but dimmed, because it is not audible yet.
+      shapeCtrl.classList.toggle(styles.inert!, !s?.bend);
+    });
   }
 
   /** Repaint every control from the current selected step. */
@@ -116,13 +178,24 @@ function microLabel(v: number): string {
   return v === 0 ? '0' : `${v > 0 ? '+' : ''}${v}/${MICRO_UNITS}`;
 }
 
+/** The Bend readout: `0`, `+2 st`, `-12 st`. */
+function bendLabel(v: number): string {
+  return v === 0 ? '0' : `${v > 0 ? '+' : ''}${v} st`;
+}
+
 /** Tooltip fragment for a step: `vel 80% · gate 50% · prob 100% · ×3 · tie`. */
 export function stepTitle(s: StepSettings): string {
   const pct = (v: number) => `${Math.round(v * 100)}%`;
   return `vel ${pct(s.velocity)} · gate ${pct(s.gate)} · prob ${pct(s.prob)}`
     + (s.ratchet > 1 ? ` · ×${s.ratchet}` : '')
     + (s.tie ? ' · tie' : '')
-    + (s.micro ? ` · micro ${microLabel(s.micro)}` : '');
+    + (s.micro ? ` · micro ${microLabel(s.micro)}` : '')
+    + (bendOf(s) ? ` · ${(s as SeqStep).bendShape} ${bendLabel(bendOf(s))}` : '');
+}
+
+/** A step's bend, 0 for a trigger cell (which has none). */
+function bendOf(s: StepSettings): number {
+  return 'bend' in s ? (s as SeqStep).bend : 0;
 }
 
 /**
@@ -155,6 +228,8 @@ interface SliderOpts {
   format?: (v: number) => string;
   /** Tooltip on the track — states the gesture, not the noun (ADR-014 law 1). */
   title?: string;
+  /** Tooltips for the − and + steppers, in that order. */
+  stepTitles?: readonly [string, string];
   /** Mints the root testid plus `-track` / `-dec` / `-inc` / `-value` on the
    *  parts, at the factory rather than per caller (design-an-interaction step 3).
    *  Without it the parts are only reachable positionally, which breaks the
@@ -223,7 +298,8 @@ function makeSlider(
     const b = document.createElement('button');
     b.className = `${switchStyles.root!} ${styles.stepBtn!}`;
     b.textContent = glyph;
-    b.title = `${dir > 0 ? 'Later' : 'Earlier'} by one notch`;
+    const titles = opts.stepTitles;
+    if (titles) b.title = dir > 0 ? titles[1] : titles[0];
     if (opts.testid) b.dataset.testid = `${opts.testid}-${tid}`;
     b.addEventListener('click', () => write(get() + dir * (opts.keyStep ?? 1)));
     return b;

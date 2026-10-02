@@ -44,8 +44,9 @@ export function roundParams(params: Record<string, number>): Record<string, numb
 
 /**
  * Seq step → sparse object. `restore` spreads only `SEQ_EXTRA_DEFAULTS`
- * (prob/ratchet/tie/micro) and `apply` does not reset the store first, so on/note/
- * velocity/gate are **always** kept; only prob/ratchet/tie/micro drop when default.
+ * (prob/ratchet/tie/micro/bend/bendShape) and `apply` does not reset the store
+ * first, so on/note/velocity/gate are **always** kept; only the extras drop when
+ * default.
  */
 function compactSeqStep(s: SeqStep): Record<string, unknown> {
   const out: Record<string, unknown> = {
@@ -64,6 +65,13 @@ function compactSeqStep(s: SeqStep): Record<string, unknown> {
   // exactly (step-settings.md REQ-a-step-carries-a-micro-offset).
   const micro = s.micro ?? SEQ_EXTRA_DEFAULTS.micro;
   if (micro !== SEQ_EXTRA_DEFAULTS.micro) out.micro = micro;
+  // Integer semitones and a word — neither is rounded, and both drop at their
+  // default so a pre-bend file re-exports byte-identical
+  // (step-settings.md REQ-a-seq-step-carries-a-bend).
+  const bend = s.bend ?? SEQ_EXTRA_DEFAULTS.bend;
+  if (bend !== SEQ_EXTRA_DEFAULTS.bend) out.bend = bend;
+  const bendShape = s.bendShape ?? SEQ_EXTRA_DEFAULTS.bendShape;
+  if (bendShape !== SEQ_EXTRA_DEFAULTS.bendShape) out.bendShape = bendShape;
   return out;
 }
 

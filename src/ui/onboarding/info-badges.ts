@@ -91,6 +91,7 @@ const ANCHORS: Anchor[] = [
   { topic: 'seq.prob', find: () => byTestId('seq-prob') },
   { topic: 'seq.ratchet', find: () => byTestId('seq-ratchet') },
   { topic: 'seq.tie', find: () => byTestId('seq-tie') },
+  { topic: 'seq.bend', find: () => byTestId('seq-bend') },
   // The one control on the step row that writes to FOUR tracks at once, and the
   // only one whose options are disabled until something on another tab is set.
   { topic: 'seq.chord', find: () => byTestId('seq-chord') },

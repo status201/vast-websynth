@@ -68,10 +68,12 @@ describe('cascade layers (specs/features/css-cascade-layers.md)', () => {
   });
 
   it('loads layers.css before any other stylesheet (REQ-the-layer-order-is-declared-once-and-first)', () => {
-    // Strip comments to a fixpoint: one pass can splice a new `<!--` together.
-    let html = readFileSync(root('index.html'), 'utf8');
-    for (let prev = ''; prev !== html; ) [prev, html] = [html, html.replace(/<!--[\s\S]*?-->/g, '')];
-    const firstSheet = /<(?:link[^>]+rel="stylesheet"[^>]*|style\b[^>]*)>/.exec(html)?.[0] ?? '';
+    // Tokenise, never strip: one left-to-right pass where a comment and a tag
+    // compete, so a commented-out tag is skipped and nothing is spliced
+    // together. An unterminated `<!--` runs to the end, as the parser has it.
+    const html = readFileSync(root('index.html'), 'utf8');
+    const tokens = html.matchAll(/<!--[\s\S]*?(?:--!?>|$)|<(?:link[^>]+rel="stylesheet"[^>]*|style\b[^>]*)>/g);
+    const firstSheet = [...tokens].map((m) => m[0]).find((t) => !t.startsWith('<!--')) ?? '';
     expect(firstSheet).toContain('href="/src/styles/layers.css"');
   });
 

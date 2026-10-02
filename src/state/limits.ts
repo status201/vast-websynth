@@ -135,6 +135,14 @@ export const MAX_RATCHET = 4;
  */
 export const MICRO_MAX = 12;
 
+/**
+ * The bound on a seq step's `bend`, in semitones either way (step-settings.md
+ * REQ-a-seq-step-carries-a-bend). An octave covers the idioms — a semitone or
+ * whole-tone scoop, a dive-bomb fall — without letting a payload ask for a
+ * detune nobody would call a bend.
+ */
+export const BEND_MAX = 12;
+
 /* ------------------------------------------------------- sample time-stretch */
 /*
  * time-stretch.md REQ-the-stretch-ratio-is-bounded. These bound a *local* edit rather than a payload, and

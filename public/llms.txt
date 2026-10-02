@@ -61,7 +61,8 @@ the meter — see below);
 optional seqTracks[bank][track], which is indexed by the real track number so
 index 0 is always null); 8 drum tracks (0=Kick 1=Snare 2=C.Hat 3=O.Hat 4=L.Tom
 5=M.Tom 6=H.Tom 7=Clap); 8 sampler slots. Per-step settings: velocity/gate/prob
-0..1, ratchet 1..4, tie boolean. `filter.cutoff` is a MIDI note number, not Hz.
+0..1, ratchet 1..4, tie boolean; seq steps also bend -12..12 semitones with
+bendShape "scoop" | "fall". `filter.cutoff` is a MIDI note number, not Hz.
 The motion sequencer automates parameters over the bar, and it has TWO surfaces.
 `motionTracks` gives each bank up to FOUR single-parameter lanes (A-D), each
 naming its own parameter id and carrying 16 levels. The XY lane (dialect key

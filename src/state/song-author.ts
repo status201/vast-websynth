@@ -14,7 +14,7 @@
  * demo registration.
  */
 import type { SongFile, ChainData } from './song';
-import type { SeqStep, TriggerCell, MotionStep, MotionAssign, MotionTrack } from './patterns';
+import type { SeqStep, TriggerCell, MotionStep, MotionAssign, MotionTrack, BendShape } from './patterns';
 import {
   MIN_BANK_COUNT,
   MAX_BANK_COUNT,
@@ -34,7 +34,7 @@ import {
   highestChainBank,
 } from './patterns';
 import { validateSongFile, type SongValidation } from './song-validate';
-import { MAX_CHAIN_STEPS, MAX_CHAIN_DEPTH, MAX_CHAIN_TRANSPOSE, MICRO_MAX, MAX_RATCHET} from './limits';
+import { MAX_CHAIN_STEPS, MAX_CHAIN_DEPTH, MAX_CHAIN_TRANSPOSE, MICRO_MAX, MAX_RATCHET, BEND_MAX} from './limits';
 import {
   MAX_ERRORS, isObject, describeValue as describe, type AddError,
 } from './validate-utils';
@@ -163,6 +163,30 @@ function checkMicro(path: string, v: unknown, add: AddError): number | undefined
   return v;
 }
 
+/**
+ * A seq step's bend (step-settings.md REQ-a-seq-step-carries-a-bend): integer
+ * semitones within ±BEND_MAX and a scoop/fall shape. Read on a seq step object
+ * only — a drum or sampler hit has no pitched voice to bend. Reports and drops a
+ * bad value, as {@link checkMicro} does; the canonical twin refuses (ADR-013).
+ */
+function readBend(path: string, o: Record<string, unknown>, add: AddError): Partial<Pick<SeqStep, 'bend' | 'bendShape'>> {
+  const out: Partial<Pick<SeqStep, 'bend' | 'bendShape'>> = {};
+  const v = o.bend;
+  if (v !== undefined) {
+    if (typeof v !== 'number' || !Number.isInteger(v) || v < -BEND_MAX || v > BEND_MAX) {
+      add(`${path}.bend must be an integer ${-BEND_MAX}..${BEND_MAX} (got ${describe(v)})`);
+    } else {
+      out.bend = v;
+    }
+  }
+  const s = o.bendShape;
+  if (s !== undefined) {
+    if (s === 'scoop' || s === 'fall') out.bendShape = s satisfies BendShape;
+    else add(`${path}.bendShape must be "scoop" or "fall" (got ${describe(s)})`);
+  }
+  return out;
+}
+
 function checkTie(path: string, v: unknown, add: AddError): boolean | undefined {
   if (v === undefined) return undefined;
   if (typeof v !== 'boolean') {
@@ -211,7 +235,7 @@ function readOverrides(path: string, o: Record<string, unknown>, add: AddError):
 /* ---------------- seq banks ---------------- */
 
 function emptySeqStep(): SeqStep {
-  return { on: false, note: 60, ...SEQ_ON_DEFAULTS };
+  return { on: false, note: 60, ...SEQ_ON_DEFAULTS, bend: 0, bendShape: 'scoop' };
 }
 
 function makeEmptySeqBank(): SeqStep[] {
@@ -240,7 +264,7 @@ function expandSeqEntry(
       return cell;
     }
     const midi = parseNote(`${path}.note`, entry.note, add);
-    Object.assign(cell, readOverrides(path, entry, add));
+    Object.assign(cell, readOverrides(path, entry, add), readBend(path, entry, add));
     if (midi === null) return cell;
     cell.on = true;
     cell.note = midi;

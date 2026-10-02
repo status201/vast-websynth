@@ -1,8 +1,15 @@
 // @vitest-environment jsdom
-import { describe, it, expect, vi } from 'vitest';
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { Reverb } from '../../../src/audio/effects/reverb';
 import { Distortion } from '../../../src/audio/effects/distortion';
 import { makeMockAudioContext } from '../mock-audio-context';
+
+// An effect boots bypassed, so its constructor arms a real 300 ms disconnect
+// timer whose callback calls `window.setTimeout` — on the real clock it can fire
+// after this file's jsdom environment is torn down (`window is not defined`, an
+// unhandled error that fails the run). Fake timers keep it inside the test.
+beforeEach(() => { vi.useFakeTimers(); });
+afterEach(() => { vi.clearAllTimers(); vi.useRealTimers(); });
 
 /**
  * Weak-tier FX-cost reductions (performance-mode.md REQ-weak-tier-reduces-fx-cost): the reverb IR

@@ -3,6 +3,8 @@ import { Envelope } from './envelope';
 import { LadderFilterNode } from './ladder-filter/node';
 import { clamp, midiToHz } from '../utils/math';
 import { rampTo, RAMP_FAST, RAMP_MEDIUM, RAMP_BYPASS } from './param-utils';
+import { scheduleBend } from './note-bend';
+import type { NoteBend } from './transport/note-output';
 
 export type VoiceState = 'idle' | 'playing' | 'releasing';
 
@@ -72,6 +74,17 @@ export class Voice {
    */
   readonly velocitySource: ConstantSourceNode;
   readonly keySource: ConstantSourceNode;
+
+  /**
+   * This voice's own pitch bend, in cents (step-settings.md REQ-a-bend-is-per-voice).
+   * Summed into the same three detune params `master.pitchBend` reaches, so a
+   * sequenced step's scoop or fall moves this note and no other. Sits at 0 and
+   * carries no automation until a bent note arrives.
+   */
+  readonly noteBend: ConstantSourceNode;
+  /** Whether `noteBend` may be away from 0, so an unbent note knows to reset it
+   *  (REQ-a-bend-zero-schedules-nothing). */
+  private bendDirty = false;
 
   currentNote = -1;
   state: VoiceState = 'idle';
@@ -155,6 +168,9 @@ export class Voice {
     this.keySource = ctx.createConstantSource();
     this.keySource.offset.value = 0;
     this.keySource.start();
+    this.noteBend = ctx.createConstantSource();
+    this.noteBend.offset.value = 0;
+    this.noteBend.start();
 
     // Signal path
     this.osc1.out.connect(this.mix);
@@ -171,6 +187,9 @@ export class Voice {
     // only while the stage is engaged.
 
     // Modulation
+    this.noteBend.connect(this.osc1.detuneParam);
+    this.noteBend.connect(this.osc2.detuneParam);
+    this.noteBend.connect(this.sub.detuneParam);
     this.ampEnv.out.connect(this.ampVCA.gain);
     this.filEnv.out.connect(this.filEnvScale);
     this.filEnvScale.connect(this.filter.cutoffNote);
@@ -229,7 +248,7 @@ export class Voice {
     note: number,
     velocity: number,
     when: number,
-    opts?: { detuneCents?: number; glide?: boolean; pan?: number; panGroup?: number },
+    opts?: { detuneCents?: number; glide?: boolean; pan?: number; panGroup?: number; bend?: NoteBend },
   ): void {
     if (this.releaseTimer !== null) {
       clearTimeout(this.releaseTimer);
@@ -254,6 +273,9 @@ export class Voice {
     this.osc1.setFrequency(hz, when, g);
     this.osc2.setFrequency(hz, when, g);
     this.sub.setFrequency(hz, when, g);
+    // The step's own bend, landing with the note like the frequency above. No
+    // bend on a clean voice writes nothing (REQ-a-bend-zero-schedules-nothing).
+    this.bendDirty = scheduleBend(this.noteBend.offset, opts?.bend, when, this.bendDirty);
     // Key tracking lands with the note, not as a ramp from the previous note's
     // cutoff — a glide there would whoop (key-tracking.md REQ-keytrack-lands-at-note-on). A no-op write
     // when keytrack is 0, since the value then equals what setFilterCutoff set.

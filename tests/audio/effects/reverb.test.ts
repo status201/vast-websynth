@@ -1,5 +1,5 @@
 // @vitest-environment jsdom
-import { describe, it, expect, vi, afterEach } from 'vitest';
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { Reverb } from '../../../src/audio/effects/reverb';
 import { makeMockAudioContext, type MockAudioContext } from '../mock-audio-context';
 
@@ -35,12 +35,20 @@ const generated = (ctx: MockAudioContext): number => ctx.createBuffer.mock.calls
  * timer at all — which is the point: the duck defers the swap, not the work.
  */
 const setSize = (r: Reverb, v: number): void => {
-  vi.useFakeTimers();
   r.setSize(v);
   vi.advanceTimersByTime(50);
 };
 
-afterEach(() => { vi.useRealTimers(); });
+/**
+ * Fake timers for the whole file, and pending ones dropped after each test. An
+ * effect boots bypassed, so its constructor arms a real 300 ms disconnect timer
+ * (effects.md REQ-a-bypassed-effect-drains-before-disconnect) whose callback
+ * calls `window.setTimeout`. Left on the real clock it can fire after this
+ * file's jsdom environment is torn down — `window is not defined`, an
+ * unhandled error that fails the run even though every test passed.
+ */
+beforeEach(() => { vi.useFakeTimers(); });
+afterEach(() => { vi.clearAllTimers(); vi.useRealTimers(); });
 
 describe('Reverb IR bank', () => {
   it('generates only the default size at construction', () => {
@@ -144,7 +152,6 @@ describe('Reverb IR bank', () => {
    * left the *song's* IR in place, which is what made it intermittent.
    */
   it('two writes in one turn land on the second, not the first (regression)', () => {
-    vi.useFakeTimers();
     const ctx = freshCtx();
     const r = mk(ctx);
     const buf = (): AudioBuffer =>

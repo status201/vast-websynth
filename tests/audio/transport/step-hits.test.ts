@@ -1,6 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import {
   rollProb, stepHits, chokeAt, forEachActiveHit, microOffset, MAX_EARLY_S,
+  stepBend, BEND_FRACTION,
 } from '../../../src/audio/transport/step-hits';
 import type { StepHit } from '../../../src/audio/transport/step-hits';
 import type { TriggerCell } from '../../../src/state/patterns';
@@ -216,5 +217,27 @@ describe('forEachActiveHit + micro', () => {
 
   it('leaves a micro-0 bank bit-identical to the pre-v3 behaviour (regression)', () => {
     expect(times([[cell()], [cell()]])).toEqual([1, 1]);
+  });
+});
+
+// step-settings.md REQ-bend-shapes-are-scoop-and-fall / REQ-a-bend-zero-schedules-nothing (v5)
+describe('stepBend', () => {
+  it('returns undefined for bend 0, whatever the shape (regression)', () => {
+    expect(stepBend({ bend: 0, bendShape: 'scoop' }, { t: 0, gateEnd: 0.1 })).toBeUndefined();
+    expect(stepBend({ bend: 0, bendShape: 'fall' }, { t: 0, gateEnd: 0.1 })).toBeUndefined();
+  });
+
+  it('bends over BEND_FRACTION of the hit gate', () => {
+    expect(BEND_FRACTION).toBe(0.5);
+    const b = stepBend({ bend: -2, bendShape: 'scoop' }, { t: 1, gateEnd: 1.2 })!;
+    expect(b.semis).toBe(-2);
+    expect(b.shape).toBe('scoop');
+    expect(b.dur).toBeCloseTo(0.1, 12);
+  });
+
+  it('a ratcheted step bends each sub-hit over its own sub-gate', () => {
+    const hits = stepHits({ gate: 0.5, ratchet: 2, tie: false }, 0, 0.2);
+    const bends = hits.map((h) => stepBend({ bend: 3, bendShape: 'fall' }, h)!);
+    for (const b of bends) expect(b.dur).toBeCloseTo(0.5 * 0.1 * 0.5, 12);
   });
 });

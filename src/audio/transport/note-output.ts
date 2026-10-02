@@ -1,3 +1,5 @@
+import type { BendShape } from '../../state/patterns';
+
 /**
  * What a note carries beyond its pitch and velocity.
  *
@@ -10,6 +12,20 @@ export interface NoteOpts {
   pan?: number;
   /** Which track's pan knob the voice should keep following while it sounds. */
   panGroup?: number;
+  /** A per-note pitch bend (step-settings.md REQ-a-bend-is-per-voice). Absent =
+   *  no bend; only the sequencer sets it. */
+  bend?: NoteBend;
+}
+
+/**
+ * One note's bend, resolved by `stepBend` (step-settings.md
+ * REQ-bend-shapes-are-scoop-and-fall): `semis` away from the note, arriving
+ * (`scoop`) or leaving (`fall`) over `dur` seconds from the attack.
+ */
+export interface NoteBend {
+  semis: number;
+  shape: BendShape;
+  dur: number;
 }
 
 export interface SynthOutput {

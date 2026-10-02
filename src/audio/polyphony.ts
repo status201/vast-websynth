@@ -69,6 +69,8 @@ export class Polyphony {
     // included — a spread chord is still one track, in one place.
     const pan = opts?.pan ?? 0;
     const panGroup = opts?.panGroup;
+    // A per-note bend bends every unison copy alike (step-settings.md REQ-a-bend-is-per-voice).
+    const bend = opts?.bend;
     const count = Math.max(1, Math.min(this.unisonCount, this.voices.length));
     // Legato = glide only when another note is already sounding.
     const anySounding = this.heldNotes.size > 0;
@@ -85,7 +87,7 @@ export class Polyphony {
         // rather than by stealing. Evicting leaves exactly one entry: the
         // newest note.
         this.evictVoice(v);
-        v.noteOn(note, velocity, t, { detuneCents: this.unisonOffset(i, count), glide, pan, panGroup });
+        v.noteOn(note, velocity, t, { detuneCents: this.unisonOffset(i, count), glide, pan, panGroup, bend });
         used.push(v);
       }
       this.heldNotes.set(note, used);
@@ -95,7 +97,7 @@ export class Polyphony {
     const existing = this.heldNotes.get(note);
     if (existing && existing.some((v) => v.state !== 'idle')) {
       for (let i = 0; i < existing.length; i++) {
-        existing[i]!.noteOn(note, velocity, t, { detuneCents: this.unisonOffset(i, existing.length), glide, pan, panGroup });
+        existing[i]!.noteOn(note, velocity, t, { detuneCents: this.unisonOffset(i, existing.length), glide, pan, panGroup, bend });
       }
       return;
     }
@@ -107,7 +109,7 @@ export class Polyphony {
       // voice, and releasing that key sends noteOff to a voice now sounding
       // something else — audible as "let go of one key, a different note stops".
       this.evictVoice(v);
-      v.noteOn(note, velocity, t, { detuneCents: this.unisonOffset(i, count), glide, pan, panGroup });
+      v.noteOn(note, velocity, t, { detuneCents: this.unisonOffset(i, count), glide, pan, panGroup, bend });
       used.push(v);
     }
     this.heldNotes.set(note, used);
