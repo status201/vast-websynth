@@ -10,8 +10,8 @@ related:
   - ../decisions/adr-009-ui-depends-on-studio-api-facade.md
   - add-a-ui-component
 source:
-  - src/ui/panels/seq-panel.ts        # reference panel
-  - src/ui/app.ts                     # buildPatternRow registers the tab
+  - src/ui/panels/seq-panel.ts   # reference panel
+  - src/ui/shell/pattern-row.ts  # buildPatternRow registers the tab
   - src/ui/components/tabs.ts
   - src/ui/studio-api.ts
 ```
@@ -21,7 +21,7 @@ A repeatable **playbook**, not a feature. A *panel* is a larger UI section
 pattern row. The seven existing panels (`arp`, `key`, `seq`, `drums`, `sampler`,
 `motion`, `song` — that is also their tab order) all follow one shape: a
 `build<Name>Panel(...)` factory returning a root element, registered as a
-`TabContainer` tab in `app.ts`. The concrete worked instance is
+`TabContainer` tab in `shell/pattern-row.ts`. The concrete worked instance is
 [`seq-panel`](../features/sequencer.md) (`src/ui/panels/seq-panel.ts`).
 
 Two files in that directory are **not** pattern-row panels and are not what this
@@ -36,7 +36,7 @@ Panels are the composition layer above `ui/components/`. They read transport and
 pattern state through the narrow [`StudioApi`](../../src/ui/studio-api.ts) facade — **never
 the concrete `Engine`** ([ADR-009](../decisions/adr-009-ui-depends-on-studio-api-facade.md)) —
 and bind controls to the [`ParamBus`](../architecture.md) like any component. A
-panel becomes visible by being handed to the `TabContainer` in `app.ts`; nothing
+panel becomes visible by being handed to the `TabContainer` in `shell/pattern-row.ts`; nothing
 else wires it.
 
 ## Steps
@@ -65,7 +65,7 @@ export function buildMyPanel(bus: ParamBus, engine: StudioApi): HTMLElement {
 }
 ```
 
-### 2. Register it as a tab — `src/ui/app.ts`
+### 2. Register it as a tab — `src/ui/shell/pattern-row.ts`
 
 Add an entry to the `TabContainer` in `buildPatternRow`. `id` mints the
 `tab-<id>` / `panel-<id>` testids:
@@ -109,7 +109,7 @@ npm run e2e         # e2e/controls.spec.ts sees the new tab/panel
   for both the active tab and the row's fold state. The sequencer's Step Input is
   the worked example ([sequencer](../features/sequencer.md) REQ-step-input-arms-only-on-screen); a panel built
   *before* the `TabContainer` exists cannot hold a reference to it, so this wiring
-  belongs in `app.ts` next to `bridge.showTab`.
+  belongs in `shell/pattern-row.ts` next to `bridge.showTab`.
 
 ## Scenarios (BDD)
 

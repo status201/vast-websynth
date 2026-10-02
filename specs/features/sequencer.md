@@ -47,7 +47,7 @@ source:
   - src/state/patterns.ts
   - src/audio/engine.ts
   - src/ui/panels/seq-panel.ts
-  - src/ui/app.ts                        # ties the arm to tab visibility (REQ-step-input-arms-only-on-screen)
+  - src/ui/shell/pattern-row.ts          # ties the arm to tab visibility (REQ-step-input-arms-only-on-screen)
   - src/ui/components/tabs.ts            # isVisible / onViewChange (REQ-step-input-arms-only-on-screen)
   - src/ui/components/collapse-toggle.ts # onChange, so a fold is a view change (REQ-step-input-arms-only-on-screen)
   - src/ui/components/lane-fold.ts       # the per-track fold itself (lane-fold.md)
@@ -464,7 +464,7 @@ step input (REQ-step-input-arms-only-on-screen..7):
   seq-panel: one setArmed(on) owns `armed` + recBtn '.on' + stepRow '.recording';
     arming also calls bankBar.setFollowing(false) (REQ-a-take-is-bank-pinned);
     patterns.onBulkRestore(() => setArmed(false))       # song load / New (REQ-step-input-arms-only-on-screen)
-  app.ts buildPatternRow: tabs.onViewChange(() =>
+  pattern-row.ts buildPatternRow: tabs.onViewChange(() =>
     { if (!tabs.isVisible('seq')) seq.disarmStepInput(); })   # tab + fold (REQ-step-input-arms-only-on-screen)
     # sits beside the existing bridge.undoActiveMachine / bridge.showTab wiring —
     # the late-binding seam, since the panel is built before the TabContainer exists

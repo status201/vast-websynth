@@ -425,7 +425,7 @@ pass a **pre-bound** closure rather than an inline arrow (REQ-no-allocation-in-a
 | REQ-boot-cost-matches-the-request | `state/song.ts` (`?url` demo glob + build-time index), `audio/effects/reverb.ts`, `ui/onboarding/index.ts` (facade → `onboarding-impl.ts`), `ui/components/about-button.ts` (→ `about-modal.ts`), `state/debug-sources.ts`, `main.ts` (idle warms); the rejection report is `lazy-load-failure.md` |
 | REQ-immutable-artefacts-are-shared | `audio/effects/reverb.ts` (IR bank), `audio/effects/distortion.ts` + `audio/transport/drum-machine.ts` (drive curves), `audio/oscillator.ts` (the PWM duty bank — per entry, v5) |
 | REQ-global-listeners-live-only-for-a-gesture | `ui/components/step-settings.ts`, `knob.ts`, `strip.ts`, `floating-window.ts` |
-| REQ-no-work-for-offscreen-dom | `ui/panels/step-panel-scaffold.ts` (`wirePlayhead`), the four machine panels, `ui/app.ts` |
+| REQ-no-work-for-offscreen-dom | `ui/panels/step-panel-scaffold.ts` (`wirePlayhead`), the four machine panels, `ui/shell/pattern-row.ts` |
 | REQ-automation-is-not-an-edit | `state/params.ts`, `audio/transport/motion-machine.ts`, `audio/transport/performance.ts` |
 | REQ-no-allocation-in-a-hot-loop | `audio/transport/motion-machine.ts`, `audio/transport/motion-curve.ts` (`valueAtInto`), `state/xy-effective.ts` (`motionAxesInto`/`motionAxesMatch`), `state/xy-pad.ts` (`readAssignInto`) |
 | REQ-dom-writes-are-guarded-on-what-is-rendered | `ui/components/knob.ts` |

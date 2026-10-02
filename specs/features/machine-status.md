@@ -24,7 +24,7 @@ source:
   - src/ui/styles/tabs.module.css         # LED states
   - src/ui/panels/song-panel.ts           # clickable lane titles
   - src/ui/styles/song-panel.module.css   # title link affordance
-  - src/ui/app.ts                         # which tabs ask for a lamp + the wiring
+  - src/ui/shell/pattern-row.ts           # which tabs ask for a lamp + the wiring
   - src/ui/ui-bridge.ts                   # showTab hook
   - src/audio/transport/lane-mix.ts       # audibleLanes (reused, not reimplemented)
 ```
@@ -200,7 +200,7 @@ params read: arp.on  (1)
 ### Layer touchpoints & ordering
 
 ```yaml
-construction (src/ui/app.ts buildPatternRow):
+construction (src/ui/shell/pattern-row.ts buildPatternRow):
   buildSongPanel(...)      # line ~377 — BEFORE the TabContainer exists
   new TabContainer([...])  # the song panel's el is itself a tab's content
 why: the Song panel cannot hold a `tabs` reference — it is a construction cycle.

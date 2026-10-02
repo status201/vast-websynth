@@ -43,8 +43,8 @@ source:
   - src/ui/panels/drum-panel.ts
   - src/ui/panels/sampler-panel.ts
   - src/ui/panels/motion-panel.ts
-  - src/ui/app.ts                         # drives every gate from onViewChange
-  - src/state/patterns.ts                 # bulk clear entry points
+  - src/ui/shell/pattern-row.ts  # drives every gate from onViewChange
+  - src/state/patterns.ts        # bulk clear entry points
 ```
 
 The interaction contract every 16-step grid obeys — how a step is created,
@@ -405,7 +405,7 @@ seq/drum/sampler panels:
   two paths writing `on` would double-toggle)
 motion panel:
   keeps MotionStepPad's own pointer handling (REQ-motion-keeps-its-own-gesture); takes only the Clear menu
-app.ts:
+pattern-row.ts:
   the Delete/Backspace handler joins the existing tab-scoped Ctrl+Z wiring, so
   both share one visibility rule
 ```

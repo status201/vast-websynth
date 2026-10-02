@@ -132,7 +132,7 @@ undoActiveMachine = (): boolean => false;
   state (session/xy) — it is NOT part of `StudioApi` — and threads it through
   `mountApp` → `buildPatternRow` → the four machine panels; it also joins the
   dev-only `__synth` bridge for E2E.
-- `app.ts` (`buildPatternRow`) assigns `bridge.undoActiveMachine` mapping
+- `shell/pattern-row.ts` (`buildPatternRow`) assigns `bridge.undoActiveMachine` mapping
   `TabContainer.activeId` (new getter) → machine; `shortcuts.ts` handles
   Ctrl/Cmd+Z **before** its generic modifier bail-out.
 - Coalesce keys: `seq:<bank>:<track>:<index>`, `drum:<bank>:<track>:<step>`,

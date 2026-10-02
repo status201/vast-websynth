@@ -130,7 +130,7 @@ createXyPad(bus: ParamBus, xy: XyPadStore, effective?: EffectiveXy): { el: HTMLE
   # places in the window's title bar (`leading` slot). destroy() aborts any
   # gesture (snap to pre), unsubscribes the bus + store + axes source, and
   # destroys the dropdowns.
-  # `effective` (state/xy-effective.ts, built in app.ts from the motion play
+  # `effective` (state/xy-effective.ts, built in shell/pattern-row.ts from the motion play
   # bank — motion-sequencer.md REQ-the-xy-window-axes-follow-motion): when passed, the pad's AXES — labels,
   # dot, drag/wheel targets — follow the effective assignment; the gear
   # dropdowns still show/edit the base store. Omitted (tests) = store-only,

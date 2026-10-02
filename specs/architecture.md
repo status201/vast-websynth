@@ -318,7 +318,7 @@ bank, the machine's `onStep`), and the exported helpers read from it:
 `wirePlayhead` (highlight only while edit bank === play bank, refreshing the
 overlay on the same tick — and only while the panel's `VisibilityGate` reports it
 on screen, re-syncing to the current step on reveal), `VisibilityGate` itself
-(inactive tabs stay mounted, so `app.ts` drives every panel's gate from one
+(inactive tabs stay mounted, so `shell/pattern-row.ts` drives every panel's gate from one
 `tabs.onViewChange`) and `GridCursor` (the drum/sampler 2-D selection
 cursor). `paintTriggerCell` lives with `stepTitle` in
 `ui/components/step-settings.ts`; the seq panel keeps its own painter because it
@@ -602,7 +602,7 @@ localStorage:
   websynth.debug.about     : About-modal Debug section open    # ui/components/about-debug.ts
   websynth.shortcuts.about : About-modal full key list shown   # ui/components/about-shortcuts.ts
   websynth.keyboard.layout : qwerty|azerty|qwertz|dvorak|auto  # state/keyboard-layout.ts — device-scoped, NOT a patch param
-  websynth.ui.collapsed.pattern : pattern-row collapse state   # ui/app.ts
+  websynth.ui.collapsed.pattern : pattern-row collapse state   # ui/shell/pattern-row.ts
   websynth.ui.collapsed.fx      : FX-section collapse state    # ui/panels/fx-rack.ts
   websynth.ui.collapsed.eq      : EQUALIZER-section collapse state (default folded)
                                   # ui/components/tabs.ts (features/equalizer.md REQ-the-eq-section-is-a-folded-tab-container)
