@@ -79,7 +79,7 @@ thing, one of them inert.
   the same self-wiring shape it already uses for `modDepthDeps`
   ([ADR-008](../decisions/adr-008-components-self-wire-params.md)). Consequences
   that are the *point* of doing it this way:
-  - No call site changes. `fxPanel` (`app.ts`), `fxGroup`, the LFO panel and the
+  - No call site changes. `fxPanel` (`panels/fx-rack.ts`), `fxGroup`, the LFO panel and the
     Live FX window all gain the lock without a signature growing anywhere, and
     none of them can forget.
   - A param cannot be lockable on one surface and free on another. The drum

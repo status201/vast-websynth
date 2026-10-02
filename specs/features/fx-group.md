@@ -25,7 +25,7 @@ The compact inline effect group used in panel headers: divider, title, on/off
 switch and a row of small knobs (plus an optional trailing element such as a
 gain-reduction meter). One component; the Drum Machine, Sampler and Song
 panels all build their header FX from it. The synth tab's boxed FX rack
-(`fxPanel` in `src/ui/app.ts`) is a different, separately-specified layout and
+(`fxPanel` in `src/ui/panels/fx-rack.ts`) is a different, separately-specified layout and
 is **not** governed here.
 
 ## Background / Why

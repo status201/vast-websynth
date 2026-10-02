@@ -15,7 +15,7 @@ related:
 source:
   - src/ui/components/fx-patch-decoration.ts
   - src/ui/styles/fx-patch-decoration.module.css
-  - src/ui/app.ts                       # buildFx — appends it on odd panel counts
+  - src/ui/panels/fx-rack.ts             # buildFxRack — appends it on odd panel counts
   - src/ui/styles/fx-rack.module.css     # .fxRow — the grid that leaves the gap
 ```
 
@@ -54,7 +54,7 @@ and to assistive tech.
   the single-row desktop layout it is `display: none` (the row is full; one more
   child would wrap to a new row). The visibility breakpoint mirrors `.fxRow`'s
   in `fx-rack.module.css`.
-- **REQ-decoration-is-parity-keyed** (parity-keyed) — `buildFx` appends it only
+- **REQ-decoration-is-parity-keyed** (parity-keyed) — `buildFxRack` appends it only
   when the panel count is **odd** (`fx.childElementCount % 2 === 1`), so adding
   a sixth effect drops the decoration automatically instead of pushing it onto a
   row of its own.
@@ -154,7 +154,7 @@ testids: fx-patch-decoration
 ### Layer touchpoints & ordering
 
 ```yaml
-app.ts buildFx: five fxPanel(...) appends, then
+fx-rack.ts buildFxRack: five fxPanel(...) appends, then
   if (fx.childElementCount % 2 === 1) fx.appendChild(fxPatchDecoration());
   # must run AFTER the panels (it counts them) and BEFORE section.appendChild(fx)
 fx-rack.module.css: .fxRow's @media (max-width: 992px) 2-column rule is the

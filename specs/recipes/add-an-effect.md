@@ -121,7 +121,7 @@ dry/wet. The chain's `bind(bus)` already reaches your effect, so
 
 ### 4. UI + verify
 
-Add controls in `app.ts` (or the drum/sampler panel for a bus variant), then
+Add controls in `panels/fx-rack.ts` (or the drum/sampler panel for a bus variant), then
 `npm run typecheck` + a test.
 
 ## Gotchas

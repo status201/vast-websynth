@@ -13,7 +13,7 @@ related:
   - presets          # fx.duck.* is a patch param and must be pinned (REQ-2b there)
   - runtime-performance
   - mod-matrix       # its "envelope follower off the drum bus" open question
-  - fx-patch-decoration  # the sixth panel made it dormant (its REQ-the-gain-law-is-bounded-by-construction)
+  - fx-patch-decoration # the sixth panel made it dormant (its REQ-the-gain-law-is-bounded-by-construction)
   - fx-group         # the sampler side's DUCK group builder
 source:
   - src/audio/effects/ducker.ts          # Ducker + the pure envValueAt
@@ -21,7 +21,7 @@ source:
   - src/audio/transport/drum-machine.ts  # onHit — the trigger source
   - src/audio/engine.ts                  # wires onHit/onStop to the duckers
   - src/state/params.ts                  # duckParams(prefix)
-  - src/ui/app.ts                        # the sixth FX rack panel
+  - src/ui/panels/fx-rack.ts             # the sixth FX rack panel
   - src/ui/panels/sampler-panel.ts       # the fifth sampler FX group
 ```
 
@@ -156,7 +156,7 @@ program-dependent. The detector variant is kept as an open question below.
     now [responsive-synth-panels](responsive-synth-panels.md) REQ-fx-panels-fit-their-knob-run; a rack panel
     with four knobs is a shape that spec owns, not this one.
   - **Consequence: the FX patch decoration goes dormant.** Six panels divide the
-    ≤992 px 2-column grid evenly, so `buildFx`'s parity guard appends no
+    ≤992 px 2-column grid evenly, so `buildFxRack`'s parity guard appends no
     scenery. This is
     [fx-patch-decoration](fx-patch-decoration.md) REQ-decoration-is-parity-keyed firing exactly as its own
     open question predicted, not a regression; the component and its unit tests
@@ -233,7 +233,7 @@ audio:
   src/audio/transport/drum-machine.ts  # onHit (ListenerSet, beside onStep)
   src/audio/engine.ts            # drums.onHit -> both duckers
 ui:
-  src/ui/app.ts                  # sixth fxPanel, last
+  src/ui/panels/fx-rack.ts # sixth fxPanel, last
   src/ui/panels/sampler-panel.ts # fifth fxGroup, last
   src/ui/styles/fx-rack.module.css  # .fxRow repeat(5) -> repeat(6); the panel
                                    # sizing that needed is responsive-synth-panels REQ-fx-panels-fit-their-knob-run

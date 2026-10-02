@@ -41,9 +41,9 @@ related:
   - performance
   - performance-mode     # the maxIrS / oversample tier caps REQ-the-reverb-ir-bank-is-lazy-and-shared keys around
   - runtime-performance  # REQ-every-effect-implements-the-interface/REQ-bypass-and-mix-are-a-crossfade — the boot-cost + shared-artefact rules
-  - fx-group   # shared header FX-group UI (hides knobs while <fx>.on is off)
+  - fx-group             # shared header FX-group UI (hides knobs while <fx>.on is off)
   - fx-patch-decoration  # v7: dormant now that six panels divide the grid evenly
-  - tempo-lock  # v6: the rate/time knobs' grid lock, shared with the LFO
+  - tempo-lock           # v6: the rate/time knobs' grid lock, shared with the LFO
   - sidechain-ducking    # v7: the sixth chain member (synth + sampler, last)
   - equalizer            # v11: the member that heads all three chains
 source:
@@ -60,7 +60,7 @@ source:
   - src/audio/transport/drum-machine.ts # the per-track drive, same cache
   - src/state/params.ts
   - src/audio/engine.ts                 # holds synthFx/drumFx/samplerFx; wire + bind
-  - src/ui/app.ts                       # the FX row + its panels
+  - src/ui/panels/fx-rack.ts            # the FX row + its panels
   - src/ui/panels/*                     # per-machine FX groups
 ```
 
@@ -482,7 +482,7 @@ engine: the three chains are built by audio/effects/fx-chain.ts and held as
   and `bindBypassMix` (effects/effect.ts) opens the shared `.on`/`.mix` pair,
   `bindTempoLocked` (audio/tempo-bind.ts) the `.rate|.time` + `.sync` + BPM trio.
 graph: Engine calls synthFx/drumFx/samplerFx .wire(<bus>, preMaster)
-ui: synth FX in app.ts; drum FX in drum-panel.ts; sampler FX in sampler-panel.ts
+ui: synth FX in panels/fx-rack.ts; drum FX in drum-panel.ts; sampler FX in sampler-panel.ts
 ```
 
 ## Scenarios (BDD)
