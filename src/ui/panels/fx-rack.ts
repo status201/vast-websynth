@@ -31,46 +31,7 @@ export function buildFxRack(bus: ParamBus): { el: HTMLElement; expand: () => voi
   const fx = document.createElement('div');
   fx.className = fxStyles.fxRow!;
 
-  fx.appendChild(fxPanel('Distortion', bus, 'fx.dist.on', [
-    { id: 'fx.dist.drive', label: 'DRIVE' },
-    { id: 'fx.dist.tone', label: 'TONE' },
-    { id: 'fx.dist.mix', label: 'MIX' },
-  ], 'fx.dist'));
-
-  fx.appendChild(fxPanel('Wah', bus, 'fx.wah.on', [
-    { id: 'fx.wah.rate', label: 'RATE' },
-    { id: 'fx.wah.depth', label: 'DEPTH' },
-    { id: 'fx.wah.q', label: 'Q' },
-  ], 'fx.wah'));
-
-  fx.appendChild(fxPanel('Phaser', bus, 'fx.phaser.on', [
-    { id: 'fx.phaser.rate', label: 'RATE' },
-    { id: 'fx.phaser.depth', label: 'DEPTH' },
-    { id: 'fx.phaser.feedback', label: 'FB' },
-    { id: 'fx.phaser.mix', label: 'MIX' },
-  ], 'fx.phaser'));
-
-  fx.appendChild(fxPanel('Delay', bus, 'fx.delay.on', [
-    { id: 'fx.delay.time', label: 'TIME' },
-    { id: 'fx.delay.feedback', label: 'FB' },
-    { id: 'fx.delay.mix', label: 'MIX' },
-  ], 'fx.delay'));
-
-  fx.appendChild(fxPanel('Reverb', bus, 'fx.reverb.on', [
-    { id: 'fx.reverb.size', label: 'SIZE' },
-    { id: 'fx.reverb.damp', label: 'DAMP' },
-    { id: 'fx.reverb.mix', label: 'MIX' },
-  ], 'fx.reverb'));
-
-  // Last in the rack because it is last in the chain (sidechain-ducking.md
-  // REQ-the-ducker-is-last-in-the-chain/REQ-ducking-adds-no-new-gesture): SRC is a discrete knob over the drum lanes + Any, the same
-  // shape as the drum compressor's RATIO.
-  fx.appendChild(fxPanel('Duck', bus, 'fx.duck.on', [
-    { id: 'fx.duck.amount', label: 'AMT' },
-    { id: 'fx.duck.attack', label: 'ATK' },
-    { id: 'fx.duck.release', label: 'REL' },
-    { id: 'fx.duck.src', label: 'SRC' },
-  ], 'fx.duck'));
+  for (const spec of RACK) fx.appendChild(fxPanel(bus, spec));
 
   // An odd effect count in the ≤992px 2-column grid leaves one cell empty; fill
   // it with the unpatched-cable scenery (fx-patch-decoration.md). Parity-keyed,
@@ -82,13 +43,31 @@ export function buildFxRack(bus: ParamBus): { el: HTMLElement; expand: () => voi
   return { el: section, expand: collapse.expand };
 }
 
-function fxPanel(
-  title: string,
-  bus: ParamBus,
-  onParam: string,
-  knobs: Array<{ id: string; label: string }>,
-  helpId: string,
-): HTMLElement {
+/**
+ * One effect: its title, its param prefix and its knobs. The prefix names the
+ * whole panel — `${id}.on` is the bypass switch, `${id}.<knob>` each knob, and
+ * `id` itself the info-badge help key.
+ */
+interface FxSpec {
+  title: string;
+  id: string;
+  knobs: ReadonlyArray<readonly [param: string, label: string]>;
+}
+
+/** The rack, left to right — the order of the insert chain itself. */
+const RACK: readonly FxSpec[] = [
+  { title: 'Distortion', id: 'fx.dist', knobs: [['drive', 'DRIVE'], ['tone', 'TONE'], ['mix', 'MIX']] },
+  { title: 'Wah', id: 'fx.wah', knobs: [['rate', 'RATE'], ['depth', 'DEPTH'], ['q', 'Q']] },
+  { title: 'Phaser', id: 'fx.phaser', knobs: [['rate', 'RATE'], ['depth', 'DEPTH'], ['feedback', 'FB'], ['mix', 'MIX']] },
+  { title: 'Delay', id: 'fx.delay', knobs: [['time', 'TIME'], ['feedback', 'FB'], ['mix', 'MIX']] },
+  { title: 'Reverb', id: 'fx.reverb', knobs: [['size', 'SIZE'], ['damp', 'DAMP'], ['mix', 'MIX']] },
+  // Last in the rack because it is last in the chain (sidechain-ducking.md
+  // REQ-the-ducker-is-last-in-the-chain/REQ-ducking-adds-no-new-gesture): SRC is a discrete knob over the drum lanes + Any, the same
+  // shape as the drum compressor's RATIO.
+  { title: 'Duck', id: 'fx.duck', knobs: [['amount', 'AMT'], ['attack', 'ATK'], ['release', 'REL'], ['src', 'SRC']] },
+];
+
+function fxPanel(bus: ParamBus, { title, id, knobs }: FxSpec): HTMLElement {
   const el = document.createElement('div');
   el.className = fxStyles.fxPanel!;
 
@@ -97,15 +76,15 @@ function fxPanel(
   const t = document.createElement('div');
   t.className = fxStyles.fxTitle!;
   t.textContent = title;
-  t.dataset.help = helpId;
+  t.dataset.help = id;
   header.appendChild(t);
-  header.appendChild(new Switch(bus, onParam, 'on').el);
+  header.appendChild(new Switch(bus, `${id}.on`, 'on').el);
   el.appendChild(header);
 
   const knobsEl = document.createElement('div');
   knobsEl.className = fxStyles.fxKnobs!;
-  for (const k of knobs) {
-    knobsEl.appendChild(new Knob({ bus, paramId: k.id, label: k.label }).el);
+  for (const [param, label] of knobs) {
+    knobsEl.appendChild(new Knob({ bus, paramId: `${id}.${param}`, label }).el);
   }
   el.appendChild(knobsEl);
 

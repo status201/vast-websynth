@@ -53,9 +53,12 @@ segmented control they were written to override.
   specificity, so one forgotten file silently outranks the whole app.
 
 - **REQ-the-layer-order-is-declared-once-and-first** — `src/styles/layers.css`
-  holds the single `@layer a, b, …;` statement and is the first stylesheet the
-  page loads, so a sheet arriving later — a lazy dialog's chunk — still takes
-  its declared place rather than appending a new layer on top.
+  holds the single `@layer a, b, …;` statement, and the browser meets it before
+  any stylesheet names a layer — so a sheet arriving later, a lazy dialog's
+  chunk, still takes its declared place rather than appending a new layer on
+  top. On `vite dev` that is `layers.css` linked first; in the build, where CSS
+  chunks load in an order nobody chose, it is the statement carried by every
+  chunk (see "How the order reaches the browser").
 
 - **REQ-a-composer-outranks-what-it-composes** — a module that adds its classes
   to another module's element sits in a later layer than that module. That is
@@ -166,8 +169,8 @@ Scenario: the hamburger stays hidden on a wide screen whatever the import order 
   Given a 1920px viewport
   When the shell's stylesheet is imported before the switch's
   Then the header menu toggle is not displayed
-# pinned by: scripts/css-cascade/fingerprint.mjs — browser-only (boot@w1920); verified by moving the
-#   import and comparing: 63 differences before the layers, none after
+# pinned by: scripts/css-cascade/fingerprint.mjs — browser-only. Verified by moving the shell's import
+#   first and comparing on vite dev: 63 differences at 1920px before the layers, 0 (12 captures) after
 
 Scenario: the pattern row's height does not depend on import order (regression)
   Given the two .patternRow min-height rules tabs.module.css had always beaten by load order
@@ -180,7 +183,8 @@ Scenario: the shipped build and vite dev agree (regression)
     segmented control
   Then they apply in the built app as they do in vite dev, though the build loads the segmented
     control's stylesheet from a shared chunk ahead of the entry CSS
-# pinned by: scripts/css-cascade/fingerprint.mjs — browser-only, the build against the dev baseline
+# pinned by: scripts/css-cascade/fingerprint.mjs — browser-only: before the layers the two servers'
+#   captures differed exactly here; after, the build's Song panel changed to match dev's and dev did not move
 
 Scenario: every built CSS chunk learns the layers in declared order (REQ-the-layer-order-is-declared-once-and-first)
   Given the build splits CSS into chunks that load in an order nobody chose
@@ -211,7 +215,10 @@ Scenario: an unlayered stylesheet fails the suite (REQ-every-stylesheet-declares
 - Build: `npm run build && npm run check:bundle` — the layer prefix check (CI runs it)
 - Browser, for any change meant to be invisible — run before and after, on BOTH
   servers (`--server dev`, and the default built app after `npm run build`):
-  - `npm run cascade:fingerprint -- --out base.json.gz --runs 2` on the old tree,
-    then `-- --compare base.json.gz` on the new one. Minutes per server.
+  - `npm run cascade:fingerprint -- --out base.ndjson.gz --runs 2` on the old tree
+    (a `git worktree` of it, so the new tree can be edited meanwhile), then
+    `-- --compare base.ndjson.gz` on the new one. About 20 minutes per server for
+    the 93 state × viewport captures; `--filter <id>` narrows it. A capture the
+    baseline lacks fails the compare rather than being skipped.
   - `npm run cascade:conflicts -- --dump d.json` — about 1.5 h for every state;
     `-- --from d.json --tiers t.json` then re-judges a layer map offline in seconds.

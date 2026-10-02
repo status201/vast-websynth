@@ -93,8 +93,10 @@ npm run e2e         # e2e/controls.spec.ts sees the new tab/panel
   subtree renders blank — the known `drum-panel` bug (see `src/ui/CLAUDE.md`).
 - Style with a `*.module.css` and the shared `panelStyles.patternPanel` /
   `patternPanelHeader` classes; reference global state classes (`.on`,
-  `.active`) via `:global(...)`.
-- **Group effect groups into `layout.fxCluster`.** If the panel has inline
+  `.active`) via `:global(...)`. The panel's own stylesheet is one
+  `@layer panels { … }` block — above the `chrome` it overrides and the
+  `controls` it decorates ([css-cascade-layers](../features/css-cascade-layers.md)).
+- **Group effect groups into `panelStyles.fxCluster`.** If the panel has inline
   `fxGroup(...)`s, append them to one `.fxCluster` div rather than straight to
   the header — the header wraps, and the cluster is what keeps the break
   between machine controls and FX instead of mid-cluster

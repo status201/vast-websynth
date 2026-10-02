@@ -1,7 +1,6 @@
 /// <reference types="vitest/config" />
 import { defineConfig } from 'vitest/config';
 import { readFileSync } from 'node:fs';
-import { fileURLToPath } from 'node:url';
 import { offlineManifestPlugin } from './scripts/lib/offline-manifest.mjs';
 import { cssLayerOrderPlugin } from './scripts/lib/css-layer-order.mjs';
 
@@ -37,7 +36,7 @@ export default defineConfig({
   plugins: [
     offlineManifestPlugin(pkg.version),
     cspDevStyles(),
-    cssLayerOrderPlugin(fileURLToPath(new URL('./src/styles/layers.css', import.meta.url))),
+    cssLayerOrderPlugin(),
   ],
   build: {
     target: 'es2022',

@@ -53,7 +53,7 @@ two stopped-state blinks: a subtle standing "attract" pulse, and a stronger
   - **enabling an arrangement chain lane** (the Song tab's per-lane Chain
     button, user click).
   The same action while already playing does *not* arm the cue. The signal
-  travels via `UiBridge.cuePlay` (callers → header), assigned in `buildHeader`
+  travels via `UiBridge.cuePlay` (callers → header), assigned in `createPlayButton`
   before any UI can fire it.
 - **REQ-one-blink-state-at-a-time** (exclusivity & lifecycle) — At most one
   blink state at a time: `attract` and `cue` are only present while stopped (cue
@@ -78,7 +78,7 @@ two stopped-state blinks: a subtle standing "attract" pulse, and a stronger
 
 ```yaml
 UiBridge:
-  cuePlay(): void          # no-op default; buildHeader assigns the real handler
+  cuePlay(): void          # no-op default; createPlayButton assigns the real handler
 buildSongPanel(bus, engine, session, xy, bridge, xyWin, modWin)   # bridge threaded (new param)
 state classes on the play button (global, like `.on`/`.blink`):
   attract  # stopped, no cue armed  -> slow orange LED pulse

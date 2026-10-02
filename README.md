@@ -324,9 +324,13 @@ src/
                      BPM<->note-division math, wake lock
   ui/                hand-built DOM components and panels (incl. song-panel:
                      chains, DJ FX, song I/O). studio-api.ts is the UI's narrow
-                     view of the Engine (see specs ADR-009)
-  styles/            Global CSS: base.css (reset), theme.css (custom properties), layout.css (.app grid + responsive)
-  ui/styles/         CSS Modules (*.module.css — component/panel-scoped, imported by components)
+                     view of the Engine (see specs ADR-009); app.ts assembles the
+                     page from the regions in ui/shell/ (header, MACHINES row,
+                     bottom column) and ui/panels/
+  styles/            Global CSS: layers.css (the cascade layer order), base.css (reset),
+                     theme.css (custom properties), layout.css (.app grid + responsive)
+  ui/styles/         CSS Modules (*.module.css — each one a single @layer block, so
+                     import order never decides which wins; see specs css-cascade-layers)
 public/worklets/     ladder-filter.js, compressor.js, recorder.js (audio thread)
 e2e/                 Playwright end-to-end specs (+ playwright.config.ts)
 ```

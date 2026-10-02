@@ -39,8 +39,9 @@ diagnostics (`iosAudio`, `mediaSession`, `backgroundAudio`) and the few verbs
 `init` stay invisible). The list grows as the UI needs a collaborator; what the
 ADR forbids is exposing `Engine` itself.
 
-Every UI signature site (`mountApp`, `installShortcuts`, the four panel builders,
-`openRecordSoundModal`, the `TourCtx.engine` field) takes `engine: StudioApi`.
+Every UI signature site (`mountApp` through `ShellDeps.engine`, `installShortcuts`,
+the four panel builders, `openRecordSoundModal`, the `TourCtx.engine` field) takes
+`engine: StudioApi`.
 The **UI owns the interface** (dependency inversion); `Engine` satisfies it
 **structurally** — there is no `class Engine implements StudioApi`, so `src/audio`
 never imports `src/ui`. The structural check fires at the seam in `main.ts`, where

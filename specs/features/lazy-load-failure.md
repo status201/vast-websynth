@@ -3,7 +3,8 @@
 ```yaml
 id: lazy-load-failure
 status: implemented
-version: 2   # v2: the offline sentence points at Play offline (REQ-the-offline-sentence-points-at-play-offline)
+version: 3   # v3: loadSurface is the canonical trigger shape; four hand-rolled triggers fold onto it
+             # v2: the offline sentence points at Play offline (REQ-the-offline-sentence-points-at-play-offline)
 owner: core
 related:
   - runtime-performance   # REQ-every-lazy-trigger-reports — the split that creates this failure mode
@@ -132,25 +133,24 @@ The canonical trigger shape, for a surface with no local state:
 
 ```ts
 async function openThing(args: Args): Promise<void> {
-  let m: typeof import('./thing');
-  try {
-    m = await import('./thing');
-  } catch {
-    showLazyLoadFailure('the thing', () => void openThing(args));
-    return;
-  }
-  m.openThing(args);
+  const m = await loadSurface('the thing', () => import('./thing'), () => void openThing(args));
+  m?.openThing(args);
 }
 ```
 
-Only the `import()` sits inside the `try`. A throw from the surface's own
-constructor is a bug, not a missing chunk, and must not be reported as one —
-which is also why the facade uses two-argument `then(use, onRejected)` rather
-than `.then(use).catch(...)`.
+Only the `import()` is guarded — `loadSurface` wraps `load()` and nothing else.
+A throw from the surface's own constructor is a bug, not a missing chunk, and
+must not be reported as one — which is also why the facade uses two-argument
+`then(use, onRejected)` rather than `.then(use).catch(...)`. A hand-written
+try/catch around the import is the same thing spelled out, and was how the
+preset manager, the audio export dialog, the sound recorder and Help & About
+were written until they were folded onto the wrapper (each surface's chunk built
+to the same size before and after).
 
-**Where the trigger wants named exports rather than the namespace, keep the
-destructure inside the `import()` expression** — return the binding out of the
-`try` instead of assigning into one declared above it:
+**Where the trigger wants named exports from a module whose other exports it
+must not pull in, keep the destructure inside the `import()` expression** —
+return the binding out of the `try` instead of assigning into one declared above
+it (the AI Prompt, the one trigger shaped like this):
 
 ```ts
 async function loadThing(): Promise<Thing | null> {

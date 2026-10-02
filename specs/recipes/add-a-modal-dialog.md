@@ -104,6 +104,10 @@ npm test            # tests/ui/modal.test.ts
 
 ## Gotchas
 
+- **Its stylesheet is `@layer components { … }`**, the layer `modal.module.css`
+  is in. A `cardClass` variant that overrides `.card` therefore wins on
+  specificity, not on load order — keep it at least as specific as what it
+  overrides ([css-cascade-layers](../features/css-cascade-layers.md)).
 - **Single-use.** Build a new `Modal` per appearance; don't cache and re-`open()`
   a closed one. (Contrast `FloatingWindow`, which is a re-openable toggle.)
 - **Do teardown in `onClose`.** It fires exactly once per close (Escape,

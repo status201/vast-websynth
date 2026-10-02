@@ -63,35 +63,23 @@
 
   /* Header "Perf" button tier colour: weak=red, medium=amber, strong=green — shown
      even under Auto (it reflects the *resolved* tier, so the user sees what Auto
-     picked). It outranks switch.module's `.root` by cascade layer, not specificity
-     (css-cascade-layers.md). The glow is scoped to :not(:active) so a press still
-     shows the switch's pressed shadow, which a later layer would otherwise beat;
-     the tier colours stay on while pressed, as they always did. */
-  button.tierWeak {
-    border-color: var(--accent-bad);
-    color: var(--accent-bad);
+     picked). Each tier only names its two colours; one pair of rules below
+     applies them, so the three cannot drift. It outranks switch.module's `.root`
+     by cascade layer, not specificity (css-cascade-layers.md). The glow is
+     scoped to :not(:active) so a press still shows the switch's pressed shadow,
+     which a later layer would otherwise beat; the tier colours stay on while
+     pressed, as they always did. */
+  button.tierWeak { --tier: var(--accent-bad); --tier-glow: var(--accent-bad-glow); }
+  button.tierMedium { --tier: var(--accent); --tier-glow: var(--accent-glow); }
+  button.tierStrong { --tier: var(--accent-good); --tier-glow: var(--accent-good-glow); }
+
+  :is(button.tierWeak, button.tierMedium, button.tierStrong) {
+    border-color: var(--tier);
+    color: var(--tier);
   }
 
-  button.tierWeak:not(:active) {
-    box-shadow: 0 0 8px var(--accent-bad-glow), inset 0 1px 0 rgba(244, 205, 94, 0.06);
-  }
-
-  button.tierMedium {
-    border-color: var(--accent);
-    color: var(--accent);
-  }
-
-  button.tierMedium:not(:active) {
-    box-shadow: 0 0 8px var(--accent-glow), inset 0 1px 0 rgba(244, 205, 94, 0.06);
-  }
-
-  button.tierStrong {
-    border-color: var(--accent-good);
-    color: var(--accent-good);
-  }
-
-  button.tierStrong:not(:active) {
-    box-shadow: 0 0 8px var(--accent-good-glow), inset 0 1px 0 rgba(244, 205, 94, 0.06);
+  :is(button.tierWeak, button.tierMedium, button.tierStrong):not(:active) {
+    box-shadow: 0 0 8px var(--tier-glow), inset 0 1px 0 rgba(244, 205, 94, 0.06);
   }
 
   /* Pending reload: the chosen mode differs from what the engine is actually

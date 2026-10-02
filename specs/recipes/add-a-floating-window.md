@@ -113,6 +113,12 @@ npm run e2e         # e2e/xy-pad.spec.ts drives the toggle end-to-end
   Escape belongs to the global panic handler (floating-window REQ-escape-does-not-close-a-window). If you
   need a dimmed, click-blocking dialog, use [`Modal`](add-a-modal-dialog.md)
   instead.
+- **Lay out the body with your own class** (`win.body.className += …`) — the
+  window hides a minimised body inline, so no `display` of yours can keep it
+  showing ([floating-window](../features/floating-window.md)
+  REQ-a-collapsed-body-stays-hidden). Its stylesheet is a `components`-layer
+  module, or `panels` if it composes a panel's classes
+  ([css-cascade-layers](../features/css-cascade-layers.md)).
 - **Reuse the instance.** Build the window once and toggle `open()`/`close()`;
   don't `new` it per click — that discards live state and defeats REQ-2.
 - **z-index tier is 950** — above panels (~100), below `Dropdown`/`Modal`

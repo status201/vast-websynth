@@ -1,6 +1,4 @@
-import type { StudioApi } from '../studio-api';
-import type { ParamBus } from '../../state/params';
-import type { UiBridge } from '../ui-bridge';
+import type { ShellDeps } from './deps';
 import { demoNames } from '../../state/song';
 import { anythingToPlay } from '../../audio/transport/anything-to-play';
 import { createButton, setButtonLabel } from '../components/button';
@@ -18,7 +16,8 @@ import headerStyles from '../styles/header.module.css';
  * must be built before anything calls either.
  */
 export function createPlayButton(
-  engine: StudioApi, bus: ParamBus, bridge: UiBridge, loadDemo: (name: string) => Promise<void>,
+  { engine, bus, bridge }: Pick<ShellDeps, 'engine' | 'bus' | 'bridge'>,
+  loadDemo: (name: string) => Promise<void>,
 ): HTMLButtonElement {
   const playBtn = createButton({
     label: 'Play',

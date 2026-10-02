@@ -6,7 +6,7 @@ import { gotoAndStart } from './helpers';
  * leaves in the ≤992px 2-column grid. See specs/features/fx-patch-decoration.md.
  *
  * It is currently **dormant**: sidechain-ducking added a sixth effect panel, so
- * the row divides evenly at both widths and `buildFx`'s parity guard appends
+ * the row divides evenly at both widths and `buildFxRack`'s parity guard appends
  * nothing (fx-patch-decoration.md REQ-decoration-is-parity-keyed — anticipated, not a regression). What
  * is pinned here is therefore the parity guard itself. A seventh effect brings
  * the scenery back with no code change, and the rendering assertions this file

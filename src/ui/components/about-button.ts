@@ -12,7 +12,7 @@
 import { Modal } from './modal';
 import { createButton } from './button';
 import { HEADER_ICONS } from './header-icons';
-import { showLazyLoadFailure } from './lazy-load-toast';
+import { loadSurface } from './lazy-load-toast';
 import type { StudioApi } from '../studio-api';
 
 /** What the modal needs from the onboarding layer, injected so About never
@@ -83,14 +83,9 @@ export function createAboutButton(engine: StudioApi, deps: AboutDeps): HTMLButto
     // warms this chunk on idle to keep the case rare offline (pwa-install.md
     // REQ-service-worker-is-registered), but a first visit that lost the network before idle has nothing
     // cached — hence the retry, which is a real one since nothing is memoized.
-    let buildModal: typeof import('./about-modal').buildModal;
-    try {
-      ({ buildModal } = await import('./about-modal'));
-    } catch {
-      showLazyLoadFailure('Help & About', () => void open());
-      return;
-    }
-    card ??= buildModal(close, engine, deps);
+    const m = await loadSurface('Help & About', () => import('./about-modal'), () => void open());
+    if (!m) return;
+    card ??= m.buildModal(close, engine, deps);
     const { backdrop } = card;
     document.body.appendChild(backdrop);
     // Force reflow so the opacity transition runs from the .hidden state.

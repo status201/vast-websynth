@@ -29,15 +29,14 @@ import { readFileSync, writeFileSync } from 'node:fs';
 import {
   launch, openState, parseArgs, plan, pool, startServer, stopServer,
 } from './lib.mjs';
+import { readLayerOrder } from '../lib/css-layer-order.mjs';
 
 const args = parseArgs(process.argv.slice(2));
 
-/** Layer order from the one statement that declares it; empty before layering. */
-function readLayerOrder() {
+/** The declared layer order; empty on a tree that has no layers yet (the dry run's starting point). */
+function declaredOrder() {
   try {
-    const css = readFileSync(new URL('../../src/styles/layers.css', import.meta.url), 'utf-8');
-    const m = /@layer\s+([^;{]+);/.exec(css.replace(/\/\*[\s\S]*?\*\//g, ''));
-    return m ? m[1].split(',').map((s) => s.trim()) : [];
+    return readLayerOrder().names;
   } catch {
     return [];
   }
@@ -211,7 +210,7 @@ function judge(contests, layerOrder, tiers) {
 
 // ----------------------------------------------------------------------- main
 
-const layerOrder = readLayerOrder();
+const layerOrder = declaredOrder();
 const tiers = args.tiers ? JSON.parse(readFileSync(args.tiers, 'utf-8')) : null;
 let contests;
 if (args.from) {

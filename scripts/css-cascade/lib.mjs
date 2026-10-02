@@ -82,8 +82,8 @@ export const STATES = [
     },
   ]),
   { name: 'modal-preset-manager', only: MODAL_VIEWPORTS, steps: [headerClick('preset-save'), wait('preset-manager')] },
-  { name: 'modal-about', only: MODAL_VIEWPORTS, steps: [headerClick('about-button')] },
-  { name: 'modal-perf', only: MODAL_VIEWPORTS, steps: [headerClick('perf-settings')] },
+  { name: 'modal-about', only: MODAL_VIEWPORTS, steps: [headerClick('about-button'), wait('play-offline-button')] },
+  { name: 'modal-perf', only: MODAL_VIEWPORTS, steps: [headerClick('perf-settings'), wait('perf-mode')] },
   { name: 'modal-export', only: MODAL_VIEWPORTS, steps: [songTab, click('song-export'), wait('export-modal')] },
   { name: 'modal-export-audio', only: MODAL_VIEWPORTS, steps: [songTab, click('song-export-audio'), wait('export-audio-modal')] },
   { name: 'modal-paste', only: MODAL_VIEWPORTS, steps: [songTab, click('song-paste'), wait('paste-modal')] },
@@ -192,6 +192,10 @@ export async function openState(browser, url, state, vp) {
  * because an injected stylesheet would itself take part in the cascade under test.
  */
 export async function settle(page) {
+  // Lazy chunks and the async reads behind a dialog (the About card's offline
+  // status, a storage estimate) land after the click that asked for them; a
+  // capture taken before they do measures the race, not the cascade.
+  await page.waitForLoadState('networkidle');
   await page.evaluate(() => document.fonts.ready);
   for (let round = 0; round < 3; round++) {
     await page.evaluate(() => new Promise((r) => requestAnimationFrame(() => requestAnimationFrame(r))));

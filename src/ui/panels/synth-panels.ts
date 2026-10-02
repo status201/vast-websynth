@@ -23,13 +23,14 @@ const panel = createPanel;
 export function buildSynthPanels(bus: ParamBus): HTMLElement {
   const main = document.createElement('div');
   main.className = synthStyles.main!;
+  const knob = (paramId: string, label: string): HTMLElement => new Knob({ bus, paramId, label }).el;
 
   main.appendChild(panel('OSC 1', (b) => {
     b.appendChild(new Segmented(bus, 'osc1.wave', WAVE_LABELS, WAVE_ICONS).el);
     b.appendChild(row([
-      new Knob({ bus, paramId: 'osc1.octave', label: 'OCT' }).el,
-      new Knob({ bus, paramId: 'osc1.detune', label: 'TUNE' }).el,
-      new Knob({ bus, paramId: 'osc1.level', label: 'LEVEL' }).el,
+      knob('osc1.octave', 'OCT'),
+      knob('osc1.detune', 'TUNE'),
+      knob('osc1.level', 'LEVEL'),
       ...pulseWidthKnob(bus, 'osc1'),
     ], panelStyles.spread!));
   }, 'oscillators'));
@@ -37,9 +38,9 @@ export function buildSynthPanels(bus: ParamBus): HTMLElement {
   main.appendChild(panel('OSC 2', (b) => {
     b.appendChild(new Segmented(bus, 'osc2.wave', WAVE_LABELS, WAVE_ICONS).el);
     b.appendChild(row([
-      new Knob({ bus, paramId: 'osc2.octave', label: 'OCT' }).el,
-      new Knob({ bus, paramId: 'osc2.detune', label: 'TUNE' }).el,
-      new Knob({ bus, paramId: 'osc2.level', label: 'LEVEL' }).el,
+      knob('osc2.octave', 'OCT'),
+      knob('osc2.detune', 'TUNE'),
+      knob('osc2.level', 'LEVEL'),
       ...pulseWidthKnob(bus, 'osc2'),
     ], panelStyles.spread!));
   }));
@@ -48,18 +49,18 @@ export function buildSynthPanels(bus: ParamBus): HTMLElement {
     b.appendChild(new Segmented(bus, 'sub.wave', WAVE_LABELS, WAVE_ICONS).el);
     // One .quad grid: 2x2 above 1280px, a single row on wider tablet panels.
     b.appendChild(row([
-      new Knob({ bus, paramId: 'sub.octave', label: 'S.OCT' }).el,
-      new Knob({ bus, paramId: 'sub.level', label: 'S.LVL' }).el,
-      new Knob({ bus, paramId: 'unison.voices', label: 'UNISON' }).el,
-      new Knob({ bus, paramId: 'unison.detune', label: 'SPREAD' }).el,
+      knob('sub.octave', 'S.OCT'),
+      knob('sub.level', 'S.LVL'),
+      knob('unison.voices', 'UNISON'),
+      knob('unison.detune', 'SPREAD'),
     ], panelStyles.quad!));
   }, 'subuni'));
 
   main.appendChild(panel('MIXER', (b) => {
     b.appendChild(row([
-      new Knob({ bus, paramId: 'mixer.noise', label: 'NOISE' }).el,
-      new Knob({ bus, paramId: 'mixer.glide', label: 'GLIDE' }).el,
-      new Knob({ bus, paramId: 'analog.drift', label: 'DRIFT' }).el,
+      knob('mixer.noise', 'NOISE'),
+      knob('mixer.glide', 'GLIDE'),
+      knob('analog.drift', 'DRIFT'),
     ], panelStyles.spread!));
     b.appendChild(new Segmented(bus, 'glide.mode', GLIDE_MODE_LABELS).el);
   }, 'mixer'));
@@ -70,12 +71,12 @@ export function buildSynthPanels(bus: ParamBus): HTMLElement {
     // Row 1 shapes the tone, row 2 drives and modulates it.
     const shape = new Knob({ bus, paramId: 'filter.shape', label: 'SHAPE' });
     b.appendChild(row([
-      new Knob({ bus, paramId: 'filter.cutoff', label: 'CUTOFF' }).el,
-      new Knob({ bus, paramId: 'filter.resonance', label: 'RESO' }).el,
+      knob('filter.cutoff', 'CUTOFF'),
+      knob('filter.resonance', 'RESO'),
       shape.el,
-      new Knob({ bus, paramId: 'filter.drive', label: 'DRIVE' }).el,
-      new Knob({ bus, paramId: 'filter.envAmount', label: 'ENV' }).el,
-      new Knob({ bus, paramId: 'filter.keytrack', label: 'KEYTRK' }).el,
+      knob('filter.drive', 'DRIVE'),
+      knob('filter.envAmount', 'ENV'),
+      knob('filter.keytrack', 'KEYTRK'),
     ], panelStyles.hex!));
     // SHAPE belongs to POLY — the ladder's saturated taps cannot make a clean
     // high-pass, so the worklet ignores it there (filter-models.md REQ-shape-is-poly-only). Dim
@@ -86,10 +87,10 @@ export function buildSynthPanels(bus: ParamBus): HTMLElement {
 
   main.appendChild(panel('AMP ENV', (b) => {
     b.appendChild(row([
-      new Knob({ bus, paramId: 'env.amp.attack', label: 'A' }).el,
-      new Knob({ bus, paramId: 'env.amp.decay', label: 'D' }).el,
-      new Knob({ bus, paramId: 'env.amp.sustain', label: 'S' }).el,
-      new Knob({ bus, paramId: 'env.amp.release', label: 'R' }).el,
+      knob('env.amp.attack', 'A'),
+      knob('env.amp.decay', 'D'),
+      knob('env.amp.sustain', 'S'),
+      knob('env.amp.release', 'R'),
     ], panelStyles.quad!));
   }, 'ampenv'));
 
@@ -99,11 +100,11 @@ export function buildSynthPanels(bus: ParamBus): HTMLElement {
     // hardware uses. At its default 0 it does nothing, so the panel reads
     // exactly as it did until someone reaches for it.
     b.appendChild(row([
-      new Knob({ bus, paramId: 'env.fil.attack', label: 'A' }).el,
-      new Knob({ bus, paramId: 'env.fil.decay', label: 'D' }).el,
-      new Knob({ bus, paramId: 'env.fil.sustain', label: 'S' }).el,
-      new Knob({ bus, paramId: 'env.fil.release', label: 'R' }).el,
-      new Knob({ bus, paramId: 'filter.velAmount', label: 'VEL' }).el,
+      knob('env.fil.attack', 'A'),
+      knob('env.fil.decay', 'D'),
+      knob('env.fil.sustain', 'S'),
+      knob('env.fil.release', 'R'),
+      knob('filter.velAmount', 'VEL'),
     ], panelStyles.quint!));
   }, 'filterenv'));
 

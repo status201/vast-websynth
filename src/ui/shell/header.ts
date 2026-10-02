@@ -1,7 +1,4 @@
-import type { StudioApi } from '../studio-api';
-import type { ParamBus } from '../../state/params';
-import type { PresetSession } from '../../state/preset-session';
-import type { UiBridge } from '../ui-bridge';
+import type { ShellDeps } from './deps';
 import type { SyncStatus } from '../../audio/transport/sync/sync-types';
 import type { Onboarding } from '../onboarding';
 import type { PresetManagerOptions } from '../components/preset-manager-modal';
@@ -15,7 +12,7 @@ import { Dropdown } from '../components/dropdown';
 import { createButton } from '../components/button';
 import { HEADER_ICONS } from '../components/header-icons';
 import { UI_ICONS } from '../components/ui-icons';
-import { showLazyLoadFailure } from '../components/lazy-load-toast';
+import { loadSurface } from '../components/lazy-load-toast';
 import { createAboutButton } from '../components/about-button';
 import { createBrand } from '../components/brand';
 import { createInfoBadgesButton } from '../components/info-badges-button';
@@ -35,14 +32,12 @@ import headerStyles from '../styles/header.module.css';
  * itself is a bug and must not be dressed up as one.
  */
 async function openPresetManagerModal(opts: PresetManagerOptions): Promise<void> {
-  let m: typeof import('../components/preset-manager-modal');
-  try {
-    m = await import('../components/preset-manager-modal');
-  } catch {
-    showLazyLoadFailure('the preset manager', () => void openPresetManagerModal(opts));
-    return;
-  }
-  m.openPresetManagerModal(opts);
+  const m = await loadSurface(
+    'the preset manager',
+    () => import('../components/preset-manager-modal'),
+    () => void openPresetManagerModal(opts),
+  );
+  m?.openPresetManagerModal(opts);
 }
 
 /**
@@ -52,8 +47,10 @@ async function openPresetManagerModal(opts: PresetManagerOptions): Promise<void>
  * `toggleInfoBadges`, and — through the Play button — `toggleTransport` and
  * `cuePlay`.
  */
+type HeaderDeps = Pick<ShellDeps, 'engine' | 'bus' | 'bridge' | 'session'>;
+
 export function buildHeader(
-  engine: StudioApi, bus: ParamBus, bridge: UiBridge, onboarding: Onboarding, session: PresetSession,
+  deps: HeaderDeps, onboarding: Onboarding,
   previewScopeTier: (tier: PerfTier) => void, loadDemo: (name: string) => Promise<void>,
 ): HTMLElement {
   const el = document.createElement('div');
@@ -82,7 +79,7 @@ export function buildHeader(
   menuToggle.setAttribute('aria-expanded', 'false');
   el.appendChild(menuToggle);
 
-  el.appendChild(buildPresetGroup(engine, bus, bridge, onboarding, session, previewScopeTier));
+  el.appendChild(buildPresetGroup(deps, onboarding, previewScopeTier));
 
   const spacer = document.createElement('div');
   spacer.className = headerStyles.headerSpacer!;
@@ -95,15 +92,15 @@ export function buildHeader(
   headerBreak.className = headerStyles.headerBreak!;
   el.appendChild(headerBreak);
 
-  el.appendChild(buildTransportGroup(engine, bus, bridge, loadDemo));
-  el.appendChild(buildVoicingGroup(engine, bus));
+  el.appendChild(buildTransportGroup(deps, loadDemo));
+  el.appendChild(buildVoicingGroup(deps));
 
   return el;
 }
 
 /** The preset selector, the one Presets door, and the utility icon buttons. */
 function buildPresetGroup(
-  engine: StudioApi, bus: ParamBus, bridge: UiBridge, onboarding: Onboarding, session: PresetSession,
+  { engine, bus, bridge, session }: HeaderDeps, onboarding: Onboarding,
   previewScopeTier: (tier: PerfTier) => void,
 ): HTMLElement {
   const presetGroup = document.createElement('div');
@@ -226,12 +223,13 @@ function buildPresetGroup(
 
 /** Play, then BPM, SWING and the meter — the three things the grid is written against. */
 function buildTransportGroup(
-  engine: StudioApi, bus: ParamBus, bridge: UiBridge, loadDemo: (name: string) => Promise<void>,
+  deps: Pick<ShellDeps, 'engine' | 'bus' | 'bridge'>, loadDemo: (name: string) => Promise<void>,
 ): HTMLElement {
+  const { engine, bus } = deps;
   const transport = document.createElement('div');
   transport.className = `${headerStyles.headerGroup!} ${headerStyles.transportGroup!}`;
 
-  transport.appendChild(createPlayButton(engine, bus, bridge, loadDemo));
+  transport.appendChild(createPlayButton(deps, loadDemo));
   // Capture the BPM knob so it can dim + refuse input while slaved — the tempo
   // is then driven by the sync master (midi-clock-sync REQ-the-bpm-knob-shows-slaved). Keyed on the
   // *running* role, so a selected-but-disconnected Slave leaves the knob live
@@ -257,7 +255,7 @@ function buildTransportGroup(
 }
 
 /** Voicing mode, Panic and the master volume. */
-function buildVoicingGroup(engine: StudioApi, bus: ParamBus): HTMLElement {
+function buildVoicingGroup({ engine, bus }: Pick<ShellDeps, 'engine' | 'bus'>): HTMLElement {
   const right = document.createElement('div');
   right.className = `${headerStyles.headerGroup!} ${headerStyles.voicingGroup!}`;
 

@@ -13,6 +13,7 @@
  */
 import { readdirSync, readFileSync, statSync } from 'node:fs';
 import { join } from 'node:path';
+import { layersNamedIn, namesLayersInOrder, readLayerOrder } from './lib/css-layer-order.mjs';
 
 /** Vite's `chunkSizeWarningLimit` default, in its own unit (1 kB = 1000 bytes). */
 const ENTRY_CEILING_BYTES = 500_000;
@@ -52,18 +53,12 @@ console.log(`check-bundle: entry chunk ${entry} is ${kb(bytes)} (${kb(ENTRY_CEIL
  * `css-layer-order.mjs` arranges it; the minifier trims each copy; this checks
  * what actually shipped.
  */
-const layersCss = readFileSync('src/styles/layers.css', 'utf-8').replace(/\/\*[\s\S]*?\*\//g, '');
-const order = /@layer\s+([^;{]+);/.exec(layersCss)?.[1]?.split(',').map((s) => s.trim()) ?? [];
+const { names: order } = readLayerOrder();
 let layerFailures = 0;
 for (const css of names.filter((n) => n.endsWith('.css'))) {
   const text = readFileSync(join(ASSETS, css), 'utf-8');
-  const seen = [];
-  // Layer names in order of first mention: `@layer a,b;` statements and `@layer a{` blocks.
-  for (const m of text.matchAll(/@layer\s+([\w\s,-]+?)\s*[;{]/g)) {
-    for (const name of m[1].split(',').map((s) => s.trim())) if (!seen.includes(name)) seen.push(name);
-  }
-  if (seen.join(',') !== order.slice(0, seen.length).join(',')) {
-    console.error(`check-bundle: ${css} names its layers as [${seen.join(', ')}], not a prefix of [${order.join(', ')}].`);
+  if (!namesLayersInOrder(text, order)) {
+    console.error(`check-bundle: ${css} names its layers as [${layersNamedIn(text).join(', ')}], not a prefix of [${order.join(', ')}].`);
     layerFailures++;
   }
 }

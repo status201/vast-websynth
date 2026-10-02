@@ -299,6 +299,8 @@ ui/shell/pattern-row.ts    the MACHINES tabs + their tab-scoped routing
                            (binds undoActiveMachine, clearSelectedStep, showTab)
 ui/shell/bottom.ts         wheels, the EQ row, the keyboard (binds pressKey, releaseKey)
 ui/shell/scope-panel.ts    the scope, its three toggles and its resize grip
+ui/shell/deps.ts           ShellDeps — what main.ts hands mountApp; each region's
+                           signature takes the Pick<ShellDeps, …> it reads
 ui/viewport.ts             the two mount-time breakpoints (isCompact, isPhone)
 ```
 

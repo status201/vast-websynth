@@ -105,7 +105,7 @@ async function boot() {
   await primeDetection();
 
   const bridge = new UiBridge();
-  const onboarding = mountApp(document.getElementById('app')!, engine, bus, bridge, session, xy, patternUndo);
+  const onboarding = mountApp(document.getElementById('app')!, { engine, bus, bridge, session, xy, patternUndo });
   installShortcuts(engine, bus, bridge);
 
   // Continuous autosave — attached AFTER the restore so the restore itself

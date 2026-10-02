@@ -172,7 +172,7 @@ Panel side (Drum + Sampler only):
 
 ```ts
 const fx = document.createElement('div');
-fx.className = layout.fxCluster!;
+fx.className = panelStyles.fxCluster!;
 fx.appendChild(fxGroup(bus, 'DIST', 'fx.sampler.dist', [ … ]));
 // … PHASER / DELAY / REVERB
 header.appendChild(fx);

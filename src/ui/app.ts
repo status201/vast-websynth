@@ -5,28 +5,21 @@
  * the demo loader, the scope's live performance knobs). The regions themselves
  * live in `shell/` and `panels/`; nothing is built here (architecture.md).
  */
-import type { StudioApi } from './studio-api';
-import type { ParamBus } from '../state/params';
-import type { PresetSession } from '../state/preset-session';
 import { pinAppliedSong } from '../state/preset-session';
-import type { XyPadStore } from '../state/xy-pad';
-import type { PatternUndo } from '../state/pattern-undo';
 import { Song, DEMO_SONGS } from '../state/song';
 import { PERF_PROFILES, type PerfTier } from '../state/perf-mode';
 import { setScopeStatsSource } from '../state/debug-sources';
-import type { UiBridge } from './ui-bridge';
 import { createOnboarding, type Onboarding } from './onboarding';
 import type { TourCtx } from './onboarding/tour';
+import type { ShellDeps } from './shell/deps';
 import { buildHeader } from './shell/header';
 import { buildSynthPanels } from './panels/synth-panels';
 import { buildFxRack } from './panels/fx-rack';
 import { buildPatternRow } from './shell/pattern-row';
 import { buildBottom } from './shell/bottom';
 
-export function mountApp(
-  root: HTMLElement, engine: StudioApi, bus: ParamBus, bridge: UiBridge, session: PresetSession, xy: XyPadStore,
-  patternUndo: PatternUndo,
-): Onboarding {
+export function mountApp(root: HTMLElement, deps: ShellDeps): Onboarding {
+  const { engine, bus, bridge, session, xy } = deps;
   root.innerHTML = '';
 
   // Late-bound hooks, filled once their panels are built; the tour calls them.
@@ -70,21 +63,18 @@ export function mountApp(
   // The header's empty-play hint loads a demo through the same late-bound
   // loader the tour uses (rebound to the Song panel's dropdown-syncing loader
   // once buildPatternRow runs below).
-  root.appendChild(buildHeader(
-    engine, bus, bridge, onboarding, session, previewScopeTier,
-    (name) => songLoadDemo(name),
-  ));
+  root.appendChild(buildHeader(deps, onboarding, previewScopeTier, (name) => songLoadDemo(name)));
   root.appendChild(buildSynthPanels(bus));
   const fx = buildFxRack(bus);
   fxExpand = fx.expand;
   root.appendChild(fx.el);
-  const patternRow = buildPatternRow(engine, bus, session, xy, bridge, patternUndo);
+  const patternRow = buildPatternRow(deps);
   songLoadDemo = patternRow.loadDemo;
   // OS-launched song files (installed-PWA file_handlers) flow through the
   // same import path as the Song panel's Import button (pwa-install.md REQ-one-import-parse-path).
   bridge.importSongBytes = patternRow.importSongBytes;
   root.appendChild(patternRow.el);
-  const bottom = buildBottom(engine, bus, bridge);
+  const bottom = buildBottom(deps);
   setScopeFps = (fps) => bottom.scope.setFps(fps);
   setScopeFft = (fftSize) => bottom.scope.setFftSize(fftSize);
   // Whether the panel is actually painting, for the Debug row (scope.md REQ-the-panel-says-whether-it-is-drawing).

@@ -12,18 +12,11 @@
 import { describe, it, expect } from 'vitest';
 import { readdirSync, readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
+import { readLayerOrder } from '../../scripts/lib/css-layer-order.mjs';
 
 const root = (rel: string): string => fileURLToPath(new URL(`../../${rel}`, import.meta.url));
 const stripComments = (css: string): string => css.replace(/\/\*[\s\S]*?\*\//g, '');
 
-/** The declared order, from the one statement in layers.css. */
-function declaredLayers(): string[] {
-  const css = stripComments(readFileSync(root('src/styles/layers.css'), 'utf8'));
-  const statements = [...css.matchAll(/@layer\s+([^;{]+);/g)];
-  expect(statements, 'layers.css declares the order exactly once').toHaveLength(1);
-  expect(css.replace(/@layer\s+[^;{]+;/, '').trim(), 'layers.css holds nothing but the order').toBe('');
-  return statements[0]![1]!.split(',').map((s) => s.trim());
-}
 
 /** Every stylesheet the app ships except layers.css itself, repo-relative. */
 function stylesheets(): string[] {
@@ -56,7 +49,9 @@ function layerOf(css: string): string {
 }
 
 describe('cascade layers (specs/features/css-cascade-layers.md)', () => {
-  const layers = declaredLayers();
+  // Throws unless layers.css holds exactly one order statement and nothing else —
+  // the parser the build and check-bundle use, so the three cannot disagree.
+  const layers: string[] = readLayerOrder().names;
   const sheets = stylesheets();
 
   it('found the stylesheets at all', () => {

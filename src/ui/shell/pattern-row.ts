@@ -1,9 +1,5 @@
-import type { StudioApi } from '../studio-api';
-import type { ParamBus } from '../../state/params';
-import type { PresetSession } from '../../state/preset-session';
-import type { XyPadStore } from '../../state/xy-pad';
-import type { PatternUndo, UndoMachine } from '../../state/pattern-undo';
-import type { UiBridge } from '../ui-bridge';
+import type { UndoMachine } from '../../state/pattern-undo';
+import type { ShellDeps } from './deps';
 import { createEffectiveXy } from '../../state/xy-effective';
 import { TabContainer } from '../components/tabs';
 import { createXyPadWindowController } from '../components/xy-pad-window';
@@ -35,10 +31,7 @@ import patternRowStyles from '../styles/pattern-row.module.css';
  * Returns the Song panel's demo loader and song importer, which the rest of
  * the app reaches through `mountApp`'s late-bound hooks.
  */
-export function buildPatternRow(
-  engine: StudioApi, bus: ParamBus, session: PresetSession, xy: XyPadStore, bridge: UiBridge,
-  patternUndo: PatternUndo,
-): {
+export function buildPatternRow({ engine, bus, bridge, session, xy, patternUndo }: ShellDeps): {
   el: HTMLElement;
   loadDemo: (name: string) => Promise<void>;
   importSongBytes: (bytes: Uint8Array, name: string) => Promise<boolean>;

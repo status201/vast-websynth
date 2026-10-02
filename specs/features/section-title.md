@@ -52,7 +52,7 @@ yellow heading reads as a control that does nothing when clicked
 
 - **REQ-one-component-draws-every-heading** — **One component draws every
   section heading.** `createSectionTitle({ text, icon, compact? })` returns the
-  element; both a `TabContainer` (`TabOptions.title`) and the FX bar (`buildFx`)
+  element; both a `TabContainer` (`TabOptions.title`) and the FX bar (`buildFxRack`)
   use it. Neither keeps its own title rule, so the three cannot drift apart in
   type, colour or inset.
 

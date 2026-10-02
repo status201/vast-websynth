@@ -1,6 +1,4 @@
-import type { StudioApi } from '../studio-api';
-import type { ParamBus } from '../../state/params';
-import type { UiBridge } from '../ui-bridge';
+import type { ShellDeps } from './deps';
 import type { Scope } from '../components/scope';
 import type { ResizeHandle } from '../components/resize-handle';
 import { Strip } from '../components/strip';
@@ -20,7 +18,7 @@ import bottomStyles from '../styles/bottom.module.css';
  * setting changes live.
  */
 export function buildBottom(
-  engine: StudioApi, bus: ParamBus, bridge: UiBridge,
+  { engine, bus, bridge }: Pick<ShellDeps, 'engine' | 'bus' | 'bridge'>,
 ): { el: HTMLElement; scope: Scope; scopeResize: ResizeHandle } {
   const bottom = document.createElement('div');
   bottom.className = bottomStyles.bottom!;

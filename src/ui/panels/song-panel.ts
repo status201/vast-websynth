@@ -29,7 +29,7 @@ import { describePresetPayload, type PresetParse } from '../../state/preset-file
 // The Paste dialog loads on its click (runtime-performance.md REQ-boot-cost-matches-the-request).
 import { showToast } from '../components/toast';
 import { installFileDrop } from '../file-drop';
-import { showLazyLoadFailure, loadSurface } from '../components/lazy-load-toast';
+import { loadSurface } from '../components/lazy-load-toast';
 import { unresolvedTargets } from '../../state/song-validate';
 import {
   BANK_LABELS, REST, SAMPLER_SLOT_COUNT, emptyPatternSnapshot, clampTranspose,
@@ -59,14 +59,12 @@ import {
  * reported with a retry rather than swallowed (lazy-load-failure.md).
  */
 async function openExportAudioModal(engine: StudioApi, fmt: ExportFormat): Promise<void> {
-  let m: typeof import('../components/export-audio-modal');
-  try {
-    m = await import('../components/export-audio-modal');
-  } catch {
-    showLazyLoadFailure('the audio export dialog', () => void openExportAudioModal(engine, fmt));
-    return;
-  }
-  m.openExportAudioModal(engine, fmt);
+  const m = await loadSurface(
+    'the audio export dialog',
+    () => import('../components/export-audio-modal'),
+    () => void openExportAudioModal(engine, fmt),
+  );
+  m?.openExportAudioModal(engine, fmt);
 }
 import { createRecordWindowLauncher } from '../components/record-window';
 import { encodeSongPayload, buildShareUrl } from '../../state/song-link';

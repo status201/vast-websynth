@@ -2,8 +2,8 @@ import type { StudioApi } from './studio-api';
 import type { ParamBus } from '../state/params';
 import type { UiBridge } from './ui-bridge';
 import { LAYOUTS, resolveLayout, onLayoutChange } from '../state/keyboard-layout';
-// The stack alone, not Modal: importing Modal would pull its stylesheet in here
-// and move it in the cascade (src/ui/CLAUDE.md, "import order is cascade order").
+// The stack alone, not Modal: the shortcut layer stays free of every component
+// and its stylesheet, so it can be installed before any UI exists.
 import { anyModalOpen } from './modal-stack';
 
 /**

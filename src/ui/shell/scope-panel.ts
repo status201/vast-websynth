@@ -38,12 +38,8 @@ export function buildScopePanel(
     { fps: PERF_PROFILES[resolveTier()].fps },
   );
   scopeWrap.appendChild(scope.el);
-  const toggle = document.createElement('button');
-  toggle.className = `${switchStyles.root!} ${bottomStyles.scopeToggle!}`;
-  toggle.dataset.testid = 'scope-toggle';
-  toggle.textContent = 'Wave';
   let isWave = true;
-  toggle.addEventListener('click', () => {
+  const toggle = overlayButton(bottomStyles.scopeToggle!, 'scope-toggle', 'Wave', () => {
     isWave = !isWave;
     scope.setMode(isWave ? 'wave' : 'spectrum');
     toggle.textContent = isWave ? 'Wave' : 'Spectrum';
@@ -53,12 +49,8 @@ export function buildScopePanel(
   });
   scopeWrap.appendChild(toggle);
   // Mono/Stereo toggle — orthogonal to Wave/Spectrum. Defaults to Mono.
-  const chanToggle = document.createElement('button');
-  chanToggle.className = `${switchStyles.root!} ${bottomStyles.scopeChannelsToggle!}`;
-  chanToggle.dataset.testid = 'scope-channels-toggle';
-  chanToggle.textContent = 'Mono';
   let isStereo = false;
-  chanToggle.addEventListener('click', () => {
+  const chanToggle = overlayButton(bottomStyles.scopeChannelsToggle!, 'scope-channels-toggle', 'Mono', () => {
     isStereo = !isStereo;
     scope.setChannels(isStereo ? 'stereo' : 'mono');
     chanToggle.textContent = isStereo ? 'Stereo' : 'Mono';
@@ -69,17 +61,13 @@ export function buildScopePanel(
   // until the view that gives it meaning is on screen; declared BEFORE the
   // Wave/Spectrum handler above runs, but after that button so tab order still
   // reads left-to-right, top-to-bottom.
-  const zonesToggle = document.createElement('button');
-  zonesToggle.className = `${switchStyles.root!} ${bottomStyles.scopeZonesToggle!}`;
-  zonesToggle.dataset.testid = 'scope-zones-toggle';
-  zonesToggle.textContent = 'Zones';
-  zonesToggle.title = 'Shade the four problem bands — mud, boxy, nasal, harsh';
-  zonesToggle.hidden = true;
-  zonesToggle.addEventListener('click', () => {
+  const zonesToggle = overlayButton(bottomStyles.scopeZonesToggle!, 'scope-zones-toggle', 'Zones', () => {
     const on = !scope.zonesOn;
     scope.setZones(on);
     zonesToggle.classList.toggle('on', on);
   });
+  zonesToggle.title = 'Shade the four problem bands — mud, boxy, nasal, harsh';
+  zonesToggle.hidden = true;
   scopeWrap.appendChild(zonesToggle);
   // Resize grip on the panel's top edge. A SIBLING of the canvas, like the two
   // toggles above — that is what keeps a press on it from reaching the canvas
@@ -101,4 +89,14 @@ export function buildScopePanel(
   });
   scopeWrap.appendChild(scopeResize.el);
   return { el: scopeWrap, scope, scopeResize };
+}
+
+/** One of the switch-styled text buttons overlaid on the scope's corners; `cls` places it. */
+function overlayButton(cls: string, testId: string, text: string, onClick: () => void): HTMLButtonElement {
+  const b = document.createElement('button');
+  b.className = `${switchStyles.root!} ${cls}`;
+  b.dataset.testid = testId;
+  b.textContent = text;
+  b.addEventListener('click', onClick);
+  return b;
 }

@@ -60,7 +60,8 @@ source:
   - src/ui/components/knob.ts
   - src/ui/components/step-settings.ts
   - src/ui/panels/step-panel-scaffold.ts
-  - src/ui/app.ts
+  - src/ui/shell/pattern-row.ts             # REQ-no-work-for-offscreen-dom — one gate per machine tab
+  - src/ui/shell/header.ts                  # REQ-boot-cost-matches-the-request — the preset manager loads on click
   - src/main.ts                             # REQ-boot-cost-matches-the-request — the idle warms (lamejs,
                                             #         onboarding, About)
   - src/ui/onboarding/index.ts              # REQ-boot-cost-matches-the-request — the synchronous facade
