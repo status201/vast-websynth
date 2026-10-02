@@ -1,13 +1,15 @@
-.root {
-  width: 100%;
-  height: 100%;
-  /* The CRT screen (radial gradient + inset vignette) lives on a static underlay
-     (.scopeScreen) so the animated canvas bitmap never re-rasters it. The canvas
-     itself is transparent and sits above that underlay. */
-  background: transparent;
-  border: 1px solid #2a1c10;
-  border-radius: 3px;
-  display: block;
-  position: relative;
-  z-index: 1;
+@layer components {
+  .root {
+    width: 100%;
+    height: 100%;
+    /* The CRT screen (radial gradient + inset vignette) lives on a static underlay
+       (.scopeScreen) so the animated canvas bitmap never re-rasters it. The canvas
+       itself is transparent and sits above that underlay. */
+    background: transparent;
+    border: 1px solid #2a1c10;
+    border-radius: 3px;
+    display: block;
+    position: relative;
+    z-index: 1;
+  }
 }

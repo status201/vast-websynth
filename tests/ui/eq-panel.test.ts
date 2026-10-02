@@ -235,9 +235,10 @@ describe('teardown', () => {
 
 describe('the bottom column keeps its shape (REQ-the-eq-is-a-third-bottom-row)', () => {
   const css = read('src/ui/styles/layout.module.css');
-  /** The declarations of the first top-level rule for `selector`. */
+  /** The declarations of the first top-level rule for `selector` — top level within the
+   *  file's `@layer` block, so indented exactly its two spaces (css-cascade-layers.md). */
   const rule = (selector: string): string => {
-    const m = new RegExp(`(?:^|\\n)${selector.replace('.', '\\.')}\\s*\\{([^}]*)\\}`).exec(css);
+    const m = new RegExp(`(?:^|\\n) {0,2}${selector.replace('.', '\\.')}\\s*\\{([^}]*)\\}`).exec(css);
     expect(m, `${selector} rule not found`).not.toBeNull();
     return m![1]!;
   };

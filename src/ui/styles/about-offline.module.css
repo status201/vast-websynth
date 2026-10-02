@@ -3,23 +3,25 @@
    button keeps Modal.closeBtnClass's 22px top margin, so the section sits in the
    card's rhythm of full-width actions; the line and bar tuck in under it. */
 
-.root {
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
+@layer components {
+  .root {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+  }
+
+  /* Sans by inheritance (typography.md REQ-sans-is-content-type); its counters change several times
+     a second, so the digits hold their width (REQ-one-offline-state-machine-many-views). --text-dim, not -faint: this
+     line is the feature's whole explanation, not a footnote. */
+  .status {
+    margin: 0;
+    font-size: 11px;
+    line-height: 1.45;
+    color: var(--text-dim);
+    font-variant-numeric: tabular-nums;
+  }
+
+  .status.ok { color: var(--accent-good); }
+
+  .status.bad { color: var(--text-bad); }
 }
-
-/* Sans by inheritance (typography.md REQ-sans-is-content-type); its counters change several times
-   a second, so the digits hold their width (REQ-one-offline-state-machine-many-views). --text-dim, not -faint: this
-   line is the feature's whole explanation, not a footnote. */
-.status {
-  margin: 0;
-  font-size: 11px;
-  line-height: 1.45;
-  color: var(--text-dim);
-  font-variant-numeric: tabular-nums;
-}
-
-.status.ok { color: var(--accent-good); }
-
-.status.bad { color: var(--text-bad); }

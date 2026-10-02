@@ -1,258 +1,260 @@
 /* Motion sequencer panel (specs/features/motion-sequencer.md). */
 
-/* One mini XY pad per step. The parent grid (drum.module.css .cells) controls
-   width; the pad keeps itself square-ish with a fixed height that reads well
-   inside the pattern row. */
-.pad {
-  position: relative;
-  min-width: 0;
-  width: 100%;
-  height: 64px;
-  padding: 0;
-  background: linear-gradient(180deg, #171310, #0e0b09);
-  border: 1px solid #3a2f26;
-  border-radius: 4px;
-  box-shadow: inset 0 2px 6px rgba(0, 0, 0, 0.6);
-  cursor: crosshair;
-  touch-action: none;
+@layer panels {
+  /* One mini XY pad per step. The parent grid (drum.module.css .cells) controls
+     width; the pad keeps itself square-ish with a fixed height that reads well
+     inside the pattern row. */
+  .pad {
+    position: relative;
+    min-width: 0;
+    width: 100%;
+    height: 64px;
+    padding: 0;
+    background: linear-gradient(180deg, #171310, #0e0b09);
+    border: 1px solid #3a2f26;
+    border-radius: 4px;
+    box-shadow: inset 0 2px 6px rgba(0, 0, 0, 0.6);
+    cursor: crosshair;
+    touch-action: none;
+  }
+
+  .pad.beat {
+    border-color: #5a3626;
+  }
+
+  .pad:global(.playing) {
+    border-color: #ffb051;
+    box-shadow: inset 0 2px 6px rgba(0, 0, 0, 0.6), 0 0 6px rgba(255, 176, 81, 0.55);
+  }
+
+  /* Faint center crosshair so an empty pad still reads as a 2-D surface. */
+  .pad::before,
+  .pad::after {
+    content: '';
+    position: absolute;
+    pointer-events: none;
+    background: rgba(255, 176, 81, 0.08);
+  }
+  .pad::before { left: 50%; top: 0; bottom: 0; width: 1px; }
+  .pad::after { top: 50%; left: 0; right: 0; height: 1px; }
+
+  .dot {
+    position: absolute;
+    width: 9px;
+    height: 9px;
+    border-radius: 50%;
+    background: #ffb051;
+    box-shadow: 0 0 5px rgba(255, 176, 81, 0.8);
+    transform: translate(-50%, -50%);
+    pointer-events: none;
+    display: none;
+  }
+
+  .pad:global(.on) .dot { display: block; }
+  .pad.beat .dot { background: #ff7a4d; box-shadow: 0 0 5px rgba(255, 122, 77, 0.8); }
+
+  /* The connecting graph for the selected axis, drawn over the whole grid.
+     Explicit width/height: an absolutely-positioned SVG is a replaced element,
+     so `inset: 0` alone leaves it at its intrinsic 300x150. */
+  .graph {
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+    pointer-events: none;
+  }
+  .graph polyline {
+    fill: none;
+    stroke: rgba(255, 176, 81, 0.55);
+    stroke-width: 1.5;
+    vector-effect: non-scaling-stroke;
+  }
+  .graph circle {
+    fill: rgba(255, 176, 81, 0.9);
+  }
+  /* The bar-line carry: what the curve does between this bar and its neighbours
+     (motion-sequencer.md REQ-cross-bank-carry). Dashed + dimmer so it reads as "leaving the bar". */
+  .graph polyline.carry {
+    stroke: rgba(255, 176, 81, 0.32);
+    stroke-dasharray: 3 3;
+  }
+
+  /* The XY lane's own header (motion-sequencer.md REQ-each-motion-step-is-a-mini-xy-pad): launcher, view toggle,
+     Slide/Step, the axes it drives and the hint reading them back — one row,
+     directly above its pads, so the toggle sits beside the readout it controls. */
+  .xyHeader {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    flex-wrap: wrap;
+    margin-bottom: 6px;
+    font-size: 11px;
+    color: #b9a58f;
+    /* Solid divider fencing the machine header (on/banks/undo/clear) off from the
+       XY lane settings — the same rule the Drum tab uses below its grid
+       (drum.module.css .tuning). The XY↔tracks divider below stays dashed. */
+    border-top: 1px solid var(--panel-border);
+    margin-top: 6px;
+    padding-top: 8px;
+  }
+  .xyHeader .axisLabel {
+    font-size: 10px;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: #8f7a63;
+  }
+  /* An axis dropdown showing an inherited (non-overridden) assignment is dimmed via
+     `Dropdown.setDimmed` (dropdown.md REQ-a-dropdown-can-be-dimmed), which owns the styling. There is no
+     rule here on purpose: this used to be `.inheritedSel { opacity }` on the
+     dropdown ROOT, which faded the open option list and trapped it behind the pads. */
+  .hint {
+    font-size: 10px;
+    color: #77664f;
+  }
+
+  /* Per-lane value readout (motion-sequencer.md REQ-a-motion-steps-value-is-readable-without-hovering). Permanent chrome, not a
+     hover popup — the pads are far too small to carry their own label, and
+     ADR-014 law 6 rules out putting the value somewhere only a mouse can reach.
+     Modelled on the Knob's `.num`: a reserved height so appearing text never
+     reflows the header row, tabular figures so digits do not jitter as a drag
+     sweeps, and the accent reserved for a live gesture. `margin-left: auto`
+     parks it at the end of the row, away from the controls. */
+  .readout {
+    margin-left: auto;
+    min-height: 12px;
+    font-size: 10px;
+    letter-spacing: 0.04em;
+    font-variant-numeric: tabular-nums;
+    color: #8f7a63;
+    white-space: nowrap;
+  }
+
+  .readoutLive {
+    color: var(--accent);
+    text-shadow: 0 0 6px var(--accent-glow);
+  }
+
+  /* ---- extra single-param tracks (motion-sequencer.md REQ-single-param-lanes-below-the-xy-lane) ---- */
+
+  /* Level cell: same box as the XY pad, but the value reads as a bottom-up fill
+     instead of a dot, so a row of them is legible as a bar graph at a glance. */
+  .levelPad .bar {
+    position: absolute;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    height: 0;
+    background: linear-gradient(180deg, var(--accent) 0%, rgba(232, 116, 46, 0.35) 100%);
+    border-radius: 0 0 3px 3px;
+    pointer-events: none;
+  }
+
+  /* Unlit cells still show a faint bar at their level, so a row reads as a bar
+     strip. Clearing resets a cell to the default level (motion-panel.ts onClear),
+     so a cleared cell matches an untouched one instead of keeping its old height. */
+  .levelPad .bar { opacity: 0.22; }
+  .levelPad:global(.on) .bar { opacity: 1; }
+
+  .inert {
+    opacity: 0.3;
+    pointer-events: none;
+  }
+
+  /* A track lane: its controls above its own full-width cells, so all three
+     lanes share one 16-column grid and step n reads vertically across them
+     (REQ-single-param-lanes-below-the-xy-lane). A left gutter would indent the cells and break that. */
+  .trackRow {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    margin-top: 8px;
+  }
+
+  .trackHeader {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    flex-wrap: wrap;
+  }
+
+  /* The single divider, carried by the first track: it fences the XY lane off
+     from the tracks. The single-param lanes are all the same kind of lane, so
+     nothing divides them from each other.
+     Same dashed section rule the Song panel uses (song-panel.module.css .djFx). */
+  .laneDivider {
+    border-top: 1px dashed rgba(244, 205, 94, 0.18);
+    padding-top: 10px;
+    margin-top: 10px;
+  }
+
+  /* The fold caret IS the lane's label (lane-fold.md REQ-the-fold-caret-is-an-icon-not-a-glyph), so it
+     carries the label's type. Wider than the sequencer's 40px chip: this one sits
+     at the head of a row of value pads and wants a real target
+     (ADR-014 law 6). */
+  .trackFold {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-width: 46px;
+    min-height: 24px;
+    padding: 2px 8px;
+    font-family: inherit;
+    font-size: 10px;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    color: inherit;
+    opacity: 0.7;
+    background: rgba(255, 255, 255, 0.05);
+    border: 1px solid rgba(255, 255, 255, 0.14);
+    border-radius: 4px;
+    cursor: pointer;
+  }
+
+  .trackFold:hover { opacity: 1; }
+
+  /* A folded lane keeps its whole header row — caret, param picker, STEP/SLIDE,
+     readout — so it can still be assigned and reopened; only the cells and the
+     graph go away (motion-sequencer.md REQ-an-empty-motion-lane-starts-folded). */
+  .trackBody { min-width: 0; }
+  .folded .trackBody { display: none; }
+
+  .trackGrid {
+    position: relative;
+    min-width: 0;
+  }
+
+  /* A/B track cells: a wider gap than the XY lane's 3px (drum.module.css .cells) so
+     the tracks read as a distinct, more spaced-out lane. The 1fr columns absorb the
+     extra gap, so the cells get narrower automatically. The full-width grid keeps
+     step 0 / step 15 aligned with the XY lane above; only interior cells sit a few
+     px off the decorative graph overlay (pointer-events:none), which is fine. */
+  /* Column count follows the lane's played length (meter.md REQ-cells-beyond-the-length-are-hidden): a 3/4 song
+     draws 12 columns, not 16 with four dead ones. `--steps` is set by the panel
+     (and by the ruler that shares this class), so the two can never disagree; the
+     fallback keeps every other consumer at 16. */
+  .trackCells {
+    display: grid;
+    grid-template-columns: repeat(var(--steps, 16), 1fr);
+    gap: 10px;
+    flex: 1;
+    min-width: 0;
+  }
+
+  /* An unassigned track reads as "not doing anything" without becoming
+     unusable — its cells carry .inert (pointer-events: none), the row itself
+     never does, or the param picker inside it would be unreachable. */
+  .trackDim .trackFold { opacity: 0.45; }
+
+  /* ...but the dim must not eat the caret's hover. Since v17 this label is a
+     BUTTON, and an unassigned lane is exactly when you reach for it — it is the
+     fold on an empty lane. The rule above outranks the plain `.trackFold:hover`
+     by source order at equal specificity, so the hover is restated here rather
+     than left to lose (ADR-014 law 6: a control has to feel like one). */
+  .trackDim .trackFold:hover { opacity: 1; }
+
+  /* A level cell is one-dimensional: `onSet` discards x, so its horizontal
+     position carries no meaning. The vertical centre line would advertise an axis
+     that does not exist and make the cell read as a mini XY pad — drop it. The
+     horizontal line stays: on a level cell it is a useful 50% mark. */
+  .levelPad::before { display: none; }
 }
-
-.pad.beat {
-  border-color: #5a3626;
-}
-
-.pad:global(.playing) {
-  border-color: #ffb051;
-  box-shadow: inset 0 2px 6px rgba(0, 0, 0, 0.6), 0 0 6px rgba(255, 176, 81, 0.55);
-}
-
-/* Faint center crosshair so an empty pad still reads as a 2-D surface. */
-.pad::before,
-.pad::after {
-  content: '';
-  position: absolute;
-  pointer-events: none;
-  background: rgba(255, 176, 81, 0.08);
-}
-.pad::before { left: 50%; top: 0; bottom: 0; width: 1px; }
-.pad::after { top: 50%; left: 0; right: 0; height: 1px; }
-
-.dot {
-  position: absolute;
-  width: 9px;
-  height: 9px;
-  border-radius: 50%;
-  background: #ffb051;
-  box-shadow: 0 0 5px rgba(255, 176, 81, 0.8);
-  transform: translate(-50%, -50%);
-  pointer-events: none;
-  display: none;
-}
-
-.pad:global(.on) .dot { display: block; }
-.pad.beat .dot { background: #ff7a4d; box-shadow: 0 0 5px rgba(255, 122, 77, 0.8); }
-
-/* The connecting graph for the selected axis, drawn over the whole grid.
-   Explicit width/height: an absolutely-positioned SVG is a replaced element,
-   so `inset: 0` alone leaves it at its intrinsic 300x150. */
-.graph {
-  position: absolute;
-  inset: 0;
-  width: 100%;
-  height: 100%;
-  pointer-events: none;
-}
-.graph polyline {
-  fill: none;
-  stroke: rgba(255, 176, 81, 0.55);
-  stroke-width: 1.5;
-  vector-effect: non-scaling-stroke;
-}
-.graph circle {
-  fill: rgba(255, 176, 81, 0.9);
-}
-/* The bar-line carry: what the curve does between this bar and its neighbours
-   (motion-sequencer.md REQ-cross-bank-carry). Dashed + dimmer so it reads as "leaving the bar". */
-.graph polyline.carry {
-  stroke: rgba(255, 176, 81, 0.32);
-  stroke-dasharray: 3 3;
-}
-
-/* The XY lane's own header (motion-sequencer.md REQ-each-motion-step-is-a-mini-xy-pad): launcher, view toggle,
-   Slide/Step, the axes it drives and the hint reading them back — one row,
-   directly above its pads, so the toggle sits beside the readout it controls. */
-.xyHeader {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  flex-wrap: wrap;
-  margin-bottom: 6px;
-  font-size: 11px;
-  color: #b9a58f;
-  /* Solid divider fencing the machine header (on/banks/undo/clear) off from the
-     XY lane settings — the same rule the Drum tab uses below its grid
-     (drum.module.css .tuning). The XY↔tracks divider below stays dashed. */
-  border-top: 1px solid var(--panel-border);
-  margin-top: 6px;
-  padding-top: 8px;
-}
-.xyHeader .axisLabel {
-  font-size: 10px;
-  letter-spacing: 0.08em;
-  text-transform: uppercase;
-  color: #8f7a63;
-}
-/* An axis dropdown showing an inherited (non-overridden) assignment is dimmed via
-   `Dropdown.setDimmed` (dropdown.md REQ-a-dropdown-can-be-dimmed), which owns the styling. There is no
-   rule here on purpose: this used to be `.inheritedSel { opacity }` on the
-   dropdown ROOT, which faded the open option list and trapped it behind the pads. */
-.hint {
-  font-size: 10px;
-  color: #77664f;
-}
-
-/* Per-lane value readout (motion-sequencer.md REQ-a-motion-steps-value-is-readable-without-hovering). Permanent chrome, not a
-   hover popup — the pads are far too small to carry their own label, and
-   ADR-014 law 6 rules out putting the value somewhere only a mouse can reach.
-   Modelled on the Knob's `.num`: a reserved height so appearing text never
-   reflows the header row, tabular figures so digits do not jitter as a drag
-   sweeps, and the accent reserved for a live gesture. `margin-left: auto`
-   parks it at the end of the row, away from the controls. */
-.readout {
-  margin-left: auto;
-  min-height: 12px;
-  font-size: 10px;
-  letter-spacing: 0.04em;
-  font-variant-numeric: tabular-nums;
-  color: #8f7a63;
-  white-space: nowrap;
-}
-
-.readoutLive {
-  color: var(--accent);
-  text-shadow: 0 0 6px var(--accent-glow);
-}
-
-/* ---- extra single-param tracks (motion-sequencer.md REQ-single-param-lanes-below-the-xy-lane) ---- */
-
-/* Level cell: same box as the XY pad, but the value reads as a bottom-up fill
-   instead of a dot, so a row of them is legible as a bar graph at a glance. */
-.levelPad .bar {
-  position: absolute;
-  left: 0;
-  right: 0;
-  bottom: 0;
-  height: 0;
-  background: linear-gradient(180deg, var(--accent) 0%, rgba(232, 116, 46, 0.35) 100%);
-  border-radius: 0 0 3px 3px;
-  pointer-events: none;
-}
-
-/* Unlit cells still show a faint bar at their level, so a row reads as a bar
-   strip. Clearing resets a cell to the default level (motion-panel.ts onClear),
-   so a cleared cell matches an untouched one instead of keeping its old height. */
-.levelPad .bar { opacity: 0.22; }
-.levelPad:global(.on) .bar { opacity: 1; }
-
-.inert {
-  opacity: 0.3;
-  pointer-events: none;
-}
-
-/* A track lane: its controls above its own full-width cells, so all three
-   lanes share one 16-column grid and step n reads vertically across them
-   (REQ-single-param-lanes-below-the-xy-lane). A left gutter would indent the cells and break that. */
-.trackRow {
-  display: flex;
-  flex-direction: column;
-  gap: 4px;
-  margin-top: 8px;
-}
-
-.trackHeader {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  flex-wrap: wrap;
-}
-
-/* The single divider, carried by the first track: it fences the XY lane off
-   from the tracks. The single-param lanes are all the same kind of lane, so
-   nothing divides them from each other.
-   Same dashed section rule the Song panel uses (song-panel.module.css .djFx). */
-.laneDivider {
-  border-top: 1px dashed rgba(244, 205, 94, 0.18);
-  padding-top: 10px;
-  margin-top: 10px;
-}
-
-/* The fold caret IS the lane's label (lane-fold.md REQ-the-fold-caret-is-an-icon-not-a-glyph), so it
-   carries the label's type. Wider than the sequencer's 40px chip: this one sits
-   at the head of a row of value pads and wants a real target
-   (ADR-014 law 6). */
-.trackFold {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  min-width: 46px;
-  min-height: 24px;
-  padding: 2px 8px;
-  font-family: inherit;
-  font-size: 10px;
-  text-transform: uppercase;
-  letter-spacing: 0.06em;
-  color: inherit;
-  opacity: 0.7;
-  background: rgba(255, 255, 255, 0.05);
-  border: 1px solid rgba(255, 255, 255, 0.14);
-  border-radius: 4px;
-  cursor: pointer;
-}
-
-.trackFold:hover { opacity: 1; }
-
-/* A folded lane keeps its whole header row — caret, param picker, STEP/SLIDE,
-   readout — so it can still be assigned and reopened; only the cells and the
-   graph go away (motion-sequencer.md REQ-an-empty-motion-lane-starts-folded). */
-.trackBody { min-width: 0; }
-.folded .trackBody { display: none; }
-
-.trackGrid {
-  position: relative;
-  min-width: 0;
-}
-
-/* A/B track cells: a wider gap than the XY lane's 3px (drum.module.css .cells) so
-   the tracks read as a distinct, more spaced-out lane. The 1fr columns absorb the
-   extra gap, so the cells get narrower automatically. The full-width grid keeps
-   step 0 / step 15 aligned with the XY lane above; only interior cells sit a few
-   px off the decorative graph overlay (pointer-events:none), which is fine. */
-/* Column count follows the lane's played length (meter.md REQ-cells-beyond-the-length-are-hidden): a 3/4 song
-   draws 12 columns, not 16 with four dead ones. `--steps` is set by the panel
-   (and by the ruler that shares this class), so the two can never disagree; the
-   fallback keeps every other consumer at 16. */
-.trackCells {
-  display: grid;
-  grid-template-columns: repeat(var(--steps, 16), 1fr);
-  gap: 10px;
-  flex: 1;
-  min-width: 0;
-}
-
-/* An unassigned track reads as "not doing anything" without becoming
-   unusable — its cells carry .inert (pointer-events: none), the row itself
-   never does, or the param picker inside it would be unreachable. */
-.trackDim .trackFold { opacity: 0.45; }
-
-/* ...but the dim must not eat the caret's hover. Since v17 this label is a
-   BUTTON, and an unassigned lane is exactly when you reach for it — it is the
-   fold on an empty lane. The rule above outranks the plain `.trackFold:hover`
-   by source order at equal specificity, so the hover is restated here rather
-   than left to lose (ADR-014 law 6: a control has to feel like one). */
-.trackDim .trackFold:hover { opacity: 1; }
-
-/* A level cell is one-dimensional: `onSet` discards x, so its horizontal
-   position carries no meaning. The vertical centre line would advertise an axis
-   that does not exist and make the cell read as a mini XY pad — drop it. The
-   horizontal line stays: on a level cell it is a useful 50% mark. */
-.levelPad::before { display: none; }

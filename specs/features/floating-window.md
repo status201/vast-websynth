@@ -3,7 +3,9 @@
 ```yaml
 id: floating-window
 status: implemented
-version: 4  # v4: a window may veto its own close (REQ-a-window-may-veto-its-close)
+version: 5  # v5: the collapsed body is hidden by the window itself, inline, so a consumer's
+            #     layout class on .body can never keep it visible (REQ-a-collapsed-body-stays-hidden)
+            # v4: a window may veto its own close (REQ-a-window-may-veto-its-close)
 owner: core
 related:
   - architecture
@@ -65,6 +67,16 @@ matrix) reuse it.
   `open()` always reveals the window **expanded** (predictable re-open), even
   for an instance kept alive across closes. `isCollapsed` reflects the current
   state.
+- **REQ-a-collapsed-body-stays-hidden** — **Collapsing hides the body whatever
+  the consumer styles it with.** Consumers lay their content out by adding a
+  class to `body` (`live-fx`, `record-window` and `transport-controls` all do),
+  and a class that sets `display` would otherwise compete with the collapse.
+  So the window hides the body itself — an inline `display: none`, set and
+  cleared with the `collapsed` class — rather than by a stylesheet rule a
+  consumer's rule can outrank. This was a stylesheet rule that won on
+  specificity until stylesheets got cascade layers
+  ([css-cascade-layers](css-cascade-layers.md)), when the consumer's later layer
+  beat it and the LIVE FX window stopped minimising.
 - **REQ-window-stays-inside-the-viewport** — Stays inside the viewport across
   viewport changes: because a window is positioned with fixed `left`/`top` (px)
   and an instance is kept alive across closes, a position computed for one
@@ -143,8 +155,9 @@ leading slot: opts.leading is inserted after .minBtn, before .title; its pointer
       is stopped so a drag never starts from it. .titleBar is justify-content:flex-start
       with .closeBtn margin-left:auto so the minimise/leading/title cluster stays left,
       close stays right.
-collapsed: root.collapsed hides .body (display:none) and rounds the title bar fully
-      (it becomes a standalone pill). CSS only; state driven by the minimise button.
+collapsed: the body gets an inline display:none (REQ-a-collapsed-body-stays-hidden) and
+      root.collapsed rounds the title bar fully (it becomes a standalone pill); state
+      driven by the minimise button.
 no backdrop: the root is appended straight to document.body — there is no overlay.
 ```
 
@@ -170,6 +183,12 @@ tour overlay:      1100
 ## Scenarios (BDD)
 
 ```gherkin
+Scenario: a consumer's layout class cannot keep a minimised body visible (regression)
+  Given a FloatingWindow whose body carries a consumer class that sets display: flex
+  When the minimise button is pressed
+  Then the body is not displayed, and restoring displays it again
+# pinned by: tests/ui/floating-window.test.ts, e2e/live-fx.spec.ts
+
 Scenario: Open then close is a clean toggle
   Given a FloatingWindow with an onClose callback
   When it is opened, then closed

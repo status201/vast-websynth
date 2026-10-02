@@ -1,24 +1,26 @@
-.root {
-  width: 36px;
-  height: 8px;
-  border: 1px solid rgba(244, 205, 94, 0.25);
-  border-radius: 2px;
-  background: rgba(0, 0, 0, 0.35);
-  overflow: hidden;
-  display: flex;
-  justify-content: flex-end;
-}
+@layer controls {
+  .root {
+    width: 36px;
+    height: 8px;
+    border: 1px solid rgba(244, 205, 94, 0.25);
+    border-radius: 2px;
+    background: rgba(0, 0, 0, 0.35);
+    overflow: hidden;
+    display: flex;
+    justify-content: flex-end;
+  }
 
-.fill {
-  height: 100%;
-  width: 100%;
-  /* Right-anchored leftward growth via a compositor-only transform (no layout). */
-  transform: scaleX(0);
-  transform-origin: right;
-  background: linear-gradient(to left, var(--accent-secondary), #e0633a);
-  /* No transition, deliberately. The worklet posts gain reduction every ~32ms,
-     so a 60ms ease never finished before the next value overrode it: the fill
-     lagged permanently and a fast transient's peak was never actually reached,
-     making the compressor look like it was working less than it was. A meter
-     that under-reads is worse than a meter that jumps. */
+  .fill {
+    height: 100%;
+    width: 100%;
+    /* Right-anchored leftward growth via a compositor-only transform (no layout). */
+    transform: scaleX(0);
+    transform-origin: right;
+    background: linear-gradient(to left, var(--accent-secondary), #e0633a);
+    /* No transition, deliberately. The worklet posts gain reduction every ~32ms,
+       so a 60ms ease never finished before the next value overrode it: the fill
+       lagged permanently and a fast transient's peak was never actually reached,
+       making the compressor look like it was working less than it was. A meter
+       that under-reads is worse than a meter that jumps. */
+  }
 }

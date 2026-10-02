@@ -1,174 +1,176 @@
 /* XY Pad surface — see specs/features/xy-pad.md. Lives inside a FloatingWindow. */
 
-.root {
-  display: flex;
-  flex-direction: column;
-  gap: 10px;
-  width: 240px;
-}
+@layer components {
+  .root {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    width: 240px;
+  }
 
-.assign {
-  display: flex;
-  flex-direction: column;
-  gap: 6px;
-}
+  .assign {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+  }
 
-/* Collapsed behind the title-bar gear (global .collapsed state class). */
-.assign:global(.collapsed) {
-  display: none;
-}
+  /* Collapsed behind the title-bar gear (global .collapsed state class). */
+  .assign:global(.collapsed) {
+    display: none;
+  }
 
-/* Gear toggle — lives in the FloatingWindow title bar; mirrors .closeBtn there,
-   and rotates when the assign row is open (driven by its own aria-expanded). */
-.gearBtn {
-  flex: none;
-  width: 22px;
-  height: 22px;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  padding: 0;
-  font-size: 13px;
-  line-height: 1;
-  color: var(--text-dim);
-  background: transparent;
-  border: 1px solid transparent;
-  border-radius: 6px;
-  cursor: pointer;
-  transform: rotate(0deg);
-  transition: background 0.12s ease, color 0.12s ease, transform 0.16s ease;
-}
-.gearBtn:hover {
-  color: var(--text);
-  background: rgba(232, 116, 46, 0.18);
-}
-.gearBtn[aria-expanded='true'] {
-  color: var(--accent-secondary);
-  transform: rotate(90deg);
-}
+  /* Gear toggle — lives in the FloatingWindow title bar; mirrors .closeBtn there,
+     and rotates when the assign row is open (driven by its own aria-expanded). */
+  .gearBtn {
+    flex: none;
+    width: 22px;
+    height: 22px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    padding: 0;
+    font-size: 13px;
+    line-height: 1;
+    color: var(--text-dim);
+    background: transparent;
+    border: 1px solid transparent;
+    border-radius: 6px;
+    cursor: pointer;
+    transform: rotate(0deg);
+    transition: background 0.12s ease, color 0.12s ease, transform 0.16s ease;
+  }
+  .gearBtn:hover {
+    color: var(--text);
+    background: rgba(232, 116, 46, 0.18);
+  }
+  .gearBtn[aria-expanded='true'] {
+    color: var(--accent-secondary);
+    transform: rotate(90deg);
+  }
 
-.field {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-}
+  .field {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
 
-.fieldLabel {
-  flex: none;
-  width: 14px;
-  font-family: var(--serif);
-  font-size: 12px;
-  font-weight: 700;
-  color: var(--accent-secondary);
-}
+  .fieldLabel {
+    flex: none;
+    width: 14px;
+    font-family: var(--serif);
+    font-size: 12px;
+    font-weight: 700;
+    color: var(--accent-secondary);
+  }
 
-.field :global(.dropdown) {
-  flex: 1;
-  min-width: 0;
-}
+  .field :global(.dropdown) {
+    flex: 1;
+    min-width: 0;
+  }
 
-.surface {
-  position: relative;
-  width: 100%;
-  aspect-ratio: 1 / 1;
-  border: 1px solid var(--panel-border);
-  border-radius: 8px;
-  background:
-    linear-gradient(180deg, rgba(232, 116, 46, 0.06), rgba(0, 0, 0, 0.35)),
-    var(--panel-flat);
-  box-shadow: inset 0 0 24px rgba(0, 0, 0, 0.55);
-  cursor: crosshair;
-  touch-action: none;
-  overflow: hidden;
-}
+  .surface {
+    position: relative;
+    width: 100%;
+    aspect-ratio: 1 / 1;
+    border: 1px solid var(--panel-border);
+    border-radius: 8px;
+    background:
+      linear-gradient(180deg, rgba(232, 116, 46, 0.06), rgba(0, 0, 0, 0.35)),
+      var(--panel-flat);
+    box-shadow: inset 0 0 24px rgba(0, 0, 0, 0.55);
+    cursor: crosshair;
+    touch-action: none;
+    overflow: hidden;
+  }
 
-/* Faint centre crosshairs for orientation. */
-.surface::before,
-.surface::after {
-  content: '';
-  position: absolute;
-  background: rgba(244, 205, 94, 0.08);
-}
-.surface::before {
-  left: 50%;
-  top: 0;
-  bottom: 0;
-  width: 1px;
-}
-.surface::after {
-  top: 50%;
-  left: 0;
-  right: 0;
-  height: 1px;
-}
+  /* Faint centre crosshairs for orientation. */
+  .surface::before,
+  .surface::after {
+    content: '';
+    position: absolute;
+    background: rgba(244, 205, 94, 0.08);
+  }
+  .surface::before {
+    left: 50%;
+    top: 0;
+    bottom: 0;
+    width: 1px;
+  }
+  .surface::after {
+    top: 50%;
+    left: 0;
+    right: 0;
+    height: 1px;
+  }
 
-/* Finer quarter-division grid (25%/75% both axes), fainter than the
-   ::before/::after centre crosshair. Non-interactive overlay. */
-.grid {
-  position: absolute;
-  inset: 0;
-  pointer-events: none;
-}
-.gridV {
-  position: absolute;
-  top: 0;
-  bottom: 0;
-  width: 0;
-  border-left: 1px dotted rgba(244, 205, 94, 0.05);
-}
-.gridH {
-  position: absolute;
-  left: 0;
-  right: 0;
-  height: 0;
-  border-top: 1px dotted rgba(244, 205, 94, 0.05);
-}
+  /* Finer quarter-division grid (25%/75% both axes), fainter than the
+     ::before/::after centre crosshair. Non-interactive overlay. */
+  .grid {
+    position: absolute;
+    inset: 0;
+    pointer-events: none;
+  }
+  .gridV {
+    position: absolute;
+    top: 0;
+    bottom: 0;
+    width: 0;
+    border-left: 1px dotted rgba(244, 205, 94, 0.05);
+  }
+  .gridH {
+    position: absolute;
+    left: 0;
+    right: 0;
+    height: 0;
+    border-top: 1px dotted rgba(244, 205, 94, 0.05);
+  }
 
-/* On-surface axis labels: short param name, small + faint, non-interactive. */
-.axisLabelX,
-.axisLabelY {
-  position: absolute;
-  font-family: var(--sans);
-  font-size: 11px;
-  letter-spacing: 0.04em;
-  color: var(--text-faint);
-  white-space: nowrap;
-  pointer-events: none;
-}
-.axisLabelX {
-  left: 50%;
-  bottom: 4px;
-  transform: translateX(-50%);
-}
-.axisLabelY {
-  /* Centre the box just inside the left edge (~half a rotated line-height off
-     the border), then rotate 90 CCW around that centre so the word runs up the
-     left edge, vertically centred and reading bottom-to-top. */
-  left: 9px;
-  top: 50%;
-  transform-origin: center;
-  transform: translate(-50%, -50%) rotate(-90deg);
-}
+  /* On-surface axis labels: short param name, small + faint, non-interactive. */
+  .axisLabelX,
+  .axisLabelY {
+    position: absolute;
+    font-family: var(--sans);
+    font-size: 11px;
+    letter-spacing: 0.04em;
+    color: var(--text-faint);
+    white-space: nowrap;
+    pointer-events: none;
+  }
+  .axisLabelX {
+    left: 50%;
+    bottom: 4px;
+    transform: translateX(-50%);
+  }
+  .axisLabelY {
+    /* Centre the box just inside the left edge (~half a rotated line-height off
+       the border), then rotate 90 CCW around that centre so the word runs up the
+       left edge, vertically centred and reading bottom-to-top. */
+    left: 9px;
+    top: 50%;
+    transform-origin: center;
+    transform: translate(-50%, -50%) rotate(-90deg);
+  }
 
-.dot {
-  position: absolute;
-  left: 50%;
-  top: 50%;
-  width: 14px;
-  height: 14px;
-  margin: -7px 0 0 -7px;
-  border-radius: 50%;
-  background: var(--accent);
-  box-shadow:
-    0 0 10px var(--accent-glow),
-    0 0 4px var(--accent-glow);
-  pointer-events: none;
-}
+  .dot {
+    position: absolute;
+    left: 50%;
+    top: 50%;
+    width: 14px;
+    height: 14px;
+    margin: -7px 0 0 -7px;
+    border-radius: 50%;
+    background: var(--accent);
+    box-shadow:
+      0 0 10px var(--accent-glow),
+      0 0 4px var(--accent-glow);
+    pointer-events: none;
+  }
 
-.hint {
-  font-family: var(--sans);
-  font-size: 10px;
-  letter-spacing: 0.04em;
-  text-align: center;
-  color: var(--text-dim);
+  .hint {
+    font-family: var(--sans);
+    font-size: 10px;
+    letter-spacing: 0.04em;
+    text-align: center;
+    color: var(--text-dim);
+  }
 }

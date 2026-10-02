@@ -2,234 +2,238 @@
    Sits above panels (z 100) and modals (z 1000); the tour only launches once
    the start modal is gone, so there is never overlay contention. */
 
-.overlay {
-  position: fixed;
-  inset: 0;
-  z-index: 1100;
-  pointer-events: none; /* clicks pass through to the real control underneath */
-  transition: opacity 200ms ease;
-}
+@layer components {
+  .overlay {
+    position: fixed;
+    inset: 0;
+    z-index: 1100;
+    pointer-events: none; /* clicks pass through to the real control underneath */
+    transition: opacity 200ms ease;
+  }
 
-.overlay:global(.hidden) {
-  opacity: 0;
-}
+  .overlay:global(.hidden) {
+    opacity: 0;
+  }
 
-/* The cut-out: a transparent rect whose huge box-shadow dims everything else,
-   plus an accent ring + glow. pointer-events:none keeps the control clickable. */
-.spotlight {
-  position: fixed;
-  border-radius: 8px;
-  pointer-events: none;
-  box-shadow:
-    0 0 0 9999px rgba(8, 6, 3, 0.78),
-    0 0 0 2px var(--accent),
-    0 0 22px 6px var(--accent-glow);
-  transition: left 0.25s ease, top 0.25s ease, width 0.25s ease, height 0.25s ease;
-}
+  /* The cut-out: a transparent rect whose huge box-shadow dims everything else,
+     plus an accent ring + glow. pointer-events:none keeps the control clickable. */
+  .spotlight {
+    position: fixed;
+    border-radius: 8px;
+    pointer-events: none;
+    box-shadow:
+      0 0 0 9999px rgba(8, 6, 3, 0.78),
+      0 0 0 2px var(--accent),
+      0 0 22px 6px var(--accent-glow);
+    transition: left 0.25s ease, top 0.25s ease, width 0.25s ease, height 0.25s ease;
+  }
 
-/* Centered (no-target) steps: a plain full-screen dim, no ring — and no
-   `backdrop-filter`, for the reason spelled out on `.backdrop` in
-   modal.module.css (runtime-performance.md REQ-no-viewport-scaled-compositing-on-hot-surfaces). This overlay is the same
-   shape and lifetime, so it carried the same cost. */
-.centered {
-  box-shadow: none;
-  background: rgba(8, 6, 3, 0.82);
-  border-radius: 0;
-}
+  /* Centered (no-target) steps: a plain full-screen dim, no ring — and no
+     `backdrop-filter`, for the reason spelled out on `.backdrop` in
+     modal.module.css (runtime-performance.md REQ-no-viewport-scaled-compositing-on-hot-surfaces). This overlay is the same
+     shape and lifetime, so it carried the same cost. */
+  .centered {
+    box-shadow: none;
+    background: rgba(8, 6, 3, 0.82);
+    border-radius: 0;
+  }
 
-.callout {
-  position: fixed;
-  pointer-events: auto;
-  z-index: 1101;
-  width: min(330px, 92vw);
-  background: var(--panel);
-  border: 1px solid var(--panel-border);
-  border-radius: 8px;
-  box-shadow: var(--panel-shadow);
-  padding: 16px 18px;
-  color: var(--text);
-}
+  .callout {
+    position: fixed;
+    pointer-events: auto;
+    z-index: 1101;
+    width: min(330px, 92vw);
+    background: var(--panel);
+    border: 1px solid var(--panel-border);
+    border-radius: 8px;
+    box-shadow: var(--panel-shadow);
+    padding: 16px 18px;
+    color: var(--text);
+  }
 
-.calloutTitle {
-  font-family: var(--serif);
-  font-size: 16px;
-  font-weight: 900;
-  letter-spacing: 0.1em;
-  text-transform: uppercase;
-  color: var(--accent-secondary);
-  text-shadow: 0 0 6px var(--accent-secondary-glow), 0 1px 0 rgba(0, 0, 0, 0.85);
-}
+  .calloutTitle {
+    font-family: var(--serif);
+    font-size: 16px;
+    font-weight: 900;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    color: var(--accent-secondary);
+    text-shadow: 0 0 6px var(--accent-secondary-glow), 0 1px 0 rgba(0, 0, 0, 0.85);
+  }
 
-.calloutBody {
-  margin-top: 10px;
-  font-size: 13px;
-  line-height: 1.6;
-  color: var(--text-dim);
-}
+  .calloutBody {
+    margin-top: 10px;
+    font-size: 13px;
+    line-height: 1.6;
+    color: var(--text-dim);
+  }
 
-.calloutBody strong {
-  color: var(--text);
-  font-weight: 700;
-}
+  .calloutBody strong {
+    color: var(--text);
+    font-weight: 700;
+  }
 
-.confirm {
-  margin-top: 10px;
-  font-size: 13px;
-  font-weight: 700;
-  color: var(--accent-secondary);
-}
+  .confirm {
+    margin-top: 10px;
+    font-size: 13px;
+    font-weight: 700;
+    color: var(--accent-secondary);
+  }
 
-.footer {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  margin-top: 16px;
-}
+  .footer {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin-top: 16px;
+  }
 
-.progress {
-  margin-right: auto;
-  font-size: 11px;
-  letter-spacing: 0.08em;
-  color: var(--text-faint);
-}
+  .progress {
+    margin-right: auto;
+    font-size: 11px;
+    letter-spacing: 0.08em;
+    color: var(--text-faint);
+  }
 
-.actions {
-  display: flex;
-  gap: 8px;
-}
+  .actions {
+    display: flex;
+    gap: 8px;
+  }
 
-/* Active (orange) state for the header's ⓘ button while the info badges are
-   showing, and for the header's Fullscreen button while fullscreen is engaged.
+  /* Active (orange) state for the header's ⓘ button while the info badges are
+     showing, and for the header's Fullscreen button while fullscreen is engaged.
+     This layer outranks switch.module's, so the colours win over `.root` and over
+     the Fullscreen button's global `on` alike, and the inline SVG inherits the
+     accent via `currentColor` (css-cascade-layers.md).
 
-   `button.toggleActive` (0-1-1) outranks switch.module's bare `.root` (0-1-0),
-   so it wins regardless of stylesheet order. But the Fullscreen button also
-   carries the global `on` class, and `.root:global(.on)` (0-2-0) declares
-   `color: var(--text)` — which would beat 0-1-1 and leave the glyph grey while
-   the border/glow (undeclared there) still went orange. The second selector
-   below is 0-2-1, so the accent colour wins in that case too and the inline SVG
-   inherits it via `currentColor`. */
-button.toggleActive,
-button.toggleActive:global(.on) {
-  border-color: var(--accent);
-  color: var(--accent);
-  box-shadow: 0 0 8px var(--accent-glow), inset 0 1px 0 rgba(244, 205, 94, 0.06);
-}
+     The glow, though, yields to the switch's pressed shadow (`.root:active`) —
+     except on a button that is also `on`, which kept its glow when pressed back
+     when this was settled by specificity, and still does. */
+  button.toggleActive {
+    border-color: var(--accent);
+    color: var(--accent);
+  }
 
-/* While the badges show, the ⓘ glyph *becomes* a badge: the accent disc and the
-   `--bg-deep` ink of `.badge` below, so the control that hides them wears one
-   (onboarding.md REQ-the-glyph-inverts-while-badges-show). The border/glow above is generic — Fullscreen has it
-   too — which is why colour, not chrome, is what makes this button legible as
-   the badges' own switch. Only the ⓘ glyph carries these part hooks
-   (`header-icons.ts`), so Fullscreen shares `.toggleActive` without inheriting
-   any of it.
+  button.toggleActive:not(:active),
+  button.toggleActive:global(.on) {
+    box-shadow: 0 0 8px var(--accent-glow), inset 0 1px 0 rgba(244, 205, 94, 0.06);
+  }
 
-   Specificity: each selector below is 0-3-2, over switch.module's
-   `.root :global(svg.hdr-icon)` (0-2-1) and `… .fill` (0-3-1). */
-button.toggleActive :global(svg.hdr-icon .disc) {
-  /* currentColor is the --accent set just above, so disc and glow can't drift. */
-  fill: currentColor;
-}
+  /* While the badges show, the ⓘ glyph *becomes* a badge: the accent disc and the
+     `--bg-deep` ink of `.badge` below, so the control that hides them wears one
+     (onboarding.md REQ-the-glyph-inverts-while-badges-show). The border/glow above is generic — Fullscreen has it
+     too — which is why colour, not chrome, is what makes this button legible as
+     the badges' own switch. Only the ⓘ glyph carries these part hooks
+     (`header-icons.ts`), so Fullscreen shares `.toggleActive` without inheriting
+     any of it.
 
-button.toggleActive :global(svg.hdr-icon .stem) {
-  stroke: var(--bg-deep);
-  /* Optical, not a second shape: dark-on-orange reads thinner than the idle
-     light-on-dark, so the stem needs a hair more weight to hold the same look. */
-  stroke-width: 1.4;
-}
+     Specificity: each selector below is 0-3-2, over switch.module's
+     `.root :global(svg.hdr-icon)` (0-2-1) and `… .fill` (0-3-1). */
+  button.toggleActive :global(svg.hdr-icon .disc) {
+    /* currentColor is the --accent set just above, so disc and glow can't drift. */
+    fill: currentColor;
+  }
 
-button.toggleActive :global(svg.hdr-icon .dot) {
-  fill: var(--bg-deep);
-}
+  button.toggleActive :global(svg.hdr-icon .stem) {
+    stroke: var(--bg-deep);
+    /* Optical, not a second shape: dark-on-orange reads thinner than the idle
+       light-on-dark, so the stem needs a hair more weight to hold the same look. */
+    stroke-width: 1.4;
+  }
 
-/* ---- Help mode (i) badges ---- */
+  button.toggleActive :global(svg.hdr-icon .dot) {
+    fill: var(--bg-deep);
+  }
 
-.badgeLayer {
-  position: fixed;
-  inset: 0;
-  z-index: 900; /* above panels (100), below modals (1000) so a help modal covers the badges */
-  pointer-events: none; /* only the badges themselves are clickable */
-}
+  /* ---- Help mode (i) badges ---- */
 
-.badge {
-  position: fixed;
-  width: 20px;
-  height: 20px;
-  padding: 0;
-  border-radius: 50%;
-  border: 1px solid var(--accent);
-  background: var(--accent);
-  color: var(--bg-deep);
-  font-family: var(--serif);
-  font-size: 13px;
-  font-style: italic;
-  font-weight: 900;
-  line-height: 1;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  cursor: pointer;
-  pointer-events: auto;
-  box-shadow: 0 0 10px var(--accent-glow);
-  /* Held back so a dozen badges sit over the panels instead of shouting; the
-     static glow is what makes them findable. No pulse — a screenful of them
-     breathing in sync reads as noise, not as an affordance. */
-  opacity: 0.6;
-  transition: opacity 0.15s ease;
-}
+  .badgeLayer {
+    position: fixed;
+    inset: 0;
+    z-index: 900; /* above panels (100), below modals (1000) so a help modal covers the badges */
+    pointer-events: none; /* only the badges themselves are clickable */
+  }
 
-.badge:hover {
-  opacity: 1;
-}
+  .badge {
+    position: fixed;
+    width: 20px;
+    height: 20px;
+    padding: 0;
+    border-radius: 50%;
+    border: 1px solid var(--accent);
+    background: var(--accent);
+    color: var(--bg-deep);
+    font-family: var(--serif);
+    font-size: 13px;
+    font-style: italic;
+    font-weight: 900;
+    line-height: 1;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    pointer-events: auto;
+    box-shadow: 0 0 10px var(--accent-glow);
+    /* Held back so a dozen badges sit over the panels instead of shouting; the
+       static glow is what makes them findable. No pulse — a screenful of them
+       breathing in sync reads as noise, not as an affordance. */
+    opacity: 0.6;
+    transition: opacity 0.15s ease;
+  }
 
-/* ---- BPM "sweet spots" list (dynamic delay/rate info badges) ---- */
+  .badge:hover {
+    opacity: 1;
+  }
 
-.sweetGrid {
-  display: grid;
-  grid-template-columns: repeat(2, 1fr);
-  gap: 6px;
-  margin: 12px 0 8px;
-}
+  /* ---- BPM "sweet spots" list (dynamic delay/rate info badges) ---- */
 
-.sweetBtn {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 8px;
-  padding: 7px 10px;
-  background: var(--panel);
-  border: 1px solid var(--panel-border);
-  border-radius: 6px;
-  color: var(--text);
-  font-family: inherit;
-  font-size: 12px;
-  cursor: pointer;
-  transition: border-color 0.15s ease, box-shadow 0.15s ease;
-}
+  .sweetGrid {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 6px;
+    margin: 12px 0 8px;
+  }
 
-.sweetBtn:hover {
-  border-color: var(--accent);
-  box-shadow: 0 0 8px var(--accent-glow);
-}
+  .sweetBtn {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px;
+    padding: 7px 10px;
+    background: var(--panel);
+    border: 1px solid var(--panel-border);
+    border-radius: 6px;
+    color: var(--text);
+    font-family: inherit;
+    font-size: 12px;
+    cursor: pointer;
+    transition: border-color 0.15s ease, box-shadow 0.15s ease;
+  }
 
-/* The row nearest the knob's current value (global .on marker). */
-.sweetBtn:global(.on) {
-  border-color: var(--accent);
-  box-shadow: inset 0 0 0 1px var(--accent), 0 0 8px var(--accent-glow);
-}
+  .sweetBtn:hover {
+    border-color: var(--accent);
+    box-shadow: 0 0 8px var(--accent-glow);
+  }
 
-.sweetName {
-  font-weight: 700;
-  letter-spacing: 0.02em;
-}
+  /* The row nearest the knob's current value (global .on marker). */
+  .sweetBtn:global(.on) {
+    border-color: var(--accent);
+    box-shadow: inset 0 0 0 1px var(--accent), 0 0 8px var(--accent-glow);
+  }
 
-.sweetVal {
-  color: var(--accent-secondary);
-  font-variant-numeric: tabular-nums;
-}
+  .sweetName {
+    font-weight: 700;
+    letter-spacing: 0.02em;
+  }
 
-.sweetFoot {
-  margin-top: 4px;
-  font-size: 11px;
-  color: var(--text-faint);
-  line-height: 1.5;
+  .sweetVal {
+    color: var(--accent-secondary);
+    font-variant-numeric: tabular-nums;
+  }
+
+  .sweetFoot {
+    margin-top: 4px;
+    font-size: 11px;
+    color: var(--text-faint);
+    line-height: 1.5;
+  }
 }

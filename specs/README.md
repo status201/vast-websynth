@@ -337,6 +337,7 @@ specs/
     live-fx-window.md  ·  floating "LIVE FX" window: DJ controls reachable off the Song tab
     typography.md      ·  the type rule: serif is display, sans is content, mono is readouts
     iconography.md     ·  the icon rule: a glyph that labels a control is inline SVG, never a font character
+    css-cascade-layers.md ·  every stylesheet declares its @layer; import order never decides the cascade
     brand.md           ·  the VAST / G1-J8 / tagline block, shared by header + modals
     responsive-header.md ·  mobile hamburger menu + header cluster reflow
     responsive-machine-header.md ·  pattern panel control row: wrap + FX cluster

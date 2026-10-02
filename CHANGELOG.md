@@ -39,6 +39,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ### Fixed
 
+- **The Song panel is laid out as designed in the installed app.** Its sections sat closer together and the Stutter size buttons were wider than intended, because the published build loaded two stylesheets in a different order than development did. Every stylesheet now has a fixed place in the cascade, so the order they load in no longer matters.
+- **A sequencer track's mute button no longer jumps to full size while you press it.**
+
 - When a backgrounded tab comes back mid-song, the first step after the restart keeps its early micro-timing instead of snapping to the beat.
 - Editing a song chain while it plays no longer sends that lane back to its first bar. A transpose nudge, adding a bank or rest, moving or removing a bar now leaves the lane on the bar it was playing; removing the playing bar moves on to the next one.
 - WiFi pairing: if the QR decoder couldn't be downloaded (for example offline), pressing Scan QR left the camera on and said "Camera unavailable". The camera now stays off, and the message says the decoder didn't download.

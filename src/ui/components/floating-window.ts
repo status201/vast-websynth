@@ -184,6 +184,10 @@ export class FloatingWindow {
   private setCollapsed(collapsed: boolean): void {
     this._collapsed = collapsed;
     this.root.classList.toggle('collapsed', collapsed);
+    // Inline, not a stylesheet rule: consumers lay their content out with a class
+    // on `body`, and in a later cascade layer that class's `display` would outrank
+    // any rule of ours (REQ-a-collapsed-body-stays-hidden).
+    this.body.style.display = collapsed ? 'none' : '';
     this.syncMinBtn();
   }
 

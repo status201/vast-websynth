@@ -2,54 +2,55 @@
    export-song-modal.module.css's `.fmtRow`/`.fmtLabel`/`.note`; only the
    checkbox row and this body spacing are new. */
 
-/* `Modal` sets no margin under its title, and the export-song chooser gets away
-   with it because its first child is a padded card. This modal's first child is
-   a bare label+control row, which collides with the 24px serif title. */
-.body {
-  padding-top: 14px;
+@layer components {
+  /* `Modal` sets no margin under its title, and the export-song chooser gets away
+     with it because its first child is a padded card. This modal's first child is
+     a bare label+control row, which collides with the 24px serif title. */
+  .body {
+    padding-top: 14px;
+  }
+
+  /* The Format row sits last, hard against the actions it renames — a little more
+     air above it separates "how it renders" from "what it writes". */
+  .body .fmtLast {
+    margin-bottom: 14px;
+    padding-top: 2px;
+  }
+
+  .check {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin: 0 0 10px;
+    font-size: 12px;
+    cursor: pointer;
+  }
+
+  .check input {
+    cursor: pointer;
+    accent-color: var(--accent);
+  }
+
+  /* ---- the in-flight view (REQ-the-modal-is-the-renders-own-surface) ---- */
+
+  .progress {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    /* Hold roughly the options view's height so swapping to it doesn't make the
+       card jump — the modal is centred, so a height change moves the whole thing. */
+    min-height: 118px;
+    justify-content: center;
+  }
+
+
+  .status {
+    margin: 0;
+    font-size: 13px;
+    color: var(--accent-secondary);
+    font-variant-numeric: tabular-nums;
+  }
+
+  /* The bar itself (.track / .fill / stripes) is the shared progress-bar component
+     (progress-bar.module.css, specs/features/progress-bar.md). */
 }
-
-/* The Format row sits last, hard against the actions it renames — a little more
-   air above it separates "how it renders" from "what it writes". */
-.body .fmtLast {
-  margin-bottom: 14px;
-  padding-top: 2px;
-}
-
-.check {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  margin: 0 0 10px;
-  font-size: 12px;
-  cursor: pointer;
-}
-
-.check input {
-  cursor: pointer;
-  accent-color: var(--accent);
-}
-
-/* ---- the in-flight view (REQ-the-modal-is-the-renders-own-surface) ---- */
-
-.progress {
-  display: flex;
-  flex-direction: column;
-  gap: 10px;
-  /* Hold roughly the options view's height so swapping to it doesn't make the
-     card jump — the modal is centred, so a height change moves the whole thing. */
-  min-height: 118px;
-  justify-content: center;
-}
-
-.progress[hidden] { display: none; }
-
-.status {
-  margin: 0;
-  font-size: 13px;
-  color: var(--accent-secondary);
-  font-variant-numeric: tabular-nums;
-}
-
-/* The bar itself (.track / .fill / stripes) is the shared progress-bar component
-   (progress-bar.module.css, specs/features/progress-bar.md). */

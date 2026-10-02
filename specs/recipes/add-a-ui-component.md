@@ -58,6 +58,13 @@ CSS Modules. Reference global **state classes** (`.on`, `.active`, `.playing`) w
 `:global(...)`; bridge global classes alongside module classes where global
 descendant selectors target children (`className: 'switch-label ' + styles.label!`).
 
+**Wrap the whole file in its cascade layer** — `@layer controls { … }` for a leaf
+control, `components` for a widget or dialog built from controls, `panels` for a
+panel. The rule: a layer above every module whose classes share an element with
+this one ([css-cascade-layers](../features/css-cascade-layers.md)
+REQ-a-composer-outranks-what-it-composes). Where the import sits no longer
+matters; a file with no layer fails `tests/ui/css-layers.test.ts`.
+
 ### 3. Mount + test
 
 `appendChild` it where it belongs (`app.ts` or a panel). Add a jsdom unit test

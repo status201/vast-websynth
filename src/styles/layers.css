@@ -1,0 +1,21 @@
+/*
+ * The cascade layer order — the ONE place it is written down
+ * (specs/features/css-cascade-layers.md). Loaded first, before any other
+ * stylesheet, so a sheet that arrives later (a lazy dialog's chunk) still takes
+ * its declared place instead of appending a new layer on top.
+ *
+ * Later beats earlier, whatever the specificity, so "which stylesheet wins"
+ * is this list and never the order modules happen to be imported in. The rule
+ * that fills it: a module that adds its classes to another module's element
+ * sits in a later layer than that module.
+ *
+ *   reset       base.css — element defaults
+ *   theme       theme.css — the custom properties
+ *   app-layout  layout.css — the .app grid
+ *   controls    leaf controls other modules decorate (switch, knob, tabs, …)
+ *   components  widgets and dialogs built from controls
+ *   chrome      the shared panel chrome every machine panel wears
+ *   panels      the synth/machine panels, which override that chrome
+ *   shell       the app shell: header, FX rack, pattern row, bottom section
+ */
+@layer reset, theme, app-layout, controls, components, chrome, panels, shell;

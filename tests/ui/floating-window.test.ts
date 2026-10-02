@@ -149,6 +149,24 @@ describe('FloatingWindow', () => {
     expect(minBtn.getAttribute('aria-expanded')).toBe('true');
   });
 
+  it('hides a minimised body even when a consumer class lays it out (regression, REQ-a-collapsed-body-stays-hidden)', () => {
+    // live-fx adds a `display: flex` class to the body; in a later cascade layer
+    // than the window's own stylesheet it kept the body visible. The window now
+    // hides the body inline, which no consumer class can outrank.
+    const w = mk({ title: 'X' });
+    w.body.className += ' consumer-layout';
+    w.body.style.setProperty('--probe', '1');
+    w.open();
+    const minBtn = inDoc()!.querySelector(`.${FloatingWindow.minBtnClass}`) as HTMLButtonElement;
+
+    minBtn.click();
+    expect(w.body.style.display).toBe('none');
+    minBtn.click();
+    expect(w.body.style.display).toBe('');
+    // Only the display is the window's; the consumer's own inline styles survive.
+    expect(w.body.style.getPropertyValue('--probe')).toBe('1');
+  });
+
   it('re-opening a minimised (then closed) window reveals it expanded', () => {
     vi.useFakeTimers();
     const w = mk({ title: 'X' });

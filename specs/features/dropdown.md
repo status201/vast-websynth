@@ -291,9 +291,10 @@ div.root.dropdown:           # + global `open` class while open
   the keydown bubbles there from either focus target, so "the next option" has a
   single definition. The handler is gated on `open`, so a closed dropdown's
   listener is inert.
-- Filtering hides options with the native `hidden` property, which needs an
-  explicit `.option[hidden] { display: none }` — `.option`'s own
-  `display: block` outranks the UA `[hidden]` rule.
+- Filtering hides options with the native `hidden` property. `.option`'s own
+  `display: block` would outrank the UA `[hidden]` rule, which is why `base.css`
+  makes `hidden` mean hidden app-wide ([css-cascade-layers](css-cascade-layers.md)
+  REQ-hidden-means-hidden) rather than each component restoring it.
 - The filter input is an `<input>`, so `installShortcuts`' editable-target guard
   ([input-control](input-control.md) REQ-shortcuts-are-suppressed-in-a-field) already stops a typed `z` from
   playing a note. `Escape` must be left to bubble to the component's existing

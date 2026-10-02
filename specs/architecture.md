@@ -3,7 +3,9 @@
 ```yaml
 id: architecture
 status: implemented
-version: 13  # v13: the voice path is 1-channel until the SPREAD STAGE engages — a panned
+version: 14  # v14: every stylesheet declares a cascade layer, so app.ts's import order no
+             #      longer decides layout (css-cascade-layers.md) — the split it blocked is unblocked
+             # v13: the voice path is 1-channel until the SPREAD STAGE engages — a panned
              #      sequencer track puts two channels through the inserts (ADR-023)
              # v12: app.ts's IMPORT ORDER is load-bearing for layout — recorded, because it
              #      blocks the panel extraction that would otherwise be obvious
@@ -279,13 +281,15 @@ cancel that pins nothing; the two bugs that taught this are
 transport machines and `BankBar`), which had each open-coded the same
 `Set` + `add → return () => delete` pair.
 
-**`ui/app.ts` is 945 lines, and splitting it is blocked on its import order.**
+**`ui/app.ts` is 965 lines, and its import order is no longer load-bearing.**
 The obvious extraction is `buildMain` (the eight synth panels) and `buildFx`
 (the insert-effect rack): each takes only the bus, returns an element, and reads
-none of the shell's closure state. It was tried and **reverted**, because moving
-them takes their component imports with them — and **CSS Modules inject in
-import order**, so where an import sits in `app.ts` is part of the app's layout,
-not just its dependency graph.
+none of the shell's closure state. It was first tried and **reverted**, because
+moving them took their component imports with them — and **CSS Modules inject in
+import order**, so where an import sat in `app.ts` was part of the app's layout,
+not just its dependency graph. Every stylesheet now declares a cascade layer
+([css-cascade-layers](features/css-cascade-layers.md)), which takes source order
+out of the cascade between modules; the history below is why that came first.
 
 Moving the panels below `layout.module.css` made the **pattern row 71px
 taller**, which pushed the scope's centre out of the viewport and failed a hover
@@ -297,9 +301,10 @@ stylesheets that sat at six different points in the original list.
 None of this is visible to the type system or the unit suite: `tsc` passed and
 all 3,479 unit tests passed at every step. Only `npm run e2e` saw it. So the
 extraction is worth doing, but it is **a CSS-layering change first** — give the
-component styles an explicit order (a cascade layer, or one module that imports
-them in a fixed sequence) and the file split becomes the trivial part. Attempting
-it the other way round is how this was learned.
+component styles an explicit order and the file split becomes the trivial part.
+Attempting it the other way round is how this was learned. (The 71px was two
+`.patternRow` `min-height` rules that `tabs.module.css` had always beaten by load
+order; moving an import made them apply. Both were dead and are gone.)
 
 The four machine tabs share their **chrome** through
 `ui/panels/step-panel-scaffold.ts` — composable helpers, not one template, since

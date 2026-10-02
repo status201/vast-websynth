@@ -1,156 +1,168 @@
-*,
-*::before,
-*::after {
-  box-sizing: border-box;
-}
+@layer reset {
+  *,
+  *::before,
+  *::after {
+    box-sizing: border-box;
+  }
 
-html,
-body {
-  margin: 0;
-  padding: 0;
-  height: 100%;
-  width: 100%;
-  /* Vertical scroll is always available so every control (incl. the
-     keyboard) is reachable on any window size; horizontal stays locked.
-     When content fits the viewport no scrollbar appears. */
-  overflow-x: hidden;
-  overflow-y: auto;
-  background: var(--bg);
-  color: var(--text);
-  font-family: 'Inter', system-ui, -apple-system, sans-serif;
-  font-size: 14px;
-  -webkit-font-smoothing: antialiased;
-  -webkit-tap-highlight-color: transparent;
-  /* Allow vertical pan so touch users can scroll to the keyboard;
-     controls (.knob/.strip/.keyboard) keep touch-action:none + pointer
-     capture so their drags still win the gesture. */
-  touch-action: pan-y;
-  user-select: none;
-  -webkit-user-select: none;
-  overscroll-behavior: none;
-}
+  /* `hidden` means hidden, whatever a component's `display` says
+     (css-cascade-layers.md REQ-hidden-means-hidden). The UA's own rule loses to
+     any author `display`, so six components used to restore it one by one; and
+     under cascade layers a composer's class would beat any such restore. An
+     !important in the LOWEST layer is the one declaration nothing can outrank —
+     important declarations run the layer order backwards. */
+  [hidden] {
+    display: none !important;
+  }
 
-button {
-  font: inherit;
-  color: inherit;
-  background: none;
-  border: none;
-  cursor: pointer;
-  -webkit-tap-highlight-color: transparent;
-  -webkit-touch-callout: none;
-}
+  html,
+  body {
+    margin: 0;
+    padding: 0;
+    height: 100%;
+    width: 100%;
+    /* Vertical scroll is always available so every control (incl. the
+       keyboard) is reachable on any window size; horizontal stays locked.
+       When content fits the viewport no scrollbar appears. */
+    overflow-x: hidden;
+    overflow-y: auto;
+    background: var(--bg);
+    color: var(--text);
+    font-family: 'Inter', system-ui, -apple-system, sans-serif;
+    font-size: 14px;
+    -webkit-font-smoothing: antialiased;
+    -webkit-tap-highlight-color: transparent;
+    /* Allow vertical pan so touch users can scroll to the keyboard;
+       controls (.knob/.strip/.keyboard) keep touch-action:none + pointer
+       capture so their drags still win the gesture. */
+    touch-action: pan-y;
+    user-select: none;
+    -webkit-user-select: none;
+    overscroll-behavior: none;
+  }
 
-.app {
-  /* min-height (not height) so the faceplate fills the viewport when it
-     fits but grows + scrolls when it doesn't. width:100% (not 100vw)
-     avoids horizontal jitter from the vertical scrollbar's width. */
-  min-height: 100vh;
-  width: 100%;
-  display: flex;
-  flex-direction: column;
-}
+  button {
+    font: inherit;
+    color: inherit;
+    background: none;
+    border: none;
+    cursor: pointer;
+    -webkit-tap-highlight-color: transparent;
+    -webkit-touch-callout: none;
+  }
 
-/* Start screen — a modal layover the synth, reusing .about-backdrop/.about. */
-.start-card {
-  text-align: center;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-}
+  .app {
+    /* min-height (not height) so the faceplate fills the viewport when it
+       fits but grows + scrolls when it doesn't. width:100% (not 100vw)
+       avoids horizontal jitter from the vertical scrollbar's width. */
+    min-height: 100vh;
+    width: 100%;
+    display: flex;
+    flex-direction: column;
+  }
 
-.start-card .start-btn {
-  margin-top: 24px;
-}
+  /* Start screen — a modal layover the synth, reusing .about-backdrop/.about. */
+  .start-card {
+    text-align: center;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+  }
 
-.start-btn {
-  padding: 24px 48px;
-  font-size: 20px;
-  font-weight: 600;
-  letter-spacing: 0.05em;
-  color: var(--text);
-  background: linear-gradient(180deg, #2a2a30, #18181c);
-  border: 1px solid var(--panel-border);
-  border-radius: 12px;
-  box-shadow: 0 10px 40px rgba(0, 0, 0, 0.5), inset 0 1px 0 rgba(255, 255, 255, 0.06);
-}
+  .start-card .start-btn {
+    margin-top: 24px;
+  }
 
-.start-btn:active {
-  transform: translateY(1px);
-}
+  .start-btn {
+    padding: 24px 48px;
+    font-size: 20px;
+    font-weight: 600;
+    letter-spacing: 0.05em;
+    color: var(--text);
+    background: linear-gradient(180deg, #2a2a30, #18181c);
+    border: 1px solid var(--panel-border);
+    border-radius: 12px;
+    box-shadow: 0 10px 40px rgba(0, 0, 0, 0.5), inset 0 1px 0 rgba(255, 255, 255, 0.06);
+  }
 
-/* ===== Icons (specs/features/iconography.md) =====
-   Every glyph that labels a control is inline SVG from `ui-icons.ts`, not a
-   font character — Inter is not bundled, so on Android `--sans` falls back to
-   Roboto and then to a symbol/emoji font per character, at its own weight and
-   baseline. Global rather than a CSS Module because the class name is
-   hard-coded in the markup strings, which a module would scope away (REQ-ui-icons-are-self-stroking).
+  .start-btn:active {
+    transform: translateY(1px);
+  }
 
-   Sized in `em` so one glyph is correct at every call site's own font-size —
-   the 13px keycap, the 11px button, the help paragraph — instead of pinning a
-   pixel size that is wrong in three contexts out of four. */
-svg.ui-icon {
-  width: 1em;
-  height: 1em;
-  /* Baseline-correct in prose; flex containers centre it and ignore this. */
-  vertical-align: -0.125em;
-  /* Never let a flex row squeeze a glyph out of square. */
-  flex: none;
-  fill: none;
-  stroke: currentColor;
-  stroke-width: 1.5;
-  stroke-linecap: round;
-  stroke-linejoin: round;
-}
+  /* ===== Icons (specs/features/iconography.md) =====
+     Every glyph that labels a control is inline SVG from `ui-icons.ts`, not a
+     font character — Inter is not bundled, so on Android `--sans` falls back to
+     Roboto and then to a symbol/emoji font per character, at its own weight and
+     baseline. Global rather than a CSS Module because the class name is
+     hard-coded in the markup strings, which a module would scope away (REQ-ui-icons-are-self-stroking).
 
-/* Solid sub-shapes (carets, triangles, dice pips) opt out of the stroke. */
-svg.ui-icon .fill {
-  fill: currentColor;
-  stroke: none;
-}
+     Sized in `em` so one glyph is correct at every call site's own font-size —
+     the 13px keycap, the 11px button, the help paragraph — instead of pinning a
+     pixel size that is wrong in three contexts out of four. */
+  svg.ui-icon {
+    width: 1em;
+    height: 1em;
+    /* Baseline-correct in prose; flex containers centre it and ignore this. */
+    vertical-align: -0.125em;
+    /* Never let a flex row squeeze a glyph out of square. */
+    flex: none;
+    fill: none;
+    stroke: currentColor;
+    stroke-width: 1.5;
+    stroke-linecap: round;
+    stroke-linejoin: round;
+  }
 
-/* Icon + text in one control: the gap is the icon's business, not each call
-   site's, so `iconLabel()` needs no per-consumer stylesheet. */
-svg.ui-icon + .icon-label {
-  margin-left: 0.45em;
-}
-.icon-label + svg.ui-icon {
-  margin-left: 0.45em;
-}
+  /* Solid sub-shapes (carets, triangles, dice pips) opt out of the stroke. */
+  svg.ui-icon .fill {
+    fill: currentColor;
+    stroke: none;
+  }
 
-/* ===== Themed scrollbars (tab content, dropdown menus, modals) ===== */
-* {
-  scrollbar-width: thin;
-  scrollbar-color: var(--accent) var(--bg-deep);
-}
-*::-webkit-scrollbar {
-  width: 10px;
-  height: 10px;
-}
-*::-webkit-scrollbar-track {
-  background: var(--bg-deep);
-  box-shadow: inset 0 0 3px rgba(0, 0, 0, 0.7);
-}
-*::-webkit-scrollbar-thumb {
-  background: linear-gradient(180deg, #6b3e1f, #3a2010);
-  border: 1px solid var(--panel-border);
-  border-radius: 6px;
-}
-*::-webkit-scrollbar-thumb:hover {
-  background: linear-gradient(180deg, var(--accent), #8a3a14);
-}
-*::-webkit-scrollbar-corner {
-  background: var(--bg-deep);
-}
+  /* Icon + text in one control: the gap is the icon's business, not each call
+     site's, so `iconLabel()` needs no per-consumer stylesheet. */
+  svg.ui-icon + .icon-label {
+    margin-left: 0.45em;
+  }
+  .icon-label + svg.ui-icon {
+    margin-left: 0.45em;
+  }
 
-/* The no-JavaScript fallback in index.html. Classes, not style attributes: the
-   shipped CSP has no 'unsafe-inline' (untrusted-input.md REQ-defence-in-depth-at-delivery). */
-.noscript-hero { max-width: 100%; height: auto; }
-.noscript-page {
-  max-width: 42rem;
-  margin: 3rem auto;
-  padding: 0 1.25rem;
-  color: #e8d8b6;
-  font-family: Georgia, serif;
-  line-height: 1.6;
+  /* ===== Themed scrollbars (tab content, dropdown menus, modals) ===== */
+  * {
+    scrollbar-width: thin;
+    scrollbar-color: var(--accent) var(--bg-deep);
+  }
+  *::-webkit-scrollbar {
+    width: 10px;
+    height: 10px;
+  }
+  *::-webkit-scrollbar-track {
+    background: var(--bg-deep);
+    box-shadow: inset 0 0 3px rgba(0, 0, 0, 0.7);
+  }
+  *::-webkit-scrollbar-thumb {
+    background: linear-gradient(180deg, #6b3e1f, #3a2010);
+    border: 1px solid var(--panel-border);
+    border-radius: 6px;
+  }
+  *::-webkit-scrollbar-thumb:hover {
+    background: linear-gradient(180deg, var(--accent), #8a3a14);
+  }
+  *::-webkit-scrollbar-corner {
+    background: var(--bg-deep);
+  }
+
+  /* The no-JavaScript fallback in index.html. Classes, not style attributes: the
+     shipped CSP has no 'unsafe-inline' (untrusted-input.md REQ-defence-in-depth-at-delivery). */
+  .noscript-hero { max-width: 100%; height: auto; }
+  .noscript-page {
+    max-width: 42rem;
+    margin: 3rem auto;
+    padding: 0 1.25rem;
+    color: #e8d8b6;
+    font-family: Georgia, serif;
+    line-height: 1.6;
+  }
+  .noscript-link { color: #f4cd5e; }
 }
-.noscript-link { color: #f4cd5e; }

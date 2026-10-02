@@ -1,105 +1,98 @@
-.root,
-:global(.switch) {
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-  padding: 6px 10px;
-  border-radius: 4px;
-  background: linear-gradient(180deg, #1a1410, #0a0805);
-  border: 1px solid var(--panel-border);
-  min-height: 32px;
-  cursor: pointer;
-  color: var(--text-dim);
-  font-size: 10px;
-  text-transform: uppercase;
-  letter-spacing: 0.1em;
-  font-weight: 600;
-  box-shadow:
-    inset 0 1px 0 rgba(244, 205, 94, 0.04),
-    0 1px 2px rgba(0, 0, 0, 0.6);
-}
+@layer controls {
+  .root,
+  :global(.switch) {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 6px 10px;
+    border-radius: 4px;
+    background: linear-gradient(180deg, #1a1410, #0a0805);
+    border: 1px solid var(--panel-border);
+    min-height: 32px;
+    cursor: pointer;
+    color: var(--text-dim);
+    font-size: 10px;
+    text-transform: uppercase;
+    letter-spacing: 0.1em;
+    font-weight: 600;
+    box-shadow:
+      inset 0 1px 0 rgba(244, 205, 94, 0.04),
+      0 1px 2px rgba(0, 0, 0, 0.6);
+  }
 
-/* `display: inline-flex` above out-specifies the UA's `[hidden] { display:none }`,
-   so a switch-styled button set `hidden` stayed fully visible — which is never
-   what the property means. Restore it for every user of this style at once,
-   rather than each caller rediscovering it. */
-.root[hidden],
-:global(.switch[hidden]) {
-  display: none;
-}
+  /* One shared disabled look for every switch-styled button (the export modal's
+     Copy Link, the render-to-sampler button, wizard steps, …) — dim + inert. */
+  .root:disabled,
+  :global(.switch:disabled) {
+    opacity: 0.45;
+    cursor: not-allowed;
+  }
 
-/* One shared disabled look for every switch-styled button (the export modal's
-   Copy Link, the render-to-sampler button, wizard steps, …) — dim + inert. */
-.root:disabled,
-:global(.switch:disabled) {
-  opacity: 0.45;
-  cursor: not-allowed;
-}
+  .root:active,
+  :global(.switch:active) {
+    box-shadow:
+      inset 0 1px 3px rgba(0, 0, 0, 0.6),
+      inset 0 -1px 0 rgba(244, 205, 94, 0.04);
+    transform: translateY(0.5px);
+  }
 
-.root:active,
-:global(.switch:active) {
-  box-shadow:
-    inset 0 1px 3px rgba(0, 0, 0, 0.6),
-    inset 0 -1px 0 rgba(244, 205, 94, 0.04);
-  transform: translateY(0.5px);
-}
+  .led {
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    background: var(--led-off);
+    box-shadow:
+      inset 0 1px 1px rgba(0, 0, 0, 0.9),
+      0 0 0 1px rgba(0, 0, 0, 0.6);
+  }
 
-.led {
-  width: 8px;
-  height: 8px;
-  border-radius: 50%;
-  background: var(--led-off);
-  box-shadow:
-    inset 0 1px 1px rgba(0, 0, 0, 0.9),
-    0 0 0 1px rgba(0, 0, 0, 0.6);
-}
+  .root:global(.on) .led {
+    background: var(--led-on);
+    box-shadow:
+      0 0 8px rgba(255, 58, 32, 0.85),
+      inset 0 1px 1px rgba(255, 255, 255, 0.4),
+      0 0 0 1px rgba(0, 0, 0, 0.6);
+  }
 
-.root:global(.on) .led {
-  background: var(--led-on);
-  box-shadow:
-    0 0 8px rgba(255, 58, 32, 0.85),
-    inset 0 1px 1px rgba(255, 255, 255, 0.4),
-    0 0 0 1px rgba(0, 0, 0, 0.6);
-}
+  .root:global(.on),
+  :global(.switch.on) {
+    color: var(--text);
+  }
 
-.root:global(.on),
-:global(.switch.on) {
-  color: var(--text);
-}
+  :global(.switch.on) .led {
+    background: var(--led-on);
+    box-shadow:
+      0 0 8px rgba(255, 58, 32, 0.85),
+      inset 0 1px 1px rgba(255, 255, 255, 0.4),
+      0 0 0 1px rgba(0, 0, 0, 0.6);
+  }
 
-:global(.switch.on) .led {
-  background: var(--led-on);
-  box-shadow:
-    0 0 8px rgba(255, 58, 32, 0.85),
-    inset 0 1px 1px rgba(255, 255, 255, 0.4),
-    0 0 0 1px rgba(0, 0, 0, 0.6);
-}
+  .label {
+    font-size: 10px;
+    letter-spacing: 0.1em;
+  }
 
-.label {
-  font-size: 10px;
-  letter-spacing: 0.1em;
-}
+  /* Icon-only buttons (the header's Save/Perf/About/Help/Full): glyphs from
+     header-icons.ts, drawn in currentColor so state classes (Perf tier colours,
+     .on) tint them. `.fill` marks solid sub-shapes (the ⓘ / ? dots). */
+  .root :global(svg.hdr-icon),
+  :global(.switch svg.hdr-icon) {
+    display: block;
+    width: 20px;
+    height: 20px;
+    /* Paint at 20px but occupy a 15px layout slot, so the button box
+       (padding 6px 10px, min-height 32px) stays exactly as it was. */
+    margin: -2.5px;
+    fill: none;
+    stroke: currentColor;
+    stroke-width: 1;
+    stroke-linecap: round;
+    stroke-linejoin: round;
+  }
 
-/* Icon-only buttons (the header's Save/Perf/About/Help/Full): glyphs from
-   header-icons.ts, drawn in currentColor so state classes (Perf tier colours,
-   .on) tint them. `.fill` marks solid sub-shapes (the ⓘ / ? dots). */
-.root :global(svg.hdr-icon),
-:global(.switch svg.hdr-icon) {
-  display: block;
-  width: 20px;
-  height: 20px;
-  /* Paint at 20px but occupy a 15px layout slot, so the button box
-     (padding 6px 10px, min-height 32px) stays exactly as it was. */
-  margin: -2.5px;
-  fill: none;
-  stroke: currentColor;
-  stroke-width: 1;
-  stroke-linecap: round;
-  stroke-linejoin: round;
-}
-
-.root :global(svg.hdr-icon .fill),
-:global(.switch svg.hdr-icon .fill) {
-  fill: currentColor;
-  stroke: none;
+  .root :global(svg.hdr-icon .fill),
+  :global(.switch svg.hdr-icon .fill) {
+    fill: currentColor;
+    stroke: none;
+  }
 }

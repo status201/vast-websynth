@@ -1,902 +1,892 @@
 /* ===== Shared panel classes ===== */
 
-.panel {
-  background: var(--panel);
-  border: 1px solid var(--panel-border);
-  border-radius: 6px;
-  box-shadow: var(--panel-shadow);
-  padding: 8px 10px 10px;
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-  min-height: 0;
-  min-width: 0;
-}
-
-.panelTitle {
-  font-size: 10px;
-  /* Explicit, so the header is 14 + 6 + 1 = 21px on every machine. Inter is
-     never shipped as a webfont, so `normal` resolves against whatever the OS
-     substitutes — 14px on Segoe UI, 11px on the Linux CI runner's fallback,
-     which put a plain title 3px under the tab row that is supposed to match it
-     (panel-tabs.md REQ-the-strip-replaces-the-title). Both sides of that match are declared, never
-     inherited from the font; pinned by tests/ui/panel-header-height.test.ts. */
-  line-height: 14px;
-  text-transform: uppercase;
-  letter-spacing: 0.2em;
-  color: var(--accent-secondary);
-  text-align: center;
-  padding-bottom: 6px;
-  border-bottom: 1px dashed rgba(244, 205, 94, 0.18);
-  font-weight: 600;
-  text-shadow: 0 1px 0 rgba(0, 0, 0, 0.7);
-}
-
-.panelBody {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  gap: 8px;
-  flex: 1;
-}
-
-/* ===== Tabbed panels (specs/features/panel-tabs.md) ===== */
-
-/* The tab strip IS the panel header — it replaces .panelTitle rather than
-   sitting beside it, and must occupy the same vertical space so a tabbed panel
-   still lines up with its untabbed neighbours across the grid (REQ-stereo-on-a-mono-scope-falls-back).
-   .panelTitle's footprint is a 14px line + 6px padding + a 1px rule; the tabs
-   reach the same total from their own padding + border. */
-.panelTabs {
-  display: flex;
-  gap: 4px;
-  width: 100%;
-  min-width: 0;
-}
-
-.panelTab {
-  /* Even share of the row: 50/50 for two, 33/33/33 for three (REQ-spectrum-draws-a-peak-hold). */
-  flex: 1 1 0;
-  min-width: 0;
-  position: relative;
-  padding: 3px 6px;
-  /* Rounded at the top only — the shape is what says "tab" at this size. */
-  border-radius: 4px 4px 0 0;
-  /* Unselected: the same dark well as a Switch, so the page you are not on
-     reads as something to press rather than as a heading. */
-  background: linear-gradient(180deg, #1a1410, #0a0805);
-  border: 1px solid var(--panel-border);
-  color: var(--text-faint);
-  /* Deliberately NO font-family: the active tab has to match .panelTitle, which
-     inherits the sans (typography.md REQ-serif-is-display-type-only). Declaring a serif here would also
-     add an entry to the typography drift allowlist. */
-  font-size: 10px;
-  /* Explicit, so the row lands on .panelTitle's exact height (REQ-stereo-on-a-mono-scope-falls-back) rather
-     than on whatever line box the font happens to give: 13 + 3 + 3 + 1 + 1 = 21,
-     which is .panelTitle's 14px line + 6px padding + its 1px rule — declared
-     there too, for the same reason. Pinned by tests/ui/panel-header-height.test.ts
-     (the arithmetic, everywhere) and e2e/lfo2.spec.ts (the rendered rows; jsdom
-     has no layout, so only a real browser can measure those). */
-  line-height: 13px;
-  text-transform: uppercase;
-  letter-spacing: 0.2em;
-  font-weight: 600;
-  text-align: center;
-  /* Letter-spacing puts a trailing gap after the last glyph, which drags a
-     centred label left by half of it. .panelTitle has the same flaw and lives
-     with it; a tab is a box with a border, where it shows. */
-  text-indent: 0.2em;
-  cursor: pointer;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-}
-
-/* Selected: the panel-title look exactly — same type, same colour — over the
-   panel's own ground, with a subtle outline that keeps it reading as a tab. */
-.panelTab:global(.active) {
-  background: none;
-  border-color: rgba(244, 205, 94, 0.28);
-  color: var(--accent-secondary);
-  text-shadow: 0 1px 0 rgba(0, 0, 0, 0.7);
-}
-
-/* The off-screen-active lamp (REQ-scope-renderers-are-rect-scoped). Out of flow, so it cannot pull the label
-   off centre, and always laid out so lighting it never reflows the row. */
-.panelTabLamp {
-  position: absolute;
-  left: 5px;
-  top: 50%;
-  transform: translateY(-50%);
-  width: 4px;
-  height: 4px;
-  border-radius: 50%;
-  background: transparent;
-}
-
-.panelTab:global(.lit) .panelTabLamp {
-  background: var(--accent);
-  box-shadow: 0 0 5px var(--accent-secondary-glow);
-}
-
-.panelPages {
-  display: flex;
-  flex: 1;
-  min-height: 0;
-  min-width: 0;
-}
-
-/* Visibility only — the page's own .panelBody child does the centering, so this
-   must NOT repeat align-items:center or it would shrink that child below the
-   panel width and collapse the full-width dropdowns inside it. Hidden pages
-   stay in the DOM and stay subscribed (REQ-the-split-layout-is-pure). */
-.panelPage {
-  display: none;
-  flex: 1;
-  min-width: 0;
-}
-
-.panelPage:global(.visible) {
-  display: flex;
-}
-
-.panelRow {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: 4px;
-  width: 100%;
-  flex-wrap: wrap;
-}
-
-/* 4-knob synth panels (SUB/UNI, FILTER, AMP ENV, FILTER ENV) lay their knobs
-   out as a deterministic grid instead of a flex-wrap: a 2x2 block here (the
-   8-column .main grid, narrow panels), switched to a single 4-up row at ≤1280px
-   where the panels widen — and again on an ultrawide (≥2561px, the block after
-   the 1630px one). Layers over .panelRow, overriding display. Grid never
-   wraps 3+1. See specs/features/responsive-synth-panels.md. */
-.quad {
-  display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 8px 4px;
-  justify-items: center;
-  align-items: center;
-  width: 100%;
-}
-
-/* FILTER ENV, once velocity sensitivity joined A/D/S/R (envelopes.md REQ-filter-env-follows-velocity).
-   Five items in a 2-column grid would leave a lone knob hanging in column 1, so
-   the fifth spans the row and `justify-items: center` centres it: A D / S R /
-   VEL. Deliberate, not ragged — and free between 1281 and 1629px, where FILTER
-   and OSC 1 stand taller anyway. Two other shapes, in the media blocks below:
-   a dice-five from 1630px (where that third row would set the faceplate's
-   height), and one row of five on the ≤1280px reflow and on an ultrawide
-   (≥2561px), where the span is undone. */
-.quint {
-  display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 8px 4px;
-  justify-items: center;
-  align-items: center;
-  width: 100%;
-}
-
-.quint > *:last-child { grid-column: 1 / -1; }
-
-/* The 6-knob FILTER panel (.quad's sibling since the model switch added SHAPE
-   and KEYTRK). A knob's box is a fixed `--knob-size + 8px`, so a column count
-   that outruns the panel width makes the boxes overlap, not merely crowd — the
-   ceiling is what .quad already establishes: 2 knobs per row on the 8-column
-   desktop grid, 4 once the panels widen at ≤1280px. Six knobs therefore go
-   2x3 here and 3x2 there, both stopping short of that ceiling and both leaving
-   even rows (.quad's "never wrap 3+1" rule applied to six). A third shape picks
-   up on very wide monitors (≥1630px), where the 8-column panel finally fits
-   three of this panel's long labels — see the min-width block below — and a
-   fourth, one row of six, from 3200px (the ultrawide block).
-   See specs/features/responsive-synth-panels.md, filter-models.md. */
-.hex {
-  display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 8px 4px;
-  justify-items: center;
-  align-items: center;
-  width: 100%;
-}
-
-/* 3- and 2-knob panels (OSC 1/2, MIXER, LFO) keep their centered flex row on the
-   8-column desktop grid, but on the ≤1280px reflow — where the panels widen —
-   spread the knobs evenly across the width (space-evenly, applied in that media
-   block) so they read as generously as the .quad panels beside them, instead of
-   clustering in the middle. The ultrawide block (≥2561px) does the same, for
-   panels that have outgrown the cluster the other way. Inert here. See
-   responsive-synth-panels.md. */
-.spread {
-  width: 100%;
-}
-
-/* A forced line break inside a flex-wrapping row: a full-width, zero-height
-   item, so whatever follows starts a new line. OSC 1/2 put one before their
-   square-wave WIDTH knob, which therefore sits alone below OCT/TUNE/LEVEL
-   instead of wrapping 3+1; the row gaps above and below the empty line add up
-   to the 8px of a separate row. The ultrawide block drops it, and WIDTH joins
-   the row (responsive-synth-panels.md REQ-ultrawide-panels-are-one-row). */
-.rowBreak {
-  flex-basis: 100%;
-  height: 0;
-}
-
-/* A one-line caveat under a control whose range is conditionally limited (the
-   LFO rate cap while the pulse destination is selected — oscillators.md REQ-pwm-rate-is-clamped).
-   Sans-serif: body text, not a title. Muted and small so it reads as a footnote
-   rather than competing with the panel's own label. */
-.paramHint {
-  width: 100%;
-  margin: 0;
-  font-size: 9px;
-  line-height: 1.35;
-  text-align: center;
-  color: var(--text-dim);
-  text-wrap: balance;
-}
-
-.patternPanel {
-  display: flex;
-  flex-direction: column;
-  gap: 10px;
-  width: 100%;
-  min-height: 0;
-}
-
-/* Wraps at every width, not just below a breakpoint: with all four effects
-   engaged the row exceeds even a 1280px panel, and .content (tabs.module.css)
-   is an overflow:auto container — so an unwrapped row drags a horizontal
-   scrollbar across the whole panel, step grid included. */
-.patternPanelHeader {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-  flex-wrap: wrap;
-}
-
-/* The machine's effect groups as one unit, so the row breaks between machine
-   controls and FX rather than mid-cluster. See responsive-machine-header.md. */
-.fxCluster {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-  flex-wrap: wrap;
-  min-width: 0;
-}
-
-/* Chain / Mute / Solo in a machine header (machine-status.md REQ-lane-controls-live-on-both-surfaces). One cluster
-   so the header's wrap points stay between groups rather than splitting these
-   three (responsive-machine-header.md). */
-.laneControls {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  flex-wrap: wrap;
-  min-width: 0;
-}
-
-/* ===== Per-machine GRID popover (meter.md REQ-each-machine-has-a-loop-length/REQ-each-machine-has-a-step-rate) ===== */
-
-/* The popover's anchor. Nothing but a box: the menu is `position: fixed`, so it
-   needs no positioned ancestor, and it must NOT carry `dropdown.module.css`'s
-   `.root` — that module's `.root.open .menu` is a descendant selector and would
-   open the two Dropdowns nested inside this popover along with it. */
-.laneMeterRoot {
-  display: inline-block;
-  min-width: 0;
-}
-
-/* The popover's contents. A CHILD of `dropdown.module.css`'s `.menu` rather than
-   a second class on it: that element owns `display: none` until `.open`, and a
-   class here setting `display` would pin the popover open forever. */
-.laneMeter {
-  display: flex;
-  flex-direction: column;
-  gap: 6px;
-  padding: 8px;
-  min-width: 190px;
-}
-
-/* Caption beside its control, so a row is one line and the popover stays short. */
-.laneMeterField {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 8px;
-}
-
-/* Matches knob.module.css's `.label` — these sit among knobs and switches and
-   must read as the same kind of control. */
-.laneMeterLabel {
-  font-size: 9px;
-  color: var(--text-dim);
-  text-transform: uppercase;
-  letter-spacing: 0.12em;
-  font-weight: 600;
-}
-
-/* The one line that says what LEN x RATE amounts to, so two interacting
-   controls never have to be reconciled in the head (ADR-014). Mono, being a
-   readout of changing figures (typography.md). */
-.laneMeterHint {
-  font-family: var(--mono);
-  font-size: 9px;
-  color: var(--text-dim);
-  line-height: 1.35;
-  max-width: 190px;
-}
-
-/* Off the bar on purpose — the polyrhythm case. Accented rather than warned
-   about: it is a setting, not a mistake. */
-.laneMeterOff {
-  color: var(--accent);
-}
-
-/* ===== Header ===== */
-
-.header {
-  display: flex;
-  align-items: center;
-  gap: 14px;
-  padding: 0 16px;
-  margin: 0 var(--side-margin);
-  background: var(--panel);
-  border: 1px solid var(--panel-border);
-  border-radius: 6px;
-  box-shadow: var(--panel-shadow);
-  position: sticky;
-  top: 0;
-  z-index: 10;
-}
-
-/* Header-only framing for the shared brand block (components/brand.ts). The
-   block itself is styled by brand.module.css and carries no outer framing, so
-   this divider rule can't leak into the About or start modal — brand.md REQ-brand-block-carries-no-framing. */
-.headerBrand {
-  padding-right: 8px;
-  border-right: 1px solid rgba(244, 205, 94, 0.18);
-  margin-right: 4px;
-}
-
-.headerSpacer { flex: 1; }
-
-.headerGroup {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  font-size: 11px;
-  text-transform: uppercase;
-  letter-spacing: 0.1em;
-  color: var(--text-dim);
-}
-
-.transportGroup .playBtn {
-  min-width: 64px;
-  justify-content: center;
-}
-
-/* Mobile preset-cluster toggle (hamburger). Hidden until the phone breakpoint. */
-.menuToggle { display: none; }
-
-/* Flex line break before the transport cluster. Inert until the phone
-   breakpoint, where it pushes Play/BPM/Swing below the brand/☰ row. */
-.headerBreak { display: none; }
-
-/* Inner preset-cluster spacer (headerSpacer precedent). Inert until the
-   ≤1140px wrap step, where it splits the cluster: dropdown + Save left,
-   utility icon buttons far right. */
-.presetSpacer { display: none; }
-
-.playBtn:global(.on) :global(.switch-label) {
-  color: var(--accent-secondary);
-}
-
-.playBtn:global(.blink) :global(.switch-led) {
-  opacity: 0.15;
-  box-shadow: none;
-}
-
-/* Idle blinks (specs/features/play-button-blink.md): the transport is easy to
-   miss, so while stopped the LED pulses orange slowly; a freshly loaded demo
-   escalates to a fast green "press play" cue. Playing keeps the red beat
-   blink above.
-
-   Both pulse a lit `::after` overlay's OPACITY rather than animating the LED's
-   own background/box-shadow. These are the only infinite animations in the app
-   — the attract pulse runs the whole time the transport is stopped — and
-   background/box-shadow are paint-bound, so the old keyframes repainted the LED
-   every frame, forever. Opacity on a composited layer costs nothing per frame
-   and the LED looks identical. */
-.playBtn :global(.switch-led) { position: relative; }
-
-.playBtn:global(.attract) :global(.switch-led)::after,
-.playBtn:global(.cue) :global(.switch-led)::after {
-  content: '';
-  position: absolute;
-  inset: 0;
-  border-radius: 50%;
-  opacity: 0;
-  /* The base `.led` keeps the outer 1px ring underneath; this is the lit face. */
-  box-shadow: 0 0 8px rgba(232, 116, 46, 0.85), inset 0 1px 1px rgba(255, 255, 255, 0.4);
-  background: #e8742e;
-  will-change: opacity;
-}
-
-.playBtn:global(.attract) :global(.switch-led)::after {
-  animation: ledPulse 2s ease-in-out infinite;
-}
-
-.playBtn:global(.cue) :global(.switch-led)::after {
-  background: #4ade50;
-  box-shadow: 0 0 8px rgba(74, 222, 80, 0.9), inset 0 1px 1px rgba(255, 255, 255, 0.4);
-  animation: ledFlash 0.4s linear infinite;
-}
-
-@keyframes ledPulse {
-  0%, 100% { opacity: 0; }
-  50% { opacity: 1; }
-}
-
-@keyframes ledFlash {
-  0%, 49% { opacity: 1; }
-  50%, 100% { opacity: 0; }
-}
-
-/* Reduced motion: hold the lit face rather than dropping the signal entirely —
-   the point of both states is "the transport is over here". */
-@media (prefers-reduced-motion: reduce) {
-  .playBtn:global(.attract) :global(.switch-led)::after,
-  .playBtn:global(.cue) :global(.switch-led)::after {
-    animation: none;
-    opacity: 1;
+@layer chrome {
+  .panel {
+    background: var(--panel);
+    border: 1px solid var(--panel-border);
+    border-radius: 6px;
+    box-shadow: var(--panel-shadow);
+    padding: 8px 10px 10px;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    min-height: 0;
+    min-width: 0;
   }
-}
 
-/* ===== Main panel grid ===== */
+  .panelTitle {
+    font-size: 10px;
+    /* Explicit, so the header is 14 + 6 + 1 = 21px on every machine. Inter is
+       never shipped as a webfont, so `normal` resolves against whatever the OS
+       substitutes — 14px on Segoe UI, 11px on the Linux CI runner's fallback,
+       which put a plain title 3px under the tab row that is supposed to match it
+       (panel-tabs.md REQ-the-strip-replaces-the-title). Both sides of that match are declared, never
+       inherited from the font; pinned by tests/ui/panel-header-height.test.ts. */
+    line-height: 14px;
+    text-transform: uppercase;
+    letter-spacing: 0.2em;
+    color: var(--accent-secondary);
+    text-align: center;
+    padding-bottom: 6px;
+    border-bottom: 1px dashed rgba(244, 205, 94, 0.18);
+    font-weight: 600;
+    text-shadow: 0 1px 0 rgba(0, 0, 0, 0.7);
+  }
 
-.main {
-  display: grid;
-  grid-template-columns: repeat(8, minmax(0, 1fr));
-  gap: 10px;
-  margin: 0 var(--side-margin);
-}
+  .panelBody {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    flex: 1;
+  }
 
-/* ===== FX section ===== */
+  /* ===== Tabbed panels (specs/features/panel-tabs.md) ===== */
 
-.fxSection {
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-  min-width: 0;
-  /* The token every other row uses, not the 22px it is at desktop widths: a
-     literal kept FX 14px further in than MACHINES and EQUALIZER once the token
-     drops to 8px at <=992px, so the three headings' icons stopped lining up
-     (section-title.md REQ-heading-icons-share-one-x). */
-  margin: 0 var(--side-margin);
-}
+  /* The tab strip IS the panel header — it replaces .panelTitle rather than
+     sitting beside it, and must occupy the same vertical space so a tabbed panel
+     still lines up with its untabbed neighbours across the grid (REQ-stereo-on-a-mono-scope-falls-back).
+     .panelTitle's footprint is a 14px line + 6px padding + a 1px rule; the tabs
+     reach the same total from their own padding + border. */
+  .panelTabs {
+    display: flex;
+    gap: 4px;
+    width: 100%;
+    min-width: 0;
+  }
 
-.fxSectionBar {
-  display: flex;
-  align-items: center;
-  /* Exactly the tab bar's padding (tabs.module.css .bar), so the section title's
-     icon lands on the same x as the MACHINES and EQUALIZER ones and the title's
-     own vertical padding sets a matching height (section-title.md REQ-heading-icons-share-one-x). */
-  padding: 0 10px 0 6px;
-  background: linear-gradient(180deg, #0a0604 0%, #16100b 100%);
-  border: 1px solid var(--panel-border);
-  border-radius: 6px;
-  box-shadow: var(--panel-shadow);
-  cursor: pointer;
-}
+  .panelTab {
+    /* Even share of the row: 50/50 for two, 33/33/33 for three (REQ-spectrum-draws-a-peak-hold). */
+    flex: 1 1 0;
+    min-width: 0;
+    position: relative;
+    padding: 3px 6px;
+    /* Rounded at the top only — the shape is what says "tab" at this size. */
+    border-radius: 4px 4px 0 0;
+    /* Unselected: the same dark well as a Switch, so the page you are not on
+       reads as something to press rather than as a heading. */
+    background: linear-gradient(180deg, #1a1410, #0a0805);
+    border: 1px solid var(--panel-border);
+    color: var(--text-faint);
+    /* Deliberately NO font-family: the active tab has to match .panelTitle, which
+       inherits the sans (typography.md REQ-serif-is-display-type-only). Declaring a serif here would also
+       add an entry to the typography drift allowlist. */
+    font-size: 10px;
+    /* Explicit, so the row lands on .panelTitle's exact height (REQ-stereo-on-a-mono-scope-falls-back) rather
+       than on whatever line box the font happens to give: 13 + 3 + 3 + 1 + 1 = 21,
+       which is .panelTitle's 14px line + 6px padding + its 1px rule — declared
+       there too, for the same reason. Pinned by tests/ui/panel-header-height.test.ts
+       (the arithmetic, everywhere) and e2e/lfo2.spec.ts (the rendered rows; jsdom
+       has no layout, so only a real browser can measure those). */
+    line-height: 13px;
+    text-transform: uppercase;
+    letter-spacing: 0.2em;
+    font-weight: 600;
+    text-align: center;
+    /* Letter-spacing puts a trailing gap after the last glyph, which drags a
+       centred label left by half of it. .panelTitle has the same flaw and lives
+       with it; a tab is a box with a border, where it shows. */
+    text-indent: 0.2em;
+    cursor: pointer;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
 
-.fxSection:global(.collapsed) .fxRow { display: none; }
+  /* Selected: the panel-title look exactly — same type, same colour — over the
+     panel's own ground, with a subtle outline that keeps it reading as a tab. */
+  .panelTab:global(.active) {
+    background: none;
+    border-color: rgba(244, 205, 94, 0.28);
+    color: var(--accent-secondary);
+    text-shadow: 0 1px 0 rgba(0, 0, 0, 0.7);
+  }
 
-/* Six equal columns. Equal is the wrong shape once a panel holds four knobs —
-   see the min-width:1360px step below, which sizes panels to their knobs where
-   there is room to. This stays the narrow fallback, where nothing fits anyway
-   and shrinking evenly beats overflowing. */
-.fxRow {
-  display: grid;
-  grid-template-columns: repeat(6, minmax(0, 1fr));
-  gap: 10px;
-}
+  /* The off-screen-active lamp (REQ-scope-renderers-are-rect-scoped). Out of flow, so it cannot pull the label
+     off centre, and always laid out so lighting it never reflows the row. */
+  .panelTabLamp {
+    position: absolute;
+    left: 5px;
+    top: 50%;
+    transform: translateY(-50%);
+    width: 4px;
+    height: 4px;
+    border-radius: 50%;
+    background: transparent;
+  }
 
-.fxPanel {
-  background: var(--panel);
-  border: 1px solid var(--panel-border);
-  border-radius: 6px;
-  box-shadow: var(--panel-shadow);
-  padding: 8px 10px 10px;
-  display: flex;
-  flex-direction: column;
-  gap: 6px;
-  min-width: 0;
-}
+  .panelTab:global(.lit) .panelTabLamp {
+    background: var(--accent);
+    box-shadow: 0 0 5px var(--accent-secondary-glow);
+  }
 
-.fxHeader {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 8px;
-  border-bottom: 1px dashed rgba(244, 205, 94, 0.18);
-  padding-bottom: 4px;
-}
+  .panelPages {
+    display: flex;
+    flex: 1;
+    min-height: 0;
+    min-width: 0;
+  }
 
-.fxTitle {
-  font-size: 11px;
-  text-transform: uppercase;
-  letter-spacing: 0.18em;
-  color: var(--accent-secondary);
-  font-weight: 700;
-  text-shadow: 0 1px 0 rgba(0, 0, 0, 0.7);
-}
+  /* Visibility only — the page's own .panelBody child does the centering, so this
+     must NOT repeat align-items:center or it would shrink that child below the
+     panel width and collapse the full-width dropdowns inside it. Hidden pages
+     stay in the DOM and stay subscribed (REQ-the-split-layout-is-pure). */
+  .panelPage {
+    display: none;
+    flex: 1;
+    min-width: 0;
+  }
 
-.fxKnobs {
-  display: flex;
-  align-items: center;
-  justify-content: space-around;
-  gap: 4px;
-  flex-wrap: wrap;
-}
+  .panelPage:global(.visible) {
+    display: flex;
+  }
 
-/* ===== Pattern row ===== */
+  .panelRow {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 4px;
+    width: 100%;
+    flex-wrap: wrap;
+  }
 
-.patternRow {
-  margin: 0 var(--side-margin);
-  min-height: 240px;
-}
+  /* 4-knob synth panels (SUB/UNI, FILTER, AMP ENV, FILTER ENV) lay their knobs
+     out as a deterministic grid instead of a flex-wrap: a 2x2 block here (the
+     8-column .main grid, narrow panels), switched to a single 4-up row at ≤1280px
+     where the panels widen — and again on an ultrawide (≥2561px, the block after
+     the 1630px one). Layers over .panelRow, overriding display. Grid never
+     wraps 3+1. See specs/features/responsive-synth-panels.md. */
+  .quad {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 8px 4px;
+    justify-items: center;
+    align-items: center;
+    width: 100%;
+  }
 
-.patternRow:global(.collapsed) {
-  min-height: 0;
-}
+  /* FILTER ENV, once velocity sensitivity joined A/D/S/R (envelopes.md REQ-filter-env-follows-velocity).
+     Five items in a 2-column grid would leave a lone knob hanging in column 1, so
+     the fifth spans the row and `justify-items: center` centres it: A D / S R /
+     VEL. Deliberate, not ragged — and free between 1281 and 1629px, where FILTER
+     and OSC 1 stand taller anyway. Two other shapes, in the media blocks below:
+     a dice-five from 1630px (where that third row would set the faceplate's
+     height), and one row of five on the ≤1280px reflow and on an ultrawide
+     (≥2561px), where the span is undone. */
+  .quint {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 8px 4px;
+    justify-items: center;
+    align-items: center;
+    width: 100%;
+  }
 
-/* ===== Bottom section ===== */
+  .quint > *:last-child { grid-column: 1 / -1; }
 
-/* A flex column of three: the scope row, the EQUALIZER section, the keyboard.
-   Flex, not grid (keyboard-range.md REQ-spare-height-goes-to-the-scope): a
-   capped `minmax(min, max)` track grows to its max whenever the grid's height
-   comes from its content — `.app`'s does — so the page scrolled to fit a maxed
-   keyboard. Flex items size from basis 0 and their floors, so this column asks
-   only for its minimums and fills whatever the viewport adds on top.
+  /* The 6-knob FILTER panel (.quad's sibling since the model switch added SHAPE
+     and KEYTRK). A knob's box is a fixed `--knob-size + 8px`, so a column count
+     that outruns the panel width makes the boxes overlap, not merely crowd — the
+     ceiling is what .quad already establishes: 2 knobs per row on the 8-column
+     desktop grid, 4 once the panels widen at ≤1280px. Six knobs therefore go
+     2x3 here and 3x2 there, both stopping short of that ceiling and both leaving
+     even rows (.quad's "never wrap 3+1" rule applied to six). A third shape picks
+     up on very wide monitors (≥1630px), where the 8-column panel finally fits
+     three of this panel's long labels — see the min-width block below — and a
+     fourth, one row of six, from 3200px (the ultrawide block).
+     See specs/features/responsive-synth-panels.md, filter-models.md. */
+  .hex {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 8px 4px;
+    justify-items: center;
+    align-items: center;
+    width: 100%;
+  }
 
-   - Scope row (wheels | scope): at least --scope-h, which the drag handle on the
-     scope's top edge writes inline (130–260px; the default stays here in CSS,
-     so no stored value renders as it always did — scope.md
-     REQ-a-scope-resize-handle). A minimum, not a height: it also takes the
-     spare the keyboard cannot use.
-   - EQUALIZER: its content's height — folded, just its tab bar
-     (equalizer.md REQ-the-eq-is-a-third-bottom-row).
-   - Keyboard: first claim on spare height (flex-grow 1000 to the scope's 1),
-     up to its cap. A growing scope OR an unfolded EQ eats the keyboard's slack,
-     stops at its floor, and only then does the page scroll. */
-.bottom {
-  /* The left gutter both rows share: the PITCH/OCT/MOD wheels, and the
-     EQUALIZER section's control column, which must be EXACTLY as wide so the
-     graph lines up with the scope (equalizer.md REQ-the-eq-page-mirrors-the-scope-row). Named here rather than
-     written twice — two literals would be equal only by coincidence. */
-  --wheel-col: 120px;
-  display: flex;
-  flex-direction: column;
-  gap: 10px;
-  margin: 0 var(--side-margin);
-  min-height: 0;
-}
+  /* 3- and 2-knob panels (OSC 1/2, MIXER, LFO) keep their centered flex row on the
+     8-column desktop grid, but on the ≤1280px reflow — where the panels widen —
+     spread the knobs evenly across the width (space-evenly, applied in that media
+     block) so they read as generously as the .quad panels beside them, instead of
+     clustering in the middle. The ultrawide block (≥2561px) does the same, for
+     panels that have outgrown the cluster the other way. Inert here. See
+     responsive-synth-panels.md. */
+  .spread {
+    width: 100%;
+  }
 
-.bottomTop {
-  display: grid;
-  grid-template-columns: var(--wheel-col) 1fr;
-  gap: 10px;
-  flex: 1 1 0;
-  min-height: var(--scope-h, 130px);
-}
-
-.wheels {
-  display: flex;
-  align-items: stretch;
-  gap: 8px;
-  padding: 8px 8px 22px;
-  background: var(--panel);
-  border: 1px solid var(--panel-border);
-  border-radius: 6px;
-  box-shadow: var(--panel-shadow);
-}
-
-.scopeWrap {
-  background: var(--panel);
-  border: 1px solid var(--panel-border);
-  border-radius: 6px;
-  box-shadow: var(--panel-shadow);
-  padding: 8px;
-  position: relative;
-  min-height: 0;
-  display: flex;
-}
-
-/* Static CRT "screen" behind the transparent scope canvas: the radial gradient +
-   inset vignette painted once into their own layer, so the 60fps canvas redraw
-   never re-rasters them. Covers exactly the canvas box (the 8px padding inset). */
-.scopeScreen {
-  position: absolute;
-  inset: 8px;
-  border-radius: 3px;
-  background: radial-gradient(ellipse at center, #0a0604 0%, #050302 100%);
-  box-shadow:
-    inset 0 0 20px rgba(0, 0, 0, 0.8),
-    inset 0 0 0 1px rgba(244, 205, 94, 0.05);
-  pointer-events: none;
-  z-index: 0;
-}
-
-.scopeToggle {
-  position: absolute;
-  top: 8px;
-  right: 8px;
-  z-index: 1;
-  min-height: 28px !important;
-  padding: 4px 10px !important;
-  font-size: 10px !important;
-}
-
-.scopeChannelsToggle {
-  position: absolute;
-  top: 8px;
-  left: 8px;
-  z-index: 1;
-  min-height: 28px !important;
-  padding: 4px 10px !important;
-  font-size: 10px !important;
-}
-
-/* Problem-band overlay toggle — bottom-right, the only corner with no chrome in
-   either stereo layout (the L/R labels sit bottom-LEFT). The spectrum reserves no
-   width for it: on a narrow panel the button covers the 10k tick label, which is
-   cheaper than costing every panel a dead strip. See specs/features/scope.md REQ-a-zones-toggle.
-   `!important` for the same reason .scopeToggle needs it: this class and
-   switch.module.css's .root are both single-class selectors on the same element,
-   so bundle order — not intent — would otherwise decide. */
-.scopeZonesToggle {
-  position: absolute;
-  bottom: 8px;
-  right: 8px;
-  z-index: 1;
-  min-height: 28px !important;
-  padding: 4px 10px !important;
-  font-size: 10px !important;
-}
-
-/* The button is Spectrum-only. Without this the class's own `position` outranks
-   the UA's `[hidden] { display: none }` and it would show in Wave view too. */
-.scopeZonesToggle[hidden] {
-  display: none !important;
-}
-
-/* Resize grip, top-centre — the only edge of this panel free of chrome, since
-   the two toggles above take the corners. It has to thread between them, so the
-   width shrinks with the panel instead of overlapping a button: 140px is the two
-   buttons plus their 8px insets plus clearance. Below ~350px viewport there is no
-   room left to thread, and the grip is dropped rather than shown unhittable —
-   the stored height still applies. See specs/features/scope.md REQ-a-scope-resize-handle. */
-.scopeResize {
-  position: absolute;
-  top: 0;
-  left: 50%;
-  transform: translateX(-50%);
-  width: min(64px, calc(100% - 140px));
-  height: 16px;
-  z-index: 2;
-}
-
-@media (max-width: 350px) {
-  /* !important for the same reason .scopeToggle needs it above: this class and
-     resize-handle.module.css's .root are both single-class selectors on the same
-     element, so bundle order — not intent — would otherwise decide. */
-  .scopeResize { display: none !important; }
-}
-
-/* A white key stays between 1.6x and 4.5x as tall as it is wide, over a 160px
-   floor that wins wherever keys are narrow (keyboard-range.md
-   REQ-key-height-follows-key-width). --kb-key-w is the white-key width, written
-   by app.ts's keyboard ResizeObserver; unset before the first observation, the
-   min falls back to the floor and the max to no cap. The 30px is this wrap's
-   chrome around the keys: padding 2x8 + border 2x1 + the keyboard's padding 2x6. */
-.keyboardWrap {
-  background: var(--panel);
-  border: 1px solid var(--panel-border);
-  border-radius: 6px;
-  box-shadow: var(--panel-shadow);
-  padding: 8px;
-  flex: 1000 1 0;
-  min-height: max(160px, calc(var(--kb-key-w, 0px) * 1.6 + 30px));
-  max-height: max(160px, calc(var(--kb-key-w, 100vh) * 4.5 + 30px));
-}
-
-/* ===== Responsive ===== */
-
-/* Very wide monitors. `.main` stays 8 columns above 1280px, so panels simply
-   grow with the viewport — and past ~1630px the FILTER panel is finally wide
-   enough for three of its knobs per row, matching the 3-up OSC/MIXER rows
-   beside it instead of standing a row taller than the whole faceplate.
-   The threshold is set by LABEL ink, not by the dial: a six-character label
-   (CUTOFF, KEYTRK) inks ~61px against a 52px knob box, so three columns need
-   ~191px of panel body. .quad's four knobs would want ~2400px to go 4-up, well
-   past any real display.
-
-   FILTER ENV (.quint) takes the same step for the opposite reason: its A D /
-   S R / VEL stack is three knob rows, and once FILTER drops to two rows here
-   that third row is the tallest thing on the faceplate (~42px over every
-   neighbour, taken from the section below). Three columns buy a dice-five —
-   A/D/S/R in the corners, VEL in the middle spanning both rows — two rows tall,
-   like AMP ENV beside it. Placed by position, not auto-flow, so the shape
-   cannot depend on rule order and the DOM (Tab) order is untouched. Label ink
-   is no constraint: no two boxes share a column, and VEL shares no label line
-   with a corner. responsive-synth-panels.md REQ-quad-panels-use-a-fixed-grid. */
-@media (min-width: 1630px) {
-  .hex { grid-template-columns: repeat(3, minmax(0, 1fr)); }
-  .quint { grid-template-columns: repeat(3, minmax(0, 1fr)); }
-  .quint > :nth-child(1) { grid-column: 1; grid-row: 1; } /* A */
-  .quint > :nth-child(2) { grid-column: 3; grid-row: 1; } /* D */
-  .quint > :nth-child(3) { grid-column: 1; grid-row: 2; } /* S */
-  .quint > :nth-child(4) { grid-column: 3; grid-row: 2; } /* R */
-  /* VEL. `.quint`'s align-items: center centres it between the rows. */
-  .quint > *:last-child { grid-column: 2; grid-row: 1 / span 2; }
-}
-
-/* Ultrawide (responsive-synth-panels.md REQ-ultrawide-panels-are-one-row). The
-   panels keep growing past 2560px while the shapes above stay put, so from here
-   every knob group spreads evenly and goes to one row once a row of 52px boxes
-   fits: 4 and 5 at 2561px (a 281px row), FILTER's 6 at 3200px (361px — six first
-   fit at ~2970px, with no air). ≤2560px is untouched. Both blocks sit after the
-   1630px one so they win on source order; the .quint reset repeats :nth-child
-   for the specificity to beat its placements. */
-@media (min-width: 2561px) {
-  .spread { justify-content: space-evenly; }
-  .rowBreak { display: none; }
-  .quad { grid-template-columns: repeat(4, minmax(0, 1fr)); }
-  .quint { grid-template-columns: repeat(5, minmax(0, 1fr)); }
-  .quint > :nth-child(n) { grid-column: auto; grid-row: auto; }
-}
-
-@media (min-width: 3200px) {
-  .hex { grid-template-columns: repeat(6, minmax(0, 1fr)); }
-}
-
-/* No FX panel is ever narrower than its own knob run — responsive-synth-panels
-   REQ-the-scope-drop-shadow-is-dropped. The panels do not hold equal amounts: a four-knob panel (Phaser, Duck)
-   spends 4x52 + 3x4 = 220px on its knob run against a three-knob panel's 164px,
-   so one equal column width cannot serve them all. It served none when the rack
-   went from five panels to six: at 1440px each column fell to 220px against the
-   242px a four-knob panel needs, both wrapped a knob onto a second row, and the
-   rack grew 177px -> 255px. That 78px is not free. The faceplate is a
-   fixed-height grid that does not scroll, and it pushed the sequencer's
-   step-settings row past the fold.
-
-   `minmax(min-content, 1fr)` is an equal share with a floor: 1fr hands every
-   panel the same width, and min-content lifts a four-knob panel off it when
-   that share drops below its 242px. So above ~1546px, where the share clears
-   242px unaided, the rack is equal-width exactly as before; only the tight band
-   is treated specially (at 1440px: 242px against 210px).
-
-   `.fxKnobs` must stop wrapping for the floor to mean anything: a wrapping
-   row's min-content is ONE knob, so the track would ask for 52px and we would
-   be back to equal columns. Nowrap is safe here and only here — the track is
-   guaranteed >= the run, and the run is font-independent (fixed knob boxes), so
-   there is nothing left to wrap for.
-
-   The 1360px step is where the six panels' minimums (2x242 + 4x186 + 5x10 gaps
-   + 44px of side margin = ~1350px) first fit. Below it the rule would spill
-   past the rack's right edge and be clipped silently, so the equal-column
-   fallback takes over and wraps knobs instead — which is what this rack did
-   below ~1294px before the sixth panel existed. */
-@media (min-width: 1360px) {
-  .fxRow { grid-template-columns: repeat(6, minmax(min-content, 1fr)); }
-  .fxPanel { min-width: auto; }
-  .fxKnobs { flex-wrap: nowrap; }
-}
-
-@media (max-width: 1280px) {
-  .main { grid-template-columns: repeat(4, minmax(0, 1fr)); }
-  /* Panels widen on the 4-col (and later 2-col) reflow — the four knobs fit one
-     row. Holds through every narrower width. */
-  .quad { grid-template-columns: repeat(4, minmax(0, 1fr)); }
-  /* Five across, and the fifth stops spanning — the row it would span is now
-     the only row. */
-  .quint { grid-template-columns: repeat(5, minmax(0, 1fr)); }
-  .quint > *:last-child { grid-column: auto; }
-  .hex { grid-template-columns: repeat(3, minmax(0, 1fr)); }
-  /* Distribute the 3-/2-knob rows across the widened panel so they match the
-     .quad panels' generosity instead of clustering centre. */
-  .spread { justify-content: space-evenly; }
-  .patternRow { min-height: 200px; }
-}
-
-/* The header's four clusters have a min-content width of ~1140px — wider than
-   the viewport well before the 992px reflow. Without this step the header can
-   neither shrink nor wrap in the 993–1140px range, so it (and the .app grid
-   column it widens) overflows right and is clipped by the page's
-   overflow-x:hidden. Let it wrap onto a second row instead. */
-@media (max-width: 1140px) {
-  .header { flex-wrap: wrap; }
-  .headerSpacer { display: none; }
-  .headerGroup { flex-wrap: wrap; }
-  /* The dropdown is self-explanatory; drop the label to save header width. */
-  .presetLabel { display: none; }
-  /* Deterministic two-row layout: the break forces the transport cluster to
-     lead the second row (far left); the voicing cluster right-aligns on it. */
-  .headerBreak {
-    display: block;
+  /* A forced line break inside a flex-wrapping row: a full-width, zero-height
+     item, so whatever follows starts a new line. OSC 1/2 put one before their
+     square-wave WIDTH knob, which therefore sits alone below OCT/TUNE/LEVEL
+     instead of wrapping 3+1; the row gaps above and below the empty line add up
+     to the 8px of a separate row. The ultrawide block drops it, and WIDTH joins
+     the row (responsive-synth-panels.md REQ-ultrawide-panels-are-one-row). */
+  .rowBreak {
     flex-basis: 100%;
     height: 0;
   }
-  .voicingGroup { margin-left: auto; }
-  /* Preset-cluster split: the cluster fills the rest of row 1 and its inner
-     spacer pushes the utility icon buttons to the far right; dropdown + Save
-     stay left. (The menu-open flex-basis:100% row outranks the basis below
-     720px, so the expanded row keeps its full width.) */
-  .presetGroup { flex: 1; }
-  .presetSpacer {
-    display: block;
-    flex: 1;
-  }
-  /* Machine panel headers: the FX cluster leads its own full-width row, so the
-     machine controls (switch/master/banks/undo/actions) never reflow around an
-     individual effect group. */
-  .fxCluster { flex-basis: 100%; }
-}
 
-@media (max-width: 992px) {
-  .header {
-    gap: 8px 10px;
-    padding: 8px 10px;
+  /* A one-line caveat under a control whose range is conditionally limited (the
+     LFO rate cap while the pulse destination is selected — oscillators.md REQ-pwm-rate-is-clamped).
+     Sans-serif: body text, not a title. Muted and small so it reads as a footnote
+     rather than competing with the panel's own label. */
+  .paramHint {
+    width: 100%;
+    margin: 0;
+    font-size: 9px;
+    line-height: 1.35;
+    text-align: center;
+    color: var(--text-dim);
+    text-wrap: balance;
+  }
+
+  .patternPanel {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    width: 100%;
     min-height: 0;
   }
-  .headerGroup { gap: 8px 10px; }
-  .main {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
+
+  /* Wraps at every width, not just below a breakpoint: with all four effects
+     engaged the row exceeds even a 1280px panel, and .content (tabs.module.css)
+     is an overflow:auto container — so an unwrapped row drags a horizontal
+     scrollbar across the whole panel, step grid included. */
+  .patternPanelHeader {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    flex-wrap: wrap;
+  }
+
+  /* The machine's effect groups as one unit, so the row breaks between machine
+     controls and FX rather than mid-cluster. See responsive-machine-header.md. */
+  .fxCluster {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    flex-wrap: wrap;
+    min-width: 0;
+  }
+
+  /* Chain / Mute / Solo in a machine header (machine-status.md REQ-lane-controls-live-on-both-surfaces). One cluster
+     so the header's wrap points stay between groups rather than splitting these
+     three (responsive-machine-header.md). */
+  .laneControls {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    flex-wrap: wrap;
+    min-width: 0;
+  }
+
+  /* ===== Per-machine GRID popover (meter.md REQ-each-machine-has-a-loop-length/REQ-each-machine-has-a-step-rate) ===== */
+
+  /* The popover's anchor. Nothing but a box: the menu is `position: fixed`, so it
+     needs no positioned ancestor, and it must NOT carry `dropdown.module.css`'s
+     `.root` — that module's `.root.open .menu` is a descendant selector and would
+     open the two Dropdowns nested inside this popover along with it. */
+  .laneMeterRoot {
+    display: inline-block;
+    min-width: 0;
+  }
+
+  /* The popover's contents. A CHILD of `dropdown.module.css`'s `.menu` rather than
+     a second class on it: that element owns `display: none` until `.open`, and a
+     class here setting `display` would pin the popover open forever. */
+  .laneMeter {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    padding: 8px;
+    min-width: 190px;
+  }
+
+  /* Caption beside its control, so a row is one line and the popover stays short. */
+  .laneMeterField {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
     gap: 8px;
   }
-  /* An odd effect count in two columns leaves the last cell empty; the
-     patch-cable decoration fills it. Six effects divide evenly, so it is
-     currently absent. fx-patch-decoration.module.css mirrors this breakpoint
-     (it is display:none above it) — keep the two in sync. */
-  .fxRow { grid-template-columns: repeat(2, 1fr); }
-}
 
-@media (max-width: 720px) {
-  /* Collapse the preset cluster behind the hamburger so the sticky header stays
-     compact; it expands inline as its own row only while the menu is open. */
-  .menuToggle {
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-    margin-left: auto; /* park the hamburger at the top-right of the brand row */
-    font-size: 16px;
-    line-height: 1;
+  /* Matches knob.module.css's `.label` — these sit among knobs and switches and
+     must read as the same kind of control. */
+  .laneMeterLabel {
+    font-size: 9px;
+    color: var(--text-dim);
+    text-transform: uppercase;
+    letter-spacing: 0.12em;
+    font-weight: 600;
   }
-  .presetGroup { display: none; }
-  .header.menuOpen .presetGroup {
+
+  /* The one line that says what LEN x RATE amounts to, so two interacting
+     controls never have to be reconciled in the head (ADR-014). Mono, being a
+     readout of changing figures (typography.md). */
+  .laneMeterHint {
+    font-family: var(--mono);
+    font-size: 9px;
+    color: var(--text-dim);
+    line-height: 1.35;
+    max-width: 190px;
+  }
+
+  /* Off the bar on purpose — the polyrhythm case. Accented rather than warned
+     about: it is a setting, not a mistake. */
+  .laneMeterOff {
+    color: var(--accent);
+  }
+
+  /* ===== Header ===== */
+
+  .header {
     display: flex;
-    flex-basis: 100%; /* reveal as its own full-width row below the brand */
+    align-items: center;
+    gap: 14px;
+    padding: 0 16px;
+    margin: 0 var(--side-margin);
+    background: var(--panel);
+    border: 1px solid var(--panel-border);
+    border-radius: 6px;
+    box-shadow: var(--panel-shadow);
+    position: sticky;
+    top: 0;
+    z-index: 10;
   }
-  /* Cap the preset dropdown on phones: the 120px min-width becomes a 90px
-     max-width; the label ellipsizes (dropdown.module.css .label). */
-  .presetGroup :global(.dropdown) > button {
-    min-width: 0;
-    max-width: 90px;
+
+  /* Header-only framing for the shared brand block (components/brand.ts). The
+     block itself is styled by brand.module.css and carries no outer framing, so
+     this divider rule can't leak into the About or start modal — brand.md REQ-brand-block-carries-no-framing. */
+  .headerBrand {
+    padding-right: 8px;
+    border-right: 1px solid rgba(244, 205, 94, 0.18);
+    margin-right: 4px;
   }
-  /* Active (open) state — the gold "on" look shared by the Play button + the
-     segmented controls, so the hamburger reads as toggled on. The descendant
-     compound outranks switch.module's base `.root`. */
-  .header.menuOpen .menuToggle {
-    background: linear-gradient(180deg, #4a3525, #2a1c10);
-    border-color: rgba(244, 205, 94, 0.5);
+
+  .headerSpacer { flex: 1; }
+
+  .headerGroup {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    font-size: 11px;
+    text-transform: uppercase;
+    letter-spacing: 0.1em;
+    color: var(--text-dim);
+  }
+
+  .transportGroup .playBtn {
+    min-width: 64px;
+    justify-content: center;
+  }
+
+  /* Mobile preset-cluster toggle (hamburger). Hidden until the phone breakpoint. */
+  .menuToggle { display: none; }
+
+  /* Flex line break before the transport cluster. Inert until the phone
+     breakpoint, where it pushes Play/BPM/Swing below the brand/☰ row. */
+  .headerBreak { display: none; }
+
+  /* Inner preset-cluster spacer (headerSpacer precedent). Inert until the
+     ≤1140px wrap step, where it splits the cluster: dropdown + Save left,
+     utility icon buttons far right. */
+  .presetSpacer { display: none; }
+
+  .playBtn:global(.on) :global(.switch-label) {
     color: var(--accent-secondary);
+  }
+
+  .playBtn:global(.blink) :global(.switch-led) {
+    opacity: 0.15;
+    box-shadow: none;
+  }
+
+  /* Idle blinks (specs/features/play-button-blink.md): the transport is easy to
+     miss, so while stopped the LED pulses orange slowly; a freshly loaded demo
+     escalates to a fast green "press play" cue. Playing keeps the red beat
+     blink above.
+
+     Both pulse a lit `::after` overlay's OPACITY rather than animating the LED's
+     own background/box-shadow. These are the only infinite animations in the app
+     — the attract pulse runs the whole time the transport is stopped — and
+     background/box-shadow are paint-bound, so the old keyframes repainted the LED
+     every frame, forever. Opacity on a composited layer costs nothing per frame
+     and the LED looks identical. */
+  .playBtn :global(.switch-led) { position: relative; }
+
+  .playBtn:global(.attract) :global(.switch-led)::after,
+  .playBtn:global(.cue) :global(.switch-led)::after {
+    content: '';
+    position: absolute;
+    inset: 0;
+    border-radius: 50%;
+    opacity: 0;
+    /* The base `.led` keeps the outer 1px ring underneath; this is the lit face. */
+    box-shadow: 0 0 8px rgba(232, 116, 46, 0.85), inset 0 1px 1px rgba(255, 255, 255, 0.4);
+    background: #e8742e;
+    will-change: opacity;
+  }
+
+  .playBtn:global(.attract) :global(.switch-led)::after {
+    animation: ledPulse 2s ease-in-out infinite;
+  }
+
+  .playBtn:global(.cue) :global(.switch-led)::after {
+    background: #4ade50;
+    box-shadow: 0 0 8px rgba(74, 222, 80, 0.9), inset 0 1px 1px rgba(255, 255, 255, 0.4);
+    animation: ledFlash 0.4s linear infinite;
+  }
+
+  @keyframes ledPulse {
+    0%, 100% { opacity: 0; }
+    50% { opacity: 1; }
+  }
+
+  @keyframes ledFlash {
+    0%, 49% { opacity: 1; }
+    50%, 100% { opacity: 0; }
+  }
+
+  /* Reduced motion: hold the lit face rather than dropping the signal entirely —
+     the point of both states is "the transport is over here". */
+  @media (prefers-reduced-motion: reduce) {
+    .playBtn:global(.attract) :global(.switch-led)::after,
+    .playBtn:global(.cue) :global(.switch-led)::after {
+      animation: none;
+      opacity: 1;
+    }
+  }
+
+  /* ===== Main panel grid ===== */
+
+  .main {
+    display: grid;
+    grid-template-columns: repeat(8, minmax(0, 1fr));
+    gap: 10px;
+    margin: 0 var(--side-margin);
+  }
+
+  /* ===== FX section ===== */
+
+  .fxSection {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    min-width: 0;
+    /* The token every other row uses, not the 22px it is at desktop widths: a
+       literal kept FX 14px further in than MACHINES and EQUALIZER once the token
+       drops to 8px at <=992px, so the three headings' icons stopped lining up
+       (section-title.md REQ-heading-icons-share-one-x). */
+    margin: 0 var(--side-margin);
+  }
+
+  .fxSectionBar {
+    display: flex;
+    align-items: center;
+    /* Exactly the tab bar's padding (tabs.module.css .bar), so the section title's
+       icon lands on the same x as the MACHINES and EQUALIZER ones and the title's
+       own vertical padding sets a matching height (section-title.md REQ-heading-icons-share-one-x). */
+    padding: 0 10px 0 6px;
+    background: linear-gradient(180deg, #0a0604 0%, #16100b 100%);
+    border: 1px solid var(--panel-border);
+    border-radius: 6px;
+    box-shadow: var(--panel-shadow);
+    cursor: pointer;
+  }
+
+  .fxSection:global(.collapsed) .fxRow { display: none; }
+
+  /* Six equal columns. Equal is the wrong shape once a panel holds four knobs —
+     see the min-width:1360px step below, which sizes panels to their knobs where
+     there is room to. This stays the narrow fallback, where nothing fits anyway
+     and shrinking evenly beats overflowing. */
+  .fxRow {
+    display: grid;
+    grid-template-columns: repeat(6, minmax(0, 1fr));
+    gap: 10px;
+  }
+
+  .fxPanel {
+    background: var(--panel);
+    border: 1px solid var(--panel-border);
+    border-radius: 6px;
+    box-shadow: var(--panel-shadow);
+    padding: 8px 10px 10px;
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    min-width: 0;
+  }
+
+  .fxHeader {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px;
+    border-bottom: 1px dashed rgba(244, 205, 94, 0.18);
+    padding-bottom: 4px;
+  }
+
+  .fxTitle {
+    font-size: 11px;
+    text-transform: uppercase;
+    letter-spacing: 0.18em;
+    color: var(--accent-secondary);
+    font-weight: 700;
+    text-shadow: 0 1px 0 rgba(0, 0, 0, 0.7);
+  }
+
+  .fxKnobs {
+    display: flex;
+    align-items: center;
+    justify-content: space-around;
+    gap: 4px;
+    flex-wrap: wrap;
+  }
+
+  /* ===== Pattern row ===== */
+
+  .patternRow {
+    margin: 0 var(--side-margin);
+  }
+
+  /* ===== Bottom section ===== */
+
+  /* A flex column of three: the scope row, the EQUALIZER section, the keyboard.
+     Flex, not grid (keyboard-range.md REQ-spare-height-goes-to-the-scope): a
+     capped `minmax(min, max)` track grows to its max whenever the grid's height
+     comes from its content — `.app`'s does — so the page scrolled to fit a maxed
+     keyboard. Flex items size from basis 0 and their floors, so this column asks
+     only for its minimums and fills whatever the viewport adds on top.
+
+     - Scope row (wheels | scope): at least --scope-h, which the drag handle on the
+       scope's top edge writes inline (130–260px; the default stays here in CSS,
+       so no stored value renders as it always did — scope.md
+       REQ-a-scope-resize-handle). A minimum, not a height: it also takes the
+       spare the keyboard cannot use.
+     - EQUALIZER: its content's height — folded, just its tab bar
+       (equalizer.md REQ-the-eq-is-a-third-bottom-row).
+     - Keyboard: first claim on spare height (flex-grow 1000 to the scope's 1),
+       up to its cap. A growing scope OR an unfolded EQ eats the keyboard's slack,
+       stops at its floor, and only then does the page scroll. */
+  .bottom {
+    /* The left gutter both rows share: the PITCH/OCT/MOD wheels, and the
+       EQUALIZER section's control column, which must be EXACTLY as wide so the
+       graph lines up with the scope (equalizer.md REQ-the-eq-page-mirrors-the-scope-row). Named here rather than
+       written twice — two literals would be equal only by coincidence. */
+    --wheel-col: 120px;
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    margin: 0 var(--side-margin);
+    min-height: 0;
+  }
+
+  .bottomTop {
+    display: grid;
+    grid-template-columns: var(--wheel-col) 1fr;
+    gap: 10px;
+    flex: 1 1 0;
+    min-height: var(--scope-h, 130px);
+  }
+
+  .wheels {
+    display: flex;
+    align-items: stretch;
+    gap: 8px;
+    padding: 8px 8px 22px;
+    background: var(--panel);
+    border: 1px solid var(--panel-border);
+    border-radius: 6px;
+    box-shadow: var(--panel-shadow);
+  }
+
+  .scopeWrap {
+    background: var(--panel);
+    border: 1px solid var(--panel-border);
+    border-radius: 6px;
+    box-shadow: var(--panel-shadow);
+    padding: 8px;
+    position: relative;
+    min-height: 0;
+    display: flex;
+  }
+
+  /* Static CRT "screen" behind the transparent scope canvas: the radial gradient +
+     inset vignette painted once into their own layer, so the 60fps canvas redraw
+     never re-rasters them. Covers exactly the canvas box (the 8px padding inset). */
+  .scopeScreen {
+    position: absolute;
+    inset: 8px;
+    border-radius: 3px;
+    background: radial-gradient(ellipse at center, #0a0604 0%, #050302 100%);
     box-shadow:
-      0 0 8px var(--accent-secondary-glow),
-      inset 0 1px 0 rgba(244, 205, 94, 0.15);
+      inset 0 0 20px rgba(0, 0, 0, 0.8),
+      inset 0 0 0 1px rgba(244, 205, 94, 0.05);
+    pointer-events: none;
+    z-index: 0;
+  }
+
+  .scopeToggle {
+    position: absolute;
+    top: 8px;
+    right: 8px;
+    z-index: 1;
+    min-height: 28px !important;
+    padding: 4px 10px !important;
+    font-size: 10px !important;
+  }
+
+  .scopeChannelsToggle {
+    position: absolute;
+    top: 8px;
+    left: 8px;
+    z-index: 1;
+    min-height: 28px !important;
+    padding: 4px 10px !important;
+    font-size: 10px !important;
+  }
+
+  /* Problem-band overlay toggle — bottom-right, the only corner with no chrome in
+     either stereo layout (the L/R labels sit bottom-LEFT). The spectrum reserves no
+     width for it: on a narrow panel the button covers the 10k tick label, which is
+     cheaper than costing every panel a dead strip. See specs/features/scope.md REQ-a-zones-toggle.
+     `!important` for the same reason .scopeToggle needs it: this class and
+     switch.module.css's .root are both single-class selectors on the same element,
+     so bundle order — not intent — would otherwise decide. */
+  .scopeZonesToggle {
+    position: absolute;
+    bottom: 8px;
+    right: 8px;
+    z-index: 1;
+    min-height: 28px !important;
+    padding: 4px 10px !important;
+    font-size: 10px !important;
+  }
+
+  /* Resize grip, top-centre — the only edge of this panel free of chrome, since
+     the two toggles above take the corners. It has to thread between them, so the
+     width shrinks with the panel instead of overlapping a button: 140px is the two
+     buttons plus their 8px insets plus clearance. Below ~350px viewport there is no
+     room left to thread, and the grip is dropped rather than shown unhittable —
+     the stored height still applies. See specs/features/scope.md REQ-a-scope-resize-handle. */
+  .scopeResize {
+    position: absolute;
+    top: 0;
+    left: 50%;
+    transform: translateX(-50%);
+    width: min(64px, calc(100% - 140px));
+    height: 16px;
+    z-index: 2;
+  }
+
+  @media (max-width: 350px) {
+    /* !important for the same reason .scopeToggle needs it above: this class and
+       resize-handle.module.css's .root are both single-class selectors on the same
+       element, so bundle order — not intent — would otherwise decide. */
+    .scopeResize { display: none !important; }
+  }
+
+  /* A white key stays between 1.6x and 4.5x as tall as it is wide, over a 160px
+     floor that wins wherever keys are narrow (keyboard-range.md
+     REQ-key-height-follows-key-width). --kb-key-w is the white-key width, written
+     by app.ts's keyboard ResizeObserver; unset before the first observation, the
+     min falls back to the floor and the max to no cap. The 30px is this wrap's
+     chrome around the keys: padding 2x8 + border 2x1 + the keyboard's padding 2x6. */
+  .keyboardWrap {
+    background: var(--panel);
+    border: 1px solid var(--panel-border);
+    border-radius: 6px;
+    box-shadow: var(--panel-shadow);
+    padding: 8px;
+    flex: 1000 1 0;
+    min-height: max(160px, calc(var(--kb-key-w, 0px) * 1.6 + 30px));
+    max-height: max(160px, calc(var(--kb-key-w, 100vh) * 4.5 + 30px));
+  }
+
+  /* ===== Responsive ===== */
+
+  /* Very wide monitors. `.main` stays 8 columns above 1280px, so panels simply
+     grow with the viewport — and past ~1630px the FILTER panel is finally wide
+     enough for three of its knobs per row, matching the 3-up OSC/MIXER rows
+     beside it instead of standing a row taller than the whole faceplate.
+     The threshold is set by LABEL ink, not by the dial: a six-character label
+     (CUTOFF, KEYTRK) inks ~61px against a 52px knob box, so three columns need
+     ~191px of panel body. .quad's four knobs would want ~2400px to go 4-up, well
+     past any real display.
+
+     FILTER ENV (.quint) takes the same step for the opposite reason: its A D /
+     S R / VEL stack is three knob rows, and once FILTER drops to two rows here
+     that third row is the tallest thing on the faceplate (~42px over every
+     neighbour, taken from the section below). Three columns buy a dice-five —
+     A/D/S/R in the corners, VEL in the middle spanning both rows — two rows tall,
+     like AMP ENV beside it. Placed by position, not auto-flow, so the shape
+     cannot depend on rule order and the DOM (Tab) order is untouched. Label ink
+     is no constraint: no two boxes share a column, and VEL shares no label line
+     with a corner. responsive-synth-panels.md REQ-quad-panels-use-a-fixed-grid. */
+  @media (min-width: 1630px) {
+    .hex { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+    .quint { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+    .quint > :nth-child(1) { grid-column: 1; grid-row: 1; } /* A */
+    .quint > :nth-child(2) { grid-column: 3; grid-row: 1; } /* D */
+    .quint > :nth-child(3) { grid-column: 1; grid-row: 2; } /* S */
+    .quint > :nth-child(4) { grid-column: 3; grid-row: 2; } /* R */
+    /* VEL. `.quint`'s align-items: center centres it between the rows. */
+    .quint > *:last-child { grid-column: 2; grid-row: 1 / span 2; }
+  }
+
+  /* Ultrawide (responsive-synth-panels.md REQ-ultrawide-panels-are-one-row). The
+     panels keep growing past 2560px while the shapes above stay put, so from here
+     every knob group spreads evenly and goes to one row once a row of 52px boxes
+     fits: 4 and 5 at 2561px (a 281px row), FILTER's 6 at 3200px (361px — six first
+     fit at ~2970px, with no air). ≤2560px is untouched. Both blocks sit after the
+     1630px one so they win on source order; the .quint reset repeats :nth-child
+     for the specificity to beat its placements. */
+  @media (min-width: 2561px) {
+    .spread { justify-content: space-evenly; }
+    .rowBreak { display: none; }
+    .quad { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+    .quint { grid-template-columns: repeat(5, minmax(0, 1fr)); }
+    .quint > :nth-child(n) { grid-column: auto; grid-row: auto; }
+  }
+
+  @media (min-width: 3200px) {
+    .hex { grid-template-columns: repeat(6, minmax(0, 1fr)); }
+  }
+
+  /* No FX panel is ever narrower than its own knob run — responsive-synth-panels
+     REQ-the-scope-drop-shadow-is-dropped. The panels do not hold equal amounts: a four-knob panel (Phaser, Duck)
+     spends 4x52 + 3x4 = 220px on its knob run against a three-knob panel's 164px,
+     so one equal column width cannot serve them all. It served none when the rack
+     went from five panels to six: at 1440px each column fell to 220px against the
+     242px a four-knob panel needs, both wrapped a knob onto a second row, and the
+     rack grew 177px -> 255px. That 78px is not free. The faceplate is a
+     fixed-height grid that does not scroll, and it pushed the sequencer's
+     step-settings row past the fold.
+
+     `minmax(min-content, 1fr)` is an equal share with a floor: 1fr hands every
+     panel the same width, and min-content lifts a four-knob panel off it when
+     that share drops below its 242px. So above ~1546px, where the share clears
+     242px unaided, the rack is equal-width exactly as before; only the tight band
+     is treated specially (at 1440px: 242px against 210px).
+
+     `.fxKnobs` must stop wrapping for the floor to mean anything: a wrapping
+     row's min-content is ONE knob, so the track would ask for 52px and we would
+     be back to equal columns. Nowrap is safe here and only here — the track is
+     guaranteed >= the run, and the run is font-independent (fixed knob boxes), so
+     there is nothing left to wrap for.
+
+     The 1360px step is where the six panels' minimums (2x242 + 4x186 + 5x10 gaps
+     + 44px of side margin = ~1350px) first fit. Below it the rule would spill
+     past the rack's right edge and be clipped silently, so the equal-column
+     fallback takes over and wraps knobs instead — which is what this rack did
+     below ~1294px before the sixth panel existed. */
+  @media (min-width: 1360px) {
+    .fxRow { grid-template-columns: repeat(6, minmax(min-content, 1fr)); }
+    .fxPanel { min-width: auto; }
+    .fxKnobs { flex-wrap: nowrap; }
+  }
+
+  @media (max-width: 1280px) {
+    .main { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+    /* Panels widen on the 4-col (and later 2-col) reflow — the four knobs fit one
+       row. Holds through every narrower width. */
+    .quad { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+    /* Five across, and the fifth stops spanning — the row it would span is now
+       the only row. */
+    .quint { grid-template-columns: repeat(5, minmax(0, 1fr)); }
+    .quint > *:last-child { grid-column: auto; }
+    .hex { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+    /* Distribute the 3-/2-knob rows across the widened panel so they match the
+       .quad panels' generosity instead of clustering centre. */
+    .spread { justify-content: space-evenly; }
+  }
+
+  /* The header's four clusters have a min-content width of ~1140px — wider than
+     the viewport well before the 992px reflow. Without this step the header can
+     neither shrink nor wrap in the 993–1140px range, so it (and the .app grid
+     column it widens) overflows right and is clipped by the page's
+     overflow-x:hidden. Let it wrap onto a second row instead. */
+  @media (max-width: 1140px) {
+    .header { flex-wrap: wrap; }
+    .headerSpacer { display: none; }
+    .headerGroup { flex-wrap: wrap; }
+    /* The dropdown is self-explanatory; drop the label to save header width. */
+    .presetLabel { display: none; }
+    /* Deterministic two-row layout: the break forces the transport cluster to
+       lead the second row (far left); the voicing cluster right-aligns on it. */
+    .headerBreak {
+      display: block;
+      flex-basis: 100%;
+      height: 0;
+    }
+    .voicingGroup { margin-left: auto; }
+    /* Preset-cluster split: the cluster fills the rest of row 1 and its inner
+       spacer pushes the utility icon buttons to the far right; dropdown + Save
+       stay left. (The menu-open flex-basis:100% row outranks the basis below
+       720px, so the expanded row keeps its full width.) */
+    .presetGroup { flex: 1; }
+    .presetSpacer {
+      display: block;
+      flex: 1;
+    }
+    /* Machine panel headers: the FX cluster leads its own full-width row, so the
+       machine controls (switch/master/banks/undo/actions) never reflow around an
+       individual effect group. */
+    .fxCluster { flex-basis: 100%; }
+  }
+
+  @media (max-width: 992px) {
+    .header {
+      gap: 8px 10px;
+      padding: 8px 10px;
+      min-height: 0;
+    }
+    .headerGroup { gap: 8px 10px; }
+    .main {
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 8px;
+    }
+    /* An odd effect count in two columns leaves the last cell empty; the
+       patch-cable decoration fills it. Six effects divide evenly, so it is
+       currently absent. fx-patch-decoration.module.css mirrors this breakpoint
+       (it is display:none above it) — keep the two in sync. */
+    .fxRow { grid-template-columns: repeat(2, 1fr); }
+  }
+
+  @media (max-width: 720px) {
+    /* Collapse the preset cluster behind the hamburger so the sticky header stays
+       compact; it expands inline as its own row only while the menu is open. */
+    .menuToggle {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      margin-left: auto; /* park the hamburger at the top-right of the brand row */
+      font-size: 16px;
+      line-height: 1;
+    }
+    .presetGroup { display: none; }
+    .header.menuOpen .presetGroup {
+      display: flex;
+      flex-basis: 100%; /* reveal as its own full-width row below the brand */
+    }
+    /* Cap the preset dropdown on phones: the 120px min-width becomes a 90px
+       max-width; the label ellipsizes (dropdown.module.css .label). */
+    .presetGroup :global(.dropdown) > button {
+      min-width: 0;
+      max-width: 90px;
+    }
+    /* Active (open) state — the gold "on" look shared by the Play button + the
+       segmented controls, so the hamburger reads as toggled on. The descendant
+       compound outranks switch.module's base `.root`. */
+    .header.menuOpen .menuToggle {
+      background: linear-gradient(180deg, #4a3525, #2a1c10);
+      border-color: rgba(244, 205, 94, 0.5);
+      color: var(--accent-secondary);
+      box-shadow:
+        0 0 8px var(--accent-secondary-glow),
+        inset 0 1px 0 rgba(244, 205, 94, 0.15);
+    }
   }
 }

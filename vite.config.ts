@@ -1,7 +1,9 @@
 /// <reference types="vitest/config" />
 import { defineConfig } from 'vitest/config';
 import { readFileSync } from 'node:fs';
+import { fileURLToPath } from 'node:url';
 import { offlineManifestPlugin } from './scripts/lib/offline-manifest.mjs';
+import { cssLayerOrderPlugin } from './scripts/lib/css-layer-order.mjs';
 
 const pkg = JSON.parse(readFileSync(new URL('./package.json', import.meta.url), 'utf-8'));
 
@@ -30,7 +32,13 @@ export default defineConfig({
   // Writes dist/offline-manifest.json — every file the app can request, for the
   // About card's Play offline and the worker's release refresh
   // (specs/features/play-offline.md REQ-the-build-writes-the-file-list).
-  plugins: [offlineManifestPlugin(pkg.version), cspDevStyles()],
+  // css-layer-order: every emitted CSS chunk opens with the cascade layer order
+  // (specs/features/css-cascade-layers.md), since a shared chunk loads first.
+  plugins: [
+    offlineManifestPlugin(pkg.version),
+    cspDevStyles(),
+    cssLayerOrderPlugin(fileURLToPath(new URL('./src/styles/layers.css', import.meta.url))),
+  ],
   build: {
     target: 'es2022',
     sourcemap: true,

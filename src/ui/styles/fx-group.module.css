@@ -1,40 +1,42 @@
-.root {
-  display: flex;
-  align-items: center;
-  gap: 4px;
-}
+@layer components {
+  .root {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+  }
 
-.divider {
-  width: 1px;
-  height: 28px;
-  background: rgba(244, 205, 94, 0.15);
-  margin: 0 4px;
-}
+  .divider {
+    width: 1px;
+    height: 28px;
+    background: rgba(244, 205, 94, 0.15);
+    margin: 0 4px;
+  }
 
-/*
- * The one surface that reserves a gutter for the tempo-lock glyph
- * (knob.module.css `.hasLock`, tempo-lock.md REQ-the-lock-glyph-hangs-out-of-flow). Everywhere else the
- * lockable knob leads its row and the glyph hangs into container padding; here
- * the row is packed switch-then-knobs at 4 px, so an unreserved glyph would
- * hang over the on/off switch. Set on the row, not the knob, because it is a
- * fact about this layout rather than about the knob.
- */
-.knobs {
-  --lock-gutter: 20px;
-  display: flex;
-  align-items: center;
-  gap: 4px;
-}
+  /*
+   * The one surface that reserves a gutter for the tempo-lock glyph
+   * (knob.module.css `.hasLock`, tempo-lock.md REQ-the-lock-glyph-hangs-out-of-flow). Everywhere else the
+   * lockable knob leads its row and the glyph hangs into container padding; here
+   * the row is packed switch-then-knobs at 4 px, so an unreserved glyph would
+   * hang over the on/off switch. Set on the row, not the knob, because it is a
+   * fact about this layout rather than about the knob.
+   */
+  .knobs {
+    --lock-gutter: 20px;
+    display: flex;
+    align-items: center;
+    gap: 4px;
+  }
 
-/* Bypassed effect: only divider + title + switch remain (spec fx-group REQ-bypassed-group-collapses-its-knobs). */
-.root:global(.collapsed) .knobs {
-  display: none;
-}
+  /* Bypassed effect: only divider + title + switch remain (spec fx-group REQ-bypassed-group-collapses-its-knobs). */
+  .root:global(.collapsed) .knobs {
+    display: none;
+  }
 
-.label {
-  font-size: 9px;
-  text-transform: uppercase;
-  letter-spacing: 0.12em;
-  color: var(--accent-secondary);
-  font-weight: 600;
+  .label {
+    font-size: 9px;
+    text-transform: uppercase;
+    letter-spacing: 0.12em;
+    color: var(--accent-secondary);
+    font-weight: 600;
+  }
 }

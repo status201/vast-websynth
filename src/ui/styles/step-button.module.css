@@ -1,167 +1,169 @@
-.root {
-  position: relative; /* anchors .fill; no overflow:hidden — the tie bridge escapes the cell */
-  min-width: 0;
-  width: 100%;
-  height: 32px;
-  border-radius: 4px;
-  background: linear-gradient(180deg, #1a1410, #0a0805);
-  border: 1px solid var(--panel-border);
-  color: var(--text-faint);
-  font-size: 9px;
-  font-weight: 700;
-  font-family: var(--serif);
-  cursor: pointer;
-  letter-spacing: 0.04em;
-  box-shadow:
-    inset 0 1px 0 rgba(244, 205, 94, 0.05),
-    inset 0 -1px 2px rgba(0, 0, 0, 0.5),
-    0 1px 2px rgba(0, 0, 0, 0.5);
-}
+@layer controls {
+  .root {
+    position: relative; /* anchors .fill; no overflow:hidden — the tie bridge escapes the cell */
+    min-width: 0;
+    width: 100%;
+    height: 32px;
+    border-radius: 4px;
+    background: linear-gradient(180deg, #1a1410, #0a0805);
+    border: 1px solid var(--panel-border);
+    color: var(--text-faint);
+    font-size: 9px;
+    font-weight: 700;
+    font-family: var(--serif);
+    cursor: pointer;
+    letter-spacing: 0.04em;
+    box-shadow:
+      inset 0 1px 0 rgba(244, 205, 94, 0.05),
+      inset 0 -1px 2px rgba(0, 0, 0, 0.5),
+      0 1px 2px rgba(0, 0, 0, 0.5);
+  }
 
-.root:active { transform: translateY(1px); }
+  .root:active { transform: translateY(1px); }
 
-.on {
-  background: linear-gradient(180deg, #d4602a 0%, #8a3010 100%);
-  color: #f4e4c2;
-  border-color: #d4602a;
-  box-shadow:
-    0 0 8px rgba(232, 116, 46, 0.5),
-    inset 0 1px 0 rgba(255, 220, 180, 0.3),
-    inset 0 -1px 2px rgba(0, 0, 0, 0.5);
-  text-shadow: 0 1px 0 rgba(0, 0, 0, 0.6);
-}
+  .on {
+    background: linear-gradient(180deg, #d4602a 0%, #8a3010 100%);
+    color: #f4e4c2;
+    border-color: #d4602a;
+    box-shadow:
+      0 0 8px rgba(232, 116, 46, 0.5),
+      inset 0 1px 0 rgba(255, 220, 180, 0.3),
+      inset 0 -1px 2px rgba(0, 0, 0, 0.5);
+    text-shadow: 0 1px 0 rgba(0, 0, 0, 0.6);
+  }
 
-.red.on {
-  background: linear-gradient(180deg, #d4302a 0%, #8a1010 100%);
-  border-color: #d4302a;
-  box-shadow:
-    0 0 8px rgba(255, 58, 32, 0.5),
-    inset 0 1px 0 rgba(255, 180, 160, 0.3),
-    inset 0 -1px 2px rgba(0, 0, 0, 0.5);
-}
+  .red.on {
+    background: linear-gradient(180deg, #d4302a 0%, #8a1010 100%);
+    border-color: #d4302a;
+    box-shadow:
+      0 0 8px rgba(255, 58, 32, 0.5),
+      inset 0 1px 0 rgba(255, 180, 160, 0.3),
+      inset 0 -1px 2px rgba(0, 0, 0, 0.5);
+  }
 
-.yellow.on {
-  background: linear-gradient(180deg, #e8b542 0%, #8a6010 100%);
-  border-color: #e8b542;
-  color: #1a1410;
-  box-shadow:
-    0 0 8px rgba(244, 205, 94, 0.5),
-    inset 0 1px 0 rgba(255, 240, 180, 0.4),
-    inset 0 -1px 2px rgba(0, 0, 0, 0.5);
-}
+  .yellow.on {
+    background: linear-gradient(180deg, #e8b542 0%, #8a6010 100%);
+    border-color: #e8b542;
+    color: #1a1410;
+    box-shadow:
+      0 0 8px rgba(244, 205, 94, 0.5),
+      inset 0 1px 0 rgba(255, 240, 180, 0.4),
+      inset 0 -1px 2px rgba(0, 0, 0, 0.5);
+  }
 
-.playing {
-  outline: 2px solid var(--accent-secondary);
-  outline-offset: -2px;
-  box-shadow:
-    0 0 12px var(--accent-secondary-glow),
-    inset 0 1px 0 rgba(244, 205, 94, 0.2);
-}
+  .playing {
+    outline: 2px solid var(--accent-secondary);
+    outline-offset: -2px;
+    box-shadow:
+      0 0 12px var(--accent-secondary-glow),
+      inset 0 1px 0 rgba(244, 205, 94, 0.2);
+  }
 
-/* Selection cursor. Qualified with `.root` so it outranks the accent-specific
-   `.red.on` / `.yellow.on` border colours (also 0-2-0, declared above): a lit
-   beat-column cell must still show the cursor, since selection is what the
-   per-step edit row and Delete act on. */
-.root.selected {
-  border-color: var(--accent-secondary);
-}
+  /* Selection cursor. Qualified with `.root` so it outranks the accent-specific
+     `.red.on` / `.yellow.on` border colours (also 0-2-0, declared above): a lit
+     beat-column cell must still show the cursor, since selection is what the
+     per-step edit row and Delete act on. */
+  .root.selected {
+    border-color: var(--accent-secondary);
+  }
 
-/* A long-press registered: the step is being picked up for editing, NOT
-   toggled (specs/features/step-grid-editing.md REQ-hold-to-edit-selects-without-toggling). The ring is the only
-   signal that the hold "took", so it must read at a glance without moving
-   layout — hence an outline rather than a border change. */
-.held {
-  outline: 2px solid var(--accent-secondary);
-  outline-offset: 1px;
-}
+  /* A long-press registered: the step is being picked up for editing, NOT
+     toggled (specs/features/step-grid-editing.md REQ-hold-to-edit-selects-without-toggling). The ring is the only
+     signal that the hold "took", so it must read at a glance without moving
+     layout — hence an outline rather than a border change. */
+  .held {
+    outline: 2px solid var(--accent-secondary);
+    outline-offset: 1px;
+  }
 
-.drum-cell {
-  height: 22px;
-  font-size: 8px;
-}
+  .drum-cell {
+    height: 22px;
+    font-size: 8px;
+  }
 
-/* ---- Per-step settings visualization (all three machines) ---- */
+  /* ---- Per-step settings visualization (all three machines) ---- */
 
-.label {
-  position: relative;
-  z-index: 1; /* above .fill so the note name stays readable */
-}
+  .label {
+    position: relative;
+    z-index: 1; /* above .fill so the note name stays readable */
+  }
 
-/* With the viz fill present, the lit look moves from the button background
-   to the .fill layer; the root keeps the dark socket plus the accent border. */
-.on.has-viz {
-  background: linear-gradient(180deg, #1a1410, #0a0805);
-  box-shadow:
-    inset 0 1px 0 rgba(244, 205, 94, 0.05),
-    inset 0 -1px 2px rgba(0, 0, 0, 0.5),
-    0 1px 2px rgba(0, 0, 0, 0.5);
-}
+  /* With the viz fill present, the lit look moves from the button background
+     to the .fill layer; the root keeps the dark socket plus the accent border. */
+  .on.has-viz {
+    background: linear-gradient(180deg, #1a1410, #0a0805);
+    box-shadow:
+      inset 0 1px 0 rgba(244, 205, 94, 0.05),
+      inset 0 -1px 2px rgba(0, 0, 0, 0.5),
+      0 1px 2px rgba(0, 0, 0, 0.5);
+  }
 
-/* gate → width, velocity → brightness */
-.fill {
-  display: none;
-  position: absolute;
-  inset: 0 auto 0 0;
-  width: calc(8% + var(--sb-gate, 0.5) * 92%); /* floor keeps gate 5% visible */
-  /* micro → the hit slides inside its cell, early (left) or late (right).
-     `left`, not `translateX`: a percentage translate resolves against the
-     element's OWN width, which here is the gate, so a short gate would travel
-     less than a long one for the same nudge. On an absolutely positioned box
-     `left` resolves against the cell, which is the distance actually meant.
-     Cheap enough — setViz is diffed and only runs when a step changes, never
-     per tick. No transition: this is a timing readout, not an animation. */
-  left: calc(var(--sb-micro, 0) * 100%);
-  border-radius: 3px;
-  background: linear-gradient(180deg, #d4602a 0%, #8a3010 100%);
-  filter: brightness(calc(0.45 + 0.75 * var(--sb-vel, 0.8)));
-  box-shadow:
-    0 0 8px rgba(232, 116, 46, 0.5),
-    inset 0 1px 0 rgba(255, 220, 180, 0.3),
-    inset 0 -1px 2px rgba(0, 0, 0, 0.5);
-  pointer-events: none;
-}
+  /* gate → width, velocity → brightness */
+  .fill {
+    display: none;
+    position: absolute;
+    inset: 0 auto 0 0;
+    width: calc(8% + var(--sb-gate, 0.5) * 92%); /* floor keeps gate 5% visible */
+    /* micro → the hit slides inside its cell, early (left) or late (right).
+       `left`, not `translateX`: a percentage translate resolves against the
+       element's OWN width, which here is the gate, so a short gate would travel
+       less than a long one for the same nudge. On an absolutely positioned box
+       `left` resolves against the cell, which is the distance actually meant.
+       Cheap enough — setViz is diffed and only runs when a step changes, never
+       per tick. No transition: this is a timing readout, not an animation. */
+    left: calc(var(--sb-micro, 0) * 100%);
+    border-radius: 3px;
+    background: linear-gradient(180deg, #d4602a 0%, #8a3010 100%);
+    filter: brightness(calc(0.45 + 0.75 * var(--sb-vel, 0.8)));
+    box-shadow:
+      0 0 8px rgba(232, 116, 46, 0.5),
+      inset 0 1px 0 rgba(255, 220, 180, 0.3),
+      inset 0 -1px 2px rgba(0, 0, 0, 0.5);
+    pointer-events: none;
+  }
 
-.on .fill { display: block; }
+  .on .fill { display: block; }
 
-/* red-accent cells (drum/sampler beat columns) keep their red when lit */
-.red .fill {
-  background: linear-gradient(180deg, #d4302a 0%, #8a1010 100%);
-  box-shadow:
-    0 0 8px rgba(255, 58, 32, 0.5),
-    inset 0 1px 0 rgba(255, 180, 160, 0.3),
-    inset 0 -1px 2px rgba(0, 0, 0, 0.5);
-}
+  /* red-accent cells (drum/sampler beat columns) keep their red when lit */
+  .red .fill {
+    background: linear-gradient(180deg, #d4302a 0%, #8a1010 100%);
+    box-shadow:
+      0 0 8px rgba(255, 58, 32, 0.5),
+      inset 0 1px 0 rgba(255, 180, 160, 0.3),
+      inset 0 -1px 2px rgba(0, 0, 0, 0.5);
+  }
 
-/* tie → bridge across the grid gap into the next cell (overrides gate width) */
-.tie .fill {
-  width: calc(100% + 5px);
-  border-top-right-radius: 0;
-  border-bottom-right-radius: 0;
-}
+  /* tie → bridge across the grid gap into the next cell (overrides gate width) */
+  .tie .fill {
+    width: calc(100% + 5px);
+    border-top-right-radius: 0;
+    border-bottom-right-radius: 0;
+  }
 
-/* the drum/sampler grids use a tighter 3px gap */
-.drum-cell.tie .fill { width: calc(100% + 3px); }
+  /* the drum/sampler grids use a tighter 3px gap */
+  .drum-cell.tie .fill { width: calc(100% + 3px); }
 
-/* prob < 100% → dashed border ("might not fire") */
-.prob.on { border-style: dashed; }
+  /* prob < 100% → dashed border ("might not fire") */
+  .prob.on { border-style: dashed; }
 
-/* ratchet > 1 → one tick per sub-hit along the top edge */
-.ratchet.on::after {
-  content: '';
-  position: absolute;
-  top: 2px;
-  left: 3px;
-  height: 3px;
-  width: calc(var(--sb-ratchet, 1) * 5px - 2px); /* N ticks of 3px + 2px gaps */
-  background: repeating-linear-gradient(90deg, #f4cd5e 0 3px, transparent 3px 5px);
-  z-index: 1;
-  pointer-events: none;
-}
+  /* ratchet > 1 → one tick per sub-hit along the top edge */
+  .ratchet.on::after {
+    content: '';
+    position: absolute;
+    top: 2px;
+    left: 3px;
+    height: 3px;
+    width: calc(var(--sb-ratchet, 1) * 5px - 2px); /* N ticks of 3px + 2px gaps */
+    background: repeating-linear-gradient(90deg, #f4cd5e 0 3px, transparent 3px 5px);
+    z-index: 1;
+    pointer-events: none;
+  }
 
-/* The keyboard focus ring (step-grid-editing.md REQ-a-trigger-grid-is-reachable-by-keyboard).
-   :focus-visible only, so a pointer press does not ring — the knob's rule. */
-.root:focus { outline: none; }
-.root:focus-visible {
-  outline: 1px solid var(--accent-secondary);
-  outline-offset: 1px;
+  /* The keyboard focus ring (step-grid-editing.md REQ-a-trigger-grid-is-reachable-by-keyboard).
+     :focus-visible only, so a pointer press does not ring — the knob's rule. */
+  .root:focus { outline: none; }
+  .root:focus-visible {
+    outline: 1px solid var(--accent-secondary);
+    outline-offset: 1px;
+  }
 }

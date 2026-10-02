@@ -1,247 +1,249 @@
-.root {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 2px;
-  width: calc(var(--knob-size) + 8px);
-  min-height: calc(var(--knob-size) + 30px);
-  touch-action: none;
+@layer controls {
+  .root {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 2px;
+    width: calc(var(--knob-size) + 8px);
+    min-height: calc(var(--knob-size) + 30px);
+    touch-action: none;
+  }
+
+  /* One row instead of a column, so the control is as tall as its dial and can sit
+     inside an existing control row (sequencer.md REQ-a-seq-track-carries-a-pan).
+     The readout keeps a fixed width so the row does not twitch as the value goes
+     from "C" to "L100" mid-drag. */
+  .inline {
+    flex-direction: row;
+    gap: 4px;
+    /* `.root` sizes a COLUMN: a width of one dial and a height with room for the
+       label above and the readout below. Both are wrong once the three sit in a
+       row — the width left the readout overhanging the element by 42px, painting
+       it over whatever stood to the right (here, the first step buttons), and the
+       min-height put back the row height this layout exists to save. */
+    width: auto;
+    min-height: 0;
+  }
+
+  /* `flex: none` on all three, and it is load-bearing on the DIAL: a flex item's
+     default is `shrink: 1`, so in a row that runs out of width the dial is the one
+     thing that collapses — and because its arc is an absolutely-positioned SVG it
+     goes on LOOKING right at 0px wide while the drag target it also is has nothing
+     left to hit. Caught by an e2e drag that moved nothing, not by the screenshot. */
+  .inline .label,
+  .inline .dial,
+  .inline .num {
+    flex: none;
+  }
+
+  .inline .label {
+    letter-spacing: 0.06em;
+    white-space: nowrap;
+  }
+
+  .inline .num {
+    min-width: 26px;
+    text-align: left;
+  }
+
+  /* Below the app's tablet breakpoint the row it sits in is fighting a step grid
+     for every pixel, and the readout (C / L40 / R75) already says what the control
+     is — so the word goes and the dial + value stay. `title` carries the name for
+     a hover or a long-press. Paired with `seq.module.css`'s `.trackCtrls` width at
+     this same breakpoint — change one, change the other. */
+  @media (max-width: 720px) {
+    .inline .label { display: none; }
+  }
+
+  .label {
+    font-size: 9px;
+    color: var(--text-dim);
+    text-transform: uppercase;
+    letter-spacing: 0.12em;
+    text-align: center;
+    font-weight: 600;
+  }
+
+  .dial {
+    position: relative;
+    width: var(--knob-size);
+    height: var(--knob-size);
+    border-radius: 50%;
+    background: var(--knob-bg);
+    box-shadow:
+      0 2px 3px rgba(0, 0, 0, 0.7),
+      inset 0 1px 1px rgba(244, 205, 94, 0.12),
+      inset 0 -2px 4px rgba(0, 0, 0, 0.6),
+      0 0 0 1px rgba(0, 0, 0, 0.5);
+    cursor: ns-resize;
+  }
+
+  /*
+   * The keyboard focus ring (knob-keyboard-access.md REQ-a-knob-is-a-focusable-slider). `:focus-visible`,
+   * never `:focus`: a pointer drag focuses the dial too, and must not leave a ring
+   * behind. Same accent and weight as the resize handle's ring; offset outward
+   * because the dial is round and its value arc sits on the edge.
+   */
+  .dial:focus {
+    outline: none;
+  }
+
+  .dial:focus-visible {
+    outline: 1px solid var(--accent-secondary);
+    outline-offset: 3px;
+  }
+
+  .indicator {
+    position: absolute;
+    left: 50%;
+    top: calc(var(--knob-size) * 0.068);
+    width: 3px;
+    height: calc(var(--knob-size) * 0.25);
+    background: var(--accent-secondary);
+    border-radius: 2px;
+    transform-origin: 50% calc(var(--knob-size) * 0.432);
+    transform: translateX(-50%) rotate(0deg);
+    box-shadow: 0 0 6px var(--accent-secondary-glow);
+  }
+
+  .arc {
+    position: absolute;
+    inset: calc(var(--knob-size) * -0.1136);
+    pointer-events: none;
+  }
+
+  .arc circle {
+    fill: none;
+    stroke-width: 2;
+  }
+
+  .track {
+    stroke: var(--knob-ring);
+  }
+
+  .value {
+    stroke: var(--accent);
+    filter: drop-shadow(0 0 4px var(--accent-glow));
+  }
+
+  /*
+   * Travel above a soft ceiling — the part of the sweep the engine does not act on
+   * (knob-soft-ceiling.md REQ-capped-region-is-marked). Marked rather than left bare: once lfo.rate went
+   * exponential the dead band shrank to ~32°, and at that size an absent arc is
+   * not noticed. Red because it means "blocked" (`.track` already covers "not yet
+   * reached"), dimmed because it is a statement of range, not an error.
+   */
+  .dead {
+    stroke: var(--accent-bad);
+    stroke-opacity: 0.55;
+  }
+
+  .num {
+    font-size: 9px;
+    color: var(--text-dim);
+    font-variant-numeric: tabular-nums;
+    min-height: 11px;
+    letter-spacing: 0.04em;
+  }
+
+  .root:global(.dragging) .num {
+    color: var(--accent);
+    text-shadow: 0 0 6px var(--accent-glow);
+  }
+
+  /*
+   * A knob carrying a tempo lock (tempo-lock.md REQ-the-lock-glyph-hangs-out-of-flow). The glyph hangs to the
+   * LEFT of the cell, out of flow, rather than flowing inline before the label,
+   * because the machine tabs run 22 px knobs — a 30 px cell, where glyph + "RATE"
+   * does not fit on one line. Inline, it wrapped: the label took two lines, the
+   * knob grew taller than its neighbours and its dial dropped below theirs.
+   *
+   * Hanging out of flow costs no layout, so **no gutter is reserved by default**:
+   * on every surface but one the lockable knob leads its row, and the glyph hangs
+   * into padding the container already has. Reserving 20 px there instead pushed
+   * the knob off the centre its neighbours are centred on — visible on the LFO's
+   * RATE/AMT pair, where RATE sat a fifth of a cell right of true.
+   *
+   * The one surface that does need a gutter opts in with `--lock-gutter`: the
+   * machine tabs pack their groups switch-then-knobs with 4 px between, so there
+   * the glyph would hang over the on/off switch (fx-group.module.css).
+   * `.label` is the positioning context (see tempo-lock.module.css), and `nowrap`
+   * makes the no-wrap guarantee explicit rather than incidental.
+   */
+  .hasLock {
+    margin-left: var(--lock-gutter, 0px);
+  }
+
+  .hasLock .label {
+    position: relative;
+    white-space: nowrap;
+  }
+
+  /*
+   * Tempo-locked (tempo-lock.md REQ-locked-the-division-replaces-the-dial): the division chip takes the dial's place.
+   * Hidden, not dimmed — a dimmed dial still accepts the double-tap reset, and a
+   * reset you cannot hear is exactly the invisible-state defect ADR-014 law 2
+   * names. With the dial gone there is no gesture to have the wrong outcome.
+   */
+  .root:global(.synced) .dial {
+    display: none;
+  }
+
+  /* Disabled (e.g. BPM knob while slaved) — dims + shows it's not draggable. */
+  .disabled {
+    opacity: 0.45;
+  }
+
+  .disabled .dial {
+    cursor: default;
+  }
+
+  /*
+   * How far modulation can move this knob (mod-matrix.md REQ-depth-is-in-the-destinations-unit): a band drawn from
+   * `value - depth` to `value + depth`, behind the value arc.
+   *
+   * Deliberately dimmer and thinner than `.value` — the value is what you set, the
+   * band is context. Amber rather than the value's orange so the two never read as one
+   * arc, and no drop-shadow: a glow here would compete with the value it sits under.
+   */
+  .modRange {
+    fill: none;
+    stroke: var(--accent-secondary);
+    stroke-width: 2;
+    opacity: 0.45;
+  }
+
+  /*
+   * Where a main-thread-knowable source currently has the knob (mod-matrix.md REQ-a-modulated-knob-shows-its-reach).
+   * Today that is the mod wheel — the one source a player is holding, and the one whose
+   * live value costs nothing to read.
+   *
+   * Brighter and thicker than the band it rides, because this is a *position* and the
+   * band is only its range; at the same weight the tick vanished into it.
+   */
+  .modMarker {
+    fill: none;
+    stroke: var(--accent-secondary);
+    stroke-width: 4;
+    stroke-linecap: round;
+    filter: drop-shadow(0 0 3px var(--accent-secondary-glow));
+  }
+
+  /*
+   * Direction of the modulation band and its tick (mod-matrix.md REQ-the-bands-direction-has-a-colour): green is up,
+   * yellow is down.
+   *
+   * Only the INNER band is coloured. A knob's own value needs no colour — its pointer
+   * already says where it is, and colouring that too spent a signal on something
+   * already obvious. What is not obvious is which way an unseen route pushes, so that
+   * is what the colour is for. Mixed-sign routes stay neutral amber, because "negative"
+   * would not then be a true statement about the knob.
+   */
+  .modPos .modRange,
+  .modPos .modMarker { stroke: var(--accent-good); }
+  .modPos .modMarker { filter: drop-shadow(0 0 3px var(--accent-good-glow)); }
+
+  .modNeg .modRange,
+  .modNeg .modMarker { stroke: var(--accent-secondary); }
+  .modNeg .modMarker { filter: drop-shadow(0 0 3px var(--accent-secondary-glow)); }
 }
-
-/* One row instead of a column, so the control is as tall as its dial and can sit
-   inside an existing control row (sequencer.md REQ-a-seq-track-carries-a-pan).
-   The readout keeps a fixed width so the row does not twitch as the value goes
-   from "C" to "L100" mid-drag. */
-.inline {
-  flex-direction: row;
-  gap: 4px;
-  /* `.root` sizes a COLUMN: a width of one dial and a height with room for the
-     label above and the readout below. Both are wrong once the three sit in a
-     row — the width left the readout overhanging the element by 42px, painting
-     it over whatever stood to the right (here, the first step buttons), and the
-     min-height put back the row height this layout exists to save. */
-  width: auto;
-  min-height: 0;
-}
-
-/* `flex: none` on all three, and it is load-bearing on the DIAL: a flex item's
-   default is `shrink: 1`, so in a row that runs out of width the dial is the one
-   thing that collapses — and because its arc is an absolutely-positioned SVG it
-   goes on LOOKING right at 0px wide while the drag target it also is has nothing
-   left to hit. Caught by an e2e drag that moved nothing, not by the screenshot. */
-.inline .label,
-.inline .dial,
-.inline .num {
-  flex: none;
-}
-
-.inline .label {
-  letter-spacing: 0.06em;
-  white-space: nowrap;
-}
-
-.inline .num {
-  min-width: 26px;
-  text-align: left;
-}
-
-/* Below the app's tablet breakpoint the row it sits in is fighting a step grid
-   for every pixel, and the readout (C / L40 / R75) already says what the control
-   is — so the word goes and the dial + value stay. `title` carries the name for
-   a hover or a long-press. Paired with `seq.module.css`'s `.trackCtrls` width at
-   this same breakpoint — change one, change the other. */
-@media (max-width: 720px) {
-  .inline .label { display: none; }
-}
-
-.label {
-  font-size: 9px;
-  color: var(--text-dim);
-  text-transform: uppercase;
-  letter-spacing: 0.12em;
-  text-align: center;
-  font-weight: 600;
-}
-
-.dial {
-  position: relative;
-  width: var(--knob-size);
-  height: var(--knob-size);
-  border-radius: 50%;
-  background: var(--knob-bg);
-  box-shadow:
-    0 2px 3px rgba(0, 0, 0, 0.7),
-    inset 0 1px 1px rgba(244, 205, 94, 0.12),
-    inset 0 -2px 4px rgba(0, 0, 0, 0.6),
-    0 0 0 1px rgba(0, 0, 0, 0.5);
-  cursor: ns-resize;
-}
-
-/*
- * The keyboard focus ring (knob-keyboard-access.md REQ-a-knob-is-a-focusable-slider). `:focus-visible`,
- * never `:focus`: a pointer drag focuses the dial too, and must not leave a ring
- * behind. Same accent and weight as the resize handle's ring; offset outward
- * because the dial is round and its value arc sits on the edge.
- */
-.dial:focus {
-  outline: none;
-}
-
-.dial:focus-visible {
-  outline: 1px solid var(--accent-secondary);
-  outline-offset: 3px;
-}
-
-.indicator {
-  position: absolute;
-  left: 50%;
-  top: calc(var(--knob-size) * 0.068);
-  width: 3px;
-  height: calc(var(--knob-size) * 0.25);
-  background: var(--accent-secondary);
-  border-radius: 2px;
-  transform-origin: 50% calc(var(--knob-size) * 0.432);
-  transform: translateX(-50%) rotate(0deg);
-  box-shadow: 0 0 6px var(--accent-secondary-glow);
-}
-
-.arc {
-  position: absolute;
-  inset: calc(var(--knob-size) * -0.1136);
-  pointer-events: none;
-}
-
-.arc circle {
-  fill: none;
-  stroke-width: 2;
-}
-
-.track {
-  stroke: var(--knob-ring);
-}
-
-.value {
-  stroke: var(--accent);
-  filter: drop-shadow(0 0 4px var(--accent-glow));
-}
-
-/*
- * Travel above a soft ceiling — the part of the sweep the engine does not act on
- * (knob-soft-ceiling.md REQ-capped-region-is-marked). Marked rather than left bare: once lfo.rate went
- * exponential the dead band shrank to ~32°, and at that size an absent arc is
- * not noticed. Red because it means "blocked" (`.track` already covers "not yet
- * reached"), dimmed because it is a statement of range, not an error.
- */
-.dead {
-  stroke: var(--accent-bad);
-  stroke-opacity: 0.55;
-}
-
-.num {
-  font-size: 9px;
-  color: var(--text-dim);
-  font-variant-numeric: tabular-nums;
-  min-height: 11px;
-  letter-spacing: 0.04em;
-}
-
-.root:global(.dragging) .num {
-  color: var(--accent);
-  text-shadow: 0 0 6px var(--accent-glow);
-}
-
-/*
- * A knob carrying a tempo lock (tempo-lock.md REQ-the-lock-glyph-hangs-out-of-flow). The glyph hangs to the
- * LEFT of the cell, out of flow, rather than flowing inline before the label,
- * because the machine tabs run 22 px knobs — a 30 px cell, where glyph + "RATE"
- * does not fit on one line. Inline, it wrapped: the label took two lines, the
- * knob grew taller than its neighbours and its dial dropped below theirs.
- *
- * Hanging out of flow costs no layout, so **no gutter is reserved by default**:
- * on every surface but one the lockable knob leads its row, and the glyph hangs
- * into padding the container already has. Reserving 20 px there instead pushed
- * the knob off the centre its neighbours are centred on — visible on the LFO's
- * RATE/AMT pair, where RATE sat a fifth of a cell right of true.
- *
- * The one surface that does need a gutter opts in with `--lock-gutter`: the
- * machine tabs pack their groups switch-then-knobs with 4 px between, so there
- * the glyph would hang over the on/off switch (fx-group.module.css).
- * `.label` is the positioning context (see tempo-lock.module.css), and `nowrap`
- * makes the no-wrap guarantee explicit rather than incidental.
- */
-.hasLock {
-  margin-left: var(--lock-gutter, 0px);
-}
-
-.hasLock .label {
-  position: relative;
-  white-space: nowrap;
-}
-
-/*
- * Tempo-locked (tempo-lock.md REQ-locked-the-division-replaces-the-dial): the division chip takes the dial's place.
- * Hidden, not dimmed — a dimmed dial still accepts the double-tap reset, and a
- * reset you cannot hear is exactly the invisible-state defect ADR-014 law 2
- * names. With the dial gone there is no gesture to have the wrong outcome.
- */
-.root:global(.synced) .dial {
-  display: none;
-}
-
-/* Disabled (e.g. BPM knob while slaved) — dims + shows it's not draggable. */
-.disabled {
-  opacity: 0.45;
-}
-
-.disabled .dial {
-  cursor: default;
-}
-
-/*
- * How far modulation can move this knob (mod-matrix.md REQ-depth-is-in-the-destinations-unit): a band drawn from
- * `value - depth` to `value + depth`, behind the value arc.
- *
- * Deliberately dimmer and thinner than `.value` — the value is what you set, the
- * band is context. Amber rather than the value's orange so the two never read as one
- * arc, and no drop-shadow: a glow here would compete with the value it sits under.
- */
-.modRange {
-  fill: none;
-  stroke: var(--accent-secondary);
-  stroke-width: 2;
-  opacity: 0.45;
-}
-
-/*
- * Where a main-thread-knowable source currently has the knob (mod-matrix.md REQ-a-modulated-knob-shows-its-reach).
- * Today that is the mod wheel — the one source a player is holding, and the one whose
- * live value costs nothing to read.
- *
- * Brighter and thicker than the band it rides, because this is a *position* and the
- * band is only its range; at the same weight the tick vanished into it.
- */
-.modMarker {
-  fill: none;
-  stroke: var(--accent-secondary);
-  stroke-width: 4;
-  stroke-linecap: round;
-  filter: drop-shadow(0 0 3px var(--accent-secondary-glow));
-}
-
-/*
- * Direction of the modulation band and its tick (mod-matrix.md REQ-the-bands-direction-has-a-colour): green is up,
- * yellow is down.
- *
- * Only the INNER band is coloured. A knob's own value needs no colour — its pointer
- * already says where it is, and colouring that too spent a signal on something
- * already obvious. What is not obvious is which way an unseen route pushes, so that
- * is what the colour is for. Mixed-sign routes stay neutral amber, because "negative"
- * would not then be a true statement about the knob.
- */
-.modPos .modRange,
-.modPos .modMarker { stroke: var(--accent-good); }
-.modPos .modMarker { filter: drop-shadow(0 0 3px var(--accent-good-glow)); }
-
-.modNeg .modRange,
-.modNeg .modMarker { stroke: var(--accent-secondary); }
-.modNeg .modMarker { filter: drop-shadow(0 0 3px var(--accent-secondary-glow)); }

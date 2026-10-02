@@ -1,118 +1,120 @@
 /* Shared per-step settings edit row (seq / drum / sampler panels). */
 
-.selectedLabel {
-  font-size: 11px;
-  color: var(--accent-secondary);
-  letter-spacing: 0.06em;
-  font-variant-numeric: tabular-nums;
-}
+@layer components {
+  .selectedLabel {
+    font-size: 11px;
+    color: var(--accent-secondary);
+    letter-spacing: 0.06em;
+    font-variant-numeric: tabular-nums;
+  }
 
-.edit {
-  display: flex;
-  align-items: center;
-  gap: 16px;
-  flex-wrap: wrap;
-}
+  .edit {
+    display: flex;
+    align-items: center;
+    gap: 16px;
+    flex-wrap: wrap;
+  }
 
-.ctrl {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-}
+  .ctrl {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+  }
 
-.ctrlLabel {
-  font-size: 9px;
-  text-transform: uppercase;
-  letter-spacing: 0.12em;
-  color: var(--text-dim);
-  margin-right: 4px;
-}
+  .ctrlLabel {
+    font-size: 9px;
+    text-transform: uppercase;
+    letter-spacing: 0.12em;
+    color: var(--text-dim);
+    margin-right: 4px;
+  }
 
-.slider {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  min-width: 200px;
-}
+  .slider {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    min-width: 200px;
+  }
 
-.sliderLabel {
-  font-size: 9px;
-  text-transform: uppercase;
-  letter-spacing: 0.12em;
-  color: var(--text-dim);
-  min-width: 56px;
-}
+  .sliderLabel {
+    font-size: 9px;
+    text-transform: uppercase;
+    letter-spacing: 0.12em;
+    color: var(--text-dim);
+    min-width: 56px;
+  }
 
-.sliderTrack {
-  position: relative;
-  flex: 1;
-  height: 10px;
-  background: linear-gradient(180deg, #0a0604, #16100b);
-  border: 1px solid var(--panel-border);
-  border-radius: 5px;
-  overflow: hidden;
-  cursor: ew-resize;
-  touch-action: none;
-  /* The track is `flex: 1`, so anything else in the row shrinks it first. Micro
-     adds a label, two buttons and a readout to that row and squeezed the track
-     to 24px — a 25-notch control two pixels per notch wide. A floor here (rather
-     than a wider min-width on each variant) means no slider can ever be squeezed
-     below a usable size, whatever gets added beside it; the row wraps instead. */
-  min-width: 90px;
-}
+  .sliderTrack {
+    position: relative;
+    flex: 1;
+    height: 10px;
+    background: linear-gradient(180deg, #0a0604, #16100b);
+    border: 1px solid var(--panel-border);
+    border-radius: 5px;
+    overflow: hidden;
+    cursor: ew-resize;
+    touch-action: none;
+    /* The track is `flex: 1`, so anything else in the row shrinks it first. Micro
+       adds a label, two buttons and a readout to that row and squeezed the track
+       to 24px — a 25-notch control two pixels per notch wide. A floor here (rather
+       than a wider min-width on each variant) means no slider can ever be squeezed
+       below a usable size, whatever gets added beside it; the row wraps instead. */
+    min-width: 90px;
+  }
 
-/* Full-width and scaled from the left edge rather than resized: a drag repaints
-   this on every pointermove, and transform stays on the compositor where width
-   would relayout (same reason gr-meter.module.css does it). */
-.sliderFill {
-  position: absolute;
-  top: 0;
-  bottom: 0;
-  left: 0;
-  width: 100%;
-  transform-origin: left center;
-  transform: scaleX(0);
-  background: linear-gradient(90deg, #d4602a, #f4cd5e);
-  box-shadow: 0 0 6px rgba(232, 116, 46, 0.5);
-}
+  /* Full-width and scaled from the left edge rather than resized: a drag repaints
+     this on every pointermove, and transform stays on the compositor where width
+     would relayout (same reason gr-meter.module.css does it). */
+  .sliderFill {
+    position: absolute;
+    top: 0;
+    bottom: 0;
+    left: 0;
+    width: 100%;
+    transform-origin: left center;
+    transform: scaleX(0);
+    background: linear-gradient(90deg, #d4602a, #f4cd5e);
+    box-shadow: 0 0 6px rgba(232, 116, 46, 0.5);
+  }
 
-.sliderValue {
-  font-size: 10px;
-  color: var(--text-dim);
-  min-width: 36px;
-  text-align: right;
-  font-variant-numeric: tabular-nums;
-}
+  .sliderValue {
+    font-size: 10px;
+    color: var(--text-dim);
+    min-width: 36px;
+    text-align: right;
+    font-variant-numeric: tabular-nums;
+  }
 
-/* Bipolar (Micro) track: a detent line marks the zero notch, so a value of 0 —
-   where the fill scales to nothing — still reads as "centred" rather than
-   "empty". Drawn on the track, under the fill. */
-.sliderTrackCenter::before {
-  content: '';
-  position: absolute;
-  left: 50%;
-  top: 1px;
-  bottom: 1px;
-  width: 1px;
-  background: var(--panel-border);
-}
+  /* Bipolar (Micro) track: a detent line marks the zero notch, so a value of 0 —
+     where the fill scales to nothing — still reads as "centred" rather than
+     "empty". Drawn on the track, under the fill. */
+  .sliderTrackCenter::before {
+    content: '';
+    position: absolute;
+    left: 50%;
+    top: 1px;
+    bottom: 1px;
+    width: 1px;
+    background: var(--panel-border);
+  }
 
-/* The arrow keys need a focus target, and a keyboard user must be able to see
-   which slider has it. :focus-visible only, so a pointer press does not ring. */
-.sliderTrack:focus-visible {
-  outline: 1px solid var(--accent-secondary);
-  outline-offset: 1px;
-}
+  /* The arrow keys need a focus target, and a keyboard user must be able to see
+     which slider has it. :focus-visible only, so a pointer press does not ring. */
+  .sliderTrack:focus-visible {
+    outline: 1px solid var(--accent-secondary);
+    outline-offset: 1px;
+  }
 
-/* The −/+ steppers. Square-ish and matched to the ratchet buttons beside them,
-   so the row reads as one instrument rather than two vocabularies. They exist
-   because the track alone cannot be precise: 25 notches across it is a couple of
-   pixels each, and the arrow keys that give the same precision are invisible
-   until you find them (ADR-014 law 1). */
-.stepBtn {
-  justify-content: center;
-  min-width: 30px;
-  padding: 6px 4px;
-  font-size: 13px;
-  line-height: 1;
+  /* The −/+ steppers. Square-ish and matched to the ratchet buttons beside them,
+     so the row reads as one instrument rather than two vocabularies. They exist
+     because the track alone cannot be precise: 25 notches across it is a couple of
+     pixels each, and the arrow keys that give the same precision are invisible
+     until you find them (ADR-014 law 1). */
+  .stepBtn {
+    justify-content: center;
+    min-width: 30px;
+    padding: 6px 4px;
+    font-size: 13px;
+    line-height: 1;
+  }
 }

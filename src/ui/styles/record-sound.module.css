@@ -1,130 +1,132 @@
-.modal { width: min(680px, 94vw); }
+@layer components {
+  .modal { width: min(680px, 94vw); }
 
-.text {
-  margin-top: 14px;
-  font-size: 13px;
-  line-height: 1.6;
-  color: var(--text-dim);
-}
+  .text {
+    margin-top: 14px;
+    font-size: 13px;
+    line-height: 1.6;
+    color: var(--text-dim);
+  }
 
-.hint,
-.cutoff {
-  margin-top: 10px;
-  font-size: 11px;
-  color: var(--text-faint);
-  letter-spacing: 0.03em;
-}
+  .hint,
+  .cutoff {
+    margin-top: 10px;
+    font-size: 11px;
+    color: var(--text-faint);
+    letter-spacing: 0.03em;
+  }
 
-.waveWrap {
-  position: relative;
-  width: 100%;
-  height: 160px;
-  margin-top: 16px;
-  touch-action: none;
-}
+  .waveWrap {
+    position: relative;
+    width: 100%;
+    height: 160px;
+    margin-top: 16px;
+    touch-action: none;
+  }
 
-.wave {
-  width: 100%;
-  height: 100%;
-  display: block;
-  background: radial-gradient(ellipse at center, #0a0604 0%, #050302 100%);
-  border: 1px solid #2a1c10;
-  border-radius: 4px;
-  box-shadow: inset 0 0 18px rgba(0, 0, 0, 0.8);
-}
+  .wave {
+    width: 100%;
+    height: 100%;
+    display: block;
+    background: radial-gradient(ellipse at center, #0a0604 0%, #050302 100%);
+    border: 1px solid #2a1c10;
+    border-radius: 4px;
+    box-shadow: inset 0 0 18px rgba(0, 0, 0, 0.8);
+  }
 
-.handle {
-  position: absolute;
-  top: 0;
-  height: 100%;
-  width: 12px;
-  margin-left: -6px;
-  cursor: ew-resize;
-  background: rgba(244, 205, 94, 0.18);
-  border-left: 2px solid var(--accent-secondary);
-  border-right: 2px solid var(--accent-secondary);
-  box-shadow: 0 0 6px var(--accent-secondary-glow);
-  touch-action: none;
-}
+  .handle {
+    position: absolute;
+    top: 0;
+    height: 100%;
+    width: 12px;
+    margin-left: -6px;
+    cursor: ew-resize;
+    background: rgba(244, 205, 94, 0.18);
+    border-left: 2px solid var(--accent-secondary);
+    border-right: 2px solid var(--accent-secondary);
+    box-shadow: 0 0 6px var(--accent-secondary-glow);
+    touch-action: none;
+  }
 
-.cutoff {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-}
-.cutoff span { white-space: nowrap; }
-.cutoff input[type='range'] { flex: 1; min-width: 0; }
+  .cutoff {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+  }
+  .cutoff span { white-space: nowrap; }
+  .cutoff input[type='range'] { flex: 1; min-width: 0; }
 
-.fxRow {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 8px;
-  margin-top: 12px;
-}
+  .fxRow {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    margin-top: 12px;
+  }
 
-/* The slot / save row closes the modal, so its rule is SOLID where every section
-   divider above it is dashed — with all three sections folded, a fourth dashed
-   line 22px under the Scratch header read as a section that had lost its title.
-   The extra margin is the other half of the same fix: a different weight still
-   needs room to be seen as different. */
-.actions {
-  display: flex;
-  align-items: center;
-  flex-wrap: wrap;
-  gap: 8px;
-  margin-top: 28px;
-  border-top: 1px solid var(--panel-border);
-  padding-top: 16px;
-}
+  /* The slot / save row closes the modal, so its rule is SOLID where every section
+     divider above it is dashed — with all three sections folded, a fourth dashed
+     line 22px under the Scratch header read as a section that had lost its title.
+     The extra margin is the other half of the same fix: a different weight still
+     needs room to be seen as different. */
+  .actions {
+    display: flex;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 8px;
+    margin-top: 28px;
+    border-top: 1px solid var(--panel-border);
+    padding-top: 16px;
+  }
 
-.slot {
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-  font-size: 10px;
-  text-transform: uppercase;
-  letter-spacing: 0.1em;
-  color: var(--text-dim);
-}
+  .slot {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 10px;
+    text-transform: uppercase;
+    letter-spacing: 0.1em;
+    color: var(--text-dim);
+  }
 
-.status {
-  margin-top: 8px;
-  font-family: var(--mono);
-  font-size: 11px;
-  color: var(--text-dim);
-  letter-spacing: 0.02em;
-}
+  .status {
+    margin-top: 8px;
+    font-family: var(--mono);
+    font-size: 11px;
+    color: var(--text-dim);
+    letter-spacing: 0.02em;
+  }
 
-.autoplay {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  margin-top: 10px;
-  font-size: 11px;
-  color: var(--text-faint);
-  letter-spacing: 0.03em;
-  cursor: pointer;
-}
-.autoplay input { accent-color: var(--accent); }
+  .autoplay {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin-top: 10px;
+    font-size: 11px;
+    color: var(--text-faint);
+    letter-spacing: 0.03em;
+    cursor: pointer;
+  }
+  .autoplay input { accent-color: var(--accent); }
 
-@keyframes flash {
-  0% { box-shadow: 0 0 0 0 var(--accent-glow); border-color: var(--accent); }
-  100% { box-shadow: 0 0 12px 2px var(--accent-glow); border-color: var(--accent); }
-}
-.applied {
-  color: var(--accent);
-  border-color: var(--accent);
-  animation: flash 0.3s ease-out alternate 2;
-}
+  @keyframes flash {
+    0% { box-shadow: 0 0 0 0 var(--accent-glow); border-color: var(--accent); }
+    100% { box-shadow: 0 0 12px 2px var(--accent-glow); border-color: var(--accent); }
+  }
+  .applied {
+    color: var(--accent);
+    border-color: var(--accent);
+    animation: flash 0.3s ease-out alternate 2;
+  }
 
-/* ---- Editor sections: Chop, Fit & Shift, Scratch (sample-recorder.md REQ-every-section-below-the-waveform-folds) ----
-   Folds rather than extra modals: each edits the same selection through the same
-   undo, and a second surface is what sample-chop.md warns drifts. The header is
-   the About modal's — `.sec` + `.secFold` + `.secFoldLabel` from
-   modal.module.css, applied in record-sound-modal.ts — so there is one fold
-   idiom per modal and no lookalike to keep in step. Only the body is ours.
+  /* ---- Editor sections: Chop, Fit & Shift, Scratch (sample-recorder.md REQ-every-section-below-the-waveform-folds) ----
+     Folds rather than extra modals: each edits the same selection through the same
+     undo, and a second surface is what sample-chop.md warns drifts. The header is
+     the About modal's — `.sec` + `.secFold` + `.secFoldLabel` from
+     modal.module.css, applied in record-sound-modal.ts — so there is one fold
+     idiom per modal and no lookalike to keep in step. Only the body is ours.
 
-   `.collapsed` is a global state class, so it needs :global() here. */
-.foldBody:global(.collapsed) {
-  display: none;
+     `.collapsed` is a global state class, so it needs :global() here. */
+  .foldBody:global(.collapsed) {
+    display: none;
+  }
 }

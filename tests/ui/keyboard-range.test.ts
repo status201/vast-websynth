@@ -59,9 +59,10 @@ describe('whiteKeyPx', () => {
 describe('the key-height band’s 30px is the keyboard’s actual chrome', () => {
   const layout = readFileSync('src/ui/styles/layout.module.css', 'utf8');
   const keys = readFileSync('src/ui/styles/keyboard.module.css', 'utf8');
-  /** The declarations of the first top-level `selector { … }` rule. */
+  /** The declarations of the first top-level `selector { … }` rule — top level within the
+   *  file's `@layer` block, so indented exactly its two spaces (css-cascade-layers.md). */
   const rule = (css: string, selector: string): string => {
-    const start = css.search(new RegExp('(^|\\n)' + selector.replace('.', '\\.') + '\\s*\\{'));
+    const start = css.search(new RegExp('(^|\\n) {0,2}' + selector.replace('.', '\\.') + '\\s*\\{'));
     expect(start, `${selector} not found`).toBeGreaterThanOrEqual(0);
     const open = css.indexOf('{', start);
     return css.slice(open + 1, css.indexOf('}', open));

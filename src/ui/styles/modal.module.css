@@ -7,482 +7,485 @@
    At 82% opacity the blur was buying almost nothing visually.
    See specs/features/runtime-performance.md REQ-no-viewport-scaled-compositing-on-hot-surfaces; pinned by
    tests/ui/overlay-cost.test.ts. */
-.backdrop {
-  position: fixed;
-  inset: 0;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  background: rgba(8, 6, 3, 0.82);
-  z-index: 1000;
-  transition: opacity 180ms ease;
-}
 
-.backdrop:global(.hidden) {
-  opacity: 0;
-  pointer-events: none;
-}
+@layer components {
+  .backdrop {
+    position: fixed;
+    inset: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: rgba(8, 6, 3, 0.82);
+    z-index: 1000;
+    transition: opacity 180ms ease;
+  }
 
-.card {
-  width: min(440px, 92vw);
-  max-height: 86vh;
-  overflow-y: auto;
-  background: var(--panel);
-  border: 1px solid var(--panel-border);
-  border-radius: 8px;
-  box-shadow: var(--panel-shadow);
-  padding: 24px 26px;
-}
+  .backdrop:global(.hidden) {
+    opacity: 0;
+    pointer-events: none;
+  }
 
-.cardWide {
-  width: min(720px, 94vw);
-}
+  .card {
+    width: min(440px, 92vw);
+    max-height: 86vh;
+    overflow-y: auto;
+    background: var(--panel);
+    border: 1px solid var(--panel-border);
+    border-radius: 8px;
+    box-shadow: var(--panel-shadow);
+    padding: 24px 26px;
+  }
 
-.title {
-  font-family: var(--serif);
-  font-size: 24px;
-  font-weight: 900;
-  letter-spacing: 0.16em;
-  color: var(--accent-secondary);
-  text-transform: uppercase;
-  text-shadow: 0 0 6px var(--accent-secondary-glow), 0 1px 0 rgba(0, 0, 0, 0.85);
-}
+  .cardWide {
+    width: min(720px, 94vw);
+  }
 
-.body {
-  /* empty slot — caller fills */
-}
+  .title {
+    font-family: var(--serif);
+    font-size: 24px;
+    font-weight: 900;
+    letter-spacing: 0.16em;
+    color: var(--accent-secondary);
+    text-transform: uppercase;
+    text-shadow: 0 0 6px var(--accent-secondary-glow), 0 1px 0 rgba(0, 0, 0, 0.85);
+  }
 
-.tag {
-  font-family: var(--serif);
-  font-size: 9.5px;
-  font-style: italic;
-  letter-spacing: 0.15em;
-  color: var(--text-faint);
-  text-transform: uppercase;
-  margin-top: 4px;
-}
+  .body {
+    /* empty slot — caller fills */
+  }
 
-/* The AI-prompt modal's instruction line is a full sentence, not a tagline —
-   the shared .tag uppercase-italic treatment (kept for the about/start modals)
-   is unreadable for it. Scope a sentence-case override to the wide card only.
-   Mirrors perf-settings.module.css .desc. */
-.cardWide .tag {
-  font-size: 12.5px;
-  font-style: normal;
-  letter-spacing: normal;
-  text-transform: none;
-  line-height: 1.55;
-  color: var(--text-dim);
-}
+  .tag {
+    font-family: var(--serif);
+    font-size: 9.5px;
+    font-style: italic;
+    letter-spacing: 0.15em;
+    color: var(--text-faint);
+    text-transform: uppercase;
+    margin-top: 4px;
+  }
 
-.meta {
-  margin-top: 16px;
-  font-size: 12px;
-  color: var(--text-dim);
-  letter-spacing: 0.04em;
-  line-height: 1.8;
-  /* Make it look like a serial number area */
-  padding: 10px 14px;
-  box-shadow: inset 0 8px 28px -6px rgba(0, 0, 0, 0.6);
-  filter: opacity(0.8);
-}
+  /* The AI-prompt modal's instruction line is a full sentence, not a tagline —
+     the shared .tag uppercase-italic treatment (kept for the about/start modals)
+     is unreadable for it. Scope a sentence-case override to the wide card only.
+     Mirrors perf-settings.module.css .desc. */
+  .cardWide .tag {
+    font-size: 12.5px;
+    font-style: normal;
+    letter-spacing: normal;
+    text-transform: none;
+    line-height: 1.55;
+    color: var(--text-dim);
+  }
 
-.meta strong {
-  color: var(--text);
-  font-weight: 700;
-}
+  .meta {
+    margin-top: 16px;
+    font-size: 12px;
+    color: var(--text-dim);
+    letter-spacing: 0.04em;
+    line-height: 1.8;
+    /* Make it look like a serial number area */
+    padding: 10px 14px;
+    box-shadow: inset 0 8px 28px -6px rgba(0, 0, 0, 0.6);
+    filter: opacity(0.8);
+  }
 
-.meta a {
-  color: var(--accent-secondary);
-  text-decoration: none;
-  border-bottom: 1px dashed rgba(244, 205, 94, 0.4);
-}
+  .meta strong {
+    color: var(--text);
+    font-weight: 700;
+  }
 
-.meta a:hover {
-  color: var(--text);
-}
+  .meta a {
+    color: var(--accent-secondary);
+    text-decoration: none;
+    border-bottom: 1px dashed rgba(244, 205, 94, 0.4);
+  }
 
-.sec {
-  margin-top: 20px;
-  font-size: 10px;
-  text-transform: uppercase;
-  letter-spacing: 0.2em;
-  color: var(--accent-secondary);
-  border-bottom: 1px dashed rgba(244, 205, 94, 0.18);
-  padding-bottom: 6px;
-}
+  .meta a:hover {
+    color: var(--text);
+  }
 
-.keys {
-  margin-top: 12px;
-  display: grid;
-  grid-template-columns: auto 1fr;
-  gap: 8px 18px;
-  /* Centred, not baseline: a note row is two ranks tall and its wrapped action
-     label should sit against the middle of the block (onboarding REQ-keys-are-drawn-as-keys). */
-  align-items: center;
-  --cap-w: 19px;
-  --cap-h: 20px;
-  --cap-gap: 3px;
-}
+  .sec {
+    margin-top: 20px;
+    font-size: 10px;
+    text-transform: uppercase;
+    letter-spacing: 0.2em;
+    color: var(--accent-secondary);
+    border-bottom: 1px dashed rgba(244, 205, 94, 0.18);
+    padding-bottom: 6px;
+  }
 
-/* The Debug section's left column (debug-panel.md) — a plain monospace label.
-   Deliberately NOT what the shortcut list uses: that is `.combo` below. */
-.key {
-  font-family: 'Courier New', monospace;
-  font-size: 11px;
-  font-weight: 700;
-  letter-spacing: 0.06em;
-  color: var(--accent);
-  white-space: nowrap;
-}
+  .keys {
+    margin-top: 12px;
+    display: grid;
+    grid-template-columns: auto 1fr;
+    gap: 8px 18px;
+    /* Centred, not baseline: a note row is two ranks tall and its wrapped action
+       label should sit against the middle of the block (onboarding REQ-keys-are-drawn-as-keys). */
+    align-items: center;
+    --cap-w: 19px;
+    --cap-h: 20px;
+    --cap-gap: 3px;
+  }
 
-/* ---- Shortcut combos: only real keys are drawn as keys (REQ-keys-are-drawn-as-keys) ---- */
+  /* The Debug section's left column (debug-panel.md) — a plain monospace label.
+     Deliberately NOT what the shortcut list uses: that is `.combo` below. */
+  .key {
+    font-family: 'Courier New', monospace;
+    font-size: 11px;
+    font-weight: 700;
+    letter-spacing: 0.06em;
+    color: var(--accent);
+    white-space: nowrap;
+  }
 
-.combo {
-  display: flex;
-  align-items: center;
-  gap: 4px;
-  font-family: var(--sans);
-  font-size: 11px;
-  color: var(--text-dim);
-  white-space: nowrap;
-}
+  /* ---- Shortcut combos: only real keys are drawn as keys (REQ-keys-are-drawn-as-keys) ---- */
 
-/* A fixed-height centred box, deliberately not an inline-block with padding:
-   `.iconCap` below changes the font size, and with a line-height-driven height an
-   arrow cap came out 2.5px taller than a letter cap sitting next to it. Pinning
-   the height means a cap's face and size can vary without moving the box, and
-   flex centring puts every label on the same line regardless of face metrics. */
-.cap {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  min-width: var(--cap-w);
-  height: var(--cap-h);
-  padding: 1px 5px 0;
-  box-sizing: border-box;
-  font-family: 'Courier New', monospace;
-  font-size: 11px;
-  font-weight: 700;
-  letter-spacing: 0.06em;
-  /* Letter-spacing also trails the last glyph, which centring then counts as
-     content — nudge back by the same amount so the label sits truly centred. */
-  text-indent: 0.06em;
-  line-height: 1;
-  color: var(--text);
-  background: var(--bg-deep);
-  border: 1px solid var(--panel-border);
-  border-radius: 3px;
-  box-shadow:
-    inset 0 1px 0 rgba(255, 255, 255, 0.05),
-    0 1px 1px rgba(0, 0, 0, 0.5);
-}
+  .combo {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    font-family: var(--sans);
+    font-size: 11px;
+    color: var(--text-dim);
+    white-space: nowrap;
+  }
 
-/* A cap whose label is a drawn glyph rather than a character (iconography.md).
-   Swapping the *face* was the old fix and it could not survive Android, where
-   the sans face has no arrow either; the cap now holds an `svg.ui-icon` sized
-   in `em`, so this rule only has to set how much larger than a letter it sits.
-   No letter-spacing to compensate for — an icon has no trailing track. */
-.iconCap {
-  font-size: 13px;
-  letter-spacing: 0;
-  text-indent: 0;
-}
+  /* A fixed-height centred box, deliberately not an inline-block with padding:
+     `.iconCap` below changes the font size, and with a line-height-driven height an
+     arrow cap came out 2.5px taller than a letter cap sitting next to it. Pinning
+     the height means a cap's face and size can vary without moving the box, and
+     flex centring puts every label on the same line regardless of face metrics. */
+  .cap {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-width: var(--cap-w);
+    height: var(--cap-h);
+    padding: 1px 5px 0;
+    box-sizing: border-box;
+    font-family: 'Courier New', monospace;
+    font-size: 11px;
+    font-weight: 700;
+    letter-spacing: 0.06em;
+    /* Letter-spacing also trails the last glyph, which centring then counts as
+       content — nudge back by the same amount so the label sits truly centred. */
+    text-indent: 0.06em;
+    line-height: 1;
+    color: var(--text);
+    background: var(--bg-deep);
+    border: 1px solid var(--panel-border);
+    border-radius: 3px;
+    box-shadow:
+      inset 0 1px 0 rgba(255, 255, 255, 0.05),
+      0 1px 1px rgba(0, 0, 0, 0.5);
+  }
 
-/* The two ranks of the note diagram. Telling them apart is the requirement, not
-   decoration: the half-cap offset alone reads as an arbitrary grid until the
-   naturals are lighter than the sharps. */
-.capNatural {
-  color: var(--text);
-  background: var(--panel-flat);
-  border-color: var(--panel-border);
-}
+  /* A cap whose label is a drawn glyph rather than a character (iconography.md).
+     Swapping the *face* was the old fix and it could not survive Android, where
+     the sans face has no arrow either; the cap now holds an `svg.ui-icon` sized
+     in `em`, so this rule only has to set how much larger than a letter it sits.
+     No letter-spacing to compensate for — an icon has no trailing track. */
+  .iconCap {
+    font-size: 13px;
+    letter-spacing: 0;
+    text-indent: 0;
+  }
 
-.capSharp {
-  color: var(--text-dim);
-  background: var(--bg-deep);
-  border-color: #3d2e1b;
-}
+  /* The two ranks of the note diagram. Telling them apart is the requirement, not
+     decoration: the half-cap offset alone reads as an arbitrary grid until the
+     naturals are lighter than the sharps. */
+  .capNatural {
+    color: var(--text);
+    background: var(--panel-flat);
+    border-color: var(--panel-border);
+  }
 
-/* A gap in the sharp rank (E–F, B–C). Occupies a real cap-sized box so both
-   ranks stay aligned with no positioning maths. */
-.capBlank {
-  visibility: hidden;
-}
+  .capSharp {
+    color: var(--text-dim);
+    background: var(--bg-deep);
+    border-color: #3d2e1b;
+  }
 
-.notes {
-  flex-direction: column;
-  align-items: flex-start;
-  gap: var(--cap-gap);
-}
+  /* A gap in the sharp rank (E–F, B–C). Occupies a real cap-sized box so both
+     ranks stay aligned with no positioning maths. */
+  .capBlank {
+    visibility: hidden;
+  }
 
-.notesRow {
-  display: flex;
-  gap: var(--cap-gap);
-}
+  .notes {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: var(--cap-gap);
+  }
 
-/* Half a cap plus half a gap, so each sharp lands between its two naturals. */
-.notesSharps {
-  padding-left: calc((var(--cap-w) + var(--cap-gap)) / 2);
-}
+  .notesRow {
+    display: flex;
+    gap: var(--cap-gap);
+  }
 
-.act {
-  font-size: 12px;
-  color: var(--text-dim);
-  letter-spacing: 0.03em;
-}
+  /* Half a cap plus half a gap, so each sharp lands between its two naturals. */
+  .notesSharps {
+    padding-left: calc((var(--cap-w) + var(--cap-gap)) / 2);
+  }
 
-.closeBtn {
-  margin-top: 22px;
-  width: 100%;
-  justify-content: center;
-}
+  .act {
+    font-size: 12px;
+    color: var(--text-dim);
+    letter-spacing: 0.03em;
+  }
 
-/* A foldable section header: the .sec label plus a fold chevron, whole row
-   clickable. Shared by the Keyboard Shortcuts and Debug sections — one fold
-   idiom per modal, not two (onboarding.md REQ-the-key-list-folds-to-six-rows). */
-.secFold {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  cursor: pointer;
-}
+  .closeBtn {
+    margin-top: 22px;
+    width: 100%;
+    justify-content: center;
+  }
 
-/* Pushes the hint + chevron to the far right. `.collapse` carries its own
-   `margin-left: auto`, which would otherwise strand the hint beside the label. */
-.secFoldLabel {
-  margin-right: auto;
-}
+  /* A foldable section header: the .sec label plus a fold chevron, whole row
+     clickable. Shared by the Keyboard Shortcuts and Debug sections — one fold
+     idiom per modal, not two (onboarding.md REQ-the-key-list-folds-to-six-rows). */
+  .secFold {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    cursor: pointer;
+  }
 
-/* "all" / "less" — sized down from the .sec label it sits beside, and dimmed so
-   the section title still reads first. */
-.secFoldHint {
-  font-size: 9px;
-  letter-spacing: 0.16em;
-  color: var(--text-dim);
-}
+  /* Pushes the hint + chevron to the far right. `.collapse` carries its own
+     `margin-left: auto`, which would otherwise strand the hint beside the label. */
+  .secFoldLabel {
+    margin-right: auto;
+  }
 
-.debugBody:global(.collapsed) {
-  display: none;
-}
+  /* "all" / "less" — sized down from the .sec label it sits beside, and dimmed so
+     the section title still reads first. */
+  .secFoldHint {
+    font-size: 9px;
+    letter-spacing: 0.16em;
+    color: var(--text-dim);
+  }
 
-/* ---- Keyboard-layout picker (features/keyboard-layout.md) ---- */
+  .debugBody:global(.collapsed) {
+    display: none;
+  }
 
-/* Title + gear travel together at the left of the .secFold header, so the gear
-   reads as belonging to "Keyboard Shortcuts" rather than floating mid-row. */
-.secFoldTitle {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  margin-right: auto;
-}
+  /* ---- Keyboard-layout picker (features/keyboard-layout.md) ---- */
 
-/* Deliberately the same affordance as the XY Pad's axis-assignment gear
-   (`xy-pad.module.css .gearBtn`) — same `⚙`, same 90° rotation on open — so
-   "gear reveals a setting" reads identically wherever it appears. The header's
-   inline-SVG icon set is a different thing: those glyphs exist because the
-   header's tier/state classes tint them (responsive-header.md REQ-utility-buttons-are-icon-only). */
-.gearBtn {
-  flex: none;
-  width: 18px;
-  height: 18px;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  padding: 0;
-  font-size: 12px;
-  line-height: 1;
-  color: var(--text-dim);
-  background: transparent;
-  border: 1px solid transparent;
-  border-radius: 6px;
-  cursor: pointer;
-  transform: rotate(0deg);
-  transition: background 0.12s ease, color 0.12s ease, transform 0.16s ease;
-}
+  /* Title + gear travel together at the left of the .secFold header, so the gear
+     reads as belonging to "Keyboard Shortcuts" rather than floating mid-row. */
+  .secFoldTitle {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    margin-right: auto;
+  }
 
-.gearBtn:hover {
-  color: var(--text);
-  background: rgba(232, 116, 46, 0.18);
-}
+  /* Deliberately the same affordance as the XY Pad's axis-assignment gear
+     (`xy-pad.module.css .gearBtn`) — same `⚙`, same 90° rotation on open — so
+     "gear reveals a setting" reads identically wherever it appears. The header's
+     inline-SVG icon set is a different thing: those glyphs exist because the
+     header's tier/state classes tint them (responsive-header.md REQ-utility-buttons-are-icon-only). */
+  .gearBtn {
+    flex: none;
+    width: 18px;
+    height: 18px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    padding: 0;
+    font-size: 12px;
+    line-height: 1;
+    color: var(--text-dim);
+    background: transparent;
+    border: 1px solid transparent;
+    border-radius: 6px;
+    cursor: pointer;
+    transform: rotate(0deg);
+    transition: background 0.12s ease, color 0.12s ease, transform 0.16s ease;
+  }
 
-.gearBtn[aria-expanded='true'] {
-  color: var(--accent-secondary);
-  transform: rotate(90deg);
-}
+  .gearBtn:hover {
+    color: var(--text);
+    background: rgba(232, 116, 46, 0.18);
+  }
 
-.layoutRow {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  margin-top: 10px;
-  font-size: 11px;
-}
+  .gearBtn[aria-expanded='true'] {
+    color: var(--accent-secondary);
+    transform: rotate(90deg);
+  }
 
-/* There is no global `.hidden { display: none }` in this app, so both states
-   spell themselves out (same caveat as perf-settings.module.css). */
-.layoutRow:global(.collapsed) { display: none; }
+  .layoutRow {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    margin-top: 10px;
+    font-size: 11px;
+  }
 
-.layoutLabel {
-  font-size: 10px;
-  text-transform: uppercase;
-  letter-spacing: 0.18em;
-  color: var(--text-dim);
-}
+  /* There is no global `.hidden { display: none }` in this app, so both states
+     spell themselves out (same caveat as perf-settings.module.css). */
+  .layoutRow:global(.collapsed) { display: none; }
 
-.layoutNote {
-  font-size: 10px;
-  font-style: italic;
-  color: var(--text-faint);
-}
+  .layoutLabel {
+    font-size: 10px;
+    text-transform: uppercase;
+    letter-spacing: 0.18em;
+    color: var(--text-dim);
+  }
 
-.layoutNote:global(.hidden) { display: none; }
+  .layoutNote {
+    font-size: 10px;
+    font-style: italic;
+    color: var(--text-faint);
+  }
 
-/* Shortcut rows past the fold. They stay in the one grid so its two columns are
-   measured once and never jump width on expand — hence hiding the cells rather
-   than moving them into a second grid. */
-.keys:global(.collapsed) .keyOverflow {
-  display: none;
-}
+  .layoutNote:global(.hidden) { display: none; }
 
-/* Debug actions (debug-panel.md v3): a wrapped row of small buttons under the
-   readout, plus the inline per-row action button. */
-.debugActions {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 6px;
-  margin-top: 10px;
-}
+  /* Shortcut rows past the fold. They stay in the one grid so its two columns are
+     measured once and never jump width on expand — hence hiding the cells rather
+     than moving them into a second grid. */
+  .keys:global(.collapsed) .keyOverflow {
+    display: none;
+  }
 
-.debugBtn {
-  padding: 4px 10px;
-  font-size: 10px;
-  min-height: 0;
-}
+  /* Debug actions (debug-panel.md v3): a wrapped row of small buttons under the
+     readout, plus the inline per-row action button. */
+  .debugActions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+    margin-top: 10px;
+  }
 
-.debugActRow {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 8px;
-}
+  .debugBtn {
+    padding: 4px 10px;
+    font-size: 10px;
+    min-height: 0;
+  }
 
-.aiLabel {
-  display: block;
-  margin-top: 16px;
-  font-size: 10px;
-  text-transform: uppercase;
-  letter-spacing: 0.18em;
-  color: var(--accent-secondary);
-}
+  .debugActRow {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px;
+  }
 
-.aiBrief {
-  width: 100%;
-  height: 84px;
-  resize: vertical;
-  margin-top: 8px;
-  font-family: var(--mono);
-  font-size: 12px;
-  line-height: 1.45;
-  background: #0a0805;
-  color: var(--text);
-  border: 1px solid var(--panel-border);
-  border-radius: 4px;
-  padding: 10px;
-}
+  .aiLabel {
+    display: block;
+    margin-top: 16px;
+    font-size: 10px;
+    text-transform: uppercase;
+    letter-spacing: 0.18em;
+    color: var(--accent-secondary);
+  }
 
-.aiBrief::placeholder {
-  color: var(--text-faint);
-  font-style: italic;
-}
+  .aiBrief {
+    width: 100%;
+    height: 84px;
+    resize: vertical;
+    margin-top: 8px;
+    font-family: var(--mono);
+    font-size: 12px;
+    line-height: 1.45;
+    background: #0a0805;
+    color: var(--text);
+    border: 1px solid var(--panel-border);
+    border-radius: 4px;
+    padding: 10px;
+  }
 
-.aiText {
-  width: 100%;
-  height: 320px;
-  resize: vertical;
-  margin-top: 12px;
-  font-family: var(--mono);
-  font-size: 11px;
-  line-height: 1.4;
-  background: #0a0805;
-  color: var(--text);
-  border: 1px solid var(--panel-border);
-  border-radius: 4px;
-  padding: 10px;
-}
+  .aiBrief::placeholder {
+    color: var(--text-faint);
+    font-style: italic;
+  }
 
-.aiActions {
-  display: flex;
-  gap: 8px;
-  flex-wrap: wrap;
-  margin-top: 12px;
-}
+  .aiText {
+    width: 100%;
+    height: 320px;
+    resize: vertical;
+    margin-top: 12px;
+    font-family: var(--mono);
+    font-size: 11px;
+    line-height: 1.4;
+    background: #0a0805;
+    color: var(--text);
+    border: 1px solid var(--panel-border);
+    border-radius: 4px;
+    padding: 10px;
+  }
 
-/*
- * The hosted-MCP shortcut above step 1 (ai-prompt.md REQ-the-modal-offers-the-connector). An aside, not a
- * step: it is inset and quieter than the numbered flow so it reads as "there is
- * a shorter way" rather than as a fourth thing to do.
- */
-.aiConnector {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  flex-wrap: wrap;
-  margin-top: 16px;
-  padding: 10px 12px;
-  background: #0a0805;
-  border: 1px solid var(--panel-border);
-  border-left: 2px solid var(--accent-secondary);
-  border-radius: 4px;
-  font-size: 12px;
-  line-height: 1.45;
-  color: var(--text-dim);
-}
+  .aiActions {
+    display: flex;
+    gap: 8px;
+    flex-wrap: wrap;
+    margin-top: 12px;
+  }
 
-/* The endpoint itself: pasted text, so --mono (typography.md REQ-mono-is-readouts-and-pasted-text). */
-.aiConnectorUrl {
-  font-family: var(--mono);
-  font-size: 11px;
-  color: var(--text);
-  overflow-wrap: anywhere;
-}
+  /*
+   * The hosted-MCP shortcut above step 1 (ai-prompt.md REQ-the-modal-offers-the-connector). An aside, not a
+   * step: it is inset and quieter than the numbered flow so it reads as "there is
+   * a shorter way" rather than as a fourth thing to do.
+   */
+  .aiConnector {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    flex-wrap: wrap;
+    margin-top: 16px;
+    padding: 10px 12px;
+    background: #0a0805;
+    border: 1px solid var(--panel-border);
+    border-left: 2px solid var(--accent-secondary);
+    border-radius: 4px;
+    font-size: 12px;
+    line-height: 1.45;
+    color: var(--text-dim);
+  }
 
-/* Paste import (paste-import.md): the pasted-JSON textarea + its status line. */
-.pasteText {
-  width: 100%;
-  height: 180px;
-  resize: vertical;
-  margin-top: 8px;
-  font-family: var(--mono);
-  font-size: 11px;
-  line-height: 1.4;
-  background: #0a0805;
-  color: var(--text);
-  border: 1px solid var(--panel-border);
-  border-radius: 4px;
-  padding: 10px;
-}
+  /* The endpoint itself: pasted text, so --mono (typography.md REQ-mono-is-readouts-and-pasted-text). */
+  .aiConnectorUrl {
+    font-family: var(--mono);
+    font-size: 11px;
+    color: var(--text);
+    overflow-wrap: anywhere;
+  }
 
-.pasteText::placeholder {
-  color: var(--text-faint);
-  font-style: italic;
-}
+  /* Paste import (paste-import.md): the pasted-JSON textarea + its status line. */
+  .pasteText {
+    width: 100%;
+    height: 180px;
+    resize: vertical;
+    margin-top: 8px;
+    font-family: var(--mono);
+    font-size: 11px;
+    line-height: 1.4;
+    background: #0a0805;
+    color: var(--text);
+    border: 1px solid var(--panel-border);
+    border-radius: 4px;
+    padding: 10px;
+  }
 
-.pasteStatus {
-  min-height: 16px;
-  margin-top: 8px;
-  font-size: 11px;
-  line-height: 1.4;
-  color: var(--text-faint);
-}
+  .pasteText::placeholder {
+    color: var(--text-faint);
+    font-style: italic;
+  }
 
-.pasteStatus.pasteOk { color: var(--accent-secondary); }
-.pasteStatus.pasteBad { color: var(--text-bad); }
+  .pasteStatus {
+    min-height: 16px;
+    margin-top: 8px;
+    font-size: 11px;
+    line-height: 1.4;
+    color: var(--text-faint);
+  }
 
-/* On phones the modal is height-capped + scrollable (the base .card); shrink the
-   tall textareas so the actions (incl. Close) come into reach with little scroll. */
-@media (max-width: 720px) {
-  .aiText { height: 220px; }
-  .aiBrief { height: 64px; }
-  .pasteText { height: 130px; }
+  .pasteStatus.pasteOk { color: var(--accent-secondary); }
+  .pasteStatus.pasteBad { color: var(--text-bad); }
+
+  /* On phones the modal is height-capped + scrollable (the base .card); shrink the
+     tall textareas so the actions (incl. Close) come into reach with little scroll. */
+  @media (max-width: 720px) {
+    .aiText { height: 220px; }
+    .aiBrief { height: 64px; }
+    .pasteText { height: 130px; }
+  }
 }

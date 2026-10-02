@@ -7,8 +7,11 @@
  *
  * A failure means something joined the boot path — find what, and defer it
  * behind an `import()` (see the REQ) rather than raising the ceiling.
+ *
+ * It also checks the built CSS names its cascade layers in declared order —
+ * see the second half of this file.
  */
-import { readdirSync, statSync } from 'node:fs';
+import { readdirSync, readFileSync, statSync } from 'node:fs';
 import { join } from 'node:path';
 
 /** Vite's `chunkSizeWarningLimit` default, in its own unit (1 kB = 1000 bytes). */
@@ -39,3 +42,30 @@ if (bytes > ENTRY_CEILING_BYTES) {
   process.exit(1);
 }
 console.log(`check-bundle: entry chunk ${entry} is ${kb(bytes)} (${kb(ENTRY_CEILING_BYTES - bytes)} headroom).`);
+
+/**
+ * The cascade layer order (css-cascade-layers.md REQ-the-layer-order-is-declared-once-and-first).
+ * A browser fixes the order from the first stylesheet that names a layer, and
+ * the build splits CSS into chunks that load in an order nobody chose. So every
+ * CSS chunk must name its layers as an exact PREFIX of the declared order —
+ * then whichever chunk loads first, layers are only ever learnt in that order.
+ * `css-layer-order.mjs` arranges it; the minifier trims each copy; this checks
+ * what actually shipped.
+ */
+const layersCss = readFileSync('src/styles/layers.css', 'utf-8').replace(/\/\*[\s\S]*?\*\//g, '');
+const order = /@layer\s+([^;{]+);/.exec(layersCss)?.[1]?.split(',').map((s) => s.trim()) ?? [];
+let layerFailures = 0;
+for (const css of names.filter((n) => n.endsWith('.css'))) {
+  const text = readFileSync(join(ASSETS, css), 'utf-8');
+  const seen = [];
+  // Layer names in order of first mention: `@layer a,b;` statements and `@layer a{` blocks.
+  for (const m of text.matchAll(/@layer\s+([\w\s,-]+?)\s*[;{]/g)) {
+    for (const name of m[1].split(',').map((s) => s.trim())) if (!seen.includes(name)) seen.push(name);
+  }
+  if (seen.join(',') !== order.slice(0, seen.length).join(',')) {
+    console.error(`check-bundle: ${css} names its layers as [${seen.join(', ')}], not a prefix of [${order.join(', ')}].`);
+    layerFailures++;
+  }
+}
+if (layerFailures) process.exit(1);
+console.log(`check-bundle: every CSS chunk names its layers in declared order (${order.length} layers).`);

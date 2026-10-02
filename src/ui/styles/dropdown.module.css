@@ -2,221 +2,218 @@
    stacking context. `.menu` is fixed but still a DOM child, so anything here
    that forms one (opacity/transform/filter) traps it behind later siblings and
    fades the options with the toggle (dropdown.md REQ-a-dropdown-can-be-dimmed). Dim `.toggle` instead. */
-.root {
-  position: relative;
-  display: inline-block;
-}
 
-.toggle {
-  display: inline-flex;
-  align-items: center;
-  gap: 10px;
-  padding: 7px 10px 7px 12px;
-  background: linear-gradient(180deg, #1a1410, #0a0805);
-  border: 1px solid var(--panel-border);
-  border-radius: 4px;
-  color: var(--text);
-  font-size: 11px;
-  font-weight: 700;
-  letter-spacing: 0.1em;
-  text-transform: uppercase;
-  font-family: var(--serif);
-  min-height: 32px;
-  min-width: 120px;
-  cursor: pointer;
-  box-shadow:
-    inset 0 1px 2px rgba(0, 0, 0, 0.7),
-    0 1px 0 rgba(244, 205, 94, 0.04);
-}
+@layer controls {
+  .root {
+    position: relative;
+    display: inline-block;
+  }
 
-/* An inherited / not-explicitly-set value (dropdown.md REQ-a-dropdown-can-be-dimmed). Compounded with
-   `.toggle` so it can only ever land on the toggle — see the `.root` note above
-   for what happens when this treatment reaches the root instead. */
-.toggle.dimmed {
-  opacity: 0.62;
-}
+  .toggle {
+    display: inline-flex;
+    align-items: center;
+    gap: 10px;
+    padding: 7px 10px 7px 12px;
+    background: linear-gradient(180deg, #1a1410, #0a0805);
+    border: 1px solid var(--panel-border);
+    border-radius: 4px;
+    color: var(--text);
+    font-size: 11px;
+    font-weight: 700;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    font-family: var(--serif);
+    min-height: 32px;
+    min-width: 120px;
+    cursor: pointer;
+    box-shadow:
+      inset 0 1px 2px rgba(0, 0, 0, 0.7),
+      0 1px 0 rgba(244, 205, 94, 0.04);
+  }
 
-.label {
-  flex: 1;
-  min-width: 0;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-  text-align: left;
-  color: var(--accent-secondary);
-  text-shadow: 0 0 4px var(--accent-secondary-glow);
-}
+  /* An inherited / not-explicitly-set value (dropdown.md REQ-a-dropdown-can-be-dimmed). Compounded with
+     `.toggle` so it can only ever land on the toggle — see the `.root` note above
+     for what happens when this treatment reaches the root instead. */
+  .toggle.dimmed {
+    opacity: 0.62;
+  }
 
-.caret {
-  font-size: 13px;
-  line-height: 1;
-  color: var(--text-dim);
-  transition: transform 120ms ease;
-}
+  .label {
+    flex: 1;
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    text-align: left;
+    color: var(--accent-secondary);
+    text-shadow: 0 0 4px var(--accent-secondary-glow);
+  }
 
-.root:global(.open) .caret {
-  transform: rotate(180deg);
-}
+  .caret {
+    font-size: 13px;
+    line-height: 1;
+    color: var(--text-dim);
+    transition: transform 120ms ease;
+  }
 
-.menu {
-  display: none;
-  position: fixed;
-  min-width: 100%;
-  max-height: 280px;
-  /* Column so the filter row can stay pinned above the scrolling option box;
-     `.list` owns the overflow, not this element (dropdown.md REQ-a-long-list-carries-a-filter). */
-  flex-direction: column;
-  overflow: hidden;
-  background: linear-gradient(180deg, #221c16 0%, #15110d 100%);
-  border: 1px solid var(--panel-border);
-  border-radius: 4px;
-  padding: 4px;
-  z-index: 1000;
-  box-shadow:
-    0 8px 24px rgba(0, 0, 0, 0.85),
-    0 0 0 1px rgba(244, 205, 94, 0.05),
-    inset 0 1px 0 rgba(244, 205, 94, 0.08);
-}
+  .root:global(.open) .caret {
+    transform: rotate(180deg);
+  }
 
-.root:global(.open) .menu {
-  display: flex;
-}
+  .menu {
+    display: none;
+    position: fixed;
+    min-width: 100%;
+    max-height: 280px;
+    /* Column so the filter row can stay pinned above the scrolling option box;
+       `.list` owns the overflow, not this element (dropdown.md REQ-a-long-list-carries-a-filter). */
+    flex-direction: column;
+    overflow: hidden;
+    background: linear-gradient(180deg, #221c16 0%, #15110d 100%);
+    border: 1px solid var(--panel-border);
+    border-radius: 4px;
+    padding: 4px;
+    z-index: 1000;
+    box-shadow:
+      0 8px 24px rgba(0, 0, 0, 0.85),
+      0 0 0 1px rgba(244, 205, 94, 0.05),
+      inset 0 1px 0 rgba(244, 205, 94, 0.08);
+  }
 
-.list {
-  flex: 1;
-  min-width: 0;
-  min-height: 0; /* or the flex item refuses to shrink and the menu overflows */
-  overflow-y: auto;
-}
+  .root:global(.open) .menu {
+    display: flex;
+  }
 
-/* --- Live filter (dropdown.md REQ-a-long-list-carries-a-filter) --- */
-.filterRow {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  flex: none;
-  padding: 4px 6px 6px;
-  margin-bottom: 4px;
-  border-bottom: 1px solid var(--panel-border);
-}
+  .list {
+    flex: 1;
+    min-width: 0;
+    min-height: 0; /* or the flex item refuses to shrink and the menu overflows */
+    overflow-y: auto;
+  }
 
-.searchIcon {
-  flex: none;
-  width: 12px;
-  height: 12px;
-  stroke: currentColor;
-  stroke-width: 1.4;
-  fill: none;
-  stroke-linecap: round;
-  color: var(--text-dim);
-}
+  /* --- Live filter (dropdown.md REQ-a-long-list-carries-a-filter) --- */
+  .filterRow {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    flex: none;
+    padding: 4px 6px 6px;
+    margin-bottom: 4px;
+    border-bottom: 1px solid var(--panel-border);
+  }
 
-.filterInput {
-  flex: 1;
-  min-width: 0;
-  padding: 4px 6px;
-  background: rgba(0, 0, 0, 0.35);
-  border: 1px solid var(--panel-border);
-  border-radius: 3px;
-  color: var(--text);
-  /* Sans, not the faceplate serif: this is a field the user types into, not a
-     legend (typography.md REQ-sans-is-content-type/REQ-text-entry-declares-no-face). Georgia at 10px with legend tracking
-     was barely readable. Tracking goes with it — that is a legend treatment. */
-  font-family: var(--sans);
-  font-size: 11px;
-}
+  .searchIcon {
+    flex: none;
+    width: 12px;
+    height: 12px;
+    stroke: currentColor;
+    stroke-width: 1.4;
+    fill: none;
+    stroke-linecap: round;
+    color: var(--text-dim);
+  }
 
-.filterInput:focus {
-  outline: none;
-  border-color: var(--accent-secondary);
-}
+  .filterInput {
+    flex: 1;
+    min-width: 0;
+    padding: 4px 6px;
+    background: rgba(0, 0, 0, 0.35);
+    border: 1px solid var(--panel-border);
+    border-radius: 3px;
+    color: var(--text);
+    /* Sans, not the faceplate serif: this is a field the user types into, not a
+       legend (typography.md REQ-sans-is-content-type/REQ-text-entry-declares-no-face). Georgia at 10px with legend tracking
+       was barely readable. Tracking goes with it — that is a legend treatment. */
+    font-family: var(--sans);
+    font-size: 11px;
+  }
 
-.filterInput::placeholder {
-  color: var(--text-faint);
-  font-style: italic;
-  text-transform: none;
-}
+  .filterInput:focus {
+    outline: none;
+    border-color: var(--accent-secondary);
+  }
 
-/* "No match" — a sentence addressed to the user, so sans (typography.md REQ-sans-is-content-type).
-   Italic and dim keep it reading as status rather than as a pickable option. */
-.empty {
-  flex: none;
-  padding: 7px 10px;
-  color: var(--text-faint);
-  font-family: var(--sans);
-  font-size: 11px;
-  font-style: italic;
-}
+  .filterInput::placeholder {
+    color: var(--text-faint);
+    font-style: italic;
+    text-transform: none;
+  }
 
-.option {
-  display: block;
-  width: 100%;
-  padding: 7px 10px;
-  background: none;
-  border: none;
-  color: var(--text);
-  font-size: 11px;
-  font-weight: 600;
-  letter-spacing: 0.1em;
-  text-transform: uppercase;
-  font-family: var(--serif);
-  text-align: left;
-  cursor: pointer;
-  border-radius: 3px;
-}
+  /* "No match" — a sentence addressed to the user, so sans (typography.md REQ-sans-is-content-type).
+     Italic and dim keep it reading as status rather than as a pickable option. */
+  .empty {
+    flex: none;
+    padding: 7px 10px;
+    color: var(--text-faint);
+    font-family: var(--sans);
+    font-size: 11px;
+    font-style: italic;
+  }
 
-/* Filtered out. `.option`'s own `display: block` outranks the UA `[hidden]`
-   rule, so the hide has to be spelled out (dropdown.md REQ-a-long-list-carries-a-filter). */
-.option[hidden] {
-  display: none;
-}
+  .option {
+    display: block;
+    width: 100%;
+    padding: 7px 10px;
+    background: none;
+    border: none;
+    color: var(--text);
+    font-size: 11px;
+    font-weight: 600;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    font-family: var(--serif);
+    text-align: left;
+    cursor: pointer;
+    border-radius: 3px;
+  }
 
-.option:hover {
-  background: linear-gradient(180deg, #3a2a18, #1f1610);
-  color: var(--accent-secondary);
-}
+  .option:hover {
+    background: linear-gradient(180deg, #3a2a18, #1f1610);
+    color: var(--accent-secondary);
+  }
 
-/* Spoken for by something else, so listed but not choosable (REQ-an-option-can-be-unselectable). Greyed
-   rather than hidden: a row that vanishes tells the reader nothing. The hover
-   rule above is cancelled so the surface stops inviting the click. */
-.option:disabled {
-  color: var(--text-faint);
-  opacity: 0.5;
-  cursor: not-allowed;
-}
+  /* Spoken for by something else, so listed but not choosable (REQ-an-option-can-be-unselectable). Greyed
+     rather than hidden: a row that vanishes tells the reader nothing. The hover
+     rule above is cancelled so the surface stops inviting the click. */
+  .option:disabled {
+    color: var(--text-faint);
+    opacity: 0.5;
+    cursor: not-allowed;
+  }
 
-.option:disabled:hover {
-  background: none;
-  color: var(--text-faint);
-}
+  .option:disabled:hover {
+    background: none;
+    color: var(--text-faint);
+  }
 
-.option:global(.active) {
-  background: linear-gradient(180deg, #4a3525, #2a1c10);
-  color: var(--accent-secondary);
-  text-shadow: 0 0 4px var(--accent-secondary-glow);
-  box-shadow: inset 0 1px 0 rgba(244, 205, 94, 0.15);
-}
+  .option:global(.active) {
+    background: linear-gradient(180deg, #4a3525, #2a1c10);
+    color: var(--accent-secondary);
+    text-shadow: 0 0 4px var(--accent-secondary-glow);
+    box-shadow: inset 0 1px 0 rgba(244, 205, 94, 0.15);
+  }
 
-/* Group rule (dropdown.md REQ-a-list-can-be-split-by-dividers) — a border on the last option of the first
-   group, so there is no extra element for the arrow keys to land on. Sits below
-   `.active` so a selected divider option keeps its own background. */
-.option.divider {
-  border-bottom: 1px solid var(--panel-border);
-  border-radius: 3px 3px 0 0;
-  margin-bottom: 3px;
-  padding-bottom: 9px;
-}
+  /* Group rule (dropdown.md REQ-a-list-can-be-split-by-dividers) — a border on the last option of the first
+     group, so there is no extra element for the arrow keys to land on. Sits below
+     `.active` so a selected divider option keeps its own background. */
+  .option.divider {
+    border-bottom: 1px solid var(--panel-border);
+    border-radius: 3px 3px 0 0;
+    margin-bottom: 3px;
+    padding-bottom: 9px;
+  }
 
-.compact { display: block; width: 100%; }
-.compact .toggle {
-  width: 100%;
-  justify-content: space-between;
-  font-size: 9px;
-  padding: 6px 8px;
-}
+  .compact { display: block; width: 100%; }
+  .compact .toggle {
+    width: 100%;
+    justify-content: space-between;
+    font-size: 9px;
+    padding: 6px 8px;
+  }
 
-.compact .label {
-  text-transform: uppercase;
-  letter-spacing: 0.12em;
+  .compact .label {
+    text-transform: uppercase;
+    letter-spacing: 0.12em;
+  }
+  .compact .option { font-size: 9px; }
 }
-.compact .option { font-size: 9px; }
