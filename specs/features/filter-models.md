@@ -152,7 +152,7 @@ Per [ADR-006](../decisions/adr-006-no-op-param-defaults.md) the default is index
 ```yaml
 LadderFilterNode:  # src/audio/ladder-filter/node.ts — hosts BOTH models
   model:  AudioParam   # k-rate, 0..1, 0 = ladder (REQ-filter-model-is-a-discrete-param)
-  shape:  AudioParam   # a-rate, 0..1, pole-mix morph; LFO sums in here (REQ-6/11)
+  shape:  AudioParam   # a-rate, 0..1, pole-mix morph; LFO sums in here (REQ-shape-morphs-the-pole-mix/REQ-shape-is-an-lfo-destination)
   # (+ cutoffNote / resonance / drive / setActive per ladder-filter.md)
 Voice setters (per-voice, called by the engine):
   setFilterModel(m) / setFilterShape(s)
@@ -171,7 +171,7 @@ LFO_DEST_LABELS:     [..., 'shape']       # APPEND-ONLY, index 6 (REQ-shape-is-a
 
 ### The POLY recurrence
 
-Same cascade, same half-sample feedback tap, three divergences (REQ-3/4/6):
+Same cascade, same half-sample feedback tap, three divergences (REQ-poly-preserves-the-low-end/REQ-poly-saturates-only-at-two-points/REQ-shape-morphs-the-pole-mix):
 
 ```js
 const q3 = sat(s3);
@@ -183,7 +183,7 @@ s1 += g * (s0 - s1);
 s2 += g * (s1 - s2);
 s3 += g * (s2 - s3);
 q3prev = q3;
-outCh[i] = (cv*v + c0*s0 + c1*s1 + c2*s2 + c3*s3) * POLY_TRIM;   // REQ-6/10
+outCh[i] = (cv*v + c0*s0 + c1*s1 + c2*s2 + c3*s3) * POLY_TRIM;   // REQ-shape-morphs-the-pole-mix/REQ-poly-trim-matches-the-levels
 ```
 
 **Why POLY's input rail is wider than the ladder's** (REQ-poly-saturates-only-at-two-points) — this is the one

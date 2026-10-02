@@ -2,6 +2,7 @@ import type { TickSubscriber, TickListener } from './tick-source';
 import { type TickTimer, defaultTickTimer } from './tick-timer';
 import { MAX_STEP } from '../../state/limits';
 import { MAX_EARLY_S } from './step-hits';
+import { clamp01 } from '../../utils/math';
 
 /**
  * Look-ahead transport clock. Subscribers receive a callback with the
@@ -141,7 +142,7 @@ export class Clock implements TickSubscriber {
   /** Shuffle amount, 0 (straight) .. 1. Delays the off-beat 16ths. */
   setSwing(s: number): void {
     if (!Number.isFinite(s)) return;
-    this.swing = Math.max(0, Math.min(1, s));
+    this.swing = clamp01(s);
   }
 
   /**

@@ -3,7 +3,8 @@
 ```yaml
 id: architecture
 status: implemented
-version: 15  # v15: app.ts is the assembly only; its regions live in ui/shell/ and ui/panels/
+version: 16  # v16: SeqStep lists the seq-only bend/bendShape; the ParamBus names UNSAVED_PARAMS; storage lists websynth.midi.channel
+             # v15: app.ts is the assembly only; its regions live in ui/shell/ and ui/panels/
              # v14: every stylesheet declares a cascade layer, so app.ts's import order no
              #      longer decides layout (css-cascade-layers.md) — the split it blocked is unblocked
              # v13: the voice path is 1-channel until the SPREAD STAGE engages — a panned
@@ -75,7 +76,7 @@ means a UI control and its audio effect can be reasoned about independently.
   boot renders into an open output stream. The invariant that actually holds is
   the one the master bus enforces — seeded at 0, raised only by `fadeInMaster()`
   (`features/audio-lifecycle.md` REQ-nothing-is-audible-before-the-first-start). Whether a **user gesture** is required
-  is therefore the browser's call, not ours, and REQ-20 there reads the answer off
+  is therefore the browser's call, not ours, and REQ-the-gesture-is-required-only-when-required there reads the answer off
   the created state to decide if the "Tap to start" modal is shown at all.
 - **REQ-new-params-default-to-a-no-op** — New parameters default to a **no-op**
   value, so existing presets/songs are unaffected (see Conventions).
@@ -165,6 +166,8 @@ ParamBus:        # src/state/params.ts
                                  #   writing, not the user (motion automation, tape
                                  #   stop). Per-param listeners still fire.
   snapshot() / restore(snap)     # bulk save/load (restore suppresses onChange)
+                                 #   a song/preset stores savedParams(snapshot()), which drops
+                                 #   UNSAVED_PARAMS (master.expression, input-control.md REQ-cc11-is-expression)
   resetDefaults()                # every param back to default
   onNote / noteOn / noteOff      # note event path
 
@@ -592,7 +595,7 @@ ParamDef:                # the scalar "schema" — src/state/params.ts
 
 PatternStore step types: # src/state/patterns.ts
   StepSettings: { velocity, gate, prob, ratchet, tie, micro }   # micro: step-settings.md REQ-a-step-carries-a-micro-offset
-  SeqStep:     StepSettings + { on, note }
+  SeqStep:     StepSettings + { on, note, bend, bendShape }   # bend/bendShape: seq only, step-settings.md REQ-a-seq-step-carries-a-bend
   TriggerCell: StepSettings + { on }   # DrumCell / SamplerStep
 ```
 
@@ -611,6 +614,7 @@ localStorage:
   websynth.session    : the pre-v8 single key — still READ once so an existing session survives, never written
   websynth.perf       : performance-mode pref (auto|weak|medium|strong)  # state/perf-mode.ts — device-scoped, NOT a patch param
   websynth.midisync   : sync mode (off|master|slave)   # state/sync-mode.ts — device-scoped, NOT a patch param
+  websynth.midi.channel : MIDI input channel, 0 = omni, else 1..16 except 10  # state/midi-channel.ts — device-scoped, NOT a patch param
   websynth.onboarding.done : guided-tour completed flag        # ui/onboarding
   websynth.hint.emptyplay  : "pressed Play on an empty song" hint dismissed  # ui/components/empty-play-modal.ts
   websynth.debug.about     : About-modal Debug section open    # ui/components/about-debug.ts

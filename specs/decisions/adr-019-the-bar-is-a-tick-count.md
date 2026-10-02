@@ -94,7 +94,7 @@ deliberate trade, not an oversight.
   fan-out is sample-accurate at zero structural cost.
 - **A per-lane phase accumulator (`pos = (pos + 1) % len`)** — rejected: it is
   the obvious implementation and it is the unstable one. `Arrangement` uses that
-  shape for chain slots and needed `seekTo` (REQ-7) to repair it after a jump; a
+  shape for chain slots and needed `seekTo` (arrangement.md REQ-a-mid-play-seek-re-seeks-every-lane) to repair it after a jump; a
   pure function of `clock.step` needs no repair at all.
 - **Leaving swing at the clock's 16th grid** — rejected: a lane at 1/8 fires
   only on even ticks, which the clock never delays, so a slower lane would

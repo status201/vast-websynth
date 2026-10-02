@@ -35,6 +35,8 @@ import {
 } from '../../state/patterns';
 import { ALL_CELLS, bindLaneGrid, laneGrid } from '../lane-grid';
 import { createWheelStepper } from '../wheel-steps';
+import { clamp } from '../../utils/math';
+import { MIDI_NOTE_MAX } from '../../state/limits';
 
 // Repaint a step cell: lit state, note label, the per-step settings viz
 // (gate/velocity/prob/ratchet/tie/micro) and a tooltip with the exact values.
@@ -460,7 +462,7 @@ export function buildSeqPanel(
   function bumpNote(delta: number, track = cursor.selRow, index = cursor.selCol): void {
     const s = engine.patterns.seqTrack(track)?.[index];
     if (!s) return;
-    const next = Math.max(0, Math.min(127, s.note + delta));
+    const next = clamp(s.note + delta, 0, MIDI_NOTE_MAX);
     engine.patterns.setSeqStep(track, index, { note: next });
     if (track === cursor.selRow && index === cursor.selCol) noteDisplay.textContent = noteName(next);
   }

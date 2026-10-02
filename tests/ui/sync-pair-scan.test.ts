@@ -3,7 +3,7 @@
 // before the camera, so a jsQR chunk that will not load never starts a stream.
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 import { openSyncPairModal } from '../../src/ui/components/sync-pair-modal';
-import { WebRtcSyncTransport } from '../../src/audio/webrtc-sync-transport';
+import { WebRtcSyncTransport } from '../../src/audio/transport/sync/webrtc-sync-transport';
 import type { TickTimer } from '../../src/audio/transport/tick-timer';
 import { makeFakeRtc } from '../audio/fake-rtc';
 

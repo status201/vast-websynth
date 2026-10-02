@@ -1,6 +1,6 @@
-import type { SyncMessage, SyncTransport } from './transport/sync/sync-types';
-import { type TickTimer, defaultTickTimer } from './transport/tick-timer';
-import { ClockOffsetEstimator } from './transport/sync/clock-offset';
+import type { SyncMessage, SyncTransport } from './sync-types';
+import { type TickTimer, defaultTickTimer } from '../tick-timer';
+import { ClockOffsetEstimator } from './clock-offset';
 import { encodeSignal, decodeSignal } from './webrtc-signaling';
 import { type WebRtcDiagnostics, type CandInfo, emptyDiagnostics, parseCandidate } from './webrtc-diagnostics';
 

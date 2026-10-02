@@ -63,7 +63,7 @@ and so it stays *arbitrated* (lowest source index wins, `lfo.md` REQ-pulse-is-ar
 - **A bus-side matrix reaching every registered param** — rejected: eight routes at 60 fps is ~480
   main-thread writes per second, each fanning out through the per-param listener chain. That is
   the cost [runtime-performance](../features/runtime-performance.md) REQ-automation-is-not-an-edit/REQ-no-allocation-in-a-hot-loop exist to bound,
-  and the motion sequencer's REQ-18 records what it looked like the last time this loop was hot
+  and the motion sequencer's REQ-motion-automation-is-not-an-edit records what it looked like the last time this loop was hot
   enough to matter (it starved the autosave debounce entirely). It also re-implements the motion
   sequencer's job with a different UI.
 

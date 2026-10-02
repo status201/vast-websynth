@@ -11,7 +11,7 @@ version: 5      # v5: the two per-sample dB conversions are exp/log rather than 
                 # v3: REQ-a-silent-input-stays-silent — the FET path's DC blocker is primed from its first
                 #     sample, so activating the compressor no longer emits the
                 #     saturator's zero-input pedestal as a step (song-mode REQ-applying-a-song-is-click-free)
-                # v2: coefficients are memoized on their k-rate inputs (REQ-6/7)
+                # v2: coefficients are memoized on their k-rate inputs (REQ-coefficients-derive-on-change/REQ-the-coefficient-memo-is-bit-exact)
 owner: core
 related:
   - architecture

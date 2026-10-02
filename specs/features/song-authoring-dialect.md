@@ -3,7 +3,9 @@
 ```yaml
 id: song-authoring-dialect
 status: implemented
-version: 7   # v7: chain letters run A..P and the ladder gains a v9 rung — more than eight
+version: 8   # v8: the step grammar names the `micro` override (all machines) and the seq-only
+             #     per-entry `bend`/`bendShape` the expander already accepted
+             # v7: chain letters run A..P and the ladder gains a v9 rung — more than eight
              #     banks, or a chain naming bank I+ (song-mode.md REQ-song-file-v9-raises-the-bank-ceiling);
              #     the v8 rung, shipped but never written into the ladder here, is now listed too
              # v6: the expander loads with the first author file, not at boot; Song.parse is async
@@ -19,7 +21,7 @@ related:
   - song-mode
   - ai-prompt
   - sequencer          # REQ-a-seq-bank-may-carry-four-tracks's multi-track banks land in seqTracks (its REQ-a-seq-bank-may-carry-four-tracks)
-  - motion-sequencer   # REQ-motion-tracks-is-a-top-level-key's motionTracks (its REQ-17)
+  - motion-sequencer   # REQ-motion-tracks-is-a-top-level-key's motionTracks (its REQ-song-file-v5-adds-motion-tracks)
   - ../decisions/adr-013-authoring-dialect-input-only
   - ../decisions/adr-007-songfile-additive-versioning
 source:
@@ -67,7 +69,7 @@ exported — see ADR-013.
 - **REQ-a-seq-bank-is-positional-or-keyed** — A `seq` bank is either
   **positional** (array of ≤16 entries, short
   arrays rest-padded; entry = `null` | midi | `"A2"` |
-  `{note, velocity?, gate?, prob?, ratchet?, tie?}`) or the **bank-defaults
+  `{note, velocity?, gate?, prob?, ratchet?, tie?, micro?, bend?, bendShape?}`) or the **bank-defaults
   form** `{notes: [...], velocity?, gate?, prob?, ratchet?, tie?}` where the
   bank-level settings apply to every ON step (per-entry objects still override).
   On-step defaults: `velocity 0.85, gate 0.5, prob 1, ratchet 1, tie false`;
@@ -83,7 +85,7 @@ exported — see ADR-013.
   `kick, snare, chat|hat|hihat|closedhat, ohat|openhat, ltom|lowtom, mtom|midtom,
   htom|hightom, clap` or a numeric `"0".."7"`; an unknown key is an error that
   lists the valid names. A hit is a step index (integer 0..15) or
-  `{step, velocity?, gate?, prob?, ratchet?, tie?}`. `sampler` banks are the
+  `{step, velocity?, gate?, prob?, ratchet?, tie?, micro?}`. `sampler` banks are the
   same shape with slot keys `s1..s8` or `"0".."7"`.
 
 - **REQ-a-chain-is-a-string-of-letters** — A chain
@@ -165,7 +167,7 @@ exported — see ADR-013.
   `seqTracks`.
 
 - **REQ-bank-settings-cascade-into-tracks** — **Bank-level settings cascade into
-  `tracks` (v4).** `velocity`, `gate`, `prob`, `ratchet` and `tie` may sit
+  `tracks` (v4).** `velocity`, `gate`, `prob`, `ratchet`, `tie` and `micro` may sit
   alongside `tracks` and apply to every track that does not set its own.
   Precedence is the same three-tier rule REQ-a-seq-bank-is-positional-or-keyed
   already states, extended by one level: **bank → track → step**, nearest wins.
@@ -278,9 +280,9 @@ AuthorSong:
   motionChain: 'same'
   sampleNames: '(string|null)[] ≤8'   # optional, padded to 8
   xy: '{x: paramId, y: paramId}'      # optional passthrough
-AuthorSeqBank: 'entry[] (≤16, rest-padded) | {notes: entry[], velocity?, gate?, prob?, ratchet?, tie?} | {tracks: AuthorSeqBank[] (≤4)}'
-entry: 'null | midi 0..127 | "A2"-style name | {note, velocity?, gate?, prob?, ratchet?, tie?}'
-AuthorHitBank: '{ <trackKey>: (step | {step, velocity?, gate?, prob?, ratchet?, tie?})[] }'
+AuthorSeqBank: 'entry[] (≤16, rest-padded) | {notes: entry[], velocity?, gate?, prob?, ratchet?, tie?, micro?} | {tracks: AuthorSeqBank[] (≤4)}'
+entry: 'null | midi 0..127 | "A2"-style name | {note, velocity?, gate?, prob?, ratchet?, tie?, micro?, bend?, bendShape?}'
+AuthorHitBank: '{ <trackKey>: (step | {step, velocity?, gate?, prob?, ratchet?, tie?, micro?})[] }'
 AuthorMotionBank: 'anchor[] | {assign?: {x?: paramId, y?: paramId}, steps: anchor[]}'
 anchor: '{step: 0..15, x: 0..1, y: 0..1}'   # normalized taper-space coordinates
 AuthorMotionTrackBank: '(AuthorMotionTrack | null)[] (≤MOTION_TRACK_COUNT, 4 since v17)'

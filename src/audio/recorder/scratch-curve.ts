@@ -24,11 +24,13 @@
  * a rate is source-seconds per output-second, so integrating it over normalised
  * output time and scaling by the output's own length lands in source frames.
  */
+
 import {
   MAX_SCRATCH_POINTS,
   MAX_SCRATCH_RATE,
   MAX_SCRATCH_STEPS,
 } from '../../state/limits';
+import { clamp01 } from '../../utils/math';
 
 /** One breakpoint of a drawn scratch. */
 export interface ScratchPoint {
@@ -268,7 +270,7 @@ export function autoCue(c: ScratchCurve, srcFrames: number, outFrames: number): 
   const hi = srcFrames - max * outFrames;      // last cue that keeps the tail on the record
   const want = lo > 0 ? lo : 0;
   const cueFrames = hi >= want ? want : Math.max(0, Math.min(want, srcFrames));
-  return Math.max(0, Math.min(1, cueFrames / srcFrames));
+  return clamp01(cueFrames / srcFrames);
 }
 
 /**

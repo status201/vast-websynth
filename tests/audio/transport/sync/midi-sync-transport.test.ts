@@ -1,7 +1,7 @@
 import { describe, it, expect, vi } from 'vitest';
-import { MidiSyncTransport } from '../../src/audio/midi-sync-transport';
-import { makeFakeMidiAccess } from './fake-midi-access';
-import type { SyncMessage } from '../../src/audio/transport/sync/sync-types';
+import { MidiSyncTransport } from '../../../../src/audio/transport/sync/midi-sync-transport';
+import { makeFakeMidiAccess } from '../../fake-midi-access';
+import type { SyncMessage } from '../../../../src/audio/transport/sync/sync-types';
 
 describe('MidiSyncTransport', () => {
   it('broadcasts each message as its real-time byte to every output', () => {

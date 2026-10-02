@@ -1,12 +1,12 @@
 import type { Engine } from './engine';
 import type { ParamBus } from '../state/params';
-import { MidiSyncTransport } from './midi-sync-transport';
+import { MidiSyncTransport } from './transport/sync/midi-sync-transport';
 import { SustainPedal } from './sustain-pedal';
 import { SAMPLER_SLOT_COUNT } from '../state/patterns';
 import { DRUM_CHANNEL, midiInputChannel } from '../state/midi-channel';
 
 /** The note that plays sampler slot 1 on channel 10 — C1, where GM kicks and pad banks start. */
-export const PAD_BASE_NOTE = 36;
+const PAD_BASE_NOTE = 36;
 
 /** The two inputs that share `master.modWheel` (REQ-aftertouch-joins-the-mod-wheel). */
 interface ModSources { wheel: number; pressure: number }

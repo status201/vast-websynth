@@ -100,12 +100,3 @@ export async function encodeMp3(left: Float32Array, right: Float32Array, sampleR
   return new Blob(parts as BlobPart[], { type: 'audio/mpeg' });
 }
 
-/** Browser download (mirrors Song.download). */
-export function triggerDownload(blob: Blob, filename: string): void {
-  const url = URL.createObjectURL(blob);
-  const a = document.createElement('a');
-  a.href = url;
-  a.download = filename;
-  a.click();
-  setTimeout(() => URL.revokeObjectURL(url), 1000);
-}

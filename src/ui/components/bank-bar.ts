@@ -4,7 +4,7 @@ import { BANK_LABELS, MAX_BANK_COUNT } from '../../state/patterns';
 import { UI_ICONS } from './ui-icons';
 import { ListenerSet } from '../../utils/listeners';
 
-export interface BankBarOpts {
+export interface BankBarOptions {
   getEdit(): number;
   setEdit(i: number): void;
   copy(from: number, to: number): void;
@@ -51,7 +51,7 @@ export class BankBar {
   private followBtn!: HTMLButtonElement;
   private readonly followListeners = new ListenerSet();
 
-  constructor(private readonly opts: BankBarOpts) {
+  constructor(private readonly opts: BankBarOptions) {
     this.el = document.createElement('div');
     this.el.className = styles.root!;
 

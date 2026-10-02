@@ -3,7 +3,8 @@
 ```yaml
 id: untrusted-input
 status: implemented
-version: 11  # v11: the shipped CSP drops style-src 'unsafe-inline' (REQ-defence-in-depth-at-delivery);
+version: 12  # v12: BEND_MAX is the third shared per-step integer bound, and the schema walk pins `bend` to it
+             # v11: the shipped CSP drops style-src 'unsafe-inline' (REQ-defence-in-depth-at-delivery);
              #      only the dev server relaxes it, for Vite's injected styles
              # v10: REQ-a-pairing-sdp-is-shape-checked — a scanned or pasted pairing code's SDP is
              #      shape-checked before it reaches setRemoteDescription
@@ -52,7 +53,7 @@ source:
   - src/audio/transport/clock.ts        # listener isolation + NaN-safe setBpm
   - src/audio/oscillator.ts             # non-finite Hz guard
   - src/main.ts                         # songUrl consent + hardened fetch
-  - src/audio/webrtc-sync-transport.ts  # wire type guard
+  - src/audio/transport/sync/webrtc-sync-transport.ts  # wire type guard
   - scripts/mcp/tools.mjs               # save_song/save_preset dir containment
   - scripts/mcp/http.mjs                # public endpoint: body cap, rate limit, Origin (REQ-the-public-endpoint-is-bounded)
 ```
@@ -97,7 +98,7 @@ decision and the alternatives. This spec is the contract.
   (`.json` / `.zip`) and (v10) a **file dropped on the window**, the PWA `launchQueue`, paste, demo fetches, the WebRTC
   data channel, a scanned QR blob, rehydration from `localStorage` / IndexedDB,
   MCP tool arguments, and (v5) **`POST` bodies to the public MCP endpoint**.
-  Anything reading one of these obeys REQ-2..REQ-8. A new ingest surface owes an
+  Anything reading one of these obeys REQ-bounds-in-the-validator-sizes-in-the-codec … REQ-deserialized-state-is-validated-never-cast. A new ingest surface owes an
   entry here.
 
 - **REQ-bounds-in-the-validator-sizes-in-the-codec** — **Bounds live in the
@@ -134,8 +135,12 @@ decision and the alternatives. This spec is the contract.
   bound here would have left `public/schema/websynth-song.schema.json` rejecting
   files the runtime accepts, with every test green — the same silent-drift
   failure the version pin exists to prevent. `tests/state/authoring-docs.test.ts`
-  now walks the schema for `ratchet`, `micro`, `note` and `seqTranspose` and
-  checks each against its constant.
+  now walks the schema for `ratchet`, `micro`, `bend`, `note` and
+  `seqTranspose` and checks each against its constant.
+
+  **(v12) `BEND_MAX` is the third per-step integer bound** — the seq-only bend
+  ([step-settings](step-settings.md) REQ-a-seq-step-carries-a-bend) lives
+  beside `MICRO_MAX` for the same reason, and the schema walk now covers it.
 
   What is **not** shared: `checkUnit` and `checkRatchet` exist in both
   `song-validate.ts` and `song-author.ts` under the same names with **different
@@ -479,7 +484,7 @@ Scenario: A pairing code whose SDP is not an SDP is refused (v10, REQ-a-pairing-
   When it is decoded
   Then decodeSignal rejects with SignalDecodeError before setRemoteDescription is called
   And a real offer's SDP still decodes
-# pinned by: tests/audio/webrtc-signaling.test.ts
+# pinned by: tests/audio/transport/sync/webrtc-signaling.test.ts
 
 Scenario: An out-of-range note is refused instead of wedging the transport
   Given a song whose seqBanks contain a step with note 1e6
@@ -551,7 +556,7 @@ Scenario: A malformed wire message is dropped, not applied
   Given a linked WebRtcSyncTransport
   When a peer sends {t:'tempo', bpm:'fast'} or {t:'tempo'} with no bpm
   Then the message is ignored and the tempo is unchanged
-# pinned by: tests/audio/webrtc-sync-transport.test.ts
+# pinned by: tests/audio/transport/sync/webrtc-sync-transport.test.ts
 
 Scenario: Re-importing an identical song does not prompt (v2, REQ-an-import-may-not-destroy-saved-work, regression)
   Given a slot holding exactly the song a share link carries

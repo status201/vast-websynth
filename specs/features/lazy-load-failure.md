@@ -3,14 +3,15 @@
 ```yaml
 id: lazy-load-failure
 status: implemented
-version: 3   # v3: loadSurface is the canonical trigger shape; four hand-rolled triggers fold onto it
+version: 4   # v4: the boot-payload baseline is dated (2026-08-20) — `npm run check:bundle` prints the current sizes
+             # v3: loadSurface is the canonical trigger shape; four hand-rolled triggers fold onto it
              # v2: the offline sentence points at Play offline (REQ-the-offline-sentence-points-at-play-offline)
 owner: core
 related:
   - runtime-performance   # REQ-every-lazy-trigger-reports — the split that creates this failure mode
-  - pwa-install           # REQ-6 — the idle warm that prevents it
+  - pwa-install           # REQ-service-worker-is-registered — the idle warm that prevents it
   - toast                 # the surface the report is rendered on
-  - onboarding            # REQ-24 — the help door, the worked example
+  - onboarding            # REQ-the-help-door-never-fails-silently — the help door, the worked example
   - presets
   - audio-export
   - sample-recorder
@@ -259,8 +260,9 @@ Scenario: no deferred surface is left silent (REQ-every-lazy-trigger-reports, dr
 - Boot payload: `npm run build` — the helper must not pull anything new into the
   entry chunk, each surface must still appear as its own chunk, and **no lazy
   chunk may grow**: adding a guard is a pure control-flow change, so a chunk that
-  gets bigger means the destructure trap above was tripped. Baseline at the time
-  of writing: entry 421.7 kB, about-modal 12.98, authoring-guide 16.25,
+  gets bigger means the destructure trap above was tripped. Baseline when this was
+  written (2026-08-20; the entry chunk has grown since, so compare against
+  `npm run check:bundle` and the previous build, not these numbers): entry 421.7 kB, about-modal 12.98, authoring-guide 16.25,
   preset-manager 7.01, export-audio 4.34, record-sound 10.60, sync-pair 31.04,
   onboarding-impl 62.83.
 

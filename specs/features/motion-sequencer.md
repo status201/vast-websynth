@@ -866,7 +866,7 @@ gesture; it is the state the gesture starts from.
 - `MotionStepPad` (`src/ui/components/motion-step-pad.ts`), the v11 additions:
 
   ```yaml
-  MotionStepPadOpts:
+  MotionStepPadOptions:
     beat: boolean
     mode: 'xy' | 'level'
     onSet(x, y): void          # the COMMIT — unchanged signature, later timing
@@ -910,7 +910,7 @@ gesture; it is the state the gesture starts from.
   restore, so only a handover the transport actually played can park a bank.
   Constructed by `Engine.init()` after
   the sampler (Arrangement first, as for all machines); exposed on `StudioApi` as
-  `motion`. `MotionMachineOpts` carries the injectable seams the loop needs:
+  `motion`. `MotionMachineOptions` carries the injectable seams the loop needs:
   `now` (audio-clock time) + `fps` (Engine passes both), and `raf`/`caf`, plus (v9)
   `timer?: TickTimer` — the hidden-document driver, defaulting to
   `defaultTickTimer()` — and `doc?` — the visibility source, defaulting to

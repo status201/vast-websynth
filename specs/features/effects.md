@@ -269,7 +269,7 @@ subsets, so a song can colour each bus independently.
 
   **The identity guard compares against the pending target, never against
   `convolver.buffer`.** Deferring the swap makes the live buffer stale for the
-  whole window, and a song load writes this param *twice in one turn* (REQ-17 of
+  whole window, and a song load writes this param *twice in one turn* (REQ-applying-a-song-is-click-free of
   [song-mode](song-mode.md)): the default, then the song's. Guarding on the live
   buffer, the second write saw the value the first had not applied yet, concluded
   it was already there and returned **without superseding the pending swap** — so

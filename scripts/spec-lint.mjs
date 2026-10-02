@@ -218,7 +218,7 @@ const NOT_OURS = /^src\/vendor\/|\.json$|^tests\/scripts\/spec-(?:xref|reqs)\.te
  * `staleNamesIn` skips ADRs), and the spec tooling has to spell example ids to
  * document the grammar it enforces.
  */
-const NAMES_IDS_BY_EXAMPLE = /\/decisions\/|^scripts\/(?:spec-lint|req-migrate)\.mjs$|^scripts\/lib\/(?:spec-reqs|spec-xref|req-legacy)\.mjs$/;
+const NAMES_IDS_BY_EXAMPLE = /\/decisions\/|^scripts\/spec-lint\.mjs$|^scripts\/lib\/(?:spec-reqs|spec-xref|req-legacy)\.mjs$/;
 
 /** Demo songs are 4 MB of note data: no identifier a doc could name, and no comments. */
 const NOT_CODE = /^src\/state\/demos\//;

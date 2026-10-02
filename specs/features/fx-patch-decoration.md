@@ -30,7 +30,7 @@ rack above, and one unused lead dangling its 1/4" plug in mid-air.
 > ducker joined the chain ([sidechain-ducking](sidechain-ducking.md) REQ-ducking-adds-no-new-gesture) — so
 > the grid divides evenly at both widths and REQ-decoration-is-parity-keyed's parity guard appends
 > nothing. The component and its unit tests are untouched and still cover
-> REQ-3..REQ-10; only the mounting stopped. The section below describes the
+> REQ-the-decoration-is-inert … REQ-sheens-are-centred-not-offset; only the mounting stopped. The section below describes the
 > five-panel arrangement it was built for, kept because it is the condition the
 > decoration returns under.
 

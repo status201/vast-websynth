@@ -18,7 +18,7 @@ version: 14  # v14: a capture waits for a bank render (REQ-a-capture-waits-for-a
              # v8 (was 7.1): `encoding` is a real phase, and the export modal stays
              #     open as the render's progress surface with a working Cancel (REQ-the-modal-is-the-renders-own-surface)
              # v7: a phase machine replaces the armed bool (REQ-capture-is-a-five-phase-machine), export takes
-             #     runs + a tail bar behind an options modal (REQ-2/3/9), and the
+             #     runs + a tail bar behind an options modal (REQ-export-song-renders-from-the-top/REQ-the-capture-keeps-a-tail/REQ-export-opens-an-options-modal), and the
              #     format-echoing labels extend to the buttons that write (REQ-labels-echo-the-chosen-format)
 owner: core
 related:
@@ -324,7 +324,7 @@ already-slow action, so the fetch is invisible next to the encode itself.
 RecorderController:  # src/audio/recorder/recorder-controller.ts
   ExportFormat = 'wav' | 'mp3'
   RecorderPhase = 'idle' | 'recording' | 'paused' | 'review' | 'encoding'
-  ExportOpts    = { runs?: number, tailBar?: boolean }   # runs 1..MAX_RUNS, default 1/false
+  ExportOptions    = { runs?: number, tailBar?: boolean }   # runs 1..MAX_RUNS, default 1/false
 
   exportSong(fmt, opts?): void   # runs passes from step 0, auto-stop, download (REQ-export-song-renders-from-the-top)
   cancelExport(): void           # abort a render in flight -> idle, no file (REQ-the-modal-is-the-renders-own-surface)
@@ -349,7 +349,8 @@ constants: RECORD_BATCH_QUANTA = 16   # ~43 ms at 48 kHz; message rate 375/s -> 
 encode.ts (pure):
   encodeWav(left, right, sampleRate): Blob            # dependency-free, sync
   encodeMp3(left, right, sampleRate): Promise<Blob>   # REQ-the-mp3-encoder-loads-lazily lazy lamejs, MP3_KBPS CBR; unsupported rate -> WAV
-  triggerDownload(blob, filename): void
+download.ts (src/utils):
+  triggerDownload(blob, filename): void   # shared by every file download (songs, projects, presets, takes)
 constants: FALLBACK_BARS = 4, TAIL_MS = 350, MAX_RUNS = 10, MP3_KBPS = 192
 ```
 

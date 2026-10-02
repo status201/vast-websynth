@@ -29,7 +29,8 @@ import {
 import { ScratchGraph } from './scratch-graph';
 import { createCollapseToggle } from './collapse-toggle';
 import { capturedToAudioBuffer } from '../../audio/recorder/audio-buffer';
-import { encodeWav, encodeMp3, triggerDownload } from '../../audio/recorder/encode';
+import { encodeWav, encodeMp3 } from '../../audio/recorder/encode';
+import { triggerDownload } from '../../utils/download';
 import { SAMPLER_SLOT_COUNT, SAMPLER_SLOT_LABELS } from '../../state/patterns';
 import {
   MIN_STRETCH_RATIO, MAX_STRETCH_RATIO, MAX_STRETCH_OUTPUT_FRAMES,

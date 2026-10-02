@@ -3,7 +3,8 @@
 ```yaml
 id: sequencer
 status: implemented
-version: 13  # v13: REQ-the-note-releases-at-gate-end — a tie into a different pitch releases the
+version: 14  # v14: REQ-the-sequencer-triggers-the-active-step names the per-step bend among the honoured settings
+             # v13: REQ-the-note-releases-at-gate-end — a tie into a different pitch releases the
              #      tied note at the new attack; in poly it used to hang forever
              # v12: REQ-a-seq-track-carries-a-pan — a PAN knob beside each track's mute. The four
              #      tracks share one voice pool, so pan rides the note and is applied per
@@ -80,7 +81,7 @@ for the grid from one played anywhere else in the app. Left ungated it recorded 
 the user was on another tab entirely (holding chords on the Arpeggiator silently
 overwrote the bank, with the lit LED off-screen), and because `setSeqStep` writes to
 the **edit** bank while [banks](banks.md) REQ-follow-tracks-the-play-bank Follow drags that bank along with the
-arrangement, a take during playback sprayed across every bank it touched. REQ-5..REQ-7 make
+arrangement, a take during playback sprayed across every bank it touched. REQ-step-input-arms-only-on-screen/REQ-a-take-is-bank-pinned/REQ-the-armed-flag-is-the-single-truth make
 the arm a deliberate, visible, bank-pinned mode instead: it exists only while its own
 grid is on screen, so "armed" and "visible" cannot disagree.
 
@@ -94,7 +95,8 @@ and tracks 2–4 start empty and silent.
 
 - **REQ-the-sequencer-triggers-the-active-step** — On each tick, trigger the
   synth for the active step of the current play bank, honouring
-  velocity/gate/prob/ratchet/tie/micro ([step-settings](step-settings.md);
+  velocity/gate/prob/ratchet/tie/micro and the seq-only bend
+  ([step-settings](step-settings.md) REQ-a-seq-step-carries-a-bend;
   `micro` nudges the step off the grid and is applied here rather than inside
   `stepHits`, REQ-four-tracks-per-bank).
 - **REQ-the-note-releases-at-gate-end** — Release the held note at `gateEnd`;

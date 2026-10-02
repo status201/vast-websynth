@@ -1,6 +1,7 @@
 import type { ParamBus } from '../state/params';
 import { rampTo, RAMP_MEDIUM } from './param-utils';
 import { bindTempoLocked } from './tempo-bind';
+import { clamp01 } from '../utils/math';
 
 const WAVE_TYPES: OscillatorType[] = ['sine', 'triangle', 'sawtooth', 'square'];
 
@@ -175,7 +176,7 @@ export class LFO {
   }
 
   setAmount(a: number): void {
-    this.amount = Math.max(0, Math.min(1, a));
+    this.amount = clamp01(a);
     this.update();
   }
 

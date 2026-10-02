@@ -1,4 +1,4 @@
-import type { SyncMessage, SyncTransport } from './transport/sync/sync-types';
+import type { SyncMessage, SyncTransport } from './sync-types';
 
 /**
  * Web MIDI implementation of `SyncTransport` — a dumb byte↔message mapper.

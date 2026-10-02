@@ -192,8 +192,8 @@ base `.card` cap/scroll (REQ-the-prompt-card-is-height-capped); `.cardWide` wins
 
 ```
 intro line (VAST G1-J8)
-SONG REQUEST          <- brief or bracketed placeholder (REQ-1/2)
-OUTPUT RULES          <- anti-give-up guardrails + both absolute schema URLs (REQ-3/7)
+SONG REQUEST          <- brief or bracketed placeholder (REQ-the-modal-leads-with-a-brief-field/REQ-an-empty-brief-shows-a-placeholder)
+OUTPUT RULES          <- anti-give-up guardrails + both absolute schema URLs (REQ-the-prompt-cites-absolute-schema-urls/REQ-output-rules-guard-weaker-agents)
 QUICKSTART            <- a complete, valid author-dialect song (REQ-the-prompt-teaches-the-dialect)
 COMPACT AUTHOR FORMAT <- the recommended dialect, field-by-field (REQ-the-prompt-teaches-the-dialect)
 NOTES                 <- musical tips (REQ-the-params-table-is-generated)

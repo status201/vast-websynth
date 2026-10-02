@@ -3,6 +3,7 @@ import type { Snapshot } from './preset';
 import type { ParamBus } from './params';
 import { PRESET_FORMAT, BANK_FORMAT, PRESET_VERSION, BANK_VERSION, validatePresetPayload } from './preset-validate';
 import type { PresetFile, PresetBankFile, PresetParse } from './preset-validate';
+import { safeFilename } from '../utils/download';
 
 /**
  * Preset / bank **files** — presets.md REQ-two-preset-file-shapes through
@@ -67,16 +68,12 @@ export function buildBankFile(name: string, entries: Record<string, Snapshot>): 
   return { format: BANK_FORMAT, version: BANK_VERSION, name, presets };
 }
 
-/** `Song.download`'s sanitize idiom, so all three file families name alike. */
-const safe = (name: string, fallback: string): string =>
-  name.replace(/[^a-z0-9_-]+/gi, '_') || fallback;
-
 export function presetFilename(name: string): string {
-  return `${safe(name, 'preset')}.preset.websynth.json`;
+  return `${safeFilename(name, 'preset')}.preset.websynth.json`;
 }
 
 export function bankFilename(name: string): string {
-  return `${safe(name, 'bank')}.bank.websynth.json`;
+  return `${safeFilename(name, 'bank')}.bank.websynth.json`;
 }
 
 /**

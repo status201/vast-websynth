@@ -1,7 +1,7 @@
 import { Osc } from './oscillator';
 import { Envelope } from './envelope';
 import { LadderFilterNode } from './ladder-filter/node';
-import { clamp, midiToHz } from '../utils/math';
+import { clamp, midiToHz, clamp01 } from '../utils/math';
 import { rampTo, RAMP_FAST, RAMP_MEDIUM, RAMP_BYPASS } from './param-utils';
 import { scheduleBend } from './note-bend';
 import type { NoteBend } from './transport/note-output';
@@ -377,7 +377,7 @@ export class Voice {
   /** envelopes.md REQ-filter-env-follows-velocity. Takes effect on the NEXT note — a held note's sweep is
    *  already scheduled, and re-shaping it mid-flight would click. */
   setFilterVelAmount(amount: number): void {
-    this.filVelAmount = Math.max(0, Math.min(1, amount));
+    this.filVelAmount = clamp01(amount);
   }
 
   setFilterKeytrack(amount: number): void {

@@ -1,7 +1,8 @@
 /**
  * The compact *authoring dialect* — an input-only song format
  * (`format: "websynth-song-author"`) that `Song.parse` expands into a
- * canonical `SongFile` (v3, or v4 when motion content is present) before
+ * canonical `SongFile` — stamped with the lowest version (v3..v9) that can hold
+ * what was authored (REQ-the-emitted-version-is-the-lowest-that-fits) — before
  * `validateSongFile` runs. It exists so AI
  * agents (and terse humans) can author a working song in ~40 lines instead
  * of the 576+ literal grid cells the canonical format requires. Nothing ever
@@ -867,8 +868,8 @@ function expandSampleNames(v: unknown, add: AddError): (string | null)[] {
 }
 
 /**
- * Expand an authoring-dialect value into a canonical `SongFile` (v3; v4 when
- * motion content is present).
+ * Expand an authoring-dialect value into a canonical `SongFile`, stamped with the
+ * lowest version (v3..v9) that can hold it.
  * Validates in authoring terms first (path-prefixed, capped errors), expands,
  * then runs `validateSongFile` as the final gate. Input-only: nothing ever
  * serializes the dialect back out (ADR-013).

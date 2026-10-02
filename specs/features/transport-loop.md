@@ -11,7 +11,7 @@ related:
   - transport-position   # the seek contract, its guard and its four reactions
   - arrangement
   - sequencer            # REQ-loop-costs-nothing-unless-engaged: a tie across a wrap releases at its gate end
-  - midi-clock-sync      # REQ-23: a master announces every wrap
+  - midi-clock-sync      # REQ-a-midi-master-announces-its-seek: a master announces every wrap
   - meter                # a bar is `barTicks`, not 16
   - song-mode            # REQ-loop-costs-nothing-unless-engaged: a load clears the loop
   - runtime-performance

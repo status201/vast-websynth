@@ -22,7 +22,7 @@ related:
   - machine-status       # the tab LED (setIndicator / MachineState)
   - testids
   - runtime-performance  # REQ-one-q-knob-over-the-bands/REQ-eq-params-come-from-one-factory/REQ-the-eq-declares-a-longer-drain — the repaint contract
-  - presets              # REQ-2b — a factory bank pins every synth-FX `.on`
+  - presets              # REQ-a-factory-preset-sets-the-full-sound — a factory bank pins every synth-FX `.on`
   - param-catalogue      # registration order is a published artefact
   - drum-kits            # the "named table of bus writes" precedent
   - dropdown
@@ -31,7 +31,7 @@ related:
   - ../decisions/adr-010-musical-stable-cheap-dsp
   - ../decisions/adr-012-true-bypass-disconnects
   - ../decisions/adr-014-dont-make-me-think
-  - onboarding           # REQ-the-eq-explains-itself-through-badges — the badges live there (REQ-26)
+  - onboarding           # REQ-the-eq-explains-itself-through-badges — the badges live there (REQ-the-equalizer-carries-seven-badges)
 source:
   - src/state/eq.ts                    # band table + the response math, shared
   - src/state/eq-presets.ts            # named curves, applied through the bus
@@ -290,7 +290,7 @@ curve from bus values so it needs no analyser and runs no animation loop.
   `requestAnimationFrame`, so applying a preset (a dozen writes) repaints once
   rather than a dozen times. There is no `AnalyserNode`, no per-frame work, and
   **no addition to `StudioApi`** — the UI never reaches for an audio node, so
-  [ADR-009](../decisions/adr-009-ui-depends-on-studio-api-facade.md) and REQ-1
+  [ADR-009](../decisions/adr-009-ui-depends-on-studio-api-facade.md) and REQ-ui-and-audio-never-call-each-other
   of [architecture](../architecture.md) are untouched. Repaints are gated on
   visibility per [runtime-performance](runtime-performance.md)
   REQ-no-work-for-offscreen-dom — where a folded section counts as off screen —

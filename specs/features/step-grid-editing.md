@@ -185,7 +185,7 @@ answer to "inspect this step without disturbing it".
   pad's commit from `pointerdown` to first-travel-or-release, a held press no
   longer sets anything, and long-press became free to carry the same "inspect
   without disturbing" job it has here. It reads the value instead of moving a
-  cursor, because motion has no cursor to move. Motion takes **REQ-6/7/8 only**
+  cursor, because motion has no cursor to move. Motion takes **REQ-clear-menu-clears-in-bulk/REQ-one-bulk-action-one-undo-entry/REQ-a-bulk-clear-reports-itself only**
   (Clear bank, single-entry undo, the toast).
   REQ-delete-clears-the-selected-step's `Delete` deliberately does **not** reach
   it: motion has no selection cursor, so the key would have to act on an

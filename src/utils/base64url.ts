@@ -1,6 +1,6 @@
 // URL-safe base64 (RFC 4648 §5) for binary payloads that travel in a URL hash
 // or a QR blob: `+/` → `-_`, padding stripped. Shared by the song share links
-// (state/song-link.ts) and the WebRTC signalling blobs (audio/webrtc-signaling.ts).
+// (state/song-link.ts) and the WebRTC signalling blobs (audio/transport/sync/webrtc-signaling.ts).
 
 /** Keep String.fromCharCode argument counts sane (no spread on large arrays). */
 const CHUNK = 0x8000;

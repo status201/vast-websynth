@@ -143,7 +143,7 @@ frequencies. The on-screen value is still shown in Hz for the user.
   `AudioParam` ([filter-models.md](filter-models.md),
   [ADR-016](../decisions/adr-016-one-filter-worklet-model-per-block.md)). The
   model branch sits **outside** the sample loop, so everything above — the
-  recurrence, the make-up gain, REQ-10/11/12 — is unchanged and the ladder's
+  recurrence, the make-up gain, REQ-the-filter-idles-when-gated/REQ-filter-coefficients-hoist-per-block/REQ-the-sat-carry-is-per-sample — is unchanged and the ladder's
   output remains **bit-identical** to the frozen naive reference. `filter.shape`
   belongs to POLY and is ignored here (filter-models REQ-shape-is-poly-only).
   Two params are shared: `filter.keytrack` offsets this model's cutoff exactly

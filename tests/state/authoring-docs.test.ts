@@ -5,7 +5,7 @@
 // structural constants in patterns.ts ever change without them.
 import { describe, it, expect } from 'vitest';
 import {
-  MAX_RATCHET, MICRO_MAX, MAX_CHAIN_TRANSPOSE, MIDI_NOTE_MAX,
+  MAX_RATCHET, MICRO_MAX, BEND_MAX, MAX_CHAIN_TRANSPOSE, MIDI_NOTE_MAX,
 } from '../../src/state/limits';
 import { readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
@@ -393,6 +393,15 @@ describe('the canonical schema agrees with limits.ts', () => {
     for (const p of found) {
       expect(p.minimum).toBe(-MICRO_MAX);
       expect(p.maximum).toBe(MICRO_MAX);
+    }
+  });
+
+  it('bounds a seq bend at BEND_MAX either way', () => {
+    const found = propsNamed(schema(), 'bend');
+    expect(found.length).toBeGreaterThan(0);
+    for (const p of found) {
+      expect(p.minimum).toBe(-BEND_MAX);
+      expect(p.maximum).toBe(BEND_MAX);
     }
   });
 

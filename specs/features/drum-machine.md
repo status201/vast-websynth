@@ -10,7 +10,7 @@ version: 13  # v13: the ten voices share `decayEnv` and `finishHit` instead of w
              #      a song load fires twice per track (song-mode.md REQ-applying-a-song-is-click-free)
              # v11: REQ-tune-reads-in-semitones — TUNE reads in semitones; `unit` alone never reached
              #      the readout, so a semitone knob showed "0.00"
-             # v10: REQ-15/16/17 — a voice envelope must reach TRUE zero before
+             # v10: REQ-a-voice-envelope-reaches-true-zero/REQ-the-choke-group-restores-on-a-ramp/REQ-a-clamped-hit-carries-its-choke — a voice envelope must reach TRUE zero before
              #      its source stops; the choke group restores on a ramp; a hit
              #      clamped out of the past carries its choke with it
              # v9: lane length/rate + a meter-relative fill (REQ-drum-lane-follows-the-meter) — meter.md

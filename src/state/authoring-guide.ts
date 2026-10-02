@@ -37,7 +37,7 @@ import {
 } from './patterns';
 
 /** Stand-in for the SONG REQUEST section when the user typed no brief. */
-export const REQUEST_PLACEHOLDER =
+const REQUEST_PLACEHOLDER =
   '[Describe the song you want — style, length, mood, structure, references…]';
 
 /**

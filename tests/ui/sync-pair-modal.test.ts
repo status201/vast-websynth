@@ -1,9 +1,9 @@
 // @vitest-environment jsdom
 import { describe, it, expect, beforeAll, afterEach, vi } from 'vitest';
 import { openSyncPairModal, renderQr, renderDiagnosticsInto } from '../../src/ui/components/sync-pair-modal';
-import { emptyDiagnostics } from '../../src/audio/webrtc-diagnostics';
+import { emptyDiagnostics } from '../../src/audio/transport/sync/webrtc-diagnostics';
 import { Modal } from '../../src/ui/components/modal';
-import { WebRtcSyncTransport } from '../../src/audio/webrtc-sync-transport';
+import { WebRtcSyncTransport } from '../../src/audio/transport/sync/webrtc-sync-transport';
 import type { TickTimer } from '../../src/audio/transport/tick-timer';
 import { qrcode } from '../../src/vendor/qr';
 import { makeFakeRtc } from '../audio/fake-rtc';

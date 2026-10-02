@@ -217,7 +217,7 @@ cannot come back silently. The render finds it; the unit test keeps it found.
   REQ-the-wah-lfo-sweeps-in-cents moved it by 26 — noise). When you are chasing something that fires once a
   cycle or once a toggle, build the smallest graph that contains it, feed it a
   **sum of sines** — no inherent steps, so every step found is the artefact — and
-  measure the peak single-sample step in a *window*. REQ-11's 10x cliff shows up
+  measure the peak single-sample step in a *window*. That REQ's 10x cliff shows up
   unmistakably that way and not at all in a song render.
 - **`OfflineAudioContext` cannot see a latency-dependent automation defect,** so
   do not use one to compare engines on ramp behaviour. An offline render has no

@@ -8,6 +8,7 @@ import songStyles from '../styles/song-panel.module.css';
 import styles from '../styles/record-window.module.css';
 import { UI_ICONS } from './ui-icons';
 import { encodeFailureText } from '../encode-failure';
+import { clamp01 } from '../../utils/math';
 
 /**
  * The free-form recorder's floating transport (record-window.md).
@@ -42,7 +43,7 @@ const METER_FLOOR_DB = -60;
 export function meterFraction(peak: number): number {
   if (!(peak > 0)) return 0;
   const db = 20 * Math.log10(peak);
-  return Math.min(1, Math.max(0, (db - METER_FLOOR_DB) / -METER_FLOOR_DB));
+  return clamp01((db - METER_FLOOR_DB) / -METER_FLOOR_DB);
 }
 
 /** `m:ss`. Seconds precision is enough for a take (record-window.md REQ-the-timer-reports-the-take). */

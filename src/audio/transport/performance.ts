@@ -1,7 +1,6 @@
 import type { ParamBus } from '../../state/params';
 import { RAMP_SMOOTH } from '../param-utils';
-import { SEQ_LENGTH } from '../../state/patterns';
-import { cellIndex, DEFAULT_LANE_RATE } from '../../state/meter';
+import { cellIndex, DEFAULT_LANE_RATE, GRID_CELLS } from '../../state/meter';
 import type { TickSubscriber } from './tick-source';
 import { defaultTickTimer, type TickTimer } from './tick-timer';
 
@@ -131,7 +130,7 @@ export class Performance {
    * lane's length or rate (meter.md REQ-stutter-composes-with-length-and-rate). Only the modulo that follows it is
    * lane-aware.
    */
-  stepIndex(step: number, cells: number = SEQ_LENGTH, rateIdx: number = DEFAULT_LANE_RATE): number {
+  stepIndex(step: number, cells: number = GRID_CELLS, rateIdx: number = DEFAULT_LANE_RATE): number {
     return cellIndex(this.mapStep(step), cells, rateIdx);
   }
 

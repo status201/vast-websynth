@@ -141,7 +141,7 @@ Scenario: The new effect bypasses cleanly when off
   Then dry = 1, wet = 0 and the effect is inaudible (no click on toggle)
 # pinned by: tests/state/params.test.ts (wiring), e2e/controls.spec.ts
 
-Scenario: Re-enabling it does not replay what it held (REQ-2c)
+Scenario: Re-enabling it does not replay what it held (effects.md REQ-a-bypassed-effect-drains-before-disconnect)
   Given the effect was switched off while audio was passing through it
   When it is switched on again after its drain
   Then it comes back holding silence, and the wet ramp starts immediately

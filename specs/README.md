@@ -214,20 +214,17 @@ spec-free.
 > (`npm run spec:lint`), validates spec *structure*: a metadata block, `id`
 > matching the filename, a valid `status`, that `# pinned by:` **and** `source:`
 > paths resolve, that REQ ids are well-formed and unique — a **new one is a slug,
-> never a number** (ADR-021), slugs are unique repo-wide, and the legacy numbers
-> stay ascending — that a cross-spec `[x](x.md) … REQ-<id>` finds that REQ in
+> never a number** (ADR-021) and slugs are unique repo-wide — that a cross-spec `[x](x.md) … REQ-<id>` finds that REQ in
 > `x.md`, and that every spec/ADR is listed
 > in this folder map **and** the `decisions/` index. It also checks the prose that
 > points *into* specs and code, wherever it is written: every `x.md REQ-<id>` or
 > bare `x REQ-<id>` citation — in a spec, a root doc **or a code/test comment** —
-> must find that id in `x.md` (a lettered part such as `REQ-23a` counts when
-> `REQ-23` exists). A citation **split across a line break** — the spec name
-> ending one line and the id opening the next — is checked too; 130 in the tree
-> are written that way and a line-at-a-time reader sees them as bare ids
-> belonging to whatever file they sit in. A **bare** `REQ-<slug>` that names no
-> spec at all is checked against every slug in the tree — possible only because a
-> slug is unique repo-wide, and the reason ADR-021 was worth the migration: a bare
-> number could never be resolved, so ~3,900 references were unlintable until now.
+> must find that id in `x.md`. A citation **split across a line break** — the
+> spec name ending one line and the id opening the next — is checked too, since a
+> line-at-a-time reader would see it as a bare id belonging to whatever file it
+> sits in. A **bare** `REQ-<slug>` that names no spec at all is checked against
+> every slug in the tree — possible only because a slug is unique repo-wide,
+> which is why ADR-021 replaced the old numbered ids.
 > An ADR, and the spec tooling that documents the id grammar, name ids by example
 > and are exempt,
 > and every backticked code name in a spec or doc (`Class.member`, `someFn()`,
@@ -238,10 +235,9 @@ spec-free.
 > names the code deliberately avoids. Those checks live in
 > `scripts/lib/spec-xref.mjs` and `scripts/lib/spec-reqs.mjs`, and
 > `tests/scripts/spec-xref.test.ts` / `tests/scripts/spec-reqs.test.ts` show they
-> fail on real drift and refuse the ids they exist to refuse. Two things are warnings
-> rather than errors: a *gap* in the legacy REQ sequence (a reserved range is plausible,
-> a scrambled list is not), and a `Scenario:` that carries no trailing `#` note
-> at all — neither a `# pinned by:` nor an explicit reason there is none. A spec
+> fail on real drift and refuse the ids they exist to refuse. One thing is a warning
+> rather than an error: a `Scenario:` that carries no trailing `#` note at all —
+> neither a `# pinned by:` nor an explicit reason there is none. A spec
 > being drafted has scenarios before it has tests, and blocking that would only
 > teach authors to write the pin first and the test never; but silence is what
 > makes a covered scenario read as a gap, so it is worth saying out loud.
@@ -289,7 +285,7 @@ specs/
     drum-machine.md    ·  8-track synth drums
     drum-kits.md       ·  factory kit presets + randomize + per-track reset
     sampler.md         ·  8-slot one-shot sampler
-    step-settings.md   ·  per-step vel/gate/prob/ratchet/tie/micro + hit math
+    step-settings.md   ·  per-step vel/gate/prob/ratchet/tie/micro/bend + hit math
     step-grid-editing.md ·  the shared grid gesture model (tap/paint/hold, Clear ▾)
     banks.md           ·  A–P banks (4..16 per machine), edit-vs-play bank
     pattern-undo.md    ·  per-machine step-grid undo (button + scoped Ctrl+Z)
@@ -413,6 +409,7 @@ specs/
     adr-022-bank-count-is-the-array-length.md  ·  how many banks a machine has is the array's length
     adr-023-the-synth-channel-goes-stereo-on-demand.md  ·  per-voice width is spliced in on a gesture, and no channel count decides a level
     adr-024-a-sync-join-is-timed-by-its-first-pulse.md  ·  a slave's new position sounds on its first pulse; a following slave jumps, never restarts
+    adr-025-the-bank-ceiling-is-sixteen-and-the-bar-wraps.md  ·  sixteen banks (A–P, SongFile v9); the bank bar wraps, never pages
 ```
 
 > Coverage note: the feature set above documents the current system. New features

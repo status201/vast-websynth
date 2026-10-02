@@ -1,9 +1,9 @@
 // @vitest-environment jsdom
 import { describe, it, expect, vi } from 'vitest';
-import { WebRtcSyncTransport } from '../../src/audio/webrtc-sync-transport';
-import type { TickTimer } from '../../src/audio/transport/tick-timer';
-import type { SyncMessage } from '../../src/audio/transport/sync/sync-types';
-import { makeFakeRtc } from './fake-rtc';
+import { WebRtcSyncTransport } from '../../../../src/audio/transport/sync/webrtc-sync-transport';
+import type { TickTimer } from '../../../../src/audio/transport/tick-timer';
+import type { SyncMessage } from '../../../../src/audio/transport/sync/sync-types';
+import { makeFakeRtc } from '../../fake-rtc';
 
 /** A hand-fired ping timer so ping/pong is deterministic (no wall-clock). */
 class ManualTimer implements TickTimer {

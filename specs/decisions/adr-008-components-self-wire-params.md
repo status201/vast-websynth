@@ -18,7 +18,7 @@ related:
 
 ## Context / Forces
 
-The `Engine` applies every scalar param to the audio graph (REQ-1: UI and audio
+The `Engine` applies every scalar param to the audio graph (architecture.md REQ-ui-and-audio-never-call-each-other: UI and audio
 never call each other directly). That wiring had accreted into one
 `subscribeParams()` method (~200 lines) that named every param id in the
 instrument — oscillators, filter, envelopes, LFO, three parallel FX chains, two

@@ -26,7 +26,7 @@ export interface MotionGesture {
   mode: 'press' | 'drag' | 'peek';
 }
 
-export interface MotionStepPadOpts {
+export interface MotionStepPadOptions {
   /** Beat-column accent (steps 0/4/8/12), like the drum grid's red columns. */
   beat?: boolean;
   /**
@@ -100,7 +100,7 @@ export class MotionStepPad {
   private anchorX = 0.5;
   private anchorY = 0.5;
 
-  constructor(private readonly opts: MotionStepPadOpts) {
+  constructor(private readonly opts: MotionStepPadOptions) {
     this.level = opts.mode === 'level';
     this.el = document.createElement('div');
     this.el.className = styles.pad!

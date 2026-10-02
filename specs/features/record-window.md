@@ -157,7 +157,7 @@ TRANSPORT do. (2) and (3) are what this spec adds on top of
   It routes through a late-bound `UiBridge.toggleRecordWindow`, the
   `toggleInfoBadges`/`cuePlay` seam, so `shortcuts.ts` never reaches into a
   panel. Listed in the About modal's shortcut table ([onboarding](onboarding.md)
-  REQ-about-key-symbols-are-drawn) and carrying a help badge on the launcher (REQ-16 there) — the
+  REQ-about-key-symbols-are-drawn) and carrying a help badge on the launcher (REQ-the-playhead-ruler-carries-a-badge there) — the
   discoverability triple a non-obvious gesture needs.
 - **REQ-the-record-format-is-seeded-not-owned** — **The format is seeded, not
   owned.** The window shows its own WAV/MP3 segmented, initialised from the Song

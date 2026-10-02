@@ -11,7 +11,7 @@ import { forceStereo } from './stereo';
 import { DISCONNECT_DELAY_MS } from './effects/effect';
 import { Polyphony } from './polyphony';
 import { LaneMixer } from './lane-mixer';
-import type { SynthOutput, NoteOpts } from './transport/note-output';
+import type { SynthOutput, NoteOptions } from './transport/note-output';
 import { Clock } from './transport/clock';
 import { Arpeggiator } from './transport/arpeggiator';
 import { StepSequencer } from './transport/sequencer';
@@ -26,7 +26,7 @@ import { Performance } from './transport/performance';
 import { SyncController } from './transport/sync/sync-controller';
 import { TransportLoop } from './transport/transport-loop';
 import { LoopDriver } from './transport/loop-driver';
-import { WebRtcSyncTransport } from './webrtc-sync-transport';
+import { WebRtcSyncTransport } from './transport/sync/webrtc-sync-transport';
 import { RecorderNode } from './recorder/node';
 import { RecorderController } from './recorder/recorder-controller';
 import { BankRenderController } from './recorder/bank-render';
@@ -959,7 +959,7 @@ export class Engine {
    * `opts` carries the sequencer track's pan (sequencer.md REQ-a-seq-track-carries-a-pan).
    * Every other caller — live keys, MIDI, the arpeggiator — omits it and is centred.
    */
-  playNote(note: number, velocity = 0.8, when?: number, opts?: NoteOpts): void {
+  playNote(note: number, velocity = 0.8, when?: number, opts?: NoteOptions): void {
     this.polyphony.playNote(note, velocity, when, opts);
   }
 
@@ -1379,6 +1379,6 @@ export class Engine {
  * sets the level and CC11 rides inside it. Expression defaults to 1, which makes
  * this exactly `volume²`, the pre-v18 value.
  */
-export function masterLevel(volume: number, expression: number): number {
+function masterLevel(volume: number, expression: number): number {
   return volume * volume * expression * expression;
 }

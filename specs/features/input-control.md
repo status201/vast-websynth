@@ -518,7 +518,7 @@ Scenario: A MIDI clock pulse never reaches note handling (edge)
   Then it is routed to the sync transport before the 0xf0 status mask
   And no note or CC handler runs for it
 # pinned by: tests/audio/midi.test.ts (system messages route before the channel
-#            mask), tests/audio/midi-sync-transport.test.ts
+#            mask), tests/audio/transport/sync/midi-sync-transport.test.ts
 
 Scenario: A Song Position Pointer routes to the sync transport (edge)
   Given a MIDI master sends 0xF2 lsb msb (beat position)
@@ -526,7 +526,7 @@ Scenario: A Song Position Pointer routes to the sync transport (edge)
   Then it routes to handleSongPosition(((msb)<<7)|lsb, ts) before the 0xf0 mask
   And no note or CC handler runs for it
 # pinned by: tests/audio/midi.test.ts (system messages route before the channel
-#            mask), tests/audio/midi-sync-transport.test.ts
+#            mask), tests/audio/transport/sync/midi-sync-transport.test.ts
 
 Scenario: No Web MIDI is a silent no-op
   Given navigator.requestMIDIAccess is undefined

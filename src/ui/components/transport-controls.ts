@@ -17,7 +17,7 @@ import { effectiveLoopRange } from '../../audio/transport/transport-loop';
  * the LIVE FX precedent (live-fx-window.md), so the two surfaces can never drift.
  */
 
-export interface TransportControlsOpts {
+export interface TransportControlsOptions {
   /** Namespaces every testid so two instances coexist. Default `'transport'`. */
   testIdPrefix?: string;
 }
@@ -46,7 +46,7 @@ const ANCHOR_CLASS = 'loop-anchor';
 export function buildTransportControls(
   engine: StudioApi,
   bridge: UiBridge,
-  opts: TransportControlsOpts = {},
+  opts: TransportControlsOptions = {},
 ): HTMLElement[] {
   const p = opts.testIdPrefix ?? 'transport';
   const out: HTMLElement[] = [];

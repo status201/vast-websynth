@@ -40,6 +40,7 @@ the old one rather than rewriting it. An ADR's `status` is its own lifecycle —
 | [022](adr-022-bank-count-is-the-array-length.md) | A machine's bank count is its array length, not a stored field | accepted |
 | [023](adr-023-the-synth-channel-goes-stereo-on-demand.md) | The synth channel goes stereo on demand, and its level never depends on that | accepted |
 | [024](adr-024-a-sync-join-is-timed-by-its-first-pulse.md) | A sync join is timed by its first pulse, and a following slave jumps in place | accepted |
+| [025](adr-025-the-bank-ceiling-is-sixteen-and-the-bar-wraps.md) | The bank ceiling is sixteen, and the bank bar wraps rather than pages | accepted |
 
 New ADRs copy [`_adr-template.md`](_adr-template.md) to `adr-NNN-<slug>.md`, numbered
 contiguously. Keep this index and the folder map in [`../README.md`](../README.md) in

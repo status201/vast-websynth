@@ -13,6 +13,7 @@ import { SAMPLER_SLOT_COUNT } from './patterns';
 import type { ZipEntry } from '../utils/zip';
 import { encodeWav, encodeMp3 } from '../audio/recorder/encode';
 import type { CapturedAudio } from '../audio/recorder/node';
+import { safeFilename } from '../utils/download';
 
 export type ClipExt = 'wav' | 'mp3';
 
@@ -118,9 +119,9 @@ export async function parseProjectZip(bytes: Uint8Array): Promise<ProjectParse> 
   return { ok: true, file: res.file, clips };
 }
 
-/** Download filename — Song.download's sanitize idiom + the project extension. */
+/** Download filename — the shared sanitiser + the project extension. */
 export function projectFilename(songName: string): string {
-  return `${songName.replace(/[^a-z0-9_-]+/gi, '_') || 'song'}.websynth.zip`;
+  return `${safeFilename(songName, 'song')}.websynth.zip`;
 }
 
 /** Zip vs JSON import: PK magic bytes first, filename extension as fallback. */

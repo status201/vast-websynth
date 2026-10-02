@@ -27,7 +27,7 @@ source:
   - src/audio/transport/sync/sync-master.ts
   - src/audio/transport/sync/sync-slave.ts
   - src/audio/transport/sync/sync-controller.ts
-  - src/audio/midi-sync-transport.ts
+  - src/audio/transport/sync/midi-sync-transport.ts
   - src/audio/transport/clock.ts
   - src/audio/transport/arrangement.ts
   - src/audio/transport/performance.ts
@@ -320,7 +320,7 @@ while there is a live link.
   peer app quits, so `ins > 0` would latch forever. A slave is therefore active
   only with an input port **and** a sync message within `linkIdleMs` (3000 ms —
   comfortably past the master's 100 ms idle pulses and 2 s tempo heartbeat,
-  REQ-11/12), polled by a `TickTimer` watchdog every `watchdogWakeMs` (500 ms)
+  REQ-the-master-keeps-an-idle-clock/REQ-an-explicit-tempo-message), polled by a `TickTimer` watchdog every `watchdogWakeMs` (500 ms)
   while `mode === 'slave'` and re-evaluated on `clock.onStart`/`onStop`,
   `addTransport` and every `onPortsChange`. **`clock.playing` defers the
   silence-based release**, so REQ-a-stalled-pulse-stream-is-tolerated's stall
@@ -543,7 +543,7 @@ SyncController(clock, { toPerfMs, toAudioTime, localBpm, persist?,
   status: SyncStatus
   onStatus(cb): unsubscribe
 
-# src/audio/midi-sync-transport.ts
+# src/audio/transport/sync/midi-sync-transport.ts
 MidiSyncTransport(access) implements SyncTransport:
   handleRealtimeByte(byte, timeStampMs): void   # fed by midi.ts (>= 0xF8)
   handleSongPosition(beat, timeStampMs): void   # v2: fed by midi.ts for 0xF2
@@ -739,7 +739,7 @@ Scenario: MIDI transport carries song position but drops tempo
   When send({type:'songposition', beat}) and send({type:'tempo', bpm}) are called
   Then songposition emits [0xF2, lsb, msb] to every output and tempo emits no byte
    And an incoming 0xF2 (via handleSongPosition) surfaces a 'songposition' message
-# pinned by: tests/audio/midi-sync-transport.test.ts
+# pinned by: tests/audio/transport/sync/midi-sync-transport.test.ts
 
 Scenario: Tape stop while slaved ramps pitch only; release keeps the followed tempo
   Given a slaved instance following a master tempo
@@ -800,7 +800,7 @@ Scenario: MIDI transport flush clears every output, tolerating unsupported clear
   Given a MidiSyncTransport with two outputs, one whose clear() throws
   When flush() is called
   Then the other output's clear() is still invoked and nothing propagates
-# pinned by: tests/audio/midi-sync-transport.test.ts
+# pinned by: tests/audio/transport/sync/midi-sync-transport.test.ts
 ```
 
 v4 regression scenarios (a disconnected link must release the transport):
@@ -915,7 +915,7 @@ Scenario: A locally started slave still restarts on a join (v8, REQ-a-following-
 
 - Unit: `tests/state/sync-mode.test.ts`,
   `tests/audio/transport/sync/{bpm-estimator,sync-master,sync-slave,sync-controller}.test.ts`,
-  `tests/audio/midi-sync-transport.test.ts` (fake `MIDIAccess` in
+  `tests/audio/transport/sync/midi-sync-transport.test.ts` (fake `MIDIAccess` in
   `tests/audio/fake-midi-access.ts`), `tests/audio/transport/clock.test.ts`
   (nudge + `start(fromStep)`), `tests/audio/transport/arrangement.test.ts`
   (nonzero-start seek + start(0) regression),

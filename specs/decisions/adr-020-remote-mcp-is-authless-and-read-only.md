@@ -124,7 +124,7 @@ public document format is a calculator. Decision 3 is what keeps decision 1
   the local ten-tool profile and its tests are untouched by any of this.
 - **Trade-off:** the two profiles differ, so a tool that exists locally may be
   absent remotely. An agent that learned `save_song` against the local server
-  will not find it against the public one. This is why REQ-10 pins the remote
+  will not find it against the public one. This is why mcp-server.md REQ-the-remote-profile-is-read-only pins the remote
   tool set by name rather than by "whatever isn't a write".
 - **Trade-off:** an authless endpoint is abusable by definition. The bounds are
   the whole defence, which makes them load-bearing in a way the app's limits are

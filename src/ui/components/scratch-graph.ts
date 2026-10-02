@@ -6,6 +6,7 @@ import {
 } from '../../audio/recorder/scratch-curve';
 import { MAX_SCRATCH_POINTS, MAX_SCRATCH_RATE } from '../../state/limits';
 import { DOUBLE_TAP_MS } from './gesture-timing';
+import { clamp01 } from '../../utils/math';
 
 /**
  * The scratch editor's canvas (scratch.md REQ-the-graph-is-two-lanes-on-output-time/REQ-the-preview-lane-remaps-cached-peaks/REQ-the-scratch-gesture-inventory).
@@ -197,7 +198,7 @@ export class ScratchGraph {
 
   private tOf(x: number): number {
     const w = this.width();
-    return w > 0 ? Math.max(0, Math.min(1, x / w)) : 0;
+    return w > 0 ? clamp01(x / w) : 0;
   }
 
   /** Rate lane: the drawable range is exactly the model's, so nothing the user
@@ -323,7 +324,7 @@ export class ScratchGraph {
    *  a drag lands somewhere a listener can hear as musical. Shift bypasses it. */
   private snap(t: number): number {
     const div = this.steps * SNAP_DIV;
-    return Math.max(0, Math.min(1, Math.round(t * div) / div));
+    return clamp01(Math.round(t * div) / div);
   }
 
   private hitPoint(x: number, y: number): number {

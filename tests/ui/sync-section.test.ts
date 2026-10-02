@@ -3,7 +3,7 @@ import { describe, it, expect, vi } from 'vitest';
 import { buildSyncSection } from '../../src/ui/components/sync-section';
 import type { SyncController } from '../../src/audio/transport/sync/sync-controller';
 import type { SyncMode, SyncStatus, SyncLink } from '../../src/audio/transport/sync/sync-types';
-import type { WebRtcSyncTransport } from '../../src/audio/webrtc-sync-transport';
+import type { WebRtcSyncTransport } from '../../src/audio/transport/sync/webrtc-sync-transport';
 
 /** Structural stub — buildSyncSection only touches mode/setMode/status/onStatus. */
 function stubController(status: Partial<SyncStatus> = {}) {

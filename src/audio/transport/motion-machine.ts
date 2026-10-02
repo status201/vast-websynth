@@ -58,7 +58,7 @@ interface LatchedTick {
   nextResting: boolean;
 }
 
-interface MotionMachineOpts {
+interface MotionMachineOptions {
   /** Frame-loop throttle (perf-tier fps). Default 60. */
   fps?: number;
   /** Audio-clock now, seconds (ctx.currentTime). Injectable for tests. */
@@ -146,7 +146,7 @@ export class MotionMachine {
     private readonly arrangement: Arrangement,
     private readonly xy: XyPadStore,
     private readonly bus: ParamBus,
-    opts: MotionMachineOpts = {},
+    opts: MotionMachineOptions = {},
   ) {
     this.lane = new LaneMeter(clock);
     this.minFrameMs = 1000 / (opts.fps ?? 60);

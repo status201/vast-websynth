@@ -3,7 +3,8 @@
 ```yaml
 id: scope
 status: implemented          # draft | active | implemented
-version: 19  # v19: the Wave trace is triggered on a rising zero crossing, so a steady tone
+version: 20  # v20: REQ-a-scope-resize-handle says the custom property is set from script, which the CSP allows (a style= attribute would not be)
+             # v19: the Wave trace is triggered on a rising zero crossing, so a steady tone
              #      stands still instead of drifting (REQ-the-wave-trace-is-triggered)
              # v18: the scope row's height is now a MINIMUM (REQ-a-scope-resize-handle): .bottom is a flex column and
              #      the scope takes the spare height a capped keyboard cannot use (keyboard-range.md
@@ -106,7 +107,7 @@ scales to whatever height it is given; the two are independent.) The
 normalization is deliberately **partial**: a fractional exponent compresses the
 level scale rather than flattening it, so quiet songs become legible *and* a loud
 song still visibly reads louder than a soft one. The Wave view is therefore
-explicitly **not** a calibrated level meter — the Spectrum peak-hold (REQ-10/11)
+explicitly **not** a calibrated level meter — the Spectrum peak-hold (REQ-spectrum-draws-a-peak-hold/REQ-zero-db-is-the-top-of-the-graph)
 remains the honest readout, and it is unaffected.
 
 **Resizable panel (v11).** The scope has always been locked to a **130 px** grid
@@ -402,8 +403,9 @@ Two consequences worth naming up front, because they are visible:
   (`data-testid="scope-resize-handle"`) sits on the scope panel's **top edge**.
   Dragging it vertically resizes the shared bottom row between
   `SCOPE_H_MIN` (130 px, the pre-v11 fixed height) and `SCOPE_H_MAX` (260 px,
-  exactly twice it), by writing a single CSS custom property `--scope-h` as an
-  inline style on the `.bottom` element; the scope row (`.bottomTop`) takes
+  exactly twice it), by writing a single CSS custom property `--scope-h` on the
+  `.bottom` element from script (`style.setProperty` — the shipped CSP allows
+  that, but not a `style="…"` attribute in markup); the scope row (`.bottomTop`) takes
   `min-height: var(--scope-h, 130px)`, so the **default is still expressed in CSS** and the
   app renders identically when nothing has been dragged and when storage is
   unavailable. Because the wheel strips share that row, they resize with the
@@ -503,7 +505,7 @@ Two consequences worth naming up front, because they are visible:
   invalidated in exactly the three places the gradient cache already is —
   `measure()`, `setFftSize()` and `contextrestored` — so the redraw loop
   allocates nothing (REQ-no-per-frame-layout-read, `runtime-performance`
-  REQ-scope-renderers-are-rect-scoped). The peak-hold's `maxByte` (REQ-10/11)
+  REQ-scope-renderers-are-rect-scoped). The peak-hold's `maxByte` (REQ-spectrum-draws-a-peak-hold/REQ-zero-db-is-the-top-of-the-graph)
   keeps coming from **raw bins**, never from an interpolated value, so its
   *meaning* is unchanged by this rewrite. Its **band** does widen: the old
   cutoff showed 0.6·Nyquist (≈14.4 kHz at 48 k) and the new one runs to
@@ -656,7 +658,7 @@ Two consequences worth naming up front, because they are visible:
   is lost, and the restart/rebuild/loss counters. It reaches the Debug panel
   through `setScopeStatsSource` ([debug-panel](debug-panel.md)
   REQ-the-debug-extension-contract/REQ-an-unbound-row-reads-n-a) and increments
-  `data-rebuilds` on the canvas — on change only, per REQ-15/16, which here
+  `data-rebuilds` on the canvas — on change only, per REQ-the-scope-canvas-carries-a-testid/REQ-no-per-frame-layout-read, which here
   means essentially never. This symptom has now been reported twice from devices
   with no console and nothing to read; a third report should arrive with
   numbers.
@@ -803,7 +805,7 @@ function columnBinEdges(cols: number, fftSize: number, sampleRate: number): Floa
 interface ScopeRegion { x: number; y: number; w: number; h: number; tag: 'mono' | 'left' | 'right'; label: string; }
 function scopeRegions(channels: ScopeChannels, w: number, h: number): ScopeRegion[];
 
-// Pure, exported, canvas-free — the peak-hold dB math (REQ-11/12):
+// Pure, exported, canvas-free — the peak-hold dB math (REQ-zero-db-is-the-top-of-the-graph/REQ-a-taller-bar-pins-the-peak):
 const SPECTRUM_DB_TOP = 0;       // dB shown at the top of the graph (clip)
 const SPECTRUM_DB_RANGE = 70;    // dB span to the bottom (matches analyser -100..-30)
 const PEAK_DECAY_DB_PER_SEC = …; // very slow fall rate (tuned by ear)
@@ -890,7 +892,7 @@ STEREO_GAP: 16                   # px; centre gutter between the side-by-side ha
 # scopeRegions('stereo', <480,  h)   -> [ {0,0,w,h/2, left,'L'}, {0,h/2,w,h/2, right,'R'} ]          stacked (small screens)
 ```
 
-Peak-hold dB scale (REQ-11/12) — a fixed re-labelling of the existing byte bars,
+Peak-hold dB scale (REQ-zero-db-is-the-top-of-the-graph/REQ-a-taller-bar-pins-the-peak) — a fixed re-labelling of the existing byte bars,
 no analyser change:
 
 ```yaml
@@ -912,7 +914,7 @@ PEAK_HOLD_SEC: ~1.5        # plateau the line is pinned at a new max before it f
 #   dataset mirror el.dataset.peak/peakL/peakR (1 dp); dB label centred in each region.
 ```
 
-Wave auto-gain (REQ-17/18) — one gain for the whole display, not per channel:
+Wave auto-gain (REQ-the-wave-view-auto-gains/REQ-the-wave-read-is-float) — one gain for the whole display, not per channel:
 
 ```yaml
 WAVE_TARGET_PEAK: 0.9        # a fully-normalized trace would reach 90% of the half-height
@@ -973,7 +975,7 @@ SPECTRUM_ZONES:
 #   maxByte for the peak-hold comes from the RAW bins visited, never the lerp.
 ```
 
-Panel height (REQ-19/20) — one number, one CSS custom property:
+Panel height (REQ-a-scope-resize-handle/REQ-the-scope-height-persists) — one number, one CSS custom property:
 
 ```yaml
 SCOPE_H_MIN: 130       # px, the pre-v11 fixed row height
@@ -1398,7 +1400,7 @@ Scenario: The watchdog does nothing at all while the tab is hidden (v16, REQ-a-w
    And the pause performance-mode.md REQ-scope-fps-and-fft-apply-live requires is untouched
 # pinned by: tests/ui/scope-lifecycle.test.ts
 
-Scenario: The watchdog leaves a healthy loop completely alone (v16, REQ-33/37)
+Scenario: The watchdog leaves a healthy loop completely alone (v16, REQ-a-watchdog-restarts-a-stalled-loop/REQ-every-public-mutator-is-a-recovery-path)
   Given frames are arriving on time
   When several watchdog ticks pass
   Then no frame is cancelled or re-armed and health.restarts is 0
@@ -1544,7 +1546,7 @@ Scenario: A touch drag never strands a cursor line (v13, edge)
   Then no cursor is recorded and nothing is drawn for it
 # pinned by: tests/ui/scope-axis.test.ts
 
-Scenario: The hover listeners exist only while Spectrum is showing (v13, REQ-31/21)
+Scenario: The hover listeners exist only while Spectrum is showing (v13, REQ-hovering-reads-out-a-frequency/REQ-the-resize-obeys-the-cost-contract)
   Given the scope is in Wave view
   Then the canvas holds no pointermove listener
   When the user switches to Spectrum and back

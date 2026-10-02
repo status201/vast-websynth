@@ -7,7 +7,7 @@ import type { BendShape } from '../../state/patterns';
  * play omit it and are centred, exactly as they were before the sequencer's
  * per-track pan existed (sequencer.md REQ-a-seq-track-carries-a-pan).
  */
-export interface NoteOpts {
+export interface NoteOptions {
   /** Stereo position, -1..1. */
   pan?: number;
   /** Which track's pan knob the voice should keep following while it sounds. */
@@ -29,6 +29,6 @@ export interface NoteBend {
 }
 
 export interface SynthOutput {
-  playNote(note: number, velocity: number, when?: number, opts?: NoteOpts): void;
+  playNote(note: number, velocity: number, when?: number, opts?: NoteOptions): void;
   releaseNote(note: number, when?: number): void;
 }

@@ -15,6 +15,8 @@
  * sole writer of `out.gain` — external cuts go through `cutFast`.
  */
 
+import { clamp01 } from '../utils/math';
+
 /** A tracked automation event: an anchor (`value`) or a target segment. */
 interface EnvEvent {
   time: number;
@@ -46,7 +48,7 @@ export class Envelope {
 
   setAttack(v: number): void { this.attack = Math.max(0.001, v); }
   setDecay(v: number): void { this.decay = Math.max(0.001, v); }
-  setSustain(v: number): void { this.sustain = Math.max(0, Math.min(1, v)); }
+  setSustain(v: number): void { this.sustain = clamp01(v); }
   setRelease(v: number): void { this.release = Math.max(0.001, v); }
 
   /** Trigger attack/decay phases. Picks up from the curve's value at `when`. */

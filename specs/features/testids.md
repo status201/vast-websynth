@@ -24,7 +24,7 @@ version: 31 # v31: seq-bend (+ -track/-dec/-inc/-value), seq-bend-shape, seq-ben
             # v21: debug-scope — the Debug panel's scope-liveness row (scope.md
             #      REQ-the-panel-says-whether-it-is-drawing)
             # v20: the song transport's Loop button (transport-loop.md REQ-a-loop-button-on-both-surfaces)
-            #      and the global `loop` / `loop-anchor` cell classes (REQ-12);
+            #      and the global `loop` / `loop-anchor` cell classes (transport-loop.md REQ-what-the-loop-scrubber-shows);
             #      the Song row now carries `transport-toggle` too
             # v19: the About card's Play offline section (play-offline.md REQ-the-about-card-hosts-play-offline)
             #      and its toast (REQ-data-derived-ids-are-enumerated)
@@ -204,7 +204,7 @@ shell (ui/shell/*, panels/fx-rack.ts):
   eq-section                         # features/equalizer.md — the whole folded section
   tab-eq-<seq|drums|sampler>         # equalizer.md REQ-eq-tab-ids-are-namespaced — NOT tab-<lane>: those
   panel-eq-<seq|drums|sampler>       #   belong to the pattern row (REQ-a-catalogue-id-is-not-renamed-alone)
-  eq-graph-<lane> · eq-canvas-<lane> # the wrapper carries data-eq-curve (REQ-14);
+  eq-graph-<lane> · eq-canvas-<lane> # the wrapper carries data-eq-curve (equalizer.md REQ-the-drawn-curve-is-exact);
                                      #   the curve itself is canvas strokes, so the
                                      #   eight bands mint no ids of their own
   eq-preset-<lane> · eq-reset-<lane> # equalizer.md REQ-eq-presets-are-a-table-of-bus-writes
@@ -220,7 +220,7 @@ synth faceplate panels:
   ptab-lfo-<1|2> · ppage-lfo-<1|2>   # features/panel-tabs.md REQ-panel-tab-testids-are-prefixed
   pulse-hint-<lfo|lfo2>              # features/oscillators.md REQ-pwm-rate-is-clamped — per page, so
                                      #   the two hints don't collide by text (REQ-select-by-testid-not-by-label)
-  # dest-taken-<lfo|lfo2> REMOVED in lfo.md v8 — REQ-12 is superseded by the matrix
+  # dest-taken-<lfo|lfo2> REMOVED in lfo.md v8 — its REQ-destinations-are-no-longer-exclusive is the matrix
 
 step grids, rulers & overlays:
   seq-step-<i>                       # sequencer track 1
@@ -314,9 +314,9 @@ song panel — lanes, chains & live FX:
                                                     # only as many as that machine has
   chain-add-rest-<lane> · chain-clear-<lane>        # features/arrangement.md
   chain-move-<left|right>-<lane> · chain-remove-<lane>   # the precise reorder path
-                                                    #   REQ-11 keeps beside the drag
+                                                    #   arrangement.md REQ-a-chip-is-dragged-to-its-place keeps beside the drag
   # a chip being dragged / a chip about to receive a drop are read off the chip's
-  # own attributes, not extra testids (REQ-11):
+  # own attributes, not extra testids (arrangement.md REQ-a-chip-is-dragged-to-its-place):
   #   data-dragging="true" · data-drag-over="before|after"
   chain-transpose-<up|down>-seq                     # SEQ ONLY — the other lanes are
                                                     #   unpitched, so the control is
@@ -434,12 +434,12 @@ shared UI:
   play-offline-toast                                # a download that ended behind a
                                                     #   closed About (play-offline REQ-offline-feedback-while-about-is-closed),
                                                     #   or the re-download after a
-                                                    #   factory reset (REQ-12)
+                                                    #   factory reset (play-offline.md REQ-the-copy-is-fetched-again-after-a-reset)
   factory-reset                                     # features/factory-reset.md
 
 onboarding:                                         # features/onboarding.md
   tour-overlay · tour-callout · tour-next · tour-done · tour-back · tour-skip
-  start-tour                                        # in the About modal (REQ-20)
+  start-tour                                        # in the About modal (onboarding.md REQ-about-is-the-single-door-for-help)
   shortcuts-layout-gear · shortcuts-layout-select   # features/keyboard-layout.md
   info-badge-layer · info-badge-<topic>   # incl. info-badge-meter (features/meter.md)
   sweet-<paramId>-<label>                           # features/tempo-sync-help.md

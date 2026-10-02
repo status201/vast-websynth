@@ -1,6 +1,6 @@
 import { Voice } from './voice';
 import { assertIndex } from '../utils/array';
-import type { NoteOpts } from './transport/note-output';
+import type { NoteOptions } from './transport/note-output';
 
 /**
  * Voice allocation + the "how it plays" voicing controls: poly/mono, unison
@@ -63,7 +63,7 @@ export class Polyphony {
   // ---------- Note handling ----------
 
   /** Play a note at the given audio time (defaults to now). */
-  playNote(note: number, velocity = 0.8, when?: number, opts?: NoteOpts): void {
+  playNote(note: number, velocity = 0.8, when?: number, opts?: NoteOptions): void {
     const t = when ?? this.ctx.currentTime;
     // Threaded straight through to every voice this note uses, unison copies
     // included — a spread chord is still one track, in one place.
