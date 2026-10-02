@@ -455,7 +455,7 @@ export const HELP_TOPICS: Record<TopicId, HelpTopic> = {
     body:
       '<p>A <strong>preset</strong> is one <em>sound</em> — every knob and switch on the synth, ' +
       'nothing else. (A <strong>song</strong>, over on the Song tab, is the whole arrangement: ' +
-      'patterns, chains and a sound.) The dropdown flips through 16 factory sounds plus your own; ' +
+      'patterns, chains and a sound.) The dropdown flips through 19 factory sounds plus your own; ' +
       'pick one and play.</p>' +
       '<p>The <strong>Presets</strong> button is the one door for everything else:</p>' +
       '<ul>' +
@@ -465,6 +465,8 @@ export const HELP_TOPICS: Record<TopicId, HelpTopic> = {
       '<li><strong>Export bank</strong> — many sounds in one file. It offers just the ones you ' +
       'have made or changed (worked out by comparing against the factory sounds), or all of them.</li>' +
       '<li><strong>Import</strong> — read either kind back in.</li>' +
+      '<li><strong>Delete or revert…</strong> — remove a sound you saved, or put an edited ' +
+      'factory sound back the way it shipped.</li>' +
       '</ul>' +
       '<p>Importing always shows you a <strong>review</strong> first, marking each incoming sound ' +
       'as new, identical to one you have, or a name clash — where you choose <em>keep both</em>, ' +
@@ -901,6 +903,8 @@ export const HELP_TOPICS: Record<TopicId, HelpTopic> = {
       '<p>The degrees are built from the key you set on the <strong>Key</strong> tab, which is ' +
       'why the list is greyed out until you choose a scale. Roman numerals tell you the chord: ' +
       'capital <em>I</em> is major, small <em>ii</em> is minor, <em>vii°</em> is diminished.</p>' +
+      '<p>Pick an <strong>Inversion</strong> (Root, 1st, 2nd or 3rd) to put a different chord tone ' +
+      'at the bottom, so a progression moves smoothly instead of jumping the whole chord.</p>' +
       '<p>The chord keeps each step\'s own velocity, gate and ratchet — it only sets the notes. ' +
       'Tracks 2–4 need <strong>POLY</strong> voicing to be heard.</p>',
   },
@@ -1221,7 +1225,8 @@ export const HELP_TOPICS: Record<TopicId, HelpTopic> = {
       'or <strong>Saved</strong> — loads it, and adds it to your <strong>Slot</strong> list so ' +
       'you can reach it again. A project zip also brings its sampler audio back into the slots.</p>' +
       '<p>It is the counterpart to <strong>Export</strong>: Export writes the file, Import reads ' +
-      'it back in.</p>',
+      'it back in. You can also just <strong>drag</strong> a song, project zip or preset file ' +
+      'onto the window.</p>',
   },
   'song.export': {
     title: 'Export',
@@ -1296,6 +1301,8 @@ export const HELP_TOPICS: Record<TopicId, HelpTopic> = {
       '<p>Your choice is remembered, but it only takes effect while something is actually ' +
       'connected — disconnect and it greys out to <em>armed</em>, the BPM knob comes back to ' +
       'you, and it picks up again by itself when the clock returns.</p>' +
+      '<p><strong>MIDI in</strong> chooses which channel plays the synth. <em>Omni</em>, the ' +
+      'default, listens on every channel but 10, which always plays the sampler.</p>' +
       '<p>No cable? Use <strong>WiFi link…</strong> instead (see its own badge).</p>',
   },
   'sync.wifi': {
@@ -1324,7 +1331,8 @@ export const HELP_TOPICS: Record<TopicId, HelpTopic> = {
       'a piano laid over the keys. <strong>Help &amp; About</strong> draws the exact mapping for ' +
       'your keyboard layout. The <strong>-</strong> and <strong>=</strong> keys (right of 0) shift ' +
       'octave.</p>' +
-      '<p>Notes sound immediately, with or without the transport running.</p>',
+      '<p>Notes sound immediately, with or without the transport running. On a very wide ' +
+      'screen the keyboard adds octaves (up to six) instead of stretching its keys.</p>',
   },
   pitchBend: {
     title: 'Pitch wheel',
@@ -1347,6 +1355,8 @@ export const HELP_TOPICS: Record<TopicId, HelpTopic> = {
       'the LFO is pointed at: <strong>wobble</strong> (cutoff), <strong>vibrato</strong> ' +
       '(pitch), <strong>tremolo</strong> (amp), <strong>PWM movement</strong> (pulse) or ' +
       '<strong>auto-pan</strong> (pan).</p>' +
+      '<p>On a MIDI keyboard, <strong>channel aftertouch</strong> (pressing harder on a held key) ' +
+      'drives it too; the higher of the two wins.</p>' +
       '<p>If the LFO destination is off, the wheel does nothing — pick a destination first.</p>',
   },
   scope: {
