@@ -159,6 +159,27 @@
     pointer-events: none;
   }
 
+  /* bend (seq, step-settings.md v5) → a short stroke in the lower-right corner,
+     rising or falling the way the pitch moves. ::before, because ::after is the
+     ratchet ticks; a CSS gradient rather than a glyph (iconography.md). */
+  .bendUp.on::before,
+  .bendDown.on::before {
+    content: '';
+    position: absolute;
+    right: 3px;
+    bottom: 3px;
+    width: 8px;
+    height: 6px;
+    z-index: 1;
+    pointer-events: none;
+  }
+  .bendUp.on::before {
+    background: linear-gradient(to top left, transparent calc(50% - 0.75px), #f4cd5e 50%, transparent calc(50% + 0.75px));
+  }
+  .bendDown.on::before {
+    background: linear-gradient(to bottom left, transparent calc(50% - 0.75px), #f4cd5e 50%, transparent calc(50% + 0.75px));
+  }
+
   /* The keyboard focus ring (step-grid-editing.md REQ-a-trigger-grid-is-reachable-by-keyboard).
      :focus-visible only, so a pointer press does not ring — the knob's rule. */
   .root:focus { outline: none; }

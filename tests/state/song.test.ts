@@ -274,6 +274,40 @@ describe('Song', () => {
     });
   });
 
+  // step-settings.md REQ-a-seq-step-carries-a-bend (v5) — the same additive, default-sparse route.
+  describe('bend serialization (v5)', () => {
+    const captureWith = (mutate: (p: PatternStore) => void) => {
+      const bus = new ParamBus();
+      registerDefaults(bus);
+      const patterns = new PatternStore();
+      mutate(patterns);
+      return Song.capture(bus, patterns, fakeArrangement() as never, 'Bend');
+    };
+
+    it('omits bend and bendShape when no step bends', () => {
+      const json = Song.toJSON(captureWith((p) => p.setSeqStep(0, 3, { on: true, note: 60 })));
+      expect(json).not.toContain('bend');
+    });
+
+    it('keeps a bend and its shape through toJSON/fromJSON, exactly', () => {
+      const file = captureWith((p) => p.setSeqStep(0, 3, { on: true, note: 60, bend: -3, bendShape: 'fall' }));
+      const parsed = Song.fromJSON(Song.toJSON(file));
+      expect(parsed.seqBanks[0]![3]!.bend).toBe(-3);
+      expect(parsed.seqBanks[0]![3]!.bendShape).toBe('fall');
+      expect(parsed).toEqual(compactSongForExport(file));
+    });
+
+    it('a file without bend restores every seq step at bend 0, scoop', () => {
+      const bus = new ParamBus();
+      registerDefaults(bus);
+      const patterns = new PatternStore();
+      patterns.setSeqStep(0, 3, { on: true, note: 60, bend: 5, bendShape: 'fall' }); // a live edit the load must clear
+      const legacy = Song.fromJSON(Song.toJSON(captureWith((p) => p.setSeqStep(0, 3, { on: true, note: 60 }))));
+      Song.apply(legacy, bus, patterns, fakeArrangement() as never);
+      expect(patterns.seqTrack(0)![3]).toMatchObject({ bend: 0, bendShape: 'scoop' });
+    });
+  });
+
   it('applying a legacy file (on/velocity drum cells) resets per-step settings to defaults', () => {
     const bus = new ParamBus();
     registerDefaults(bus);

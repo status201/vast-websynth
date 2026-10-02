@@ -5,7 +5,7 @@ import { SEQ_TRACK_COUNT } from '../../state/patterns';
 import { MIDI_NOTE_MIN, MIDI_NOTE_MAX } from '../../state/limits';
 import type { SynthOutput } from './note-output';
 import { ScaleQuantizer } from './scale-quantizer';
-import { microOffset, rollProb, stepHits } from './step-hits';
+import { microOffset, rollProb, stepBend, stepHits } from './step-hits';
 import type { TickSubscriber } from './tick-source';
 import { ListenerSet } from '../../utils/listeners';
 import { LaneMeter } from './lane-meter';
@@ -242,7 +242,9 @@ export class StepSequencer {
     // REQ-each-machine-has-a-step-rate). At the default rate the two are the same number.
     const hits = stepHits(s, at, cellDur);
     for (const h of hits) {
-      this.output.playNote(note, s.velocity, h.t, { pan: st.pan, panGroup: st.index });
+      // Each sub-hit bends over its own gate (step-settings.md REQ-every-sub-hit-re-bends);
+      // a step at bend 0 passes no bend at all.
+      this.output.playNote(note, s.velocity, h.t, { pan: st.pan, panGroup: st.index, bend: stepBend(s, h) });
       // The final sub-hit holds (no release) when the step ties into the next.
       if (!h.holds) this.output.releaseNote(note, h.gateEnd);
     }

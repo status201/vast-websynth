@@ -893,4 +893,30 @@ describe('StepSequencer — meter (meter.md)', () => {
       expect(times[i]! - times[i - 1]!).toBeCloseTo(0.125 * (2 / 3), 9);
     }
   });
+  // step-settings.md REQ-every-sub-hit-re-bends / REQ-a-bend-is-per-voice (v5)
+  it('carries a bend on every sub-hit of a bent step and none on an unbent one (v5)', () => {
+    const { clock, patterns, arrangement, perf } = makeTransportRig();
+    const playNote = vi.fn();
+    const releaseNote = vi.fn();
+    const seq = new StepSequencer({ playNote, releaseNote }, clock, patterns, arrangement, perf);
+    seq.setEnabled(true);
+    patterns.setSeqStep(0, 0, { on: true, note: 60, velocity: 0.8, gate: 0.5, ratchet: 2, bend: -1, bendShape: 'scoop' });
+    patterns.setSeqStep(0, 1, { on: true, note: 62, velocity: 0.8, gate: 0.5 });
+
+    clock.fireTick(0);
+    expect(playNote).toHaveBeenCalledTimes(2);
+    // A 16th is 0.125 s; two sub-hits of 0.0625 s, each gated to half = 0.03125 s,
+    // and the bend takes half of that.
+    for (const call of playNote.mock.calls) {
+      const bend = (call[3] as { bend?: { semis: number; shape: string; dur: number } }).bend!;
+      expect(bend.semis).toBe(-1);
+      expect(bend.shape).toBe('scoop');
+      expect(bend.dur).toBeCloseTo(0.015625, 12);
+    }
+
+    playNote.mockClear();
+    clock.fireTick(0.125);
+    expect(playNote).toHaveBeenCalledTimes(1);
+    expect((playNote.mock.calls[0]![3] as { bend?: unknown }).bend).toBeUndefined();
+  });
 });

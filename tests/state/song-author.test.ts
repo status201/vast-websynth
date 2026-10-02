@@ -65,11 +65,13 @@ describe('expandAuthorSong — happy path', () => {
     }));
     const bank = file.seqBanks[0]!;
     expect(bank[0]).toEqual(
-      { on: true, note: 45, velocity: 0.85, gate: 0.5, prob: 1, ratchet: 1, tie: false, micro: 0 });
+      { on: true, note: 45, velocity: 0.85, gate: 0.5, prob: 1, ratchet: 1, tie: false, micro: 0,
+        bend: 0, bendShape: 'scoop' });
     expect(bank[1]!.on).toBe(false);
     expect(bank[2]!.note).toBe(45);
     expect(bank[3]).toEqual(
-      { on: true, note: 48, velocity: 0.85, gate: 0.8, prob: 1, ratchet: 1, tie: false, micro: 0 });
+      { on: true, note: 48, velocity: 0.85, gate: 0.8, prob: 1, ratchet: 1, tie: false, micro: 0,
+        bend: 0, bendShape: 'scoop' });
     // Short bank rest-padded to 16
     for (let i = 4; i < SEQ_LENGTH; i++) expect(bank[i]!.on).toBe(false);
     const drums = file.drumBanks[0]!;
@@ -187,6 +189,24 @@ describe('seq banks', () => {
       .toMatch(/seq\[0\]\[0\]\.micro.*-12\.\.12/);
     expect(expandErrors(base({ seq: [[{ note: 'C4', micro: -13 }]] }))[0]).toMatch(/-12\.\.12/);
     expect(expandErrors(base({ seq: [[{ note: 'C4', micro: 1.5 }]] }))[0]).toMatch(/integer/);
+  });
+
+  // step-settings.md REQ-a-seq-step-carries-a-bend (v5) — read on a seq step object; a bad value is
+  // reported and dropped (the canonical twin refuses, ADR-013).
+  it('accepts bend and bendShape on a seq step object', () => {
+    const file = expandOk(base({ seq: [['C4', { note: 'E4', bend: -2 }, { note: 'G4', bend: 12, bendShape: 'fall' }]] }));
+    const bank = file.seqBanks[0]!;
+    expect(bank[0]).toMatchObject({ bend: 0, bendShape: 'scoop' });
+    expect(bank[1]).toMatchObject({ bend: -2, bendShape: 'scoop' });
+    expect(bank[2]).toMatchObject({ bend: 12, bendShape: 'fall' });
+  });
+
+  it('reports an out-of-range bend or an unknown shape with its authoring path (edge)', () => {
+    expect(expandErrors(base({ seq: [[{ note: 'C4', bend: 13 }]] }))[0])
+      .toMatch(/seq\[0\]\[0\]\.bend.*-12\.\.12/);
+    expect(expandErrors(base({ seq: [[{ note: 'C4', bend: 0.5 }]] }))[0]).toMatch(/integer/);
+    expect(expandErrors(base({ seq: [[{ note: 'C4', bend: 2, bendShape: 'wobble' }]] }))[0])
+      .toMatch(/bendShape/);
   });
 });
 

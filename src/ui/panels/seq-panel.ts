@@ -349,6 +349,12 @@ export function buildSeqPanel(
     testidPrefix: 'seq',
     get: () => engine.patterns.seqTrack(cursor.selRow)?.[cursor.selCol],
     set: (p) => engine.patterns.setSeqStep(cursor.selRow, cursor.selCol, p),
+    // Seq only: the drum and sampler rows have nothing pitched to bend
+    // (step-settings.md REQ-a-seq-step-carries-a-bend).
+    bend: {
+      get: () => engine.patterns.seqTrack(cursor.selRow)?.[cursor.selCol],
+      set: (p) => engine.patterns.setSeqStep(cursor.selRow, cursor.selCol, p),
+    },
   });
   const edit = editor.el;
 

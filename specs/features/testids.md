@@ -3,7 +3,9 @@
 ```yaml
 id: testids
 status: implemented
-version: 30 # v30: file-drop-overlay, file-drop-toast (paste-import.md REQ-a-dropped-file-takes-the-paste-routes)
+version: 31 # v31: seq-bend (+ -track/-dec/-inc/-value), seq-bend-shape, seq-bend-scoop,
+            #      seq-bend-fall (step-settings.md REQ-a-seq-step-carries-a-bend)
+            # v30: file-drop-overlay, file-drop-toast (paste-import.md REQ-a-dropped-file-takes-the-paste-routes)
             # v29: clear-<lane>-shift-<left|right> (step-grid-editing.md REQ-shift-rotates-the-played-window)
             # v28: seq-chord-inversion (chord-tools.md REQ-the-writer-can-invert)
             # v27: sync-midi-channel (input-control.md REQ-the-midi-input-channel-is-selectable)
@@ -246,6 +248,8 @@ step grids, rulers & overlays:
 per-step edit row (StepSettingsEditor):                    # features/step-settings.md
   <seq|drum|sampler>-vel · -gate · -prob · -ratchet · -ratchet-<n> · -tie
   <seq|drum|sampler>-micro · -micro-track · -micro-dec · -micro-inc · -micro-value
+  seq-bend · -bend-track · -bend-dec · -bend-inc · -bend-value      # seq only (v31)
+  seq-bend-shape · seq-bend-scoop · seq-bend-fall
   # micro is the one slider whose PARTS are addressable: it grew −/+ buttons, so a
   # positional selector into the row breaks (features/step-settings.md REQ-a-step-carries-a-micro-offset)
 

@@ -3,7 +3,10 @@
 ```yaml
 id: step-settings
 status: implemented
-version: 4   # v4: the past-clamp note below understated the damage — the choke
+version: 5   # v5: per-step pitch bend on SEQ steps — a signed semitone amount and a
+             #     scoop/fall shape, played on a per-voice detune source
+             #     (REQ-a-seq-step-carries-a-bend..REQ-every-sub-hit-re-bends)
+             # v4: the past-clamp note below understated the damage — the choke
              #     did NOT clamp with the hit (drum-machine.md REQ-a-clamped-hit-carries-its-choke)
              # v3: per-step micro-timing — a step may sound early or late on its
              #     own cell (REQ-6..REQ-9), edited by a centre-detent slider
@@ -34,8 +37,11 @@ source:
   - src/state/limits.ts                  # MICRO_UNITS / MICRO_MAX
   - src/state/serialize.ts               # sparse encode (micro 0 is dropped)
   - src/audio/drums/drum-synths.ts       # chokeRoute (one-shot choke)
+  - src/audio/note-bend.ts               # v5 — schedules a bend on a voice's bend param
+  - src/audio/voice.ts                   # v5 — the per-voice bend source
   - src/ui/components/step-settings.ts   # shared edit-row UI
-  - src/ui/components/step-button.ts     # step-face viz
+  - src/ui/components/step-button.ts     # step-face viz (v5: the bend stroke)
+  - src/ui/onboarding/help-content.ts    # v5 — the seq.bend help topic
 ```
 
 The velocity/gate/prob/ratchet/tie/micro model and the pure hit math shared by all
@@ -59,6 +65,31 @@ same amount. Micro is the per-step counterpart, and it deliberately reuses swing
 own bound and its own technique (an offset applied to the emitted `when`, never to
 the grid), so the transport keeps a single monotonic 16th pulse and neither the
 [clock](transport.md) nor the [meter](meter.md)'s lane math is touched at all.
+
+**Pitch bend** (v5) is the one per-step setting that bends a note *inside* itself.
+Before v5 a sequenced note could only reach another pitch through tie + glide —
+the 303 slide, which moves *into the next step's* note and only in mono — or
+through `master.pitchBend`, which is one detune source wired into every voice, so
+automating it on a [motion](motion-sequencer.md) track bends the whole chord and
+not the one note. How other sequencers answer the same need:
+
+| Device | Model |
+| --- | --- |
+| Roland TB-303 and clones | per-step Slide into the next note — what `tie` already is here |
+| Elektron (Analog Four, Digitone, Syntakt) | slide trigs, plus parameter locks: any parameter, pitch included, locked per step |
+| Trackers (Renoise, FastTracker, Polyend Tracker) | an effect column per row: portamento up/down at a rate, tone-porta, vibrato |
+| Ableton 11+, Bitwig (MPE) | a pitch curve drawn on each note in the piano roll |
+
+The model taken is the bend-in / fall-off vocabulary guitar and vocal phrasing
+already use: a signed **amount** in semitones and one of two **shapes**. A *scoop*
+starts off-pitch and settles onto the written note; a *fall* starts on the note and
+bends away from it. The written `note` stays the pitch the step *means* — the one
+the keyboard highlights, the [scale](sequencer.md) quantizes and the
+[arrangement](arrangement.md) transposes — and the bend is an ornament on top of
+it, in the same additive semitone space the rest of the app modulates pitch in
+([ADR-005](../decisions/adr-005-cutoff-as-midi-note.md)'s habit). Two small fields
+fit the existing edit row; a tracker column would be cryptic there and a drawn
+curve needs an editor the row has no room for.
 
 ## Requirements
 
@@ -181,6 +212,88 @@ the grid), so the transport keeps a single monotonic 16th pulse and neither the
   offset function so it is testable without an `AudioContext` and so there is one
   place to change it, never in the ten downstream clamps.
 
+- **REQ-a-seq-step-carries-a-bend** (v5) — **A sequencer step carries `bend` and
+  `bendShape`.** `bend` is a signed **integer** number of semitones in
+  `-BEND_MAX..+BEND_MAX` (`±12`, `limits.ts`); `bendShape` is `'scoop'` or
+  `'fall'`. Integer for `micro`'s reasons: exact, untouched by the sparse
+  encoder's `EXPORT_SIG_FIGS` rounding, validated with a plain `Number.isInteger`
+  range. An octave either way covers the idioms (a semitone or whole-tone scoop, a
+  dive-bomb fall) without letting a payload ask for something unmusical. The shape
+  is a word rather than `0 | 1` because a song file is read by people and agents
+  ([song-authoring-dialect](song-authoring-dialect.md)), and `"bendShape": "fall"`
+  needs no legend.
+
+  **The defaults are `bend 0` and `bendShape 'scoop'`, and `bend 0` is a no-op** —
+  every song, preset and demo that predates v5 is bit-identical, and the shape is
+  inert until an amount is set ([ADR-006](../decisions/adr-006-no-op-param-defaults.md)).
+  Both fields join `SEQ_EXTRA_DEFAULTS`, so `PatternStore.restore` fills them under
+  any legacy step, and the sparse encoder drops each one at its default, so a
+  re-export of a pre-v5 file is byte-identical and **no `SongFile` version bump is
+  needed** — the additive route REQ-a-step-carries-a-micro-offset took.
+
+  **Seq only.** The fields live on `SeqStep`, not on `StepSettings`: the drum
+  voices and the sampler's slots have no pitched voice to bend through the synth's
+  detune, so a `TriggerCell` carrying them would be a value with no effect. The
+  canonical validator range-checks the two keys only on a seq step (a trigger cell
+  carrying them is tolerated like any other unknown key, never read, and dropped by
+  the next export, which builds a trigger cell from its known fields), and the
+  authoring dialect reads them only on a seq step object.
+
+- **REQ-bend-shapes-are-scoop-and-fall** (v5) — **A scoop arrives; a fall leaves.**
+  For a hit at `t` whose gate ends at `gateEnd`, the bend runs for
+  `dur = BEND_FRACTION * (gateEnd - t)` (`BEND_FRACTION` = 0.5, in `step-hits.ts`),
+  as a **linear ramp in cents** — linear in cents is exponential in Hz, which is
+  how a bent string moves:
+  - **scoop** — the pitch starts `bend` semitones away from the note and ramps to
+    the note by `t + dur`. `bend -2` comes up from a whole tone below.
+  - **fall** — the pitch starts on the note and ramps to `bend` semitones away by
+    `t + dur`, then **holds there** until the voice is released. `bend +12` is an
+    octave leap up; `bend -12` is a dive.
+
+  A fraction of the *gate*, not of the step, so the bend always finishes inside the
+  sounding part of the note: a staccato step gets a quick flick, a long one a slow
+  bend. One constant rather than a per-step time: a third field is a third control
+  in an already full row, and the gate already gives you the length.
+
+- **REQ-a-bend-is-per-voice** (v5) — **The bend is played on a source that belongs to
+  the voice, so it bends that note and nothing else.** Each `Voice` owns a
+  `ConstantSourceNode` (`noteBend`, in cents) connected to `osc1`, `osc2` and `sub`
+  detune — the same three params `master.pitchBend` reaches, so the two simply sum.
+  Modulation stays in the graph ([ADR-017](../decisions/adr-017-modulation-in-graph.md)):
+  nothing per frame, nothing per tick, only the events one note-on schedules.
+  Every unison copy of the note bends identically; another track's chord tone on
+  another voice does not move.
+
+  The bend is carried to the voice in `NoteOpts.bend` (`{ semis, shape, dur }`), the
+  same optional channel `pan` uses, so the arpeggiator, the keyboard and MIDI
+  input — which never set it — are untouched.
+
+  Cost: one `ConstantSourceNode` per voice, built once at boot like the voice's
+  `velocitySource` and `keySource`, and idle at 0 between bent notes. It was not
+  measured separately in the renderer's working set; it is the same node the
+  voice already carries two of.
+
+- **REQ-a-bend-zero-schedules-nothing** (v5) — **A voice schedules bend automation only
+  when a bend is set or must be undone.** A voice remembers whether its bend
+  source may be away from 0. A note with no bend on a clean voice writes **no
+  event at all** — the default path stays bit-identical to pre-v5 and costs one
+  branch. A note with no bend on a voice whose *previous* note bent does an
+  anchored reset (`cancelScheduledValues(when)` + `setValueAtTime(0, when)`),
+  so a stolen or reused voice never inherits a fall's held pitch. A bent note does
+  the same anchored cancel, pins its start value at `when` and ramps; the anchor is
+  the rule [architecture](../architecture.md) states and
+  `tests/audio/no-unanchored-cancel.test.ts` enforces, since Gecko would otherwise
+  start the ramp from the last *assigned* value rather than the curve's.
+
+- **REQ-every-sub-hit-re-bends** (v5) — **A ratcheted step bends on every sub-hit,
+  and a tie does not carry a bend across a step.** Each ratchet sub-hit is its own
+  attack (`stepHits`), so each gets its own scoop or fall over its own
+  sub-gate — a ratcheted fall is a stutter of falls. A tied step's fall holds its
+  bent pitch only until the next step attacks: that step re-strikes the voice
+  (REQ-gate-releases-or-cuts) with its **own** bend, and a next step at bend 0
+  returns it to the written pitch at its attack. The step that sounds defines the
+  pitch, which is the rule the rest of the sequencer already follows.
+
 ## Technical design
 
 ### Contract / public interface (pure)
@@ -194,7 +307,16 @@ step-hits.ts:
   microOffset(s: {micro}, cellDur): number           # v3 — signed seconds, 0 when
                                                      # micro is 0; early capped
   MAX_EARLY_S = 0.06                                 # v3, REQ-an-early-offset-is-capped-in-seconds
+  stepBend(s: {bend,bendShape}, hit): NoteBend | undefined   # v5 — undefined at bend 0
+  BEND_FRACTION = 0.5                                # v5, REQ-bend-shapes-are-scoop-and-fall
+note-output.ts:
+  NoteOpts.bend?: NoteBend                           # v5 — { semis, shape, dur }
+note-bend.ts:
+  scheduleBend(param, bend: NoteBend | undefined, when, dirty): boolean
+    # v5 — writes the scoop/fall events (anchored); returns the new "dirty" flag.
+    # No bend on a clean param writes nothing (REQ-a-bend-zero-schedules-nothing)
 limits.ts:
+  BEND_MAX    = 12    # v5 — semitones either way (REQ-a-seq-step-carries-a-bend)
   MICRO_UNITS = 24    # notches per cell (1/384 note at the default rate)
   MICRO_MAX   = 12    # half a cell — the never-crosses bound (REQ-micro-range-is-half-a-cell)
 drum-synths.ts:
@@ -205,13 +327,36 @@ drum-synths.ts:
 
 ```yaml
 StepSettings: { velocity, gate, prob, ratchet, tie, micro }
-SeqStep:      StepSettings + { on, note }
+SeqStep:      StepSettings + { on, note, bend, bendShape }   # bend/bendShape v5
 TriggerCell:  StepSettings + { on }       # DrumCell / SamplerStep
 TRIGGER_CELL_DEFAULTS: { on:false, velocity:.., gate:1, prob:1, ratchet:1,
                          tie:false, micro:0 }
 micro: integer, -MICRO_MAX..+MICRO_MAX, units of 1/MICRO_UNITS of a CELL
        (not of a 16th — a lane at 1/8 nudges in 1/24 of its own longer cell)
+bend: integer, -BEND_MAX..+BEND_MAX semitones; 0 = no bend (default)
+bendShape: 'scoop' | 'fall'; default 'scoop'; inert while bend is 0
+NoteBend: { semis: number, shape: 'scoop' | 'fall', dur: seconds }
 ```
+
+### Gesture inventory — the Bend controls (v5, seq panel only)
+
+| Control | Gesture | Outcome | Precedent |
+| --- | --- | --- | --- |
+| Bend slider | − / + button | −1 / +1 semitone | the Micro stepper beside it |
+| Bend slider | drag on the track | sweep, snapped to whole semitones | Micro |
+| Bend slider | left / right arrow (focused) | −1 / +1 semitone | Micro |
+| Bend slider | double-click | back to 0 (no bend) | Micro; the knobs |
+| Scoop / Fall | click a button | that shape is the step's shape | the Ratchet 1–4 group: one lit of a set |
+| either | wheel, long-press | — (not taken, as for Micro) | — |
+
+The Bend slider *is* the Micro slider's factory (`makeSlider` with `center`,
+`stepper`, `snap`, `keyStep`, `resetTo`), so its drag lifecycle, arrow-key
+isolation and testid minting are inherited, not re-typed. The shape is two labelled
+buttons rather than one toggle: a toggle reads as on/off, and "fall" is not "scoop
+off". They are words, not arrows, so no glyph is involved
+([iconography](iconography.md)). The pair is dimmed while `bend` is 0 — the shape
+still edits, since setting a shape first and an amount second is a legitimate
+order, but the dimming says it is not yet audible.
 
 ### Gesture inventory — the Micro control
 
@@ -262,7 +407,15 @@ ui: src/ui/components/step-settings.ts (StepSettingsEditor) — shared edit row;
     or right in its cell)
     makeSlider grows { center, snap, format } rather than a second slider
     implementation, so REQ-edit-sliders-are-gesture-scoped's drag discipline is inherited, not re-typed
-testids: <seq|drum|sampler>-micro plus -micro-track / -dec / -inc / -value.
+bend (v5): sequencer.ts computes stepBend(s, h) per sub-hit and passes it in
+    NoteOpts → Polyphony → Voice.noteOn → scheduleBend on voice.noteBend.offset.
+    The StepSettingsEditor takes an optional `bend` get/set pair; only the seq
+    panel passes it, so the drum and sampler rows are unchanged. StepButton.setViz
+    takes an optional bend direction and draws a small rising/falling stroke in
+    the cell's lower corner (::before; ::after is the ratchet ticks)
+testids: seq-bend plus -track / -dec / -inc / -value (v5, minted by makeSlider);
+    seq-bend-scoop, seq-bend-fall.
+    <seq|drum|sampler>-micro plus -micro-track / -dec / -inc / -value.
     Minted at the factory (makeSlider's `testid` option), because a positional
     selector into the row breaks the moment it grows a button — which it did.
 migration: PatternStore.restore spreads TRIGGER_CELL_DEFAULTS UNDER incoming cells
@@ -358,6 +511,59 @@ Scenario: The Micro slider takes arrow keys without reaching the global shortcut
   And the event does not reach the global shortcut handler on window
   And a double-click on the track returns it to 0
 # pinned by: tests/ui/step-settings.test.ts
+
+Scenario: bend 0 schedules nothing (v5, REQ-a-bend-zero-schedules-nothing, regression)
+  Given a seq step with bend 0
+  Then stepBend returns undefined
+  And scheduleBend on a clean param writes no automation event at all
+# pinned by: tests/audio/transport/step-hits.test.ts, tests/audio/note-bend.test.ts
+
+Scenario: A scoop arrives at the note (v5, REQ-bend-shapes-are-scoop-and-fall)
+  Given a hit at t with gate end t + 0.2 and a step with bend -2, shape scoop
+  Then the bend's duration is 0.1 (BEND_FRACTION of the gate)
+  And the bend param is pinned at -200 cents at t and ramps linearly to 0 by t + 0.1
+# pinned by: tests/audio/transport/step-hits.test.ts, tests/audio/note-bend.test.ts
+
+Scenario: A fall leaves the note and holds (v5, REQ-bend-shapes-are-scoop-and-fall)
+  Given a step with bend +12, shape fall
+  Then the bend param is pinned at 0 at t and ramps to +1200 cents by t + dur
+  And no later event returns it to 0 before the next note-on
+# pinned by: tests/audio/note-bend.test.ts
+
+Scenario: A reused voice does not inherit a fall (v5, REQ-a-bend-zero-schedules-nothing, edge)
+  Given a voice whose last note fell +12
+  When it plays a note with no bend
+  Then the bend param is cancelled from the new attack and pinned at 0 there
+  And a further unbent note writes nothing
+# pinned by: tests/audio/note-bend.test.ts
+
+Scenario: The sequencer bends each sub-hit and only the bent step (v5, REQ-every-sub-hit-re-bends, REQ-a-bend-is-per-voice)
+  Given a seq step with bend -1, shape scoop, ratchet 2
+  When it fires
+  Then both playNote calls carry a bend whose dur is BEND_FRACTION of that sub-hit's gate
+  And a neighbouring step with bend 0 is played with no bend at all
+# pinned by: tests/audio/transport/sequencer.test.ts
+
+Scenario: A legacy song has no bend and re-exports byte-identical (v5, REQ-a-seq-step-carries-a-bend, regression)
+  Given a song file whose seq steps carry no bend or bendShape key
+  When it is restored
+  Then every seq step has bend 0 and bendShape 'scoop'
+  And re-exporting it emits neither key
+  And a step with bend -3, shape fall round-trips exactly
+# pinned by: tests/state/song.test.ts
+
+Scenario: An out-of-range bend is refused, and coerced in the dialect (v5, REQ-a-seq-step-carries-a-bend, edge)
+  Given a canonical seq step with bend 13, or 1.5, or bendShape 'wobble'
+  Then the canonical validator refuses the file
+  And the authoring dialect reports the field and imports the rest of the song
+# pinned by: tests/state/song-validate.test.ts, tests/state/song-author.test.ts
+
+Scenario: The Bend controls edit the selected seq step (v5, gesture inventory)
+  Given the seq edit row with a step selected
+  When + is pressed twice on the Bend slider and Fall is clicked
+  Then the step has bend 2 and bendShape 'fall'
+  And the drum and sampler edit rows have no Bend controls
+# pinned by: tests/ui/step-settings.test.ts
 ```
 
 ## Tests & verification
@@ -369,12 +575,22 @@ Scenario: The Micro slider takes arrow keys without reaching the global shortcut
   migration, sparse round-trip), `tests/ui/step-settings.test.ts`
   (edit row + drag lifecycle + arrow-key isolation), `tests/ui/step-button.test.ts`
   (viz), `e2e/patterns.spec.ts` (grid + viz + clock advance).
+- v5: `tests/audio/note-bend.test.ts` (the scheduled events, against a recording
+  param — the mock `AudioParam` keeps no event list), `step-hits.test.ts`
+  (`stepBend`), `sequencer.test.ts` (bend in `NoteOpts`, per sub-hit),
+  `song.test.ts` / `song-validate.test.ts` / `song-author.test.ts` (default,
+  sparse round-trip, refuse vs coerce), `step-settings.test.ts` (the Bend row).
 - `npm test` / `npm run e2e` / `npm run typecheck`.
 - **By ear** ([ADR-010](../decisions/adr-010-musical-stable-cheap-dsp.md),
   [verify-audio-by-ear](../recipes/verify-audio-by-ear.md)): nothing automated can
   tell you whether a nudge *feels* right. Mute every lane but kick and snare, run a
   straight two-bar pattern, and A/B the snare at `0`, `+3` and `-3`; `±12` should be
   obviously, deliberately drunk.
+- **Bend by ear** (v5): a mono seq line, one step at scoop `-2`, one at fall `+12`,
+  A/B against the same pattern at bend 0, through `npm run bench:audio` **and**
+  `--browser firefox` — this is `AudioParam` automation, the class Gecko and Blink
+  disagree on. A scoop should read as a sung slide into the note, not a detuned
+  attack; a fall should finish before the gate closes.
 
 ## Open questions / future
 
@@ -398,6 +614,10 @@ Scenario: The Micro slider takes arrow keys without reaching the global shortcut
   [sampler](sampler.md) REQ-a-slot-starts-from-zero: the choke shifts with the start, so the gate
   keeps its length. The clamp is still a bunching device, not a repair — it is
   `MAX_EARLY_S` that keeps hits out of the past in the first place.
+- **Bend, not built yet** (v5): a per-step bend *time* rather than the fixed
+  `BEND_FRACTION`; a drawn multi-point pitch curve (the Ableton/Bitwig model);
+  sampler bend through `playbackRate`/detune; bend as a bank-level default in the
+  authoring dialect's cascade (today it is read on a seq step object only).
 - A **per-lane** shift (a DAW-style track delay, "the whole snare sits behind the
   beat") is the natural neighbour and would reuse `microOffset` wholesale. Not
   built: nudging the lane's steps covers it, and a second control needs its own

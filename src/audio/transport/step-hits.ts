@@ -1,5 +1,6 @@
-import type { StepSettings, TriggerCell } from '../../state/patterns';
+import type { SeqStep, StepSettings, TriggerCell } from '../../state/patterns';
 import { MICRO_UNITS } from '../../state/limits';
+import type { NoteBend } from './note-output';
 
 /**
  * Pure per-step hit math shared by the sequencer, drum machine and sampler:
@@ -62,6 +63,29 @@ export function microOffset(s: Pick<StepSettings, 'micro'>, cellDur: number): nu
   if (!s.micro) return 0;
   const off = (s.micro / MICRO_UNITS) * cellDur;
   return off < 0 ? Math.max(off, -MAX_EARLY_S) : off;
+}
+
+/**
+ * The share of a hit's gate a bend takes to finish (step-settings.md
+ * REQ-bend-shapes-are-scoop-and-fall). Of the *gate*, so the bend always lands
+ * inside the sounding part of the note: a staccato step flicks, a long one bends
+ * slowly. One constant rather than a per-step time — the gate already gives you
+ * the length.
+ */
+export const BEND_FRACTION = 0.5;
+
+/**
+ * One sub-hit's bend, or `undefined` for a step that does not bend
+ * (step-settings.md REQ-a-bend-zero-schedules-nothing) — the voice then writes
+ * nothing. Per sub-hit, so a ratcheted step re-bends on every attack
+ * (REQ-every-sub-hit-re-bends).
+ */
+export function stepBend(
+  s: Pick<SeqStep, 'bend' | 'bendShape'>,
+  hit: Pick<StepHit, 't' | 'gateEnd'>,
+): NoteBend | undefined {
+  if (!s.bend) return undefined;
+  return { semis: s.bend, shape: s.bendShape, dur: BEND_FRACTION * (hit.gateEnd - hit.t) };
 }
 
 /**

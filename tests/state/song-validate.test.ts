@@ -210,6 +210,16 @@ describe('validateSongFile — rejects', () => {
     expectReject(f, 'seqBanks[0][2].micro');
   });
 
+  // step-settings.md REQ-a-seq-step-carries-a-bend (v5) — integer semitones and a known shape, refused
+  // rather than coerced.
+  it('an out-of-range, fractional or misshapen seq bend', () => {
+    for (const [key, v] of [['bend', 13], ['bend', -13], ['bend', 1.5], ['bendShape', 'wobble']] as const) {
+      const f = clone(captureValid());
+      (f.seqBanks[0]![2] as unknown as Record<string, unknown>)[key] = v;
+      expectReject(f, `seqBanks[0][2].${key}`);
+    }
+  });
+
   it('a chain bank index out of range', () => {
     const f = clone(captureValid());
     // The bound is the CEILING, not this file's own 4-long seqBanks: a chain may

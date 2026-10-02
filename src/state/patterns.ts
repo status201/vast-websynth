@@ -31,9 +31,21 @@ export interface StepSettings {
   micro: number;
 }
 
+/** How a seq step's bend moves (step-settings.md REQ-bend-shapes-are-scoop-and-fall):
+ *  a scoop arrives at the note from `bend` away, a fall leaves it toward `bend`. */
+export type BendShape = 'scoop' | 'fall';
+export const BEND_SHAPES: readonly BendShape[] = ['scoop', 'fall'];
+
 export interface SeqStep extends StepSettings {
   on: boolean;
   note: number;     // MIDI note
+  /**
+   * Signed integer semitones in `-BEND_MAX..+BEND_MAX` — 0 is the no-op default
+   * (step-settings.md REQ-a-seq-step-carries-a-bend). Seq only: the drum and
+   * sampler voices have no synth detune to bend.
+   */
+  bend: number;
+  bendShape: BendShape;
 }
 
 /** One-shot trigger cell — the drum machine and sampler step shape. */
@@ -52,8 +64,11 @@ export const TRIGGER_CELL_DEFAULTS: TriggerCell = {
 };
 
 /** Seq fields that v1 song files may lack (on/note/velocity/gate were always present).
- *  `micro` joined them in v3 and is absent from every file written before it. */
-export const SEQ_EXTRA_DEFAULTS = { prob: 1, ratchet: 1, tie: false, micro: 0 };
+ *  `micro` joined them in v3 and is absent from every file written before it;
+ *  `bend`/`bendShape` likewise (step-settings.md v5). */
+export const SEQ_EXTRA_DEFAULTS: {
+  prob: number; ratchet: number; tie: boolean; micro: number; bend: number; bendShape: BendShape;
+} = { prob: 1, ratchet: 1, tie: false, micro: 0, bend: 0, bendShape: 'scoop' };
 
 /**
  * Motion sequencer step — an optional XY anchor. x/y are 0..1 in *taper space*
@@ -364,6 +379,8 @@ export function makeSeqTrack(): SeqStep[] {
     ratchet: 1,
     tie: false,
     micro: 0,
+    bend: 0,
+    bendShape: 'scoop',
   }));
 }
 

@@ -356,6 +356,7 @@ export type TopicId =
   | 'seq.prob'
   | 'seq.ratchet'
   | 'seq.tie'
+  | 'seq.bend'
   | 'seq.chord'
   | 'seq.render'
   | 'drums'
@@ -833,9 +834,9 @@ export const HELP_TOPICS: Record<TopicId, HelpTopic> = {
     body:
       '<p>A 16-step melodic sequencer — it plays a repeating riff while the transport runs. Click ' +
       'a step to switch it on, then set its note (and velocity / gate for the selected step).</p>' +
-      '<p>Each selected step also has <strong>Prob</strong>, <strong>Ratchet</strong> and ' +
-      '<strong>Tie</strong> for variation, rolls and legato slides — flip on the (i) badges beside ' +
-      'them for the details.</p>' +
+      '<p>Each selected step also has <strong>Prob</strong>, <strong>Ratchet</strong>, ' +
+      '<strong>Tie</strong> and <strong>Bend</strong> for variation, rolls, legato slides and ' +
+      'bent notes — flip on the (i) badges beside them for the details.</p>' +
       '<p><strong>Filling it fast:</strong> arm <strong>Step Input</strong> and play notes on the ' +
       'keyboard (or MIDI) — each lands in the selected step and the cursor advances on its own. ' +
       'It records only while this tab is open, into the bank you can see: leaving the tab switches ' +
@@ -880,6 +881,16 @@ export const HELP_TOPICS: Record<TopicId, HelpTopic> = {
       'smooth legato lines.</p>' +
       '<p>With <strong>glide</strong> turned up (and Mono voicing) the held note <em>slides</em> ' +
       'in pitch to the next step — the classic acid-bassline slide.</p>',
+  },
+  'seq.bend': {
+    title: 'Bend (scoop / fall)',
+    body:
+      '<p><strong>Bend</strong> bends the note of the selected step by up to an octave either way, ' +
+      'over the first half of its gate. <strong>Scoop</strong> starts that far away and slides ' +
+      'onto the note; <strong>Fall</strong> starts on the note and bends away, then stays there.</p>' +
+      '<p>Try a scoop of −1 or −2 into a lead note, or a fall of −12 at the end of a phrase. ' +
+      'Unlike Tie, it bends only this note and works in Poly too. A bent step shows a small ' +
+      'rising or falling stroke in its corner; double-click the slider for no bend.</p>',
   },
   'seq.chord': {
     title: 'Chord (write a chord across the tracks)',

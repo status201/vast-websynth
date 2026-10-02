@@ -138,11 +138,12 @@ always ${SEQ_LENGTH} cells, but how many of them a BAR is depends on the meter �
   0 = centre) in the flat "params" map — a chord sitting in one spot in the
   middle is the commonest thing to fix about a generated song.
   Entry = null (rest) | MIDI number 0-127 | note name "A2"/"C#4"/"Db3" (C4 = 60)
-        | { "note": <midi|name>, "velocity"?: 0-1, "gate"?: 0-1, "prob"?: 0-1, "ratchet"?: 1-4, "tie"?: bool, "micro"?: -12..12 }
+        | { "note": <midi|name>, "velocity"?: 0-1, "gate"?: 0-1, "prob"?: 0-1, "ratchet"?: 1-4, "tie"?: bool, "micro"?: -12..12,
+            "bend"?: -12..12, "bendShape"?: "scoop"|"fall" }   (bend/bendShape: on a step object only — no bank cascade)
 - Bank-defaults form { "notes": [entries…], "velocity"?, "gate"?, "prob"?, "ratchet"?, "tie"?, "micro"? } —
   the bank-level settings apply to every sounded step (a per-entry object still overrides them).
 Settings cascade bank -> track -> step; the nearest one wins.
-Sounded-step defaults: velocity 0.85, gate 0.5, prob 1, ratchet 1, tie false, micro 0.
+Sounded-step defaults: velocity 0.85, gate 0.5, prob 1, ratchet 1, tie false, micro 0, bend 0.
 
 HitBank — one bar of triggers: an object mapping a track to its hits.
   Drum tracks: kick, snare, chat (closed hat), ohat (open hat), ltom, mtom, htom, clap — or "0".."7" (${drumTracks}).
@@ -214,6 +215,11 @@ NOTES
   positive = late (laid back). This is per-step feel, not global swing ("transport.swing"). Small values
   are the musical ones — ±1..3 is a groove, ±8 is 1/3 of a step (a triplet placement), ±12 is half a step
   and deliberately drunk. A snare at "micro": 2 and hats at -1 is a classic behind-the-beat backbeat.
+- "bend" (-12..12 semitones, seq steps only) bends ONE note inside itself, over half its gate.
+  "bendShape": "scoop" (default) starts that far away and slides onto the note — "bend": -1 or -2 is a
+  sung/guitar scoop into a lead note; "fall" starts on the note and bends away — "bend": -12 is a dive
+  at the end of a phrase, +12 an octave leap. Use it on a few accent notes, not every step; unlike
+  "tie" + glide it needs no Mono voicing and moves only that note.
 - Two bus compressors are available: "fx.drum.comp.*" (1176 FET style — punchy drums; ratio index 4 = ALL,
   the crushed all-buttons-in sound) and "fx.master.comp.*" (SSL G bus style — mix glue; release index 4 = auto).
   Their "ratio"/"release" params are discrete INDICES — see the value maps in PARAMS.
@@ -301,13 +307,14 @@ TOP-LEVEL SHAPE
 
 SeqStep  = { "on": boolean, "note": number /* MIDI 0-127 */, "velocity": number /* 0..1 */, "gate": number /* 0..1 of a step */,
              "prob": number /* 0..1, default 1 */, "ratchet": number /* 1-4, default 1 */, "tie": boolean /* default false */,
-             "micro": number /* integer -12..12, 1/24 of a step; default 0 */ }
+             "micro": number /* integer -12..12, 1/24 of a step; default 0 */,
+             "bend": number /* integer semitones -12..12; default 0 = none */, "bendShape": "scoop" | "fall" /* default "scoop" */ }
 DrumCell = SamplerStep = { "on": boolean, "velocity": number /* 0..1 */, "gate": number /* 0..1; 1 = ring naturally (default) */,
              "prob": number /* 0..1, default 1 */, "ratchet": number /* 1-4, default 1 */, "tie": boolean /* default false */,
              "micro": number /* integer -12..12, 1/24 of a step; default 0 */ }
 MotionStep = { "on": boolean, "x": number /* 0..1 */, "y": number /* 0..1 */ }   // a dead step is { "on": false }
 MotionAssign = { "x"?: "<param id>", "y"?: "<param id>" }
-On import, any omitted "gate"/"prob"/"ratchet"/"tie"/"micro" falls back to its default, so plain
+On import, any omitted "gate"/"prob"/"ratchet"/"tie"/"micro"/"bend"/"bendShape" falls back to its default, so plain
 { "on", "velocity" } cells stay valid.
 
 EXAMPLE SHAPE (illustrative — fill EVERY array to full size; "…" marks omissions, never output it)

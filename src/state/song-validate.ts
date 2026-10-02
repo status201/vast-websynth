@@ -23,7 +23,7 @@ import type { SongFile } from './song';
 import { KNOWN_SONG_VERSIONS } from './song-version';
 import {
   MIN_BANK_COUNT, MAX_BANK_COUNT, REST, SEQ_LENGTH, SEQ_TRACK_COUNT, DRUM_TRACK_COUNT,
-  SAMPLER_SLOT_COUNT, MOTION_TRACK_COUNT,
+  SAMPLER_SLOT_COUNT, MOTION_TRACK_COUNT, BEND_SHAPES,
 } from './patterns';
 import { paramIds } from './params';
 import {
@@ -31,7 +31,7 @@ import {
 } from './validate-utils';
 import {
   MAX_CHAIN_STEPS, MAX_CHAIN_TRANSPOSE, MAX_PARAM_KEYS,
-  MICRO_MAX, MIDI_NOTE_MIN, MIDI_NOTE_MAX, MAX_RATCHET} from './limits';
+  MICRO_MAX, MIDI_NOTE_MIN, MIDI_NOTE_MAX, MAX_RATCHET, BEND_MAX} from './limits';
 
 export type SongValidation =
   | { ok: true; file: SongFile; warnings?: string[] }
@@ -114,6 +114,19 @@ function checkMicro(path: string, v: unknown, add: AddError): void {
   }
 }
 
+/** Seq-only bend: integer semitones within ±BEND_MAX and a known shape
+ *  (step-settings.md REQ-a-seq-step-carries-a-bend). Both optional on disk. */
+function checkBend(path: string, c: Record<string, unknown>, add: AddError): void {
+  const v = c.bend;
+  if (v !== undefined && (typeof v !== 'number' || !Number.isInteger(v) || v < -BEND_MAX || v > BEND_MAX)) {
+    add(`${path}.bend must be an integer ${-BEND_MAX}..${BEND_MAX} (got ${describe(v)})`);
+  }
+  const s = c.bendShape;
+  if (s !== undefined && !(typeof s === 'string' && (BEND_SHAPES as readonly string[]).includes(s))) {
+    add(`${path}.bendShape must be one of ${BEND_SHAPES.join(', ')} (got ${describe(s)})`);
+  }
+}
+
 function checkBool(path: string, v: unknown, add: AddError, optional: boolean): void {
   if (v === undefined && optional) return;
   if (typeof v !== 'boolean') add(`${path} must be a boolean (got ${describe(v)})`);
@@ -146,6 +159,7 @@ const validateSeqStep: CellValidator = (path, value, add) => {
     add(`${path}.note must be an integer MIDI note ${MIDI_NOTE_MIN}..${MIDI_NOTE_MAX} (got ${describe(value.note)})`);
   }
   checkStepSettings(path, value, add);
+  checkBend(path, value, add);
 };
 
 const validateTriggerCell: CellValidator = (path, value, add) => {

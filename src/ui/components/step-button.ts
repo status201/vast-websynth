@@ -12,6 +12,21 @@ export interface StepViz {
   ratchet: number;  // >1 → tick marks on the top edge
   tie: boolean;     // fill bridges into the next cell
   micro: number;    // ±notches → the fill slides left/right inside the cell
+  /** Seq only (step-settings.md v5): a non-zero bend draws a rising or falling
+   *  stroke in the lower corner. Absent on trigger cells. */
+  bend?: number;
+  bendShape?: 'scoop' | 'fall';
+}
+
+/**
+ * Which way the pitch *moves* during a bend: +1 rising, -1 falling, 0 none. A
+ * scoop travels from `bend` away back to the note, so it moves against the sign;
+ * a fall moves with it.
+ */
+export function bendDirection(v: Pick<StepViz, 'bend' | 'bendShape'>): number {
+  const b = v.bend ?? 0;
+  if (b === 0) return 0;
+  return (v.bendShape === 'fall' ? 1 : -1) * Math.sign(b);
 }
 
 /**
@@ -26,6 +41,7 @@ export class StepButton {
   private _playing = false;
   private _accent: 'orange' | 'red' | 'yellow';
   private viz: StepViz | null = null;
+  private bendDir = 0;
 
   private static ACCENT_CLASS: Record<string, string> = {
     orange: '',
@@ -108,6 +124,12 @@ export class StepButton {
     if (prev?.micro !== v.micro) {
       this.el.style.setProperty('--sb-micro', String(v.micro / MICRO_UNITS));
     }
+    const dir = bendDirection(v);
+    if (dir !== this.bendDir) {
+      this.bendDir = dir;
+      this.el.classList.toggle(styles.bendUp!, dir > 0);
+      this.el.classList.toggle(styles.bendDown!, dir < 0);
+    }
     this.viz = {
       velocity: v.velocity, gate: v.gate, prob: v.prob,
       ratchet: v.ratchet, tie: v.tie, micro: v.micro,
@@ -128,4 +150,6 @@ export class StepButton {
   static get tieClass(): string { return styles.tie!; }
   static get probClass(): string { return styles.prob!; }
   static get ratchetClass(): string { return styles.ratchet!; }
+  static get bendUpClass(): string { return styles.bendUp!; }
+  static get bendDownClass(): string { return styles.bendDown!; }
 }

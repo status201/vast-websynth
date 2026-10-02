@@ -1,6 +1,7 @@
 import { describe, it, expect, vi, afterEach } from 'vitest';
 import { StepSettingsEditor, stepTitle } from '../../src/ui/components/step-settings';
-import { TRIGGER_CELL_DEFAULTS, type StepSettings } from '../../src/state/patterns';
+import { TRIGGER_CELL_DEFAULTS, makeSeqTrack, type SeqStep, type StepSettings } from '../../src/state/patterns';
+import { bendDirection } from '../../src/ui/components/step-button';
 
 /**
  * The shared per-step edit row. Covers the drag-listener lifecycle
@@ -276,5 +277,70 @@ describe('stepTitle', () => {
       .toBe('vel 100% · gate 100% · prob 50% · ×3 · tie');
     expect(stepTitle({ velocity: 1, gate: 1, prob: 1, ratchet: 1, tie: false, micro: -4 }))
       .toBe('vel 100% · gate 100% · prob 100% · micro -4/24');
+  });
+});
+
+// step-settings.md v5 — the Bend gesture inventory (seq only).
+describe('the Bend controls', () => {
+  function buildSeq() {
+    const step: SeqStep = { ...makeSeqTrack()[0]!, on: true };
+    const editor = new StepSettingsEditor({
+      testidPrefix: 'seq',
+      get: () => step,
+      set: (p) => Object.assign(step, p),
+      bend: { get: () => step, set: (p) => Object.assign(step, p) },
+    });
+    document.body.appendChild(editor.el);
+    const q = (id: string) => editor.el.querySelector<HTMLElement>(`[data-testid="${id}"]`)!;
+    return { editor, step, q };
+  }
+
+  it('+ twice and Fall set bend 2, shape fall', () => {
+    const { step, q } = buildSeq();
+    q('seq-bend-inc').click();
+    q('seq-bend-inc').click();
+    q('seq-bend-fall').click();
+    expect(step.bend).toBe(2);
+    expect(step.bendShape).toBe('fall');
+  });
+
+  it('arrow keys step by a semitone without reaching window; double-click resets', () => {
+    const { step, editor, q } = buildSeq();
+    const onWindow = vi.fn();
+    window.addEventListener('keydown', onWindow);
+    q('seq-bend-track').dispatchEvent(new KeyboardEvent('keydown', { key: 'ArrowLeft', bubbles: true }));
+    expect(step.bend).toBe(-1);
+    expect(onWindow).not.toHaveBeenCalled();
+    window.removeEventListener('keydown', onWindow);
+    q('seq-bend-track').dispatchEvent(new MouseEvent('dblclick', { bubbles: true }));
+    expect(step.bend).toBe(0);
+    editor.refresh();
+    expect(q('seq-bend-value').textContent).toBe('0');
+  });
+
+  it('dims the shape pair while the bend is 0, and lights the active shape', () => {
+    const { step, editor, q } = buildSeq();
+    editor.refresh();
+    const shape = q('seq-bend-shape');
+    const dimmedAtZero = shape.className;
+    step.bend = 3;
+    editor.refresh();
+    expect(shape.className).not.toBe(dimmedAtZero);
+    expect(q('seq-bend-scoop').classList.contains('on')).toBe(true);
+    expect(q('seq-bend-fall').classList.contains('on')).toBe(false);
+  });
+
+  it('the drum row has no Bend controls', () => {
+    const { editor } = build();
+    expect(editor.el.querySelector('[data-testid="drum-bend"]')).toBeNull();
+  });
+
+  it('the cell stroke follows the way the pitch moves', () => {
+    expect(bendDirection({ bend: 0, bendShape: 'fall' })).toBe(0);
+    expect(bendDirection({})).toBe(0);
+    expect(bendDirection({ bend: -2, bendShape: 'scoop' })).toBe(1);  // rises onto the note
+    expect(bendDirection({ bend: 2, bendShape: 'scoop' })).toBe(-1);  // comes down onto it
+    expect(bendDirection({ bend: -12, bendShape: 'fall' })).toBe(-1); // a dive
+    expect(bendDirection({ bend: 12, bendShape: 'fall' })).toBe(1);
   });
 });

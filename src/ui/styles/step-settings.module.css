@@ -117,4 +117,10 @@
     font-size: 13px;
     line-height: 1;
   }
+
+  /* A control that still edits but is not audible yet — the bend shape while
+     the bend is 0 (step-settings.md, the Bend gesture inventory). */
+  .inert {
+    opacity: 0.5;
+  }
 }

@@ -205,12 +205,14 @@
     },
     "seqStep": {
       "type": "object",
-      "description": "A sequencer step. Requires on + note; the per-step settings (velocity/gate/prob/ratchet/tie/micro) are optional and defaulted.",
+      "description": "A sequencer step. Requires on + note; the per-step settings (velocity/gate/prob/ratchet/tie/micro) and the seq-only bend/bendShape are optional and defaulted.",
       "required": ["on", "note"],
       "allOf": [{ "$ref": "#/$defs/stepSettings" }],
       "properties": {
         "on": { "type": "boolean", "description": "Whether this step triggers a note." },
-        "note": { "type": "integer", "minimum": 0, "maximum": 127, "description": "MIDI note number, 0..127." }
+        "note": { "type": "integer", "minimum": 0, "maximum": 127, "description": "MIDI note number, 0..127." },
+        "bend": { "type": "integer", "minimum": -12, "maximum": 12, "description": "Per-note pitch bend in semitones, -12..12. 0 = no bend (default)." },
+        "bendShape": { "enum": ["scoop", "fall"], "description": "scoop = start bend semitones away and slide onto the note; fall = start on the note and bend away. Default scoop; inert while bend is 0." }
       }
     },
     "triggerCell": {
