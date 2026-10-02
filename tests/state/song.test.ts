@@ -11,7 +11,7 @@ import { ParamBus, registerDefaults } from '../../src/state/params';
 import { PatternStore, MIN_BANK_COUNT, MAX_BANK_COUNT } from '../../src/state/patterns';
 import { XyPadStore, XY_DEFAULT_ASSIGN } from '../../src/state/xy-pad';
 import { fakeArrangement, fakeArr } from '../fixtures/fake-arrangement';
-import { SONG_VERSION } from '../../src/state/song-version';
+import { SONG_VERSION, KNOWN_SONG_VERSIONS } from '../../src/state/song-version';
 import {
   barTicks, DEFAULT_BAR_TICKS, DEFAULT_BEATS, DEFAULT_BEAT_UNIT, DEFAULT_LANE_RATE, LEN_FOLLOW,
 } from '../../src/state/meter';
@@ -763,7 +763,7 @@ describe('Song — meter back-compat (meter.md REQ-meter-needs-no-song-file-bump
   });
 });
 
-describe('SongFile v8 — 4..8 banks per machine (song-mode.md REQ-song-file-v8-widens-the-bank-count)', () => {
+describe('SongFile v8/v9 — MIN..MAX_BANK_COUNT banks per machine (song-mode.md REQ-song-file-v8-widens-the-bank-count, REQ-song-file-v9-raises-the-bank-ceiling)', () => {
   const applyTo = (file: SongFile) => {
     const bus = new ParamBus();
     registerDefaults(bus);
@@ -778,10 +778,12 @@ describe('SongFile v8 — 4..8 banks per machine (song-mode.md REQ-song-file-v8-
     registerDefaults(bus);
     const file = Song.capture(bus, new PatternStore(), fakeArr(), 'x', new XyPadStore());
     expect(file.version).toBe(SONG_VERSION);
-    expect(SONG_VERSION).toBe(8);
+    expect(SONG_VERSION).toBe(9);
+    // v9's ceiling: sixteen banks, A..P (banks.md REQ-a-machine-owns-its-bank-count).
+    expect(MAX_BANK_COUNT).toBe(16);
   });
 
-  it('an eight-bank store round-trips through capture/validate/apply', async () => {
+  it('a fully grown (sixteen-bank) store round-trips through capture/validate/apply', async () => {
     const bus = new ParamBus();
     registerDefaults(bus);
     const patterns = new PatternStore();
@@ -851,8 +853,25 @@ describe('SongFile v8 — 4..8 banks per machine (song-mode.md REQ-song-file-v8-
     expect(() => patterns.seq).not.toThrow();
   });
 
+  it('a v8 file carrying eight banks still loads unchanged (v9 only raised the ceiling)', () => {
+    const file = { ...demo(), version: 8 } as SongFile;
+    file.seqBanks = Array.from({ length: 8 }, (_, b) => file.seqBanks[b % MIN_BANK_COUNT]!.map((s) => ({ ...s })));
+    const { patterns } = applyTo(file);
+    expect(patterns.seqBanks).toHaveLength(8);
+    expect(patterns.drumBanks).toHaveLength(MIN_BANK_COUNT);
+  });
+
+  it('a chain naming bank P grows the machine to the ceiling (v9)', () => {
+    const file = demo();
+    file.seqChain = { enabled: true, steps: [0, MAX_BANK_COUNT - 1] }; // names bank P
+    const { patterns, arr } = applyTo(file);
+    expect(patterns.seqBanks).toHaveLength(MAX_BANK_COUNT);
+    expect(arr.seq.steps).toEqual([0, MAX_BANK_COUNT - 1]);
+    expect(patterns.bankHasContent('seq', MAX_BANK_COUNT - 1)).toBe(false);
+  });
+
   it('every known version still loads, including the pre-v8 ones', () => {
-    for (const v of [1, 2, 3, 4, 5, 6, 7, 8]) {
+    for (const v of KNOWN_SONG_VERSIONS) {
       const file = { ...demo(), version: v } as SongFile;
       const { patterns } = applyTo(file);
       expect(patterns.seqBanks, `v${v}`).toHaveLength(MIN_BANK_COUNT);

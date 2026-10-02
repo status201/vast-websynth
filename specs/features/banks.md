@@ -1,9 +1,12 @@
-# Pattern banks (A–H)
+# Pattern banks (A–P)
 
 ```yaml
 id: banks
 status: implemented
-version: 6   # v6: a machine owns its own bank count, 4..8, and the count IS the array
+version: 7   # v7: the ceiling rises to 16 (A–P) — SongFile v9 (song-mode.md
+             #     REQ-song-file-v9-raises-the-bank-ceiling); the bar wraps rather than pages
+             #     (REQ-the-bank-bar-wraps-rather-than-pages)
+             # v6: a machine owns its own bank count, 4..8, and the count IS the array
              #     length (REQ-a-machine-owns-its-bank-count, ADR-022)
              # v5: a bank stores 16 cells whatever the meter plays (REQ-bank-always-stores-sixteen-cells)
              # v4: the per-bank content dot is specified (REQ-content-dot-covers-every-lane) — it must count
@@ -23,7 +26,7 @@ source:
   - src/ui/panels/*-panel.ts
 ```
 
-Four to eight banks per machine, each machine counting independently, with the
+Four to sixteen banks per machine, each machine counting independently, with the
 **edit bank vs play bank** split that lets you arrange/perform one pattern while
 editing another.
 
@@ -41,8 +44,9 @@ entire melodic vocabulary of any song" — and [arrangement-rest](arrangement-re
 REQ-rest-is-a-negative-sentinel exists so a lane can sit out a bar without spending one of the four.
 Both are good features that were reached for partly because banks were scarce.
 v6 removes the scarcity: a machine starts at four and the user adds a fifth
-through an eighth on demand, per machine. Nothing about a four-bank song changes
-— not its bytes, not its behaviour (ADR-022).
+through an eighth on demand, per machine. v7 raises that ceiling to sixteen
+(A–P) — the same optional growth, just further. Nothing about a four-bank song
+changes — not its bytes, not its behaviour (ADR-022).
 
 ## Requirements
 
@@ -99,7 +103,7 @@ through an eighth on demand, per machine. Nothing about a four-bank song changes
   copied while short copies whole.
 
 - **REQ-a-machine-owns-its-bank-count** (v6) — **Each machine has its own bank
-  count, `MIN_BANK_COUNT`..`MAX_BANK_COUNT` (4..8), and the count *is* the length
+  count, `MIN_BANK_COUNT`..`MAX_BANK_COUNT` (4..16 since v7; 4..8 in v6), and the count *is* the length
   of that machine's bank array.** There is no separate stored count, in the store
   or in the `SongFile` — a second copy of a number the arrays already carry is a
   second thing to keep honest, and the first malformed payload desyncs them
@@ -148,19 +152,29 @@ through an eighth on demand, per machine. Nothing about a four-bank song changes
   banks from the shared builders, then fills authoritatively with
   `Object.assign(dst, DEFAULTS, src ?? {})` at all three nesting levels. With a
   fixed count this was latent; with a variable one, loading a 4-bank song after
-  an 8-bank one would otherwise leave E–H holding the previous song's patterns.
+  a grown one would otherwise leave E onwards holding the previous song's patterns.
   The edit-bank cursors are re-clamped **unconditionally** after the resize, not
   only when the snapshot carries one — a `SongFile` never carries them, so the
-  conditional form never ran on the load path, and a cursor parked on H would
+  conditional form never ran on the load path, and a cursor parked on P would
   index past a freshly-shrunk array on the next read.
 
   A section the snapshot **omits entirely** is the one exception, and it inherits
   *whole*: content and count together. That is what the sampler's documented
   inherit across a load already promised ([song-mode](song-mode.md)
   REQ-apply-resets-to-defaults-first) — a v1 file carrying no `samplerBanks` keeps
-  the user's kit, so it must not quietly destroy banks E–H of it either. A caller's
+  the user's kit, so it must not quietly destroy its grown banks (E onwards) either. A caller's
   count may still **raise** an inherited length (a chain naming a bank past it),
   never lower it.
+
+- **REQ-the-bank-bar-wraps-rather-than-pages** (v7) — **At the ceiling a bank bar
+  is ~16 letters wide, more than a phone is, so the letter row wraps instead of
+  overflowing.** The `BankBar`'s segment and the Song tab's chain palette are
+  wrapping flex rows: one line wherever they fit, a second line only when the
+  panel is too narrow — never a horizontal scroll, and never a page or a
+  disclosure that hides a bank. A bank that holds data must stay one tap away
+  ([responsive-machine-header](responsive-machine-header.md)
+  REQ-machine-header-wraps-at-every-width). The `+`/`−` arms live inside the
+  segment and wrap with the letters, so they always sit after the last bank.
 
 ## Technical design
 
@@ -181,7 +195,7 @@ PatternStore:  # src/state/patterns.ts
   canAddBank(m) / addBank(m): boolean
   canRemoveBank(m) / removeBank(m): boolean
   onBankCountChange(fn) -> unsubscribe
-constants: MIN_BANK_COUNT = 4, MAX_BANK_COUNT = 8
+constants: MIN_BANK_COUNT = 4, MAX_BANK_COUNT = 16   # 8 until v7 (SongFile v8)
            BANK_LABELS — DERIVED from MAX_BANK_COUNT, one label per possible bank
 type Machine: 'seq' | 'drum' | 'sampler' | 'motion'   # Arrangement's LaneName aliases it
 clampChainStep(i, bankCount): number   # bankCount is REQUIRED — a default is how a
@@ -236,7 +250,9 @@ follow (REQ-follow-tracks-the-play-bank):
 A machine's count is **not** a stored field. It is the length of that machine's
 array in the `SongFile`, so a four-bank song is byte-identical to its pre-v6 form
 and every v1–v7 file loads as a four-bank song ([song-mode](song-mode.md)
-REQ-song-file-v8-widens-the-bank-count, ADR-022, ADR-007). The ordering inside
+REQ-song-file-v8-widens-the-bank-count, ADR-022, ADR-007). v8 files carry
+4..8; v9 raises the ceiling to 16 (REQ-song-file-v9-raises-the-bank-ceiling) and
+nothing else. The ordering inside
 `Song.apply` is load-bearing: `restore()` runs **before** the chain setters, so a
 chain is always re-clamped against freshly-sized arrays and can never outlive the
 banks it names.
@@ -290,8 +306,21 @@ Scenario: Adding a bank reveals exactly one more, per machine (v6)
   When the user taps the bank bar's + arm
   Then the Sequencer shows five banks, A..E, and its arrays are five long
   And the Drum machine still shows four
-  And tapping + four more times stops at eight with the arm hidden
+  And tapping + until the ceiling stops at sixteen (A..P) with the arm hidden
 # pinned by: tests/state/patterns.test.ts, tests/ui/bank-bar.test.ts, e2e/banks.spec.ts
+
+Scenario: A machine grown to sixteen banks fits a phone (v7)
+  Given a 375px-wide viewport
+  When the Sequencer is grown to sixteen banks
+  Then every bank letter A..P is visible and the panel does not scroll horizontally
+  And the bank bar has wrapped onto a second line rather than hiding a bank
+# pinned by: e2e/banks.spec.ts
+
+Scenario: A chain may name bank P (v7)
+  Given a song whose seqBanks is four long but whose seqChain names bank index 15
+  When it is applied
+  Then the Sequencer has sixteen banks and P is blank
+# pinned by: tests/state/song.test.ts
 
 Scenario: Removing a bank refuses while it is in use (v6, edge)
   Given the Sequencer has five banks and bank E holds steps
@@ -303,8 +332,8 @@ Scenario: Removing a bank refuses while it is in use (v6, edge)
 Scenario: A four-bank song loads after an eight-bank one without residue (v6, regression)
   Given the Sequencer was grown to eight and every bank holds steps
   When a four-bank song is loaded
-  Then the Sequencer has four banks and E..H are gone, not stale
-  And an edit bank parked on H is re-clamped rather than indexing past the array
+  Then the Sequencer has four banks and E onwards are gone, not stale
+  And an edit bank parked on the last bank is re-clamped rather than indexing past the array
 # pinned by: tests/state/patterns.test.ts, tests/state/song.test.ts
 
 Scenario: Removing the bank being edited repaints the grid (v6, regression)
@@ -341,9 +370,9 @@ Scenario: A chain naming a bank the file omits grows the machine (v6)
 
 - **Raising the ceiling again** is one line — `MAX_BANK_COUNT` — plus whatever
   `tests/state/authoring-docs.test.ts` names, since it pins every bank dimension
-  in both published schemas and `public/llms.txt` to the constants. Two things it
-  cannot pin, and which want a human eye before the next raise: whether the
-  machine header still fits (it already wraps at eight — see
-  [responsive-machine-header](responsive-machine-header.md)), and whether one
-  unwrapped row of letters is still the right shape past roughly ten banks, or
-  whether the bar wants paging by then.
+  in both published schemas and `public/llms.txt` to the constants, plus a
+  `SONG_VERSION` bump and a new top rung in the dialect's version ladder (the v7
+  raise to sixteen did exactly that — ADR-022's amendment). The open question this
+  section used to carry — one row of letters or paging past ~ten banks — was
+  answered at v7 by REQ-the-bank-bar-wraps-rather-than-pages. Past sixteen the
+  letters alone would need a second alphabet, which is a design change, not a raise.

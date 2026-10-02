@@ -3,7 +3,10 @@
 ```yaml
 id: responsive-machine-header
 status: implemented
-version: 4   # v4: the BankBar is VARIABLE width — a machine holds 4..8 banks plus two
+version: 5   # v5: at the 16-bank ceiling the BankBar is wider than a phone, so its segment
+             #     wraps internally (REQ-the-bank-segment-wraps-internally; banks.md
+             #     REQ-the-bank-bar-wraps-rather-than-pages)
+             # v4: the BankBar is VARIABLE width — a machine holds 4..8 banks plus two
              #     resize arms (banks.md REQ-a-machine-owns-its-bank-count), so the ~57px
              #     budget below is spent several times over at the ceiling and the row
              #     wraps as the common case rather than the edge
@@ -56,10 +59,12 @@ on Linux CI, where the cluster then wraps. That wrap is **correct** behaviour
 whether the row happens to fit at any one width. Anything else added to this row
 should be measured against that ~57 px, not assumed free.
 
-**And the `BankBar` is no longer a fixed width.** A machine now holds 4 to 8 banks
+**And the `BankBar` is no longer a fixed width.** A machine now holds 4 to 16 banks
 ([banks](banks.md) REQ-a-machine-owns-its-bank-count), each button ~30 px plus a
 2 px gap, plus the two resize arms — so a machine grown to eight spends roughly
-180 px more than the four-bank row this budget was measured against. A fully grown
+180 px more than the four-bank row this budget was measured against, and one
+grown to sixteen ~430 px more: the segment alone is then wider than a phone,
+which is why it wraps internally (REQ-the-bank-segment-wraps-internally). A fully grown
 Sampler header therefore **wraps at 1280 px**, and at wider widths too. That is
 still correct under REQ-machine-header-wraps-at-every-width rather than a
 regression: the row wraps, the `.seg` stays one piece, and no bank is hidden. It
@@ -140,6 +145,16 @@ somewhere predictable rather than mid-cluster.
   (REQ-machine-header-wraps-at-every-width) absorbs it — that is exactly what
   REQ-machine-header-wraps-at-every-width exists for — so a narrower fit is
   expected and correct, not a regression.
+
+- **REQ-the-bank-segment-wraps-internally** (v5) — **The `BankBar`'s `.seg`
+  wraps its own letters** (`flex-wrap: wrap`, `max-width: 100%`): one line
+  wherever it fits, and onto a second line only once the segment is wider than
+  the space the header row gives it. Before v5 the row could wrap *around* the
+  segment but never *through* it — fine at eight banks (~315 px), but sixteen
+  (~580 px) would force a horizontal scrollbar on a 375 px phone, the very thing
+  REQ-machine-header-wraps-at-every-width forbids. The Song tab's chain palette
+  (`.addRow`) wraps the same way for the same reason. No bank is hidden, paged or
+  collapsed ([banks](banks.md) REQ-the-bank-bar-wraps-rather-than-pages).
 
 ## Technical design
 
@@ -264,6 +279,13 @@ Scenario: With headroom, the FX cluster shares the machine controls' row (edge)
   # Deliberately not asserted at 1280px: the bypassed row leaves only ~57px of
   # slack there, so wider font metrics legitimately wrap it (REQ-machine-header-wraps-at-every-width).
 # pinned by: e2e/machine-header.spec.ts
+
+Scenario: A sixteen-bank machine still fits a phone (v5, REQ-the-bank-segment-wraps-internally)
+  Given the app is open at a 375px-wide viewport
+  And the Sequencer has been grown to sixteen banks
+  Then the panel does not scroll horizontally
+  And bank P is visible below bank A's row
+# pinned by: e2e/banks.spec.ts
 
 Scenario: A bypassed effect still anchors its help badge (regression)
   Given fx.sampler.reverb.on is 0 (the default)

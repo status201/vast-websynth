@@ -6,6 +6,7 @@ import { UI_ICONS, iconLabel, type IconName } from '../components/ui-icons';
 import type { ParamBus } from '../../state/params';
 import { EQ_BANDS } from '../../state/eq';
 import { formatHzFull } from '../components/scope';
+import { BANK_LABELS, MIN_BANK_COUNT, MAX_BANK_COUNT } from '../../state/patterns';
 import {
   renderTempoSync,
   renderFilterCutoff,
@@ -26,6 +27,17 @@ const g = (name: IconName, label: string): string =>
 
 /** The Clear button, which wears a caret. Referred to in three topics. */
 const CLEAR_BTN = `<strong>${iconLabel('caretDown', 'Clear', 'after')}</strong>`;
+
+/**
+ * How a machine's banks grow, worded from the constants (banks.md
+ * REQ-a-machine-owns-its-bank-count) — two topics say it, and both said "up to
+ * eight" by hand until the ceiling moved: "4 banks (A–D) — tap + on the bank bar
+ * for up to 16 (A–P)".
+ */
+const BANK_GROWTH =
+  `${MIN_BANK_COUNT} banks (<strong>A–${BANK_LABELS[MIN_BANK_COUNT - 1]}</strong>) — ` +
+  `tap <strong>+</strong> on the bank bar for up to ${MAX_BANK_COUNT} ` +
+  `(<strong>A–${BANK_LABELS[MAX_BANK_COUNT - 1]}</strong>)`;
 
 /** A loud, instantly-recognisable demo for the "load a demo" headline step. */
 export const DEMO_FOR_TOUR = 'Night Rider';
@@ -842,7 +854,7 @@ export const HELP_TOPICS: Record<TopicId, HelpTopic> = {
       'give it a <strong>Motion</strong> lane to move a track across the field ' +
       'as the song plays.</p>' +
       GRID_GESTURES +
-      '<p>It starts with four banks (<strong>A–D</strong>) — tap <strong>+</strong> on the bank bar for up to eight — '
+      `<p>It starts with ${BANK_GROWTH} — `
       + 'which you fill with different riffs and chain ' +
       'together in Song mode. Switch the sequencer on with its <strong>on</strong> toggle.</p>',
   },
@@ -914,8 +926,7 @@ export const HELP_TOPICS: Record<TopicId, HelpTopic> = {
       'by clicking its name. Runs while the transport plays.</p>' +
       GRID_GESTURES +
       '<p><strong>MASTER</strong> sets the kit volume, and there are dedicated drum effects. It ' +
-      'starts with four banks (<strong>A–D</strong>) — tap <strong>+</strong> on the bank bar for ' +
-      'up to eight — which chain together in Song mode.</p>',
+      `starts with ${BANK_GROWTH} — which chain together in Song mode.</p>`,
   },
   sampler: {
     title: 'Sampler',

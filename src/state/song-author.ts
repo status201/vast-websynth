@@ -44,6 +44,15 @@ import { AUTHOR_FORMAT, AUTHOR_VERSION } from './song-author-format';
 // (song-authoring-dialect.md REQ-the-expander-loads-with-the-first-author-file).
 export { AUTHOR_FORMAT, AUTHOR_VERSION, isAuthorSong } from './song-author-format';
 
+/**
+ * The bank ceiling SongFile v8 shipped with (A..H). `MAX_BANK_COUNT` has since
+ * moved on (v9: A..P), so the version ladder keeps the old number here: a song
+ * within it stays a v8 file an older build can still open; one past it is v9
+ * (song-authoring-dialect.md REQ-the-emitted-version-is-the-lowest-that-fits).
+ * Frozen history, not a tunable — never raise it.
+ */
+const V8_BANK_CEILING = 8;
+
 /** Defaults for an authored seq step that is ON (off steps get the same + note 60). */
 const SEQ_ON_DEFAULTS = { velocity: 0.85, gate: 0.5, prob: 1, ratchet: 1, tie: false, micro: 0 };
 
@@ -916,21 +925,26 @@ export function expandAuthorSong(value: unknown): SongValidation {
     bank.some((t) => t?.param && t.steps.some((c) => c.on)));
   if (motion) autoEnable('motion.on', hasHits([motion.banks.flat()]) || trackHasAnchors);
 
-  // v8: any machine carrying more than the mandatory floor of banks. Only the
-  // count matters, not whether the extra banks hold anything — an author who
-  // wrote five banks gets five back (banks.md REQ-a-machine-owns-its-bank-count).
-  const anyMachineGrown = [
+  // v8/v9: does any machine need more than `ceiling` banks? A machine needs them
+  // when it CARRIES them — only the count matters, not whether the extra banks
+  // hold anything; an author who wrote five banks gets five back (banks.md
+  // REQ-a-machine-owns-its-bank-count) — or when a chain NAMES one, even with the
+  // arrays stopping short: that reference is legal and grows the machine on load
+  // (banks.md REQ-a-chain-reference-grows-the-machine), so it is grown content with
+  // no array length to give it away. Stamped lower, the file meets an older build
+  // as "steps[i] must be an integer 0..3" (or 0..7) — the corrupt-looking error each
+  // bump exists to replace (ADR-022).
+  const bankCounts = [
     seqBanks.length, drumBanks.length, samplerBanks?.length ?? 0,
     motion?.banks.length ?? 0, motionTracks?.length ?? 0,
-  ].some((n) => n > MIN_BANK_COUNT);
-  // ...and a chain naming a bank past the floor, even when the arrays stop AT the
-  // floor: that reference is legal and grows the machine on load (banks.md
-  // REQ-a-chain-reference-grows-the-machine), so it is v8 content with no array
-  // length to give it away. Stamped lower, the file meets an older build as
-  // "steps[i] must be an integer 0..3" — the corrupt-looking error the bump exists
-  // to replace (ADR-022).
-  const anyChainGrown = [seqChain, drumChain, samplerChain, motionChain]
-    .some((c) => highestChainBank(c?.steps) >= MIN_BANK_COUNT);
+  ];
+  const chains = [seqChain, drumChain, samplerChain, motionChain];
+  const needsMoreBanksThan = (ceiling: number): boolean =>
+    bankCounts.some((n) => n > ceiling)
+    || chains.some((c) => highestChainBank(c?.steps) >= ceiling);
+  // v8 grew a machine past the floor; v9 past v8's own ceiling.
+  const anyMachineGrown = needsMoreBanksThan(MIN_BANK_COUNT);
+  const anyMachinePastV8 = needsMoreBanksThan(V8_BANK_CEILING);
   // ...and the same shape one level in: a motion bank using a lane past the
   // serialized floor. The expander pads every bank to MOTION_TRACK_COUNT, so the
   // array's own length says nothing — the DEPTH is what carries the fact
@@ -947,7 +961,9 @@ export function expandAuthorSong(value: unknown): SongValidation {
     // still expands to the same v3 file it always did (ADR-007). Each bump adds a
     // NEW TOP rung; replacing an existing one with SONG_VERSION would make every
     // simple song jump version (recipes/evolve-the-song-format.md).
-    version: anyMachineGrown || anyChainGrown || anyMotionTrackGrown
+    version: anyMachinePastV8
+      ? 9
+      : anyMachineGrown || anyMotionTrackGrown
       ? 8
       : seqTranspose.some((t) => t !== 0)
         ? 7

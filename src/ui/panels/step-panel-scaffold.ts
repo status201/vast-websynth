@@ -61,7 +61,7 @@ interface LaneHooks {
   onStep(fn: (idx: number) => void): () => void;
   /** Clear the edit bank; true when something was actually cleared (REQ-motion-has-the-fourth-chain-lane). */
   clearBank(): boolean;
-  /** This machine's bank count, 4..8 (banks.md REQ-a-machine-owns-its-bank-count). */
+  /** This machine's bank count, MIN_BANK_COUNT..MAX_BANK_COUNT (banks.md REQ-a-machine-owns-its-bank-count). */
   bankCount(): number;
   addBank(): void;
   removeBank(): void;
@@ -166,7 +166,7 @@ function laneHooks(engine: StudioApi, lane: StepLane): LaneHooks {
   }
 }
 
-/** The lane's A–H bank bar, testids namespaced by the lane name. */
+/** The lane's lettered bank bar, testids namespaced by the lane name. */
 export function bankBarFor(engine: StudioApi, lane: StepLane): BankBar {
   const h = laneHooks(engine, lane);
   return new BankBar({

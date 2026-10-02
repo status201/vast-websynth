@@ -3,7 +3,9 @@
 ```yaml
 id: evolve-the-song-format
 status: implemented
-version: 6   # v6: there are TWO kinds of bump. v8 added no field at all — it widened an
+version: 7   # v7: v9 is the second dimension bump — it only RAISES v8's bank ceiling (8 -> 16),
+             #     so its whole cost is step 4b plus a new top rung in the dialect ladder (4c)
+             # v6: there are TWO kinds of bump. v8 added no field at all — it widened an
              #     existing dimension — which makes steps 2 and 5 near no-ops and moves
              #     every risk into the validator, the schemas and llms.txt's DIMENSION
              #     prose, which no version pin can see (banks.md, ADR-022)
@@ -54,6 +56,13 @@ The contract: **additive, optional, defaulted** — never required, never repurp
 > the backstop new assertions of its own — that is what makes the *next* raise a
 > one-line change. "Additive" still holds, read as: **a v(N) reader accepts every
 > v(<N) file**. A widened range satisfies that; a narrowed one never could.
+>
+> v9 proved it: raising the ceiling from 8 to 16 banks was `MAX_BANK_COUNT`, the
+> `SONG_VERSION` bump, the literals in both schemas and `llms.txt` that the
+> backstop named, and one new dialect rung (`V8_BANK_CEILING` in
+> `src/state/song-author.ts` keeps the old ceiling so the v8 rung still means
+> "grown, but within eight"). A *raised* ceiling still owes the bump: without it
+> an older build reads a twelve-bank file as corrupt rather than as newer.
 
 ## Steps (going from v6 → v7)
 

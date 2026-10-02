@@ -749,7 +749,33 @@ describe('the version ladder (recipes/evolve-the-song-format.md)', () => {
     expect(file.version).toBe(3);
   });
 
-  it('a grown machine is the new TOP rung, v8', () => {
+  it('a machine past v8\'s eight-bank ceiling is the TOP rung, v9', () => {
+    // song-mode.md REQ-song-file-v9-raises-the-bank-ceiling: a v8 build caps a
+    // machine at eight, so anything past H must say 9 rather than meet that build
+    // as "must have 4..8 banks (got 9)".
+    const nine = expandOk(base({ seq: Array.from({ length: 9 }, () => ['C4']) }));
+    expect(nine.seqBanks).toHaveLength(9);
+    expect(nine.version).toBe(9);
+    const full = expandOk(base({ drums: Array.from({ length: MAX_BANK_COUNT }, () => ({ kick: [0] })) }));
+    expect(full.drumBanks).toHaveLength(MAX_BANK_COUNT);
+    expect(full.version).toBe(9);
+    // A chain naming bank I or later — letter or index — with four banks written.
+    const p = expandOk(base({ seq: [['C4']], seqChain: 'A P' }));
+    expect(p.seqBanks).toHaveLength(4);
+    expect(p.seqChain.steps).toEqual([0, MAX_BANK_COUNT - 1]);
+    expect(p.version).toBe(9);
+    expect(expandOk(base({ seq: [['C4']], seqChain: 'a i' })).version).toBe(9);
+    expect(expandOk(base({ drums: [{ kick: [0] }], drumChain: [0, 8] })).version).toBe(9);
+    // Eight exactly is still v8 — it fits the v8 ceiling.
+    expect(expandOk(base({ seq: Array.from({ length: 8 }, () => ['C4']), seqChain: 'A H' })).version).toBe(8);
+  });
+
+  it('a letter past P is still refused', () => {
+    const res = expandAuthorSong(base({ seq: [['C4']], seqChain: 'A Q' }));
+    expect(res.ok).toBe(false);
+  });
+
+  it('a grown machine is the v8 rung', () => {
     const five = expandOk(base({ seq: [['C4'], [], [], [], ['G4']] }));
     expect(five.seqBanks).toHaveLength(5);
     expect(five.version).toBe(8);

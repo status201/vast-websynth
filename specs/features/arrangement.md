@@ -222,7 +222,7 @@ Arrangement:  # src/audio/transport/arrangement.ts
 ChainLane: { enabled: boolean, steps: number[], transpose: number[] }
   # steps ∈ { REST } ∪ 0..(that machine's bank count - 1); transpose ∈ ±MAX_CHAIN_TRANSPOSE,
   # same length as steps. The bound is PER LANE (banks.md REQ-bank-index-clamps): the
-  # sequencer may have grown to eight banks while the drum machine is still at four.
+  # sequencer may have grown to sixteen banks while the drum machine is still at four.
 
 # src/state/limits.ts
 MAX_CHAIN_TRANSPOSE = 24    # ±2 octaves, matching drum.t*.tune's range

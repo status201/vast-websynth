@@ -237,10 +237,15 @@
 
   /* align-items:center, or the taller rest button stretches A/B/C/D and their
      letters pin to the top of the stretched box (.btn is a column flex). */
+  /* One button per bank, up to 16 (A..P) — wider than a phone, so it wraps
+     (features/banks.md REQ-the-bank-bar-wraps-rather-than-pages). */
   .addRow {
     display: inline-flex;
+    flex-wrap: wrap;
     align-items: center;
     gap: 3px;
+    min-width: 0;
+    max-width: 100%;
   }
 
   /* Scoped under .addRow (0-2-0) so it beats bank-bar's .btn/.add deterministically

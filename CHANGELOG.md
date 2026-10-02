@@ -18,6 +18,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ### Added
 
+- **Up to sixteen pattern banks per machine (A–P).** The bank bar's **+** now keeps going past H to I, J … P. The extra banks are still optional and per machine, so a song that doesn't use them is unchanged. On a narrow screen the bank bar and the Song tab's chain palette wrap onto a second line instead of scrolling sideways. Songs now save as format **v9** (an AI-authored song is stamped v9 only if it uses more than eight banks), so an older version of the app reports a newer song instead of calling the file broken. The JSON schemas, `llms.txt`, the AI prompt and the MCP song guide describe the new range.
 - The drum and sampler grids work from the keyboard: Tab into a grid, move with the arrow keys and press Enter to toggle a step. Space still plays and stops.
 - Drag a song, project zip or preset file onto the window to import it. Dropping a file no longer makes the browser leave the app.
 - The **Clear ▾** menu on the sequencer, drum and sampler grids can **shift the bank one step left or right**. The pattern wraps around within the bar, every step keeps its settings, and one Undo puts it back.

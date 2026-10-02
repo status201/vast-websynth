@@ -101,3 +101,9 @@ new files degrade gracefully. The procedure is captured in
 > The bump exists only so an older build says "unsupported song version 8" rather
 > than "seqBanks must have 4 banks", which reads like a corrupt file. The decision
 > is unchanged.
+
+> **Follow-up (2026-10-02):** **v9** raises the same dimension's ceiling from 8 to
+> 16 banks per machine ([`features/song-mode`](../features/song-mode.md)
+> REQ-song-file-v9-raises-the-bank-ceiling) — again no field, again a relaxation,
+> again bumped only so an older build names the version instead of a range. The
+> decision is unchanged.

@@ -253,7 +253,7 @@ or when editing a file the synth exported. Every grid must be written out to ful
 TOP-LEVEL SHAPE
 {
   "format": "websynth-song",          // literal, required
-  "version": ${SONG_VERSION},                        // ${SONG_VERSION} (7 lacks the extra banks — it is always ${MIN_BANK_COUNT}; 6 also lacks the seq-chain transpose; 5 also lacks seq tracks 2-4; 4 also lacks the extra motion tracks; 3 also lacks the motion fields; 2 also lacks the XY Pad assignment; 1 also lacks the sampler fields)
+  "version": ${SONG_VERSION},                        // ${SONG_VERSION} (8 caps each machine at 8 banks; 7 also lacks the extra banks — it is always ${MIN_BANK_COUNT}; 6 also lacks the seq-chain transpose; 5 also lacks seq tracks 2-4; 4 also lacks the extra motion tracks; 3 also lacks the motion fields; 2 also lacks the XY Pad assignment; 1 also lacks the sampler fields)
   "name": "string",
   "params": { "<id>": number, ... },
   "seqBanks":  SeqStep[${MIN_BANK_COUNT}..${MAX_BANK_COUNT}][${SEQ_LENGTH}],       // ${MIN_BANK_COUNT}-${MAX_BANK_COUNT} banks, ${SEQ_LENGTH} steps each

@@ -1,6 +1,7 @@
 import { test, expect, type Page } from '@playwright/test';
 import { deflateRawSync, inflateRawSync } from 'node:zlib';
 import { gotoAndStart, startAudio, busGet, busSet, sessionDisplay } from './helpers';
+import { MIN_BANK_COUNT, MAX_BANK_COUNT } from '../src/state/patterns';
 
 /* eslint-disable @typescript-eslint/no-explicit-any */
 
@@ -111,7 +112,7 @@ test.describe('song share links', () => {
 
       // The 9th error is past the cut: on screen it does not exist.
       // (The bank count is a RANGE since SongFile v8 — banks.md REQ-a-machine-owns-its-bank-count.)
-      const hidden = 'samplerBanks must be an array of 4..8 banks';
+      const hidden = `samplerBanks must be an array of ${MIN_BANK_COUNT}..${MAX_BANK_COUNT} banks`;
       await expect(page.getByText(hidden)).toHaveCount(0);
 
       const copyBtn = page.getByTestId('dialog-copy');

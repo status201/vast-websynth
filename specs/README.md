@@ -291,7 +291,7 @@ specs/
     sampler.md         ·  8-slot one-shot sampler
     step-settings.md   ·  per-step vel/gate/prob/ratchet/tie/micro + hit math
     step-grid-editing.md ·  the shared grid gesture model (tap/paint/hold, Clear ▾)
-    banks.md           ·  A–H banks (4..8 per machine), edit-vs-play bank
+    banks.md           ·  A–P banks (4..16 per machine), edit-vs-play bank
     pattern-undo.md    ·  per-machine step-grid undo (button + scoped Ctrl+Z)
     arrangement.md     ·  the four chain lanes
     motion-sequencer.md ·  XY param automation machine (anchors, slide/step) + four single-param lanes

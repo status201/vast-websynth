@@ -199,7 +199,7 @@ UiBridge:        # src/ui/ui-bridge.ts  (the UI's *internal* seam — see featur
   openPresetImport(parse)        # paste door -> the header-owned preset wizard
 
 PatternStore:    # src/state/patterns.ts
-  # 4..8 banks per machine, counted INDEPENDENTLY per machine and stored as the
+  # MIN_BANK_COUNT..MAX_BANK_COUNT (4..16) banks per machine, counted INDEPENDENTLY per machine and stored as the
   # array's own length (features/banks.md REQ-a-machine-owns-its-bank-count, ADR-022);
   # edit-bank (UI) vs play-bank (transport)
   snapshot() / restore(...)
@@ -327,7 +327,7 @@ the panel bodies genuinely differ (note labels, a tuning strip, slot loaders, an
 SVG graph). One internal `laneHooks(engine, lane)` switch maps the systematic
 per-lane accessor families (PatternStore edit/copy/content, Arrangement play
 bank, the machine's `onStep`), and the exported helpers read from it:
-`bankBarFor` (the A–H bar, `testidPrefix` = lane), `wrapGridWithRestOverlay`
+`bankBarFor` (the A–P bar, `testidPrefix` = lane), `wrapGridWithRestOverlay`
 (the `position: relative` wrapper + overlay + follow wiring),
 `wirePlayhead` (highlight only while edit bank === play bank, refreshing the
 overlay on the same tick — and only while the panel's `VisibilityGate` reports it

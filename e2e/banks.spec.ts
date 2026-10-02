@@ -1,5 +1,6 @@
 import { test, expect, type Page } from '@playwright/test';
 import { gotoAndStart } from './helpers';
+import { MIN_BANK_COUNT, MAX_BANK_COUNT } from '../src/state/patterns';
 
 /**
  * Sequencer bank switching via the BankBar. Editing a step writes to
@@ -74,7 +75,7 @@ const bankCount = (page: Page, lane: string) =>
   page.evaluate((l) => (window as any).__synth.patterns.bankCount(l) as number, lane);
 
 test.describe('growing a machine past four banks', () => {
-  test('+ reveals banks one at a time, per machine, up to eight', async ({ page }) => {
+  test('+ reveals banks one at a time, per machine, up to the ceiling', async ({ page }) => {
     await gotoAndStart(page);
     await page.getByTestId('tab-seq').click();
 
@@ -89,10 +90,38 @@ test.describe('growing a machine past four banks', () => {
     expect(await bankCount(page, 'drum')).toBe(4);
 
     // Up to the ceiling; the + arm then disappears rather than sitting there dead.
-    for (let i = 5; i < 8; i++) await page.getByTestId('bank-seq-add').click();
-    expect(await bankCount(page, 'seq')).toBe(8);
-    await expect(page.getByTestId('bank-seq-7')).toBeVisible();
+    for (let i = MIN_BANK_COUNT + 1; i < MAX_BANK_COUNT; i++) await page.getByTestId('bank-seq-add').click();
+    expect(await bankCount(page, 'seq')).toBe(MAX_BANK_COUNT);
+    await expect(page.getByTestId(`bank-seq-${MAX_BANK_COUNT - 1}`)).toBeVisible();
     await expect(page.getByTestId('bank-seq-add')).toHaveCount(0);
+  });
+
+  // banks.md REQ-the-bank-bar-wraps-rather-than-pages /
+  // responsive-machine-header.md REQ-the-bank-segment-wraps-internally
+  test('a fully grown bank bar wraps on a phone instead of scrolling sideways', async ({ page }) => {
+    await page.setViewportSize({ width: 375, height: 800 });
+    await gotoAndStart(page);
+    await page.getByTestId('tab-seq').click();
+    while (await bankCount(page, 'seq') < MAX_BANK_COUNT) {
+      await page.getByTestId('bank-seq-add').click();
+    }
+    const first = page.getByTestId('bank-seq-0');
+    const last = page.getByTestId(`bank-seq-${MAX_BANK_COUNT - 1}`);
+    await expect(first).toBeVisible();
+    await expect(last).toBeVisible();
+    // Every letter is inside the viewport, so nothing is reached by scrolling.
+    for (let i = 0; i < MAX_BANK_COUNT; i++) {
+      const box = (await page.getByTestId(`bank-seq-${i}`).boundingBox())!;
+      expect(box.x, `bank ${i}`).toBeGreaterThanOrEqual(0);
+      expect(box.x + box.width, `bank ${i}`).toBeLessThanOrEqual(375);
+    }
+    // ...because the row wrapped: P sits on a lower line than A.
+    const a = (await first.boundingBox())!;
+    const p = (await last.boundingBox())!;
+    expect(p.y).toBeGreaterThan(a.y);
+    const overflow = await page.evaluate(() =>
+      document.documentElement.scrollWidth - document.documentElement.clientWidth);
+    expect(overflow).toBeLessThanOrEqual(0);
   });
 
   test('a grown bank holds its own pattern and can be chained', async ({ page }) => {

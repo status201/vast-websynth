@@ -6,7 +6,7 @@ import { GRID_CELLS } from './meter';
  * Non-scalar state — step grids for the sequencer and drum machine.
  * Lives outside ParamBus because the shapes are arrays of objects.
  *
- * Each machine holds its own independent "banks" (A..H) — 4 by default and up
+ * Each machine holds its own independent lettered "banks" — 4 by default and up
  * to MAX_BANK_COUNT, counted per machine, where the count IS the length of that
  * machine's array (banks.md REQ-a-machine-owns-its-bank-count, ADR-022). The UI
  * edits one bank per machine (the *edit* bank); the transport plays whichever
@@ -203,10 +203,12 @@ export const SAMPLER_SLOT_LABELS: string[] =
  * there is no separate field to keep honest. Raising the ceiling is this one
  * line — everything below derives from it, and the literals that cannot
  * (the two published JSON schemas, llms.txt) are pinned to it by
- * `tests/state/authoring-docs.test.ts`.
+ * `tests/state/authoring-docs.test.ts`. A raise also owes a SONG_VERSION bump
+ * and a dialect ladder rung: 8 (A..H) was SongFile v8's ceiling, 16 (A..P) is
+ * v9's (song-mode.md REQ-song-file-v9-raises-the-bank-ceiling).
  */
 export const MIN_BANK_COUNT = 4;
-export const MAX_BANK_COUNT = 8;
+export const MAX_BANK_COUNT = 16;
 
 /**
  * One label per POSSIBLE bank, derived rather than written out: a hand-kept list
@@ -305,7 +307,7 @@ export type BankCounts = Partial<Record<Machine, number>>;
  * `samplerChain` stay legal with no `samplerBanks` at all. `want` may still
  * RAISE an inherited length (a chain that names a bank past it) but never lower
  * it: the inherit is of the whole machine, count included, so a v1 file cannot
- * quietly destroy banks E..H of the kit it is deliberately keeping. A section that
+ * quietly destroy the grown banks (E onwards) of the kit it is deliberately keeping. A section that
  * IS present is authoritative — the longer of what arrived and what the caller
  * asked for, floored and capped.
  */
@@ -1295,8 +1297,8 @@ export class PatternStore {
    * Every section is applied **authoritatively**: a bank, row or cell the
    * snapshot omits comes back blank rather than lingering from the previous song
    * (REQ-an-omitted-bank-restores-blank). With a fixed bank count that was merely
-   * latent; once lengths vary, loading a four-bank song after an eight-bank one
-   * would otherwise leave E..H holding the last song's patterns.
+   * latent; once lengths vary, loading a four-bank song after a grown one
+   * would otherwise leave E onwards holding the last song's patterns.
    */
   restore(snap: Partial<PatternSnapshot>, counts?: BankCounts): void {
     // A whole-store overwrite: undo stacks must drop their (now stale) history

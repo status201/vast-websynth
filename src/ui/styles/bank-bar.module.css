@@ -1,12 +1,23 @@
 @layer components {
+  /* At the 16-bank ceiling the letter row (~580px) is wider than a phone, so both
+     the bar and its segment wrap instead of overflowing: one line wherever they
+     fit, a second only when the panel is too narrow (features/banks.md
+     REQ-the-bank-bar-wraps-rather-than-pages, responsive-machine-header.md
+     REQ-the-bank-segment-wraps-internally). min-width: 0 is what lets a flex item
+     shrink below its one-line width so the wrap can happen at all. */
   .root {
     display: inline-flex;
+    flex-wrap: wrap;
     align-items: center;
     gap: 8px;
+    min-width: 0;
+    max-width: 100%;
   }
 
   .seg {
     display: inline-flex;
+    flex-wrap: wrap;
+    min-width: 0;
     gap: 2px;
     background: linear-gradient(180deg, #0c0905, #1a1410);
     border: 1px solid var(--panel-border);

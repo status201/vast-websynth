@@ -107,7 +107,7 @@ opens it. The fold is the sequencer's own, extracted
 
 Songs vary notes and hits over time (banks + chains) but every *parameter* is static —
 no filter sweeps, no delay throws, no per-bar sound scenes. Motion is a 4th machine
-(16 steps × 4..8 banks, like the others) whose steps hold optional **XY coordinates**;
+(16 steps × 4..16 banks, like the others) whose steps hold optional **XY coordinates**;
 during playback it drives the two params assigned to the XY Pad through those
 coordinates. "Motion sequencing" is the established hardware term (Korg Electribe).
 The tab sits between Sampler and Song.
@@ -116,7 +116,7 @@ The tab sits between Sampler and Song.
 
 - **REQ-a-motion-step-is-an-optional-anchor** — A Motion step is an optional
   anchor `{ on, x, y }`, x/y **normalized 0..1** in taper space (the XY Pad
-  surface's space). Dead step = `{on:false}`. 4..8 banks (A–H, [banks](banks.md)
+  surface's space). Dead step = `{on:false}`. 4..16 banks (A–P, [banks](banks.md)
   REQ-a-machine-owns-its-bank-count) × 16 steps, stored
   in `PatternStore` beside the other machines.
 - **REQ-set-steps-are-anchors** — Set steps are **anchors**. In **Slide** mode
@@ -485,11 +485,12 @@ The tab sits between Sampler and Song.
     loops the destination, so a two-entry file arrives with C and D blank and
     unassigned — writing nothing ([ADR-006](../decisions/adr-006-no-op-param-defaults.md)).
   - **A deeper bank is v8 content.** The authoring dialect's version ladder gains
-    `anyMotionTrackGrown` beside `anyMachineGrown` / `anyChainGrown`
+    `anyMotionTrackGrown` beside `anyMachineGrown` (which covers a grown array
+    *and* a chain naming a grown bank, via `needsMoreBanksThan`)
     ([song-mode](song-mode.md) REQ-song-file-v8-widens-the-bank-count). Without
     it a dialect song using lane C would stamp **v5**, and a build that predates
     this one would accept that version and silently drop the lane — the same
-    trap `anyChainGrown` exists to close, and for the same reason: this is
+    trap the chain half of `needsMoreBanksThan` exists to close, and for the same reason: this is
     content whose *shape* is legal in the older version, so nothing else gives
     it away.
   - **The validator bounds the inner array.** A bank carrying more than
@@ -994,7 +995,7 @@ Constants (v17):     # src/state/patterns.ts — the count lives once
   MOTION_TRACK_COUNT:     4          # lanes per bank; LABELS derive from it (A..D)
   MIN_MOTION_TRACK_COUNT: 2          # the serialized floor — every v5..v7 song has two
 SongFile v5 (additive):
-  motionTracks: (MotionTrack | null)[4..8][2..4] | absent   # outer length == motionBanks'
+  motionTracks: (MotionTrack | null)[4..16][2..4] | absent   # outer length == motionBanks'
   # inner length == motionTrackDepth(bank): trailing nulls trimmed, floored at 2 (v17)
 Author dialect (v4):
   motionTracks: [ [TrackSpec x up to MOTION_TRACK_COUNT], ... up to MAX_BANK_COUNT banks ]
@@ -1002,8 +1003,8 @@ Author dialect (v4):
   # short banks are padded with nulls on expand; a bank deeper than
   # MIN_MOTION_TRACK_COUNT stamps the file v8 (REQ-the-motion-track-array-length-is-the-count)
 SongFile v4 (additive):
-  motionBanks: MotionStep[4..8][16] | absent
-  motionAssigns: (MotionAssign | null)[4..8] | absent
+  motionBanks: MotionStep[4..16][16] | absent
+  motionAssigns: (MotionAssign | null)[4..16] | absent
   motionChain: ChainData | absent
 Author dialect:
   motion: [ MotionBank, ... up to MAX_BANK_COUNT ]

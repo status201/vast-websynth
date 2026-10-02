@@ -3,7 +3,10 @@
 ```yaml
 id: song-authoring-dialect
 status: implemented
-version: 6   # v6: the expander loads with the first author file, not at boot; Song.parse is async
+version: 7   # v7: chain letters run A..P and the ladder gains a v9 rung — more than eight
+             #     banks, or a chain naming bank I+ (song-mode.md REQ-song-file-v9-raises-the-bank-ceiling);
+             #     the v8 rung, shipped but never written into the ladder here, is now listed too
+             # v6: the expander loads with the first author file, not at boot; Song.parse is async
              #     and fromJSON is canonical-only (REQ-the-expander-loads-with-the-first-author-file)
              # v5: a seqChain letter may carry a +n/-n transpose suffix (REQ-a-chain-letter-may-carry-a-transpose)
              # v4: bank-level step settings cascade into `tracks` instead of being
@@ -31,7 +34,7 @@ source:
 ## Background / Why
 
 Only the strongest LLMs reliably emit a full canonical `SongFile`: the literal
-`seqBanks[4..8][16]` + `drumBanks[4..8][8][16]` grids are 576+ cells and thousands of
+`seqBanks[4..16][16]` + `drumBanks[4..16][8][16]` grids are 576+ cells and thousands of
 output tokens, so weaker agents truncate mid-JSON or refuse to emit the file at
 all. The **authoring dialect** is a compact, *input-only* format
 (`format: "websynth-song-author"`) that says the same thing in ~40 lines:
@@ -85,14 +88,15 @@ exported — see ADR-013.
 
 - **REQ-a-chain-is-a-string-of-letters** — A chain
   (`seqChain`/`drumChain`/`samplerChain`) is a **string** of bank letters
-  `A..H` where `.` or `-` is a rest (whitespace ignored), an **int array**
+  `A..P` (case-insensitive; one letter per bank up to `MAX_BANK_COUNT`) where `.` or `-` is a rest (whitespace ignored), an **int array**
   (−1..`MAX_BANK_COUNT`−1, −1 = rest), or the full `{enabled, steps}` object.
   The letter range is the **ceiling**, not the machine's own count: naming a bank
   the authored arrays omit is legal and grows that machine on load
   ([banks](banks.md) REQ-a-chain-reference-grows-the-machine) — and because that
-  is v8 content with no array length to give it away, such a chain puts the
-  expanded file on **v8** exactly as a fifth authored bank would
-  ([song-mode](song-mode.md) REQ-song-file-v8-widens-the-bank-count). String/array
+  is grown-machine content with no array length to give it away, such a chain
+  puts the expanded file on the same version a matching authored bank would:
+  **v8** for E..H ([song-mode](song-mode.md) REQ-song-file-v8-widens-the-bank-count),
+  **v9** for I..P (REQ-song-file-v9-raises-the-bank-ceiling). String/array
   shorthands imply `enabled: true`; an omitted chain expands to
   `{enabled: false, steps: [0]}`.
 
@@ -132,7 +136,11 @@ exported — see ADR-013.
 
 - **REQ-the-emitted-version-is-the-lowest-that-fits** — **The emitted canonical
   version is the LOWEST that can hold what was authored**, never a bare
-  `SONG_VERSION`. The ladder, top rung first: **7** when any chain slot carries
+  `SONG_VERSION`. The ladder, top rung first: **9** when any machine carries
+  more than eight banks or any chain names bank I or later (song-mode.md
+  REQ-song-file-v9-raises-the-bank-ceiling), else **8** when any machine carries
+  more than four banks, any chain names bank E..H, or any motion bank uses a lane
+  past the second (REQ-song-file-v8-widens-the-bank-count), else **7** when any chain slot carries
   a non-zero transpose (REQ-a-chain-letter-may-carry-a-transpose), else **6**
   when any seq bank uses tracks 2-4 (REQ-a-seq-bank-may-carry-four-tracks), else
   **5** when `motionTracks` is present (REQ-motion-tracks-is-a-top-level-key),
@@ -257,13 +265,13 @@ AuthorSong:
   version: 1                          # required literal
   name: string                        # required
   params: 'Record<paramId, number>'   # optional, sparse
-  # (0..N) is the BANK count throughout — MAX_BANK_COUNT since v8 (banks.md), for
+  # (0..N) is the BANK count throughout — MAX_BANK_COUNT (16 since v9; 8 in v8) (banks.md), for
   # every machine alike. The per-bank inner dimensions are the shapes below.
-  seq: 'AuthorSeqBank[] (0..8)'       # optional
-  drums: 'AuthorHitBank[] (0..8)'     # optional; track-name keys
-  sampler: 'AuthorHitBank[] (0..8)'   # optional; slot keys s1..s8 / "0".."7"
-  motion: 'AuthorMotionBank[] (0..8)' # optional; XY param automation (motion-sequencer.md)
-  motionTracks: 'AuthorMotionTrackBank[] (0..8)'  # optional; the single-param lanes per bank (REQ-motion-tracks-is-a-top-level-key)
+  seq: 'AuthorSeqBank[] (0..16)'       # optional
+  drums: 'AuthorHitBank[] (0..16)'     # optional; track-name keys
+  sampler: 'AuthorHitBank[] (0..16)'   # optional; slot keys s1..s8 / "0".."7"
+  motion: 'AuthorMotionBank[] (0..16)' # optional; XY param automation (motion-sequencer.md)
+  motionTracks: 'AuthorMotionTrackBank[] (0..16)'  # optional; the single-param lanes per bank (REQ-motion-tracks-is-a-top-level-key)
   seqChain: 'string | int[] | {enabled, steps}'   # optional; default {enabled:false, steps:[0]}
   drumChain: 'same'
   samplerChain: 'same'
@@ -282,6 +290,8 @@ AuthorMotionTrack: '{param: paramId, steps: [{step: 0..15, v: 0..1}, …]} | nul
 The emitted canonical version (REQ-the-emitted-version-is-the-lowest-that-fits):
 
 ```yaml
+> 8 banks / chain names I+ -> 9   # the raised ceiling (song-mode.md REQ-song-file-v9-raises-the-bank-ceiling)
+> 4 banks / chain names E+ / motion lane 3-4 -> 8   # (song-mode.md REQ-song-file-v8-widens-the-bank-count)
 chain slot transposed     -> 7   # seqTranspose   (arrangement.md REQ-a-seq-slot-carries-a-transpose)
 seq bank uses tracks 2-4  -> 6   # seqTracks      (sequencer.md REQ-song-file-v6-adds-seq-tracks)
 motionTracks present      -> 5   # motionTracks   (motion-sequencer.md REQ-song-file-v5-adds-motion-tracks)
@@ -389,6 +399,8 @@ Scenario: The emitted version is the lowest that holds the content (REQ-the-emit
   Given four author files — plain seq+drums; + motion; + motionTracks; + seq tracks 2-4
   When each expands
   Then their canonical versions are 3, 4, 5 and 6 respectively
+  And a fifth seq bank, or a seqChain naming E, makes it 8
+  And a ninth seq bank, or a seqChain naming P, makes it 9
   And each one passes validateSongFile
 # pinned by: tests/state/song-author.test.ts (one version assertion per describe:
 #            happy path, motion dialect, extra motion tracks, four sequencer tracks)

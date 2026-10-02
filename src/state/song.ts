@@ -67,7 +67,7 @@ export interface SongFile {
   format: 'websynth-song';
   /** Hand-maintained alongside `SONG_VERSION` — TS cannot derive `1|…|N` from a
    *  number without recursive-type machinery this codebase doesn't use. */
-  version: 1 | 2 | 3 | 4 | 5 | 6 | 7 | 8;
+  version: 1 | 2 | 3 | 4 | 5 | 6 | 7 | 8 | 9;
   name: string;
   params: Record<string, number>;
   /** v1-v5: one track per bank. Since v6 this is still **track 1** only —

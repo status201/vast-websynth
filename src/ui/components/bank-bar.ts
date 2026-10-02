@@ -18,7 +18,7 @@ export interface BankBarOpts {
   hasContent(i: number): boolean;
   /** Subscribe to pattern mutations so the filled indicator stays live. */
   onContentChange(fn: () => void): () => void;
-  /** How many banks this machine has right now, 4..8 (banks.md REQ-a-machine-owns-its-bank-count). */
+  /** How many banks this machine has right now, MIN_BANK_COUNT..MAX_BANK_COUNT (banks.md REQ-a-machine-owns-its-bank-count). */
   bankCount(): number;
   /** Append one blank bank. Omitted on a surface that cannot grow. */
   addBank?(): void;
@@ -33,8 +33,8 @@ export interface BankBarOpts {
 }
 
 /**
- * A–H bank selector with a "Follow" toggle and a "Copy" arm. Click a
- * letter to edit that bank; click Copy then a letter to duplicate the current
+ * Lettered bank selector (one `BANK_LABELS` letter per bank) with a "Follow"
+ * toggle and a "Copy" arm. Click a letter to edit that bank; click Copy then a letter to duplicate the current
  * bank into it. The bank the transport is currently playing gets a lit dot.
  * While Follow is on (the default) the edit bank tracks the play bank, so the
  * panel switches banks with the arrangement; clicking a non-playing bank

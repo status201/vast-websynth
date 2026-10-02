@@ -353,7 +353,7 @@ describe('validateSongFile — v4 motion fields', () => {
 
   it('rejects a bad motionChain step', () => {
     const f = withMotion();
-    (f.motionChain as { steps: unknown[] }).steps = [9];
+    (f.motionChain as { steps: unknown[] }).steps = [MAX_BANK_COUNT]; // one past the ceiling
     expectReject(f, 'motionChain.steps[0]');
   });
 });

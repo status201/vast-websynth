@@ -279,7 +279,7 @@ const validateMotionStep: CellValidator = (path, value, add) => {
 };
 
 /**
- * v6 sequencer tracks — 4..8 banks × SEQ_TRACK_COUNT entries, each null or
+ * v6 sequencer tracks — MIN_BANK_COUNT..MAX_BANK_COUNT banks × SEQ_TRACK_COUNT entries, each null or
  * 16 SeqSteps. Index 0 must be null: track 1 lives in `seqBanks`, and accepting
  * it here would create two sources of truth for the same notes.
  */
@@ -303,7 +303,7 @@ function checkSeqTracks(v: unknown, add: AddError): void {
   });
 }
 
-/** v5 extra motion tracks — 4..8 banks × up to MOTION_TRACK_COUNT, each null or
+/** v5 extra motion tracks — MIN_BANK_COUNT..MAX_BANK_COUNT banks × up to MOTION_TRACK_COUNT, each null or
  *  { param?, steps: 16 × {on, v?} }. A bank may be SHORT (every v5-v7 file
  *  carries two), which `restore` pads; it may not be long. */
 function checkMotionTracks(v: unknown, add: AddError): void {
@@ -366,7 +366,7 @@ function checkSeqTranspose(v: unknown, add: AddError): void {
   });
 }
 
-/** v4 per-bank axis overrides — 4..8 entries, each null or {x?, y?} of ids. */
+/** v4 per-bank axis overrides — MIN_BANK_COUNT..MAX_BANK_COUNT entries, each null or {x?, y?} of ids. */
 function checkMotionAssigns(v: unknown, add: AddError): void {
   if (!Array.isArray(v)) { add(`motionAssigns must be an array of ${ENTRIES_PHRASE} (got ${describe(v)})`); return; }
   checkBankLength('motionAssigns', v.length, add, 'entries');
