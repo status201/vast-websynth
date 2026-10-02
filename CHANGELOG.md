@@ -18,43 +18,111 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ### Added
 
-- **Per-note pitch bend in the sequencer.** Each step in the sequencer's edit row has a **Bend** slider (up to an octave either way) and a **Scoop / Fall** choice. A scoop starts away from the note and slides onto it; a fall starts on the note and bends away, then stays there. The bend takes the first half of the step's gate, moves only that note (Poly chords included), and plays again on every ratchet hit. A bent step shows a small rising or falling stroke in its corner. Bends are saved in songs, share links and project zips. Songs without bends save exactly as before, so there is no new song format. The JSON schemas, `llms.txt` and the AI/MCP song guide describe the two new fields.
-- **Up to sixteen pattern banks per machine (A–P).** The bank bar's **+** now keeps going past H to I, J … P. The extra banks are still optional and per machine, so a song that doesn't use them is unchanged. On a narrow screen the bank bar and the Song tab's chain palette wrap onto a second line instead of scrolling sideways. Songs now save as format **v9** (an AI-authored song is stamped v9 only if it uses more than eight banks), so an older version of the app reports a newer song instead of calling the file broken. The JSON schemas, `llms.txt`, the AI prompt and the MCP song guide describe the new range.
-- The drum and sampler grids work from the keyboard: Tab into a grid, move with the arrow keys and press Enter to toggle a step. Space still plays and stops.
-- Drag a song, project zip or preset file onto the window to import it. Dropping a file no longer makes the browser leave the app.
-- The **Clear ▾** menu on the sequencer, drum and sampler grids can **shift the bank one step left or right**. The pattern wraps around within the bar, every step keeps its settings, and one Undo puts it back.
-- The sequencer's chord writer has an **Inversion** picker (Root, 1st, 2nd, 3rd), so a written progression can move smoothly instead of jumping the whole chord at every change.
-- MIDI: **channel 10 plays the sampler** — pads from C1 (note 36) trigger slots 1–8 with their velocity, and never the synth. **CC11** (expression pedal) now rides inside the master volume (and is never saved into a song or preset, so a pedal left heel-down cannot make a song load silent), and **channel aftertouch** drives the mod wheel destination (the larger of the two wins). The Song tab's Sync section has a **MIDI in** picker to choose which channel plays the synth (Omni by default).
-- Saved songs and presets can be deleted. The Song panel has a **Delete** button for the selected saved song, and **Presets → Delete or revert…** removes a preset you saved or puts an edited factory preset back. Neither changes what you are hearing.
-- The Record window has a level meter beside the timer, so you can see that sound is actually reaching the recording — it turns red if the take clips.
-- Keyboard shortcuts for the song transport: **Shift+L** turns Loop on and off, and **Shift+Space** pauses and continues (Space is still Play/Stop).
-- About ▸ Debug has an **Errors** row showing the app's last uncaught errors, and Copy report lists them, so a problem on a phone can be reported without a console. On devices that can share, a **Share report** button sends the report straight to another app.
+- **Per-note pitch bend in the sequencer.** Each step in the sequencer's edit
+  row has a **Bend** slider (up to an octave either way) and a **Scoop / Fall**
+  choice. A scoop starts away from the note and slides onto it; a fall starts
+  on the note and bends away, then stays there. The bend takes the first half of
+  the step's gate, moves only that note (Poly chords included), and plays again
+  on every ratchet hit. A bent step shows a small rising or falling stroke in
+  its corner. Bends are saved in songs, share links and project zips.
+- **Up to sixteen pattern banks per machine (A–P).** The bank bar's **+** now
+  keeps going past H to I, J … P. The extra banks are still optional and per
+  machine, so a song that doesn't use them is unchanged. On a narrow screen the
+  bank bar and the Song tab's chain palette wrap onto a second line instead of
+  scrolling sideways. Songs now save as format **v9**, so an older version of
+  the app reports a newer song instead of calling the file broken. The JSON
+  schemas, `llms.txt`, the AI Prompt and the MCP song guide describe both the
+  bends and the new bank range.
+- **Keyboard control for the drum and sampler grids.** Tab into a grid, move
+  with the arrow keys and press Enter to toggle a step. Space still plays and
+  stops.
+- **Drag and drop to import.** Drop a song, project zip or preset file onto the
+  window to import it. Dropping a file no longer makes the browser leave the
+  app.
+- **Clear ▾ can shift a bank.** The menu on the sequencer, drum and sampler
+  grids can shift the bank one step left or right. The pattern wraps around
+  within the bar, every step keeps its settings, and one Undo puts it back.
+- **Chord inversions.** The sequencer's chord writer has an **Inversion** picker
+  (Root, 1st, 2nd, 3rd), so a written progression can move smoothly instead of
+  jumping the whole chord at every change.
+- **More MIDI: the sampler on channel 10, expression, aftertouch and an input
+  channel.** Pads from C1 (note 36) on channel 10 trigger sampler slots 1–8 with
+  their velocity, and never the synth. **CC11** (expression pedal) rides inside
+  the master volume, and is never saved into a song or preset, so a pedal left
+  heel-down cannot make a song load silent. **Channel aftertouch** drives the
+  mod wheel destination (the larger of the two wins). The Song tab's Sync
+  section has a **MIDI in** picker to choose which channel plays the synth
+  (Omni by default).
+- **Delete saved songs and presets.** The Song panel has a **Delete** button for
+  the selected saved song, and **Presets → Delete or revert…** removes a preset
+  you saved or puts an edited factory preset back. Neither changes what you are
+  hearing.
+- **A level meter in the Record window**, beside the timer, so you can see that
+  sound is actually reaching the recording. It turns red if the take clips.
+- **Shortcuts for the song transport.** **Shift+L** turns Loop on and off, and
+  **Shift+Space** pauses and continues (Space is still Play/Stop).
+- **Error reports without a console.** About ▸ Debug has an **Errors** row
+  showing the app's last uncaught errors, and Copy report lists them, so a
+  problem on a phone can be reported. On devices that can share, a **Share
+  report** button sends the report straight to another app.
 
 ### Changed
 
-- The Wave view of the scope now holds a steady note still instead of letting it drift sideways. Very low notes still drift, as before.
-- Offline "this part of the app isn't downloaded yet" messages now say how to avoid it next time: About → Play offline. About ▸ Debug shows whether this device has an offline copy.
-- The on-screen keyboard adds octaves on wide screens instead of stretching its keys: 4 octaves on a 3440-wide ultrawide, 6 (C1–B6) on 5120. Screens up to 2560 and phones are unchanged.
-- Above 2560px wide, the synth panels spread their knobs evenly and lay each group on one row (FILTER from 3200px), instead of mixing tight clusters with 2×2 and 3×2 blocks. 2560 and below are unchanged.
-- The keyboard's keys stay between 1.6× and 4.5× as tall as they are wide, so folding panels no longer stretches them into long piano keys. The height they can't use goes to the scope; the scope grip now sets the scope's minimum height.
-- The app downloads about 26 kB less before it starts. The reader for compact (AI-written) songs, the project zip reader, and the Export, Paste, AI Prompt and Performance dialogs now load the first time they are used, and are fetched in the background afterwards so they still work offline.
-- Under the hood, the main screen is now built from separate parts — the header, the synth panels, the FX rack, the Machines row and the bottom section — and every stylesheet has a fixed place in the cascade, so moving code around can no longer shift the layout. Nothing looks or behaves differently: every screen and dialog was compared pixel-for-pixel, at five window widths, before and after. The app also downloads about 1 kB less at startup.
+- **The scope's Wave view holds a steady note still** instead of letting it
+  drift sideways. Very low notes still drift, as before.
+- **Offline "not downloaded yet" messages say how to avoid it next time:**
+  About → Play offline. About ▸ Debug shows whether this device has an offline
+  copy.
+- **The on-screen keyboard adds octaves on wide screens** instead of stretching
+  its keys: 4 octaves on a 3440-wide ultrawide, 6 (C1–B6) on 5120. Screens up
+  to 2560 and phones are unchanged.
+- **Very wide screens lay out the synth panels evenly.** Above 2560px the panels
+  spread their knobs evenly and lay each group on one row (FILTER from 3200px),
+  instead of mixing tight clusters with 2×2 and 3×2 blocks. 2560 and below are
+  unchanged.
+- **The keyboard's keys keep their shape.** They stay between 1.6× and 4.5× as
+  tall as they are wide, so folding panels no longer stretches them into long
+  piano keys. The height they can't use goes to the scope; the scope grip now
+  sets the scope's minimum height.
+- **A faster start.** The app downloads about 27 kB less before it starts: the
+  Export, Paste, AI Prompt and Performance dialogs now load the first time you
+  open them, and are fetched in the background afterwards so they still work
+  offline.
+- **The help pages and the About shortcut list cover this release's
+  additions**, and the help no longer undercounts the factory sounds.
 
 ### Fixed
 
-- **The Song panel is laid out as designed in the installed app.** Its sections sat closer together and the Stutter size buttons were wider than intended, because the published build loaded two stylesheets in a different order than development did. Every stylesheet now has a fixed place in the cascade, so the order they load in no longer matters.
-- **A sequencer track's mute button no longer jumps to full size while you press it.**
-
-- When a backgrounded tab comes back mid-song, the first step after the restart keeps its early micro-timing instead of snapping to the beat.
-- Editing a song chain while it plays no longer sends that lane back to its first bar. A transpose nudge, adding a bank or rest, moving or removing a bar now leaves the lane on the bar it was playing; removing the playing bar moves on to the next one.
-- WiFi pairing: if the QR decoder couldn't be downloaded (for example offline), pressing Scan QR left the camera on and said "Camera unavailable". The camera now stays off, and the message says the decoder didn't download.
-- A project export that fails now says so in an "Export failed" message, instead of silently downloading nothing.
+- **The Song panel is laid out as designed in the installed app.** Its sections
+  sat closer together and the Stutter size buttons were wider than intended,
+  because the published build loaded two stylesheets in a different order than
+  development did. Every stylesheet now has a fixed place in the cascade, so the
+  order they load in no longer matters.
+- **A sequencer track's mute button no longer jumps to full size while you press
+  it.**
+- **A background tab keeps its groove.** When a backgrounded tab comes back
+  mid-song, the first step after the restart keeps its early micro-timing
+  instead of snapping to the beat.
+- **Editing a chain mid-song keeps your place.** A transpose nudge, adding a
+  bank or rest, moving or removing a bar now leaves the lane on the bar it was
+  playing, instead of sending it back to its first bar; removing the playing bar
+  moves on to the next one.
+- **WiFi pairing offline.** If the QR decoder couldn't be downloaded, pressing
+  Scan QR left the camera on and said "Camera unavailable". The camera now stays
+  off, and the message says the decoder didn't download.
+- **A failed project export says so** in an "Export failed" message, instead of
+  silently downloading nothing.
 
 ### Security
 
-- The Content Security Policy no longer allows inline styles (`style-src 'unsafe-inline'` is gone from the shipped build), which closes off CSS injection if markup were ever injected.
-- A WiFi pairing code is checked to really be a connection description before it reaches the browser's WebRTC stack.
-- A `#songUrl=` link's download is now cut off as soon as it passes the 8 MB song limit. Before, a server that left out its size header could make the tab hold everything it sent before the limit was checked.
+- **No inline styles in the Content Security Policy.** `style-src
+  'unsafe-inline'` is gone from the shipped build, which closes off CSS
+  injection if markup were ever injected.
+- **A WiFi pairing code is checked** to really be a connection description
+  before it reaches the browser's WebRTC stack.
+- **A `#songUrl=` download stops at the 8 MB song limit.** Before, a server that
+  left out its size header could make the tab hold everything it sent before
+  the limit was checked.
 
 ## [2.15.0] - 2026-09-26
 

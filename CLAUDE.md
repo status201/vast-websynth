@@ -78,7 +78,7 @@ Scripts are in `package.json`. Only the non-obvious ones need saying:
 - `npm run clean:demos` / `check:demos` keep `src/state/demos-index.json` in sync;
   `check:demos` fails the build if it drifts.
 - `npm run check:bundle` (after `npm run build`) fails the entry chunk over 500 kB —
-  CI's `build` job runs both. Anything new at boot comes out of ~36 kB of headroom;
+  CI's `build` job runs both. Anything new at boot comes out of ~34 kB of headroom (the script prints the exact figure);
   defer it behind an `import()` instead (`runtime-performance.md`).
 - A CSP change is only checked against `npm run build && npx vite preview`: `vite dev`
   relaxes `style-src` for Vite's injected styles, so e2e never sees the shipped policy.
@@ -128,7 +128,7 @@ material keyed by feature name).
 | a **keyboard shortcut**, or a control that takes keys (knob, slider, list) | `features/input-control.md` + `features/knob-keyboard-access.md` — a focused control consumes exactly the keys it handles (`stopPropagation`), the global shortcuts stand down while a modal is open (`src/ui/modal-stack.ts`, CSS-free so `shortcuts.ts` never pulls in Modal's stylesheet), and the octave is `-`/`=` so the arrows stay navigation |
 | a **wheel** handler that steps a value | `features/wheel-steps.md` — use `createWheelStepper()`; one step per notch by distance, never per event (a touchpad sends dozens). One stepper per control, and it must outlive any DOM rebuild the step itself triggers |
 | any **new gesture** | ADR-014 + `recipes/design-an-interaction.md` — every interactive control owes a gesture inventory in its spec |
-| any **new ingest surface** (a link, file, paste, peer, MCP arg or a request to the public endpoint) | `features/untrusted-input.md` + ADR-015 — bounds live in the validator, byte budgets in the codec, and `src/state/limits.ts` is the only place they're written down |
+| any **new ingest surface** (a link, file, paste, peer, MCP arg or a request to the public endpoint) | `features/untrusted-input.md` + ADR-015 — bounds live in the validator, byte budgets in the codec, and `src/state/limits.ts` is the only place they're written down (pattern dimensions — bank count, grid cells — stay with `patterns.ts` / `meter.ts`) |
 | anything **per-frame, per-tick or at boot** | `features/runtime-performance.md` (the app-wide cost contract), `features/performance-mode.md` |
 | `tests/`, `e2e/` | `recipes/write-a-test.md`, `features/testids.md`, `e2e/CLAUDE.md` |
 | `scripts/mcp/` | `features/mcp-server.md` — two transports: stdio (local, all ten tools) and Streamable HTTP (public, read-only eight, ADR-020). Hosting it: `DEPLOYMENT.md` |

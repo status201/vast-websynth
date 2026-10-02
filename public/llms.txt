@@ -44,19 +44,19 @@ Two JSON formats are accepted on import:
   literal grids: seqBanks[4..16][16], drumBanks[4..16][8][16], optional
   samplerBanks[4..16][8][16], motionBanks[4..16][16] (XY param automation) and
   motionTracks[4..16][2..4][16] (single-parameter lanes — PREFER THESE, see below).
-  Older versions still load: every addition is optional. v9 raises the per-machine
-  bank ceiling from 8 (A-H) to 16 (A-P), v8 the per-machine
-  bank count from exactly 4 to 4..8 (the array length IS that machine's count) and
-  the per-bank motion lane count from exactly 2 to 2..4 (same rule, one level in),
-  v7 adds seqTranspose (a semitone offset per seqChain slot), v6 seqTracks
-  (note-sequencer tracks 2-4) and v5 motionTracks (motion's extra
+  Older versions still load: every addition is optional. v9 raises the
+  per-machine bank ceiling from 8 (A-H) to 16 (A-P); v8 widens the per-machine
+  bank count from exactly 4 to 4..8 (the array length IS that machine's count)
+  and the per-bank motion lane count from exactly 2 to 2..4 (same rule, one
+  level in); v7 adds seqTranspose (a semitone offset per seqChain slot), v6
+  seqTracks (note-sequencer tracks 2-4) and v5 motionTracks (motion's extra
   single-parameter lanes).
   Schema: /schema/websynth-song.schema.json
 
 Dimensions: 4 to 16 banks (A-P) per machine, counted INDEPENDENTLY per machine
 (a file's bank-array length is that machine's count; v1-v7 files are always
-exactly 4, v8 files at most 8); 16 sixteenth-note step CELLS per bank (always exactly 16, whatever
-the meter — see below);
+exactly 4, v8 files at most 8); 16 sixteenth-note step CELLS per bank (always
+exactly 16, whatever the meter — see below);
 4 note-sequencer tracks per bank (track 1 in seqBanks, tracks 2-4 in the
 optional seqTracks[bank][track], which is indexed by the real track number so
 index 0 is always null); 8 drum tracks (0=Kick 1=Snare 2=C.Hat 3=O.Hat 4=L.Tom
@@ -145,8 +145,8 @@ server above (`get_params` for the JSON catalogue, `get_song_format` /
 | `websynth-preset` | 1 | /schema/websynth-preset.schema.json | the app + agents |
 | `websynth-preset-bank` | 1 | /schema/websynth-preset-bank.schema.json | the app + agents |
 
-Song versioning is ADDITIVE: every bump only adds optional fields, so all
-versions 1..9 still load and there is no migration step. Each version added:
+Song versioning is ADDITIVE: every bump only adds optional fields or widens a
+range, so all versions 1..9 still load and there is no migration step. Each version added:
 
 - v2 — the sampler fields
 - v3 — the XY Pad axis assignment
