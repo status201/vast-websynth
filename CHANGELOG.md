@@ -16,6 +16,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+## [2.16.0] - 2026-10-02
+
 ### Added
 
 - **Per-note pitch bend in the sequencer.** Each step in the sequencer's edit
@@ -2800,7 +2802,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
   in-app sample recorder/editor. See the git history prior to this changelog
   for the detailed evolution.
 
-[Unreleased]: https://github.com/status201/vast-websynth/compare/v2.15.0...HEAD
+[Unreleased]: https://github.com/status201/vast-websynth/compare/v2.16.0...HEAD
+[2.16.0]: https://github.com/status201/vast-websynth/compare/v2.15.0...v2.16.0
 [2.15.0]: https://github.com/status201/vast-websynth/compare/v2.14.1...v2.15.0
 [2.14.1]: https://github.com/status201/vast-websynth/compare/v2.14.0...v2.14.1
 [2.14.0]: https://github.com/status201/vast-websynth/compare/v2.13.0...v2.14.0
