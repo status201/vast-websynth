@@ -35,7 +35,7 @@ source:
   - src/audio/midi.ts                 # sole owner of MIDIAccess; resolves it to main.ts
   - src/ui/components/sync-section.ts
   - src/ui/components/knob.ts
-  - src/ui/app.ts
+  - src/ui/shell/header.ts
   - src/ui/panels/song-panel.ts
 ```
 

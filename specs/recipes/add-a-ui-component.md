@@ -67,7 +67,7 @@ matters; a file with no layer fails `tests/ui/css-layers.test.ts`.
 
 ### 3. Mount + test
 
-`appendChild` it where it belongs (`app.ts` or a panel). Add a jsdom unit test
+`appendChild` it where it belongs (a region under `ui/shell/`, or a panel). Add a jsdom unit test
 (`tests/ui/<name>.test.ts`).
 
 ## Gotchas

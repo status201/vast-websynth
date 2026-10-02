@@ -44,7 +44,7 @@ source:
   - src/ui/components/canvas-text.ts   # haloText, hoisted out of Scope
   - src/ui/components/scope.ts         # now calls the hoisted haloText
   - src/ui/components/tabs.ts          # TabOptions.title (a section-title) + .pageClass
-  - src/ui/app.ts                      # buildBottom mounts it
+  - src/ui/shell/bottom.ts             # buildBottom mounts it
   - src/ui/styles/eq.module.css
   - src/ui/styles/bottom.module.css    # the third .bottom row + --wheel-col
 ```
@@ -487,7 +487,7 @@ state/params.ts           -> eqParams(prefix) x3, each FIRST in its chain's bloc
 audio/effects/eq.ts       -> span processedIn -> hp -> b0..b7 -> lp -> processedOut
 audio/effects/fx-chain.ts -> 'eq' first in all three order arrays; bind at the prefix
 audio/engine.ts           -> UNCHANGED (ADR-008)
-ui/app.ts                 -> buildBottom appends the section between `top` and `kbWrap`
+ui/shell/bottom.ts        -> buildBottom appends the section between `top` and `kbWrap`
 ui/components/tabs.ts     -> TabOptions.title + TabOptions.pageClass
 ```
 

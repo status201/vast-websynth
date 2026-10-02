@@ -27,7 +27,9 @@ source:
   - src/audio/engine.ts        # builds voices; thin playNote/releaseNote delegators
   - src/audio/voice.ts
   - src/state/params.ts
-  - src/ui/app.ts
+  - src/ui/shell/header.ts           # the VOICE segmented
+  - src/ui/panels/synth-panels.ts    # UNISON + GLIDE
+  - src/ui/shell/bottom.ts           # pitch-bend + transpose strips
 ```
 
 How notes become voices: poly vs mono, unison stacking, glide between notes,

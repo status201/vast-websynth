@@ -50,7 +50,8 @@ source:
   - src/state/scope-height.ts
   - src/audio/engine.ts
   - src/ui/studio-api.ts
-  - src/ui/app.ts
+  - src/ui/shell/scope-panel.ts
+  - src/ui/shell/bottom.ts
   - src/ui/styles/bottom.module.css
   - src/ui/onboarding/help-content.ts
 ```
@@ -1004,7 +1005,7 @@ DOUBLE_TAP_MS: 350     # ms window for the hand-rolled double-tap
 - **`main.ts`** passes the concrete `Engine` (which now structurally satisfies the
   widened `StudioApi`) to `mountApp`; `window.__synth.engine` therefore exposes
   `analyserL`/`analyserR` (DEV only) for E2E assertions.
-- **`app.ts` `buildBottom`** constructs `new Scope({ mono: engine.analyser, left:
+- **`shell/scope-panel.ts` `buildScopePanel`** constructs `new Scope({ mono: engine.analyser, left:
   engine.analyserL, right: engine.analyserR }, { fps: PERF_PROFILES[resolveTier()].fps })`,
   returns the scope so `mountApp` can bind the live `setFps` + `setFftSize` hooks
   (perf-mode), and adds the
@@ -1048,7 +1049,7 @@ DOUBLE_TAP_MS: 350     # ms window for the hand-rolled double-tap
   ticks → zone names → hover cursor → `L`/`R`** — bands behind the bars, every
   label in front of them and haloed (REQ-every-drawn-string-gets-a-halo). `setMode` gains the
   `pointermove`/`pointerleave` bind/unbind (REQ-hovering-reads-out-a-frequency), and `destroy()` removes them
-  unconditionally. In `app.ts` `buildBottom`, a third overlay button
+  unconditionally. In `buildScopePanel`, a third overlay button
   (`scope-zones-toggle`) is appended to `.scopeWrap` beside the existing two,
   starting `hidden`; the existing Wave/Spectrum handler gains one line
   (`zonesToggle.hidden = isWave`), which is the whole of REQ-a-zones-toggle's Spectrum-only
@@ -1056,10 +1057,10 @@ DOUBLE_TAP_MS: 350     # ms window for the hand-rolled double-tap
   auto-gain before it, this is entirely a rendering feature; the only thing it needs
   from the audio layer is `analyser.context.sampleRate`, read defensively
   (`?? 48000`) because the unit suites' analyser stubs carry no `context`.
-- **`ResizeHandle` + `buildBottom`** own the resize (v11), and **nothing else does**.
+- **`ResizeHandle` + `buildScopePanel`** own the resize (v11), and **nothing else does**.
   `bottom.module.css` changes one declaration — `.bottom`'s first grid track becomes
   `var(--scope-h, 130px)` (since v18 the scope row's `min-height`; `.bottom` is a
-  flex column). `buildBottom` reads `readScopeHeight()`, sets `--scope-h`
+  flex column). `buildScopePanel` reads `readScopeHeight()`, sets `--scope-h`
   on the `.bottom` element *before* it is mounted (REQ-the-scope-height-persists: no first-paint jump), and
   appends a `ResizeHandle` to `.scopeWrap` after the two toggle buttons, with
   `onCommit: writeScopeHeight`. The handle is returned alongside the `Scope` so its

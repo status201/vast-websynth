@@ -3,7 +3,8 @@
 ```yaml
 id: architecture
 status: implemented
-version: 14  # v14: every stylesheet declares a cascade layer, so app.ts's import order no
+version: 15  # v15: app.ts is the assembly only; its regions live in ui/shell/ and ui/panels/
+             # v14: every stylesheet declares a cascade layer, so app.ts's import order no
              #      longer decides layout (css-cascade-layers.md) — the split it blocked is unblocked
              # v13: the voice path is 1-channel until the SPREAD STAGE engages — a panned
              #      sequencer track puts two channels through the inserts (ADR-023)
@@ -124,7 +125,7 @@ the UI/audio separation (REQ-ui-and-audio-never-call-each-other): the UI writes 
 never call each other directly.
 
 ```
-   UI  (ui/app.ts · panels · components)
+   UI  (ui/app.ts · shell · panels · components)
     │
     │  writes: bus.set(id, v) · patterns.*       (UI writes params via the bus, not the Engine)
     ▼
@@ -281,31 +282,42 @@ cancel that pins nothing; the two bugs that taught this are
 transport machines and `BankBar`), which had each open-coded the same
 `Set` + `add → return () => delete` pair.
 
-**`ui/app.ts` is 965 lines, and its import order is no longer load-bearing.**
-The obvious extraction is the eight synth panels (now `buildSynthPanels`) and the FX rack (now `buildFxRack`)
-(the insert-effect rack): each takes only the bus, returns an element, and reads
-none of the shell's closure state. It was first tried and **reverted**, because
-moving them took their component imports with them — and **CSS Modules inject in
-import order**, so where an import sat in `app.ts` was part of the app's layout,
-not just its dependency graph. Every stylesheet now declares a cascade layer
+**`ui/app.ts` is the assembly, not the parts.** `mountApp` builds the five
+regions in page order and wires the hooks that cross them; each region lives
+in its own module and binds the bridge hooks its controls own:
+
+```
+ui/app.ts                  mountApp: order + the late-bound hooks (FX expand, demo
+                           loader, the scope's live perf knobs and Debug source)
+ui/shell/header.ts         brand, preset cluster, transport, voicing
+                           (binds openPresetImport, toggleInfoBadges)
+ui/shell/play-button.ts    the Play button + its LED state machine
+                           (binds toggleTransport, cuePlay)
+ui/panels/synth-panels.ts  the eight synth panels (bus only)
+ui/panels/fx-rack.ts       the insert-effect rack (bus only)
+ui/shell/pattern-row.ts    the MACHINES tabs + their tab-scoped routing
+                           (binds undoActiveMachine, clearSelectedStep, showTab)
+ui/shell/bottom.ts         wheels, the EQ row, the keyboard (binds pressKey, releaseKey)
+ui/shell/scope-panel.ts    the scope, its three toggles and its resize grip
+ui/viewport.ts             the two mount-time breakpoints (isCompact, isPhone)
+```
+
+Each region's stylesheet is its own too (`styles/header.module.css` and its
+siblings, layer `shell`), beside the panel chrome they all share
+(`styles/panel.module.css`, layer `chrome`).
+
+This split was first tried and **reverted**, because moving a builder moved its
+component imports — and **CSS Modules inject in import order**, so where an
+import sat in `app.ts` was part of the app's layout. Moving the panels below
+the shell's stylesheet made the **pattern row 71px taller** (pushing the scope
+out of the viewport and failing a hover assertion three files away); moving them
+above `knob` un-hid the header's **hamburger on a wide screen**. `tsc` and the
+unit suite saw none of it. Every stylesheet now declares a cascade layer
 ([css-cascade-layers](features/css-cascade-layers.md)), which takes source order
-out of the cascade between modules; the history below is why that came first.
-
-Moving the panels below the shell's stylesheet (then one file for shell and
-panel chrome alike, since split by region) made the **pattern row 71px
-taller**, which pushed the scope's centre out of the viewport and failed a hover
-assertion three files from anything edited. Moving them above `knob` instead
-un-hid the header's **hamburger on a wide screen**. There is no single position
-that reproduces the original cascade, because the moved code pulled six
-stylesheets that sat at six different points in the original list.
-
-None of this is visible to the type system or the unit suite: `tsc` passed and
-all 3,479 unit tests passed at every step. Only `npm run e2e` saw it. So the
-extraction is worth doing, but it is **a CSS-layering change first** — give the
-component styles an explicit order and the file split becomes the trivial part.
-Attempting it the other way round is how this was learned. (The 71px was two
-`.patternRow` `min-height` rules that `tabs.module.css` had always beaten by load
-order; moving an import made them apply. Both were dead and are gone.)
+out of the cascade between modules — that is what made this a plain file move,
+proven pixel-identical by `scripts/css-cascade/fingerprint.mjs`. (The 71px was
+two `.patternRow` `min-height` rules that `tabs.module.css` had always beaten
+by load order; moving an import made them apply. Both were dead and are gone.)
 
 The four machine tabs share their **chrome** through
 `ui/panels/step-panel-scaffold.ts` — composable helpers, not one template, since

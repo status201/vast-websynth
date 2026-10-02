@@ -198,7 +198,7 @@ notes played on another tab no longer overwrite its bank.
   **stores the resolved element**; the light-down removes the class from *that*
   element rather than resolving the note again. Re-deriving was the bug: the
   sequencer's viz schedules its on and its off as two separate deferred timers
-  (`app.ts`, at the notes' audible moments), so any OCT change in between —
+  (`shell/bottom.ts`, at the notes' audible moments), so any OCT change in between —
   including a **song/demo load**, since `Song.apply` restores
   `keyboard.transpose` and most demos ship a non-zero one — resolved the off to
   a different element, or to none at all (`keys.get` misses silently). The key
@@ -412,11 +412,11 @@ on-screen keyboard: src/ui/components/keyboard.ts -> bus.noteOn/noteOff directly
   keyFor(note) = keys.get(note - transpose * 12)   # v9, REQ-a-lit-key-is-remembered-as-an-element — the ONE resolver,
     shared by highlight + seqHighlight; lit elements are stored, never re-derived
   litActive / litSeq: Map<note, {el, count}>       # v9 — refcounted, cleared by
-    clearSeqHighlights() (litSeq only; its sole caller is clock.onStop in app.ts)
+    clearSeqHighlights() (litSeq only; its sole caller is clock.onStop in shell/bottom.ts)
   activeByPointer: Map<pointerId, {key, sounding}> # v9, REQ-a-note-off-names-the-pressed-note — release `sounding`
   setKeyRoles(state|null): el.dataset.role per key # v14, REQ-a-third-highlight-layer — no map, no refcount,
     keyed by (midi % 12); null clears. Guarded: skips a write already in place.
-app.ts wiring: bridge.pressKey/releaseKey -> keyboard.highlight(note, true/false)
+shell/bottom.ts wiring: bridge.pressKey/releaseKey -> keyboard.highlight(note, true/false)
   onKeyChange(bus, ...) -> keyboard.setKeyRoles(...)  # v14 — src/ui/key-roles.ts owns
     the vocabulary; the component takes a state object and stays free of music theory
 arp ownership: when the arp's passthroughSuppressed is set, the engine gates raw note

@@ -205,7 +205,7 @@ TabOptions.title?: SectionTitleOptions  # was `string` (equalizer.md REQ-the-eq-
 ```yaml
 section-title.ts -> ui-icons.ts iconTextEl   # icon + .icon-label, text stays a text node
 tabs.ts          -> first child of .bar      # before any tab; the caret stays last
-app.ts buildFx   -> first child of .fxSectionBar, before the collapse toggle
+fx-rack.ts       -> first child of .fxSectionBar, before the collapse toggle
 ```
 
 ## Gesture inventory (ADR-014)

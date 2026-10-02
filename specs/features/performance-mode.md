@@ -19,9 +19,11 @@ source:
   - src/main.ts
   - src/ui/components/scope.ts
   - src/ui/components/perf-settings.ts
-  - src/ui/components/perf-settings-modal.ts  # the modal body, loaded on click
-  - src/ui/components/about-debug.ts   # buildDebugSection: the perf-tier row
-  - src/ui/app.ts
+  - src/ui/components/perf-settings-modal.ts # the modal body, loaded on click
+  - src/ui/components/about-debug.ts      # buildDebugSection: the perf-tier row
+  - src/ui/app.ts                         # binds the live scope knobs (previewScopeTier)
+  - src/ui/shell/header.ts                # mounts the perf button
+  - src/ui/shell/scope-panel.ts           # builds the Scope at the resolved tier's fps
 ```
 
 A device-scoped audio-quality setting with **three tiers** (**weak / medium /
@@ -239,10 +241,10 @@ engine: opts.latencyHint -> new AudioContext({ latencyHint }); opts.voiceCount -
   opts.scheduleAheadS -> new Clock(ctx, { scheduleAheadS }); opts.reverbIrMaxS -> new Reverb(ctx, { maxIrS });
   opts.fxOversample -> new Distortion(ctx, { oversample }) + DrumMachine's per-track shapers;
   opts.analyserFftSize -> initial analyser.fftSize on analyser / analyserL / analyserR (v4)
-ui (app.ts):
+ui (app.ts, shell/header.ts, shell/scope-panel.ts):
   buildHeader mounts createPerfSettingsButton({ onTierPreview: t -> previewScopeTier(t) }), which
     applies BOTH live scope knobs: setScopeFps(PERF_PROFILES[t].fps) + setScopeFft(PERF_PROFILES[t].analyserFftSize)
-  buildBottom builds Scope({ fps: PERF_PROFILES[resolveTier()].fps }) and returns it; mountApp
+  buildScopePanel builds Scope({ fps: PERF_PROFILES[resolveTier()].fps }) and returns it; mountApp
     binds the late `setScopeFps`/`setScopeFft` hooks to scope.setFps/scope.setFftSize (same pattern as fxExpand)
 scope: visibilitychange pause (always) + timestamp fps throttle + setFps (live); no drop-shadow
 about: Debug rows from perfDiagnostics()

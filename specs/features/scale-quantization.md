@@ -297,11 +297,11 @@ trigger sites:
 ui: src/ui/panels/key-panel.ts (the KEY tab); src/ui/panels/seq-panel.ts (SNAP)
 ui roles (REQ-the-key-is-shown-where-you-play), both fed by src/ui/key-roles.ts and never by each other:
   key-panel.ts:  onKeyChange -> readKeyState -> keyMap.paint(state)      # always paints
-  app.ts:        onKeyChange -> readKeyState -> keyboard.setKeyRoles(
+  bottom.ts:     onKeyChange -> readKeyState -> keyboard.setKeyRoles(
                    state.active ? state : null)                          # null = chromatic
 ```
 
-The keyboard is wired in `app.ts` rather than inside `Keyboard` so the component keeps
+The keyboard is wired in `shell/bottom.ts` rather than inside `Keyboard` so the component keeps
 taking only a `ParamBus` and stays ignorant of music theory — the same split as the
 Engine's trigger sites, and the reason `key-roles.ts` sits in `ui/` next to its two
 consumers instead of in `utils/music.ts`, which is pure theory with no `ParamBus`.

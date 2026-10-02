@@ -270,7 +270,7 @@ the `ui-icon` class to be stroked at all outside a header button.
 - Rotation-driven carets (`dropdown.module.css` `.caret`, `tabs.module.css`
   `.collapse[aria-expanded='false']`) transform the element, which works on an
   `<svg>` unchanged — no CSS change was needed there.
-- `ui-icons.ts` is on the boot path (`app.ts`, `dropdown.ts`,
+- `ui-icons.ts` is on the boot path (`shell/header.ts`, `dropdown.ts`,
   `collapse-toggle.ts` all import it). It is a frozen string map with no
   behaviour, the same shape as `wave-icons.ts`, so it costs parse time and
   nothing else ([runtime-performance](runtime-performance.md) REQ-boot-cost-matches-the-request).

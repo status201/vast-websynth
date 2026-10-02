@@ -11,7 +11,8 @@ related:
 source:
   - src/state/params.ts
   - src/audio/engine.ts
-  - src/ui/app.ts
+  - src/ui/panels/synth-panels.ts
+  - src/ui/panels/fx-rack.ts
 ```
 
 A repeatable **playbook**, not a feature. Any new scalar parameter follows the same
@@ -75,7 +76,7 @@ bus.subscribe('master.volume', (x) => rampTo(this.master.gain, x * x, this.ctx, 
 - `subscribe` fires immediately with the current value, so the graph initialises
   correctly without extra code.
 
-### 3. Expose it — `src/ui/app.ts` (or the relevant panel)
+### 3. Expose it — `src/ui/panels/synth-panels.ts` / `fx-rack.ts` (or the relevant panel)
 
 Add a control bound by `paramId`:
 

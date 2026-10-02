@@ -15,8 +15,8 @@ related:
 source:
   - src/ui/keyboard-range.ts
   - src/ui/components/keyboard.ts
-  - src/ui/app.ts            # buildBottom: the ResizeObserver that drives it
-  - src/ui/styles/bottom.module.css  # .bottom / .bottomTop / .keyboardWrap: the height bounds
+  - src/ui/shell/bottom.ts # buildBottom: the ResizeObserver that drives it
+  - src/ui/styles/bottom.module.css # .bottom / .bottomTop / .keyboardWrap: the height bounds
 ```
 
 How many octaves the on-screen keyboard draws, which ones — and how tall its
@@ -139,13 +139,13 @@ class Keyboard {
 ### Layer touchpoints & ordering
 
 ```yaml
-ui/app.ts buildBottom: constructs the Keyboard at keyboardRange(0, isPhone()) — the
+ui/shell/bottom.ts buildBottom: constructs the Keyboard at keyboardRange(0, isPhone()) — the
   base range, since nothing is laid out yet — then a ResizeObserver on keyboard.el
   calls setRange(keyboardRange(contentRect.width, isPhone())). The observer fires
   after layout and before paint, so a wide screen never paints the base range.
 ui/components/keyboard.ts: owns the rebuild (REQ-a-rebuild-strands-nothing); the
   range rule itself stays out of the component.
-ui/app.ts buildBottom (v2): the same observer writes --kb-key-w (whole px, and only
+ui/shell/bottom.ts buildBottom (v2): the same observer writes --kb-key-w (whole px, and only
   when it changes) on .bottom. Width never depends on height, so it cannot loop.
 ui/styles/bottom.module.css (v2): .bottom is a flex column; .bottomTop
   flex 1 1 0 + min-height var(--scope-h, 130px); .keyboardWrap flex 1000 1 0 with

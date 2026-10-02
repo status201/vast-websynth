@@ -192,7 +192,7 @@ prefix-namespaced components:
 Grouped by surface; `<…>` is interpolated at build time.
 
 ```yaml
-shell (app.ts):
+shell (ui/shell/*, panels/fx-rack.ts):
   app-header · pattern-row · fx · keyboard · panic · header-menu
   transport-play                     # the HEADER play button (see REQ-transport-play-is-prefix-toggle)
   preset-select · preset-save        # preset-save opens the manager
