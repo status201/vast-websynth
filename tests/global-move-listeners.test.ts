@@ -37,7 +37,7 @@ describe('global move listeners live only for a gesture', () => {
         seen++;
         const [, target, type, handler] = m;
         const removal = new RegExp(
-          `\\b${target}\\.removeEventListener\\(\\s*'${type}'\\s*,\\s*${handler!.replace(/\./g, '\\.')}\\b`,
+          `\\b${target}\\.removeEventListener\\(\\s*'${type}'\\s*,\\s*${handler!.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}\\b`,
         );
         if (!removal.test(text)) offenders.push(`${relative(root, f)}: ${target} ${type} ${handler}`);
       }

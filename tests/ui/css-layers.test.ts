@@ -68,7 +68,9 @@ describe('cascade layers (specs/features/css-cascade-layers.md)', () => {
   });
 
   it('loads layers.css before any other stylesheet (REQ-the-layer-order-is-declared-once-and-first)', () => {
-    const html = readFileSync(root('index.html'), 'utf8').replace(/<!--[\s\S]*?-->/g, '');
+    // Strip comments to a fixpoint: one pass can splice a new `<!--` together.
+    let html = readFileSync(root('index.html'), 'utf8');
+    for (let prev = ''; prev !== html; ) [prev, html] = [html, html.replace(/<!--[\s\S]*?-->/g, '')];
     const firstSheet = /<(?:link[^>]+rel="stylesheet"[^>]*|style\b[^>]*)>/.exec(html)?.[0] ?? '';
     expect(firstSheet).toContain('href="/src/styles/layers.css"');
   });
