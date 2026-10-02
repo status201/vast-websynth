@@ -1,11 +1,10 @@
 /**
  * The one reading of a path glob in the spec tooling.
  *
- * `# pinned by:` and `source:` entries may be globs, and both `spec-lint.mjs` (to
- * check they match something) and `req-migrate.mjs` (to work out which spec claims
- * a file) have to agree on what one means. Two implementations would be two
- * answers to "does this spec own this file?", which is the question a rename hangs
- * on. Zero-dep, like everything CI runs without `npm install`.
+ * `# pinned by:` and `source:` entries may be globs, and `spec-lint.mjs` checks
+ * that each one matches something. (The ADR-021 id migration read them through this
+ * module too, which is why it is its own file.) Zero-dep, like everything CI runs
+ * without `npm install`.
  *
  * `*` stops at a path separator, `**` crosses them, `?` is one non-separator
  * character, and everything else is literal.

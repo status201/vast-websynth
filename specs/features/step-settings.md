@@ -3,13 +3,14 @@
 ```yaml
 id: step-settings
 status: implemented
-version: 5   # v5: per-step pitch bend on SEQ steps — a signed semitone amount and a
+version: 6   # v6: the "new per-step fields" note names the seq-only home bend used
+             # v5: per-step pitch bend on SEQ steps — a signed semitone amount and a
              #     scoop/fall shape, played on a per-voice detune source
              #     (REQ-a-seq-step-carries-a-bend..REQ-every-sub-hit-re-bends)
              # v4: the past-clamp note below understated the damage — the choke
              #     did NOT clamp with the hit (drum-machine.md REQ-a-clamped-hit-carries-its-choke)
              # v3: per-step micro-timing — a step may sound early or late on its
-             #     own cell (REQ-6..REQ-9), edited by a centre-detent slider
+             #     own cell (REQ-a-step-carries-a-micro-offset … REQ-an-early-offset-is-capped-in-seconds), edited by a centre-detent slider
              #     bracketed by −/+ steppers
              # v2: the edit row's sliders are gesture-scoped (REQ-edit-sliders-are-gesture-scoped)
 owner: core
@@ -264,7 +265,7 @@ curve needs an editor the row has no room for.
   Every unison copy of the note bends identically; another track's chord tone on
   another voice does not move.
 
-  The bend is carried to the voice in `NoteOpts.bend` (`{ semis, shape, dur }`), the
+  The bend is carried to the voice in `NoteOptions.bend` (`{ semis, shape, dur }`), the
   same optional channel `pan` uses, so the arpeggiator, the keyboard and MIDI
   input — which never set it — are untouched.
 
@@ -310,7 +311,7 @@ step-hits.ts:
   stepBend(s: {bend,bendShape}, hit): NoteBend | undefined   # v5 — undefined at bend 0
   BEND_FRACTION = 0.5                                # v5, REQ-bend-shapes-are-scoop-and-fall
 note-output.ts:
-  NoteOpts.bend?: NoteBend                           # v5 — { semis, shape, dur }
+  NoteOptions.bend?: NoteBend                           # v5 — { semis, shape, dur }
 note-bend.ts:
   scheduleBend(param, bend: NoteBend | undefined, when, dirty): boolean
     # v5 — writes the scoop/fall events (anchored); returns the new "dirty" flag.
@@ -408,7 +409,7 @@ ui: src/ui/components/step-settings.ts (StepSettingsEditor) — shared edit row;
     makeSlider grows { center, snap, format } rather than a second slider
     implementation, so REQ-edit-sliders-are-gesture-scoped's drag discipline is inherited, not re-typed
 bend (v5): sequencer.ts computes stepBend(s, h) per sub-hit and passes it in
-    NoteOpts → Polyphony → Voice.noteOn → scheduleBend on voice.noteBend.offset.
+    NoteOptions → Polyphony → Voice.noteOn → scheduleBend on voice.noteBend.offset.
     The StepSettingsEditor takes an optional `bend` get/set pair; only the seq
     panel passes it, so the drum and sampler rows are unchanged. StepButton.setViz
     takes an optional bend direction and draws a small rising/falling stroke in
@@ -577,7 +578,7 @@ Scenario: The Bend controls edit the selected seq step (v5, gesture inventory)
   (viz), `e2e/patterns.spec.ts` (grid + viz + clock advance).
 - v5: `tests/audio/note-bend.test.ts` (the scheduled events, against a recording
   param — the mock `AudioParam` keeps no event list), `step-hits.test.ts`
-  (`stepBend`), `sequencer.test.ts` (bend in `NoteOpts`, per sub-hit),
+  (`stepBend`), `sequencer.test.ts` (bend in `NoteOptions`, per sub-hit),
   `song.test.ts` / `song-validate.test.ts` / `song-author.test.ts` (default,
   sparse round-trip, refuse vs coerce), `step-settings.test.ts` (the Bend row).
 - `npm test` / `npm run e2e` / `npm run typecheck`.
@@ -594,8 +595,10 @@ Scenario: The Bend controls edit the selected seq step (v5, gesture inventory)
 
 ## Open questions / future
 
-- New per-step fields go in `StepSettings` + `TRIGGER_CELL_DEFAULTS`; the
-  defaults-spread-under migration keeps old songs valid.
+- New per-step fields for every machine go in `StepSettings` +
+  `TRIGGER_CELL_DEFAULTS`; a seq-only field goes in `SeqStep` +
+  `SEQ_EXTRA_DEFAULTS`, as bend did (v5). Either way the defaults-spread-under
+  migration keeps old songs valid.
 - **[render-to-sampler](render-to-sampler.md) crops on the unswung grid**, so a
   micro-timed *first* or *last* cell of the rendered bar can fall outside the crop
   (an early first hit lands before the crop start, a late last hit after its end).

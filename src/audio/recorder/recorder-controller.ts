@@ -3,7 +3,8 @@ import type { Arrangement } from '../transport/arrangement';
 import type { CapturedAudio, RecorderNode } from './node';
 import { DEFAULT_BAR_TICKS, safeBarTicks} from '../../state/meter';
 import { clamp } from '../../utils/math';
-import { encodeWav, encodeMp3, triggerDownload } from './encode';
+import { encodeWav, encodeMp3 } from './encode';
+import { triggerDownload } from '../../utils/download';
 
 export type ExportFormat = 'wav' | 'mp3';
 
@@ -16,7 +17,7 @@ export type ExportFormat = 'wav' | 'mp3';
  */
 export type RecorderPhase = 'idle' | 'recording' | 'paused' | 'review' | 'encoding';
 
-export interface ExportOpts {
+export interface ExportOptions {
   /** Passes of the song to render. Clamped 1..MAX_RUNS; default 1. */
   runs?: number;
   /** Capture a whole bar of silence after the last step instead of TAIL_MS. */
@@ -29,7 +30,7 @@ export const FALLBACK_BARS = 4;
 /** Grace period after the final bar so the worklet captures scheduled
  *  look-ahead audio + reverb/release tails before we read the buffer. */
 const TAIL_MS = 350;
-/** Ceiling on `ExportOpts.runs` — export renders in real time, so ten passes of
+/** Ceiling on `ExportOptions.runs` — export renders in real time, so ten passes of
  *  a long song is already a ten-minute wait (audio-export.md open questions). */
 export const MAX_RUNS = 10;
 
@@ -250,7 +251,7 @@ export class RecorderController {
    * options and `verify-audio-by-ear.md` depends on those takes being bar-exact
    * and repeatable. The UI checkbox defaults the other way (audio-export REQ-the-capture-keeps-a-tail).
    */
-  exportSong(format: ExportFormat, opts?: ExportOpts): boolean {
+  exportSong(format: ExportFormat, opts?: ExportOptions): boolean {
     if (this._phase !== 'idle') return false; // a capture (or an unsaved take) is in the way
     // A bank render owns the transport; stopping the clock under it stranded
     // the render and its restore (REQ-a-capture-waits-for-a-bank-render).

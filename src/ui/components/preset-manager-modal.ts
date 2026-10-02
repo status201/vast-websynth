@@ -16,6 +16,7 @@ import segmentedStyles from '../styles/segmented.module.css';
 import dialogStyles from '../styles/dialog.module.css';
 import styles from '../styles/preset-manager.module.css';
 import { plural } from '../../utils/format';
+import { triggerDownload } from '../../utils/download';
 
 /**
  * The preset manager — `specs/features/presets.md` REQ-one-door-for-saving/REQ-preset-import-is-a-two-step-wizard. One door for
@@ -57,13 +58,7 @@ function fillRows(box: HTMLElement, cls: string, messages: string[]): void {
 }
 
 function download(filename: string, payload: unknown): void {
-  const blob = new Blob([JSON.stringify(payload, null, 2) + '\n'], { type: 'application/json' });
-  const url = URL.createObjectURL(blob);
-  const a = document.createElement('a');
-  a.href = url;
-  a.download = filename;
-  a.click();
-  setTimeout(() => URL.revokeObjectURL(url), 1000);
+  triggerDownload(new Blob([JSON.stringify(payload, null, 2) + '\n'], { type: 'application/json' }), filename);
 }
 
 export function openPresetManagerModal(opts: PresetManagerOptions): void {

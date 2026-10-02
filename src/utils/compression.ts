@@ -2,7 +2,7 @@
  * Shared `deflate-raw` helpers over the platform Compression/Decompression
  * Streams — feature-detected on `globalThis` (absent under jsdom), so callers
  * must guard with `hasCompression()` or provide a raw fallback. Extracted from
- * `audio/webrtc-signaling.ts` so non-audio modules (the zip codec) can reuse
+ * `audio/transport/sync/webrtc-signaling.ts` so non-audio modules (the zip codec) can reuse
  * them without depending on a signaling module.
  */
 

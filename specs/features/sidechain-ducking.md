@@ -8,9 +8,9 @@ owner: core
 related:
   - architecture
   - effects          # the insert-chain contract this joins as a sixth member
-  - drum-machine     # the trigger source — REQ-13's onHit was added for this
+  - drum-machine     # the trigger source — REQ-every-sounded-hit-is-reported's onHit was added for this
   - transport        # Clock.onTick supplies the absolute time a hit will sound
-  - presets          # fx.duck.* is a patch param and must be pinned (REQ-2b there)
+  - presets          # fx.duck.* is a patch param and must be pinned (REQ-a-factory-preset-sets-the-full-sound there)
   - runtime-performance
   - mod-matrix       # its "envelope follower off the drum bus" open question
   - fx-patch-decoration # the sixth panel made it dormant (its REQ-the-gain-law-is-bounded-by-construction)
@@ -172,7 +172,7 @@ program-dependent. The detector variant is kept as an open question below.
 Ducker:                                   # src/audio/effects/ducker.ts
   extends: WrappedEffect                  # input / output / setBypass for free
   constructor(ctx)
-  onDrumHit(track, when)                  # REQ-1/4/7 — filtered, then scheduled
+  onDrumHit(track, when)                  # REQ-the-duck-is-keyed-by-scheduled-hits/REQ-an-early-duck-trigger-is-ignored/REQ-the-duck-key-is-one-track-or-any — filtered, then scheduled
   bind(bus, prefix)                       # ADR-008 self-wiring
   # no release()/onStop hook — REQ-the-resting-duck-state-is-unity: every schedule already ends in a decay
   # to no-duck, so stop, dropout and bypass all recover unaided.

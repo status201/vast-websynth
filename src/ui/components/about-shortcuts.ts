@@ -73,6 +73,8 @@ const SHORTCUTS: Array<[Combo, string]> = [
   [['Shift', t(' + drag')], 'Fine knob control'],
   // knob-keyboard-access.md — every knob is a focusable slider.
   [['Tab', t(' to a knob, then '), k('arrowLeft', 'Left arrow'), k('arrowRight', 'Right arrow')], 'Turn a knob from the keyboard (Shift = fine)'],
+  // step-grid-editing.md — the drum and sampler grids are keyboard-reachable too.
+  [['Tab', t(' to a grid, arrows, then '), 'Enter'], 'Move around a drum/sampler grid and toggle a step'],
 ];
 
 /** Rows visible before the fold. The rule is "through `Space`", not the number

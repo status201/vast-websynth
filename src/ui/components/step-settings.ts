@@ -5,6 +5,7 @@ import { BEND_MAX, MICRO_MAX, MICRO_UNITS, MAX_RATCHET} from '../../state/limits
 import { createButton } from './button';
 import type { StepButton } from './step-button';
 import { plural } from '../../utils/format';
+import { clamp01 } from '../../utils/math';
 
 /**
  * Per-step settings edit row shared by the sequencer, drum and sampler
@@ -17,7 +18,7 @@ import { plural } from '../../utils/format';
 /** The seq-only bend fields (step-settings.md REQ-a-seq-step-carries-a-bend). */
 type BendFields = Pick<SeqStep, 'bend' | 'bendShape'>;
 
-export interface StepSettingsEditorOpts {
+export interface StepSettingsEditorOptions {
   testidPrefix: string; // 'seq' | 'drum' | 'sampler'
   get: () => StepSettings | undefined;
   set: (patch: Partial<StepSettings>) => void;
@@ -34,7 +35,7 @@ export class StepSettingsEditor {
   readonly el: HTMLElement;
   private readonly refreshers: Array<() => void> = [];
 
-  constructor(opts: StepSettingsEditorOpts) {
+  constructor(opts: StepSettingsEditorOptions) {
     const { testidPrefix: prefix, get, set, gateMin = 0.05 } = opts;
     this.el = document.createElement('div');
     this.el.className = styles.edit!;
@@ -121,7 +122,7 @@ export class StepSettingsEditor {
     this.refresh();
   }
 
-  private mountBend(prefix: string, bend: NonNullable<StepSettingsEditorOpts['bend']>): void {
+  private mountBend(prefix: string, bend: NonNullable<StepSettingsEditorOptions['bend']>): void {
     const slider = makeSlider('Bend', -BEND_MAX, BEND_MAX, () => bend.get()?.bend ?? 0,
       (v) => bend.set({ bend: v }), {
         center: true,
@@ -213,7 +214,7 @@ export function paintTriggerCell(sb: StepButton, cell: TriggerCell): void {
  * Options for the bipolar/stepped variant. Every one is absent for the three
  * unipolar sliders, which keep their exact pre-v3 behaviour.
  */
-interface SliderOpts {
+interface SliderOptions {
   /** Fill grows from the centre rather than the left edge (a bipolar value). */
   center?: boolean;
   /** Flank the track with −/+ buttons, one `keyStep` each. Requires `keyStep`. */
@@ -243,7 +244,7 @@ function makeSlider(
   max: number,
   get: () => number,
   set: (v: number) => void,
-  opts: SliderOpts = {},
+  opts: SliderOptions = {},
 ): { el: HTMLElement; refresh(): void } {
   const root = document.createElement('div');
   root.className = styles.slider!;
@@ -322,7 +323,7 @@ function makeSlider(
 
   const handle = (clientX: number) => {
     if (!bounds || bounds.width === 0) return;
-    const n = Math.max(0, Math.min(1, (clientX - bounds.left) / bounds.width));
+    const n = clamp01((clientX - bounds.left) / bounds.width);
     write(min + n * (max - min));
   };
 

@@ -3,7 +3,8 @@
 ```yaml
 id: presets
 status: implemented
-version: 11  # v11: a stored preset can be deleted, and an edited factory preset reverted
+version: 12  # v12: a snapshot drops UNSAVED_PARAMS (REQ-a-preset-is-a-snapshot); the delete open question is struck — v11 shipped it
+             # v11: a stored preset can be deleted, and an edited factory preset reverted
              #      (REQ-a-stored-preset-can-be-deleted)
              # v10: REQ-the-preset-wizard-reports-every-problem — the import wizard reports EVERY problem, not the
              #      first, and the ones it can only warn about are shown too
@@ -64,7 +65,9 @@ can do with a sound ([ADR-014](../decisions/adr-014-dont-make-me-think.md) law 1
 ## Requirements
 
 - **REQ-a-preset-is-a-snapshot** — A preset is a `Snapshot` (`Record<string,
-  number>`) = `bus.snapshot()`.
+  number>`) = `savedParams(bus.snapshot())` — every param except the
+  `UNSAVED_PARAMS` (`master.expression`, [input-control](input-control.md)
+  REQ-cc11-is-expression), so a pedal left heel-down never saves into a sound.
 - **REQ-nineteen-factory-presets** — The 19 factory presets (`acid`, `b3`,
   `basic`, `bass`, `bells`, `brass`, `ember`, `lead`, `pad`, `pbass`, `piano`,
   `pluck`, `prism`, `reese`, `rhodes`, `solina`, `upright`, `vellum`, `wobble`)
@@ -580,10 +583,8 @@ Scenario: An import does not relabel the selector (REQ-rebuilding-options-never-
   It needs none — Save already stores the live patch, and while the pinned sound
   is selected the live patch *is* it. A dedicated "keep this" action would be a
   second door to the same result ([ADR-014](../decisions/adr-014-dont-make-me-think.md) law 1).
-- **Deleting** a stored preset has no UI yet (`SlotStore.remove` is ready). The
-  natural shape: delete a user preset outright, and let deleting an *edited
-  factory* preset fall back to the factory sound, since `load()` already does
-  exactly that when the slot is absent.
+- ~~**Deleting** a stored preset has no UI yet~~ — shipped in v11
+  (REQ-a-stored-preset-can-be-deleted).
 - Bank files carry no `version` migration path beyond the tag; if the `Snapshot`
   shape ever stops being flat `Record<string, number>` this needs
   [ADR-007](../decisions/adr-007-songfile-additive-versioning.md)-style additive

@@ -11,7 +11,7 @@ version: 4   # v4: a folded section's selected tab dims too — the same yellow 
              #     read at 14px), and a heading dims while its section is folded (REQ-folded-heading-dims)
 owner: ui
 related:
-  - equalizer        # REQ-9 — the first titled TabContainer
+  - equalizer        # REQ-the-eq-section-is-a-folded-tab-container — the first titled TabContainer
   - machine-status   # the pattern row's tab LEDs, beside which MACHINES now sits;
                      # REQ-folded-selected-tab-dims leaves them exactly as they are
   - iconography      # the three glyphs live in UI_ICONS

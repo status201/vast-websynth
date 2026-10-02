@@ -3,7 +3,9 @@
 ```yaml
 id: evolve-the-song-format
 status: implemented
-version: 7   # v7: v9 is the second dimension bump — it only RAISES v8's bank ceiling (8 -> 16),
+version: 8   # v8: the worked example is rebased on the next additive bump (v9 → v10), and step 3
+             #     says what fromJSON really does now (full validation, canonical-only)
+             # v7: v9 is the second dimension bump — it only RAISES v8's bank ceiling (8 -> 16),
              #     so its whole cost is step 4b plus a new top rung in the dialect ladder (4c)
              # v6: there are TWO kinds of bump. v8 added no field at all — it widened an
              #     existing dimension — which makes steps 2 and 5 near no-ops and moves
@@ -64,12 +66,12 @@ The contract: **additive, optional, defaulted** — never required, never repurp
 > "grown, but within eight"). A *raised* ceiling still owes the bump: without it
 > an older build reads a twelve-bank file as corrupt rather than as newer.
 
-## Steps (going from v6 → v7)
+## Steps (an additive field bump, e.g. v9 → v10)
 
 ### 1. Bump the one constant — `src/state/song-version.ts`
 
 ```ts
-export const SONG_VERSION = 7;
+export const SONG_VERSION = 10;
 ```
 
 `KNOWN_SONG_VERSIONS` derives from it (`1..SONG_VERSION`), so the validator, the
@@ -82,8 +84,8 @@ MCP bundle can read it without pulling in `song.ts`'s `import.meta.glob`.
 ```ts
 export interface SongFile {
   // …
-  version: 1 | 2 | 3 | 4 | 5 | 6 | 7;   // hand-maintained: TS can't derive it from a number
-  myNewThing?: SomeShape;               // optional, so v1..v6 files still satisfy the type
+  version: 1 | 2 | 3 | 4 | 5 | 6 | 7 | 8 | 9 | 10;   // hand-maintained: TS can't derive it from a number
+  myNewThing?: SomeShape;   // optional, so v1..v9 files still satisfy the type
 }
 ```
 
@@ -92,10 +94,12 @@ there. If the new field lives in its own store (like `xy`), thread it in as an
 optional `capture(...)` arg and include it only when passed, mirroring the `xy`
 precedent.
 
-### 3. Keep `fromJSON` permissive
+### 3. Leave `fromJSON` / `parse` alone
 
-`Song.fromJSON` only checks `format === 'websynth-song'` + `params` + `seqBanks` +
-`drumBanks` — leave it version-agnostic so every version parses.
+Both run the full `validateSongFile` check, and its accepted versions are
+`KNOWN_SONG_VERSIONS` — already widened by step 1. (`fromJSON` is also
+canonical-only: it never expands the authoring dialect.) What they *do* owe is a
+validator rule for the new field, which is step 4b.
 
 ### 4. Read new fields with fallbacks in `apply()`
 
@@ -163,7 +167,7 @@ suite fails — trust it rather than your memory of this list.
 
 The compact author format ([song-authoring-dialect.md](../features/song-authoring-dialect.md))
 expands to the **lowest** canonical version that can hold what was authored — *not*
-the latest (its REQ-12) — so a format change usually touches it too:
+the latest (its REQ-the-emitted-version-is-the-lowest-that-fits) — so a format change usually touches it too:
 
 - `src/state/song-author.ts` — accept/expand the new field (or deliberately leave
   it canonical-only and reject it with a clear error). If you do accept it, add a

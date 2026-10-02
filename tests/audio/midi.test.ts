@@ -3,7 +3,7 @@ import { initMIDI } from '../../src/audio/midi';
 import { setMidiInputChannel, resetMidiInputChannelForTests } from '../../src/state/midi-channel';
 import { installLocalStorageMock } from '../storage-mock';
 import { ParamBus, registerDefaults } from '../../src/state/params';
-import { MidiSyncTransport } from '../../src/audio/midi-sync-transport';
+import { MidiSyncTransport } from '../../src/audio/transport/sync/midi-sync-transport';
 import { makeFakeMidiAccess, type FakeMidiAccess, type FakeMidiInput } from './fake-midi-access';
 import type { Engine } from '../../src/audio/engine';
 import type { SyncMessage } from '../../src/audio/transport/sync/sync-types';

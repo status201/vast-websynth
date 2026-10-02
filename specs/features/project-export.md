@@ -272,7 +272,7 @@ Scenario: MP3 clip encoding falls back to WAV at unsupported rates (edge)
 - Unit: `tests/utils/zip.test.ts` (CRC vectors, stored+deflate round-trips,
   determinism, trailing garbage, truncation/bad-CRC/unknown-method → `ZipError`),
   `tests/state/project.test.ts` (layout, sanitization, nested folders, error paths,
-  `sniffImportKind`, `encodeClip` ext), `tests/audio/webrtc-signaling.test.ts`
+  `sniffImportKind`, `encodeClip` ext), `tests/audio/transport/sync/webrtc-signaling.test.ts`
   (unchanged — guards the compression extraction) — `npm test`
 - E2E: `e2e/export-project.spec.ts` (disabled row + JSON export; WAV round-trip via
   download.path() re-import) — `npm run e2e`

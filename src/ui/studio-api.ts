@@ -10,7 +10,7 @@ import type { MotionMachine } from '../audio/transport/motion-machine';
 import type { RecorderController } from '../audio/recorder/recorder-controller';
 import type { BankRenderController } from '../audio/recorder/bank-render';
 import type { SyncController } from '../audio/transport/sync/sync-controller';
-import type { WebRtcSyncTransport } from '../audio/webrtc-sync-transport';
+import type { WebRtcSyncTransport } from '../audio/transport/sync/webrtc-sync-transport';
 import type { Compressor } from '../audio/effects/compressor';
 import type { IosAudioDiagnostics } from '../audio/ios-audio-session';
 import type { MediaSessionDiagnostics } from '../audio/media-session';

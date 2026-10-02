@@ -16,24 +16,16 @@ const OFF_DEST = LFO_DEST_LABELS.indexOf('off');
 const LFO_NAMES: Record<LfoPrefix, string> = { lfo: 'LFO 1', lfo2: 'LFO 2' };
 
 /**
- * A built page. Empty since v8: it used to carry `refreshDest()`, which repainted the
- * destinations the *other* LFO had claimed. The mod matrix superseded that rule
- * (lfo.md REQ-destinations-are-no-longer-exclusive), so a page no longer depends on its sibling's state at all.
- */
-type LfoPage = Record<string, never>;
-
-/**
  * The LFO panel: two identical pages, one per LFO, behind a tab strip in the
  * panel's own title row (lfo.md REQ-the-two-lfos-share-one-panel).
  *
  * Extracted from `app.ts`, unlike the other seven faceplate panels, because it has
  * two pages and a body that is a parameterised builder rather than a literal. It was
  * also the only panel with cross-instance state until v8, when the mod matrix
- * superseded REQ-destinations-are-no-longer-exclusive's exclusivity and the two pages became fully independent.
+ * ended the one-destination-per-LFO rule (lfo.md REQ-destinations-are-no-longer-exclusive)
+ * and the two pages became fully independent.
  */
 export function buildLfoPanel(bus: ParamBus): HTMLElement {
-  const pages = {} as Record<LfoPrefix, LfoPage>;
-
   const { el, tabs } = createTabbedPanel({
     prefix: 'lfo',
     help: 'lfo',
@@ -42,13 +34,13 @@ export function buildLfoPanel(bus: ParamBus): HTMLElement {
     pages: LFO_PREFIXES.map((prefix, i) => ({
       id: String(i + 1),
       label: LFO_NAMES[prefix],
-      build: (body: HTMLElement) => { pages[prefix] = buildLfoPage(bus, prefix, body); },
+      build: (body: HTMLElement) => { buildLfoPage(bus, prefix, body); },
     })),
   });
 
   LFO_PREFIXES.forEach((prefix, i) => {
-    // No cross-page watching any more: REQ-destinations-are-no-longer-exclusive's mutual exclusion is superseded by the
-    // mod matrix (lfo.md v8), so the two LFOs may hold one destination and simply sum
+    // No cross-page watching any more: the old one-destination-per-LFO rule is gone
+    // (lfo.md v8, REQ-destinations-are-no-longer-exclusive), so the two LFOs may hold one destination and simply sum
     // — which REQ-duplicated-destinations-sum-and-stay-bounded always specified and the audio graph always did.
 
     // A modulating LFO on the hidden page would otherwise be invisible state
@@ -68,7 +60,7 @@ export function buildLfoPanel(bus: ParamBus): HTMLElement {
 }
 
 /** One LFO's controls. Identical for both prefixes — that is the point. */
-function buildLfoPage(bus: ParamBus, prefix: LfoPrefix, b: HTMLElement): LfoPage {
+function buildLfoPage(bus: ParamBus, prefix: LfoPrefix, b: HTMLElement): void {
   b.appendChild(new Segmented(bus, `${prefix}.wave`, WAVE_LABELS, WAVE_ICONS).el);
   const rate = new Knob({ bus, paramId: `${prefix}.rate`, label: 'RATE' });
   b.appendChild(row([
@@ -88,8 +80,6 @@ function buildLfoPage(bus: ParamBus, prefix: LfoPrefix, b: HTMLElement): LfoPage
   // the full-width picker that used to sit here and puts the division on the knob
   // it governs instead of two rows below it.
   b.appendChild(pulseRateDisclosure(bus, prefix, rate));
-
-  return {};
 }
 
 /** The 2-knob `.spread` row, as `app.ts`'s `row()` builds it for every panel. */

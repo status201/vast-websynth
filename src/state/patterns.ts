@@ -143,14 +143,14 @@ export function makeMotionTrack(): MotionTrack {
   return { steps: Array.from({ length: SEQ_LENGTH }, () => ({ ...MOTION_TRACK_STEP_DEFAULTS })) };
 }
 
-export function cloneMotionTracks(tracks: readonly MotionTrack[]): MotionTrack[] {
+function cloneMotionTracks(tracks: readonly MotionTrack[]): MotionTrack[] {
   return tracks.map((t) => ({
     ...(t.param !== undefined ? { param: t.param } : {}),
     steps: t.steps.map((s) => ({ ...s })),
   }));
 }
 
-export function makeMotionTracks(): MotionTrack[] {
+function makeMotionTracks(): MotionTrack[] {
   return Array.from({ length: MOTION_TRACK_COUNT }, makeMotionTrack);
 }
 
@@ -190,8 +190,8 @@ export function motionTrackDepth(bank: readonly (MotionTrack | null)[] | null | 
  * This used to mean three things at once — cells per pattern, ticks per bar, and
  * columns of UI — and every bar line in the app was written `step % SEQ_LENGTH`.
  * `meter.ts` now owns the other two (`barTicks`, `LANE_RATES`); this name is
- * kept, aliasing `GRID_CELLS`, purely because 17 modules import it. New code
- * should say which one it means (meter.md REQ-meter-ts-names-the-three-jobs, ADR-019).
+ * kept, aliasing `GRID_CELLS`, because the validator, the dialect and many tests
+ * still import it. New code should say which one it means (meter.md REQ-meter-ts-names-the-three-jobs, ADR-019).
  */
 export const SEQ_LENGTH = GRID_CELLS;
 

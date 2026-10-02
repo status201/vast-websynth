@@ -16,7 +16,7 @@ related:
   - motion-sequencer
   - performance
   - transport-position
-  - onboarding          # REQ-23 there: the meter's help topic + badge
+  - onboarding          # REQ-the-meter-has-a-help-topic there: the meter's help topic + badge
   - audio-export
   - webrtc-sync
   - midi-clock-sync
@@ -25,7 +25,7 @@ related:
   - ../decisions/adr-006-no-op-param-defaults
 source:
   - src/state/meter.ts                       # the vocabulary (REQ-meter-ts-names-the-three-jobs)
-  - src/state/params.ts                      # the ten scalars (REQ-5/10/14)
+  - src/state/params.ts                      # the ten scalars (REQ-meter-is-two-bus-scalars/REQ-each-machine-has-a-loop-length/REQ-each-machine-has-a-step-rate)
   - src/state/limits.ts                      # MAX_STEP (REQ-the-step-counter-must-not-wrap)
   - src/state/preset-session.ts              # the `motion.` prefix fix (REQ-motion-joins-the-non-patch-prefixes)
   - src/audio/transport/clock.ts             # unwrapped step + swingOffset
@@ -41,7 +41,7 @@ source:
   - src/audio/transport/sync/sync-master.ts
   - src/audio/transport/sync/sync-slave.ts
   - src/audio/transport/sync/sync-controller.ts
-  - src/audio/webrtc-sync-transport.ts
+  - src/audio/transport/sync/webrtc-sync-transport.ts
   - src/audio/recorder/recorder-controller.ts  # bar-exact capture (REQ-bar-exact-capture-follows-bar-ticks)
   - src/audio/recorder/bank-render.ts
   - src/audio/engine.ts                      # resolves the pair, pushes barTicks
@@ -451,9 +451,9 @@ Scenario: 7/8 feels like 7/8
 - Unit: `tests/state/meter.test.ts` (the vocabulary + every conversion),
   `tests/audio/transport/clock.test.ts` (REQ-the-step-counter-must-not-wrap),
   `tests/audio/transport/arrangement.test.ts` (REQ-bar-ticks-is-the-arrangement-bar-line),
-  `tests/audio/transport/sequencer.test.ts` (REQ-3/10/15),
-  `tests/audio/transport/drum-machine.test.ts` (REQ-9/16),
-  `tests/state/song.test.ts` + `tests/state/preset.test.ts` (REQ-13/19) — `npm test`
+  `tests/audio/transport/sequencer.test.ts` (REQ-a-cell-index-is-a-pure-function-of-step/REQ-each-machine-has-a-loop-length/REQ-coarser-skips-ticks-finer-fans-out),
+  `tests/audio/transport/drum-machine.test.ts` (REQ-the-drum-fill-is-relative-to-its-lane/REQ-swing-is-computed-on-the-lanes-grid),
+  `tests/state/song.test.ts` + `tests/state/preset.test.ts` (REQ-motion-joins-the-non-patch-prefixes/REQ-meter-needs-no-song-file-bump) — `npm test`
 - E2E: `e2e/patterns.spec.ts` — `npm run e2e`
 - Typecheck: `npm run typecheck`
 - **By ear** ([ADR-010](../decisions/adr-010-musical-stable-cheap-dsp.md),

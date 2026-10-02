@@ -150,7 +150,7 @@ addition to the shared `headerGroup` class.
   row left/right (REQ-below-1140-the-preset-cluster-splits). The menu-open rule's `flex-basis: 100%` outranks
   the cluster's `flex: 1` basis below 720px, so the expanded row still spans
   full width.
-- Icon buttons (REQ-5/6): `createButton` grows optional `icon` (inline SVG
+- Icon buttons (REQ-utility-buttons-are-icon-only/REQ-every-icon-button-has-a-title): `createButton` grows optional `icon` (inline SVG
   markup rendered instead of the text label), `title`, and `ariaLabel` options;
   `setButtonIcon` is the icon counterpart of `setButtonLabel` (used by the
   fullscreen expand↔compress swap on `fullscreenchange`). The glyph strings

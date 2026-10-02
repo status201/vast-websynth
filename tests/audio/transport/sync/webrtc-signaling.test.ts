@@ -4,7 +4,7 @@ import {
   decodeSignal,
   SignalDecodeError,
   looksLikeSdp,
-} from '../../src/audio/webrtc-signaling';
+} from '../../../../src/audio/transport/sync/webrtc-signaling';
 
 const SDP = [
   'v=0',

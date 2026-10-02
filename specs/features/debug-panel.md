@@ -98,7 +98,7 @@ instead of transcribing it from a phone screen.
   cannot distinguish "the OS took it" from "we asked and were refused"; v11
   appends `· autoplay ok` while `engine.autoplayAllowed`, which is both why no
   start modal was shown ([audio-lifecycle](audio-lifecycle.md) REQ-the-gesture-is-required-only-when-required) and, on a
-  build without REQ-19, the reason a boot could be heard. Notes join in that
+  build without audio-lifecycle.md REQ-nothing-is-audible-before-the-first-start, the reason a boot could be heard. Notes join in that
   order, ` · `-separated), **Sample rate**, **Latency** (`debug-latency`,
   base/output), **Transport** (`debug-transport`: playing/stopped · `Clock.bpm`
   · sync mode · `Clock.dropouts` — v5, the only on-device evidence of a stalled

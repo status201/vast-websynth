@@ -20,10 +20,10 @@ related:
 source:
   - src/audio/transport/sync/sync-types.ts
   - src/audio/transport/sync/clock-offset.ts
-  - src/audio/webrtc-sync-transport.ts
-  - src/audio/webrtc-signaling.ts
+  - src/audio/transport/sync/webrtc-sync-transport.ts
+  - src/audio/transport/sync/webrtc-signaling.ts
   - src/utils/compression.ts             # shared deflate-raw helpers (also used by the zip codec)
-  - src/audio/webrtc-diagnostics.ts
+  - src/audio/transport/sync/webrtc-diagnostics.ts
   - src/audio/transport/sync/sync-controller.ts
   - src/audio/engine.ts
   - src/ui/clipboard.ts
@@ -274,7 +274,7 @@ follows whichever delivers.
   unreachable addresses"; reached `checking` but no pair → "no path found — a
   firewall or different subnets"; zero remote candidates → "the other device's
   reply wasn't received — re-do the code exchange"). Pure parse/summarize logic
-  lives in `src/audio/webrtc-diagnostics.ts` (no DOM/RTC) so it is unit-tested
+  lives in `src/audio/transport/sync/webrtc-diagnostics.ts` (no DOM/RTC) so it is unit-tested
   directly.
 
 - **REQ-the-wire-carries-the-time-signature** (v7) — **The wire carries the time
@@ -303,12 +303,12 @@ ClockOffsetEstimator(opts?):
   toLocal(remoteAtMs): number       # remoteAtMs - offsetMs (identity when null)
   reset(): void
 
-# src/audio/webrtc-signaling.ts (pure)
+# src/audio/transport/sync/webrtc-signaling.ts (pure)
 SignalKind: "'offer' | 'answer'"
 encodeSignal(kind, sdp): Promise<string>   # -> "WS2.<c|r>.<base64url>"
 decodeSignal(blob): Promise<{ kind, sdp }> # throws SignalDecodeError on bad input
 
-# src/audio/webrtc-sync-transport.ts
+# src/audio/transport/sync/webrtc-sync-transport.ts
 WebRtcSyncTransport(opts?: { rtc?; timer?; nowMs? }) implements SyncTransport:
   send(msg, atMs?): void            # stamps sender time; routes by type; no-op unlinked
   onMessage(cb): unsubscribe        # receiver-domain timestamps (offset-converted)
@@ -322,7 +322,7 @@ WebRtcSyncTransport(opts?: { rtc?; timer?; nowMs? }) implements SyncTransport:
   get diagnostics(): WebRtcDiagnostics       # live snapshot of the current/last attempt
   onDiagnostics(cb): unsubscribe             # fires as the attempt progresses
 
-# src/audio/webrtc-diagnostics.ts (pure — no DOM/RTC)
+# src/audio/transport/sync/webrtc-diagnostics.ts (pure — no DOM/RTC)
 WebRtcDiagnostics: "{ iceHistory[], connHistory[], gathering, localCandidates: CandInfo[], remoteCandidateCount, selectedPair: {local,remote}|null, candidateErrors[] }"
 CandInfo: "{ type, protocol, address }"
 emptyDiagnostics(): WebRtcDiagnostics
@@ -435,7 +435,7 @@ Scenario: Signal blob round-trips through both codecs
    And again with it absent (codec 'r' fallback)
   Then decodeSignal(blob) returns {kind:'offer', sdp} for both
    And a corrupt blob rejects with SignalDecodeError
-# pinned by: tests/audio/webrtc-signaling.test.ts
+# pinned by: tests/audio/transport/sync/webrtc-signaling.test.ts
 
 Scenario: Offset estimator converges and gates high-RTT samples
   Given ping/pong samples with a stable true offset and one delayed (high-rtt) pong
@@ -449,35 +449,35 @@ Scenario: Transport routes messages to the right channel and stamps time
   When send({type:'stop'}) and send({type:'pulse'}, 42) are called
   Then 'stop' goes over sync-control and 'pulse' over sync-timing
    And each JSON carries the sender's performance.now() (pulse carries at)
-# pinned by: tests/audio/webrtc-sync-transport.test.ts
+# pinned by: tests/audio/transport/sync/webrtc-sync-transport.test.ts
 
 Scenario: Receiver converts sender time before onMessage
   Given a warm offset estimator on the receiving transport
   When a pulse arrives with the sender's at
   Then onMessage is invoked with a receiver-domain timestamp (offset-applied)
    And with a cold estimator it falls back to local receipt time
-# pinned by: tests/audio/webrtc-sync-transport.test.ts
+# pinned by: tests/audio/transport/sync/webrtc-sync-transport.test.ts
 
 Scenario: A malformed wire message is dropped, not applied (v6)
   Given a linked WebRtcSyncTransport
   When a peer sends {t:'tempo', bpm:'fast'}, {t:'tempo'} with no bpm,
     or an unknown {t:'???'}
   Then none of them reach onMessage and the tempo is unchanged
-# pinned by: tests/audio/webrtc-sync-transport.test.ts
+# pinned by: tests/audio/transport/sync/webrtc-sync-transport.test.ts
 
 Scenario: Channel close degrades status; a playing slave keeps playing
   Given a linked slave following the master
   When the data channel closes (or connectionstate → failed)
   Then ports() reads 0/0 and onPortsChange fires ("WiFi: not linked")
    And the slave keeps playing at the last tempo (stall free-run)
-# pinned by: tests/audio/webrtc-sync-transport.test.ts
+# pinned by: tests/audio/transport/sync/webrtc-sync-transport.test.ts
 
 Scenario: 'disconnected' gets a grace window before teardown (regression)
   Given a linked transport whose connectionState flaps to 'disconnected'
   When it returns to 'connected' within the grace window
   Then the link is NOT torn down (no onPortsChange to unlinked)
    And if it stays disconnected past the grace window, it tears down
-# pinned by: tests/audio/webrtc-sync-transport.test.ts
+# pinned by: tests/audio/transport/sync/webrtc-sync-transport.test.ts
 
 Scenario: Diagnostics summarize a failing attempt into plain-language hints
   Given a WebRtcDiagnostics with local candidates on two different subnets
@@ -485,7 +485,7 @@ Scenario: Diagnostics summarize a failing attempt into plain-language hints
   Then summarizeDiagnostics names a likely VPN/virtual-adapter cause
    And names a firewall / different-subnet cause when checking never connects
    And parseCandidate extracts type/protocol/address from an a=candidate line
-# pinned by: tests/audio/webrtc-diagnostics.test.ts
+# pinned by: tests/audio/transport/sync/webrtc-diagnostics.test.ts
 
 Scenario: The pair modal shows a debug panel from a diagnostics snapshot
   Given diagnostics with local candidate addresses and a summary
@@ -545,7 +545,7 @@ Scenario: A join's time crosses the wire in the receiver's domain (v8, REQ-a-joi
    And the receiver's core sees continue with at 960
    And with no offset estimate yet, or from an older peer, it sees continue with no at
    And a non-finite or non-numeric at drops the message
-# pinned by: tests/audio/webrtc-sync-transport.test.ts
+# pinned by: tests/audio/transport/sync/webrtc-sync-transport.test.ts
 
 Scenario: Insecure origin shows a non-blocking HTTPS banner (edge)
   Given window.isSecureContext is false
@@ -572,8 +572,8 @@ Scenario: Two real pages link and follow (E2E loopback)
 ## Tests & verification
 
 - Unit: `tests/audio/transport/sync/clock-offset.test.ts`,
-  `tests/audio/webrtc-signaling.test.ts`,
-  `tests/audio/webrtc-sync-transport.test.ts` (fake RTC in
+  `tests/audio/transport/sync/webrtc-signaling.test.ts`,
+  `tests/audio/transport/sync/webrtc-sync-transport.test.ts` (fake RTC in
   `tests/audio/fake-rtc.ts`), `tests/audio/transport/sync/sync-controller.test.ts`
   (multi-transport + targeted announce), `tests/ui/sync-pair-modal.test.ts`,
   `tests/ui/sync-pair-scan.test.ts` (a decoder that will not load never starts

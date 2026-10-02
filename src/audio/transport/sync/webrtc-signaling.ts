@@ -13,9 +13,9 @@
  * `DecompressionStream` exists. The JSON is `{ k: kind, s: sdp }`.
  */
 
-import { hasCompression, deflateRaw, inflateRaw } from '../utils/compression';
-import { toBase64Url, fromBase64Url } from '../utils/base64url';
-import { MAX_SIGNAL_BYTES } from '../state/limits';
+import { hasCompression, deflateRaw, inflateRaw } from '../../../utils/compression';
+import { toBase64Url, fromBase64Url } from '../../../utils/base64url';
+import { MAX_SIGNAL_BYTES } from '../../../state/limits';
 
 const PREFIX = 'WS2.';
 

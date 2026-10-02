@@ -49,20 +49,9 @@ REQ-a-machine-owns-its-bank-count, REQ-a-chain-reference-grows-the-machine).
 an older build meets "unsupported song version 8" instead of "seqBanks must have
 4 banks", which reads like a corrupt file.
 
-> **Amendment (2026-10-02, SongFile v9):** the ceiling rose from 8 (A–H) to
-> 16 (A–P). As predicted under *Consequences*, the code change was the one line
-> `MAX_BANK_COUNT = 16` — everything that reads it moved with it, and
-> `tests/state/authoring-docs.test.ts` named each literal that could not
-> (`maxItems`, chain `maximum`s and letter regexes in both schemas, and the
-> `llms.txt` prose). Two costs the prediction did not count: `SONG_VERSION` went
-> to **9** for the same reason it went to 8 (an older build should say
-> "unsupported song version 9", not "must have 4..8 banks"), which in turn meant
-> a new top rung in the authoring dialect's version ladder; and at sixteen the
-> bank bar is wider than a phone, so its segment now wraps
-> ([responsive-machine-header](../features/responsive-machine-header.md)
-> REQ-the-bank-segment-wraps-internally) rather than paging — a bank that holds
-> data stays one tap away ([banks](../features/banks.md)
-> REQ-the-bank-bar-wraps-rather-than-pages).
+> The ceiling of 8 is superseded by
+> [ADR-025](adr-025-the-bank-ceiling-is-sixteen-and-the-bar-wraps.md) (16, A–P,
+> SongFile v9). Everything else here stands.
 
 ## Alternatives considered
 

@@ -3,8 +3,9 @@
 ```yaml
 id: song-mode
 status: implemented
-version: 29  # v29: REQ-song-file-v9-raises-the-bank-ceiling — SongFile v9 raises the per-machine
-             #      bank ceiling from 8 to 16 (A–P); no field added (banks.md, ADR-022 amendment)
+version: 30  # v30: pre-release sweep — contract says SONG_VERSION 9, cell fields + compaction list seq bend/bendShape, params drop UNSAVED_PARAMS, versions note reaches v9
+             # v29: REQ-song-file-v9-raises-the-bank-ceiling — SongFile v9 raises the per-machine
+             #      bank ceiling from 8 to 16 (A–P); no field added (banks.md, ADR-025)
              # v28: a saved song can be deleted (REQ-a-saved-song-can-be-deleted)
              # v27: REQ-song-file-v8-widens-the-bank-count — SongFile v8 lets each machine carry 4..8
              #      banks; the array length IS that machine's count (banks.md, ADR-022)
@@ -493,7 +494,7 @@ demos, the load path **must stay backward compatible** as the format grows.
 
 ```yaml
 Song:   # src/state/song.ts (a plain object of functions, not a class)
-  SONG_VERSION: 7                                   # the version capture() writes (exported, not a literal)
+  SONG_VERSION: 9                                   # the version capture() writes (exported, not a literal)
   capture(bus, patterns, arr, name, xy?): SongFile   # writes SONG_VERSION; xy included only when passed
   apply(file, bus, patterns, arr, xyStore?, sampler?): void  # xyStore?.set(file.xy ?? XY_DEFAULT_ASSIGN);
                                                     # `sampler` is the SamplerSlots the stale-audio eviction
@@ -634,13 +635,17 @@ strict (reject + name the path):
                  # apply() grows that machine to fit (banks.md REQ-a-chain-reference-grows-the-machine)
   cell fields when present, by type/range:
     velocity/gate/prob: number 0..1 ; ratchet: int 1..4 ; tie: boolean
+    micro: int -MICRO_MAX..MICRO_MAX
     SeqStep.note: int 0..127                        # MIDI range (untrusted-input REQ-payload-values-are-bounded)
+    SeqStep.bend: int -BEND_MAX..BEND_MAX ; SeqStep.bendShape: 'scoop' | 'fall'
+                                                    # seq only (step-settings.md REQ-a-seq-step-carries-a-bend)
   seqTranspose?: number[]                           # v7; each int, |offset| <= MAX_CHAIN_TRANSPOSE
   refused at the three validators that build objects from payload keys —
     validateSeqStep, validateTriggerCell, checkParams — via checkKeys():
     __proto__ / constructor / prototype             # untrusted-input REQ-reserved-keys-are-refused scopes this exactly
 lenient (additive — do NOT require):
   per-step velocity/gate/prob/ratchet/tie/micro  # pre-v3 cells omit them; restore defaults them
+  SeqStep bend/bendShape                         # seq only; absent = no bend
   required-per-cell: SeqStep -> {on, note}; TriggerCell -> {on}
 surface:
   fromJSON(text): SongFile | null              # back-compat: returns null on any failure
@@ -677,11 +682,13 @@ round:   every number -> Number(n.toPrecision(4))   # 4 sig-figs; inaudible, kee
 sparse cells (drop fields equal to the cell's restore default):
   trigger (drum/sampler): keep `on`; drop velocity/gate/prob/ratchet/tie/micro when default
                           -> a dead cell is just { "on": false }
-  seq:     keep on/note/velocity/gate ALWAYS; drop prob/ratchet/tie/micro when default
-           # asymmetry: restore spreads SEQ_EXTRA_DEFAULTS (prob/ratchet/tie/micro) only,
+  seq:     keep on/note/velocity/gate ALWAYS; drop prob/ratchet/tie/micro/bend/bendShape when default
+           # asymmetry: restore spreads SEQ_EXTRA_DEFAULTS (prob/ratchet/tie/micro/bend/bendShape) only,
            # and apply() does not reset the store first, so velocity/gate must be present
-params:  ALL params kept (rounded) — not default-omitted (forward-compat: a future
-         default change must not silently move old songs)
+params:  every param except UNSAVED_PARAMS kept (rounded) — not default-omitted (forward-compat:
+         a future default change must not silently move old songs). capture() stores
+         savedParams(snapshot), so a live-only param such as master.expression never
+         reaches a file (input-control.md REQ-cc11-is-expression)
 whitespace: download() -> pretty (2-space indent + trailing \n) — byte-identical to
             clean:demos output, so an export dropped into src/state/demos/ diffs
             cleanly with no later churn; saveSlot()/project-zip/share-link/AI-prompt
@@ -839,7 +846,7 @@ Scenario: Export is the canonical compact form (round + default-sparse)
   Given a song with high-precision params and default-valued step cells
   When toJSON serializes it
   Then numbers are rounded to 4 significant figures, a dead drum cell is { "on": false },
-    and a default seq step keeps on/note/velocity/gate but omits prob/ratchet/tie/micro
+    and a default seq step keeps on/note/velocity/gate but omits prob/ratchet/tie/micro/bend/bendShape
   And fromJSON(toJSON(file)) deep-equals compactSongForExport(file)
   And applying it reproduces the original-sounding state (defaults re-expanded)
   And download() writes it pretty-printed (2-space + trailing newline), matching
@@ -1055,9 +1062,11 @@ Scenario: With no overflow there is no toggle (REQ-the-demo-row-overflows-into-a
   optional `xy` field (see [xy-pad](xy-pad.md)), `4` the motion fields, `5`
   `motionTracks` (both [motion-sequencer](motion-sequencer.md)), `6` `seqTracks`
   ([sequencer](sequencer.md)) and `7` `seqTranspose`
-  ([arrangement](arrangement.md)). A future `version: 8` must keep new fields
-  **optional** and extend the `apply()` defaults-fallback pattern the same way,
-  so older files keep loading.
+  ([arrangement](arrangement.md)); `8` widened the per-machine bank count to 4..8
+  and `9` raised its ceiling to 16 (both [banks](banks.md)) — a range widened,
+  no field added. A future `version: 10` must keep new fields **optional** and
+  extend the `apply()` defaults-fallback pattern the same way, so older files
+  keep loading.
 - Bumping the version is **three** edits, not one: `SONG_VERSION`, the
   `SongFile['version']` union, and the published `websynth-song.schema.json` —
   plus `llms.txt`, which advertises the

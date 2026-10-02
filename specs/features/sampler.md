@@ -12,9 +12,9 @@ version: 13  # v13: REQ-slots-are-filled-by-load-or-record — the last file pic
              #     sampler REQ - the slot rows are untouched
              # v10: REQ-a-slot-row-carries-a-fit-button — a FIT button on every slot row, fitting the clip to
              #     the nearest bar length (time-stretch.md)
-             # v9: REQ-14/15 — per-slot choke groups and a mono mode, and a
+             # v9: REQ-a-slot-can-cut-another-slot/REQ-a-slots-polyphony-is-bounded — per-slot choke groups and a mono mode, and a
              #     polyphony cap so a slot can no longer stack without limit
-             # v8: REQ-12/13 — each slot gains a channel (vol/pan/tone/res) and a
+             # v8: REQ-each-slot-has-a-channel/REQ-a-hit-plays-a-window-of-the-buffer — each slot gains a channel (vol/pan/tone/res) and a
              #     per-hit voice window (pitch/start/end/rev/attack/decay); every
              #     default reproduces v7 exactly
              # v7: REQ-a-slot-starts-from-zero — a slot ramps up from zero and carries its choke when
@@ -28,7 +28,7 @@ owner: core
 related:
   - architecture
   - drum-machine
-  - onboarding              # REQ-25: the strip's five info badges
+  - onboarding              # REQ-the-sampler-strip-carries-five-badges: the strip's five info badges
   - sample-chop             # chopping a break across these slots
   - time-stretch            # REQ-a-slot-row-carries-a-fit-button: the FIT button on each slot row
   - scratch                 # the other offline rewrite of a slot, in the editor
@@ -186,7 +186,7 @@ the song format.
 
 - **REQ-a-slot-starts-from-zero** (v7) — **A slot starts from zero, and a
   clamped hit keeps its gate.** Two edges the drum voices already own
-  ([drum-machine](drum-machine.md) REQ-a-voice-envelope-reaches-true-zero and REQ-17), stated here because
+  ([drum-machine](drum-machine.md) REQ-a-voice-envelope-reaches-true-zero and REQ-a-clamped-hit-carries-its-choke), stated here because
   `SamplerMachine.play` schedules its own gain:
   - The per-hit gain **ramps up from 0** over `SAMPLER_ATTACK` (0.5 ms) instead of
     being assigned with `gain.value = velocity`. A sample whose first frame is not

@@ -9,9 +9,8 @@ import { citationsIn, staleNamesIn, hasReq, EXTERNAL_NAMES } from '../../scripts
  */
 
 const reqs = new Map<string, Set<string>>([
-  // Both id grammars, because a half-migrated tree is the normal state for as long
-  // as the migration runs (ADR-021). These ids are fixtures, not the real spec's —
-  // `req-migrate.mjs` skips this file for exactly that reason.
+  // Both id grammars, because the lint still has to read the old numbered form
+  // (ADR-021). These ids are fixtures, not the real spec's.
   ['arrangement', new Set(['1', '2', '8', '12', 'slot-transpose', 'rest-clears-lane'])],
   ['motion-sequencer', new Set(['22', '23'])],
   ['transport-position', new Set(['6', '8'])],

@@ -58,7 +58,7 @@ const RESET_GRAB_PX = 26;
 /** Hand-rolled, because `dblclick` is unreliable on touch (the scratch graph's
  *  finding, and the same constant). */
 
-export interface EqGraphOpts {
+export interface EqGraphOptions {
   bus: ParamBus;
   /** `fx.eq`, `fx.drum.eq` or `fx.sampler.eq`. */
   prefix: string;
@@ -106,7 +106,7 @@ export class EqGraph {
    *  writes no attribute (runtime-performance REQ-dom-writes-are-guarded-on-what-is-rendered). */
   private mirroredCurve = '';
 
-  constructor(opts: EqGraphOpts) {
+  constructor(opts: EqGraphOptions) {
     this.bus = opts.bus;
     this.prefix = opts.prefix;
     this.sampleRate = opts.sampleRate;

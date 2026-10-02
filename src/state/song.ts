@@ -16,6 +16,7 @@ import { compactSongForExport } from './serialize';
 import { SlotStore } from './slot-store';
 import { SONG_VERSION } from './song-version';
 import { demoMetaOf, type DemoMeta } from './demo-meta';
+import { triggerDownload, safeFilename } from '../utils/download';
 // Re-exported so the long-standing `import { SONG_VERSION } from './song'` keeps
 // working; the constant itself lives in a pure module the MCP bundle can read.
 export { SONG_VERSION } from './song-version';
@@ -339,12 +340,7 @@ export const Song = {
 
   download(file: SongFile): void {
     const blob = new Blob([Song.toJSON(file, true) + '\n'], { type: 'application/json' });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = `${file.name.replace(/[^a-z0-9_-]+/gi, '_') || 'song'}.websynth.json`;
-    a.click();
-    setTimeout(() => URL.revokeObjectURL(url), 1000);
+    triggerDownload(blob, `${safeFilename(file.name, 'song')}.websynth.json`);
   },
 
   readFile(f: File): Promise<SongFile | null> {

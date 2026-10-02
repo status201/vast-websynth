@@ -3,8 +3,8 @@ import { pushModal, removeModal, isTopModal, anyModalOpen } from '../modal-stack
 
 /**
  * Reusable modal dialog — the backdrop / card / title / Escape /
- * backdrop-click / fade lifecycle that was hand-rolled in `about.ts` and the
- * start modal. Single-use: construct, `open()`, `close()` (a fresh instance
+ * backdrop-click / fade lifecycle that was hand-rolled in the old `about.ts`
+ * (now `about-modal.ts`) and the start modal. Single-use: construct, `open()`, `close()` (a fresh instance
  * per appearance, which is how the record-sound modal is used).
  *
  * Pass `cardClass` for a width/layout variant.

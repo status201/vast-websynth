@@ -3,7 +3,8 @@
 ```yaml
 id: onboarding
 status: implemented
-version: 27  # v27: the Equalizer carries seven badges — one section topic plus a
+version: 28  # v28: help copy catches up with the release (REQ-help-copy-tells-the-truth): 19 factory sounds, Delete or revert…, chord Inversion, drag-and-drop import, the MIDI in picker, aftertouch, wide-screen octaves; the About key list gains the drum/sampler grid row
+             # v27: the Equalizer carries seven badges — one section topic plus a
              #      graph and a knob-row topic per lane — and its page shells
              #      join the reflow observer list (REQ-the-equalizer-carries-seven-badges, REQ-a-container-must-tell-badges-when-it-hides)
              # v26: five badges on the Sampler's selected-slot strip, anchored to
@@ -33,7 +34,8 @@ version: 27  # v27: the Equalizer carries seven badges — one section topic plu
              # v15: the Info/Help split collapsed — ⓘ toggles the badges and
              #      nothing else, ? opens About, the Help chooser modal is gone,
              #      and About absorbs the tour button + a folded key list
-             #      (REQ-8/9/10/17/19/20)
+             #      (REQ-the-info-button-is-a-toggle/REQ-help-copy-tells-the-truth/REQ-the-tour-showcases-the-song-tab/
+             #      REQ-about-key-symbols-are-drawn/REQ-the-info-button-gesture-inventory/REQ-about-is-the-single-door-for-help)
              # v14: the two audio topics rewritten for the Record window + export
              #      modal, and Shift+R added to the key list (REQ-the-song-audio-buttons-keep-their-badges/REQ-about-key-symbols-are-drawn)
              # v13: instant badge toggle — Shift/Ctrl+click or long-press the Help

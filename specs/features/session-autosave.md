@@ -257,7 +257,7 @@ on `song-validate`/`serialize`, not `song.ts`.
 - Undo re-fires `setSampleName` per slot after restoring buffers — the meta
   event is what clears `.needs-reload` in the sampler panel (same idiom as the
   project-zip import).
-- `Song.slotDiffers(file)` is the one primitive under REQ-14b/14c:
+- `Song.slotDiffers(file)` is the one primitive under REQ-an-identical-slot-is-not-a-conflict/REQ-every-slot-write-is-guarded:
   `store.readRaw(file.name)` compared to `Song.toJSON(file)` — absent slot **or**
   equal string ⇒ `false`. It stays in `song.ts` beside `saveSlot`, whose exact
   serialization it has to mirror. Above it sits one rule,

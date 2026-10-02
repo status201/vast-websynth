@@ -1,4 +1,5 @@
 import styles from '../styles/progress-bar.module.css';
+import { clamp01 } from '../../utils/math';
 
 /**
  * Shared progress bar (specs/features/progress-bar.md): a `role="progressbar"`
@@ -31,7 +32,7 @@ export function createProgressBar(opts: { testId?: string; label?: string } = {}
   return {
     el: track,
     set(ratio: number): void {
-      const r = Number.isFinite(ratio) ? Math.min(1, Math.max(0, ratio)) : 0;
+      const r = Number.isFinite(ratio) ? clamp01(ratio) : 0;
       fill.style.width = `${(r * 100).toFixed(1)}%`;
       track.setAttribute('aria-valuenow', String(Math.round(r * 100)));
     },

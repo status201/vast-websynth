@@ -8,7 +8,7 @@ import type { TickSubscriber } from './tick-source';
  *
  * Each lane is an ordered list of bank indices (e.g. A A B A → [0,0,1,0]).
  * While a lane is enabled the transport plays bank `steps[pos]`, advancing
- * `pos` by one every bar (every SEQ_LENGTH ticks). While a lane is disabled
+ * `pos` by one every bar (every `barTicks` ticks — meter.md). While a lane is disabled
  * its play bank simply follows that machine's UI edit bank (bar-quantised).
  *
  * Instantiated *before* the sequencer / drum machine so its clock tick

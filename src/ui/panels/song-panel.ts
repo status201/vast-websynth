@@ -68,7 +68,7 @@ async function openExportAudioModal(engine: StudioApi, fmt: ExportFormat): Promi
 }
 import { createRecordWindowLauncher } from '../components/record-window';
 import { encodeSongPayload, buildShareUrl } from '../../state/song-link';
-import { triggerDownload } from '../../audio/recorder/encode';
+import { triggerDownload } from '../../utils/download';
 import { audioBufferToCaptured } from '../../audio/recorder/audio-buffer';
 import { plural } from '../../utils/format';
 import { createWheelStepper } from '../wheel-steps';

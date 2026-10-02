@@ -9,7 +9,7 @@ owner: Gijs
 related:
   - pwa-install          # the service worker this drives (REQ-offline-cancel-and-takeover there)
   - factory-reset        # the About card order this section joins
-  - onboarding           # About is the single help door (REQ-20 there)
+  - onboarding           # About is the single help door (REQ-about-is-the-single-door-for-help there)
   - lazy-load-failure    # the gap this closes for a user who opts in
   - runtime-performance  # nothing here runs at boot
   - progress-bar

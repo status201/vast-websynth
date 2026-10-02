@@ -1,4 +1,5 @@
 import type { MotionStep, MotionTrackStep } from '../../state/patterns';
+import { clamp01 } from '../../utils/math';
 
 /**
  * Pure motion-sequencer curve math (no AudioContext, like step-hits.ts).
@@ -216,7 +217,7 @@ export function scalarAt<T extends Anchorable>(
     span = b - prev;
     dist = p - prev;
   }
-  const t = span > 0 ? Math.min(1, Math.max(0, dist / span)) : 0;
+  const t = span > 0 ? clamp01(dist / span) : 0;
   const va = get(sa);
   return va + (get(sb) - va) * t;
 }

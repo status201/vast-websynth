@@ -1,7 +1,7 @@
 import type { ChainLane } from '../../audio/transport/arrangement';
 import switchStyles from '../styles/switch.module.css';
 
-export interface ChainToggleOpts {
+export interface ChainToggleOptions {
   /** The lane whose `enabled` flag this button reflects and flips. */
   getLane(): ChainLane;
   setChain(steps: number[], enabled: boolean): void;
@@ -27,7 +27,7 @@ export interface ChainToggle {
  * than a `Switch` because a chain's enabled flag lives on `Arrangement`, not on
  * `ParamBus`: it is part of the song's arrangement, not a scalar param.
  */
-export function createChainToggle(opts: ChainToggleOpts): ChainToggle {
+export function createChainToggle(opts: ChainToggleOptions): ChainToggle {
   const el = document.createElement('button');
   el.type = 'button';
   el.className = opts.className

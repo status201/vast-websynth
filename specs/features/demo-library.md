@@ -10,7 +10,7 @@ related:
   - song-mode              # owns the plumbing: the three sources, fetch-on-click, the row
   - arrangement
   - arpeggiator            # REQ-demo-index-shape-is-stable — an armed control is not a broken one
-  - effects                # REQ-8 — the same, for a staged effect
+  - effects                # REQ-a-bypassed-effect-in-a-song-may-be-deliberate — the same, for a staged effect
   - project-export         # the zip demos
   - onboarding             # the tour picks one demo by name
   - runtime-performance    # why demos are not bundled

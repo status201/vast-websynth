@@ -3,7 +3,9 @@
 ```yaml
 id: add-a-modal-dialog
 status: implemented
-version: 5   # v5: open modals form a stack — only the top one answers Escape (the oldest used
+version: 6   # v6: step 0 — a dialog's body is a lazy chunk, loaded from its button through
+             #     loadSurface and warmed at idle when it must work offline
+             # v5: open modals form a stack — only the top one answers Escape (the oldest used
              #     to, closing the modal UNDER a confirm); Modal.anyOpen() lets the
              #     global shortcuts stand down while one is open
              # v4: a modal still playing its close fade is reaped the moment
@@ -38,6 +40,30 @@ panic handler in `shortcuts.ts` — the opposite stance from
 [`FloatingWindow`](add-a-floating-window.md), which leaves Escape alone.
 
 ## Steps
+
+### 0. Keep the body out of the boot bundle
+
+A dialog is opened by a click, so its body does not belong in the entry chunk
+([runtime-performance](../features/runtime-performance.md)
+REQ-boot-cost-matches-the-request). Put the body in its own module
+(`<dialog>-modal.ts`) and load it from the button through `loadSurface`
+(`src/ui/components/lazy-load-toast.ts`), which reports a failed load and
+re-runs the whole gesture on Retry
+([lazy-load-failure](../features/lazy-load-failure.md)
+REQ-every-lazy-trigger-reports, REQ-retry-reruns-the-whole-gesture):
+
+```ts
+async function open(): Promise<void> {
+  const m = await loadSurface('the performance settings', () => import('./perf-settings-modal'), () => void open());
+  m?.openPerfSettingsModal({ /* … */ });
+}
+```
+
+If the dialog must work offline, add its import to the idle warm list in
+`src/main.ts` (`warmDeferred`, [pwa-install](../features/pwa-install.md)
+REQ-service-worker-is-registered). Leave it cold only when offline it has nothing
+to offer, as the AI Prompt body does. `npm run check:bundle` shows what the
+entry chunk saved.
 
 ### 1. Construct + fill — `src/ui/components/<dialog>.ts`
 

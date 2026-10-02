@@ -3,17 +3,17 @@
 ```yaml
 id: audio-lifecycle
 status: implemented
-version: 6   # v6: REQ-19..REQ-21 — the context the browser hands us. A context
+version: 6   # v6: REQ-nothing-is-audible-before-the-first-start/REQ-the-gesture-is-required-only-when-required/REQ-post-gesture-work-is-deferred — the context the browser hands us. A context
              #     created `running` (autoplay permitted) skipped REQ-a-start-is-click-free's fade
              #     entirely, which is the click that was still being reported;
              #     the same signal says the start gesture is not needed at all
-             # v5: REQ-13..REQ-18 — recovery. A resume that does not take is
+             # v5: REQ-a-resume-that-does-not-take-is-retried … REQ-a-bfcache-restore-counts-as-returning — recovery. A resume that does not take is
              #     retried and then handed to the next gesture (measured: an
              #     Android tablet under battery saving came back silent, and only
              #     the Debug panel could revive it)
              # v4: REQ-the-trip-is-measured-never-inferred — a severe reading trips on ONE window (measured: a Pixel
              #     8a runs its backgrounded audio clock at 36% of real time)
-             # v3: REQ-9..REQ-12 — the background watchdog
+             # v3: REQ-breaking-up-background-audio-is-suspended … REQ-the-measurement-is-visible-either-way — the background watchdog
 owner: core
 related:
   - architecture
@@ -475,7 +475,7 @@ engine.resume():   deliberateSuspend = false                 # v5: any resume is
                    await ctx.resume() raced with RESUME_VERIFY_MS   # v5, REQ-a-resume-that-does-not-take-is-retried
                    #   ramp already on the timeline (REQ-the-ramp-is-scheduled-before-the-await)
                    still not running ? retry (RESUME_RETRIES) : done
-                   still not running ? armGestureFallback() + notify blocked      # v5, REQ-13/14
+                   still not running ? armGestureFallback() + notify blocked      # v5, REQ-a-resume-that-does-not-take-is-retried/REQ-a-stuck-context-is-visible
 engine.init():     installContextRearm()                     # after the graph + voices exist
                    #   on foreground: resume() as below, plus media.rearm() (REQ-the-os-is-told-there-is-a-player)
                    watchdog.start()                          # v3: AFTER recorder/bankRender —
@@ -484,7 +484,7 @@ watchdog trip:     master.gain → 0 over GLITCH_FADE_S, then ctx.suspend()
                    #   the fade first so the exit is not itself a click (REQ-a-start-is-click-free's sibling)
                    #   v5: glitchMuted = true; the pending suspend is cancellable (REQ-the-glitch-fade-out-is-always-undone)
 main.ts:           autoplayAllowed ? await resume() + onStart({defer}) : showStartModal(...)
-                   #   v6, REQ-20/21 — the modal is the blocked-browser path only.
+                   #   v6, REQ-the-gesture-is-required-only-when-required/REQ-post-gesture-work-is-deferred — the modal is the blocked-browser path only.
                    #   deferred: initMIDI + media.unlock() via engine.onFirstGesture
                    #   immediate: the clips toast + the #songUrl= consent dialog
                    the start handler still awaits engine.resume()

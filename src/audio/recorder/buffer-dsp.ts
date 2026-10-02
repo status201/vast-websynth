@@ -6,6 +6,7 @@
  * need real DSP and live in `offline-render.ts`.
  */
 import type { CapturedAudio } from './node';
+import { clamp01 } from '../../utils/math';
 
 /** Build a NEW Float32Array by mapping each sample of `src`. */
 function mapChannel(src: Float32Array, fn: (v: number, i: number) => number): Float32Array {
@@ -230,7 +231,7 @@ export function detectOnsets(a: CapturedAudio, opts: OnsetOptions = {}): number[
   const to = Math.max(from, Math.min(Math.floor(opts.to ?? len), len));
   const maxSlices = Math.max(1, Math.floor(opts.maxSlices ?? 8));
   const minGap = Math.round(((opts.minGapMs ?? 60) / 1000) * a.sampleRate);
-  const threshold = Math.max(0, Math.min(1, opts.threshold ?? 0.18));
+  const threshold = clamp01(opts.threshold ?? 0.18);
   const span = to - from;
   if (span < 2 || maxSlices < 2) return [];
 

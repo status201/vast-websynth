@@ -1,5 +1,6 @@
 import { LfoDest } from './lfo';
 import { PWM_MAX_WIDTH, PWM_MIN_WIDTH, type Osc } from './oscillator';
+import { clamp01 } from '../utils/math';
 
 /** Control-loop rate. Smoothness is `PWM_CONTROL_HZ / lfoRate` duty updates per
  *  cycle — 240 at 1 Hz, ~24 at the PWM_RATE_MAX cap (oscillators.md REQ-set-periodic-wave-is-immediate). */
@@ -93,7 +94,7 @@ export class PwmDriver {
   }
 
   setAmount(src: number, a: number): void {
-    this.slot(src).amount = Math.max(0, Math.min(1, a));
+    this.slot(src).amount = clamp01(a);
   }
 
   setRate(src: number, hz: number): void {

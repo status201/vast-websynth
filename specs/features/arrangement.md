@@ -83,7 +83,7 @@ tick listener settles the play banks first.
   transpose.** `ChainLane` gains `transpose: number[]`, a **parallel** array of
   semitone offsets, one per slot, `0` meaning "as written". `seqTranspose`
   exposes the current slot's offset and the [sequencer](sequencer.md) adds it to
-  every note it triggers (REQ-16 there).
+  every note it triggers (REQ-every-note-is-shifted-by-the-slot-transpose there).
 
   **Why the format needed this.** A chain slot was a bare bank index, and there
   were four banks of sixteen steps, so **four bars was the entire melodic

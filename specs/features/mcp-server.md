@@ -3,7 +3,7 @@
 ```yaml
 id: mcp-server
 status: implemented
-version: 8   # v8: REQ-1/9/10/11 — a second transport (Streamable HTTP) and the
+version: 8   # v8: REQ-two-transports-one-dispatcher/REQ-the-http-transport-is-stateless/REQ-the-remote-profile-is-read-only/REQ-the-public-endpoint-is-bounded-not-authenticated — a second transport (Streamable HTTP) and the
              #     read-only remote profile behind https://vast.status201.com/mcp
              # v7: REQ-local-entries-self-build-the-core — the self-build runs in a child process (no native module pinned)
              # v6: REQ-a-valid-song-can-still-be-wrong — validate_song/save_song report untrusted-input REQ-an-unresolvable-target-warns's warnings
@@ -29,7 +29,7 @@ source:
   - scripts/mcp/websynth-mcp-http.mjs # local entry: HTTP, self-building (REQ-streamable-http-is-one-message-per-post)
   - scripts/mcp/app.js                # deployed entry: HTTP, prebuilt bundle only (REQ-the-request-path-is-not-matched)
   - scripts/mcp/core.mjs              # shared: staleness check + child-process self-build
-  - scripts/mcp/http.mjs              # Streamable HTTP transport + bounds (REQ-9/11)
+  - scripts/mcp/http.mjs              # Streamable HTTP transport + bounds (REQ-the-http-transport-is-stateless/REQ-the-public-endpoint-is-bounded-not-authenticated)
   - scripts/mcp/rpc.mjs               # pure JSON-RPC 2.0 / MCP dispatch (both transports)
   - scripts/mcp/tools.mjs             # makeTools(core) — the song + preset tools
   - scripts/mcp/song-core-entry.ts    # the pure song core the lib bundle re-exports

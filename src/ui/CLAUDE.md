@@ -4,8 +4,16 @@ Loaded when working with files under `src/ui/`. See the root `CLAUDE.md` for
 architecture, the `StudioApi`/`UiBridge` contracts and the SDD rules.
 
 All component/panel styling is in `src/ui/styles/*.module.css`. Global CSS is
-now only `src/styles/base.css` (reset), `src/styles/theme.css` (custom
-properties), and `src/styles/layout.css` (`.app` grid + responsive).
+only `src/styles/layers.css` (the cascade-layer order), `src/styles/base.css`
+(reset), `src/styles/theme.css` (custom properties), and
+`src/styles/layout.css` (`.app` grid + responsive).
+
+- **No `style="…"` in markup.** The shipped Content Security Policy has no
+  `style-src 'unsafe-inline'`, so a style attribute inside an `innerHTML` string
+  is dropped in the build (and only there: `vite dev` relaxes the policy). Set
+  styles from script instead (`el.style.setProperty(...)`, `el.style.width = …`),
+  which the policy allows, or use a class. → `specs/features/untrusted-input.md`
+  REQ-defence-in-depth-at-delivery.
 
 - **Typography**: `--serif` is display type only — identity, headings, taglines, and faceplate legends (tabs, step buttons, segmented, track labels). Body copy, status lines and anything the user *types* are `--sans`; readouts with changing digits are `--mono` (Georgia's figures are proportional old-style, so a serif counter jitters). Sans is the inherited default, so a serif is always a deliberate opt-in — and `tests/ui/typography.test.ts` fails on any new one until it's declared. → `specs/features/typography.md`.
 - **Icons**: a glyph that labels a control — an arrow, a caret, `✕`, `⚙`, an emoji — is inline SVG from `components/ui-icons.ts`, never a character in a `textContent` or a `label:`. No font is bundled, so a typed glyph falls through to whatever symbol/emoji face the device picks (this is why the About modal's `←` and `→` disagreed on Android). `base.css` strokes and sizes `svg.ui-icon` globally — a CSS Module cannot, since the class is hard-coded in the markup string. Punctuation inside a sentence (`— … • −`, the `→` in "Distortion → Wah") stays text. `tests/ui/iconography.test.ts` pins it. → `specs/features/iconography.md`.
@@ -14,7 +22,7 @@ properties), and `src/styles/layout.css` (`.app` grid + responsive).
 - Bridge global classes (e.g. `switch-label`) are kept alongside module classes where global descendant selectors still target children: `className: 'switch-label ' + styles.label!`. `knob-dial` is the same idiom for a different reason — it is the element the drag actually listens on, and with `KnobOptions.inline` it is no longer at the root's centre, so `e2e/helpers.ts`'s `dragKnobUp` needs a stable way to aim at it. → `specs/features/sequencer.md` REQ-the-pan-knob-costs-the-row-no-height.
 - Use `:global()` when a module selector targets an element with only a global class: `.icons button :global(svg.wave-icon)`.
 - Step buttons: `.root` is `min-width: 0; width: 100%; height: 32px`. `.drum-cell` overrides height to 22px and font-size to 8px but does NOT set width — parent grid controls sizing.
-- Step buttons (seq/drum/sampler) visualize per-step settings via `StepButton.setViz()`: a lazily-created `.fill` layer driven by inline custom props (`--sb-gate` width, `--sb-vel` brightness, `--sb-ratchet` top ticks) plus `tie`/`prob`/`ratchet` classes; the label lives in a `.label` span so `setLabel` can't wipe the layer. `.red .fill` keeps the drum/sampler beat columns red when lit; `.drum-cell.tie .fill` shortens the tie bridge to the drum grid's 3px gap.
+- Step buttons (seq/drum/sampler) visualize per-step settings via `StepButton.setViz()`: a lazily-created `.fill` layer driven by custom props set from script (`--sb-gate` width, `--sb-vel` brightness, `--sb-ratchet` top ticks) plus `tie`/`prob`/`ratchet` classes; the label lives in a `.label` span so `setLabel` can't wipe the layer. `.red .fill` keeps the drum/sampler beat columns red when lit; `.drum-cell.tie .fill` shortens the tie bridge to the drum grid's 3px gap.
 - The drum module's `.cells` uses `display: grid; grid-template-columns: repeat(var(--steps, 16), 1fr); gap: 3px` — both `drum-panel.ts` and `sampler-panel.ts` import this via `drumStyles.cells`. The three step grids (`seq.stepRow`, `drum.cells`, `motion.trackCells`) all take their column count from `--steps`, set by the panel and by the ruler that shares the class, so a 3/4 song draws 12 columns rather than 16 with four dead ones. Resolve it with `laneGrid()` from `src/ui/lane-grid.ts` — never recompute it per surface. → `specs/features/meter.md`.
 - Sampler action buttons (`.load`, `.edit`, `.rec`) need full base button styling (background, border, border-radius, cursor, font-family, box-shadow, transition) in their module class — they are standalone classes with no shared base class to inherit from.
 - Panel builder functions must explicitly `appendChild` every sub-container to the root element. Orphaned DOM subtrees (built but never appended) are a common source of blank panels — previously tripped on `drum-panel.ts` where the grid was constructed but `root.appendChild(grid)` was missing.

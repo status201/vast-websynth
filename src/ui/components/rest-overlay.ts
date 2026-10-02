@@ -11,7 +11,7 @@ export interface RestOverlay {
   refresh(): void;
 }
 
-export interface RestOverlayOpts {
+export interface RestOverlayOptions {
   /** The panel's Bank Follow state — Follow off means editing intent, so the
    *  overlay stays hidden (REQ-a-resting-machine-tab-shows-it). The caller must refresh() when it flips. */
   following?: () => boolean;
@@ -27,7 +27,7 @@ export interface RestOverlayOpts {
 export function buildRestOverlay(
   api: StudioApi,
   lane: RestLane,
-  opts: RestOverlayOpts = {},
+  opts: RestOverlayOptions = {},
 ): RestOverlay {
   const el = document.createElement('div');
   el.className = styles.overlay!;

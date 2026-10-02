@@ -191,13 +191,13 @@ export const SPECTRUM_COL_W = 3;
 export const TICK_CHAR_W = 6;
 
 /** Minimum px between two tick labels before the crowded one is dropped. */
-export const TICK_MIN_GAP = 6;
+const TICK_MIN_GAP = 6;
 
 /** Region width below which zone *names* are dropped; the bands themselves stay. */
 export const ZONE_NAME_MIN_W = 300;
 
 /** Px below a region's top edge where zone names sit — clear of the corner buttons. */
-export const ZONE_NAME_TOP = 22;
+const ZONE_NAME_TOP = 22;
 
 /** The labelled frequencies on the bottom ruler (REQ-the-scale-is-a-permanent-ruler). */
 export const SPECTRUM_TICKS_HZ: readonly number[] = [100, 500, 1000, 5000, 10000];

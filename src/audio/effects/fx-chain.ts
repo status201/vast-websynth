@@ -34,7 +34,7 @@ export interface FxChain<E extends Record<string, Effect>> {
   bind(bus: ParamBus): void;
 }
 
-export interface FxChainOpts {
+export interface FxChainOptions {
   dist?: { oversample?: boolean };
   reverb?: { maxIrS?: number };
 }
@@ -67,7 +67,7 @@ function makeChain<E extends Record<string, Effect>>(
  */
 export function createSynthChain(
   ctx: AudioContext,
-  opts: FxChainOpts = {},
+  opts: FxChainOptions = {},
 ): FxChain<{
   eq: Equalizer; dist: Distortion; wah: Wah; phaser: Phaser; delay: Delay; reverb: Reverb; duck: Ducker;
 }> {
@@ -101,7 +101,7 @@ export function createSynthChain(
  */
 export function createDrumChain(
   ctx: AudioContext,
-  opts: FxChainOpts = {},
+  opts: FxChainOptions = {},
 ): FxChain<{ eq: Equalizer; comp: Compressor; phaser: Phaser; delay: Delay; reverb: Reverb }> {
   const fx = {
     eq: new Equalizer(ctx),
@@ -123,7 +123,7 @@ export function createDrumChain(
 /** Sampler bus: eq → distortion → phaser → delay → reverb → duck (no wah). */
 export function createSamplerChain(
   ctx: AudioContext,
-  opts: FxChainOpts = {},
+  opts: FxChainOptions = {},
 ): FxChain<{
   eq: Equalizer; dist: Distortion; phaser: Phaser; delay: Delay; reverb: Reverb; duck: Ducker;
 }> {

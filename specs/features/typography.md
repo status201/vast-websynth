@@ -63,7 +63,7 @@ otherwise never gets.
 
   **One carve-out: a tab that is a panel's heading.** "Tab labels" above means
   `TabContainer`'s machine tabs, which sit on the faceplate as legends.
-  [panel-tabs](panel-tabs.md) tabs *replace* a `.panelTitle` (its REQ-9), and
+  [panel-tabs](panel-tabs.md) tabs *replace* a `.panelTitle` (its REQ-the-strip-replaces-the-title), and
   synth panel titles have always been sans — so those tabs declare no face and
   inherit it, because matching the heading they stand in for beats matching the
   other thing called a tab. The test cannot catch this either way (declaring

@@ -6,7 +6,7 @@ import type { StudioApi } from '../../src/ui/studio-api';
 import type { TourCtx } from '../../src/ui/onboarding/tour';
 import type { AiPromptRoutes } from '../../src/ui/components/ai-prompt';
 import type { SyncController } from '../../src/audio/transport/sync/sync-controller';
-import type { WebRtcSyncTransport } from '../../src/audio/webrtc-sync-transport';
+import type { WebRtcSyncTransport } from '../../src/audio/transport/sync/webrtc-sync-transport';
 
 /**
  * onboarding.md REQ-the-help-door-never-fails-silently (runtime-performance.md REQ-boot-cost-matches-the-request): the help door is behind

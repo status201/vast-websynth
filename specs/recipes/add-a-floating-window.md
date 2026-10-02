@@ -120,7 +120,7 @@ npm run e2e         # e2e/xy-pad.spec.ts drives the toggle end-to-end
   module, or `panels` if it composes a panel's classes
   ([css-cascade-layers](../features/css-cascade-layers.md)).
 - **Reuse the instance.** Build the window once and toggle `open()`/`close()`;
-  don't `new` it per click — that discards live state and defeats REQ-2.
+  don't `new` it per click — that discards live state and defeats floating-window.md REQ-floating-window-reopens.
 - **z-index tier is 950** — above panels (~100), below `Dropdown`/`Modal`
   (1000), so a `Dropdown` opened inside the window still renders on top.
 - The title-bar drag is **viewport-clamped**; the ✕ button stops propagation so

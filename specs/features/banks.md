@@ -3,7 +3,8 @@
 ```yaml
 id: banks
 status: implemented
-version: 7   # v7: the ceiling rises to 16 (A–P) — SongFile v9 (song-mode.md
+version: 8   # v8: the sixteen-bank ceiling's rationale is ADR-025 (it was an in-place amendment to ADR-022)
+             # v7: the ceiling rises to 16 (A–P) — SongFile v9 (song-mode.md
              #     REQ-song-file-v9-raises-the-bank-ceiling); the bar wraps rather than pages
              #     (REQ-the-bank-bar-wraps-rather-than-pages)
              # v6: a machine owns its own bank count, 4..8, and the count IS the array
@@ -372,7 +373,7 @@ Scenario: A chain naming a bank the file omits grows the machine (v6)
   `tests/state/authoring-docs.test.ts` names, since it pins every bank dimension
   in both published schemas and `public/llms.txt` to the constants, plus a
   `SONG_VERSION` bump and a new top rung in the dialect's version ladder (the v7
-  raise to sixteen did exactly that — ADR-022's amendment). The open question this
+  raise to sixteen did exactly that — ADR-025). The open question this
   section used to carry — one row of letters or paging past ~ten banks — was
   answered at v7 by REQ-the-bank-bar-wraps-rather-than-pages. Past sixteen the
   letters alone would need a second alphabet, which is a design change, not a raise.

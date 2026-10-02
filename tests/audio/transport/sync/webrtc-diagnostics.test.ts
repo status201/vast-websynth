@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { parseCandidate, summarizeDiagnostics, emptyDiagnostics } from '../../src/audio/webrtc-diagnostics';
+import { parseCandidate, summarizeDiagnostics, emptyDiagnostics } from '../../../../src/audio/transport/sync/webrtc-diagnostics';
 
 describe('webrtc-diagnostics', () => {
   it('parseCandidate extracts type/protocol/address (IPv4, IPv6, tcp, a=)', () => {
