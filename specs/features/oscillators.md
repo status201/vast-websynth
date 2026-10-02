@@ -23,7 +23,7 @@ source:
   - src/audio/voice.ts
   - src/state/params.ts
   - src/audio/engine.ts        # subscribeParams (osc1/osc2/sub/noise)
-  - src/ui/app.ts
+  - src/ui/panels/synth-panels.ts
 ```
 
 The synth's tone sources: two main oscillators, a sub-oscillator, and a noise
@@ -203,7 +203,7 @@ graph (v2):
     voice's osc1/osc2 .setPulseWidth(...)  # a param write, never an audio connection
   # v4: LFO.bind(bus, prefix, pwm, src) feeds the driver; Engine keeps
   #     osc{1,2}.pulseWidth -> pwm.setBase(i, x), which belongs to the oscillators
-ui:       src/ui/app.ts  (OSC1 / OSC2 / SUB panels: Knob + Segmented for wave)
+ui:       src/ui/panels/synth-panels.ts (OSC1 / OSC2 / SUB panels: Knob + Segmented for wave)
   osc{N}.pulseWidth knob is shown only while osc{N}.wave === square
   LFO panel (src/ui/panels/lfo-panel.ts): pulseRateDisclosure(bus, prefix, rate) —
     ONE ${prefix}.dest listener per page drives both REQ-pwm-rate-is-clamped cues, the rate-cap

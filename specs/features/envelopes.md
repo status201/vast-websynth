@@ -14,7 +14,7 @@ source:
   - src/audio/voice.ts
   - src/state/params.ts
   - src/audio/engine.ts
-  - src/ui/app.ts
+  - src/ui/panels/synth-panels.ts
 ```
 
 Two per-voice ADSR envelopes: one shapes amplitude, one modulates the filter
@@ -111,7 +111,7 @@ engine (subscribeParams):
   env.fil.* -> all((v, x) => v.filEnv.<same>)
   filter.envAmount -> all((v, x) => v.setFilterEnvAmount(x))   # semitone depth
   filter.velAmount -> all((v, x) => v.setFilterVelAmount(x))   # v3, REQ-filter-env-follows-velocity
-ui: src/ui/app.ts (AMP ENV / FILTER ENV panels)
+ui: src/ui/panels/synth-panels.ts (AMP ENV / FILTER ENV panels)
 ```
 
 ## Scenarios (BDD)

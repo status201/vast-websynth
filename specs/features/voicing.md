@@ -219,7 +219,7 @@ engine (subscribeParams) -> Polyphony setters (poly/unison/glide/drift live ther
   analog.drift  -> polyphony.setDrift(x)               # drift source owned by Polyphony
   master.pitchBend -> rampTo(this.pitchBend.offset, x * PITCH_BEND_RANGE_CENTS, FAST)
 note flow: bus.onNote -> Engine.playNote/ releaseNote -> Polyphony (unless passthroughSuppressed)
-ui: src/ui/app.ts (VOICE / UNISON / GLIDE controls; pitch-bend + transpose)
+ui: src/ui/shell/header.ts (VOICE), src/ui/panels/synth-panels.ts (UNISON, GLIDE), src/ui/shell/bottom.ts (pitch-bend + transpose)
 ```
 
 ## Scenarios (BDD)

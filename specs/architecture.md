@@ -282,7 +282,7 @@ transport machines and `BankBar`), which had each open-coded the same
 `Set` + `add → return () => delete` pair.
 
 **`ui/app.ts` is 965 lines, and its import order is no longer load-bearing.**
-The obvious extraction is `buildMain` (the eight synth panels) and `buildFx`
+The obvious extraction is the eight synth panels (now `buildSynthPanels`) and `buildFx`
 (the insert-effect rack): each takes only the bus, returns an element, and reads
 none of the shell's closure state. It was first tried and **reverted**, because
 moving them took their component imports with them — and **CSS Modules inject in

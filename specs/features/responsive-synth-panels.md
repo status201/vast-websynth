@@ -21,7 +21,7 @@ related:
   - architecture
   - filter-models
 source:
-  - src/ui/app.ts                    # buildMain: the .quad/.hex rows + row() helper
+  - src/ui/panels/synth-panels.ts    # buildSynthPanels: the .quad/.hex rows + row() helper
   - src/ui/styles/panel.module.css   # .quad + .hex grid rules
   - src/ui/styles/fx-rack.module.css # .fxRow (REQ-fx-panels-fit-their-knob-run)
 ```
@@ -218,7 +218,7 @@ count changes.
 
 ### Contract / public interface
 
-No new module. In `buildMain` (`src/ui/app.ts`) the local `row()` helper grows an
+No new module. In `buildSynthPanels` (`src/ui/panels/synth-panels.ts`) the local `row()` helper grows an
 optional second argument — an extra CSS class appended to `.panelRow`:
 
 ```ts
@@ -237,7 +237,7 @@ function row(children: HTMLElement[], extraClass?: string): HTMLElement {
   existing single `row(...)`.
 - **OSC 1**, **OSC 2**, **MIXER** (3 knobs) and **LFO** (2 knobs) pass
   `styles.spread!` to their existing `row(...)` (REQ-spread-rows-distribute-when-wide). The LFO's is in
-  `src/ui/panels/lfo-panel.ts`, not `app.ts`.
+  `src/ui/panels/lfo-panel.ts`, not `synth-panels.ts`.
 
 ### Layer touchpoints & ordering
 
@@ -297,7 +297,7 @@ function row(children: HTMLElement[], extraClass?: string): HTMLElement {
   The spanning VEL is vertically centred by `.quint`'s own `align-items:
   center`; nothing extra is needed. The two media blocks never overlap, so the
   1630px placements cannot leak into the reflow.
-- `src/ui/app.ts` — the `row()` helper + seven `panel()` call sites: two `.quad`
+- `src/ui/panels/synth-panels.ts` — the `row()` helper + seven `panel()` call sites: two `.quad`
   (SUB/UNI, AMP ENV), one `.hex` (FILTER), one `.quint` (FILTER ENV) and three
   `.spread` (OSC 1, OSC 2, MIXER). The eighth faceplate panel, **LFO**, is built
   by `buildLfoPanel` through `createTabbedPanel` and carries the fourth

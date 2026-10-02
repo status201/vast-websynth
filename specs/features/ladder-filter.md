@@ -22,7 +22,7 @@ source:
   - src/state/params.ts                   # filter.* ParamDefs
   - src/audio/engine.ts                   # subscribeParams (per-voice)
   - src/utils/taper.ts                    # power-taper knob mapping
-  - src/ui/app.ts                         # the FILTER panel
+  - src/ui/panels/synth-panels.ts         # the FILTER panel
 ```
 
 The resonant low-pass ladder filter — the synth's main tone shaper. It is also the
@@ -199,7 +199,7 @@ that works at `min = 0` (`exp` requires `min > 0`).
    filter.resonance -> all((v, x) => v.setFilterResonance(x))
    filter.drive     -> all((v, x) => v.setFilterDrive(x))
    filter.envAmount -> all((v, x) => v.setFilterEnvAmount(x))   # semitone depth
-3_ui:        src/ui/app.ts  -> FILTER panel (CUTOFF / RESO / DRIVE / ENV knobs)
+3_ui:        src/ui/panels/synth-panels.ts -> FILTER panel (CUTOFF / RESO / DRIVE / ENV knobs)
 init order:  Engine.init() awaits LadderFilterNode.loadModule() before creating voices
 ```
 

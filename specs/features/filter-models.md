@@ -24,7 +24,7 @@ source:
   - src/audio/engine.ts                    # subscribeParams fan-out
   - src/state/params.ts                    # filter.model / filter.shape
   - src/state/preset.ts                    # factory presets carry both keys
-  - src/ui/app.ts                          # FILTER panel model switch
+  - src/ui/panels/synth-panels.ts          # FILTER panel model switch
 ```
 
 The synth's filter is **selectable**: `LADDER` (index 0, the existing 4-pole
@@ -226,7 +226,7 @@ a judgement call, not a bug fix.
    filter.model -> all((v, x) => v.setFilterModel(x))
    filter.shape -> all((v, x) => v.setFilterShape(x))
    per-voice wiring: lfo.toShape.connect(v.filter.shape)   # beside the toCutoff connect
-3_ui:        src/ui/app.ts  -> FILTER panel: Segmented('filter.model') + SHAPE knob
+3_ui:        src/ui/panels/synth-panels.ts -> FILTER panel: Segmented('filter.model') + SHAPE knob
              SHAPE is dimmed while filter.model === 0 (REQ-shape-is-poly-only)
 init order:  unchanged — one loadModule, one node per voice
 ```

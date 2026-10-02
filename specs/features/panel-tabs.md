@@ -194,7 +194,7 @@ panel.ts:      createPanel        -> .panel > .panelTitle + .panelBody   (unchan
 panel-tabs.ts: bar  = div.panelTabs > button.panelTab per page (span.panelTabLamp
                       out of flow + a label span, so setLit cannot wipe the text)
                body = div per page, .panelPage, toggled with the global `visible` class
-app.ts:        `const panel = createPanel` — the seven untabbed panels are unchanged
+synth-panels.ts:`const panel = createPanel` — the seven untabbed panels are unchanged
 consumers:     src/ui/panels/lfo-panel.ts (the only one today)
 ```
 
