@@ -16,6 +16,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+### Fixed
+
+- **Play offline shows the real download size.** The About card's size was what
+  the browser had not cached yet, unlabeled, so it read as a too-small total
+  (2.3 MB for a 6.1 MB copy). It now shows the total, plus "still to download"
+  when part of it is already on the device.
+
 ## [2.16.0] - 2026-10-02
 
 ### Added

@@ -87,7 +87,7 @@ the day it ships.
   | State | Button | Status line |
   | --- | --- | --- |
   | `checking` | disabled, **Play offline** | Checking this device… |
-  | `none` | **Play offline** | Saves everything on this device — demos, dialogs and help — so it plays with no connection · *N MB* (the *remaining* size, `kB` below a megabyte; omitted when it is unknown or zero) |
+  | `none` | **Play offline** | Saves everything on this device — demos, dialogs and help — so it plays with no connection · *T MB* — the copy's **total** size, then `, R MB still to download` when part of it is already cached (the worker caches what the session has fetched, so the remainder alone reads as a wrong total); `kB` below a megabyte; just a full stop when the sizes are unknown |
   | `downloading` | **Cancel** | Downloading *a* of *b* files · *x* / *y* MB (Preparing… before the list is known) |
   | `complete` | **Ready to play offline** | All *b* files (*y* MB) are on this device. New versions update it automatically. (+ The browser may clear it if storage runs low — when `persisted()` is false) |
   | `error` | **Try again** | worded per reason — see REQ-the-offline-download-runs-in-order/REQ-offline-cancel-and-takeover |
@@ -492,6 +492,12 @@ Scenario: The section renders each state (REQ-one-offline-state-machine-many-vie
   Given a stub OfflineCopy
   When it emits none, downloading, complete, error and needs-reload
   Then the button label, its disabled state, the status line and the bar's visibility follow the table
+# pinned by: tests/ui/about-offline.test.ts
+
+Scenario: A partly cached copy shows the total, not the remainder alone (REQ-one-offline-state-machine-many-views, regression)
+  Given the state is none with 6.1 MB in total and 2.3 MB not yet cached
+  Then the status line ends "· 6.1 MB, 2.3 MB still to download"
+  And with nothing cached, or everything cached but no marker, it ends "· 6.1 MB"
 # pinned by: tests/ui/about-offline.test.ts
 
 Scenario: A download that ends behind a closed About raises a toast (REQ-offline-feedback-while-about-is-closed)
