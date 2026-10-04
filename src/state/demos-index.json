@@ -95,6 +95,24 @@
       "motion"
     ]
   },
+  "Eleanor_Rigby-1.websynth.json": {
+    "name": "Eleanor Rigby-1",
+    "bpm": 138,
+    "bars": 72,
+    "uses": [
+      "seq"
+    ],
+    "blurb": "Half of a pair: load Eleanor Rigby-2 on a second device, pair them over WiFi sync and press Play on either one. This half is the low strings and the voice: the tune, the cello, the viola's lines and the second voice in the \"Ah\" sections. Its last verse has its own cello arpeggios, the cello doubling the tune and the A minor near the end. It plays complete on its own too."
+  },
+  "Eleanor_Rigby-2.websynth.json": {
+    "name": "Eleanor Rigby-2",
+    "bpm": 138,
+    "bars": 72,
+    "uses": [
+      "seq"
+    ],
+    "blurb": "Half of a pair: load Eleanor Rigby-1 on a second device, pair them over WiFi sync and press Play on either one. This half is the violins: the same tune, the staccato chord stabs and a pizzicato root under each stab, so it has a bass line when it plays alone. In the last chorus it switches to the \"Ah, look at all the lonely people\" line while the other device carries the chorus, as on the record."
+  },
   "Elegy.websynth.json": {
     "name": "Elegy",
     "bpm": 74,
