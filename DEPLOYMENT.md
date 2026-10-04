@@ -136,7 +136,7 @@ cloning this repo:
 claude mcp add --transport http websynth https://vast.status201.com/mcp
 ```
 
-It is **authless and read-only** — eight tools, all pure functions over a public
+It is **authless and read-only** — nine tools, all pure functions over a public
 document format, no filesystem writes. See
 [mcp-server](specs/features/mcp-server.md)
 REQ-the-http-transport-is-stateless/REQ-the-remote-profile-is-read-only,
@@ -266,7 +266,7 @@ curl -s  https://vast.status201.com/mcp/healthz      # {"ok":true,"version":"…
 curl -si https://vast.status201.com/mcp | head -1    # 405 — there is no SSE stream
 curl -s  https://vast.status201.com/mcp -X POST \
   -H 'content-type: application/json' \
-  -d '{"jsonrpc":"2.0","id":1,"method":"tools/list"}'   # 8 tools, no save_*
+  -d '{"jsonrpc":"2.0","id":1,"method":"tools/list"}'   # 9 tools, no save_*
 ```
 
 ### When it doesn't work

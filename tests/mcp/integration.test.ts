@@ -120,7 +120,7 @@ describe('websynth MCP server over stdio', () => {
     const res = await request('tools/list');
     expect(res.result.tools.map((t: { name: string }) => t.name)).toEqual([
       'get_params',
-      'get_song_format', 'validate_song', 'expand_song', 'save_song', 'make_share_link',
+      'get_song_format', 'validate_song', 'expand_song', 'save_song', 'make_share_link', 'read_midi',
       'get_preset_format', 'validate_preset', 'expand_preset', 'save_preset',
     ]);
   }, 30_000);

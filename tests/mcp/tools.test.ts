@@ -4,7 +4,7 @@
 // runs them against the real src modules directly under Vitest — no lib
 // bundle needed.
 import { describe, it, expect } from 'vitest';
-import { mkdtempSync, rmSync, readFileSync, existsSync, readdirSync } from 'node:fs';
+import { mkdtempSync, rmSync, readFileSync, existsSync, readdirSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { inflateRawSync } from 'node:zlib';
@@ -17,6 +17,8 @@ import { validateSongFile } from '../../src/state/song-validate';
 import { expandAuthorSong } from '../../src/state/song-author';
 import { validatePresetPayload } from '../../src/state/preset-validate';
 import { ParamBus, registerDefaults } from '../../src/state/params';
+import { MAX_MIDI_FILE_BYTES } from '../../src/state/limits';
+import { notesFile } from '../fixtures/smf';
 
 type ToolResult = { content: Array<{ type: string; text: string }>; isError?: boolean };
 type Tool = {
@@ -51,7 +53,7 @@ describe('makeTools', () => {
     const tools = makeTools(core) as Tool[];
     expect(tools.map((t) => t.name)).toEqual([
       'get_params',
-      'get_song_format', 'validate_song', 'expand_song', 'save_song', 'make_share_link',
+      'get_song_format', 'validate_song', 'expand_song', 'save_song', 'make_share_link', 'read_midi',
       'get_preset_format', 'validate_preset', 'expand_preset', 'save_preset',
     ]);
     for (const t of tools) expect(t.inputSchema).toMatchObject({ type: 'object' });
@@ -69,7 +71,7 @@ describe('makeTools', () => {
     const tools = makeTools(core, { allowWrites: false }) as Tool[];
     expect(tools.map((t) => t.name)).toEqual([
       'get_params',
-      'get_song_format', 'validate_song', 'expand_song', 'make_share_link',
+      'get_song_format', 'validate_song', 'expand_song', 'make_share_link', 'read_midi',
       'get_preset_format', 'validate_preset', 'expand_preset',
     ]);
     // The survivors keep their identity, not just their names: the read-only
@@ -78,6 +80,13 @@ describe('makeTools', () => {
     for (const t of tools) {
       const twin = full.find((f) => f.name === t.name)!;
       expect(t.description).toBe(twin.description);
+      // read_midi is the one deliberate difference: no `path` remotely
+      // (REQ-read-midi-reads-a-file-for-an-arranger).
+      if (t.name === 'read_midi') {
+        const keys = (s: Record<string, unknown>) => Object.keys(s.properties as object);
+        expect(keys(t.inputSchema)).toEqual(keys(twin.inputSchema).filter((k) => k !== 'path'));
+        continue;
+      }
       expect(t.inputSchema).toEqual(twin.inputSchema);
     }
   });
@@ -423,5 +432,74 @@ describe('save_song / save_preset directory containment', () => {
     } finally {
       rmSync(cwd, { recursive: true, force: true });
     }
+  });
+});
+
+// mcp-server.md REQ-read-midi-reads-a-file-for-an-arranger; the analysis itself is
+// pinned in tests/state/midi-file.test.ts.
+describe('read_midi', () => {
+  // Two 4/4 bars of eighths at ppq 96: the grid is 1/8.
+  const MID = notesFile([[0, 48, 60], [48, 48, 64], [384, 48, 60], [432, 48, 64]]);
+  const b64 = Buffer.from(MID).toString('base64');
+
+  it('summarises a file passed as base64', async () => {
+    const res = await tool('read_midi').handler({ base64: b64 });
+    expect(res.isError).toBeUndefined();
+    const out = jsonOf(res);
+    expect(out).toMatchObject({ ok: true, bars: 2, tempo: { bpm: 120 }, meter: { first: '4/4' } });
+    expect(out.grid.label).toBe('1/8');
+    expect(out.repeats).toEqual([{ bars: [1, 2] }]);
+    expect(out.listing[0].channels['1']).toBe('0:C4/2 2:E4/2');
+    expect(out.warnings).toEqual([]);
+  });
+
+  it('returns ok:false, not isError, for a file that is not MIDI', async () => {
+    const res = await tool('read_midi').handler({ base64: Buffer.from('not a midi file').toString('base64') });
+    expect(res.isError).toBeUndefined();
+    const out = jsonOf(res);
+    expect(out.ok).toBe(false);
+    expect(out.errors[0]).toMatch(/MThd/);
+  });
+
+  it('reads a path outside the working directory on the local profile', async () => {
+    const cwd = mkdtempSync(join(tmpdir(), 'websynth-mcp-'));
+    const elsewhere = mkdtempSync(join(tmpdir(), 'websynth-midi-'));
+    try {
+      const file = join(elsewhere, 'song.mid');
+      writeFileSync(file, MID);
+      const out = jsonOf(await tool('read_midi', { cwd }).handler({ path: file, fromBar: 2 }));
+      expect(out.ok).toBe(true);
+      expect(out.window).toEqual({ fromBar: 2, toBar: 2, truncated: false });
+
+      const big = join(elsewhere, 'big.mid');
+      writeFileSync(big, new Uint8Array(MAX_MIDI_FILE_BYTES + 1));
+      const tooBig = jsonOf(await tool('read_midi', { cwd }).handler({ path: big }));
+      expect(tooBig.ok).toBe(false);
+      expect(tooBig.errors[0]).toMatch(String(MAX_MIDI_FILE_BYTES));
+    } finally {
+      rmSync(cwd, { recursive: true, force: true });
+      rmSync(elsewhere, { recursive: true, force: true });
+    }
+  });
+
+  it('a path that cannot be read is a runtime failure', async () => {
+    await expect(tool('read_midi').handler({ path: join(tmpdir(), 'no-such-dir-websynth', 'x.mid') })).rejects.toThrow();
+  });
+
+  it('has no path on the remote profile, and refuses one', async () => {
+    const remote = tool('read_midi', { allowWrites: false });
+    expect(Object.keys(remote.inputSchema.properties as object)).not.toContain('path');
+    const out = jsonOf(await remote.handler({ path: '/etc/passwd' }));
+    expect(out.ok).toBe(false);
+    expect(out.errors[0]).toMatch(/base64/);
+    expect(jsonOf(await remote.handler({ base64: b64 })).ok).toBe(true);
+  });
+
+  it('refuses neither or both inputs, and bad window arguments', async () => {
+    const t = tool('read_midi');
+    expect(jsonOf(await t.handler({})).ok).toBe(false);
+    expect(jsonOf(await t.handler({ base64: b64, path: 'x.mid' })).ok).toBe(false);
+    expect(jsonOf(await t.handler({ base64: b64, fromBar: 0 })).ok).toBe(false);
+    expect(jsonOf(await t.handler({ base64: b64, channels: [17] })).ok).toBe(false);
   });
 });

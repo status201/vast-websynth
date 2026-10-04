@@ -3,7 +3,8 @@
 ```yaml
 id: untrusted-input
 status: implemented
-version: 12  # v12: BEND_MAX is the third shared per-step integer bound, and the schema walk pins `bend` to it
+version: 13  # v13: a MIDI file (read_midi, midi-file-reader.md) joins the surfaces, with MAX_MIDI_*
+             # v12: BEND_MAX is the third shared per-step integer bound, and the schema walk pins `bend` to it
              # v11: the shipped CSP drops style-src 'unsafe-inline' (REQ-defence-in-depth-at-delivery);
              #      only the dev server relaxes it, for Vite's injected styles
              # v10: REQ-a-pairing-sdp-is-shape-checked — a scanned or pasted pairing code's SDP is
@@ -97,7 +98,9 @@ decision and the alternatives. This spec is the contract.
   enumerated.** The trust boundary is: `#song=`, `#songUrl=`, the file input
   (`.json` / `.zip`) and (v10) a **file dropped on the window**, the PWA `launchQueue`, paste, demo fetches, the WebRTC
   data channel, a scanned QR blob, rehydration from `localStorage` / IndexedDB,
-  MCP tool arguments, and (v5) **`POST` bodies to the public MCP endpoint**.
+  MCP tool arguments, (v5) **`POST` bodies to the public MCP endpoint** and (v13)
+  a **Standard MIDI File** handed to `read_midi`
+  ([midi-file-reader](midi-file-reader.md) REQ-a-midi-file-is-bounded).
   Anything reading one of these obeys REQ-bounds-in-the-validator-sizes-in-the-codec … REQ-deserialized-state-is-validated-never-cast. A new ingest surface owes an
   entry here.
 
@@ -386,6 +389,11 @@ export const MAX_MCP_REQUEST_BYTES: number;      // one POST body to the public 
 export const MAX_MCP_REQUESTS_PER_MINUTE: number;// per-IP fixed window        } REQ-the-public-endpoint-is-bounded
 export const MAX_MCP_RATE_KEYS: number;          // IPs the limiter may track  }
 export const MAX_MCP_REQUEST_MS: number;         // wall clock for one request }
+export const MAX_MIDI_FILE_BYTES: number;    // one .mid, before parsing   } midi-file-reader
+export const MAX_MIDI_TRACKS: number;        // MTrk chunks                 } REQ-a-midi-file-is-bounded
+export const MAX_MIDI_BARS: number;          // the analysis bar map        }
+export const MAX_MIDI_SUMMARY_BARS: number;  // bars listed per read_midi call }
+export const MAX_MIDI_NAME_CHARS: number;    // a track name in the reply   }
 export const MIDI_NOTE_MIN = 0;
 export const MIDI_NOTE_MAX = 127;
 export const RESERVED_KEYS: readonly string[]; // __proto__, constructor, prototype
@@ -432,6 +440,14 @@ MAX_MCP_REQUEST_BYTES:       1048576   # 1 MB  — 1/8th of MAX_SONG_JSON_BYTES
 MAX_MCP_REQUESTS_PER_MINUTE: 60        # per IP, fixed window
 MAX_MCP_RATE_KEYS:           10000     # the limiter must not become the leak
 MAX_MCP_REQUEST_MS:          15000     # socket to response
+
+# midi-file-reader REQ-a-midi-file-is-bounded (v13). Generous like the in-app limits: a
+# real song's .mid is tens of kB; the public endpoint's body cap is the tighter gate.
+MAX_MIDI_FILE_BYTES:   524288    # 512 kB
+MAX_MIDI_TRACKS:       64        # a full orchestral export is ~20
+MAX_MIDI_BARS:         4096      # ~2.3 h of 4/4 at 120 BPM
+MAX_MIDI_SUMMARY_BARS: 64        # one read_midi listing; the agent pages with fromBar
+MAX_MIDI_NAME_CHARS:   64
 ```
 
 ### Layer touchpoints & ordering

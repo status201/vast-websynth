@@ -131,7 +131,7 @@ material keyed by feature name).
 | any **new ingest surface** (a link, file, paste, peer, MCP arg or a request to the public endpoint) | `features/untrusted-input.md` + ADR-015 — bounds live in the validator, byte budgets in the codec, and `src/state/limits.ts` is the only place they're written down (pattern dimensions — bank count, grid cells — stay with `patterns.ts` / `meter.ts`) |
 | anything **per-frame, per-tick or at boot** | `features/runtime-performance.md` (the app-wide cost contract), `features/performance-mode.md` |
 | `tests/`, `e2e/` | `recipes/write-a-test.md`, `features/testids.md`, `e2e/CLAUDE.md` |
-| `scripts/mcp/` | `features/mcp-server.md` — two transports: stdio (local, all ten tools) and Streamable HTTP (public, read-only eight, ADR-020). Hosting it: `DEPLOYMENT.md` |
+| `scripts/mcp/` | `features/mcp-server.md` — two transports: stdio (local, all eleven tools) and Streamable HTTP (public, read-only nine, ADR-020). `read_midi`'s parser is `src/state/midi-file.ts` → `features/midi-file-reader.md`. Hosting it: `DEPLOYMENT.md` |
 
 ## Directory-scoped guidance
 

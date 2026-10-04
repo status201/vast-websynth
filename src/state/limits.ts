@@ -99,6 +99,27 @@ export const MAX_MCP_RATE_KEYS = 10_000;
 /** Wall clock for one MCP request, socket to response. */
 export const MAX_MCP_REQUEST_MS = 15_000;
 
+/**
+ * A Standard MIDI File (midi-file-reader.md REQ-a-midi-file-is-bounded), checked
+ * before a byte is parsed. A real song's .mid is tens of kB.
+ */
+export const MAX_MIDI_FILE_BYTES = 512 * 1024;
+
+/** `MTrk` chunks in one file; a full orchestral export has about 20. */
+export const MAX_MIDI_TRACKS = 64;
+
+/**
+ * Bars in the analysis bar map. Without it one note at tick 2^28 asks for
+ * millions of bars — the file is a few bytes, the work is not.
+ */
+export const MAX_MIDI_BARS = 4096;
+
+/** Bars one `read_midi` listing returns; the agent pages on with `fromBar`. */
+export const MAX_MIDI_SUMMARY_BARS = 64;
+
+/** A track name carried into the reply: the one free-text field a file brings into an agent's context. */
+export const MAX_MIDI_NAME_CHARS = 64;
+
 /** MIDI note range. `midiToHz(1e6)` is Infinity, and a non-finite AudioParam write throws. */
 export const MIDI_NOTE_MIN = 0;
 export const MIDI_NOTE_MAX = 127;

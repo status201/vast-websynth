@@ -11,7 +11,7 @@
  * that: it runs in a child process whose stdout is piped to our stderr, so it
  * cannot reach the protocol stream even in principle.
  *
- * This is the LOCAL profile: all ten tools, writes included (REQ-the-remote-profile-is-read-only). The
+ * This is the LOCAL profile: all eleven tools, writes and local file reads included (REQ-the-remote-profile-is-read-only). The
  * public endpoint is `app.js` / `websynth-mcp-http.mjs` — same dispatcher,
  * different framing and no write tools.
  *

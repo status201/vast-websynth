@@ -11,7 +11,7 @@
  * save path).
  */
 import { deflateRawSync } from 'node:zlib';
-import { writeFileSync, mkdirSync } from 'node:fs';
+import { writeFileSync, mkdirSync, readFileSync, statSync } from 'node:fs';
 import { resolve, relative, isAbsolute } from 'node:path';
 
 /** MCP text content payload. */
@@ -99,6 +99,39 @@ function containedDir(cwd, dir) {
 
 const toBase64Url = (buf) => buf.toString('base64url');
 
+const isBar = (v) => v === undefined || (Number.isInteger(v) && v >= 1);
+const isChannels = (v) => v === undefined || (Array.isArray(v) && v.every((c) => Number.isInteger(c) && c >= 1 && c <= 16));
+
+/**
+ * read_midi's bytes, from `path` (local profile only) or `base64`
+ * (mcp-server.md REQ-read-midi-reads-a-file-for-an-arranger). Returns
+ * `{bytes}` or `{errors}`; an unreadable path throws, which the dispatcher
+ * reports as a runtime failure.
+ */
+function midiBytes(core, { path, base64 }, local, cwd) {
+  const max = core.MAX_MIDI_FILE_BYTES;
+  if (path !== undefined && !local) {
+    return { errors: ['path is not available on this server: send the file as base64.'] };
+  }
+  if ((path === undefined) === (base64 === undefined)) {
+    return { errors: [local ? 'give exactly one of path or base64.' : 'base64 is required: the .mid file, base64-encoded.'] };
+  }
+  if (path !== undefined) {
+    if (typeof path !== 'string') return { errors: ['path must be a string.'] };
+    const file = resolve(cwd, path);
+    // Size before a byte is read; nothing of a non-MIDI file reaches the reply
+    // (the parser's error names the expected "MThd", never what it found).
+    const st = statSync(file);
+    if (!st.isFile()) return { errors: ['path is not a file.'] };
+    if (st.size > max) return { errors: [`the file is ${st.size} bytes; the limit is ${max}`] };
+    return { bytes: new Uint8Array(readFileSync(file)) };
+  }
+  if (typeof base64 !== 'string') return { errors: ['base64 must be a string.'] };
+  // Refuse an over-size payload before decoding it, not after.
+  if (base64.length > Math.ceil(max / 3) * 4 + 4) return { errors: [`the file is over the ${max}-byte limit`] };
+  return { bytes: new Uint8Array(Buffer.from(base64, 'base64')) };
+}
+
 /** The tools omitted from the read-only profile (mcp-server.md REQ-the-remote-profile-is-read-only). */
 const WRITE_TOOLS = new Set(['save_song', 'save_preset']);
 
@@ -107,7 +140,8 @@ const WRITE_TOOLS = new Set(['save_song', 'save_preset']);
  * preset half.
  * @param {object} core - the song core (bundle or src imports): validateSongFile,
  *   isAuthorSong, expandAuthorSong, compactSongForExport, buildAuthoringGuide,
- *   buildParamCatalog, ParamBus, registerDefaults.
+ *   buildParamCatalog, ParamBus, registerDefaults, parseMidiFile, analyzeMidi,
+ *   MAX_MIDI_FILE_BYTES.
  * @param {{baseUrl?: string, cwd?: string, allowWrites?: boolean}} [opts]
  */
 export function makeTools(core, opts = {}) {
@@ -295,6 +329,53 @@ export function makeTools(core, opts = {}) {
       },
     },
 
+    {
+      name: 'read_midi',
+      description:
+        'Read a Standard MIDI File (.mid) and return a summary of it for arranging: tempo and meter, the GM ' +
+        'instrument, range and polyphony of each channel, the coarsest grid every onset fits (with the ' +
+        'seq.rate/seq.len that fits it, e.g. eighths = two bars per bank), groups of identical bars (one bank ' +
+        'each), and a bar-by-bar listing whose tokens are "pos:Note/len" in sixteenths from the bar start. ' +
+        'Channel 10 is drums, mapped to the tracks of the drum machine. The listing is a window of bars per ' +
+        'call: page on with fromBar. It reads; it writes no song — plan the banks and chains from it, then ' +
+        'write the song with get_song_format.',
+      inputSchema: {
+        type: 'object',
+        properties: {
+          ...(allowWrites
+            ? { path: { type: 'string', description: 'Path to a .mid file on this machine (read-only).' } }
+            : {}),
+          base64: {
+            type: 'string',
+            description: allowWrites
+              ? 'The bytes of the .mid file, base64-encoded (instead of path).'
+              : 'The bytes of the .mid file, base64-encoded.',
+          },
+          fromBar: { type: 'integer', minimum: 1, description: 'First bar to list (1-based). Default: the first bar with a note.' },
+          toBar: { type: 'integer', minimum: 1, description: 'Last bar to list. Default: as far as one call allows.' },
+          channels: {
+            type: 'array',
+            items: { type: 'integer', minimum: 1, maximum: 16 },
+            description: 'MIDI channels (1-16) to list and compare. Default: all.',
+          },
+        },
+        additionalProperties: false,
+      },
+      handler: async (args) => {
+        const { fromBar, toBar, channels } = args;
+        if (!isBar(fromBar) || !isBar(toBar) || !isChannels(channels)) {
+          return json({ ok: false, errors: ['fromBar/toBar must be integers >= 1 and channels integers 1-16.'] });
+        }
+        const src = midiBytes(core, args, allowWrites, cwd);
+        if (src.errors) return json({ ok: false, errors: src.errors });
+        const parse = core.parseMidiFile(src.bytes);
+        if (!parse.ok) return json({ ok: false, errors: parse.errors });
+        const analysis = core.analyzeMidi(parse.file, { fromBar, toBar, channels });
+        if (!analysis.ok) return json(analysis);
+        return json({ ...analysis, warnings: parse.warnings });
+      },
+    },
+
     /* ---------------- presets (preset-authoring.md) ---------------- */
 
     {
@@ -381,7 +462,7 @@ export function makeTools(core, opts = {}) {
   ];
 
   // Filtered, not conditionally assembled: the read-only profile keeps the
-  // remaining eight in exactly the order above, which mcp-server.md REQ-the-remote-profile-is-read-only
+  // remaining nine in exactly the order above, which mcp-server.md REQ-the-remote-profile-is-read-only
   // pins by name. Building two lists would let them drift.
   return allowWrites ? tools : tools.filter((t) => !WRITE_TOOLS.has(t.name));
 }

@@ -3,7 +3,9 @@
 ```yaml
 id: mcp-server
 status: implemented
-version: 8   # v8: REQ-two-transports-one-dispatcher/REQ-the-http-transport-is-stateless/REQ-the-remote-profile-is-read-only/REQ-the-public-endpoint-is-bounded-not-authenticated — a second transport (Streamable HTTP) and the
+version: 9   # v9: REQ-read-midi-reads-a-file-for-an-arranger — read_midi (midi-file-reader.md) on both
+             #     profiles; a local `path` only on the local one. 11 tools local, 9 remote
+             # v8: REQ-two-transports-one-dispatcher/REQ-the-http-transport-is-stateless/REQ-the-remote-profile-is-read-only/REQ-the-public-endpoint-is-bounded-not-authenticated — a second transport (Streamable HTTP) and the
              #     read-only remote profile behind https://vast.status201.com/mcp
              # v7: REQ-local-entries-self-build-the-core — the self-build runs in a child process (no native module pinned)
              # v6: REQ-a-valid-song-can-still-be-wrong — validate_song/save_song report untrusted-input REQ-an-unresolvable-target-warns's warnings
@@ -19,6 +21,7 @@ related:
   - song-share-link
   - ai-prompt
   - untrusted-input
+  - midi-file-reader
   - pwa-install
   - ../decisions/adr-003-no-runtime-dependencies
   - ../decisions/adr-013-authoring-dialect-input-only
@@ -88,7 +91,7 @@ question of which tools a stranger may call.
   `stderr` are both piped into the server's `stderr` (`logLevel: 'silent'` and
   the process-wide `console` redirect remain as belt-and-braces). This is the
   profile `.mcp.json` registers (REQ-mcp-json-registers-the-server) and it keeps
-  **all ten** tools.
+  **all eleven** tools.
 
 - **REQ-streamable-http-is-one-message-per-post** — **Streamable HTTP**
   (remote): one JSON-RPC message per `POST`, one JSON response per request, no
@@ -96,7 +99,7 @@ question of which tools a stranger may call.
   `stdout`/`stderr` freely — there is no protocol stream to poison, which is the
   one rule that does *not* carry over from
   REQ-stdio-is-newline-delimited-json-rpc. It serves the read-only
-  **eight**-tool profile (REQ-the-remote-profile-is-read-only) and is bounded by
+  **nine**-tool profile (REQ-the-remote-profile-is-read-only) and is bounded by
   REQ-the-public-endpoint-is-bounded-not-authenticated.
 
 - **REQ-initialize-echoes-the-protocol-version** — `initialize` echoes the
@@ -277,9 +280,11 @@ question of which tools a stranger may call.
   read-only, and named.** `makeTools(core, {allowWrites})` defaults
   `allowWrites` to **`true`**, so the stdio profile and every existing test are
   untouched. The HTTP entries pass `false`, which omits exactly `save_song` and
-  `save_preset` and leaves these eight, in this order: `get_params`,
+  `save_preset` and leaves these nine, in this order: `get_params`,
   `get_song_format`, `validate_song`, `expand_song`, `make_share_link`,
-  `get_preset_format`, `validate_preset`, `expand_preset`.
+  `read_midi` (v9, without its `path` argument —
+  REQ-read-midi-reads-a-file-for-an-arranger), `get_preset_format`,
+  `validate_preset`, `expand_preset`.
 
   This is not defensive trimming. The write tools are *meaningless* remotely:
   REQ-an-mcp-write-stays-in-the-working-directory contains a write to the server's working directory, and on a shared
@@ -289,6 +294,29 @@ question of which tools a stranger may call.
   URL that loads the song, which a stranger can actually open.
   ADR-020 owns the reasoning, including why read-only is what makes authless
   defensible.
+
+- **REQ-read-midi-reads-a-file-for-an-arranger** — (v9) **`read_midi` reads a
+  Standard MIDI File and returns the arranger's summary** of
+  [midi-file-reader](midi-file-reader.md): `parseMidiFile` then `analyzeMidi`,
+  as JSON. It sits after `make_share_link` in the song half. Arguments: exactly
+  one of `base64` (the file's bytes) or `path`, plus `fromBar`, `toBar` and
+  `channels` passed through to the analysis window.
+  - **`path` exists only on the local profile** — the same `allowWrites` switch
+    as REQ-the-remote-profile-is-read-only, because both mean "this server shares
+    a disk with its caller". On the remote profile the property is absent from
+    the schema, and a `path` argument is refused like any other bad argument.
+    Locally it may point anywhere (a `.mid` usually sits in Downloads, not the
+    repo): it is a **read**, its size is checked with `stat` against
+    `MAX_MIDI_FILE_BYTES` before a byte is read, and nothing of a file that is
+    not a MIDI file reaches the reply — the parse fails on its first four bytes
+    and the error names the expected `MThd`, never what was found.
+  - `base64` is decoded and its length checked against the same cap. Remotely the
+    request body cap (REQ-the-public-endpoint-is-bounded-not-authenticated) is
+    hit first; a MIDI file is tens of kilobytes.
+  - A bad argument (neither or both of `path`/`base64`, `path` remotely) and a
+    file that does not parse are both **successful** calls returning `{ok:false,
+    errors}`, the rule `validate_song` follows; a `path` that cannot be read is a
+    runtime failure (`isError`), like an unwritable save.
 
 - **REQ-the-public-endpoint-is-bounded-not-authenticated** — (v8) **The public
   endpoint is bounded, not authenticated.** There is no auth (ADR-020); the
@@ -337,10 +365,10 @@ app.js:                'deployed HTTP entry (prebuilt bundle only)'
 
 ```yaml
 stdio (local):   websynth-mcp.mjs -> loadCore({selfBuild:true})       # REQ-stdio-is-newline-delimited-json-rpc, REQ-local-entries-self-build-the-core
-                 -> makeTools(core, {cwd})                            # 10 tools
+                 -> makeTools(core, {cwd})                            # 11 tools
                  -> createDispatcher -> readline loop
 http  (local):   websynth-mcp-http.mjs -> loadCore({selfBuild:true})  # REQ-streamable-http-is-one-message-per-post
-                 -> makeTools(core, {allowWrites:false})              # 8 tools, REQ-the-remote-profile-is-read-only
+                 -> makeTools(core, {allowWrites:false})              # 9 tools, REQ-the-remote-profile-is-read-only
                  -> createDispatcher -> createRequestListener -> :8787
 http  (public):  app.js -> loadCore({selfBuild:false})                # REQ-local-entries-self-build-the-core, throws if absent
                  -> makeTools(core, {allowWrites:false})
@@ -405,6 +433,19 @@ Scenario: A dead automation target comes back as a warning (v6, REQ-a-valid-song
   When validate_song runs
   Then ok is true and errors is empty
   And warnings names both ids, so the agent can fix a lane it cannot hear
+# pinned by: tests/mcp/tools.test.ts
+
+Scenario: read_midi summarises a file passed as base64 (v9, REQ-read-midi-reads-a-file-for-an-arranger)
+  When tools/call read_midi receives a small SMF as base64
+  Then the payload is the analysis: ok true, bpm, meter, channels, grid and a bar listing
+  And a file that is not MIDI returns ok false with isError absent, naming MThd and nothing of the bytes
+# pinned by: tests/mcp/tools.test.ts
+
+Scenario: path is local-only (v9, REQ-read-midi-reads-a-file-for-an-arranger)
+  Given the local profile, read_midi with a path to a .mid outside the working directory reads it
+  And an over-size file at that path is refused before it is read
+  Given the remote profile, read_midi's schema has no path, and a path argument returns ok false
+  And neither or both of path/base64 returns ok false
 # pinned by: tests/mcp/tools.test.ts
 
 Scenario: Unknown method

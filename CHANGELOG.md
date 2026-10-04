@@ -16,6 +16,23 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+### Added
+
+- **`read_midi` MCP tool.** An agent can now read a `.mid` file instead of
+  guessing at a song. It returns the tempo and meter, each channel's GM
+  instrument, range and polyphony, the coarsest grid every note lands on (with
+  the `seq.rate`/`seq.len` that fits it, so eighth-note material is two bars per
+  bank), which bars repeat, and a bar-by-bar step listing, a window at a time.
+  Channel 10 is mapped to the drum machine's tracks. It is on the hosted
+  endpoint too (send the file as `base64`); the local server also takes a `path`.
+  The parser is pure and bounded (`src/state/midi-file.ts`), so the app can use it
+  later.
+- **Eleanor Rigby demo pair.** *Eleanor Rigby-1* (cello, viola and the voice) and
+  *Eleanor Rigby-2* (the violins' stabs with a pizzicato bass) play together on
+  two devices paired over WiFi sync, and each is complete on its own. Both carry
+  the tune; in the last chorus device 2 takes the "Ah, look at all the lonely
+  people" line against device 1's chorus.
+
 ### Fixed
 
 - **Play offline shows the real download size.** The About card's size was what

@@ -16,8 +16,10 @@ If you support MCP connectors, everything below is also available as TOOLS at:
 
     https://vast.status201.com/mcp     (Streamable HTTP, no authentication)
 
-Eight read-only tools: get_params, get_song_format, validate_song, expand_song,
-make_share_link, get_preset_format, validate_preset, expand_preset. Validating a
+Nine read-only tools: get_params, get_song_format, validate_song, expand_song,
+make_share_link, read_midi, get_preset_format, validate_preset, expand_preset.
+read_midi takes a .mid file as base64 and returns its tempo, meter, parts, grid,
+repeated bars and a bar-by-bar step listing, for arranging it as a song. Validating a
 draft against the live registry beats guessing from a document — an unknown
 parameter id or an out-of-range value comes back as a field-level error you can
 fix, and make_share_link returns a URL that opens the finished song in the synth.

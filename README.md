@@ -192,7 +192,10 @@ format guides embed.
 **Songs**: `get_song_format` (the live parameter table + the compact authoring
 dialect), `validate_song` (field-level errors the agent can fix), `expand_song`,
 `save_song` (writes an importable `.websynth.json`), and `make_share_link` (a
-`#song=` URL). Absolute URLs — share links and the schema links the guides cite —
+`#song=` URL). `read_midi` reads a `.mid` and returns what arranging it needs:
+tempo, meter, each channel's instrument and range, the grid every note fits (and
+so how many bars one bank can hold), which bars repeat, and a bar-by-bar step
+listing. Hosted, send the file as `base64`; locally it also takes a `path`. Absolute URLs — share links and the schema links the guides cite —
 are built from `WEBSYNTH_BASE_URL`, which defaults to the published site; point it
 at `http://localhost:5173` to work against a dev server.
 
