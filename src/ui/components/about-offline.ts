@@ -50,6 +50,13 @@ const IDLE: Omit<OfflineView, 'status'> = {
   progress: null,
 };
 
+/** The total first; the remainder only when part is cached, or it reads as the total. */
+function noneStatus(total: number | null, remaining: number | null): string {
+  if (!total) return `${PITCH}.`;
+  const left = remaining && remaining < total ? `, ${formatBytes(remaining)} still to download` : '';
+  return `${PITCH} · ${formatBytes(total)}${left}`;
+}
+
 export function offlineView(s: OfflineState): OfflineView {
   switch (s.kind) {
     case 'unsupported':
@@ -63,7 +70,7 @@ export function offlineView(s: OfflineState): OfflineView {
     case 'checking':
       return { ...IDLE, disabled: true, status: 'Checking this device…' };
     case 'none':
-      return { ...IDLE, status: s.remainingBytes ? `${PITCH} · ${formatBytes(s.remainingBytes)}` : `${PITCH}.` };
+      return { ...IDLE, status: noneStatus(s.totalBytes, s.remainingBytes) };
     case 'downloading': {
       const cancel = { ...IDLE, label: 'Cancel', icon: 'close' } as const;
       if (s.totalFiles === 0) return { ...cancel, progress: 'indeterminate', status: 'Preparing…' };

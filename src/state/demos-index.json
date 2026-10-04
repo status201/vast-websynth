@@ -95,6 +95,24 @@
       "motion"
     ]
   },
+  "Eleanor_Rigby-1.websynth.json": {
+    "name": "Eleanor Rigby-1",
+    "bpm": 138,
+    "bars": 72,
+    "uses": [
+      "seq"
+    ],
+    "blurb": "Half of a pair: load Eleanor Rigby-2 on a second device, pair them over WiFi sync and press Play on either one. This half is the low strings and the voice: the tune, the cello, the viola's lines and the second voice in the \"Ah\" sections. Its last verse has its own cello arpeggios, the cello doubling the tune and the A minor near the end. It plays complete on its own too."
+  },
+  "Eleanor_Rigby-2.websynth.json": {
+    "name": "Eleanor Rigby-2",
+    "bpm": 138,
+    "bars": 72,
+    "uses": [
+      "seq"
+    ],
+    "blurb": "Half of a pair: load Eleanor Rigby-1 on a second device, pair them over WiFi sync and press Play on either one. This half is the violins: the same tune, the staccato chord stabs and a pizzicato root under each stab, so it has a bass line when it plays alone. In the last chorus it switches to the \"Ah, look at all the lonely people\" line while the other device carries the chorus, as on the record."
+  },
   "Elegy.websynth.json": {
     "name": "Elegy",
     "bpm": 74,
@@ -223,6 +241,16 @@
     ],
     "blurb": "The Run Away idea rebuilt as a project bundle, sampled parts alongside the synth."
   },
+  "Running_Up_That_Hill.websynth.json": {
+    "name": "Running Up That Hill",
+    "bpm": 116,
+    "bars": 76,
+    "uses": [
+      "seq",
+      "drums"
+    ],
+    "blurb": "The drums are the song: a deep tom pattern in sixteenths, a kick on one and three and the crack on two and four, with a shaker and a clave standing in for the cabasa and woodblock. Over it, four tracks at 1/8 — bass, the hook, the strings' counter-line and the chord's top voice — each struck once and carried by a long release rather than held."
+  },
   "Slouch.websynth.json": {
     "name": "Slouch",
     "bpm": 88,
@@ -247,6 +275,16 @@
       "motion"
     ],
     "blurb": "The sequencer runs at 1/8 over all 16 cells, so every bank holds two bars — the riff and the vocal line each fit one bank, which is how eight banks cover the whole song. Four POLY tracks: bass, both riff lines and the melody or chord on top."
+  },
+  "Take_on_Me.websynth.json": {
+    "name": "Take on Me",
+    "bpm": 175,
+    "bars": 92,
+    "uses": [
+      "seq",
+      "drums"
+    ],
+    "blurb": "All sixteen banks, two bars each: the sequencer runs at 1/8 over 16 cells, so the intro, riff, verse, chorus and outro each fit as the arrangement's own bars rather than look-alikes. Each part keeps its own track — bass, the riff (brass in the chorus), the guitar's eighths and the strings or aahs on top — and the pad pulses in eighths because a held note would retrigger."
   },
   "Titulaer.websynth.json": {
     "name": "Titulaer",

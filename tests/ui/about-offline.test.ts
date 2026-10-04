@@ -42,15 +42,20 @@ describe('rendering each state (REQ-one-offline-state-machine-many-views)', () =
     expect(bar().hidden).toBe(true);
   });
 
-  it('pitches the download with the remaining size', () => {
+  it('pitches the download with the total size, and the remainder when part is cached', () => {
     const { copy } = mount();
     copy.emit({ kind: 'none', totalBytes: 7_138_386, remainingBytes: 5_200_000 });
     expect(button().textContent).toBe('Play offline');
     expect(button().disabled).toBe(false);
     expect(button().querySelector('svg.ui-icon')).not.toBeNull();
     expect(status().textContent).toBe(
-      'Saves everything on this device — demos, dialogs and help — so it plays with no connection · 5.2 MB',
+      'Saves everything on this device — demos, dialogs and help — so it plays with no connection · 7.1 MB, 5.2 MB still to download',
     );
+
+    copy.emit({ kind: 'none', totalBytes: 7_138_386, remainingBytes: 7_138_386 });
+    expect(status().textContent).toMatch(/no connection · 7\.1 MB$/);
+    copy.emit({ kind: 'none', totalBytes: 7_138_386, remainingBytes: 0 });
+    expect(status().textContent).toMatch(/no connection · 7\.1 MB$/);
 
     copy.emit({ kind: 'none', totalBytes: null, remainingBytes: null });
     expect(status().textContent).toMatch(/so it plays with no connection\.$/);
