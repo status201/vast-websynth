@@ -303,6 +303,7 @@ specs/
     song-authoring-dialect.md ·  compact input-only song format for AI agents (expanded on import)
     song-share-link.md ·  #song=/#songUrl= hash links + the export modal's Copy Link
     mcp-server.md      ·  zero-dep MCP server for song authoring/validation (stdio + public HTTP)
+    midi-file-reader.md ·  pure SMF parser + an arranger's analysis (grid, repeats, parts) for read_midi
     project-export.md  ·  song + sampler audio in one .websynth.zip (zero-dep zip codec)
     session-autosave.md ·  working-session autosave + load-undo toast safety net
     sample-persistence.md ·  sampler clips in IndexedDB, so audio survives a reload

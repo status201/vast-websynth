@@ -20,7 +20,7 @@ const LIMITS = { requestBytes: 1024, perMinute: 3, rateKeys: 4, requestMs: 5000 
 /** Tools the read-only profile exposes, in REQ-the-remote-profile-is-read-only's order. */
 const READ_ONLY_TOOLS = [
   'get_params', 'get_song_format', 'validate_song', 'expand_song',
-  'make_share_link', 'get_preset_format', 'validate_preset', 'expand_preset',
+  'make_share_link', 'read_midi', 'get_preset_format', 'validate_preset', 'expand_preset',
 ];
 
 const stubTools = READ_ONLY_TOOLS.map((name) => ({

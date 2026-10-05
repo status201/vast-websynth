@@ -18,6 +18,8 @@ import { ParamBus, registerDefaults } from '../../src/state/params';
 import { validatePresetPayload, expandPresetParams } from '../../src/state/preset-validate';
 import { buildPresetFile, buildBankFile, presetFilename, bankFilename } from '../../src/state/preset-file';
 import { buildParamCatalog } from '../../src/state/param-catalog';
+import { parseMidiFile, analyzeMidi } from '../../src/state/midi-file';
+import { MAX_MIDI_FILE_BYTES } from '../../src/state/limits';
 
 export const core = {
   validateSongFile, isAuthorSong, expandAuthorSong,
@@ -26,4 +28,6 @@ export const core = {
   // presets (preset-authoring.md)
   buildPresetGuide, validatePresetPayload, expandPresetParams,
   buildPresetFile, buildBankFile, presetFilename, bankFilename,
+  // read_midi (midi-file-reader.md)
+  parseMidiFile, analyzeMidi, MAX_MIDI_FILE_BYTES,
 };
