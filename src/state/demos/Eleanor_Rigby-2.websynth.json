@@ -395,12 +395,12 @@
     "sampler.t7.decay": 0,
     "sampler.t7.choke": 0,
     "sampler.t7.poly": 0,
-    "motion.on": 0,
+    "motion.on": 1,
     "motion.mute": 0,
     "motion.slide": 1,
-    "motion.t0.slide": 1,
-    "motion.t1.slide": 1,
-    "motion.t2.slide": 1,
+    "motion.t0.slide": 0,
+    "motion.t1.slide": 0,
+    "motion.t2.slide": 0,
     "motion.t3.slide": 1,
     "motion.len": 0,
     "motion.rate": 2
@@ -3630,8 +3630,6 @@
       14,
       10,
       10,
-      1,
-      1,
       -1
     ]
   },
@@ -9937,19 +9935,415 @@
     null
   ],
   "motionChain": {
-    "enabled": false,
+    "enabled": true,
     "steps": [
-      0
+      -1,
+      -1,
+      -1,
+      -1,
+      -1,
+      -1,
+      -1,
+      -1,
+      -1,
+      -1,
+      -1,
+      -1,
+      -1,
+      -1,
+      -1,
+      -1,
+      -1,
+      -1,
+      -1,
+      -1,
+      -1,
+      -1,
+      -1,
+      -1,
+      -1,
+      -1,
+      -1,
+      -1,
+      -1,
+      -1,
+      -1,
+      -1,
+      -1,
+      -1,
+      -1,
+      -1,
+      -1,
+      -1,
+      -1,
+      -1,
+      -1,
+      -1,
+      -1,
+      -1,
+      -1,
+      -1,
+      -1,
+      -1,
+      -1,
+      -1,
+      -1,
+      -1,
+      -1,
+      -1,
+      -1,
+      -1,
+      -1,
+      -1,
+      -1,
+      -1,
+      -1,
+      -1,
+      -1,
+      -1,
+      -1,
+      -1,
+      -1,
+      0,
+      -1,
+      -1,
+      1
     ]
   },
   "motionTracks": [
     [
-      null,
-      null
+      {
+        "param": "seq.t1.mute",
+        "steps": [
+          {
+            "on": true,
+            "v": 0
+          },
+          {
+            "on": false
+          },
+          {
+            "on": false
+          },
+          {
+            "on": false
+          },
+          {
+            "on": false
+          },
+          {
+            "on": false
+          },
+          {
+            "on": false
+          },
+          {
+            "on": false
+          },
+          {
+            "on": false
+          },
+          {
+            "on": false
+          },
+          {
+            "on": false
+          },
+          {
+            "on": false
+          },
+          {
+            "on": false
+          },
+          {
+            "on": false
+          },
+          {
+            "on": false
+          },
+          {
+            "on": true,
+            "v": 1
+          }
+        ]
+      },
+      {
+        "param": "seq.t2.mute",
+        "steps": [
+          {
+            "on": true,
+            "v": 0
+          },
+          {
+            "on": false
+          },
+          {
+            "on": false
+          },
+          {
+            "on": false
+          },
+          {
+            "on": false
+          },
+          {
+            "on": false
+          },
+          {
+            "on": false
+          },
+          {
+            "on": false
+          },
+          {
+            "on": false
+          },
+          {
+            "on": false
+          },
+          {
+            "on": false
+          },
+          {
+            "on": false
+          },
+          {
+            "on": false
+          },
+          {
+            "on": false
+          },
+          {
+            "on": false
+          },
+          {
+            "on": true,
+            "v": 1
+          }
+        ]
+      },
+      {
+        "param": "seq.t3.mute",
+        "steps": [
+          {
+            "on": true,
+            "v": 0
+          },
+          {
+            "on": false
+          },
+          {
+            "on": false
+          },
+          {
+            "on": false
+          },
+          {
+            "on": false
+          },
+          {
+            "on": false
+          },
+          {
+            "on": false
+          },
+          {
+            "on": false
+          },
+          {
+            "on": false
+          },
+          {
+            "on": false
+          },
+          {
+            "on": false
+          },
+          {
+            "on": false
+          },
+          {
+            "on": false
+          },
+          {
+            "on": false
+          },
+          {
+            "on": false
+          },
+          {
+            "on": true,
+            "v": 1
+          }
+        ]
+      }
     ],
     [
-      null,
-      null
+      {
+        "param": "seq.t1.mute",
+        "steps": [
+          {
+            "on": true,
+            "v": 1
+          },
+          {
+            "on": false
+          },
+          {
+            "on": false
+          },
+          {
+            "on": false
+          },
+          {
+            "on": false
+          },
+          {
+            "on": false
+          },
+          {
+            "on": false
+          },
+          {
+            "on": false
+          },
+          {
+            "on": false
+          },
+          {
+            "on": false
+          },
+          {
+            "on": false
+          },
+          {
+            "on": false
+          },
+          {
+            "on": false
+          },
+          {
+            "on": false
+          },
+          {
+            "on": false
+          },
+          {
+            "on": true,
+            "v": 0
+          }
+        ]
+      },
+      {
+        "param": "seq.t2.mute",
+        "steps": [
+          {
+            "on": true,
+            "v": 1
+          },
+          {
+            "on": false
+          },
+          {
+            "on": false
+          },
+          {
+            "on": false
+          },
+          {
+            "on": false
+          },
+          {
+            "on": false
+          },
+          {
+            "on": false
+          },
+          {
+            "on": false
+          },
+          {
+            "on": false
+          },
+          {
+            "on": false
+          },
+          {
+            "on": false
+          },
+          {
+            "on": false
+          },
+          {
+            "on": false
+          },
+          {
+            "on": false
+          },
+          {
+            "on": false
+          },
+          {
+            "on": true,
+            "v": 0
+          }
+        ]
+      },
+      {
+        "param": "seq.t3.mute",
+        "steps": [
+          {
+            "on": true,
+            "v": 1
+          },
+          {
+            "on": false
+          },
+          {
+            "on": false
+          },
+          {
+            "on": false
+          },
+          {
+            "on": false
+          },
+          {
+            "on": false
+          },
+          {
+            "on": false
+          },
+          {
+            "on": false
+          },
+          {
+            "on": false
+          },
+          {
+            "on": false
+          },
+          {
+            "on": false
+          },
+          {
+            "on": false
+          },
+          {
+            "on": false
+          },
+          {
+            "on": false
+          },
+          {
+            "on": false
+          },
+          {
+            "on": true,
+            "v": 0
+          }
+        ]
+      }
     ],
     [
       null,

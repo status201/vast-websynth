@@ -98,7 +98,7 @@
   "Eleanor_Rigby-1.websynth.json": {
     "name": "Eleanor Rigby-1",
     "bpm": 138,
-    "bars": 73,
+    "bars": 71,
     "uses": [
       "seq"
     ],
@@ -107,9 +107,10 @@
   "Eleanor_Rigby-2.websynth.json": {
     "name": "Eleanor Rigby-2",
     "bpm": 138,
-    "bars": 73,
+    "bars": 71,
     "uses": [
-      "seq"
+      "seq",
+      "motion"
     ],
     "blurb": "Half of a pair: load Eleanor Rigby-1 on a second device, pair them over WiFi sync and press Play on either one. This half is the violins: the same tune, the staccato chord stabs and a pizzicato root under each stab, so it has a bass line when it plays alone. In the last chorus it switches to the \"Ah, look at all the lonely people\" line while the other device carries the chorus, as on the record."
   },
