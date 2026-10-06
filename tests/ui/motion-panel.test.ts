@@ -39,6 +39,7 @@ function harness() {
     // The four `ChainLane`s the lane controls read (`arrangement[lane].enabled`).
     seq: lane(), drum: lane(), sampler: lane(), motion: lane(),
     songBars: () => 0,
+    loopTicks: () => 0,
     onChange: (fn: () => void) => { barListeners.push(fn); return () => {}; },
   };
   // The playhead ruler and highlighter read the clock and the motion machine's

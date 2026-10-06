@@ -35,6 +35,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ### Fixed
 
+- **Two-bar patterns stay in order on every song loop.** A lane whose pattern
+  spans whole bars (16 steps at 1/8 is two bars) played its halves swapped on
+  every other pass when the chain length was not a multiple of the pattern's
+  bars, e.g. a 73-bar song of two-bar pages. Such a lane now restarts with its
+  chain; polyrhythmic lanes (a 12-step lane in 4/4) keep drifting as before.
 - **Play offline shows the real download size.** The About card's size was what
   the browser had not cached yet, unlabeled, so it read as a too-small total
   (2.3 MB for a 6.1 MB copy). It now shows the total, plus "still to download"

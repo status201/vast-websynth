@@ -98,7 +98,7 @@
   "Eleanor_Rigby-1.websynth.json": {
     "name": "Eleanor Rigby-1",
     "bpm": 138,
-    "bars": 72,
+    "bars": 73,
     "uses": [
       "seq"
     ],
@@ -107,7 +107,7 @@
   "Eleanor_Rigby-2.websynth.json": {
     "name": "Eleanor Rigby-2",
     "bpm": 138,
-    "bars": 72,
+    "bars": 73,
     "uses": [
       "seq"
     ],

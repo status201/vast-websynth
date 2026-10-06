@@ -145,7 +145,7 @@ export class SamplerMachine {
     perf: Performance,
     private readonly samplerBus: GainNode,
   ) {
-    this.lane = new LaneMeter(clock, (s) => perf.mapStep(s));
+    this.lane = new LaneMeter(clock, (s) => perf.mapStep(s), () => arrangement.loopTicks('sampler'));
     for (let i = 0; i < SAMPLER_SLOT_COUNT; i++) {
       // The per-slot channel (REQ-each-slot-has-a-channel), shaped like the drum machine's per-track one.
       // Every node is built at its no-op setting, so a slot that is never touched

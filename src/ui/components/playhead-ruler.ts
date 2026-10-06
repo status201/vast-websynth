@@ -172,7 +172,8 @@ export function buildPlayheadRuler(
   const paint = (): void => {
     // The live playhead exists only while playing: a stopped strip must not look
     // like a running one (REQ-the-cue-and-the-playhead-are-two-marks).
-    const at = api.clock.playing ? laneCellAt(api.clock.step, grid) : -1;
+    const loop = api.arrangement.loopTicks(lane);
+    const at = api.clock.playing ? laneCellAt(api.clock.step, grid, loop) : -1;
     if (at !== paintedAt) {
       ticks[paintedAt]?.classList.remove(AT_CLASS);
       ticks[at]?.classList.add(AT_CLASS);
@@ -180,7 +181,7 @@ export function buildPlayheadRuler(
     }
     // The cue always shows where Play/resume begins — including while playing,
     // where it is the mark Stop → Play will return to.
-    const cue = laneCellAt(api.clock.cue, grid);
+    const cue = laneCellAt(api.clock.cue, grid, loop);
     if (cue !== paintedCue) {
       ticks[paintedCue]?.classList.remove(CUE_CLASS);
       ticks[cue]?.classList.add(CUE_CLASS);

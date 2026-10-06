@@ -148,7 +148,7 @@ export class MotionMachine {
     private readonly bus: ParamBus,
     opts: MotionMachineOptions = {},
   ) {
-    this.lane = new LaneMeter(clock);
+    this.lane = new LaneMeter(clock, undefined, () => arrangement.loopTicks('motion'));
     this.minFrameMs = 1000 / (opts.fps ?? 60);
     this.now = opts.now ?? (() => 0);
     this.raf = opts.raf ?? ((cb) => requestAnimationFrame(cb));

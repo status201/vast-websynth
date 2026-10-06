@@ -1,6 +1,6 @@
 import type { ParamBus } from '../state/params';
 import {
-  GRID_CELLS, barTicks, cellIndex, laneCells, ticksPerBeat, ticksPerCell,
+  GRID_CELLS, barTicks, laneCells, loopCellIndex, ticksPerBeat, ticksPerCell,
 } from '../state/meter';
 
 /** The four machines that own a step grid. */
@@ -54,9 +54,14 @@ export function beatOfCell(i: number, grid: LaneGrid): number | null {
   return grid.cellsPerBeat > 0 ? Math.floor(i / grid.cellsPerBeat) + 1 : null;
 }
 
-/** The grid cell the transport is on, for this lane. */
-export function laneCellAt(step: number, grid: LaneGrid): number {
-  return cellIndex(step, grid.cells, grid.rate);
+/**
+ * The grid cell the transport is on, for this lane. `loopTicks` is the lane's
+ * chain loop (`Arrangement.loopTicks`, `0` unchained) — the same re-phase the
+ * machines apply, so the drawn playhead is the cell that sounds
+ * (meter.md REQ-a-multi-bar-lane-restarts-with-its-chain).
+ */
+export function laneCellAt(step: number, grid: LaneGrid, loopTicks = 0): number {
+  return loopCellIndex(step, grid.cells, grid.rate, grid.bar, loopTicks);
 }
 
 /**
