@@ -50,6 +50,7 @@ function harness() {
       seqResting: false, drumResting: false, samplerResting: false, motionResting: false,
       onChange: noop,
       songBars: () => 1,
+      loopTicks: () => 0,
       seq: lane(), drum: lane(), sampler: lane(), motion: lane(),
       seqChainPos: 0, drumChainPos: 0, samplerChainPos: 0, motionChainPos: 0,
     },

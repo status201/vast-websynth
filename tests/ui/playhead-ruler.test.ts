@@ -41,6 +41,7 @@ function harness(over: { canSeek?: boolean; bars?: number; bank?: number } = {})
     },
     arrangement: {
       songBars: () => state.bars,
+      loopTicks: () => 0,
       onChange: (fn: () => void) => {
         arrangementListeners.add(fn);
         return () => { arrangementListeners.delete(fn); };

@@ -101,7 +101,7 @@ export class DrumMachine {
     private readonly drumBus: GainNode,
     private readonly fxOversample = true,
   ) {
-    this.lane = new LaneMeter(clock, (s) => perf.mapStep(s));
+    this.lane = new LaneMeter(clock, (s) => perf.mapStep(s), () => arrangement.loopTicks('drum'));
     this.noise = makeNoiseBuffer(this.ctx, 2);
 
     // Track order must match DRUM_TRACKS in patterns.ts; each track boots on

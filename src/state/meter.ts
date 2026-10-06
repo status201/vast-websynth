@@ -178,6 +178,48 @@ export function cellIndex(step: number, cells: number, rateIdx: number): number 
   return ((cell % n) + n) % n;
 }
 
+/**
+ * How many cells a chained lane's index is shifted back by so it restarts on its
+ * chain's slot 0 (meter.md REQ-a-multi-bar-lane-restarts-with-its-chain): the
+ * first cell that begins at or after the current chain-loop start. `0` — no
+ * shift — for an unchained lane (`loopTicks <= 0`), a lane of one bar or less,
+ * and a polyrhythm (a loop that is not a whole number of bars), which keeps its
+ * absolute phase on purpose.
+ *
+ * Still a pure function of `step`; the chain length is the only extra input.
+ */
+export function loopCellShift(
+  step: number,
+  cells: number,
+  rateIdx: number,
+  bar: number,
+  loopTicks: number,
+): number {
+  if (!(loopTicks > 0)) return 0;
+  const r = laneRate(rateIdx);
+  // Lane ticks = cells × num/den; whole bars iff cells × num is a multiple of
+  // bar × den — integer arithmetic, so a triplet rate never misjudges it.
+  const lane = Math.max(1, cells) * r.num;
+  const barD = bar * r.den;
+  if (lane <= barD || lane % barD !== 0) return 0;
+  const loopStart = Math.floor(step / loopTicks) * loopTicks;
+  return ceilDiv(loopStart * r.den, r.num);
+}
+
+/** {@link cellIndex}, re-phased to the chain loop by {@link loopCellShift}. */
+export function loopCellIndex(
+  step: number,
+  cells: number,
+  rateIdx: number,
+  bar: number,
+  loopTicks: number,
+): number {
+  const r = laneRate(rateIdx);
+  const n = Math.max(1, cells);
+  const cell = Math.floor((step * r.den) / r.num) - loopCellShift(step, cells, rateIdx, bar, loopTicks);
+  return ((cell % n) + n) % n;
+}
+
 /** `ceil(a / b)` for non-negative integers, without leaving integer arithmetic. */
 function ceilDiv(a: number, b: number): number {
   return Math.floor((a + b - 1) / b);

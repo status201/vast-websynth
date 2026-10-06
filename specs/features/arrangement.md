@@ -132,7 +132,9 @@ tick listener settles the play banks first.
   line, and lane positions counted against the old grid are stale the moment it
   does. The four lanes still share one bar grid; per-lane *loop* lengths live on
   the machines instead ([meter](meter.md) REQ-each-machine-has-a-loop-length), which is what closes the
-  "Open questions" note below.
+  "Open questions" note below. A lane whose loop spans whole bars takes its
+  slot 0 as its phase origin, via `Arrangement.loopTicks` ([meter](meter.md)
+  REQ-a-multi-bar-lane-restarts-with-its-chain).
 
 - **REQ-a-chip-is-dragged-to-its-place** (v7) — **A chip is dragged to its
   place.** Every add button *appends*, so a slot belonging near the front of the

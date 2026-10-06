@@ -6,6 +6,7 @@ import {
   cellOffsetTicks,
   cellsInTick,
   laneCells,
+  loopCellShift,
   ticksPerCell, safeBarTicks} from '../../state/meter';
 
 /** What a machine does with one cell that fell inside this tick. */
@@ -44,10 +45,14 @@ export class LaneMeter {
    * @param mapStep  the stutter fold the three trigger machines apply before
    *   resolving a cell (performance.md). Motion passes nothing: automation must
    *   not follow a stutter remap.
+   * @param loopTicks  this lane's chain loop in ticks, `0` when it is not chained
+   *   (`Arrangement.loopTicks`). A lane spanning whole bars restarts on its
+   *   chain's slot 0 (meter.md REQ-a-multi-bar-lane-restarts-with-its-chain).
    */
   constructor(
     private readonly clock: TickSubscriber,
     private readonly mapStep: (step: number) => number = (s) => s,
+    private readonly loopTicks: () => number = () => 0,
   ) {}
 
   /** `LEN_FOLLOW` (0) tracks the bar; anything else pins a cell count. */
@@ -101,12 +106,15 @@ export class LaneMeter {
     const src = this.mapStep(step);
     const perCell = ticksPerCell(this.rateIdx);
     const cellDur = perCell * this.clock.sixteenthDuration();
+    // Only the index is re-phased; `when` and swing stay on the absolute grid.
+    const shift = loopCellShift(src, cells, this.rateIdx, this.bar, this.loopTicks());
 
     if (perCell === 1) {
       // The clock swung this tick by `swingOffset(step)` and will swing the next
       // by `swingOffset(step + 1)`, so that is the gap to the next onset.
       const span = cellDur + this.clock.swingOffset(step + 1) - this.clock.swingOffset(step);
-      fn(((src % cells) + cells) % cells, when, cellDur, span);
+      const idx = src - shift;
+      fn(((idx % cells) + cells) % cells, when, cellDur, span);
       return;
     }
 
@@ -120,7 +128,8 @@ export class LaneMeter {
       const at = gridWhen + cellOffsetTicks(cell, this.rateIdx, src) * sixteenth + swing;
       // Cells are `cellDur` apart on the grid; only their swing differs.
       const span = cellDur + this.clock.swingOffset(cell + 1) * perCell - swing;
-      fn(((cell % cells) + cells) % cells, at, cellDur, span);
+      const idx = cell - shift;
+      fn(((idx % cells) + cells) % cells, at, cellDur, span);
     }
   }
 }

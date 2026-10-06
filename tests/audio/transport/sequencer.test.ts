@@ -862,6 +862,27 @@ describe('StepSequencer — meter (meter.md)', () => {
     expect(byPlaying).toBe(40 % 12);
   });
 
+  // meter.md REQ-a-multi-bar-lane-restarts-with-its-chain (regression)
+  it('plays the pages of a 2-bar lane in order on every pass of an odd-length chain', () => {
+    const r = rig(16, rateOf('1/8'), 16);
+    r.arrangement.setSeqChain([0, 0, 1], true);
+    const seen = playhead(r, 6 * 16);
+    // 8 cells per bar at 1/8; `seen` holds one entry per fired cell.
+    const barStart = (bar: number): number => seen[bar * 8]!;
+    expect([0, 1, 2].map(barStart)).toEqual([0, 8, 0]);
+    expect([3, 4, 5].map(barStart)).toEqual([0, 8, 0]);
+    expect(seen.slice(24, 48)).toEqual(seen.slice(0, 24));
+
+    // A seek into bar 4 (step 48) lands on page 1, as playing there does.
+    const s = rig(16, rateOf('1/8'), 16);
+    s.arrangement.setSeqChain([0, 0, 1], true);
+    const after: number[] = [];
+    s.seq.onStep((i) => after.push(i));
+    s.clock.fireSeek(48);
+    s.clock.fireTick(0);
+    expect(after[0]).toBe(0);
+  });
+
   it('holds a cell twice as long at half rate, gate included (REQ-a-seek-releases-every-tracks-note)', () => {
     const r = rig(0, rateOf('1/8'), 16);
     r.patterns.setSeqStep(0, 0, { on: true, note: 60, velocity: 0.8, gate: 0.5 });

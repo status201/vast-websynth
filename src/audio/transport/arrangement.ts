@@ -162,6 +162,17 @@ export class Arrangement {
     return bars;
   }
 
+  /**
+   * A lane's chain loop in ticks — `steps.length × barTicks` — or `0` when the
+   * lane is not chained. The phase origin a multi-bar lane restarts on
+   * (meter.md REQ-a-multi-bar-lane-restarts-with-its-chain); the same bar grid
+   * `laneSeek` counts slots on, so loop start and slot 0 always coincide.
+   */
+  loopTicks(name: LaneName): number {
+    const lane = this[name];
+    return lane.enabled && lane.steps.length ? lane.steps.length * this.barTicks : 0;
+  }
+
   get seqChainPos(): number { return this.seqPos; }
   get drumChainPos(): number { return this.drumPos; }
   get samplerChainPos(): number { return this.samplerPos; }

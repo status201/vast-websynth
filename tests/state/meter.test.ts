@@ -20,6 +20,8 @@ import {
   laneCells,
   laneTicks,
   cellIndex,
+  loopCellIndex,
+  loopCellShift,
   cellsInTick,
   cellOffsetTicks,
 } from '../../src/state/meter';
@@ -186,6 +188,46 @@ describe('meter — which cells begin in a tick (meter.md REQ-coarser-skips-tick
           expect(off).toBeLessThan(1);
         }
       }
+    }
+  });
+});
+
+// meter.md REQ-a-multi-bar-lane-restarts-with-its-chain
+describe('loopCellIndex — a multi-bar lane restarts with its chain', () => {
+  const rateOf = (label: string): number => LANE_RATES.findIndex((x) => x.label === label);
+  const eighth = rateOf('1/8');
+  const sixteenth = DEFAULT_LANE_RATE;
+
+  it('re-phases a 2-bar lane on an odd-length chain (regression: Eleanor Rigby-1)', () => {
+    // 16 cells at 1/8 = 32 ticks = 2 bars of 4/4; a 73-bar chain.
+    const loop = 73 * 16;
+    // Pass 2 starts on absolute bar 73: absolute phase says cell 8 (page 2).
+    expect(cellIndex(loop, 16, eighth)).toBe(8);
+    expect(loopCellIndex(loop, 16, eighth, 16, loop)).toBe(0);
+    expect(loopCellIndex(loop + 16, 16, eighth, 16, loop)).toBe(8);
+    // Every pass reads the same as the first.
+    for (let s = 0; s < loop; s++) {
+      expect(loopCellIndex(s + loop, 16, eighth, 16, loop)).toBe(cellIndex(s, 16, eighth));
+    }
+  });
+
+  it('is plain cellIndex when unchained or when the chain already fits the lane', () => {
+    for (let s = 0; s < 400; s += 7) {
+      expect(loopCellIndex(s, 16, eighth, 16, 0)).toBe(cellIndex(s, 16, eighth));
+      expect(loopCellIndex(s, 16, eighth, 16, 72 * 16)).toBe(cellIndex(s, 16, eighth));
+      expect(loopCellIndex(s, 16, sixteenth, 16, 3 * 16)).toBe(cellIndex(s, 16, sixteenth));
+    }
+  });
+
+  it('leaves a polyrhythm drifting across chain loops', () => {
+    // A 12-cell 1/16 lane in 4/4 on a 3-bar chain.
+    for (let s = 0; s < 500; s++) {
+      expect(loopCellShift(s, 12, sixteenth, 16, 3 * 16)).toBe(0);
+      expect(loopCellIndex(s, 12, sixteenth, 16, 3 * 16)).toBe(cellIndex(s, 12, sixteenth));
+    }
+    // Gankogui's motion lane: 9 cells at 1/8 (18 ticks) in 12/8 (24 ticks), 14-bar chain.
+    for (let s = 0; s < 2000; s += 3) {
+      expect(loopCellIndex(s, 9, eighth, 24, 14 * 24)).toBe(cellIndex(s, 9, eighth));
     }
   });
 });

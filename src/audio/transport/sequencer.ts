@@ -76,7 +76,7 @@ export class StepSequencer {
     perf: Performance,
     private readonly scale: ScaleQuantizer = new ScaleQuantizer(),
   ) {
-    this.lane = new LaneMeter(clock, (s) => perf.mapStep(s));
+    this.lane = new LaneMeter(clock, (s) => perf.mapStep(s), () => arrangement.loopTicks('seq'));
     clock.onTick((step, when) => this.onTick(step, when));
     // A playhead jump makes the per-track tie/held-note state meaningless: it
     // only ever describes the *adjacent* step. Left alone, a note tied at the

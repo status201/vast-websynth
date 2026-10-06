@@ -3,7 +3,10 @@
 ```yaml
 id: meter
 status: implemented
-version: 2  # v2: REQ-swing-is-computed-on-the-lanes-grid — each hit also reports its span to the
+version: 3  # v3: REQ-a-multi-bar-lane-restarts-with-its-chain — a chained lane whose loop is a
+            #     whole number of bars re-phases at its chain's slot 0 (a 2-bar lane in an
+            #     odd-length chain played its halves swapped on every other pass)
+            # v2: REQ-swing-is-computed-on-the-lanes-grid — each hit also reports its span to the
             #     next cell's onset on the swung grid, for the motion playhead
 owner: core
 related:
@@ -124,7 +127,25 @@ alone.
   REQ-seek-moves-a-running-clock/REQ-the-transport-catch-up-is-bounded) work for
   a 12- or 14-tick lane with no repair step — the defect `Arrangement.seekTo`
   ([arrangement](arrangement.md) REQ-a-mid-play-seek-re-seeks-every-lane) exists
-  to fix for chain slots.
+  to fix for chain slots. The one refinement is
+  REQ-a-multi-bar-lane-restarts-with-its-chain, which is still pure — it adds the
+  lane's chain length, never history.
+
+- **REQ-a-multi-bar-lane-restarts-with-its-chain** — **A chained lane whose loop
+  is a whole number of bars (≥ 2) restarts at cell 0 on its chain's slot 0.** Its
+  chain slots address *pages* of the pattern (a 16-cell 1/8 lane is two bars:
+  slot `A A` plays cells 0-7 then 8-15), so the page must follow the chain, not
+  the absolute bar. Counted from the absolute step, a chain whose length is not a
+  multiple of the page count wraps onto the wrong page and every pair plays
+  swapped on alternate passes. The index is offset by the first cell that begins
+  at or after the current chain-loop start (`floor(step / loopTicks) × loopTicks`,
+  `loopTicks = steps.length × barTicks`). Only the index moves: the grid, swing
+  parity, fine-rate fan-out and stutter stay absolute.
+  **A polyrhythm is exempt**: a lane whose loop is *not* a whole number of bars (a
+  12-cell 1/16 lane in 4/4, a 9-cell 1/8 lane in 12/8) keeps its absolute phase
+  and drifts across chain loops as before. So do unchained lanes. Whenever the
+  chain length is already a multiple of the page count the offset is ≡ 0, so
+  every such song plays bit-identically (ADR-006).
 
 - **REQ-the-step-counter-must-not-wrap** — **The step counter must not wrap**,
   because a wrap that is not a multiple of every lane length jumps its phase.
@@ -284,6 +305,11 @@ laneRate(rateIdx): LaneRate / ticksPerCell(rateIdx): number
 laneCells(len, rateIdx, barTicks): number      # LEN_FOLLOW -> follow the bar
 laneTicks(len, rateIdx, barTicks): number
 cellIndex(step, cells, rateIdx): number        # REQ-a-cell-index-is-a-pure-function-of-step: pure in `step`
+loopCellShift(step, cells, rateIdx, barTicks, loopTicks): number  # REQ-a-multi-bar-lane-restarts-with-its-chain; 0 = none
+loopCellIndex(step, cells, rateIdx, barTicks, loopTicks): number  # cellIndex minus that shift
+
+Arrangement:   # src/audio/transport/arrangement.ts
+  loopTicks(lane): number            # steps.length × barTicks, 0 when the lane is not chained
 cellsInTick(step, rateIdx): { from, count }    # which cells BEGIN in this tick
 cellOffsetTicks(cell, rateIdx, step): number   # 0 .. <1, for sub-tick scheduling
 
@@ -394,6 +420,19 @@ Scenario: A 12-cell lane phases against a 16-tick bar and re-aligns (REQ-each-ma
   When the transport plays four bars
   Then the two lanes start together only on bars 1 and 5
 # pinned by: tests/audio/transport/sequencer.test.ts
+
+Scenario: A 2-bar lane in an odd-length chain plays its pages in order on every pass (REQ-a-multi-bar-lane-restarts-with-its-chain, regression)
+  Given seq.len 16 at 1/8 in 4/4 (a 2-bar lane) and a seq chain of 3 slots
+  When the transport plays 6 bars
+  Then bars 4-6 play the same cells as bars 1-3 (0-7, 8-15, 0-7)
+  And a seek into bar 4 plays cells 0-7
+# pinned by: tests/state/meter.test.ts, tests/audio/transport/sequencer.test.ts
+
+Scenario: A polyrhythmic lane keeps drifting across chain loops (REQ-a-multi-bar-lane-restarts-with-its-chain)
+  Given a 12-cell 1/16 lane in 4/4 on a 3-bar chain, or a 9-cell 1/8 lane in 12/8 on a 14-bar chain
+  When the chain wraps
+  Then the cell index is exactly the absolute `cellIndex` — no re-phase
+# pinned by: tests/state/meter.test.ts
 
 Scenario: A triplet lane fires three cells against two ticks (REQ-coarser-skips-ticks-finer-fans-out)
   Given seq.rate is 1/16T
