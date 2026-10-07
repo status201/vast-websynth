@@ -1,6 +1,6 @@
 {
   "format": "websynth-song",
-  "version": 8,
+  "version": 9,
   "name": "Around the World",
   "params": {
     "voicing.mode": 1,
@@ -69,13 +69,13 @@
     "fx.wah.rate": 2,
     "fx.wah.depth": 0.4,
     "fx.wah.q": 4,
-    "fx.wah.sync": 0,
+    "fx.wah.sync": 7,
     "fx.phaser.on": 0,
     "fx.phaser.rate": 0.5,
-    "fx.phaser.depth": 0.5,
-    "fx.phaser.feedback": 0.4,
-    "fx.phaser.mix": 0.5,
-    "fx.phaser.sync": 0,
+    "fx.phaser.depth": 0.375,
+    "fx.phaser.feedback": 0.292,
+    "fx.phaser.mix": 0.39,
+    "fx.phaser.sync": 1,
     "fx.delay.on": 1,
     "fx.delay.time": 0.35,
     "fx.delay.feedback": 0.25,
@@ -205,8 +205,8 @@
     "seq.mute": 0,
     "seq.t0.mute": 0,
     "seq.t1.mute": 0,
-    "seq.t2.mute": 1,
-    "seq.t3.mute": 1,
+    "seq.t2.mute": 0,
+    "seq.t3.mute": 0,
     "seq.t0.pan": 0,
     "seq.t1.pan": 0.1,
     "seq.t2.pan": -0.35,
@@ -8451,7 +8451,9 @@
   "motionBanks": [
     [
       {
-        "on": false
+        "on": true,
+        "x": 0.25,
+        "y": 0.25
       },
       {
         "on": false
@@ -8496,7 +8498,9 @@
         "on": false
       },
       {
-        "on": false
+        "on": true,
+        "x": 0.25,
+        "y": 0.2475
       }
     ],
     [
@@ -8847,10 +8851,68 @@
       },
       {
         "on": false
+      }
+    ],
+    [
+      {
+        "on": true,
+        "x": 0.2525,
+        "y": 0.2425
+      },
+      {
+        "on": false
+      },
+      {
+        "on": false
+      },
+      {
+        "on": false
+      },
+      {
+        "on": false
+      },
+      {
+        "on": false
+      },
+      {
+        "on": false
+      },
+      {
+        "on": false
+      },
+      {
+        "on": false
+      },
+      {
+        "on": false
+      },
+      {
+        "on": false
+      },
+      {
+        "on": false
+      },
+      {
+        "on": false
+      },
+      {
+        "on": false
+      },
+      {
+        "on": false
+      },
+      {
+        "on": true,
+        "x": 0.5,
+        "y": 0.5
       }
     ]
   ],
   "motionAssigns": [
+    {
+      "x": "fx.djfilter",
+      "y": "fx.djfilter"
+    },
     null,
     null,
     null,
@@ -8858,7 +8920,10 @@
     null,
     null,
     null,
-    null
+    {
+      "x": "fx.djfilter",
+      "y": "fx.djfilter"
+    }
   ],
   "motionChain": {
     "enabled": true,
@@ -8867,7 +8932,7 @@
       -1,
       -1,
       -1,
-      -1,
+      8,
       -1,
       -1,
       1,
@@ -10682,6 +10747,10 @@
           }
         ]
       }
+    ],
+    [
+      null,
+      null
     ]
   ]
 }
