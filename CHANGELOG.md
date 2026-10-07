@@ -33,6 +33,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
   the tune; in the last chorus device 2 takes the "Ah, look at all the lonely
   people" line against device 1's chorus.
 
+### Changed
+
+- **1985-1 and 1985-2 are now a Crockett's Theme pair.** Like the Eleanor Rigby
+  pair, they play together on two devices paired over WiFi sync, and each is
+  complete on its own. Both carry the lead. *1985-1* has the octave bass, the
+  bridge guitar and its drum kit. *1985-2* has newly written strings, struck on
+  the beat and held, over its percussion, which is extended to cover the whole
+  song.
+
 ### Fixed
 
 - **Two-bar patterns stay in order on every song loop.** A lane whose pattern

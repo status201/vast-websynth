@@ -48,20 +48,23 @@
   "1985-1.websynth.json": {
     "name": "1985-1",
     "bpm": 96,
-    "bars": 11,
+    "bars": 67,
     "uses": [
       "seq",
-      "drums"
-    ]
+      "drums",
+      "motion"
+    ],
+    "blurb": "Half of a pair, Crockett's Theme: load 1985-2 on a second device, pair them over WiFi sync and press Play on either one. This half is the groove: the octave bass pulse, the lead, the bridge guitar stabs and the drum kit. One patch plays both bass and lead, and velocity decides which one you hear: the filter envelope is negative, so a hard-hit note starts open and snaps shut, which is the bass pluck, while the soft lead barely closes and stays bright. With sustain at 1, a tied note is already where its envelopes are heading, so it holds without re-plucking. A motion lane mutes the lead through the opening progression. It plays complete on its own too."
   },
   "1985-2.websynth.json": {
     "name": "1985-2",
     "bpm": 96,
-    "bars": 11,
+    "bars": 67,
     "uses": [
       "seq",
       "drums"
-    ]
+    ],
+    "blurb": "Half of a pair, Crockett's Theme: load 1985-1 on a second device, pair them over WiFi sync and press Play on either one. This half is the strings and the same lead, over a percussion kit of cowbell, shakers, congas, bongo and clave. The sequencer runs at 1/8 over 16 cells, two bars a bank. The strings are a root and two inner voices, struck on the beat and held with ties. The swell into each verse is one held chord whose velocity climbs step by step. In the last verse the fourth track drops its string and doubles the lead an octave up. It plays complete on its own too."
   },
   "Around_the_World.websynth.json": {
     "name": "Around the World",

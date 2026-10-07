@@ -1,6 +1,6 @@
 {
   "format": "websynth-song",
-  "version": 4,
+  "version": 9,
   "name": "1985-1",
   "params": {
     "voicing.mode": 1,
@@ -18,29 +18,29 @@
     "unison.voices": 1,
     "unison.detune": 0,
     "analog.drift": 0,
-    "mixer.noise": 0.23,
+    "mixer.noise": 0.18,
     "mixer.glide": 0,
     "glide.mode": 0,
-    "filter.cutoff": 58,
+    "filter.cutoff": 90,
     "filter.resonance": 1.126,
     "filter.drive": 1.145,
-    "filter.envAmount": 20,
-    "env.amp.attack": 0.005,
+    "filter.envAmount": -22,
+    "env.amp.attack": 0.004,
     "env.amp.decay": 0.25,
-    "env.amp.sustain": 0.7,
-    "env.amp.release": 0.12,
-    "env.fil.attack": 0.005,
-    "env.fil.decay": 0.18,
-    "env.fil.sustain": 0.15,
-    "env.fil.release": 0.4,
-    "lfo.rate": 0.5333,
-    "lfo.amount": 0,
-    "lfo.wave": 1,
-    "lfo.dest": 0,
+    "env.amp.sustain": 1,
+    "env.amp.release": 0.14,
+    "env.fil.attack": 0.07,
+    "env.fil.decay": 0.3,
+    "env.fil.sustain": 1,
+    "env.fil.release": 0.08,
+    "lfo.rate": 5.2,
+    "lfo.amount": 0.008,
+    "lfo.wave": 0,
+    "lfo.dest": 2,
     "fx.dist.on": 1,
     "fx.dist.drive": 0.275,
     "fx.dist.tone": 1401,
-    "fx.dist.mix": 0.35,
+    "fx.dist.mix": 0.3,
     "fx.wah.on": 0,
     "fx.wah.rate": 0.1593,
     "fx.wah.depth": 0.04,
@@ -196,417 +196,1604 @@
     "sampler.t5.mute": 0,
     "sampler.t6.mute": 0,
     "sampler.t7.mute": 0,
-    "motion.on": 0,
+    "motion.on": 1,
     "motion.mute": 0,
-    "motion.slide": 1
+    "motion.slide": 1,
+    "filter.keytrack": 0.5,
+    "filter.velAmount": 1,
+    "transport.beats": 4,
+    "transport.beatUnit": 0,
+    "seq.rate": 2,
+    "seq.len": 0,
+    "seq.t0.pan": 0,
+    "seq.t1.pan": 0.12,
+    "seq.t2.pan": -0.35,
+    "seq.t3.pan": 0.35,
+    "seq.t1.mute": 0,
+    "motion.t0.slide": 0
   },
   "seqBanks": [
     [
       {
         "on": true,
-        "note": 86,
-        "velocity": 0.4832,
-        "gate": 0.85
-      },
-      {
-        "on": false,
-        "note": 38,
-        "velocity": 0.8,
-        "gate": 0.85
+        "note": 40,
+        "velocity": 0.95,
+        "gate": 0.62
       },
       {
         "on": true,
-        "note": 50,
-        "velocity": 0.4728,
-        "gate": 0.6179,
-        "prob": 0.4832
-      },
-      {
-        "on": false,
-        "note": 38,
-        "velocity": 0.8,
-        "gate": 0.85
+        "note": 40,
+        "velocity": 0.95,
+        "gate": 0.62
       },
       {
         "on": true,
-        "note": 38,
-        "velocity": 0.8,
-        "gate": 0.85
-      },
-      {
-        "on": false,
-        "note": 79,
-        "velocity": 0.8,
-        "gate": 0.85
+        "note": 52,
+        "velocity": 0.86,
+        "gate": 0.62
       },
       {
         "on": true,
-        "note": 38,
-        "velocity": 0.8,
-        "gate": 0.85
-      },
-      {
-        "on": false,
-        "note": 77,
-        "velocity": 0.8,
-        "gate": 0.4794
+        "note": 40,
+        "velocity": 0.95,
+        "gate": 0.62
       },
       {
         "on": true,
-        "note": 74,
-        "velocity": 0.5249,
-        "gate": 0.6773,
-        "prob": 0.5041
-      },
-      {
-        "on": false,
-        "note": 72,
-        "velocity": 0.8,
-        "gate": 0.85
+        "note": 52,
+        "velocity": 0.86,
+        "gate": 0.62
       },
       {
         "on": true,
-        "note": 74,
-        "velocity": 0.4832,
-        "gate": 0.5981,
-        "prob": 0.5353
-      },
-      {
-        "on": false,
-        "note": 38,
-        "velocity": 0.8,
-        "gate": 0.85
+        "note": 52,
+        "velocity": 0.86,
+        "gate": 0.62
       },
       {
         "on": true,
-        "note": 50,
-        "velocity": 0.8,
-        "gate": 0.85
-      },
-      {
-        "on": false,
-        "note": 50,
-        "velocity": 0.8,
-        "gate": 0.85
+        "note": 40,
+        "velocity": 0.95,
+        "gate": 0.62
       },
       {
         "on": true,
-        "note": 62,
-        "velocity": 0.5457,
-        "gate": 0.5981,
-        "prob": 0.5874
-      },
-      {
-        "on": false,
-        "note": 89,
-        "velocity": 0.8,
-        "gate": 0.85
-      }
-    ],
-    [
-      {
-        "on": true,
-        "note": 38,
-        "velocity": 0.8,
-        "gate": 0.85
-      },
-      {
-        "on": false,
-        "note": 38,
-        "velocity": 0.8,
-        "gate": 0.85
+        "note": 52,
+        "velocity": 0.86,
+        "gate": 0.62
       },
       {
         "on": true,
-        "note": 50,
-        "velocity": 0.8,
-        "gate": 0.85
-      },
-      {
-        "on": false,
-        "note": 50,
-        "velocity": 0.8,
-        "gate": 0.85
-      },
-      {
-        "on": true,
-        "note": 38,
-        "velocity": 0.8,
-        "gate": 0.85
-      },
-      {
-        "on": true,
-        "note": 84,
-        "velocity": 0.5145,
-        "gate": 0.6377,
-        "prob": 0.577
-      },
-      {
-        "on": true,
-        "note": 50,
-        "velocity": 0.8,
-        "gate": 0.85
-      },
-      {
-        "on": true,
-        "note": 72,
-        "velocity": 0.5249,
-        "gate": 0.5289,
-        "prob": 0.5562
-      },
-      {
-        "on": true,
-        "note": 53,
-        "velocity": 0.8,
-        "gate": 0.85
-      },
-      {
-        "on": true,
-        "note": 84,
-        "velocity": 0.5041,
-        "gate": 0.5586,
-        "prob": 0.5353
-      },
-      {
-        "on": true,
-        "note": 41,
-        "velocity": 0.8,
-        "gate": 0.85
-      },
-      {
-        "on": false,
-        "note": 53,
-        "velocity": 0.8,
-        "gate": 0.85
-      },
-      {
-        "on": true,
-        "note": 53,
-        "velocity": 0.8,
-        "gate": 0.85
-      },
-      {
-        "on": false,
-        "note": 62,
-        "velocity": 0.8,
-        "gate": 0.85
-      },
-      {
-        "on": true,
-        "note": 53,
-        "velocity": 0.8,
-        "gate": 0.85
-      },
-      {
-        "on": false,
-        "note": 41,
-        "velocity": 0.8,
-        "gate": 0.85
-      }
-    ],
-    [
-      {
-        "on": true,
-        "note": 36,
-        "velocity": 0.8,
-        "gate": 0.85
-      },
-      {
-        "on": false,
-        "note": 36,
-        "velocity": 0.8,
-        "gate": 0.85
-      },
-      {
-        "on": true,
-        "note": 48,
-        "velocity": 0.8,
-        "gate": 0.85
-      },
-      {
-        "on": true,
-        "note": 69,
-        "velocity": 0.5562,
-        "gate": 0.5388,
-        "prob": 0.5145
-      },
-      {
-        "on": true,
-        "note": 36,
-        "velocity": 0.8,
-        "gate": 0.85
-      },
-      {
-        "on": false,
-        "note": 36,
-        "velocity": 0.8,
-        "gate": 0.85
-      },
-      {
-        "on": true,
-        "note": 48,
-        "velocity": 0.8,
-        "gate": 0.85
-      },
-      {
-        "on": false,
-        "note": 48,
-        "velocity": 0.8,
-        "gate": 0.85
-      },
-      {
-        "on": true,
-        "note": 65,
-        "velocity": 0.8,
-        "gate": 0.85
-      },
-      {
-        "on": true,
-        "note": 77,
-        "velocity": 0.5041,
-        "gate": 0.5289,
-        "prob": 0.5457
-      },
-      {
-        "on": true,
-        "note": 81,
-        "velocity": 0.6499,
-        "gate": 0.5981
-      },
-      {
-        "on": true,
-        "note": 81,
-        "velocity": 0.5041,
-        "gate": 0.519,
-        "prob": 0.5145
-      },
-      {
-        "on": true,
-        "note": 81,
-        "velocity": 0.5145,
-        "gate": 0.6377,
-        "prob": 0.4728
-      },
-      {
-        "on": true,
-        "note": 81,
-        "velocity": 0.5041,
-        "gate": 0.6278,
-        "prob": 0.4728
-      },
-      {
-        "on": false,
-        "note": 36,
-        "velocity": 0.8,
-        "gate": 0.85
-      },
-      {
-        "on": true,
-        "note": 36,
-        "velocity": 0.8,
-        "gate": 0.85
-      }
-    ],
-    [
-      {
-        "on": true,
-        "note": 51,
-        "velocity": 0.8,
-        "gate": 0.85
-      },
-      {
-        "on": false,
-        "note": 51,
-        "velocity": 0.8,
-        "gate": 0.85
-      },
-      {
-        "on": true,
-        "note": 51,
-        "velocity": 0.8,
-        "gate": 0.85
-      },
-      {
-        "on": true,
-        "note": 79,
-        "velocity": 0.5666,
-        "gate": 0.5388,
-        "prob": 0.5562
-      },
-      {
-        "on": true,
-        "note": 67,
-        "velocity": 0.8,
-        "gate": 0.85
-      },
-      {
-        "on": false,
-        "note": 51,
-        "velocity": 0.8,
-        "gate": 0.85
-      },
-      {
-        "on": true,
-        "note": 75,
-        "velocity": 0.5562,
-        "gate": 0.5684,
-        "prob": 0.6082
-      },
-      {
-        "on": false,
-        "note": 71,
-        "velocity": 0.8,
-        "gate": 0.85
-      },
-      {
-        "on": true,
-        "note": 67,
-        "velocity": 0.8,
-        "gate": 0.85
-      },
-      {
-        "on": true,
-        "note": 58,
-        "velocity": 0.8,
-        "gate": 0.85
-      },
-      {
-        "on": false,
-        "note": 71,
-        "velocity": 0.8,
-        "gate": 0.85
-      },
-      {
-        "on": true,
-        "note": 63,
-        "velocity": 0.8,
-        "gate": 0.85
-      },
-      {
-        "on": false,
-        "note": 75,
-        "velocity": 0.4728,
-        "gate": 0.5586,
-        "prob": 0.5562
-      },
-      {
-        "on": true,
-        "note": 58,
-        "velocity": 0.8,
-        "gate": 0.85
+        "note": 43,
+        "velocity": 0.95,
+        "gate": 0.62
       },
       {
         "on": true,
         "note": 55,
-        "velocity": 0.4832,
-        "gate": 0.5684,
-        "prob": 0.5457
+        "velocity": 0.86,
+        "gate": 0.62
       },
       {
         "on": true,
-        "note": 51,
-        "velocity": 0.8,
-        "gate": 0.85
+        "note": 43,
+        "velocity": 0.95,
+        "gate": 0.62
+      },
+      {
+        "on": true,
+        "note": 43,
+        "velocity": 0.95,
+        "gate": 0.62
+      },
+      {
+        "on": true,
+        "note": 55,
+        "velocity": 0.86,
+        "gate": 0.62
+      },
+      {
+        "on": true,
+        "note": 43,
+        "velocity": 0.95,
+        "gate": 0.62
+      },
+      {
+        "on": true,
+        "note": 55,
+        "velocity": 0.86,
+        "gate": 0.62
+      },
+      {
+        "on": true,
+        "note": 55,
+        "velocity": 0.86,
+        "gate": 0.62
+      }
+    ],
+    [
+      {
+        "on": true,
+        "note": 38,
+        "velocity": 0.95,
+        "gate": 0.62
+      },
+      {
+        "on": true,
+        "note": 38,
+        "velocity": 0.95,
+        "gate": 0.62
+      },
+      {
+        "on": true,
+        "note": 50,
+        "velocity": 0.86,
+        "gate": 0.62
+      },
+      {
+        "on": true,
+        "note": 38,
+        "velocity": 0.95,
+        "gate": 0.62
+      },
+      {
+        "on": true,
+        "note": 50,
+        "velocity": 0.86,
+        "gate": 0.62
+      },
+      {
+        "on": true,
+        "note": 50,
+        "velocity": 0.86,
+        "gate": 0.62
+      },
+      {
+        "on": true,
+        "note": 38,
+        "velocity": 0.95,
+        "gate": 0.62
+      },
+      {
+        "on": true,
+        "note": 50,
+        "velocity": 0.86,
+        "gate": 0.62
+      },
+      {
+        "on": true,
+        "note": 38,
+        "velocity": 0.95,
+        "gate": 0.62
+      },
+      {
+        "on": true,
+        "note": 50,
+        "velocity": 0.86,
+        "gate": 0.62
+      },
+      {
+        "on": true,
+        "note": 38,
+        "velocity": 0.95,
+        "gate": 0.62
+      },
+      {
+        "on": true,
+        "note": 38,
+        "velocity": 0.95,
+        "gate": 0.62
+      },
+      {
+        "on": true,
+        "note": 50,
+        "velocity": 0.86,
+        "gate": 0.62
+      },
+      {
+        "on": true,
+        "note": 38,
+        "velocity": 0.95,
+        "gate": 0.62
+      },
+      {
+        "on": true,
+        "note": 50,
+        "velocity": 0.86,
+        "gate": 0.62
+      },
+      {
+        "on": true,
+        "note": 50,
+        "velocity": 0.86,
+        "gate": 0.62
+      }
+    ],
+    [
+      {
+        "on": true,
+        "note": 41,
+        "velocity": 0.95,
+        "gate": 0.62
+      },
+      {
+        "on": true,
+        "note": 41,
+        "velocity": 0.95,
+        "gate": 0.62
+      },
+      {
+        "on": true,
+        "note": 53,
+        "velocity": 0.86,
+        "gate": 0.62
+      },
+      {
+        "on": true,
+        "note": 41,
+        "velocity": 0.95,
+        "gate": 0.62
+      },
+      {
+        "on": true,
+        "note": 53,
+        "velocity": 0.86,
+        "gate": 0.62
+      },
+      {
+        "on": true,
+        "note": 53,
+        "velocity": 0.86,
+        "gate": 0.62
+      },
+      {
+        "on": true,
+        "note": 41,
+        "velocity": 0.95,
+        "gate": 0.62
+      },
+      {
+        "on": true,
+        "note": 53,
+        "velocity": 0.86,
+        "gate": 0.62
+      },
+      {
+        "on": true,
+        "note": 41,
+        "velocity": 0.95,
+        "gate": 0.62
+      },
+      {
+        "on": true,
+        "note": 53,
+        "velocity": 0.86,
+        "gate": 0.62
+      },
+      {
+        "on": true,
+        "note": 41,
+        "velocity": 0.95,
+        "gate": 0.62
+      },
+      {
+        "on": true,
+        "note": 41,
+        "velocity": 0.95,
+        "gate": 0.62
+      },
+      {
+        "on": true,
+        "note": 53,
+        "velocity": 0.86,
+        "gate": 0.62
+      },
+      {
+        "on": true,
+        "note": 41,
+        "velocity": 0.95,
+        "gate": 0.62
+      },
+      {
+        "on": true,
+        "note": 53,
+        "velocity": 0.86,
+        "gate": 0.62
+      },
+      {
+        "on": true,
+        "note": 53,
+        "velocity": 0.86,
+        "gate": 0.62
+      }
+    ],
+    [
+      {
+        "on": true,
+        "note": 38,
+        "velocity": 0.95,
+        "gate": 0.62
+      },
+      {
+        "on": true,
+        "note": 38,
+        "velocity": 0.95,
+        "gate": 0.62
+      },
+      {
+        "on": true,
+        "note": 50,
+        "velocity": 0.86,
+        "gate": 0.62
+      },
+      {
+        "on": true,
+        "note": 38,
+        "velocity": 0.95,
+        "gate": 0.62
+      },
+      {
+        "on": true,
+        "note": 50,
+        "velocity": 0.86,
+        "gate": 0.62
+      },
+      {
+        "on": true,
+        "note": 50,
+        "velocity": 0.86,
+        "gate": 0.62
+      },
+      {
+        "on": true,
+        "note": 38,
+        "velocity": 0.95,
+        "gate": 0.62
+      },
+      {
+        "on": true,
+        "note": 50,
+        "velocity": 0.86,
+        "gate": 0.62
+      },
+      {
+        "on": true,
+        "note": 45,
+        "velocity": 0.95,
+        "gate": 0.62
+      },
+      {
+        "on": true,
+        "note": 57,
+        "velocity": 0.86,
+        "gate": 0.62
+      },
+      {
+        "on": true,
+        "note": 45,
+        "velocity": 0.95,
+        "gate": 0.62
+      },
+      {
+        "on": true,
+        "note": 45,
+        "velocity": 0.95,
+        "gate": 0.62
+      },
+      {
+        "on": true,
+        "note": 57,
+        "velocity": 0.86,
+        "gate": 0.62
+      },
+      {
+        "on": true,
+        "note": 45,
+        "velocity": 0.95,
+        "gate": 0.62
+      },
+      {
+        "on": true,
+        "note": 57,
+        "velocity": 0.86,
+        "gate": 0.62
+      },
+      {
+        "on": true,
+        "note": 57,
+        "velocity": 0.86,
+        "gate": 0.62
+      }
+    ],
+    [
+      {
+        "on": true,
+        "note": 38,
+        "velocity": 0.95,
+        "gate": 0.62
+      },
+      {
+        "on": true,
+        "note": 38,
+        "velocity": 0.95,
+        "gate": 0.62
+      },
+      {
+        "on": true,
+        "note": 50,
+        "velocity": 0.86,
+        "gate": 0.62
+      },
+      {
+        "on": true,
+        "note": 38,
+        "velocity": 0.95,
+        "gate": 0.62
+      },
+      {
+        "on": true,
+        "note": 50,
+        "velocity": 0.86,
+        "gate": 0.62
+      },
+      {
+        "on": true,
+        "note": 50,
+        "velocity": 0.86,
+        "gate": 0.62
+      },
+      {
+        "on": true,
+        "note": 38,
+        "velocity": 0.95,
+        "gate": 0.62
+      },
+      {
+        "on": true,
+        "note": 50,
+        "velocity": 0.86,
+        "gate": 0.62
+      },
+      {
+        "on": true,
+        "note": 45,
+        "velocity": 0.95,
+        "gate": 0.62
+      },
+      {
+        "on": true,
+        "note": 57,
+        "velocity": 0.86,
+        "gate": 0.62
+      },
+      {
+        "on": true,
+        "note": 45,
+        "velocity": 0.95,
+        "gate": 0.62
+      },
+      {
+        "on": true,
+        "note": 45,
+        "velocity": 0.95,
+        "gate": 0.62
+      },
+      {
+        "on": true,
+        "note": 57,
+        "velocity": 0.86,
+        "gate": 0.62
+      },
+      {
+        "on": true,
+        "note": 45,
+        "velocity": 0.95,
+        "gate": 0.62
+      },
+      {
+        "on": true,
+        "note": 57,
+        "velocity": 0.86,
+        "gate": 0.62
+      },
+      {
+        "on": true,
+        "note": 57,
+        "velocity": 0.86,
+        "gate": 0.62
+      }
+    ],
+    [
+      {
+        "on": true,
+        "note": 41,
+        "velocity": 0.95,
+        "gate": 0.62
+      },
+      {
+        "on": true,
+        "note": 41,
+        "velocity": 0.95,
+        "gate": 0.62
+      },
+      {
+        "on": true,
+        "note": 53,
+        "velocity": 0.86,
+        "gate": 0.62
+      },
+      {
+        "on": true,
+        "note": 41,
+        "velocity": 0.95,
+        "gate": 0.62
+      },
+      {
+        "on": true,
+        "note": 53,
+        "velocity": 0.86,
+        "gate": 0.62
+      },
+      {
+        "on": true,
+        "note": 53,
+        "velocity": 0.86,
+        "gate": 0.62
+      },
+      {
+        "on": true,
+        "note": 41,
+        "velocity": 0.95,
+        "gate": 0.62
+      },
+      {
+        "on": true,
+        "note": 53,
+        "velocity": 0.86,
+        "gate": 0.62
+      },
+      {
+        "on": true,
+        "note": 41,
+        "velocity": 0.95,
+        "gate": 0.62
+      },
+      {
+        "on": true,
+        "note": 53,
+        "velocity": 0.86,
+        "gate": 0.62
+      },
+      {
+        "on": true,
+        "note": 41,
+        "velocity": 0.95,
+        "gate": 0.62
+      },
+      {
+        "on": true,
+        "note": 41,
+        "velocity": 0.95,
+        "gate": 0.62
+      },
+      {
+        "on": true,
+        "note": 53,
+        "velocity": 0.86,
+        "gate": 0.62
+      },
+      {
+        "on": true,
+        "note": 41,
+        "velocity": 0.95,
+        "gate": 0.62
+      },
+      {
+        "on": true,
+        "note": 53,
+        "velocity": 0.86,
+        "gate": 0.62
+      },
+      {
+        "on": true,
+        "note": 53,
+        "velocity": 0.86,
+        "gate": 0.62
+      }
+    ],
+    [
+      {
+        "on": true,
+        "note": 41,
+        "velocity": 0.95,
+        "gate": 0.62
+      },
+      {
+        "on": true,
+        "note": 41,
+        "velocity": 0.95,
+        "gate": 0.62
+      },
+      {
+        "on": true,
+        "note": 53,
+        "velocity": 0.86,
+        "gate": 0.62
+      },
+      {
+        "on": true,
+        "note": 53,
+        "velocity": 0.86,
+        "gate": 0.62
+      },
+      {
+        "on": true,
+        "note": 41,
+        "velocity": 0.95,
+        "gate": 0.62
+      },
+      {
+        "on": true,
+        "note": 53,
+        "velocity": 0.86,
+        "gate": 0.62
+      },
+      {
+        "on": true,
+        "note": 53,
+        "velocity": 0.86,
+        "gate": 0.62
+      },
+      {
+        "on": true,
+        "note": 41,
+        "velocity": 0.95,
+        "gate": 0.62
+      },
+      {
+        "on": true,
+        "note": 48,
+        "velocity": 0.95,
+        "gate": 0.62
+      },
+      {
+        "on": true,
+        "note": 60,
+        "velocity": 0.86,
+        "gate": 0.62
+      },
+      {
+        "on": true,
+        "note": 48,
+        "velocity": 0.95,
+        "gate": 0.62
+      },
+      {
+        "on": true,
+        "note": 60,
+        "velocity": 0.86,
+        "gate": 0.62
+      },
+      {
+        "on": true,
+        "note": 60,
+        "velocity": 0.86,
+        "gate": 0.62
+      },
+      {
+        "on": true,
+        "note": 48,
+        "velocity": 0.95,
+        "gate": 0.62
+      },
+      {
+        "on": true,
+        "note": 60,
+        "velocity": 0.86,
+        "gate": 0.62
+      },
+      {
+        "on": true,
+        "note": 48,
+        "velocity": 0.95,
+        "gate": 0.62
+      }
+    ],
+    [
+      {
+        "on": true,
+        "note": 52,
+        "velocity": 0.86,
+        "gate": 0.62
+      },
+      {
+        "on": true,
+        "note": 40,
+        "velocity": 0.95,
+        "gate": 0.62
+      },
+      {
+        "on": true,
+        "note": 40,
+        "velocity": 0.95,
+        "gate": 0.62
+      },
+      {
+        "on": true,
+        "note": 40,
+        "velocity": 0.95,
+        "gate": 0.62
+      },
+      {
+        "on": true,
+        "note": 52,
+        "velocity": 0.86,
+        "gate": 0.62
+      },
+      {
+        "on": true,
+        "note": 40,
+        "velocity": 0.95,
+        "gate": 0.62
+      },
+      {
+        "on": true,
+        "note": 52,
+        "velocity": 0.86,
+        "gate": 0.62
+      },
+      {
+        "on": true,
+        "note": 52,
+        "velocity": 0.86,
+        "gate": 0.62
+      },
+      {
+        "on": true,
+        "note": 40,
+        "velocity": 0.95,
+        "gate": 0.62
+      },
+      {
+        "on": true,
+        "note": 52,
+        "velocity": 0.86,
+        "gate": 0.62
+      },
+      {
+        "on": true,
+        "note": 40,
+        "velocity": 0.95,
+        "gate": 0.62
+      },
+      {
+        "on": true,
+        "note": 40,
+        "velocity": 0.95,
+        "gate": 0.62
+      },
+      {
+        "on": true,
+        "note": 40,
+        "velocity": 0.95,
+        "gate": 0.62
+      },
+      {
+        "on": true,
+        "note": 40,
+        "velocity": 0.95,
+        "gate": 0.62
+      },
+      {
+        "on": true,
+        "note": 40,
+        "velocity": 0.95,
+        "gate": 0.62
+      },
+      {
+        "on": true,
+        "note": 52,
+        "velocity": 0.86,
+        "gate": 0.62
+      }
+    ],
+    [
+      {
+        "on": true,
+        "note": 40,
+        "velocity": 0.95,
+        "gate": 0.62
+      },
+      {
+        "on": true,
+        "note": 40,
+        "velocity": 0.95,
+        "gate": 0.62
+      },
+      {
+        "on": true,
+        "note": 52,
+        "velocity": 0.86,
+        "gate": 0.62
+      },
+      {
+        "on": true,
+        "note": 40,
+        "velocity": 0.95,
+        "gate": 0.62
+      },
+      {
+        "on": true,
+        "note": 40,
+        "velocity": 0.95,
+        "gate": 0.62
+      },
+      {
+        "on": true,
+        "note": 40,
+        "velocity": 0.95,
+        "gate": 0.62
+      },
+      {
+        "on": true,
+        "note": 52,
+        "velocity": 0.86,
+        "gate": 0.62
+      },
+      {
+        "on": true,
+        "note": 40,
+        "velocity": 0.95,
+        "gate": 0.62
+      },
+      {
+        "on": true,
+        "note": 38,
+        "velocity": 0.95,
+        "gate": 0.62
+      },
+      {
+        "on": true,
+        "note": 52,
+        "velocity": 0.86,
+        "gate": 0.62
+      },
+      {
+        "on": true,
+        "note": 40,
+        "velocity": 0.95,
+        "gate": 0.62
+      },
+      {
+        "on": true,
+        "note": 40,
+        "velocity": 0.95,
+        "gate": 0.62
+      },
+      {
+        "on": true,
+        "note": 52,
+        "velocity": 0.86,
+        "gate": 0.62
+      },
+      {
+        "on": true,
+        "note": 40,
+        "velocity": 0.95,
+        "gate": 0.62
+      },
+      {
+        "on": true,
+        "note": 52,
+        "velocity": 0.86,
+        "gate": 0.62
+      },
+      {
+        "on": true,
+        "note": 52,
+        "velocity": 0.86,
+        "gate": 0.62
+      }
+    ],
+    [
+      {
+        "on": true,
+        "note": 43,
+        "velocity": 0.95,
+        "gate": 0.62
+      },
+      {
+        "on": true,
+        "note": 43,
+        "velocity": 0.95,
+        "gate": 0.62
+      },
+      {
+        "on": true,
+        "note": 55,
+        "velocity": 0.86,
+        "gate": 0.62
+      },
+      {
+        "on": true,
+        "note": 43,
+        "velocity": 0.95,
+        "gate": 0.62
+      },
+      {
+        "on": true,
+        "note": 43,
+        "velocity": 0.95,
+        "gate": 0.62
+      },
+      {
+        "on": true,
+        "note": 55,
+        "velocity": 0.86,
+        "gate": 0.62
+      },
+      {
+        "on": true,
+        "note": 43,
+        "velocity": 0.95,
+        "gate": 0.62
+      },
+      {
+        "on": true,
+        "note": 43,
+        "velocity": 0.95,
+        "gate": 0.62
+      },
+      {
+        "on": true,
+        "note": 43,
+        "velocity": 0.95,
+        "gate": 0.62
+      },
+      {
+        "on": true,
+        "note": 43,
+        "velocity": 0.95,
+        "gate": 0.62
+      },
+      {
+        "on": true,
+        "note": 43,
+        "velocity": 0.95,
+        "gate": 0.62
+      },
+      {
+        "on": true,
+        "note": 43,
+        "velocity": 0.95,
+        "gate": 0.62
+      },
+      {
+        "on": true,
+        "note": 55,
+        "velocity": 0.86,
+        "gate": 0.62
+      },
+      {
+        "on": true,
+        "note": 43,
+        "velocity": 0.95,
+        "gate": 0.62
+      },
+      {
+        "on": true,
+        "note": 55,
+        "velocity": 0.86,
+        "gate": 0.62
+      },
+      {
+        "on": true,
+        "note": 55,
+        "velocity": 0.86,
+        "gate": 0.62
+      }
+    ],
+    [
+      {
+        "on": true,
+        "note": 55,
+        "velocity": 0.86,
+        "gate": 0.62
+      },
+      {
+        "on": true,
+        "note": 43,
+        "velocity": 0.95,
+        "gate": 0.62
+      },
+      {
+        "on": true,
+        "note": 43,
+        "velocity": 0.95,
+        "gate": 0.62
+      },
+      {
+        "on": true,
+        "note": 43,
+        "velocity": 0.95,
+        "gate": 0.62
+      },
+      {
+        "on": true,
+        "note": 55,
+        "velocity": 0.86,
+        "gate": 0.62
+      },
+      {
+        "on": true,
+        "note": 43,
+        "velocity": 0.95,
+        "gate": 0.62
+      },
+      {
+        "on": true,
+        "note": 55,
+        "velocity": 0.86,
+        "gate": 0.62
+      },
+      {
+        "on": true,
+        "note": 55,
+        "velocity": 0.86,
+        "gate": 0.62
+      },
+      {
+        "on": true,
+        "note": 43,
+        "velocity": 0.95,
+        "gate": 0.62
+      },
+      {
+        "on": true,
+        "note": 55,
+        "velocity": 0.86,
+        "gate": 0.62
+      },
+      {
+        "on": true,
+        "note": 43,
+        "velocity": 0.95,
+        "gate": 0.62
+      },
+      {
+        "on": true,
+        "note": 43,
+        "velocity": 0.95,
+        "gate": 0.62
+      },
+      {
+        "on": true,
+        "note": 43,
+        "velocity": 0.95,
+        "gate": 0.62
+      },
+      {
+        "on": true,
+        "note": 43,
+        "velocity": 0.95,
+        "gate": 0.62
+      },
+      {
+        "on": true,
+        "note": 43,
+        "velocity": 0.95,
+        "gate": 0.62
+      },
+      {
+        "on": true,
+        "note": 55,
+        "velocity": 0.86,
+        "gate": 0.62
+      }
+    ],
+    [
+      {
+        "on": true,
+        "note": 43,
+        "velocity": 0.95,
+        "gate": 0.62
+      },
+      {
+        "on": true,
+        "note": 55,
+        "velocity": 0.86,
+        "gate": 0.62
+      },
+      {
+        "on": true,
+        "note": 43,
+        "velocity": 0.95,
+        "gate": 0.62
+      },
+      {
+        "on": true,
+        "note": 43,
+        "velocity": 0.95,
+        "gate": 0.62
+      },
+      {
+        "on": true,
+        "note": 55,
+        "velocity": 0.86,
+        "gate": 0.62
+      },
+      {
+        "on": true,
+        "note": 43,
+        "velocity": 0.95,
+        "gate": 0.62
+      },
+      {
+        "on": true,
+        "note": 55,
+        "velocity": 0.86,
+        "gate": 0.62
+      },
+      {
+        "on": true,
+        "note": 55,
+        "velocity": 0.86,
+        "gate": 0.62
+      },
+      {
+        "on": true,
+        "note": 43,
+        "velocity": 0.95,
+        "gate": 0.62
+      },
+      {
+        "on": true,
+        "note": 55,
+        "velocity": 0.86,
+        "gate": 0.62
+      },
+      {
+        "on": true,
+        "note": 43,
+        "velocity": 0.95,
+        "gate": 0.62
+      },
+      {
+        "on": true,
+        "note": 43,
+        "velocity": 0.95,
+        "gate": 0.62
+      },
+      {
+        "on": true,
+        "note": 43,
+        "velocity": 0.95,
+        "gate": 0.62
+      },
+      {
+        "on": true,
+        "note": 43,
+        "velocity": 0.95,
+        "gate": 0.62
+      },
+      {
+        "on": true,
+        "note": 43,
+        "velocity": 0.95,
+        "gate": 0.62
+      },
+      {
+        "on": true,
+        "note": 55,
+        "velocity": 0.86,
+        "gate": 0.62
+      }
+    ],
+    [
+      {
+        "on": true,
+        "note": 47,
+        "velocity": 0.95,
+        "gate": 0.62
+      },
+      {
+        "on": true,
+        "note": 59,
+        "velocity": 0.86,
+        "gate": 0.62
+      },
+      {
+        "on": true,
+        "note": 59,
+        "velocity": 0.86,
+        "gate": 0.62
+      },
+      {
+        "on": true,
+        "note": 47,
+        "velocity": 0.95,
+        "gate": 0.62
+      },
+      {
+        "on": true,
+        "note": 59,
+        "velocity": 0.86,
+        "gate": 0.62
+      },
+      {
+        "on": true,
+        "note": 47,
+        "velocity": 0.95,
+        "gate": 0.62
+      },
+      {
+        "on": true,
+        "note": 59,
+        "velocity": 0.86,
+        "gate": 0.62
+      },
+      {
+        "on": true,
+        "note": 59,
+        "velocity": 0.86,
+        "gate": 0.62
+      },
+      {
+        "on": true,
+        "note": 47,
+        "velocity": 0.95,
+        "gate": 0.62
+      },
+      {
+        "on": true,
+        "note": 59,
+        "velocity": 0.86,
+        "gate": 0.62
+      },
+      {
+        "on": true,
+        "note": 47,
+        "velocity": 0.95,
+        "gate": 0.62
+      },
+      {
+        "on": true,
+        "note": 47,
+        "velocity": 0.95,
+        "gate": 0.62
+      },
+      {
+        "on": true,
+        "note": 50,
+        "velocity": 0.95,
+        "gate": 0.62
+      },
+      {
+        "on": true,
+        "note": 50,
+        "velocity": 0.95,
+        "gate": 0.62
+      },
+      {
+        "on": true,
+        "note": 50,
+        "velocity": 0.95,
+        "gate": 0.62
+      },
+      {
+        "on": true,
+        "note": 50,
+        "velocity": 0.95,
+        "gate": 0.62
+      }
+    ],
+    [
+      {
+        "on": true,
+        "note": 40,
+        "velocity": 0.95,
+        "gate": 1,
+        "tie": true
+      },
+      {
+        "on": true,
+        "note": 40,
+        "velocity": 0.95,
+        "gate": 1,
+        "tie": true
+      },
+      {
+        "on": true,
+        "note": 40,
+        "velocity": 0.95,
+        "gate": 1,
+        "tie": true
+      },
+      {
+        "on": true,
+        "note": 40,
+        "velocity": 0.95,
+        "gate": 1,
+        "tie": true
+      },
+      {
+        "on": true,
+        "note": 40,
+        "velocity": 0.95,
+        "gate": 1,
+        "tie": true
+      },
+      {
+        "on": true,
+        "note": 40,
+        "velocity": 0.95,
+        "gate": 1,
+        "tie": true
+      },
+      {
+        "on": true,
+        "note": 40,
+        "velocity": 0.95,
+        "gate": 1,
+        "tie": true
+      },
+      {
+        "on": true,
+        "note": 40,
+        "velocity": 0.95,
+        "gate": 1,
+        "tie": true
+      },
+      {
+        "on": true,
+        "note": 40,
+        "velocity": 0.95,
+        "gate": 1,
+        "tie": true
+      },
+      {
+        "on": true,
+        "note": 40,
+        "velocity": 0.95,
+        "gate": 1,
+        "tie": true
+      },
+      {
+        "on": true,
+        "note": 40,
+        "velocity": 0.95,
+        "gate": 1,
+        "tie": true
+      },
+      {
+        "on": true,
+        "note": 40,
+        "velocity": 0.95,
+        "gate": 1,
+        "tie": true
+      },
+      {
+        "on": true,
+        "note": 40,
+        "velocity": 0.95,
+        "gate": 1,
+        "tie": true
+      },
+      {
+        "on": true,
+        "note": 40,
+        "velocity": 0.95,
+        "gate": 1,
+        "tie": true
+      },
+      {
+        "on": true,
+        "note": 40,
+        "velocity": 0.95,
+        "gate": 1,
+        "tie": true
+      },
+      {
+        "on": true,
+        "note": 40,
+        "velocity": 0.95,
+        "gate": 1
+      }
+    ],
+    [
+      {
+        "on": true,
+        "note": 38,
+        "velocity": 0.95,
+        "gate": 0.62
+      },
+      {
+        "on": true,
+        "note": 38,
+        "velocity": 0.95,
+        "gate": 0.62
+      },
+      {
+        "on": true,
+        "note": 50,
+        "velocity": 0.86,
+        "gate": 0.62
+      },
+      {
+        "on": true,
+        "note": 38,
+        "velocity": 0.95,
+        "gate": 0.62
+      },
+      {
+        "on": true,
+        "note": 50,
+        "velocity": 0.86,
+        "gate": 0.62
+      },
+      {
+        "on": true,
+        "note": 50,
+        "velocity": 0.86,
+        "gate": 0.62
+      },
+      {
+        "on": true,
+        "note": 38,
+        "velocity": 0.95,
+        "gate": 0.62
+      },
+      {
+        "on": true,
+        "note": 50,
+        "velocity": 0.86,
+        "gate": 0.62
+      },
+      {
+        "on": true,
+        "note": 45,
+        "velocity": 0.95,
+        "gate": 0.62
+      },
+      {
+        "on": true,
+        "note": 57,
+        "velocity": 0.86,
+        "gate": 0.62
+      },
+      {
+        "on": true,
+        "note": 45,
+        "velocity": 0.95,
+        "gate": 0.62
+      },
+      {
+        "on": true,
+        "note": 45,
+        "velocity": 0.95,
+        "gate": 0.62
+      },
+      {
+        "on": true,
+        "note": 57,
+        "velocity": 0.86,
+        "gate": 0.62
+      },
+      {
+        "on": true,
+        "note": 45,
+        "velocity": 0.95,
+        "gate": 0.62
+      },
+      {
+        "on": true,
+        "note": 57,
+        "velocity": 0.86,
+        "gate": 0.62
+      },
+      {
+        "on": true,
+        "note": 57,
+        "velocity": 0.86,
+        "gate": 0.62
+      }
+    ],
+    [
+      {
+        "on": true,
+        "note": 40,
+        "velocity": 0.95,
+        "gate": 0.62
+      },
+      {
+        "on": true,
+        "note": 40,
+        "velocity": 0.95,
+        "gate": 0.62
+      },
+      {
+        "on": true,
+        "note": 52,
+        "velocity": 0.86,
+        "gate": 0.62
+      },
+      {
+        "on": true,
+        "note": 40,
+        "velocity": 0.95,
+        "gate": 0.62
+      },
+      {
+        "on": true,
+        "note": 40,
+        "velocity": 0.95,
+        "gate": 0.62
+      },
+      {
+        "on": true,
+        "note": 40,
+        "velocity": 0.95,
+        "gate": 0.62
+      },
+      {
+        "on": true,
+        "note": 52,
+        "velocity": 0.86,
+        "gate": 0.62
+      },
+      {
+        "on": true,
+        "note": 40,
+        "velocity": 0.95,
+        "gate": 0.62
+      },
+      {
+        "on": true,
+        "note": 38,
+        "velocity": 0.95,
+        "gate": 0.62
+      },
+      {
+        "on": true,
+        "note": 52,
+        "velocity": 0.86,
+        "gate": 0.62
+      },
+      {
+        "on": true,
+        "note": 40,
+        "velocity": 0.95,
+        "gate": 0.62
+      },
+      {
+        "on": true,
+        "note": 40,
+        "velocity": 0.95,
+        "gate": 0.62
+      },
+      {
+        "on": true,
+        "note": 52,
+        "velocity": 0.86,
+        "gate": 0.62
+      },
+      {
+        "on": true,
+        "note": 40,
+        "velocity": 0.95,
+        "gate": 0.62
+      },
+      {
+        "on": true,
+        "note": 52,
+        "velocity": 0.86,
+        "gate": 0.62
+      },
+      {
+        "on": true,
+        "note": 52,
+        "velocity": 0.86,
+        "gate": 0.62
       }
     ]
   ],
@@ -825,8 +2012,7 @@
           "on": false
         },
         {
-          "on": true,
-          "tie": true
+          "on": true
         },
         {
           "on": false
@@ -1458,6 +2644,227 @@
     [
       [
         {
+          "on": true,
+          "velocity": 0.7
+        },
+        {
+          "on": false
+        },
+        {
+          "on": false
+        },
+        {
+          "on": false
+        },
+        {
+          "on": true,
+          "velocity": 0.7
+        },
+        {
+          "on": false
+        },
+        {
+          "on": false
+        },
+        {
+          "on": false
+        },
+        {
+          "on": true,
+          "velocity": 0.7
+        },
+        {
+          "on": false
+        },
+        {
+          "on": false
+        },
+        {
+          "on": false
+        },
+        {
+          "on": true,
+          "velocity": 0.7
+        },
+        {
+          "on": false
+        },
+        {
+          "on": true,
+          "velocity": 0.6
+        },
+        {
+          "on": false
+        }
+      ],
+      [
+        {
+          "on": false
+        },
+        {
+          "on": false
+        },
+        {
+          "on": false
+        },
+        {
+          "on": false
+        },
+        {
+          "on": false
+        },
+        {
+          "on": false
+        },
+        {
+          "on": false
+        },
+        {
+          "on": false
+        },
+        {
+          "on": false
+        },
+        {
+          "on": false
+        },
+        {
+          "on": false
+        },
+        {
+          "on": false
+        },
+        {
+          "on": false
+        },
+        {
+          "on": false
+        },
+        {
+          "on": false
+        },
+        {
+          "on": false
+        }
+      ],
+      [
+        {
+          "on": true,
+          "velocity": 0.5
+        },
+        {
+          "on": true,
+          "velocity": 0.35
+        },
+        {
+          "on": true,
+          "velocity": 0.9
+        },
+        {
+          "on": true,
+          "velocity": 0.9
+        },
+        {
+          "on": true,
+          "velocity": 0.5
+        },
+        {
+          "on": true,
+          "velocity": 0.35
+        },
+        {
+          "on": true,
+          "velocity": 0.9
+        },
+        {
+          "on": true,
+          "velocity": 0.9
+        },
+        {
+          "on": true,
+          "velocity": 0.5
+        },
+        {
+          "on": true,
+          "velocity": 0.35
+        },
+        {
+          "on": true,
+          "velocity": 0.9
+        },
+        {
+          "on": true,
+          "velocity": 0.9
+        },
+        {
+          "on": true,
+          "velocity": 0.5
+        },
+        {
+          "on": true,
+          "velocity": 0.35
+        },
+        {
+          "on": true,
+          "velocity": 0.9
+        },
+        {
+          "on": true,
+          "velocity": 0.9
+        }
+      ],
+      [
+        {
+          "on": false
+        },
+        {
+          "on": false
+        },
+        {
+          "on": false
+        },
+        {
+          "on": false
+        },
+        {
+          "on": false
+        },
+        {
+          "on": false
+        },
+        {
+          "on": false
+        },
+        {
+          "on": false
+        },
+        {
+          "on": false
+        },
+        {
+          "on": false
+        },
+        {
+          "on": false
+        },
+        {
+          "on": false
+        },
+        {
+          "on": false
+        },
+        {
+          "on": false
+        },
+        {
+          "on": false
+        },
+        {
+          "on": false
+        }
+      ],
+      [
+        {
           "on": false
         },
         {
@@ -1580,6 +2987,3191 @@
         },
         {
           "on": false
+        },
+        {
+          "on": false
+        },
+        {
+          "on": false
+        },
+        {
+          "on": false
+        },
+        {
+          "on": false
+        },
+        {
+          "on": false
+        },
+        {
+          "on": false
+        },
+        {
+          "on": false
+        },
+        {
+          "on": false
+        }
+      ],
+      [
+        {
+          "on": false
+        },
+        {
+          "on": false
+        },
+        {
+          "on": false
+        },
+        {
+          "on": false
+        },
+        {
+          "on": false
+        },
+        {
+          "on": false
+        },
+        {
+          "on": false
+        },
+        {
+          "on": false
+        },
+        {
+          "on": false
+        },
+        {
+          "on": false
+        },
+        {
+          "on": false
+        },
+        {
+          "on": false
+        },
+        {
+          "on": false
+        },
+        {
+          "on": false
+        },
+        {
+          "on": false
+        },
+        {
+          "on": false
+        }
+      ]
+    ],
+    [
+      [
+        {
+          "on": true,
+          "velocity": 0.7
+        },
+        {
+          "on": false
+        },
+        {
+          "on": false
+        },
+        {
+          "on": false
+        },
+        {
+          "on": true,
+          "velocity": 0.7
+        },
+        {
+          "on": false
+        },
+        {
+          "on": false
+        },
+        {
+          "on": false
+        },
+        {
+          "on": true,
+          "velocity": 0.7
+        },
+        {
+          "on": false
+        },
+        {
+          "on": false
+        },
+        {
+          "on": false
+        },
+        {
+          "on": true,
+          "velocity": 0.7
+        },
+        {
+          "on": false
+        },
+        {
+          "on": false
+        },
+        {
+          "on": false
+        }
+      ],
+      [
+        {
+          "on": false
+        },
+        {
+          "on": false
+        },
+        {
+          "on": false
+        },
+        {
+          "on": false
+        },
+        {
+          "on": true,
+          "velocity": 0.34,
+          "gate": 0.25
+        },
+        {
+          "on": false
+        },
+        {
+          "on": false
+        },
+        {
+          "on": false
+        },
+        {
+          "on": false
+        },
+        {
+          "on": false
+        },
+        {
+          "on": false
+        },
+        {
+          "on": false
+        },
+        {
+          "on": true,
+          "velocity": 0.34,
+          "gate": 0.25
+        },
+        {
+          "on": false
+        },
+        {
+          "on": false
+        },
+        {
+          "on": false
+        }
+      ],
+      [
+        {
+          "on": true,
+          "velocity": 0.5
+        },
+        {
+          "on": true,
+          "velocity": 0.35
+        },
+        {
+          "on": true,
+          "velocity": 0.9
+        },
+        {
+          "on": true,
+          "velocity": 0.9
+        },
+        {
+          "on": true,
+          "velocity": 0.5
+        },
+        {
+          "on": true,
+          "velocity": 0.35
+        },
+        {
+          "on": true,
+          "velocity": 0.9
+        },
+        {
+          "on": true,
+          "velocity": 0.9
+        },
+        {
+          "on": true,
+          "velocity": 0.5
+        },
+        {
+          "on": true,
+          "velocity": 0.35
+        },
+        {
+          "on": true,
+          "velocity": 0.9
+        },
+        {
+          "on": true,
+          "velocity": 0.9
+        },
+        {
+          "on": true,
+          "velocity": 0.5
+        },
+        {
+          "on": true,
+          "velocity": 0.35
+        },
+        {
+          "on": false
+        },
+        {
+          "on": true,
+          "velocity": 0.35
+        }
+      ],
+      [
+        {
+          "on": false
+        },
+        {
+          "on": false
+        },
+        {
+          "on": false
+        },
+        {
+          "on": false
+        },
+        {
+          "on": false
+        },
+        {
+          "on": false
+        },
+        {
+          "on": false
+        },
+        {
+          "on": false
+        },
+        {
+          "on": false
+        },
+        {
+          "on": false
+        },
+        {
+          "on": false
+        },
+        {
+          "on": false
+        },
+        {
+          "on": false
+        },
+        {
+          "on": false
+        },
+        {
+          "on": true
+        },
+        {
+          "on": false
+        }
+      ],
+      [
+        {
+          "on": false
+        },
+        {
+          "on": false
+        },
+        {
+          "on": false
+        },
+        {
+          "on": false
+        },
+        {
+          "on": false
+        },
+        {
+          "on": false
+        },
+        {
+          "on": false
+        },
+        {
+          "on": false
+        },
+        {
+          "on": false
+        },
+        {
+          "on": false
+        },
+        {
+          "on": false
+        },
+        {
+          "on": false
+        },
+        {
+          "on": false
+        },
+        {
+          "on": false
+        },
+        {
+          "on": false
+        },
+        {
+          "on": false
+        }
+      ],
+      [
+        {
+          "on": false
+        },
+        {
+          "on": false
+        },
+        {
+          "on": false
+        },
+        {
+          "on": false
+        },
+        {
+          "on": false
+        },
+        {
+          "on": false
+        },
+        {
+          "on": false
+        },
+        {
+          "on": false
+        },
+        {
+          "on": false
+        },
+        {
+          "on": false
+        },
+        {
+          "on": false
+        },
+        {
+          "on": false
+        },
+        {
+          "on": false
+        },
+        {
+          "on": false
+        },
+        {
+          "on": false
+        },
+        {
+          "on": false
+        }
+      ],
+      [
+        {
+          "on": false
+        },
+        {
+          "on": false
+        },
+        {
+          "on": false
+        },
+        {
+          "on": false
+        },
+        {
+          "on": false
+        },
+        {
+          "on": false
+        },
+        {
+          "on": false
+        },
+        {
+          "on": false
+        },
+        {
+          "on": false
+        },
+        {
+          "on": false
+        },
+        {
+          "on": false
+        },
+        {
+          "on": false
+        },
+        {
+          "on": false
+        },
+        {
+          "on": false
+        },
+        {
+          "on": false
+        },
+        {
+          "on": false
+        }
+      ],
+      [
+        {
+          "on": false
+        },
+        {
+          "on": false
+        },
+        {
+          "on": false
+        },
+        {
+          "on": false
+        },
+        {
+          "on": false
+        },
+        {
+          "on": false
+        },
+        {
+          "on": false
+        },
+        {
+          "on": false
+        },
+        {
+          "on": false
+        },
+        {
+          "on": false
+        },
+        {
+          "on": false
+        },
+        {
+          "on": false
+        },
+        {
+          "on": false
+        },
+        {
+          "on": false
+        },
+        {
+          "on": false
+        },
+        {
+          "on": false
+        }
+      ]
+    ],
+    [
+      [
+        {
+          "on": true,
+          "velocity": 0.7
+        },
+        {
+          "on": false
+        },
+        {
+          "on": false
+        },
+        {
+          "on": false
+        },
+        {
+          "on": false
+        },
+        {
+          "on": false
+        },
+        {
+          "on": false
+        },
+        {
+          "on": false
+        },
+        {
+          "on": true,
+          "velocity": 0.7
+        },
+        {
+          "on": false
+        },
+        {
+          "on": false
+        },
+        {
+          "on": false
+        },
+        {
+          "on": false
+        },
+        {
+          "on": false
+        },
+        {
+          "on": false
+        },
+        {
+          "on": false
+        }
+      ],
+      [
+        {
+          "on": false
+        },
+        {
+          "on": false
+        },
+        {
+          "on": false
+        },
+        {
+          "on": false
+        },
+        {
+          "on": true,
+          "velocity": 0.62
+        },
+        {
+          "on": false
+        },
+        {
+          "on": false
+        },
+        {
+          "on": false
+        },
+        {
+          "on": false
+        },
+        {
+          "on": false
+        },
+        {
+          "on": false
+        },
+        {
+          "on": false
+        },
+        {
+          "on": true,
+          "velocity": 0.62
+        },
+        {
+          "on": false
+        },
+        {
+          "on": false
+        },
+        {
+          "on": false
+        }
+      ],
+      [
+        {
+          "on": true,
+          "velocity": 0.5
+        },
+        {
+          "on": true,
+          "velocity": 0.35
+        },
+        {
+          "on": true,
+          "velocity": 0.9
+        },
+        {
+          "on": true,
+          "velocity": 0.9
+        },
+        {
+          "on": true,
+          "velocity": 0.5
+        },
+        {
+          "on": true,
+          "velocity": 0.35
+        },
+        {
+          "on": true,
+          "velocity": 0.9
+        },
+        {
+          "on": true,
+          "velocity": 0.9
+        },
+        {
+          "on": true,
+          "velocity": 0.5
+        },
+        {
+          "on": true,
+          "velocity": 0.35
+        },
+        {
+          "on": true,
+          "velocity": 0.9
+        },
+        {
+          "on": true,
+          "velocity": 0.9
+        },
+        {
+          "on": true,
+          "velocity": 0.5
+        },
+        {
+          "on": true,
+          "velocity": 0.35
+        },
+        {
+          "on": false
+        },
+        {
+          "on": true,
+          "velocity": 0.35
+        }
+      ],
+      [
+        {
+          "on": false
+        },
+        {
+          "on": false
+        },
+        {
+          "on": false
+        },
+        {
+          "on": false
+        },
+        {
+          "on": false
+        },
+        {
+          "on": false
+        },
+        {
+          "on": false
+        },
+        {
+          "on": false
+        },
+        {
+          "on": false
+        },
+        {
+          "on": false
+        },
+        {
+          "on": false
+        },
+        {
+          "on": false
+        },
+        {
+          "on": false
+        },
+        {
+          "on": false
+        },
+        {
+          "on": true
+        },
+        {
+          "on": false
+        }
+      ],
+      [
+        {
+          "on": false
+        },
+        {
+          "on": false
+        },
+        {
+          "on": false
+        },
+        {
+          "on": false
+        },
+        {
+          "on": false
+        },
+        {
+          "on": false
+        },
+        {
+          "on": false
+        },
+        {
+          "on": false
+        },
+        {
+          "on": false
+        },
+        {
+          "on": false
+        },
+        {
+          "on": false
+        },
+        {
+          "on": false
+        },
+        {
+          "on": false
+        },
+        {
+          "on": false
+        },
+        {
+          "on": false
+        },
+        {
+          "on": false
+        }
+      ],
+      [
+        {
+          "on": false
+        },
+        {
+          "on": false
+        },
+        {
+          "on": false
+        },
+        {
+          "on": false
+        },
+        {
+          "on": false
+        },
+        {
+          "on": false
+        },
+        {
+          "on": false
+        },
+        {
+          "on": false
+        },
+        {
+          "on": false
+        },
+        {
+          "on": false
+        },
+        {
+          "on": false
+        },
+        {
+          "on": false
+        },
+        {
+          "on": false
+        },
+        {
+          "on": false
+        },
+        {
+          "on": false
+        },
+        {
+          "on": false
+        }
+      ],
+      [
+        {
+          "on": false
+        },
+        {
+          "on": false
+        },
+        {
+          "on": false
+        },
+        {
+          "on": false
+        },
+        {
+          "on": false
+        },
+        {
+          "on": false
+        },
+        {
+          "on": false
+        },
+        {
+          "on": false
+        },
+        {
+          "on": false
+        },
+        {
+          "on": false
+        },
+        {
+          "on": false
+        },
+        {
+          "on": false
+        },
+        {
+          "on": false
+        },
+        {
+          "on": false
+        },
+        {
+          "on": false
+        },
+        {
+          "on": false
+        }
+      ],
+      [
+        {
+          "on": false
+        },
+        {
+          "on": false
+        },
+        {
+          "on": false
+        },
+        {
+          "on": false
+        },
+        {
+          "on": false
+        },
+        {
+          "on": false
+        },
+        {
+          "on": false
+        },
+        {
+          "on": false
+        },
+        {
+          "on": false
+        },
+        {
+          "on": false
+        },
+        {
+          "on": false
+        },
+        {
+          "on": false
+        },
+        {
+          "on": false
+        },
+        {
+          "on": false
+        },
+        {
+          "on": false
+        },
+        {
+          "on": false
+        }
+      ]
+    ],
+    [
+      [
+        {
+          "on": true,
+          "velocity": 0.7
+        },
+        {
+          "on": false
+        },
+        {
+          "on": false
+        },
+        {
+          "on": false
+        },
+        {
+          "on": false
+        },
+        {
+          "on": false
+        },
+        {
+          "on": false
+        },
+        {
+          "on": false
+        },
+        {
+          "on": true,
+          "velocity": 0.7
+        },
+        {
+          "on": false
+        },
+        {
+          "on": false
+        },
+        {
+          "on": false
+        },
+        {
+          "on": false
+        },
+        {
+          "on": false
+        },
+        {
+          "on": false
+        },
+        {
+          "on": false
+        }
+      ],
+      [
+        {
+          "on": false
+        },
+        {
+          "on": false
+        },
+        {
+          "on": false
+        },
+        {
+          "on": false
+        },
+        {
+          "on": true,
+          "velocity": 0.62
+        },
+        {
+          "on": false
+        },
+        {
+          "on": false
+        },
+        {
+          "on": false
+        },
+        {
+          "on": false
+        },
+        {
+          "on": false
+        },
+        {
+          "on": false
+        },
+        {
+          "on": false
+        },
+        {
+          "on": true,
+          "velocity": 0.62
+        },
+        {
+          "on": false
+        },
+        {
+          "on": true,
+          "velocity": 0.5
+        },
+        {
+          "on": false
+        }
+      ],
+      [
+        {
+          "on": true,
+          "velocity": 0.5
+        },
+        {
+          "on": true,
+          "velocity": 0.35
+        },
+        {
+          "on": true,
+          "velocity": 0.9
+        },
+        {
+          "on": true,
+          "velocity": 0.9
+        },
+        {
+          "on": true,
+          "velocity": 0.5
+        },
+        {
+          "on": true,
+          "velocity": 0.35
+        },
+        {
+          "on": true,
+          "velocity": 0.9
+        },
+        {
+          "on": true,
+          "velocity": 0.9
+        },
+        {
+          "on": true,
+          "velocity": 0.5
+        },
+        {
+          "on": true,
+          "velocity": 0.35
+        },
+        {
+          "on": true,
+          "velocity": 0.9
+        },
+        {
+          "on": true,
+          "velocity": 0.9
+        },
+        {
+          "on": true,
+          "velocity": 0.5
+        },
+        {
+          "on": true,
+          "velocity": 0.35
+        },
+        {
+          "on": true,
+          "velocity": 0.9
+        },
+        {
+          "on": true,
+          "velocity": 0.9
+        }
+      ],
+      [
+        {
+          "on": false
+        },
+        {
+          "on": false
+        },
+        {
+          "on": false
+        },
+        {
+          "on": false
+        },
+        {
+          "on": false
+        },
+        {
+          "on": false
+        },
+        {
+          "on": false
+        },
+        {
+          "on": false
+        },
+        {
+          "on": false
+        },
+        {
+          "on": false
+        },
+        {
+          "on": false
+        },
+        {
+          "on": false
+        },
+        {
+          "on": false
+        },
+        {
+          "on": false
+        },
+        {
+          "on": false
+        },
+        {
+          "on": false
+        }
+      ],
+      [
+        {
+          "on": false
+        },
+        {
+          "on": false
+        },
+        {
+          "on": false
+        },
+        {
+          "on": false
+        },
+        {
+          "on": false
+        },
+        {
+          "on": false
+        },
+        {
+          "on": false
+        },
+        {
+          "on": false
+        },
+        {
+          "on": false
+        },
+        {
+          "on": false
+        },
+        {
+          "on": false
+        },
+        {
+          "on": false
+        },
+        {
+          "on": false
+        },
+        {
+          "on": false
+        },
+        {
+          "on": false
+        },
+        {
+          "on": false
+        }
+      ],
+      [
+        {
+          "on": false
+        },
+        {
+          "on": false
+        },
+        {
+          "on": false
+        },
+        {
+          "on": false
+        },
+        {
+          "on": false
+        },
+        {
+          "on": false
+        },
+        {
+          "on": false
+        },
+        {
+          "on": false
+        },
+        {
+          "on": false
+        },
+        {
+          "on": false
+        },
+        {
+          "on": false
+        },
+        {
+          "on": false
+        },
+        {
+          "on": false
+        },
+        {
+          "on": false
+        },
+        {
+          "on": false
+        },
+        {
+          "on": false
+        }
+      ],
+      [
+        {
+          "on": false
+        },
+        {
+          "on": false
+        },
+        {
+          "on": false
+        },
+        {
+          "on": false
+        },
+        {
+          "on": false
+        },
+        {
+          "on": false
+        },
+        {
+          "on": false
+        },
+        {
+          "on": false
+        },
+        {
+          "on": false
+        },
+        {
+          "on": false
+        },
+        {
+          "on": false
+        },
+        {
+          "on": false
+        },
+        {
+          "on": false
+        },
+        {
+          "on": false
+        },
+        {
+          "on": false
+        },
+        {
+          "on": false
+        }
+      ],
+      [
+        {
+          "on": false
+        },
+        {
+          "on": false
+        },
+        {
+          "on": false
+        },
+        {
+          "on": false
+        },
+        {
+          "on": false
+        },
+        {
+          "on": false
+        },
+        {
+          "on": false
+        },
+        {
+          "on": false
+        },
+        {
+          "on": false
+        },
+        {
+          "on": false
+        },
+        {
+          "on": false
+        },
+        {
+          "on": false
+        },
+        {
+          "on": false
+        },
+        {
+          "on": false
+        },
+        {
+          "on": false
+        },
+        {
+          "on": false
+        }
+      ]
+    ],
+    [
+      [
+        {
+          "on": true,
+          "velocity": 0.7
+        },
+        {
+          "on": false
+        },
+        {
+          "on": false
+        },
+        {
+          "on": false
+        },
+        {
+          "on": true,
+          "velocity": 0.7
+        },
+        {
+          "on": false
+        },
+        {
+          "on": false
+        },
+        {
+          "on": false
+        },
+        {
+          "on": true,
+          "velocity": 0.7
+        },
+        {
+          "on": false
+        },
+        {
+          "on": false
+        },
+        {
+          "on": false
+        },
+        {
+          "on": true,
+          "velocity": 0.7
+        },
+        {
+          "on": false
+        },
+        {
+          "on": false
+        },
+        {
+          "on": false
+        }
+      ],
+      [
+        {
+          "on": false
+        },
+        {
+          "on": false
+        },
+        {
+          "on": false
+        },
+        {
+          "on": false
+        },
+        {
+          "on": false
+        },
+        {
+          "on": false
+        },
+        {
+          "on": false
+        },
+        {
+          "on": false
+        },
+        {
+          "on": false
+        },
+        {
+          "on": false
+        },
+        {
+          "on": false
+        },
+        {
+          "on": false
+        },
+        {
+          "on": false
+        },
+        {
+          "on": false
+        },
+        {
+          "on": false
+        },
+        {
+          "on": false
+        }
+      ],
+      [
+        {
+          "on": false
+        },
+        {
+          "on": true,
+          "velocity": 0.35
+        },
+        {
+          "on": true,
+          "velocity": 0.9
+        },
+        {
+          "on": true,
+          "velocity": 0.9
+        },
+        {
+          "on": true,
+          "velocity": 0.5
+        },
+        {
+          "on": true,
+          "velocity": 0.35
+        },
+        {
+          "on": true,
+          "velocity": 0.9
+        },
+        {
+          "on": true,
+          "velocity": 0.9
+        },
+        {
+          "on": true,
+          "velocity": 0.5
+        },
+        {
+          "on": true,
+          "velocity": 0.35
+        },
+        {
+          "on": true,
+          "velocity": 0.9
+        },
+        {
+          "on": true,
+          "velocity": 0.9
+        },
+        {
+          "on": true,
+          "velocity": 0.5
+        },
+        {
+          "on": true,
+          "velocity": 0.35
+        },
+        {
+          "on": false
+        },
+        {
+          "on": true,
+          "velocity": 0.35
+        }
+      ],
+      [
+        {
+          "on": true,
+          "velocity": 1
+        },
+        {
+          "on": false
+        },
+        {
+          "on": false
+        },
+        {
+          "on": false
+        },
+        {
+          "on": false
+        },
+        {
+          "on": false
+        },
+        {
+          "on": false
+        },
+        {
+          "on": false
+        },
+        {
+          "on": false
+        },
+        {
+          "on": false
+        },
+        {
+          "on": false
+        },
+        {
+          "on": false
+        },
+        {
+          "on": false
+        },
+        {
+          "on": false
+        },
+        {
+          "on": false
+        },
+        {
+          "on": false
+        }
+      ],
+      [
+        {
+          "on": false
+        },
+        {
+          "on": false
+        },
+        {
+          "on": false
+        },
+        {
+          "on": false
+        },
+        {
+          "on": false
+        },
+        {
+          "on": false
+        },
+        {
+          "on": false
+        },
+        {
+          "on": false
+        },
+        {
+          "on": false
+        },
+        {
+          "on": false
+        },
+        {
+          "on": false
+        },
+        {
+          "on": false
+        },
+        {
+          "on": false
+        },
+        {
+          "on": false
+        },
+        {
+          "on": false
+        },
+        {
+          "on": false
+        }
+      ],
+      [
+        {
+          "on": false
+        },
+        {
+          "on": false
+        },
+        {
+          "on": false
+        },
+        {
+          "on": false
+        },
+        {
+          "on": false
+        },
+        {
+          "on": false
+        },
+        {
+          "on": false
+        },
+        {
+          "on": false
+        },
+        {
+          "on": false
+        },
+        {
+          "on": false
+        },
+        {
+          "on": false
+        },
+        {
+          "on": false
+        },
+        {
+          "on": false
+        },
+        {
+          "on": false
+        },
+        {
+          "on": false
+        },
+        {
+          "on": false
+        }
+      ],
+      [
+        {
+          "on": false
+        },
+        {
+          "on": false
+        },
+        {
+          "on": false
+        },
+        {
+          "on": false
+        },
+        {
+          "on": false
+        },
+        {
+          "on": false
+        },
+        {
+          "on": false
+        },
+        {
+          "on": false
+        },
+        {
+          "on": false
+        },
+        {
+          "on": false
+        },
+        {
+          "on": false
+        },
+        {
+          "on": false
+        },
+        {
+          "on": false
+        },
+        {
+          "on": false
+        },
+        {
+          "on": false
+        },
+        {
+          "on": false
+        }
+      ],
+      [
+        {
+          "on": false
+        },
+        {
+          "on": false
+        },
+        {
+          "on": false
+        },
+        {
+          "on": false
+        },
+        {
+          "on": false
+        },
+        {
+          "on": false
+        },
+        {
+          "on": false
+        },
+        {
+          "on": false
+        },
+        {
+          "on": false
+        },
+        {
+          "on": false
+        },
+        {
+          "on": false
+        },
+        {
+          "on": false
+        },
+        {
+          "on": false
+        },
+        {
+          "on": false
+        },
+        {
+          "on": false
+        },
+        {
+          "on": false
+        }
+      ]
+    ],
+    [
+      [
+        {
+          "on": true,
+          "velocity": 0.7
+        },
+        {
+          "on": false
+        },
+        {
+          "on": false
+        },
+        {
+          "on": false
+        },
+        {
+          "on": false
+        },
+        {
+          "on": false
+        },
+        {
+          "on": true,
+          "velocity": 0.7
+        },
+        {
+          "on": false
+        },
+        {
+          "on": true,
+          "velocity": 0.7
+        },
+        {
+          "on": false
+        },
+        {
+          "on": false
+        },
+        {
+          "on": false
+        },
+        {
+          "on": false
+        },
+        {
+          "on": false
+        },
+        {
+          "on": true,
+          "velocity": 0.7
+        },
+        {
+          "on": false
+        }
+      ],
+      [
+        {
+          "on": false
+        },
+        {
+          "on": false
+        },
+        {
+          "on": false
+        },
+        {
+          "on": false
+        },
+        {
+          "on": true,
+          "velocity": 0.62
+        },
+        {
+          "on": false
+        },
+        {
+          "on": false
+        },
+        {
+          "on": false
+        },
+        {
+          "on": false
+        },
+        {
+          "on": false
+        },
+        {
+          "on": false
+        },
+        {
+          "on": false
+        },
+        {
+          "on": true,
+          "velocity": 0.62
+        },
+        {
+          "on": false
+        },
+        {
+          "on": false
+        },
+        {
+          "on": false
+        }
+      ],
+      [
+        {
+          "on": true,
+          "velocity": 0.5
+        },
+        {
+          "on": true,
+          "velocity": 0.35
+        },
+        {
+          "on": true,
+          "velocity": 0.9
+        },
+        {
+          "on": true,
+          "velocity": 0.9
+        },
+        {
+          "on": true,
+          "velocity": 0.5
+        },
+        {
+          "on": true,
+          "velocity": 0.35
+        },
+        {
+          "on": true,
+          "velocity": 0.9
+        },
+        {
+          "on": true,
+          "velocity": 0.9
+        },
+        {
+          "on": true,
+          "velocity": 0.5
+        },
+        {
+          "on": true,
+          "velocity": 0.35
+        },
+        {
+          "on": true,
+          "velocity": 0.9
+        },
+        {
+          "on": true,
+          "velocity": 0.9
+        },
+        {
+          "on": true,
+          "velocity": 0.5
+        },
+        {
+          "on": true,
+          "velocity": 0.35
+        },
+        {
+          "on": false
+        },
+        {
+          "on": true,
+          "velocity": 0.35
+        }
+      ],
+      [
+        {
+          "on": false
+        },
+        {
+          "on": false
+        },
+        {
+          "on": false
+        },
+        {
+          "on": false
+        },
+        {
+          "on": false
+        },
+        {
+          "on": false
+        },
+        {
+          "on": false
+        },
+        {
+          "on": false
+        },
+        {
+          "on": false
+        },
+        {
+          "on": false
+        },
+        {
+          "on": false
+        },
+        {
+          "on": false
+        },
+        {
+          "on": false
+        },
+        {
+          "on": false
+        },
+        {
+          "on": true
+        },
+        {
+          "on": false
+        }
+      ],
+      [
+        {
+          "on": false
+        },
+        {
+          "on": false
+        },
+        {
+          "on": false
+        },
+        {
+          "on": false
+        },
+        {
+          "on": false
+        },
+        {
+          "on": false
+        },
+        {
+          "on": false
+        },
+        {
+          "on": false
+        },
+        {
+          "on": false
+        },
+        {
+          "on": false
+        },
+        {
+          "on": false
+        },
+        {
+          "on": false
+        },
+        {
+          "on": false
+        },
+        {
+          "on": false
+        },
+        {
+          "on": false
+        },
+        {
+          "on": false
+        }
+      ],
+      [
+        {
+          "on": false
+        },
+        {
+          "on": false
+        },
+        {
+          "on": false
+        },
+        {
+          "on": false
+        },
+        {
+          "on": false
+        },
+        {
+          "on": false
+        },
+        {
+          "on": false
+        },
+        {
+          "on": false
+        },
+        {
+          "on": false
+        },
+        {
+          "on": false
+        },
+        {
+          "on": false
+        },
+        {
+          "on": false
+        },
+        {
+          "on": false
+        },
+        {
+          "on": false
+        },
+        {
+          "on": false
+        },
+        {
+          "on": false
+        }
+      ],
+      [
+        {
+          "on": false
+        },
+        {
+          "on": false
+        },
+        {
+          "on": false
+        },
+        {
+          "on": false
+        },
+        {
+          "on": false
+        },
+        {
+          "on": false
+        },
+        {
+          "on": false
+        },
+        {
+          "on": false
+        },
+        {
+          "on": false
+        },
+        {
+          "on": false
+        },
+        {
+          "on": false
+        },
+        {
+          "on": false
+        },
+        {
+          "on": false
+        },
+        {
+          "on": false
+        },
+        {
+          "on": false
+        },
+        {
+          "on": false
+        }
+      ],
+      [
+        {
+          "on": false
+        },
+        {
+          "on": false
+        },
+        {
+          "on": false
+        },
+        {
+          "on": false
+        },
+        {
+          "on": false
+        },
+        {
+          "on": false
+        },
+        {
+          "on": false
+        },
+        {
+          "on": false
+        },
+        {
+          "on": false
+        },
+        {
+          "on": false
+        },
+        {
+          "on": false
+        },
+        {
+          "on": false
+        },
+        {
+          "on": false
+        },
+        {
+          "on": false
+        },
+        {
+          "on": false
+        },
+        {
+          "on": false
+        }
+      ]
+    ],
+    [
+      [
+        {
+          "on": true,
+          "velocity": 0.7
+        },
+        {
+          "on": false
+        },
+        {
+          "on": true,
+          "velocity": 0.7
+        },
+        {
+          "on": false
+        },
+        {
+          "on": false
+        },
+        {
+          "on": false
+        },
+        {
+          "on": true,
+          "velocity": 0.7
+        },
+        {
+          "on": false
+        },
+        {
+          "on": false
+        },
+        {
+          "on": false
+        },
+        {
+          "on": true,
+          "velocity": 0.7
+        },
+        {
+          "on": false
+        },
+        {
+          "on": false
+        },
+        {
+          "on": false
+        },
+        {
+          "on": false
+        },
+        {
+          "on": false
+        }
+      ],
+      [
+        {
+          "on": false
+        },
+        {
+          "on": false
+        },
+        {
+          "on": false
+        },
+        {
+          "on": false
+        },
+        {
+          "on": true,
+          "velocity": 0.62
+        },
+        {
+          "on": false
+        },
+        {
+          "on": false
+        },
+        {
+          "on": false
+        },
+        {
+          "on": false
+        },
+        {
+          "on": false
+        },
+        {
+          "on": false
+        },
+        {
+          "on": false
+        },
+        {
+          "on": true,
+          "velocity": 0.62
+        },
+        {
+          "on": true,
+          "velocity": 0.5
+        },
+        {
+          "on": true,
+          "velocity": 0.7
+        },
+        {
+          "on": false
+        }
+      ],
+      [
+        {
+          "on": true,
+          "velocity": 0.5
+        },
+        {
+          "on": true,
+          "velocity": 0.35
+        },
+        {
+          "on": true,
+          "velocity": 0.9
+        },
+        {
+          "on": true,
+          "velocity": 0.9
+        },
+        {
+          "on": true,
+          "velocity": 0.5
+        },
+        {
+          "on": true,
+          "velocity": 0.35
+        },
+        {
+          "on": true,
+          "velocity": 0.9
+        },
+        {
+          "on": true,
+          "velocity": 0.9
+        },
+        {
+          "on": true,
+          "velocity": 0.5
+        },
+        {
+          "on": true,
+          "velocity": 0.35
+        },
+        {
+          "on": true,
+          "velocity": 0.9
+        },
+        {
+          "on": true,
+          "velocity": 0.9
+        },
+        {
+          "on": true,
+          "velocity": 0.5
+        },
+        {
+          "on": true,
+          "velocity": 0.35
+        },
+        {
+          "on": false
+        },
+        {
+          "on": true,
+          "velocity": 0.35
+        }
+      ],
+      [
+        {
+          "on": false
+        },
+        {
+          "on": false
+        },
+        {
+          "on": false
+        },
+        {
+          "on": false
+        },
+        {
+          "on": false
+        },
+        {
+          "on": false
+        },
+        {
+          "on": false
+        },
+        {
+          "on": false
+        },
+        {
+          "on": false
+        },
+        {
+          "on": false
+        },
+        {
+          "on": false
+        },
+        {
+          "on": false
+        },
+        {
+          "on": false
+        },
+        {
+          "on": false
+        },
+        {
+          "on": false
+        },
+        {
+          "on": false
+        }
+      ],
+      [
+        {
+          "on": false
+        },
+        {
+          "on": false
+        },
+        {
+          "on": false
+        },
+        {
+          "on": false
+        },
+        {
+          "on": false
+        },
+        {
+          "on": false
+        },
+        {
+          "on": false
+        },
+        {
+          "on": false
+        },
+        {
+          "on": false
+        },
+        {
+          "on": false
+        },
+        {
+          "on": false
+        },
+        {
+          "on": false
+        },
+        {
+          "on": false
+        },
+        {
+          "on": false
+        },
+        {
+          "on": false
+        },
+        {
+          "on": false
+        }
+      ],
+      [
+        {
+          "on": false
+        },
+        {
+          "on": false
+        },
+        {
+          "on": false
+        },
+        {
+          "on": false
+        },
+        {
+          "on": false
+        },
+        {
+          "on": false
+        },
+        {
+          "on": false
+        },
+        {
+          "on": false
+        },
+        {
+          "on": false
+        },
+        {
+          "on": false
+        },
+        {
+          "on": false
+        },
+        {
+          "on": false
+        },
+        {
+          "on": false
+        },
+        {
+          "on": false
+        },
+        {
+          "on": false
+        },
+        {
+          "on": false
+        }
+      ],
+      [
+        {
+          "on": false
+        },
+        {
+          "on": false
+        },
+        {
+          "on": false
+        },
+        {
+          "on": false
+        },
+        {
+          "on": false
+        },
+        {
+          "on": false
+        },
+        {
+          "on": false
+        },
+        {
+          "on": false
+        },
+        {
+          "on": false
+        },
+        {
+          "on": false
+        },
+        {
+          "on": false
+        },
+        {
+          "on": false
+        },
+        {
+          "on": false
+        },
+        {
+          "on": false
+        },
+        {
+          "on": false
+        },
+        {
+          "on": false
+        }
+      ],
+      [
+        {
+          "on": false
+        },
+        {
+          "on": false
+        },
+        {
+          "on": false
+        },
+        {
+          "on": false
+        },
+        {
+          "on": false
+        },
+        {
+          "on": false
+        },
+        {
+          "on": false
+        },
+        {
+          "on": false
+        },
+        {
+          "on": false
+        },
+        {
+          "on": false
+        },
+        {
+          "on": false
+        },
+        {
+          "on": false
+        },
+        {
+          "on": false
+        },
+        {
+          "on": false
+        },
+        {
+          "on": false
+        },
+        {
+          "on": false
+        }
+      ]
+    ],
+    [
+      [
+        {
+          "on": true,
+          "velocity": 0.7
+        },
+        {
+          "on": false
+        },
+        {
+          "on": false
+        },
+        {
+          "on": true,
+          "velocity": 0.7
+        },
+        {
+          "on": false
+        },
+        {
+          "on": true,
+          "velocity": 0.7
+        },
+        {
+          "on": false
+        },
+        {
+          "on": false
+        },
+        {
+          "on": true,
+          "velocity": 0.7
+        },
+        {
+          "on": false
+        },
+        {
+          "on": true,
+          "velocity": 0.7
+        },
+        {
+          "on": true,
+          "velocity": 0.7
+        },
+        {
+          "on": false
+        },
+        {
+          "on": false
+        },
+        {
+          "on": false
+        },
+        {
+          "on": false
+        }
+      ],
+      [
+        {
+          "on": false
+        },
+        {
+          "on": false
+        },
+        {
+          "on": false
+        },
+        {
+          "on": false
+        },
+        {
+          "on": true,
+          "velocity": 0.62
+        },
+        {
+          "on": false
+        },
+        {
+          "on": false
+        },
+        {
+          "on": false
+        },
+        {
+          "on": false
+        },
+        {
+          "on": false
+        },
+        {
+          "on": false
+        },
+        {
+          "on": false
+        },
+        {
+          "on": true,
+          "velocity": 0.62
+        },
+        {
+          "on": false
+        },
+        {
+          "on": true,
+          "velocity": 0.45
+        },
+        {
+          "on": false
+        }
+      ],
+      [
+        {
+          "on": true,
+          "velocity": 0.5
+        },
+        {
+          "on": true,
+          "velocity": 0.35
+        },
+        {
+          "on": true,
+          "velocity": 0.9
+        },
+        {
+          "on": true,
+          "velocity": 0.9
+        },
+        {
+          "on": true,
+          "velocity": 0.5
+        },
+        {
+          "on": true,
+          "velocity": 0.35
+        },
+        {
+          "on": true,
+          "velocity": 0.9
+        },
+        {
+          "on": true,
+          "velocity": 0.9
+        },
+        {
+          "on": true,
+          "velocity": 0.5
+        },
+        {
+          "on": true,
+          "velocity": 0.35
+        },
+        {
+          "on": true,
+          "velocity": 0.9
+        },
+        {
+          "on": true,
+          "velocity": 0.9
+        },
+        {
+          "on": true,
+          "velocity": 0.5
+        },
+        {
+          "on": true,
+          "velocity": 0.35
+        },
+        {
+          "on": false
+        },
+        {
+          "on": true,
+          "velocity": 0.35
+        }
+      ],
+      [
+        {
+          "on": false
+        },
+        {
+          "on": false
+        },
+        {
+          "on": false
+        },
+        {
+          "on": false
+        },
+        {
+          "on": false
+        },
+        {
+          "on": false
+        },
+        {
+          "on": false
+        },
+        {
+          "on": false
+        },
+        {
+          "on": false
+        },
+        {
+          "on": false
+        },
+        {
+          "on": false
+        },
+        {
+          "on": false
+        },
+        {
+          "on": false
+        },
+        {
+          "on": false
+        },
+        {
+          "on": true
+        },
+        {
+          "on": false
+        }
+      ],
+      [
+        {
+          "on": false
+        },
+        {
+          "on": false
+        },
+        {
+          "on": false
+        },
+        {
+          "on": false
+        },
+        {
+          "on": false
+        },
+        {
+          "on": false
+        },
+        {
+          "on": false
+        },
+        {
+          "on": false
+        },
+        {
+          "on": false
+        },
+        {
+          "on": false
+        },
+        {
+          "on": false
+        },
+        {
+          "on": false
+        },
+        {
+          "on": false
+        },
+        {
+          "on": false
+        },
+        {
+          "on": false
+        },
+        {
+          "on": false
+        }
+      ],
+      [
+        {
+          "on": false
+        },
+        {
+          "on": false
+        },
+        {
+          "on": false
+        },
+        {
+          "on": false
+        },
+        {
+          "on": false
+        },
+        {
+          "on": false
+        },
+        {
+          "on": false
+        },
+        {
+          "on": false
+        },
+        {
+          "on": false
+        },
+        {
+          "on": false
+        },
+        {
+          "on": false
+        },
+        {
+          "on": false
+        },
+        {
+          "on": false
+        },
+        {
+          "on": false
+        },
+        {
+          "on": false
+        },
+        {
+          "on": false
+        }
+      ],
+      [
+        {
+          "on": false
+        },
+        {
+          "on": false
+        },
+        {
+          "on": false
+        },
+        {
+          "on": false
+        },
+        {
+          "on": false
+        },
+        {
+          "on": false
+        },
+        {
+          "on": false
+        },
+        {
+          "on": false
+        },
+        {
+          "on": false
+        },
+        {
+          "on": false
+        },
+        {
+          "on": false
+        },
+        {
+          "on": false
+        },
+        {
+          "on": false
+        },
+        {
+          "on": false
+        },
+        {
+          "on": false
+        },
+        {
+          "on": false
+        }
+      ],
+      [
+        {
+          "on": false
+        },
+        {
+          "on": false
+        },
+        {
+          "on": false
+        },
+        {
+          "on": false
+        },
+        {
+          "on": false
+        },
+        {
+          "on": false
+        },
+        {
+          "on": false
+        },
+        {
+          "on": false
+        },
+        {
+          "on": false
+        },
+        {
+          "on": false
+        },
+        {
+          "on": false
+        },
+        {
+          "on": false
+        },
+        {
+          "on": false
+        },
+        {
+          "on": false
+        },
+        {
+          "on": false
+        },
+        {
+          "on": false
+        }
+      ]
+    ],
+    [
+      [
+        {
+          "on": true,
+          "velocity": 0.7
+        },
+        {
+          "on": false
+        },
+        {
+          "on": false
+        },
+        {
+          "on": true,
+          "velocity": 0.7
+        },
+        {
+          "on": false
+        },
+        {
+          "on": true,
+          "velocity": 0.7
+        },
+        {
+          "on": false
+        },
+        {
+          "on": false
+        },
+        {
+          "on": true,
+          "velocity": 0.7
+        },
+        {
+          "on": false
+        },
+        {
+          "on": false
+        },
+        {
+          "on": false
+        },
+        {
+          "on": false
+        },
+        {
+          "on": false
+        },
+        {
+          "on": false
+        },
+        {
+          "on": false
+        }
+      ],
+      [
+        {
+          "on": false
+        },
+        {
+          "on": false
+        },
+        {
+          "on": false
+        },
+        {
+          "on": false
+        },
+        {
+          "on": true,
+          "velocity": 0.62
+        },
+        {
+          "on": false
+        },
+        {
+          "on": false
+        },
+        {
+          "on": false
+        },
+        {
+          "on": false
+        },
+        {
+          "on": false
+        },
+        {
+          "on": true,
+          "velocity": 0.62
+        },
+        {
+          "on": false
+        },
+        {
+          "on": true,
+          "velocity": 0.62
+        },
+        {
+          "on": true,
+          "velocity": 0.55,
+          "ratchet": 2
+        },
+        {
+          "on": true,
+          "velocity": 0.75,
+          "ratchet": 2
+        },
+        {
+          "on": false
+        }
+      ],
+      [
+        {
+          "on": true,
+          "velocity": 0.5
+        },
+        {
+          "on": true,
+          "velocity": 0.35
+        },
+        {
+          "on": true,
+          "velocity": 0.9
+        },
+        {
+          "on": true,
+          "velocity": 0.9
+        },
+        {
+          "on": true,
+          "velocity": 0.5
+        },
+        {
+          "on": true,
+          "velocity": 0.35
+        },
+        {
+          "on": true,
+          "velocity": 0.9
+        },
+        {
+          "on": true,
+          "velocity": 0.9
         },
         {
           "on": false
@@ -1860,7 +6452,158 @@
     [
       [
         {
+          "on": true
+        },
+        {
           "on": false
+        },
+        {
+          "on": false
+        },
+        {
+          "on": false
+        },
+        {
+          "on": false
+        },
+        {
+          "on": false
+        },
+        {
+          "on": false
+        },
+        {
+          "on": false
+        },
+        {
+          "on": false
+        },
+        {
+          "on": false
+        },
+        {
+          "on": false
+        },
+        {
+          "on": false
+        },
+        {
+          "on": false
+        },
+        {
+          "on": false
+        },
+        {
+          "on": false
+        },
+        {
+          "on": false
+        }
+      ],
+      [
+        {
+          "on": false
+        },
+        {
+          "on": false
+        },
+        {
+          "on": false
+        },
+        {
+          "on": false
+        },
+        {
+          "on": false
+        },
+        {
+          "on": false
+        },
+        {
+          "on": false
+        },
+        {
+          "on": false
+        },
+        {
+          "on": false
+        },
+        {
+          "on": false
+        },
+        {
+          "on": false
+        },
+        {
+          "on": false
+        },
+        {
+          "on": false
+        },
+        {
+          "on": false
+        },
+        {
+          "on": false
+        },
+        {
+          "on": false
+        }
+      ],
+      [
+        {
+          "on": false
+        },
+        {
+          "on": false
+        },
+        {
+          "on": false
+        },
+        {
+          "on": false
+        },
+        {
+          "on": false
+        },
+        {
+          "on": false
+        },
+        {
+          "on": false
+        },
+        {
+          "on": false
+        },
+        {
+          "on": false
+        },
+        {
+          "on": false
+        },
+        {
+          "on": false
+        },
+        {
+          "on": false
+        },
+        {
+          "on": false
+        },
+        {
+          "on": false
+        },
+        {
+          "on": false
+        },
+        {
+          "on": false
+        }
+      ],
+      [
+        {
+          "on": true,
+          "velocity": 1
         },
         {
           "on": false
@@ -2011,6 +6754,277 @@
       [
         {
           "on": false
+        },
+        {
+          "on": false
+        },
+        {
+          "on": false
+        },
+        {
+          "on": false
+        },
+        {
+          "on": false
+        },
+        {
+          "on": false
+        },
+        {
+          "on": false
+        },
+        {
+          "on": false
+        },
+        {
+          "on": false
+        },
+        {
+          "on": false
+        },
+        {
+          "on": false
+        },
+        {
+          "on": false
+        },
+        {
+          "on": false
+        },
+        {
+          "on": false
+        },
+        {
+          "on": false
+        },
+        {
+          "on": false
+        }
+      ],
+      [
+        {
+          "on": false
+        },
+        {
+          "on": false
+        },
+        {
+          "on": false
+        },
+        {
+          "on": false
+        },
+        {
+          "on": false
+        },
+        {
+          "on": false
+        },
+        {
+          "on": false
+        },
+        {
+          "on": false
+        },
+        {
+          "on": false
+        },
+        {
+          "on": false
+        },
+        {
+          "on": false
+        },
+        {
+          "on": false
+        },
+        {
+          "on": false
+        },
+        {
+          "on": false
+        },
+        {
+          "on": false
+        },
+        {
+          "on": false
+        }
+      ]
+    ],
+    [
+      [
+        {
+          "on": true,
+          "velocity": 0.7
+        },
+        {
+          "on": false
+        },
+        {
+          "on": false
+        },
+        {
+          "on": false
+        },
+        {
+          "on": false
+        },
+        {
+          "on": false
+        },
+        {
+          "on": false
+        },
+        {
+          "on": false
+        },
+        {
+          "on": true,
+          "velocity": 0.7
+        },
+        {
+          "on": false
+        },
+        {
+          "on": false
+        },
+        {
+          "on": false
+        },
+        {
+          "on": false
+        },
+        {
+          "on": false
+        },
+        {
+          "on": false
+        },
+        {
+          "on": false
+        }
+      ],
+      [
+        {
+          "on": false
+        },
+        {
+          "on": false
+        },
+        {
+          "on": false
+        },
+        {
+          "on": false
+        },
+        {
+          "on": true,
+          "velocity": 0.62
+        },
+        {
+          "on": false
+        },
+        {
+          "on": false
+        },
+        {
+          "on": false
+        },
+        {
+          "on": false
+        },
+        {
+          "on": false
+        },
+        {
+          "on": false
+        },
+        {
+          "on": false
+        },
+        {
+          "on": true,
+          "velocity": 0.62
+        },
+        {
+          "on": false
+        },
+        {
+          "on": false
+        },
+        {
+          "on": false
+        }
+      ],
+      [
+        {
+          "on": false
+        },
+        {
+          "on": true,
+          "velocity": 0.35
+        },
+        {
+          "on": true,
+          "velocity": 0.9
+        },
+        {
+          "on": true,
+          "velocity": 0.9
+        },
+        {
+          "on": true,
+          "velocity": 0.5
+        },
+        {
+          "on": true,
+          "velocity": 0.35
+        },
+        {
+          "on": true,
+          "velocity": 0.9
+        },
+        {
+          "on": true,
+          "velocity": 0.9
+        },
+        {
+          "on": true,
+          "velocity": 0.5
+        },
+        {
+          "on": true,
+          "velocity": 0.35
+        },
+        {
+          "on": true,
+          "velocity": 0.9
+        },
+        {
+          "on": true,
+          "velocity": 0.9
+        },
+        {
+          "on": true,
+          "velocity": 0.5
+        },
+        {
+          "on": true,
+          "velocity": 0.35
+        },
+        {
+          "on": false
+        },
+        {
+          "on": true,
+          "velocity": 0.35
+        }
+      ],
+      [
+        {
+          "on": true,
+          "velocity": 1
         },
         {
           "on": false
@@ -2263,9 +7277,10 @@
   "seqChain": {
     "enabled": true,
     "steps": [
-      0,
-      0,
-      0,
+      7,
+      8,
+      7,
+      8,
       0,
       1,
       2,
@@ -2273,7 +7288,62 @@
       0,
       1,
       2,
-      3
+      3,
+      7,
+      8,
+      0,
+      1,
+      2,
+      3,
+      0,
+      1,
+      2,
+      4,
+      7,
+      8,
+      0,
+      1,
+      2,
+      14,
+      0,
+      1,
+      5,
+      6,
+      9,
+      10,
+      9,
+      11,
+      9,
+      11,
+      9,
+      12,
+      0,
+      1,
+      2,
+      14,
+      0,
+      1,
+      2,
+      4,
+      7,
+      15,
+      0,
+      1,
+      2,
+      14,
+      0,
+      1,
+      5,
+      6,
+      9,
+      10,
+      9,
+      11,
+      9,
+      11,
+      9,
+      12,
+      13
     ]
   },
   "drumChain": {
@@ -2283,1639 +7353,2787 @@
       0,
       0,
       1,
-      1,
+      0,
+      0,
+      0,
       1,
       0,
       0,
+      0,
       1,
-      1
+      0,
+      2,
+      6,
+      0,
+      0,
+      1,
+      6,
+      0,
+      0,
+      1,
+      6,
+      2,
+      6,
+      3,
+      3,
+      3,
+      3,
+      3,
+      3,
+      6,
+      12,
+      4,
+      4,
+      5,
+      4,
+      5,
+      4,
+      5,
+      12,
+      5,
+      4,
+      4,
+      4,
+      4,
+      4,
+      5,
+      12,
+      8,
+      6,
+      7,
+      7,
+      7,
+      7,
+      7,
+      7,
+      6,
+      12,
+      9,
+      9,
+      9,
+      9,
+      9,
+      9,
+      10,
+      11
     ]
   },
-  "samplerBanks": [
+  "seqTracks": [
     [
+      null,
       [
         {
-          "on": false
+          "on": false,
+          "note": 60,
+          "velocity": 0.85,
+          "gate": 0.5
         },
         {
-          "on": false
+          "on": false,
+          "note": 60,
+          "velocity": 0.85,
+          "gate": 0.5
         },
         {
-          "on": false
+          "on": false,
+          "note": 60,
+          "velocity": 0.85,
+          "gate": 0.5
         },
         {
-          "on": false
+          "on": false,
+          "note": 60,
+          "velocity": 0.85,
+          "gate": 0.5
         },
         {
-          "on": false
+          "on": true,
+          "note": 88,
+          "velocity": 0.45,
+          "gate": 1,
+          "tie": true
         },
         {
-          "on": false
+          "on": true,
+          "note": 88,
+          "velocity": 0.45,
+          "gate": 1
         },
         {
-          "on": false
+          "on": true,
+          "note": 86,
+          "velocity": 0.45,
+          "gate": 1,
+          "tie": true
         },
         {
-          "on": false
+          "on": true,
+          "note": 86,
+          "velocity": 0.45,
+          "gate": 1
         },
         {
-          "on": false
+          "on": true,
+          "note": 83,
+          "velocity": 0.45,
+          "gate": 1,
+          "tie": true
         },
         {
-          "on": false
+          "on": true,
+          "note": 83,
+          "velocity": 0.45,
+          "gate": 1,
+          "tie": true
         },
         {
-          "on": false
+          "on": true,
+          "note": 83,
+          "velocity": 0.45,
+          "gate": 1,
+          "tie": true
         },
         {
-          "on": false
+          "on": true,
+          "note": 83,
+          "velocity": 0.45,
+          "gate": 1
         },
         {
-          "on": false
+          "on": true,
+          "note": 79,
+          "velocity": 0.45,
+          "gate": 1,
+          "tie": true
         },
         {
-          "on": false
+          "on": true,
+          "note": 79,
+          "velocity": 0.45,
+          "gate": 1
         },
         {
-          "on": false
+          "on": true,
+          "note": 81,
+          "velocity": 0.45,
+          "gate": 1,
+          "tie": true
         },
         {
-          "on": false
+          "on": true,
+          "note": 81,
+          "velocity": 0.45,
+          "gate": 1,
+          "tie": true
+        }
+      ],
+      null,
+      null
+    ],
+    [
+      null,
+      [
+        {
+          "on": true,
+          "note": 81,
+          "velocity": 0.45,
+          "gate": 1,
+          "tie": true
+        },
+        {
+          "on": true,
+          "note": 81,
+          "velocity": 0.45,
+          "gate": 1,
+          "tie": true
+        },
+        {
+          "on": true,
+          "note": 81,
+          "velocity": 0.45,
+          "gate": 1,
+          "tie": true
+        },
+        {
+          "on": true,
+          "note": 81,
+          "velocity": 0.45,
+          "gate": 1
+        },
+        {
+          "on": true,
+          "note": 79,
+          "velocity": 0.45,
+          "gate": 1,
+          "tie": true
+        },
+        {
+          "on": true,
+          "note": 79,
+          "velocity": 0.45,
+          "gate": 1
+        },
+        {
+          "on": true,
+          "note": 81,
+          "velocity": 0.45,
+          "gate": 1,
+          "tie": true
+        },
+        {
+          "on": true,
+          "note": 81,
+          "velocity": 0.45,
+          "gate": 1,
+          "tie": true
+        },
+        {
+          "on": true,
+          "note": 81,
+          "velocity": 0.45,
+          "gate": 1,
+          "tie": true
+        },
+        {
+          "on": true,
+          "note": 81,
+          "velocity": 0.45,
+          "gate": 1,
+          "tie": true
+        },
+        {
+          "on": true,
+          "note": 81,
+          "velocity": 0.45,
+          "gate": 1,
+          "tie": true
+        },
+        {
+          "on": true,
+          "note": 81,
+          "velocity": 0.45,
+          "gate": 1,
+          "tie": true
+        },
+        {
+          "on": true,
+          "note": 81,
+          "velocity": 0.45,
+          "gate": 1,
+          "tie": true
+        },
+        {
+          "on": true,
+          "note": 81,
+          "velocity": 0.45,
+          "gate": 1
+        },
+        {
+          "on": false,
+          "note": 60,
+          "velocity": 0.85,
+          "gate": 0.5
+        },
+        {
+          "on": false,
+          "note": 60,
+          "velocity": 0.85,
+          "gate": 0.5
+        }
+      ],
+      null,
+      null
+    ],
+    [
+      null,
+      [
+        {
+          "on": true,
+          "note": 81,
+          "velocity": 0.45,
+          "gate": 1,
+          "tie": true
+        },
+        {
+          "on": true,
+          "note": 81,
+          "velocity": 0.45,
+          "gate": 1,
+          "tie": true
+        },
+        {
+          "on": true,
+          "note": 81,
+          "velocity": 0.45,
+          "gate": 1,
+          "tie": true
+        },
+        {
+          "on": true,
+          "note": 81,
+          "velocity": 0.45,
+          "gate": 1
+        },
+        {
+          "on": true,
+          "note": 79,
+          "velocity": 0.45,
+          "gate": 1,
+          "tie": true
+        },
+        {
+          "on": true,
+          "note": 79,
+          "velocity": 0.45,
+          "gate": 1
+        },
+        {
+          "on": true,
+          "note": 81,
+          "velocity": 0.45,
+          "gate": 1,
+          "tie": true
+        },
+        {
+          "on": true,
+          "note": 81,
+          "velocity": 0.45,
+          "gate": 1,
+          "tie": true
+        },
+        {
+          "on": true,
+          "note": 81,
+          "velocity": 0.45,
+          "gate": 1,
+          "tie": true
+        },
+        {
+          "on": true,
+          "note": 81,
+          "velocity": 0.45,
+          "gate": 1,
+          "tie": true
+        },
+        {
+          "on": true,
+          "note": 81,
+          "velocity": 0.45,
+          "gate": 1,
+          "tie": true
+        },
+        {
+          "on": true,
+          "note": 81,
+          "velocity": 0.45,
+          "gate": 1
+        },
+        {
+          "on": true,
+          "note": 79,
+          "velocity": 0.45,
+          "gate": 1,
+          "tie": true
+        },
+        {
+          "on": true,
+          "note": 79,
+          "velocity": 0.45,
+          "gate": 1
+        },
+        {
+          "on": false,
+          "note": 60,
+          "velocity": 0.85,
+          "gate": 0.5
+        },
+        {
+          "on": false,
+          "note": 60,
+          "velocity": 0.85,
+          "gate": 0.5
+        }
+      ],
+      null,
+      null
+    ],
+    [
+      null,
+      [
+        {
+          "on": true,
+          "note": 81,
+          "velocity": 0.45,
+          "gate": 1,
+          "tie": true
+        },
+        {
+          "on": true,
+          "note": 81,
+          "velocity": 0.45,
+          "gate": 1,
+          "tie": true
+        },
+        {
+          "on": true,
+          "note": 81,
+          "velocity": 0.45,
+          "gate": 1,
+          "tie": true
+        },
+        {
+          "on": true,
+          "note": 81,
+          "velocity": 0.45,
+          "gate": 1
+        },
+        {
+          "on": true,
+          "note": 79,
+          "velocity": 0.45,
+          "gate": 1,
+          "tie": true
+        },
+        {
+          "on": true,
+          "note": 79,
+          "velocity": 0.45,
+          "gate": 1
+        },
+        {
+          "on": true,
+          "note": 76,
+          "velocity": 0.45,
+          "gate": 1,
+          "tie": true
+        },
+        {
+          "on": true,
+          "note": 76,
+          "velocity": 0.45,
+          "gate": 1,
+          "tie": true
+        },
+        {
+          "on": true,
+          "note": 76,
+          "velocity": 0.45,
+          "gate": 1,
+          "tie": true
+        },
+        {
+          "on": true,
+          "note": 76,
+          "velocity": 0.45,
+          "gate": 1,
+          "tie": true
+        },
+        {
+          "on": true,
+          "note": 76,
+          "velocity": 0.45,
+          "gate": 1,
+          "tie": true
+        },
+        {
+          "on": true,
+          "note": 76,
+          "velocity": 0.45,
+          "gate": 1,
+          "tie": true
+        },
+        {
+          "on": true,
+          "note": 76,
+          "velocity": 0.45,
+          "gate": 1,
+          "tie": true
+        },
+        {
+          "on": true,
+          "note": 76,
+          "velocity": 0.45,
+          "gate": 1
+        },
+        {
+          "on": false,
+          "note": 60,
+          "velocity": 0.85,
+          "gate": 0.5
+        },
+        {
+          "on": false,
+          "note": 60,
+          "velocity": 0.85,
+          "gate": 0.5
+        }
+      ],
+      null,
+      null
+    ],
+    [
+      null,
+      [
+        {
+          "on": true,
+          "note": 81,
+          "velocity": 0.45,
+          "gate": 1,
+          "tie": true
+        },
+        {
+          "on": true,
+          "note": 81,
+          "velocity": 0.45,
+          "gate": 1
+        },
+        {
+          "on": false,
+          "note": 60,
+          "velocity": 0.85,
+          "gate": 0.5
+        },
+        {
+          "on": false,
+          "note": 60,
+          "velocity": 0.85,
+          "gate": 0.5
+        },
+        {
+          "on": true,
+          "note": 81,
+          "velocity": 0.45,
+          "gate": 1,
+          "tie": true
+        },
+        {
+          "on": true,
+          "note": 81,
+          "velocity": 0.45,
+          "gate": 1
+        },
+        {
+          "on": true,
+          "note": 79,
+          "velocity": 0.45,
+          "gate": 1,
+          "tie": true
+        },
+        {
+          "on": true,
+          "note": 79,
+          "velocity": 0.45,
+          "gate": 1
+        },
+        {
+          "on": true,
+          "note": 83,
+          "velocity": 0.45,
+          "gate": 1,
+          "tie": true
+        },
+        {
+          "on": true,
+          "note": 83,
+          "velocity": 0.45,
+          "gate": 1
+        },
+        {
+          "on": true,
+          "note": 81,
+          "velocity": 0.45,
+          "gate": 1,
+          "tie": true
+        },
+        {
+          "on": true,
+          "note": 81,
+          "velocity": 0.45,
+          "gate": 1
+        },
+        {
+          "on": true,
+          "note": 79,
+          "velocity": 0.45,
+          "gate": 1,
+          "tie": true
+        },
+        {
+          "on": true,
+          "note": 79,
+          "velocity": 0.45,
+          "gate": 1
+        },
+        {
+          "on": true,
+          "note": 76,
+          "velocity": 0.45,
+          "gate": 1,
+          "tie": true
+        },
+        {
+          "on": true,
+          "note": 76,
+          "velocity": 0.45,
+          "gate": 1
+        }
+      ],
+      null,
+      null
+    ],
+    [
+      null,
+      [
+        {
+          "on": true,
+          "note": 81,
+          "velocity": 0.45,
+          "gate": 1,
+          "tie": true
+        },
+        {
+          "on": true,
+          "note": 81,
+          "velocity": 0.45,
+          "gate": 1,
+          "tie": true
+        },
+        {
+          "on": true,
+          "note": 81,
+          "velocity": 0.45,
+          "gate": 1
+        },
+        {
+          "on": false,
+          "note": 60,
+          "velocity": 0.85,
+          "gate": 0.5
+        },
+        {
+          "on": true,
+          "note": 79,
+          "velocity": 0.45,
+          "gate": 1,
+          "tie": true
+        },
+        {
+          "on": true,
+          "note": 79,
+          "velocity": 0.45,
+          "gate": 1
+        },
+        {
+          "on": true,
+          "note": 81,
+          "velocity": 0.45,
+          "gate": 1,
+          "tie": true
+        },
+        {
+          "on": true,
+          "note": 81,
+          "velocity": 0.45,
+          "gate": 1,
+          "tie": true
+        },
+        {
+          "on": true,
+          "note": 81,
+          "velocity": 0.45,
+          "gate": 1,
+          "tie": true
+        },
+        {
+          "on": true,
+          "note": 81,
+          "velocity": 0.45,
+          "gate": 1,
+          "tie": true
+        },
+        {
+          "on": true,
+          "note": 81,
+          "velocity": 0.45,
+          "gate": 1
+        },
+        {
+          "on": false,
+          "note": 60,
+          "velocity": 0.85,
+          "gate": 0.5
+        },
+        {
+          "on": true,
+          "note": 81,
+          "velocity": 0.45,
+          "gate": 1,
+          "tie": true
+        },
+        {
+          "on": true,
+          "note": 81,
+          "velocity": 0.45,
+          "gate": 1
+        },
+        {
+          "on": true,
+          "note": 83,
+          "velocity": 0.45,
+          "gate": 1,
+          "tie": true
+        },
+        {
+          "on": true,
+          "note": 83,
+          "velocity": 0.45,
+          "gate": 1
+        }
+      ],
+      null,
+      null
+    ],
+    [
+      null,
+      [
+        {
+          "on": true,
+          "note": 84,
+          "velocity": 0.45,
+          "gate": 1,
+          "tie": true
+        },
+        {
+          "on": true,
+          "note": 84,
+          "velocity": 0.45,
+          "gate": 1,
+          "tie": true
+        },
+        {
+          "on": true,
+          "note": 84,
+          "velocity": 0.45,
+          "gate": 1
+        },
+        {
+          "on": false,
+          "note": 60,
+          "velocity": 0.85,
+          "gate": 0.5
+        },
+        {
+          "on": true,
+          "note": 84,
+          "velocity": 0.45,
+          "gate": 1,
+          "tie": true
+        },
+        {
+          "on": true,
+          "note": 84,
+          "velocity": 0.45,
+          "gate": 1
+        },
+        {
+          "on": true,
+          "note": 86,
+          "velocity": 0.45,
+          "gate": 1,
+          "tie": true
+        },
+        {
+          "on": true,
+          "note": 86,
+          "velocity": 0.45,
+          "gate": 1
+        },
+        {
+          "on": true,
+          "note": 88,
+          "velocity": 0.45,
+          "gate": 1,
+          "tie": true
+        },
+        {
+          "on": true,
+          "note": 88,
+          "velocity": 0.45,
+          "gate": 1
+        },
+        {
+          "on": true,
+          "note": 84,
+          "velocity": 0.45,
+          "gate": 1,
+          "tie": true
+        },
+        {
+          "on": true,
+          "note": 84,
+          "velocity": 0.45,
+          "gate": 1
+        },
+        {
+          "on": true,
+          "note": 86,
+          "velocity": 0.45,
+          "gate": 1,
+          "tie": true
+        },
+        {
+          "on": true,
+          "note": 86,
+          "velocity": 0.45,
+          "gate": 1
+        },
+        {
+          "on": true,
+          "note": 79,
+          "velocity": 0.45,
+          "gate": 1,
+          "tie": true
+        },
+        {
+          "on": true,
+          "note": 79,
+          "velocity": 0.45,
+          "gate": 1
+        }
+      ],
+      null,
+      null
+    ],
+    [
+      null,
+      null,
+      null,
+      null
+    ],
+    [
+      null,
+      null,
+      null,
+      null
+    ],
+    [
+      null,
+      [
+        {
+          "on": false,
+          "note": 60,
+          "velocity": 0.85,
+          "gate": 0.5
+        },
+        {
+          "on": false,
+          "note": 60,
+          "velocity": 0.85,
+          "gate": 0.5
+        },
+        {
+          "on": false,
+          "note": 60,
+          "velocity": 0.85,
+          "gate": 0.5
+        },
+        {
+          "on": false,
+          "note": 60,
+          "velocity": 0.85,
+          "gate": 0.5
+        },
+        {
+          "on": true,
+          "note": 67,
+          "velocity": 0.85,
+          "gate": 1,
+          "tie": true
+        },
+        {
+          "on": true,
+          "note": 67,
+          "velocity": 0.85,
+          "gate": 1,
+          "tie": true
+        },
+        {
+          "on": true,
+          "note": 67,
+          "velocity": 0.85,
+          "gate": 1,
+          "tie": true
+        },
+        {
+          "on": true,
+          "note": 67,
+          "velocity": 0.85,
+          "gate": 0.8
+        },
+        {
+          "on": false,
+          "note": 60,
+          "velocity": 0.85,
+          "gate": 0.5
+        },
+        {
+          "on": true,
+          "note": 67,
+          "velocity": 0.28,
+          "gate": 0.12
+        },
+        {
+          "on": true,
+          "note": 67,
+          "velocity": 0.28,
+          "gate": 0.12
+        },
+        {
+          "on": true,
+          "note": 67,
+          "velocity": 0.28,
+          "gate": 0.12
+        },
+        {
+          "on": true,
+          "note": 67,
+          "velocity": 0.85,
+          "gate": 1,
+          "tie": true
+        },
+        {
+          "on": true,
+          "note": 67,
+          "velocity": 0.85,
+          "gate": 1,
+          "tie": true
+        },
+        {
+          "on": true,
+          "note": 67,
+          "velocity": 0.85,
+          "gate": 1,
+          "tie": true
+        },
+        {
+          "on": true,
+          "note": 67,
+          "velocity": 0.85,
+          "gate": 0.8
         }
       ],
       [
         {
-          "on": false
+          "on": false,
+          "note": 60,
+          "velocity": 0.85,
+          "gate": 0.5
         },
         {
-          "on": false
+          "on": false,
+          "note": 60,
+          "velocity": 0.85,
+          "gate": 0.5
         },
         {
-          "on": false
+          "on": false,
+          "note": 60,
+          "velocity": 0.85,
+          "gate": 0.5
         },
         {
-          "on": false
+          "on": false,
+          "note": 60,
+          "velocity": 0.85,
+          "gate": 0.5
         },
         {
-          "on": false
+          "on": true,
+          "note": 74,
+          "velocity": 0.85,
+          "gate": 1,
+          "tie": true
         },
         {
-          "on": false
+          "on": true,
+          "note": 74,
+          "velocity": 0.85,
+          "gate": 1,
+          "tie": true
         },
         {
-          "on": false
+          "on": true,
+          "note": 74,
+          "velocity": 0.85,
+          "gate": 1,
+          "tie": true
         },
         {
-          "on": false
+          "on": true,
+          "note": 74,
+          "velocity": 0.85,
+          "gate": 0.8
         },
         {
-          "on": false
+          "on": false,
+          "note": 60,
+          "velocity": 0.85,
+          "gate": 0.5
         },
         {
-          "on": false
+          "on": true,
+          "note": 74,
+          "velocity": 0.28,
+          "gate": 0.12
         },
         {
-          "on": false
+          "on": true,
+          "note": 74,
+          "velocity": 0.28,
+          "gate": 0.12
         },
         {
-          "on": false
+          "on": true,
+          "note": 74,
+          "velocity": 0.28,
+          "gate": 0.12
         },
         {
-          "on": false
+          "on": true,
+          "note": 74,
+          "velocity": 0.85,
+          "gate": 1,
+          "tie": true
         },
         {
-          "on": false
+          "on": true,
+          "note": 74,
+          "velocity": 0.85,
+          "gate": 1,
+          "tie": true
         },
         {
-          "on": false
+          "on": true,
+          "note": 74,
+          "velocity": 0.85,
+          "gate": 1,
+          "tie": true
         },
         {
-          "on": false
+          "on": true,
+          "note": 74,
+          "velocity": 0.85,
+          "gate": 0.8
         }
       ],
       [
         {
-          "on": false
+          "on": false,
+          "note": 60,
+          "velocity": 0.85,
+          "gate": 0.5
         },
         {
-          "on": false
+          "on": false,
+          "note": 60,
+          "velocity": 0.85,
+          "gate": 0.5
         },
         {
-          "on": false
+          "on": false,
+          "note": 60,
+          "velocity": 0.85,
+          "gate": 0.5
         },
         {
-          "on": false
+          "on": false,
+          "note": 60,
+          "velocity": 0.85,
+          "gate": 0.5
         },
         {
-          "on": false
+          "on": true,
+          "note": 79,
+          "velocity": 0.85,
+          "gate": 1,
+          "tie": true
         },
         {
-          "on": false
+          "on": true,
+          "note": 79,
+          "velocity": 0.85,
+          "gate": 1,
+          "tie": true
         },
         {
-          "on": false
+          "on": true,
+          "note": 79,
+          "velocity": 0.85,
+          "gate": 1,
+          "tie": true
         },
         {
-          "on": false
+          "on": true,
+          "note": 79,
+          "velocity": 0.85,
+          "gate": 0.8
         },
         {
-          "on": false
+          "on": false,
+          "note": 60,
+          "velocity": 0.85,
+          "gate": 0.5
         },
         {
-          "on": false
+          "on": true,
+          "note": 79,
+          "velocity": 0.28,
+          "gate": 0.12
         },
         {
-          "on": false
+          "on": true,
+          "note": 79,
+          "velocity": 0.28,
+          "gate": 0.12
         },
         {
-          "on": false
+          "on": true,
+          "note": 79,
+          "velocity": 0.28,
+          "gate": 0.12
         },
         {
-          "on": false
+          "on": true,
+          "note": 79,
+          "velocity": 0.85,
+          "gate": 1,
+          "tie": true
         },
         {
-          "on": false
+          "on": true,
+          "note": 79,
+          "velocity": 0.85,
+          "gate": 1,
+          "tie": true
         },
         {
-          "on": false
+          "on": true,
+          "note": 79,
+          "velocity": 0.85,
+          "gate": 1,
+          "tie": true
         },
         {
-          "on": false
-        }
-      ],
-      [
-        {
-          "on": false
-        },
-        {
-          "on": false
-        },
-        {
-          "on": false
-        },
-        {
-          "on": false
-        },
-        {
-          "on": false
-        },
-        {
-          "on": false
-        },
-        {
-          "on": false
-        },
-        {
-          "on": false
-        },
-        {
-          "on": false
-        },
-        {
-          "on": false
-        },
-        {
-          "on": false
-        },
-        {
-          "on": false
-        },
-        {
-          "on": false
-        },
-        {
-          "on": false
-        },
-        {
-          "on": false
-        },
-        {
-          "on": false
-        }
-      ],
-      [
-        {
-          "on": false
-        },
-        {
-          "on": false
-        },
-        {
-          "on": false
-        },
-        {
-          "on": false
-        },
-        {
-          "on": false
-        },
-        {
-          "on": false
-        },
-        {
-          "on": false
-        },
-        {
-          "on": false
-        },
-        {
-          "on": false
-        },
-        {
-          "on": false
-        },
-        {
-          "on": false
-        },
-        {
-          "on": false
-        },
-        {
-          "on": false
-        },
-        {
-          "on": false
-        },
-        {
-          "on": false
-        },
-        {
-          "on": false
-        }
-      ],
-      [
-        {
-          "on": false
-        },
-        {
-          "on": false
-        },
-        {
-          "on": false
-        },
-        {
-          "on": false
-        },
-        {
-          "on": false
-        },
-        {
-          "on": false
-        },
-        {
-          "on": false
-        },
-        {
-          "on": false
-        },
-        {
-          "on": false
-        },
-        {
-          "on": false
-        },
-        {
-          "on": false
-        },
-        {
-          "on": false
-        },
-        {
-          "on": false
-        },
-        {
-          "on": false
-        },
-        {
-          "on": false
-        },
-        {
-          "on": false
-        }
-      ],
-      [
-        {
-          "on": false
-        },
-        {
-          "on": false
-        },
-        {
-          "on": false
-        },
-        {
-          "on": false
-        },
-        {
-          "on": false
-        },
-        {
-          "on": false
-        },
-        {
-          "on": false
-        },
-        {
-          "on": false
-        },
-        {
-          "on": false
-        },
-        {
-          "on": false
-        },
-        {
-          "on": false
-        },
-        {
-          "on": false
-        },
-        {
-          "on": false
-        },
-        {
-          "on": false
-        },
-        {
-          "on": false
-        },
-        {
-          "on": false
-        }
-      ],
-      [
-        {
-          "on": false
-        },
-        {
-          "on": false
-        },
-        {
-          "on": false
-        },
-        {
-          "on": false
-        },
-        {
-          "on": false
-        },
-        {
-          "on": false
-        },
-        {
-          "on": false
-        },
-        {
-          "on": false
-        },
-        {
-          "on": false
-        },
-        {
-          "on": false
-        },
-        {
-          "on": false
-        },
-        {
-          "on": false
-        },
-        {
-          "on": false
-        },
-        {
-          "on": false
-        },
-        {
-          "on": false
-        },
-        {
-          "on": false
+          "on": true,
+          "note": 79,
+          "velocity": 0.85,
+          "gate": 0.8
         }
       ]
     ],
     [
+      null,
       [
         {
-          "on": false
+          "on": false,
+          "note": 60,
+          "velocity": 0.85,
+          "gate": 0.5
         },
         {
-          "on": false
+          "on": true,
+          "note": 67,
+          "velocity": 0.28,
+          "gate": 0.12
         },
         {
-          "on": false
+          "on": true,
+          "note": 67,
+          "velocity": 0.28,
+          "gate": 0.12
         },
         {
-          "on": false
+          "on": true,
+          "note": 67,
+          "velocity": 0.28,
+          "gate": 0.12
         },
         {
-          "on": false
+          "on": true,
+          "note": 67,
+          "velocity": 0.85,
+          "gate": 1,
+          "tie": true
         },
         {
-          "on": false
+          "on": true,
+          "note": 67,
+          "velocity": 0.85,
+          "gate": 1,
+          "tie": true
         },
         {
-          "on": false
+          "on": true,
+          "note": 67,
+          "velocity": 0.85,
+          "gate": 1,
+          "tie": true
         },
         {
-          "on": false
+          "on": true,
+          "note": 67,
+          "velocity": 0.85,
+          "gate": 0.8
         },
         {
-          "on": false
+          "on": true,
+          "note": 71,
+          "velocity": 0.85,
+          "gate": 1,
+          "tie": true
         },
         {
-          "on": false
+          "on": true,
+          "note": 71,
+          "velocity": 0.85,
+          "gate": 0.8
         },
         {
-          "on": false
+          "on": true,
+          "note": 67,
+          "velocity": 0.85,
+          "gate": 1,
+          "tie": true
         },
         {
-          "on": false
+          "on": true,
+          "note": 67,
+          "velocity": 0.85,
+          "gate": 0.8
         },
         {
-          "on": false
+          "on": true,
+          "note": 62,
+          "velocity": 0.85,
+          "gate": 1,
+          "tie": true
         },
         {
-          "on": false
+          "on": true,
+          "note": 62,
+          "velocity": 0.85,
+          "gate": 0.8
         },
         {
-          "on": false
+          "on": true,
+          "note": 55,
+          "velocity": 0.85,
+          "gate": 1,
+          "tie": true
         },
         {
-          "on": false
+          "on": true,
+          "note": 55,
+          "velocity": 0.85,
+          "gate": 0.8
         }
       ],
       [
         {
-          "on": false
+          "on": false,
+          "note": 60,
+          "velocity": 0.85,
+          "gate": 0.5
         },
         {
-          "on": false
+          "on": true,
+          "note": 72,
+          "velocity": 0.28,
+          "gate": 0.12
         },
         {
-          "on": false
+          "on": true,
+          "note": 72,
+          "velocity": 0.28,
+          "gate": 0.12
         },
         {
-          "on": false
+          "on": true,
+          "note": 72,
+          "velocity": 0.28,
+          "gate": 0.12
         },
         {
-          "on": false
+          "on": true,
+          "note": 72,
+          "velocity": 0.85,
+          "gate": 1,
+          "tie": true
         },
         {
-          "on": false
+          "on": true,
+          "note": 72,
+          "velocity": 0.85,
+          "gate": 1,
+          "tie": true
         },
         {
-          "on": false
+          "on": true,
+          "note": 72,
+          "velocity": 0.85,
+          "gate": 1,
+          "tie": true
         },
         {
-          "on": false
+          "on": true,
+          "note": 72,
+          "velocity": 0.85,
+          "gate": 0.8
         },
         {
-          "on": false
+          "on": false,
+          "note": 60,
+          "velocity": 0.85,
+          "gate": 0.5
         },
         {
-          "on": false
+          "on": false,
+          "note": 60,
+          "velocity": 0.85,
+          "gate": 0.5
         },
         {
-          "on": false
+          "on": false,
+          "note": 60,
+          "velocity": 0.85,
+          "gate": 0.5
         },
         {
-          "on": false
+          "on": false,
+          "note": 60,
+          "velocity": 0.85,
+          "gate": 0.5
         },
         {
-          "on": false
+          "on": false,
+          "note": 60,
+          "velocity": 0.85,
+          "gate": 0.5
         },
         {
-          "on": false
+          "on": false,
+          "note": 60,
+          "velocity": 0.85,
+          "gate": 0.5
         },
         {
-          "on": false
+          "on": false,
+          "note": 60,
+          "velocity": 0.85,
+          "gate": 0.5
         },
         {
-          "on": false
+          "on": false,
+          "note": 60,
+          "velocity": 0.85,
+          "gate": 0.5
         }
       ],
       [
         {
-          "on": false
+          "on": false,
+          "note": 60,
+          "velocity": 0.85,
+          "gate": 0.5
         },
         {
-          "on": false
+          "on": true,
+          "note": 79,
+          "velocity": 0.28,
+          "gate": 0.12
         },
         {
-          "on": false
+          "on": true,
+          "note": 79,
+          "velocity": 0.28,
+          "gate": 0.12
         },
         {
-          "on": false
+          "on": true,
+          "note": 79,
+          "velocity": 0.28,
+          "gate": 0.12
         },
         {
-          "on": false
+          "on": true,
+          "note": 79,
+          "velocity": 0.85,
+          "gate": 1,
+          "tie": true
         },
         {
-          "on": false
+          "on": true,
+          "note": 79,
+          "velocity": 0.85,
+          "gate": 1,
+          "tie": true
         },
         {
-          "on": false
+          "on": true,
+          "note": 79,
+          "velocity": 0.85,
+          "gate": 1,
+          "tie": true
         },
         {
-          "on": false
+          "on": true,
+          "note": 79,
+          "velocity": 0.85,
+          "gate": 0.8
         },
         {
-          "on": false
+          "on": false,
+          "note": 60,
+          "velocity": 0.85,
+          "gate": 0.5
         },
         {
-          "on": false
+          "on": false,
+          "note": 60,
+          "velocity": 0.85,
+          "gate": 0.5
         },
         {
-          "on": false
+          "on": false,
+          "note": 60,
+          "velocity": 0.85,
+          "gate": 0.5
         },
         {
-          "on": false
+          "on": false,
+          "note": 60,
+          "velocity": 0.85,
+          "gate": 0.5
         },
         {
-          "on": false
+          "on": false,
+          "note": 60,
+          "velocity": 0.85,
+          "gate": 0.5
         },
         {
-          "on": false
+          "on": false,
+          "note": 60,
+          "velocity": 0.85,
+          "gate": 0.5
         },
         {
-          "on": false
+          "on": false,
+          "note": 60,
+          "velocity": 0.85,
+          "gate": 0.5
         },
         {
-          "on": false
-        }
-      ],
-      [
-        {
-          "on": false
-        },
-        {
-          "on": false
-        },
-        {
-          "on": false
-        },
-        {
-          "on": false
-        },
-        {
-          "on": false
-        },
-        {
-          "on": false
-        },
-        {
-          "on": false
-        },
-        {
-          "on": false
-        },
-        {
-          "on": false
-        },
-        {
-          "on": false
-        },
-        {
-          "on": false
-        },
-        {
-          "on": false
-        },
-        {
-          "on": false
-        },
-        {
-          "on": false
-        },
-        {
-          "on": false
-        },
-        {
-          "on": false
-        }
-      ],
-      [
-        {
-          "on": false
-        },
-        {
-          "on": false
-        },
-        {
-          "on": false
-        },
-        {
-          "on": false
-        },
-        {
-          "on": false
-        },
-        {
-          "on": false
-        },
-        {
-          "on": false
-        },
-        {
-          "on": false
-        },
-        {
-          "on": false
-        },
-        {
-          "on": false
-        },
-        {
-          "on": false
-        },
-        {
-          "on": false
-        },
-        {
-          "on": false
-        },
-        {
-          "on": false
-        },
-        {
-          "on": false
-        },
-        {
-          "on": false
-        }
-      ],
-      [
-        {
-          "on": false
-        },
-        {
-          "on": false
-        },
-        {
-          "on": false
-        },
-        {
-          "on": false
-        },
-        {
-          "on": false
-        },
-        {
-          "on": false
-        },
-        {
-          "on": false
-        },
-        {
-          "on": false
-        },
-        {
-          "on": false
-        },
-        {
-          "on": false
-        },
-        {
-          "on": false
-        },
-        {
-          "on": false
-        },
-        {
-          "on": false
-        },
-        {
-          "on": false
-        },
-        {
-          "on": false
-        },
-        {
-          "on": false
-        }
-      ],
-      [
-        {
-          "on": false
-        },
-        {
-          "on": false
-        },
-        {
-          "on": false
-        },
-        {
-          "on": false
-        },
-        {
-          "on": false
-        },
-        {
-          "on": false
-        },
-        {
-          "on": false
-        },
-        {
-          "on": false
-        },
-        {
-          "on": false
-        },
-        {
-          "on": false
-        },
-        {
-          "on": false
-        },
-        {
-          "on": false
-        },
-        {
-          "on": false
-        },
-        {
-          "on": false
-        },
-        {
-          "on": false
-        },
-        {
-          "on": false
-        }
-      ],
-      [
-        {
-          "on": false
-        },
-        {
-          "on": false
-        },
-        {
-          "on": false
-        },
-        {
-          "on": false
-        },
-        {
-          "on": false
-        },
-        {
-          "on": false
-        },
-        {
-          "on": false
-        },
-        {
-          "on": false
-        },
-        {
-          "on": false
-        },
-        {
-          "on": false
-        },
-        {
-          "on": false
-        },
-        {
-          "on": false
-        },
-        {
-          "on": false
-        },
-        {
-          "on": false
-        },
-        {
-          "on": false
-        },
-        {
-          "on": false
+          "on": false,
+          "note": 60,
+          "velocity": 0.85,
+          "gate": 0.5
         }
       ]
     ],
     [
+      null,
       [
         {
-          "on": false
+          "on": false,
+          "note": 60,
+          "velocity": 0.85,
+          "gate": 0.5
         },
         {
-          "on": false
+          "on": true,
+          "note": 67,
+          "velocity": 0.28,
+          "gate": 0.12
         },
         {
-          "on": false
+          "on": true,
+          "note": 67,
+          "velocity": 0.28,
+          "gate": 0.12
         },
         {
-          "on": false
+          "on": true,
+          "note": 67,
+          "velocity": 0.28,
+          "gate": 0.12
         },
         {
-          "on": false
+          "on": true,
+          "note": 67,
+          "velocity": 0.85,
+          "gate": 1,
+          "tie": true
         },
         {
-          "on": false
+          "on": true,
+          "note": 67,
+          "velocity": 0.85,
+          "gate": 1,
+          "tie": true
         },
         {
-          "on": false
+          "on": true,
+          "note": 67,
+          "velocity": 0.85,
+          "gate": 1,
+          "tie": true
         },
         {
-          "on": false
+          "on": true,
+          "note": 67,
+          "velocity": 0.85,
+          "gate": 0.8
         },
         {
-          "on": false
+          "on": true,
+          "note": 71,
+          "velocity": 0.85,
+          "gate": 1,
+          "tie": true
         },
         {
-          "on": false
+          "on": true,
+          "note": 71,
+          "velocity": 0.85,
+          "gate": 0.8
         },
         {
-          "on": false
+          "on": true,
+          "note": 72,
+          "velocity": 0.85,
+          "gate": 1,
+          "tie": true
         },
         {
-          "on": false
+          "on": true,
+          "note": 72,
+          "velocity": 0.85,
+          "gate": 1,
+          "tie": true
         },
         {
-          "on": false
+          "on": true,
+          "note": 72,
+          "velocity": 0.85,
+          "gate": 1,
+          "tie": true
         },
         {
-          "on": false
+          "on": true,
+          "note": 72,
+          "velocity": 0.85,
+          "gate": 0.8
         },
         {
-          "on": false
+          "on": true,
+          "note": 67,
+          "velocity": 0.85,
+          "gate": 1,
+          "tie": true
         },
         {
-          "on": false
+          "on": true,
+          "note": 67,
+          "velocity": 0.85,
+          "gate": 0.8
         }
       ],
       [
         {
-          "on": false
+          "on": false,
+          "note": 60,
+          "velocity": 0.85,
+          "gate": 0.5
         },
         {
-          "on": false
+          "on": true,
+          "note": 72,
+          "velocity": 0.28,
+          "gate": 0.12
         },
         {
-          "on": false
+          "on": true,
+          "note": 72,
+          "velocity": 0.28,
+          "gate": 0.12
         },
         {
-          "on": false
+          "on": true,
+          "note": 72,
+          "velocity": 0.28,
+          "gate": 0.12
         },
         {
-          "on": false
+          "on": true,
+          "note": 72,
+          "velocity": 0.85,
+          "gate": 1,
+          "tie": true
         },
         {
-          "on": false
+          "on": true,
+          "note": 72,
+          "velocity": 0.85,
+          "gate": 1,
+          "tie": true
         },
         {
-          "on": false
+          "on": true,
+          "note": 72,
+          "velocity": 0.85,
+          "gate": 1,
+          "tie": true
         },
         {
-          "on": false
+          "on": true,
+          "note": 72,
+          "velocity": 0.85,
+          "gate": 0.8
         },
         {
-          "on": false
+          "on": false,
+          "note": 60,
+          "velocity": 0.85,
+          "gate": 0.5
         },
         {
-          "on": false
+          "on": false,
+          "note": 60,
+          "velocity": 0.85,
+          "gate": 0.5
         },
         {
-          "on": false
+          "on": false,
+          "note": 60,
+          "velocity": 0.85,
+          "gate": 0.5
         },
         {
-          "on": false
+          "on": false,
+          "note": 60,
+          "velocity": 0.85,
+          "gate": 0.5
         },
         {
-          "on": false
+          "on": false,
+          "note": 60,
+          "velocity": 0.85,
+          "gate": 0.5
         },
         {
-          "on": false
+          "on": false,
+          "note": 60,
+          "velocity": 0.85,
+          "gate": 0.5
         },
         {
-          "on": false
+          "on": false,
+          "note": 60,
+          "velocity": 0.85,
+          "gate": 0.5
         },
         {
-          "on": false
+          "on": false,
+          "note": 60,
+          "velocity": 0.85,
+          "gate": 0.5
         }
       ],
       [
         {
-          "on": false
+          "on": false,
+          "note": 60,
+          "velocity": 0.85,
+          "gate": 0.5
         },
         {
-          "on": false
+          "on": true,
+          "note": 79,
+          "velocity": 0.28,
+          "gate": 0.12
         },
         {
-          "on": false
+          "on": true,
+          "note": 79,
+          "velocity": 0.28,
+          "gate": 0.12
         },
         {
-          "on": false
+          "on": true,
+          "note": 79,
+          "velocity": 0.28,
+          "gate": 0.12
         },
         {
-          "on": false
+          "on": true,
+          "note": 79,
+          "velocity": 0.85,
+          "gate": 1,
+          "tie": true
         },
         {
-          "on": false
+          "on": true,
+          "note": 79,
+          "velocity": 0.85,
+          "gate": 1,
+          "tie": true
         },
         {
-          "on": false
+          "on": true,
+          "note": 79,
+          "velocity": 0.85,
+          "gate": 1,
+          "tie": true
         },
         {
-          "on": false
+          "on": true,
+          "note": 79,
+          "velocity": 0.85,
+          "gate": 0.8
         },
         {
-          "on": false
+          "on": false,
+          "note": 60,
+          "velocity": 0.85,
+          "gate": 0.5
         },
         {
-          "on": false
+          "on": false,
+          "note": 60,
+          "velocity": 0.85,
+          "gate": 0.5
         },
         {
-          "on": false
+          "on": false,
+          "note": 60,
+          "velocity": 0.85,
+          "gate": 0.5
         },
         {
-          "on": false
+          "on": false,
+          "note": 60,
+          "velocity": 0.85,
+          "gate": 0.5
         },
         {
-          "on": false
+          "on": false,
+          "note": 60,
+          "velocity": 0.85,
+          "gate": 0.5
         },
         {
-          "on": false
+          "on": false,
+          "note": 60,
+          "velocity": 0.85,
+          "gate": 0.5
         },
         {
-          "on": false
+          "on": false,
+          "note": 60,
+          "velocity": 0.85,
+          "gate": 0.5
         },
         {
-          "on": false
-        }
-      ],
-      [
-        {
-          "on": false
-        },
-        {
-          "on": false
-        },
-        {
-          "on": false
-        },
-        {
-          "on": false
-        },
-        {
-          "on": false
-        },
-        {
-          "on": false
-        },
-        {
-          "on": false
-        },
-        {
-          "on": false
-        },
-        {
-          "on": false
-        },
-        {
-          "on": false
-        },
-        {
-          "on": false
-        },
-        {
-          "on": false
-        },
-        {
-          "on": false
-        },
-        {
-          "on": false
-        },
-        {
-          "on": false
-        },
-        {
-          "on": false
-        }
-      ],
-      [
-        {
-          "on": false
-        },
-        {
-          "on": false
-        },
-        {
-          "on": false
-        },
-        {
-          "on": false
-        },
-        {
-          "on": false
-        },
-        {
-          "on": false
-        },
-        {
-          "on": false
-        },
-        {
-          "on": false
-        },
-        {
-          "on": false
-        },
-        {
-          "on": false
-        },
-        {
-          "on": false
-        },
-        {
-          "on": false
-        },
-        {
-          "on": false
-        },
-        {
-          "on": false
-        },
-        {
-          "on": false
-        },
-        {
-          "on": false
-        }
-      ],
-      [
-        {
-          "on": false
-        },
-        {
-          "on": false
-        },
-        {
-          "on": false
-        },
-        {
-          "on": false
-        },
-        {
-          "on": false
-        },
-        {
-          "on": false
-        },
-        {
-          "on": false
-        },
-        {
-          "on": false
-        },
-        {
-          "on": false
-        },
-        {
-          "on": false
-        },
-        {
-          "on": false
-        },
-        {
-          "on": false
-        },
-        {
-          "on": false
-        },
-        {
-          "on": false
-        },
-        {
-          "on": false
-        },
-        {
-          "on": false
-        }
-      ],
-      [
-        {
-          "on": false
-        },
-        {
-          "on": false
-        },
-        {
-          "on": false
-        },
-        {
-          "on": false
-        },
-        {
-          "on": false
-        },
-        {
-          "on": false
-        },
-        {
-          "on": false
-        },
-        {
-          "on": false
-        },
-        {
-          "on": false
-        },
-        {
-          "on": false
-        },
-        {
-          "on": false
-        },
-        {
-          "on": false
-        },
-        {
-          "on": false
-        },
-        {
-          "on": false
-        },
-        {
-          "on": false
-        },
-        {
-          "on": false
-        }
-      ],
-      [
-        {
-          "on": false
-        },
-        {
-          "on": false
-        },
-        {
-          "on": false
-        },
-        {
-          "on": false
-        },
-        {
-          "on": false
-        },
-        {
-          "on": false
-        },
-        {
-          "on": false
-        },
-        {
-          "on": false
-        },
-        {
-          "on": false
-        },
-        {
-          "on": false
-        },
-        {
-          "on": false
-        },
-        {
-          "on": false
-        },
-        {
-          "on": false
-        },
-        {
-          "on": false
-        },
-        {
-          "on": false
-        },
-        {
-          "on": false
+          "on": false,
+          "note": 60,
+          "velocity": 0.85,
+          "gate": 0.5
         }
       ]
     ],
     [
+      null,
       [
         {
-          "on": false
+          "on": false,
+          "note": 60,
+          "velocity": 0.85,
+          "gate": 0.5
         },
         {
-          "on": false
+          "on": false,
+          "note": 60,
+          "velocity": 0.85,
+          "gate": 0.5
         },
         {
-          "on": false
+          "on": false,
+          "note": 60,
+          "velocity": 0.85,
+          "gate": 0.5
         },
         {
-          "on": false
+          "on": false,
+          "note": 60,
+          "velocity": 0.85,
+          "gate": 0.5
         },
         {
-          "on": false
+          "on": false,
+          "note": 60,
+          "velocity": 0.85,
+          "gate": 0.5
         },
         {
-          "on": false
+          "on": false,
+          "note": 60,
+          "velocity": 0.85,
+          "gate": 0.5
         },
         {
-          "on": false
+          "on": false,
+          "note": 60,
+          "velocity": 0.85,
+          "gate": 0.5
         },
         {
-          "on": false
+          "on": false,
+          "note": 60,
+          "velocity": 0.85,
+          "gate": 0.5
         },
         {
-          "on": false
+          "on": false,
+          "note": 60,
+          "velocity": 0.85,
+          "gate": 0.5
         },
         {
-          "on": false
+          "on": false,
+          "note": 60,
+          "velocity": 0.85,
+          "gate": 0.5
         },
         {
-          "on": false
+          "on": true,
+          "note": 83,
+          "velocity": 0.45,
+          "gate": 1,
+          "tie": true
         },
         {
-          "on": false
+          "on": true,
+          "note": 83,
+          "velocity": 0.45,
+          "gate": 1
         },
         {
-          "on": false
+          "on": true,
+          "note": 90,
+          "velocity": 0.45,
+          "gate": 1,
+          "tie": true
         },
         {
-          "on": false
+          "on": true,
+          "note": 90,
+          "velocity": 0.45,
+          "gate": 1
         },
         {
-          "on": false
+          "on": true,
+          "note": 95,
+          "velocity": 0.45,
+          "gate": 1,
+          "tie": true
         },
         {
-          "on": false
+          "on": true,
+          "note": 95,
+          "velocity": 0.45,
+          "gate": 1
         }
       ],
       [
         {
-          "on": false
+          "on": false,
+          "note": 60,
+          "velocity": 0.85,
+          "gate": 0.5
         },
         {
-          "on": false
+          "on": true,
+          "note": 71,
+          "velocity": 0.28,
+          "gate": 0.12
         },
         {
-          "on": false
+          "on": true,
+          "note": 71,
+          "velocity": 0.28,
+          "gate": 0.12
         },
         {
-          "on": false
+          "on": true,
+          "note": 71,
+          "velocity": 0.28,
+          "gate": 0.12
         },
         {
-          "on": false
+          "on": true,
+          "note": 71,
+          "velocity": 0.85,
+          "gate": 1,
+          "tie": true
         },
         {
-          "on": false
+          "on": true,
+          "note": 71,
+          "velocity": 0.85,
+          "gate": 1,
+          "tie": true
         },
         {
-          "on": false
+          "on": true,
+          "note": 71,
+          "velocity": 0.85,
+          "gate": 1,
+          "tie": true
         },
         {
-          "on": false
+          "on": true,
+          "note": 71,
+          "velocity": 0.85,
+          "gate": 0.8
         },
         {
-          "on": false
+          "on": false,
+          "note": 60,
+          "velocity": 0.85,
+          "gate": 0.5
         },
         {
-          "on": false
+          "on": true,
+          "note": 71,
+          "velocity": 0.28,
+          "gate": 0.12
         },
         {
-          "on": false
+          "on": true,
+          "note": 71,
+          "velocity": 0.85,
+          "gate": 1,
+          "tie": true
         },
         {
-          "on": false
+          "on": true,
+          "note": 71,
+          "velocity": 0.85,
+          "gate": 0.8
         },
         {
-          "on": false
+          "on": true,
+          "note": 74,
+          "velocity": 0.28,
+          "gate": 0.12
         },
         {
-          "on": false
+          "on": true,
+          "note": 74,
+          "velocity": 0.28,
+          "gate": 0.12
         },
         {
-          "on": false
+          "on": true,
+          "note": 74,
+          "velocity": 0.85,
+          "gate": 1,
+          "tie": true
         },
         {
-          "on": false
+          "on": true,
+          "note": 74,
+          "velocity": 0.85,
+          "gate": 0.8
         }
       ],
       [
         {
-          "on": false
+          "on": false,
+          "note": 60,
+          "velocity": 0.85,
+          "gate": 0.5
         },
         {
-          "on": false
+          "on": true,
+          "note": 78,
+          "velocity": 0.28,
+          "gate": 0.12
         },
         {
-          "on": false
+          "on": true,
+          "note": 78,
+          "velocity": 0.28,
+          "gate": 0.12
         },
         {
-          "on": false
+          "on": true,
+          "note": 78,
+          "velocity": 0.28,
+          "gate": 0.12
         },
         {
-          "on": false
+          "on": true,
+          "note": 78,
+          "velocity": 0.85,
+          "gate": 1,
+          "tie": true
         },
         {
-          "on": false
+          "on": true,
+          "note": 78,
+          "velocity": 0.85,
+          "gate": 1,
+          "tie": true
         },
         {
-          "on": false
+          "on": true,
+          "note": 78,
+          "velocity": 0.85,
+          "gate": 1,
+          "tie": true
         },
         {
-          "on": false
+          "on": true,
+          "note": 78,
+          "velocity": 0.85,
+          "gate": 0.8
         },
         {
-          "on": false
+          "on": false,
+          "note": 60,
+          "velocity": 0.85,
+          "gate": 0.5
         },
         {
-          "on": false
+          "on": true,
+          "note": 78,
+          "velocity": 0.28,
+          "gate": 0.12
         },
         {
-          "on": false
+          "on": true,
+          "note": 78,
+          "velocity": 0.85,
+          "gate": 1,
+          "tie": true
         },
         {
-          "on": false
+          "on": true,
+          "note": 78,
+          "velocity": 0.85,
+          "gate": 0.8
         },
         {
-          "on": false
+          "on": true,
+          "note": 81,
+          "velocity": 0.28,
+          "gate": 0.12
         },
         {
-          "on": false
+          "on": true,
+          "note": 81,
+          "velocity": 0.28,
+          "gate": 0.12
         },
         {
-          "on": false
+          "on": true,
+          "note": 81,
+          "velocity": 0.85,
+          "gate": 1,
+          "tie": true
         },
         {
-          "on": false
+          "on": true,
+          "note": 81,
+          "velocity": 0.85,
+          "gate": 0.8
+        }
+      ]
+    ],
+    [
+      null,
+      [
+        {
+          "on": true,
+          "note": 76,
+          "velocity": 0.45,
+          "gate": 1,
+          "tie": true
+        },
+        {
+          "on": true,
+          "note": 76,
+          "velocity": 0.45,
+          "gate": 1,
+          "tie": true
+        },
+        {
+          "on": true,
+          "note": 76,
+          "velocity": 0.45,
+          "gate": 1,
+          "tie": true
+        },
+        {
+          "on": true,
+          "note": 76,
+          "velocity": 0.45,
+          "gate": 1,
+          "tie": true
+        },
+        {
+          "on": true,
+          "note": 76,
+          "velocity": 0.45,
+          "gate": 1,
+          "tie": true
+        },
+        {
+          "on": true,
+          "note": 76,
+          "velocity": 0.45,
+          "gate": 1,
+          "tie": true
+        },
+        {
+          "on": true,
+          "note": 76,
+          "velocity": 0.45,
+          "gate": 1,
+          "tie": true
+        },
+        {
+          "on": true,
+          "note": 76,
+          "velocity": 0.45,
+          "gate": 1,
+          "tie": true
+        },
+        {
+          "on": true,
+          "note": 76,
+          "velocity": 0.45,
+          "gate": 1,
+          "tie": true
+        },
+        {
+          "on": true,
+          "note": 76,
+          "velocity": 0.45,
+          "gate": 1,
+          "tie": true
+        },
+        {
+          "on": true,
+          "note": 76,
+          "velocity": 0.45,
+          "gate": 1,
+          "tie": true
+        },
+        {
+          "on": true,
+          "note": 76,
+          "velocity": 0.45,
+          "gate": 1,
+          "tie": true
+        },
+        {
+          "on": true,
+          "note": 76,
+          "velocity": 0.45,
+          "gate": 1,
+          "tie": true
+        },
+        {
+          "on": true,
+          "note": 76,
+          "velocity": 0.45,
+          "gate": 1,
+          "tie": true
+        },
+        {
+          "on": true,
+          "note": 76,
+          "velocity": 0.45,
+          "gate": 1,
+          "tie": true
+        },
+        {
+          "on": true,
+          "note": 76,
+          "velocity": 0.45,
+          "gate": 1
         }
       ],
       [
         {
-          "on": false
+          "on": true,
+          "note": 71,
+          "velocity": 0.7,
+          "gate": 1,
+          "tie": true
         },
         {
-          "on": false
+          "on": true,
+          "note": 71,
+          "velocity": 0.7,
+          "gate": 1,
+          "tie": true
         },
         {
-          "on": false
+          "on": true,
+          "note": 71,
+          "velocity": 0.7,
+          "gate": 1,
+          "tie": true
         },
         {
-          "on": false
+          "on": true,
+          "note": 71,
+          "velocity": 0.7,
+          "gate": 1,
+          "tie": true
         },
         {
-          "on": false
+          "on": true,
+          "note": 71,
+          "velocity": 0.7,
+          "gate": 1,
+          "tie": true
         },
         {
-          "on": false
+          "on": true,
+          "note": 71,
+          "velocity": 0.7,
+          "gate": 1,
+          "tie": true
         },
         {
-          "on": false
+          "on": true,
+          "note": 71,
+          "velocity": 0.7,
+          "gate": 1,
+          "tie": true
         },
         {
-          "on": false
+          "on": true,
+          "note": 71,
+          "velocity": 0.7,
+          "gate": 1,
+          "tie": true
         },
         {
-          "on": false
+          "on": true,
+          "note": 71,
+          "velocity": 0.7,
+          "gate": 1,
+          "tie": true
         },
         {
-          "on": false
+          "on": true,
+          "note": 71,
+          "velocity": 0.7,
+          "gate": 1,
+          "tie": true
         },
         {
-          "on": false
+          "on": true,
+          "note": 71,
+          "velocity": 0.7,
+          "gate": 1,
+          "tie": true
         },
         {
-          "on": false
+          "on": true,
+          "note": 71,
+          "velocity": 0.7,
+          "gate": 1,
+          "tie": true
         },
         {
-          "on": false
+          "on": true,
+          "note": 71,
+          "velocity": 0.7,
+          "gate": 1,
+          "tie": true
         },
         {
-          "on": false
+          "on": true,
+          "note": 71,
+          "velocity": 0.7,
+          "gate": 1,
+          "tie": true
         },
         {
-          "on": false
+          "on": true,
+          "note": 71,
+          "velocity": 0.7,
+          "gate": 1,
+          "tie": true
         },
         {
-          "on": false
+          "on": true,
+          "note": 71,
+          "velocity": 0.7,
+          "gate": 1
         }
       ],
       [
         {
-          "on": false
+          "on": true,
+          "note": 64,
+          "velocity": 0.7,
+          "gate": 1,
+          "tie": true
         },
         {
-          "on": false
+          "on": true,
+          "note": 64,
+          "velocity": 0.7,
+          "gate": 1,
+          "tie": true
         },
         {
-          "on": false
+          "on": true,
+          "note": 64,
+          "velocity": 0.7,
+          "gate": 1,
+          "tie": true
         },
         {
-          "on": false
+          "on": true,
+          "note": 64,
+          "velocity": 0.7,
+          "gate": 1,
+          "tie": true
         },
         {
-          "on": false
+          "on": true,
+          "note": 64,
+          "velocity": 0.7,
+          "gate": 1,
+          "tie": true
         },
         {
-          "on": false
+          "on": true,
+          "note": 64,
+          "velocity": 0.7,
+          "gate": 1,
+          "tie": true
         },
         {
-          "on": false
+          "on": true,
+          "note": 64,
+          "velocity": 0.7,
+          "gate": 1,
+          "tie": true
         },
         {
-          "on": false
+          "on": true,
+          "note": 64,
+          "velocity": 0.7,
+          "gate": 1,
+          "tie": true
         },
         {
-          "on": false
+          "on": true,
+          "note": 64,
+          "velocity": 0.7,
+          "gate": 1,
+          "tie": true
         },
         {
-          "on": false
+          "on": true,
+          "note": 64,
+          "velocity": 0.7,
+          "gate": 1,
+          "tie": true
         },
         {
-          "on": false
+          "on": true,
+          "note": 64,
+          "velocity": 0.7,
+          "gate": 1,
+          "tie": true
         },
         {
-          "on": false
+          "on": true,
+          "note": 64,
+          "velocity": 0.7,
+          "gate": 1,
+          "tie": true
         },
         {
-          "on": false
+          "on": true,
+          "note": 64,
+          "velocity": 0.7,
+          "gate": 1,
+          "tie": true
         },
         {
-          "on": false
+          "on": true,
+          "note": 64,
+          "velocity": 0.7,
+          "gate": 1,
+          "tie": true
         },
         {
-          "on": false
+          "on": true,
+          "note": 64,
+          "velocity": 0.7,
+          "gate": 1,
+          "tie": true
         },
         {
-          "on": false
+          "on": true,
+          "note": 64,
+          "velocity": 0.7,
+          "gate": 1
+        }
+      ]
+    ],
+    [
+      null,
+      [
+        {
+          "on": true,
+          "note": 81,
+          "velocity": 0.45,
+          "gate": 1,
+          "tie": true
+        },
+        {
+          "on": true,
+          "note": 81,
+          "velocity": 0.45,
+          "gate": 1,
+          "tie": true
+        },
+        {
+          "on": true,
+          "note": 81,
+          "velocity": 0.45,
+          "gate": 1,
+          "tie": true
+        },
+        {
+          "on": true,
+          "note": 81,
+          "velocity": 0.45,
+          "gate": 1
+        },
+        {
+          "on": true,
+          "note": 79,
+          "velocity": 0.45,
+          "gate": 1,
+          "tie": true
+        },
+        {
+          "on": true,
+          "note": 79,
+          "velocity": 0.45,
+          "gate": 1
+        },
+        {
+          "on": true,
+          "note": 76,
+          "velocity": 0.45,
+          "gate": 1,
+          "tie": true
+        },
+        {
+          "on": true,
+          "note": 76,
+          "velocity": 0.45,
+          "gate": 1,
+          "tie": true
+        },
+        {
+          "on": true,
+          "note": 76,
+          "velocity": 0.45,
+          "gate": 1,
+          "tie": true
+        },
+        {
+          "on": true,
+          "note": 76,
+          "velocity": 0.45,
+          "gate": 1,
+          "tie": true
+        },
+        {
+          "on": true,
+          "note": 76,
+          "velocity": 0.45,
+          "gate": 1,
+          "tie": true
+        },
+        {
+          "on": true,
+          "note": 76,
+          "velocity": 0.45,
+          "gate": 1
+        },
+        {
+          "on": true,
+          "note": 74,
+          "velocity": 0.45,
+          "gate": 1,
+          "tie": true
+        },
+        {
+          "on": true,
+          "note": 74,
+          "velocity": 0.45,
+          "gate": 1
+        },
+        {
+          "on": true,
+          "note": 76,
+          "velocity": 0.45,
+          "gate": 1,
+          "tie": true
+        },
+        {
+          "on": true,
+          "note": 76,
+          "velocity": 0.45,
+          "gate": 1
+        }
+      ],
+      null,
+      null
+    ],
+    [
+      null,
+      null,
+      [
+        {
+          "on": true,
+          "note": 69,
+          "velocity": 0.85,
+          "gate": 1,
+          "tie": true
+        },
+        {
+          "on": true,
+          "note": 69,
+          "velocity": 0.85,
+          "gate": 0.8
+        },
+        {
+          "on": true,
+          "note": 64,
+          "velocity": 0.85,
+          "gate": 1,
+          "tie": true
+        },
+        {
+          "on": true,
+          "note": 64,
+          "velocity": 0.85,
+          "gate": 1,
+          "tie": true
+        },
+        {
+          "on": true,
+          "note": 64,
+          "velocity": 0.85,
+          "gate": 1,
+          "tie": true
+        },
+        {
+          "on": true,
+          "note": 64,
+          "velocity": 0.85,
+          "gate": 0.8
+        },
+        {
+          "on": true,
+          "note": 62,
+          "velocity": 0.85,
+          "gate": 1,
+          "tie": true
+        },
+        {
+          "on": true,
+          "note": 62,
+          "velocity": 0.85,
+          "gate": 1,
+          "tie": true
+        },
+        {
+          "on": true,
+          "note": 62,
+          "velocity": 0.85,
+          "gate": 1,
+          "tie": true
+        },
+        {
+          "on": true,
+          "note": 62,
+          "velocity": 0.85,
+          "gate": 0.8
+        },
+        {
+          "on": true,
+          "note": 59,
+          "velocity": 0.85,
+          "gate": 1,
+          "tie": true
+        },
+        {
+          "on": true,
+          "note": 59,
+          "velocity": 0.85,
+          "gate": 0.8
+        },
+        {
+          "on": true,
+          "note": 57,
+          "velocity": 0.85,
+          "gate": 1,
+          "tie": true
+        },
+        {
+          "on": true,
+          "note": 57,
+          "velocity": 0.85,
+          "gate": 0.8
+        },
+        {
+          "on": true,
+          "note": 55,
+          "velocity": 0.85,
+          "gate": 1,
+          "tie": true
+        },
+        {
+          "on": true,
+          "note": 55,
+          "velocity": 0.85,
+          "gate": 0.8
         }
       ],
       [
         {
-          "on": false
+          "on": true,
+          "note": 62,
+          "velocity": 0.85,
+          "gate": 1,
+          "tie": true
         },
         {
-          "on": false
+          "on": true,
+          "note": 62,
+          "velocity": 0.85,
+          "gate": 0.8
         },
         {
-          "on": false
+          "on": true,
+          "note": 59,
+          "velocity": 0.85,
+          "gate": 1,
+          "tie": true
         },
         {
-          "on": false
+          "on": true,
+          "note": 59,
+          "velocity": 0.85,
+          "gate": 1,
+          "tie": true
         },
         {
-          "on": false
+          "on": true,
+          "note": 59,
+          "velocity": 0.85,
+          "gate": 1,
+          "tie": true
         },
         {
-          "on": false
+          "on": true,
+          "note": 59,
+          "velocity": 0.85,
+          "gate": 0.8
         },
         {
-          "on": false
+          "on": false,
+          "note": 60,
+          "velocity": 0.85,
+          "gate": 0.5
         },
         {
-          "on": false
+          "on": false,
+          "note": 60,
+          "velocity": 0.85,
+          "gate": 0.5
         },
         {
-          "on": false
+          "on": false,
+          "note": 60,
+          "velocity": 0.85,
+          "gate": 0.5
         },
         {
-          "on": false
+          "on": false,
+          "note": 60,
+          "velocity": 0.85,
+          "gate": 0.5
         },
         {
-          "on": false
+          "on": true,
+          "note": 52,
+          "velocity": 0.85,
+          "gate": 1,
+          "tie": true
         },
         {
-          "on": false
+          "on": true,
+          "note": 52,
+          "velocity": 0.85,
+          "gate": 0.8
         },
         {
-          "on": false
+          "on": true,
+          "note": 62,
+          "velocity": 0.85,
+          "gate": 1,
+          "tie": true
         },
         {
-          "on": false
+          "on": true,
+          "note": 62,
+          "velocity": 0.85,
+          "gate": 0.8
         },
         {
-          "on": false
+          "on": false,
+          "note": 60,
+          "velocity": 0.85,
+          "gate": 0.5
         },
         {
-          "on": false
-        }
-      ],
-      [
-        {
-          "on": false
-        },
-        {
-          "on": false
-        },
-        {
-          "on": false
-        },
-        {
-          "on": false
-        },
-        {
-          "on": false
-        },
-        {
-          "on": false
-        },
-        {
-          "on": false
-        },
-        {
-          "on": false
-        },
-        {
-          "on": false
-        },
-        {
-          "on": false
-        },
-        {
-          "on": false
-        },
-        {
-          "on": false
-        },
-        {
-          "on": false
-        },
-        {
-          "on": false
-        },
-        {
-          "on": false
-        },
-        {
-          "on": false
-        }
-      ],
-      [
-        {
-          "on": false
-        },
-        {
-          "on": false
-        },
-        {
-          "on": false
-        },
-        {
-          "on": false
-        },
-        {
-          "on": false
-        },
-        {
-          "on": false
-        },
-        {
-          "on": false
-        },
-        {
-          "on": false
-        },
-        {
-          "on": false
-        },
-        {
-          "on": false
-        },
-        {
-          "on": false
-        },
-        {
-          "on": false
-        },
-        {
-          "on": false
-        },
-        {
-          "on": false
-        },
-        {
-          "on": false
-        },
-        {
-          "on": false
+          "on": false,
+          "note": 60,
+          "velocity": 0.85,
+          "gate": 0.5
         }
       ]
     ]
-  ],
-  "samplerChain": {
-    "enabled": false,
-    "steps": [
-      0
-    ]
-  },
-  "sampleNames": [
-    null,
-    null,
-    null,
-    null,
-    null,
-    null,
-    null,
-    null
   ],
   "xy": {
     "x": "filter.cutoff",
@@ -4130,9 +10348,199 @@
     null
   ],
   "motionChain": {
-    "enabled": false,
+    "enabled": true,
     "steps": [
-      0
+      -1,
+      -1,
+      -1,
+      -1,
+      0,
+      -1,
+      -1,
+      -1,
+      -1,
+      -1,
+      -1,
+      -1,
+      -1,
+      -1,
+      1,
+      -1,
+      -1,
+      -1,
+      -1,
+      -1,
+      -1,
+      -1,
+      -1,
+      -1,
+      -1,
+      -1,
+      -1,
+      -1,
+      -1,
+      -1,
+      -1,
+      -1,
+      -1,
+      -1,
+      -1,
+      -1,
+      -1,
+      -1,
+      -1,
+      -1,
+      -1,
+      -1,
+      -1,
+      -1,
+      -1,
+      -1,
+      -1,
+      -1,
+      -1,
+      -1,
+      -1,
+      -1,
+      -1,
+      -1,
+      -1,
+      -1,
+      -1,
+      -1,
+      -1,
+      -1,
+      -1,
+      -1,
+      -1,
+      -1,
+      -1,
+      -1,
+      -1
     ]
-  }
+  },
+  "motionTracks": [
+    [
+      {
+        "param": "seq.t1.mute",
+        "steps": [
+          {
+            "on": true,
+            "v": 1
+          },
+          {
+            "on": false
+          },
+          {
+            "on": false
+          },
+          {
+            "on": false
+          },
+          {
+            "on": false
+          },
+          {
+            "on": false
+          },
+          {
+            "on": false
+          },
+          {
+            "on": false
+          },
+          {
+            "on": false
+          },
+          {
+            "on": false
+          },
+          {
+            "on": false
+          },
+          {
+            "on": false
+          },
+          {
+            "on": false
+          },
+          {
+            "on": false
+          },
+          {
+            "on": false
+          },
+          {
+            "on": false
+          }
+        ]
+      },
+      null
+    ],
+    [
+      {
+        "param": "seq.t1.mute",
+        "steps": [
+          {
+            "on": true,
+            "v": 0
+          },
+          {
+            "on": false
+          },
+          {
+            "on": false
+          },
+          {
+            "on": false
+          },
+          {
+            "on": false
+          },
+          {
+            "on": false
+          },
+          {
+            "on": false
+          },
+          {
+            "on": false
+          },
+          {
+            "on": false
+          },
+          {
+            "on": false
+          },
+          {
+            "on": false
+          },
+          {
+            "on": false
+          },
+          {
+            "on": false
+          },
+          {
+            "on": false
+          },
+          {
+            "on": false
+          },
+          {
+            "on": false
+          }
+        ]
+      },
+      null
+    ],
+    [
+      null,
+      null
+    ],
+    [
+      null,
+      null
+    ]
+  ]
 }
