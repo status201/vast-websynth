@@ -1,6 +1,6 @@
 import { SAMPLER_SLOT_COUNT } from './patterns';
 import { IdbClipKv } from './idb-clip-kv';
-import { encodeWav } from '../audio/recorder/encode';
+import { clipChannels, encodeWavChannels } from '../audio/recorder/encode';
 import { audioBufferToCaptured } from '../audio/recorder/audio-buffer';
 
 /**
@@ -8,7 +8,8 @@ import { audioBufferToCaptured } from '../audio/recorder/audio-buffer';
  * (`specs/features/sample-persistence.md`; the song half is `SessionAutosave`,
  * which this module deliberately mirrors: same debounce/flush/static-load
  * shape). Binary clips don't fit localStorage, so they live in IndexedDB as
- * 16-bit WAV bytes (the existing pure `encodeWav`), keyed by slot index.
+ * 16-bit WAV bytes (the pure `encodeWavChannels` — one channel when the clip's
+ * two are identical, sample-persistence.md REQ-clips-persist-in-indexeddb), keyed by slot index.
  *
  * The storage backend is injected as a `ClipKv` so the reconcile logic is
  * unit-testable under jsdom, which has no IndexedDB. Every operation is a
@@ -138,7 +139,7 @@ export class SampleAutosave {
           continue;
         }
         const { left, right, sampleRate } = audioBufferToCaptured(buf);
-        const data = new Uint8Array(await encodeWav(left, right, sampleRate).arrayBuffer());
+        const data = new Uint8Array(await encodeWavChannels(clipChannels(left, right), sampleRate).arrayBuffer());
         await this.kv.write({ slot, data });
         this.written[slot] = buf;
         this.bytes[slot] = data.length;

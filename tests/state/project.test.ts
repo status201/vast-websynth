@@ -221,3 +221,35 @@ describe('encodeClip', () => {
     expect(out.ext).toBe('wav');
   });
 });
+
+// project-export.md REQ-a-mono-clip-exports-as-mono (v7, regression): a dual-mono
+// buffer — a mono sample restored from the clip store — exports as one channel.
+describe('encodeClip — a mono clip exports as mono', () => {
+  const tone = (n: number) => Float32Array.from({ length: n }, (_, i) => Math.sin(i * 0.06) * 0.5);
+  const wavChannels = async (b: Blob) => new DataView(await b.arrayBuffer()).getUint16(22, true);
+
+  it('writes identical channels as a one-channel WAV, half the size', async () => {
+    const left = tone(4410);
+    const mono = await encodeClip({ left, right: left.slice(), sampleRate: 44100 }, 'wav');
+    expect(await wavChannels(mono.blob)).toBe(1);
+    expect(mono.blob.size).toBe(44 + 4410 * 2);
+  });
+
+  it('writes them as a one-channel MP3 too', async () => {
+    const left = tone(4410);
+    const out = await encodeClip({ left, right: left.slice(), sampleRate: 44100 }, 'mp3');
+    const bytes = new Uint8Array(await out.blob.arrayBuffer());
+    let i = 0;
+    while (i < bytes.length - 4 && !(bytes[i] === 0xff && (bytes[i + 1]! & 0xe0) === 0xe0)) i++;
+    expect(out.ext).toBe('mp3');
+    expect(bytes[i + 3]! >> 6).toBe(3); // MPEG channel mode: single channel
+  });
+
+  it('keeps a clip stereo when its channels differ by one sample', async () => {
+    const left = tone(4410);
+    const right = left.slice();
+    right[100] = -right[100]!;
+    const out = await encodeClip({ left, right, sampleRate: 44100 }, 'wav');
+    expect(await wavChannels(out.blob)).toBe(2);
+  });
+});

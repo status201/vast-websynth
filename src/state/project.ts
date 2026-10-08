@@ -11,7 +11,7 @@
 import { Song, type SongFile } from './song';
 import { SAMPLER_SLOT_COUNT } from './patterns';
 import type { ZipEntry } from '../utils/zip';
-import { encodeWav, encodeMp3 } from '../audio/recorder/encode';
+import { clipChannels, encodeWavChannels, encodeMp3Channels } from '../audio/recorder/encode';
 import type { CapturedAudio } from '../audio/recorder/node';
 import { safeFilename } from '../utils/download';
 
@@ -56,11 +56,14 @@ const CLIP_RE = /(?:^|\/)samples\/(\d+)-[^/]*\.(wav|mp3)$/i;
  * never the requested format — `encodeMp3` silently falls back to WAV at
  * sample rates lamejs cannot handle (project-export.md REQ-export-modal-offers-song-or-project). Async because
  * the MP3 path lazily imports lamejs (audio-export.md REQ-the-mp3-encoder-loads-lazily).
+ * A clip whose two channels are identical is written as one
+ * (project-export.md REQ-a-mono-clip-exports-as-mono).
  */
 export async function encodeClip(a: CapturedAudio, fmt: ClipExt): Promise<{ blob: Blob; ext: ClipExt }> {
+  const channels = clipChannels(a.left, a.right);
   const blob = fmt === 'mp3'
-    ? await encodeMp3(a.left, a.right, a.sampleRate)
-    : encodeWav(a.left, a.right, a.sampleRate);
+    ? await encodeMp3Channels(channels, a.sampleRate)
+    : encodeWavChannels(channels, a.sampleRate);
   return { blob, ext: blob.type === 'audio/mpeg' ? 'mp3' : 'wav' };
 }
 

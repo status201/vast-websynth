@@ -3,7 +3,8 @@
 ```yaml
 id: sample-persistence
 status: implemented
-version: 1
+version: 2   # v2: REQ-clips-persist-in-indexeddb — a clip whose channels are identical is stored as
+             #     one channel; storing it as stereo doubled it and made it two-channel on reload
 owner: core
 related:
   - architecture
@@ -35,10 +36,16 @@ carries names only, so songs stay small and shareable).
 ## Requirements
 
 - **REQ-clips-persist-in-indexeddb** — Sampler clips persist in IndexedDB (db
-  `websynth`, store `clips`, keyed by slot index) as 16-bit stereo **WAV bytes**
-  produced by the existing pure `encodeWav`, and are restored through
+  `websynth`, store `clips`, keyed by slot index) as 16-bit **WAV bytes**
+  produced by the pure `encodeWavChannels`, and are restored through
   `ctx.decodeAudioData` — the same path Load and a
-  [project-zip](project-export.md) import already use.
+  [project-zip](project-export.md) import already use. (v2) The channels are
+  the ones `clipChannels` keeps: **one** when the clip's left and right are
+  sample-for-sample identical, two otherwise — the same rule as a project export
+  (project-export.md REQ-a-mono-clip-exports-as-mono). Until v2 every clip was
+  stored as stereo, which doubled a mono sample on disk and, worse, brought it
+  back from a reload as a two-channel buffer with identical halves — which
+  every later project export then wrote out at twice its size.
 - **REQ-clip-writes-are-debounced-through-one-hook** — Writes are debounced
   (~800 ms) and driven by **one** hook: `SamplerMachine.onBufferChange`, emitted
   from `setBuffer`. Every slot-filling path (Load, the [record
@@ -142,7 +149,7 @@ re-encode and re-write it.
 IndexedDB:
   database: websynth        # version 1
   store: clips              # keyPath 'slot'
-  record: { slot: number, data: Uint8Array }   # 16-bit stereo WAV file bytes
+  record: { slot: number, data: Uint8Array }   # 16-bit WAV file bytes; mono when the clip is (v2)
 ```
 
 ### Layer touchpoints & ordering
@@ -199,6 +206,13 @@ Scenario: an orphaned clip is dropped, not restored (edge)
   Given a stored clip for a slot the restored session does not name
   When the app boots
   Then the clip is deleted and the slot stays empty
+# pinned by: tests/state/sample-autosave.test.ts
+
+Scenario: a mono clip is stored as mono (v2, REQ-clips-persist-in-indexeddb, regression)
+  Given slot 0 holds a buffer whose two channels are identical
+  When a write pass runs
+  Then the stored record is a one-channel WAV
+  And a slot whose channels differ is stored as a two-channel WAV
 # pinned by: tests/state/sample-autosave.test.ts
 ```
 

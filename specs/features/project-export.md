@@ -3,7 +3,9 @@
 ```yaml
 id: project-export
 status: implemented
-version: 6   # v6: REQ-the-zip-codec-loads-with-the-first-zip — the codec and the Export dialog
+version: 7   # v7: REQ-a-mono-clip-exports-as-mono — a clip whose two channels are identical is
+             #     written as one channel; every export used to double a mono sample's size
+             # v6: REQ-the-zip-codec-loads-with-the-first-zip — the codec and the Export dialog
              #     leave the entry chunk; a codec that cannot load is a refused import or
              #     a reported export, never a silent click
              # v5: REQ-zip-codec-is-hand-written-and-budgeted budgets the reader (entry count, declared-size pre-flight,
@@ -23,6 +25,7 @@ source:
   - src/utils/compression.ts            # shared deflate-raw helpers (extracted from webrtc-signaling)
   - src/utils/zip.ts                    # minimal dependency-free ZIP codec
   - src/state/project.ts                # pure bundle build/parse (AudioContext-free)
+  - src/audio/recorder/encode.ts        # clipChannels + the channel-list encoders (REQ-a-mono-clip-exports-as-mono)
   - src/ui/components/export-song-modal.ts
   - src/ui/panels/song-panel.ts         # export modal wiring + zip import + demo-zip buttons
   - src/state/song.ts                   # ZIP_DEMOS (?url glob)
@@ -114,6 +117,27 @@ so future demos can ship as zips with audio. The `.json` song format is untouche
   encoded/decoded **sequentially** (8 × multi-MB WAVs), and `decodeAudioData`
   gets a **copy** of the clip bytes (`.slice()`) because entries are subarray
   views of the whole zip buffer and `decodeAudioData` detaches its input.
+- **REQ-a-mono-clip-exports-as-mono** (v7) — **A mono clip exports as mono.**
+  `encodeClip` asks `clipChannels` which channels a clip actually has, and writes
+  one channel when its left and right are **sample-for-sample identical**, two
+  otherwise. This holds for WAV and MP3 alike (`encodeWavChannels` /
+  `encodeMp3Channels`; lamejs takes a one-channel encoder), and for the MP3
+  path's WAV fallback.
+
+  The test is on the *samples*, not on `AudioBuffer.numberOfChannels`, because
+  the channel count lies: [sample-persistence](sample-persistence.md) used to
+  store every clip as stereo, so a mono sample came back from a reload as a
+  two-channel buffer with identical halves. Every project export then wrote
+  each such clip at twice its size. A shipped demo exported this way was 30.5
+  MB, and 11.6 MB once its clips were written as the mono they were.
+
+  Nothing audible changes: a one-channel clip reaches the sampler's slot channel,
+  whose volume stage forces stereo at unity ([sampler](sampler.md)
+  REQ-each-slot-has-a-channel), so it plays exactly as the dual-mono copy did.
+  A clip with *any* difference between its channels stays stereo. Comparing
+  costs one pass over samples the encoder walks anyway. Takes from the
+  recorder (Export Song, Record) are unaffected: they keep `encodeWav` /
+  `encodeMp3`, which stay stereo.
 
 ## Technical design
 
@@ -137,6 +161,7 @@ project:  # src/state/project.ts (pure — no AudioContext, no DOM beyond Blob)
   ProjectClipIn:  { slot: number, entryName: string, data: Uint8Array }  # normalized '/' entryName
   encodeClip(a: CapturedAudio, fmt: ClipExt): Promise<{ blob: Blob, ext: ClipExt }>
     # ext from blob.type, not fmt; caller adds slot + materializes data
+    # v7: channels from clipChannels(a.left, a.right) — one when they are identical
     # async since v2: encodeMp3 lazily imports lamejs (audio-export REQ-the-mp3-encoder-loads-lazily)
   buildProjectZip(file: SongFile, clips: ProjectClipOut[]): Promise<Uint8Array>
     # clip entry names derive from file.sampleNames[slot] (sanitized)
@@ -265,6 +290,15 @@ Scenario: MP3 clip encoding falls back to WAV at unsupported rates (edge)
   When encodeClip(a, 'mp3') is awaited
   Then the returned ext is 'wav' (derived from blob.type, never from the request)
 # pinned by: tests/state/project.test.ts
+
+Scenario: A mono clip is exported as one channel (v7, REQ-a-mono-clip-exports-as-mono, regression)
+  Given a slot whose buffer has two channels with identical samples — a mono
+    sample restored from the clip store
+  When the project is exported as WAV
+  Then its clip is a one-channel WAV, about half the stereo size
+  And exported as MP3 it is a one-channel MP3
+  And a clip whose channels differ by a single sample is still written as stereo
+# pinned by: tests/state/project.test.ts, tests/audio/wav-encode.test.ts
 ```
 
 ## Tests & verification

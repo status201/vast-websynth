@@ -177,3 +177,33 @@ describe('SampleAutosave', () => {
     expect(calls.clear).toBe(1);
   });
 });
+
+// sample-persistence.md REQ-clips-persist-in-indexeddb (v2, regression): a clip whose two
+// channels are identical is stored as one, so it comes back from a reload mono.
+describe('SampleAutosave — a mono clip is stored as mono', () => {
+  beforeEach(() => { vi.useFakeTimers(); });
+  afterEach(() => { vi.useRealTimers(); });
+
+  const storedChannels = (rec: StoredClip): number => new DataView(rec.data.buffer, rec.data.byteOffset).getUint16(22, true);
+
+  it('writes a dual-mono buffer as a one-channel WAV and a true stereo one as two', async () => {
+    const { kv, rows } = makeKv();
+    const sampler = makeSampler();
+    const store = new SampleAutosave(sampler, kv, { debounceMs: 800 });
+    store.attach();
+
+    const dual = makeStubBuffer(100, 44100, 2);
+    dual.getChannelData(0)[5] = 0.5;
+    dual.getChannelData(1)[5] = 0.5;
+    const stereo = makeStubBuffer(100, 44100, 2);
+    stereo.getChannelData(1)[5] = 0.5;
+    sampler.set(0, dual);
+    sampler.set(1, stereo);
+    await vi.advanceTimersByTimeAsync(800);
+    await settle();
+
+    expect(storedChannels(rows.get(0)!)).toBe(1);
+    expect(rows.get(0)!.data.length).toBe(44 + 100 * 2);
+    expect(storedChannels(rows.get(1)!)).toBe(2);
+  });
+});

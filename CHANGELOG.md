@@ -64,6 +64,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
   project) before loading; one chosen with Import, or opened from the operating
   system into the installed app, was read into memory in full first. All three
   now check the file's size first and refuse it without reading it.
+- **Mono samples stay mono in a project export.** Every sampler clip was written
+  as a stereo WAV or MP3, so a mono sample took twice the space it needed — and
+  the device's own sample store did the same, so a mono sample came back from a
+  reload as stereo. A clip whose two channels are identical is now written as one
+  channel, both in an exported project and on the device; it sounds exactly the
+  same. A project of mono samples exports at about half the size.
 
 ## [2.16.0] - 2026-10-02
 

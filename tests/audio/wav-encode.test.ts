@@ -2,6 +2,9 @@ import { describe, it, expect, vi } from 'vitest';
 import {
   encodeWav,
   encodeMp3,
+  encodeWavChannels,
+  encodeMp3Channels,
+  clipChannels,
   writeWavHeader,
   pcm16,
 } from '../../src/audio/recorder/encode';
@@ -90,5 +93,78 @@ describe('encodeMp3', () => {
     while (i < bytes.length - 4 && !(bytes[i] === 0xff && (bytes[i + 1]! & 0xe0) === 0xe0)) i++;
     expect(i).toBeLessThan(bytes.length - 4);
     expect(bytes[i + 2]! >> 4).toBe(0xb);
+  });
+});
+
+/** The MPEG channel mode of the first frame: 3 = single channel (mono). */
+async function mp3ChannelMode(blob: Blob): Promise<number> {
+  const bytes = new Uint8Array(await blob.arrayBuffer());
+  let i = 0;
+  while (i < bytes.length - 4 && !(bytes[i] === 0xff && (bytes[i + 1]! & 0xe0) === 0xe0)) i++;
+  expect(i).toBeLessThan(bytes.length - 4);
+  return bytes[i + 3]! >> 6;
+}
+
+// project-export.md REQ-a-mono-clip-exports-as-mono (v7)
+describe('clipChannels', () => {
+  const ramp = (n: number) => Float32Array.from({ length: n }, (_, i) => i / n);
+
+  it('keeps one channel when left and right are sample-for-sample identical', () => {
+    const left = ramp(64);
+    expect(clipChannels(left, left.slice())).toEqual([left]);
+    expect(clipChannels(left, left)).toEqual([left]);
+  });
+
+  it('keeps both when a single sample differs, or the lengths do', () => {
+    const left = ramp(64);
+    const right = left.slice();
+    right[63] = 0;
+    expect(clipChannels(left, right)).toHaveLength(2);
+    expect(clipChannels(left, ramp(63))).toHaveLength(2);
+  });
+});
+
+describe('encodeWavChannels', () => {
+  it('writes a one-channel WAV at half the stereo size', async () => {
+    const mono = new Float32Array([1, 0, -1]);
+    const blob = encodeWavChannels([mono], 48000);
+    expect(blob.size).toBe(44 + 3 * 2);
+    const v = new DataView(await blob.arrayBuffer());
+    expect(v.getUint16(22, true)).toBe(1);          // channels
+    expect(v.getUint16(32, true)).toBe(2);          // blockAlign
+    expect(v.getUint32(28, true)).toBe(48000 * 2);  // byte rate
+    expect(v.getInt16(44, true)).toBe(0x7fff);
+    expect(v.getInt16(46, true)).toBe(0);
+    expect(v.getInt16(48, true)).toBe(-0x8000);
+  });
+
+  it('is byte-identical to encodeWav for two channels', async () => {
+    const left = new Float32Array([0.5, -0.25, 1]);
+    const right = new Float32Array([-1, 0.75, 0]);
+    const a = new Uint8Array(await encodeWavChannels([left, right], 44100).arrayBuffer());
+    const b = new Uint8Array(await encodeWav(left, right, 44100).arrayBuffer());
+    expect(a).toEqual(b);
+  });
+});
+
+describe('encodeMp3Channels', () => {
+  const sine = (f: number) => Float32Array.from({ length: 4096 }, (_, i) => Math.sin(i * f) * 0.5);
+
+  it('encodes one channel as a single-channel MP3', async () => {
+    const blob = await encodeMp3Channels([sine(0.05)], 44100);
+    expect(blob.type).toBe('audio/mpeg');
+    expect(await mp3ChannelMode(blob)).toBe(3);
+  });
+
+  it('keeps two channels stereo', async () => {
+    expect(await mp3ChannelMode(await encodeMp3Channels([sine(0.05), sine(0.07)], 44100))).not.toBe(3);
+  });
+
+  it('falls back to a one-channel WAV at an unsupported rate', async () => {
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
+    const blob = await encodeMp3Channels([new Float32Array(8)], 12345);
+    expect(blob.type).toBe('audio/wav');
+    expect(new DataView(await blob.arrayBuffer()).getUint16(22, true)).toBe(1);
+    warn.mockRestore();
   });
 });

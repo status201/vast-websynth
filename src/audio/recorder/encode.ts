@@ -51,19 +51,42 @@ export function writeWavHeader(
   view.setUint32(40, dataLen, true);
 }
 
-/** Interleaved stereo 16-bit PCM WAV. */
-export function encodeWav(left: Float32Array, right: Float32Array, sampleRate: number): Blob {
-  const numSamples = Math.min(left.length, right.length);
-  const buf = new ArrayBuffer(44 + numSamples * 4);
+/**
+ * The channels a sampler clip actually has (project-export.md
+ * REQ-a-mono-clip-exports-as-mono): just `left` when the two are
+ * sample-for-sample identical, both otherwise. Decided from the samples, not a
+ * channel count — a mono sample can arrive as a two-channel buffer with
+ * identical halves, and writing it as stereo doubles it for nothing.
+ */
+export function clipChannels(left: Float32Array, right: Float32Array): Float32Array[] {
+  if (left === right) return [left];
+  if (left.length !== right.length) return [left, right];
+  for (let i = 0; i < left.length; i++) {
+    if (left[i] !== right[i]) return [left, right];
+  }
+  return [left];
+}
+
+/** Interleaved 16-bit PCM WAV of one or more channels (shortest channel wins). */
+export function encodeWavChannels(channels: Float32Array[], sampleRate: number): Blob {
+  const n = channels.length;
+  const numSamples = Math.min(...channels.map((c) => c.length));
+  const buf = new ArrayBuffer(44 + numSamples * n * 2);
   const view = new DataView(buf);
-  writeWavHeader(view, numSamples, sampleRate, 2);
+  writeWavHeader(view, numSamples, sampleRate, n);
   let off = 44;
   for (let i = 0; i < numSamples; i++) {
-    view.setInt16(off, pcm16(left[i]!), true);
-    view.setInt16(off + 2, pcm16(right[i]!), true);
-    off += 4;
+    for (let c = 0; c < n; c++) {
+      view.setInt16(off, pcm16(channels[c]![i]!), true);
+      off += 2;
+    }
   }
   return new Blob([buf], { type: 'audio/wav' });
+}
+
+/** Interleaved stereo 16-bit PCM WAV. */
+export function encodeWav(left: Float32Array, right: Float32Array, sampleRate: number): Blob {
+  return encodeWavChannels([left, right], sampleRate);
 }
 
 function floatToInt16Array(samples: Float32Array): Int16Array {
@@ -73,30 +96,38 @@ function floatToInt16Array(samples: Float32Array): Int16Array {
 }
 
 /**
- * Stereo MP3 (MP3_KBPS CBR). Falls back to WAV (with a warning) if the sample
- * rate is one lamejs cannot handle — we never resample. The fallback returns
- * before the import, so an unsupported rate never fetches the encoder chunk.
+ * MP3 (MP3_KBPS CBR) of one or two channels. Falls back to WAV (with a warning,
+ * same channels) if the sample rate is one lamejs cannot handle — we never
+ * resample. The fallback returns before the import, so an unsupported rate
+ * never fetches the encoder chunk.
  */
-export async function encodeMp3(left: Float32Array, right: Float32Array, sampleRate: number): Promise<Blob> {
+export async function encodeMp3Channels(channels: Float32Array[], sampleRate: number): Promise<Blob> {
   if (!MP3_RATES.has(sampleRate)) {
     console.warn(`encodeMp3: sample rate ${sampleRate} unsupported by lamejs — exporting WAV instead.`);
-    return encodeWav(left, right, sampleRate);
+    return encodeWavChannels(channels, sampleRate);
   }
   const { Mp3Encoder } = await import('../../vendor/lamejs');
-  const enc = new Mp3Encoder(2, sampleRate, MP3_KBPS);
-  const l16 = floatToInt16Array(left);
-  const r16 = floatToInt16Array(right);
-  const numSamples = Math.min(l16.length, r16.length);
+  const pcm = channels.map(floatToInt16Array);
+  const l16 = pcm[0]!;
+  const r16 = pcm[1]; // absent: a one-channel encoder
+  const enc = new Mp3Encoder(r16 ? 2 : 1, sampleRate, MP3_KBPS);
+  const numSamples = Math.min(...pcm.map((c) => c.length));
   const block = 1152;
   const parts: Int8Array[] = [];
   for (let i = 0; i < numSamples; i += block) {
-    const ls = l16.subarray(i, i + block);
-    const rs = r16.subarray(i, i + block);
-    const chunk = enc.encodeBuffer(ls, rs);
+    const ls = l16.subarray(i, Math.min(i + block, numSamples));
+    const chunk = r16
+      ? enc.encodeBuffer(ls, r16.subarray(i, Math.min(i + block, numSamples)))
+      : enc.encodeBuffer(ls);
     if (chunk.length > 0) parts.push(chunk);
   }
   const tail = enc.flush();
   if (tail.length > 0) parts.push(tail);
   return new Blob(parts as BlobPart[], { type: 'audio/mpeg' });
+}
+
+/** Stereo MP3 — see `encodeMp3Channels`. */
+export async function encodeMp3(left: Float32Array, right: Float32Array, sampleRate: number): Promise<Blob> {
+  return encodeMp3Channels([left, right], sampleRate);
 }
 
