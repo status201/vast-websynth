@@ -224,6 +224,17 @@
     ],
     "blurb": "The long, slow one: four sequencer tracks through the POLY filter, with motion driving it."
   },
+  "Radio_Ga_Ga.websynth.zip": {
+    "name": "Radio Ga Ga",
+    "bpm": 114,
+    "bars": 24,
+    "uses": [
+      "seq",
+      "drums",
+      "sampler"
+    ],
+    "blurb": "A project bundle built from the song's outro. The first twelve bars are only the drum machine and the sixteenth-note synth pulse; then the band comes in. Piano, bass, Rhodes, strings, guitar and the cymbals were each played through this synth with their own patch, at the file's own timing, and recorded into a sampler slot — so the six parts sound together with the live synth and drums. The whole progression in the second half is one sequencer bank, transposed bar by bar."
+  },
   "Run_Away.websynth.json": {
     "name": "Run Away",
     "bpm": 125,

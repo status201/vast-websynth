@@ -32,6 +32,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
   two devices paired over WiFi sync or MIDI, and each is complete on its own. Both carry
   the tune; in the last chorus device 2 takes the "Ah, look at all the lonely
   people" line against device 1's chorus.
+- **Radio Ga Ga demo.** A project bundle built from the song's outro, looping 24
+  bars: twelve of just the drum machine and the sixteenth-note synth pulse, then
+  the band comes in. Piano, bass, Rhodes, strings, guitar and the cymbals were each
+  played through the synth with their own patch and recorded into a sampler
+  slot, so six sampled parts play alongside the live synth and drums. The whole
+  progression in the second half is one sequencer bank, transposed bar by bar.
 
 ### Changed
 
