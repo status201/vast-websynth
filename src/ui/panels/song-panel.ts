@@ -48,6 +48,7 @@ import {
   type SongFile,
 } from '../../state/song';
 import { demoSummary } from '../../state/demo-meta';
+import { oversizedFileMessage } from '../../state/import-cap';
 import {
   buildProjectZip, parseProjectZip, encodeClip, projectFilename, parseSongOrProject,
   type ProjectClipOut, type ProjectClipIn,
@@ -103,6 +104,13 @@ export interface SongPanel {
    * the song applied (share links clear their hash only on success).
    */
   importBytes: (bytes: Uint8Array, name: string) => Promise<boolean>;
+  /**
+   * Import a song/project `File` — the Import button's door and the installed
+   * PWA's launchQueue (via `UiBridge.importSongFile`). Sized before it is read
+   * (untrusted-input.md REQ-a-file-is-sized-before-it-is-read): an oversized file
+   * is refused without a byte buffered. Resolves to whether the song applied.
+   */
+  importFile: (file: File) => Promise<boolean>;
 }
 
 export function buildSongPanel(bus: ParamBus, engine: StudioApi, session: PresetSession, xy: XyPadStore, bridge: UiBridge, xyWin: XyPadWindowController, modWin: ModMatrixWindowController): SongPanel {
@@ -693,11 +701,22 @@ export function buildSongPanel(bus: ParamBus, engine: StudioApi, session: Preset
       return false;
     }
   };
+  // Sized before it is read (untrusted-input.md REQ-a-file-is-sized-before-it-is-read):
+  // `File.size` is free, and a cap applied after `arrayBuffer()` has already
+  // spent the memory.
+  const importFile = async (file: File): Promise<boolean> => {
+    const oversized = oversizedFileMessage(file);
+    if (oversized) {
+      await showImportErrors([oversized], file.name);
+      return false;
+    }
+    return importBytes(new Uint8Array(await file.arrayBuffer()), file.name);
+  };
   fileInput.addEventListener('change', async () => {
     const f = fileInput.files?.[0];
     if (!f) return;
     fileInput.value = '';
-    await importBytes(new Uint8Array(await f.arrayBuffer()), f.name);
+    await importFile(f);
   });
   const importBtn = el('button', `${switchStyles.root!} ${styles.ctl!}`, 'Import') as HTMLButtonElement;
   importBtn.dataset.testid = 'song-import';
@@ -927,7 +946,7 @@ export function buildSongPanel(bus: ParamBus, engine: StudioApi, session: Preset
   ioPair.appendChild(aio);
   root.appendChild(ioPair);
 
-  return { el: root, loadDemo, importBytes };
+  return { el: root, loadDemo, importBytes, importFile };
 }
 
 function buildChainLane(

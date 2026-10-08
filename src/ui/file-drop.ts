@@ -8,7 +8,7 @@ import { classifyPayload } from '../state/paste-payload';
 import { parsePresetPayload } from '../state/preset-file';
 import type { PresetParse } from '../state/preset-validate';
 import type { ParamBus } from '../state/params';
-import { MAX_SONG_JSON_BYTES, MAX_ZIP_TOTAL_BYTES } from '../state/limits';
+import { oversizedFileMessage } from '../state/import-cap';
 import { anyModalOpen } from './modal-stack';
 import { showToast } from './components/toast';
 import styles from './styles/file-drop.module.css';
@@ -34,7 +34,7 @@ const toast = (message: string): void => { showToast({ message, testId: 'file-dr
 
 /**
  * Import one dropped file. Bounded before it is read (untrusted-input.md
- * REQ-the-untrusted-surfaces-are-enumerated): a JSON file over the song cap and a
+ * REQ-a-file-is-sized-before-it-is-read): a JSON file over the song cap and a
  * zip over the archive cap are refused from their size alone, never buffered.
  */
 export async function importDroppedFile(file: File, routes: DropRoutes): Promise<void> {
@@ -47,9 +47,9 @@ export async function importDroppedFile(file: File, routes: DropRoutes): Promise
     toast(`"${file.name}" is not a song, project or preset file.`);
     return;
   }
-  const cap = kind === 'zip' ? MAX_ZIP_TOTAL_BYTES : MAX_SONG_JSON_BYTES;
-  if (file.size > cap) {
-    toast(`"${file.name}" is larger than the ${Math.round(cap / (1024 * 1024))} MB limit.`);
+  const oversized = oversizedFileMessage(file);
+  if (oversized) {
+    toast(oversized);
     return;
   }
   if (kind === 'zip') {

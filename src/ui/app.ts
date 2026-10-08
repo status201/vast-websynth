@@ -73,6 +73,7 @@ export function mountApp(root: HTMLElement, deps: ShellDeps): Onboarding {
   // OS-launched song files (installed-PWA file_handlers) flow through the
   // same import path as the Song panel's Import button (pwa-install.md REQ-one-import-parse-path).
   bridge.importSongBytes = patternRow.importSongBytes;
+  bridge.importSongFile = patternRow.importSongFile;
   root.appendChild(patternRow.el);
   const bottom = buildBottom(deps);
   setScopeFps = (fps) => bottom.scope.setFps(fps);

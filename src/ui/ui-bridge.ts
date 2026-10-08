@@ -9,6 +9,11 @@ export class UiBridge {
    * (pwa-install.md REQ-one-import-parse-path, song-share-link.md REQ-boot-consumes-a-present-hash). Resolves to whether the
    * song applied, so a share link only consumes its hash on success. */
   importSongBytes = async (_bytes: Uint8Array, _name: string): Promise<boolean> => false;
+  /** Import a song/project `File` (rewired to `SongPanel.importFile`) — the OS
+   * file-launch door. Unlike `importSongBytes` it is handed the file unread, so
+   * it can be sized before a byte is buffered (untrusted-input.md
+   * REQ-a-file-is-sized-before-it-is-read). */
+  importSongFile = async (_file: File): Promise<boolean> => false;
   /** Open the preset import wizard on its review step with an already-parsed
    * payload (paste-import.md REQ-paste-confirm-routes-by-kind). The preset manager is owned by the header
    * (where the dropdown that must refresh lives) while the paste door is in the

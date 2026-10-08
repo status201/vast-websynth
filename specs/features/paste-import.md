@@ -135,7 +135,8 @@ formats arrive through one textarea, so it simply routes.
 
   The size is checked **before the file is read**: JSON over
   `MAX_SONG_JSON_BYTES`, a zip over `MAX_ZIP_TOTAL_BYTES` is refused from
-  `File.size` alone (untrusted-input.md REQ-the-untrusted-surfaces-are-enumerated).
+  `File.size` alone, by the same `oversizedFileMessage` the Import button and the
+  `launchQueue` ask (untrusted-input.md REQ-a-file-is-sized-before-it-is-read).
   While a file is over the window an overlay (`file-drop-overlay`) says what a
   drop will do; it takes no pointer events and has no transition. While a dialog
   is open the drop is claimed and ignored, as the shortcuts are.

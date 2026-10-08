@@ -3,7 +3,9 @@
 ```yaml
 id: untrusted-input
 status: implemented
-version: 13  # v13: a MIDI file (read_midi, midi-file-reader.md) joins the surfaces, with MAX_MIDI_*
+version: 14  # v14: REQ-a-file-is-sized-before-it-is-read — the Import button and the PWA launchQueue
+             #      read a whole file before any cap applied; every file door now asks one function first
+             # v13: a MIDI file (read_midi, midi-file-reader.md) joins the surfaces, with MAX_MIDI_*
              # v12: BEND_MAX is the third shared per-step integer bound, and the schema walk pins `bend` to it
              # v11: the shipped CSP drops style-src 'unsafe-inline' (REQ-defence-in-depth-at-delivery);
              #      only the dev server relaxes it, for Vite's injected styles
@@ -53,7 +55,10 @@ source:
   - src/state/song.ts                   # Song.parse error boundary
   - src/audio/transport/clock.ts        # listener isolation + NaN-safe setBpm
   - src/audio/oscillator.ts             # non-finite Hz guard
-  - src/main.ts                         # songUrl consent + hardened fetch
+  - src/main.ts                         # songUrl consent + hardened fetch; launchQueue → importSongFile
+  - src/state/import-cap.ts             # the pre-read file cap (REQ-a-file-is-sized-before-it-is-read)
+  - src/ui/panels/song-panel.ts         # SongPanel.importFile — the Import button + launchQueue door
+  - src/ui/file-drop.ts                 # the drop door, same cap
   - src/audio/transport/sync/webrtc-sync-transport.ts  # wire type guard
   - scripts/mcp/tools.mjs               # save_song/save_preset dir containment
   - scripts/mcp/http.mjs                # public endpoint: body cap, rate limit, Origin (REQ-the-public-endpoint-is-bounded)
@@ -206,6 +211,26 @@ decision and the alternatives. This spec is the contract.
   cancelled the moment it crosses the cap, never buffered whole and measured
   afterwards (**v9**). Failures use the shared `alertDialog`, never the native
   `alert()`.
+
+- **REQ-a-file-is-sized-before-it-is-read** (v14) — **A file is sized before it
+  is read.** A `File` already says how big it is, so checking `File.size` costs
+  nothing and checking the bytes costs all of them. Every door that takes a file
+  — the Song panel's Import button, the installed PWA's `launchQueue` and a file
+  dropped on the window — asks `oversizedFileMessage` **before** `arrayBuffer()`
+  or `text()`, and a refused file is never read. The cap comes from
+  `importCapFor`, decided from the name and MIME type alone: a `.zip` gets
+  `MAX_ZIP_TOTAL_BYTES`; a `.json` / `.txt` gets `MAX_SONG_JSON_BYTES`; a name that
+  says neither gets the larger cap, because its bytes decide the kind
+  (`sniffImportKind`) and refusing a real project on a guess is the worse failure.
+  The Import button and the `launchQueue` share one entry, `SongPanel.importFile`
+  (reached through `UiBridge.importSongFile`), so they cannot drift apart again;
+  the drop keeps its own routing, because it also takes presets, but asks the
+  same function.
+
+  Until v14 only the drop checked. The other two doors read the whole file into
+  memory and left the refusal to `zipRead`, which is exactly the cap-after-the-fact
+  REQ-bounds-in-the-validator-sizes-in-the-codec forbids. A 2 GB file chosen with
+  Import was buffered whole before being turned away.
 
 - **REQ-deserialized-state-is-validated-never-cast** — **Deserialized state is
   validated, never cast.** Anything reaching `JSON.parse` is passed through a
@@ -534,6 +559,15 @@ Scenario: An oversized or over-count zip is refused
   Then it throws ZipError
   And a central directory declaring more than MAX_ZIP_ENTRIES is refused the same way
 # pinned by: tests/utils/zip.test.ts
+
+Scenario: An oversized file is refused before it is read, at every door (v14, REQ-a-file-is-sized-before-it-is-read, regression)
+  Given a .websynth.zip whose File.size is over MAX_ZIP_TOTAL_BYTES
+  When it is chosen with the Song panel's Import button, or launched into the installed PWA
+  Then it is refused with a message naming the limit
+  And its bytes are never read: arrayBuffer() is not called
+  And a .json over MAX_SONG_JSON_BYTES is refused the same way
+  And a file whose name says neither kind is held to the larger cap, not refused on a guess
+# pinned by: tests/state/import-cap.test.ts, tests/ui/song-import-file.test.ts, tests/ui/file-drop.test.ts
 
 Scenario: An oversized chain is refused
   Given a song whose seqChain has more than MAX_CHAIN_STEPS steps

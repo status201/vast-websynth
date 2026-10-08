@@ -59,6 +59,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
   the browser had not cached yet, unlabeled, so it read as a too-small total
   (2.3 MB for a 6.1 MB copy). It now shows the total, plus "still to download"
   when part of it is already on the device.
+- **An oversized song or project is refused before it is read.** Only a dropped
+  file was checked against the size limit (8 MB for a song, 256 MB for a
+  project) before loading; one chosen with Import, or opened from the operating
+  system into the installed app, was read into memory in full first. All three
+  now check the file's size first and refuse it without reading it.
 
 ## [2.16.0] - 2026-10-02
 

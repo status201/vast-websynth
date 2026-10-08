@@ -184,8 +184,9 @@ async function boot() {
     window.launchQueue.setConsumer((params) => {
       void (async () => {
         for (const handle of params.files) {
-          const file = await handle.getFile();
-          await bridge.importSongBytes(new Uint8Array(await file.arrayBuffer()), file.name);
+          // Handed over unread, so it is sized before a byte is buffered
+          // (untrusted-input.md REQ-a-file-is-sized-before-it-is-read).
+          await bridge.importSongFile(await handle.getFile());
         }
       })();
     });
