@@ -25,7 +25,8 @@ source:
   - src/utils/compression.ts            # shared deflate-raw helpers (extracted from webrtc-signaling)
   - src/utils/zip.ts                    # minimal dependency-free ZIP codec
   - src/state/project.ts                # pure bundle build/parse (AudioContext-free)
-  - src/audio/recorder/encode.ts        # clipChannels + the channel-list encoders (REQ-a-mono-clip-exports-as-mono)
+  - src/audio/recorder/encode.ts        # encodeClipWav/encodeClipMp3 + clipChannels (REQ-a-mono-clip-exports-as-mono)
+  - src/audio/recorder/audio-buffer.ts  # audioBufferView — the uncopied read the export encodes from
   - src/ui/components/export-song-modal.ts
   - src/ui/panels/song-panel.ts         # export modal wiring + zip import + demo-zip buttons
   - src/state/song.ts                   # ZIP_DEMOS (?url glob)
@@ -118,24 +119,32 @@ so future demos can ship as zips with audio. The `.json` song format is untouche
   gets a **copy** of the clip bytes (`.slice()`) because entries are subarray
   views of the whole zip buffer and `decodeAudioData` detaches its input.
 - **REQ-a-mono-clip-exports-as-mono** (v7) — **A mono clip exports as mono.**
-  `encodeClip` asks `clipChannels` which channels a clip actually has, and writes
-  one channel when its left and right are **sample-for-sample identical**, two
-  otherwise. This holds for WAV and MP3 alike (`encodeWavChannels` /
-  `encodeMp3Channels`; lamejs takes a one-channel encoder), and for the MP3
-  path's WAV fallback.
+  `encodeClip` encodes through `encodeClipWav` / `encodeClipMp3`, which ask
+  `clipChannels` which channels a clip actually has and write one channel when
+  its left and right are **sample-for-sample identical**, two otherwise. Those two
+  are the only place the rule is applied — the clip store
+  ([sample-persistence](sample-persistence.md) REQ-clips-persist-in-indexeddb) comes
+  through the same `encodeClipWav`. It holds for WAV and MP3 alike (lamejs takes a
+  one-channel encoder) and for the MP3 path's WAV fallback. The channel list is
+  typed as one or two channels (`PcmChannels`), so an empty list or a third
+  channel cannot reach the encoder.
 
   The test is on the *samples*, not on `AudioBuffer.numberOfChannels`, because
   the channel count lies: [sample-persistence](sample-persistence.md) used to
   store every clip as stereo, so a mono sample came back from a reload as a
   two-channel buffer with identical halves. Every project export then wrote
   each such clip at twice its size. A shipped demo exported this way was 30.5
-  MB, and 11.6 MB once its clips were written as the mono they were.
+  MB; written as the mono its clips were, it is about 15 MB (the writer stores
+  WAV entries uncompressed — deflated by hand, the shipped file is 11.6 MB).
 
   Nothing audible changes: a one-channel clip reaches the sampler's slot channel,
   whose volume stage forces stereo at unity ([sampler](sampler.md)
   REQ-each-slot-has-a-channel), so it plays exactly as the dual-mono copy did.
-  A clip with *any* difference between its channels stays stereo. Comparing
-  costs one pass over samples the encoder walks anyway. Takes from the
+  A clip with *any* difference between its channels stays stereo. The export
+  reads each slot **uncopied** (`audioBufferView`): a one-channel buffer's
+  left and right are then the same array, recognised without comparing a sample;
+  only a two-channel buffer costs a pass, over samples the encoder walks anyway.
+  Takes from the
   recorder (Export Song, Record) are unaffected: they keep `encodeWav` /
   `encodeMp3`, which stay stereo.
 
@@ -161,7 +170,8 @@ project:  # src/state/project.ts (pure — no AudioContext, no DOM beyond Blob)
   ProjectClipIn:  { slot: number, entryName: string, data: Uint8Array }  # normalized '/' entryName
   encodeClip(a: CapturedAudio, fmt: ClipExt): Promise<{ blob: Blob, ext: ClipExt }>
     # ext from blob.type, not fmt; caller adds slot + materializes data
-    # v7: channels from clipChannels(a.left, a.right) — one when they are identical
+    # v7: encodeClipWav / encodeClipMp3 — one channel when left and right are identical;
+    #     the export passes audioBufferView(buf), never a copy
     # async since v2: encodeMp3 lazily imports lamejs (audio-export REQ-the-mp3-encoder-loads-lazily)
   buildProjectZip(file: SongFile, clips: ProjectClipOut[]): Promise<Uint8Array>
     # clip entry names derive from file.sampleNames[slot] (sanitized)

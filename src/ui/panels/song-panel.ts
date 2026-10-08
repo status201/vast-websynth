@@ -70,7 +70,7 @@ async function openExportAudioModal(engine: StudioApi, fmt: ExportFormat): Promi
 import { createRecordWindowLauncher } from '../components/record-window';
 import { encodeSongPayload, buildShareUrl } from '../../state/song-link';
 import { triggerDownload } from '../../utils/download';
-import { audioBufferToCaptured } from '../../audio/recorder/audio-buffer';
+import { audioBufferView } from '../../audio/recorder/audio-buffer';
 import { plural } from '../../utils/format';
 import { createWheelStepper } from '../wheel-steps';
 
@@ -96,8 +96,9 @@ export interface SongPanel {
   loadDemo: (name: string) => Promise<void>;
   /**
    * Import raw song/project bytes exactly like the Import button (sniff →
-   * parse → apply, errors shown in the same dialogs). Driven by the installed
-   * PWA's launchQueue and by share links via `UiBridge.importSongBytes`
+   * parse → apply, errors shown in the same dialogs). Driven by `importFile`
+   * (the Import button and the installed PWA's launchQueue) and by share links
+   * via `UiBridge.importSongBytes`
    * (pwa-install.md REQ-manifest-declares-install-extras and
    * pwa-install.md REQ-one-import-parse-path, song-share-link.md REQ-boot-consumes-a-present-hash).
    * Resolves to whether
@@ -756,7 +757,9 @@ export function buildSongPanel(bus: ParamBus, engine: StudioApi, session: Preset
       const buf = engine.sampler.buffers[slot];
       if (!buf) continue;
       // Encode + materialize one clip at a time (8 × multi-MB WAVs — REQ-clip-codec-is-memory-aware).
-      const { blob, ext } = await encodeClip(audioBufferToCaptured(buf), fmt);
+      // Uncopied: encoding only reads, and a slot's buffer is replaced, never
+      // written in place (sampler.md REQ-set-buffer-is-the-one-door).
+      const { blob, ext } = await encodeClip(audioBufferView(buf), fmt);
       clips.push({ slot, data: new Uint8Array(await blob.arrayBuffer()), ext });
     }
     const bytes = await buildProjectZip(file, clips);

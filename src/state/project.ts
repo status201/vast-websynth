@@ -11,7 +11,7 @@
 import { Song, type SongFile } from './song';
 import { SAMPLER_SLOT_COUNT } from './patterns';
 import type { ZipEntry } from '../utils/zip';
-import { clipChannels, encodeWavChannels, encodeMp3Channels } from '../audio/recorder/encode';
+import { encodeClipWav, encodeClipMp3 } from '../audio/recorder/encode';
 import type { CapturedAudio } from '../audio/recorder/node';
 import { safeFilename } from '../utils/download';
 
@@ -60,10 +60,9 @@ const CLIP_RE = /(?:^|\/)samples\/(\d+)-[^/]*\.(wav|mp3)$/i;
  * (project-export.md REQ-a-mono-clip-exports-as-mono).
  */
 export async function encodeClip(a: CapturedAudio, fmt: ClipExt): Promise<{ blob: Blob; ext: ClipExt }> {
-  const channels = clipChannels(a.left, a.right);
   const blob = fmt === 'mp3'
-    ? await encodeMp3Channels(channels, a.sampleRate)
-    : encodeWavChannels(channels, a.sampleRate);
+    ? await encodeClipMp3(a.left, a.right, a.sampleRate)
+    : encodeClipWav(a.left, a.right, a.sampleRate);
   return { blob, ext: blob.type === 'audio/mpeg' ? 'mp3' : 'wav' };
 }
 

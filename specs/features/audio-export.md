@@ -347,8 +347,11 @@ worklet chunk message: { l: Float32Array, r: Float32Array, f: number }  # f = ba
 worklet flush reply:   { l, r, f, done: true }   # REQ-chunks-are-batched-then-flushed — the partial batch at stop/pause
 constants: RECORD_BATCH_QUANTA = 16   # ~43 ms at 48 kHz; message rate 375/s -> 23/s
 encode.ts (pure):
-  encodeWav(left, right, sampleRate): Blob            # dependency-free, sync
+  encodeWav(left, right, sampleRate): Blob            # dependency-free, sync — takes are always stereo
   encodeMp3(left, right, sampleRate): Promise<Blob>   # REQ-the-mp3-encoder-loads-lazily lazy lamejs, MP3_KBPS CBR; unsupported rate -> WAV
+  encodeWavChannels / encodeMp3Channels(PcmChannels, sampleRate)   # the one- or two-channel cores the two above wrap
+  encodeClipWav / encodeClipMp3(left, right, sampleRate)  # sampler clips only: mono when L == R
+                                                        # (project-export.md REQ-a-mono-clip-exports-as-mono)
 download.ts (src/utils):
   triggerDownload(blob, filename): void   # shared by every file download (songs, projects, presets, takes)
 constants: FALLBACK_BARS = 4, TAIL_MS = 350, MAX_RUNS = 10, MP3_KBPS = 192

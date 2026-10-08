@@ -70,8 +70,10 @@ export function mountApp(root: HTMLElement, deps: ShellDeps): Onboarding {
   root.appendChild(fx.el);
   const patternRow = buildPatternRow(deps);
   songLoadDemo = patternRow.loadDemo;
-  // OS-launched song files (installed-PWA file_handlers) flow through the
-  // same import path as the Song panel's Import button (pwa-install.md REQ-one-import-parse-path).
+  // Share links import bytes; OS-launched song files (installed-PWA
+  // file_handlers) arrive as a File and take the Song panel's Import-button door,
+  // sized before they are read (pwa-install.md REQ-one-import-parse-path,
+  // untrusted-input.md REQ-a-file-is-sized-before-it-is-read).
   bridge.importSongBytes = patternRow.importSongBytes;
   bridge.importSongFile = patternRow.importSongFile;
   root.appendChild(patternRow.el);

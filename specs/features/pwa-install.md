@@ -160,7 +160,9 @@ vite-plugin-pwa/workbox), per ADR-003's precedent.
   (`parseSongOrProject`), shared by the song panel's file input, the
   launchQueue consumer and the [paste door](paste-import.md). Applying stays in
   the song panel (`applyProjectBundle`), reachable from outside via
-  `UiBridge.importSongBytes`.
+  `UiBridge.importSongFile` (the launchQueue, which hands over the unread `File`
+  so it is sized first — untrusted-input.md REQ-a-file-is-sized-before-it-is-read)
+  and `UiBridge.importSongBytes` (share links).
 - **REQ-install-state-is-diagnosable-on-device** (diagnosable from the device) —
   Because a stale cache is the classic "why am I not seeing the new version?" on
   an installed app, the [debug panel](debug-panel.md) shows the registration
@@ -194,12 +196,14 @@ vite-plugin-pwa/workbox), per ADR-003's precedent.
   `{ ok: true; file: SongFile; clips: ProjectClipIn[] } | { ok: false; errors: string[] }`.
   Routes via `sniffImportKind` (PK magic first, extension fallback) to
   `parseProjectZip` or `Song.parse` (JSON branch: `clips: []`).
-- `SongPanel.importBytes(bytes, name): Promise<void>` — parse via
+- `SongPanel.importBytes(bytes, name): Promise<boolean>` — parse via
   `parseSongOrProject`, then `showImportErrors` or `applyProjectBundle`
   (existing clip decode / `.needs-reload` / dropdown-sync behaviour).
-- `UiBridge.importSongBytes(bytes, name): Promise<void>` — no-op field
-  rewired by `app.ts` to `songPanel.importBytes` (same pattern as
-  `toggleTransport`).
+- `SongPanel.importFile(file): Promise<boolean>` — `oversizedFileMessage` first,
+  then `importBytes`; the Import button's and the launchQueue's door.
+- `UiBridge.importSongBytes(bytes, name)` / `UiBridge.importSongFile(file)`:
+  `Promise<boolean>` — no-op fields rewired by `app.ts` to `importBytes` /
+  `importFile` (same pattern as `toggleTransport`).
 - `self.__sw` — the SW's pure helpers and constants, exposed for the Vitest
   stub-globals suite (compressor-worklet precedent): `strategyFor`,
   `isHashedAsset`, `isApiPath`, `cacheName`, `CORE_ASSETS`, and (v4) the
@@ -229,13 +233,13 @@ offline-copy refresh when an older cache holds the marker
 - `main.ts` `boot()` wires everything platform-side, keeping `Engine`
   audio-only (ADR-008): a `WakeLockManager` toggled by `engine.ctx`'s
   `statechange` (enable iff `state === 'running'`); the feature-detected
-  `window.launchQueue.setConsumer` forwarding file bytes to
-  `bridge.importSongBytes` (a song applies fine behind the start modal —
+  `window.launchQueue.setConsumer` forwarding each unread `File` to
+  `bridge.importSongFile` (a song applies fine behind the start modal —
   state is pure and `decodeAudioData` works on a suspended context); the
   prod-gated SW registration on window `load`.
 - `shell/header.ts` appends the fullscreen button (when non-null) into the header's
-  collapsible cluster next to the Perf button (responsive-header.md), and
-  rewires `bridge.importSongBytes = songPanel.importBytes`.
+  collapsible cluster next to the Perf button (responsive-header.md). The bridge is wired in `app.ts` (`mountApp`): `bridge.importSongBytes` /
+  `bridge.importSongFile` → the Song panel's `importBytes` / `importFile`.
 - `src/types/pwa.d.ts` declares the not-yet-in-lib.dom surfaces:
   `Window.launchQueue` (`LaunchQueue`/`LaunchParams`) and
   `Navigator.audioSession`.

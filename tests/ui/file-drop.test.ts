@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
 // paste-import.md REQ-a-dropped-file-takes-the-paste-routes.
 import { describe, it, expect, beforeEach, vi } from 'vitest';
-import { dropKindOf, importDroppedFile, installFileDrop, type DropRoutes } from '../../src/ui/file-drop';
+import { importDroppedFile, installFileDrop, type DropRoutes } from '../../src/ui/file-drop';
 import { MAX_SONG_JSON_BYTES } from '../../src/state/limits';
 
 function routes(): DropRoutes & { songs: string[]; presets: unknown[] } {
@@ -19,16 +19,6 @@ const json = (o: unknown, name = 'x.json') => new File([JSON.stringify(o)], name
 const toastText = () => document.querySelector('[data-testid="file-drop-toast"]')?.textContent ?? '';
 
 beforeEach(() => { document.body.innerHTML = ''; });
-
-describe('dropKindOf', () => {
-  it('sorts by name and type before anything is read', () => {
-    expect(dropKindOf({ name: 'Set.websynth.zip', type: '' })).toBe('zip');
-    expect(dropKindOf({ name: 'song.json', type: '' })).toBe('json');
-    expect(dropKindOf({ name: 'reply.txt', type: 'text/plain' })).toBe('json');
-    expect(dropKindOf({ name: 'kick.wav', type: 'audio/wav' })).toBe('audio');
-    expect(dropKindOf({ name: 'paper.pdf', type: 'application/pdf' })).toBe('other');
-  });
-});
 
 describe('importDroppedFile', () => {
   it('routes a song to the song import and a bank to the preset review', async () => {

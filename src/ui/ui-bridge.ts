@@ -5,7 +5,8 @@ export class UiBridge {
   releaseKey = (_note: number): void => {};
   toggleTransport = (): void => {};
   /** Import raw song/project bytes (rewired to `SongPanel.importBytes`) —
-   * drives OS file launches and share links into the one import path
+   * drives share links into the one import path (OS file launches arrive as an
+   * unread `File` and take `importSongFile` instead)
    * (pwa-install.md REQ-one-import-parse-path, song-share-link.md REQ-boot-consumes-a-present-hash). Resolves to whether the
    * song applied, so a share link only consumes its hash on success. */
   importSongBytes = async (_bytes: Uint8Array, _name: string): Promise<boolean> => false;

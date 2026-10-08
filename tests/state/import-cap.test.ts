@@ -1,14 +1,29 @@
 import { describe, it, expect } from 'vitest';
-import { importCapFor, oversizedFileMessage } from '../../src/state/import-cap';
+import { fileKindOf, importCapFor, oversizedFileMessage } from '../../src/state/import-cap';
 import { MAX_SONG_JSON_BYTES, MAX_ZIP_TOTAL_BYTES } from '../../src/state/limits';
 
 // untrusted-input.md REQ-a-file-is-sized-before-it-is-read: the one function every
 // file door asks before it reads a byte.
+describe('fileKindOf', () => {
+  it('sorts by name and type before anything is read', () => {
+    expect(fileKindOf({ name: 'Set.websynth.zip', type: '' })).toBe('zip');
+    expect(fileKindOf({ name: 'song.json', type: '' })).toBe('json');
+    expect(fileKindOf({ name: 'reply.txt', type: 'text/plain' })).toBe('json');
+    expect(fileKindOf({ name: 'kick.wav', type: 'audio/wav' })).toBe('audio');
+    expect(fileKindOf({ name: 'paper.pdf', type: 'application/pdf' })).toBe('other');
+  });
+
+  it('knows the zip type Chromium on Windows reports', () => {
+    expect(fileKindOf({ name: 'download', type: 'application/x-zip-compressed' })).toBe('zip');
+  });
+});
+
 describe('importCapFor', () => {
   it('holds a zip to the archive cap, by name or by type', () => {
     expect(importCapFor({ name: 'Song.websynth.zip', type: '' })).toBe(MAX_ZIP_TOTAL_BYTES);
     expect(importCapFor({ name: 'SONG.ZIP', type: '' })).toBe(MAX_ZIP_TOTAL_BYTES);
     expect(importCapFor({ name: 'download', type: 'application/zip' })).toBe(MAX_ZIP_TOTAL_BYTES);
+    expect(importCapFor({ name: 'download', type: 'application/x-zip-compressed' })).toBe(MAX_ZIP_TOTAL_BYTES);
   });
 
   it('holds JSON and text to the song cap', () => {

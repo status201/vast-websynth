@@ -43,3 +43,17 @@ export function audioBufferToCaptured(buf: AudioBuffer): CapturedAudio {
   const right = (buf.numberOfChannels > 1 ? buf.getChannelData(1) : buf.getChannelData(0)).slice();
   return { left, right, sampleRate: buf.sampleRate };
 }
+
+/**
+ * The same shape, **uncopied and read-only**: the buffer's own channel data, with
+ * a mono buffer's `right` being its `left` (the same array). For a caller that
+ * only *encodes* — the clip store and the project export — where the two copies
+ * `audioBufferToCaptured` makes were pure cost, and the shared array lets
+ * `clipChannels` recognise a mono clip without comparing a sample. Never hand it
+ * to an editor: writing to it writes to the slot.
+ */
+export function audioBufferView(buf: AudioBuffer): CapturedAudio {
+  const left = buf.getChannelData(0);
+  const right = buf.numberOfChannels > 1 ? buf.getChannelData(1) : left;
+  return { left, right, sampleRate: buf.sampleRate };
+}

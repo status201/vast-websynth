@@ -51,14 +51,19 @@ export function writeWavHeader(
   view.setUint32(40, dataLen, true);
 }
 
+/** One or two channels — all a WAV or MP3 here ever holds. A tuple, so an empty
+ * list (no length to size the file by) or a third channel cannot be passed. */
+export type PcmChannels = [Float32Array] | [Float32Array, Float32Array];
+
 /**
  * The channels a sampler clip actually has (project-export.md
  * REQ-a-mono-clip-exports-as-mono): just `left` when the two are
  * sample-for-sample identical, both otherwise. Decided from the samples, not a
  * channel count — a mono sample can arrive as a two-channel buffer with
- * identical halves, and writing it as stereo doubles it for nothing.
+ * identical halves, and writing it as stereo doubles it for nothing. The same
+ * array twice (an uncopied mono buffer, `audioBufferView`) costs no pass at all.
  */
-export function clipChannels(left: Float32Array, right: Float32Array): Float32Array[] {
+export function clipChannels(left: Float32Array, right: Float32Array): PcmChannels {
   if (left === right) return [left];
   if (left.length !== right.length) return [left, right];
   for (let i = 0; i < left.length; i++) {
@@ -68,7 +73,7 @@ export function clipChannels(left: Float32Array, right: Float32Array): Float32Ar
 }
 
 /** Interleaved 16-bit PCM WAV of one or more channels (shortest channel wins). */
-export function encodeWavChannels(channels: Float32Array[], sampleRate: number): Blob {
+export function encodeWavChannels(channels: PcmChannels, sampleRate: number): Blob {
   const n = channels.length;
   const numSamples = Math.min(...channels.map((c) => c.length));
   const buf = new ArrayBuffer(44 + numSamples * n * 2);
@@ -101,7 +106,7 @@ function floatToInt16Array(samples: Float32Array): Int16Array {
  * resample. The fallback returns before the import, so an unsupported rate
  * never fetches the encoder chunk.
  */
-export async function encodeMp3Channels(channels: Float32Array[], sampleRate: number): Promise<Blob> {
+export async function encodeMp3Channels(channels: PcmChannels, sampleRate: number): Promise<Blob> {
   if (!MP3_RATES.has(sampleRate)) {
     console.warn(`encodeMp3: sample rate ${sampleRate} unsupported by lamejs — exporting WAV instead.`);
     return encodeWavChannels(channels, sampleRate);
@@ -129,5 +134,20 @@ export async function encodeMp3Channels(channels: Float32Array[], sampleRate: nu
 /** Stereo MP3 — see `encodeMp3Channels`. */
 export async function encodeMp3(left: Float32Array, right: Float32Array, sampleRate: number): Promise<Blob> {
   return encodeMp3Channels([left, right], sampleRate);
+}
+
+/**
+ * A sampler clip as WAV / MP3: one channel when its two are identical
+ * (project-export.md REQ-a-mono-clip-exports-as-mono,
+ * sample-persistence.md REQ-clips-persist-in-indexeddb). The one place that rule
+ * is applied — the project export and the clip store both come through here.
+ * Recorder takes do not: they keep the stereo `encodeWav` / `encodeMp3`.
+ */
+export function encodeClipWav(left: Float32Array, right: Float32Array, sampleRate: number): Blob {
+  return encodeWavChannels(clipChannels(left, right), sampleRate);
+}
+
+export function encodeClipMp3(left: Float32Array, right: Float32Array, sampleRate: number): Promise<Blob> {
+  return encodeMp3Channels(clipChannels(left, right), sampleRate);
 }
 

@@ -37,10 +37,11 @@ carries names only, so songs stay small and shareable).
 
 - **REQ-clips-persist-in-indexeddb** — Sampler clips persist in IndexedDB (db
   `websynth`, store `clips`, keyed by slot index) as 16-bit **WAV bytes**
-  produced by the pure `encodeWavChannels`, and are restored through
+  produced by the pure `encodeClipWav`, read uncopied (`audioBufferView` — the
+  encode is synchronous, so nothing changes the buffer mid-read), and are restored through
   `ctx.decodeAudioData` — the same path Load and a
   [project-zip](project-export.md) import already use. (v2) The channels are
-  the ones `clipChannels` keeps: **one** when the clip's left and right are
+  the ones `encodeClipWav` keeps: **one** when the clip's left and right are
   sample-for-sample identical, two otherwise — the same rule as a project export
   (project-export.md REQ-a-mono-clip-exports-as-mono). Until v2 every clip was
   stored as stereo, which doubled a mono sample on disk and, worse, brought it

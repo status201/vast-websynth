@@ -1,14 +1,14 @@
 import { SAMPLER_SLOT_COUNT } from './patterns';
 import { IdbClipKv } from './idb-clip-kv';
-import { clipChannels, encodeWavChannels } from '../audio/recorder/encode';
-import { audioBufferToCaptured } from '../audio/recorder/audio-buffer';
+import { encodeClipWav } from '../audio/recorder/encode';
+import { audioBufferView } from '../audio/recorder/audio-buffer';
 
 /**
  * Sampler-clip persistence — the audio half of the reload safety net
  * (`specs/features/sample-persistence.md`; the song half is `SessionAutosave`,
  * which this module deliberately mirrors: same debounce/flush/static-load
  * shape). Binary clips don't fit localStorage, so they live in IndexedDB as
- * 16-bit WAV bytes (the pure `encodeWavChannels` — one channel when the clip's
+ * 16-bit WAV bytes (the pure `encodeClipWav` — one channel when the clip's
  * two are identical, sample-persistence.md REQ-clips-persist-in-indexeddb), keyed by slot index.
  *
  * The storage backend is injected as a `ClipKv` so the reconcile logic is
@@ -138,8 +138,10 @@ export class SampleAutosave {
           this.bytes[slot] = 0;
           continue;
         }
-        const { left, right, sampleRate } = audioBufferToCaptured(buf);
-        const data = new Uint8Array(await encodeWavChannels(clipChannels(left, right), sampleRate).arrayBuffer());
+        // Read uncopied: the encode is synchronous, so nothing can change the
+        // buffer between the read and the write (audioBufferView).
+        const { left, right, sampleRate } = audioBufferView(buf);
+        const data = new Uint8Array(await encodeClipWav(left, right, sampleRate).arrayBuffer());
         await this.kv.write({ slot, data });
         this.written[slot] = buf;
         this.bytes[slot] = data.length;

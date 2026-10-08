@@ -218,7 +218,10 @@ decision and the alternatives. This spec is the contract.
   — the Song panel's Import button, the installed PWA's `launchQueue` and a file
   dropped on the window — asks `oversizedFileMessage` **before** `arrayBuffer()`
   or `text()`, and a refused file is never read. The cap comes from
-  `importCapFor`, decided from the name and MIME type alone: a `.zip` gets
+  `importCapFor`, decided from the name and MIME type alone by `fileKindOf` — the
+  same rule the drop routes by, so a file's kind and its cap cannot disagree. A
+  `.zip` (or a zip MIME type, including Windows Chromium's
+  `application/x-zip-compressed`) gets
   `MAX_ZIP_TOTAL_BYTES`; a `.json` / `.txt` gets `MAX_SONG_JSON_BYTES`; a name that
   says neither gets the larger cap, because its bytes decide the kind
   (`sniffImportKind`) and refusing a real project on a guess is the worse failure.
@@ -568,6 +571,7 @@ Scenario: An oversized file is refused before it is read, at every door (v14, RE
   And a .json over MAX_SONG_JSON_BYTES is refused the same way
   And a file whose name says neither kind is held to the larger cap, not refused on a guess
 # pinned by: tests/state/import-cap.test.ts, tests/ui/song-import-file.test.ts, tests/ui/file-drop.test.ts
+#   (main.ts's launchQueue -> bridge.importSongFile hand-off is held by the typecheck only)
 
 Scenario: An oversized chain is refused
   Given a song whose seqChain has more than MAX_CHAIN_STEPS steps

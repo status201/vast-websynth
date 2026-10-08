@@ -198,7 +198,8 @@ UiBridge:        # src/ui/ui-bridge.ts  (the UI's *internal* seam — see featur
   toggleInfoBadges / cuePlay     # onboarding.md · play-button-blink.md
   toggleRecordWindow             # Shift+R                    (record-window.md)
   undoActiveMachine / clearSelectedStep -> boolean  # tab-scoped keys; false ⇒ key falls through
-  importSongBytes(bytes, name) -> Promise<boolean>  # OS file launch + share link -> SongPanel.importBytes
+  importSongBytes(bytes, name) -> Promise<boolean>  # share link -> SongPanel.importBytes
+  importSongFile(file) -> Promise<boolean>          # OS file launch -> SongPanel.importFile (sized before read)
   openPresetImport(parse)        # paste door -> the header-owned preset wizard
 
 PatternStore:    # src/state/patterns.ts
