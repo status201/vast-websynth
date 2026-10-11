@@ -1,7 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import { keyRole, onKeyChange, readKeyState } from '../../src/ui/key-roles';
 import { ParamBus, registerDefaults } from '../../src/state/params';
-import { SCALE_LABELS, CHORD_LABELS } from '../../src/utils/music';
+import { SCALE_LABELS, CHORD_LABELS, EXTRA_LABELS } from '../../src/utils/music';
 
 /**
  * The one owner of the role vocabulary (scale-quantization.md REQ-the-key-is-drawn-not-just-named / REQ-the-key-is-shown-where-you-play).
@@ -82,6 +82,29 @@ describe('keyRole precedence', () => {
     expect(keyRole(1, s)).toBe('out');     // C#
   });
 
+  it('reads the extra note below in scale and above out (REQ-the-extra-note-wears-its-own-role)', () => {
+    const b = bus();
+    b.set('scale.root', 4);
+    b.set('scale.type', SCALE_LABELS.indexOf('dorian'));
+    b.set('scale.extra', EXTRA_LABELS.indexOf('blue b5'));
+    const s = readKeyState(b);
+
+    expect(s.extra).toBe(10);
+    expect(keyRole(10, s)).toBe('extra');  // A# over E
+    expect(keyRole(9, s)).toBe('scale');   // A
+    expect(keyRole(0, s)).toBe('out');     // C
+    expect(s.tones.has(10)).toBe(false);   // admitted, but not a scale tone
+  });
+
+  it('has no extra note while chromatic, or when the scale already holds it', () => {
+    const b = bus();
+    b.set('scale.extra', EXTRA_LABELS.indexOf('blue b5'));
+    expect(readKeyState(b).extra).toBeNull();
+
+    b.set('scale.type', SCALE_LABELS.indexOf('blues'));
+    expect(readKeyState(b).extra).toBeNull();
+  });
+
   it('calls every pitch class in-scale while chromatic', () => {
     const s = readKeyState(bus());
     for (let pc = 1; pc < 12; pc++) expect(keyRole(pc, s)).toBe('scale');
@@ -97,7 +120,7 @@ describe('onKeyChange', () => {
     expect(calls).toBe(1);
   });
 
-  it('repaints on each of the three params', () => {
+  it('repaints on each of the four params', () => {
     const b = bus();
     let calls = 0;
     onKeyChange(b, () => { calls++; });
@@ -105,8 +128,9 @@ describe('onKeyChange', () => {
 
     b.set('scale.root', 5);
     b.set('scale.type', MAJOR);
+    b.set('scale.extra', 1);
     b.set('chord.voicing', TRIAD);
-    expect(calls).toBe(3);
+    expect(calls).toBe(4);
   });
 
   it('does not repaint on voicing.mode — mono changes nothing about the picture', () => {

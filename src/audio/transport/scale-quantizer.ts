@@ -15,6 +15,8 @@ import {
 export class ScaleQuantizer {
   private root = 0;
   private scale = 0;
+  /** `scale.extra` — admitted by the table, never a degree, so `chord()` ignores it. */
+  private extra = 0;
   /** `null` while chromatic — the no-op default, and the early-return path. */
   private table: Uint8Array | null = null;
   private degrees: readonly number[] = [];
@@ -30,13 +32,14 @@ export class ScaleQuantizer {
 
   setRoot(root: number): void { this.root = root; this.rebuild(); }
   setScale(scale: number): void { this.scale = scale; this.rebuild(); }
+  setExtra(extra: number): void { this.extra = extra; this.rebuild(); }
   setChord(voicing: number): void { this.degrees = chordDegrees(voicing); }
 
   /** Mono suppresses chord expansion: four notes into one voice sound only the last. */
   setPoly(poly: boolean): void { this.poly = poly; }
 
   private rebuild(): void {
-    this.table = buildQuantizeTable(this.root, this.scale);
+    this.table = buildQuantizeTable(this.root, this.scale, this.extra);
   }
 
   /**
@@ -54,7 +57,8 @@ export class ScaleQuantizer {
 
   /**
    * Expand one played note into a chord rooted on it, or `[note]` when chord memory is
-   * off, mono, or the note is not in the scale.
+   * off, mono, or the note is not in the scale — which includes the extra note: a
+   * passing tone has no chord of its own (scale-quantization.md REQ-an-extra-note-is-admitted-not-a-degree).
    *
    * The result is diatonic by construction, so passing it back through `get()` is a
    * no-op (scale-quantization.md REQ-quantization-is-idempotent-and-bounded) — which is why the two features compose

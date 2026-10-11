@@ -3,7 +3,9 @@
 ```yaml
 id: chord-tools
 status: implemented
-version: 2   # v2: the chord writer can write inversions (REQ-the-writer-can-invert)
+version: 3   # v3: extension voicings — sus2, 6th, add9, 9th — each at most four notes
+             #     (REQ-a-voicing-is-at-most-four-notes)
+             # v2: the chord writer can write inversions (REQ-the-writer-can-invert)
 owner: core
 related:
   - architecture
@@ -139,6 +141,27 @@ cheapest implementation and the most musical one.
   is stored, nothing plays differently, and Root — the default — writes exactly
   what v1 wrote. The choice lasts as long as the panel, like the cursor.
 
+- **REQ-a-voicing-is-at-most-four-notes** (v3) — `CHORD_LABELS` gains four
+  **extension voicings**, appended (the list is append-only: a song stores the
+  index): `sus2` `[0, 1, 4]`, `6th` `[0, 2, 4, 5]`, `add9` `[0, 2, 4, 8]` and `9th`
+  `[0, 2, 6, 8]`. They are still stacked scale degrees
+  (REQ-chords-are-stacked-scale-degrees), so their quality derives itself and their
+  9ths and 6ths are diatonic — the extensions a key admits, never altered ones.
+  Every voicing is **at most four notes**, and that is a rule, not a coincidence:
+  the writer has four tracks to write into, and the passthrough's `heldIn` is
+  bounded at four notes a key ([scale-quantization](scale-quantization.md)
+  REQ-resolve-once-release-the-stored-note). So a full 9th (1-3-5-7-9, five tones)
+  is voiced **1-3-7-9**, dropping the 5th — the tone a jazz voicing drops first,
+  because it adds the least and the root's overtones already imply it. A future
+  11th or 13th must likewise choose a four-note voicing rather than raise the bound.
+
+  Two consequences of stacking degrees, accepted rather than special-cased: a
+  `sus2` on a degree whose step above is a semitone comes out with a ♭2 (iii in
+  major: E F B), as `sus4` on IV already comes out with a ♯4; and `add9` spans more
+  than an octave, so its top tone lands an octave above the triad, which is where
+  an added 9th sits. Inversions (REQ-the-writer-can-invert) take them as they are:
+  a four-note voicing offers up to its 3rd inversion.
+
 ## Technical design
 
 ### Contract / public interface
@@ -161,11 +184,13 @@ src/state/patterns.ts:                                # theory-free (REQ-the-sto
 ### Data shapes (registry)
 
 ```yaml
-chord.voicing: { discrete, labels: CHORD_LABELS, range: 0..4, default: 0 }  # 'off' = no-op
-CHORD_LABELS: ['off', 'triad', '7th', 'sus4', 'power']
+chord.voicing: { discrete, labels: CHORD_LABELS, range: 0..8, default: 0 }  # 'off' = no-op
+CHORD_LABELS: ['off', 'triad', '7th', 'sus4', 'power', 'sus2', '6th', 'add9', '9th']
 # sizes in scale degrees from the chord root:
 #   triad -> [0, 2, 4]      7th -> [0, 2, 4, 6]
 #   sus4  -> [0, 3, 4]      power -> [0, 4]   (root + 5th degree — two tones)
+#   sus2  -> [0, 1, 4]      6th -> [0, 2, 4, 5]                       (v3)
+#   add9  -> [0, 2, 4, 8]   9th -> [0, 2, 6, 8]  (1-3-7-9, no 5th)     (v3)
 ```
 
 ### Gesture inventory — the CHORD ▾ writer and SNAP (ADR-014)
@@ -218,6 +243,23 @@ Scenario: The writer writes the chosen inversion (v2, REQ-the-writer-can-invert)
   And 2nd inversion writes G4, C5, E5, and Root writes C4, E4, G4 as before
   And a power chord asked for its 2nd inversion writes its 1st
 # pinned by: tests/utils/music.test.ts, e2e/key.spec.ts
+
+Scenario: A 9th is voiced in four notes (v3, REQ-a-voicing-is-at-most-four-notes)
+  Given C major and the cursor on a step whose note is D4
+  When degree ii is written with chord.voicing 9th
+  Then the tracks get D4, F4, C5 and E5 — the root, 3rd, 7th and 9th, no 5th
+# pinned by: tests/utils/music.test.ts
+
+Scenario: Every voicing fits the four tracks (v3, REQ-a-voicing-is-at-most-four-notes)
+  Given every chord.voicing in CHORD_LABELS
+  Then its degree list has at most four entries
+# pinned by: tests/utils/music.test.ts
+
+Scenario: The extension voicings stay diatonic (v3, REQ-a-voicing-is-at-most-four-notes, REQ-chord-memory-is-diatonic)
+  Given C major
+  Then add9 on I is C E G D, 6th on I is C E G A and sus2 on I is C D G
+  And quantizing any of them is a no-op
+# pinned by: tests/utils/music.test.ts
 
 Scenario: Writing a degree stacks the right quality (REQ-chords-are-stacked-scale-degrees, REQ-degree-labels-show-real-quality)
   Given scale.root is C and scale.type is major

@@ -126,6 +126,9 @@
   .black[data-role='root'] { --key-role-fill: var(--key-role-root); }
   .black[data-role='chord'] { --key-role-fill: var(--key-role-chord); }
   .black[data-role='scale'] { --key-role-fill: var(--key-role-scale-edge); }
+  /* The extra note is in play — it sounds as written — so it washes like a scale tone. */
+  .white[data-role='extra'] { --key-role-fill: var(--key-role-extra); }
+  .black[data-role='extra'] { --key-role-fill: var(--key-role-extra-edge); }
 
   .white[data-role]::before { opacity: 0.55; }
   /* Blacks are near-black already, so the same alpha reads as nothing on them — and they

@@ -268,9 +268,9 @@ banks, clear menus & undo:                          # features/banks.md, step-gr
   # `-meter-hint` is EMPTY + hidden while the lane matches the bar.
 
 key tab:                     # features/scale-quantization.md, features/chord-tools.md
-  # scale.root / scale.type / chord.voicing are ParamDropdowns, which mint no id of
+  # scale.root / scale.type / scale.extra / chord.voicing are ParamDropdowns, which mint no id of
   # their own (REQ-param-controls-mint-from-the-param-id covers factory-minted ids; Dropdown takes one per call site):
-  key-root · key-scale · key-chord · key-hint
+  key-root · key-scale · key-extra · key-chord · key-hint
   key-map · key-map-<0..23> · key-legend   # the two-octave map; the per-key id is
                                            #   the SEMITONE, so 0..11 is octave 1
 

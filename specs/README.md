@@ -280,8 +280,8 @@ specs/
     arpeggiator.md     ·  held-note arp + transport ownership
     sequencer.md       ·  the 16-step synth sequencer
     lane-fold.md       ·  the per-lane fold caret shared by the sequencer and motion
-    scale-quantization.md ·  key/scale as a live pitch filter over every note source
-    chord-tools.md     ·  diatonic chord writer (4 tracks) + live chord memory
+    scale-quantization.md ·  key/scale (+ one extra note) as a live pitch filter over every note source
+    chord-tools.md     ·  diatonic chord writer (4 tracks) + live chord memory, ≤4-note voicings
     drum-machine.md    ·  8-track synth drums
     drum-kits.md       ·  factory kit presets + randomize + per-track reset
     sampler.md         ·  8-slot one-shot sampler

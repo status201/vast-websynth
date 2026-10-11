@@ -39,6 +39,42 @@ const SCALE_STEPS: readonly (readonly number[])[] = [
   [0, 3, 5, 6, 7, 10],           // blues
 ];
 
+/**
+ * Extra-note names, indexed by the `scale.extra` param: one pitch class the key admits
+ * on top of the scale without making it a degree (scale-quantization.md
+ * REQ-an-extra-note-is-admitted-not-a-degree).
+ *
+ * **APPEND-ONLY**, for the same reason as `SCALE_LABELS`. Index 0 `none` is the no-op
+ * default. Flats are an ASCII `b`, as sharps are `#` in `NOTE_LABELS`.
+ */
+export const EXTRA_LABELS = ['none', 'blue b5', 'blue b3', 'b7', 'maj 7', 'bebop'];
+
+/** Semitones over the root for the fixed extra notes, parallel to `EXTRA_LABELS`;
+ *  `null` for `none`, and for `bebop`, which depends on the scale (`BEBOP_TONE`). */
+const EXTRA_OFFSETS: readonly (number | null)[] = [null, 6, 3, 10, 11, null];
+const EXTRA_BEBOP = EXTRA_LABELS.indexOf('bebop');
+
+/**
+ * The passing tone that makes each scale its eight-note bebop scale, parallel to
+ * `SCALE_STEPS`; `null` where there is none (chromatic, and the gapped scales — a bebop
+ * scale is built on a seven-note one). After David Baker; the choices that are ours
+ * (dorian's maj 3, phrygian's, lydian's) are argued in
+ * scale-quantization.md REQ-bebop-is-relative-to-the-mode.
+ */
+const BEBOP_TONE: readonly (number | null)[] = [
+  null, // chromatic
+  8,    // major       -> major bebop (#5)
+  11,   // minor       -> harmonic-minor bebop (maj 7)
+  4,    // dorian      -> dorian bebop (maj 3)
+  11,   // mixolydian  -> dominant bebop (maj 7)
+  4,    // phrygian    -> both thirds
+  8,    // lydian      -> #5, by analogy with major
+  10,   // harm minor  -> harmonic-minor bebop (b7)
+  null, // pent maj
+  null, // pent min
+  null, // blues
+];
+
 /** True when the index names a real scale (i.e. anything but `chromatic`). */
 export function isScaleActive(scale: number): boolean {
   return scale > 0 && scale < SCALE_STEPS.length;
@@ -58,6 +94,21 @@ export function scaleTones(root: number, scale: number): number[] {
   if (!steps) return [];
   const r = ((root % 12) + 12) % 12;
   return steps.map((s) => (r + s) % 12);
+}
+
+/**
+ * The extra note's pitch class, or `null` when there is none to add: `none`, an
+ * inactive scale, a scale with no bebop tone, or a note the scale already holds.
+ * Never part of `scaleTones` — it is admitted, not a degree
+ * (scale-quantization.md REQ-an-extra-note-is-admitted-not-a-degree).
+ */
+export function extraTone(root: number, scale: number, extra: number): number | null {
+  if (!isScaleActive(scale)) return null;
+  const offset = extra === EXTRA_BEBOP ? BEBOP_TONE[scale] : EXTRA_OFFSETS[extra];
+  if (offset === null || offset === undefined) return null;
+  const r = ((root % 12) + 12) % 12;
+  const pc = (r + offset) % 12;
+  return scaleTones(root, scale).includes(pc) ? null : pc;
 }
 
 /**
@@ -82,12 +133,17 @@ export function scaleTones(root: number, scale: number): number[] {
  * Notes near the MIDI extremes are clamped into range rather than dropped: the search
  * simply never accepts an out-of-range candidate, so it keeps widening until it finds
  * an in-range tone (scale-quantization.md REQ-quantization-is-idempotent-and-bounded).
+ *
+ * `extra` admits one more pitch class (`extraTone`) — it plays as written, and its
+ * neighbours may snap onto it like onto any scale tone.
  */
-export function buildQuantizeTable(root: number, scale: number): Uint8Array | null {
+export function buildQuantizeTable(root: number, scale: number, extra = 0): Uint8Array | null {
   if (!isScaleActive(scale)) return null;
   const tones = scaleTones(root, scale);
   const inScale = new Array<boolean>(12).fill(false);
   for (const t of tones) inScale[t] = true;
+  const added = extraTone(root, scale, extra);
+  if (added !== null) inScale[added] = true;
 
   const table = new Uint8Array(128);
   for (let n = MIDI_NOTE_MIN; n <= MIDI_NOTE_MAX; n++) {
@@ -113,13 +169,20 @@ export function buildQuantizeTable(root: number, scale: number): Uint8Array | nu
  * interval pattern produces them, with no chord-quality table anywhere
  * (chord-tools.md REQ-chords-are-stacked-scale-degrees).
  */
-export const CHORD_LABELS = ['off', 'triad', '7th', 'sus4', 'power'];
+export const CHORD_LABELS = ['off', 'triad', '7th', 'sus4', 'power', 'sus2', '6th', 'add9', '9th'];
+/** APPEND-ONLY (a song stores the index), and never more than four degrees: the writer
+ *  has four tracks and the passthrough holds four notes a key
+ *  (chord-tools.md REQ-a-voicing-is-at-most-four-notes). */
 const CHORD_DEGREES: readonly (readonly number[])[] = [
   [],              // off
   [0, 2, 4],       // triad
   [0, 2, 4, 6],    // 7th
   [0, 3, 4],       // sus4 — root, 4th, 5th
   [0, 4],          // power — root + 5th degree
+  [0, 1, 4],       // sus2 — root, 2nd, 5th
+  [0, 2, 4, 5],    // 6th — triad + 6th
+  [0, 2, 4, 8],    // add9 — triad + 9th, no 7th
+  [0, 2, 6, 8],    // 9th — 1-3-7-9: the 5th is the tone a four-note 9th drops
 ];
 
 /** Degree offsets for a `chord.voicing` index; `[]` when off or out of range. */

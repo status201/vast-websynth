@@ -1,7 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import { PatternStore, SEQ_TRACK_COUNT } from '../../src/state/patterns';
 import { PatternUndo } from '../../src/state/pattern-undo';
-import { buildQuantizeTable, diatonicChord, SCALE_LABELS } from '../../src/utils/music';
+import { buildQuantizeTable, diatonicChord, EXTRA_LABELS, SCALE_LABELS } from '../../src/utils/music';
 
 // chord-tools.md REQ-the-chord-writer-patches-not-replaces/REQ-one-chord-gesture-one-undo/REQ-the-store-stays-free-of-theory, scale-quantization.md REQ-snap-to-scale-is-the-destructive-opt-in.
 // These pin the STORE's two batch mutations, which take plain data and know no
@@ -127,6 +127,16 @@ describe('snapSeqBank', () => {
     const table = buildQuantizeTable(0, MAJOR)!;
     patterns.snapSeqBank((n) => table[n] ?? n);
     expect(patterns.seqTrack(0)![7]!.note).toBe(60);
+  });
+
+  it('keeps the extra note, as the live filter does (scale-quantization.md REQ-an-extra-note-is-admitted-not-a-degree)', () => {
+    const { patterns } = build();
+    patterns.setSeqStep(0, 0, { on: true, note: 46 });   // Bb2
+    patterns.setSeqStep(0, 1, { on: true, note: 48 });   // C3 — out of E dorian
+    const table = buildQuantizeTable(4, SCALE_LABELS.indexOf('dorian'), EXTRA_LABELS.indexOf('blue b5'))!;
+    patterns.snapSeqBank((n) => table[n] ?? n);
+    expect(patterns.seqTrack(0)![0]!.note).toBe(46);
+    expect(patterns.seqTrack(0)![1]!.note).toBe(47);     // C -> B, the scale still applies
   });
 
   it('is idempotent — snapping twice changes nothing the second time', () => {

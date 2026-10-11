@@ -85,10 +85,11 @@ export function buildSeqPanel(
     onClick: () => {
       // Built here from the bus rather than read off the Engine: snapping is a state
       // edit, and the UI does not reach into the audio layer (ADR-009). The table is
-      // a pure function of the same two params the Engine subscribes to, so what SNAP
+      // a pure function of the same three params the Engine subscribes to, so what SNAP
       // writes is exactly what the live filter would have played.
       const table = buildQuantizeTable(
         Math.round(bus.get('scale.root')), Math.round(bus.get('scale.type')),
+        Math.round(bus.get('scale.extra')),
       );
       if (!table) {
         showToast({ message: 'Choose a scale in the Key tab first', testId: 'seq-snap-toast' });

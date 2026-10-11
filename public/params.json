@@ -2,7 +2,7 @@
   "format": "websynth-params",
   "version": 1,
   "songVersion": 9,
-  "count": 402,
+  "count": 403,
   "params": [
     {
       "id": "voicing.mode",
@@ -2082,9 +2082,26 @@
       ]
     },
     {
+      "id": "scale.extra",
+      "min": 0,
+      "max": 5,
+      "default": 0,
+      "patch": true,
+      "step": 1,
+      "taper": "discrete",
+      "labels": [
+        "none",
+        "blue b5",
+        "blue b3",
+        "b7",
+        "maj 7",
+        "bebop"
+      ]
+    },
+    {
       "id": "chord.voicing",
       "min": 0,
-      "max": 4,
+      "max": 8,
       "default": 0,
       "patch": true,
       "step": 1,
@@ -2094,7 +2111,11 @@
         "triad",
         "7th",
         "sus4",
-        "power"
+        "power",
+        "sus2",
+        "6th",
+        "add9",
+        "9th"
       ]
     },
     {

@@ -819,14 +819,19 @@ export const HELP_TOPICS: Record<TopicId, HelpTopic> = {
       'the keyboard alike. Wrong notes stop being possible.</p>' +
       '<p>The keyboard picture is the map: <strong>orange</strong> is the root, ' +
       '<strong>yellow</strong> the notes of the chord, <strong>brown</strong> the rest of the ' +
-      'scale, and dark keys are the notes now out of play.</p>' +
+      'scale, <strong>blue</strong> the extra note, and dark keys are the notes now out of play.</p>' +
       '<p>Once you pick a scale, the <strong>keyboard at the bottom of the screen</strong> ' +
       'wears those same colours, faintly — so you can see the key under your fingers while ' +
       'you play, without coming back to this tab.</p>' +
       '<ul><li><strong>Scale</strong> — <em>chromatic</em> means "leave everything alone", so ' +
       'nothing changes until you choose a real scale.</li>' +
+      '<li><strong>Extra note</strong> — one note outside the scale that is still allowed: a ' +
+      '<em>blue note</em> (the flat 5th or flat 3rd), a 7th, or the <em>bebop</em> passing tone ' +
+      'that suits the scale. It plays as written, but it is a passing note, not part of the ' +
+      'chords. A song in E dorian with a bluesy B flat, for example, keeps its B flat.</li>' +
       '<li><strong>Chord memory</strong> — one held key sounds a whole chord from the scale, ' +
-      'and the arpeggiator picks it up. Needs POLY voicing.</li></ul>' +
+      'and the arpeggiator picks it up. Besides triads and 7ths there are sus2, sus4, 6th, ' +
+      'add9, 9th and power chords. Needs POLY voicing.</li></ul>' +
       '<p><strong>Your notes are never rewritten.</strong> This only changes what you hear, so ' +
       'switching back to <em>chromatic</em> restores your pattern exactly. To make it permanent, ' +
       'use <strong>Snap</strong> on the Sequencer tab.</p>',

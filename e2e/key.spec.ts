@@ -42,20 +42,42 @@ test.describe('key & chord tools', () => {
     await expect(page.getByTestId('tab-key')).toHaveAttribute('aria-label', 'Key — on');
   });
 
-  test('the map paints four visually distinct states', async ({ page }) => {
+  test('the map paints five visually distinct states', async ({ page }) => {
     // The unit tests pin the roles; this pins that the CSS actually resolves them to
-    // four different colours — the half a jsdom test cannot see.
+    // five different colours — the half a jsdom test cannot see.
     await gotoAndStart(page);
     await page.getByTestId('tab-key').click();
     await choose(page, 'key-scale', 'major');
     await choose(page, 'key-chord', 'triad');
+    await choose(page, 'key-extra', 'blue b5');     // F# over C (v4)
     // `.white` carries a 120ms transition, so let it settle before reading colours.
     await page.waitForTimeout(400);
 
     const bg = (semi: number) => page.getByTestId(`key-map-${semi}`)
       .evaluate((el) => getComputedStyle(el).backgroundColor);
-    const [root, chord, scale, out] = await Promise.all([bg(0), bg(4), bg(2), bg(1)]);
-    expect(new Set([root, chord, scale, out]).size).toBe(4);
+    // F# is a black key, so it is compared with the black out-of-scale C# as well as
+    // with the four white states.
+    const [root, chord, scale, out, extra] = await Promise.all([bg(0), bg(4), bg(2), bg(1), bg(6)]);
+    expect(new Set([root, chord, scale, out, extra]).size).toBe(5);
+  });
+
+  // scale-quantization.md REQ-an-extra-note-is-admitted-not-a-degree / REQ-the-extra-note-wears-its-own-role (v4).
+  test('an extra note reaches the keyboard and survives SNAP', async ({ page }) => {
+    await gotoAndStart(page);
+    await page.getByTestId('tab-key').click();
+    await choose(page, 'key-root', 'E');
+    await choose(page, 'key-scale', 'dorian');
+    await choose(page, 'key-extra', 'blue b5');
+    await expect(page.getByTestId('key-hint')).toContainText('A# (blue b5)');
+    // C3-B5 drawn: three A#s.
+    await expect(page.getByTestId('keyboard').locator('[data-role="extra"]')).toHaveCount(3);
+
+    await page.getByTestId('tab-seq').click();
+    await page.evaluate(() =>
+      (window as any).__synth.patterns.setSeqStep(0, 0, { on: true, note: 46 }));
+    await page.getByTestId('seq-snap').click();
+    await expect(page.getByTestId('seq-snap-toast')).toBeVisible();
+    expect(await seqNote(page, 0, 0)).toBe(46);   // Bb2 kept, not snapped to A2
   });
 
   test('the playable keyboard wears the key, and only while one is set', async ({ page }) => {

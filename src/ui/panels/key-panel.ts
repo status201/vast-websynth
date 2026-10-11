@@ -1,5 +1,5 @@
 import type { ParamBus } from '../../state/params';
-import { NOTE_LABELS, SCALE_LABELS, CHORD_LABELS } from '../../state/params';
+import { NOTE_LABELS, SCALE_LABELS, EXTRA_LABELS, CHORD_LABELS } from '../../state/params';
 import { ParamDropdown } from '../components/param-dropdown';
 import { type KeyState, keyRole, onKeyChange, readKeyState } from '../key-roles';
 import panelStyles from '../styles/panel.module.css';
@@ -57,6 +57,13 @@ export function buildKeyPanel(bus: ParamBus): HTMLElement {
   scale.el.dataset.testid = 'key-scale';
   controls.appendChild(group('Scale', scale.el));
 
+  // One note the key lets through as written without making it a degree — a blue note
+  // or a bebop passing tone (REQ-an-extra-note-is-admitted-not-a-degree). Between Scale and Chord memory
+  // because it qualifies the scale, and the legend follows this order.
+  const extra = new ParamDropdown(bus, 'scale.extra', EXTRA_LABELS);
+  extra.el.dataset.testid = 'key-extra';
+  controls.appendChild(group('Extra note', extra.el));
+
   const chord = new ParamDropdown(bus, 'chord.voicing', CHORD_LABELS);
   chord.el.dataset.testid = 'key-chord';
   controls.appendChild(group('Chord memory', chord.el));
@@ -81,21 +88,29 @@ export function buildKeyPanel(bus: ParamBus): HTMLElement {
     // Chord memory has two ways of being inert, and a silent control is exactly what
     // the hint exists to prevent — name whichever one applies
     // (chord-tools.md REQ-mono-gates-the-live-chord-path/REQ-chord-tools-require-a-scale).
+    const keyName = `${NOTE_LABELS[state.root]} ${SCALE_LABELS[Math.round(bus.get('scale.type'))]}`;
+    const extraIdx = Math.round(bus.get('scale.extra'));
+    const extraName = EXTRA_LABELS[extraIdx] ?? '';
     if (!active) {
       hint.textContent = 'Chromatic — notes play exactly as written. '
-        + 'Choose a scale to quantize every note and unlock the chord tools.';
+        + 'Choose a scale to quantize every note and unlock the extra note and the chord tools.';
     } else if (voicing === 0) {
-      hint.textContent = `Every note snaps into ${NOTE_LABELS[state.root]} `
-        + `${SCALE_LABELS[Math.round(bus.get('scale.type'))]}. Stored notes are never rewritten.`;
+      hint.textContent = `Every note snaps into ${keyName}${extraClause(state.extra, extraIdx, extraName, keyName)}. `
+        + 'Stored notes are never rewritten.';
     } else if (mono) {
       hint.textContent = `Chord memory is off while VOICE is mono — `
         + `four notes would fight one voice. Switch to poly to hear ${CHORD_LABELS[voicing]}.`;
     } else {
+      // The extra note is not a degree, so it has no chord to expand into — say so,
+      // or holding it reads as chord memory having broken (REQ-an-extra-note-is-admitted-not-a-degree).
       hint.textContent = `One key plays a ${CHORD_LABELS[voicing]} from the scale. `
-        + `The arpeggiator picks it up too.`;
+        + 'The arpeggiator picks it up too.'
+        + (state.extra === null ? '' : ` ${NOTE_LABELS[state.extra]} is a passing tone and plays alone.`);
     }
-    // Chord memory needs degrees to stack, and chromatic has none.
+    // Chord memory needs degrees to stack, and chromatic has none; an extra note needs
+    // a scale to be extra to (REQ-an-extra-note-is-admitted-not-a-degree).
     chord.setDisabledLabels(active ? [] : CHORD_LABELS.slice(1));
+    extra.setDisabledLabels(active ? [] : EXTRA_LABELS.slice(1));
   };
   onKeyChange(bus, refresh);
   // Not one of KEY_PARAMS: mono changes nothing about the picture, only what the hint
@@ -106,13 +121,29 @@ export function buildKeyPanel(bus: ParamBus): HTMLElement {
   return root;
 }
 
+/**
+ * What the extra note adds to the hint's first sentence: the note it lets through, or
+ * — when it adds nothing — why, so a selected option that silently does nothing never
+ * reads as broken (scale-quantization.md REQ-an-extra-note-is-admitted-not-a-degree).
+ */
+function extraClause(pc: number | null, idx: number, name: string, keyName: string): string {
+  if (idx === 0) return '';
+  if (pc !== null) return `, except ${NOTE_LABELS[pc]} (${name}), which plays as written`;
+  if (name === 'bebop') return ` — bebop adds nothing here: only a seven-note scale has a bebop tone`;
+  return ` — ${name} adds nothing: that note is already in ${keyName}`;
+}
+
 /** One key of the map, plus the label slot the root writes into. */
 interface MapKey { el: HTMLElement; label: HTMLElement }
 
 /** What each `data-role` says on hover — the colour code, spelled out. */
 const ROLE_TEXT: Record<string, string> = {
-  root: 'root', chord: 'chord tone', scale: 'in scale', out: 'not in scale',
+  root: 'root', chord: 'chord tone', scale: 'in scale',
+  extra: 'extra note, plays as written', out: 'not in scale',
 };
+
+/** The legend's own words for each lit role — shorter than the hover text. */
+const LEGEND_TEXT = { root: 'root', scale: 'in scale', extra: 'extra note', chord: 'chord' } as const;
 
 /**
  * A two-octave keyboard map (scale-quantization.md REQ-the-key-is-drawn-not-just-named).
@@ -159,15 +190,15 @@ function buildKeyMap(): { el: HTMLElement; legend: HTMLElement; paint: (s: KeySt
   legend.className = map.legend!;
   legend.dataset.testid = 'key-legend';
   // Dropdown order, not precedence order: the legend sits directly under Root / Scale /
-  // Chord memory and a reader pairs them positionally (REQ-the-key-is-drawn-not-just-named).
-  const legendItems = (['root', 'scale', 'chord'] as const).map((role) => {
+  // Extra note / Chord memory and a reader pairs them positionally (REQ-the-key-is-drawn-not-just-named).
+  const legendItems = (['root', 'scale', 'extra', 'chord'] as const).map((role) => {
     const item = document.createElement('span');
     item.className = map.legendItem!;
     const sw = document.createElement('i');
     sw.className = map.swatch!;
     sw.dataset.role = role;
     item.appendChild(sw);
-    item.appendChild(document.createTextNode(role === 'scale' ? 'in scale' : role));
+    item.appendChild(document.createTextNode(LEGEND_TEXT[role]));
     legend.appendChild(item);
     return { role, item };
   });
@@ -184,7 +215,8 @@ function buildKeyMap(): { el: HTMLElement; legend: HTMLElement; paint: (s: KeySt
     }
     // A legend entry for a colour nothing is currently wearing is just noise.
     for (const { role, item } of legendItems) {
-      item.classList.toggle('hidden', role === 'chord' && s.chord.size === 0);
+      item.classList.toggle('hidden',
+        (role === 'chord' && s.chord.size === 0) || (role === 'extra' && s.extra === null));
     }
   }
 

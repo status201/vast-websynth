@@ -21,7 +21,8 @@
     "uses": [
       "seq",
       "drums"
-    ]
+    ],
+    "blurb": "E dorian, with one note from outside it: the B flat in the bass walk-down, the blue flat five. The KEY tab lets it through as an extra note, so the key filter is on and the walk-down still plays as written. Set the extra note to none and the B flat snaps down to A."
   },
   "1982.websynth.json": {
     "name": "1982",

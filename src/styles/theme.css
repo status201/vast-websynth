@@ -49,6 +49,12 @@
     --key-role-scale: #7a4a24;
     --key-role-scale-edge: #96602f;
     --key-role-scale-black: #4a2a13;
+    /* The extra note (REQ-the-extra-note-wears-its-own-role): a muted slate blue — the
+       one cool step in a warm palette, so a note outside the scale but in play reads as
+       neither in scale nor out, and "blue note" is the reading it invites. */
+    --key-role-extra: #3f6585;
+    --key-role-extra-edge: #5b84a6;
+    --key-role-extra-black: #26405a;
     --key-role-out: #2a241d;
     --key-role-out-edge: #4a3d2e;
     --key-role-out-black: #16120e;

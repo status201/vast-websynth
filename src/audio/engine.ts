@@ -1139,6 +1139,7 @@ export class Engine {
     // rebuilt only on change — never per note (scale-quantization.md REQ-the-scale-mapping-is-a-lookup-table).
     bus.subscribe('scale.root', (v) => this.scale.setRoot(Math.round(v)));
     bus.subscribe('scale.type', (v) => this.scale.setScale(Math.round(v)));
+    bus.subscribe('scale.extra', (v) => this.scale.setExtra(Math.round(v)));
     bus.subscribe('chord.voicing', (v) => this.scale.setChord(Math.round(v)));
     // Mono suppresses chord expansion — chord-tools.md REQ-mono-gates-the-live-chord-path.
     bus.subscribe('voicing.mode', (v) => this.scale.setPoly(v >= 0.5));

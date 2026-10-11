@@ -3,7 +3,7 @@ import { readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 import { buildKeyPanel } from '../../src/ui/panels/key-panel';
 import { ParamBus, registerDefaults } from '../../src/state/params';
-import { SCALE_LABELS, CHORD_LABELS } from '../../src/utils/music';
+import { SCALE_LABELS, CHORD_LABELS, EXTRA_LABELS } from '../../src/utils/music';
 
 /**
  * The KEY tab: the three controls and the one line of prose that says what they
@@ -39,17 +39,17 @@ describe('KEY panel', () => {
     // The order lives in the DOM, not in CSS `order`, so wrapping to a narrow screen
     // preserves it and keyboard traversal matches what is on screen.
     const { el } = build();
-    const wanted = ['key-map', 'key-root', 'key-scale', 'key-chord', 'key-hint'];
+    const wanted = ['key-map', 'key-root', 'key-scale', 'key-extra', 'key-chord', 'key-hint'];
     const found = [...el.querySelectorAll<HTMLElement>('[data-testid]')]
       .map((n) => n.dataset.testid!)
       .filter((id) => wanted.includes(id));
     expect(found).toEqual(wanted);
   });
 
-  it('keeps the three dropdowns in one wrapper, so they wrap as a unit (REQ-the-key-is-drawn-not-just-named)', () => {
+  it('keeps the four dropdowns in one wrapper, so they wrap as a unit (REQ-the-key-is-drawn-not-just-named)', () => {
     const { el } = build();
     // dropdown -> its labelled group -> the shared controls wrapper
-    const parents = ['key-root', 'key-scale', 'key-chord']
+    const parents = ['key-root', 'key-scale', 'key-extra', 'key-chord']
       .map((id) => byId(el, id).parentElement!.parentElement);
     expect(new Set(parents).size).toBe(1);
     // …and that wrapper is not the one holding the keyboard.
@@ -58,7 +58,7 @@ describe('KEY panel', () => {
 
   it('mints a testid for each control and the hint', () => {
     const { el } = build();
-    for (const id of ['key-root', 'key-scale', 'key-chord', 'key-hint']) {
+    for (const id of ['key-root', 'key-scale', 'key-extra', 'key-chord', 'key-hint']) {
       expect(byId(el, id), id).toBeTruthy();
     }
   });
@@ -116,6 +116,57 @@ describe('KEY panel', () => {
     const { bus, el } = build();
     bus.restore({ 'scale.type': MINOR, 'scale.root': 9 });
     expect(byId(el, 'key-hint').textContent).toContain('minor');
+  });
+
+  // scale-quantization.md REQ-an-extra-note-is-admitted-not-a-degree (v4).
+  describe('the extra note', () => {
+    const DORIAN = SCALE_LABELS.indexOf('dorian');
+    const extraOption = (el: HTMLElement, label: string): HTMLButtonElement =>
+      [...byId(el, 'key-extra').querySelectorAll<HTMLButtonElement>('button')]
+        .find((o) => o.textContent === label)!;
+
+    it('disables its options while chromatic, and says why', () => {
+      const { bus, el } = build();
+      for (const label of EXTRA_LABELS.slice(1)) expect(extraOption(el, label).disabled, label).toBe(true);
+      expect(byId(el, 'key-hint').textContent).toContain('extra note');
+      bus.set('scale.type', DORIAN);
+      for (const label of EXTRA_LABELS.slice(1)) expect(extraOption(el, label).disabled, label).toBe(false);
+    });
+
+    it('names the note it lets through', () => {
+      const { bus, el } = build();
+      bus.set('scale.root', 4);
+      bus.set('scale.type', DORIAN);
+      bus.set('scale.extra', EXTRA_LABELS.indexOf('blue b5'));
+      const text = byId(el, 'key-hint').textContent!;
+      expect(text).toContain('A# (blue b5)');
+      expect(text).toContain('plays as written');
+    });
+
+    it('says when it adds nothing because the scale already has it (edge)', () => {
+      const { bus, el } = build();
+      bus.set('scale.root', 4);
+      bus.set('scale.type', DORIAN);
+      bus.set('scale.extra', EXTRA_LABELS.indexOf('b7'));
+      expect(byId(el, 'key-hint').textContent).toContain('already in E dorian');
+    });
+
+    it('says when bebop has no tone to add (edge)', () => {
+      const { bus, el } = build();
+      bus.set('scale.type', SCALE_LABELS.indexOf('pent min'));
+      bus.set('scale.extra', EXTRA_LABELS.indexOf('bebop'));
+      expect(byId(el, 'key-hint').textContent).toContain('bebop adds nothing');
+    });
+
+    it('tells chord memory\'s player that the extra note plays alone', () => {
+      const { bus, el } = build();
+      bus.set('scale.root', 4);
+      bus.set('scale.type', DORIAN);
+      bus.set('scale.extra', EXTRA_LABELS.indexOf('blue b5'));
+      bus.set('chord.voicing', TRIAD);
+      bus.set('voicing.mode', 1);
+      expect(byId(el, 'key-hint').textContent).toContain('A# is a passing tone');
+    });
   });
 });
 
@@ -218,8 +269,8 @@ describe('KEY panel — keyboard map', () => {
     const { el } = build();
     const roles = [...byId(el, 'key-legend').querySelectorAll<HTMLElement>('[data-role]')]
       .map((sw) => sw.dataset.role!);
-    expect(roles).toEqual(['root', 'scale', 'chord']);
-    expect(byId(el, 'key-legend').textContent).toBe('rootin scalechord');
+    expect(roles).toEqual(['root', 'scale', 'extra', 'chord']);
+    expect(byId(el, 'key-legend').textContent).toBe('rootin scaleextra notechord');
   });
 
   it('hides the chord legend entry while no key wears that colour', () => {
@@ -229,6 +280,21 @@ describe('KEY panel — keyboard map', () => {
     bus.set('scale.type', MAJOR);
     bus.set('chord.voicing', TRIAD);
     expect(chordSwatch.parentElement!.classList.contains('hidden')).toBe(false);
+  });
+
+  it('wears the extra note as its own role, and shows its legend entry only then (REQ-the-extra-note-wears-its-own-role)', () => {
+    const { bus, el } = build();
+    const extraSwatch = byId(el, 'key-legend').querySelector('[data-role="extra"]')!;
+    bus.set('scale.root', 4);
+    bus.set('scale.type', SCALE_LABELS.indexOf('dorian'));
+    expect(pcs(el, 'extra')).toEqual([]);
+    expect(extraSwatch.parentElement!.classList.contains('hidden')).toBe(true);
+
+    bus.set('scale.extra', EXTRA_LABELS.indexOf('blue b5'));
+    expect(pcs(el, 'extra')).toEqual([10]);                 // A#/Bb over E
+    expect(pcs(el, 'out')).not.toContain(10);
+    expect(byId(el, 'key-map-10').title).toBe('A# — extra note, plays as written');
+    expect(extraSwatch.parentElement!.classList.contains('hidden')).toBe(false);
   });
 
   it('backs that hide with a rule, so it leaves the layout (REQ-the-key-is-drawn-not-just-named, regression)', () => {

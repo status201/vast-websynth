@@ -1,7 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import {
-  NOTE_LABELS, SCALE_LABELS, CHORD_LABELS, isScaleActive, scaleSize, scaleTones,
-  buildQuantizeTable, chordDegrees, diatonicChord, degreeLabel, invertChord,
+  NOTE_LABELS, SCALE_LABELS, CHORD_LABELS, EXTRA_LABELS, isScaleActive, scaleSize, scaleTones,
+  buildQuantizeTable, chordDegrees, diatonicChord, degreeLabel, degreeOf, extraTone, invertChord,
 } from '../../src/utils/music';
 
 // specs/features/scale-quantization.md, specs/features/chord-tools.md
@@ -160,6 +160,121 @@ describe('degreeLabel', () => {
   it('labels a minor scale from the same rule, with no per-scale data', () => {
     expect(degreeLabel(A, MINOR, 0)).toBe('i — Am');
     expect(degreeLabel(A, MINOR, 2)).toBe('III — C');
+  });
+});
+
+// scale-quantization.md REQ-an-extra-note-is-admitted-not-a-degree / REQ-bebop-is-relative-to-the-mode (v4).
+describe('the extra note', () => {
+  const E = 4;
+  const DORIAN = SCALE_LABELS.indexOf('dorian');
+  const MIXO = SCALE_LABELS.indexOf('mixolydian');
+  const BLUES = SCALE_LABELS.indexOf('blues');
+  const extra = (label: string): number => EXTRA_LABELS.indexOf(label);
+
+  it('keeps none at index 0 as the no-op', () => {
+    expect(EXTRA_LABELS[0]).toBe('none');
+    for (let scale = 0; scale < SCALE_LABELS.length; scale++) {
+      for (let root = 0; root < 12; root++) {
+        expect(buildQuantizeTable(root, scale, 0)).toEqual(buildQuantizeTable(root, scale));
+      }
+    }
+  });
+
+  it('lets a blue b5 through as written — the 1979 case', () => {
+    const plain = buildQuantizeTable(E, DORIAN)!;
+    const blue = buildQuantizeTable(E, DORIAN, extra('blue b5'))!;
+    expect(plain[46]).toBe(45);   // Bb2 -> A2 under plain E dorian
+    expect(blue[46]).toBe(46);    // Bb2 stays Bb2
+    // Every other note of E dorian is untouched by the addition.
+    for (let n = 0; n < 128; n++) if (n % 12 !== 10) expect(blue[n]).toBe(plain[n]);
+  });
+
+  it('places the fixed extras over the root', () => {
+    expect(extraTone(C, MAJOR, extra('blue b5'))).toBe(6);
+    expect(extraTone(C, MAJOR, extra('blue b3'))).toBe(3);
+    expect(extraTone(C, MAJOR, extra('b7'))).toBe(10);
+    expect(extraTone(C, MIXO, extra('maj 7'))).toBe(11);
+    expect(extraTone(E, DORIAN, extra('blue b5'))).toBe(10);   // A#/Bb over E
+  });
+
+  it('adds nothing when the note is already in the scale (edge)', () => {
+    expect(extraTone(E, DORIAN, extra('b7'))).toBeNull();
+    expect(extraTone(C, BLUES, extra('blue b5'))).toBeNull();
+    expect(buildQuantizeTable(E, DORIAN, extra('b7'))).toEqual(buildQuantizeTable(E, DORIAN));
+  });
+
+  it('is inert without a scale', () => {
+    expect(buildQuantizeTable(C, 0, extra('blue b5'))).toBeNull();
+    expect(extraTone(C, 0, extra('blue b5'))).toBeNull();
+  });
+
+  it('adds the mode\'s own bebop passing tone (REQ-bebop-is-relative-to-the-mode)', () => {
+    const bebop = extra('bebop');
+    expect(extraTone(C, MAJOR, bebop)).toBe(8);     // G#: major bebop
+    expect(extraTone(C, MIXO, bebop)).toBe(11);     // B: dominant bebop
+    expect(extraTone(C, DORIAN, bebop)).toBe(4);    // E: dorian bebop
+    expect(extraTone(C, MINOR, bebop)).toBe(11);
+    expect(extraTone(C, SCALE_LABELS.indexOf('harm minor'), bebop)).toBe(10);
+    expect(extraTone(C, PENT_MAJ, bebop)).toBeNull();
+    expect(extraTone(C, BLUES, bebop)).toBeNull();
+  });
+
+  it('is never a degree', () => {
+    const blue = extra('blue b5');
+    expect(scaleTones(E, DORIAN)).not.toContain(10);
+    expect(scaleSize(DORIAN)).toBe(7);
+    expect(degreeOf(46, E, DORIAN)).toBe(-1);
+    // The writer's menu still has the mode's seven degrees, labelled as before.
+    expect(degreeLabel(E, DORIAN, 0)).toBe('i — Em');
+    expect(extraTone(E, DORIAN, blue)).toBe(10);
+  });
+
+  it('stays idempotent and bounded for every scale, root and extra (stability)', () => {
+    const bad: string[] = [];
+    for (let scale = 1; scale < SCALE_LABELS.length; scale++) {
+      for (let root = 0; root < 12; root++) {
+        for (let x = 1; x < EXTRA_LABELS.length; x++) {
+          const t = buildQuantizeTable(root, scale, x)!;
+          for (let n = 0; n < 128; n++) {
+            const v = t[n]!;
+            if (t[v] !== v || v > 127) bad.push(`${SCALE_LABELS[scale]} root ${root} ${EXTRA_LABELS[x]} note ${n}`);
+          }
+        }
+      }
+    }
+    expect(bad).toEqual([]);
+  });
+});
+
+// chord-tools.md REQ-a-voicing-is-at-most-four-notes (v3).
+describe('extension voicings', () => {
+  const v = (label: string): readonly number[] => chordDegrees(CHORD_LABELS.indexOf(label));
+
+  it('never asks for more than four notes', () => {
+    for (let i = 0; i < CHORD_LABELS.length; i++) expect(chordDegrees(i).length).toBeLessThanOrEqual(4);
+  });
+
+  it('keeps the existing voicings at their indices (append-only)', () => {
+    expect(CHORD_LABELS.slice(0, 5)).toEqual(['off', 'triad', '7th', 'sus4', 'power']);
+  });
+
+  it('voices a 9th as 1-3-7-9 — ii in C major from D4 is D F C E', () => {
+    expect(diatonicChord(62, C, MAJOR, v('9th'), 1)).toEqual([62, 65, 72, 76]);
+  });
+
+  it('stacks add9, 6th and sus2 from the scale', () => {
+    expect(diatonicChord(60, C, MAJOR, v('add9'))).toEqual([60, 64, 67, 74]);
+    expect(diatonicChord(60, C, MAJOR, v('6th'))).toEqual([60, 64, 67, 69]);
+    expect(diatonicChord(60, C, MAJOR, v('sus2'))).toEqual([60, 62, 67]);
+  });
+
+  it('stays diatonic, so the quantizer passes it untouched (chord-tools.md REQ-chord-memory-is-diatonic)', () => {
+    const t = buildQuantizeTable(C, MAJOR)!;
+    for (const label of ['sus2', '6th', 'add9', '9th']) {
+      for (let deg = 0; deg < 7; deg++) {
+        for (const n of diatonicChord(60, C, MAJOR, v(label), deg)) expect(t[n]).toBe(n);
+      }
+    }
   });
 });
 

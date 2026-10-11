@@ -98,7 +98,7 @@
     transform: translateX(-50%);
   }
 
-  /* ---- states, in falling precedence: root > chord > scale > out ----
+  /* ---- states, in falling precedence: root > chord > scale > extra > out ----
      Driven by `data-role`, not a class: one attribute write per key per repaint
      instead of three classList toggles, and a jsdom test can read it without
      depending on how CSS Modules resolve under Vitest.
@@ -119,6 +119,11 @@
   .white[data-role='scale'] { background: var(--key-role-scale); border-color: var(--key-role-scale-edge); }
   .black[data-role='scale'] { background: var(--key-role-scale-black); border-color: var(--key-role-scale); }
 
+  /* The extra note sits between scale and out in the precedence; never root or chord,
+     since it is not a degree (REQ-the-extra-note-wears-its-own-role). */
+  .white[data-role='extra'] { background: var(--key-role-extra); border-color: var(--key-role-extra-edge); }
+  .black[data-role='extra'] { background: var(--key-role-extra-black); border-color: var(--key-role-extra); }
+
   .white[data-role='chord'] {
     background: var(--key-role-chord);
     border-color: var(--key-role-chord);
@@ -133,8 +138,9 @@
   }
   .black[data-role='root'] { background: var(--key-role-root-black); border-color: var(--key-role-root); }
 
-  /* Legend swatches wear the same four steps, at white-key weight. */
+  /* Legend swatches wear the same steps, at white-key weight. */
   .swatch[data-role='scale'] { background: var(--key-role-scale); border-color: var(--key-role-scale-edge); }
+  .swatch[data-role='extra'] { background: var(--key-role-extra); border-color: var(--key-role-extra-edge); }
   .swatch[data-role='chord'] { background: var(--key-role-chord); border-color: var(--key-role-chord); }
   .swatch[data-role='root'] { background: var(--key-role-root); border-color: var(--key-role-root); }
 

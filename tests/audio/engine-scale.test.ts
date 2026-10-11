@@ -1,7 +1,7 @@
 import { describe, it, expect, vi } from 'vitest';
 import { Engine } from '../../src/audio/engine';
 import { ScaleQuantizer } from '../../src/audio/transport/scale-quantizer';
-import { SCALE_LABELS, CHORD_LABELS } from '../../src/utils/music';
+import { SCALE_LABELS, CHORD_LABELS, EXTRA_LABELS } from '../../src/utils/music';
 
 /**
  * The keyboard/MIDI note passthrough under an active key and chord memory
@@ -152,6 +152,40 @@ describe('note passthrough — chord memory', () => {
     const { playNote, noteOn } = withChord('triad');
     noteOn(61);                                  // C# -> C, so the chord is C E G
     expect(notes(playNote)).toEqual([60, 64, 67]);
+  });
+});
+
+// scale-quantization.md REQ-an-extra-note-is-admitted-not-a-degree (v4).
+describe('note passthrough — the extra note', () => {
+  function eDorianBlue(voicing = 'off'): ScaleQuantizer {
+    const s = inKey('dorian', 4);
+    s.setExtra(EXTRA_LABELS.indexOf('blue b5'));
+    s.setChord(CHORD_LABELS.indexOf(voicing));
+    return s;
+  }
+
+  it('plays a blue b5 as written, where plain E dorian snaps it to A', () => {
+    const plain = engineLike(inKey('dorian', 4));
+    plain.noteOn(46);
+    expect(notes(plain.playNote)).toEqual([45]);
+
+    const blue = engineLike(eDorianBlue());
+    blue.noteOn(46);
+    expect(notes(blue.playNote)).toEqual([46]);
+  });
+
+  it('plays the extra note alone under chord memory — a passing tone has no chord', () => {
+    const { playNote, releaseNote, noteOn, noteOff } = engineLike(eDorianBlue('triad'));
+    noteOn(46);
+    noteOff(46);
+    expect(notes(playNote)).toEqual([46]);
+    expect(notes(releaseNote)).toEqual([46]);
+  });
+
+  it('still stacks a chord on a real degree beside it', () => {
+    const { playNote, noteOn } = engineLike(eDorianBlue('triad'));
+    noteOn(40);                                  // E -> E G B
+    expect(notes(playNote)).toEqual([40, 43, 47]);
   });
 });
 

@@ -18,6 +18,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ### Added
 
+- **Extra note in the key.** The KEY tab has an *Extra note* dropdown next to
+  Scale: blue b5, blue b3, b7, maj 7 or bebop. The scale filter lets that one
+  note through as written, so a song with a blue note can be set to its real key
+  (*1979* is E dorian with a blue b5). It is a passing tone, not a scale degree:
+  chords are still built from the scale, and chord memory plays it alone. Bebop
+  picks the added note that fits the scale (#5 in major, major 7 in mixolydian
+  and minor, major 3 in dorian). The note shows in its own blue on the key map
+  and the keyboard, and SNAP keeps it.
+- **More chord voicings.** Chord memory and the chord writer add sus2, 6th, add9
+  and 9th. A 9th is voiced root-3rd-7th-9th, so no chord is more than four notes.
 - **`read_midi` MCP tool.** An agent can now read a `.mid` file instead of
   guessing at a song. It returns the tempo and meter, each channel's GM
   instrument, range and polyphony, the coarsest grid every note lands on (with
@@ -41,6 +51,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ### Changed
 
+- **1979 is now in its key.** The demo is set to E dorian with the blue b5, so
+  the Key tab names its key and the B flat in the bass walk-down still plays.
 - **1985-1 and 1985-2 are now a Crockett's Theme pair.** Like the Eleanor Rigby
   pair, they play together on two devices paired over WiFi sync or MIDI, and each is
   complete on its own. Both carry the lead. *1985-1* has the octave bass, the

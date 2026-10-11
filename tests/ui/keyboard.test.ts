@@ -2,7 +2,7 @@ import { describe, it, expect, vi, afterEach } from 'vitest';
 import { Keyboard } from '../../src/ui/components/keyboard';
 import { readKeyState } from '../../src/ui/key-roles';
 import { ParamBus, registerDefaults } from '../../src/state/params';
-import { SCALE_LABELS, CHORD_LABELS } from '../../src/utils/music';
+import { SCALE_LABELS, CHORD_LABELS, EXTRA_LABELS } from '../../src/utils/music';
 
 function mount(): { bus: ParamBus; kb: Keyboard; keyEl: (note: number) => HTMLElement } {
   const bus = new ParamBus();
@@ -200,6 +200,17 @@ describe('Keyboard.setKeyRoles', () => {
     expect(withRole(kb, 'root')).toEqual([48, 60, 72]);        // C, not a chord tone
     expect(withRole(kb, 'chord')).toEqual([52, 55, 64, 67, 76, 79]); // E and G
     expect(withRole(kb, 'scale')).toContain(50);               // D
+  });
+
+  it('tints the extra note, which is in play (scale-quantization.md REQ-the-extra-note-wears-its-own-role)', () => {
+    const { bus, kb } = mount();
+    bus.set('scale.root', 4);
+    bus.set('scale.type', SCALE_LABELS.indexOf('dorian'));
+    bus.set('scale.extra', EXTRA_LABELS.indexOf('blue b5'));
+    kb.setKeyRoles(readKeyState(bus));
+
+    expect(withRole(kb, 'extra')).toEqual([58, 70, 82]);  // every A#/Bb drawn
+    expect(kb.el.querySelector('[data-note="48"]')!.getAttribute('data-role')).toBeNull(); // C stays bare
   });
 
   it('clears every role when handed null — what chromatic gets', () => {

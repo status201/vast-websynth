@@ -133,7 +133,8 @@ Schemas: [`llms.txt`](llms.txt).
 - "mod.5.amt": number  // range -1..1, default 0
 - "scale.root": number  // range 0..11, default 0, step 1, values 0=C 1=C# 2=D 3=D# 4=E 5=F 6=F# 7=G 8=G# 9=A 10=A# 11=B
 - "scale.type": number  // range 0..10, default 0, step 1, values 0=chromatic 1=major 2=minor 3=dorian 4=mixolydian 5=phrygian 6=lydian 7=harm minor 8=pent maj 9=pent min 10=blues
-- "chord.voicing": number  // range 0..4, default 0, step 1, values 0=off 1=triad 2=7th 3=sus4 4=power
+- "scale.extra": number  // range 0..5, default 0, step 1, values 0=none 1=blue b5 2=blue b3 3=b7 4=maj 7 5=bebop
+- "chord.voicing": number  // range 0..8, default 0, step 1, values 0=off 1=triad 2=7th 3=sus4 4=power 5=sus2 6=6th 7=add9 8=9th
 
 ## Song-only parameters (transport, arpeggiator, sequencer, drums, sampler)
 

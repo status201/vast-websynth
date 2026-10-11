@@ -1,7 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import { ParamBus, registerDefaults } from '../../src/state/params';
 import { DROP_IN_DEMOS } from './demo-files';
-import { SCALE_LABELS, CHORD_LABELS } from '../../src/utils/music';
+import { SCALE_LABELS, CHORD_LABELS, EXTRA_LABELS } from '../../src/utils/music';
 
 /**
  * The back-compat half of scale-quantization.md REQ-the-key-is-two-inert-params and chord-tools.md REQ-chord-memory-is-diatonic.
@@ -22,6 +22,7 @@ describe('key params are inert by default (REQ-the-key-is-two-inert-params)', ()
     const bus = freshBus();
     expect(bus.get('scale.type')).toBe(0);
     expect(bus.get('scale.root')).toBe(0);
+    expect(bus.get('scale.extra')).toBe(0);
     expect(bus.get('chord.voicing')).toBe(0);
   });
 
@@ -30,6 +31,7 @@ describe('key params are inert by default (REQ-the-key-is-two-inert-params)', ()
     // Reordering either array would silently re-key every saved song.
     expect(SCALE_LABELS[0]).toBe('chromatic');
     expect(CHORD_LABELS[0]).toBe('off');
+    expect(EXTRA_LABELS[0]).toBe('none');
   });
 
   it('registers the params over their full label range', () => {
@@ -37,6 +39,7 @@ describe('key params are inert by default (REQ-the-key-is-two-inert-params)', ()
     expect(bus.def('scale.root')?.max).toBe(11);
     expect(bus.def('scale.type')?.max).toBe(SCALE_LABELS.length - 1);
     expect(bus.def('chord.voicing')?.max).toBe(CHORD_LABELS.length - 1);
+    expect(bus.def('scale.extra')?.max).toBe(EXTRA_LABELS.length - 1);
   });
 });
 
@@ -53,7 +56,7 @@ describe('songs written before the key existed (REQ-the-key-is-two-inert-params,
   it('carries no scale keys, so each falls back to the inert default', () => {
     for (const [name, song] of demos) {
       const params = song.params as Record<string, number | undefined>;
-      for (const id of ['scale.root', 'scale.type', 'chord.voicing']) {
+      for (const id of ['scale.root', 'scale.type', 'scale.extra', 'chord.voicing']) {
         if (params[id] === undefined) continue;
         // If a future demo does set one, it must still be a legal index.
         const def = freshBus().def(id)!;
@@ -67,6 +70,7 @@ describe('songs written before the key existed (REQ-the-key-is-two-inert-params,
     const bus = freshBus();
     bus.set('scale.type', SCALE_LABELS.indexOf('minor'));
     bus.set('chord.voicing', CHORD_LABELS.indexOf('7th'));
+    bus.set('scale.extra', EXTRA_LABELS.indexOf('blue b5'));
 
     // A pre-feature song's params bag simply has no such keys.
     const legacy = Object.fromEntries(
@@ -77,5 +81,6 @@ describe('songs written before the key existed (REQ-the-key-is-two-inert-params,
 
     expect(bus.get('scale.type')).toBe(0);
     expect(bus.get('chord.voicing')).toBe(0);
+    expect(bus.get('scale.extra')).toBe(0);
   });
 });

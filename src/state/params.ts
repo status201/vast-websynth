@@ -5,7 +5,7 @@ import {
 } from './meter';
 import { clamp, midiToHz } from '../utils/math';
 import { SYNC_LABELS } from '../utils/tempo';
-import { NOTE_LABELS, SCALE_LABELS, CHORD_LABELS } from '../utils/music';
+import { NOTE_LABELS, SCALE_LABELS, EXTRA_LABELS, CHORD_LABELS } from '../utils/music';
 import { MOD_ROWS, MOD_SOURCE_LABELS, MOD_DEST_LABELS } from './mod-routing';
 // `eq.ts` imports only the `ParamBus` *type* back from here, so this pair is a
 // type-only cycle and erases at compile time — no runtime import loop.
@@ -240,7 +240,7 @@ export const UNISON_LABELS = ['off', '2', '3', '4'];
 // Re-exported so panels pull the key's labels from the same place as every other
 // label array; the tables themselves are pure and live in utils
 // (specs/features/scale-quantization.md).
-export { NOTE_LABELS, SCALE_LABELS, CHORD_LABELS };
+export { NOTE_LABELS, SCALE_LABELS, EXTRA_LABELS, CHORD_LABELS };
 export const ARP_PATTERN_LABELS = ['up', 'down', 'updn', 'rand', 'play'];
 export const ARP_RATE_LABELS = ['1/4', '1/8', '1/16', '1/32'];
 /**
@@ -467,6 +467,9 @@ export function registerDefaults(bus: ParamBus): void {
     // no-ops, so every preset and song predating these keys sounds identical (ADR-006).
     { id: 'scale.root', min: 0, max: 11, default: 0, step: 1, taper: 'discrete', labels: NOTE_LABELS },
     { id: 'scale.type', min: 0, max: SCALE_LABELS.length - 1, default: 0, step: 1, taper: 'discrete', labels: SCALE_LABELS },
+    // 0 'none' admits nothing extra — the same no-op contract (scale-quantization.md
+    // REQ-an-extra-note-is-admitted-not-a-degree).
+    { id: 'scale.extra', min: 0, max: EXTRA_LABELS.length - 1, default: 0, step: 1, taper: 'discrete', labels: EXTRA_LABELS },
     { id: 'chord.voicing', min: 0, max: CHORD_LABELS.length - 1, default: 0, step: 1, taper: 'discrete', labels: CHORD_LABELS },
 
     // ----- Sequencer -----

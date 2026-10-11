@@ -1,5 +1,5 @@
 import type { ParamBus, ParamId } from '../state/params';
-import { chordDegrees, diatonicChord, scaleTones } from '../utils/music';
+import { chordDegrees, diatonicChord, extraTone, scaleTones } from '../utils/music';
 
 /**
  * The current key, as pitch classes — the one vocabulary two surfaces share.
@@ -18,7 +18,7 @@ import { chordDegrees, diatonicChord, scaleTones } from '../utils/music';
  */
 
 /** Falling precedence: a pitch class wears the first of these that fits. */
-export type KeyRole = 'root' | 'chord' | 'scale' | 'out';
+export type KeyRole = 'root' | 'chord' | 'scale' | 'extra' | 'out';
 
 export interface KeyState {
   /** The root's pitch class, 0..11. */
@@ -27,14 +27,17 @@ export interface KeyState {
   tones: ReadonlySet<number>;
   /** The tonic chord of the current voicing (chord-tools.md REQ-chords-are-stacked-scale-degrees); empty when off. */
   chord: ReadonlySet<number>;
+  /** The extra note's pitch class — admitted, never a degree — or `null` when there is
+   *  none to show (scale-quantization.md REQ-the-extra-note-wears-its-own-role). */
+  extra: number | null;
   /** False while `chromatic`, where "in scale" says nothing about any note. */
   active: boolean;
 }
 
-/** The three params a key is made of. `voicing.mode` is NOT one: it gates the live
+/** The four params a key is made of. `voicing.mode` is NOT one: it gates the live
  *  chord path, not the picture, and only the KEY tab's hint has anything to say
  *  about it. */
-export const KEY_PARAMS: readonly ParamId[] = ['scale.root', 'scale.type', 'chord.voicing'];
+export const KEY_PARAMS: readonly ParamId[] = ['scale.root', 'scale.type', 'scale.extra', 'chord.voicing'];
 
 /** Every pitch class — what `chromatic` admits, and so the map's default state. */
 const ALL_PITCH_CLASSES: ReadonlySet<number> = new Set(Array.from({ length: 12 }, (_, i) => i));
@@ -57,7 +60,9 @@ export function readKeyState(bus: ParamBus): KeyState {
     for (const n of diatonicChord(60, root, scale, chordDegrees(voicing))) chord.add(n % 12);
   }
 
-  return { root, tones, chord, active };
+  const extra = extraTone(root, scale, Math.round(bus.get('scale.extra')));
+
+  return { root, tones, chord, extra, active };
 }
 
 /** The role a pitch class plays, in falling precedence — so the root still reads as
@@ -66,6 +71,7 @@ export function keyRole(pc: number, s: KeyState): KeyRole {
   if (pc === s.root) return 'root';
   if (s.chord.has(pc)) return 'chord';
   if (s.tones.has(pc)) return 'scale';
+  if (pc === s.extra) return 'extra';
   return 'out';
 }
 
