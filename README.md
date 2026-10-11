@@ -88,6 +88,52 @@ Vanilla TypeScript + Vite, zero runtime dependencies.
 - **Install it as an app**: add to your homescreen / install from the browser menu and VAST behaves like a native instrument — it **works offline**: press **Play offline** in Help & About to save every demo, dialog and help page on the device, and new versions update that copy by themselves, launches fullscreen on Android, **keeps the screen awake while the audio runs**, opens `.json`/`.websynth.zip` song files directly (desktop), stays audible with the iPhone mute switch on (iOS 17+), and there's a fullscreen toggle in the header for browser play too
 - **Problem reports without a console**: Help & About ▸ Debug shows the app's last uncaught errors, **Copy report** includes them, and on a device that can share, **Share report** sends the report straight to another app
 
+## Controls
+
+- **Computer keyboard**: `z s x d c v g b h n j m ,` = lower octave,
+  `q 2 w 3 e r 5 t 6 y 7 u i` = upper octave
+- **`-` / `=`** (the two keys right of 0, or numpad `-` / `+`): shift keyboard octave
+- **Tab** onto any knob, then the arrow keys turn it (Shift = fine, Page Up/Down = big steps, Home/End = min/max, Delete = reset)
+- **`'` / `/`**: pitch bend up / down — the keys are stacked, so up really is
+  the upper one (springs back on release)
+- **Space**: transport play / stop
+- **Shift + Space**: pause / continue from where you paused
+- **Shift + L**: loop on / off
+- **Home**: move the playhead back to bar 1
+- **Shift + Arrow Left/Right**: move the playhead one bar back / forward
+- **F** (hold): drum fill
+- **Shift + R**: open / close the Record window (its level meter turns red if the take clips)
+- **Drum and sampler grids**: **Tab** into a grid, move with the **arrow keys**, **Enter** toggles the step (Space still plays and stops)
+- **Esc**: panic (all notes off)
+- While a **dialog** is open the keys are its own: Esc closes it (the top one, if two are stacked) and the shortcuts above wait until it closes
+- **?**: show / hide the info badges — the ⓘ markers that explain a control where
+  it sits, rather than in a manual
+- **Playhead ruler**: the strip above every step grid — click a tick to move the
+  playhead there (mid-play it jumps in time; stopped it sets where Play starts).
+  The Song tab adds a bar-by-bar scrubber for the whole arrangement, a
+  **Play / Pause** that continues where you paused (the header's Stop still goes
+  back to the start), a **Loop** — switch it on, click the first and last bar,
+  and the transport repeats them, changing over on the bar line — and a
+  **TRANSPORT** button that floats all of it over any tab
+- **METER** (beside BPM): the song's time signature — every machine follows it.
+  Each machine's own **GRID** pair (**LEN** / **RATE**) sits in its header: LEN
+  on *BAR* follows the meter, anything else pins a step count and sets that lane
+  against the bar on purpose
+- **Double-tap a knob**: reset it to the loaded preset/song's value (or the
+  factory default if none set it); Shift-drag for fine adjustment
+- **Step grids** — tap: toggle a step · drag across cells: paint them on/off in
+  one gesture · press-and-hold (or right-click): select a step to edit without
+  toggling it · **Delete** / **Backspace**: clear the selected step
+- **Motion pads** — drag: set the value, snapped to steps of 0.05 so two lanes
+  can be given exactly the same one · Shift-drag: fine, unsnapped ·
+  press-and-hold: read a value without changing it · double-click: clear. The
+  value shows in each lane's header readout and in a bubble while you drag
+- **Chain chips** (Song tab) — tap: select a bar · drag: move it, dropping into
+  the gap the line marks · **◀** / **▶**: move it one place · **✕**: remove it ·
+  on the sequencer lane, wheel over a chip (or **−** / **+**): transpose that
+  bar a semitone · double-click: back to `+0`
+- **Ctrl/Cmd+Z**: undo the last grid edit on the machine tab you are looking at
+
 ## Running
 
 ```bash
@@ -250,51 +296,14 @@ Attaching them needs the [`gh` CLI](https://cli.github.com/) authenticated.
 See **[DEPLOYMENT.md](DEPLOYMENT.md)** for the full flow and how to deploy the
 built `dist/`.
 
-## Controls
 
-- **Computer keyboard**: `z s x d c v g b h n j m ,` = lower octave,
-  `q 2 w 3 e r 5 t 6 y 7 u i` = upper octave
-- **`-` / `=`** (the two keys right of 0, or numpad `-` / `+`): shift keyboard octave
-- **Tab** onto any knob, then the arrow keys turn it (Shift = fine, Page Up/Down = big steps, Home/End = min/max, Delete = reset)
-- **`'` / `/`**: pitch bend up / down — the keys are stacked, so up really is
-  the upper one (springs back on release)
-- **Space**: transport play / stop
-- **Shift + Space**: pause / continue from where you paused
-- **Shift + L**: loop on / off
-- **Home**: move the playhead back to bar 1
-- **Shift + Arrow Left/Right**: move the playhead one bar back / forward
-- **F** (hold): drum fill
-- **Shift + R**: open / close the Record window (its level meter turns red if the take clips)
-- **Drum and sampler grids**: **Tab** into a grid, move with the **arrow keys**, **Enter** toggles the step (Space still plays and stops)
-- **Esc**: panic (all notes off)
-- While a **dialog** is open the keys are its own: Esc closes it (the top one, if two are stacked) and the shortcuts above wait until it closes
-- **?**: show / hide the info badges — the ⓘ markers that explain a control where
-  it sits, rather than in a manual
-- **Playhead ruler**: the strip above every step grid — click a tick to move the
-  playhead there (mid-play it jumps in time; stopped it sets where Play starts).
-  The Song tab adds a bar-by-bar scrubber for the whole arrangement, a
-  **Play / Pause** that continues where you paused (the header's Stop still goes
-  back to the start), a **Loop** — switch it on, click the first and last bar,
-  and the transport repeats them, changing over on the bar line — and a
-  **TRANSPORT** button that floats all of it over any tab
-- **METER** (beside BPM): the song's time signature — every machine follows it.
-  Each machine's own **GRID** pair (**LEN** / **RATE**) sits in its header: LEN
-  on *BAR* follows the meter, anything else pins a step count and sets that lane
-  against the bar on purpose
-- **Double-tap a knob**: reset it to the loaded preset/song's value (or the
-  factory default if none set it); Shift-drag for fine adjustment
-- **Step grids** — tap: toggle a step · drag across cells: paint them on/off in
-  one gesture · press-and-hold (or right-click): select a step to edit without
-  toggling it · **Delete** / **Backspace**: clear the selected step
-- **Motion pads** — drag: set the value, snapped to steps of 0.05 so two lanes
-  can be given exactly the same one · Shift-drag: fine, unsnapped ·
-  press-and-hold: read a value without changing it · double-click: clear. The
-  value shows in each lane's header readout and in a bubble while you drag
-- **Chain chips** (Song tab) — tap: select a bar · drag: move it, dropping into
-  the gap the line marks · **◀** / **▶**: move it one place · **✕**: remove it ·
-  on the sequencer lane, wheel over a chip (or **−** / **+**): transpose that
-  bar a semitone · double-click: back to `+0`
-- **Ctrl/Cmd+Z**: undo the last grid edit on the machine tab you are looking at
+## Troubleshooting
+
+- **No sound on Bluetooth speakers (Windows).** If VAST goes quiet after
+  another tab or app played audio, while the scope still moves, switch the
+  speaker off and on (or reconnect it in Windows). It is a Windows Bluetooth
+  issue that silences live browser audio in every browser; reloading VAST does
+  not help.
 
 ## Project layout
 
