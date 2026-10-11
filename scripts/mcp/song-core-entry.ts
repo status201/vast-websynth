@@ -60,6 +60,6 @@ export {
   MAX_MIDI_FILE_BYTES,
 } from '../../src/state/limits';
 // read_midi (mcp-server.md REQ-read-midi-reads-a-file-for-an-arranger): the pure
-// SMF reader + analysis (midi-file-reader.md); it imports only limits + GM names.
+// SMF reader + analysis (midi-file-reader.md); it imports only limits, GM names and the pure music theory.
 export { parseMidiFile, analyzeMidi } from '../../src/state/midi-file';
 export type { MidiFile, MidiParse, MidiAnalysis, MidiAnalysisResult } from '../../src/state/midi-file';

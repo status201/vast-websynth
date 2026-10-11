@@ -1,9 +1,9 @@
 import type { ParamBus } from '../../state/params';
 import { NOTE_LABELS, SCALE_LABELS, EXTRA_LABELS, CHORD_LABELS } from '../../state/params';
 import { ParamDropdown } from '../components/param-dropdown';
+import { controlGroup } from './arp-panel';
 import { type KeyState, keyRole, onKeyChange, readKeyState } from '../key-roles';
 import panelStyles from '../styles/panel.module.css';
-import styles from '../styles/arp.module.css';
 import map from '../styles/key.module.css';
 
 const WHITE_OFFSETS = [0, 2, 4, 5, 7, 9, 11];              // C D E F G A B
@@ -38,7 +38,7 @@ export function buildKeyPanel(bus: ParamBus): HTMLElement {
   // Three dropdowns *describe* a key; a keyboard *shows* it, and where the semitones
   // fall is the part that teaches (REQ-the-key-is-drawn-not-just-named).
   const keyMap = buildKeyMap();
-  const mapGroup = group('Notes in this key', keyMap.el);
+  const mapGroup = controlGroup('Notes in this key', keyMap.el);
   mapGroup.className += ` ${map.mapGroup!}`;
   mapGroup.appendChild(keyMap.legend);
   body.appendChild(mapGroup);
@@ -51,22 +51,22 @@ export function buildKeyPanel(bus: ParamBus): HTMLElement {
 
   const root_ = new ParamDropdown(bus, 'scale.root', NOTE_LABELS);
   root_.el.dataset.testid = 'key-root';
-  controls.appendChild(group('Root', root_.el));
+  controls.appendChild(controlGroup('Root', root_.el));
 
   const scale = new ParamDropdown(bus, 'scale.type', SCALE_LABELS);
   scale.el.dataset.testid = 'key-scale';
-  controls.appendChild(group('Scale', scale.el));
+  controls.appendChild(controlGroup('Scale', scale.el));
 
   // One note the key lets through as written without making it a degree — a blue note
   // or a bebop passing tone (REQ-an-extra-note-is-admitted-not-a-degree). Between Scale and Chord memory
   // because it qualifies the scale, and the legend follows this order.
   const extra = new ParamDropdown(bus, 'scale.extra', EXTRA_LABELS);
   extra.el.dataset.testid = 'key-extra';
-  controls.appendChild(group('Extra note', extra.el));
+  controls.appendChild(controlGroup('Extra note', extra.el));
 
   const chord = new ParamDropdown(bus, 'chord.voicing', CHORD_LABELS);
   chord.el.dataset.testid = 'key-chord';
-  controls.appendChild(group('Chord memory', chord.el));
+  controls.appendChild(controlGroup('Chord memory', chord.el));
 
   // One line that says what the current combination will actually do, rather than
   // three controls the user has to simulate in their head (ADR-014).
@@ -221,15 +221,4 @@ function buildKeyMap(): { el: HTMLElement; legend: HTMLElement; paint: (s: KeySt
   }
 
   return { el, legend, paint };
-}
-
-function group(label: string, inner: HTMLElement): HTMLElement {
-  const g = document.createElement('div');
-  g.className = styles.group!;
-  const l = document.createElement('div');
-  l.className = styles.groupLabel!;
-  l.textContent = label;
-  g.appendChild(l);
-  g.appendChild(inner);
-  return g;
 }

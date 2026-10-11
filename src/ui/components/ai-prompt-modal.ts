@@ -16,8 +16,9 @@ const EXAMPLE_NAME = 'Mordor';
 
 /** Greyed example shown in the "Describe your song" field (placeholder only). */
 const BRIEF_PLACEHOLDER =
-  "e.g. a song in the style of Herbie Hancock's breakdance hit Rockit — a " +
-  '12-bar loop with some crazy breaks. Take advantage of the fact that ' +
+  "e.g. a song in the style of Herbie Hancock's breakdance hit Rockit — an " +
+  'intro, the robot riff building up, a scratch breakdown and a big return, ' +
+  'with some crazy breaks along the way. Take advantage of the fact that ' +
   "you're a robot yourself and you'd be dancing to it too.";
 
 export function buildModal(

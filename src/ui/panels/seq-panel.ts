@@ -17,12 +17,11 @@ import {
   VisibilityGate, type MachinePanel,
 } from './step-panel-scaffold';
 import { attachGridGestures } from '../components/grid-gestures';
-import { noteName } from '../components/keyboard';
 import { StepSettingsEditor, stepTitle } from '../components/step-settings';
 import { Dropdown } from '../components/dropdown';
 import { showToast } from '../components/toast';
 import {
-  buildQuantizeTable, chordDegrees, degreeLabel, diatonicChord, invertChord, INVERSION_LABELS, scaleSize,
+  buildQuantizeTable, chordDegrees, degreeLabel, diatonicChord, invertChord, INVERSION_LABELS, noteName, scaleSize,
 } from '../../utils/music';
 import { capturedToAudioBuffer } from '../../audio/recorder/audio-buffer';
 import {

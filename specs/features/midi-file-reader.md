@@ -76,8 +76,9 @@ without a second parser.
   exports re-state 4/4 on every track, which is not news to an arranger.
 
 - **REQ-the-analysis-names-the-parts** — `analyzeMidi(file)` reports, per used
-  channel (1-based, MIDI's own numbering): the GM instrument of its first program
-  change (channel 10 is *drums*), note count, range as note names, maximum
+  channel (1-based, MIDI's own numbering): the GM instrument in effect at its
+  first note — the last program change at or before it, else the channel's first
+  one, else program 0 (channel 10 is *drums*) — note count, range as note names, maximum
   polyphony and its grid (REQ-the-grid-is-the-coarsest-that-holds-every-onset).
   For channel 10 it lists each GM drum note used, with its GM name and the
   websynth drum track or voice model that plays it (`kick`, `snare`, …,
@@ -152,8 +153,8 @@ GmDrum: { name: string, websynth: string | null }
 
 ### Layer touchpoints & ordering
 
-`midi-file.ts` imports only `limits.ts` and `gm-names.ts` (its note names are a
-local helper: the app's `noteName` lives in a UI module),
+`midi-file.ts` imports only `limits.ts`, `gm-names.ts` and the pure
+`utils/music.ts` (for `noteName`, the same namer the step labels use),
 so the MCP song core can re-export it (mcp-server.md
 REQ-song-core-entry-exports-only-pure-code). The byte cap is applied **before**
 parsing; the bar cap while the bar map is built, before any per-bar work.

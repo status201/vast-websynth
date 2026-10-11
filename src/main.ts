@@ -18,7 +18,7 @@ import { MAX_SONG_JSON_BYTES } from './state/limits';
 import { Modal } from './ui/components/modal';
 import { createBrand } from './ui/components/brand';
 import { alertDialog, confirmDialog } from './ui/components/dialog';
-import { buildFailureReportFor } from './ui/failure-report';
+import { buildFailureReportFor, thrownMessage } from './ui/failure-report';
 import { WakeLockManager } from './utils/wake-lock';
 import { showToast, type ToastHandle } from './ui/components/toast';
 import { setClipStatsSource, setMidiStatsSource, setWakeLockSource } from './state/debug-sources';
@@ -221,8 +221,8 @@ async function boot() {
     } catch (e) {
       await alertDialog({
         title: 'Could not load the shared song',
-        message: (e as Error).message,
-        copyable: buildFailureReportFor('Could not load the shared song', (e as Error).message,
+        message: thrownMessage(e),
+        copyable: buildFailureReportFor('Could not load the shared song', thrownMessage(e),
           l.kind === 'data' ? 'shared link (embedded payload)' : l.url),
         copyLabel: 'Copy error',
       });

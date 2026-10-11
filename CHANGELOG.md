@@ -51,6 +51,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ### Changed
 
+- **AI-written songs aim for a finished track.** The song guide behind the ✨ AI
+  Prompt and the MCP `get_song_format` used to tell an agent that a complete song
+  is under 80 lines, and songs came back as one bar looping. It now asks for a
+  song with form (an intro, a build, a contrasting section, an ending), fits the
+  length to the style rather than to a size, shows a worked 64-bar arrangement,
+  and explains how to spend the banks on variations, fills and layers. It still
+  tells an agent never to give up or cut the file off.
+- **The key is in the AI song guide.** Agents now know what `scale.root`,
+  `scale.type`, `scale.extra` and `chord.voicing` do, including that the key
+  snaps the song's own notes, so a song is set to the key its notes are in.
+- **The Export and Preset dialogs share one set of rows.** They look as before,
+  except that the Export dialog's Song/Project rows now outline on hover, like
+  the Preset manager's.
 - **1979 is now in its key.** The demo is set to E dorian with the blue b5, so
   the Key tab names its key and the B flat in the bass walk-down still plays.
 - **1985-1 and 1985-2 are now a Crockett's Theme pair.** Like the Eleanor Rigby
@@ -75,7 +88,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
   file was checked against the size limit (8 MB for a song, 256 MB for a
   project) before loading; one chosen with Import, or opened from the operating
   system into the installed app, was read into memory in full first. All three
-  now check the file's size first and refuse it without reading it.
+  now check the file's size first and refuse it without reading it, and so does
+  the preset manager's Import.
 - **Mono samples stay mono in a project export.** Every sampler clip was written
   as a stereo WAV or MP3, so a mono sample took twice the space it needed — and
   the device's own sample store did the same, so a mono sample came back from a

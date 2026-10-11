@@ -1,6 +1,6 @@
-/* Export-audio modal (audio-export.md REQ-export-opens-an-options-modal). The format/runs rows reuse
-   export-song-modal.module.css's `.fmtRow`/`.fmtLabel`/`.note`; only the
-   checkbox row and this body spacing are new. */
+/* Export-audio modal (audio-export.md REQ-export-opens-an-options-modal). The format/runs rows and
+   the length note are the shared chooser's (chooser.module.css, chooser-rows.md);
+   only the checkbox row and this body spacing are new. */
 
 @layer components {
   /* `Modal` sets no margin under its title, and the export-song chooser gets away

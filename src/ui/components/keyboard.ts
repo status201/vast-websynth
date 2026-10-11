@@ -12,8 +12,6 @@ const BLACK_OFFSETS: Array<{ semi: number; whiteIdx: number }> = [
   { semi: 10, whiteIdx: 5 }, // A#
 ];
 
-const NOTE_NAMES = ['C', 'C#', 'D', 'D#', 'E', 'F', 'F#', 'G', 'G#', 'A', 'A#', 'B'];
-
 /** The drawn range defaults to C3–B5 (3 octaves from octave 3). */
 export interface KeyboardOptions extends Partial<KeyboardRange> {
   bus: ParamBus;
@@ -285,10 +283,4 @@ export class Keyboard {
       else delete el.dataset.role;
     }
   }
-}
-
-export function noteName(midi: number): string {
-  const n = NOTE_NAMES[((midi % 12) + 12) % 12]!;
-  const oct = Math.floor(midi / 12) - 1;
-  return `${n}${oct}`;
 }

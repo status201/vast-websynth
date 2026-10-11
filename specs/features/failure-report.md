@@ -3,7 +3,9 @@
 ```yaml
 id: failure-report
 status: implemented
-version: 3   # v3: REQ-truncated-message-is-built-here — the truncated message an alert shows is built here
+version: 4   # v4: REQ-a-thrown-value-is-named-here — `thrownMessage` turns whatever a catch
+             #     caught into the message, so a non-Error never reads "undefined"
+             # v3: REQ-truncated-message-is-built-here — the truncated message an alert shows is built here
              #     too, so the line naming the Copy button cannot drift
              # v2: REQ-every-failure-surface-emits-one covers every import-failure SURFACE, not only the
              #     alerts — the preset wizard's inline strip emits one too
@@ -83,6 +85,11 @@ so what lands on the clipboard is complete even when the view is truncated.
   configuration, not logic — title, lead sentence and label differ per surface —
   and pulling it in here would make this module depend on the dialog it exists to
   feed (REQ-report-builders-are-pure).
+- **REQ-a-thrown-value-is-named-here** *(v4)* — A `catch` receives `unknown`:
+  anything can be thrown, and a string or a plain object has no `.message`, so
+  reading one with `(e as Error).message` puts "undefined" in the dialog and in
+  the report. `thrownMessage(e)` is the one reading: an `Error`'s message, any
+  other value stringified. Every surface whose catch feeds a report uses it.
 
 ## Technical design
 
@@ -94,6 +101,7 @@ failure-report:   # src/ui/failure-report.ts — pure functions, no state
   buildFailureReportFor(title, message, file?): string   # single-message sugar
   failureMessage(lead: string, errors: string[]): string # v3 — what the ALERT shows
   isCapped(errors: string[]): boolean                    # v3 — errors.length >= MAX_ERRORS
+  thrownMessage(e: unknown): string                      # v4 — Error.message, else String(e)
 
 FailureReport:
   title: string      # the dialog's own title — becomes the report's first line
@@ -135,6 +143,8 @@ via alertDialog copyable (dialog REQ-an-alert-may-offer-copyable-text):
     'Some clips failed'   -> the undecodable clip names
     'Demo failed to load' -> showDemoFailure: the parse's whole error array;
                              the catch's exception message otherwise  # song-mode REQ-a-rejected-import-is-copyable-in-full v25
+    'Export failed'       -> the exception message
+    # the three exception rows share one local thrownAlert(title, lead, e, file)
   src/ui/panels/sampler-panel.ts:
     'Load failed'         -> the decode message
   src/main.ts:
@@ -175,6 +185,13 @@ Scenario: The count line admits when the validator stopped early (REQ-count-line
   Given a report built with capped true
   Then the count line says "(validator cap reached)"
   And an uncapped single-message report reads "1 error:"
+# pinned by: tests/ui/failure-report.test.ts
+
+Scenario: A thrown non-Error still names what went wrong (v4, REQ-a-thrown-value-is-named-here)
+  Given a catch that caught the string "disk full"
+  When thrownMessage reads it
+  Then it returns "disk full", not "undefined"
+  And an Error's message is returned as it is
 # pinned by: tests/ui/failure-report.test.ts
 ```
 

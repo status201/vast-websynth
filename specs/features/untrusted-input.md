@@ -3,7 +3,8 @@
 ```yaml
 id: untrusted-input
 status: implemented
-version: 14  # v14: REQ-a-file-is-sized-before-it-is-read — the Import button and the PWA launchQueue
+version: 15  # v15: the Preset manager's Import joins REQ-a-file-is-sized-before-it-is-read's doors
+             # v14: REQ-a-file-is-sized-before-it-is-read — the Import button and the PWA launchQueue
              #      read a whole file before any cap applied; every file door now asks one function first
              # v13: a MIDI file (read_midi, midi-file-reader.md) joins the surfaces, with MAX_MIDI_*
              # v12: BEND_MAX is the third shared per-step integer bound, and the schema walk pins `bend` to it
@@ -215,8 +216,9 @@ decision and the alternatives. This spec is the contract.
 - **REQ-a-file-is-sized-before-it-is-read** (v14) — **A file is sized before it
   is read.** A `File` already says how big it is, so checking `File.size` costs
   nothing and checking the bytes costs all of them. Every door that takes a file
-  — the Song panel's Import button, the installed PWA's `launchQueue` and a file
-  dropped on the window — asks `oversizedFileMessage` **before** `arrayBuffer()`
+  — the Song panel's Import button, the installed PWA's `launchQueue`, a file
+  dropped on the window and the Preset manager's Import (v15: it read first, so a
+  dropped preset was capped and a picked one was not) — asks `oversizedFileMessage` **before** `arrayBuffer()`
   or `text()`, and a refused file is never read. The cap comes from
   `importCapFor`, decided from the name and MIME type alone by `fileKindOf` — the
   same rule the drop routes by, so a file's kind and its cap cannot disagree. A

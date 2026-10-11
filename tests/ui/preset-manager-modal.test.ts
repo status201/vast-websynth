@@ -5,6 +5,7 @@ import { PresetSession } from '../../src/state/preset-session';
 import { parsePresetPayload } from '../../src/state/preset-file';
 import { installLocalStorageMock } from '../storage-mock';
 import { Presets } from '../../src/state/preset';
+import { MAX_SONG_JSON_BYTES } from '../../src/state/limits';
 import styles from '../../src/ui/styles/preset-manager.module.css';
 
 // presets.md REQ-the-preset-wizard-reports-every-problem. The wizard's error strip used to render `errors[0]` and
@@ -94,6 +95,19 @@ describe('preset manager import errors', () => {
     });
     expect(shown('preset-import-errors')).toBe(false);
     expect(shown('preset-import-review')).toBe(true);
+  });
+
+  it('refuses an oversized picked file without reading it (untrusted-input.md REQ-a-file-is-sized-before-it-is-read)', async () => {
+    openPresetManagerModal({ bus: bus(), session: new PresetSession(), onPresetsChanged: () => {} });
+    const input = byId('preset-mgr-file') as HTMLInputElement;
+    const file = new File(['{}'], 'huge.json', { type: 'application/json' });
+    Object.defineProperty(file, 'size', { value: MAX_SONG_JSON_BYTES + 1 });
+    const read = vi.spyOn(file, 'text');
+    Object.defineProperty(input, 'files', { value: [file], configurable: true });
+    input.dispatchEvent(new Event('change'));
+    await vi.waitFor(() => expect(shown('preset-import-errors')).toBe(true));
+    expect(read).not.toHaveBeenCalled();
+    expect(rowsIn('preset-import-errors', styles.errorRow!).join(' ')).toContain('"huge.json" is larger than the 8 MB limit');
   });
 });
 

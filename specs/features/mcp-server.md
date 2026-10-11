@@ -467,14 +467,14 @@ Scenario: A notification over HTTP is accepted, not answered (v8, REQ-the-http-t
 
 Scenario: The remote profile has no write tools (v8, REQ-the-remote-profile-is-read-only)
   When tools/list runs against the HTTP transport
-  Then it lists exactly the eight read-only tools, in REQ-the-remote-profile-is-read-only's order
+  Then it lists exactly the nine read-only tools, in REQ-the-remote-profile-is-read-only's order
   And save_song and save_preset are absent
   And tools/call save_song answers -32602 (unknown tool), never a write
 # pinned by: tests/mcp/http.test.ts, tests/mcp/tools.test.ts
 
 Scenario: The local profile is unchanged by the remote one (v8, REQ-the-remote-profile-is-read-only)
   When makeTools is called with no allowWrites option
-  Then it returns all ten tools in the original order
+  Then it returns all eleven tools in the original order
 # pinned by: tests/mcp/tools.test.ts, tests/mcp/integration.test.ts
 
 Scenario: An oversized body dies in transit (v8, REQ-the-public-endpoint-is-bounded-not-authenticated)
@@ -544,7 +544,7 @@ Scenario: A rebuild leaves node_modules replaceable (v7, REQ-local-entries-self-
   `req`/`res` would pin the wrong thing): the handshake, `202` on a
   notification, `400`/`-32700`, `415`, `405` + `Allow`, `413` at the byte cap,
   `429` at the rate cap, the key-count ceiling, `Origin` present/absent, and the
-  eight-tool profile.
+  nine-tool profile.
 - Manual: in Claude Code (this repo's `.mcp.json`) run `get_song_format`, feed
   a broken author file to `validate_song`, then `save_song` and import the
   written file in the app. Same round for `get_preset_format` →

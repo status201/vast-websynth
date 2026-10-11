@@ -11,6 +11,7 @@ import {
   MAX_MIDI_FILE_BYTES, MAX_MIDI_TRACKS, MAX_MIDI_BARS, MAX_MIDI_SUMMARY_BARS, MAX_MIDI_NAME_CHARS,
 } from './limits';
 import { GM_PROGRAMS, gmDrum } from './gm-names';
+import { noteName } from '../utils/music';
 
 export interface MidiNote {
   tick: number;
@@ -249,8 +250,6 @@ export interface MidiAnalysis {
 
 export type MidiAnalysisResult = MidiAnalysis | { ok: false; errors: string[] };
 
-const NOTE_NAMES = ['C', 'C#', 'D', 'D#', 'E', 'F', 'F#', 'G', 'G#', 'A', 'A#', 'B'];
-const noteName = (n: number): string => `${NOTE_NAMES[n % 12]!}${Math.floor(n / 12) - 1}`;
 const DRUM_CHANNEL = 9;
 
 /** REQ-the-grid-is-the-coarsest-that-holds-every-onset: divisions per quarter, coarsest first. */
@@ -395,7 +394,10 @@ export function analyzeMidi(file: MidiFile, opts: MidiAnalyzeOptions = {}): Midi
     const k = keys[i]!;
     if (!k.size) continue;
     const whole = shown.map((ch) => `${ch}=${(k.get(ch) ?? []).join(' ')}`).join('|');
-    groups.set(whole, [...(groups.get(whole) ?? []), i + 1]);
+    // Pushed, not respread: a file of one repeated bar would copy the group once per bar.
+    const group = groups.get(whole);
+    if (group) group.push(i + 1);
+    else groups.set(whole, [i + 1]);
     for (const [ch, list] of k) (byChannel[String(ch + 1)] ??= new Set()).add(list.join(' '));
   }
   const repeats = [...groups.values()].filter((g) => g.length > 1).map((g) => ({ bars: g }));

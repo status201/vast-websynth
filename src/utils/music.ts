@@ -8,6 +8,11 @@ import { MIDI_NOTE_MIN, MIDI_NOTE_MAX } from '../state/limits';
 /** Pitch-class names, index 0 = C. Display only; the stored value is the index. */
 export const NOTE_LABELS = ['C', 'C#', 'D', 'D#', 'E', 'F', 'F#', 'G', 'G#', 'A', 'A#', 'B'];
 
+/** A MIDI note's name with its octave — `60` → `C4` (scientific pitch, so `0` is C-1). Display only. */
+export function noteName(midi: number): string {
+  return `${NOTE_LABELS[((midi % 12) + 12) % 12]!}${Math.floor(midi / 12) - 1}`;
+}
+
 /**
  * Scale names, indexed by the `scale.type` param.
  *

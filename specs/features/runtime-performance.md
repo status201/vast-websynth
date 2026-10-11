@@ -160,9 +160,10 @@ so a reviewer has something concrete to hold a new feature against.
   (entry + modulepreloads), and the entry's CSS links must be unchanged by it —
   a side-effect `import '…module.css'` does not hold a stylesheet in place (it is
   tree-shaken), so a split whose stylesheet leaves the entry CSS is acceptable only
-  when every class it styles lives in the deferred body itself (the Export dialog's
-  `export-song-modal.module.css` is the one case, verified by a computed-style
-  comparison of the dialog against the previous build).
+  when every class it styles lives in the deferred body itself (the dialogs'
+  shared `chooser.module.css` is the one case — it was the Export dialog's
+  `export-song-modal.module.css` until chooser-rows.md — verified by a
+  computed-style comparison of the dialogs against the previous build).
 
   **Deferring makes a surface's load fallible, and that cost is the trigger's to pay**
   (v6). A static import cannot fail after boot; an `import()` can, and the default —

@@ -300,7 +300,7 @@ export const Song = {
   },
 
   /**
-   * Synchronous and **canonical-only**: its callers (`loadSlot`, `readFile`) read
+   * Synchronous and **canonical-only**: its caller (`loadSlot`) reads
    * what this app wrote, and the authoring dialect is never written
    * (song-authoring-dialect.md REQ-the-expander-loads-with-the-first-author-file),
    * so an author file here is refused rather than expanded.
@@ -341,15 +341,6 @@ export const Song = {
   download(file: SongFile): void {
     const blob = new Blob([Song.toJSON(file, true) + '\n'], { type: 'application/json' });
     triggerDownload(blob, `${safeFilename(file.name, 'song')}.websynth.json`);
-  },
-
-  readFile(f: File): Promise<SongFile | null> {
-    return f.text().then((t) => Song.fromJSON(t));
-  },
-
-  /** Like `readFile` but returns field-level validation errors for the import UI. */
-  parseFile(f: File): Promise<SongValidation> {
-    return f.text().then((t) => Song.parse(t));
   },
 
   // ---- localStorage slots ----

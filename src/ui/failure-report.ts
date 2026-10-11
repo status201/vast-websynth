@@ -65,6 +65,15 @@ export function buildFailureReport(r: FailureReport): string {
   return lines.join('\n') + '\n';
 }
 
+/**
+ * What a `catch` caught, as the message to show and report
+ * (REQ-a-thrown-value-is-named-here): anything can be thrown, and a non-Error has no
+ * `.message` — reading it as one puts "undefined" in the dialog.
+ */
+export function thrownMessage(e: unknown): string {
+  return e instanceof Error ? e.message : String(e);
+}
+
 /** Sugar for the common single-message failure (an exception, a decode error). */
 export function buildFailureReportFor(title: string, message: string, file?: string): string {
   return buildFailureReport({ title, file, errors: [message] });

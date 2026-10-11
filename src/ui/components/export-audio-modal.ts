@@ -8,8 +8,8 @@ import { encodeFailureText } from '../encode-failure';
 import switchStyles from '../styles/switch.module.css';
 import segmentedStyles from '../styles/segmented.module.css';
 import dialogStyles from '../styles/dialog.module.css';
-import rowStyles from '../styles/export-song-modal.module.css';
 import styles from '../styles/export-audio-modal.module.css';
+import { chooserNote, optionRow } from './chooser';
 
 /**
  * Options for rendering the song to audio (audio-export.md REQ-export-opens-an-options-modal), and then the
@@ -82,16 +82,10 @@ export function openExportAudioModal(engine: StudioApi, defaultFormat: ExportFor
   const options = document.createElement('div');
   modal.body.appendChild(options);
 
-  const runsRow = document.createElement('div');
-  runsRow.className = rowStyles.fmtRow!;
-  const runsLabel = document.createElement('span');
-  runsLabel.className = rowStyles.fmtLabel!;
-  runsLabel.textContent = 'Runs:';
   const runsDd = new Dropdown(RUN_OPTIONS, '1');
   runsDd.el.dataset.testid = 'export-audio-runs';
   runsDd.onChange((v) => { runs = Number(v) || 1; render(); });
-  runsRow.append(runsLabel, runsDd.el);
-  options.appendChild(runsRow);
+  options.appendChild(optionRow('Runs:', runsDd.el));
 
   const tailRow = document.createElement('label');
   tailRow.className = styles.check!;
@@ -107,8 +101,7 @@ export function openExportAudioModal(engine: StudioApi, defaultFormat: ExportFor
 
   // The cost of the choice, before you commit to it: ten runs of a long song is
   // a ten-minute real-time render, which must not be a surprise.
-  const lengthNote = document.createElement('p');
-  lengthNote.className = rowStyles.note!;
+  const lengthNote = chooserNote();
   lengthNote.dataset.testid = 'export-audio-length';
   options.appendChild(lengthNote);
 
@@ -116,11 +109,6 @@ export function openExportAudioModal(engine: StudioApi, defaultFormat: ExportFor
   // as part of the verb ("Export as WAV"), while Runs and the tail bar describe
   // what gets rendered. Grouping it with the button it renames also stops it and
   // the Song tab's WAV/MP3 switch reading as one setting.
-  const fmtRow = document.createElement('div');
-  fmtRow.className = `${rowStyles.fmtRow!} ${styles.fmtLast!}`;
-  const fmtLabel = document.createElement('span');
-  fmtLabel.className = rowStyles.fmtLabel!;
-  fmtLabel.textContent = 'Format:';
   const fmtSel = document.createElement('div');
   fmtSel.className = segmentedStyles.root!;
   const fmtBtns: HTMLButtonElement[] = [];
@@ -133,7 +121,8 @@ export function openExportAudioModal(engine: StudioApi, defaultFormat: ExportFor
     fmtBtns.push(b);
     fmtSel.appendChild(b);
   });
-  fmtRow.append(fmtLabel, fmtSel);
+  const fmtRow = optionRow('Format:', fmtSel);
+  fmtRow.classList.add(styles.fmtLast!);
   options.appendChild(fmtRow);
 
   // ---- progress view (REQ-the-modal-is-the-renders-own-surface) ----

@@ -232,8 +232,8 @@ exported — see ADR-013.
       makes it an *operation's* failure, reported by the import flow that owns it,
       not a `showLazyLoadFailure` toast
       ([lazy-load-failure](lazy-load-failure.md) REQ-lazy-scope-is-surfaces-not-operations).
-    - `Song.fromJSON` stays **synchronous and canonical-only**. Its callers
-      (`loadSlot`, `readFile`) read what this app wrote, and the dialect is never
+    - `Song.fromJSON` stays **synchronous and canonical-only**. Its caller
+      (`loadSlot`) reads what this app wrote, and the dialect is never
       written (REQ-the-dialect-is-input-only), so an author string there is
       refused (`null`) rather than expanded.
     - The expander's chunk is warmed on idle with the other deferred surfaces
@@ -324,7 +324,7 @@ v3 file.
 - `song-author.ts` (pure) ← imports `patterns.ts` constants/defaults +
   `validateSongFile`; type-only `SongFile`/`ChainData` from `song.ts`.
 - `song.ts` → `Song.parse` branches on `isAuthorSong` (REQ-the-dialect-is-detected-by-shape). Every consumer of
-  `Song.parse`/`parseFile` (song-panel import, `parseSongOrProject`
+  `Song.parse` (song-panel import, `parseSongOrProject`
   in `project.ts`, launchQueue, song links, file drop, paste) inherits the dialect;
   the MCP tools call `expandAuthorSong` directly. `fromJSON` does not
   (REQ-the-expander-loads-with-the-first-author-file).

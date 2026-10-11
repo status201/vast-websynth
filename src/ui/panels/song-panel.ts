@@ -23,7 +23,7 @@ import {
 } from '../components/transport-controls';
 import { confirmDialog, promptDialog, alertDialog, chooseDialog } from '../components/dialog';
 import {
-  buildFailureReport, buildFailureReportFor, failureMessage, isCapped,
+  buildFailureReport, buildFailureReportFor, failureMessage, isCapped, thrownMessage,
 } from '../failure-report';
 import { describePresetPayload, type PresetParse } from '../../state/preset-file';
 // The Paste dialog loads on its click (runtime-performance.md REQ-boot-cost-matches-the-request).
@@ -353,6 +353,21 @@ export function buildSongPanel(bus: ParamBus, engine: StudioApi, session: Preset
     copyable: buildFailureReport({ title, file, errors, capped: isCapped(errors) }),
   });
 
+  /**
+   * The same dialog for a step that *threw* rather than returned errors: the
+   * message after `lead`, and the report a user can copy
+   * (failure-report.md REQ-a-thrown-value-is-named-here).
+   */
+  const thrownAlert = (title: string, lead: string, e: unknown, file?: string): Promise<void> => {
+    const message = thrownMessage(e);
+    return alertDialog({
+      title,
+      message: lead + message,
+      copyable: buildFailureReportFor(title, message, file),
+      copyLabel: 'Copy error',
+    });
+  };
+
   const showImportErrors = (errors: string[], file?: string): Promise<void> =>
     failureAlert('Import failed', 'Could not import song', errors, file);
 
@@ -471,12 +486,7 @@ export function buildSongPanel(bus: ParamBus, engine: StudioApi, session: Preset
       // dropdown follows the DEMO's name — the button's label is the promise.
       await applyProjectBundle(res, { persist: false, name });
     } catch (e) {
-      await alertDialog({
-        title: 'Demo failed to load',
-        message: `Could not load "${name}": ` + (e as Error).message,
-        copyable: buildFailureReportFor('Demo failed to load', (e as Error).message, name),
-        copyLabel: 'Copy error',
-      });
+      await thrownAlert('Demo failed to load', `Could not load "${name}": `, e, name);
     }
   };
 
@@ -544,12 +554,7 @@ export function buildSongPanel(bus: ParamBus, engine: StudioApi, session: Preset
       }
       applyDemo(name, res.file);
     } catch (e) {
-      await alertDialog({
-        title: 'Demo failed to load',
-        message: `Could not load "${name}": ` + (e as Error).message,
-        copyable: buildFailureReportFor('Demo failed to load', (e as Error).message, name),
-        copyLabel: 'Copy error',
-      });
+      await thrownAlert('Demo failed to load', `Could not load "${name}": `, e, name);
     }
   };
 
@@ -693,12 +698,7 @@ export function buildSongPanel(bus: ParamBus, engine: StudioApi, session: Preset
       await applyProjectBundle(res, { persist: true }); // the user's work — it earns a slot
       return true;
     } catch (e) {
-      await alertDialog({
-        title: 'Import failed',
-        message: 'Song imported but failed to apply: ' + (e as Error).message,
-        copyable: buildFailureReportFor('Import failed', (e as Error).message, name),
-        copyLabel: 'Copy error',
-      });
+      await thrownAlert('Import failed', 'Song imported but failed to apply: ', e, name);
       return false;
     }
   };
@@ -771,12 +771,7 @@ export function buildSongPanel(bus: ParamBus, engine: StudioApi, session: Preset
     try {
       await doExport(kind, fmt);
     } catch (e) {
-      await alertDialog({
-        title: 'Export failed',
-        message: 'The song could not be exported: ' + (e as Error).message,
-        copyable: buildFailureReportFor('Export failed', (e as Error).message, dropdown.value || 'My Song'),
-        copyLabel: 'Copy error',
-      });
+      await thrownAlert('Export failed', 'The song could not be exported: ', e, dropdown.value || 'My Song');
     }
   };
 

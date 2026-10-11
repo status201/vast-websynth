@@ -1,4 +1,6 @@
-/* Export-song modal: the Song(.json) / Project(.zip) chooser rows. */
+/* Chooser rows — the described card buttons, "LABEL: [control]" rows and the
+   italic aside shared by the Export, Export audio and Preset manager dialogs
+   (specs/features/chooser-rows.md). One copy, so the three cannot drift. */
 
 @layer components {
   .rows {
@@ -23,6 +25,10 @@
     text-align: left;
     transition: border-color 0.12s ease, background 0.12s ease;
   }
+
+  /* REQ-a-chooser-row-shows-hover-selection-and-disabled: hover outlines, a pick
+     (.on) outlines and tints, so it still reads with the pointer elsewhere. */
+  .row:hover:not(:disabled) { border-color: var(--accent); }
 
   .row:global(.on) {
     border-color: var(--accent);
@@ -51,14 +57,14 @@
     margin: 0 0 10px;
   }
 
-  .fmtRow {
+  .optionRow {
     display: flex;
     align-items: center;
     gap: 10px;
     margin: 0 0 10px;
   }
 
-  .fmtLabel {
+  .optionLabel {
     font-size: 11px;
     opacity: 0.7;
     text-transform: uppercase;

@@ -4,7 +4,7 @@ import { copyText, flashCopied } from '../clipboard';
 import switchStyles from '../styles/switch.module.css';
 import segmentedStyles from '../styles/segmented.module.css';
 import dialogStyles from '../styles/dialog.module.css';
-import styles from '../styles/export-song-modal.module.css';
+import { chooserNote, chooserRow, chooserRows, optionRow } from './chooser';
 
 /**
  * The Export chooser (project-export.md REQ-export-modal-offers-song-or-project): Song (.json) — the unchanged
@@ -43,46 +43,19 @@ export function openExportSongModal(opts: ExportSongModalOptions): void {
   });
   modal.body.dataset.testid = 'export-modal';
 
-  // ---- kind rows (radio-style) ----
-  const rows = document.createElement('div');
-  rows.className = styles.rows!;
-
-  const makeRow = (title: string, desc: string, testId: string): HTMLButtonElement => {
-    const b = document.createElement('button');
-    b.type = 'button';
-    b.className = styles.row!;
-    b.dataset.testid = testId;
-    const t = document.createElement('span');
-    t.className = styles.rowTitle!;
-    t.textContent = title;
-    const d = document.createElement('span');
-    d.className = styles.rowDesc!;
-    d.textContent = desc;
-    b.appendChild(t);
-    b.appendChild(d);
-    return b;
-  };
-
-  const jsonRow = makeRow('Song (.json)', 'Patterns, params and arrangement — audio not included.', 'export-kind-json');
-  const projectRow = makeRow('Project (.zip)', 'The song plus every loaded sampler clip, importable in one step.', 'export-kind-project');
+  // ---- kind rows (radio-style; chooser-rows.md) ----
+  const rows = chooserRows();
+  const jsonRow = chooserRow('Song (.json)', 'Patterns, params and arrangement — audio not included.', 'export-kind-json');
+  const projectRow = chooserRow('Project (.zip)', 'The song plus every loaded sampler clip, importable in one step.', 'export-kind-project');
   rows.appendChild(jsonRow);
   rows.appendChild(projectRow);
   modal.body.appendChild(rows);
 
-  const projectNote = document.createElement('p');
-  projectNote.className = styles.note!;
+  const projectNote = chooserNote('No sampler audio loaded — a project would contain only the song.');
   projectNote.dataset.testid = 'export-project-note';
-  projectNote.textContent = 'No sampler audio loaded — a project would contain only the song.';
   modal.body.appendChild(projectNote);
 
   // ---- clip format (Project only; local state, not a ParamBus param) ----
-  const fmtRow = document.createElement('div');
-  fmtRow.className = styles.fmtRow!;
-  const fmtLabel = document.createElement('span');
-  fmtLabel.className = styles.fmtLabel!;
-  fmtLabel.textContent = 'Clips:';
-  fmtRow.appendChild(fmtLabel);
-
   const fmtSel = document.createElement('div');
   fmtSel.className = segmentedStyles.root!;
   const fmtBtns: HTMLButtonElement[] = [];
@@ -100,12 +73,10 @@ export function openExportSongModal(opts: ExportSongModalOptions): void {
     fmtBtns.push(b);
     fmtSel.appendChild(b);
   });
-  fmtRow.appendChild(fmtSel);
+  const fmtRow = optionRow('Clips:', fmtSel);
   modal.body.appendChild(fmtRow);
 
-  const mp3Note = document.createElement('p');
-  mp3Note.className = styles.note!;
-  mp3Note.textContent = 'MP3 encoder padding slightly alters clip length — bar-exact loops may drift; use WAV for those.';
+  const mp3Note = chooserNote('MP3 encoder padding slightly alters clip length — bar-exact loops may drift; use WAV for those.');
   modal.body.appendChild(mp3Note);
 
   // ---- actions ----

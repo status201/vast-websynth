@@ -17,14 +17,14 @@ export function buildArpPanel(bus: ParamBus): HTMLElement {
   const body = document.createElement('div');
   body.className = styles.body!;
 
-  const patternGroup = group('Pattern', new Segmented(bus, 'arp.pattern', ARP_PATTERN_LABELS).el);
+  const patternGroup = controlGroup('Pattern', new Segmented(bus, 'arp.pattern', ARP_PATTERN_LABELS).el);
   body.appendChild(patternGroup);
 
-  const rateGroup = group('Rate', new Segmented(bus, 'arp.rate', ARP_RATE_LABELS).el);
+  const rateGroup = controlGroup('Rate', new Segmented(bus, 'arp.rate', ARP_RATE_LABELS).el);
   body.appendChild(rateGroup);
 
-    const knobs = document.createElement('div');
-    knobs.className = styles.knobs!;
+  const knobs = document.createElement('div');
+  knobs.className = styles.knobs!;
   knobs.appendChild(new Knob({ bus, paramId: 'arp.octaves', label: 'OCTAVES' }).el);
   knobs.appendChild(new Knob({ bus, paramId: 'arp.gate', label: 'GATE' }).el);
   body.appendChild(knobs);
@@ -34,7 +34,9 @@ export function buildArpPanel(bus: ParamBus): HTMLElement {
   return root;
 }
 
-function group(label: string, inner: HTMLElement): HTMLElement {
+/** A labelled control group — the caption above one control. The KEY tab, shaped
+ * like this tab (key-panel.ts), builds its groups with it too. */
+export function controlGroup(label: string, inner: HTMLElement): HTMLElement {
   const g = document.createElement('div');
   g.className = styles.group!;
   const l = document.createElement('div');

@@ -19,7 +19,7 @@
  * now fails on any canonical example that names a different version.
  */
 import type { ParamBus } from './params';
-import { DRUM_TRACK_LABELS } from './params';
+import { DRUM_TRACK_LABELS, NOTE_LABELS, SCALE_LABELS, EXTRA_LABELS } from './params';
 import { isPatchParam } from './preset-session';
 import { PRESET_FORMAT, BANK_FORMAT } from './preset-validate';
 import { SONG_VERSION } from './song-version';
@@ -86,16 +86,25 @@ export function buildAuthoringGuide(bus: ParamBus, origin?: string): string {
   const params = paramTable(bus);
 
   const drumTracks = DRUM_TRACK_LABELS.map((l, i) => `${i}=${l}`).join(', ');
+  // The KEY block's worked example (ai-prompt.md REQ-the-guide-teaches-the-key) reads its
+  // indices from the label tables, so it cannot name the wrong scale if one is appended.
+  const extras = EXTRA_LABELS.map((l, i) => `${i} = ${l}`).slice(1).join(', ');
+  const eDorianBlue = `{ "scale.root": ${NOTE_LABELS.indexOf('E')}, "scale.type": ${SCALE_LABELS.indexOf('dorian')}, "scale.extra": ${EXTRA_LABELS.indexOf('blue b5')} }`;
+  const lastBank = BANK_LABELS[MAX_BANK_COUNT - 1];
 
   return `OUTPUT RULES
 - Respond with exactly ONE JSON object and nothing else — no markdown fences, no commentary, no questions.
-- Use the COMPACT AUTHOR FORMAT below ("websynth-song-author"). A complete song is under ~80 lines — this is a short task; never bail out or summarize instead of answering.
+- Use the COMPACT AUTHOR FORMAT below ("websynth-song-author"). It is dense: length lives in the chains,
+  one letter per bar, so a full arrangement fits in one reply. Write the whole song; never bail out or
+  summarize instead of answering.
 - NEVER truncate the JSON or emit placeholder text such as "…"/"..." — the object must parse as-is.
-- If output length is a concern, author 1-2 banks and repeat them via a chain string instead of writing more steps.
+- If your output is genuinely tight, keep the song's form and reuse banks (with transposes) rather than
+  shortening the song or cutting the JSON off.
 - The user imports the JSON via the synth's Song panel → Import; the app expands it into a full song.
 - Machine-readable JSON Schemas (draft 2020-12): ${authorSchemaUrl} (author format) and ${schemaUrl} (full canonical format).
 
-QUICKSTART — a complete, valid, importable song:
+QUICKSTART — the SMALLEST complete, valid, importable song. It is here to show the syntax, not the
+size of a song: one bank looping four bars is a sketch. See SONG CRAFT for a finished one.
 {
   "format": "websynth-song-author", "version": 1, "name": "Night Drive",
   "params": { "transport.bpm": 124, "voicing.mode": 0, "filter.cutoff": 66, "filter.resonance": 1.2 },
@@ -104,6 +113,34 @@ QUICKSTART — a complete, valid, importable song:
   "seqChain": "AAAA",
   "drumChain": "AAAA"
 }
+
+SONG CRAFT — write a finished track, not a demo loop
+Aim for something the person wants to hear all the way through and then play over. Shorter is not
+better by default, and neither is longer: fit the length to the style and the brief. For scale, a
+3-minute song at 120 BPM in 4/4 is 90 bars; a club track runs longer; a sketch, when asked for, is 16.
+- FORM. A song moves: an intro, a build, the main part, something that contrasts with it (a B part, a
+  bridge, a breakdown), the return, an ending. Length costs a chain letter per bar, so it is cheap.
+- ONE TIMELINE. Each chain loops on its own length, so give every machine's chain the same number of
+  bars and the sections line up. Use "." for the bars a machine sits out: drums that enter at bar 9, a
+  bass that drops out for the breakdown. Entrances and exits are what turn a loop into an arrangement.
+- THE BANKS. Each machine has up to ${MAX_BANK_COUNT} banks (A-${lastBank}). Spend them on what makes a part sound alive:
+  a variation of the riff, a fill for the last bar of a phrase ("AAAB"), a build, a chorus that differs
+  from the verse. Transposes carry a progression; banks carry different material.
+- LAYERS. Tracks 2-4 carry chords and counter-melodies (poly voicing), and "motionTracks" automate a
+  filter opening over a build or a delay throw at a phrase end — a motion bank is chained like any
+  other, so the automation can change with the section. The sampler can carry a part too, but only
+  once the player loads audio into its slots: a song never carries the audio itself.
+- FEEL. Velocity accents, "prob" ghost notes, "micro" groove and "bend" on a lead's key notes: a part
+  that varies sounds played rather than programmed.
+- More is better only when it is more music. A second section, a fill, a counter-line: yes. The same
+  bar copied into more banks: no.
+Form at a glance — 64 bars, every chain 64 bars long (spaces are ignored; each group is 8 bars):
+                intro    verse    chorus   verse    chorus   break    chorus   outro
+  "seqChain":  "AAAAAAAA AAAAAAAA BBBBBBBB AAAAAAAA BBBBBBBB CCCCCCCC BBBBBBBB AAAA....",
+  "drumChain": "........ AAAAAAAB CCCCCCCD AAAAAAAB CCCCCCCD ....EEEF CCCCCCCD AAAA...."
+  The riff plays alone for the intro; the drums enter on the verse with a fill (B, D) closing each
+  phrase; the break drops them for four bars and builds back in (E, F); the outro thins out, and the
+  silent bars give the loop a breath before the intro comes round again.
 
 COMPACT AUTHOR FORMAT (recommended output)
 {
@@ -180,6 +217,8 @@ METER — the time signature, in "params". A bar is a number of sixteenth-note
   seq/drum/sampler/motion. A lane whose length differs from the bar phases against it
   and re-aligns at the least common multiple — e.g. "drum.len": 12 under a 16-tick bar
   repeats every 4 bars. Use it deliberately; it is not how you write an odd meter.
+  A lane that spans whole bars is not a polyrhythm: 16 cells at 1/8 is a two-bar bank,
+  and it restarts with its chain, so chain slot A plays bar 1 of it and the next A bar 2.
   Bar longer than the grid: 5/4 is 20 ticks and 7/4 is 28, more cells than a bank has,
   so those meters need a coarser rate (5/4 = "<m>.rate" of 1/8 with "<m>.len": 10).
 
@@ -187,6 +226,24 @@ Chain — the song structure, one bank per bar, looped:
 - a string of bank letters where "." or "-" is a silent bar: "AABA", "AAAB AAAC" (spaces ignored), or
 - an array of bank indices where -1 is a silent bar: [0, 0, 1, 0], or
 - the full { "enabled": bool, "steps": [indices] } object. The string/array shorthands imply enabled: true.
+
+KEY — four params in "params", all off by default. Set them when they describe the song.
+- "scale.root" (0-11 = C..B) and "scale.type" (0 = chromatic, the default: no snapping; the scales are in
+  PARAMS) snap every note the instrument plays — sequencer, arpeggiator and keyboard — to the nearest
+  note of that key (a tie goes down). It is a live filter: the stored notes never change.
+- It snaps YOUR notes too, so set the key the notes are actually in: a written note outside it moves.
+  Leave it chromatic for chromatic material.
+- It applies after a chain transpose, so "A A+5 A+7" over a major key stays in key: each transposed
+  chord takes the quality the scale gives it (IV, V) instead of drifting out.
+- "scale.extra" lets ONE note outside the scale through as written, as a passing tone, never as a chord
+  degree:
+    ${extras}
+  (bebop is the passing tone that fits the scale). A line in E dorian with a blue Bb is
+    ${eDorianBlue}.
+- "chord.voicing" (chord memory) turns each key a PLAYER holds into a diatonic chord, and the arpeggiator
+  picks it up. It never touches the sequencer, and it needs a scale and "voicing.mode": 1. Like
+  "arp.on" it is stage setup: say in your reply what you armed.
+- A key also makes the song playable: whoever jams over it on the keyboard cannot hit a wrong note.
 
 NOTES
 - "filter.cutoff" is a MIDI NOTE NUMBER, not Hz. Filter env/LFO modulate it additively in semitones.

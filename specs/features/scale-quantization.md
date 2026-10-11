@@ -75,7 +75,9 @@ thing.
   loads without the keys and sounds byte-identical
   ([ADR-006](../decisions/adr-006-no-op-param-defaults.md)). They ride in
   `file.params` like any scalar, so **no `SONG_VERSION` bump is required** and
-  `serialize.ts`, the JSON schema and `llms.txt` are untouched.
+  `serialize.ts`, the JSON schema and `llms.txt` are untouched. (v4: `scale.extra`
+  joins them on the same terms — index 0 `none` is the no-op,
+  REQ-an-extra-note-is-admitted-not-a-degree.)
 
 - **REQ-nearest-tone-ties-break-downward** (nearest tone, ties break downward) —
   a note not in the scale snaps to the nearest scale tone by absolute semitone
@@ -300,8 +302,10 @@ thing.
 ### Contract / public interface
 
 ```yaml
-src/utils/music.ts:            # pure — imports nothing from audio/, state/ or ui/
+src/utils/music.ts:            # pure — imports only the MIDI bounds from state/limits.ts
   NOTE_LABELS: string[12]                          # 'C' .. 'B'
+  noteName(midi): string                           # 60 → 'C4' (C-1 = 0); the one note namer —
+                                                   #   step labels and the MIDI reader both use it
   SCALE_LABELS: string[]                           # APPEND-ONLY; index 0 === 'chromatic'
   EXTRA_LABELS: string[]                           # APPEND-ONLY; index 0 === 'none' (v4)
   buildQuantizeTable(root, scale, extra = 0): Uint8Array|null # 128 entries; null when chromatic

@@ -327,6 +327,7 @@ specs/
     section-title.md   ·  the white icon + title heading on the FX, MACHINES and EQUALIZER bars
     dialog.md          ·  shared confirm/prompt/alert dialog (replaces the native ones)
     failure-report.md  ·  the copyable diagnostic block behind a failed import's Copy button
+    chooser-rows.md    ·  the described card buttons + LABEL: [control] rows the Export / Preset dialogs share
     toast.md           ·  transient bottom-center notification with one action (Undo)
     progress-bar.md    ·  shared determinate/indeterminate progress bar (export, offline download)
     lazy-load-failure.md ·  what every deferred surface says when its import() rejects

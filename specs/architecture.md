@@ -209,7 +209,7 @@ PatternStore:    # src/state/patterns.ts
   snapshot() / restore(...)
 
 Song:            # src/state/song.ts
-  capture / apply / toJSON / fromJSON / download / readFile
+  capture / apply / toJSON / fromJSON / parse / download
   list / saveSlot / loadSlot / deleteSlot
 
 Arrangement / Performance:  # src/audio/transport/

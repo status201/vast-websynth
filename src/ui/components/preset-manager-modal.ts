@@ -10,6 +10,8 @@ import {
   planImport, type ImportPlan, type ImportPolicy, type PresetParse,
 } from '../../state/preset-file';
 import { buildFailureReport, isCapped } from '../failure-report';
+import { oversizedFileMessage } from '../../state/import-cap';
+import { chooserNote, chooserRow, chooserRows, optionRow } from './chooser';
 import { copyText, flashCopied } from '../clipboard';
 import switchStyles from '../styles/switch.module.css';
 import segmentedStyles from '../styles/segmented.module.css';
@@ -78,47 +80,30 @@ export function openPresetManagerModal(opts: PresetManagerOptions): void {
   modal.body.appendChild(review);
   modal.body.appendChild(manage);
 
-  const makeRow = (title: string, desc: string, testId: string): HTMLButtonElement => {
-    const b = document.createElement('button');
-    b.type = 'button';
-    b.className = styles.row!;
-    b.dataset.testid = testId;
-    const t = document.createElement('span');
-    t.className = styles.rowTitle!;
-    t.textContent = title;
-    const d = document.createElement('span');
-    d.className = styles.rowDesc!;
-    d.textContent = desc;
-    b.appendChild(t);
-    b.appendChild(d);
-    return b;
-  };
+  // ================= step 1: home (chooser-rows.md) =================
+  const rows = chooserRows();
 
-  // ================= step 1: home =================
-  const rows = document.createElement('div');
-  rows.className = styles.rows!;
-
-  const saveRow = makeRow(
+  const saveRow = chooserRow(
     'Save current sound',
     'Store the patch you are hearing under a name, in this browser.',
     'preset-mgr-save',
   );
-  const exportPresetRow = makeRow(
+  const exportPresetRow = chooserRow(
     'Export preset (.preset.websynth.json)',
     'One file holding the sound you are hearing right now.',
     'preset-mgr-export-preset',
   );
-  const exportBankRow = makeRow(
+  const exportBankRow = chooserRow(
     'Export bank (.bank.websynth.json)',
     'One file holding many presets — for backup or sharing a whole set.',
     'preset-mgr-export-bank',
   );
-  const importRow = makeRow(
+  const importRow = chooserRow(
     'Import…',
     'Read a preset or bank file. You review what lands before anything is written.',
     'preset-mgr-import',
   );
-  const deleteRow = makeRow(
+  const deleteRow = chooserRow(
     'Delete or revert…',
     'Remove a sound you saved, or put an edited factory preset back. What you hear is not touched.',
     'preset-mgr-delete',
@@ -128,13 +113,6 @@ export function openPresetManagerModal(opts: PresetManagerOptions): void {
 
   // Bank scope — which presets the bank export includes (REQ-modified-is-computed-not-tracked).
   let scope: BankScope = 'modified';
-  const scopeRow = document.createElement('div');
-  scopeRow.className = styles.scopeRow!;
-  const scopeLabel = document.createElement('span');
-  scopeLabel.className = styles.scopeLabel!;
-  scopeLabel.textContent = 'Bank:';
-  scopeRow.appendChild(scopeLabel);
-
   const scopeSel = document.createElement('div');
   scopeSel.className = segmentedStyles.root!;
   const scopeBtns: HTMLButtonElement[] = [];
@@ -153,11 +131,9 @@ export function openPresetManagerModal(opts: PresetManagerOptions): void {
     scopeBtns.push(b);
     scopeSel.appendChild(b);
   });
-  scopeRow.appendChild(scopeSel);
-  home.appendChild(scopeRow);
+  home.appendChild(optionRow('Bank:', scopeSel));
 
-  const scopeNote = document.createElement('p');
-  scopeNote.className = styles.note!;
+  const scopeNote = chooserNote();
   home.appendChild(scopeNote);
 
   const fileInput = document.createElement('input');
@@ -225,8 +201,7 @@ export function openPresetManagerModal(opts: PresetManagerOptions): void {
   deleteRow.addEventListener('click', () => showManage());
 
   // ================= step 3: delete / revert =================
-  const manageIntro = document.createElement('p');
-  manageIntro.className = styles.note!;
+  const manageIntro = chooserNote();
   manage.appendChild(manageIntro);
   const manageList = document.createElement('div');
   manageList.className = styles.reviewList!;
@@ -298,6 +273,13 @@ export function openPresetManagerModal(opts: PresetManagerOptions): void {
       const f = fileInput.files?.[0];
       fileInput.value = '';
       if (!f) return;
+      // Sized before it is read, like the drop that takes the same file
+      // (untrusted-input.md REQ-a-file-is-sized-before-it-is-read).
+      const oversized = oversizedFileMessage(f);
+      if (oversized) {
+        showErrors([oversized], f.name);
+        return;
+      }
       // With the bus the registry checks run too — as warnings, so a preset from
       // a newer build still imports (preset-authoring.md REQ-semantic-severity-is-the-callers-choice).
       const parsed = parsePresetPayload(await f.text(), opts.bus);
@@ -317,20 +299,12 @@ export function openPresetManagerModal(opts: PresetManagerOptions): void {
   let incomingWarnings: string[] = [];
   let policy: ImportPolicy = 'rename';
 
-  const reviewIntro = document.createElement('p');
-  reviewIntro.className = styles.note!;
+  const reviewIntro = chooserNote();
   review.appendChild(reviewIntro);
 
   const list = document.createElement('div');
   list.className = styles.reviewList!;
   review.appendChild(list);
-
-  const policyRow = document.createElement('div');
-  policyRow.className = styles.scopeRow!;
-  const policyLabel = document.createElement('span');
-  policyLabel.className = styles.scopeLabel!;
-  policyLabel.textContent = 'Name clash:';
-  policyRow.appendChild(policyLabel);
 
   const policySel = document.createElement('div');
   policySel.className = segmentedStyles.root!;
@@ -350,7 +324,7 @@ export function openPresetManagerModal(opts: PresetManagerOptions): void {
       policyBtns.push(b);
       policySel.appendChild(b);
     });
-  policyRow.appendChild(policySel);
+  const policyRow = optionRow('Name clash:', policySel);
   review.appendChild(policyRow);
 
   // ---- the problem strip (REQ-the-preset-wizard-reports-every-problem) ----

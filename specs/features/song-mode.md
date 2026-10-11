@@ -3,7 +3,9 @@
 ```yaml
 id: song-mode
 status: implemented
-version: 30  # v30: pre-release sweep — contract says SONG_VERSION 9, cell fields + compaction list seq bend/bendShape, params drop UNSAVED_PARAMS, versions note reaches v9
+version: 31  # v31: the unused File readers are gone (the removed `readFile`/`parseFile` read a File
+             #      unsized); every file door sizes first (untrusted-input.md REQ-a-file-is-sized-before-it-is-read)
+             # v30: pre-release sweep — contract says SONG_VERSION 9, cell fields + compaction list seq bend/bendShape, params drop UNSAVED_PARAMS, versions note reaches v9
              # v29: REQ-song-file-v9-raises-the-bank-ceiling — SongFile v9 raises the per-machine
              #      bank ceiling from 8 to 16 (A–P); no field added (banks.md, ADR-025)
              # v28: a saved song can be deleted (REQ-a-saved-song-can-be-deleted)
@@ -502,8 +504,7 @@ Song:   # src/state/song.ts (a plain object of functions, not a class)
   toJSON(file, pretty?): string                    # canonical compact: round 4 sig-figs + default-sparse cells
   fromJSON(text): SongFile | null                  # delegates to parse() — full field-level validation, then file|null
   parse(text): SongValidation                      # rich: { ok, file } | { ok:false, errors }
-  download(file) / readFile(File): Promise<SongFile | null>
-  parseFile(File): Promise<SongValidation>         # rich variant for the import UI
+  download(file): void                             # files arrive as bytes: SongPanel.importFile sizes, then parses
   list(): string[]                       # JSON demo names ∪ stored slot names, sorted
                                          #   (zip demos excluded — not song files)
   saveSlot(name, file) / loadSlot(name) / deleteSlot(name)
@@ -649,7 +650,7 @@ lenient (additive — do NOT require):
   required-per-cell: SeqStep -> {on, note}; TriggerCell -> {on}
 surface:
   fromJSON(text): SongFile | null              # back-compat: returns null on any failure
-  parse(text) / parseFile(File): SongValidation # { ok:false, errors:[ "drumBanks[1][3][7].ratchet must be an integer 1..4", ... ] }
+  parse(text): SongValidation                  # { ok:false, errors:[ "drumBanks[1][3][7].ratchet must be an integer 1..4", ... ] }
   song-panel Import: shows the first 8 errors via alertDialog (see dialog.md),
                      and hands the WHOLE array to its Copy button   # REQ-a-rejected-import-is-copyable-in-full, v24
                      applySong wrapped in try/catch (that failure copies too)
@@ -702,7 +703,7 @@ reuse:   compare-to-default happens AFTER rounding (0.8500001 -> 0.85 -> dropped
 ### Persistence
 
 ```yaml
-file:        download() -> "<name>.websynth.json"; readFile() parses via fromJSON
+file:        download() -> "<name>.websynth.json"; import: SongPanel.importFile (sized, then parse)
 localStorage:
   websynth.song.<name>  : one slot (JSON)
   websynth.song.index   : JSON array of slot names

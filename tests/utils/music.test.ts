@@ -1,7 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import {
   NOTE_LABELS, SCALE_LABELS, CHORD_LABELS, EXTRA_LABELS, isScaleActive, scaleSize, scaleTones,
-  buildQuantizeTable, chordDegrees, diatonicChord, degreeLabel, degreeOf, extraTone, invertChord,
+  buildQuantizeTable, chordDegrees, diatonicChord, degreeLabel, degreeOf, extraTone, invertChord, noteName,
 } from '../../src/utils/music';
 
 // specs/features/scale-quantization.md, specs/features/chord-tools.md
@@ -28,6 +28,13 @@ describe('scale tables', () => {
   it('has twelve note names and a step row per scale label', () => {
     expect(NOTE_LABELS).toHaveLength(12);
     for (let i = 1; i < SCALE_LABELS.length; i++) expect(scaleSize(i)).toBeGreaterThan(0);
+  });
+
+  it('names a MIDI note with its octave, C-1 = 0 — the one namer step labels and the MIDI reader share', () => {
+    expect(noteName(60)).toBe('C4');
+    expect(noteName(0)).toBe('C-1');
+    expect(noteName(46)).toBe('A#2');
+    expect(noteName(127)).toBe('G9');
   });
 
   it('transposes its tones with the root', () => {

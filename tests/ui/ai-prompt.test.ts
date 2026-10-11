@@ -3,6 +3,7 @@ import { createAiPromptButton, type AiPromptRoutes } from '../../src/ui/componen
 import { buildSongPrompt, buildAuthoringGuide } from '../../src/state/authoring-guide';
 import { ParamBus, registerDefaults } from '../../src/state/params';
 import { Song, DEMO_SONGS } from '../../src/state/song';
+import { expandAuthorSong } from '../../src/state/song-author';
 import modalStyles from '../../src/ui/styles/modal.module.css';
 
 function bus() {
@@ -40,8 +41,50 @@ describe('buildSongPrompt', () => {
     const prompt = buildSongPrompt(bus());
     expect(prompt).toContain('exactly ONE JSON object');
     expect(prompt).toContain('NEVER truncate');
-    expect(prompt).toMatch(/under ~80 lines/);
-    expect(prompt).toMatch(/1-2 banks/);
+  });
+
+  // ai-prompt.md v9: the guards used to say "a complete song is under ~80 lines —
+  // this is a short task", and songs came back as one bank looping four bars.
+  it('the guards keep an agent going without capping the song (REQ-output-rules-guard-weaker-agents)', () => {
+    const rules = buildSongPrompt(bus()).split('QUICKSTART')[0]!;
+    expect(rules).toContain('never bail out');
+    expect(rules).toContain('NEVER truncate');
+    expect(rules).not.toMatch(/~80 lines|short task|1-2 banks/);
+    expect(rules).toContain("keep the song's form and reuse banks");
+  });
+
+  it('SONG CRAFT asks for a finished track (REQ-the-guide-sets-the-ambition)', () => {
+    const prompt = buildSongPrompt(bus());
+    const craft = prompt.slice(prompt.indexOf('SONG CRAFT'), prompt.indexOf('COMPACT AUTHOR FORMAT (recommended'));
+    expect(prompt.indexOf('SONG CRAFT')).toBeGreaterThan(prompt.indexOf('QUICKSTART'));
+    expect(prompt).toMatch(/QUICKSTART — the SMALLEST/);
+    for (const topic of ['FORM.', 'ONE TIMELINE.', 'THE BANKS.', 'LAYERS.', 'FEEL.']) expect(craft).toContain(topic);
+    expect(craft.replace(/\s+/g, ' ')).toContain('Shorter is not better by default');
+    // The worked form is real: every chain is 64 bars, and with the banks it names
+    // it expands as a valid song.
+    const chains = Object.fromEntries(
+      [...craft.matchAll(/"(seqChain|drumChain)":\s*"([^"]+)"/g)].map((m) => [m[1]!, m[2]!]),
+    );
+    expect(Object.keys(chains)).toEqual(['seqChain', 'drumChain']);
+    for (const c of Object.values(chains)) expect(c.replace(/\s/g, '')).toHaveLength(64);
+    const res = expandAuthorSong({
+      format: 'websynth-song-author', version: 1, name: 'Form',
+      seq: [['C3'], ['F3'], ['G3']],
+      drums: Array.from({ length: 6 }, () => ({ kick: [0] })),
+      ...chains,
+    });
+    expect(res.ok).toBe(true);
+  });
+
+  it('the KEY block names the four key params and what they act on (REQ-the-guide-teaches-the-key)', () => {
+    const prompt = buildSongPrompt(bus());
+    const key = prompt.slice(prompt.indexOf('KEY — '), prompt.indexOf('\nNOTES\n'));
+    for (const id of ['scale.root', 'scale.type', 'scale.extra', 'chord.voicing']) expect(key).toContain(`"${id}"`);
+    expect(key).toContain('It snaps YOUR notes too');
+    expect(key).toContain('after a chain transpose');
+    expect(key).toContain('It never touches the sequencer');
+    // The worked example is read from the label tables: E = 4, dorian = 3, blue b5 = 1.
+    expect(key).toContain('{ "scale.root": 4, "scale.type": 3, "scale.extra": 1 }');
   });
 
   it('injects a creative brief into the SONG REQUEST section', () => {

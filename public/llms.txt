@@ -84,6 +84,21 @@ or an `A+5` suffix in the dialect's chain string — so one bank can play a
 whole chord progression. It shifts the note the sequencer triggers, never the
 stored bank, and only the seq lane has it.
 
+AIM FOR A FINISHED TRACK, NOT A DEMO LOOP. Length lives in the chains — one
+letter per bar — so a full arrangement is cheap: give it form (intro, build,
+main part, a contrasting section, the return, an ending), keep every machine's
+chain the same length so the sections line up (each chain loops on its own),
+and use "." bars for entrances and exits. Fit the length to the style, not to a
+size: a 3-minute song at 120 BPM is 90 bars. Spend the banks on variations,
+fills and a second section rather than copies of one bar. The format guide
+(get_song_format, or the in-app AI Prompt) has a worked 64-bar example.
+
+KEY. `scale.root` / `scale.type` (0 = chromatic, the default) snap every note
+played — the song's own included, after a chain transpose — into a key, so set
+the key the notes are in; `scale.extra` admits one outside note (a blue note)
+as written, and `chord.voicing` is chord memory for a player's keyboard, never
+the sequencer. The format guide spells out the values.
+
 METER (time signature and polyrhythm). A bar is a number of sixteenth-note
 ticks, not a fixed 16. Two params in `params` set it: `transport.beats` (2..12)
 and `transport.beatUnit` (0 = a quarter is the beat, 1 = an eighth), so a bar is
@@ -93,7 +108,9 @@ Each machine may also override its own loop with `<m>.len` (0 = follow the bar,
 else 1..16 cells) and `<m>.rate` (an index into the step-rate list published in
 /params.json; the default is one cell per tick, i.e. 1/16), for `m` in
 seq/drum/sampler/motion — a lane whose length differs from the bar phases
-against it deliberately. The grids stay 16 cells regardless: a shorter lane
+against it deliberately. A lane that spans whole bars (16 cells at 1/8 is two
+bars) does not drift: it restarts with its chain, one bar of it per chain slot.
+The grids stay 16 cells regardless: a shorter lane
 simply plays fewer of them, so seqBanks/drumBanks/samplerBanks/motionBanks and
 the schemas are unchanged and no song version moved. Note the one limit: a 5/4
 or 7/4 bar is 20 or 28 ticks, more cells than a grid has, so those need a

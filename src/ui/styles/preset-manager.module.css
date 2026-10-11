@@ -1,69 +1,9 @@
-/* Preset manager modal — the Save / Export / Import doors and the import
-   review wizard (specs/features/presets.md REQ-one-door-for-saving/REQ-preset-import-is-a-two-step-wizard). Row visuals follow
-   export-song-modal so the two choosers read as the same family. */
+/* Preset manager modal — the import review wizard and the delete step
+   (specs/features/presets.md REQ-preset-import-is-a-two-step-wizard). The home
+   step's door rows, its option rows and notes are the shared chooser
+   (chooser.module.css, specs/features/chooser-rows.md). */
 
 @layer components {
-  .rows {
-    display: flex;
-    flex-direction: column;
-    gap: 8px;
-    margin: 4px 0 10px;
-  }
-
-  .row {
-    display: flex;
-    flex-direction: column;
-    align-items: flex-start;
-    gap: 2px;
-    padding: 10px 12px;
-    background: rgba(255, 255, 255, 0.04);
-    border: 1px solid rgba(255, 255, 255, 0.12);
-    border-radius: 8px;
-    cursor: pointer;
-    font-family: inherit;
-    color: inherit;
-    text-align: left;
-    transition: border-color 0.12s ease, background 0.12s ease;
-  }
-
-  .row:hover:not(:disabled) { border-color: var(--accent); }
-
-  .row:disabled {
-    opacity: 0.45;
-    cursor: not-allowed;
-  }
-
-  .rowTitle {
-    font-size: 13px;
-    font-weight: 600;
-  }
-
-  .rowDesc {
-    font-size: 11px;
-    opacity: 0.7;
-  }
-
-  .note {
-    font-size: 11px;
-    opacity: 0.6;
-    font-style: italic;
-    margin: 0 0 10px;
-  }
-
-  .scopeRow {
-    display: flex;
-    align-items: center;
-    gap: 10px;
-    margin: 0 0 10px;
-  }
-
-  .scopeLabel {
-    font-size: 11px;
-    opacity: 0.7;
-    text-transform: uppercase;
-    letter-spacing: 0.06em;
-  }
-
   /* ---- import review (step 2) ---- */
 
   .reviewList {

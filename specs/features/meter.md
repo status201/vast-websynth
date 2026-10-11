@@ -145,7 +145,10 @@ alone.
   12-cell 1/16 lane in 4/4, a 9-cell 1/8 lane in 12/8) keeps its absolute phase
   and drifts across chain loops as before. So do unchained lanes. Whenever the
   chain length is already a multiple of the page count the offset is ≡ 0, so
-  every such song plays bit-identically (ADR-006).
+  every such song plays bit-identically (ADR-006). The METER block agents read
+  (`authoring-guide.ts`, `llms.txt`) states the split — a whole-bar lane pages with
+  its chain, only a polyrhythm drifts — since a 1/8 two-bar bank is the shape
+  `read_midi` suggests.
 
 - **REQ-the-step-counter-must-not-wrap** — **The step counter must not wrap**,
   because a wrap that is not a multiple of every lane length jumps its phase.

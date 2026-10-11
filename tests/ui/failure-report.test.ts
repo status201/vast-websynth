@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import {
-  buildFailureReport, buildFailureReportFor, failureMessage, isCapped,
+  buildFailureReport, buildFailureReportFor, failureMessage, isCapped, thrownMessage,
 } from '../../src/ui/failure-report';
 
 // specs/features/failure-report.md — the copyable diagnostic block. The point of
@@ -78,5 +78,12 @@ describe('failure report', () => {
     expect(report).toContain('1 error:');
     expect(report).toContain('• fetch failed (404)');
     expect(buildFailureReportFor('Load failed', 'corrupt')).not.toContain('file:');
+  });
+
+  it('names a thrown non-Error instead of reading "undefined" (REQ-a-thrown-value-is-named-here)', () => {
+    expect(thrownMessage('disk full')).toBe('disk full');
+    expect(thrownMessage(new RangeError('too deep'))).toBe('too deep');
+    expect(thrownMessage(undefined)).toBe('undefined');
+    expect(thrownMessage({ code: 7 })).not.toBe('');
   });
 });

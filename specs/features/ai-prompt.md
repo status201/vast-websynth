@@ -3,7 +3,10 @@
 ```yaml
 id: ai-prompt
 status: implemented
-version: 8   # v8: REQ-the-modal-body-loads-on-click — the modal body is a lazy chunk beside the guide; the button stays eager
+version: 9   # v9: the guide stops selling songs short — REQ-output-rules-guard-weaker-agents keeps its
+             #     anti-give-up guards but drops the "~80 lines" anchor; REQ-the-guide-sets-the-ambition adds
+             #     SONG CRAFT, REQ-the-guide-teaches-the-key adds the KEY block
+             # v8: REQ-the-modal-body-loads-on-click — the modal body is a lazy chunk beside the guide; the button stays eager
              # v7: the guide no longer tells agents the app blocks two LFOs sharing a
              #     destination — that rule was removed in lfo.md v8, and this text ships
              #     over the public MCP `get_song_format`
@@ -106,8 +109,36 @@ is ~40 lines. The prompt-building logic moved to the pure
 
 - **REQ-output-rules-guard-weaker-agents** — The OUTPUT RULES are anti-give-up
   guardrails for weaker agents: respond with exactly ONE JSON object and no
-  prose; a compact song is under ~80 lines; NEVER truncate or emit placeholders;
-  if length is a concern, author 1–2 banks and repeat them via a chain.
+  prose; NEVER truncate or emit placeholders; never bail out or summarize. (v9)
+  They reassure without capping: a full arrangement fits one reply because
+  **length lives in the chains** (a bar costs one chain letter), and when output
+  is genuinely tight the fallback is to keep the form and reuse banks, never to
+  shorten the song. The removed "a complete song is under ~80 lines — this is a
+  short task" did stop agents giving up, and it also taught them that a good song
+  is a small one: generated songs came back as one bank looping four bars.
+
+- **REQ-the-guide-sets-the-ambition** — (v9) A **SONG CRAFT** section follows the
+  QUICKSTART, which it names as the *smallest valid file, there for the syntax*.
+  It asks for a finished track rather than a demo loop and says how this format
+  gets there: **form** (intro, build, contrast, return, ending), with length fitted
+  to the style and the brief and given a concrete scale (a 3-minute song at 120
+  BPM in 4/4 is 90 bars) rather than a size limit; **one timeline** (every chain
+  the same length, since each loops on its own, with "." for bars a machine sits
+  out); **the banks** spent on variations, fills and contrasting sections;
+  **layers** (tracks 2–4, the sampler, motion lanes chained per section); and
+  **feel**. It closes on the counterweight — more is better only when it is more
+  music, not more of the same bar — and shows the form as a worked 64-bar chain.
+
+- **REQ-the-guide-teaches-the-key** — (v9) A **KEY** block documents
+  `scale.root`, `scale.type`, `scale.extra` and `chord.voicing` for an author,
+  with the facts that decide whether to set them
+  ([scale-quantization](scale-quantization.md)): the key is a live filter that
+  snaps every played note — the author's own included — so it must be the key the
+  notes are in; it applies after a chain transpose, which is what keeps a
+  transposed progression diatonic; an outside note the song means (a blue note) is
+  what `scale.extra` admits; chromatic (0) is the default and the right choice
+  for chromatic material; and chord memory is staging for the player's keyboard
+  and the arp, never for the sequencer, and needs poly.
 
 - **REQ-llms-txt-introduces-the-app** — `public/llms.txt` gives crawling agents
   the app intro, both format names + schema URLs, the grid dimensions and drum
@@ -165,7 +196,7 @@ is ~40 lines. The prompt-building logic moved to the pure
 ### Contract / public interface
 
 - `buildAuthoringGuide(bus: ParamBus, origin?: string): string` — pure format
-  guide (OUTPUT RULES → QUICKSTART → author format → NOTES → PARAMS → canonical
+  guide (OUTPUT RULES → QUICKSTART → SONG CRAFT → author format → KEY → NOTES → PARAMS → canonical
   appendix), in `src/state/authoring-guide.ts`. `origin` defaults to
   `window.location.origin` when available, else `''`.
 - `buildSongPrompt(bus: ParamBus, brief?: string): string` — pure prompt builder:
@@ -195,7 +226,9 @@ intro line (VAST G1-J8)
 SONG REQUEST          <- brief or bracketed placeholder (REQ-the-modal-leads-with-a-brief-field/REQ-an-empty-brief-shows-a-placeholder)
 OUTPUT RULES          <- anti-give-up guardrails + both absolute schema URLs (REQ-the-prompt-cites-absolute-schema-urls/REQ-output-rules-guard-weaker-agents)
 QUICKSTART            <- a complete, valid author-dialect song (REQ-the-prompt-teaches-the-dialect)
+SONG CRAFT            <- the ambition: form, one timeline, banks, layers, feel (REQ-the-guide-sets-the-ambition)
 COMPACT AUTHOR FORMAT <- the recommended dialect, field-by-field (REQ-the-prompt-teaches-the-dialect)
+KEY                   <- scale.root / scale.type / scale.extra / chord.voicing (REQ-the-guide-teaches-the-key)
 NOTES                 <- musical tips (REQ-the-params-table-is-generated)
 PARAMS                <- live bus.ids()/bus.def() dump (REQ-the-params-table-is-generated)
 APPENDIX (canonical)  <- TOP-LEVEL SHAPE, cell types, EXAMPLE SHAPE skeleton with … (REQ-the-prompt-teaches-the-dialect)
@@ -244,6 +277,27 @@ Scenario: The dialect leads, with anti-give-up guardrails
   And they forbid truncation/placeholder output
   And the author-dialect sections appear before the canonical appendix
 # pinned by: tests/ui/ai-prompt.test.ts (buildSongPrompt — dialect first, anti-give-up guardrails)
+
+Scenario: The guards keep an agent going without capping the song (v9, REQ-output-rules-guard-weaker-agents)
+  When buildSongPrompt(bus) is generated
+  Then the OUTPUT RULES still forbid bailing out and truncating
+  And they name no line budget ("under ~80 lines" is gone)
+  And their fallback for a tight output keeps the form and reuses banks
+# pinned by: tests/ui/ai-prompt.test.ts (the guards keep an agent going without capping the song)
+
+Scenario: SONG CRAFT asks for a finished track (v9, REQ-the-guide-sets-the-ambition)
+  When buildSongPrompt(bus) is generated
+  Then a SONG CRAFT section follows the QUICKSTART and calls it the smallest valid file
+  And it covers form, one timeline, the banks, layers and feel, and says shorter is not better by default
+  And its worked chains are each 64 bars long
+# pinned by: tests/ui/ai-prompt.test.ts (SONG CRAFT asks for a finished track)
+
+Scenario: The KEY block names the four key params and what they act on (v9, REQ-the-guide-teaches-the-key)
+  When buildSongPrompt(bus) is generated
+  Then a KEY block names "scale.root", "scale.type", "scale.extra" and "chord.voicing"
+  And it says the key snaps the author's own notes, after a chain transpose
+  And it says chord memory never touches the sequencer
+# pinned by: tests/ui/ai-prompt.test.ts (the KEY block)
 
 Scenario: A creative brief is injected into SONG REQUEST
   Given a brief "in the style of Rockit, 12-bar loop with breaks"
