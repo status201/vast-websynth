@@ -41,7 +41,7 @@
     "fx.master.comp.on": 1,
     "fx.master.comp.threshold": 0,
     "fx.master.comp.makeup": 12,
-    "master.volume": 1,
+    "master.volume": 0.5,
     "transport.bpm": 100,
     "seq.on": 1
   },

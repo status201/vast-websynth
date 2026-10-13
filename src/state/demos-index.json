@@ -165,24 +165,23 @@
     ],
     "blurb": "The Shepard scale: a scale that climbs forever and never gets anywhere. Every tone is six sine waves an octave apart, and a fixed filter shapes them into a bell, loudest in the middle and fading to nothing at both ends. As the scale rises, the top partials fade out while new ones fade in at the bottom, so after twelve steps the tone is exactly where it started, yet all you heard was it going up. Halfway through it turns round and falls forever instead."
   },
-  "Illusion_2.websynth.json": {
+  "Illusion_2.websynth.zip": {
     "name": "Illusion 2",
     "bpm": 60,
     "bars": 16,
     "uses": [
-      "seq"
+      "sampler"
     ],
-    "blurb": "The Shepard–Risset glissando: the Shepard scale made continuous, an audio barber's pole. One held chord of sine waves an octave apart slides upward without end. The slide is LFO 1, a sawtooth on pitch that rises exactly one octave and then snaps back down. You never hear the snap: under the fixed bell-shaped filter, every partial lands where its neighbour just was, at the same loudness. Turn LFO 1's amount to zero and the endless climb stops on a plain chord."
+    "blurb": "The Shepard–Risset glissando: the Shepard scale made continuous, an audio barber's pole. Eight sine waves an octave apart all slide upward together, and each one's loudness follows a fixed bell over pitch: it fades in at the bottom, swells through the middle and fades out at the top, where it slips back to the bottom unheard. So the sound keeps rising and never arrives. A synth voice cannot do this, because every partial would have to wrap at once, so this one is a project bundle: one sampler slot plays a sixteen-second loop that is exactly one octave of the climb, computed rather than recorded."
   },
-  "Illusion_3.websynth.json": {
+  "Illusion_3.websynth.zip": {
     "name": "Illusion 3",
-    "bpm": 70,
+    "bpm": 120,
     "bars": 32,
     "uses": [
-      "drums",
-      "motion"
+      "sampler"
     ],
-    "blurb": "Risset's accelerating rhythm: a breakbeat that speeds up forever. Two copies of one break play at once, the second at double time on the tom tracks, re-voiced as a second kick, snare and hat. Over eight bars a motion lane drives the tempo from 70 to 140 BPM (watch the BPM knob) while the step velocities fade the double-time copy out and the normal one in. At 140 the normal copy sounds exactly like the double-time copy did at 70, so the tempo drops back unheard and the climb starts again."
+    "blurb": "Risset's accelerating rhythm: a breakbeat that speeds up forever. The same break plays at three tempos at once, each twice as fast as the last, and all three accelerate together, doubling every eight bars. Loudness follows a bell over tempo, like the Shepard tone's over pitch: the fastest copy fades out as it gets frantic, and a new slow one fades in underneath. After eight bars every copy has become the next one up, so the loop starts again without a seam. The hits are this synth's own drum machine, rendered once and laid out offline; one sampler slot plays the loop, because eight drum tracks cannot hold three copies of a kit."
   },
   "Illusion_4.websynth.json": {
     "name": "Illusion 4",
