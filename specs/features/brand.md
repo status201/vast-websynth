@@ -3,7 +3,9 @@
 ```yaml
 id: brand
 status: implemented
-version: 3  # v3: a consumer may scale the whole block from its own framing class; the header
+version: 4  # v4: the header's 60% applies below 1680px only; a very wide screen draws the full-size
+            #     block, its divider padding re-evened to 18px (REQ-a-consumer-may-scale-the-block)
+            # v3: a consumer may scale the whole block from its own framing class; the header
             #     draws it at 60% and never lets it wrap (REQ-a-consumer-may-scale-the-block)
             # v2: the model badge is optically centred, not geometrically (REQ-model-badge-is-optically-centred)
 owner: ui
@@ -61,13 +63,16 @@ not a feature — it owns markup and styling only, and has no state.
   consumer's.** The block stays size-agnostic; a consumer that wants it smaller
   scales it as a whole from its own class, so the proportions (and the badge's
   optical centring, REQ-model-badge-is-optically-centred) survive untouched. The
-  header does: `.headerBrand` is `zoom: 0.6` — the faceplate reads as a small
-  badge beside the controls rather than competing with them — plus
+  header does: below 1680px `.headerBrand` is `zoom: 0.6` — the faceplate reads
+  as a small badge beside the controls rather than competing with them — and
+  from 1680px up it is drawn at full size, since a very wide header has the room
+  and the small badge looks lost there (v4). At every width it is
   `flex-shrink: 0` and `white-space: nowrap`, so a tight header row can never
   squeeze the tagline onto a second line (its min-content was only the longest
-  word). The divider's `padding-right` is 24px *before* the zoom, so the rule
-  sits evenly between the logo and the preset cluster. The About and start
-  modals draw the block at full size.
+  word). The divider's `padding-right` matches the margin plus the header's gap
+  on the other side — 18px at full size, 24px *before* the zoom at 60% — so the
+  rule sits evenly between the logo and the preset cluster at either size. The
+  About and start modals always draw the block at full size.
 - **REQ-brand-alignment-belongs-to-the-container** — Alignment is the
   **container's** business, not the block's. The header and the About card leave
   it left-aligned; `.start-card` (`src/styles/base.css`: `flex` + `align-items:
@@ -106,8 +111,8 @@ export function createBrand(): HTMLElement;
 - Pure DOM component (`ui/components/`) — no bus, no engine, no state, so it is
   safe to call before audio exists (the start modal renders pre-gesture).
 - Styling is `src/ui/styles/brand.module.css`; no media query alters it, so the
-  block is identical at every width (the header's 60% is a constant `zoom` on
-  `.headerBrand`, REQ-a-consumer-may-scale-the-block) (the header's *surroundings* reflow —
+  block is identical at every width (the header's 60% below 1680px is a `zoom`
+  on `.headerBrand`, REQ-a-consumer-may-scale-the-block) (the header's *surroundings* reflow —
   [responsive-header](responsive-header.md) — the brand itself does not).
 
 ### Persistence
@@ -132,6 +137,7 @@ Scenario: the header's divider does not leak into a modal (REQ-brand-block-carri
 Scenario: the header logo never wraps (REQ-a-consumer-may-scale-the-block)
   Given the app is open at any width from 360px to 1920px
   Then the header's brand tagline sits on a single line
+   And the header's brand block is zoomed to 0.6 below 1680px and to 1 from 1680px up
 # pinned by: e2e/responsive-header.spec.ts (a very long preset name never overflows at any width)
 ```
 

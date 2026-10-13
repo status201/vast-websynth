@@ -138,7 +138,7 @@ test.describe('responsive header (mobile menu)', () => {
     await expect(preset).toHaveAttribute('title', shown);
     await expect(preset.locator('button').first()).toHaveText(shown);
 
-    const widths = [360, 390, 720, 721, 768, 992, 993, 1024, 1140, 1141, 1200, 1280, 1366, 1440, 1920];
+    const widths = [360, 390, 720, 721, 768, 992, 993, 1024, 1140, 1141, 1200, 1280, 1366, 1440, 1679, 1680, 1920];
     for (const width of widths) {
       await page.setViewportSize({ width, height: 900 });
       const phone = width <= 720;
@@ -183,13 +183,19 @@ test.describe('responsive header (mobile menu)', () => {
         };
         const vast = find('VAST')?.parentElement?.getBoundingClientRect();
         const model = find('G1-J8')?.parentElement?.getBoundingClientRect();
+        // The brand block is the header's own child holding VAST.
+        let brandEl = find('VAST')?.parentElement ?? null;
+        while (brandEl && brandEl.parentElement !== header) brandEl = brandEl.parentElement;
         return {
+          zoom: brandEl ? getComputedStyle(brandEl).zoom : '',
           tagline: lines(find('Vast Audio Synthesis Technology')),
           oneRow: !!vast && !!model && model.top < vast.bottom && vast.top < model.bottom,
         };
       });
       expect(brand.tagline, `tagline lines at ${width}px`).toBe(1);
       expect(brand.oneRow, `VAST + G1-J8 on one row at ${width}px`).toBe(true);
+      // Small below 1680px, the full-size faceplate on a very wide screen.
+      expect(Number(brand.zoom), `logo zoom at ${width}px`).toBe(width < 1680 ? 0.6 : 1);
     }
   });
 });

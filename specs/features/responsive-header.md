@@ -147,7 +147,7 @@ addition to the shared `headerGroup` class.
   About and start modals. The header composes its own `headerBrand` class on top
   for the divider rule to its right — that framing is not part of the shared
   block (brand.md REQ-brand-block-carries-no-framing). The same class draws the
-  block at 60% and keeps it from shrinking or wrapping (brand.md
+  block at 60% below 1680px (full size above) and keeps it from shrinking or wrapping (brand.md
   REQ-a-consumer-may-scale-the-block).
 - DOM order in the header: `brand, menuToggle, presetGroup, spacer,
   headerBreak, transport, right`. The toggle sits right after `brand` so, on a

@@ -26,17 +26,24 @@
   /* Header-only framing for the shared brand block (components/brand.ts). The
      block itself is styled by brand.module.css and carries no outer framing, so
      this divider rule can't leak into the About or start modal — brand.md REQ-brand-block-carries-no-framing.
-     It also scales the block to 60% here only, and never lets the row squeeze
-     the tagline onto a second line (brand.md REQ-a-consumer-may-scale-the-block).
-     The padding is before the zoom: 24px renders ~14px, which with the zoomed
-     margin and the header gap centres the divider. */
+     It never lets the row squeeze the tagline onto a second line, and below
+     1680px it scales the block to 60% here only (brand.md
+     REQ-a-consumer-may-scale-the-block). Either way the divider sits evenly:
+     the padding matches the margin plus the header's 14px gap — 18px at full
+     size, and 24px before the zoom (renders ~14px) at 60%. */
   .headerBrand {
-    zoom: 0.6;
     flex-shrink: 0;
     white-space: nowrap;
-    padding-right: 24px;
+    padding-right: 18px;
     border-right: 1px solid rgba(244, 205, 94, 0.18);
     margin-right: 4px;
+  }
+
+  @media (max-width: 1679px) {
+    .headerBrand {
+      zoom: 0.6;
+      padding-right: 24px;
+    }
   }
 
   .headerSpacer { flex: 1; }

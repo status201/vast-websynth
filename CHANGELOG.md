@@ -35,9 +35,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
   the limit.
 - **The header logo no longer breaks onto two lines.** When the header was
   short of room, the tagline under VAST G1-J8 could wrap onto a second line.
-  The header logo is now 60% of its former size, never wraps, and has even
-  spacing either side of the divider. The About and start screens keep the
-  full-size logo.
+  The header logo never wraps and has even spacing either side of the
+  divider. On screens narrower than 1680px it is now 60% of its former size;
+  wider screens keep the full-size logo, as do the About and start screens.
 - **The time-signature dropdown is narrower.** It is 70px instead of 80px,
   which gives the rest of the header 10px back. "12/8" still fits.
 
