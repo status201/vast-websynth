@@ -3,7 +3,9 @@
 ```yaml
 id: untrusted-input
 status: implemented
-version: 15  # v15: the Preset manager's Import joins REQ-a-file-is-sized-before-it-is-read's doors
+version: 16  # v16: REQ-names-are-capped — a song, preset or bank name is at most MAX_NAME_CHARS
+             #      (50) characters at every door; a longer one is shortened, never refused
+             # v15: the Preset manager's Import joins REQ-a-file-is-sized-before-it-is-read's doors
              # v14: REQ-a-file-is-sized-before-it-is-read — the Import button and the PWA launchQueue
              #      read a whole file before any cap applied; every file door now asks one function first
              # v13: a MIDI file (read_midi, midi-file-reader.md) joins the surfaces, with MAX_MIDI_*
@@ -46,6 +48,8 @@ related:
   - ../decisions/adr-004-patternstore-separate-from-parambus
 source:
   - src/state/limits.ts                 # the limit constants — single source of truth
+  - src/state/names.ts                  # cleanName — the one name sanitiser (REQ-names-are-capped)
+  - src/state/preset-validate.ts        # preset/bank names + bank keys (REQ-names-are-capped)
   - src/utils/compression.ts            # inflateRaw(bytes, maxBytes)
   - src/utils/zip.ts                    # entry/total/count caps + declared-size pre-flight
   - src/state/song-link.ts              # https-only songUrl; payload cap
@@ -165,6 +169,33 @@ decision and the alternatives. This spec is the contract.
   two). Chain `steps` is `1..MAX_CHAIN_STEPS`. `params` carries at most
   `MAX_PARAM_KEYS` keys. Existing checks are unchanged: `Number.isFinite` on
   every number, exact grid dimensions, `KNOWN_SONG_VERSIONS`.
+
+- **REQ-names-are-capped** (v16) — **A name is at most `MAX_NAME_CHARS` (50)
+  characters.** A song, preset or bank title is free text that a payload
+  chooses and the header, the Song panel and storage keys display; unbounded,
+  one name could push the header past the clipped right edge
+  ([responsive-header](responsive-header.md) REQ-the-preset-selector-is-width-capped). `cleanName`
+  (`src/state/names.ts`) is the one sanitiser: control characters out, trimmed,
+  capped by **code points** (so an emoji is never cut in half), trimmed again.
+  A long name is **shortened, never refused** — a whole song is not worth
+  losing over its title. The doors:
+  - typed: both Save buttons (preset and song) ask through `promptName`
+    ([dialog](dialog.md)), so typing stops at 50 and the answer is cleaned;
+  - every song ingest goes through `validateUntrusted` in `song.ts` (Import,
+    project zip, share link, paste, drop, drop-in demo, slot), which cleans
+    `file.name`; `Song.capture` cleans what it writes;
+  - preset import: `validatePresetPayload` cleans the preset name, the bank
+    name and **each bank key**; two keys that become one once shortened keep
+    the first and report the later as a warning; the wizard's rename policy
+    (`freeName`, `name 2`) shortens the base so the suffix fits — a renamed
+    copy cut back to 50 would land on the very preset it renamed away from;
+  - backstops: `Presets.save` cleans its key, and `PresetSession.setActive` /
+    `setActiveSong` clean what the header shows, so an autosave restore or a
+    legacy long name can never display more than 50.
+  Presets already stored under a longer name are not renamed (a storage-key
+  migration); the selector's width cap holds them.
+  `midi-file.ts`'s track-name cleaner is the same function with
+  `MAX_MIDI_NAME_CHARS`.
 
 - **REQ-reserved-keys-are-refused** — **Reserved keys are refused where a
   payload object is copied.** The motivating path is `PatternStore.restore`,
@@ -531,6 +562,14 @@ Scenario: A pairing code whose SDP is not an SDP is refused (v10, REQ-a-pairing-
   Then decodeSignal rejects with SignalDecodeError before setRemoteDescription is called
   And a real offer's SDP still decodes
 # pinned by: tests/audio/transport/sync/webrtc-signaling.test.ts
+
+Scenario: A long name is shortened at every door, never refused (v16, REQ-names-are-capped)
+  Given a song, a preset or a bank whose name is 80 characters long
+  When it is imported, typed into a Save prompt, or shown in the header
+  Then the name is the first 50 characters, trimmed
+  And a bank whose keys collide once shortened keeps the first and warns
+# pinned by: tests/state/names.test.ts, tests/state/song.test.ts, tests/state/preset-validate.test.ts,
+#            tests/state/preset-session.test.ts, tests/ui/dialog.test.ts
 
 Scenario: An out-of-range note is refused instead of wedging the transport
   Given a song whose seqBanks contain a step with note 1e6

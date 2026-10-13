@@ -34,6 +34,41 @@ describe('structural layer (no bus)', () => {
     expect(b.ok && Object.keys(b.presets)).toEqual(['one', 'two']);
   });
 
+  // untrusted-input.md REQ-names-are-capped: names and bank keys are shortened, never refused.
+  it('shortens a long preset name, bank name and bank key to 50 characters', () => {
+    const p = validatePresetPayload({ ...PRESET({}), name: 'p'.repeat(80) });
+    expect(p.ok && p.name).toBe('p'.repeat(50));
+    expect(p.ok && Object.keys(p.presets)).toEqual(['p'.repeat(50)]);
+
+    const b = validatePresetPayload({
+      format: 'websynth-preset-bank', version: 1, name: 'b'.repeat(80),
+      presets: { ['k'.repeat(80)]: {} },
+    });
+    expect(b.ok && b.name).toBe('b'.repeat(50));
+    expect(b.ok && Object.keys(b.presets)).toEqual(['k'.repeat(50)]);
+  });
+
+  it('keeps the first of two bank keys that collide once shortened, and warns', () => {
+    const base = 'k'.repeat(50);
+    const b = validatePresetPayload({
+      format: 'websynth-preset-bank', version: 1, name: 'set',
+      presets: { [`${base}-one`]: { 'filter.cutoff': 10 }, [`${base}-two`]: { 'filter.cutoff': 20 } },
+    });
+    expect(b.ok).toBe(true);
+    if (!b.ok) return;
+    expect(b.presets).toEqual({ [base]: { 'filter.cutoff': 10 } });
+    expect(b.warnings?.[0]).toMatch(/already uses — skipped/);
+  });
+
+  it('refuses a bank key that only becomes reserved once trimmed', () => {
+    const b = validatePresetPayload({
+      format: 'websynth-preset-bank', version: 1, name: 'set',
+      presets: { ' __proto__ ': {} },
+    });
+    expect(b.ok).toBe(false);
+    expect(Object.getPrototypeOf({})).toBe(Object.prototype);
+  });
+
   it('names the offending key when a value is not a number', () => {
     const res = validatePresetPayload({
       format: 'websynth-preset-bank', version: 1, name: 'set',

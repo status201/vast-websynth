@@ -2,6 +2,16 @@ import { describe, it, expect } from 'vitest';
 import { PresetSession, isPatchParam, patchSnapshot } from '../../src/state/preset-session';
 
 describe('PresetSession', () => {
+  // untrusted-input.md REQ-names-are-capped — the display backstop.
+  it('shows at most 50 characters of a name, and pins the song under the same', () => {
+    const s = new PresetSession();
+    s.setActive('x'.repeat(80));
+    expect(s.label).toBe('x'.repeat(50));
+    s.setActiveSong('y'.repeat(80), {});
+    expect(s.label).toBe('y'.repeat(50));
+    expect(s.songSound!.name).toBe(s.label);
+  });
+
   it('formats display with a dirty marker once edited', () => {
     const s = new PresetSession();
     s.setActive('basic');

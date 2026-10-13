@@ -3,6 +3,7 @@ import { roundParams } from './serialize';
 import { sameSnapshot } from './preset-file';
 import { SlotStore } from './slot-store';
 import { RESERVED_KEYS } from './limits';
+import { cleanName } from './names';
 
 const store = new SlotStore('websynth.preset.');
 
@@ -430,7 +431,10 @@ export const Presets = {
     } catch { return null; }
   },
 
-  save(name: string, snap: Snapshot): void {
+  save(rawName: string, snap: Snapshot): void {
+    // The store's own backstop (untrusted-input.md REQ-names-are-capped): every
+    // caller already cleans, but no key over the cap can be written.
+    const name = cleanName(rawName);
     // Round at the serialization boundary (same helper as song export) — clean
     // JSON, no audible change. capture() keeps live state full-precision.
     store.writeRaw(name, JSON.stringify(roundParams(snap)));

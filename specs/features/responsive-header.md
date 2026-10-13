@@ -3,7 +3,10 @@
 ```yaml
 id: responsive-header
 status: implemented
-version: 6  # v6: a glyph may carry per-part hook classes for a state stylesheet
+version: 7  # v7: the preset selector is width-capped at every width and gives up
+            #     its width before the header overflows; the header never widens
+            #     the .app column (a long preset name pushed Panic/VOL off-screen)
+            # v6: a glyph may carry per-part hook classes for a state stylesheet
             #     to recolour (the ⓘ disc/stem/dot, onboarding.md REQ-the-glyph-inverts-while-badges-show)
             # v5: the two ⓘ/? utility buttons swap roles — ⓘ toggles the info
             #     badges, ? opens Help & About (onboarding.md v15)
@@ -85,12 +88,25 @@ end of the row.
   because that is what it toggles ([onboarding.md](onboarding.md) REQ-the-info-button-is-a-toggle). The
   retired `help-button` id is not reused.
 - **REQ-the-header-never-clips** — The header must never clip content off the
-  right edge at any width. Its clusters' combined min-content width (~1140px)
-  exceeds the viewport well before the 992px reflow, so from **≤1140px** the
-  header row wraps (`flex-wrap`, spacer hidden) instead of overflowing —
-  otherwise the page's `overflow-x: hidden` cuts off the voicing cluster *and*,
-  because the over-wide header widens the single `.app` grid column, the `.main`
-  panel grid's right column (MIXER) with it.
+  right edge at any width **and with any preset name**. Its clusters' combined
+  min-content width (~1140px) exceeds the viewport well before the 992px reflow,
+  so from **≤1140px** the header row wraps (`flex-wrap`, spacer hidden) instead
+  of overflowing — otherwise the page's `overflow-x: hidden` cuts off the voicing
+  cluster *and*, because the over-wide header widens the single `.app` grid
+  column, the `.main` panel grid's right column (MIXER) with it. As a backstop the
+  header is `min-width: 0` as a grid item, so its content can never widen that
+  column; the room it needs is made by REQ-the-preset-selector-is-width-capped.
+- **REQ-the-preset-selector-is-width-capped** — At **≥721px** the preset
+  selector is never wider than **240px**, and it is the one header item that
+  gives up width: when the row is short of room it shrinks toward a **120px**
+  floor before anything else squeezes or overflows (brand, transport and voicing
+  keep their content width). A name that does not fit ellipsizes; the label's
+  `textContent` stays the full name, and the selector carries the full name as
+  its hover `title`. Before this a ~20-character name at 1280px pushed the
+  header — and with it Panic, VOL and the MIXER column — past the clipped right
+  edge. Names are now capped at 50 characters ([untrusted-input](untrusted-input.md)
+  REQ-names-are-capped), but 50 characters are still far wider than 240px, so
+  the layout must not lean on the cap.
 - **REQ-below-1140-the-preset-label-hides** — From **≤1140px** the `Preset:`
   text label is hidden to save header width; the preset dropdown and the utility
   icon buttons remain. At ≥1141px the label shows as before.
@@ -130,7 +146,9 @@ addition to the shared `headerGroup` class.
 - The brand cluster is `createBrand()` ([brand.md](brand.md)), shared with the
   About and start modals. The header composes its own `headerBrand` class on top
   for the divider rule to its right — that framing is not part of the shared
-  block (brand.md REQ-brand-block-carries-no-framing).
+  block (brand.md REQ-brand-block-carries-no-framing). The same class draws the
+  block at 60% and keeps it from shrinking or wrapping (brand.md
+  REQ-a-consumer-may-scale-the-block).
 - DOM order in the header: `brand, menuToggle, presetGroup, spacer,
   headerBreak, transport, right`. The toggle sits right after `brand` so, on a
   narrow screen, CSS `margin-left: auto` parks it at the right end of the
@@ -177,11 +195,18 @@ addition to the shared `headerGroup` class.
   block (placed **after** the existing `≤992px` block so it wins at narrow
   widths) shows the toggle, hides `.presetGroup`, reveals it via
   `.header.menuOpen .presetGroup { display: flex; flex-basis: 100% }`, and
-  caps the preset dropdown (REQ-below-720-the-dropdown-drops-its-min-width): `.presetGroup :global(.dropdown) >
-  button { min-width: 0; max-width: 90px }` — scoped via the global
+  caps the preset dropdown (REQ-below-720-the-dropdown-drops-its-min-width): `.presetGroup :global(.dropdown)
+  { min-width: 0; max-width: 90px }` — scoped via the global
   `dropdown` bridge class so no other `Dropdown` instance is affected; the
   ellipsis itself lives on `dropdown.module.css` `.label` (component-level,
-  inert until something constrains the toggle's width). The
+  inert until something constrains the toggle's width). Outside any media query
+  (REQ-the-preset-selector-is-width-capped) the dropdown **root** owns the width
+  at every breakpoint: `display: flex; min-width: 120px; max-width: 240px`, with
+  the toggle `flex: 1 1 auto; min-width: 0` inside it, and `.presetGroup` plus
+  `.header` are `min-width: 0` so the flex row shrinks the selector instead of
+  overflowing. The title is set by `header.ts` on the dropdown root
+  (`dropdown.el.title`), never on the toggle, which would shadow the root
+  `title` other `Dropdown` consumers set. The
   `≤1140px` block (REQ-the-header-never-clips) holds the header/cluster `flex-wrap: wrap` rules,
   `.presetLabel { display: none }` (REQ-below-1140-the-preset-label-hides), the two-row layout (REQ-below-1140-the-header-wraps-deterministically):
   `.headerBreak { display: block; flex-basis: 100%; height: 0 }` +
@@ -262,6 +287,15 @@ Scenario: No right-edge clipping in the 993-1140px dead zone
   And the Panic button and master volume knob are fully within the viewport
   And the MIXER panel is visible
 # pinned by: e2e/responsive-header.spec.ts
+
+Scenario: A very long preset name breaks nothing at any width
+  Given the active preset has a name far wider than the header
+  When the viewport is any width from 360px to 1920px
+  Then neither the page nor the header overflows horizontally
+  And the Panic button and master volume knob are fully within the viewport
+  And the preset selector is at most 240px wide (90px on a phone)
+  And the selector's label and hover title still hold the full name
+# pinned by: e2e/responsive-header.spec.ts (a very long preset name never overflows at any width)
 
 Scenario: Utility buttons are icon buttons with accessible names
   Given the app header is built

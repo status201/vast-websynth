@@ -3,7 +3,8 @@
 ```yaml
 id: song-mode
 status: implemented
-version: 31  # v31: the unused File readers are gone (the removed `readFile`/`parseFile` read a File
+version: 32  # v32: a song name is at most 50 characters (untrusted-input.md REQ-names-are-capped)
+             # v31: the unused File readers are gone (the removed `readFile`/`parseFile` read a File
              #      unsized); every file door sizes first (untrusted-input.md REQ-a-file-is-sized-before-it-is-read)
              # v30: pre-release sweep — contract says SONG_VERSION 9, cell fields + compaction list seq bend/bendShape, params drop UNSAVED_PARAMS, versions note reaches v9
              # v29: REQ-song-file-v9-raises-the-bank-ceiling — SongFile v9 raises the per-machine
@@ -171,7 +172,10 @@ demos, the load path **must stay backward compatible** as the format grows.
   is `1..MAX_CHAIN_STEPS`, `params` carries at most `MAX_PARAM_KEYS` keys, and a
   `__proto__` / `constructor` / `prototype` key is refused outright. A song is
   an untrusted document — an unbounded `note` reached `midiToHz` as `Infinity`
-  and wedged the transport through a throwing `AudioParam` write.
+  and wedged the transport through a throwing `AudioParam` write. The song's
+  `name` is the one field that is **shortened rather than refused**: at most
+  50 characters, at every ingest door and in `Song.capture`
+  ([untrusted-input](untrusted-input.md) REQ-names-are-capped).
 - **REQ-serialization-is-optimised-at-the-boundary** — Serialization is
   **optimized at the boundary** (`toJSON`), never in live state: numbers round
   to 4 significant figures and cells are written **default-sparse**, producing

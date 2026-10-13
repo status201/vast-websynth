@@ -117,4 +117,79 @@ test.describe('responsive header (mobile menu)', () => {
     const osc1 = (await page.getByText('OSC 1', { exact: true }).boundingBox())!;
     expect(panic.y + panic.height).toBeLessThanOrEqual(osc1.y);
   });
+
+  // REQ-the-preset-selector-is-width-capped + REQ-the-header-never-clips: preset
+  // names are unbounded, and an uncapped selector once pushed the one-row header
+  // (and the .app column with it) past the clipped right edge at 1280px.
+  test('a very long preset name never overflows at any width', async ({ page }) => {
+    await page.setViewportSize(DESKTOP);
+    await gotoAndStart(page);
+
+    const longName = 'An Extremely Long Preset Name That Nobody Would Ever Fit In A Header Bar Not Even On A Wide Screen';
+    await page.evaluate((n) => {
+      (window as unknown as { __synth: { session: { setActive(n: string): void } } })
+        .__synth.session.setActive(n);
+    }, longName);
+
+    // The session shows at most 50 characters (untrusted-input.md
+    // REQ-names-are-capped) — still far wider than the 240px selector.
+    const shown = longName.slice(0, 50).trim();
+    const preset = page.getByTestId('preset-select');
+    await expect(preset).toHaveAttribute('title', shown);
+    await expect(preset.locator('button').first()).toHaveText(shown);
+
+    const widths = [360, 390, 720, 721, 768, 992, 993, 1024, 1140, 1141, 1200, 1280, 1366, 1440, 1920];
+    for (const width of widths) {
+      await page.setViewportSize({ width, height: 900 });
+      const phone = width <= 720;
+      const menu = page.getByTestId('header-menu');
+      if (phone && (await menu.getAttribute('aria-expanded')) !== 'true') await menu.click();
+      await expect(preset, `${width}px`).toBeVisible();
+
+      const overflow = await page.evaluate(() => {
+        const doc = document.documentElement;
+        const header = document.querySelector('[data-testid="app-header"]')!;
+        return {
+          page: doc.scrollWidth - doc.clientWidth,
+          header: header.scrollWidth - header.clientWidth,
+        };
+      });
+      expect(overflow.page, `page overflow at ${width}px`).toBe(0);
+      expect(overflow.header, `header overflow at ${width}px`).toBe(0);
+
+      await expect(page.getByTestId('panic'), `${width}px`).toBeInViewport({ ratio: 1 });
+      await expect(page.getByTestId('knob-master.volume'), `${width}px`).toBeInViewport({ ratio: 1 });
+
+      const box = (await preset.boundingBox())!;
+      expect(box.width, `selector width at ${width}px`).toBeLessThanOrEqual(phone ? 91 : 241);
+
+      // brand.md REQ-a-consumer-may-scale-the-block: the header logo never
+      // wraps — the tagline is one line box and VAST shares a row with G1-J8.
+      const brand = await page.evaluate(() => {
+        const header = document.querySelector('[data-testid="app-header"]')!;
+        const walker = document.createTreeWalker(header, NodeFilter.SHOW_TEXT);
+        const find = (text: string): Text | null => {
+          walker.currentNode = header;
+          for (let n = walker.nextNode(); n; n = walker.nextNode()) {
+            if (n.textContent === text) return n as Text;
+          }
+          return null;
+        };
+        const lines = (t: Text | null): number => {
+          if (!t) return -1;
+          const r = document.createRange();
+          r.selectNodeContents(t);
+          return new Set([...r.getClientRects()].map((b) => Math.round(b.top))).size;
+        };
+        const vast = find('VAST')?.parentElement?.getBoundingClientRect();
+        const model = find('G1-J8')?.parentElement?.getBoundingClientRect();
+        return {
+          tagline: lines(find('Vast Audio Synthesis Technology')),
+          oneRow: !!vast && !!model && model.top < vast.bottom && vast.top < model.bottom,
+        };
+      });
+      expect(brand.tagline, `tagline lines at ${width}px`).toBe(1);
+      expect(brand.oneRow, `VAST + G1-J8 on one row at ${width}px`).toBe(true);
+    }
+  });
 });

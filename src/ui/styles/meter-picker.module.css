@@ -13,9 +13,9 @@
     gap: 2px;
     min-width: 0;
     /* The widest label is four glyphs ("12/8"), so the header does not owe this
-       control a panel-row's width — 80px is the whole thing, border included
+       control a panel-row's width — 70px is the whole thing, border included
        (`box-sizing: border-box`, base.css). */
-    width: 80px;
+    width: 70px;
   }
 
   /*

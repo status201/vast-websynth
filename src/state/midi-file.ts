@@ -12,6 +12,7 @@ import {
 } from './limits';
 import { GM_PROGRAMS, gmDrum } from './gm-names';
 import { noteName } from '../utils/music';
+import { cleanName } from './names';
 
 export interface MidiNote {
   tick: number;
@@ -60,10 +61,10 @@ function vlq(b: Uint8Array, i: number, end: number, where: string): [number, num
 }
 
 /** Control characters out, length capped: a track name lands in an agent's context. */
-const cleanName = (bytes: Uint8Array): string => {
+const cleanTrackName = (bytes: Uint8Array): string => {
   let s = '';
   for (const c of bytes) s += String.fromCharCode(c);
-  return s.replace(/[\u0000-\u001f\u007f-\u009f]/g, '').trim().slice(0, MAX_MIDI_NAME_CHARS);
+  return cleanName(s, MAX_MIDI_NAME_CHARS);
 };
 
 interface Counters { overlaps: number; orphans: number; dangling: number; ignored: number }
@@ -103,7 +104,7 @@ function parseTrack(b: Uint8Array, start: number, end: number, t: number, file: 
         if (d[0]! > 0 && d[1]! <= 6) file.meters.push({ tick, num: d[0]!, den: 2 ** d[1]! });
         else n.ignored++;
       } else if (type === 0x03 && !named) {
-        file.trackNames[t] = cleanName(d);
+        file.trackNames[t] = cleanTrackName(d);
         named = true;
       }
       i = j + len;

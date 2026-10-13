@@ -136,7 +136,18 @@ function buildPresetGroup(
   const refreshPresetOptions = (): void => {
     pinnedInList = session.songSound?.name ?? null;
     dropdown.setOptions(presetOptions(), { dividerAfter: pinnedInList ? 1 : 0 });
+    showDisplay();
+  };
+
+  /**
+   * Label + hover title. The selector is width-capped and a long name ellipsizes
+   * (responsive-header.md REQ-the-preset-selector-is-width-capped), so the full
+   * name rides on the root's `title` — the root, not the toggle, as every other
+   * Dropdown consumer does.
+   */
+  const showDisplay = (): void => {
     dropdown.setValue(session.display);
+    dropdown.el.title = session.display;
   };
 
   /**
@@ -150,7 +161,7 @@ function buildPresetGroup(
    */
   const syncSelector = (): void => {
     if ((session.songSound?.name ?? null) !== pinnedInList) refreshPresetOptions();
-    else dropdown.setValue(session.display);
+    else showDisplay();
   };
   session.subscribe(syncSelector);
 

@@ -66,6 +66,12 @@ export const MAX_STEP = 2 ** 31;
 export const MAX_PARAM_KEYS = 512;
 
 /**
+ * A song, preset or bank title, in code points (untrusted-input.md
+ * REQ-names-are-capped). Enough for any real title; shortened, never refused.
+ */
+export const MAX_NAME_CHARS = 50;
+
+/**
  * The public MCP endpoint (untrusted-input.md REQ-the-public-endpoint-is-bounded, ADR-020). Everything above
  * is sized *generously* — refusing a real song is the worse failure. These four
  * are sized the other way, and the difference is deliberate: every other surface

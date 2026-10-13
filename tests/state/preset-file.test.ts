@@ -142,6 +142,16 @@ describe('planImport (REQ-preset-import-is-a-two-step-wizard)', () => {
     expect(plan.writes).toEqual([{ source: 'lead', target: 'lead 2', status: 'conflict' }]);
   });
 
+  // untrusted-input.md REQ-names-are-capped: a renamed copy of a 50-character
+  // name must stay inside the cap, or the store shortens it back onto the original.
+  it('shortens the base so a renamed copy fits the 50-character cap', () => {
+    const name = 'n'.repeat(50);
+    const plan = planImport({ [name]: B }, { [name]: A }, 'rename');
+    const target = plan.writes[0]!.target;
+    expect(target).toBe(`${'n'.repeat(48)} 2`);
+    expect(target).toHaveLength(50);
+  });
+
   it('skips suffixes already taken', () => {
     const plan = planImport({ lead: B }, { lead: A, 'lead 2': A, 'lead 3': A }, 'rename');
     expect(plan.writes[0]!.target).toBe('lead 4');

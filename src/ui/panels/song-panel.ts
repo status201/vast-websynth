@@ -21,7 +21,7 @@ import { buildSyncSection } from '../components/sync-section';
 import {
   buildTransportControls, createTransportWindowLauncher, bindSeekAvailability, transportRowClass,
 } from '../components/transport-controls';
-import { confirmDialog, promptDialog, alertDialog, chooseDialog } from '../components/dialog';
+import { confirmDialog, promptName, alertDialog, chooseDialog } from '../components/dialog';
 import {
   buildFailureReport, buildFailureReportFor, failureMessage, isCapped, thrownMessage,
 } from '../failure-report';
@@ -615,7 +615,7 @@ export function buildSongPanel(bus: ParamBus, engine: StudioApi, session: Preset
   const saveBtn = el('button', `${switchStyles.root!} ${styles.ctl!}`, 'Save') as HTMLButtonElement;
   saveBtn.dataset.testid = 'song-save';
   saveBtn.addEventListener('click', async () => {
-    const name = await promptDialog({
+    const name = await promptName({
       title: 'Save song',
       message: 'Song name:',
       defaultValue: dropdown.value || 'My Song',

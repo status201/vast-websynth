@@ -4,6 +4,8 @@ import type { ParamBus } from './params';
 import { PRESET_FORMAT, BANK_FORMAT, PRESET_VERSION, BANK_VERSION, validatePresetPayload } from './preset-validate';
 import type { PresetFile, PresetBankFile, PresetParse } from './preset-validate';
 import { safeFilename } from '../utils/download';
+import { cleanName } from './names';
+import { MAX_NAME_CHARS } from './limits';
 
 /**
  * Preset / bank **files** — presets.md REQ-two-preset-file-shapes through
@@ -110,10 +112,17 @@ export function describePresetPayload(text: string): 'preset' | 'bank' | null {
   return null;
 }
 
-/** First free `name 2`, `name 3`, … avoiding both stored and already-planned names. */
+/**
+ * First free `name 2`, `name 3`, … avoiding both stored and already-planned
+ * names. The base gives up room for the suffix so the candidate stays inside
+ * the name cap (untrusted-input.md REQ-names-are-capped) — otherwise the store
+ * would shorten `<50 chars> 2` straight back onto the preset it was renaming
+ * away from, and the rename policy would overwrite what it exists to keep.
+ */
 function freeName(base: string, taken: Set<string>): string {
   for (let i = 2; ; i++) {
-    const candidate = `${base} ${i}`;
+    const suffix = ` ${i}`;
+    const candidate = cleanName(base, MAX_NAME_CHARS - suffix.length) + suffix;
     if (!taken.has(candidate)) return candidate;
   }
 }

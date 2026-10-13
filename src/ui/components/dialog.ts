@@ -1,6 +1,8 @@
 import { Modal } from './modal';
 import { createButton } from './button';
 import { copyText, flashCopied } from '../clipboard';
+import { capCodePoints, cleanName } from '../../state/names';
+import { MAX_NAME_CHARS } from '../../state/limits';
 import switchStyles from '../styles/switch.module.css';
 import styles from '../styles/dialog.module.css';
 
@@ -34,6 +36,8 @@ export interface PromptOptions {
   /** Pre-filled value; selected on open so a retype overwrites it. */
   defaultValue?: string;
   placeholder?: string;
+  /** Cap on the typed value; an over-long default is truncated too (dialog.md REQ-a-prompt-may-cap-its-length). */
+  maxLength?: number;
   confirmLabel?: string;
   cancelLabel?: string;
 }
@@ -162,7 +166,14 @@ export function promptDialog(opts: PromptOptions): Promise<string | null> {
     input.type = 'text';
     input.className = styles.input!;
     input.dataset.testid = 'dialog-input';
-    if (opts.defaultValue) input.value = opts.defaultValue;
+    if (opts.maxLength !== undefined) input.maxLength = opts.maxLength;
+    // A programmatic value is not held to `maxLength` by the browser, so the
+    // default is cut here.
+    if (opts.defaultValue) {
+      input.value = opts.maxLength === undefined
+        ? opts.defaultValue
+        : capCodePoints(opts.defaultValue, opts.maxLength);
+    }
     if (opts.placeholder) input.placeholder = opts.placeholder;
 
     const submit = (): void => { resolveOnce(input.value); modal.close(); };
@@ -181,6 +192,18 @@ export function promptDialog(opts: PromptOptions): Promise<string | null> {
     input.focus();
     input.select();
   });
+}
+
+/**
+ * Ask for a song or preset name: a `promptDialog` capped at `MAX_NAME_CHARS`,
+ * resolving the **cleaned** name, or `null` on cancel or a blank answer
+ * (dialog.md REQ-a-prompt-may-cap-its-length, untrusted-input.md
+ * REQ-names-are-capped). The one door both Save buttons use, so the slot key,
+ * the label and the toast are always the same string.
+ */
+export async function promptName(opts: Omit<PromptOptions, 'maxLength'>): Promise<string | null> {
+  const typed = await promptDialog({ ...opts, maxLength: MAX_NAME_CHARS });
+  return cleanName(typed ?? '') || null;
 }
 
 /**

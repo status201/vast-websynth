@@ -16,6 +16,31 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+### Fixed
+
+- **A long preset or song name no longer pushes the app off-screen.** The
+  header's preset selector grew to fit the whole name, so a name of about 20
+  characters at 1280px made the header wider than the window. Panic, the volume
+  knob and the MIXER column were cut off at the right edge, with no way to
+  scroll to them. The selector is now at most 240px wide and gives up width
+  before anything else does, shrinking toward 120px when the header is tight.
+  A name that doesn't fit ends in "…", and hovering shows it in full.
+- **Song, preset and bank names are capped at 50 characters.** Before, a name
+  could be any length. Now both Save prompts stop at 50 characters, and a longer
+  name in an imported song, preset or bank (file, project zip, share link,
+  paste or drag-and-drop) is shortened rather than refused. If two presets in a
+  bank end up with the same name once shortened, the first is kept and the
+  import shows a warning. Presets already saved under a longer name keep it,
+  and the header shows it shortened. The song and preset format guide states
+  the limit.
+- **The header logo no longer breaks onto two lines.** When the header was
+  short of room, the tagline under VAST G1-J8 could wrap onto a second line.
+  The header logo is now 60% of its former size, never wraps, and has even
+  spacing either side of the divider. The About and start screens keep the
+  full-size logo.
+- **The time-signature dropdown is narrower.** It is 70px instead of 80px,
+  which gives the rest of the header 10px back. "12/8" still fits.
+
 ## [2.17.0] - 2026-10-11
 
 ### Added

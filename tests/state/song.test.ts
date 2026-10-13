@@ -98,6 +98,15 @@ describe('Song', () => {
       if (!res.ok) expect(res.errors[0]).toMatch(/seq\[0\]\[0\]/);
     });
 
+    // untrusted-input.md REQ-names-are-capped: shortened, never refused.
+    it('parse() and fromJSON() shorten a long name to 50 characters', async () => {
+      const long = { ...demo(), name: `  ${'n'.repeat(80)}` };
+      const res = await Song.parse(Song.toJSON(long));
+      expect(res.ok).toBe(true);
+      if (res.ok) expect(res.file.name).toBe('n'.repeat(50));
+      expect(Song.fromJSON(Song.toJSON(long))!.name).toBe('n'.repeat(50));
+    });
+
     it('parse() of a canonical file is unchanged by the routing branch', async () => {
       const res = await Song.parse(Song.toJSON(demo()));
       expect(res.ok).toBe(true);
@@ -221,6 +230,13 @@ describe('Song', () => {
     expect(file.params['transport.bpm']).toBe(142);
     expect(file.seqChain).toEqual({ enabled: true, steps: [1, 2] });
     expect(file.seqBanks.length).toBe(4);
+  });
+
+  it('capture() writes the name cleaned and capped (REQ-names-are-capped)', () => {
+    const bus = new ParamBus();
+    registerDefaults(bus);
+    const file = Song.capture(bus, new PatternStore(), fakeArrangement() as never, ` ${'c'.repeat(70)}`);
+    expect(file.name).toBe('c'.repeat(50));
   });
 
   it('capture() emits full drum cells (per-step settings included)', () => {

@@ -17,13 +17,24 @@
     position: sticky;
     top: 0;
     z-index: 10;
+    /* A grid item's automatic minimum is its min-content, so without this an
+       over-wide header widens the whole .app column — every panel below with it
+       (responsive-header.md REQ-the-header-never-clips). */
+    min-width: 0;
   }
 
   /* Header-only framing for the shared brand block (components/brand.ts). The
      block itself is styled by brand.module.css and carries no outer framing, so
-     this divider rule can't leak into the About or start modal — brand.md REQ-brand-block-carries-no-framing. */
+     this divider rule can't leak into the About or start modal — brand.md REQ-brand-block-carries-no-framing.
+     It also scales the block to 60% here only, and never lets the row squeeze
+     the tagline onto a second line (brand.md REQ-a-consumer-may-scale-the-block).
+     The padding is before the zoom: 24px renders ~14px, which with the zoomed
+     margin and the header gap centres the divider. */
   .headerBrand {
-    padding-right: 8px;
+    zoom: 0.6;
+    flex-shrink: 0;
+    white-space: nowrap;
+    padding-right: 24px;
     border-right: 1px solid rgba(244, 205, 94, 0.18);
     margin-right: 4px;
   }
@@ -56,6 +67,23 @@
      ≤1140px wrap step, where it splits the cluster: dropdown + Save left,
      utility icon buttons far right. */
   .presetSpacer { display: none; }
+
+  /* The preset selector is capped and is the one header item that gives up
+     width (responsive-header.md REQ-the-preset-selector-is-width-capped): even
+     a 50-character name is far wider than the header can spare, and an
+     uncapped toggle grew the one-row header past the viewport. The root owns the width; the toggle fills it and its label
+     ellipsizes (dropdown.module.css .label). The `min-width: 0` chain lets the
+     flex row shrink it toward the 120px floor before anything overflows. */
+  .presetGroup { min-width: 0; }
+  .presetGroup :global(.dropdown) {
+    display: flex;
+    min-width: 120px;
+    max-width: 240px;
+  }
+  .presetGroup :global(.dropdown) > button {
+    flex: 1 1 auto;
+    min-width: 0;
+  }
 
   .playBtn:global(.on) :global(.switch-label) {
     color: var(--accent-secondary);
@@ -177,9 +205,9 @@
       display: flex;
       flex-basis: 100%; /* reveal as its own full-width row below the brand */
     }
-    /* Cap the preset dropdown on phones: the 120px min-width becomes a 90px
-       max-width; the label ellipsizes (dropdown.module.css .label). */
-    .presetGroup :global(.dropdown) > button {
+    /* Cap the preset dropdown on phones: the 120px floor becomes a 90px
+       ceiling; the label ellipsizes (dropdown.module.css .label). */
+    .presetGroup :global(.dropdown) {
       min-width: 0;
       max-width: 90px;
     }

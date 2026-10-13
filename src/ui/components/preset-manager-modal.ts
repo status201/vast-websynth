@@ -1,6 +1,6 @@
 import { Modal } from './modal';
 import { createButton } from './button';
-import { confirmDialog, promptDialog } from './dialog';
+import { confirmDialog, promptName } from './dialog';
 import { showToast } from './toast';
 import type { ParamBus } from '../../state/params';
 import type { PresetSession } from '../../state/preset-session';
@@ -164,7 +164,7 @@ export function openPresetManagerModal(opts: PresetManagerOptions): void {
   // ---- actions ----
   saveRow.addEventListener('click', () => {
     void (async () => {
-      const name = await promptDialog({
+      const name = await promptName({
         title: 'Save preset',
         message: 'Preset name:',
         defaultValue: opts.session.label,

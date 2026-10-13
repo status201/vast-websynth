@@ -15,6 +15,7 @@ import { isAuthorSong } from './song-author-format';
 import { compactSongForExport } from './serialize';
 import { SlotStore } from './slot-store';
 import { SONG_VERSION } from './song-version';
+import { cleanName } from './names';
 import { demoMetaOf, type DemoMeta } from './demo-meta';
 import { triggerDownload, safeFilename } from '../utils/download';
 // Re-exported so the long-standing `import { SONG_VERSION } from './song'` keeps
@@ -171,10 +172,16 @@ function parseJsonText(text: string): { ok: true; value: unknown } | { ok: false
  * both walk payload-shaped structures, so a pathological one can still raise
  * a RangeError (stack) or similar. A refused song must look like a failed
  * validation to every caller, never an exception escaping the import path.
+ *
+ * Also the one place an ingested song's name is shortened (untrusted-input.md
+ * REQ-names-are-capped): every door — Import, zip, link, paste, drop, slot —
+ * arrives here, and a title is not worth refusing a song over.
  */
 function validateUntrusted(value: unknown, validate: (v: unknown) => SongValidation = validateSongFile): SongValidation {
   try {
-    return validate(value);
+    const res = validate(value);
+    if (res.ok) res.file.name = cleanName(res.file.name);
+    return res;
   } catch (e) {
     return { ok: false, errors: ['This file could not be read: ' + (e as Error).message] };
   }
@@ -186,7 +193,7 @@ export const Song = {
     return {
       format: 'websynth-song',
       version: SONG_VERSION,
-      name,
+      name: cleanName(name),
       // Never the performer's hands (REQ-cc11-is-expression): a song saved with the
       // expression pedal heel-down must not load silent.
       params: savedParams(bus.snapshot()),

@@ -23,7 +23,7 @@ import { DRUM_TRACK_LABELS, NOTE_LABELS, SCALE_LABELS, EXTRA_LABELS } from './pa
 import { isPatchParam } from './preset-session';
 import { PRESET_FORMAT, BANK_FORMAT } from './preset-validate';
 import { SONG_VERSION } from './song-version';
-import { MAX_CHAIN_TRANSPOSE } from './limits';
+import { MAX_CHAIN_TRANSPOSE, MAX_NAME_CHARS } from './limits';
 import {
   SEQ_LENGTH,
   SEQ_TRACK_COUNT,
@@ -146,7 +146,7 @@ COMPACT AUTHOR FORMAT (recommended output)
 {
   "format": "websynth-song-author",   // literal, required
   "version": 1,                        // literal, required
-  "name": "string",                    // song title
+  "name": "string",                    // song title, up to ${MAX_NAME_CHARS} characters (a longer one is shortened on load)
   "params": { "<id>": number },        // OPTIONAL and SPARSE — set only what matters; omitted params keep their defaults (see PARAMS)
   "seq": [ SeqBank, … up to ${MAX_BANK_COUNT} ],   // a bank may be {"tracks": [notes, notes, …]} for chords        // melody banks ${BANK_LABELS.slice(0, MIN_BANK_COUNT).join('/')}…${BANK_LABELS[MAX_BANK_COUNT - 1]}; a missing bank is empty
   "drums": [ HitBank, … up to ${MAX_BANK_COUNT} ],      // drum banks
@@ -317,7 +317,7 @@ TOP-LEVEL SHAPE
 {
   "format": "websynth-song",          // literal, required
   "version": ${SONG_VERSION},                        // ${SONG_VERSION} (8 caps each machine at 8 banks; 7 also lacks the extra banks — it is always ${MIN_BANK_COUNT}; 6 also lacks the seq-chain transpose; 5 also lacks seq tracks 2-4; 4 also lacks the extra motion tracks; 3 also lacks the motion fields; 2 also lacks the XY Pad assignment; 1 also lacks the sampler fields)
-  "name": "string",
+  "name": "string",                   // up to ${MAX_NAME_CHARS} characters; a longer one is shortened on load
   "params": { "<id>": number, ... },
   "seqBanks":  SeqStep[${MIN_BANK_COUNT}..${MAX_BANK_COUNT}][${SEQ_LENGTH}],       // ${MIN_BANK_COUNT}-${MAX_BANK_COUNT} banks, ${SEQ_LENGTH} steps each
   "drumBanks": DrumCell[${MIN_BANK_COUNT}..${MAX_BANK_COUNT}][${DRUM_TRACK_COUNT}][${SEQ_LENGTH}],   // ${DRUM_TRACK_COUNT} tracks, ${SEQ_LENGTH} steps
@@ -438,6 +438,7 @@ Preset — one sound:
 Bank — many sounds in one file (use this when asked for a set, a kit, or several patches):
 { "format": "${BANK_FORMAT}", "version": 1, "name": "string",
   "presets": { "<preset name>": { "<id>": number }, … } }
+Names (the file's and each preset's) are up to ${MAX_NAME_CHARS} characters; a longer one is shortened on import.
 
 SOUND DESIGN NOTES
 - "filter.cutoff" is a MIDI NOTE NUMBER (0..127), NOT Hz — 60 is middle C, +12 is an octave up. The

@@ -2,7 +2,8 @@ import type { ParamBus } from './params';
 import type { Snapshot } from './preset';
 import { isPatchParam } from './preset-session';
 import { MAX_ERRORS, isObject, describeValue, type AddError, checkKeys } from './validate-utils';
-import { MAX_PARAM_KEYS } from './limits';
+import { MAX_PARAM_KEYS, RESERVED_KEYS } from './limits';
+import { cleanName } from './names';
 
 /**
  * The preset/bank **file format** and its validator —
@@ -144,6 +145,14 @@ function checkSnapshot(
 }
 
 /**
+ * A file's `name`, shortened rather than refused (untrusted-input.md
+ * REQ-names-are-capped); `fallback` when it is missing or blank.
+ */
+function fileName(value: unknown, fallback: string): string {
+  return (typeof value === 'string' && cleanName(value)) || fallback;
+}
+
+/**
  * Validate a parsed preset or bank payload. Errors say what was *expected*
  * rather than "invalid" (presets.md REQ-a-malformed-preset-is-refused-with-a-reason) — these files share the
  * `.websynth.json` tail with songs, so a wrong-door mistake is the likely cause
@@ -171,7 +180,7 @@ export function validatePresetPayload(
   const format = value['format'];
 
   if (format === PRESET_FORMAT) {
-    const name = typeof value['name'] === 'string' && value['name'] ? value['name'] : 'preset';
+    const name = fileName(value['name'], 'preset');
     const snap = checkSnapshot('params', value['params'], bus, sinks);
     if (!snap) {
       // Keep the pre-existing one-liner for the "no params at all" case, but
@@ -188,7 +197,7 @@ export function validatePresetPayload(
   }
 
   if (format === BANK_FORMAT) {
-    const name = typeof value['name'] === 'string' && value['name'] ? value['name'] : 'bank';
+    const name = fileName(value['name'], 'bank');
     const raw = value['presets'];
     if (!isObject(raw)) return { ok: false, errors: ['Bank file has no `presets` map.'] };
     const presets: Record<string, Snapshot> = {};
@@ -197,10 +206,26 @@ export function validatePresetPayload(
     if (!checkKeys('presets', raw, (m) => errors.push(m))) {
       return { ok: false, errors };
     }
-    for (const [n, snap] of Object.entries(raw)) {
-      const checked = checkSnapshot(`presets["${n}"]`, snap, bus, sinks);
-      if (checked) presets[n] = checked;
-      else if (errors.length >= MAX_ERRORS) break;
+    for (const [key, snap] of Object.entries(raw)) {
+      const checked = checkSnapshot(`presets["${key}"]`, snap, bus, sinks);
+      if (!checked) {
+        if (errors.length >= MAX_ERRORS) break;
+        continue;
+      }
+      // Each key is a preset name, so it is cleaned like one (REQ-names-are-capped).
+      // Cleaning can trim its way INTO a reserved key (" __proto__ "), which
+      // checkKeys saw only raw — so the refusal is asked again here.
+      const n = cleanName(key);
+      if (!n || RESERVED_KEYS.includes(n)) {
+        add(`presets["${key}"]: not a usable preset name`);
+        continue;
+      }
+      // Two names can become one once shortened: the first keeps it.
+      if (Object.prototype.hasOwnProperty.call(presets, n)) {
+        warn(`presets["${key}"]: shortened to "${n}", which an earlier preset in this bank already uses — skipped`);
+        continue;
+      }
+      presets[n] = checked;
     }
     if (Object.keys(presets).length === 0 && errors.length === 0) {
       return { ok: false, errors: ['Bank file contains no presets.'] };

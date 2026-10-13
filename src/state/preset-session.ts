@@ -1,5 +1,6 @@
 import type { ParamId } from './params';
 import type { Snapshot } from './preset';
+import { cleanName } from './names';
 
 /** The sound a loaded song brought with it, kept selectable (presets.md REQ-a-songs-sound-is-a-selectable-entry). */
 export interface SongSound {
@@ -47,7 +48,9 @@ export class PresetSession {
    * compared against. Only {@link setActiveSong} replaces it.
    */
   setActive(name: string): void {
-    this._label = name;
+    // The display backstop (untrusted-input.md REQ-names-are-capped): an
+    // autosave restore or a legacy stored name still shows at most 50.
+    this._label = cleanName(name);
     this._dirty = false;
     this.emit();
   }
@@ -59,7 +62,9 @@ export class PresetSession {
    * restore).
    */
   setActiveSong(name: string, patch: Snapshot): void {
-    this._songSound = { name, patch };
+    // Cleaned like the label, or the pinned option and the label would name
+    // the same song differently.
+    this._songSound = { name: cleanName(name), patch };
     this.setActive(name);
   }
 

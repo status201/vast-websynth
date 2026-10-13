@@ -3,7 +3,8 @@
 ```yaml
 id: presets
 status: implemented
-version: 12  # v12: a snapshot drops UNSAVED_PARAMS (REQ-a-preset-is-a-snapshot); the delete open question is struck — v11 shipped it
+version: 13  # v13: a preset or bank name is at most 50 characters (untrusted-input.md REQ-names-are-capped)
+             # v12: a snapshot drops UNSAVED_PARAMS (REQ-a-preset-is-a-snapshot); the delete open question is struck — v11 shipped it
              # v11: a stored preset can be deleted, and an edited factory preset reverted
              #      (REQ-a-stored-preset-can-be-deleted)
              # v10: REQ-the-preset-wizard-reports-every-problem — the import wizard reports EVERY problem, not the
@@ -134,7 +135,9 @@ can do with a sound ([ADR-014](../decisions/adr-014-dont-make-me-think.md) law 1
   four actions: *Save current sound*, *Export preset*, *Export bank*, *Import*.
   Export-preset exports the **live** sound (what you currently hear) under the
   session's name — the same thing Save would store — so the two actions can
-  never disagree.
+  never disagree. A name is at most 50 characters at every door — the Save
+  prompt, an import, the store itself ([untrusted-input](untrusted-input.md)
+  REQ-names-are-capped).
 - **REQ-preset-import-is-a-two-step-wizard** — **Import is a two-step wizard,
   never a blind merge.** Choosing a file moves the modal to a **review** step
   listing every incoming preset with a status: `new`, `identical` (byte-equal to

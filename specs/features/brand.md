@@ -3,7 +3,9 @@
 ```yaml
 id: brand
 status: implemented
-version: 2  # v2: the model badge is optically centred, not geometrically (REQ-model-badge-is-optically-centred)
+version: 3  # v3: a consumer may scale the whole block from its own framing class; the header
+            #     draws it at 60% and never lets it wrap (REQ-a-consumer-may-scale-the-block)
+            # v2: the model badge is optically centred, not geometrically (REQ-model-badge-is-optically-centred)
 owner: ui
 related:
   - architecture
@@ -40,7 +42,8 @@ not a feature — it owns markup and styling only, and has no state.
   `.brand` column containing a `.brandRow` (`.brandName` `VAST` + `.brandModel`
   `G1-J8`) and a `.brandTagline` (`Vast Audio Synthesis Technology`). Every
   consumer renders **identical** markup and typography; there is no size or
-  content variant.
+  content variant *in the block*. A consumer may still scale the whole block
+  from its own framing class (REQ-a-consumer-may-scale-the-block).
 - **REQ-name-surfaces-call-create-brand** — Consumers: the header (`ui/shell/header.ts`
   `buildHeader`), the About modal (`ui/components/about-modal.ts`, whose
   `buildModal` calls `createBrand()`), and the start modal (`main.ts`
@@ -54,6 +57,17 @@ not a feature — it owns markup and styling only, and has no state.
   would draw a stray vertical rule down the inside of a modal card, which is
   exactly the kind of leak that made the modals hand-roll their own version in
   the first place.
+- **REQ-a-consumer-may-scale-the-block** (v3) — **Scale, like framing, is the
+  consumer's.** The block stays size-agnostic; a consumer that wants it smaller
+  scales it as a whole from its own class, so the proportions (and the badge's
+  optical centring, REQ-model-badge-is-optically-centred) survive untouched. The
+  header does: `.headerBrand` is `zoom: 0.6` — the faceplate reads as a small
+  badge beside the controls rather than competing with them — plus
+  `flex-shrink: 0` and `white-space: nowrap`, so a tight header row can never
+  squeeze the tagline onto a second line (its min-content was only the longest
+  word). The divider's `padding-right` is 24px *before* the zoom, so the rule
+  sits evenly between the logo and the preset cluster. The About and start
+  modals draw the block at full size.
 - **REQ-brand-alignment-belongs-to-the-container** — Alignment is the
   **container's** business, not the block's. The header and the About card leave
   it left-aligned; `.start-card` (`src/styles/base.css`: `flex` + `align-items:
@@ -92,7 +106,8 @@ export function createBrand(): HTMLElement;
 - Pure DOM component (`ui/components/`) — no bus, no engine, no state, so it is
   safe to call before audio exists (the start modal renders pre-gesture).
 - Styling is `src/ui/styles/brand.module.css`; no media query alters it, so the
-  block is identical at every width (the header's *surroundings* reflow —
+  block is identical at every width (the header's 60% is a constant `zoom` on
+  `.headerBrand`, REQ-a-consumer-may-scale-the-block) (the header's *surroundings* reflow —
   [responsive-header](responsive-header.md) — the brand itself does not).
 
 ### Persistence
@@ -113,6 +128,11 @@ Scenario: the header's divider does not leak into a modal (REQ-brand-block-carri
   Then its brand block carries no border-right/padding-right framing class
    And the header's block does carry it
 # pinned by: tests/ui/brand.test.ts, tests/ui/about.test.ts
+
+Scenario: the header logo never wraps (REQ-a-consumer-may-scale-the-block)
+  Given the app is open at any width from 360px to 1920px
+  Then the header's brand tagline sits on a single line
+# pinned by: e2e/responsive-header.spec.ts (a very long preset name never overflows at any width)
 ```
 
 ## Tests & verification

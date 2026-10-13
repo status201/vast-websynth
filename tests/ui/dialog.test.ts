@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeEach, vi } from 'vitest';
-import { confirmDialog, promptDialog, alertDialog, chooseDialog } from '../../src/ui/components/dialog';
+import { confirmDialog, promptDialog, promptName, alertDialog, chooseDialog } from '../../src/ui/components/dialog';
 
 const byId = (id: string) => document.querySelector<HTMLElement>(`[data-testid="${id}"]`);
 const clickId = (id: string) => (byId(id) as HTMLButtonElement).click();
@@ -10,6 +10,39 @@ describe('dialog', () => {
   // Every dialog closes itself on resolution (removing Modal's capturing Escape
   // listener); the body reset keeps a stray node from leaking between tests.
   beforeEach(() => { document.body.innerHTML = ''; });
+
+  // dialog.md REQ-a-prompt-may-cap-its-length
+  it('promptDialog caps its input, default value included', async () => {
+    const p = promptDialog({ title: 'Name', defaultValue: 'd'.repeat(80), maxLength: 50 });
+    const input = byId('dialog-input') as HTMLInputElement;
+    expect(input.maxLength).toBe(50);
+    expect(input.value).toBe('d'.repeat(50));
+    clickId('dialog-confirm');
+    expect(await p).toBe('d'.repeat(50));
+  });
+
+  it('promptName caps at 50 and resolves the cleaned name', async () => {
+    const p = promptName({ title: 'Save' });
+    const input = byId('dialog-input') as HTMLInputElement;
+    expect(input.maxLength).toBe(50);
+    input.value = '  Lead  ';
+    clickId('dialog-confirm');
+    expect(await p).toBe('Lead');
+  });
+
+  it('promptName resolves null for a blank answer', async () => {
+    const p = promptName({ title: 'Save' });
+    (byId('dialog-input') as HTMLInputElement).value = '   ';
+    clickId('dialog-confirm');
+    expect(await p).toBeNull();
+  });
+
+  it('promptDialog without maxLength leaves the default whole', async () => {
+    const p = promptDialog({ title: 'Name', defaultValue: 'd'.repeat(80) });
+    expect((byId('dialog-input') as HTMLInputElement).value).toHaveLength(80);
+    clickId('dialog-cancel');
+    expect(await p).toBeNull();
+  });
 
   it('confirmDialog resolves true when the confirm button is clicked', async () => {
     const p = confirmDialog({ title: 'Sure?', message: 'Do it?' });

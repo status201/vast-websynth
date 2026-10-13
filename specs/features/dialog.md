@@ -3,7 +3,8 @@
 ```yaml
 id: dialog
 status: implemented
-version: 5   # v5: REQ-an-alert-may-offer-copyable-text — an alert may carry a Copy button offering the FULL
+version: 6   # v6: REQ-a-prompt-may-cap-its-length — promptDialog's maxLength (untrusted-input.md REQ-names-are-capped)
+             # v5: REQ-an-alert-may-offer-copyable-text — an alert may carry a Copy button offering the FULL
              #     text of what it reports, so a truncated error list is no
              #     longer destroyed by dismissing the dialog
              # v4: REQ-dialog-testids-are-unambiguous's "one dialog at a time" is now enforced, not assumed
@@ -104,6 +105,15 @@ backdrop-click-to-close) rather than reinventing it.
   — settle-once (REQ-dialog-promise-settles-once), `detail`
   (REQ-confirm-detail-is-a-muted-italic-line), Modal composition
   (REQ-three-helpers-compose-modal) — is unchanged.
+- **REQ-a-prompt-may-cap-its-length** *(v6)* — `promptDialog`'s optional
+  `maxLength?: number` sets the input's `maxLength`, so typing and pasting stop
+  at the cap, and also truncates an over-long `defaultValue` (a programmatic
+  value is not held to `maxLength` by the browser). Without it the prompt is
+  unchanged. `promptName` is the name-shaped composition both Save buttons use
+  (preset and song): a `promptDialog` capped at `MAX_NAME_CHARS` that resolves
+  the **cleaned** name — or `null` on cancel or a blank answer — so a slot key,
+  the label and the toast are always one string
+  ([untrusted-input](untrusted-input.md) REQ-names-are-capped).
 - **REQ-an-alert-may-offer-copyable-text** *(v5)* — **An alert may offer its
   full text on the clipboard.** `alertDialog`'s optional `copyable?: string`
   adds a second button (`dialog-copy`, label from `copyLabel?`, default `'Copy
@@ -136,6 +146,8 @@ dialog:   # src/ui/components/dialog.ts — four functions over Modal, not a cla
   promptDialog(opts: PromptOptions): Promise<string | null>   # value=affirmative, null=cancel
   alertDialog(opts: AlertOptions): Promise<void>              # resolves on OK / dismiss
   chooseDialog(opts: ChooseOptions): Promise<string | null>   # id=chosen, null=dismissed (v3)
+  promptName(opts: Omit<PromptOptions, 'maxLength'>): Promise<string | null>
+                                                              # a promptDialog for a song/preset name: capped, cleaned, null if blank (v6)
 
 ConfirmOptions:
   title: string
@@ -150,6 +162,7 @@ PromptOptions:
   message?: string             # optional label line above the input
   defaultValue?: string        # pre-filled + text-selected on open
   placeholder?: string
+  maxLength?: number           # caps typing; an over-long default is cut too (v6)
   confirmLabel?: string        # default 'OK'
   cancelLabel?: string         # default 'Cancel'
 
@@ -203,11 +216,12 @@ Callers that adopt this facility (native → helper):
 src/ui/panels/song-panel.ts:
   per-lane Clear  -> confirmDialog({ danger:true, confirmLabel:'Clear' })  # NEW guard;
                      skipped when the chain is already just [0] (nothing to lose)
-  Song Save       -> promptDialog   (was prompt('Song name:'))
+  Song Save       -> promptName     (was prompt('Song name:'); promptDialog until v6)
   Song New        -> confirmDialog({ danger:true })  (was confirm('Clear all banks and chains?'))
   Import errors   -> alertDialog + copyable (v5; the full list, not the shown 8)
   import/demo/clip failures -> alertDialog + copyable   # failure-report.md REQ-every-failure-surface-emits-one
-src/ui/shell/header.ts: Preset Save  -> promptDialog   (was prompt('Preset name:'))
+src/ui/components/preset-manager-modal.ts: Save current sound -> promptName
+                          (was prompt('Preset name:') in the header; promptDialog until v6)
 src/ui/panels/sampler-panel.ts: decode error -> alertDialog + copyable (was alert('Unsupported…'))
 src/main.ts:              boot-failure alert() stays NATIVE (app graph never
                           initialised — must not depend on healthy app DOM/CSS)
@@ -241,6 +255,19 @@ Scenario: Prompt returns the entered text, or null on cancel
   When the user edits the field and clicks confirm
   Then the promise resolves the field's current string
   And cancelling instead resolves null
+# pinned by: tests/ui/dialog.test.ts
+
+Scenario: A prompt caps its length (v6, REQ-a-prompt-may-cap-its-length)
+  Given a promptDialog with maxLength 50 and an 80-character default value
+  Then the input's maxLength is 50
+  And the input holds the first 50 characters of the default
+# pinned by: tests/ui/dialog.test.ts
+
+Scenario: promptName resolves the cleaned name, or null for a blank one (v6, REQ-a-prompt-may-cap-its-length)
+  Given a promptName is open
+  When the user confirms "  Lead  "
+  Then the promise resolves "Lead"
+  And confirming only blanks resolves null
 # pinned by: tests/ui/dialog.test.ts
 
 Scenario: Enter confirms a prompt
