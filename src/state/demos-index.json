@@ -156,6 +156,43 @@
     ],
     "blurb": "Twelve-eight, and three lanes on three different cycles: the bell locked to the 24-tick bar, the riff looping every 16 ticks and the motion lane every 18. The whole machine only lands together once every six bars."
   },
+  "Illusion_1.websynth.json": {
+    "name": "Illusion 1",
+    "bpm": 120,
+    "bars": 36,
+    "uses": [
+      "seq"
+    ],
+    "blurb": "The Shepard scale: a scale that climbs forever and never gets anywhere. Every tone is six sine waves an octave apart, and a fixed filter shapes them into a bell, loudest in the middle and fading to nothing at both ends. As the scale rises, the top partials fade out while new ones fade in at the bottom, so after twelve steps the tone is exactly where it started, yet all you heard was it going up. Halfway through it turns round and falls forever instead."
+  },
+  "Illusion_2.websynth.json": {
+    "name": "Illusion 2",
+    "bpm": 60,
+    "bars": 16,
+    "uses": [
+      "seq"
+    ],
+    "blurb": "The Shepard–Risset glissando: the Shepard scale made continuous, an audio barber's pole. One held chord of sine waves an octave apart slides upward without end. The slide is LFO 1, a sawtooth on pitch that rises exactly one octave and then snaps back down. You never hear the snap: under the fixed bell-shaped filter, every partial lands where its neighbour just was, at the same loudness. Turn LFO 1's amount to zero and the endless climb stops on a plain chord."
+  },
+  "Illusion_3.websynth.json": {
+    "name": "Illusion 3",
+    "bpm": 70,
+    "bars": 32,
+    "uses": [
+      "drums",
+      "motion"
+    ],
+    "blurb": "Risset's accelerating rhythm: a breakbeat that speeds up forever. Two copies of one break play at once, the second at double time on the tom tracks, re-voiced as a second kick, snare and hat. Over eight bars a motion lane drives the tempo from 70 to 140 BPM (watch the BPM knob) while the step velocities fade the double-time copy out and the normal one in. At 140 the normal copy sounds exactly like the double-time copy did at 70, so the tempo drops back unheard and the climb starts again."
+  },
+  "Illusion_4.websynth.json": {
+    "name": "Illusion 4",
+    "bpm": 100,
+    "bars": 12,
+    "uses": [
+      "seq"
+    ],
+    "blurb": "The tritone paradox, discovered by Diana Deutsch: each bar plays two Shepard tones a tritone apart, exactly half an octave. Built like Illusion 1, each tone has a note name but no octave, so neither tone is higher and the interval has no direction. Yet most people clearly hear some pairs go up and others go down, and two listeners often disagree about the same pair; which pairs rise seems to depend on the speech you grew up hearing. Listen with a friend, write down up or down for each of the twelve pairs, and compare."
+  },
   "Kutmuziek.websynth.json": {
     "name": "Kutmuziek",
     "bpm": 138,
