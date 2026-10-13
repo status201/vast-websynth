@@ -175,9 +175,10 @@
      the fifth spans the row and `justify-items: center` centres it: A D / S R /
      VEL. Deliberate, not ragged — and free between 1281 and 1629px, where FILTER
      and OSC 1 stand taller anyway. Two other shapes, in the media blocks below:
-     a dice-five from 1630px (where that third row would set the faceplate's
-     height), and one row of five on the ≤1280px reflow and on an ultrawide
-     (≥2561px), where the span is undone. */
+     one row of five on the 500–1280px reflow and on an ultrawide (≥2561px),
+     where the span is undone, and a dice-five at 1630–2560px (where that third
+     row would set the faceplate's height) and below 500px (where five across
+     overlap the dials) — one block, last in the file. */
   .quint {
     display: grid;
     grid-template-columns: repeat(2, minmax(0, 1fr));
@@ -356,21 +357,11 @@
      FILTER ENV (.quint) takes the same step for the opposite reason: its A D /
      S R / VEL stack is three knob rows, and once FILTER drops to two rows here
      that third row is the tallest thing on the faceplate (~42px over every
-     neighbour, taken from the section below). Three columns buy a dice-five —
-     A/D/S/R in the corners, VEL in the middle spanning both rows — two rows tall,
-     like AMP ENV beside it. Placed by position, not auto-flow, so the shape
-     cannot depend on rule order and the DOM (Tab) order is untouched. Label ink
-     is no constraint: no two boxes share a column, and VEL shares no label line
-     with a corner. responsive-synth-panels.md REQ-quad-panels-use-a-fixed-grid. */
+     neighbour, taken from the section below). Three columns buy a dice-five,
+     two rows tall like AMP ENV beside it — that rule is the last block in the
+     file, since it is shared with phone widths. */
   @media (min-width: 1630px) {
     .hex { grid-template-columns: repeat(3, minmax(0, 1fr)); }
-    .quint { grid-template-columns: repeat(3, minmax(0, 1fr)); }
-    .quint > :nth-child(1) { grid-column: 1; grid-row: 1; } /* A */
-    .quint > :nth-child(2) { grid-column: 3; grid-row: 1; } /* D */
-    .quint > :nth-child(3) { grid-column: 1; grid-row: 2; } /* S */
-    .quint > :nth-child(4) { grid-column: 3; grid-row: 2; } /* R */
-    /* VEL. `.quint`'s align-items: center centres it between the rows. */
-    .quint > *:last-child { grid-column: 2; grid-row: 1 / span 2; }
   }
 
   /* Ultrawide (responsive-synth-panels.md REQ-ultrawide-panels-are-one-row). The
@@ -378,14 +369,14 @@
      every knob group spreads evenly and goes to one row once a row of 52px boxes
      fits: 4 and 5 at 2561px (a 281px row), FILTER's 6 at 3200px (361px — six first
      fit at ~2970px, with no air). ≤2560px is untouched. Both blocks sit after the
-     1630px one so they win on source order; the .quint reset repeats :nth-child
-     for the specificity to beat its placements. */
+     1630px one so they win on source order. The dice-five stops at 2560px, so
+     .quint only has to undo the base span on VEL, as the 1280px block does. */
   @media (min-width: 2561px) {
     .spread { justify-content: space-evenly; }
     .rowBreak { display: none; }
     .quad { grid-template-columns: repeat(4, minmax(0, 1fr)); }
     .quint { grid-template-columns: repeat(5, minmax(0, 1fr)); }
-    .quint > :nth-child(n) { grid-column: auto; grid-row: auto; }
+    .quint > *:last-child { grid-column: auto; }
   }
 
   @media (min-width: 3200px) {
@@ -397,7 +388,7 @@
        row. Holds through every narrower width. */
     .quad { grid-template-columns: repeat(4, minmax(0, 1fr)); }
     /* Five across, and the fifth stops spanning — the row it would span is now
-       the only row. */
+       the only row. Down to 500px; below that the dice-five block wins. */
     .quint { grid-template-columns: repeat(5, minmax(0, 1fr)); }
     .quint > *:last-child { grid-column: auto; }
     .hex { grid-template-columns: repeat(3, minmax(0, 1fr)); }
@@ -411,5 +402,25 @@
        machine controls (switch/master/banks/undo/actions) never reflow around an
        individual effect group. */
     .fxCluster { flex-basis: 100%; }
+  }
+
+  /* FILTER ENV's dice-five — A/D/S/R in the corners, VEL in the middle column
+     spanning both rows — in its two ranges (responsive-synth-panels.md
+     REQ-quad-panels-use-a-fixed-grid). 1630–2560px: a third knob row would set
+     the faceplate's height. ≤499px: the 2-column phone faceplate leaves ~30px
+     cells for 30px dials five across, dial against dial; three columns give ~52px,
+     and the extra row is free beside the taller LFO. Last in the file so it
+     beats the 1280px block on source order. Placed by position, not auto-flow,
+     so the shape cannot depend on rule order and the DOM (Tab) order is
+     untouched. Label ink is no constraint: no two boxes share a column, and VEL
+     shares no label line with a corner. */
+  @media (min-width: 1630px) and (max-width: 2560px), (max-width: 499px) {
+    .quint { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+    .quint > :nth-child(1) { grid-column: 1; grid-row: 1; } /* A */
+    .quint > :nth-child(2) { grid-column: 3; grid-row: 1; } /* D */
+    .quint > :nth-child(3) { grid-column: 1; grid-row: 2; } /* S */
+    .quint > :nth-child(4) { grid-column: 3; grid-row: 2; } /* R */
+    /* VEL. `.quint`'s align-items: center centres it between the rows. */
+    .quint > *:last-child { grid-column: 2; grid-row: 1 / span 2; }
   }
 }

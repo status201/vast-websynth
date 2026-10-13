@@ -163,10 +163,12 @@ test.describe('responsive synth panels', () => {
     }
   });
 
-  // REQ-quad-panels-use-a-fixed-grid: FILTER ENV's five knobs take three shapes. The wide one is the point:
-  // a third knob row there stood taller than every neighbour and set the height
-  // of the whole faceplate row, so from 1630px it is a dice-five, two rows tall.
-  test('the 5-knob FILTER ENV panel takes each of its three shapes', async ({ page }) => {
+  // REQ-quad-panels-use-a-fixed-grid: FILTER ENV's five knobs take three shapes. The dice-five is the point,
+  // twice over: at 1630-2560px a third knob row stood taller than every neighbour
+  // and set the height of the whole faceplate row, and below 500px five across
+  // packed the dials edge to edge — which the label-ink sweep cannot see, the labels
+  // being one to three characters, so box clearance is asserted here directly.
+  test('the 5-knob FILTER ENV panel takes each of its shapes', async ({ page }) => {
     await page.setViewportSize({ width: 1440, height: 900 });
     await gotoAndStart(page);
 
@@ -179,9 +181,9 @@ test.describe('responsive synth panels', () => {
       expect(Math.abs(vel.left + vel.width / 2 - rowCentre), `${width}px: VEL centred`).toBeLessThanOrEqual(1);
     }
 
-    // From 1630px: A · D / VEL / S · R. VEL sits between the rows, so grouping by
-    // offsetTop reads it as a middle "row" of one.
-    for (const width of [1630, 1920]) {
+    // From 1630px, and below 500px: A · D / VEL / S · R. VEL sits between the
+    // rows, so grouping by offsetTop reads it as a middle "row" of one.
+    for (const width of [1630, 1920, 499, 420, 360]) {
       await page.setViewportSize({ width, height: 900 });
       const rows = rowsOf(await readKnobs(page, PANELS.filterenv), PANELS.filterenv);
       expect(rows.map((r) => r.map((k) => k.id)), `FILTER ENV at ${width}px`).toEqual([
@@ -206,7 +208,9 @@ test.describe('responsive synth panels', () => {
         expect(vel!.left + vel!.width, `${width}px: VEL clears ${right.label}`).toBeLessThanOrEqual(right.left);
       }
 
-      // The point of the change: no taller than the 2x2 AMP ENV beside it.
+      // The point of the wide change: no taller than the 2x2 AMP ENV beside it.
+      // On a phone AMP ENV is one row, so there is nothing to match.
+      if (width < 1630) continue;
       const span = (boxes: KnobBox[]) =>
         Math.max(...boxes.map((k) => k.top + k.height)) - Math.min(...boxes.map((k) => k.top));
       const ampenv = await readKnobs(page, PANELS.ampenv);
@@ -214,8 +218,9 @@ test.describe('responsive synth panels', () => {
       expect(Math.abs(span(filterenv) - span(ampenv)), `${width}px: FILTER ENV as tall as AMP ENV`).toBeLessThanOrEqual(1);
     }
 
-    // The reflow: one row of five, the span undone.
+    // The reflow: one row of five, the span undone — down to 500px.
     expect(await shapeAt(page, 1280, PANELS.filterenv)).toEqual([5]);
+    expect(await shapeAt(page, 500, PANELS.filterenv)).toEqual([5]);
   });
 
   // REQ-filter-hex-has-three-even-shapes: FILTER is the one panel with three shapes, and the middle one is a

@@ -83,4 +83,12 @@
       padding-bottom: max(12px, env(safe-area-inset-bottom));
     }
   }
+
+  /* Phones. Only the default size shrinks: a knob built with an explicit
+     `size` (EQ, sequencer pan, machine tabs) sets --knob-size inline and keeps it. */
+  @media (max-width: 720px) {
+    .app {
+      --knob-size: 30px;
+    }
+  }
 }

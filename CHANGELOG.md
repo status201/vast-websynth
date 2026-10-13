@@ -18,6 +18,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ### Fixed
 
+- **FILTER ENV's knobs no longer overlap on a phone.** Below 500px the five
+  knobs (A, D, S, R, VEL) were squeezed onto one row too narrow for their dials.
+  They now sit like the five dots on a die, as on a wide monitor: A · D on top,
+  S · R below, and VEL in the middle. Knobs are also a little smaller on
+  screens 720px wide and narrower, so the panels crowd less.
 - **A long preset or song name no longer pushes the app off-screen.** The
   header's preset selector grew to fit the whole name, so a name of about 20
   characters at 1280px made the header wider than the window. Panic, the volume

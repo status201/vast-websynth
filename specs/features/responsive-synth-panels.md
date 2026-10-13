@@ -3,7 +3,10 @@
 ```yaml
 id: responsive-synth-panels
 status: implemented
-version: 7   # v7: REQ-ultrawide-panels-are-one-row — above 2560px every knob group spreads
+version: 8   # v8: REQ-quad-panels-use-a-fixed-grid — FILTER ENV goes dice-five below 500px too;
+             #     five across overlapped the 36px dials on the 2-column phone faceplate.
+             #     Default --knob-size drops to 30px at ≤720px (layout.css).
+             # v7: REQ-ultrawide-panels-are-one-row — above 2560px every knob group spreads
              #     evenly and goes to one row where it fits (FILTER from 3200px).
              #     The 1630px shapes had stayed put while panels doubled in width.
              # v6: REQ-quad-panels-use-a-fixed-grid — FILTER ENV goes dice-five (A · D / VEL / S · R) at
@@ -30,7 +33,8 @@ source:
 
 The synth faceplate is an 8-column grid of panels (`.main`, `synth-panels.module.css`)
 that reflows to 4 columns ≤1280px and 2 columns ≤992px (`src/styles/layout.css`
-also shrinks `--knob-size` at each step). As panels widen on the reflow, a panel
+also shrinks `--knob-size` at each step — 44 → 40 → 36px — and once more, to
+30px, at ≤720px). As panels widen on the reflow, a panel
 holding **four** knobs has ample room to lay them on a single row.
 
 Two of the four 4-knob panels — **SUB / UNI** and **FILTER** — were authored as
@@ -77,15 +81,20 @@ count changes.
   `row()`s and not flex-wrap. Two panels have since outgrown it and kept the
   same idea under their own class: **FILTER** at six knobs uses `.hex`
   (REQ-filter-hex-has-three-even-shapes), and **FILTER ENV** at five — A/D/S/R
-  plus `filter.velAmount` (VEL) — uses `.quint`, which takes three shapes. None
-  of them is ragged:
+  plus `filter.velAmount` (VEL) — uses `.quint`, which takes three shapes over
+  five width ranges. None of them is ragged:
 
   | width | `.quint` | shape | why |
   | --- | --- | --- | --- |
   | ≥2561px | 5 columns | one row; the dice-five placements are undone | REQ-ultrawide-panels-are-one-row — five 52px boxes fit a 281px row |
   | 1630–2560px | 3 columns × 2 rows | **dice-five**: A · D over S · R in the corners, VEL in the middle column, spanning both rows and vertically centred | three rows stood ~42px taller than any neighbour (3×74 + 2×8 = 238px of knobs against a segmented + two rows ≈ 196px), and the faceplate row takes its tallest panel's height, out of the section below it. The panel fits three columns from here on (the `.hex` step, REQ-filter-hex-has-three-even-shapes) |
   | 1281–1629px | 2 columns | A D / S R / VEL, the fifth spanning the row and centred | FILTER (`.hex` 2×3 + its segmented) and OSC 1 already stand taller, so the third row costs nothing |
-  | ≤1280px | 5 columns | one row; the span is undone | panels widen on the reflow, where five fit |
+  | 500–1280px | 5 columns | one row; the span is undone | panels widen on the reflow, where five fit |
+  | ≤499px | 3 columns × 2 rows | **dice-five**, the same rule as 1630–2560px | the 2-column phone faceplate (`.main` ≤992px; 30px dials in a 38px box from ≤720px) leaves a ~164px body at 420px: five cells of ~30px, dial against dial with no air — they overlapped outright at the earlier 36px size. Three columns give ~52px cells. The extra knob row costs nothing — the LFO beside it (tabs + wave + knobs + destination) stands taller |
+
+  - **One dice-five, two ranges.** The placement is a single CSS block whose
+    media list is `(min-width: 1630px) and (max-width: 2560px), (max-width: 499px)`,
+    so the wide and the phone shape cannot drift apart.
 
   - **Why the dice-five is not the label-ink problem REQ-a-cell-is-never-narrower-than-a-knob guards.** The
     corners sit in columns 1 and 3 and VEL in column 2, so no two knob boxes
@@ -169,13 +178,18 @@ count changes.
 
 - **REQ-a-cell-is-never-narrower-than-a-knob** — **A column count may never make
   a cell narrower than a knob's ink.** The knob box is a fixed `--knob-size +
-  8px` (52/48/44px by breakpoint) and its label is *centred on the knob, not
+  8px` (52/48/44/38px by breakpoint) and its label is *centred on the knob, not
   clipped to the box*, so an over-ambitious column count makes knobs overlap
   rather than merely crowd. The 6-up first cut of `.hex` did exactly that at
   ≤1280px: ~40px cells for a 52px box. Verified by measuring label-text extents
   (knob centre ± `scrollWidth`/2) for every knob in every panel at 360–2560px;
   the dial's glow ring is excluded, since its negative inset bleeds outside the
   box by design.
+  - (v8) **Label ink cannot see a dial collision when the labels are short.**
+    FILTER ENV's five-across row at 420px overlapped its 36px dials while
+    `A`/`D`/`S`/`R`/`VEL` stayed clear of each other, so the sweep passed. The
+    FILTER ENV scenario therefore asserts box clearance directly in each
+    dice-five range.
 
 - **REQ-fx-panels-fit-their-knob-run** — (v5) **No FX rack panel is ever
   narrower than its own knob run.** The rack (`.fxRow`) holds panels of
@@ -280,6 +294,14 @@ function row(children: HTMLElement[], extraClass?: string): HTMLElement {
 
   @media (min-width: 1630px) {
     .hex { repeat(3, minmax(0, 1fr)); }
+  }
+  @media (max-width: 1280px) {
+    .hex { repeat(3, minmax(0, 1fr)); }
+    .quint { repeat(5, minmax(0, 1fr)); }
+    .quint > *:last-child { grid-column: auto; }
+  }
+  /* Last in the file, so at ≤499px it beats the 1280px block on source order. */
+  @media (min-width: 1630px) and (max-width: 2560px), (max-width: 499px) {
     .quint { repeat(3, minmax(0, 1fr)); }                             /* dice-five */
     .quint > :nth-child(1) { grid-column: 1; grid-row: 1; }           /* A */
     .quint > :nth-child(2) { grid-column: 3; grid-row: 1; }           /* D */
@@ -287,16 +309,12 @@ function row(children: HTMLElement[], extraClass?: string): HTMLElement {
     .quint > :nth-child(4) { grid-column: 3; grid-row: 2; }           /* R */
     .quint > *:last-child { grid-column: 2; grid-row: 1 / span 2; }   /* VEL */
   }
-  @media (max-width: 1280px) {
-    .hex { repeat(3, minmax(0, 1fr)); }
-    .quint { repeat(5, minmax(0, 1fr)); }
-    .quint > *:last-child { grid-column: auto; }
-  }
   ```
 
   The spanning VEL is vertically centred by `.quint`'s own `align-items:
-  center`; nothing extra is needed. The two media blocks never overlap, so the
-  1630px placements cannot leak into the reflow.
+  center`; nothing extra is needed. The dice-five block stops at 2560px, so the
+  ultrawide block only has to undo the base span on VEL, as the 1280px block
+  does.
 - `src/ui/panels/synth-panels.ts` — the `row()` helper + seven `panel()` call sites: two `.quad`
   (SUB/UNI, AMP ENV), one `.hex` (FILTER), one `.quint` (FILTER ENV) and three
   `.spread` (OSC 1, OSC 2, MIXER). The eighth faceplate panel, **LFO**, is built
@@ -333,7 +351,7 @@ Scenario: 4-knob panels are a 2x2 block on a wide desktop
 # pinned by: e2e/responsive-panels.spec.ts (4-knob panels are a 2x2 block on the
 #            desktop, never 3+1 — swept 1281/1440/1920/2560px)
 
-Scenario: FILTER ENV takes each of its three shapes (REQ-quad-panels-use-a-fixed-grid)
+Scenario: FILTER ENV takes each of its shapes (REQ-quad-panels-use-a-fixed-grid)
   Given the app is open at a 1440px-wide viewport
   Then the FILTER ENV knobs render A D / S R / VEL
   And VEL is centred across the panel, not left-ragged
@@ -346,8 +364,12 @@ Scenario: FILTER ENV takes each of its three shapes (REQ-quad-panels-use-a-fixed
   Then they render A D / S R / VEL again
   When the viewport narrows to 1280px
   Then all five share one row
+  And they still share one row at 500px
+  When the viewport narrows to 499px, and again at 420px and 360px
+  Then they render the dice-five again, VEL centred across and between the rows
+  And no corner knob's box reaches into VEL's column
 # pinned by: e2e/responsive-panels.spec.ts (the 5-knob FILTER ENV panel takes each
-#            of its three shapes — dice-five asserted at 1630px and 1920px)
+#            of its shapes — dice-five asserted at 360, 420, 499, 1630 and 1920px)
 
 Scenario: 3-knob panels spread across the widened panel on a tablet
   Given the app is open at an 820px-wide viewport
@@ -425,12 +447,14 @@ Scenario: No FX rack panel wraps its knob run at desktop widths (REQ-fx-panels-f
 ## Tests & verification
 
 - E2E: `e2e/responsive-panels.spec.ts` — `npm run e2e`. Row shapes at
-  820/1281/1400/1440/1629/1630/1920/2560px, and 2800/3199/3200/3440/5120px for
+  360/420/499/500/820/1281/1400/1440/1629/1630/1920/2560px, and 2800/3199/3200/3440/5120px for
   REQ-ultrawide-panels-are-one-row (viewports changed *within* a test:
   each boot is a full AudioContext), plus REQ-a-cell-is-never-narrower-than-a-knob's label-ink sweep and REQ-fx-panels-fit-their-knob-run's
   FX rack sweep at 1360/1440/1600/1920px.
 - Typecheck: `npm run typecheck` (confirms `styles.quad` / `.hex` / `.quint` compile).
 - Manual (`npm run dev`), device-emulate / resize:
+  - **360–499px** (phones): FILTER ENV is the dice-five, its dials clear of each
+    other, the panel no taller than the LFO beside it.
   - **820px** (iPad Air): SUB/UNI and AMP ENV show 4 knobs on one row, FILTER ENV
     shows 5 on one row; FILTER shows 3×2.
   - **~1280px**: still one row each (4-column `.main`); FILTER still 3×2.
@@ -449,7 +473,7 @@ Scenario: No FX rack panel wraps its knob run at desktop widths (REQ-fx-panels-f
 ## Open questions / future
 
 - **SUB / UNI labels touch at phone widths** (`.quad` 4-up). The knob box is a
-  fixed `--knob-size + 8px` — 44px at that breakpoint — while a six-character
+  fixed `--knob-size + 8px` — 38px at that breakpoint — while a six-character
   label (`S.LVL`, `UNISON`, `SPREAD`) at 9px/0.12em inks past it, so in a 4-up
   cell that narrow it meets its neighbour. It is the only such collision in the
   app: every other panel is clear at every width from 360px to 2560px.

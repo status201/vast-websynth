@@ -313,5 +313,5 @@ Scenario: A bypassed effect still anchors its help badge (regression)
   small shared helper (or into `step-panel-scaffold.ts`, accepting that it would
   gain a layout concern).
 - The FX knob size is hardcoded in JS (`fxGroup` `opts.knobSize`, default 22). A
-  CSS custom property shrinking at breakpoints — the `--knob-size` 44→40→36
+  CSS custom property shrinking at breakpoints — the `--knob-size` 44→40→36→30
   idiom — would let the cluster stay single-row a little longer before wrapping.
