@@ -4,6 +4,7 @@ import {
   BEAT_UNIT_LABELS, MIN_BEATS, MAX_BEATS, DEFAULT_BEATS, DEFAULT_BEAT_UNIT,
 } from './meter';
 import { clamp, midiToHz } from '../utils/math';
+import { masterLevel } from './master-level';
 import { SYNC_LABELS } from '../utils/tempo';
 import { NOTE_LABELS, SCALE_LABELS, EXTRA_LABELS, CHORD_LABELS } from '../utils/music';
 import { MOD_ROWS, MOD_SOURCE_LABELS, MOD_DEST_LABELS } from './mod-routing';
@@ -218,7 +219,10 @@ const fmtSemi = (v: number) => `${v >= 0 ? '+' : ''}${v.toFixed(0)}st`;
 const fmtPan = (v: number) =>
   Math.abs(v) < 0.005 ? 'C' : `${v < 0 ? 'L' : 'R'}${Math.round(Math.abs(v) * 100)}`;
 const fmtCent = (v: number) => `${v >= 0 ? '+' : ''}${v.toFixed(0)}c`;
-const fmtDb = (v: number) => `${(20 * Math.log10(Math.max(v, 0.001))).toFixed(1)}dB`;
+/** The dB of the gain the volume applies, not of the knob position — the law is
+ *  squared (input-control.md REQ-the-volume-knob-reads-the-gain-it-applies). The
+ *  1e-6 floor is the old 0.001-of-travel floor in gain terms: 0 reads −120 dB. */
+const fmtVolumeDb = (v: number) => `${(20 * Math.log10(Math.max(masterLevel(v, 1), 1e-6))).toFixed(1)}dB`;
 const fmtDbRaw = (v: number) => `${v.toFixed(0)}dB`;
 const fmtUs = (v: number) => (v < 0.001 ? `${(v * 1e6).toFixed(0)}µs` : fmtMs(v));
 const fmtNoteFromCutoff = (note: number) => fmtHz(midiToHz(note));
@@ -433,7 +437,7 @@ export function registerDefaults(bus: ParamBus): void {
     { id: 'fx.master.comp.makeup', min: 0, max: 12, default: 0, format: fmtDbRaw },
 
     // ----- Master -----
-    { id: 'master.volume', min: 0, max: 1, default: 0.8, format: fmtDb },
+    { id: 'master.volume', min: 0, max: 1, default: 0.8, format: fmtVolumeDb },
     { id: 'master.pitchBend', min: -1, max: 1, default: 0, format: fmtSemi },
     { id: 'master.modWheel', min: 0, max: 1, default: 0, format: fmtPct },
     // CC11 (input-control.md REQ-cc11-is-expression). Default 1 = full: a no-op (ADR-006).

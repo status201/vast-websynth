@@ -18,6 +18,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ### Fixed
 
+- **The master volume knob shows the real level.** It displayed half the actual
+  cut: the default read −1.9 dB while playing at −3.9 dB, and halfway read −6 dB
+  while playing at −12 dB. The sound does not change, only the number.
 - **FILTER ENV's knobs no longer overlap on a phone.** Below 500px the five
   knobs (A, D, S, R, VEL) were squeezed onto one row too narrow for their dials.
   They now sit like the five dots on a die, as on a wide monitor: A · D on top,

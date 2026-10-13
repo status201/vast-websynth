@@ -3,7 +3,9 @@
 ```yaml
 id: input-control
 status: implemented
-version: 18  # v18: MIDI channel 10 plays the sampler's slots (REQ-channel-ten-plays-the-sampler),
+version: 19  # v19: the volume knob reads the gain it applies (REQ-the-volume-knob-reads-the-gain-it-applies) —
+             #      it showed 20·log10(volume) over a volume² law, half the real cut
+             # v18: MIDI channel 10 plays the sampler's slots (REQ-channel-ten-plays-the-sampler),
              #      the synth's input channel is selectable (REQ-the-midi-input-channel-is-selectable),
              #      CC11 is expression (REQ-cc11-is-expression) and channel aftertouch
              #      joins the mod wheel (REQ-aftertouch-joins-the-mod-wheel)
@@ -45,6 +47,7 @@ source:
   - src/ui/ui-bridge.ts
   - src/audio/midi.ts
   - src/audio/sustain-pedal.ts
+  - src/state/master-level.ts     # masterLevel — the one volume law, read by the engine and the knob
   - src/main.ts
 ```
 
@@ -349,6 +352,16 @@ notes played on another tab no longer overwrite its bank.
   `Presets.capture`): a pedal resting heel-down when Save is pressed would
   otherwise produce a song that loads silent. Loading a song resets it to 1, its
   default, until the pedal next moves.
+- **REQ-the-volume-knob-reads-the-gain-it-applies** (v19) — **The volume knob
+  reads the gain it applies.** The `master.volume` readout is the dB of the gain
+  the engine applies at expression 1: `20·log10(masterLevel(volume, 1))`, which
+  is `40·log10(volume)`. Expression is left out on purpose — the pedal is a
+  gesture riding inside the level, and the knob shows the level. The engine's
+  gain and the knob's text both call `masterLevel` in `src/state/master-level.ts`,
+  so the number and the sound cannot disagree (the role `src/state/eq.ts` plays
+  for the EQ's filters and its drawn curve). Through v18 the readout was
+  `20·log10(volume)` over the squared law — half the real cut: the default 0.8
+  read −1.9 dB while playing at −3.9 dB.
 - **REQ-aftertouch-joins-the-mod-wheel** (v18) — **Channel aftertouch joins the
   mod wheel.** Pressing into the keys (0xD0) is the most common expressive
   gesture a keyboard offers. It drives the same destination as the mod wheel —
@@ -447,6 +460,12 @@ Scenario: CC11 rides inside the volume (v18, REQ-cc11-is-expression)
   Then master.expression is 64/127 and master.volume is unchanged
   And neither a preset nor a saved song carries master.expression
 # pinned by: tests/audio/midi.test.ts, tests/state/preset-session.test.ts, tests/audio/engine-resume.test.ts, tests/state/song.test.ts
+
+Scenario: The volume readout is the applied gain (v19, REQ-the-volume-knob-reads-the-gain-it-applies)
+  Given master.volume is 0.5
+  Then the knob reads -12.0dB, and the engine's master gain is 0.25
+  And at 0.8 it reads -3.9dB, and at 1 it reads 0.0dB
+# pinned by: tests/state/master-level.test.ts
 
 Scenario: Aftertouch and the mod wheel take the larger (v18, REQ-aftertouch-joins-the-mod-wheel)
   Given the mod wheel at 0.25
@@ -655,6 +674,8 @@ Scenario: - and = shift the octave; the bare arrows do not (v17, REQ-octave-shif
   volume² × expression²), `tests/state/song.test.ts` (expression is never saved).
   **By ear, with a pedal**: CC11 is the one v18 change to the output level —
   sweep it during a demo and confirm a smooth swell with no zipper or click.
+- v19: `tests/state/master-level.test.ts` (the volume law, and the `master.volume`
+  readout taken from the shipped param def, REQ-the-volume-knob-reads-the-gain-it-applies).
 - `tests/ui/shortcuts.test.ts` — every global key, including v17's octave on `-`/`=`
   (REQ-octave-shift-is-minus-and-equal) and the shortcuts standing down under a modal
   (REQ-shortcuts-yield-to-an-open-modal); `tests/ui/modal.test.ts` for the stack it asks.

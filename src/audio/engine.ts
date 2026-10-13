@@ -6,6 +6,7 @@ import { Compressor } from './effects/compressor';
 import { createSynthChain, createDrumChain, createSamplerChain } from './effects/fx-chain';
 import { CompressorNode } from './compressor/node';
 import { ParamBus, registerDefaults } from '../state/params';
+import { masterLevel } from '../state/master-level';
 import { rampTo, RAMP_FAST, RAMP_MEDIUM } from './param-utils';
 import { forceStereo } from './stereo';
 import { DISCONNECT_DELAY_MS } from './effects/effect';
@@ -1372,14 +1373,4 @@ export class Engine {
     src.start();
     return src;
   }
-}
-
-/**
- * The master gain for a volume and an expression (input-control.md REQ-cc11-is-expression):
- * both on the squared law the volume knob has always used, multiplied — so CC7
- * sets the level and CC11 rides inside it. Expression defaults to 1, which makes
- * this exactly `volume²`, the pre-v18 value.
- */
-function masterLevel(volume: number, expression: number): number {
-  return volume * volume * expression * expression;
 }
