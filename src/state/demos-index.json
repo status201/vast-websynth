@@ -192,6 +192,42 @@
     ],
     "blurb": "The tritone paradox, discovered by Diana Deutsch: each bar plays two Shepard tones a tritone apart, exactly half an octave. Built like Illusion 1, each tone has a note name but no octave, so neither tone is higher and the interval has no direction. Yet most people clearly hear some pairs go up and others go down, and two listeners often disagree about the same pair; which pairs rise seems to depend on the speech you grew up hearing. Listen with a friend, write down up or down for each of the twelve pairs, and compare."
   },
+  "Illusion_5.websynth.json": {
+    "name": "Illusion 5",
+    "bpm": 100,
+    "bars": 16,
+    "uses": [
+      "seq"
+    ],
+    "blurb": "The missing fundamental: the same tune four times, and the pitch you hear never changes. First as pure sine waves, then with three harmonics added above each note. The third time, the note itself is gone and only harmonics 2, 3, 4 and 6 play; the fourth time, only 3, 4, 6 and 8. Your ear works out which note those harmonics belong to and hears it, though nothing is playing at that pitch. It is how a phone call keeps a man's voice deep, and laptop speakers can barely play the lowest notes here anyway."
+  },
+  "Illusion_6.websynth.json": {
+    "name": "Illusion 6",
+    "bpm": 140,
+    "bars": 32,
+    "uses": [
+      "seq"
+    ],
+    "blurb": "Auditory streaming: one note, a second note, the first again, a pause. While the two notes are close in pitch it is a single galloping rhythm. Every two bars the second note moves further away, and somewhere along the way the gallop falls apart into two separate lines: a fast, even pulse of the low note and a slow one of the high note. Then the interval shrinks again, and the two lines hold on longer than it took them to split before the gallop comes back."
+  },
+  "Illusion_7.websynth.zip": {
+    "name": "Illusion 7",
+    "bpm": 120,
+    "bars": 12,
+    "uses": [
+      "sampler"
+    ],
+    "blurb": "The continuity illusion: a tone gliding up and down, chopped into pieces. First the gaps are silent and the glide sounds broken. Then each gap is filled with a burst of noise, and the glide seems to carry on unbroken behind it, even though the tone stops completely while the noise plays; your brain fills in what the noise would have hidden. Last, the bursts are made too quiet to have hidden anything, and the gaps are back. A computed clip on one sampler slot, because the noise has to fit each gap exactly."
+  },
+  "Illusion_8.websynth.zip": {
+    "name": "Illusion 8",
+    "bpm": 120,
+    "bars": 18,
+    "uses": [
+      "sampler"
+    ],
+    "blurb": "The Zwicker tone: listen to the silence. Three six-second bursts of noise play, each with a band cut out of it: 2 to 4 kHz, 1 to 2 kHz, then everything above 3 kHz. After each burst comes six seconds of silence, and most people hear a faint, pure tone in it for a few seconds, pitched inside the missing band, though nothing is playing. Best in a quiet room at a moderate level. The bursts are computed clips on three sampler slots, since a band has to be removed completely for it to work."
+  },
   "Kutmuziek.websynth.json": {
     "name": "Kutmuziek",
     "bpm": 138,
