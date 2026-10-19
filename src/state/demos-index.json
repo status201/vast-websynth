@@ -67,6 +67,27 @@
     ],
     "blurb": "Half of a pair, Crockett's Theme: load 1985-1 on a second device, pair them over WiFi sync or MIDI and press Play on either one. This half is the strings and the same lead, over a percussion kit of cowbell, shakers, congas, bongo and clave. The sequencer runs at 1/8 over 16 cells, two bars a bank. The strings are a root and two inner voices, struck on the beat and held with ties. The swell into each verse is one held chord whose velocity climbs step by step. In the last verse the fourth track drops its string and doubles the lead an octave up. It plays complete on its own too."
   },
+  "Ageispolis-1.websynth.json": {
+    "name": "Ageispolis-1",
+    "bpm": 102,
+    "bars": 8,
+    "uses": [
+      "seq",
+      "sampler"
+    ],
+    "blurb": "Half of a pair: load Ageispolis-2 on a second device, pair them over WiFi sync or MIDI and press Play on either one. This half is the melody and the chords: the tune on the first track, and an F minor that moves to B flat held under it on the other three, tied from step to step. It plays on its own too, without bass or drums."
+  },
+  "Ageispolis-2.websynth.json": {
+    "name": "Ageispolis-2",
+    "bpm": 102,
+    "bars": 8,
+    "uses": [
+      "seq",
+      "drums",
+      "sampler"
+    ],
+    "blurb": "Half of a pair: load Ageispolis-1 on a second device, pair them over WiFi sync or MIDI and press Play on either one. This half is the bass, the strings and an 808 kit. The bass is the first track; the strings are three-note chords on the other three, held through every other bar. The closed hat chokes the open one. It plays on its own too, without the melody."
+  },
   "Around_the_World.websynth.json": {
     "name": "Around the World",
     "bpm": 121,
