@@ -88,6 +88,18 @@
     ],
     "blurb": "Half of a pair: load Ageispolis-1 on a second device, pair them over WiFi sync or MIDI and press Play on either one. This half is the bass, the strings and an 808 kit. The bass is the first track; the strings are three-note chords on the other three, held through every other bar. The closed hat chokes the open one. It plays on its own too, without the melody."
   },
+  "Ageispolis.websynth.zip": {
+    "name": "Ageispolis",
+    "bpm": 102,
+    "bars": 56,
+    "uses": [
+      "seq",
+      "drums",
+      "sampler",
+      "motion"
+    ],
+    "blurb": "The Ageispolis sync pair made into one file, so it needs only one device. Ageispolis-1 was rendered and recorded into a sampler slot of Ageispolis-2, so the melody and chords play as a sample alongside the bass, strings and 808 kit. Motion lanes then shape the arrangement and the mix across its 56 bars."
+  },
   "Around_the_World.websynth.json": {
     "name": "Around the World",
     "bpm": 121,
