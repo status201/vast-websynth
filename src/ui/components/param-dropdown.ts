@@ -44,6 +44,11 @@ export class ParamDropdown {
     this.dd.setDisabledOptions(labels);
   }
 
+  /** Inherited / idle styling on the toggle — never the root (dropdown.md REQ-a-dropdown-can-be-dimmed). */
+  setDimmed(on: boolean): void {
+    this.dd.setDimmed(on);
+  }
+
   destroy(): void {
     this.unsub();
     this.dd.destroy();

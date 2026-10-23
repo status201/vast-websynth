@@ -2,6 +2,7 @@ import { describe, it, expect, beforeEach } from 'vitest';
 import { createModMatrixWindowController } from '../../src/ui/components/mod-matrix-window';
 import { ParamBus, registerDefaults } from '../../src/state/params';
 import { MOD_SRC, MOD_DST, MOD_ROWS, MOD_SOURCE_LABELS, MOD_DEST_LABELS } from '../../src/state/mod-routing';
+import dropdownStyles from '../../src/ui/styles/dropdown.module.css';
 
 /**
  * specs/features/mod-matrix.md — the window.
@@ -132,6 +133,26 @@ describe('mod matrix window — idle rows (motion-sequencer.md REQ-single-param-
     const idle = row.className;
     bus.set('mod.0.src', MOD_SRC.lfo1);
     expect(row.className).not.toBe(idle);
+  });
+
+  // mod-matrix.md v5 regression: the idle fade used to land on the destination
+  // picker's ROOT, which faded its open option list with it (dropdown.md
+  // REQ-a-dropdown-can-be-dimmed). The dim must ride the toggle instead.
+  it.each([
+    ['free row', 'mod-dst-2', 'mod.0.src', MOD_SRC.lfo1],
+    ['LFO row', 'mod-dst-1', 'lfo2.dest', 1],
+  ])('dims an idle %s’s destination on its toggle, never its root', (_kind, id, param, assigned) => {
+    const { bus, root } = build();
+    const dst = byId(root, id);
+    const toggle = dst.querySelector('button')!;
+    const rootClasses = dst.className;
+
+    expect(toggle.classList.contains(dropdownStyles.dimmed!)).toBe(true);
+    expect(dst.classList.contains(dropdownStyles.dimmed!)).toBe(false);
+
+    bus.set(param, assigned);
+    expect(toggle.classList.contains(dropdownStyles.dimmed!)).toBe(false);
+    expect(dst.className).toBe(rootClasses);
   });
 
   it('treats an LFO row with no destination as idle too', () => {

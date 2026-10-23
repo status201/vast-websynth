@@ -26,6 +26,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
   open in full), or switch on the info badges and tap the one on **Demos:** to
   read about every demo without loading any of them.
 
+### Fixed
+
+- **Mod Matrix: an unused row's destination list is readable again.** Opening the
+  destination picker on a row with nothing routed (LFO 2 out of the box) showed a
+  see-through option list with the next row's picker bleeding through it. The row
+  still fades to show it is unused, but the open list is now solid.
+
 ## [2.17.1] - 2026-10-13
 
 ### Fixed

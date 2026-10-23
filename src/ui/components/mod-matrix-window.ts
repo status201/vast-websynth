@@ -118,7 +118,9 @@ function fixedRow(bus: ParamBus, name: string, prefix: 'lfo' | 'lfo2', row: numb
   // nothing should look like one. An LFO's "off" destination is exactly that state,
   // so leaving these two undimmed would make identical rows read differently.
   bus.subscribe(`${prefix}.dest`, (d) => {
-    el.classList.toggle(styles.idle!, Math.round(d) === OFF_DEST);
+    const idle = Math.round(d) === OFF_DEST;
+    el.classList.toggle(styles.idle!, idle);
+    dest.setDimmed(idle);
   });
   return el;
 }
@@ -163,6 +165,7 @@ function freeRow(bus: ParamBus, n: number): HTMLElement {
         + `${MOD_SOURCE_LABELS[s]} is per-voice — eight voices cannot share it.`
       : '';
     el.classList.toggle(styles.idle!, s === MOD_SRC.off);
+    dest.setDimmed(s === MOD_SRC.off);
   };
   bus.subscribe(`mod.${n}.src`, refresh);
   bus.subscribe(`mod.${n}.dst`, refresh);

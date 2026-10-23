@@ -71,6 +71,45 @@ test.describe('mod matrix', () => {
     await expect(dst.locator('button').filter({ hasText: /^cutoff$/i })).toBeEnabled();
   });
 
+  /**
+   * mod-matrix.md v5 regression: an idle row's fade used to sit on the destination
+   * picker's root, and the open menu is a DOM child of that root — so the option list
+   * went translucent and the next row's picker showed through it. Only a real browser
+   * composites, so the jsdom class check is not enough on its own.
+   */
+  test('an idle row’s destination picker opens a menu that is opaque and on top', async ({ page }) => {
+    await gotoAndStart(page);
+    await openMatrix(page);
+
+    // LFO 2 ships with no destination, so row 1 reads as idle.
+    const picker = page.getByTestId('mod-dst-1');
+    await picker.locator('button').first().click();
+
+    const seen = await picker.evaluate((root) => {
+      const menu = root.lastElementChild as HTMLElement;
+      const option = menu.querySelector('button')!;
+
+      // One faded ancestor anywhere up the chain is enough to wash the options out.
+      let faded: string | null = null;
+      for (let n: HTMLElement | null = option; n; n = n.parentElement) {
+        if (getComputedStyle(n).opacity !== '1') { faded = n.className || n.tagName; break; }
+      }
+
+      // Sample low in the box, where the menu overlaps the rows below it.
+      const r = menu.getBoundingClientRect();
+      const hit = document.elementFromPoint(r.left + r.width / 2, r.bottom - 6);
+      return { faded, covered: !(hit && menu.contains(hit)), hit: hit?.className ?? null };
+    });
+
+    expect(seen.faded, `an ancestor of the options is faded: ${seen.faded}`).toBeNull();
+    expect(seen.covered, `something paints over the menu: ${seen.hit}`).toBe(false);
+
+    // The idle cue survives the fix: the toggle itself is still dimmed.
+    const toggleOpacity = await picker.locator('button').first()
+      .evaluate((el) => getComputedStyle(el).opacity);
+    expect(Number(toggleOpacity)).toBeLessThan(1);
+  });
+
   test('the MOD launcher carries an info badge (onboarding REQ-the-mod-launcher-carries-a-badge)', async ({ page }) => {
     await gotoAndStart(page);
     await page.getByTestId('tab-song').click();

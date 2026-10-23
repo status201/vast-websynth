@@ -3,7 +3,10 @@
 ```yaml
 id: mod-matrix
 status: implemented
-version: 4   # v4: REQ-per-voice-sources-cannot-drive-bus-destinations says outright that the sequencer's
+version: 5   # v5: an idle row dims its destination picker through Dropdown.setDimmed, never
+             #     on the picker's root — root opacity made the open list transparent
+             #     (dropdown.md REQ-a-dropdown-can-be-dimmed, regression)
+             # v4: REQ-per-voice-sources-cannot-drive-bus-destinations says outright that the sequencer's
              #     per-voice pan stage is NOT a matrix destination, so `pan` is still the only bus-wide one
              # v3: the modulation BAND's direction is coloured — green up,
              #     yellow down; a knob's own arc never is (REQ-the-bands-direction-has-a-colour)
@@ -306,6 +309,15 @@ The window is a table of rows, each `[source ▾] → [dest ▾] [amount] [range
 | a delete button per row | — none: `source = off` is the same act with one fewer control, and it is not destructive (the row keeps its settings) | ADR-014 law 3 |
 | disabling an unassigned row | — never. The row stays live or its own pickers become unreachable | [motion-sequencer](motion-sequencer.md) REQ-single-param-lanes-below-the-xy-lane |
 
+An unassigned (**idle**) row — a free row whose source is `off`, or an LFO row whose
+destination is `off` — fades every cell after the first, so it reads as "nothing routed
+here". The fade is presentation only. The **knob** takes `opacity` directly; the
+**destination picker** is dimmed through `Dropdown.setDimmed` (on its toggle) and never
+by `opacity` on the picker itself. The picker's open menu is a DOM child of its root,
+so an opacity there makes the option list translucent and lets the next row's
+picker show through it (dropdown.md REQ-a-dropdown-can-be-dimmed). That shipped once
+in v4: the LFO 2 picker's open list was unreadable.
+
 ### Layer touchpoints & ordering
 
 ```yaml
@@ -395,6 +407,14 @@ Scenario: The window says where the params it cannot reach live (ADR-017)
   Then it names the Motion lanes and the XY Pad
   # without this the curated destination list reads as a missing feature
 # pinned by: tests/ui/mod-matrix-window.test.ts
+
+Scenario: An idle row's destination picker opens a readable menu (regression, v5)
+  Given a row with nothing routed, so it reads as idle
+  Then its destination picker's toggle carries the dimmed class and its root does not
+  And when the picker is opened, its options render at full opacity, above the rows below
+  And assigning the row lifts the dim again
+# pinned by: tests/ui/mod-matrix-window.test.ts, tests/ui/dropdown-stacking.test.ts,
+#            e2e/mod-matrix.spec.ts
 
 Scenario: Depth is bipolar (REQ-route-depth-is-bipolar)
   Given two routes with equal and opposite amounts on one destination

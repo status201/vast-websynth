@@ -3,7 +3,10 @@
 ```yaml
 id: dropdown
 status: implemented
-version: 9  # v9: REQ-the-menu-closes-on-outside-click — the Escape that closes a menu stops there;
+version: 10 # v10: ParamDropdown.setDimmed, and REQ-a-dropdown-can-be-dimmed's CSS pin widened to
+            #     consumer stylesheets — the mod matrix's idle rows faded a picker
+            #     root with `.idle > *` and the open list went transparent again
+            # v9: REQ-the-menu-closes-on-outside-click — the Escape that closes a menu stops there;
             #     it used to reach the global Panic shortcut and stop the song
             # v8: options carry the `dropdown-option` bridge class — the toggle and
             #     the matching option share an accessible name (REQ-an-option-carries-the-bridge-class)
@@ -157,6 +160,14 @@ without anyone remembering to ask.
     declaration. Consumers get `setDimmed` so the safe target is the easy one —
     the same reason [motion-sequencer](motion-sequencer.md) REQ-single-param-lanes-below-the-xy-lane dims a lane's
     label rather than its row.
+  - (v10) It shipped a **second** time, without anyone writing `opacity` on a
+    dropdown on purpose: the mod matrix faded idle rows with
+    `.idle > *:not(:first-child)`, and a **universal** subject selects the
+    destination picker's root as readily as the knob beside it. So a consumer
+    rule whose subject is `*` (or `:global(.dropdown)`) may not declare a
+    stacking property unless it excludes `:global(.dropdown)`. A picker in such
+    a group is dimmed through `setDimmed` instead, which `ParamDropdown` passes
+    through.
   - The dim is **presentation only**: a dimmed dropdown stays fully interactive
     ([ADR-014](../decisions/adr-014-dont-make-me-think.md) law 2 — the control
     that says "nothing is set here" must be the one that lets you set it). Use
@@ -249,7 +260,8 @@ without anyone remembering to ask.
 
 `ParamDropdown` (`src/ui/components/param-dropdown.ts`) wraps a `Dropdown` and
 keeps it in sync with a discrete numeric `ParamBus` param (index ↔ label). It
-adds `setDisabledLabels(labels)`, a pass-through to `setDisabledOptions` — the
+adds `setDisabledLabels(labels)`, a pass-through to `setDisabledOptions`, and
+(v10) `setDimmed(on)`, a pass-through to the same method on `Dropdown`. The
 wrapper stays a thin index↔label binder and the consumer owns the rule.
 
 ### Data shapes — the menu's DOM
@@ -426,6 +438,13 @@ Scenario: Nothing dims the root, or the menu goes with it (regression, v5, REQ-a
   Given dropdown.module.css
   Then no rule reaching `.root` declares opacity, transform or filter
   And the dimmed rule is compounded with `.toggle`, so it cannot land on the root
+# pinned by: tests/ui/dropdown-stacking.test.ts
+
+Scenario: A consumer's catch-all fade cannot reach a dropdown root (regression, v10, REQ-a-dropdown-can-be-dimmed)
+  Given every stylesheet in the app
+  Then no rule whose subject is `*` or `:global(.dropdown)` declares opacity, transform or filter
+  Unless that subject excludes `:global(.dropdown)`
+  # the mod matrix's `.idle > *:not(:first-child)` faded its destination picker's open list
 # pinned by: tests/ui/dropdown-stacking.test.ts
 
 Scenario: A disabled option is greyed, shown, and unselectable (v6, REQ-an-option-can-be-unselectable)

@@ -21,6 +21,9 @@
 // there is no signal in the CSS to find. That path is closed instead by
 // `Dropdown.setDimmed` being the obvious way to do this at all, by REQ-a-dropdown-can-be-dimmed saying
 // so out loud, and by `dropdown.test.ts` proving `setDimmed` skips the root.
+// What it *can* see is a consumer catch-all (`.idle > *`) whose subject would
+// select a dropdown root among its siblings — the v10 mod matrix regression —
+// so every stylesheet is checked for that form.
 import { describe, it, expect } from 'vitest';
 import { readdirSync, readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
@@ -73,12 +76,26 @@ function readRules(): Rule[] {
   return rules;
 }
 
-/** The classes on a selector's *subject* — the element the rule actually styles,
- *  i.e. its rightmost compound. `.root:global(.open) .menu` styles `.menu`, not
- *  the root; `.toggle.dimmed` styles an element that is both. */
+/** A selector's *subject* — the element the rule actually styles, i.e. its
+ *  rightmost compound. */
+const subjectOf = (selector: string): string =>
+  selector.split(/\s*[ >+~]\s*/).filter(Boolean).pop() ?? '';
+
+/** The classes on a selector's subject. `.root:global(.open) .menu` styles
+ *  `.menu`, not the root; `.toggle.dimmed` styles an element that is both. */
 function subjectClasses(selector: string): string[] {
-  const subject = selector.split(/\s*[ >+~]\s*/).filter(Boolean).pop() ?? '';
-  return [...subject.matchAll(/\.([A-Za-z0-9_-]+)/g)].map((m) => m[1]!);
+  return [...subjectOf(selector).matchAll(/\.([A-Za-z0-9_-]+)/g)].map((m) => m[1]!);
+}
+
+/** Could this rule's subject be a Dropdown root seen from *another* module? True
+ *  for a universal subject (`.idle > *`) and for `:global(.dropdown)` — unless the
+ *  subject excludes `.dropdown` itself. Classes inside `:has()`/`:not()` describe
+ *  other elements, so they are stripped before looking. */
+function mayHitDropdownRoot(selector: string): boolean {
+  const subject = subjectOf(selector);
+  if (/:not\((:global\()?\.dropdown\)?\)/.test(subject)) return false;
+  const own = subject.replace(/:(has|not)\((?:[^()]|\([^()]*\))*\)/g, '');
+  return own.startsWith('*') || /:global\(\.dropdown\)/.test(own);
 }
 
 const declares = (body: string, prop: string) =>
@@ -117,6 +134,27 @@ describe('Dropdown stacking contexts (specs/features/dropdown.md REQ-a-dropdown-
     for (const r of dimmed) {
       expect(subjectClasses(r.selector), r.selector).toContain('toggle');
     }
+  });
+
+  // v10: the mod matrix's `.idle > *:not(:first-child) { opacity }` faded its
+  // destination picker's root, so the open list went transparent again. A
+  // catch-all in a consumer's own module is the one form of the bug the CSS
+  // *does* carry a signal for, so it is pinned across every stylesheet.
+  it('lets no consumer catch-all fade a dropdown root', () => {
+    expect(mayHitDropdownRoot('.idle > *:not(:first-child)')).toBe(true);
+    expect(mayHitDropdownRoot('.idle > *:not(:first-child):not(:global(.dropdown))')).toBe(false);
+    expect(mayHitDropdownRoot('.presetWrap :global(.dropdown)')).toBe(true);
+    expect(mayHitDropdownRoot('.presetWrap :global(.dropdown) > button')).toBe(false);
+    expect(mayHitDropdownRoot('.app > *:has(.dropdown.open)')).toBe(true);
+
+    const offenders = rules
+      .filter((r) => mayHitDropdownRoot(r.selector))
+      .flatMap((r) =>
+        ['opacity', 'transform', 'filter'].filter((p) => declares(r.body, p)).map(
+          (p) => `${r.file} ${r.selector} { ${p} }`,
+        ),
+      );
+    expect(offenders).toEqual([]);
   });
 
 });
