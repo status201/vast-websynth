@@ -3,7 +3,8 @@
 ```yaml
 id: onboarding
 status: implemented
-version: 28  # v28: help copy catches up with the release (REQ-help-copy-tells-the-truth): 19 factory sounds, Delete or revert…, chord Inversion, drag-and-drop import, the MIDI in picker, aftertouch, wide-screen octaves; the About key list gains the drum/sampler grid row
+version: 29  # v29: one badge for the demo row, song.demos, which opens the demo library; HelpContext gains loadDemo and loadedDemo, TourCtx gains loadedDemo (demo-library.md REQ-info-mode-badges-the-demo-row-once)
+             # v28: help copy catches up with the release (REQ-help-copy-tells-the-truth): 19 factory sounds, Delete or revert…, chord Inversion, drag-and-drop import, the MIDI in picker, aftertouch, wide-screen octaves; the About key list gains the drum/sampler grid row
              # v27: the Equalizer carries seven badges — one section topic plus a
              #      graph and a knob-row topic per lane — and its page shells
              #      join the reflow observer list (REQ-the-equalizer-carries-seven-badges, REQ-a-container-must-tell-badges-when-it-hides)
@@ -137,6 +138,10 @@ thing.
   project vs Export Song the WAV/MP3 audio). These pin to the buttons' existing
   testids, so they reposition/hide on tab switch via the same reflow path as
   other in-panel badges (e.g. `seq.prob`).
+  The demo row beside them carries **one** badge, `song.demos`, on the
+  `Demos:` label (`data-help="song.demos"`); its topic body *is* the demo library,
+  which is why `HelpContext` also carries `loadDemo` and `loadedDemo` (v29 — [demo-library](demo-library.md)
+  REQ-info-mode-badges-the-demo-row-once).
 
 - **REQ-a-container-must-tell-badges-when-it-hides** (v19) — **Every container
   that shows and hides a badge's anchor must be in the reflow observer's

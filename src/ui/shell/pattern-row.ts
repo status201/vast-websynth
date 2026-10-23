@@ -28,7 +28,7 @@ import patternRowStyles from '../styles/pattern-row.module.css';
  * panel stops repainting — and binds the bridge hooks for them
  * (`undoActiveMachine`, `clearSelectedStep`, `showTab`).
  *
- * Returns the Song panel's demo loader and song importer, which the rest of
+ * Returns the Song panel's demo loader, loaded demo and song importer, which the rest of
  * the app reaches through `mountApp`'s late-bound hooks.
  */
 export function buildPatternRow({ engine, bus, bridge, session, xy, patternUndo }: ShellDeps): {
@@ -36,6 +36,7 @@ export function buildPatternRow({ engine, bus, bridge, session, xy, patternUndo 
   loadDemo: (name: string) => Promise<void>;
   importSongBytes: (bytes: Uint8Array, name: string) => Promise<boolean>;
   importSongFile: (file: File) => Promise<boolean>;
+  loadedDemo: () => string | null;
 } {
   // One shared XY Pad window controller for every launcher (Song panel, LIVE FX
   // window, Motion panel) — they must all toggle the SAME window (xy-pad.md).
@@ -132,5 +133,11 @@ export function buildPatternRow({ engine, bus, bridge, session, xy, patternUndo 
   // "is anything re-pitching me?" must be answerable without opening the tab.
   subscribeKeyStatus(bus, () => tabs.setIndicator(KEY_TAB, readKeyStatus(bus)));
 
-  return { el: tabs.el, loadDemo: song.loadDemo, importSongBytes: song.importBytes, importSongFile: song.importFile };
+  return {
+    el: tabs.el,
+    loadDemo: song.loadDemo,
+    importSongBytes: song.importBytes,
+    importSongFile: song.importFile,
+    loadedDemo: song.loadedDemo,
+  };
 }

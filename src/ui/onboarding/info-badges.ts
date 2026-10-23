@@ -122,6 +122,12 @@ const ANCHORS: Anchor[] = [
   // Export confusion lives here). They pin to existing testids and reposition
   // /hide on tab switch via the same reflow path as the seq-step badges.
   { topic: 'song.load', find: () => byTestId('song-load') },
+  // One badge for the whole demo row, on its label, rather than one per demo
+  // (demo-library.md REQ-info-mode-badges-the-demo-row-once): most demos sit in
+  // the folded overflow, where a per-demo badge would have nothing to pin to.
+  // Tucked into the label's corner like the knob badges: placed 'after', it
+  // would land on the first demo button.
+  { topic: 'song.demos', find: () => byHelp('song.demos') },
   { topic: 'song.save', find: () => byTestId('song-save') },
   { topic: 'song.import', find: () => byTestId('song-import') },
   { topic: 'song.export', find: () => byTestId('song-export') },
@@ -185,8 +191,14 @@ export class InfoBadges {
   private headerEl: Element | null = null;
 
   /** The bus is threaded in so dynamic (function) topic bodies can read live
-   *  params — e.g. the BPM-aware delay "sweet spots". */
-  constructor(private readonly bus: ParamBus) {}
+   *  params — e.g. the BPM-aware delay "sweet spots"; `loadDemo` and
+   *  `loadedDemo` so the demo library topic can load what it lists and mark
+   *  what is already loaded. */
+  constructor(
+    private readonly bus: ParamBus,
+    private readonly loadDemo: (name: string) => Promise<void>,
+    private readonly loadedDemo: () => string | null,
+  ) {}
 
   get isActive(): boolean {
     return this.active;
@@ -342,7 +354,11 @@ export class InfoBadges {
     } else {
       // Dynamic body (BPM-aware "sweet spots" / relationship badges): build live
       // DOM with access to the bus and a close() for click-to-snap.
-      content.appendChild(topic.body({ bus: this.bus, close: () => modal.close() }));
+      // `loadedDemo()` read now, at the click: a demo loaded while the badges
+      // were showing must be the one this library marks.
+      content.appendChild(topic.body({
+        bus: this.bus, close: () => modal.close(), loadDemo: this.loadDemo, loadedDemo: this.loadedDemo(),
+      }));
     }
     modal.body.appendChild(content);
     modal.body.appendChild(

@@ -3,7 +3,9 @@
 ```yaml
 id: testids
 status: implemented
-version: 31 # v31: seq-bend (+ -track/-dec/-inc/-value), seq-bend-shape, seq-bend-scoop,
+version: 32 # v32: demo-loaded-info, demo-library, demo-library-entry, demo-library-load, demo-library-more
+            #      (demo-library.md REQ-the-library-reads-without-loading, REQ-the-loaded-demo-carries-an-info-button)
+            # v31: seq-bend (+ -track/-dec/-inc/-value), seq-bend-shape, seq-bend-scoop,
             #      seq-bend-fall (step-settings.md REQ-a-seq-step-carries-a-bend)
             # v30: file-drop-overlay, file-drop-toast (paste-import.md REQ-a-dropped-file-takes-the-paste-routes)
             # v29: clear-<lane>-shift-<left|right> (step-grid-editing.md REQ-shift-rotates-the-played-window)
@@ -337,6 +339,9 @@ song panel — files:
   song-save · song-load · song-delete · song-delete-toast · song-new · song-slot-select
   song-export · song-import · song-import-file · song-undo-toast
   song-demo-<name> · song-demo-more    # <name> is DATA — see REQ-data-derived-ids-are-enumerated, never spell one
+  demo-loaded-info                     # the loaded demo's ⓘ — NOT song-demo-…, which the row's enumeration reads as a demo
+  demo-library · demo-library-entry · demo-library-load · demo-library-more   # the library window (features/demo-library.md);
+                                       #   one entry + Load per demo, found by text, never by a data-minted id
   file-drop-overlay · file-drop-toast    # paste-import.md v2 — the window-wide drop
   song-paste + paste-modal · paste-input · paste-status · paste-confirm ·
     paste-cancel · paste-read-clipboard             # features/paste-import.md

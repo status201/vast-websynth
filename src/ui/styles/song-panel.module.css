@@ -353,6 +353,16 @@
 
   .demo { color: var(--accent-secondary); }
 
+  /* The loaded demo's ⓘ (demo-library.md REQ-the-loaded-demo-carries-an-info-button): an
+     icon-only button right after that demo's button, pulled in so the two read as a pair. */
+  .demoInfo {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    color: var(--accent-secondary);
+    margin-left: -4px;
+  }
+
   /* Demos past DEMO_ROW_LIMIT hide behind the "All Demos" toggle; display: contents
      keeps the revealed buttons flowing in the io row's flex wrap (song-mode.md REQ-the-demo-row-overflows-into-a-menu). */
   .demoOverflow { display: none; }

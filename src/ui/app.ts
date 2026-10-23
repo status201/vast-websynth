@@ -48,6 +48,10 @@ export function mountApp(root: HTMLElement, deps: ShellDeps): Onboarding {
     }
   };
 
+  // The demo the Song panel last loaded — rebound below with the loader, for the
+  // demo library's info-badge door (demo-library.md REQ-info-mode-badges-the-demo-row-once).
+  let songLoadedDemo: () => string | null = () => null;
+
   // Runtime hooks for the tour. `bridge.toggleTransport` is set inside
   // buildHeader (runs before any tour starts), so reading it lazily is safe.
   const ctx: TourCtx = {
@@ -55,6 +59,7 @@ export function mountApp(root: HTMLElement, deps: ShellDeps): Onboarding {
     engine,
     toggleTransport: () => bridge.toggleTransport(),
     applyDemo: (name) => songLoadDemo(name),
+    loadedDemo: () => songLoadedDemo(),
     resumeAudio: () => engine.resume(),
     expandFx: () => fxExpand(),
   };
@@ -70,6 +75,7 @@ export function mountApp(root: HTMLElement, deps: ShellDeps): Onboarding {
   root.appendChild(fx.el);
   const patternRow = buildPatternRow(deps);
   songLoadDemo = patternRow.loadDemo;
+  songLoadedDemo = patternRow.loadedDemo;
   // Share links import bytes; OS-launched song files (installed-PWA
   // file_handlers) arrive as a File and take the Song panel's Import-button door,
   // sized before they are read (pwa-install.md REQ-one-import-parse-path,

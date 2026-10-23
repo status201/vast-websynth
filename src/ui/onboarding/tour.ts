@@ -25,6 +25,9 @@ export interface TourCtx {
   /** Load a demo song. Async — all but the built-in are fetched on click
    *  (song-mode.md REQ-drop-in-demos-are-fetched-on-click), so a step that acts on the loaded song must await. */
   applyDemo: (name: string) => Promise<void>;
+  /** The demo the Song panel last loaded, or null — the demo library's focus
+   *  from the info badges (demo-library.md REQ-info-mode-badges-the-demo-row-once). */
+  loadedDemo: () => string | null;
   /** Resume the AudioContext (idempotent) — needed before the note step. */
   resumeAudio: () => Promise<void>;
   /** Force the (collapsible) FX section open. */

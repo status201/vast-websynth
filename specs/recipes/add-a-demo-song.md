@@ -3,7 +3,9 @@
 ```yaml
 id: add-a-demo-song
 status: implemented
-version: 3   # v3: no test needs editing either — tests pick demos by kind and read
+version: 4   # v4: the optional one-line note (demo-notes.json) and what shows it; the row is
+             #     ordered by song name, and the index carries generated facts, not just the name
+             # v3: no test needs editing either — tests pick demos by kind and read
              #     values from the shipped file (write-a-test.md)
              # v2: demos are fetched on click; `npm run clean:demos` is now required
 owner: core
@@ -13,7 +15,8 @@ related:
   - write-a-test        # why adding a demo never touches a test
 source:
   - src/state/demos/                     # drop your *.json here
-  - src/state/demos-index.json           # generated filename -> song name
+  - src/state/demos-index.json           # GENERATED filename -> name + facts (demo-library.md)
+  - src/state/demo-notes.json            # hand-written note per demo (optional, step 3)
   - scripts/clean-demos.ts               # canonicalizer + index generator
   - src/state/song.ts                    # ?url glob registration
 ```
@@ -61,8 +64,10 @@ drumChain: { enabled: true, steps: [0,0,0,1] }
 
 One command does two jobs:
 
-- **Regenerates `src/state/demos-index.json`**, adding `"<your-file>.json": "My
-  Demo"`. Skip it and your demo still loads, but its button is labelled from the
+- **Regenerates `src/state/demos-index.json`**, adding your file's entry: its
+  name plus the facts derived from it — tempo, length, the machines it uses and
+  anything armed ([demo-library](../features/demo-library.md)
+  REQ-demo-facts-are-generated). Skip it and your demo still loads, but its button is labelled from the
   *filename* (the fallback) — `hacienda_neworder` instead of "Haçienda". Commit the
   regenerated index alongside your JSON.
 - **Canonicalizes the file**: numbers rounded to 4 sig-figs, default step-cells
@@ -77,7 +82,17 @@ It runs automatically before `npm run build`, and CI's `npm run check:demos` is 
 same script in non-mutating mode — it fails on a drifted file **or a stale index**,
 so a forgotten run is caught rather than shipped.
 
-### 3. That's it — and **no test needs editing**
+### 3. Optional — say what to listen for
+
+Add one entry to `src/state/demo-notes.json`, keyed by your filename:
+`"<your-file>.json": "What makes this demo worth hearing."`, then run
+`npm run clean:demos` again so it is merged into the index
+([demo-library](../features/demo-library.md) REQ-demo-prose-lives-apart). It shows in the button's
+tooltip and in the **demo library**, which folds it to its first line
+(REQ-a-blurb-folds-to-its-first-line) — so lead with the sentence that matters. Like the
+demo itself, the note needs no spec: the file is allowlisted in the SDD guard.
+
+### 4. That's it — and **no test needs editing**
 
 It appears in the demo row and the song-load list on next build. To verify the
 shape parses: `Song.parse` requires `format === 'websynth-song'` plus
@@ -102,7 +117,9 @@ failing, which is what the rule now prevents.
   index too (Playwright has no Vite, so it cannot evaluate the glob), and they fail
   with "run `npm run clean:demos`" rather than misclassifying your demo.
 - `name` is the key — a duplicate name overwrites another demo.
-- Demos lead the row in **filename** order (drop-ins are sorted, then the built-ins).
+- The row is ordered by **song name** across every source — drop-in, built-in and
+  zip alike — not by filename ([song-mode](../features/song-mode.md)
+  REQ-drop-in-demos-are-fetched-on-click, v20).
 - The song is fetched on click, so it is **not** in the offline cache until it has
   been clicked once (same as the zip demos — see
   [pwa-install](../features/pwa-install.md)). A device that saved an offline copy

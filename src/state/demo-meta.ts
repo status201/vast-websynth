@@ -113,19 +113,27 @@ const ARMED_LABEL: Record<DemoArmed, string> = {
 };
 
 /**
- * The one-line summary a demo button's `title` shows (demo-library.md REQ-demo-row-says-what-it-knows):
- * `124 BPM · 16 bars · seq + drums · arp armed — <blurb>`.
+ * The facts alone — `124 BPM · 16 bars · seq + drums · arp armed` — which the
+ * demo library shows above the blurb (demo-library.md REQ-the-library-reads-without-loading).
  *
  * Each fact is dropped when it is unknown rather than shown as a zero: "0 bars"
  * is worse than saying nothing.
  */
-export function demoSummary(meta: DemoMeta): string {
+export function demoFacts(meta: DemoMeta): string {
   const facts: string[] = [];
   if (meta.bpm > 0) facts.push(`${meta.bpm} BPM`);
   if (meta.bars > 0) facts.push(plural(meta.bars, 'bar'));
   if (meta.uses.length > 0) facts.push(meta.uses.map((m) => MACHINE_LABEL[m]).join(' + '));
   for (const a of meta.armed ?? []) facts.push(ARMED_LABEL[a]);
-  const head = facts.join(' · ');
+  return facts.join(' · ');
+}
+
+/**
+ * The one-line summary a demo button's `title` shows (demo-library.md REQ-demo-row-says-what-it-knows):
+ * `124 BPM · 16 bars · seq + drums · arp armed — <blurb>`.
+ */
+export function demoSummary(meta: DemoMeta): string {
+  const head = demoFacts(meta);
   if (!meta.blurb) return head;
   return head ? `${head} — ${meta.blurb}` : meta.blurb;
 }

@@ -39,7 +39,7 @@ function anchor(testId: string, top: number): HTMLElement {
 let badges: InfoBadges | null = null;
 
 function show(): void {
-  badges = new InfoBadges(new ParamBus());
+  badges = new InfoBadges(new ParamBus(), async () => {}, () => null);
   badges.enable();
 }
 

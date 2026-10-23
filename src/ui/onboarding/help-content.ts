@@ -15,6 +15,7 @@ import {
   renderUnisonDetune,
   renderCompThreshold,
 } from './help-widgets';
+import { renderDemoLibrary } from '../components/demo-library';
 
 /**
  * A control's glyph inside help copy, drawn rather than typed (iconography.md
@@ -166,6 +167,12 @@ export const TOUR_STEPS: TourStep[] = [
 export interface HelpContext {
   bus: ParamBus;
   close: () => void;
+  /** The Song panel's demo loader — the `song.demos` topic's Load buttons
+   *  (demo-library.md REQ-info-mode-badges-the-demo-row-once). */
+  loadDemo: (name: string) => Promise<void>;
+  /** The loaded demo, read when the badge is clicked — the library marks it
+   *  from this door exactly as from the row's ⓘ (REQ-info-mode-badges-the-demo-row-once). */
+  loadedDemo: string | null;
 }
 
 export interface HelpTopic {
@@ -381,6 +388,7 @@ export type TopicId =
   | 'song'
   | 'song.fx'
   | 'mod'
+  | 'song.demos'
   | 'song.load'
   | 'song.save'
   | 'song.import'
@@ -1146,7 +1154,9 @@ export const HELP_TOPICS: Record<TopicId, HelpTopic> = {
       'sampler and motion sequencer, add live DJ-style FX (<strong>Fill, Stutter, Drop, ' +
       'Tape&nbsp;Stop</strong> and a sweepable DJ filter), and save / load / export songs.</p>' +
       '<p>The demo buttons load complete examples — remember to press <strong>Play</strong> ' +
-      'afterwards to hear them.</p>' +
+      'afterwards to hear them. The ' + g('info', 'Info') + ' beside the one you loaded, and ' +
+      'the info badge on <strong>Demos:</strong>, open the <strong>demo library</strong>: what ' +
+      'every demo is and what to listen for, readable without loading it.</p>' +
       '<p>A bank button <em>appends</em> to the chain, so to put a bar somewhere else just ' +
       '<strong>drag the chip</strong> to where it belongs — a line shows the gap it will drop ' +
       'into. ' + g('triangleLeft', 'Move left') + ' and ' + g('triangleRight', 'Move right') +
@@ -1201,6 +1211,12 @@ export const HELP_TOPICS: Record<TopicId, HelpTopic> = {
       '<p>They need the transport running to do much — Fill and Stutter act on the steps as ' +
       'they play. While an external clock is driving the transport, Tape&nbsp;Stop bends the ' +
       'pitch only and leaves the tempo to the clock.</p>',
+  },
+  // The demo row's one badge: its body IS the demo library, so every demo's
+  // notes can be read without loading one (demo-library.md REQ-info-mode-badges-the-demo-row-once).
+  'song.demos': {
+    title: 'Demo library',
+    body: (ctx) => renderDemoLibrary({ loadDemo: ctx.loadDemo, close: ctx.close, focus: ctx.loadedDemo }),
   },
   'song.load': {
     title: 'Load',

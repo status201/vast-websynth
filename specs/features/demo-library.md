@@ -3,7 +3,15 @@
 ```yaml
 id: demo-library
 status: implemented
-version: 2   # v2: every machine is exercised by at least one demo (REQ-every-machine-has-a-demo)
+version: 5   # v5: the ⓘ-mode door knows the loaded demo too, so both doors open the library in the
+             #     same state (REQ-info-mode-badges-the-demo-row-once)
+             # v4: a blurb folds to its first line with a More/Less toggle; the loaded demo's entry opens
+             #     unfolded and its button reads "Loaded" (REQ-a-blurb-folds-to-its-first-line,
+             #     REQ-the-loaded-demo-carries-an-info-button) — the unfolded list was too long to scan
+             # v3: the demo library window, the loaded demo's ⓘ and one ⓘ-mode badge on the row
+             #     (REQ-the-library-reads-without-loading, REQ-the-loaded-demo-carries-an-info-button,
+             #     REQ-info-mode-badges-the-demo-row-once) — the blurbs were hover-only, so no touch device saw them
+             # v2: every machine is exercised by at least one demo (REQ-every-machine-has-a-demo)
 owner: core
 related:
   - architecture
@@ -22,7 +30,9 @@ source:
   - src/state/demos-index.json      # GENERATED — facts + merged blurbs
   - scripts/clean-demos.ts          # the generator + the check:demos gate
   - src/state/song.ts               # JSON_DEMOS / ZIP_DEMOS / demoNames
-  - src/ui/panels/song-panel.ts     # the demo row
+  - src/ui/panels/song-panel.ts     # the demo row + the loaded demo's ⓘ
+  - src/ui/components/demo-library.ts  # the library window (lazy)
+  - src/ui/onboarding/info-badges.ts   # the one ⓘ-mode badge on the row
 ```
 
 ## Background / Why
@@ -135,6 +145,83 @@ what a demo owes the shelf.
   falls back to its filename ([song-mode](song-mode.md) REQ-drop-in-demos-are-fetched-on-click) rather than
   breaking the row.
 
+- **REQ-the-library-reads-without-loading** (v3) — **Everything the shelf knows
+  can be read without loading anything.** REQ-demo-row-says-what-it-knows put it in
+  a `title`, which only a hover reveals: a touch device never shows one, and
+  tapping a demo button *loads* the demo, so a phone could only learn about a demo
+  by replacing the session with it. The tooltip was also outgrown on desktop —
+  several blurbs run past a hundred words, and a native tooltip is unstyled, slow
+  to appear and can vanish mid-read. So a **demo library** window lists every demo
+  in `demoNames()` order — the row's own order — each entry carrying the name, the
+  facts line (`demoFacts`), the blurb when there is one, and a **Load** button.
+  Opening, scrolling or closing the window loads and plays nothing. Load closes
+  the window and goes through the Song panel's `loadDemo`, the door every other
+  caller uses, so the same-name question ([song-mode](song-mode.md)
+  REQ-one-name-two-songs-ask), the Undo stash and the Play cue all still apply.
+  The blurb is set as **text**, never HTML: it is data from a drop-in file.
+  The window is a lazy chunk ([runtime-performance](runtime-performance.md)
+  REQ-boot-cost-matches-the-request) — nobody pays for it until they open it. The
+  buttons keep their `title` and `aria-label`: hover still answers on a desktop.
+
+- **REQ-the-loaded-demo-carries-an-info-button** (v3) — **The demo you just loaded
+  says so, and offers its notes.** Right after a load is when "what am I hearing?"
+  gets asked, and the row never said which demo was loaded. After a demo applies —
+  from its button, the Load button, the tour, the empty-play hint or the library —
+  an ⓘ button sits directly after that demo's button and opens the library
+  scrolled to its entry, which is marked as the loaded one (`aria-current`). The
+  library opens in that same state from the ⓘ-mode badge too
+  (REQ-info-mode-badges-the-demo-row-once, v5). That
+  entry opens with its blurb **unfolded** (REQ-a-blurb-folds-to-its-first-line) —
+  its notes are what the ⓘ was pressed for — and its button reads **Loaded** and
+  is disabled: the demo is already what is playing, and re-loading it from here
+  would silently throw away any edit made since (the row's own button still
+  re-loads it, deliberately, behind the Undo toast) (v4). Any
+  other song apply — a stored slot, an import, a paste, a share link — and **New**
+  take it away; **Undo** restores whatever the stash's session showed. It is
+  session state, not persisted: after a reload no ⓘ shows. It belongs to the row,
+  not to the ⓘ-mode layer, so the badges' "no added chrome while off" rule
+  ([onboarding](onboarding.md) REQ-info-badges-show-per-control-help) is untouched.
+
+  *Gestures* (ADR-014): it is a plain `<button>` — click or tap opens the library,
+  Enter/Space do the same when focused. No long-press: iOS claims long-press for
+  its own callout, and nothing would tell a player it was there.
+
+- **REQ-info-mode-badges-the-demo-row-once** (v3) — **ⓘ mode badges the demo row
+  once, not per demo.** One badge, `song.demos`, tucked into the corner of the `Demos:` label (placed after it, it would cover the first demo button),
+  opens the library. A badge per demo was considered and rejected: there are
+  around thirty demos and most sit behind the "All Demos" fold, where an anchor
+  measures 0×0 and its badge hides; the row wraps tightly, so corner badges would
+  cover the neighbouring names; and thirty content badges would bury the control
+  badges ⓘ mode exists for. The library is reached from the ⓘ-mode badge through
+  `HelpContext.loadDemo`, which the badges are handed from `TourCtx.applyDemo` — the
+  same late-bound loader the tour already uses.
+
+  **Both doors open the same library** (v5). The badge's library marks, unfolds
+  and scrolls to the loaded demo exactly as the row's ⓘ does: a library that
+  forgot what was playing depending on which door you came through would contradict
+  itself. It is read through `HelpContext.loadedDemo`, taken from
+  `TourCtx.loadedDemo` — late-bound to `SongPanel.loadedDemo` like `applyDemo` —
+  **when the badge is clicked**, never when the badges switch on: a demo loaded
+  while the badges are showing must still be the one the next click marks.
+
+- **REQ-a-blurb-folds-to-its-first-line** (v4) — **The list scans first and reads
+  on demand.** Unfolded, the library was a wall of text: some blurbs run past a
+  hundred words, so a handful of demos filled the window and the rest were a long
+  scroll away. Each blurb therefore shows **its first line only** (CSS line clamp,
+  ending in an ellipsis), with a **More** toggle under it that unfolds the whole
+  text and then reads **Less** (`aria-expanded` follows it). Each entry folds on its
+  own. A blurb that fits on one line gets **no** toggle: once the window has laid
+  out, a toggle whose blurb would not grow is removed, because a control that
+  changes nothing teaches the player to ignore the rest — and that blurb is
+  **unclamped** with it: it fits one line at *this* width, and a narrower window
+  later (a phone turned upright) must wrap it in full rather than hide its end
+  behind an ellipsis that no toggle can undo. A demo with no blurb has
+  nothing to fold. The facts line is never folded — it is the scanning line.
+
+  *Gestures* (ADR-014): the toggle is a plain `<button>` — click or tap, or
+  Enter/Space when focused, flips that one entry. Nothing else in the entry folds
+  it, so a tap on the text while reading never collapses it.
+
 - **REQ-every-machine-has-a-demo** (v2) — **Every machine is heard in at least
   one demo.** The library is how a new user meets the instrument, and a machine
   no demo uses is one they may never find. `demos-index.json` already records
@@ -159,8 +246,36 @@ export interface DemoMeta {
   blurb?: string;            // merged from demo-notes.json (REQ-demo-prose-lives-apart)
 }
 export function demoMetaOf(file: SongFile): Omit<DemoMeta, 'blurb'>;
-/** The one-line summary the demo button's title shows (REQ-demo-row-says-what-it-knows). */
+/** The facts alone — `124 BPM · 16 bars · seq + drums` — the library's facts line (v3). */
+export function demoFacts(meta: DemoMeta): string;
+/** The one-line summary the demo button's title shows (REQ-demo-row-says-what-it-knows):
+ *  `demoFacts(meta) — blurb`. */
 export function demoSummary(meta: DemoMeta): string;
+
+// src/ui/components/demo-library.ts — lazy (REQ-the-library-reads-without-loading)
+export interface DemoLibraryOptions {
+  loadDemo: (name: string) => Promise<void>;
+  /** Called before `loadDemo` when Load is pressed. */
+  close: () => void;
+  /** The loaded demo: its entry is marked, unfolded and scrolled into view, and its
+   *  button reads "Loaded" (disabled). */
+  focus?: string | null;
+}
+export function renderDemoLibrary(opts: DemoLibraryOptions): HTMLElement;
+/** `renderDemoLibrary` in its own Modal (title "Demo library", a Close button). */
+export function openDemoLibrary(opts: Omit<DemoLibraryOptions, 'close'>): void;
+
+// src/ui/onboarding/help-content.ts (REQ-info-mode-badges-the-demo-row-once)
+export interface HelpContext {
+  bus: ParamBus;
+  close: () => void;
+  loadDemo: (name: string) => Promise<void>;   // v3 — the song.demos topic's Load
+  loadedDemo: string | null;                    // v5 — read at click time; the library's focus
+}
+
+// src/ui/onboarding/tour.ts + src/ui/panels/song-panel.ts (v5)
+interface TourCtx { /* … */ loadedDemo: () => string | null; }    // late-bound in app.ts
+interface SongPanel { /* … */ loadedDemo: () => string | null; }
 ```
 
 ### Data shapes
@@ -190,7 +305,22 @@ clean:demos  -> reads src/state/demos/*.json   (canonicalize, ADR-011)
 check:demos  -> the same pass, writes nothing, fails on any difference
 song.ts      -> imports demos-index.json; DemoRef gains `meta`
 song-panel   -> mkDemoBtn sets button.title = demoSummary(meta)   (REQ-demo-row-says-what-it-knows)
+             -> applySongWithUndo / New clear the loaded demo; applyDemo and a demo zip set it
+                right after their apply; restoreStash puts back the stash's
+                (REQ-the-loaded-demo-carries-an-info-button)
+             -> the ⓘ click -> loadSurface(import('components/demo-library'))
+                -> openDemoLibrary({ loadDemo, focus: loadedDemo })
+info-badges  -> anchor song.demos = [data-help="song.demos"] (the Demos: label)
+             -> HELP_TOPICS['song.demos'].body(ctx) = renderDemoLibrary({ loadDemo: ctx.loadDemo,
+                  close: ctx.close, focus: ctx.loadedDemo })   (ctx.loadedDemo read at the click, v5)
+                (REQ-info-mode-badges-the-demo-row-once)
 ```
+
+Testids (catalogued in [testids](testids.md)): `demo-loaded-info` (the ⓘ — deliberately
+*not* `song-demo-…`, which the row's enumeration treats as a demo button),
+`demo-library` (the list), `demo-library-entry`, `demo-library-load` and
+`demo-library-more` (the fold toggle, v4) (one per demo; the entry is found by its text, so no id is minted from data —
+REQ-data-derived-ids-are-enumerated), and the badge `info-badge-song.demos`.
 
 The generator is **async** now (zip inflate is streaming). It is a vitest entry
 precisely because vitest is the only Vite-aware TS runner here — that has not
@@ -199,7 +329,8 @@ directly rather than reimplementing either.
 
 ### Persistence
 
-Nothing new persists at runtime. `demos-index.json` and `demo-notes.json` are
+Nothing new persists at runtime — the loaded demo's ⓘ is session state and
+deliberately does not survive a reload (REQ-the-loaded-demo-carries-an-info-button). `demos-index.json` and `demo-notes.json` are
 **source files**, committed and diffable; the first is generated and gated, the
 second is written by hand and never rewritten by a tool.
 
@@ -256,13 +387,82 @@ Scenario: A demo button says what it is without being clicked (REQ-demo-row-says
   Given the Song tab's demo row
   Then each button's title names its tempo, length and machines
 # pinned by: e2e/demo-library.spec.ts
+
+Scenario: The facts line is the summary without the blurb (v3)
+  Given a demo's metadata with a blurb
+  Then demoSummary is demoFacts, " — ", then the blurb
+  And demoFacts drops an unknown tempo or length rather than printing a zero
+# pinned by: tests/state/demo-meta.test.ts
+
+Scenario: The library lists every demo and loads none (REQ-the-library-reads-without-loading)
+  Given the demo library is rendered
+  Then it has one entry per demo, in demoNames() order, each with its facts line
+  And a blurb is set as text, never parsed as HTML
+  And no loader has been called
+  When Load is pressed on an entry
+  Then the window closes first and loadDemo receives that demo's name
+# pinned by: tests/ui/demo-library.test.ts
+
+Scenario: The loaded entry is marked (REQ-the-loaded-demo-carries-an-info-button)
+  Given the library is rendered with focus on a demo
+  Then exactly that entry carries aria-current
+  And its blurb is unfolded, and its button reads "Loaded" and is disabled (v4)
+  And every other entry's button reads "Load"
+# pinned by: tests/ui/demo-library.test.ts
+
+Scenario: A blurb folds to its first line (REQ-a-blurb-folds-to-its-first-line)
+  Given the library is rendered without a focus
+  Then every blurb is folded, each with a More toggle (aria-expanded false)
+  When one toggle is pressed
+  Then that blurb unfolds, its toggle reads Less, and every other blurb stays folded
+  When it is pressed again the blurb folds back
+# pinned by: tests/ui/demo-library.test.ts
+
+Scenario: A blurb that fits one line has no toggle (REQ-a-blurb-folds-to-its-first-line)
+  Given the library is laid out and a blurb's full height is its folded height
+  Then that entry has no More toggle
+  And that blurb is no longer clamped, so a narrower window wraps it in full
+# pinned by: tests/ui/demo-library.test.ts (layout stubbed — jsdom lays nothing out)
+#            + e2e/demo-library.spec.ts (a real layout: the long blurbs keep theirs)
+
+Scenario: The loaded demo carries an ⓘ that opens its notes (REQ-the-loaded-demo-carries-an-info-button)
+  Given the Song tab with no demo loaded
+  Then there is no demo-loaded-info button
+  When a demo button is clicked
+  Then demo-loaded-info sits directly after that demo's button
+  When it is clicked
+  Then the demo library opens with that demo's entry marked
+# pinned by: e2e/demo-library.spec.ts
+
+Scenario: New takes the ⓘ away and Undo brings it back (REQ-the-loaded-demo-carries-an-info-button)
+  Given a loaded demo showing its ⓘ
+  When another song replaces it (New) the ⓘ is gone
+  When the undo toast is pressed after a load over a loaded demo
+  Then the ⓘ is back after the first demo's button
+# pinned by: e2e/demo-library.spec.ts
+
+Scenario: ⓘ mode reaches the library without loading (REQ-info-mode-badges-the-demo-row-once)
+  Given the info badges are on and the Song tab is showing
+  Then one badge, info-badge-song.demos, is drawn for the demo row
+  When it is clicked the library opens, and nothing has loaded
+  When Load is pressed on an entry
+  Then that demo loads, the slot picker names it, and its ⓘ appears
+# pinned by: e2e/demo-library.spec.ts
+
+Scenario: Both doors open the same library (v5, REQ-info-mode-badges-the-demo-row-once)
+  Given the info badges are on and a demo was loaded after they were switched on
+  When the song.demos badge is clicked
+  Then that demo's entry is marked, unfolded, and its button reads "Loaded"
+# pinned by: tests/ui/demo-library.test.ts (the topic passes ctx.loadedDemo as the focus)
+#            + e2e/demo-library.spec.ts (through the real wiring)
 ```
 
 ## Tests & verification
 
 - Unit: `tests/state/demo-meta.test.ts` (the extractor, against hand-built
   fixtures — never against a named shipped demo), `tests/state/demo-index.test.ts`
-  (every shipped demo has a well-formed entry) — `npm test`
+  (every shipped demo has a well-formed entry), `tests/ui/demo-library.test.ts`
+  (the library window, jsdom) — `npm test`
 - E2E: `e2e/demo-library.spec.ts` — `npm run e2e`
 - Drift: `npm run check:demos`
 - Typecheck: `npm run typecheck`

@@ -22,7 +22,7 @@ export function createOnboardingImpl(
   onBadgeChange: (active: boolean) => void,
   markDone: () => void,
 ): OnboardingImpl {
-  const badges = new InfoBadges(ctx.bus);
+  const badges = new InfoBadges(ctx.bus, ctx.applyDemo, ctx.loadedDemo);
   let tour: Tour | null = null;
 
   return {

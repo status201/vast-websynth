@@ -42,6 +42,7 @@ import bankStyles from '../styles/bank-bar.module.css';
 import segmentedStyles from '../styles/segmented.module.css';
 import styles from '../styles/song-panel.module.css';
 import { UI_ICONS } from '../components/ui-icons';
+import { createButton } from '../components/button';
 import panelStyles from '../styles/panel.module.css';
 import {
   Song, DEMO_SONGS, JSON_DEMOS, ZIP_DEMOS, demoNames, demoMetaFor, isDemoName, resolveDemoName,
@@ -112,6 +113,12 @@ export interface SongPanel {
    * is refused without a byte buffered. Resolves to whether the song applied.
    */
   importFile: (file: File) => Promise<boolean>;
+  /**
+   * The demo the session was last loaded from, or null — what the demo library
+   * marks as loaded from either of its doors (demo-library.md
+   * REQ-the-loaded-demo-carries-an-info-button, REQ-info-mode-badges-the-demo-row-once).
+   */
+  loadedDemo: () => string | null;
 }
 
 export function buildSongPanel(bus: ParamBus, engine: StudioApi, session: PresetSession, xy: XyPadStore, bridge: UiBridge, xyWin: XyPadWindowController, modWin: ModMatrixWindowController): SongPanel {
@@ -166,6 +173,9 @@ export function buildSongPanel(bus: ParamBus, engine: StudioApi, session: Preset
     /** `sessionSlot` at stash time — Undo must not leave the Save guard (REQ-every-slot-write-is-guarded)
      *  describing a session that no longer exists. */
     sourceSlot: string | null;
+    /** `loadedDemo` at stash time — Undo brings back the ⓘ the session showed
+     *  (demo-library.md REQ-the-loaded-demo-carries-an-info-button). */
+    loadedDemo: string | null;
   }
 
   /**
@@ -179,12 +189,22 @@ export function buildSongPanel(bus: ParamBus, engine: StudioApi, session: Preset
    */
   let sessionSlot: string | null = null;
 
+  /**
+   * The demo the session was last loaded from — the one whose button wears the
+   * ⓘ (demo-library.md REQ-the-loaded-demo-carries-an-info-button). Session state only: every
+   * other apply and New clear it, and a reload forgets it.
+   */
+  let loadedDemo: string | null = null;
+  // Rebound once the demo row exists (below), where it also moves the ⓘ.
+  let setLoadedDemo = (name: string | null): void => { loadedDemo = name; };
+
   // Only ever called from click handlers, so `dropdown` (built below) exists.
   const stashCurrent = (): SessionStash => ({
     file: Song.capture(bus, engine.patterns, engine.arrangement, session.label || 'My Song', xy),
     buffers: [...engine.sampler.buffers],
     slot: dropdown.value,
     sourceSlot: sessionSlot,
+    loadedDemo,
   });
   const restoreStash = (stash: SessionStash): void => {
     applySong(stash.file);
@@ -197,6 +217,7 @@ export function buildSongPanel(bus: ParamBus, engine: StudioApi, session: Preset
     refreshList();
     selectSlot(stash.slot);
     sessionSlot = stash.sourceSlot;
+    setLoadedDemo(stash.loadedDemo);
   };
   const showUndoToast = (message: string, stash: SessionStash): void => {
     showToast({
@@ -209,6 +230,9 @@ export function buildSongPanel(bus: ParamBus, engine: StudioApi, session: Preset
   const applySongWithUndo = (file: SongFile, verb = 'Loaded'): void => {
     const stash = stashCurrent();
     applySong(file);
+    // Whatever arrived, it is no longer the demo the ⓘ names; the two demo
+    // paths set it again right after this returns.
+    setLoadedDemo(null);
     // untrusted-input.md REQ-an-unresolvable-target-warns. Asked here rather than threaded from each
     // importer because every route in — file, paste, share link, zip, demo —
     // funnels through this one call, so one question covers all of them.
@@ -420,6 +444,9 @@ export function buildSongPanel(bus: ParamBus, engine: StudioApi, session: Preset
     { persist, name = file.name }: { persist: boolean; name?: string },
   ): Promise<void> => {
     applySongWithUndo(file, persist ? 'Imported' : 'Loaded');
+    // Synchronously, before the decodes: an Undo pressed while the clips are
+    // still decoding must not be followed by a late re-mark.
+    if (!persist) setLoadedDemo(name);
     // Undo (or any newer apply) during the sequential decodes below must win:
     // a late clip may not touch the restored session's slots (REQ-song-file-v4-adds-motion-banks).
     const token = applyToken;
@@ -493,6 +520,7 @@ export function buildSongPanel(bus: ParamBus, engine: StudioApi, session: Preset
   /** Apply a parsed demo + sync the slot dropdown. The tail every branch ends on. */
   const applyDemo = (name: string, file: SongFile): void => {
     applySongWithUndo(file);
+    setLoadedDemo(name);
     refreshList();
     selectSlot(name);
     // A demo is content, not a slot of the user's — so Save must still guard
@@ -807,6 +835,7 @@ export function buildSongPanel(bus: ParamBus, engine: StudioApi, session: Preset
     // way back to a stash with its audio intact.
     const stash = stashCurrent();
     applyToken++; // a confirmed New also supersedes any in-flight clip decodes
+    setLoadedDemo(null);
     // Same authoritative blank the load path uses (song-mode.md REQ-apply-resets-to-defaults-first).
     engine.patterns.restore(emptyPatternSnapshot());
     for (let i = 0; i < SAMPLER_SLOT_COUNT; i++) engine.sampler.setBuffer(i, null);
@@ -833,7 +862,10 @@ export function buildSongPanel(bus: ParamBus, engine: StudioApi, session: Preset
   io.appendChild(newBtn);
   io.appendChild(fileInput);
 
-  io.appendChild(el('span', styles.ioLabel!, 'Demos:'));
+  const demosLabel = el('span', styles.ioLabel!, 'Demos:');
+  // The ⓘ-mode badge for the whole row pins here (demo-library.md REQ-info-mode-badges-the-demo-row-once).
+  demosLabel.dataset.help = 'song.demos';
+  io.appendChild(demosLabel);
   const mkDemoBtn = (name: string, onClick: () => void): HTMLButtonElement => {
     const d = el('button', `${switchStyles.root!} ${styles.demo!}`, name) as HTMLButtonElement;
     d.dataset.testid = `song-demo-${name}`;
@@ -854,11 +886,40 @@ export function buildSongPanel(bus: ParamBus, engine: StudioApi, session: Preset
     d.addEventListener('click', onClick);
     return d;
   };
-  // Drop-in JSON, then the built-in, then the project-zip demos. `demoNames()`
+  // Every demo by song name, whichever of the three sources it comes from
+  // (song-mode.md REQ-drop-in-demos-are-fetched-on-click, v20). `demoNames()`
   // owns that order; everything routes through `loadDemo`, which knows which of
   // the three a name belongs to (the fetched ones need a user gesture anyway, so
   // decodeAudioData is unlocked — project-export.md REQ-zip-demos-auto-register).
-  const demoButtons = demoNames().map((name) => mkDemoBtn(name, () => { void loadDemo(name); }));
+  const demoButtonByName = new Map(
+    demoNames().map((name) => [name, mkDemoBtn(name, () => { void loadDemo(name); })] as const));
+  const demoButtons = [...demoButtonByName.values()];
+
+  // The loaded demo's ⓘ (demo-library.md REQ-the-loaded-demo-carries-an-info-button): ONE button,
+  // moved to sit after whichever demo is loaded. A sibling, not a child — a
+  // button cannot nest inside a button. Its library is a lazy chunk.
+  const openDemoLibrary = async (): Promise<void> => {
+    const m = await loadSurface('the demo library', () => import('../components/demo-library'), () => void openDemoLibrary());
+    m?.openDemoLibrary({ loadDemo, focus: loadedDemo });
+  };
+  const demoInfo = createButton({
+    label: 'About this demo',
+    icon: UI_ICONS.info,
+    className: `${switchStyles.root!} ${styles.demoInfo!}`,
+    testId: 'demo-loaded-info',
+    onClick: () => void openDemoLibrary(),
+  });
+  setLoadedDemo = (name: string | null): void => {
+    loadedDemo = name;
+    const btn = name === null ? undefined : demoButtonByName.get(name);
+    if (!btn) {
+      demoInfo.remove();
+      return;
+    }
+    demoInfo.setAttribute('aria-label', `About ${name}`);
+    demoInfo.title = `About ${name}`;
+    btn.after(demoInfo);
+  };
   // Only the first DEMO_ROW_LIMIT stay inline; the rest tuck behind an
   // "All Demos" toggle so the row doesn't crowd the panel (song-mode.md REQ-the-demo-row-overflows-into-a-menu).
   // `.io` is a wrapping flex, so a higher limit costs horizontal space only.
@@ -944,7 +1005,7 @@ export function buildSongPanel(bus: ParamBus, engine: StudioApi, session: Preset
   ioPair.appendChild(aio);
   root.appendChild(ioPair);
 
-  return { el: root, loadDemo, importBytes, importFile };
+  return { el: root, loadDemo, importBytes, importFile, loadedDemo: () => loadedDemo };
 }
 
 function buildChainLane(

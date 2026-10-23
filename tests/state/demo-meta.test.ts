@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { demoMetaOf, demoSummary, type DemoMeta } from '../../src/state/demo-meta';
+import { demoFacts, demoMetaOf, demoSummary, type DemoMeta } from '../../src/state/demo-meta';
 import type { SongFile } from '../../src/state/song';
 import { SEQ_LENGTH, DRUM_TRACK_COUNT, MIN_BANK_COUNT } from '../../src/state/patterns';
 
@@ -133,5 +133,19 @@ describe('demoSummary — what the button says (REQ-demo-row-says-what-it-knows)
 
   it('singularises a one-bar song', () => {
     expect(demoSummary({ ...base, bars: 1 })).toContain('1 bar ');
+  });
+});
+
+describe('demoFacts — the facts line of the library (demo-library.md REQ-the-library-reads-without-loading)', () => {
+  const base: DemoMeta = { name: 'X', bpm: 124, bars: 16, uses: ['seq', 'drums'], blurb: 'A note.' };
+
+  it('is the summary without the blurb', () => {
+    expect(demoFacts(base)).toBe('124 BPM · 16 bars · seq + drums');
+    expect(demoSummary(base)).toBe(`${demoFacts(base)} — A note.`);
+  });
+
+  it('drops an unknown tempo or length rather than printing a zero', () => {
+    expect(demoFacts({ ...base, bpm: 0 })).toBe('16 bars · seq + drums');
+    expect(demoFacts({ ...base, bars: 0 })).toBe('124 BPM · seq + drums');
   });
 });

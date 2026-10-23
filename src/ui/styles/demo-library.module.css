@@ -1,0 +1,87 @@
+/* The demo library (demo-library.md REQ-the-library-reads-without-loading): one
+   entry per demo — name, facts, blurb, Load. Backdrop / card / title / close
+   come from the shared Modal; the card already scrolls when it is too tall. */
+
+@layer components {
+  .list {
+    margin: 12px 0 0;
+    padding: 0;
+    list-style: none;
+    display: flex;
+    flex-direction: column;
+  }
+
+  .entry {
+    padding: 12px 0;
+    border-top: 1px dashed rgba(244, 205, 94, 0.18);
+  }
+
+  .entry:first-child {
+    border-top: none;
+    padding-top: 0;
+  }
+
+  .head {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+  }
+
+  .name {
+    margin: 0;
+    font-size: 13px;
+    font-weight: 700;
+    letter-spacing: 0.04em;
+    color: var(--accent-secondary);
+  }
+
+
+  .facts {
+    margin: 4px 0 0;
+    font-size: 11px;
+    letter-spacing: 0.04em;
+    color: var(--text-faint);
+  }
+
+  .blurb {
+    margin: 6px 0 0;
+    font-size: 12px;
+    letter-spacing: 0.02em;
+    line-height: 1.6;
+    color: var(--text-dim);
+  }
+
+  /* Folded to its first line (REQ-a-blurb-folds-to-its-first-line). `scrollHeight`
+     still reports the full text under the clamp, which is how a blurb that fits
+     one line is told apart and loses its toggle. */
+  .blurb.folded {
+    display: -webkit-box;
+    -webkit-box-orient: vertical;
+    -webkit-line-clamp: 1;
+    line-clamp: 1;
+    overflow: hidden;
+  }
+
+  .more {
+    margin-top: 2px;
+    padding: 4px 0;
+    font-size: 11px;
+    letter-spacing: 0.04em;
+    color: var(--accent-secondary);
+  }
+
+  .more:hover {
+    color: var(--text);
+  }
+
+  .load {
+    flex-shrink: 0;
+  }
+
+  /* "Loaded" — already what is playing (REQ-the-loaded-demo-carries-an-info-button). */
+  .load:disabled {
+    cursor: default;
+    opacity: 0.6;
+  }
+}

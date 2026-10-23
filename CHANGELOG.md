@@ -16,6 +16,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+### Added
+
+- **Read about the demos on a phone or tablet.** Each demo's tempo, length and
+  notes used to appear only as a tooltip on hover, so a touch screen never showed
+  them. A new **demo library** window lists every demo with its notes and a Load
+  button; long notes show their first line, and **More** unfolds the rest. Open
+  it with the **ⓘ** that now sits next to the demo you loaded (that demo's notes
+  open in full), or switch on the info badges and tap the one on **Demos:** to
+  read about every demo without loading any of them.
+
 ## [2.17.1] - 2026-10-13
 
 ### Fixed
