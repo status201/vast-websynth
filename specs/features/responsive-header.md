@@ -171,7 +171,8 @@ addition to the shared `headerGroup` class.
 - Icon buttons (REQ-utility-buttons-are-icon-only/REQ-every-icon-button-has-a-title): `createButton` grows optional `icon` (inline SVG
   markup rendered instead of the text label), `title`, and `ariaLabel` options;
   `setButtonIcon` is the icon counterpart of `setButtonLabel` (used by the
-  fullscreen expand↔compress swap on `fullscreenchange`). The glyph strings
+  fullscreen expand↔compress swap on any fullscreen change — element or window,
+  [pwa-install](pwa-install.md) REQ-manifest-and-button-drive-fullscreen). The glyph strings
   live in `src/ui/components/header-icons.ts` (`HEADER_ICONS`), modeled on
   `wave-icons.ts`: `class="hdr-icon"`, `aria-hidden="true"`, no inline colour.
   `switch.module.css` sizes/strokes `svg.hdr-icon` inside any switch-styled

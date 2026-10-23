@@ -3,7 +3,10 @@
 ```yaml
 id: pwa-install
 status: implemented
-version: 5   # v5: REQ-service-worker-is-registered — the second sweep's deferred chunks (song-author
+version: 6   # v6: REQ-manifest-and-button-drive-fullscreen — the button's state is element fullscreen
+             #     OR (display-mode: fullscreen), synced at creation; one tap leaves a
+             #     manifest-launched fullscreen (was: unlit, and two taps to exit)
+             # v5: REQ-service-worker-is-registered — the second sweep's deferred chunks (song-author
              #     expander, zip codec, Paste/Export dialogs, Performance settings) join
              #     the idle warm set
              # v4: REQ-service-worker-is-registered — an opt-in full offline copy (play-offline.md): the
@@ -72,12 +75,31 @@ vite-plugin-pwa/workbox), per ADR-003's precedent.
 - **REQ-manifest-and-button-drive-fullscreen** (fullscreen) — The manifest
   declares `display_override: ["fullscreen", "standalone"]` (installed Android
   launches with no status bar; `display: standalone` remains the fallback). The
-  header carries a fullscreen toggle button driving the Fullscreen API, its `on`
-  state synced from `fullscreenchange`. While fullscreen is engaged the button
-  also carries the orange active glow (`tour.module.css` `toggleActive` — the
-  same treatment the ⓘ info-badges button gets while the badges are showing).
+  header carries a fullscreen toggle button driving the Fullscreen API. While
+  fullscreen is engaged the button carries `on`, `aria-pressed="true"`, the
+  compress glyph and the orange active glow (`tour.module.css` `toggleActive` —
+  the same treatment the ⓘ info-badges button gets while the badges are showing).
   The button is **absent** (not disabled) when `document.fullscreenEnabled` is
   falsy (iPhone Safari).
+  - (v6) **"Fullscreen" means the window, not just an element.** The state is
+    `document.fullscreenElement` **or** `matchMedia('(display-mode: fullscreen)')`.
+    The second is the only thing that sees the window-level kind — an installed
+    Android app the manifest launched fullscreen, or a desktop F11 — where
+    `fullscreenElement` stays `null` and `fullscreenchange` never fires. Reading
+    only the element left the button unlit in a fullscreen app, and its first tap
+    *requested* fullscreen (visibly nothing) so only the second tap left. The state
+    is synced **at creation** and on `fullscreenchange`, the media query's
+    `change`, and window `resize` (the fallback for an engine that does not fire
+    the query's `change`); a sync that changes nothing writes nothing.
+  - (v6) **One tap leaves.** Element fullscreen → `exitFullscreen()`. Window-level
+    fullscreen with no element → `requestFullscreen()` then `exitFullscreen()` in
+    the same gesture — the two taps Android needed, as one. Otherwise →
+    `requestFullscreen()`.
+  - **Known limit:** browser fullscreen the *user* entered (F11) belongs to the
+    browser, and script cannot leave it. If it survives the tap the button stays
+    lit — which is the truth — and F11/Esc is the way out. No
+    `innerHeight === screen.height` heuristic: zoom and device-pixel ratios make
+    it lie.
 - **REQ-apple-touch-icon-is-opaque** (icons) — A 180×180 PNG `apple-touch-icon`
   with an opaque `#050302` background (iOS composites transparency onto black)
   is linked from `index.html`; 192/512 PNG icons join the manifest alongside the
@@ -190,7 +212,10 @@ vite-plugin-pwa/workbox), per ADR-003's precedent.
   (`src/ui/components/fullscreen-button.ts`) — returns `null` when
   `!doc.fullscreenEnabled`; otherwise a `createButton`-based header button
   (testid `fullscreen`) toggling
-  `doc.documentElement.requestFullscreen()` / `doc.exitFullscreen()`.
+  `doc.documentElement.requestFullscreen()` / `doc.exitFullscreen()` — or, in
+  window-level fullscreen with no element, both in turn. Reads
+  `doc.defaultView.matchMedia('(display-mode: fullscreen)')` when present (absent
+  in jsdom and old engines: then only the element counts).
 - `parseSongOrProject(bytes: Uint8Array, filename: string)`
   (`src/state/project.ts`) — pure async:
   `{ ok: true; file: SongFile; clips: ProjectClipIn[] } | { ok: false; errors: string[] }`.
@@ -292,6 +317,25 @@ Scenario: fullscreen toggle
   When the header fullscreen button is clicked
   Then documentElement.requestFullscreen() is called and the button gains "on" plus the orange toggleActive glow after fullscreenchange
 # pinned by: tests/ui/fullscreen-button.test.ts, e2e/pwa.spec.ts
+
+Scenario: an app launched fullscreen shows it (v6, REQ-manifest-and-button-drive-fullscreen, regression)
+  Given the installed app was launched fullscreen by the manifest
+   And document.fullscreenElement is null but (display-mode: fullscreen) matches
+  When the header is built
+  Then the fullscreen button is already "on", aria-pressed, with the compress glyph
+# pinned by: tests/ui/fullscreen-button.test.ts
+
+Scenario: one tap leaves a manifest-launched fullscreen (v6, REQ-manifest-and-button-drive-fullscreen, regression)
+  Given (display-mode: fullscreen) matches and no element is fullscreen
+  When the fullscreen button is clicked once
+  Then requestFullscreen() and then exitFullscreen() are called
+# pinned by: tests/ui/fullscreen-button.test.ts
+
+Scenario: the button follows window-level fullscreen (v6, REQ-manifest-and-button-drive-fullscreen)
+  Given the button is off
+  When (display-mode: fullscreen) starts matching and its change (or a resize) fires
+  Then the button turns "on"; when it stops matching, the button turns off
+# pinned by: tests/ui/fullscreen-button.test.ts
 
 Scenario: fullscreen button absent without the API
   Given document.fullscreenEnabled is falsy (iPhone Safari)
