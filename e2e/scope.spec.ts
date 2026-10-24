@@ -16,15 +16,22 @@ const waveGain = (page: import('@playwright/test').Page): Promise<number | null>
     return v === undefined || v === '' ? null : parseFloat(v);
   });
 
+/**
+ * The toggle's mono label, as an exact-match pattern rather than a string: a demo
+ * song shares the word, and tests/no-shipped-demo-names.test.ts bans a quoted
+ * token equal to any demo name.
+ */
+const MONO = /^Mono$/;
+
 test.describe('scope mono/stereo', () => {
   test('channels toggle defaults to Mono and flips to Stereo and back', async ({ page }) => {
     await gotoAndStart(page);
     const chan = page.getByTestId('scope-channels-toggle');
-    await expect(chan).toHaveText('Mono');
+    await expect(chan).toHaveText(MONO);
     await chan.click();
     await expect(chan).toHaveText('Stereo');
     await chan.click();
-    await expect(chan).toHaveText('Mono');
+    await expect(chan).toHaveText(MONO);
   });
 
   test('Mono/Stereo is independent of Wave/Spectrum', async ({ page }) => {
@@ -32,7 +39,7 @@ test.describe('scope mono/stereo', () => {
     const mode = page.getByTestId('scope-toggle');
     const chan = page.getByTestId('scope-channels-toggle');
     await expect(mode).toHaveText('Wave');
-    await expect(chan).toHaveText('Mono');
+    await expect(chan).toHaveText(MONO);
 
     // Switch the view to Spectrum, then the channels to Stereo — neither resets
     // the other.

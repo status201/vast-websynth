@@ -397,6 +397,17 @@
     ],
     "blurb": "The sequencer runs at 1/8 over all 16 cells, so every bank holds two bars — the riff and the vocal line each fit one bank, which is how eight banks cover the whole song. Four POLY tracks: bass, both riff lines and the melody or chord on top."
   },
+  "Take_Me_On.websynth.zip": {
+    "name": "Take Me On",
+    "bpm": 175,
+    "bars": 92,
+    "uses": [
+      "seq",
+      "drums",
+      "sampler"
+    ],
+    "blurb": "Take on Me with a drum-and-bass break laid over its drums: a 170 BPM four-bar break, cut into its four bars and stretched to 175 without changing its pitch. Each bar has its own sampler slot, and sampler banks A to D each play one of them, so the chain A B C D plays the break back in order and reordering the chain rearranges it."
+  },
   "Take_on_Me.websynth.json": {
     "name": "Take on Me",
     "bpm": 175,
@@ -431,15 +442,6 @@
     ],
     "blurb": "Three sequencer tracks over a conga-and-clave kit."
   },
-  "apex-twin.json": {
-    "name": "Apex",
-    "bpm": 128,
-    "bars": 8,
-    "uses": [
-      "seq",
-      "drums"
-    ]
-  },
   "fat.json": {
     "name": "Fat",
     "bpm": 127,
@@ -458,6 +460,15 @@
       "drums"
     ],
     "blurb": "A nod to the Haçienda."
+  },
+  "mono.json": {
+    "name": "Mono",
+    "bpm": 128,
+    "bars": 8,
+    "uses": [
+      "seq",
+      "drums"
+    ]
   },
   "spazio_moroder.json": {
     "name": "Spazio",

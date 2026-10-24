@@ -16,6 +16,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+### Added
+
+- **New demo: Take Me On.** Take on Me with a drum-and-bass break laid over its
+  drums. The break is cut into its four bars, one per sampler slot, and
+  stretched from 170 to 175 BPM without changing its pitch. Sampler banks A to D
+  each play one bar, so reordering the sampler chain rearranges the break. It is
+  a project bundle, so the break travels inside the file.
+
+### Changed
+
+- **The demo Apex is now called Mono.**
+
 ## [2.18.0] - 2026-10-24
 
 ### Added
