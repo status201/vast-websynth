@@ -25,6 +25,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
   it with the **ⓘ** that now sits next to the demo you loaded (that demo's notes
   open in full), or switch on the info badges and tap the one on **Demos:** to
   read about every demo without loading any of them.
+- **New demos: Ageispolis.** **Ageispolis-1** and **Ageispolis-2** are a sync
+  pair: load one on each of two devices, pair them over WiFi sync or MIDI and
+  press Play on either. One half carries the melody and chords, the other the
+  bass, strings and an 808 kit, and each also plays on its own. **Ageispolis**
+  is the pair in one file for a single device: Ageispolis-1 recorded into a
+  sampler slot of Ageispolis-2, arranged and mixed with motion lanes over 64
+  bars.
 
 ### Fixed
 
