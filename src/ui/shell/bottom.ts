@@ -9,6 +9,7 @@ import { buildEqPanel } from '../panels/eq-panel';
 import { isPhone } from '../viewport';
 import { buildScopePanel } from './scope-panel';
 import bottomStyles from '../styles/bottom.module.css';
+import { audibleTimeline } from '../audible';
 
 /**
  * The bottom column: the PITCH/OCT/MOD strips beside the scope, the EQUALIZER
@@ -89,22 +90,15 @@ export function buildBottom(
   });
 
   // Light up the on-screen keys in time with the sequencer. The clock
-  // schedules ~100 ms ahead, so defer each highlight to its audible moment.
-  const seqTimers = new Set<number>();
-  const at = (t: number, fn: () => void) => {
-    const ms = Math.max(0, (t - engine.ctx.currentTime) * 1000);
-    const id = window.setTimeout(() => { seqTimers.delete(id); fn(); }, ms);
-    seqTimers.add(id);
-  };
+  // schedules ~100 ms ahead, so each highlight waits for its audible moment —
+  // the shared timeline every playhead display uses, which also drops whatever
+  // is still pending on a stop (transport-position.md REQ-the-playhead-is-drawn-when-it-is-heard).
+  const audible = audibleTimeline(engine);
   engine.seq.onNote((note, when, releaseAt) => {
-    at(when, () => keyboard.seqHighlight(note, true));
-    at(releaseAt, () => keyboard.seqHighlight(note, false));
+    audible.at(when, () => keyboard.seqHighlight(note, true));
+    audible.at(releaseAt, () => keyboard.seqHighlight(note, false));
   });
-  engine.clock.onStop(() => {
-    for (const id of seqTimers) clearTimeout(id);
-    seqTimers.clear();
-    keyboard.clearSeqHighlights();
-  });
+  engine.clock.onStop(() => keyboard.clearSeqHighlights());
 
   return { el: bottom, scope: scopePanel.scope, scopeResize: scopePanel.scopeResize };
 }

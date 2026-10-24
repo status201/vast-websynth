@@ -845,6 +845,16 @@ describe('About modal — the note-row keyboard diagram', () => {
     // Structure is the piano's, so it must not have moved.
     expect(rankCaps(cell.firstElementChild!)).toHaveLength(7);
   });
+
+  // keyboard-layout.md REQ-layout-scope-is-note-keys-only (v2): Dvorak puts `f` on a note key, so its
+  // fill is the KeyF position — which prints U there. The list said F regardless.
+  it('labels the fill by its physical key, so Dvorak reads U', async () => {
+    await lowerDiagram(); // opens the modal
+    const fill = document.querySelector<HTMLElement>('[data-code="KeyF"]')!; // no note row uses KeyF
+    expect(fill.textContent).toBe('F');
+    writeLayoutPref('dvorak');
+    expect(fill.textContent).toBe('U');
+  });
 });
 
 // keyboard-layout.md REQ-layout-change-needs-no-reload — the gear must not fight the fold it sits in.

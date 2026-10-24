@@ -63,6 +63,7 @@ source:
   - src/ui/components/step-settings.ts
   - src/ui/components/strip.ts             # REQ-a-drag-follows-only-its-own-pointer
   - src/ui/components/eq-graph.ts          # REQ-a-drag-follows-only-its-own-pointer
+  - src/ui/components/pointer-drag.ts      # REQ-a-drag-follows-only-its-own-pointer — is the drag still live?
   - src/ui/panels/step-panel-scaffold.ts
   - src/ui/shell/pattern-row.ts             # REQ-no-work-for-offscreen-dom — one gate per machine tab
   - src/ui/shell/header.ts                  # REQ-boot-cost-matches-the-request — the preset manager loads on click
@@ -247,7 +248,12 @@ so a reviewer has something concrete to hold a new feature against.
   `Strip`, the EQ graph and the step-settings slider. Without the filter, on a
   touch screen, a second finger playing the keyboard or holding another knob
   either drove the first knob to its own Y or ended the first finger's drag when
-  it lifted.
+  it lifted. A control knows a stroke is still live because the starting
+  pointer still holds pointer capture on it. If a new pointer arrives and the
+  old one has lost capture, its `pointerup` was lost (an OS gesture, an app
+  switch with no `pointercancel`), and the new pointer takes the control over.
+  Without that check, a single lost `pointerup` would leave the control
+  ignoring every later touch.
 
 - **REQ-no-work-for-offscreen-dom** — **No work for DOM that is not on screen.**
   `TabContainer` hides inactive panels with a class, so they stay live and
@@ -540,6 +546,7 @@ Scenario: a second finger does not steal a drag (v13, REQ-a-drag-follows-only-it
   Given one finger dragging a knob, strip, EQ band or step-settings slider
   When a second finger moves elsewhere on the page and then lifts
   Then the control's value follows only the first finger, and its drag is still live
+  And if the first finger's pointerup was lost (its capture gone), the next touch drives the control
 # pinned by: tests/ui/knob.test.ts, tests/ui/strip.test.ts, tests/ui/eq-graph.test.ts,
 #            tests/ui/step-settings.test.ts
 

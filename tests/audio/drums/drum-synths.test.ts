@@ -433,6 +433,15 @@ describe('an open hat is cut per hit', () => {
     expect(gate.gain.linearRampToValueAtTime.mock.calls).toEqual([[0, 0.1 + 0.005]]);
   });
 
+  it('stops the cut hit\'s source once it is silent, so its chain is freed at the cut', () => {
+    const { mock, hat, hit } = openHat();
+    hit(0);
+    const noise = mock.createBufferSource.mock.results.at(-1)!.value;
+    hat.cut(0.1);
+    // The natural stop (decay + tail) was first; the cut's replaces it.
+    expect(noise.stop.mock.calls.at(-1)![0]).toBeCloseTo(0.1 + 0.005 + 0.005, 9);
+  });
+
   it('leaves the next hit at full level', () => {
     const { hat, hit } = openHat();
     hit(0);

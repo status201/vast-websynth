@@ -216,11 +216,20 @@ describe('wirePlayhead visibility gating (runtime-performance.md REQ-no-work-for
       vi.advanceTimersByTime(80);
       expect(playing.indexOf(true)).toBe(3);
 
+      // A bar's last step: reported while its bank plays, heard after the
+      // arrangement has scheduled the next bar's bank. It still lights.
+      emit!(15, 0.15);
+      (api.arrangement as unknown as { seqPlayBank: number }).seqPlayBank = 1;
+      ctx.currentTime = 0.15;
+      vi.advanceTimersByTime(70);
+      expect(playing.indexOf(true)).toBe(15);
+      (api.arrangement as unknown as { seqPlayBank: number }).seqPlayBank = 0;
+
       emit!(4, 0.2);
       clock.fireStop(); // a stop drops the pending paint
       ctx.currentTime = 0.3;
       vi.advanceTimersByTime(300);
-      expect(playing.indexOf(true)).toBe(3);
+      expect(playing.indexOf(true)).toBe(15);
     });
   });
 

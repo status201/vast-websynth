@@ -327,8 +327,11 @@ counter silently desynchronises all four.
   `clock.onStop`, so a stopped transport never repaints a step afterwards, and
   it keeps the step being heard, as `AudibleTimeline`'s `step`. Each machine's `onStep` reports
   the step's audio time alongside its index. `wirePlayhead` defers its paint
-  with it, and the ruler, the transport readout and the blink read
-  that heard step while playing instead of `clock.step`. A seek mid-play needs
+  with it, deciding *whether* to light the step (edit bank is the play bank, lane
+  not resting) when the step is reported, not when it is drawn: by the time the
+  last steps of a bar are heard, the arrangement may already have moved to the
+  next bar. The ruler, the transport readout and the blink read that heard step
+  while playing instead of `clock.step`. A seek mid-play needs
   nothing extra: the steps already in the horizon still sound
   (REQ-the-look-ahead-horizon-is-not-cancelled), so the display follows them
   for those few milliseconds and then jumps, which is what the ear hears. The

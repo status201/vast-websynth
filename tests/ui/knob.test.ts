@@ -653,4 +653,43 @@ describe('Knob drag vs a second finger (regression)', () => {
     expect(b.get('filter.cutoff')).toBe(released);
     knob.destroy();
   });
+
+  // A pointerup that never arrives (an OS gesture, an app switch) must not leave
+  // the knob deaf: the lost pointer no longer holds capture, so a new touch wins.
+  it('a drag whose pointerup was lost gives way to the next touch', () => {
+    vi.spyOn(performance, 'now').mockReturnValue(10_000);
+    const b = bus();
+    const knob = new Knob({ bus: b, paramId: 'filter.cutoff' });
+    const dial = knob.el.querySelector('.' + styles.dial!) as HTMLElement;
+    let captured = -1;
+    dial.setPointerCapture = (id: number) => { captured = id; };
+    dial.hasPointerCapture = (id: number) => id === captured;
+    b.set('filter.cutoff', 80);
+
+    dial.dispatchEvent(finger('pointerdown', 1, { clientY: 100 }));
+    captured = -1; // finger 1's pointerup is lost, and its capture with it
+    dial.dispatchEvent(finger('pointerdown', 2, { clientY: 100 }));
+    window.dispatchEvent(finger('pointermove', 2, { clientY: 60 }));
+    expect(b.get('filter.cutoff')).toBeGreaterThan(80); // finger 2 drives it
+    window.dispatchEvent(finger('pointerup', 2, { clientY: 60 }));
+    knob.destroy();
+  });
+
+  it('a live drag, still holding capture, keeps ignoring a second finger', () => {
+    vi.spyOn(performance, 'now').mockReturnValue(10_000);
+    const b = bus();
+    const knob = new Knob({ bus: b, paramId: 'filter.cutoff' });
+    const dial = knob.el.querySelector('.' + styles.dial!) as HTMLElement;
+    let captured = -1;
+    dial.setPointerCapture = (id: number) => { captured = id; };
+    dial.hasPointerCapture = (id: number) => id === captured;
+    b.set('filter.cutoff', 80);
+
+    dial.dispatchEvent(finger('pointerdown', 1, { clientY: 100 }));
+    dial.dispatchEvent(finger('pointerdown', 2, { clientY: 100 }));
+    window.dispatchEvent(finger('pointermove', 2, { clientY: 0 }));
+    expect(b.get('filter.cutoff')).toBe(80);
+    window.dispatchEvent(finger('pointerup', 1, { clientY: 100 }));
+    knob.destroy();
+  });
 });

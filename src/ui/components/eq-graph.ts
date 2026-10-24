@@ -10,6 +10,7 @@ import { haloText } from './canvas-text';
 import { clamp } from '../../utils/math';
 import styles from '../styles/eq.module.css';
 import { DOUBLE_TAP_MS } from './gesture-timing';
+import { dragStillHeld } from './pointer-drag';
 
 /**
  * The drawable EQ curve — `specs/features/equalizer.md` REQ-the-curve-is-drawn-by-dragging/REQ-the-graph-computes-from-bus-values/REQ-the-drawn-curve-is-exact.
@@ -91,6 +92,8 @@ export class EqGraph {
 
   /** Drag state. Held only for the duration of a gesture (runtime-performance REQ-global-listeners-live-only-for-a-gesture). */
   private dragging = false;
+  /** The pointer driving the stroke (runtime-performance REQ-a-drag-follows-only-its-own-pointer). */
+  private dragPointer = -1;
   private lastBand = -1;
   private lastY = 0;
   private lastTapAt = 0;
@@ -235,8 +238,12 @@ export class EqGraph {
   private handleDown = (e: PointerEvent): void => {
     if (e.button !== 0 && e.pointerType === 'mouse') return; // right-click: nothing
     // One stroke at a time — a second finger would re-attach (and leak) the
-    // window listeners (runtime-performance REQ-a-drag-follows-only-its-own-pointer).
-    if (this.dragging) return;
+    // window listeners (runtime-performance REQ-a-drag-follows-only-its-own-pointer). Unless the stroke is
+    // dead: its pointerup was lost, so this touch takes over.
+    if (this.dragging) {
+      if (dragStillHeld(this.canvas, this.dragPointer)) return;
+      this.detachDrag();
+    }
     e.preventDefault();
     // A gesture must never hit-test against unknown geometry. The
     // ResizeObserver has normally run long before any pointer arrives, but a
@@ -266,6 +273,7 @@ export class EqGraph {
     this.writeBand(band, y, e.shiftKey);
 
     const pointer = e.pointerId;
+    this.dragPointer = pointer;
     this.onMove = (ev) => { if (ev.pointerId === pointer) this.handleDrag(ev); };
     this.onUp = (ev) => { if (ev.pointerId === pointer) this.detachDrag(); };
     window.addEventListener('pointermove', this.onMove);

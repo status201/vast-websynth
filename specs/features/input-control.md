@@ -372,11 +372,18 @@ notes played on another tab no longer overwrite its bank.
     and the note hung.
   - **A port that goes away releases what it was holding.** On every
     `statechange`, a remembered port that is missing from `access.inputs` or
-    reads `disconnected` has its notes released. A held sustain pedal is
-    lifted, which flushes its deferred note-offs, and the pitch bend goes back
-    to centre if that port set it last. An unplugged keyboard used to leave
-    every held note, the pedal and the bend exactly where they were, until a
-    Panic.
+    reads `disconnected` has its notes released. If that port is holding the
+    sustain pedal, the pedal is lifted, which flushes its deferred note-offs,
+    and if it set the pitch bend last, the bend goes back to centre. A pedal
+    held on another, still-connected device stays down. An unplugged keyboard
+    used to leave every held note, the pedal and the bend exactly where they
+    were, until a Panic.
+  - **The pedal and the bend are released the same way.** The (port, channel)
+    holding the pedal down, and the one that moved the bend off centre, are
+    remembered. Their pedal-up (CC64 below 64) and their bend messages pass the
+    channel filter until the pedal is up and the bend is back at centre. A
+    channel change with the pedal down used to drop the pedal-up, so the pedal
+    stayed down for good and every later note-off was deferred.
 - **REQ-cc11-is-expression** (v18) — **CC11 is expression.** An expression
   pedal or breath controller sends CC11, which did nothing. It writes
   `master.expression` (0..1, **default 1 — a no-op**, ADR-006), which scales the
@@ -576,6 +583,7 @@ Scenario: Changing the MIDI channel with a key down still releases it (v21, REQ-
   When the input channel is switched to 2 and the key is released
   Then the note is released
   And a channel-1 note-on is still ignored
+  And a channel-1 pedal-up, or a bend back to centre, from the holder of that pedal or bend still lands
 # pinned by: tests/audio/midi.test.ts
 
 Scenario: Unplugging a keyboard releases its notes, pedal and bend (v21, REQ-a-midi-note-is-released-by-whatever-ended-it, regression)
@@ -583,6 +591,7 @@ Scenario: Unplugging a keyboard releases its notes, pedal and bend (v21, REQ-a-m
   When that port disappears and statechange fires
   Then every note it held is released, the sustained ones too, and the bend is centred
   And a second port's held note keeps sounding
+  And a pedal held down on a second, still-connected port stays down
 # pinned by: tests/audio/midi.test.ts
 
 Scenario: MIDI Note On with velocity 0 is a Note Off (edge)

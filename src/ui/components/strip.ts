@@ -1,5 +1,6 @@
 import styles from '../styles/strip.module.css';
 import type { ParamBus } from '../../state/params';
+import { dragStillHeld } from './pointer-drag';
 
 export interface StripOptions {
   bus: ParamBus;
@@ -16,6 +17,8 @@ export class Strip {
   private dragging = false;
   /** runtime-performance REQ-a-drag-follows-only-its-own-pointer */
   private dragPointer = -1;
+  /** Where that pointer was captured (see `dragStillHeld`). */
+  private captureEl: Element | null = null;
   private lastValue = 0;
   private readonly ro: ResizeObserver;
 
@@ -59,11 +62,15 @@ export class Strip {
   }
 
   private onDown = (e: PointerEvent): void => {
-    if (this.dragging && e.pointerId !== this.dragPointer) return; // a second finger on a strip already held
+    if (this.dragging && e.pointerId !== this.dragPointer) {
+      if (dragStillHeld(this.captureEl, this.dragPointer)) return; // a second finger on a strip already held
+      this.endDrag(); // its pointerup was lost: this touch takes over
+    }
     e.preventDefault();
     this.dragging = true;
     this.dragPointer = e.pointerId;
     (e.target as Element).setPointerCapture?.(e.pointerId);
+    this.captureEl = e.target as Element;
     window.addEventListener('pointermove', this.onMove);
     window.addEventListener('pointerup', this.onUp);
     window.addEventListener('pointercancel', this.onUp);
@@ -77,6 +84,10 @@ export class Strip {
 
   private onUp = (e: PointerEvent): void => {
     if (this.dragging && e.pointerId !== this.dragPointer) return; // another finger lifted
+    this.endDrag();
+  };
+
+  private endDrag(): void {
     this.detachDragListeners();
     if (!this.dragging) return;
     this.dragging = false;
@@ -84,7 +95,7 @@ export class Strip {
       const def = this.opts.bus.def(this.opts.paramId);
       if (def) this.opts.bus.set(this.opts.paramId, def.default);
     }
-  };
+  }
 
   private detachDragListeners(): void {
     window.removeEventListener('pointermove', this.onMove);

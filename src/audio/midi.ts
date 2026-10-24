@@ -18,11 +18,20 @@ interface ModSources { wheel: number; pressure: number }
  */
 interface PortHolds {
   sounding: Map<string, Set<number>>;
-  /** The port that moved the pitch bend last — its departure re-centres it. */
-  bendPort: string | null;
+  /** Who holds the sustain pedal down — only their pedal-up lifts it, and only
+   *  their departure does. */
+  pedal: Holder | null;
+  /** Who moved the pitch bend off centre — their bend messages pass the filter
+   *  until it is back, and their departure re-centres it. */
+  bend: Holder | null;
 }
 
+/** A (port, channel) pair: the source a held control state belongs to. */
+interface Holder { port: string; channel: number }
+
 const holdKey = (channel: number, note: number): number => channel * 128 + note;
+const isHolder = (h: Holder | null, port: string, channel: number): boolean =>
+  h !== null && h.port === port && h.channel === channel;
 
 /**
  * Request Web MIDI and wire it up. Resolves the `MIDIAccess` on success (and
@@ -49,7 +58,7 @@ export async function initMIDI(engine: Engine, bus: ParamBus): Promise<MIDIAcces
     engine.sync.addTransport('midi', sync);
     const pedal = new SustainPedal();
     const mod: ModSources = { wheel: 0, pressure: 0 };
-    const holds: PortHolds = { sounding: new Map(), bendPort: null };
+    const holds: PortHolds = { sounding: new Map(), pedal: null, bend: null };
     const wire = (input: MIDIInput) => {
       input.onmidimessage = (ev: MIDIMessageEvent) =>
         handleMessage(ev, input.id, engine, bus, sync, pedal, mod, holds);
@@ -78,15 +87,18 @@ function releaseVanishedPorts(access: MIDIAccess, bus: ParamBus, pedal: SustainP
     const port = access.inputs.get(portId);
     if (port && port.state !== 'disconnected') continue;
     holds.sounding.delete(portId);
-    // Its pedal may have been the one down: lift it first, flushing what it
-    // deferred, so the keys below are released once rather than deferred again.
-    for (const note of pedal.setPedal(false)) bus.noteOff(note);
-    for (const key of keys) {
-      pedal.noteOff(key % 128);
-      bus.noteOff(key % 128);
+    // If its pedal is the one down, lift it first, flushing what it deferred, so
+    // the keys below are released once rather than deferred again. A pedal held
+    // on a device still plugged in stays down, and goes on sustaining them.
+    if (holds.pedal?.port === portId) {
+      holds.pedal = null;
+      for (const note of pedal.setPedal(false)) bus.noteOff(note);
     }
-    if (holds.bendPort === portId) {
-      holds.bendPort = null;
+    for (const key of keys) {
+      if (pedal.noteOff(key % 128)) bus.noteOff(key % 128);
+    }
+    if (holds.bend?.port === portId) {
+      holds.bend = null;
       bus.set('master.pitchBend', 0);
     }
   }
@@ -143,9 +155,13 @@ function handleMessage(
     noteOff(d1, bus, pedal);
     return;
   }
+  // Likewise the pedal's and the bend's holder, until they let go: a pedal-up or
+  // a bend back to centre from a channel the filter has since dropped.
+  const lettingGo = (status === 0xb0 && d1 === 64 && isHolder(holds.pedal, portId, channel))
+    || (status === 0xe0 && isHolder(holds.bend, portId, channel));
   // The synth's channel (REQ-the-midi-input-channel-is-selectable): 0 is omni.
   const wanted = midiInputChannel();
-  if (wanted !== 0 && channel !== wanted) return;
+  if (!lettingGo && wanted !== 0 && channel !== wanted) return;
 
   switch (status) {
     case 0x90: // Note on (vel 0 = note off, so it obeys the pedal too)
@@ -160,6 +176,7 @@ function handleMessage(
       noteOff(d1, bus, pedal);
       break;
     case 0xb0: // CC
+      if (d1 === 64) holds.pedal = d2 >= 64 ? { port: portId, channel } : null;
       handleCC(d1, d2, bus, pedal, mod);
       break;
     case 0xd0: // Channel pressure — shares the mod wheel (REQ-aftertouch-joins-the-mod-wheel)
@@ -170,7 +187,7 @@ function handleMessage(
       {
         const raw = (d2 << 7) | d1; // 0..16383, 8192 = center
         bus.set('master.pitchBend', (raw - 8192) / 8192);
-        holds.bendPort = portId;
+        holds.bend = raw === 8192 ? null : { port: portId, channel };
       }
       break;
   }

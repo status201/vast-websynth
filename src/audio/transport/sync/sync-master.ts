@@ -25,7 +25,7 @@ import { type TickTimer, defaultTickTimer } from '../tick-timer';
  * - `announceTo(send)` — a targeted "join here" for a newly-opened transport:
  *   `tempo`, plus `songposition` + `continue` while playing (never a bare
  *   `start`, which would restart already-locked slaves at bar 0).
- * - **Explicit tempo** — emitted on enable, every start, on even ticks when the
+ * - **Explicit tempo** — emitted on enable, every start, on any tick when the
  *   BPM moved (Tape Stop, knob), and as a 2 s idle heartbeat. Carries tempo the
  *   MIDI transport can't (it drops `tempo` — MIDI implies tempo in pulse
  *   spacing) and lets a WiFi slave lock instantly.
@@ -36,7 +36,7 @@ import { type TickTimer, defaultTickTimer } from '../tick-timer';
 const IDLE_WAKE_MS = 100;          // idle timer wakeup cadence while stopped
 const IDLE_HORIZON_MS = 200;       // schedule idle pulses covering up to now + this
 const TEMPO_HEARTBEAT_MS = 2000;   // idle 'tempo' emission spacing
-const TEMPO_SEND_MIN_DELTA = 0.1;  // emit 'tempo' on even ticks when |bpm - lastSent| >= this
+const TEMPO_SEND_MIN_DELTA = 0.1;  // emit 'tempo' on a tick when |bpm - lastSent| >= this
 const SONG_POSITION_MASK = 0x3fff; // 14-bit MIDI beat
 
 export interface SyncMasterOptions {

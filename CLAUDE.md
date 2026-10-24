@@ -129,7 +129,7 @@ material keyed by feature name).
 | a **wheel** handler that steps a value | `features/wheel-steps.md` — use `createWheelStepper()`; one step per notch by distance, never per event (a touchpad sends dozens). One stepper per control, and it must outlive any DOM rebuild the step itself triggers |
 | any **new gesture** | ADR-014 + `recipes/design-an-interaction.md` — every interactive control owes a gesture inventory in its spec |
 | any **new ingest surface** (a link, file, paste, peer, MCP arg or a request to the public endpoint) | `features/untrusted-input.md` + ADR-015 — bounds live in the validator, byte budgets in the codec, and `src/state/limits.ts` is the only place they're written down (pattern dimensions — bank count, grid cells — stay with `patterns.ts` / `meter.ts`) |
-| anything **per-frame, per-tick or at boot** | `features/runtime-performance.md` (the app-wide cost contract), `features/performance-mode.md` |
+| anything **per-frame, per-tick or at boot** | `features/runtime-performance.md` (the app-wide cost contract), `features/performance-mode.md`. A display that follows the transport paints when a step is **heard**, not when the clock hands it out up to 100 ms early: go through `ui/audible.ts` (`transport-position.md` REQ-the-playhead-is-drawn-when-it-is-heard) |
 | `tests/`, `e2e/` | `recipes/write-a-test.md`, `features/testids.md`, `e2e/CLAUDE.md` |
 | `scripts/mcp/` | `features/mcp-server.md` — two transports: stdio (local, all eleven tools) and Streamable HTTP (public, read-only nine, ADR-020). `read_midi`'s parser is `src/state/midi-file.ts` → `features/midi-file-reader.md`. Hosting it: `DEPLOYMENT.md` |
 

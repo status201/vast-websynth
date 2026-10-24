@@ -42,7 +42,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
   stopped. Starting from an odd step also sent no clock for the first 16th.
 - **MIDI notes no longer hang when a keyboard is unplugged, or when you change
   the MIDI input channel while holding a key.** Unplugging also lifts that
-  keyboard's sustain pedal and re-centres its pitch bend.
+  keyboard's sustain pedal and re-centres its pitch bend, and a pedal or bend
+  held through a channel change is still released.
 - **Holding two computer keys that play the same note no longer cuts it when you
   let go of one.** `,` and `Q` are both the top C, and an octave change can line
   up others.
@@ -63,7 +64,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 - **A second finger no longer grabs the knob you are turning.** On a touch screen,
   playing the keyboard or touching anything else while turning a knob, the pitch
   or mod strip, the EQ curve or a step slider could jump the control or end your
-  drag.
+  drag. If the system swallows a finger's release, the control is not left
+  stuck: the next touch takes it over.
 - **New and Clear chain reset the slot transpose.** A song that started a fourth
   up stayed a fourth up after New, or after clearing the Sequencer chain.
 - **Autosave catches every edit.** Changes to a motion extra track, adding a
@@ -73,7 +75,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
   route could drive its old destination at its new depth.
 - **Dvorak: the key that types F plays its note.** It held a drum fill instead.
   On Dvorak the fill is now the key that types U, which sits where F does on
-  QWERTY.
+  QWERTY, and the shortcut list in About labels it U.
 - **A note held while you click into a text field is released.** Letting go of
   the key inside the field used to leave the note hanging.
 - **Mod Matrix: an unused row's destination list is readable again.** Opening the

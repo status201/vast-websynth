@@ -266,21 +266,26 @@ export function wirePlayhead(
   const highlighter = new PlayheadHighlighter(rows);
   let lastStep = -1;
 
-  const paint = (idx: number): void => {
-    highlighter.update(idx, h.getEdit() === h.getPlay() && !h.getResting());
+  /** Whether this lane's playhead belongs on the edit bank's grid right now. */
+  const showing = (): boolean => h.getEdit() === h.getPlay() && !h.getResting();
+  const paint = (idx: number, show = showing()): void => {
+    highlighter.update(idx, show);
     restOverlay.refresh();
   };
 
   // Painted when the step is heard, not when it is scheduled up to 100 ms
-  // earlier (transport-position.md REQ-the-playhead-is-drawn-when-it-is-heard). Off screen, it only notes
-  // the step: no timer for a panel nobody is looking at.
+  // earlier (transport-position.md REQ-the-playhead-is-drawn-when-it-is-heard) — but WHETHER to show it
+  // is decided now: by the time a bar's last steps are heard, the arrangement
+  // may already be on the next bar. Off screen, it only notes the step: no
+  // timer for a panel nobody is looking at.
   const audible = audibleTimeline(engine);
   h.onStep((idx, when) => {
     if (gate && !gate.shown) { lastStep = idx; return; }
+    const show = showing();
     audible.at(when, () => {
       lastStep = idx;
       if (gate && !gate.shown) return;
-      paint(idx);
+      paint(idx, show);
     });
   });
   gate?.whenShown(() => { if (lastStep >= 0) paint(lastStep); });

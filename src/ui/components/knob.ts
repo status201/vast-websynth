@@ -7,6 +7,7 @@ import { modDepthDeps, modDepthFor, modOffsetFor, modSignFor } from '../../state
 import { tempoLockFor } from '../../state/tempo-lock';
 import { createTempoLock, type TempoLock } from './tempo-lock';
 import { DOUBLE_TAP_MS } from './gesture-timing';
+import { dragStillHeld } from './pointer-drag';
 
 export interface KnobOptions {
   bus: ParamBus;
@@ -63,6 +64,9 @@ export class Knob {
   /** The pointer driving the drag — a window listener hears every finger
    *  (runtime-performance REQ-a-drag-follows-only-its-own-pointer). */
   private dragPointer = -1;
+  /** Where that pointer was captured — its capture is how a live drag is told
+   *  from one whose pointerup was lost. */
+  private captureEl: Element | null = null;
   private startY = 0;
   private startValue = 0;
   private fine = false;
@@ -521,9 +525,13 @@ export class Knob {
 
   private onPointerDown = (e: PointerEvent): void => {
     if (this.disabled) return; // blocks drag AND double-tap reset
-    if (this.dragging && e.pointerId !== this.dragPointer) return; // a second finger on a knob already held
+    if (this.dragging && e.pointerId !== this.dragPointer) {
+      if (dragStillHeld(this.captureEl, this.dragPointer)) return; // a second finger on a knob already held
+      this.endDrag(); // its pointerup was lost: this touch takes over
+    }
     e.preventDefault();
     (e.target as Element).setPointerCapture?.(e.pointerId);
+    this.captureEl = e.target as Element;
 
     const now = performance.now();
     if (now - this.lastTap < DOUBLE_TAP_MS) {
@@ -595,11 +603,15 @@ export class Knob {
 
   private onPointerUp = (e: PointerEvent): void => {
     if (this.dragging && e.pointerId !== this.dragPointer) return; // another finger lifted
+    this.endDrag();
+  };
+
+  private endDrag(): void {
     this.detachDragListeners();
     if (!this.dragging) return;
     this.dragging = false;
     this.el.classList.remove('dragging');
-  };
+  }
 
   private detachDragListeners(): void {
     window.removeEventListener('pointermove', this.onPointerMove);

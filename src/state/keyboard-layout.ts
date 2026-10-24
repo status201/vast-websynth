@@ -26,8 +26,9 @@ const PREFS: readonly LayoutPref[] = ['auto', ...IDS];
 
 /**
  * `code -> the character that key produces`. Only the codes the app binds need
- * tabulating (`NOTE_ROWS` in `ui/shortcuts.ts` is the list) — these tables are
- * not a general keyboard model and must not grow into one.
+ * tabulating (`NOTE_ROWS` in `ui/shortcuts.ts` is the list, plus `KeyF`, where
+ * the drum fill sits on every layout here — REQ-layout-scope-is-note-keys-only) — these
+ * tables are not a general keyboard model and must not grow into one.
  */
 type KeyTable = Record<string, string>;
 
@@ -36,7 +37,7 @@ const QWERTY: KeyTable = {
   KeyB: 'b', KeyH: 'h', KeyN: 'n', KeyJ: 'j', KeyM: 'm', Comma: ',',
   KeyQ: 'q', Digit2: '2', KeyW: 'w', Digit3: '3', KeyE: 'e', KeyR: 'r',
   Digit5: '5', KeyT: 't', Digit6: '6', KeyY: 'y', Digit7: '7', KeyU: 'u',
-  KeyI: 'i',
+  KeyI: 'i', KeyF: 'f',
 };
 
 // AZERTY: A<->Q and Z<->W swap, M moves up to the home row (so the bottom row's
@@ -62,7 +63,7 @@ const DVORAK: KeyTable = {
   KeyB: 'x', KeyH: 'd', KeyN: 'b', KeyJ: 'h', KeyM: 'm', Comma: 'w',
   KeyQ: "'", Digit2: '2', KeyW: ',', Digit3: '3', KeyE: '.', KeyR: 'p',
   Digit5: '5', KeyT: 'y', Digit6: '6', KeyY: 'f', Digit7: '7', KeyU: 'g',
-  KeyI: 'c',
+  KeyI: 'c', KeyF: 'u',
 };
 
 export const LAYOUTS: Record<LayoutId, { label: string; keys: KeyTable }> = {

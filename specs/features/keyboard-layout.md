@@ -4,7 +4,8 @@
 id: keyboard-layout
 status: implemented
 version: 2   # v2: a note key outranks the fill (REQ-layout-scope-is-note-keys-only) — on Dvorak the
-             #     upper-row key that prints `f` held a fill instead of playing its note
+             #     upper-row key that prints `f` held a fill instead of playing its note; the
+             #     fill is the KeyF position, and the About list labels it from the layout
 owner: core
 related:
   - architecture
@@ -78,6 +79,10 @@ than a parallel code path.
   so on Dvorak that upper-row key held a drum fill and never played its note.
   Every other layout is unchanged: `f` is not a note character there, so the
   fill stays on the key that prints `F`.
+  On all four tabled layouts the fill is therefore the **KeyF position**, so the
+  tables carry `KeyF` (`f`, or `u` on Dvorak). The About modal's shortcut list
+  draws the fill's cap from that position, like the note caps, so it reads
+  **U** on Dvorak and relabels on a layout switch. It used to be a fixed `F`.
 - **REQ-character-bindings-carry-a-known-risk** — **Known residual risk.**
   Because bindings resolve through characters rather than `e.code`, a wrong
   picker selection — or no detection at all, which is every Firefox and Safari
@@ -150,7 +155,8 @@ Scenario: On Dvorak the key that prints F plays its note (v2, REQ-layout-scope-i
   Then bus.noteOn fires for its note and no fill is held
   And the KeyF position holds the fill instead
   And on qwerty the key printing "f" still holds the fill
-# pinned by: tests/ui/shortcuts.test.ts
+  And the About modal's fill cap reads U on dvorak, F on qwerty
+# pinned by: tests/ui/shortcuts.test.ts, tests/ui/about.test.ts
 
 Scenario: Switching layout mid-hold cannot strand a note (edge)
   Given a note key is held down

@@ -156,7 +156,9 @@ randomize) are layered on top in [drum-kits](drum-kits.md).
     over `CHOKE_FADE`, on that hit's own per-hit gain. That gain is downstream
     of the hit's envelope and upstream of drive, so a cut tail is never
     saturated. A hit's gain never comes back up, so nothing needs restoring, and
-    the next open hat is a new hit at full level. A hit starting at the same
+    the next open hat is a new hit at full level. The hit's noise source is
+    stopped just after the fade, so a cut hit stops costing anything at the cut
+    rather than running silently to its natural end. A hit starting at the same
     instant as the closed hat is not cut, so the result doesn't depend on track
     order. It never touches `drum.t{i}.vol`, which is the user's.
 

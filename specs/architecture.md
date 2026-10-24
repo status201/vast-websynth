@@ -338,7 +338,9 @@ bank, the machine's `onStep`), and the exported helpers read from it:
 (the `position: relative` wrapper + overlay + follow wiring),
 `wirePlayhead` (highlight only while edit bank === play bank, refreshing the
 overlay on the same tick — and only while the panel's `VisibilityGate` reports it
-on screen, re-syncing to the current step on reveal), `VisibilityGate` itself
+on screen, re-syncing to the current step on reveal; painted when the step is
+*heard*, via `ui/audible.ts`, not when the clock schedules it —
+transport-position.md REQ-the-playhead-is-drawn-when-it-is-heard), `VisibilityGate` itself
 (inactive tabs stay mounted, so `shell/pattern-row.ts` drives every panel's gate from one
 `tabs.onViewChange`) and `GridCursor` (the drum/sampler 2-D selection
 cursor). `paintTriggerCell` lives with `stepTitle` in

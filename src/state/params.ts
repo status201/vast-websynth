@@ -99,6 +99,21 @@ export class ParamBus {
   }
 
   /**
+   * Fires after {@link restore} / {@link resetDefaults} with the ids they set. A
+   * bulk apply is not an edit, so `onChange` stays silent for it; this is for a
+   * consumer that must still know a value was *replaced* — the motion machine
+   * re-baselines what a mid-play load touched (motion-sequencer.md REQ-a-load-or-an-edit-rebaselines).
+   */
+  onBulkApply(listener: (ids: readonly ParamId[]) => void): () => void {
+    this.bulkApplyListeners.add(listener);
+    return () => this.bulkApplyListeners.delete(listener);
+  }
+
+  private emitBulkApply(ids: readonly ParamId[]): void {
+    for (const l of this.bulkApplyListeners) l(ids);
+  }
+
+  /**
    * Run `fn` with the global `onChange` signal suppressed — the machine is
    * writing, not the user. Per-param listeners still fire, so knobs, the XY pad
    * and the audio graph all track the value exactly as before; only the "the
@@ -114,21 +129,6 @@ export class ParamBus {
    * Callers on a per-frame path should pass a **pre-bound** closure rather than
    * an inline arrow (REQ-no-allocation-in-a-hot-loop — no allocation in a per-frame loop).
    */
-  /**
-   * Fires after {@link restore} / {@link resetDefaults} with the ids they set. A
-   * bulk apply is not an edit, so `onChange` stays silent for it; this is for a
-   * consumer that must still know a value was *replaced* — the motion machine
-   * re-baselines what a mid-play load touched (motion-sequencer.md REQ-a-load-or-an-edit-rebaselines).
-   */
-  onBulkApply(listener: (ids: readonly ParamId[]) => void): () => void {
-    this.bulkApplyListeners.add(listener);
-    return () => this.bulkApplyListeners.delete(listener);
-  }
-
-  private emitBulkApply(ids: readonly ParamId[]): void {
-    for (const l of this.bulkApplyListeners) l(ids);
-  }
-
   withoutChangeSignal(fn: () => void): void {
     this.suppressChange++;
     try {

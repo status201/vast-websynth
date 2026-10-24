@@ -372,6 +372,33 @@ describe('a MIDI note is always released', () => {
     expect(r.bus.get('master.pitchBend')).toBe(0);
     expect(offs).not.toContain(72);     // the other keyboard's note keeps sounding
   });
+
+  it('an unplug leaves a pedal held on ANOTHER device down', async () => {
+    const r = await makeRig(2);
+    const pedalBox = r.midi.inputs[1]!;
+    pedalBox.receive([0xb0, 64, 127]);  // the pedal, on the device that stays
+    r.input.receive([0x90, 60, 100]);
+    r.midi.unplugInput(r.input.id);
+    expect(r.notes.filter((n) => !n.on)).toEqual([]); // 60 is still sustained
+    pedalBox.receive([0xb0, 64, 0]);
+    expect(r.notes.filter((n) => !n.on).map((n) => n.note)).toEqual([60]);
+  });
+
+  it('a pedal-up and a bend back to centre pass a channel change', async () => {
+    setMidiInputChannel(1);
+    const r = await makeRig();
+    r.input.receive([0xb0, 64, 127]);   // pedal down, channel 1
+    r.input.receive([0xe0, 0, 127]);    // bend up, channel 1
+    r.input.receive([0x90, 60, 100]);
+    r.input.receive([0x80, 60, 0]);     // sustained
+    setMidiInputChannel(2);
+    r.input.receive([0xb0, 64, 0]);     // pedal up — on channel 1, now "another channel's"
+    expect(r.notes.filter((n) => !n.on).map((n) => n.note)).toEqual([60]);
+    r.input.receive([0xe0, 0, 64]);     // bend home (8192)
+    expect(r.bus.get('master.pitchBend')).toBe(0);
+    r.input.receive([0xe0, 0, 127]);    // a NEW bend on channel 1 is filtered again
+    expect(r.bus.get('master.pitchBend')).toBe(0);
+  });
 });
 
 describe('CC11 and aftertouch', () => {

@@ -20,7 +20,7 @@ import styles from '../styles/modal.module.css';
 
 /** One token of a combo: a bare string is a keycap, `t(...)` is literal text,
  *  `k(...)` is a keycap whose label is a drawn glyph rather than a character. */
-type Token = string | { text: string } | { icon: IconName; name: string };
+type Token = string | { text: string } | { icon: IconName; name: string } | { code: string };
 /** Literal text between caps — a `+`, a `(hold)`, a mouse action. Keep the
  *  spacing: flex layout trims it visually, and it keeps each cell's
  *  `textContent` reading the way a human would say the combo. */
@@ -32,6 +32,11 @@ const t = (text: string): { text: string } => ({ text });
  * has to go on (REQ-layout-detection-is-a-hint-not-a-verdict there).
  */
 const k = (icon: IconName, name: string): { icon: IconName; name: string } => ({ icon, name });
+
+/** A keycap for a *physical* key, labelled by the active layout like the note
+ *  caps — the fill is the KeyF position, which prints U on Dvorak
+ *  (keyboard-layout.md REQ-layout-scope-is-note-keys-only). */
+const at = (code: string): { code: string } => ({ code });
 
 /** The two note rows are a keyboard diagram, not a token list (REQ-keys-are-drawn-as-keys). */
 const notes = (row: Record<string, number>): { notes: Record<string, number> } => ({ notes: row });
@@ -62,7 +67,7 @@ const SHORTCUTS: Array<[Combo, string]> = [
   // ---- folded by default; everything above ends at Space (REQ-the-key-list-folds-to-six-rows) ----
   [['Home'], 'Move the playhead to bar 1'],
   [['Shift', t(' + '), k('arrowLeft', 'Left arrow'), k('arrowRight', 'Right arrow')], 'Move the playhead one bar'],
-  [['F', t(' (hold)')], 'Drum fill'],
+  [[at('KeyF'), t(' (hold)')], 'Drum fill'],
   [['Shift', t(' + '), 'Space'], 'Pause / continue'],
   [['Shift', t(' + '), 'L'], 'Loop on / off'],
   [['Shift', t(' + '), 'R'], 'Open / close the Record window'],
@@ -188,6 +193,7 @@ function comboCell(combo: Combo): HTMLElement {
   for (const token of combo) {
     if (typeof token === 'string') cell.appendChild(cap(token));
     else if ('icon' in token) cell.appendChild(iconCap(token.icon, token.name));
+    else if ('code' in token) cell.appendChild(codeCap(token.code));
     else cell.appendChild(document.createTextNode(token.text));
   }
   return cell;

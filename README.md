@@ -101,7 +101,7 @@ Vanilla TypeScript + Vite, zero runtime dependencies.
 - **Shift + L**: loop on / off
 - **Home**: move the playhead back to bar 1
 - **Shift + Arrow Left/Right**: move the playhead one bar back / forward
-- **F** (hold): drum fill
+- **F** (hold): drum fill (on Dvorak, where F is a note key, it is the key that types U: the same spot on the board)
 - **Shift + R**: open / close the Record window (its level meter turns red if the take clips)
 - **Drum and sampler grids**: **Tab** into a grid, move with the **arrow keys**, **Enter** toggles the step (Space still plays and stops)
 - **Esc**: panic (all notes off)

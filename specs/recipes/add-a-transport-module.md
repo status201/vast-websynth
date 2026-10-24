@@ -74,7 +74,11 @@ private onTick(step: number, when: number): void {
 ### 3. Expose control + construct in the engine
 
 Add `setEnabled`/`setMuted` and any `onStep`/`onNote` listener registration
-(returning unsubscribers). Construct the module in `Engine.init()` **after** the
+(returning unsubscribers). An `onStep` reports `(idx, when)`: the cell **and its
+audio time**. The clock hands steps out up to 100 ms before they sound, and a
+display waits for `when` through `ui/audible.ts`
+([transport-position](../features/transport-position.md) REQ-the-playhead-is-drawn-when-it-is-heard), so a
+step reported without its time can only be drawn early. Construct the module in `Engine.init()` **after** the
 `Clock` — and after `Arrangement` if it reads play banks — wire its params in
 `subscribeParams`, and surface it on `StudioApi` if the UI needs it:
 

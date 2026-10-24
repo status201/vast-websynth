@@ -6,6 +6,7 @@ import { createButton } from './button';
 import type { StepButton } from './step-button';
 import { plural } from '../../utils/format';
 import { clamp01 } from '../../utils/math';
+import { dragStillHeld } from './pointer-drag';
 
 /**
  * Per-step settings edit row shared by the sequencer, drum and sampler
@@ -332,20 +333,27 @@ function makeSlider(
   const onMove = (e: PointerEvent): void => {
     if (e.pointerId === pointer) handle(e.clientX);
   };
-  const onUp = (e: PointerEvent): void => {
-    if (e.pointerId !== pointer) return;
+  const endStroke = (): void => {
     bounds = null;
     window.removeEventListener('pointermove', onMove);
     window.removeEventListener('pointerup', onUp);
     window.removeEventListener('pointercancel', onUp);
   };
+  const onUp = (e: PointerEvent): void => {
+    if (e.pointerId === pointer) endStroke();
+  };
+  let captureEl: Element | null = null;
 
   track.addEventListener('pointerdown', (e) => {
-    if (bounds) return; // one stroke at a time
+    if (bounds) {
+      if (dragStillHeld(captureEl, pointer)) return; // one stroke at a time
+      endStroke(); // its pointerup was lost: this touch takes over
+    }
     const rect = track.getBoundingClientRect();
     bounds = { left: rect.left, width: rect.width };
     pointer = e.pointerId;
-    (e.target as Element).setPointerCapture?.(e.pointerId);
+    captureEl = e.target as Element;
+    captureEl.setPointerCapture?.(e.pointerId);
     handle(e.clientX);
     window.addEventListener('pointermove', onMove);
     window.addEventListener('pointerup', onUp);

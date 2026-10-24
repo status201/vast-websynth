@@ -231,7 +231,7 @@ export class HiHat implements DrumSynth {
    * its own that only `cut` ever automates (REQ-a-closed-hat-cuts-an-open-hat). Pruned as hits end;
    * the closed hat keeps none.
    */
-  private live: Array<{ start: number; end: number; gate: GainNode }> = [];
+  private live: Array<{ start: number; end: number; gate: GainNode; source: AudioScheduledSourceNode }> = [];
 
   constructor(private readonly ctx: AudioContext, private readonly noiseBuf: AudioBuffer, private readonly open: boolean) {
     this.decay = open ? 0.35 : 0.05;
@@ -279,7 +279,7 @@ export class HiHat implements DrumSynth {
     finishHit(r, [noise], nodes);
     if (gate) {
       this.prune();
-      this.live.push({ start: t, end, gate });
+      this.live.push({ start: t, end, gate, source: noise });
     }
   }
 
@@ -291,6 +291,10 @@ export class HiHat implements DrumSynth {
       if (h.start >= when || h.end <= at) continue;
       h.gate.gain.setValueAtTime(1, at);
       h.gate.gain.linearRampToValueAtTime(0, at + CHOKE_FADE);
+      // Stop the source once it is silent, so the hit's chain is torn down at the
+      // cut (`finishHit`) instead of running unheard to its natural end. A later
+      // stop() replaces the earlier one; guarded for an engine that disagrees.
+      try { h.source.stop(at + CHOKE_FADE + TAIL_FADE); } catch { /* the gate already silences it */ }
       h.end = at; // cut once; it never comes back up
     }
   }
