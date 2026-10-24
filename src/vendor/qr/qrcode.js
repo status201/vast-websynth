@@ -1,3 +1,7 @@
+// Vendored qrcode-generator (Kazuhiko Arase, MIT — see ./LICENSE). QR *encoder*
+// for WiFi-sync pairing, committed as a bundled asset, NOT an npm runtime
+// dependency (ADR-003). Source: qrcode-generator@2.0.4 dist/qrcode.mjs, unmodified.
+
 //---------------------------------------------------------------------
 //
 // QR Code Generator for JavaScript
