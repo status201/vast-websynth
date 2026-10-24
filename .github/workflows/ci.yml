@@ -17,7 +17,7 @@ permissions:
 
 jobs:
   typecheck:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-26.04
     steps:
       - uses: actions/checkout@v5
       - uses: actions/setup-node@v5
@@ -28,7 +28,7 @@ jobs:
       - run: npm run typecheck
 
   unit:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-26.04
     steps:
       - uses: actions/checkout@v5
       - uses: actions/setup-node@v5
@@ -48,7 +48,7 @@ jobs:
   # builds. The entry chunk must stay under the 500 kB boot-payload ceiling
   # (runtime-performance.md REQ-boot-cost-matches-the-request).
   build:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-26.04
     steps:
       - uses: actions/checkout@v5
       - uses: actions/setup-node@v5
@@ -60,7 +60,7 @@ jobs:
       - run: npm run check:bundle
 
   e2e:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-26.04
     steps:
       - uses: actions/checkout@v5
       - uses: actions/setup-node@v5
