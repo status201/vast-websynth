@@ -3,7 +3,9 @@
 ```yaml
 id: midi-clock-sync
 status: implemented
-version: 8   # v8: a join sounds on its first pulse (REQ-a-join-is-timed-by-its-first-pulse) and a
+version: 9   # v9: every tick sends its own six pulses from its unswung time (REQ-master-broadcasts-start-and-stop) —
+             #     even-only emission lost or doubled six pulses after a seek to the other parity
+             # v8: a join sounds on its first pulse (REQ-a-join-is-timed-by-its-first-pulse) and a
              #     following slave jumps in place (REQ-a-following-slave-jumps-in-place) — a
              #     master's wrap no longer leaves slaves a 16th off, nor a
              #     hardware master leave them two pulses late
@@ -63,8 +65,16 @@ the timing code.
   recorder, panic — it hooks `clock.onStart`/`onStop`), and 0xF8 pulses at 24
   PPQN while playing. Pulses are timestamped from the look-ahead tick times on
   the **unswung** grid (MIDI clock is straight; a slave applies its own
-  shuffle): the master acts on even 16th ticks only (never swung) and emits 12
-  pulses spanning two 16ths. No pulses are sent while stopped (v1).
+  shuffle): every 16th tick emits **its own six pulses**, from its unswung time
+  `when − clock.swingOffset(step)`. No pulses are sent while stopped (v1).
+  (v9) Until v9 the master acted on even ticks only and sent 12 pulses spanning
+  two 16ths. Parity is judged by the step *number*, and a seek changes the
+  numbers without moving the grid. A jump by an odd number of steps flips which
+  slots carry even numbers. A slot was then either skipped, which lost six
+  pulses and left a hardware slave a 16th behind for good, or covered twice,
+  which doubled six and put the slave a 16th ahead.
+  A start from an odd cue sent nothing for its first 16th. Unswinging each tick
+  keeps the output straight without any parity rule.
 - **REQ-slave-restarts-from-zero-on-start** — Slave: incoming 0xFA/0xFB
   (re)starts the local clock **from step 0** — a restart even if already
   playing, so bars realign; 0xFC stops it. (v8: a slave already *following*
@@ -158,7 +168,7 @@ clauses noted inline. The `SyncMessage` union grows two variants (`tempo`,
   Idle `0xF8` also reaches MIDI hardware — standard behaviour.
 - **REQ-an-explicit-tempo-message** — **Explicit tempo message.** `SyncMessage`
   grows `{type:'tempo', bpm}`. The master emits it on `enable()`, on every
-  `onStart`, on even ticks
+  `onStart`, on any tick (v9; even ticks before)
   when `|bpm − lastSent| ≥ 0.1`, every 2 s while stopped (idle heartbeat), and
   in `announceTo`. `MidiSyncTransport.send` **early-returns for `'tempo'`** (no
   MIDI byte). The slave, on `'tempo'`, calls `clock.setBpm(bpm)` (skips if
@@ -600,7 +610,7 @@ Master idle-clock + tempo constants (`sync-master.ts`, v2):
 idleWakeMs: 100                   # idle timer wakeup cadence while stopped
 idleHorizonMs: 200                # schedule pulses covering (lastScheduled, now + 200]
 tempoHeartbeatMs: 2000            # idle 'tempo' emission spacing
-tempoSendMinDelta: 0.1            # emit 'tempo' on even ticks when |bpm - lastSent| >= this
+tempoSendMinDelta: 0.1            # emit 'tempo' on a tick when |bpm - lastSent| >= this
 ```
 
 Link-liveness constants (`sync-controller.ts`, v4 — REQ-link-liveness-beats-port-presence):
@@ -651,7 +661,14 @@ Scenario: Master start emits Start then evenly spaced clock pulses
   Given sync mode is master and the transport starts at 120 BPM
   Then a 'start' message is sent, followed by 'pulse' messages
   And consecutive pulse timestamps are spaced 60000 / (120 * 24) ms apart
-  And pulses are scheduled from even 16th ticks only (unswung grid)
+  And each 16th tick schedules its own six pulses on the unswung grid
+# pinned by: tests/audio/transport/sync/sync-master.test.ts
+
+Scenario: A seek to the other parity neither drops nor doubles pulses (v9, REQ-master-broadcasts-start-and-stop, regression)
+  Given the master is playing, with swing on
+  When the playhead is seeked by an odd number of steps, right after an even step or right after an odd one
+  Then the pulse stream stays a straight 24 PPQN with exactly six pulses per 16th, no gap and no doubled pulse
+  And a start from an odd cue clocks its first 16th
 # pinned by: tests/audio/transport/sync/sync-master.test.ts
 
 Scenario: Slave converges on the master tempo

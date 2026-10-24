@@ -21,6 +21,7 @@ import { Dropdown } from '../components/dropdown';
 import { laneGrid, onLaneGridChange } from '../lane-grid';
 import dropdownStyles from '../styles/dropdown.module.css';
 import { ListenerSet } from '../../utils/listeners';
+import { audibleTimeline } from '../audible';
 
 /**
  * `<m>.len` as labels: index 0 is the `LEN_FOLLOW` sentinel, and it reads as
@@ -58,7 +59,8 @@ interface LaneHooks {
   getResting(): boolean;
   hasContent(i: number): boolean;
   onContentChange(fn: () => void): () => void;
-  onStep(fn: (idx: number) => void): () => void;
+  /** `when` is the step's audio time (transport-position.md REQ-the-playhead-is-drawn-when-it-is-heard). */
+  onStep(fn: (idx: number, when: number) => void): () => void;
   /** Clear the edit bank; true when something was actually cleared (REQ-motion-has-the-fourth-chain-lane). */
   clearBank(): boolean;
   /** This machine's bank count, MIN_BANK_COUNT..MAX_BANK_COUNT (banks.md REQ-a-machine-owns-its-bank-count). */
@@ -269,10 +271,17 @@ export function wirePlayhead(
     restOverlay.refresh();
   };
 
-  h.onStep((idx) => {
-    lastStep = idx;
-    if (gate && !gate.shown) return;
-    paint(idx);
+  // Painted when the step is heard, not when it is scheduled up to 100 ms
+  // earlier (transport-position.md REQ-the-playhead-is-drawn-when-it-is-heard). Off screen, it only notes
+  // the step: no timer for a panel nobody is looking at.
+  const audible = audibleTimeline(engine);
+  h.onStep((idx, when) => {
+    if (gate && !gate.shown) { lastStep = idx; return; }
+    audible.at(when, () => {
+      lastStep = idx;
+      if (gate && !gate.shown) return;
+      paint(idx);
+    });
   });
   gate?.whenShown(() => { if (lastStep >= 0) paint(lastStep); });
 

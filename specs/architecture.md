@@ -169,6 +169,9 @@ ParamBus:        # src/state/params.ts
                                  #   a song/preset stores savedParams(snapshot()), which drops
                                  #   UNSAVED_PARAMS (master.expression, input-control.md REQ-cc11-is-expression)
   resetDefaults()                # every param back to default
+  onBulkApply(fn) -> unsub       # fn(ids) after restore()/resetDefaults() — the ids a bulk
+                                 #   apply set, without the edit signal (motion-sequencer.md
+                                 #   REQ-a-load-or-an-edit-rebaselines re-baselines them)
   onNote / noteOn / noteOff      # note event path
 
 Engine:          # src/audio/engine.ts

@@ -342,6 +342,38 @@ describe('the synth input channel (REQ-the-midi-input-channel-is-selectable)', (
   });
 });
 
+// input-control.md REQ-a-midi-note-is-released-by-whatever-ended-it (v21, regression).
+describe('a MIDI note is always released', () => {
+  it('after the input channel changes with the key down', async () => {
+    setMidiInputChannel(1);
+    const r = await makeRig();
+    r.input.receive([0x90, 60, 100]);   // channel 1, held
+    setMidiInputChannel(2);
+    r.input.receive([0x80, 60, 0]);     // its note-off, now "another channel's"
+    expect(r.notes.map((n) => [n.on, n.note])).toEqual([[true, 60], [false, 60]]);
+    r.input.receive([0x90, 62, 100]);   // a fresh channel-1 note-on is still filtered
+    expect(r.notes).toHaveLength(2);
+  });
+
+  it('when its keyboard is unplugged: notes, the pedal and the bend', async () => {
+    const r = await makeRig(2);
+    const other = r.midi.inputs[1]!;
+    other.receive([0x90, 72, 100]);     // a second keyboard, still plugged in
+    r.input.receive([0x90, 60, 100]);
+    r.input.receive([0xb0, 64, 127]);   // pedal down
+    r.input.receive([0x90, 64, 100]);
+    r.input.receive([0x80, 64, 0]);     // deferred by the pedal
+    r.input.receive([0xe0, 0, 127]);    // bend up
+    expect(r.bus.get('master.pitchBend')).toBeGreaterThan(0.9);
+
+    r.midi.unplugInput(r.input.id);
+    const offs = r.notes.filter((n) => !n.on).map((n) => n.note).sort();
+    expect(offs).toEqual([60, 64]);
+    expect(r.bus.get('master.pitchBend')).toBe(0);
+    expect(offs).not.toContain(72);     // the other keyboard's note keeps sounding
+  });
+});
+
 describe('CC11 and aftertouch', () => {
   it('CC11 writes expression and leaves the volume alone (REQ-cc11-is-expression)', async () => {
     const r = await makeRig();

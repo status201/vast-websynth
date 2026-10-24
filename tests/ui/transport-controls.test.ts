@@ -26,6 +26,7 @@ function harness(over: { canSeek?: boolean } = {}) {
   });
   const api = {
     clock,
+    ctx: { currentTime: 0 }, // every tick here is due now (transport-position.md REQ-the-playhead-is-drawn-when-it-is-heard)
     arrangement,
     loop,
     // 4/4 — what `registerDefaults` resolves the meter params to, so every

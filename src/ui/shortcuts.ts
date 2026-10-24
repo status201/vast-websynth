@@ -84,13 +84,33 @@ export function installShortcuts(engine: StudioApi, bus: ParamBus, bridge: UiBri
     return null;
   }
 
+  /** note → how many keys hold it. `,` and `Q` are both C5, and an octave shift
+   *  can line up any two: the first key sounds the note, the last key up releases
+   *  it (input-control.md REQ-a-note-off-names-the-pressed-note). */
+  const keysOn = new Map<number, number>();
+
   function press(note: number) {
+    const n = keysOn.get(note) ?? 0;
+    keysOn.set(note, n + 1);
+    if (n > 0) return; // already sounding — a retrigger would just restart it
     bridge.pressKey(note);
     bus.noteOn(note);
   }
   function release(note: number) {
+    const n = keysOn.get(note) ?? 0;
+    if (n > 1) { keysOn.set(note, n - 1); return; } // another key still holds it
+    keysOn.delete(note);
     bridge.releaseKey(note);
     bus.noteOff(note);
+  }
+  /** Release every held key's note, once each. */
+  function releaseAll() {
+    for (const note of keysOn.keys()) {
+      bridge.releaseKey(note);
+      bus.noteOff(note);
+    }
+    keysOn.clear();
+    held.clear();
   }
 
   // A layout switch re-keys `held` out from under itself: an entry stored under
@@ -98,8 +118,7 @@ export function installShortcuts(engine: StudioApi, bus: ParamBus, bridge: UiBri
   // like the octave shift in REQ-home-and-shift-arrows-seek. Release everything first, then remap —
   // same rule the `blur` handler follows (input-control.md REQ-note-keys-follow-the-layout).
   onLayoutChange(() => {
-    for (const note of held.values()) release(note);
-    held.clear();
+    releaseAll();
     rebuildNoteMaps();
   });
 
@@ -272,8 +291,7 @@ export function installShortcuts(engine: StudioApi, bus: ParamBus, bridge: UiBri
   window.addEventListener('blur', () => {
     // Release everything when window loses focus
     if (fillHeld) { fillHeld = false; engine.perf.setFill(false); }
-    for (const note of held.values()) release(note);
-    held.clear();
+    releaseAll();
     // The bend is a held-key state too, so it strands the same way a note does:
     // no keyup arrives once focus is gone, and it springs back only on a key the
     // user is no longer pressing (REQ-pitch-bend-is-quote-and-slash). Matching

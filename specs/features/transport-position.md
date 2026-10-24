@@ -3,7 +3,9 @@
 ```yaml
 id: transport-position
 status: implemented
-version: 7  # v7: the bare arrows no longer shift the octave (input-control.md REQ-octave-shift-is-minus-and-equal);
+version: 8  # v8: the playhead is drawn when it is heard, not when it is scheduled
+            #     (REQ-the-playhead-is-drawn-when-it-is-heard) — every display ran up to 100 ms early
+            # v7: the bare arrows no longer shift the octave (input-control.md REQ-octave-shift-is-minus-and-equal);
             #     Shift+arrows still seek a bar, unchanged
             # v6: every clock seek announces itself from SyncController — so a
             #     loop wrap does too (REQ-a-sync-master-announces-its-seek/REQ-one-seek-entry-point); the sequencer's seek release
@@ -45,6 +47,9 @@ source:
   - src/ui/studio-api.ts
   - src/ui/components/playhead-ruler.ts
   - src/ui/panels/step-panel-scaffold.ts
+  - src/ui/audible.ts                       # REQ-the-playhead-is-drawn-when-it-is-heard
+  - src/ui/components/transport-controls.ts # its readout reads the audible step (v8)
+  - src/ui/shell/play-button.ts             # the beat blink, likewise
   - src/ui/shortcuts.ts
 ```
 
@@ -305,6 +310,30 @@ counter silently desynchronises all four.
   only in the wrong place. A panel that overrides that width therefore does so
   from **one constant used by both rows**, and the alignment is pinned by
   measuring geometry, not class names.
+
+- **REQ-the-playhead-is-drawn-when-it-is-heard** (v8) — **Every playhead
+  display moves when its step is heard, not when it is scheduled.** The clock
+  hands each step to the machines up to `SCHEDULE_AHEAD_S` (100 ms) before it
+  sounds. That lead is what keeps audio glitch-free, but every display painted
+  on it: the lit step on all four grids, the ruler's tick and its Bar readout,
+  the transport readout and timeline, and the Play button's beat blink. Each one
+  ran 50 to 100 ms ahead of the sound, enough to see a step light before its hit.
+  The on-screen keyboard already deferred its highlights to the audio time
+  ([input-control](input-control.md), `shell/bottom.ts`).
+
+  One timeline does it for all of them. `audibleTimeline(api)`
+  (`src/ui/audible.ts`, one per clock) runs UI work at an audio time with a
+  `setTimeout` of `when − currentTime`. It cancels everything pending on
+  `clock.onStop`, so a stopped transport never repaints a step afterwards, and
+  it keeps the step being heard, as `AudibleTimeline`'s `step`. Each machine's `onStep` reports
+  the step's audio time alongside its index. `wirePlayhead` defers its paint
+  with it, and the ruler, the transport readout and the blink read
+  that heard step while playing instead of `clock.step`. A seek mid-play needs
+  nothing extra: the steps already in the horizon still sound
+  (REQ-the-look-ahead-horizon-is-not-cancelled), so the display follows them
+  for those few milliseconds and then jumps, which is what the ear hears. The
+  seek controls themselves still act on `clock.step`, because a seek is made
+  against the scheduler.
 
 ## Technical design
 
@@ -572,6 +601,14 @@ Scenario: A refused seek stops promising it will work (v2, REQ-a-refused-seek-sa
   Given sync mode is slave, so canSeek() is false
   Then the ticks and the stepper are aria-disabled and their titles name the reason
 # pinned by: tests/ui/playhead-ruler.test.ts
+
+Scenario: The lit step waits for its sound (v8, REQ-the-playhead-is-drawn-when-it-is-heard, regression)
+  Given the transport is playing and a step is scheduled 80 ms ahead
+  When the machine reports it
+  Then the grid, the ruler and the readout still show the previous step
+  And they move to it once the audio clock reaches its time
+  And a stop cancels whatever was still pending
+# pinned by: tests/ui/audible.test.ts, tests/ui/playhead-ruler.test.ts
 ```
 
 ## Tests & verification

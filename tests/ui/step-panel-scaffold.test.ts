@@ -1,8 +1,9 @@
 // @vitest-environment jsdom
-import { describe, it, expect } from 'vitest';
+import { describe, it, expect, vi, afterEach } from 'vitest';
 import { bankBarFor, wirePlayhead, VisibilityGate } from '../../src/ui/panels/step-panel-scaffold';
 import { PatternStore } from '../../src/state/patterns';
 import type { StudioApi } from '../../src/ui/studio-api';
+import { TestClock } from '../audio/transport/test-clock';
 
 /**
  * Minimal StudioApi — `bankBarFor` only reads `patterns` plus the lane's
@@ -22,8 +23,12 @@ function harness() {
     motionResting: false,
     onChange: () => () => {},
   };
-  const api = { patterns, arrangement } as unknown as StudioApi;
-  return { patterns, api };
+  // The playhead paints when a step is HEARD (transport-position.md REQ-the-playhead-is-drawn-when-it-is-heard),
+  // so wirePlayhead needs the audio clock and the transport to time it by.
+  const ctx = { currentTime: 0 };
+  const clock = new TestClock();
+  const api = { patterns, arrangement, ctx, clock } as unknown as StudioApi;
+  return { patterns, api, ctx, clock };
 }
 
 /** The bank buttons of a BankBar, in A..D order (Follow leads, Copy trails). */
@@ -186,6 +191,37 @@ describe('wirePlayhead visibility gating (runtime-performance.md REQ-no-work-for
     h.gate.set(false);
     h.gate.set(true);
     expect(h.lit()).toBe(-1);
+  });
+
+  // transport-position.md REQ-the-playhead-is-drawn-when-it-is-heard (v8, regression): the step was lit
+  // the moment the clock scheduled it, up to 100 ms before it sounded.
+  describe('timing', () => {
+    afterEach(() => { vi.useRealTimers(); });
+
+    it('lights a step when it is heard, not when it is scheduled', () => {
+      vi.useFakeTimers();
+      const { api, ctx, clock } = harness();
+      let emit: ((idx: number, when: number) => void) | undefined;
+      (api as unknown as { seq: unknown }).seq = {
+        onStep: (fn: (i: number, w: number) => void) => { emit = fn; return () => {}; },
+      };
+      const playing: boolean[] = Array(16).fill(false);
+      const row = playing.map((_, i) => ({ setPlaying: (p: boolean) => { playing[i] = p; } }));
+      wirePlayhead(api, 'seq', [row], { el: document.createElement('div'), refresh: () => {} });
+
+      clock.fireStart(0);
+      emit!(3, 0.08); // scheduled 80 ms ahead
+      expect(playing.indexOf(true)).toBe(-1);
+      ctx.currentTime = 0.08;
+      vi.advanceTimersByTime(80);
+      expect(playing.indexOf(true)).toBe(3);
+
+      emit!(4, 0.2);
+      clock.fireStop(); // a stop drops the pending paint
+      ctx.currentTime = 0.3;
+      vi.advanceTimersByTime(300);
+      expect(playing.indexOf(true)).toBe(3);
+    });
   });
 
   it('without a gate it behaves exactly as before', () => {

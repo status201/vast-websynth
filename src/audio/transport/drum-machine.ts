@@ -10,7 +10,7 @@ import { chokeAt, forEachActiveHit } from './step-hits';
 import type { TickSubscriber } from './tick-source';
 import { ListenerSet } from '../../utils/listeners';
 
-export type DrumStepListener = (step: number) => void;
+export type DrumStepListener = (step: number, when: number) => void;
 /**
  * A hit that actually sounded, at the absolute time it will sound
  * (sidechain-ducking.md REQ-on-hit-reports-only-sounded-hits). Distinct from `DrumStepListener`, which reports
@@ -76,7 +76,7 @@ export class DrumMachine {
   private laneAudible = true;
   /** REQ-a-closed-hat-cuts-an-open-hat. Off by default — switching it on changes how a song sounds. */
   private chokeEnabled = false;
-  private readonly stepListeners = new ListenerSet<[number]>();
+  private readonly stepListeners = new ListenerSet<[number, number]>();
   private readonly hitListeners = new ListenerSet<[number, number, number]>();
   /** This machine's loop length + step rate (meter.md REQ-each-machine-has-a-loop-length/REQ-each-machine-has-a-step-rate). */
   readonly lane: LaneMeter;
@@ -270,7 +270,7 @@ export class DrumMachine {
   private onTick(step: number, when: number): void {
     if (!this.enabled) return;
     this.lane.forEachHit(step, when, (idx, at, cellDur) => {
-      this.stepListeners.emit(idx);
+      this.stepListeners.emit(idx, at);
 
       // Arrangement rest bar: keep the playhead moving but trigger nothing.
       if (this.arrangement.drumResting) return;

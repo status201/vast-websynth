@@ -34,6 +34,9 @@ export interface FakeMidiAccess {
   /** Hot-plug a port and fire `statechange`, the way a real device arriving
    *  after `initMIDI` does. Returns the new input so a test can drive it. */
   plugInput(id?: string): FakeMidiInput;
+  /** Pull a port out and fire `statechange` — it leaves `inputs`, as an
+   *  unplugged device does in Chromium. */
+  unplugInput(id: string): void;
 }
 
 function makeInput(id: string): FakeMidiInput {
@@ -80,6 +83,12 @@ export function makeFakeMidiAccess(ins = 1, outs = 2): FakeMidiAccess {
       inputMap.set(id, input);
       access.onstatechange?.({} as MIDIConnectionEvent);
       return input;
+    },
+    unplugInput(id) {
+      inputMap.delete(id);
+      const i = inputs.findIndex((x) => x.id === id);
+      if (i >= 0) inputs.splice(i, 1);
+      access.onstatechange?.({} as MIDIConnectionEvent);
     },
   };
 }

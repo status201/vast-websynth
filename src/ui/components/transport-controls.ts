@@ -6,6 +6,7 @@ import songStyles from '../styles/song-panel.module.css';
 import styles from '../styles/transport-controls.module.css';
 import { UI_ICONS } from './ui-icons';
 import { effectiveLoopRange } from '../../audio/transport/transport-loop';
+import { audibleTimeline } from '../audible';
 
 /**
  * The song-scale transport shared by the Song panel's row and the TRANSPORT
@@ -53,7 +54,9 @@ export function buildTransportControls(
 
   /** Playing: the live step. Stopped: the cue, i.e. where Play will begin —
    *  which after a Pause is the resume point (transport.md REQ-pause-resumes-where-it-stopped). */
-  const position = (): number => (engine.clock.playing ? engine.clock.step : engine.clock.cue);
+  // The step being heard, not the one being scheduled (transport-position.md REQ-the-playhead-is-drawn-when-it-is-heard).
+  const audible = audibleTimeline(engine);
+  const position = (): number => (engine.clock.playing ? audible.step : engine.clock.cue);
 
   // `-toggle`, not `-play`: the header's own Play button is `transport-play`,
   // and a default-prefixed instance minting a second one would break every
@@ -226,7 +229,7 @@ export function buildTransportControls(
     }
   };
 
-  engine.clock.onTick(paint);
+  audible.onStep(paint);
   engine.clock.onSeek(paint);
   engine.clock.onStart(paint);
   engine.clock.onStop(paint);

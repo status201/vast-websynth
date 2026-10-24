@@ -3,7 +3,9 @@
 ```yaml
 id: arpeggiator
 status: implemented
-version: 5  # v5: the cursor is re-clamped against the CURRENT pool — releasing a key
+version: 6  # v6: octave/chord copies above MIDI 127 leave the pool (REQ-the-pool-stays-in-midi-range) —
+            #     they were scheduled up to note 156, past Nyquist
+            # v5: the cursor is re-clamped against the CURRENT pool — releasing a key
             #     mid-bounce indexed past the end and pushed `undefined` into an
             #     AudioParam (REQ-the-cursor-is-bounded-by-the-live-pool)
             # v4: the pool is chord-expanded and key-quantized (REQ-arp-pool-is-expanded-then-quantized)
@@ -131,6 +133,17 @@ releasing the last key stops it again (only if the arp was what started it).
   at their defaults (`chromatic`, `chord.voicing: off`), so v4 is inaudible until a key
   is chosen.
 
+- **REQ-the-pool-stays-in-midi-range** (v6) — **The pool never leaves the MIDI
+  range.** An octave or chord copy that lands above `MIDI_NOTE_MAX` (127) is
+  **dropped** from the pool rather than clamped, because clamping would stack
+  repeated 127s into the pattern. The run just ends at the top of the range,
+  as a hardware arp's does. Only if dropping would leave nothing to play (a held
+  127 quantized upward) does the pool become `[127]`. With nothing dropping notes, a
+  note held at 120 with `arp.octaves` at 4 scheduled MIDI 156, about 67 kHz. The
+  oscillator aliased above Nyquist and key tracking threw the filter just as
+  far ([untrusted-input](untrusted-input.md) REQ-payload-values-are-bounded keeps every other
+  note path inside 0..127).
+
 ## Technical design
 
 ### Contract / public interface
@@ -232,6 +245,12 @@ Scenario: One held key arpeggiates a whole chord (v4, REQ-arp-pool-is-expanded-t
   Given chord.voicing is triad and one key is held
   When ticks are dispatched
   Then the arp cycles the chord's notes rather than repeating the single held note
+# pinned by: tests/audio/transport/arpeggiator.test.ts
+
+Scenario: Octaves past the top of the MIDI range are dropped (v6, REQ-the-pool-stays-in-midi-range, regression)
+  Given a note held at 120 and arp.octaves is 4
+  When the arp runs through its whole pattern, in every mode
+  Then it plays 120 only (132, 144 and 156 are dropped), never a note above 127
 # pinned by: tests/audio/transport/arpeggiator.test.ts
 ```
 

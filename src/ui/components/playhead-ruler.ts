@@ -6,6 +6,7 @@ import { GRID_CELLS } from '../../state/meter';
 import { beatOfCell, isBeatCell, laneCellAt, laneGrid, onLaneGridChange } from '../lane-grid';
 import styles from '../styles/playhead-ruler.module.css';
 import { UI_ICONS } from './ui-icons';
+import { audibleTimeline } from '../audible';
 
 export type RulerLane = 'seq' | 'drum' | 'sampler' | 'motion';
 
@@ -161,8 +162,11 @@ export function buildPlayheadRuler(
     });
   };
 
+  // The step being HEARD, not the one being scheduled up to 100 ms ahead of it
+  // (REQ-the-playhead-is-drawn-when-it-is-heard).
+  const audible = audibleTimeline(api);
   /** Playing: the live step. Stopped: the cue, i.e. where Play will begin. */
-  const position = (): number => (api.clock.playing ? api.clock.step : api.clock.cue);
+  const position = (): number => (api.clock.playing ? audible.step : api.clock.cue);
 
   let paintedAt = -1;
   let paintedCue = -1;
@@ -173,7 +177,7 @@ export function buildPlayheadRuler(
     // The live playhead exists only while playing: a stopped strip must not look
     // like a running one (REQ-the-cue-and-the-playhead-are-two-marks).
     const loop = api.arrangement.loopTicks(lane);
-    const at = api.clock.playing ? laneCellAt(api.clock.step, grid, loop) : -1;
+    const at = api.clock.playing ? laneCellAt(audible.step, grid, loop) : -1;
     if (at !== paintedAt) {
       ticks[paintedAt]?.classList.remove(AT_CLASS);
       ticks[at]?.classList.add(AT_CLASS);
@@ -218,7 +222,7 @@ export function buildPlayheadRuler(
   const sync = (): void => { if (!gate || gate.shown) paint(); };
 
   const unsubs: (() => void)[] = [
-    api.clock.onTick(sync),
+    audible.onStep(sync),
     api.clock.onSeek(sync),
     api.clock.onStart(sync),
     api.clock.onStop(sync),

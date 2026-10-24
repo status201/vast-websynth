@@ -298,7 +298,13 @@ try {
     }
     if (!(await btn.isVisible())) await page.getByTestId('song-demo-more').click();
     await btn.click();
-    await page.waitForTimeout(800); // the fetched demos resolve async
+    // A demo is fetched on demand, so wait for it to have APPLIED: the loaded
+    // demo's ⓘ moves beside it, labelled with its name, only after the song is
+    // in (demo-library.md REQ-the-loaded-demo-carries-an-info-button). This was a flat 800 ms, and a slow
+    // fetch (Firefox, often) then exported the default session's 4-bar fallback —
+    // with the --set writes below already wiped by the late load.
+    await page.locator(`[data-testid="demo-loaded-info"][aria-label="About ${opts.demo}"]`)
+      .waitFor({ state: 'attached', timeout: 30_000 });
     // A ZIP demo (project-export.md) carries sampler clips and decodes them
     // sequentially after the song applies, exactly as --project does — so the
     // flat wait above is not enough for one. Settling on the slots costs a JSON

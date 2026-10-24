@@ -111,6 +111,49 @@ describe('MotionMachine', () => {
     expect(bus.get('filter.cutoff')).toBe(cutoff0);
   });
 
+  // motion-sequencer.md REQ-a-load-or-an-edit-rebaselines (v19, regression): Stop restored the value
+  // from BEFORE a mid-play load, so the old song's cutoff came back inside the new one.
+  describe('a load or an edit mid-play is the new baseline', () => {
+    function automating() {
+      const r = build();
+      r.machine.setEnabled(true);
+      anchor(r.patterns, 0, 1, 1); // drives cutoff + resonance (the XY defaults)
+      r.clock.fireStart();
+      r.clock.fireTick(0);
+      r.machine.frame(0);
+      return r;
+    }
+
+    it('a song load (resetDefaults + restore) — Stop keeps the new song\'s value', () => {
+      const { bus, clock, machine } = automating();
+      bus.resetDefaults();
+      bus.restore({ 'filter.cutoff': 40 });
+      machine.frame(0.01); // motion still wins while playing
+      expect(bus.get('filter.cutoff')).not.toBe(40);
+      clock.fireStop();
+      expect(bus.get('filter.cutoff')).toBe(40);
+      // resonance was not in the file: back to the DEFAULT the load set, not the old song's
+      expect(bus.get('filter.resonance')).toBe(bus.def('filter.resonance')!.default);
+    });
+
+    it('a sparse preset re-baselines only what it names', () => {
+      const { bus, clock } = automating();
+      const res0 = 2.5;
+      bus.set('filter.resonance', res0); // a user edit: resonance's baseline is now 2.5
+      bus.restore({ 'filter.cutoff': 55 });
+      clock.fireStop();
+      expect(bus.get('filter.cutoff')).toBe(55);
+      expect(bus.get('filter.resonance')).toBe(res0);
+    });
+
+    it('a knob turned on an automated param is what Stop returns to', () => {
+      const { bus, clock } = automating();
+      bus.set('filter.cutoff', 70); // the user, through the change signal
+      clock.fireStop();
+      expect(bus.get('filter.cutoff')).toBe(70);
+    });
+  });
+
   // motion-sequencer.md REQ-a-seek-clears-the-tick-latch — a seek clears the tick latch and NOTHING else.
   // Copying onStop's reset here (the obvious mistake, since the two hooks sit
   // side by side) would lose the user's original sound for the whole session.

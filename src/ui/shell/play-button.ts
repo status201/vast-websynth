@@ -5,6 +5,7 @@ import { createButton, setButtonLabel } from '../components/button';
 import { openEmptyPlayModal, emptyPlayHintDismissed } from '../components/empty-play-modal';
 import switchStyles from '../styles/switch.module.css';
 import headerStyles from '../styles/header.module.css';
+import { audibleTimeline } from '../audible';
 
 /**
  * The header's Play/Stop button and the LED state machine it wears
@@ -70,7 +71,8 @@ export function createPlayButton(
     playBtn.classList.toggle('blink', !v);
   };
 
-  engine.clock.onTick((step) => {
+  // On the beat as heard, not as scheduled (transport-position.md REQ-the-playhead-is-drawn-when-it-is-heard).
+  audibleTimeline(engine).onStep((step) => {
     const nb = (step & 3) < 2;
     if (nb !== blinkVisible) setBlink(nb);
   });

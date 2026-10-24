@@ -10,7 +10,8 @@ import type { TickSubscriber } from './tick-source';
 import { ListenerSet } from '../../utils/listeners';
 import { LaneMeter } from './lane-meter';
 
-export type StepListener = (step: number) => void;
+/** `when` is the step's audio time — a display waits for it (transport-position.md REQ-the-playhead-is-drawn-when-it-is-heard). */
+export type StepListener = (step: number, when: number) => void;
 /** (midi note, audio time it sounds, audio time it releases). */
 export type SeqNoteListener = (note: number, when: number, releaseAt: number) => void;
 
@@ -63,7 +64,7 @@ export class StepSequencer {
   private polyphonic = true;
   private readonly tracks: SeqTrackState[] =
     Array.from({ length: SEQ_TRACK_COUNT }, newTrackState);
-  private readonly stepListeners = new ListenerSet<[number]>();
+  private readonly stepListeners = new ListenerSet<[number, number]>();
   private readonly noteListeners = new ListenerSet<[number, number, number]>();
   /** This machine's loop length + step rate (meter.md REQ-each-machine-has-a-loop-length/REQ-each-machine-has-a-step-rate). */
   readonly lane: LaneMeter;
@@ -174,7 +175,7 @@ export class StepSequencer {
   /** One cell of the lane. Split out of `onTick` because a rate finer than a
    *  16th can put two or three of them inside one tick (meter.md REQ-coarser-skips-ticks-finer-fans-out). */
   private tickCell(idx: number, when: number, cellDur: number): void {
-    this.stepListeners.emit(idx);
+    this.stepListeners.emit(idx, when);
     // Arrangement rest bar: play nothing this bar, but release notes tied into
     // the rest so they don't ring forever (mirrors the per-step rest path).
     if (this.arrangement.seqResting) {

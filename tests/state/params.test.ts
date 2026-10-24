@@ -140,6 +140,24 @@ describe('ParamBus', () => {
     expect(global).toEqual(['a']); // the signal came back
   });
 
+  // motion-sequencer.md REQ-a-load-or-an-edit-rebaselines (v19): a bulk apply reports the ids it set,
+  // without the edit signal — the motion machine re-baselines a mid-play load from it.
+  it('onBulkApply reports what restore() and resetDefaults() set, and onChange stays silent', () => {
+    const bus = new ParamBus();
+    bus.register({ id: 'a', min: 0, max: 10, default: 1 });
+    bus.register({ id: 'b', min: 0, max: 10, default: 2 });
+    const applied: string[][] = [];
+    const edits: string[] = [];
+    bus.onBulkApply((ids) => applied.push([...ids]));
+    bus.onChange((id) => edits.push(id));
+    bus.restore({ a: 7 });
+    bus.resetDefaults();
+    expect(applied).toEqual([['a'], ['a', 'b']]);
+    expect(edits).toEqual([]);
+    bus.set('a', 4); // an edit is the other signal, not this one
+    expect(applied).toHaveLength(2);
+  });
+
   describe('reset baselines', () => {
     it('reset() falls back to the registered default when no baseline is set', () => {
       const bus = new ParamBus();

@@ -45,6 +45,7 @@ export class ParamBus {
   private readonly noteListeners: NoteListener[] = [];
   private readonly changeListeners = new Set<(id: ParamId, v: number) => void>();
   private suppressChange = 0;
+  private readonly bulkApplyListeners = new Set<(ids: readonly ParamId[]) => void>();
 
   register(def: ParamDef): void {
     this.defs.set(def.id, def);
@@ -113,6 +114,21 @@ export class ParamBus {
    * Callers on a per-frame path should pass a **pre-bound** closure rather than
    * an inline arrow (REQ-no-allocation-in-a-hot-loop — no allocation in a per-frame loop).
    */
+  /**
+   * Fires after {@link restore} / {@link resetDefaults} with the ids they set. A
+   * bulk apply is not an edit, so `onChange` stays silent for it; this is for a
+   * consumer that must still know a value was *replaced* — the motion machine
+   * re-baselines what a mid-play load touched (motion-sequencer.md REQ-a-load-or-an-edit-rebaselines).
+   */
+  onBulkApply(listener: (ids: readonly ParamId[]) => void): () => void {
+    this.bulkApplyListeners.add(listener);
+    return () => this.bulkApplyListeners.delete(listener);
+  }
+
+  private emitBulkApply(ids: readonly ParamId[]): void {
+    for (const l of this.bulkApplyListeners) l(ids);
+  }
+
   withoutChangeSignal(fn: () => void): void {
     this.suppressChange++;
     try {
@@ -156,6 +172,7 @@ export class ParamBus {
       this.suppressChange--;
     }
     this.setBaselines(snapshot);
+    this.emitBulkApply(Object.keys(snapshot));
   }
 
   /** Reset every registered param to its default (fires per-param listeners;
@@ -177,6 +194,7 @@ export class ParamBus {
       if (!this.defs.has(id)) this.values.delete(id);
     }
     this.baselines.clear();
+    this.emitBulkApply([...this.defs.keys()]);
   }
 
   /** Record these ids' values as the reset target (the double-tap baseline)

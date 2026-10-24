@@ -223,6 +223,18 @@ describe('installShortcuts keyboard layout (input-control.md REQ-note-keys-follo
     expect(notes).toEqual([[true, 60], [false, 60]]); // the bottom-left key
   });
 
+  // input-control.md REQ-a-note-off-names-the-pressed-note (v21, regression): ',' and 'q' are both C5, and
+  // the first key up used to end the note while the other was still held.
+  it('two keys on one note release it with the last key', () => {
+    keydown(document.body, ',');
+    keydown(document.body, 'q');
+    expect(notes).toEqual([[true, 72]]); // one noteOn — the second key does not retrigger
+    keyup(',');
+    expect(notes).toEqual([[true, 72]]); // still held by 'q'
+    keyup('q');
+    expect(notes).toEqual([[true, 72], [false, 72]]);
+  });
+
   it('releases a held note before remapping, so it cannot hang (edge)', () => {
     keydown(document.body, 'z'); // held down on QWERTY
     expect(notes).toEqual([[true, 60]]);

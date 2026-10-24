@@ -12,6 +12,19 @@ const PAD_BASE_NOTE = 36;
 interface ModSources { wheel: number; pressure: number }
 
 /**
+ * What each input port is holding, so its notes are released however they end
+ * (input-control.md REQ-a-midi-note-is-released-by-whatever-ended-it): by a note-off on a channel the filter
+ * has since dropped, or by the port going away. Keys are `channel * 128 + note`.
+ */
+interface PortHolds {
+  sounding: Map<string, Set<number>>;
+  /** The port that moved the pitch bend last — its departure re-centres it. */
+  bendPort: string | null;
+}
+
+const holdKey = (channel: number, note: number): number => channel * 128 + note;
+
+/**
  * Request Web MIDI and wire it up. Resolves the `MIDIAccess` on success (and
  * `null` when unavailable or denied) so `main.ts` can expose live port counts
  * to the Debug panel — the audio layer must never import UI, and this module
@@ -36,11 +49,14 @@ export async function initMIDI(engine: Engine, bus: ParamBus): Promise<MIDIAcces
     engine.sync.addTransport('midi', sync);
     const pedal = new SustainPedal();
     const mod: ModSources = { wheel: 0, pressure: 0 };
+    const holds: PortHolds = { sounding: new Map(), bendPort: null };
     const wire = (input: MIDIInput) => {
-      input.onmidimessage = (ev: MIDIMessageEvent) => handleMessage(ev, engine, bus, sync, pedal, mod);
+      input.onmidimessage = (ev: MIDIMessageEvent) =>
+        handleMessage(ev, input.id, engine, bus, sync, pedal, mod, holds);
     };
     access.inputs.forEach(wire);
     access.onstatechange = () => {
+      releaseVanishedPorts(access, bus, pedal, holds);
       access.inputs.forEach(wire);
       sync.refreshPorts();
     };
@@ -51,13 +67,40 @@ export async function initMIDI(engine: Engine, bus: ParamBus): Promise<MIDIAcces
   }
 }
 
+/**
+ * Release whatever a port that has gone away was holding. Browsers differ on
+ * whether an unplugged input leaves `access.inputs` or stays in it as
+ * `disconnected`, so both count — and the live list is consulted rather than the
+ * event's `port`, which tells nothing about a second port that left alongside.
+ */
+function releaseVanishedPorts(access: MIDIAccess, bus: ParamBus, pedal: SustainPedal, holds: PortHolds): void {
+  for (const [portId, keys] of holds.sounding) {
+    const port = access.inputs.get(portId);
+    if (port && port.state !== 'disconnected') continue;
+    holds.sounding.delete(portId);
+    // Its pedal may have been the one down: lift it first, flushing what it
+    // deferred, so the keys below are released once rather than deferred again.
+    for (const note of pedal.setPedal(false)) bus.noteOff(note);
+    for (const key of keys) {
+      pedal.noteOff(key % 128);
+      bus.noteOff(key % 128);
+    }
+    if (holds.bendPort === portId) {
+      holds.bendPort = null;
+      bus.set('master.pitchBend', 0);
+    }
+  }
+}
+
 function handleMessage(
   ev: MIDIMessageEvent,
+  portId: string,
   engine: Engine,
   bus: ParamBus,
   sync: MidiSyncTransport,
   pedal: SustainPedal,
   mod: ModSources,
+  holds: PortHolds,
 ): void {
   const data = ev.data;
   if (!data || data.length < 1) return;
@@ -88,6 +131,18 @@ function handleMessage(
     }
     return;
   }
+  // Every port that sends channel messages is remembered, notes or not, so one
+  // that only bent the pitch still re-centres it when it goes.
+  let held = holds.sounding.get(portId);
+  if (!held) holds.sounding.set(portId, (held = new Set()));
+  const isOff = status === 0x80 || (status === 0x90 && d2 === 0);
+  // A note-off for a note this port sounded is honoured whatever the filter now
+  // says — the channel may have changed since its note-on
+  // (REQ-a-midi-note-is-released-by-whatever-ended-it).
+  if (isOff && held.delete(holdKey(channel, d1))) {
+    noteOff(d1, bus, pedal);
+    return;
+  }
   // The synth's channel (REQ-the-midi-input-channel-is-selectable): 0 is omni.
   const wanted = midiInputChannel();
   if (wanted !== 0 && channel !== wanted) return;
@@ -96,6 +151,7 @@ function handleMessage(
     case 0x90: // Note on (vel 0 = note off, so it obeys the pedal too)
       if (d2 === 0) noteOff(d1, bus, pedal);
       else {
+        held.add(holdKey(channel, d1));
         pedal.noteOn(d1);
         bus.noteOn(d1, d2 / 127);
       }
@@ -114,6 +170,7 @@ function handleMessage(
       {
         const raw = (d2 << 7) | d1; // 0..16383, 8192 = center
         bus.set('master.pitchBend', (raw - 8192) / 8192);
+        holds.bendPort = portId;
       }
       break;
   }

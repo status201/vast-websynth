@@ -11,7 +11,7 @@ import { rampTo, RAMP_MEDIUM, toneCutoff } from '../param-utils';
 import { forceStereo } from '../stereo';
 import { reverseBuffer } from '../recorder/audio-buffer';
 
-export type SamplerStepListener = (step: number) => void;
+export type SamplerStepListener = (step: number, when: number) => void;
 
 /** Click-free cut: ramp the per-hit gain to 0 over CHOKE_FADE, stop just after. */
 const CHOKE_FADE = 0.005;
@@ -129,7 +129,7 @@ export class SamplerMachine {
   private readonly mono: boolean[] = Array(SAMPLER_SLOT_COUNT).fill(false);
 
   private enabled = false;
-  private readonly stepListeners = new ListenerSet<[number]>();
+  private readonly stepListeners = new ListenerSet<[number, number]>();
   private readonly bufferListeners = new ListenerSet<[number]>();
   /** Hits still sounding (or still scheduled), so a transport stop can cut them
    *  (REQ-a-stop-cuts-in-flight-one-shots). Drums self-terminate; a user sample is any length at all. */
@@ -441,7 +441,7 @@ export class SamplerMachine {
   private onTick(step: number, when: number): void {
     if (!this.enabled) return;
     this.lane.forEachHit(step, when, (idx, at, cellDur) => {
-      this.stepListeners.emit(idx);
+      this.stepListeners.emit(idx, at);
 
       // Arrangement rest bar: keep the playhead moving but trigger nothing.
       if (this.arrangement.samplerResting) return;

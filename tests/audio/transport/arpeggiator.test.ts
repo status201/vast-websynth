@@ -82,6 +82,24 @@ describe('Arpeggiator auto-start', () => {
 describe('Arpeggiator pattern generation', () => {
   afterEach(() => vi.restoreAllMocks());
 
+  // v6 regression (REQ-the-pool-stays-in-midi-range): octave copies were stacked
+  // with no ceiling, so a held 120 at 4 octaves scheduled MIDI 156 (~67 kHz).
+  it('drops octave copies above MIDI 127, in every pattern', () => {
+    for (const pattern of [0, 1, 2, 3, 4]) {
+      const { clock, bus, arp, playNote } = setup();
+      arp.setEnabled(true);
+      arp.setOctaves(4);
+      arp.setPattern(pattern);
+      bus.noteOn(108);
+      bus.noteOn(120);
+      clock.fireTicks(16);
+      const notes = played(playNote);
+      expect(notes.length, `pattern ${pattern}`).toBe(16);
+      expect(Math.max(...notes), `pattern ${pattern}`).toBeLessThanOrEqual(127);
+      expect(new Set(notes), `pattern ${pattern}`).toEqual(new Set([108, 120])); // 132, 144, 156 dropped
+    }
+  });
+
   it('walks the pool upward on the "up" pattern', () => {
     const { clock, bus, arp, playNote } = setup();
     arp.setEnabled(true);

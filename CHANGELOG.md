@@ -28,6 +28,27 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ### Fixed
 
+- **The playhead lights up when you hear the step, not before.** The lit step on
+  every grid, the bar ruler, the transport readout and the Play button's beat
+  blink all ran up to a tenth of a second ahead of the sound.
+- **Loading a song or preset while playing no longer brings old values back on
+  Stop.** With the motion lane automating a knob, stopping restored that knob to
+  where it was *before* the load, so the previous song's sound leaked into the
+  new one (and into it when saved). Stop now returns to the loaded value, or to
+  wherever you last turned the knob.
+- **MIDI clock out stays locked after you jump the playhead.** Clicking a
+  different step on the ruler while playing could drop or double a 16th's worth
+  of clock, leaving hardware synced to VAST a 16th early or late until you
+  stopped. Starting from an odd step also sent no clock for the first 16th.
+- **MIDI notes no longer hang when a keyboard is unplugged, or when you change
+  the MIDI input channel while holding a key.** Unplugging also lifts that
+  keyboard's sustain pedal and re-centres its pitch bend.
+- **Holding two computer keys that play the same note no longer cuts it when you
+  let go of one.** `,` and `Q` are both the top C, and an octave change can line
+  up others.
+- **The arpeggiator stays inside the playable range.** High notes with several
+  octaves selected used to schedule pitches far beyond the top of the keyboard.
+  Those octaves are now skipped.
 - **The drum CHOKE switch now really cuts the open hat.** A closed hat faded the
   open hat out, then let its tail straight back in 10 ms later, so the choke
   barely changed anything. Demos with CHOKE on (Neon, Maison, Kutmuziek and

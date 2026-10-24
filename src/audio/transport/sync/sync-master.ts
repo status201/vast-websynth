@@ -11,11 +11,13 @@ import { type TickTimer, defaultTickTimer } from '../tick-timer';
  *
  * Pulses: MIDI clock is 24 PPQN = 6 pulses per 16th, but `onTick`'s `when`
  * includes the swing offset on odd 16ths and MIDI clock is *straight*
- * (hardware convention: the slave applies its own shuffle). So we act on
- * **even ticks only** — never swung — and emit 12 pulses spanning two 16ths
- * from the unswung grid time, converted to the performance.now() domain via
- * the injected `toPerfMs` so `MIDIOutput.send(data, timestamp)` fires them
- * with hardware timing.
+ * (hardware convention: the slave applies its own shuffle). So every tick
+ * emits its own 6 pulses from its **unswung** time, `when − swingOffset(step)`,
+ * converted to the performance.now() domain via the injected `toPerfMs` so
+ * `MIDIOutput.send(data, timestamp)` fires them with hardware timing. (It used
+ * to act on even ticks only, 12 pulses each — but a seek re-numbers the grid,
+ * and a jump by an odd number of steps then dropped or doubled six pulses:
+ * midi-clock-sync REQ-master-broadcasts-start-and-stop, v9.)
  *
  * v2 additions (midi-clock-sync
  * REQ-song-position-pointer-jumps-the-slave/REQ-the-master-keeps-an-idle-clock,
@@ -170,12 +172,13 @@ export class SyncMaster {
   };
 
   private onTick = (step: number, when: number): void => {
-    if ((step & 1) === 1) return; // odd 16ths may be swung; covered by the even tick
+    // Straight, whatever the step's number: swing comes off before the pulses go out.
+    const grid = when - this.clock.swingOffset(step);
     const pulseS = this.clock.sixteenthDuration() / 6;
-    for (let i = 0; i < 12; i++) {
-      this.send({ type: 'pulse' }, this.toPerfMs(when + i * pulseS));
+    for (let i = 0; i < 6; i++) {
+      this.send({ type: 'pulse' }, this.toPerfMs(grid + i * pulseS));
     }
-    // Tempo moves (Tape Stop ramp, live BPM knob) ride the even-tick grid.
+    // Tempo moves (Tape Stop ramp, live BPM knob) ride the tick grid.
     const bpm = this.currentBpm();
     if (this.lastSentBpm === null || Math.abs(bpm - this.lastSentBpm) >= TEMPO_SEND_MIN_DELTA) {
       this.sendTempo(bpm);

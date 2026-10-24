@@ -11,7 +11,7 @@ import { defaultTickTimer, type TickTimer } from './tick-timer';
 import type { TickSubscriber } from './tick-source';
 import { ListenerSet } from '../../utils/listeners';
 
-export type MotionStepListener = (step: number) => void;
+export type MotionStepListener = (step: number, when: number) => void;
 
 /**
  * "Evaluate this bank alone." Shared by the handover park (REQ-a-bank-parks-at-its-last-anchor), whose whole
@@ -115,6 +115,8 @@ export class MotionMachine {
   private latchCount = 0;
   /** The last cell index latched this tick, for the one step emit per tick. */
   private lastIdx = -1;
+  /** `lastIdx`'s audio time, for `onStep` (transport-position.md REQ-the-playhead-is-drawn-when-it-is-heard). */
+  private lastWhen = 0;
   /**
    * The bank whose writes are live — `-1` while resting, and before the first
    * frame of a play session or of a seek. The handover park (REQ-a-bank-parks-at-its-last-anchor) reads it to
@@ -123,7 +125,7 @@ export class MotionMachine {
    */
   private held = -1;
   private readonly baselines = new Map<string, number>();
-  private readonly stepListeners = new ListenerSet<[number]>();
+  private readonly stepListeners = new ListenerSet<[number, number]>();
   /** Anchor-index memo for the frame loop; dropped on any bank mutation. */
   private readonly anchors = createAnchorCache();
 
@@ -170,7 +172,7 @@ export class MotionMachine {
       this.lane.forEachHit(step, when, this.latchCell);
       if (this.lastIdx < 0) return; // a coarser lane skips this tick entirely
       if (!this.enabled) return;
-      this.stepListeners.emit(this.lastIdx);
+      this.stepListeners.emit(this.lastIdx, this.lastWhen);
     });
     clock.onStart(() => {
       this.latchCount = 0;
@@ -201,6 +203,17 @@ export class MotionMachine {
     patterns.onMotionBankChange(invalidate);
     patterns.onMotionTrackChange(invalidate);
     patterns.onBulkRestore(invalidate);
+
+    // A load or an edit mid-play replaces the value automation will let go to
+    // (REQ-a-load-or-an-edit-rebaselines). Only recorded, never written — and the
+    // machine's own writes run under withoutChangeSignal, so onChange never
+    // carries them back here.
+    bus.onBulkApply((ids) => {
+      for (const id of ids) if (this.baselines.has(id)) this.baselines.set(id, bus.get(id));
+    });
+    bus.onChange((id, v) => {
+      if (this.baselines.has(id)) this.baselines.set(id, v);
+    });
   }
 
   /**
@@ -222,6 +235,7 @@ export class MotionMachine {
     this.latchHead = (this.latchHead + 1) % LATCH_SIZE;
     if (this.latchCount < LATCH_SIZE) this.latchCount++;
     this.lastIdx = idx;
+    this.lastWhen = when;
   };
 
   /**

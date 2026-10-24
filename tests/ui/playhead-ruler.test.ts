@@ -31,6 +31,7 @@ function harness(over: { canSeek?: boolean; bars?: number; bank?: number } = {})
   const arrangementListeners = new Set<() => void>();
   const api = {
     clock,
+    ctx: { currentTime: 0 }, // every tick here is due now (REQ-the-playhead-is-drawn-when-it-is-heard)
     seekTo,
     canSeek: () => over.canSeek !== false,
     sync: { onStatus: () => () => {} },
@@ -259,10 +260,12 @@ describe('PlayheadRuler', () => {
     expect(litIndex(ruler.cellsEl)).toBe(0); // untouched while off screen
 
     gate.set(true);
-    // The step playing NOW — read live from the clock — not the one it was
-    // left on, and not a replay of the ticks it slept through.
-    expect(litIndex(ruler.cellsEl)).toBe(clock.step % SEQ_LENGTH);
-    expect(litIndex(ruler.cellsEl)).toBe(13);
+    // The step playing NOW, not the one it was left on, and not a replay of the
+    // ticks it slept through. That is 12, the last one heard; `clock.step` (13)
+    // is the next one to SCHEDULE, which is what the ruler used to show
+    // (transport-position.md REQ-the-playhead-is-drawn-when-it-is-heard).
+    expect(litIndex(ruler.cellsEl)).toBe(12);
+    expect(clock.step).toBe(13);
   });
 
   it('unsubscribes on destroy', () => {

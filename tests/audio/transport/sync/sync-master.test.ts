@@ -79,10 +79,10 @@ describe('SyncMaster', () => {
     // v2: enable-while-stopped announces tempo first; the transport 'start' is next.
     expect(types(sent).find((t) => t !== 'tempo')).toBe('start');
 
-    advance(0.125); // step 1 (odd — no pulses)
-    advance(0.125); // step 2 (even — next 12)
+    advance(0.125); // step 1
+    advance(0.125); // step 2
     const p = pulses(sent);
-    expect(p.length).toBe(24); // steps 0 and 2, 12 each
+    expect(p.length).toBe(18); // six per tick (v9: every tick, not 12 per even one)
     const spacing = 125 / 6;
     for (let i = 1; i < p.length; i++) {
       expect(p[i]!.atMs! - p[i - 1]!.atMs!).toBeCloseTo(spacing, 6);
@@ -98,10 +98,44 @@ describe('SyncMaster', () => {
     advance(0.125);
     advance(0.125);
     const p = pulses(sent);
-    expect(p.length).toBe(24);
+    expect(p.length).toBe(18);
     for (let i = 1; i < p.length; i++) {
       expect(p[i]!.atMs! - p[i - 1]!.atMs!).toBeCloseTo(125 / 6, 6); // no swing bump
     }
+  });
+
+  // midi-clock-sync.md REQ-master-broadcasts-start-and-stop (v9, regression). Pulses went out on even
+  // step NUMBERS, 12 at a time — and a seek renumbers the grid without moving it.
+  // A jump by an odd number of steps flips which slots carry even numbers: after
+  // an even step (which already covered the next slot) the next slot came out
+  // even again and was covered twice; after an odd one it came out odd and was
+  // skipped. Six pulses doubled or lost — a hardware slave a 16th off for good.
+  // `from` is the last step sent before the seek.
+  for (const [from, to, what] of [[2, 8, 'doubles'], [3, 9, 'drops']] as const) {
+    it(`a seek right after step ${from} to ${to} no longer ${what} six pulses, swing on`, () => {
+      const { clock, master, sent, advance } = setup(0.6);
+      master.enable();
+      clock.start();
+      while (clock.step <= from) advance(0.125);
+      clock.seek(to);
+      for (let i = 0; i < 6; i++) advance(0.125);
+      clock.stop();
+      const p = pulses(sent).map((x) => x.atMs!);
+      expect(p.length % 6).toBe(0);
+      for (let i = 1; i < p.length; i++) {
+        expect(p[i]! - p[i - 1]!, `gap after pulse ${i - 1}`).toBeCloseTo(125 / 6, 6);
+      }
+    });
+  }
+
+  it('a start from an odd cue clocks its first 16th', () => {
+    const { clock, master, sent } = setup(0.6);
+    master.enable();
+    clock.seek(5);
+    sent.length = 0;
+    clock.start(); // step 5 drains synchronously
+    expect(pulses(sent)).toHaveLength(6);
+    clock.stop();
   });
 
   it('emits an explicit tempo on start', () => {

@@ -3,7 +3,9 @@
 ```yaml
 id: motion-sequencer
 status: implemented
-version: 18  # v18: the playhead follows the swung grid, so a slide stays a line under swing
+version: 19  # v19: a load or an edit mid-play re-baselines what it touched (REQ-a-load-or-an-edit-rebaselines) —
+             #      Stop used to put the OLD song's or preset's values back into the new one
+             # v18: the playhead follows the swung grid, so a slide stays a line under swing
              #      (REQ-the-motion-playhead-follows-the-swung-grid); the frame loop evaluates the latest
              #      HEARD cell from a ring, so bank switches land on time above
              #      150 BPM (REQ-the-governing-cell-is-the-latest-heard); the bar-line carry and the
@@ -162,6 +164,25 @@ The tab sits between Sampler and Song.
   in a play session (`Map<paramId, baseline>`) and restores *all* recorded
   baselines on transport stop and on `motion.on → 0`. It never subscribes to the
   params it writes (no feedback loop).
+- **REQ-a-load-or-an-edit-rebaselines** (v19) — **A load or a user edit mid-play
+  becomes the new baseline.** A baseline is "the value this param should have
+  when automation lets go", and the user can change that while the transport
+  runs: a song or preset loaded mid-play (a song load seeks to bar 1 and keeps
+  playing, [song-mode](song-mode.md) REQ-a-load-lands-on-bar-one), a knob turn
+  or a MIDI CC. Each sets the param to a new value that motion then overwrites
+  on its next frame, which is unchanged ("motion wins"). But Stop used to restore
+  the value from *before* the load, so the old song's cutoff came back inside the
+  new song, and saving it then wrote the wrong value. Now, for a param the
+  machine holds a baseline for:
+  - a **bulk apply** (`ParamBus.restore` / `resetDefaults`, reported by the new
+    `ParamBus.onBulkApply(ids)`) re-baselines each id it applied to the value
+    it applied. A sparse preset leaves the ids it does not name alone.
+  - a **user edit** (the global `onChange`) re-baselines that id to the edited
+    value.
+
+  Neither is a feedback loop. The machine's own writes run under
+  `withoutChangeSignal`, which `onChange` never sees, and it only *records*
+  from these signals, it never writes.
 - **REQ-motion-has-the-fourth-chain-lane** — Motion has the 4th `Arrangement`
   chain lane (`motionPlayBank`, `motionResting`, `setMotionChain`); it respects
   rests (no writes) and a disabled lane follows the edit bank. (v3) The lane
@@ -1385,6 +1406,14 @@ Scenario: Baselines restore on stop
   Then filter.cutoff returns to its pre-play value
 # pinned by: tests/audio/transport/motion-machine.test.ts, e2e/motion.spec.ts
 
+Scenario: A song loaded mid-play keeps its own values after Stop (v19, REQ-a-load-or-an-edit-rebaselines, regression)
+  Given song A's motion lane drives filter.cutoff, whose saved value is 90
+  When song B (cutoff 40) is loaded mid-play and the transport is then stopped
+  Then filter.cutoff is 40, not A's 90
+  And a sparse preset loaded mid-play re-baselines only the params it names
+  And a knob turned on an automated param mid-play is the value Stop returns to
+# pinned by: tests/audio/transport/motion-machine.test.ts, tests/state/params.test.ts
+
 Scenario: A seek keeps the baselines (v10, REQ-a-seek-clears-the-tick-latch)
   Given motion drove filter.cutoff away from its saved value
   When the playhead is seeked mid-play
@@ -1513,7 +1542,8 @@ Scenario: Dialect motion bank expands
 
 - Saving a song/preset **while playing** captures the momentary automated values
   (same as saving mid-knob-drag); stop first for the baseline sound.
-- Dragging an automated knob mid-play: motion wins on its next write.
+- Dragging an automated knob mid-play: motion wins on its next write, and Stop
+  returns to where you left the knob (REQ-a-load-or-an-edit-rebaselines, v19).
 - Assigning `transport.bpm` is allowed (tempo automation); slave-sync gating already
   prevents clock conflicts.
 - When the chain leaves a bank whose override drove other params, those params hold

@@ -3,7 +3,10 @@
 ```yaml
 id: input-control
 status: implemented
-version: 20  # v20: a key held into a text field is still released (REQ-shortcuts-are-suppressed-in-a-field) —
+version: 21  # v21: two computer keys on one note release it with the last key, not the first
+             #      (REQ-a-note-off-names-the-pressed-note); a MIDI note is released after a channel
+             #      change or an unplug (REQ-a-midi-note-is-released-by-whatever-ended-it)
+             # v20: a key held into a text field is still released (REQ-shortcuts-are-suppressed-in-a-field) —
              #      the keyup in a field returned early and the note hung
              # v19: the volume knob reads the gain it applies (REQ-the-volume-knob-reads-the-gain-it-applies) —
              #      it showed 20·log10(volume) over a volume² law, half the real cut
@@ -234,6 +237,16 @@ notes played on another tab no longer overwrite its bank.
   This is the input-layer twin of [sequencer](sequencer.md) REQ-a-stop-releases-every-tracks-note: nothing may
   hold a note whose release depends on state that is free to change underneath it.
 
+  (v21) **Two computer keys on one note release it once, with the last key.**
+  `,` and `Q` both play C5, and an octave shift mid-hold can line any two keys
+  up on one note. The synth has one voice set per note, so a second press only
+  retriggers it and the first release used to end it while the other key was
+  still down. `installShortcuts` counts the keys holding each note. The first
+  key sounds the note, a further key does nothing, and only the last key up
+  sends `noteOff`. This applies to the computer keyboard only: a MIDI note-off,
+  or one from the on-screen keyboard, still ends the note, which is the MIDI
+  convention.
+
 - **REQ-pitch-bend-is-quote-and-slash** (v10) — **Pitch bend is `'` up and `/`
   down, chosen for where the keys sit.** Both write `master.pitchBend` (+1 / −1)
   on keydown and spring back to 0 on keyup, as before. What changed is which key
@@ -349,6 +362,21 @@ notes played on another tab no longer overwrite its bank.
   describes the rig, not the song. A stored value that is not a valid channel
   reads as omni. It filters channel-voice messages only; clock and Song Position
   have no channel.
+- **REQ-a-midi-note-is-released-by-whatever-ended-it** (v21) — **A MIDI note
+  the synth sounded is always released.** `midi.ts` remembers, per input port,
+  the (channel, note) pairs it sent `noteOn` for. Two rules follow:
+  - **The channel filter gates note-ons, not note-offs.** A note-off for a
+    pair the synth sounded is honoured even if the input channel has changed
+    since (REQ-the-midi-input-channel-is-selectable). Before, changing the
+    channel with a key down dropped that key's note-off as "another channel's",
+    and the note hung.
+  - **A port that goes away releases what it was holding.** On every
+    `statechange`, a remembered port that is missing from `access.inputs` or
+    reads `disconnected` has its notes released. A held sustain pedal is
+    lifted, which flushes its deferred note-offs, and the pitch bend goes back
+    to centre if that port set it last. An unplugged keyboard used to leave
+    every held note, the pedal and the bend exactly where they were, until a
+    Panic.
 - **REQ-cc11-is-expression** (v18) — **CC11 is expression.** An expression
   pedal or breath controller sends CC11, which did nothing. It writes
   `master.expression` (0..1, **default 1 — a no-op**, ADR-006), which scales the
@@ -535,6 +563,27 @@ Scenario: Shifting octave while a computer key is held releases it (v9, REQ-a-no
   Then exactly one bus.noteOff fires, for the note 'z' originally played
   And the on-screen key un-lights — previously both waited for a window blur
 # pinned by: tests/ui/shortcuts.test.ts
+
+Scenario: Two keys on one note release it with the last key (v21, REQ-a-note-off-names-the-pressed-note, regression)
+  Given the user holds ',' and 'q', which both play C5
+  When they release ','
+  Then the note keeps sounding: no bus.noteOff, and no second noteOn when 'q' went down
+  And releasing 'q' sends the one noteOff
+# pinned by: tests/ui/shortcuts.test.ts
+
+Scenario: Changing the MIDI channel with a key down still releases it (v21, REQ-a-midi-note-is-released-by-whatever-ended-it, regression)
+  Given the synth listens on channel 1 and a channel-1 key is held
+  When the input channel is switched to 2 and the key is released
+  Then the note is released
+  And a channel-1 note-on is still ignored
+# pinned by: tests/audio/midi.test.ts
+
+Scenario: Unplugging a keyboard releases its notes, pedal and bend (v21, REQ-a-midi-note-is-released-by-whatever-ended-it, regression)
+  Given a key held, the sustain pedal down and the bend pushed up on one port
+  When that port disappears and statechange fires
+  Then every note it held is released, the sustained ones too, and the bend is centred
+  And a second port's held note keeps sounding
+# pinned by: tests/audio/midi.test.ts
 
 Scenario: MIDI Note On with velocity 0 is a Note Off (edge)
   Given a MIDI device sends 0x90 note 60 velocity 0

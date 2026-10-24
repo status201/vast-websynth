@@ -2,6 +2,7 @@ import type { ParamBus } from '../../state/params';
 import type { SynthOutput } from './note-output';
 import type { TickSubscriber } from './tick-source';
 import { ScaleQuantizer } from './scale-quantizer';
+import { MIDI_NOTE_MAX } from '../../state/limits';
 
 // Dropdown labels live in ARP_PATTERN_LABELS / ARP_RATE_LABELS (state/params.ts).
 const RATE_DIVISIONS = [4, 2, 1, 0.5]; // 16ths per step at each rate
@@ -132,11 +133,7 @@ export class Arpeggiator {
     // as well as in the engine's passthrough is required, not duplicated by accident:
     // REQ-arp-takes-over-the-note-stream means an engaged arp takes the note stream away from the engine entirely.
     const held = this.expand(this.heldOrder);
-    const sorted = [...held].sort((a, b) => a - b);
-    const pool: number[] = [];
-    for (let o = 0; o < this.octaves; o++) {
-      for (const n of sorted) pool.push(this.scale.get(n + o * 12));
-    }
+    const pool = this.stack([...held].sort((a, b) => a - b));
     if (pool.length === 0) return;
 
     let note: number;
@@ -172,10 +169,7 @@ export class Arpeggiator {
         break;
       case 4: // as-played
         {
-          const ordered: number[] = [];
-          for (let o = 0; o < this.octaves; o++) {
-            for (const n of held) ordered.push(this.scale.get(n + o * 12));
-          }
+          const ordered = this.stack(held);
           note = ordered[this.cursor % ordered.length]!;
           this.cursor++;
         }
@@ -192,6 +186,25 @@ export class Arpeggiator {
     const release = when + gateLen;
     this.output.releaseNote(note, release);
     this.lastTriggered = { note, when, release };
+  }
+
+  /**
+   * `notes` stacked over the octave range and quantized to the key, in that order
+   * (REQ-arp-pool-is-expanded-then-quantized). A copy above MIDI 127 is dropped,
+   * not clamped — clamping would stack repeated 127s into the pattern
+   * (REQ-the-pool-stays-in-midi-range). Only if that leaves nothing does a held
+   * note that quantized past the top still sound, at 127.
+   */
+  private stack(notes: readonly number[]): number[] {
+    const out: number[] = [];
+    for (let o = 0; o < this.octaves; o++) {
+      for (const n of notes) {
+        const q = this.scale.get(n + o * 12);
+        if (q <= MIDI_NOTE_MAX) out.push(q);
+      }
+    }
+    if (out.length === 0 && notes.length > 0) out.push(MIDI_NOTE_MAX);
+    return out;
   }
 
   /**
