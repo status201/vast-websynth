@@ -92,8 +92,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 - **The fullscreen button knows when the app is already fullscreen.** The
   installed Android app opens fullscreen, but the button showed it as off and
   took two taps to leave. It now lights up whenever the window is fullscreen,
-  including a desktop F11, and one tap leaves. Fullscreen you entered with F11
-  still belongs to the browser, so press F11 or Esc to leave it.
+  including a desktop F11, and in the app one tap leaves. Fullscreen you entered
+  with F11 still belongs to the browser, so press F11 or Esc to leave it.
 
 ## [2.17.1] - 2026-10-13
 
