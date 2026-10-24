@@ -80,6 +80,9 @@ test.describe('mod matrix', () => {
   test('an idle row’s destination picker opens a menu that is opaque and on top', async ({ page }) => {
     await gotoAndStart(page);
     await openMatrix(page);
+    // The window fades in (floating-window.module.css, 0.18s); sampled mid-fade its
+    // own root is the "faded ancestor". Wait the fade out before reading opacity.
+    await expect(page.getByTestId('mod-window')).toHaveCSS('opacity', '1');
 
     // LFO 2 ships with no destination, so row 1 reads as idle.
     const picker = page.getByTestId('mod-dst-1');
