@@ -3,7 +3,9 @@
 ```yaml
 id: arrangement
 status: implemented
-version: 9   # v9: an edit keeps a playing lane on its bar (REQ-an-edit-keeps-the-lane-on-its-bar) —
+version: 10  # v10: New and Clear chain reset the slot transpose (REQ-a-seq-slot-carries-a-transpose) —
+             #      slot 1's offset used to survive both
+             # v9: an edit keeps a playing lane on its bar (REQ-an-edit-keeps-the-lane-on-its-bar) —
              #     it used to restart the lane at slot 1
              # v8: the chip wheel steps by scroll distance (wheel-steps.md) — a touchpad swipe
              #     used to send a bar's transpose straight to the clamp
@@ -113,6 +115,13 @@ tick listener settles the play banks first.
   - A `REST` slot's offset is meaningless but harmless; it is preserved rather
     than zeroed, so toggling a slot between rest and a bank does not lose the
     transpose the user set.
+  - (v10) **A write that omits `transpose` keeps the lane's offsets**, fitted
+    to the new length. That is right for the Chain toggle and the edits that
+    reorder slots, but wrong for a reset. **New and a lane's Clear pass
+    `transpose: [0]` explicitly.** Both used to pass only `[0]` as the steps,
+    so slot 1's old offset survived. A song that started *A+5* came back from
+    New, or from Clear chain, still playing a fourth up, with a chip reading
+    `A+5` on what claimed to be a blank chain.
 
 - **REQ-transposition-is-applied-at-trigger** (v5) — **Transposition is applied
   at trigger, never to stored data.** The offset shifts the note the sequencer
@@ -325,6 +334,12 @@ Scenario: transpose is kept the same length as steps (v5, REQ-a-seq-slot-carries
   Then transpose is [0,5] — truncated, never left longer than steps
   And growing the chain pads with 0, so a new slot is always a no-op
 # pinned by: tests/audio/transport/arrangement.test.ts
+
+Scenario: New and Clear chain reset the transpose (v10, REQ-a-seq-slot-carries-a-transpose, regression)
+  Given a seq chain [A, B] with transposes [+5, +7]
+  When the user confirms Clear on the seq lane, or New on the Song tab
+  Then the chain is [A] at +0, not [A] at +5
+# pinned by: tests/ui/song-panel-reset-transpose.test.ts
 
 Scenario: A transposed note stays inside the MIDI range (v5, REQ-transposition-is-applied-at-trigger, edge)
   Given a step at note 120 and a slot transpose of +24

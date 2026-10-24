@@ -3,7 +3,9 @@
 ```yaml
 id: input-control
 status: implemented
-version: 19  # v19: the volume knob reads the gain it applies (REQ-the-volume-knob-reads-the-gain-it-applies) —
+version: 20  # v20: a key held into a text field is still released (REQ-shortcuts-are-suppressed-in-a-field) —
+             #      the keyup in a field returned early and the note hung
+             # v19: the volume knob reads the gain it applies (REQ-the-volume-knob-reads-the-gain-it-applies) —
              #      it showed 20·log10(volume) over a volume² law, half the real cut
              # v18: MIDI channel 10 plays the sampler's slots (REQ-channel-ten-plays-the-sampler),
              #      the synth's input channel is selectable (REQ-the-midi-input-channel-is-selectable),
@@ -108,7 +110,15 @@ notes played on another tab no longer overwrite its bank.
   suppressed while focus is in an editable field (`input` / `textarea` /
   `[contenteditable="true"]`): keystrokes reach the field and never play a note,
   toggle transport, bend pitch, shift octave, or trigger a drum fill. (Same
-  `closest(...)` rule the `contextmenu` guard already uses.)
+  `closest(...)` rule the `contextmenu` guard already uses.) (v20) **This gates
+  presses, not releases.** A note, the fill or the bend that was pressed outside
+  a field is released by its `keyup` even when focus has moved into a field
+  since, for the same reason REQ-shortcuts-yield-to-an-open-modal leaves `keyup`
+  ungated. The `keyup` used to return early in a field. Hold `Z`, click the song
+  name field, let go, and the note hung until the window lost focus. A key typed
+  in the field was never recorded as held, so its `keyup` releases nothing. The
+  bend springs back only if a bend key is actually held, so typing `'` in a
+  field cannot reset a MIDI wheel.
 
 - **REQ-shortcuts-yield-to-an-open-modal** (v17) — **While a modal is open, the
   global shortcuts do nothing.** A dialog is the whole of the user's attention,
@@ -638,6 +648,13 @@ Scenario: Typing in a text field does not play notes
   When the user presses 'z'
   Then no note is played (UiBridge.pressKey is not called)
   And a 'z' that originates outside an editable field still plays a note
+# pinned by: tests/ui/shortcuts.test.ts
+
+Scenario: A note held into a text field is still released (v20, REQ-shortcuts-are-suppressed-in-a-field, regression)
+  Given 'z' is held, playing a note, with no field focused
+  When focus moves into a text field and 'z' is released there
+  Then the note is released
+  And a ' typed in the field does not reset a pitch bend nobody is holding on the keyboard
 # pinned by: tests/ui/shortcuts.test.ts
 
 Scenario: An open modal silences the shortcuts behind it (v17, REQ-shortcuts-yield-to-an-open-modal, regression)

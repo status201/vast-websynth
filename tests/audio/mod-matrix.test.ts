@@ -141,6 +141,21 @@ describe('ModMatrix routing (REQ-one-gain-per-route-rewired-while-silent)', () =
     expect(sources.random.connect).toHaveBeenCalled();
   });
 
+  // v6 regression: a song load writes source, dest and amount back to back, and
+  // the amount ramped the still-old wiring straight back up inside the mute window.
+  it('a depth written mid-re-patch waits for the rewire (REQ-one-gain-per-route-rewired-while-silent, regression)', () => {
+    const { m, ctx } = build(1);
+    route(m, 0, MOD_SRC.lfo1, MOD_DST.cutoff, 0.5);
+    const gains = ctx.createGain.mock.results.map((r) => r.value);
+
+    m.setSource(0, MOD_SRC.lfo2);
+    m.setAmount(0, 0.8);
+    expect(gains.every((g) => (lastRamp(g.gain) ?? 0) === 0)).toBe(true); // still silent
+
+    vi.advanceTimersByTime(100); // the rewire
+    expect(gains.some((g) => (lastRamp(g.gain) ?? 0) > 0)).toBe(true); // up, at the new depth
+  });
+
   it('takes a route down again when its source returns to off', () => {
     const { m, ctx } = build(1);
     route(m, 0, MOD_SRC.lfo1, MOD_DST.cutoff, 1);

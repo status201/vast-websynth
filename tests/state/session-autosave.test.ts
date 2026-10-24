@@ -170,6 +170,36 @@ describe('SessionAutosave', () => {
     expect(Song.list()).not.toContain(SESSION_KEY);
   });
 
+  // v9, REQ-autosave-triggers-on-any-change (regression) — each of these changed
+  // the session without arming the debounce, so a tab closed straight after lost it.
+  type Harness = ReturnType<typeof build>;
+  /** Run `setup`, let its own write land, then forget it — only `edit` is under test. */
+  const settled = (h: Harness, setup: () => void): void => {
+    setup();
+    vi.advanceTimersByTime(200);
+    h.capture.mockClear();
+  };
+  for (const [what, edit] of [
+    ['a motion extra track param', (h) => h.patterns.setMotionTrackParam(0, 'filter.cutoff')],
+    ['a motion extra track step', (h) => h.patterns.setMotionTrackStep(0, 3, { on: true })],
+    ['a bank added', (h) => { h.patterns.addBank('seq'); }],
+    ['a copy into a bank not being edited', (h) => {
+      settled(h, () => { h.patterns.addBank('seq'); h.patterns.setSeqStep(0, { on: true, note: 60 }); });
+      h.patterns.copySeqBank(0, 1); // edit bank is 0: only the mutation record fires
+    }],
+    ['a slot transpose', (h) => {
+      settled(h, () => h.arr.setSeqChain([0, 0], true));
+      h.arr.setSeqChain([0, 0], true, [0, 5], [0, 1]); // same steps, new transpose
+    }],
+  ] as Array<[string, (h: Harness) => void]>) {
+    it(`arms the debounce for ${what}`, () => {
+      const h = build(100);
+      edit(h);
+      vi.advanceTimersByTime(200);
+      expect(h.capture).toHaveBeenCalledTimes(1);
+    });
+  }
+
   // debug-panel.md — the readout behind the Debug panel's Session row.
   describe('stats()', () => {
     it('is null with nothing stored, and reports size + age once written', () => {

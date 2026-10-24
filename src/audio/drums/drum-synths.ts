@@ -17,6 +17,11 @@ export interface DrumSynth {
   readonly output: GainNode;
   /** `chokeAt` (step gate < 1) cuts the hit early with a fast fade. */
   trigger(when: number, velocity: number, chokeAt?: number): void;
+  /**
+   * Fade out every hit that started before `when` and is still sounding — the
+   * hat choke (drum-machine.md REQ-a-closed-hat-cuts-an-open-hat). Only a voice that can be choked has one.
+   */
+  cut?(when: number): void;
   setTune(semitones: number): void;
   setDecay(seconds: number): void;
 }
@@ -221,8 +226,14 @@ export class HiHat implements DrumSynth {
   readonly output: GainNode;
   private decay: number;
   private tune = 0;
+  /**
+   * An open hat's hits that may still be sounding, each behind a gate gain of
+   * its own that only `cut` ever automates (REQ-a-closed-hat-cuts-an-open-hat). Pruned as hits end;
+   * the closed hat keeps none.
+   */
+  private live: Array<{ start: number; end: number; gate: GainNode }> = [];
 
-  constructor(private readonly ctx: AudioContext, private readonly noiseBuf: AudioBuffer, open: boolean) {
+  constructor(private readonly ctx: AudioContext, private readonly noiseBuf: AudioBuffer, private readonly open: boolean) {
     this.decay = open ? 0.35 : 0.05;
     this.output = ctx.createGain();
     this.output.gain.value = 0.5;
@@ -251,11 +262,42 @@ export class HiHat implements DrumSynth {
     const env = this.ctx.createGain();
     decayEnv(env.gain, t, velocity * 0.6, 0.001, this.decay);
 
-    noise.connect(hp).connect(peak).connect(env).connect(r.dest);
+    noise.connect(hp).connect(peak).connect(env);
+    const nodes: AudioNode[] = [noise, hp, peak, env];
+    let tail: AudioNode = env;
+    let gate: GainNode | null = null;
+    if (this.open) {
+      gate = this.ctx.createGain();
+      tail = tail.connect(gate);
+      nodes.push(gate);
+    }
+    tail.connect(r.dest);
     noise.start(t);
-    noise.stop(r.stopAt(endAt(env.gain, t + this.decay)));
+    const end = r.stopAt(endAt(env.gain, t + this.decay));
+    noise.stop(end);
 
-    finishHit(r, [noise], [noise, hp, peak, env]);
+    finishHit(r, [noise], nodes);
+    if (gate) {
+      this.prune();
+      this.live.push({ start: t, end, gate });
+    }
+  }
+
+  cut(when: number): void {
+    this.prune();
+    const at = Math.max(when, this.ctx.currentTime);
+    for (const h of this.live) {
+      // Strictly before: a hit at the same instant is not cut, whichever track fired first.
+      if (h.start >= when || h.end <= at) continue;
+      h.gate.gain.setValueAtTime(1, at);
+      h.gate.gain.linearRampToValueAtTime(0, at + CHOKE_FADE);
+      h.end = at; // cut once; it never comes back up
+    }
+  }
+
+  private prune(): void {
+    const now = this.ctx.currentTime;
+    if (this.live.some((h) => h.end <= now)) this.live = this.live.filter((h) => h.end > now);
   }
 }
 

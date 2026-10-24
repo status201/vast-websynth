@@ -84,7 +84,7 @@ function ptr(type: string, x: number, y: number, init: PointerEventInit = {}): P
   }) as unknown as PointerEvent;
   Object.defineProperty(e, 'offsetX', { value: x, configurable: true });
   Object.defineProperty(e, 'offsetY', { value: y, configurable: true });
-  Object.defineProperty(e, 'pointerId', { value: 1, configurable: true });
+  Object.defineProperty(e, 'pointerId', { value: init.pointerId ?? 1, configurable: true });
   Object.defineProperty(e, 'pointerType', { value: 'mouse', configurable: true });
   return e;
 }
@@ -306,5 +306,20 @@ describe('an in-flight frame respects a hide (REQ-the-graph-computes-from-bus-va
     graph.setVisible(true);
     frames.run();
     expect(painter.drew()).toBe(true);
+  });
+});
+
+// runtime-performance REQ-a-drag-follows-only-its-own-pointer (regression).
+describe('a second finger', () => {
+  it('neither draws on the curve nor ends the stroke of the first finger', () => {
+    frameScheduler();
+    const { bus, graph } = mount();
+    canvasOf(graph).dispatchEvent(ptr('pointerdown', xOf(2), yForDb(-6)));
+    canvasOf(graph).dispatchEvent(ptr('pointerdown', xOf(6), yForDb(12), { pointerId: 2 }));
+    window.dispatchEvent(ptr('pointermove', xOf(6), yForDb(12), { pointerId: 2 }));
+    expect(bus.get('fx.eq.b6')).toBe(0);
+    window.dispatchEvent(ptr('pointerup', xOf(6), yForDb(12), { pointerId: 2 }));
+    window.dispatchEvent(ptr('pointermove', xOf(3), yForDb(-6)));
+    expect(bus.get('fx.eq.b3')).toBeCloseTo(-6, 1); // still finger 1's stroke
   });
 });

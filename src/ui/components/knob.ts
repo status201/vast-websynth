@@ -60,6 +60,9 @@ export class Knob {
   private readonly def: ParamDef;
   private unsubscribe: () => void = () => {};
   private dragging = false;
+  /** The pointer driving the drag — a window listener hears every finger
+   *  (runtime-performance REQ-a-drag-follows-only-its-own-pointer). */
+  private dragPointer = -1;
   private startY = 0;
   private startValue = 0;
   private fine = false;
@@ -518,6 +521,7 @@ export class Knob {
 
   private onPointerDown = (e: PointerEvent): void => {
     if (this.disabled) return; // blocks drag AND double-tap reset
+    if (this.dragging && e.pointerId !== this.dragPointer) return; // a second finger on a knob already held
     e.preventDefault();
     (e.target as Element).setPointerCapture?.(e.pointerId);
 
@@ -532,6 +536,7 @@ export class Knob {
     this.lastTap = now;
 
     this.dragging = true;
+    this.dragPointer = e.pointerId;
     this.startY = e.clientY;
     this.startValue = this.opts.bus.get(this.opts.paramId);
     this.fine = e.shiftKey;
@@ -579,7 +584,7 @@ export class Knob {
   };
 
   private onPointerMove = (e: PointerEvent): void => {
-    if (!this.dragging) return;
+    if (!this.dragging || e.pointerId !== this.dragPointer) return;
     const dy = this.startY - e.clientY;
     const sensitivity = this.fine || e.shiftKey ? 600 : 200;
     const deltaNorm = dy / sensitivity;
@@ -588,7 +593,8 @@ export class Knob {
     this.opts.bus.set(this.opts.paramId, newValue);
   };
 
-  private onPointerUp = (_: PointerEvent): void => {
+  private onPointerUp = (e: PointerEvent): void => {
+    if (this.dragging && e.pointerId !== this.dragPointer) return; // another finger lifted
     this.detachDragListeners();
     if (!this.dragging) return;
     this.dragging = false;

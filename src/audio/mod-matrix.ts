@@ -36,11 +36,13 @@ interface Row {
   amt: number;
   /** Bumped on every re-patch so a stale timer cannot apply an outdated wiring. */
   gen: number;
+  /** A re-patch is muted and waiting for its rewire — a depth write must not un-mute it. */
+  rewiring: boolean;
 }
 
 export class ModMatrix {
   private readonly rows: Row[] = Array.from({ length: MOD_ROWS }, () => ({
-    src: MOD_SRC.off, dst: MOD_DST.none, amt: 0, gen: 0,
+    src: MOD_SRC.off, dst: MOD_DST.none, amt: 0, gen: 0, rewiring: false,
   }));
 
   /** `perVoice[row][voiceIndex]` — the chain used for per-voice destinations. */
@@ -80,12 +82,14 @@ export class ModMatrix {
   /**
    * Depth only — no rewiring, so this is safe to call as fast as a knob drags.
    * Bipolar: a negative amount inverts the route rather than needing an inverted source.
+   * Mid-re-patch it is only stored: the chains still hold the old wiring, and
+   * the rewire applies it (REQ-one-gain-per-route-rewired-while-silent).
    */
   setAmount(row: number, amt: number): void {
     const r = this.rows[row];
     if (!r) return;
     r.amt = amt;
-    this.applyGain(row);
+    if (!r.rewiring) this.applyGain(row);
   }
 
   // ---------- internals ----------
@@ -121,10 +125,12 @@ export class ModMatrix {
     if (next.src !== undefined) r.src = next.src;
     if (next.dst !== undefined) r.dst = next.dst;
     const gen = ++r.gen;
+    r.rewiring = true;
 
     // ~4 time constants of RAMP_MEDIUM: the gain is inaudible well before the rewire.
     window.setTimeout(() => {
       if (this.rows[row]?.gen !== gen) return;   // superseded by a later change
+      r.rewiring = false;
       this.rewire(row);
       this.applyGain(row);
     }, 40);

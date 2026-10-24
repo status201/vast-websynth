@@ -74,6 +74,9 @@ export class RecorderController {
   private takeGen = 0;
   /** Whether the last export failed to encode or write (REQ-a-failed-encode-keeps-the-take). */
   private exportFailed = false;
+  /** Whether the last export was ended by a stop it did not issue (REQ-an-outside-stop-ends-the-export). */
+  private exportInterrupted = false;
+  private unsubStop: (() => void) | null = null;
   private readonly phaseListeners = new Set<(phase: RecorderPhase) => void>();
 
   /**
@@ -94,6 +97,10 @@ export class RecorderController {
   /** Whether the last export failed to encode or write, rather than landing on
    *  disk — "back to idle" alone cannot tell the two apart (REQ-a-failed-encode-keeps-the-take). */
   lastExportFailed(): boolean { return this.exportFailed; }
+
+  /** Whether the last export was cut short by a transport stop from outside —
+   *  idle, and nothing written (REQ-an-outside-stop-ends-the-export). */
+  lastExportInterrupted(): boolean { return this.exportInterrupted; }
 
   get phase(): RecorderPhase { return this._phase; }
 
@@ -257,6 +264,7 @@ export class RecorderController {
     // the render and its restore (REQ-a-capture-waits-for-a-bank-render).
     if (this.blocked()) return false;
     this.exportFailed = false;
+    this.exportInterrupted = false;
     // The three AUDIBLE lanes only — the motion lane is param automation, and
     // widening the rendered length to include it would change what every
     // existing song exports (audio-export.md REQ-export-song-renders-from-the-top, transport-window.md).
@@ -293,6 +301,7 @@ export class RecorderController {
       // and verify-audio-by-ear.md depend on.
       const step = this.elapsedSteps++;
       if (step >= stopAtStep) {
+        this.unhookStop(); // this stop is ours
         this.clock.stop();
         this.tailTimer = window.setTimeout(() => void this.finishExport(format), tailMs);
       }
@@ -301,6 +310,13 @@ export class RecorderController {
     // and a plain start() now resumes from the user's cue (transport.md REQ-the-cue-is-where-start-begins),
     // which would truncate the export silently. Fires onStart → arrangement.
     this.clock.start(0);
+    // Hooked after our own start, so only a stop from outside lands here — and
+    // a stopped clock never ticks again, so the count above would never finish
+    // (REQ-an-outside-stop-ends-the-export).
+    this.unsubStop = this.clock.onStop(() => {
+      this.exportInterrupted = true;
+      this.cancelExport();
+    });
     return true;
   }
 
@@ -332,6 +348,7 @@ export class RecorderController {
    *  normal finish, so a cancelled render can't leave a tail timer armed. */
   private clearExport(): void {
     if (this.unsubTick) { this.unsubTick(); this.unsubTick = null; }
+    this.unhookStop();
     if (this.tailTimer !== undefined) {
       window.clearTimeout(this.tailTimer);
       this.tailTimer = undefined;
@@ -339,6 +356,10 @@ export class RecorderController {
     this.exporting = false;
     this.stopAtStep = 0;
     this.elapsedSteps = 0;
+  }
+
+  private unhookStop(): void {
+    if (this.unsubStop) { this.unsubStop(); this.unsubStop = null; }
   }
 
   /** An export is automatic, so it never parks in `review` — it stops, encodes

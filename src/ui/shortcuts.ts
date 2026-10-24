@@ -62,6 +62,15 @@ export function installShortcuts(engine: StudioApi, bus: ParamBus, bridge: UiBri
   // until the window lost focus.
   const held = new Map<string, number>();
   let fillHeld = false;
+  let bendHeld = false;
+
+  /** The fill key: the key that prints F — unless the layout puts `f` on a note
+   *  key (Dvorak), when the note wins and the fill takes the KeyF position, free
+   *  in every layout (keyboard-layout REQ-layout-scope-is-note-keys-only). */
+  const isFillKey = (e: KeyboardEvent): boolean => {
+    const fIsNote = 'f' in LOWER || 'f' in UPPER;
+    return fIsNote ? e.code === 'KeyF' : keyId(e.key) === 'f';
+  };
 
   /** Case-folded key identity. Shift can be pressed or released mid-hold, which
    *  flips `e.key` between 'z' and 'Z' — keying `held` on the raw value would
@@ -181,8 +190,8 @@ export function installShortcuts(engine: StudioApi, bus: ParamBus, bridge: UiBri
     // character where the diagram draws it, and Shift mid-hold flipped the
     // keyup's `e.key` to `?`/`"` so the release below missed and the bend stuck.
     // `?` is handled above and returns, so Shift+Slash still reaches the badges.
-    if (e.code === 'Quote') { bus.set('master.pitchBend', 1); return; }
-    if (e.code === 'Slash') { bus.set('master.pitchBend', -1); return; }
+    if (e.code === 'Quote') { bendHeld = true; bus.set('master.pitchBend', 1); return; }
+    if (e.code === 'Slash') { bendHeld = true; bus.set('master.pitchBend', -1); return; }
 
     // Octave shift — `-` / `=` and the numpad pair, on `e.code` like the bend
     // (input-control.md REQ-octave-shift-is-minus-and-equal): chosen for where the keys sit, the two
@@ -214,7 +223,7 @@ export function installShortcuts(engine: StudioApi, bus: ParamBus, bridge: UiBri
     }
 
     // Hold for a drum fill
-    if (k === 'f' || k === 'F') {
+    if (isFillKey(e)) {
       e.preventDefault();
       if (!fillHeld) { fillHeld = true; engine.perf.setFill(true); }
       return;
@@ -229,13 +238,18 @@ export function installShortcuts(engine: StudioApi, bus: ParamBus, bridge: UiBri
     e.preventDefault();
   });
 
+  // Not gated on a focused field: a key pressed outside one must still be
+  // released inside it, and a key typed in a field was never recorded as held,
+  // so its keyup releases nothing (input-control REQ-shortcuts-are-suppressed-in-a-field).
   window.addEventListener('keyup', (e: KeyboardEvent) => {
-    if (isEditableTarget(e)) return; // let text fields receive their keystrokes
     const k = e.key;
     // Same `e.code` the press used, so a Shift pressed or released mid-hold
     // cannot strand the bend (REQ-the-look-ahead-horizon-is-not-cancelled; the note-key twin of this is REQ-home-and-shift-arrows-seek).
-    if (e.code === 'Quote' || e.code === 'Slash') { bus.set('master.pitchBend', 0); return; }
-    if (k === 'f' || k === 'F') {
+    if (e.code === 'Quote' || e.code === 'Slash') {
+      if (bendHeld) { bendHeld = false; bus.set('master.pitchBend', 0); }
+      return;
+    }
+    if (isFillKey(e)) {
       if (fillHeld) { fillHeld = false; engine.perf.setFill(false); }
       return;
     }
@@ -264,6 +278,7 @@ export function installShortcuts(engine: StudioApi, bus: ParamBus, bridge: UiBri
     // no keyup arrives once focus is gone, and it springs back only on a key the
     // user is no longer pressing (REQ-pitch-bend-is-quote-and-slash). Matching
     // `e.code` closed every other way this pair could stick; blur was the last.
+    bendHeld = false;
     bus.set('master.pitchBend', 0);
   });
 }

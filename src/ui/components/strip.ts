@@ -14,6 +14,8 @@ export class Strip {
   private readonly thumb: HTMLElement;
   private unsub: () => void = () => {};
   private dragging = false;
+  /** runtime-performance REQ-a-drag-follows-only-its-own-pointer */
+  private dragPointer = -1;
   private lastValue = 0;
   private readonly ro: ResizeObserver;
 
@@ -57,8 +59,10 @@ export class Strip {
   }
 
   private onDown = (e: PointerEvent): void => {
+    if (this.dragging && e.pointerId !== this.dragPointer) return; // a second finger on a strip already held
     e.preventDefault();
     this.dragging = true;
+    this.dragPointer = e.pointerId;
     (e.target as Element).setPointerCapture?.(e.pointerId);
     window.addEventListener('pointermove', this.onMove);
     window.addEventListener('pointerup', this.onUp);
@@ -67,11 +71,12 @@ export class Strip {
   };
 
   private onMove = (e: PointerEvent): void => {
-    if (!this.dragging) return;
+    if (!this.dragging || e.pointerId !== this.dragPointer) return;
     this.updateFromPointer(e.clientY);
   };
 
-  private onUp = (_: PointerEvent): void => {
+  private onUp = (e: PointerEvent): void => {
+    if (this.dragging && e.pointerId !== this.dragPointer) return; // another finger lifted
     this.detachDragListeners();
     if (!this.dragging) return;
     this.dragging = false;

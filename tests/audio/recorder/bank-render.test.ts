@@ -178,6 +178,21 @@ describe('BankRenderController', () => {
     expect(restore).toHaveBeenCalledTimes(1);
   });
 
+  // render-to-sampler REQ-an-outside-stop-aborts-the-render — the promise used
+  // to wait forever for a tick a stopped clock never sends.
+  it('a stop from outside aborts the render, restores, and frees it for the next one', async () => {
+    const { ctrl, run, clock, ctx, node, restore } = harness();
+    const p = ctrl.render();
+    for (let i = 0; i < 20; i++) { ctx.currentTime += 0.025; vi.advanceTimersByTime(25); }
+    clock.stop(); // Esc / Panic / a media-key pause mid-render
+    await expect(p).rejects.toThrow(/interrupted/);
+    expect(node.calls).toContain('node.stop'); // the tap is disarmed
+    expect(restore).toHaveBeenCalledTimes(1);
+    expect(ctrl.isRendering()).toBe(false);
+    const out = await run(ctrl.render()); // nothing stranded: a fresh render works
+    expect(out.left.length).toBe(16000);
+  });
+
   it('stops after exactly RENDER_BARS bars', async () => {
     const { ctrl, run, clock } = harness();
     const steps: number[] = [];

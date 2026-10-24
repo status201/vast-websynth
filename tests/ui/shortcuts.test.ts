@@ -64,6 +64,24 @@ describe('installShortcuts editable-field guard', () => {
     keydown(document.body, 'z');
     expect(bridge.pressKey).toHaveBeenCalledTimes(1);
   });
+
+  // input-control.md REQ-shortcuts-are-suppressed-in-a-field (v20, regression): the field gates presses,
+  // not releases — the keyup used to return early there and the note hung.
+  it('releases a note held into a field, and a quote typed there resets no bend', () => {
+    window.dispatchEvent(new Event('blur')); // earlier installs' leaked listeners: start unlatched
+    const { bus } = setup();
+    const notes: Array<[boolean, number]> = [];
+    bus.onNote((on, note) => { notes.push([on, note]); });
+    keydown(document.body, 'z');
+    const field = document.createElement('input');
+    document.body.appendChild(field);
+    field.dispatchEvent(new KeyboardEvent('keyup', { key: 'z', bubbles: true }));
+    expect(notes).toEqual([[true, 60], [false, 60]]);
+
+    bus.set('master.pitchBend', 0.5); // a MIDI wheel, held
+    field.dispatchEvent(new KeyboardEvent('keyup', { key: "'", code: 'Quote', bubbles: true }));
+    expect(bus.get('master.pitchBend')).toBe(0.5);
+  });
 });
 
 describe('installShortcuts Ctrl/Cmd+Z routing (pattern-undo.md REQ-ctrl-z-undoes-the-active-machine)', () => {
@@ -224,6 +242,26 @@ describe('installShortcuts keyboard layout (input-control.md REQ-note-keys-follo
     keydown(document.body, 'f');
     expect(engineStub.perf.setFill).toHaveBeenCalledWith(true);
     keyup('f');
+  });
+
+  // keyboard-layout.md REQ-layout-scope-is-note-keys-only (v2, regression): Dvorak prints "f" on KeyY, an
+  // upper-row note — and the fill check ran before the note lookup, so it held a fill instead.
+  it('on Dvorak the key printing f plays its note; the fill moves to the KeyF position', () => {
+    const fill = vi.mocked(engineStub.perf.setFill);
+    fill.mockClear();
+    writeLayoutPref('dvorak');
+    const key = (type: string, k: string, code: string) =>
+      document.body.dispatchEvent(new KeyboardEvent(type, { key: k, code, bubbles: true }));
+
+    key('keydown', 'f', 'KeyY');
+    key('keyup', 'f', 'KeyY');
+    expect(notes).toEqual([[true, 81], [false, 81]]); // the upper row's A
+    expect(fill).not.toHaveBeenCalled();
+
+    key('keydown', 'u', 'KeyF'); // Dvorak prints "u" there
+    expect(fill).toHaveBeenCalledWith(true);
+    key('keyup', 'u', 'KeyF');
+    expect(fill).toHaveBeenLastCalledWith(false);
   });
 });
 

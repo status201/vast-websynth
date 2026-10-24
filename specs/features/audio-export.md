@@ -3,7 +3,9 @@
 ```yaml
 id: audio-export
 status: implemented
-version: 14  # v14: a capture waits for a bank render (REQ-a-capture-waits-for-a-bank-render — an export mid-render
+version: 15  # v15: a stop from outside ends an export as a cancel and the modal says so
+             #      (REQ-an-outside-stop-ends-the-export — it used to record on forever)
+             # v14: a capture waits for a bank render (REQ-a-capture-waits-for-a-bank-render — an export mid-render
              #      stranded it), a failed encode keeps the take (REQ-a-failed-encode-keeps-the-take), and a
              #      discarded take stays discarded (REQ-a-discarded-take-stays-discarded)
              # v13: correction only — v12 saved the copy, not the allocation: a transferred
@@ -276,6 +278,16 @@ already-slow action, so the fetch is invisible next to the encode itself.
     rendering, aborts it. Whatever closes the modal mid-render cancels it: the
     modal *is* the render's surface, so it can never outlive it or be outlived.
 
+- **REQ-an-outside-stop-ends-the-export** (v15) — **A transport stop the export
+  did not issue ends it as a cancel.** A Media Session pause, Panic, or anything
+  else that calls `clock.stop()` mid-render takes the `cancelExport()` path: the
+  tick is unhooked, the buffer dropped, nothing is written, and the phase returns
+  to `idle` with `lastExportInterrupted()` true. The modal reads that flag and
+  says the render was stopped and nothing was saved, rather than *Done*. The
+  export used to count elapsed steps on `onTick`, which a stopped clock never
+  fires, so it stayed in `recording`, kept capturing into memory, and blocked
+  every later capture until a reload.
+
 - **REQ-a-capture-waits-for-a-bank-render** (v14) — **An export or a manual take
   is refused while a render to the sampler is in flight.** The bank render
   already refused to start while the recorder captured
@@ -328,6 +340,7 @@ RecorderController:  # src/audio/recorder/recorder-controller.ts
 
   exportSong(fmt, opts?): void   # runs passes from step 0, auto-stop, download (REQ-export-song-renders-from-the-top)
   cancelExport(): void           # abort a render in flight -> idle, no file (REQ-the-modal-is-the-renders-own-surface)
+  lastExportInterrupted(): boolean  # the last export was ended by an outside stop (REQ-an-outside-stop-ends-the-export)
   exportProgress(): number       # 0..1 through the pass; 0 when not exporting
   startManual() ; pauseManual() ; resumeManual() ; stopManual()   # REQ-capture-is-a-five-phase-machine verbs
   saveTake(fmt): Promise<void>   # encode + download the reviewed take -> idle
@@ -536,6 +549,13 @@ Scenario: An export waits for a render to the sampler (v14, REQ-a-capture-waits-
   Then it is refused, the render finishes and restores the engine state as always
    And the export modal's Export and the Record window's Record are disabled until it does
 # pinned by: tests/audio/recorder/recorder-controller.test.ts, tests/ui/record-window.test.ts
+
+Scenario: A stop from outside ends the export (v15, REQ-an-outside-stop-ends-the-export, regression)
+  Given an export rendering
+  When something other than the export stops the transport (a media-key pause, Panic)
+  Then the recorder returns to idle, nothing downloads, lastExportInterrupted() is true
+   And the modal says the render was stopped rather than Done, and a new export is accepted
+# pinned by: tests/audio/recorder/recorder-controller.test.ts, tests/ui/export-audio-modal.test.ts
 
 Scenario: A failed MP3 save keeps the take (v14, REQ-a-failed-encode-keeps-the-take, regression)
   Given a take in review and an MP3 encoder that fails to load

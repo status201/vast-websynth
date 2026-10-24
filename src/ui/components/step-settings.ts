@@ -320,6 +320,8 @@ function makeSlider(
   // The track box is measured once per stroke: reading it per move is a forced
   // layout, and the slider cannot move mid-drag.
   let bounds: { left: number; width: number } | null = null;
+  // The finger driving the stroke (runtime-performance REQ-a-drag-follows-only-its-own-pointer).
+  let pointer = -1;
 
   const handle = (clientX: number) => {
     if (!bounds || bounds.width === 0) return;
@@ -327,8 +329,11 @@ function makeSlider(
     write(min + n * (max - min));
   };
 
-  const onMove = (e: PointerEvent): void => handle(e.clientX);
-  const onUp = (): void => {
+  const onMove = (e: PointerEvent): void => {
+    if (e.pointerId === pointer) handle(e.clientX);
+  };
+  const onUp = (e: PointerEvent): void => {
+    if (e.pointerId !== pointer) return;
     bounds = null;
     window.removeEventListener('pointermove', onMove);
     window.removeEventListener('pointerup', onUp);
@@ -339,6 +344,7 @@ function makeSlider(
     if (bounds) return; // one stroke at a time
     const rect = track.getBoundingClientRect();
     bounds = { left: rect.left, width: rect.width };
+    pointer = e.pointerId;
     (e.target as Element).setPointerCapture?.(e.pointerId);
     handle(e.clientX);
     window.addEventListener('pointermove', onMove);

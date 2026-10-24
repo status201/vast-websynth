@@ -3,7 +3,8 @@
 ```yaml
 id: keyboard-layout
 status: implemented
-version: 1
+version: 2   # v2: a note key outranks the fill (REQ-layout-scope-is-note-keys-only) — on Dvorak the
+             #     upper-row key that prints `f` held a fill instead of playing its note
 owner: core
 related:
   - architecture
@@ -68,6 +69,15 @@ than a parallel code path.
   follows the *character*, not the position, so remapping it by layout would
   break the convention it borrows. The pitch-bend pair stays on `e.code`
   ([input-control](input-control.md) REQ-pitch-bend-is-quote-and-slash) and is unaffected.
+
+  (v2) **A note key outranks the fill.** If the active layout puts the
+  character `f` on a note key, that key plays its note. Dvorak does this: KeyY,
+  an upper-row note, prints `f`. The fill then answers to the KeyF *position*
+  instead, which is free in every layout because it sits between the lower
+  row's `D` and `G` sharps. The fill check used to run before the note lookup,
+  so on Dvorak that upper-row key held a drum fill and never played its note.
+  Every other layout is unchanged: `f` is not a note character there, so the
+  fill stays on the key that prints `F`.
 - **REQ-character-bindings-carry-a-known-risk** — **Known residual risk.**
   Because bindings resolve through characters rather than `e.code`, a wrong
   picker selection — or no detection at all, which is every Firefox and Safari
@@ -132,6 +142,14 @@ Scenario: AZERTY puts the bottom C under the key that prints W
   Then bus.noteOn fires for the lower octave's C
   And the key producing "z" is KeyW, which the UPPER row maps — it plays note 74
      (the upper octave's D), not nothing and not a C
+# pinned by: tests/ui/shortcuts.test.ts
+
+Scenario: On Dvorak the key that prints F plays its note (v2, REQ-layout-scope-is-note-keys-only, regression)
+  Given the layout is dvorak
+  When the user presses KeyY, which prints "f" and is an upper-row note key
+  Then bus.noteOn fires for its note and no fill is held
+  And the KeyF position holds the fill instead
+  And on qwerty the key printing "f" still holds the fill
 # pinned by: tests/ui/shortcuts.test.ts
 
 Scenario: Switching layout mid-hold cannot strand a note (edge)

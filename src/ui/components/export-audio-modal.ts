@@ -223,6 +223,15 @@ export function openExportAudioModal(engine: StudioApi, defaultFormat: ExportFor
         cancelBtn.textContent = 'Close';
         return;
       }
+      // Nor is a stop from outside — a media key, Panic (REQ-an-outside-stop-ends-the-export).
+      if (engine.recorder.lastExportInterrupted()) {
+        status.textContent = 'Stopped — the transport was stopped before the render finished. Nothing was saved.';
+        status.dataset.failed = 'true';
+        abortBtn.hidden = true;
+        cancelBtn.hidden = false;
+        cancelBtn.textContent = 'Close';
+        return;
+      }
       // Back to idle with the render finished: the file is written. The
       // browser's own download is the receipt, so a dialog the user has to
       // dismiss to acknowledge what they asked for buys nothing.

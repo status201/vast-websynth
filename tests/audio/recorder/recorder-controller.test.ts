@@ -348,6 +348,27 @@ describe('the in-flight export', () => {
     expect(downloads).toEqual([]);
   });
 
+  // REQ-an-outside-stop-ends-the-export — the export counted ticks a stopped
+  // clock never sends, so it recorded on forever and blocked every later capture.
+  it('a stop from outside ends the export as a cancel (regression)', async () => {
+    const { ctrl, clock, node, runFor, finish } = harness();
+    ctrl.exportSong('wav');
+    runFor(1);
+    clock.stop(); // a media-key pause, Panic
+    expect(ctrl.phase).toBe('idle');
+    expect(ctrl.isExporting()).toBe(false);
+    expect(ctrl.lastExportInterrupted()).toBe(true);
+    expect(node.calls).toEqual(['start', 'stop']);
+    await vi.advanceTimersByTimeAsync(5000);
+    expect(downloads).toEqual([]);
+    // Nothing stranded: the next export runs, and its own final stop is not an interruption.
+    expect(ctrl.exportSong('wav')).toBe(true);
+    expect(ctrl.lastExportInterrupted()).toBe(false);
+    await finish(350);
+    expect(ctrl.phase).toBe('idle');
+    expect(ctrl.lastExportInterrupted()).toBe(false);
+  });
+
   it('cancelling after the last bar cannot resurrect the download (edge)', async () => {
     const { ctrl, runTransport } = harness();
     ctrl.exportSong('wav');

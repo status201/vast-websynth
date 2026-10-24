@@ -234,6 +234,9 @@ export class EqGraph {
 
   private handleDown = (e: PointerEvent): void => {
     if (e.button !== 0 && e.pointerType === 'mouse') return; // right-click: nothing
+    // One stroke at a time — a second finger would re-attach (and leak) the
+    // window listeners (runtime-performance REQ-a-drag-follows-only-its-own-pointer).
+    if (this.dragging) return;
     e.preventDefault();
     // A gesture must never hit-test against unknown geometry. The
     // ResizeObserver has normally run long before any pointer arrives, but a
@@ -262,8 +265,9 @@ export class EqGraph {
     this.lastY = y;
     this.writeBand(band, y, e.shiftKey);
 
-    this.onMove = (ev) => this.handleDrag(ev);
-    this.onUp = () => this.detachDrag();
+    const pointer = e.pointerId;
+    this.onMove = (ev) => { if (ev.pointerId === pointer) this.handleDrag(ev); };
+    this.onUp = (ev) => { if (ev.pointerId === pointer) this.detachDrag(); };
     window.addEventListener('pointermove', this.onMove);
     window.addEventListener('pointerup', this.onUp);
     window.addEventListener('pointercancel', this.onUp);

@@ -261,21 +261,19 @@ describe('DrumMachine voice models', () => {
  * voice here, so before this an open hat rang straight through the closed hats
  * on top of it; on an 808 the two share one voice.
  *
- * Asserted on the per-track choke gain's scheduled ramp, which is the mechanism:
- * `voice → choke → drive → …`, cut and restored inside one call.
+ * Asserted on the call into the voice: since v14 the cut is the voice's own,
+ * per hit (pinned in tests/audio/drums/drum-synths.test.ts). Until then it was a
+ * per-track group gain that came back up 4 ms after the fade, with the 350 ms
+ * tail it had cut still ringing underneath.
  */
 describe('DrumMachine hat choke group (REQ-a-closed-hat-cuts-an-open-hat)', () => {
-  /** Ramp targets scheduled on a track's choke gain, in call order. */
-  function ramps(dm: DrumMachine, t: number): number[] {
-    const g = chokeNode(dm, t);
-    return (g.gain.linearRampToValueAtTime as unknown as { mock: { calls: unknown[][] } })
-      .mock.calls.map((c) => c[0] as number);
-  }
-
-  /** Reach the private per-track choke gain without widening the public API. */
-  function chokeNode(dm: DrumMachine, t: number) {
-    const gains = (dm as unknown as { trackChokes: GainNode[] }).trackChokes;
-    return gains[t]!;
+  /** The times a track's voice was told to cut, in call order. */
+  function cuts(dm: DrumMachine, t: number) {
+    const voice = dm.tracks[t]!;
+    const cut = voice.cut ?? (() => undefined);
+    const spy = vi.fn(cut.bind(voice));
+    voice.cut = spy;
+    return () => spy.mock.calls.map((c) => c[0] as number);
   }
 
   function hats() {
@@ -287,64 +285,31 @@ describe('DrumMachine hat choke group (REQ-a-closed-hat-cuts-an-open-hat)', () =
 
   it('does nothing at all while drum.choke is off (ADR-006 default)', () => {
     const { clock, patterns, dm } = hats();
+    const open = cuts(dm, 3);
     patterns.setDrumCell(3, 0, { on: true }); // open hat
     patterns.setDrumCell(2, 0, { on: true }); // closed hat on the same step
     clock.fireTick(0);
-    expect(ramps(dm, 3)).toEqual([]);
+    expect(open()).toEqual([]);
   });
 
-  it('a closed hat cuts the open hat once enabled', () => {
+  it('a closed hat cuts the open hat once enabled, at its own scheduled time', () => {
     const { clock, patterns, dm } = hats();
+    const open = cuts(dm, 3);
     dm.setChokeEnabled(true);
     patterns.setDrumCell(2, 0, { on: true });
-    clock.fireTick(0);
-    // Down to 0 — the cut — then back to 1 on a ramp of its own (REQ-the-choke-group-restores-on-a-ramp).
-    expect(ramps(dm, 3)).toEqual([0, 1]);
-  });
-
-  it('restores the gain, so the next open hat is at full level', () => {
-    const { clock, patterns, dm } = hats();
-    dm.setChokeEnabled(true);
-    patterns.setDrumCell(2, 0, { on: true });
-    clock.fireTick(0);
-    const g = chokeNode(dm, 3);
-    const lin = (g.gain.linearRampToValueAtTime as unknown as { mock: { calls: unknown[][] } }).mock.calls;
-    expect(lin.at(-1)?.[0]).toBe(1);
-    // …and the restore is scheduled after the fade, not before it.
-    expect(lin.at(-1)?.[1] as number).toBeGreaterThan(lin.at(0)?.[1] as number);
-  });
-
-  /**
-   * REQ-the-choke-group-restores-on-a-ramp, regression. The down-fade was deliberately 6 ms ("long enough not to
-   * click"), but the restore was a bare setValueAtTime — moving the gain 0 -> 1 in
-   * one sample while the open hat it had just cut was still ringing underneath.
-   * That re-exposed the tail instantly: the click the down-fade existed to avoid.
-   */
-  it('restores on a ramp, never a step (REQ-the-choke-group-restores-on-a-ramp, regression)', () => {
-    const { clock, patterns, dm } = hats();
-    dm.setChokeEnabled(true);
-    patterns.setDrumCell(2, 0, { on: true });
-    clock.fireTick(0);
-    const g = chokeNode(dm, 3);
-    const set = (g.gain.setValueAtTime as unknown as { mock: { calls: unknown[][] } }).mock.calls;
-    // Nothing is ever SET to 1 after the cut — the only way back up is a ramp.
-    const cutAt = (set.find((c) => c[0] === 0)?.[1] as number) ?? Infinity;
-    for (const c of set) {
-      if ((c[1] as number) >= cutAt) expect(c[0]).not.toBe(1);
-    }
-    const lin = (g.gain.linearRampToValueAtTime as unknown as { mock: { calls: unknown[][] } }).mock.calls;
-    const restore = lin.find((c) => c[0] === 1);
-    expect(restore).toBeDefined();
-    expect(restore![1] as number).toBeGreaterThan(cutAt);
+    clock.fireTick(0.125); // step 0, scheduled at 0.125
+    expect(open()).toEqual([0.125]);
   });
 
   it('never chokes itself, or a kick', () => {
     const { clock, patterns, dm } = hats();
+    const closed = cuts(dm, 2);
+    const kick = cuts(dm, 0);
     dm.setChokeEnabled(true);
     patterns.setDrumCell(2, 0, { on: true });
     clock.fireTick(0);
-    expect(ramps(dm, 2)).toEqual([]); // the closed hat itself
-    expect(ramps(dm, 0)).toEqual([]); // the kick
+    expect(closed()).toEqual([]);
+    expect(kick()).toEqual([]);
   });
 
   it('follows the voice MODEL, not the track index (REQ-a-drum-tracks-algorithm-is-selectable makes models movable)', () => {
@@ -353,18 +318,22 @@ describe('DrumMachine hat choke group (REQ-a-closed-hat-cuts-an-open-hat)', () =
     // Move the open hat onto track 6 and take it off track 3.
     dm.setTrackModel(6, 3); // O.Hat
     dm.setTrackModel(3, 0); // that slot becomes a kick
+    const moved = cuts(dm, 6);
+    const vacated = cuts(dm, 3);
     patterns.setDrumCell(2, 0, { on: true }); // closed hat fires
     clock.fireTick(0);
-    expect(ramps(dm, 6)).toEqual([0, 1]); // the relocated open hat is choked
-    expect(ramps(dm, 3)).toEqual([]);  // the slot that is now a kick is not
+    expect(moved()).toEqual([0]); // the relocated open hat is choked
+    expect(vacated()).toEqual([]); // the slot that is now a kick is not
   });
 
   it('chokes on every sub-hit of a ratcheted closed hat', () => {
     const { clock, patterns, dm } = hats();
+    const open = cuts(dm, 3);
     dm.setChokeEnabled(true);
     patterns.setDrumCell(2, 0, { on: true, ratchet: 3 });
     clock.fireTick(0);
-    expect(ramps(dm, 3)).toEqual([0, 1, 0, 1, 0, 1]); // one cut+restore pair per sub-hit
+    const sub = clock.sixteenthDuration() / 3;
+    expect(open()).toEqual([0, sub, 2 * sub]); // one cut per sub-hit, at its own time
   });
 });
 

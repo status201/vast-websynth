@@ -839,7 +839,9 @@ export function buildSongPanel(bus: ParamBus, engine: StudioApi, session: Preset
     // Same authoritative blank the load path uses (song-mode.md REQ-apply-resets-to-defaults-first).
     engine.patterns.restore(emptyPatternSnapshot());
     for (let i = 0; i < SAMPLER_SLOT_COUNT; i++) engine.sampler.setBuffer(i, null);
-    engine.arrangement.setSeqChain([0], false);
+    // Explicit [0]: an omitted transpose keeps slot 1's, and a blank song is
+    // not a fourth up (arrangement REQ-a-seq-slot-carries-a-transpose).
+    engine.arrangement.setSeqChain([0], false, [0]);
     engine.arrangement.setDrumChain([0], false);
     engine.arrangement.setSamplerChain([0], false);
     engine.arrangement.setMotionChain([0], false);
@@ -1230,7 +1232,7 @@ function buildChainLane(
       if (!ok) return;
     }
     sel = -1;
-    setChain([0], lane.enabled);
+    setChain([0], lane.enabled, [0]); // a reset, so the transpose goes too (arrangement REQ-a-seq-slot-carries-a-transpose)
   });
   clearBtn.dataset.testid = `chain-clear-${prefix}`;
   controls.appendChild(clearBtn);

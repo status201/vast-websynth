@@ -3,7 +3,9 @@
 ```yaml
 id: runtime-performance
 status: implemented
-version: 12  # v12: REQ-boot-cost-matches-the-request — the second sweep: the authoring-dialect
+version: 13  # v13: REQ-a-drag-follows-only-its-own-pointer — a second finger no longer drives,
+             #      or ends, another control's drag (multi-touch)
+             # v12: REQ-boot-cost-matches-the-request — the second sweep: the authoring-dialect
              #      expander, the project zip codec and four click-only surfaces leave the
              #      boot path (519.8 → 493.5 kB of boot JS); the boot payload is the entry
              #      PLUS its static chunks, and a split that fragments the entry CSS is
@@ -59,6 +61,8 @@ source:
   - src/audio/transport/tick-timer.ts        # the worker-backed wakeup REQ-visibility-gating-is-for-pixels-not-sound mandates
   - src/ui/components/knob.ts
   - src/ui/components/step-settings.ts
+  - src/ui/components/strip.ts             # REQ-a-drag-follows-only-its-own-pointer
+  - src/ui/components/eq-graph.ts          # REQ-a-drag-follows-only-its-own-pointer
   - src/ui/panels/step-panel-scaffold.ts
   - src/ui/shell/pattern-row.ts             # REQ-no-work-for-offscreen-dom — one gate per machine tab
   - src/ui/shell/header.ts                  # REQ-boot-cost-matches-the-request — the preset manager loads on click
@@ -233,6 +237,17 @@ so a reviewer has something concrete to hold a new feature against.
   see [`add-a-ui-component.md`](../recipes/add-a-ui-component.md). Low-frequency
   global listeners (`keydown`, `click`, `visibilitychange`, `resize`) are
   exempt.
+
+- **REQ-a-drag-follows-only-its-own-pointer** (v13) — **A drag listens to the
+  pointer that started it and no other.** A `window` listener attached for a
+  gesture (REQ-global-listeners-live-only-for-a-gesture) hears every pointer on
+  the page, so the control records the starting `pointerId`. It ignores
+  `pointermove`, `pointerup` and `pointercancel` from any other pointer, and a
+  further `pointerdown` while the stroke is live. This applies to `Knob`,
+  `Strip`, the EQ graph and the step-settings slider. Without the filter, on a
+  touch screen, a second finger playing the keyboard or holding another knob
+  either drove the first knob to its own Y or ended the first finger's drag when
+  it lifted.
 
 - **REQ-no-work-for-offscreen-dom** — **No work for DOM that is not on screen.**
   `TabContainer` hides inactive panels with a class, so they stay live and
@@ -520,6 +535,13 @@ Scenario: a deferred surface whose import rejects reports instead of doing nothi
   And a memoizing trigger has dropped its cached rejection, so Retry can succeed
 # pinned by: tests/ui/lazy-load-failure.test.ts
 #            (behaviour spec'd in full at lazy-load-failure.md)
+
+Scenario: a second finger does not steal a drag (v13, REQ-a-drag-follows-only-its-own-pointer, regression)
+  Given one finger dragging a knob, strip, EQ band or step-settings slider
+  When a second finger moves elsewhere on the page and then lifts
+  Then the control's value follows only the first finger, and its drag is still live
+# pinned by: tests/ui/knob.test.ts, tests/ui/strip.test.ts, tests/ui/eq-graph.test.ts,
+#            tests/ui/step-settings.test.ts
 
 Scenario: an open dialog does not cost the app its frame rate (REQ-no-viewport-scaled-compositing-on-hot-surfaces, regression)
   Given the transport is playing

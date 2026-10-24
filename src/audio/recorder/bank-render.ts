@@ -47,6 +47,7 @@ export function bankCropRange(
 export class BankRenderController {
   private rendering = false;
   private unsubTick: (() => void) | null = null;
+  private unsubStop: (() => void) | null = null;
   private readonly stateListeners = new Set<(rendering: boolean) => void>();
   /** Bar length in 16th ticks (meter.md REQ-bar-exact-capture-follows-bar-ticks) — a rendered bar must be the
    *  song's bar, not always 16 steps. The Engine pushes changes here. */
@@ -87,6 +88,13 @@ export class BankRenderController {
         const stopAtStep = RENDER_BARS * this.barTicks;
         this.clock.stop();
         this.node.start(); // arm before audio so the pre-roll is captured
+        // A stop we did not issue (Esc, Panic, a media-key pause) ends the
+        // render — no further tick will ever reach `stopAtStep`
+        // (REQ-an-outside-stop-aborts-the-render).
+        this.unsubStop = this.clock.onStop(() => {
+          this.unsubscribe();
+          void this.discard().then(() => reject(new Error('render interrupted')));
+        });
         this.unsubTick = this.clock.onTick((step, when) => {
           if (step === 0 && step0Time < 0) {
             // Step 0 is even → unswung: `when` is the exact bar-grid origin.
@@ -94,7 +102,7 @@ export class BankRenderController {
             sixteenthS = this.clock.sixteenthDuration();
           }
           if (step >= stopAtStep) {
-            if (this.unsubTick) { this.unsubTick(); this.unsubTick = null; }
+            this.unsubscribe();
             this.clock.stop();
             window.setTimeout(() => {
               // `finish` awaits the recorder's flush (audio-export.md REQ-chunks-are-batched-then-flushed),
@@ -108,11 +116,21 @@ export class BankRenderController {
         this.clock.start(0);
       });
     } finally {
-      if (this.unsubTick) { this.unsubTick(); this.unsubTick = null; }
+      this.unsubscribe();
       restore();
       this.rendering = false;
       this.notify();
     }
+  }
+
+  private unsubscribe(): void {
+    if (this.unsubTick) { this.unsubTick(); this.unsubTick = null; }
+    if (this.unsubStop) { this.unsubStop(); this.unsubStop = null; }
+  }
+
+  /** Disarm the tap and drop what it caught; never throws. */
+  private async discard(): Promise<void> {
+    try { await this.node.stop(); } catch { /* the capture is being thrown away */ }
   }
 
   private async finish(step0Time: number, sixteenthS: number): Promise<CapturedAudio> {

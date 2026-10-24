@@ -344,3 +344,28 @@ describe('the Bend controls', () => {
     expect(bendDirection({ bend: 12, bendShape: 'fall' })).toBe(1);
   });
 });
+
+/** A pointer event from one finger — jsdom has no PointerEvent constructor. */
+function finger(type: string, pointerId: number, init: MouseEventInit): MouseEvent {
+  const e = new MouseEvent(type, { bubbles: true, ...init });
+  Object.defineProperty(e, 'pointerId', { value: pointerId });
+  return e;
+}
+
+// runtime-performance REQ-a-drag-follows-only-its-own-pointer (regression).
+describe('StepSettingsEditor slider vs a second finger', () => {
+  it('follows only the finger that started the stroke', () => {
+    const { editor, step } = build();
+    const track = trackOf(editor, 'drum-vel');
+    stubBox(track);
+
+    track.dispatchEvent(finger('pointerdown', 1, { clientX: 50 }));
+    const held = step.velocity;
+    window.dispatchEvent(finger('pointermove', 2, { clientX: 0 }));
+    expect(step.velocity).toBe(held);
+    window.dispatchEvent(finger('pointerup', 2, {}));
+    window.dispatchEvent(finger('pointermove', 1, { clientX: 100 }));
+    expect(step.velocity).toBeGreaterThan(held); // the stroke is still finger 1's
+    window.dispatchEvent(finger('pointerup', 1, {}));
+  });
+});

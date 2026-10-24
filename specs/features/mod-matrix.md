@@ -3,7 +3,9 @@
 ```yaml
 id: mod-matrix
 status: implemented
-version: 5   # v5: an idle row dims its destination picker through Dropdown.setDimmed, never
+version: 6   # v6: a depth write during a re-patch waits for the rewire (REQ-one-gain-per-route-rewired-while-silent) —
+             #     it un-muted the still-old wiring at the new destination's scale
+             # v5: an idle row dims its destination picker through Dropdown.setDimmed, never
              #     on the picker's root — root opacity made the open list transparent
              #     (dropdown.md REQ-a-dropdown-can-be-dimmed, regression)
              # v4: REQ-per-voice-sources-cannot-drive-bus-destinations says outright that the sequencer's
@@ -61,6 +63,15 @@ concern.**
   route's depth. Changing a route's source or destination **ramps that gain to
   zero first, rewires while it is silent, then ramps back**. Nothing is ever
   connected or disconnected while audible, so a re-patch cannot click.
+
+  (v6) **A depth write during a re-patch waits for the rewire.** `setAmount`
+  stores the depth, but while a rewire is pending it ramps nothing. The rewire
+  applies the depth when it runs. Every song or preset load writes a row's
+  source, destination and amount back to back, and `setAmount` used to ramp the
+  row straight back up inside the mute window. The chains were still wired to
+  the *old* destination, but the gain was scaled for the new one, so a cutoff
+  route could briefly drive pan, or a resonance route take on cutoff's
+  semitone scale, and the "silent" rewire then disconnected an audible gain.
 
   This is a deliberate step away from `LFO.setDest`, which never rewires at all — it keeps every
   tap permanently connected and cross-fades five gains. That works for a fixed source and five
@@ -382,6 +393,13 @@ Scenario: Changing a destination rewires only while silent (REQ-one-gain-per-rou
 Scenario: Two changes in quick succession settle on the last one (REQ-one-gain-per-route-rewired-while-silent, edge)
   Given a route's destination is changed twice inside the mute ramp
   Then only the final destination ends up connected, and the gain returns to depth
+# pinned by: tests/audio/mod-matrix.test.ts
+
+Scenario: A depth written mid-re-patch waits for the rewire (v6, REQ-one-gain-per-route-rewired-while-silent, regression)
+  Given a route running at depth
+  When its source changes and its amount is written straight after (a song load)
+  Then every chain stays ramped to zero until the rewire
+  And the rewire brings it up to the new depth
 # pinned by: tests/audio/mod-matrix.test.ts
 
 Scenario: Resonance is reachable for the first time (REQ-resonance-becomes-reachable)

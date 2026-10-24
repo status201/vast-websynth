@@ -48,3 +48,38 @@ describe('Strip drag-listener lifecycle', () => {
     expect(removed).toBe(added);
   });
 });
+
+/** A pointer event from one finger — jsdom has no PointerEvent constructor. */
+function finger(type: string, pointerId: number, init: MouseEventInit): MouseEvent {
+  const e = new MouseEvent(type, { bubbles: true, ...init });
+  Object.defineProperty(e, 'pointerId', { value: pointerId });
+  return e;
+}
+
+// runtime-performance REQ-a-drag-follows-only-its-own-pointer (regression).
+describe('Strip drag vs a second finger', () => {
+  beforeEach(() => vi.stubGlobal('ResizeObserver', FakeResizeObserver));
+  afterEach(() => {
+    vi.restoreAllMocks();
+    vi.unstubAllGlobals();
+  });
+
+  it('follows only the finger that grabbed it, and springs back on that finger only', () => {
+    const b = bus();
+    const strip = new Strip({ bus: b, paramId: 'filter.cutoff', label: 'X', springBack: true });
+    // 122 px tall: clientY 11 is the top of travel, 111 the bottom.
+    strip.el.getBoundingClientRect = () =>
+      ({ top: 0, left: 0, height: 122, width: 20, bottom: 122, right: 20, x: 0, y: 0, toJSON: () => ({}) }) as DOMRect;
+    const def = b.def('filter.cutoff')!;
+
+    strip.el.dispatchEvent(finger('pointerdown', 1, { clientY: 11 }));
+    expect(b.get('filter.cutoff')).toBe(def.max);
+    window.dispatchEvent(finger('pointermove', 2, { clientY: 111 }));
+    expect(b.get('filter.cutoff')).toBe(def.max);
+    window.dispatchEvent(finger('pointerup', 2, { clientY: 111 }));
+    expect(b.get('filter.cutoff')).toBe(def.max); // no spring-back: finger 1 still holds it
+    window.dispatchEvent(finger('pointerup', 1, { clientY: 11 }));
+    expect(b.get('filter.cutoff')).toBe(def.default);
+    strip.destroy();
+  });
+});

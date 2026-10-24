@@ -3,7 +3,9 @@
 ```yaml
 id: session-autosave
 status: implemented
-version: 8   # v8: REQ-each-tab-autosaves-to-its-own-key — the session is PER TAB. Two tabs sharing one key was
+version: 9   # v9: REQ-autosave-triggers-on-any-change names the triggers it missed: a motion
+             #     extra track, a bank added, a copy into another bank, and a slot transpose
+             # v8: REQ-each-tab-autosaves-to-its-own-key — the session is PER TAB. Two tabs sharing one key was
              #     last-writer-wins, and it silently ate a real session's motion
              # v7: REQ-every-slot-write-is-guarded — Save guards the same slot the import path does, and
              #     REQ-a-demo-click-never-writes-a-slot — a demo click never writes a slot at all
@@ -60,8 +62,14 @@ happy path.
 - **REQ-autosave-triggers-on-any-change** — Autosave triggers: any
   `ParamBus.onChange`, any `PatternStore` per-cell / bank-level / edit-bank /
   sample-meta change, any `XyPadStore` change, and **structural** `Arrangement`
-  changes only — a fingerprint of `enabled + steps` per lane gates the per-bar
-  `onChange` firings so playback never writes storage.
+  changes only — a fingerprint of `enabled + steps + transpose` per lane gates
+  the per-bar `onChange` firings so playback never writes storage. (v9) The
+  pattern triggers include `onMotionTrackChange` (a motion extra track's step or
+  param), `onBankCountChange` (a bank added) and `onMutate` (every mutation entry
+  point, which covers a copy into a bank you are not editing). Each of these
+  used to change the session without arming the debounce, so it was lost if the
+  tab closed before some other edit. The same was true of a slot transpose, which
+  the fingerprint left out.
 - **REQ-playback-alone-never-rearms-the-debounce** — **Playback alone never
   re-arms the debounce**, param writes included. The two lane gates above cover
   the `Arrangement`'s per-bar firings; the third source is *param automation* —
@@ -336,6 +344,13 @@ Scenario: playback never writes storage
   Given the transport is running with an enabled chain
   When bars elapse with no user edits
   Then no autosave write occurs (arrangement fingerprint unchanged)
+# pinned by: tests/state/session-autosave.test.ts
+
+Scenario: every kind of edit arms the autosave (v9, REQ-autosave-triggers-on-any-change, regression)
+  Given an attached autosaver with nothing pending
+  When the user edits a motion extra track's step or param, adds a bank,
+    copies a bank into one they are not editing, or changes a slot transpose
+  Then a write lands after the debounce
 # pinned by: tests/state/session-autosave.test.ts
 
 Scenario: automation never starves the debounce (REQ-playback-alone-never-rearms-the-debounce, regression)

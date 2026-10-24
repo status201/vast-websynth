@@ -20,6 +20,7 @@ function harness(over: { songBars?: number; phase?: RecorderPhase } = {}) {
   // A render to the sampler, and a failed encode (audio-export.md v14).
   let rendering = false;
   let failed = false;
+  let interrupted = false; // REQ-an-outside-stop-ends-the-export
   const renderListeners = new Set<(r: boolean) => void>();
   const phaseListeners = new Set<(p: RecorderPhase) => void>();
   const tickListeners = new Set<() => void>();
@@ -47,6 +48,7 @@ function harness(over: { songBars?: number; phase?: RecorderPhase } = {}) {
       cancelExport,
       isBlocked: () => rendering,
       lastExportFailed: () => failed,
+      lastExportInterrupted: () => interrupted,
       onPhase: (fn: (p: RecorderPhase) => void) => {
         phaseListeners.add(fn);
         return () => phaseListeners.delete(fn);
@@ -61,6 +63,7 @@ function harness(over: { songBars?: number; phase?: RecorderPhase } = {}) {
     engine,
     setRendering: (r: boolean) => { rendering = r; for (const l of [...renderListeners]) l(r); },
     setFailed: (x: boolean) => { failed = x; },
+    setInterrupted: (x: boolean) => { interrupted = x; },
     exportSong,
     cancelExport,
     tickListeners,
@@ -264,5 +267,15 @@ describe('export modal and the v14 recorder rules', () => {
     expect(byId('export-audio-status').textContent).toMatch(/Couldn't write/);
     expect(byId('export-audio-status').textContent).not.toMatch(/Done/);
     expect(btn('export-audio-cancel').hidden).toBe(false); // a way out, since it no longer auto-closes
+  });
+
+  it('says an export stopped from outside was stopped, not Done (REQ-an-outside-stop-ends-the-export, regression)', () => {
+    const h = open();
+    btn('export-audio-confirm').click();
+    h.setInterrupted(true);
+    h.setPhase('idle'); // a media-key pause cancelled it under the modal
+    expect(byId('export-audio-status').textContent).toMatch(/Nothing was saved/);
+    expect(byId('export-audio-status').textContent).not.toMatch(/Done/);
+    expect(btn('export-audio-cancel').hidden).toBe(false);
   });
 });

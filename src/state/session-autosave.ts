@@ -125,6 +125,12 @@ export class SessionAutosave {
     deps.patterns.onMotionBankChange(touch);
     deps.patterns.onEditBankChange(touch);
     deps.patterns.onSampleMetaChange(touch);
+    // These three change the session without firing any listener above — a
+    // motion extra track, a new (empty) bank, a copy into a bank not being
+    // edited (session-autosave REQ-autosave-triggers-on-any-change).
+    deps.patterns.onMotionTrackChange(touch);
+    deps.patterns.onBankCountChange(touch);
+    deps.patterns.onMutate(touch);
     deps.xy.onChange(touch);
 
     // Arrangement.onChange also fires every bar boundary while the transport
@@ -291,6 +297,6 @@ function readSavedAt(raw: string): number | null {
 /** Structural view of the four chain lanes — playback ticks don't change it. */
 function arrangementFingerprint(arr: Arrangement): string {
   return [arr.seq, arr.drum, arr.sampler, arr.motion]
-    .map((l) => `${l.enabled ? 1 : 0}:${l.steps.join(',')}`)
+    .map((l) => `${l.enabled ? 1 : 0}:${l.steps.join(',')}:${l.transpose.join(',')}`)
     .join('|');
 }

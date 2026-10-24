@@ -95,6 +95,13 @@ matters; a file with no layer fails `tests/ui/css-layers.test.ts`.
   that row is mounted three times with three sliders each, it put **nine**
   handlers on every pointer move in the app. If a component builds several
   sub-controls, check each one.
+- **A `window` drag listener hears every pointer, so filter by `pointerId`.**
+  Remember the `pointerId` that started the stroke; ignore moves and ups from any
+  other pointer, and ignore a second `pointerdown` while a stroke is live. On a
+  touch screen a second finger otherwise drives the knob the first finger holds,
+  or lifting it ends the first finger's drag
+  ([runtime-performance](../features/runtime-performance.md)
+  REQ-a-drag-follows-only-its-own-pointer).
 - **Measure layout once per gesture, not once per move.** Read
   `getBoundingClientRect()` on `pointerdown` and reuse it for the stroke — the
   control cannot move mid-drag, and reading it per move forces a layout on every

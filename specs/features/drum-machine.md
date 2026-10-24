@@ -3,7 +3,10 @@
 ```yaml
 id: drum-machine
 status: implemented
-version: 13  # v13: the ten voices share `decayEnv` and `finishHit` instead of writing the
+version: 14  # v14: the hat choke cuts the ringing open-hat HITS, not a group gain that came back
+             #      10 ms later with the tail still under it (REQ-a-closed-hat-cuts-an-open-hat);
+             #      REQ-the-choke-group-restores-on-a-ramp is SUPERSEDED — there is no group gain to restore
+             # v13: the ten voices share `decayEnv` and `finishHit` instead of writing the
              #      envelope and the teardown out each (REQ-a-voice-envelope-reaches-true-zero)
              # v12: REQ-swapping-a-model-never-severs-a-voice — a model swap ramps the outgoing voice down and
              #      disconnects it later; it used to sever a ringing tail, which
@@ -147,11 +150,22 @@ randomize) are layered on top in [drum-kits](drum-kits.md).
     swappable): *any* track whose model is `C.Hat` chokes *every* track whose
     model is `O.Hat`. Move an open hat onto track 6 and it still chokes; put a
     cowbell on track 3 and it stops being choked.
-  - The cut is a short fade on a dedicated per-track **choke gain** placed
-    directly after the voice — upstream of drive, so a tail is cut before it is
-    saturated — and the gain is restored immediately after the fade, so the next
-    open-hat hit is at full level. It never touches `drum.t{i}.vol`, which is the
-    user's.
+  - (v14) **The cut ends the open-hat hits that are ringing, not the track.**
+    A closed hat at `when` calls `cut(when)` on every open-hat voice. The voice
+    fades each of its hits that started before `when` and is still sounding,
+    over `CHOKE_FADE`, on that hit's own per-hit gain. That gain is downstream
+    of the hit's envelope and upstream of drive, so a cut tail is never
+    saturated. A hit's gain never comes back up, so nothing needs restoring, and
+    the next open hat is a new hit at full level. A hit starting at the same
+    instant as the closed hat is not cut, so the result doesn't depend on track
+    order. It never touches `drum.t{i}.vol`, which is the user's.
+
+    Until v14 the cut was a per-track *group* gain, faded to 0 over 6 ms and
+    brought back to 1 four ms later so the next hit would sound. The open hat it
+    had cut has a 350 ms decay and was still ringing, so ten milliseconds after
+    every closed hat the tail it had cut came straight back.
+    REQ-the-choke-group-restores-on-a-ramp made that return click-free, but it
+    still returned.
   - It applies to **scheduled** hits (`when`), not to `currentTime`, so a choke
     lands sample-accurately inside the transport look-ahead like every other
     drum event.
@@ -237,7 +251,9 @@ randomize) are layered on top in [drum-kits](drum-kits.md).
   voices before and after and are identical. That is the bar
   `runtime-performance.md` REQ-a-worklet-optimisation-is-bit-exact sets for DSP,
   applied to a refactor of the scheduling around it.
-- **REQ-the-choke-group-restores-on-a-ramp** (v10) — **The choke group restores
+- **REQ-the-choke-group-restores-on-a-ramp** (v10; **SUPERSEDED in v14** by
+  REQ-a-closed-hat-cuts-an-open-hat's per-hit cut, which has no group gain to
+  restore. The paragraph is kept for its history.) — **The choke group restores
   on a ramp, never a step.** REQ-a-closed-hat-cuts-an-open-hat fades the group
   gain down over `CHOKE_GROUP_FADE` and must put it back for the next hit.
   Restoring with a bare `setValueAtTime(1, …)` moves the gain 0 → 1 in a single
@@ -405,11 +421,13 @@ Scenario: The kick's tail no longer steps (v10, REQ-a-voice-envelope-reaches-tru
   And not by the truncation that used to leave a ~0.13 step at -30 dBFS
 # pinned by: tests/audio/drums/drum-synths.test.ts, npm run bench:metrics (by ear, ADR-010)
 
-Scenario: The choke group restores on a ramp (v10, REQ-the-choke-group-restores-on-a-ramp, regression)
-  Given choke is on and a closed hat cuts a ringing open hat
-  When the group gain is put back for the next hit
-  Then it ramps back to 1 rather than stepping there in one sample
-# pinned by: tests/audio/transport/drum-machine.test.ts
+Scenario: A cut open hat stays cut (v14, REQ-a-closed-hat-cuts-an-open-hat, regression; supersedes REQ-the-choke-group-restores-on-a-ramp)
+  Given choke is on and an open hat ringing on its 350 ms decay
+  When a closed hat fires 100 ms in
+  Then that open-hat hit fades to 0 over CHOKE_FADE and nothing raises it again
+  And an open hat fired after the closed hat sounds at full level
+# pinned by: tests/audio/drums/drum-synths.test.ts, tests/audio/transport/drum-machine.test.ts,
+#            npm run bench:audio (by ear, ADR-010)
 
 Scenario: A hit clamped out of the past keeps its gate length (v10, REQ-a-clamped-hit-carries-its-choke, regression)
   Given a step whose scheduled time has already passed
@@ -479,7 +497,7 @@ Scenario: Step clicks don't rebuild the tuning strip or leak listeners (REQ-the-
 Scenario: A closed hat cuts the open hat once choke is on (v6, REQ-a-closed-hat-cuts-an-open-hat)
   Given drum.choke is on, with a C.Hat and an O.Hat track
   When the closed hat fires
-  Then the open hat's choke gain ramps to 0 and is restored straight after
+  Then every open-hat voice is told to cut its ringing hits at that time (v14)
 # pinned by: tests/audio/transport/drum-machine.test.ts
 
 Scenario: Choke is off by default, so no shipped song changes (v6, REQ-a-closed-hat-cuts-an-open-hat, ADR-006)
@@ -496,7 +514,7 @@ Scenario: The group follows the voice model, not the track (v6, REQ-a-closed-hat
 
 Scenario: A ratcheted closed hat chokes on every sub-hit (v6, REQ-a-closed-hat-cuts-an-open-hat, edge)
   Given a closed-hat step with ratchet 3 and choke on
-  Then the open hat is cut three times, at each sub-hit's own time
+  Then the open-hat voice is told to cut three times, at each sub-hit's own time
 # pinned by: tests/audio/transport/drum-machine.test.ts
 
 Scenario: A hit is reported with its track, scheduled time and velocity (v7, REQ-every-sounded-hit-is-reported)

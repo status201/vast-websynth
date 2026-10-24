@@ -616,3 +616,41 @@ describe('Knob keyboard access', () => {
     expect(set.mock.calls.filter(([name]) => name === 'aria-valuetext')).toHaveLength(1);
   });
 });
+
+/** A pointer event from one finger — jsdom has no PointerEvent constructor. */
+function finger(type: string, pointerId: number, init: MouseEventInit): MouseEvent {
+  const e = new MouseEvent(type, { bubbles: true, ...init });
+  Object.defineProperty(e, 'pointerId', { value: pointerId });
+  return e;
+}
+
+// runtime-performance REQ-a-drag-follows-only-its-own-pointer — a window
+// listener hears every finger, so a second one used to drive (or end) the drag.
+describe('Knob drag vs a second finger (regression)', () => {
+  afterEach(() => vi.restoreAllMocks());
+
+  it('follows only the finger that grabbed it', () => {
+    vi.spyOn(performance, 'now').mockReturnValue(10_000);
+    const b = bus();
+    const knob = new Knob({ bus: b, paramId: 'filter.cutoff' });
+    const dial = knob.el.querySelector('.' + styles.dial!) as HTMLElement;
+    b.set('filter.cutoff', 80);
+
+    dial.dispatchEvent(finger('pointerdown', 1, { clientY: 100 }));
+    window.dispatchEvent(finger('pointermove', 1, { clientY: 90 }));
+    const held = b.get('filter.cutoff');
+    expect(held).toBeGreaterThan(80);
+
+    window.dispatchEvent(finger('pointermove', 2, { clientY: 700 })); // a key finger, far below
+    expect(b.get('filter.cutoff')).toBe(held);
+    dial.dispatchEvent(finger('pointerdown', 2, { clientY: 100 })); // a second finger on the same knob
+    window.dispatchEvent(finger('pointerup', 2, { clientY: 700 })); // it lifts
+    window.dispatchEvent(finger('pointermove', 1, { clientY: 80 }));
+    expect(b.get('filter.cutoff')).toBeGreaterThan(held); // finger 1 still drives it
+    window.dispatchEvent(finger('pointerup', 1, { clientY: 80 }));
+    const released = b.get('filter.cutoff');
+    window.dispatchEvent(finger('pointermove', 1, { clientY: 0 }));
+    expect(b.get('filter.cutoff')).toBe(released);
+    knob.destroy();
+  });
+});

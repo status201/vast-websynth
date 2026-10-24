@@ -3,7 +3,8 @@
 ```yaml
 id: render-to-sampler
 status: implemented
-version: 5   # v5: REQ-a-render-is-refused-while-busy — the reverse guard: a capture waits for a render
+version: 6   # v6: REQ-an-outside-stop-aborts-the-render — Esc / Panic / a media-key pause mid-render no longer wedges it
+             # v5: REQ-a-render-is-refused-while-busy — the reverse guard: a capture waits for a render
              # v4: a rendered bar is the song's bar, not always 16 steps (REQ-one-bar-means-the-songs-bar)
              # v3: explicit start(0) + a render blocks a playhead seek (REQ-the-buffer-starts-exactly-on-a-bar/REQ-a-render-is-refused-while-busy)
              # v2: a `seq.render` help badge explains the section + the two-pass tail bake
@@ -85,6 +86,14 @@ the loop drifts against the grid and is unusable.
   REQ-a-capture-waits-for-a-bank-render) — an export started mid-render used to
   stop the transport under it and strand the render with its preconditions
   never restored.
+- **REQ-an-outside-stop-aborts-the-render** (v6) — A transport stop the render
+  did not issue itself (Esc, Panic, a Media Session pause, the space bar) ends
+  the render: the capture is discarded, `render()` rejects with *render
+  interrupted*, and the preconditions are restored as for any failure
+  (REQ-render-preconditions-are-forced-then-restored). The render used to wait
+  for a `step >= stopAtStep` tick that a stopped clock never sends — the
+  promise never settled, the button stayed on *Rendering…* and the forced
+  state was never restored, until a reload.
 - **REQ-the-slot-load-contract** (slot load contract) — On success the buffer
   lands in the chosen slot via the settled pair `SamplerMachine.setBuffer(slot,
   buf)` + `PatternStore.setSampleName(slot, name)`, name `seq-<bank
@@ -197,6 +206,12 @@ Scenario: Re-entry is refused (edge)
   Given a render is in flight
   When render() is called again
   Then it rejects and the in-flight render is unaffected
+# pinned by: tests/audio/recorder/bank-render.test.ts
+
+Scenario: A stop from outside aborts the render (regression, v6)
+  Given a render is in flight
+  When something else stops the transport before the second bar ends
+  Then render() rejects, the forced state is restored, and a new render is accepted
 # pinned by: tests/audio/recorder/bank-render.test.ts
 
 Scenario: Import lands in the chosen slot with a derived name

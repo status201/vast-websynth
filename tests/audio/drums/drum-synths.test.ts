@@ -401,3 +401,62 @@ describe('drum voice envelope shape', () => {
       .toHaveBeenCalledWith(0.25, 0.5 + 0.001);
   });
 });
+
+/**
+ * The hat choke, voice side — drum-machine.md REQ-a-closed-hat-cuts-an-open-hat (v14, regression). The cut
+ * was a per-track group gain that came back up 4 ms after its fade, while the
+ * open hat it had cut rang on for its 350 ms decay: the tail returned. Now each
+ * open-hat hit sits behind a gate of its own that only `cut` automates, and a
+ * cut gate never rises again.
+ */
+describe('an open hat is cut per hit', () => {
+  /** An open hat whose next hit's gate is the last gain it creates. */
+  function openHat() {
+    const { mock, ctx, noise } = setup();
+    const hat = new HiHat(ctx, noise, true);
+    const hit = (when: number) => {
+      mock.createGain.mockClear();
+      hat.trigger(when, 0.9);
+      const gains = mock.createGain.mock.results.map((r) => r.value);
+      return gains[gains.length - 1]!; // env, then the gate
+    };
+    return { mock, hat, hit };
+  }
+
+  it('fades a ringing hit to zero and never raises it again', () => {
+    const { hat, hit } = openHat();
+    const gate = hit(0);
+    hat.cut(0.1);
+    expect(gate.gain.setValueAtTime.mock.calls).toEqual([[1, 0.1]]);
+    expect(gate.gain.linearRampToValueAtTime.mock.calls).toEqual([[0, 0.1 + 0.005]]);
+    hat.cut(0.2); // a second closed hat: the hit is already cut
+    expect(gate.gain.linearRampToValueAtTime.mock.calls).toEqual([[0, 0.1 + 0.005]]);
+  });
+
+  it('leaves the next hit at full level', () => {
+    const { hat, hit } = openHat();
+    hit(0);
+    hat.cut(0.1);
+    const next = hit(0.25);
+    expect(next.gain.setValueAtTime).not.toHaveBeenCalled();
+    expect(next.gain.linearRampToValueAtTime).not.toHaveBeenCalled();
+  });
+
+  it('does not cut a hit that starts at the same instant, or one that has ended', () => {
+    const { mock, hat, hit } = openHat();
+    const ended = hit(0); // decay 0.35: done by ~0.355
+    mock.currentTime = 1;
+    const same = hit(1);
+    hat.cut(1);
+    expect(ended.gain.linearRampToValueAtTime).not.toHaveBeenCalled();
+    expect(same.gain.linearRampToValueAtTime).not.toHaveBeenCalled();
+  });
+
+  it('the closed hat keeps no gate and has nothing to cut', () => {
+    const { mock, ctx, noise } = setup();
+    const hat = new HiHat(ctx, noise, false);
+    mock.createGain.mockClear();
+    hat.trigger(0, 0.9);
+    expect(mock.createGain).toHaveBeenCalledTimes(1); // env only
+  });
+});

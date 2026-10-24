@@ -47,14 +47,6 @@ const MODEL_BUILDERS: readonly ((ctx: AudioContext, noise: AudioBuffer) => DrumS
  */
 const CLOSED_HAT_MODEL = 2;
 const OPEN_HAT_MODEL = 3;
-/** Short enough to read as a cut, long enough not to click. */
-const CHOKE_GROUP_FADE = 0.006;
-
-/**
- * How long the choke group takes to come back up (REQ-the-choke-group-restores-on-a-ramp). Short enough that the
- * next open hat is at full level, long enough that returning does not itself step.
- */
-const CHOKE_GROUP_RESTORE = 0.004;
 
 /**
  * How long a model swap waits before disconnecting the voice it replaced
@@ -69,9 +61,6 @@ export class DrumMachine {
   // Per-track channel processors (one entry per track, downstream of the voice).
   private readonly trackTones: BiquadFilterNode[] = [];
   private readonly trackPans: StereoPannerNode[] = [];
-  /** Per-track choke gain, directly after the voice (REQ-a-closed-hat-cuts-an-open-hat). Normally 1; a
-   *  closed hat ramps the open hats' to 0 and straight back. */
-  private readonly trackChokes: GainNode[] = [];
   private readonly trackDrivePre: GainNode[] = [];
   private readonly trackDriveShapers: WaveShaperNode[] = [];
   private readonly trackDrivePost: GainNode[] = [];
@@ -109,11 +98,9 @@ export class DrumMachine {
     this.tracks = this.trackModels.map((m) => MODEL_BUILDERS[m]!(this.ctx, this.noise));
 
     for (const t of this.tracks) {
-      // Per-track channel: voice → choke → drive → tone → volume → pan → drumBus.
-      // The voice's own envelope + per-hit gate (chokeRoute) stay upstream and
-      // intact; `choke` is the *group* cut (REQ-a-closed-hat-cuts-an-open-hat), placed before drive so a
-      // cut tail is never saturated on its way out.
-      const choke = this.ctx.createGain();
+      // Per-track channel: voice → drive → tone → volume → pan → drumBus.
+      // The hat choke lives inside the voice, on each hit's own gate
+      // (REQ-a-closed-hat-cuts-an-open-hat), so a cut tail is never saturated on its way out.
       const drivePre = this.ctx.createGain();
       const shaper = this.ctx.createWaveShaper();
       shaper.curve = driveCurve(0); // identity at drive 0 (no-op)
@@ -132,7 +119,6 @@ export class DrumMachine {
       const pan = this.ctx.createStereoPanner();
 
       t.output
-        .connect(choke)
         .connect(drivePre)
         .connect(shaper)
         .connect(drivePost)
@@ -141,7 +127,6 @@ export class DrumMachine {
         .connect(pan)
         .connect(this.drumBus);
 
-      this.trackChokes.push(choke);
       this.trackDrivePre.push(drivePre);
       this.trackDriveShapers.push(shaper);
       this.trackDrivePost.push(drivePost);
@@ -313,28 +298,18 @@ export class DrumMachine {
    * (REQ-a-drum-tracks-algorithm-is-selectable), so the group has to follow the sound, not the slot. Off unless
    * `drum.choke` is on, because turning it on changes how existing songs sound.
    *
-   * The gain is ramped down and restored inside the same call, so nothing has to
-   * remember to undo it and a later open-hat hit is at full level. `when` is a
-   * scheduled transport time, so this lands sample-accurately like every other
-   * drum event.
+   * The cut is the voice's: it fades the hits that are ringing, each on its own
+   * gate, and a gate never comes back up — so nothing has to be restored, and
+   * the next open hat is a fresh hit at full level. (A per-track group gain
+   * restored 4 ms after the fade, and the 350 ms tail it had cut came back with
+   * it.) `when` is a scheduled transport time, so this lands sample-accurately
+   * like every other drum event.
    */
   private chokeOpenHats(sourceTrack: number, when: number): void {
     if (!this.chokeEnabled) return;
     if (this.trackModels[sourceTrack] !== CLOSED_HAT_MODEL) return;
     for (let t = 0; t < this.trackModels.length; t++) {
-      if (this.trackModels[t] !== OPEN_HAT_MODEL) continue;
-      const g = this.trackChokes[t];
-      if (!g) continue;
-      g.gain.cancelScheduledValues(when);
-      g.gain.setValueAtTime(1, when);
-      g.gain.linearRampToValueAtTime(0, when + CHOKE_GROUP_FADE);
-      // Back up, but on a RAMP (REQ-the-choke-group-restores-on-a-ramp). The cut still belongs to the tail that
-      // was ringing rather than to the track, so the gain has to return for the
-      // next hit — but returning with a bare setValueAtTime moved it 0 -> 1 in a
-      // single sample while the open hat was still ringing underneath, which is
-      // the very click the down-fade above was chosen to avoid.
-      g.gain.setValueAtTime(0, when + CHOKE_GROUP_FADE);
-      g.gain.linearRampToValueAtTime(1, when + CHOKE_GROUP_FADE + CHOKE_GROUP_RESTORE);
+      if (this.trackModels[t] === OPEN_HAT_MODEL) this.tracks[t]?.cut?.(when);
     }
   }
 

@@ -28,6 +28,33 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ### Fixed
 
+- **The drum CHOKE switch now really cuts the open hat.** A closed hat faded the
+  open hat out, then let its tail straight back in 10 ms later, so the choke
+  barely changed anything. Demos with CHOKE on (Neon, Maison, Kutmuziek and
+  others) now have tighter hats. It also works again on a track whose drum model
+  you changed.
+- **Stopping the transport during Render no longer leaves it stuck.** Esc, Panic
+  or a media key mid-render left the button on *Rendering…* until a reload. The
+  render now stops cleanly and Render works again straight away.
+- **Stopping the transport during Export Song ends the export.** It used to keep
+  recording forever in the background and block every later export. It now
+  stops, saves nothing, and the dialog says so.
+- **A second finger no longer grabs the knob you are turning.** On a touch screen,
+  playing the keyboard or touching anything else while turning a knob, the pitch
+  or mod strip, the EQ curve or a step slider could jump the control or end your
+  drag.
+- **New and Clear chain reset the slot transpose.** A song that started a fourth
+  up stayed a fourth up after New, or after clearing the Sequencer chain.
+- **Autosave catches every edit.** Changes to a motion extra track, adding a
+  bank, copying into a bank you are not editing and changing a slot's transpose
+  were not saved if you closed the tab right after.
+- **Loading a song no longer blips the Mod Matrix.** For a moment during a load, a
+  route could drive its old destination at its new depth.
+- **Dvorak: the key that types F plays its note.** It held a drum fill instead.
+  On Dvorak the fill is now the key that types U, which sits where F does on
+  QWERTY.
+- **A note held while you click into a text field is released.** Letting go of
+  the key inside the field used to leave the note hanging.
 - **Mod Matrix: an unused row's destination list is readable again.** Opening the
   destination picker on a row with nothing routed (LFO 2 out of the box) showed a
   see-through option list with the next row's picker bleeding through it. The row
