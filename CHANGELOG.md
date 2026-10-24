@@ -16,6 +16,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+## [2.18.0] - 2026-10-24
+
 ### Added
 
 - **Read about the demos on a phone or tablet.** Each demo's tempo, length and
@@ -2999,7 +3001,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
   in-app sample recorder/editor. See the git history prior to this changelog
   for the detailed evolution.
 
-[Unreleased]: https://github.com/status201/vast-websynth/compare/v2.17.1...HEAD
+[Unreleased]: https://github.com/status201/vast-websynth/compare/v2.18.0...HEAD
+[2.18.0]: https://github.com/status201/vast-websynth/compare/v2.17.1...v2.18.0
 [2.17.1]: https://github.com/status201/vast-websynth/compare/v2.17.0...v2.17.1
 [2.17.0]: https://github.com/status201/vast-websynth/compare/v2.16.0...v2.17.0
 [2.16.0]: https://github.com/status201/vast-websynth/compare/v2.15.0...v2.16.0
