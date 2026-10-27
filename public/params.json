@@ -2,7 +2,7 @@
   "format": "websynth-params",
   "version": 1,
   "songVersion": 9,
-  "count": 403,
+  "count": 405,
   "params": [
     {
       "id": "voicing.mode",
@@ -108,6 +108,28 @@
       "max": 0.95,
       "default": 0.5,
       "patch": true
+    },
+    {
+      "id": "osc2.sync",
+      "min": 0,
+      "max": 2,
+      "default": 0,
+      "patch": true,
+      "step": 1,
+      "taper": "discrete",
+      "labels": [
+        "off",
+        "hard",
+        "soft"
+      ]
+    },
+    {
+      "id": "osc2.syncPitch",
+      "min": 0,
+      "max": 48,
+      "default": 12,
+      "patch": true,
+      "unit": "st"
     },
     {
       "id": "sub.wave",
@@ -351,7 +373,7 @@
     {
       "id": "lfo.dest",
       "min": 0,
-      "max": 6,
+      "max": 7,
       "default": 0,
       "patch": true,
       "step": 1,
@@ -363,7 +385,8 @@
         "amp",
         "pulse",
         "pan",
-        "shape"
+        "shape",
+        "sync"
       ]
     },
     {
@@ -429,7 +452,7 @@
     {
       "id": "lfo2.dest",
       "min": 0,
-      "max": 6,
+      "max": 7,
       "default": 0,
       "patch": true,
       "step": 1,
@@ -441,7 +464,8 @@
         "amp",
         "pulse",
         "pan",
-        "shape"
+        "shape",
+        "sync"
       ]
     },
     {
@@ -1783,7 +1807,7 @@
     {
       "id": "mod.0.dst",
       "min": 0,
-      "max": 7,
+      "max": 8,
       "default": 0,
       "patch": true,
       "step": 1,
@@ -1796,7 +1820,8 @@
         "shape",
         "amp",
         "drive",
-        "pan"
+        "pan",
+        "sync"
       ]
     },
     {
@@ -1829,7 +1854,7 @@
     {
       "id": "mod.1.dst",
       "min": 0,
-      "max": 7,
+      "max": 8,
       "default": 0,
       "patch": true,
       "step": 1,
@@ -1842,7 +1867,8 @@
         "shape",
         "amp",
         "drive",
-        "pan"
+        "pan",
+        "sync"
       ]
     },
     {
@@ -1875,7 +1901,7 @@
     {
       "id": "mod.2.dst",
       "min": 0,
-      "max": 7,
+      "max": 8,
       "default": 0,
       "patch": true,
       "step": 1,
@@ -1888,7 +1914,8 @@
         "shape",
         "amp",
         "drive",
-        "pan"
+        "pan",
+        "sync"
       ]
     },
     {
@@ -1921,7 +1948,7 @@
     {
       "id": "mod.3.dst",
       "min": 0,
-      "max": 7,
+      "max": 8,
       "default": 0,
       "patch": true,
       "step": 1,
@@ -1934,7 +1961,8 @@
         "shape",
         "amp",
         "drive",
-        "pan"
+        "pan",
+        "sync"
       ]
     },
     {
@@ -1967,7 +1995,7 @@
     {
       "id": "mod.4.dst",
       "min": 0,
-      "max": 7,
+      "max": 8,
       "default": 0,
       "patch": true,
       "step": 1,
@@ -1980,7 +2008,8 @@
         "shape",
         "amp",
         "drive",
-        "pan"
+        "pan",
+        "sync"
       ]
     },
     {
@@ -2013,7 +2042,7 @@
     {
       "id": "mod.5.dst",
       "min": 0,
-      "max": 7,
+      "max": 8,
       "default": 0,
       "patch": true,
       "step": 1,
@@ -2026,7 +2055,8 @@
         "shape",
         "amp",
         "drive",
-        "pan"
+        "pan",
+        "sync"
       ]
     },
     {

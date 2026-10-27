@@ -39,6 +39,7 @@ Vanilla TypeScript + Vite, zero runtime dependencies.
 
 - **8-voice polyphony** with mono/poly switching and glide
 - **Dual oscillator** (sine/triangle/saw/square) + noise, per-osc octave/detune/level, with **pulse width** on the square wave (band-limited at every width, so it never aliases)
+- **Oscillator sync** — OSC 2 locked to OSC 1, **hard** or **soft** (reversing). The SYNC knob then sweeps OSC 2's tone instead of its pitch, for the classic tearing lead, band-limited so it stays clean high up the keyboard. It costs nothing until it is switched on
 - **Sub oscillator** (one/two octaves down) for analogue weight
 - **Unison** voice-stacking with detune spread (fat supersaw)
 - **Oscillator drift / "Age"** — subtle analogue tuning instability
@@ -48,7 +49,7 @@ Vanilla TypeScript + Vite, zero runtime dependencies.
   - **POLY** — 4-pole with clean stages and the saturation moved into the resonance itself. Glassy and open, and it **keeps its low end** however far you push resonance (the Prophet-600 trick: the resonance compensation is a pre-gain on the loop input). A **SHAPE** knob morphs it through LP24 → LP12 → BP12 → HP24, so the synth finally has a band-pass and a high-pass — and SHAPE is an LFO/XY/motion destination, so the filter *type* can sweep
 - **Filter key tracking** — the note you play raises the cutoff, so timbre stays consistent up the keyboard (and a self-oscillating filter becomes playable as a pitched voice)
 - **Two ADSR envelopes** (amp + filter), filter-envelope amount in semitones
-- **LFO** routable to cutoff, pitch, amp, pulse width (PWM), **stereo pan** — an auto-panner following the LFO's own rate, depth and waveform — or filter **shape**
+- **LFO** routable to cutoff, pitch, amp, pulse width (PWM), **stereo pan** — an auto-panner following the LFO's own rate, depth and waveform — filter **shape**, or oscillator **sync**
 - **Mod matrix**: eight routes, each sending one **source** — either LFO, an envelope, the mod wheel, velocity, the note played, or a sample-and-hold **random** — into one **destination**, at its own **bipolar** depth (past zero the route inverts). Two routes may share a destination and simply add, so the old "one LFO, one destination" limit is gone. It reaches `filter.resonance`, which nothing could modulate before. Routing lives in the **audio graph**, summed natively at audio rate, so a route costs one gain node and *no* per-frame CPU — which is also why the destination list is short and deliberate: for anything else (effect mixes, levels, tempo) the Motion sequencer and XY Pad remain the tools. Opens from **MOD** in the Song tab's Live FX row, in a movable window you can leave open while you play. A modulated knob on the synth panels grows an inner arc showing the range modulation can reach — **green** for up, **yellow** for inverted — and a mod-wheel route also shows a live tick, so you can see where the wheel currently has it without opening the window
 - **FX chain**: eq → distortion → wah → phaser → delay → reverb → duck (each independently bypassable)
 - **Equalizer, one per machine**: a folded **EQUALIZER** section under the scope with a tab for the **Sequencer**, the **Drum Machine** and the **Sampler**, each holding its own eight-band EQ (off until you switch it on — the lamp in front of each tab tells you which lanes are working). **Draw the curve** straight onto the graph; double-tap a band to put it back, Shift-drag for fine moves. **HP** and **LP** are real filters rather than tilts, and **Q** sharpens every band from a broad tone shape to a narrow notch for one problem frequency. Switch on the **ⓘ** badges for what each band name (SUB, MUD, BOX, NASAL, PRES, HARSH, SIB, AIR) means. Presets cover the usual moves — Low Pass, High Pass, Band Pass, Telephone, Hiss Removal, Rumble Cut, Warmth, Presence, Air — plus one per problem band the Spectrum names: **De-Mud**, **De-Box**, **De-Nasal** and **De-Harsh**. The bands sit on the same frequencies and the same log scale the Spectrum draws, and the panel lines up under it, so a bump you can see there is under the band that fixes it here. Each EQ runs at the **front** of its lane, which is what lets a highpass on the drums stop the kick pumping the rest of the kit, and costs nothing at all while switched off
@@ -316,6 +317,8 @@ src/
     lane-mixer.ts    Song-tab mute / solo / volume across seq / drum / sampler
     voice.ts         one voice: 2 osc + noise → filter (LADDER/POLY) → amp
     oscillator.ts, envelope.ts, lfo.ts, pwm.ts, midi.ts
+    frequency-line.ts  the note-by-note frequency + glide curve, shared by oscillators and the sync pair
+    sync-osc/        AudioWorklet wrapper + engagement crossfade for oscillator sync
     tempo-bind.ts    resolves a rate/time param against its tempo lock + BPM
     ladder-filter/   AudioWorklet wrapper — hosts both filter models (worklet in public/worklets/)
     compressor/      AudioWorklet wrapper for the 1176/SSL bus compressor
@@ -350,6 +353,6 @@ src/
                      theme.css (custom properties), layout.css (.app grid + responsive)
   ui/styles/         CSS Modules (*.module.css — each one a single @layer block, so
                      import order never decides which wins; see specs css-cascade-layers)
-public/worklets/     ladder-filter.js, compressor.js, recorder.js (audio thread)
+public/worklets/     ladder-filter.js, compressor.js, recorder.js, sync-osc.js (audio thread)
 e2e/                 Playwright end-to-end specs (configs at the root: playwright.config.ts, pw-chrome.config.ts)
 ```

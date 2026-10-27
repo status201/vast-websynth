@@ -78,7 +78,7 @@ Scripts are in `package.json`. Only the non-obvious ones need saying:
 - `npm run clean:demos` / `check:demos` keep `src/state/demos-index.json` in sync;
   `check:demos` fails the build if it drifts.
 - `npm run check:bundle` (after `npm run build`) fails the entry chunk over 500 kB —
-  CI's `build` job runs both. Anything new at boot comes out of ~12 kB of headroom (the script prints the exact figure);
+  CI's `build` job runs both. Anything new at boot comes out of ~7 kB of headroom (the script prints the exact figure);
   defer it behind an `import()` instead (`runtime-performance.md`).
 - A CSP change is only checked against `npm run build && npx vite preview`: `vite dev`
   relaxes `style-src` for Vite's injected styles, so e2e never sees the shipped policy.
@@ -120,7 +120,8 @@ material keyed by feature name).
 | a **bar**, a **step count** or anything `% SEQ_LENGTH`-shaped | `features/meter.md` + ADR-019 — the bar is `barTicks`, the grid is `GRID_CELLS`, a lane's window is `laneCells()`. `src/state/meter.ts` names the three apart; in the UI go through `src/ui/lane-grid.ts` |
 | `src/audio/transport/sync/` | `features/midi-clock-sync.md`, `features/webrtc-sync.md` |
 | `src/audio/recorder/` | `features/audio-export.md`, `record-window.md`, `sample-recorder.md`, `sample-chop.md`, `time-stretch.md`, `scratch.md`, `render-to-sampler.md` |
-| `public/worklets/` | ADR-010, `recipes/add-an-audioworklet.md`, `features/ladder-filter.md`, `features/compressor.md` |
+| `public/worklets/` | ADR-010, `recipes/add-an-audioworklet.md`, `features/ladder-filter.md`, `features/compressor.md`, `features/oscillator-sync.md` — a new worklet is also a `CORE_ASSETS` entry in `public/sw.js`, or it is missing offline |
+| **oscillator sync** — `src/audio/sync-osc/`, `Voice.pitchTargets()` | `features/oscillator-sync.md` + ADR-026 — a new pitch source connects to **every** `pitchTargets()` entry (the sync pair listens through the fourth), never to a hand-listed set of detunes |
 | `src/ui/` (any) | `src/ui/CLAUDE.md`, `recipes/add-a-ui-component.md`, `add-a-panel.md`, `add-a-modal-dialog.md`, `add-a-floating-window.md`, ADR-009 |
 | a **stylesheet** — any `*.module.css` or `src/styles/*.css` | `features/css-cascade-layers.md` — every sheet is one `@layer <name> { … }` block and the order is `src/styles/layers.css`, so import order never decides which module wins; pick the layer above every module that shares an element with yours. A CSS move is proven with `scripts/css-cascade/` (`npm run cascade:fingerprint` on **both** `vite dev` and the build — their CSS order differs — and `cascade:conflicts`) |
 | a **glyph that labels a control** (an arrow, a caret, a ✕, an emoji) | `features/iconography.md` — it is inline SVG from `src/ui/components/ui-icons.ts`, never a font character: the app bundles no font, so on Android a typed glyph falls through to a symbol or colour-emoji face. `tests/ui/iconography.test.ts` fails the suite on a new one |

@@ -257,6 +257,7 @@ specs/
     _feature-template.md ·  copy this to start a new feature spec
     # — synth sound engine —
     oscillators.md     ·  osc1/osc2/sub + noise mixer (sound sources)
+    oscillator-sync.md ·  hard + reversing soft sync: a per-voice worklet pair, band-limited, built on first use
     ladder-filter.md   ·  the resonant ladder filter (canonical scalar example)
     filter-models.md   ·  LADDER/POLY model switch + the POLY multimode DSP
     key-tracking.md    ·  note number -> cutoff, in semitones (both models)
@@ -412,6 +413,7 @@ specs/
     adr-023-the-synth-channel-goes-stereo-on-demand.md  ·  per-voice width is spliced in on a gesture, and no channel count decides a level
     adr-024-a-sync-join-is-timed-by-its-first-pulse.md  ·  a slave's new position sounds on its first pulse; a following slave jumps, never restarts
     adr-025-the-bank-ceiling-is-sixteen-and-the-bar-wraps.md  ·  sixteen banks (A–P, SongFile v9); the bank bar wraps, never pages
+    adr-026-oscillator-sync-is-a-per-voice-worklet-pair.md  ·  sync renders osc1 + osc2 in one worklet per voice, only while engaged
 ```
 
 > Coverage note: the feature set above documents the current system. New features

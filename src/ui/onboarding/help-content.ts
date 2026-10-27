@@ -497,6 +497,12 @@ export const HELP_TOPICS: Record<TopicId, HelpTopic> = {
       'width. At 50% it is a plain square; narrowing it thins the tone toward a reedy, ' +
       'hollow buzz. Point the LFO at <em>pulse</em> to sweep it for the classic PWM ' +
       'string/pad shimmer.</li>' +
+      '<li><strong>SYNC</strong> (OSC 2 only) — locks OSC 2 to OSC 1: every time OSC 1 ' +
+      'starts a cycle, OSC 2 is forced to start over (<strong>hard</strong>) or turn around ' +
+      '(<strong>soft</strong>, rounder and gentler). The note you hear stays OSC 1’s; the ' +
+      '<strong>SYNC</strong> knob, shown while sync is on, now changes the <em>tone</em> instead ' +
+      'of the pitch. Sweep it — or point an LFO or the filter envelope (in the mod matrix) at ' +
+      '<em>sync</em> — for the classic tearing sync lead.</li>' +
       '</ul>',
   },
   subuni: {
@@ -615,12 +621,13 @@ export const HELP_TOPICS: Record<TopicId, HelpTopic> = {
       '<li><strong>RATE</strong> — how fast it wiggles.</li>' +
       '<li><strong>AMT</strong> — how much it moves the target.</li>' +
       '<li><strong>Destination</strong> — what it modulates (e.g. pitch for vibrato, filter for ' +
-      'wobble, pan to sweep the sound between the speakers).</li>' +
+      'wobble, pan to sweep the sound between the speakers, sync to sweep OSC 2’s sync ' +
+      'tone while sync is on).</li>' +
       '</ul>' +
       '<p>There are <strong>two</strong>, on the <strong>1</strong> and <strong>2</strong> tabs ' +
-      'above — so you can have a filter wobble <em>and</em> a vibrato at once. Each one takes a ' +
-      'different destination: whichever one is in use is greyed out on the other tab. A tab ' +
-      'lights up when its LFO is moving something, even while you are looking at the other.</p>' +
+      'above — so you can have a filter wobble <em>and</em> a vibrato at once. Both may point ' +
+      'at the same destination, in which case they add up. A tab lights up when its LFO is ' +
+      'moving something, even while you are looking at the other.</p>' +
       '<p>The mod wheel adds depth to <strong>LFO 1</strong> only, so it stays a performance ' +
       'control for one thing rather than opening everything at once.</p>',
   },
@@ -1374,8 +1381,9 @@ export const HELP_TOPICS: Record<TopicId, HelpTopic> = {
     body:
       '<p>Boosts the LFO on top of its Amount knob — pushing the wheel up deepens whatever ' +
       'the LFO is pointed at: <strong>wobble</strong> (cutoff), <strong>vibrato</strong> ' +
-      '(pitch), <strong>tremolo</strong> (amp), <strong>PWM movement</strong> (pulse) or ' +
-      '<strong>auto-pan</strong> (pan).</p>' +
+      '(pitch), <strong>tremolo</strong> (amp), <strong>PWM movement</strong> (pulse), ' +
+      '<strong>auto-pan</strong> (pan), a <strong>filter-shape sweep</strong> (shape) or a ' +
+      '<strong>sync sweep</strong> (sync).</p>' +
       '<p>On a MIDI keyboard, <strong>channel aftertouch</strong> (pressing harder on a held key) ' +
       'drives it too; the higher of the two wins.</p>' +
       '<p>If the LFO destination is off, the wheel does nothing — pick a destination first.</p>',

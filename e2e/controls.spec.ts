@@ -121,6 +121,23 @@ test.describe('control surface (testids + debug bridge)', () => {
     await expect(width).toBeHidden();
   });
 
+  // oscillator-sync.md: the SYNC knob is inert while sync is off, so it hides.
+  test('the sync pitch knob is shown only while sync is engaged', async ({ page }) => {
+    await gotoAndStart(page);
+    const knob = page.getByTestId('knob-osc2.syncPitch');
+    await expect(knob).toBeHidden();
+
+    await page.getByTestId('seg-osc2.sync-1').click(); // hard
+    expect(await busGet(page, 'osc2.sync')).toBe(1);
+    await expect(knob).toBeVisible();
+
+    await page.getByTestId('seg-osc2.sync-2').click(); // soft
+    await expect(knob).toBeVisible();
+
+    await page.getByTestId('seg-osc2.sync-0').click(); // off
+    await expect(knob).toBeHidden();
+  });
+
   // Both REQ-question-mark-toggles-the-badges cues ride one lfo.dest subscription (oscillators.md), so they are
   // asserted together — a capped arc with no sentence beside it explaining it
   // would be worse than neither.

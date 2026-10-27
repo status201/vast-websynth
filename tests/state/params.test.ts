@@ -289,15 +289,26 @@ describe('ParamBus', () => {
     expect(fmt?.(1)).toBe('HP24');
   });
 
-  it('appends the shape LFO destination without moving the older indices', () => {
+  it('appends the shape and sync LFO destinations without moving the older indices', () => {
     const bus = new ParamBus();
     registerDefaults(bus);
     const def = bus.def('lfo.dest');
     // An index here is a stored value in every saved patch (lfo.md REQ-destination-is-one-of-the-labels).
-    expect(def?.labels).toEqual(['off', 'cutoff', 'pitch', 'amp', 'pulse', 'pan', 'shape']);
-    expect(def?.max).toBe(6);
-    bus.set('lfo.dest', 7);
-    expect(bus.get('lfo.dest')).toBe(6);
+    expect(def?.labels).toEqual(['off', 'cutoff', 'pitch', 'amp', 'pulse', 'pan', 'shape', 'sync']);
+    expect(def?.max).toBe(7);
+    bus.set('lfo.dest', 8);
+    expect(bus.get('lfo.dest')).toBe(7);
+  });
+
+  // oscillator-sync.md REQ-sync-off-is-the-native-path / REQ-sync-pitch-is-the-sweep.
+  it('registers osc2 sync off by default, with an inert, audible-octave pitch', () => {
+    const bus = new ParamBus();
+    registerDefaults(bus);
+    expect(bus.def('osc2.sync')?.labels).toEqual(['off', 'hard', 'soft']);
+    expect(bus.get('osc2.sync')).toBe(0);
+    expect(bus.def('osc2.syncPitch')).toMatchObject({ min: 0, max: 48, default: 12 });
+    // Sync is osc2's alone: the master has nothing to sync to.
+    expect(bus.def('osc1.sync')).toBeUndefined();
   });
 
   // Both LFOs come from one lfoParams(prefix) factory, so "identical to the

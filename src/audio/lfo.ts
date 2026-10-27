@@ -2,6 +2,7 @@ import type { ParamBus } from '../state/params';
 import { rampTo, RAMP_MEDIUM } from './param-utils';
 import { bindTempoLocked } from './tempo-bind';
 import { clamp01 } from '../utils/math';
+import { LFO_DEST_SCALE } from '../state/lfo-routing';
 
 const WAVE_TYPES: OscillatorType[] = ['sine', 'triangle', 'sawtooth', 'square'];
 
@@ -26,6 +27,8 @@ export const enum LfoDest {
   Pulse = 4,
   Pan = 5,
   Shape = 6,
+  /** The sync pair's slave pitch (oscillator-sync.md REQ-sync-is-a-modulation-destination). */
+  Sync = 7,
 }
 
 /** Control-signal smoothing for the amplitude-domain outputs (lfo.md REQ-amplitude-destinations-are-smoothed).
@@ -35,11 +38,12 @@ const SMOOTH_HZ = 200;
 const SMOOTH_Q = 0.5;
 
 /**
- * A global LFO. Exposes five pre-scaled output nodes: pitch (cents), cutoff
- * (semitones), amp (linear), pan (-1..1), shape (pole mix). Only the active
- * destination's gain is non-zero — the others are silent. Voices connect
- * pitch/cutoff/amp/shape to the matching AudioParam (osc detune, filter
- * cutoffNote, tremolo gain, filter shape); Engine connects pan to the synth bus
+ * A global LFO. Exposes six pre-scaled output nodes: pitch (cents), cutoff
+ * (semitones), amp (linear), pan (-1..1), shape (pole mix), sync (semitones),
+ * scaled by `LFO_DEST_SCALE`. Only the active destination's gain is non-zero —
+ * the others are silent. Voices connect pitch/cutoff/amp/shape/sync to the
+ * matching AudioParam (the voice's `pitchTargets()`, filter cutoffNote, tremolo
+ * gain, filter shape, the sync junction); Engine connects pan to the synth bus
  * panner.
  *
  * `Engine` builds **two** of these (lfo.md REQ-there-are-two-lfos). Nothing here is shared or
@@ -64,10 +68,15 @@ export class LFO {
   readonly toAmp: GainNode;
   readonly toPan: GainNode;
   readonly toShape: GainNode;
+  /** Semitones into each voice's sync junction — inert until a pair is engaged. */
+  readonly toSync: GainNode;
   /** Unit-amplitude tap for the mod matrix — see the constructor. */
   readonly modTap: GainNode;
 
   private readonly osc: OscillatorNode;
+  /** Each output, the destination that opens it, and its full-scale depth. Only
+   *  the selected destination's gain is non-zero. `pulse` has no row: no node. */
+  private readonly outputs: ReadonlyArray<readonly [GainNode, LfoDest, number]>;
 
   /** The running rate in Hz — what the tempo-lock e2e reads instead of the
    *  private oscillator (lfo.md). */
@@ -85,15 +94,27 @@ export class LFO {
     this.toAmp = ctx.createGain();
     this.toPan = ctx.createGain();
     this.toShape = ctx.createGain();
+    this.toSync = ctx.createGain();
     this.toPitch.gain.value = 0;
     this.toCutoff.gain.value = 0;
     this.toAmp.gain.value = 0;
     this.toPan.gain.value = 0;
     this.toShape.gain.value = 0;
+    this.toSync.gain.value = 0;
+    this.outputs = [
+      [this.toPitch, LfoDest.Pitch, LFO_DEST_SCALE.pitch],
+      [this.toCutoff, LfoDest.Cutoff, LFO_DEST_SCALE.cutoff],
+      [this.toAmp, LfoDest.Amp, LFO_DEST_SCALE.amp],
+      [this.toPan, LfoDest.Pan, LFO_DEST_SCALE.pan],
+      [this.toShape, LfoDest.Shape, LFO_DEST_SCALE.shape],
+      [this.toSync, LfoDest.Sync, LFO_DEST_SCALE.sync],
+    ];
 
-    // Frequency-domain destinations: straight off the oscillator.
+    // Frequency-domain destinations: straight off the oscillator. Sync is one —
+    // a stepped slave pitch is a timbre jump, the musical event, not a click.
     this.osc.connect(this.toPitch);
     this.osc.connect(this.toCutoff);
+    this.osc.connect(this.toSync);
 
     // Amplitude-domain destinations: via the de-clicking lowpass.
     const smooth = ctx.createBiquadFilter();
@@ -185,19 +206,11 @@ export class LFO {
     this.update();
   }
 
+  /** Open the selected destination at `amount` × its scale and close the rest. The
+   *  depths are `LFO_DEST_SCALE`, the table the knob arcs are drawn from. */
   private update(): void {
-    // Pitch: ±1200 cents (one octave) at full depth
-    rampTo(this.toPitch.gain, this.dest === LfoDest.Pitch ? this.amount * 1200 : 0, this.ctx, RAMP_MEDIUM);
-    // Cutoff: ±24 semitones (two octaves) at full depth
-    rampTo(this.toCutoff.gain, this.dest === LfoDest.Cutoff ? this.amount * 24 : 0, this.ctx, RAMP_MEDIUM);
-    // Amp: ±50% modulation at full depth (added to tremolo VCA's base 1.0)
-    rampTo(this.toAmp.gain, this.dest === LfoDest.Amp ? this.amount * 0.5 : 0, this.ctx, RAMP_MEDIUM);
-    // Pan: ±1.0 — hard L↔R at full depth. StereoPannerNode.pan clamps to ±1,
-    // so this stays bounded whatever the amount (lfo.md REQ-pan-sweeps-a-stereo-panner).
-    rampTo(this.toPan.gain, this.dest === LfoDest.Pan ? this.amount : 0, this.ctx, RAMP_MEDIUM);
-    // Shape: ±0.5 of the POLY pole-mix morph at full depth, summed onto the
-    // knob's position. A no-op under the LADDER model, which ignores shape
-    // (filter-models.md REQ-shape-is-poly-only).
-    rampTo(this.toShape.gain, this.dest === LfoDest.Shape ? this.amount * 0.5 : 0, this.ctx, RAMP_MEDIUM);
+    for (const [node, dest, scale] of this.outputs) {
+      rampTo(node.gain, this.dest === dest ? this.amount * scale : 0, this.ctx, RAMP_MEDIUM);
+    }
   }
 }

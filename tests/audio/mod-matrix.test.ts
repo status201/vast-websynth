@@ -15,20 +15,31 @@ import { makeMockAudioContext, makeParam } from './mock-audio-context';
 /** A voice stub carrying only what `voiceTargets` / `voiceSource` reach for. */
 function makeVoice() {
   const node = () => ({ connect: vi.fn((t: unknown) => t), disconnect: vi.fn() });
+  const osc1 = { detuneParam: makeParam(0) };
+  const osc2 = { detuneParam: makeParam(0) };
+  const sub = { detuneParam: makeParam(0) };
+  // The sync pair's two junctions (oscillator-sync.md REQ-every-pitch-source-reaches-the-pair).
+  const pitchMod = makeParam(0);
+  const syncTarget = makeParam(12);
   return {
     filter: {
       cutoffNote: makeParam(90), resonance: makeParam(0),
       shape: makeParam(0), drive: makeParam(1),
     },
-    osc1: { detuneParam: makeParam(0) },
-    osc2: { detuneParam: makeParam(0) },
-    sub: { detuneParam: makeParam(0) },
+    osc1, osc2, sub, pitchMod, syncTarget,
+    pitchTargets: () => [osc1.detuneParam, osc2.detuneParam, sub.detuneParam, pitchMod],
     tremolo: { gain: makeParam(1) },
     filEnv: { out: node() },
     ampEnv: { out: node() },
     velocitySource: node(),
     keySource: node(),
   };
+}
+
+/** Whether any gain the matrix built is wired into `target`. */
+function wiredInto(ctx: ReturnType<typeof makeMockAudioContext>, target: unknown): boolean {
+  return ctx.createGain.mock.results.some((r) =>
+    (r.value.connect as ReturnType<typeof vi.fn>).mock.calls.some((c) => c[0] === target));
 }
 
 function build(voiceCount = 2) {
@@ -84,11 +95,26 @@ describe('ModMatrix routing (REQ-one-gain-per-route-rewired-while-silent)', () =
   });
 
   it('drives all three oscillators from one pitch route', () => {
-    const { m, voices } = build(1);
+    const { m, ctx, voices } = build(1);
     route(m, 0, MOD_SRC.lfo1, MOD_DST.pitch, 1);
     const v = voices[0]!;
-    // "pitch" means the voice's pitch, not one oscillator's.
-    for (const o of [v.osc1, v.osc2, v.sub]) expect(o.detuneParam).toBeTruthy();
+    // "pitch" means the voice's pitch, not one oscillator's — and it reaches the
+    // sync pair's junction too (oscillator-sync.md REQ-every-pitch-source-reaches-the-pair).
+    for (const t of [v.osc1.detuneParam, v.osc2.detuneParam, v.sub.detuneParam, v.pitchMod]) {
+      expect(wiredInto(ctx, t)).toBe(true);
+    }
+  });
+
+  it('routes a per-voice source into the sync junction at 48 st full scale (oscillator-sync.md REQ-sync-is-a-modulation-destination)', () => {
+    const { m, ctx, voices } = build(2);
+    route(m, 0, MOD_SRC.filEnv, MOD_DST.sync, 0.5);
+    for (const v of voices) {
+      expect(wiredInto(ctx, v.syncTarget)).toBe(true);
+      expect(v.filEnv.out.connect).toHaveBeenCalled();
+    }
+    const routeGains = ctx.createGain.mock.results.map((r) => r.value)
+      .filter((g) => (g.connect as ReturnType<typeof vi.fn>).mock.calls.some((c) => c[0] === voices[0]!.syncTarget));
+    expect(lastRamp(routeGains[0]!.gain)).toBe(24);
   });
 
   it('reaches resonance — an a-rate param nothing could address before (REQ-resonance-becomes-reachable)', () => {

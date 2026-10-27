@@ -1,3 +1,6 @@
+import { FrequencyLine } from './frequency-line';
+import { rampTo, RAMP_BYPASS } from './param-utils';
+
 const WAVE_TYPES: OscillatorType[] = ['sine', 'triangle', 'sawtooth', 'square'];
 
 /** Index of `square` in WAVE_TYPES — the only wave pulse width applies to. */
@@ -67,12 +70,32 @@ function bankIndex(width: number): number {
 }
 
 /**
+ * What an `Osc` tells the sync pair standing in for it
+ * (oscillator-sync.md REQ-the-pair-follows-every-osc-control). Pushed on every
+ * change — including each PWM control-loop tick — so the pair never has to ask.
+ */
+export interface OscMirror {
+  wave(idx: number): void;
+  /** Octave + fine tune, in cents. */
+  cents(c: number): void;
+  width(w: number): void;
+}
+
+/**
  * Long-lived oscillator wrapper. OscillatorNode is one-shot, so we start it
  * once and gate audibility downstream via the amp VCA.
  */
 export class Osc {
   readonly out: GainNode;
   private readonly osc: OscillatorNode;
+  /**
+   * The native path's own gain, between the node and `out`, so oscillator sync
+   * can crossfade the native node out and the pair in under one `out` level
+   * (oscillator-sync.md REQ-engaging-sync-crossfades). Unity — an exact
+   * multiply — until sync is engaged.
+   */
+  private readonly fade: GainNode;
+  private nativeAttached = true;
   private octave = 0;
   private detuneCents = 0;
   private waveIdx = 2;
@@ -81,75 +104,68 @@ export class Osc {
    *  Lets the control loop call `setPulseWidth` at will and only touch the node
    *  when the duty actually moves to a new entry. */
   private appliedIdx = -1;
+  private mirror: OscMirror | null = null;
 
-  /** The last frequency commanded, and the node's own starting value until one
-   *  is (matching the constructor's `frequency.value = 440`). */
-  private lastFreq = 440;
-  /** The glide in flight, so `freqAt` can compute where the curve has reached
-   *  rather than reading `AudioParam.value` back — see `setFrequency`. */
-  private glide: { from: number; to: number; at: number; tau: number } | null = null;
+  /** Starts at the node's own value (the constructor's `frequency.value = 440`). */
+  private readonly freq: FrequencyLine;
 
   constructor(private readonly ctx: AudioContext) {
     this.osc = ctx.createOscillator();
     this.osc.type = 'sawtooth';
     this.osc.frequency.value = 440;
     this.osc.detune.value = 0;
+    this.freq = new FrequencyLine(this.osc.frequency, 440);
 
+    this.fade = ctx.createGain();
+    this.fade.gain.value = 1;
     this.out = ctx.createGain();
     this.out.gain.value = 0.7;
-    this.osc.connect(this.out);
+    this.osc.connect(this.fade);
+    this.fade.connect(this.out);
     this.osc.start();
   }
 
-  /** Set carrier frequency. Optional glide via setTargetAtTime.
-   *
-   *  Non-finite input is dropped rather than written: an `AudioParam` value is a
-   *  WebIDL *restricted* float, so `setValueAtTime(Infinity)` throws a TypeError
-   *  — and `midiToHz` returns Infinity for a big enough note. Import validation
-   *  bounds notes to 0..127 and the clock isolates a throwing listener
-   *  (ADR-015); this is the third, cheapest layer, and it keeps a silent note
-   *  from becoming an exception in the first place. */
+  /** Set carrier frequency, with optional glide — see `FrequencyLine.set`. */
   setFrequency(hz: number, when: number, glideSec: number): void {
-    if (!Number.isFinite(hz)) return;
-    const f = this.osc.frequency;
-    const from = this.freqAt(when);
-    if (glideSec <= 0.001) {
-      f.cancelScheduledValues(when);
-      f.setValueAtTime(hz, when);
-      this.glide = null;
-    } else {
-      const tau = glideSec / 3;
-      // ANCHORED cancel (architecture.md "Never cancel automation without
-      // anchoring it"). The cancel itself is load-bearing: `osc.frequency` is
-      // written only from here, so a voice stolen from the sequencer still has
-      // that note's pitch scheduled up to a lookahead ahead, and without the
-      // cancel it would fire mid-glide. But a bare cancel leaves no event at
-      // `when`, and `setTargetAtTime` then starts from "the param's value" —
-      // which Blink reads off the automation curve and Gecko reads as the last
-      // explicitly assigned value. That is the documented divergence, and on
-      // Firefox it made a glide slide from the wrong origin (often the 440 Hz
-      // the node was constructed with) instead of from the note being left.
-      f.cancelScheduledValues(when);
-      f.setValueAtTime(from, when);
-      f.setTargetAtTime(hz, when, tau);
-      this.glide = { from, to: hz, at: when, tau };
-    }
-    this.lastFreq = hz;
+    this.freq.set(hz, when, glideSec);
+  }
+
+  /** Where the frequency curve has reached at `t` — see `FrequencyLine.at`. */
+  frequencyAt(t: number): number {
+    return this.freq.at(t);
   }
 
   /**
-   * The frequency the curve has actually reached at `t`, computed rather than
-   * read back: `AudioParam.value` is not reliable mid-automation on Gecko, which
-   * is the same reason `SamplerMachine.cutHit` derives its gain analytically
-   * instead of sampling it.
-   *
-   * `setTargetAtTime` is a one-pole approach, so the value is closed-form.
+   * Follow this oscillator's controls from somewhere else — the sync pair. The
+   * current state is pushed at once, so a pair attached mid-session starts in
+   * step with the knobs rather than at its own defaults.
    */
-  private freqAt(t: number): number {
-    const g = this.glide;
-    if (!g) return this.lastFreq;
-    if (t <= g.at) return g.from;
-    return g.to + (g.from - g.to) * Math.exp(-(t - g.at) / g.tau);
+  setMirror(m: OscMirror | null): void {
+    this.mirror = m;
+    if (!m) return;
+    m.wave(this.waveIdx);
+    m.cents(this.cents);
+    m.width(this.pulseWidth);
+  }
+
+  /**
+   * Fade the native node in or out (oscillator-sync.md REQ-engaging-sync-crossfades).
+   * Fading in re-attaches it first, so signal never arrives at an edge that is
+   * about to be connected — ADR-012's order.
+   */
+  fadeNative(on: boolean): void {
+    if (on && !this.nativeAttached) {
+      this.osc.connect(this.fade);
+      this.nativeAttached = true;
+    }
+    rampTo(this.fade.gain, on ? 1 : 0, this.ctx, RAMP_BYPASS);
+  }
+
+  /** Cut the native node once its fade-out has settled, so it stops rendering. */
+  dropNative(): void {
+    if (!this.nativeAttached) return;
+    this.nativeAttached = false;
+    this.osc.disconnect(this.fade);
   }
 
   setWave(idx: number): void {
@@ -164,6 +180,7 @@ export class Osc {
     // Re-apply the standing width, so switching *to* square picks up a knob
     // position (or an in-flight PWM sweep) set while another wave was live.
     if (i === SQUARE) this.applyWidth();
+    this.mirror?.wave(i);
   }
 
   /** Pulse width (duty cycle), `0.5`..`0.95` — `0.5` is a plain square wave.
@@ -174,6 +191,7 @@ export class Osc {
     if (!Number.isFinite(width)) return;
     this.pulseWidth = Math.max(PWM_MIN_WIDTH, Math.min(PWM_MAX_WIDTH, width));
     if (this.waveIdx === SQUARE) this.applyWidth();
+    this.mirror?.width(this.pulseWidth);
   }
 
   private applyWidth(): void {
@@ -210,8 +228,14 @@ export class Osc {
   }
 
   private applyDetune(): void {
-    // Octave + fine detune. LFO/pitchBend modulate via separate AudioNode → detune connection.
-    const cents = this.octave * 1200 + this.detuneCents;
+    // LFO/pitchBend modulate via separate AudioNode → detune connection.
+    const cents = this.cents;
     this.osc.detune.setTargetAtTime(cents, this.ctx.currentTime, 0.005);
+    this.mirror?.cents(cents);
+  }
+
+  /** Octave + fine detune, in cents — the one sum both the node and the mirror take. */
+  private get cents(): number {
+    return this.octave * 1200 + this.detuneCents;
   }
 }

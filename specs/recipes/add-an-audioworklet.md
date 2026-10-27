@@ -88,12 +88,33 @@ build-placeholder-then-attach pattern: wire a passthrough in the ctor, then spli
 the real node in after `loadModule` and replay cached setter values (see
 [compressor](../features/compressor.md) → `attachWorklet`).
 
+If most patches never use the node, load it on **first use** instead of in `init()`
+([runtime-performance](../features/runtime-performance.md) REQ-boot-cost-matches-the-request).
+The worked example is [oscillator-sync](../features/oscillator-sync.md): one memoized
+`ensureSync()` loads the module and builds every voice's node the first time the mode
+leaves `off`, a failed load is logged and leaves the feature inert, and voices play
+the native path until the nodes land.
+
+### 4. Precache it — `public/sw.js`
+
+Add the file to `CORE_ASSETS`. A worklet is fetched by `addModule` at a stable URL,
+not as a hashed asset, so the offline service worker only has it if it is precached
+([pwa-install](../features/pwa-install.md) REQ-service-worker-is-registered) — and a
+lazily loaded one matters most, since nothing fetched it at boot. List it in
+`DEPLOYMENT.md`'s subfolder note too: worklets load by absolute path.
+
 ## Gotchas
 
 - The processor file is **plain JS** on the audio thread — no TS, no `import`, no
   DOM. Type the wrapper, not the processor.
 - `loadModule` **must** be awaited before node construction (the ladder filter is
   awaited before voices are created).
+- A worklet with **no inputs** (a generator, like `sync-osc`) still runs while
+  `process()` returns `true`, connected or not. Gate it with an active flag posted
+  from the main thread, as the ladder filter and the sync pair do.
+- A DSP test that renders many blocks should assert once per render, not once per
+  sample: per-sample `expect` calls dominate the run and time out under a loaded
+  suite.
 - Discrete UI indices → real values are mapped in the **wrapper's `bind`**, not
   the worklet (see `Compressor.bind(bus, prefix, ratios, releases?)`).
 

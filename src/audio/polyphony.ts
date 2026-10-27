@@ -32,11 +32,10 @@ export class Polyphony {
     // setDrift owns its lifecycle. Default drift is 0 → no recurring timer.
   }
 
-  /** Sum the analogue-drift detune source into a voice's oscillators. */
+  /** Sum the analogue-drift detune source into a voice's oscillators — and the
+   *  sync pair's junction (oscillator-sync.md REQ-every-pitch-source-reaches-the-pair). */
   connectDrift(v: Voice): void {
-    this.drift.connect(v.osc1.detuneParam);
-    this.drift.connect(v.osc2.detuneParam);
-    this.drift.connect(v.sub.detuneParam);
+    for (const t of v.pitchTargets()) this.drift.connect(t);
   }
 
   // ---------- Voicing setters (driven by ParamBus subscriptions) ----------

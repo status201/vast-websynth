@@ -223,10 +223,11 @@
 
   /* A forced line break inside a flex-wrapping row: a full-width, zero-height
      item, so whatever follows starts a new line. OSC 1/2 put one before their
-     square-wave WIDTH knob, which therefore sits alone below OCT/TUNE/LEVEL
-     instead of wrapping 3+1; the row gaps above and below the empty line add up
-     to the 8px of a separate row. The ultrawide block drops it, and WIDTH joins
-     the row (responsive-synth-panels.md REQ-ultrawide-panels-are-one-row). */
+     conditional knobs — the square wave's WIDTH, and OSC 2's SYNC while sync is
+     on — which therefore sit below OCT/TUNE/LEVEL instead of wrapping 3+1; the
+     row gaps above and below the empty line add up to the 8px of a separate
+     row. The break shows while any of them does. The ultrawide block drops it,
+     and they join the row (responsive-synth-panels.md REQ-ultrawide-panels-are-one-row). */
   .rowBreak {
     flex-basis: 100%;
     height: 0;

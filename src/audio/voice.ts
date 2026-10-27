@@ -5,6 +5,8 @@ import { clamp, midiToHz, clamp01 } from '../utils/math';
 import { rampTo, RAMP_FAST, RAMP_MEDIUM, RAMP_BYPASS } from './param-utils';
 import { scheduleBend } from './note-bend';
 import type { NoteBend } from './transport/note-output';
+import type { SyncOscNode } from './sync-osc/node';
+import { SyncEngagement } from './sync-osc/engagement';
 
 export type VoiceState = 'idle' | 'playing' | 'releasing';
 
@@ -77,7 +79,7 @@ export class Voice {
 
   /**
    * This voice's own pitch bend, in cents (step-settings.md REQ-a-bend-is-per-voice).
-   * Summed into the same three detune params `master.pitchBend` reaches, so a
+   * Summed into the same `pitchTargets()` `master.pitchBend` reaches, so a
    * sequenced step's scoop or fall moves this note and no other. Sits at 0 and
    * carries no automation until a bent note arrives.
    */
@@ -85,6 +87,22 @@ export class Voice {
   /** Whether `noteBend` may be away from 0, so an unbent note knows to reset it
    *  (REQ-a-bend-zero-schedules-nothing). */
   private bendDirty = false;
+
+  /**
+   * The two junctions the sync pair listens through (oscillator-sync.md
+   * REQ-every-pitch-source-reaches-the-pair/REQ-sync-is-a-modulation-destination).
+   * `ConstantSourceNode`s so that every modulation target stays an `AudioParam`:
+   * sources sum into `offset`, and the node's output carries the sum on.
+   *
+   * `pitchMod` sits at 0 and receives every pitch source *in addition to* the
+   * three native detunes, so the native path is untouched. `syncMod`'s offset
+   * *is* the SYNC knob, with the LFO and matrix `sync` routes summed on top.
+   * Neither reaches anything until a pair is attached.
+   */
+  readonly pitchMod: ConstantSourceNode;
+  readonly syncMod: ConstantSourceNode;
+  /** Native oscillators or the sync pair, and the crossfade between them. */
+  private readonly sync: SyncEngagement;
 
   currentNote = -1;
   state: VoiceState = 'idle';
@@ -171,6 +189,13 @@ export class Voice {
     this.noteBend = ctx.createConstantSource();
     this.noteBend.offset.value = 0;
     this.noteBend.start();
+    this.pitchMod = ctx.createConstantSource();
+    this.pitchMod.offset.value = 0;
+    this.pitchMod.start();
+    this.syncMod = ctx.createConstantSource();
+    this.syncMod.offset.value = 0;
+    this.syncMod.start();
+    this.sync = new SyncEngagement(ctx, this.osc1, this.osc2, () => this.state !== 'idle');
 
     // Signal path
     this.osc1.out.connect(this.mix);
@@ -187,15 +212,48 @@ export class Voice {
     // only while the stage is engaged.
 
     // Modulation
-    this.noteBend.connect(this.osc1.detuneParam);
-    this.noteBend.connect(this.osc2.detuneParam);
-    this.noteBend.connect(this.sub.detuneParam);
+    for (const t of this.pitchTargets()) this.noteBend.connect(t);
     this.ampEnv.out.connect(this.ampVCA.gain);
     this.filEnv.out.connect(this.filEnvScale);
     this.filEnvScale.connect(this.filter.cutoffNote);
 
     // Pool voices boot idle — no note yet, so the filter can sleep (REQ-the-filter-idles-when-gated).
     this.filter.setActive(false);
+  }
+
+  /**
+   * Every param a pitch source must reach on this voice — the three native
+   * detunes plus the sync pair's junction (oscillator-sync.md
+   * REQ-every-pitch-source-reaches-the-pair). Written once here so that bend,
+   * both LFOs, drift and the matrix cannot disagree about what "pitch" is.
+   */
+  pitchTargets(): AudioParam[] {
+    return [this.osc1.detuneParam, this.osc2.detuneParam, this.sub.detuneParam, this.pitchMod.offset];
+  }
+
+  /** Where `sync` modulation lands: the SYNC knob's junction (REQ-sync-is-a-modulation-destination). */
+  get syncTarget(): AudioParam {
+    return this.syncMod.offset;
+  }
+
+  /**
+   * Take the sync pair (REQ-the-pair-is-built-on-first-use) — once, when the
+   * engine has built the pairs. The voice plugs its junctions in; everything else
+   * about engaging it is `SyncEngagement`'s.
+   */
+  attachSync(pair: SyncOscNode): void {
+    this.pitchMod.connect(pair.detune);
+    this.syncMod.connect(pair.syncPitch);
+    this.sync.attach(pair);
+  }
+
+  /** `osc2.sync`: 0 off, 1 hard, 2 soft (REQ-sync-has-hard-and-soft-modes). */
+  setSyncMode(m: number): void {
+    this.sync.setMode(m);
+  }
+
+  setSyncPitch(semitones: number): void {
+    rampTo(this.syncMod.offset, semitones, this.ctx, RAMP_FAST);
   }
 
   /**
@@ -256,6 +314,7 @@ export class Voice {
     }
     // Unconditionally every call: a lost deactivate may cost CPU, never a note.
     this.filter.setActive(true);
+    this.sync.setVoiceActive(true);
     this.currentNote = note;
     this.state = 'playing';
     this.noteOnAt = when;
@@ -273,6 +332,7 @@ export class Voice {
     this.osc1.setFrequency(hz, when, g);
     this.osc2.setFrequency(hz, when, g);
     this.sub.setFrequency(hz, when, g);
+    this.sync.setFrequency(hz, when, g);
     // The step's own bend, landing with the note like the frequency above. No
     // bend on a clean voice writes nothing (REQ-a-bend-zero-schedules-nothing).
     this.bendDirty = scheduleBend(this.noteBend.offset, opts?.bend, when, this.bendDirty);
@@ -318,6 +378,7 @@ export class Voice {
         this.state = 'idle';
         this.currentNote = -1;
         this.filter.setActive(false);
+        this.sync.setVoiceActive(false);
       }
     }, delayMs);
   }
@@ -336,7 +397,9 @@ export class Voice {
     // Deactivate only after the 3 ms kill fade has passed, and only if no
     // noteOn re-claimed the voice meanwhile (it posts its own true) (REQ-the-filter-idles-when-gated).
     window.setTimeout(() => {
-      if (this.state === 'idle') this.filter.setActive(false);
+      if (this.state !== 'idle') return;
+      this.filter.setActive(false);
+      this.sync.setVoiceActive(false);
     }, 30);
   }
 

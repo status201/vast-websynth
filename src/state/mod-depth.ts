@@ -1,5 +1,6 @@
 import { LFO_DEST_LABELS } from './params';
 import { MOD_ROWS, MOD_DST, MOD_SRC, MOD_DEST_SCALE } from './mod-routing';
+import { LFO_DEST_SCALE } from './lfo-routing';
 
 /**
  * How far modulation can move a given faceplate param — mod-matrix.md REQ-depth-is-in-the-destinations-unit.
@@ -25,17 +26,20 @@ const DEST_PARAM: Record<number, string> = {
   [MOD_DST.resonance]: 'filter.resonance',
   [MOD_DST.shape]: 'filter.shape',
   [MOD_DST.drive]: 'filter.drive',
+  [MOD_DST.sync]: 'osc2.syncPitch',
 };
 
 /**
  * The same for an LFO row, which carries **its own** depth scalars — the LFO reaches
- * ±24 semitones of cutoff where a matrix route reaches ±48 (lfo.md REQ-duplicated-destinations-sum-and-stay-bounded). Keyed by
- * destination *name* because `LFO_DEST_LABELS` and `MOD_DEST_LABELS` are two
+ * ±24 semitones of cutoff where a matrix route reaches ±48 (lfo.md REQ-duplicated-destinations-sum-and-stay-bounded).
+ * The scales are `LFO_DEST_SCALE`, the very table `LFO.update` scales its outputs by.
+ * Keyed by destination *name* because `LFO_DEST_LABELS` and `MOD_DEST_LABELS` are two
  * independently append-only arrays whose indices do not line up.
  */
 const LFO_DEST: Record<string, { param: string; scale: number }> = {
-  cutoff: { param: 'filter.cutoff', scale: 24 },
-  shape: { param: 'filter.shape', scale: 0.5 },
+  cutoff: { param: 'filter.cutoff', scale: LFO_DEST_SCALE.cutoff },
+  shape: { param: 'filter.shape', scale: LFO_DEST_SCALE.shape },
+  sync: { param: 'osc2.syncPitch', scale: LFO_DEST_SCALE.sync },
 };
 
 /** Params that can be a modulation destination — the gate a Knob checks before it

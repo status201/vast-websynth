@@ -3,7 +3,12 @@
 ```yaml
 id: lfo
 status: implemented
-version: 11                 # v11: REQ-the-auto-pan-reads-a-stereo-input — synthPan's input is forced to
+version: 13                 # v13: LFO_DEST_SCALE (src/state/lfo-routing.ts) is the one depth table —
+                            #      LFO.update scales by it and mod-depth draws arcs from it, so the
+                            #      two copies of ±24/±0.5 that could drift apart are gone
+                            # v12: `sync` appended to LFO_DEST_LABELS (index 7, ±24 st into the
+                            #      sync pair's slave pitch) — oscillator-sync.md REQ-sync-is-a-modulation-destination
+                            # v11: REQ-the-auto-pan-reads-a-stereo-input — synthPan's input is forced to
                             #      2 channels, so the sweep's law and the channel's level no
                             #      longer depend on whether the reverb happens to be on (ADR-023)
                             # v10: `otherLfo` removed from lfo-routing.ts — nothing called it
@@ -40,6 +45,7 @@ source:
   - src/audio/engine.ts    # panner construction + LFO fan-out
   - src/audio/stereo.ts    # v11: forceStereo — REQ-the-auto-pan-reads-a-stereo-input
   - src/state/lfo-routing.ts   # v8: the two-LFO vocabulary; the REQ-destinations-are-no-longer-exclusive rule is gone
+                               # v13: + LFO_DEST_SCALE, the per-destination depth table
   - src/ui/panels/lfo-panel.ts # v7: the two-page panel
 ```
 
@@ -68,7 +74,7 @@ destinations, genuinely cannot be shared (REQ-pulse-is-arbitrated).
   recompute it. LFO 2's effective amount is `lfo2.amount` alone — see
   REQ-the-mod-wheel-feeds-lfo-one-only.
 - **REQ-destination-is-one-of-the-labels** — Destination is one of the
-  `LFO_DEST_LABELS` (range `0..6`, v4). Labels are **append-only**: an index is
+  `LFO_DEST_LABELS` (range `0..7`, v12). Labels are **append-only**: an index is
   a stored value in every preset, song and share link, so reordering silently
   rewrites saved patches.
 - **REQ-pan-sweeps-a-stereo-panner** — (v2) The `pan` destination sweeps a
@@ -294,12 +300,16 @@ factory for `prefix` in `lfo`, `lfo2` (REQ-there-are-two-lfos):
 <prefix>.rate:   { range: 0.05..20, default: 4, format: Hz, taper: exp }  # v5, REQ-lfo-rate-is-exponentially-tapered
 <prefix>.amount: { range: 0..1, default: 0 }            # no-op default
 <prefix>.wave:   { discrete, labels: WAVE_LABELS, range: 0..3, default: 0 }
-<prefix>.dest:   { discrete, labels: LFO_DEST_LABELS, range: 0..6, default: 0 }  # v4: +shape
+<prefix>.dest:   { discrete, labels: LFO_DEST_LABELS, range: 0..7, default: 0 }  # v4: +shape, v12: +sync
 <prefix>.sync:   { discrete, labels: SYNC_LABELS, range: 0..18, default: 0 }     # v6, REQ-lfo-sync-locks-rate-to-tempo
 master.modWheel: { range: 0..1, default: 0 }            # sums into LFO 1 only (REQ-the-mod-wheel-feeds-lfo-one-only)
 ```
 
-`LFO_DEST_LABELS = ['off', 'cutoff', 'pitch', 'amp', 'pulse', 'pan', 'shape']`.
+`LFO_DEST_LABELS = ['off', 'cutoff', 'pitch', 'amp', 'pulse', 'pan', 'shape', 'sync']`.
+`sync` (v12) sums ±24 semitones at full amount into each voice's sync junction —
+inert until oscillator sync is engaged ([oscillator-sync](oscillator-sync.md)
+REQ-sync-is-a-modulation-destination). Like pitch and cutoff it is
+frequency-domain and unsmoothed: a stepped slave pitch is a timbre jump.
 Index `0` stays `off`, so the default remains a no-op (ADR-006), and appending
 keeps every value an existing patch can hold (`0..5`) at its original meaning.
 `SYNC_LABELS` (`free` + 18 divisions) comes from `utils/tempo.ts`, index `0` =
@@ -316,9 +326,14 @@ LFO:                   # one instance per LFO; `new LFO(ctx)` twice
   toAmp:    GainNode   # linear     -> tremolo gain (smoothed)
   toPan:    GainNode   # -1..1      -> synth bus panner.pan (smoothed, v2)
   toShape:  GainNode   # -0.5..0.5  -> every voice's filter.shape (smoothed, v4)
+  toSync:   GainNode   # semitones  -> every voice's sync junction (raw, v12)
   setRate(hz) / setWave(idx) / setAmount(0..1) / setDest(idx)
   bind(bus, prefix, pulse, src, modWheelId?)   # v7: self-wires its own params
 # `pulse` has no output node — see PwmDriver (oscillators.md).
+# toPitch reaches each voice's pitchTargets() — the three detunes + the sync pair's junction.
+LFO_DEST_SCALE:        # src/state/lfo-routing.ts (v13) — full-scale depth per destination name
+  { pitch: 1200, cutoff: 24, amp: 0.5, pan: 1, shape: 0.5, sync: 24 }
+  # read by LFO.update (the gains) AND mod-depth.ts (the knob arcs): one table, so the arc cannot lie
 
 LfoPulseSink:          # v7: the slice of PwmDriver an LFO may drive. Structural,
   setDest(src, d)      #  so lfo.ts imports nothing from pwm.ts and the existing

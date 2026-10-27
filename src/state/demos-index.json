@@ -280,7 +280,8 @@
     "bars": 32,
     "uses": [
       "seq",
-      "drums"
+      "drums",
+      "sampler"
     ],
     "blurb": "99 Luftballons, the verse is bass and drums with the guitar coming in. From the chorus on, all four POLY tracks play: the bass, the brass an octave above it and the two notes of the guitar's power chord, which ends on an A major triad over the bass in the fill. The sequencer runs at 1/8 over 16 cells, two bars a bank, and the snare's flam on the backbeat is a two-hit ratchet."
   },

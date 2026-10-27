@@ -30,6 +30,8 @@ Schemas: [`llms.txt`](llms.txt).
 - "osc2.detune": number  // range -50..50, default 7
 - "osc2.level": number  // range 0..1, default 0.5
 - "osc2.pulseWidth": number  // range 0.5..0.95, default 0.5
+- "osc2.sync": number  // range 0..2, default 0, step 1, values 0=off 1=hard 2=soft
+- "osc2.syncPitch": number  // range 0..48, default 12
 - "sub.wave": number  // range 0..3, default 0, step 1, values 0=sine 1=triangle 2=saw 3=square
 - "sub.octave": number  // range -2..-1, default -1, step 1
 - "sub.level": number  // range 0..1, default 0
@@ -58,12 +60,12 @@ Schemas: [`llms.txt`](llms.txt).
 - "lfo.rate": number  // range 0.05..20, default 4
 - "lfo.amount": number  // range 0..1, default 0
 - "lfo.wave": number  // range 0..3, default 0, step 1, values 0=sine 1=triangle 2=saw 3=square
-- "lfo.dest": number  // range 0..6, default 0, step 1, values 0=off 1=cutoff 2=pitch 3=amp 4=pulse 5=pan 6=shape
+- "lfo.dest": number  // range 0..7, default 0, step 1, values 0=off 1=cutoff 2=pitch 3=amp 4=pulse 5=pan 6=shape 7=sync
 - "lfo.sync": number  // range 0..18, default 0, step 1, values 0=free 1=1/1 2=1/1 D 3=1/1 T 4=1/2 5=1/2 D 6=1/2 T 7=1/4 8=1/4 D 9=1/4 T 10=1/8 11=1/8 D 12=1/8 T 13=1/16 14=1/16 D 15=1/16 T 16=1/32 17=1/32 D 18=1/32 T
 - "lfo2.rate": number  // range 0.05..20, default 4
 - "lfo2.amount": number  // range 0..1, default 0
 - "lfo2.wave": number  // range 0..3, default 0, step 1, values 0=sine 1=triangle 2=saw 3=square
-- "lfo2.dest": number  // range 0..6, default 0, step 1, values 0=off 1=cutoff 2=pitch 3=amp 4=pulse 5=pan 6=shape
+- "lfo2.dest": number  // range 0..7, default 0, step 1, values 0=off 1=cutoff 2=pitch 3=amp 4=pulse 5=pan 6=shape 7=sync
 - "lfo2.sync": number  // range 0..18, default 0, step 1, values 0=free 1=1/1 2=1/1 D 3=1/1 T 4=1/2 5=1/2 D 6=1/2 T 7=1/4 8=1/4 D 9=1/4 T 10=1/8 11=1/8 D 12=1/8 T 13=1/16 14=1/16 D 15=1/16 T 16=1/32 17=1/32 D 18=1/32 T
 - "fx.eq.on": number  // range 0..1, default 0, step 1, values 0=off 1=on
 - "fx.eq.hp": number  // range 20..2000, default 20
@@ -114,22 +116,22 @@ Schemas: [`llms.txt`](llms.txt).
 - "fx.master.comp.makeup": number  // range 0..12, default 0
 - "master.volume": number  // range 0..1, default 0.8
 - "mod.0.src": number  // range 0..8, default 0, step 1, values 0=off 1=lfo 1 2=lfo 2 3=mod wheel 4=random 5=filter env 6=amp env 7=velocity 8=key
-- "mod.0.dst": number  // range 0..7, default 0, step 1, values 0=none 1=cutoff 2=resonance 3=pitch 4=shape 5=amp 6=drive 7=pan
+- "mod.0.dst": number  // range 0..8, default 0, step 1, values 0=none 1=cutoff 2=resonance 3=pitch 4=shape 5=amp 6=drive 7=pan 8=sync
 - "mod.0.amt": number  // range -1..1, default 0
 - "mod.1.src": number  // range 0..8, default 0, step 1, values 0=off 1=lfo 1 2=lfo 2 3=mod wheel 4=random 5=filter env 6=amp env 7=velocity 8=key
-- "mod.1.dst": number  // range 0..7, default 0, step 1, values 0=none 1=cutoff 2=resonance 3=pitch 4=shape 5=amp 6=drive 7=pan
+- "mod.1.dst": number  // range 0..8, default 0, step 1, values 0=none 1=cutoff 2=resonance 3=pitch 4=shape 5=amp 6=drive 7=pan 8=sync
 - "mod.1.amt": number  // range -1..1, default 0
 - "mod.2.src": number  // range 0..8, default 0, step 1, values 0=off 1=lfo 1 2=lfo 2 3=mod wheel 4=random 5=filter env 6=amp env 7=velocity 8=key
-- "mod.2.dst": number  // range 0..7, default 0, step 1, values 0=none 1=cutoff 2=resonance 3=pitch 4=shape 5=amp 6=drive 7=pan
+- "mod.2.dst": number  // range 0..8, default 0, step 1, values 0=none 1=cutoff 2=resonance 3=pitch 4=shape 5=amp 6=drive 7=pan 8=sync
 - "mod.2.amt": number  // range -1..1, default 0
 - "mod.3.src": number  // range 0..8, default 0, step 1, values 0=off 1=lfo 1 2=lfo 2 3=mod wheel 4=random 5=filter env 6=amp env 7=velocity 8=key
-- "mod.3.dst": number  // range 0..7, default 0, step 1, values 0=none 1=cutoff 2=resonance 3=pitch 4=shape 5=amp 6=drive 7=pan
+- "mod.3.dst": number  // range 0..8, default 0, step 1, values 0=none 1=cutoff 2=resonance 3=pitch 4=shape 5=amp 6=drive 7=pan 8=sync
 - "mod.3.amt": number  // range -1..1, default 0
 - "mod.4.src": number  // range 0..8, default 0, step 1, values 0=off 1=lfo 1 2=lfo 2 3=mod wheel 4=random 5=filter env 6=amp env 7=velocity 8=key
-- "mod.4.dst": number  // range 0..7, default 0, step 1, values 0=none 1=cutoff 2=resonance 3=pitch 4=shape 5=amp 6=drive 7=pan
+- "mod.4.dst": number  // range 0..8, default 0, step 1, values 0=none 1=cutoff 2=resonance 3=pitch 4=shape 5=amp 6=drive 7=pan 8=sync
 - "mod.4.amt": number  // range -1..1, default 0
 - "mod.5.src": number  // range 0..8, default 0, step 1, values 0=off 1=lfo 1 2=lfo 2 3=mod wheel 4=random 5=filter env 6=amp env 7=velocity 8=key
-- "mod.5.dst": number  // range 0..7, default 0, step 1, values 0=none 1=cutoff 2=resonance 3=pitch 4=shape 5=amp 6=drive 7=pan
+- "mod.5.dst": number  // range 0..8, default 0, step 1, values 0=none 1=cutoff 2=resonance 3=pitch 4=shape 5=amp 6=drive 7=pan 8=sync
 - "mod.5.amt": number  // range -1..1, default 0
 - "scale.root": number  // range 0..11, default 0, step 1, values 0=C 1=C# 2=D 3=D# 4=E 5=F 6=F# 7=G 8=G# 9=A 10=A# 11=B
 - "scale.type": number  // range 0..10, default 0, step 1, values 0=chromatic 1=major 2=minor 3=dorian 4=mixolydian 5=phrygian 6=lydian 7=harm minor 8=pent maj 9=pent min 10=blues

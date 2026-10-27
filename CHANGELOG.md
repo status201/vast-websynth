@@ -16,7 +16,27 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+### Fixed
+
+- **The LFO help no longer says the two LFOs need different destinations.**
+  That rule went when the mod matrix arrived: both may point at one
+  destination, and they add up. The mod-wheel help now lists every destination
+  it deepens, filter shape and sync included.
+
 ### Added
+
+- **Oscillator sync.** OSC 2 has a new SYNC switch: **hard** or **soft**.
+  - **hard:** every time OSC 1 starts a cycle, OSC 2 jumps back to the start of
+    its own.
+  - **soft:** OSC 2 turns around instead, a rounder, gentler sound.
+  - You still hear OSC 1's note. The SYNC knob, which appears while sync is on,
+    changes OSC 2's tone instead of its pitch.
+  - Sweep the knob for the classic tearing sync lead. Both LFOs and the mod
+    matrix have a new `sync` destination, so the filter envelope can sweep it
+    on every note.
+  - The jumps sync makes are smoothed, so it stays clean instead of fizzing
+    with aliasing, even high on the keyboard.
+  - It costs nothing until you switch it on.
 
 - **New demo: Take Me On.** Take on Me with a drum-and-bass break laid over its
   drums. The break is cut into its four bars, one per sampler slot, and

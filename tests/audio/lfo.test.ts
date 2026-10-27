@@ -1,6 +1,7 @@
 import { describe, it, expect, vi } from 'vitest';
 import { LFO } from '../../src/audio/lfo';
-import { ParamBus, registerDefaults } from '../../src/state/params';
+import { ParamBus, registerDefaults, LFO_DEST_LABELS } from '../../src/state/params';
+import { LFO_DEST_SCALE } from '../../src/state/lfo-routing';
 import { SYNC_LABELS } from '../../src/utils/tempo';
 import { makeMockAudioContext } from './mock-audio-context';
 
@@ -41,13 +42,14 @@ function depths(lfo: LFO) {
     amp: depth(lfo.toAmp),
     pan: depth(lfo.toPan),
     shape: depth(lfo.toShape),
+    sync: depth(lfo.toSync),
   };
 }
 
 describe('LFO destination routing', () => {
   it('boots silent on every destination', () => {
     const { lfo } = build();
-    for (const g of [lfo.toPitch, lfo.toCutoff, lfo.toAmp, lfo.toPan, lfo.toShape]) {
+    for (const g of [lfo.toPitch, lfo.toCutoff, lfo.toAmp, lfo.toPan, lfo.toShape, lfo.toSync]) {
       expect(g.gain.value).toBe(0);
     }
   });
@@ -56,20 +58,36 @@ describe('LFO destination routing', () => {
     const { lfo } = build();
     lfo.setAmount(1);
 
+    const none = { pitch: 0, cutoff: 0, amp: 0, pan: 0, shape: 0, sync: 0 };
+
     lfo.setDest(1); // cutoff — ±24 semitones
-    expect(depths(lfo)).toEqual({ pitch: 0, cutoff: 24, amp: 0, pan: 0, shape: 0 });
+    expect(depths(lfo)).toEqual({ ...none, cutoff: 24 });
 
     lfo.setDest(2); // pitch — ±1200 cents
-    expect(depths(lfo)).toEqual({ pitch: 1200, cutoff: 0, amp: 0, pan: 0, shape: 0 });
+    expect(depths(lfo)).toEqual({ ...none, pitch: 1200 });
 
     lfo.setDest(3); // amp — ±50% around the tremolo VCA's base 1.0
-    expect(depths(lfo)).toEqual({ pitch: 0, cutoff: 0, amp: 0.5, pan: 0, shape: 0 });
+    expect(depths(lfo)).toEqual({ ...none, amp: 0.5 });
 
     lfo.setDest(5); // pan — ±1.0, hard L↔R (REQ-pan-sweeps-a-stereo-panner)
-    expect(depths(lfo)).toEqual({ pitch: 0, cutoff: 0, amp: 0, pan: 1, shape: 0 });
+    expect(depths(lfo)).toEqual({ ...none, pan: 1 });
 
     lfo.setDest(6); // shape — ±0.5 of the POLY pole mix (REQ-shape-destination-sweeps-the-pole-mix)
-    expect(depths(lfo)).toEqual({ pitch: 0, cutoff: 0, amp: 0, pan: 0, shape: 0.5 });
+    expect(depths(lfo)).toEqual({ ...none, shape: 0.5 });
+
+    lfo.setDest(7); // sync — ±24 semitones of slave pitch (oscillator-sync.md REQ-sync-is-a-modulation-destination)
+    expect(depths(lfo)).toEqual({ ...none, sync: 24 });
+  });
+
+  // One table feeds the gains here and the knob arcs in mod-depth.ts (lfo.md v13),
+  // so this is the check that the arc cannot promise a sweep the LFO does not play.
+  it('scales every destination by LFO_DEST_SCALE, the table the arcs read', () => {
+    const { lfo } = build();
+    lfo.setAmount(1);
+    for (const [name, scale] of Object.entries(LFO_DEST_SCALE)) {
+      lfo.setDest(LFO_DEST_LABELS.indexOf(name));
+      expect(depths(lfo)[name as keyof ReturnType<typeof depths>], name).toBe(scale);
+    }
   });
 
   it('switching away from pan re-centres the image', () => {
@@ -88,7 +106,7 @@ describe('LFO destination routing', () => {
     lfo.setAmount(1);
     lfo.setDest(5);
     lfo.setDest(0);
-    expect(depths(lfo)).toEqual({ pitch: 0, cutoff: 0, amp: 0, pan: 0, shape: 0 });
+    expect(depths(lfo)).toEqual({ pitch: 0, cutoff: 0, amp: 0, pan: 0, shape: 0, sync: 0 });
   });
 
   it('scales depth by amount', () => {
@@ -251,14 +269,14 @@ describe('LFO.bind', () => {
   it('leaves both LFOs silent at their defaults (REQ-there-are-two-lfos, ADR-006)', () => {
     const { one, two } = pair();
     for (const d of [depths(one), depths(two)]) {
-      expect(d).toEqual({ pitch: 0, cutoff: 0, amp: 0, pan: 0, shape: 0 });
+      expect(d).toEqual({ pitch: 0, cutoff: 0, amp: 0, pan: 0, shape: 0, sync: 0 });
     }
   });
 
   it('sums two LFOs pointed at one destination (REQ-duplicated-destinations-sum-and-stay-bounded, edge)', () => {
     const { bus, one, two } = pair();
-    bus.set('lfo.dest', 5);      // pan, on both — only a hand-authored file can
-    bus.set('lfo2.dest', 5);     // do this; the panel greys it out (REQ-destinations-are-no-longer-exclusive)
+    bus.set('lfo.dest', 5);      // pan, on both — allowed since v8, which ended the
+    bus.set('lfo2.dest', 5);     // panel's greying (REQ-destinations-are-no-longer-exclusive)
     bus.set('lfo.amount', 1);
     bus.set('lfo2.amount', 1);
     // Each contributes its own full ±1; the panner clamps the sum.

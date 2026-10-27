@@ -152,18 +152,26 @@ describe('semantic layer (with a bus)', () => {
 
   // Appending a destination must widen the accepted range by exactly one and
   // leave every older index meaning what it always meant (lfo.md REQ-destination-is-one-of-the-labels).
-  it('accepts the pan and shape destinations and still rejects past them', () => {
+  it('accepts the pan, shape and sync destinations and still rejects past them', () => {
     expect(validatePresetPayload(PRESET({ 'lfo.dest': 5 }), bus()).ok).toBe(true); // pan
     expect(validatePresetPayload(PRESET({ 'lfo.dest': 6 }), bus()).ok).toBe(true); // shape
-    expect(validatePresetPayload(PRESET({ 'lfo.dest': 7 }), bus()).ok).toBe(false);
+    expect(validatePresetPayload(PRESET({ 'lfo.dest': 7 }), bus()).ok).toBe(true); // sync
+    expect(validatePresetPayload(PRESET({ 'lfo.dest': 8 }), bus()).ok).toBe(false);
+  });
+
+  // ADR-015: the sync controls are bounded like any other payload field.
+  it('range-checks osc2.sync and osc2.syncPitch', () => {
+    expect(validatePresetPayload(PRESET({ 'osc2.sync': 2, 'osc2.syncPitch': 48 }), bus()).ok).toBe(true);
+    expect(validatePresetPayload(PRESET({ 'osc2.sync': 3 }), bus()).ok).toBe(false);
+    expect(validatePresetPayload(PRESET({ 'osc2.syncPitch': 49 }), bus()).ok).toBe(false);
   });
 
   // Exclusivity is a UI affordance, not a data invariant (lfo.md REQ-destinations-are-no-longer-exclusive): a
   // hand-authored or MCP-authored file may put both LFOs anywhere, including
   // on the same destination, and must still load.
   it('range-checks lfo2.dest exactly like lfo.dest, and independently', () => {
-    expect(validatePresetPayload(PRESET({ 'lfo2.dest': 6 }), bus()).ok).toBe(true);
-    expect(validatePresetPayload(PRESET({ 'lfo2.dest': 7 }), bus()).ok).toBe(false);
+    expect(validatePresetPayload(PRESET({ 'lfo2.dest': 7 }), bus()).ok).toBe(true);
+    expect(validatePresetPayload(PRESET({ 'lfo2.dest': 8 }), bus()).ok).toBe(false);
     expect(validatePresetPayload(PRESET({ 'lfo.dest': 1, 'lfo2.dest': 1 }), bus()).ok).toBe(true);
   });
 

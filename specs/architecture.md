@@ -691,16 +691,20 @@ into the committed demos and share links.)
 - **Filter cutoff is a MIDI note number, not Hz.** The ladder filter worklet takes
   `cutoffNote` so envelope/LFO modulators sum in **semitones** via Web Audio's
   native `AudioParam` input summation. Keep modulation additive in semitone space.
-- **AudioWorklets** (`ladder-filter`, `hardware-compressor`, `recorder`) live as
-  plain JS in `public/worklets/` and must be `loadModule()`-ed (awaited) before the
-  nodes that use them are created. `Engine.init()` is async for this reason.
+- **AudioWorklets** (`ladder-filter`, `hardware-compressor`, `recorder`, `sync-osc`)
+  live as plain JS in `public/worklets/` and must be `loadModule()`-ed (awaited)
+  before the nodes that use them are created. `Engine.init()` is async for this
+  reason. `sync-osc` is the one loaded on first use rather than in `init()`
+  ([`features/oscillator-sync.md`](features/oscillator-sync.md)
+  REQ-the-pair-is-built-on-first-use). All four are precached by the service worker.
 - **DSP worklets favour _musical, stable, cheap_ over physical accuracy** —
   perceived behaviour first, bounded/no-NaN output always, minimal per-sample
   cost. The multiplier differs per worklet and it is worth being exact about
   which: the **ladder filter** runs once per voice on **one** channel
   (`channelCount: 1`, [`features/ladder-filter.md`](features/ladder-filter.md)
   REQ-the-filter-worklet-is-mono), so 8-voice polyphony is its whole budget; the **compressors** are two
-  bus instances running 2 channels each. "Academically correct" DSP (ZDF,
+  bus instances running 2 channels each; the **sync pair** is one per voice with two
+  mono outputs, and exists and runs only while sync is engaged and its voice sounds. "Academically correct" DSP (ZDF,
   oversampling, thermal models) is declined unless it is *also* cheap and stable. See
   [ADR-010](decisions/adr-010-musical-stable-cheap-dsp.md).
 - **No-op defaults for new params.** New analogue/song params default to a value

@@ -18,7 +18,7 @@ export const MOD_SOURCE_LABELS = [
 
 /** APPEND-ONLY, same reason. Index 0 must stay `none`. */
 export const MOD_DEST_LABELS = [
-  'none', 'cutoff', 'resonance', 'pitch', 'shape', 'amp', 'drive', 'pan',
+  'none', 'cutoff', 'resonance', 'pitch', 'shape', 'amp', 'drive', 'pan', 'sync',
 ];
 
 /** The six user-assignable rows. LFO 1/2 are rows 0-1 and keep their own params (REQ-eight-rows-two-grandfathered). */
@@ -32,7 +32,7 @@ export const MOD_SRC = {
 
 /** Destination indices. */
 export const MOD_DST = {
-  none: 0, cutoff: 1, resonance: 2, pitch: 3, shape: 4, amp: 5, drive: 6, pan: 7,
+  none: 0, cutoff: 1, resonance: 2, pitch: 3, shape: 4, amp: 5, drive: 6, pan: 7, sync: 8,
 } as const;
 
 /**
@@ -53,6 +53,7 @@ export const MOD_DEST_SCALE: Record<number, number> = {
   [MOD_DST.amp]: 0.5,          // around the tremolo VCA's base 1.0
   [MOD_DST.drive]: 4,
   [MOD_DST.pan]: 1,
+  [MOD_DST.sync]: 48,          // semitones of slave pitch (oscillator-sync.md REQ-sync-is-a-modulation-destination)
 };
 
 /** Sources that exist once per voice, so their route chain must be per-voice too. */

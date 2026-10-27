@@ -106,7 +106,9 @@ so a reviewer has something concrete to hold a new feature against.
   the user asked for.** Nothing whose size scales with *content* may be
   downloaded, parsed or generated eagerly at boot when the user will use at most
   one of it. Demo songs are fetched on click ([`song-mode.md`](song-mode.md));
-  reverb IRs are generated on first use of a size ([`effects.md`](effects.md)).
+  reverb IRs are generated on first use of a size ([`effects.md`](effects.md));
+  the oscillator-sync worklet and its per-voice nodes are built the first time sync
+  is engaged ([`oscillator-sync.md`](oscillator-sync.md)).
   Applies to bundle payload and to synchronous CPU alike.
 
   **A surface reached only by a deliberate click is loaded by that click.** A modal the

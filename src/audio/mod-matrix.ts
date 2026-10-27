@@ -243,8 +243,10 @@ function voiceTargets(v: Voice, dst: number): AudioParam[] {
   switch (dst) {
     case MOD_DST.cutoff: return [v.filter.cutoffNote];
     case MOD_DST.resonance: return [v.filter.resonance];
-    // One route drives all three oscillators, so "pitch" means the voice's pitch.
-    case MOD_DST.pitch: return [v.osc1.detuneParam, v.osc2.detuneParam, v.sub.detuneParam];
+    // One route drives all three oscillators (and the sync pair), so "pitch"
+    // means the voice's pitch.
+    case MOD_DST.pitch: return v.pitchTargets();
+    case MOD_DST.sync: return [v.syncTarget];
     case MOD_DST.shape: return [v.filter.shape];
     case MOD_DST.amp: return [v.tremolo.gain];
     case MOD_DST.drive: return [v.filter.drive];

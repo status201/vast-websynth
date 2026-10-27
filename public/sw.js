@@ -97,6 +97,9 @@ var CORE_ASSETS = [
   '/worklets/ladder-filter.js',
   '/worklets/compressor.js',
   '/worklets/recorder.js',
+  // Loaded on first use of oscillator sync, not at boot — but precached, so an
+  // installed app can engage it offline (oscillator-sync.md REQ-the-pair-is-built-on-first-use).
+  '/worklets/sync-osc.js',
 ];
 
 var CACHE = cacheName(self.location.href);

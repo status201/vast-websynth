@@ -251,7 +251,11 @@ const fmtLfoRate = (v: number) => v.toFixed(2) + 'Hz';
 export const WAVE_LABELS = ['sine', 'triangle', 'saw', 'square'];
 /** Append-only: an index here is a stored value in every preset, song and share
  *  link, so reordering silently rewrites saved patches (lfo.md REQ-destination-is-one-of-the-labels). */
-export const LFO_DEST_LABELS = ['off', 'cutoff', 'pitch', 'amp', 'pulse', 'pan', 'shape'];
+export const LFO_DEST_LABELS = ['off', 'cutoff', 'pitch', 'amp', 'pulse', 'pan', 'shape', 'sync'];
+/** `osc2.sync` (oscillator-sync.md REQ-sync-has-hard-and-soft-modes). Append-only for the same reason;
+ *  index 0 is off, the no-op default. `soft` is reversing sync. Not `SYNC_LABELS`,
+ *  which is tempo lock's. */
+export const OSC_SYNC_LABELS = ['off', 'hard', 'soft'];
 // `lfo.sync`'s labels are `SYNC_LABELS` from `utils/tempo`, used directly — the
 // LFO no longer has a division list of its own now that the effects share one
 // (tempo-lock.md REQ-sync-defaults-to-free). Index 0 is free-running, and the array is append-only:
@@ -322,6 +326,11 @@ export function registerDefaults(bus: ParamBus): void {
     { id: 'osc2.detune', min: -50, max: 50, default: 7, unit: 'c', format: fmtCent },
     { id: 'osc2.level', min: 0, max: 1, default: 0.5, format: fmtPct },
     { id: 'osc2.pulseWidth', min: 0.5, max: 0.95, default: 0.5, format: fmtPct },
+    // Oscillator sync (oscillator-sync.md). Off is the native path, an exact no-op
+    // (REQ-sync-off-is-the-native-path); the pitch is inert until sync is on, so its
+    // default can be the audible octave rather than 0 (REQ-sync-pitch-is-the-sweep).
+    { id: 'osc2.sync', min: 0, max: OSC_SYNC_LABELS.length - 1, default: 0, step: 1, taper: 'discrete', labels: OSC_SYNC_LABELS },
+    { id: 'osc2.syncPitch', min: 0, max: 48, default: 12, unit: 'st', format: fmtSemi },
 
     // ----- Sub oscillator -----
     { id: 'sub.wave', min: 0, max: 3, default: 0, step: 1, taper: 'discrete', labels: WAVE_LABELS },

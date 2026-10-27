@@ -1,6 +1,6 @@
 import type { ParamBus } from '../../state/params';
 import {
-  WAVE_LABELS, GLIDE_MODE_LABELS, FILTER_MODEL_LABELS,
+  WAVE_LABELS, GLIDE_MODE_LABELS, FILTER_MODEL_LABELS, OSC_SYNC_LABELS,
 } from '../../state/params';
 import { Knob } from '../components/knob';
 import { Segmented } from '../components/segmented';
@@ -31,7 +31,7 @@ export function buildSynthPanels(bus: ParamBus): HTMLElement {
       knob('osc1.octave', 'OCT'),
       knob('osc1.detune', 'TUNE'),
       knob('osc1.level', 'LEVEL'),
-      ...pulseWidthKnob(bus, 'osc1'),
+      ...behindBreak(bus, [pulseWidthKnob(bus, 'osc1')]),
     ], panelStyles.spread!));
   }, 'oscillators'));
 
@@ -41,8 +41,10 @@ export function buildSynthPanels(bus: ParamBus): HTMLElement {
       knob('osc2.octave', 'OCT'),
       knob('osc2.detune', 'TUNE'),
       knob('osc2.level', 'LEVEL'),
-      ...pulseWidthKnob(bus, 'osc2'),
+      ...behindBreak(bus, [pulseWidthKnob(bus, 'osc2'), syncPitchKnob(bus)]),
     ], panelStyles.spread!));
+    // Sync locks osc2 to osc1, so it lives on the slave's panel (oscillator-sync.md).
+    b.appendChild(new Segmented(bus, 'osc2.sync', OSC_SYNC_LABELS).el);
   }));
 
   main.appendChild(panel('SUB / UNI', (b) => {
@@ -117,28 +119,59 @@ export function buildSynthPanels(bus: ParamBus): HTMLElement {
 
 const SQUARE_WAVE = WAVE_LABELS.indexOf('square');
 
+/** A control that is only on show while another param says it means something. */
+interface Conditional {
+  el: HTMLElement;
+  paramId: string;
+  shown: (value: number) => boolean;
+}
+
+/**
+ * Conditional knobs joining the 3-knob `.spread` row behind a `.rowBreak`: up to
+ * 2560px the break takes a full line, so they sit centred below OCT/TUNE/LEVEL
+ * rather than wrapping 3+1 — the layout `.quad` exists to prevent — and on an
+ * ultrawide the break is dropped and all share one row (responsive-synth-panels.md
+ * REQ-ultrawide-panels-are-one-row). The break shows while any of them does, so
+ * hidden knobs leave no empty line behind.
+ */
+function behindBreak(bus: ParamBus, items: Conditional[]): HTMLElement[] {
+  const brk = document.createElement('div');
+  brk.className = panelStyles.rowBreak!;
+  const visible = items.map(() => false);
+  items.forEach((it, i) => {
+    // `subscribe` fires immediately, so the initial visibility is correct.
+    bus.subscribe(it.paramId, (v) => {
+      visible[i] = it.shown(v);
+      it.el.style.display = visible[i] ? '' : 'none';
+      brk.style.display = visible.some(Boolean) ? '' : 'none';
+    });
+  });
+  return [brk, ...items.map((it) => it.el)];
+}
+
 /**
  * The pulse-width knob, shown only while that oscillator is on `square` —
  * width is meaningless for the other waveforms (oscillators.md REQ-oscillators-have-a-pulse-width).
- *
- * It joins the 3-knob `.spread` row behind a `.rowBreak`: up to 2560px the break
- * takes a full line, so WIDTH sits alone and centred below the others rather
- * than wrapping 3+1 — the layout `.quad` exists to prevent — and on an ultrawide
- * the break is dropped and the four share one row (responsive-synth-panels.md
- * REQ-ultrawide-panels-are-one-row). Both hide together, so a hidden WIDTH
- * leaves no empty line behind.
  */
-function pulseWidthKnob(bus: ParamBus, osc: 'osc1' | 'osc2'): HTMLElement[] {
-  const brk = document.createElement('div');
-  brk.className = panelStyles.rowBreak!;
-  const knob = new Knob({ bus, paramId: `${osc}.pulseWidth`, label: 'WIDTH' }).el;
-  // `subscribe` fires immediately, so the initial visibility is correct.
-  bus.subscribe(`${osc}.wave`, (w) => {
-    const display = Math.round(w) === SQUARE_WAVE ? '' : 'none';
-    brk.style.display = display;
-    knob.style.display = display;
-  });
-  return [brk, knob];
+function pulseWidthKnob(bus: ParamBus, osc: 'osc1' | 'osc2'): Conditional {
+  return {
+    el: new Knob({ bus, paramId: `${osc}.pulseWidth`, label: 'WIDTH' }).el,
+    paramId: `${osc}.wave`,
+    shown: (w) => Math.round(w) === SQUARE_WAVE,
+  };
+}
+
+/**
+ * The sync sweep, shown only while sync is engaged — it is inert otherwise
+ * (oscillator-sync.md REQ-sync-pitch-is-the-sweep), and a knob that does nothing
+ * would read as broken (ADR-014).
+ */
+function syncPitchKnob(bus: ParamBus): Conditional {
+  return {
+    el: new Knob({ bus, paramId: 'osc2.syncPitch', label: 'SYNC' }).el,
+    paramId: 'osc2.sync',
+    shown: (m) => Math.round(m) !== 0,
+  };
 }
 
 /** A knob row in a panel body, in one of the row shapes (`.quad`, `.hex`, …). */

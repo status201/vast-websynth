@@ -48,6 +48,22 @@ describe('which params can show an arc', () => {
   });
 });
 
+describe('the SYNC knob shows its reach (oscillator-sync.md REQ-sync-is-a-modulation-destination)', () => {
+  const LFO_SYNC = LFO_DEST_LABELS.indexOf('sync');
+
+  it('is a modulation destination with an arc', () => {
+    expect(isModDestParam('osc2.syncPitch')).toBe(true);
+  });
+
+  it('sums a matrix route at 48 st full scale and an LFO at 24 st', () => {
+    const depth = modDepthFor('osc2.syncPitch', reader({
+      'mod.0.src': MOD_SRC.filEnv, 'mod.0.dst': MOD_DST.sync, 'mod.0.amt': 0.5,
+      'lfo2.dest': LFO_SYNC, 'lfo2.amount': 0.5,
+    }));
+    expect(depth).toBe(24 + 12);
+  });
+});
+
 describe('modDepthFor', () => {
   it('is zero when nothing points at the param', () => {
     expect(modDepthFor('filter.cutoff', reader({}))).toBe(0);

@@ -1,4 +1,5 @@
 import { LadderFilterNode } from './ladder-filter/node';
+import { SyncOscNode } from './sync-osc/node';
 import { Voice } from './voice';
 import { LFO } from './lfo';
 import { PwmDriver } from './pwm';
@@ -89,9 +90,8 @@ const RESUME_GESTURES = ['pointerdown', 'keydown', 'touchend'] as const;
  * once in the constructor instead; `pulse` has no node at all.
  */
 function connectLfoToVoice(lfo: LFO, v: Voice): void {
-  lfo.toPitch.connect(v.osc1.detuneParam);
-  lfo.toPitch.connect(v.osc2.detuneParam);
-  lfo.toPitch.connect(v.sub.detuneParam);
+  for (const t of v.pitchTargets()) lfo.toPitch.connect(t);
+  lfo.toSync.connect(v.syncTarget);
   lfo.toCutoff.connect(v.filter.cutoffNote);
   lfo.toShape.connect(v.filter.shape);
   lfo.toAmp.connect(v.tremolo.gain);
@@ -216,6 +216,13 @@ export class Engine {
   // mixer (mute/solo/volume) are delegated out of the Engine (ADR-008).
   private polyphony!: Polyphony;
   private laneMixer!: LaneMixer;
+
+  /**
+   * The oscillator-sync pairs, built the first time `osc2.sync` leaves `off` and
+   * never before (oscillator-sync.md REQ-the-pair-is-built-on-first-use). Memoized,
+   * so a mode flicked back and forth loads the module once; `null` until then.
+   */
+  private syncReady: Promise<void> | null = null;
 
   /**
    * Raw key/MIDI note → the notes it actually sounded, so a note-off releases exactly
@@ -482,9 +489,7 @@ export class Engine {
       this.modMatrix.connectVoice(v);
 
       // Pitch bend
-      this.pitchBend.connect(v.osc1.detuneParam);
-      this.pitchBend.connect(v.osc2.detuneParam);
-      this.pitchBend.connect(v.sub.detuneParam);
+      for (const t of v.pitchTargets()) this.pitchBend.connect(t);
 
       // Analogue drift (source owned by Polyphony)
       this.polyphony.connectDrift(v);
@@ -1114,6 +1119,24 @@ export class Engine {
     }
   }
 
+  /**
+   * Build one sync pair per voice, once (REQ-the-pair-is-built-on-first-use). The
+   * wrapper itself is a static import: deferring it saved 0.8 kB of entry chunk
+   * but added a hashed chunk that an offline session may never have fetched,
+   * while the worklet it loads is precached with the other three (public/sw.js).
+   * A failed load is logged and leaves sync inert — the synth plays on native, and
+   * nothing throws into the subscriber that asked (ADR-015).
+   */
+  private ensureSync(): Promise<void> {
+    this.syncReady ??= (async () => {
+      await SyncOscNode.loadModule(this.ctx);
+      for (const v of this.voices) v.attachSync(SyncOscNode.create(this.ctx));
+    })().catch((err: unknown) => {
+      console.warn('[sync] the sync worklet failed to load; sync stays off', err);
+    });
+    return this.syncReady;
+  }
+
   private subscribeParams(): void {
     const bus = this.bus;
     const all = (fn: (v: Voice, value: number) => void) =>
@@ -1156,6 +1179,15 @@ export class Engine {
     bus.subscribe('osc2.octave', all((v, x) => v.osc2.setOctave(x)));
     bus.subscribe('osc2.detune', all((v, x) => v.osc2.setDetuneCents(x)));
     bus.subscribe('osc2.level', all((v, x) => v.osc2.setLevel(x)));
+
+    // Oscillator sync (oscillator-sync.md). Every voice is told the mode even
+    // before its pair exists: it stores it, and `attachSync` applies it once the
+    // pair lands — until then the voice plays native.
+    bus.subscribe('osc2.sync', (x) => {
+      if (Math.round(x) !== 0) void this.ensureSync();
+      for (const v of this.voices) v.setSyncMode(x);
+    });
+    bus.subscribe('osc2.syncPitch', all((v, x) => v.setSyncPitch(x)));
 
     // Sub oscillator
     bus.subscribe('sub.wave', all((v, x) => v.setSubWave(x)));

@@ -3,7 +3,10 @@
 ```yaml
 id: oscillators
 status: implemented
-version: 5                     # v5: REQ-a-wave-bank-entry-is-built-on-first-use — a duty-bank entry is built on first use,
+version: 6                     # v6: oscillator sync (oscillator-sync.md, ADR-026) answers the
+                               #     worklet-oscillator open question below; Osc gains a unity
+                               #     native fade gain and a mirror, glide moves to FrequencyLine
+                               # v5: REQ-a-wave-bank-entry-is-built-on-first-use — a duty-bank entry is built on first use,
                                #     not the whole bank; 128 waves cost ~86 MB of native
                                #     memory that a heap snapshot cannot see
                                # v4: one PwmDriver, two LFOs — the source claim (REQ-set-periodic-wave-is-immediate)
@@ -17,6 +20,7 @@ related:
   - lfo                        # the `pulse` destination drives pulseWidth
   - runtime-performance        # the PWM control loop's cost contract
   - knob-soft-ceiling          # v3: how REQ-pwm-rate-is-clamped's cap is drawn on the RATE knob
+  - oscillator-sync            # v6: osc2 synced to osc1 by a per-voice worklet pair
 source:
   - src/audio/oscillator.ts    # duty bank + setPulseWidth
   - src/audio/pwm.ts           # the control loop (v2)
@@ -359,3 +363,13 @@ Scenario: The rate cap is shown on the knob, not only in prose (REQ-pwm-rate-is-
   above ~2 kHz where the native band-limited oscillator does not, and voices run
   continuously, so it would mean 16 always-on processors. Propose it against
   ADR-010 rather than adding it silently.
+  - (v6) That proposal was made for **sync**, not for width:
+    [ADR-026](../decisions/adr-026-oscillator-sync-is-a-per-voice-worklet-pair.md).
+    It answers both objections. A windowed-sinc kernel, not polyBLEP, puts the
+    aliasing at the measurement floor in band. The pair exists and runs only
+    while sync is engaged and its voice sounds.
+  - An engaged pair takes a-rate width as a side effect. Native PWM is unchanged.
+- (v6) `Osc` now routes its native node through a unity `fade` gain, so
+  [oscillator-sync](oscillator-sync.md) can crossfade it out. Glide lives in
+  `FrequencyLine`, which the pair shares. An exact `×1` leaves the native sound
+  bit-for-bit what it was.
