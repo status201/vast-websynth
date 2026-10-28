@@ -138,6 +138,18 @@ test.describe('control surface (testids + debug bridge)', () => {
     await expect(knob).toBeHidden();
   });
 
+  // cross-modulation.md REQ-the-modulator-controls-live-on-osc-1: OSC 1 is the
+  // modulator, so FM and RING sit on its panel, always on show, and start at 0.
+  test('OSC 1 carries the FM and RING knobs', async ({ page }) => {
+    await gotoAndStart(page);
+    for (const id of ['osc1.fm', 'osc1.ring']) {
+      await expect(page.getByTestId(`knob-${id}`)).toBeVisible();
+      expect(await busGet(page, id)).toBe(0);
+    }
+    await dragKnobUp(page, 'knob-osc1.fm');
+    expect(await busGet(page, 'osc1.fm')).toBeGreaterThan(0);
+  });
+
   // Both REQ-question-mark-toggles-the-badges cues ride one lfo.dest subscription (oscillators.md), so they are
   // asserted together — a capped arc with no sentence beside it explaining it
   // would be worse than neither.

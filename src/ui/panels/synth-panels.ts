@@ -27,11 +27,19 @@ export function buildSynthPanels(bus: ParamBus): HTMLElement {
 
   main.appendChild(panel('OSC 1', (b) => {
     b.appendChild(new Segmented(bus, 'osc1.wave', WAVE_LABELS, WAVE_ICONS).el);
+    // OSC 1 is the modulator, so the two cross-mods live here as its outputs:
+    // LEVEL to the mixer, FM into OSC 2's pitch, RING (1×2) into the mixer
+    // (cross-modulation.md REQ-the-modulator-controls-live-on-osc-1). Sync stays on
+    // OSC 2 — it is something the slave does to itself.
     b.appendChild(row([
       knob('osc1.octave', 'OCT'),
       knob('osc1.detune', 'TUNE'),
       knob('osc1.level', 'LEVEL'),
-      ...behindBreak(bus, [pulseWidthKnob(bus, 'osc1')]),
+      ...behindBreak(bus, [
+        { el: knob('osc1.fm', 'FM') },
+        { el: knob('osc1.ring', 'RING') },
+        pulseWidthKnob(bus, 'osc1'),
+      ], panelStyles.six!),
     ], panelStyles.spread!));
   }, 'oscillators'));
 
@@ -45,7 +53,7 @@ export function buildSynthPanels(bus: ParamBus): HTMLElement {
     ], panelStyles.spread!));
     // Sync locks osc2 to osc1, so it lives on the slave's panel (oscillator-sync.md).
     b.appendChild(new Segmented(bus, 'osc2.sync', OSC_SYNC_LABELS).el);
-  }));
+  }, 'osc2'));
 
   main.appendChild(panel('SUB / UNI', (b) => {
     b.appendChild(new Segmented(bus, 'sub.wave', WAVE_LABELS, WAVE_ICONS).el);
@@ -119,33 +127,36 @@ export function buildSynthPanels(bus: ParamBus): HTMLElement {
 
 const SQUARE_WAVE = WAVE_LABELS.indexOf('square');
 
-/** A control that is only on show while another param says it means something. */
-interface Conditional {
-  el: HTMLElement;
-  paramId: string;
-  shown: (value: number) => boolean;
-}
+/** A control that is always on show, or only while another param says it means
+ *  something. A union, so a `paramId` without its `shown` cannot be written. */
+type Conditional =
+  | { el: HTMLElement; paramId?: undefined; shown?: undefined }
+  | { el: HTMLElement; paramId: string; shown: (value: number) => boolean };
 
 /**
- * Conditional knobs joining the 3-knob `.spread` row behind a `.rowBreak`: up to
- * 2560px the break takes a full line, so they sit centred below OCT/TUNE/LEVEL
- * rather than wrapping 3+1 — the layout `.quad` exists to prevent — and on an
- * ultrawide the break is dropped and all share one row (responsive-synth-panels.md
- * REQ-ultrawide-panels-are-one-row). The break shows while any of them does, so
- * hidden knobs leave no empty line behind.
+ * Knobs joining the 3-knob `.spread` row behind a `.rowBreak`: up to 2560px the
+ * break takes a full line, so they sit centred below OCT/TUNE/LEVEL rather than
+ * wrapping 3+1 — the layout `.quad` exists to prevent — and on an ultrawide the
+ * break is dropped and all share one row (responsive-synth-panels.md
+ * REQ-ultrawide-panels-are-one-row; `breakClass` can hold it longer). The break
+ * shows while any of them does, so hidden knobs leave no empty line behind.
  */
-function behindBreak(bus: ParamBus, items: Conditional[]): HTMLElement[] {
+function behindBreak(bus: ParamBus, items: Conditional[], breakClass?: string): HTMLElement[] {
   const brk = document.createElement('div');
-  brk.className = panelStyles.rowBreak!;
-  const visible = items.map(() => false);
+  brk.className = breakClass ? `${panelStyles.rowBreak!} ${breakClass}` : panelStyles.rowBreak!;
+  const visible = items.map((it) => it.paramId === undefined);
+  const paint = (): void => { brk.style.display = visible.some(Boolean) ? '' : 'none'; };
   items.forEach((it, i) => {
+    const { paramId, shown } = it;
+    if (paramId === undefined) return;
     // `subscribe` fires immediately, so the initial visibility is correct.
-    bus.subscribe(it.paramId, (v) => {
-      visible[i] = it.shown(v);
+    bus.subscribe(paramId, (v) => {
+      visible[i] = shown(v);
       it.el.style.display = visible[i] ? '' : 'none';
-      brk.style.display = visible.some(Boolean) ? '' : 'none';
+      paint();
     });
   });
+  paint();
   return [brk, ...items.map((it) => it.el)];
 }
 

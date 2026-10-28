@@ -27,6 +27,7 @@ const DEST_PARAM: Record<number, string> = {
   [MOD_DST.shape]: 'filter.shape',
   [MOD_DST.drive]: 'filter.drive',
   [MOD_DST.sync]: 'osc2.syncPitch',
+  [MOD_DST.fm]: 'osc1.fm',
 };
 
 /**

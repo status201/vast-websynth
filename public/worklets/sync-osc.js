@@ -37,6 +37,9 @@ const MAX_INC = 0.45;
 /** Bounds on the slave's sync offset in semitones, before the increment clamp. */
 const SYNC_MIN = -24;
 const SYNC_MAX = 72;
+/** Bound on the linear FM index, however many matrix routes sum into it
+ *  (cross-modulation.md REQ-cross-mod-is-bounded). */
+const FM_MAX = 16;
 /** The slave's DC blocker corner. A synced wave's mean moves with the ratio, and
  *  a sweep would push that sub-audio wobble into the filter (REQ-the-slave-is-dc-free). */
 const DC_HZ = 5;
@@ -152,6 +155,9 @@ class SyncOscProcessor extends AudioWorkletProcessor {
       { name: 'slaveCents', defaultValue: 0, minValue: -4800, maxValue: 4800, automationRate: 'k-rate' },
       // The sync sweep, semitones above the slave's own pitch.
       { name: 'syncPitch', defaultValue: 0, minValue: -48, maxValue: 96, automationRate: 'a-rate' },
+      // Linear FM of the slave by the master, as an index relative to the master's
+      // frequency — the same β the native path uses (cross-modulation.md REQ-fm-reaches-the-sync-pair).
+      { name: 'fm', defaultValue: 0, minValue: -FM_MAX, maxValue: FM_MAX, automationRate: 'a-rate' },
       { name: 'wave1', defaultValue: SAW, minValue: 0, maxValue: 3, automationRate: 'k-rate' },
       { name: 'wave2', defaultValue: SAW, minValue: 0, maxValue: 3, automationRate: 'k-rate' },
       { name: 'width1', defaultValue: 0.5, minValue: 0.5, maxValue: 0.95, automationRate: 'k-rate' },
@@ -178,6 +184,9 @@ class SyncOscProcessor extends AudioWorkletProcessor {
     this.dcX = 0;
     this.dcY = 0;
     this.dcR = 1 - (TAU * DC_HZ) / sampleRate;
+    // The master's naive value at the previous sample: FM's modulator, one sample
+    // late, which no ear resolves and which costs nothing to keep.
+    this.mPrev = 0;
     // Per-sample exp2 is the hot spot under vibrato, so each a-rate factor is
     // recomputed only when its input actually moved.
     this.lastD = NaN; this.lastDE = 1;
@@ -197,6 +206,7 @@ class SyncOscProcessor extends AudioWorkletProcessor {
     this.acc1.fill(0);
     this.dcX = 0;
     this.dcY = 0;
+    this.mPrev = 0;
   }
 
   /**
@@ -350,6 +360,7 @@ class SyncOscProcessor extends AudioWorkletProcessor {
     const freq = params.frequency;
     const det = params.detune;
     const sync = params.syncPitch;
+    const fm = params.fm;
     const mCents = finiteOr(params.masterCents[0], 0);
     const sCents = finiteOr(params.slaveCents[0], 0);
     const mode = Math.round(finiteOr(params.mode[0], MODE_HARD));
@@ -367,6 +378,8 @@ class SyncOscProcessor extends AudioWorkletProcessor {
     const mK = exp2(mCents / 1200) / sampleRate;
     const sK = exp2(sCents / 1200) / sampleRate;
     const fFull = freq.length > 1, dFull = det.length > 1, spFull = sync.length > 1;
+    const fmFull = fm !== undefined && fm.length > 1;
+    const fm0 = fm !== undefined ? fm[0] : 0;
     const maxInc = MAX_INC;
 
     for (let i = 0; i < len; i++) {
@@ -382,6 +395,12 @@ class SyncOscProcessor extends AudioWorkletProcessor {
       const base = f * this.lastDE;
       let mInc = base * mK;
       let sInc = base * this.lastSpE * sK;
+      // Linear FM: the slave's frequency moves by β master-frequencies per unit of
+      // master signal. Not through-zero — the clamp below stops it at 0 Hz. NaN
+      // fails both comparisons and lands on 0, so a bad β is simply no FM.
+      let b = fmFull ? fm[i] : fm0;
+      b = b > -FM_MAX ? (b < FM_MAX ? b : FM_MAX) : (b <= -FM_MAX ? -FM_MAX : 0);
+      if (b !== 0) sInc += b * mInc * this.mPrev;
       mInc = mInc > 0 ? (mInc < maxInc ? mInc : maxInc) : 0;
       sInc = sInc > 0 ? (sInc < maxInc ? sInc : maxInc) : 0;
 
@@ -396,7 +415,9 @@ class SyncOscProcessor extends AudioWorkletProcessor {
       }
 
       const slot = this.n & RING_MASK;
-      this.acc0[slot] += value(this.m.wave, this.m.p, this.m.width);
+      const mv = value(this.m.wave, this.m.p, this.m.width);
+      this.mPrev = mv;
+      this.acc0[slot] += mv;
       this.acc1[slot] += value(this.s.wave, this.s.p, this.s.width);
       const outSlot = (this.n - half) & RING_MASK;
       const y0 = this.acc0[outSlot];

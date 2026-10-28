@@ -77,8 +77,8 @@ export class SyncEngagement {
     if (this.timer !== null) clearTimeout(this.timer);
 
     if (on) {
-      pair.master.connect(this.master.out);
-      pair.slave.connect(this.slave.out);
+      pair.master.connect(this.master.signal);
+      pair.slave.connect(this.slave.signal);
       if (this.sounding()) pair.setActive(true);
     }
     rampTo(pair.master.gain, on ? 1 : 0, this.ctx, RAMP_BYPASS);

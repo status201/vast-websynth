@@ -316,10 +316,30 @@ test.describe('responsive synth panels', () => {
       (document.querySelector(`[data-testid="knob-${i}"]`) as HTMLElement).parentElement!.offsetHeight, id);
     for (const w of [2560, 2800]) {
       expect(await shapeAt(page, w, osc2), `OSC 2 on saw at ${w}px`).toEqual([3]);
-      // OSC 1 has been on saw throughout: a stranded break would make OSC 2's row taller.
-      expect(await rowHeight('osc2.octave'), `no empty line at ${w}px`).toBe(await rowHeight('osc1.octave'));
+      // MIXER's row is one line of three: a stranded break would make OSC 2's taller.
+      // (Not OSC 1 any more — FM and RING give it a second line at every width
+      // below 3200px, cross-modulation.md REQ-the-modulator-controls-live-on-osc-1.)
+      expect(await rowHeight('osc2.octave'), `no empty line at ${w}px`).toBe(await rowHeight('mixer.noise'));
     }
     await expect(page.getByTestId('knob-osc2.pulseWidth')).toBeHidden();
+  });
+
+  // cross-modulation.md REQ-the-modulator-controls-live-on-osc-1: FM and RING always sit behind
+  // OSC 1's break, which holds until 3200px — where six knobs (with WIDTH) first fit one row.
+  test('OSC 1 keeps FM and RING on a second line until six knobs fit', async ({ page }) => {
+    await page.setViewportSize({ width: 2560, height: 1440 });
+    await gotoAndStart(page);
+    const osc1 = ['osc1.octave', 'osc1.detune', 'osc1.level', 'osc1.fm', 'osc1.ring'] as const;
+    const square = [...osc1, 'osc1.pulseWidth'] as const;
+
+    for (const w of [2560, 2800, 3199]) {
+      expect(await shapeAt(page, w, osc1), `OSC 1 on saw at ${w}px`).toEqual([3, 2]);
+    }
+    expect(await shapeAt(page, 3200, osc1), 'OSC 1 on saw at 3200px').toEqual([5]);
+
+    await busSet(page, 'osc1.wave', 3); // square — WIDTH joins FM and RING
+    expect(await shapeAt(page, 2800, square), 'OSC 1 on square at 2800px').toEqual([3, 3]);
+    expect(await shapeAt(page, 3200, square), 'OSC 1 on square at 3200px').toEqual([6]);
   });
 });
 

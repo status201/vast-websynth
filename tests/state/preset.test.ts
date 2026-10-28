@@ -2,13 +2,14 @@ import { describe, it, expect, beforeEach } from 'vitest';
 import { Presets } from '../../src/state/preset';
 import { ParamBus, registerDefaults } from '../../src/state/params';
 import { installLocalStorageMock } from '../storage-mock';
+import { MOD_ROWS, MOD_SRC, MOD_DST } from '../../src/state/mod-routing';
 
 const PREFIX = 'websynth.preset.';
 const INDEX_KEY = 'websynth.preset.index';
 const FACTORY_NAMES = [
-  'acid', 'b3', 'basic', 'bass', 'bells', 'brass', 'ember', 'lead', 'pad',
-  'pbass', 'piano', 'pluck', 'prism', 'reese', 'rhodes', 'solina', 'upright',
-  'vellum', 'wobble',
+  'acid', 'b3', 'basic', 'bass', 'bells', 'brass', 'chime', 'clang', 'ember',
+  'growl', 'lead', 'pad', 'pbass', 'piano', 'pluck', 'prism', 'reese', 'rhodes',
+  'solina', 'tear', 'tines', 'upright', 'vellum', 'wobble',
 ];
 
 describe('Presets', () => {
@@ -43,10 +44,10 @@ describe('Presets', () => {
       }
     });
 
-    // Factory presets set the FULL sound (REQ-a-factory-preset-sets-the-full-sound), so a param missing from one
-    // of them leaks the previous patch's value on a preset change. The filter
-    // model is the loudest possible instance of that bug: load a LADDER patch
-    // after a POLY one and it would keep the wrong filter.
+    // Factory presets set the FULL sound (REQ-a-factory-preset-sets-the-full-sound), so a bank file says
+    // everything it means. Before presets.md v15's loader reset, a param missing
+    // from one leaked the previous patch's value: load a LADDER patch after a POLY
+    // one and it kept the wrong filter.
     it('sets the filter model, shape and keytrack in every bank', () => {
       for (const [name, snap] of Object.entries(Presets.factory())) {
         for (const id of ['filter.model', 'filter.shape', 'filter.keytrack']) {
@@ -57,8 +58,8 @@ describe('Presets', () => {
 
     // Same rule, the instance that actually slipped twice: `lfo.sync` shipped
     // in lfo v6 and never reached the banks, and `lfo2.*` would have repeated
-    // it. Only presets leak — Song.apply resets defaults first, Presets.apply
-    // does not (presets.md REQ-a-factory-preset-sets-the-full-sound).
+    // it, when Presets.apply did not yet reset what a preset omits (presets.md
+    // REQ-a-factory-preset-sets-the-full-sound, REQ-loading-a-preset-starts-from-the-default-sound).
     it('sets every param of both LFOs in every bank', () => {
       const ids = ['lfo', 'lfo2'].flatMap((p) =>
         ['rate', 'amount', 'wave', 'dest', 'sync'].map((k) => `${p}.${k}`));
@@ -96,6 +97,56 @@ describe('Presets', () => {
       }
     });
 
+    // v14 (presets.md REQ-a-factory-preset-sets-the-full-sound): the same rule for the oscillators'
+    // cross-modulation, sync and pulse widths, and the mod matrix — a showcase that
+    // routes the filter envelope to `fm` would otherwise leave the route playing
+    // under the next preset. Every row's source is pinned unconditionally; a row
+    // that is ON pins what it routes, and a bank that engages sync pins its pitch.
+    it('sets the oscillators\' cross-mod, sync, widths and every mod row in every bank', () => {
+      const ids = [
+        'osc1.fm', 'osc1.ring', 'osc2.sync', 'osc1.pulseWidth', 'osc2.pulseWidth',
+        ...Array.from({ length: MOD_ROWS }, (_, n) => `mod.${n}.src`),
+      ];
+      for (const [name, snap] of Object.entries(Presets.factory())) {
+        for (const id of ids) expect(snap[id], `${name}: '${id}' missing`).toBeTypeOf('number');
+        if (snap['osc2.sync'] !== 0) {
+          expect(snap['osc2.syncPitch'], `${name}: 'osc2.syncPitch' missing`).toBeTypeOf('number');
+        }
+        for (let n = 0; n < MOD_ROWS; n++) {
+          if (snap[`mod.${n}.src`] === MOD_SRC.off) continue;
+          for (const k of ['dst', 'amt']) {
+            expect(snap[`mod.${n}.${k}`], `${name}: 'mod.${n}.${k}' missing`).toBeTypeOf('number');
+          }
+        }
+      }
+    });
+
+    // The showcases (REQ-factory-presets-span-the-instrument-families, v14): each one
+    // actually engages what it is there to show, so a later edit cannot quietly
+    // turn one into a plain patch.
+    it('the cross-mod and sync showcases engage what they show', () => {
+      const f = Presets.factory();
+      const routesTo = (name: string, dst: number) => Array.from({ length: MOD_ROWS }, (_, n) => n)
+        .some((n) => f[name]![`mod.${n}.src`] !== MOD_SRC.off && f[name]![`mod.${n}.dst`] === dst);
+      for (const name of ['tines', 'chime', 'growl']) {
+        expect(f[name]!['osc1.fm'], name).toBeGreaterThan(0);
+        expect(routesTo(name, MOD_DST.fm), `${name} routes to fm`).toBe(true);
+      }
+      expect(f['clang']!['osc1.ring']).toBeGreaterThan(0);
+      expect(f['tear']!['osc2.sync']).toBe(1);
+      expect(routesTo('tear', MOD_DST.sync), 'tear routes to sync').toBe(true);
+    });
+
+    it('loading a plain bank after a showcase leaves no FM or route behind', () => {
+      const bus = new ParamBus();
+      registerDefaults(bus);
+      Presets.apply(bus, Presets.factory()['tines']!);
+      expect(bus.get('osc1.fm')).toBeGreaterThan(0);
+      Presets.apply(bus, Presets.factory()['basic']!);
+      expect(bus.get('osc1.fm')).toBe(0);
+      for (let n = 0; n < MOD_ROWS; n++) expect(bus.get(`mod.${n}.src`)).toBe(MOD_SRC.off);
+    });
+
     it('names at least one bank per filter model', () => {
       const models = new Set(Object.values(Presets.factory()).map((s) => s['filter.model']));
       expect(models).toContain(0); // LADDER
@@ -127,20 +178,41 @@ describe('Presets', () => {
       expect(bus.get('filter.keytrack')).toBe(0);
     });
 
-    // `restore` writes only the ids the snapshot carries — it does not reset
-    // the rest — so a preset that omits a param inherits whatever was loaded
-    // before it. That is exactly why every FACTORY bank sets the full sound
-    // (REQ-a-factory-preset-sets-the-full-sound); this pins the failure mode that rule exists to prevent.
-    it('would otherwise leak the previous patch, which is why factory banks set them', () => {
+    // presets.md REQ-loading-a-preset-starts-from-the-default-sound (v15). `restore` writes only the ids a
+    // snapshot carries, so before v15 a preset that omitted a param inherited the
+    // previous patch's value — a POLY filter, or `tines`' FM and its route. The
+    // load now starts every omitted sound param from its no-op default, which is
+    // how the preset sounded when it was saved.
+    it('an older preset no longer inherits the previous patch', () => {
       const bus = new ParamBus();
       registerDefaults(bus);
       bus.set('filter.model', 1); // a POLY patch was loaded first
-
       Presets.apply(bus, legacy());
-      expect(bus.get('filter.model')).toBe(1); // leaked — the file said nothing
+      expect(bus.get('filter.model')).toBe(0);
 
-      Presets.apply(bus, Presets.factory()['basic']!);
-      expect(bus.get('filter.model')).toBe(0); // a real factory bank sets it
+      Presets.apply(bus, Presets.factory()['tines']!);
+      expect(bus.get('osc1.fm')).toBeGreaterThan(0);
+      const older = { ...legacy() };
+      for (const id of Object.keys(older)) {
+        if (id.startsWith('osc1.fm') || id.startsWith('osc1.ring') || id.startsWith('mod.')) delete older[id];
+      }
+      Presets.apply(bus, older);
+      expect(bus.get('osc1.fm')).toBe(0);
+      for (let n = 0; n < MOD_ROWS; n++) expect(bus.get(`mod.${n}.src`)).toBe(MOD_SRC.off);
+    });
+
+    it('leaves the key and the master compressor where they are', () => {
+      const bus = new ParamBus();
+      registerDefaults(bus);
+      bus.set('scale.root', 2);
+      bus.set('scale.type', 2);
+      bus.set('chord.voicing', 1);
+      bus.set('fx.master.comp.makeup', 6);
+      Presets.apply(bus, Presets.factory()['lead']!);
+      expect(bus.get('scale.root')).toBe(2);
+      expect(bus.get('scale.type')).toBe(2);
+      expect(bus.get('chord.voicing')).toBe(1);
+      expect(bus.get('fx.master.comp.makeup')).toBe(6);
     });
   });
 
@@ -174,6 +246,26 @@ describe('Presets', () => {
       localStorage.setItem(PREFIX + 'bass', JSON.stringify({ 'filter.cutoff': 1 }));
       Presets.ensureFactoryPresets();
       expect(JSON.parse(localStorage.getItem(PREFIX + 'bass')!)).toEqual({ 'filter.cutoff': 1 });
+    });
+
+    // presets.md REQ-an-older-factory-seed-is-refreshed: a stored slot that is the current bank
+    // minus its newer keys is an older release's seed, so it is brought up to date;
+    // one that differs on any value is somebody's sound and is kept.
+    it('refreshes an older seed, and keeps an edit', () => {
+      const basic = Presets.factory()['basic']!;
+      const older = { ...basic };
+      delete older['osc1.fm'];
+      delete older['mod.0.src'];
+      localStorage.setItem(PREFIX + 'basic', JSON.stringify(older));
+      const edited = { ...Presets.factory()['lead']!, 'filter.cutoff': 42 };
+      delete edited['osc1.fm'];
+      localStorage.setItem(PREFIX + 'lead', JSON.stringify(edited));
+
+      Presets.ensureFactoryPresets();
+      expect(Presets.load('basic')).toEqual(basic);
+      expect(Presets.modified()).not.toContain('basic');
+      expect(Presets.load('lead')!['filter.cutoff']).toBe(42);
+      expect(Presets.modified()).toContain('lead');
     });
 
     it('is idempotent — a second call adds nothing new', () => {

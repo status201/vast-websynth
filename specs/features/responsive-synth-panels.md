@@ -3,7 +3,9 @@
 ```yaml
 id: responsive-synth-panels
 status: implemented
-version: 8   # v8: REQ-quad-panels-use-a-fixed-grid — FILTER ENV goes dice-five below 500px too;
+version: 9   # v9: OSC 1 carries FM + RING (cross-modulation.md REQ-the-modulator-controls-live-on-osc-1),
+             #     so its row break is `.rowBreak.six` and holds until 3200px, the six-knob step
+             # v8: REQ-quad-panels-use-a-fixed-grid — FILTER ENV goes dice-five below 500px too;
              #     five across overlapped the 36px dials on the 2-column phone faceplate.
              #     Default --knob-size drops to 30px at ≤720px (layout.css).
              # v7: REQ-ultrawide-panels-are-one-row — above 2560px every knob group spreads
@@ -165,6 +167,12 @@ count changes.
     2561px the break is `display: none`, and the four knobs share one even row
     (220px of boxes in a ≥281px row). WIDTH's show/hide toggles the break with
     it, so a hidden WIDTH leaves no empty line.
+  - **OSC 1's break holds until 3200px** (v9). OSC 1 always shows FM and RING
+    behind its break ([cross-modulation](cross-modulation.md)
+    REQ-the-modulator-controls-live-on-osc-1), so with WIDTH it has six knobs,
+    which first fit one row at 3200px, the step `.hex` takes for the same six.
+    Its break is therefore `.rowBreak.six`, kept by the 2561px block and dropped
+    only at 3200px.
   - **Why ≤2560px is untouched.** 2560 is where the user judged the faceplate
     right, and where FILTER's six would not fit anyway (47px cells for a 52px
     box — REQ-a-cell-is-never-narrower-than-a-knob).

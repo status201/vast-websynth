@@ -21,12 +21,14 @@ function makeVoice() {
   // The sync pair's two junctions (oscillator-sync.md REQ-every-pitch-source-reaches-the-pair).
   const pitchMod = makeParam(0);
   const syncTarget = makeParam(12);
+  // The FM index junction (cross-modulation.md REQ-fm-is-a-modulation-destination).
+  const fmTarget = makeParam(0);
   return {
     filter: {
       cutoffNote: makeParam(90), resonance: makeParam(0),
       shape: makeParam(0), drive: makeParam(1),
     },
-    osc1, osc2, sub, pitchMod, syncTarget,
+    osc1, osc2, sub, pitchMod, syncTarget, fmTarget,
     pitchTargets: () => [osc1.detuneParam, osc2.detuneParam, sub.detuneParam, pitchMod],
     tremolo: { gain: makeParam(1) },
     filEnv: { out: node() },
@@ -115,6 +117,20 @@ describe('ModMatrix routing (REQ-one-gain-per-route-rewired-while-silent)', () =
     const routeGains = ctx.createGain.mock.results.map((r) => r.value)
       .filter((g) => (g.connect as ReturnType<typeof vi.fn>).mock.calls.some((c) => c[0] === voices[0]!.syncTarget));
     expect(lastRamp(routeGains[0]!.gain)).toBe(24);
+  });
+
+  it('routes a per-voice source into the FM junction at index 8 full scale (cross-modulation.md REQ-fm-is-a-modulation-destination)', () => {
+    const { m, ctx, voices } = build(2);
+    expect(m.usesDest(MOD_DST.fm)).toBe(false);
+    route(m, 0, MOD_SRC.filEnv, MOD_DST.fm, 0.5);
+    for (const v of voices) expect(wiredInto(ctx, v.fmTarget)).toBe(true);
+    const routeGains = ctx.createGain.mock.results.map((r) => r.value)
+      .filter((g) => (g.connect as ReturnType<typeof vi.fn>).mock.calls.some((c) => c[0] === voices[0]!.fmTarget));
+    expect(lastRamp(routeGains[0]!.gain)).toBe(4);
+    // A live row on fm is what the Engine's in-use predicate reads.
+    expect(m.usesDest(MOD_DST.fm)).toBe(true);
+    m.setSource(0, MOD_SRC.off);
+    expect(m.usesDest(MOD_DST.fm)).toBe(false);
   });
 
   it('reaches resonance — an a-rate param nothing could address before (REQ-resonance-becomes-reachable)', () => {

@@ -62,7 +62,7 @@ describe('sync off is the native path (REQ-sync-off-is-the-native-path)', () => 
 
   it('attaching a pair while off leaves it silent and unconnected to the oscillators', async () => {
     const { voice, master, node } = await build();
-    expect(master.connect).not.toHaveBeenCalledWith(voice.osc1.out);
+    expect(master.connect).not.toHaveBeenCalledWith(voice.osc1.signal);
     expect(node.port.postMessage).toHaveBeenLastCalledWith(false);
   });
 });
@@ -71,8 +71,8 @@ describe('engaging crossfades, then cuts the silent side (REQ-engaging-sync-cros
   it('fades the pair in over the native oscillators, then disconnects the natives', async () => {
     const { voice, master, slave, native } = await build();
     voice.setSyncMode(HARD);
-    expect(master.connect).toHaveBeenCalledWith(voice.osc1.out);
-    expect(slave.connect).toHaveBeenCalledWith(voice.osc2.out);
+    expect(master.connect).toHaveBeenCalledWith(voice.osc1.signal);
+    expect(slave.connect).toHaveBeenCalledWith(voice.osc2.signal);
     expect(lastTarget(master.gain)).toBe(1);
     expect(lastTarget(slave.gain)).toBe(1);
     expect(lastTarget(native('osc1').fade.gain)).toBe(0);
@@ -167,6 +167,16 @@ describe('every pitch source reaches the pair (REQ-every-pitch-source-reaches-th
     const { voice } = await build();
     const bend = voice.noteBend as unknown as MockNode;
     for (const t of voice.pitchTargets()) expect(bend.connect).toHaveBeenCalledWith(t);
+  });
+});
+
+describe('FM reaches the pair (cross-modulation.md REQ-fm-reaches-the-sync-pair)', () => {
+  it('the FM index junction feeds the pair\'s fm param once attached', async () => {
+    const { voice, param } = await build();
+    // The junction is the node whose offset is the voice's fm target.
+    const junction = (voice as any).xmod.fmMod as MockNode;
+    expect((junction as any).offset).toBe(voice.fmTarget);
+    expect(junction.connect).toHaveBeenCalledWith(param('fm'));
   });
 });
 

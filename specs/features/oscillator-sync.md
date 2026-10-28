@@ -3,7 +3,9 @@
 ```yaml
 id: oscillator-sync
 status: implemented
-version: 2                     # v2: review — the engagement state machine moves out of Voice
+version: 3                     # v3: cross-modulation — the pair lands on each Osc's pre-level
+                               #     `signal` tap, and takes an a-rate `fm` input (cross-modulation.md)
+                               # v2: review — the engagement state machine moves out of Voice
                                #     into SyncEngagement (SRP); LFO depths come from LFO_DEST_SCALE;
                                #     SyncOscNode.create(ctx) loses its unused initialHz
 owner: core
@@ -17,6 +19,7 @@ related:
   - ../decisions/adr-010-musical-stable-cheap-dsp
   - ../decisions/adr-012-true-bypass-disconnects
   - ../decisions/adr-017-modulation-in-graph
+  - cross-modulation           # v3: ring mod reads the pair's outputs, FM drives its slave
 source:
   - public/worklets/sync-osc.js      # the DSP
   - src/audio/sync-osc/node.ts       # the wrapper
@@ -81,8 +84,11 @@ residual shipped here reaches the measurement floor in band.
   reinforcing. One owner makes the lock structural.
 - **REQ-the-pair-follows-every-osc-control** — The pair plays what the OSC 1 / OSC 2
   panels say: wave, octave, tune and pulse width (including a live PWM sweep)
-  reach it through a mirror on each `Osc`, and level stays on each `Osc.out`, so
-  there is one level control whichever path is sounding. Glide uses the same
+  reach it through a mirror on each `Osc`. The pair's outputs land on each
+  `Osc.signal`, the pre-level tap the native fade feeds too, so level stays on
+  `Osc.out` and there is one level control whichever path is sounding (v3; the
+  tap is what ring mod and FM read, [cross-modulation](cross-modulation.md)
+  REQ-oscillator-signals-are-tapped-pre-level). Glide uses the same
   maths as the native oscillator (`FrequencyLine`). The sub-oscillator stays
   native and unsynced.
 - **REQ-every-pitch-source-reaches-the-pair** — Pitch bend, the per-note bend,
@@ -160,6 +166,7 @@ SyncOscNode (src/audio/sync-osc/node.ts):
   master / slave: GainNode        # the two outputs' fade gains, 0 until engaged
   freq: FrequencyLine             # drives the a-rate `frequency` param (Hz)
   detune, syncPitch: AudioParam   # a-rate (cents, semitones), fed by the voice's junctions
+  fm: AudioParam                  # a-rate FM index β (v3, cross-modulation.md REQ-fm-reaches-the-sync-pair)
   setMode(m)                      # k-rate `mode`: 0 free (tests), 1 hard, 2 soft
   masterMirror, slaveMirror       # OscMirror -> wave1/2, masterCents/slaveCents, width1/2 (k-rate)
   setActive(on)                   # the idle gate (REQ-the-pair-idles-with-the-voice)
@@ -207,8 +214,10 @@ graph (per voice, engaged):
   pitch sources -> pitchTargets() = [osc1.detune, osc2.detune, sub.detune, pitchMod.offset]
   pitchMod -> pair.detune ; syncMod(offset = knob) -> pair.syncPitch
   lfo.toSync, matrix sync routes -> syncMod.offset
-  pair out0 -> master gain -> osc1.out ; pair out1 -> slave gain -> osc2.out
-  native osc1/osc2 -> Osc.fade -> Osc.out   (faded out, then disconnected)
+  pair out0 -> master gain -> osc1.signal ; pair out1 -> slave gain -> osc2.signal
+  native osc1/osc2 -> Osc.fade -> Osc.signal   (faded out, then disconnected)
+  Osc.signal -> Osc.out (level)
+  fmMod (cross-mod's index junction) -> pair.fm
 ui: OSC 2 panel — SYNC segmented (off/hard/soft) + SYNC knob (shown while sync != off)
 ```
 
@@ -350,6 +359,8 @@ Scenario: The SYNC knob is only on show while sync is engaged
   rendered: the bench applies its `--set`s before the take, not during it.
 
 - Threshold ("weak") sync is the cheapest next mode — the same DSP behind a gate.
-- Ring mod and linear FM are all-native neighbours and want their own spec.
+- ~~Ring mod and linear FM are all-native neighbours and want their own spec.~~
+  Done in v3: [cross-modulation](cross-modulation.md). FM inside the pair is not
+  through-zero yet.
 - The sub-oscillator could join the pair as a third phase if a locked sub turns
   out to matter by ear.

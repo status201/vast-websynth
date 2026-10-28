@@ -3,7 +3,10 @@
 ```yaml
 id: oscillators
 status: implemented
-version: 6                     # v6: oscillator sync (oscillator-sync.md, ADR-026) answers the
+version: 7                     # v7: cross-modulation — Osc gains a unity pre-level `signal` tap
+                               #     (fade -> signal -> out), `frequencyParam` and a public `cents`
+                               #     (cross-modulation.md REQ-oscillator-signals-are-tapped-pre-level)
+                               # v6: oscillator sync (oscillator-sync.md, ADR-026) answers the
                                #     worklet-oscillator open question below; Osc gains a unity
                                #     native fade gain and a mirror, glide moves to FrequencyLine
                                # v5: REQ-a-wave-bank-entry-is-built-on-first-use — a duty-bank entry is built on first use,
@@ -21,6 +24,7 @@ related:
   - runtime-performance        # the PWM control loop's cost contract
   - knob-soft-ceiling          # v3: how REQ-pwm-rate-is-clamped's cap is drawn on the RATE knob
   - oscillator-sync            # v6: osc2 synced to osc1 by a per-voice worklet pair
+  - cross-modulation           # v7: ring mod + linear FM read Osc.signal
 source:
   - src/audio/oscillator.ts    # duty bank + setPulseWidth
   - src/audio/pwm.ts           # the control loop (v2)

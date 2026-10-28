@@ -23,7 +23,7 @@ import { MotionMachine } from './transport/motion-machine';
 import { Arrangement } from './transport/arrangement';
 import { ScaleQuantizer } from './transport/scale-quantizer';
 import { ModMatrix } from './mod-matrix';
-import { MOD_ROWS, MOD_SRC } from '../state/mod-routing';
+import { MOD_ROWS, MOD_SRC, MOD_DST } from '../state/mod-routing';
 import { Performance } from './transport/performance';
 import { SyncController } from './transport/sync/sync-controller';
 import { TransportLoop } from './transport/transport-loop';
@@ -223,6 +223,8 @@ export class Engine {
    * so a mode flicked back and forth loads the module once; `null` until then.
    */
   private syncReady: Promise<void> | null = null;
+  /** `osc1.fm`, kept for `refreshFm` — half of FM's in-use predicate. */
+  private fmIndex = 0;
 
   /**
    * Raw key/MIDI note → the notes it actually sounded, so a note-off releases exactly
@@ -1137,6 +1139,16 @@ export class Engine {
     return this.syncReady;
   }
 
+  /**
+   * FM is engaged while anything can make it heard — the knob, or a live matrix
+   * route on `fm` (cross-modulation.md REQ-cross-mod-disconnects-when-unused). The
+   * Engine is the one place that sees both.
+   */
+  private refreshFm(): void {
+    const on = this.fmIndex > 0 || this.modMatrix.usesDest(MOD_DST.fm);
+    for (const v of this.voices) v.setFmInUse(on);
+  }
+
   private subscribeParams(): void {
     const bus = this.bus;
     const all = (fn: (v: Voice, value: number) => void) =>
@@ -1149,8 +1161,8 @@ export class Engine {
     // gain write, so it is safe to drag. None of this runs per frame (ADR-017).
     for (let n = 0; n < MOD_ROWS; n++) {
       const row = n;
-      bus.subscribe(`mod.${n}.src`, (v) => this.modMatrix.setSource(row, v));
-      bus.subscribe(`mod.${n}.dst`, (v) => this.modMatrix.setDest(row, v));
+      bus.subscribe(`mod.${n}.src`, (v) => { this.modMatrix.setSource(row, v); this.refreshFm(); });
+      bus.subscribe(`mod.${n}.dst`, (v) => { this.modMatrix.setDest(row, v); this.refreshFm(); });
       bus.subscribe(`mod.${n}.amt`, (v) => this.modMatrix.setAmount(row, v));
     }
     // The mod wheel is a depth scalar on LFO 1 (lfo.md REQ-the-mod-wheel-feeds-lfo-one-only) AND a matrix source.
@@ -1170,14 +1182,21 @@ export class Engine {
 
     // OSC 1
     bus.subscribe('osc1.wave', all((v, x) => v.osc1.setWave(x)));
-    bus.subscribe('osc1.octave', all((v, x) => v.osc1.setOctave(x)));
-    bus.subscribe('osc1.detune', all((v, x) => v.osc1.setDetuneCents(x)));
+    bus.subscribe('osc1.octave', all((v, x) => v.setOscOctave(1, x)));
+    bus.subscribe('osc1.detune', all((v, x) => v.setOscTune(1, x)));
     bus.subscribe('osc1.level', all((v, x) => v.osc1.setLevel(x)));
+    // Cross-modulation (cross-modulation.md): OSC 1 is the modulator.
+    bus.subscribe('osc1.fm', (x) => {
+      this.fmIndex = x;
+      for (const v of this.voices) v.setFm(x);
+      this.refreshFm();
+    });
+    bus.subscribe('osc1.ring', all((v, x) => v.setRing(x)));
 
     // OSC 2
     bus.subscribe('osc2.wave', all((v, x) => v.osc2.setWave(x)));
-    bus.subscribe('osc2.octave', all((v, x) => v.osc2.setOctave(x)));
-    bus.subscribe('osc2.detune', all((v, x) => v.osc2.setDetuneCents(x)));
+    bus.subscribe('osc2.octave', all((v, x) => v.setOscOctave(2, x)));
+    bus.subscribe('osc2.detune', all((v, x) => v.setOscTune(2, x)));
     bus.subscribe('osc2.level', all((v, x) => v.osc2.setLevel(x)));
 
     // Oscillator sync (oscillator-sync.md). Every voice is told the mode even

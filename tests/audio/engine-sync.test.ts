@@ -105,3 +105,35 @@ describe('the LFO sync destination (REQ-sync-is-a-modulation-destination)', () =
     expect(last(lfo.toCutoff.gain as any)).toBe(0);
   });
 });
+
+describe('FM is in use while the knob or a route says so (cross-modulation.md REQ-cross-mod-disconnects-when-unused)', () => {
+  it('engages every voice when the index is up or a live row targets fm, and only then', async () => {
+    const { MOD_DST } = await import('../../src/state/mod-routing');
+    const voices = [{ setFmInUse: vi.fn() }, { setFmInUse: vi.fn() }];
+    let routed = false;
+    const usesDest = vi.fn(() => routed);
+    const engine = Object.assign(Object.create(Engine.prototype) as object, {
+      voices, fmIndex: 0, modMatrix: { usesDest },
+    }) as unknown as { refreshFm(): void; fmIndex: number };
+
+    engine.refreshFm();
+    for (const v of voices) expect(v.setFmInUse).toHaveBeenLastCalledWith(false);
+    expect(usesDest).toHaveBeenCalledWith(MOD_DST.fm);
+
+    routed = true;
+    engine.refreshFm();
+    for (const v of voices) expect(v.setFmInUse).toHaveBeenLastCalledWith(true);
+
+    routed = false;
+    engine.fmIndex = 2;
+    engine.refreshFm();
+    for (const v of voices) expect(v.setFmInUse).toHaveBeenLastCalledWith(true);
+  });
+
+  it('a matrix re-patch re-evaluates it', () => {
+    // Both the src and the dst subscription call refreshFm — a route alone can engage FM.
+    const body = src('audio/engine.ts');
+    expect(body).toMatch(/mod\.\$\{n\}\.src`, \(v\) => \{ this\.modMatrix\.setSource\(row, v\); this\.refreshFm\(\); \}/);
+    expect(body).toMatch(/mod\.\$\{n\}\.dst`, \(v\) => \{ this\.modMatrix\.setDest\(row, v\); this\.refreshFm\(\); \}/);
+  });
+});

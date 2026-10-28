@@ -166,11 +166,13 @@ thing, one of them inert.
   ([ADR-006](../decisions/adr-006-no-op-param-defaults.md)). They are additive
   scalar params, so no `SONG_VERSION` bump
   ([ADR-007](../decisions/adr-007-songfile-additive-versioning.md)). But a no-op
-  default is not enough on its own: `Presets.apply` is a bare
+  default was not enough on its own: `Presets.apply` was a bare
   `bus.restore(snap)` with no reset, so **any factory bank that turns one of
-  these effects on must pin its `.sync`** or the value leaks in from the
+  these effects on must pin its `.sync`**, or the value leaked in from the
   previously loaded patch — [presets](presets.md) REQ-a-factory-preset-sets-the-full-sound, the hole `lfo.sync`
-  fell through once already.
+  fell through once already. Since presets.md v15 the load resets an omitted
+  `.sync` to `free` (REQ-loading-a-preset-starts-from-the-default-sound); the pin stays, so a bank file
+  says what it means.
 - **REQ-locking-moves-nothing-on-the-faceplate** — **Locking must not move
   anything on the faceplate.** The chip occupies the dial's box and no more; the
   cell's width is unchanged, locked or free. This is load-bearing rather than

@@ -51,6 +51,10 @@ author *against*. Three things were missing, and each is a different kind of gap
    sound left it — the exact non-determinism the factory presets avoid by always
    writing the full sound ([presets](presets.md) REQ-a-factory-preset-sets-the-full-sound). An agent cannot be
    asked to hand-write 60 parameters, so the expansion has to happen for it.
+   (Since presets v15 a load also resets every omitted sound param to its
+   default, REQ-loading-a-preset-starts-from-the-default-sound, so this leftover leak is closed at the
+   loader too. The expansion still matters: it makes the file complete and
+   deterministic on its own, whatever build reads it.)
 
 The split between the two validation layers is the load-bearing decision here.
 Strictness is what an author needs and what a *loader* must not have: a file

@@ -11,14 +11,16 @@ import { FrequencyLine } from '../frequency-line';
  * oscillator, so each `Osc` can push its controls straight into the params.
  */
 export class SyncOscNode {
-  /** Output 0's fade gain — the master, feeding `osc1.out`. */
+  /** Output 0's fade gain — the master, feeding `osc1.signal`. */
   readonly master: GainNode;
-  /** Output 1's fade gain — the slave, feeding `osc2.out`. */
+  /** Output 1's fade gain — the slave, feeding `osc2.signal`. */
   readonly slave: GainNode;
   /** The voice's shared pitch modulation, cents (REQ-every-pitch-source-reaches-the-pair). */
   readonly detune: AudioParam;
   /** The sync sweep, semitones above the slave's own pitch (REQ-sync-pitch-is-the-sweep). */
   readonly syncPitch: AudioParam;
+  /** Linear FM index on the slave, from the master (cross-modulation.md REQ-fm-reaches-the-sync-pair). */
+  readonly fm: AudioParam;
   readonly freq: FrequencyLine;
   readonly masterMirror: OscMirror;
   readonly slaveMirror: OscMirror;
@@ -30,6 +32,7 @@ export class SyncOscNode {
     const p = (name: string): AudioParam => node.parameters.get(name)!;
     this.detune = p('detune');
     this.syncPitch = p('syncPitch');
+    this.fm = p('fm');
     this.mode = p('mode');
     // The processor's own `frequency` default; `SyncEngagement.attach` moves it to
     // wherever the voice's pitch curve has reached.

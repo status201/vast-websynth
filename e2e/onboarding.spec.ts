@@ -374,3 +374,28 @@ test('contextual badges hide when their control scrolls off either edge', async 
     expect(strays, `badges past the fold at scrollTop ${y}`).toEqual([]);
   }
 });
+
+// onboarding.md REQ-each-oscillator-carries-its-own-badge: OSC 1 and OSC 2 each carry a badge,
+// and each opens its own topic.
+test('each oscillator panel carries its own info badge', async ({ page }) => {
+  await page.addInitScript(() => {
+    try { localStorage.setItem('websynth.onboarding.done', '1'); } catch { /* ignore */ }
+  });
+  await page.goto('/');
+  await startAudio(page);
+  await page.getByTestId('info-badges').click();
+
+  for (const [topic, title, mention] of [
+    ['oscillators', 'OSC 1', 'RING'],
+    ['osc2', 'OSC 2', 'SYNC'],
+  ] as const) {
+    const badge = page.getByTestId(`info-badge-${topic}`);
+    await expect(badge).toBeVisible();
+    await expect(badge).toHaveAttribute('aria-label', `Info: ${title}`);
+    await badge.click();
+    const dialog = page.getByRole('dialog', { name: title });
+    await expect(dialog).toContainText(mention);
+    await dialog.getByRole('button', { name: 'Close' }).click();
+    await expect(dialog).toBeHidden();
+  }
+});

@@ -425,3 +425,24 @@ describe('help-content mod topic', () => {
     expect(body).toContain('XY Pad');
   });
 });
+
+/** onboarding.md REQ-each-oscillator-carries-its-own-badge — one topic per oscillator panel. */
+describe('help-content oscillator topics', () => {
+  it('OSC 1 explains the shared controls once, then FM and RING', () => {
+    const body = bodyOf('oscillators');
+    expect(HELP_TOPICS['oscillators'].title).toBe('OSC 1');
+    for (const k of ['OCT', 'TUNE', 'LEVEL', 'WIDTH', 'FM', 'RING']) expect(body).toContain(`<strong>${k}</strong>`);
+    // Sync is OSC 2's — it no longer crowds this topic.
+    expect(body).not.toContain('<strong>hard</strong>');
+  });
+
+  it('OSC 2 covers SYNC and points back for the shared controls', () => {
+    const body = bodyOf('osc2');
+    expect(HELP_TOPICS['osc2'].title).toBe('OSC 2');
+    expect(body).toContain('<strong>SYNC</strong>');
+    expect(body).toContain('<strong>hard</strong>');
+    expect(body).toContain('<strong>soft</strong>');
+    expect(body).toContain('as on OSC 1');
+    expect(body).not.toContain('<strong>OCT</strong> —');
+  });
+});

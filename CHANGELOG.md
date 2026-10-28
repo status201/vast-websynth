@@ -18,6 +18,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ### Fixed
 
+- **A preset no longer inherits settings from the sound before it.** Loading
+  `basic` after a synced or FM sound used to keep OSC 2 synced or the FM
+  playing, and the same went for pulse width and any mod-matrix route. A preset
+  you saved before a setting existed also took that setting from whatever was
+  loaded before it. Loading a preset now starts every sound setting it doesn't
+  mention from its default, so it sounds the way it did when it was saved. The
+  key and the master compressor are left as they are. Factory presets saved by
+  an older version are also brought up to date on the next start, unless you
+  edited them.
+
 - **The LFO help no longer says the two LFOs need different destinations.**
   That rule went when the mod matrix arrived: both may point at one
   destination, and they add up. The mod-wheel help now lists every destination
@@ -37,6 +47,31 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
   - The jumps sync makes are smoothed, so it stays clean instead of fizzing
     with aliasing, even high on the keyboard.
   - It costs nothing until you switch it on.
+
+- **FM and ring mod.** OSC 1 has two new knobs, FM and RING. Both are off by
+  default, so existing sounds are unchanged.
+  - **FM** lets OSC 1 drive OSC 2's pitch at audio rate: bells, electric pianos,
+    clangs. The knob is the FM depth, and it keeps the same character up and
+    down the keyboard and when OSC 2 changes octave. Turn OSC 1's LEVEL down to
+    hear only the FM sound.
+  - The mod matrix has a new `fm` destination. Route the filter envelope to it
+    for a bright attack that mellows.
+  - FM keeps working with sync on, for the classic sync-and-FM scream.
+  - **RING** mixes in OSC 1 × OSC 2, a metallic, bell-like tone, at its own
+    level next to the two oscillators.
+  - Neither costs anything while it is at 0.
+
+- **Five new factory presets show off FM, ring mod and sync:**
+  - **tines:** an FM electric piano, bright on the strike, mellowing as it rings.
+  - **chime:** an FM bell.
+  - **growl:** an FM bass.
+  - **clang:** ring-mod metal.
+  - **tear:** a hard-sync lead whose sync sweeps on every note.
+
+  Turn the FM, RING or SYNC knob to 0 to hear what each one adds.
+
+- **OSC 2 has its own help badge.** OSC 1's help covers the controls both
+  oscillators share, plus FM and RING. OSC 2's covers sync.
 
 - **New demo: Take Me On.** Take on Me with a drum-and-bass break laid over its
   drums. The break is cut into its four bars, one per sampler slot, and

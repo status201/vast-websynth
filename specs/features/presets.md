@@ -3,7 +3,14 @@
 ```yaml
 id: presets
 status: implemented
-version: 13  # v13: a preset or bank name is at most 50 characters (untrusted-input.md REQ-names-are-capped)
+version: 15  # v15: REQ-loading-a-preset-starts-from-the-default-sound — Presets.apply resets every sound
+             #      param to its default before restoring, except the key and the master compressor,
+             #      so a preset saved before a param existed no longer inherits it
+             # v14: five cross-mod/sync showcases (24 factory presets; the count leaves the REQ id,
+             #      the old "nineteen" id is now REQ-factory-presets-span-the-instrument-families);
+             #      REQ-a-factory-preset-sets-the-full-sound covers osc1.fm/ring, osc2.sync, both pulse
+             #      widths and the six mod rows; REQ-an-older-factory-seed-is-refreshed
+             # v13: a preset or bank name is at most 50 characters (untrusted-input.md REQ-names-are-capped)
              # v12: a snapshot drops UNSAVED_PARAMS (REQ-a-preset-is-a-snapshot); the delete open question is struck — v11 shipped it
              # v11: a stored preset can be deleted, and an edited factory preset reverted
              #      (REQ-a-stored-preset-can-be-deleted)
@@ -69,31 +76,68 @@ can do with a sound ([ADR-014](../decisions/adr-014-dont-make-me-think.md) law 1
   number>`) = `savedParams(bus.snapshot())` — every param except the
   `UNSAVED_PARAMS` (`master.expression`, [input-control](input-control.md)
   REQ-cc11-is-expression), so a pedal left heel-down never saves into a sound.
-- **REQ-nineteen-factory-presets** — The 19 factory presets (`acid`, `b3`,
-  `basic`, `bass`, `bells`, `brass`, `ember`, `lead`, `pad`, `pbass`, `piano`,
-  `pluck`, `prism`, `reese`, `rhodes`, `solina`, `upright`, `vellum`, `wobble`)
-  are seeded by `ensureFactoryPresets()` on boot (only if absent). Sixteen cover
+- **REQ-factory-presets-span-the-instrument-families** — The 24 factory presets (`acid`, `b3`,
+  `basic`, `bass`, `bells`, `brass`, `chime`, `clang`, `ember`, `growl`, `lead`,
+  `pad`, `pbass`, `piano`, `pluck`, `prism`, `reese`, `rhodes`, `solina`, `tear`,
+  `tines`, `upright`, `vellum`, `wobble`) are seeded by `ensureFactoryPresets()`
+  on boot (if absent, or an older seed — REQ-an-older-factory-seed-is-refreshed). Sixteen cover
   the core instrument families: basses (`bass`, `upright`, `pbass`, `reese`,
   `acid`), keys (`piano`, `rhodes`, `b3`, `bells`), ensemble/poly (`pad`,
   `solina`, `brass`), leads/plucks (`lead`, `pluck`) and FX basses (`wobble`).
   The remaining three — `ember`, `vellum`, `prism` — are the POLY-model
   showcases that arrived with [filter-models](filter-models.md); each leans on
   something LADDER cannot do, so flipping the model switch on one is the A/B.
+  (v14) Five more are the [cross-modulation](cross-modulation.md) and
+  [oscillator-sync](oscillator-sync.md) showcases, each built on something the
+  plain oscillators cannot do. Each one's A/B is a single knob turned to 0:
+  - `tines` is an FM electric piano: a sine carrier with the filter envelope on
+    `fm`, bright on the strike and mellowing as it rings.
+  - `chime` is an FM bell. OSC 2 sits off the octave, so the sidebands are
+    inharmonic, and they fade slower than the strike.
+  - `growl` is an FM bass with a fast index decay and a mono glide.
+  - `clang` is ring mod of a sine and a detuned triangle: metal, with the sub
+    carrying the pitch.
+  - `tear` is the hard-sync lead: the filter envelope sweeps `sync`, and a touch
+    of FM inside the pair adds bite.
 - **REQ-a-factory-preset-sets-the-full-sound** — Every factory preset sets the
   **full sound** (all osc/sub/unison/ drift/mixer/glide/filter/env/LFO params —
   *both* LFOs, including their `.sync` — plus every synth-FX `.on` flag), so
   switching between factory presets is deterministic: no param from the previous
   patch leaks through (per the
   [add-a-factory-preset](../recipes/add-a-factory-preset.md) recipe).
-  - **Why this is the preset side's job and not the loader's.** `Song.apply`
-    calls `bus.resetDefaults()` before `bus.restore(file.params)`, so a song
-    cannot leak — anything it omits returns to its default. `Presets.apply` is a
-    bare `bus.restore(snap)`, so a preset leaks whatever it omits. Adding a reset
-    there would change what a *user-saved sparse* preset means, so the fix is for
-    each factory bank to be complete. That makes REQ-a-factory-preset-sets-the-full-sound an invariant a human has
+  - **Why this was the preset side's job and not the loader's** (until v15).
+    `Song.apply` calls `bus.resetDefaults()` before `bus.restore(file.params)`,
+    so a song cannot leak — anything it omits returns to its default. `Presets.apply`
+    was a bare `bus.restore(snap)`, so a preset leaked whatever it omitted. A
+    reset there was thought to change what a *user-saved sparse* preset means,
+    so the fix was for each factory bank to be complete. (v15 does add the reset,
+    REQ-loading-a-preset-starts-from-the-default-sound. A user's own save is a
+    full snapshot and an authored sparse one is expanded on import, so no sparse
+    preset was relying on the overlay. Complete banks still matter: a bank file
+    must stand on its own, and the shared non-default values have to be written
+    somewhere.) That makes REQ-a-factory-preset-sets-the-full-sound an invariant a human has
     to remember on every new param — which is exactly why it is now pinned by a
     test rather than by the recipe's prose. Two params had already slipped
     through (`lfo.sync` from [lfo](lfo.md) v6, `lfo2.*` from v7).
+  - **(v14) The oscillators' cross-modulation and the mod matrix are covered.**
+    Three more slipped the same way: `osc2.sync`, then `osc1.fm` and
+    `osc1.ring`, and the pulse widths before them. A matrix row is in the same
+    class, because a showcase that routes the filter envelope to `fm` would
+    leave that route playing under the next preset (before v15's loader reset,
+    REQ-loading-a-preset-starts-from-the-default-sound, which now catches any
+    such slip as well). Every bank therefore pins
+    `osc1.fm`, `osc1.ring`, `osc2.sync`, both `pulseWidth`s and the six
+    `mod.N.src` unconditionally. They come from one shared `PLAIN_VOICE`
+    baseline that each bank spreads first and then overrides. The baseline
+    also carries the values at least half the banks already shared (no sub, one
+    unison voice, both LFOs parked), so each bank lists only what defines it.
+    That kept the entry chunk under its ceiling ([runtime-performance](runtime-performance.md))
+    once the five showcases arrived. Every resolved bank was checked identical to
+    its spelled-out form. `fx.reverb.on` is kept in each bank even though most
+    have it on: an effect that is on by default would switch on, unasked, in a
+    bank that forgot it.
+    `osc2.syncPitch` and a row's `dst` / `amt` are scoped to engaged use, as the
+    FX sub-params are: inert while sync is off or the row's source is `off`.
   - **(v8) The FX tempo locks are covered too, but only where the effect is
     engaged.** A bank that sets `fx.delay.on: 1` must also set `fx.delay.sync`,
     or the delay inherits whatever division the previously loaded patch was locked
@@ -101,6 +145,19 @@ can do with a sound ([ADR-014](../decisions/adr-014-dont-make-me-think.md) law 1
     is the existing convention for every other FX sub-param — a bypassed effect's
     settings are inert, so only the `.on` flags are pinned unconditionally. The
     pinning test follows the same scope, so it cannot drift from the rule.
+- **REQ-an-older-factory-seed-is-refreshed** (v14) — `ensureFactoryPresets()`
+  re-seeds a stored factory slot when **every entry it holds equals the current
+  factory definition** but it lacks some of the current keys. Such a slot is an
+  older seed, not an edit. A Save captures the whole bus (hundreds of params),
+  so a user's own copy is never a subset of a ~50-key factory bank. Without
+  this, a returning user keeps the stale seed: `load()` reads the store before
+  `FACTORY`. Since v15 the stale seed would still *sound* right, because the
+  loader resets what it lacks (REQ-loading-a-preset-starts-from-the-default-sound).
+  But it would show as modified (REQ-modified-is-computed-not-tracked) though
+  nobody touched it, and an export of the bank would write the stale copy.
+  - A slot that differs on any value is left alone. An edit and a factory value
+    retuned between releases cannot be told apart, and keeping a user's sound
+    wins.
 - **REQ-list-merges-factory-and-user-names** — `list()` merges factory names
   with stored user names, sorted.
 - **REQ-loading-a-preset-is-a-bulk-apply** — Loading a preset restores params
@@ -108,6 +165,23 @@ can do with a sound ([ADR-014](../decisions/adr-014-dont-make-me-think.md) law 1
   the per-param **reset baseline**, so a knob double-tap returns to the loaded
   preset value (see [param-reset-baseline](param-reset-baseline.md)).
   Save-preset marks the baseline too.
+- **REQ-loading-a-preset-starts-from-the-default-sound** (v15) — `Presets.apply`
+  first sets every **sound** param the preset omits to its registered default,
+  then restores the preset, in one bulk apply. A sound param is one
+  `isPatchParam` counts (it marks the selector dirty), except two families a
+  preset leaves alone:
+  - `scale.*` and `chord.*`, the key: it belongs to the song being played, not
+    to a sound auditioned over it.
+  - `fx.master.*`, the master compressor: it is mastering for everything, and no
+    factory preset sets it.
+
+  Why: a preset saved before a param existed does not mention it, and before v15
+  it inherited whatever the previous patch had. FM or sync from `tines` or
+  `tear` played on under an older user preset. With ADR-006 every param's
+  default is a no-op, so starting from defaults reproduces the sound exactly as
+  it was saved. It fixes factory banks, user presets and imports in one place,
+  for every param still to come. The reset baselines follow the bulk apply, so
+  a double-tap on an omitted param returns to its default.
 - **REQ-the-active-preset-name-is-session-state** — The active preset name is
   tracked by the session (shared with songs).
 - **REQ-preset-save-rounds-to-four-figures** — `save()` rounds the snapshot to 4
@@ -455,7 +529,28 @@ Scenario: Save names the preset via the custom prompt dialog
 Scenario: Factory presets seed once (edge)
   Given a fresh localStorage
   When the app boots
-  Then the 19 factory presets exist; a second boot does not overwrite edited copies
+  Then every factory preset exists; a second boot does not overwrite edited copies
+# pinned by: tests/state/preset.test.ts
+
+Scenario: An older factory seed is refreshed, an edit is not (REQ-an-older-factory-seed-is-refreshed)
+  Given a stored "basic" that is the current factory bank minus its newer keys
+  And a stored "lead" with one value changed
+  When the app boots
+  Then "basic" holds the current factory bank and is not counted as modified
+  And "lead" keeps the user's value
+# pinned by: tests/state/preset.test.ts
+
+Scenario: A preset saved before a param existed sounds as saved (REQ-loading-a-preset-starts-from-the-default-sound)
+  Given "tines" is loaded (FM on, a route on fm) and the key is D minor
+  When a user preset that predates osc1.fm and the mod matrix is loaded
+  Then osc1.fm is 0 and every mod row's source is off
+  And the key is still D minor and the master compressor is untouched
+# pinned by: tests/state/preset.test.ts
+
+Scenario: A preset never inherits cross-modulation or a route (REQ-a-factory-preset-sets-the-full-sound)
+  Given "tines" is loaded (FM on, the filter envelope routed to fm)
+  When "basic" is loaded
+  Then osc1.fm is 0 and every mod row's source is off
 # pinned by: tests/state/preset.test.ts
 
 Scenario: A bank exports only what the user actually made (REQ-modified-is-computed-not-tracked)

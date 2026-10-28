@@ -261,6 +261,14 @@ NOTES
   The classic sync lead sweeps it: "lfo.dest": 7 (sync) for a cycling tear, or a mod route from the
   filter envelope ("mod.0.src": 5, "mod.0.dst": 8, "mod.0.amt": 0.3-0.6) for a per-note "yow". Saw
   waves on both oscillators are the archetype; a low "osc1.level" leaves only the synced sound.
+- OSC 1 also modulates OSC 2 two more ways, both 0 (off) by default. "osc1.fm" (0-8) is linear FM, the
+  index: osc1 drives osc2's frequency. Sine waves on both ("osc1.wave"/"osc2.wave": 0) give DX-style
+  bells and e-pianos; "osc2.octave" sets the ratio (1 = 1:2, bright and harmonic), 1-3 is musical and
+  6-8 gets clangy. Set "osc1.level": 0 to hear only the FM'd osc2. For a struck attack that mellows,
+  route the filter envelope to it ("mod.0.src": 5, "mod.0.dst": 9, "mod.0.amt": 0.2-0.5) with
+  "osc1.fm" low. It also works with sync on. "osc1.ring" (0-1) is the level of osc1 × osc2, a ring mod,
+  as its own source in the mix: metallic and bell-like, best with both levels low and osc2 off the
+  octave ("osc2.detune" far from 0).
 - There are TWO LFOs: "lfo.*" and "lfo2.*", same params, same destinations, both off by default
   ("lfo2.dest": 0 and "lfo2.amount": 0). Use the second for a slow pad movement under a faster first —
   e.g. "lfo.dest": 1 for a filter wobble plus "lfo2.dest": 5 for a drifting auto-pan.

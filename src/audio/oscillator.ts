@@ -87,6 +87,14 @@ export interface OscMirror {
  */
 export class Osc {
   readonly out: GainNode;
+  /**
+   * The sounding oscillator before LEVEL: the native node's fade and the sync
+   * pair's output both land here (cross-modulation.md
+   * REQ-oscillator-signals-are-tapped-pre-level). Ring mod and FM read it, so they
+   * follow whichever path is live and a modulator at LEVEL 0 still modulates.
+   * Unity, an exact multiply.
+   */
+  readonly signal: GainNode;
   private readonly osc: OscillatorNode;
   /**
    * The native path's own gain, between the node and `out`, so oscillator sync
@@ -118,10 +126,13 @@ export class Osc {
 
     this.fade = ctx.createGain();
     this.fade.gain.value = 1;
+    this.signal = ctx.createGain();
+    this.signal.gain.value = 1;
     this.out = ctx.createGain();
     this.out.gain.value = 0.7;
     this.osc.connect(this.fade);
-    this.fade.connect(this.out);
+    this.fade.connect(this.signal);
+    this.signal.connect(this.out);
     this.osc.start();
   }
 
@@ -227,6 +238,11 @@ export class Osc {
     return this.osc.detune;
   }
 
+  /** The native node's frequency, which linear FM drives (cross-modulation.md). */
+  get frequencyParam(): AudioParam {
+    return this.osc.frequency;
+  }
+
   private applyDetune(): void {
     // LFO/pitchBend modulate via separate AudioNode → detune connection.
     const cents = this.cents;
@@ -234,8 +250,8 @@ export class Osc {
     this.mirror?.cents(cents);
   }
 
-  /** Octave + fine detune, in cents — the one sum both the node and the mirror take. */
-  private get cents(): number {
+  /** Octave + fine detune, in cents — the one sum the node, the mirror and FM's ratio take. */
+  get cents(): number {
     return this.octave * 1200 + this.detuneCents;
   }
 }

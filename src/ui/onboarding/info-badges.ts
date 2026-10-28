@@ -50,6 +50,7 @@ const ANCHORS: Anchor[] = [
   // off it, and the topic's copy opens on the dropdown anyway.
   { topic: 'presets', find: () => byTestId('preset-select') },
   { topic: 'oscillators', find: () => byHelp('oscillators') },
+  { topic: 'osc2', find: () => byHelp('osc2') },
   { topic: 'subuni', find: () => byHelp('subuni') },
   { topic: 'mixer', find: () => byHelp('mixer') },
   { topic: 'filter', find: () => byHelp('filter') },

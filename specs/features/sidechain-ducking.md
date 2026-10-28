@@ -260,9 +260,10 @@ old files simply lack and receive by default
 ([ADR-007](../decisions/adr-007-songfile-additive-versioning.md); the precedent is
 [tempo-lock](tempo-lock.md) REQ-sync-defaults-to-free). `fx.duck.*` is a patch param and so joins
 presets automatically via `bus.snapshot()` — which makes it subject to
-[presets](presets.md) REQ-a-factory-preset-sets-the-full-sound: `Presets.apply` is a bare `bus.restore(snap)`, so a
-factory preset that omits `fx.duck.on` leaks the previous patch's setting. All
-nineteen factory banks pin it, at 0 — a bank shipping with ducking engaged would
+[presets](presets.md) REQ-a-factory-preset-sets-the-full-sound: `Presets.apply` was then a bare `bus.restore(snap)`, so a
+factory preset that omitted `fx.duck.on` leaked the previous patch's setting (since presets.md
+v15 a load resets it, REQ-loading-a-preset-starts-from-the-default-sound). Every
+factory bank pins it, at 0 — a bank shipping with ducking engaged would
 make its sound depend on whatever drum pattern happened to be loaded.
 
 That obligation had been stated in a comment in `tests/state/preset.test.ts`

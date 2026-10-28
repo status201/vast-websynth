@@ -232,6 +232,10 @@
     flex-basis: 100%;
     height: 0;
   }
+  /* OSC 1's break, which can front three knobs (FM, RING and WIDTH): six in all,
+     which first fit one ultrawide row at 3200px — the step .hex takes for the same
+     six — so it holds until then (cross-modulation.md REQ-the-modulator-controls-live-on-osc-1). */
+  .rowBreak.six { display: block; }
 
   /* A one-line caveat under a control whose range is conditionally limited (the
      LFO rate cap while the pulse destination is selected — oscillators.md REQ-pwm-rate-is-clamped).
@@ -382,6 +386,7 @@
 
   @media (min-width: 3200px) {
     .hex { grid-template-columns: repeat(6, minmax(0, 1fr)); }
+    .rowBreak.six { display: none; }
   }
 
   @media (max-width: 1280px) {

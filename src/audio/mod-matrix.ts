@@ -219,6 +219,18 @@ export class ModMatrix {
     return false;
   }
 
+  /**
+   * Does any live row drive this destination? FM is engaged only while something
+   * can make it heard (cross-modulation.md REQ-cross-mod-disconnects-when-unused),
+   * and a route is one of those things. Read on demand, like `usesSource`.
+   */
+  usesDest(dst: number): boolean {
+    for (const r of this.rows) {
+      if (r.dst === dst && this.isLive(r)) return true;
+    }
+    return false;
+  }
+
   /** Depth in the destination's own unit, applied to every chain the row owns. */
   private applyGain(row: number): void {
     const r = this.rows[row]!;
@@ -247,6 +259,7 @@ function voiceTargets(v: Voice, dst: number): AudioParam[] {
     // means the voice's pitch.
     case MOD_DST.pitch: return v.pitchTargets();
     case MOD_DST.sync: return [v.syncTarget];
+    case MOD_DST.fm: return [v.fmTarget];
     case MOD_DST.shape: return [v.filter.shape];
     case MOD_DST.amp: return [v.tremolo.gain];
     case MOD_DST.drive: return [v.filter.drive];

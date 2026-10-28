@@ -7,6 +7,7 @@ import { scheduleBend } from './note-bend';
 import type { NoteBend } from './transport/note-output';
 import type { SyncOscNode } from './sync-osc/node';
 import { SyncEngagement } from './sync-osc/engagement';
+import { CrossMod } from './cross-mod';
 
 export type VoiceState = 'idle' | 'playing' | 'releasing';
 
@@ -103,6 +104,8 @@ export class Voice {
   readonly syncMod: ConstantSourceNode;
   /** Native oscillators or the sync pair, and the crossfade between them. */
   private readonly sync: SyncEngagement;
+  /** Ring mod and linear FM, OSC 1 modulating OSC 2 (cross-modulation.md). */
+  private readonly xmod: CrossMod;
 
   currentNote = -1;
   state: VoiceState = 'idle';
@@ -196,6 +199,7 @@ export class Voice {
     this.syncMod.offset.value = 0;
     this.syncMod.start();
     this.sync = new SyncEngagement(ctx, this.osc1, this.osc2, () => this.state !== 'idle');
+    this.xmod = new CrossMod(ctx, this.osc1, this.osc2, this.mix);
 
     // Signal path
     this.osc1.out.connect(this.mix);
@@ -236,14 +240,21 @@ export class Voice {
     return this.syncMod.offset;
   }
 
+  /** Where `fm` modulation lands: the FM knob's junction (cross-modulation.md REQ-fm-is-a-modulation-destination). */
+  get fmTarget(): AudioParam {
+    return this.xmod.fmTarget;
+  }
+
   /**
    * Take the sync pair (REQ-the-pair-is-built-on-first-use) — once, when the
    * engine has built the pairs. The voice plugs its junctions in; everything else
-   * about engaging it is `SyncEngagement`'s.
+   * about engaging it is `SyncEngagement`'s. FM's index rides along, so FM keeps
+   * working while the pair is the sound (cross-modulation.md REQ-fm-reaches-the-sync-pair).
    */
   attachSync(pair: SyncOscNode): void {
     this.pitchMod.connect(pair.detune);
     this.syncMod.connect(pair.syncPitch);
+    this.xmod.fmSignal.connect(pair.fm);
     this.sync.attach(pair);
   }
 
@@ -254,6 +265,35 @@ export class Voice {
 
   setSyncPitch(semitones: number): void {
     rampTo(this.syncMod.offset, semitones, this.ctx, RAMP_FAST);
+  }
+
+  /**
+   * An oscillator's octave or fine tune. Through the voice rather than straight
+   * to the `Osc`, because FM's ratio k follows both (cross-modulation.md
+   * REQ-fm-index-is-relative-to-the-modulator).
+   */
+  setOscOctave(osc: 1 | 2, octave: number): void {
+    (osc === 1 ? this.osc1 : this.osc2).setOctave(octave);
+    this.xmod.setRatio(this.osc1.cents, this.osc2.cents);
+  }
+
+  setOscTune(osc: 1 | 2, cents: number): void {
+    (osc === 1 ? this.osc1 : this.osc2).setDetuneCents(cents);
+    this.xmod.setRatio(this.osc1.cents, this.osc2.cents);
+  }
+
+  /** `osc1.fm`: the FM index. Whether it is heard is `setFmInUse`'s. */
+  setFm(beta: number): void {
+    this.xmod.setFmIndex(beta);
+  }
+
+  setFmInUse(on: boolean): void {
+    this.xmod.setFmInUse(on);
+  }
+
+  /** `osc1.ring`: the ring product's level in the mix. */
+  setRing(level: number): void {
+    this.xmod.setRing(level);
   }
 
   /**
@@ -333,6 +373,7 @@ export class Voice {
     this.osc2.setFrequency(hz, when, g);
     this.sub.setFrequency(hz, when, g);
     this.sync.setFrequency(hz, when, g);
+    this.xmod.setFrequency(hz, when, g);
     // The step's own bend, landing with the note like the frequency above. No
     // bend on a clean voice writes nothing (REQ-a-bend-zero-schedules-nothing).
     this.bendDirty = scheduleBend(this.noteBend.offset, opts?.bend, when, this.bendDirty);

@@ -316,6 +316,7 @@ export type TopicId =
   | 'panic'
   | 'presets'
   | 'oscillators'
+  | 'osc2'
   | 'subuni'
   | 'mixer'
   | 'filter'
@@ -463,7 +464,7 @@ export const HELP_TOPICS: Record<TopicId, HelpTopic> = {
     body:
       '<p>A <strong>preset</strong> is one <em>sound</em> — every knob and switch on the synth, ' +
       'nothing else. (A <strong>song</strong>, over on the Song tab, is the whole arrangement: ' +
-      'patterns, chains and a sound.) The dropdown flips through 19 factory sounds plus your own; ' +
+      'patterns, chains and a sound.) The dropdown flips through 24 factory sounds plus your own; ' +
       'pick one and play.</p>' +
       '<p>The <strong>Presets</strong> button is the one door for everything else:</p>' +
       '<ul>' +
@@ -481,29 +482,57 @@ export const HELP_TOPICS: Record<TopicId, HelpTopic> = {
       '<em>overwrite</em> or <em>skip</em>. Nothing is written until you confirm, and the sound ' +
       'you are currently playing is never touched.</p>',
   },
+  // OSC 1 and OSC 2 carry a badge each (onboarding.md REQ-each-oscillator-carries-its-own-badge):
+  // the shared controls are explained once, here, and `osc2` points back to them.
   oscillators: {
-    title: 'Oscillators (OSC 1 & 2)',
+    title: 'OSC 1',
     body:
-      '<p>The raw tone generators — the source of the sound. There are two identical ones, ' +
-      '<strong>OSC 1</strong> and <strong>OSC 2</strong>, so you can layer them.</p>' +
+      '<p>The two oscillators are the raw tone generators, the source of the sound. ' +
+      'They share their basic controls:</p>' +
       '<ul>' +
       '<li><strong>Wave</strong> — the waveform (sine, triangle, saw, square). Saw is bright and ' +
       'buzzy; sine is pure and soft.</li>' +
       '<li><strong>OCT</strong> — shifts this oscillator up or down whole octaves.</li>' +
-      '<li><strong>TUNE</strong> — fine pitch in semitones. Detune OSC 2 a little against OSC 1 ' +
+      '<li><strong>TUNE</strong> — fine pitch in cents. Detune OSC 2 a little against OSC 1 ' +
       'for a thick, lively sound.</li>' +
       '<li><strong>LEVEL</strong> — how loud this oscillator is in the mix.</li>' +
       '<li><strong>WIDTH</strong> — only shown on the <strong>square</strong> wave: the pulse ' +
       'width. At 50% it is a plain square; narrowing it thins the tone toward a reedy, ' +
       'hollow buzz. Point the LFO at <em>pulse</em> to sweep it for the classic PWM ' +
       'string/pad shimmer.</li>' +
-      '<li><strong>SYNC</strong> (OSC 2 only) — locks OSC 2 to OSC 1: every time OSC 1 ' +
-      'starts a cycle, OSC 2 is forced to start over (<strong>hard</strong>) or turn around ' +
-      '(<strong>soft</strong>, rounder and gentler). The note you hear stays OSC 1’s; the ' +
-      '<strong>SYNC</strong> knob, shown while sync is on, now changes the <em>tone</em> instead ' +
-      'of the pitch. Sweep it — or point an LFO or the filter envelope (in the mod matrix) at ' +
-      '<em>sync</em> — for the classic tearing sync lead.</li>' +
-      '</ul>',
+      '</ul>' +
+      '<p>OSC 1 can also <em>shape</em> OSC 2. These two knobs are its outputs into OSC 2:</p>' +
+      '<ul>' +
+      '<li><strong>FM</strong> — OSC 1 wobbles OSC 2’s pitch so fast you hear it as tone, ' +
+      'not vibrato: bells, electric pianos, clangs and growls. Sine waves on both are the ' +
+      'classic start; OSC 2’s <strong>OCT</strong> and <strong>TUNE</strong> set the ' +
+      'flavour, and turning OSC 1’s <strong>LEVEL</strong> down leaves just the FM sound. ' +
+      'Point the filter envelope at <em>fm</em> in the mod matrix for a bright attack that ' +
+      'mellows.</li>' +
+      '<li><strong>RING</strong> — mixes in OSC 1 × OSC 2, a metallic, bell-like tone made ' +
+      'of their sum and difference. It has its own level: turn both LEVELs down to hear it ' +
+      'alone, and detune OSC 2 off the octave for clangier results.</li>' +
+      '</ul>' +
+      '<p>Try the <strong>tines</strong>, <strong>chime</strong>, <strong>growl</strong> and ' +
+      '<strong>clang</strong> presets to hear them.</p>',
+  },
+  osc2: {
+    title: 'OSC 2',
+    body:
+      '<p>The second oscillator. Wave, OCT, TUNE, LEVEL and WIDTH work exactly as on ' +
+      'OSC 1 (its own help covers them). What is OSC 2’s alone is <strong>SYNC</strong>:</p>' +
+      '<ul>' +
+      '<li><strong>SYNC</strong> — locks OSC 2 to OSC 1: every time OSC 1 starts a cycle, ' +
+      'OSC 2 is forced to start over (<strong>hard</strong>) or turn around ' +
+      '(<strong>soft</strong>, rounder and gentler).</li>' +
+      '<li>The note you hear stays OSC 1’s. The <strong>SYNC</strong> knob, shown while ' +
+      'sync is on, now changes the <em>tone</em> instead of the pitch.</li>' +
+      '<li>Sweep it — or point an LFO or the filter envelope (in the mod matrix) at ' +
+      '<em>sync</em> — for the classic tearing sync lead. Saw waves on both are the ' +
+      'archetype; the <strong>tear</strong> preset is one.</li>' +
+      '</ul>' +
+      '<p>OSC 1’s <strong>FM</strong> keeps working while sync is on, which roughens the ' +
+      'tear further.</p>',
   },
   subuni: {
     title: 'Sub & Unison',

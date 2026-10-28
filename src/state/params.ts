@@ -319,6 +319,11 @@ export function registerDefaults(bus: ParamBus): void {
     { id: 'osc1.level', min: 0, max: 1, default: 0.7, format: fmtPct },
     // 0.5 IS a square wave, so the default is an exact no-op (oscillators.md REQ-oscillators-have-a-pulse-width).
     { id: 'osc1.pulseWidth', min: 0.5, max: 0.95, default: 0.5, format: fmtPct },
+    // Cross-modulation, OSC 1 as the modulator (cross-modulation.md). Both 0 = the
+    // native path, untouched (REQ-cross-mod-off-is-the-native-path). FM is the index β;
+    // curve 2 puts the musical 0..2 range across the first half of the knob.
+    { id: 'osc1.fm', min: 0, max: 8, default: 0, taper: 'power', curve: 2, format: (v) => v.toFixed(1) },
+    { id: 'osc1.ring', min: 0, max: 1, default: 0, format: fmtPct },
 
     // ----- OSC 2 -----
     { id: 'osc2.wave', min: 0, max: 3, default: 2, step: 1, taper: 'discrete', labels: WAVE_LABELS },

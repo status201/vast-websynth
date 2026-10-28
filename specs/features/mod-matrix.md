@@ -3,7 +3,10 @@
 ```yaml
 id: mod-matrix
 status: implemented
-version: 7   # v7: `sync` appended to MOD_DEST_LABELS (index 8, full scale 48 st), a per-voice
+version: 8   # v8: `fm` appended to MOD_DEST_LABELS (index 9, full scale 8 index units), a per-voice
+             #     destination with a knob (osc1.fm) — cross-modulation.md REQ-fm-is-a-modulation-destination;
+             #     ModMatrix.usesDest lets the Engine engage FM for a route alone
+             # v7: `sync` appended to MOD_DEST_LABELS (index 8, full scale 48 st), a per-voice
              #     destination with a knob (osc2.syncPitch) — oscillator-sync.md
              #     REQ-sync-is-a-modulation-destination; `pitch` now reaches the sync pair's junction too
              # v6: a depth write during a re-patch waits for the rewire (REQ-one-gain-per-route-rewired-while-silent) —
@@ -25,6 +28,7 @@ related:
   - voicing
   - runtime-performance
   - floating-window
+  - cross-modulation             # v8: the `fm` destination
 source:
   - src/audio/mod-matrix.ts        # route table, fan-out, source/dest wiring
   - src/audio/engine.ts            # builds the matrix in the voice loop; subscribes mod.*
@@ -234,8 +238,8 @@ concern.**
     the **mod wheel**, because the wheel adds into its depth (REQ-a-modulated-knob-shows-its-reach there). A band
     that ignored either would promise a sweep the instrument does not play.
 
-  Only five destinations have a knob to draw on — cutoff, resonance, shape, drive,
-  and (v7) `sync`, whose knob is `osc2.syncPitch`.
+  Only six destinations have a knob to draw on — cutoff, resonance, shape, drive,
+  (v7) `sync`, whose knob is `osc2.syncPitch`, and (v8) `fm`, whose knob is `osc1.fm`.
   `pitch`, `amp` and `pan` are owned by no single control (three oscillator detunes,
   the tremolo VCA, the bus panner), so they have no band. Knobs are self-wiring
   ([ADR-008](../decisions/adr-008-components-self-wire-params.md)): each asks whether

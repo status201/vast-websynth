@@ -64,6 +64,19 @@ describe('the SYNC knob shows its reach (oscillator-sync.md REQ-sync-is-a-modula
   });
 });
 
+describe('the FM knob shows its reach (cross-modulation.md REQ-fm-is-a-modulation-destination)', () => {
+  it('is a modulation destination with an arc', () => {
+    expect(isModDestParam('osc1.fm')).toBe(true);
+  });
+
+  it('a matrix route reaches 8 index units at full scale', () => {
+    const depth = modDepthFor('osc1.fm', reader({
+      'mod.0.src': MOD_SRC.filEnv, 'mod.0.dst': MOD_DST.fm, 'mod.0.amt': -0.5,
+    }));
+    expect(depth).toBe(4);
+  });
+});
+
 describe('modDepthFor', () => {
   it('is zero when nothing points at the param', () => {
     expect(modDepthFor('filter.cutoff', reader({}))).toBe(0);

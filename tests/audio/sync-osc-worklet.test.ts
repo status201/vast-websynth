@@ -74,6 +74,15 @@ function render(
 const semis = (ratio: number) => 12 * Math.log2(ratio);
 
 /**
+ * FM + hard sync's alias ceiling below 10 kHz, at 130 and 744 Hz masters. Measured
+ * −52…−65 dB there (naive −17…−28). A 2.9 kHz master falls to ~−34 dB: the
+ * increment swings across the kernel's width and clamps at 0 Hz, so the residuals'
+ * locally-constant assumption fails — accepted under ADR-010, as the sine slave is
+ * (cross-modulation.md → Tests & verification).
+ */
+const FM_ALIAS_FLOOR_DB = -50;
+
+/**
  * Alias energy relative to harmonic energy, in dB. `G` is the grid — twice the
  * output period in samples, an odd integer — so even bins are harmonics and odd
  * bins aliases. Only bins up to `maxHz` count as aliases.
@@ -219,6 +228,68 @@ describe('the pair is bounded for any input (REQ-the-pair-is-bounded)', () => {
     const wild = Float32Array.from({ length: BLOCK }, (_, i) => hostile[i % hostile.length]!);
     const { master, slave } = render({ frequency: wild, detune: wild, syncPitch: wild, mode: HARD, wave2: SQUARE }, 4096);
     expect(peak(master, slave)).toBeLessThanOrEqual(2);
+  });
+});
+
+describe('linear FM inside the pair (cross-modulation.md REQ-fm-reaches-the-sync-pair)', () => {
+  it('fm = 0 renders exactly what a pair without the param renders', () => {
+    const over = { frequency: 311, syncPitch: semis(2.3), mode: HARD, wave1: SINE, wave2: SAW };
+    const withZero = render({ ...over, fm: 0 }, 4096).slave;
+    const proc = new Processor({});
+    const p = params(over);
+    delete (p as Record<string, Float32Array | undefined>).fm;
+    const without = new Float32Array(withZero.length);
+    for (let off = 0; off < without.length; off += BLOCK) {
+      const a = new Float32Array(BLOCK), b = new Float32Array(BLOCK);
+      proc.process([], [[a], [b]], p);
+      without.set(b, off);
+    }
+    expect(Array.from(withZero)).toEqual(Array.from(without));
+  });
+
+  it('moves the slave, and leaves the master alone', () => {
+    const over = { frequency: 311, syncPitch: semis(2.3), mode: HARD, wave1: SINE, wave2: SAW };
+    const a = render({ ...over, fm: 0 }, 4096);
+    const b = render({ ...over, fm: 2 }, 4096);
+    expect(Array.from(b.master)).toEqual(Array.from(a.master));
+    let diff = 0;
+    for (let n = 0; n < a.slave.length; n++) diff = Math.max(diff, Math.abs(a.slave[n]! - b.slave[n]!));
+    expect(diff).toBeGreaterThan(0.1);
+  });
+
+  it('under hard sync the slave still repeats with the master period', () => {
+    const { slave } = render({ frequency: SR / 64, syncPitch: semis(2.7), mode: HARD, wave1: SINE, wave2: SAW, fm: 3 }, 8192);
+    let worst = 0;
+    for (let n = 4096; n < 8000; n++) worst = Math.max(worst, Math.abs(slave[n]! - slave[n - 64]!));
+    expect(worst).toBeLessThan(1e-3);
+  });
+
+  // FM + hard sync is still exactly periodic at the master's period, so the alias
+  // metric of REQ-every-discontinuity-is-band-limited applies unchanged.
+  for (const P of [369.5, 64.5]) {
+    for (const beta of [1, 3]) {
+      const f0 = Math.round(SR / P);
+      it(`saw slave at ${f0} Hz × 1.5, fm ${beta}, stays band-limited`, () => {
+        const G = Math.round(2 * P);
+        const over = { frequency: SR / P, syncPitch: semis(1.5), mode: HARD, wave1: SINE, wave2: SAW, fm: beta };
+        const shipped = aliasDb(render(over, G * 12 + 4096).slave, G, 4096, 8, 10000);
+        const naive = aliasDb(render(over, G * 12 + 4096, { kernel: 'naive' }).slave, G, 4096, 8, 10000);
+        expect(shipped).toBeLessThan(FM_ALIAS_FLOOR_DB);
+        expect(shipped).toBeLessThan(naive - 15);
+      });
+    }
+  }
+
+  it('stays bounded for any fm (REQ-cross-mod-is-bounded)', () => {
+    for (const fm of [NaN, Infinity, -Infinity, 1000, -1000, 1e-30]) {
+      const { master, slave } = render({ frequency: 440, syncPitch: 12, mode: HARD, fm }, 2048);
+      for (const x of [master, slave]) {
+        for (const y of x) expect(Number.isFinite(y) && Math.abs(y) <= 2, `fm ${fm}`).toBe(true);
+      }
+    }
+    const wild = Float32Array.from({ length: BLOCK }, (_, i) => [NaN, 1e9, -1e9, 0][i % 4]!);
+    const { slave } = render({ frequency: 440, syncPitch: 12, mode: SOFT, fm: wild }, 2048);
+    expect(slave.every((y) => Number.isFinite(y) && Math.abs(y) <= 2)).toBe(true);
   });
 });
 

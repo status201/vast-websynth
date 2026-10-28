@@ -3,7 +3,8 @@
 ```yaml
 id: onboarding
 status: implemented
-version: 29  # v29: one badge for the demo row, song.demos, which opens the demo library; HelpContext gains loadDemo and loadedDemo, TourCtx gains loadedDemo (demo-library.md REQ-info-mode-badges-the-demo-row-once)
+version: 30  # v30: OSC 2 gets its own badge and topic, `osc2` (REQ-each-oscillator-carries-its-own-badge)
+             # v29: one badge for the demo row, song.demos, which opens the demo library; HelpContext gains loadDemo and loadedDemo, TourCtx gains loadedDemo (demo-library.md REQ-info-mode-badges-the-demo-row-once)
              # v28: help copy catches up with the release (REQ-help-copy-tells-the-truth): 19 factory sounds, Delete or revert…, chord Inversion, drag-and-drop import, the MIDI in picker, aftertouch, wide-screen octaves; the About key list gains the drum/sampler grid row
              # v27: the Equalizer carries seven badges — one section topic plus a
              #      graph and a knob-row topic per lane — and its page shells
@@ -127,6 +128,18 @@ thing.
   `TopicId` and the `data-help="<topic>"` anchors — because an info badge opens
   a help topic, and the anchors are spread across every panel file. The boundary
   is deliberate, not drift.
+
+- **REQ-each-oscillator-carries-its-own-badge** (v30) — OSC 1 and OSC 2 each
+  carry a panel badge, `oscillators` and `osc2`, anchored by `data-help` on
+  their panels. One topic once explained both. Sync, FM and ring
+  ([oscillator-sync](oscillator-sync.md), [cross-modulation](cross-modulation.md))
+  grew it past what one modal reads comfortably, and each panel now has controls
+  the other lacks. The split follows the panels:
+  - `oscillators` (OSC 1) explains the shared controls (wave, OCT, TUNE, LEVEL,
+    WIDTH) once, then OSC 1's own FM and RING.
+  - `osc2` covers what is OSC 2's alone: SYNC and its knob, and how OSC 1 shapes
+    OSC 2. It points back to OSC 1 for the shared controls instead of repeating
+    them.
 
 - **REQ-callout-placement-adapts** — Placement of callouts adapts
   (`auto`/top/bottom/left/right) to stay on-screen.
@@ -726,6 +739,12 @@ interactivity: spotlight overlay is pointer-events:none so the underlying contro
 ## Scenarios (BDD)
 
 ```gherkin
+Scenario: Each oscillator carries its own badge (REQ-each-oscillator-carries-its-own-badge)
+  Given the info badges are on
+  Then OSC 1 shows info-badge-oscillators and OSC 2 shows info-badge-osc2
+  And the OSC 2 topic explains SYNC, while the OSC 1 topic explains FM and RING
+# pinned by: tests/ui/help-content.test.ts, e2e/onboarding.spec.ts
+
 Scenario: The spotlighted control stays interactive
   Given the tour is on the "press a key" step
   When the user clicks the spotlighted key
