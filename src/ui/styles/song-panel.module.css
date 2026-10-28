@@ -231,7 +231,7 @@
     align-items: center;
     gap: 8px;
     flex-wrap: wrap;
-    border-top: 1px dashed rgba(244, 205, 94, 0.18);
+    border-top: 1px dashed var(--rule);
     padding-top: 8px;
   }
 
@@ -272,7 +272,7 @@
     align-items: center;
     gap: 12px;
     flex-wrap: wrap;
-    border-top: 1px dashed rgba(244, 205, 94, 0.18);
+    border-top: 1px dashed var(--rule);
     padding-top: 12px;
   }
 
@@ -315,7 +315,7 @@
     align-items: center;
     gap: 8px;
     flex-wrap: wrap;
-    border-top: 1px dashed rgba(244, 205, 94, 0.18);
+    border-top: 1px dashed var(--rule);
     padding-top: 12px;
   }
 
@@ -341,7 +341,7 @@
       justify-content: space-between;
       flex-wrap: wrap;
       gap: 8px 24px;
-      border-top: 1px dashed rgba(244, 205, 94, 0.18);
+      border-top: 1px dashed var(--rule);
       padding-top: 12px;
     }
     /* The rule and its inset now belong to the pair, not to each half. */

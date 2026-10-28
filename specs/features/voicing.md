@@ -3,7 +3,9 @@
 ```yaml
 id: voicing
 status: implemented
-version: 8   # v8: REQ-passthrough-remembers-what-it-played — a key held as the arp comes on is still
+version: 9   # v9: REQ-the-glide-switch-reads-on — the MIXER's glide switch shows `always` as ON,
+             #     so the switch fits its panel (responsive-synth-panels.md); the label stays `always`
+             # v8: REQ-passthrough-remembers-what-it-played — a key held as the arp comes on is still
              #     released when you let go (the arp gate swallowed note-offs too)
              # v7: heldNotes being keyed by NOTE is what makes two sequencer tracks on one
              #     pitch share a voice, and so one pan (sequencer.md REQ-two-tracks-on-one-pitch-share-a-pan)
@@ -54,6 +56,20 @@ time 0 reproduces the pre-song-mode behaviour, keeping existing presets unchange
 
 - **REQ-glide-controls-portamento** — Glide time + mode control portamento;
   defaults reproduce the legacy no-glide behaviour.
+
+- **REQ-the-glide-switch-reads-on** — (v9) The MIXER's glide switch reads
+  **OFF / ON / LEGATO**. Only the button text changes: `glide.mode`'s labels stay
+  `['off', 'always', 'legato']`, so presets, songs, share links, the MCP
+  tools and the authoring guide keep saying `always`. The button text is derived
+  from `GLIDE_MODE_LABELS` (only `always` is swapped), so count and order cannot
+  drift from the param. Why: OFF / ALWAYS / LEGATO is ~139px even fully
+  tightened, wider than the 121px MIXER body at 1281px, so it spilled past the
+  panel (responsive-synth-panels.md REQ-selectors-never-outgrow-their-panel);
+  OFF / ON / LEGATO fits at every width. ON pairs naturally with OFF, and LEGATO
+  still names the conditional case. The MIXER help topic spells out what ON
+  means (every note) next to LEGATO (only when notes overlap). OFF stays: it
+  is not the same as GLIDE at 0ms, because demos switch glide off while keeping
+  a glide time stored.
 
   **(v5) A glide starts from the pitch the previous one had reached, on both
   engines.** `Osc.setFrequency` cancels before it schedules, and the cancel is

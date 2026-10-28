@@ -3,7 +3,9 @@
 ```yaml
 id: panel-tabs
 status: implemented
-version: 2
+version: 3   # v3: REQ-the-strip-replaces-the-title — a tab is the title's own box (14px line +
+             #     6px + dashed rule), unboxed, one vertical divider; the rule sits under the
+             #     inactive tab only, and the labels sit on every other title's line
 owner: core
 related:
   - architecture
@@ -122,10 +124,12 @@ whole of this component.
   not sit beside it.** Each tab names its own page in full (`LFO 1`, `LFO 2`),
   so a separate heading would only repeat them, and a title-plus-strip row costs
   vertical space that the 8-column faceplate does not have. The row therefore
-  occupies **exactly a plain `.panelTitle`'s height** (21 px today: a 13 px line
-  box + 3 px padding + 1 px border top and bottom, against the title's 14 px
-  line box + 6 px padding + 1 px rule), so a tabbed panel's controls stay on the
-  same baseline as its untabbed neighbours across the grid.
+  occupies **exactly a plain `.panelTitle`'s height**, so a tabbed panel's
+  controls stay on the same baseline as its untabbed neighbours across the grid.
+  (v3) It gets there by being the **same box**: a tab declares the title's 14 px
+  line box, 6 px bottom padding and 1 px dashed rule, so the row is 21 px for the
+  same reason the title is. (v2 reached 21 px from different parts: a 13 px line
+  box + 3 px padding + 1 px border top and bottom.)
   - **Both sides of the match declare their `line-height` in px.** Leaving
     either to the font makes the equality a property of the machine rather than
     of the stylesheet: `--sans` is `'Inter', system-ui, …` and no build ships
@@ -140,13 +144,28 @@ whole of this component.
     runs everywhere and computes both box heights from the declarations), and by
     measuring the laid-out rows in a real browser (`e2e/lfo2.spec.ts` — jsdom has
     no layout engine, so only an E2E assertion can see the rendered box).
-  - **Unselected** tabs use the `Switch` well (`linear-gradient(180deg, #1a1410,
-    #0a0805)` + `--panel-border`), so the page you are *not* on reads as a
-    control to press. **Selected** wears the panel-title look exactly — same
-    size, spacing, weight and `--accent-secondary` — over the panel's own
-    ground, distinguished only by a subtle `rgba(244, 205, 94, 0.28)` outline and
-    top-rounded corners. The shape is what says "tab" at this size; nothing
-    shouts.
+  - **(v3) The labels sit on every other title's line.** With the same line box,
+    padding, size, tracking and weight as `.panelTitle`, and the text at the top
+    of both boxes, a tab's label and a plain title share a baseline across the
+    faceplate by construction, not by tuning. A tab has no `text-indent` for the
+    same reason: the title has none.
+  - **(v3) No box — the header look, with the rule as the state.** Neither tab
+    has a background, an outline or rounded corners; the strip looks like a
+    title row. One vertical divider separates the tabs, in the title rule's own
+    dashed `--rule` colour (theme.css). The dashed rule runs under the
+    **unselected** tab only. The selected tab keeps the rule's 1 px as
+    `transparent` so its height cannot move, and is "open" into its page; the
+    divider meets the rule at a corner and traces that open tab's outline.
+    **Selected** wears the panel-title look exactly (`--accent-secondary` and the
+    title's text shadow); **unselected** is `--text-faint`, and `--text-dim` on
+    hover. Why: v2's unselected tab was a dark `Switch` well and the selected one
+    had a gold outline, which made the header read as a control strip next to
+    the plain titles beside it. The strip *is* the header, so it should look like
+    one, and the rule now does the well's old job of marking the page you are
+    not on.
+  - The lamp (REQ-set-lit-puts-a-lamp-on-a-tab) stays out of flow at the tab's
+    left edge, centred on the 14 px **text line** rather than on the box,
+    because the bottom padding would otherwise drop it 3 px below the label.
 
 - **REQ-panel-tabs-share-the-row-evenly** — Tabs **share the row evenly**
   (`flex: 1 1 0`): 50/50 for two, 33/33/33 for three. A content-width strip
@@ -273,6 +292,19 @@ Scenario: Each tab names its own page, with no separate heading (REQ-the-strip-r
   Given a two-page LFO panel
   Then the tabs read "LFO 1" and "LFO 2" and the panel carries no other title
 # pinned by: tests/ui/panel-tabs.test.ts, tests/ui/lfo-panel.test.ts
+
+Scenario: Tab labels sit on the title line (REQ-the-strip-replaces-the-title)
+  Given the LFO panel beside the untabbed AMP ENV panel
+  When the faceplate lays out
+  Then the top of the "LFO 1" label's text is level with the top of "AMP ENV"'s
+# pinned by: e2e/lfo2.spec.ts (the tab labels sit on the plain titles' line)
+
+Scenario: The title rule marks the unselected tab (REQ-the-strip-replaces-the-title)
+  Given the LFO panel showing page 1
+  Then "LFO 2" has the dashed title rule under it and "LFO 1" does not
+  When the user picks "LFO 2"
+  Then the rule moves under "LFO 1"
+# pinned by: e2e/lfo2.spec.ts (the title rule marks the unselected tab)
 
 Scenario: Tabs share the header evenly (REQ-panel-tabs-share-the-row-evenly)
   Given two pages in a panel wide enough for both

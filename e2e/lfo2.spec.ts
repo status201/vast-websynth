@@ -63,6 +63,36 @@ test.describe('LFO 2', () => {
     }
   });
 
+  // v3: a tab is the title's own box, so its label shares the title's line.
+  // Text against text — a Range gives the glyph box, which is what the eye lines up.
+  test('the tab labels sit on the plain titles\' line', async ({ page }) => {
+    await gotoAndStart(page);
+    const [tab, title] = await page.evaluate(() => {
+      const textTop = (node: Node): number => {
+        const r = document.createRange();
+        r.selectNodeContents(node);
+        return r.getBoundingClientRect().top;
+      };
+      const label = document.querySelector('[data-testid="ptab-lfo-1"]')!.lastElementChild!;
+      return [textTop(label), textTop(document.querySelector('[data-help="ampenv"]')!)];
+    });
+    expect(Math.abs(tab - title)).toBeLessThanOrEqual(0.5);
+  });
+
+  // v3: no box — the dashed title rule sits under the page you are NOT on.
+  test('the title rule marks the unselected tab', async ({ page }) => {
+    await gotoAndStart(page);
+    const rule = (id: string) => page.getByTestId(`ptab-lfo-${id}`).evaluate((el) => {
+      const cs = getComputedStyle(el);
+      return cs.borderBottomStyle === 'dashed' && cs.borderBottomColor !== 'rgba(0, 0, 0, 0)';
+    });
+    expect(await rule('1'), 'LFO 1 (selected) has no rule').toBe(false);
+    expect(await rule('2'), 'LFO 2 (unselected) has the rule').toBe(true);
+    await page.getByTestId('ptab-lfo-2').click();
+    expect(await rule('1'), 'LFO 1 (unselected) has the rule').toBe(true);
+    expect(await rule('2'), 'LFO 2 (selected) has no rule').toBe(false);
+  });
+
   test('the tabs split the header evenly', async ({ page }) => {
     await gotoAndStart(page);
     const w = async (id: string) => (await page.getByTestId(`ptab-lfo-${id}`).boundingBox())!.width;

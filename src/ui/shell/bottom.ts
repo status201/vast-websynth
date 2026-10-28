@@ -6,7 +6,7 @@ import { Keyboard } from '../components/keyboard';
 import { keyboardRange, whiteKeyPx } from '../keyboard-range';
 import { onKeyChange, readKeyState } from '../key-roles';
 import { buildEqPanel } from '../panels/eq-panel';
-import { isPhone } from '../viewport';
+import { isPhone, pageScrollbarWidth } from '../viewport';
 import { buildScopePanel } from './scope-panel';
 import bottomStyles from '../styles/bottom.module.css';
 import { audibleTimeline } from '../audible';
@@ -57,15 +57,20 @@ export function buildBottom(
   // white key outgrows MAX_WHITE_PX. setRange is a no-op unless the count changes.
   // The same observation hands CSS the white-key width, which bounds the key
   // height (keyboard-range.md REQ-key-height-follows-key-width). Whole px, and written
-  // only when it changes (runtime-performance.md REQ-dom-writes-are-guarded-on-what-is-rendered);
-  // the width never depends on the height, so this cannot feed back.
+  // only when it changes (runtime-performance.md REQ-dom-writes-are-guarded-on-what-is-rendered).
+  //
+  // The height does reach back to the width, through the PAGE scrollbar: a page a
+  // pixel too tall shows one, which narrows the keyboard, which shortens the keys,
+  // which makes the page fit, which hides it — every frame. So both are derived
+  // from the width the keyboard would have with no scrollbar, which showing one
+  // cannot change (keyboard-range.md REQ-the-key-size-ignores-the-page-scrollbar).
   const phone = isPhone();
   const keyboard = new Keyboard({ bus, ...keyboardRange(0, phone) });
   kbWrap.appendChild(keyboard.el);
   if (typeof ResizeObserver !== 'undefined') {
     let keyW = '';
     new ResizeObserver((entries) => {
-      const width = entries[entries.length - 1]!.contentRect.width;
+      const width = entries[entries.length - 1]!.contentRect.width + pageScrollbarWidth();
       const range = keyboardRange(width, isPhone());
       keyboard.setRange(range);
       const next = `${whiteKeyPx(width, range.octaves)}px`;

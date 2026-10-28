@@ -555,7 +555,8 @@ export const HELP_TOPICS: Record<TopicId, HelpTopic> = {
       '<li><strong>DRIFT</strong> — gentle random pitch wander that mimics the warmth of analogue ' +
       'hardware.</li>' +
       '</ul>' +
-      '<p>The mode switch sets <em>when</em> glide applies (always, or only when notes overlap).</p>',
+      '<p>The mode switch sets <em>when</em> glide applies: <strong>ON</strong> slides into every ' +
+      'note, <strong>LEGATO</strong> only when notes overlap, and <strong>OFF</strong> never.</p>',
   },
   filter: {
     title: 'Filter',

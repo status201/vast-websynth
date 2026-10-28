@@ -32,7 +32,7 @@
     color: var(--accent-secondary);
     text-align: center;
     padding-bottom: 6px;
-    border-bottom: 1px dashed rgba(244, 205, 94, 0.18);
+    border-bottom: 1px dashed var(--rule);
     font-weight: 600;
     text-shadow: 0 1px 0 rgba(0, 0, 0, 0.7);
   }
@@ -46,73 +46,106 @@
     flex: 1;
   }
 
+  /* The knob zone between a panel's selectors (responsive-synth-panels.md
+     REQ-selectors-pin-to-the-panel-edges). It takes all the body's spare height,
+     which leaves the wave / model selector before it flush with the top and the
+     mode control after it flush with the bottom — so they line up across the
+     faceplate row — and centres the knobs in what is between. Same gap as
+     .panelBody, so a panel with no height to spare looks as it always did. */
+  .panelKnobs {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    width: 100%;
+    min-height: 0;
+  }
+
+  /* The selector and mode control either side of it. Never wider than the body
+     (REQ-selectors-never-outgrow-their-panel); where the body is narrow, the
+     media block at the end of this file tightens the switch to fit. */
+  .panelEdge {
+    max-width: 100%;
+  }
+
   /* ===== Tabbed panels (specs/features/panel-tabs.md) ===== */
 
   /* The tab strip IS the panel header — it replaces .panelTitle rather than
-     sitting beside it, and must occupy the same vertical space so a tabbed panel
-     still lines up with its untabbed neighbours across the grid (REQ-stereo-on-a-mono-scope-falls-back).
-     .panelTitle's footprint is a 14px line + 6px padding + a 1px rule; the tabs
-     reach the same total from their own padding + border. */
+     sitting beside it, and looks like one: no boxes, one vertical divider, and
+     the title's dashed rule under the page you are not on (panel-tabs.md
+     REQ-the-strip-replaces-the-title). No gap, so the rule and the divider meet. */
   .panelTabs {
     display: flex;
-    gap: 4px;
     width: 100%;
     min-width: 0;
   }
 
   .panelTab {
-    /* Even share of the row: 50/50 for two, 33/33/33 for three (REQ-spectrum-draws-a-peak-hold). */
+    /* Even share of the row: 50/50 for two, 33/33/33 for three
+       (panel-tabs.md REQ-panel-tabs-share-the-row-evenly). */
     flex: 1 1 0;
     min-width: 0;
     position: relative;
-    padding: 3px 6px;
-    /* Rounded at the top only — the shape is what says "tab" at this size. */
-    border-radius: 4px 4px 0 0;
-    /* Unselected: the same dark well as a Switch, so the page you are not on
-       reads as something to press rather than as a heading. */
-    background: linear-gradient(180deg, #1a1410, #0a0805);
-    border: 1px solid var(--panel-border);
+    /* .panelTitle's own box — 14px line + 6px + the 1px rule = 21px, text at the
+       top — so the row is its height and the label sits on its line by
+       construction. Longhands, all in px: tests/ui/panel-header-height.test.ts
+       computes both boxes from these declarations (and e2e/lfo2.spec.ts measures
+       the rendered rows). padding-top is stated because base.css leaves a
+       button's UA padding alone. */
+    padding-top: 0px;
+    padding-bottom: 6px;
+    padding-left: 6px;
+    padding-right: 6px;
+    /* The rule marks the unselected tab; .active hides it but keeps its 1px. */
+    border-bottom: 1px dashed var(--rule);
     color: var(--text-faint);
-    /* Deliberately NO font-family: the active tab has to match .panelTitle, which
+    /* Deliberately NO font-family: a tab has to match .panelTitle, which
        inherits the sans (typography.md REQ-serif-is-display-type-only). Declaring a serif here would also
        add an entry to the typography drift allowlist. */
     font-size: 10px;
-    /* Explicit, so the row lands on .panelTitle's exact height (REQ-stereo-on-a-mono-scope-falls-back) rather
-       than on whatever line box the font happens to give: 13 + 3 + 3 + 1 + 1 = 21,
-       which is .panelTitle's 14px line + 6px padding + its 1px rule — declared
-       there too, for the same reason. Pinned by tests/ui/panel-header-height.test.ts
-       (the arithmetic, everywhere) and e2e/lfo2.spec.ts (the rendered rows; jsdom
-       has no layout, so only a real browser can measure those). */
-    line-height: 13px;
+    line-height: 14px;
     text-transform: uppercase;
     letter-spacing: 0.2em;
     font-weight: 600;
     text-align: center;
-    /* Letter-spacing puts a trailing gap after the last glyph, which drags a
-       centred label left by half of it. .panelTitle has the same flaw and lives
-       with it; a tab is a box with a border, where it shows. */
-    text-indent: 0.2em;
     cursor: pointer;
     white-space: nowrap;
     overflow: hidden;
     text-overflow: ellipsis;
   }
 
-  /* Selected: the panel-title look exactly — same type, same colour — over the
-     panel's own ground, with a subtle outline that keeps it reading as a tab. */
+  .panelTab:hover { color: var(--text-dim); }
+
+  /* The one divider, in the rule's own dashed gold. It meets the rule under the
+     unselected tab at a corner — the open tab's outline, without a box. Drawn
+     out of flow rather than as a border, which would make this tab 1px wider
+     than its neighbour (REQ-panel-tabs-share-the-row-evenly). */
+  .panelTab + .panelTab::before {
+    content: '';
+    position: absolute;
+    left: 0;
+    top: 0;
+    bottom: 0;
+    border-left: 1px dashed var(--rule);
+  }
+
+  /* Selected: the panel-title look exactly, open into its page. */
   .panelTab:global(.active) {
-    background: none;
-    border-color: rgba(244, 205, 94, 0.28);
+    border-bottom-color: transparent;
     color: var(--accent-secondary);
     text-shadow: 0 1px 0 rgba(0, 0, 0, 0.7);
   }
 
-  /* The off-screen-active lamp (REQ-scope-renderers-are-rect-scoped). Out of flow, so it cannot pull the label
-     off centre, and always laid out so lighting it never reflows the row. */
+  /* The off-screen-active lamp (panel-tabs.md REQ-set-lit-puts-a-lamp-on-a-tab).
+     Out of flow, so it cannot pull the label off centre, and always laid out so
+     lighting it never reflows the row. Centred on the 14px text line, not the
+     box — the bottom padding would drop it 3px below the label. */
   .panelTabLamp {
     position: absolute;
     left: 5px;
-    top: 50%;
+    top: 7px;
     transform: translateY(-50%);
     width: 4px;
     height: 4px;
@@ -132,10 +165,11 @@
     min-width: 0;
   }
 
-  /* Visibility only — the page's own .panelBody child does the centering, so this
-     must NOT repeat align-items:center or it would shrink that child below the
-     panel width and collapse the full-width dropdowns inside it. Hidden pages
-     stay in the DOM and stay subscribed (REQ-the-split-layout-is-pure). */
+  /* Visibility only — the page's own .panelBody child (and its .panelKnobs zone)
+     does the centering, so this must NOT repeat align-items:center or it would
+     shrink that child below the panel width and collapse the full-width
+     dropdowns inside it. Hidden pages stay in the DOM and stay subscribed
+     (panel-tabs.md REQ-every-page-stays-in-the-dom). */
   .panelPage {
     display: none;
     flex: 1;
@@ -428,5 +462,24 @@
     .quint > :nth-child(4) { grid-column: 3; grid-row: 2; } /* R */
     /* VEL. `.quint`'s align-items: center centres it between the rows. */
     .quint > *:last-child { grid-column: 2; grid-row: 1 / span 2; }
+  }
+
+  /* The narrow-body ranges: 121–161px bodies on the 8-column faceplate, 138–158px
+     on a phone — narrower than a natural-width switch (the glide switch spilled
+     past MIXER's border; REQ-selectors-never-outgrow-their-panel). Same switch,
+     less air: the side padding and min-width floor go, the type stays. Wins over
+     segmented.module.css by layer (chrome > controls). The LFO's destination
+     dropdown is a .panelEdge too, but full-width already — hence :not(.dropdown). */
+  @media (min-width: 1281px) and (max-width: 1629px), (max-width: 499px) {
+    .panelEdge:not(:global(.dropdown)) > button {
+      padding-left: 5px;
+      padding-right: 5px;
+      min-width: 0;
+    }
+    .panelEdge:not(:global(.dropdown)) > button:global(.icon) {
+      padding-left: 3px;
+      padding-right: 3px;
+    }
+    .panelEdge :global(svg.wave-icon) { width: 20px; }
   }
 }

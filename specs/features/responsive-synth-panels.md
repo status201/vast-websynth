@@ -3,7 +3,12 @@
 ```yaml
 id: responsive-synth-panels
 status: implemented
-version: 9   # v9: OSC 1 carries FM + RING (cross-modulation.md REQ-the-modulator-controls-live-on-osc-1),
+version: 10  # v10: REQ-selectors-pin-to-the-panel-edges — a panel body is three zones: the
+             #     wave / model selector on top, the knobs centred in the middle, SYNC /
+             #     glide mode / LFO destination at the bottom, so selectors line up across panels;
+             #     REQ-selectors-never-outgrow-their-panel — the switches tighten where the
+             #     panel is narrow (the glide switch had spilled past MIXER below ~1520px)
+             # v9: OSC 1 carries FM + RING (cross-modulation.md REQ-the-modulator-controls-live-on-osc-1),
              #     so its row break is `.rowBreak.six` and holds until 3200px, the six-knob step
              # v8: REQ-quad-panels-use-a-fixed-grid — FILTER ENV goes dice-five below 500px too;
              #     five across overlapped the 36px dials on the 2-column phone faceplate.
@@ -26,8 +31,9 @@ related:
   - architecture
   - filter-models
 source:
-  - src/ui/panels/synth-panels.ts    # buildSynthPanels: the .quad/.hex rows + row() helper
-  - src/ui/styles/panel.module.css   # .quad + .hex grid rules
+  - src/ui/panels/synth-panels.ts    # buildSynthPanels: the .quad/.hex rows
+  - src/ui/components/panel.ts       # knobRow + panelZones: the row shapes, top / knobs / bottom
+  - src/ui/styles/panel.module.css   # .quad + .hex grid rules, .panelKnobs
   - src/ui/styles/fx-rack.module.css # .fxRow (REQ-fx-panels-fit-their-knob-run)
 ```
 
@@ -127,7 +133,8 @@ count changes.
   cluster (`.panelRow`), unchanged. **At/below 1280px and from 2561px** the row
   distributes its knobs `space-evenly` across the widened panel, so their
   spacing matches the neighbouring grid panels rather than clustering in the
-  middle. The LFO keeps its three rows (wave, knobs, destination); only its
+  middle. The LFO keeps its three zones (wave on top, knobs in the middle,
+  destination at the bottom — REQ-selectors-pin-to-the-panel-edges); only its
   knob row spreads.
   - (v4) The LFO panel's **title row is a two-tab strip**
     ([panel-tabs](panel-tabs.md), [lfo](lfo.md) REQ-the-two-lfos-share-one-panel). It replaces the title
@@ -199,6 +206,56 @@ count changes.
     FILTER ENV scenario therefore asserts box clearance directly in each
     dice-five range.
 
+- **REQ-selectors-pin-to-the-panel-edges** — (v10) **A synth panel body is three
+  zones, and the selectors sit on its edges.** The wave / model selector opens
+  the body (OSC 1, OSC 2, SUB / UNI and LFO's wave pickers, FILTER's LADDER /
+  POLY); the mode control closes it (OSC 2's SYNC, MIXER's glide mode, the LFO
+  destination dropdown); and the knobs sit in a zone that takes all the height
+  between them and centres its contents. A panel with no selector at an edge has
+  nothing there, so its knobs centre in what is left — AMP ENV and FILTER ENV
+  centre in the whole body, exactly as before.
+  - **Why this lines them up.** Every panel header is 21px (the LFO's tab strip
+    included, pinned by `tests/ui/panel-header-height.test.ts`), and the grid
+    stretches every panel in a faceplate row to the same height — so every body
+    starts and ends at the same y, and a selector pinned to an edge lands on its
+    neighbours' line at every width. The segmented controls are one height
+    whether their buttons carry icons or text (the 26px button floor decides
+    both), so the top line is exact. Before this every body centred *all* its
+    children, so each selector's height depended on how much else its panel
+    held, and the faceplate read as ragged even though each panel was fine alone.
+  - **The LFO's pulse-rate hint belongs to the knob zone**, under the RATE knob
+    it explains (oscillators.md REQ-pwm-rate-is-clamped). In the bottom zone it
+    would push the destination dropdown up off the line whenever `pulse` is
+    picked.
+  - **The knob zone is the only centring that matters.** `.panelBody` still
+    centres, but with the zone at `flex: 1` it has no free space left to
+    distribute — so a panel built without `panelZones` would silently fall back
+    to the old ragged look; every faceplate panel goes through it.
+
+- **REQ-selectors-never-outgrow-their-panel** — (v10) **No switch on a synth
+  panel is ever wider than its panel body.** `panelZones` marks the top and bottom
+  controls `.panelEdge`, which is `max-width: 100%`, and where the bodies are
+  narrow the segmented switches tighten: less horizontal button padding, the
+  `min-width` floor dropped, and the wave icons drawn 2px narrower. The labels
+  keep their size and tracking, so a tightened switch is the same switch with
+  less air, not smaller type.
+  - **Where it applies: 1281–1629px and ≤499px**, the two ranges where a body is
+    narrower than a natural-width switch (121–161px on the 8-column faceplate,
+    138–158px on a phone). They are viewport ranges, like every other rule in
+    this spec, because the faceplate grid fixes a body's width at each viewport
+    width. A container query would also work, but the codebase uses none, and the
+    sweep below proves the ranges. Everywhere else the switches keep their
+    natural padding.
+  - **What it fixed.** Measured at natural width, the glide switch (169px)
+    spilled past the MIXER panel's border at every 8-column width below ~1520px
+    (14px a side at 1281px) and on a 360px phone. At 1281px OSC 2's sync switch
+    (141px) and the wave pickers (156px) ran into the panel padding too. Tightening
+    alone was not enough for the glide switch: OFF / ALWAYS / LEGATO is still
+    ~139px, hence ON (voicing.md REQ-the-glide-switch-reads-on).
+  - The LFO destination dropdown is a `.panelEdge` too, but it is full-width by
+    construction; the tightening targets the segmented switches' buttons only
+    (`:not(.dropdown)`, the dropdown's global bridge class).
+
 - **REQ-fx-panels-fit-their-knob-run** — (v5) **No FX rack panel is ever
   narrower than its own knob run.** The rack (`.fxRow`) holds panels of
   *unequal* content — a four-knob panel (PHASER, DUCK) spends `4×52 + 3×4 =
@@ -240,26 +297,41 @@ count changes.
 
 ### Contract / public interface
 
-No new module. In `buildSynthPanels` (`src/ui/panels/synth-panels.ts`) the local `row()` helper grows an
-optional second argument — an extra CSS class appended to `.panelRow`:
+Every faceplate knob row is built by one helper, `knobRow` in
+`src/ui/components/panel.ts`: `.panelRow` plus an optional row-shape class.
+(v10: it was a local `row()` in `synth-panels.ts` with a second copy in
+`lfo-panel.ts`, and moved beside `panelZones` so the body's shape is composed in
+one module.)
 
 ```ts
-function row(children: HTMLElement[], extraClass?: string): HTMLElement {
+export function knobRow(children: HTMLElement[], shape?: string): HTMLElement {
   const r = document.createElement('div');
-  r.className = extraClass ? `${styles.panelRow!} ${extraClass}` : styles.panelRow!;
+  r.className = shape ? `${styles.panelRow!} ${shape}` : styles.panelRow!;
   for (const c of children) r.appendChild(c);
   return r;
 }
 ```
 
-- **SUB / UNI** and **FILTER** each collapse their two `row()` calls into one
-  `row([...], styles.quad!)` / `row([...], styles.hex!)` (SUB/UNI keeps its
-  `sub.wave` Segmented above the row unchanged).
-- **AMP ENV** passes `styles.quad!` and **FILTER ENV** `styles.quint!` to their
-  existing single `row(...)`.
+- **SUB / UNI** and **FILTER** each build one row,
+  `knobRow([...], styles.quad!)` / `knobRow([...], styles.hex!)`, where they
+  once stacked two.
+- **AMP ENV** passes `styles.quad!` and **FILTER ENV** `styles.quint!`.
 - **OSC 1**, **OSC 2**, **MIXER** (3 knobs) and **LFO** (2 knobs) pass
-  `styles.spread!` to their existing `row(...)` (REQ-spread-rows-distribute-when-wide). The LFO's is in
+  `styles.spread!` (REQ-spread-rows-distribute-when-wide). The LFO's is in
   `src/ui/panels/lfo-panel.ts`, not `synth-panels.ts`.
+
+(v10, REQ-selectors-pin-to-the-panel-edges) Every faceplate panel then fills its
+body through one builder in `src/ui/components/panel.ts`, beside the panel
+shell, so the body's shape is written down once for both the plain panels and
+the LFO's tabbed pages:
+
+```ts
+export function panelZones(body: HTMLElement, z: PanelZones): void
+interface PanelZones { top?: HTMLElement; knobs: HTMLElement[]; bottom?: HTMLElement }
+```
+
+It appends `top`, a `.panelKnobs` wrapper holding `knobs`, then `bottom`. The
+LFO page passes its knob row **and** the pulse-rate hint as `knobs`.
 
 ### Layer touchpoints & ordering
 
@@ -323,7 +395,17 @@ function row(children: HTMLElement[], extraClass?: string): HTMLElement {
   center`; nothing extra is needed. The dice-five block stops at 2560px, so the
   ultrawide block only has to undo the base span on VEL, as the 1280px block
   does.
-- `src/ui/panels/synth-panels.ts` — the `row()` helper + seven `panel()` call sites: two `.quad`
+
+  `.panelKnobs` (REQ-selectors-pin-to-the-panel-edges) is the knob zone — a
+  centring flex column at `flex: 1`, the same 8px gap as `.panelBody`, so the
+  spacing between a selector and the knobs is unchanged when the panel has no
+  spare height. It is breakpoint-free: the zones hold at every width.
+  `.panelEdge` (REQ-selectors-never-outgrow-their-panel) is `max-width: 100%`
+  everywhere and tightens its switch's buttons in one block,
+  `@media (min-width: 1281px) and (max-width: 1629px), (max-width: 499px)`. It is
+  in layer `chrome`, above `segmented.module.css`'s `controls`, so it wins without
+  `!important`.
+- `src/ui/panels/synth-panels.ts` — seven `panel()` call sites, each a `knobRow`: two `.quad`
   (SUB/UNI, AMP ENV), one `.hex` (FILTER), one `.quint` (FILTER ENV) and three
   `.spread` (OSC 1, OSC 2, MIXER). The eighth faceplate panel, **LFO**, is built
   by `buildLfoPanel` through `createTabbedPanel` and carries the fourth
@@ -440,6 +522,25 @@ Scenario: No knob's label ever reaches its neighbour (REQ-a-cell-is-never-narrow
     so it is stated rather than skipped
 # pinned by: e2e/responsive-panels.spec.ts (no knob label ever reaches its
 #            neighbour)
+
+Scenario: Selectors line up on the panel edges (REQ-selectors-pin-to-the-panel-edges)
+  Given the app is open at 1440px, 820px or 400px
+  Then the OSC 1, OSC 2, SUB / UNI and LFO wave pickers and FILTER's model switch
+    each sit flush with the top of their panel body
+  And OSC 2's SYNC, MIXER's glide mode and the LFO destination
+    each sit flush with the bottom of their panel body
+  And at 1440px, where all eight panels share one row, the five top selectors
+    share one top edge and the three bottom controls share one bottom edge
+  When LFO 1's destination is set to pulse, so its rate hint shows
+  Then the destination dropdown does not move
+# pinned by: e2e/responsive-panels.spec.ts (selectors line up on the panel edges)
+
+Scenario: No switch outgrows its panel (REQ-selectors-never-outgrow-their-panel)
+  Given the app is open at any width from 360px to 1920px
+  Then every wave picker, FILTER's model switch, OSC 2's sync switch and MIXER's
+    glide switch is no wider than its panel body
+  And the glide switch reads OFF / ON / LEGATO (voicing.md REQ-the-glide-switch-reads-on)
+# pinned by: e2e/responsive-panels.spec.ts (no switch outgrows its panel)
 
 Scenario: No FX rack panel wraps its knob run at desktop widths (REQ-fx-panels-fit-their-knob-run)
   Given the app is open at 1360px, 1440px, 1600px or 1920px

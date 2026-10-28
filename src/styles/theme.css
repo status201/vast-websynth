@@ -16,6 +16,9 @@
     --accent-glow: rgba(232, 116, 46, 0.5);
     --accent-secondary: #f4cd5e;
     --accent-secondary-glow: rgba(244, 205, 94, 0.45);
+    /* The faceplate's hairline rule: under a panel title, between LFO tabs, atop
+       a modal footer. One colour, so the dividers cannot drift apart. */
+    --rule: rgba(244, 205, 94, 0.18);
     /* The active yellow burning low: a tab that is selected but folded out of
        sight (section-title.md REQ-folded-selected-tab-dims). Kept a yellow so it still reads as a tab,
        never the headings' --text-dim. */

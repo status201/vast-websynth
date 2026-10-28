@@ -6,7 +6,7 @@ import { Knob } from '../components/knob';
 import { Segmented } from '../components/segmented';
 import { ParamDropdown } from '../components/param-dropdown';
 import { WAVE_ICONS } from '../components/wave-icons';
-import { createTabbedPanel } from '../components/panel';
+import { createTabbedPanel, knobRow, panelZones } from '../components/panel';
 import styles from '../styles/panel.module.css';
 
 const PULSE_DEST = LFO_DEST_LABELS.indexOf('pulse');
@@ -61,33 +61,30 @@ export function buildLfoPanel(bus: ParamBus): HTMLElement {
 
 /** One LFO's controls. Identical for both prefixes — that is the point. */
 function buildLfoPage(bus: ParamBus, prefix: LfoPrefix, b: HTMLElement): void {
-  b.appendChild(new Segmented(bus, `${prefix}.wave`, WAVE_LABELS, WAVE_ICONS).el);
   const rate = new Knob({ bus, paramId: `${prefix}.rate`, label: 'RATE' });
-  b.appendChild(row([
-    rate.el,
-    new Knob({ bus, paramId: `${prefix}.amount`, label: 'AMT' }).el,
-  ]));
 
   const dest = new ParamDropdown(bus, `${prefix}.dest`, LFO_DEST_LABELS);
   // `Dropdown` mints no testid of its own, so the call site does (testids.md
   // REQ-non-param-buttons-take-an-explicit-testid). It used to be findable as "the first dropdown on the page"; the RATE
   // knob's tempo lock now puts one ahead of it, and position was never a contract.
   dest.el.dataset.testid = `dropdown-${prefix}.dest`;
-  b.appendChild(dest.el);
 
   // `${prefix}.sync` has no control of its own here any more: the RATE knob owns
   // its tempo lock (tempo-lock.md REQ-one-table-declares-lockable-params/REQ-locked-the-division-replaces-the-dial), which is a whole row cheaper than
   // the full-width picker that used to sit here and puts the division on the knob
   // it governs instead of two rows below it.
-  b.appendChild(pulseRateDisclosure(bus, prefix, rate));
-}
-
-/** The 2-knob `.spread` row, as `app.ts`'s `row()` builds it for every panel. */
-function row(children: HTMLElement[]): HTMLElement {
-  const r = document.createElement('div');
-  r.className = `${styles.panelRow!} ${styles.spread!}`;
-  for (const c of children) r.appendChild(c);
-  return r;
+  //
+  // The pulse-rate hint rides in the knob zone, under the RATE knob it explains:
+  // at the bottom it would lift the destination off its neighbours' line whenever
+  // `pulse` is picked (responsive-synth-panels.md REQ-selectors-pin-to-the-panel-edges).
+  panelZones(b, {
+    top: new Segmented(bus, `${prefix}.wave`, WAVE_LABELS, WAVE_ICONS).el,
+    knobs: [
+      knobRow([rate.el, new Knob({ bus, paramId: `${prefix}.amount`, label: 'AMT' }).el], styles.spread!),
+      pulseRateDisclosure(bus, prefix, rate),
+    ],
+    bottom: dest.el,
+  });
 }
 
 /**

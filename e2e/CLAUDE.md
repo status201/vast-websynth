@@ -15,8 +15,15 @@ and the default project launches with `--autoplay-policy=no-user-gesture-require
 — so in this suite the context is created **running** and *there is no modal at
 all*. `startAudio` takes whichever gate it is given and returns once the
 `AudioContext` is running. `audio-autostart.spec.ts` is the one spec that asserts
-which gate appears; it covers the blocked branch by overriding `launchOptions.args`
-in its own describe block.
+which gate appears; it covers the blocked branch by **stubbing** what the app reads,
+because headless Chromium starts the context running under every autoplay flag.
+
+**Launch options are per file, never per describe.** Playwright refuses
+`test.use({ launchOptions })` inside a `describe` (it would force a new worker), so
+a spec that needs different browser flags is a file of its own with a top-level
+`test.use`. The example is `page-scrollbar.spec.ts`, which turns real scrollbars
+back on. Playwright hides them by default, so a layout that feeds back through the
+scrollbar's width can't happen in any other spec.
 
 ## When the pinned browser will not download
 

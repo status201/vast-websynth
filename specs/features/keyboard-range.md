@@ -3,7 +3,10 @@
 ```yaml
 id: keyboard-range
 status: implemented
-version: 2   # v2: REQ-key-height-follows-key-width + REQ-spare-height-goes-to-the-scope — the key
+version: 3   # v3: REQ-the-key-size-ignores-the-page-scrollbar — the keys are sized from the
+             #     width they would have without a page scrollbar: a 1px overflow toggled the
+             #     body's scrollbar every frame (1920x1080, scope maxed, Machines folded)
+             # v2: REQ-key-height-follows-key-width + REQ-spare-height-goes-to-the-scope — the key
              #     height is bounded by the key width; spare height goes to the scope
 owner: core
 related:
@@ -16,6 +19,7 @@ source:
   - src/ui/keyboard-range.ts
   - src/ui/components/keyboard.ts
   - src/ui/shell/bottom.ts # buildBottom: the ResizeObserver that drives it
+  - src/ui/viewport.ts # pageScrollbarWidth (REQ-the-key-size-ignores-the-page-scrollbar)
   - src/ui/styles/bottom.module.css # .bottom / .bottomTop / .keyboardWrap: the height bounds
 ```
 
@@ -98,6 +102,34 @@ has a use for it.
   gives (85×132px), so nothing that fits today starts to scroll; 4.5× is the
   1440p default layout the user judged right. Within the two bounds the keyboard
   still fills — it is a band, not a fixed height.
+
+- **REQ-the-key-size-ignores-the-page-scrollbar** — (v3) **The key width (and so
+  the key height, and the octave count) is derived from the width the keyboard
+  would have without a page scrollbar.** The observer adds the classic
+  scrollbar's width (`pageScrollbarWidth`, `src/ui/viewport.ts`) to the
+  keyboard's measured width before deriving either.
+  That scrollbar is usually `<body>`'s, not the viewport's: base.css gives both
+  `html` and `body` `height: 100%; overflow-y: auto`, so the body is the scroller
+  and `documentElement.clientWidth` never sees it. Both are read
+  (`body.offsetWidth − body.clientWidth` and `innerWidth −
+  documentElement.clientWidth`), the larger counts, clamped to 0–40px so a
+  pinch-zoomed phone's negative difference counts as none.
+  - **Why.** Without this the size feeds back. A page that overflows by a pixel
+    or two shows a scrollbar, which narrows the keyboard by ~17px (10px in
+    headless Chromium), which narrows each of 21 white keys by ~0.8px, which
+    lowers the floor 1.6× that, which makes the page fit, which hides the
+    scrollbar — every frame. The user saw the faceplate wiggle at 1920×1080 in
+    fullscreen with the scope at its maximum and Machines folded: the keyboard
+    alternated 169.2px / 168.0px while the column above it needed 911.97px.
+  - **What it settles to.** With the scrollbar's width put back, showing it
+    changes nothing, so whichever state the page lands in, it stays in. In the
+    reported layout that is a steady scrollbar over ~1px of overflow: the
+    user's 260px scope and the 1.6× key floor genuinely need 1px more than
+    1080. That is REQ-spare-height-goes-to-the-scope's "the page scrolls, not
+    the keys shrinking", now holding still. Dragging the scope one step smaller
+    removes it.
+  - The cost: while the page really does scroll, the keys are sized for ~17px
+    more width than they have, which is under 1px of height.
 - **REQ-spare-height-goes-to-the-scope** — (v2) **The keyboard takes spare
   height first, up to its cap; the scope takes the rest.** `.bottom` is a flex
   column — scope row, EQ section, keyboard — where the keyboard has a far larger
@@ -211,6 +243,16 @@ Scenario: A narrow key keeps the 160px floor (edge)
   Given a 1440x900 viewport with the default panels open
   Then the keyboard row is 160px — its keys 130px — the floor, not 1.6x
 # pinned by: e2e/keyboard-height.spec.ts
+
+Scenario: The page scrollbar cannot make the keyboard wiggle (regression, REQ-the-key-size-ignores-the-page-scrollbar)
+  Given a 1920x1080 viewport with real (classic) scrollbars
+  And the scope at its 260px maximum, Machines and the EQ folded, FX open
+  When the page has laid out
+  Then the keyboard's height is the same on every frame
+  And the page scrollbar is either shown on every frame or on none
+# Bug: the keyboard alternated 169.2px / 168.0px every frame while the body's
+# scrollbar toggled; the keys were sized from a width the scrollbar changes.
+# pinned by: e2e/page-scrollbar.spec.ts
 
 Scenario: No spare height means the page scrolls, not the keys shrinking (edge)
   Given everything is expanded on a 1920x1080 viewport

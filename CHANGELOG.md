@@ -16,23 +16,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
-### Fixed
-
-- **A preset no longer inherits settings from the sound before it.** Loading
-  `basic` after a synced or FM sound used to keep OSC 2 synced or the FM
-  playing, and the same went for pulse width and any mod-matrix route. A preset
-  you saved before a setting existed also took that setting from whatever was
-  loaded before it. Loading a preset now starts every sound setting it doesn't
-  mention from its default, so it sounds the way it did when it was saved. The
-  key and the master compressor are left as they are. Factory presets saved by
-  an older version are also brought up to date on the next start, unless you
-  edited them.
-
-- **The LFO help no longer says the two LFOs need different destinations.**
-  That rule went when the mod matrix arrived: both may point at one
-  destination, and they add up. The mod-wheel help now lists every destination
-  it deepens, filter shape and sync included.
-
 ### Added
 
 - **Oscillator sync.** OSC 2 has a new SYNC switch: **hard** or **soft**.
@@ -81,7 +64,47 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ### Changed
 
+- **The synth panels line up.** The wave pickers and the filter's LADDER /
+  POLY switch now sit on one line at the top of their panels, and OSC 2's sync
+  switch, the glide mode and the LFO destination on one line at the bottom. The
+  knobs stay centred in between. Each switch used to float at a height set by
+  how much else its panel held.
+- **The LFO 1 / LFO 2 tabs look like a panel title.** No boxes any more: the
+  labels sit on the same line as every other panel title, a dashed divider
+  separates them, and the dashed line under the title runs under the tab you
+  are *not* on. The lamp on a modulating LFO's tab is unchanged.
+- **The glide switch reads OFF / ON / LEGATO.** ALWAYS is now ON. It is the same
+  setting, so presets and songs are unaffected.
 - **The demo Apex is now called Mono.**
+
+### Fixed
+
+- **A preset no longer inherits settings from the sound before it.** Loading
+  `basic` after a synced or FM sound used to keep OSC 2 synced or the FM
+  playing, and the same went for pulse width and any mod-matrix route. A preset
+  you saved before a setting existed also took that setting from whatever was
+  loaded before it. Loading a preset now starts every sound setting it doesn't
+  mention from its default, so it sounds the way it did when it was saved. The
+  key and the master compressor are left as they are. Factory presets saved by
+  an older version are also brought up to date on the next start, unless you
+  edited them.
+
+- **The LFO help no longer says the two LFOs need different destinations.**
+  That rule went when the mod matrix arrived: both may point at one
+  destination, and they add up. The mod-wheel help now lists every destination
+  it deepens, filter shape and sync included.
+
+- **Switches no longer spill out of their panel.** On screens from 1281 to about
+  1520 pixels wide, and on phones, the glide switch stuck out past the MIXER
+  panel's edges, and at 1281 pixels the sync switch and wave pickers crowded
+  their panel's edges too. Where a panel is narrow, its switches now tighten up
+  to fit.
+
+- **The faceplate no longer wiggles.** With the scope dragged to its full height
+  on a screen just too short for it (1920×1080 in fullscreen with Machines
+  folded, for one), the keyboard grew and shrank by a pixel every frame and the
+  page scrollbar flickered on and off. The keyboard now holds still. In that
+  layout a scrollbar stays put; drag the scope one step smaller to lose it.
 
 ## [2.18.0] - 2026-10-24
 

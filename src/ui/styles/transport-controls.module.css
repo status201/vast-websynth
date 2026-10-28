@@ -8,7 +8,7 @@
     align-items: center;
     gap: 12px;
     flex-wrap: wrap;
-    border-top: 1px dashed rgba(244, 205, 94, 0.18);
+    border-top: 1px dashed var(--rule);
     padding-top: 12px;
   }
 

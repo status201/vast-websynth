@@ -110,7 +110,7 @@
     text-transform: uppercase;
     letter-spacing: 0.2em;
     color: var(--accent-secondary);
-    border-bottom: 1px dashed rgba(244, 205, 94, 0.18);
+    border-bottom: 1px dashed var(--rule);
     padding-bottom: 6px;
   }
 

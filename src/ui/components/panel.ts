@@ -30,6 +30,45 @@ function panelBody(): HTMLElement {
   return body;
 }
 
+/** A knob row in a panel body, in one of the row shapes — `.quad`, `.quint`,
+ *  `.hex`, `.spread` (responsive-synth-panels.md). Shared by every faceplate
+ *  panel, so the row class is composed in one place. */
+export function knobRow(children: HTMLElement[], shape?: string): HTMLElement {
+  const r = document.createElement('div');
+  r.className = shape ? `${styles.panelRow!} ${shape}` : styles.panelRow!;
+  for (const c of children) r.appendChild(c);
+  return r;
+}
+
+/** What a synth panel body holds, by where it sits. */
+export interface PanelZones {
+  /** The wave / model selector — flush with the top of the body. */
+  top?: HTMLElement;
+  /** Centred in all the height between `top` and `bottom`. */
+  knobs: HTMLElement[];
+  /** The mode control (sync, glide mode, LFO destination) — flush with the bottom. */
+  bottom?: HTMLElement;
+}
+
+/**
+ * Fills a panel body as three zones, so every panel's selectors land on the same
+ * lines as its neighbours' whatever each one holds — the headers are one height
+ * and the grid stretches a row's panels to one height, so the bodies' edges are
+ * shared (responsive-synth-panels.md REQ-selectors-pin-to-the-panel-edges).
+ */
+export function panelZones(body: HTMLElement, z: PanelZones): void {
+  // `.panelEdge` keeps a switch inside the body where the body is narrow
+  // (REQ-selectors-never-outgrow-their-panel).
+  z.top?.classList.add(styles.panelEdge!);
+  z.bottom?.classList.add(styles.panelEdge!);
+  if (z.top) body.appendChild(z.top);
+  const knobs = document.createElement('div');
+  knobs.className = styles.panelKnobs!;
+  for (const k of z.knobs) knobs.appendChild(k);
+  body.appendChild(knobs);
+  if (z.bottom) body.appendChild(z.bottom);
+}
+
 /**
  * A synth faceplate panel: title over a body of controls.
  *

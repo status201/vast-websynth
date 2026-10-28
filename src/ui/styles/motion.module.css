@@ -182,7 +182,7 @@
      nothing divides them from each other.
      Same dashed section rule the Song panel uses (song-panel.module.css .djFx). */
   .laneDivider {
-    border-top: 1px dashed rgba(244, 205, 94, 0.18);
+    border-top: 1px dashed var(--rule);
     padding-top: 10px;
     margin-top: 10px;
   }

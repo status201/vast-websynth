@@ -59,7 +59,7 @@
     align-items: center;
     justify-content: space-between;
     gap: 8px;
-    border-bottom: 1px dashed rgba(244, 205, 94, 0.18);
+    border-bottom: 1px dashed var(--rule);
     padding-bottom: 4px;
   }
 

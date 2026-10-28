@@ -5,7 +5,7 @@ import {
 import { Knob } from '../components/knob';
 import { Segmented } from '../components/segmented';
 import { WAVE_ICONS } from '../components/wave-icons';
-import { createPanel } from '../components/panel';
+import { createPanel, knobRow, panelZones } from '../components/panel';
 import { buildLfoPanel } from './lfo-panel';
 import panelStyles from '../styles/panel.module.css';
 import synthStyles from '../styles/synth-panels.module.css';
@@ -25,69 +25,82 @@ export function buildSynthPanels(bus: ParamBus): HTMLElement {
   main.className = synthStyles.main!;
   const knob = (paramId: string, label: string): HTMLElement => new Knob({ bus, paramId, label }).el;
 
+  // Each body is three zones — selector on top, knobs centred, mode control at the
+  // bottom — so the selectors line up across the faceplate whatever each panel
+  // holds (responsive-synth-panels.md REQ-selectors-pin-to-the-panel-edges).
   main.appendChild(panel('OSC 1', (b) => {
-    b.appendChild(new Segmented(bus, 'osc1.wave', WAVE_LABELS, WAVE_ICONS).el);
     // OSC 1 is the modulator, so the two cross-mods live here as its outputs:
     // LEVEL to the mixer, FM into OSC 2's pitch, RING (1×2) into the mixer
     // (cross-modulation.md REQ-the-modulator-controls-live-on-osc-1). Sync stays on
     // OSC 2 — it is something the slave does to itself.
-    b.appendChild(row([
-      knob('osc1.octave', 'OCT'),
-      knob('osc1.detune', 'TUNE'),
-      knob('osc1.level', 'LEVEL'),
-      ...behindBreak(bus, [
-        { el: knob('osc1.fm', 'FM') },
-        { el: knob('osc1.ring', 'RING') },
-        pulseWidthKnob(bus, 'osc1'),
-      ], panelStyles.six!),
-    ], panelStyles.spread!));
+    panelZones(b, {
+      top: new Segmented(bus, 'osc1.wave', WAVE_LABELS, WAVE_ICONS).el,
+      knobs: [knobRow([
+        knob('osc1.octave', 'OCT'),
+        knob('osc1.detune', 'TUNE'),
+        knob('osc1.level', 'LEVEL'),
+        ...behindBreak(bus, [
+          { el: knob('osc1.fm', 'FM') },
+          { el: knob('osc1.ring', 'RING') },
+          pulseWidthKnob(bus, 'osc1'),
+        ], panelStyles.six!),
+      ], panelStyles.spread!)],
+    });
   }, 'oscillators'));
 
   main.appendChild(panel('OSC 2', (b) => {
-    b.appendChild(new Segmented(bus, 'osc2.wave', WAVE_LABELS, WAVE_ICONS).el);
-    b.appendChild(row([
-      knob('osc2.octave', 'OCT'),
-      knob('osc2.detune', 'TUNE'),
-      knob('osc2.level', 'LEVEL'),
-      ...behindBreak(bus, [pulseWidthKnob(bus, 'osc2'), syncPitchKnob(bus)]),
-    ], panelStyles.spread!));
-    // Sync locks osc2 to osc1, so it lives on the slave's panel (oscillator-sync.md).
-    b.appendChild(new Segmented(bus, 'osc2.sync', OSC_SYNC_LABELS).el);
+    panelZones(b, {
+      top: new Segmented(bus, 'osc2.wave', WAVE_LABELS, WAVE_ICONS).el,
+      knobs: [knobRow([
+        knob('osc2.octave', 'OCT'),
+        knob('osc2.detune', 'TUNE'),
+        knob('osc2.level', 'LEVEL'),
+        ...behindBreak(bus, [pulseWidthKnob(bus, 'osc2'), syncPitchKnob(bus)]),
+      ], panelStyles.spread!)],
+      // Sync locks osc2 to osc1, so it lives on the slave's panel (oscillator-sync.md).
+      bottom: new Segmented(bus, 'osc2.sync', OSC_SYNC_LABELS).el,
+    });
   }, 'osc2'));
 
   main.appendChild(panel('SUB / UNI', (b) => {
-    b.appendChild(new Segmented(bus, 'sub.wave', WAVE_LABELS, WAVE_ICONS).el);
-    // One .quad grid: 2x2 above 1280px, a single row on wider tablet panels.
-    b.appendChild(row([
-      knob('sub.octave', 'S.OCT'),
-      knob('sub.level', 'S.LVL'),
-      knob('unison.voices', 'UNISON'),
-      knob('unison.detune', 'SPREAD'),
-    ], panelStyles.quad!));
+    panelZones(b, {
+      top: new Segmented(bus, 'sub.wave', WAVE_LABELS, WAVE_ICONS).el,
+      // One .quad grid: 2x2 above 1280px, a single row on wider tablet panels.
+      knobs: [knobRow([
+        knob('sub.octave', 'S.OCT'),
+        knob('sub.level', 'S.LVL'),
+        knob('unison.voices', 'UNISON'),
+        knob('unison.detune', 'SPREAD'),
+      ], panelStyles.quad!)],
+    });
   }, 'subuni'));
 
   main.appendChild(panel('MIXER', (b) => {
-    b.appendChild(row([
-      knob('mixer.noise', 'NOISE'),
-      knob('mixer.glide', 'GLIDE'),
-      knob('analog.drift', 'DRIFT'),
-    ], panelStyles.spread!));
-    b.appendChild(new Segmented(bus, 'glide.mode', GLIDE_MODE_LABELS).el);
+    panelZones(b, {
+      knobs: [knobRow([
+        knob('mixer.noise', 'NOISE'),
+        knob('mixer.glide', 'GLIDE'),
+        knob('analog.drift', 'DRIFT'),
+      ], panelStyles.spread!)],
+      bottom: new Segmented(bus, 'glide.mode', GLIDE_MODE_SHOWN).el,
+    });
   }, 'mixer'));
 
   main.appendChild(panel('FILTER', (b) => {
-    b.appendChild(new Segmented(bus, 'filter.model', FILTER_MODEL_LABELS).el);
     // One .hex grid: 3x2 above 1280px, a single row on wider tablet panels.
     // Row 1 shapes the tone, row 2 drives and modulates it.
     const shape = new Knob({ bus, paramId: 'filter.shape', label: 'SHAPE' });
-    b.appendChild(row([
-      knob('filter.cutoff', 'CUTOFF'),
-      knob('filter.resonance', 'RESO'),
-      shape.el,
-      knob('filter.drive', 'DRIVE'),
-      knob('filter.envAmount', 'ENV'),
-      knob('filter.keytrack', 'KEYTRK'),
-    ], panelStyles.hex!));
+    panelZones(b, {
+      top: new Segmented(bus, 'filter.model', FILTER_MODEL_LABELS).el,
+      knobs: [knobRow([
+        knob('filter.cutoff', 'CUTOFF'),
+        knob('filter.resonance', 'RESO'),
+        shape.el,
+        knob('filter.drive', 'DRIVE'),
+        knob('filter.envAmount', 'ENV'),
+        knob('filter.keytrack', 'KEYTRK'),
+      ], panelStyles.hex!)],
+    });
     // SHAPE belongs to POLY — the ladder's saturated taps cannot make a clean
     // high-pass, so the worklet ignores it there (filter-models.md REQ-shape-is-poly-only). Dim
     // rather than hide: the control keeps its place, so the switch reads as
@@ -96,12 +109,14 @@ export function buildSynthPanels(bus: ParamBus): HTMLElement {
   }, 'filter'));
 
   main.appendChild(panel('AMP ENV', (b) => {
-    b.appendChild(row([
-      knob('env.amp.attack', 'A'),
-      knob('env.amp.decay', 'D'),
-      knob('env.amp.sustain', 'S'),
-      knob('env.amp.release', 'R'),
-    ], panelStyles.quad!));
+    panelZones(b, {
+      knobs: [knobRow([
+        knob('env.amp.attack', 'A'),
+        knob('env.amp.decay', 'D'),
+        knob('env.amp.sustain', 'S'),
+        knob('env.amp.release', 'R'),
+      ], panelStyles.quad!)],
+    });
   }, 'ampenv'));
 
   main.appendChild(panel('FILTER ENV', (b) => {
@@ -109,13 +124,15 @@ export function buildSynthPanels(bus: ParamBus): HTMLElement {
     // scales *this* envelope's depth (envelopes.md REQ-filter-env-follows-velocity) — the same pairing
     // hardware uses. At its default 0 it does nothing, so the panel reads
     // exactly as it did until someone reaches for it.
-    b.appendChild(row([
-      knob('env.fil.attack', 'A'),
-      knob('env.fil.decay', 'D'),
-      knob('env.fil.sustain', 'S'),
-      knob('env.fil.release', 'R'),
-      knob('filter.velAmount', 'VEL'),
-    ], panelStyles.quint!));
+    panelZones(b, {
+      knobs: [knobRow([
+        knob('env.fil.attack', 'A'),
+        knob('env.fil.decay', 'D'),
+        knob('env.fil.sustain', 'S'),
+        knob('env.fil.release', 'R'),
+        knob('filter.velAmount', 'VEL'),
+      ], panelStyles.quint!)],
+    });
   }, 'filterenv'));
 
   // Two LFOs behind a tab strip, so the pair costs one grid column, not two
@@ -126,6 +143,11 @@ export function buildSynthPanels(bus: ParamBus): HTMLElement {
 }
 
 const SQUARE_WAVE = WAVE_LABELS.indexOf('square');
+
+/** The glide switch's button text: OFF / ON / LEGATO. Derived, so it cannot drift
+ *  from the param, whose labels stay `always` for presets, songs and the MCP
+ *  tools (voicing.md REQ-the-glide-switch-reads-on). */
+const GLIDE_MODE_SHOWN = GLIDE_MODE_LABELS.map((l) => (l === 'always' ? 'on' : l));
 
 /** A control that is always on show, or only while another param says it means
  *  something. A union, so a `paramId` without its `shown` cannot be written. */
@@ -183,12 +205,4 @@ function syncPitchKnob(bus: ParamBus): Conditional {
     paramId: 'osc2.sync',
     shown: (m) => Math.round(m) !== 0,
   };
-}
-
-/** A knob row in a panel body, in one of the row shapes (`.quad`, `.hex`, …). */
-function row(children: HTMLElement[], extraClass?: string): HTMLElement {
-  const r = document.createElement('div');
-  r.className = extraClass ? `${panelStyles.panelRow!} ${extraClass}` : panelStyles.panelRow!;
-  for (const c of children) r.appendChild(c);
-  return r;
 }

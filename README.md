@@ -44,7 +44,7 @@ Vanilla TypeScript + Vite, zero runtime dependencies.
 - **Sub oscillator** (one/two octaves down) for analogue weight
 - **Unison** voice-stacking with detune spread (fat supersaw)
 - **Oscillator drift / "Age"** — subtle analogue tuning instability
-- **Vintage glide modes**: off / always / legato (portamento)
+- **Vintage glide modes**: off / on (every note) / legato (only when notes overlap)
 - **Two filter models**, switchable on the same patch and level-matched so the switch is a change of character, not of volume — both custom AudioWorklets with cutoff modulated in semitones:
   - **LADDER** — Moog-style 4-pole with resonance and drive, saturating at every stage. Warm and growly; raising resonance trades bass for the resonant peak
   - **POLY** — 4-pole with clean stages and the saturation moved into the resonance itself. Glassy and open, and it **keeps its low end** however far you push resonance (the Prophet-600 trick: the resonance compensation is a pre-gain on the loop input). A **SHAPE** knob morphs it through LP24 → LP12 → BP12 → HP24, so the synth finally has a band-pass and a high-pass — and SHAPE is an LFO/XY/motion destination, so the filter *type* can sweep

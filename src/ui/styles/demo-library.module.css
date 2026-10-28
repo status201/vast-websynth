@@ -13,7 +13,7 @@
 
   .entry {
     padding: 12px 0;
-    border-top: 1px dashed rgba(244, 205, 94, 0.18);
+    border-top: 1px dashed var(--rule);
   }
 
   .entry:first-child {

@@ -285,9 +285,11 @@ destinations, genuinely cannot be shared (REQ-pulse-is-arbitrated).
   revealed. The selected page is **session-only view state**: never a param,
   never persisted (panel-tabs.md REQ-selected-page-is-session-only). Because a
   modulating LFO on the hidden page would otherwise be invisible state, its tab
-  carries a **lamp** whenever `dest !== off && amount > 0` (ADR-014 law 5) —
-  which is where the unselected tab's dark well earns its keep, since that is
-  the tab the lamp has to be legible on.
+  carries a **lamp** whenever `dest !== off && amount > 0` (ADR-014 law 5). The
+  unselected tab is marked by the dashed title rule under it rather than by a
+  dark well (panel-tabs.md REQ-the-strip-replaces-the-title, v3), so the lamp
+  sits on the panel's own ground: an amber dot with a glow, which reads there
+  just as it did in the well.
 
 ## Technical design
 

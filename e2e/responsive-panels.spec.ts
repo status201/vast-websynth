@@ -1,5 +1,6 @@
 import { test, expect, type Page } from '@playwright/test';
 import { gotoAndStart, busSet } from './helpers';
+import { LFO_DEST_LABELS } from '../src/state/params';
 
 /**
  * Responsive synth panels — the faceplate's knob distribution across widths.
@@ -340,6 +341,73 @@ test.describe('responsive synth panels', () => {
     await busSet(page, 'osc1.wave', 3); // square — WIDTH joins FM and RING
     expect(await shapeAt(page, 2800, square), 'OSC 1 on square at 2800px').toEqual([3, 3]);
     expect(await shapeAt(page, 3200, square), 'OSC 1 on square at 3200px').toEqual([6]);
+  });
+
+  // REQ-selectors-pin-to-the-panel-edges: the wave / model selectors open the
+  // panel body and the mode controls close it, so both sets line up across a
+  // faceplate row. Measured against the selector's own parent — the panel body,
+  // which `panelZones` fills — since panels carry no testid.
+  test('selectors line up on the panel edges', async ({ page }) => {
+    const TOP = ['seg-osc1.wave', 'seg-osc2.wave', 'seg-sub.wave', 'seg-filter.model', 'seg-lfo.wave'];
+    const BOTTOM = ['seg-osc2.sync', 'seg-glide.mode', 'dropdown-lfo.dest'];
+    const edges = (ids: string[]) => page.evaluate((wanted) => wanted.map((id) => {
+      const el = document.querySelector(`[data-testid="${id}"]`) as HTMLElement;
+      const r = el.getBoundingClientRect();
+      const body = el.parentElement!.getBoundingClientRect();
+      return { id, top: r.top, bottom: r.bottom, bodyTop: body.top, bodyBottom: body.bottom };
+    }), ids);
+
+    await page.setViewportSize({ width: 1440, height: 900 });
+    await gotoAndStart(page);
+
+    for (const width of [1440, 820, 400]) {
+      await page.setViewportSize({ width, height: 900 });
+      for (const e of await edges(TOP)) {
+        expect(Math.abs(e.top - e.bodyTop), `${e.id} flush with its body's top at ${width}px`).toBeLessThanOrEqual(1);
+      }
+      for (const e of await edges(BOTTOM)) {
+        expect(Math.abs(e.bottom - e.bodyBottom), `${e.id} flush with its body's bottom at ${width}px`).toBeLessThanOrEqual(1);
+      }
+    }
+
+    // At 1440px all eight panels share one grid row, so the lines are shared too.
+    await page.setViewportSize({ width: 1440, height: 900 });
+    const tops = (await edges(TOP)).map((e) => e.top);
+    const bottoms = (await edges(BOTTOM)).map((e) => e.bottom);
+    expect(Math.max(...tops) - Math.min(...tops), 'the top selectors share one line').toBeLessThanOrEqual(1);
+    expect(Math.max(...bottoms) - Math.min(...bottoms), 'the bottom controls share one line').toBeLessThanOrEqual(1);
+
+    // The pulse-rate hint lives in the knob zone, so showing it moves nothing.
+    const before = (await edges(['dropdown-lfo.dest']))[0]!.bottom;
+    await busSet(page, 'lfo.dest', LFO_DEST_LABELS.indexOf('pulse'));
+    await expect(page.getByTestId('pulse-hint-lfo')).toBeVisible();
+    const after = (await edges(['dropdown-lfo.dest']))[0]!.bottom;
+    expect(Math.abs(after - before), 'the destination holds its line with the hint shown').toBeLessThanOrEqual(1);
+  });
+
+  // REQ-selectors-never-outgrow-their-panel: swept across both tightened ranges
+  // and their edges. Width is the switch's border box against the body's content
+  // box — the glide switch used to spill 14px a side past MIXER's border at 1281px.
+  test('no switch outgrows its panel', async ({ page }) => {
+    const SWITCHES = ['seg-osc1.wave', 'seg-osc2.wave', 'seg-sub.wave', 'seg-filter.model',
+      'seg-lfo.wave', 'seg-osc2.sync', 'seg-glide.mode'];
+    await page.setViewportSize({ width: 1440, height: 900 });
+    await gotoAndStart(page);
+    await expect(page.getByTestId('seg-glide.mode')).toHaveText(/off\s*on\s*legato/i);
+
+    for (const width of [360, 400, 499, 500, 820, 993, 1280, 1281, 1366, 1440, 1536, 1629, 1630, 1920]) {
+      await page.setViewportSize({ width, height: 900 });
+      const fits = await page.evaluate((ids) => ids.map((id) => {
+        const el = document.querySelector(`[data-testid="${id}"]`) as HTMLElement;
+        const body = el.parentElement!;
+        const cs = getComputedStyle(body);
+        const inner = body.clientWidth - parseFloat(cs.paddingLeft) - parseFloat(cs.paddingRight);
+        return { id, width: el.getBoundingClientRect().width, inner };
+      }), SWITCHES);
+      for (const f of fits) {
+        expect(f.width, `${f.id} fits its ${f.inner}px body at ${width}px`).toBeLessThanOrEqual(f.inner + 0.5);
+      }
+    }
   });
 });
 
