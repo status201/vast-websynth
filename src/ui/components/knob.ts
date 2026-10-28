@@ -512,6 +512,9 @@ export class Knob {
     this.dead.setAttribute('stroke-dashoffset', (-(dashOn * n)).toFixed(ARC_PRECISION));
   }
 
+  /** The param this knob drives. */
+  get paramId(): string { return this.opts.paramId; }
+
   /**
    * Disable input (e.g. the BPM knob while slaved — midi-clock-sync REQ-the-bpm-knob-shows-slaved):
    * dims the control and blocks both dragging and the double-tap reset. The bus
@@ -624,4 +627,25 @@ export class Knob {
     this.detachDragListeners();
     this.lock?.destroy();
   }
+}
+
+/**
+ * Dim the knobs among `knobs` driving `${prefix}.<param>` for a `param` in
+ * `overrides`, while `${prefix}.mode` is at any index but 0
+ * (chorus.md REQ-the-chorus-mode-overrides-rate-and-depth). Dimmed, not
+ * hidden: the dial still shows the stored value the mode is ignoring, which is
+ * the value that comes back at index 0. Picked by param, never by position.
+ */
+export function dimWhileModeSet(
+  bus: ParamBus,
+  prefix: string,
+  overrides: readonly string[],
+  knobs: readonly Knob[],
+): void {
+  const ids = new Set(overrides.map((p) => `${prefix}.${p}`));
+  const dimmed = knobs.filter((k) => ids.has(k.paramId));
+  bus.subscribe(`${prefix}.mode`, (v) => {
+    const overridden = Math.round(v) !== 0;
+    for (const k of dimmed) k.setDisabled(overridden);
+  });
 }

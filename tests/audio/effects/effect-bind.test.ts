@@ -3,6 +3,7 @@ import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 import { ParamBus, registerDefaults } from '../../../src/state/params';
 import { Distortion } from '../../../src/audio/effects/distortion';
 import { Phaser } from '../../../src/audio/effects/phaser';
+import { Chorus } from '../../../src/audio/effects/chorus';
 import { Reverb } from '../../../src/audio/effects/reverb';
 import { Compressor } from '../../../src/audio/effects/compressor';
 import {
@@ -56,6 +57,28 @@ describe('Effect.bind — simple effects (self-wiring, ADR-008)', () => {
 
     bus.set('fx.drum.phaser.rate', 3);
     expect(drumRate).toHaveBeenCalledWith(3);
+    expect(synthRate).not.toHaveBeenCalled();
+  });
+
+  it('synth and sampler choruses bind independently (chorus.md)', () => {
+    const synth = new Chorus(ctx());
+    const sampler = new Chorus(ctx());
+    const bus = busWithDefaults();
+    const synthBypass = vi.spyOn(synth, 'setBypass');
+    const samplerBypass = vi.spyOn(sampler, 'setBypass');
+    const synthRate = vi.spyOn(synth, 'setRate');
+
+    synth.bind(bus, 'fx.chorus');
+    sampler.bind(bus, 'fx.sampler.chorus');
+    synthBypass.mockClear();
+    samplerBypass.mockClear();
+    synthRate.mockClear();
+
+    bus.set('fx.chorus.on', 1);
+    expect(synthBypass).toHaveBeenLastCalledWith(false);
+    expect(samplerBypass).not.toHaveBeenCalled();
+
+    bus.set('fx.sampler.chorus.rate', 4);
     expect(synthRate).not.toHaveBeenCalled();
   });
 

@@ -267,11 +267,13 @@ specs/
     mod-matrix.md      ·  many sources -> many destinations, summed in the audio graph
     voicing.md         ·  poly/mono, unison, glide, drift, pitch bend
     # — effects —
-    effects.md         ·  distortion/wah/phaser/delay/reverb/duck insert chain
+    effects.md         ·  distortion/wah/phaser/chorus/delay/reverb/duck insert chain
+    chorus.md          ·  Juno-style stereo chorus (synth + sampler), MODE I / II / I+II
     equalizer.md       ·  per-lane drawable 8-band EQ + HP/LP, first in each chain
     compressor.md      ·  the FET/VCA worklet compressors (message contract)
     sidechain-ducking.md · trigger-keyed ducker on synth/sampler, keyed by drum hits
     fx-group.md        ·  shared header FX-group UI (knobs hide while bypassed)
+    fx-slot-picker.md  ·  two effects share one panel, chosen from a caret by the title
     fx-patch-decoration.md · unpatched-cable scenery in the empty FX grid cell
     # — transport & sequencing —
     transport.md       ·  the look-ahead clock (start / stop / pause, seek, step router)

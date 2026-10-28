@@ -8,6 +8,7 @@ import { demoNames } from '../../src/state/song';
 import { EQ_BANDS } from '../../src/state/eq';
 import { MOTION_TRACK_COUNT, MOTION_TRACK_LABELS } from '../../src/state/patterns';
 import { formatHzFull } from '../../src/ui/components/scope';
+import { CHORUS_MODE_LABELS } from '../../src/state/chorus';
 
 /** The Clear button as help copy renders it — the caret is an icon, not a `▾`
  *  (iconography.md REQ-a-control-glyph-is-inline-svg), so the assertions go through the same helper. */
@@ -444,5 +445,22 @@ describe('help-content oscillator topics', () => {
     expect(body).toContain('<strong>soft</strong>');
     expect(body).toContain('as on OSC 1');
     expect(body).not.toContain('<strong>OCT</strong> —');
+  });
+});
+
+/** The chorus copy (chorus.md, fx-slot-picker.md) — help is the one docs surface a test can hold true. */
+describe('help-content chorus', () => {
+  it('names the chorus in the chain, in chain order, and says how to reach it', () => {
+    const body = bodyOf('fx');
+    expect(body).toContain('Phaser → Chorus → Delay');
+    expect(body).toContain('share a panel');
+  });
+
+  it('documents every MODE by its label and that it overrides RATE and DEPTH', () => {
+    const body = bodyOf('fx.chorus');
+    for (const label of CHORUS_MODE_LABELS) expect(body, label).toContain(`<strong>${label}</strong>`);
+    expect(body).toContain('<strong>RATE</strong>');
+    expect(body).toContain('<strong>DEPTH</strong>');
+    expect(body).toContain('dim');
   });
 });

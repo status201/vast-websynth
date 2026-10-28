@@ -67,6 +67,7 @@ const ANCHORS: Anchor[] = [
   { topic: 'fx.dist', find: () => byHelp('fx.dist'), place: 'after' },
   { topic: 'fx.wah', find: () => byHelp('fx.wah'), place: 'after' },
   { topic: 'fx.phaser', find: () => byHelp('fx.phaser'), place: 'after' },
+  { topic: 'fx.chorus', find: () => byHelp('fx.chorus'), place: 'after' },
   { topic: 'fx.delay', find: () => byHelp('fx.delay'), place: 'after' },
   { topic: 'fx.reverb', find: () => byHelp('fx.reverb'), place: 'after' },
   { topic: 'fx.duck', find: () => byHelp('fx.duck'), place: 'after' },
@@ -263,6 +264,10 @@ export class InfoBadges {
       // can be the two, hence all three.
       '[data-testid="eq-section"]', '[data-testid="panel-eq-seq"]',
       '[data-testid="panel-eq-drums"]', '[data-testid="panel-eq-sampler"]',
+      // The shared Phaser/Chorus views (fx-slot-picker.md REQ-a-slot-view-tells-badges-when-it-hides):
+      // a view swap resizes no other container, so each view is watched itself.
+      '[data-testid="fxview-fx.phaser"]', '[data-testid="fxview-fx.chorus"]',
+      '[data-testid="fxgroup-fx.sampler.phaser"]', '[data-testid="fxgroup-fx.sampler.chorus"]',
     ]) {
       const el = document.querySelector(sel);
       if (el) this.ro.observe(el);

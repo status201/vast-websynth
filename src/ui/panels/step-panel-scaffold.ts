@@ -18,6 +18,7 @@ import type { PatternUndo } from '../../state/pattern-undo';
 import { BANK_LABELS, MIN_BANK_COUNT, SAMPLER_SLOT_LABELS } from '../../state/patterns';
 import { GRID_CELLS, LANE_RATE_LABELS, meterLabel, ticksPerCell } from '../../state/meter';
 import { Dropdown } from '../components/dropdown';
+import { anchorMenu, dismissMenu } from '../components/menu-anchor';
 import { laneGrid, onLaneGridChange } from '../lane-grid';
 import dropdownStyles from '../styles/dropdown.module.css';
 import { ListenerSet } from '../../utils/listeners';
@@ -433,22 +434,6 @@ export function laneMeterControlsFor(bus: ParamBus, lane: StepLane): LaneControl
 
   let open = false;
 
-  /** `position: fixed`, anchored to the toggle and flipped up near the bottom
-   *  edge — the rule `Dropdown.position` and `createClearMenu` both follow. */
-  const position = (): void => {
-    const r = toggle.getBoundingClientRect();
-    const s2 = menu.style;
-    // `.menu` carries `min-width: 100%`, and for a `position: fixed` box that
-    // 100% is the VIEWPORT — a popover the width of the screen. `createClearMenu`
-    // pins it to the toggle's width; this one is wider than its toggle, so it
-    // releases the floor and lets the body's own `min-width` size it.
-    s2.minWidth = '0px';
-    s2.left = `${r.left}px`;
-    const mh = menu.offsetHeight;
-    const flipUp = r.bottom + 6 + mh > window.innerHeight && r.top - 6 - mh > 0;
-    s2.top = `${flipUp ? r.top - 6 - mh : r.bottom + 6}px`;
-  };
-
   const setOpen = (o: boolean): void => {
     if (open === o) return;
     open = o;
@@ -456,7 +441,9 @@ export function laneMeterControlsFor(bus: ParamBus, lane: StepLane): LaneControl
     // inline keeps the reveal on THIS element only (see the root's comment).
     menu.style.display = o ? 'flex' : 'none';
     toggle.setAttribute('aria-expanded', String(o));
-    if (o) position();
+    // Wider than its toggle, so the body's own min-width sizes it
+    // (dropdown.md REQ-every-fixed-menu-shares-one-anchor-and-dismiss).
+    if (o) anchorMenu(toggle, menu, 'content');
   };
 
   toggle.addEventListener('click', (e) => {
@@ -465,12 +452,7 @@ export function laneMeterControlsFor(bus: ParamBus, lane: StepLane): LaneControl
   });
   // `root.contains` keeps the popover open while the user drives the two
   // Dropdowns inside it — their own menus render within this root.
-  document.addEventListener('click', (e) => {
-    if (open && !root.contains(e.target as Node)) setOpen(false);
-  });
-  document.addEventListener('keydown', (e) => {
-    if (open && e.key === 'Escape') setOpen(false);
-  });
+  dismissMenu(root, () => open, () => setOpen(false));
 
   const off = onLaneGridChange(bus, lane, () => {
     const grid = laneGrid(bus, lane);

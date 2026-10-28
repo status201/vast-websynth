@@ -1,0 +1,59 @@
+/* The caret beside a shared FX panel's title, and its menu's lamps
+   (fx-slot-picker.md). Above `controls` because it decorates dropdown.module.css's
+   `.root` and `.option` on the same elements. */
+
+@layer components {
+  .root {
+    display: inline-flex;
+    align-items: center;
+  }
+
+  /* Icon-only: the title beside it is the name (REQ-the-title-is-unchanged-plus-a-caret). */
+  .caret {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    padding: 0 2px;
+    background: none;
+    border: none;
+    color: var(--text-dim);
+    cursor: pointer;
+    font-size: 12px;
+    line-height: 1;
+  }
+
+  .caret:hover,
+  .root:global(.open) .caret {
+    color: var(--accent-secondary);
+  }
+
+  .caret svg {
+    transition: transform 120ms ease;
+  }
+
+  .root:global(.open) .caret svg {
+    transform: rotate(180deg);
+  }
+
+  .option {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+
+  /* An effect that is on, whether or not it is the one shown
+     (REQ-the-menu-lists-every-effect-in-the-slot) — the panel-tab lamp's look. */
+  .lamp {
+    flex: none;
+    width: 5px;
+    height: 5px;
+    border-radius: 50%;
+    background: rgba(0, 0, 0, 0.5);
+    box-shadow: inset 0 0 0 1px rgba(244, 205, 94, 0.12);
+  }
+
+  .option:global(.lit) .lamp {
+    background: var(--accent);
+    box-shadow: 0 0 5px var(--accent-secondary-glow);
+  }
+}

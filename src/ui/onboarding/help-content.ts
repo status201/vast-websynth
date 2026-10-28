@@ -346,6 +346,7 @@ export type TopicId =
   | 'fx.wah.rate'
   | 'fx.phaser'
   | 'fx.phaser.rate'
+  | 'fx.chorus'
   | 'fx.delay'
   | 'fx.delay.time'
   | 'fx.reverb'
@@ -664,10 +665,12 @@ export const HELP_TOPICS: Record<TopicId, HelpTopic> = {
   fx: {
     title: 'Effects chain',
     body:
-      '<p>A chain of six effects the synth runs through: <strong>Distortion → Wah → Phaser → ' +
-      'Delay → Reverb → Duck</strong>. Each has an on/off switch and a few knobs. Switch one on ' +
+      '<p>A chain of seven effects the synth runs through: <strong>Distortion → Wah → Phaser → ' +
+      'Chorus → Delay → Reverb → Duck</strong>. Each has an on/off switch and a few knobs. Switch one on ' +
       'and tweak — they turn a plain tone into something spacious or gnarly. Click the (i) on ' +
-      'each effect for details.</p>',
+      'each effect for details.</p>' +
+      '<p>Phaser and Chorus share a panel: the small arrow next to its title switches between ' +
+      'them. Both can be on at once — a lit dot in that menu shows which ones are.</p>',
   },
   'fx.dist': {
     title: 'Distortion',
@@ -684,6 +687,19 @@ export const HELP_TOPICS: Record<TopicId, HelpTopic> = {
       '<ul><li><strong>RATE</strong> — speed of the sweep.</li>' +
       '<li><strong>DEPTH</strong> — how far it sweeps.</li>' +
       '<li><strong>Q</strong> — sharpness of the peak (higher = more vocal).</li></ul>',
+  },
+  'fx.chorus': {
+    title: 'Chorus',
+    body:
+      '<p>Doubles the sound with a slightly detuned, drifting copy on each side — the classic ' +
+      'Juno shimmer that makes pads, strings and electric pianos wide and lush.</p>' +
+      '<ul><li><strong>RATE</strong> — speed of the drift.</li>' +
+      '<li><strong>DEPTH</strong> — how far it detunes.</li>' +
+      '<li><strong>MODE</strong> — <strong>FREE</strong> uses RATE and DEPTH; <strong>I</strong>, ' +
+      '<strong>II</strong> and <strong>I+II</strong> are fixed Juno-style settings (slow, faster and ' +
+      'deeper, fast shimmer) that take over from those two knobs, which dim while they do.</li>' +
+      '<li><strong>MIX</strong> — wet vs dry blend; widest around the middle.</li></ul>' +
+      '<p>It shares the Phaser’s panel — use the arrow next to the title to switch.</p>',
   },
   'fx.phaser': {
     title: 'Phaser',
@@ -1441,7 +1457,7 @@ export const HELP_TOPICS: Record<TopicId, HelpTopic> = {
       '<strong>Spectrum</strong> max-dB line below.</p>' +
       '<p>The <strong>Mono/Stereo</strong> button splits the view: <strong>Stereo</strong> shows ' +
       'the <strong>L</strong> and <strong>R</strong> channels separately, so you can see stereo ' +
-      'effects (reverb, delay, phaser) move the channels apart.</p>' +
+      'effects (the reverb and the chorus) move the channels apart.</p>' +
       '<p>In <strong>Spectrum</strong> a dotted <strong>max-dB</strong> line is pushed up by the ' +
       'bars to mark the loudest level reached (0 dB at the top = clipping) — handy when riding the ' +
       'compressors. It holds the peak briefly, then falls back very slowly; ' +

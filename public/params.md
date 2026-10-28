@@ -96,6 +96,11 @@ Schemas: [`llms.txt`](llms.txt).
 - "fx.phaser.feedback": number  // range 0..0.9, default 0.4
 - "fx.phaser.mix": number  // range 0..1, default 0.5
 - "fx.phaser.sync": number  // range 0..18, default 0, step 1, values 0=free 1=1/1 2=1/1 D 3=1/1 T 4=1/2 5=1/2 D 6=1/2 T 7=1/4 8=1/4 D 9=1/4 T 10=1/8 11=1/8 D 12=1/8 T 13=1/16 14=1/16 D 15=1/16 T 16=1/32 17=1/32 D 18=1/32 T
+- "fx.chorus.on": number  // range 0..1, default 0, step 1, values 0=off 1=on
+- "fx.chorus.rate": number  // range 0.05..10, default 0.5
+- "fx.chorus.depth": number  // range 0..1, default 0.5
+- "fx.chorus.mode": number  // range 0..3, default 0, step 1, values 0=FREE 1=I 2=II 3=I+II
+- "fx.chorus.mix": number  // range 0..1, default 0.5
 - "fx.delay.on": number  // range 0..1, default 0, step 1, values 0=off 1=on
 - "fx.delay.time": number  // range 0.01..1.5, default 0.35
 - "fx.delay.feedback": number  // range 0..0.95, default 0.4
@@ -197,6 +202,11 @@ Schemas: [`llms.txt`](llms.txt).
 - "fx.sampler.phaser.feedback": number  // range 0..0.9, default 0.4
 - "fx.sampler.phaser.mix": number  // range 0..1, default 0.5
 - "fx.sampler.phaser.sync": number  // range 0..18, default 0, step 1, values 0=free 1=1/1 2=1/1 D 3=1/1 T 4=1/2 5=1/2 D 6=1/2 T 7=1/4 8=1/4 D 9=1/4 T 10=1/8 11=1/8 D 12=1/8 T 13=1/16 14=1/16 D 15=1/16 T 16=1/32 17=1/32 D 18=1/32 T
+- "fx.sampler.chorus.on": number  // range 0..1, default 0, step 1, values 0=off 1=on
+- "fx.sampler.chorus.rate": number  // range 0.05..10, default 0.5
+- "fx.sampler.chorus.depth": number  // range 0..1, default 0.5
+- "fx.sampler.chorus.mode": number  // range 0..3, default 0, step 1, values 0=FREE 1=I 2=II 3=I+II
+- "fx.sampler.chorus.mix": number  // range 0..1, default 0.5
 - "fx.sampler.delay.on": number  // range 0..1, default 0, step 1, values 0=off 1=on
 - "fx.sampler.delay.time": number  // range 0.01..1.5, default 0.35
 - "fx.sampler.delay.feedback": number  // range 0..0.95, default 0.4

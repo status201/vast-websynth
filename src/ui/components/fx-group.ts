@@ -19,8 +19,30 @@ export function fxGroup(
   title: string,
   onPrefix: string,
   knobs: Array<{ id: string; label: string }>,
-  opts?: { knobSize?: number; trailing?: HTMLElement },
+  opts?: FxGroupOptions,
 ): HTMLElement {
+  return fxGroupParts(bus, title, onPrefix, knobs, opts).el;
+}
+
+export interface FxGroupOptions {
+  knobSize?: number;
+  trailing?: HTMLElement;
+  /**
+   * Placed right after the title (fx-group.md REQ-a-group-can-host-a-title-companion) —
+   * the slot picker's caret lands here when the group shares a slot
+   * (fx-slot-picker.md).
+   */
+  afterTitle?: HTMLElement;
+}
+
+/** `fxGroup`, also handing back its knobs — for a caller that dims some of them. */
+export function fxGroupParts(
+  bus: ParamBus,
+  title: string,
+  onPrefix: string,
+  knobs: Array<{ id: string; label: string }>,
+  opts?: FxGroupOptions,
+): { el: HTMLElement; knobs: Knob[] } {
   const group = document.createElement('div');
   group.className = styles.root!;
   group.dataset.testid = `fxgroup-${onPrefix}`;
@@ -33,14 +55,14 @@ export function fxGroup(
   label.textContent = title;
   label.className = styles.label!;
   group.appendChild(label);
+  if (opts?.afterTitle) group.appendChild(opts.afterTitle);
 
   group.appendChild(new Switch(bus, `${onPrefix}.on`, 'on').el);
 
   const knobRow = document.createElement('div');
   knobRow.className = styles.knobs!;
-  for (const k of knobs) {
-    knobRow.appendChild(new Knob({ bus, paramId: k.id, label: k.label, size: opts?.knobSize ?? 22 }).el);
-  }
+  const built = knobs.map((k) => new Knob({ bus, paramId: k.id, label: k.label, size: opts?.knobSize ?? 22 }));
+  for (const k of built) knobRow.appendChild(k.el);
   if (opts?.trailing) knobRow.appendChild(opts.trailing);
   group.appendChild(knobRow);
 
@@ -48,7 +70,7 @@ export function fxGroup(
     group.classList.toggle('collapsed', v < 0.5);
   });
 
-  return group;
+  return { el: group, knobs: built };
 }
 
 /**

@@ -63,6 +63,7 @@ export interface MockAudioContext {
   createWaveShaper: ReturnType<typeof vi.fn>;
   createStereoPanner: ReturnType<typeof vi.fn>;
   createDelay: ReturnType<typeof vi.fn>;
+  createChannelMerger: ReturnType<typeof vi.fn>;
   createConvolver: ReturnType<typeof vi.fn>;
   createBuffer: ReturnType<typeof vi.fn>;
 }
@@ -116,6 +117,7 @@ export function makeMockAudioContext(sampleRate = 44100): MockAudioContext {
       delayTime: makeParam(0),
       maxDelayTime,
     })),
+    createChannelMerger: vi.fn((numberOfInputs = 6) => withCtx({ ...baseNode(), numberOfInputs })),
     createConvolver: vi.fn(() => withCtx({
       ...baseNode(),
       buffer: null as AudioBuffer | null,

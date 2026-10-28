@@ -4,10 +4,12 @@ import type { PatternUndo } from '../../state/pattern-undo';
 import type { UiBridge } from '../ui-bridge';
 import { createUndoButton } from '../components/undo-button';
 import { Switch } from '../components/switch';
-import { Knob } from '../components/knob';
+import { Knob, dimWhileModeSet } from '../components/knob';
 import { createButton } from '../components/button';
 import { ParamDropdown } from '../components/param-dropdown';
-import { fxGroup } from '../components/fx-group';
+import { fxGroup, fxGroupParts } from '../components/fx-group';
+import { createFxSlot } from '../components/fx-slot-picker';
+import { CHORUS_MODE_OVERRIDES } from '../../state/chorus';
 import { StepButton } from '../components/step-button';
 import {
   bankBarFor, wrapGridWithRestOverlay, wirePlayhead, playheadRulerFor, laneControlsFor, laneMeterControlsFor, GridCursor, clearMenuFor,
@@ -109,12 +111,28 @@ export function buildSamplerPanel(
     { id: 'fx.sampler.dist.tone', label: 'TONE' },
     { id: 'fx.sampler.dist.mix', label: 'MIX' },
   ]));
-  fx.appendChild(fxGroup(bus, 'PHASER', 'fx.sampler.phaser', [
+  // PHASER and CHORUS share one group's place, chosen from a caret by the
+  // title (fx-slot-picker.md); the chorus follows the phaser in the chain.
+  const phaserHost = document.createElement('span');
+  const phaser = fxGroup(bus, 'PHASER', 'fx.sampler.phaser', [
     { id: 'fx.sampler.phaser.rate', label: 'RATE' },
     { id: 'fx.sampler.phaser.depth', label: 'DEPTH' },
     { id: 'fx.sampler.phaser.feedback', label: 'FB' },
     { id: 'fx.sampler.phaser.mix', label: 'MIX' },
-  ]));
+  ], { afterTitle: phaserHost });
+  const chorusHost = document.createElement('span');
+  const chorus = fxGroupParts(bus, 'CHORUS', 'fx.sampler.chorus', [
+    { id: 'fx.sampler.chorus.rate', label: 'RATE' },
+    { id: 'fx.sampler.chorus.depth', label: 'DEPTH' },
+    { id: 'fx.sampler.chorus.mode', label: 'MODE' },
+    { id: 'fx.sampler.chorus.mix', label: 'MIX' },
+  ], { afterTitle: chorusHost });
+  dimWhileModeSet(bus, 'fx.sampler.chorus', CHORUS_MODE_OVERRIDES, chorus.knobs);
+  fx.append(phaser, chorus.el);
+  createFxSlot(bus, [
+    { prefix: 'fx.sampler.phaser', title: 'Phaser', el: phaser, caretHost: phaserHost },
+    { prefix: 'fx.sampler.chorus', title: 'Chorus', el: chorus.el, caretHost: chorusHost },
+  ]);
   fx.appendChild(fxGroup(bus, 'DELAY', 'fx.sampler.delay', [
     { id: 'fx.sampler.delay.time', label: 'TIME' },
     { id: 'fx.sampler.delay.feedback', label: 'FB' },

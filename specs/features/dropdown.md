@@ -3,7 +3,10 @@
 ```yaml
 id: dropdown
 status: implemented
-version: 10 # v10: ParamDropdown.setDimmed, and REQ-a-dropdown-can-be-dimmed's CSS pin widened to
+version: 11 # v11: REQ-every-fixed-menu-shares-one-anchor-and-dismiss — the anchor rule and the
+            #      Escape-is-consumed rule live in menu-anchor.ts, shared by every fixed
+            #      menu; the Clear menu and the lane popover were letting Escape reach Panic
+            # v10: ParamDropdown.setDimmed, and REQ-a-dropdown-can-be-dimmed's CSS pin widened to
             #     consumer stylesheets — the mod matrix's idle rows faded a picker
             #     root with `.idle > *` and the open list went transparent again
             # v9: REQ-the-menu-closes-on-outside-click — the Escape that closes a menu stops there;
@@ -31,6 +34,7 @@ source:
   - src/ui/components/dropdown.ts
   - src/ui/components/param-dropdown.ts   # ParamBus-bound wrapper
   - src/ui/styles/dropdown.module.css
+  - src/ui/components/menu-anchor.ts      # v11: anchorMenu + dismissMenu, shared by every fixed menu
 ```
 
 ## Background / Why
@@ -75,6 +79,26 @@ without anyone remembering to ask.
   anchored to the toggle's viewport rect, flips above when it would overflow the
   bottom edge, and re-anchors on scroll/resize while open. It is capped at
   `max-height: 280px` with `overflow-y: auto`.
+- **REQ-every-fixed-menu-shares-one-anchor-and-dismiss** (v11) — The
+  REQ-the-menu-is-fixed-and-anchored anchor and the v9 rule of
+  REQ-the-menu-closes-on-outside-click are written **once**, in
+  `src/ui/components/menu-anchor.ts`, and every `position: fixed` menu built on
+  `dropdown.module.css` goes through them: `Dropdown`, `createClearMenu`, the
+  lane LEN/RATE popover (`step-panel-scaffold.ts`) and `createFxSlot`
+  ([fx-slot-picker](fx-slot-picker.md)).
+  - `anchorMenu(toggle, menu, width)` places the menu under its toggle and flips
+    it above near the bottom edge. `width` says what the `.menu`'s `min-width:
+    100%` floor becomes. For a fixed box that 100% is the **viewport**, so every
+    caller has to answer it: `'toggle'` pins it to the toggle (a list as wide as
+    its button), `'content'` releases it (a menu wider or narrower than its
+    toggle).
+  - `dismissMenu(root, isOpen, close)` closes the menu on an outside click and on
+    Escape, and **consumes** that Escape. Before v11 the anchor was written out
+    four times, and two of the copies (the Clear menu and the lane popover)
+    closed on Escape without consuming it. Escape then reached the window's
+    Panic shortcut and stopped the song, the bug v9 had fixed in `Dropdown`
+    alone. `Dropdown` keeps its own key handler, which also walks the options,
+    and shares only the anchor.
 - **REQ-the-selected-option-scrolls-into-view** — **On open, the currently
   selected option is scrolled into view within the menu**, and keyboard focus
   lands on the **filter input** where one exists
@@ -331,6 +355,18 @@ None. The selected value belongs to the consumer (bus param, preset session…).
 ## Scenarios (BDD)
 
 ```gherkin
+Scenario: Escape closes any fixed menu without reaching Panic (regression, v11, REQ-every-fixed-menu-shares-one-anchor-and-dismiss)
+  Given the Clear menu, the lane popover or the FX slot picker is open
+  When the user presses Escape
+  Then the menu closes and the keydown does not reach the window
+   And with the menu closed, Escape reaches the window untouched
+# pinned by: tests/ui/menu-anchor.test.ts
+
+Scenario: A fixed menu is never as wide as the viewport (regression, v11, REQ-every-fixed-menu-shares-one-anchor-and-dismiss)
+  Given a menu anchored with width 'toggle' or 'content'
+  Then its min-width is the toggle's width or 0, never left at the stylesheet's 100%
+# pinned by: tests/ui/menu-anchor.test.ts
+
 Scenario: Opening scrolls to and focuses the selected option
   Given a Dropdown with many options whose current value is deep in the list
   When I click the toggle
@@ -485,7 +521,8 @@ Scenario: A rebuild does not repaint a value the list never held (regression, v7
 
 ## Tests & verification
 
-- Unit: `tests/ui/dropdown.test.ts`, `tests/ui/param-dropdown.test.ts` — `npm test`
+- Unit: `tests/ui/dropdown.test.ts`, `tests/ui/param-dropdown.test.ts`,
+  `tests/ui/menu-anchor.test.ts` (v11) — `npm test`
   (the jsdom suite cannot see real CSS; the v4 typeface split is pinned by
   `tests/ui/typography.test.ts` and REQ-a-dropdown-can-be-dimmed's CSS half by
   `tests/ui/dropdown-stacking.test.ts` — both read the stylesheets as text)

@@ -3,7 +3,9 @@
 ```yaml
 id: testids
 status: implemented
-version: 32 # v32: demo-loaded-info, demo-library, demo-library-entry, demo-library-load, demo-library-more
+version: 33 # v33: fxpick-<primary>, fxpick-<primary>-<prefix>, fxview-<prefix>
+            #      (fx-slot-picker.md REQ-fx-slot-picker-testids)
+            # v32: demo-loaded-info, demo-library, demo-library-entry, demo-library-load, demo-library-more
             #      (demo-library.md REQ-the-library-reads-without-loading, REQ-the-loaded-demo-carries-an-info-button)
             # v31: seq-bend (+ -track/-dec/-inc/-value), seq-bend-shape, seq-bend-scoop,
             #      seq-bend-fall (step-settings.md REQ-a-seq-step-carries-a-bend)
@@ -419,6 +421,8 @@ shared UI:
   value-bubble                                      # the drag readout's default id;
                                                     #   motion-value-bubble overrides it
   fxgroup-<prefix> · fx-patch-decoration            # features/fx-group.md
+  fxpick-<primary> · fxpick-<primary>-<prefix> ·
+    fxview-<prefix>                                 # features/fx-slot-picker.md (v33)
   grmeter-<fxPrefix>                                # grmeter-fx.drum.comp,
                                                     #   grmeter-fx.master.comp
                                                     # features/compressor.md

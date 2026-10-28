@@ -1,7 +1,9 @@
 import type { ParamBus } from '../../state/params';
-import { Knob } from '../components/knob';
+import { Knob, dimWhileModeSet } from '../components/knob';
 import { Switch } from '../components/switch';
 import { fxPatchDecoration } from '../components/fx-patch-decoration';
+import { CHORUS_MODE_OVERRIDES } from '../../state/chorus';
+import { createFxSlot } from '../components/fx-slot-picker';
 import { createCollapseToggle } from '../components/collapse-toggle';
 import { createSectionTitle } from '../components/section-title';
 import { isCompact } from '../viewport';
@@ -31,12 +33,13 @@ export function buildFxRack(bus: ParamBus): { el: HTMLElement; expand: () => voi
   const fx = document.createElement('div');
   fx.className = fxStyles.fxRow!;
 
-  for (const spec of RACK) fx.appendChild(fxPanel(bus, spec));
+  for (const entry of RACK) fx.appendChild(fxPanel(bus, entry));
 
   // An odd effect count in the ≤992px 2-column grid leaves one cell empty; fill
   // it with the unpatched-cable scenery (fx-patch-decoration.md). Parity-keyed,
-  // so the six effects shipping today drop it rather than push it onto a row of
-  // its own — a seventh would bring it back with no change here.
+  // so the six panels shipping today (seven effects: the chorus shares the
+  // Phaser's) drop it rather than push it onto a row of its own — a seventh
+  // panel would bring it back with no change here.
   if (fx.childElementCount % 2 === 1) fx.appendChild(fxPatchDecoration());
 
   section.appendChild(fx);
@@ -52,13 +55,30 @@ interface FxSpec {
   title: string;
   id: string;
   knobs: ReadonlyArray<readonly [param: string, label: string]>;
+  /** Knobs a `${id}.mode` other than FREE overrides, dimmed while it does. */
+  modeOverrides?: readonly string[];
 }
 
+/**
+ * One rack panel: an effect of its own, or a slot two effects share behind a
+ * caret by the title (fx-slot-picker.md) — the first is the one shown by default.
+ */
+type RackEntry = FxSpec | readonly FxSpec[];
+
 /** The rack, left to right — the order of the insert chain itself. */
-const RACK: readonly FxSpec[] = [
+const RACK: readonly RackEntry[] = [
   { title: 'Distortion', id: 'fx.dist', knobs: [['drive', 'DRIVE'], ['tone', 'TONE'], ['mix', 'MIX']] },
   { title: 'Wah', id: 'fx.wah', knobs: [['rate', 'RATE'], ['depth', 'DEPTH'], ['q', 'Q']] },
-  { title: 'Phaser', id: 'fx.phaser', knobs: [['rate', 'RATE'], ['depth', 'DEPTH'], ['feedback', 'FB'], ['mix', 'MIX']] },
+  // The chorus has no panel of its own; it shares the Phaser's, which it
+  // follows in the chain (chorus.md REQ-the-chorus-sits-after-the-phaser).
+  [
+    { title: 'Phaser', id: 'fx.phaser', knobs: [['rate', 'RATE'], ['depth', 'DEPTH'], ['feedback', 'FB'], ['mix', 'MIX']] },
+    {
+      title: 'Chorus', id: 'fx.chorus',
+      knobs: [['rate', 'RATE'], ['depth', 'DEPTH'], ['mode', 'MODE'], ['mix', 'MIX']],
+      modeOverrides: CHORUS_MODE_OVERRIDES,
+    },
+  ],
   { title: 'Delay', id: 'fx.delay', knobs: [['time', 'TIME'], ['feedback', 'FB'], ['mix', 'MIX']] },
   { title: 'Reverb', id: 'fx.reverb', knobs: [['size', 'SIZE'], ['damp', 'DAMP'], ['mix', 'MIX']] },
   // Last in the rack because it is last in the chain (sidechain-ducking.md
@@ -67,26 +87,59 @@ const RACK: readonly FxSpec[] = [
   { title: 'Duck', id: 'fx.duck', knobs: [['amount', 'AMT'], ['attack', 'ATK'], ['release', 'REL'], ['src', 'SRC']] },
 ];
 
-function fxPanel(bus: ParamBus, { title, id, knobs }: FxSpec): HTMLElement {
+function fxPanel(bus: ParamBus, entry: RackEntry): HTMLElement {
   const el = document.createElement('div');
   el.className = fxStyles.fxPanel!;
 
+  if (!isSlot(entry)) {
+    const view = fxView(bus, entry);
+    el.append(view.header, view.knobs);
+    return el;
+  }
+
+  // A slot: every view is built and stays subscribed; the slot shows one
+  // (fx-slot-picker.md REQ-the-slot-shows-one-effect-at-a-time).
+  const views = entry.map((spec) => {
+    const view = fxView(bus, spec);
+    const shell = document.createElement('div');
+    shell.className = fxStyles.fxView!;
+    shell.dataset.testid = `fxview-${spec.id}`;
+    shell.append(view.header, view.knobs);
+    el.appendChild(shell);
+    return { prefix: spec.id, title: spec.title, el: shell, caretHost: view.titleRow };
+  });
+  createFxSlot(bus, views);
+  return el;
+}
+
+const isSlot = (e: RackEntry): e is readonly FxSpec[] => Array.isArray(e);
+
+/**
+ * An effect's face: header (title row + switch) and knob row. The title row
+ * holds the title and, in a slot, the picker's caret after it; it carries
+ * `data-help`, so the ⓘ badge lands after the caret rather than on it.
+ */
+function fxView(
+  bus: ParamBus,
+  { title, id, knobs, modeOverrides }: FxSpec,
+): { header: HTMLElement; knobs: HTMLElement; titleRow: HTMLElement } {
   const header = document.createElement('div');
   header.className = fxStyles.fxHeader!;
+  const titleRow = document.createElement('div');
+  titleRow.className = fxStyles.fxTitleRow!;
+  titleRow.dataset.help = id;
   const t = document.createElement('div');
   t.className = fxStyles.fxTitle!;
   t.textContent = title;
-  t.dataset.help = id;
-  header.appendChild(t);
+  titleRow.appendChild(t);
+  header.appendChild(titleRow);
   header.appendChild(new Switch(bus, `${id}.on`, 'on').el);
-  el.appendChild(header);
 
   const knobsEl = document.createElement('div');
   knobsEl.className = fxStyles.fxKnobs!;
-  for (const [param, label] of knobs) {
-    knobsEl.appendChild(new Knob({ bus, paramId: `${id}.${param}`, label }).el);
-  }
-  el.appendChild(knobsEl);
+  const built = knobs.map(([param, label]) => new Knob({ bus, paramId: `${id}.${param}`, label }));
+  for (const k of built) knobsEl.appendChild(k.el);
+  if (modeOverrides) dimWhileModeSet(bus, id, modeOverrides, built);
 
-  return el;
+  return { header, knobs: knobsEl, titleRow };
 }

@@ -3,7 +3,9 @@
 ```yaml
 id: fx-group
 status: implemented
-version: 2   # v2: REQ-fx-group-testids — a rate/time knob in a group also mints the tempo-lock
+version: 3   # v3: REQ-a-group-can-host-a-title-companion — `afterTitle` and `fxGroupParts`, so a
+             #     group can share a slot with another (fx-slot-picker.md)
+             # v2: REQ-fx-group-testids — a rate/time knob in a group also mints the tempo-lock
              #     ids; the builder itself is unchanged (tempo-lock.md REQ-one-table-declares-lockable-params)
 owner: core
 related:
@@ -13,11 +15,12 @@ related:
   - drum-machine
   - sampler
   - song-mode
+  - fx-slot-picker  # v3: the sampler's PHASER / CHORUS slot
 source:
   - src/ui/components/fx-group.ts
   - src/ui/styles/fx-group.module.css
   - src/ui/panels/drum-panel.ts      # PHASER / DELAY / COMP (+ GR meter)
-  - src/ui/panels/sampler-panel.ts   # DIST / PHASER / DELAY / REVERB
+  - src/ui/panels/sampler-panel.ts   # DIST / PHASER·CHORUS / DELAY / REVERB / DUCK
   - src/ui/panels/song-panel.ts      # master COMP
 ```
 
@@ -72,6 +75,14 @@ behaviour like this lives in one place.
   on zero-size anchors, but help must stay reachable for a bypassed effect
   (that's when "what is this?" is asked).
 
+- **REQ-a-group-can-host-a-title-companion** (v3) — `opts.afterTitle` is placed
+  right after the title, before the switch: the slot picker's caret lands there
+  when two groups share a slot ([fx-slot-picker](fx-slot-picker.md)). It is the
+  caller's element, so the group knows nothing about the picker. `fxGroupParts`
+  is the same builder handing back its `Knob`s as well as its root, for a caller
+  that dims some of them (the chorus's RATE and DEPTH, `dimWhileModeSet`);
+  `fxGroup` is `fxGroupParts(...).el`.
+
 ## Technical design
 
 ### Contract / public interface
@@ -79,7 +90,8 @@ behaviour like this lives in one place.
 ```yaml
 fxGroup(bus, title, onPrefix, knobs, opts?): HTMLElement   # src/ui/components/fx-group.ts
   knobs: Array<{ id, label }>
-  opts: { knobSize? = 22, trailing?: HTMLElement }
+  opts: { knobSize? = 22, trailing?: HTMLElement, afterTitle?: HTMLElement }   # v3: afterTitle
+fxGroupParts(...same): { el: HTMLElement, knobs: Knob[] }                      # v3
 collapse mechanism:
   bus.subscribe(`${onPrefix}.on`, v => root.classList.toggle('collapsed', v < 0.5))
   css: .root:global(.collapsed) .knobs { display: none; }   # fx-group.module.css

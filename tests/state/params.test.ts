@@ -482,3 +482,31 @@ describe('the sampler slot family defaults to a no-op (REQ-a-closed-hat-cuts-an-
     expect(bus.get('sampler.t7.end')).toBe(1);
   });
 });
+
+describe('the chorus params default to a no-op (chorus.md REQ-the-chorus-params-default-to-a-no-op)', () => {
+  it('registers both buses, switched off, in FREE mode', () => {
+    const bus = new ParamBus();
+    registerDefaults(bus);
+    for (const p of ['fx.chorus', 'fx.sampler.chorus']) {
+      for (const s of ['on', 'rate', 'depth', 'mode', 'mix']) {
+        expect(bus.def(`${p}.${s}`), `${p}.${s} is not registered`).toBeDefined();
+      }
+      expect(bus.get(`${p}.on`)).toBe(0);
+      expect(bus.get(`${p}.mode`)).toBe(0);
+      // No tempo lock (REQ-the-chorus-has-no-tempo-lock).
+      expect(bus.def(`${p}.sync`)).toBeUndefined();
+    }
+    // The drum bus has none.
+    expect(bus.def('fx.drum.chorus.on')).toBeUndefined();
+  });
+
+  it('leaves a song written before the chorus existed with the chorus off', () => {
+    const bus = new ParamBus();
+    registerDefaults(bus);
+    bus.set('fx.chorus.on', 1);
+    bus.resetDefaults();
+    bus.restore({ 'fx.phaser.on': 1 });
+    expect(bus.get('fx.chorus.on')).toBe(0);
+    expect(bus.get('fx.sampler.chorus.on')).toBe(0);
+  });
+});

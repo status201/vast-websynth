@@ -3,7 +3,8 @@
 ```yaml
 id: scope
 status: implemented          # draft | active | implemented
-version: 20  # v20: REQ-a-scope-resize-handle says the custom property is set from script, which the CSP allows (a style= attribute would not be)
+version: 21  # v21: the chorus joins the stereo-sources list — the first insert besides the reverb that makes L≠R (chorus.md)
+             # v20: REQ-a-scope-resize-handle says the custom property is set from script, which the CSP allows (a style= attribute would not be)
              # v19: the Wave trace is triggered on a rising zero crossing, so a steady tone
              #      stands still instead of drifting (REQ-the-wave-trace-is-triggered)
              # v18: the scope row's height is now a MINIMUM (REQ-a-scope-resize-handle): .bottom is a flex column and
@@ -63,8 +64,10 @@ The bottom panel hosts a live oscilloscope/analyser (`Scope`) tapped **pre-maste
 so the display is independent of the master-volume knob. It already toggles between
 a **Wave** (time-domain) and a **Spectrum** (frequency) view via a single button.
 
-The synth's signal is **stereo** — five things produce L≠R content: the
-**reverb** (a 2-channel decorrelated IR, so it is mono-in/stereo-out), the **LFO
+The synth's signal is **stereo** — six things produce L≠R content: the
+**reverb** (a 2-channel decorrelated IR, so it is mono-in/stereo-out), the
+**chorus** on the synth and sampler buses (two antiphase taps, one per side —
+[chorus](chorus.md)), the **LFO
 auto-pan** (`synthPan`), the **drum tracks' per-track pans**, the **sampler
 slots' per-slot pans**, and the **sequencer tracks' per-track pans**
 ([sequencer](sequencer.md) REQ-a-seq-track-carries-a-pan — the newest, and the

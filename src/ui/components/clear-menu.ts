@@ -1,6 +1,7 @@
 import styles from '../styles/dropdown.module.css';
 import switchStyles from '../styles/switch.module.css';
 import { iconLabel } from './ui-icons';
+import { anchorMenu, dismissMenu } from './menu-anchor';
 
 /**
  * The `Clear ▾` header control — `specs/features/step-grid-editing.md` REQ-clear-menu-clears-in-bulk.
@@ -75,21 +76,6 @@ export function createClearMenu(opts: ClearMenuOptions): HTMLElement {
     menu.appendChild(b);
   };
 
-  /**
-   * The menu is `position: fixed` so it escapes the panel's stacking and
-   * overflow contexts; anchor it to the toggle and flip up near the bottom edge
-   * (the same rule `Dropdown.position` follows).
-   */
-  const position = (): void => {
-    const r = toggle.getBoundingClientRect();
-    const s = menu.style;
-    s.minWidth = `${r.width}px`;
-    s.left = `${r.left}px`;
-    const mh = menu.offsetHeight;
-    const flipUp = r.bottom + 6 + mh > window.innerHeight && r.top - 6 - mh > 0;
-    s.top = `${flipUp ? r.top - 6 - mh : r.bottom + 6}px`;
-  };
-
   function setOpen(o: boolean): void {
     if (open === o) return;
     open = o;
@@ -108,19 +94,16 @@ export function createClearMenu(opts: ClearMenuOptions): HTMLElement {
       item(`clear-${opts.lane}-shift-left`, `Shift bank ${opts.bankLabel()} left`, () => shift(-1));
       item(`clear-${opts.lane}-shift-right`, `Shift bank ${opts.bankLabel()} right`, () => shift(1));
     }
-    position();
+    // Fixed, so it escapes the panel's stacking and overflow contexts
+    // (dropdown.md REQ-every-fixed-menu-shares-one-anchor-and-dismiss).
+    anchorMenu(toggle, menu, 'toggle');
   }
 
   toggle.addEventListener('click', (e) => {
     e.stopPropagation();
     setOpen(!open);
   });
-  document.addEventListener('click', (e) => {
-    if (open && !root.contains(e.target as Node)) setOpen(false);
-  });
-  document.addEventListener('keydown', (e) => {
-    if (open && e.key === 'Escape') setOpen(false);
-  });
+  dismissMenu(root, () => open, () => setOpen(false));
 
   return root;
 }

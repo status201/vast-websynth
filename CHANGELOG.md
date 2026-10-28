@@ -18,6 +18,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ### Added
 
+- **Chorus.** A Juno-style stereo chorus on the synth and on the sampler.
+  - It widens the sound with a slightly detuned copy drifting on each side:
+    the classic shimmer for pads, strings and electric pianos.
+  - Knobs: RATE, DEPTH, MIX, and MODE. MODE **FREE** uses RATE and DEPTH; **I**,
+    **II** and **I+II** are fixed Juno-style settings (slow, faster and deeper, a
+    fast shimmer) that take over from those two knobs, which dim while they do.
+  - It shares the Phaser's panel. The small arrow next to the Phaser title opens
+    a menu to switch between the two, and a lit dot shows which are on. Both can
+    run at once, each with its own settings.
+  - A song that only uses the chorus opens with the Chorus panel showing.
+
 - **Oscillator sync.** OSC 2 has a new SYNC switch: **hard** or **soft**.
   - **hard:** every time OSC 1 starts a cycle, OSC 2 jumps back to the start of
     its own.
@@ -78,6 +89,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 - **The demo Apex is now called Mono.**
 
 ### Fixed
+
+- Pressing Escape to close the **Clear ▾** menu or a lane's length/rate
+  popover no longer also stops the song. Escape is the Panic key, and closing
+  either menu used to let it through.
 
 - **A preset no longer inherits settings from the sound before it.** Loading
   `basic` after a synced or FM sound used to keep OSC 2 synced or the FM

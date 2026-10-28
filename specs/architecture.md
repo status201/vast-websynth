@@ -403,7 +403,7 @@ Insert effects additionally share `bindBypassMix(bus, prefix, fx)`
 and that absence is exactly how the helper knows not to subscribe a `.mix` param
 the compressors and the wah do not have.
 
-All six insert effects extend **`WrappedEffect`** (`audio/effects/effect.ts`),
+Every insert effect extends **`WrappedEffect`** (`audio/effects/effect.ts`),
 which owns the `BypassWrapper`, publishes its `input`/`output` as the `Effect`
 surface and delegates `setBypass`. A subclass is then only its DSP span plus its
 `bind`; `Compressor` overrides `setBypass` to also clear its GR meter.
@@ -514,10 +514,10 @@ back into the engine.
 ### Audio graph (system diagram)
 
 ```
-voices ─(spread)→ voiceBus ─→ eq → distortion → wah → phaser → delay → reverb → duck → synthPan ─┐
-            drumBus ─→ eq → drumComp → drumPhaser → drumDelay → drumReverb ──────────────┤
-            samplerBus ─→ eq (+ sampler dist/phaser/delay/reverb/duck) ──────────────────┤
-                                                                                         ▼
+voices ─(spread)→ voiceBus ─→ eq → distortion → wah → phaser → chorus → delay → reverb → duck → synthPan ─┐
+            drumBus ─→ eq → drumComp → drumPhaser → drumDelay → drumReverb ───────────────────────┤
+            samplerBus ─→ eq (+ sampler dist/phaser/chorus/delay/reverb/duck) ────────────────────┤
+                                                                                                  ▼
         preMaster ─→ djLow ─→ djHigh ─→ masterComp ─→ analyser ─→ master ─→ destination
 ```
 
@@ -526,7 +526,7 @@ voices ─(spread)→ voiceBus ─→ eq → distortion → wah → phaser → d
 - The **eq heads every chain** ([features/equalizer.md](features/equalizer.md)).
   Head rather than tail on all three: it shapes what the distortion drives and
   what the drum compressor reacts to, and on the synth bus it is also the cheap
-  position, since that path is 1-channel until the reverb. Ten native biquads
+  position, since that path is 1-channel until the chorus or the reverb. Ten native biquads
   per lane, no worklet, and ADR-012 disconnects the lot while it is off — which
   it is by default.
 - `synthPan` is the synth channel's auto-panner, swept by the LFO's `pan`
@@ -534,7 +534,10 @@ voices ─(spread)→ voiceBus ─→ eq → distortion → wah → phaser → d
   synth stage so that nothing upstream of it pays for two channels it does not
   need: the voice path is mono end to end (mono oscillators/noise → gains →
   1-channel filter worklet → gains), and the insert chain stays 1-channel through
-  `dist → wah → phaser → delay`.
+  `dist → wah → phaser → delay` — except after the **chorus** while it is on: it
+  is the one insert short of the reverb that makes a second channel, and its
+  bypass disconnect takes that away again ([chorus](features/chorus.md)
+  REQ-the-chorus-widens-without-changing-level).
 
   **`(spread)` in the diagram is the one thing that can end that**, and it is off
   unless asked for: a voice also carries a panned output edge, and `Engine`

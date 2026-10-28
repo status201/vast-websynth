@@ -8,6 +8,8 @@ import { masterLevel } from './master-level';
 import { SYNC_LABELS } from '../utils/tempo';
 import { NOTE_LABELS, SCALE_LABELS, EXTRA_LABELS, CHORD_LABELS } from '../utils/music';
 import { MOD_ROWS, MOD_SOURCE_LABELS, MOD_DEST_LABELS } from './mod-routing';
+// One table for MODE's labels and values (chorus.md REQ-the-chorus-mode-overrides-rate-and-depth).
+import { CHORUS_MODE_LABELS } from './chorus';
 // `eq.ts` imports only the `ParamBus` *type* back from here, so this pair is a
 // type-only cycle and erases at compile time — no runtime import loop.
 import {
@@ -409,6 +411,9 @@ export function registerDefaults(bus: ParamBus): void {
     // ----- FX: Phaser -----
     ...phaserParams('fx.phaser', { depth: 0.5, mix: 0.5 }),
 
+    // ----- FX: Chorus (after the phaser it shares a panel with — chorus.md) -----
+    ...chorusParams('fx.chorus'),
+
     // ----- FX: Delay -----
     ...delayParams('fx.delay'),
 
@@ -446,6 +451,9 @@ export function registerDefaults(bus: ParamBus): void {
 
     // ----- Sampler FX: Phaser -----
     ...phaserParams('fx.sampler.phaser', { depth: 0.7, mix: 0.5 }),
+
+    // ----- Sampler FX: Chorus -----
+    ...chorusParams('fx.sampler.chorus'),
 
     // ----- Sampler FX: Delay -----
     ...delayParams('fx.sampler.delay'),
@@ -680,6 +688,20 @@ function phaserParams(prefix: string, d: { depth: number; mix: number }): ParamD
     { id: `${prefix}.feedback`, min: 0, max: 0.9, default: 0.4, format: fmtPct },
     { id: `${prefix}.mix`, min: 0, max: 1, default: d.mix, format: fmtPct },
     syncParam(prefix),
+  ];
+}
+
+/**
+ * The chorus (chorus.md REQ-the-chorus-params-default-to-a-no-op) — synth and
+ * sampler. No `sync`: its rate is free-running by design (REQ-the-chorus-has-no-tempo-lock).
+ */
+function chorusParams(prefix: string): ParamDef[] {
+  return [
+    fxOnParam(prefix),
+    { id: `${prefix}.rate`, min: 0.05, max: 10, default: 0.5, format: (v) => v.toFixed(2) + 'Hz' },
+    { id: `${prefix}.depth`, min: 0, max: 1, default: 0.5, format: fmtPct },
+    { id: `${prefix}.mode`, min: 0, max: CHORUS_MODE_LABELS.length - 1, default: 0, step: 1, taper: 'discrete', labels: CHORUS_MODE_LABELS },
+    { id: `${prefix}.mix`, min: 0, max: 1, default: 0.5, format: fmtPct },
   ];
 }
 

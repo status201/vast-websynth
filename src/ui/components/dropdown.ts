@@ -1,5 +1,6 @@
 import styles from '../styles/dropdown.module.css';
 import { UI_ICONS } from './ui-icons';
+import { anchorMenu } from './menu-anchor';
 
 /**
  * Option count at which the menu grows a live filter row (dropdown.md REQ-a-long-list-carries-a-filter).
@@ -317,16 +318,11 @@ export class Dropdown {
    * (panels, tab scrollers) — and every stacking context its own ancestors do
    * not create. `opacity`/`transform`/`filter` on an ancestor still captures it,
    * which is why nothing may put those on `.root` (REQ-a-dropdown-can-be-dimmed). Anchor it to the
-   * toggle's viewport rect, flipping above when it would overflow the bottom.
+   * toggle's viewport rect, flipping above when it would overflow the bottom
+   * (`anchorMenu`, REQ-every-fixed-menu-shares-one-anchor-and-dismiss).
    */
   private position(): void {
-    const r = this.toggle.getBoundingClientRect();
-    const s = this.menu.style;
-    s.minWidth = `${r.width}px`;
-    s.left = `${r.left}px`;
-    const mh = this.menu.offsetHeight; // measurable: `.open` already set display:flex
-    const flipUp = r.bottom + 6 + mh > window.innerHeight && r.top - 6 - mh > 0;
-    s.top = `${flipUp ? r.top - 6 - mh : r.bottom + 6}px`;
+    anchorMenu(this.toggle, this.menu, 'toggle');
   }
 
   private onDocClick = (e: Event): void => {

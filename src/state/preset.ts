@@ -41,7 +41,8 @@ const PLAIN_VOICE: Snapshot = {
   'osc1.pulseWidth': 0.5, 'osc2.pulseWidth': 0.5,
   'osc1.fm': 0, 'osc1.ring': 0, 'osc2.sync': 0,
   ...Object.fromEntries(Array.from({ length: MOD_ROWS }, (_, n) => [`mod.${n}.src`, MOD_SRC.off])),
-  'fx.eq.on': 0, 'fx.dist.on': 0, 'fx.wah.on': 0, 'fx.phaser.on': 0, 'fx.delay.on': 0, 'fx.duck.on': 0,
+  'fx.eq.on': 0, 'fx.dist.on': 0, 'fx.wah.on': 0, 'fx.phaser.on': 0, 'fx.chorus.on': 0,
+  'fx.delay.on': 0, 'fx.duck.on': 0,
   // Shared
   'osc1.octave': 0, 'osc1.detune': 0,
   'sub.wave': 0, 'sub.octave': -1, 'sub.level': 0,

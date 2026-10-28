@@ -487,8 +487,10 @@ test('no knob label ever reaches its neighbour', async ({ page }) => {
  *
  * Measured rather than eyeballed, for the reason REQ-a-cell-is-never-narrower-than-a-knob is: this is rendered
  * geometry, and the failure is a wrap, not a class name. `.fxPanel` carries no
- * testid, so panels are recovered from their knobs' shared `offsetTop` exactly
- * as the panel rows above are.
+ * testid, so a panel is recovered as the cell of the rack's grid (the `fx`
+ * section's last child) that holds its knobs — not as a fixed ancestor, since
+ * the Phaser panel nests its knobs one level deeper, in a shared-slot view
+ * (fx-slot-picker.md).
  */
 const RACK = {
   dist: ['fx.dist.drive', 'fx.dist.tone', 'fx.dist.mix'],
@@ -520,7 +522,8 @@ test('no FX rack panel wraps its knob run', async ({ page }) => {
           if (!el) throw new Error(`no knob-${id} on the faceplate`);
           return el;
         });
-        const panel = knobs[0]!.parentElement!.parentElement!;
+        const grid = document.querySelector('[data-testid="fx"]')!.lastElementChild!;
+        const panel = [...grid.children].find((c) => c.contains(knobs[0]!))!;
         out[name] = {
           rows: new Set(knobs.map((k) => k.offsetTop)).size,
           top: Math.round(panel.getBoundingClientRect().top),

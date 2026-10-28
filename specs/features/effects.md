@@ -1,9 +1,13 @@
-# Insert effects (eq · distortion · wah · phaser · delay · reverb · duck)
+# Insert effects (eq · distortion · wah · phaser · chorus · delay · reverb · duck)
 
 ```yaml
 id: effects
 status: implemented
-version: 13  # v13: REQ-the-phaser-sweeps-in-cents — the phaser sweeps each stage in CENTS, as v9
+version: 14  # v14: a chorus joins the synth and sampler chains after the phaser
+             #      (chorus.md). It is the first insert that MAKES a stereo
+             #      image on the synth bus, so the synth chain is 2-channel
+             #      after it while it is on (REQ-the-synth-chain-order)
+             # v13: REQ-the-phaser-sweeps-in-cents — the phaser sweeps each stage in CENTS, as v9
              #      made the wah do. Its linear-Hz swing pinned the low stages
              #      at 0 Hz for up to 37% of every cycle — measured a stall,
              #      not a burst — including at the synth phaser's own default
@@ -46,6 +50,8 @@ related:
   - tempo-lock           # v6: the rate/time knobs' grid lock, shared with the LFO
   - sidechain-ducking    # v7: the sixth chain member (synth + sampler, last)
   - equalizer            # v11: the member that heads all three chains
+  - chorus               # v14: synth + sampler, after the phaser
+  - fx-slot-picker       # v14: the chorus shares the phaser's panel
 source:
   - src/audio/effects/effect.ts        # Effect + BypassWrapper + bindBypassMix
   - src/audio/effects/fx-chain.ts      # synth/drum/sampler chain factories
@@ -54,6 +60,7 @@ source:
   - src/audio/effects/distortion.ts
   - src/audio/effects/wah.ts
   - src/audio/effects/phaser.ts
+  - src/audio/effects/chorus.ts        # v14
   - src/audio/effects/delay.ts
   - src/audio/effects/reverb.ts
   - src/audio/drive-curve.ts            # bucketed WaveShaper curve cache (REQ-drive-curves-are-bucketed-and-memoized)
@@ -85,7 +92,7 @@ subsets, so a song can colour each bus independently.
 ## Requirements
 
 - **REQ-every-effect-implements-the-interface** — Every effect implements
-  `Effect { input, output, setBypass }`. The six insert effects get that surface
+  `Effect { input, output, setBypass }`. Every insert effect gets that surface
   by extending **`WrappedEffect`**, which owns the `BypassWrapper` and exposes
   `input`, `output` and the default `setBypass`. A subclass then contains only
   its own DSP: build the span from `wrap.processedIn` to `wrap.processedOut`,
@@ -157,6 +164,7 @@ subsets, so a song can colour each bus independently.
   | `Delay` | 2 — the `createDelay(2)` buffer; silence in for that long is silence throughout | feedback → 0, restored from the last commanded value |
   | `Reverb` | `maxIrS` — an FIR convolver is cleared exactly by one IR length of silence | — |
   | `Phaser` | 0.1 | feedback → 0 (a 0.05 s loop; it decays in ~25 ms regardless) |
+  | `Chorus` | 0.05 — two taps of at most ~7 ms, no feedback ([chorus](chorus.md) REQ-the-chorus-drains-briefly) | — |
   | others | `DRAIN_DEFAULT_S` = 0.02 | — |
 
   `quiesce(true)` writes the feedback gain **directly**, not through `RAMP_SMOOTH`:
@@ -166,11 +174,16 @@ subsets, so a song can colour each bus independently.
   `quiesce(false)` restores what the knob says, not what it said at bypass time.
 
 - **REQ-the-synth-chain-order** — Synth voice bus chain order: eq → distortion →
-  wah → phaser → delay → reverb → duck.
+  wah → phaser → chorus → delay → reverb → duck.
+  - (v14) The **chorus** ([chorus](chorus.md)) sits after the phaser it shares a
+    panel with. It is the one insert that *makes* a stereo image, so while it is
+    on, everything after it runs 2-channel; bypassed, ADR-012's disconnect drops
+    its stereo edge and the chain is 1-channel again — width on demand without a
+    splice of its own ([chorus](chorus.md) REQ-the-chorus-widens-without-changing-level).
   - (v11) The **eq** is first, and is first on every chain
     ([equalizer](equalizer.md) REQ-one-equalizer-per-lane): an EQ ahead of the drive shapes what the
     drive bites on, and on this bus it is also the cheap position — the synth
-    path is 1-channel until the reverb, so its ten biquads run on one channel.
+    path is 1-channel at its head, so its ten biquads run on one channel.
     (v12) That holds *until a sequencer track is panned off centre*, which
     splices a per-voice pan stage in ahead of the chain and makes the whole thing
     2-channel for as long as it is engaged — the cost that
@@ -184,8 +197,8 @@ subsets, so a song can colour each bus independently.
     [sidechain-ducking](sidechain-ducking.md) REQ-the-ducker-is-last-in-the-chain rather than here.
 - **REQ-the-drum-bus-chain-order** — Drum bus: [eq →] compressor → phaser →
   delay → reverb (the compressor sits first *among the effects* so it smashes
-  the dry hits, not the FX wash); sampler bus: eq → distortion → phaser → delay
-  → reverb → duck.
+  the dry hits, not the FX wash); sampler bus: eq → distortion → phaser →
+  chorus (v14) → delay → reverb → duck. The drum bus has no chorus.
   - (v11) The EQ sits ahead of even the drum compressor, which is the point
     rather than an accident of ordering: a highpass before the compressor stops
     the kick pumping the whole kit ([equalizer](equalizer.md) REQ-one-equalizer-per-lane). Filtering
@@ -460,6 +473,7 @@ FxChain<E>:    # src/audio/effects/fx-chain.ts — one bus's chain as a unit
 fx.dist.on/drive/tone/mix          # distortion (tone 200..8000 Hz)
 fx.wah.on/rate/depth/q/sync        # auto-wah                    (v6: sync)
 fx.phaser.on/rate/depth/feedback/mix/sync                      # (v6: sync)
+fx.chorus.on/rate/depth/mode/mix   # v14, chorus.md — no sync (REQ-the-chorus-has-no-tempo-lock)
 fx.delay.on/time/feedback/mix/sync # time 0.01..1.5 s, feedback 0..0.95 (v6: sync)
 fx.reverb.on/size/damp/mix
 # all *.on default 0 (off); all are no-ops until enabled
@@ -468,7 +482,7 @@ fx.reverb.on/size/damp/mix
 #   with the LFOs, so the nine locks cannot drift apart.
 prefixes:
   fx.drum.*    : phaser, delay, reverb (+ fx.drum.comp, see compressor.md)
-  fx.sampler.* : dist, phaser, delay, reverb
+  fx.sampler.* : dist, phaser, chorus (v14), delay, reverb
 ```
 
 ### Layer touchpoints
@@ -666,7 +680,8 @@ Scenario: Drive 0 stays an exact no-op after bucketing (REQ-drive-curves-are-buc
   *one* feedback delay, and the **delay** is a single `DelayNode` with a damped
   feedback loop and no cross-feed. Both are channel-transparent — they carry a
   stereo image, they never make one. Only the **reverb** (2-channel decorrelated
-  IR) does that. The upgrade would be a second allpass chain at an LFO phase
+  IR) and, since v14, the **chorus** (two antiphase taps, [chorus](chorus.md)) do
+  that. The upgrade would be a second allpass chain at an LFO phase
   offset, and a delay whose two taps cross-feed. What it costs:
   - **Twice the DSP per effect, in three chains each** (synth / drum / sampler),
     always-on for whichever instances are un-bypassed. [ADR-010](../decisions/adr-010-musical-stable-cheap-dsp.md)'s

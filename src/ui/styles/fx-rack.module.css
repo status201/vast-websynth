@@ -72,6 +72,24 @@
     text-shadow: 0 1px 0 rgba(0, 0, 0, 0.7);
   }
 
+  /* A shared panel's views (fx-slot-picker.md): each lays out exactly as a
+     single-effect panel's body does; the hidden one is display:none via [hidden]. */
+  .fxView {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    min-width: 0;
+  }
+
+  /* Every panel's title, and in a shared slot the picker's caret after it — the
+     title itself is untouched (fx-slot-picker.md REQ-the-title-is-unchanged-plus-a-caret).
+     It carries data-help, so the badge lands after the caret, not on it. */
+  .fxTitleRow {
+    display: flex;
+    align-items: center;
+    gap: 2px;
+  }
+
   .fxKnobs {
     display: flex;
     align-items: center;

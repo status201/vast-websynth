@@ -78,7 +78,7 @@ Scripts are in `package.json`. Only the non-obvious ones need saying:
 - `npm run clean:demos` / `check:demos` keep `src/state/demos-index.json` in sync;
   `check:demos` fails the build if it drifts.
 - `npm run check:bundle` (after `npm run build`) fails the entry chunk over 500 kB —
-  CI's `build` job runs both. Anything new at boot comes out of ~7 kB of headroom (the script prints the exact figure);
+  CI's `build` job runs both. Anything new at boot comes out of ~1.8 kB of headroom (the script prints the exact figure);
   defer it behind an `import()` instead (`runtime-performance.md`).
 - A CSP change is only checked against `npm run build && npx vite preview`: `vite dev`
   relaxes `style-src` for Vite's injected styles, so e2e never sees the shipped policy.
@@ -113,6 +113,8 @@ material keyed by feature name).
 | context start / background / resume | `features/audio-lifecycle.md`, `features/ios-audio.md`, `features/media-session.md` |
 | `public/sw.js`, the **offline copy** (`utils/offline-copy.ts`, `scripts/lib/offline-manifest.mjs`) | `features/pwa-install.md`, `features/play-offline.md` — every cache lookup passes `{ ignoreVary: true }` (hosts send `Vary: Origin`, and a file saved by `fetch()` then never matches the script request for it); `npm run e2e` runs the dev server, which has no worker, so verify against `vite preview` |
 | `src/audio/effects/` | `features/effects.md`, `recipes/add-an-effect.md`, ADR-012 |
+| the **chorus**, or two effects sharing one panel (`effects/chorus.ts`, `src/state/chorus.ts`, `components/fx-slot-picker.ts`) | `features/chorus.md`, `features/fx-slot-picker.md`. It is the one insert short of the reverb that makes a second channel, so the synth chain is 2-channel after it while it is on. MODE's labels and values are one table in `src/state/chorus.ts` |
+| a **popover menu** on `dropdown.module.css` | `features/dropdown.md` REQ-every-fixed-menu-shares-one-anchor-and-dismiss: go through `components/menu-anchor.ts`. `.menu`'s `min-width: 100%` is the *viewport* for a fixed box, and an unconsumed Escape reaches the global Panic shortcut |
 | the **EQ** — `src/state/eq*.ts`, `effects/eq.ts`, `ui/panels/eq-panel.ts` | `features/equalizer.md` — one band table in `src/state/eq.ts` feeds **both** the filters and the drawn curve, so they cannot disagree. Web Audio reads a biquad's `Q` in **dB** for lowpass/highpass and linearly for peaking; get that wrong and the graph lies convincingly |
 | a **rate / delay-time knob**, or any `*.sync` param | `features/tempo-lock.md` — one table (`src/state/tempo-lock.ts`) decides what is lockable; `Knob` self-wires from it |
 | `src/audio/compressor/` | `features/compressor.md`, ADR-002 |
