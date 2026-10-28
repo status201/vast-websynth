@@ -197,7 +197,8 @@ Scenario: Enabling the chorus does not step the level (REQ-the-chorus-widens-wit
   order and documents every MODE label.
 - `npm run bench:audio` in Chromium **and** `--browser firefox`: an A/B against a
   bypassed baseline, each mode, depth 1 at the top rate. Sound is signed off by
-  a listener, not by the suite (ADR-010).
+  a listener, not by the suite (ADR-010). **Signed off by ear 2026-10-28** by
+  the owner, at the shipped constants and MODE table.
 
 ## Open questions / future
 
