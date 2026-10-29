@@ -270,6 +270,7 @@ specs/
     effects.md         ·  distortion/wah/phaser/flanger/chorus/delay/reverb/duck insert chain
     chorus.md          ·  Juno-style stereo chorus (synth + sampler), MODE I / II / I+II
     flanger.md         ·  worklet flanger (synth + sampler), loaded on first use, in the Phaser slot
+    delay-types.md     ·  the delay's TYPE (digital/ping pong/tape/BBD/space echo/reverse) + CHAR, all buses
     equalizer.md       ·  per-lane drawable 8-band EQ + HP/LP, first in each chain
     compressor.md      ·  the FET/VCA worklet compressors (message contract)
     sidechain-ducking.md · trigger-keyed ducker on synth/sampler, keyed by drum hits

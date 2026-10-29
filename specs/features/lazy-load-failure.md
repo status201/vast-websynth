@@ -3,7 +3,8 @@
 ```yaml
 id: lazy-load-failure
 status: implemented
-version: 4   # v4: the boot-payload baseline is dated (2026-08-20) — `npm run check:bundle` prints the current sizes
+version: 5   # v5: the delay's non-digital types join the operation-scoped exemptions (delay-types.md)
+             # v4: the boot-payload baseline is dated (2026-08-20) — `npm run check:bundle` prints the current sizes
              # v3: loadSurface is the canonical trigger shape; four hand-rolled triggers fold onto it
              # v2: the offline sentence points at Play offline (REQ-the-offline-sentence-points-at-play-offline)
 owner: core
@@ -109,7 +110,10 @@ would drift.
   warm cannot: a first visit that lost the network before idle, a purged cache,
   a flaky fetch. The one defence that covers every surface is opt-in — a device
   that saved an offline copy ([play-offline](play-offline.md)) has every chunk —
-  so this report is still the backstop for everyone else.
+  so this report is still the backstop for everyone else. (v5) The FX rack's
+  patch-cable scenery is imported at its mount for the same reason the warm
+  stays quiet: it is not a gesture, and a failure only leaves an empty cell
+  ([fx-patch-decoration](fx-patch-decoration.md) REQ-decoration-is-parity-keyed).
 
 - **REQ-lazy-scope-is-surfaces-not-operations** (scope: surfaces, not
   operations) — This is for `import()`s that **open something**. An `import()`
@@ -120,7 +124,11 @@ would drift.
   ([webrtc-sync](webrtc-sync.md)). Neither is covered here. Nor is the
   flanger's DSP, imported by its first switch-on: a failure leaves the effect
   bypassed and the next switch-on retries ([flanger](flanger.md)
-  REQ-an-unloaded-flanger-stays-bypassed).
+  REQ-an-unloaded-flanger-stays-bypassed). Nor (v5) are the delay's non-digital
+  types, imported by their first selection: a failure leaves the delay DIGITAL
+  (a failed reverse worklet leaves that type's wet silent), and the next
+  selection or switch-on retries ([delay-types](delay-types.md)
+  REQ-the-other-types-load-on-first-use).
 
 ## Technical design
 

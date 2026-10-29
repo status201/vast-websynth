@@ -3,7 +3,10 @@
 ```yaml
 id: effects
 status: implemented
-version: 15  # v15: a flanger joins the synth and sampler chains between the phaser
+version: 16  # v16: the delay gets a TYPE (digital · ping pong · tape · BBD · space echo ·
+             #      reverse) and a CHAR knob on all three buses (delay-types.md). DIGITAL
+             #      is the default and the unchanged delay; the others load on first use
+             # v15: a flanger joins the synth and sampler chains between the phaser
              #      and the chorus (flanger.md). It is the first insert whose DSP is
              #      a worklet loaded on first use, and it is channel-transparent, so
              #      nothing about the chain's channel count changes
@@ -57,6 +60,7 @@ related:
   - equalizer            # v11: the member that heads all three chains
   - chorus               # v14: synth + sampler, after the phaser
   - flanger              # v15: synth + sampler, between the phaser and the chorus
+  - delay-types          # v16: the delay's TYPE + CHAR
   - fx-slot-picker       # v14: the chorus shares the phaser's panel
 source:
   - src/audio/effects/effect.ts        # Effect + BypassWrapper + bindBypassMix
@@ -168,7 +172,7 @@ subsets, so a song can colour each bus independently.
 
   | Effect | `drainSeconds()` | `quiesce(on)` |
   | --- | --- | --- |
-  | `Delay` | 2 — the `createDelay(2)` buffer; silence in for that long is silence throughout | feedback → 0, restored from the last commanded value |
+  | `Delay` | 2 — the `createDelay(2)` buffer; silence in for that long is silence throughout. (v16) Once a TYPE is chosen, the longest connected core's ([delay-types](delay-types.md) REQ-the-delay-drains-every-live-core) | feedback → 0, restored from the last commanded value |
   | `Reverb` | `maxIrS` — an FIR convolver is cleared exactly by one IR length of silence | — |
   | `Phaser` | 0.1 | feedback → 0 (a 0.05 s loop; it decays in ~25 ms regardless) |
   | `Flanger` | 0.05 — a ~5.7 ms worklet buffer ([flanger](flanger.md) REQ-the-flanger-drains-before-disconnect) | the node's feedback → 0, restored from the last commanded value |
@@ -488,6 +492,7 @@ fx.wah.on/rate/depth/q/sync        # auto-wah                    (v6: sync)
 fx.phaser.on/rate/depth/feedback/mix/sync                      # (v6: sync)
 fx.chorus.on/rate/depth/mode/mix   # v14, chorus.md — no sync (REQ-the-chorus-has-no-tempo-lock)
 fx.delay.on/time/feedback/mix/sync # time 0.01..1.5 s, feedback 0..0.95 (v6: sync)
+fx.delay.type/char                 # v16, delay-types.md — type 0 = DIGITAL (the no-op), char 0..1
 fx.reverb.on/size/damp/mix
 # all *.on default 0 (off); all are no-ops until enabled
 # *.sync: discrete, labels SYNC_LABELS, range 0..18, default 0 = free — the
@@ -685,6 +690,11 @@ Scenario: Drive 0 stays an exact no-op after bucketing (REQ-drive-curves-are-buc
   `bind(bus, prefix)` — then add it to the relevant chain factory in
   `effects/fx-chain.ts` (its `fx` object **and** its order array).
 
+- (v16) **The ping-pong half of this is built**, as a TYPE of the delay that
+  defaults to today's mono DIGITAL — the "param defaulting to today's mono
+  behaviour" route argued for below ([delay-types](delay-types.md)
+  REQ-ping-pong-keeps-the-digital-level). The stereo phaser is still open, and
+  the text below is kept as the record of the reasoning.
 - **A stereo phaser and a ping-pong delay are the obvious width upgrade, and
   neither is built.** Recorded here so the absence reads as a decision rather
   than an oversight, since the specs have twice described these as stereo when

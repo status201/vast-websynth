@@ -110,7 +110,9 @@ so a reviewer has something concrete to hold a new feature against.
   the oscillator-sync worklet and its per-voice nodes are built the first time sync
   is engaged ([`oscillator-sync.md`](oscillator-sync.md)); the flanger's DSP code
   and worklet load on its first switch-on, behind a shell that stays bypassed
-  until then ([`flanger.md`](flanger.md) REQ-the-flanger-loads-on-first-use).
+  until then ([`flanger.md`](flanger.md) REQ-the-flanger-loads-on-first-use); the
+  delay's non-digital types load on a delay's first non-digital TYPE, and DIGITAL
+  loads nothing new ([`delay-types.md`](delay-types.md) REQ-the-other-types-load-on-first-use).
   Applies to bundle payload and to synchronous CPU alike.
 
   **A surface reached only by a deliberate click is loaded by that click.** A modal the

@@ -336,6 +336,8 @@ async function boot() {
       () => import('./ui/components/perf-settings-modal'),
       // The flanger's DSP, imported on its first switch-on (flanger.md REQ-the-flanger-loads-on-first-use).
       () => import('./audio/effects/flanger-live'),
+      // The delay's types, imported on the first non-digital choice (delay-types.md REQ-the-other-types-load-on-first-use).
+      () => import('./audio/effects/delay-switch'),
     ]) void load().catch(() => {});
   };
   // A factory reset that deleted a saved offline copy asked for it back

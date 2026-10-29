@@ -3,7 +3,10 @@
 ```yaml
 id: fx-patch-decoration
 status: implemented
-version: 2   # v2: DORMANT. sidechain-ducking made the effect count six, so REQ-decoration-is-parity-keyed's
+version: 3   # v3: the component is behind an import() at its one mount, so while dormant it costs
+             #     the entry chunk nothing (REQ-decoration-is-parity-keyed; runtime-performance.md
+             #     REQ-boot-cost-matches-the-request). It paid for the delay types (delay-types.md)
+             # v2: DORMANT. sidechain-ducking made the effect count six, so REQ-decoration-is-parity-keyed's
              #     parity guard appends nothing. Anticipated by v1's open question,
              #     not a regression — a seventh effect restores it with no change.
 owner: core
@@ -57,7 +60,11 @@ and to assistive tech.
 - **REQ-decoration-is-parity-keyed** (parity-keyed) — `buildFxRack` appends it only
   when the panel count is **odd** (`fx.childElementCount % 2 === 1`), so adding
   a sixth effect drops the decoration automatically instead of pushing it onto a
-  row of its own.
+  row of its own. (v3) The component is **imported at that mount**, not
+  statically: while the count is even it is never fetched, so dormant scenery
+  costs the boot path nothing. A failed import leaves the cell empty and reports
+  nothing — it is not a gesture, and there is nothing to retry
+  ([lazy-load-failure](lazy-load-failure.md) REQ-lazy-report-is-the-backstop).
 - **REQ-the-decoration-is-inert** (inert) — `aria-hidden="true"`,
   `pointer-events: none`, and no focusable or interactive descendants. It
   carries no param, no state and no persistence; collapsing the FX section hides
@@ -155,8 +162,8 @@ testids: fx-patch-decoration
 
 ```yaml
 fx-rack.ts buildFxRack: five fxPanel(...) appends, then
-  if (fx.childElementCount % 2 === 1) fx.appendChild(fxPatchDecoration());
-  # must run AFTER the panels (it counts them) and BEFORE section.appendChild(fx)
+  if (fx.childElementCount % 2 === 1) import(fx-patch-decoration).then(append)
+  # must run AFTER the panels (it counts them); v3: the append lands a task later
 fx-rack.module.css: .fxRow's @media (max-width: 992px) 2-column rule is the
   breakpoint the component's module mirrors; a comment links the two.
 collapse: the decoration sits inside .fxRow, so

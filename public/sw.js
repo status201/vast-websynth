@@ -102,6 +102,8 @@ var CORE_ASSETS = [
   '/worklets/sync-osc.js',
   // The same, for the first flanger switched on (flanger.md REQ-the-flanger-loads-on-first-use).
   '/worklets/flanger.js',
+  // The same, for the first delay set to REVERSE (delay-types.md REQ-the-other-types-load-on-first-use).
+  '/worklets/reverse-delay.js',
 ];
 
 var CACHE = cacheName(self.location.href);

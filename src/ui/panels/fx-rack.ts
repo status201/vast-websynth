@@ -1,8 +1,8 @@
 import type { ParamBus } from '../../state/params';
 import { Knob, dimWhileModeSet } from '../components/knob';
 import { Switch } from '../components/switch';
-import { fxPatchDecoration } from '../components/fx-patch-decoration';
 import { CHORUS_MODE_OVERRIDES } from '../../state/chorus';
+import { DELAY_KNOBS, delayTypeDropdown, dimCharAtDigital } from '../components/delay-type-controls';
 import { createFxSlot } from '../components/fx-slot-picker';
 import { createCollapseToggle } from '../components/collapse-toggle';
 import { createSectionTitle } from '../components/section-title';
@@ -39,8 +39,14 @@ export function buildFxRack(bus: ParamBus): { el: HTMLElement; expand: () => voi
   // it with the unpatched-cable scenery (fx-patch-decoration.md). Parity-keyed,
   // so the six panels shipping today (eight effects: the flanger and the chorus
   // share the Phaser's) drop it rather than push it onto a row of its own — a
-  // seventh panel would bring it back with no change here.
-  if (fx.childElementCount % 2 === 1) fx.appendChild(fxPatchDecoration());
+  // seventh panel would bring it back with no change here. Imported here, not
+  // statically, so dormant scenery costs the entry chunk nothing; a failed load
+  // just leaves the cell empty (fx-patch-decoration.md REQ-decoration-is-parity-keyed, v3).
+  if (fx.childElementCount % 2 === 1) {
+    import('../components/fx-patch-decoration')
+      .then((m) => fx.appendChild(m.fxPatchDecoration()))
+      .catch(() => {});
+  }
 
   section.appendChild(fx);
   return { el: section, expand: collapse.expand };
@@ -55,8 +61,10 @@ interface FxSpec {
   title: string;
   id: string;
   knobs: ReadonlyArray<readonly [param: string, label: string]>;
-  /** Knobs a `${id}.mode` other than FREE overrides, dimmed while it does. */
-  modeOverrides?: readonly string[];
+  /** A control placed right after the title — the delay's TYPE dropdown. */
+  titleCompanion?: (bus: ParamBus, id: string) => HTMLElement;
+  /** Wiring between the built knobs and the bus — which knobs a mode or type dims. */
+  wire?: (bus: ParamBus, id: string, knobs: readonly Knob[]) => void;
 }
 
 /**
@@ -83,10 +91,12 @@ const RACK: readonly RackEntry[] = [
     {
       title: 'Chorus', id: 'fx.chorus',
       knobs: [['rate', 'RATE'], ['depth', 'DEPTH'], ['mode', 'MODE'], ['mix', 'MIX']],
-      modeOverrides: CHORUS_MODE_OVERRIDES,
+      wire: (bus, id, knobs) => dimWhileModeSet(bus, id, CHORUS_MODE_OVERRIDES, knobs),
     },
   ],
-  { title: 'Delay', id: 'fx.delay', knobs: [['time', 'TIME'], ['feedback', 'FB'], ['mix', 'MIX']] },
+  // TYPE after the title, CHAR dimmed at DIGITAL: the same face as the drum and
+  // sampler header groups' (delay-types.md REQ-type-is-a-header-dropdown-and-char-a-knob).
+  { title: 'Delay', id: 'fx.delay', knobs: DELAY_KNOBS, titleCompanion: delayTypeDropdown, wire: dimCharAtDigital },
   { title: 'Reverb', id: 'fx.reverb', knobs: [['size', 'SIZE'], ['damp', 'DAMP'], ['mix', 'MIX']] },
   // Last in the rack because it is last in the chain (sidechain-ducking.md
   // REQ-the-ducker-is-last-in-the-chain/REQ-ducking-adds-no-new-gesture): SRC is a discrete knob over the drum lanes + Any, the same
@@ -128,7 +138,7 @@ const isSlot = (e: RackEntry): e is readonly FxSpec[] => Array.isArray(e);
  */
 function fxView(
   bus: ParamBus,
-  { title, id, knobs, modeOverrides }: FxSpec,
+  { title, id, knobs, titleCompanion, wire }: FxSpec,
 ): { header: HTMLElement; knobs: HTMLElement; titleRow: HTMLElement; title: HTMLElement } {
   const header = document.createElement('div');
   header.className = fxStyles.fxHeader!;
@@ -139,6 +149,7 @@ function fxView(
   t.className = fxStyles.fxTitle!;
   t.textContent = title;
   titleRow.appendChild(t);
+  if (titleCompanion) titleRow.appendChild(titleCompanion(bus, id));
   header.appendChild(titleRow);
   header.appendChild(new Switch(bus, `${id}.on`, 'on').el);
 
@@ -146,7 +157,7 @@ function fxView(
   knobsEl.className = fxStyles.fxKnobs!;
   const built = knobs.map(([param, label]) => new Knob({ bus, paramId: `${id}.${param}`, label }));
   for (const k of built) knobsEl.appendChild(k.el);
-  if (modeOverrides) dimWhileModeSet(bus, id, modeOverrides, built);
+  wire?.(bus, id, built);
 
   return { header, knobs: knobsEl, titleRow, title: t };
 }

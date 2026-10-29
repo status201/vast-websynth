@@ -112,6 +112,8 @@ Schemas: [`llms.txt`](llms.txt).
 - "fx.delay.feedback": number  // range 0..0.95, default 0.4
 - "fx.delay.mix": number  // range 0..1, default 0.3
 - "fx.delay.sync": number  // range 0..18, default 0, step 1, values 0=free 1=1/1 2=1/1 D 3=1/1 T 4=1/2 5=1/2 D 6=1/2 T 7=1/4 8=1/4 D 9=1/4 T 10=1/8 11=1/8 D 12=1/8 T 13=1/16 14=1/16 D 15=1/16 T 16=1/32 17=1/32 D 18=1/32 T
+- "fx.delay.type": number  // range 0..5, default 0, step 1, values 0=DIGITAL 1=PING PONG 2=TAPE 3=BBD 4=SPACE ECHO 5=REVERSE
+- "fx.delay.char": number  // range 0..1, default 0.5
 - "fx.reverb.on": number  // range 0..1, default 0, step 1, values 0=off 1=on
 - "fx.reverb.size": number  // range 0..1, default 0.6
 - "fx.reverb.damp": number  // range 0..1, default 0.4
@@ -176,6 +178,8 @@ Schemas: [`llms.txt`](llms.txt).
 - "fx.drum.delay.feedback": number  // range 0..0.95, default 0.4
 - "fx.drum.delay.mix": number  // range 0..1, default 0.3
 - "fx.drum.delay.sync": number  // range 0..18, default 0, step 1, values 0=free 1=1/1 2=1/1 D 3=1/1 T 4=1/2 5=1/2 D 6=1/2 T 7=1/4 8=1/4 D 9=1/4 T 10=1/8 11=1/8 D 12=1/8 T 13=1/16 14=1/16 D 15=1/16 T 16=1/32 17=1/32 D 18=1/32 T
+- "fx.drum.delay.type": number  // range 0..5, default 0, step 1, values 0=DIGITAL 1=PING PONG 2=TAPE 3=BBD 4=SPACE ECHO 5=REVERSE
+- "fx.drum.delay.char": number  // range 0..1, default 0.5
 - "fx.drum.reverb.on": number  // range 0..1, default 0, step 1, values 0=off 1=on
 - "fx.drum.reverb.size": number  // range 0..1, default 0.6
 - "fx.drum.reverb.damp": number  // range 0..1, default 0.4
@@ -224,6 +228,8 @@ Schemas: [`llms.txt`](llms.txt).
 - "fx.sampler.delay.feedback": number  // range 0..0.95, default 0.4
 - "fx.sampler.delay.mix": number  // range 0..1, default 0.3
 - "fx.sampler.delay.sync": number  // range 0..18, default 0, step 1, values 0=free 1=1/1 2=1/1 D 3=1/1 T 4=1/2 5=1/2 D 6=1/2 T 7=1/4 8=1/4 D 9=1/4 T 10=1/8 11=1/8 D 12=1/8 T 13=1/16 14=1/16 D 15=1/16 T 16=1/32 17=1/32 D 18=1/32 T
+- "fx.sampler.delay.type": number  // range 0..5, default 0, step 1, values 0=DIGITAL 1=PING PONG 2=TAPE 3=BBD 4=SPACE ECHO 5=REVERSE
+- "fx.sampler.delay.char": number  // range 0..1, default 0.5
 - "fx.sampler.reverb.on": number  // range 0..1, default 0, step 1, values 0=off 1=on
 - "fx.sampler.reverb.size": number  // range 0..1, default 0.6
 - "fx.sampler.reverb.damp": number  // range 0..1, default 0.4

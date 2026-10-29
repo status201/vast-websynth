@@ -2,7 +2,7 @@
   "format": "websynth-params",
   "version": 1,
   "songVersion": 9,
-  "count": 429,
+  "count": 435,
   "params": [
     {
       "id": "voicing.mode",
@@ -960,6 +960,30 @@
       ]
     },
     {
+      "id": "fx.delay.type",
+      "min": 0,
+      "max": 5,
+      "default": 0,
+      "patch": true,
+      "step": 1,
+      "taper": "discrete",
+      "labels": [
+        "DIGITAL",
+        "PING PONG",
+        "TAPE",
+        "BBD",
+        "SPACE ECHO",
+        "REVERSE"
+      ]
+    },
+    {
+      "id": "fx.delay.char",
+      "min": 0,
+      "max": 1,
+      "default": 0.5,
+      "patch": true
+    },
+    {
       "id": "fx.reverb.on",
       "min": 0,
       "max": 1,
@@ -1273,6 +1297,30 @@
         "1/32 D",
         "1/32 T"
       ]
+    },
+    {
+      "id": "fx.drum.delay.type",
+      "min": 0,
+      "max": 5,
+      "default": 0,
+      "patch": false,
+      "step": 1,
+      "taper": "discrete",
+      "labels": [
+        "DIGITAL",
+        "PING PONG",
+        "TAPE",
+        "BBD",
+        "SPACE ECHO",
+        "REVERSE"
+      ]
+    },
+    {
+      "id": "fx.drum.delay.char",
+      "min": 0,
+      "max": 1,
+      "default": 0.5,
+      "patch": false
     },
     {
       "id": "fx.drum.reverb.on",
@@ -1747,6 +1795,30 @@
         "1/32 D",
         "1/32 T"
       ]
+    },
+    {
+      "id": "fx.sampler.delay.type",
+      "min": 0,
+      "max": 5,
+      "default": 0,
+      "patch": false,
+      "step": 1,
+      "taper": "discrete",
+      "labels": [
+        "DIGITAL",
+        "PING PONG",
+        "TAPE",
+        "BBD",
+        "SPACE ECHO",
+        "REVERSE"
+      ]
+    },
+    {
+      "id": "fx.sampler.delay.char",
+      "min": 0,
+      "max": 1,
+      "default": 0.5,
+      "patch": false
     },
     {
       "id": "fx.sampler.reverb.on",

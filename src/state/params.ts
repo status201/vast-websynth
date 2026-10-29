@@ -10,6 +10,8 @@ import { NOTE_LABELS, SCALE_LABELS, EXTRA_LABELS, CHORD_LABELS } from '../utils/
 import { MOD_ROWS, MOD_SOURCE_LABELS, MOD_DEST_LABELS } from './mod-routing';
 // One table for MODE's labels and values (chorus.md REQ-the-chorus-mode-overrides-rate-and-depth).
 import { CHORUS_MODE_LABELS } from './chorus';
+// One table for TYPE's labels (delay-types.md REQ-the-delay-type-is-one-append-only-table).
+import { DELAY_TYPE_LABELS } from './delay';
 // `eq.ts` imports only the `ParamBus` *type* back from here, so this pair is a
 // type-only cycle and erases at compile time — no runtime import loop.
 import {
@@ -722,6 +724,11 @@ function chorusParams(prefix: string): ParamDef[] {
   ];
 }
 
+/**
+ * The delay, on all three buses. `type` 0 is DIGITAL, the delay as it always
+ * was, and `char` is ignored there, so both default to a no-op (ADR-006,
+ * delay-types.md REQ-digital-is-the-unchanged-delay).
+ */
 function delayParams(prefix: string): ParamDef[] {
   return [
     fxOnParam(prefix),
@@ -729,6 +736,11 @@ function delayParams(prefix: string): ParamDef[] {
     { id: `${prefix}.feedback`, min: 0, max: 0.95, default: 0.4, format: fmtPct },
     { id: `${prefix}.mix`, min: 0, max: 1, default: 0.3, format: fmtPct },
     syncParam(prefix),
+    {
+      id: `${prefix}.type`, min: 0, max: DELAY_TYPE_LABELS.length - 1, default: 0, step: 1,
+      taper: 'discrete', labels: DELAY_TYPE_LABELS,
+    },
+    { id: `${prefix}.char`, min: 0, max: 1, default: 0.5, format: fmtPct },
   ];
 }
 

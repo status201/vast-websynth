@@ -1,6 +1,7 @@
 import { clamp01 } from '../../utils/math';
 import { RAMP_SMOOTH } from '../param-utils';
 import { bindTempoLocked } from '../tempo-bind';
+import { loadWorkletModule } from '../worklet-module';
 import type { ParamBus } from '../../state/params';
 
 /**
@@ -19,22 +20,12 @@ export const FLANGER_MIN_DELAY_S = 0.00025;
 export const FLANGER_SPAN_OCTAVES = 4.5;
 export const FLANGER_MAX_FEEDBACK = 0.9;
 
-/** One load per context, shared by the synth and sampler flangers. */
-const modules = new WeakMap<BaseAudioContext, Promise<void>>();
-
 /**
- * Load the worklet module once per context. A failure is forgotten, so a later
- * switch-on tries again rather than staying dead for the session.
+ * Load the worklet module once per context, shared by the synth and sampler
+ * flangers. A failure is forgotten, so a later switch-on tries again.
  */
 export function loadFlangerModule(ctx: BaseAudioContext): Promise<void> {
-  let p = modules.get(ctx);
-  if (!p) {
-    // Through a `then`, so a context without `audioWorklet` rejects instead of throwing.
-    p = Promise.resolve().then(() => ctx.audioWorklet.addModule('/worklets/flanger.js'));
-    p.catch(() => modules.delete(ctx));
-    modules.set(ctx, p);
-  }
-  return p;
+  return loadWorkletModule(ctx, '/worklets/flanger.js');
 }
 
 /** What the shell keeps of a spliced flanger: enough to quiesce its loop. */

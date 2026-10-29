@@ -1,6 +1,7 @@
 import type { ParamBus } from '../../state/params';
 import { Switch } from './switch';
 import { Knob } from './knob';
+import { DELAY_KNOBS, delayTypeDropdown, dimCharAtDigital } from './delay-type-controls';
 import styles from '../styles/fx-group.module.css';
 
 /**
@@ -86,4 +87,16 @@ export function rowDivider(): HTMLElement {
   const el = document.createElement('div');
   el.className = styles.divider!;
   return el;
+}
+
+/**
+ * A header bus's DELAY group (drum, sampler): the TYPE dropdown after the title,
+ * TIME · FB · CHAR · MIX, and CHAR dimmed while TYPE is DIGITAL
+ * (delay-types.md REQ-type-is-a-header-dropdown-and-char-a-knob).
+ */
+export function delayFxGroup(bus: ParamBus, prefix: string): HTMLElement {
+  const knobs = DELAY_KNOBS.map(([k, label]) => ({ id: `${prefix}.${k}`, label }));
+  const parts = fxGroupParts(bus, 'DELAY', prefix, knobs, { afterTitle: delayTypeDropdown(bus, prefix) });
+  dimCharAtDigital(bus, prefix, parts.knobs);
+  return parts.el;
 }

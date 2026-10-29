@@ -642,10 +642,26 @@ export function dimWhileModeSet(
   overrides: readonly string[],
   knobs: readonly Knob[],
 ): void {
-  const ids = new Set(overrides.map((p) => `${prefix}.${p}`));
+  dimWhileParamIs(bus, `${prefix}.mode`, (v) => Math.round(v) !== 0, overrides.map((p) => `${prefix}.${p}`), knobs);
+}
+
+/**
+ * Dim the knobs among `knobs` whose param is in `paramIds` while `controlId`'s
+ * value satisfies `dim` — e.g. the delay's CHAR while TYPE is DIGITAL
+ * (delay-types.md REQ-type-is-a-header-dropdown-and-char-a-knob). Dimmed, not
+ * hidden, for {@link dimWhileModeSet}'s reason. Picked by param, never by position.
+ */
+export function dimWhileParamIs(
+  bus: ParamBus,
+  controlId: string,
+  dim: (v: number) => boolean,
+  paramIds: readonly string[],
+  knobs: readonly Knob[],
+): void {
+  const ids = new Set(paramIds);
   const dimmed = knobs.filter((k) => ids.has(k.paramId));
-  bus.subscribe(`${prefix}.mode`, (v) => {
-    const overridden = Math.round(v) !== 0;
-    for (const k of dimmed) k.setDisabled(overridden);
+  bus.subscribe(controlId, (v) => {
+    const off = dim(v);
+    for (const k of dimmed) k.setDisabled(off);
   });
 }
