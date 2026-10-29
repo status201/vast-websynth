@@ -141,9 +141,9 @@ export class Osc {
     this.freq.set(hz, when, glideSec);
   }
 
-  /** Where the frequency curve has reached at `t` — see `FrequencyLine.at`. */
-  frequencyAt(t: number): number {
-    return this.freq.at(t);
+  /** Have `line` take over this oscillator's frequency curve from `now` (`FrequencyLine.follow`). */
+  lendFrequencyTo(line: FrequencyLine, now: number): void {
+    line.follow(this.freq, now);
   }
 
   /**

@@ -146,6 +146,34 @@ describe('the pair follows the OSC panels (REQ-the-pair-follows-every-osc-contro
     expect(tau).toBeCloseTo(0.1);
   });
 
+  // Regression: attach used to write the curve's value at `now` as a step, so a
+  // glide in flight froze mid-way on the pair, and a note scheduled ahead
+  // sounded early.
+  it('takes over a glide in flight at attach and finishes it', async () => {
+    const { ctx, voice, pair, param } = await build(false);
+    voice.setGlide(0.3);
+    voice.noteOn(69, 0.8, 0);
+    voice.noteOn(81, 0.8, 1);
+    ctx.currentTime = 1.05;
+    voice.attachSync(pair);
+    const [hz, , tau] = param('frequency').setTargetAtTime.mock.calls.at(-1)!;
+    expect(hz).toBe(880);
+    expect(tau).toBeCloseTo(0.1);
+    const [from, at] = param('frequency').setValueAtTime.mock.calls.at(-1)!;
+    expect(at).toBe(1.05);
+    expect(from).toBeGreaterThan(440);
+    expect(from).toBeLessThan(880);
+  });
+
+  it('keeps a note scheduled ahead at its own time at attach', async () => {
+    const { ctx, voice, pair, param } = await build(false);
+    voice.noteOn(69, 0.8, 0);
+    voice.noteOn(81, 0.8, 1);
+    ctx.currentTime = 0.5;
+    voice.attachSync(pair);
+    expect(param('frequency').setValueAtTime.mock.calls.slice(-2)).toEqual([[440, 0.5], [880, 1]]);
+  });
+
   it('feeds the knob into the sync junction, which feeds the pair', async () => {
     const { voice, pair } = await build();
     voice.setSyncPitch(19);
@@ -197,6 +225,20 @@ describe('the pair idles with the voice (REQ-the-pair-idles-with-the-voice)', ()
 
     voice.noteOn(62, 0.8, 1);
     expect(post).toHaveBeenLastCalledWith(true);
+  });
+
+  // Regression: off → the voice idles inside the disconnect window → on again
+  // cancelled the cut (and its setActive(false)) while the voice's own idle
+  // was skipped as not engaged, so the pair ran on an idle voice.
+  it('re-engaging after the voice went idle mid-crossfade leaves the pair idle', async () => {
+    const { voice, node } = await build();
+    voice.noteOn(60, 0.8, 0);
+    voice.setSyncMode(HARD);
+    voice.setSyncMode(0);
+    voice.kill(0);
+    vi.advanceTimersByTime(40); // past the kill's 30 ms, inside the 300 ms window
+    voice.setSyncMode(HARD);
+    expect(node.port.postMessage).toHaveBeenLastCalledWith(false);
   });
 
   it('engaging over an idle voice does not wake the pair', async () => {

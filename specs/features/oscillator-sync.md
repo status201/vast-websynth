@@ -3,7 +3,10 @@
 ```yaml
 id: oscillator-sync
 status: implemented
-version: 3                     # v3: cross-modulation — the pair lands on each Osc's pre-level
+version: 4                     # v4: regressions: attach follows the master's frequency curve as
+                               #     scheduled (a glide in flight, a note ahead); re-engaging gates the
+                               #     pair by whether the voice sounds now
+                               # v3: cross-modulation — the pair lands on each Osc's pre-level
                                #     `signal` tap, and takes an a-rate `fm` input (cross-modulation.md)
                                # v2: review — the engagement state machine moves out of Voice
                                #     into SyncEngagement (SRP); LFO depths come from LFO_DEST_SCALE;
@@ -89,7 +92,10 @@ residual shipped here reaches the measurement floor in band.
   `Osc.out` and there is one level control whichever path is sounding (v3; the
   tap is what ring mod and FM read, [cross-modulation](cross-modulation.md)
   REQ-oscillator-signals-are-tapped-pre-level). Glide uses the same
-  maths as the native oscillator (`FrequencyLine`). The sub-oscillator stays
+  maths as the native oscillator (`FrequencyLine`). A pair attached mid-note
+  takes over the master's frequency curve as it is scheduled (`FrequencyLine.follow`):
+  a glide in flight carries on to its target, and a note set a lookahead ahead
+  still lands at its own time. The sub-oscillator stays
   native and unsynced.
 - **REQ-every-pitch-source-reaches-the-pair** — Pitch bend, the per-note bend,
   both LFOs' `pitch`, analogue drift and matrix `pitch` routes move the pair
@@ -105,15 +111,19 @@ residual shipped here reaches the measurement floor in band.
   REQ-a-modulated-knob-shows-its-reach).
 - **REQ-engaging-sync-crossfades** — Engaging or disengaging crossfades the native
   and pair paths with complementary `RAMP_BYPASS` ramps, then **disconnects** the
-  side that went silent (ADR-012): the native oscillators stop rendering while
-  sync is on, and the pair stops while it is off. A toggle made inside the
+  side that went silent (ADR-012): the native oscillators are cut from the voice
+  while sync is on, and the pair while it is off. Blink then skips the cut
+  source, since nothing pulls it; Gecko still renders a started node it holds
+  ([cross-modulation](cross-modulation.md) REQ-cross-mod-disconnects-when-unused),
+  so there the saving is the chain downstream of the cut, not the source. A toggle made inside the
   crossfade window supersedes the earlier one, never races it.
 - **REQ-the-pair-is-built-on-first-use** — No sync worklet module is loaded and no
   pair node exists until `osc2.sync` first leaves `off`
   ([runtime-performance](runtime-performance.md) REQ-boot-cost-matches-the-request). Until the pairs are ready, voices
-  keep playing native. If the load fails, sync stays inert and the synth plays
+  keep playing native. If the load fails, sync stays inert for the session (the
+  failed load is memoized, unlike the flanger's and reverse delay's, which retry) and the synth plays
   on — the failure is logged, never thrown into a subscriber. The worklet file is
-  in the service worker's precached `CORE_ASSETS` beside the other three, so an
+  in the service worker's precached `CORE_ASSETS` beside the other worklets, so an
   installed app can engage sync offline. The thin wrapper is a static import, on
   purpose. An `import()` of it saved 0.8 kB of entry chunk, but it added a hashed
   chunk that an offline session may never have fetched. That would be a second
@@ -122,7 +132,9 @@ residual shipped here reaches the measurement floor in band.
   lifecycle exactly like the filter ([ladder-filter](ladder-filter.md)
   REQ-the-filter-idles-when-gated): active from `noteOn`, inactive once the
   voice goes idle. The amp VCA is closed at every flip, so the gate is
-  inaudible.
+  inaudible. Engaging sets the gate from whether the voice sounds **now**, so a
+  voice that went idle while a disengage was still crossfading is not left with
+  an active pair.
 - **REQ-every-discontinuity-is-band-limited** — Each value jump (saw/square edges,
   hard resets, wave/width changes) gets a band-limited step residual, each slope
   jump (triangle corners, sine resets, reversals) a band-limited ramp, and a sine
@@ -171,7 +183,7 @@ SyncOscNode (src/audio/sync-osc/node.ts):
   masterMirror, slaveMirror       # OscMirror -> wave1/2, masterCents/slaveCents, width1/2 (k-rate)
   setActive(on)                   # the idle gate (REQ-the-pair-idles-with-the-voice)
 SyncEngagement (src/audio/sync-osc/engagement.ts):  # one per voice; owns the state machine
-  attach(pair)                    # once: mirrors on, pitch curve caught up, stored mode applied
+  attach(pair)                    # once: mirrors on, the master's frequency curve followed as scheduled, stored mode applied
   setMode(m)                      # stored before a pair exists; engage/disengage crossfade
   setFrequency(hz, when, glide)   # every note, engaged or not
   setVoiceActive(on)              # idle gate, only while engaged
@@ -302,6 +314,19 @@ Scenario: The pair idles with the voice (REQ-the-pair-idles-with-the-voice)
   Given sync is engaged
   When a note starts and later releases to idle
   Then the pair is told active at noteOn and inactive once the voice is idle
+# pinned by: tests/audio/voice-sync.test.ts
+
+Scenario: Re-engaging after the voice idled leaves the pair idle (regression, REQ-the-pair-idles-with-the-voice)
+  Given sync is engaged over a held note
+  When sync is turned off, the voice goes idle inside the crossfade window, and sync is turned back on
+  Then the pair is told inactive
+# pinned by: tests/audio/voice-sync.test.ts
+
+Scenario: Attaching mid-glide finishes the glide (regression, REQ-the-pair-follows-every-osc-control)
+  Given glide is on and a glide from A4 to A5 is in flight
+  When the pair is attached
+  Then the pair starts where the curve has reached and glides on to A5 with the same time constant
+  And a note scheduled ahead of now still starts at its own time on the pair
 # pinned by: tests/audio/voice-sync.test.ts
 
 Scenario: The SYNC knob is only on show while sync is engaged
