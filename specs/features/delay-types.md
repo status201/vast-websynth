@@ -447,6 +447,12 @@ Scenario: Each type is musical and switches without a click (ADR-010)
   numbers in `delay-cores.ts` stand as shipped; a later retune is heard the same
   way: `bench:audio` at each TYPE in both engines, FB 0.95 on TAPE/BBD, rapid
   TYPE switching, and a demo A/B against `main` for the DIGITAL no-op.
+- **By ear (ADR-010), v2 Butterworth loop filters, signed off 2026-10-29**:
+  DIGITAL and PING PONG at FB 0.95 and BBD at FB 0.8 were rendered before and
+  after in Chromium, after in Firefox, plus a demo pass (`bench/q-*`). Before,
+  the held-note takes grew (DIGITAL −24 to −6 dBFS, PING PONG to 0 dBFS
+  clipping, BBD to −11 dBFS); after, they hold and decay. Listened to and
+  approved: the types sound as good or better, PING PONG clearly fixed.
 
 ## Open questions / future
 
