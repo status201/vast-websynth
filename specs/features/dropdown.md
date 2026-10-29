@@ -3,7 +3,10 @@
 ```yaml
 id: dropdown
 status: implemented
-version: 16 # v16: REQ-a-toggle-can-carry-a-legend — an unboxed toggle that is a panel's title
+version: 17 # v17: REQ-an-open-menu-stays-under-the-sticky-header — the section holding an open
+            #      menu is raised above its sibling sections but not above the header;
+            #      at z-index 100 it painted over the header, which vanished (regression)
+            # v16: REQ-a-toggle-can-carry-a-legend — an unboxed toggle that is a panel's title
             #      (the synth Delay's TYPE, delay-types.md v4)
             # v15: one Escape closes only the innermost open menu (stopImmediatePropagation: every
             #      menu listens on the document); dismissMenu returns a disposer and the Grid
@@ -311,6 +314,17 @@ without anyone remembering to ask.
   test picks an option by this class; the same bridge-class idiom as
   `switch-label`.
 
+- **REQ-an-open-menu-stays-under-the-sticky-header** (v17) — Every top-level
+  `.app` section is its own stacking context at `z-index: 1`, so a later section
+  paints over an earlier one's menu whatever the menu's own `z-index`. The
+  section holding an open dropdown (`.app > *:has(.dropdown.open)`,
+  `src/styles/layout.css`) is therefore raised: **above its sibling sections
+  (1) and below the sticky header (10)**, at 9. The header is page chrome and
+  stays on top while a menu is open; a menu that reaches up under it is covered
+  like any other scrolled content. At 100 the raise put the whole section, not
+  just the menu, above the header: opening the LFO destination with the page
+  scrolled made the header vanish under the synth panels.
+
 - **REQ-a-toggle-can-carry-a-legend** (v16) — **`DropdownOptions.legend` turns
   the toggle into a panel title**: a small legend line carrying the caret,
   above the value, with no box, no floor width and the panel title's type, so the control
@@ -615,6 +629,13 @@ Scenario: A rebuild does not repaint a value the list never held (regression, v7
   When setOptions runs and the caller re-asserts setValue("Night Rider")
   Then the toggle still reads "Night Rider", not the first option
 # pinned by: tests/ui/dropdown.test.ts
+
+Scenario: Opening a menu leaves the sticky header on top (regression, v17, REQ-an-open-menu-stays-under-the-sticky-header)
+  Given the page is scrolled so the sticky header overlaps the synth panels
+  When the LFO destination dropdown is opened
+  Then the header is still the topmost element where it is drawn
+   And the open menu still paints over the FX section below it
+# pinned by: e2e/menu-stacking.spec.ts
 
 Scenario: A legend sits above the value and survives a change (v16, REQ-a-toggle-can-carry-a-legend)
   Given a Dropdown built with legend "Delay" showing "DIGITAL"
