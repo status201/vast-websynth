@@ -2,7 +2,7 @@ import type { ParamBus } from '../../state/params';
 import dropdownStyles from '../styles/dropdown.module.css';
 import styles from '../styles/fx-slot-picker.module.css';
 import { UI_ICONS } from './ui-icons';
-import { anchorMenu, dismissMenu } from './menu-anchor';
+import { anchorMenu, dismissMenu, menuClosed, menuOpened } from './menu-anchor';
 
 /**
  * Two or more effects sharing one panel, chosen from a caret beside the title
@@ -101,7 +101,9 @@ export function createFxSlot(bus: ParamBus, views: readonly FxSlotView[]): FxSlo
     open = o;
     root.classList.toggle('open', o);
     toggle.setAttribute('aria-expanded', String(o));
-    if (!o) return;
+    // One menu at a time (dropdown.md REQ-one-menu-is-open-at-a-time).
+    if (!o) { menuClosed(root); return; }
+    menuOpened(root, () => setOpen(false));
     // Read on open (REQ-the-menu-lists-every-effect-in-the-slot): a lane or a
     // load may have switched an effect since the last look.
     for (const [prefix, b] of items) {

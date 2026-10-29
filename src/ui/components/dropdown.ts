@@ -1,6 +1,6 @@
 import styles from '../styles/dropdown.module.css';
 import { UI_ICONS } from './ui-icons';
-import { anchorMenu } from './menu-anchor';
+import { anchorMenu, menuClosed, menuOpened } from './menu-anchor';
 
 /**
  * Option count at which the menu grows a live filter row (dropdown.md REQ-a-long-list-carries-a-filter).
@@ -186,6 +186,7 @@ export class Dropdown {
   onChange(cb: (v: string) => void): void { this.listener = cb; }
 
   destroy(): void {
+    menuClosed(this.el);
     document.removeEventListener('click', this.onDocClick);
     document.removeEventListener('keydown', this.onKey);
     window.removeEventListener('scroll', this.onReposition, true);
@@ -281,6 +282,8 @@ export class Dropdown {
     if (this.open === o) return;
     this.open = o;
     this.el.classList.toggle('open', o);
+    if (o) menuOpened(this.el, () => this.setOpen(false));
+    else menuClosed(this.el);
     if (o) {
       // Always open on the whole list — a persisted query would be invisible
       // state hiding options (REQ-a-long-list-carries-a-filter, ADR-014 law 5).

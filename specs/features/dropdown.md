@@ -3,7 +3,10 @@
 ```yaml
 id: dropdown
 status: implemented
-version: 12 # v12: dismissMenu takes `inside` triggers outside its root (the FX slot's title),
+version: 13 # v13: one menu is open at a time (REQ-one-menu-is-open-at-a-time) — every toggle
+            #      stopped its own click, so opening a second menu never reached the
+            #      first one's outside-click close and the two overlapped
+            # v12: dismissMenu takes `inside` triggers outside its root (the FX slot's title),
             #      so a trigger keeps its menu open without stopping the click, and the
             #      click still closes every other open menu
             # v11: REQ-every-fixed-menu-shares-one-anchor-and-dismiss — the anchor rule and the
@@ -106,11 +109,30 @@ without anyone remembering to ask.
     that sit outside `root` but belong to the control, such as the FX slot's
     title ([fx-slot-picker](fx-slot-picker.md) REQ-the-title-opens-the-menu). A
     click on one is not an outside click, so the trigger need not
-    `stopPropagation` to keep its own menu open, and the click still reaches,
-    and closes, every other open menu. The slot picker's caret and title stop
-    nothing. The other toggles still stop their click, so opening one of them
-    leaves another menu open. That is older behaviour, recorded under Open
-    questions.
+    `stopPropagation` to keep its own menu open. The slot picker's caret and
+    title stop nothing.
+- **REQ-one-menu-is-open-at-a-time** (v13) — **Opening a menu closes every other
+  open menu, except one it sits inside.** Each of the four menu kinds reports
+  itself to `menu-anchor.ts` as it opens and closes (`menuOpened(root, close)`,
+  `menuClosed(root)`). Opening one closes every open menu whose root does not
+  contain the new one's root.
+  - **Why a registry, not the outside-click.** Every toggle stopped its own click
+    (`Dropdown`, Clear, Grid), so a click that opened one menu never reached the
+    others' document listeners, and two fixed menus overlapped. Taking the stops
+    out would also let each click reach whatever ancestor handles clicks: a
+    row that folds, a chip that selects. The registry needs no propagation, so
+    no toggle's click changes what it reaches.
+  - **Nesting is kept.** The Grid popover holds the LEN and RATE dropdowns, and
+    opening one of them must not close the popover around it. That popover's
+    root contains theirs, so it is spared. Opening a different lane's Grid
+    closes the first one, along with any dropdown open inside it.
+  - **A menu takes its nested menus down with it.** However the popover closes
+    (its own toggle, a choice, Escape, another menu), a dropdown open inside it
+    closes too. Left open, it would spring back the next time the popover opened.
+  - **Any way of opening counts:** a click, a title, or a key on a focused
+    toggle.
+  - `Dropdown.destroy()` also forgets its entry, so a torn-down dropdown is never
+    closed later through a stale reference.
 - **REQ-the-selected-option-scrolls-into-view** — **On open, the currently
   selected option is scrolled into view within the menu**, and keyboard focus
   lands on the **filter input** where one exists
@@ -292,7 +314,15 @@ without anyone remembering to ask.
 - `setDisabledOptions(labels: Iterable<string>): void` — greyed, unselectable
   options (REQ-an-option-can-be-unselectable); survives a later `setOptions`
 - `onChange(cb: (v: string) => void): void`
-- `destroy(): void`
+- `destroy(): void` — also drops it from the open-menu registry (v13)
+
+`menu-anchor.ts` (v13, REQ-one-menu-is-open-at-a-time), called by every fixed menu's
+`setOpen`:
+
+- `menuOpened(root: HTMLElement, close: () => void): void` — closes every other
+  open menu whose root does not contain `root`, then records this one
+- `menuClosed(root: HTMLElement): void` — forgets it, and closes every open
+  menu nested inside it
 
 `ParamDropdown` (`src/ui/components/param-dropdown.ts`) wraps a `Dropdown` and
 keeps it in sync with a discrete numeric `ParamBus` param (index ↔ label). It
@@ -377,6 +407,19 @@ Scenario: Escape closes any fixed menu without reaching Panic (regression, v11, 
 Scenario: A fixed menu is never as wide as the viewport (regression, v11, REQ-every-fixed-menu-shares-one-anchor-and-dismiss)
   Given a menu anchored with width 'toggle' or 'content'
   Then its min-width is the toggle's width or 0, never left at the stylesheet's 100%
+# pinned by: tests/ui/menu-anchor.test.ts
+
+Scenario: Opening a menu closes the one already open (regression, v13, REQ-one-menu-is-open-at-a-time)
+  Given any menu is open: a Dropdown, the Clear menu, a Grid popover or the FX slot picker
+  When the user opens any other menu
+  Then the first menu closes and only the new one is open
+# pinned by: tests/ui/menu-anchor.test.ts
+
+Scenario: A dropdown inside the Grid popover leaves the popover open (edge, v13, REQ-one-menu-is-open-at-a-time)
+  Given a lane's Grid popover is open
+  When the user opens its LEN dropdown
+  Then both are open, and opening another lane's Grid then closes both
+   And closing the popover by its own toggle closes LEN with it
 # pinned by: tests/ui/menu-anchor.test.ts
 
 Scenario: Opening scrolls to and focuses the selected option
@@ -556,8 +599,4 @@ Scenario: A rebuild does not repaint a value the list never held (regression, v7
   now that they have a filter.
 - Fuzzy/subsequence matching instead of substring (`fdc` → `fx.drum.comp`).
   Substring is enough for dotted param ids, where the user knows a fragment.
-- **Two menus can be open at once.** `Dropdown`'s toggle, the Clear menu and the
-  lane popover stop their own click, so opening one never reaches another menu's
-  outside-click close. Moving them onto `dismissMenu`'s `inside` (v12), as the
-  FX slot picker did, would end it. It is out of scope for v12 because each
-  needs checking for an ancestor click handler the stop may be shielding.
+- ~~Two menus can be open at once~~: fixed in v13 (REQ-one-menu-is-open-at-a-time).

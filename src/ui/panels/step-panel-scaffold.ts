@@ -18,7 +18,7 @@ import type { PatternUndo } from '../../state/pattern-undo';
 import { BANK_LABELS, MIN_BANK_COUNT, SAMPLER_SLOT_LABELS } from '../../state/patterns';
 import { GRID_CELLS, LANE_RATE_LABELS, meterLabel, ticksPerCell } from '../../state/meter';
 import { Dropdown } from '../components/dropdown';
-import { anchorMenu, dismissMenu } from '../components/menu-anchor';
+import { anchorMenu, dismissMenu, menuClosed, menuOpened } from '../components/menu-anchor';
 import { laneGrid, onLaneGridChange } from '../lane-grid';
 import dropdownStyles from '../styles/dropdown.module.css';
 import { ListenerSet } from '../../utils/listeners';
@@ -441,6 +441,10 @@ export function laneMeterControlsFor(bus: ParamBus, lane: StepLane): LaneControl
     // inline keeps the reveal on THIS element only (see the root's comment).
     menu.style.display = o ? 'flex' : 'none';
     toggle.setAttribute('aria-expanded', String(o));
+    // One menu at a time, but the LEN/RATE dropdowns inside this root are spared
+    // (dropdown.md REQ-one-menu-is-open-at-a-time).
+    if (o) menuOpened(root, () => setOpen(false));
+    else menuClosed(root);
     // Wider than its toggle, so the body's own min-width sizes it
     // (dropdown.md REQ-every-fixed-menu-shares-one-anchor-and-dismiss).
     if (o) anchorMenu(toggle, menu, 'content');

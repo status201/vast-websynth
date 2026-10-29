@@ -22,6 +22,31 @@ export function anchorMenu(toggle: HTMLElement, menu: HTMLElement, width: MenuWi
   s.top = `${flipUp ? r.top - 6 - mh : r.bottom + 6}px`;
 }
 
+/** Every fixed menu open right now, root → its close (dropdown.md REQ-one-menu-is-open-at-a-time). */
+const openMenus = new Map<HTMLElement, () => void>();
+
+/**
+ * Record `root`'s menu as open, first closing every other open menu, except one
+ * whose root contains `root` (the Grid popover around its LEN/RATE dropdowns).
+ * A registry rather than the outside click, because the toggles stop their own
+ * click, and removing the stop would let it reach a clickable ancestor.
+ */
+export function menuOpened(root: HTMLElement, close: () => void): void {
+  for (const [other, closeOther] of [...openMenus]) {
+    if (other !== root && !other.contains(root)) closeOther();
+  }
+  openMenus.set(root, close);
+}
+
+/** Forget `root`'s menu: it closed, or it is being torn down. A menu nested in
+ *  it closes with it, or it would spring back open when `root` reopens. */
+export function menuClosed(root: HTMLElement): void {
+  openMenus.delete(root);
+  for (const [other, closeOther] of [...openMenus]) {
+    if (root.contains(other)) closeOther();
+  }
+}
+
 /**
  * Close an open menu on an outside click or on Escape. The Escape is consumed:
  * on the window it is Panic, and closing a menu must not stop the song

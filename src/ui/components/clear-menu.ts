@@ -1,7 +1,7 @@
 import styles from '../styles/dropdown.module.css';
 import switchStyles from '../styles/switch.module.css';
 import { iconLabel } from './ui-icons';
-import { anchorMenu, dismissMenu } from './menu-anchor';
+import { anchorMenu, dismissMenu, menuClosed, menuOpened } from './menu-anchor';
 
 /**
  * The `Clear ▾` header control — `specs/features/step-grid-editing.md` REQ-clear-menu-clears-in-bulk.
@@ -80,7 +80,9 @@ export function createClearMenu(opts: ClearMenuOptions): HTMLElement {
     if (open === o) return;
     open = o;
     root.classList.toggle('open', o);
-    if (!o) return;
+    // One menu at a time (dropdown.md REQ-one-menu-is-open-at-a-time).
+    if (!o) { menuClosed(root); return; }
+    menuOpened(root, () => setOpen(false));
     // The whole menu is rebuilt on every open: the edit bank, the selected row
     // and (on Motion) which lanes even have content all move under us. A stale
     // "Clear A" on bank C, or a row that has since emptied, would be a lie.

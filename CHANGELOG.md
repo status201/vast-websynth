@@ -99,6 +99,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 - Pressing Escape to close the **Clear ▾** menu or a lane's length/rate
   popover no longer also stops the song. Escape is the Panic key, and closing
   either menu used to let it through.
+- **Only one menu is open at a time.** Opening a dropdown, the Clear menu, a
+  lane's Grid popover or the Phaser/Chorus menu now closes whichever menu was
+  already open; before, the two stayed open and overlapped. A LEN or RATE list
+  inside the Grid popover still opens without closing it, and closes along with
+  it.
 
 - **A preset no longer inherits settings from the sound before it.** Loading
   `basic` after a synced or FM sound used to keep OSC 2 synced or the FM
