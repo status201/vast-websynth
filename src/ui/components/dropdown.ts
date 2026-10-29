@@ -345,7 +345,9 @@ export class Dropdown {
     if (e.key === 'Escape') {
       // Consumed, like the arrows below (REQ-the-menu-closes-on-outside-click): on the window
       // Escape is Panic, so letting it through stopped the song with the menu.
-      e.stopPropagation();
+      // Immediately: a Grid popover around this list hears the same document
+      // keydown, and one Escape closes one menu (REQ-one-menu-is-open-at-a-time).
+      e.stopImmediatePropagation();
       this.setOpen(false);
       return;
     }

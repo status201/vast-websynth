@@ -3,7 +3,10 @@
 ```yaml
 id: dropdown
 status: implemented
-version: 14 # v14: ParamDropdown takes an optional testId (delay-types.md REQ-delay-type-testids)
+version: 15 # v15: one Escape closes only the innermost open menu (stopImmediatePropagation: every
+            #      menu listens on the document); dismissMenu returns a disposer and the Grid
+            #      popover's destroy() uses it (regressions)
+            # v14: ParamDropdown takes an optional testId (delay-types.md REQ-delay-type-testids)
             # v13: one menu is open at a time (REQ-one-menu-is-open-at-a-time) — every toggle
             #      stopped its own click, so opening a second menu never reached the
             #      first one's outside-click close and the two overlapped
@@ -130,6 +133,15 @@ without anyone remembering to ask.
   - **A menu takes its nested menus down with it.** However the popover closes
     (its own toggle, a choice, Escape, another menu), a dropdown open inside it
     closes too. Left open, it would spring back the next time the popover opened.
+  - **One Escape closes one menu, the innermost.** Every menu listens for
+    keydown on the document, so `stopPropagation` alone would let the same
+    Escape reach the popover around a LEN list. The handler that consumes it
+    calls `stopImmediatePropagation`; the inner dropdown is built before the
+    popover's `dismissMenu`, so it hears the key first. A second Escape closes
+    the popover.
+  - **A torn-down menu leaves nothing behind.** `dismissMenu` returns a disposer
+    that removes its document listeners; a control that is destroyed calls it
+    and `menuClosed(root)`, as `Dropdown.destroy()` does.
   - **Any way of opening counts:** a click, a title, or a key on a focused
     toggle.
   - `Dropdown.destroy()` also forgets its entry, so a torn-down dropdown is never
@@ -197,8 +209,8 @@ without anyone remembering to ask.
     like it did nothing — **and `stopPropagation`ed**, so they never reach
     `installShortcuts` on `window`. `Home` there seeks the transport
     ([transport-position](transport-position.md) REQ-home-and-shift-arrows-seek); an open dropdown must
-    not move the playhead. (`Escape` deliberately keeps its old bubbling
-    behaviour — panic-on-Escape is harmless and pre-dates this.)
+    not move the playhead. `Escape` on an open menu is consumed too
+    (REQ-the-menu-closes-on-outside-click, v9).
 - **REQ-a-dropdown-can-be-dimmed** (v5) — **A dropdown can be dimmed to mark its
   value as inherited / not explicitly set here**, via `setDimmed(on)`. The dim
   lands on the **toggle**, never on the root — and that scoping is the
@@ -407,6 +419,19 @@ Scenario: Escape closes any fixed menu without reaching Panic (regression, v11, 
   When the user presses Escape
   Then the menu closes and the keydown does not reach the window
    And with the menu closed, Escape reaches the window untouched
+# pinned by: tests/ui/menu-anchor.test.ts
+
+Scenario: One Escape closes only the innermost menu (regression, v15, REQ-one-menu-is-open-at-a-time)
+  Given a lane's Grid popover is open with its LEN list open inside it
+  When the user presses Escape
+  Then the LEN list closes and the popover stays open
+  And a second Escape closes the popover, and a third reaches the window
+# pinned by: tests/ui/menu-anchor.test.ts
+
+Scenario: A destroyed popover leaves no listener behind (regression, v15, REQ-one-menu-is-open-at-a-time)
+  Given a lane's Grid popover is open
+  When its controls are destroyed
+  Then Escape reaches the window, and opening another menu does not call into it
 # pinned by: tests/ui/menu-anchor.test.ts
 
 Scenario: A fixed menu is never as wide as the viewport (regression, v11, REQ-every-fixed-menu-shares-one-anchor-and-dismiss)

@@ -170,6 +170,33 @@ describe('one menu is open at a time (dropdown.md REQ-one-menu-is-open-at-a-time
     expect(isOpen(g.len)).toBe(false);
   });
 
+  // Regression: both menus listen for keydown on the document, so stopPropagation
+  // alone let the one Escape close the LEN list and then the popover around it.
+  it('Escape closes only the innermost menu: LEN first, then the Grid popover', () => {
+    const g = grid('drum', bus());
+    g.toggle.click();
+    g.len.querySelector<HTMLButtonElement>('button')!.click();
+    expect(escapeReachesWindow()).toBe(false);
+    expect(isOpen(g.len)).toBe(false);
+    expect(g.open()).toBe(true);
+    expect(escapeReachesWindow()).toBe(false);
+    expect(g.open()).toBe(false);
+    expect(escapeReachesWindow()).toBe(true);
+  });
+
+  // Regression: the popover's document listeners outlived destroy(), and an open
+  // popover stayed in the registry, consuming every Escape after it was gone.
+  it('a destroyed Grid popover drops its listeners and its registry entry', () => {
+    const b = bus();
+    const { el, destroy } = laneMeterControlsFor(b, 'drum');
+    document.body.appendChild(el);
+    el.querySelector<HTMLElement>('[data-testid="machine-drum-grid"]')!.click();
+    destroy();
+    el.remove();
+    expect(escapeReachesWindow()).toBe(true);
+    expect(() => openClear(clear('drum'))).not.toThrow();
+  });
+
   it('a destroyed dropdown is forgotten, not closed later', () => {
     const d = dropdown();
     openDropdown(d);

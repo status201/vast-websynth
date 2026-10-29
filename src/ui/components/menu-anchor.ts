@@ -56,20 +56,30 @@ export function menuClosed(root: HTMLElement): void {
  * (the FX slot's title). A click on one is not an outside click, so the trigger
  * need not stop its click to keep its own menu open, and other menus still
  * hear it and close.
+ *
+ * Every menu listens on the document, so the Escape is stopped *immediately*:
+ * one Escape closes one menu, the innermost (dropdown.md
+ * REQ-one-menu-is-open-at-a-time). Returns the disposer a torn-down control calls.
  */
 export function dismissMenu(
   root: HTMLElement,
   isOpen: () => boolean,
   close: () => void,
   inside: readonly HTMLElement[] = [],
-): void {
-  document.addEventListener('click', (e) => {
+): () => void {
+  const onClick = (e: MouseEvent): void => {
     const t = e.target as Node;
     if (isOpen() && !root.contains(t) && !inside.some((el) => el.contains(t))) close();
-  });
-  document.addEventListener('keydown', (e) => {
+  };
+  const onKey = (e: KeyboardEvent): void => {
     if (!isOpen() || e.key !== 'Escape') return;
-    e.stopPropagation();
+    e.stopImmediatePropagation();
     close();
-  });
+  };
+  document.addEventListener('click', onClick);
+  document.addEventListener('keydown', onKey);
+  return () => {
+    document.removeEventListener('click', onClick);
+    document.removeEventListener('keydown', onKey);
+  };
 }
