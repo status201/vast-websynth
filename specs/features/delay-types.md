@@ -385,7 +385,7 @@ Scenario: Each type is musical and switches without a click (ADR-010)
   Given a short synth phrase with other lanes muted
   When it is rendered at every TYPE against a bypassed baseline, and TYPE is switched mid-phrase
   Then each type sounds like its namesake, FB 0.95 stays bounded, and no switch clicks
-# pinned by: bench:audio + by ear (Blink + Gecko) — NOT YET HEARD, see below
+# pinned by: bench:audio + by ear (Blink + Gecko), heard and approved
 ```
 
 ## Tests & verification
@@ -397,10 +397,12 @@ Scenario: Each type is musical and switches without a click (ADR-010)
 - `tests/audio/effects/bypass.test.ts`, `tests/audio/fx-tempo-lock.test.ts` — the
   digital delay's existing contract, unchanged and green.
 - `npm run typecheck && npm test && npm run spec:lint`; `npm run build && npm run check:bundle`.
-- **By ear (ADR-010), still owed**: every voicing number in `delay-cores.ts` is a
-  first guess. `npm run bench:audio` (and `--browser firefox`) at each TYPE
-  against a bypassed baseline, then by hand in the app: FB 0.95 on TAPE/BBD,
-  rapid TYPE switching, and a demo A/B against `main` for the DIGITAL no-op.
+- **By ear (ADR-010), signed off**: each TYPE was rendered with
+  `npm run bench:audio` in Chromium and Firefox (no bursts; PING PONG at
+  DIGITAL's RMS) and the takes were listened to and approved. The voicing
+  numbers in `delay-cores.ts` stand as shipped; a later retune is heard the same
+  way: `bench:audio` at each TYPE in both engines, FB 0.95 on TAPE/BBD, rapid
+  TYPE switching, and a demo A/B against `main` for the DIGITAL no-op.
 
 ## Open questions / future
 
