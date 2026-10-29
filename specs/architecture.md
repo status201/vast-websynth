@@ -383,7 +383,12 @@ that one day they would not:
   separate fields: they are read on the tick path, and the caller passes a reset.
 - **`WrappedEffect.quiesceParam(p, on, held)`** — `Delay` and `Phaser` had the
   same anchored cancel for their feedback loop. The subtlety worth stating once
-  is *why* it is anchored, and why it is not ramped.
+  is *why* it is anchored, and why it is not ramped. Its body is `pinParam`
+  (`effects/effect.ts`), which the delay types' cores share through one
+  `HeldFeedback` ([delay-types](features/delay-types.md)).
+- **`loadWorkletModule(ctx, url)`** (`audio/worklet-module.ts`) — the flanger and
+  the reverse delay each loaded their worklet on first use with the same
+  memo-and-forget-a-failure body.
 - **`createDjButton(label, testid)`** (`ui/components/button.ts`) — the transport
   row and the LIVE FX row each had a private `djButton`. They looked different
   and were not: both local aliases resolved to `song-panel.module.css`.
@@ -535,9 +540,11 @@ voices ─(spread)→ voiceBus ─→ eq → distortion → wah → phaser → f
   need: the voice path is mono end to end (mono oscillators/noise → gains →
   1-channel filter worklet → gains), and the insert chain stays 1-channel through
   `dist → wah → phaser → flanger → delay` — except after the **chorus** while it is on: it
-  is the one insert short of the reverb that makes a second channel, and its
+  is the one insert short of the delay that makes a second channel, and its
   bypass disconnect takes that away again ([chorus](features/chorus.md)
-  REQ-the-chorus-widens-without-changing-level).
+  REQ-the-chorus-widens-without-changing-level). The delay makes one too while
+  its TYPE is PING PONG, and only while that core is connected
+  ([delay-types](features/delay-types.md) REQ-ping-pong-keeps-the-digital-level).
 
   **`(spread)` in the diagram is the one thing that can end that**, and it is off
   unless asked for: a voice also carries a panned output edge, and `Engine`

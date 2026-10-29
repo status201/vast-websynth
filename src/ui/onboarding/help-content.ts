@@ -758,9 +758,14 @@ export const HELP_TOPICS: Record<TopicId, HelpTopic> = {
   'fx.delay': {
     title: 'Delay',
     body:
-      '<p>An echo of the sound.</p>' +
+      '<p>An echo of the sound. The menu by the title picks its <strong>type</strong>: ' +
+      '<strong>DIGITAL</strong> (clean), <strong>PING PONG</strong> (bounces left and right), ' +
+      '<strong>TAPE</strong> (wobbly, warm, each repeat darker), <strong>BBD</strong> (murky analog), ' +
+      '<strong>SPACE ECHO</strong> (tape through a spring) or <strong>REVERSE</strong> (swells backwards).</p>' +
       '<ul><li><strong>TIME</strong> — gap between echoes.</li>' +
       '<li><strong>FB</strong> — feedback; how many times it repeats.</li>' +
+      '<li><strong>CHAR</strong> — the type\'s character: width for ping pong, wear for tape, age for BBD, ' +
+      'the spring for space echo, smoothness for reverse. Idle on DIGITAL.</li>' +
       '<li><strong>MIX</strong> — how loud the echoes are vs the dry sound.</li></ul>',
   },
   'fx.reverb': {

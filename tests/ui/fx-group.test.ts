@@ -57,3 +57,24 @@ describe('fxGroup', () => {
     expect(knobRow.contains(trailing)).toBe(true); // hides with the knobs while off
   });
 });
+
+describe('a title companion (fx-group.md REQ-a-group-can-host-a-title-companion)', () => {
+  it('collapses with the knobs only when it opts in (v5)', () => {
+    const b = bus();
+    const setting = document.createElement('span');
+    const caret = document.createElement('span');
+    const withSetting = fxGroup(b, 'DELAY', 'fx.drum.delay', [], { afterTitle: setting, afterTitleCollapses: true });
+    fxGroup(b, 'PHASER', 'fx.drum.phaser', KNOBS, { afterTitle: caret });
+    // The delay's TYPE is a setting: it goes with the knobs while bypassed.
+    expect(setting.classList.contains(styles.collapsible!)).toBe(true);
+    expect(withSetting.classList.contains('collapsed')).toBe(true);
+    // The slot caret is navigation: it never collapses.
+    expect(caret.classList.contains(styles.collapsible!)).toBe(false);
+  });
+
+  it('the stylesheet hides a collapsible companion under .collapsed, as it does the knobs', async () => {
+    const { readFileSync } = await import('node:fs');
+    const css = readFileSync('src/ui/styles/fx-group.module.css', 'utf8');
+    expect(css).toMatch(/\.root:global\(\.collapsed\)\s+\.collapsible\s*\{\s*display:\s*none;/);
+  });
+});

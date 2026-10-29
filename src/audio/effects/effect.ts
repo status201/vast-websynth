@@ -122,10 +122,19 @@ export abstract class WrappedEffect implements Effect {
    * the wet path is already at zero and there is nothing to hear a step in.
    */
   protected quiesceParam(p: AudioParam, on: boolean, held: number): void {
-    const t = this.ctx.currentTime;
-    p.cancelScheduledValues(t);
-    p.setValueAtTime(on ? 0 : held, t);
+    pinParam(this.ctx, p, on, held);
   }
+}
+
+/**
+ * {@link WrappedEffect.quiesceParam}'s body, for a feedback loop that is not the
+ * effect itself — the delay types' cores (delay-types.md
+ * REQ-the-delay-drains-every-live-core).
+ */
+export function pinParam(ctx: BaseAudioContext, p: AudioParam, on: boolean, held: number): void {
+  const t = ctx.currentTime;
+  p.cancelScheduledValues(t);
+  p.setValueAtTime(on ? 0 : held, t);
 }
 
 /**

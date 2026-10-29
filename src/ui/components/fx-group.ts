@@ -1,6 +1,7 @@
 import type { ParamBus } from '../../state/params';
 import { Switch } from './switch';
 import { Knob } from './knob';
+import { DELAY_KNOBS, delayTypeDropdown, dimCharAtDigital } from './delay-type-controls';
 import styles from '../styles/fx-group.module.css';
 
 /**
@@ -33,6 +34,12 @@ export interface FxGroupOptions {
    * (fx-slot-picker.md).
    */
   afterTitle?: HTMLElement;
+  /**
+   * Hide `afterTitle` with the knobs while the effect is bypassed (fx-group.md
+   * v5): set for a setting such as the delay's TYPE, never for the slot caret,
+   * which is how a bypassed effect is reached.
+   */
+  afterTitleCollapses?: boolean;
 }
 
 /** `fxGroup`, also handing back its knobs — for a caller that dims some of them —
@@ -56,7 +63,10 @@ export function fxGroupParts(
   label.textContent = title;
   label.className = styles.label!;
   group.appendChild(label);
-  if (opts?.afterTitle) group.appendChild(opts.afterTitle);
+  if (opts?.afterTitle) {
+    if (opts.afterTitleCollapses) opts.afterTitle.classList.add(styles.collapsible!);
+    group.appendChild(opts.afterTitle);
+  }
 
   group.appendChild(new Switch(bus, `${onPrefix}.on`, 'on').el);
 
@@ -86,4 +96,19 @@ export function rowDivider(): HTMLElement {
   const el = document.createElement('div');
   el.className = styles.divider!;
   return el;
+}
+
+/**
+ * A header bus's DELAY group (drum, sampler): the TYPE dropdown after the title,
+ * TIME · FB · CHAR · MIX, and CHAR dimmed while TYPE is DIGITAL
+ * (delay-types.md REQ-type-is-a-header-dropdown-and-char-a-knob).
+ */
+export function delayFxGroup(bus: ParamBus, prefix: string): HTMLElement {
+  const knobs = DELAY_KNOBS.map(([k, label]) => ({ id: `${prefix}.${k}`, label }));
+  const parts = fxGroupParts(bus, 'DELAY', prefix, knobs, {
+    afterTitle: delayTypeDropdown(bus, prefix),
+    afterTitleCollapses: true,
+  });
+  dimCharAtDigital(bus, prefix, parts.knobs);
+  return parts.el;
 }

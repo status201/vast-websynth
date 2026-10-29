@@ -3,7 +3,8 @@
 ```yaml
 id: pwa-install
 status: implemented
-version: 6   # v6: REQ-manifest-and-button-drive-fullscreen — the button's state is element fullscreen
+version: 7   # v7: reverse-delay.js is precached and the delay-type switch idle-warmed (delay-types.md)
+             # v6: REQ-manifest-and-button-drive-fullscreen — the button's state is element fullscreen
              #     OR (display-mode: fullscreen), synced at creation; one tap leaves a
              #     manifest-launched fullscreen (was: unlit, and two taps to exit)
              # v5: REQ-service-worker-is-registered — the second sweep's deferred chunks (song-author
@@ -126,11 +127,12 @@ vite-plugin-pwa/workbox), per ADR-003's precedent.
   **cache-first** for immutable hashed `/assets/*`; **network-first with cache
   fallback** for navigations (falling back to cached `/`) and all other
   same-origin GETs; non-GET and cross-origin requests pass through untouched. A
-  core shell (`/`, manifest, icons, the five `/worklets/*.js`) is precached at
-  install — including `sync-osc.js` and `flanger.js`, which the app loads only on
-  first use of oscillator sync or of a flanger, so an installed app can still
-  engage them offline ([oscillator-sync](oscillator-sync.md)
-  REQ-the-pair-is-built-on-first-use, [flanger](flanger.md) REQ-the-flanger-loads-on-first-use). (v3) **`/mcp` and `/healthz` pass through too**, by path. Those are
+  core shell (`/`, manifest, icons, the six `/worklets/*.js`) is precached at
+  install — including `sync-osc.js`, `flanger.js` and (v7) `reverse-delay.js`, which the app
+  loads only on first use of oscillator sync, of a flanger or of the REVERSE delay, so an
+  installed app can still engage them offline ([oscillator-sync](oscillator-sync.md)
+  REQ-the-pair-is-built-on-first-use, [flanger](flanger.md) REQ-the-flanger-loads-on-first-use,
+  [delay-types](delay-types.md) REQ-the-other-types-load-on-first-use). (v3) **`/mcp` and `/healthz` pass through too**, by path. Those are
   the public MCP endpoint ([mcp-server](mcp-server.md) REQ-the-http-transport-is-stateless), served from this
   origin by a reverse proxy rather than from `dist/`. They are already safe by
   accident — the traffic is `POST`, which the non-GET rule passes through, and
@@ -164,7 +166,8 @@ vite-plugin-pwa/workbox), per ADR-003's precedent.
   zip codec (importing or pasting a song offline), the Paste and Export dialogs
   and the Performance settings — each a thing a player does offline — and the
   flanger's DSP, imported on its first switch-on ([flanger](flanger.md)
-  REQ-the-flanger-loads-on-first-use). The AI Prompt body is deliberately left cold: its round
+  REQ-the-flanger-loads-on-first-use), and (v7) the delay-type switch, imported on a
+  delay's first non-digital TYPE ([delay-types](delay-types.md)). The AI Prompt body is deliberately left cold: its round
   trip needs an AI, so offline it has nothing to offer. All the warms
   share one `requestIdleCallback`-with-timeout-fallback in `main.ts` and swallow
   their errors: the real `import()` at the trigger retries. A warm is

@@ -7,7 +7,7 @@ import { Switch } from '../components/switch';
 import { Knob, dimWhileModeSet } from '../components/knob';
 import { createButton } from '../components/button';
 import { ParamDropdown } from '../components/param-dropdown';
-import { fxGroup, fxGroupParts } from '../components/fx-group';
+import { fxGroup, fxGroupParts, delayFxGroup } from '../components/fx-group';
 import { createFxSlot } from '../components/fx-slot-picker';
 import { CHORUS_MODE_OVERRIDES } from '../../state/chorus';
 import { StepButton } from '../components/step-button';
@@ -139,11 +139,7 @@ export function buildSamplerPanel(
     { prefix: 'fx.sampler.flanger', title: 'Flanger', el: flanger.el, caretHost: flangerHost, titleEl: flanger.label },
     { prefix: 'fx.sampler.chorus', title: 'Chorus', el: chorus.el, caretHost: chorusHost, titleEl: chorus.label },
   ]);
-  fx.appendChild(fxGroup(bus, 'DELAY', 'fx.sampler.delay', [
-    { id: 'fx.sampler.delay.time', label: 'TIME' },
-    { id: 'fx.sampler.delay.feedback', label: 'FB' },
-    { id: 'fx.sampler.delay.mix', label: 'MIX' },
-  ]));
+  fx.appendChild(delayFxGroup(bus, 'fx.sampler.delay'));
   fx.appendChild(fxGroup(bus, 'REVERB', 'fx.sampler.reverb', [
     { id: 'fx.sampler.reverb.size', label: 'SIZE' },
     { id: 'fx.sampler.reverb.damp', label: 'DAMP' },

@@ -467,6 +467,10 @@ SOUND DESIGN NOTES
   pads, strings and arps. It adds no width; the chorus after it does.
 - "fx.chorus.*" is a Juno-style stereo chorus — the classic width for pads, strings and electric pianos.
   "mode" 0 = FREE uses "rate"/"depth"; 1-3 (I, II, I+II) are fixed settings that override both.
+- "fx.delay.type" picks the delay's character: 0 DIGITAL (clean, the default), 1 PING PONG (stereo
+  bounce), 2 TAPE (wow/flutter, darker repeats), 3 BBD (murky analog), 4 SPACE ECHO (tape + spring),
+  5 REVERSE (backwards swells). "fx.delay.char" (0-1) is that type's one character knob; DIGITAL ignores it.
+  The drum and sampler delays take the same two params.
 - EVERY synth insert effect is gated by its own ".on" flag — "fx.delay.time" does nothing while
   "fx.delay.on" is 0. Set the flag AND the parameters, and set unused effects' flags to 0 explicitly
   so the patch sounds the same wherever it is loaded.

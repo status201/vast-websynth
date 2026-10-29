@@ -13,7 +13,7 @@ import {
   VisibilityGate, type MachinePanel,
 } from './step-panel-scaffold';
 import { attachGridGestures } from '../components/grid-gestures';
-import { fxGroup } from '../components/fx-group';
+import { fxGroup, delayFxGroup } from '../components/fx-group';
 import { GrMeter } from '../components/gr-meter';
 import { StepSettingsEditor, paintTriggerCell } from '../components/step-settings';
 import { DRUM_KITS, applyKit, randomizeKit } from '../../audio/drums/drum-kits';
@@ -71,11 +71,7 @@ export function buildDrumPanel(
     { id: 'fx.drum.phaser.feedback', label: 'FB' },
     { id: 'fx.drum.phaser.mix', label: 'MIX' },
   ]));
-  fx.appendChild(fxGroup(bus, 'DELAY', 'fx.drum.delay', [
-    { id: 'fx.drum.delay.time', label: 'TIME' },
-    { id: 'fx.drum.delay.feedback', label: 'FB' },
-    { id: 'fx.drum.delay.mix', label: 'MIX' },
-  ]));
+  fx.appendChild(delayFxGroup(bus, 'fx.drum.delay'));
   fx.appendChild(fxGroup(bus, 'REVERB', 'fx.drum.reverb', [
     { id: 'fx.drum.reverb.size', label: 'SIZE' },
     { id: 'fx.drum.reverb.damp', label: 'DAMP' },
@@ -222,8 +218,7 @@ export function buildDrumPanel(
     tuningKnobs.innerHTML = '';
     tuningLabel.textContent = `${modelName(cursor.selRow)} — sound`;
     // Voice model picker leads the strip (drum-machine.md REQ-a-drum-tracks-algorithm-is-selectable).
-    modelDd = new ParamDropdown(bus, `drum.t${cursor.selRow}.model`, DRUM_MODEL_LABELS);
-    modelDd.el.dataset.testid = 'drum-model';
+    modelDd = new ParamDropdown(bus, `drum.t${cursor.selRow}.model`, DRUM_MODEL_LABELS, 'drum-model');
     tuningKnobs.appendChild(modelDd.el);
     for (const { suffix, label } of TUNING_PARAMS) {
       const knob = new Knob({ bus, paramId: `drum.t${cursor.selRow}.${suffix}`, label, size: 34 });

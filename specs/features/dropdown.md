@@ -3,7 +3,8 @@
 ```yaml
 id: dropdown
 status: implemented
-version: 13 # v13: one menu is open at a time (REQ-one-menu-is-open-at-a-time) — every toggle
+version: 14 # v14: ParamDropdown takes an optional testId (delay-types.md REQ-delay-type-testids)
+            # v13: one menu is open at a time (REQ-one-menu-is-open-at-a-time) — every toggle
             #      stopped its own click, so opening a second menu never reached the
             #      first one's outside-click close and the two overlapped
             # v12: dismissMenu takes `inside` triggers outside its root (the FX slot's title),
@@ -329,6 +330,10 @@ keeps it in sync with a discrete numeric `ParamBus` param (index ↔ label). It
 adds `setDisabledLabels(labels)`, a pass-through to `setDisabledOptions`, and
 (v10) `setDimmed(on)`, a pass-through to the same method on `Dropdown`. The
 wrapper stays a thin index↔label binder and the consumer owns the rule.
+(v14) An optional fourth argument, `testId`, sets the root's `data-testid`:
+`Dropdown` mints none of its own, so the LFO destination, the drum MODEL and the
+delay TYPE ([delay-types](delay-types.md) REQ-delay-type-testids) name theirs
+there instead of each writing `dataset.testid` by hand.
 
 ### Data shapes — the menu's DOM
 

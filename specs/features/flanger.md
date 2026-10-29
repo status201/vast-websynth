@@ -17,6 +17,7 @@ source:
   - public/worklets/flanger.js         # the DSP: per-sample circular buffer, log sweep, bounded feedback
   - src/audio/effects/flanger.ts       # Flanger: the boot shell — the wire, the mix, the drain, the trigger
   - src/audio/effects/flanger-live.ts  # the lazy side: module load, splice, param binding
+  - src/audio/worklet-module.ts        # loadWorkletModule: once per context and URL, shared with the reverse delay
   - src/audio/effects/fx-chain.ts      # synth + sampler chains, between phaser and chorus
   - src/state/params.ts                # phaserParams + FLANGER_DEFAULTS
   - src/state/tempo-lock.ts            # fx.flanger.rate / fx.sampler.flanger.rate
@@ -95,7 +96,9 @@ beyond a small shell (about 0.3 kB of the entry chunk).
   bypass, the mix, the drain and a trigger: `Flanger.bind` watches `<prefix>.on`, and the
   first time it is ≥ 0.5 `ensureLive` imports `flanger-live`, whose
   `spliceFlanger` loads the worklet (`loadFlangerModule`, one promise per
-  context, shared by the synth and sampler flangers), splices it in and binds
+  context, shared by the synth and sampler flangers — through
+  `loadWorkletModule` in `src/audio/worklet-module.ts`, which the reverse delay
+  shares, [delay-types](delay-types.md)), splices it in and binds
   rate, depth and feedback. Each of those subscriptions fires at once with the
   current value, so the node starts on the knobs as they stand and nothing is
   cached at boot ([runtime-performance](runtime-performance.md)

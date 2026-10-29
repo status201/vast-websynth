@@ -63,11 +63,9 @@ export function buildLfoPanel(bus: ParamBus): HTMLElement {
 function buildLfoPage(bus: ParamBus, prefix: LfoPrefix, b: HTMLElement): void {
   const rate = new Knob({ bus, paramId: `${prefix}.rate`, label: 'RATE' });
 
-  const dest = new ParamDropdown(bus, `${prefix}.dest`, LFO_DEST_LABELS);
-  // `Dropdown` mints no testid of its own, so the call site does (testids.md
-  // REQ-non-param-buttons-take-an-explicit-testid). It used to be findable as "the first dropdown on the page"; the RATE
-  // knob's tempo lock now puts one ahead of it, and position was never a contract.
-  dest.el.dataset.testid = `dropdown-${prefix}.dest`;
+  // It used to be findable as "the first dropdown on the page"; the RATE knob's
+  // tempo lock now puts one ahead of it, and position was never a contract.
+  const dest = new ParamDropdown(bus, `${prefix}.dest`, LFO_DEST_LABELS, `dropdown-${prefix}.dest`);
 
   // `${prefix}.sync` has no control of its own here any more: the RATE knob owns
   // its tempo lock (tempo-lock.md REQ-one-table-declares-lockable-params/REQ-locked-the-division-replaces-the-dial), which is a whole row cheaper than

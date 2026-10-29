@@ -13,10 +13,15 @@ export class ParamDropdown {
   private readonly dd: Dropdown;
   private readonly unsub: () => void;
 
-  constructor(bus: ParamBus, paramId: string, labels: string[]) {
+  /**
+   * `testId`: `Dropdown` mints no testid of its own, so a call site that needs
+   * one names it here (testids.md REQ-non-param-buttons-take-an-explicit-testid).
+   */
+  constructor(bus: ParamBus, paramId: string, labels: string[], testId?: string) {
     this.dd = new Dropdown(labels);
     this.dd.el.classList.add(styles.compact!);
     this.el = this.dd.el;
+    if (testId) this.el.dataset.testid = testId;
 
     this.dd.onChange((v) => {
       const idx = labels.indexOf(v);

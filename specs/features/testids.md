@@ -3,7 +3,8 @@
 ```yaml
 id: testids
 status: implemented
-version: 33 # v33: fxpick-<primary>, fxpick-<primary>-<prefix>, fxview-<prefix>
+version: 34 # v34: dropdown-<prefix>.type for the three delays (delay-types.md REQ-delay-type-testids)
+            # v33: fxpick-<primary>, fxpick-<primary>-<prefix>, fxview-<prefix>
             #      (fx-slot-picker.md REQ-fx-slot-picker-testids)
             # v32: demo-loaded-info, demo-library, demo-library-entry, demo-library-load, demo-library-more
             #      (demo-library.md REQ-the-library-reads-without-loading, REQ-the-loaded-demo-carries-an-info-button)
@@ -415,6 +416,8 @@ shared UI:
   dropdown-filter                                   # features/dropdown.md
   tempolock-<paramId> · tempodiv-<paramId>          # features/tempo-lock.md
   dropdown-lfo.dest · dropdown-lfo2.dest            # features/lfo.md (v9)
+  dropdown-fx.delay.type · dropdown-fx.drum.delay.type ·
+    dropdown-fx.sampler.delay.type                  # features/delay-types.md (v34)
   meter-picker                                      # features/meter.md (v10)
   toast · toast-host · toast-action · toast-dismiss # `toast` is showToast's DEFAULT
                                                     #   root id (features/toast.md REQ-toast-testids)
