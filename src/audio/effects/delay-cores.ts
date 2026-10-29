@@ -1,5 +1,5 @@
 import { pinParam } from './effect';
-import { DELAY_DAMP_HZ, clampDelayFeedback, clampDelayTime } from './delay';
+import { BUTTERWORTH_Q_DB, DELAY_DAMP_HZ, clampDelayFeedback, clampDelayTime } from './delay';
 import { RAMP_SMOOTH } from '../param-utils';
 import { loadWorkletModule } from '../worklet-module';
 import { clamp01 } from '../../utils/math';
@@ -139,12 +139,12 @@ export function pingPongGains(char: number): [near: number, far: number] {
   return [Math.SQRT2 * Math.cos(theta), Math.SQRT2 * Math.sin(theta)];
 }
 
-/** A lowpass at `hz`, Butterworth unless told otherwise. */
-function lowpass(ctx: BaseAudioContext, hz: number, q = 0.707): BiquadFilterNode {
+/** A Butterworth lowpass or highpass at `hz`: no bump, so never above unity in a loop (REQ-every-type-is-bounded). */
+function butterworth(ctx: BaseAudioContext, type: 'lowpass' | 'highpass', hz: number): BiquadFilterNode {
   const f = ctx.createBiquadFilter();
-  f.type = 'lowpass';
+  f.type = type;
   f.frequency.value = hz;
-  f.Q.value = q;
+  f.Q.value = BUTTERWORTH_Q_DB;
   return f;
 }
 
@@ -170,8 +170,8 @@ class PingPongCore extends CoreBase implements DelayCore {
     this.input.channelCountMode = 'explicit';
     this.dL = ctx.createDelay(2);
     this.dR = ctx.createDelay(2);
-    const dampL = lowpass(ctx, DELAY_DAMP_HZ);
-    const dampR = lowpass(ctx, DELAY_DAMP_HZ);
+    const dampL = butterworth(ctx, 'lowpass', DELAY_DAMP_HZ);
+    const dampR = butterworth(ctx, 'lowpass', DELAY_DAMP_HZ);
     const lr = ctx.createGain();
     const rl = ctx.createGain();
     this.loop = new HeldFeedback(ctx, (p, v) => this.write(p, v), [lr.gain, rl.gain]);
@@ -315,11 +315,8 @@ class AnalogCore extends CoreBase implements DelayCore {
     this.output = ctx.createGain();
     this.line = ctx.createDelay(2 + ANALOG_SWING_HEADROOM_S);
     this.shaper = ctx.createWaveShaper();
-    const hp = ctx.createBiquadFilter();
-    hp.type = 'highpass';
-    hp.frequency.value = v.highpass;
-    hp.Q.value = 0.5;
-    this.lps = (v.twoPole ? [0, 1] : [0]).map(() => lowpass(ctx, v.lowpass[0], 0.6));
+    const hp = butterworth(ctx, 'highpass', v.highpass);
+    this.lps = (v.twoPole ? [0, 1] : [0]).map(() => butterworth(ctx, 'lowpass', v.lowpass[0]));
     const loop = ctx.createGain();
     this.loop = new HeldFeedback(ctx, (p, v) => this.write(p, v), [loop.gain]);
 
@@ -353,7 +350,7 @@ class AnalogCore extends CoreBase implements DelayCore {
     }
     const sd = ctx.createDelay(0.1);
     sd.delayTime.value = SPRING_DELAY_S;
-    const sdamp = lowpass(ctx, SPRING_DAMP_HZ);
+    const sdamp = butterworth(ctx, 'lowpass', SPRING_DAMP_HZ);
     const loop = ctx.createGain();
     loop.gain.value = SPRING_FEEDBACK;
     const level = ctx.createGain();
@@ -410,7 +407,10 @@ class AnalogCore extends CoreBase implements DelayCore {
 
   quiesce(on: boolean, glide?: boolean): void {
     this.loop.quiesce(on, glide);
-    if (this.spring) pinParam(this.ctx, this.spring.loop.gain, on, SPRING_FEEDBACK);
+    if (!this.spring) return;
+    // The tank rings on too, so it is released the main loop's way: a glide, never a step back up.
+    if (!on && glide) this.write(this.spring.loop.gain, SPRING_FEEDBACK);
+    else pinParam(this.ctx, this.spring.loop.gain, on, SPRING_FEEDBACK);
   }
 
   drainSeconds(): number { return 2.1; }

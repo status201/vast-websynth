@@ -97,4 +97,14 @@ describe('reverse-delay worklet', () => {
     proc.process([[]], [[out]], params({ time: 0.1 }));
     expect(Math.max(...out.map(Math.abs))).toBe(0);
   });
+
+  // Regression (runtime-performance.md REQ-no-allocation-in-a-hot-loop): the
+  // per-channel input list was a new array on every render quantum.
+  it('reuses one input list across blocks', () => {
+    const proc = new Processor() as ProcessorLike & { ins: unknown };
+    const first = proc.ins;
+    run(proc, params({ time: 0.1 }), 3, () => 0.5);
+    expect(Array.isArray(first)).toBe(true);
+    expect(proc.ins).toBe(first);
+  });
 });

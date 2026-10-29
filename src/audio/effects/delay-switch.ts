@@ -3,6 +3,7 @@ import { bindTempoLocked } from '../tempo-bind';
 import { delayTypeOf, type DelayType } from '../../state/delay';
 import type { ParamBus } from '../../state/params';
 import { createCore, DigitalCore, type DelayCore } from './delay-cores';
+import { DISCONNECT_DELAY_MS } from './effect';
 
 /**
  * The switch between the delay's types (delay-types.md
@@ -113,12 +114,18 @@ export class DelaySwitch {
     return s;
   }
 
-  /** A bypass also retires any core still spilling: there is nothing left to hear it through. */
+  /**
+   * A bypass also retires any core still spilling: there is nothing left to hear
+   * it through. The wrapper has already faded, so every loop still holding audio
+   * is zeroed now, a retiring one's pending zero included, or the wrapper's
+   * drain could end before the core's.
+   */
   quiesce(on: boolean): void {
     this.quiesced = on;
     for (const slot of this.slots.values()) {
       if (slot.state === 'live') this.pin(slot, on);
-      else if (on && slot.state === 'spill') this.retire(slot);
+      else if (on && slot.state === 'spill') this.retire(slot, true);
+      else if (on && slot.connected) this.pin(slot, true);
     }
   }
 
@@ -191,19 +198,29 @@ export class DelaySwitch {
     slot.timer = window.setTimeout(() => this.retire(slot), DELAY_SPILL_S * 1000);
   }
 
-  /** Fade `slot` out, zero its loop, and disconnect it once it holds only silence. */
-  private retire(slot: CoreSlot): void {
+  /**
+   * Fade `slot` out, zero its loop once the fade has closed the output gate, and
+   * disconnect it once it holds only silence. The bypass wrapper's own order
+   * (effects.md REQ-a-bypassed-effect-drains-before-disconnect): a loop stepped
+   * to 0 while still heard reaches the output one TIME later, a click at a short
+   * TIME. `now` is for a bypass, which has already faded.
+   */
+  private retire(slot: CoreSlot, now = false): void {
     this.clearTimer(slot);
     this.gate(slot, 0, 0);
-    this.pin(slot, true);
     slot.state = 'idle';
-    slot.timer = window.setTimeout(() => {
-      slot.timer = null;
-      if (slot.state !== 'idle' || !slot.connected) return;
-      this.span.processedIn.disconnect(slot.inGate);
-      slot.outGate.disconnect(this.span.processedOut);
-      slot.connected = false;
-      slot.core.sleep();
-    }, slot.core.drainSeconds() * 1000);
+    const drain = (): void => {
+      this.pin(slot, true);
+      slot.timer = window.setTimeout(() => {
+        slot.timer = null;
+        if (slot.state !== 'idle' || !slot.connected) return;
+        this.span.processedIn.disconnect(slot.inGate);
+        slot.outGate.disconnect(this.span.processedOut);
+        slot.connected = false;
+        slot.core.sleep();
+      }, slot.core.drainSeconds() * 1000);
+    };
+    if (now) drain();
+    else slot.timer = window.setTimeout(drain, DISCONNECT_DELAY_MS);
   }
 }

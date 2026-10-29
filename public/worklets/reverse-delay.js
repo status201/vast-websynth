@@ -58,6 +58,8 @@ class ReverseDelayProcessor extends AudioWorkletProcessor {
     this.fb = -1;
     this.k = 1 - Math.exp(-1 / (SMOOTH_S * sampleRate));
     this.y = new Float32Array(MAX_CHANNELS);
+    // Each channel's input this block, refilled in place: process() allocates nothing.
+    this.ins = new Array(MAX_CHANNELS).fill(SILENCE);
   }
 
   /** Open a window at write index `w`: the free head, else the one nearest its end. */
@@ -91,9 +93,9 @@ class ReverseDelayProcessor extends AudioWorkletProcessor {
     // A channel coming back into use starts from silence, not old audio.
     for (let c = this.chans; c < chans; c++) this.bufs[c].fill(0);
     this.chans = chans;
-    const ins = [];
+    const ins = this.ins;
     for (let c = 0; c < chans; c++) {
-      ins.push(input && input.length > 0 ? input[c < input.length ? c : input.length - 1] : SILENCE);
+      ins[c] = input && input.length > 0 ? input[c < input.length ? c : input.length - 1] : SILENCE;
     }
 
     const mask = this.mask;

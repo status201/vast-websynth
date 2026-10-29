@@ -3,7 +3,12 @@
 ```yaml
 id: delay-types
 status: implemented
-version: 1
+version: 3  # v3: regressions: a retiring core's loop is zeroed only once its output gate has
+            #     closed (bypass excepted); the spring loop glides back like the main
+            #     loop; the reverse worklet allocates nothing per block
+            # v2: REQ-every-type-is-bounded: every loop filter is a true Butterworth (Q in dB,
+            #     `BUTTERWORTH_Q_DB`); the old 0.707, read as dB, peaked +1.7 dB and DIGITAL /
+            #     PING PONG ran away above FB ≈ 0.82 (regression scenario)
 owner: core
 related:
   - effects            # the insert-effect contract (WrappedEffect, bypass, drain, chain order)
@@ -76,7 +81,8 @@ delay; a spring is a reverb tank, so it lives here as the Space Echo's tank
   (discrete, default 0 = DIGITAL) and `char` (0–1, default 0.5). Until a
   non-DIGITAL type is first chosen, `Delay` builds and drives **exactly** the
   graph it always did — `processedIn → delay → damp(4.5 kHz) → feedback`, same
-  constants, same nodes, no gates — and CHAR writes nothing. A song that never
+  constants, same nodes, no gates — and CHAR writes nothing. (v2: the one
+  deliberate change is the damp's `Q`, now Butterworth: REQ-every-type-is-bounded.) A song that never
   leaves DIGITAL never loads anything new.
 - **REQ-the-other-types-load-on-first-use** — The first non-DIGITAL choice on a
   delay imports `delay-switch.ts` (one chunk, with the cores, for every delay). Its `DelaySwitch`
@@ -99,7 +105,11 @@ delay; a spring is a reverb tank, so it lives here as the Space Echo's tank
   and the new core's gates up from 0, so the new type starts on new audio and
   the old one's echoes **spill over** instead of being cut. After
   `DELAY_SPILL_S` (2 s) the old core's output gate ramps to 0, its feedback is
-  quiesced, and after its own `drainSeconds()` it is disconnected (ADR-012: an
+  quiesced once that gate has closed (`DISCONNECT_DELAY_MS` later, the bypass
+  wrapper's own order: at a short TIME a loop stepped to 0 while still heard
+  reaches the output one TIME later as a click; a bypass in that wait zeroes it
+  at once, since the wrapper has already faded), and after its own
+  `drainSeconds()` it is disconnected (ADR-012: an
   idle type costs nothing; a disconnected core also **sleeps**, stopping any
   source of its own, such as the analog wow and flutter sines, which a fresh
   wake re-creates). Re-selecting a still-spilling type takes it back as it is.
@@ -115,12 +125,13 @@ delay; a spring is a reverb tank, so it lives here as the Space Echo's tank
     release only when the core is not already in that state, and a release
     **glides** to the knob (`setTargetAtTime`, no cancel, so it continues from
     the pinned 0). A core taken back mid-drain still holds echoes, and stepping
-    its loop gain from 0 to the knob would click.
+    its loop gain from 0 to the knob would click. This holds for every loop a
+    core has, SPACE ECHO's spring tank included.
 - **REQ-each-type-has-its-own-topology** — Every core reads TIME (tempo-locked,
   clamped 0.001–2 s), FEEDBACK (0–0.95) and CHAR, and starts on the knobs as they
   stand; each is native nodes except REVERSE. The numbers are starting points
   dialled by ear, named once in `delay-cores.ts` (`ANALOG_VOICINGS`, the
-  `SPRING_*` and `PINGPONG_*` constants):
+  `SPRING_*` constants, and `pingPongWidth` for ping-pong's width):
   - **PING PONG** — the input is folded to mono and feeds `L`; `L → R → L` cross
     feedback through DIGITAL's damp lowpass, each line at TIME, so the first
     repeat is left and they alternate, each `fb` quieter than the last, as
@@ -143,15 +154,24 @@ delay; a spring is a reverb tank, so it lives here as the Space Echo's tank
     yielding a little as it comes in.
   - **REVERSE** — a worklet that plays windows of length TIME backwards on
     alternating read heads with complementary linear crossfades (their gains sum
-    to 1 at every sample); CHAR sets the crossfade from 5% to 50% of the window —
+    to 1 at every sample while TIME and CHAR hold still); CHAR sets the crossfade from 5% to 50% of the window —
     short and punchy to long swells. TIME and CHAR are read when a window opens,
     so moving them never zippers.
-- **REQ-every-type-is-bounded** — Feedback is clamped to 0.95 on every type.
-  The analog loops saturate with `tanh(k·x)/k` (bucketed and memoized), whose
-  slope at 0 is 1 and whose magnitude never exceeds 1, so the loop gain is never
-  above the FEEDBACK knob's: a 0.95 feedback rings on as a bounded dub runaway.
+- **REQ-every-type-is-bounded** — Feedback is clamped to 0.95 on every type,
+  and **no filter in a feedback loop has gain above 1 at any frequency**: every
+  loop lowpass and highpass (DIGITAL's and PING PONG's damp, the analog loops',
+  the spring's) is a true Butterworth, `Q = BUTTERWORTH_Q_DB` (−3.01). Web Audio
+  reads a lowpass/highpass `Q` in **dB**, so the 0.707 these were first written
+  with was a +1.7 dB resonant bump, ×1.22 near 3.5 kHz. At FB 0.95 that is a loop
+  gain of 1.16: DIGITAL and PING PONG (no saturator) grew without bound, about
+  20 dB every 5 s, and BBD's cascaded bumps howled from FB ≈ 0.68. The analog
+  loops also saturate with `tanh(k·x)/k` (bucketed and memoized), whose slope at
+  0 is 1 and whose magnitude never exceeds 1, so the loop gain is never above
+  the FEEDBACK knob's: a 0.95 feedback rings on as a long dub tail that dies away.
   The reverse worklet clamps feedback, soft-saturates its loop, reads a
-  non-finite input as 0 and flushes denormals.
+  non-finite input as 0 and flushes denormals. Its `process()` allocates
+  nothing: the per-channel input list is built once, in the constructor
+  ([runtime-performance](runtime-performance.md) REQ-no-allocation-in-a-hot-loop).
 - **REQ-ping-pong-keeps-the-digital-level** — Each ping-pong repeat carries the
   power DIGITAL's would: DIGITAL's mono echo `x` up-mixes to `L = R = x`, a power
   of `2x²`, so a repeat's own and other gains satisfy `near² + far² = 2` (an
@@ -355,6 +375,26 @@ Scenario: The analog loop gain never exceeds the knob (REQ-every-type-is-bounded
   Given each analog voicing at CHAR 0 and 1
   Then the shaper curve's slope at 0 is 1 and its magnitude never exceeds 1
    And the loop gain is at most 0.95
+# pinned by: tests/audio/effects/delay-types.test.ts
+
+Scenario: No loop filter boosts, so FB 0.95 decays (regression, REQ-every-type-is-bounded)
+  Given every lowpass and highpass biquad built by DIGITAL and by each core
+  When its magnitude response is computed from its type, frequency and Q (read in dB)
+  Then the filters in series never exceed unity at any frequency
+   And so each loop's gain is at most FEEDBACK
+# pinned by: tests/audio/effects/delay-types.test.ts
+
+Scenario: A retiring core's loop is zeroed after its fade (regression, REQ-a-type-switch-is-click-free-and-spills)
+  Given TIME 20 ms and FEEDBACK 0.9 on DIGITAL, and TAPE is chosen
+  When the spill ends and the output gate starts to close
+  Then DIGITAL's loop still holds 0.9, and is zeroed DISCONNECT_DELAY_MS later
+  And a bypass inside that wait zeroes it at once
+# pinned by: tests/audio/effects/delay-types.test.ts
+
+Scenario: SPACE ECHO taken back mid-drain glides its spring in (regression, REQ-a-type-switch-is-click-free-and-spills)
+  Given SPACE ECHO was left for DIGITAL and its loops are zeroed
+  When SPACE ECHO is chosen again
+  Then the spring loop glides back to its gain, with no step
 # pinned by: tests/audio/effects/delay-types.test.ts
 
 Scenario: The reverse worklet plays windows backwards and stays bounded (REQ-each-type-has-its-own-topology, REQ-every-type-is-bounded)

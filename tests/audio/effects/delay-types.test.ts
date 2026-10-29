@@ -5,8 +5,10 @@ import {
   pingPongWidth, pingPongGains, saturationCurve, ANALOG_VOICINGS,
 } from '../../../src/audio/effects/delay-cores';
 import { DELAY_SPILL_S } from '../../../src/audio/effects/delay-switch';
+import { DISCONNECT_DELAY_MS } from '../../../src/audio/effects/effect';
 import { DELAY_TYPE_LABELS, delayTypeOf } from '../../../src/state/delay';
 import { ParamBus, registerDefaults } from '../../../src/state/params';
+import { eqStageCoeffs } from '../../../src/state/eq';
 import {
   makeMockAudioContext, installMockAudioWorkletNode, MockAudioWorkletNode, type MockAudioParam,
 } from '../mock-audio-context';
@@ -143,7 +145,7 @@ describe('a type switch is click-free and spills (REQ-a-type-switch-is-click-fre
     vi.advanceTimersByTime(DELAY_SPILL_S * 1000);
     expect(last(dig.outGate.gain)).toBe(0);
     expect(dig.state).toBe('idle');
-    vi.advanceTimersByTime(2000);
+    vi.advanceTimersByTime(DISCONNECT_DELAY_MS + 2000);
     expect(dig.connected).toBe(false);
     expect(wrap.processedIn.disconnect).toHaveBeenCalledWith(dig.inGate);
   });
@@ -161,6 +163,47 @@ describe('a type switch is click-free and spills (REQ-a-type-switch-is-click-fre
     // Back to TAPE: the core built the first time is reused.
     await select('TAPE');
     expect(ctx.createDelay.mock.calls.length).toBe(built);
+  });
+
+  // Regression: retire stepped the loop to 0 while the output gate was still
+  // fading, so at a short TIME the cut reached the output while it was heard.
+  it('zeroes a retiring core\'s loop only once its output gate has closed', async () => {
+    const { bus, slots, select } = bound();
+    bus.set('fx.delay.on', 1); // a bypassed delay keeps every loop pinned
+    bus.set('fx.delay.time', 0.02);
+    bus.set('fx.delay.feedback', 0.9);
+    await select('TAPE');
+    const fb = (slots.get('digital')!.core as any).loop.params[0] as MockAudioParam;
+    vi.advanceTimersByTime(DELAY_SPILL_S * 1000);
+    expect(last(fb)).toBe(0.9); // fading out, still ringing
+    vi.advanceTimersByTime(DISCONNECT_DELAY_MS);
+    expect(last(fb)).toBe(0);
+  });
+
+  it('a bypass during that wait zeroes the loop at once', async () => {
+    const { delay, bus, slots, select } = bound();
+    bus.set('fx.delay.on', 1);
+    bus.set('fx.delay.feedback', 0.9);
+    await select('TAPE');
+    vi.advanceTimersByTime(DELAY_SPILL_S * 1000);
+    (delay as any).quiesce(true);
+    expect(last((slots.get('digital')!.core as any).loop.params[0])).toBe(0);
+  });
+
+  // Regression: SPACE ECHO's spring loop was stepped back up to its gain when
+  // the core was taken back mid-drain, while the tank still rang.
+  it('a SPACE ECHO taken back mid-drain glides its spring loop back in', async () => {
+    const { bus, slots, select } = bound();
+    bus.set('fx.delay.on', 1);
+    await select('SPACE ECHO');
+    await select('DIGITAL');
+    vi.advanceTimersByTime(DELAY_SPILL_S * 1000 + DISCONNECT_DELAY_MS);
+    const spring = (slots.get('spaceecho')!.core as any).spring.loop.gain as MockAudioParam;
+    expect(last(spring)).toBe(0);
+    const steps = spring.setValueAtTime.mock.calls.length;
+    await select('SPACE ECHO');
+    expect(spring.setValueAtTime.mock.calls.length).toBe(steps);
+    expect(spring.setTargetAtTime).toHaveBeenLastCalledWith(0.55, expect.any(Number), expect.any(Number));
   });
 
   it('seeds a newly live core with the knobs as they stand', async () => {
@@ -289,7 +332,7 @@ describe('a new core lands on its knobs (REQ-a-type-switch-is-click-free-and-spi
     bus.set('fx.delay.on', 1); // a bypassed delay keeps every loop pinned
     await select('TAPE');
     await select('DIGITAL');
-    vi.advanceTimersByTime(DELAY_SPILL_S * 1000); // TAPE retires: loop pinned, still connected
+    vi.advanceTimersByTime(DELAY_SPILL_S * 1000 + DISCONNECT_DELAY_MS); // TAPE retires: loop pinned, still connected
     const fb = loopParam(slots.get('tape')!.core);
     expect(fb.setValueAtTime).toHaveBeenLastCalledWith(0, expect.any(Number));
     const pins = fb.setValueAtTime.mock.calls.length;
@@ -328,6 +371,30 @@ describe('every type is bounded (REQ-every-type-is-bounded)', () => {
         expect(slope).toBeCloseTo(1, 2);
         for (const y of c) expect(Math.abs(y)).toBeLessThanOrEqual(1);
       }
+    }
+  });
+
+  // Regression: the loop filters were written with Q 0.707 / 0.6 / 0.5, which
+  // Web Audio reads in dB, a resonant bump of up to ×1.22 per filter. At FB
+  // 0.95 DIGITAL and PING PONG then grew without bound.
+  it('no loop filter boosts any frequency, so FB 0.95 decays', async () => {
+    const { ctx, select } = bound();
+    for (const label of DELAY_TYPE_LABELS.filter((l) => l !== 'REVERSE')) await select(label);
+    const filters = ctx.createBiquadFilter.mock.results
+      .map((r) => r.value as { type: BiquadFilterType; frequency: MockAudioParam; Q: MockAudioParam })
+      .filter((f) => f.type === 'lowpass' || f.type === 'highpass');
+    // DIGITAL's damp, PING PONG's two, TAPE's 2, BBD's 3, SPACE ECHO's 2 + the spring's.
+    expect(filters.length).toBe(11);
+    for (const f of filters) {
+      const [b0, b1, b2, a0, a1, a2] = eqStageCoeffs(f.type, f.frequency.value, f.Q.value, 0, 48000);
+      let peak = 0;
+      for (let hz = 10; hz < 24000; hz *= 1.01) {
+        const w = (2 * Math.PI * hz) / 48000;
+        const num = Math.hypot(b0 + b1 * Math.cos(w) + b2 * Math.cos(2 * w), b1 * Math.sin(w) + b2 * Math.sin(2 * w));
+        const den = Math.hypot(a0 + a1 * Math.cos(w) + a2 * Math.cos(2 * w), a1 * Math.sin(w) + a2 * Math.sin(2 * w));
+        peak = Math.max(peak, num / den);
+      }
+      expect(peak, `${f.type} at ${f.frequency.value} Hz, Q ${f.Q.value}`).toBeLessThanOrEqual(1 + 1e-9);
     }
   });
 
