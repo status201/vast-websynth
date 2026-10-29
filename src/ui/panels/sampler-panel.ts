@@ -114,7 +114,7 @@ export function buildSamplerPanel(
   // PHASER and CHORUS share one group's place, chosen from a caret by the
   // title (fx-slot-picker.md); the chorus follows the phaser in the chain.
   const phaserHost = document.createElement('span');
-  const phaser = fxGroup(bus, 'PHASER', 'fx.sampler.phaser', [
+  const phaser = fxGroupParts(bus, 'PHASER', 'fx.sampler.phaser', [
     { id: 'fx.sampler.phaser.rate', label: 'RATE' },
     { id: 'fx.sampler.phaser.depth', label: 'DEPTH' },
     { id: 'fx.sampler.phaser.feedback', label: 'FB' },
@@ -128,10 +128,10 @@ export function buildSamplerPanel(
     { id: 'fx.sampler.chorus.mix', label: 'MIX' },
   ], { afterTitle: chorusHost });
   dimWhileModeSet(bus, 'fx.sampler.chorus', CHORUS_MODE_OVERRIDES, chorus.knobs);
-  fx.append(phaser, chorus.el);
+  fx.append(phaser.el, chorus.el);
   createFxSlot(bus, [
-    { prefix: 'fx.sampler.phaser', title: 'Phaser', el: phaser, caretHost: phaserHost },
-    { prefix: 'fx.sampler.chorus', title: 'Chorus', el: chorus.el, caretHost: chorusHost },
+    { prefix: 'fx.sampler.phaser', title: 'Phaser', el: phaser.el, caretHost: phaserHost, titleEl: phaser.label },
+    { prefix: 'fx.sampler.chorus', title: 'Chorus', el: chorus.el, caretHost: chorusHost, titleEl: chorus.label },
   ]);
   fx.appendChild(fxGroup(bus, 'DELAY', 'fx.sampler.delay', [
     { id: 'fx.sampler.delay.time', label: 'TIME' },

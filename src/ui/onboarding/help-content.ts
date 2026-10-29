@@ -669,7 +669,7 @@ export const HELP_TOPICS: Record<TopicId, HelpTopic> = {
       'Chorus → Delay → Reverb → Duck</strong>. Each has an on/off switch and a few knobs. Switch one on ' +
       'and tweak — they turn a plain tone into something spacious or gnarly. Click the (i) on ' +
       'each effect for details.</p>' +
-      '<p>Phaser and Chorus share a panel: the small arrow next to its title switches between ' +
+      '<p>Phaser and Chorus share a panel: click its title, or the arrow next to it, to switch between ' +
       'them. Both can be on at once — a lit dot in that menu shows which ones are.</p>',
   },
   'fx.dist': {
@@ -699,7 +699,7 @@ export const HELP_TOPICS: Record<TopicId, HelpTopic> = {
       '<strong>II</strong> and <strong>I+II</strong> are fixed Juno-style settings (slow, faster and ' +
       'deeper, fast shimmer) that take over from those two knobs, which dim while they do.</li>' +
       '<li><strong>MIX</strong> — wet vs dry blend; widest around the middle.</li></ul>' +
-      '<p>It shares the Phaser’s panel — use the arrow next to the title to switch.</p>',
+      '<p>It shares the Phaser’s panel — click the title, or the arrow next to it, to switch.</p>',
   },
   'fx.phaser': {
     title: 'Phaser',

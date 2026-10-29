@@ -18,6 +18,9 @@ export interface FxSlotView {
   el: HTMLElement;
   /** Where the caret goes while this view shows — right after its title. */
   caretHost: HTMLElement;
+  /** The view's title — a click on it toggles the menu like the caret
+   *  (REQ-the-title-opens-the-menu). */
+  titleEl: HTMLElement;
 }
 
 const isOn = (bus: ParamBus, prefix: string): boolean => bus.get(`${prefix}.on`) >= 0.5;
@@ -110,11 +113,19 @@ export function createFxSlot(bus: ParamBus, views: readonly FxSlotView[]): FxSlo
     anchorMenu(toggle, menu, 'content');
   }
 
-  toggle.addEventListener('click', (e) => {
-    e.stopPropagation();
-    setOpen(!open);
-  });
-  dismissMenu(root, () => open, () => setOpen(false));
+  // No stopPropagation on either trigger: `dismissMenu` counts the titles as
+  // inside, so the click still reaches every OTHER open menu and closes it.
+  const onToggle = (): void => setOpen(!open);
+  toggle.addEventListener('click', onToggle);
+  // The title is the bigger target, so it toggles too (REQ-the-title-opens-the-menu).
+  // Only the shown view is visible, so only its title can be clicked. Not a
+  // focus stop: the caret already is one.
+  const titles = views.map((v) => v.titleEl);
+  for (const t of titles) {
+    t.classList.add(styles.title!);
+    t.addEventListener('click', onToggle);
+  }
+  dismissMenu(root, () => open, () => setOpen(false), titles);
 
   show(initialFxView(bus, views));
   // Only a bulk apply that touched this slot's switches moves the view — a

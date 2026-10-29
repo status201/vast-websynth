@@ -106,7 +106,7 @@ function fxPanel(bus: ParamBus, entry: RackEntry): HTMLElement {
     shell.dataset.testid = `fxview-${spec.id}`;
     shell.append(view.header, view.knobs);
     el.appendChild(shell);
-    return { prefix: spec.id, title: spec.title, el: shell, caretHost: view.titleRow };
+    return { prefix: spec.id, title: spec.title, el: shell, caretHost: view.titleRow, titleEl: view.title };
   });
   createFxSlot(bus, views);
   return el;
@@ -122,7 +122,7 @@ const isSlot = (e: RackEntry): e is readonly FxSpec[] => Array.isArray(e);
 function fxView(
   bus: ParamBus,
   { title, id, knobs, modeOverrides }: FxSpec,
-): { header: HTMLElement; knobs: HTMLElement; titleRow: HTMLElement } {
+): { header: HTMLElement; knobs: HTMLElement; titleRow: HTMLElement; title: HTMLElement } {
   const header = document.createElement('div');
   header.className = fxStyles.fxHeader!;
   const titleRow = document.createElement('div');
@@ -141,5 +141,5 @@ function fxView(
   for (const k of built) knobsEl.appendChild(k.el);
   if (modeOverrides) dimWhileModeSet(bus, id, modeOverrides, built);
 
-  return { header, knobs: knobsEl, titleRow };
+  return { header, knobs: knobsEl, titleRow, title: t };
 }

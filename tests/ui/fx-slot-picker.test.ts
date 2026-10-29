@@ -94,6 +94,63 @@ describe('the Phaser panel is a slot (fx-slot-picker.md)', () => {
     expect(r.item('fx.chorus').classList.contains('active')).toBe(false);
   });
 
+  it('the title opens the menu too, and follows the view (REQ-the-title-opens-the-menu)', () => {
+    const r = rack(bus());
+    const title = (view: HTMLElement) => view.querySelector<HTMLElement>(`.${fxStyles.fxTitle!}`)!;
+    title(r.phaser).click();
+    expect(r.menuOpen()).toBe(true);
+    title(r.phaser).click();
+    expect(r.menuOpen()).toBe(false);
+    r.caret().click();
+    r.item('fx.chorus').click();
+    title(r.chorus).click();
+    expect(r.menuOpen()).toBe(true);
+    // Not a focus stop: the caret is the keyboard path.
+    expect(title(r.chorus).hasAttribute('tabindex')).toBe(false);
+  });
+
+  it('the title opens the menu in a sampler-style group too', () => {
+    const b = bus();
+    const view = (prefix: string): FxSlotView => {
+      const host = document.createElement('span');
+      const g = fxGroupParts(b, prefix, prefix, [], { afterTitle: host });
+      document.body.appendChild(g.el);
+      return { prefix, title: prefix, el: g.el, caretHost: host, titleEl: g.label };
+    };
+    const views = [view('fx.sampler.phaser'), view('fx.sampler.chorus')];
+    createFxSlot(b, views);
+    views[0]!.titleEl.click();
+    expect(document.querySelector('[data-testid="fxpick-fx.sampler.phaser"]')!.parentElement!.classList.contains('open')).toBe(true);
+  });
+
+  it('opening by title or caret closes another open menu (dropdown.md v12)', () => {
+    const b = bus();
+    const r = rack(b);
+    // A second slot, as the sampler header has, standing in for "another menu".
+    const view = (prefix: string): FxSlotView => {
+      const host = document.createElement('span');
+      const g = fxGroupParts(b, prefix, prefix, [], { afterTitle: host });
+      document.body.appendChild(g.el);
+      return { prefix, title: prefix, el: g.el, caretHost: host, titleEl: g.label };
+    };
+    const views = [view('fx.sampler.phaser'), view('fx.sampler.chorus')];
+    createFxSlot(b, views);
+    const otherOpen = () =>
+      document.querySelector('[data-testid="fxpick-fx.sampler.phaser"]')!.parentElement!.classList.contains('open');
+    views[0]!.titleEl.click();
+    expect(otherOpen()).toBe(true);
+    r.phaser.querySelector<HTMLElement>(`.${fxStyles.fxTitle!}`)!.click();
+    expect(r.menuOpen()).toBe(true);
+    expect(otherOpen()).toBe(false);
+    // The other title in turn closes this one; then the caret swaps them back.
+    views[0]!.titleEl.click();
+    expect(r.menuOpen()).toBe(false);
+    expect(otherOpen()).toBe(true);
+    r.caret().click();
+    expect(r.menuOpen()).toBe(true);
+    expect(otherOpen()).toBe(false);
+  });
+
   it('Escape and an outside click close without choosing (edge)', () => {
     const r = rack(bus());
     r.caret().click();
@@ -145,7 +202,8 @@ describe('a load shows the running effect (REQ-a-load-shows-the-running-effect)'
     const b = bus();
     const view = (prefix: string): FxSlotView => {
       const host = document.createElement('span');
-      return { prefix, title: prefix, el: fxGroup(b, prefix, prefix, [], { afterTitle: host }), caretHost: host };
+      const g = fxGroupParts(b, prefix, prefix, [], { afterTitle: host });
+      return { prefix, title: prefix, el: g.el, caretHost: host, titleEl: g.label };
     };
     const views = [view('fx.sampler.phaser'), view('fx.sampler.chorus')];
     b.set('fx.sampler.phaser.on', 1);

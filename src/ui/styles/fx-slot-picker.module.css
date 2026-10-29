@@ -27,6 +27,24 @@
     color: var(--accent-secondary);
   }
 
+  /* The shown title opens the menu too (REQ-the-title-opens-the-menu); hovering it
+     lights the caret, so the two read as one control. The caret is in the
+     title's next sibling: the picker root itself in the synth rack, the
+     `afterTitle` host in a sampler group. No text selection, so a quick
+     double-click toggles twice rather than highlighting the word. */
+  .title {
+    cursor: pointer;
+    user-select: none;
+  }
+
+  /* Hover devices only: a tapped title keeps a sticky :hover on touch, and a
+     lit caret there would read as a menu still open. */
+  @media (hover: hover) {
+    .title:hover + * .caret {
+      color: var(--accent-secondary);
+    }
+  }
+
   .caret svg {
     transition: transform 120ms ease;
   }

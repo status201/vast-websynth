@@ -3,7 +3,9 @@
 ```yaml
 id: iconography
 status: implemented
-version: 4   # v4: the octave-shift row is `-` / `=` (input-control.md REQ-octave-shift-is-minus-and-equal); the
+version: 5   # v5: the carets are drawn at twice their old size inside the same box
+             #     (REQ-a-caret-fills-its-box)
+             # v4: the octave-shift row is `-` / `=` (input-control.md REQ-octave-shift-is-minus-and-equal); the
              #     arrow caps this spec was written for live on in the Shift+arrows row
              # v3: `download` — the About card's Play offline button (play-offline.md)
              # v2: iconTextEl emits the bare svg beside its label, as iconLabel does —
@@ -134,6 +136,19 @@ is that rule's real home; REQ-ui-icons-are-self-stroking there now references it
   pinning a pixel size that is wrong in three of the four contexts. The keycap
   arrows stay visibly larger than the letter caps beside them — onboarding REQ-about-key-symbols-are-drawn's original
   intent — because the cap sets the font-size, not the icon.
+
+- **REQ-a-caret-fills-its-box** (v5) — **`caretDown` and `caretRight` span most of
+  their 16-unit box** (13.6 × 7 units), not the 6.8 × 3.5 they first drew. A
+  caret is the only thing telling the user that a panel folds or that a menu
+  opens, and at half size it read as a speck beside an 11px title. The glyph
+  doubled about its old centre, inside the unchanged `1em` box, so:
+  - every caret grew by the same factor. The FX/MACHINES/EQUALIZER fold
+    carets, the dropdowns, the lane folds, Clear, Grid and the FX slot picker
+    each keep their own font-size, so a big caret is still bigger than a small one;
+  - no layout moved: the box, its baseline offset and the 0.45em icon/text gap
+    are as they were;
+  - the rotating carets (`dropdown.module.css`, `tabs.module.css`,
+    `fx-slot-picker.module.css`) still turn about the same centre.
 
 - **REQ-icon-rule-is-pinned-by-a-test** — **The rule is pinned by
   `tests/ui/iconography.test.ts`**, for the same reason
@@ -316,6 +331,12 @@ Scenario: iconTextEl builds the same shape as iconLabel (v2, regression)
   Given iconTextEl and iconLabel for the same glyph and text, in either position
   Then both yield an svg.ui-icon and a span.icon-label as direct siblings
   So base.css's svg.ui-icon + .icon-label gap applies to both
+# pinned by: tests/ui/ui-icons.test.ts
+
+Scenario: a caret spans most of its box (v5, REQ-a-caret-fills-its-box)
+  Given caretDown and caretRight
+  Then each glyph's long side spans 13.6 of the 16 viewBox units and its short side 7
+  And its centre is where the old, half-size glyph's was
 # pinned by: tests/ui/ui-icons.test.ts
 
 Scenario: the superseded font-swap path is gone (REQ-one-icon-builder-four-sets, regression)

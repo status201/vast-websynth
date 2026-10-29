@@ -76,10 +76,11 @@ describe('the menus that used to let Escape through (regression)', () => {
     registerDefaults(bus);
     const view = (prefix: string) => {
       const el = document.createElement('div');
+      const titleEl = document.createElement('span');
       const caretHost = document.createElement('span');
-      el.appendChild(caretHost);
+      el.append(titleEl, caretHost);
       document.body.appendChild(el);
-      return { prefix, title: prefix, el, caretHost };
+      return { prefix, title: prefix, el, caretHost, titleEl };
     };
     createFxSlot(bus, [view('fx.phaser'), view('fx.chorus')]);
     const caret = document.querySelector<HTMLButtonElement>('[data-testid="fxpick-fx.phaser"]')!;

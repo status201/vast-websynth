@@ -3,7 +3,8 @@
 ```yaml
 id: fx-slot-picker
 status: implemented
-version: 1
+version: 2   # v2: the shown title opens the menu too (REQ-the-title-opens-the-menu) —
+             #     only the small caret did, and the name beside it looked inert
 owner: core
 related:
   - chorus          # the first effect to share a slot (with the Phaser)
@@ -43,10 +44,21 @@ so a later flanger can join the same slot without new UI.
   already correct when it is revealed (the [panel-tabs](panel-tabs.md) rule).
   The first entry is the **primary** — the view a slot shows by default.
 - **REQ-the-title-is-unchanged-plus-a-caret** — Each view's title is built exactly
-  as before (same element, class and text). The only addition is the picker's
+  as before (same element, class and text). The additions are the picker's
   caret, an icon-only button placed right after the title — inline SVG
-  `caretDown` ([iconography](iconography.md)), never a typed `▾`. The picker
-  moves with the view, so the caret always sits beside the title being shown.
+  `caretDown` ([iconography](iconography.md)), never a typed `▾` — and, from v2,
+  the picker's own `.title` hook on the title element (REQ-the-title-opens-the-menu).
+  The picker moves with the view, so the caret always sits beside the title being
+  shown.
+- **REQ-the-title-opens-the-menu** (v2) — **Clicking the shown title does what
+  clicking the caret does**: it opens the menu, or closes it if open. The caret
+  is a 12px glyph, and the name beside it is the obvious place to aim. The title
+  shows a pointer cursor, and hovering it lights the caret the way hovering the
+  caret does, so the two read as one control. Each `FxSlotView` names its
+  `titleEl`. The picker wires every view's title once, and since only the shown
+  view is visible, only the shown title can be clicked. The title is **not** a
+  focus stop: the caret is already a native button, and a second tab stop for the
+  same action is noise. Keyboard users keep the caret.
 - **REQ-the-menu-lists-every-effect-in-the-slot** — Clicking the caret opens a
   menu listing every entry by title. The shown view is marked `active`; an
   entry whose `<prefix>.on` is set carries a lit **lamp** (`lit`), so an effect
@@ -73,12 +85,14 @@ so a later flanger can join the same slot without new UI.
   | Gesture | Target | Result |
   | --- | --- | --- |
   | click / tap | caret | opens (or closes) the menu |
+  | click / tap | the shown title (v2) | the same as the caret (REQ-the-title-opens-the-menu) |
   | Enter / Space | focused caret | the same — it is a native `<button>` |
   | click / tap | menu entry | shows that view, closes the menu |
   | click outside | anywhere | closes the menu, nothing changes |
   | Escape | while open | closes the menu, nothing changes; consumed, so it never reaches Panic |
 
-  The title itself gains no gesture. The menu consumes only the keys it handles
+  Hovering the title lights the caret. The title takes no keys and is not
+  focusable. The menu consumes only the keys it handles
   ([input-control](input-control.md)).
 - **REQ-a-slot-view-tells-badges-when-it-hides** — Each view is on the
   info-badge reflow list — in the synth rack its shell, `fxview-<prefix>`; in the
@@ -102,6 +116,7 @@ FxSlotView:                      # src/ui/components/fx-slot-picker.ts
   title: string                  # menu label
   el: HTMLElement                # the whole view; toggled hidden
   caretHost: HTMLElement         # the picker's caret is appended here when shown
+  titleEl: HTMLElement           # v2: the view's title; a click on it toggles the menu
 initialFxView(bus, views): string                    # REQ-a-load-shows-the-running-effect
 createFxSlot(bus, views): { current: string; show(prefix): void }
 ```
@@ -143,6 +158,13 @@ Scenario: The caret opens a menu that swaps the view
   When the user clicks the caret and chooses "Chorus"
   Then the Chorus view is shown, the Phaser view is hidden, and the menu is closed
 # pinned by: tests/ui/fx-slot-picker.test.ts, e2e/chorus.spec.ts
+
+Scenario: The title opens the menu too (v2, REQ-the-title-opens-the-menu)
+  Given the Phaser view is shown, in the synth rack or the sampler header
+  When the user clicks the title "Phaser"
+  Then the menu opens, and a second click on the title closes it
+  And after choosing "Chorus", clicking the title "Chorus" opens it again
+# pinned by: tests/ui/fx-slot-picker.test.ts
 
 Scenario: The menu lamps a running effect (REQ-the-menu-lists-every-effect-in-the-slot)
   Given fx.chorus.on is 1 and the Phaser view is shown

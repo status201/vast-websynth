@@ -26,10 +26,21 @@ export function anchorMenu(toggle: HTMLElement, menu: HTMLElement, width: MenuWi
  * Close an open menu on an outside click or on Escape. The Escape is consumed:
  * on the window it is Panic, and closing a menu must not stop the song
  * (dropdown.md REQ-the-menu-closes-on-outside-click). A closed menu lets both through.
+ *
+ * `inside` names triggers that live outside `root` but are part of the control
+ * (the FX slot's title). A click on one is not an outside click, so the trigger
+ * need not stop its click to keep its own menu open, and other menus still
+ * hear it and close.
  */
-export function dismissMenu(root: HTMLElement, isOpen: () => boolean, close: () => void): void {
+export function dismissMenu(
+  root: HTMLElement,
+  isOpen: () => boolean,
+  close: () => void,
+  inside: readonly HTMLElement[] = [],
+): void {
   document.addEventListener('click', (e) => {
-    if (isOpen() && !root.contains(e.target as Node)) close();
+    const t = e.target as Node;
+    if (isOpen() && !root.contains(t) && !inside.some((el) => el.contains(t))) close();
   });
   document.addEventListener('keydown', (e) => {
     if (!isOpen() || e.key !== 'Escape') return;

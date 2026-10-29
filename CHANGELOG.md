@@ -24,8 +24,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
   - Knobs: RATE, DEPTH, MIX, and MODE. MODE **FREE** uses RATE and DEPTH; **I**,
     **II** and **I+II** are fixed Juno-style settings (slow, faster and deeper, a
     fast shimmer) that take over from those two knobs, which dim while they do.
-  - It shares the Phaser's panel. The small arrow next to the Phaser title opens
-    a menu to switch between the two, and a lit dot shows which are on. Both can
+  - It shares the Phaser's panel. Click the Phaser title, or the arrow next to
+    it, to open a menu that switches between the two; a lit dot shows which are on. Both can
     run at once, each with its own settings.
   - A song that only uses the chorus opens with the Chorus panel showing.
 
@@ -87,6 +87,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 - **The glide switch reads OFF / ON / LEGATO.** ALWAYS is now ON. It is the same
   setting, so presets and songs are unaffected.
 - **The demo Apex is now called Mono.**
+- **A played white key looks pressed down,** as a black key already did: a
+  soft shadow on each side makes it sit lower than its neighbours. Two played
+  keys side by side read as one pressed span, with no shadow where they meet.
+- **Every arrow is twice as big:** the FX, MACHINES and EQUALIZER folds, the
+  dropdowns, the lane folds, Clear and Grid. Each grew by the same factor, so a
+  big arrow is still bigger than a small one, and nothing around them moved.
 
 ### Fixed
 

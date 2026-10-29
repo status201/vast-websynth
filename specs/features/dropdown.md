@@ -3,7 +3,10 @@
 ```yaml
 id: dropdown
 status: implemented
-version: 11 # v11: REQ-every-fixed-menu-shares-one-anchor-and-dismiss — the anchor rule and the
+version: 12 # v12: dismissMenu takes `inside` triggers outside its root (the FX slot's title),
+            #      so a trigger keeps its menu open without stopping the click, and the
+            #      click still closes every other open menu
+            # v11: REQ-every-fixed-menu-shares-one-anchor-and-dismiss — the anchor rule and the
             #      Escape-is-consumed rule live in menu-anchor.ts, shared by every fixed
             #      menu; the Clear menu and the lane popover were letting Escape reach Panic
             # v10: ParamDropdown.setDimmed, and REQ-a-dropdown-can-be-dimmed's CSS pin widened to
@@ -99,6 +102,15 @@ without anyone remembering to ask.
     Panic shortcut and stopped the song, the bug v9 had fixed in `Dropdown`
     alone. `Dropdown` keeps its own key handler, which also walks the options,
     and shares only the anchor.
+  - (v12) `dismissMenu(root, isOpen, close, inside)`: `inside` lists triggers
+    that sit outside `root` but belong to the control, such as the FX slot's
+    title ([fx-slot-picker](fx-slot-picker.md) REQ-the-title-opens-the-menu). A
+    click on one is not an outside click, so the trigger need not
+    `stopPropagation` to keep its own menu open, and the click still reaches,
+    and closes, every other open menu. The slot picker's caret and title stop
+    nothing. The other toggles still stop their click, so opening one of them
+    leaves another menu open. That is older behaviour, recorded under Open
+    questions.
 - **REQ-the-selected-option-scrolls-into-view** — **On open, the currently
   selected option is scrolled into view within the menu**, and keyboard focus
   lands on the **filter input** where one exists
@@ -544,3 +556,8 @@ Scenario: A rebuild does not repaint a value the list never held (regression, v7
   now that they have a filter.
 - Fuzzy/subsequence matching instead of substring (`fdc` → `fx.drum.comp`).
   Substring is enough for dotted param ids, where the user knows a fragment.
+- **Two menus can be open at once.** `Dropdown`'s toggle, the Clear menu and the
+  lane popover stop their own click, so opening one never reaches another menu's
+  outside-click close. Moving them onto `dismissMenu`'s `inside` (v12), as the
+  FX slot picker did, would end it. It is out of scope for v12 because each
+  needs checking for an ancestor click handler the stop may be shielding.

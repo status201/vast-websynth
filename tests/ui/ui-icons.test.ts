@@ -40,3 +40,33 @@ describe('iconTextEl matches iconLabel (iconography.md v2, regression)', () => {
     expect(el.textContent).toBe('<img src=x onerror=alert(1)>');
   });
 });
+
+describe('a caret spans most of its box (iconography.md REQ-a-caret-fills-its-box)', () => {
+  /** Bounding box of a glyph's one path, in viewBox units. */
+  function bounds(markup: string) {
+    const host = document.createElement('span');
+    host.innerHTML = markup;
+    const nums = host.querySelector('path')!.getAttribute('d')!.match(/-?\d+(\.\d+)?/g)!.map(Number);
+    const xs = nums.filter((_, i) => i % 2 === 0);
+    const ys = nums.filter((_, i) => i % 2 === 1);
+    const w = Math.max(...xs) - Math.min(...xs);
+    const h = Math.max(...ys) - Math.min(...ys);
+    return { w, h, cx: Math.min(...xs) + w / 2, cy: Math.min(...ys) + h / 2 };
+  }
+
+  it('caretDown is 13.6 wide, 7 tall, centred where the half-size glyph was', () => {
+    const b = bounds(UI_ICONS.caretDown);
+    expect(b.w).toBeCloseTo(13.6);
+    expect(b.h).toBeCloseTo(7);
+    expect(b.cx).toBeCloseTo(8);
+    expect(b.cy).toBeCloseTo(8.45);
+  });
+
+  it('caretRight is the same glyph turned a quarter', () => {
+    const b = bounds(UI_ICONS.caretRight);
+    expect(b.w).toBeCloseTo(7);
+    expect(b.h).toBeCloseTo(13.6);
+    expect(b.cx).toBeCloseTo(8.45);
+    expect(b.cy).toBeCloseTo(8);
+  });
+});

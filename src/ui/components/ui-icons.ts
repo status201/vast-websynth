@@ -57,11 +57,13 @@ export const UI_ICONS = {
 
   /** ▾ — the dropdown caret and every fold header. Solid, as the character was:
    *  `dropdown.module.css` and `tabs.module.css` rotate it, which works on an
-   *  `<svg>` unchanged. */
-  caretDown: icon('<path class="fill" d="M4.6 6.7 L8 10.2 L11.4 6.7 Z"/>'),
+   *  `<svg>` unchanged. Spans most of its box (iconography.md REQ-a-caret-fills-its-box):
+   *  twice the size it first drew, about the same centre, so every caret doubles
+   *  at its own call site's font-size and nothing around it moves. */
+  caretDown: icon('<path class="fill" d="M1.2 4.95 L8 11.95 L14.8 4.95 Z"/>'),
   /** ▸ — the same caret folded (the seq panel draws it explicitly rather than
    *  rotating, because its label sits beside it). */
-  caretRight: icon('<path class="fill" d="M6.7 4.6 L10.2 8 L6.7 11.4 Z"/>'),
+  caretRight: icon('<path class="fill" d="M4.95 1.2 L11.95 8 L4.95 14.8 Z"/>'),
 
   /** ✕ — close a floating window, dismiss a toast, remove a chain slot. */
   close: icon('<path d="M4 4 L12 12"/><path d="M12 4 L4 12"/>'),

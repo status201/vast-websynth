@@ -35,14 +35,15 @@ export interface FxGroupOptions {
   afterTitle?: HTMLElement;
 }
 
-/** `fxGroup`, also handing back its knobs — for a caller that dims some of them. */
+/** `fxGroup`, also handing back its knobs — for a caller that dims some of them —
+ *  and its title, which a slot picker makes open its menu (fx-slot-picker.md). */
 export function fxGroupParts(
   bus: ParamBus,
   title: string,
   onPrefix: string,
   knobs: Array<{ id: string; label: string }>,
   opts?: FxGroupOptions,
-): { el: HTMLElement; knobs: Knob[] } {
+): { el: HTMLElement; knobs: Knob[]; label: HTMLElement } {
   const group = document.createElement('div');
   group.className = styles.root!;
   group.dataset.testid = `fxgroup-${onPrefix}`;
@@ -70,7 +71,7 @@ export function fxGroupParts(
     group.classList.toggle('collapsed', v < 0.5);
   });
 
-  return { el: group, knobs: built };
+  return { el: group, knobs: built, label };
 }
 
 /**

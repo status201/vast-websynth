@@ -3,7 +3,9 @@
 ```yaml
 id: fx-group
 status: implemented
-version: 3   # v3: REQ-a-group-can-host-a-title-companion — `afterTitle` and `fxGroupParts`, so a
+version: 4   # v4: `fxGroupParts` hands back its title `label` too, so a slot picker can
+             #     make the title open its menu (fx-slot-picker.md REQ-the-title-opens-the-menu)
+             # v3: REQ-a-group-can-host-a-title-companion — `afterTitle` and `fxGroupParts`, so a
              #     group can share a slot with another (fx-slot-picker.md)
              # v2: REQ-fx-group-testids — a rate/time knob in a group also mints the tempo-lock
              #     ids; the builder itself is unchanged (tempo-lock.md REQ-one-table-declares-lockable-params)
@@ -80,7 +82,8 @@ behaviour like this lives in one place.
   when two groups share a slot ([fx-slot-picker](fx-slot-picker.md)). It is the
   caller's element, so the group knows nothing about the picker. `fxGroupParts`
   is the same builder handing back its `Knob`s as well as its root, for a caller
-  that dims some of them (the chorus's RATE and DEPTH, `dimWhileModeSet`);
+  that dims some of them (the chorus's RATE and DEPTH, `dimWhileModeSet`), and
+  (v4) its title `label`, which the slot picker makes clickable;
   `fxGroup` is `fxGroupParts(...).el`.
 
 ## Technical design
@@ -91,7 +94,7 @@ behaviour like this lives in one place.
 fxGroup(bus, title, onPrefix, knobs, opts?): HTMLElement   # src/ui/components/fx-group.ts
   knobs: Array<{ id, label }>
   opts: { knobSize? = 22, trailing?: HTMLElement, afterTitle?: HTMLElement }   # v3: afterTitle
-fxGroupParts(...same): { el: HTMLElement, knobs: Knob[] }                      # v3
+fxGroupParts(...same): { el: HTMLElement, knobs: Knob[], label: HTMLElement }  # v3; label v4
 collapse mechanism:
   bus.subscribe(`${onPrefix}.on`, v => root.classList.toggle('collapsed', v < 0.5))
   css: .root:global(.collapsed) .knobs { display: none; }   # fx-group.module.css
