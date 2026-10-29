@@ -254,7 +254,9 @@ destinations, genuinely cannot be shared (REQ-pulse-is-arbitrated).
   shape `±1.0` around the knob, amp `0.0..2.0` around the tremolo VCA's base
   `1.0` (the trough touches silence exactly and never inverts), and pan clamped
   to `±1` by `StereoPannerNode` (REQ-pan-sweeps-a-stereo-panner's bounding
-  argument holds unchanged for two sources).
+  argument holds unchanged for two sources). `sync` sums to `±48` semitones
+  around the SYNC knob, and the sync worklet clamps the total to `−24..72`
+  ([oscillator-sync](oscillator-sync.md)).
 
 - **REQ-pulse-is-arbitrated** — (v7) **`pulse` is arbitrated, because it is a
   parameter write and not a summed connection.** There is one shared `PwmDriver`

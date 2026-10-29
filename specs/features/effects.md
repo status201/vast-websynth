@@ -500,7 +500,7 @@ fx.reverb.on/size/damp/mix
 #   with the LFOs, so the nine locks cannot drift apart.
 prefixes:
   fx.drum.*    : phaser, delay, reverb (+ fx.drum.comp, see compressor.md)
-  fx.sampler.* : dist, phaser, chorus (v14), delay, reverb
+  fx.sampler.* : dist, phaser, flanger, chorus (v14), delay, reverb
 ```
 
 ### Layer touchpoints

@@ -214,6 +214,16 @@ describe('Presets', () => {
       expect(bus.get('chord.voicing')).toBe(1);
       expect(bus.get('fx.master.comp.makeup')).toBe(6);
     });
+
+    it('resets the synth EQ curve: it is part of the sound', () => {
+      const bus = new ParamBus();
+      registerDefaults(bus);
+      bus.set('fx.eq.on', 1);
+      bus.set('fx.eq.b3', 9);
+      Presets.apply(bus, Presets.factory()['lead']!);
+      expect(bus.get('fx.eq.on')).toBe(0);
+      expect(bus.get('fx.eq.b3')).toBe(bus.def('fx.eq.b3')!.default);
+    });
   });
 
   describe('list()', () => {

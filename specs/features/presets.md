@@ -3,7 +3,9 @@
 ```yaml
 id: presets
 status: implemented
-version: 15  # v15: REQ-loading-a-preset-starts-from-the-default-sound — Presets.apply resets every sound
+version: 16  # v16: REQ-loading-a-preset-starts-from-the-default-sound states that the synth EQ curve is
+             #      part of the sound and resets (scenario pinned)
+             # v15: REQ-loading-a-preset-starts-from-the-default-sound — Presets.apply resets every sound
              #      param to its default before restoring, except the key and the master compressor,
              #      so a preset saved before a param existed no longer inherits it
              # v14: five cross-mod/sync showcases (24 factory presets; the count leaves the REQ id,
@@ -174,6 +176,11 @@ can do with a sound ([ADR-014](../decisions/adr-014-dont-make-me-think.md) law 1
     to a sound auditioned over it.
   - `fx.master.*`, the master compressor: it is mastering for everything, and no
     factory preset sets it.
+
+  The synth's EQ (`fx.eq.*`, the curve as well as `on`) is **part of the sound**
+  and resets with it: a preset that does not set an EQ loads flat, so no curve
+  dialled for the previous patch colours the next one. This is deliberate; the
+  EQ is in the synth's FX chain, not on the master.
 
   Why: a preset saved before a param existed does not mention it, and before v15
   it inherited whatever the previous patch had. FM or sync from `tines` or
@@ -545,6 +552,12 @@ Scenario: A preset saved before a param existed sounds as saved (REQ-loading-a-p
   When a user preset that predates osc1.fm and the mod matrix is loaded
   Then osc1.fm is 0 and every mod row's source is off
   And the key is still D minor and the master compressor is untouched
+# pinned by: tests/state/preset.test.ts
+
+Scenario: The synth EQ is part of the sound (REQ-loading-a-preset-starts-from-the-default-sound)
+  Given the synth EQ is on with a band boosted
+  When a factory preset that sets no EQ curve is loaded
+  Then the EQ is off and every band is back at its default
 # pinned by: tests/state/preset.test.ts
 
 Scenario: A preset never inherits cross-modulation or a route (REQ-a-factory-preset-sets-the-full-sound)
