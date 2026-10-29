@@ -101,14 +101,15 @@ accepted trade-off for those hosts, not an oversight.
 
 ## Hosting in a subfolder
 
-All four AudioWorklets are loaded by **absolute path** —
+All five AudioWorklets are loaded by **absolute path** —
 `/worklets/ladder-filter.js`, `/worklets/compressor.js`,
-`/worklets/recorder.js` and `/worklets/sync-osc.js`. With the default config they
+`/worklets/recorder.js`, `/worklets/sync-osc.js` and `/worklets/flanger.js`. With the default config they
 resolve to the domain root, so under a subpath they 404. `Engine.init()` awaits
 the first three with no fallback, so **any one** of them missing fails the boot
 and audio never starts. `sync-osc.js` loads only when oscillator sync is first
-switched on; missing, it fails quietly — sync just stays off — which makes it the
-easy one to miss when checking a subfolder deploy.
+switched on, and `flanger.js` when a flanger is; missing, each fails quietly —
+sync stays off, the flanger stays bypassed — which makes
+them the easy ones to miss when checking a subfolder deploy.
 
 To host at e.g. `https://example.com/synth/`, set `base` in
 `vite.config.ts`:

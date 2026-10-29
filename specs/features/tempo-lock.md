@@ -3,7 +3,9 @@
 ```yaml
 id: tempo-lock
 status: implemented
-version: 3   # v2: REQ-the-lock-glyph-hangs-out-of-flow — the glyph hangs in a left gutter, out of flow. Inline
+version: 4   # v4: the flanger's rate joins TEMPO_LOCKS at its two buses (flanger.md
+             #     REQ-the-flanger-rate-can-be-tempo-locked) — eleven lockable params
+             # v2: REQ-the-lock-glyph-hangs-out-of-flow — the glyph hangs in a left gutter, out of flow. Inline
              #     it wrapped the label at the machine tabs' 22px knobs and
              #     dropped that knob's dial below its neighbours'.
              # v3: REQ-the-lock-glyph-hangs-out-of-flow — that gutter is now opt-in (machine tabs only). Being
@@ -16,6 +18,7 @@ related:
   - tempo-sync-help     # the same division table, advisory; this is the real lock
   - lfo                 # REQ-locking-moves-nothing-on-the-faceplate shipped the first lock; this supersedes its UI
   - effects             # the wah / phaser / delay rates this extends it to
+  - flanger             # v4: fx.flanger.rate / fx.sampler.flanger.rate
   - dropdown            # the division menu, incl. REQ-the-lock-glyph-hangs-out-of-flow disabled options
   - knob-soft-ceiling   # the other per-knob disclosure device; not interchangeable
   - fx-group            # a consuming surface (drum/sampler header FX)
@@ -36,8 +39,8 @@ and onto the song's grid. While locked, the knob's dial is replaced — in place
 at the same size — by the note division it is running at, and the knob's own
 readout keeps showing the resulting Hz or ms.
 
-This is a **cross-cutting facility**, not a feature of any one effect: nine
-params use it today and the next one is a table entry. The specs that own those
+This is a **cross-cutting facility**, not a feature of any one effect: eleven
+params use it today (v4) and the next one is a table entry. The specs that own those
 params ([lfo](lfo.md), [effects](effects.md)) describe *what* is lockable; this
 spec owns *how* locking behaves.
 
@@ -247,7 +250,7 @@ dial. `host.setSynced` toggles the `synced` class (which hides `.dial` and shows
 ### Data shapes
 
 ```yaml
-# The nine lockable params. Quantity is the knob's own unit, not the division's.
+# The eleven lockable params (v4: + the two flanger rates). Quantity is the knob's own unit, not the division's.
 TEMPO_LOCKS:
   lfo.rate:                 freq
   lfo2.rate:                freq
@@ -255,6 +258,8 @@ TEMPO_LOCKS:
   fx.phaser.rate:           freq
   fx.drum.phaser.rate:      freq
   fx.sampler.phaser.rate:   freq
+  fx.flanger.rate:          freq   # v4
+  fx.sampler.flanger.rate:  freq   # v4
   fx.delay.time:            time
   fx.drum.delay.time:       time
   fx.sampler.delay.time:    time
@@ -265,6 +270,7 @@ TEMPO_LOCKS:
 #   fx.wah.sync                   NEW, longhand beside fx.wah.rate
 #   fx.{,drum.,sampler.}phaser.sync  NEW, one line in phaserParams(prefix)
 #   fx.{,drum.,sampler.}delay.sync   NEW, one line in delayParams(prefix)
+#   fx.{,sampler.}flanger.sync       v4, phaserParams(prefix, FLANGER_DEFAULTS)
 ```
 
 Six of the seven new params come from the two existing factories, so range,
@@ -433,7 +439,7 @@ Scenario: The help badge sets the division while locked (REQ-the-lock-menu-lists
   listening settles — a locked delay/phaser/wah lands *on* the grid, and engaging
   the lock does not audibly jump the effect (REQ-the-lock-is-a-view-of-sync's nearest-division pick is a
   perceptual claim, not an arithmetic one).
-- **By eye**: `npm run dev` — lock every one of the nine at 1440 px, at the
+- **By eye**: `npm run dev` — lock every one of the eleven at 1440 px, at the
   ≤992 px breakpoint (36 px knobs, rack drops to 2 columns) and in the drum and
   sampler header groups (22 px knobs, the tightest case). REQ-locking-moves-nothing-on-the-faceplate fails visibly:
   watch the Phaser group for a wrapped knob.

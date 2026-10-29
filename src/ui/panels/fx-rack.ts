@@ -37,9 +37,9 @@ export function buildFxRack(bus: ParamBus): { el: HTMLElement; expand: () => voi
 
   // An odd effect count in the ≤992px 2-column grid leaves one cell empty; fill
   // it with the unpatched-cable scenery (fx-patch-decoration.md). Parity-keyed,
-  // so the six panels shipping today (seven effects: the chorus shares the
-  // Phaser's) drop it rather than push it onto a row of its own — a seventh
-  // panel would bring it back with no change here.
+  // so the six panels shipping today (eight effects: the flanger and the chorus
+  // share the Phaser's) drop it rather than push it onto a row of its own — a
+  // seventh panel would bring it back with no change here.
   if (fx.childElementCount % 2 === 1) fx.appendChild(fxPatchDecoration());
 
   section.appendChild(fx);
@@ -65,14 +65,21 @@ interface FxSpec {
  */
 type RackEntry = FxSpec | readonly FxSpec[];
 
+/**
+ * The Phaser's face, which the Flanger shares, so a view swap reflows nothing
+ * (flanger.md REQ-the-flanger-shares-the-phaser-slot).
+ */
+const SWEEP_KNOBS: FxSpec['knobs'] = [['rate', 'RATE'], ['depth', 'DEPTH'], ['feedback', 'FB'], ['mix', 'MIX']];
+
 /** The rack, left to right — the order of the insert chain itself. */
 const RACK: readonly RackEntry[] = [
   { title: 'Distortion', id: 'fx.dist', knobs: [['drive', 'DRIVE'], ['tone', 'TONE'], ['mix', 'MIX']] },
   { title: 'Wah', id: 'fx.wah', knobs: [['rate', 'RATE'], ['depth', 'DEPTH'], ['q', 'Q']] },
-  // The chorus has no panel of its own; it shares the Phaser's, which it
-  // follows in the chain (chorus.md REQ-the-chorus-sits-after-the-phaser).
+  // The flanger and the chorus have no panels of their own; they share the
+  // Phaser's, in chain order (fx-slot-picker.md REQ-the-slot-lists-its-effects-in-chain-order).
   [
-    { title: 'Phaser', id: 'fx.phaser', knobs: [['rate', 'RATE'], ['depth', 'DEPTH'], ['feedback', 'FB'], ['mix', 'MIX']] },
+    { title: 'Phaser', id: 'fx.phaser', knobs: SWEEP_KNOBS },
+    { title: 'Flanger', id: 'fx.flanger', knobs: SWEEP_KNOBS },
     {
       title: 'Chorus', id: 'fx.chorus',
       knobs: [['rate', 'RATE'], ['depth', 'DEPTH'], ['mode', 'MODE'], ['mix', 'MIX']],

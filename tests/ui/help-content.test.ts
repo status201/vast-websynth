@@ -448,11 +448,21 @@ describe('help-content oscillator topics', () => {
   });
 });
 
+/** The flanger copy (flanger.md) — every knob, the tempo lock, and how to reach it. */
+describe('help-content flanger', () => {
+  it('documents every knob, the tempo lock and the shared panel', () => {
+    const body = bodyOf('fx.flanger');
+    for (const k of ['RATE', 'DEPTH', 'FB', 'MIX']) expect(body, k).toContain(`<strong>${k}</strong>`);
+    expect(body).toContain('tempo');
+    expect(body).toContain('Phaser’s panel');
+  });
+});
+
 /** The chorus copy (chorus.md, fx-slot-picker.md) — help is the one docs surface a test can hold true. */
 describe('help-content chorus', () => {
   it('names the chorus in the chain, in chain order, and says how to reach it', () => {
     const body = bodyOf('fx');
-    expect(body).toContain('Phaser → Chorus → Delay');
+    expect(body).toContain('Phaser → Flanger → Chorus → Delay');
     expect(body).toContain('share a panel');
   });
 

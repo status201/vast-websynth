@@ -100,6 +100,8 @@ var CORE_ASSETS = [
   // Loaded on first use of oscillator sync, not at boot — but precached, so an
   // installed app can engage it offline (oscillator-sync.md REQ-the-pair-is-built-on-first-use).
   '/worklets/sync-osc.js',
+  // The same, for the first flanger switched on (flanger.md REQ-the-flanger-loads-on-first-use).
+  '/worklets/flanger.js',
 ];
 
 var CACHE = cacheName(self.location.href);

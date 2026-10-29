@@ -77,7 +77,7 @@ describe('Presets', () => {
     // (sidechain-ducking.md REQ-a-bypassed-ducker-costs-nothing, presets.md REQ-a-factory-preset-sets-the-full-sound).
     it('sets every synth-FX on flag in every bank', () => {
       for (const [name, snap] of Object.entries(Presets.factory())) {
-        for (const fx of ['eq', 'dist', 'wah', 'phaser', 'delay', 'reverb', 'duck']) {
+        for (const fx of ['eq', 'dist', 'wah', 'phaser', 'flanger', 'chorus', 'delay', 'reverb', 'duck']) {
           expect(snap[`fx.${fx}.on`], `${name}: 'fx.${fx}.on' missing`).toBeTypeOf('number');
         }
       }
@@ -90,7 +90,7 @@ describe('Presets', () => {
     // division the previously loaded patch was locked to.
     it('sets the tempo lock of every effect it engages, in every bank', () => {
       for (const [name, snap] of Object.entries(Presets.factory())) {
-        for (const fx of ['wah', 'phaser', 'delay']) {
+        for (const fx of ['wah', 'phaser', 'flanger', 'delay']) {
           if (snap[`fx.${fx}.on`] !== 1) continue;
           expect(snap[`fx.${fx}.sync`], `${name}: 'fx.${fx}.sync' missing`).toBeTypeOf('number');
         }

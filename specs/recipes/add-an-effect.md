@@ -3,7 +3,7 @@
 ```yaml
 id: add-an-effect
 status: implemented
-version: 1
+version: 2   # v2: the lazily loaded worklet effect (the flanger) gotcha
 owner: core
 related:
   - effects
@@ -132,6 +132,12 @@ Add controls in `panels/fx-rack.ts` (or the drum/sampler panel for a bus variant
 - A worklet-backed effect (like the [compressor](../features/compressor.md)) builds
   its `BypassWrapper` synchronously, then attaches the node after `loadModule` — see
   [add-an-audioworklet](add-an-audioworklet.md).
+- One that loads on its **first switch-on** (the [flanger](../features/flanger.md))
+  must hold its bypass until the node is in, not stand a passthrough in for it: a
+  swap mid-crossfade clicks. Its DSP can be a lazy chunk too, to keep the entry
+  chunk under `check:bundle`'s ceiling.
+- A shared panel lists its effects in chain order
+  ([fx-slot-picker](../features/fx-slot-picker.md) REQ-the-slot-lists-its-effects-in-chain-order).
 
 ## Scenarios (BDD)
 

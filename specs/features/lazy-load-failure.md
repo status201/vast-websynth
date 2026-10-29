@@ -117,7 +117,10 @@ would drift.
   "Couldn't open …" is the wrong sentence for it, so those stay with their own
   feature: the `lamejs` encoder inside an MP3 export
   ([audio-export](audio-export.md)) and the `jsqr` decoder inside a QR scan
-  ([webrtc-sync](webrtc-sync.md)). Neither is covered here.
+  ([webrtc-sync](webrtc-sync.md)). Neither is covered here. Nor is the
+  flanger's DSP, imported by its first switch-on: a failure leaves the effect
+  bypassed and the next switch-on retries ([flanger](flanger.md)
+  REQ-an-unloaded-flanger-stays-bypassed).
 
 ## Technical design
 
@@ -245,7 +248,7 @@ Scenario: no deferred surface is left silent (REQ-every-lazy-trigger-reports, dr
     table, the Retry path and the memo rule.
   - **Structural**, over the source text: no `.ts` under `src/` (outside
     `vendor/`) holds a runtime `import()` without also calling
-    `showLazyLoadFailure`, bar three exemptions carrying their reason. This is
+    `showLazyLoadFailure`, bar the exemptions, each carrying its reason. This is
     what pins the *set* — the regression this spec exists to prevent is an
     eighth surface added without a catch, which no behavioural test can see.
     It is also, for now, the only pin on the preset manager, the audio-export

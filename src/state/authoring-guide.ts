@@ -463,6 +463,8 @@ SOUND DESIGN NOTES
   Glide only bends between notes in mono: set "glide.mode" 1/2 and "mixer.glide" > 0.
 - Fatten with "unison.voices"/"unison.detune", "analog.drift" (per-voice tuning wander), a detuned
   osc2, or "sub.level" for weight an octave down. "mixer.noise" adds breath/attack transient.
+- "fx.flanger.*" is a jet-sweep flanger (rate/depth/feedback/mix; "sync" locks the rate to the tempo) — for
+  pads, strings and arps. It adds no width; the chorus after it does.
 - "fx.chorus.*" is a Juno-style stereo chorus — the classic width for pads, strings and electric pianos.
   "mode" 0 = FREE uses "rate"/"depth"; 1-3 (I, II, I+II) are fixed settings that override both.
 - EVERY synth insert effect is gated by its own ".on" flag — "fx.delay.time" does nothing while

@@ -346,6 +346,8 @@ export type TopicId =
   | 'fx.wah.rate'
   | 'fx.phaser'
   | 'fx.phaser.rate'
+  | 'fx.flanger'
+  | 'fx.flanger.rate'
   | 'fx.chorus'
   | 'fx.delay'
   | 'fx.delay.time'
@@ -358,6 +360,7 @@ export type TopicId =
   | 'fx.master.comp'
   | 'fx.master.comp.threshold'
   | 'fx.sampler.phaser.rate'
+  | 'fx.sampler.flanger.rate'
   | 'fx.sampler.delay.time'
   | 'arp'
   | 'key'
@@ -665,12 +668,12 @@ export const HELP_TOPICS: Record<TopicId, HelpTopic> = {
   fx: {
     title: 'Effects chain',
     body:
-      '<p>A chain of seven effects the synth runs through: <strong>Distortion → Wah → Phaser → ' +
-      'Chorus → Delay → Reverb → Duck</strong>. Each has an on/off switch and a few knobs. Switch one on ' +
+      '<p>A chain of eight effects the synth runs through: <strong>Distortion → Wah → Phaser → ' +
+      'Flanger → Chorus → Delay → Reverb → Duck</strong>. Each has an on/off switch and a few knobs. Switch one on ' +
       'and tweak — they turn a plain tone into something spacious or gnarly. Click the (i) on ' +
       'each effect for details.</p>' +
-      '<p>Phaser and Chorus share a panel: click its title, or the arrow next to it, to switch between ' +
-      'them. Both can be on at once — a lit dot in that menu shows which ones are.</p>',
+      '<p>Phaser, Flanger and Chorus share a panel: click its title, or the arrow next to it, to switch ' +
+      'between them. Any of them can be on at once — a lit dot in that menu shows which ones are.</p>',
   },
   'fx.dist': {
     title: 'Distortion',
@@ -687,6 +690,18 @@ export const HELP_TOPICS: Record<TopicId, HelpTopic> = {
       '<ul><li><strong>RATE</strong> — speed of the sweep.</li>' +
       '<li><strong>DEPTH</strong> — how far it sweeps.</li>' +
       '<li><strong>Q</strong> — sharpness of the peak (higher = more vocal).</li></ul>',
+  },
+  'fx.flanger': {
+    title: 'Flanger',
+    body:
+      '<p>Mixes the sound with a copy delayed by a few thousandths of a second and sweeps that ' +
+      'delay, so a comb of notches glides up and down through it — the jet-plane whoosh on pads, ' +
+      'strings and arpeggios.</p>' +
+      '<ul><li><strong>RATE</strong> — speed of the sweep; it can lock to the tempo.</li>' +
+      '<li><strong>DEPTH</strong> — how far down the sweep reaches.</li>' +
+      '<li><strong>FB</strong> — feedback; more makes it ring and whistle, without getting louder.</li>' +
+      '<li><strong>MIX</strong> — wet vs dry blend; the notches are deepest around the middle.</li></ul>' +
+      '<p>It shares the Phaser’s panel — click the title, or the arrow next to it, to switch.</p>',
   },
   'fx.chorus': {
     title: 'Chorus',
@@ -833,6 +848,10 @@ export const HELP_TOPICS: Record<TopicId, HelpTopic> = {
     title: 'Phaser Rate — sync to tempo',
     body: (ctx) => renderTempoSync(ctx, 'fx.phaser.rate', 'freq'),
   },
+  'fx.flanger.rate': {
+    title: 'Flanger Rate — sync to tempo',
+    body: (ctx) => renderTempoSync(ctx, 'fx.flanger.rate', 'freq'),
+  },
   'fx.drum.phaser.rate': {
     title: 'Drum Phaser Rate — sync to tempo',
     body: (ctx) => renderTempoSync(ctx, 'fx.drum.phaser.rate', 'freq'),
@@ -840,6 +859,10 @@ export const HELP_TOPICS: Record<TopicId, HelpTopic> = {
   'fx.sampler.phaser.rate': {
     title: 'Sampler Phaser Rate — sync to tempo',
     body: (ctx) => renderTempoSync(ctx, 'fx.sampler.phaser.rate', 'freq'),
+  },
+  'fx.sampler.flanger.rate': {
+    title: 'Sampler Flanger Rate — sync to tempo',
+    body: (ctx) => renderTempoSync(ctx, 'fx.sampler.flanger.rate', 'freq'),
   },
 
   // ---- Mutual-dependency explainers (live derived numbers) ----

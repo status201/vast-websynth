@@ -191,6 +191,7 @@ describe('install', () => {
     expect(sw.CORE_ASSETS).toContain('/worklets/ladder-filter.js');
     // Loaded lazily, on first sync, but still precached so it works offline.
     expect(sw.CORE_ASSETS).toContain('/worklets/sync-osc.js');
+    expect(sw.CORE_ASSETS).toContain('/worklets/flanger.js');
     expect(fakeSelf.skipWaiting).toHaveBeenCalled();
   });
 });

@@ -3,7 +3,8 @@
 ```yaml
 id: add-an-audioworklet
 status: implemented
-version: 1
+version: 2   # v2: a lazily loaded insert holds its bypass instead of a passthrough, and its
+             #     JS can be a lazy chunk too (the flanger, flanger.md)
 owner: core
 related:
   - architecture
@@ -94,6 +95,18 @@ The worked example is [oscillator-sync](../features/oscillator-sync.md): one mem
 `ensureSync()` loads the module and builds every voice's node the first time the mode
 leaves `off`, a failed load is logged and leaves the feature inert, and voices play
 the native path until the nodes land.
+
+For an **insert effect** loaded on first use, do not stand a passthrough in for the
+node: the switch-on starts the bypass crossfade at once, and if the load outlasts the
+start of the fade, swapping the passthrough for the node mid-fade steps the waveform.
+Hold the bypass until the node is in instead, and the crossfade only ever fades in
+the real wet ([flanger](../features/flanger.md) REQ-an-unloaded-flanger-stays-bypassed,
+measured as a click on Blink). The flanger also puts its wrapper's JavaScript behind
+an `import()`, leaving only a shell in the entry chunk: the shell owns the bypass,
+the mix and the drain, and the lazy module binds the knobs itself, because a bus
+subscription fires at once with the current value, so nothing has to be cached
+([flanger](../features/flanger.md) REQ-the-flanger-loads-on-first-use). A lazy chunk
+reached offline joins `main.ts`'s idle warm.
 
 ### 4. Precache it — `public/sw.js`
 

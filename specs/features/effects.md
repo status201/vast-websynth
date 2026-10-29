@@ -1,9 +1,14 @@
-# Insert effects (eq · distortion · wah · phaser · chorus · delay · reverb · duck)
+# Insert effects (eq · distortion · wah · phaser · flanger · chorus · delay · reverb · duck)
 
 ```yaml
 id: effects
 status: implemented
-version: 14  # v14: a chorus joins the synth and sampler chains after the phaser
+version: 15  # v15: a flanger joins the synth and sampler chains between the phaser
+             #      and the chorus (flanger.md). It is the first insert whose DSP is
+             #      a worklet loaded on first use, and it is channel-transparent, so
+             #      nothing about the chain's channel count changes
+             #      (REQ-the-synth-chain-order)
+             # v14: a chorus joins the synth and sampler chains after the phaser
              #      (chorus.md). It is the first insert that MAKES a stereo
              #      image on the synth bus, so the synth chain is 2-channel
              #      after it while it is on (REQ-the-synth-chain-order)
@@ -51,6 +56,7 @@ related:
   - sidechain-ducking    # v7: the sixth chain member (synth + sampler, last)
   - equalizer            # v11: the member that heads all three chains
   - chorus               # v14: synth + sampler, after the phaser
+  - flanger              # v15: synth + sampler, between the phaser and the chorus
   - fx-slot-picker       # v14: the chorus shares the phaser's panel
 source:
   - src/audio/effects/effect.ts        # Effect + BypassWrapper + bindBypassMix
@@ -61,6 +67,7 @@ source:
   - src/audio/effects/wah.ts
   - src/audio/effects/phaser.ts
   - src/audio/effects/chorus.ts        # v14
+  - src/audio/effects/flanger.ts       # v15 (+ public/worklets/flanger.js)
   - src/audio/effects/delay.ts
   - src/audio/effects/reverb.ts
   - src/audio/drive-curve.ts            # bucketed WaveShaper curve cache (REQ-drive-curves-are-bucketed-and-memoized)
@@ -164,6 +171,7 @@ subsets, so a song can colour each bus independently.
   | `Delay` | 2 — the `createDelay(2)` buffer; silence in for that long is silence throughout | feedback → 0, restored from the last commanded value |
   | `Reverb` | `maxIrS` — an FIR convolver is cleared exactly by one IR length of silence | — |
   | `Phaser` | 0.1 | feedback → 0 (a 0.05 s loop; it decays in ~25 ms regardless) |
+  | `Flanger` | 0.05 — a ~5.7 ms worklet buffer ([flanger](flanger.md) REQ-the-flanger-drains-before-disconnect) | the node's feedback → 0, restored from the last commanded value |
   | `Chorus` | 0.05 — two taps of at most ~7 ms, no feedback ([chorus](chorus.md) REQ-the-chorus-drains-briefly) | — |
   | others | `DRAIN_DEFAULT_S` = 0.02 | — |
 
@@ -174,7 +182,11 @@ subsets, so a song can colour each bus independently.
   `quiesce(false)` restores what the knob says, not what it said at bypass time.
 
 - **REQ-the-synth-chain-order** — Synth voice bus chain order: eq → distortion →
-  wah → phaser → chorus → delay → reverb → duck.
+  wah → phaser → flanger → chorus → delay → reverb → duck.
+  - (v15) The **flanger** ([flanger](flanger.md)) sits between the phaser and the
+    chorus, the three sharing one panel. It is channel-transparent, so in front
+    of the chorus it stays in the 1-channel stretch and runs once per sample
+    ([flanger](flanger.md) REQ-the-flanger-sits-between-phaser-and-chorus).
   - (v14) The **chorus** ([chorus](chorus.md)) sits after the phaser it shares a
     panel with. It is the one insert that *makes* a stereo image, so while it is
     on, everything after it runs 2-channel; bypassed, ADR-012's disconnect drops
@@ -198,7 +210,8 @@ subsets, so a song can colour each bus independently.
 - **REQ-the-drum-bus-chain-order** — Drum bus: [eq →] compressor → phaser →
   delay → reverb (the compressor sits first *among the effects* so it smashes
   the dry hits, not the FX wash); sampler bus: eq → distortion → phaser →
-  chorus (v14) → delay → reverb → duck. The drum bus has no chorus.
+  flanger (v15) → chorus (v14) → delay → reverb → duck. The drum bus has no
+  chorus and no flanger.
   - (v11) The EQ sits ahead of even the drum compressor, which is the point
     rather than an accident of ordering: a highpass before the compressor stops
     the kick pumping the whole kit ([equalizer](equalizer.md) REQ-one-equalizer-per-lane). Filtering

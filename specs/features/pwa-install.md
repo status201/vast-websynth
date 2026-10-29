@@ -126,10 +126,11 @@ vite-plugin-pwa/workbox), per ADR-003's precedent.
   **cache-first** for immutable hashed `/assets/*`; **network-first with cache
   fallback** for navigations (falling back to cached `/`) and all other
   same-origin GETs; non-GET and cross-origin requests pass through untouched. A
-  core shell (`/`, manifest, icons, the four `/worklets/*.js`) is precached at
-  install — including `sync-osc.js`, which the app loads only on first use of
-  oscillator sync, so an installed app can still engage it offline
-  ([oscillator-sync](oscillator-sync.md) REQ-the-pair-is-built-on-first-use). (v3) **`/mcp` and `/healthz` pass through too**, by path. Those are
+  core shell (`/`, manifest, icons, the five `/worklets/*.js`) is precached at
+  install — including `sync-osc.js` and `flanger.js`, which the app loads only on
+  first use of oscillator sync or of a flanger, so an installed app can still
+  engage them offline ([oscillator-sync](oscillator-sync.md)
+  REQ-the-pair-is-built-on-first-use, [flanger](flanger.md) REQ-the-flanger-loads-on-first-use). (v3) **`/mcp` and `/healthz` pass through too**, by path. Those are
   the public MCP endpoint ([mcp-server](mcp-server.md) REQ-the-http-transport-is-stateless), served from this
   origin by a reverse proxy rather than from `dist/`. They are already safe by
   accident — the traffic is `POST`, which the non-GET rule passes through, and
@@ -161,7 +162,9 @@ vite-plugin-pwa/workbox), per ADR-003's precedent.
   sweep's chunks are warmed too** ([runtime-performance](runtime-performance.md)
   REQ-boot-cost-matches-the-request v12): the authoring-dialect expander and the
   zip codec (importing or pasting a song offline), the Paste and Export dialogs
-  and the Performance settings — each a thing a player does offline. The AI Prompt body is deliberately left cold: its round
+  and the Performance settings — each a thing a player does offline — and the
+  flanger's DSP, imported on its first switch-on ([flanger](flanger.md)
+  REQ-the-flanger-loads-on-first-use). The AI Prompt body is deliberately left cold: its round
   trip needs an AI, so offline it has nothing to offer. All the warms
   share one `requestIdleCallback`-with-timeout-fallback in `main.ts` and swallow
   their errors: the real `import()` at the trigger retries. A warm is

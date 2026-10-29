@@ -514,9 +514,9 @@ back into the engine.
 ### Audio graph (system diagram)
 
 ```
-voices ─(spread)→ voiceBus ─→ eq → distortion → wah → phaser → chorus → delay → reverb → duck → synthPan ─┐
+voices ─(spread)→ voiceBus ─→ eq → distortion → wah → phaser → flanger → chorus → delay → reverb → duck → synthPan ─┐
             drumBus ─→ eq → drumComp → drumPhaser → drumDelay → drumReverb ───────────────────────┤
-            samplerBus ─→ eq (+ sampler dist/phaser/chorus/delay/reverb/duck) ────────────────────┤
+            samplerBus ─→ eq (+ sampler dist/phaser/flanger/chorus/delay/reverb/duck) ────────────┤
                                                                                                   ▼
         preMaster ─→ djLow ─→ djHigh ─→ masterComp ─→ analyser ─→ master ─→ destination
 ```
@@ -534,7 +534,7 @@ voices ─(spread)→ voiceBus ─→ eq → distortion → wah → phaser → c
   synth stage so that nothing upstream of it pays for two channels it does not
   need: the voice path is mono end to end (mono oscillators/noise → gains →
   1-channel filter worklet → gains), and the insert chain stays 1-channel through
-  `dist → wah → phaser → delay` — except after the **chorus** while it is on: it
+  `dist → wah → phaser → flanger → delay` — except after the **chorus** while it is on: it
   is the one insert short of the reverb that makes a second channel, and its
   bypass disconnect takes that away again ([chorus](features/chorus.md)
   REQ-the-chorus-widens-without-changing-level).

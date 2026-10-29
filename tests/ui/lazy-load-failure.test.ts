@@ -260,6 +260,7 @@ describe('Every deferred-surface trigger is guarded (lazy-load-failure.md REQ-ev
     ['src/ui/components/sync-pair-modal.ts', 'REQ-lazy-scope-is-surfaces-not-operations — jsqr mid-scan, owned by webrtc-sync.md'],
     ['src/state/song.ts', 'REQ-lazy-scope-is-surfaces-not-operations — the dialect expander mid-parse, a refused parse (song-authoring-dialect.md)'],
     ['src/state/project.ts', 'REQ-lazy-scope-is-surfaces-not-operations — the zip codec mid-import/export (project-export.md)'],
+    ['src/audio/effects/flanger.ts', 'REQ-lazy-scope-is-surfaces-not-operations — the flanger DSP on its first switch-on; a failure leaves a wire and retries (flanger.md)'],
   ]);
 
   it('leaves no runtime import() in src/ without a report or a documented exemption', async () => {

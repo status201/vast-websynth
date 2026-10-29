@@ -510,3 +510,34 @@ describe('the chorus params default to a no-op (chorus.md REQ-the-chorus-params-
     expect(bus.get('fx.sampler.chorus.on')).toBe(0);
   });
 });
+
+describe('the flanger params default to a no-op (flanger.md REQ-the-flanger-params-default-to-a-no-op)', () => {
+  it('registers both buses, switched off, with the phaser\'s ranges and a tempo lock', () => {
+    const bus = new ParamBus();
+    registerDefaults(bus);
+    for (const p of ['fx.flanger', 'fx.sampler.flanger']) {
+      for (const s of ['on', 'rate', 'depth', 'feedback', 'mix', 'sync']) {
+        expect(bus.def(`${p}.${s}`), `${p}.${s} is not registered`).toBeDefined();
+      }
+      expect(bus.get(`${p}.on`)).toBe(0);
+      expect(bus.get(`${p}.sync`)).toBe(0);
+      expect([bus.get(`${p}.rate`), bus.get(`${p}.depth`), bus.get(`${p}.feedback`), bus.get(`${p}.mix`)])
+        .toEqual([0.2, 0.7, 0.5, 0.5]);
+      // The phaser's ranges (REQ-the-flanger-rate-can-be-tempo-locked shares its lock).
+      expect([bus.def(`${p}.rate`)!.max, bus.def(`${p}.feedback`)!.max]).toEqual([5, 0.9]);
+    }
+    // The drum bus has none.
+    expect(bus.def('fx.drum.flanger.on')).toBeUndefined();
+  });
+
+  it('leaves a song written before the flanger existed with the flanger off', () => {
+    const bus = new ParamBus();
+    registerDefaults(bus);
+    bus.set('fx.flanger.on', 1);
+    bus.set('fx.sampler.flanger.on', 1);
+    bus.resetDefaults();
+    bus.restore({ 'fx.phaser.on': 1 });
+    expect(bus.get('fx.flanger.on')).toBe(0);
+    expect(bus.get('fx.sampler.flanger.on')).toBe(0);
+  });
+});

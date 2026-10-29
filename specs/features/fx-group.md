@@ -17,12 +17,12 @@ related:
   - drum-machine
   - sampler
   - song-mode
-  - fx-slot-picker  # v3: the sampler's PHASER / CHORUS slot
+  - fx-slot-picker  # v3: the sampler's PHASER / FLANGER / CHORUS slot
 source:
   - src/ui/components/fx-group.ts
   - src/ui/styles/fx-group.module.css
   - src/ui/panels/drum-panel.ts      # PHASER / DELAY / COMP (+ GR meter)
-  - src/ui/panels/sampler-panel.ts   # DIST / PHASER·CHORUS / DELAY / REVERB / DUCK
+  - src/ui/panels/sampler-panel.ts   # DIST / PHASER·FLANGER·CHORUS / DELAY / REVERB / DUCK
   - src/ui/panels/song-panel.ts      # master COMP
 ```
 

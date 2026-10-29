@@ -67,6 +67,7 @@ const ANCHORS: Anchor[] = [
   { topic: 'fx.dist', find: () => byHelp('fx.dist'), place: 'after' },
   { topic: 'fx.wah', find: () => byHelp('fx.wah'), place: 'after' },
   { topic: 'fx.phaser', find: () => byHelp('fx.phaser'), place: 'after' },
+  { topic: 'fx.flanger', find: () => byHelp('fx.flanger'), place: 'after' },
   { topic: 'fx.chorus', find: () => byHelp('fx.chorus'), place: 'after' },
   { topic: 'fx.delay', find: () => byHelp('fx.delay'), place: 'after' },
   { topic: 'fx.reverb', find: () => byHelp('fx.reverb'), place: 'after' },
@@ -170,10 +171,12 @@ const ANCHORS: Anchor[] = [
   { topic: 'lfo2.rate', find: () => byTestId('knob-lfo2.rate') },
   { topic: 'fx.wah.rate', find: () => byTestId('knob-fx.wah.rate') },
   { topic: 'fx.phaser.rate', find: () => byTestId('knob-fx.phaser.rate') },
+  { topic: 'fx.flanger.rate', find: () => byTestId('knob-fx.flanger.rate') },
   { topic: 'fx.drum.delay.time', find: () => byTestId('knob-fx.drum.delay.time') },
   { topic: 'fx.drum.phaser.rate', find: () => byTestId('knob-fx.drum.phaser.rate') },
   { topic: 'fx.sampler.delay.time', find: () => byTestId('knob-fx.sampler.delay.time') },
   { topic: 'fx.sampler.phaser.rate', find: () => byTestId('knob-fx.sampler.phaser.rate') },
+  { topic: 'fx.sampler.flanger.rate', find: () => byTestId('knob-fx.sampler.flanger.rate') },
   // Relationship explainers (live derived numbers).
   { topic: 'filter.envAmount', find: () => byTestId('knob-filter.envAmount') },
   { topic: 'unison.detune', find: () => byTestId('knob-unison.detune') },
@@ -264,10 +267,11 @@ export class InfoBadges {
       // can be the two, hence all three.
       '[data-testid="eq-section"]', '[data-testid="panel-eq-seq"]',
       '[data-testid="panel-eq-drums"]', '[data-testid="panel-eq-sampler"]',
-      // The shared Phaser/Chorus views (fx-slot-picker.md REQ-a-slot-view-tells-badges-when-it-hides):
+      // The shared Phaser/Flanger/Chorus views (fx-slot-picker.md REQ-a-slot-view-tells-badges-when-it-hides):
       // a view swap resizes no other container, so each view is watched itself.
-      '[data-testid="fxview-fx.phaser"]', '[data-testid="fxview-fx.chorus"]',
-      '[data-testid="fxgroup-fx.sampler.phaser"]', '[data-testid="fxgroup-fx.sampler.chorus"]',
+      '[data-testid="fxview-fx.phaser"]', '[data-testid="fxview-fx.flanger"]', '[data-testid="fxview-fx.chorus"]',
+      '[data-testid="fxgroup-fx.sampler.phaser"]', '[data-testid="fxgroup-fx.sampler.flanger"]',
+      '[data-testid="fxgroup-fx.sampler.chorus"]',
     ]) {
       const el = document.querySelector(sel);
       if (el) this.ro.observe(el);

@@ -334,6 +334,8 @@ async function boot() {
       () => import('./ui/components/paste-import'),
       () => import('./ui/components/export-song-modal'),
       () => import('./ui/components/perf-settings-modal'),
+      // The flanger's DSP, imported on its first switch-on (flanger.md REQ-the-flanger-loads-on-first-use).
+      () => import('./audio/effects/flanger-live'),
     ]) void load().catch(() => {});
   };
   // A factory reset that deleted a saved offline copy asked for it back

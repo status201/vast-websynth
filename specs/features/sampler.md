@@ -388,7 +388,7 @@ engine (subscribeParams):
   sampler.t{i}.{vol,pan,tone,res,pitch,start,end,rev,attack,decay} -> the v8 setters
   sampler.t{i}.{choke,poly} -> setSlotChokeGroup / setSlotMono (v9)
 graph: perHitGain -> slotIn -> slotTone -> slotGain -> slotPan -> samplerBus
-       (+ sampler dist/phaser/chorus/delay/reverb/duck) -> preMaster
+       (+ sampler dist/phaser/flanger/chorus/delay/reverb/duck) -> preMaster
 ui: src/ui/panels/sampler-panel.ts
   sampler-step-<slot>-<s> grid; sampler-load/name/edit/file-<slot>; per-slot mute
   v8: a selected-slot strip below the grid, mirroring the drum panel's tuning strip

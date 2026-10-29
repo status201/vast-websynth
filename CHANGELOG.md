@@ -18,6 +18,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ### Added
 
+- **Flanger.** The jet-plane sweep, on the synth and on the sampler.
+  - It mixes the sound with a copy delayed by a few milliseconds and sweeps the
+    delay, so a comb of notches glides up and down through it: pads, strings and
+    arpeggios.
+  - Knobs: RATE (which can lock to the tempo, like the phaser's), DEPTH, FB and
+    MIX. More feedback makes it ring and whistle without getting louder.
+  - It shares the Phaser's panel with the chorus: the menu by the title now
+    lists **Phaser · Flanger · Chorus**, in the order the sound passes through
+    them.
+  - It costs nothing until you switch it on: its audio code is loaded the first
+    time you do, and it works offline in the installed app.
+
 - **Chorus.** A Juno-style stereo chorus on the synth and on the sampler.
   - It widens the sound with a slightly detuned copy drifting on each side:
     the classic shimmer for pads, strings and electric pianos.

@@ -157,13 +157,14 @@ describe('chorus drain and bypass (chorus.md REQ-the-chorus-drains-briefly)', ()
 });
 
 describe('chain position (chorus.md REQ-the-chorus-sits-after-the-phaser)', () => {
-  it('wires phaser -> chorus -> delay on the synth and sampler buses', () => {
+  it('wires phaser -> flanger -> chorus -> delay on the synth and sampler buses', () => {
     for (const make of [createSynthChain, createSamplerChain]) {
       const ctx = makeMockAudioContext(48000);
       const chain = make(ctx as unknown as AudioContext);
       const fx = chain.fx as Record<string, { input: AudioNode; output: Node }>;
       chain.wire(ctx.createGain() as unknown as AudioNode, ctx.createGain() as unknown as AudioNode);
-      expect(fx.phaser!.output.connect).toHaveBeenCalledWith(fx.chorus!.input);
+      expect(fx.phaser!.output.connect).toHaveBeenCalledWith(fx.flanger!.input);
+      expect(fx.flanger!.output.connect).toHaveBeenCalledWith(fx.chorus!.input);
       expect(fx.chorus!.output.connect).toHaveBeenCalledWith(fx.delay!.input);
     }
   });

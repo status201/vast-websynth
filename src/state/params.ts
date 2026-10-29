@@ -411,6 +411,9 @@ export function registerDefaults(bus: ParamBus): void {
     // ----- FX: Phaser -----
     ...phaserParams('fx.phaser', { depth: 0.5, mix: 0.5 }),
 
+    // ----- FX: Flanger (between the phaser and the chorus it shares a panel with — flanger.md) -----
+    ...phaserParams('fx.flanger', FLANGER_DEFAULTS),
+
     // ----- FX: Chorus (after the phaser it shares a panel with — chorus.md) -----
     ...chorusParams('fx.chorus'),
 
@@ -451,6 +454,9 @@ export function registerDefaults(bus: ParamBus): void {
 
     // ----- Sampler FX: Phaser -----
     ...phaserParams('fx.sampler.phaser', { depth: 0.7, mix: 0.5 }),
+
+    // ----- Sampler FX: Flanger -----
+    ...phaserParams('fx.sampler.flanger', FLANGER_DEFAULTS),
 
     // ----- Sampler FX: Chorus -----
     ...chorusParams('fx.sampler.chorus'),
@@ -680,12 +686,23 @@ function distParams(prefix: string): ParamDef[] {
   ];
 }
 
-function phaserParams(prefix: string, d: { depth: number; mix: number }): ParamDef[] {
+/** The flanger's defaults on both buses (flanger.md REQ-the-flanger-params-default-to-a-no-op). */
+const FLANGER_DEFAULTS = { rate: 0.2, depth: 0.7, feedback: 0.5, mix: 0.5 };
+
+/**
+ * A swept-modulation effect's params: the phaser's, and the flanger's, which
+ * has the same shape and the same tempo lock with its own defaults
+ * (flanger.md REQ-the-flanger-params-default-to-a-no-op).
+ */
+function phaserParams(
+  prefix: string,
+  d: { rate?: number; depth: number; feedback?: number; mix: number },
+): ParamDef[] {
   return [
     fxOnParam(prefix),
-    { id: `${prefix}.rate`, min: 0.05, max: 5, default: 0.5, format: (v) => v.toFixed(2) + 'Hz' },
+    { id: `${prefix}.rate`, min: 0.05, max: 5, default: d.rate ?? 0.5, format: (v) => v.toFixed(2) + 'Hz' },
     { id: `${prefix}.depth`, min: 0, max: 1, default: d.depth, format: fmtPct },
-    { id: `${prefix}.feedback`, min: 0, max: 0.9, default: 0.4, format: fmtPct },
+    { id: `${prefix}.feedback`, min: 0, max: 0.9, default: d.feedback ?? 0.4, format: fmtPct },
     { id: `${prefix}.mix`, min: 0, max: 1, default: d.mix, format: fmtPct },
     syncParam(prefix),
   ];

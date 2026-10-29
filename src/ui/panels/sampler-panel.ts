@@ -111,15 +111,20 @@ export function buildSamplerPanel(
     { id: 'fx.sampler.dist.tone', label: 'TONE' },
     { id: 'fx.sampler.dist.mix', label: 'MIX' },
   ]));
-  // PHASER and CHORUS share one group's place, chosen from a caret by the
-  // title (fx-slot-picker.md); the chorus follows the phaser in the chain.
+  // PHASER, FLANGER and CHORUS share one group's place, chosen from a caret by
+  // the title, in chain order (fx-slot-picker.md REQ-the-slot-lists-its-effects-in-chain-order).
   const phaserHost = document.createElement('span');
-  const phaser = fxGroupParts(bus, 'PHASER', 'fx.sampler.phaser', [
-    { id: 'fx.sampler.phaser.rate', label: 'RATE' },
-    { id: 'fx.sampler.phaser.depth', label: 'DEPTH' },
-    { id: 'fx.sampler.phaser.feedback', label: 'FB' },
-    { id: 'fx.sampler.phaser.mix', label: 'MIX' },
-  ], { afterTitle: phaserHost });
+  // The Phaser's face, which the Flanger shares (flanger.md REQ-the-flanger-shares-the-phaser-slot).
+  const sweepKnobs = (prefix: string) =>
+    ([['rate', 'RATE'], ['depth', 'DEPTH'], ['feedback', 'FB'], ['mix', 'MIX']] as const)
+      .map(([k, label]) => ({ id: `${prefix}.${k}`, label }));
+  const phaser = fxGroupParts(bus, 'PHASER', 'fx.sampler.phaser', sweepKnobs('fx.sampler.phaser'), {
+    afterTitle: phaserHost,
+  });
+  const flangerHost = document.createElement('span');
+  const flanger = fxGroupParts(bus, 'FLANGER', 'fx.sampler.flanger', sweepKnobs('fx.sampler.flanger'), {
+    afterTitle: flangerHost,
+  });
   const chorusHost = document.createElement('span');
   const chorus = fxGroupParts(bus, 'CHORUS', 'fx.sampler.chorus', [
     { id: 'fx.sampler.chorus.rate', label: 'RATE' },
@@ -128,9 +133,10 @@ export function buildSamplerPanel(
     { id: 'fx.sampler.chorus.mix', label: 'MIX' },
   ], { afterTitle: chorusHost });
   dimWhileModeSet(bus, 'fx.sampler.chorus', CHORUS_MODE_OVERRIDES, chorus.knobs);
-  fx.append(phaser.el, chorus.el);
+  fx.append(phaser.el, flanger.el, chorus.el);
   createFxSlot(bus, [
     { prefix: 'fx.sampler.phaser', title: 'Phaser', el: phaser.el, caretHost: phaserHost, titleEl: phaser.label },
+    { prefix: 'fx.sampler.flanger', title: 'Flanger', el: flanger.el, caretHost: flangerHost, titleEl: flanger.label },
     { prefix: 'fx.sampler.chorus', title: 'Chorus', el: chorus.el, caretHost: chorusHost, titleEl: chorus.label },
   ]);
   fx.appendChild(fxGroup(bus, 'DELAY', 'fx.sampler.delay', [

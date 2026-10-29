@@ -4,6 +4,7 @@ import { Chorus } from './chorus';
 import { Compressor } from './compressor';
 import { Delay } from './delay';
 import { Distortion } from './distortion';
+import { Flanger } from './flanger';
 import { Ducker } from './ducker';
 import { Equalizer } from './eq';
 import { Phaser } from './phaser';
@@ -56,12 +57,15 @@ function makeChain<E extends Record<string, Effect>>(
 }
 
 /**
- * Synth voice bus: eq → distortion → wah → phaser → chorus → delay → reverb → duck.
+ * Synth voice bus: eq → distortion → wah → phaser → flanger → chorus → delay → reverb → duck.
  *
  * The **EQ heads every chain** (equalizer.md REQ-one-equalizer-per-lane): it shapes what the drive
  * bites on rather than filtering the result, and on this bus it is also the
  * cheap position — the synth path is 1-channel until the reverb, so ten
  * 1-channel biquads instead of ten 2-channel ones.
+ *
+ * The **flanger** is channel-transparent, so ahead of the chorus it stays in
+ * the 1-channel stretch (flanger.md REQ-the-flanger-sits-between-phaser-and-chorus).
  *
  * The **chorus** is the one member that makes a second channel short of the
  * reverb: while it is on, everything after it runs 2-channel, and its bypass
@@ -74,24 +78,26 @@ export function createSynthChain(
   ctx: AudioContext,
   opts: FxChainOptions = {},
 ): FxChain<{
-  eq: Equalizer; dist: Distortion; wah: Wah; phaser: Phaser; chorus: Chorus; delay: Delay; reverb: Reverb;
-  duck: Ducker;
+  eq: Equalizer; dist: Distortion; wah: Wah; phaser: Phaser; flanger: Flanger; chorus: Chorus; delay: Delay;
+  reverb: Reverb; duck: Ducker;
 }> {
   const fx = {
     eq: new Equalizer(ctx),
     dist: new Distortion(ctx, opts.dist),
     wah: new Wah(ctx),
     phaser: new Phaser(ctx),
+    flanger: new Flanger(ctx),
     chorus: new Chorus(ctx),
     delay: new Delay(ctx),
     reverb: new Reverb(ctx, opts.reverb),
     duck: new Ducker(ctx),
   };
-  return makeChain(fx, ['eq', 'dist', 'wah', 'phaser', 'chorus', 'delay', 'reverb', 'duck'], (bus) => {
+  return makeChain(fx, ['eq', 'dist', 'wah', 'phaser', 'flanger', 'chorus', 'delay', 'reverb', 'duck'], (bus) => {
     fx.eq.bind(bus, 'fx.eq');
     fx.dist.bind(bus, 'fx.dist');
     fx.wah.bind(bus, 'fx.wah');
     fx.phaser.bind(bus, 'fx.phaser');
+    fx.flanger.bind(bus, 'fx.flanger');
     fx.chorus.bind(bus, 'fx.chorus');
     fx.delay.bind(bus, 'fx.delay');
     fx.reverb.bind(bus, 'fx.reverb');
@@ -128,26 +134,29 @@ export function createDrumChain(
   });
 }
 
-/** Sampler bus: eq → distortion → phaser → chorus → delay → reverb → duck (no wah). */
+/** Sampler bus: eq → distortion → phaser → flanger → chorus → delay → reverb → duck (no wah). */
 export function createSamplerChain(
   ctx: AudioContext,
   opts: FxChainOptions = {},
 ): FxChain<{
-  eq: Equalizer; dist: Distortion; phaser: Phaser; chorus: Chorus; delay: Delay; reverb: Reverb; duck: Ducker;
+  eq: Equalizer; dist: Distortion; phaser: Phaser; flanger: Flanger; chorus: Chorus; delay: Delay; reverb: Reverb;
+  duck: Ducker;
 }> {
   const fx = {
     eq: new Equalizer(ctx),
     dist: new Distortion(ctx, opts.dist),
     phaser: new Phaser(ctx),
+    flanger: new Flanger(ctx),
     chorus: new Chorus(ctx),
     delay: new Delay(ctx),
     reverb: new Reverb(ctx, opts.reverb),
     duck: new Ducker(ctx),
   };
-  return makeChain(fx, ['eq', 'dist', 'phaser', 'chorus', 'delay', 'reverb', 'duck'], (bus) => {
+  return makeChain(fx, ['eq', 'dist', 'phaser', 'flanger', 'chorus', 'delay', 'reverb', 'duck'], (bus) => {
     fx.eq.bind(bus, 'fx.sampler.eq');
     fx.dist.bind(bus, 'fx.sampler.dist');
     fx.phaser.bind(bus, 'fx.sampler.phaser');
+    fx.flanger.bind(bus, 'fx.sampler.flanger');
     fx.chorus.bind(bus, 'fx.sampler.chorus');
     fx.delay.bind(bus, 'fx.sampler.delay');
     fx.reverb.bind(bus, 'fx.sampler.reverb');

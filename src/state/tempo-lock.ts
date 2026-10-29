@@ -23,6 +23,8 @@ export const TEMPO_LOCKS: Record<string, TempoQuantity> = {
   'fx.phaser.rate': 'freq',
   'fx.drum.phaser.rate': 'freq',
   'fx.sampler.phaser.rate': 'freq',
+  'fx.flanger.rate': 'freq',
+  'fx.sampler.flanger.rate': 'freq',
   'fx.delay.time': 'time',
   'fx.drum.delay.time': 'time',
   'fx.sampler.delay.time': 'time',

@@ -267,8 +267,9 @@ specs/
     mod-matrix.md      ·  many sources -> many destinations, summed in the audio graph
     voicing.md         ·  poly/mono, unison, glide, drift, pitch bend
     # — effects —
-    effects.md         ·  distortion/wah/phaser/chorus/delay/reverb/duck insert chain
+    effects.md         ·  distortion/wah/phaser/flanger/chorus/delay/reverb/duck insert chain
     chorus.md          ·  Juno-style stereo chorus (synth + sampler), MODE I / II / I+II
+    flanger.md         ·  worklet flanger (synth + sampler), loaded on first use, in the Phaser slot
     equalizer.md       ·  per-lane drawable 8-band EQ + HP/LP, first in each chain
     compressor.md      ·  the FET/VCA worklet compressors (message contract)
     sidechain-ducking.md · trigger-keyed ducker on synth/sampler, keyed by drum hits

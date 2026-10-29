@@ -22,7 +22,7 @@ related:
   - step-grid-editing
 source:
   - src/ui/styles/panel.module.css   # .patternPanelHeader wrap + .fxCluster
-  - src/ui/panels/sampler-panel.ts    # DIST / PHASER·CHORUS / DELAY / REVERB / DUCK cluster
+  - src/ui/panels/sampler-panel.ts    # DIST / PHASER·FLANGER·CHORUS / DELAY / REVERB / DUCK cluster
   - src/ui/panels/drum-panel.ts       # COMP (+GR meter) / PHASER / DELAY / REVERB cluster
 ```
 

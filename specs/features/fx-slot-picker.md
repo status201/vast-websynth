@@ -1,13 +1,17 @@
-# FX slot picker (two effects share one panel, chosen from a title caret)
+# FX slot picker (several effects share one panel, chosen from a title caret)
 
 ```yaml
 id: fx-slot-picker
 status: implemented
-version: 2   # v2: the shown title opens the menu too (REQ-the-title-opens-the-menu) —
+version: 3   # v3: a third entry — the flanger, between the Phaser and the Chorus
+             #     (REQ-the-slot-lists-its-effects-in-chain-order). The component was
+             #     already generic over N; the rule that fixes the order is new
+             # v2: the shown title opens the menu too (REQ-the-title-opens-the-menu) —
              #     only the small caret did, and the name beside it looked inert
 owner: core
 related:
   - chorus          # the first effect to share a slot (with the Phaser)
+  - flanger         # v3: the third, between them
   - effects
   - fx-group        # the sampler's header group, which hosts a slot too
   - panel-tabs      # the precedent: two pages, one panel, session-only view state
@@ -17,8 +21,8 @@ source:
   - src/ui/components/fx-slot-picker.ts
   - src/ui/components/menu-anchor.ts   # the shared anchor + dismiss (dropdown.md REQ-every-fixed-menu-shares-one-anchor-and-dismiss)
   - src/ui/styles/fx-slot-picker.module.css
-  - src/ui/panels/fx-rack.ts         # synth: Phaser / Chorus panel
-  - src/ui/panels/sampler-panel.ts   # sampler: PHASER / CHORUS group
+  - src/ui/panels/fx-rack.ts         # synth: Phaser / Flanger / Chorus panel
+  - src/ui/panels/sampler-panel.ts   # sampler: PHASER / FLANGER / CHORUS group
   - src/ui/onboarding/info-badges.ts # the view shells join the reflow list
 ```
 
@@ -33,7 +37,8 @@ beside it; the caret opens a menu naming the effects that live in the slot.
 Choosing one swaps the panel's whole face — title, on/off switch, knobs — to that
 effect. Both effects are independent: each keeps its own switch and knob values,
 and both may run at once. The component is generic over any number of entries,
-so a later flanger can join the same slot without new UI.
+so a later flanger can join the same slot without new UI — and (v3) one did
+([flanger](flanger.md)).
 
 ## Requirements
 
@@ -69,6 +74,11 @@ so a later flanger can join the same slot without new UI.
   (`anchorMenu(…, 'content')`, [dropdown](dropdown.md)
   REQ-every-fixed-menu-shares-one-anchor-and-dismiss), and borrows
   `dropdown.module.css`'s look.
+- **REQ-the-slot-lists-its-effects-in-chain-order** — (v3) A slot's entries,
+  and so its menu, run in the order the effects sit in the chain: **Phaser ·
+  Flanger · Chorus**. The primary is the first. The menu then reads as the signal
+  path, and REQ-a-load-shows-the-running-effect's "first non-primary that is on"
+  is the first one the signal meets.
 - **REQ-a-load-shows-the-running-effect** — `initialFxView(bus, entries)` picks
   the view: the **first non-primary entry that is on while the primary is off**,
   otherwise the primary. It runs when the slot is built — which covers a session
@@ -123,13 +133,13 @@ createFxSlot(bus, views): { current: string; show(prefix): void }
 
 ### Layer touchpoints & ordering
 
-- **Synth rack** (`fx-rack.ts`): the Phaser panel holds two views. Every rack
+- **Synth rack** (`fx-rack.ts`): the Phaser panel holds three views (v3). Every rack
   panel's header is `[title row] [switch]`, the title row holding the title and,
   in a slot, the caret after it; `data-help` sits on the title row so the ⓘ
   badge lands after the caret, not on it. A single-effect panel's row holds
   only its title, which renders as it always did. The rack
   still has six panels, so its grid and `fxPatchDecoration` parity are untouched.
-- **Sampler header** (`sampler-panel.ts`): two `fxGroup`s side by side in the
+- **Sampler header** (`sampler-panel.ts`): three `fxGroup`s (v3) side by side in the
   FX cluster, each view being a group root; the caret goes in the group's
   `afterTitle` host (fx-group REQ-a-group-can-host-a-title-companion). Each group's `collapsed` behaviour is
   its own (fx-group REQ-bypassed-group-collapses-its-knobs), so a hidden-and-off
@@ -183,6 +193,13 @@ Scenario Outline: A load shows the running effect (REQ-a-load-shows-the-running-
     | 1      | 1      | Phaser |
     | 0      | 1      | Chorus |
 # pinned by: tests/ui/fx-slot-picker.test.ts, e2e/chorus.spec.ts
+
+Scenario: The menu runs in chain order (v3, REQ-the-slot-lists-its-effects-in-chain-order)
+  Given the synth rack and the sampler header
+  When the slot's menu opens
+  Then its entries are Phaser, Flanger, Chorus in that order
+   And with only the flanger and the chorus on, a load shows the Flanger
+# pinned by: tests/ui/fx-slot-picker.test.ts
 
 Scenario: A plain toggle never moves the view (edge)
   Given the Phaser view is shown and fx.chorus.on is 1

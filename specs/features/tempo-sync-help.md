@@ -63,7 +63,8 @@ the badge just recommends/sets a plain value (delay maps its `time` param 1:1 to
 - **REQ-tempo-badges-pin-to-their-knob** — Tempo badges pin to `knob-<paramId>`
   for: `fx.delay.time`, `fx.drum.delay.time`, `fx.sampler.delay.time` (time);
   `lfo.rate`, `fx.wah.rate`, `fx.phaser.rate`, `fx.drum.phaser.rate`,
-  `fx.sampler.phaser.rate` (freq). A knob absent from the DOM (unbuilt tab)
+  `fx.sampler.phaser.rate`, and the flanger's `fx.flanger.rate` and
+  `fx.sampler.flanger.rate` ([flanger](flanger.md)) (freq). A knob absent from the DOM (unbuilt tab)
   simply shows no badge.
 - **REQ-relationship-badges-show-live-numbers** — Relationship badges show live
   derived numbers: `filter.cutoff` (cutoff Hz + self-oscillation note),

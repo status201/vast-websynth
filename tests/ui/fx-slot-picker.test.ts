@@ -163,6 +163,31 @@ describe('the Phaser panel is a slot (fx-slot-picker.md)', () => {
   });
 });
 
+describe('the slot lists its effects in chain order (v3, REQ-the-slot-lists-its-effects-in-chain-order)', () => {
+  it("menus Phaser, Flanger, Chorus, and the Flanger view has the Phaser's four knobs", () => {
+    const r = rack(bus());
+    r.caret().click();
+    const menu = r.caret().parentElement!.querySelectorAll('[role="menuitem"]');
+    expect([...menu].map((m) => m.textContent)).toEqual(['Phaser', 'Flanger', 'Chorus']);
+    r.item('fx.flanger').click();
+    const flanger = r.$('fxview-fx.flanger')!;
+    expect(flanger.hidden).toBe(false);
+    expect(flanger.querySelector('[data-testid="switch-fx.flanger.on"]')).not.toBeNull();
+    for (const k of ['rate', 'depth', 'feedback', 'mix']) {
+      expect(flanger.querySelector(`[data-testid="knob-fx.flanger.${k}"]`), k).not.toBeNull();
+    }
+  });
+
+  it('with only the flanger and the chorus on, a load shows the Flanger: the first the signal meets', () => {
+    const b = bus();
+    const r = rack(b);
+    load(b, { 'fx.flanger.on': 1, 'fx.chorus.on': 1 });
+    expect(r.$('fxview-fx.flanger')!.hidden).toBe(false);
+    expect(r.phaser.hidden).toBe(true);
+    expect(r.chorus.hidden).toBe(true);
+  });
+});
+
 describe('a load shows the running effect (REQ-a-load-shows-the-running-effect)', () => {
   const cases: Array<[phaser: number, chorus: number, view: 'phaser' | 'chorus']> = [
     [0, 0, 'phaser'],

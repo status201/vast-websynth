@@ -3,7 +3,9 @@
 ```yaml
 id: chorus
 status: implemented
-version: 1
+version: 2   # v2: the flanger joins between the phaser and the chorus (flanger.md), so the
+             #     chorus now follows the flanger; it still comes after all the modulation
+             #     and before the delay (REQ-the-chorus-sits-after-the-phaser)
 owner: core
 related:
   - effects            # the insert-effect contract it implements (WrappedEffect, bypass, drain)
@@ -84,8 +86,10 @@ never decides a level.
   less. There is no feedback loop, so `quiesce` is not overridden
   ([effects](effects.md) REQ-a-bypassed-effect-drains-before-disconnect).
 - **REQ-the-chorus-sits-after-the-phaser** — Synth chain: `eq → dist → wah →
-  phaser → chorus → delay → reverb → duck`. Sampler chain: `eq → dist → phaser →
-  chorus → delay → reverb → duck`. After the modulation it shares a panel with,
+  phaser → flanger → chorus → delay → reverb → duck`. Sampler chain: `eq → dist →
+  phaser → flanger → chorus → delay → reverb → duck` (v2: the flanger,
+  [flanger](flanger.md) REQ-the-flanger-sits-between-phaser-and-chorus). After the
+  modulation it shares a panel with,
   before the delay and reverb so their tails carry its width — the pedalboard
   order. The **drum bus has no chorus**.
 - **REQ-the-chorus-widens-without-changing-level** — Switching the chorus on adds
@@ -165,7 +169,7 @@ Scenario: A knob turned while a mode is set does not leak through (edge)
 # pinned by: tests/audio/effects/chorus.test.ts
 
 Scenario: The chorus sits after the phaser on both buses (REQ-the-chorus-sits-after-the-phaser)
-  Then the synth and sampler chains wire phaser -> chorus -> delay
+  Then the synth and sampler chains wire phaser -> flanger -> chorus -> delay
    And the drum chain has no chorus
 # pinned by: tests/audio/effects/chorus.test.ts
 

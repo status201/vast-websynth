@@ -88,11 +88,11 @@ curve from bus values so it needs no analyser and runs no animation loop.
   [ADR-008](../decisions/adr-008-components-self-wire-params.md):
 
   ```
-  voiceBus ─→ EQ ─→ dist → wah → phaser → chorus → delay → reverb → duck → synthPan ─┐
-   drumBus ─→ EQ ─→ comp → drumPhaser → drumDelay → drumReverb ──────────────────────┤
-    smpBus ─→ EQ ─→ dist → phaser → chorus → delay → reverb → duck ──────────────────┤
-                                                                                     ▼
-                                                                                preMaster
+  voiceBus ─→ EQ ─→ dist → wah → phaser → flanger → chorus → delay → reverb → duck → synthPan ─┐
+   drumBus ─→ EQ ─→ comp → drumPhaser → drumDelay → drumReverb ────────────────────────────────┤
+    smpBus ─→ EQ ─→ dist → phaser → flanger → chorus → delay → reverb → duck ──────────────────┤
+                                                                                               ▼
+                                                                                          preMaster
   ```
 
   **Head, not tail**, for three reasons that all point the same way. It is where
