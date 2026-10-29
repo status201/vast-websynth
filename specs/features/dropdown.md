@@ -3,7 +3,9 @@
 ```yaml
 id: dropdown
 status: implemented
-version: 15 # v15: one Escape closes only the innermost open menu (stopImmediatePropagation: every
+version: 16 # v16: REQ-a-toggle-can-carry-a-legend — an unboxed toggle that is a panel's title
+            #      (the synth Delay's TYPE, delay-types.md v4)
+            # v15: one Escape closes only the innermost open menu (stopImmediatePropagation: every
             #      menu listens on the document); dismissMenu returns a disposer and the Grid
             #      popover's destroy() uses it (regressions)
             # v14: ParamDropdown takes an optional testId (delay-types.md REQ-delay-type-testids)
@@ -309,6 +311,17 @@ without anyone remembering to ask.
   test picks an option by this class; the same bridge-class idiom as
   `switch-label`.
 
+- **REQ-a-toggle-can-carry-a-legend** (v16) — **`DropdownOptions.legend` turns
+  the toggle into a panel title**: a small legend line carrying the caret,
+  above the value, with no box, no floor width and the panel title's type, so the control
+  is exactly as wide as its longest line. Everything else (menu, keys, anchor,
+  dismiss, dimming) is the ordinary dropdown's. It is for a value that names
+  what the panel *is* (the synth Delay's TYPE: `DELAY ▾` over `TAPE`), where a
+  title plus a boxed field beside it ran out of room. The legend is part of
+  the toggle's text, so its accessible name reads "Delay TAPE". It declares no
+  typeface of its own: legend and value inherit the toggle's faceplate serif. Without
+  `legend` nothing changes.
+
 ## Technical design
 
 ### Contract / public interface
@@ -601,6 +614,13 @@ Scenario: A rebuild does not repaint a value the list never held (regression, v7
   Given a Dropdown showing "Night Rider" while its options are preset names
   When setOptions runs and the caller re-asserts setValue("Night Rider")
   Then the toggle still reads "Night Rider", not the first option
+# pinned by: tests/ui/dropdown.test.ts
+
+Scenario: A legend sits above the value and survives a change (v16, REQ-a-toggle-can-carry-a-legend)
+  Given a Dropdown built with legend "Delay" showing "DIGITAL"
+  When "TAPE" is selected
+  Then the toggle holds the legend "Delay" and the label "TAPE"
+   And a Dropdown built without a legend renders no legend element
 # pinned by: tests/ui/dropdown.test.ts
 ```
 

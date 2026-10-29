@@ -4,6 +4,7 @@ import { delayFxGroup } from '../../src/ui/components/fx-group';
 import { ParamBus, registerDefaults } from '../../src/state/params';
 import { DELAY_TYPE_LABELS } from '../../src/state/delay';
 import ddStyles from '../../src/ui/styles/dropdown.module.css';
+import fxStyles from '../../src/ui/styles/fx-rack.module.css';
 
 /**
  * delay-types.md REQ-type-is-a-header-dropdown-and-char-a-knob and
@@ -65,5 +66,20 @@ describe.each(surfaces)('the %s delay', (_name, prefix, build) => {
     expect(char.getAttribute('aria-disabled')).toBe('false');
     b.set(`${prefix}.type`, 0);
     expect(char.getAttribute('aria-disabled')).toBe('true');
+  });
+
+  // v4 (regression): the synth panel's title is the dropdown; the header groups
+  // keep their own title and an unlabelled dropdown after it.
+  it(prefix === 'fx.delay' ? 'is the panel title, with a DELAY legend' : 'carries no legend', () => {
+    const { el, $ } = mount();
+    const legend = $(`dropdown-${prefix}.type`)!.querySelector(`.${ddStyles.legend!}`);
+    if (prefix === 'fx.delay') {
+      expect(legend?.textContent).toBe('Delay');
+      const row = el.querySelector<HTMLElement>('[data-help="fx.delay"]')!;
+      expect(row.firstElementChild?.getAttribute('data-testid')).toBe('dropdown-fx.delay.type');
+      expect(row.querySelector(`.${fxStyles.fxTitle!}`)).toBeNull();
+    } else {
+      expect(legend).toBeNull();
+    }
   });
 });

@@ -23,6 +23,8 @@ const SEARCH_ICON =
 export interface DropdownOptions {
   /** Force the filter row on/off; omitted = auto by option count (REQ-a-long-list-carries-a-filter). */
   filter?: boolean;
+  /** A legend line above the value: the toggle becomes the panel's title (REQ-a-toggle-can-carry-a-legend). */
+  legend?: string;
 }
 
 export interface SetOptionsOptions {
@@ -56,12 +58,15 @@ export class Dropdown {
   private listener: ((v: string) => void) | null = null;
   private open = false;
   private readonly forceFilter: boolean | undefined;
+  private readonly legend: string | undefined;
 
   constructor(options: string[], initial?: string, opts?: DropdownOptions) {
     this.forceFilter = opts?.filter;
+    this.legend = opts?.legend;
 
     this.el = document.createElement('div');
     this.el.className = `${styles.root!} dropdown`;
+    if (this.legend !== undefined) this.el.classList.add(styles.titled!);
 
     this.toggle = document.createElement('button');
     this.toggle.type = 'button';
@@ -274,6 +279,12 @@ export class Dropdown {
     const caret = document.createElement('span');
     caret.className = styles.caret!;
     caret.innerHTML = UI_ICONS.caretDown;
+    if (this.legend !== undefined) {
+      const legend = document.createElement('span');
+      legend.className = styles.legend!;
+      legend.textContent = this.legend;
+      this.toggle.appendChild(legend);
+    }
     this.toggle.appendChild(label);
     this.toggle.appendChild(caret);
   }

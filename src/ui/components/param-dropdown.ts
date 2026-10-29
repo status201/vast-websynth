@@ -1,6 +1,6 @@
 import styles from '../styles/dropdown.module.css';
 import type { ParamBus } from '../../state/params';
-import { Dropdown } from './dropdown';
+import { Dropdown, type DropdownOptions } from './dropdown';
 
 /**
  * Binds the vintage `Dropdown` to a discrete `ParamBus` param, mapping the
@@ -16,9 +16,10 @@ export class ParamDropdown {
   /**
    * `testId`: `Dropdown` mints no testid of its own, so a call site that needs
    * one names it here (testids.md REQ-non-param-buttons-take-an-explicit-testid).
+   * `opts` goes to `Dropdown` as is (a `legend`, dropdown.md REQ-a-toggle-can-carry-a-legend).
    */
-  constructor(bus: ParamBus, paramId: string, labels: string[], testId?: string) {
-    this.dd = new Dropdown(labels);
+  constructor(bus: ParamBus, paramId: string, labels: string[], testId?: string, opts?: DropdownOptions) {
+    this.dd = new Dropdown(labels, undefined, opts);
     this.dd.el.classList.add(styles.compact!);
     this.el = this.dd.el;
     if (testId) this.el.dataset.testid = testId;

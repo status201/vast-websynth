@@ -3,7 +3,10 @@
 ```yaml
 id: delay-types
 status: implemented
-version: 3  # v3: regressions: a retiring core's loop is zeroed only once its output gate has
+version: 4  # v4: regression: the synth panel's title *is* the TYPE dropdown (a DELAY ▾ legend
+            #     over the type), because a separate 120 px box beside the title pushed
+            #     the ON switch out of the panel at 1200 and 393 px
+            # v3: regressions: a retiring core's loop is zeroed only once its output gate has
             #     closed (bypass excepted); the spring loop glides back like the main
             #     loop; the reverse worklet allocates nothing per block
             # v2: REQ-every-type-is-bounded: every loop filter is a true Butterworth (Q in dB,
@@ -32,7 +35,7 @@ source:
   - public/worklets/reverse-delay.js   # the reverse core's DSP
   - public/sw.js                       # precaches the worklet
   - src/ui/components/delay-type-controls.ts # the delay's face: DELAY_KNOBS, the TYPE dropdown, CHAR's dimming
-  - src/ui/panels/fx-rack.ts           # synth: the Delay panel, through FxSpec's titleCompanion + wire
+  - src/ui/panels/fx-rack.ts           # synth: the Delay panel, through FxSpec's titleControl + wire
   - src/ui/components/fx-group.ts      # delayFxGroup: the drum + sampler DELAY header group
   - src/ui/components/param-dropdown.ts # ParamDropdown's testId argument
   - src/ui/components/knob.ts          # dimWhileParamIs: CHAR dims at DIGITAL
@@ -191,15 +194,24 @@ delay; a spring is a reverb tank, so it lives here as the Space Echo's tank
   REVERSE, whose heads read up to two windows back)
   ([effects](effects.md) REQ-a-bypassed-effect-drains-before-disconnect).
 - **REQ-type-is-a-header-dropdown-and-char-a-knob** — The synth Delay panel's
-  title row is `[Delay] [TYPE ▾]`; its knobs are TIME · FB · CHAR · MIX (four,
-  the Phaser's width, so the rack's layout math is unchanged). The drum and
+  title **is** the TYPE dropdown (v4): a small `DELAY ▾` legend over the type,
+  unboxed and set like the other panels' titles (dropdown REQ-a-toggle-can-carry-a-legend),
+  so clicking the title opens the type menu, the same gesture as a shared
+  slot's title (fx-slot-picker REQ-the-title-opens-the-menu). The two lines fit
+  inside the ON switch's height, so the header is no taller, and the title is
+  only as wide as its type, so it never crowds the switch. Before v4 the row was
+  `[Delay] [TYPE ▾]`, a compact dropdown with a 120 px floor, which pushed the
+  switch out of the panel at 1200 px and covered it at 393 px. Its knobs are
+  TIME · FB · CHAR · MIX (four, the Phaser's width, so the rack's layout math is
+  unchanged). The drum and
   sampler `DELAY` header groups (`delayFxGroup`) carry the dropdown after the
   title (fx-group REQ-a-group-can-host-a-title-companion) and the same four
   knobs. There the dropdown **collapses with the knobs** while the delay is
   bypassed (`afterTitleCollapses`), so a bypassed DELAY group is as narrow as it
   always was. Left showing, it wrapped the sampler's bypassed header row at
   1900 px under CI's fonts ([responsive-machine-header](responsive-machine-header.md),
-  `e2e/machine-header.spec.ts`). CHAR is **dimmed** (never hidden) while TYPE is DIGITAL
+  `e2e/machine-header.spec.ts`). Those groups keep the inline `[DELAY] [TYPE ▾]`
+  face: their strip is one line with its own title, and it never ran out of room. CHAR is **dimmed** (never hidden) while TYPE is DIGITAL
   (`dimWhileParamIs`), so its stored value stays visible for a type that uses it.
 - **REQ-delay-type-gesture-inventory** — (ADR-014) TYPE adds no gesture of its
   own: it is a `ParamDropdown`, whose inventory is [dropdown](dropdown.md)'s
@@ -420,6 +432,17 @@ Scenario: The dropdown and CHAR appear on all three buses (REQ-type-is-a-header-
    And CHAR is disabled while TYPE is DIGITAL and enabled at TAPE
 # pinned by: tests/ui/delay-type-ui.test.ts
 
+Scenario: The synth panel's title is the TYPE picker (regression, v4, REQ-type-is-a-header-dropdown-and-char-a-knob)
+  Given the synth rack is built
+  Then the Delay panel has no separate title: dropdown-fx.delay.type carries a DELAY legend and the current type
+   And the drum and sampler DELAY groups' dropdowns carry no legend
+# pinned by: tests/ui/delay-type-ui.test.ts
+
+Scenario: The Delay header fits its panel at narrow widths (regression, v4, REQ-type-is-a-header-dropdown-and-char-a-knob)
+  Given the viewport is 393 px or 1200 px wide, and TYPE is SPACE ECHO (the longest label)
+  Then the Delay panel's ON switch lies inside the panel and does not overlap the TYPE title
+# pinned by: e2e/delay-type-header.spec.ts
+
 Scenario: The entry chunk stays under its ceiling (REQ-the-delay-types-cost-the-boot-path-nothing-net)
   When the app is built
   Then delay-switch is its own chunk and the entry chunk is under 500 kB
@@ -437,7 +460,9 @@ Scenario: Each type is musical and switches without a click (ADR-010)
 - `tests/audio/effects/delay-types.test.ts` — table, defaults, splice, core
   switching, spill/drain, load failures, ping-pong gains, shaper bound.
 - `tests/audio/reverse-delay-worklet.test.ts` — the worklet under Node.
-- `tests/ui/delay-type-ui.test.ts` — dropdown, CHAR knob, dimming, on the three buses.
+- `tests/ui/delay-type-ui.test.ts` — dropdown, CHAR knob, dimming, on the three buses;
+  the synth title's legend (v4).
+- `e2e/delay-type-header.spec.ts` — the synth Delay header fits at 393 and 1200 px (v4).
 - `tests/audio/effects/bypass.test.ts`, `tests/audio/fx-tempo-lock.test.ts` — the
   digital delay's existing contract, unchanged and green.
 - `npm run typecheck && npm test && npm run spec:lint`; `npm run build && npm run check:bundle`.
