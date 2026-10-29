@@ -3,7 +3,11 @@
 ```yaml
 id: fx-group
 status: implemented
-version: 4   # v4: `fxGroupParts` hands back its title `label` too, so a slot picker can
+version: 5   # v5: a title companion can collapse with the knobs (`afterTitleCollapses`,
+             #     REQ-a-group-can-host-a-title-companion): the delay's TYPE dropdown is a
+             #     setting, so a bypassed DELAY group is as narrow as it always was
+             #     (delay-types.md REQ-type-is-a-header-dropdown-and-char-a-knob)
+             # v4: `fxGroupParts` hands back its title `label` too, so a slot picker can
              #     make the title open its menu (fx-slot-picker.md REQ-the-title-opens-the-menu)
              # v3: REQ-a-group-can-host-a-title-companion — `afterTitle` and `fxGroupParts`, so a
              #     group can share a slot with another (fx-slot-picker.md)
@@ -84,7 +88,16 @@ behaviour like this lives in one place.
   is the same builder handing back its `Knob`s as well as its root, for a caller
   that dims some of them (the chorus's RATE and DEPTH, `dimWhileModeSet`), and
   (v4) its title `label`, which the slot picker makes clickable;
-  `fxGroup` is `fxGroupParts(...).el`.
+  `fxGroup` is `fxGroupParts(...).el`. (v5) With `opts.afterTitleCollapses`
+  the companion **collapses with the knobs** under
+  REQ-bypassed-group-collapses-its-knobs. The slot caret leaves it off, since it is
+  navigation and a bypassed effect must stay reachable through it. The delay's
+  TYPE dropdown sets it, since it is a setting as inert as a knob while the
+  delay is off. That keeps a bypassed group at divider + title + switch, the
+  width the machine header's one-row budget is measured against
+  ([responsive-machine-header](responsive-machine-header.md)): left showing, the
+  dropdown's ~130 px wrapped the sampler's bypassed row at 1900 px under CI's
+  fonts.
 
 ## Technical design
 
@@ -124,6 +137,13 @@ Scenario: Bypassing re-collapses (edge)
   When <prefix>.on returns to 0
   Then the knobs hide again; the switch stays visible for re-engaging
 # pinned by: tests/ui/fx-group.test.ts
+
+Scenario: A collapsing title companion hides with the knobs (v5, REQ-a-group-can-host-a-title-companion)
+  Given a group built with afterTitle and afterTitleCollapses
+  When <prefix>.on is 0
+  Then the companion is hidden with the knobs, and shows again when it is 1
+  And a companion without afterTitleCollapses (the slot caret) stays visible either way
+# pinned by: tests/ui/fx-group.test.ts, e2e/machine-header.spec.ts (the sampler's wide row)
 ```
 
 ## Tests & verification

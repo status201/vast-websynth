@@ -32,6 +32,11 @@
     display: none;
   }
 
+  /* A title companion that is a setting (the delay's TYPE) goes with them (fx-group v5). */
+  .root:global(.collapsed) .collapsible {
+    display: none;
+  }
+
   .label {
     font-size: 9px;
     text-transform: uppercase;

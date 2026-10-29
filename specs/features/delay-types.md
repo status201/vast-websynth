@@ -175,7 +175,11 @@ delay; a spring is a reverb tank, so it lives here as the Space Echo's tank
   the Phaser's width, so the rack's layout math is unchanged). The drum and
   sampler `DELAY` header groups (`delayFxGroup`) carry the dropdown after the
   title (fx-group REQ-a-group-can-host-a-title-companion) and the same four
-  knobs. CHAR is **dimmed** (never hidden) while TYPE is DIGITAL
+  knobs. There the dropdown **collapses with the knobs** while the delay is
+  bypassed (`afterTitleCollapses`), so a bypassed DELAY group is as narrow as it
+  always was. Left showing, it wrapped the sampler's bypassed header row at
+  1900 px under CI's fonts ([responsive-machine-header](responsive-machine-header.md),
+  `e2e/machine-header.spec.ts`). CHAR is **dimmed** (never hidden) while TYPE is DIGITAL
   (`dimWhileParamIs`), so its stored value stays visible for a type that uses it.
 - **REQ-delay-type-gesture-inventory** — (ADR-014) TYPE adds no gesture of its
   own: it is a `ParamDropdown`, whose inventory is [dropdown](dropdown.md)'s
