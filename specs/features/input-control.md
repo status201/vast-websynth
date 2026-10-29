@@ -3,7 +3,9 @@
 ```yaml
 id: input-control
 status: implemented
-version: 21  # v21: two computer keys on one note release it with the last key, not the first
+version: 22  # v22: a lit white key sits lower — inset side shading, none where two lit
+             #      white keys meet (REQ-a-lit-white-key-sits-lower)
+             # v21: two computer keys on one note release it with the last key, not the first
              #      (REQ-a-note-off-names-the-pressed-note); a MIDI note is released after a channel
              #      change or an unplug (REQ-a-midi-note-is-released-by-whatever-ended-it)
              # v20: a key held into a text field is still released (REQ-shortcuts-are-suppressed-in-a-field) —
@@ -335,6 +337,21 @@ notes played on another tab no longer overwrite its bank.
   - **The lit classes win.** A key that is pressed or sequenced shows that, and its
     role tint steps aside — enforced in CSS, so no JS ordering can get it wrong.
 
+- **REQ-a-lit-white-key-sits-lower** (v22) — **A lit white key sits lower than its
+  neighbours.** A lit black key already reads as pressed: it loses its outer drop
+  shadow and sinks. A white key used to only change colour. Now any lit white key
+  (`active` or `seq`) carries a thin inset shade on its left and right edges, as if
+  the raised keys beside it cast it.
+  - **Where two lit white keys meet there is no shade.** They sit at the same depth,
+    so there is no step between them. Hold C4 and D4 and C4 is shaded only on its left,
+    D4 only on its right; in a run of three the middle key has no side shade at all.
+  - **Whichever way a key is lit.** A pressed key next to a sequenced one joins the
+    same way. Depth is about being down, not about who put it there.
+  - **CSS only.** The white keys are the board's in-order siblings (the black-key
+    overlay comes after them), so `+` and `:has(+ …)` find the neighbour. Each side's
+    shade is a custom property that the adjacency rules blank out, and `keyboard.ts`
+    knows nothing about it.
+
 ### v18 — channels, expression, pressure
 
 - **REQ-channel-ten-plays-the-sampler** (v18) — **MIDI channel 10 plays the
@@ -557,6 +574,12 @@ Scenario: A role does not disturb a lit key (v14, REQ-a-third-highlight-layer)
   Then the light-off still clears the element it lit
   And the key keeps whichever role it now has
 # pinned by: tests/ui/keyboard.test.ts
+
+Scenario: Two lit white keys side by side read as one pressed span (v22, REQ-a-lit-white-key-sits-lower)
+  Given C4 and D4 are both lit, by a finger, a computer key, MIDI or the sequencer
+  Then C4 is shaded on its left edge only and D4 on its right edge only
+  And a lone lit white key is shaded on both edges
+# pinned by: keyboard.module.css sibling rules; appearance by eye (jsdom computes no box-shadow)
 
 Scenario: Moving OCT while a key is held does not hang the voice (v9, REQ-a-note-off-names-the-pressed-note)
   Given a key on the on-screen keyboard is held down

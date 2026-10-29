@@ -44,7 +44,25 @@
     background: var(--key-white-active);
     box-shadow:
       inset 0 -2px 8px rgba(0, 0, 0, 0.3),
-      inset 0 2px 4px rgba(255, 220, 180, 0.4);
+      inset 0 2px 4px rgba(255, 220, 180, 0.4),
+      var(--key-side-l),
+      var(--key-side-r);
+  }
+
+  /* A lit white key sits lower: the raised keys either side shade its edges
+     (input-control.md REQ-a-lit-white-key-sits-lower). Two lit keys that meet sit at the
+     same depth, so the side they share has no step — whichever way each is lit. */
+  .white:is(:global(.active), :global(.seq)) {
+    --key-side-l: inset 5px 0 6px -2px rgba(0, 0, 0, 0.5);
+    --key-side-r: inset -5px 0 6px -2px rgba(0, 0, 0, 0.5);
+  }
+
+  .white:is(:global(.active), :global(.seq)) + .white:is(:global(.active), :global(.seq)) {
+    --key-side-l: 0 0 transparent;
+  }
+
+  .white:is(:global(.active), :global(.seq)):has(+ .white:is(:global(.active), :global(.seq))) {
+    --key-side-r: 0 0 transparent;
   }
 
   .black {
@@ -75,7 +93,9 @@
     box-shadow:
       inset 0 -2px 8px rgba(0, 0, 0, 0.3),
       inset 0 2px 6px rgba(244, 205, 94, 0.6),
-      0 0 12px rgba(244, 205, 94, 0.45);
+      0 0 12px rgba(244, 205, 94, 0.45),
+      var(--key-side-l),
+      var(--key-side-r);
   }
 
   .black:global(.seq) {
