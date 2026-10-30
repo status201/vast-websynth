@@ -238,7 +238,8 @@ Scenario: FM under hard sync stays periodic and band-limited (REQ-fm-reaches-the
 
 Scenario: The pair stays bounded under any fm (REQ-cross-mod-is-bounded, edge)
   Given NaN, Infinity and ±1000 on fm
-  Then every output sample is finite and within ±2
+  Then every output sample is finite and within ±2 (hard sync, saw: well inside the
+  pair's ±4 bound, oscillator-sync.md REQ-the-pair-is-bounded)
 # pinned by: tests/audio/sync-osc-worklet.test.ts
 
 Scenario: Ring is its own level, DC-blocked (REQ-ring-is-its-own-level, REQ-ring-is-dc-free)

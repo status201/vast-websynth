@@ -107,3 +107,13 @@ residual, and does not exist or run while sync is off.**
     differ only in their aliasing residue.
   - The first engagement waits for one module load, and voices play native until
     it lands.
+
+## Note (2026-10-30)
+
+The decision stands; one input to it did not. "Hard and reversing cover the
+musical ground" was wrong for a saw slave: reversing runs it up then down, so it
+repeats only every two master cycles and adds a sub-octave, heard as a hum at
+SYNC 0. Before release, soft became a hard reset with every slave edge rounded
+([oscillator-sync](../features/oscillator-sync.md) v6,
+REQ-soft-sync-rounds-every-slave-edge), chosen by ear over reversing and over
+rounding only the resets.

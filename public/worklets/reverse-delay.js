@@ -8,8 +8,11 @@
 // musical, stable, cheap — in that order.
 //
 //  - A new window opens when the last one starts to close, and the two cross
-//    over linearly, so the sum of the head gains is 1 at every sample. CHAR sets
-//    the crossover as a share of the window: short and punchy to long swells.
+//    over linearly. The opening hands every head still sounding a fade from its
+//    current gain to 0 over the NEW crossover, as the new head fades in over the
+//    same length, so the head gains sum to 1 at every sample even while TIME or
+//    CHAR move, and at most two heads ever sound. CHAR sets the crossover as a
+//    share of the window: short and punchy to long swells.
 //  - TIME and CHAR are read when a window opens, so moving them never zippers.
 //  - A head reads `2k + 1` samples behind the writer at step k, so the buffer
 //    holds two of the longest windows.
@@ -23,7 +26,7 @@ const MIN_TIME_S = 0.02;
 const MAX_TIME_S = 2;
 const MAX_FEEDBACK = 0.95;
 const MAX_CHANNELS = 2;
-const HEADS = 3; // two overlap at most; a third covers a window shrinking mid-fade
+const HEADS = 3; // two overlap at most (see open()); the third is spare
 const FADE_MIN = 0.05; // crossover share of the window at CHAR 0
 const FADE_MAX = 0.5; // ... and at CHAR 1: the windows are all crossover
 const SMOOTH_S = 0.01; // feedback one-pole
@@ -53,25 +56,51 @@ class ReverseDelayProcessor extends AudioWorkletProcessor {
     this.chans = 0;
     this.w = 0;
     this.heads = [];
-    for (let h = 0; h < HEADS; h++) this.heads.push({ on: false, start: 0, k: 0, len: 1, fade: 1 });
+    // `k`: steps read so far. `fade`: the fade-in. Once the next window opens,
+    // `outAt`/`outG`/`outLen`: the step, gain and length its fade-out starts from.
+    for (let h = 0; h < HEADS; h++) {
+      this.heads.push({ on: false, start: 0, k: 0, fade: 1, outAt: 0, outG: 0, outLen: 0 });
+    }
+    // The furthest a head may read: `2k + 1` behind the writer must stay in the buffer.
+    this.maxK = Math.floor(MAX_TIME_S * sampleRate);
     this.untilNext = 0;
     this.fb = -1;
     this.k = 1 - Math.exp(-1 / (SMOOTH_S * sampleRate));
     this.y = new Float32Array(MAX_CHANNELS);
+    // Each channel's input this block, refilled in place: process() allocates nothing.
+    this.ins = new Array(MAX_CHANNELS).fill(SILENCE);
   }
 
-  /** Open a window at write index `w`: the free head, else the one nearest its end. */
-  open(w, len, fade) {
-    let pick = this.heads[0];
+  /** A head's gain at its current step. */
+  gain(h) {
+    if (h.outLen > 0) return h.outG * (1 - (h.k - h.outAt) / h.outLen);
+    return h.k < h.fade ? h.k / h.fade : 1;
+  }
+
+  /**
+   * Open a window at write index `w`, fading in over `fade`. Every head still
+   * sounding fades from its current gain to 0 over that same `fade`, so the gains,
+   * which summed to 1, keep summing to 1 (Σg·(1 − t) + t). The next window opens
+   * `len - fade >= fade` later, by when they have all closed: a free head is
+   * always there, and the lowest-gain steal is only a backstop.
+   */
+  open(w, fade) {
+    let pick = null;
     for (const h of this.heads) {
-      if (!h.on) { pick = h; break; }
-      if (h.len - h.k < pick.len - pick.k) pick = h;
+      if (!h.on) { if (!pick || pick.on) pick = h; continue; }
+      const g = this.gain(h);
+      h.outG = g;
+      h.outAt = h.k;
+      // Never read past the buffer, which only a TIME raise mid-window approaches.
+      const room = this.maxK - h.k;
+      h.outLen = fade < room ? fade : room > 1 ? room : 1;
+      if (!pick || (pick.on && g < pick.outG)) pick = h;
     }
     pick.on = true;
     pick.start = w;
     pick.k = 0;
-    pick.len = len;
     pick.fade = fade;
+    pick.outLen = 0;
   }
 
   process(inputs, outputs, params) {
@@ -91,9 +120,9 @@ class ReverseDelayProcessor extends AudioWorkletProcessor {
     // A channel coming back into use starts from silence, not old audio.
     for (let c = this.chans; c < chans; c++) this.bufs[c].fill(0);
     this.chans = chans;
-    const ins = [];
+    const ins = this.ins;
     for (let c = 0; c < chans; c++) {
-      ins.push(input && input.length > 0 ? input[c < input.length ? c : input.length - 1] : SILENCE);
+      ins[c] = input && input.length > 0 ? input[c < input.length ? c : input.length - 1] : SILENCE;
     }
 
     const mask = this.mask;
@@ -104,7 +133,7 @@ class ReverseDelayProcessor extends AudioWorkletProcessor {
     let w = this.w;
     for (let i = 0; i < n; i++) {
       if (this.untilNext <= 0) {
-        this.open(w, len, fade);
+        this.open(w, fade);
         this.untilNext = len - fade;
       }
       this.untilNext--;
@@ -115,10 +144,11 @@ class ReverseDelayProcessor extends AudioWorkletProcessor {
         const hd = heads[h];
         if (!hd.on) continue;
         const j = hd.k;
-        const g = j < hd.fade ? j / hd.fade : j >= hd.len - hd.fade ? (hd.len - j) / hd.fade : 1;
+        const g = this.gain(hd);
         const r = (hd.start - 1 - j) & mask;
         for (let c = 0; c < chans; c++) y[c] += g * this.bufs[c][r];
-        if (++hd.k >= hd.len) hd.on = false;
+        hd.k++;
+        if (hd.outLen > 0 && hd.k - hd.outAt >= hd.outLen) hd.on = false;
       }
 
       for (let c = 0; c < chans; c++) {

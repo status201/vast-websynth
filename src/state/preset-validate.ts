@@ -77,14 +77,14 @@ export interface PresetValidateOptions {
 }
 
 /**
- * Where a finding goes. `structural` always refuses the file; `songSetting`
+ * Where a finding goes. `structural` always refuses the file; `notSound`
  * always only warns; `semantic` is whichever of the two the caller asked for
  * (REQ-semantic-severity-is-the-callers-choice) — which is the only knob, so it is resolved once, by the entry point.
  */
 interface Sinks {
   structural: AddError;
   semantic: AddError;
-  songSetting: AddError;
+  notSound: AddError;
 }
 
 /**
@@ -136,9 +136,9 @@ function checkSnapshot(
       sinks.semantic(`${path}."${id}" is a choice parameter — use an integer index (${map}).`);
     }
     if (!isPatchParam(id)) {
-      // Legal (a snapshot captures the whole bus) but rarely intended: loading
-      // the preset would also move the tempo / a machine's state.
-      sinks.songSetting(`${path}."${id}" is a song setting, not part of a sound — loading this preset would change it.`);
+      // Legal, but loading ignores it (presets.md REQ-a-preset-is-only-a-sound),
+      // so whoever wrote it is told rather than left wondering.
+      sinks.notSound(`${path}."${id}" is not part of a sound (a song setting, the key or the master compressor) — loading this preset ignores it.`);
     }
   }
   return snap;
@@ -174,7 +174,7 @@ export function validatePresetPayload(
   const sinks: Sinks = {
     structural: add,
     semantic: opts?.semantics === 'warning' ? warn : add,
-    songSetting: warn,
+    notSound: warn,
   };
 
   const format = value['format'];
@@ -245,10 +245,10 @@ export function validatePresetPayload(
 }
 
 /**
- * Every **patch** parameter at its registered default — the blank canvas a
- * sound is authored over. Deliberately not the whole bus: filling in
- * `transport.bpm` or `seq.on` would make loading a preset silently rewrite the
- * song around it (see `isPatchParam`).
+ * Every parameter of a sound at its registered default — the blank canvas a
+ * sound is authored over. Deliberately not the whole bus: `transport.bpm`,
+ * `seq.on` or the key are not part of a preset, and loading would ignore them
+ * (see `isPatchParam`).
  */
 export function defaultPatchParams(bus: ParamBus): Snapshot {
   const out: Snapshot = {};

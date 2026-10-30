@@ -216,4 +216,63 @@
     letter-spacing: 0.12em;
   }
   .compact .option { font-size: 9px; }
+
+  /* A toggle that is the panel's title (REQ-a-toggle-can-carry-a-legend): no box
+     and no floor width, so it is exactly as wide as its longest line, and the
+     legend over the value fits the ON switch's height. The caret rides the legend's
+     line (`DELAY ▾`, a slot title's shape), so the value has the full width: in
+     its own column it cost SPACE ECHO an ellipsis at 393 px. Compounded with `.root`
+     to win over `.compact`, which a ParamDropdown always adds. Type is
+     fx-rack's `.fxTitle`'s; the face is the toggle's serif. */
+  .root.titled { display: inline-block; width: auto; min-width: 0; }
+
+  .root.titled .toggle {
+    display: grid;
+    grid-template-columns: max-content 1fr;
+    grid-template-areas: "legend caret" "label label";
+    justify-content: start;
+    align-items: center;
+    column-gap: 3px;
+    row-gap: 2px;
+    width: auto;
+    min-width: 0;
+    min-height: 0;
+    padding: 0;
+    background: none;
+    border: none;
+    box-shadow: none;
+    font-size: 11px;
+    letter-spacing: 0.18em;
+    user-select: none;
+  }
+
+  .legend {
+    grid-area: legend;
+    font-size: 8px;
+    line-height: 1;
+    text-align: left;
+    color: var(--text-dim);
+  }
+
+  /* The toggle's own tracking, not `.fxTitle`'s 0.18em, which ellipsises SPACE
+     ECHO in a 393 px panel; the legend above keeps the title's. */
+  .root.titled .label {
+    grid-area: label;
+    line-height: 1;
+    letter-spacing: 0.1em;
+    text-shadow: 0 1px 0 rgba(0, 0, 0, 0.7);
+  }
+
+  .root.titled .caret { grid-area: caret; justify-self: start; font-size: 10px; }
+
+  .root.titled:global(.open) .caret,
+  .root.titled .toggle:focus-visible .caret {
+    color: var(--accent-secondary);
+  }
+
+  /* Hover devices only, like the slot title's: a tapped title keeps a sticky
+     :hover on touch, and a lit caret there reads as a menu still open. */
+  @media (hover: hover) {
+    .root.titled .toggle:hover .caret { color: var(--accent-secondary); }
+  }
 }

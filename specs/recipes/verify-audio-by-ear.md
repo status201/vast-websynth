@@ -84,6 +84,7 @@ npm run bench:audio -- --name solo --demo "Night Rider" --set drum.mute=1 --set 
 | `--tail-bar` | hold the capture open a whole bar after the last step so tails decay (default off — a plain take stays bar-exact) |
 | `--stagger <s>` | release the held notes one at a time, oldest first, `s` apart (default 0 = the whole chord drops at once) |
 | `--set id=value` | a `ParamBus` write applied before the take — repeatable |
+| `--alternate id=a,b[,c…]` | note mode: cycle a param through those values while the note is held, one step every `--every` seconds (default 0.25). A click *on a switch* depends on the phase it lands at, so a take with a few dozen switches covers the bad case |
 | `--url <url>` | drive an already-running server instead of spawning vite |
 | `--format wav\|mp3` | capture format (default `wav`; metrics need `wav`) |
 | `--headed` | show the browser, for debugging |

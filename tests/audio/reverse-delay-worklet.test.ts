@@ -97,4 +97,32 @@ describe('reverse-delay worklet', () => {
     proc.process([[]], [[out]], params({ time: 0.1 }));
     expect(Math.max(...out.map(Math.abs))).toBe(0);
   });
+
+  // Regression (runtime-performance.md REQ-no-allocation-in-a-hot-loop): the
+  // per-channel input list was a new array on every render quantum.
+  it('reuses one input list across blocks', () => {
+    const proc = new Processor() as ProcessorLike & { ins: unknown };
+    const first = proc.ins;
+    run(proc, params({ time: 0.1 }), 3, () => 0.5);
+    expect(Array.isArray(first)).toBe(true);
+    expect(proc.ins).toBe(first);
+  });
+
+  // Regression: each window's old head kept fading over its own crossfade, so a
+  // shorter TIME brought the new head in before the old one left (the sum rose
+  // toward 2), and the steal cut one off at full gain — a click per step. A
+  // constant input comes back as the sum of the head gains, so it must stay 1.
+  it('keeps the head gains summing to 1 while TIME steps', () => {
+    const proc = new Processor();
+    // Warm up at the longest TIME until every sample a head can reach is input.
+    run(proc, params({ time: 1.5, char: 1 }), Math.ceil((3.2 * SR) / BLOCK), () => 1);
+    let lo = Infinity, hi = -Infinity;
+    for (let step = 0; step < 18; step++) {
+      const time = [1.5, 0.6, 0.02][step % 3]!;
+      const out = run(proc, params({ time, char: 1 }), Math.round((0.5 * SR) / BLOCK), () => 1);
+      for (const y of out) { lo = Math.min(lo, y); hi = Math.max(hi, y); }
+    }
+    expect(lo).toBeGreaterThan(1 - 1e-5);
+    expect(hi).toBeLessThan(1 + 1e-5);
+  });
 });

@@ -149,7 +149,7 @@
   .badgeLayer {
     position: fixed;
     inset: 0;
-    z-index: 900; /* above panels (100), below modals (1000) so a help modal covers the badges */
+    z-index: 900; /* above panels and the header (≤ 10), below modals (1000) so a help modal covers the badges */
     pointer-events: none; /* only the badges themselves are clickable */
   }
 

@@ -161,6 +161,14 @@ describe('isPatchParam', () => {
     }
   });
 
+  // presets.md REQ-a-preset-is-only-a-sound (v18): Save and load already left these
+  // out, while the dirty marker and the song pin still counted them.
+  it('excludes the key and the master compressor, which belong to the song and the master', () => {
+    for (const id of ['scale.root', 'scale.type', 'chord.voicing', 'fx.master.comp.on']) {
+      expect(isPatchParam(id), id).toBe(false);
+    }
+  });
+
   it('excludes every meter param, so a preset cannot change the meter (meter.md REQ-meter-is-two-bus-scalars)', () => {
     for (const id of ['transport.beats', 'transport.beatUnit',
       'seq.len', 'seq.rate', 'drum.len', 'drum.rate', 'sampler.len', 'sampler.rate']) {

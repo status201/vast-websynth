@@ -30,7 +30,8 @@ export class SyncEngagement {
 
   /**
    * Take the pair, once (REQ-the-pair-is-built-on-first-use): both `Osc`s start
-   * mirroring into it, it picks up wherever the pitch curve is now, and the
+   * mirroring into it, it takes over the pitch curve as scheduled (a glide in
+   * flight, a note ahead: REQ-the-pair-follows-every-osc-control), and the
    * stored mode is applied.
    */
   attach(pair: SyncOscNode): void {
@@ -38,8 +39,7 @@ export class SyncEngagement {
     this.pair = pair;
     this.master.setMirror(pair.masterMirror);
     this.slave.setMirror(pair.slaveMirror);
-    const now = this.ctx.currentTime;
-    pair.freq.set(this.master.frequencyAt(now), now, 0);
+    this.master.lendFrequencyTo(pair.freq, this.ctx.currentTime);
     pair.setActive(false);
     this.apply();
   }
@@ -79,7 +79,9 @@ export class SyncEngagement {
     if (on) {
       pair.master.connect(this.master.signal);
       pair.slave.connect(this.slave.signal);
-      if (this.sounding()) pair.setActive(true);
+      // Both ways: a voice that went idle while a disengage was crossfading
+      // skipped its own `false` (REQ-the-pair-idles-with-the-voice).
+      pair.setActive(this.sounding());
     }
     rampTo(pair.master.gain, on ? 1 : 0, this.ctx, RAMP_BYPASS);
     rampTo(pair.slave.gain, on ? 1 : 0, this.ctx, RAMP_BYPASS);

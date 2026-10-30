@@ -456,7 +456,7 @@ export function laneMeterControlsFor(bus: ParamBus, lane: StepLane): LaneControl
   });
   // `root.contains` keeps the popover open while the user drives the two
   // Dropdowns inside it — their own menus render within this root.
-  dismissMenu(root, () => open, () => setOpen(false));
+  const undismiss = dismissMenu(root, () => open, () => setOpen(false));
 
   const off = onLaneGridChange(bus, lane, () => {
     const grid = laneGrid(bus, lane);
@@ -480,7 +480,9 @@ export function laneMeterControlsFor(bus: ParamBus, lane: StepLane): LaneControl
 
   return {
     el: root,
-    destroy(): void { off(); len.destroy(); rate.destroy(); },
+    // Nothing left behind (dropdown.md REQ-one-menu-is-open-at-a-time): the
+    // document listeners, and the registry entry of a popover torn down open.
+    destroy(): void { off(); len.destroy(); rate.destroy(); undismiss(); menuClosed(root); },
   };
 }
 

@@ -61,8 +61,8 @@ interface FxSpec {
   title: string;
   id: string;
   knobs: ReadonlyArray<readonly [param: string, label: string]>;
-  /** A control placed right after the title — the delay's TYPE dropdown. */
-  titleCompanion?: (bus: ParamBus, id: string) => HTMLElement;
+  /** A control that is the title, handed `title` as its legend: the delay's TYPE dropdown. */
+  titleControl?: (bus: ParamBus, id: string, title: string) => HTMLElement;
   /** Wiring between the built knobs and the bus — which knobs a mode or type dims. */
   wire?: (bus: ParamBus, id: string, knobs: readonly Knob[]) => void;
 }
@@ -94,9 +94,9 @@ const RACK: readonly RackEntry[] = [
       wire: (bus, id, knobs) => dimWhileModeSet(bus, id, CHORUS_MODE_OVERRIDES, knobs),
     },
   ],
-  // TYPE after the title, CHAR dimmed at DIGITAL: the same face as the drum and
-  // sampler header groups' (delay-types.md REQ-type-is-a-header-dropdown-and-char-a-knob).
-  { title: 'Delay', id: 'fx.delay', knobs: DELAY_KNOBS, titleCompanion: delayTypeDropdown, wire: dimCharAtDigital },
+  // TYPE is the title (a DELAY legend over the type), CHAR dimmed at DIGITAL: the
+  // header groups' knobs and dropdown (delay-types.md REQ-type-is-a-header-dropdown-and-char-a-knob).
+  { title: 'Delay', id: 'fx.delay', knobs: DELAY_KNOBS, titleControl: delayTypeDropdown, wire: dimCharAtDigital },
   { title: 'Reverb', id: 'fx.reverb', knobs: [['size', 'SIZE'], ['damp', 'DAMP'], ['mix', 'MIX']] },
   // Last in the rack because it is last in the chain (sidechain-ducking.md
   // REQ-the-ducker-is-last-in-the-chain/REQ-ducking-adds-no-new-gesture): SRC is a discrete knob over the drum lanes + Any, the same
@@ -138,18 +138,22 @@ const isSlot = (e: RackEntry): e is readonly FxSpec[] => Array.isArray(e);
  */
 function fxView(
   bus: ParamBus,
-  { title, id, knobs, titleCompanion, wire }: FxSpec,
+  { title, id, knobs, titleControl, wire }: FxSpec,
 ): { header: HTMLElement; knobs: HTMLElement; titleRow: HTMLElement; title: HTMLElement } {
   const header = document.createElement('div');
   header.className = fxStyles.fxHeader!;
   const titleRow = document.createElement('div');
   titleRow.className = fxStyles.fxTitleRow!;
   titleRow.dataset.help = id;
-  const t = document.createElement('div');
-  t.className = fxStyles.fxTitle!;
-  t.textContent = title;
+  let t: HTMLElement;
+  if (titleControl) {
+    t = titleControl(bus, id, title);
+  } else {
+    t = document.createElement('div');
+    t.className = fxStyles.fxTitle!;
+    t.textContent = title;
+  }
   titleRow.appendChild(t);
-  if (titleCompanion) titleRow.appendChild(titleCompanion(bus, id));
   header.appendChild(titleRow);
   header.appendChild(new Switch(bus, `${id}.on`, 'on').el);
 

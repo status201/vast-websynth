@@ -6,11 +6,14 @@
  * drift apart (REQ-the-pair-owns-both-phases). Runs only while sync is engaged;
  * the native oscillators carry the sound otherwise.
  *
- * Every discontinuity — a waveform's own edge, a hard-sync reset, a reversal, a
- * wave or width change — is corrected with a band-limited residual: a step
- * (BLEP) scaled by the value jump, a ramp (BLAMP) scaled by the slope jump and,
- * for a sine reset, a third-order term scaled by the curvature jump — each placed
- * at the event's sub-sample time (REQ-every-discontinuity-is-band-limited).
+ * Every discontinuity — a waveform's own edge, a sync reset, a wave or width
+ * change — is corrected with a band-limited residual: a step (BLEP) scaled by
+ * the value jump, a ramp (BLAMP) scaled by the slope jump and, for a sine reset,
+ * a third-order term scaled by the curvature jump — each placed at the event's
+ * sub-sample time (REQ-every-discontinuity-is-band-limited). Soft sync replaces
+ * the slave's value jumps, its wraps, pulse edges and resets, with a
+ * raised-cosine glide instead (REQ-soft-sync-rounds-every-slave-edge); a wave or
+ * width change stays a step, a one-off rather than part of the sound.
  * The residuals come from a windowed-sinc kernel integrated once and shared by
  * every instance. A linear-phase kernel needs lookahead, so both outputs are
  * delayed by its half-length — the same delay on both, so the pair stays aligned.
@@ -27,9 +30,9 @@ const TRI = 1;
 const SAW = 2;
 const SQUARE = 3;
 
-/** `mode`: 0 = free-running (no sync), 1 = hard, 2 = reversing. */
+/** `mode`: 0 = free-running (no sync), 1 = hard, 2 = soft. */
 const MODE_HARD = 1;
-const MODE_REVERSE = 2;
+const MODE_SOFT = 2;
 
 /** No oscillator may step more than this much phase per sample: one event per
  *  breakpoint per sample at most, and nothing at or past Nyquist. */
@@ -43,9 +46,15 @@ const FM_MAX = 16;
 /** The slave's DC blocker corner. A synced wave's mean moves with the ratio, and
  *  a sweep would push that sub-audio wobble into the filter (REQ-the-slave-is-dc-free). */
 const DC_HZ = 5;
+/** The output bound (REQ-the-pair-is-bounded). The naive waves stay within ±1.9,
+ *  but a narrow pulse's mean shifted by the DC blocker plus band-limiting ringing
+ *  reach ~2.25 in any mode, and soft sync under extreme FM ~3.4. The clamp only
+ *  guarantees the bound; nothing short of a pathological patch reaches it. */
+const OUT_MAX = 4;
 
-/** Correction ring: must exceed twice the longest kernel half-length. */
-const RING = 64;
+/** Correction ring: must hold a kernel's lookahead plus the longest soft glide
+ *  and its closing kernel (`half + SOFT_W_MAX + half`). */
+const RING = 256;
 const RING_MASK = RING - 1;
 
 /** Oversampling of the residual tables. */
@@ -58,6 +67,23 @@ const SINC_FC = 0.42;
 /** The shipped half-length: 16 taps each side, 16 samples of shared latency. The
  *  alias test measured 8 the same below 10 kHz but 15-25 dB worse above it. */
 const DEFAULT_HALF = 16;
+/** Soft sync: each slave value jump glides over this fraction of the slave's
+ *  own period, so the rounding keeps one character up the keyboard and the SYNC
+ *  sweep still brightens as the slave speeds up (REQ-soft-sync-rounds-every-slave-edge).
+ *  Chosen by ear over rounding only the resets (too close to hard) and 0.4 (dull). */
+const SOFT_ROUND = 0.2;
+/** A glide shorter than this many samples cannot be band-limited by its two
+ *  curvature corrections, so it hands its jump to the ordinary band-limited step,
+ *  crossfading over [`SOFT_W_STEP`, `SOFT_W_GLIDE`]: from a slave of ~800 Hz
+ *  (at 48 kHz), all band-limited step by ~2.4 kHz, where the glide would only have
+ *  shaped harmonics above ~10 kHz. */
+const SOFT_W_STEP = 4;
+const SOFT_W_GLIDE = 12;
+/** The longest glide, in samples: bounded by the ring. Reached only below ~50 Hz. */
+const SOFT_W_MAX = 200;
+/** The longest kernel half-length a test may ask for: what the ring leaves
+ *  beside the longest glide (see `RING`). */
+const MAX_HALF = Math.floor((RING - SOFT_W_MAX - 2) / 2);
 
 const kernels = new Map();
 
@@ -131,7 +157,7 @@ function curve(wave, p) {
   return wave === SINE ? -TAU * TAU * Math.sin(TAU * p) : 0;
 }
 
-/** The one interior breakpoint of a wave (its wrap at 0/1 is handled apart), or -1. */
+/** The one interior breakpoint of a wave (its wrap at 1 is handled apart), or -1. */
 function innerBreak(wave, width) {
   if (wave === TRI) return 0.5;
   if (wave === SQUARE) return width;
@@ -141,15 +167,17 @@ function innerBreak(wave, width) {
 const EPS = 1e-9;
 
 function makeOsc() {
-  return { p: 0, dir: 1, wave: SAW, width: 0.5 };
+  return { p: 0, wave: SAW, width: 0.5 };
 }
 
 class SyncOscProcessor extends AudioWorkletProcessor {
   static get parameterDescriptors() {
     return [
       { name: 'frequency', defaultValue: 440, minValue: 0, maxValue: 24000, automationRate: 'a-rate' },
-      // The voice's shared pitch modulation (bend, LFO, drift, matrix), cents.
-      { name: 'detune', defaultValue: 0, minValue: -9600, maxValue: 9600, automationRate: 'a-rate' },
+      // The voice's shared pitch modulation (bend, LFO, drift, matrix), cents. Wider
+      // than all of them summed (±18000), so the native detunes, which have no
+      // clamp, are never followed short (REQ-every-pitch-source-reaches-the-pair).
+      { name: 'detune', defaultValue: 0, minValue: -24000, maxValue: 24000, automationRate: 'a-rate' },
       // Each oscillator's own octave + fine tune, cents.
       { name: 'masterCents', defaultValue: 0, minValue: -4800, maxValue: 4800, automationRate: 'k-rate' },
       { name: 'slaveCents', defaultValue: 0, minValue: -4800, maxValue: 4800, automationRate: 'k-rate' },
@@ -173,7 +201,7 @@ class SyncOscProcessor extends AudioWorkletProcessor {
     // against polyBLEP and a naive reset; the node never passes them.
     const kind = o.kernel === 'poly' || o.kernel === 'naive' ? o.kernel : 'sinc';
     const half = kind === 'poly' ? 1 : kind === 'naive' ? 0
-      : Math.max(1, Math.min(RING / 2 - 1, Math.round(o.half || DEFAULT_HALF)));
+      : Math.max(1, Math.min(MAX_HALF, Math.round(o.half || DEFAULT_HALF)));
     this.half = half;
     this.kernel = half > 0 ? buildKernel(kind, half) : null;
     this.m = makeOsc();
@@ -187,6 +215,10 @@ class SyncOscProcessor extends AudioWorkletProcessor {
     // The master's naive value at the previous sample: FM's modulator, one sample
     // late, which no ear resolves and which costs nothing to keep.
     this.mPrev = 0;
+    // Whether this block's slave edges glide (`mode` is k-rate), and the
+    // increment their width follows (see `edge`).
+    this.soft = false;
+    this.wInc = 0;
     // Per-sample exp2 is the hot spot under vibrato, so each a-rate factor is
     // recomputed only when its input actually moved.
     this.lastD = NaN; this.lastDE = 1;
@@ -212,9 +244,9 @@ class SyncOscProcessor extends AudioWorkletProcessor {
   /**
    * Add the band-limited residuals of a value jump `dv`, a slope jump `ds` (per
    * sample) and a curvature jump `dc` (per sample²) at time `u` ∈ [0,1] of
-   * sample n's interval. A zero term costs nothing.
+   * the interval of sample n + `k0`. A zero term costs nothing.
    */
-  emit(acc, u, dv, ds, dc = 0) {
+  emit(acc, u, dv, ds, dc = 0, k0 = 0) {
     const k = this.kernel;
     if (!k) return;
     const half = k.half;
@@ -223,7 +255,7 @@ class SyncOscProcessor extends AudioWorkletProcessor {
     let base = pos | 0;
     let f = pos - base;
     if (base >= TABLE_OS) { base = TABLE_OS - 1; f = 1; }
-    const start = this.n - half;
+    const start = this.n + k0 - half;
     const B = k.B, A = k.A, C = k.C, cc = k.c;
     for (let j = 0; j < 2 * half; j++) {
       const i = j * TABLE_OS + base;
@@ -248,65 +280,52 @@ class SyncOscProcessor extends AudioWorkletProcessor {
 
   /**
    * Move `o` through the time span [u0, u1) of the current sample at `inc` phase
-   * per sample, emitting each breakpoint it crosses. Returns the time of a wrap
-   * past 1 (the master's reset instant), or -1.
+   * per sample, emitting each breakpoint it crosses into `acc`, rounded if `soft`
+   * (only ever the slave's). Returns the time of a wrap past 1 (the master's
+   * reset instant), or -1.
    */
-  advance(o, acc, u0, u1, inc) {
+  advance(o, acc, u0, u1, inc, soft) {
     // Fast path — no breakpoint inside this span, which is nearly every sample:
-    // one multiply and two compares, no division.
-    const step = inc * (u1 - u0);
+    // one multiply and one compare, no division.
     const ib = innerBreak(o.wave, o.width);
-    if (o.dir > 0) {
-      const next = ib > o.p ? ib : 1;
-      const q = o.p + step;
-      if (q < next) { o.p = q; return -1; }
-    } else {
-      const next = ib >= 0 && ib < o.p ? ib : 0;
-      const q = o.p - step;
-      if (q > next) { o.p = q; return -1; }
-    }
+    const next = ib > o.p ? ib : 1;
+    const q = o.p + inc * (u1 - u0);
+    if (q < next) { o.p = q; return -1; }
     let wrapAt = -1;
     let t = u0;
     let guard = 4;
     while (t < u1 && guard-- > 0) {
       let dist; let bp;
-      if (o.dir > 0) {
-        if (ib > o.p) { dist = ib - o.p; bp = ib; } else { dist = 1 - o.p; bp = 1; }
-      } else {
-        if (o.p === 0) o.p = 1;
-        if (ib >= 0 && ib < o.p) { dist = o.p - ib; bp = ib; } else { dist = o.p; bp = 0; }
-      }
+      if (ib > o.p) { dist = ib - o.p; bp = ib; } else { dist = 1 - o.p; bp = 1; }
       const tHit = inc > 0 ? t + dist / inc : Infinity;
       // Strict: a breakpoint landing exactly on the span's end is still crossed
       // here. Treating it as "next span" let the phase normalise past 1 below with
       // no event at all — a master wrap that never reset the slave, on any period
       // that is a whole number of samples.
       if (tHit > u1) {
-        o.p += o.dir * inc * (u1 - t);
+        o.p += inc * (u1 - t);
         break;
       }
-      // Crossing. Wrap breakpoints sit at both 0 and 1.
-      const wrap = bp === 0 || bp === 1;
-      const lo = wrap ? 1 - EPS : bp - EPS;
-      const hi = wrap ? EPS : bp + EPS;
-      const before = o.dir > 0 ? lo : hi;
-      const after = o.dir > 0 ? hi : lo;
+      // Crossing: the wrap at 1, or the interior breakpoint.
+      const wrap = bp === 1;
+      const before = wrap ? 1 - EPS : bp - EPS;
+      const after = wrap ? EPS : bp + EPS;
       const dv = value(o.wave, after, o.width) - value(o.wave, before, o.width);
-      const ds = (slope(o.wave, after) - slope(o.wave, before)) * o.dir * inc;
+      const ds = (slope(o.wave, after) - slope(o.wave, before)) * inc;
       // A sine's wrap is smooth: nothing to correct, so skip the taps.
-      if (dv > 1e-7 || dv < -1e-7 || ds > 1e-9 || ds < -1e-9) this.emit(acc, tHit, dv, ds);
+      if (dv > 1e-7 || dv < -1e-7 || ds > 1e-9 || ds < -1e-9) {
+        this.edge(acc, tHit, dv, ds, 0, soft);
+      }
       if (wrap) {
-        o.p = o.dir > 0 ? 0 : 1;
-        if (o.dir > 0) wrapAt = tHit;
+        o.p = 0;
+        wrapAt = tHit;
       } else {
-        o.p = bp;
+        // Step off the breakpoint so the next search starts beyond it.
+        o.p = bp + 1e-12;
       }
       t = tHit;
-      // Step off the breakpoint so the next search starts beyond it.
-      if (!wrap) o.p += o.dir * 1e-12;
     }
     if (o.p >= 1) o.p -= 1;
-    if (o.p < 0) o.p += 1;
     return wrapAt;
   }
 
@@ -325,25 +344,65 @@ class SyncOscProcessor extends AudioWorkletProcessor {
   }
 
   /**
-   * The sync event itself, at time `u` in the current sample. Hard: the slave
-   * jumps to the start of its cycle, so its value, slope and (for a sine)
-   * curvature all jump. Reversing: it turns round in place, so only the slope
-   * flips. `advance` resumes from the new phase over the rest of the sample,
-   * which is what keeps the master's overshoot (REQ-the-reset-keeps-the-overshoot).
+   * The sync event itself, at time `u` in the current sample: the slave jumps
+   * to the start of its cycle, so its value, slope and (for a sine) curvature
+   * all jump. `advance` resumes from phase 0 over the rest of the sample, which
+   * is what keeps the master's overshoot (REQ-the-reset-keeps-the-overshoot).
    */
-  syncSlave(mode, u, inc) {
+  syncSlave(u, inc) {
     const s = this.s;
-    if (mode === MODE_HARD) {
-      const dv = value(s.wave, EPS, s.width) - value(s.wave, s.p, s.width);
-      const ds = (slope(s.wave, EPS) - slope(s.wave, s.p) * s.dir) * inc;
-      const dc = (curve(s.wave, EPS) - curve(s.wave, s.p)) * inc * inc;
-      this.emit(this.acc1, u, dv, ds, dc);
-      s.p = 0;
-      s.dir = 1;
-    } else {
-      this.emit(this.acc1, u, 0, -2 * slope(s.wave, s.p) * s.dir * inc);
-      s.dir = -s.dir;
+    const dv = value(s.wave, EPS, s.width) - value(s.wave, s.p, s.width);
+    const ds = (slope(s.wave, EPS) - slope(s.wave, s.p)) * inc;
+    const dc = (curve(s.wave, EPS) - curve(s.wave, s.p)) * inc * inc;
+    this.edge(this.acc1, u, dv, ds, dc, this.soft);
+    s.p = 0;
+  }
+
+  /**
+   * One discontinuity at time `u`. Not `soft`: band-limited residuals for all
+   * three jumps. `soft` (the slave's, in soft mode): the value jump `dv` glides
+   * instead, over `SOFT_ROUND` of the slave's period, handing back to the
+   * band-limited step where that glide would be too short to band-limit
+   * (REQ-soft-sync-rounds-every-slave-edge). The width is read from `this.wInc`,
+   * a per-sample field rather than an argument, to keep the hot path lean.
+   *
+   * The period is `wInc`'s, not the instantaneous `inc`: a glide longer than
+   * the gap to the next edge lets the unsmoothed ramps outrun the lagging drops,
+   * and they pile up. FM can stall the slave for a moment (`inc` near 0) while
+   * the master keeps resetting it, so the width follows the pre-FM pitch and
+   * never exceeds `SOFT_ROUND` of the master's period.
+   */
+  edge(acc, u, dv, ds, dc, soft) {
+    if (!soft || dv === 0) { this.emit(acc, u, dv, ds, dc); return; }
+    const wInc = this.wInc;
+    const w = wInc > 0 ? SOFT_ROUND / wInc : SOFT_W_MAX;
+    if (w <= SOFT_W_STEP) {
+      this.emit(acc, u, dv, ds, dc);
+      return;
     }
+    const a = w >= SOFT_W_GLIDE ? 1 : (w - SOFT_W_STEP) / (SOFT_W_GLIDE - SOFT_W_STEP);
+    this.emit(acc, u, dv * (1 - a), ds, dc);
+    this.glide(acc, u, dv * a, w < SOFT_W_MAX ? w : SOFT_W_MAX);
+  }
+
+  /**
+   * The jump `dv` at time `u` eases in along a raised cosine over `w` samples:
+   * the naive wave already carries the jump, so the correction is the part not
+   * yet reached, `-dv·(1 + cos(πx/w))/2` at time x after it.
+   */
+  glide(acc, u, dv, w) {
+    for (let k = 0; ; k++) {
+      const x = k + 1 - u;
+      if (x >= w) break;
+      acc[(this.n + k) & RING_MASK] -= dv * 0.5 * (1 + Math.cos((Math.PI * x) / w));
+    }
+    // The raised cosine's value and slope are continuous at both ends, but its
+    // curvature jumps by dv·π²/(2w²) at each: band-limit those two corners.
+    const dc = (dv * Math.PI * Math.PI) / (2 * w * w);
+    this.emit(acc, u, 0, 0, dc);
+    const end = u + w;
+    const kEnd = Math.floor(end);
+    this.emit(acc, end - kEnd, 0, 0, dc, kEnd);
   }
 
   process(_inputs, outputs, params) {
@@ -369,10 +428,10 @@ class SyncOscProcessor extends AudioWorkletProcessor {
     const pw1 = widthOf(params.width1[0]);
     const pw2 = widthOf(params.width2[0]);
     const half = this.half;
+    const soft = (this.soft = mode === MODE_SOFT);
 
     this.retarget(this.m, this.acc0, w1, pw1);
     this.retarget(this.s, this.acc1, w2, pw2);
-    if (mode !== MODE_REVERSE) this.s.dir = 1;
 
     // The two per-block pitch constants; the a-rate parts are folded in per sample.
     const mK = exp2(mCents / 1200) / sampleRate;
@@ -395,6 +454,8 @@ class SyncOscProcessor extends AudioWorkletProcessor {
       const base = f * this.lastDE;
       let mInc = base * mK;
       let sInc = base * this.lastSpE * sK;
+      // Before FM: what a soft glide's width follows (see `edge`).
+      const sNom = sInc < maxInc ? sInc : maxInc;
       // Linear FM: the slave's frequency moves by β master-frequencies per unit of
       // master signal. Not through-zero — the clamp below stops it at 0 Hz. NaN
       // fails both comparisons and lands on 0, so a bad β is simply no FM.
@@ -403,15 +464,16 @@ class SyncOscProcessor extends AudioWorkletProcessor {
       if (b !== 0) sInc += b * mInc * this.mPrev;
       mInc = mInc > 0 ? (mInc < maxInc ? mInc : maxInc) : 0;
       sInc = sInc > 0 ? (sInc < maxInc ? sInc : maxInc) : 0;
+      this.wInc = sNom > mInc ? sNom : mInc;
 
-      const reset = this.advance(this.m, this.acc0, 0, 1, mInc);
-      if (reset >= 0 && (mode === MODE_HARD || mode === MODE_REVERSE)) {
+      const reset = this.advance(this.m, this.acc0, 0, 1, mInc, false);
+      if (reset >= 0 && (mode === MODE_HARD || mode === MODE_SOFT)) {
         // The slave runs up to the master's wrap, is synced there, then runs on.
-        this.advance(this.s, this.acc1, 0, reset, sInc);
-        this.syncSlave(mode, reset, sInc);
-        this.advance(this.s, this.acc1, reset, 1, sInc);
+        this.advance(this.s, this.acc1, 0, reset, sInc, soft);
+        this.syncSlave(reset, sInc);
+        this.advance(this.s, this.acc1, reset, 1, sInc, soft);
       } else {
-        this.advance(this.s, this.acc1, 0, 1, sInc);
+        this.advance(this.s, this.acc1, 0, 1, sInc, soft);
       }
 
       const slot = this.n & RING_MASK;
@@ -427,8 +489,9 @@ class SyncOscProcessor extends AudioWorkletProcessor {
       const y1 = x1 - this.dcX + this.dcR * this.dcY;
       this.dcX = x1;
       this.dcY = y1;
-      out0[i] = y0;
-      out1[i] = y1;
+      // NaN passes both compares untouched, for the block-end guard below.
+      out0[i] = y0 > OUT_MAX ? OUT_MAX : y0 < -OUT_MAX ? -OUT_MAX : y0;
+      out1[i] = y1 > OUT_MAX ? OUT_MAX : y1 < -OUT_MAX ? -OUT_MAX : y1;
       this.n++;
     }
 

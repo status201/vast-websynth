@@ -18,6 +18,20 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ### Added
 
+- **Delay types.** Every delay (synth, drum machine and sampler) has a **TYPE**
+  menu (on the synth, the panel's title is the menu) and a **CHAR** knob.
+  - **DIGITAL** is the delay as it was. **PING PONG** bounces the repeats left
+    and right. **TAPE** wobbles, saturates and darkens. **BBD** is the murky
+    bucket-brigade echo. **SPACE ECHO** is tape with the repeats splashing
+    through a spring. **REVERSE** plays each repeat backwards, so it swells
+    into the beat.
+  - CHAR is each type's character: the stereo width, the tape's wear, the
+    BBD's age, the amount of spring, or how smoothly the reversed pieces fade
+    into each other. It dims on DIGITAL, which has none.
+  - Switching type mid-song lets the old echoes ring out under the new ones.
+    The new types are loaded the first time you pick one, so a song that stays
+    on DIGITAL costs nothing extra, and they work offline in the installed app.
+
 - **Flanger.** The jet-plane sweep, on the synth and on the sampler.
   - It mixes the sound with a copy delayed by a few milliseconds and sweeps the
     delay, so a comb of notches glides up and down through it: pads, strings and
@@ -36,15 +50,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
   - Knobs: RATE, DEPTH, MIX, and MODE. MODE **FREE** uses RATE and DEPTH; **I**,
     **II** and **I+II** are fixed Juno-style settings (slow, faster and deeper, a
     fast shimmer) that take over from those two knobs, which dim while they do.
-  - It shares the Phaser's panel. Click the Phaser title, or the arrow next to
-    it, to open a menu that switches between the two; a lit dot shows which are on. Both can
-    run at once, each with its own settings.
+  - It shares the Phaser's panel with the Flanger. Click the panel's title, or
+    the arrow next to it, to open a menu that switches between them; a lit dot
+    shows which are on. All can run at once, each with its own settings.
   - A song that only uses the chorus opens with the Chorus panel showing.
 
 - **Oscillator sync.** OSC 2 has a new SYNC switch: **hard** or **soft**.
   - **hard:** every time OSC 1 starts a cycle, OSC 2 jumps back to the start of
     its own.
-  - **soft:** OSC 2 turns around instead, a rounder, gentler sound.
+  - **soft:** the same, but every edge of OSC 2 is rounded off: a darker,
+    smoother sync.
   - You still hear OSC 1's note. The SYNC knob, which appears while sync is on,
     changes OSC 2's tone instead of its pitch.
   - Sweep the knob for the classic tearing sync lead. Both LFOs and the mod
@@ -85,6 +100,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
   each play one bar, so reordering the sampler chain rearranges the break. It is
   a project bundle, so the break travels inside the file.
 
+- **New demo: Luftballons.** 99 Luftballons at 192 BPM: bass and drums in the
+  verse, then four POLY tracks from the chorus on (the bass, brass an octave
+  above it, and both notes of the guitar's power chord).
+
 ### Changed
 
 - **The synth panels line up.** The wave pickers and the filter's LADDER /
@@ -108,14 +127,27 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ### Fixed
 
+- **The delay no longer runs away at high FEEDBACK.** Above about 82%, the
+  echoes of a bright sound used to get louder instead of dying away, until they
+  howled. The filter that darkens each repeat had a small bump that boosted
+  part of the sound a little on every pass. It is now perfectly flat up to where
+  it rolls off, so even 95% feedback fades out. The bump was a slight
+  brightness, so DIGITAL echoes sound a touch softer around 3 to 4 kHz.
+
+- **Loading one of your own presets no longer changes the song.** A preset is
+  only a sound now. Before, saving one stored everything, so loading it later
+  put the tempo, the key and the sequencers, drum machine and sampler back to
+  how they were when you saved it. Presets saved before still load their sound;
+  the song settings in them are ignored.
+
 - Pressing Escape to close the **Clear ▾** menu or a lane's length/rate
   popover no longer also stops the song. Escape is the Panic key, and closing
   either menu used to let it through.
 - **Only one menu is open at a time.** Opening a dropdown, the Clear menu, a
-  lane's Grid popover or the Phaser/Chorus menu now closes whichever menu was
+  lane's Grid popover or the Phaser/Flanger/Chorus menu now closes whichever menu was
   already open; before, the two stayed open and overlapped. A LEN or RATE list
   inside the Grid popover still opens without closing it, and closes along with
-  it.
+  it. Escape closes the list first and the popover on a second press.
 
 - **A preset no longer inherits settings from the sound before it.** Loading
   `basic` after a synced or FM sound used to keep OSC 2 synced or the FM

@@ -5,14 +5,16 @@
  * (oscillator-sync.md REQ-the-pair-follows-every-osc-control).
  */
 export class FrequencyLine {
-  /** The last frequency commanded, and the param's own starting value until one is. */
-  private lastFreq: number;
-  /** The glide in flight, so `at` can compute where the curve has reached
-   *  rather than reading `AudioParam.value` back — see `set`. */
-  private glide: { from: number; to: number; at: number; tau: number } | null = null;
+  /**
+   * The last move commanded: from `from` to `to` starting at `at`, a step when
+   * `tau` is 0 and a one-pole glide otherwise. Kept so `at` can compute where
+   * the curve has reached rather than reading `AudioParam.value` back (see
+   * `set`), and so `follow` can schedule the same curve elsewhere.
+   */
+  private seg: { from: number; to: number; at: number; tau: number };
 
   constructor(private readonly param: AudioParam, initialHz: number) {
-    this.lastFreq = initialHz;
+    this.seg = { from: initialHz, to: initialHz, at: 0, tau: 0 };
   }
 
   /** Set the frequency. Optional glide via setTargetAtTime.
@@ -30,7 +32,7 @@ export class FrequencyLine {
     if (glideSec <= 0.001) {
       f.cancelScheduledValues(when);
       f.setValueAtTime(hz, when);
-      this.glide = null;
+      this.seg = { from, to: hz, at: when, tau: 0 };
     } else {
       const tau = glideSec / 3;
       // ANCHORED cancel (architecture.md "Never cancel automation without
@@ -46,9 +48,32 @@ export class FrequencyLine {
       f.cancelScheduledValues(when);
       f.setValueAtTime(from, when);
       f.setTargetAtTime(hz, when, tau);
-      this.glide = { from, to: hz, at: when, tau };
+      this.seg = { from, to: hz, at: when, tau };
     }
-    this.lastFreq = hz;
+  }
+
+  /**
+   * Take over `src`'s curve from `now` on, as it is scheduled: a glide in flight
+   * carries on to its target, and a move set ahead of `now` still lands at its
+   * own time (oscillator-sync.md REQ-the-pair-follows-every-osc-control). A
+   * one-pole glide is memoryless, so restarting it at `now` from where it has
+   * reached is the same curve.
+   */
+  follow(src: FrequencyLine, now: number): void {
+    const s = src.seg;
+    const f = this.param;
+    f.cancelScheduledValues(now);
+    if (s.at > now) {
+      f.setValueAtTime(s.from, now);
+      f.setValueAtTime(s.tau > 0 ? s.from : s.to, s.at);
+      if (s.tau > 0) f.setTargetAtTime(s.to, s.at, s.tau);
+      this.seg = { ...s };
+    } else {
+      const v = src.at(now);
+      f.setValueAtTime(v, now);
+      if (s.tau > 0) f.setTargetAtTime(s.to, now, s.tau);
+      this.seg = { from: v, to: s.to, at: now, tau: s.tau };
+    }
   }
 
   /**
@@ -60,9 +85,9 @@ export class FrequencyLine {
    * `setTargetAtTime` is a one-pole approach, so the value is closed-form.
    */
   at(t: number): number {
-    const g = this.glide;
-    if (!g) return this.lastFreq;
-    if (t <= g.at) return g.from;
-    return g.to + (g.from - g.to) * Math.exp(-(t - g.at) / g.tau);
+    const s = this.seg;
+    if (t < s.at) return s.from;
+    if (s.tau === 0) return s.to;
+    return s.to + (s.from - s.to) * Math.exp(-(t - s.at) / s.tau);
   }
 }

@@ -166,8 +166,9 @@ ParamBus:        # src/state/params.ts
                                  #   writing, not the user (motion automation, tape
                                  #   stop). Per-param listeners still fire.
   snapshot() / restore(snap)     # bulk save/load (restore suppresses onChange)
-                                 #   a song/preset stores savedParams(snapshot()), which drops
-                                 #   UNSAVED_PARAMS (master.expression, input-control.md REQ-cc11-is-expression)
+                                 #   a song stores savedParams(snapshot()), which drops
+                                 #   UNSAVED_PARAMS (master.expression, input-control.md REQ-cc11-is-expression);
+                                 #   a preset keeps only its sound params (presets.md REQ-a-preset-is-only-a-sound)
   resetDefaults()                # every param back to default
   onBulkApply(fn) -> unsub       # fn(ids) after restore()/resetDefaults() — the ids a bulk
                                  #   apply set, without the edit signal (motion-sequencer.md
@@ -388,7 +389,8 @@ that one day they would not:
   `HeldFeedback` ([delay-types](features/delay-types.md)).
 - **`loadWorkletModule(ctx, url)`** (`audio/worklet-module.ts`) — the flanger and
   the reverse delay each loaded their worklet on first use with the same
-  memo-and-forget-a-failure body.
+  memo-and-forget-a-failure body; the sync pair joined them (oscillator-sync.md v7),
+  having memoized a failure for the session.
 - **`createDjButton(label, testid)`** (`ui/components/button.ts`) — the transport
   row and the LIVE FX row each had a private `djButton`. They looked different
   and were not: both local aliases resolved to `song-panel.module.css`.

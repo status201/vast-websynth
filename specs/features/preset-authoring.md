@@ -3,7 +3,11 @@
 ```yaml
 id: preset-authoring
 status: implemented
-version: 3   # v3: REQ-semantic-severity-is-the-callers-choice — the semantic layer's severity is the caller's choice,
+version: 5   # v5: expansion and the warning follow `isPatchParam` again, now that it excludes the key
+             #     and the master compressor itself (presets.md v18)
+             # v4: the song-setting warning says the key is ignored on load (presets.md
+             #     REQ-a-preset-is-only-a-sound), no longer that loading would change it
+             # v3: REQ-semantic-severity-is-the-callers-choice — the semantic layer's severity is the caller's choice,
              #     so the app can run those checks without refusing the file
              # v2: REQ-preset-schemas-are-published — the schemas point at the published /params.* reference
 owner: tooling
@@ -86,12 +90,13 @@ passes it.
   max]`, and a fractional value on a *choice* parameter (one with `labels` — its
   value is the index, so a fraction lands between two settings). It reports, as
   **warnings** (`ok` stays true): an id for which `isPatchParam` is false —
-  legal, since a snapshot captures the whole bus, but it means loading the sound
-  also moves the song's tempo or a machine's state.
+  legal, but it is not part of a sound and loading ignores it
+  ([presets](presets.md) REQ-a-preset-is-only-a-sound), so whoever wrote it is told.
 - **REQ-expansion-fills-every-patch-param** — **Expansion.**
-  `defaultPatchParams(bus)` is every *patch* parameter at its registered
-  default; `expandPresetParams(bus, params)` layers the authored values over it.
-  Song-level ids are **not** filled in — expanding must never invent a tempo —
+  `defaultPatchParams(bus)` is every parameter of a sound (`isPatchParam`, which
+  excludes the key and the master compressor) at its registered default;
+  `expandPresetParams(bus, params)` layers the authored values over it. Song-level
+  ids are **not** filled in — expanding must never invent a tempo —
   but one the author wrote explicitly is preserved
   (REQ-semantic-validation-needs-the-bus already warned about it).
 - **REQ-preset-guide-is-generated** — **The guide** — `buildPresetGuide(bus,
@@ -234,7 +239,7 @@ Scenario: An out-of-range value is named with its range
 Scenario: A song setting inside a sound warns instead of failing (edge)
   Given a preset that also sets "transport.bpm"
   When it is validated against the bus
-  Then it is ok, with a warning that loading it would change the tempo
+  Then it is ok, with a warning that the id is not part of a sound and loading ignores it
 # pinned by: tests/state/preset-validate.test.ts, tests/mcp/tools.test.ts
 
 Scenario: The importer is told what the author would be refused for (v3, REQ-semantic-severity-is-the-callers-choice)

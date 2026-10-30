@@ -3,7 +3,27 @@
 ```yaml
 id: delay-types
 status: implemented
-version: 1
+version: 7  # v7: review: a bypass *rests* the live core (`DelayCore.rest`: its own sources stop,
+            #     its knobs keep gliding), separate from `sleep`, so every type rests the same
+            #     way and DIGITAL needs no exception; a core taken back mid-drain while
+            #     bypassed is rested too (regression: its sines ran on)
+            # v6: regression: the live core sleeps through a bypass too (its wow and flutter
+            #     sines stop once the wrapper quiesces, a fresh pair starts on release),
+            #     and a TYPE chosen while bypassed is not woken until the delay is on
+            # v5: regression: REVERSE's head gains sum to 1 while TIME or CHAR move too: a
+            #     window opening hands every sounding head a fade from its current gain
+            #     over the new crossfade. A TIME step used to leave the old head on its
+            #     own longer fade, the sum rose toward 2 and the head steal cut one off
+            #     at full gain: a click per step (43 bursts on a stepped take, 0 steady)
+            # v4: regression: the synth panel's title *is* the TYPE dropdown (a DELAY ▾ legend
+            #     over the type), because a separate 120 px box beside the title pushed
+            #     the ON switch out of the panel at 1200 and 393 px
+            # v3: regressions: a retiring core's loop is zeroed only once its output gate has
+            #     closed (bypass excepted); the spring loop glides back like the main
+            #     loop; the reverse worklet allocates nothing per block
+            # v2: REQ-every-type-is-bounded: every loop filter is a true Butterworth (Q in dB,
+            #     `BUTTERWORTH_Q_DB`); the old 0.707, read as dB, peaked +1.7 dB and DIGITAL /
+            #     PING PONG ran away above FB ≈ 0.82 (regression scenario)
 owner: core
 related:
   - effects            # the insert-effect contract (WrappedEffect, bypass, drain, chain order)
@@ -27,7 +47,7 @@ source:
   - public/worklets/reverse-delay.js   # the reverse core's DSP
   - public/sw.js                       # precaches the worklet
   - src/ui/components/delay-type-controls.ts # the delay's face: DELAY_KNOBS, the TYPE dropdown, CHAR's dimming
-  - src/ui/panels/fx-rack.ts           # synth: the Delay panel, through FxSpec's titleCompanion + wire
+  - src/ui/panels/fx-rack.ts           # synth: the Delay panel, through FxSpec's titleControl + wire
   - src/ui/components/fx-group.ts      # delayFxGroup: the drum + sampler DELAY header group
   - src/ui/components/param-dropdown.ts # ParamDropdown's testId argument
   - src/ui/components/knob.ts          # dimWhileParamIs: CHAR dims at DIGITAL
@@ -76,7 +96,8 @@ delay; a spring is a reverb tank, so it lives here as the Space Echo's tank
   (discrete, default 0 = DIGITAL) and `char` (0–1, default 0.5). Until a
   non-DIGITAL type is first chosen, `Delay` builds and drives **exactly** the
   graph it always did — `processedIn → delay → damp(4.5 kHz) → feedback`, same
-  constants, same nodes, no gates — and CHAR writes nothing. A song that never
+  constants, same nodes, no gates — and CHAR writes nothing. (v2: the one
+  deliberate change is the damp's `Q`, now Butterworth: REQ-every-type-is-bounded.) A song that never
   leaves DIGITAL never loads anything new.
 - **REQ-the-other-types-load-on-first-use** — The first non-DIGITAL choice on a
   delay imports `delay-switch.ts` (one chunk, with the cores, for every delay). Its `DelaySwitch`
@@ -99,10 +120,19 @@ delay; a spring is a reverb tank, so it lives here as the Space Echo's tank
   and the new core's gates up from 0, so the new type starts on new audio and
   the old one's echoes **spill over** instead of being cut. After
   `DELAY_SPILL_S` (2 s) the old core's output gate ramps to 0, its feedback is
-  quiesced, and after its own `drainSeconds()` it is disconnected (ADR-012: an
+  quiesced once that gate has closed (`DISCONNECT_DELAY_MS` later, the bypass
+  wrapper's own order: at a short TIME a loop stepped to 0 while still heard
+  reaches the output one TIME later as a click; a bypass in that wait zeroes it
+  at once, since the wrapper has already faded), and after its own
+  `drainSeconds()` it is disconnected (ADR-012: an
   idle type costs nothing; a disconnected core also **sleeps**, stopping any
   source of its own, such as the analog wow and flutter sines, which a fresh
-  wake re-creates). Re-selecting a still-spilling type takes it back as it is.
+  wake re-creates). The **live** core **rests** through a bypass: when the
+  wrapper quiesces (its wet already faded to 0) its own sources stop, and the
+  release resumes them before the wet ramps back. Resting is not sleeping: its
+  knobs keep gliding, so every type rests the same way, DIGITAL included (which
+  has nothing to stop). Any core taken while bypassed is taken resting, a fresh
+  one or one taken back mid-drain alike. Re-selecting a still-spilling type takes it back as it is.
   A type chosen and left again before it loaded is built idle and never
   connected. A motion lane or song load that moves TYPE never clicks, which
   takes two rules (both found in review):
@@ -115,12 +145,13 @@ delay; a spring is a reverb tank, so it lives here as the Space Echo's tank
     release only when the core is not already in that state, and a release
     **glides** to the knob (`setTargetAtTime`, no cancel, so it continues from
     the pinned 0). A core taken back mid-drain still holds echoes, and stepping
-    its loop gain from 0 to the knob would click.
+    its loop gain from 0 to the knob would click. This holds for every loop a
+    core has, SPACE ECHO's spring tank included.
 - **REQ-each-type-has-its-own-topology** — Every core reads TIME (tempo-locked,
   clamped 0.001–2 s), FEEDBACK (0–0.95) and CHAR, and starts on the knobs as they
   stand; each is native nodes except REVERSE. The numbers are starting points
   dialled by ear, named once in `delay-cores.ts` (`ANALOG_VOICINGS`, the
-  `SPRING_*` and `PINGPONG_*` constants):
+  `SPRING_*` constants, and `pingPongWidth` for ping-pong's width):
   - **PING PONG** — the input is folded to mono and feeds `L`; `L → R → L` cross
     feedback through DIGITAL's damp lowpass, each line at TIME, so the first
     repeat is left and they alternate, each `fb` quieter than the last, as
@@ -142,16 +173,28 @@ delay; a spring is a reverb tank, so it lives here as the Space Echo's tank
     level scaled by `1 − SPRING_FEEDBACK` to undo the loop's DC gain, the echo
     yielding a little as it comes in.
   - **REVERSE** — a worklet that plays windows of length TIME backwards on
-    alternating read heads with complementary linear crossfades (their gains sum
-    to 1 at every sample); CHAR sets the crossfade from 5% to 50% of the window —
+    alternating read heads with complementary linear crossfades whose gains sum
+    to 1 at every sample, while TIME and CHAR move as well: a window opening
+    fades every head still sounding from its current gain to 0 over the new
+    window's crossfade, as the new head fades in over the same length, so at most
+    two heads ever sound; CHAR sets the crossfade from 5% to 50% of the window —
     short and punchy to long swells. TIME and CHAR are read when a window opens,
     so moving them never zippers.
-- **REQ-every-type-is-bounded** — Feedback is clamped to 0.95 on every type.
-  The analog loops saturate with `tanh(k·x)/k` (bucketed and memoized), whose
-  slope at 0 is 1 and whose magnitude never exceeds 1, so the loop gain is never
-  above the FEEDBACK knob's: a 0.95 feedback rings on as a bounded dub runaway.
+- **REQ-every-type-is-bounded** — Feedback is clamped to 0.95 on every type,
+  and **no filter in a feedback loop has gain above 1 at any frequency**: every
+  loop lowpass and highpass (DIGITAL's and PING PONG's damp, the analog loops',
+  the spring's) is a true Butterworth, `Q = BUTTERWORTH_Q_DB` (−3.01). Web Audio
+  reads a lowpass/highpass `Q` in **dB**, so the 0.707 these were first written
+  with was a +1.7 dB resonant bump, ×1.22 near 3.5 kHz. At FB 0.95 that is a loop
+  gain of 1.16: DIGITAL and PING PONG (no saturator) grew without bound, about
+  20 dB every 5 s, and BBD's cascaded bumps howled from FB ≈ 0.68. The analog
+  loops also saturate with `tanh(k·x)/k` (bucketed and memoized), whose slope at
+  0 is 1 and whose magnitude never exceeds 1, so the loop gain is never above
+  the FEEDBACK knob's: a 0.95 feedback rings on as a long dub tail that dies away.
   The reverse worklet clamps feedback, soft-saturates its loop, reads a
-  non-finite input as 0 and flushes denormals.
+  non-finite input as 0 and flushes denormals. Its `process()` allocates
+  nothing: the per-channel input list is built once, in the constructor
+  ([runtime-performance](runtime-performance.md) REQ-no-allocation-in-a-hot-loop).
 - **REQ-ping-pong-keeps-the-digital-level** — Each ping-pong repeat carries the
   power DIGITAL's would: DIGITAL's mono echo `x` up-mixes to `L = R = x`, a power
   of `2x²`, so a repeat's own and other gains satisfy `near² + far² = 2` (an
@@ -171,15 +214,24 @@ delay; a spring is a reverb tank, so it lives here as the Space Echo's tank
   REVERSE, whose heads read up to two windows back)
   ([effects](effects.md) REQ-a-bypassed-effect-drains-before-disconnect).
 - **REQ-type-is-a-header-dropdown-and-char-a-knob** — The synth Delay panel's
-  title row is `[Delay] [TYPE ▾]`; its knobs are TIME · FB · CHAR · MIX (four,
-  the Phaser's width, so the rack's layout math is unchanged). The drum and
+  title **is** the TYPE dropdown (v4): a small `DELAY ▾` legend over the type,
+  unboxed and set like the other panels' titles (dropdown REQ-a-toggle-can-carry-a-legend),
+  so clicking the title opens the type menu, the same gesture as a shared
+  slot's title (fx-slot-picker REQ-the-title-opens-the-menu). The two lines fit
+  inside the ON switch's height, so the header is no taller, and the title is
+  only as wide as its type, so it never crowds the switch. Before v4 the row was
+  `[Delay] [TYPE ▾]`, a compact dropdown with a 120 px floor, which pushed the
+  switch out of the panel at 1200 px and covered it at 393 px. Its knobs are
+  TIME · FB · CHAR · MIX (four, the Phaser's width, so the rack's layout math is
+  unchanged). The drum and
   sampler `DELAY` header groups (`delayFxGroup`) carry the dropdown after the
   title (fx-group REQ-a-group-can-host-a-title-companion) and the same four
   knobs. There the dropdown **collapses with the knobs** while the delay is
   bypassed (`afterTitleCollapses`), so a bypassed DELAY group is as narrow as it
   always was. Left showing, it wrapped the sampler's bypassed header row at
   1900 px under CI's fonts ([responsive-machine-header](responsive-machine-header.md),
-  `e2e/machine-header.spec.ts`). CHAR is **dimmed** (never hidden) while TYPE is DIGITAL
+  `e2e/machine-header.spec.ts`). Those groups keep the inline `[DELAY] [TYPE ▾]`
+  face: their strip is one line with its own title, and it never ran out of room. CHAR is **dimmed** (never hidden) while TYPE is DIGITAL
   (`dimWhileParamIs`), so its stored value stays visible for a type that uses it.
 - **REQ-delay-type-gesture-inventory** — (ADR-014) TYPE adds no gesture of its
   own: it is a `ParamDropdown`, whose inventory is [dropdown](dropdown.md)'s
@@ -334,6 +386,28 @@ Scenario: An unheard core runs nothing (regression, REQ-a-type-switch-is-click-f
   Then two new sines are started
 # pinned by: tests/audio/effects/delay-types.test.ts
 
+Scenario: A bypassed delay runs no sines (regression, REQ-a-type-switch-is-click-free-and-spills, ADR-012)
+  Given TAPE is live
+  When the delay is bypassed and quiesces
+  Then its wow and flutter sines are stopped
+  When TYPE moves to BBD while still bypassed
+  Then BBD starts no sines
+  When the delay is switched on again
+  Then BBD's two sines start
+  # Found in the pre-release sweep: only a retired core ever slept, so the live
+  # one kept its sines running for the whole bypass (CPU, on Gecko above all).
+# pinned by: tests/audio/effects/delay-types.test.ts
+
+Scenario: A core taken back mid-drain while bypassed rests (regression, v7, REQ-a-type-switch-is-click-free-and-spills)
+  Given TAPE was switched away from, then the delay bypassed (TAPE draining)
+  When TAPE is selected again before its drain ends, still bypassed
+  Then its wow and flutter sines are not running
+  When the delay is switched on
+  Then two sines run
+  # Found in review: `take` neither woke nor slept a core it took back while
+  # bypassed, so an awake core's sines ran on through the bypass.
+# pinned by: tests/audio/effects/delay-types.test.ts
+
 Scenario: A core taken back mid-drain glides its loop back (regression, REQ-a-type-switch-is-click-free-and-spills)
   Given the delay is on, and TAPE was left long enough to retire but not to disconnect
   When TAPE is selected again
@@ -357,6 +431,26 @@ Scenario: The analog loop gain never exceeds the knob (REQ-every-type-is-bounded
    And the loop gain is at most 0.95
 # pinned by: tests/audio/effects/delay-types.test.ts
 
+Scenario: No loop filter boosts, so FB 0.95 decays (regression, REQ-every-type-is-bounded)
+  Given every lowpass and highpass biquad built by DIGITAL and by each core
+  When its magnitude response is computed from its type, frequency and Q (read in dB)
+  Then the filters in series never exceed unity at any frequency
+   And so each loop's gain is at most FEEDBACK
+# pinned by: tests/audio/effects/delay-types.test.ts
+
+Scenario: A retiring core's loop is zeroed after its fade (regression, REQ-a-type-switch-is-click-free-and-spills)
+  Given TIME 20 ms and FEEDBACK 0.9 on DIGITAL, and TAPE is chosen
+  When the spill ends and the output gate starts to close
+  Then DIGITAL's loop still holds 0.9, and is zeroed DISCONNECT_DELAY_MS later
+  And a bypass inside that wait zeroes it at once
+# pinned by: tests/audio/effects/delay-types.test.ts
+
+Scenario: SPACE ECHO taken back mid-drain glides its spring in (regression, REQ-a-type-switch-is-click-free-and-spills)
+  Given SPACE ECHO was left for DIGITAL and its loops are zeroed
+  When SPACE ECHO is chosen again
+  Then the spring loop glides back to its gain, with no step
+# pinned by: tests/audio/effects/delay-types.test.ts
+
 Scenario: The reverse worklet plays windows backwards and stays bounded (REQ-each-type-has-its-own-topology, REQ-every-type-is-bounded)
   Given an impulse into reverse-delay with time 0.1 s and feedback 0
   Then it comes back within two windows, at no more than unity
@@ -364,6 +458,16 @@ Scenario: The reverse worklet plays windows backwards and stays bounded (REQ-eac
   Given full-scale noise at feedback 0.95 for 20 s with NaN injected
   Then every output sample is finite and bounded
   Given the input disconnects, Then two windows later it outputs silence
+# pinned by: tests/audio/reverse-delay-worklet.test.ts
+
+Scenario: REVERSE stays level and click-free while TIME steps (regression, REQ-each-type-has-its-own-topology)
+  Given a steady input into reverse-delay at CHAR 1 and feedback 0
+  When TIME steps 1.5 s → 0.6 s → 0.02 s every 0.5 s
+  Then the head gains sum to 1 at every sample (a constant input comes back constant)
+  # Found in the pre-release sweep, confirmed by render: each window's old head
+  # kept fading over its own crossfade, so a shorter TIME brought the new head in
+  # before the old one left (the sum rose toward 2, +3.5 dB on the take), windows
+  # opened faster than heads freed and the steal cut one off at full gain.
 # pinned by: tests/audio/reverse-delay-worklet.test.ts
 
 Scenario: Bypass drains every live core (REQ-the-delay-drains-every-live-core)
@@ -379,6 +483,17 @@ Scenario: The dropdown and CHAR appear on all three buses (REQ-type-is-a-header-
    And choosing TAPE sets <prefix>.type to 2
    And CHAR is disabled while TYPE is DIGITAL and enabled at TAPE
 # pinned by: tests/ui/delay-type-ui.test.ts
+
+Scenario: The synth panel's title is the TYPE picker (regression, v4, REQ-type-is-a-header-dropdown-and-char-a-knob)
+  Given the synth rack is built
+  Then the Delay panel has no separate title: dropdown-fx.delay.type carries a DELAY legend and the current type
+   And the drum and sampler DELAY groups' dropdowns carry no legend
+# pinned by: tests/ui/delay-type-ui.test.ts
+
+Scenario: The Delay header fits its panel at narrow widths (regression, v4, REQ-type-is-a-header-dropdown-and-char-a-knob)
+  Given the viewport is 393 px or 1200 px wide, and TYPE is SPACE ECHO (the longest label)
+  Then the Delay panel's ON switch lies inside the panel and does not overlap the TYPE title
+# pinned by: e2e/delay-type-header.spec.ts
 
 Scenario: The entry chunk stays under its ceiling (REQ-the-delay-types-cost-the-boot-path-nothing-net)
   When the app is built
@@ -397,7 +512,9 @@ Scenario: Each type is musical and switches without a click (ADR-010)
 - `tests/audio/effects/delay-types.test.ts` — table, defaults, splice, core
   switching, spill/drain, load failures, ping-pong gains, shaper bound.
 - `tests/audio/reverse-delay-worklet.test.ts` — the worklet under Node.
-- `tests/ui/delay-type-ui.test.ts` — dropdown, CHAR knob, dimming, on the three buses.
+- `tests/ui/delay-type-ui.test.ts` — dropdown, CHAR knob, dimming, on the three buses;
+  the synth title's legend (v4).
+- `e2e/delay-type-header.spec.ts` — the synth Delay header fits at 393 and 1200 px (v4).
 - `tests/audio/effects/bypass.test.ts`, `tests/audio/fx-tempo-lock.test.ts` — the
   digital delay's existing contract, unchanged and green.
 - `npm run typecheck && npm test && npm run spec:lint`; `npm run build && npm run check:bundle`.
@@ -407,6 +524,12 @@ Scenario: Each type is musical and switches without a click (ADR-010)
   numbers in `delay-cores.ts` stand as shipped; a later retune is heard the same
   way: `bench:audio` at each TYPE in both engines, FB 0.95 on TAPE/BBD, rapid
   TYPE switching, and a demo A/B against `main` for the DIGITAL no-op.
+- **By ear (ADR-010), v2 Butterworth loop filters, signed off 2026-10-29**:
+  DIGITAL and PING PONG at FB 0.95 and BBD at FB 0.8 were rendered before and
+  after in Chromium, after in Firefox, plus a demo pass (`bench/q-*`). Before,
+  the held-note takes grew (DIGITAL −24 to −6 dBFS, PING PONG to 0 dBFS
+  clipping, BBD to −11 dBFS); after, they hold and decay. Listened to and
+  approved: the types sound as good or better, PING PONG clearly fixed.
 
 ## Open questions / future
 

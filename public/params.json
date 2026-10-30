@@ -1920,7 +1920,7 @@
       "min": 0,
       "max": 1,
       "default": 0,
-      "patch": true,
+      "patch": false,
       "step": 1,
       "taper": "discrete",
       "labels": [
@@ -1933,14 +1933,14 @@
       "min": -40,
       "max": 0,
       "default": -12,
-      "patch": true
+      "patch": false
     },
     {
       "id": "fx.master.comp.ratio",
       "min": 0,
       "max": 2,
       "default": 1,
-      "patch": true,
+      "patch": false,
       "step": 1,
       "taper": "discrete",
       "labels": [
@@ -1954,7 +1954,7 @@
       "min": 0.0001,
       "max": 0.03,
       "default": 0.01,
-      "patch": true,
+      "patch": false,
       "taper": "exp"
     },
     {
@@ -1962,7 +1962,7 @@
       "min": 0,
       "max": 4,
       "default": 4,
-      "patch": true,
+      "patch": false,
       "step": 1,
       "taper": "discrete",
       "labels": [
@@ -1978,7 +1978,7 @@
       "min": 0,
       "max": 12,
       "default": 0,
-      "patch": true
+      "patch": false
     },
     {
       "id": "master.volume",
@@ -2405,7 +2405,7 @@
       "min": 0,
       "max": 11,
       "default": 0,
-      "patch": true,
+      "patch": false,
       "step": 1,
       "taper": "discrete",
       "labels": [
@@ -2428,7 +2428,7 @@
       "min": 0,
       "max": 10,
       "default": 0,
-      "patch": true,
+      "patch": false,
       "step": 1,
       "taper": "discrete",
       "labels": [
@@ -2450,7 +2450,7 @@
       "min": 0,
       "max": 5,
       "default": 0,
-      "patch": true,
+      "patch": false,
       "step": 1,
       "taper": "discrete",
       "labels": [
@@ -2467,7 +2467,7 @@
       "min": 0,
       "max": 8,
       "default": 0,
-      "patch": true,
+      "patch": false,
       "step": 1,
       "taper": "discrete",
       "labels": [

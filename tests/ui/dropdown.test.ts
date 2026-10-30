@@ -599,3 +599,23 @@ describe('Dropdown Escape (v9)', () => {
     }
   });
 });
+
+describe('Dropdown legend (v16, REQ-a-toggle-can-carry-a-legend)', () => {
+  it('sits above the value and survives a change; without one there is none', () => {
+    const dd = new Dropdown(['DIGITAL', 'TAPE'], 'DIGITAL', { legend: 'Delay' });
+    const plain = new Dropdown(['DIGITAL', 'TAPE'], 'DIGITAL');
+    document.body.append(dd.el, plain.el);
+    try {
+      expect(dd.el.classList.contains(styles.titled!)).toBe(true);
+      [...dd.el.querySelectorAll<HTMLButtonElement>(`.${styles.option!}`)].find((o) => o.textContent === 'TAPE')!.click();
+      const toggle = dd.el.querySelector(`.${styles.toggle!}`)!;
+      expect(toggle.querySelector(`.${styles.legend!}`)?.textContent).toBe('Delay');
+      expect(toggle.querySelector(`.${styles.label!}`)?.textContent).toBe('TAPE');
+      expect(plain.el.querySelector(`.${styles.legend!}`)).toBeNull();
+      expect(plain.el.classList.contains(styles.titled!)).toBe(false);
+    } finally {
+      dd.destroy();
+      plain.destroy();
+    }
+  });
+});

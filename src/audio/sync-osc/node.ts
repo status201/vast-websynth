@@ -1,5 +1,6 @@
 import type { OscMirror } from '../oscillator';
 import { FrequencyLine } from '../frequency-line';
+import { loadWorkletModule } from '../worklet-module';
 
 /**
  * The oscillator-sync pair (oscillator-sync.md, ADR-026): one worklet per voice
@@ -78,7 +79,8 @@ export class SyncOscNode {
     return new SyncOscNode(node, ctx);
   }
 
-  static async loadModule(ctx: BaseAudioContext): Promise<void> {
-    await ctx.audioWorklet.addModule('/worklets/sync-osc.js');
+  /** Once per context; a failure is forgotten, so the next ask retries. */
+  static loadModule(ctx: BaseAudioContext): Promise<void> {
+    return loadWorkletModule(ctx, '/worklets/sync-osc.js');
   }
 }

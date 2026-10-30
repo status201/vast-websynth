@@ -113,3 +113,14 @@ one tail-length after reconnect.
   at a different LFO phase after re-enable, which is musically irrelevant.
 - effects.md REQ-bypass-and-mix-are-a-crossfade is rewritten by this ADR (v3); the "no graph reconnect"
   wording of v2 is superseded.
+
+## Note (2026-10-30)
+
+The decision stands; `quiesce()` is wider than "zeroing an internal feedback
+loop". It is the one moment an effect learns its wet is silent, so it is also
+where an effect stops a source of its own that would run unheard: the chorus
+stops its LFO ([chorus](../features/chorus.md) v3) and the delay's live TYPE
+core rests its wow and flutter sines ([delay-types](../features/delay-types.md)
+v7). `quiesce(false)` resumes them before the wet ramps back. A started
+oscillator costs CPU whether or not anything hears it, so this is the same
+promise this ADR makes about the disconnect.

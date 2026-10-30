@@ -146,7 +146,8 @@ concern.**
   unit) — a route's amount is scaled by the destination, not by the source:
   semitones for cutoff, cents for pitch, from one fixed table, `MOD_DEST_SCALE`
   (`src/state/mod-routing.ts`) — pitch ±2400 ¢, cutoff ±48 st, shape ±1, amp
-  ±0.5, pan ±1, plus the two the matrix adds, resonance ±4.2 and drive ±4. These
+  ±0.5, pan ±1, sync ±48 st, FM ±8 index units, plus the two the matrix adds,
+  resonance ±4.2 and drive ±4. These
   are the matrix's **own** scalars and are deliberately *deeper* than the LFO
   taps' ([lfo](lfo.md) REQ-duplicated-destinations-sum-and-stay-bounded — pitch ±1200 ¢, cutoff ±24 st, shape ±0.5): the
   matrix is the wide-range router, the LFO knob the fine one.
@@ -303,11 +304,13 @@ mod.<n>.amt: { range: -1..1, default: 0 }                                       
 none:      -                                      -
 cutoff:    v.filter.cutoffNote    a-rate  per-voice   semitones, x48
 resonance: v.filter.resonance     a-rate  per-voice   0..4.2,    x4.2   # REQ-resonance-becomes-reachable
-pitch:     osc{1,2,sub}.detune    a-rate  per-voice   cents,     x2400
+pitch:     v.pitchTargets()       a-rate  per-voice   cents,     x2400  # the three detunes + the sync pair's junction
 shape:     v.filter.shape         a-rate  per-voice   0..1,      x1
 amp:       v.tremolo.gain         a-rate  per-voice   base 1,    x0.5
 drive:     v.filter.drive         k-rate  per-voice   0.5..8,    x4
 pan:       Engine.synthPan.pan    a-rate  BUS-WIDE    -1..1,     x1     # REQ-per-voice-sources-cannot-drive-bus-destinations applies
+sync:      v.syncTarget           a-rate  per-voice   semitones, x48    # v7, the SYNC knob's junction (oscillator-sync.md)
+fm:        v.fmTarget             a-rate  per-voice   FM index,  x8     # v8, the FM knob's junction (cross-modulation.md)
 ```
 
 ### Gesture inventory — a matrix row (ADR-014)

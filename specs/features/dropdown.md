@@ -3,7 +3,15 @@
 ```yaml
 id: dropdown
 status: implemented
-version: 14 # v14: ParamDropdown takes an optional testId (delay-types.md REQ-delay-type-testids)
+version: 17 # v17: REQ-an-open-menu-stays-under-the-sticky-header — the section holding an open
+            #      menu is raised above its sibling sections but not above the header;
+            #      at z-index 100 it painted over the header, which vanished (regression)
+            # v16: REQ-a-toggle-can-carry-a-legend — an unboxed toggle that is a panel's title
+            #      (the synth Delay's TYPE, delay-types.md v4)
+            # v15: one Escape closes only the innermost open menu (stopImmediatePropagation: every
+            #      menu listens on the document); dismissMenu returns a disposer and the Grid
+            #      popover's destroy() uses it (regressions)
+            # v14: ParamDropdown takes an optional testId (delay-types.md REQ-delay-type-testids)
             # v13: one menu is open at a time (REQ-one-menu-is-open-at-a-time) — every toggle
             #      stopped its own click, so opening a second menu never reached the
             #      first one's outside-click close and the two overlapped
@@ -130,6 +138,15 @@ without anyone remembering to ask.
   - **A menu takes its nested menus down with it.** However the popover closes
     (its own toggle, a choice, Escape, another menu), a dropdown open inside it
     closes too. Left open, it would spring back the next time the popover opened.
+  - **One Escape closes one menu, the innermost.** Every menu listens for
+    keydown on the document, so `stopPropagation` alone would let the same
+    Escape reach the popover around a LEN list. The handler that consumes it
+    calls `stopImmediatePropagation`; the inner dropdown is built before the
+    popover's `dismissMenu`, so it hears the key first. A second Escape closes
+    the popover.
+  - **A torn-down menu leaves nothing behind.** `dismissMenu` returns a disposer
+    that removes its document listeners; a control that is destroyed calls it
+    and `menuClosed(root)`, as `Dropdown.destroy()` does.
   - **Any way of opening counts:** a click, a title, or a key on a focused
     toggle.
   - `Dropdown.destroy()` also forgets its entry, so a torn-down dropdown is never
@@ -197,8 +214,8 @@ without anyone remembering to ask.
     like it did nothing — **and `stopPropagation`ed**, so they never reach
     `installShortcuts` on `window`. `Home` there seeks the transport
     ([transport-position](transport-position.md) REQ-home-and-shift-arrows-seek); an open dropdown must
-    not move the playhead. (`Escape` deliberately keeps its old bubbling
-    behaviour — panic-on-Escape is harmless and pre-dates this.)
+    not move the playhead. `Escape` on an open menu is consumed too
+    (REQ-the-menu-closes-on-outside-click, v9).
 - **REQ-a-dropdown-can-be-dimmed** (v5) — **A dropdown can be dimmed to mark its
   value as inherited / not explicitly set here**, via `setDimmed(on)`. The dim
   lands on the **toggle**, never on the root — and that scoping is the
@@ -296,6 +313,28 @@ without anyone remembering to ask.
   to disambiguate a selector is a test problem solved at the user's expense. A
   test picks an option by this class; the same bridge-class idiom as
   `switch-label`.
+
+- **REQ-an-open-menu-stays-under-the-sticky-header** (v17) — Every top-level
+  `.app` section is its own stacking context at `z-index: 1`, so a later section
+  paints over an earlier one's menu whatever the menu's own `z-index`. The
+  section holding an open dropdown (`.app > *:has(.dropdown.open)`,
+  `src/styles/layout.css`) is therefore raised: **above its sibling sections
+  (1) and below the sticky header (10)**, at 9. The header is page chrome and
+  stays on top while a menu is open; a menu that reaches up under it is covered
+  like any other scrolled content. At 100 the raise put the whole section, not
+  just the menu, above the header: opening the LFO destination with the page
+  scrolled made the header vanish under the synth panels.
+
+- **REQ-a-toggle-can-carry-a-legend** (v16) — **`DropdownOptions.legend` turns
+  the toggle into a panel title**: a small legend line carrying the caret,
+  above the value, with no box, no floor width and the panel title's type, so the control
+  is exactly as wide as its longest line. Everything else (menu, keys, anchor,
+  dismiss, dimming) is the ordinary dropdown's. It is for a value that names
+  what the panel *is* (the synth Delay's TYPE: `DELAY ▾` over `TAPE`), where a
+  title plus a boxed field beside it ran out of room. The legend is part of
+  the toggle's text, so its accessible name reads "Delay TAPE". It declares no
+  typeface of its own: legend and value inherit the toggle's faceplate serif. Without
+  `legend` nothing changes.
 
 ## Technical design
 
@@ -407,6 +446,19 @@ Scenario: Escape closes any fixed menu without reaching Panic (regression, v11, 
   When the user presses Escape
   Then the menu closes and the keydown does not reach the window
    And with the menu closed, Escape reaches the window untouched
+# pinned by: tests/ui/menu-anchor.test.ts
+
+Scenario: One Escape closes only the innermost menu (regression, v15, REQ-one-menu-is-open-at-a-time)
+  Given a lane's Grid popover is open with its LEN list open inside it
+  When the user presses Escape
+  Then the LEN list closes and the popover stays open
+  And a second Escape closes the popover, and a third reaches the window
+# pinned by: tests/ui/menu-anchor.test.ts
+
+Scenario: A destroyed popover leaves no listener behind (regression, v15, REQ-one-menu-is-open-at-a-time)
+  Given a lane's Grid popover is open
+  When its controls are destroyed
+  Then Escape reaches the window, and opening another menu does not call into it
 # pinned by: tests/ui/menu-anchor.test.ts
 
 Scenario: A fixed menu is never as wide as the viewport (regression, v11, REQ-every-fixed-menu-shares-one-anchor-and-dismiss)
@@ -576,6 +628,20 @@ Scenario: A rebuild does not repaint a value the list never held (regression, v7
   Given a Dropdown showing "Night Rider" while its options are preset names
   When setOptions runs and the caller re-asserts setValue("Night Rider")
   Then the toggle still reads "Night Rider", not the first option
+# pinned by: tests/ui/dropdown.test.ts
+
+Scenario: Opening a menu leaves the sticky header on top (regression, v17, REQ-an-open-menu-stays-under-the-sticky-header)
+  Given the page is scrolled so the sticky header overlaps the synth panels
+  When the LFO destination dropdown is opened
+  Then the header is still the topmost element where it is drawn
+   And the open menu still paints over the FX section below it
+# pinned by: e2e/menu-stacking.spec.ts
+
+Scenario: A legend sits above the value and survives a change (v16, REQ-a-toggle-can-carry-a-legend)
+  Given a Dropdown built with legend "Delay" showing "DIGITAL"
+  When "TAPE" is selected
+  Then the toggle holds the legend "Delay" and the label "TAPE"
+   And a Dropdown built without a legend renders no legend element
 # pinned by: tests/ui/dropdown.test.ts
 ```
 

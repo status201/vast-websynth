@@ -5,7 +5,7 @@ import { SlotStore } from './slot-store';
 import { RESERVED_KEYS } from './limits';
 import { cleanName } from './names';
 import { MOD_ROWS, MOD_SRC, MOD_DST } from './mod-routing';
-import { isPatchParam } from './preset-session';
+import { isPatchParam, patchSnapshot } from './preset-session';
 
 const store = new SlotStore('websynth.preset.');
 
@@ -402,23 +402,12 @@ const FACTORY: FactoryBank = {
   },
 };
 
-/**
- * Sound params a preset load leaves where they are (presets.md
- * REQ-loading-a-preset-starts-from-the-default-sound): the key belongs to the song played over the
- * sound, and the master compressor masters everything — no factory preset sets it.
- */
-const KEPT_ON_PRESET_LOAD = ['scale.', 'chord.', 'fx.master.'];
-
-/** Whether loading a preset resets `id` to its default when the preset omits it. */
-export function resetsOnPresetLoad(id: string): boolean {
-  return isPatchParam(id) && !KEPT_ON_PRESET_LOAD.some((p) => id.startsWith(p));
-}
 
 /**
  * Whether a stored factory slot is an earlier release's seed rather than an edit
  * (presets.md REQ-an-older-factory-seed-is-refreshed): every entry it holds equals
  * the current definition, and it lacks some of the current keys. A Save captures
- * the whole bus, so a user's own copy is never such a subset; a slot that differs
+ * every sound param, so a user's own copy is never such a subset; a slot that differs
  * on any value is kept, since an edit and a retuned factory value look alike.
  */
 function isOlderSeed(raw: string, current: Snapshot): boolean {
@@ -501,8 +490,9 @@ export const Presets = {
   },
 
   capture(bus: ParamBus): Snapshot {
-    // Never the performer's hands (input-control.md REQ-cc11-is-expression).
-    return savedParams(bus.snapshot());
+    // The sound only (presets.md REQ-a-preset-is-only-a-sound), and never the
+    // performer's hands (input-control.md REQ-cc11-is-expression).
+    return patchSnapshot(savedParams(bus.snapshot()));
   },
 
   /**
@@ -515,9 +505,11 @@ export const Presets = {
     const start: Snapshot = {};
     for (const id of bus.ids()) {
       const def = bus.def(id);
-      if (def && resetsOnPresetLoad(id)) start[id] = def.default;
+      if (def && isPatchParam(id)) start[id] = def.default;
     }
-    bus.restore({ ...start, ...snap });
+    // A file saved before REQ-a-preset-is-only-a-sound, or written by hand, may
+    // carry the tempo, a machine's state or the key: they stay in the file, unapplied.
+    bus.restore({ ...start, ...patchSnapshot(snap) });
   },
 
   /**

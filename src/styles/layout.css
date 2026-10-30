@@ -48,9 +48,11 @@
      later sibling paints over an earlier one's overflowing dropdown menu
      regardless of the menu's own z-index. Raise whichever section currently
      holds an open dropdown above its siblings (menu is position:fixed, so it
-     also escapes any `overflow` clipper). */
+     also escapes any `overflow` clipper). Below the sticky header's 10: the
+     raise lifts the whole section, and at 100 it painted over the header
+     (dropdown.md REQ-an-open-menu-stays-under-the-sticky-header). */
   .app > *:has(.dropdown.open) {
-    z-index: 100;
+    z-index: 9;
   }
 
   /* ===== Responsive ===== */

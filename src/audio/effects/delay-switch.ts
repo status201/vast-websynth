@@ -3,6 +3,7 @@ import { bindTempoLocked } from '../tempo-bind';
 import { delayTypeOf, type DelayType } from '../../state/delay';
 import type { ParamBus } from '../../state/params';
 import { createCore, DigitalCore, type DelayCore } from './delay-cores';
+import { DISCONNECT_DELAY_MS } from './effect';
 
 /**
  * The switch between the delay's types (delay-types.md
@@ -113,12 +114,24 @@ export class DelaySwitch {
     return s;
   }
 
-  /** A bypass also retires any core still spilling: there is nothing left to hear it through. */
+  /**
+   * A bypass also retires any core still spilling: there is nothing left to hear
+   * it through. The wrapper has already faded, so every loop still holding audio
+   * is zeroed now, a retiring one's pending zero included, or the wrapper's
+   * drain could end before the core's.
+   *
+   * The live core rests through the bypass too, so its own sources (the analog
+   * wow and flutter sines) stop costing CPU; the wet is already 0 when this runs,
+   * and the release resumes them before the wet ramps back.
+   */
   quiesce(on: boolean): void {
     this.quiesced = on;
     for (const slot of this.slots.values()) {
-      if (slot.state === 'live') this.pin(slot, on);
-      else if (on && slot.state === 'spill') this.retire(slot);
+      if (slot.state === 'live') {
+        this.pin(slot, on);
+        slot.core.rest(on);
+      } else if (on && slot.state === 'spill') this.retire(slot, true);
+      else if (on && slot.connected) this.pin(slot, true);
     }
   }
 
@@ -164,7 +177,8 @@ export class DelaySwitch {
    * Make `slot` the live core: connected, seeded with the knobs, awake, both
    * gates open. A core that is not yet awake takes the knobs at once, so it
    * never glides in from its nodes' defaults; one taken back mid-spill or
-   * mid-drain is awake, so they glide.
+   * mid-drain is awake, so they glide. While the delay is bypassed it is taken
+   * resting, so nothing of its own runs until the release (see `quiesce`).
    */
   private take(slot: CoreSlot): void {
     this.clearTimer(slot);
@@ -178,6 +192,7 @@ export class DelaySwitch {
     slot.core.setFeedback(this.knobs.fb);
     slot.core.setChar(this.knobs.char);
     this.pin(slot, this.quiesced);
+    slot.core.rest(this.quiesced);
     slot.core.wake();
     this.gate(slot, 1, 1);
     slot.state = 'live';
@@ -191,19 +206,29 @@ export class DelaySwitch {
     slot.timer = window.setTimeout(() => this.retire(slot), DELAY_SPILL_S * 1000);
   }
 
-  /** Fade `slot` out, zero its loop, and disconnect it once it holds only silence. */
-  private retire(slot: CoreSlot): void {
+  /**
+   * Fade `slot` out, zero its loop once the fade has closed the output gate, and
+   * disconnect it once it holds only silence. The bypass wrapper's own order
+   * (effects.md REQ-a-bypassed-effect-drains-before-disconnect): a loop stepped
+   * to 0 while still heard reaches the output one TIME later, a click at a short
+   * TIME. `now` is for a bypass, which has already faded.
+   */
+  private retire(slot: CoreSlot, now = false): void {
     this.clearTimer(slot);
     this.gate(slot, 0, 0);
-    this.pin(slot, true);
     slot.state = 'idle';
-    slot.timer = window.setTimeout(() => {
-      slot.timer = null;
-      if (slot.state !== 'idle' || !slot.connected) return;
-      this.span.processedIn.disconnect(slot.inGate);
-      slot.outGate.disconnect(this.span.processedOut);
-      slot.connected = false;
-      slot.core.sleep();
-    }, slot.core.drainSeconds() * 1000);
+    const drain = (): void => {
+      this.pin(slot, true);
+      slot.timer = window.setTimeout(() => {
+        slot.timer = null;
+        if (slot.state !== 'idle' || !slot.connected) return;
+        this.span.processedIn.disconnect(slot.inGate);
+        slot.outGate.disconnect(this.span.processedOut);
+        slot.connected = false;
+        slot.core.sleep();
+      }, slot.core.drainSeconds() * 1000);
+    };
+    if (now) drain();
+    else slot.timer = window.setTimeout(drain, DISCONNECT_DELAY_MS);
   }
 }

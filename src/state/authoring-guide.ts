@@ -256,7 +256,7 @@ NOTES
 - "lfo.dest": 4 is PWM. It only bites on oscillators set to the square wave ("osc1.wave"/"osc2.wave": 3),
   sweeps "osc1.pulseWidth"/"osc2.pulseWidth" upward from whatever you set them to (0.5 = plain square),
   and follows "lfo.rate" up to 10Hz. Slow rates (0.2-2) give the classic PWM string/pad shimmer.
-- "osc2.sync" locks osc2 to osc1: 1 = hard sync, 2 = soft (reversing) sync, 0 = off (the default).
+- "osc2.sync" locks osc2 to osc1: 1 = hard sync, 2 = soft sync (hard with every edge rounded, darker), 0 = off (the default).
   The pitch heard is osc1's; "osc2.syncPitch" (0-48 semitones, default 12) is then TIMBRE, not pitch.
   The classic sync lead sweeps it: "lfo.dest": 7 (sync) for a cycling tear, or a mod route from the
   filter envelope ("mod.0.src": 5, "mod.0.dst": 8, "mod.0.amt": 0.3-0.6) for a per-note "yow". Saw
@@ -476,8 +476,8 @@ SOUND DESIGN NOTES
   so the patch sounds the same wherever it is loaded.
 - Acid: saw osc1, mono, high resonance (2.5+), short filter decay, high envAmount, some distortion.
   Reese: two detuned saws an octave down + sub. Rhodes/bells: sine osc + long decay, sustain 0.
-- Only the parameters below belong in a preset. Song-level ids (transport/seq/drum/sampler/arp) are
-  accepted but will move the user's song when the preset loads — leave them out.
+- Only the parameters below belong in a preset. Any other id (the song's machines, tempo, key or
+  master compressor) is accepted but ignored when the preset loads — leave them out.
 
 PARAMS (id, range, default, discrete value map)
 ${paramTable(bus, isPatchParam)}`;

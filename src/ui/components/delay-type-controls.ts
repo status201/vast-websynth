@@ -12,9 +12,12 @@ import { dimWhileParamIs, type Knob } from './knob';
 /** The delay's knobs, left to right: param suffix and label. */
 export const DELAY_KNOBS = [['time', 'TIME'], ['feedback', 'FB'], ['char', 'CHAR'], ['mix', 'MIX']] as const;
 
-/** The TYPE dropdown that sits after the delay's title (REQ-delay-type-testids). */
-export function delayTypeDropdown(bus: ParamBus, prefix: string): HTMLElement {
-  return new ParamDropdown(bus, `${prefix}.type`, DELAY_TYPE_LABELS, `dropdown-${prefix}.type`).el;
+/**
+ * The TYPE dropdown (REQ-delay-type-testids): after the title in a header group,
+ * or, given a `legend`, the synth panel's title itself (REQ-type-is-a-header-dropdown-and-char-a-knob).
+ */
+export function delayTypeDropdown(bus: ParamBus, prefix: string, legend?: string): HTMLElement {
+  return new ParamDropdown(bus, `${prefix}.type`, DELAY_TYPE_LABELS, `dropdown-${prefix}.type`, { legend }).el;
 }
 
 /** Dim CHAR while TYPE is DIGITAL, which ignores it. */
