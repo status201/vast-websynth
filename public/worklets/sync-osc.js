@@ -170,8 +170,10 @@ class SyncOscProcessor extends AudioWorkletProcessor {
   static get parameterDescriptors() {
     return [
       { name: 'frequency', defaultValue: 440, minValue: 0, maxValue: 24000, automationRate: 'a-rate' },
-      // The voice's shared pitch modulation (bend, LFO, drift, matrix), cents.
-      { name: 'detune', defaultValue: 0, minValue: -9600, maxValue: 9600, automationRate: 'a-rate' },
+      // The voice's shared pitch modulation (bend, LFO, drift, matrix), cents. Wider
+      // than all of them summed (±18000), so the native detunes, which have no
+      // clamp, are never followed short (REQ-every-pitch-source-reaches-the-pair).
+      { name: 'detune', defaultValue: 0, minValue: -24000, maxValue: 24000, automationRate: 'a-rate' },
       // Each oscillator's own octave + fine tune, cents.
       { name: 'masterCents', defaultValue: 0, minValue: -4800, maxValue: 4800, automationRate: 'k-rate' },
       { name: 'slaveCents', defaultValue: 0, minValue: -4800, maxValue: 4800, automationRate: 'k-rate' },

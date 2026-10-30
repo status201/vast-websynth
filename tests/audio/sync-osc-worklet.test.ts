@@ -1,4 +1,7 @@
 import { describe, it, expect, beforeAll, vi } from 'vitest';
+import { LFO_DEST_SCALE } from '../../src/state/lfo-routing';
+import { MOD_DEST_SCALE, MOD_DST, MOD_ROWS } from '../../src/state/mod-routing';
+import { BEND_MAX } from '../../src/state/limits';
 
 /**
  * Drives the real `public/worklets/sync-osc.js` processor under Node by stubbing
@@ -227,6 +230,17 @@ describe('the pair owns both phases (REQ-the-pair-owns-both-phases)', () => {
       yy += slave[n]! * slave[n]!;
     }
     expect(xy / Math.sqrt(xx * yy)).toBeGreaterThan(0.99);
+  });
+});
+
+describe('the pair follows every pitch source (REQ-every-pitch-source-reaches-the-pair)', () => {
+  // Regression: the range was ±9600 ¢, so past 8 octaves the pair stopped while
+  // the native detunes, which have no clamp, went on.
+  it('has a detune range covering every pitch source at full depth', () => {
+    const reach = 2 * LFO_DEST_SCALE.pitch + MOD_ROWS * MOD_DEST_SCALE[MOD_DST.pitch]! + BEND_MAX * 100;
+    const detune = Processor.parameterDescriptors.find((d) => d.name === 'detune') as Descriptor & { minValue: number; maxValue: number };
+    expect(detune.maxValue).toBeGreaterThanOrEqual(reach);
+    expect(detune.minValue).toBeLessThanOrEqual(-reach);
   });
 });
 

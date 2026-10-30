@@ -3,7 +3,10 @@
 ```yaml
 id: oscillator-sync
 status: implemented
-version: 7                     # v7: regression: a failed worklet load is forgotten, so the next
+version: 8                     # v8: regression: the pair's `detune` range is ±24000 ¢, past
+                               #     everything the voice can sum (±18000); at ±9600 a low note
+                               #     pushed up hard stopped short of the native path's pitch
+                               # v7: regression: a failed worklet load is forgotten, so the next
                                #     switch-on retries (through `loadWorkletModule`, like the
                                #     flanger and reverse delay); it used to leave sync dead until
                                #     reload, e.g. a fetch failing offline before the precache filled
@@ -126,7 +129,11 @@ residual shipped here reaches the measurement floor in band.
   both LFOs' `pitch`, analogue drift and matrix `pitch` routes move the pair
   exactly as they move the native oscillators. Each source connects to the
   voice's `pitchTargets()` — the three native detunes plus one pitch junction
-  that feeds the pair — so the list is written once, not per call site.
+  that feeds the pair — so the list is written once, not per call site. The
+  pair's `detune` param spans **±24000 ¢**, beyond the most the sources can sum
+  (both LFOs at `LFO_DEST_SCALE.pitch`, every matrix row at
+  `MOD_DEST_SCALE[pitch]` and a step bend of `BEND_MAX`: ±18000 ¢), so an AudioParam
+  clamp never makes the pair disagree with the native detunes, which have none.
 - **REQ-sync-is-a-modulation-destination** — `sync` is appended to
   `MOD_DEST_LABELS` (full scale ±48 st) and to `LFO_DEST_LABELS` (±24 st at full
   amount). Both sum into a per-voice sync junction whose own offset is the knob,
@@ -321,6 +328,14 @@ Scenario: Every pitch source reaches the pair (REQ-every-pitch-source-reaches-th
   Then pitch bend, both LFOs' pitch, drift and the per-note bend connect to each voice's pitch junction
   And a matrix pitch route wires the junction along with the three detunes
 # pinned by: tests/audio/engine-sync.test.ts, tests/audio/voice-sync.test.ts, tests/audio/mod-matrix.test.ts
+
+Scenario: The pair's pitch range covers every source summed (regression, REQ-every-pitch-source-reaches-the-pair)
+  Given both LFOs, every matrix row and a step bend at full pitch depth
+  Then their sum lies inside the pair's `detune` range
+  # Found in the pre-release sweep: the range was ±9600 ¢, so past 8 octaves
+  # the pair stopped while the native oscillators went on (a 30 Hz note pushed
+  # +10000 ¢: ~9.7 kHz native, 7.7 kHz synced).
+# pinned by: tests/audio/sync-osc-worklet.test.ts
 
 Scenario: Sync is a modulation destination (REQ-sync-is-a-modulation-destination)
   Given mod row 0 routes filter env to sync at amount 0.5
