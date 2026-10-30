@@ -627,7 +627,7 @@ Scenario: The last file picked into a slot wins (v13, REQ-slots-are-filled-by-lo
   the per-sample-per-voice cost ADR-010's budget refuses, and it is back on the
   audio thread where that budget applies.
 - **Per-slot drive** — deliberately not added with the rest of REQ-each-slot-has-a-channel's channel: the
-  sampler bus already has a distortion, and eight waveshapers is a real idle cost
+  sampler bus already has Dirt, and eight waveshapers is a real idle cost
   ([runtime-performance](runtime-performance.md)) for a duplicate capability.
 - **Playing a slot by hand** — ~~MIDI~~ done: MIDI channel 10 plays the slots,
   velocity-sensitive ([input-control](input-control.md) REQ-channel-ten-plays-the-sampler).

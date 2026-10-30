@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { Reverb } from '../../../src/audio/effects/reverb';
-import { Distortion } from '../../../src/audio/effects/distortion';
+import { Dirt } from '../../../src/audio/effects/dirt';
 import { makeMockAudioContext } from '../mock-audio-context';
 
 // An effect boots bypassed, so its constructor arms a real 300 ms disconnect
@@ -13,7 +13,7 @@ afterEach(() => { vi.clearAllTimers(); vi.useRealTimers(); });
 
 /**
  * Weak-tier FX-cost reductions (performance-mode.md REQ-weak-tier-reduces-fx-cost): the reverb IR
- * bank is capped by duration (never by bank size) and the distortion's
+ * bank is capped by duration (never by bank size) and the Dirt's
  * WaveShaper oversampling can be disabled — both at construction.
  */
 describe('Reverb IR duration cap', () => {
@@ -46,10 +46,10 @@ describe('Reverb IR duration cap', () => {
   });
 });
 
-describe('Distortion oversampling', () => {
+describe('Dirt oversampling', () => {
   function shaperOversample(opts?: { oversample?: boolean }): string {
     const ctx = makeMockAudioContext();
-    new Distortion(ctx as unknown as AudioContext, opts);
+    new Dirt(ctx as unknown as AudioContext, opts);
     const shaper = (ctx.createWaveShaper as unknown as ReturnType<typeof vi.fn>).mock.results[0]!
       .value as { oversample: string };
     return shaper.oversample;

@@ -32,7 +32,7 @@ export interface PerfProfile {
   scheduleAheadS: number;
   /** Longest reverb IR the banks render (s) — caps always-on convolution cost. */
   reverbIrMaxS: number;
-  /** Allow WaveShaper oversampling (synth/sampler distortion 4x, drum tracks 2x). */
+  /** Allow WaveShaper oversampling (synth/sampler Dirt 4x, drum tracks 2x). */
   fxOversample: boolean;
   /** fftSize of the 3 scope analysers (applied live) — smaller cuts always-on FFT + per-draw copy cost. */
   analyserFftSize: number;

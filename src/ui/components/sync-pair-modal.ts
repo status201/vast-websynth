@@ -11,7 +11,7 @@ import { createButton } from './button';
 import { copyText, flashCopied } from '../clipboard';
 import { qrcode } from '../../vendor/qr';
 import { SignalDecodeError } from '../../audio/transport/sync/webrtc-signaling';
-import type { WebRtcSyncTransport } from '../../audio/transport/sync/webrtc-sync-transport';
+import type { WifiLink } from '../../audio/transport/sync/wifi-sync';
 import type { SyncController } from '../../audio/transport/sync/sync-controller';
 import { type WebRtcDiagnostics, summarizeDiagnostics } from '../../audio/transport/sync/webrtc-diagnostics';
 import modalStyles from '../styles/modal.module.css';
@@ -97,7 +97,7 @@ function showConnectFailure(target: El): void {
  * role choice sets Master/Slave so the pairing UI and the Sync section's
  * Off/Master/Slave control agree (REQ-pairing-is-serverless-and-non-trickle).
  */
-export function openSyncPairModal(rtc: WebRtcSyncTransport, sync: Pick<SyncController, 'setMode'>): void {
+export function openSyncPairModal(rtc: WifiLink, sync: Pick<SyncController, 'setMode'>): void {
   let stopScan: (() => void) | null = null;
   let unsub: () => void = () => {};
   let unsubDiag: () => void = () => {};

@@ -562,7 +562,9 @@ export interface DemoRef {
   /** The song's own `name` — what the demo button says. */
   name: string;
   url: string;
-  /** Generated facts + any hand-written blurb; absent for an unindexed demo. */
+  /** The demo's filename: the key of its index entry and of its blurb. */
+  file: string;
+  /** Generated facts; absent for an unindexed demo. */
   meta?: DemoMeta;
 }
 
@@ -574,6 +576,7 @@ export const JSON_DEMOS: DemoRef[] = Object.keys(DEMO_URLS)
     const ref: DemoRef = {
       name: meta?.name ?? file.replace(/\.(websynth\.)?json$/i, ''),
       url: DEMO_URLS[path]!,
+      file,
     };
     if (meta) ref.meta = meta;
     return ref;
@@ -649,6 +652,7 @@ export const ZIP_DEMOS: DemoRef[] = Object.keys(ZIP_URLS)
     const ref: DemoRef = {
       name: meta?.name ?? file.replace(/\.websynth\.zip$/i, '').replace(/_+/g, ' '),
       url: ZIP_URLS[path]!,
+      file,
     };
     if (meta) ref.meta = meta;
     return ref;
@@ -690,6 +694,15 @@ export function demoMetaFor(name: string): DemoMeta | null {
   if (ref?.meta) return ref.meta;
   const builtin = DEMO_SONGS[name];
   return builtin ? demoMetaOf(builtin) : null;
+}
+
+/**
+ * The filename behind a fetched demo — the key of its blurb in `demo-blurbs.ts`
+ * (demo-library.md REQ-the-blurbs-load-after-boot). Null for the built-in, which
+ * has no file and so no blurb.
+ */
+export function demoFileFor(name: string): string | null {
+  return (JSON_DEMOS.find((d) => d.name === name) ?? ZIP_DEMOS.find((d) => d.name === name))?.file ?? null;
 }
 
 /**

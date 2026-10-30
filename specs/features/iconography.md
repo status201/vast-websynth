@@ -83,7 +83,7 @@ is that rule's real home; REQ-ui-icons-are-self-stroking there now references it
   sentence stays text.** This is the boundary that keeps
   REQ-a-control-glyph-is-inline-svg bounded, and it is a rule about *role*, not
   about the code point: the same `→` is an icon on a keycap and punctuation in
-  "Distortion → Wah → Phaser". Text keeps `— – … • ≤ ≥ ≈ ’ “ ” −∞`, the flow
+  "Dirt → Wah → Phaser". Text keeps `— – … • ≤ ≥ ≈ ’ “ ” −∞`, the flow
   arrows in help prose, and the `↔` in "dark ↔ bright".
 
   The test: **could the reader click it?** A glyph standing in for something on
@@ -318,7 +318,7 @@ Scenario: an icon beside text drops out of the accessible name (REQ-an-icon-is-a
 # pinned by: e2e/paste-import.spec.ts
 
 Scenario: punctuation is left alone (REQ-punctuation-glyphs-stay-text)
-  Given help copy reading "Distortion → Wah → Phaser"
+  Given help copy reading "Dirt → Wah → Phaser"
   Then the arrows stay text characters, because they join words rather than name controls
 # pinned by: tests/ui/iconography.test.ts
 

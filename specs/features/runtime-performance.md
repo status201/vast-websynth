@@ -3,7 +3,11 @@
 ```yaml
 id: runtime-performance
 status: implemented
-version: 13  # v13: REQ-a-drag-follows-only-its-own-pointer — a second finger no longer drives,
+version: 14  # v14: REQ-boot-cost-matches-the-request — the demo blurbs, the WiFi sync transport and the
+             #      sync roles leave the boot path: entry 499.3 → 472.9 kB, boot JS −26.4 kB
+             #      (−9.0 kB gzip), boot links and CSS unchanged (demo-library.md v6,
+             #      webrtc-sync.md v9, midi-clock-sync.md v10)
+             # v13: REQ-a-drag-follows-only-its-own-pointer — a second finger no longer drives,
              #      or ends, another control's drag (multi-touch)
              # v12: REQ-boot-cost-matches-the-request — the second sweep: the authoring-dialect
              #      expander, the project zip codec and four click-only surfaces leave the
@@ -51,7 +55,7 @@ source:
   - src/state/song.ts
   - src/state/demos-index.json
   - src/audio/effects/reverb.ts
-  - src/audio/effects/distortion.ts
+  - src/audio/effects/dirt.ts
   - src/audio/drive-curve.ts
   - src/audio/oscillator.ts                 # REQ-immutable-artefacts-are-shared — the PWM duty bank, per-entry
   - src/audio/transport/drum-machine.ts
@@ -112,7 +116,15 @@ so a reviewer has something concrete to hold a new feature against.
   and worklet load on its first switch-on, behind a shell that stays bypassed
   until then ([`flanger.md`](flanger.md) REQ-the-flanger-loads-on-first-use); the
   delay's non-digital types load on a delay's first non-digital TYPE, and DIGITAL
-  loads nothing new ([`delay-types.md`](delay-types.md) REQ-the-other-types-load-on-first-use).
+  loads nothing new ([`delay-types.md`](delay-types.md) REQ-the-other-types-load-on-first-use);
+  Dirt's other types load on their first choice ([dirt-types](dirt-types.md)
+  REQ-the-other-dirt-types-load-on-first-use). (v14) The demos' hand-written
+  blurbs load after boot, so the index the row needs carries facts only
+  ([demo-library](demo-library.md) REQ-the-blurbs-load-after-boot). The WiFi sync
+  transport loads at pairing ([webrtc-sync](webrtc-sync.md)
+  REQ-the-wifi-transport-loads-at-pairing), and the MIDI-clock master and slave
+  load when a sync mode is selected ([midi-clock-sync](midi-clock-sync.md)
+  REQ-the-sync-roles-load-with-the-mode).
   Applies to bundle payload and to synchronous CPU alike.
 
   **A surface reached only by a deliberate click is loaded by that click.** A modal the
@@ -452,7 +464,7 @@ pass a **pre-bound** closure rather than an inline arrow (REQ-no-allocation-in-a
 | Rule | Enforced at |
 |---|---|
 | REQ-boot-cost-matches-the-request | `state/song.ts` (`?url` demo glob + build-time index), `audio/effects/reverb.ts`, `ui/onboarding/index.ts` (facade → `onboarding-impl.ts`), `ui/components/about-button.ts` (→ `about-modal.ts`), `state/debug-sources.ts`, `main.ts` (idle warms); the rejection report is `lazy-load-failure.md` |
-| REQ-immutable-artefacts-are-shared | `audio/effects/reverb.ts` (IR bank), `audio/effects/distortion.ts` + `audio/transport/drum-machine.ts` (drive curves), `audio/oscillator.ts` (the PWM duty bank — per entry, v5) |
+| REQ-immutable-artefacts-are-shared | `audio/effects/reverb.ts` (IR bank), `audio/effects/dirt.ts` + `audio/transport/drum-machine.ts` (drive curves), `audio/oscillator.ts` (the PWM duty bank — per entry, v5) |
 | REQ-global-listeners-live-only-for-a-gesture | `ui/components/step-settings.ts`, `knob.ts`, `strip.ts`, `floating-window.ts` |
 | REQ-no-work-for-offscreen-dom | `ui/panels/step-panel-scaffold.ts` (`wirePlayhead`), the four machine panels, `ui/shell/pattern-row.ts` |
 | REQ-automation-is-not-an-edit | `state/params.ts`, `audio/transport/motion-machine.ts`, `audio/transport/performance.ts` |

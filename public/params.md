@@ -85,6 +85,7 @@ Schemas: [`llms.txt`](llms.txt).
 - "fx.dist.drive": number  // range 0..1, default 0.3
 - "fx.dist.tone": number  // range 200..8000, default 3000
 - "fx.dist.mix": number  // range 0..1, default 1
+- "fx.dist.type": number  // range 0..2, default 0, step 1, values 0=DISTORTION 1=OVERDRIVE 2=FUZZ
 - "fx.wah.on": number  // range 0..1, default 0, step 1, values 0=off 1=on
 - "fx.wah.rate": number  // range 0.05..10, default 2
 - "fx.wah.depth": number  // range 0..1, default 0.4
@@ -196,6 +197,7 @@ Schemas: [`llms.txt`](llms.txt).
 - "fx.sampler.dist.drive": number  // range 0..1, default 0.3
 - "fx.sampler.dist.tone": number  // range 200..8000, default 3000
 - "fx.sampler.dist.mix": number  // range 0..1, default 1
+- "fx.sampler.dist.type": number  // range 0..2, default 0, step 1, values 0=DISTORTION 1=OVERDRIVE 2=FUZZ
 - "fx.sampler.phaser.on": number  // range 0..1, default 0, step 1, values 0=off 1=on
 - "fx.sampler.phaser.rate": number  // range 0.05..5, default 0.5
 - "fx.sampler.phaser.depth": number  // range 0..1, default 0.7

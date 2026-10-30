@@ -1,6 +1,6 @@
 import type { ParamBus } from '../../state/params';
 import { DELAY_TYPE_LABELS } from '../../state/delay';
-import { ParamDropdown } from './param-dropdown';
+import { typeDropdown } from './param-dropdown';
 import { dimWhileParamIs, type Knob } from './knob';
 
 /**
@@ -17,7 +17,7 @@ export const DELAY_KNOBS = [['time', 'TIME'], ['feedback', 'FB'], ['char', 'CHAR
  * or, given a `legend`, the synth panel's title itself (REQ-type-is-a-header-dropdown-and-char-a-knob).
  */
 export function delayTypeDropdown(bus: ParamBus, prefix: string, legend?: string): HTMLElement {
-  return new ParamDropdown(bus, `${prefix}.type`, DELAY_TYPE_LABELS, `dropdown-${prefix}.type`, { legend }).el;
+  return typeDropdown(bus, prefix, DELAY_TYPE_LABELS, legend);
 }
 
 /** Dim CHAR while TYPE is DIGITAL, which ignores it. */

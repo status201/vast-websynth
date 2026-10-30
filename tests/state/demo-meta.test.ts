@@ -121,13 +121,13 @@ describe('demoSummary — what the button says (REQ-demo-row-says-what-it-knows)
   });
 
   it('appends the armed hints and then the blurb', () => {
-    expect(demoSummary({ ...base, armed: ['arp'], blurb: 'A note.' }))
+    expect(demoSummary({ ...base, armed: ['arp'] }, 'A note.'))
       .toBe('124 BPM · 16 bars · seq + drums · hold a key: arp armed — A note.');
   });
 
   it('omits unknown facts instead of printing zeroes', () => {
     expect(demoSummary({ name: 'X', bpm: 0, bars: 0, uses: [] })).toBe('');
-    expect(demoSummary({ name: 'X', bpm: 0, bars: 0, uses: [], blurb: 'Only prose.' }))
+    expect(demoSummary({ name: 'X', bpm: 0, bars: 0, uses: [] }, 'Only prose.'))
       .toBe('Only prose.');
   });
 
@@ -137,11 +137,13 @@ describe('demoSummary — what the button says (REQ-demo-row-says-what-it-knows)
 });
 
 describe('demoFacts — the facts line of the library (demo-library.md REQ-the-library-reads-without-loading)', () => {
-  const base: DemoMeta = { name: 'X', bpm: 124, bars: 16, uses: ['seq', 'drums'], blurb: 'A note.' };
+  const base: DemoMeta = { name: 'X', bpm: 124, bars: 16, uses: ['seq', 'drums'] };
 
   it('is the summary without the blurb', () => {
     expect(demoFacts(base)).toBe('124 BPM · 16 bars · seq + drums');
-    expect(demoSummary(base)).toBe(`${demoFacts(base)} — A note.`);
+    expect(demoSummary(base, 'A note.')).toBe(`${demoFacts(base)} — A note.`);
+    // Before the blurbs load (demo-library.md REQ-the-blurbs-load-after-boot): the facts alone.
+    expect(demoSummary(base)).toBe(demoFacts(base));
   });
 
   it('drops an unknown tempo or length rather than printing a zero', () => {

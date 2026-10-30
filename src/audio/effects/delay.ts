@@ -1,4 +1,4 @@
-import { WrappedEffect, bindBypassMix } from './effect';
+import { WrappedEffect, bindBypassMix, BUTTERWORTH_Q_DB } from './effect';
 import { RAMP_SMOOTH } from '../param-utils';
 import { bindTempoLocked } from '../tempo-bind';
 import { delayTypeOf } from '../../state/delay';
@@ -7,12 +7,6 @@ import type { DelaySwitch } from './delay-switch';
 
 /** The digital line's damping, which PING PONG keeps so its repeats match DIGITAL's tone. */
 export const DELAY_DAMP_HZ = 4500;
-/**
- * A Butterworth lowpass/highpass `Q`, the one every loop filter uses
- * (delay-types.md REQ-every-type-is-bounded). Web Audio reads these filters' `Q`
- * in dB: 0.707 here would be a +1.7 dB bump, and a loop gain above 1 at high FB.
- */
-export const BUTTERWORTH_Q_DB = 20 * Math.log10(Math.SQRT1_2);
 /** The delay line's own range, shared by every type (delay-types.md REQ-every-type-is-bounded). */
 export const clampDelayTime = (s: number): number => Math.max(0.001, Math.min(2, s));
 export const clampDelayFeedback = (f: number): number => Math.max(0, Math.min(0.95, f));

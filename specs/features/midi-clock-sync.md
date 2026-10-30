@@ -3,7 +3,9 @@
 ```yaml
 id: midi-clock-sync
 status: implemented
-version: 9   # v9: every tick sends its own six pulses from its unswung time (REQ-master-broadcasts-start-and-stop) —
+version: 10  # v10: SyncMaster and SyncSlave load when a sync mode is selected, not at boot
+             #      (REQ-the-sync-roles-load-with-the-mode)
+             # v9: every tick sends its own six pulses from its unswung time (REQ-master-broadcasts-start-and-stop) —
              #     even-only emission lost or doubled six pulses after a seek to the other parity
              # v8: a join sounds on its first pulse (REQ-a-join-is-timed-by-its-first-pulse) and a
              #     following slave jumps in place (REQ-a-following-slave-jumps-in-place) — a
@@ -26,6 +28,7 @@ source:
   - src/state/sync-mode.ts
   - src/audio/transport/sync/sync-types.ts
   - src/audio/transport/sync/bpm-estimator.ts
+  - src/audio/transport/sync/sync-roles.ts      # v10: the lazy module behind both roles
   - src/audio/transport/sync/sync-master.ts
   - src/audio/transport/sync/sync-slave.ts
   - src/audio/transport/sync/sync-controller.ts
@@ -325,6 +328,32 @@ while there is a live link.
   `SyncStatus` gains `activeMode`. **Selection painting is unchanged** — an
   armed-but-inactive mode is still the selected segment (so the setting visibly
   persists), just rendered greyed-out.
+- **REQ-the-sync-roles-load-with-the-mode** (v10) — **The roles load when a
+  role is chosen.** `SyncMaster` and `SyncSlave` run only in an `activeMode`
+  other than `'off'`, and most sessions never select one. So they live behind
+  one lazy module, `sync-roles.ts`, kept off the boot path
+  ([runtime-performance](runtime-performance.md) REQ-boot-cost-matches-the-request).
+  - The controller imports it whenever the **selection** is not `'off'`: at
+    construction for a restored selection, and on `setMode`. A role can only
+    activate once there is a live link, and the MIDI transport arrives after a
+    user gesture while WiFi needs a pairing. So in practice the module has
+    loaded before any role could run.
+  - Until it has loaded, `desiredActiveRole()` resolves to `'off'`: armed but
+    inert, exactly the state REQ-selected-mode-versus-active-role already
+    describes. When it lands, the controller re-derives the role and emits
+    status.
+  - A message that arrives meanwhile still refreshes the link's liveness, so the
+    slave activates as soon as the code is in. It is not handled itself; the
+    slave follows from the next pulse.
+  - A failed import is logged. The selection stays armed, and the next
+    `setMode`, `addTransport` or port change retries. The import is
+    operation-scoped ([lazy-load-failure](lazy-load-failure.md)
+    REQ-lazy-scope-is-surfaces-not-operations).
+  - `SyncControllerOptions.roles` injects the module synchronously. Tests use
+    it to drive roles without awaiting the import.
+  - Sync works offline, so the module is also idle-warmed at boot (`main.ts`
+    `warmDeferred`), like every deferred chunk a player can reach offline.
+
 - **REQ-link-liveness-beats-port-presence** — **Link liveness.** Ports alone are
   too weak a signal: a virtual MIDI cable (loopMIDI) keeps its port after the
   peer app quits, so `ins > 0` would latch forever. A slave is therefore active

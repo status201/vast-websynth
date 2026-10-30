@@ -10,7 +10,7 @@ import type { MotionMachine } from '../audio/transport/motion-machine';
 import type { RecorderController } from '../audio/recorder/recorder-controller';
 import type { BankRenderController } from '../audio/recorder/bank-render';
 import type { SyncController } from '../audio/transport/sync/sync-controller';
-import type { WebRtcSyncTransport } from '../audio/transport/sync/webrtc-sync-transport';
+import type { WifiLink } from '../audio/transport/sync/wifi-sync';
 import type { Compressor } from '../audio/effects/compressor';
 import type { IosAudioDiagnostics } from '../audio/ios-audio-session';
 import type { MediaSessionDiagnostics } from '../audio/media-session';
@@ -59,7 +59,7 @@ export interface StudioApi {
   /** MIDI clock sync master/slave (mode / setMode / status / onStatus). */
   readonly sync: SyncController;
   /** WebRTC WiFi sync transport — drives the pair modal (webrtc-sync.md). */
-  readonly rtcSync: WebRtcSyncTransport;
+  readonly rtcSync: WifiLink;
   /** Pre-master analyser tap for the scope (mono down-mix). */
   readonly analyser: AnalyserNode;
   /** Per-channel pre-master analyser taps for the scope's stereo view. */

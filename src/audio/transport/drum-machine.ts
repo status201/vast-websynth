@@ -343,7 +343,7 @@ export class DrumMachine {
 /**
  * Per-track waveshaper curve. `amount` 0 is the identity line (true bypass),
  * higher saturates via a normalised tanh — same shape as the synth FX
- * distortion, but anchored at a clean no-op so `drive` defaults silently.
+ * Dirt's DISTORTION, but anchored at a clean no-op so `drive` defaults silently.
  *
  * Bucketed + memoized (drive-curve.ts): eight tracks' worth of DRIVE knobs are
  * dragged like any other, and each drag used to allocate a fresh 1024-tap table

@@ -83,12 +83,18 @@ describe('flanger worklet: bounded (flanger.md REQ-the-flanger-feedback-is-bound
       run(proc, p, blocks, (n) => ((n >> 6) & 1 ? 1 : -1)), // a 0 dBFS square
       run(proc, p, blocks, () => 0),
     ];
+    // Folded, then asserted once per take: 2 expects per sample (~144k) timed out
+    // under a full parallel run.
     for (const out of outs) {
+      let finite = true;
+      let peak = 0;
       for (const v of out) {
-        expect(Number.isFinite(v)).toBe(true);
-        // |written| <= |x| + 0.9 and the read interpolates between two of them.
-        expect(Math.abs(v)).toBeLessThan(2);
+        if (!Number.isFinite(v)) finite = false;
+        peak = Math.max(peak, Math.abs(v));
       }
+      expect(finite).toBe(true);
+      // |written| <= |x| + 0.9 and the read interpolates between two of them.
+      expect(peak).toBeLessThan(2);
     }
   });
 

@@ -96,7 +96,7 @@ curve from bus values so it needs no analyser and runs no animation loop.
   ```
 
   **Head, not tail**, for three reasons that all point the same way. It is where
-  an EQ is *musical* on this instrument: before the distortion, so it shapes what
+  an EQ is *musical* on this instrument: before Dirt, so it shapes what
   the drive bites on rather than filtering the result; and before the drum bus's
   1176-style compressor, so a highpass stops the kick pumping the whole kit —
   the reason [effects](effects.md) REQ-the-drum-bus-chain-order puts that compressor first in the first
@@ -190,7 +190,7 @@ curve from bus values so it needs no analyser and runs no animation loop.
 
 - **REQ-eq-params-come-from-one-factory** — **Params come from one
   `eqParams(prefix)` factory, instantiated per chain**, beside
-  `distParams`/`phaserParams`/`delayParams`/`reverbParams` — so the three EQs
+  `dirtParams`/`phaserParams`/`delayParams`/`reverbParams` — so the three EQs
   cannot drift into three different EQs ([param-catalogue](param-catalogue.md)
   REQ-registration-order-is-published). Twelve ids per lane, 36 in all. Each
   call site sits **first** in its chain's block in `registerDefaults()`, so the

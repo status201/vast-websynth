@@ -467,6 +467,9 @@ SOUND DESIGN NOTES
   pads, strings and arps. It adds no width; the chorus after it does.
 - "fx.chorus.*" is a Juno-style stereo chorus — the classic width for pads, strings and electric pianos.
   "mode" 0 = FREE uses "rate"/"depth"; 1-3 (I, II, I+II) are fixed settings that override both.
+- "fx.dist.*" is Dirt, the drive effect (the ids keep their old name). "fx.dist.type" picks its character: 0 DISTORTION (hard, compressed, the default),
+  1 OVERDRIVE (soft, warm, touch-sensitive, tight bass), 2 FUZZ (thick, buzzy, scooped mids). It shares
+  "drive"/"tone"/"mix"; the sampler's "fx.sampler.dist.type" is the same.
 - "fx.delay.type" picks the delay's character: 0 DIGITAL (clean, the default), 1 PING PONG (stereo
   bounce), 2 TAPE (wow/flutter, darker repeats), 3 BBD (murky analog), 4 SPACE ECHO (tape + spring),
   5 REVERSE (backwards swells). "fx.delay.char" (0-1) is that type's one character knob; DIGITAL ignores it.
@@ -474,7 +477,7 @@ SOUND DESIGN NOTES
 - EVERY synth insert effect is gated by its own ".on" flag — "fx.delay.time" does nothing while
   "fx.delay.on" is 0. Set the flag AND the parameters, and set unused effects' flags to 0 explicitly
   so the patch sounds the same wherever it is loaded.
-- Acid: saw osc1, mono, high resonance (2.5+), short filter decay, high envAmount, some distortion.
+- Acid: saw osc1, mono, high resonance (2.5+), short filter decay, high envAmount, some Dirt (fx.dist).
   Reese: two detuned saws an octave down + sub. Rhodes/bells: sine osc + long decay, sustain 0.
 - Only the parameters below belong in a preset. Any other id (the song's machines, tempo, key or
   master compressor) is accepted but ignored when the preset loads — leave them out.

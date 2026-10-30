@@ -12,6 +12,7 @@ import { MOD_ROWS, MOD_SOURCE_LABELS, MOD_DEST_LABELS } from './mod-routing';
 import { CHORUS_MODE_LABELS } from './chorus';
 // One table for TYPE's labels (delay-types.md REQ-the-delay-type-is-one-append-only-table).
 import { DELAY_TYPE_LABELS } from './delay';
+import { DIRT_TYPE_LABELS } from './dirt';
 // `eq.ts` imports only the `ParamBus` *type* back from here, so this pair is a
 // type-only cycle and erases at compile time — no runtime import loop.
 import {
@@ -399,8 +400,8 @@ export function registerDefaults(bus: ParamBus): void {
     // signal order — so the EQ leads each of the three blocks below.
     ...eqParams('fx.eq'),
 
-    // ----- FX: Distortion -----
-    ...distParams('fx.dist'),
+    // ----- FX: Dirt -----
+    ...dirtParams('fx.dist'),
 
     // ----- FX: Wah -----
     // Longhand: the wah is synth-only, so there is nothing for it to share with.
@@ -451,8 +452,8 @@ export function registerDefaults(bus: ParamBus): void {
     // ----- Sampler FX: Equalizer -----
     ...eqParams('fx.sampler.eq'),
 
-    // ----- Sampler FX: Distortion -----
-    ...distParams('fx.sampler.dist'),
+    // ----- Sampler FX: Dirt -----
+    ...dirtParams('fx.sampler.dist'),
 
     // ----- Sampler FX: Phaser -----
     ...phaserParams('fx.sampler.phaser', { depth: 0.7, mix: 0.5 }),
@@ -679,12 +680,17 @@ function syncParam(prefix: string): ParamDef {
  * surface** — a default is what every preset and song that predates a param
  * receives (ADR-006), so changing one here silently re-voices the entire corpus.
  */
-function distParams(prefix: string): ParamDef[] {
+function dirtParams(prefix: string): ParamDef[] {
   return [
     fxOnParam(prefix),
     { id: `${prefix}.drive`, min: 0, max: 1, default: 0.3, format: fmtPct },
     { id: `${prefix}.tone`, min: 200, max: 8000, default: 3000, format: fmtHz },
     { id: `${prefix}.mix`, min: 0, max: 1, default: 1, format: fmtPct },
+    // 0 = DISTORTION, Dirt as it always was (dirt-types.md REQ-distortion-is-the-unchanged-dirt).
+    {
+      id: `${prefix}.type`, min: 0, max: DIRT_TYPE_LABELS.length - 1, default: 0, step: 1,
+      taper: 'discrete', labels: DIRT_TYPE_LABELS,
+    },
   ];
 }
 

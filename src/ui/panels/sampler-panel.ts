@@ -7,7 +7,7 @@ import { Switch } from '../components/switch';
 import { Knob, dimWhileModeSet } from '../components/knob';
 import { createButton } from '../components/button';
 import { ParamDropdown } from '../components/param-dropdown';
-import { fxGroup, fxGroupParts, delayFxGroup } from '../components/fx-group';
+import { fxGroup, fxGroupParts, delayFxGroup, dirtFxGroup } from '../components/fx-group';
 import { createFxSlot } from '../components/fx-slot-picker';
 import { CHORUS_MODE_OVERRIDES } from '../../state/chorus';
 import { StepButton } from '../components/step-button';
@@ -106,11 +106,7 @@ export function buildSamplerPanel(
   // than mid-cluster (responsive-machine-header.md).
   const fx = document.createElement('div');
   fx.className = panelStyles.fxCluster!;
-  fx.appendChild(fxGroup(bus, 'DIST', 'fx.sampler.dist', [
-    { id: 'fx.sampler.dist.drive', label: 'DRIVE' },
-    { id: 'fx.sampler.dist.tone', label: 'TONE' },
-    { id: 'fx.sampler.dist.mix', label: 'MIX' },
-  ]));
+  fx.appendChild(dirtFxGroup(bus, 'fx.sampler.dist'));
   // PHASER, FLANGER and CHORUS share one group's place, chosen from a caret by
   // the title, in chain order (fx-slot-picker.md REQ-the-slot-lists-its-effects-in-chain-order).
   const phaserHost = document.createElement('span');

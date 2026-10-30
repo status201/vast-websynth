@@ -3,6 +3,7 @@ import { Knob, dimWhileModeSet } from '../components/knob';
 import { Switch } from '../components/switch';
 import { CHORUS_MODE_OVERRIDES } from '../../state/chorus';
 import { DELAY_KNOBS, delayTypeDropdown, dimCharAtDigital } from '../components/delay-type-controls';
+import { DIRT_KNOBS, dirtTypeDropdown } from '../components/dirt-type-controls';
 import { createFxSlot } from '../components/fx-slot-picker';
 import { createCollapseToggle } from '../components/collapse-toggle';
 import { createSectionTitle } from '../components/section-title';
@@ -81,7 +82,9 @@ const SWEEP_KNOBS: FxSpec['knobs'] = [['rate', 'RATE'], ['depth', 'DEPTH'], ['fe
 
 /** The rack, left to right — the order of the insert chain itself. */
 const RACK: readonly RackEntry[] = [
-  { title: 'Distortion', id: 'fx.dist', knobs: [['drive', 'DRIVE'], ['tone', 'TONE'], ['mix', 'MIX']] },
+  // TYPE is the title, a Dirt legend over DISTORTION / OVERDRIVE / FUZZ
+  // (dirt-types.md REQ-dirt-type-is-the-panel-title).
+  { title: 'Dirt', id: 'fx.dist', knobs: DIRT_KNOBS, titleControl: dirtTypeDropdown },
   { title: 'Wah', id: 'fx.wah', knobs: [['rate', 'RATE'], ['depth', 'DEPTH'], ['q', 'Q']] },
   // The flanger and the chorus have no panels of their own; they share the
   // Phaser's, in chain order (fx-slot-picker.md REQ-the-slot-lists-its-effects-in-chain-order).

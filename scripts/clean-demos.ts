@@ -19,7 +19,8 @@
  * Two things it deliberately does NOT own: the **zip** demos' bytes (a zip is a
  * container — canonicalizing one would churn megabytes for no readable diff; it
  * only reads them for their metadata) and the hand-written **blurbs**, which live
- * in `src/state/demo-notes.json` and are merged in, never rewritten (REQ-song-file-is-a-versioned-union).
+ * in `src/state/demo-notes.json` and stay there: they load after boot, so the
+ * index carries facts only (demo-library.md REQ-the-blurbs-load-after-boot).
  *
  * With `CLEAN_DEMOS_CHECK` set (injected by `scripts/check-demos.config.ts`,
  * `npm run check:demos`) it writes nothing and instead fails listing every file
@@ -48,14 +49,6 @@ test(checkOnly ? 'demo song files are canonical' : 'canonicalize demo song files
   const drifted: string[] = [];
   const index: Record<string, DemoMeta> = {};
 
-  // Hand-written blurbs, merged in below. Kept in their own file precisely so
-  // this generator can never clobber prose (demo-library.md REQ-demo-prose-lives-apart), and every
-  // entry is optional — a demo with no note is still a pure data drop-in.
-  const notesPath = join(stateDir, 'demo-notes.json');
-  const notes = existsSync(notesPath)
-    ? JSON.parse(readFileSync(notesPath, 'utf8')) as Record<string, string>
-    : {};
-
   const entries = readdirSync(demosDir).sort();
 
   for (const f of entries) {
@@ -65,7 +58,7 @@ test(checkOnly ? 'demo song files are canonical' : 'canonicalize demo song files
     // Windows working copy may still carry CRLF — that alone is not drift.
     const before = readFileSync(path, 'utf8').replace(/\r\n/g, '\n');
     const file = JSON.parse(before) as SongFile;
-    index[f] = withBlurb(demoMetaOf(file), notes[f]);
+    index[f] = demoMetaOf(file);
     const json = JSON.stringify(compactSongForExport(file), null, 2) + '\n';
     if (checkOnly) {
       if (json !== before) drifted.push(f);
@@ -89,7 +82,7 @@ test(checkOnly ? 'demo song files are canonical' : 'canonicalize demo song files
       drifted.push(`${f} (unreadable: ${parsed.errors[0] ?? 'unknown error'})`);
       continue;
     }
-    index[f] = withBlurb(demoMetaOf(parsed.file), notes[f]);
+    index[f] = demoMetaOf(parsed.file);
   }
 
   // Keys are the sorted filenames above, so the emitted JSON is stable.
@@ -111,7 +104,3 @@ test(checkOnly ? 'demo song files are canonical' : 'canonicalize demo song files
   expect(drifted, 'non-canonical demo files — run `npm run clean:demos`').toEqual([]);
 });
 
-/** Attach a hand-written blurb, omitting the key entirely when there is none. */
-function withBlurb(meta: Omit<DemoMeta, 'blurb'>, blurb: string | undefined): DemoMeta {
-  return blurb ? { ...meta, blurb } : meta;
-}

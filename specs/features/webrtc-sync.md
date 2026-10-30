@@ -3,7 +3,9 @@
 ```yaml
 id: webrtc-sync
 status: implemented
-version: 8   # v8: REQ-a-join-carries-its-time — start/continue carry an optional `at`, so a WiFi
+version: 9   # v9: the transport's body loads at pairing, behind a boot-time facade
+             #     (REQ-the-wifi-transport-loads-at-pairing)
+             # v8: REQ-a-join-carries-its-time — start/continue carry an optional `at`, so a WiFi
              #     slave joins on the master's schedule rather than on arrival
              # v7: the wire carries the time signature (REQ-the-wire-carries-the-time-signature) — meter.md
              # v6: REQ-the-transport-opens-two-channels type-guards the wire (a peer can't inject NaN into the
@@ -20,7 +22,8 @@ related:
 source:
   - src/audio/transport/sync/sync-types.ts
   - src/audio/transport/sync/clock-offset.ts
-  - src/audio/transport/sync/webrtc-sync-transport.ts
+  - src/audio/transport/sync/wifi-sync.ts            # v9: WifiSyncTransport, the boot-time facade; WifiLink
+  - src/audio/transport/sync/webrtc-sync-transport.ts # lazy since v9
   - src/audio/transport/sync/webrtc-signaling.ts
   - src/utils/compression.ts             # shared deflate-raw helpers (also used by the zip codec)
   - src/audio/transport/sync/webrtc-diagnostics.ts
@@ -135,6 +138,32 @@ follows whichever delivers.
   while master**, the controller calls `master.announceTo` targeting **only that
   transport's `send`** (a broadcast would audibly restart already-locked MIDI
   slaves — see midi-clock-sync REQ-song-position-pointer-jumps-the-slave).
+
+- **REQ-the-wifi-transport-loads-at-pairing** (v9) — **Nobody pays for WiFi
+  sync until they pair.** The Engine registers the `'wifi'` transport at boot,
+  but a transport with no link sends nothing, receives nothing and has no ports.
+  So what boots is `WifiSyncTransport` (`wifi-sync.ts`), a **synchronous facade
+  over a lazy body** ([runtime-performance](runtime-performance.md)
+  REQ-boot-cost-matches-the-request), and `WebRtcSyncTransport` stays out of the
+  entry chunk, along with its offset estimator and signal codec.
+  - Until the body exists, the facade is an unlinked transport: `send` drops,
+    `ports()` is `{ ins: 0, outs: 0 }`, `linked` is `false` and `diagnostics`
+    is empty.
+  - Listeners (`onMessage`, `onPortsChange`, `onDiagnostics`) are held by the
+    facade, and are relayed once the body exists. A subscriber never re-subscribes.
+  - `createLink`, `acceptOffer` and `acceptAnswer` (already async, and reached
+    only from the lazy pair modal) import and build the body on the first call,
+    then delegate. `closeLink` is a no-op without a body.
+  - A failed import rejects that call. The pair modal already reports a failed
+    pairing step, so the import is operation-scoped
+    ([lazy-load-failure](lazy-load-failure.md)
+    REQ-lazy-scope-is-surfaces-not-operations). The next pairing step retries.
+
+  Pairing works on a LAN with no internet, so the body is idle-warmed at boot
+  (`main.ts` `warmDeferred`) like every deferred chunk a player can reach
+  offline. The UI and the Engine hold the transport as `WifiLink`, the surface
+  both classes implement. A test still hands the pair modal a real
+  `WebRtcSyncTransport`.
 
 - **REQ-pairing-is-serverless-and-non-trickle** — Pairing is **non-trickle** and
   serverless. The transport gathers ICE to completion (`icegatheringstate ===

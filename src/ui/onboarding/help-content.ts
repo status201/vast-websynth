@@ -98,7 +98,7 @@ export const TOUR_STEPS: TourStep[] = [
     target: 'fx',
     title: 'Add effects',
     body:
-      'Distortion, delay, reverb and more. Flip a switch to turn an effect on, then tweak its ' +
+      'Dirt, delay, reverb and more. Flip a switch to turn an effect on, then tweak its ' +
       'knobs. Great for turning a plain tone into something huge.',
     placement: 'top',
     precondition: (ctx) => ctx.expandFx(),
@@ -668,7 +668,7 @@ export const HELP_TOPICS: Record<TopicId, HelpTopic> = {
   fx: {
     title: 'Effects chain',
     body:
-      '<p>A chain of eight effects the synth runs through: <strong>Distortion → Wah → Phaser → ' +
+      '<p>A chain of eight effects the synth runs through: <strong>Dirt → Wah → Phaser → ' +
       'Flanger → Chorus → Delay → Reverb → Duck</strong>. Each has an on/off switch and a few knobs. Switch one on ' +
       'and tweak — they turn a plain tone into something spacious or gnarly. Click the (i) on ' +
       'each effect for details.</p>' +
@@ -676,9 +676,13 @@ export const HELP_TOPICS: Record<TopicId, HelpTopic> = {
       'between them. Any of them can be on at once — a lit dot in that menu shows which ones are.</p>',
   },
   'fx.dist': {
-    title: 'Distortion',
+    title: 'Dirt',
     body:
-      '<p>Adds harmonics and grit, from gentle warmth to full fuzz.</p>' +
+      '<p>Adds harmonics and grit: the overdrive, distortion and fuzz family. The ' +
+      '<strong>type</strong> menu (on the synth, the panel title) picks its character: ' +
+      '<strong>DISTORTION</strong> (hard and compressed), <strong>OVERDRIVE</strong> ' +
+      '(softer and warmer, it cleans up when you play quieter and keeps the bass tight) or ' +
+      '<strong>FUZZ</strong> (a thick, buzzy wall with scooped mids that sputters as notes fade).</p>' +
       '<ul><li><strong>DRIVE</strong> — how hard it is pushed.</li>' +
       '<li><strong>TONE</strong> — brightness of the distorted sound.</li>' +
       '<li><strong>MIX</strong> — blend of dry vs distorted.</li></ul>',
@@ -745,7 +749,7 @@ export const HELP_TOPICS: Record<TopicId, HelpTopic> = {
       'the EQ switched on or off as it was.</li>' +
       '</ul>' +
       '<p>The EQ comes <strong>first</strong> in each lane, before its effects, so it changes what ' +
-      'the distortion bites on and, on the drums, what the compressor reacts to. A boost makes ' +
+      'Dirt bites on and, on the drums, what the compressor reacts to. A boost makes ' +
       'the lane <strong>louder</strong> on purpose; bring it back down with that lane’s volume. ' +
       'There is no undo for a drawn curve: double-tap a band or press Reset.</p>',
   },

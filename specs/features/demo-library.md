@@ -3,7 +3,9 @@
 ```yaml
 id: demo-library
 status: implemented
-version: 5   # v5: the ⓘ-mode door knows the loaded demo too, so both doors open the library in the
+version: 6   # v6: the blurbs leave the boot bundle: the index carries facts only and the blurbs are a
+             #     lazy chunk, filled into the row's tooltips on idle (REQ-the-blurbs-load-after-boot)
+             # v5: the ⓘ-mode door knows the loaded demo too, so both doors open the library in the
              #     same state (REQ-info-mode-badges-the-demo-row-once)
              # v4: a blurb folds to its first line with a More/Less toggle; the loaded demo's entry opens
              #     unfolded and its button reads "Loaded" (REQ-a-blurb-folds-to-its-first-line,
@@ -27,7 +29,8 @@ related:
 source:
   - src/state/demo-meta.ts          # the pure fact-extractor
   - src/state/demo-notes.json       # hand-written blurbs (optional, per demo)
-  - src/state/demos-index.json      # GENERATED — facts + merged blurbs
+  - src/state/demo-blurbs.ts        # v6: the blurbs' lazy module (REQ-the-blurbs-load-after-boot)
+  - src/state/demos-index.json      # GENERATED — facts only (v6)
   - scripts/clean-demos.ts          # the generator + the check:demos gate
   - src/state/song.ts               # JSON_DEMOS / ZIP_DEMOS / demoNames
   - src/ui/panels/song-panel.ts     # the demo row + the loaded demo's ⓘ
@@ -70,8 +73,10 @@ what a demo owes the shelf.
 
 - **REQ-demo-prose-lives-apart** — **Prose is hand-written and lives apart.** A
   one-line "what to listen for" blurb per demo lives in
-  `src/state/demo-notes.json`, keyed by filename, and is **merged into** the
-  generated index. It is separate precisely so regeneration cannot clobber it,
+  `src/state/demo-notes.json`, keyed by filename. Until v5 it was **merged into**
+  the generated index. Since v6 it stays out of it and loads on its own
+  (REQ-the-blurbs-load-after-boot). It is separate precisely so regeneration
+  cannot clobber it,
   and **optional**: a demo with no entry still gets its facts. This preserves
   the property [add-a-demo-song](../recipes/add-a-demo-song.md) promises —
   dropping a `.json` into `src/state/demos/` and running one command is still
@@ -134,9 +139,33 @@ what a demo owes the shelf.
   seq + drums + motion · hold a key: arp armed — <blurb>` (the armed phrasing is
   `ARMED_LABEL`'s, which spells out the gesture rather than just naming the
   machine) — so hovering (or a screen reader) answers "what is this?" without a
-  click. The visible label stays the song's name: the row is already tight on
+  click. (v6) The facts are there when the row is built. The blurb joins them
+  once the blurbs have loaded, shortly after boot
+  (REQ-the-blurbs-load-after-boot). The visible label stays the song's name: the row is already tight on
   mobile, and the fix for a row of unlabelled buttons is not a row of wider
   ones.
+
+- **REQ-the-blurbs-load-after-boot** (v6) — **The blurbs are not boot
+  payload.** The index is in the entry chunk, because the row needs each demo's
+  name and facts to draw. The blurbs were ~12 kB of its ~16 kB and grow with
+  every demo, while the row only needs them for a tooltip. That breaks
+  [runtime-performance](runtime-performance.md)
+  REQ-boot-cost-matches-the-request: nothing that scales with content loads
+  eagerly. So:
+  - The generator writes **facts only** to `demos-index.json`.
+  - `demo-blurbs.ts` holds the blurbs (`DEMO_BLURBS`, filename → text, read from
+    `demo-notes.json`). Only lazy code imports it: the library chunk statically,
+    and the Song panel through `import()`.
+  - The Song panel imports it on **idle** once the row is built
+    (`requestIdleCallback`, else a 2 s timeout, as `main.ts` warms). It then
+    rewrites each button's `title` and `aria-label` to the full summary. A
+    hover in the first moments shows the facts alone, which is never wrong,
+    only shorter.
+  - A failed import is a warm, not a gesture
+    ([lazy-load-failure](lazy-load-failure.md) REQ-lazy-report-is-the-backstop).
+    It is swallowed and the tooltips stay facts-only. The library, opened by a
+    click, carries its own copy of the import, and a failure there is reported
+    by its trigger like any surface.
 
 - **REQ-demo-index-shape-is-stable** — **The index stays a build artifact with a
   stable shape.** Keys are sorted filenames (so the emitted JSON is
@@ -243,14 +272,20 @@ export interface DemoMeta {
   bars: number;              // longest enabled chain lane; 0 = no arrangement
   uses: DemoMachine[];       // 'seq' | 'drums' | 'sampler' | 'motion'
   armed?: DemoArmed[];       // 'arp' | 'motion' — omitted when empty
-  blurb?: string;            // merged from demo-notes.json (REQ-demo-prose-lives-apart)
-}
-export function demoMetaOf(file: SongFile): Omit<DemoMeta, 'blurb'>;
+}                            // v6: no blurb — REQ-the-blurbs-load-after-boot
+export function demoMetaOf(file: SongFile): DemoMeta;
 /** The facts alone — `124 BPM · 16 bars · seq + drums` — the library's facts line (v3). */
 export function demoFacts(meta: DemoMeta): string;
 /** The one-line summary the demo button's title shows (REQ-demo-row-says-what-it-knows):
- *  `demoFacts(meta) — blurb`. */
-export function demoSummary(meta: DemoMeta): string;
+ *  `demoFacts(meta) — blurb`, or the facts alone while there is no blurb (v6). */
+export function demoSummary(meta: DemoMeta, blurb?: string): string;
+
+// src/state/demo-blurbs.ts — lazy only (v6, REQ-the-blurbs-load-after-boot)
+export const DEMO_BLURBS: Readonly<Record<string, string>>;   // filename -> blurb
+
+// src/state/song.ts
+export interface DemoRef { name: string; url: string; file: string; meta?: DemoMeta }
+export function demoFileFor(name: string): string | null;     // v6: the blurb's key; null for the built-in
 
 // src/ui/components/demo-library.ts — lazy (REQ-the-library-reads-without-loading)
 export interface DemoLibraryOptions {
@@ -288,7 +323,7 @@ demos-index.json:            # GENERATED — keys are sorted filenames
     bars: number
     uses: [seq, drums, sampler, motion]     # subset, in that order
     armed: [arp, motion]                    # subset; key omitted when empty
-    blurb: string                           # key omitted when demo-notes has none
+                                            # v6: no blurb (REQ-the-blurbs-load-after-boot)
 
 demo-notes.json:             # HAND-WRITTEN — filename -> one line, all optional
   "<file>.json": "Acid bassline over a 909; hold a key, the arp is armed."
@@ -300,11 +335,13 @@ demo-notes.json:             # HAND-WRITTEN — filename -> one line, all option
 clean:demos  -> reads src/state/demos/*.json   (canonicalize, ADR-011)
              -> reads src/state/demos/*.zip    (parseProjectZip, REQ-zip-demos-are-indexed-too)
              -> demoMetaOf(file) per demo      (pure, src/state/demo-meta.ts)
-             -> merges src/state/demo-notes.json blurbs   (REQ-demo-prose-lives-apart)
-             -> writes src/state/demos-index.json
+             -> writes src/state/demos-index.json   (facts only, v6)
 check:demos  -> the same pass, writes nothing, fails on any difference
 song.ts      -> imports demos-index.json; DemoRef gains `meta`
 song-panel   -> mkDemoBtn sets button.title = demoSummary(meta)   (REQ-demo-row-says-what-it-knows)
+             -> on idle: import('state/demo-blurbs') -> title = demoSummary(meta, blurb)
+                (REQ-the-blurbs-load-after-boot; a failed warm is swallowed)
+demo-library -> imports demo-blurbs statically (inside its own lazy chunk)
              -> applySongWithUndo / New clear the loaded demo; applyDemo and a demo zip set it
                 right after their apply; restoreStash puts back the stash's
                 (REQ-the-loaded-demo-carries-an-info-button)
@@ -365,12 +402,20 @@ Scenario: A bypassed effect is never reported as armed (REQ-uses-is-heard-armed-
     FX hint would fire on almost every demo and so mean nothing
 # pinned by: tests/state/demo-meta.test.ts
 
-Scenario: A hand-written blurb survives regeneration (REQ-demo-prose-lives-apart)
+Scenario: Blurbs stay out of the index (v6, REQ-demo-prose-lives-apart, REQ-the-blurbs-load-after-boot)
   Given demo-notes.json holds a line for a demo
   When clean:demos regenerates the index
-  Then the blurb is present in the index and unchanged
-  And a demo with no note still gets its generated facts
-# pinned by: tests/state/demo-meta.test.ts
+  Then no index entry carries a blurb, and demo-notes.json is unchanged
+  And DEMO_BLURBS returns that line for the demo's filename
+# pinned by: tests/state/demo-index.test.ts
+
+Scenario: The row's tooltips gain their blurbs after boot (v6, REQ-the-blurbs-load-after-boot)
+  Given the Song panel's demo row is built
+  Then a demo button's title is its facts alone
+  When the idle blurb import lands
+  Then the title and aria-label read "<name> — <facts> — <blurb>" for a demo with a note
+   And a demo without a note keeps its facts alone
+# pinned by: tests/ui/demo-row-blurbs.test.ts
 
 Scenario: The zip demos are indexed like any other (REQ-zip-demos-are-indexed-too)
   When clean:demos runs
@@ -389,8 +434,8 @@ Scenario: A demo button says what it is without being clicked (REQ-demo-row-says
 # pinned by: e2e/demo-library.spec.ts
 
 Scenario: The facts line is the summary without the blurb (v3)
-  Given a demo's metadata with a blurb
-  Then demoSummary is demoFacts, " — ", then the blurb
+  Given a demo's metadata and a blurb
+  Then demoSummary(meta, blurb) is demoFacts, " — ", then the blurb, and demoSummary(meta) the facts alone
   And demoFacts drops an unknown tempo or length rather than printing a zero
 # pinned by: tests/state/demo-meta.test.ts
 

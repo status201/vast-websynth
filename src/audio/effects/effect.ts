@@ -52,6 +52,20 @@ export function chain(input: AudioNode, fx: Effect[], output: AudioNode): void {
 export const DISCONNECT_DELAY_MS = 300;
 
 /**
+ * A Butterworth lowpass/highpass `Q`: flat to the corner, no bump. Web Audio
+ * reads a lowpass or highpass biquad's `Q` in **dB**, so this is
+ * 20·log10(1/√2) ≈ −3.01, not 0.7071 — which read as dB is a linear Q of
+ * ~1.09 and a +1.7 dB peak (equalizer.md). Every true-Butterworth filter in
+ * the audio layer uses it, and lives here because every one of them already
+ * imports this module (in `param-utils.ts` it split that module into a chunk of
+ * its own, an extra boot request): the delay loops (delay-types.md
+ * REQ-every-type-is-bounded), ring mod's DC filter (cross-modulation.md
+ * REQ-ring-is-dc-free) and Dirt's DC block (dirt-types.md
+ * REQ-every-dirt-type-is-bounded).
+ */
+export const BUTTERWORTH_Q_DB = 20 * Math.log10(Math.SQRT1_2);
+
+/**
  * How long a stateless effect needs, fed silence, before what it holds *is*
  * silence — one `RAMP_MEDIUM`-ish settle for a biquad or a gain, no more. An
  * effect with real memory (a delay line, a convolver) overrides `drainSeconds`;

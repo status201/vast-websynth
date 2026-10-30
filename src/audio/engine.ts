@@ -28,7 +28,7 @@ import { Performance } from './transport/performance';
 import { SyncController } from './transport/sync/sync-controller';
 import { TransportLoop } from './transport/transport-loop';
 import { LoopDriver } from './transport/loop-driver';
-import { WebRtcSyncTransport } from './transport/sync/webrtc-sync-transport';
+import { WifiSyncTransport, type WifiLink } from './transport/sync/wifi-sync';
 import { RecorderNode } from './recorder/node';
 import { RecorderController } from './recorder/recorder-controller';
 import { BankRenderController } from './recorder/bank-render';
@@ -111,7 +111,7 @@ export interface EngineOptions {
   scheduleAheadS?: number;
   /** Longest reverb IR the banks render (s); caps always-on convolution cost (default 4). */
   reverbIrMaxS?: number;
-  /** Allow WaveShaper oversampling in the distortions + drum tracks (default true). */
+  /** Allow WaveShaper oversampling in the two Dirts + drum tracks (default true). */
   fxOversample?: boolean;
   /** fftSize for the 3 scope analysers; smaller on weak cuts always-on FFT cost (default 1024). */
   analyserFftSize?: number;
@@ -190,7 +190,7 @@ export class Engine {
   recorder!: RecorderController;
   bankRender!: BankRenderController;
   sync!: SyncController;
-  rtcSync!: WebRtcSyncTransport;
+  rtcSync!: WifiLink;
   /** The Song transport's loop — on/off, range, pending pick (transport-loop.md).
    *  A model only; `loopDriver` is what bends the clock with it. */
   readonly loop = new TransportLoop();
@@ -321,9 +321,9 @@ export class Engine {
     // Perf-tier FX-cost knobs (performance-mode.md REQ-weak-tier-reduces-fx-cost); defaults are no-ops.
     this.fxOversample = opts.fxOversample ?? true;
     const reverbOpts = { maxIrS: opts.reverbIrMaxS ?? 4 };
-    const distOpts = { oversample: this.fxOversample };
+    const dirtOpts = { oversample: this.fxOversample };
 
-    const chainOpts = { dist: distOpts, reverb: reverbOpts };
+    const chainOpts = { dirt: dirtOpts, reverb: reverbOpts };
     this.synthFx = createSynthChain(this.ctx, chainOpts);
     this.drumFx = createDrumChain(this.ctx, chainOpts);
     this.samplerFx = createSamplerChain(this.ctx, chainOpts);
@@ -603,8 +603,10 @@ export class Engine {
     });
 
     // WiFi sync (WebRTC DataChannel) coexists with the MIDI transport; no RTC
-    // objects until the user pairs (webrtc-sync.md). initMIDI adds 'midi' later.
-    this.rtcSync = new WebRtcSyncTransport();
+    // objects until the user pairs, and no WebRTC code either: the facade loads
+    // it at pairing (webrtc-sync.md REQ-the-wifi-transport-loads-at-pairing).
+    // initMIDI adds 'midi' later.
+    this.rtcSync = new WifiSyncTransport();
     this.sync.addTransport('wifi', this.rtcSync);
 
     // After sync, the recorder and the bank renderer: a wrap is a seek, refused

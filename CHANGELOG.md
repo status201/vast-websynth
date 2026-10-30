@@ -18,6 +18,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ### Added
 
+- **Dirt.** The synth and sampler Distortion is now **Dirt**, with a **TYPE**
+  menu (on the synth, the panel's title is the menu). Saved songs, presets and
+  links are unaffected.
+  - **DISTORTION** is the effect as it was.
+  - **OVERDRIVE** is softer and warmer. It cleans up when played quieter and
+    keeps the bass tight.
+  - **FUZZ** is a thick, buzzy wall with scooped mids that sputters as a note
+    fades.
+  - All three share DRIVE, TONE and MIX. Switching type is click-free, and
+    nothing extra runs while DISTORTION is chosen.
 - **Delay types.** Every delay (synth, drum machine and sampler) has a **TYPE**
   menu (on the synth, the panel's title is the menu) and a **CHAR** knob.
   - **DIGITAL** is the delay as it was. **PING PONG** bounces the repeats left
@@ -106,6 +116,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ### Changed
 
+- **Startup loads less.** The demos' notes, WiFi sync and the MIDI-clock
+  master and slave now load when they are needed rather than at startup:
+  about 26 kB less JavaScript before the instrument is ready. Nothing looks or
+  works differently: a demo button's tooltip gains its note a moment after the
+  page opens.
 - **The synth panels line up.** The wave pickers and the filter's LADDER /
   POLY switch now sit on one line at the top of their panels, and OSC 2's sync
   switch, the glide mode and the LFO destination on one line at the bottom. The

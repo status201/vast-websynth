@@ -2,8 +2,11 @@ import type { Clock } from '../clock';
 import type { SyncMessage, SyncStatus, SyncTransport, SyncMode, TransportId } from './sync-types';
 import { readSyncMode, writeSyncMode } from '../../../state/sync-mode';
 import { type TickTimer, TimeoutTimer } from '../tick-timer';
-import { SyncMaster } from './sync-master';
-import { SyncSlave } from './sync-slave';
+import type { SyncMaster } from './sync-master';
+import type { SyncSlave } from './sync-slave';
+
+/** The lazy role module (REQ-the-sync-roles-load-with-the-mode). */
+export type SyncRoles = typeof import('./sync-roles');
 
 /**
  * Owns the sync mode (off | master | slave) and the role lifecycle. This is
@@ -68,6 +71,11 @@ export interface SyncControllerOptions {
    * background-tab throttling are both irrelevant — no second Worker.
    */
   watchdogTimer?: TickTimer;
+  /**
+   * The role classes, given synchronously (tests). Omitted, they are imported
+   * when a sync mode is first selected (REQ-the-sync-roles-load-with-the-mode).
+   */
+  roles?: SyncRoles;
 }
 
 export class SyncController {
@@ -82,12 +90,17 @@ export class SyncController {
   private readonly nowMs: () => number;
   private readonly watchdog: TickTimer;
   private lastMessageAtMs = -Infinity;
+  /** Null until a selected mode has loaded them (REQ-the-sync-roles-load-with-the-mode). */
+  private roles: SyncRoles | null;
+  private rolesLoading = false;
 
   constructor(private readonly clock: Clock, private readonly opts: SyncControllerOptions) {
     this.persist = opts.persist ?? true;
     this.nowMs = opts.nowMs ?? (() => performance.now());
     this.watchdog = opts.watchdogTimer ?? new TimeoutTimer();
+    this.roles = opts.roles ?? null;
     this._mode = this.persist ? readSyncMode() : 'off';
+    this.loadRoles();
     this.applyActiveRole();
     this.syncWatchdog();
     // Play-state is part of the status line; repaint on transport edges. Both
@@ -118,6 +131,7 @@ export class SyncController {
   setMode(m: SyncMode): void {
     if (m === this._mode) return;
     this._mode = m;
+    this.loadRoles();
     // Explicit: a deliberate exit snaps the tempo back to the knob (REQ-slave-follows-tempo-from-pulses),
     // unlike an automatic release, which adopts the followed tempo (REQ-tempo-handoff-on-release).
     this.applyActiveRole(true);
@@ -140,6 +154,7 @@ export class SyncController {
       t.onPortsChange(() => this.onPortsChange(id)),
     );
     this.transports.set(id, entry);
+    this.loadRoles(); // a retry, should an earlier import have failed
     this.applyActiveRole(); // a late-added wire can arm the selected role
     this.emitStatus();
   }
@@ -211,6 +226,7 @@ export class SyncController {
    * phase without restarting the others (REQ-song-position-pointer-jumps-the-slave/15).
    */
   private onPortsChange(id: TransportId): void {
+    this.loadRoles(); // a retry, should an earlier import have failed
     const entry = this.transports.get(id);
     // A role that just activated already announced to everyone via
     // `SyncMaster.enable()`; a second targeted announce would double the join.
@@ -231,7 +247,8 @@ export class SyncController {
    * nothing connected resolves to `'off'` — armed, but inert.
    */
   private desiredActiveRole(): SyncMode {
-    if (this._mode === 'off') return 'off';
+    // A role whose code has not loaded yet cannot run: armed but inert.
+    if (this._mode === 'off' || !this.roles) return 'off';
     const ports = [...this.transports.values()].map((e) => e.t.ports());
     if (this._mode === 'master') return ports.some((p) => p.outs > 0) ? 'master' : 'off';
     if (!ports.some((p) => p.ins > 0)) return 'off';
@@ -270,8 +287,9 @@ export class SyncController {
     this.slaveUnsub = null;
     this._activeMode = want;
 
-    if (want === 'master') {
-      this.master = new SyncMaster(
+    const roles = this.roles;
+    if (want === 'master' && roles) {
+      this.master = new roles.SyncMaster(
         this.clock,
         (msg, atMs) => this.broadcast(msg, atMs),
         this.opts.toPerfMs,
@@ -283,8 +301,8 @@ export class SyncController {
         },
       );
       this.master.enable();
-    } else if (want === 'slave') {
-      this.slave = new SyncSlave(this.clock, {
+    } else if (want === 'slave' && roles) {
+      this.slave = new roles.SyncSlave(this.clock, {
         localBpm: this.opts.localBpm,
         toAudioTime: this.opts.toAudioTime,
         ...(this.opts.setMeter ? { setMeter: this.opts.setMeter } : {}),
@@ -293,6 +311,23 @@ export class SyncController {
       this.slaveUnsub = this.slave.onChange(() => this.emitStatus());
     }
     return true;
+  }
+
+  /**
+   * Import the roles once a mode is selected (REQ-the-sync-roles-load-with-the-mode),
+   * then re-derive the role they were holding back. A failure is logged and
+   * forgotten, so the next mode, wire or port change retries.
+   */
+  private loadRoles(): void {
+    if (this.roles || this.rolesLoading || this._mode === 'off') return;
+    this.rolesLoading = true;
+    import('./sync-roles')
+      .then((m) => {
+        this.roles = m;
+        if (this.applyActiveRole()) this.emitStatus();
+      })
+      .catch((err: unknown) => { console.warn('[sync] roles failed to load', err); })
+      .finally(() => { this.rolesLoading = false; });
   }
 
   /** The clock's tempo, in BPM (`SyncMaster.currentBpm`'s formula). */

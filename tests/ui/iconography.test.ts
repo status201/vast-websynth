@@ -23,7 +23,7 @@ const UI_DIR = fileURLToPath(new URL('../../src/ui/', import.meta.url));
 /**
  * The code points that must be drawn, never typed (REQ-a-control-glyph-is-inline-svg). Deliberately *not*
  * every non-ASCII character: `— – … • − ≤ ≥ ≈ ’ “ ”` are typography, and the
- * flow arrows in prose ("Distortion → Wah") are punctuation under REQ-punctuation-glyphs-stay-text.
+ * flow arrows in prose ("Dirt → Wah") are punctuation under REQ-punctuation-glyphs-stay-text.
  *
  * `→` and `↔` are absent for that reason — they are far more often prose here
  * than a label, and `assignments` below catches the label case anyway.
@@ -107,7 +107,7 @@ describe('the icon rule (specs/features/iconography.md)', () => {
     // The boundary, pinned from the other side: these are the same arrow
     // characters, left alone because they join words rather than name controls.
     const help = sources.find((s) => s.file === 'onboarding/help-content.ts')!.src;
-    expect(help).toContain('Distortion → Wah → Phaser');
+    expect(help).toContain('Dirt → Wah → Phaser');
     expect(help).toContain('dark ↔ bright');
   });
 });
