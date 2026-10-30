@@ -3,6 +3,16 @@ import type { ParamBus } from '../../state/params';
 import { Dropdown, type DropdownOptions } from './dropdown';
 
 /**
+ * An effect's `${prefix}.type` selector — the delay's TYPE and Dirt's — with
+ * the testid `dropdown-${prefix}.type` (delay-types.md REQ-delay-type-testids,
+ * dirt-types.md REQ-dirt-type-testids). After the title in a header group, or,
+ * given a `legend`, a synth panel's title itself.
+ */
+export function typeDropdown(bus: ParamBus, prefix: string, labels: string[], legend?: string): HTMLElement {
+  return new ParamDropdown(bus, `${prefix}.type`, labels, `dropdown-${prefix}.type`, { legend }).el;
+}
+
+/**
  * Binds the vintage `Dropdown` to a discrete `ParamBus` param, mapping the
  * param's numeric index ↔ its label (same role `Segmented` plays for
  * segmented controls). Used where a 5-option segmented row won't fit a

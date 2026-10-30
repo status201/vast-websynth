@@ -22,7 +22,7 @@ related:
   - step-grid-editing
 source:
   - src/ui/styles/panel.module.css   # .patternPanelHeader wrap + .fxCluster
-  - src/ui/panels/sampler-panel.ts    # DIST / PHASER·FLANGER·CHORUS / DELAY / REVERB / DUCK cluster
+  - src/ui/panels/sampler-panel.ts    # DIRT / PHASER·FLANGER·CHORUS / DELAY / REVERB / DUCK cluster
   - src/ui/panels/drum-panel.ts       # COMP (+GR meter) / PHASER / DELAY / REVERB cluster
 ```
 
@@ -188,7 +188,7 @@ Panel side (Drum + Sampler only):
 ```ts
 const fx = document.createElement('div');
 fx.className = panelStyles.fxCluster!;
-fx.appendChild(fxGroup(bus, 'DIST', 'fx.sampler.dist', [ … ]));
+fx.appendChild(dirtFxGroup(bus, 'fx.sampler.dist'));
 // … PHASER / DELAY / REVERB
 header.appendChild(fx);
 ```
@@ -233,7 +233,7 @@ no `ParamBus` param or `SongFile` field is involved.
  WIDE (>1140px) — unchanged, one row:
 ┌──────────────────────────────────────────────────────┐
 │ [SAMPLER] (M) [FOLLOW][A B C D][COPY] [UNDO] [Rec]   │
-│                    │DIST ●  │PHASER ● ○ ○ ○ ○        │
+│                    │DIRT ●  │PHASER ● ○ ○ ○ ○        │
 └──────────────────────────────────────────────────────┘
 
  NARROW (≤1140px) — deterministic two units:
@@ -241,7 +241,7 @@ no `ParamBus` param or `SongFile` field is involved.
 │ [SAMPLER] (M) [FOLLOW][A B C D]    │  machine controls
 │ [COPY] [UNDO] [Record a sound]     │  (wrap among themselves)
 ├────────────────────────────────────┤
-│ │DIST ● ○ ○ ○   │PHASER ● ○ ○ ○ ○  │  .fxCluster, flex-basis:100%
+│ │DIRT ● ○ ○ ○   │PHASER ● ○ ○ ○ ○  │  .fxCluster, flex-basis:100%
 │ │DELAY ●        │REVERB ●          │  (wraps internally)
 └────────────────────────────────────┘
 ```
@@ -275,7 +275,7 @@ Scenario: Wide layout is unchanged
 Scenario: With headroom, the FX cluster shares the machine controls' row (edge)
   Given the app is open at a 1600px-wide viewport
   And the Sampler tab is selected with every effect bypassed
-  Then the machine switch and the DIST group sit on the same row
+  Then the machine switch and the DIRT group sit on the same row
   # Deliberately not asserted at 1280px: the bypassed row leaves only ~57px of
   # slack there, so wider font metrics legitimately wrap it (REQ-machine-header-wraps-at-every-width).
 # pinned by: e2e/machine-header.spec.ts

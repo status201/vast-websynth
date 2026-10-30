@@ -6,7 +6,7 @@ import { Compressor } from '../../../src/audio/effects/compressor';
 import { Delay } from '../../../src/audio/effects/delay';
 import { Reverb } from '../../../src/audio/effects/reverb';
 import { Phaser } from '../../../src/audio/effects/phaser';
-import { Distortion } from '../../../src/audio/effects/distortion';
+import { Dirt } from '../../../src/audio/effects/dirt';
 import { makeMockAudioContext, installMockAudioWorkletNode, MockAudioWorkletNode } from '../mock-audio-context';
 
 // An effect boots bypassed, so its constructor arms a real 300 ms disconnect
@@ -218,7 +218,7 @@ describe('what each effect declares about its own memory (REQ-a-bypassed-effect-
 
   it('a stateless effect takes the default and quiesces nothing', () => {
     const ctx = makeMockAudioContext();
-    const dist = new Distortion(ctx as unknown as AudioContext);
+    const dist = new Dirt(ctx as unknown as AudioContext);
     expect(asDrainable(dist).drainSeconds()).toBe(DRAIN_DEFAULT_S);
     expect(() => asDrainable(dist).quiesce(true)).not.toThrow();
   });

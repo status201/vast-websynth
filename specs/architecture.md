@@ -417,7 +417,7 @@ surface and delegates `setBypass`. A subclass is then only its DSP span plus its
 `setMix` stays off the base deliberately — see effects.md REQ-every-effect-implements-the-interface.
 
 Their **params** come from one factory per shared effect in
-`state/params.ts` (`distParams`, `phaserParams`, `delayParams`, `reverbParams`,
+`state/params.ts` (`dirtParams`, `phaserParams`, `delayParams`, `reverbParams`,
 over `fxOnParam`), instantiated per prefix, so the three chains cannot drift into
 three different delays. Per-chain defaults are arguments, not copies. The wah and
 the compressors stay longhand — each appears once. `npm run check:params` is the
@@ -521,7 +521,7 @@ back into the engine.
 ### Audio graph (system diagram)
 
 ```
-voices ─(spread)→ voiceBus ─→ eq → distortion → wah → phaser → flanger → chorus → delay → reverb → duck → synthPan ─┐
+voices ─(spread)→ voiceBus ─→ eq → dirt → wah → phaser → flanger → chorus → delay → reverb → duck → synthPan ─┐
             drumBus ─→ eq → drumComp → drumPhaser → drumDelay → drumReverb ───────────────────────┤
             samplerBus ─→ eq (+ sampler dist/phaser/flanger/chorus/delay/reverb/duck) ────────────┤
                                                                                                   ▼
@@ -531,7 +531,7 @@ voices ─(spread)→ voiceBus ─→ eq → distortion → wah → phaser → f
 - The **drum bus and the sampler bus join at `preMaster`**, bypassing the synth FX
   chain.
 - The **eq heads every chain** ([features/equalizer.md](features/equalizer.md)).
-  Head rather than tail on all three: it shapes what the distortion drives and
+  Head rather than tail on all three: it shapes what Dirt drives and
   what the drum compressor reacts to, and on the synth bus it is also the cheap
   position, since that path is 1-channel until the chorus or the reverb. Ten native biquads
   per lane, no worklet, and ADR-012 disconnects the lot while it is off — which

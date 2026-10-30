@@ -263,6 +263,7 @@ describe('Every deferred-surface trigger is guarded (lazy-load-failure.md REQ-ev
     ['src/audio/effects/flanger.ts', 'REQ-lazy-scope-is-surfaces-not-operations — the flanger DSP on its first switch-on; a failure leaves a wire and retries (flanger.md)'],
     ['src/ui/panels/fx-rack.ts', 'REQ-lazy-report-is-the-backstop — the dormant patch-cable scenery at its mount; not a gesture, and a failure leaves an empty cell (fx-patch-decoration.md)'],
     ['src/audio/effects/delay.ts', 'REQ-lazy-scope-is-surfaces-not-operations — the delay-type switch on the first non-digital choice; a failure leaves the delay DIGITAL and the next choice or switch-on retries (delay-types.md)'],
+    ['src/audio/effects/dirt.ts', 'REQ-lazy-scope-is-surfaces-not-operations — the other Dirt voicings on their first choice; a failure leaves the type it was and the next choice or switch-on retries (dirt-types.md)'],
   ]);
 
   it('leaves no runtime import() in src/ without a report or a documented exemption', async () => {

@@ -6,7 +6,7 @@ import { clamp01 } from '../utils/math';
  * A `WaveShaperNode.curve` is a table, and building one is a fresh
  * `Float32Array` plus a transcendental per tap. Drive knobs are *dragged*, so
  * the naive "rebuild on every value" costs ~60-120 allocations a second (8 kB
- * each for the synth distortion's 2048 taps) plus the same number of `tanh`
+ * each for the synth Dirt's 2048 taps) plus the same number of `tanh`
  * sweeps — on the thread the transport schedules from.
  *
  * The fix is that a curve does not need the knob's full resolution: quantizing
@@ -19,7 +19,7 @@ import { clamp01 } from '../utils/math';
  * the "did it actually change?" guard they need — no bucket bookkeeping, the
  * same trick `Reverb` uses for its cached IR buffers.
  *
- * The curve *shape* stays with each caller: the synth distortion and the drum
+ * The curve *shape* stays with each caller: the synth Dirt and the drum
  * per-track drive want different ones (only the drum's is anchored at a true
  * identity, so drive 0 is an exact no-op). This module owns the caching only.
  *

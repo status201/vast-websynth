@@ -2,6 +2,7 @@ import type { ParamBus } from '../../state/params';
 import { Switch } from './switch';
 import { Knob } from './knob';
 import { DELAY_KNOBS, delayTypeDropdown, dimCharAtDigital } from './delay-type-controls';
+import { DIRT_KNOBS, dirtTypeDropdown } from './dirt-type-controls';
 import styles from '../styles/fx-group.module.css';
 
 /**
@@ -111,4 +112,16 @@ export function delayFxGroup(bus: ParamBus, prefix: string): HTMLElement {
   });
   dimCharAtDigital(bus, prefix, parts.knobs);
   return parts.el;
+}
+
+/**
+ * The sampler's DIRT group: the TYPE dropdown after the title, DRIVE · TONE · MIX
+ * (dirt-types.md REQ-dirt-type-is-the-panel-title).
+ */
+export function dirtFxGroup(bus: ParamBus, prefix: string): HTMLElement {
+  const knobs = DIRT_KNOBS.map(([k, label]) => ({ id: `${prefix}.${k}`, label }));
+  return fxGroup(bus, 'DIRT', prefix, knobs, {
+    afterTitle: dirtTypeDropdown(bus, prefix),
+    afterTitleCollapses: true,
+  });
 }

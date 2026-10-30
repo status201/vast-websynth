@@ -111,7 +111,7 @@ export interface EngineOptions {
   scheduleAheadS?: number;
   /** Longest reverb IR the banks render (s); caps always-on convolution cost (default 4). */
   reverbIrMaxS?: number;
-  /** Allow WaveShaper oversampling in the distortions + drum tracks (default true). */
+  /** Allow WaveShaper oversampling in the two Dirts + drum tracks (default true). */
   fxOversample?: boolean;
   /** fftSize for the 3 scope analysers; smaller on weak cuts always-on FFT cost (default 1024). */
   analyserFftSize?: number;
@@ -321,9 +321,9 @@ export class Engine {
     // Perf-tier FX-cost knobs (performance-mode.md REQ-weak-tier-reduces-fx-cost); defaults are no-ops.
     this.fxOversample = opts.fxOversample ?? true;
     const reverbOpts = { maxIrS: opts.reverbIrMaxS ?? 4 };
-    const distOpts = { oversample: this.fxOversample };
+    const dirtOpts = { oversample: this.fxOversample };
 
-    const chainOpts = { dist: distOpts, reverb: reverbOpts };
+    const chainOpts = { dirt: dirtOpts, reverb: reverbOpts };
     this.synthFx = createSynthChain(this.ctx, chainOpts);
     this.drumFx = createDrumChain(this.ctx, chainOpts);
     this.samplerFx = createSamplerChain(this.ctx, chainOpts);

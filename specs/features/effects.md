@@ -1,9 +1,12 @@
-# Insert effects (eq · distortion · wah · phaser · flanger · chorus · delay · reverb · duck)
+# Insert effects (eq · dirt · wah · phaser · flanger · chorus · delay · reverb · duck)
 
 ```yaml
 id: effects
 status: implemented
-version: 17  # v17: the drain table catches up: the Delay's live core rests through a bypass
+version: 18  # v18: the distortion becomes Dirt, with a TYPE (distortion · overdrive · fuzz)
+             #      on the synth and sampler buses (dirt-types.md). DISTORTION is the
+             #      default and the unchanged effect; the params keep their fx.dist ids
+             # v17: the drain table catches up: the Delay's live core rests through a bypass
              #      (delay-types.md v6–v7) and the Chorus's quiesce stops its LFO (chorus.md v3)
              # v16: the delay gets a TYPE (digital · ping pong · tape · BBD · space echo ·
              #      reverse) and a CHAR knob on all three buses (delay-types.md). DIGITAL
@@ -63,13 +66,14 @@ related:
   - chorus               # v14: synth + sampler, after the phaser
   - flanger              # v15: synth + sampler, between the phaser and the chorus
   - delay-types          # v16: the delay's TYPE + CHAR
+  - dirt-types           # v18: Dirt, the drive effect, and its TYPE
   - fx-slot-picker       # v14: the chorus shares the phaser's panel
 source:
   - src/audio/effects/effect.ts        # Effect + BypassWrapper + bindBypassMix
   - src/audio/effects/fx-chain.ts      # synth/drum/sampler chain factories
   - src/audio/effects/ducker.ts        # v7: the trigger-keyed ducker
   - src/audio/effects/eq.ts            # v11: the per-lane equalizer
-  - src/audio/effects/distortion.ts
+  - src/audio/effects/dirt.ts          # v18: was distortion.ts (dirt-types.md)
   - src/audio/effects/wah.ts
   - src/audio/effects/phaser.ts
   - src/audio/effects/chorus.ts        # v14
@@ -187,7 +191,7 @@ subsets, so a song can colour each bus independently.
   the drain. `setFeedback` keeps recording the commanded value while quiesced so
   `quiesce(false)` restores what the knob says, not what it said at bypass time.
 
-- **REQ-the-synth-chain-order** — Synth voice bus chain order: eq → distortion →
+- **REQ-the-synth-chain-order** — Synth voice bus chain order: eq → dirt →
   wah → phaser → flanger → chorus → delay → reverb → duck.
   - (v15) The **flanger** ([flanger](flanger.md)) sits between the phaser and the
     chorus, the three sharing one panel. It is channel-transparent, so in front
@@ -215,7 +219,7 @@ subsets, so a song can colour each bus independently.
     [sidechain-ducking](sidechain-ducking.md) REQ-the-ducker-is-last-in-the-chain rather than here.
 - **REQ-the-drum-bus-chain-order** — Drum bus: [eq →] compressor → phaser →
   delay → reverb (the compressor sits first *among the effects* so it smashes
-  the dry hits, not the FX wash); sampler bus: eq → distortion → phaser →
+  the dry hits, not the FX wash); sampler bus: eq → dirt → phaser →
   flanger (v15) → chorus (v14) → delay → reverb → duck. The drum bus has no
   chorus and no flanger.
   - (v11) The EQ sits ahead of even the drum compressor, which is the point
@@ -245,7 +249,7 @@ subsets, so a song can colour each bus independently.
 - **REQ-drive-curves-are-bucketed-and-memoized** — **Drive curves are bucketed
   and memoized** (v4). A `WaveShaper` curve is a table built with a
   transcendental per tap, and DRIVE is a *knob* — rebuilding per bus tick cost
-  ~60–120 allocations a second (8 kB each at the distortion's 2048 taps, plus
+  ~60–120 allocations a second (8 kB each at Dirt's 2048 taps, plus
   the drum machine's eight 1024-tap tracks). The amount is quantized to
   `DRIVE_CURVE_STEPS` (64) buckets and the table cached per bucket by
   `memoizeDriveCurve` (`src/audio/drive-curve.ts`); the pre/post gains still
@@ -423,7 +427,7 @@ subsets, so a song can colour each bus independently.
   `setMix` (REQ-every-effect-implements-the-interface), so `initialMix = 1`, `update()` computes `dry = 0`, and
   enabling it does not blend a wah in — it replaces the entire signal with a
   Q ≈ 4 bandpass that has no output compensation. Every other insert either
-  blends (phaser 0.5, delay 0.3, reverb 0.25) or is broadband (distortion).
+  blends (phaser 0.5, delay 0.3, reverb 0.25) or is broadband (Dirt).
 
   Two changes, because they fix different halves:
 
@@ -489,7 +493,7 @@ FxChain<E>:    # src/audio/effects/fx-chain.ts — one bus's chain as a unit
 ### Data shapes (registry — synth bus; drum/sampler mirror with a prefix)
 
 ```yaml
-fx.dist.on/drive/tone/mix          # distortion (tone 200..8000 Hz)
+fx.dist.on/drive/tone/mix/type     # Dirt (tone 200..8000 Hz; v18 type; the ids keep the old name, dirt-types.md)
 fx.wah.on/rate/depth/q/sync        # auto-wah                    (v6: sync)
 fx.phaser.on/rate/depth/feedback/mix/sync                      # (v6: sync)
 fx.chorus.on/rate/depth/mode/mix   # v14, chorus.md — no sync (REQ-the-chorus-has-no-tempo-lock)

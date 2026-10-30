@@ -70,7 +70,7 @@ exist, at what version, and what did each version add".
   `registerDefaults()` **is** the catalogue's order, so how a param is
   registered is a published-artefact concern. The four insert effects that
   appear on more than one chain are registered from shared factories
-  (`distParams`, `phaserParams`, `delayParams`, `reverbParams`, over
+  (`dirtParams`, `phaserParams`, `delayParams`, `reverbParams`, over
   `fxOnParam`) rather than written out once per prefix; the wah and the
   compressors stay longhand because each appears once. Chain-specific defaults
   are arguments to the factory, never a second copy of it.

@@ -3,7 +3,8 @@
 ```yaml
 id: lazy-load-failure
 status: implemented
-version: 5   # v5: the delay's non-digital types join the operation-scoped exemptions (delay-types.md)
+version: 6   # v6: Dirt's other types join the operation-scoped exemptions (dirt-types.md)
+             # v5: the delay's non-digital types join the operation-scoped exemptions (delay-types.md)
              # v4: the boot-payload baseline is dated (2026-08-20) — `npm run check:bundle` prints the current sizes
              # v3: loadSurface is the canonical trigger shape; four hand-rolled triggers fold onto it
              # v2: the offline sentence points at Play offline (REQ-the-offline-sentence-points-at-play-offline)
@@ -128,7 +129,11 @@ would drift.
   types, imported by their first selection: a failure leaves the delay DIGITAL
   (a failed reverse worklet leaves that type's wet silent), and the next
   selection or switch-on retries ([delay-types](delay-types.md)
-  REQ-the-other-types-load-on-first-use).
+  REQ-the-other-types-load-on-first-use). Nor (v6) are Dirt's other
+  types, imported by their first choice: a failure leaves Dirt DISTORTION, and
+  the next choice or switch-on retries
+  ([dirt-types](dirt-types.md)
+  REQ-the-other-dirt-types-load-on-first-use).
 
 ## Technical design
 

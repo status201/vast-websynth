@@ -49,7 +49,7 @@ source:
   - src/ui/components/delay-type-controls.ts # the delay's face: DELAY_KNOBS, the TYPE dropdown, CHAR's dimming
   - src/ui/panels/fx-rack.ts           # synth: the Delay panel, through FxSpec's titleControl + wire
   - src/ui/components/fx-group.ts      # delayFxGroup: the drum + sampler DELAY header group
-  - src/ui/components/param-dropdown.ts # ParamDropdown's testId argument
+  - src/ui/components/param-dropdown.ts # typeDropdown: the `${prefix}.type` selector, shared with Dirt (dirt-types.md)
   - src/ui/components/knob.ts          # dimWhileParamIs: CHAR dims at DIGITAL
   - src/ui/panels/drum-panel.ts
   - src/ui/panels/sampler-panel.ts

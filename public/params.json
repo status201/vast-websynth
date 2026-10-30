@@ -2,7 +2,7 @@
   "format": "websynth-params",
   "version": 1,
   "songVersion": 9,
-  "count": 435,
+  "count": 437,
   "params": [
     {
       "id": "voicing.mode",
@@ -639,6 +639,20 @@
       "max": 1,
       "default": 1,
       "patch": true
+    },
+    {
+      "id": "fx.dist.type",
+      "min": 0,
+      "max": 2,
+      "default": 0,
+      "patch": true,
+      "step": 1,
+      "taper": "discrete",
+      "labels": [
+        "DISTORTION",
+        "OVERDRIVE",
+        "FUZZ"
+      ]
     },
     {
       "id": "fx.wah.on",
@@ -1540,6 +1554,20 @@
       "max": 1,
       "default": 1,
       "patch": false
+    },
+    {
+      "id": "fx.sampler.dist.type",
+      "min": 0,
+      "max": 2,
+      "default": 0,
+      "patch": false,
+      "step": 1,
+      "taper": "discrete",
+      "labels": [
+        "DISTORTION",
+        "OVERDRIVE",
+        "FUZZ"
+      ]
     },
     {
       "id": "fx.sampler.phaser.on",

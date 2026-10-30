@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 import { ParamBus, registerDefaults } from '../../../src/state/params';
-import { Distortion } from '../../../src/audio/effects/distortion';
+import { Dirt } from '../../../src/audio/effects/dirt';
 import { Phaser } from '../../../src/audio/effects/phaser';
 import { Chorus } from '../../../src/audio/effects/chorus';
 import { Reverb } from '../../../src/audio/effects/reverb';
@@ -29,7 +29,7 @@ afterEach(() => { vi.clearAllTimers(); vi.useRealTimers(); });
 
 describe('Effect.bind — simple effects (self-wiring, ADR-008)', () => {
   it('subscribes its params and applies on change (immediate + later)', () => {
-    const fx = new Distortion(ctx());
+    const fx = new Dirt(ctx());
     const bus = busWithDefaults();
     const setBypass = vi.spyOn(fx, 'setBypass');
     const setDrive = vi.spyOn(fx, 'setDrive');

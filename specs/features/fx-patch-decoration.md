@@ -37,7 +37,7 @@ rack above, and one unused lead dangling its 1/4" plug in mid-air.
 > five-panel arrangement it was built for, kept because it is the condition the
 > decoration returns under.
 
-The FX section held **five** effect panels (distortion · wah · phaser · delay ·
+The FX section held **five** effect panels (dirt · wah · phaser · delay ·
 reverb) in `.fxRow`, a grid of `repeat(5, …)` columns that drops to
 `repeat(2, 1fr)` below 992px. Five items in two columns leave the last row
 half-empty — a conspicuous hole next to Reverb in an otherwise dense rack.

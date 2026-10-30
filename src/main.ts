@@ -338,6 +338,8 @@ async function boot() {
       () => import('./audio/effects/flanger-live'),
       // The delay's types, imported on the first non-digital choice (delay-types.md REQ-the-other-types-load-on-first-use).
       () => import('./audio/effects/delay-switch'),
+      // Dirt's other types, imported on their first choice (dirt-types.md REQ-the-other-dirt-types-load-on-first-use).
+      () => import('./audio/effects/dirt-switch'),
     ]) void load().catch(() => {});
   };
   // A factory reset that deleted a saved offline copy asked for it back

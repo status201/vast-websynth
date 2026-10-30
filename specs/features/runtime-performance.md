@@ -51,7 +51,7 @@ source:
   - src/state/song.ts
   - src/state/demos-index.json
   - src/audio/effects/reverb.ts
-  - src/audio/effects/distortion.ts
+  - src/audio/effects/dirt.ts
   - src/audio/drive-curve.ts
   - src/audio/oscillator.ts                 # REQ-immutable-artefacts-are-shared — the PWM duty bank, per-entry
   - src/audio/transport/drum-machine.ts
@@ -452,7 +452,7 @@ pass a **pre-bound** closure rather than an inline arrow (REQ-no-allocation-in-a
 | Rule | Enforced at |
 |---|---|
 | REQ-boot-cost-matches-the-request | `state/song.ts` (`?url` demo glob + build-time index), `audio/effects/reverb.ts`, `ui/onboarding/index.ts` (facade → `onboarding-impl.ts`), `ui/components/about-button.ts` (→ `about-modal.ts`), `state/debug-sources.ts`, `main.ts` (idle warms); the rejection report is `lazy-load-failure.md` |
-| REQ-immutable-artefacts-are-shared | `audio/effects/reverb.ts` (IR bank), `audio/effects/distortion.ts` + `audio/transport/drum-machine.ts` (drive curves), `audio/oscillator.ts` (the PWM duty bank — per entry, v5) |
+| REQ-immutable-artefacts-are-shared | `audio/effects/reverb.ts` (IR bank), `audio/effects/dirt.ts` + `audio/transport/drum-machine.ts` (drive curves), `audio/oscillator.ts` (the PWM duty bank — per entry, v5) |
 | REQ-global-listeners-live-only-for-a-gesture | `ui/components/step-settings.ts`, `knob.ts`, `strip.ts`, `floating-window.ts` |
 | REQ-no-work-for-offscreen-dom | `ui/panels/step-panel-scaffold.ts` (`wirePlayhead`), the four machine panels, `ui/shell/pattern-row.ts` |
 | REQ-automation-is-not-an-edit | `state/params.ts`, `audio/transport/motion-machine.ts`, `audio/transport/performance.ts` |

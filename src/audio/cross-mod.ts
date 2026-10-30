@@ -1,7 +1,7 @@
 import type { Osc } from './oscillator';
 import { FrequencyLine } from './frequency-line';
 import { rampTo, RAMP_FAST, RAMP_MEDIUM } from './param-utils';
-import { DISCONNECT_DELAY_MS } from './effects/effect';
+import { BUTTERWORTH_Q_DB, DISCONNECT_DELAY_MS } from './effects/effect';
 
 /**
  * The ring product's gain against an oscillator at the same knob value
@@ -18,11 +18,9 @@ export const RING_MAKEUP = Math.SQRT2;
  *  the beat rate of two near-unison oscillators. */
 export const RING_HP_HZ = 20;
 
-/** Butterworth, flat to the corner. Web Audio reads a high-pass biquad's `Q` in
- *  **dB**, so this is 20·log10(1/√2) ≈ −3.01, not 0.7071 — which read as dB is a
- *  linear Q of ~1.09 and a small bump at 20 Hz, the very wobble the filter is
- *  there to remove (cross-modulation.md REQ-ring-is-dc-free). */
-export const RING_HP_Q_DB = 20 * Math.log10(Math.SQRT1_2);
+/** Butterworth, flat to the corner: a bump at 20 Hz would be the very wobble the
+ *  filter is there to remove (cross-modulation.md REQ-ring-is-dc-free). */
+export const RING_HP_Q_DB = BUTTERWORTH_Q_DB;
 
 /**
  * A set of edges that exist only while their path can be heard (ADR-012,

@@ -162,7 +162,7 @@ differ only by live-applied scope fps + fftSize).
     shrinking the bank**: weak renders `[0.4, 0.8, 1.5, 1.5, 1.5]` s so
     `setSize`'s 0..1→index mapping and every preset value stay valid —
     big-room presets simply sound tighter on weak.
-  - `fxOversample: false` builds the synth/sampler distortion WaveShapers at
+  - `fxOversample: false` builds the synth/sampler Dirt WaveShapers at
     `'none'` instead of `'4x'`, and pins the 8 drum-track shapers to `'none'`.
   - **Universal (all tiers):** a drum-track shaper runs `oversample = 'none'`
     while its curve is the identity (drive 0, the default) and only steps up to
@@ -214,7 +214,7 @@ perfDiagnostics(): PerfDiagnostics
 EngineOptions: { latencyHint?; voiceCount?; scheduleAheadS?; reverbIrMaxS?; fxOversample?; analyserFftSize? }
 new Engine(bus, opts?: EngineOptions)
   # latencyHint→AudioContext, voiceCount→pool, scheduleAheadS→Clock,
-  # reverbIrMaxS→the 3 Reverbs, fxOversample→the 2 Distortions + DrumMachine (v3),
+  # reverbIrMaxS→the 3 Reverbs, fxOversample→the 2 Dirts + DrumMachine (v3),
   # analyserFftSize→initial fftSize of the 3 scope analysers (default 1024) (v4/v6)
 
 # src/ui/components/scope.ts
@@ -239,7 +239,7 @@ boot (main.ts):
   new Engine(bus, profile-fields)                # read once — all boot-time knobs fixed thereafter
 engine: opts.latencyHint -> new AudioContext({ latencyHint }); opts.voiceCount -> init() voice loop;
   opts.scheduleAheadS -> new Clock(ctx, { scheduleAheadS }); opts.reverbIrMaxS -> new Reverb(ctx, { maxIrS });
-  opts.fxOversample -> new Distortion(ctx, { oversample }) + DrumMachine's per-track shapers;
+  opts.fxOversample -> new Dirt(ctx, { oversample }) + DrumMachine's per-track shapers;
   opts.analyserFftSize -> initial analyser.fftSize on analyser / analyserL / analyserR (v4)
 ui (app.ts, shell/header.ts, shell/scope-panel.ts):
   buildHeader mounts createPerfSettingsButton({ onTierPreview: t -> previewScopeTier(t) }), which
@@ -322,8 +322,8 @@ Scenario: Weak caps the reverb IR bank without changing its shape (v3)
   And setSize's index mapping is unchanged (presets keep their meaning)
 # pinned by: tests/audio/effects/fx-cost.test.ts
 
-Scenario: Weak builds distortion without oversampling (v3)
-  Given a Distortion built with oversample false
+Scenario: Weak builds Dirt without oversampling (v3)
+  Given a Dirt built with oversample false
   Then its WaveShaper runs at 'none' (default '4x')
 # pinned by: tests/audio/effects/fx-cost.test.ts
 

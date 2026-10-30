@@ -18,6 +18,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ### Added
 
+- **Dirt.** The synth and sampler Distortion is now **Dirt**, with a **TYPE**
+  menu (on the synth, the panel's title is the menu). Saved songs, presets and
+  links are unaffected.
+  - **DISTORTION** is the effect as it was.
+  - **OVERDRIVE** is softer and warmer. It cleans up when played quieter and
+    keeps the bass tight.
+  - **FUZZ** is a thick, buzzy wall with scooped mids that sputters as a note
+    fades.
+  - All three share DRIVE, TONE and MIX. Switching type is click-free, and
+    nothing extra runs while DISTORTION is chosen.
 - **Delay types.** Every delay (synth, drum machine and sampler) has a **TYPE**
   menu (on the synth, the panel's title is the menu) and a **CHAR** knob.
   - **DIGITAL** is the delay as it was. **PING PONG** bounces the repeats left
