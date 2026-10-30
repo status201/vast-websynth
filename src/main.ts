@@ -1,4 +1,5 @@
 import { Engine } from './audio/engine';
+import { whenIdle } from './utils/idle';
 import { ParamBus } from './state/params';
 import { PERF_PROFILES, resolveTier } from './state/perf-mode';
 import { mountApp } from './ui/app';
@@ -340,6 +341,10 @@ async function boot() {
       () => import('./audio/effects/delay-switch'),
       // Dirt's other types, imported on their first choice (dirt-types.md REQ-the-other-dirt-types-load-on-first-use).
       () => import('./audio/effects/dirt-switch'),
+      // Sync works offline (MIDI; WiFi on a LAN), so its lazy halves are warmed too
+      // (midi-clock-sync.md REQ-the-sync-roles-load-with-the-mode, webrtc-sync.md REQ-the-wifi-transport-loads-at-pairing).
+      () => import('./audio/transport/sync/sync-roles'),
+      () => import('./audio/transport/sync/webrtc-sync-transport'),
     ]) void load().catch(() => {});
   };
   // A factory reset that deleted a saved offline copy asked for it back
@@ -359,11 +364,7 @@ async function boot() {
     warmDeferred();
     resumeOffline();
   };
-  // requestIdleCallback only reached Safari in 17.4, and we target installed
-  // iOS PWAs — fall back to a plain timeout. (A `'x' in window` guard would
-  // narrow `window` itself to `never` in the else branch; probe the function.)
-  if (typeof window.requestIdleCallback === 'function') window.requestIdleCallback(warm);
-  else window.setTimeout(warm, 2000);
+  whenIdle(warm);
 }
 
 /**

@@ -3,6 +3,7 @@ import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { Clock } from '../../../../src/audio/transport/clock';
 import { TimeoutTimer } from '../../../../src/audio/transport/tick-timer';
 import { SyncController } from '../../../../src/audio/transport/sync/sync-controller';
+import * as roles from '../../../../src/audio/transport/sync/sync-roles';
 import type { SyncMessage, SyncTransport } from '../../../../src/audio/transport/sync/sync-types';
 import { installLocalStorageMock } from '../../../storage-mock';
 
@@ -31,7 +32,7 @@ class FakeTransport implements SyncTransport {
   }
 }
 
-function setup(persist = false) {
+function setup(persist = false, lazyRoles = false) {
   vi.useFakeTimers();
   const ctx = { currentTime: 0 } as unknown as AudioContext;
   const clock = new Clock(ctx, { timer: new TimeoutTimer() });
@@ -49,6 +50,9 @@ function setup(persist = false) {
     persist,
     nowMs: () => nowMs,
     watchdogTimer: new TimeoutTimer(),
+    // Injected, so roles run synchronously; `lazyRoles` exercises the real import
+    // (midi-clock-sync.md REQ-the-sync-roles-load-with-the-mode).
+    ...(lazyRoles ? {} : { roles }),
   });
   const transport = new FakeTransport();
   /** Advance the injected wall clock *and* let the watchdog fire. */
@@ -381,5 +385,47 @@ describe('SyncController', () => {
     clock.stop();
     expect(seen).toContain('master:play');
     expect(seen[seen.length - 1]).toBe('master:stop');
+  });
+});
+
+describe('the roles load with the mode (midi-clock-sync.md REQ-the-sync-roles-load-with-the-mode)', () => {
+  /** Let the dynamic import and its continuation run under fake timers. */
+  const settle = async (): Promise<void> => {
+    for (let i = 0; i < 20; i++) await Promise.resolve();
+    await vi.dynamicImportSettled();
+    for (let i = 0; i < 20; i++) await Promise.resolve();
+  };
+
+  it('a selected master is armed but inert until its code lands, then runs', async () => {
+    const { ctrl, transport } = setup(false, true);
+    ctrl.addTransport('midi', transport);
+    const seen: string[] = [];
+    ctrl.onStatus((st) => seen.push(st.activeMode));
+    ctrl.setMode('master');
+    expect(ctrl.mode).toBe('master');
+    expect(ctrl.activeMode).toBe('off');
+    await settle();
+    expect(ctrl.activeMode).toBe('master');
+    expect(seen.at(-1)).toBe('master');
+  });
+
+  it('a message that arrives first still arms the slave once the code lands', async () => {
+    const { clock, ctrl, transport } = setup(false, true);
+    ctrl.addTransport('midi', transport);
+    ctrl.setMode('slave');
+    transport.emit({ type: 'stop' }); // refreshes liveness; there is no slave yet to handle it
+    expect(ctrl.activeMode).toBe('off');
+    await settle();
+    expect(ctrl.activeMode).toBe('slave');
+    transport.emit({ type: 'start' });
+    transport.emit({ type: 'pulse' }); // a join sounds on its first pulse
+    expect(clock.playing).toBe(true);
+  });
+
+  it('mode off loads nothing', async () => {
+    const { ctrl, transport } = setup(false, true);
+    ctrl.addTransport('midi', transport);
+    await settle();
+    expect((ctrl as unknown as { roles: unknown }).roles).toBeNull();
   });
 });

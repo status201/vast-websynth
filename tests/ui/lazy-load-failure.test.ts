@@ -264,6 +264,8 @@ describe('Every deferred-surface trigger is guarded (lazy-load-failure.md REQ-ev
     ['src/ui/panels/fx-rack.ts', 'REQ-lazy-report-is-the-backstop — the dormant patch-cable scenery at its mount; not a gesture, and a failure leaves an empty cell (fx-patch-decoration.md)'],
     ['src/audio/effects/delay.ts', 'REQ-lazy-scope-is-surfaces-not-operations — the delay-type switch on the first non-digital choice; a failure leaves the delay DIGITAL and the next choice or switch-on retries (delay-types.md)'],
     ['src/audio/effects/dirt.ts', 'REQ-lazy-scope-is-surfaces-not-operations — the other Dirt voicings on their first choice; a failure leaves the type it was and the next choice or switch-on retries (dirt-types.md)'],
+    ['src/audio/transport/sync/wifi-sync.ts', 'REQ-lazy-scope-is-surfaces-not-operations — the WiFi transport body at the first pairing step; the pair modal reports a failed step and the next one retries (webrtc-sync.md)'],
+    ['src/audio/transport/sync/sync-controller.ts', 'REQ-lazy-scope-is-surfaces-not-operations — the sync roles when a mode is selected; a failure is logged, the selection stays armed and the next mode or port change retries (midi-clock-sync.md)'],
   ]);
 
   it('leaves no runtime import() in src/ without a report or a documented exemption', async () => {

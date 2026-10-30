@@ -3,7 +3,8 @@ import { describe, it, expect, afterEach, vi } from 'vitest';
 import { renderDemoLibrary, openDemoLibrary } from '../../src/ui/components/demo-library';
 import { HELP_TOPICS } from '../../src/ui/onboarding/help-content';
 import { ParamBus } from '../../src/state/params';
-import { demoNames, demoMetaFor } from '../../src/state/song';
+import { demoNames, demoMetaFor, demoFileFor } from '../../src/state/song';
+import { DEMO_BLURBS } from '../../src/state/demo-blurbs';
 import { demoFacts } from '../../src/state/demo-meta';
 import styles from '../../src/ui/styles/demo-library.module.css';
 
@@ -17,6 +18,11 @@ import styles from '../../src/ui/styles/demo-library.module.css';
 const entries = (root: ParentNode): HTMLElement[] =>
   [...root.querySelectorAll<HTMLElement>('[data-testid="demo-library-entry"]')];
 const entryName = (e: HTMLElement): string => e.querySelector('h3')!.textContent!;
+/** A demo's blurb, from the lazy blurbs module (demo-library.md REQ-the-blurbs-load-after-boot). */
+const blurbFor = (name: string): string | undefined => {
+  const file = demoFileFor(name);
+  return file ? DEMO_BLURBS[file] : undefined;
+};
 const loadOf = (e: HTMLElement): HTMLButtonElement =>
   e.querySelector<HTMLButtonElement>('[data-testid="demo-library-load"]')!;
 const moreOf = (e: HTMLElement): HTMLButtonElement | null =>
@@ -46,10 +52,10 @@ describe('renderDemoLibrary', () => {
 
   it('sets each blurb as text, never as HTML', () => {
     const list = renderDemoLibrary({ loadDemo: async () => {}, close: () => {} });
-    const withBlurb = entries(list).filter((e) => demoMetaFor(entryName(e))?.blurb);
+    const withBlurb = entries(list).filter((e) => blurbFor(entryName(e)));
     expect(withBlurb.length).toBeGreaterThan(0);
     for (const e of withBlurb) {
-      const blurb = demoMetaFor(entryName(e))!.blurb!;
+      const blurb = blurbFor(entryName(e))!;
       const p = [...e.querySelectorAll('p')].find((x) => x.textContent === blurb);
       expect(p, entryName(e)).toBeTruthy();
       expect(p!.children.length).toBe(0); // no markup parsed out of the data
@@ -70,7 +76,7 @@ describe('renderDemoLibrary', () => {
   it('marks the focused entry as loaded: unfolded, and its button reads Loaded (v4)', () => {
     vi.stubGlobal('requestAnimationFrame', (cb: FrameRequestCallback) => { cb(0); return 1; });
     // A demo with notes, so there is something to unfold — chosen from the data.
-    const focus = demoNames().filter((n) => demoMetaFor(n)?.blurb).at(-1)!;
+    const focus = demoNames().filter((n) => blurbFor(n)).at(-1)!;
     const list = renderDemoLibrary({ loadDemo: async () => {}, close: () => {}, focus });
     const marked = entries(list).filter((e) => e.getAttribute('aria-current') === 'true');
     expect(marked.map(entryName)).toEqual([focus]);
@@ -94,7 +100,7 @@ describe('renderDemoLibrary', () => {
 describe('a blurb folds to its first line (REQ-a-blurb-folds-to-its-first-line)', () => {
   it('starts folded, and each toggle unfolds only its own entry', () => {
     const list = renderDemoLibrary({ loadDemo: async () => {}, close: () => {} });
-    const withBlurb = entries(list).filter((e) => demoMetaFor(entryName(e))?.blurb);
+    const withBlurb = entries(list).filter((e) => blurbFor(entryName(e)));
     expect(withBlurb.length).toBeGreaterThan(1);
     // A demo without notes has nothing to fold.
     for (const e of entries(list)) expect(!!moreOf(e), entryName(e)).toBe(withBlurb.includes(e));
@@ -118,7 +124,7 @@ describe('a blurb folds to its first line (REQ-a-blurb-folds-to-its-first-line)'
     let frame: FrameRequestCallback | null = null;
     vi.stubGlobal('requestAnimationFrame', (cb: FrameRequestCallback) => { frame = cb; return 1; });
     const list = renderDemoLibrary({ loadDemo: async () => {}, close: () => {} });
-    const [short, long] = entries(list).filter((e) => demoMetaFor(entryName(e))?.blurb) as [HTMLElement, HTMLElement];
+    const [short, long] = entries(list).filter((e) => blurbFor(entryName(e))) as [HTMLElement, HTMLElement];
     // jsdom lays nothing out, so give the two blurbs the heights a browser would.
     // The blurb is what the toggle controls.
     const blurbOf = (e: HTMLElement): HTMLElement =>
@@ -145,7 +151,7 @@ describe('a blurb folds to its first line (REQ-a-blurb-folds-to-its-first-line)'
   it('keeps every toggle while nothing is laid out (the safe way to be wrong)', () => {
     vi.stubGlobal('requestAnimationFrame', (cb: FrameRequestCallback) => { cb(0); return 1; });
     const list = renderDemoLibrary({ loadDemo: async () => {}, close: () => {} });
-    const withBlurb = entries(list).filter((e) => demoMetaFor(entryName(e))?.blurb);
+    const withBlurb = entries(list).filter((e) => blurbFor(entryName(e)));
     expect(withBlurb.every((e) => moreOf(e) !== null)).toBe(true);
   });
 });

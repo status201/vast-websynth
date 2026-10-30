@@ -45,10 +45,11 @@ import { UI_ICONS } from '../components/ui-icons';
 import { createButton } from '../components/button';
 import panelStyles from '../styles/panel.module.css';
 import {
-  Song, DEMO_SONGS, JSON_DEMOS, ZIP_DEMOS, demoNames, demoMetaFor, isDemoName, resolveDemoName,
+  Song, DEMO_SONGS, JSON_DEMOS, ZIP_DEMOS, demoNames, demoMetaFor, demoFileFor, isDemoName, resolveDemoName,
   type SongFile,
 } from '../../state/song';
 import { demoSummary } from '../../state/demo-meta';
+import { whenIdle } from '../../utils/idle';
 import { oversizedFileMessage } from '../../state/import-cap';
 import {
   buildProjectZip, parseProjectZip, encodeClip, projectFilename, parseSongOrProject,
@@ -78,6 +79,23 @@ import { createWheelStepper } from '../wheel-steps';
 /** Demo buttons shown inline; the rest hide behind "All Demos" (song-mode.md REQ-the-demo-row-overflows-into-a-menu).
  *  Was 6, which hid most of a growing library; 10 is what fits a desktop row. */
 const DEMO_ROW_LIMIT = 10;
+
+/**
+ * Say what a demo IS without a click (demo-library.md REQ-demo-row-says-what-it-knows):
+ * its facts, and its blurb once that has loaded (REQ-the-blurbs-load-after-boot).
+ * The row was nineteen unlabelled buttons; the visible label stays the name
+ * because the row is already tight on mobile, so the answer is a richer tooltip,
+ * not nineteen wider buttons.
+ */
+function describeDemo(btn: HTMLElement, name: string, blurb?: string): void {
+  const meta = demoMetaFor(name);
+  const summary = meta ? demoSummary(meta, blurb) : '';
+  if (!summary) return;
+  btn.title = `${name} — ${summary}`;
+  // The title alone is invisible to a screen reader on a button that already
+  // has a text label, so the same sentence goes on aria-label.
+  btn.setAttribute('aria-label', `${name}. ${summary}`);
+}
 
 function el(tag: string, cls?: string, text?: string): HTMLElement {
   const e = document.createElement(tag);
@@ -871,20 +889,7 @@ export function buildSongPanel(bus: ParamBus, engine: StudioApi, session: Preset
   const mkDemoBtn = (name: string, onClick: () => void): HTMLButtonElement => {
     const d = el('button', `${switchStyles.root!} ${styles.demo!}`, name) as HTMLButtonElement;
     d.dataset.testid = `song-demo-${name}`;
-    // Say what the demo IS without needing a click (demo-library.md REQ-demo-row-says-what-it-knows).
-    // The row was nineteen unlabelled buttons; the visible label stays the name
-    // because the row is already tight on mobile, so the answer is a richer
-    // tooltip, not nineteen wider buttons.
-    const meta = demoMetaFor(name);
-    if (meta) {
-      const summary = demoSummary(meta);
-      if (summary) {
-        d.title = `${name} — ${summary}`;
-        // The title alone is invisible to a screen reader on a button that
-        // already has a text label, so the same sentence goes on aria-label.
-        d.setAttribute('aria-label', `${name}. ${summary}`);
-      }
-    }
+    describeDemo(d, name);
     d.addEventListener('click', onClick);
     return d;
   };
@@ -896,6 +901,20 @@ export function buildSongPanel(bus: ParamBus, engine: StudioApi, session: Preset
   const demoButtonByName = new Map(
     demoNames().map((name) => [name, mkDemoBtn(name, () => { void loadDemo(name); })] as const));
   const demoButtons = [...demoButtonByName.values()];
+  // The blurbs join the tooltips once they have loaded, after boot
+  // (demo-library.md REQ-the-blurbs-load-after-boot). A warm, not a gesture: a
+  // failure leaves the facts alone (lazy-load-failure.md REQ-lazy-report-is-the-backstop).
+  whenIdle(() => {
+    import('../../state/demo-blurbs')
+      .then(({ DEMO_BLURBS }) => {
+        for (const [name, btn] of demoButtonByName) {
+          const file = demoFileFor(name);
+          const blurb = file ? DEMO_BLURBS[file] : undefined;
+          if (blurb) describeDemo(btn, name, blurb);
+        }
+      })
+      .catch(() => {});
+  });
 
   // The loaded demo's ⓘ (demo-library.md REQ-the-loaded-demo-carries-an-info-button): ONE button,
   // moved to sit after whichever demo is loaded. A sibling, not a child — a

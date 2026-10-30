@@ -7,8 +7,11 @@
 // from inside their own lazy chunk (runtime-performance.md REQ-boot-cost-matches-the-request).
 import { Modal } from './modal';
 import { createButton, setButtonLabel } from './button';
-import { demoNames, demoMetaFor } from '../../state/song';
+import { demoNames, demoMetaFor, demoFileFor } from '../../state/song';
 import { demoFacts } from '../../state/demo-meta';
+// Static on purpose: this module is itself lazy, so the blurbs ride in its chunk
+// (demo-library.md REQ-the-blurbs-load-after-boot).
+import { DEMO_BLURBS } from '../../state/demo-blurbs';
 import switchStyles from '../styles/switch.module.css';
 import styles from '../styles/demo-library.module.css';
 
@@ -43,6 +46,8 @@ export function renderDemoLibrary(opts: DemoLibraryOptions): HTMLElement {
 
   demoNames().forEach((name, i) => {
     const meta = demoMetaFor(name);
+    const file = demoFileFor(name);
+    const blurbText = file ? DEMO_BLURBS[file] : undefined;
     const loaded = name === opts.focus;
     const entry = document.createElement('li');
     entry.className = styles.entry!;
@@ -83,12 +88,12 @@ export function renderDemoLibrary(opts: DemoLibraryOptions): HTMLElement {
       p.textContent = facts;
       entry.appendChild(p);
     }
-    if (meta?.blurb) {
+    if (blurbText) {
       // Text, never HTML: the blurb is data from a drop-in file.
       const blurb = document.createElement('p');
       blurb.className = styles.blurb!;
       blurb.id = `demo-library-blurb-${i}`;
-      blurb.textContent = meta.blurb;
+      blurb.textContent = blurbText;
       const toggle = createButton({ label: 'More', className: styles.more!, testId: 'demo-library-more' });
       toggle.setAttribute('aria-controls', blurb.id);
       const fold: Fold = { blurb, toggle };

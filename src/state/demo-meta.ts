@@ -34,8 +34,8 @@ export interface DemoMeta {
   uses: DemoMachine[];
   /** Omitted when empty, so a plain demo's entry stays small. */
   armed?: DemoArmed[];
-  /** Hand-written, merged from `demo-notes.json`. Never generated. */
-  blurb?: string;
+  // No blurb: the hand-written prose loads after boot, from `demo-blurbs.ts`
+  // (demo-library.md REQ-the-blurbs-load-after-boot).
 }
 
 const MACHINE_ORDER: readonly DemoMachine[] = ['seq', 'drums', 'sampler', 'motion'];
@@ -70,9 +70,9 @@ function hasMotionData(file: SongFile): boolean {
 
 /**
  * Everything about a demo that can be *derived* from it (demo-library.md REQ-demo-facts-are-generated).
- * The blurb is the one thing that cannot, and is merged in by the generator.
+ * The blurb is the one thing that cannot; it lives in `demo-notes.json`.
  */
-export function demoMetaOf(file: SongFile): Omit<DemoMeta, 'blurb'> {
+export function demoMetaOf(file: SongFile): DemoMeta {
   const params = file.params ?? {};
   const uses: DemoMachine[] = [];
   const armed: DemoArmed[] = [];
@@ -94,7 +94,7 @@ export function demoMetaOf(file: SongFile): Omit<DemoMeta, 'blurb'> {
   // (arpeggiator.md REQ-saved-arp-on-is-armed-not-broken), so an armed arp is ALWAYS armed and never "used".
   if (on(params['arp.on'])) armed.push('arp');
 
-  const meta: Omit<DemoMeta, 'blurb'> = {
+  const meta: DemoMeta = {
     name: file.name,
     bpm: Math.round(params['transport.bpm'] ?? 0),
     bars: songBars(file),
@@ -130,10 +130,11 @@ export function demoFacts(meta: DemoMeta): string {
 
 /**
  * The one-line summary a demo button's `title` shows (demo-library.md REQ-demo-row-says-what-it-knows):
- * `124 BPM · 16 bars · seq + drums · arp armed — <blurb>`.
+ * `124 BPM · 16 bars · seq + drums · arp armed — <blurb>`, or the facts alone
+ * while there is no blurb (none written, or not loaded yet).
  */
-export function demoSummary(meta: DemoMeta): string {
+export function demoSummary(meta: DemoMeta, blurb?: string): string {
   const head = demoFacts(meta);
-  if (!meta.blurb) return head;
-  return head ? `${head} — ${meta.blurb}` : meta.blurb;
+  if (!blurb) return head;
+  return head ? `${head} — ${blurb}` : blurb;
 }

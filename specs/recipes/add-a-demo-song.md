@@ -85,10 +85,11 @@ so a forgotten run is caught rather than shipped.
 ### 3. Optional — say what to listen for
 
 Add one entry to `src/state/demo-notes.json`, keyed by your filename:
-`"<your-file>.json": "What makes this demo worth hearing."`, then run
-`npm run clean:demos` again so it is merged into the index
-([demo-library](../features/demo-library.md) REQ-demo-prose-lives-apart). It shows in the button's
-tooltip and in the **demo library**, which folds it to its first line
+`"<your-file>.json": "What makes this demo worth hearing."` — nothing to
+regenerate: the notes are read as they are, after boot
+([demo-library](../features/demo-library.md) REQ-demo-prose-lives-apart,
+REQ-the-blurbs-load-after-boot). It shows in the button's tooltip (once the
+notes have loaded, a moment after startup) and in the **demo library**, which folds it to its first line
 (REQ-a-blurb-folds-to-its-first-line) — so lead with the sentence that matters. Like the
 demo itself, the note needs no spec: the file is allowlisted in the SDD guard.
 

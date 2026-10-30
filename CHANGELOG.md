@@ -116,6 +116,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ### Changed
 
+- **Startup loads less.** The demos' notes, WiFi sync and the MIDI-clock
+  master and slave now load when they are needed rather than at startup:
+  about 26 kB less JavaScript before the instrument is ready. Nothing looks or
+  works differently: a demo button's tooltip gains its note a moment after the
+  page opens.
 - **The synth panels line up.** The wave pickers and the filter's LADDER /
   POLY switch now sit on one line at the top of their panels, and OSC 2's sync
   switch, the glide mode and the LFO destination on one line at the bottom. The

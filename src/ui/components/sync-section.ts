@@ -1,6 +1,6 @@
 import type { SyncController } from '../../audio/transport/sync/sync-controller';
 import type { SyncMode, SyncStatus } from '../../audio/transport/sync/sync-types';
-import type { WebRtcSyncTransport } from '../../audio/transport/sync/webrtc-sync-transport';
+import type { WifiLink } from '../../audio/transport/sync/wifi-sync';
 import { createButton } from './button';
 import { Dropdown } from './dropdown';
 import { DRUM_CHANNEL, midiInputChannel, setMidiInputChannel } from '../../state/midi-channel';
@@ -22,7 +22,7 @@ const MODES: Array<[label: string, mode: SyncMode]> = [
   ['Slave', 'slave'],
 ];
 
-export function buildSyncSection(sync: SyncController, rtc: WebRtcSyncTransport): HTMLElement {
+export function buildSyncSection(sync: SyncController, rtc: WifiLink): HTMLElement {
   const root = document.createElement('div');
   root.className = styles.io!;
 

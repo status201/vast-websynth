@@ -2,7 +2,8 @@ import { describe, it, expect } from 'vitest';
 import { readdirSync } from 'node:fs';
 import path from 'node:path';
 import index from '../../src/state/demos-index.json';
-import { JSON_DEMOS, ZIP_DEMOS, DEMO_SONGS, demoMetaFor, demoNames } from '../../src/state/song';
+import { JSON_DEMOS, ZIP_DEMOS, DEMO_SONGS, demoMetaFor, demoNames, demoFileFor } from '../../src/state/song';
+import { DEMO_BLURBS } from '../../src/state/demo-blurbs';
 import { demoSummary, type DemoMeta } from '../../src/state/demo-meta';
 
 /**
@@ -24,6 +25,17 @@ describe('demos-index.json', () => {
     // The zips are the only demos that can carry sampler audio, and they used
     // to be absent from the index entirely.
     expect(onDisk.some((f) => f.endsWith('.websynth.zip'))).toBe(true);
+  });
+
+  // demo-library.md REQ-the-blurbs-load-after-boot (v6): the prose is not boot payload.
+  it('carries no blurb, while every blurb stays reachable by its filename', () => {
+    for (const [file, meta] of entries) expect(meta, file).not.toHaveProperty('blurb');
+    const noted = Object.keys(index).filter((file) => typeof DEMO_BLURBS[file] === 'string');
+    expect(noted.length).toBeGreaterThan(0);
+    // A note outlives a deleted demo silently otherwise (one did, for a demo removed in 5a0e861).
+    for (const file of Object.keys(DEMO_BLURBS)) expect(Object.keys(index), `${file} has a note but no demo`).toContain(file);
+    // A fetched demo knows its file, so its row button can find its blurb.
+    for (const ref of [...JSON_DEMOS, ...ZIP_DEMOS]) expect(demoFileFor(ref.name)).toBe(ref.file);
   });
 
   it('is keyed by sorted filenames, so the emitted JSON is byte-stable (REQ-demo-index-shape-is-stable)', () => {
