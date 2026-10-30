@@ -3,7 +3,11 @@
 ```yaml
 id: delay-types
 status: implemented
-version: 6  # v6: regression: the live core sleeps through a bypass too (its wow and flutter
+version: 7  # v7: review: a bypass *rests* the live core (`DelayCore.rest`: its own sources stop,
+            #     its knobs keep gliding), separate from `sleep`, so every type rests the same
+            #     way and DIGITAL needs no exception; a core taken back mid-drain while
+            #     bypassed is rested too (regression: its sines ran on)
+            # v6: regression: the live core sleeps through a bypass too (its wow and flutter
             #     sines stop once the wrapper quiesces, a fresh pair starts on release),
             #     and a TYPE chosen while bypassed is not woken until the delay is on
             # v5: regression: REVERSE's head gains sum to 1 while TIME or CHAR move too: a
@@ -123,9 +127,12 @@ delay; a spring is a reverb tank, so it lives here as the Space Echo's tank
   `drainSeconds()` it is disconnected (ADR-012: an
   idle type costs nothing; a disconnected core also **sleeps**, stopping any
   source of its own, such as the analog wow and flutter sines, which a fresh
-  wake re-creates). The **live** core sleeps through a bypass as well: when the
-  wrapper quiesces (its wet already faded to 0) and wakes when it releases,
-  before the wet ramps back; a type chosen while bypassed is taken but not woken. Re-selecting a still-spilling type takes it back as it is.
+  wake re-creates). The **live** core **rests** through a bypass: when the
+  wrapper quiesces (its wet already faded to 0) its own sources stop, and the
+  release resumes them before the wet ramps back. Resting is not sleeping: its
+  knobs keep gliding, so every type rests the same way, DIGITAL included (which
+  has nothing to stop). Any core taken while bypassed is taken resting, a fresh
+  one or one taken back mid-drain alike. Re-selecting a still-spilling type takes it back as it is.
   A type chosen and left again before it loaded is built idle and never
   connected. A motion lane or song load that moves TYPE never clicks, which
   takes two rules (both found in review):
@@ -389,6 +396,16 @@ Scenario: A bypassed delay runs no sines (regression, REQ-a-type-switch-is-click
   Then BBD's two sines start
   # Found in the pre-release sweep: only a retired core ever slept, so the live
   # one kept its sines running for the whole bypass (CPU, on Gecko above all).
+# pinned by: tests/audio/effects/delay-types.test.ts
+
+Scenario: A core taken back mid-drain while bypassed rests (regression, v7, REQ-a-type-switch-is-click-free-and-spills)
+  Given TAPE was switched away from, then the delay bypassed (TAPE draining)
+  When TAPE is selected again before its drain ends, still bypassed
+  Then its wow and flutter sines are not running
+  When the delay is switched on
+  Then two sines run
+  # Found in review: `take` neither woke nor slept a core it took back while
+  # bypassed, so an awake core's sines ran on through the bypass.
 # pinned by: tests/audio/effects/delay-types.test.ts
 
 Scenario: A core taken back mid-drain glides its loop back (regression, REQ-a-type-switch-is-click-free-and-spills)

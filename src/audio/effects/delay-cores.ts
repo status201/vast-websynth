@@ -36,6 +36,12 @@ export interface DelayCore {
   wake(): void;
   /** The switch disconnected it: stop anything that would run unheard. */
   sleep(): void;
+  /**
+   * Pause (`true`) or resume what the core runs on its own while it stays
+   * connected but unheard: a bypass. Unlike `sleep`, its knobs keep gliding, so
+   * every core can rest, DIGITAL included (REQ-a-type-switch-is-click-free-and-spills).
+   */
+  rest(on: boolean): void;
 }
 
 /** A to B by `t`, linearly. */
@@ -43,7 +49,8 @@ const lerp = (a: number, b: number, t: number): number => a + (b - a) * t;
 
 /** What every core shares: the context, and knob writes that land at once until it is first heard. */
 abstract class CoreBase {
-  private awake = false;
+  protected awake = false;
+  protected resting = false;
 
   constructor(protected readonly ctx: BaseAudioContext, awake = false) {
     this.awake = awake;
@@ -58,6 +65,8 @@ abstract class CoreBase {
   wake(): void { this.awake = true; }
   /** Disconnected and drained, so the next wake's knobs may land at once again. */
   sleep(): void { this.awake = false; }
+  /** A core with nothing of its own to run only records it. */
+  rest(on: boolean): void { this.resting = on; }
 }
 
 /**
@@ -360,11 +369,26 @@ class AnalogCore extends CoreBase implements DelayCore {
     return { level, loop };
   }
 
-  /** Start the two sines. A stopped oscillator cannot restart, so each wake makes new ones. */
+  /** Start the two sines, unless resting. A stopped oscillator cannot restart, so each start makes new ones. */
   override wake(): void {
     super.wake();
+    if (!this.resting) this.startSines();
+  }
+
+  override rest(on: boolean): void {
+    super.rest(on);
+    if (on) this.stopSines();
+    else if (this.awake) this.startSines();
+  }
+
+  private startSines(): void {
     if (this.sines.length) return;
     this.sines = [this.sine(this.v.wow.hz, this.wowGain), this.sine(this.v.flutter.hz, this.flutterGain)];
+  }
+
+  private stopSines(): void {
+    for (const osc of this.sines) { osc.stop(); osc.disconnect(); }
+    this.sines = [];
   }
 
   private sine(hz: number, depth: GainNode): OscillatorNode {
@@ -378,8 +402,7 @@ class AnalogCore extends CoreBase implements DelayCore {
   /** Stop the sines: a started source can keep costing CPU even unheard. */
   override sleep(): void {
     super.sleep();
-    for (const osc of this.sines) { osc.stop(); osc.disconnect(); }
-    this.sines = [];
+    this.stopSines();
   }
 
   setTime(s: number): void {

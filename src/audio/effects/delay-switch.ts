@@ -120,20 +120,16 @@ export class DelaySwitch {
    * is zeroed now, a retiring one's pending zero included, or the wrapper's
    * drain could end before the core's.
    *
-   * The live core sleeps through the bypass too, so its own sources (the analog
+   * The live core rests through the bypass too, so its own sources (the analog
    * wow and flutter sines) stop costing CPU; the wet is already 0 when this runs,
-   * and the release wakes it before the wet ramps back. DIGITAL is left awake: it
-   * owns no source, and it must stay the unchanged delay
-   * (REQ-digital-is-the-unchanged-delay).
+   * and the release resumes them before the wet ramps back.
    */
   quiesce(on: boolean): void {
     this.quiesced = on;
-    for (const [type, slot] of this.slots) {
+    for (const slot of this.slots.values()) {
       if (slot.state === 'live') {
-        const sleeps = type !== 'digital';
-        if (!on && sleeps) slot.core.wake();
         this.pin(slot, on);
-        if (on && sleeps) slot.core.sleep();
+        slot.core.rest(on);
       } else if (on && slot.state === 'spill') this.retire(slot, true);
       else if (on && slot.connected) this.pin(slot, true);
     }
@@ -182,7 +178,7 @@ export class DelaySwitch {
    * gates open. A core that is not yet awake takes the knobs at once, so it
    * never glides in from its nodes' defaults; one taken back mid-spill or
    * mid-drain is awake, so they glide. While the delay is bypassed it is taken
-   * asleep, and the release wakes it (see `quiesce`).
+   * resting, so nothing of its own runs until the release (see `quiesce`).
    */
   private take(slot: CoreSlot): void {
     this.clearTimer(slot);
@@ -196,7 +192,8 @@ export class DelaySwitch {
     slot.core.setFeedback(this.knobs.fb);
     slot.core.setChar(this.knobs.char);
     this.pin(slot, this.quiesced);
-    if (!this.quiesced) slot.core.wake();
+    slot.core.rest(this.quiesced);
+    slot.core.wake();
     this.gate(slot, 1, 1);
     slot.state = 'live';
   }

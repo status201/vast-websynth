@@ -93,9 +93,11 @@ export class PresetSession {
 }
 
 /**
- * Whether a param edit counts as a *synth-patch* change (and so marks the
- * selector dirty). Patch = the synth voice + synth FX + master volume; the
- * song-level machines and transient performance params are excluded so that
+ * Whether a param is part of a *sound* (presets.md REQ-a-preset-is-only-a-sound):
+ * what a preset Save keeps and a load applies, what marks the selector dirty,
+ * what the song pin holds and what the catalogue and guide call a sound. Patch =
+ * the synth voice + synth FX + master volume; the song-level machines, the key,
+ * the master compressor and transient performance params are excluded so that
  * starting the sequencer, nudging the BPM, or a tape-stop pitch sweep don't
  * masquerade as a sound edit. New osc/filter/FX params count automatically.
  */
@@ -107,6 +109,10 @@ const NON_PATCH_PREFIXES = [
   // sound silently switched a song's automation off. That is the defect this
   // predicate exists to prevent, not an exception to it.
   'motion.',
+  // The key belongs to the song played over a sound, and the master compressor
+  // masters everything (presets.md REQ-loading-a-preset-starts-from-the-default-sound):
+  // neither is a preset's, and no factory preset sets either.
+  'scale.', 'chord.', 'fx.master.',
 ];
 const NON_PATCH_IDS = new Set<ParamId>([
   'master.pitchBend', 'master.modWheel', 'master.expression', 'fx.djfilter', 'keyboard.transpose',
@@ -115,22 +121,6 @@ const NON_PATCH_IDS = new Set<ParamId>([
 export function isPatchParam(id: ParamId): boolean {
   if (NON_PATCH_IDS.has(id)) return false;
   return !NON_PATCH_PREFIXES.some((p) => id.startsWith(p));
-}
-
-/**
- * Patch params that are still not a preset's (presets.md
- * REQ-loading-a-preset-starts-from-the-default-sound): the key belongs to the song played over the
- * sound, and the master compressor masters everything — no factory preset sets either.
- */
-const NOT_IN_A_PRESET = ['scale.', 'chord.', 'fx.master.'];
-
-/**
- * Whether `id` is part of a preset's sound: what a Save keeps, a load applies,
- * a load resets to its default when the preset omits it, and expansion fills in
- * (presets.md REQ-a-preset-is-only-a-sound).
- */
-export function inPreset(id: ParamId): boolean {
-  return isPatchParam(id) && !NOT_IN_A_PRESET.some((p) => id.startsWith(p));
 }
 
 /**

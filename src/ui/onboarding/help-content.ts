@@ -758,7 +758,7 @@ export const HELP_TOPICS: Record<TopicId, HelpTopic> = {
   'fx.delay': {
     title: 'Delay',
     body:
-      '<p>An echo of the sound. The menu by the title picks its <strong>type</strong>: ' +
+      '<p>An echo of the sound. The <strong>type</strong> menu (on the synth, the panel title) picks it: ' +
       '<strong>DIGITAL</strong> (clean), <strong>PING PONG</strong> (bounces left and right), ' +
       '<strong>TAPE</strong> (wobbly, warm, each repeat darker), <strong>BBD</strong> (murky analog), ' +
       '<strong>SPACE ECHO</strong> (tape through a spring) or <strong>REVERSE</strong> (swells backwards).</p>' +

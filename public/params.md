@@ -123,12 +123,6 @@ Schemas: [`llms.txt`](llms.txt).
 - "fx.duck.attack": number  // range 0.001..0.1, default 0.005
 - "fx.duck.release": number  // range 0.02..1, default 0.18
 - "fx.duck.src": number  // range 0..8, default 0, step 1, values 0=Kick 1=Snare 2=C.Hat 3=O.Hat 4=L.Tom 5=M.Tom 6=H.Tom 7=Clap 8=Any
-- "fx.master.comp.on": number  // range 0..1, default 0, step 1, values 0=off 1=on
-- "fx.master.comp.threshold": number  // range -40..0, default -12
-- "fx.master.comp.ratio": number  // range 0..2, default 1, step 1, values 0=2:1 1=4:1 2=10:1
-- "fx.master.comp.attack": number  // range 0.0001..0.03, default 0.01
-- "fx.master.comp.release": number  // range 0..4, default 4, step 1, values 0=0.1s 1=0.3s 2=0.6s 3=1.2s 4=auto
-- "fx.master.comp.makeup": number  // range 0..12, default 0
 - "master.volume": number  // range 0..1, default 0.8
 - "mod.0.src": number  // range 0..8, default 0, step 1, values 0=off 1=lfo 1 2=lfo 2 3=mod wheel 4=random 5=filter env 6=amp env 7=velocity 8=key
 - "mod.0.dst": number  // range 0..9, default 0, step 1, values 0=none 1=cutoff 2=resonance 3=pitch 4=shape 5=amp 6=drive 7=pan 8=sync 9=fm
@@ -148,10 +142,6 @@ Schemas: [`llms.txt`](llms.txt).
 - "mod.5.src": number  // range 0..8, default 0, step 1, values 0=off 1=lfo 1 2=lfo 2 3=mod wheel 4=random 5=filter env 6=amp env 7=velocity 8=key
 - "mod.5.dst": number  // range 0..9, default 0, step 1, values 0=none 1=cutoff 2=resonance 3=pitch 4=shape 5=amp 6=drive 7=pan 8=sync 9=fm
 - "mod.5.amt": number  // range -1..1, default 0
-- "scale.root": number  // range 0..11, default 0, step 1, values 0=C 1=C# 2=D 3=D# 4=E 5=F 6=F# 7=G 8=G# 9=A 10=A# 11=B
-- "scale.type": number  // range 0..10, default 0, step 1, values 0=chromatic 1=major 2=minor 3=dorian 4=mixolydian 5=phrygian 6=lydian 7=harm minor 8=pent maj 9=pent min 10=blues
-- "scale.extra": number  // range 0..5, default 0, step 1, values 0=none 1=blue b5 2=blue b3 3=b7 4=maj 7 5=bebop
-- "chord.voicing": number  // range 0..8, default 0, step 1, values 0=off 1=triad 2=7th 3=sus4 4=power 5=sus2 6=6th 7=add9 8=9th
 
 ## Song-only parameters (transport, arpeggiator, sequencer, drums, sampler)
 
@@ -240,6 +230,12 @@ Schemas: [`llms.txt`](llms.txt).
 - "fx.sampler.duck.release": number  // range 0.02..1, default 0.18
 - "fx.sampler.duck.src": number  // range 0..8, default 0, step 1, values 0=Kick 1=Snare 2=C.Hat 3=O.Hat 4=L.Tom 5=M.Tom 6=H.Tom 7=Clap 8=Any
 - "fx.djfilter": number  // range -1..1, default 0
+- "fx.master.comp.on": number  // range 0..1, default 0, step 1, values 0=off 1=on
+- "fx.master.comp.threshold": number  // range -40..0, default -12
+- "fx.master.comp.ratio": number  // range 0..2, default 1, step 1, values 0=2:1 1=4:1 2=10:1
+- "fx.master.comp.attack": number  // range 0.0001..0.03, default 0.01
+- "fx.master.comp.release": number  // range 0..4, default 4, step 1, values 0=0.1s 1=0.3s 2=0.6s 3=1.2s 4=auto
+- "fx.master.comp.makeup": number  // range 0..12, default 0
 - "master.pitchBend": number  // range -1..1, default 0
 - "master.modWheel": number  // range 0..1, default 0
 - "master.expression": number  // range 0..1, default 1
@@ -253,6 +249,10 @@ Schemas: [`llms.txt`](llms.txt).
 - "arp.rate": number  // range 0..3, default 2, step 1, values 0=1/4 1=1/8 2=1/16 3=1/32
 - "arp.octaves": number  // range 1..4, default 1, step 1
 - "arp.gate": number  // range 0.05..1, default 0.5
+- "scale.root": number  // range 0..11, default 0, step 1, values 0=C 1=C# 2=D 3=D# 4=E 5=F 6=F# 7=G 8=G# 9=A 10=A# 11=B
+- "scale.type": number  // range 0..10, default 0, step 1, values 0=chromatic 1=major 2=minor 3=dorian 4=mixolydian 5=phrygian 6=lydian 7=harm minor 8=pent maj 9=pent min 10=blues
+- "scale.extra": number  // range 0..5, default 0, step 1, values 0=none 1=blue b5 2=blue b3 3=b7 4=maj 7 5=bebop
+- "chord.voicing": number  // range 0..8, default 0, step 1, values 0=off 1=triad 2=7th 3=sus4 4=power 5=sus2 6=6th 7=add9 8=9th
 - "seq.on": number  // range 0..1, default 0, step 1, values 0=off 1=on
 - "seq.master": number  // range 0..1, default 1
 - "seq.mute": number  // range 0..1, default 0, step 1, values 0=on 1=mute

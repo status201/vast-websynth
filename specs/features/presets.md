@@ -3,7 +3,10 @@
 ```yaml
 id: presets
 status: implemented
-version: 17  # v17: REQ-a-preset-is-only-a-sound — capture() keeps only sound params and apply()
+version: 18  # v18: review: one predicate, `isPatchParam`, now excludes the key and the master
+             #      compressor too, so the dirty marker, the song pin, the catalogue and the
+             #      guide agree with Save and load (v17 had added a second predicate beside it)
+             # v17: REQ-a-preset-is-only-a-sound — capture() keeps only sound params and apply()
              #      ignores song-level ones, so loading a user preset never moves the tempo or
              #      a machine (it restored the whole bus as saved; v9's "ignored on load" for
              #      motion keys was never true of the snapshot's own keys) (regression)
@@ -57,8 +60,8 @@ Save/recall of a **sound** (the scalar param snapshot only) — distinct from a
 
 ## Background / Why
 
-A preset is just a `ParamBus.snapshot()` (a `Record<string, number>`), so saving
-and loading are trivial bus operations and any new param is captured automatically.
+A preset is just the sound's slice of a `ParamBus.snapshot()` (a `Record<string, number>`), so saving
+and loading are trivial bus operations and any new sound param is captured automatically.
 Factory presets are seeded into `localStorage` on first boot so the dropdown is
 never empty. Presets deliberately **do not** include pattern/song state — that is
 what songs are for.
@@ -79,8 +82,8 @@ can do with a sound ([ADR-014](../decisions/adr-014-dont-make-me-think.md) law 1
 ## Requirements
 
 - **REQ-a-preset-is-a-snapshot** — A preset is a `Snapshot` (`Record<string,
-  number>`) = `savedParams(bus.snapshot())` — every param except the
-  `UNSAVED_PARAMS` (`master.expression`, [input-control](input-control.md)
+  number>`) = `patchSnapshot(savedParams(bus.snapshot()))` — every sound param
+  (REQ-a-preset-is-only-a-sound) except the `UNSAVED_PARAMS` (`master.expression`, [input-control](input-control.md)
   REQ-cc11-is-expression), so a pedal left heel-down never saves into a sound.
 - **REQ-factory-presets-span-the-instrument-families** — The 24 factory presets (`acid`, `b3`,
   `basic`, `bass`, `bells`, `brass`, `chime`, `clang`, `ember`, `growl`, `lead`,
@@ -174,8 +177,9 @@ can do with a sound ([ADR-014](../decisions/adr-014-dont-make-me-think.md) law 1
 - **REQ-loading-a-preset-starts-from-the-default-sound** (v15) — `Presets.apply`
   first sets every **sound** param the preset omits to its registered default,
   then restores the preset, in one bulk apply. A sound param is one
-  `isPatchParam` counts (it marks the selector dirty), except two families a
-  preset leaves alone:
+  `isPatchParam` counts (it marks the selector dirty). Two families are not, so a
+  preset leaves them alone (v18; until then the predicate counted them and only
+  the load exempted them):
   - `scale.*` and `chord.*`, the key: it belongs to the song being played, not
     to a sound auditioned over it.
   - `fx.master.*`, the master compressor: it is mastering for everything, and no
@@ -194,14 +198,17 @@ can do with a sound ([ADR-014](../decisions/adr-014-dont-make-me-think.md) law 1
   for every param still to come. The reset baselines follow the bulk apply, so
   a double-tap on an omitted param returns to its default.
 - **REQ-a-preset-is-only-a-sound** (v17) — **A preset holds a sound and nothing
-  else.** One predicate, `inPreset` (`preset-session.ts`), decides what a sound
-  is: the params `isPatchParam` counts, less the key and the master compressor
-  (REQ-loading-a-preset-starts-from-the-default-sound). `Presets.capture` keeps
-  only those, `Presets.apply` resets and applies only those, dropping any other id
-  from the snapshot it is given, and expansion fills in only those. So Save,
-  Export and loading agree, and a preset picked mid-song never moves the tempo or
-  the key, switches the arp, sequencers or motion lanes, or changes the drum and
-  sampler buses' FX. A file saved before v17, or written by hand, may still carry
+  else.** One predicate, `isPatchParam` (`preset-session.ts`), decides what a
+  sound is: the synth voice and its FX, not the song's machines, the key or the
+  master compressor (REQ-loading-a-preset-starts-from-the-default-sound).
+  `Presets.capture` keeps only those (`patchSnapshot`), `Presets.apply` resets
+  and applies only those, dropping any other id from the snapshot it is given,
+  and expansion fills in only those. The dirty marker, the song pin, the
+  parameter catalogue and the preset guide use the same predicate, so they cannot
+  disagree. So Save, Export and loading agree, and a preset picked mid-song never
+  moves the tempo or the key, switches the arp, sequencers or motion lanes, or
+  changes the drum and sampler buses' FX. Re-selecting a song's own sound leaves
+  its key alone too, as it leaves its tempo. A file saved before v17, or written by hand, may still carry
   song-level keys: they stay in the file and are ignored on load, and the import
   wizard says so ([preset-authoring](preset-authoring.md)
   REQ-semantic-validation-needs-the-bus).
@@ -402,7 +409,7 @@ preset-file.ts:  # v4 — PURE: no localStorage, no DOM, no ParamBus
   sameSnapshot(a, b): boolean                 # rounded-value equality (REQ-modified-is-computed-not-tracked)
 
 preset-session.ts:  # PURE: no localStorage, no DOM
-  isPatchParam(id): boolean                   # synth voice + synth FX + master volume
+  isPatchParam(id): boolean                   # synth voice + synth FX + master volume; not the key or master compressor
   patchSnapshot(snap): Snapshot               # v7 — the isPatchParam half of a snapshot
   PresetSession:
     label / dirty / display                   # display = label + ' *' once dirty
@@ -720,7 +727,7 @@ Scenario: An import does not relabel the selector (REQ-rebuilding-options-never-
   → pin → audition a preset → re-select path with two synthetic songs (never
   shipped demos, so the test cannot drift with the demo library).
 
-- New params join presets automatically via `snapshot()`; their **no-op defaults**
+- New sound params join presets automatically via `snapshot()`; their **no-op defaults**
   keep old presets sounding the same (see [add-a-parameter](../recipes/add-a-parameter.md)).
 - **Promoting the pinned song sound** to a stored preset (REQ-a-songs-sound-is-a-selectable-entry) has no button.
   It needs none — Save already stores the live patch, and while the pinned sound

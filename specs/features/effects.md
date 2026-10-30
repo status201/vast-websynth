@@ -3,7 +3,9 @@
 ```yaml
 id: effects
 status: implemented
-version: 16  # v16: the delay gets a TYPE (digital · ping pong · tape · BBD · space echo ·
+version: 17  # v17: the drain table catches up: the Delay's live core rests through a bypass
+             #      (delay-types.md v6–v7) and the Chorus's quiesce stops its LFO (chorus.md v3)
+             # v16: the delay gets a TYPE (digital · ping pong · tape · BBD · space echo ·
              #      reverse) and a CHAR knob on all three buses (delay-types.md). DIGITAL
              #      is the default and the unchanged delay; the others load on first use
              # v15: a flanger joins the synth and sampler chains between the phaser
@@ -172,11 +174,11 @@ subsets, so a song can colour each bus independently.
 
   | Effect | `drainSeconds()` | `quiesce(on)` |
   | --- | --- | --- |
-  | `Delay` | 2 — the `createDelay(2)` buffer; silence in for that long is silence throughout. (v16) Once a TYPE is chosen, the longest connected core's ([delay-types](delay-types.md) REQ-the-delay-drains-every-live-core) | feedback → 0, restored from the last commanded value |
+  | `Delay` | 2 — the `createDelay(2)` buffer; silence in for that long is silence throughout. (v16) Once a TYPE is chosen, the longest connected core's ([delay-types](delay-types.md) REQ-the-delay-drains-every-live-core) | feedback → 0, restored from the last commanded value; (v17) the live TYPE core also rests, its wow and flutter sines stopped until the release ([delay-types](delay-types.md) REQ-a-type-switch-is-click-free-and-spills) |
   | `Reverb` | `maxIrS` — an FIR convolver is cleared exactly by one IR length of silence | — |
   | `Phaser` | 0.1 | feedback → 0 (a 0.05 s loop; it decays in ~25 ms regardless) |
   | `Flanger` | 0.05 — a ~5.7 ms worklet buffer ([flanger](flanger.md) REQ-the-flanger-drains-before-disconnect) | the node's feedback → 0, restored from the last commanded value |
-  | `Chorus` | 0.05 — two taps of at most ~7 ms, no feedback ([chorus](chorus.md) REQ-the-chorus-drains-briefly) | — |
+  | `Chorus` | 0.05 — two taps of at most ~7 ms, no feedback ([chorus](chorus.md) REQ-the-chorus-drains-briefly) | (v17) no loop to zero: stops its LFO, a fresh one started on release |
   | others | `DRAIN_DEFAULT_S` = 0.02 | — |
 
   `quiesce(true)` writes the feedback gain **directly**, not through `RAMP_SMOOTH`:

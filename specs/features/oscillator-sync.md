@@ -469,8 +469,12 @@ Scenario: The SYNC knob is only on show while sync is engaged
   Chromium. The pair is the same DSP on both (0.0251), so on Firefox engaging
   sync is ~4 dB louder. The difference lives in the native path and predates
   this feature. Settle it by ear before compensating either side.
-- The engage crossfade itself (toggling sync over a held note) has not been
-  rendered: the bench applies its `--set`s before the take, not during it.
+- ~~The engage crossfade itself (toggling sync over a held note) has not been
+  rendered.~~ Rendered 2026-10-30 with `--alternate osc2.sync=0,1 --every 0.6`, OSC 2
+  alone at SYNC 0, on both engines: 88 and 89 bursts/s against 90 and 93 with sync
+  left off, so engaging and disengaging add no click. The peak rises from 0.032 to
+  0.037 inside each crossfade, the native oscillator and the pair not being
+  phase-aligned while both sound: a brief bump, not a step.
 
 - Threshold ("weak") sync is the cheapest next mode — the same DSP behind a gate.
 - ~~Ring mod and linear FM are all-native neighbours and want their own spec.~~

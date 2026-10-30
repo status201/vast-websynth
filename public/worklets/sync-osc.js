@@ -11,8 +11,9 @@
  * the value jump, a ramp (BLAMP) scaled by the slope jump and, for a sine reset,
  * a third-order term scaled by the curvature jump — each placed at the event's
  * sub-sample time (REQ-every-discontinuity-is-band-limited). Soft sync replaces
- * each of the slave's value jumps with a raised-cosine glide instead
- * (REQ-soft-sync-rounds-every-slave-edge).
+ * the slave's value jumps, its wraps, pulse edges and resets, with a
+ * raised-cosine glide instead (REQ-soft-sync-rounds-every-slave-edge); a wave or
+ * width change stays a step, a one-off rather than part of the sound.
  * The residuals come from a windowed-sinc kernel integrated once and shared by
  * every instance. A linear-phase kernel needs lookahead, so both outputs are
  * delayed by its half-length — the same delay on both, so the pair stays aligned.
@@ -80,6 +81,9 @@ const SOFT_W_STEP = 4;
 const SOFT_W_GLIDE = 12;
 /** The longest glide, in samples: bounded by the ring. Reached only below ~50 Hz. */
 const SOFT_W_MAX = 200;
+/** The longest kernel half-length a test may ask for: what the ring leaves
+ *  beside the longest glide (see `RING`). */
+const MAX_HALF = Math.floor((RING - SOFT_W_MAX - 2) / 2);
 
 const kernels = new Map();
 
@@ -153,7 +157,7 @@ function curve(wave, p) {
   return wave === SINE ? -TAU * TAU * Math.sin(TAU * p) : 0;
 }
 
-/** The one interior breakpoint of a wave (its wrap at 0/1 is handled apart), or -1. */
+/** The one interior breakpoint of a wave (its wrap at 1 is handled apart), or -1. */
 function innerBreak(wave, width) {
   if (wave === TRI) return 0.5;
   if (wave === SQUARE) return width;
@@ -197,7 +201,7 @@ class SyncOscProcessor extends AudioWorkletProcessor {
     // against polyBLEP and a naive reset; the node never passes them.
     const kind = o.kernel === 'poly' || o.kernel === 'naive' ? o.kernel : 'sinc';
     const half = kind === 'poly' ? 1 : kind === 'naive' ? 0
-      : Math.max(1, Math.min(RING / 2 - 1, Math.round(o.half || DEFAULT_HALF)));
+      : Math.max(1, Math.min(MAX_HALF, Math.round(o.half || DEFAULT_HALF)));
     this.half = half;
     this.kernel = half > 0 ? buildKernel(kind, half) : null;
     this.m = makeOsc();
@@ -276,10 +280,11 @@ class SyncOscProcessor extends AudioWorkletProcessor {
 
   /**
    * Move `o` through the time span [u0, u1) of the current sample at `inc` phase
-   * per sample, emitting each breakpoint it crosses. Returns the time of a wrap
-   * past 1 (the master's reset instant), or -1.
+   * per sample, emitting each breakpoint it crosses into `acc`, rounded if `soft`
+   * (only ever the slave's). Returns the time of a wrap past 1 (the master's
+   * reset instant), or -1.
    */
-  advance(o, acc, u0, u1, inc) {
+  advance(o, acc, u0, u1, inc, soft) {
     // Fast path — no breakpoint inside this span, which is nearly every sample:
     // one multiply and one compare, no division.
     const ib = innerBreak(o.wave, o.width);
@@ -309,8 +314,7 @@ class SyncOscProcessor extends AudioWorkletProcessor {
       const ds = (slope(o.wave, after) - slope(o.wave, before)) * inc;
       // A sine's wrap is smooth: nothing to correct, so skip the taps.
       if (dv > 1e-7 || dv < -1e-7 || ds > 1e-9 || ds < -1e-9) {
-        if (o === this.s) this.edge(tHit, dv, ds, 0, inc);
-        else this.emit(acc, tHit, dv, ds);
+        this.edge(acc, tHit, dv, ds, 0, soft);
       }
       if (wrap) {
         o.p = 0;
@@ -350,15 +354,17 @@ class SyncOscProcessor extends AudioWorkletProcessor {
     const dv = value(s.wave, EPS, s.width) - value(s.wave, s.p, s.width);
     const ds = (slope(s.wave, EPS) - slope(s.wave, s.p)) * inc;
     const dc = (curve(s.wave, EPS) - curve(s.wave, s.p)) * inc * inc;
-    this.edge(u, dv, ds, dc, inc);
+    this.edge(this.acc1, u, dv, ds, dc, this.soft);
     s.p = 0;
   }
 
   /**
-   * One slave discontinuity at time `u`. Hard: band-limited residuals for all
-   * three jumps. Soft: the value jump `dv` glides instead, over `SOFT_ROUND` of
-   * the slave's period, handing back to the band-limited step where that glide
-   * would be too short to band-limit (REQ-soft-sync-rounds-every-slave-edge).
+   * One discontinuity at time `u`. Not `soft`: band-limited residuals for all
+   * three jumps. `soft` (the slave's, in soft mode): the value jump `dv` glides
+   * instead, over `SOFT_ROUND` of the slave's period, handing back to the
+   * band-limited step where that glide would be too short to band-limit
+   * (REQ-soft-sync-rounds-every-slave-edge). The width is read from `this.wInc`,
+   * a per-sample field rather than an argument, to keep the hot path lean.
    *
    * The period is `wInc`'s, not the instantaneous `inc`: a glide longer than
    * the gap to the next edge lets the unsmoothed ramps outrun the lagging drops,
@@ -366,11 +372,11 @@ class SyncOscProcessor extends AudioWorkletProcessor {
    * the master keeps resetting it, so the width follows the pre-FM pitch and
    * never exceeds `SOFT_ROUND` of the master's period.
    */
-  edge(u, dv, ds, dc, inc) {
-    const acc = this.acc1;
+  edge(acc, u, dv, ds, dc, soft) {
+    if (!soft || dv === 0) { this.emit(acc, u, dv, ds, dc); return; }
     const wInc = this.wInc;
     const w = wInc > 0 ? SOFT_ROUND / wInc : SOFT_W_MAX;
-    if (!this.soft || dv === 0 || w <= SOFT_W_STEP) {
+    if (w <= SOFT_W_STEP) {
       this.emit(acc, u, dv, ds, dc);
       return;
     }
@@ -422,7 +428,7 @@ class SyncOscProcessor extends AudioWorkletProcessor {
     const pw1 = widthOf(params.width1[0]);
     const pw2 = widthOf(params.width2[0]);
     const half = this.half;
-    this.soft = mode === MODE_SOFT;
+    const soft = (this.soft = mode === MODE_SOFT);
 
     this.retarget(this.m, this.acc0, w1, pw1);
     this.retarget(this.s, this.acc1, w2, pw2);
@@ -460,14 +466,14 @@ class SyncOscProcessor extends AudioWorkletProcessor {
       sInc = sInc > 0 ? (sInc < maxInc ? sInc : maxInc) : 0;
       this.wInc = sNom > mInc ? sNom : mInc;
 
-      const reset = this.advance(this.m, this.acc0, 0, 1, mInc);
+      const reset = this.advance(this.m, this.acc0, 0, 1, mInc, false);
       if (reset >= 0 && (mode === MODE_HARD || mode === MODE_SOFT)) {
         // The slave runs up to the master's wrap, is synced there, then runs on.
-        this.advance(this.s, this.acc1, 0, reset, sInc);
+        this.advance(this.s, this.acc1, 0, reset, sInc, soft);
         this.syncSlave(reset, sInc);
-        this.advance(this.s, this.acc1, reset, 1, sInc);
+        this.advance(this.s, this.acc1, reset, 1, sInc, soft);
       } else {
-        this.advance(this.s, this.acc1, 0, 1, sInc);
+        this.advance(this.s, this.acc1, 0, 1, sInc, soft);
       }
 
       const slot = this.n & RING_MASK;

@@ -345,6 +345,26 @@ describe('a new core lands on its knobs (REQ-a-type-switch-is-click-free-and-spi
     expect(ctx.createOscillator).toHaveBeenCalledTimes(4); // woken on release
   });
 
+  // Regression (review): taken back mid-drain while bypassed, a core was neither
+  // woken nor put to sleep, so its sines ran on through the bypass.
+  it('rests a core taken back mid-drain while the delay is bypassed (regression)', async () => {
+    const { ctx, bus, slots, select } = bound();
+    bus.set('fx.delay.on', 1);
+    await select('TAPE');
+    await select('DIGITAL'); // TAPE spills
+    bus.set('fx.delay.on', 0);
+    vi.advanceTimersByTime(DISCONNECT_DELAY_MS); // quiesce: TAPE retires at once, its sleep pending
+    await select('TAPE'); // back within the drain, still bypassed
+    expect(slots.get('tape')!.state).toBe('live');
+    const sines = ctx.createOscillator.mock.results.map((r) => r.value as { start: Spy; stop: Spy });
+    for (const o of sines) if (o.start.mock.calls.length) expect(o.stop).toHaveBeenCalled();
+    const running = sines.filter((o) => o.start.mock.calls.length && !o.stop.mock.calls.length);
+    expect(running).toHaveLength(0);
+    bus.set('fx.delay.on', 1); // the release resumes them
+    const after = ctx.createOscillator.mock.results.map((r) => r.value as { start: Spy; stop: Spy });
+    expect(after.filter((o) => o.start.mock.calls.length && !o.stop.mock.calls.length)).toHaveLength(2);
+  });
+
   it('glides the loop back when a core is taken back mid-drain (regression)', async () => {
     const { bus, slots, select } = bound();
     bus.set('fx.delay.on', 1); // a bypassed delay keeps every loop pinned

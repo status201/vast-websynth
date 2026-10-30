@@ -138,6 +138,18 @@ if (!opts.name) {
   process.exit(1);
 }
 
+/** `--alternate id=a,b[,c…]`, parsed up front so a typo fails before a browser starts. */
+let alternate = null;
+if (opts.alternate) {
+  const eq = opts.alternate.indexOf('=');
+  const values = opts.alternate.slice(eq + 1).split(',').map(Number);
+  if (eq < 0 || values.length < 2 || !values.every(Number.isFinite)) {
+    console.error(`audio-bench: --alternate expects id=a,b[,c…], got "${opts.alternate}"`);
+    process.exit(1);
+  }
+  alternate = { id: opts.alternate.slice(0, eq), values };
+}
+
 const ENGINES = { chromium, firefox };
 if (!ENGINES[opts.browser]) {
   console.error(`audio-bench: --browser must be one of ${Object.keys(ENGINES).join(' | ')}`);
@@ -348,6 +360,10 @@ try {
     await page.evaluate((a) => window.__synth.bus.set(a.id, a.value), { id, value });
     console.log(`audio-bench: ${id} = ${value}`);
   }
+  // The cycle starts on its first value, so every step is a change.
+  if (alternate) {
+    await page.evaluate((a) => window.__synth.bus.set(a.id, a.value), { id: alternate.id, value: alternate.values[0] });
+  }
 
   const download = page.waitForEvent('download', { timeout: 180_000 });
 
@@ -402,24 +418,20 @@ try {
         await page.evaluate((note) => window.__synth.bus.noteOff(note), n);
         await page.waitForTimeout(gapMs);
       }
-    } else if (opts.alternate) {
-      const eq = opts.alternate.indexOf('=');
-      const id = opts.alternate.slice(0, eq);
-      const values = opts.alternate.slice(eq + 1).split(',').map(Number);
-      if (eq < 0 || values.length < 2 || !values.every(Number.isFinite)) {
-        throw new Error(`--alternate expects id=a,b[,c…], got "${opts.alternate}"`);
-      }
-      const steps = Math.floor(holdMs / (opts.every * 1000));
-      console.log(`audio-bench: cycling ${id} through ${values.join(', ')}, ${steps} steps ${opts.every}s apart`);
-      for (let i = 0; i < steps; i++) {
-        await page.waitForTimeout(opts.every * 1000);
-        await page.evaluate((a) => window.__synth.bus.set(a.id, a.value), { id, value: values[(i + 1) % values.length] });
-      }
-      await page.evaluate((a) => {
-        for (const n of a.notes) window.__synth.bus.noteOff(n);
-      }, { notes });
     } else {
-      await page.waitForTimeout(holdMs);
+      if (alternate) {
+        const { id, values } = alternate;
+        const everyMs = opts.every * 1000;
+        const steps = Math.floor(holdMs / everyMs);
+        console.log(`audio-bench: cycling ${id} through ${values.join(', ')}, ${steps} steps ${opts.every}s apart`);
+        for (let i = 1; i <= steps; i++) {
+          await page.waitForTimeout(everyMs);
+          await page.evaluate((a) => window.__synth.bus.set(a.id, a.value), { id, value: values[i % values.length] });
+        }
+        await page.waitForTimeout(holdMs - steps * everyMs); // the rest of the hold
+      } else {
+        await page.waitForTimeout(holdMs);
+      }
       await page.evaluate((a) => {
         for (const n of a.notes) window.__synth.bus.noteOff(n);
       }, { notes });

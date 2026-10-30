@@ -1,6 +1,6 @@
 import type { ParamBus } from './params';
 import type { Snapshot } from './preset';
-import { inPreset } from './preset-session';
+import { isPatchParam } from './preset-session';
 import { MAX_ERRORS, isObject, describeValue, type AddError, checkKeys } from './validate-utils';
 import { MAX_PARAM_KEYS, RESERVED_KEYS } from './limits';
 import { cleanName } from './names';
@@ -77,14 +77,14 @@ export interface PresetValidateOptions {
 }
 
 /**
- * Where a finding goes. `structural` always refuses the file; `songSetting`
+ * Where a finding goes. `structural` always refuses the file; `notSound`
  * always only warns; `semantic` is whichever of the two the caller asked for
  * (REQ-semantic-severity-is-the-callers-choice) — which is the only knob, so it is resolved once, by the entry point.
  */
 interface Sinks {
   structural: AddError;
   semantic: AddError;
-  songSetting: AddError;
+  notSound: AddError;
 }
 
 /**
@@ -135,10 +135,10 @@ function checkSnapshot(
       const map = def.labels.map((l, i) => `${i}=${l}`).join(' ');
       sinks.semantic(`${path}."${id}" is a choice parameter — use an integer index (${map}).`);
     }
-    if (!inPreset(id)) {
+    if (!isPatchParam(id)) {
       // Legal, but loading ignores it (presets.md REQ-a-preset-is-only-a-sound),
       // so whoever wrote it is told rather than left wondering.
-      sinks.songSetting(`${path}."${id}" is a song setting, not part of a sound — loading this preset ignores it.`);
+      sinks.notSound(`${path}."${id}" is not part of a sound (a song setting, the key or the master compressor) — loading this preset ignores it.`);
     }
   }
   return snap;
@@ -174,7 +174,7 @@ export function validatePresetPayload(
   const sinks: Sinks = {
     structural: add,
     semantic: opts?.semantics === 'warning' ? warn : add,
-    songSetting: warn,
+    notSound: warn,
   };
 
   const format = value['format'];
@@ -248,12 +248,12 @@ export function validatePresetPayload(
  * Every parameter of a sound at its registered default — the blank canvas a
  * sound is authored over. Deliberately not the whole bus: `transport.bpm`,
  * `seq.on` or the key are not part of a preset, and loading would ignore them
- * (see `inPreset`).
+ * (see `isPatchParam`).
  */
 export function defaultPatchParams(bus: ParamBus): Snapshot {
   const out: Snapshot = {};
   for (const id of bus.ids()) {
-    if (!inPreset(id)) continue;
+    if (!isPatchParam(id)) continue;
     const def = bus.def(id);
     if (def) out[id] = def.default;
   }

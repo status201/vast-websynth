@@ -5,7 +5,7 @@ import { SlotStore } from './slot-store';
 import { RESERVED_KEYS } from './limits';
 import { cleanName } from './names';
 import { MOD_ROWS, MOD_SRC, MOD_DST } from './mod-routing';
-import { inPreset } from './preset-session';
+import { isPatchParam, patchSnapshot } from './preset-session';
 
 const store = new SlotStore('websynth.preset.');
 
@@ -402,12 +402,6 @@ const FACTORY: FactoryBank = {
   },
 };
 
-/** `snap` without anything that is not part of a preset's sound. */
-function soundOnly(snap: Snapshot): Snapshot {
-  const out: Snapshot = {};
-  for (const [id, v] of Object.entries(snap)) if (inPreset(id)) out[id] = v;
-  return out;
-}
 
 /**
  * Whether a stored factory slot is an earlier release's seed rather than an edit
@@ -498,7 +492,7 @@ export const Presets = {
   capture(bus: ParamBus): Snapshot {
     // The sound only (presets.md REQ-a-preset-is-only-a-sound), and never the
     // performer's hands (input-control.md REQ-cc11-is-expression).
-    return soundOnly(savedParams(bus.snapshot()));
+    return patchSnapshot(savedParams(bus.snapshot()));
   },
 
   /**
@@ -511,11 +505,11 @@ export const Presets = {
     const start: Snapshot = {};
     for (const id of bus.ids()) {
       const def = bus.def(id);
-      if (def && inPreset(id)) start[id] = def.default;
+      if (def && isPatchParam(id)) start[id] = def.default;
     }
     // A file saved before REQ-a-preset-is-only-a-sound, or written by hand, may
     // carry the tempo, a machine's state or the key: they stay in the file, unapplied.
-    bus.restore({ ...start, ...soundOnly(snap) });
+    bus.restore({ ...start, ...patchSnapshot(snap) });
   },
 
   /**

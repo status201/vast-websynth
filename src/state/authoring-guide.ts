@@ -476,8 +476,8 @@ SOUND DESIGN NOTES
   so the patch sounds the same wherever it is loaded.
 - Acid: saw osc1, mono, high resonance (2.5+), short filter decay, high envAmount, some distortion.
   Reese: two detuned saws an octave down + sub. Rhodes/bells: sine osc + long decay, sustain 0.
-- Only the parameters below belong in a preset. Song-level ids (transport/seq/drum/sampler/arp) are
-  accepted but will move the user's song when the preset loads — leave them out.
+- Only the parameters below belong in a preset. Any other id (the song's machines, tempo, key or
+  master compressor) is accepted but ignored when the preset loads — leave them out.
 
 PARAMS (id, range, default, discrete value map)
 ${paramTable(bus, isPatchParam)}`;
