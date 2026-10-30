@@ -3,7 +3,12 @@
 ```yaml
 id: delay-types
 status: implemented
-version: 4  # v4: regression: the synth panel's title *is* the TYPE dropdown (a DELAY ▾ legend
+version: 5  # v5: regression: REVERSE's head gains sum to 1 while TIME or CHAR move too: a
+            #     window opening hands every sounding head a fade from its current gain
+            #     over the new crossfade. A TIME step used to leave the old head on its
+            #     own longer fade, the sum rose toward 2 and the head steal cut one off
+            #     at full gain: a click per step (43 bursts on a stepped take, 0 steady)
+            # v4: regression: the synth panel's title *is* the TYPE dropdown (a DELAY ▾ legend
             #     over the type), because a separate 120 px box beside the title pushed
             #     the ON switch out of the panel at 1200 and 393 px
             # v3: regressions: a retiring core's loop is zeroed only once its output gate has
@@ -156,8 +161,11 @@ delay; a spring is a reverb tank, so it lives here as the Space Echo's tank
     level scaled by `1 − SPRING_FEEDBACK` to undo the loop's DC gain, the echo
     yielding a little as it comes in.
   - **REVERSE** — a worklet that plays windows of length TIME backwards on
-    alternating read heads with complementary linear crossfades (their gains sum
-    to 1 at every sample while TIME and CHAR hold still); CHAR sets the crossfade from 5% to 50% of the window —
+    alternating read heads with complementary linear crossfades whose gains sum
+    to 1 at every sample, while TIME and CHAR move as well: a window opening
+    fades every head still sounding from its current gain to 0 over the new
+    window's crossfade, as the new head fades in over the same length, so at most
+    two heads ever sound; CHAR sets the crossfade from 5% to 50% of the window —
     short and punchy to long swells. TIME and CHAR are read when a window opens,
     so moving them never zippers.
 - **REQ-every-type-is-bounded** — Feedback is clamped to 0.95 on every type,
@@ -416,6 +424,16 @@ Scenario: The reverse worklet plays windows backwards and stays bounded (REQ-eac
   Given full-scale noise at feedback 0.95 for 20 s with NaN injected
   Then every output sample is finite and bounded
   Given the input disconnects, Then two windows later it outputs silence
+# pinned by: tests/audio/reverse-delay-worklet.test.ts
+
+Scenario: REVERSE stays level and click-free while TIME steps (regression, REQ-each-type-has-its-own-topology)
+  Given a steady input into reverse-delay at CHAR 1 and feedback 0
+  When TIME steps 1.5 s → 0.6 s → 0.02 s every 0.5 s
+  Then the head gains sum to 1 at every sample (a constant input comes back constant)
+  # Found in the pre-release sweep, confirmed by render: each window's old head
+  # kept fading over its own crossfade, so a shorter TIME brought the new head in
+  # before the old one left (the sum rose toward 2, +3.5 dB on the take), windows
+  # opened faster than heads freed and the steal cut one off at full gain.
 # pinned by: tests/audio/reverse-delay-worklet.test.ts
 
 Scenario: Bypass drains every live core (REQ-the-delay-drains-every-live-core)
