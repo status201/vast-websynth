@@ -4,7 +4,7 @@ import {
 } from '../../src/state/preset-validate';
 import { Presets } from '../../src/state/preset';
 import { ParamBus, registerDefaults } from '../../src/state/params';
-import { isPatchParam } from '../../src/state/preset-session';
+import { inPreset } from '../../src/state/preset-session';
 
 /**
  * preset-authoring.md — the two validation layers. Structural (no bus) is what
@@ -209,14 +209,16 @@ describe('semantic layer (with a bus)', () => {
 });
 
 describe('expansion (REQ-pan-sweeps-a-stereo-panner)', () => {
-  it('defaults cover every patch param and nothing else', () => {
+  it('defaults cover every param of a sound and nothing else', () => {
     const b = bus();
     const defaults = defaultPatchParams(b);
-    for (const id of Object.keys(defaults)) expect(isPatchParam(id)).toBe(true);
-    // …and every patch param the bus knows is present.
+    for (const id of Object.keys(defaults)) expect(inPreset(id)).toBe(true);
+    // …and every param of a sound the bus knows is present. Not the key or the
+    // master compressor, which a load ignores (presets.md REQ-a-preset-is-only-a-sound).
     for (const id of b.ids()) {
-      if (isPatchParam(id)) expect(defaults[id]).toBe(b.def(id)!.default);
+      if (inPreset(id)) expect(defaults[id]).toBe(b.def(id)!.default);
     }
+    expect(Object.keys(defaults).some((id) => id.startsWith('scale.'))).toBe(false);
   });
 
   it('authored values win over the defaults they fill in around', () => {

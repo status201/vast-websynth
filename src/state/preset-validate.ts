@@ -1,6 +1,6 @@
 import type { ParamBus } from './params';
 import type { Snapshot } from './preset';
-import { isPatchParam } from './preset-session';
+import { inPreset } from './preset-session';
 import { MAX_ERRORS, isObject, describeValue, type AddError, checkKeys } from './validate-utils';
 import { MAX_PARAM_KEYS, RESERVED_KEYS } from './limits';
 import { cleanName } from './names';
@@ -135,10 +135,10 @@ function checkSnapshot(
       const map = def.labels.map((l, i) => `${i}=${l}`).join(' ');
       sinks.semantic(`${path}."${id}" is a choice parameter — use an integer index (${map}).`);
     }
-    if (!isPatchParam(id)) {
-      // Legal (a snapshot captures the whole bus) but rarely intended: loading
-      // the preset would also move the tempo / a machine's state.
-      sinks.songSetting(`${path}."${id}" is a song setting, not part of a sound — loading this preset would change it.`);
+    if (!inPreset(id)) {
+      // Legal, but loading ignores it (presets.md REQ-a-preset-is-only-a-sound),
+      // so whoever wrote it is told rather than left wondering.
+      sinks.songSetting(`${path}."${id}" is a song setting, not part of a sound — loading this preset ignores it.`);
     }
   }
   return snap;
@@ -245,15 +245,15 @@ export function validatePresetPayload(
 }
 
 /**
- * Every **patch** parameter at its registered default — the blank canvas a
- * sound is authored over. Deliberately not the whole bus: filling in
- * `transport.bpm` or `seq.on` would make loading a preset silently rewrite the
- * song around it (see `isPatchParam`).
+ * Every parameter of a sound at its registered default — the blank canvas a
+ * sound is authored over. Deliberately not the whole bus: `transport.bpm`,
+ * `seq.on` or the key are not part of a preset, and loading would ignore them
+ * (see `inPreset`).
  */
 export function defaultPatchParams(bus: ParamBus): Snapshot {
   const out: Snapshot = {};
   for (const id of bus.ids()) {
-    if (!isPatchParam(id)) continue;
+    if (!inPreset(id)) continue;
     const def = bus.def(id);
     if (def) out[id] = def.default;
   }

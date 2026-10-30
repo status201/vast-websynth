@@ -3,7 +3,11 @@
 ```yaml
 id: presets
 status: implemented
-version: 16  # v16: REQ-loading-a-preset-starts-from-the-default-sound states that the synth EQ curve is
+version: 17  # v17: REQ-a-preset-is-only-a-sound — capture() keeps only sound params and apply()
+             #      ignores song-level ones, so loading a user preset never moves the tempo or
+             #      a machine (it restored the whole bus as saved; v9's "ignored on load" for
+             #      motion keys was never true of the snapshot's own keys) (regression)
+             # v16: REQ-loading-a-preset-starts-from-the-default-sound states that the synth EQ curve is
              #      part of the sound and resets (scenario pinned)
              # v15: REQ-loading-a-preset-starts-from-the-default-sound — Presets.apply resets every sound
              #      param to its default before restoring, except the key and the master compressor,
@@ -150,7 +154,7 @@ can do with a sound ([ADR-014](../decisions/adr-014-dont-make-me-think.md) law 1
 - **REQ-an-older-factory-seed-is-refreshed** (v14) — `ensureFactoryPresets()`
   re-seeds a stored factory slot when **every entry it holds equals the current
   factory definition** but it lacks some of the current keys. Such a slot is an
-  older seed, not an edit. A Save captures the whole bus (hundreds of params),
+  older seed, not an edit. A Save captures every sound param (hundreds of them),
   so a user's own copy is never a subset of a ~50-key factory bank. Without
   this, a returning user keeps the stale seed: `load()` reads the store before
   `FACTORY`. Since v15 the stale seed would still *sound* right, because the
@@ -189,6 +193,23 @@ can do with a sound ([ADR-014](../decisions/adr-014-dont-make-me-think.md) law 1
   it was saved. It fixes factory banks, user presets and imports in one place,
   for every param still to come. The reset baselines follow the bulk apply, so
   a double-tap on an omitted param returns to its default.
+- **REQ-a-preset-is-only-a-sound** (v17) — **A preset holds a sound and nothing
+  else.** One predicate, `inPreset` (`preset-session.ts`), decides what a sound
+  is: the params `isPatchParam` counts, less the key and the master compressor
+  (REQ-loading-a-preset-starts-from-the-default-sound). `Presets.capture` keeps
+  only those, `Presets.apply` resets and applies only those, dropping any other id
+  from the snapshot it is given, and expansion fills in only those. So Save,
+  Export and loading agree, and a preset picked mid-song never moves the tempo or
+  the key, switches the arp, sequencers or motion lanes, or changes the drum and
+  sampler buses' FX. A file saved before v17, or written by hand, may still carry
+  song-level keys: they stay in the file and are ignored on load, and the import
+  wizard says so ([preset-authoring](preset-authoring.md)
+  REQ-semantic-validation-needs-the-bus).
+
+  Why: `capture` used to take the whole bus and `apply` to restore every key,
+  so loading a user preset put the tempo and the machines back to how they were
+  at save time. The guard `isPatchParam` only kept *omitted* song params from
+  being reset; a snapshot's own song keys went straight through.
 - **REQ-the-active-preset-name-is-session-state** — The active preset name is
   tracked by the session (shared with songs).
 - **REQ-preset-save-rounds-to-four-figures** — `save()` rounds the snapshot to 4
@@ -302,8 +323,9 @@ can do with a sound ([ADR-014](../decisions/adr-014-dont-make-me-think.md) law 1
   reapplied on load — auditioning a sound silently switched a song's automation
   off. Motion is a song-level machine like the other three; the prefix is added
   ([meter](meter.md) REQ-motion-joins-the-non-patch-prefixes). Consequence to expect: a previously saved preset
-  that happens to carry `motion.*` keys keeps them in its file, and they are now
-  ignored on load rather than applied.
+  that happens to carry `motion.*` keys keeps them in its file, and they are
+  ignored on load rather than applied (true only from v17,
+  REQ-a-preset-is-only-a-sound: until then `apply` restored them).
 
 - **REQ-the-preset-wizard-reports-every-problem** (v10) — **The wizard reports
   every problem, not the first.** The home step's error strip rendered
@@ -552,6 +574,16 @@ Scenario: A preset saved before a param existed sounds as saved (REQ-loading-a-p
   When a user preset that predates osc1.fm and the mod matrix is loaded
   Then osc1.fm is 0 and every mod row's source is off
   And the key is still D minor and the master compressor is untouched
+# pinned by: tests/state/preset.test.ts
+
+Scenario: Loading a preset leaves the song alone (regression, v17, REQ-a-preset-is-only-a-sound)
+  Given a user preset saved at 120 BPM with the drum machine off
+  And the song now plays at 140 BPM with the drum machine on
+  When the preset is loaded
+  Then the tempo is still 140 BPM and the drum machine still on
+  And a preset saved now holds no transport, arp, seq, drum, sampler or motion key
+  # Found in the pre-release sweep: capture() took the whole bus and apply()
+  # restored every key, so the song snapped back to its state at save time.
 # pinned by: tests/state/preset.test.ts
 
 Scenario: The synth EQ is part of the sound (REQ-loading-a-preset-starts-from-the-default-sound)

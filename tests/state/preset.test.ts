@@ -350,6 +350,29 @@ describe('Presets', () => {
       bus.reset('transport.bpm');
       expect(bus.get('transport.bpm')).toBe(def);
     });
+
+    // Regression (presets.md REQ-a-preset-is-only-a-sound): capture took the whole
+    // bus and apply restored every key, so loading a user preset put the tempo and
+    // the machines back to how they were when it was saved.
+    it('a preset is only a sound: capture keeps no song setting, apply ignores one', () => {
+      const bus = new ParamBus();
+      registerDefaults(bus);
+      bus.set('transport.bpm', 120);
+      bus.set('drum.on', 0);
+      bus.set('filter.cutoff', 70);
+      const snap = Presets.capture(bus);
+      expect(snap['filter.cutoff']).toBe(70);
+      for (const id of Object.keys(snap)) {
+        expect(/^(transport|arp|seq|drum|sampler|motion|fx\.drum|fx\.sampler)\./.test(id), id).toBe(false);
+      }
+      // A file saved before the fix still carries them: they are ignored.
+      bus.set('transport.bpm', 140);
+      bus.set('drum.on', 1);
+      Presets.apply(bus, { ...snap, 'transport.bpm': 120, 'drum.on': 0, 'motion.on': 0 });
+      expect(bus.get('transport.bpm')).toBe(140);
+      expect(bus.get('drum.on')).toBe(1);
+      expect(bus.get('filter.cutoff')).toBe(70);
+    });
   });
 });
 

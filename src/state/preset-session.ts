@@ -118,6 +118,22 @@ export function isPatchParam(id: ParamId): boolean {
 }
 
 /**
+ * Patch params that are still not a preset's (presets.md
+ * REQ-loading-a-preset-starts-from-the-default-sound): the key belongs to the song played over the
+ * sound, and the master compressor masters everything — no factory preset sets either.
+ */
+const NOT_IN_A_PRESET = ['scale.', 'chord.', 'fx.master.'];
+
+/**
+ * Whether `id` is part of a preset's sound: what a Save keeps, a load applies,
+ * a load resets to its default when the preset omits it, and expansion fills in
+ * (presets.md REQ-a-preset-is-only-a-sound).
+ */
+export function inPreset(id: ParamId): boolean {
+  return isPatchParam(id) && !NOT_IN_A_PRESET.some((p) => id.startsWith(p));
+}
+
+/**
  * Pin the song just applied (presets.md REQ-a-songs-sound-is-a-selectable-entry). The one place the
  * rule lives that three call sites used to restate: the pin is read from the
  * **bus after `Song.apply`**, never from `file.params`. `apply` resets every param

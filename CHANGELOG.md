@@ -134,6 +134,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
   it rolls off, so even 95% feedback fades out. The bump was a slight
   brightness, so DIGITAL echoes sound a touch softer around 3 to 4 kHz.
 
+- **Loading one of your own presets no longer changes the song.** A preset is
+  only a sound now. Before, saving one stored everything, so loading it later
+  put the tempo, the key and the sequencers, drum machine and sampler back to
+  how they were when you saved it. Presets saved before still load their sound;
+  the song settings in them are ignored.
+
 - Pressing Escape to close the **Clear ▾** menu or a lane's length/rate
   popover no longer also stops the song. Escape is the Panic key, and closing
   either menu used to let it through.
