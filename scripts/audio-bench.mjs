@@ -48,6 +48,12 @@
 //                      which note stops on each release is the whole test
 //                      (voicing.md REQ-a-stolen-voice-leaves-the-held-list). Default 0 = release together.
 //   --set id=value     ParamBus write applied before the take (repeatable)
+//   --alternate id=a,b[,c…]  note mode: cycle a param through these values
+//                      while the note is held, one step every --every seconds.
+//                      What a click on a *switch* needs: a mode or wave change
+//                      lands on a different phase each time, so a take with a
+//                      few dozen of them covers the bad case.
+//   --every <s>        seconds between --alternate steps            [default 0.25]
 //   --url <url>        drive an already-running server (skips spawning vite)
 //   --format wav|mp3   capture format                                [default wav]
 //   --browser <engine> chromium | firefox                       [default chromium]
@@ -115,6 +121,8 @@ const opts = {
   channel: flag('channel'),
   headed: argv.includes('--headed'),
   sets: flags('set').filter(Boolean),
+  alternate: flag('alternate'),
+  every: Math.max(0.02, Number(flag('every', 0.25))),
   // Export options (audio-export.md REQ-export-song-renders-from-the-top/REQ-the-capture-keeps-a-tail), --demo mode only. Both
   // default OFF so a plain `--demo` take stays bar-exact and comparable with
   // every take rendered before they existed.
@@ -394,6 +402,22 @@ try {
         await page.evaluate((note) => window.__synth.bus.noteOff(note), n);
         await page.waitForTimeout(gapMs);
       }
+    } else if (opts.alternate) {
+      const eq = opts.alternate.indexOf('=');
+      const id = opts.alternate.slice(0, eq);
+      const values = opts.alternate.slice(eq + 1).split(',').map(Number);
+      if (eq < 0 || values.length < 2 || !values.every(Number.isFinite)) {
+        throw new Error(`--alternate expects id=a,b[,c…], got "${opts.alternate}"`);
+      }
+      const steps = Math.floor(holdMs / (opts.every * 1000));
+      console.log(`audio-bench: cycling ${id} through ${values.join(', ')}, ${steps} steps ${opts.every}s apart`);
+      for (let i = 0; i < steps; i++) {
+        await page.waitForTimeout(opts.every * 1000);
+        await page.evaluate((a) => window.__synth.bus.set(a.id, a.value), { id, value: values[(i + 1) % values.length] });
+      }
+      await page.evaluate((a) => {
+        for (const n of a.notes) window.__synth.bus.noteOff(n);
+      }, { notes });
     } else {
       await page.waitForTimeout(holdMs);
       await page.evaluate((a) => {
