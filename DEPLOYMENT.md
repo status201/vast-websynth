@@ -101,14 +101,16 @@ accepted trade-off for those hosts, not an oversight.
 
 ## Hosting in a subfolder
 
-All five AudioWorklets are loaded by **absolute path** —
+All six AudioWorklets are loaded by **absolute path** —
 `/worklets/ladder-filter.js`, `/worklets/compressor.js`,
-`/worklets/recorder.js`, `/worklets/sync-osc.js` and `/worklets/flanger.js`. With the default config they
+`/worklets/recorder.js`, `/worklets/sync-osc.js`, `/worklets/flanger.js` and
+`/worklets/reverse-delay.js`. With the default config they
 resolve to the domain root, so under a subpath they 404. `Engine.init()` awaits
 the first three with no fallback, so **any one** of them missing fails the boot
 and audio never starts. `sync-osc.js` loads only when oscillator sync is first
-switched on, and `flanger.js` when a flanger is; missing, each fails quietly —
-sync stays off, the flanger stays bypassed — which makes
+switched on, `flanger.js` when a flanger is and `reverse-delay.js` when a delay is
+set to REVERSE; missing, each fails quietly and retries on the next use — sync
+stays off, the flanger stays bypassed, the REVERSE wet stays silent — which makes
 them the easy ones to miss when checking a subfolder deploy.
 
 To host at e.g. `https://example.com/synth/`, set `base` in

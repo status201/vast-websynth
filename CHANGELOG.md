@@ -19,7 +19,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 ### Added
 
 - **Delay types.** Every delay (synth, drum machine and sampler) has a **TYPE**
-  menu by its title and a **CHAR** knob.
+  menu (on the synth, the panel's title is the menu) and a **CHAR** knob.
   - **DIGITAL** is the delay as it was. **PING PONG** bounces the repeats left
     and right. **TAPE** wobbles, saturates and darkens. **BBD** is the murky
     bucket-brigade echo. **SPACE ECHO** is tape with the repeats splashing
@@ -50,9 +50,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
   - Knobs: RATE, DEPTH, MIX, and MODE. MODE **FREE** uses RATE and DEPTH; **I**,
     **II** and **I+II** are fixed Juno-style settings (slow, faster and deeper, a
     fast shimmer) that take over from those two knobs, which dim while they do.
-  - It shares the Phaser's panel. Click the Phaser title, or the arrow next to
-    it, to open a menu that switches between the two; a lit dot shows which are on. Both can
-    run at once, each with its own settings.
+  - It shares the Phaser's panel with the Flanger. Click the panel's title, or
+    the arrow next to it, to open a menu that switches between them; a lit dot
+    shows which are on. All can run at once, each with its own settings.
   - A song that only uses the chorus opens with the Chorus panel showing.
 
 - **Oscillator sync.** OSC 2 has a new SYNC switch: **hard** or **soft**.
@@ -144,7 +144,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
   popover no longer also stops the song. Escape is the Panic key, and closing
   either menu used to let it through.
 - **Only one menu is open at a time.** Opening a dropdown, the Clear menu, a
-  lane's Grid popover or the Phaser/Chorus menu now closes whichever menu was
+  lane's Grid popover or the Phaser/Flanger/Chorus menu now closes whichever menu was
   already open; before, the two stayed open and overlapped. A LEN or RATE list
   inside the Grid popover still opens without closing it, and closes along with
   it. Escape closes the list first and the popover on a second press.

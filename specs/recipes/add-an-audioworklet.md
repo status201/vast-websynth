@@ -58,10 +58,14 @@ the compressor posts at ~31 Hz).
 ### 2. The wrapper — `src/audio/<name>/node.ts`
 
 ```ts
+import { loadWorkletModule } from '../worklet-module';
+
 export class MyNode {
   readonly amount: AudioParam;
-  static async loadModule(ctx: AudioContext): Promise<void> {
-    await ctx.audioWorklet.addModule('/worklets/my-node.js');  // public/ path
+  static loadModule(ctx: AudioContext): Promise<void> {
+    // public/ path. Once per context, and a failure is forgotten so the next use
+    // retries: the shared loader (audio/worklet-module.ts), not addModule directly.
+    return loadWorkletModule(ctx, '/worklets/my-node.js');
   }
   static create(ctx: AudioContext, opts?: unknown): MyNode {
     const node = new AudioWorkletNode(ctx, 'my-node', { processorOptions: opts });
@@ -93,8 +97,8 @@ If most patches never use the node, load it on **first use** instead of in `init
 ([runtime-performance](../features/runtime-performance.md) REQ-boot-cost-matches-the-request).
 The worked example is [oscillator-sync](../features/oscillator-sync.md): one memoized
 `ensureSync()` loads the module and builds every voice's node the first time the mode
-leaves `off`, a failed load is logged and leaves the feature inert, and voices play
-the native path until the nodes land.
+leaves `off`; a failed load is logged and forgotten, so the next switch-on retries,
+and voices play the native path until the nodes land.
 
 For an **insert effect** loaded on first use, do not stand a passthrough in for the
 node: the switch-on starts the bypass crossfade at once, and if the load outlasts the
