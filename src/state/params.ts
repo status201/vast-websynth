@@ -257,7 +257,7 @@ export const WAVE_LABELS = ['sine', 'triangle', 'saw', 'square'];
  *  link, so reordering silently rewrites saved patches (lfo.md REQ-destination-is-one-of-the-labels). */
 export const LFO_DEST_LABELS = ['off', 'cutoff', 'pitch', 'amp', 'pulse', 'pan', 'shape', 'sync'];
 /** `osc2.sync` (oscillator-sync.md REQ-sync-has-hard-and-soft-modes). Append-only for the same reason;
- *  index 0 is off, the no-op default. `soft` is reversing sync. Not `SYNC_LABELS`,
+ *  index 0 is off, the no-op default. `soft` is hard sync with every slave edge rounded. Not `SYNC_LABELS`,
  *  which is tempo lock's. */
 export const OSC_SYNC_LABELS = ['off', 'hard', 'soft'];
 // `lfo.sync`'s labels are `SYNC_LABELS` from `utils/tempo`, used directly — the

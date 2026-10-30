@@ -1,9 +1,17 @@
-# Oscillator sync (hard + reversing soft sync)
+# Oscillator sync (hard + soft sync)
 
 ```yaml
 id: oscillator-sync
 status: implemented
-version: 4                     # v4: regressions: attach follows the master's frequency curve as
+version: 6                     # v6: soft sync redesigned by ear (REQ-soft-sync-rounds-every-slave-edge):
+                               #     a hard reset with every slave edge rounded, not reversing
+                               #     sync, whose saw ran up then down and so always added a
+                               #     sub-octave (a hum at SYNC 0). v5's two reversal regressions
+                               #     go with it. The bound is ±4 and clamped, not ±2, which a
+                               #     narrow pulse broke in every mode (REQ-the-pair-is-bounded)
+                               # v5: (superseded by v6) regressions on the reversing slave: the
+                               #     1:1 wrap step, the slope flip on leaving soft mode
+                               # v4: regressions: attach follows the master's frequency curve as
                                #     scheduled (a glide in flight, a note ahead); re-engaging gates the
                                #     pair by whether the voice sounds now
                                # v3: cross-modulation — the pair lands on each Osc's pre-level
@@ -42,7 +50,8 @@ source:
 ```
 
 Oscillator sync locks osc2 (the **slave**) to osc1 (the **master**): every time the
-master completes a cycle, the slave is reset (**hard**) or reversed (**soft**). The
+master completes a cycle, the slave is reset (**hard**), or reset with every edge
+rounded (**soft**). The
 slave's own pitch then stops being heard as pitch and becomes timbre, and sweeping
 it gives the classic tearing, vocal sync lead.
 
@@ -71,10 +80,22 @@ residual shipped here reaches the measurement floor in band.
   song already contains sounds different (ADR-006).
 - **REQ-sync-has-hard-and-soft-modes** — `osc2.sync` is discrete
   `off | hard | soft`. **hard** resets the slave to the start of its cycle at the
-  master's wrap. **soft** is *reversing* sync: the slave's direction of travel
-  flips at the master's wrap, so its value stays continuous and only its slope
-  turns — a rounder, triangle-core character that also aliases less. Threshold,
-  phase-advance, inhibit and overlap variants are out of scope.
+  master's wrap. **soft** resets it the same way and rounds every edge the slave
+  makes (REQ-soft-sync-rounds-every-slave-edge): the same pitch-locked sync, darker
+  and smoother. Reversing, threshold, phase-advance, inhibit and overlap variants
+  are out of scope; reversing was built first and rejected by ear before release (v6).
+- **REQ-soft-sync-rounds-every-slave-edge** — In soft mode **each** value jump of
+  the slave, its own wraps and pulse edges as well as the master's resets, glides
+  along a raised cosine over `SOFT_ROUND = 0.2` of the slave's period instead of
+  jumping. All edges, not only the resets: rounding just the resets left the
+  slave's own sharp wraps standing out, heard as a second note entering on every
+  SYNC change. The width follows the slave's own period, so the character holds up
+  the keyboard and a rising SYNC still brightens. It follows the slave's pitch
+  **before FM**, and never exceeds `SOFT_ROUND` of the master's period: a glide
+  longer than the gap to the next edge lets the unsmoothed ramps outrun the
+  lagging drops, and FM stalling the slave while the master kept resetting it
+  piled them up to ~60 (found while implementing). At SYNC 0 soft is therefore a
+  rounded saw, not plain OSC 2.
 - **REQ-sync-pitch-is-the-sweep** — `osc2.syncPitch`, `0..48` semitones, sets
   the slave's pitch **above** osc2's own octave + tune. It is inert while sync is
   off. Its default is `12`, so engaging sync is audible straight away (an inert
@@ -137,9 +158,13 @@ residual shipped here reaches the measurement floor in band.
   an active pair.
 - **REQ-every-discontinuity-is-band-limited** — Each value jump (saw/square edges,
   hard resets, wave/width changes) gets a band-limited step residual, each slope
-  jump (triangle corners, sine resets, reversals) a band-limited ramp, and a sine
-  reset's curvature jump a third-order residual, all placed at the event's
-  sub-sample time. The kernel is a Blackman-Harris-windowed sinc of half-length
+  jump (triangle corners, sine resets) a band-limited ramp, and a sine reset's
+  curvature jump a third-order residual, all placed at the event's sub-sample
+  time. A soft glide is continuous in value and slope, and the curvature jumps at
+  its two ends get the third-order residual. Below 12 samples (a slave above
+  ~800 Hz at 48 kHz) a glide hands its jump back to the step residual, entirely
+  so by 4 samples (~2.4 kHz): shorter glides cannot be band-limited, and would
+  only have shaped harmonics above ~10 kHz. The kernel is a Blackman-Harris-windowed sinc of half-length
   `16` at cutoff `0.42·fs`, integrated once per module and shared by every
   instance. It needs lookahead, so **both** outputs are delayed by the same 16
   samples (0.33 ms at 48 kHz) and stay aligned.
@@ -152,11 +177,16 @@ residual shipped here reaches the measurement floor in band.
   wave's mean moves with the ratio, and a sweep would otherwise push a
   sub-audio wobble into the filter. The native oscillators carry no DC either,
   so this is what keeps the engage crossfade from thumping.
-- **REQ-the-pair-is-bounded** — Output is finite and bounded for any parameter,
-  including NaN and Infinity: every increment is clamped to `[0, 0.45]` cycles
-  per sample (so at most one crossing per breakpoint per sample, never past
-  Nyquist), the sync offset is clamped to `[-24, 72]` st, and a block that still
-  ends non-finite resets the pair and outputs silence (ADR-010 *stable*).
+- **REQ-the-pair-is-bounded** — Output is finite and within **±4** for any
+  parameter, including NaN and Infinity: every increment is clamped to
+  `[0, 0.45]` cycles per sample (so at most one crossing per breakpoint per
+  sample, never past Nyquist), the sync offset is clamped to `[-24, 72]` st,
+  both outputs are clamped to ±4, and a block that still ends non-finite resets
+  the pair and outputs silence (ADR-010 *stable*). The naive waves stay within
+  ±1.9, but a narrow pulse's mean shifted by the DC blocker plus ringing reaches
+  ~2.25 in **every** mode, sync off included, and soft sync under extreme FM
+  ~3.4. The old ±2 was never true of a 0.95 pulse. The clamp only guarantees the
+  bound; nothing short of a pathological patch reaches it.
 
 ## Technical design
 
@@ -294,20 +324,36 @@ Scenario: A wrap that lands exactly on a sample still resets (regression, REQ-sy
   # was never reset — sync silently off on every integer-period pitch.
 # pinned by: tests/audio/sync-osc-worklet.test.ts (the 64-sample period case)
 
-Scenario: Soft sync keeps the slave continuous (REQ-sync-has-hard-and-soft-modes)
-  Given the pair in soft mode with a triangle slave
-  Then no sample-to-sample step exceeds what the slave's own slope allows
+Scenario: Soft sync rounds every slave edge (REQ-soft-sync-rounds-every-slave-edge)
+  Given the pair in soft mode with a saw slave at ratios 1.5 to 4.3
+  Then no sample-to-sample step exceeds the steepest glide's (π/w of a 2-unit jump)
+  And the same patch in hard mode does jump
+# pinned by: tests/audio/sync-osc-worklet.test.ts
+
+Scenario: Soft sync stays locked to the master (REQ-sync-has-hard-and-soft-modes)
+  Given the pair in soft mode at a non-integer ratio
+  Then the slave output repeats with the master's period
+  # The first soft design reversed the slave, which repeats only every two
+  # master periods: a sub-octave under every note, heard as a hum at SYNC 0.
+# pinned by: tests/audio/sync-osc-worklet.test.ts
+
+Scenario: An FM-stalled slave does not pile its glides up (regression, REQ-soft-sync-rounds-every-slave-edge)
+  Given the pair in soft mode on a 20 kHz master, SYNC -24 st, a triangle slave and FM 4
+  Then every output sample stays within ±4, and within ±3.5 for any FM up to 16
+  # Found while implementing: glide widths followed the instantaneous slave
+  # increment, which FM stalls near 0, so 200-sample glides stacked up between
+  # resets 2 samples apart and the output reached ~60.
 # pinned by: tests/audio/sync-osc-worklet.test.ts
 
 Scenario: Sync aliasing is at the floor in band (REQ-every-discontinuity-is-band-limited)
-  Given a saw slave hard-synced at ratios 1.5 to 7.9 on masters from 130 Hz to 5.6 kHz
+  Given a saw slave hard- or soft-synced at ratios 1.5 to 7.9 on masters from 130 Hz to 2.9 kHz
   Then energy between the harmonics is at least 60 dB down below 10 kHz
-  And the shipped kernel beats polyBLEP and a naive reset by at least 15 dB in every case
+  And for hard sync the shipped kernel beats polyBLEP and a naive reset by at least 15 dB in every case
 # pinned by: tests/audio/sync-osc-worklet.test.ts
 
 Scenario: The pair is bounded for any input (REQ-the-pair-is-bounded, edge)
   Given NaN, Infinity, 0 Hz and extreme sync offsets on every param
-  Then every output sample is finite and within ±2
+  Then every output sample is finite and within ±4
 # pinned by: tests/audio/sync-osc-worklet.test.ts
 
 Scenario: The pair idles with the voice (REQ-the-pair-idles-with-the-voice)
@@ -367,6 +413,16 @@ Scenario: The SYNC knob is only on show while sync is engaged
   - Firefox renders the same sweep (1.52–2.72 kHz against a steady 1.85 kHz).
   - That proves the pair engages and the LFO destination works in-graph on both
     engines. It is not a listening verdict.
+- **Soft sync was chosen by ear** (2026-10-30, `npm run bench:audio` A2, OSC 2
+  alone stepping SYNC 0 → 7 → 12 → 19 with `--alternate`, and an LFO sweep, each
+  against hard and a sync-off baseline):
+  - Reversing (the v1–v5 design): a 55 Hz triangle under an A2 note at SYNC 0,
+    heard as mains hum, plus a buzz wherever the phases settled unevenly.
+  - Rounding only the resets (12% and 30% of the master period): too close to
+    hard on sweeps, and each SYNC step sounded like an extra note entering.
+  - Rounding every edge over 20% of the slave's period: no extra notes, clearly
+    its own sound. 40% was the same but duller. Measured on the stepped take:
+    0 step bursts/s against hard's 191, and −62 dB above 4 kHz against −23.
 - **By ear** (ADR-010, `recipes/verify-audio-by-ear.md`):
   - `npm run bench:audio` on Chromium **and** `--browser firefox`, because the
     pair is driven by AudioParam automation.

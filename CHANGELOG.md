@@ -58,7 +58,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 - **Oscillator sync.** OSC 2 has a new SYNC switch: **hard** or **soft**.
   - **hard:** every time OSC 1 starts a cycle, OSC 2 jumps back to the start of
     its own.
-  - **soft:** OSC 2 turns around instead, a rounder, gentler sound.
+  - **soft:** the same, but every edge of OSC 2 is rounded off: a darker,
+    smoother sync.
   - You still hear OSC 1's note. The SYNC knob, which appears while sync is on,
     changes OSC 2's tone instead of its pitch.
   - Sweep the knob for the classic tearing sync lead. Both LFOs and the mod

@@ -39,7 +39,7 @@ Vanilla TypeScript + Vite, zero runtime dependencies.
 
 - **8-voice polyphony** with mono/poly switching and glide
 - **Dual oscillator** (sine/triangle/saw/square) + noise, per-osc octave/detune/level, with **pulse width** on the square wave (band-limited at every width, so it never aliases)
-- **Oscillator sync** — OSC 2 locked to OSC 1, **hard** or **soft** (reversing). The SYNC knob then sweeps OSC 2's tone instead of its pitch, for the classic tearing lead, band-limited so it stays clean high up the keyboard. It costs nothing until it is switched on
+- **Oscillator sync** — OSC 2 locked to OSC 1, **hard** or **soft** (every edge rounded). The SYNC knob then sweeps OSC 2's tone instead of its pitch, for the classic tearing lead, band-limited so it stays clean high up the keyboard. It costs nothing until it is switched on
 - **FM and ring mod** — OSC 1 drives OSC 2's pitch (**FM**, a depth that holds its character across the keyboard, a mod-matrix destination, and it works with sync too) and mixes in OSC 1 × OSC 2 at its own level (**RING**). Both cost nothing at 0
 - **Sub oscillator** (one/two octaves down) for analogue weight
 - **Unison** voice-stacking with detune spread (fat supersaw)

@@ -257,7 +257,7 @@ specs/
     _feature-template.md ·  copy this to start a new feature spec
     # — synth sound engine —
     oscillators.md     ·  osc1/osc2/sub + noise mixer (sound sources)
-    oscillator-sync.md ·  hard + reversing soft sync: a per-voice worklet pair, band-limited, built on first use
+    oscillator-sync.md ·  hard + soft (every slave edge rounded) sync: a per-voice worklet pair, band-limited, built on first use
     cross-modulation.md · ring mod + linear FM, OSC 1 modulating OSC 2; native, disconnected while unused, FM reaches the sync pair
     ladder-filter.md   ·  the resonant ladder filter (canonical scalar example)
     filter-models.md   ·  LADDER/POLY model switch + the POLY multimode DSP

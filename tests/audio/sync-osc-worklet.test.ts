@@ -122,24 +122,44 @@ describe('hard sync locks the slave to the master (REQ-sync-has-hard-and-soft-mo
   });
 });
 
-describe('soft sync keeps the slave continuous (REQ-sync-has-hard-and-soft-modes)', () => {
-  const f0 = 500;
-  const ratio = 2.7;
-  // A triangle moves 4 units per cycle each way, so its natural per-sample step is 4·inc.
-  const slopeBound = 4 * ((f0 * ratio) / SR) * 1.5;
-  const maxStep = (mode: number) => {
-    const { slave } = render({ frequency: f0, syncPitch: semis(ratio), mode, wave2: TRI }, 16384);
+describe('soft sync rounds every slave edge (REQ-soft-sync-rounds-every-slave-edge)', () => {
+  const f0 = 110;
+  const maxStep = (mode: number, ratio: number) => {
+    const { slave } = render({ frequency: f0, syncPitch: semis(ratio), mode, wave2: SAW }, 16384);
     let m = 0;
     for (let n = 2048; n < slave.length; n++) m = Math.max(m, Math.abs(slave[n]! - slave[n - 1]!));
     return m;
   };
+  // A glide of a 2-unit jump over w = 0.2 / inc samples is steepest at its middle,
+  // π·2/(2w) = 5π·inc a sample, on top of the saw's own 2·inc; the margin is the
+  // band-limiting ringing. Slaves up to 473 Hz, all well inside pure-glide widths.
+  const glideBound = (ratio: number) => (5 * Math.PI + 2) * ((f0 * ratio) / SR) * 1.25;
 
-  it('never steps faster than the triangle itself does', () => {
-    expect(maxStep(SOFT)).toBeLessThan(slopeBound);
+  it.each([1.5, 2.7, 4.3])('never steps faster than its glide at ratio %f', (r) => {
+    expect(maxStep(SOFT, r)).toBeLessThan(glideBound(r));
   });
 
   it('is told apart from hard sync, which does jump', () => {
-    expect(maxStep(HARD)).toBeGreaterThan(slopeBound * 2);
+    expect(maxStep(HARD, 2.7)).toBeGreaterThan(glideBound(2.7) * 2);
+  });
+
+  // The first soft design reversed the slave, which repeats only every two master
+  // periods: a sub-octave under every note, heard as a hum at SYNC 0.
+  it('stays locked to the master period, with no sub-octave', () => {
+    const { slave } = render({ frequency: SR / 64, syncPitch: semis(2.7), mode: SOFT, wave2: SAW }, 8192);
+    let worst = 0;
+    for (let n = 4096; n < 8000; n++) worst = Math.max(worst, Math.abs(slave[n]! - slave[n - 64]!));
+    expect(worst).toBeLessThan(1e-3);
+  });
+
+  // Regression: glide widths followed the instantaneous slave increment, which FM
+  // stalls near 0, so 200-sample glides stacked up between resets 2 samples apart
+  // and the output reached ~60.
+  it.each([4, 16])('does not pile glides up when FM %i stalls the slave', (fm) => {
+    const { master, slave } = render({ frequency: 20000, syncPitch: -24, mode: SOFT, wave2: TRI, fm }, 8192);
+    let m = 0;
+    for (const x of [master, slave]) for (const y of x) m = Math.max(m, Math.abs(y));
+    expect(m).toBeLessThan(3.5);
   });
 });
 
@@ -147,9 +167,9 @@ describe('aliasing (REQ-every-discontinuity-is-band-limited)', () => {
   // Master periods of a half-integer number of samples: 130 Hz, 744 Hz, 2.9 kHz.
   const cases = [369.5, 64.5, 16.5].flatMap((P) => [1.5, 4.3, 7.9].map((r) => ({ P, r })));
 
-  const measure = (P: number, r: number, wave: number, opts: Record<string, unknown>, maxHz?: number) => {
+  const measure = (P: number, r: number, wave: number, opts: Record<string, unknown>, maxHz?: number, mode = HARD) => {
     const G = Math.round(2 * P);
-    const { slave } = render({ frequency: SR / P, syncPitch: semis(r), mode: HARD, wave2: wave }, G * 12 + 4096, opts);
+    const { slave } = render({ frequency: SR / P, syncPitch: semis(r), mode, wave2: wave }, G * 12 + 4096, opts);
     return aliasDb(slave, G, 4096, 8, maxHz);
   };
 
@@ -159,6 +179,11 @@ describe('aliasing (REQ-every-discontinuity-is-band-limited)', () => {
       expect(measure(P, r, SAW, {}, 10000)).toBeLessThan(-60);
     });
 
+    // Soft's glides and their hand-back to the step (REQ-soft-sync-rounds-every-slave-edge).
+    it(`soft-synced saw slave at ${f0} Hz × ${r} is at the floor below 10 kHz`, () => {
+      expect(measure(P, r, SAW, {}, 10000, SOFT)).toBeLessThan(-60);
+    });
+
     it(`saw slave at ${f0} Hz × ${r} beats polyBLEP and a naive reset by 15 dB`, () => {
       const shipped = measure(P, r, SAW, {});
       expect(shipped).toBeLessThan(measure(P, r, SAW, { kernel: 'poly' }) - 15);
@@ -166,9 +191,11 @@ describe('aliasing (REQ-every-discontinuity-is-band-limited)', () => {
     });
   }
 
-  it('band-limits the square and triangle slaves too', () => {
+  it('band-limits the square and triangle slaves too, hard and soft', () => {
     for (const wave of [TRI, SQUARE]) {
-      expect(measure(64.5, 4.3, wave, {}, 10000), `wave ${wave}`).toBeLessThan(-60);
+      for (const mode of [HARD, SOFT]) {
+        expect(measure(64.5, 4.3, wave, {}, 10000, mode), `wave ${wave} mode ${mode}`).toBeLessThan(-60);
+      }
     }
   });
 });
@@ -212,14 +239,14 @@ describe('the pair is bounded for any input (REQ-the-pair-is-bounded)', () => {
     return m;
   };
 
-  it('stays finite and within ±2 whatever the params say', () => {
+  it('stays finite and within ±4 whatever the params say', () => {
     for (const a of hostile) {
       for (const b of hostile) {
         const { master, slave } = render({
           frequency: a, detune: b, syncPitch: b, masterCents: a, slaveCents: b,
           mode: a, wave1: b, wave2: a, width1: b, width2: a,
         }, 1024);
-        expect(peak(master, slave), `params ${a} / ${b}`).toBeLessThanOrEqual(2);
+        expect(peak(master, slave), `params ${a} / ${b}`).toBeLessThanOrEqual(4);
       }
     }
   });
@@ -227,7 +254,17 @@ describe('the pair is bounded for any input (REQ-the-pair-is-bounded)', () => {
   it('survives a-rate arrays that jump between extremes sample by sample', () => {
     const wild = Float32Array.from({ length: BLOCK }, (_, i) => hostile[i % hostile.length]!);
     const { master, slave } = render({ frequency: wild, detune: wild, syncPitch: wild, mode: HARD, wave2: SQUARE }, 4096);
-    expect(peak(master, slave)).toBeLessThanOrEqual(2);
+    expect(peak(master, slave)).toBeLessThanOrEqual(4);
+  });
+
+  // A 0.95 pulse sits at -1.9 most of the time; the DC blocker and the ringing
+  // carry it past 2 in every mode, sync off included, which the old ±2 bound
+  // never allowed for.
+  it('keeps a narrow synced pulse within the bound', () => {
+    for (const mode of [0, HARD, SOFT]) {
+      const { master, slave } = render({ frequency: 110, syncPitch: 40, mode, wave1: SQUARE, wave2: SQUARE, width1: 0.95, width2: 0.95 }, 16384);
+      expect(peak(master, slave), `mode ${mode}`).toBeLessThanOrEqual(4);
+    }
   });
 });
 

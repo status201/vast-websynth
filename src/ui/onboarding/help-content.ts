@@ -527,8 +527,8 @@ export const HELP_TOPICS: Record<TopicId, HelpTopic> = {
       'OSC 1 (its own help covers them). What is OSC 2’s alone is <strong>SYNC</strong>:</p>' +
       '<ul>' +
       '<li><strong>SYNC</strong> — locks OSC 2 to OSC 1: every time OSC 1 starts a cycle, ' +
-      'OSC 2 is forced to start over (<strong>hard</strong>) or turn around ' +
-      '(<strong>soft</strong>, rounder and gentler).</li>' +
+      'OSC 2 is forced to start over (<strong>hard</strong>), or starts over with ' +
+      'every edge rounded off (<strong>soft</strong>, darker and smoother).</li>' +
       '<li>The note you hear stays OSC 1’s. The <strong>SYNC</strong> knob, shown while ' +
       'sync is on, now changes the <em>tone</em> instead of the pitch.</li>' +
       '<li>Sweep it — or point an LFO or the filter envelope (in the mod matrix) at ' +
