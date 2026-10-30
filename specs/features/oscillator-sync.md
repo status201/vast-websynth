@@ -3,7 +3,11 @@
 ```yaml
 id: oscillator-sync
 status: implemented
-version: 6                     # v6: soft sync redesigned by ear (REQ-soft-sync-rounds-every-slave-edge):
+version: 7                     # v7: regression: a failed worklet load is forgotten, so the next
+                               #     switch-on retries (through `loadWorkletModule`, like the
+                               #     flanger and reverse delay); it used to leave sync dead until
+                               #     reload, e.g. a fetch failing offline before the precache filled
+                               # v6: soft sync redesigned by ear (REQ-soft-sync-rounds-every-slave-edge):
                                #     a hard reset with every slave edge rounded, not reversing
                                #     sync, whose saw ran up then down and so always added a
                                #     sub-octave (a hum at SYNC 0). v5's two reversal regressions
@@ -141,9 +145,12 @@ residual shipped here reaches the measurement floor in band.
 - **REQ-the-pair-is-built-on-first-use** — No sync worklet module is loaded and no
   pair node exists until `osc2.sync` first leaves `off`
   ([runtime-performance](runtime-performance.md) REQ-boot-cost-matches-the-request). Until the pairs are ready, voices
-  keep playing native. If the load fails, sync stays inert for the session (the
-  failed load is memoized, unlike the flanger's and reverse delay's, which retry) and the synth plays
-  on — the failure is logged, never thrown into a subscriber. The worklet file is
+  keep playing native. If the module load fails, the synth plays on native, the
+  failure is logged (never thrown into a subscriber) and it is **forgotten**: the
+  next time `osc2.sync` leaves `off` the load is tried again, as the flanger's and
+  reverse delay's are (the shared `loadWorkletModule`). Only a load is retried;
+  once the module is in, the pairs are built once and a failure building them is
+  not, since attaching a voice twice would double its modulation. The worklet file is
   in the service worker's precached `CORE_ASSETS` beside the other worklets, so an
   installed app can engage sync offline. The thin wrapper is a static import, on
   purpose. An `import()` of it saved 0.8 kB of entry chunk, but it added a hashed
@@ -281,6 +288,17 @@ Scenario: Engaging sync builds the pairs once, on first use (REQ-the-pair-is-bui
   Given the engine has booted with sync off
   When osc2.sync becomes hard, then off, then soft
   Then the worklet module is loaded exactly once and one pair exists per voice
+# pinned by: tests/audio/engine-sync.test.ts
+
+Scenario: A failed load is retried on the next switch-on (regression, REQ-the-pair-is-built-on-first-use)
+  Given the sync worklet fails to load once
+  When osc2.sync leaves off
+  Then a warning is logged, nothing throws and the voices play native
+  When osc2.sync leaves off again
+  Then the module loads and one pair is attached per voice
+  # Found in the pre-release sweep: the failed promise was memoized as resolved,
+  # so a transient fetch failure (offline before the precache filled) left sync
+  # dead until reload, while the flanger and reverse delay retried.
 # pinned by: tests/audio/engine-sync.test.ts
 
 Scenario: Engaging crossfades native to pair, then cuts the native side (REQ-engaging-sync-crossfades)

@@ -1126,16 +1126,23 @@ export class Engine {
    * wrapper itself is a static import: deferring it saved 0.8 kB of entry chunk
    * but added a hashed chunk that an offline session may never have fetched,
    * while the worklet it loads is precached with the other three (public/sw.js).
-   * A failed load is logged and leaves sync inert — the synth plays on native, and
-   * nothing throws into the subscriber that asked (ADR-015).
+   * A failed load is logged and forgotten, so the next switch-on tries again; the
+   * synth plays on native meanwhile, and nothing throws into the subscriber that
+   * asked (ADR-015). Building the pairs is not retried: attaching a voice twice
+   * would double its modulation.
    */
   private ensureSync(): Promise<void> {
-    this.syncReady ??= (async () => {
-      await SyncOscNode.loadModule(this.ctx);
-      for (const v of this.voices) v.attachSync(SyncOscNode.create(this.ctx));
-    })().catch((err: unknown) => {
-      console.warn('[sync] the sync worklet failed to load; sync stays off', err);
-    });
+    this.syncReady ??= SyncOscNode.loadModule(this.ctx)
+      .then(
+        () => { for (const v of this.voices) v.attachSync(SyncOscNode.create(this.ctx)); },
+        (err: unknown) => {
+          this.syncReady = null;
+          console.warn('[sync] the sync worklet failed to load; sync stays off until it is switched on again', err);
+        },
+      )
+      .catch((err: unknown) => {
+        console.warn('[sync] building the sync pairs failed; sync stays off', err);
+      });
     return this.syncReady;
   }
 

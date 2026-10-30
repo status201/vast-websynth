@@ -58,6 +58,36 @@ describe('the pairs are built on first use (REQ-the-pair-is-built-on-first-use)'
     warn.mockRestore();
   });
 
+  // Regression: the failed promise was memoized as resolved, so a transient fetch
+  // failure (offline before the precache filled) left sync dead until reload,
+  // while the flanger and reverse delay retried.
+  it('a failed load is forgotten, so the next ask loads it and builds the pairs', async () => {
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
+    let fail = true;
+    const addModule = vi.fn(async () => { if (fail) throw new Error('offline'); });
+    const { engine, voices } = engineLike(2, addModule);
+    await expect(engine.ensureSync()).resolves.toBeUndefined();
+    for (const v of voices) expect(v.attachSync).not.toHaveBeenCalled();
+    fail = false;
+    await engine.ensureSync();
+    await engine.ensureSync();
+    expect(addModule).toHaveBeenCalledTimes(2);
+    for (const v of voices) expect(v.attachSync).toHaveBeenCalledTimes(1);
+    warn.mockRestore();
+  });
+
+  it('a failure building the pairs is not retried, so no voice is attached twice', async () => {
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
+    const { engine, voices, addModule } = engineLike(2);
+    voices[1]!.attachSync.mockImplementation(() => { throw new Error('boom'); });
+    await expect(engine.ensureSync()).resolves.toBeUndefined();
+    await engine.ensureSync();
+    expect(addModule).toHaveBeenCalledTimes(1);
+    expect(voices[0]!.attachSync).toHaveBeenCalledTimes(1);
+    expect(warn).toHaveBeenCalled();
+    warn.mockRestore();
+  });
+
   it('only a mode other than off asks for the pairs', () => {
     // The subscriber is the one seam a stub cannot reach without booting every
     // other subscription, so its shape is pinned on the source.
