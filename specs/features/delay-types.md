@@ -3,7 +3,10 @@
 ```yaml
 id: delay-types
 status: implemented
-version: 5  # v5: regression: REVERSE's head gains sum to 1 while TIME or CHAR move too: a
+version: 6  # v6: regression: the live core sleeps through a bypass too (its wow and flutter
+            #     sines stop once the wrapper quiesces, a fresh pair starts on release),
+            #     and a TYPE chosen while bypassed is not woken until the delay is on
+            # v5: regression: REVERSE's head gains sum to 1 while TIME or CHAR move too: a
             #     window opening hands every sounding head a fade from its current gain
             #     over the new crossfade. A TIME step used to leave the old head on its
             #     own longer fade, the sum rose toward 2 and the head steal cut one off
@@ -120,7 +123,9 @@ delay; a spring is a reverb tank, so it lives here as the Space Echo's tank
   `drainSeconds()` it is disconnected (ADR-012: an
   idle type costs nothing; a disconnected core also **sleeps**, stopping any
   source of its own, such as the analog wow and flutter sines, which a fresh
-  wake re-creates). Re-selecting a still-spilling type takes it back as it is.
+  wake re-creates). The **live** core sleeps through a bypass as well: when the
+  wrapper quiesces (its wet already faded to 0) and wakes when it releases,
+  before the wet ramps back; a type chosen while bypassed is taken but not woken. Re-selecting a still-spilling type takes it back as it is.
   A type chosen and left again before it loaded is built idle and never
   connected. A motion lane or song load that moves TYPE never clicks, which
   takes two rules (both found in review):
@@ -372,6 +377,18 @@ Scenario: An unheard core runs nothing (regression, REQ-a-type-switch-is-click-f
   Then its wow and flutter sines are stopped
   When TAPE is selected again
   Then two new sines are started
+# pinned by: tests/audio/effects/delay-types.test.ts
+
+Scenario: A bypassed delay runs no sines (regression, REQ-a-type-switch-is-click-free-and-spills, ADR-012)
+  Given TAPE is live
+  When the delay is bypassed and quiesces
+  Then its wow and flutter sines are stopped
+  When TYPE moves to BBD while still bypassed
+  Then BBD starts no sines
+  When the delay is switched on again
+  Then BBD's two sines start
+  # Found in the pre-release sweep: only a retired core ever slept, so the live
+  # one kept its sines running for the whole bypass (CPU, on Gecko above all).
 # pinned by: tests/audio/effects/delay-types.test.ts
 
 Scenario: A core taken back mid-drain glides its loop back (regression, REQ-a-type-switch-is-click-free-and-spills)

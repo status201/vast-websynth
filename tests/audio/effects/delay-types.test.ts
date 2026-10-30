@@ -313,7 +313,8 @@ describe('a new core lands on its knobs (REQ-a-type-switch-is-click-free-and-spi
   });
 
   it('runs the wow and flutter sines only while the core is connected (regression)', async () => {
-    const { ctx, slots, select } = bound();
+    const { ctx, bus, slots, select } = bound();
+    bus.set('fx.delay.on', 1); // a bypassed delay's live core sleeps too (next test)
     await select('TAPE');
     const oscs = ctx.createOscillator.mock.results.map((r) => r.value as { start: Spy; stop: Spy });
     expect(oscs).toHaveLength(2);
@@ -325,6 +326,23 @@ describe('a new core lands on its knobs (REQ-a-type-switch-is-click-free-and-spi
     // Taken back: fresh sines, since a stopped oscillator cannot restart.
     await select('TAPE');
     expect(ctx.createOscillator).toHaveBeenCalledTimes(4);
+  });
+
+  // Regression (ADR-012): only a retired core ever slept, so the live one kept its
+  // sines running through the whole bypass.
+  it('sleeps the live core through a bypass, and wakes no type chosen meanwhile (regression)', async () => {
+    const { ctx, bus, slots, select } = bound();
+    bus.set('fx.delay.on', 1);
+    await select('TAPE');
+    const tapeSines = ctx.createOscillator.mock.results.map((r) => r.value as { stop: Spy });
+    bus.set('fx.delay.on', 0);
+    vi.advanceTimersByTime(DISCONNECT_DELAY_MS); // the wrapper has faded and quiesces
+    for (const o of tapeSines) expect(o.stop).toHaveBeenCalled();
+    await select('BBD');
+    expect(slots.get('bbd')!.state).toBe('live');
+    expect(ctx.createOscillator).toHaveBeenCalledTimes(2); // BBD asleep: no sines
+    bus.set('fx.delay.on', 1);
+    expect(ctx.createOscillator).toHaveBeenCalledTimes(4); // woken on release
   });
 
   it('glides the loop back when a core is taken back mid-drain (regression)', async () => {

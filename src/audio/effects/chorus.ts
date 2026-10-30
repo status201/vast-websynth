@@ -31,7 +31,10 @@ export function chorusSwing(depth: number): number {
  * No feedback path — nothing can run away.
  */
 export class Chorus extends WrappedEffect {
-  private readonly lfo: OscillatorNode;
+  /** Null while bypassed and quiesced: a stopped oscillator cannot restart. */
+  private lfo: OscillatorNode | null = null;
+  /** The rate the LFO runs at, kept for the next one. */
+  private rate = 0.5;
   /** `+swing` on the left tap's delayTime, `-swing` on the right's. */
   private readonly swingL: GainNode;
   private readonly swingR: GainNode;
@@ -53,17 +56,14 @@ export class Chorus extends WrappedEffect {
     tapL.delayTime.value = CHORUS_CENTRE_S;
     tapR.delayTime.value = CHORUS_CENTRE_S;
 
-    this.lfo = ctx.createOscillator();
-    this.lfo.type = 'triangle';
-    this.lfo.frequency.value = 0.5;
     this.swingL = ctx.createGain();
     this.swingR = ctx.createGain();
     const swing = chorusSwing(0.5);
     this.swingL.gain.value = swing;
     this.swingR.gain.value = -swing;
-    this.lfo.connect(this.swingL).connect(tapL.delayTime);
-    this.lfo.connect(this.swingR).connect(tapR.delayTime);
-    this.lfo.start();
+    this.swingL.connect(tapL.delayTime);
+    this.swingR.connect(tapR.delayTime);
+    this.startLfo();
 
     const merger = ctx.createChannelMerger(2);
     this.wrap.processedIn.connect(tone);
@@ -74,7 +74,8 @@ export class Chorus extends WrappedEffect {
 
   setMix(m: number): void { this.wrap.setMix(m); }
   setRate(hz: number): void {
-    this.lfo.frequency.setTargetAtTime(hz, this.ctx.currentTime, RAMP_SMOOTH);
+    this.rate = hz;
+    this.lfo?.frequency.setTargetAtTime(hz, this.ctx.currentTime, RAMP_SMOOTH);
   }
   setDepth(d: number): void {
     const w = chorusSwing(d);
@@ -85,6 +86,32 @@ export class Chorus extends WrappedEffect {
 
   /** Two taps of at most ~7 ms and a low-Q biquad (chorus.md REQ-the-chorus-drains-briefly). */
   protected override drainSeconds(): number { return 0.05; }
+
+  /**
+   * No loop to zero, but a started LFO keeps costing CPU unheard (ADR-012), so
+   * a bypass stops it once the wet has faded, and the release starts a fresh
+   * one before the wet ramps back. It starts at phase 0, the taps' rest, so
+   * nothing steps (chorus.md REQ-the-chorus-drains-briefly).
+   */
+  protected override quiesce(on: boolean): void {
+    if (on) {
+      this.lfo?.stop();
+      this.lfo?.disconnect();
+      this.lfo = null;
+    } else if (!this.lfo) {
+      this.startLfo();
+    }
+  }
+
+  private startLfo(): void {
+    const lfo = this.ctx.createOscillator();
+    lfo.type = 'triangle';
+    lfo.frequency.value = this.rate;
+    lfo.connect(this.swingL);
+    lfo.connect(this.swingR);
+    lfo.start();
+    this.lfo = lfo;
+  }
 
   bind(bus: ParamBus, prefix: string): void {
     bindBypassMix(bus, prefix, this);

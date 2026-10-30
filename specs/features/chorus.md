@@ -3,7 +3,9 @@
 ```yaml
 id: chorus
 status: implemented
-version: 2   # v2: the flanger joins between the phaser and the chorus (flanger.md), so the
+version: 3   # v3: regression: a bypassed chorus stops its LFO and starts a fresh one when
+             #     it is switched back on (REQ-the-chorus-drains-briefly, ADR-012)
+             # v2: the flanger joins between the phaser and the chorus (flanger.md), so the
              #     chorus now follows the flanger; it still comes after all the modulation
              #     and before the delay (REQ-the-chorus-sits-after-the-phaser)
 owner: core
@@ -83,7 +85,11 @@ never decides a level.
   of `TEMPO_LOCKS` keeps the param set to five.
 - **REQ-the-chorus-drains-briefly** — `drainSeconds()` is `0.05`: the taps hold
   at most `CHORUS_CENTRE_S + CHORUS_SWING_S` of audio and the biquad rings for
-  less. There is no feedback loop, so `quiesce` is not overridden
+  less. There is no feedback loop to zero, so `quiesce` only stops the LFO: a
+  started oscillator keeps costing CPU even unheard (ADR-012), so `quiesce(true)`,
+  which the wrapper calls once the wet has faded, stops it, and `quiesce(false)`,
+  called before the wet ramps back, starts a fresh one at the current rate. It
+  starts at phase 0, the taps' rest, so nothing steps
   ([effects](effects.md) REQ-a-bypassed-effect-drains-before-disconnect).
 - **REQ-the-chorus-sits-after-the-phaser** — Synth chain: `eq → dist → wah →
   phaser → flanger → chorus → delay → reverb → duck`. Sampler chain: `eq → dist →
@@ -143,6 +149,14 @@ underneath) while `mode` is not FREE — picked by param id, never by position.
 ## Scenarios (BDD)
 
 ```gherkin
+Scenario: A bypassed chorus runs no LFO (regression, REQ-the-chorus-drains-briefly, ADR-012)
+  Given the chorus is on
+  When it is bypassed and quiesces
+  Then its LFO is stopped
+  When it is switched on again
+  Then a new LFO at the current rate drives both taps
+# pinned by: tests/audio/effects/chorus.test.ts
+
 Scenario: The two taps sweep in antiphase (REQ-the-chorus-is-two-antiphase-taps)
   Given a chorus at depth d in FREE mode
   Then the left tap's LFO gain is +chorusSwing(d) and the right tap's is -chorusSwing(d)

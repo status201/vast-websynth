@@ -138,12 +138,29 @@ describe('MODE overrides RATE and DEPTH (chorus.md REQ-the-chorus-mode-overrides
 });
 
 describe('chorus drain and bypass (chorus.md REQ-the-chorus-drains-briefly)', () => {
-  it('declares a short drain and no feedback to quiesce', () => {
+  it('declares a short drain', () => {
     const { chorus } = build();
     const c = chorus as unknown as { drainSeconds(): number };
     expect(c.drainSeconds()).toBe(0.05);
-    // No quiesce override: the base no-op is inherited.
-    expect(Object.prototype.hasOwnProperty.call(Chorus.prototype, 'quiesce')).toBe(false);
+  });
+
+  // Regression (ADR-012): the LFO was started once and ran through every bypass.
+  it('stops its LFO while quiesced and starts a fresh one at the current rate on release', () => {
+    const { chorus, ctx, lfo, swingL, swingR } = build();
+    const c = chorus as unknown as { quiesce(on: boolean): void };
+    chorus.setRate(2);
+    c.quiesce(true);
+    expect((lfo as unknown as { stop: ReturnType<typeof vi.fn> }).stop).toHaveBeenCalled();
+    chorus.setRate(3); // turned while bypassed: kept for the next LFO
+    c.quiesce(false);
+    expect(ctx.createOscillator).toHaveBeenCalledTimes(2);
+    const next = ctx.createOscillator.mock.results[1]!.value as Node & { frequency: MockAudioParam; start: ReturnType<typeof vi.fn> };
+    expect(next.frequency.value).toBe(3);
+    expect(next.start).toHaveBeenCalled();
+    expect(next.connect).toHaveBeenCalledWith(swingL);
+    expect(next.connect).toHaveBeenCalledWith(swingR);
+    c.quiesce(false); // a release with an LFO running starts no second one
+    expect(ctx.createOscillator).toHaveBeenCalledTimes(2);
   });
 
   it('boots bypassed at the no-op default (chorus.md REQ-the-chorus-params-default-to-a-no-op)', () => {
