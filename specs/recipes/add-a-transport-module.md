@@ -3,14 +3,16 @@
 ```yaml
 id: add-a-transport-module
 status: implemented
-version: 1
+version: 2
 owner: core
 related:
   - architecture
   - ../features/transport.md
+  - ../features/meter.md
   - write-a-test
 source:
   - src/audio/transport/sequencer.ts   # reference module
+  - src/audio/transport/lane-meter.ts
   - src/audio/transport/clock.ts
   - src/audio/transport/step-hits.ts
   - src/audio/engine.ts
@@ -18,28 +20,30 @@ source:
 
 A repeatable **playbook**, not a feature. A *transport module* is a clock-driven
 scheduler under `src/audio/transport/` (arpeggiator, sequencer, drum machine,
-sampler, arrangement, performance). They share one shape: subscribe to the
+sampler, motion, arrangement, performance). They share one shape: subscribe to the
 [`Clock`](../features/transport.md) in the constructor, and on each tick read
-pattern state and schedule events at absolute audio time. The concrete worked
-instance is [`StepSequencer`](../features/sequencer.md)
-(`src/audio/transport/sequencer.ts`).
+pattern state and schedule events at absolute audio time. The worked instance is
+[`StepSequencer`](../features/sequencer.md) (`src/audio/transport/sequencer.ts`).
 
 ## Background / Why
 
-The `Clock` implements the classic "two clocks" look-ahead pattern: a worker
-timer wakes the scheduler ~every 25 ms, which enqueues events ~100 ms ahead
-against absolute `AudioContext` time. A transport module never reads
-`ctx.currentTime` to time a note — it schedules at the `when` the clock hands it,
-so events stay sample-accurate under main-thread jank.
+The `Clock` hands out each 16th with the absolute `AudioContext` time it sounds,
+ahead of time ([transport](../features/transport.md)). A module never reads
+`ctx.currentTime` to time a note: it schedules at the `when` it is given, so
+events stay sample-accurate under main-thread jank. A module that steps through a
+**pattern** never does its own `% SEQ_LENGTH` either: its length, step rate and
+swing come from a `LaneMeter` ([meter](../features/meter.md)).
 
 ## Steps
 
-### 1. Subscribe in the constructor — `src/audio/transport/<name>.ts`
+### 1. Subscribe in the constructor, and own a `LaneMeter` — `src/audio/transport/<name>.ts`
 
 Take collaborators in the house order — `(output/ctx, clock: TickSubscriber,
-patterns, arrangement, perf, …)` — and end the constructor by subscribing:
+patterns, arrangement, perf, …)` — build the lane, and end by subscribing:
 
 ```ts
+readonly lane: LaneMeter;
+
 constructor(
   private readonly output: SynthOutput,
   private readonly clock: TickSubscriber,
@@ -47,27 +51,32 @@ constructor(
   private readonly arrangement: Arrangement,
   private readonly perf: Performance,
 ) {
+  // perf.mapStep folds stutter in; pass undefined to ignore it (motion does).
+  this.lane = new LaneMeter(clock, (s) => perf.mapStep(s), () => arrangement.loopTicks('my'));
   clock.onTick((step, when) => this.onTick(step, when));
-  // optional: clock.onStart(...) / clock.onStop(...) to reset/flush state
+  // optional: clock.onStart / onStop / onSeek to reset or release state
 }
 ```
 
-### 2. Schedule on each tick
+### 2. Schedule on each tick, one cell at a time
 
-Bail if disabled, map the raw step through `perf.mapStep` (stutter) into your
-grid length, read the play bank, and schedule at absolute `when` — using
-`clock.sixteenthDuration()` for gate lengths and `step-hits.ts` for the shared
-probability-roll / ratchet math:
+`forEachHit` calls back once per cell that **begins** in this tick (none on a tick
+a coarser lane skips, two or three for a rate finer than a 16th), with the cell
+index already wrapped to the lane, its swung `when` and its duration. Read the
+play bank and schedule; `step-hits.ts` holds the shared probability / ratchet /
+micro math (`stepHits`, `rollProb`, `microOffset`, `forEachActiveHit` for
+multi-row grids):
 
 ```ts
 private onTick(step: number, when: number): void {
   if (!this.enabled) return;
-  const idx = this.perf.mapStep(step) % MY_LENGTH;
-  const cell = this.patterns.myBank(this.arrangement.myPlayBank)[idx];
-  if (!cell || !cell.on || !rollProb(cell.prob)) return;
-  for (const h of stepHits(cell, when, this.clock.sixteenthDuration())) {
-    this.output.trigger(/* … */ h.t);          // schedule at absolute audio time
-  }
+  this.lane.forEachHit(step, when, (idx, at, cellDur) => {
+    const cell = this.patterns.myBank(this.arrangement.myPlayBank)[idx];
+    if (!cell || !cell.on || !rollProb(cell.prob)) return;
+    for (const h of stepHits(cell, at, cellDur)) {
+      this.output.trigger(/* … */ h.t);   // absolute audio time
+    }
+  });
 }
 ```
 
@@ -75,17 +84,21 @@ private onTick(step: number, when: number): void {
 
 Add `setEnabled`/`setMuted` and any `onStep`/`onNote` listener registration
 (returning unsubscribers). An `onStep` reports `(idx, when)`: the cell **and its
-audio time**. The clock hands steps out up to 100 ms before they sound, and a
-display waits for `when` through `ui/audible.ts`
-([transport-position](../features/transport-position.md) REQ-the-playhead-is-drawn-when-it-is-heard), so a
-step reported without its time can only be drawn early. Construct the module in `Engine.init()` **after** the
-`Clock` — and after `Arrangement` if it reads play banks — wire its params in
-`subscribeParams`, and surface it on `StudioApi` if the UI needs it:
+audio time**, because a display waits for `when` through `ui/audible.ts`
+([transport-position](../features/transport-position.md)
+REQ-the-playhead-is-drawn-when-it-is-heard). Then, in `src/audio/engine.ts`:
+
+- construct the module in `Engine.init()` **after** the `Clock` and the
+  `Arrangement` (its tick settles the play banks first);
+- add its lane to the `<m>.len` / `<m>.rate` subscription loop and to
+  `applyMeter()`'s `setBarTicks` list, with the params registered per
+  [add-a-parameter](add-a-parameter.md) (defaults: `LEN_FOLLOW`, `DEFAULT_LANE_RATE`);
+- wire its other params in `subscribeParams`, and surface it on `StudioApi` if the
+  UI needs it.
 
 ```ts
-// src/audio/engine.ts — Arrangement first so its tick settles play banks
-this.arrangement = new Arrangement(this.patterns, this.clock);
-this.myModule  = new MyModule(output, this.clock, this.patterns, this.arrangement, this.perf);
+this.arrangement = new Arrangement(this.patterns, this.clock);   // first
+this.myModule = new MyModule(output, this.clock, this.patterns, this.arrangement, this.perf);
 ```
 
 ### 4. Verify
@@ -95,30 +108,18 @@ npm run typecheck
 npm test            # tests/audio/transport/<name>.test.ts (mock ctx + test-clock)
 ```
 
-### Reading the meter
-
-A module that steps through a **pattern** does not do its own `% SEQ_LENGTH`:
-it owns a `LaneMeter` (`audio/transport/lane-meter.ts`) and asks
-`forEachHit(step, when, fn)` — usually one cell per tick, none on a tick a
-coarser lane skips, two or three inside one tick for a rate finer than a 16th.
-That is what gives it a length, a step rate and lane-relative swing for free,
-and keeps its cell index a pure function of `clock.step` so a seek needs no
-repair ([features/meter.md](../features/meter.md) REQ-a-cell-index-is-a-pure-function-of-step). A module that merely
-counts **bars** reads `barTicks` instead. Build the `LaneMeter` with the
-`Performance.mapStep` fold if the module should follow stutter, and without it
-if it should not (the motion sequencer does not).
-
 ## Gotchas
 
 - **Construction ordering matters.** `Arrangement`'s `onTick` must run before a
-  machine reads the play bank for the same tick — so it is constructed first
-  (see the comment in `engine.ts`). Order your module after it.
-- **Never time events off `ctx.currentTime`** — schedule at the `when` the clock
-  provides. Use `clock.sixteenthDuration()` for gate/ratchet spacing.
-- Always route the step through `perf.mapStep(step)` before the modulo, or the
-  module ignores live stutter.
-- A disabled lane's play bank tracks that machine's edit bank (the `Arrangement`
-  handles this) — read `arrangement.<lane>PlayBank`, not the edit bank.
+  machine reads the play bank for the same tick, so it is constructed first.
+- **Never time events off `ctx.currentTime`**, and never space gates or ratchets
+  with `clock.sixteenthDuration()`: use the `cellDur` `forEachHit` hands you, or a
+  coarser rate plays 16th-length gates.
+- **Never compute the cell yourself** (`step % N`): a hand-rolled index ignores
+  the lane's length, rate, swing, chain paging and stutter, and breaks on a seek.
+  A module that only counts **bars** reads `barTicks` instead.
+- Read `arrangement.<lane>PlayBank`, not the edit bank (a disabled lane's play bank
+  already tracks the edit bank).
 
 ## Scenarios (BDD)
 
@@ -132,7 +133,6 @@ Scenario: The module schedules an enabled step at the tick's audio time
 
 ## Tests & verification
 
-- `tests/audio/transport/sequencer.test.ts` — reference; drive with the
+- `tests/audio/transport/sequencer.test.ts` is the reference; drive with the
   `tests/audio/transport/test-clock.ts` double against the mock `AudioContext`
-  (see [write-a-test](write-a-test.md)).
-- `npm run typecheck` / `npm test`.
+  ([write-a-test](write-a-test.md)). `npm run typecheck` / `npm test`.
