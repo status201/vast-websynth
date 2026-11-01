@@ -16,6 +16,23 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+### Fixed
+
+- **Songs keep importing as the instrument grows.** A song file may now carry up
+  to 2048 parameters (was 512). Every save writes every parameter, and the app had
+  grown to 437, close to refusing its own songs.
+- The floating windows' minimise / restore button draws its − and + as icons,
+  like every other control, instead of typed characters that some phones render
+  in a different font.
+
+### Changed
+
+- **Specs are lean again** (contributors). `specs/` was cut from 3.1 MB to 2.6 MB:
+  version history, post-mortems and copied lists are gone, and dozens of
+  statements that no longer matched the code were corrected. `npm run spec:lint`
+  now refuses version history in a spec, and warns when a spec or requirement
+  outgrows its size budget.
+
 ## [2.19.0] - 2026-10-30
 
 ### Added
