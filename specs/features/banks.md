@@ -31,15 +31,9 @@ which the [arrangement](arrangement.md) chooses and which may differ. That
 separation is what makes live pattern switching and song chains possible without
 the editor and the playhead fighting over one buffer.
 
-The count was fixed at four, and four was tight enough to distort the design
-around it. [arrangement](arrangement.md) REQ-a-seq-slot-carries-a-transpose says so directly — "four bars was the
-entire melodic vocabulary of any song" — and [arrangement-rest](arrangement-rest.md)
-REQ-rest-is-a-negative-sentinel exists so a lane can sit out a bar without spending one of the four.
-Both are good features that were reached for partly because banks were scarce.
-v6 removes the scarcity: a machine starts at four and the user adds a fifth
-through an eighth on demand, per machine. v7 raises that ceiling to sixteen
-(A–P) — the same optional growth, just further. Nothing about a four-bank song
-changes — not its bytes, not its behaviour (ADR-022).
+A machine starts at four banks and the user adds more on demand, per machine, up to
+sixteen (A–P). A four-bank song is unchanged in bytes and behaviour (ADR-022, which
+also records why the count is the array length).
 
 ## Requirements
 
@@ -68,8 +62,7 @@ changes — not its bytes, not its behaviour (ADR-022).
   user is editing), plus a public `setFollowing(on)` so a panel can declare
   editing intent on the user's behalf: arming the sequencer's Step Input turns
   Follow **off** ([sequencer](sequencer.md) REQ-a-take-is-bank-pinned) so the arrangement cannot
-  swap the edit bank mid-take. Same rule, same funnel as a manual bank click —
-  it is not a new state, just a second way to reach it.
+  swap the edit bank mid-take, through the same funnel as a manual bank click.
 - **REQ-content-dot-covers-every-lane** (v4) — **Content dot.** Each bank button
   carries a dot that lights (`filled`) while that bank holds pattern data, so
   the user can see which banks are worth switching to without visiting each
@@ -88,19 +81,14 @@ changes — not its bytes, not its behaviour (ADR-022).
   shrink by one repaint.
 
 - **REQ-bank-always-stores-sixteen-cells** (v5) — **A bank always stores 16
-  cells; the meter decides how many *play*.** Nothing about the bank shape moved
-  when time signatures landed ([meter](meter.md) REQ-pattern-arrays-stay-grid-cells-long) — which is exactly what
-  kept the validators, the published JSON schemas, the authoring dialect and
-  every shipped demo untouched. Shortening a lane hides cells; it never clears
-  them, so lengthening it again returns the steps as they were, and a bank
-  copied while short copies whole.
+  cells; the meter decides how many *play*** ([meter](meter.md)
+  REQ-pattern-arrays-stay-grid-cells-long). Shortening a lane hides cells and never
+  clears them, and a bank copied while short copies whole.
 
 - **REQ-a-machine-owns-its-bank-count** (v6) — **Each machine has its own bank
-  count, `MIN_BANK_COUNT`..`MAX_BANK_COUNT` (4..16 since v7; 4..8 in v6), and the count *is* the length
+  count, `MIN_BANK_COUNT`..`MAX_BANK_COUNT` (4..16), and the count *is* the length
   of that machine's bank array.** There is no separate stored count, in the store
-  or in the `SongFile` — a second copy of a number the arrays already carry is a
-  second thing to keep honest, and the first malformed payload desyncs them
-  (ADR-022). The four machines are independent: growing the sequencer does not
+  or in the `SongFile` (ADR-022). The four machines are independent: growing the sequencer does not
   grow the drum machine. `BANK_LABELS` is **derived** from `MAX_BANK_COUNT`, so a
   label can never go missing for a bank that exists; surfaces slice it by the
   machine's own count.
@@ -143,19 +131,15 @@ changes — not its bytes, not its behaviour (ADR-022).
   incoming snapshot omits restores to its default, never to what the previous
   song left there.** `restore()` resizes each machine's arrays first, minting new
   banks from the shared builders, then fills authoritatively with
-  `Object.assign(dst, DEFAULTS, src ?? {})` at all three nesting levels. With a
-  fixed count this was latent; with a variable one, loading a 4-bank song after
-  a grown one would otherwise leave E onwards holding the previous song's patterns.
-  The edit-bank cursors are re-clamped **unconditionally** after the resize, not
-  only when the snapshot carries one — a `SongFile` never carries them, so the
-  conditional form never ran on the load path, and a cursor parked on P would
-  index past a freshly-shrunk array on the next read.
+  `Object.assign(dst, DEFAULTS, src ?? {})` at all three nesting levels, so a 4-bank
+  song loaded after a grown one leaves no previous patterns in E onwards. The
+  edit-bank cursors are re-clamped **unconditionally** after the resize (a `SongFile`
+  never carries them, so a conditional clamp never runs on the load path).
 
   A section the snapshot **omits entirely** is the one exception, and it inherits
-  *whole*: content and count together. That is what the sampler's documented
-  inherit across a load already promised ([song-mode](song-mode.md)
-  REQ-apply-resets-to-defaults-first) — a v1 file carrying no `samplerBanks` keeps
-  the user's kit, so it must not quietly destroy its grown banks (E onwards) either. A caller's
+  *whole*, content and count together, as the sampler's inherit across a load
+  promises ([song-mode](song-mode.md) REQ-apply-resets-to-defaults-first): a v1 file
+  with no `samplerBanks` keeps the user's kit, grown banks included. A caller's
   count may still **raise** an inherited length (a chain naming a bank past it),
   never lower it.
 
@@ -178,17 +162,17 @@ PatternStore:  # src/state/patterns.ts
   get seqEditBank / drumEditBank / samplerEditBank / motionEditBank: number
   seqBank(i) / drumBank(i) / samplerBank(i) / motionBank(i)   # any bank, for the transport
   setSeqEditBank(i) / setDrumEditBank(i) / setSamplerEditBank(i) / setMotionEditBank(i)  # re-emit steps
-  setSeqStep(track, index, patch)   # track-indexed since v6's multi-track seq (sequencer.md REQ-song-file-v6-adds-seq-tracks)
+  setSeqStep(track, index, patch)   # track-indexed (sequencer.md REQ-song-file-v6-adds-seq-tracks)
   setDrumCell(t, s, patch) / setSamplerCell(slot, s, patch) / setMotionStep(index, patch)
   copySeqBank(from, to) / copyDrumBank(...) / copySamplerBank(...) / copyMotionBank(...)  # motion also copies its assign override
   onEditBankChange(fn) -> unsubscribe
-  # --- v6, the per-machine count (REQ-a-machine-owns-its-bank-count) ---
+  # --- the per-machine count (REQ-a-machine-owns-its-bank-count) ---
   get seqBankCount / drumBankCount / samplerBankCount / motionBankCount: number
   bankCount(m: Machine): number        # the lane-keyed primitive; = that machine's array length
   canAddBank(m) / addBank(m): boolean
   canRemoveBank(m) / removeBank(m): boolean
   onBankCountChange(fn) -> unsubscribe
-constants: MIN_BANK_COUNT = 4, MAX_BANK_COUNT = 16   # 8 until v7 (SongFile v8)
+constants: MIN_BANK_COUNT = 4, MAX_BANK_COUNT = 16
            BANK_LABELS — DERIVED from MAX_BANK_COUNT, one label per possible bank
 type Machine: 'seq' | 'drum' | 'sampler' | 'motion'   # Arrangement's LaneName aliases it
 clampChainStep(i, bankCount): number   # bankCount is REQUIRED — a default is how a
@@ -203,7 +187,7 @@ play vs edit:
   a DISABLED arrangement lane's play bank follows that machine's edit bank
 ui: src/ui/components/bank-bar.ts (BankBar) — testid prefix per machine:
     bank-<seq|drum|sampler|motion>-<i>, bank-…-copy, bank-…-follow,
-    bank-…-add, bank-…-remove            # v6 — same bank-<lane>-<verb> shape
+    bank-…-add, bank-…-remove            # same bank-<lane>-<verb> shape
 content dot (REQ-content-dot-covers-every-lane):
   BankBar toggles a `filled` class per button from opts.hasContent(i) and
   re-renders on opts.onContentChange. Both are supplied per machine by
@@ -213,7 +197,7 @@ content dot (REQ-content-dot-covers-every-lane):
     sampler -> any cell on, across all slots           (onSamplerChange)
     motion  -> any XY anchor on OR any single-param lane step on
                (onMotionChange + onMotionTrackChange, disposers composed)
-count (v6, REQ-a-machine-owns-its-bank-count):
+count (REQ-a-machine-owns-its-bank-count):
   laneHooks() also supplies bankCount/addBank/removeBank/removeBlockedBy/onBankCountChange,
   so nothing outside that one switch learns which machine has how many.
   removeBlockedBy() returns the REASON as a string (or null), not a boolean, so the
@@ -240,12 +224,10 @@ follow (REQ-follow-tracks-the-play-bank):
 
 ### Persistence
 
-A machine's count is **not** a stored field. It is the length of that machine's
-array in the `SongFile`, so a four-bank song is byte-identical to its pre-v6 form
-and every v1–v7 file loads as a four-bank song ([song-mode](song-mode.md)
-REQ-song-file-v8-widens-the-bank-count, ADR-022, ADR-007). v8 files carry
-4..8; v9 raises the ceiling to 16 (REQ-song-file-v9-raises-the-bank-ceiling) and
-nothing else. The ordering inside
+A machine's count is **not** a stored field but the length of its array in the
+`SongFile`, so a four-bank song keeps its old bytes. The version history of the
+ceiling is [song-mode](song-mode.md)'s (REQ-song-file-v8-widens-the-bank-count,
+REQ-song-file-v9-raises-the-bank-ceiling). The ordering inside
 `Song.apply` is load-bearing: `restore()` runs **before** the chain setters, so a
 chain is always re-clamped against freshly-sized arrays and can never outlive the
 banks it names.
@@ -282,7 +264,7 @@ Scenario: Manual bank click while following disables Follow (edge)
   Then bank A becomes the edit bank and Follow turns off (no snap-back next bar)
 # pinned by: tests/ui/bank-bar.test.ts, e2e/banks.spec.ts
 
-Scenario: A motion bank filled only in its single-param lanes shows as filled (v4, regression)
+Scenario: A motion bank filled only in its single-param lanes shows as filled (regression)
   Given motion bank B has no XY anchors but its A track holds steps
   Then bank B's dot is lit in the Motion tab's bank bar
   And editing a track step lights (or clears) the dot without a bank switch
@@ -294,7 +276,7 @@ Scenario: Turning Follow on syncs immediately (edge)
   Then the edit bank jumps to the play bank at once (not at the next bar)
 # pinned by: tests/ui/bank-bar.test.ts
 
-Scenario: Adding a bank reveals exactly one more, per machine (v6)
+Scenario: Adding a bank reveals exactly one more, per machine
   Given the Sequencer is at the default four banks
   When the user taps the bank bar's + arm
   Then the Sequencer shows five banks, A..E, and its arrays are five long
@@ -302,48 +284,48 @@ Scenario: Adding a bank reveals exactly one more, per machine (v6)
   And tapping + until the ceiling stops at sixteen (A..P) with the arm hidden
 # pinned by: tests/state/patterns.test.ts, tests/ui/bank-bar.test.ts, e2e/banks.spec.ts
 
-Scenario: A machine grown to sixteen banks fits a phone (v7)
+Scenario: A machine grown to sixteen banks fits a phone
   Given a 375px-wide viewport
   When the Sequencer is grown to sixteen banks
   Then every bank letter A..P is visible and the panel does not scroll horizontally
   And the bank bar has wrapped onto a second line rather than hiding a bank
 # pinned by: e2e/banks.spec.ts
 
-Scenario: A chain may name bank P (v7)
+Scenario: A chain may name bank P
   Given a song whose seqBanks is four long but whose seqChain names bank index 15
   When it is applied
   Then the Sequencer has sixteen banks and P is blank
 # pinned by: tests/state/song.test.ts
 
-Scenario: Removing a bank refuses while it is in use (v6, edge)
+Scenario: Removing a bank refuses while it is in use (edge)
   Given the Sequencer has five banks and bank E holds steps
   Then the − arm is disabled and says so
   When the user clears bank E and no chain names it
   Then − is enabled, and using it returns the Sequencer to four banks
 # pinned by: tests/state/patterns.test.ts, tests/ui/bank-bar.test.ts
 
-Scenario: A four-bank song loads after an eight-bank one without residue (v6, regression)
+Scenario: A four-bank song loads after an eight-bank one without residue (regression)
   Given the Sequencer was grown to eight and every bank holds steps
   When a four-bank song is loaded
   Then the Sequencer has four banks and E onwards are gone, not stale
   And an edit bank parked on the last bank is re-clamped rather than indexing past the array
 # pinned by: tests/state/patterns.test.ts, tests/state/song.test.ts
 
-Scenario: Removing the bank being edited repaints the grid (v6, regression)
+Scenario: Removing the bank being edited repaints the grid (regression)
   Given the Sequencer has five banks and the user is editing the empty bank E
   When the − arm drops it
   Then the edit bank is D and the grid repaints as D
   And it does not go on showing E's cells until some unrelated event repaints it
 # pinned by: tests/state/patterns.test.ts
 
-Scenario: A file with no sampler section inherits the sampler whole (v6, regression)
+Scenario: A file with no sampler section inherits the sampler whole (regression)
   Given the Sampler was grown to six banks and bank F holds steps
   When a song carrying no sampler section at all is loaded
   Then the Sampler still has six banks and F still holds its steps
   And a sampler chain naming a bank past six would still have grown it
 # pinned by: tests/state/patterns.test.ts
 
-Scenario: A chain naming a bank the file omits grows the machine (v6)
+Scenario: A chain naming a bank the file omits grows the machine
   Given a song whose seqBanks is four long but whose seqChain names bank E
   When it is applied
   Then the Sequencer has five banks, E is blank, and the chain is unchanged
@@ -364,8 +346,6 @@ Scenario: A chain naming a bank the file omits grows the machine (v6)
 - **Raising the ceiling again** is one line — `MAX_BANK_COUNT` — plus whatever
   `tests/state/authoring-docs.test.ts` names, since it pins every bank dimension
   in both published schemas and `public/llms.txt` to the constants, plus a
-  `SONG_VERSION` bump and a new top rung in the dialect's version ladder (the v7
-  raise to sixteen did exactly that — ADR-025). The open question this
-  section used to carry — one row of letters or paging past ~ten banks — was
-  answered at v7 by REQ-the-bank-bar-wraps-rather-than-pages. Past sixteen the
-  letters alone would need a second alphabet, which is a design change, not a raise.
+  `SONG_VERSION` bump and a new top rung in the dialect's version ladder (ADR-025).
+  Past sixteen the letters would need a second alphabet, a design change rather than
+  a raise.
