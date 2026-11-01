@@ -250,19 +250,13 @@ the curve has reached, so it never needs a cancel. These are dialled by ear
 under ADR-010, so they are named in one place rather than spelled as literals at
 the call site.
 
-**Never cancel automation without anchoring it.** `cancelScheduledValues(t)`
-removes the in-flight ramp *and* leaves no event at `t`, so the next scheduled
-ramp starts from "the value of the AudioParam" — which Blink reads as the
-automation's computed value but Gecko reads as the last value explicitly
-assigned, snapping the param back and stepping the output. `cancelAndHoldAtTime`
-would pin it natively and Firefox does not implement it, so a cancel must be
-followed by `setValueAtTime(<the value now>, t)` on the same param. A
-*continuous* control avoids the question entirely: `setTargetAtTime` retargets
-from wherever the curve has reached, so it needs no cancel and may be re-issued
-at any rate. `tests/audio/no-unanchored-cancel.test.ts` fails the suite on a
-cancel that pins nothing; the two bugs that taught this are
-[sidechain-ducking](features/sidechain-ducking.md) and
-[performance](features/performance.md) REQ-the-dj-sweep-rides-detune.
+**Never cancel automation without anchoring it** (ADR-027). A continuous control
+retargets with `setTargetAtTime` and never cancels; an unavoidable
+`cancelScheduledValues(t)` is followed first by `setValueAtTime(<value now>, t)` on
+the same param (`pinParam`); no ramp is seeded from a live `.value`. Gecko reads
+"the value of the AudioParam" as the last value assigned, not the automation's,
+and has no `cancelAndHoldAtTime`. `tests/audio/no-unanchored-cancel.test.ts` fails
+the suite on a cancel that pins nothing.
 
 `ListenerSet` backs every `onStep`/`onNote`/`onFollowChange` hook (the four
 transport machines and `BankBar`), which had each open-coded the same
@@ -795,6 +789,10 @@ and stating the rule is what keeps them distinguishable from neglect.
 - [ADR-019](decisions/adr-019-the-bar-is-a-tick-count.md) — the bar is a **tick
   count**, not a time signature, and every lane's cell index is a pure function
   of `clock.step` (which is what makes a 12- or 14-tick lane survive a seek).
+- [ADR-027](decisions/adr-027-audioparam-automation-is-anchored.md) — **automation
+  is anchored**: a continuous control retargets with `setTargetAtTime` and never
+  cancels; an unavoidable cancel is pinned first with `setValueAtTime`; no ramp is
+  seeded from a live `.value` (Gecko and Blink disagree on all three).
 
 ## Tests & verification
 
