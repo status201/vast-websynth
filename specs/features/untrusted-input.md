@@ -144,7 +144,7 @@ decision and the alternatives. This spec is the contract.
   `MAX_PARAM_KEYS` keys. Existing checks are unchanged: `Number.isFinite` on
   every number, exact grid dimensions, `KNOWN_SONG_VERSIONS`.
 
-  (v17) **The param-key bound keeps at least 4× headroom over the registry.**
+  **The param-key bound keeps at least 4× headroom over the registry.**
   `Song.capture` writes every registered param, so a registry that outgrows
   `MAX_PARAM_KEYS` makes the build refuse the songs it saves — and keys from a
   newer build ride along unknown (ADR-007). The bound is 2048 against ~440
