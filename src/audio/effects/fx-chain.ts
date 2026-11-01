@@ -22,14 +22,12 @@ import { Wah } from './wah';
  * knowledge that used to sit spread across Engine's fields, constructor,
  * wiring and `subscribeParams`.
  *
- * `bind(bus)` self-wires every param (ADR-008); `tail` is the last effect's
- * output (nothing reads it today: the bank render taps `synthPan`).
+ * `bind(bus)` self-wires every param (ADR-008). A chain exposes no tap point: a
+ * capture taps a named Engine node (the bank render taps `synthPan`, effects.md).
  */
 export interface FxChain<E extends Record<string, Effect>> {
   /** Named access to the members, e.g. `drumFx.fx.comp`. */
   readonly fx: E;
-  /** The last effect's output — the pre-`preMaster` tap point. */
-  readonly tail: AudioNode;
   /** Series-wire `input → …effects… → output`. */
   wire(input: AudioNode, output: AudioNode): void;
   /** Subscribe every member's params at this chain's prefixes. */
@@ -50,7 +48,6 @@ function makeChain<E extends Record<string, Effect>>(
   const series = order.map((k) => fx[k]!);
   return {
     fx,
-    get tail(): AudioNode { return series[series.length - 1]!.output; },
     wire: (input, output) => chain(input, series, output),
     bind: bindAll,
   };

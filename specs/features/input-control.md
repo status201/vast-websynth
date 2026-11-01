@@ -175,7 +175,7 @@ notes played on another tab no longer overwrite its bank.
   OCT +2 a computer key playing C4 has no key on the drawn board and lights
   nothing, rather than lighting the key that actually sounds C6.) The light-up
   **stores the resolved element**; the light-down removes the class from *that*
-  element rather than resolving the note again. Re-deriving was the bug: the
+  element rather than resolving the note again, because re-deriving goes wrong: the
   sequencer's viz schedules its on and its off as two separate deferred timers
   (`shell/bottom.ts`, at the notes' audible moments), so any OCT change in between —
   including a **song/demo load**, since `Song.apply` restores
@@ -203,7 +203,7 @@ notes played on another tab no longer overwrite its bank.
   **Two computer keys on one note release it once, with the last key.**
   `,` and `Q` both play C5, and an octave shift mid-hold can line any two keys
   up on one note. The synth has one voice set per note, so a second press only
-  retriggers it and the first release used to end it while the other key was
+  retriggers it, and the first release must not end it while the other key is
   still down. `installShortcuts` counts the keys holding each note. The first
   key sounds the note, a further key does nothing, and only the last key up
   sends `noteOff`. This applies to the computer keyboard only: a MIDI note-off,
@@ -298,7 +298,7 @@ notes played on another tab no longer overwrite its bank.
 
 - **REQ-a-lit-white-key-sits-lower** (v22) — **A lit white key sits lower than its
   neighbours.** A lit black key already reads as pressed: it loses its outer drop
-  shadow and sinks. A white key used to only change colour. Now any lit white key
+  shadow and sinks. A lit white key
   (`active` or `seq`) carries a thin inset shade on its left and right edges, as if
   the raised keys beside it cast it.
   - **Where two lit white keys meet there is no shade.** They sit at the same depth,
@@ -351,17 +351,15 @@ notes played on another tab no longer overwrite its bank.
     reads `disconnected` has its notes released. If that port is holding the
     sustain pedal, the pedal is lifted, which flushes its deferred note-offs,
     and if it set the pitch bend last, the bend goes back to centre. A pedal
-    held on another, still-connected device stays down. An unplugged keyboard
-    used to leave every held note, the pedal and the bend exactly where they
-    were, until a Panic.
+    held on another, still-connected device stays down, and an unplugged keyboard
+    never leaves a note, the pedal or the bend stranded until a Panic.
   - **The pedal and the bend are released the same way.** The (port, channel)
     holding the pedal down, and the one that moved the bend off centre, are
     remembered. Their pedal-up (CC64 below 64) and their bend messages pass the
-    channel filter until the pedal is up and the bend is back at centre. A
-    channel change with the pedal down used to drop the pedal-up, so the pedal
-    stayed down for good and every later note-off was deferred.
+    channel filter until the pedal is up and the bend is back at centre, so a
+    channel change with the pedal down cannot strand it.
 - **REQ-cc11-is-expression** (v18) — **CC11 is expression.** An expression
-  pedal or breath controller sends CC11, which did nothing. It writes
+  pedal or breath controller sends CC11. It writes
   `master.expression` (0..1, **default 1 — a no-op**, ADR-006), which scales the
   master gain together with the volume: the gain is `volume² × expression²`,
   the same law the volume already uses, so CC7 sets the level and CC11 rides

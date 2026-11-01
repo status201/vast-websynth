@@ -3,7 +3,7 @@
 ```yaml
 id: floating-window
 status: implemented
-version: 5
+version: 6
 owner: core
 related:
   - architecture
@@ -55,11 +55,14 @@ matrix) reuse it.
   Layout keeps the minimise button + leading control + title on the left and the
   close button on the right regardless of child count.
 - **REQ-every-window-can-minimise** — Built-in **minimise / restore button**:
-  every floating window has a `[−]` button as the **far-left** child of the
+  every floating window has a minimise button as the **far-left** child of the
   title bar (before `opts.leading`, `minBtn`). Clicking it **collapses** the
   window to just its title bar — the `.body` is hidden (global `collapsed` class
-  on the root) — and flips the glyph to `[+]`; clicking again **restores** the
-  body. The button updates `aria-expanded` (`true` when expanded) and
+  on the root) — and flips its icon from `UI_ICONS.minus` to `UI_ICONS.plus`;
+  clicking again **restores** the body. Both are inline SVG, never a typed `−`/`+`
+  ([iconography](iconography.md) REQ-a-control-glyph-is-inline-svg): `−` is not in
+  the iconography scan's glyph set (it is also typography), so this REQ's scenario
+  is what pins it. The button updates `aria-expanded` (`true` when expanded) and
   `aria-label` (Minimise / Restore), and stops its `pointerdown` so a drag never
   starts from it. Collapse state is **ephemeral**: it is not persisted, and
   `open()` always reveals the window **expanded** (predictable re-open), even
@@ -239,11 +242,16 @@ Scenario: A leading control renders in the title bar and never starts a drag
 
 Scenario: The minimise button collapses and restores the window
   Given an open FloatingWindow with content in its body
-  Then the minimise button is the first child of the title bar and reads "−"
+  Then the minimise button is the first child of the title bar and shows the minus icon
   When the user clicks the minimise button
-  Then the body is hidden (root gets the collapsed class), the glyph reads "+", and isCollapsed is true
+  Then the body is hidden (root gets the collapsed class), it shows the plus icon, and isCollapsed is true
   When the user clicks it again
-  Then the body is shown, the glyph reads "−", and isCollapsed is false
+  Then the body is shown, it shows the minus icon, and isCollapsed is false
+# pinned by: tests/ui/floating-window.test.ts
+
+Scenario: The minimise button draws its icon, never a typed glyph (REQ-every-window-can-minimise, regression)
+  Given an open FloatingWindow, expanded and then minimised
+  Then the minimise button holds one svg.ui-icon and no text, in both states
 # pinned by: tests/ui/floating-window.test.ts
 
 Scenario: Re-opening a minimised window reveals it expanded

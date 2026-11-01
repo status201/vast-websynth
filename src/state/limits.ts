@@ -62,8 +62,13 @@ export const MAX_CHAIN_TRANSPOSE = 24;
  */
 export const MAX_STEP = 2 ** 31;
 
-/** Keys in a `params` map. The bus registers ~440 (public/params.json), so this is ~15% headroom, not 3×; unknown ids are kept (ADR-007). */
-export const MAX_PARAM_KEYS = 512;
+/**
+ * Keys in a `params` map. `Song.capture` writes every registered param, so this is
+ * also the registry's ceiling: kept at >= 4× the ~440 registered (unknown ids from a
+ * newer build are kept too, ADR-007). `tests/state/param-key-headroom.test.ts`
+ * fails at a quarter — raise this then (untrusted-input.md REQ-payload-values-are-bounded).
+ */
+export const MAX_PARAM_KEYS = 2048;
 
 /**
  * A song, preset or bank title, in code points (untrusted-input.md

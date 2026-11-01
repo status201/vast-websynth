@@ -3,7 +3,7 @@
 ```yaml
 id: untrusted-input
 status: implemented
-version: 16
+version: 17
 owner: core
 related:
   - architecture
@@ -143,6 +143,13 @@ decision and the alternatives. This spec is the contract.
   two). Chain `steps` is `1..MAX_CHAIN_STEPS`. `params` carries at most
   `MAX_PARAM_KEYS` keys. Existing checks are unchanged: `Number.isFinite` on
   every number, exact grid dimensions, `KNOWN_SONG_VERSIONS`.
+
+  **The param-key bound keeps at least 4× headroom over the registry.**
+  `Song.capture` writes every registered param, so a registry that outgrows
+  `MAX_PARAM_KEYS` makes the build refuse the songs it saves — and keys from a
+  newer build ride along unknown (ADR-007). The bound is 2048 against ~440
+  registered; a test fails once the registry passes a quarter of it, the signal
+  to raise the bound (additive and safe) rather than to trim the check.
 
 - **REQ-names-are-capped** (v16) — **A name is at most `MAX_NAME_CHARS` (50)
   characters.** A song, preset or bank title is free text that a payload
@@ -466,7 +473,7 @@ MAX_SIGNAL_BYTES:     262144      # 256 KB — an SDP blob is ~700 bytes
 MAX_SYNC_JOIN_LEAD_MS: 1000       # 1 s — a real join is at most one look-ahead (~225 ms) ahead
 MAX_CHAIN_STEPS:      1024        # 1024 bars is ~34 min at 120 BPM
 MAX_CHAIN_DEPTH:      8           # {enabled,steps:{...}} nesting
-MAX_PARAM_KEYS:       512         # the bus registers ~440 (public/params.json): headroom is ~15%, not 3x
+MAX_PARAM_KEYS:       2048        # >= 4x the registry (~440, public/params.json), pinned by a test
 MAX_CHAIN_TRANSPOSE:  24          # +/- 2 octaves on a chain slot
 
 # REQ-the-public-endpoint-is-bounded: the public MCP endpoint. Sized the OTHER way — tight, because there is
@@ -594,6 +601,12 @@ Scenario: An oversized chain is refused
   Then validation fails naming the chain and its limit
   And a deeply nested {steps:{steps:…}} fails validation instead of throwing
 # pinned by: tests/state/song-validate.test.ts, tests/state/song-author.test.ts
+
+Scenario: A song this build saves always passes its own params bound (REQ-payload-values-are-bounded, regression)
+  Given every param the bus registers
+  Then their count is at most a quarter of MAX_PARAM_KEYS
+  And a captured session's params map validates
+# pinned by: tests/state/param-key-headroom.test.ts
 
 Scenario: A reserved key is refused
   Given a song whose step cell carries a __proto__ key

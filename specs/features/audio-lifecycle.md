@@ -33,78 +33,29 @@ it comes back. Cross-cutting glue between [`transport`](transport.md) (the clock
 
 ## Background / Why
 
-Two device-reported faults, both at a lifecycle edge and neither reproducible on
-desktop.
+This spec owns the policy at the context's lifecycle edges — what starts, what
+fades, what keeps the session alive, what recovers, and what the Debug panel
+shows. Its rules come from device reports that do not reproduce on a desktop:
 
-**1. A click when the app opens.** `AudioContext.resume()` starts the output
-stream with `master.gain` already at its full value, so whatever the graph's
-first rendered block contains — the device's own stream-start transient, the
-worklets' first output, an underrun while the tap-to-start handler is still
-running `initMIDI` and fading the modal out — arrives as a step discontinuity at
-full level. Nothing in the graph is *wrong*; there is simply no ramp between "not
-rendering" and "rendering at 0.64 gain".
-
-**2. Android (Pixel 8a) goes haywire when the screen turns off.** Crackling and a
-runaway clock; a Samsung tablet on the same build is fine. The cause is not the
-audio graph but what the OS does to a hidden page: Chrome/Android freezes or
-heavily throttles its renderer (the same page on the tablet keeps running), so
-the clock's worker wakeups stop arriving while `ctx.currentTime` keeps advancing.
-The look-ahead drain loop had no bound, so the next wakeup — a minute later —
-drained *every* missed 16th in one pass: several hundred notes all scheduled in
-the past, clamped to `now` downstream and fired simultaneously, with `_step`
-racing through the song. That is the **runaway clock**, and a bounded catch-up in
-the clock fixes it ([`transport`](transport.md) REQ-the-transport-catch-up-is-bounded).
-
-On the device it fixed the runaway and **not** the crackle — which is how we know
-the two had different causes. The crackle is the throttling itself starving the
-audio callback, so the second half of the answer is to stop Android throttling us:
-be a media player it recognises ([`media-session`](media-session.md), REQ-session-is-observable-on-device). This
-spec owns the policy tying them together — what resumes, what fades, what keeps
-the session alive, and what the Debug panel shows.
-
-**3. (v5) Coming back did not bring the sound back.** An Android tablet under
-battery saving (below 10 %), transport **stopped**, backgrounded: the context went
-`suspended` and returning to the foreground left the app silent. Only the Debug
-panel's Resume revived it. Everything above is about *entering* the background
-gracefully; nothing checked that leaving it worked. REQ-foreground-return-rearms-the-context's re-arm fires
-`ctx.resume()` and then trusts it — but on Android that call can reject **or return
-a promise that never settles** when it lands outside a user gesture, and the
-rejection was swallowed by a bare `catch` whose comment ("stays suspended until
-gesture") described a fallback that did not exist. Three more holes sat behind it:
-the `statechange` listener that would have noticed was iOS-only; the watchdog's
-fade-to-zero was undone only by a fade gated on the context *not* already running,
-so a context Chrome resumed by itself would come back running and silent; and the
-watchdog was suspending a **stopped, silent** instrument, where there was no
-crackle to prevent in the first place. v5 is the recovery half: verify, retry, and
-if the platform really does want a gesture, take the next one the user makes and
-say so.
-
-**4. (v6) The click never went away, because the fade was never reached.** Point 1
-above is written as though `AudioContext.resume()` is what starts the output
-stream. On a browser that *blocks* autoplay it is. On one that permits it —
-Firefox with the site's Autoplay permission on Allow, Chrome with a warm Media
-Engagement Index, i.e. **any machine that has used the app before** —
-`new AudioContext()` comes back already `running`: the stream opens at page load,
-`Engine`'s constructor wires the whole graph to `ctx.destination` with
-`master.gain` at its seeded 0.8, and the boot then builds ~50 nodes, loads three
-worklet modules and writes several hundred params into a live render thread. When
-the tap finally arrives, `runResume()` takes its `!shouldResumeContext(state)`
-branch and returns — REQ-a-start-is-click-free's fade is *skipped by design* (REQ-the-fade-never-dips-live-audio). So the one
-mitigation for the reported symptom never ran on precisely the machines that
-report it. `main.ts` said "The AudioContext is created suspended" as a comment; it
-was an assumption, and nothing checked it. The tell on such a machine is that the
-wake lock never engages either, because it waits on a `statechange` that never
-fires.
-
-The fix is not to suspend the context at boot. **The state the browser created it
-in is the only direct evidence of the autoplay verdict** — and that verdict answers
-a second question the app had been guessing at: whether the "Tap to start" modal is
-needed at all. So v6 keeps the created state, makes the master bus silent until the
-first deliberate fade (REQ-nothing-is-audible-before-the-first-start), and reads the verdict to decide whether a gesture is
-required (REQ-the-gesture-is-required-only-when-required/REQ-post-gesture-work-is-deferred). A context that is already running is not an inference
-about policy: the stream is open, audio is unblocked, and the only thing a tap
-still buys is the platform work that genuinely wants a gesture — which is deferred
-to the first one the user makes anyway, rather than demanded up front.
+- **Opening must not click.** Whatever the first rendered block holds (a stream
+  transient, the worklets' first output, an underrun while boot work runs) arrives
+  at full level unless something ramps from silence. The master bus therefore
+  stays silent until the first deliberate fade
+  (REQ-a-start-is-click-free/REQ-nothing-is-audible-before-the-first-start). A
+  browser that permits autoplay creates the context already **running**, so the
+  fade cannot hang off `resume()`: the context's created state is the only direct
+  evidence of the autoplay verdict, and it also decides whether "Tap to start" is
+  needed at all (REQ-the-gesture-is-required-only-when-required/REQ-post-gesture-work-is-deferred).
+- **A hidden page must not run away or crackle.** Android freezes or throttles a
+  hidden renderer, so clock wakeups stop while `ctx.currentTime` advances. The
+  runaway is the clock's to bound ([transport](transport.md)
+  REQ-the-transport-catch-up-is-bounded); the crackle is throttling starving the
+  audio callback, answered by being a media player the OS recognises
+  ([media-session](media-session.md) REQ-session-is-observable-on-device).
+- **Coming back must bring the sound back.** On Android `ctx.resume()` outside a
+  gesture can reject or never settle, so a return verifies, retries, and if the
+  platform wants a gesture takes the next one and says so
+  (REQ-foreground-return-rearms-the-context, REQ-an-unasked-suspension-is-recovered).
 
 ## Requirements
 
@@ -197,13 +148,10 @@ to the first one the user makes anyway, rather than demanded up front.
   and suspends the context.
 
   **Arming it is idempotent.** `start()` is called once, from `Engine.init()`,
-  and its subscription used to be an inline arrow — no handle to remove and
-  nothing to compare, so a second call stacked a second handler and every
-  visibility change ran `beginWatch`/`endWatch` twice. The listener is stored
-  and the second call is a no-op. This is a guard on a trap rather than a live
-  fix: "call once" written in a comment is not the same property as "calling
-  twice is harmless", and a page-lifetime singleton is precisely what a later
-  multi-instance path re-enters. Returning to the foreground resumes and fades back
+  and the listener is stored, so a second call is a no-op rather than a second
+  handler running `beginWatch`/`endWatch` twice. Deliberate: "call once" in a
+  comment is not "calling twice is harmless", and a page-lifetime singleton is
+  what a later multi-instance path re-enters. Returning to the foreground resumes and fades back
   in through the existing path
   (REQ-foreground-return-rearms-the-context/REQ-a-start-is-click-free), and
   because a suspended context freezes `currentTime`, the transport's grid is
@@ -346,8 +294,8 @@ to the first one the user makes anyway, rather than demanded up front.
   subscription does not write it until the engine has run once (`everRan`), so
   the only thing that can ever raise the master bus is `fadeInMaster()`. Every
   path into audibility therefore goes through REQ-a-start-is-click-free's ramp,
-  including the one REQ-the-fade-never-dips-live-audio's state gate used to miss
-  — hence the second exception there. `fadeInMaster()` reads
+  including an already-running context, which is why
+  REQ-the-fade-never-dips-live-audio's state gate carries a second exception. `fadeInMaster()` reads
   `bus.get('master.volume')` at fade time, so the first fade still lands exactly
   where the knob says, and a volume set before the start is honoured rather than
   lost.

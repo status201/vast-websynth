@@ -241,7 +241,7 @@ triangleLeft / triangleRight:  ◀ ▶   # chip reorder, "▶ Play a demo"
 toStart:                       ⏮     # transport
 caretDown / caretRight:        ▾ ▸   # dropdown, collapse toggle, fold headers
 close:                         ✕     # floating window, toast, chip remove
-plus / minus:                  + −   # the bank bar's grow/shrink arms (banks.md);
+plus / minus:                  + −   # the bank bar's grow/shrink arms (banks.md), a floating window's minimise / restore;
                                      # two strokes and one, same weight as close
 check:                         ✓     # "Linked ✓", tour confirmation
 gear:                          ⚙     # in-panel settings reveal

@@ -3,7 +3,7 @@
 ```yaml
 id: effects
 status: implemented
-version: 18
+version: 19
 owner: core
 related:
   - architecture
@@ -233,7 +233,6 @@ chain(input, fx[], output)  # series-wires input → fx[0] → … → output
 bindBypassMix(bus, prefix, fx)  # `${prefix}.on` → setBypass; `${prefix}.mix` → setMix when defined
 FxChain<E>:    # src/audio/effects/fx-chain.ts — one bus's chain as a unit
   fx: E                      # named members, e.g. drumFx.fx.comp
-  tail: AudioNode            # the last member's output
   wire(input, output) / bind(bus)
   # createSynthChain / createDrumChain / createSamplerChain — explicit factories,
   # each owning its effect order, param prefixes and (drum) the comp ratio table.
