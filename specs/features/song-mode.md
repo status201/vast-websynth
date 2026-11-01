@@ -34,7 +34,7 @@ source:
   - src/state/song-validate.ts                # validateSongFile (import validation)
   - public/schema/websynth-song.schema.json   # machine-readable JSON Schema (shipped)
   - src/state/patterns.ts                     # banks + restore (migration)
-  - src/audio/transport/arrangement.ts        # 3 chain lanes
+  - src/audio/transport/arrangement.ts        # 4 chain lanes
   - src/audio/transport/performance.ts        # live DJ FX
   - src/audio/transport/lane-mix.ts           # audibleLanes (pure mute/solo rule)
   - src/audio/transport/sampler-machine.ts    # sampler lane playback
@@ -62,30 +62,28 @@ demos, the load path **must stay backward compatible** as the format grows.
   snapshot + all seq/drum/sampler/motion banks + all four chain lanes into one
   `SongFile`.
 - **REQ-song-file-is-a-versioned-union** — `SongFile` is a **versioned union**
-  (`version: 1 | … | 9`); v2 adds optional sampler fields, v3 adds the optional
-  [XY Pad](xy-pad.md) axis assignment (`xy`), v4 adds the optional [motion
-  sequencer](motion-sequencer.md) fields
-  (`motionBanks`/`motionAssigns`/`motionChain`), v5 the optional `motionTracks`
-  (motion's two extra single-param tracks) and v6 the optional `seqTracks`
-  ([sequencer](sequencer.md) tracks 2–4), v7 the optional `seqTranspose`
-  (REQ-song-file-v7-adds-slot-transpose) and v8 the widened per-machine bank
-  count (REQ-song-file-v8-widens-the-bank-count), v9 its raised ceiling
-  (REQ-song-file-v9-raises-the-bank-ceiling). Older files (incl. built-in demos)
-  must still load. The version `capture()` writes is the exported
-  **`SONG_VERSION`** constant, not a literal — the published schema and
-  `llms.txt` are pinned to it by `tests/state/authoring-docs.test.ts`, which is
-  what stops the shipped docs silently falling a version behind (they did,
-  twice, before v9 of this spec).
+  (`version: 1 | … | 9`), and this spec owns the ladder:
+
+  | v | adds (all optional, so every older file still loads) |
+  | --- | --- |
+  | 2 | sampler fields |
+  | 3 | `xy`, the [XY Pad](xy-pad.md) axis assignment |
+  | 4 | `motionBanks` / `motionAssigns` / `motionChain` ([motion sequencer](motion-sequencer.md)) |
+  | 5 | `motionTracks`, two extra single-param motion lanes |
+  | 6 | `seqTracks`, [sequencer](sequencer.md) tracks 2–4 |
+  | 7 | `seqTranspose` (REQ-song-file-v7-adds-slot-transpose) |
+  | 8 | no field: 4..8 banks per machine, and motion lanes widened from 2 to 2..4 (REQ-song-file-v8-widens-the-bank-count) |
+  | 9 | no field: the bank ceiling raised to 16 (REQ-song-file-v9-raises-the-bank-ceiling) |
+
+  `capture()` writes the exported **`SONG_VERSION`**, not a literal; the published
+  schema and `llms.txt` are pinned to it by `tests/state/authoring-docs.test.ts`.
 - **REQ-apply-resets-to-defaults-first** — `apply()` is authoritative: it
   **resets params to defaults first** (a stale param omitted by an older file
   reverts rather than lingering), the four chains and the XY axes fall back to
-  their defaults, and — the fix this REQ pins — the **motion** sections (banks /
-  assigns / tracks) a file omits are **blanked**, never inherited from the
-  previously-loaded song. Loading a no-motion song after a motion song used to
-  leave the old anchors/tracks automating; `apply` now coalesces each absent
-  motion section against the shared blank (`emptyPatternSnapshot()`, the same
-  complete-blank source New Song restores from, so an authoritative clear can't
-  drift between the two paths). **Sampler** banks/names are the deliberate
+  their defaults, and the **motion** sections (banks / assigns / tracks) a file
+  omits are **blanked**, never inherited from the previous song: each absent
+  section is coalesced against `emptyPatternSnapshot()`, the same blank New Song
+  restores from. **Sampler** banks/names are the deliberate
   exception: they inherit across a load, because the sampler's decoded buffers
   live in `SamplerMachine` (out of reach of `apply`) and blanking the metadata
   alone would orphan them — a full sampler clear (metadata **and** buffers) is
@@ -95,16 +93,12 @@ demos, the load path **must stay backward compatible** as the format grows.
 - **REQ-stale-sampler-audio-is-evicted** — **Stale sampler audio is evicted.** A
   slot's decoded buffer belongs to the *name* beside it, so when an incoming
   file **supplies** `sampleNames` and a slot's name changes, that slot's buffer
-  is nulled — via the optional narrow `sampler` handle (`{ setBuffer }`) `apply`
-  now takes, before `patterns.restore` runs so the store's own meta emit
-  repaints the slot correctly. Without it, loading song B left song A's audio
-  playing under B's labels: a slot could read "kick.wav" with no `.needs-reload`
-  hint while sounding like something else entirely. The
-  REQ-apply-resets-to-defaults-first inherit exception is untouched: a file that
-  **omits** `sampleNames` (a v1 file) changes no name, so nothing is evicted.
-  Callers that hold a sampler pass it (`song-panel.applySong`, the app.ts demo
-  fallback, the boot restore); omitting it keeps the old inherit-everything
-  behaviour, which is what unit tests without an audio graph want.
+  is nulled through the optional narrow `sampler` handle (`{ setBuffer }`),
+  before `patterns.restore`, so the store's meta emit repaints the slot (with its
+  `.needs-reload` hint) instead of song A's audio playing under song B's label. A
+  file that **omits** `sampleNames` renames nothing and evicts nothing. Callers that
+  hold a sampler pass it (`song-panel.applySong`, the app.ts demo fallback, the
+  boot restore); unit tests without an audio graph omit it.
 - **REQ-legacy-step-cells-still-sound-right** — Legacy step cells (plain `{on,
   velocity}`) must load and **sound unchanged** (gain defaults filled in).
 - **REQ-audio-is-never-embedded-in-the-json** — Decoded audio is **never
@@ -129,9 +123,7 @@ demos, the load path **must stay backward compatible** as the format grows.
   ([untrusted-input](untrusted-input.md), ADR-015): `SeqStep.note` is an integer
   `0..127` (matching the dialect, which already enforced it), `chainData.steps`
   is `1..MAX_CHAIN_STEPS`, `params` carries at most `MAX_PARAM_KEYS` keys, and a
-  `__proto__` / `constructor` / `prototype` key is refused outright. A song is
-  an untrusted document — an unbounded `note` reached `midiToHz` as `Infinity`
-  and wedged the transport through a throwing `AudioParam` write. The song's
+  `__proto__` / `constructor` / `prototype` key is refused outright. The song's
   `name` is the one field that is **shortened rather than refused**: at most
   50 characters, at every ingest door and in `Song.capture`
   ([untrusted-input](untrusted-input.md) REQ-names-are-capped).
@@ -142,33 +134,22 @@ demos, the load path **must stay backward compatible** as the format grows.
   identical-sounding state (rounding is inaudible; sparse cells re-expand via
   `restore`). See
   [ADR-011](../decisions/adr-011-export-precision-and-default-sparse-serialization.md).
-- **REQ-the-demo-row-overflows-into-a-menu** (demo row overflow, v6; limit
-  raised in v12) — The Song panel's demo row shows at most `DEMO_ROW_LIMIT`
-  (**10**) demo buttons inline; any further demos (JSON drop-ins, built-ins and
-  zip demos alike, in their usual order) hide behind an **"All Demos"** toggle
-  button (testid `song-demo-more`) that expands/collapses them in place (label
-  flips to "Less" while open). With ≤ `DEMO_ROW_LIMIT` demos the toggle is
-  absent. `SongPanel.loadDemo(name)` (used by the guided tour) keeps working for
-  hidden demos — visibility only affects the buttons. Loading a demo — like
-  every song load/import — also fires `UiBridge.cuePlay` (see
-  [play-button-blink](play-button-blink.md)). The limit was 6, which hid most of
-  a growing library behind a click. The row is a wrapping flex (`.io`), so the
-  only cost of a higher limit is horizontal space, and 10 is what fits a desktop
-  row before wrapping.
-
-  **Which** demos fall into the overflow is a function of the library's size and
-  filename order — i.e. of data. A test may therefore assert the *rule* (at most
-  10 inline, the rest behind the toggle, both directions) but never that a named
-  demo is hidden; see [write-a-test](../recipes/write-a-test.md).
-- **REQ-song-lane-titles-navigate** (lane titles navigate, v8) — Each lane
+- **REQ-the-demo-row-overflows-into-a-menu** (v6) — The demo row shows at most
+  `DEMO_ROW_LIMIT` (**10**, what fits a desktop row) buttons inline, in
+  `demoNames()` order; the rest hide behind an **"All Demos"** toggle
+  (`song-demo-more`, "Less" while open), absent when there are ≤ 10.
+  `SongPanel.loadDemo(name)` works for hidden demos too. A load, like every song
+  load, fires `UiBridge.cuePlay` ([play-button-blink](play-button-blink.md)).
+  *Which* demos overflow is data, so a test asserts the rule, never that a named
+  demo is hidden ([write-a-test](../recipes/write-a-test.md)).
+- **REQ-song-lane-titles-navigate** (v8) — Each lane
   card's title is a button
   (testid `song-lane-title-<seq|drum|sampler|motion>`) that opens that machine's
   tab, and the tab bar carries a per-machine status LED. Both are governed by
   [machine-status](machine-status.md); note the lane prefix `drum` maps to the tab
   id `drums`. The card's existing silenced-dimming (REQ-mute-and-solo-share-one-rule) is unchanged — it still
   keys off audibility only, never off `<machine>.on`.
-- **REQ-drop-in-demos-are-fetched-on-click** (drop-in demos are fetched on
-  click, v11) — There are **three** demo sources and `SongPanel.loadDemo(name)`
+- **REQ-drop-in-demos-are-fetched-on-click** (v11) — There are **three** demo sources and `SongPanel.loadDemo(name)`
   dispatches across all of them:
   - `DEMO_SONGS` — the one hand-authored built-in, **Mordor**. Bundled,
     **synchronous**, because callers depend on that: `Song.loadSlot` falls back
@@ -177,109 +158,55 @@ demos, the load path **must stay backward compatible** as the format grows.
   - `JSON_DEMOS` — the `src/state/demos/*.json` drop-ins, as `{name, url}`.
     **Fetched on click** and parsed through the same `Song.parse` the Import
     button uses, so a corrupt drop-in reports what is actually wrong with it.
-  - `ZIP_DEMOS` — the project bundles, unchanged (REQ-play-banks-settle-before-the-machines-read in
-    [project-export](project-export.md)).
+  - `ZIP_DEMOS` — the project bundles ([project-export](project-export.md)
+    REQ-zip-demos-auto-register).
 
-  Eagerly importing the drop-ins put **835 kB of JSON — a 227 kB JS chunk — into
-  the boot payload of every visitor**, parsed as object literals and held
-  resident for the lifetime of the page, so that the user could load *at most
-  one*. That is [runtime-performance](runtime-performance.md) REQ-boot-cost-matches-the-request in its purest
-  form, and the `?url` treatment `ZIP_DEMOS` always had is the fix.
-
-  The cost of `?url` is that a song's own `name` is no longer readable at build
-  time, and filenames will not do — `hacienda_neworder.json` is "Haçienda". So
+  The drop-ins are `?url` imports, never bundled
+  ([runtime-performance](runtime-performance.md) REQ-boot-cost-matches-the-request:
+  a user loads at most one). Names are therefore not readable at build time, and
+  filenames will not do (`hacienda_neworder.json` is "Haçienda"), so
   `src/state/demos-index.json` (`filename → name`) is generated by
-  `scripts/clean-demos.ts`, the pass that already parses every demo, and checked
-  by `npm run check:demos` in CI: a renamed demo cannot ship with a stale label.
-  `demoNames()` is the single source of button order, shared by the demo row, the
-  tour fallback and the empty-play random pick.
-
-  **Button order is one alphabetical list (v20).** It used to be the three
-  sources concatenated in source order, each sorted by *filename*. That leaked
-  two implementation facts into the shelf: the project zips always sat last —
-  `1973`, the library's most feature-complete demo, was pushed past
-  `DEMO_ROW_LIMIT` into the "All Demos" fold purely for being a `.zip` — and the
-  filename key mis-filed anything whose label differs from its file, so
-  "Haçienda" sorted under `h` and "Apex Twin" landed after "Tosti". Which of the
-  three sources a demo comes from is a loading detail the listener has no way to
-  see and no reason to care about. So the merged list is sorted by **display
-  name** with `localeCompare(…, { sensitivity: 'base', numeric: true })` —
-  `numeric` so `1973 · 1979 · 1983 · 1985-1 · 1985-2` read as numbers rather than
-  lexically, `sensitivity: 'base'` so accents file under their base letter.
-  `Song.list()` (the slot picker) uses the same comparator, so the two lists
-  cannot disagree about where a name sits.
-
-  **Name resolution (v18).** A demo name is *data* — `src/state/demos/**` is a
-  drop-in directory anyone may add to, rename in or delete from without touching
-  code. But callers name one: the guided tour applies `DEMO_FOR_TOUR` by string
-  constant. `loadDemo` used to try the three sources and **return silently** when
-  none owned the name, so renaming that one file turned the tour's headline step
-  into a no-op followed by a "the transport is now playing" step over silence.
-  So `resolveDemoName(name)` (in `song.ts`, beside the sources it consults)
-  returns the name when a source owns it and otherwise **the first name in
-  `demoNames()`** — a missing demo degrades to a real song rather than to nothing.
-  It returns `undefined` only for an empty library. `loadDemo` resolves *before*
-  asking the REQ-one-name-two-songs-ask shadow question, so the dialog can never name a song other
-  than the one about to load.
-
-  The one caller that must **not** fall back is the Load button's fallthrough for
-  a slot-picker entry `loadSlot` could not return (`isDemoName` guards it). Every
-  entry there is a stored slot or a drop-in, so the branch is reachable only when
-  a slot is deleted in another tab mid-click — and loading an unrelated song is a
-  worse answer to that race than doing nothing. The demo buttons, the tour and the
-  empty-play random pick all take the fallback.
-
-  Offline (see [pwa-install](pwa-install.md)): a demo not yet clicked is not in
-  the cache, exactly as for the zip demos — one clicked once is, since the
-  service worker is cache-first for hashed `/assets/*` — **unless** the device
-  saved an offline copy, which holds every demo
-  ([play-offline](play-offline.md) REQ-the-build-writes-the-file-list).
-
-  Validation coverage moved rather than vanished: nothing in the app parses a
-  drop-in until a user clicks it, so `tests/state/demo-files.ts` eagerly globs
-  them for the **test** bundle and every one is still asserted against
-  `validateSongFile`.
-
-  E2E reaches the same library a third way. Playwright runs in plain Node with no
-  Vite, so `song.ts`'s globs are not evaluable there: `e2e/helpers.ts` reads
-  `demos-index.json` and `readdirSync`s `src/state/demos/` instead, mirroring the
-  registration rules, and derives the built-ins as (rendered buttons − drop-ins −
-  zips). A stale index therefore fails E2E loudly, naming `npm run clean:demos`.
-- **REQ-sync-and-audio-pair-up** (Sync and Audio pair up, v13) — The panel's
-  last two rows are **Sync** then **Audio**, in that order: Audio export is the
-  tab's terminal action (render the finished thing), so it reads last, while
-  Sync is setup that belongs with the transport rows above it. Above **1280 px**
-  — the boundary the rest of the panel already uses — the two **share one row**,
-  `justify-content: space-between`, Sync pinned to the left edge and Audio to
-  the right. Both are short rows, so two of them were spending a whole row of
-  height on air. Mechanism: one `.ioPair` wrapper that is `display: contents` at
-  ≤ 1280 px, so each `.io` is a `.panel` flex item with its own dashed rule
-  exactly as before and the DOM order *is* the stacked order. Above the
-  breakpoint the wrapper becomes the flex row and takes over the single dashed
-  rule from its two halves. `display: contents` has precedent in this module
-  (`.demoOverflow.demoOpen`). (v15) The Audio row's **contents** changed with
-  [audio-export](audio-export.md) v7 — its `Format:` segmented is now the
-  *global default* seeding the export modal and the [Record
-  window](record-window.md), and its two buttons open those surfaces rather than
-  writing files — but its shape, position and pairing behaviour are untouched,
-  and `song-export-audio` remains the probe this REQ's layout scenario measures.
-- **REQ-a-load-lands-on-bar-one** (a load lands on bar 1, v14) — **Every path
+  `scripts/clean-demos.ts` and checked by `npm run check:demos` in CI.
+  - **Order:** `demoNames()` is the one list (the demo row, the tour fallback, the
+    empty-play random pick), the three sources merged and sorted by **display name**
+    with `localeCompare(…, { sensitivity: 'base', numeric: true })`, so numbers sort
+    numerically and accents file under their base letter. Which source a demo comes
+    from never affects its place. `Song.list()` uses the same comparator.
+  - **Resolution:** a demo name is data, but callers name one (the tour's
+    `DEMO_FOR_TOUR`). `resolveDemoName(name)` returns the name when a source owns
+    it, otherwise **the first name in `demoNames()`** (`undefined` only for an empty
+    library), so a renamed file degrades to a real song, not silence. `loadDemo`
+    resolves *before* REQ-one-name-two-songs-ask's question. The one caller that
+    must **not** fall back is the Load button's fallthrough for a slot
+    `loadSlot` could not return (`isDemoName` guards it; it is reachable only when
+    another tab deletes the slot mid-click).
+  - **Offline:** a demo not yet clicked is not cached, unless the device saved an
+    offline copy ([play-offline](play-offline.md) REQ-the-build-writes-the-file-list).
+  - **Coverage:** `tests/state/demo-files.ts` globs the drop-ins for the test bundle,
+    so every one is still checked by `validateSongFile`; `e2e/helpers.ts` reads
+    `demos-index.json` and the directory (Playwright has no Vite), so a stale index
+    fails E2E naming `npm run clean:demos`.
+- **REQ-sync-and-audio-pair-up** (v13) — The panel's last two rows are **Sync**
+  then **Audio** (export is the terminal action, so it reads last). Above
+  **1280 px** they **share one row**, `justify-content: space-between`. Mechanism:
+  an `.ioPair` wrapper that is `display: contents` at ≤ 1280 px (each `.io` keeps
+  its own dashed rule, and DOM order is the stacked order) and becomes the flex row
+  above it. The Audio row's `Format:` segmented is the global default seeding the
+  export modal and the [Record window](record-window.md)
+  ([audio-export](audio-export.md)); `song-export-audio` is the layout probe.
+- **REQ-a-load-lands-on-bar-one** (v14) — **Every path
   that replaces the song returns the playhead to the top**: the demo buttons,
   Load, Import / Paste / share link / PWA file-launch, the Undo toast's restore,
   and **New**. A song carries no playhead — the cue is transient by design
-  ([transport-position](transport-position.md) → *Persistence*) — so with no
-  reset the incoming song silently inherits the outgoing one's position *and*
-  cue. Both halves were visibly wrong: New'ing a 37-bar song down to a blank one
-  left the readout reading `5.01` beside a single scrubber cell (a bar that no
-  longer exists — [transport-window](transport-window.md)
-  REQ-the-position-readout-is-bar-dot-step), and a demo clicked mid-play started
-  from wherever the previous arrangement happened to have reached. Three details
-  are load-bearing:
-    - It goes through **`StudioApi.seekTo(0)`**, never `clock.seek` — the one
-      entry point ([transport-position](transport-position.md) REQ-one-seek-entry-point), so the
-      three refusals (slaved / exporting / rendering, REQ-mute-and-solo-share-one-rule there) still hold and
-      all four relative-position consumers re-base (REQ-legacy-step-cells-still-sound-right there). A refused seek
-      stays a silent no-op: the song still loads.
+  ([transport-position](transport-position.md) → *Persistence*), so without a
+  reset the incoming song inherits the outgoing position and cue (a bar that may
+  not exist, [transport-window](transport-window.md)
+  REQ-the-position-readout-is-bar-dot-step). Load-bearing details:
+    - It goes through **`StudioApi.seekTo(0)`**, never `clock.seek`
+      ([transport-position](transport-position.md) REQ-one-seek-entry-point), so the
+      three refusals (REQ-seeking-is-refused-in-three-states) hold and every
+      relative consumer re-bases (REQ-every-relative-consumer-reacts-to-a-seek). A
+      refused seek is a silent no-op: the song still loads.
     - It runs **after** `Song.apply`, not before. `set*Chain` zeroes each lane
       position but leaves `expectFirstBar` untouched, so a seek that follows also
       re-arms it — the incoming chain plays slot 0 for a *whole* bar instead of
@@ -289,70 +216,51 @@ demos, the load path **must stay backward compatible** as the format grows.
       which deliberately does not route through it (it restores the blank
       snapshot directly). Not in `Song.apply`: that is `state/`-layer and holds
       no clock, and pushing one in would move the refusal guard out of `Engine`.
-    - (v26) **It also clears the loop** — `engine.loop.clear()`, *before* the
-      seek. A [loop](transport-loop.md) range is bars of the outgoing song; kept,
-      a demo clicked mid-loop would start trapped in bars that mean nothing to it.
-      Clearing first matters: the loop driver cues a stopped transport into an
-      engaged range (transport-loop REQ-turning-loop-on-moves-the-cue), which must not race the seek to 0.
-- **REQ-one-name-two-songs-ask** (one name, two songs — ask, v17) — A demo's
-  name is not reserved: saving your own song as `1979` leaves the **demo
-  button** and the **slot list** offering two different songs under one label,
-  and each door silently picked its own (`loadSlot` prefers the stored slot, a
-  demo button always fetched the demo). Nothing was destroyed —
-  [session-autosave](session-autosave.md) REQ-a-demo-click-never-writes-a-slot
-  stops demo clicks writing slots at all — but the user could not say which
-  `1979` they meant, and the two controls disagreeing under one name is the kind
-  of guess [ADR-014](../decisions/adr-014-dont-make-me-think.md) forbids.
-  `SongPanel.loadDemo(name)` therefore checks `Song.hasSlot(name)` — a
-  **stored** slot shadowing this demo — and, when one exists, asks which to load
-  (`chooseDialog`, [dialog](dialog.md)
-  REQ-choose-dialog-offers-several-options): *Load the demo* / *Load mine*, with
-  a visible Cancel. Load-bearing details:
+    - **It also clears the loop**, `engine.loop.clear()`, *before* the seek: a
+      [loop](transport-loop.md) range is bars of the outgoing song, and the driver
+      would otherwise cue a stopped transport back into it
+      (REQ-turning-loop-on-moves-the-cue).
+- **REQ-one-name-two-songs-ask** (v17) — A demo's name is not reserved, so a song
+  saved as `1979` puts two songs under one label (the demo button and the slot
+  list). `SongPanel.loadDemo(name)` checks `Song.hasSlot(name)`, a **stored** slot
+  shadowing the demo, and asks which to load (`chooseDialog`, [dialog](dialog.md)
+  REQ-choose-dialog-offers-several-options): *Load the demo* / *Load mine*, with a
+  visible Cancel (ADR-014: no silent guess). Load-bearing details:
     - The gate sits on **`loadDemo`, the one door** all three demo sources and
       every caller share (buttons, the Load button's fallback, the guided tour,
       the empty-play hint) — so no surface can reintroduce the silent guess. The
       Load button never double-asks: `Song.loadSlot` already returned the stored
       slot, so it only reaches `loadDemo` for names with no slot.
-    - **Dismissal loads nothing** (`chooseDialog` → `null`). This is the case
-      `confirmDialog` could not express, and it is why REQ-an-imported-file-is-validated-first exists: with a
-      boolean, Escape would have had to *mean* one of the two songs.
+    - **Dismissal loads nothing** (`chooseDialog` → `null`), the case a boolean
+      `confirmDialog` cannot express without making Escape mean one of the songs.
     - It is a **disambiguation, not a guard** — the "loads stay confirm-free"
       rule below is intact. A demo whose name nothing shadows loads on one click,
       exactly as before, and the [Undo toast](session-autosave.md) REQ-every-destructive-apply-stashes-first still
       covers the session either way.
-- **REQ-song-file-v7-adds-slot-transpose** (SongFile v7 — per-slot transpose,
-  v19) — v7 adds one optional top-level field, `seqTranspose: number[]`, the
+- **REQ-song-file-v7-adds-slot-transpose** (v19) — v7 adds one optional top-level field, `seqTranspose: number[]`, the
   semitone offset of each `seqChain` slot ([arrangement](arrangement.md)
   REQ-a-seq-slot-carries-a-transpose).
 
-  It is a **sibling of `seqChain`, not a field inside it**, and that is the whole
-  design: `ChainData` keeps its exact `{enabled, steps}` shape, so `cloneChain`,
-  `checkChain`, `expandChain` and every existing reader are untouched, and a v1–v6
-  file round-trips through `compactSongForExport` **byte-identically** — which
-  `npm run check:demos` enforces across every shipped demo in `src/state/demos/`
-  (16 `.json` + 2 `.websynth.zip` at the time of writing).
+  It is a **sibling of `seqChain`, not a field inside it**: `ChainData` keeps its
+  `{enabled, steps}` shape, so every reader is untouched and older files round-trip
+  through `compactSongForExport` byte-identically (`npm run check:demos`). It is
+  **omitted when every offset is 0**, so a song that does not transpose keeps its
+  lower version ([song-authoring-dialect](song-authoring-dialect.md)
+  REQ-the-emitted-version-is-the-lowest-that-fits). `apply()` defaults it to
+  all-zeros.
 
-  Serialization follows the `seqTracks` precedent (REQ-song-file-is-a-versioned-union): the field is **omitted
-  entirely when every offset is 0**, so a song that does not transpose serializes
-  exactly as it did before v7 and `SONG_VERSION`'s floor logic
-  ([song-authoring-dialect](song-authoring-dialect.md) REQ-the-emitted-version-is-the-lowest-that-fits) keeps emitting 6 or
-  lower for it. `apply()` defaults it to all-zeros, per REQ-apply-resets-to-defaults-first's
-  reset-then-restore contract, so a pre-v7 file plays exactly as written.
+- **REQ-song-file-v8-widens-the-bank-count** (v27) — v8 adds **no field**; it widens two dimensions:
+  - each machine's bank array may be 4..8 long, and that length *is* its bank count
+    ([banks](banks.md) REQ-a-machine-owns-its-bank-count, ADR-022). The validator's
+    exact-length checks became ranges, so older files pass untouched and a
+    four-bank song serializes byte-for-byte as before;
+  - a motion bank may carry 2..4 extra single-param lanes instead of 2
+    ([motion-sequencer](motion-sequencer.md)
+    REQ-the-motion-track-array-length-is-the-count).
 
-- **REQ-song-file-v8-widens-the-bank-count** (SongFile v8 — 4..8 banks per
-  machine, v27) — v8 adds **no field**. It widens an existing dimension: each
-  machine's bank array may be 4..8 long instead of exactly 4, and that length *is*
-  that machine's bank count ([banks](banks.md) REQ-a-machine-owns-its-bank-count,
-  ADR-022). The five exact-length checks in `validateSongFile` became range
-  checks — a relaxation, so every v1–v7 file still passes untouched — and
-  `compactSongForExport` needed no edit at all, because its bank paths were
-  already length-agnostic `.map()`s. A four-bank song therefore serializes
-  **byte-for-byte** as it did before v8, which `npm run check:demos` enforces
-  across every shipped demo.
-
-  The version bump exists for the error message, not for the format: an older
-  build meets "unsupported song version 8" rather than "seqBanks must have 4
-  banks", which reads like a corrupt file.
+  The bump exists for the error message: an older build meets "unsupported song
+  version 8" rather than an error that reads like a corrupt file, or (for a third
+  motion lane) silently drops what it cannot hold.
 
   A chain step is validated against the **ceiling** (`0..MAX_BANK_COUNT-1`), not
   against the sibling array's length, so a chain naming a bank the arrays omit is
@@ -362,38 +270,22 @@ demos, the load path **must stay backward compatible** as the format grows.
   would disagree with the published schema; and growing honours what the author
   wrote instead of silently playing a different bank.
 
-- **REQ-song-file-v9-raises-the-bank-ceiling** (SongFile v9 — 4..16 banks per
-  machine, v29) — v9, like v8, adds **no field**: it raises the ceiling of the
-  dimension v8 widened, from 8 (A–H) to 16 (A–P), by raising `MAX_BANK_COUNT`.
-  Every v1–v8 file still passes untouched, a song that never grows past eight
-  banks serializes exactly as before, and the per-machine count is still the
-  array length. The bump exists for the same reason v8's did: an older build
-  meets "unsupported song version 9" rather than "seqBanks must have 4..8 banks
-  (got 12)" or a chain step "must be an integer 0..7", either of which reads like
-  a corrupt file. The authoring dialect stamps 9 only when a machine carries more
+- **REQ-song-file-v9-raises-the-bank-ceiling** (v29) — v9 adds **no field**: it raises the bank ceiling from 8 (A–H) to 16
+  (A–P) via `MAX_BANK_COUNT`. Older files pass untouched, and the bump exists for
+  the same error-message reason as v8's. The authoring dialect stamps 9 only when a machine carries more
   than eight banks or a chain names bank I or later
   ([song-authoring-dialect](song-authoring-dialect.md)
   REQ-the-emitted-version-is-the-lowest-that-fits); `capture()` writes
   `SONG_VERSION` as it always has.
 
-- **REQ-applying-a-song-is-click-free** (applying a song is click-free, v23) —
-  **`apply()` writes every registered param twice, and a structural side effect
-  fires twice with it.** REQ-apply-resets-to-defaults-first's `resetDefaults()`
-  + `restore()` is authoritative and stays: it is what stops the last song
-  leaking into this one. Both passes run in one synchronous turn, so they share
-  a `ctx.currentTime` — which means plain `AudioParam` writes *collapse* (the
-  second `setTargetAtTime` supersedes the first) and the smoothed params cost
-  nothing. **The subscriptions whose side effect is a graph edit do not
-  collapse.** They run twice, unfaded, and "the transport is stopped" does not
-  mean nothing is sounding: stopping the transport stops the *sampler*
-  (`Engine`'s clock `onStop`) and nothing else, so a drum one-shot's own
-  envelope is still running out — a cymbal rings for seconds — and an FX tail
-  longer still.
-
-  So **every structural edit reachable from a param write must be individually
-  click-free** — the load path is not allowed to paper over them, because muting
-  the master across the apply would dip a demo loaded mid-play. The four that
-  existed when this was written, all heard as a click or a burst on a demo click:
+- **REQ-applying-a-song-is-click-free** (v23) — `apply()` writes every param
+  twice (`resetDefaults()` + `restore()`) in one turn. Plain `AudioParam` writes
+  collapse onto one `currentTime`, but **a subscription whose side effect is a
+  graph edit runs twice, unfaded**, and a stopped transport is not silent (Stop
+  stops only the sampler; drum tails and FX tails ring on). So **every structural
+  edit reachable from a param write must be click-free on its own**; muting the
+  master across the apply is not allowed, since it would dip a demo loaded
+  mid-play. The current ones:
 
   | Edit | Made click-free by |
   | --- | --- |
@@ -402,20 +294,12 @@ demos, the load path **must stay backward compatible** as the format grows.
   | `Reverb.setSize` swaps a live convolver's IR | [effects](effects.md) REQ-a-reverb-size-change-ducks — duck across the swap |
   | The FET compressor's first processed block steps | [compressor](compressor.md) REQ-a-silent-input-stays-silent — prime the DC blocker |
 
-  A new one is a defect in *its* spec, not here. This requirement exists because
-  no spec said loading a song must be click-free, and four separate edits shipped
-  through the gap.
+  A new one is a defect in *its* spec, not here.
 
-- **REQ-a-rejected-import-is-copyable-in-full** (a rejected import is copyable
-  in full, v24) — REQ-an-imported-file-is-validated-first's field-level messages
-  are worth nothing to a user who cannot get them out of the dialog. The
-  **Import failed** alert renders the **first 8** and summarises the rest as
-  `…and N more` — up to **42 hidden**, since the validator collects `MAX_ERRORS`
-  (50) before it stops walking. Those messages are written nowhere else: no
-  console, no log, no retained state. Dismissing the dialog used to destroy the
-  entire diagnosis.
-
-  So the alert carries a **Copy errors** button ([dialog](dialog.md) REQ-an-alert-may-offer-copyable-text) whose
+- **REQ-a-rejected-import-is-copyable-in-full** (v24) — The **Import failed**
+  alert renders the **first 8** messages and `…and N more` (the validator collects
+  up to `MAX_ERRORS`, 50), and the messages exist nowhere else. So the alert
+  carries a **Copy errors** button ([dialog](dialog.md) REQ-an-alert-may-offer-copyable-text) whose
   payload is built from the **error array**, not the rendered paragraph
   ([failure-report](failure-report.md) REQ-report-carries-every-message) — every message, plus the app
   version, a timestamp and the file name, so the paste stands on its own in a bug
@@ -430,18 +314,13 @@ demos, the load path **must stay backward compatible** as the format grows.
   undecodable clips, a demo that would not load, a shared link that would not
   resolve — since each is equally unrecoverable once dismissed.
 
-  *(v25)* A copy button is only worth what it is handed. Both demo-load paths
-  (the project zip and the JSON drop-in) ran their parse result through
-  `throw new Error(res.errors[0] ?? …)`, discarding `errors[1..]` **before** the
-  dialog existed — so the button faithfully copied the one message that survived.
-  A parse failure now goes to `showDemoFailure(name, errors)`, which shows the
-  first 8 and copies the array, exactly like `showImportErrors`; the surrounding
-  `try/catch` keeps handling genuine exceptions. The rule generalises: a surface
-  that reduces a list to its first element has already lost the diagnosis, and no
-  amount of copying downstream gets it back.
+  A demo-load parse failure goes to `showDemoFailure(name, errors)` with the whole
+  array, like `showImportErrors`. Deliberate: never reduce an error list to its
+  first element before the dialog (`throw new Error(errors[0])`), or the copy
+  button has nothing left to copy.
 
 - **REQ-a-saved-song-can-be-deleted** (v28) — **A saved song can be
-  deleted.** `Song.deleteSlot` existed with no caller. A **Delete** button
+  deleted.** A **Delete** button
   (`song-delete`) sits after Save and acts on the slot the picker shows. It is
   enabled only when that entry **is a stored slot** (`Song.hasSlot`) — a demo is
   not yours to delete — and its `title` says why when it is not. It asks first
@@ -730,10 +609,10 @@ SongFile (JSON / localStorage slot)
    │ apply()                                   capture() │
    ▼                                                     │
 ParamBus.restore ── PatternStore.restore ── Arrangement.set*Chain
-   (params)            (seq/drum/sampler banks)   (3 chain lanes)
+   (params)            (all four machines)       (4 chain lanes)
                                                      │ per bar
                                                      ▼
-                              play banks ─► Sequencer / DrumMachine / SamplerMachine
+                              play banks ─► Sequencer / Drums / Sampler / Motion
                                                      │ (mute/solo via audibleLanes)
                                                      ▼  + Performance live DJ FX
                                                   audio out
@@ -1016,27 +895,14 @@ Scenario: With no overflow there is no toggle (REQ-the-demo-row-overflows-into-a
   `tests/audio/transport/lane-mix.test.ts`,
   `tests/audio/transport/sampler-machine.test.ts`,
   `tests/audio/transport/performance.test.ts`.
-- E2E: `e2e/song.spec.ts` (save→new→load + WAV export RIFF/WAVE header; v28: Delete),
-  `e2e/song-fx.spec.ts` (live DJ FX), `e2e/song-mixer.spec.ts` (mute/solo/volume).
-- `npm test` / `npm run e2e` / `npm run typecheck`.
+- E2E: `e2e/song.spec.ts`, `e2e/song-fx.spec.ts`, `e2e/song-mixer.spec.ts` —
+  `npm test` / `npm run e2e`.
 
 ## Open questions / future
 
-- Every version so far has held the additive contract: `version: 3` shipped the
-  optional `xy` field (see [xy-pad](xy-pad.md)), `4` the motion fields, `5`
-  `motionTracks` (both [motion-sequencer](motion-sequencer.md)), `6` `seqTracks`
-  ([sequencer](sequencer.md)) and `7` `seqTranspose`
-  ([arrangement](arrangement.md)); `8` widened the per-machine bank count to 4..8
-  and `9` raised its ceiling to 16 (both [banks](banks.md)) — a range widened,
-  no field added. A future `version: 10` must keep new fields **optional** and
-  extend the `apply()` defaults-fallback pattern the same way, so older files
-  keep loading.
-- Bumping the version is **three** edits, not one: `SONG_VERSION`, the
-  `SongFile['version']` union, and the published `websynth-song.schema.json` —
-  plus `llms.txt`, which advertises the
-  canonical version to crawling agents. The validator's accepted set is *not* a
-  fourth edit: `KNOWN_SONG_VERSIONS` is derived as `1..SONG_VERSION`
-  (`src/state/song-version.ts`), deliberately so it cannot be forgotten. See
-  [evolve-the-song-format](../recipes/evolve-the-song-format.md); the drift pins
-  in `tests/state/authoring-docs.test.ts` fail loudly if the published pair is
-  forgotten (v5 and v6 both shipped without them before this was pinned).
+- A future `version: 10` must keep new fields **optional** and extend the
+  `apply()` defaults-fallback the same way (ADR-007). The full checklist for a bump
+  is [evolve-the-song-format](../recipes/evolve-the-song-format.md);
+  `KNOWN_SONG_VERSIONS` is derived as `1..SONG_VERSION` (`src/state/song-version.ts`),
+  and `tests/state/authoring-docs.test.ts` fails if the schema or `llms.txt` is left
+  behind.
