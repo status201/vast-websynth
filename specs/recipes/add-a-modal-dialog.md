@@ -111,7 +111,9 @@ the top one closes alone. The next Escape closes the next one down.
 
 **While any modal is open, the global shortcuts stand down** (v5,
 [input-control](../features/input-control.md) REQ-shortcuts-yield-to-an-open-modal).
-`Modal.anyOpen()` is the query they ask; a fading modal no longer counts.
+They ask `anyModalOpen()` from the CSS-free `src/ui/modal-stack.ts` (so
+`shortcuts.ts` never pulls in Modal's stylesheet); `Modal.anyOpen()` is the same
+query for code that already imports `Modal`. A fading modal does not count.
 
 ### 3. Verify
 

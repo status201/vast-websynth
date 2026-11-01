@@ -195,7 +195,7 @@ per-step edit row (StepSettingsEditor):                    # features/step-setti
 
 banks, clear menus & undo:                          # features/banks.md, step-grid-editing.md
   bank-<lane>-<i> · bank-<lane>-follow · bank-<lane>-copy
-  bank-<lane>-add · bank-<lane>-remove              # <i> runs 0..7 now (banks.md)
+  bank-<lane>-add · bank-<lane>-remove              # <i> runs 0..15 (banks.md)
                                                     # -add is ABSENT at the ceiling
   clear-<lane> · clear-<lane>-bank · clear-<lane>-row-<i> · clear-toast-<lane>
   clear-<lane>-shift-<left|right>        # seq / drum / sampler only (REQ-shift-rotates-the-played-window)
@@ -250,7 +250,7 @@ song panel — lanes, chains & live FX:
   song-lane-<seq|drum|sampler>       # + switch-<lane>.mute / .solo / knob-<lane>.master
   song-lane-motion                   # chain + switch-motion.mute only — no solo/volume
   song-lane-title-<lane>             # opens that machine's tab (features/machine-status.md)
-  song-chain-<lane> · chain-chip-<lane>-<idx> · chain-add-<lane>-<i> ·   # <i> 0..7,
+  song-chain-<lane> · chain-chip-<lane>-<idx> · chain-add-<lane>-<i> ·   # <i> 0..15,
                                                     # only as many as that machine has
   chain-add-rest-<lane> · chain-clear-<lane>        # features/arrangement.md
   chain-move-<left|right>-<lane> · chain-remove-<lane>   # the precise reorder path
@@ -304,7 +304,7 @@ audio capture:
     export-audio-progress · export-audio-confirm · export-audio-cancel ·
     export-audio-abort                              # features/audio-export.md
   record-window · record-toggle · record-stop · record-save · record-discard ·
-    record-status · record-timer · record-fmt-<wav|mp3>   # features/record-window.md
+    record-status · record-timer · record-meter · record-fmt-<wav|mp3>   # features/record-window.md
   mic-record-toggle · mic-play · mic-load · mic-undo · mic-reset · mic-close ·
     mic-save-<wav|mp3> · mic-slot-select · mic-fx-<name>  # features/sample-recorder.md
   chop-section · chop-head · chop-toggle · chop-body ·

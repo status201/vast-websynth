@@ -62,25 +62,22 @@ than a parallel code path.
   **immediately**, with no reload: `onLayoutChange(cb)` returns an unsubscribe,
   and both consumers (the note maps and the About diagram's labels) re-derive on
   it.
-- **REQ-layout-scope-is-note-keys-only** — **Scope: the note keys only.** `F`
-  (drum fill), `Shift`+`R` and `Ctrl/Cmd`+`Z` keep their `e.key` letters and
-  fixed labels. `Ctrl`+`Z` especially: undo is an OS-level convention that
+- **REQ-layout-scope-is-note-keys-only** — **Scope: the note keys only.**
+  `Shift`+`R`, `Shift`+`L` and `Ctrl/Cmd`+`Z` keep their `e.key` letters and
+  fixed labels; the drum fill is the one exception, below. `Ctrl`+`Z` especially: undo is an OS-level convention that
   follows the *character*, not the position, so remapping it by layout would
   break the convention it borrows. The pitch-bend pair stays on `e.code`
   ([input-control](input-control.md) REQ-pitch-bend-is-quote-and-slash) and is unaffected.
 
-  (v2) **A note key outranks the fill.** If the active layout puts the
+  **A note key outranks the fill.** If the active layout puts the
   character `f` on a note key, that key plays its note. Dvorak does this: KeyY,
   an upper-row note, prints `f`. The fill then answers to the KeyF *position*
   instead, which is free in every layout because it sits between the lower
-  row's `D` and `G` sharps. The fill check used to run before the note lookup,
-  so on Dvorak that upper-row key held a drum fill and never played its note.
-  Every other layout is unchanged: `f` is not a note character there, so the
-  fill stays on the key that prints `F`.
-  On all four tabled layouts the fill is therefore the **KeyF position**, so the
-  tables carry `KeyF` (`f`, or `u` on Dvorak). The About modal's shortcut list
-  draws the fill's cap from that position, like the note caps, so it reads
-  **U** on Dvorak and relabels on a layout switch. It used to be a fixed `F`.
+  row's `D` and `G` sharps (`isFillKey`). Elsewhere `f` is not a note character,
+  so the fill stays on the key that prints `F`. On all four tabled layouts the
+  fill is therefore the **KeyF position** (`f`, or `u` on Dvorak), and the About
+  modal's shortcut list draws its cap from that position, so it reads **U** on
+  Dvorak and relabels on a layout switch.
 - **REQ-character-bindings-carry-a-known-risk** — **Known residual risk.**
   Because bindings resolve through characters rather than `e.code`, a wrong
   picker selection — or no detection at all, which is every Firefox and Safari
