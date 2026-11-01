@@ -18,318 +18,184 @@ related:
   - step-settings
   - pattern-undo
   - banks
+  - meter
   - toast
+  - knob-keyboard-access
 source:
   - src/ui/components/grid-gestures.ts    # the one gesture controller
   - src/ui/components/clear-menu.ts       # the Clear ▾ header control
+  - src/ui/components/gesture-timing.ts   # the double-tap / hold windows, in one place
   - src/ui/panels/step-panel-scaffold.ts  # wires both into every machine tab
   - src/ui/panels/seq-panel.ts
   - src/ui/panels/drum-panel.ts
   - src/ui/panels/sampler-panel.ts
   - src/ui/panels/motion-panel.ts
   - src/ui/shell/pattern-row.ts  # drives every gate from onViewChange
-  - src/state/patterns.ts        # bulk clear entry points
+  - src/state/patterns.ts        # bulk clear + rotate entry points
 ```
 
-The interaction contract every 16-step grid obeys — how a step is created,
-selected, edited and deleted. A **cross-cutting facility**: the four machine
-specs describe *what their steps mean*, this one describes *how the user touches
-them*, and they reference it rather than restating it.
+The interaction contract every step grid obeys: how a step is created, selected,
+edited and deleted. A **cross-cutting facility**: the machine specs say *what their
+steps mean*, this one says *how the user touches them*, and they reference it.
 
 ## Background / Why
 
-Each panel wired its own click handler, and all of them gave that one click
-**two jobs**: move the selection cursor *and* toggle `on`. The consequence is
-the reason this spec exists — selecting a lit step in order to edit its note or
-velocity switched the step off, so the note vanished under the pointer and the
-user had to click again to restore it before editing. Two clicks and a visible
-"did I just break it?" moment for what should be a single, obvious act. That is
-[ADR-014](../decisions/adr-014-dont-make-me-think.md) law 2 (one gesture, one
-outcome) violated identically in four places.
-
-Deleting was the mirror-image problem: the only way to clear anything was one
-click per cell, so wiping a hat line meant sixteen precise clicks and clearing a
-bank meant a hundred and twenty-eight.
-
-The fix keeps **tap = toggle** — that is 40 years of drum-machine muscle memory
-and the one gesture nobody should have to learn ([ADR-014](../decisions/adr-014-dont-make-me-think.md)
-law 4) — and gives the second job its own gesture. Two more gestures come along
-because they are already learned elsewhere: **paint-drag** (FL Studio, Ableton,
-Logic) turns "wipe a run of steps" into one swipe, and **hold-to-edit**
-(Elektron parameter locks, Ableton Push step detail) is the established hardware
-answer to "inspect this step without disturbing it".
+A single click must not do two jobs. Selecting a lit step to edit it must not switch
+it off (ADR-014 law 2). So **tap = toggle** stays, as decades of drum-machine muscle
+memory (law 4), and selection gets its own gesture. Two already-learned gestures join
+it: **paint-drag** (FL Studio, Ableton, Logic) and **hold-to-edit** (Elektron
+parameter locks, Push step detail). Bulk deletion is one menu item with one undo, not
+128 clicks.
 
 ## Requirements
 
-- **REQ-tap-toggles-a-step** — **Tap toggles.** A tap/click on a step inverts
-  its `on` flag and moves the selection cursor to it. This is unchanged
-  behaviour and stays the primary gesture on all four machines. The cursor must
-  be **visible on every cell** regardless of its accent colour or lit state —
-  the drum/sampler grids colour their beat columns (steps 1/5/9/13) red, and a
-  lit red cell shows the same accent-secondary ring as any other. An invisible
-  cursor is a functional defect, not a cosmetic one: selection is what the
-  per-step edit row and `Delete` (REQ-delete-clears-the-selected-step) act on.
+- **REQ-tap-toggles-a-step** — A tap/click inverts `on` and moves the selection cursor
+  to the step. The cursor must be **visible on every cell**, including a lit red
+  beat-column cell (the same accent-secondary ring), since the edit row and `Delete`
+  act on it. **A cancelled pointer writes nothing**: `pointercancel` (a notification
+  pull-down, an edge swipe, palm rejection) tears the stroke down with no toggle and
+  no paint. Routing it to the release path would read as "neither drag nor hold, so a
+  tap" and flip a step on a phone. `chip-reorder.ts` follows the same rule. The cursor
+  stays where the press moved it; selection is not a write.
+- **REQ-toggling-off-is-non-destructive** — Switching off clears only `on`; `note` /
+  `velocity` / `gate` / `prob` / `ratchet` / `tie` / `micro` (and motion's `x`/`y`) are
+  kept. The cell keeps its label and stays selected. That is what makes a tap safe.
+- **REQ-hold-to-edit-selects-without-toggling** — A press held ≥ 350 ms without
+  leaving the cell selects and does **not** toggle. Travel beyond 6 px cancels it, and
+  it suppresses the tap on release. **Right-click** (`contextmenu`, default prevented)
+  is the desktop alias, never the only route.
+- **REQ-drag-paints-steps** — A drag applies one **paint value**, latched at press as
+  `!first.on`, to every cell it enters. Pressing a lit cell erases the run, and a dead
+  one fills it. A cell already at the value is left alone, so re-crossing never
+  flickers. Painting stays in the grid it started in, and is not confined to one row
+  on the drum/sampler grids.
+- **REQ-delete-clears-the-selected-step** — `Delete` / `Backspace`, while the
+  machine's tab is visible, switches the selected step off (non-destructively). It is
+  scoped like the tab-scoped `Ctrl+Z` ([pattern-undo](pattern-undo.md)) and ignored in
+  a text input.
+- **REQ-clear-menu-clears-in-bulk** — Every machine header carries `Clear ▾`: **Clear
+  bank** (every row of the edit bank) plus **row** items, rebuilt **on every open**.
+  Cursor machines (seq / drum / sampler) offer the selected row; **Motion**, which has
+  no cursor, lists its lanes (`XY`, `A`–`D`). **An empty row is not offered** on any
+  machine (ADR-014 law 1). Each row *declares* `hasContent` and `clearMenuFor` filters
+  centrally, so a new machine inherits the rule. "Content" matches what the item
+  destroys: steps, or steps **or a loaded sample** on the sampler
+  ([sampler](sampler.md) REQ-clear-ejects-the-slot). The bank item is never filtered,
+  so the menu is never empty. Each item is one `PatternStore` call emitting **one**
+  bulk mutation. There is no confirmation dialog, since the action is labelled and
+  instantly reversible (law 3). **An item destroys everything its label names**: the
+  sampler row, labelled with the filename, ejects the sample too, and supplies its own
+  `undo`. Bank items never reach past steps.
+- **REQ-one-bulk-action-one-undo-entry** — Bulk clears reuse the whole-bank kinds
+  (`seq-copy` / `drum-copy` / `sampler-copy` / `motion-copy`), whose `before` clones the
+  bank. They never emit N per-cell mutations. The undo stack carries **steps only**, so
+  a row that clears more provides `ClearRow.undo`. That *replaces* the toast's default
+  `undo.undo(lane)`, and the row calls the lane undo only when the store pushed
+  something; otherwise it would pop the user's previous edit.
+- **REQ-a-bulk-clear-reports-itself** — A bulk clear shows a [toast](toast.md) naming
+  what was cleared, with **Undo** wired to the machine's `PatternUndo`.
+- **REQ-motion-keeps-its-own-gesture** — Motion cells are mini XY pads where a press
+  *is* a value. So tap / hold / paint do not apply: drag-to-set and double-tap-to-clear
+  stay ([motion-sequencer](motion-sequencer.md) REQ-each-motion-step-is-a-mini-xy-pad).
+  Hold carries the same *meaning*, inspect without disturbing: the pad's commit is
+  deferred ([motion-sequencer](motion-sequencer.md)
+  REQ-the-pads-gesture-set-peek-snap-fine), so a held press reads the value. Motion
+  takes the Clear menu, single-entry undo and the toast. **`Delete` does not reach
+  it**: with no cursor it would act on invisible "last touched" state (law 5), and
+  double-tap already clears one anchor. A cleared bank keeps its axis override.
+- **REQ-one-grid-gesture-controller** — One controller, `attachGridGestures`, wired
+  from `step-panel-scaffold.ts`. A new machine or track inherits the whole set.
+- **REQ-grid-gestures-have-touch-parity** — Pointer Events throughout, so finger and
+  mouse share a path. Nothing is hover-only. The hold window and slop let a scroll that
+  starts on a cell scroll rather than paint.
+- **REQ-an-offscreen-grid-repaints-nothing** — `TabContainer` hides inactive panels
+  with a class, so all stay mounted. Each panel owns a `VisibilityGate`, driven from
+  the one `tabs.onViewChange` in `buildPatternRow`. `wirePlayhead` and the Motion
+  graph skip work while hidden, and a folded pattern row hides every panel. **The
+  reveal contract**: a tab revealed mid-playback shows the step playing *now* (the
+  playhead replays the latest step on `whenShown`, and Motion coalesces its redraws).
+  A gate starts `shown`, since panels exist before the `TabContainer`
+  ([runtime-performance](runtime-performance.md) REQ-no-work-for-offscreen-dom).
+- **REQ-the-ruler-is-separate-chrome** — The trigger-grid cell gestures are
+  **saturated**, so "move the playhead" is its own strip **above** the grid
+  ([transport-position](transport-position.md)
+  REQ-a-position-ruler-above-every-grid), where a click is unambiguously a seek. It is
+  never painted or selected, `Delete` and `Clear ▾` never reach it, and it obeys the
+  same gate and reveal contract.
+- **REQ-cells-past-the-lane-length-are-hidden** — The column count follows the meter
+  ([meter](meter.md) REQ-cells-beyond-the-length-are-hidden), so a 3/4 song shows 12
+  columns, not 16 with four dead ones. The cells are `hidden`, not removed: DOM, cursor
+  and stored steps are untouched, and hidden cells take no gestures.
+- **REQ-shift-rotates-the-played-window** — `Clear ▾` ends with **Shift bank X left /
+  right** (`clear-<lane>-shift-left` / `-right`) on the seq, drum and sampler grids.
+  A shift **rotates** every row of the edit bank one cell, so two opposite shifts
+  restore it.
+  - It rotates **the played window** (`laneCells()` from `laneGrid`), not all 16.
+    Cells past the window are untouched.
+  - **The whole step moves**, settings and micro included, copied into the existing
+    step objects (as `copySeqBank` does).
+  - It is **one bulk mutation** with one toast (`Shifted bank A right`, Undo).
+  - A bank with nothing on in the window shifts nothing and reports nothing.
+  - It lives in `Clear ▾` because it is a whole-bank edit with the same Undo contract,
+    and the header has no room. Motion is excluded: its anchors carry across the bar
+    line ([motion-sequencer](motion-sequencer.md) REQ-cross-bank-carry), so "one cell
+    later" means something else there.
+- **REQ-a-trigger-grid-is-reachable-by-keyboard** — On the drum and sampler grids the
+  selection cursor (`GridCursor`) owns focus, as a focused knob does
+  ([knob-keyboard-access](knob-keyboard-access.md) REQ-the-keys-a-focused-knob-owns):
+  - **one Tab stop per grid** (roving `tabIndex`), following the selection;
+  - **arrows** move selection and focus; left/right stop at the played window.
+    **Home / End** go to the row's first / last played cell;
+  - **Enter** toggles through the same `onToggle` as a tap;
+  - each is `preventDefault` + `stopPropagation`, and **every other key passes**:
+    Space still plays/stops, Delete still clears, Shift+arrows still seek, letters
+    still play notes;
+  - a cell's `aria-label` names its row, step and state, written on change. The focus
+    ring is `:focus-visible` only.
 
-  **(v8) A cancelled pointer writes nothing.** `pointercancel` is not a release:
-  the OS took the gesture away (a notification pull-down, an edge-swipe back,
-  palm rejection), so the user never completed a tap. It must therefore tear the
-  stroke down and commit **nothing** — not the toggle, not the paint. The
-  distinction is invisible until it is wrong, because a cancelled pointer is by
-  definition still "pending", which is exactly the state a plain release reads as
-  *"neither a drag nor a hold ⇒ a plain tap"*. Routing cancel to the release path
-  therefore silently flips a step on a phone. `chip-reorder.ts` — the sibling
-  controller built on the same idiom — already keeps a separate `onCancel` that
-  resets and writes nothing; this is the same rule for the grids. The selection
-  cursor moved on press and stays where it is: selection is not a write.
-- **REQ-toggling-off-is-non-destructive** — **Toggling off is non-destructive.**
-  Switching a step off clears only `on`; `note` / `velocity` / `gate` / `prob` /
-  `ratchet` / `tie` (and motion's `x`/`y`) are preserved, so toggling back on
-  restores the step exactly. The cell keeps its label and stays selected.
-  (Already true of the store — this requirement pins it, because it is what
-  makes REQ-tap-toggles-a-step safe.)
-- **REQ-hold-to-edit-selects-without-toggling** — **Hold-to-edit selects without
-  toggling.** A press held ≥ 350 ms without leaving the cell moves the selection
-  cursor and does **not** toggle. The gesture is cancelled by pointer travel
-  beyond 6 px (so it never fires mid-drag) and suppresses the tap that would
-  otherwise follow on release. **Right-click** (`contextmenu`, default
-  prevented) is the desktop alias for the same outcome — never the only route,
-  since phones have no right-click.
-- **REQ-drag-paints-steps** — **Drag paints.** A pointer that presses a cell and
-  travels to others applies one **paint value**, latched at press time as
-  `!first.on`, to every cell it enters. Pressing a lit cell therefore erases the
-  run; pressing a dead cell fills it. Painting never alters a cell already at
-  the paint value, so re-crossing a cell cannot flicker it. Painting is confined
-  to the grid the gesture started in (a drag cannot leak from the drum grid into
-  the sampler's) and, on the drum/sampler grids, is **not** confined to one row
-  — a diagonal swipe paints what it touches, matching DAW grid behaviour.
-- **REQ-delete-clears-the-selected-step** — **Delete clears the selected step.**
-  `Delete` or `Backspace`, while the machine's tab is the visible one, switches
-  the selected step off (same non-destructive rule as
-  REQ-toggling-off-is-non-destructive). It is scoped exactly like the existing
-  tab-scoped `Ctrl+Z` ([pattern-undo](pattern-undo.md)), so it can never reach a
-  grid that is off screen, and it is ignored while focus is in a text input.
-- **REQ-clear-menu-clears-in-bulk** — **`Clear ▾` clears in bulk.** Every
-  machine header carries a Clear control offering **Clear bank** (every step of
-  the edit bank, *all* of its rows) plus **row-scoped** items. The menu is
-  rebuilt **on every open**, because what it can offer moves under it — the edit
-  bank, the selected row, and which rows even hold steps:
-    - machines with a selection cursor (seq / drum / sampler) offer the **one
-      selected row** — `Clear <track|slot|track n>`;
-    - **Motion has no selection cursor**, so it instead lists its three lanes
-      (`XY`, `A`, `B`).
-  (v6) **An empty row is not offered — on any machine.** A menu item that would
-  do nothing is a dead item ([ADR-014](../decisions/adr-014-dont-make-me-think.md)
-  law 1), and the rule is not Motion's alone: a cursor machine whose selected row
-  is empty offers no row item either, leaving `Clear bank` on its own. Through v5
-  only Motion filtered, and it did so by choosing what to `push` — so the rule
-  lived in one panel and the other three silently broke it. Each row now *declares*
-  `hasContent` and **`clearMenuFor` does the filtering**, one place, so a fifth
-  machine inherits the rule instead of having to remember it (REQ-one-grid-gesture-controller). What
-  "content" means is the machine's own answer, and it must match what the item
-  would destroy: steps for seq / drum / motion, and steps **or a loaded sample**
-  for the sampler, whose item removes the sample too ([sampler](sampler.md)
-  REQ-clear-ejects-the-slot). The **bank** item is deliberately not filtered this way: it names the
-  bank you are editing, and dropping it would leave an empty menu behind the
-  `Clear ▾` toggle — a worse outcome than one inert item.
-  Each item is a single `PatternStore` call that emits **one** bulk mutation, so
-  one `Undo` press restores everything (REQ-one-bulk-action-one-undo-entry). No confirmation dialog — the
-  action is labelled and instantly reversible, which
-  [ADR-014](../decisions/adr-014-dont-make-me-think.md) law 3 prefers over
-  interrupting every correct use.
-  (v5) **An item must destroy everything its label names.** A row is normally
-  exactly its steps, but the sampler's is labelled with the slot's *filename*, so
-  it clears the sample too ([sampler](sampler.md) REQ-clear-ejects-the-slot). A row that reaches past
-  the store's steps supplies its own `undo` — see REQ-one-bulk-action-one-undo-entry — and "instantly
-  reversible" stays literally true, which is what keeps the no-dialog rule above
-  honest. Bank items never take this route: `Clear bank` is scoped to the bank on
-  screen, and sample names are shared by all four.
-- **REQ-one-bulk-action-one-undo-entry** — **One bulk action = one undo entry.**
-  Bulk clears reuse the existing whole-bank mutation kinds (`seq-copy` /
-  `drum-copy` / `sampler-copy` / `motion-copy`), whose `before` already carries
-  a full clone of the bank. A clear must never emit N per-cell mutations — 128
-  undo presses to reverse one click is the failure this pins. (v5) The stack
-  carries **steps only**, so a row clearing anything else reverses it itself:
-  `ClearRow.undo` *replaces* the toast's default `undo.undo(lane)` rather than
-  running beside it, and the row decides whether to call the lane's pattern undo
-  at all. It must not when the store pushed nothing — an unconditional call pops
-  the user's *previous* edit off the lane's stack, which is a silent data loss
-  dressed up as an Undo. Still one press either way.
-- **REQ-a-bulk-clear-reports-itself** — **A bulk clear reports itself.**
-  Clearing shows a [toast](toast.md) naming what was cleared with an **Undo**
-  action wired to the machine's `PatternUndo` stack, so the escape hatch is on
-  screen rather than remembered.
-- **REQ-motion-keeps-its-own-gesture** — **Motion keeps its own primary
-  gesture.** The motion grid's cells are mini XY pads where a press *is* a
-  coordinate set, so
-  REQ-tap-toggles-a-step/REQ-hold-to-edit-selects-without-toggling/REQ-drag-paints-steps
-  do not apply to it: drag-to-set and double-tap-to-clear stay as specified in
-  [motion-sequencer](motion-sequencer.md) REQ-each-motion-step-is-a-mini-xy-pad. (v4) The one part of
-  REQ-hold-to-edit-selects-without-toggling motion *does* now take is its
-  **meaning**: since [motion-sequencer](motion-sequencer.md) REQ-the-pads-gesture-set-peek-snap-fine defers the
-  pad's commit from `pointerdown` to first-travel-or-release, a held press no
-  longer sets anything, and long-press became free to carry the same "inspect
-  without disturbing" job it has here. It reads the value instead of moving a
-  cursor, because motion has no cursor to move. Motion takes **REQ-clear-menu-clears-in-bulk/REQ-one-bulk-action-one-undo-entry/REQ-a-bulk-clear-reports-itself only**
-  (Clear bank, single-entry undo, the toast).
-  REQ-delete-clears-the-selected-step's `Delete` deliberately does **not** reach
-  it: motion has no selection cursor, so the key would have to act on an
-  invisible "last touched" pad — inventing hidden state to delete from is
-  precisely what [ADR-014](../decisions/adr-014-dont-make-me-think.md) law 5
-  forbids, and per-pad double-tap already clears one anchor directly. Clearing a
-  motion bank keeps the bank's **axis override** (configuration, not step data),
-  and undo restores it unchanged.
-- **REQ-one-grid-gesture-controller** — **One implementation.** The gesture
-  layer is a single controller (`attachGridGestures`) wired from
-  `step-panel-scaffold.ts`, not re-implemented per panel. Adding a fifth
-  machine, or a track to an existing one, inherits the full gesture set with no
-  new listener code.
-- **REQ-grid-gestures-have-touch-parity** — **Touch parity.** All of the above
-  run on Pointer Events, so a finger and a mouse take the same code path. No
-  gesture is hover-only, and the long-press window and travel slop are tuned so
-  a scroll gesture that starts on a cell scrolls rather than paints.
-- **REQ-an-offscreen-grid-repaints-nothing** — **An off-screen grid repaints
-  nothing** (v2). `TabContainer` hides an inactive panel with a class, so all
-  four machine panels stay mounted and subscribed — meaning every one of them
-  swept a playhead on **every 16th** (~50 `classList` writes a tick, plus four
-  rest-overlay refreshes) and the Motion panel re-projected its SVG graph
-  **every bar**, all against DOM nobody could see. Each panel therefore owns a
-  `VisibilityGate`, driven from the single `tabs.onViewChange` in
-  `buildPatternRow`; `wirePlayhead` and the Motion graph skip their work while
-  it reports hidden. `isVisible` is false for *every* panel while the pattern
-  row is folded, so a collapsed row costs nothing at all.
-
-  The gate's real contract is the **reveal**: switching to a tab mid-playback
-  must show the step that is playing *now*, never the one the panel was left on
-  — so the playhead replays the latest step on `whenShown`, and the Motion graph
-  coalesces any redraws requested while hidden into one. A gate starts `shown`
-  because panels are built before the `TabContainer` exists (see
-  [runtime-performance](runtime-performance.md) REQ-no-work-for-offscreen-dom).
-- **REQ-the-ruler-is-separate-chrome** — **The position ruler is separate chrome
-  with its own gesture** (v3, [transport-position](transport-position.md)
-  REQ-a-position-ruler-above-every-grid). The cell gestures below are **saturated** — tap, drag, long-press,
-  right-click, double-tap and wheel all already have an outcome — so "move the
-  playhead" cannot become a modifier on a cell without breaking
-  [ADR-014](../decisions/adr-014-dont-make-me-think.md) law 2. It gets its own
-  16-column strip **above** the grid instead, where a plain click is
-  unambiguously a seek. The strip is not part of the grid: it is never painted,
-  never selected, and neither `Delete` (REQ-delete-clears-the-selected-step) nor
-  `Clear ▾` (REQ-clear-menu-clears-in-bulk) reaches it. It obeys the same
-  `VisibilityGate` as REQ-an-offscreen-grid-repaints-nothing, with the same
-  reveal contract.
-
-- **REQ-cells-past-the-lane-length-are-hidden** (v7) — **Cells past the lane's
-  length are hidden, and hidden cells take no gestures.** The grid's column
-  count follows the meter ([meter](meter.md) REQ-cells-beyond-the-length-are-hidden), so a 3/4 song shows twelve
-  columns rather than sixteen with four dead ones — and a dead column would be
-  exactly the kind of control that does nothing that
-  [ADR-014](../decisions/adr-014-dont-make-me-think.md) rules out. `hidden`, not
-  removed: the DOM, the selection cursor and the stored steps are all untouched,
-  so the gesture model below needs no new rule.
-
-- **REQ-shift-rotates-the-played-window** (v11) — **`Clear ▾` can shift the
-  bank a step.** Moving a groove one 16th later — or a fill one earlier — meant
-  re-entering every step. `Clear ▾` now ends with **Shift bank X left** and
-  **Shift bank X right** (`clear-<lane>-shift-left` / `-right`) on the
-  sequencer, drum and sampler grids. A shift **rotates** every row of the edit
-  bank by one cell: what falls off one end comes back at the other, so nothing
-  is lost and two opposite shifts restore the bank exactly.
-  - It rotates **the played window** — the lane's `laneCells()` from
-    `laneGrid` ([meter](meter.md)), not all 16: in 3/4 a 12-cell lane wraps at
-    cell 12, and the dark cells past the window are left alone. Rotating them in
-    would push a step into a cell that never plays.
-  - **The whole step moves**: on/off, note, velocity, gate, probability,
-    ratchet, tie and micro-offset travel together, because a step is the unit
-    the player programmed. Values are copied into the existing step objects, as
-    `copySeqBank` does, so nothing holding a step loses it.
-  - It is **one bulk mutation** (`*-copy`, REQ-one-bulk-action-one-undo-entry):
-    one Undo, one toast (`Shifted bank A right` with Undo, REQ-a-bulk-clear-reports-itself).
-  - A bank with no step on in the window shifts nothing and reports nothing —
-    an Undo that does nothing is worse than no toast.
-  - It lives in `Clear ▾` rather than a new button because it is a whole-bank
-    edit with the same Undo contract, and the header has no room for another
-    control; the menu's name undersells it, which the items' own labels make up
-    for.
-
-- **REQ-a-trigger-grid-is-reachable-by-keyboard** (v12) — **The drum and
-  sampler grids are reachable by keyboard.** Every cell was a `<button>`, so Tab
-  walked all 128 of them one by one, and a focused cell did nothing with any key
-  — the grids were pointer-only. The selection cursor (`GridCursor`) now owns
-  focus, the way a focused knob does ([knob-keyboard-access](knob-keyboard-access.md)
-  REQ-the-keys-a-focused-knob-owns):
-  - **One Tab stop per grid** (roving `tabIndex`): the selected cell is `0`,
-    every other `-1`, and the stop follows the selection however it moved —
-    pointer, label click or key — so Tab into a grid lands where you were.
-  - **Arrows** move the selection and focus with it; left/right stop at the
-    lane's played window (`laneGrid` cells, [meter](meter.md)), never on a dark
-    cell. **Home / End** go to the row's first / last played cell.
-  - **Enter** toggles the selected step, through the same `onToggle` a tap uses.
-  - Each of these is `preventDefault` + `stopPropagation`. **Every other key
-    passes through**: **Space** still plays and stops (a step toggled by the key
-    every musician presses to start the music would be a trap), **Delete**
-    still clears the selected step (REQ-delete-clears-the-selected-step),
-    Shift+arrows still move the playhead and the letter keys still play notes.
-  - A cell carries an `aria-label` naming its row, step and state, written only
-    when it changes. The focus ring is `:focus-visible` only, so a pointer press
-    does not ring.
-  The sequencer grid keeps its own cursor and is not covered here.
+  The sequencer grid keeps its own cursor and is not covered.
 
 ## Technical design
 
 ### Gesture inventory
 
-The contract in one table (the [recipe](../recipes/design-an-interaction.md)
-step-1 artefact). "Trigger grids" = seq / drum / sampler.
+"Trigger grids" = seq / drum / sampler ([recipe](../recipes/design-an-interaction.md)
+step 1).
 
 | Gesture | Trigger grids | Motion grid | Precedent |
 | --- | --- | --- | --- |
-| tap / click | toggle `on` + select | set `(x,y)` anchor, on release (v4) | TR-808; Electribe |
+| tap / click | toggle `on` + select | set `(x,y)` anchor, on release | TR-808; Electribe |
 | drag | paint `!first.on` | set `(x,y)` continuously | FL Studio, Ableton |
-| long-press ≥ 350 ms | **select only** | **peek** — read the value, write nothing (v4) | Elektron, Push |
-| Shift + drag | — | fine, relative, unsnapped (v4) | this app's knobs |
+| long-press ≥ 350 ms | **select only** | **peek** — read the value, write nothing | Elektron, Push |
+| Shift + drag | — | fine, relative, unsnapped | this app's knobs |
 | right-click | select only | — | — |
 | double-tap | — (tap already toggles) | clear the anchor | Electribe |
-| wheel | ±1 semitone per notch (seq only; by distance since v10, [wheel-steps](wheel-steps.md)) | — | — |
-| `Delete` / `Backspace` | clear selected step | clear selected step | DAW piano roll |
+| wheel | ±1 semitone per notch (seq only, by distance, [wheel-steps](wheel-steps.md)) | — | — |
+| `Delete` / `Backspace` | clear the selected step | — (no selection cursor) | DAW piano roll |
+| arrows / Home / End / Enter | move the cursor / toggle (drum + sampler) | — | grid widgets |
 | `Clear ▾` → bank | clear the edit bank | clear the edit bank | — |
-| `Clear ▾` → row | clear the selected row | clear a named lane (XY/A/B) | — |
-| pointer **cancelled** (v8) | write nothing, drop the stroke | write nothing, drop the stroke | every drag in this app |
+| `Clear ▾` → row | clear the selected row | clear a named lane (XY/A–D) | — |
+| `Clear ▾` → shift | rotate the played window one cell | — | DAW nudge |
+| pointer **cancelled** | write nothing, drop the stroke | write nothing, drop the stroke | every drag in this app |
 
-**(v9) Double-tap is hand-rolled, and its window is not yet one number.**
-`dblclick` is unreliable on touch, so five controls time a double-tap off
-timestamps themselves — the knob, the EQ graph, the scratch graph, the resize
-handle and the motion pad. The numbers now live together in
-`ui/components/gesture-timing.ts`, which makes visible something that was
-scattered across five files: **there are two tolerances**, 300 ms and 350 ms,
-and which one you get depends on which control you tap. That is the sort of
-invisible state [ADR-014](../decisions/adr-014-dont-make-me-think.md)'s *one
-gesture, one outcome* argues against.
+Every gesture has one outcome, with no modes. The trigger-grid column is **full**,
+which is why the ruler is separate. On the motion grid `wheel` and `right-click` are
+deliberately free (its inventory is in [motion-sequencer](motion-sequencer.md)).
 
-It is left as two on purpose. Collapsing them changes how the app **feels**, and
-feel is not something to normalise quietly in a de-duplication pass — it wants
-someone at the controls. The same applies to the clock: three of the five read
-wall time, two have moved to the monotonic `performance.now()`, and the motion
-pad's is blocked on how its suite fakes time. Both are recorded in that module
-rather than papered over.
+**Double-tap is hand-rolled** (`dblclick` is unreliable on touch) by five controls:
+knob, EQ graph, scratch graph, resize handle and motion pad. Their windows live in
+`ui/components/gesture-timing.ts`, and there are **two** (300 ms and 350 ms). That is
+left as two on purpose: unifying them changes feel and wants someone at the controls.
+Three of the five read wall time and two read `performance.now()`.
 
-`Clear ▾` → bank is also the way a bank becomes *removable*: the bank bar's `−`
-arm refuses while the highest bank still holds steps ([banks](banks.md)
-REQ-a-bank-is-removed-only-when-unused), and its tooltip says so. The two share
-one predicate rather than each deciding what "empty" means.
-
-Every gesture has exactly one outcome, independent of hidden state — there is no
-mode anywhere in this table. On the **trigger** grids it is still **full**: every
-gesture a cell can receive is spoken for, which is why the position ruler
-(REQ-the-ruler-is-separate-chrome) is a separate target rather than a modifier there. Its own one-row
-inventory lives in [transport-position](transport-position.md). On the **motion**
-grid that is no longer true as of v4 — `wheel` and `right-click` are deliberately
-free, and the pad's own fuller inventory (which this column summarises) lives in
-[motion-sequencer](motion-sequencer.md) "Gesture inventory".
+`Clear ▾` → bank is also how a bank becomes removable: the bank bar's `−` refuses while
+the highest bank holds steps ([banks](banks.md) REQ-a-bank-is-removed-only-when-unused).
+The two share one emptiness predicate.
 
 ### Contract / public interface
 
 ```yaml
 attachGridGestures(opts): () => void        # src/ui/components/grid-gestures.ts
-  # opts:
   cells: readonly (readonly HTMLElement[])[]  # [row][col]; single-row grids pass [cells]
   isOn(row, col): boolean                     # read the store, never cached DOM state
   onToggle(row, col, on): void                # tap + paint write through this
@@ -341,75 +207,58 @@ attachGridGestures(opts): () => void        # src/ui/components/grid-gestures.ts
 createClearMenu(opts): HTMLElement           # src/ui/components/clear-menu.ts
   # opts: { lane: string, bankLabel(): string, onClearBank(): void,
   #         rows?: () => ClearMenuRow[] }
-  #   bankLabel() is REQUIRED and read at open time (the bank changes under us).
-  #   rows() is resolved at open time too: a machine with a selection cursor
-  #   returns its one selected row, Motion returns every lane worth offering.
-  #   Omit it entirely on a single-row grid.
-  # testids: clear-<lane>, clear-<lane>-bank, clear-<lane>-row-<i>  (row items
-  #   are INDEXED — see testids.md)
+  #   bankLabel() and rows() are read at open time (the bank changes under us)
+  # testids: clear-<lane>, clear-<lane>-bank, clear-<lane>-row-<i> (INDEXED, testids.md),
+  #   clear-<lane>-shift-left / -right
 
 ClearRow                                     # src/ui/panels/step-panel-scaffold.ts
   label:      string                         # what the item says it destroys
-  hasContent: boolean                        # v6 — false ⇒ clearMenuFor drops the
-                                             # item entirely (REQ-clear-menu-clears-in-bulk). REQUIRED, so
-                                             # a new machine must answer rather
-                                             # than inherit a wrong default
+  hasContent: boolean                        # false ⇒ clearMenuFor drops the item. REQUIRED
   clear(): boolean                           # did anything actually go?
-  undo?(): void                              # v5 — set ONLY by a row that clears
-                                             # more than steps; then it is the
-                                             # toast's whole Undo (REQ-one-bulk-action-one-undo-entry)
-  # rows() still returns EVERY row the machine has; the filter is central. Row
-  # testids stay contiguous over what survives it (clear-<lane>-row-<i>).
-samplerSlotClearRow(engine, undo, slot): ClearRow   # v5, sampler.md REQ-clear-ejects-the-slot
+  undo?(): void                              # ONLY on a row that clears more than steps
+  # rows() returns EVERY row; the filter is central; row testids stay contiguous
+samplerSlotClearRow(engine, undo, slot): ClearRow   # sampler.md REQ-clear-ejects-the-slot
 
-PatternStore:                                 # src/state/patterns.ts — REQ-clear-menu-clears-in-bulk/REQ-one-bulk-action-one-undo-entry
+PatternStore:                                 # src/state/patterns.ts
   clearSeqBank(): boolean    / clearSeqTrack(track): boolean
   clearDrumBank(): boolean   / clearDrumTrack(track): boolean
   clearSamplerBank(): boolean / clearSamplerSlot(slot): boolean
   clearMotionBank(): boolean / clearMotionXy(): boolean / clearMotionTrack(t): boolean
-  # each returns whether anything changed, so an already-empty target shows no
-  # toast and pushes no undo entry
+  # each returns whether anything changed (no toast, no undo entry when nothing did)
   # each emits exactly ONE '<machine>-copy' mutation carrying the pre-clear bank
 ```
 
-`isOn` reads the store rather than the DOM so a paint stroke cannot desynchronise
-from a concurrent repaint (a bank switch mid-drag), and `onSelect` fires before
-`onToggle` so the per-step editor is already pointing at the cell being written.
+`isOn` reads the store, not the DOM, so a paint stroke survives a concurrent repaint
+(a bank switch mid-drag). `onSelect` fires before `onToggle`, so the edit row already
+points at the cell being written.
 
 ### Layer touchpoints & ordering
 
 ```yaml
 step-panel-scaffold.ts:
-  attachGridGestures  <- called by all four panels with their own cells/callbacks
-  clearMenuFor(engine, lane, undo, rows?)  <- builds the header control per lane,
-                                          reusing laneHooks for the bank label.
-                                          The 3rd arg is the PatternUndo stack.
+  attachGridGestures  <- called by the trigger panels with their own cells/callbacks
+  clearMenuFor(engine, lane, undo, rows?)  <- the header control per lane
 seq/drum/sampler panels:
-  the per-cell `click` listener is REPLACED by attachGridGestures (not layered:
-  two paths writing `on` would double-toggle)
+  the per-cell `click` listener is REPLACED by attachGridGestures (two paths writing
+  `on` would double-toggle)
 motion panel:
-  keeps MotionStepPad's own pointer handling (REQ-motion-keeps-its-own-gesture); takes only the Clear menu
+  keeps MotionStepPad's own pointer handling; takes only the Clear menu
 pattern-row.ts:
-  the Delete/Backspace handler joins the existing tab-scoped Ctrl+Z wiring, so
-  both share one visibility rule
+  Delete/Backspace joins the tab-scoped Ctrl+Z wiring: one visibility rule
 ```
 
-Ordering that matters: the gesture controller must be attached **after** the
-cells exist but **before** the first `paintAll`, and the panels' existing
-`onSeqChange` / `onDrumChange` / … repaint subscriptions stay the only thing that
-writes cell visuals — the controller never paints, it only reports intent. That
-keeps the store the single source of truth during a paint stroke.
+The controller is attached after the cells exist and before the first `paintAll`. It
+never paints, only reports intent; the panels' `on*Change` subscriptions are the only
+writers of cell visuals.
 
 ### Persistence
 
-Nothing new is persisted. Gestures are transient; the cleared banks persist
-through the existing song/session paths. Deliberately **not** persisted: the
-selection cursor, the paint latch, the long-press timer.
+Nothing new. Not persisted: the selection cursor, the paint latch, the hold timer.
 
 ## Scenarios (BDD)
 
 ```gherkin
-Scenario: A keyboard user programs a drum pattern (v12, REQ-a-trigger-grid-is-reachable-by-keyboard)
+Scenario: A keyboard user programs a drum pattern (REQ-a-trigger-grid-is-reachable-by-keyboard)
   Given the drum grid, where only the selected cell is in the Tab order
   When the user tabs in and presses ArrowRight three times, then Enter
   Then step 4 of that row is selected, focused and switched on
@@ -418,7 +267,7 @@ Scenario: A keyboard user programs a drum pattern (v12, REQ-a-trigger-grid-is-re
   And Space still toggles the transport, and Shift+ArrowRight still seeks
 # pinned by: tests/ui/grid-keyboard.test.ts
 
-Scenario: Shift rotates the played window and is one undo (v11, REQ-shift-rotates-the-played-window)
+Scenario: Shift rotates the played window and is one undo (REQ-shift-rotates-the-played-window)
   Given a drum bank whose kick has steps on cells 0 and 12, and a 16-cell window
   When Shift bank right is chosen
   Then the kick is on cells 1 and 13, every step's settings moved with it
@@ -436,14 +285,14 @@ Scenario: Editing a lit step no longer switches it off
   And the edit row shows C4, ready to change
 # pinned by: tests/ui/grid-gestures.test.ts, e2e/patterns.spec.ts
 
-Scenario: A cancelled pointer does not toggle the step (v8, regression)
+Scenario: A cancelled pointer does not toggle the step (regression)
   Given the user presses step 4, which is off
   When the OS cancels the pointer instead of releasing it
   Then step 4 is still off
   And the stroke's document listeners are gone
 # pinned by: tests/ui/grid-gestures.test.ts
 
-Scenario: A cancelled paint drag commits nothing further (v8, regression)
+Scenario: A cancelled paint drag commits nothing further (regression)
   Given the user has pressed a lit step and painted across two more
   When the OS cancels the pointer
   Then no further cell changes, and the release path does not fire a tap
@@ -488,7 +337,7 @@ Scenario: Clearing a bank costs one undo press (REQ-one-bulk-action-one-undo-ent
   Then all 40 cells return
 # pinned by: tests/state/patterns.test.ts, tests/state/pattern-undo.test.ts, e2e/patterns.spec.ts
 
-Scenario: A row item destroys everything its label names (v5, REQ-clear-menu-clears-in-bulk, regression)
+Scenario: A row item destroys everything its label names (REQ-clear-menu-clears-in-bulk, regression)
   Given the Sampler tab's selected slot is named "kick.wav"
   When the user picks Clear ▾ → "Clear kick.wav"
   Then the filename is gone from the slot as well as its steps
@@ -514,7 +363,7 @@ Scenario: Right-click selects without toggling and shows no browser menu (edge)
   Then it is selected, still on, and the context menu is suppressed
 # pinned by: tests/ui/grid-gestures.test.ts
 
-Scenario: A cursor machine offers no row item for an empty row (v6, REQ-clear-menu-clears-in-bulk, regression)
+Scenario: A cursor machine offers no row item for an empty row (REQ-clear-menu-clears-in-bulk, regression)
   Given the Sequencer tab with the selected track empty
   When the Clear menu is opened
   Then it offers "Clear bank <x>" and nothing else — no dead "Clear track 2"
@@ -523,7 +372,7 @@ Scenario: A cursor machine offers no row item for an empty row (v6, REQ-clear-me
 # pinned by: tests/ui/clear-menu-rows.test.ts, e2e/patterns.spec.ts (seq + drum,
 #            through the real panels)
 
-Scenario: The sampler counts a loaded sample as content (v6, REQ-clear-menu-clears-in-bulk, edge)
+Scenario: The sampler counts a loaded sample as content (REQ-clear-menu-clears-in-bulk, edge)
   Given a sampler slot that is named but has no steps in the edit bank
   When the Clear menu is opened
   Then its row item IS offered — the item removes the sample too (sampler.md
@@ -540,9 +389,9 @@ Scenario: Motion's Clear menu lists only the lanes that hold steps (REQ-clear-me
 # pinned by: e2e/motion.spec.ts
 
 Scenario: Clearing a motion bank clears every lane (REQ-clear-menu-clears-in-bulk, regression)
-  Given the XY lane and both extra tracks hold anchors
+  Given the XY lane and the extra tracks hold anchors
   When Clear bank is picked
-  Then all three lanes empty — "the bank" is every lane, as on the drum grid
+  Then every lane empties — "the bank" is every lane, as on the drum grid
   And one Undo press brings all of them back
 # pinned by: tests/state/patterns.test.ts, tests/state/pattern-undo.test.ts
 
@@ -568,29 +417,15 @@ Scenario: Revealing a tab shows the step playing NOW (REQ-an-offscreen-grid-repa
 
 ## Tests & verification
 
-- Unit: `tests/ui/grid-gestures.test.ts` (the inventory, in jsdom with synthetic
-  Pointer Events), `tests/state/patterns.test.ts` (bulk clears + one-mutation
-  emission), `tests/state/pattern-undo.test.ts` (single-entry reversal),
-  `tests/ui/step-panel-scaffold.test.ts` (the visibility gate + reveal re-sync),
-  `tests/ui/clear-menu-sampler.test.ts` (v5 — a row that clears more than steps
-  and owns its undo), `tests/ui/clear-menu-rows.test.ts` (v6 — the no-dead-item
-  rule on all four machines), `tests/state/patterns-rotate.test.ts` +
-  `tests/ui/clear-menu.test.ts` (v11 — the shift), `tests/ui/grid-keyboard.test.ts`
-  (v12 — keyboard reach) — `npm test`
-- E2E: `e2e/patterns.spec.ts` (hold-to-edit, paint-drag, Clear + toast Undo,
-  tab-scoped Delete), `e2e/motion.spec.ts` (REQ-motion-keeps-its-own-gesture) — `npm run e2e`
-- Typecheck: `npm run typecheck`
-- Dev-bridge assertions: `window.__synth.patterns.seq[4].on` etc. (DEV only)
+- Unit: `tests/ui/grid-gestures.test.ts` (synthetic Pointer Events),
+  `tests/ui/grid-keyboard.test.ts`, `tests/ui/step-panel-scaffold.test.ts`,
+  `tests/ui/clear-menu.test.ts`, `tests/ui/clear-menu-rows.test.ts`,
+  `tests/ui/clear-menu-sampler.test.ts`, `tests/state/patterns.test.ts`,
+  `tests/state/patterns-rotate.test.ts`, `tests/state/pattern-undo.test.ts` —
+  `npm test`. E2E: `e2e/patterns.spec.ts`, `e2e/motion.spec.ts`.
 
 ## Open questions / future
 
-- **Multi-select / marquee** is deliberately out of scope: the store has no
-  selection model beyond a single cursor, and `Clear ▾` plus paint-drag covers
-  the cases it would serve. Revisit only if copy/paste of step *ranges* is added.
-- ~~**Nudge / rotate a pattern**~~ — v11, REQ-shift-rotates-the-played-window, for
-  the sequencer, drums and sampler. **Motion** is left out: its anchors are
-  interpolated against neighbours across the bar line (motion-sequencer.md
-  REQ-cross-bank-carry), so "one cell later" does not mean what it means on a
-  trigger grid, and its extra tracks would each need the same decision.
-- The 350 ms hold window is a first guess from the `MotionStepPad` double-tap
-  window; if it proves long on touch it is one constant in `grid-gestures.ts`.
+- **Multi-select / marquee** is out of scope: the store has one cursor, and `Clear ▾`
+  plus paint-drag cover the cases. Revisit only if copy/paste of step ranges arrives.
+- The 350 ms hold is one constant in `gesture-timing.ts`, if it proves long on touch.
