@@ -49,8 +49,9 @@ packages; see ADR-003. Product name in-app: **VAST G1-J8**; package/repo:
 | `specs/README.md` | The SDD method + an annotated map of every spec |
 | `specs/decisions/README.md` | The ADR index — *why* things are the way they are |
 
-Feature specs are standalone and restate the conventions they rely on, so reading
-one is usually enough.
+Each fact has one owner spec; the others link to it with at most one line of
+context (`specs/README.md` → "Format rules"), so follow the link rather than
+expecting a spec to restate a convention.
 
 ## Commands
 
@@ -78,8 +79,8 @@ Scripts are in `package.json`. Only the non-obvious ones need saying:
 - `npm run clean:demos` / `check:demos` keep `src/state/demos-index.json` in sync;
   `check:demos` fails the build if it drifts.
 - `npm run check:bundle` (after `npm run build`) fails the entry chunk over 500 kB —
-  CI's `build` job runs both. Anything new at boot comes out of ~1.8 kB of headroom (the script prints the exact figure);
-  defer it behind an `import()` instead (`runtime-performance.md`).
+  CI's `build` job runs both, and the script prints the headroom. Anything new at
+  boot comes out of it; defer it behind an `import()` instead (`runtime-performance.md`).
 - A CSP change is only checked against `npm run build && npx vite preview`: `vite dev`
   relaxes `style-src` for Vite's injected styles, so e2e never sees the shipped policy.
 
@@ -113,9 +114,9 @@ material keyed by feature name).
 | context start / background / resume | `features/audio-lifecycle.md`, `features/ios-audio.md`, `features/media-session.md` |
 | `public/sw.js`, the **offline copy** (`utils/offline-copy.ts`, `scripts/lib/offline-manifest.mjs`) | `features/pwa-install.md`, `features/play-offline.md` — every cache lookup passes `{ ignoreVary: true }` (hosts send `Vary: Origin`, and a file saved by `fetch()` then never matches the script request for it); `npm run e2e` runs the dev server, which has no worker, so verify against `vite preview` |
 | `src/audio/effects/` | `features/effects.md`, `recipes/add-an-effect.md`, ADR-012 |
-| the **chorus** or **flanger**, or effects sharing one panel (`effects/chorus.ts`, `effects/flanger.ts`, `src/state/chorus.ts`, `components/fx-slot-picker.ts`) | `features/chorus.md`, `features/flanger.md`, `features/fx-slot-picker.md`. The flanger's DSP and worklet load on its first switch-on, and it stays bypassed until they are in; a slot's entries run in chain order (Phaser · Flanger · Chorus). It is the one insert short of the reverb that makes a second channel, so the synth chain is 2-channel after it while it is on. MODE's labels and values are one table in `src/state/chorus.ts` |
-| the **delay's TYPE / CHAR** (`effects/delay.ts`, `effects/delay-switch.ts`, `effects/delay-cores.ts`, `src/state/delay.ts`, `worklets/reverse-delay.js`) | `features/delay-types.md` — DIGITAL is the unchanged delay and loads nothing; the first other TYPE imports `DelaySwitch`, which re-routes the digital line through unity gates and **binds the knobs itself** while `Delay`'s setters stand down. A new type is a `DELAY_TYPES` row (append-only) **and** a `CORES` entry, which the compiler demands |
-| **Dirt**, the drive effect (`effects/dirt.ts`, `effects/dirt-switch.ts`, `effects/dirt-voicings.ts`, `src/state/dirt.ts`) | `features/dirt-types.md` — its params keep the legacy ids `fx.dist.*` / `fx.sampler.dist.*` (stored in every song; never rename them). DISTORTION is the unchanged effect and loads nothing; the first other TYPE imports `DirtSwitch` (with OVERDRIVE and FUZZ), to which `Dirt` then forwards TYPE and DRIVE. A new type is a `DIRT_TYPES` row (append-only) **and** a `VOICINGS` entry, which the compiler demands |
+| the **chorus** or **flanger**, or effects sharing one panel (`effects/chorus.ts`, `effects/flanger.ts`, `src/state/chorus.ts`, `components/fx-slot-picker.ts`) | `features/chorus.md`, `features/flanger.md`, `features/fx-slot-picker.md` — a slot's entries run in chain order (Phaser · Flanger · Chorus), and the flanger stays bypassed until its lazy DSP is in |
+| the **delay's TYPE / CHAR** (`effects/delay*.ts`, `src/state/delay.ts`, `worklets/reverse-delay.js`) | `features/delay-types.md` — the first non-DIGITAL TYPE imports `DelaySwitch`, which then **binds the knobs itself**; a new type is an append-only `DELAY_TYPES` row **and** a `CORES` entry |
+| **Dirt**, the drive effect (`effects/dirt*.ts`, `src/state/dirt.ts`) | `features/dirt-types.md` — its params keep the legacy ids `fx.dist.*` / `fx.sampler.dist.*` (stored in every song; never rename them); a new type is an append-only `DIRT_TYPES` row **and** a `VOICINGS` entry |
 | a **popover menu** on `dropdown.module.css` | `features/dropdown.md` REQ-every-fixed-menu-shares-one-anchor-and-dismiss: go through `components/menu-anchor.ts`. `.menu`'s `min-width: 100%` is the *viewport* for a fixed box, and an unconsumed Escape reaches the global Panic shortcut |
 | the **EQ** — `src/state/eq*.ts`, `effects/eq.ts`, `ui/panels/eq-panel.ts` | `features/equalizer.md` — one band table in `src/state/eq.ts` feeds **both** the filters and the drawn curve, so they cannot disagree. Web Audio reads a biquad's `Q` in **dB** for lowpass/highpass and linearly for peaking; get that wrong and the graph lies convincingly |
 | a **rate / delay-time knob**, or any `*.sync` param | `features/tempo-lock.md` — one table (`src/state/tempo-lock.ts`) decides what is lockable; `Knob` self-wires from it |
@@ -124,7 +125,7 @@ material keyed by feature name).
 | a **bar**, a **step count** or anything `% SEQ_LENGTH`-shaped | `features/meter.md` + ADR-019 — the bar is `barTicks`, the grid is `GRID_CELLS`, a lane's window is `laneCells()`. `src/state/meter.ts` names the three apart; in the UI go through `src/ui/lane-grid.ts` |
 | `src/audio/transport/sync/` | `features/midi-clock-sync.md`, `features/webrtc-sync.md` |
 | `src/audio/recorder/` | `features/audio-export.md`, `record-window.md`, `sample-recorder.md`, `sample-chop.md`, `time-stretch.md`, `scratch.md`, `render-to-sampler.md` |
-| `public/worklets/` | ADR-010, `recipes/add-an-audioworklet.md`, `features/ladder-filter.md`, `features/compressor.md`, `features/oscillator-sync.md`, `features/flanger.md` — a new worklet is also a `CORE_ASSETS` entry in `public/sw.js`, or it is missing offline |
+| `public/worklets/` | ADR-010, `recipes/add-an-audioworklet.md`, then the worklet's owner: `features/ladder-filter.md`, `compressor.md`, `oscillator-sync.md`, `flanger.md`, `delay-types.md` (reverse-delay), `audio-export.md` (the recorder) — a new worklet is also a `CORE_ASSETS` entry in `public/sw.js`, or it is missing offline |
 | **oscillator sync** — `src/audio/sync-osc/`, `Voice.pitchTargets()` | `features/oscillator-sync.md` + ADR-026 — a new pitch source connects to **every** `pitchTargets()` entry (the sync pair listens through the fourth), never to a hand-listed set of detunes |
 | **ring mod / FM** — `src/audio/cross-mod.ts`, `Osc.signal` | `features/cross-modulation.md` — a modulator reads an oscillator's pre-level `signal` (native *or* sync pair), never `out`; FM's knob is an index relative to OSC 1, so k = 2^((cents1 − cents2)/1200) must follow both oscillators' octave/tune; both paths are disconnected while at 0 |
 | `src/ui/` (any) | `src/ui/CLAUDE.md`, `recipes/add-a-ui-component.md`, `add-a-panel.md`, `add-a-modal-dialog.md`, `add-a-floating-window.md`, ADR-009 |
@@ -135,7 +136,7 @@ material keyed by feature name).
 | a **wheel** handler that steps a value | `features/wheel-steps.md` — use `createWheelStepper()`; one step per notch by distance, never per event (a touchpad sends dozens). One stepper per control, and it must outlive any DOM rebuild the step itself triggers |
 | any **new gesture** | ADR-014 + `recipes/design-an-interaction.md` — every interactive control owes a gesture inventory in its spec |
 | any **new ingest surface** (a link, file, paste, peer, MCP arg or a request to the public endpoint) | `features/untrusted-input.md` + ADR-015 — bounds live in the validator, byte budgets in the codec, and `src/state/limits.ts` is the only place they're written down (pattern dimensions — bank count, grid cells — stay with `patterns.ts` / `meter.ts`) |
-| anything **per-frame, per-tick or at boot** | `features/runtime-performance.md` (the app-wide cost contract), `features/performance-mode.md`. A display that follows the transport paints when a step is **heard**, not when the clock hands it out up to 100 ms early: go through `ui/audible.ts` (`transport-position.md` REQ-the-playhead-is-drawn-when-it-is-heard) |
+| anything **per-frame, per-tick or at boot** | `features/runtime-performance.md` (the app-wide cost contract), `features/performance-mode.md`. A display that follows the transport paints when a step is **heard**, not when the clock hands it out up to the look-ahead early (100 ms, 200 ms on the weak tier): go through `ui/audible.ts` (`transport-position.md` REQ-the-playhead-is-drawn-when-it-is-heard) |
 | `tests/`, `e2e/` | `recipes/write-a-test.md`, `features/testids.md`, `e2e/CLAUDE.md` |
 | `scripts/mcp/` | `features/mcp-server.md` — two transports: stdio (local, all eleven tools) and Streamable HTTP (public, read-only nine, ADR-020). `read_midi`'s parser is `src/state/midi-file.ts` → `features/midi-file-reader.md`. Hosting it: `DEPLOYMENT.md` |
 
