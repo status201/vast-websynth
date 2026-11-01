@@ -176,7 +176,7 @@ the day it ships.
   on `complete`; `Offline download stopped — <reason>.` with a **Retry** action
   on `error`; `A new version was installed — reload to save it offline.` with a
   **Reload** action on `needs-reload`. While About is open the status line is
-  the report and no toast is raised. A user cancel raises nothing. (v2) The
+  the report and no toast is raised. A user cancel raises nothing. The
   toasts are one **watcher per `OfflineCopy`** (`watchOfflineRuns`, in
   `offline-notices.ts`), not the section's: a run can now start with no About
   card built at all (REQ-the-copy-is-fetched-again-after-a-reset). The section

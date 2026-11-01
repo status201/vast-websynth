@@ -128,7 +128,7 @@ yellow heading reads as a control that does nothing when clicked
   The text is **visually hidden**, not `display: none`, so the heading keeps its
   accessible name. FX and EQUALIZER have room at every width and do not opt in.
 
-  (v3) **The icon alone still costs ~30 px, so the tabs' smaller type starts at
+  **The icon alone still costs ~30 px, so the tabs' smaller type starts at
   1030 px** (`tabs.module.css`; it was 992 px, and the bar's wrap rule stays
   there).
   - At full size the row needs ~957 px of bar, and a label wrapped onto a second

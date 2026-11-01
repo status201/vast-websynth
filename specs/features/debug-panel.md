@@ -89,7 +89,7 @@ instead of transcribing it from a phone screen.
   **Background audio** (`debug-background` — v7, the watchdog's underrun/drift
   readings while hidden and any suspends it made;
   [audio-lifecycle](audio-lifecycle.md) REQ-the-measurement-is-visible-either-way), **Local storage**
-  (`debug-storage`, `storageUsage()`). (v12) Every size in the grid goes through
+  (`debug-storage`, `storageUsage()`). Every size in the grid goes through
   the shared `formatBytes` (`utils/format.ts`): one decimal of MB from a
   megabyte up, whole kB below — a few kilobytes used to read `0.0 MB`, which
   says "empty" about a store that is not — and counts through `plural`, so one
@@ -129,7 +129,7 @@ instead of transcribing it from a phone screen.
   `setMidiStatsSource`), the wake lock (**Wake lock**, `debug-wake`, via
   `setWakeLockSource`) and [`scope`](scope.md) (**Scope**, `debug-scope`, via
   `setScopeStatsSource` — whether the visualizer is painting, and how often it
-  had to recover; scope.md REQ-the-panel-says-whether-it-is-drawing) and (v15)
+  had to recover; scope.md REQ-the-panel-says-whether-it-is-drawing) and
   [`play-offline`](play-offline.md) (**Offline copy**, `debug-offline`, from
   `getOfflineCopy().state` via `formatOfflineState` — whether this device holds a
   full offline copy, which is the answer to "why did that part not open offline?").
@@ -149,7 +149,7 @@ instead of transcribing it from a phone screen.
   (`debug-clips-clear`: nulls every sampler slot, then `SampleAutosave.clear()`
   for orphans), **Session autosave ▸ Clear** (`debug-session-clear`:
   `SessionAutosave.clear()` + reload) and **Service worker ▸ Unregister**
-  (`debug-sw-unregister`: unregister all + reload). (v12) It does **not** delete
+  (`debug-sw-unregister`: unregister all + reload). It does **not** delete
   the caches — the next registration of the same version reuses them — and its
   confirm now says so; it used to promise "Drop the offline cache", which the
   code never did. Deleting the caches is the factory reset's job

@@ -94,7 +94,7 @@ differ only by live-applied scope fps + fftSize).
   the effective tier: a concrete tier passes through; `auto` → `detectTier()`.
   `sameAudioProfile(a, b)` is true iff two tiers share **every boot-time
   field**: `latencyHint`, `voiceCount`, `scheduleAheadS`, `reverbIrMaxS`,
-  `fxOversample` (v3). `fps` and `analyserFftSize` are **excluded** — they are
+  `fxOversample`. `fps` and `analyserFftSize` are **excluded** — they are
   applied live, not at boot, so they never force a reload.
 
 - **REQ-the-audio-profile-is-boot-only** — The **audio** profile (buffer, voice
@@ -171,7 +171,7 @@ differ only by live-applied scope fps + fftSize).
   `analyser` + `analyserL`/`analyserR`). Tiers run **256 / 512 / 1024** (weak /
   medium / strong; 1024 is the `EngineOptions` default when the field is
   absent). Boot seeds the analysers with the resolved tier's value (threaded via
-  `EngineOptions`); thereafter it is applied **live** (v5) via
+  `EngineOptions`); thereafter it is applied **live** via
   `Scope.setFftSize(n)`, which sets `analyser.fftSize` on all three and
   reallocates each channel's time-domain + frequency read buffers to match
   ([scope](scope.md) REQ-all-analysers-share-fft-settings). Because it

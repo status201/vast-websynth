@@ -108,7 +108,7 @@ rig), the iOS session exposes diagnostics rendered in the [`debug-panel`](debug-
 - **REQ-off-ios-the-workaround-is-inert** (v3) — Off iOS the *session*
   workaround stays fully inert: no `<audio>` element, no media-element source,
   `unlock()`/`rearm()` return immediately, and nothing iOS-specific is
-  persisted. What is **not** iOS-gated (v3) is the visibility re-arm above and
+  persisted. What is **not** iOS-gated is the visibility re-arm above and
   the click-free start fade, both owned by
   [audio-lifecycle](audio-lifecycle.md). `main.ts` is unchanged — `await
   engine.resume()` keeps doing everything.

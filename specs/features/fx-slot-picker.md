@@ -88,7 +88,7 @@ any number of entries.
   | Gesture | Target | Result |
   | --- | --- | --- |
   | click / tap | caret | opens (or closes) the menu |
-  | click / tap | the shown title (v2) | the same as the caret (REQ-the-title-opens-the-menu) |
+  | click / tap | the shown title | the same as the caret (REQ-the-title-opens-the-menu) |
   | Enter / Space | focused caret | the same — it is a native `<button>` |
   | click / tap | menu entry | shows that view, closes the menu |
   | click outside | anywhere | closes the menu, nothing changes |

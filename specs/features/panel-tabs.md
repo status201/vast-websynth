@@ -124,7 +124,7 @@ whole of this component.
   vertical space that the 8-column faceplate does not have. The row therefore
   occupies **exactly a plain `.panelTitle`'s height**, so a tabbed panel's
   controls stay on the same baseline as its untabbed neighbours across the grid.
-  (v3) It gets there by being the **same box**: a tab declares the title's 14 px
+  It gets there by being the **same box**: a tab declares the title's 14 px
   line box, 6 px bottom padding and 1 px dashed rule, so the row is 21 px for the
   same reason the title is. (v2 reached 21 px from different parts: a 13 px line
   box + 3 px padding + 1 px border top and bottom.)
@@ -142,12 +142,12 @@ whole of this component.
     runs everywhere and computes both box heights from the declarations), and by
     measuring the laid-out rows in a real browser (`e2e/lfo2.spec.ts` — jsdom has
     no layout engine, so only an E2E assertion can see the rendered box).
-  - **(v3) The labels sit on every other title's line.** With the same line box,
+  - **The labels sit on every other title's line.** With the same line box,
     padding, size, tracking and weight as `.panelTitle`, and the text at the top
     of both boxes, a tab's label and a plain title share a baseline across the
     faceplate by construction, not by tuning. A tab has no `text-indent` for the
     same reason: the title has none.
-  - **(v3) No box — the header look, with the rule as the state.** Neither tab
+  - **No box — the header look, with the rule as the state.** Neither tab
     has a background, an outline or rounded corners; the strip looks like a
     title row. One vertical divider separates the tabs, in the title rule's own
     dashed `--rule` colour (theme.css). The dashed rule runs under the

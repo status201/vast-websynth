@@ -213,7 +213,7 @@ Two consequences worth naming up front, because they are visible:
   medium / strong (`EngineOptions.analyserFftSize` seeds the boot value, default
   1024; from `PERF_PROFILES` — see [performance-mode](performance-mode.md)
   REQ-analyser-fft-size-follows-the-tier). Because `AnalyserNode.fftSize` is
-  settable at runtime, a tier change applies it **live** (v5) via
+  settable at runtime, a tier change applies it **live** via
   `Scope.setFftSize(n)`, which sets `fftSize` on all three analysers and
   **reallocates** each channel's time-domain + frequency read buffers to match —
   no reload, exactly like `setFps`.
@@ -310,7 +310,7 @@ Two consequences worth naming up front, because they are visible:
   scope costs a single composited canvas raster, not a full page
   layout/style/layerize/paint each frame. Environments without `ResizeObserver`
   (jsdom under unit test) fall back to measuring on draw — behaviour unchanged.
-  (v3) The spectrum bar gradient is likewise **cached per region** (keyed by the
+  The spectrum bar gradient is likewise **cached per region** (keyed by the
   region's `y`/`h`, invalidated on resize) instead of `createLinearGradient`
   allocating every frame — no per-frame canvas-object allocation on the steady
   path.
@@ -382,13 +382,13 @@ Two consequences worth naming up front, because they are visible:
   app renders identically when nothing has been dragged and when storage is
   unavailable. Because the wheel strips share that row, they resize with the
   scope — this is a consequence of the row, not separate code.
-  - (v15) The EQUALIZER section's graph reads `--scope-h` too
+  - The EQUALIZER section's graph reads `--scope-h` too
     ([equalizer](equalizer.md) REQ-the-eq-page-mirrors-the-scope-row), so the grip now sizes **two** panels. It
     is a different row of the same grid and is not part of this one's track — the
     scope row still reads `var(--scope-h, 130px)` and this handle still writes only
     that property. What the EQ borrows is the *number*, so the two panels cannot
     be resized out of alignment with each other.
-  - (v18) **The dragged height is the scope's minimum, not its height.** While
+  - **The dragged height is the scope's minimum, not its height.** While
     the keyboard below is at its cap (keyboard-range.md
     REQ-key-height-follows-key-width) the spare height comes to the scope
     (REQ-spare-height-goes-to-the-scope there), so the scope can stand taller
@@ -518,7 +518,7 @@ Two consequences worth naming up front, because they are visible:
 - **REQ-every-drawn-string-gets-a-halo** (v13) — **Every string the component
   draws gets a dark halo**: a `strokeText` outline under the `fillText`, via one
   shared helper.
-  - (v14) That helper is `haloText` in `ui/components/canvas-text.ts`, no longer
+  - That helper is `haloText` in `ui/components/canvas-text.ts`, no longer
     private to this component: the EQ graph ([equalizer](equalizer.md) REQ-the-graph-computes-from-bus-values)
     draws the same small mono labels over the same kind of saturated fill, and
     a copy would drift the first time either was tuned. It sets `lineWidth`,

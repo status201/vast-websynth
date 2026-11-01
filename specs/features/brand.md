@@ -62,7 +62,7 @@ not a feature — it owns markup and styling only, and has no state.
   header does: below 1680px `.headerBrand` is `zoom: 0.6` — the faceplate reads
   as a small badge beside the controls rather than competing with them — and
   from 1680px up it is drawn at full size, since a very wide header has the room
-  and the small badge looks lost there (v4). At every width it is
+  and the small badge looks lost there. At every width it is
   `flex-shrink: 0` and `white-space: nowrap`, so a tight header row can never
   squeeze the tagline onto a second line (its min-content was only the longest
   word). The divider's `padding-right` matches the margin plus the header's gap

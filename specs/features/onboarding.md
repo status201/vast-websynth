@@ -121,7 +121,7 @@ thing.
   LFO 2's page. The second page needs no entry: its own anchor
   (`knob-lfo2.rate`) lives inside it, and revealing it is what triggers the
   observer on page 1 collapsing.
-  - (v27) The Equalizer's **`eq-section`** and all three of its page shells
+  - The Equalizer's **`eq-section`** and all three of its page shells
     (`panel-eq-seq`, `panel-eq-drums`, `panel-eq-sampler`) join the list too.
     The three pages are the same height — each takes it from `--scope-h`
     ([equalizer](equalizer.md) REQ-the-eq-page-mirrors-the-scope-row) — so a lane switch resizes neither the
@@ -146,7 +146,7 @@ thing.
       (`top < header.bottom`) → hide, or it paints over the header. Anchors
       *inside* the header are exempt: they never scroll away, so measuring them
       against their own container would hide them permanently (REQ-a-presets-topic-anchors-to-the-picker);
-    - **below** (v23) — the badge's bottom crosses the viewport's
+    - **below** — the badge's bottom crosses the viewport's
       (`top + BADGE_SIZE > innerHeight`) → hide.
   Only the last one is new. Without it the rule was half a rule: scrolling a
   control up under the header dropped its badge, scrolling it down past the fold
@@ -216,8 +216,8 @@ thing.
     destination is aimed at: wobble (cutoff), vibrato (pitch), tremolo (amp) or
     PWM movement (pulse) — and that it does nothing while the LFO destination
     is off.
-  - The two header buttons' tooltips name **what they do**, not what they are
-    (v15): the ⓘ button reads "Show info badges (?)" while inactive and "Hide
+  - The two header buttons' tooltips name **what they do**, not what they are:
+    the ⓘ button reads "Show info badges (?)" while inactive and "Hide
     info badges (?)" while active — the parenthetical is the keyboard route, the
     discoverability leg `recipes/design-an-interaction.md` step 4 asks for. The
     ? button reads "Help & About": it names both things behind it (the guided
@@ -351,7 +351,7 @@ thing.
   The list is also the canonical on-screen shortcut reference, so it must name
   every global key — including `Home` / `Shift`+arrows
   ([transport-position.md](transport-position.md) REQ-home-and-shift-arrows-seek), `Delete` and
-  `Ctrl/Cmd+Z`, which were missing, (v13) `?`, and (v14) `Shift`+`R` for the
+  `Ctrl/Cmd+Z`, which were missing, `?`, and `Shift`+`R` for the
   [Record window](record-window.md) (REQ-shift-r-toggles-the-record-window there). It already carries non-key gestures (`Shift`+drag for fine knob
   control), so a mouse row is in keeping. The v13 `Shift`+click-on-Help row is
   **gone** in v15 along with the gesture itself.
@@ -407,7 +407,7 @@ thing.
     is the one place in the app that would silently drift. Naturals are the
     semitones `{0,2,4,5,7,9,11}` of each row's own base; a sharp occupies the gap
     after the natural below it.
-  - **(v17) The cap labels follow the active keyboard layout.** A cap that
+  - **The cap labels follow the active keyboard layout.** A cap that
     stands for a physical key carries `data-code` and takes its label from
     [keyboard-layout](keyboard-layout.md); switching layout relabels those caps
     **in place**, because the diagram's structure — which rank, which column,

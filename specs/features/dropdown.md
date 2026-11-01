@@ -82,7 +82,7 @@ without anyone remembering to ask.
     Panic shortcut and stopped the song, the bug v9 had fixed in `Dropdown`
     alone. `Dropdown` keeps its own key handler, which also walks the options,
     and shares only the anchor.
-  - (v12) `dismissMenu(root, isOpen, close, inside)`: `inside` lists triggers
+  - `dismissMenu(root, isOpen, close, inside)`: `inside` lists triggers
     that sit outside `root` but belong to the control, such as the FX slot's
     title ([fx-slot-picker](fx-slot-picker.md) REQ-the-title-opens-the-menu). A
     click on one is not an outside click, so the trigger need not

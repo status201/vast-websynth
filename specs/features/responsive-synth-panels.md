@@ -115,7 +115,7 @@ count changes.
   middle. The LFO keeps its three zones (wave on top, knobs in the middle,
   destination at the bottom — REQ-selectors-pin-to-the-panel-edges); only its
   knob row spreads.
-  - (v4) The LFO panel's **title row is a two-tab strip**
+  - The LFO panel's **title row is a two-tab strip**
     ([panel-tabs](panel-tabs.md), [lfo](lfo.md) REQ-the-two-lfos-share-one-panel). It replaces the title
     rather than joining it, holds a plain `.panelTitle`'s height so the panel
     stays on its neighbours' baseline, and its tabs take an even share of the
@@ -153,7 +153,7 @@ count changes.
     2561px the break is `display: none`, and the four knobs share one even row
     (220px of boxes in a ≥281px row). WIDTH's show/hide toggles the break with
     it, so a hidden WIDTH leaves no empty line.
-  - **OSC 1's break holds until 3200px** (v9). OSC 1 always shows FM and RING
+  - **OSC 1's break holds until 3200px**. OSC 1 always shows FM and RING
     behind its break ([cross-modulation](cross-modulation.md)
     REQ-the-modulator-controls-live-on-osc-1), so with WIDTH it has six knobs,
     which first fit one row at 3200px, the step `.hex` takes for the same six.
@@ -179,7 +179,7 @@ count changes.
   (knob centre ± `scrollWidth`/2) for every knob in every panel at 360–2560px;
   the dial's glow ring is excluded, since its negative inset bleeds outside the
   box by design.
-  - (v8) **Label ink cannot see a dial collision when the labels are short.**
+  - **Label ink cannot see a dial collision when the labels are short.**
     FILTER ENV's five-across row at 420px overlapped its 36px dials while
     `A`/`D`/`S`/`R`/`VEL` stayed clear of each other, so the sweep passed. The
     FILTER ENV scenario therefore asserts box clearance directly in each

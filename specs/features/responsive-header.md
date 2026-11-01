@@ -77,7 +77,7 @@ end of the row.
   names survive the loss of text labels (`createButton` defaults `aria-label` to
   the `label` option when an icon is set). Stable testids: `preset-save`,
   `perf-settings`, `info-badges`, `about-button`, `fullscreen`. Note the ids
-  follow **function, not position** (v5): `about-button` is the ? glyph, because
+  follow **function, not position**: `about-button` is the ? glyph, because
   that is the button that opens About; the ⓘ glyph beside it is `info-badges`
   because that is what it toggles ([onboarding.md](onboarding.md) REQ-the-info-button-is-a-toggle). The
   retired `help-button` id is not reused.

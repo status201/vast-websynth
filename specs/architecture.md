@@ -47,7 +47,7 @@ means a UI control and its audio effect can be reasoned about independently.
   Engine(bus, …)` + `await engine.init()` before any input — and it is wired all
   the way to `ctx.destination` there.
 
-  **(v7) What is NOT guaranteed is that the context is suspended.** That was the
+  **What is NOT guaranteed is that the context is suspended.** That was the
   standing assumption, stated as fact here and as a comment in `main.ts`, and it
   is only true where the browser's autoplay policy blocks us: an
   autoplay-permitted browser returns a context already `running`, so the whole
