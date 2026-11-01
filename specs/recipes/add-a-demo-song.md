@@ -27,8 +27,9 @@ more than "copy a file in".
 Demos are auto-registered at build time: any `*.json` SongFile in
 `src/state/demos/` is picked up by
 `import.meta.glob('./demos/*.json', { eager: true, query: '?url', import: 'default' })`
-and listed **before** the hand-authored built-ins so drop-ins lead the demo button
-row. No registry edit.
+and fetched on click. The demo row sorts every source together by display name
+([song-mode](../features/song-mode.md) REQ-drop-in-demos-are-fetched-on-click), so a
+drop-in lands wherever its name sorts. No registry edit.
 
 The glob keeps only the **URL** — the song itself is `fetch`ed when the user clicks
 its button, not bundled ([song-mode](../features/song-mode.md) REQ-drop-in-demos-are-fetched-on-click). Importing
@@ -92,19 +93,15 @@ demo itself, the note needs no spec: the file is allowlisted in the SDD guard.
 ### 4. That's it — and **no test needs editing**
 
 It appears in the demo row and the song-load list on next build. To verify the
-shape parses: `Song.parse` requires `format === 'websynth-song'` plus
-`params` + `seqBanks` + `drumBanks`.
+shape parses: `Song.parse` requires `format === 'websynth-song'`, a known
+`version`, a string `name`, `params`, `seqBanks`, `drumBanks`, `seqChain` and
+`drumChain` (`validateSongFile`).
 
 No suite has to be touched, and that is enforced rather than hoped for: tests
 select demos by *kind* and read expected values out of the shipped files, and
 `tests/no-shipped-demo-names.test.ts` fails any test that spells a demo's name
 ([write-a-test](write-a-test.md)). Your demo also gains coverage for free — the
 validator and apply suites run `it.each` over the whole library.
-
-This was not always true. A test that clicked one demo by name broke when a demo
-sorting before it was added, because that pushed it past `DEMO_ROW_LIMIT` into
-the collapsed overflow — a data change failing a suite it had no business
-failing, which is what the rule now prevents.
 
 ## Gotchas
 

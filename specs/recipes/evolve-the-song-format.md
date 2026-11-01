@@ -23,13 +23,8 @@ saved songs or demos**. This is the load-bearing backward-compatibility playbook
 ## Background / Why
 
 Users save song files and demos ship as data, so the load path must keep parsing
-older files forever. The format already did this **six** times (`version: 1 → 2`
-added optional sampler fields; `2 → 3` the optional [XY Pad](../features/xy-pad.md)
-`xy` axis assignment; `3 → 4` the optional
-[motion sequencer](../features/motion-sequencer.md) fields; `4 → 5` its
-`motionTracks`; `5 → 6` the [sequencer](../features/sequencer.md)'s `seqTracks`;
-`6 → 7` the `seqTranspose` offsets on the seq chain lane,
-[song-mode](../features/song-mode.md) REQ-song-file-v7-adds-slot-transpose).
+older files forever. The format has done this eight times; the ladder is
+[song-mode](../features/song-mode.md) REQ-song-file-is-a-versioned-union.
 The contract: **additive, optional, defaulted** — never required, never repurposed.
 
 > **Two kinds of bump.** Most add an optional field, which is what the steps below
@@ -158,7 +153,7 @@ the latest (its REQ-the-emitted-version-is-the-lowest-that-fits) — so a format
 
 - `src/state/song-author.ts` — accept/expand the new field (or deliberately leave
   it canonical-only and reject it with a clear error). If you do accept it, add a
-  **new top rung** to the version ladder (`… ? 7 : <the old ladder>`); never
+  **new top rung** to the version ladder (`… ? 10 : <the old ladder>`); never
   replace an existing rung with `SONG_VERSION`, or every simple author song
   silently jumps version and old expectations break.
 - `public/schema/websynth-song-author.schema.json` — mirror the dialect change;
@@ -188,7 +183,7 @@ After changing the format, re-run `npm run clean:demos`.
   `SongFile` union. Both drift sites this recipe has actually suffered were literals:
   the authoring guide's example block, and the MCP `expand_song` tool description
   (which agents read). Interpolate `SONG_VERSION`, or don't name a version at all.
-- Committed demos keep the version they were saved at (1..6 today) — that spread is
+- Committed demos keep the version they were saved at — that spread is
   the backward-compat coverage, not drift. Don't "fix" it; `npm run clean:demos`
   re-canonicalizes content, not versions.
 

@@ -45,9 +45,10 @@ It shows up in the preset dropdown after a reload (the boot seeder runs
 
 ## Gotchas
 
-- **Set the full sound.** A preset is applied over the current bus, so include
-  every param that defines the patch (mirror the existing entries) rather than
-  relying on whatever was loaded before. Spread `PLAIN_VOICE` first. It turns
+- **Set the full sound.** The loader resets every sound param a preset omits
+  ([presets](../features/presets.md) REQ-loading-a-preset-starts-from-the-default-sound),
+  but a bank file must still stand on its own, and a test pins it
+  (REQ-a-factory-preset-sets-the-full-sound). Spread `PLAIN_VOICE` first. It turns
   off the oscillators' FM, ring, sync and pulse width, every mod-matrix row and
   every effect but the reverb, and it sets the values most banks share (no sub,
   one unison voice, both LFOs parked). List only what defines your sound, plus

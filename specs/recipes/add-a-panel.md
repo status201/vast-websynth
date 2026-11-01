@@ -24,11 +24,13 @@ pattern row. The seven existing panels (`arp`, `key`, `seq`, `drums`, `sampler`,
 `TabContainer` tab in `shell/pattern-row.ts`. The concrete worked instance is
 [`seq-panel`](../features/sequencer.md) (`src/ui/panels/seq-panel.ts`).
 
-Two files in that directory are **not** pattern-row panels and are not what this
+Five files in that directory are **not** pattern-row panels and are not what this
 recipe builds: `lfo-panel.ts` is a synth *faceplate* panel (it pages internally
-via `createPanelTabs` — [panel-tabs](../features/panel-tabs.md)) appended straight
-to `main`, and `step-panel-scaffold.ts` is the shared skeleton the four step-grid
-panels (`seq`, `drums`, `sampler`, `motion`) are built from, not a tab of its own.
+via `createPanelTabs` — [panel-tabs](../features/panel-tabs.md)); `synth-panels.ts`
+and `fx-rack.ts` build the rest of the synth faceplate and the FX rack;
+`eq-panel.ts` is the EQUALIZER section `shell/bottom.ts` mounts; and
+`step-panel-scaffold.ts` is the shared skeleton the four step-grid panels (`seq`,
+`drums`, `sampler`, `motion`) are built from, not a tab of its own.
 
 ## Background / Why
 
@@ -64,6 +66,11 @@ export function buildMyPanel(bus: ParamBus, engine: StudioApi): HTMLElement {
   return root;
 }
 ```
+
+A simple panel returns its root element (`buildArpPanel`, `buildKeyPanel`). A
+panel the shell talks to afterwards returns a **handle** whose `el` is the root
+(`buildSeqPanel(...): SeqPanel`, `SongPanel`, `EqPanel`), and the tab entry takes
+`panel.el`.
 
 ### 2. Register it as a tab — `src/ui/shell/pattern-row.ts`
 

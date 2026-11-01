@@ -13,7 +13,7 @@ related:
 source:
   - src/ui/components/floating-window.ts
   - src/ui/components/transport-controls.ts   # createTransportWindowLauncher (worked instance)
-  - src/ui/components/xy-pad-window.ts        # a window shared by two launchers
+  - src/ui/components/xy-pad-window.ts        # a window shared by three launchers (perf-xypad, livefx-xypad, motion-xypad)
 ```
 
 A repeatable **playbook**, not a feature. `FloatingWindow`
@@ -126,7 +126,7 @@ npm run e2e         # e2e/xy-pad.spec.ts drives the toggle end-to-end
 - The title-bar drag is **viewport-clamped**; the ✕ button stops propagation so
   clicking it never starts a drag. Both are handled by the component — you don't
   wire them.
-- A **`leading`** control (optional) renders as the title bar's first child, left
+- A **`leading`** control (optional) renders second in the title bar, after the built-in minimise button and left
   of the title; its `pointerdown` is stopped for you. Build your content before
   the window so the element exists to pass in.
 
