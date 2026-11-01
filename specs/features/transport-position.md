@@ -7,7 +7,7 @@ version: 8
 owner: core
 related:
   - architecture
-  - typography          # REQ-the-readout-never-invents-bars's readout is mono, not the faceplate serif
+  - typography          # the readout is mono, not the faceplate serif
   - transport
   - arrangement
   - sequencer
@@ -20,6 +20,7 @@ related:
   - audio-export
   - render-to-sampler
   - step-grid-editing
+  - meter
   - runtime-performance
   - ../decisions/adr-014-dont-make-me-think
 source:
@@ -33,295 +34,142 @@ source:
   - src/ui/studio-api.ts
   - src/ui/components/playhead-ruler.ts
   - src/ui/panels/step-panel-scaffold.ts
-  - src/ui/audible.ts                       # REQ-the-playhead-is-drawn-when-it-is-heard
+  - src/ui/audible.ts                       # the playhead is drawn when it is heard
   - src/ui/components/transport-controls.ts
   - src/ui/shell/play-button.ts             # the beat blink, likewise
   - src/ui/shortcuts.ts
 ```
 
-Moving the playhead: a **seek** on the running (or stopped) transport, and the two
-UI surfaces that expose it — a clickable position ruler above every machine grid,
-and keyboard shortcuts.
+Moving the playhead: a **seek** on the running (or stopped) transport, and the two UI
+surfaces that expose it — a clickable position ruler above every machine grid, and
+keyboard shortcuts.
 
 ## Background / Why
 
-The transport could only be **started** and **stopped**. `Clock.start(fromStep)`
-seeds the step counter ([transport](transport.md) REQ-start-seeds-the-step) and `stop()` leaves it
-where it landed, so the only way to reach bar 3 of an `A A B A` chain was to play
-from the top and wait. `start()` early-returns while playing, so it cannot move a
-running clock at all; the single existing caller of `start(fromStep)` is MIDI
-Song-Position Pointer ([midi-clock-sync](midi-clock-sync.md) REQ-song-position-pointer-jumps-the-slave), which works
-by stop-and-restart. There was no cue point, no locate, no scrub.
-
-Nor was there anywhere on screen showing **where the transport is**. The grid
-playhead is not a position display: it is hidden whenever the edit bank differs
-from the play bank or the lane is resting ([banks](banks.md) REQ-follow-tracks-the-play-bank,
-[arrangement-rest](arrangement-rest.md) REQ-a-resting-lane-plays-nothing), and it is driven by each machine's
-`onStep`, which is silent while that machine is disabled and while the transport is
-stopped. Those are the states in which a user most wants to know the position. This
-spec separates the two facts: the **ruler** shows the transport position
-unconditionally, and the cell highlight keeps its narrower existing meaning ("this
-bank's step is sounding").
-
-The hard part is not the seek itself — it is that positions in this codebase are
-counted **relatively**. The [arrangement](arrangement.md) advances its lane
-positions by `+1` per bar line, the [motion machine](motion-sequencer.md)
-interpolates between two latched ticks, the [sequencer](sequencer.md) carries tie
-state between steps, and [stutter](performance.md) remaps steps against a captured
-anchor. None of them derive their position from `clock.step`, so moving that
-counter silently desynchronises all four.
+`start()` cannot move a running clock, and the grid playhead is not a position
+display: it is hidden when the edit bank differs from the play bank or the lane rests
+([banks](banks.md) REQ-follow-tracks-the-play-bank,
+[arrangement-rest](arrangement-rest.md) REQ-a-resting-lane-plays-nothing), and silent
+while a machine is disabled or the transport is stopped. So the **ruler** shows the
+transport position unconditionally, and the cell highlight keeps its meaning ("this
+bank's step is sounding"). The hard part: positions are counted **relatively**. The
+arrangement advances `+1` per bar line, motion interpolates latched ticks, the
+sequencer carries tie state, and stutter remaps against an anchor. None derive from
+`clock.step`, so a seek must re-base each of them.
 
 ## Requirements
 
-- **REQ-seek-moves-which-step-not-when** — **`Clock.seek(step)` moves *which*
-  step, never *when* the grid ticks.** It sets the step counter and does **not**
-  touch `nextStepTime`, so the tempo grid is preserved: a live jump stays in
-  time, with no retrigger and no phase discontinuity. (Contrast `start()`, which
-  re-origins `nextStepTime` to `ctx.currentTime + 0.05`; reusing it for a live
-  seek would restart the grid under the player's feet.) `seek` works both while
-  playing and while stopped.
+- **REQ-seek-moves-which-step-not-when** — `Clock.seek(step)` sets the step counter and
+  does **not** touch `nextStepTime`, so a live jump stays in time with no retrigger.
+  (`start()` re-origins the grid to `currentTime + 0.05`.) It works playing or
+  stopped.
+- **REQ-one-position-number-not-two** — `seek(step)` sets the counter *and* a **cue**
+  (`_cue`), and `start(fromStep = cue)` begins there. A start point held apart from
+  the position would be invisible state (ADR-014 law 5). With no seek the cue is `0`,
+  so a plain `start()` begins at step 0. `stop()` leaves both alone, so Stop → Play
+  resumes from the last seek.
+- **REQ-seek-has-its-own-listener-channel** — `Clock.onSeek(fn)` fires
+  **synchronously** inside `seek()`. The arrangement is built before the machines
+  ([arrangement](arrangement.md) REQ-arrangement-is-built-before-the-machines), so its
+  play banks settle first.
+- **REQ-every-relative-consumer-reacts-to-a-seek** — A seek is complete only when
+  every relative consumer has re-based (the table below). The drum and sampler
+  machines hold no position state.
+- **REQ-motion-baselines-survive-a-seek** — A seek clears motion's tick latch **only**.
+  `restoreBaselines()` would snap every automated param and then re-capture baselines
+  from automated values, losing the originals for the session. Copying `onStart`'s
+  reset here is wrong.
+- **REQ-seeking-is-refused-in-three-states** — Through one guard, so every surface
+  disables itself consistently:
+  - **sync slave** (`sync.activeMode === 'slave'`): the remote transport owns the
+    playhead;
+  - **a song export** or **a bank render** in flight: both bound their capture by an
+    absolute step ([audio-export](audio-export.md)
+    REQ-export-song-renders-from-the-top, [render-to-sampler](render-to-sampler.md)).
 
-- **REQ-one-position-number-not-two** — **One position number, not two.**
-  `seek(step)` sets the step counter *and* a **cue** (`_cue`), and
-  `start(fromStep = cue)` begins there. A start point held separately from the
-  current position would be invisible state, which
-  [ADR-014](../decisions/adr-014-dont-make-me-think.md) law 5 forbids. Two
-  consequences are load-bearing:
-    - with no seek ever performed the cue is `0`, so a plain `start()` is
-      **bit-identical** to v3 ([transport](transport.md) REQ-start-seeds-the-step's regression);
-    - `stop()` leaves both alone, so Stop → Play resumes from the last seeked
-      position rather than the position playback happened to reach.
-
-- **REQ-seek-has-its-own-listener-channel** — **Seek has its own listener
-  channel, fired before the next tick.** `Clock.onSeek(fn)` is emitted
-  **synchronously** inside `seek()`, modelled on `startListeners`. The
-  [arrangement](arrangement.md) is constructed before the machines
-  ([arrangement](arrangement.md) REQ-arrangement-is-built-before-the-machines),
-  so it subscribes first and its play banks are settled before anything else
-  reacts — the same ordering guarantee `onTick` and `onStart` already carry.
-
-- **REQ-every-relative-consumer-reacts-to-a-seek** — **Every relative-position
-  consumer reacts.** A seek is not complete until all four have re-based; see
-  the table in *Technical design*. Specifically: the arrangement re-seeks its
-  four lanes from `floor(step / SEQ_LENGTH)` and re-arms `expectFirstBar`; the
-  sequencer releases held notes and clears `prevTied` per track; the motion
-  machine empties its tick latch (motion-sequencer v18: a ring) **without** restoring baselines;
-  and `Performance` re-anchors stutter. The drum and sampler machines hold no
-  position state and need nothing.
-
-- **REQ-motion-baselines-survive-a-seek** — **Motion baselines survive a seek.**
-  `MotionMachine.baselines` is the whole-session record of each automated
-  param's pre-automation value. A seek must clear the tick latch **only**;
-  calling `restoreBaselines()` would snap every automated param and then
-  re-capture baselines *from automated values*, so the original values would be
-  lost for the rest of the session. This is the one place where copying
-  `onStart`'s reset wholesale is wrong.
-
-- **REQ-seeking-is-refused-in-three-states** — **Seeking is refused in three
-  states**, through one guard so every surface can disable itself consistently:
-    - **sync slave** (`sync.activeMode === 'slave'`) — the remote transport owns
-      the playhead, and a local jump would fight the slave's phase tracking into a
-      re-anchor. Precedent: `Performance.clockRampAllowed`.
-    - **a song *export* is in flight** and **a bank render is in flight** — both
-      bound their capture by an **absolute step number**
-      ([audio-export](audio-export.md) REQ-export-song-renders-from-the-top,
-      [render-to-sampler](render-to-sampler.md)), so a jump truncates or unbounds
-      the capture.
-  A refused seek is a **silent no-op returning `false`**, never an error.
-  (v3) A **free-form manual take does not take this guard.** Until
-  [audio-export](audio-export.md) v7 the predicate was `recorder.isRecording()`,
-  which could not tell an export from a manual take and so locked the playhead for
-  both. Only the export has step bounds to protect; a manual capture is bounded by
-  nothing, and jumping around the arrangement mid-take is what free-form recording
-  is *for*. The guard therefore reads `recorder.isExporting()`, not
-  `isCapturing()` — the sampler-choke suppression on `clock.onStop` still reads
-  the wider `isCapturing()`, because that one really does mean "samples are being
-  taken, do not cut them".
-
-- **REQ-a-sync-master-announces-its-seek** — **A sync master announces its
-  seek.** While `master`, a seek broadcasts `songposition` + `continue` (reusing
-  `SyncMaster.announceTo`), or every slave drifts by the jump distance for the
-  rest of the session. It must **not** send `start`, which realigns slaves to
-  bar 0 ([midi-clock-sync](midi-clock-sync.md) REQ-song-position-pointer-jumps-the-slave). (v6) The announce is
-  driven by **`clock.onSeek`**, which `SyncController` subscribes to, rather
-  than being called from `Engine.seekTo`. A [loop](transport-loop.md) wrap is a
-  jump that no click started ([transport](transport.md)
-  REQ-a-step-router-can-redirect-the-next-step), and it has to reach slaves the
-  same way. Subscribing once covers every jump and avoids a second call in the
-  loop code that could be forgotten.
-
-- **REQ-one-seek-entry-point** — **One entry point.** `Engine.seekTo(step):
-  boolean` owns the guard (REQ-seeking-is-refused-in-three-states), and (v6) its
-  accepted seek reaches the broadcast (REQ-a-sync-master-announces-its-seek)
-  through `clock.onSeek`; `Engine.canSeek(): boolean` reports whether a seek
-  would be accepted. Both are on `StudioApi`, so no UI surface reaches past them
-  to `clock.seek` directly.
-
-- **REQ-a-position-ruler-above-every-grid** — **A position ruler above every
-  machine grid.** 16 columns aligned to the step columns, showing the transport
-  position **unconditionally** — while stopped, on a disabled machine, and
-  whatever the edit/play bank relationship — plus a readout naming where you are
-  (REQ-the-readout-never-invents-bars). Clicking column `i` seeks to that 16th
-  of the current bar. It is built once (`playhead-ruler.ts`, wired from
-  `step-panel-scaffold.ts`) and inherited by all four machines, and it is driven
-  by the **clock**, not by the machines' `onStep` (which is silent exactly when
-  the ruler is most needed).
-
-- **REQ-the-ruler-costs-nothing-off-screen** — **The ruler costs nothing off
-  screen.** It obeys the panel's `VisibilityGate` like `wirePlayhead` does
+  A refused seek is a **silent no-op returning `false`**. A free-form manual take does
+  **not** take the guard, since jumping around mid-take is what it is for. So the
+  guard reads `recorder.isExporting()`, while the sampler-choke suppression on
+  `clock.onStop` reads the wider `isCapturing()`.
+- **REQ-a-sync-master-announces-its-seek** — While `master`, every jump broadcasts
+  `songposition` + `continue`, never `start` ([midi-clock-sync](midi-clock-sync.md)
+  REQ-a-midi-master-announces-its-seek). `SyncController` subscribes `clock.onSeek`,
+  so a [loop](transport-loop.md) wrap ([transport](transport.md)
+  REQ-a-step-router-can-redirect-the-next-step) announces exactly like a user seek.
+- **REQ-one-seek-entry-point** — `Engine.seekTo(step): boolean` owns the guard;
+  `Engine.canSeek(): boolean` reports it. Both are on `StudioApi`, so no surface calls
+  `clock.seek` directly.
+- **REQ-a-position-ruler-above-every-grid** — A strip aligned to the step columns,
+  showing the transport position **unconditionally** (stopped, disabled machine, any
+  edit/play relationship), plus a readout (REQ-the-readout-never-invents-bars).
+  Clicking column `i` seeks to that cell of the current bar. It is built once
+  (`playhead-ruler.ts`, wired from `step-panel-scaffold.ts`) and driven by the
+  **clock**, not the machines' `onStep`.
+- **REQ-the-ruler-costs-nothing-off-screen** — It obeys the panel's `VisibilityGate`
   ([runtime-performance](runtime-performance.md) REQ-no-work-for-offscreen-dom,
-  [step-grid-editing](step-grid-editing.md)
-  REQ-an-offscreen-grid-repaints-nothing): no DOM writes while hidden, and a
-  re-sync to the live position on reveal — never a stale column. The ticks also
-  carry **no CSS transition**: the lit class moves every 16th, so a cross-fade
-  would repaint two ticks ~9 times a second per visible ruler and make the
-  playhead read as lagging. Same rule as the song scrubber
-  ([transport-window](transport-window.md)
-  REQ-the-scrubber-presents-as-a-timeline).
-
-- **REQ-home-and-shift-arrows-seek** — **Keyboard: `Home` and `Shift`+arrows.**
-  `Home` returns to bar 1 step 1; `Shift+ArrowLeft`/`Shift+ArrowRight` move ∓/±
-  one bar. The shifted arrows must be handled **before** the existing bare-arrow
-  octave shift, which currently also fires when Shift is held (v7: the octave
-  shift moved to `-`/`=`, input-control.md REQ-octave-shift-is-minus-and-equal, so a bare arrow
-  no longer does anything globally). A refused seek
-  (REQ-seeking-is-refused-in-three-states) does not `preventDefault`, so the key
-  falls through — the `boolean`-returning idiom `UiBridge.undoActiveMachine` /
-  `clearSelectedStep` already use.
-
-- **REQ-the-look-ahead-horizon-is-not-cancelled** — **The look-ahead horizon is
-  not cancelled.** Ticks are scheduled up to `scheduleAheadS` ahead (0.1 s; 0.2
-  s on the weak perf tier) and the machines commit hits to absolute AudioContext
-  times with no retained handles, so roughly 100 ms of old-position audio always
-  sounds after a jump — about a fifth of a 16th at 120 BPM. This is **accepted
-  and documented**, not worked around: retaining and cancelling every scheduled
-  voice would cost more than the artefact.
-
-- **REQ-every-ruler-tick-carries-a-title** — **Discoverability.** Every tick
-  carries a `title` naming the gesture, each machine tab's ruler carries a help
-  badge (`transport.ruler.<lane>` — [onboarding](onboarding.md) REQ-the-playhead-ruler-carries-a-badge, four ids
-  over one shared topic because a hidden tab's badge hides), and the keys are
-  listed in the About modal's shortcut table ([onboarding](onboarding.md)
-  REQ-about-key-symbols-are-drawn) and the README. That is the
-  [recipe](../recipes/design-an-interaction.md)'s discoverability triple: a
-  gesture with none of them does not exist for the user, and clicking a ruler is
-  not self-evident the way tapping a step is.
-
-- **REQ-the-cue-and-the-playhead-are-two-marks** (v2) — **The cue and the live
-  playhead are two marks, not one.** v1 painted both with the global `playing`
-  class, picked by `playing ? clock.step : clock.cue`, so a stopped ruler
-  sitting on its cue was pixel-identical to a running one on the live step.
-  Clicking a tick while stopped therefore gave no "Play starts here" feedback —
-  the single most-reported confusion about this feature. So:
-  - **`AT_CLASS = 'playing'`** marks `clock.step` and is applied **only while
-    playing**. A stopped ruler carries it nowhere: nothing may look like it is
-    playing when it is not.
-  - **`CUE_CLASS = 'cue'`** marks `clock.cue` whenever it differs from the live
-    mark, playing or stopped — so you can also see where Stop → Play will resume,
-    and the recorders' explicit `start(0)` (REQ-one-position-number-not-two) becomes legible rather than a
-    mystery jump back on stop.
-  - Both are **global** (un-hashed) classes, the existing `AT_CLASS` rationale:
-    every other class here is CSS-Module hashed, so E2E has nothing else to
-    select. `cue` is already a global state class in this app (the Play button's
-    demo cue — [play-button-blink](play-button-blink.md)), so the vocabulary is
-    reused, not invented.
-  - One tick may carry **both** (stopped, then played from that exact step); the
-    style must stay legible in that case.
-
-- **REQ-the-readout-never-invents-bars** (v2) — **The readout names where you
-  are, and never invents bars.** v1 printed `Bar floor(step/16)+1`, absolute and
-  unwrapped. With **no chain lane enabled** — the default, and how pattern
-  editing is done — a disabled lane plays the **edit bank**
-  ([arrangement](arrangement.md) `resolveLane`), so the song is one bank
-  looping: that counter climbed 1, 2, 3 … 37 for a song with one bar, and
-  disagreed with the Song scrubber, which wraps at `songBars()`. Two modes:
-  - `arrangement.songBars() === 0` (no lane chained) → **`BANK A`**, naming *this
-    machine's* bank via the same `laneHooks` accessor the `BankBar` uses, so the two
-    can never disagree. Bars are musically meaningless here, so none is shown. The
-    ruler's job in this mode is the **cue** — exactly what the grid cannot show.
-    Read the **edit** bank, not `Arrangement.<lane>PlayBank`: the latter is the
-    semantic-looking choice and the wrong one, because it is a cached field
-    recomputed only on tick / seek / chain change and therefore reads **stale**
-    after a bank click while stopped. A disabled lane plays its edit bank
-    (`resolveLane`), so edit *is* what sounds in this mode.
-  - Otherwise → **`BAR n/N`** with `n = bar % songBars() + 1`, agreeing with the
-    Song scrubber ([transport-window](transport-window.md)) instead of
-    contradicting it.
-  - The readout is set in **`--mono`**, not the faceplate serif
-    ([typography](typography.md) REQ-mono-is-readouts-and-pasted-text): `n` counts while the transport runs, and
-    Georgia's proportional old-style figures made the trailing `/N` shuffle
-    sideways on every bar. Same finding as
-    [transport-window](transport-window.md) REQ-the-position-readout-is-bar-dot-step's `bar.step`.
-
-- **REQ-a-bar-stepper-only-where-bars-exist** (v2) — **A bar stepper, only where
-  bars exist.** In `BAR` mode the readout becomes `‹ BAR n/N ›`; the arrows seek
-  ∓/± one bar **preserving the 16th** (`(bar ± 1) * SEQ_LENGTH + pos %
-  SEQ_LENGTH`), clamped to `[0, songBars())`. That is the one move
-  `Shift`+arrows cannot make — they zero the column
-  (REQ-home-and-shift-arrows-seek) — and it is why the ruler previously could
-  not change bar at all: its bar term is implicit in the click arithmetic, so
-  bar navigation lived only on the Song tab and the keyboard. In `BANK` mode the
-  arrows are **hidden**. They must **not** double as a bank switcher there: one
-  button whose outcome depends on invisible state is
-  [ADR-014](../decisions/adr-014-dont-make-me-think.md) law 2 inverted, and
-  switching the *edit* bank is a pattern-editing act, not a transport one — the
-  `BankBar` beside it already owns that, with its own play-bank dot and Follow.
-
-- **REQ-a-refused-seek-says-so** (v2) — **A refused seek says so.**
-  REQ-seeking-is-refused-in-three-states's refusal only dimmed the strip
-  (`opacity: .4`) while every tick's `title` still promised "Move the playhead
-  to step N". While `!canSeek()` the ticks and the stepper carry `aria-disabled`
-  and a title naming the reason. The ticks stay un-`disabled` (the silent-no-op
-  path is unchanged), so nothing about the seek contract moves. Related honesty
-  fix: ticks print beats `1 2 3 4` while the old title said "step N", two
-  numbering systems on one control — the title now names the beat.
-
-- **REQ-the-ruler-is-the-lanes-grid** (v4) — **The ruler is the lane's grid, not
-  sixteen columns.** Its tick count, its beat numbering and its accent columns
-  all come from `laneGrid()` — the same resolver the step grid beneath it uses —
-  so the two can never describe different bars ([meter](meter.md)
+  [step-grid-editing](step-grid-editing.md) REQ-an-offscreen-grid-repaints-nothing): no
+  DOM writes while hidden, and a re-sync on reveal. The ticks carry **no CSS
+  transition**, because the lit class moves every 16th
+  ([transport-window](transport-window.md) REQ-the-scrubber-presents-as-a-timeline).
+- **REQ-home-and-shift-arrows-seek** — `Home` returns to bar 1 step 1;
+  `Shift+ArrowLeft`/`Shift+ArrowRight` move ∓/± one bar, column zeroed. A bare arrow
+  does nothing globally, since the octave is `-`/`=` (input-control.md
+  REQ-octave-shift-is-minus-and-equal). A refused seek does not `preventDefault`, so
+  the key falls through (the `boolean`-returning `UiBridge` idiom).
+- **REQ-the-look-ahead-horizon-is-not-cancelled** — Hits are committed up to
+  `scheduleAheadS` ahead (0.1 s; 0.2 s on the weak tier) with no retained handles, so
+  that much old-position audio sounds after a jump. Accepted: cancelling every
+  scheduled voice would cost more than the artefact.
+- **REQ-every-ruler-tick-carries-a-title** — Every tick's `title` names the gesture.
+  Each tab's ruler carries a help badge (`transport.ruler.<lane>`,
+  [onboarding](onboarding.md) REQ-the-playhead-ruler-carries-a-badge), and the keys are
+  in the About shortcut table ([onboarding](onboarding.md)
+  REQ-about-key-symbols-are-drawn) and the README: the
+  [recipe](../recipes/design-an-interaction.md)'s discoverability triple.
+- **REQ-the-cue-and-the-playhead-are-two-marks** — **`AT_CLASS = 'playing'`** marks
+  `clock.step`, **only while playing**. **`CUE_CLASS = 'cue'`** marks `clock.cue`
+  whenever it differs from the live mark. A stopped ruler therefore says "Play starts
+  here", and shows where Stop → Play resumes. Both are **global** (un-hashed) classes,
+  so E2E can select them; `cue` is already a global state class
+  ([play-button-blink](play-button-blink.md)). One tick may carry both and must stay
+  legible.
+- **REQ-the-readout-never-invents-bars** — With no chain lane enabled
+  (`arrangement.songBars() === 0`), a disabled lane loops its edit bank, so the readout
+  names **`BANK A`** through the same `laneHooks` accessor as the `BankBar`. It reads
+  the **edit** bank, not the cached `<lane>PlayBank`, which reads stale after a bank
+  click while stopped. Otherwise it is **`BAR n/N`**, `n = bar % songBars() + 1`,
+  agreeing with the Song scrubber ([transport-window](transport-window.md)). It is set
+  in **`--mono`** ([typography](typography.md) REQ-mono-is-readouts-and-pasted-text), so
+  a counting `n` does not shuffle `/N`.
+- **REQ-a-bar-stepper-only-where-bars-exist** — In `BAR` mode the readout is `‹ BAR n/N
+  ›`, and the arrows seek ∓/± one bar **preserving the cell** (`(bar ± 1) × barTicks +
+  pos % barTicks`), clamped to `[0, songBars())`. That is the one move `Shift`+arrows
+  cannot make. In `BANK` mode the arrows are **hidden**, never a bank switcher (law 2;
+  the `BankBar` owns that).
+- **REQ-a-refused-seek-says-so** — While `!canSeek()` the ticks and stepper carry
+  `aria-disabled` and a title naming the reason. They stay un-`disabled`, so the
+  silent no-op is unchanged. Tick titles name the **beat**, matching the printed
+  `1 2 3 4`.
+- **REQ-the-ruler-is-the-lanes-grid** — Tick count, beat numbering and accents come
+  from `laneGrid()`, the resolver the grid uses ([meter](meter.md)
   REQ-accents-and-ruler-derive-from-the-meter/REQ-cells-beyond-the-length-are-hidden).
-  Ticks past the played length are `hidden`, never removed, so all sixteen
-  testids keep resolving and a meter change is a class flip rather than a DOM
-  rebuild. Every bar computation on this surface (the `‹ ›` steppers, the `Bar
-  n/N` readout, a tick click) measures with `barTicks` instead of 16.
-- **REQ-a-tick-sits-over-the-step-it-marks** (v5) — **A tick sits over the step
-  it marks.** `playheadRulerFor` hands the panel two pieces and the panel places
-  them, so the ruler's row-label slot must be the **same width** as the
-  slot/track rows beneath it — that placement is the whole reason the ruler is
-  not one shared component. The [sampler](sampler.md) panel got this wrong: its
-  rows widened their control cluster to fit a filename while the ruler row kept
-  the drum panel's bare width, putting every tick 80px left of its step. Nothing
-  detected it, because the ruler was present, visible and internally correct —
-  only in the wrong place. A panel that overrides that width therefore does so
-  from **one constant used by both rows**, and the alignment is pinned by
-  measuring geometry, not class names.
-
-- **REQ-the-playhead-is-drawn-when-it-is-heard** (v8) — **Every playhead
-  display moves when its step is heard, not when it is scheduled.** The clock
-  hands each step to the machines up to `SCHEDULE_AHEAD_S` (100 ms) before it
-  sounds. That lead is what keeps audio glitch-free, but every display painted
-  on it: the lit step on all four grids, the ruler's tick and its Bar readout,
-  the transport readout and timeline, and the Play button's beat blink. Each one
-  ran 50 to 100 ms ahead of the sound, enough to see a step light before its hit.
-  The on-screen keyboard already deferred its highlights to the audio time
-  ([input-control](input-control.md), `shell/bottom.ts`).
-
-  One timeline does it for all of them. `audibleTimeline(api)`
-  (`src/ui/audible.ts`, one per clock) runs UI work at an audio time with a
-  `setTimeout` of `when − currentTime`. It cancels everything pending on
-  `clock.onStop`, so a stopped transport never repaints a step afterwards, and
-  it keeps the step being heard, as `AudibleTimeline`'s `step`. Each machine's `onStep` reports
-  the step's audio time alongside its index. `wirePlayhead` defers its paint
-  with it, deciding *whether* to light the step (edit bank is the play bank, lane
-  not resting) when the step is reported, not when it is drawn: by the time the
-  last steps of a bar are heard, the arrangement may already have moved to the
-  next bar. The ruler, the transport readout and the blink read that heard step
-  while playing instead of `clock.step`. A seek mid-play needs
-  nothing extra: the steps already in the horizon still sound
-  (REQ-the-look-ahead-horizon-is-not-cancelled), so the display follows them
-  for those few milliseconds and then jumps, which is what the ear hears. The
-  seek controls themselves still act on `clock.step`, because a seek is made
+  Ticks past the played length are `hidden`, so all sixteen testids resolve and a
+  meter change is a class flip. Every bar computation here uses `barTicks`.
+- **REQ-a-tick-sits-over-the-step-it-marks** — `playheadRulerFor` hands the panel two
+  pieces to place, so the ruler's label slot must be the **same width** as the rows
+  beneath. A panel overriding that width does so from **one constant used by both
+  rows** (a widened sampler cluster once put every tick 80 px left). Pinned by
+  geometry, not class names.
+- **REQ-the-playhead-is-drawn-when-it-is-heard** — The clock hands steps out up to
+  `scheduleAheadS` early. So every playhead display (the lit step on the grids, the
+  ruler tick and readout, the transport readout and timeline, the Play blink) moves
+  when its step is **heard**. `audibleTimeline(api)` (`src/ui/audible.ts`, one per
+  clock) runs UI work at an audio time via `setTimeout(when − currentTime)`, cancels
+  pending work on `clock.onStop`, and keeps the heard `step`. Each machine's `onStep`
+  reports the step's audio time. `wirePlayhead` decides *whether* to light the step
+  when it is reported, because by the time a bar's last steps are heard the
+  arrangement may have moved on. The ruler, readout and blink read the heard step
+  while playing. Seek controls still act on `clock.step`, because a seek is made
   against the scheduler.
 
 ## Technical design
@@ -330,91 +178,73 @@ counter silently desynchronises all four.
 
 ```yaml
 Clock:   # src/audio/transport/clock.ts — additions to transport.md's contract
-  seek(step): void          # _cue = _step = clamp(step, 0, MAX_STEP)  (transport.md
-                            # REQ-the-step-counter-is-bounded-at-ingress; `& 0xffff` before v7); nextStepTime UNTOUCHED;
-                            # fires onSeek synchronously. Valid playing or stopped.
+  seek(step): void          # _cue = _step = clamp(step, 0, MAX_STEP)
+                            # (transport.md REQ-the-step-counter-is-bounded-at-ingress);
+                            # nextStepTime UNTOUCHED; fires onSeek synchronously
   get cue: number           # where a plain start() begins (0 until the first seek)
-  start(fromStep = this.cue)  # was `= 0`; identical while cue is 0
+  start(fromStep = this.cue)
   onSeek(fn: () => void) -> unsubscribe
 
 TickSubscriber:  # src/audio/transport/tick-source.ts
-  onSeek(fn: () => void): () => void     # added alongside onStart/onStop
+  onSeek(fn: () => void): () => void
 
 Arrangement:  # src/audio/transport/arrangement.ts
-  # `seekTo(step)` is the body previously inlined in the onStart closure; onStart
-  # now calls seekTo(clock.step), and clock.onSeek calls it too.
+  seekTo(step)   # onStart and onSeek both call seekTo(clock.step)
 
 Engine / StudioApi:
-  seekTo(step: number): boolean   # false = refused (REQ-seeking-is-refused-in-three-states); guards + master announce
+  seekTo(step: number): boolean   # false = refused
   canSeek(): boolean              # same predicate, for disabling UI
 
 buildPlayheadRuler(engine, lane, gate?, hooks?): PlayheadRuler  # src/ui/components/playhead-ruler.ts
-  hooks: { getBank(): number; onBankChange(fn): () => void }   # v2, REQ-the-readout-never-invents-bars
-    # Supplied by playheadRulerFor from `laneHooks` (getEdit/onEditChange) — the
-    # SAME accessor BankBar uses, so the letter can never disagree with the bank
-    # bar beside it. The EDIT bank, not <lane>PlayBank, which is cached and stale
-    # while stopped (REQ-the-readout-never-invents-bars). The component must not import the scaffold (the
-    # scaffold imports it).
+  hooks: { getBank(): number; onBankChange(fn): () => void }
+    # from laneHooks (getEdit/onEditChange) — the BankBar's accessor. The component
+    # must not import the scaffold (the scaffold imports it).
 PlayheadRuler:
-  cellsEl: HTMLElement     # ONLY the 16-column strip (see alignment below)
-  barEl: HTMLElement       # the readout group, for the panel's label slot:
-                           #   BANK mode -> a label; BAR mode -> ‹ label ›
+  cellsEl: HTMLElement     # ONLY the cell strip (see alignment below)
+  barEl: HTMLElement       # the readout group: BANK mode -> a label; BAR mode -> ‹ label ›
   destroy(): void
 playheadRulerFor(engine, lane, gate?): PlayheadRuler      # src/ui/panels/step-panel-scaffold.ts
-  # testids: ruler-<lane>-<0..15>, ruler-<lane>-bar (the label — text asserted),
-  #          ruler-<lane>-bar-prev, ruler-<lane>-bar-next (v2, REQ-a-bar-stepper-only-where-bars-exist)
-  # state classes: `playing` (live step, playing only) + `cue` (v2, REQ-the-cue-and-the-playhead-are-two-marks),
-  #          both GLOBAL so E2E can select them past CSS-Module hashing
+  # testids: ruler-<lane>-<0..15>, ruler-<lane>-bar, ruler-<lane>-bar-prev, ruler-<lane>-bar-next
+  # state classes: `playing` (live step, playing only) + `cue`, both GLOBAL
 ```
 
-### The four reactions (REQ-every-relative-consumer-reacts-to-a-seek)
+### The reactions (REQ-every-relative-consumer-reacts-to-a-seek)
 
 | Consumer | Position state that breaks | Reaction on `onSeek` |
 | --- | --- | --- |
-| `Arrangement` | `seqPos`/`drumPos`/`samplerPos`/`motionPos` advance `+1` per bar line and are never derived from `clock.step`, so a jump leaves the chain off by (bars jumped − 1) — plus a spurious double-advance when the jump lands exactly on a bar line. | `seekTo(step)`: `laneSeek` per lane, `expectFirstBar = step % SEQ_LENGTH === 0`, `recompute()`, `notify()`. |
-| `StepSequencer` | Per-track `prevTied` / `lastPlayedNote`: a note tied at the old position slurs into the new one, or a held note is never released. | Release every track's held note **at that track's last gate end** (v6) and clear `prevTied`. Releasing *now* was overwritten by a note-on still in the look-ahead, which hung the voice — deterministically on a loop wrap ([sequencer](sequencer.md) REQ-a-seek-releases-every-tracks-note). Subscribed inside the constructor so the release stays private. |
-| `MotionMachine` | the latched cells before and after the jump are no longer adjacent, so the frame loop interpolates from a stale anchor for up to `scheduleAheadS` — an audible param glide to the wrong value. | empty the latch only. **Not** `restoreBaselines()` (REQ-motion-baselines-survive-a-seek). |
-| `Performance` | `mapStep` returns `anchor + ((step - anchor) mod n)`, so with stutter engaged a jump is clamped into the *old* window and a backwards jump replays it forever. | Re-anchor to the new step while stutter is on. |
-| `DrumMachine`, `SamplerMachine` | none — stateless per tick. | none. |
+| `Arrangement` | lane positions advance `+1` per bar line, never derived from `clock.step`; a bar-aligned landing would double-advance | `seekTo(step)`: `laneSeek` per lane from `floor(step / barTicks)`, `expectFirstBar = step % barTicks === 0`, `recompute()`, `notify()` |
+| `StepSequencer` | per-track `prevTied` / `lastPlayedNote` | release every track at **its last gate end** and clear `prevTied` ([sequencer](sequencer.md) REQ-a-seek-releases-every-tracks-note); subscribed in the constructor |
+| `MotionMachine` | latched cells before and after the jump are not adjacent, so the loop would glide from a stale anchor | empty the latch only, **not** `restoreBaselines()` |
+| `Performance` | `mapStep` clamps into the *old* stutter window | re-anchor while stutter is on |
+| `DrumMachine`, `SamplerMachine` | none — stateless per tick | none |
 
 ### Layer touchpoints & ordering
 
 ```yaml
-seek fan-out order (guaranteed by construction order, arrangement.md REQ-arrangement-is-built-before-the-machines):
+seek fan-out order (construction order, arrangement.md REQ-arrangement-is-built-before-the-machines):
   Clock.seek -> Arrangement.seekTo (play banks settle) -> machines -> UI ruler
-engine: seekTo() guards on sync.activeMode / recorder capture / bank render,
+engine: seekTo() guards on sync.activeMode / recorder.isExporting() / bank render,
         then clock.seek(step)
-sync:   (v6) SyncController subscribes clock.onSeek -> announcePosition (a
-        no-op unless master) — so user seeks AND loop wraps announce, once each
-recorders: recorder-controller.ts and bank-render.ts must call start(0)
-        EXPLICITLY — both rely on "start() resets the step to 0", which REQ-one-position-number-not-two's
-        cue default breaks. Silently truncated exports otherwise.
+sync:   SyncController subscribes clock.onSeek -> announcePosition (a no-op unless master)
+recorders: recorder-controller.ts and bank-render.ts call start(0) EXPLICITLY — a plain
+        start() begins at the cue
 ui ruler: driven by clock.onTick + clock.onSeek (NOT machine onStep); gated by the
         panel's VisibilityGate, re-synced on whenShown
-shortcuts.ts: the Shift+Arrow branch goes ABOVE the bare-arrow branch (v7: none — the octave is on -/=)
 ```
 
 ### Ruler alignment
 
-The strip must line up with the step columns, and every grid puts a control column
-to its left (the drum/sampler rows are `.rowCtrls` + a 16-column `.cells`; the seq
-and motion panels have their own row shapes). So `buildPlayheadRuler` returns
-**only** the 16-column strip plus a detached bar readout, and each panel wraps them
-in a row built exactly like its own track rows — the panel's existing CSS grid then
-does the alignment, and no shared component has to know four layouts.
-
-The ruler is deliberately **not** in the machine header:
-[responsive-machine-header](responsive-machine-header.md) records only ~57 px of
-slack in the sampler header at 1280 px and none on Linux CI.
+Every grid has a control column to its left, with a different shape per panel. So
+`buildPlayheadRuler` returns **only** the cell strip plus a detached readout, and each
+panel wraps them in a row built like its own track rows. The panel's CSS grid aligns
+it, and no shared component knows four layouts. The ruler is not in the machine
+header, which has almost no slack ([responsive-machine-header](responsive-machine-header.md)).
 
 ### Gesture inventory (ruler)
 
-Per [design-an-interaction](../recipes/design-an-interaction.md) step 1. "`—`" is a
-decision, not an omission.
-
 | Gesture | Outcome | Precedent |
 | --- | --- | --- |
-| tap / click | seek to that 16th of the current bar | Ableton / Logic / Pro Tools timeline click-to-locate |
+| tap / click | seek to that cell of the current bar | DAW timeline click-to-locate |
 | drag | — (would fire one seek per column crossed) | — |
 | long-press | — | — |
 | right-click | — | — |
@@ -422,24 +252,19 @@ decision, not an omission.
 | wheel | — | — |
 | `Home` | seek to bar 1 step 1 | DAW return-to-start |
 | `Shift`+`←`/`→` | ∓/± one bar, column zeroed | DAW bar navigation |
-| click `‹` / `›` (v2) | ∓/± one bar, **column preserved** | DAW bar-locate buttons |
+| click `‹` / `›` | ∓/± one bar, **column preserved** | DAW bar-locate buttons |
 
-No row's outcome depends on hidden state, so the inventory satisfies
-[ADR-014](../decisions/adr-014-dont-make-me-think.md) law 2. The stepper is
-*absent* in `BANK` mode rather than repurposed (REQ-a-bar-stepper-only-where-bars-exist) — hiding a control keeps
-law 2; giving it a second meaning would break it.
+No outcome depends on hidden state (law 2). The stepper is *absent* in `BANK` mode
+rather than repurposed.
 
 ### Persistence
 
-Nothing. The cue and the transport position are transient, exactly like the
-selection cursor and the paint latch ([step-grid-editing](step-grid-editing.md)) —
-a song does not carry "where you last were", and `_cue` is not a `ParamBus` param,
-so it can never leak into a preset or a `SongFile`.
+Nothing. The cue and the position are transient. `_cue` is not a `ParamBus` param, so
+it never leaks into a preset or `SongFile`.
 
 ## Visual aids
 
-The strip prints beat numbers (`1 2 3 4`) on columns 0/4/8/12 and nothing on the
-rest — sixteen numerals do not fit at tick width.
+Beat numbers print on the beat columns only.
 
 ```
 No chain lane enabled (the default) — bars do not exist, so none is claimed:
@@ -452,13 +277,8 @@ No chain lane enabled (the default) — bars do not exist, so none is claimed:
 A chain is enabled — the stepper appears and the bar wraps at song length:
 
   ‹ BAR 3/4 ›  ▏ 1 ▕   ▕   ▕   ▕ 2 ▕ █ ▕   ▕   ▕ 3 ▕   ▕   ▕   ▕ 4 ▕   ▕   ▕   ▏
-  ▲ -bar-prev / -bar-next: same 16th, previous/next bar
+  ▲ -bar-prev / -bar-next: same cell, previous/next bar
 ```
-
-The ruler shows position while stopped and on a disabled machine; the cell
-highlight below it does not — that one still means "this bank's step is sounding".
-While stopped the ruler carries **no** `playing` mark at all (REQ-the-cue-and-the-playhead-are-two-marks): only the cue
-ring, because nothing is playing.
 
 ## Scenarios (BDD)
 
@@ -476,10 +296,10 @@ Scenario: A seek while stopped cues the start point
   Then the first tick fires for step 4
 # pinned by: tests/audio/transport/clock.test.ts, e2e/transport-position.spec.ts
 
-Scenario: A plain start() is unchanged when nothing was seeked (regression, REQ-one-position-number-not-two)
+Scenario: A plain start() begins at 0 when nothing was seeked (regression, REQ-one-position-number-not-two)
   Given the clock has never been seeked
   When start() is called
-  Then it begins at step 0, bit-identical to v3
+  Then it begins at step 0
 # pinned by: tests/audio/transport/clock.test.ts
 
 Scenario: Seeking re-seeks the arrangement lanes (REQ-every-relative-consumer-reacts-to-a-seek)
@@ -551,13 +371,13 @@ Scenario: Shift+Arrow moves a bar without shifting the keyboard octave (edge, RE
   And the on-screen keyboard's octave is unchanged
 # pinned by: e2e/transport-position.spec.ts
 
-Scenario: A ruler tick lines up with the step beneath it (regression, v5, REQ-a-tick-sits-over-the-step-it-marks)
+Scenario: A ruler tick lines up with the step beneath it (regression, REQ-a-tick-sits-over-the-step-it-marks)
   Given any machine tab
   When the ruler and the step grid are measured
   Then tick 0 and step 0 share a left edge
 # pinned by: e2e/transport-position.spec.ts
 
-Scenario: A stopped ruler shows a cue, never a playhead (v2, REQ-the-cue-and-the-playhead-are-two-marks)
+Scenario: A stopped ruler shows a cue, never a playhead (REQ-the-cue-and-the-playhead-are-two-marks)
   Given the transport is stopped
   When the user clicks ruler column 6
   Then that tick carries the `cue` class
@@ -566,32 +386,32 @@ Scenario: A stopped ruler shows a cue, never a playhead (v2, REQ-the-cue-and-the
   Then a `playing` mark advances from column 6 while the cue ring stays there
 # pinned by: tests/ui/playhead-ruler.test.ts, e2e/transport-position.spec.ts
 
-Scenario: The readout names the bank when no chain is enabled (v2, REQ-the-readout-never-invents-bars)
+Scenario: The readout names the bank when no chain is enabled (REQ-the-readout-never-invents-bars)
   Given no lane's chain is enabled and the drum edit bank is B
   Then the drum ruler's readout reads "BANK B" and shows no bar stepper
   When the edit bank changes to C
   Then the readout follows, agreeing with the BankBar beside it
 # pinned by: tests/ui/playhead-ruler.test.ts, e2e/transport-position.spec.ts
 
-Scenario: The readout wraps at song length once a chain exists (v2, REQ-the-readout-never-invents-bars)
+Scenario: The readout wraps at song length once a chain exists (REQ-the-readout-never-invents-bars)
   Given seqChain = { enabled: true, steps: [0,0,1,0] }
   When the playhead is at absolute bar 6
   Then the readout reads "BAR 3/4" — the same bar the Song scrubber lights
 # pinned by: tests/ui/playhead-ruler.test.ts
 
-Scenario: The bar stepper keeps the 16th (v2, REQ-a-bar-stepper-only-where-bars-exist)
+Scenario: The bar stepper keeps the cell (REQ-a-bar-stepper-only-where-bars-exist)
   Given a chain is enabled and the playhead is at bar 2, step 5 of that bar
   When the user clicks the ruler's next-bar arrow
   Then it seeks to bar 3 step 5 — unlike Shift+Arrow, which would zero the step
   And clicking prev-bar at bar 1 is clamped, never negative
 # pinned by: tests/ui/playhead-ruler.test.ts
 
-Scenario: A refused seek stops promising it will work (v2, REQ-a-refused-seek-says-so)
+Scenario: A refused seek stops promising it will work (REQ-a-refused-seek-says-so)
   Given sync mode is slave, so canSeek() is false
   Then the ticks and the stepper are aria-disabled and their titles name the reason
 # pinned by: tests/ui/playhead-ruler.test.ts
 
-Scenario: The lit step waits for its sound (v8, REQ-the-playhead-is-drawn-when-it-is-heard, regression)
+Scenario: The lit step waits for its sound (REQ-the-playhead-is-drawn-when-it-is-heard, regression)
   Given the transport is playing and a step is scheduled 80 ms ahead
   When the machine reports it
   Then the grid, the ruler and the readout still show the previous step
@@ -602,25 +422,16 @@ Scenario: The lit step waits for its sound (v8, REQ-the-playhead-is-drawn-when-i
 
 ## Tests & verification
 
-- Unit: `tests/audio/transport/clock.test.ts` (seek/cue + the `start()`
-  regression), `arrangement.test.ts` (lane re-seek, bar-line edge),
-  `sequencer.test.ts`, `motion-machine.test.ts`, `performance.test.ts` (the four
-  reactions), `tests/audio/engine-seek.test.ts` (the guard),
-  `tests/ui/playhead-ruler.test.ts` — `npm test`
-- E2E: `e2e/transport-position.spec.ts` — `npm run e2e`
-- Typecheck: `npm run typecheck`
-- Dev-bridge assertions: `window.__synth.engine.clock.step`,
-  `window.__synth.engine.arrangement.seqPlayBank` (DEV only)
+- Unit: `tests/audio/transport/{clock,arrangement,sequencer,motion-machine,performance}.test.ts`,
+  `tests/audio/engine-seek.test.ts`, `tests/ui/playhead-ruler.test.ts`,
+  `tests/ui/audible.test.ts` — `npm test`. E2E: `e2e/transport-position.spec.ts`.
+- Dev bridge: `window.__synth.engine.clock.step`,
+  `window.__synth.engine.arrangement.seqPlayBank` (DEV only).
 
 ## Open questions / future
 
-- **Scrub-drag** across the ruler (one continuous locate rather than one click) is
-  deliberately deferred: it would fire a seek per column crossed, and each seek
-  costs a full arrangement re-seek plus a sequencer voice release. It needs a
-  coalescing pass (seek on pointerup, preview during the drag) before it is worth
-  the gesture row.
-- **Loop brackets** (locate points that also set a loop range) are the natural
-  neighbour and would reuse the ruler's geometry entirely.
-- Cancelling the in-flight look-ahead (REQ-the-look-ahead-horizon-is-not-cancelled) would need every machine to retain
-  handles to its scheduled voices — a much larger change to the audio layer, and
-  only worth it if the ~100 ms artefact ever proves audible in practice.
+- **Scrub-drag** across the ruler is deferred: it would fire a seek per column, each a
+  full arrangement re-seek plus a voice release. It needs coalescing (seek on
+  pointerup, preview during the drag).
+- Cancelling the in-flight look-ahead would need every machine to retain handles to
+  its scheduled voices. Only worth it if the artefact ever proves audible.
