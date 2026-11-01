@@ -10,7 +10,7 @@ import { compactSongForExport } from './serialize';
  * Continuous working-session autosave — the "tab close loses nothing" half of
  * the safety net (`specs/features/session-autosave.md`; the load-undo toast in
  * the Song panel is the other half). Debounces a full `Song.capture` of the
- * session into ONE well-known localStorage key, outside the `websynth.song.*`
+ * session into one localStorage key per tab (`websynth.session.<tab>`), outside the `websynth.song.*`
  * slot namespace so it never appears in `Song.list()`. Boot restores it
  * silently (main.ts) before the UI mounts.
  *

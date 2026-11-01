@@ -23,7 +23,7 @@ import { Wah } from './wah';
  * wiring and `subscribeParams`.
  *
  * `bind(bus)` self-wires every param (ADR-008); `tail` is the last effect's
- * output, which the bank-render tap needs (synth-only capture).
+ * output (nothing reads it today: the bank render taps `synthPan`).
  */
 export interface FxChain<E extends Record<string, Effect>> {
   /** Named access to the members, e.g. `drumFx.fx.comp`. */

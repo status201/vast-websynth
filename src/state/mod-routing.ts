@@ -4,7 +4,7 @@
  * Pure and DOM-free, and deliberately in `state/` rather than `audio/`: the param
  * registry names these labels, the panel greys options with this rule, and the audio
  * layer refuses the same combination. One definition, so the three cannot disagree.
- * (`src/state/lfo-routing.ts` held the superseded REQ-a-known-source-shows-its-position rule in exactly this shape.)
+ * (`src/state/lfo-routing.ts` held the exclusive-destination rule, superseded by lfo.md REQ-destinations-are-no-longer-exclusive, in exactly this shape.)
  */
 
 /**

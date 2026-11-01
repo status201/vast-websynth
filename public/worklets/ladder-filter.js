@@ -150,7 +150,7 @@ class LadderFilterProcessor extends AudioWorkletProcessor {
     // first compute.
     this.lastCutoff = NaN;
     this.lastG = 0;
-    // Block-constant shape cache (REQ-resonance-uses-a-power-taper), the same trick as the cutoff hoist.
+    // Block-constant shape cache (filter-models.md REQ-mix-coefficients-resolve-once-per-block), the same trick as the cutoff hoist.
     this.lastShape = NaN;
     this.coef = new Float64Array(5);
     // Scratch for the per-sample fallback when shape is genuinely modulated.
@@ -203,7 +203,7 @@ class LadderFilterProcessor extends AudioWorkletProcessor {
     // render quantum, never per sample.
     const model = params.model[0] >= 0.5 ? 1 : 0;
 
-    // Block-constant shape hoist (REQ-resonance-uses-a-power-taper), the cutoff hoist's twin: the LFO is
+    // Block-constant shape hoist (filter-models.md REQ-mix-coefficients-resolve-once-per-block), the cutoff hoist's twin: the LFO is
     // permanently connected to `shape`, so a full 128-length array always
     // arrives — all-equal whenever nothing is sweeping it, the common case.
     // Resolved once per block and cached across blocks; a modulated block falls
@@ -254,7 +254,7 @@ class LadderFilterProcessor extends AudioWorkletProcessor {
             g = 1 - Math.exp(-2 * Math.PI * fNorm);
           }
 
-          // Only when the shape is genuinely being swept (REQ-resonance-uses-a-power-taper).
+          // Only when the shape is genuinely being swept (filter-models.md REQ-mix-coefficients-resolve-once-per-block).
           if (!shapeConst) {
             mixCoeffs(shapeArr[i], scratch);
             mv = scratch[0]; m0 = scratch[1]; m1 = scratch[2];
