@@ -48,7 +48,7 @@ through the shared factories gets a correct, predictable testid for free.
   `seg-<paramId>` (+ `seg-<paramId>-<idx>` per button), `strip-<paramId>`.
   Renaming a param renames its testid; no call site restates it. `Switch`
   accepts an explicit override for its non-param uses.
-  - (v9) A `Knob` on a lockable param mints two more from the **same** param id:
+  - A `Knob` on a lockable param mints two more from the **same** param id:
     `tempolock-<paramId>` (the note glyph) and `tempodiv-<paramId>` (the division
     chip) — [tempo-lock](tempo-lock.md) REQ-the-lock-is-a-note-glyph/REQ-locked-the-division-replaces-the-dial. Keyed off the *rate/time*
     param the lock governs, not off the `.sync` param it writes, so the three ids

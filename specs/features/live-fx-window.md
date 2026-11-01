@@ -73,7 +73,7 @@ shared controller so both launchers toggle one instance (never two).
 - **REQ-launcher-doubles-as-section-title** — **Launcher doubles as the
   Song-panel section title**: in the Song panel's Live FX row the `livefx-open`
   button *replaces* the old "Live FX" text label (saving space) and leads the
-  row. It carries a small "opens a new window" glyph (`❐`, aria-hidden; the
+  row. It carries a small "opens a new window" icon (`UI_ICONS.popOut`, aria-hidden; the
   button's `aria-label` is "Open LIVE FX window"). The Song-panel row order is:
   **LIVE FX launcher → DJ Filter knob → Fill → Stutter → Drop → Tape Stop → XY
   Pad → `rowDivider()` → MOD launcher (`perf-mod`) → GR meter + master COMP**.
@@ -139,12 +139,12 @@ auto-minted testid `knob-fx.djfilter`; e2e must scope the LIVE FX one within
 
 ```
 Song panel "Live FX" row (the LIVE FX button replaces the old section title):
-  [LIVE FX ❐] [DJ FLT] [Fill] [Stutter |1|1/8|1/4|] [Drop] [Tape Stop] [XY Pad] │ [MOD] [COMP …]
+  [LIVE FX ↗] [DJ FLT] [Fill] [Stutter |1|1/8|1/4|] [Drop] [Tape Stop] [XY Pad] │ [MOD] [COMP …]
    livefx-open                                                          perf-xypad   perf-mod
 
 FloatingWindow "LIVE FX"  (opened by livefx-open; floats over any tab)
  ┌───────────────────────────────────────┐
- │ −  LIVE FX                           ✕ │   minimise (FloatingWindow REQ-live-fx-row-carries-a-help-badge)
+ │ −  LIVE FX                           ✕ │   minimise (floating-window REQ-every-window-can-minimise)
  │ [DJ FLT] [Fill] [Stutter |…|] [Drop]  │   livefx-fill / livefx-stutter / …
  │ [Tape Stop] [XY Pad]                  │   livefx-xypad -> shared xypad-window
  └───────────────────────────────────────┘
@@ -175,7 +175,7 @@ Scenario: Both XY Pad launchers toggle a single shared window
 
 Scenario: The LIVE FX window stays usable after switching tabs
   Given the LIVE FX window is open on the Song tab
-  When the user switches to the Synth tab
+  When the user switches to another tab
   Then the LIVE FX window is still visible and its controls still drive the engine
 # pinned by: e2e/live-fx.spec.ts
 

@@ -139,7 +139,7 @@ There is no fourth face and no size scale — sizes are set per component.
   persist. It constrains `src/ui/styles/*.module.css` and the rare inline
   `style.fontFamily` (`sync-pair-modal.ts` sets both faces by hand, because its
   wizard frames are built without a module class).
-- `<noscript>` in `index.html` inlines `Georgia, serif` — outside the app shell,
+- The `<noscript>` page (`.noscript-page` in `src/styles/base.css`) names `Georgia, serif` directly — outside the app shell,
   where no custom property is available. Out of scope.
 
 ### Persistence
