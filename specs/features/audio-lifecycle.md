@@ -145,7 +145,7 @@ to the first one the user makes anyway, rather than demanded up front.
   page's context and it stays suspended on return. On iOS the call is
   unconditional (the silent loop must be replayed to hold the media-backed
   session category even when the context survived). See
-  [`ios-audio`](ios-audio.md) REQ-foreground-return-resumes-audio. **(v5)**
+  [`ios-audio`](ios-audio.md) REQ-foreground-return-resumes-audio.
   `pageshow` joins `visibilitychange`
   (REQ-a-bfcache-restore-counts-as-returning), the `ctx` `statechange` listener
   is no longer iOS-only (REQ-an-unasked-suspension-is-recovered), and none of
@@ -155,7 +155,7 @@ to the first one the user makes anyway, rather than demanded up front.
 - **REQ-statechange-must-not-fight-a-deliberate-suspend** — **`statechange` must
   not fight a deliberate suspend.** The Debug panel's Suspend action suspends a
   *visible* context, and auto-resuming from `statechange` would undo it
-  instantly. **(v5)** The contract is unchanged; the *mechanism* is. Not
+  instantly. Not
   installing the listener off iOS was a proxy for "do not fight a deliberate
   suspend", and it cost every non-iOS device its only recovery from a suspension
   that arrives while the page is visible. The listener is now installed

@@ -63,27 +63,22 @@ backdrop-click-to-close) rather than reinventing it.
 - **REQ-dialog-testids-are-unambiguous** — Stable `data-testid`s for E2E (a
   single dialog is open at a time): the affirmative button is `dialog-confirm`,
   the dismiss button is `dialog-cancel`, the prompt field is `dialog-input`, an
-  alert's optional copy button is `dialog-copy` *(v5)*.
+  alert's optional copy button is `dialog-copy`.
 
-  *(v4)* "A single dialog is open at a time" was an **assumption** here, and it
-  did not hold. These helpers settle their promise *before* `modal.close()`, so
-  the caller resumes while the answered dialog is still mounted for its ~200 ms
-  fade. A caller that answers one dialog and raises another inside that window —
-  the demo-shadow question in [song-mode](song-mode.md) REQ-one-name-two-songs-ask does exactly
-  that, twice in a row — had two dialogs mounted, so `dialog-cancel` and every
-  `dialog-choice-*` id matched **two** nodes and the E2E driving it failed
-  intermittently on a strict-mode violation. The testids were never ambiguous by
-  design; the lifecycle simply let a dead dialog linger. Fixed in `Modal`, where
-  the fade lives, rather than here: `open()` reaps anything still fading
-  ([add-a-modal-dialog](../recipes/add-a-modal-dialog.md) v4), so the invariant
-  this REQ has always claimed is now true for every modal, not just dialogs.
-- **REQ-confirm-detail-is-a-muted-italic-line** *(v2)* — `confirmDialog`'s
+  **One dialog is open at a time, including during a fade.** The helpers settle
+  their promise *before* `modal.close()`, so a caller that answers one dialog and
+  raises another (the demo-shadow question in [song-mode](song-mode.md)
+  REQ-one-name-two-songs-ask) would otherwise have two mounted for the ~200 ms
+  fade, with every `dialog-*` testid matching two nodes. `Modal.open()` reaps
+  anything still fading ([add-a-modal-dialog](../recipes/add-a-modal-dialog.md)),
+  so the invariant holds for every modal.
+- **REQ-confirm-detail-is-a-muted-italic-line** (v2) — `confirmDialog`'s
   optional `detail?: string` renders a second paragraph below the message, in
   **italics** and slightly muted (`.detail`, `data-testid="dialog-detail"`) —
   supporting copy under the main question (e.g.
   [factory-reset](factory-reset.md)'s “Everything not saved will be lost.”).
   Omitted → no extra element.
-- **REQ-choose-dialog-offers-several-options** *(v3)* — **`chooseDialog →
+- **REQ-choose-dialog-offers-several-options** (v3) — **`chooseDialog →
   Promise<string | null>`** — a fourth helper for the question `confirmDialog`
   cannot ask honestly: one whose answers are **two positive actions**, not
   yes/no. Squeezing "load the demo or your own song?" into a confirm would make
@@ -98,7 +93,7 @@ backdrop-click-to-close) rather than reinventing it.
   — settle-once (REQ-dialog-promise-settles-once), `detail`
   (REQ-confirm-detail-is-a-muted-italic-line), Modal composition
   (REQ-three-helpers-compose-modal) — is unchanged.
-- **REQ-a-prompt-may-cap-its-length** *(v6)* — `promptDialog`'s optional
+- **REQ-a-prompt-may-cap-its-length** (v6) — `promptDialog`'s optional
   `maxLength?: number` sets the input's `maxLength`, so typing and pasting stop
   at the cap, and also truncates an over-long `defaultValue` (a programmatic
   value is not held to `maxLength` by the browser). Without it the prompt is
@@ -107,7 +102,7 @@ backdrop-click-to-close) rather than reinventing it.
   the **cleaned** name — or `null` on cancel or a blank answer — so a slot key,
   the label and the toast are always one string
   ([untrusted-input](untrusted-input.md) REQ-names-are-capped).
-- **REQ-an-alert-may-offer-copyable-text** *(v5)* — **An alert may offer its
+- **REQ-an-alert-may-offer-copyable-text** (v5) — **An alert may offer its
   full text on the clipboard.** `alertDialog`'s optional `copyable?: string`
   adds a second button (`dialog-copy`, label from `copyLabel?`, default `'Copy
   errors'`) beside OK, which writes that string via the shared `copyText` /

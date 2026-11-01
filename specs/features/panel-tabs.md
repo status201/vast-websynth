@@ -126,8 +126,7 @@ whole of this component.
   controls stay on the same baseline as its untabbed neighbours across the grid.
   It gets there by being the **same box**: a tab declares the title's 14 px
   line box, 6 px bottom padding and 1 px dashed rule, so the row is 21 px for the
-  same reason the title is. (v2 reached 21 px from different parts: a 13 px line
-  box + 3 px padding + 1 px border top and bottom.)
+  same reason the title is.
   - **Both sides of the match declare their `line-height` in px.** Leaving
     either to the font makes the equality a property of the machine rather than
     of the stylesheet: `--sans` is `'Inter', system-ui, …` and no build ships

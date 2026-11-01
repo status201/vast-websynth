@@ -67,7 +67,7 @@ so what lands on the clipboard is complete even when the view is truncated.
   testid. The emitting surfaces are the table under "Layer touchpoints" below; a
   *signpost* alert that carries no diagnosis (the wrong-door "That is a preset
   file" notice) deliberately does not.
-- **REQ-truncated-message-is-built-here** *(v3)* — **The truncated message is
+- **REQ-truncated-message-is-built-here** (v3) — **The truncated message is
   built here too.** `failureMessage(lead, errors)` bullets the first 8 and, when
   more remain, adds the line that **names the Copy button** — the promise
   [song-mode](song-mode.md) REQ-a-rejected-import-is-copyable-in-full makes. It is one function because two
@@ -80,7 +80,7 @@ so what lands on the clipboard is complete even when the view is truncated.
   configuration, not logic — title, lead sentence and label differ per surface —
   and pulling it in here would make this module depend on the dialog it exists to
   feed (REQ-report-builders-are-pure).
-- **REQ-a-thrown-value-is-named-here** *(v4)* — A `catch` receives `unknown`:
+- **REQ-a-thrown-value-is-named-here** (v4) — A `catch` receives `unknown`:
   anything can be thrown, and a string or a plain object has no `.message`, so
   reading one with `(e as Error).message` puts "undefined" in the dialog and in
   the report. `thrownMessage(e)` is the one reading: an `Error`'s message, any

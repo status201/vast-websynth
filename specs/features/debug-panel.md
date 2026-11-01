@@ -137,7 +137,7 @@ instead of transcribing it from a phone screen.
   reads **"n/a"** rather than blank or a crash, so the panel degrades cleanly in
   any boot order.
 
-### v3 — actions
+### Actions
 
 - **REQ-a-debug-row-may-carry-one-action** — **A row may carry one inline action
   button** in its value cell (`addRow(name, action)`), which is why the value is
@@ -188,7 +188,7 @@ instead of transcribing it from a phone screen.
   ~500 ms (REQ-debug-refreshes-while-expanded). Its value is cached between
   checks and written synchronously like every other row.
 
-### v4 — cost
+### Cost
 
 - **REQ-debug-refresh-is-tiered-by-row-cost** — **`refresh()` is tiered by row
   cost**, generalizing REQ-the-service-worker-row-polls-slowly's guard from
@@ -213,7 +213,7 @@ instead of transcribing it from a phone screen.
   it is opened to diagnose. `refresh(force)` runs **all** tiers, and is used for the
   initial build and for the expand repaint (REQ-debug-refreshes-while-expanded).
 
-### v14 — errors and sharing
+### Errors and sharing
 
 - **REQ-the-panel-keeps-the-last-errors** — **The panel keeps the last
   errors.** An uncaught error or unhandled promise rejection was the one class

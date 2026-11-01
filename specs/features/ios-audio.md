@@ -96,7 +96,7 @@ rig), the iOS session exposes diagnostics rendered in the [`debug-panel`](debug-
   replayed to hold the media-backed category even when the context survived);
   elsewhere it resumes only when `shouldResumeContext(ctx.state)` — the Android
   case, where the OS suspends a hidden page's context and it stays suspended on
-  return. **(v4)** The `ctx` `statechange` listener is **no longer iOS-only**.
+  return. The `ctx` `statechange` listener is **no longer iOS-only**.
   It was, because `'interrupted'` arrives *while visible* and nothing else
   recovers it, whereas off iOS auto-resuming on `statechange` would undo the
   Debug panel's deliberate Suspend. That trade is gone: the listener runs

@@ -179,7 +179,7 @@ differ only by live-applied scope fps + fftSize).
   `sameAudioProfile` (so Medium↔Strong needs no reload).
 
 - **REQ-the-settings-modal-loads-on-click** — **The settings modal loads on
-  click** (v8, [runtime-performance](runtime-performance.md)
+  click** ([runtime-performance](runtime-performance.md)
   REQ-boot-cost-matches-the-request). The header button stays eager — it shows the
   resolved tier, and the pending pulse, from boot — and owns `bootTier` and its own
   re-colouring; `perf-settings-modal.ts` is imported on click and handed both, so

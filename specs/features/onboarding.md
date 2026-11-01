@@ -107,7 +107,7 @@ thing.
   other in-panel badges (e.g. `seq.prob`).
   The demo row beside them carries **one** badge, `song.demos`, on the
   `Demos:` label (`data-help="song.demos"`); its topic body *is* the demo library,
-  which is why `HelpContext` also carries `loadDemo` and `loadedDemo` (v29 — [demo-library](demo-library.md)
+  which is why `HelpContext` also carries `loadDemo` and `loadedDemo` ([demo-library](demo-library.md)
   REQ-info-mode-badges-the-demo-row-once).
 
 - **REQ-a-container-must-tell-badges-when-it-hides** (v19) — **Every container
@@ -232,8 +232,8 @@ thing.
   Fill/Stutter/Drop/Tape Stop + the DJ filter). Both use `precondition:
   clickTestId('tab-song')` — on *both* steps, not just the first, so **Back**
   from the closing step (or a stray tab click) re-opens the Song tab. The
-  closing step targets the header `info-badges` button (v15; `help-button`
-  before that) and switches no tab, so the tour **ends with the Song tab open
+  closing step targets the header `info-badges` button
+  and switches no tab, so the tour **ends with the Song tab open
   and active** — the user is left ready to play rather than parked on the
   Sequencer. The demo loaded earlier in the tour populates the chains, so the
   lane spotlight lands on real content. Its copy names **both** header doors — ⓘ
