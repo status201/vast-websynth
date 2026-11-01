@@ -10,191 +10,89 @@ related:
   - oscillators
   - scale-quantization
   - chord-tools
+  - arpeggiator
 source:
   - src/audio/polyphony.ts     # voice pool, alloc, unison, glide, drift (ADR-008)
   - src/audio/engine.ts        # builds voices; thin playNote/releaseNote delegators
   - src/audio/voice.ts
+  - src/audio/oscillator.ts    # Osc.setFrequency: the anchored glide
   - src/state/params.ts
   - src/ui/shell/header.ts           # the VOICE segmented
   - src/ui/panels/synth-panels.ts    # UNISON + GLIDE
   - src/ui/shell/bottom.ts           # pitch-bend + transpose strips
 ```
 
-How notes become voices: poly vs mono, unison stacking, glide between notes,
-analogue drift, pitch bend, and keyboard transpose. These are the engine-level
-"how it plays" controls, distinct from per-voice tone ([oscillators](oscillators.md)).
+How notes become voices: poly vs mono, unison stacking, glide, analogue drift,
+pitch bend and keyboard transpose. These are the engine-level "how it plays"
+controls, distinct from per-voice tone ([oscillators](oscillators.md)).
 
 ## Background / Why
 
-A real analogue synth's character is as much about *voice allocation* as about the
-oscillators: mono with glide for basslines and leads, poly for chords, unison for
-a fat detuned stack, and subtle per-voice pitch **drift** for an un-digital,
-"alive" quality. `glide.mode` defaults to `always` (1) because `always` with glide
-time 0 reproduces the pre-song-mode behaviour, keeping existing presets unchanged.
+Voice allocation is as much a synth's character as its oscillators: mono with glide
+for bass and leads, poly for chords, unison for a fat stack, and per-voice
+**drift** for an "alive" quality. `glide.mode` defaults to `always` (1), because
+`always` at glide time 0 plays exactly like no glide, so presets are unchanged.
 
 ## Requirements
 
-- **REQ-mode-switch-kills-all-voices** — `voicing.mode` toggles mono/poly;
-  switching **kills all voices** so no notes hang across the mode change.
-
+- **REQ-mode-switch-kills-all-voices** — `voicing.mode` toggles mono/poly, and
+  switching **kills all voices** so no note hangs across the change.
 - **REQ-unison-stacks-detuned-copies** — Unison stacks `1..4` detuned copies per
   note (`unison.detune` cents).
+- **REQ-glide-controls-portamento** — Glide time + mode control portamento; the
+  defaults are a no-op.
+- **REQ-the-glide-switch-reads-on** — (v9) The MIXER's glide switch reads **OFF /
+  ON / LEGATO**. Only the button text differs: `glide.mode`'s labels stay `['off',
+  'always', 'legato']`, so files, the MCP tools and the authoring guide say
+  `always`. The text is derived from `GLIDE_MODE_LABELS` with `always` swapped,
+  so count and order cannot drift. `ALWAYS` overflowed the MIXER body
+  (responsive-synth-panels.md REQ-selectors-never-outgrow-their-panel). OFF is not
+  GLIDE 0 ms: demos switch glide off while keeping a time stored.
 
-- **REQ-glide-controls-portamento** — Glide time + mode control portamento;
-  defaults reproduce the legacy no-glide behaviour.
-
-- **REQ-the-glide-switch-reads-on** — (v9) The MIXER's glide switch reads
-  **OFF / ON / LEGATO**. Only the button text changes: `glide.mode`'s labels stay
-  `['off', 'always', 'legato']`, so presets, songs, share links, the MCP
-  tools and the authoring guide keep saying `always`. The button text is derived
-  from `GLIDE_MODE_LABELS` (only `always` is swapped), so count and order cannot
-  drift from the param. Why: OFF / ALWAYS / LEGATO is ~139px even fully
-  tightened, wider than the 121px MIXER body at 1281px, so it spilled past the
-  panel (responsive-synth-panels.md REQ-selectors-never-outgrow-their-panel);
-  OFF / ON / LEGATO fits at every width. ON pairs naturally with OFF, and LEGATO
-  still names the conditional case. The MIXER help topic spells out what ON
-  means (every note) next to LEGATO (only when notes overlap). OFF stays: it
-  is not the same as GLIDE at 0ms, because demos switch glide off while keeping
-  a glide time stored.
-
-  **(v5) A glide starts from the pitch the previous one had reached, on both
-  engines.** `Osc.setFrequency` cancels before it schedules, and the cancel is
-  load-bearing: `osc.frequency` is written from that one method, so a voice
-  stolen from the sequencer still carries that note's pitch scheduled up to a
-  lookahead ahead, and without the cancel it would fire mid-glide. But a bare
-  cancel leaves **no event** at `when`, and `setTargetAtTime` then begins at
-  "the param's value" — which Blink reads off the automation curve and Gecko
-  reads as the last value explicitly assigned. On Firefox a glide therefore slid
-  from the wrong origin (often the 440 Hz the node was constructed with) rather
-  than from the note being left: a wrong-sounding portamento, on one engine
-  only, invisible to the suite because the mock `AudioParam` has a static
-  `value` and no event list.
-
-  The cancel is therefore **anchored** (architecture.md "Never cancel automation
-  without anchoring it"), and the anchor value is **computed, not read back**:
-  `AudioParam.value` is exactly what is unreliable here. `setTargetAtTime` is a
-  one-pole approach, so the value in flight is closed-form, and `Osc` keeps the
-  `{from, to, at, tau}` of the glide it scheduled to evaluate it — the same
-  move `SamplerMachine.cutHit` makes for its gain, and for the same reason.
-
-  `tests/audio/no-unanchored-cancel.test.ts` now refuses `setTargetAtTime` as an
-  anchor, which is how this hid: it was listed as one, so the source rule read
-  the defect as compliant.
-
-  *Verification status (v5):* the automation shape is pinned by
-  `tests/audio/oscillator-glide.test.ts`, and a Blink A/B through `bench:audio`
-  shows **no** audible change — the expected result, since the fix reproduces on
-  both engines what Blink already did. The **Gecko** correction, which is the
-  point of the change, has been reasoned but **not yet heard**: Playwright's
-  Firefox was not installed on the machine that made the change. It is the first
-  thing to listen for the next time this is played in Firefox
-  ([ADR-010](../decisions/adr-010-musical-stable-cheap-dsp.md) — a green suite is
-  not evidence that a glide sounds right).
-
-- **REQ-analogue-drift-is-off-by-default** — Analogue drift adds subtle
-  per-voice pitch wander (default 0 = off). The 110 ms drift interval runs
-  **only while drift > 0** (v2): `setDrift` starts it on a 0→>0 transition and
-  on >0→0 clears it after settling the detune source back to 0 — at the default
-  there is no recurring main-thread timer (pinned by
-  `tests/audio/polyphony.test.ts`).
-
+  **A glide starts from the pitch the previous one had reached, on both engines.**
+  `Osc.setFrequency` must cancel, because a stolen voice may still carry the old
+  note's pitch scheduled a lookahead ahead. The cancel is **anchored** (ADR-027),
+  and the anchor is **computed, not read back**: `Osc` keeps the `{from, to, at,
+  tau}` of the glide it scheduled and evaluates the one-pole in closed form (as
+  `SamplerMachine.cutHit` does for gain). A bare cancel made Gecko glide from the
+  constructed 440 Hz.
+- **REQ-analogue-drift-is-off-by-default** — Drift adds subtle per-voice pitch
+  wander (default 0). Its 110 ms interval runs **only while drift > 0**: `setDrift`
+  starts it on 0→>0 and, on >0→0, settles the detune source to 0 and clears it.
 - **REQ-bend-and-transpose-shift-pitch** — Pitch bend (`±` cents) and keyboard
   transpose (`±2` oct) shift pitch globally.
-
 - **REQ-note-events-flow-through-the-bus** — Note events flow `bus.onNote →
-  Engine.playNote / releaseNote` unless the arp's `passthroughSuppressed` (the
-  arpeggiator owns triggering then; the sequencer never suppresses).
-
-- **REQ-voice-lifecycle-gates-the-ladder** — (v2) The voice lifecycle drives the
-  ladder filter's **idle gating**: voices boot inactive, `noteOn` activates the
-  filter unconditionally, and release-completion / `kill` deactivate it — see
-  [ladder-filter](ladder-filter.md) REQ-the-filter-idles-when-gated for the protocol and its safety
-  asymmetry (pinned by `tests/audio/voice.test.ts`).
-
-- **REQ-passthrough-remembers-what-it-played** (the passthrough remembers what
-  it played, v3) — a raw key no longer maps 1:1 to a sounding note: it may be
-  re-pitched by the key or expanded into a chord
-  ([scale-quantization](scale-quantization.md), [chord-tools](chord-tools.md)).
-  Since `Polyphony.releaseNote` looks up `heldNotes` **by the note number passed
-  in**, a note-off that re-derived that mapping after the key or voicing changed
-  would miss the lookup and **strand the voice forever**.
-
-  So the passthrough keeps `Engine.heldIn: Map<number, number[]>` — raw key → the notes
-  actually sounded. Note-on stores; note-off replays that array and deletes the entry.
-  This is the same "resolve once, release through the stored note" rule the sequencer
-  states at [sequencer](sequencer.md) REQ-every-note-is-shifted-by-the-slot-transpose, now applied to the one note source that
-  previously had nowhere to store it. It is what lets a player change key, or switch on
-  chord memory, **while holding a chord**. The map is bounded at 128 keys × ≤4 notes and
-  is cleared alongside `killAll` — REQ-mode-switch-kills-all-voices's mode switch and panic both go through it, so
-  no entry outlives the voices it names.
-
-  (v8) **A note the passthrough played is always released, arp or no arp.** An
-  engaged arpeggiator takes the note stream (`passthroughSuppressed`,
-  [arpeggiator](arpeggiator.md)), and `handleNote` used to drop note-*offs* as well
-  as note-ons while it did. A key held as the arp came on — its switch, a preset or
-  song that turns it on, a motion lane on `arp.on` — had already sounded through the
-  passthrough, and its release was then thrown away: the voice rang until Panic.
-  So the gate applies to **note-on only**; a note-off still replays whatever
-  `heldIn` holds for that key. A note-off for a key the passthrough never played
-  (it was pressed while the arp owned the stream) is still ignored while
-  suppressed — its release belongs to the arp.
-
-  *Accepted consequence:* two raw keys can quantize onto the same note, so releasing one
-  stops it while the other is still held. That is inherent to quantization and is how
-  hardware quantizers behave; it is not to be "fixed" by refcounting, which would make a
-  legato retrigger stop working.
-
-- **REQ-a-stolen-voice-leaves-the-held-list** (a stolen voice leaves its old
-  note's held list, v4) — `heldNotes` maps a sounding note to the voices playing
-  it, and `releaseNote` sends `noteOff` to whatever that entry names. When the
-  pool is full, `pickVoice` **steals** the oldest playing voice — so that voice
-  is now sounding a *new* note while the old note's entry still claims it.
-  Releasing the old key then stopped the new note.
-
-  The bug is reachable with nothing exotic: hold eight notes (`VOICE_COUNT = 8`), play a
-  ninth, and let go of the first — the ninth stops, the first was never sounding. Unison
-  reaches it sooner still, since every copy takes a voice, and a chord-expanded or
-  sequenced passage reaches it without a ninth finger.
-
-  So allocation is the point where the bookkeeping is repaired: taking a voice
-  **evicts it from whatever note currently holds it**, and an entry left with no voices
-  is dropped. The invariant is *a voice appears in at most one `heldNotes` entry* —
-  which is what makes REQ-passthrough-remembers-what-it-played's "release through the stored note" rule sound, since that
-  rule assumes the stored note still owns the voice it names.
-
-  **(v7) The map is keyed by note number, and that has a musical consequence
-  now.** Two sequencer tracks playing the *same* pitch land on one entry, so the
-  second re-triggers the first's voices rather than taking its own — one voice,
-  therefore one stereo position, and the later track's pan wins
-  ([sequencer](sequencer.md) REQ-two-tracks-on-one-pitch-share-a-pan). Keying per
-  track would spread them, at the cost of a voice per duplicated pitch out of
-  eight and a rewrite of the invariant above; it is recorded there rather than
-  paid for here.
-
-  **(v6) Mono is not exempt.** The rule was applied on the poly branch only, and
-  the mono branch violates it *by construction* rather than occasionally: in mono
-  every note plays `voices[0..count-1]`, so each held key adds a `heldNotes`
-  entry naming **the same voices**. Two keys down means two entries pointing at
-  one voice, which is precisely what the invariant forbids — and the consequence
-  is the one the poly comment describes: releasing the older key sends `noteOff`
-  to the voice now sounding the newer note, so letting go of a key you are no
-  longer hearing stops the note you are.
-
-  It needs no new machinery. `evictVoice` already removes a voice from every
-  entry that claims it and drops an entry left empty, so calling it on the mono
-  path leaves exactly one entry — the newest note. `releaseNote` no-ops on a
-  note it cannot find, so the older key correctly does nothing.
-
-  *Not in scope:* this gives **last-note priority without fallback** — releasing
-  the newest key while an older is still held leaves silence rather than
-  returning to the older note. Fallback is a feature (and a choice: last / low /
-  high priority), not this fix, which only stops a release cutting a note it
-  does not own.
-
-  This is deliberately **not** refcounting, and not a change to the stealing order:
-  the oldest playing voice is still the one taken, and the note it was playing is simply
-  no longer claimed. The old note goes silent when it is stolen — that is what voice
-  stealing *is*, and it is what a player expects from a polyphonic instrument.
+  Engine.playNote / releaseNote` unless the arp's `passthroughSuppressed` is set
+  (the arpeggiator then owns triggering; the sequencer never suppresses).
+- **REQ-voice-lifecycle-gates-the-ladder** — (v2) Voices boot with the filter
+  inactive, `noteOn` activates it unconditionally, and release-completion / `kill`
+  deactivate it ([ladder-filter](ladder-filter.md) REQ-the-filter-idles-when-gated).
+- **REQ-passthrough-remembers-what-it-played** — (v3) A raw key may be re-pitched
+  by the key or expanded into a chord ([scale-quantization](scale-quantization.md),
+  [chord-tools](chord-tools.md)). `Polyphony.releaseNote` looks up by note number,
+  so a note-off that re-derived the mapping after a change would strand a voice.
+  So `Engine.heldIn: Map<number, number[]>` maps raw key → notes actually sounded.
+  Note-on stores; note-off replays and deletes. This is the sequencer's rule
+  ([sequencer](sequencer.md) REQ-every-note-is-shifted-by-the-slot-transpose), and
+  it lets a player change key or engage chord memory while holding a chord. The
+  map is bounded (128 keys × ≤4 notes) and cleared with `killAll`.
+  **A note the passthrough played is always released, arp or no arp**: the arp
+  gate applies to note-on only. A note-off for a key the passthrough never played
+  (pressed while the arp owned the stream) is ignored. *Accepted:* two keys can
+  quantize onto one note, so releasing either stops it. That is how hardware
+  quantizers behave; refcounting would break a legato retrigger.
+- **REQ-a-stolen-voice-leaves-the-held-list** — (v4) `heldNotes` maps a sounding
+  note to its voices. When the pool is full, `pickVoice` steals the oldest playing
+  voice. So taking a voice **evicts it from whatever note holds it**, and an empty
+  entry is dropped. The invariant: *a voice appears in at most one `heldNotes`
+  entry*. Without it, releasing the robbed note stops the thief. **Mono is not
+  exempt**: in mono every note plays `voices[0..count-1]`, so `evictVoice` runs
+  there too, leaving one entry, the newest note. That is last-note priority
+  without fallback: releasing the newest key while an older one is held leaves
+  silence. Fallback is a feature (last / low / high priority), not this rule.
+  Stealing order is unchanged, and this is not refcounting. The map is keyed by
+  note number, so two sequencer tracks on one pitch share a voice and the later
+  pan wins ([sequencer](sequencer.md) REQ-two-tracks-on-one-pitch-share-a-pan).
 
 ## Technical design
 
@@ -229,7 +127,7 @@ ui: src/ui/shell/header.ts (VOICE), src/ui/panels/synth-panels.ts (UNISON, GLIDE
 ## Scenarios (BDD)
 
 ```gherkin
-Scenario: Releasing an older key in mono does not cut the sounding note (v6, regression)
+Scenario: Releasing an older key in mono does not cut the sounding note (regression)
   Given voicing.mode is mono
   And the user holds C3, then holds E3 while still holding C3
   When the user releases C3
@@ -237,7 +135,7 @@ Scenario: Releasing an older key in mono does not cut the sounding note (v6, reg
   And releasing E3 then stops it
 # pinned by: tests/audio/polyphony.test.ts
 
-Scenario: A glide leaves from the pitch in flight, not the last one assigned (v5, regression)
+Scenario: A glide leaves from the pitch in flight, not the last one assigned (regression)
   Given mixer.glide is above zero and a note is gliding from C3 toward C4
   When a new note arrives before the glide has settled
   Then the frequency curve is pinned at the value the glide had reached
@@ -250,13 +148,13 @@ Scenario: Switching mono<->poly never leaves a hanging note
   Then all voices are killed and no note hangs
 # pinned by: tests/state/params.test.ts (subscription); manual/e2e controls
 
-Scenario: Changing the key while a note is held never hangs it (v3, REQ-passthrough-remembers-what-it-played, regression)
+Scenario: Changing the key while a note is held never hangs it (REQ-passthrough-remembers-what-it-played, regression)
   Given a key is held and sounding through the passthrough
   When scale.root changes and the key is then released
   Then the note that was started is the note released, and no voice is left sounding
 # pinned by: tests/audio/engine-scale.test.ts
 
-Scenario: Releasing a key whose voice was stolen leaves the thief sounding (v4, REQ-a-stolen-voice-leaves-the-held-list, regression)
+Scenario: Releasing a key whose voice was stolen leaves the thief sounding (REQ-a-stolen-voice-leaves-the-held-list, regression)
   Given every voice in the pool is playing a held note
   When one more note is played, stealing the oldest voice
   And the note that voice used to play is released
@@ -265,7 +163,7 @@ Scenario: Releasing a key whose voice was stolen leaves the thief sounding (v4, 
 # pinned by: tests/audio/polyphony.test.ts (voice stealing keeps heldNotes
 #            honest — releasing the robbed note does not stop the thief)
 
-Scenario: A stolen note stops when it is stolen, not when its key is released (v4, REQ-a-stolen-voice-leaves-the-held-list)
+Scenario: A stolen note stops when it is stolen, not when its key is released (REQ-a-stolen-voice-leaves-the-held-list)
   Given every voice in the pool is playing a held note
   When one more note is played
   Then the oldest note stops immediately, because its voice was taken
@@ -273,7 +171,7 @@ Scenario: A stolen note stops when it is stolen, not when its key is released (v
 # pinned by: tests/audio/polyphony.test.ts (voice stealing keeps heldNotes
 #            honest — still releases the note the stolen voice actually plays)
 
-Scenario: A note keeps its own voices when the pool has room (v4, REQ-a-stolen-voice-leaves-the-held-list, edge)
+Scenario: A note keeps its own voices when the pool has room (REQ-a-stolen-voice-leaves-the-held-list, edge)
   Given fewer notes are held than there are voices
   When another note is played
   Then an idle voice is taken and every held note still owns its own voices
@@ -281,33 +179,30 @@ Scenario: A note keeps its own voices when the pool has room (v4, REQ-a-stolen-v
 
 Scenario: Glide defaults reproduce legacy behaviour (backward compat, edge)
   Given glide.mode is 'always' (1) and mixer.glide is 0
-  Then notes retrigger with no audible portamento, exactly as before song mode
+  Then notes retrigger with no audible portamento
 # pinned by: tests/state/preset.test.ts (existing presets unchanged)
 
-Scenario: A key held as the arp comes on still releases (v8, REQ-passthrough-remembers-what-it-played, regression)
+Scenario: A key held as the arp comes on still releases (REQ-passthrough-remembers-what-it-played, regression)
   Given a key held and sounding through the passthrough
   When the arpeggiator is switched on, and then the key is let go
-  Then its note is released — it used to ring until Panic
+  Then its note is released
    And a key pressed after the arp came on is neither played nor released by the passthrough
 # pinned by: tests/audio/engine-scale.test.ts
 ```
 
 ## Tests & verification
 
-- `tests/state/params.test.ts`, `tests/state/preset.test.ts`, `e2e/controls.spec.ts`.
-- REQ-a-stolen-voice-leaves-the-held-list stealing/eviction: `tests/audio/polyphony.test.ts`.
-- REQ-passthrough-remembers-what-it-played: `tests/audio/engine-scale.test.ts`, against the production
-  `Engine.handleNote` — including v8's release of a key held as the arp comes on.
-- `npm test` / `npm run e2e`.
-- **Verified by ear (REQ-a-stolen-voice-leaves-the-held-list)**, which is the part the tests cannot do
-  ([ADR-010](../decisions/adr-010-musical-stable-cheap-dsp.md)): a nine-note
-  chord held across the eight voices and released oldest-first, A/B against the
-  build before the fix, rendered with
-  `npm run bench:audio -- --stagger 0.7` (see
-  [verify-audio-by-ear](../recipes/verify-audio-by-ear.md) — a chord released all
-  at once cannot expose a voice-allocation bug at all).
+- `tests/state/params.test.ts`, `tests/state/preset.test.ts`,
+  `tests/audio/polyphony.test.ts`, `tests/audio/engine-scale.test.ts` (against the
+  production `Engine.handleNote`), `tests/audio/oscillator-glide.test.ts`,
+  `e2e/controls.spec.ts` — `npm test` / `npm run e2e`.
+- **By ear** (ADR-010): voice stealing with a nine-note chord released
+  oldest-first, `npm run bench:audio -- --stagger 0.7`
+  ([verify-audio-by-ear](../recipes/verify-audio-by-ear.md); a chord released at
+  once cannot expose an allocation bug). The anchored glide is pinned by the suite
+  and was A/B'd on Blink; the **Gecko** correction is still owed a Firefox listen.
 
 ## Open questions / future
 
-- New voice params must keep **no-op defaults** (see
-  [add-a-parameter](../recipes/add-a-parameter.md)) to preserve old presets.
+- New voice params keep **no-op defaults** ([add-a-parameter](../recipes/add-a-parameter.md)).
+- Mono note priority with fallback (last / low / high) is unbuilt.
