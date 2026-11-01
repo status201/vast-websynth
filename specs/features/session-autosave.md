@@ -159,8 +159,7 @@ happy path.
   `file` in `write()`'s literal.** If it ever moves, the scan degrades to
   `savedAt: null` (the same graceful path as a corrupt payload) rather than
   reporting a wrong time; `bytes` is unaffected either way.
-- **REQ-the-undo-net-covers-the-session** (v5, was
-  REQ-autosave-storage-failures-are-silent) — **The undo net covers the session,
+- **REQ-the-undo-net-covers-the-session** (v5) — **The undo net covers the session,
   not the slot — so an import may not silently overwrite a saved slot.**
   REQ-undo-restores-the-stashed-file restores the in-memory session; it cannot
   restore a `localStorage` slot that `Song.saveSlot` has already replaced, so an
