@@ -148,9 +148,7 @@ thing.
       against their own container would hide them permanently (REQ-a-presets-topic-anchors-to-the-picker);
     - **below** — the badge's bottom crosses the viewport's
       (`top + BADGE_SIZE > innerHeight`) → hide.
-  Only the last one is new. Without it the rule was half a rule: scrolling a
-  control up under the header dropped its badge, scrolling it down past the fold
-  left the badge pinned off-screen — present in the layer, styled `display: ''`,
+  Both directions, or a badge scrolled past the fold stays pinned off-screen,
   reachable by nothing. The thresholds are deliberate mirrors: **any** overlap
   with the band hides, so a half-clipped badge — as unreachable as a fully hidden
   one, and uglier — never survives at either edge. No horizontal rule joins them:
@@ -179,11 +177,9 @@ thing.
   click hides them, in every state; it opens no modal and has no second outcome.
   It carries the orange `toggleActive` state (`tour.module.css`, shared with the
   Fullscreen button) **and** `aria-pressed`, so the on/off state is legible to
-  sighted and assistive users alike. Until v14 the same click had two different
-  outcomes depending on state (open a modal / switch the badges off), which is
-  exactly what [ADR-014](../decisions/adr-014-dont-make-me-think.md) law 2
-  forbids; the active styling was cited as licensing it. v15 removes the
-  ambiguity instead of licensing it.
+  sighted and assistive users alike. A click has one outcome in either state
+  ([ADR-014](../decisions/adr-014-dont-make-me-think.md) law 2); active styling
+  does not license a second one.
 
 - **REQ-the-glyph-inverts-while-badges-show** (v18) — **While the badges show,
   the glyph inverts into a badge.** `toggleActive` alone is *generic* active
@@ -222,8 +218,7 @@ thing.
     discoverability leg `recipes/design-an-interaction.md` step 4 asks for. The
     ? button reads "Help & About": it names both things behind it (the guided
     tour and the shortcut list, plus version and credits) rather than only the
-    modal's title. The v13 tooltip "Help & Demo Tour — Shift+click or hold for
-    badges" named a door and two gestures that no longer exist.
+    modal's title. A tooltip never names a gesture that does not exist.
 
 - **REQ-the-tour-showcases-the-song-tab** (v6) — The tour showcases the Song tab
   before its closing step: one step spotlights the arrangement **chain lanes**
@@ -262,12 +257,10 @@ thing.
   anywhere. Its copy must separate a **preset** (one sound) from a **song** (the
   whole arrangement) — the confusion the badge exists to kill — and must
   describe the import review step as non-destructive until confirmed.
-  - Through v17 it pinned to **`preset-save`**, one button away from the ⓘ
-    toggle. A badge is the loudest mark in the header, so parked there it pulled
-    the eye off the very control REQ-the-glyph-inverts-while-badges-show exists to make findable — the two were
-    competing inside one cluster. The selector is far enough left to stop that,
-    and it is where the copy already begins ("The dropdown flips through 16
-    factory sounds…"), so the anchor and the first sentence now agree.
+  - Deliberate: not on `preset-save`, one button from the ⓘ toggle, where the
+    loudest mark in the header would pull the eye off the control
+    REQ-the-glyph-inverts-while-badges-show makes findable. The selector is where
+    the copy begins ("The dropdown flips through 16 factory sounds…").
   - Everything else is unchanged: default `'corner'` placement, the `inHeader`
     exemption from the scrolled-under-the-header rule, and hiding on a zero-size
     anchor when the cluster collapses behind the hamburger below 720px
@@ -287,8 +280,7 @@ thing.
   (REQ-a-motion-topic-anchors-to-the-tab): `motion.xy` anchored to the **XY lane
   header** (`data-help="motion.xy"`) and `motion.tracks` anchored to the **A
   lane's row** (`data-help="motion.tracks"`, one shared badge covering every
-  single-param lane — two of them until v17, four since, which is why the badge
-  was never anchored per lane). Each is a 2–3 sentence quick explainer — the XY-pad automation and the
+  single-param lane, since their number varies). Each is a 2–3 sentence quick explainer — the XY-pad automation and the
   single-param tracks respectively — for users who don't want the full Motion
   write-up. See [motion-sequencer.md](motion-sequencer.md)
   REQ-each-motion-step-is-a-mini-xy-pad.
@@ -333,25 +325,16 @@ thing.
   The anchors (`song-record`, `song-export-audio`) are unchanged.
 
 - **REQ-about-key-symbols-are-drawn** (v11, mechanism replaced v17) — **Symbols
-  in the About modal's key list are legible.** The key column is monospace at
-  11px, which has no glyph for `← → ↑ ↓`: the browser substitutes per character
-  at its own much smaller size, and the arrow rows rendered as unreadable
-  dashes.
-
-  v11–v16 fixed this by re-*facing* such a cap to the UI sans
-  (`Modal.glyphClass`). **That is gone.** It could only ever work where the sans
-  face has the arrow, and on Android it does not — `--sans` names Inter, which is
-  not bundled, so it resolves to Roboto and the character falls through to a
-  symbol font at its own weight and baseline. The two octave-shift caps came out
-  in different faces, off each other's baseline. A symbol cap is now **drawn**:
-  an `svg.ui-icon` from `ui-icons.ts`, on a cap carrying `role="img"` and an
-  `aria-label` because it holds no text at all → [iconography](iconography.md).
-  Still one glyph per keycap, not a run inside a string (v16's finding, which
-  survives the mechanism change).
+  in the About modal's key list are legible.** A symbol cap (`← → ↑ ↓`) is
+  **drawn**: an `svg.ui-icon` from `ui-icons.ts`, on a cap carrying `role="img"`
+  and an `aria-label` because it holds no text ([iconography](iconography.md)).
+  Deliberate: not a typed character re-faced to another font — no font is bundled,
+  so on Android the character falls through to a symbol face at its own weight and
+  baseline. One glyph per keycap, never a run inside a string.
   The list is also the canonical on-screen shortcut reference, so it must name
   every global key — including `Home` / `Shift`+arrows
-  ([transport-position.md](transport-position.md) REQ-home-and-shift-arrows-seek), `Delete` and
-  `Ctrl/Cmd+Z`, which were missing, `?`, and `Shift`+`R` for the
+  ([transport-position.md](transport-position.md) REQ-home-and-shift-arrows-seek), `Delete`,
+  `Ctrl/Cmd+Z`, `?`, and `Shift`+`R` for the
   [Record window](record-window.md) (REQ-shift-r-toggles-the-record-window there). It already carries non-key gestures (`Shift`+drag for fine knob
   control), so a mouse row is in keeping. The v13 `Shift`+click-on-Help row is
   **gone** in v15 along with the gesture itself.
@@ -439,33 +422,23 @@ thing.
   unbadged section on the Song tab.
 
 - **REQ-the-info-button-gesture-inventory** (v13, re-authored v15) — **Gesture
-  inventory for the ⓘ button.** Switching the badges on used to cost Help →
-  modal → "Toggle help badges" → close, so v13 bolted a modifier-click and a
-  long-press onto the Help button to skip the modal. v15 removes the modal,
-  which removes the thing those gestures routed around: a plain click already
-  toggles, so a second gesture for the same outcome is exactly the redundancy
-  this revamp exists to delete.
+  inventory for the ⓘ button.** A plain click toggles the badges, so no second
+  gesture may have the same outcome.
 
   | Gesture (on `info-badges`) | Outcome                          | Precedent                          |
   | -------------------------- | -------------------------------- | ---------------------------------- |
   | click (either state)       | **toggle badges**                | one gesture, one outcome           |
-  | Shift / Ctrl / ⌘ + click   | — (plain click already toggles)  | dropped in v15                     |
-  | long-press (350 ms)        | — (plain click already toggles)  | dropped in v15                     |
+  | Shift / Ctrl / ⌘ + click   | — (plain click already toggles)  | —                                  |
+  | long-press                 | — (plain click already toggles)  | —                                  |
   | right-click                | — (`contextmenu` is globally suppressed) | —                          |
   | double-click               | — (reads as two toggles)         | —                                  |
   | `?` (global key)           | **toggle badges**                | `?` = help, near-universal         |
 
   Load-bearing details:
   - A `—` row is a decision, not an oversight
-    (`../recipes/design-an-interaction.md` step 1). The three dropped gestures
-    are listed so the next reader knows they were considered and why they went.
-  - No two rows produce different outcomes for the same gesture depending on
-    state ([ADR-014](../decisions/adr-014-dont-make-me-think.md) law 2) — the
-    v13 table's first two rows did.
-  - Dropping the long-press also drops its machinery: the 350 ms timer, the ~6 px
-    travel slop, and the flag that had to **swallow the trailing `click`** so the
-    chooser modal could not open behind the badges the hold had just switched on.
-    That last one existed only because a click had a second outcome.
+    (`../recipes/design-an-interaction.md` step 1).
+  - No gesture's outcome depends on state
+    ([ADR-014](../decisions/adr-014-dont-make-me-think.md) law 2).
   - `?` reaches the app because `e.key` for Shift+`/` is `?`, so the `/`
     pitch-bend branch never sees it, and the `ctrl/meta/alt` bail-out in
     `installShortcuts` does not test `shiftKey`. It routes through
@@ -594,14 +567,11 @@ thing.
   without that passes with the bug present.
 
 - **REQ-the-equalizer-carries-seven-badges** (v27) — **The Equalizer carries
-  seven badges over three topics.** The section shipped with a written `fx.eq`
-  topic and a `data-help="fx.eq"` attribute but no anchor, so no badge ever drew
-  — and the copy left out most of what a player cannot read off the panel: eight
-  band abbreviations, a lamp that looks like a switch and is not, a preset list
-  that switches the EQ on, a `Custom` entry that cannot be picked, a RESET that
-  leaves the on/off alone, and a curve with no undo ([equalizer](equalizer.md)
-  REQ-the-eq-tab-led-only-indicates/REQ-eq-presets-are-a-table-of-bus-writes,
-  its gesture inventory). `fx.eq` is removed; its copy is split across:
+  seven badges over three topics**, covering what a player cannot read off the
+  panel: eight band abbreviations, a lamp that is not a switch, presets that switch
+  the EQ on, an unpickable `Custom`, a RESET that leaves on/off alone, and a curve
+  with no undo ([equalizer](equalizer.md)
+  REQ-the-eq-tab-led-only-indicates/REQ-eq-presets-are-a-table-of-bus-writes):
 
   | Topic | Anchor | Covers |
   | --- | --- | --- |
@@ -628,8 +598,7 @@ thing.
     reason even though the EQ never rebuilds its knobs today: the topic speaks
     for three controls, and the row is the thing it describes.
   - Placement is the default `'corner'` for all three. Anchors that change
-    visibility with a tab switch rely on REQ-a-container-must-tell-badges-when-it-hides's observer list, which v27
-    extends for them.
+    visibility with a tab switch rely on REQ-a-container-must-tell-badges-when-it-hides's observer list.
 
 ## Technical design
 
