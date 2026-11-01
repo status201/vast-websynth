@@ -6,15 +6,15 @@ status: implemented
 version: 2
 owner: core
 related:
-  - audio-export        # REQ-the-timer-reports-the-take there: the phase machine this window drives
-  - floating-window     # REQ-shift-r-toggles-the-record-window there: the close veto this window needs
+  - audio-export        # the phase machine this window drives
+  - floating-window     # the close veto this window needs
   - dialog              # the discard confirm
-  - transport-window    # the sibling window this copies wholesale
+  - transport-window    # the sibling window it follows
   - live-fx-window
   - song-mode
   - onboarding
   - input-control       # the Shift+R shortcut
-  - runtime-performance # REQ-the-timer-reports-the-take there: no work for an off-screen window
+  - runtime-performance # no work for an off-screen window
 source:
   - src/ui/components/record-window.ts
   - src/ui/styles/record-window.module.css
@@ -25,48 +25,30 @@ source:
 ```
 
 A floating transport for the free-form recorder: record / pause / stop, a live
-elapsed timer, and an explicit save-or-discard before anything reaches the disk.
+elapsed timer and peak meter, and an explicit save-or-discard before anything
+reaches the disk.
 
 ## Background / Why
 
-Free-form recording used to be a single button on the Song tab (`song-record`)
-whose entire vocabulary was a `.on` class and a text flip to `Stop`. Three things
-were wrong with it, and they compound:
-
-1. **It was trapped on one tab.** Starting a take meant navigating to the Song
-   tab, and so did stopping one — while the whole point of a free take is to
-   perform, which happens on the Synth, Sequencer and Drums tabs.
-2. **It told you nothing.** No elapsed time, no way to tell a running capture from
-   a button someone left highlighted. The one affordance that says "this is
-   recording" in every other tool — a red dot and a clock — was absent.
-3. **It wrote the file whether you wanted it or not.** The removed `toggleManual` encoded and
-   downloaded the moment you stopped, so a fluffed take was already in the
-   downloads folder. There was no pause either: a phone call meant one long take
-   with a hole in it, or starting over.
-
-A [floating window](floating-window.md) fixes (1) structurally — it mounts on
-`document.body`, so once open it stays live on every tab, exactly as LIVE FX and
-TRANSPORT do. (2) and (3) are what this spec adds on top of
-[audio-export](audio-export.md) REQ-capture-is-a-five-phase-machine's phase machine.
+A take is performed on the machine tabs, so its controls must be reachable off
+the Song tab. It must say plainly that it is recording (a red dot and a clock), it
+must be pausable, and it must never write a file the user did not choose to keep.
+A [floating window](floating-window.md) mounts on `document.body`, so once open it
+stays live on every tab. The rest sits on [audio-export](audio-export.md)
+REQ-capture-is-a-five-phase-machine.
 
 ## Requirements
 
-- **REQ-record-window-is-a-floating-window** — **A floating window, built like
-  its two siblings.** The launcher ceremony is copied verbatim from
+- **REQ-record-window-is-a-floating-window** — Built like its siblings, following
   `createTransportWindowLauncher` ([transport-window](transport-window.md)
-  REQ-transport-is-a-floating-window): lazily construct one `FloatingWindow`, keep it alive across closes,
-  toggle it from the launcher, drop the launcher's `.on` in `onClose`, ❐ glyph +
-  `aria-label`. The window opens at its **own** initial offset:
-  `floating-window.module.css` gives every window the same default position and
-  z-index 950 with no bring-to-front, so a fourth window would otherwise open
-  exactly on top of the other three.
-- **REQ-the-window-renders-only-the-phase** — **The window renders the phase,
-  and only the phase.** It owns no recorder state of its own — which is also why
-  the timer reset in REQ-the-timer-reports-the-take belongs to the controller
-  rather than being papered over here; every control and every glyph is derived
-  from `RecorderController.phase` by a single `render()`, the one-authority
-  idiom `export-song-modal.ts` uses. The four phases
-  ([audio-export](audio-export.md) REQ-capture-is-a-five-phase-machine):
+  REQ-transport-is-a-floating-window). One `FloatingWindow` is built lazily and
+  kept across closes. The launcher toggles it, drops its `.on` in `onClose`, and
+  carries the `popOut` icon ([iconography](iconography.md)) and an `aria-label`.
+  It opens at its **own** initial offset, because windows share one default
+  position and z-index with no bring-to-front.
+- **REQ-the-window-renders-only-the-phase** — It owns no recorder state. Every
+  control and glyph comes from `RecorderController.phase` through a single
+  `render()`:
 
   | Phase | Status | Actions |
   | --- | --- | --- |
@@ -76,104 +58,57 @@ TRANSPORT do. (2) and (3) are what this spec adds on top of
   | `review` | `✓` + `<len> captured` | **Save as `<FMT>`** · Discard |
   | `encoding` | `preparing your download…` | *(none — both disabled)* |
 
-  The `encoding` row is why that phase exists ([audio-export](audio-export.md)
-  REQ-capture-is-a-five-phase-machine): an MP3 of a long take spends seconds in lamejs, and reporting `idle`
-  across it left the window looking like it had simply stopped responding.
-
-  One button changes label across `Record`/`Pause`/`Resume`, which is
-  [ADR-014](../decisions/adr-014-dont-make-me-think.md)-legal because its outcome
-  is written on its face — the Play/Stop precedent — not inferred from hidden
-  state.
-- **REQ-pause-pauses-the-recorder-not-the-transport** — **Pause pauses the
-  recorder, not the transport**, and the UI must say so. The music keeps playing
-  while paused (that is the whole point: you drop out of the take and punch back
-  in), so the status line names what is paused and the button's `title` spells
-  it out. Nothing here touches `Clock`.
-- **REQ-the-timer-reports-the-take** — **The timer reports the take, not the
-  wall clock.** It reads `capturedSeconds()`, which derives from
-  `RecorderNode.capturedFrames` — so a paused stretch never advances it and the
-  number always equals the length of the file you will get. Formatted `m:ss`
-  (seconds precision is enough; a centisecond field would repaint 100×/s to tell
-  you nothing). **It reads `0:00` whenever the phase is `idle`**, because there
-  is no take then. The node's frame counter is cleared only by `start()`, so a
-  plain read-through left the window showing the *previous* take's length after
-  a save or discard — a stale number is worse than no number, since it looks
-  like a recording you still have.
-- **REQ-the-timer-costs-nothing-when-hidden** — **The timer costs nothing when
-  it cannot be seen.** A single interval is started only while the window is
-  **open and the phase is `recording`**, and cleared on every other transition
-  and on close ([runtime-performance](runtime-performance.md)
-  REQ-no-work-for-offscreen-dom). Because the value is *derived* rather than
-  accumulated, a window closed for ten minutes and reopened shows the correct
-  elapsed time immediately — no catch-up, no drift. It ticks at 200 ms rather
-  than 1 s so the displayed second turns over promptly; that is one
-  `textContent` write per tick against a cached last-rendered string, and it is
-  skipped entirely when the text has not changed.
-- **REQ-the-red-dot-earns-its-animation** — **The red dot is the one animation
-  that earns its cost.** The `recording` state pulses via a CSS `opacity`
-  keyframe (compositor-only, ~2 s cycle) on one small element, and the class is
-  removed the instant the phase leaves `recording`. "A capture is running" is
-  precisely the message a static glyph fails to carry across a tab switch, which
-  is the standard this repo holds animation to.
-- **REQ-the-meter-shows-what-reaches-the-recorder** (v2) — **A peak meter shows
-  what is actually reaching the recorder.** The timer proves a capture is running;
-  it cannot tell a take of music from four minutes of silence, which is what you
-  get when every lane is muted or the master is down. A thin horizontal bar
-  (`record-meter`) beside the timer shows the loudest sample captured since the
-  last paint, on a dB scale from −60 dBFS (empty) to 0 dBFS (full); a peak at or
-  above 0 dBFS turns it red (`data-clip`), because a clipped take is the other
-  thing worth knowing before you save it.
-
-  The data is already there: the recorder worklet posts every batch to the main
-  thread to build the take, so `RecorderNode` takes the peak of each batch as it
-  appends it (`takePeak()` returns the loudest since the previous read and
-  resets) — no worklet change, no new audio-thread work. The meter paints on the
-  timer's tick (REQ-the-timer-costs-nothing-when-hidden), so it shares its
-  gating: nothing runs unless the window is open and the phase is `recording`,
-  and every other phase shows it empty. It moves by `transform: scaleX`, never a
-  CSS transition — this is high-frequency state. `role="meter"` carries the dB
-  value for assistive tech.
-
-- **REQ-the-launcher-shows-capture-state** — **The launcher shows capture state
-  with the window closed.** It carries `.on` while `isCapturing()`, so a take
-  running behind a closed window is never invisible from the Song tab.
-- **REQ-closing-mid-take-asks-first** — **Closing with a take in flight asks
-  first.** Via [floating-window](floating-window.md)
-  REQ-a-window-may-veto-its-close's `confirmClose`, which is supplied **only
-  when `phase !== 'idle'`** — an idle window closes instantly, with no dialog to
-  dismiss for nothing. Confirming **discards**: the capture stops, the buffer is
-  dropped and the window closes; cancelling leaves both the window and the take
-  exactly as they were. The dialog is `danger`-styled with a `Discard`
-  affirmative ([dialog](dialog.md) REQ-danger-confirm-is-red), because that is
-  what it does — a confirm that silently *saved* would be a close button that
-  downloads a file. It guards every door at once (the ✕, the launcher, the
-  shortcut), because the check lives inside `close()`.
-- **REQ-shift-r-toggles-the-record-window** — **`Shift`+`R` toggles the window
-  from anywhere.** Reach was the original complaint, and a floating window only
-  solves it once opened. A bare `r` is a note key (`shortcuts.ts` `UPPER`), so
-  the branch sits **above** `keyToMidi` — beside the `Shift`+arrow branch, which
-  is there for the same reason ([transport-position](transport-position.md)
-  REQ-home-and-shift-arrows-seek) — and `Shift`+`R` therefore cannot be typed by accident while playing.
-  It routes through a late-bound `UiBridge.toggleRecordWindow`, the
-  `toggleInfoBadges`/`cuePlay` seam, so `shortcuts.ts` never reaches into a
-  panel. Listed in the About modal's shortcut table ([onboarding](onboarding.md)
-  REQ-about-key-symbols-are-drawn) and carrying a help badge on the launcher (REQ-the-playhead-ruler-carries-a-badge there) — the
-  discoverability triple a non-obvious gesture needs.
-- **REQ-the-record-format-is-seeded-not-owned** — **The format is seeded, not
-  owned.** The window shows its own WAV/MP3 segmented, initialised from the Song
-  tab's global default and overridable for that take **without writing back**
-  ([audio-export](audio-export.md) REQ-export-opens-an-options-modal). The Save button echoes it (`Save as
-  WAV`), which is where REQ-closing-mid-take-asks-first of that spec now lives.
-- **REQ-an-export-is-named-as-an-export** — **An export is named as an export,
-  never mistaken for your take.** There is one `RecorderNode` and one transport,
-  and an [Export Song](audio-export.md) pass walks the *same* phases — so a
-  window rendering the phase alone (REQ-the-window-renders-only-the-phase) would
-  read `REC` with a climbing timer for a capture that is not the user's and that
-  none of its buttons can touch. While `isExporting()`: the status reads
-  *"Exporting the song…"*, the dot does not pulse, the timer holds `0:00` (there
-  is no take), and both actions are `disabled` with a `title` naming the reason
-  — rather than buttons that silently do nothing (`exportSong` and `stopManual`
-  both early-return here anyway).
+  One button reads `Record`/`Pause`/`Resume`. Its outcome is written on its face,
+  as with Play/Stop (ADR-014).
+- **REQ-pause-pauses-the-recorder-not-the-transport** — The music plays on while
+  paused, so you drop out and punch back in. The status line and the button's
+  `title` say so. Nothing here touches `Clock`.
+- **REQ-the-timer-reports-the-take** — The timer reads `capturedSeconds()` (from
+  `RecorderNode.capturedFrames`), so a pause never advances it and it equals the
+  file's length. It is formatted `m:ss`. **It reads `0:00` whenever the phase is
+  `idle`**: the node's counter is cleared only by `start()`, and a stale length
+  would look like a take you still have.
+- **REQ-the-timer-costs-nothing-when-hidden** — A single 200 ms interval runs only
+  while the window is **open and the phase is `recording`**
+  ([runtime-performance](runtime-performance.md) REQ-no-work-for-offscreen-dom).
+  The value is derived, so reopening shows the right time at once. Each tick
+  writes `textContent` only when the string changed.
+- **REQ-the-red-dot-earns-its-animation** — In `recording` the dot pulses with a
+  compositor-only `opacity` keyframe (~2 s). The class is removed the instant the
+  phase leaves `recording`. "A capture is running" is exactly what a static glyph
+  fails to carry.
+- **REQ-the-meter-shows-what-reaches-the-recorder** (v2) — A thin bar
+  (`record-meter`) shows the loudest captured sample since the last paint, from
+  −60 dBFS (empty) to 0 dBFS, turning red at 0 dBFS (`data-clip`). The timer cannot
+  tell music from silence (every lane muted). `RecorderNode` takes each batch's
+  peak as it appends it (`takePeak()` reads and resets), so the worklet is
+  unchanged. It paints on the timer's tick and shares its gating, and it is empty
+  in every other phase. It moves by `transform: scaleX`, never a transition.
+  `role="meter"` carries the dB.
+- **REQ-the-launcher-shows-capture-state** — The launcher carries `.on` while
+  `isCapturing()`, so a take behind a closed window is never invisible.
+- **REQ-closing-mid-take-asks-first** — Via [floating-window](floating-window.md)
+  REQ-a-window-may-veto-its-close's `confirmClose`, supplied **only when `phase !==
+  'idle'`**. Confirming **discards** (capture stopped, buffer dropped, window
+  closed); cancelling changes nothing. It is `danger`-styled with a `Discard`
+  affirmative ([dialog](dialog.md) REQ-danger-confirm-is-red). It guards every door
+  (✕, launcher, shortcut), because the check lives inside `close()`.
+- **REQ-shift-r-toggles-the-record-window** — `Shift`+`R` toggles the window from
+  anywhere. A bare `r` is a note key, so the branch sits **above** `keyToMidi`,
+  beside the `Shift`+arrow branch ([transport-position](transport-position.md)
+  REQ-home-and-shift-arrows-seek). It routes through a late-bound
+  `UiBridge.toggleRecordWindow`. It is listed in the About shortcut table
+  ([onboarding](onboarding.md) REQ-about-key-symbols-are-drawn), and the launcher
+  carries the `song.record` badge ([onboarding](onboarding.md)
+  REQ-the-song-audio-buttons-keep-their-badges).
+- **REQ-the-record-format-is-seeded-not-owned** — The window's WAV/MP3 segmented is
+  seeded from the Song tab's default and overridable per take **without writing
+  back** ([audio-export](audio-export.md) REQ-export-opens-an-options-modal). Save
+  echoes it (`Save as WAV`).
+- **REQ-an-export-is-named-as-an-export** — An [Export Song](audio-export.md) pass
+  walks the same phases on the same node. While `isExporting()`, the status reads
+  *"Exporting the song…"*, the dot does not pulse, the timer holds `0:00`, and both
+  actions are `disabled` with a `title` naming the reason.
 
 ## Technical design
 
@@ -184,51 +119,44 @@ record-window.ts:   # src/ui/components/record-window.ts
   createRecordWindowLauncher(engine: StudioApi,
                              defaultFormat: () => ExportFormat): RecordWindowLauncher
 RecordWindowLauncher:
-  el: HTMLButtonElement    # the Song-panel launcher (❐, aria-label, .on while capturing)
-  toggle(): void           # what UiBridge.toggleRecordWindow is bound to (REQ-shift-r-toggles-the-record-window)
+  el: HTMLButtonElement    # the Song-panel launcher (popOut icon, aria-label, .on while capturing)
+  toggle(): void           # what UiBridge.toggleRecordWindow is bound to
 
 UiBridge:            # src/ui/ui-bridge.ts — late-bound, like toggleInfoBadges
   toggleRecordWindow(): void
 
 testids:
-  song-record         # the launcher — UNCHANGED id (help badge + song-mode REQ-sync-and-audio-pair-up probe)
+  song-record         # the launcher (help badge + song-mode REQ-sync-and-audio-pair-up probe)
   record-window       # the FloatingWindow root
-  record-toggle       # Record / Pause / Resume (label names its own outcome)
+  record-toggle       # Record / Pause / Resume
   record-stop         # Stop  (disabled while idle)
   record-save         # Save as <FMT>   (review only)
   record-discard      # Discard         (review only)
   record-status       # the phase word: REC / PAUSED / captured
   record-timer        # m:ss
-  record-meter        # v2: peak meter (role=meter, data-clip at 0 dBFS)
+  record-meter        # peak meter (role=meter, data-clip at 0 dBFS)
   record-fmt-<wav|mp3>
 ```
 
 ### Layer touchpoints & ordering
 
 ```yaml
-state:    NONE of its own. Every render reads RecorderController.phase +
-          capturedSeconds(); the window is a pure view (REQ-the-window-renders-only-the-phase).
-subscribe: engine.recorder.onPhase(render) — one subscription, taken by the
-          LAUNCHER not the window, so `.on` (REQ-the-launcher-shows-capture-state) keeps working while closed.
-meter:    RecorderNode.takePeak(): number  # loudest |sample| since the last read, then reset
-          RecorderController.takePeak(): number  # 0 unless recording a take (not an export)
-          painted on the timer's tick; empty in every other phase (REQ-the-meter-shows-what-reaches-the-recorder)
-timer:    one setInterval(200ms), started only when (open && phase==='recording'),
-          cleared on every other transition and on close (REQ-the-timer-costs-nothing-when-hidden).
-close:    confirmClose supplied only while phase !== 'idle' (REQ-closing-mid-take-asks-first); confirming
-          calls discardTake() — the window never saves on the way out.
-shortcut: shortcuts.ts Shift+R -> bridge.toggleRecordWindow(), bound by the Song
-          panel when it builds the launcher. Branch order: ABOVE keyToMidi (REQ-shift-r-toggles-the-record-window).
+state:    NONE of its own; every render reads RecorderController.phase + capturedSeconds()
+subscribe: engine.recorder.onPhase(render) — taken by the LAUNCHER, so `.on` works while closed
+meter:    RecorderNode.takePeak() / RecorderController.takePeak()   # 0 unless recording a take
+timer:    one setInterval(200ms) while (open && phase==='recording')
+close:    confirmClose only while phase !== 'idle'; confirming calls discardTake()
+shortcut: shortcuts.ts Shift+R -> bridge.toggleRecordWindow(), ABOVE keyToMidi
 build order: buildSongPanel creates the launcher and assigns the bridge hook;
-          installShortcuts runs after mountApp in main.ts, so the hook is set.
+          installShortcuts runs after mountApp in main.ts
 ```
 
 ### Visual aid
 
 ```
 ┌ RECORD ──────────────────────────── − ✕ ┐
-│  ● REC   0:34      [Pause]  [Stop]      │   recording (● pulses)
-│  ❙❙ PAUSED 0:34    [Resume] [Stop]      │   paused — the transport plays on
+│  ● REC   0:34  ▮▮▮▮▯  [Pause]  [Stop]   │   recording (● pulses)
+│  ❙❙ PAUSED 0:34       [Resume] [Stop]   │   paused — the transport plays on
 │  ✓ 0:34 captured   [Save as WAV] [Discard]   review — nothing on disk yet
 │                              WAV | MP3   │
 └─────────────────────────────────────────┘
@@ -236,10 +164,9 @@ build order: buildSongPanel creates the launcher and assigns the bridge hook;
 
 ### Persistence
 
-Nothing. The window's open state, position and collapse state are ephemeral like
-every floating window, and the take lives only in memory until Save. A take is
-deliberately **not** rescued across a reload: it would mean writing tens of MB to
-IndexedDB on every pause, and a recording nobody chose to keep is not worth that.
+Nothing. Open state, position and collapse are ephemeral, and the take lives in
+memory until Save. A take is not rescued across a reload: that would mean writing
+tens of MB to IndexedDB on every pause.
 
 ## Scenarios (BDD)
 
@@ -282,11 +209,11 @@ Scenario: An idle window closes without a dialog (REQ-closing-mid-take-asks-firs
 
 Scenario: The window stays live off the Song tab (REQ-record-window-is-a-floating-window)
   Given the Record window is open and recording
-  When the user switches to the Synth tab
+  When the user switches to another tab
   Then the window is still visible and the timer is still advancing
 # pinned by: e2e/record-window.spec.ts
 
-Scenario: The meter shows what reaches the recorder (v2, REQ-the-meter-shows-what-reaches-the-recorder)
+Scenario: The meter shows what reaches the recorder (REQ-the-meter-shows-what-reaches-the-recorder)
   Given the Record window is open and a take is recording
   When batches arrive whose loudest sample is 0.5
   Then the meter fills to about 90% (-6 dBFS on a 60 dB scale)
@@ -318,20 +245,13 @@ Scenario: An export is not shown as your recording (REQ-an-export-is-named-as-an
 
 ## Tests & verification
 
-- `tests/ui/record-window.test.ts` (jsdom — phases, timer formatting, close guard,
-  launcher state), `e2e/record-window.spec.ts` (the real recorder end to end,
-  including a downloaded WAV, and v2's meter rising on a real note),
-  `tests/audio/recorder/recorder-controller.test.ts` (the phase machine
-  underneath), `tests/audio/recorder/node.test.ts` (v2 — `takePeak`).
-- `npm test` / `npm run e2e`.
+- `tests/ui/record-window.test.ts` (jsdom), `e2e/record-window.spec.ts` (real
+  recorder end to end, a downloaded WAV, the meter rising on a note),
+  `tests/audio/recorder/recorder-controller.test.ts`, `tests/audio/recorder/node.test.ts`
+  — `npm test` / `npm run e2e`.
 
 ## Open questions / future
 
-- [live-fx-window](live-fx-window.md) and [transport-window](transport-window.md)
-  both defer the same question — a **header entry point** for floating windows,
-  explicitly to be answered for all of them at once rather than growing one header
-  button per window. This is now the third window, and the first with a keyboard
-  shortcut; if a header cluster ever lands, the shortcut and the Song-tab launcher
-  should fold into it rather than becoming a fourth way in.
-- ~~A level meter in the window~~ — v2, REQ-the-meter-shows-what-reaches-the-recorder. The spec used to say it
-  needed a new worklet tap; it did not — the worklet already posts every batch.
+- A **header entry point** for floating windows is deferred for all of them at once
+  ([live-fx-window](live-fx-window.md), [transport-window](transport-window.md)). If
+  one lands, this window's shortcut and launcher fold into it.
