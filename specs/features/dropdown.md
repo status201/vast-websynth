@@ -3,39 +3,7 @@
 ```yaml
 id: dropdown
 status: implemented
-version: 17 # v17: REQ-an-open-menu-stays-under-the-sticky-header — the section holding an open
-            #      menu is raised above its sibling sections but not above the header;
-            #      at z-index 100 it painted over the header, which vanished (regression)
-            # v16: REQ-a-toggle-can-carry-a-legend — an unboxed toggle that is a panel's title
-            #      (the synth Delay's TYPE, delay-types.md v4)
-            # v15: one Escape closes only the innermost open menu (stopImmediatePropagation: every
-            #      menu listens on the document); dismissMenu returns a disposer and the Grid
-            #      popover's destroy() uses it (regressions)
-            # v14: ParamDropdown takes an optional testId (delay-types.md REQ-delay-type-testids)
-            # v13: one menu is open at a time (REQ-one-menu-is-open-at-a-time) — every toggle
-            #      stopped its own click, so opening a second menu never reached the
-            #      first one's outside-click close and the two overlapped
-            # v12: dismissMenu takes `inside` triggers outside its root (the FX slot's title),
-            #      so a trigger keeps its menu open without stopping the click, and the
-            #      click still closes every other open menu
-            # v11: REQ-every-fixed-menu-shares-one-anchor-and-dismiss — the anchor rule and the
-            #      Escape-is-consumed rule live in menu-anchor.ts, shared by every fixed
-            #      menu; the Clear menu and the lane popover were letting Escape reach Panic
-            # v10: ParamDropdown.setDimmed, and REQ-a-dropdown-can-be-dimmed's CSS pin widened to
-            #     consumer stylesheets — the mod matrix's idle rows faded a picker
-            #     root with `.idle > *` and the open list went transparent again
-            # v9: REQ-the-menu-closes-on-outside-click — the Escape that closes a menu stops there;
-            #     it used to reach the global Panic shortcut and stop the song
-            # v8: options carry the `dropdown-option` bridge class — the toggle and
-            #     the matching option share an accessible name (REQ-an-option-carries-the-bridge-class)
-            # v7: setOptions takes a dividerAfter group separator, and REQ-a-list-can-be-split-by-dividers writes
-            #     down that a rebuild can strand the displayed value
-            # v6: setDisabledOptions — individual options can be unselectable (REQ-an-option-can-be-unselectable)
-            # v5: setDimmed + the "never dim the root" invariant (REQ-a-dropdown-can-be-dimmed)
-            # v4: the filter row is content type, not faceplate legend (REQ-a-long-list-carries-a-filter)
-            # v3: Up/Down/Home/End walk the options in every dropdown (REQ-arrow-keys-move-the-selection)
-            # v2: a live filter row on long lists (REQ-a-long-list-carries-a-filter); REQ-the-selected-option-scrolls-into-view's focus target
-            #     moves to that input where it exists
+version: 17
 owner: ui
 related:
   - architecture
@@ -49,7 +17,7 @@ source:
   - src/ui/components/dropdown.ts
   - src/ui/components/param-dropdown.ts   # ParamBus-bound wrapper
   - src/ui/styles/dropdown.module.css
-  - src/ui/components/menu-anchor.ts      # v11: anchorMenu + dismissMenu, shared by every fixed menu
+  - src/ui/components/menu-anchor.ts      # anchorMenu + dismissMenu, shared by every fixed menu
 ```
 
 ## Background / Why

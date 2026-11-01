@@ -3,35 +3,7 @@
 ```yaml
 id: presets
 status: implemented
-version: 18  # v18: review: one predicate, `isPatchParam`, now excludes the key and the master
-             #      compressor too, so the dirty marker, the song pin, the catalogue and the
-             #      guide agree with Save and load (v17 had added a second predicate beside it)
-             # v17: REQ-a-preset-is-only-a-sound — capture() keeps only sound params and apply()
-             #      ignores song-level ones, so loading a user preset never moves the tempo or
-             #      a machine (it restored the whole bus as saved; v9's "ignored on load" for
-             #      motion keys was never true of the snapshot's own keys) (regression)
-             # v16: REQ-loading-a-preset-starts-from-the-default-sound states that the synth EQ curve is
-             #      part of the sound and resets (scenario pinned)
-             # v15: REQ-loading-a-preset-starts-from-the-default-sound — Presets.apply resets every sound
-             #      param to its default before restoring, except the key and the master compressor,
-             #      so a preset saved before a param existed no longer inherits it
-             # v14: five cross-mod/sync showcases (24 factory presets; the count leaves the REQ id,
-             #      the old "nineteen" id is now REQ-factory-presets-span-the-instrument-families);
-             #      REQ-a-factory-preset-sets-the-full-sound covers osc1.fm/ring, osc2.sync, both pulse
-             #      widths and the six mod rows; REQ-an-older-factory-seed-is-refreshed
-             # v13: a preset or bank name is at most 50 characters (untrusted-input.md REQ-names-are-capped)
-             # v12: a snapshot drops UNSAVED_PARAMS (REQ-a-preset-is-a-snapshot); the delete open question is struck — v11 shipped it
-             # v11: a stored preset can be deleted, and an edited factory preset reverted
-             #      (REQ-a-stored-preset-can-be-deleted)
-             # v10: REQ-the-preset-wizard-reports-every-problem — the import wizard reports EVERY problem, not the
-             #      first, and the ones it can only warn about are shown too
-             # v9: the motion sequencer is not part of a sound (REQ-motion-is-not-part-of-a-sound)
-             # v8: REQ-a-factory-preset-sets-the-full-sound covers the FX tempo locks — a bank that ENGAGES an
-             #     effect must pin its .sync (tempo-lock.md REQ-sync-defaults-to-free)
-             # v7: the loaded song's sound is a pinned dropdown entry (REQ-a-songs-sound-is-a-selectable-entry),
-             #     and an options rebuild never relabels the selector (REQ-rebuilding-options-never-relabels)
-             # v6: REQ-a-factory-preset-sets-the-full-sound spells out WHY only presets leak, and is now pinned
-             # v5: the import wizard is reachable with an already-parsed payload
+version: 18
 owner: core
 related:
   - architecture
@@ -45,14 +17,14 @@ related:
   - ../decisions/adr-014-dont-make-me-think
 source:
   - src/state/preset.ts
-  - src/state/preset-file.ts             # v4: pure file build/parse/merge
+  - src/state/preset-file.ts             # pure file build/parse/merge
   - src/state/preset-validate.ts         # the file format + its validator (preset-authoring.md)
   - src/state/serialize.ts               # roundParams (export precision)
-  - src/state/preset-session.ts          # v7: isPatchParam/patchSnapshot + the song-sound slot
+  - src/state/preset-session.ts          # isPatchParam/patchSnapshot + the song-sound slot
   - src/audio/engine.ts                  # main.ts seeds on boot
   - src/ui/shell/header.ts               # preset-select dropdown + the manager button
-  - src/ui/panels/song-panel.ts          # v7: applySong pins the song's sound
-  - src/ui/components/preset-manager-modal.ts # v4: save / export / import
+  - src/ui/panels/song-panel.ts          # applySong pins the song's sound
+  - src/ui/components/preset-manager-modal.ts # save / export / import
 ```
 
 Save/recall of a **sound** (the scalar param snapshot only) — distinct from a

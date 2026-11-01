@@ -3,18 +3,7 @@
 ```yaml
 id: session-autosave
 status: implemented
-version: 9   # v9: REQ-autosave-triggers-on-any-change names the triggers it missed: a motion
-             #     extra track, a bank added, a copy into another bank, and a slot transpose
-             # v8: REQ-each-tab-autosaves-to-its-own-key — the session is PER TAB. Two tabs sharing one key was
-             #     last-writer-wins, and it silently ate a real session's motion
-             # v7: REQ-every-slot-write-is-guarded — Save guards the same slot the import path does, and
-             #     REQ-a-demo-click-never-writes-a-slot — a demo click never writes a slot at all
-             # v6: REQ-the-undo-net-covers-the-session — an identical slot is not a conflict (re-importing the
-             #     same song no longer re-asks). Also renumbered v5's import gate,
-             #     which had collided with the storage-failure requirement — both
-             #     under the numeric ids that predate slugs (ADR-021).
-             # v5: an import confirms before overwriting a same-named saved slot
-             #     (the undo toast can't restore one)
+version: 9
 owner: websynth
 related:
   - architecture

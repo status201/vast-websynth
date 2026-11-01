@@ -3,16 +3,7 @@
 ```yaml
 id: step-settings
 status: implemented
-version: 6   # v6: the "new per-step fields" note names the seq-only home bend used
-             # v5: per-step pitch bend on SEQ steps — a signed semitone amount and a
-             #     scoop/fall shape, played on a per-voice detune source
-             #     (REQ-a-seq-step-carries-a-bend..REQ-every-sub-hit-re-bends)
-             # v4: the past-clamp note below understated the damage — the choke
-             #     did NOT clamp with the hit (drum-machine.md REQ-a-clamped-hit-carries-its-choke)
-             # v3: per-step micro-timing — a step may sound early or late on its
-             #     own cell (REQ-a-step-carries-a-micro-offset … REQ-an-early-offset-is-capped-in-seconds), edited by a centre-detent slider
-             #     bracketed by −/+ steppers
-             # v2: the edit row's sliders are gesture-scoped (REQ-edit-sliders-are-gesture-scoped)
+version: 6
 owner: core
 related:
   - architecture
@@ -38,11 +29,11 @@ source:
   - src/state/limits.ts                  # MICRO_UNITS / MICRO_MAX
   - src/state/serialize.ts               # sparse encode (micro 0 is dropped)
   - src/audio/drums/drum-synths.ts       # chokeRoute (one-shot choke)
-  - src/audio/note-bend.ts               # v5 — schedules a bend on a voice's bend param
-  - src/audio/voice.ts                   # v5 — the per-voice bend source
+  - src/audio/note-bend.ts               # schedules a bend on a voice's bend param
+  - src/audio/voice.ts                   # the per-voice bend source
   - src/ui/components/step-settings.ts   # shared edit-row UI
-  - src/ui/components/step-button.ts     # step-face viz (v5: the bend stroke)
-  - src/ui/onboarding/help-content.ts    # v5 — the seq.bend help topic
+  - src/ui/components/step-button.ts
+  - src/ui/onboarding/help-content.ts    # the seq.bend help topic
 ```
 
 The velocity/gate/prob/ratchet/tie/micro model and the pure hit math shared by all

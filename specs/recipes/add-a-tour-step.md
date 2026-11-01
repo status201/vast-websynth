@@ -3,7 +3,7 @@
 ```yaml
 id: add-a-tour-step
 status: implemented
-version: 2   # v2: step actions are awaited; applyDemo is async
+version: 2
 owner: core
 related:
   - onboarding

@@ -3,11 +3,7 @@
 ```yaml
 id: render-to-sampler
 status: implemented
-version: 6   # v6: REQ-an-outside-stop-aborts-the-render — Esc / Panic / a media-key pause mid-render no longer wedges it
-             # v5: REQ-a-render-is-refused-while-busy — the reverse guard: a capture waits for a render
-             # v4: a rendered bar is the song's bar, not always 16 steps (REQ-one-bar-means-the-songs-bar)
-             # v3: explicit start(0) + a render blocks a playhead seek (REQ-the-buffer-starts-exactly-on-a-bar/REQ-a-render-is-refused-while-busy)
-             # v2: a `seq.render` help badge explains the section + the two-pass tail bake
+version: 6
 owner: core
 related:
   - architecture
@@ -23,8 +19,8 @@ source:
   - public/worklets/recorder.js
   - src/audio/engine.ts
   - src/ui/panels/seq-panel.ts
-  - src/ui/onboarding/help-content.ts   # `seq.render` help topic (v2)
-  - src/ui/onboarding/info-badges.ts      # its badge anchor (v2)
+  - src/ui/onboarding/help-content.ts
+  - src/ui/onboarding/info-badges.ts
 ```
 
 ## Background / Why

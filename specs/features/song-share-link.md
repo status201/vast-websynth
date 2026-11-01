@@ -3,8 +3,7 @@
 ```yaml
 id: song-share-link
 status: implemented
-version: 4   # v4: the fetched body is read under the cap as it streams (REQ-a-linked-fetch-needs-consent)
-             # v3: https-only songUrl + consent dialog + payload/fetch caps (REQ-a-linked-fetch-needs-consent/REQ-share-payload-is-capped)
+version: 4
 owner: state
 related:
   - song-mode

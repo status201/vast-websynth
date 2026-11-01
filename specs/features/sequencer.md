@@ -3,25 +3,7 @@
 ```yaml
 id: sequencer
 status: implemented
-version: 14  # v14: REQ-the-sequencer-triggers-the-active-step names the per-step bend among the honoured settings
-             # v13: REQ-the-note-releases-at-gate-end — a tie into a different pitch releases the
-             #      tied note at the new attack; in poly it used to hang forever
-             # v12: REQ-a-seq-track-carries-a-pan — a PAN knob beside each track's mute. The four
-             #      tracks share one voice pool, so pan rides the note and is applied per
-             #      voice by a spread stage that is only in circuit off centre (ADR-023)
-             # v11: REQ-tracks-two-to-four-collapse's fold moved into the shared lane-fold
-             #      component so motion's single-param lanes could use it. Same
-             #      behaviour, same testids, same storage keys — the contract is
-             #      unchanged and this bump only records where the code went
-             # v10: REQ-a-seek-releases-every-tracks-note's seek release lands at each track's gate end, not
-             #      now — a loop wrap otherwise hangs a tied voice (transport-loop)
-             # v9: REQ-the-sequencer-triggers-the-active-step also honours per-step `micro` — and applies it here
-             #     rather than inside stepHits, so the mono release moves with
-             #     the attack (step-settings.md REQ-micro-is-one-pure-offset)
-             # v8: the lane's length + step rate come from the meter (REQ-seq-lane-length-comes-from-the-meter)
-             # v7: the transposed note is then quantized to the key (REQ-the-transposed-note-is-then-quantized)
-             # v6: notes are shifted by the arrangement slot's transpose (REQ-every-note-is-shifted-by-the-slot-transpose)
-             # v5: release held notes on a transport stop, too (REQ-a-stop-releases-every-tracks-note)
+version: 14
 owner: core
 related:
   - architecture
@@ -31,7 +13,7 @@ related:
   - transport-position
   - step-settings
   - step-grid-editing
-  - lane-fold                  # REQ-tracks-two-to-four-collapse's fold, shared with motion since v17
+  - lane-fold
   - banks
   - arrangement
   - input-control

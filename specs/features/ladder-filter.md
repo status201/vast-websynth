@@ -3,7 +3,7 @@
 ```yaml
 id: ladder-filter
 status: implemented
-version: 7   # v7: this is filter model 0 of N (REQ-ladder-is-filter-model-zero)
+version: 7
 owner: core
 related:
   - architecture

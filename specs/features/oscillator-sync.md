@@ -3,29 +3,7 @@
 ```yaml
 id: oscillator-sync
 status: implemented
-version: 8                     # v8: regression: the pair's `detune` range is ±24000 ¢, past
-                               #     everything the voice can sum (±18000); at ±9600 a low note
-                               #     pushed up hard stopped short of the native path's pitch
-                               # v7: regression: a failed worklet load is forgotten, so the next
-                               #     switch-on retries (through `loadWorkletModule`, like the
-                               #     flanger and reverse delay); it used to leave sync dead until
-                               #     reload, e.g. a fetch failing offline before the precache filled
-                               # v6: soft sync redesigned by ear (REQ-soft-sync-rounds-every-slave-edge):
-                               #     a hard reset with every slave edge rounded, not reversing
-                               #     sync, whose saw ran up then down and so always added a
-                               #     sub-octave (a hum at SYNC 0). v5's two reversal regressions
-                               #     go with it. The bound is ±4 and clamped, not ±2, which a
-                               #     narrow pulse broke in every mode (REQ-the-pair-is-bounded)
-                               # v5: (superseded by v6) regressions on the reversing slave: the
-                               #     1:1 wrap step, the slope flip on leaving soft mode
-                               # v4: regressions: attach follows the master's frequency curve as
-                               #     scheduled (a glide in flight, a note ahead); re-engaging gates the
-                               #     pair by whether the voice sounds now
-                               # v3: cross-modulation — the pair lands on each Osc's pre-level
-                               #     `signal` tap, and takes an a-rate `fm` input (cross-modulation.md)
-                               # v2: review — the engagement state machine moves out of Voice
-                               #     into SyncEngagement (SRP); LFO depths come from LFO_DEST_SCALE;
-                               #     SyncOscNode.create(ctx) loses its unused initialHz
+version: 8
 owner: core
 related:
   - oscillators                # osc1/osc2 this pairs up; the open question it answers
@@ -37,7 +15,7 @@ related:
   - ../decisions/adr-010-musical-stable-cheap-dsp
   - ../decisions/adr-012-true-bypass-disconnects
   - ../decisions/adr-017-modulation-in-graph
-  - cross-modulation           # v3: ring mod reads the pair's outputs, FM drives its slave
+  - cross-modulation           # ring mod reads the pair's outputs, FM drives its slave
 source:
   - public/worklets/sync-osc.js      # the DSP
   - src/audio/sync-osc/node.ts       # the wrapper

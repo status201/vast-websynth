@@ -3,7 +3,7 @@
 ```yaml
 id: transport-loop
 status: implemented
-version: 2   # v2: Shift+L toggles Loop from the keyboard (REQ-shift-l-toggles-the-loop)
+version: 2
 owner: core
 related:
   - transport            # REQ-loop-discoverability: the step router the wrap runs through

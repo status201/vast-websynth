@@ -3,27 +3,7 @@
 ```yaml
 id: sampler
 status: implemented
-version: 13  # v13: REQ-slots-are-filled-by-load-or-record — the last file picked wins, not the
-             #      last decode to finish
-             # v12: `stopAll` cuts through the same `cutHit` a choke does, so it stops
-             #     reading a live `gain.value` (unreliable on Gecko) and stops
-             #     re-stopping a hit already ending (REQ-a-stop-cuts-in-flight-one-shots)
-             # v11: the editor gains a Scratch section (scratch.md); no new
-             #     sampler REQ - the slot rows are untouched
-             # v10: REQ-a-slot-row-carries-a-fit-button — a FIT button on every slot row, fitting the clip to
-             #     the nearest bar length (time-stretch.md)
-             # v9: REQ-a-slot-can-cut-another-slot/REQ-a-slots-polyphony-is-bounded — per-slot choke groups and a mono mode, and a
-             #     polyphony cap so a slot can no longer stack without limit
-             # v8: REQ-each-slot-has-a-channel/REQ-a-hit-plays-a-window-of-the-buffer — each slot gains a channel (vol/pan/tone/res) and a
-             #     per-hit voice window (pitch/start/end/rev/attack/decay); every
-             #     default reproduces v7 exactly
-             # v7: REQ-a-slot-starts-from-zero — a slot ramps up from zero and carries its choke when
-             #     a hit is clamped out of the past (drum-machine.md
-             #     REQ-a-voice-envelope-reaches-true-zero/REQ-a-clamped-hit-carries-its-choke)
-             # v6: the lane's length + step rate come from the meter (REQ-sampler-lane-length-comes-from-the-meter)
-             # v5: the Clear ▾ row item ejects the slot's sample, not just its
-             #     steps (REQ-clear-ejects-the-slot)
-             # v4: a transport stop cuts in-flight one-shots (REQ-a-stop-cuts-in-flight-one-shots)
+version: 13
 owner: core
 related:
   - architecture

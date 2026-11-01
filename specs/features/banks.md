@@ -3,15 +3,7 @@
 ```yaml
 id: banks
 status: implemented
-version: 8   # v8: the sixteen-bank ceiling's rationale is ADR-025 (it was an in-place amendment to ADR-022)
-             # v7: the ceiling rises to 16 (A–P) — SongFile v9 (song-mode.md
-             #     REQ-song-file-v9-raises-the-bank-ceiling); the bar wraps rather than pages
-             #     (REQ-the-bank-bar-wraps-rather-than-pages)
-             # v6: a machine owns its own bank count, 4..8, and the count IS the array
-             #     length (REQ-a-machine-owns-its-bank-count, ADR-022)
-             # v5: a bank stores 16 cells whatever the meter plays (REQ-bank-always-stores-sixteen-cells)
-             # v4: the per-bank content dot is specified (REQ-content-dot-covers-every-lane) — it must count
-             #     every lane the machine stores in that bank
+version: 8
 owner: core
 related:
   - architecture

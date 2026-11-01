@@ -3,21 +3,16 @@
 ```yaml
 id: tempo-sync-help
 status: implemented
-version: 4   # v4: REQ-the-badge-introduces-the-tempo-lock — the badge is where the tempo lock is introduced, since
-             #     a 9x11 glyph does not announce that it is a button
-             # v3: REQ-a-locked-knob-badge-follows-the-lock — while a knob is tempo-locked the badge follows the lock
-             #     instead of writing a value nothing reads (tempo-lock.md)
-             # v2: the divisions module moved to src/utils/tempo.ts and now
-             #     drives a real tempo lock on the LFO (lfo.md REQ-lfo-sync-locks-rate-to-tempo)
+version: 4
 owner: ui/onboarding
 related:
   - architecture
   - performance-mode        # both live under ui/onboarding chrome
-  - tempo-lock              # v3: the real lock this badge used to only advise about
+  - tempo-lock              # the real lock this badge used to only advise about
 source:
   - src/utils/tempo.ts                  # the pure math (moved out of ui/ for lfo.md REQ-lfo-sync-locks-rate-to-tempo)
   - src/ui/onboarding/help-widgets.ts
-  - src/ui/components/tempo-lock.ts     # v4: noteGlyph(), inlined into the note
+  - src/ui/components/tempo-lock.ts     # noteGlyph(), inlined into the note
   - src/ui/onboarding/help-content.ts
   - src/ui/onboarding/info-badges.ts
   - src/ui/onboarding/index.ts

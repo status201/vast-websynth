@@ -3,25 +3,7 @@
 ```yaml
 id: audio-export
 status: implemented
-version: 15  # v15: a stop from outside ends an export as a cancel and the modal says so
-             #      (REQ-an-outside-stop-ends-the-export — it used to record on forever)
-             # v14: a capture waits for a bank render (REQ-a-capture-waits-for-a-bank-render — an export mid-render
-             #      stranded it), a failed encode keeps the take (REQ-a-failed-encode-keeps-the-take), and a
-             #      discarded take stays discarded (REQ-a-discarded-take-stays-discarded)
-             # v13: correction only — v12 saved the copy, not the allocation: a transferred
-             #      batch still costs a fresh pair of arrays in process()
-             # v12: a full batch is TRANSFERRED, not copied — the trim allocated two 8 KB
-             #      arrays per flush inside process() (REQ-chunks-are-batched-then-flushed)
-             # v11: a captured bar is the song's bar, not always 16 steps (REQ-the-capture-bound-is-the-songs-bar)
-             # v10: the worklet batches quanta into one message and stop() awaits
-             #      the flush, so a take stays frame-identical (REQ-chunks-are-batched-then-flushed)
-             # v9: the stop condition counts steps elapsed since the export began —
-             #     the old absolute test was unreachable past the 16-bit step wrap
-             # v8 (was 7.1): `encoding` is a real phase, and the export modal stays
-             #     open as the render's progress surface with a working Cancel (REQ-the-modal-is-the-renders-own-surface)
-             # v7: a phase machine replaces the armed bool (REQ-capture-is-a-five-phase-machine), export takes
-             #     runs + a tail bar behind an options modal (REQ-export-song-renders-from-the-top/REQ-the-capture-keeps-a-tail/REQ-export-opens-an-options-modal), and the
-             #     format-echoing labels extend to the buttons that write (REQ-labels-echo-the-chosen-format)
+version: 15
 owner: core
 related:
   - architecture

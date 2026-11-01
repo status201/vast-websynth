@@ -3,15 +3,7 @@
 ```yaml
 id: project-export
 status: implemented
-version: 7   # v7: REQ-a-mono-clip-exports-as-mono — a clip whose two channels are identical is
-             #     written as one channel; every export used to double a mono sample's size
-             # v6: REQ-the-zip-codec-loads-with-the-first-zip — the codec and the Export dialog
-             #     leave the entry chunk; a codec that cannot load is a refused import or
-             #     a reported export, never a silent click
-             # v5: REQ-zip-codec-is-hand-written-and-budgeted budgets the reader (entry count, declared-size pre-flight,
-             #     capped inflate, running total) — a zip is untrusted input
-             # v4: REQ-zip-holds-the-canonical-song names no canonical version (it had frozen at "v4")
-             # v3: JSON demos are fetched on click too; loadDemo is async
+version: 7
 owner: core
 related:
   - song-mode

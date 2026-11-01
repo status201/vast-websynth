@@ -3,15 +3,11 @@
 ```yaml
 id: fx-slot-picker
 status: implemented
-version: 3   # v3: a third entry — the flanger, between the Phaser and the Chorus
-             #     (REQ-the-slot-lists-its-effects-in-chain-order). The component was
-             #     already generic over N; the rule that fixes the order is new
-             # v2: the shown title opens the menu too (REQ-the-title-opens-the-menu) —
-             #     only the small caret did, and the name beside it looked inert
+version: 3
 owner: core
 related:
   - chorus          # the first effect to share a slot (with the Phaser)
-  - flanger         # v3: the third, between them
+  - flanger         # the third, between them
   - effects
   - fx-group        # the sampler's header group, which hosts a slot too
   - panel-tabs      # the precedent: two pages, one panel, session-only view state

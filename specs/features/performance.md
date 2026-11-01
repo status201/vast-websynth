@@ -3,17 +3,7 @@
 ```yaml
 id: performance
 status: implemented
-version: 9   # v9: REQ-tape-stop-ramps-bpm-and-pitch — the Tape Stop ramp runs on a worker timer,
-             #     not rAF, so a hidden tab no longer freezes it mid-gesture
-             # v8: REQ-tape-stop-ramps-bpm-and-pitch — both Tape Stop ramps start from the clock's
-             #     actual tempo; an early release lurched to the 20 BPM floor first.
-             #     The DJ filter's side cache stops allocating per write
-             # v7: REQ-the-dj-sweep-rides-detune — the DJ filter sweeps `detune` with `setTargetAtTime`
-             #     only; the unanchored cancel it used to issue restarted every
-             #     ramp from the constructed value on Gecko (a crackle)
-             # v6: REQ-the-dj-filter-is-a-series-pair — the DJ filter is a SERIES lowpass->highpass pair, so
-             #     crossing centre no longer swaps a live biquad's type (a click)
-             # v5: stutter composes with a lane's length + rate (REQ-stutter-composes-with-lane-length)
+version: 9
 owner: core
 related:
   - architecture

@@ -3,12 +3,7 @@
 ```yaml
 id: transport-window
 status: implemented
-version: 6  # v6: Shift+Space is Pause/continue from the keyboard (REQ-shift-space-pauses)
-           # v5: Play/Pause on BOTH surfaces (REQ-play-pause-is-not-a-second-truth/REQ-pause-and-stop-are-separate-verbs) and a Loop button
-            #     (transport-loop.md); `compact` is gone (REQ-one-transport-control-builder)
-            # v4: `bar.step` counts the song's bar, not a fixed 16 (REQ-bar-step-counts-the-songs-bar)
-            # v3: the readout wraps at song length — it no longer counts bars the
-            #     song does not have (REQ-the-position-readout-is-bar-dot-step)
+version: 6
 owner: core
 related:
   - transport
@@ -20,7 +15,7 @@ related:
   - arrangement
   - midi-clock-sync
   - onboarding
-  - transport-loop      # v5: the Loop button + scrubber picks this row carries
+  - transport-loop      # the Loop button + scrubber picks this row carries
 source:
   - src/ui/components/transport-controls.ts   # shared builder + window launcher
   - src/ui/panels/song-panel.ts               # hosts the compact row

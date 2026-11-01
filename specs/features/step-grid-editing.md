@@ -3,23 +3,7 @@
 ```yaml
 id: step-grid-editing
 status: implemented
-version: 12  # v12: the drum and sampler grids are reachable by keyboard (REQ-a-trigger-grid-is-reachable-by-keyboard)
-             # v11: Clear ▾ can shift the bank a step left or right (REQ-shift-rotates-the-played-window)
-             # v10: the seq step wheel steps by scroll distance (wheel-steps.md REQ-a-wheel-gesture-steps-by-distance)
-             # v9: the five hand-rolled double-tap windows live in one module, and the
-             #     two-tolerance divergence between them is recorded rather than hidden
-             # v8: a CANCELLED pointer writes nothing — `pointercancel` was routed to the
-             #     release path, so an interrupted touch committed the tap it was
-             #     still "pending" for (REQ-tap-toggles-a-step + the inventory's cancel row)
-             # v7: cells past the lane's length are hidden, not dead (REQ-cells-past-the-lane-length-are-hidden)
-             # v6: the no-dead-item rule covers ALL four machines, not just
-             #     Motion — an empty row is not offered anywhere (REQ-clear-menu-clears-in-bulk)
-             # v5: a row may clear more than steps and own its own undo — the
-             #     sampler's ejects the slot's sample (sampler REQ-clear-ejects-the-slot) — REQ-clear-menu-clears-in-bulk/REQ-one-bulk-action-one-undo-entry
-             # v4: the motion grid's press is deferred, so its long-press now PEEKS
-             #     (motion-sequencer REQ-the-pads-gesture-set-peek-snap-fine) — REQ-motion-keeps-its-own-gesture + the inventory's Motion column
-             # v3: a position ruler sits above every grid; its click is a seek (REQ-the-ruler-is-separate-chrome)
-             # v2: off-screen grids skip their per-tick repaints (REQ-an-offscreen-grid-repaints-nothing)
+version: 12
 owner: core
 related:
   - architecture

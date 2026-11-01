@@ -3,29 +3,7 @@
 ```yaml
 id: architecture
 status: implemented
-version: 16  # v16: SeqStep lists the seq-only bend/bendShape; the ParamBus names UNSAVED_PARAMS; storage lists websynth.midi.channel
-             # v15: app.ts is the assembly only; its regions live in ui/shell/ and ui/panels/
-             # v14: every stylesheet declares a cascade layer, so app.ts's import order no
-             #      longer decides layout (css-cascade-layers.md) — the split it blocked is unblocked
-             # v13: the voice path is 1-channel until the SPREAD STAGE engages — a panned
-             #      sequencer track puts two channels through the inserts (ADR-023)
-             # v12: app.ts's IMPORT ORDER is load-bearing for layout — recorded, because it
-             #      blocks the panel extraction that would otherwise be obvious
-             # v11: four more shared helpers, each replacing a verbatim copy —
-             #      safeBarTicks, Arrangement.applyChain, WrappedEffect.quiesceParam,
-             #      createDjButton; and the label lists derive from their counts
-             # v10: typecheck also refuses unused locals and parameters
-             # v9: the smoothing vocabulary is four constants and `rampTo` —
-             #     the unused `rampCancelAndSet` / `RAMP_SLOW` are gone
-             # v8: the audio graph gains a per-lane EQ at the HEAD of all
-             #     three insert chains (equalizer.md); +1 persistence key
-             # v7: REQ-nothing-sounds-until-resume — the context is not created suspended, it is created
-             #     however the BROWSER's autoplay policy says; the graph is
-             #     silent until a deliberate fade either way (audio-lifecycle v6)
-             # v6: the audio graph gains a duck stage on the synth and sampler
-             #     chains, keyed by drum hits (sidechain-ducking.md)
-             # v5: websynth.ui.scope.height joins the persistence keys (scope.md REQ-the-scope-height-persists)
-             # v4: UiBridge in the layer contracts; testids/write-a-test delegation
+version: 16
 owner: core
 related: []
 source:

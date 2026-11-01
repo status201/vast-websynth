@@ -3,38 +3,7 @@
 ```yaml
 id: scope
 status: implemented          # draft | active | implemented
-version: 21  # v21: the chorus joins the stereo-sources list — the first insert besides the reverb that makes L≠R (chorus.md)
-             # v20: REQ-a-scope-resize-handle says the custom property is set from script, which the CSP allows (a style= attribute would not be)
-             # v19: the Wave trace is triggered on a rising zero crossing, so a steady tone
-             #      stands still instead of drifting (REQ-the-wave-trace-is-triggered)
-             # v18: the scope row's height is now a MINIMUM (REQ-a-scope-resize-handle): .bottom is a flex column and
-             #      the scope takes the spare height a capped keyboard cannot use (keyboard-range.md
-             #      REQ-spare-height-goes-to-the-scope).
-             # v17: v17: the stereo-sources list goes from three to five — it had never gained the
-             #      sampler's per-slot pans, and the sequencer's per-track pans are new (sequencer.md)
-             # v16: the loop stopped AGAIN (REQ-the-scope-proves-it-is-painting..38). v12 made start() restartable
-             #      but left every trigger for it event-driven and ONE-SHOT, and
-             #      left contextlost -> stop() waiting forever. A ~1 Hz watchdog
-             #      now proves the panel is painting, every control is a recovery
-             #      path, and a context that is provably lost is escaped by
-             #      REPLACING the canvas — getContext('2d') cannot re-acquire one.
-             # v15: REQ-a-scope-resize-handle -- --scope-h gains a SECOND consumer. The EQUALIZER
-             #      section sizes its graph from it (equalizer.md REQ-the-eq-page-mirrors-the-scope-row), so
-             #      the grip below resizes two panels, not one. Deliberate:
-             #      two panels meant to read as one grid must not be
-             #      resizable apart. No change to this panel's behaviour.
-             # v14: REQ-every-drawn-string-gets-a-halo -- haloText moves to ui/components/canvas-text.ts.
-             #      The EQ graph draws small mono labels over a saturated
-             #      fill for the same reason this does, and a second copy
-             #      would drift the first time either was tuned
-             #      (equalizer.md REQ-the-graph-computes-from-bus-values). No behaviour change here.
-             # v13: the Spectrum gets a LOG frequency axis + a scale (REQ-the-frequency-axis-is-logarithmic..31) —
-             #      ticks at 100/500/1k/5k/10k, a Zones overlay naming the four
-             #      problem bands, a hover cursor readout, and a halo behind every
-             #      piece of canvas text so no label vanishes into a bright bar;
-             # v12: the redraw loop can always be restarted (REQ-the-redraw-loop-can-always-restart..25) — a device
-             #      report of a scope that went black while backgrounded and stayed
-             #      black; v4: analyser fftSize perf-tier-dependent; v5: applied LIVE via setFftSize; v6: tiers halved to 256/512/1024; v7: L/R labels bottom-left (clear of the corner buttons); v8: Wave auto-gain (partial normalization) + float time-domain read; v9: dropped a stale "ping-pong delay" from the stereo-sources list — the delay is mono; v10: dropped the phaser and the DJ FX from that same list (neither can create L≠R), and the Background's layout prose now matches REQ-the-split-layout-is-pure; v11: a drag handle on the top edge resizes the scope (REQ-a-scope-resize-handle), height persisted as a device-scoped workspace pref (REQ-the-scope-height-persists) — the first thing about this panel that survives a reload
+version: 21
 owner: status201
 related:
   - architecture
@@ -42,12 +11,12 @@ related:
   - compressor
   - runtime-performance
   - audio-lifecycle
-  - debug-panel                       # v16: the Scope row that reports this panel's liveness
+  - debug-panel                       # the Scope row that reports this panel's liveness
 source:
-  - src/ui/components/scope.ts        # NOT touched by v11 — see REQ-a-scope-resize-handle; v12 and v16 are here
-  - src/state/debug-sources.ts        # v16: setScopeStatsSource — the Debug panel's reader
-  - src/ui/components/about-debug.ts  # v16: the "Scope" row
-  - src/ui/components/canvas-text.ts  # v14: haloText, hoisted out of this component
+  - src/ui/components/scope.ts
+  - src/state/debug-sources.ts        # setScopeStatsSource — the Debug panel's reader
+  - src/ui/components/about-debug.ts  # the "Scope" row
+  - src/ui/components/canvas-text.ts  # haloText, hoisted out of this component
   - src/ui/components/resize-handle.ts
   - src/state/scope-height.ts
   - src/audio/engine.ts

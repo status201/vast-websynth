@@ -3,14 +3,7 @@
 ```yaml
 id: dialog
 status: implemented
-version: 6   # v6: REQ-a-prompt-may-cap-its-length — promptDialog's maxLength (untrusted-input.md REQ-names-are-capped)
-             # v5: REQ-an-alert-may-offer-copyable-text — an alert may carry a Copy button offering the FULL
-             #     text of what it reports, so a truncated error list is no
-             #     longer destroyed by dismissing the dialog
-             # v4: REQ-dialog-testids-are-unambiguous's "one dialog at a time" is now enforced, not assumed
-             #     — a closing dialog is reaped when the next one opens
-             # v3: REQ-choose-dialog-offers-several-options — chooseDialog, for a question whose answers are two
-             #     positive actions rather than yes/no
+version: 6
 owner: core
 related:
   - architecture

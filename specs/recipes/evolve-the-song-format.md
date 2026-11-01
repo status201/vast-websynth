@@ -3,20 +3,7 @@
 ```yaml
 id: evolve-the-song-format
 status: implemented
-version: 8   # v8: the worked example is rebased on the next additive bump (v9 → v10), and step 3
-             #     says what fromJSON really does now (full validation, canonical-only)
-             # v7: v9 is the second dimension bump — it only RAISES v8's bank ceiling (8 -> 16),
-             #     so its whole cost is step 4b plus a new top rung in the dialect ladder (4c)
-             # v6: there are TWO kinds of bump. v8 added no field at all — it widened an
-             #     existing dimension — which makes steps 2 and 5 near no-ops and moves
-             #     every risk into the validator, the schemas and llms.txt's DIMENSION
-             #     prose, which no version pin can see (banks.md, ADR-022)
-             # v5: step 4b's authoring-guide appendix bullet gains a backstop — the
-             #     v7 bump skipped it and shipped a canonical shape with no
-             #     `seqTranspose`, which every version pin passed
-             # v4: rebased on v6 -> v7 (it still walked v4 -> v5); SONG_VERSION and
-             #     KNOWN_SONG_VERSIONS now live in one pure module; llms.txt and the
-             #     authoring-docs pin are named in the checklist
+version: 8
 owner: core
 related:
   - song-mode

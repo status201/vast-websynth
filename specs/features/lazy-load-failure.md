@@ -3,13 +3,7 @@
 ```yaml
 id: lazy-load-failure
 status: implemented
-version: 7   # v7: the WiFi transport's body and the sync roles join the operation-scoped exemptions
-             #     (webrtc-sync.md v9, midi-clock-sync.md v10)
-             # v6: Dirt's other types join the operation-scoped exemptions (dirt-types.md)
-             # v5: the delay's non-digital types join the operation-scoped exemptions (delay-types.md)
-             # v4: the boot-payload baseline is dated (2026-08-20) — `npm run check:bundle` prints the current sizes
-             # v3: loadSurface is the canonical trigger shape; four hand-rolled triggers fold onto it
-             # v2: the offline sentence points at Play offline (REQ-the-offline-sentence-points-at-play-offline)
+version: 7
 owner: core
 related:
   - runtime-performance   # REQ-every-lazy-trigger-reports — the split that creates this failure mode

@@ -3,21 +3,7 @@
 ```yaml
 id: transport
 status: implemented
-version: 11  # v11: a dropout re-origins with DROPOUT_LEAD_S (0.1 s), not start()'s 0.05 s, so an
-             #      early-nudged first step after a backgrounded tab returns is still
-             #      schedulable (REQ-the-transport-catch-up-is-bounded)
-             # v10: REQ-a-start-can-name-its-first-step-time start(fromStep, firstStepAt) and
-             #      REQ-a-jump-can-be-scheduled seekAt(step, at) / nextStepAt — for a sync slave
-             #      that joins on the master's first pulse and follows a jump in place
-             # v9: REQ-a-subscriber-may-not-wedge-the-transport covers ALL FIVE listener fan-outs, not just
-             #     tick and the routed seek — start/stop/seek were bare, and a throwing
-             #     start listener wedged the transport permanently
-             # v8: REQ-pause-resumes-where-it-stopped pause() — a one-shot resume point the cue reports while
-             #     paused; REQ-a-step-router-can-redirect-the-next-step a step router, which the loop wraps through
-             # v7: REQ-the-step-counter-is-bounded-at-ingress the step counter no longer wraps (bounded at ingress
-             #     instead), REQ-swing-offset-is-public swingOffset is public — both for meter.md
-             # v6: REQ-the-transport-catch-up-is-bounded bounded catch-up — a stalled wakeup source (backgrounded
-             #     phone) recovers as silence, never as a burst of missed steps
+version: 11
 owner: core
 related:
   - architecture
@@ -28,8 +14,8 @@ related:
   - performance-mode
   - midi-clock-sync
   - transport-position
-  - transport-window   # v8: the Play/Pause button that calls pause()
-  - transport-loop     # v8: the step router's one consumer
+  - transport-window   # the Play/Pause button that calls pause()
+  - transport-loop     # the step router's one consumer
   - untrusted-input
   - audio-lifecycle
   - ../decisions/adr-015-untrusted-input-is-bounded

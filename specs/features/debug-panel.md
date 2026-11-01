@@ -3,32 +3,12 @@
 ```yaml
 id: debug-panel
 status: implemented
-version: 15  # v15: an Offline copy row (debug-offline) — play-offline.md's state, via the
-             #      extension contract (REQ-the-debug-extension-contract), no contract change
-             # v14: an Errors row keeps the last uncaught errors and rejections
-             #      (REQ-the-panel-keeps-the-last-errors), and Share report hands the
-             #      readout to the OS share sheet (REQ-the-report-can-be-shared)
-             # v13: a Scope row (debug-scope) reports whether the visualizer is
-             #      actually painting — scope.md REQ-the-panel-says-whether-it-is-drawing, a REQ-the-debug-extension-contract extension, no
-             #      contract change.
-             # v12: sizes read in kB below a megabyte ("1 key · 3 kB", not
-             #      "1 keys · 0.0 MB"), and the Unregister confirm says what it
-             #      does — the caches stay (REQ-a-debug-row-may-carry-one-action)
-             # v11: the ctx-state row also names the autoplay verdict — the one
-             #      glance that says whether a start modal was shown at all, and
-             #      why a boot could be audible (audio-lifecycle.md
+version: 15
 #      REQ-nothing-is-audible-before-the-first-start/REQ-the-gesture-is-required-only-when-required)
-             # v10: the Suspend action goes through Engine.suspendForDebug() so the
              #      universal statechange re-arm can tell a deliberate suspend from
              #      an OS one, and the ctx-state row shows when a resume is waiting
-             #      for a gesture (audio-lifecycle.md v5 REQ-a-resume-that-does-not-take-is-retried/REQ-an-unasked-suspension-is-recovered)
-             # v9: about.ts split five ways — the panel is now about-debug.ts,
              #     the late-bound row sources are state/debug-sources.ts, and
              #     createAboutButton is about-button.ts (runtime-performance REQ-boot-cost-matches-the-request)
-             # v8: createAboutButton takes the tour hook too, and the section
-             #     header class is now the shared `.secFold` (onboarding.md v15)
-             # v7: + the Background audio row (audio-lifecycle.md REQ-the-measurement-is-visible-either-way)
-             # v6: + the Media session row (media-session.md REQ-session-is-observable-on-device); v5 put
              #     Clock.dropouts on the Transport row (audio-lifecycle REQ-the-glitch-recovery-is-observable)
 owner: core
 related:

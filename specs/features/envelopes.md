@@ -3,8 +3,7 @@
 ```yaml
 id: envelopes
 status: implemented
-version: 3   # v3: REQ-filter-env-follows-velocity — the filter envelope can follow velocity
-             #     (`filter.velAmount`, default 0 = the v2 behaviour exactly)
+version: 3
 owner: core
 related:
   - architecture

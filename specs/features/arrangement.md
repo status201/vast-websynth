@@ -3,16 +3,7 @@
 ```yaml
 id: arrangement
 status: implemented
-version: 10  # v10: New and Clear chain reset the slot transpose (REQ-a-seq-slot-carries-a-transpose) —
-             #      slot 1's offset used to survive both
-             # v9: an edit keeps a playing lane on its bar (REQ-an-edit-keeps-the-lane-on-its-bar) —
-             #     it used to restart the lane at slot 1
-             # v8: the chip wheel steps by scroll distance (wheel-steps.md) — a touchpad swipe
-             #     used to send a bar's transpose straight to the clamp
-             # v7: drag a chip to reorder a lane (REQ-a-chip-is-dragged-to-its-place); the chip's three
-             #     facts get three visual channels (REQ-a-chip-says-three-things-three-ways)
-             # v6: the bar is barTicks, not 16 (REQ-an-arrangement-bar-is-bar-ticks) — meter.md
-             # v5: per-slot transpose on the seq lane (REQ-a-seq-slot-carries-a-transpose) — SongFile v7
+version: 10
 owner: core
 related:
   - architecture

@@ -3,9 +3,7 @@
 ```yaml
 id: xy-pad
 status: implemented
-version: 4   # v4: closing the window ends a live gesture — a wheel gesture ended only on
-             #     `pointerleave`, which a removed element never fires, so the swept
-             #     params stayed swept (REQ-wheel-nudges-the-dot)
+version: 4
 owner: core
 related:
   - architecture
@@ -19,7 +17,7 @@ source:
   - src/ui/components/floating-window.ts # the host window
   - src/ui/components/xy-pad-window.ts    # single shared window controller + launch button
   - src/ui/panels/song-panel.ts          # the "XY Pad" launch button
-  - src/state/song.ts                    # SongFile v3 persistence of the assignment
+  - src/state/song.ts
 ```
 
 ## Background / Why

@@ -3,10 +3,7 @@
 ```yaml
 id: machine-status
 status: implemented
-version: 4  # v4: the Arpeggiator tab gets a lamp too, driven by arp.on (REQ-the-arpeggiator-tab-has-a-lamp)
-            # v3: the lane-title ↗ glyph is dropped below 720px (REQ-the-navigation-link-is-visible-at-rest)
-            # v2: Chain/Mute/Solo in every machine header, shared with the Song
-            #     tab's lane cards (REQ-lane-controls-live-on-both-surfaces)
+version: 4
 owner: core
 related:
   - song-mode

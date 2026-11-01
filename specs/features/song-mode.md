@@ -3,48 +3,7 @@
 ```yaml
 id: song-mode
 status: implemented
-version: 32  # v32: a song name is at most 50 characters (untrusted-input.md REQ-names-are-capped)
-             # v31: the unused File readers are gone (the removed `readFile`/`parseFile` read a File
-             #      unsized); every file door sizes first (untrusted-input.md REQ-a-file-is-sized-before-it-is-read)
-             # v30: pre-release sweep — contract says SONG_VERSION 9, cell fields + compaction list seq bend/bendShape, params drop UNSAVED_PARAMS, versions note reaches v9
-             # v29: REQ-song-file-v9-raises-the-bank-ceiling — SongFile v9 raises the per-machine
-             #      bank ceiling from 8 to 16 (A–P); no field added (banks.md, ADR-025)
-             # v28: a saved song can be deleted (REQ-a-saved-song-can-be-deleted)
-             # v27: REQ-song-file-v8-widens-the-bank-count — SongFile v8 lets each machine carry 4..8
-             #      banks; the array length IS that machine's count (banks.md, ADR-022)
-             # v26: REQ-a-load-lands-on-bar-one's reset also clears the transport loop (transport-loop REQ-loading-a-song-clears-the-loop)
-             # v25: REQ-a-rejected-import-is-copyable-in-full also covers the two demo-load paths, which collapsed
-             #      their parse errors to errors[0] before the dialog saw them
-             # v24: REQ-a-rejected-import-is-copyable-in-full — a rejected import can be copied in full. The dialog
-             #      still shows 8 of up to 50 messages; the rest used to die
-             #      with it
-             # v23: REQ-applying-a-song-is-click-free — applying a song is click-free. apply()'s double write
-             #      collapses for plain AudioParams but not for the structural
-             #      side effects, and four of those were audible on a demo click
-             # v22: REQ-drop-in-demos-are-fetched-on-click — one hand-authored built-in, not two: the "Zombie
-             #      Nation" demo is gone and "I Feel Love" is renamed to "Mordor"
-             # v21: step cells carry the optional `micro` notch count — additive,
-             #      default 0, dropped when default, so no SongFile version bump
-             #      (step-settings.md REQ-a-step-carries-a-micro-offset)
-             # v20: REQ-drop-in-demos-are-fetched-on-click — demoNames() is one alphabetical list by display name,
-             #      so the project zips stop being pinned to the end of the shelf
-             # v19: REQ-song-file-is-a-versioned-union/REQ-song-file-v7-adds-slot-transpose — SongFile v7 adds the optional per-slot
-             #      `seqTranspose`, so one bank can carry a progression
-             # v18: REQ-drop-in-demos-are-fetched-on-click — loadDemo resolves an unknown name to the first demo
-             #      instead of returning silently, so renaming or deleting a demo
-             #      cannot leave a caller (the tour) staring at nothing
-             # v17: REQ-one-name-two-songs-ask — a demo whose name a saved slot shadows asks which of
-             #      the two songs was meant (demo clicks no longer write slots —
-             #      session-autosave REQ-a-demo-click-never-writes-a-slot)
-             # v16: REQ-an-imported-file-is-validated-first bounds magnitude, not just shape — note 0..127, chain
-             #      length, param-key count, reserved keys (untrusted-input, ADR-015)
-             # v15: the Audio row's two buttons open surfaces instead of writing
-             #      files; its Format is now the global default (REQ-sync-and-audio-pair-up note)
-             # v14: every load — and New — returns the playhead to bar 1 (REQ-a-load-lands-on-bar-one)
-             # v13: Sync then Audio, sharing one row above 1280px (REQ-sync-and-audio-pair-up)
-             # v12: DEMO_ROW_LIMIT 6 -> 10 (REQ-the-demo-row-overflows-into-a-menu) — 6 hid two thirds of 17 demos
-             # v11: drop-in demos fetched on click, not bundled (REQ-drop-in-demos-are-fetched-on-click)
-             # v10: apply() evicts stale sampler audio (REQ-stale-sampler-audio-is-evicted)
+version: 32
 owner: core
 related:
   - architecture

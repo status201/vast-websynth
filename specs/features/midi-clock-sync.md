@@ -3,18 +3,7 @@
 ```yaml
 id: midi-clock-sync
 status: implemented
-version: 10  # v10: SyncMaster and SyncSlave load when a sync mode is selected, not at boot
-             #      (REQ-the-sync-roles-load-with-the-mode)
-             # v9: every tick sends its own six pulses from its unswung time (REQ-master-broadcasts-start-and-stop) —
-             #     even-only emission lost or doubled six pulses after a seek to the other parity
-             # v8: a join sounds on its first pulse (REQ-a-join-is-timed-by-its-first-pulse) and a
-             #     following slave jumps in place (REQ-a-following-slave-jumps-in-place) — a
-             #     master's wrap no longer leaves slaves a 16th off, nor a
-             #     hardware master leave them two pulses late
-             # v7: a local start from a non-zero step joins slaves there instead
-             #     of restarting them at bar 0 (REQ-a-local-start-joins-rather-than-restarts); REQ-a-midi-master-announces-its-seek's announce is
-             #     driven by clock.onSeek, so a loop wrap announces too
-             # v6: MIDI carries no meter — stated, not hidden (REQ-midi-cannot-carry-a-meter)
+version: 10
 owner: core
 related:
   - architecture
@@ -28,7 +17,7 @@ source:
   - src/state/sync-mode.ts
   - src/audio/transport/sync/sync-types.ts
   - src/audio/transport/sync/bpm-estimator.ts
-  - src/audio/transport/sync/sync-roles.ts      # v10: the lazy module behind both roles
+  - src/audio/transport/sync/sync-roles.ts      # the lazy module behind both roles
   - src/audio/transport/sync/sync-master.ts
   - src/audio/transport/sync/sync-slave.ts
   - src/audio/transport/sync/sync-controller.ts

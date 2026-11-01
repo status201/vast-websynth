@@ -3,41 +3,7 @@
 ```yaml
 id: input-control
 status: implemented
-version: 22  # v22: a lit white key sits lower — inset side shading, none where two lit
-             #      white keys meet (REQ-a-lit-white-key-sits-lower)
-             # v21: two computer keys on one note release it with the last key, not the first
-             #      (REQ-a-note-off-names-the-pressed-note); a MIDI note is released after a channel
-             #      change or an unplug (REQ-a-midi-note-is-released-by-whatever-ended-it)
-             # v20: a key held into a text field is still released (REQ-shortcuts-are-suppressed-in-a-field) —
-             #      the keyup in a field returned early and the note hung
-             # v19: the volume knob reads the gain it applies (REQ-the-volume-knob-reads-the-gain-it-applies) —
-             #      it showed 20·log10(volume) over a volume² law, half the real cut
-             # v18: MIDI channel 10 plays the sampler's slots (REQ-channel-ten-plays-the-sampler),
-             #      the synth's input channel is selectable (REQ-the-midi-input-channel-is-selectable),
-             #      CC11 is expression (REQ-cc11-is-expression) and channel aftertouch
-             #      joins the mod wheel (REQ-aftertouch-joins-the-mod-wheel)
-             # v17: the shortcuts stand down while a modal is open (REQ-shortcuts-yield-to-an-open-modal —
-             #      Delete used to clear a step BEHIND a confirm), and the octave moves
-             #      from the arrows to - and = (REQ-octave-shift-is-minus-and-equal), freeing the
-             #      arrows for keyboard navigation of the knobs
-             # v16: losing the window releases the BEND too, not just the notes and Fill —
-             #      hold `'`, Alt-Tab, and the keyup never arrives (REQ-pitch-bend-is-quote-and-slash)
-             # v15: the Pitch wheel help topic names the keys REQ-pitch-bend-is-quote-and-slash binds — it
-             #      still said `.` five versions after `.` was unbound (REQ-pitch-bend-is-quote-and-slash)
-             # v14: the keyboard carries a third highlight layer — static musical
-             #      roles, written as an attribute, outranked by the lit classes
-             #      (REQ-a-third-highlight-layer; the behaviour itself is scale-quantization.md REQ-the-key-is-shown-where-you-play)
-             # v13: the note maps are composed from a positional shape + the
-             #      active keyboard layout, switchable at runtime (REQ-two-key-rows-an-octave-apart/REQ-note-keys-follow-the-layout)
-             # v12: pitch bend matches e.code (Quote/Slash), not e.key — fixes
-             #      dead keys, non-US layouts and a stuck bend on Shift-mid-hold
-             #      (REQ-pitch-bend-is-quote-and-slash)
-             # v11: LOWER/UPPER are exported — the About keyboard diagram is
-             #      derived from them (REQ-two-key-rows-an-octave-apart, onboarding.md REQ-keys-are-drawn-as-keys)
-             # v10: the badges the `?` key toggles are now "info badges", reached
-             #      through UiBridge.toggleInfoBadges (onboarding.md v15); pitch
-             #      bend up moves from `.` to `'`, above `/` (REQ-pitch-bend-is-quote-and-slash)
-             # v9: lit keys + note-offs survive an OCT change (REQ-a-lit-key-is-remembered-as-an-element, REQ-a-note-off-names-the-pressed-note)
+version: 22
 owner: core
 related:
   - architecture

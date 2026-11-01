@@ -3,13 +3,7 @@
 ```yaml
 id: preset-authoring
 status: implemented
-version: 5   # v5: expansion and the warning follow `isPatchParam` again, now that it excludes the key
-             #     and the master compressor itself (presets.md v18)
-             # v4: the song-setting warning says the key is ignored on load (presets.md
-             #     REQ-a-preset-is-only-a-sound), no longer that loading would change it
-             # v3: REQ-semantic-severity-is-the-callers-choice — the semantic layer's severity is the caller's choice,
-             #     so the app can run those checks without refusing the file
-             # v2: REQ-preset-schemas-are-published — the schemas point at the published /params.* reference
+version: 5
 owner: tooling
 related:
   - presets

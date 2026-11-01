@@ -3,15 +3,7 @@
 ```yaml
 id: scale-quantization
 status: implemented
-version: 4   # v4: the key can admit one extra note — a blue note or a bebop passing
-             #     tone — that plays unquantized but is not a scale degree
-             #     (REQ-an-extra-note-is-admitted-not-a-degree, REQ-bebop-is-relative-to-the-mode,
-             #     REQ-the-extra-note-wears-its-own-role)
-             # v3: the playable keyboard wears the key too — same roles, same
-             #     palette, one resolver shared with the map (REQ-the-key-is-shown-where-you-play); and the
-             #     map's legend lists its states in dropdown order (REQ-the-key-is-drawn-not-just-named)
-             # v2: the KEY tab draws a two-octave keyboard map of the current
-             #     root, scale and chord (REQ-the-key-is-drawn-not-just-named)
+version: 4
 owner: core
 related:
   - architecture

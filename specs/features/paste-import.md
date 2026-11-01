@@ -3,8 +3,7 @@
 ```yaml
 id: paste-import
 status: implemented
-version: 3   # v3: REQ-the-paste-dialog-loads-on-click — the Paste dialog (and the fragment) load with the click
-             # v2: a file dropped on the window takes the same routes (REQ-a-dropped-file-takes-the-paste-routes)
+version: 3
 owner: ui
 related:
   - song-mode

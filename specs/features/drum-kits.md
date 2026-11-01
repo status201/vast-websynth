@@ -3,7 +3,7 @@
 ```yaml
 id: drum-kits
 status: implemented
-version: 2   # v2: KitDef.model row + the Percussion kit (voice models, drum-machine.md REQ-a-drum-tracks-algorithm-is-selectable)
+version: 2
 owner: core
 related:
   - architecture

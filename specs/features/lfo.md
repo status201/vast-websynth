@@ -3,28 +3,7 @@
 ```yaml
 id: lfo
 status: implemented
-version: 13                 # v13: LFO_DEST_SCALE (src/state/lfo-routing.ts) is the one depth table —
-                            #      LFO.update scales by it and mod-depth draws arcs from it, so the
-                            #      two copies of ±24/±0.5 that could drift apart are gone
-                            # v12: `sync` appended to LFO_DEST_LABELS (index 7, ±24 st into the
-                            #      sync pair's slave pitch) — oscillator-sync.md REQ-sync-is-a-modulation-destination
-                            # v11: REQ-the-auto-pan-reads-a-stereo-input — synthPan's input is forced to
-                            #      2 channels, so the sweep's law and the channel's level no
-                            #      longer depend on whether the reverb happens to be on (ADR-023)
-                            # v10: `otherLfo` removed from lfo-routing.ts — nothing called it
-                            # v9: REQ-lfo-sync-locks-rate-to-tempo's UI half is SUPERSEDED by tempo-lock.md — the
-                            #     rate knob carries the lock itself, so the standalone
-                            #     sync picker and the dim-in-place are both gone. The
-                            #     param, its encoding and the audio behaviour are
-                            #     unchanged.
-                            # v8: REQ-destinations-are-no-longer-exclusive's mutual exclusion is SUPERSEDED by the mod
-                            #     matrix; the two LFOs become its rows 0-1, keeping
-                            #     lfo.dest / lfo.amount unchanged (mod-matrix.md)
-                            # v7: REQ-there-are-two-lfos..15 — a second LFO (lfo2.*), mutually
-                            #     exclusive destinations, arbitrated PWM, tab pages
-                            # v6: REQ-lfo-sync-locks-rate-to-tempo — lfo.sync locks the rate to the tempo
-                            # v5: lfo.rate is exponentially tapered (REQ-lfo-rate-is-exponentially-tapered)
-                            # v4: `shape` destination — v3: `pulse` implemented
+version: 13
 owner: core
 related:
   - architecture
@@ -34,19 +13,18 @@ related:
   - effects              # the pan node sits at the end of the synth insert chain
   - render-to-sampler    # the bank-render tap moved downstream of the panner
   - oscillators          # owns pulse width; the `pulse` destination drives it
-  - panel-tabs           # v7: hosts the LFO 1 / LFO 2 pages
-  - dropdown             # v8: greying now serves mod-matrix REQ-per-voice-sources-cannot-drive-bus-destinations, not REQ-destinations-are-no-longer-exclusive
-  - mod-matrix           # v8: the LFOs are its rows 0-1; supersedes REQ-destinations-are-no-longer-exclusive
-  - tempo-lock           # v9: owns REQ-lfo-sync-locks-rate-to-tempo's control; the effects share it now
+  - panel-tabs           # hosts the LFO 1 / LFO 2 pages
+  - dropdown             # greying now serves mod-matrix REQ-per-voice-sources-cannot-drive-bus-destinations, not REQ-destinations-are-no-longer-exclusive
+  - mod-matrix           # the LFOs are its rows 0-1; supersedes REQ-destinations-are-no-longer-exclusive
+  - tempo-lock           # owns REQ-lfo-sync-locks-rate-to-tempo's control; the effects share it now
 source:
   - src/audio/lfo.ts
-  - src/audio/pwm.ts       # the `pulse` destination's control loop (v3)
+  - src/audio/pwm.ts
   - src/state/params.ts
   - src/audio/engine.ts    # panner construction + LFO fan-out
-  - src/audio/stereo.ts    # v11: forceStereo — REQ-the-auto-pan-reads-a-stereo-input
-  - src/state/lfo-routing.ts   # v8: the two-LFO vocabulary; the REQ-destinations-are-no-longer-exclusive rule is gone
-                               # v13: + LFO_DEST_SCALE, the per-destination depth table
-  - src/ui/panels/lfo-panel.ts # v7: the two-page panel
+  - src/audio/stereo.ts    # forceStereo — REQ-the-auto-pan-reads-a-stereo-input
+  - src/state/lfo-routing.ts   # the two-LFO vocabulary; the REQ-destinations-are-no-longer-exclusive rule is gone
+  - src/ui/panels/lfo-panel.ts # the two-page panel
 ```
 
 **Two** global low-frequency oscillators, each with a selectable destination, plus

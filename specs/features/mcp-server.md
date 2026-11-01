@@ -3,16 +3,7 @@
 ```yaml
 id: mcp-server
 status: implemented
-version: 9   # v9: REQ-read-midi-reads-a-file-for-an-arranger — read_midi (midi-file-reader.md) on both
-             #     profiles; a local `path` only on the local one. 11 tools local, 9 remote
-             # v8: REQ-two-transports-one-dispatcher/REQ-the-http-transport-is-stateless/REQ-the-remote-profile-is-read-only/REQ-the-public-endpoint-is-bounded-not-authenticated — a second transport (Streamable HTTP) and the
-             #     read-only remote profile behind https://vast.status201.com/mcp
-             # v7: REQ-local-entries-self-build-the-core — the self-build runs in a child process (no native module pinned)
-             # v6: REQ-a-valid-song-can-still-be-wrong — validate_song/save_song report untrusted-input REQ-an-unresolvable-target-warns's warnings
-             # v5: REQ-get-params-is-shared-by-both-halves — get_params; baseUrl defaults to the published site
-             # v4: REQ-an-mcp-write-stays-in-the-working-directory — save_song/save_preset contain `dir` inside cwd
-             # v3: expand_song's description names no song version (it drifted to "v3")
-             # v2: preset/bank authoring tools alongside the song ones
+version: 9
 owner: tooling
 related:
   - song-authoring-dialect

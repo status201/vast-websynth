@@ -3,22 +3,14 @@
 ```yaml
 id: tempo-lock
 status: implemented
-version: 4   # v4: the flanger's rate joins TEMPO_LOCKS at its two buses (flanger.md
-             #     REQ-the-flanger-rate-can-be-tempo-locked) — eleven lockable params
-             # v2: REQ-the-lock-glyph-hangs-out-of-flow — the glyph hangs in a left gutter, out of flow. Inline
-             #     it wrapped the label at the machine tabs' 22px knobs and
-             #     dropped that knob's dial below its neighbours'.
-             # v3: REQ-the-lock-glyph-hangs-out-of-flow — that gutter is now opt-in (machine tabs only). Being
-             #     out of flow, the glyph never needed one on the surfaces where
-             #     the lockable knob leads its row; reserving it there pushed the
-             #     knob off the centre its neighbours share.
+version: 4
 owner: core
 related:
   - architecture
   - tempo-sync-help     # the same division table, advisory; this is the real lock
   - lfo                 # REQ-locking-moves-nothing-on-the-faceplate shipped the first lock; this supersedes its UI
   - effects             # the wah / phaser / delay rates this extends it to
-  - flanger             # v4: fx.flanger.rate / fx.sampler.flanger.rate
+  - flanger             # fx.flanger.rate / fx.sampler.flanger.rate
   - dropdown            # the division menu, incl. REQ-the-lock-glyph-hangs-out-of-flow disabled options
   - knob-soft-ceiling   # the other per-knob disclosure device; not interchangeable
   - fx-group            # a consuming surface (drum/sampler header FX)

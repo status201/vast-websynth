@@ -3,21 +3,7 @@
 ```yaml
 id: voicing
 status: implemented
-version: 9   # v9: REQ-the-glide-switch-reads-on — the MIXER's glide switch shows `always` as ON,
-             #     so the switch fits its panel (responsive-synth-panels.md); the label stays `always`
-             # v8: REQ-passthrough-remembers-what-it-played — a key held as the arp comes on is still
-             #     released when you let go (the arp gate swallowed note-offs too)
-             # v7: heldNotes being keyed by NOTE is what makes two sequencer tracks on one
-             #     pitch share a voice, and so one pan (sequencer.md REQ-two-tracks-on-one-pitch-share-a-pan)
-             # v6: MONO obeys REQ-a-stolen-voice-leaves-the-held-list too — every mono note
-             #     claimed the same voices, so releasing an older key cut the newer note
-             # v5: a glide's cancel is ANCHORED, and the anchor is computed rather than
-             #     read back — on Gecko a bare cancel made portamento start from the
-             #     last assigned value, not the note being left (REQ-glide-controls-portamento)
-             # v3: the passthrough stores what it played, so a re-pitched or
-             #     chord-expanded key still releases correctly (REQ-passthrough-remembers-what-it-played)
-             # v4: a stolen voice is evicted from its old note's held list, so
-             #     releasing that key no longer cuts the new note (REQ-a-stolen-voice-leaves-the-held-list)
+version: 9
 owner: core
 related:
   - architecture

@@ -3,8 +3,7 @@
 ```yaml
 id: write-a-test
 status: implemented
-version: 2  # v2: a test may not name a shipped demo song — pick by kind, read
-            #     expected values from the shipped file, reserve the `test-` prefix
+version: 2
 owner: core
 related:
   - architecture

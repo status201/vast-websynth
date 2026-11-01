@@ -3,11 +3,7 @@
 ```yaml
 id: add-a-demo-song
 status: implemented
-version: 4   # v4: the optional one-line note (demo-notes.json) and what shows it; the row is
-             #     ordered by song name, and the index carries generated facts, not just the name
-             # v3: no test needs editing either — tests pick demos by kind and read
-             #     values from the shipped file (write-a-test.md)
-             # v2: demos are fetched on click; `npm run clean:demos` is now required
+version: 4
 owner: core
 related:
   - song-mode

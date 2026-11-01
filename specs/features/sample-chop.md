@@ -3,8 +3,7 @@
 ```yaml
 id: sample-chop
 status: implemented
-version: 2 # v2: REQ-chop-row-lives-in-a-folded-section — the chop row lives in a titled fold
-           # v1: the chop row, equal / detected slices, Spread to slots
+version: 2
 owner: core
 related:
   - sampler

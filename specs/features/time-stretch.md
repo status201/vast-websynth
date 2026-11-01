@@ -3,10 +3,7 @@
 ```yaml
 id: time-stretch
 status: implemented
-version: 3 # v3: REQ-the-quick-fit-is-reversible — the toast's Undo refuses once the slot holds
-           #     something newer (it used to overwrite a newly loaded clip)
-           # v2: REQ-fit-and-shift-share-a-folded-section — the Fit and Shift rows share one titled fold
-           # v1: Fit / Shift in the editor, and the slot-row FIT button
+version: 3
 owner: core
 related:
   - architecture

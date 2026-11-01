@@ -3,8 +3,7 @@
 ```yaml
 id: play-offline
 status: implemented
-version: 2   # v2: factory reset deletes the copy and it downloads again after the
-             #     reload (REQ-the-copy-is-fetched-again-after-a-reset); one notices watcher per copy (REQ-offline-feedback-while-about-is-closed)
+version: 2
 owner: Gijs
 related:
   - pwa-install          # the service worker this drives (REQ-offline-cancel-and-takeover there)

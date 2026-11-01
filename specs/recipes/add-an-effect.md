@@ -3,7 +3,7 @@
 ```yaml
 id: add-an-effect
 status: implemented
-version: 2   # v2: the lazily loaded worklet effect (the flanger) gotcha
+version: 2
 owner: core
 related:
   - effects

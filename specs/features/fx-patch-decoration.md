@@ -3,16 +3,11 @@
 ```yaml
 id: fx-patch-decoration
 status: implemented
-version: 3   # v3: the component is behind an import() at its one mount, so while dormant it costs
-             #     the entry chunk nothing (REQ-decoration-is-parity-keyed; runtime-performance.md
-             #     REQ-boot-cost-matches-the-request). It paid for the delay types (delay-types.md)
-             # v2: DORMANT. sidechain-ducking made the effect count six, so REQ-decoration-is-parity-keyed's
-             #     parity guard appends nothing. Anticipated by v1's open question,
-             #     not a regression — a seventh effect restores it with no change.
+version: 3
 owner: core
 related:
   - effects          # the insert effects whose grid leaves the gap
-  - sidechain-ducking # v2: the sixth panel that closed the gap
+  - sidechain-ducking # the sixth panel that closed the gap
   - fx-group         # the other, compact FX header layout
   - responsive-header # the sibling breakpoint-driven UI rule
 source:

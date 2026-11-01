@@ -3,27 +3,7 @@
 ```yaml
 id: delay-types
 status: implemented
-version: 7  # v7: review: a bypass *rests* the live core (`DelayCore.rest`: its own sources stop,
-            #     its knobs keep gliding), separate from `sleep`, so every type rests the same
-            #     way and DIGITAL needs no exception; a core taken back mid-drain while
-            #     bypassed is rested too (regression: its sines ran on)
-            # v6: regression: the live core sleeps through a bypass too (its wow and flutter
-            #     sines stop once the wrapper quiesces, a fresh pair starts on release),
-            #     and a TYPE chosen while bypassed is not woken until the delay is on
-            # v5: regression: REVERSE's head gains sum to 1 while TIME or CHAR move too: a
-            #     window opening hands every sounding head a fade from its current gain
-            #     over the new crossfade. A TIME step used to leave the old head on its
-            #     own longer fade, the sum rose toward 2 and the head steal cut one off
-            #     at full gain: a click per step (43 bursts on a stepped take, 0 steady)
-            # v4: regression: the synth panel's title *is* the TYPE dropdown (a DELAY ▾ legend
-            #     over the type), because a separate 120 px box beside the title pushed
-            #     the ON switch out of the panel at 1200 and 393 px
-            # v3: regressions: a retiring core's loop is zeroed only once its output gate has
-            #     closed (bypass excepted); the spring loop glides back like the main
-            #     loop; the reverse worklet allocates nothing per block
-            # v2: REQ-every-type-is-bounded: every loop filter is a true Butterworth (Q in dB,
-            #     `BUTTERWORTH_Q_DB`); the old 0.707, read as dB, peaked +1.7 dB and DIGITAL /
-            #     PING PONG ran away above FB ≈ 0.82 (regression scenario)
+version: 7
 owner: core
 related:
   - effects            # the insert-effect contract (WrappedEffect, bypass, drain, chain order)

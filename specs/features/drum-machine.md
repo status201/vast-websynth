@@ -3,26 +3,7 @@
 ```yaml
 id: drum-machine
 status: implemented
-version: 14  # v14: the hat choke cuts the ringing open-hat HITS, not a group gain that came back
-             #      10 ms later with the tail still under it (REQ-a-closed-hat-cuts-an-open-hat);
-             #      REQ-the-choke-group-restores-on-a-ramp is SUPERSEDED — there is no group gain to restore
-             # v13: the ten voices share `decayEnv` and `finishHit` instead of writing the
-             #      envelope and the teardown out each (REQ-a-voice-envelope-reaches-true-zero)
-             # v12: REQ-swapping-a-model-never-severs-a-voice — a model swap ramps the outgoing voice down and
-             #      disconnects it later; it used to sever a ringing tail, which
-             #      a song load fires twice per track (song-mode.md REQ-applying-a-song-is-click-free)
-             # v11: REQ-tune-reads-in-semitones — TUNE reads in semitones; `unit` alone never reached
-             #      the readout, so a semitone knob showed "0.00"
-             # v10: REQ-a-voice-envelope-reaches-true-zero/REQ-the-choke-group-restores-on-a-ramp/REQ-a-clamped-hit-carries-its-choke — a voice envelope must reach TRUE zero before
-             #      its source stops; the choke group restores on a ramp; a hit
-             #      clamped out of the past carries its choke with it
-             # v9: lane length/rate + a meter-relative fill (REQ-drum-lane-follows-the-meter) — meter.md
-             # v8: REQ-every-sounded-hit-is-reported — a lane mute (or a solo elsewhere) suppresses the hit
-             #     report too, not just a per-track mute; "reported ⇔ audible"
-             # v7: REQ-every-sounded-hit-is-reported — onHit reports every hit that sounds, at its scheduled
-             #     time; the sidechain ducker's trigger (sidechain-ducking.md)
-             # v6: REQ-a-closed-hat-cuts-an-open-hat — an optional hat choke group (drum.choke, default off)
-             # v5: per-track swappable voice models (drum.t{i}.model) + percussion voices
+version: 14
 owner: core
 related:
   - architecture
@@ -31,7 +12,7 @@ related:
   - banks
   - sampler
   - drum-kits
-  - sidechain-ducking  # v7: the consumer REQ-every-sounded-hit-is-reported's onHit was added for
+  - sidechain-ducking
 source:
   - src/audio/transport/drum-machine.ts
   - src/audio/drums/drum-synths.ts

@@ -3,12 +3,7 @@
 ```yaml
 id: failure-report
 status: implemented
-version: 4   # v4: REQ-a-thrown-value-is-named-here — `thrownMessage` turns whatever a catch
-             #     caught into the message, so a non-Error never reads "undefined"
-             # v3: REQ-truncated-message-is-built-here — the truncated message an alert shows is built here
-             #     too, so the line naming the Copy button cannot drift
-             # v2: REQ-every-failure-surface-emits-one covers every import-failure SURFACE, not only the
-             #     alerts — the preset wizard's inline strip emits one too
+version: 4
 owner: core
 related:
   - dialog

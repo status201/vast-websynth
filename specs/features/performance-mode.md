@@ -3,11 +3,7 @@
 ```yaml
 id: performance-mode
 status: implemented
-version: 8   # v8: REQ-the-settings-modal-loads-on-click — the modal body is a lazy chunk; the tier-coloured button stays eager
-             # v7: REQ-scope-fps-and-fft-apply-live's pause is now SUPERVISED, not softened — the scope still
-             #     stops dead while hidden, and a ~1 Hz watchdog that returns on its
-             #     first line while hidden makes sure it starts again (scope.md REQ-a-watchdog-restarts-a-stalled-loop)
-             # v6: analyser fftSize halved per tier (256/512/1024)
+version: 8
 owner: core
 related:
   - architecture

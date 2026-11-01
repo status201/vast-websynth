@@ -3,11 +3,7 @@
 ```yaml
 id: chorus
 status: implemented
-version: 3   # v3: regression: a bypassed chorus stops its LFO and starts a fresh one when
-             #     it is switched back on (REQ-the-chorus-drains-briefly, ADR-012)
-             # v2: the flanger joins between the phaser and the chorus (flanger.md), so the
-             #     chorus now follows the flanger; it still comes after all the modulation
-             #     and before the delay (REQ-the-chorus-sits-after-the-phaser)
+version: 3
 owner: core
 related:
   - effects            # the insert-effect contract it implements (WrappedEffect, bypass, drain)

@@ -3,8 +3,7 @@
 ```yaml
 id: add-an-audioworklet
 status: implemented
-version: 2   # v2: a lazily loaded insert holds its bypass instead of a passthrough, and its
-             #     JS can be a lazy chunk too (the flanger, flanger.md)
+version: 2
 owner: core
 related:
   - architecture

@@ -3,9 +3,7 @@
 ```yaml
 id: panel-tabs
 status: implemented
-version: 3   # v3: REQ-the-strip-replaces-the-title — a tab is the title's own box (14px line +
-             #     6px + dashed rule), unboxed, one vertical divider; the rule sits under the
-             #     inactive tab only, and the labels sit on every other title's line
+version: 3
 owner: core
 related:
   - architecture

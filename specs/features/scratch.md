@@ -3,9 +3,7 @@
 ```yaml
 id: scratch
 status: implemented
-version: 2 # v2: REQ-the-scratch-editor-is-a-modal-section — the header is the modal's shared fold (title left,
-           #     caret right); the fold key joins the app's convention
-           # v1: the scratch graph, the reader and the section
+version: 2
 owner: core
 related:
   - architecture

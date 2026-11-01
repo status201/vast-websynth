@@ -3,9 +3,7 @@
 ```yaml
 id: ios-audio
 status: implemented
-version: 4   # v4: the ctx 'statechange' listener is no longer iOS-only either — it is
-             #     gated on a deliberate-suspend flag instead (audio-lifecycle REQ-an-unasked-suspension-is-recovered)
-             # v3: the foreground re-arm is no longer iOS-only (audio-lifecycle REQ-foreground-return-rearms-the-context)
+version: 4
 owner: core
 related:
   - architecture

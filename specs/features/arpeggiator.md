@@ -3,15 +3,7 @@
 ```yaml
 id: arpeggiator
 status: implemented
-version: 6  # v6: octave/chord copies above MIDI 127 leave the pool (REQ-the-pool-stays-in-midi-range) —
-            #     they were scheduled up to note 156, past Nyquist
-            # v5: the cursor is re-clamped against the CURRENT pool — releasing a key
-            #     mid-bounce indexed past the end and pushed `undefined` into an
-            #     AudioParam (REQ-the-cursor-is-bounded-by-the-live-pool)
-            # v4: the pool is chord-expanded and key-quantized (REQ-arp-pool-is-expanded-then-quantized)
-            # v3: 1/32 actually plays 1/32 (REQ-a-sub-16th-rate-schedules-its-own-hits); `arp.on` in a saved song is
-            #     an *armed* control, by design, and is documented as one (REQ-saved-arp-on-is-armed-not-broken)
-            # v2: the tab carries a status LED for `arp.on` (REQ-armed-arp-is-visible-outside-the-tab)
+version: 6
 owner: core
 related:
   - architecture

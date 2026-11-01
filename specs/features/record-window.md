@@ -3,7 +3,7 @@
 ```yaml
 id: record-window
 status: implemented
-version: 2   # v2: a peak meter shows what is reaching the recorder (REQ-the-meter-shows-what-reaches-the-recorder)
+version: 2
 owner: core
 related:
   - audio-export        # REQ-the-timer-reports-the-take there: the phase machine this window drives

@@ -3,53 +3,7 @@
 ```yaml
 id: onboarding
 status: implemented
-version: 30  # v30: OSC 2 gets its own badge and topic, `osc2` (REQ-each-oscillator-carries-its-own-badge)
-             # v29: one badge for the demo row, song.demos, which opens the demo library; HelpContext gains loadDemo and loadedDemo, TourCtx gains loadedDemo (demo-library.md REQ-info-mode-badges-the-demo-row-once)
-             # v28: help copy catches up with the release (REQ-help-copy-tells-the-truth): 19 factory sounds, Delete or revert…, chord Inversion, drag-and-drop import, the MIDI in picker, aftertouch, wide-screen octaves; the About key list gains the drum/sampler grid row
-             # v27: the Equalizer carries seven badges — one section topic plus a
-             #      graph and a knob-row topic per lane — and its page shells
-             #      join the reflow observer list (REQ-the-equalizer-carries-seven-badges, REQ-a-container-must-tell-badges-when-it-hides)
-             # v26: five badges on the Sampler's selected-slot strip, anchored to
-             #      cells that outlive a slot change (REQ-the-sampler-strip-carries-five-badges)
-             # v25: the help door never fails silently — the About body is warmed
-             #      on idle so it opens offline, and a rejected import says so
-             #      with a retry instead of doing nothing (REQ-the-help-door-never-fails-silently)
-             # v24: a meter topic + badge on the header picker (REQ-the-meter-has-a-help-topic)
-             # v23: a badge hides when its anchor leaves the viewport in EITHER
-             #      direction — the below-the-fold half was missing (REQ-a-badge-shows-only-where-reachable)
-             # v22: the facade's five signatures are unchanged, but its body now
-             #      loads on the first startTour()/badge toggle
-             #      (runtime-performance.md REQ-boot-cost-matches-the-request)
-             # v21: a `mod` badge on the Song row's MOD launcher (REQ-the-mod-launcher-carries-a-badge)
-             # v20: `key` and `seq.chord` badges for the scale/chord tools (REQ-key-and-chord-writer-carry-badges)
-             # v19: an `lfo2.rate` sweet-spot badge, and the LFO panel's page
-             #      shell joins the reflow observer list (REQ-a-container-must-tell-badges-when-it-hides, lfo.md REQ-the-two-lfos-share-one-panel)
-             # v18: while the badges show, the ⓘ button's glyph inverts to the
-             #      badge's own colours, and the `presets` badge moves off its
-             #      neighbour onto the preset selector (REQ-the-info-button-is-a-toggle/REQ-a-presets-topic-anchors-to-the-picker)
-             # v17: the diagram's caps are labelled from the active keyboard
-             #      layout, switchable from a gear beside the section title
-             #      (REQ-keys-are-drawn-as-keys, keyboard-layout.md)
-             # v16: the About key list renders keycaps, and the two note rows
-             #      become a keyboard diagram derived from the real bindings
-             #      (REQ-keys-are-drawn-as-keys)
-             # v15: the Info/Help split collapsed — ⓘ toggles the badges and
-             #      nothing else, ? opens About, the Help chooser modal is gone,
-             #      and About absorbs the tour button + a folded key list
-             #      (REQ-the-info-button-is-a-toggle/REQ-help-copy-tells-the-truth/REQ-the-tour-showcases-the-song-tab/
-             #      REQ-about-key-symbols-are-drawn/REQ-the-info-button-gesture-inventory/REQ-about-is-the-single-door-for-help)
-             # v14: the two audio topics rewritten for the Record window + export
-             #      modal, and Shift+R added to the key list (REQ-the-song-audio-buttons-keep-their-badges/REQ-about-key-symbols-are-drawn)
-             # v13: instant badge toggle — Shift/Ctrl+click or long-press the Help
-             #      button, plus the `?` key; no modal round-trip (REQ-the-info-button-gesture-inventory)
-             # v12: a `song.fx` badge on the Live FX launcher — the last unbadged
-             #      section on the Song tab (REQ-the-live-fx-row-carries-a-badge)
-             # v11: playhead-ruler + Song-transport badges; symbol glyphs in the
-             #      About modal's key list (REQ-the-playhead-ruler-carries-a-badge/REQ-about-key-symbols-are-drawn)
-             # v10: TourCtx.applyDemo is async (demos are fetched on click)
-             # v9: a `seq.render` badge on the Sequencer's "Import into sampler" Render button
-             # v8: per-lane Motion help badges (motion.xy / motion.tracks)
-             # v7: grid-gesture copy, a `presets` topic, and a "Paint a pattern" tour step
+version: 30
 owner: core
 related:
   - architecture

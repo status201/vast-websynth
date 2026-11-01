@@ -3,11 +3,7 @@
 ```yaml
 id: brand
 status: implemented
-version: 4  # v4: the header's 60% applies below 1680px only; a very wide screen draws the full-size
-            #     block, its divider padding re-evened to 18px (REQ-a-consumer-may-scale-the-block)
-            # v3: a consumer may scale the whole block from its own framing class; the header
-            #     draws it at 60% and never lets it wrap (REQ-a-consumer-may-scale-the-block)
-            # v2: the model badge is optically centred, not geometrically (REQ-model-badge-is-optically-centred)
+version: 4
 owner: ui
 related:
   - architecture

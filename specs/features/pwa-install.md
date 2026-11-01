@@ -3,20 +3,7 @@
 ```yaml
 id: pwa-install
 status: implemented
-version: 7   # v7: reverse-delay.js is precached and the delay-type switch idle-warmed (delay-types.md)
-             # v6: REQ-manifest-and-button-drive-fullscreen — the button's state is element fullscreen
-             #     OR (display-mode: fullscreen), synced at creation; one tap leaves a
-             #     manifest-launched fullscreen (was: unlit, and two taps to exit)
-             # v5: REQ-service-worker-is-registered — the second sweep's deferred chunks (song-author
-             #     expander, zip codec, Paste/Export dialogs, Performance settings) join
-             #     the idle warm set
-             # v4: REQ-service-worker-is-registered — an opt-in full offline copy (play-offline.md): the
-             #     build writes offline-manifest.json, and install refreshes the
-             #     whole copy when an older cache holds its marker
-             # v3: REQ-service-worker-is-registered — /mcp and /healthz are passthrough by path, not by
-             #     accident (the public MCP endpoint shares this origin)
-             # v2: REQ-service-worker-is-registered — the About card joins the idle warm set, so the one
-             #     surface a stranded visitor reaches for opens offline too
+version: 7
 owner: Gijs
 related:
   - architecture

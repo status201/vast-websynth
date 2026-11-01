@@ -3,8 +3,7 @@
 ```yaml
 id: sample-persistence
 status: implemented
-version: 2   # v2: REQ-clips-persist-in-indexeddb — a clip whose channels are identical is stored as
-             #     one channel; storing it as stereo doubled it and made it two-channel on reload
+version: 2
 owner: core
 related:
   - architecture

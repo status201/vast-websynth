@@ -3,7 +3,7 @@
 ```yaml
 id: typography
 status: implemented
-version: 2  # v2: REQ-serif-is-display-type-only carve-out — a panel-heading tab takes the heading's face
+version: 2
 owner: ui
 related:
   - architecture

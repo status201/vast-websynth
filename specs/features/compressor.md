@@ -3,15 +3,7 @@
 ```yaml
 id: compressor
 status: implemented
-version: 5      # v5: the two per-sample dB conversions are exp/log rather than pow/log10 —
-                #     61% of the processor's cost, bit-exact at the output (REQ-the-coefficient-memo-is-bit-exact)
-                # v4: a DISCRETE param snaps, it does not approach — ratio and autoRelease
-                #     were smoothed like a knob, so "all buttons in" engaged a third of a
-                #     second late and swept ratios the UI never offers (REQ-ratio-and-release-are-indices)
-                # v3: REQ-a-silent-input-stays-silent — the FET path's DC blocker is primed from its first
-                #     sample, so activating the compressor no longer emits the
-                #     saturator's zero-input pedestal as a step (song-mode REQ-applying-a-song-is-click-free)
-                # v2: coefficients are memoized on their k-rate inputs (REQ-coefficients-derive-on-change/REQ-the-coefficient-memo-is-bit-exact)
+version: 5
 owner: core
 related:
   - architecture

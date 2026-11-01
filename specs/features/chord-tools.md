@@ -3,9 +3,7 @@
 ```yaml
 id: chord-tools
 status: implemented
-version: 3   # v3: extension voicings — sus2, 6th, add9, 9th — each at most four notes
-             #     (REQ-a-voicing-is-at-most-four-notes)
-             # v2: the chord writer can write inversions (REQ-the-writer-can-invert)
+version: 3
 owner: core
 related:
   - architecture

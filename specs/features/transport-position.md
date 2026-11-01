@@ -3,21 +3,7 @@
 ```yaml
 id: transport-position
 status: implemented
-version: 8  # v8: the playhead is drawn when it is heard, not when it is scheduled
-            #     (REQ-the-playhead-is-drawn-when-it-is-heard) — every display ran up to 100 ms early
-            # v7: the bare arrows no longer shift the octave (input-control.md REQ-octave-shift-is-minus-and-equal);
-            #     Shift+arrows still seek a bar, unchanged
-            # v6: every clock seek announces itself from SyncController — so a
-            #     loop wrap does too (REQ-a-sync-master-announces-its-seek/REQ-one-seek-entry-point); the sequencer's seek release
-            #     lands at each track's gate end (REQ-every-relative-consumer-reacts-to-a-seek table)
-            # v5: a tick sits over the step it marks — a panel that widens its
-            #     row-label slot must widen the ruler row too (REQ-a-tick-sits-over-the-step-it-marks)
-            # v4: the ruler is the lane's grid, sized by the meter (REQ-the-ruler-is-the-lanes-grid)
-            # v3: only an EXPORT blocks a seek — a free manual take no longer
-            #     locks the playhead (REQ-seeking-is-refused-in-three-states)
-            # v2: the ruler stops conflating cue with playhead and stops counting
-            #     bars that don't exist — cue ring (REQ-the-cue-and-the-playhead-are-two-marks), mode-aware readout
-            #     (REQ-the-readout-never-invents-bars), bar stepper (REQ-a-bar-stepper-only-where-bars-exist), refusal honesty (REQ-a-refused-seek-says-so)
+version: 8
 owner: core
 related:
   - architecture
@@ -30,7 +16,7 @@ related:
   - midi-clock-sync
   - onboarding
   - transport-window
-  - transport-loop      # v6: its wraps are seeks without a click
+  - transport-loop      # its wraps are seeks without a click
   - audio-export
   - render-to-sampler
   - step-grid-editing
@@ -48,7 +34,7 @@ source:
   - src/ui/components/playhead-ruler.ts
   - src/ui/panels/step-panel-scaffold.ts
   - src/ui/audible.ts                       # REQ-the-playhead-is-drawn-when-it-is-heard
-  - src/ui/components/transport-controls.ts # its readout reads the audible step (v8)
+  - src/ui/components/transport-controls.ts
   - src/ui/shell/play-button.ts             # the beat blink, likewise
   - src/ui/shortcuts.ts
 ```

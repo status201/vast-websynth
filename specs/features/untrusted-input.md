@@ -3,34 +3,7 @@
 ```yaml
 id: untrusted-input
 status: implemented
-version: 16  # v16: REQ-names-are-capped — a song, preset or bank name is at most MAX_NAME_CHARS
-             #      (50) characters at every door; a longer one is shortened, never refused
-             # v15: the Preset manager's Import joins REQ-a-file-is-sized-before-it-is-read's doors
-             # v14: REQ-a-file-is-sized-before-it-is-read — the Import button and the PWA launchQueue
-             #      read a whole file before any cap applied; every file door now asks one function first
-             # v13: a MIDI file (read_midi, midi-file-reader.md) joins the surfaces, with MAX_MIDI_*
-             # v12: BEND_MAX is the third shared per-step integer bound, and the schema walk pins `bend` to it
-             # v11: the shipped CSP drops style-src 'unsafe-inline' (REQ-defence-in-depth-at-delivery);
-             #      only the dev server relaxes it, for Vite's injected styles
-             # v10: REQ-a-pairing-sdp-is-shape-checked — a scanned or pasted pairing code's SDP is
-             #      shape-checked before it reaches setRemoteDescription
-             # v9: REQ-a-link-may-not-fetch-silently reads the songUrl body under the cap as it
-             #     streams — a server that omits Content-Length could make the tab buffer anything
-             # v8: REQ-the-limits-are-one-module gains MAX_SYNC_JOIN_LEAD_MS — a WiFi peer's join
-             #     time is clamped so it cannot park a slave indefinitely
-             # v7: REQ-the-limits-are-one-module gains MAX_RATCHET, and the CANONICAL
-             #     schema's numbers are pinned to limits.ts like the author one's already were
-             # v6: REQ-a-slot-name-cannot-reach-the-index — a slot called "index" landed ON the
-             #     name index and emptied the user's saved list; and
-             #     REQ-reserved-keys-are-refused closes its own recorded gap — checkKeys is
-             #     shared and reaches the motion cells and both preset paths
-             # v5: REQ-the-public-endpoint-is-bounded — the public MCP endpoint is an ingest surface, and the
-             #     first one with no user behind it
-             # v4: REQ-a-transport-position-is-bounded-at-ingress — a transport position is clamped, not masked
-             # v3: REQ-an-unresolvable-target-warns — an unresolvable automation target warns instead of
-             #     rejecting; the validator gains a `warnings` channel
-             # v2: REQ-an-import-may-not-destroy-saved-work — "destroy" means a *difference*; an identical slot is
-             #     not an overwrite worth prompting for
+version: 16
 owner: core
 related:
   - architecture

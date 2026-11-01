@@ -3,58 +3,12 @@
 ```yaml
 id: motion-sequencer
 status: implemented
-version: 19  # v19: a load or an edit mid-play re-baselines what it touched (REQ-a-load-or-an-edit-rebaselines) —
-             #      Stop used to put the OLD song's or preset's values back into the new one
-             # v18: the playhead follows the swung grid, so a slide stays a line under swing
-             #      (REQ-the-motion-playhead-follows-the-swung-grid); the frame loop evaluates the latest
-             #      HEARD cell from a ring, so bank switches land on time above
-             #      150 BPM (REQ-the-governing-cell-is-the-latest-heard); the bar-line carry and the
-             #      latch stop allocating per frame (REQ-the-motion-frame-loop-allocates-nothing)
-             # v17: four single-param lanes instead of two (REQ-extra-single-param-tracks-per-bank), so a bank
-             #      drives up to SIX params — or four with the XY Pad left free,
-             #      which is the whole point of the lanes. An empty lane arrives
-             #      FOLDED (REQ-an-empty-motion-lane-starts-folded) and a folded one repaints nothing
-             #      (REQ-a-folded-motion-lane-does-no-repaint), so four lanes cost no height and no
-             #      frames until they are used. The per-bank track array's LENGTH
-             #      is how many lanes it carries (REQ-the-motion-track-array-length-is-the-count), floored at two,
-             #      so every existing song still exports byte-for-byte. The two
-             #      REQ ids that named the old count are renamed, not reworded.
-             # v16: the graph follows the lane's length, not the bank's (REQ-the-motion-graph-follows-the-lane),
-             #      and a bank parks at its last anchor when the chain hands
-             #      over, so a lane that does not tile the bar stops stranding
-             #      its params mid-sweep (REQ-a-bank-parks-at-its-last-anchor). REQ-each-motion-step-is-a-mini-xy-pad's account of the overlay
-             #      is corrected to what it draws — a line whose anchor markers
-             #      the stretched viewBox flattens into ticks; the DOT is the
-             #      pad's, and the two mark different quantities. It also still
-             #      said "16 squares" three versions after the lane stopped
-             #      being 16 (REQ-the-automation-lane-follows-the-meter)
-             # v15: the lane follows the meter, curve included (REQ-the-automation-lane-follows-the-meter)
-             # v14: the A/B lanes' repaint is visibility-gated like the XY graph
-             #      beside them — it was rebuilding SVG every bar off-screen (REQ-the-ab-lane-repaint-is-gated-on-visibility)
-             # v13: an unresolvable automation target is reported as a warning
-             #      instead of silently no-op'ing (REQ-an-unresolved-motion-target-is-reported; untrusted-input REQ-an-unresolvable-target-warns)
-             # v12: an inherited axis picker is dimmed on its TOGGLE, not its root —
-             #      dimming the root buried its own menu under the pads (REQ-each-motion-step-is-a-mini-xy-pad)
-             # v11: the step value is visible while editing — per-lane readout + drag
-             #      bubble (REQ-a-motion-steps-value-is-readable-without-hovering); the pad's write is deferred so a hold PEEKS,
-             #      plus snap-to-1/20 and Shift+drag fine (REQ-the-pads-gesture-set-peek-snap-fine)
-             # v10: a transport seek drops the tick latch but KEEPS the baselines (REQ-a-seek-clears-the-tick-latch)
-             # v9: the frame loop is visibility-independent — worker timer while the
-             #     document is hidden, rAF while visible (REQ-the-motion-frame-loop-is-visibility-independent)
-             # v8: automation writes are withheld from ParamBus.onChange (REQ-motion-automation-is-not-an-edit);
-             #     the frame loop is allocation-free (REQ-the-motion-frame-loop-allocates-nothing)
-             # v7: the bank bar's content dot counts the A/B track lanes, not just XY
-             # v6: A/B lanes visually distinct (wider grid gap, no fill animation) + playhead;
-             #     per-lane help badges (motion.xy / motion.tracks); solid divider above the XY lane
-             # v5: per-lane Slide/Step (motion.t<i>.slide) + per-lane header rows
-             # v4: two extra single-param tracks per bank (A/B) + the scalar curve core
-             # v3: cross-bank carry (the bar-line ramp targets the next play bank), dashed carry in the graph
-             # v2: motion.mute (Song-card Mute), mode-aware graph (step = staircase), help badge
+version: 19
 owner: core
 related:
   - xy-pad
   - arrangement
-  - runtime-performance   # REQ-motion-writes-go-through-bus-set/REQ-motion-has-the-fourth-chain-lane/REQ-song-file-v4-adds-motion-banks — automation is not an edit; frame-loop cost; hidden-document loops
+  - runtime-performance
   - transport             # REQ-the-motion-frame-loop-is-visibility-independent shares the clock's worker-timer guarantee
   - transport-position    # REQ-a-seek-clears-the-tick-latch — the seek reaction
   - session-autosave      # what REQ-motion-automation-is-not-an-edit stopped starving
@@ -62,12 +16,12 @@ related:
   - song-mode
   - banks
   - song-authoring-dialect
-  - dropdown              # REQ-each-motion-step-is-a-mini-xy-pad's axis pickers; setDimmed + REQ-song-file-v4-adds-motion-banks's root invariant
+  - dropdown
   - lane-fold             # REQ-an-empty-motion-lane-starts-folded's fold button, shared with the sequencer
 source:
   - src/audio/transport/motion-curve.ts     # pure anchor/interpolation math
   - src/audio/transport/motion-machine.ts   # transport-driven param writer
-  - src/audio/transport/tick-timer.ts       # the hidden-document frame driver (v9)
+  - src/audio/transport/tick-timer.ts
   - src/audio/transport/arrangement.ts      # 4th chain lane
   - src/state/patterns.ts                   # motion banks + per-bank assigns
   - src/utils/taper.ts                      # norm<->value mapping (extracted from ui)
@@ -75,14 +29,14 @@ source:
   - src/ui/panels/motion-panel.ts
   - src/ui/panels/step-panel-scaffold.ts    # lane hooks: bank bar content dot, playhead, Clear ▾
   - src/ui/components/motion-step-pad.ts
-  - src/ui/components/motion-graph.ts       # pure graph-polyline geometry (v2)
-  - src/ui/components/value-bubble.ts       # transient anchored readout (v11)
-  - src/ui/components/lane-fold.ts          # the per-lane fold, shared with the sequencer (v17)
-  - src/ui/format-param.ts                  # ParamDef -> display string (v11)
-  - src/state/serialize.ts                  # motionTrackDepth trimming (v17)
-  - src/ui/panels/song-panel.ts             # Motion card: chain + Mute (v2)
-  - src/ui/onboarding/help-content.ts       # `motion` help topic (v2)
-  - src/state/song.ts                       # SongFile v4 fields
+  - src/ui/components/motion-graph.ts
+  - src/ui/components/value-bubble.ts
+  - src/ui/components/lane-fold.ts
+  - src/ui/format-param.ts
+  - src/state/serialize.ts
+  - src/ui/panels/song-panel.ts
+  - src/ui/onboarding/help-content.ts
+  - src/state/song.ts
   - src/state/song-author.ts                # dialect `motion` key
 ```
 

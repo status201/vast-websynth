@@ -3,7 +3,7 @@
 ```yaml
 id: arrangement-rest
 status: implemented
-version: 3   # v3: playhead + per-tick overlay refresh are gated on panel visibility
+version: 3
 owner: core
 related:
   - architecture

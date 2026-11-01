@@ -3,54 +3,7 @@
 ```yaml
 id: effects
 status: implemented
-version: 18  # v18: the distortion becomes Dirt, with a TYPE (distortion · overdrive · fuzz)
-             #      on the synth and sampler buses (dirt-types.md). DISTORTION is the
-             #      default and the unchanged effect; the params keep their fx.dist ids
-             # v17: the drain table catches up: the Delay's live core rests through a bypass
-             #      (delay-types.md v6–v7) and the Chorus's quiesce stops its LFO (chorus.md v3)
-             # v16: the delay gets a TYPE (digital · ping pong · tape · BBD · space echo ·
-             #      reverse) and a CHAR knob on all three buses (delay-types.md). DIGITAL
-             #      is the default and the unchanged delay; the others load on first use
-             # v15: a flanger joins the synth and sampler chains between the phaser
-             #      and the chorus (flanger.md). It is the first insert whose DSP is
-             #      a worklet loaded on first use, and it is channel-transparent, so
-             #      nothing about the chain's channel count changes
-             #      (REQ-the-synth-chain-order)
-             # v14: a chorus joins the synth and sampler chains after the phaser
-             #      (chorus.md). It is the first insert that MAKES a stereo
-             #      image on the synth bus, so the synth chain is 2-channel
-             #      after it while it is on (REQ-the-synth-chain-order)
-             # v13: REQ-the-phaser-sweeps-in-cents — the phaser sweeps each stage in CENTS, as v9
-             #      made the wah do. Its linear-Hz swing pinned the low stages
-             #      at 0 Hz for up to 37% of every cycle — measured a stall,
-             #      not a burst — including at the synth phaser's own default
-             # v12: REQ-the-synth-chain-order — the synth chain is 1-channel only while no
-             #      sequencer track is panned off centre (sequencer.md, ADR-023)
-             # v11: REQ-the-synth-chain-order/REQ-the-drum-bus-chain-order — an EQ heads all three chains
-             #      (equalizer.md). It is a plain chain member, so nothing
-             #      here changes except the order arrays — but the order is
-             #      the contract, and the drum bus's "compressor first" now
-             #      means "first among the effects after the EQ"
-             # v10: REQ-toggling-an-effect-must-not-step-the-level — the wah gets makeup gain, and the bypass crossfade
-             #      gets its own RAMP_BYPASS constant: toggling an effect was a
-             #      16-19 dB level step in 10-20 ms — continuous samples, but
-             #      plainly a click, and the wah was simply mixed too quiet
-             # v9: REQ-the-wah-lfo-sweeps-in-cents — the wah sweeps in CENTS, not Hz. A linear Hz swing
-             #     around a 622 Hz centre reaches 0 Hz at depth 0.415 and the
-             #     bandpass degenerates there — measured; latent in nine demos
-             #     that stage the wah at 0.4-0.6 for a player to open
-             # v8: REQ-a-bypassed-effect-drains-before-disconnect — a bypassed effect DRAINS before it disconnects, so
-             #     re-enabling one can never replay the audio frozen inside it
-             #     (ADR-012's accepted risk, discharged — it bit on a demo load)
-             # v7: REQ-the-synth-chain-order/REQ-the-drum-bus-chain-order — a ducker joins the synth and sampler chains, last
-             #     in both, so the reverb tail ducks too (sidechain-ducking.md)
-             # v6: REQ-wah-phaser-and-delay-can-be-tempo-locked — the wah/phaser rates and the delay times can be locked
-             #     to the tempo (tempo-lock.md); each bind now also watches
-             #     transport.bpm
-             # v5: REQ-a-bypassed-effect-in-a-song-may-be-deliberate — a bypassed / mix-0 effect in a song can be *staged* for
-             #     the player or a motion lane, and is not a defect to clean up
-             # v4: lazy+shared reverb IR bank, bucketed drive curves (REQ-the-reverb-ir-bank-is-lazy-and-shared/REQ-drive-curves-are-bucketed-and-memoized)
-             # v3: true bypass — bypassed effects disconnect their processed path (ADR-012)
+version: 18
 owner: core
 related:
   - architecture
@@ -59,25 +12,25 @@ related:
   - performance-mode     # the maxIrS / oversample tier caps REQ-the-reverb-ir-bank-is-lazy-and-shared keys around
   - runtime-performance  # REQ-every-effect-implements-the-interface/REQ-bypass-and-mix-are-a-crossfade — the boot-cost + shared-artefact rules
   - fx-group             # shared header FX-group UI (hides knobs while <fx>.on is off)
-  - fx-patch-decoration  # v7: dormant now that six panels divide the grid evenly
-  - tempo-lock           # v6: the rate/time knobs' grid lock, shared with the LFO
-  - sidechain-ducking    # v7: the sixth chain member (synth + sampler, last)
-  - equalizer            # v11: the member that heads all three chains
-  - chorus               # v14: synth + sampler, after the phaser
-  - flanger              # v15: synth + sampler, between the phaser and the chorus
-  - delay-types          # v16: the delay's TYPE + CHAR
-  - dirt-types           # v18: Dirt, the drive effect, and its TYPE
-  - fx-slot-picker       # v14: the chorus shares the phaser's panel
+  - fx-patch-decoration  # dormant now that six panels divide the grid evenly
+  - tempo-lock           # the rate/time knobs' grid lock, shared with the LFO
+  - sidechain-ducking    # the sixth chain member (synth + sampler, last)
+  - equalizer            # the member that heads all three chains
+  - chorus               # synth + sampler, after the phaser
+  - flanger              # synth + sampler, between the phaser and the chorus
+  - delay-types          # the delay's TYPE + CHAR
+  - dirt-types           # Dirt, the drive effect, and its TYPE
+  - fx-slot-picker       # the chorus shares the phaser's panel
 source:
   - src/audio/effects/effect.ts        # Effect + BypassWrapper + bindBypassMix
   - src/audio/effects/fx-chain.ts      # synth/drum/sampler chain factories
-  - src/audio/effects/ducker.ts        # v7: the trigger-keyed ducker
-  - src/audio/effects/eq.ts            # v11: the per-lane equalizer
-  - src/audio/effects/dirt.ts          # v18: was distortion.ts (dirt-types.md)
+  - src/audio/effects/ducker.ts        # the trigger-keyed ducker
+  - src/audio/effects/eq.ts            # the per-lane equalizer
+  - src/audio/effects/dirt.ts
   - src/audio/effects/wah.ts
   - src/audio/effects/phaser.ts
-  - src/audio/effects/chorus.ts        # v14
-  - src/audio/effects/flanger.ts       # v15 (+ public/worklets/flanger.js)
+  - src/audio/effects/chorus.ts
+  - src/audio/effects/flanger.ts       # (+ public/worklets/flanger.js)
   - src/audio/effects/delay.ts
   - src/audio/effects/reverb.ts
   - src/audio/drive-curve.ts            # bucketed WaveShaper curve cache (REQ-drive-curves-are-bucketed-and-memoized)

@@ -3,18 +3,7 @@
 ```yaml
 id: ai-prompt
 status: implemented
-version: 9   # v9: the guide stops selling songs short — REQ-output-rules-guard-weaker-agents keeps its
-             #     anti-give-up guards but drops the "~80 lines" anchor; REQ-the-guide-sets-the-ambition adds
-             #     SONG CRAFT, REQ-the-guide-teaches-the-key adds the KEY block
-             # v8: REQ-the-modal-body-loads-on-click — the modal body is a lazy chunk beside the guide; the button stays eager
-             # v7: the guide no longer tells agents the app blocks two LFOs sharing a
-             #     destination — that rule was removed in lfo.md v8, and this text ships
-             #     over the public MCP `get_song_format`
-             # v6: REQ-the-modal-offers-the-connector — the modal names the hosted MCP connector as the
-             #     shorter route; the PROMPT TEXT deliberately does not
-             # v5: REQ-the-params-table-is-generated — the worked example is the built-in "Mordor", renamed
-             #     from "I Feel Love"
-             # v4: the reply pastes back in (step 3) instead of going via a file
+version: 9
 owner: ui
 related:
   - song-mode

@@ -3,13 +3,7 @@
 ```yaml
 id: webrtc-sync
 status: implemented
-version: 9   # v9: the transport's body loads at pairing, behind a boot-time facade
-             #     (REQ-the-wifi-transport-loads-at-pairing)
-             # v8: REQ-a-join-carries-its-time — start/continue carry an optional `at`, so a WiFi
-             #     slave joins on the master's schedule rather than on arrival
-             # v7: the wire carries the time signature (REQ-the-wire-carries-the-time-signature) — meter.md
-             # v6: REQ-the-transport-opens-two-channels type-guards the wire (a peer can't inject NaN into the
-             #     clock); the signal blob decodes under MAX_SIGNAL_BYTES
+version: 9
 owner: core
 related:
   - midi-clock-sync
@@ -22,8 +16,8 @@ related:
 source:
   - src/audio/transport/sync/sync-types.ts
   - src/audio/transport/sync/clock-offset.ts
-  - src/audio/transport/sync/wifi-sync.ts            # v9: WifiSyncTransport, the boot-time facade; WifiLink
-  - src/audio/transport/sync/webrtc-sync-transport.ts # lazy since v9
+  - src/audio/transport/sync/wifi-sync.ts            # WifiSyncTransport, the boot-time facade; WifiLink
+  - src/audio/transport/sync/webrtc-sync-transport.ts
   - src/audio/transport/sync/webrtc-signaling.ts
   - src/utils/compression.ts             # shared deflate-raw helpers (also used by the zip codec)
   - src/audio/transport/sync/webrtc-diagnostics.ts

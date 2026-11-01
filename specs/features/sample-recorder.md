@@ -3,19 +3,7 @@
 ```yaml
 id: sample-recorder
 status: implemented
-version: 8   # v8: REQ-the-editor-owns-its-teardown — a take finishing after the modal closed builds
-             #     no editor (its controls leaked past the only cleanup)
-             # v7: the waveform's peaks are memoised — the preview loop re-scanned the whole
-             #     clip every frame to move a playhead (REQ-the-waveform-redraw-is-cheap)
-             # v6: REQ-the-editor-owns-its-teardown — the modal destroys the controls it builds;
-             #     its seven Dropdowns each left four document/window listeners
-             #     behind on every close
-             # v5: REQ-every-section-below-the-waveform-folds — every editor section is a titled fold: Chop and
-             #     Fit & Shift join Scratch, title left, caret right
-             # v4: REQ-the-recorder-modal-hosts-scratch — the Scratch section (scratch.md)
-             # v3: REQ-the-recorder-modal-hosts-fit-and-shift — the Fit and Shift rows (time-stretch.md)
-             # v2: REQ-the-recorder-node-is-released-with-the-session — a session's RecorderNode is disconnected and its port
-             #     handler cleared on dispose; every modal open leaked one
+version: 8
 owner: core
 related:
   - architecture

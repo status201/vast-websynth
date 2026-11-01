@@ -3,17 +3,7 @@
 ```yaml
 id: demo-library
 status: implemented
-version: 6   # v6: the blurbs leave the boot bundle: the index carries facts only and the blurbs are a
-             #     lazy chunk, filled into the row's tooltips on idle (REQ-the-blurbs-load-after-boot)
-             # v5: the ⓘ-mode door knows the loaded demo too, so both doors open the library in the
-             #     same state (REQ-info-mode-badges-the-demo-row-once)
-             # v4: a blurb folds to its first line with a More/Less toggle; the loaded demo's entry opens
-             #     unfolded and its button reads "Loaded" (REQ-a-blurb-folds-to-its-first-line,
-             #     REQ-the-loaded-demo-carries-an-info-button) — the unfolded list was too long to scan
-             # v3: the demo library window, the loaded demo's ⓘ and one ⓘ-mode badge on the row
-             #     (REQ-the-library-reads-without-loading, REQ-the-loaded-demo-carries-an-info-button,
-             #     REQ-info-mode-badges-the-demo-row-once) — the blurbs were hover-only, so no touch device saw them
-             # v2: every machine is exercised by at least one demo (REQ-every-machine-has-a-demo)
+version: 6
 owner: core
 related:
   - architecture
@@ -29,8 +19,8 @@ related:
 source:
   - src/state/demo-meta.ts          # the pure fact-extractor
   - src/state/demo-notes.json       # hand-written blurbs (optional, per demo)
-  - src/state/demo-blurbs.ts        # v6: the blurbs' lazy module (REQ-the-blurbs-load-after-boot)
-  - src/state/demos-index.json      # GENERATED — facts only (v6)
+  - src/state/demo-blurbs.ts        # the blurbs' lazy module (REQ-the-blurbs-load-after-boot)
+  - src/state/demos-index.json
   - scripts/clean-demos.ts          # the generator + the check:demos gate
   - src/state/song.ts               # JSON_DEMOS / ZIP_DEMOS / demoNames
   - src/ui/panels/song-panel.ts     # the demo row + the loaded demo's ⓘ

@@ -3,13 +3,7 @@
 ```yaml
 id: factory-reset
 status: implemented
-version: 5  # v5: the offline copy is deleted too, and downloaded again after the
-            #     reload when a complete one existed (REQ-reset-redownloads-the-offline-copy) — never while the
-            #     server is unreachable (REQ-reset-never-strands-an-offline-device)
-            # v4: the Play offline section (play-offline.md) now sits between the
-            #     shortcuts grid and this button, so that is its upper neighbour
-            # v3: the About card gained a tour button and a folded key list above
-            #     this one — its two neighbours are unchanged (onboarding.md v15)
+version: 5
 owner: core
 related:
   - architecture

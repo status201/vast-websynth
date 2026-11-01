@@ -3,11 +3,7 @@
 ```yaml
 id: meter
 status: implemented
-version: 3  # v3: REQ-a-multi-bar-lane-restarts-with-its-chain — a chained lane whose loop is a
-            #     whole number of bars re-phases at its chain's slot 0 (a 2-bar lane in an
-            #     odd-length chain played its halves swapped on every other pass)
-            # v2: REQ-swing-is-computed-on-the-lanes-grid — each hit also reports its span to the
-            #     next cell's onset on the swung grid, for the motion playhead
+version: 3
 owner: core
 related:
   - architecture

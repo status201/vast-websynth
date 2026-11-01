@@ -3,39 +3,7 @@
 ```yaml
 id: runtime-performance
 status: implemented
-version: 14  # v14: REQ-boot-cost-matches-the-request — the demo blurbs, the WiFi sync transport and the
-             #      sync roles leave the boot path: entry 499.3 → 472.9 kB, boot JS −26.4 kB
-             #      (−9.0 kB gzip), boot links and CSS unchanged (demo-library.md v6,
-             #      webrtc-sync.md v9, midi-clock-sync.md v10)
-             # v13: REQ-a-drag-follows-only-its-own-pointer — a second finger no longer drives,
-             #      or ends, another control's drag (multi-touch)
-             # v12: REQ-boot-cost-matches-the-request — the second sweep: the authoring-dialect
-             #      expander, the project zip codec and four click-only surfaces leave the
-             #      boot path (519.8 → 493.5 kB of boot JS); the boot payload is the entry
-             #      PLUS its static chunks, and a split that fragments the entry CSS is
-             #      refused (the Record window and Mod Matrix splits were measured and dropped)
-             # v11: REQ-layout-reads-precede-writes — a loop that measures and positions many
-             #      elements does all its reading before any of its writing
-             # v10: REQ-a-worklet-optimisation-is-bit-exact also says how to MEASURE one — a
-             #      microbenchmark of the call is not evidence, and got two of three
-             #      answers wrong here
-             # v9: REQ-visibility-gating-is-for-pixels-not-sound — a draw-only loop may hold a visibility-gated,
-             #     low-frequency watchdog to prove it came back (scope.md REQ-a-watchdog-restarts-a-stalled-loop)
-             # v8: REQ-no-work-for-offscreen-dom — a folded section counts as off screen (scratch.md)
-             # v7: REQ-boot-cost-matches-the-request — the time-stretch DSP defers behind the FIT button
-             # v6: REQ-boot-cost-matches-the-request — deferring a surface makes its load fallible; the
-             #     trigger owes the user a report when the import rejects
-             # v5: REQ-immutable-artefacts-are-shared — a bank of expensive artefacts is built per entry on
-             #     first use, not whole; the PWM duty bank charged every patch
-             #     ~86 MB of native memory for the one wave it actually used
-             # v4: REQ-no-viewport-scaled-compositing-on-hot-surfaces — no viewport-scaled compositing effect on a persistent
-             #     overlay; the modal backdrop's blur cost a third of the frame
-             #     rate whenever any dialog was open
-             # v3: REQ-boot-cost-matches-the-request — the onboarding layer and the Help & About modal load
-             #     on demand; the eager button factory and the late-bound Debug
-             #     setters split out so nothing drags the bodies back in
-             # v2: visibility gating is for pixels, not for sound (REQ-visibility-gating-is-for-pixels-not-sound);
-             #     REQ-no-work-for-offscreen-dom scoped explicitly to repaints
+version: 14
 owner: core
 related:
   - architecture

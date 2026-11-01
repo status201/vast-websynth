@@ -3,11 +3,7 @@
 ```yaml
 id: keyboard-range
 status: implemented
-version: 3   # v3: REQ-the-key-size-ignores-the-page-scrollbar — the keys are sized from the
-             #     width they would have without a page scrollbar: a 1px overflow toggled the
-             #     body's scrollbar every frame (1920x1080, scope maxed, Machines folded)
-             # v2: REQ-key-height-follows-key-width + REQ-spare-height-goes-to-the-scope — the key
-             #     height is bounded by the key width; spare height goes to the scope
+version: 3
 owner: core
 related:
   - input-control            # the on-screen keyboard this sizes; the lit-key rules it keeps

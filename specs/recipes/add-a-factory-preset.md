@@ -3,7 +3,7 @@
 ```yaml
 id: add-a-factory-preset
 status: implemented
-version: 2                     # v2: banks spread PLAIN_VOICE first (presets.md v14)
+version: 2
 owner: core
 related:
   - presets

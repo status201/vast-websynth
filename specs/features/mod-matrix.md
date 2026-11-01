@@ -3,22 +3,7 @@
 ```yaml
 id: mod-matrix
 status: implemented
-version: 8   # v8: `fm` appended to MOD_DEST_LABELS (index 9, full scale 8 index units), a per-voice
-             #     destination with a knob (osc1.fm) — cross-modulation.md REQ-fm-is-a-modulation-destination;
-             #     ModMatrix.usesDest lets the Engine engage FM for a route alone
-             # v7: `sync` appended to MOD_DEST_LABELS (index 8, full scale 48 st), a per-voice
-             #     destination with a knob (osc2.syncPitch) — oscillator-sync.md
-             #     REQ-sync-is-a-modulation-destination; `pitch` now reaches the sync pair's junction too
-             # v6: a depth write during a re-patch waits for the rewire (REQ-one-gain-per-route-rewired-while-silent) —
-             #     it un-muted the still-old wiring at the new destination's scale
-             # v5: an idle row dims its destination picker through Dropdown.setDimmed, never
-             #     on the picker's root — root opacity made the open list transparent
-             #     (dropdown.md REQ-a-dropdown-can-be-dimmed, regression)
-             # v4: REQ-per-voice-sources-cannot-drive-bus-destinations says outright that the sequencer's
-             #     per-voice pan stage is NOT a matrix destination, so `pan` is still the only bus-wide one
-             # v3: the modulation BAND's direction is coloured — green up,
-             #     yellow down; a knob's own arc never is (REQ-the-bands-direction-has-a-colour)
-             # v2: a mod-wheel route also draws its live position (REQ-a-known-source-shows-its-position)
+version: 8
 owner: core
 related:
   - architecture
@@ -28,7 +13,7 @@ related:
   - voicing
   - runtime-performance
   - floating-window
-  - cross-modulation             # v8: the `fm` destination
+  - cross-modulation             # the `fm` destination
 source:
   - src/audio/mod-matrix.ts        # route table, fan-out, source/dest wiring
   - src/audio/engine.ts            # builds the matrix in the voice loop; subscribes mod.*

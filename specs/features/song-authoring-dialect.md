@@ -3,25 +3,13 @@
 ```yaml
 id: song-authoring-dialect
 status: implemented
-version: 8   # v8: the step grammar names the `micro` override (all machines) and the seq-only
-             #     per-entry `bend`/`bendShape` the expander already accepted
-             # v7: chain letters run A..P and the ladder gains a v9 rung — more than eight
-             #     banks, or a chain naming bank I+ (song-mode.md REQ-song-file-v9-raises-the-bank-ceiling);
-             #     the v8 rung, shipped but never written into the ladder here, is now listed too
-             # v6: the expander loads with the first author file, not at boot; Song.parse is async
-             #     and fromJSON is canonical-only (REQ-the-expander-loads-with-the-first-author-file)
-             # v5: a seqChain letter may carry a +n/-n transpose suffix (REQ-a-chain-letter-may-carry-a-transpose)
-             # v4: bank-level step settings cascade into `tracks` instead of being
-             #     refused next to it (REQ-bank-settings-cascade-into-tracks)
-             # v3: the emitted canonical version is the LOWEST that holds the content
-             #     (REQ-the-emitted-version-is-the-lowest-that-fits), plus the two dialect forms that were shipped but never
-             #     specified — multi-track seq banks (REQ-a-seq-bank-may-carry-four-tracks) and motionTracks (REQ-motion-tracks-is-a-top-level-key)
+version: 8
 owner: state
 related:
   - song-mode
   - ai-prompt
   - sequencer          # REQ-a-seq-bank-may-carry-four-tracks's multi-track banks land in seqTracks (its REQ-a-seq-bank-may-carry-four-tracks)
-  - motion-sequencer   # REQ-motion-tracks-is-a-top-level-key's motionTracks (its REQ-song-file-v5-adds-motion-tracks)
+  - motion-sequencer
   - ../decisions/adr-013-authoring-dialect-input-only
   - ../decisions/adr-007-songfile-additive-versioning
 source:

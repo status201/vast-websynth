@@ -3,8 +3,7 @@
 ```yaml
 id: media-session
 status: implemented
-version: 2   # v2: the notification's pause is the transport's real Pause — play
-             #     resumes where it paused; only stop panics (REQ-notification-controls-work)
+version: 2
 owner: core
 related:
   - audio-lifecycle

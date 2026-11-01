@@ -3,9 +3,7 @@
 ```yaml
 id: keyboard-layout
 status: implemented
-version: 2   # v2: a note key outranks the fill (REQ-layout-scope-is-note-keys-only) — on Dvorak the
-             #     upper-row key that prints `f` held a fill instead of playing its note; the
-             #     fill is the KeyF position, and the About list labels it from the layout
+version: 2
 owner: core
 related:
   - architecture

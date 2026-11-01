@@ -3,17 +3,7 @@
 ```yaml
 id: equalizer
 status: implemented
-version: 5   # v5: REQ-the-eq-is-a-third-bottom-row — .bottom is a flex column now, not a grid; the EQ is its
-             #     middle item (keyboard-range.md REQ-spare-height-goes-to-the-scope).
-             # v4: v4: the "ten 1-channel biquads" cost note is now conditional — a panned
-             #     sequencer track makes the synth chain 2-channel (sequencer.md, ADR-023)
-             # v3: REQ-one-q-knob-over-the-bands — the knob is labelled Q, not WIDTH: turning it up
-             #     narrows the bands, which the old name said backwards.
-             #     REQ-the-eq-explains-itself-through-badges — the section's info badges (onboarding.md REQ-the-equalizer-carries-seven-badges)
-             #     REQ-the-eq-section-is-a-folded-tab-container — the row title is drawn white, not in a tab colour
-             # v2: REQ-the-eq-page-mirrors-the-scope-row — the page mirrors the scope row (one shared
-             #     gutter, height from --scope-h). It shipped with the graph
-             #     at ~300px and the knobs beside it, aligning with nothing
+version: 5
 owner: core
 related:
   - architecture
