@@ -109,7 +109,7 @@ question of which tools a stranger may call.
   of the process that loaded it. In a server that outlives the client's session,
   an in-process build pins `node_modules` for hours and the user's next `npm ci`
   fails with `EPERM` on a file no tool names. Nothing long-lived here may load a
-  native module. A missing `vite` binary fails fast, naming `npm install`. (v8)
+  native module. A missing `vite` binary fails fast, naming `npm install`.
   The check and the build live in `core.mjs` as `loadCore({selfBuild})`, shared
   by both local entries. **The deployed entry passes `selfBuild: false`** and
   *throws* on a missing bundle instead of building one: production has no
@@ -120,7 +120,7 @@ question of which tools a stranger may call.
 - **REQ-song-core-entry-exports-only-pure-code** — `song-core-entry.ts`
   re-exports only the **pure** core: `validateSongFile`,
   `isAuthorSong`/`expandAuthorSong`, `compactSongForExport`,
-  `buildAuthoringGuide`, `ParamBus`/`registerDefaults`, plus (v2) the preset
+  `buildAuthoringGuide`, `ParamBus`/`registerDefaults`, plus the preset
   half — `validatePresetPayload`, `expandPresetParams`, `defaultPatchParams`,
   `buildPresetGuide`, `buildPresetFile`/`buildBankFile`,
   `presetFilename`/`bankFilename`. It must never (transitively) import
@@ -273,7 +273,7 @@ question of which tools a stranger may call.
   untouched. The HTTP entries pass `false`, which omits exactly `save_song` and
   `save_preset` and leaves these nine, in this order: `get_params`,
   `get_song_format`, `validate_song`, `expand_song`, `make_share_link`,
-  `read_midi` (v9, without its `path` argument —
+  `read_midi` (without its `path` argument —
   REQ-read-midi-reads-a-file-for-an-arranger), `get_preset_format`,
   `validate_preset`, `expand_preset`.
 

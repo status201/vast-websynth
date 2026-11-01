@@ -49,7 +49,7 @@ so future demos can ship as zips with audio. The `.json` song format is untouche
   available) for `.json`; reader accepts methods 0 + 8, locates the EOCD by
   backward scan (tolerates trailing bytes), trusts central-directory metadata,
   verifies CRC-32, and throws a typed `ZipError` on zip64 / unknown methods /
-  bad CRC / truncation. **A zip is an untrusted container (v5)**, so the reader
+  bad CRC / truncation. **A zip is an untrusted container**, so the reader
   is also *budgeted* ([untrusted-input](untrusted-input.md) REQ-bounds-in-the-validator-sizes-in-the-codec): it refuses a
   central directory declaring more than `MAX_ZIP_ENTRIES`, uses each entry's
   **declared uncompressed size as a pre-flight budget** against
@@ -59,7 +59,7 @@ so future demos can ship as zips with audio. The `.json` song format is untouche
   *after* a full uncapped inflate, so a deflate bomb was spent before it was
   noticed.
 - **REQ-the-zip-codec-loads-with-the-first-zip** — **The zip codec loads with the
-  first zip** (v6, [runtime-performance](runtime-performance.md)
+  first zip** ([runtime-performance](runtime-performance.md)
   REQ-boot-cost-matches-the-request). `project.ts` stays on the boot path — it is
   the import router — but `import()`s `utils/zip.ts` inside `parseProjectZip` and
   `buildProjectZip`, so a JSON import never fetches it. A codec that cannot load
@@ -79,7 +79,7 @@ so future demos can ship as zips with audio. The `.json` song format is untouche
   Project export offers a WAV (default) / MP3 clip-format toggle; MP3 shows a
   caveat that encoder padding slightly alters clip length. Clip extension
   derives from the encoded blob's MIME type — `encodeMp3`'s unsupported-rate WAV
-  fallback must yield `.wav`. `encodeClip` is **async** (v2) because `encodeMp3`
+  fallback must yield `.wav`. `encodeClip` is **async** because `encodeMp3`
   lazily imports lamejs ([audio-export](audio-export.md)
   REQ-the-mp3-encoder-loads-lazily); the export flow already awaits per clip, so this
   adds no round trip.
@@ -102,7 +102,7 @@ so future demos can ship as zips with audio. The `.json` song format is untouche
   filename-minus-extension mangle (`Run_Away_2.websynth.zip` → "Run Away 2")
   survives only as the fallback for a zip the index has not seen; export
   filenames are underscore-sanitized (`projectFilename`), so that fallback
-  round-trips the common case. An empty glob (no zip assets) costs nothing. (v2)
+  round-trips the common case. An empty glob (no zip assets) costs nothing.
   The **JSON** drop-in demos are fetched on click the same way — see
   [song-mode](song-mode.md) REQ-drop-in-demos-are-fetched-on-click — so zips are no longer the odd one out in
   either naming or loading.

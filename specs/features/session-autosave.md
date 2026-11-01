@@ -52,7 +52,7 @@ happy path.
   `ParamBus.onChange`, any `PatternStore` per-cell / bank-level / edit-bank /
   sample-meta change, any `XyPadStore` change, and **structural** `Arrangement`
   changes only — a fingerprint of `enabled + steps + transpose` per lane gates
-  the per-bar `onChange` firings so playback never writes storage. (v9) The
+  the per-bar `onChange` firings so playback never writes storage. The
   pattern triggers include `onMotionTrackChange` (a motion extra track's step or
   param), `onBankCountChange` (a bank added) and `onMutate` (every mutation entry
   point, which covers a copy into a bank you are not editing). Each of these

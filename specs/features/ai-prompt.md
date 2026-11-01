@@ -98,7 +98,7 @@ is ~40 lines. The prompt-building logic moved to the pure
 
 - **REQ-output-rules-guard-weaker-agents** — The OUTPUT RULES are anti-give-up
   guardrails for weaker agents: respond with exactly ONE JSON object and no
-  prose; NEVER truncate or emit placeholders; never bail out or summarize. (v9)
+  prose; NEVER truncate or emit placeholders; never bail out or summarize.
   They reassure without capping: a full arrangement fits one reply because
   **length lives in the chains** (a bar costs one chain letter), and when output
   is genuinely tight the fallback is to keep the form and reuse banks, never to
@@ -132,7 +132,7 @@ is ~40 lines. The prompt-building logic moved to the pure
 - **REQ-llms-txt-introduces-the-app** — `public/llms.txt` gives crawling agents
   the app intro, both format names + schema URLs, the grid dimensions and drum
   track names, and points at the in-app AI Prompt for the live PARAMS table
-  (which is bus-generated and would drift if duplicated). (v6) It also names the
+  (which is bus-generated and would drift if duplicated). It also names the
   **hosted MCP endpoint** ([mcp-server](mcp-server.md) REQ-streamable-http-is-one-message-per-post) rather than
   describing the server as repo-only: an agent reaching `llms.txt` under its own
   steam is exactly the reader who can act on a connector URL, and telling it to
@@ -172,7 +172,7 @@ is ~40 lines. The prompt-building logic moved to the pure
   so a click would show a `405` JSON body and read as a broken link.
 
 - **REQ-the-modal-body-loads-on-click** — **The modal body loads on click**
-  (v8, [runtime-performance](runtime-performance.md)
+  ([runtime-performance](runtime-performance.md)
   REQ-boot-cost-matches-the-request). `ai-prompt.ts` keeps the button and the
   open/close lifecycle; `ai-prompt-modal.ts` (`buildModal`, with the paste fragment
   it embeds) is fetched alongside the guide on the first click, and either

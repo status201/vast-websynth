@@ -119,7 +119,7 @@ passes it.
   local-only, because it writes into the *server's* working directory and a
   shared host has no such directory a caller can reach
   ([mcp-server](mcp-server.md) REQ-the-remote-profile-is-read-only).
-- **REQ-semantic-severity-is-the-callers-choice** *(v3)* — **The semantic
+- **REQ-semantic-severity-is-the-callers-choice** (v3) — **The semantic
   layer's severity is the caller's choice.** `validatePresetPayload(value, bus,
   { semantics })` takes `'error'` (default —
   REQ-semantic-validation-needs-the-bus unchanged, and what the MCP tools get)
