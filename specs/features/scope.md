@@ -2,7 +2,7 @@
 
 ```yaml
 id: scope
-status: implemented          # draft | active | implemented
+status: implemented
 version: 21
 owner: status201
 related:
@@ -29,174 +29,39 @@ source:
 
 ## Background / Why
 
-The bottom panel hosts a live oscilloscope/analyser (`Scope`) tapped **pre-master**
-so the display is independent of the master-volume knob. It already toggles between
-a **Wave** (time-domain) and a **Spectrum** (frequency) view via a single button.
+The bottom panel hosts a live oscilloscope / analyser (`Scope`), tapped
+**pre-master** so the display does not follow the master-volume knob. Two
+independent toggles pick what it shows: **Wave / Spectrum** (what is drawn) and
+**Mono / Stereo** (how many channels — Stereo splits the panel into LEFT and
+RIGHT, side by side or stacked, REQ-the-split-layout-is-pure). The synth bus can
+carry a stereo image (which inserts create one is [effects](effects.md)'s to say,
+not this spec's), and a mono down-mix hides it.
 
-The synth's signal is **stereo** — six things produce L≠R content: the
-**reverb** (a 2-channel decorrelated IR, so it is mono-in/stereo-out), the
-**chorus** on the synth and sampler buses (two antiphase taps, one per side —
-[chorus](chorus.md)), the **LFO
-auto-pan** (`synthPan`), the **drum tracks' per-track pans**, the **sampler
-slots' per-slot pans**, and the **sequencer tracks' per-track pans**
-([sequencer](sequencer.md) REQ-a-seq-track-carries-a-pan — the newest, and the
-only one that is *disconnected* rather than merely centred while unused).
-Everything else
-in the chain is channel-transparent: it can carry an existing stereo image but
-cannot create one. The scope down-mixes to mono, so that motion is invisible.
-(This list has now shed three wrong entries. A "ping-pong delay" went in v9 —
-there has never been one; `effects/delay.ts` is a single mono `DelayNode` with a
-damped feedback loop. The **phaser** and the **DJ FX** went in v10: the phaser is
-one shared allpass chain driven by one shared LFO, and the DJ FX is one
-`BiquadFilterNode` plus stutter/fill/tape-stop, which are timeline and tempo
-operations. None of them touches channels.)
-This feature adds an orthogonal **Mono/Stereo** toggle: Mono keeps the
-existing single full-panel trace (the down-mix, the default); Stereo splits the
-panel into two equal regions — **LEFT** then **RIGHT**, side by side on a wide
-panel and stacked on a narrow one (REQ-the-split-layout-is-pure) — each drawn with the same
-Wave/Spectrum renderer.
+The rest of the design follows from what each view is for:
 
-The two toggles are independent: Wave/Spectrum picks *what* is drawn, Mono/Stereo
-picks *how many channels* are drawn. All four combinations are valid.
-
-**Peak-hold (v2).** When mixing with the bus compressors (`compressor`) it helps to
-see *how loud the signal actually got*, not just the live bars. The **Spectrum**
-view therefore draws a **max-dB peak-hold** indicator: a dotted horizontal line
-that is pushed up by the spectrum bars to mark the highest level reached, with the
-level printed in dB beside it. The line falls back down very slowly on its own (a
-peak-hold meter), and **clicking the graph resets it** immediately. So the top of
-the graph reads **0 dB** without touching the (unchanged) bar heights, the displayed
-dB is simply *re-labelled*: the analyser's default `getByteFrequencyData` range
-(−100…−30 dB) is offset by +30 so its −30 dB ceiling shows as 0 dB ("clip"). The
-peak-hold is **Spectrum-only** — Wave view is unaffected.
-
-**Wave auto-gain (v8).** The Wave view drew at a fixed 1:1 scale, so it only
-looked like an oscilloscope for material running into clip. A song peaking at
-−25 dBFS drew a trace ~6 % of the panel height — a flat line, useless. A real
-scope has a volts/div knob for exactly this; here it **auto-ranges** instead.
-(Note the panel height itself is now the user's to set — REQ-a-scope-resize-handle. The auto-gain
-scales to whatever height it is given; the two are independent.) The
-normalization is deliberately **partial**: a fractional exponent compresses the
-level scale rather than flattening it, so quiet songs become legible *and* a loud
-song still visibly reads louder than a soft one. The Wave view is therefore
-explicitly **not** a calibrated level meter — the Spectrum peak-hold (REQ-spectrum-draws-a-peak-hold/REQ-zero-db-is-the-top-of-the-graph)
-remains the honest readout, and it is unaffected.
-
-**Resizable panel (v11).** The scope has always been locked to a **130 px** grid
-track, which after the wrap's padding and border leaves the canvas ~112 CSS px. In
-*stacked* stereo (REQ-the-split-layout-is-pure, narrow panels) that is ~54 px per channel — legible, but
-not enjoyable, and the Wave view's whole point is that it is nice to watch. So the
-panel's top edge gets a **drag handle**: pull it up to make the scope taller, to a
-ceiling of exactly **twice** the original height (260 px), with the original height
-as the floor.
-
-The handle resizes the **grid row**, not the canvas. That is the entire trick, and
-it buys two things for free:
-
-- The scope and the **PITCH / OCT / MOD** wheel strips share the same row
-  (`.bottomTop` is `grid-template-columns: 120px 1fr`), and `Strip` already
-  re-renders its thumb from a `ResizeObserver`. So the wheels grow *with* the scope,
-  which is what makes the resize read as "the instrument's bottom half got taller"
-  rather than "one panel inflated".
-- `Scope` needs **no change at all**. Its buffers are sized by `fftSize`, not by
-  pixels, and its own `ResizeObserver` → `measure()` already re-allocates the bitmap
-  and invalidates the gradient cache (REQ-no-per-frame-layout-read). Height was never baked in.
-
-**The loop that could not be restarted (v12).** A device report: on an Android
-tablet under battery saving the scope went black while the app was backgrounded
-and **stayed** black on return, even once the audio was running again. The panel's
-canvas is `background: transparent` — the black is the `.scopeScreen` bezel showing
-through — so a black panel means *nothing was painted*, not that the signal went
-away. (A silent signal draws a flat mid-line, which is a very different picture.)
-
-Three separate ways this component could stop painting for good, all of them one
-line apart. `start()` opened with `if (this.running) return`, and the loop's
-`requestAnimationFrame` re-arm sat *after* `draw()` — so any frame that threw, or
-any callback the browser dropped while freezing the renderer, ended the chain with
-`running` still latched `true`, and the `visibilitychange` → `start()` recovery
-path then did nothing at all, forever. Nothing in the repo handled canvas
-**context loss**, which Android inflicts on a backgrounded tab under memory
-pressure, and a lost 2D context is only ever restored if the page calls
-`preventDefault()` on `contextlost`. And `measure()` is driven by a
-`ResizeObserver` that will not fire again if the box comes back the size it left.
-
-v12 is four small edits with one theme: **there is no state this component can
-reach from which it cannot start drawing again.** It adds no feature and no
-control; the whole of it is inside `scope.ts`.
-
-**The loop that stopped again (v16).** A second report, this time Chrome on the
-desktop: after the tab had been in the background the scope held a **frozen last
-frame** — the Spectrum bars at the floor and the peak-hold line stopped part-way
-down its decay — and no control brought it back. A retained frame is a different
-diagnosis from v12's black panel: the canvas backing store is intact, the analysers
-are fine (they are created once in the `Engine` constructor and never replaced), and
-the loop simply never ran again.
-
-v12's theme was right and its scope was too narrow. It made `start()` idempotent and
-unconditionally restartable, but left every **trigger** for it event-driven and
-*one-shot*: `start()` queues exactly one `requestAnimationFrame`, and the only things
-that call it are the constructor, `onVisibility` and `onContextRestored`. Drop the
-single callback a `visibilitychange` buys — which is the very thing a frozen renderer
-does, and the failure REQ-the-redraw-loop-can-always-restart was written for — and there is no second chance. No
-public method restarts the loop, which is exactly why Wave/Spectrum, Mono/Stereo and
-Zones all read as dead: they set a field the loop was going to read.
-
-The same sweep closes a hole v12 *created*. `onContextLost` calls `preventDefault()`
-and then `stop()`, with no bound on the wait — and a lost context restores lazily, so
-stopping is precisely how you stop giving the browser a reason to restore one. That
-path needs no backgrounding at all: a GPU-process crash fires `contextlost` on a
-visible, foregrounded tab, `stop()` is the last thing that ever happens to the panel,
-and every toggle is inert from then on. Recovering from it means **replacing the
-canvas element**, because `getContext('2d')` on a canvas whose context is lost returns
-that same lost context — there is no way to ask for another one.
-
-v16's theme: **stop enumerating events.** Four routes were named in v12 and a fifth
-turned up anyway. A timer that checks whether pixels are still arriving does not have
-to guess which event the platform will send.
-
-Where the extra space comes from is a question the layout had already answered
-before this feature existed: `.app`'s bottom row is `1fr` under a `100dvh`
-`min-height`, and the keyboard below the scope has a floor. So a growing scope
-consumes the keyboard's slack first, stops at the keyboard's floor, and only then
-does the page scroll. The keyboard is never squeezed out of reach. (v18: the
-keyboard also has a *cap* now — keyboard-range.md REQ-key-height-follows-key-width
-— and spare height past it comes to the scope, so the scope can stand taller than
-its handle says; REQ-a-scope-resize-handle.)
-
-**A spectrum you can read a frequency off (v13).** The Spectrum view had no
-frequency reference of any kind — you could see a bump but not *where* it was, so
-the one job a spectrum analyser is most used for (finding the problem frequency:
-mud 100–200 Hz, boxy 300–500, cheap/nasal 800–1 k, harshness 4–6 k) could not be
-done with it.
-
-Labelling the axis as it stood would not have fixed that, because the axis was
-**linear in FFT bin index** — `used = floor(binCount * 0.6)`, `barW = r.w / used`,
-so the panel spanned 0 → 0.3·sampleRate (≈14.4 kHz at 48 k) evenly. On a 700 px
-mono panel that puts 100/500/1k/5k at ≈5/24/49/243 px: everything below 1 kHz is
-crushed into the leftmost 7 %, the entire mud band is about **five pixels wide**,
-and in stereo the first three labels overlap each other. The scale was not the
-missing piece — the *mapping* was.
-
-So v13 replaces it with a **logarithmic** axis over a fixed 20 Hz – 20 kHz, which
-is what every audio analyser uses and what makes an octave the same width wherever
-it sits. Each named band becomes an area you can point at (mud ≈70 px on that same
-panel, harshness ≈41 px) instead of a rounding error. On top of that mapping sit
-three readouts, in increasing order of how much they get in the way: a permanent
-**tick scale**, an opt-in **Zones** overlay that shades and names the four bands,
-and a **hover cursor** that prints the exact frequency under the pointer.
-
-Two consequences worth naming up front, because they are visible:
-
-- The bass is only as detailed as `fftSize` allows, and `fftSize` is perf-tier
-  state (REQ-all-analysers-share-fft-settings). A log axis *magnifies* that: at fftSize 1024 the bins are 46.9 Hz
-  apart, so the first three of them would cover the display's first third as flat
-  plateaus. The renderer therefore **interpolates** where columns are denser than
-  bins (REQ-bars-are-drawn-per-pixel-column) — without that step a log analyser looks broken, not detailed.
-- Canvas text now has bars behind it in places it never did. Every label the
-  component draws — the new Hz ticks, the existing `L`/`R` (REQ-scope-renderers-are-rect-scoped) and the existing
-  peak-dB readout (REQ-spectrum-draws-a-peak-hold) — gets a dark **halo** (REQ-every-drawn-string-gets-a-halo). Note this is *not* the
-  drop-shadow REQ-the-scope-drop-shadow-is-dropped removed: that was `shadowBlur` on thousands of bar/trace
-  operations, this is an outline on ~8 short strings a frame.
+- **Spectrum** is the honest level and frequency readout. A peak-hold line marks
+  the loudest level reached, with the top of the graph reading 0 dB
+  (REQ-spectrum-draws-a-peak-hold/REQ-zero-db-is-the-top-of-the-graph). The axis
+  is **logarithmic** over 20 Hz – 20 kHz, as every audio analyser's is, so the
+  bands a mix is judged by (mud 100–200 Hz, boxy 300–500, nasal 800–1 k, harsh
+  4–6 k) are areas you can point at; a tick scale, an opt-in Zones overlay and a
+  hover readout name them. A log axis magnifies the bass bins' coarseness, so the
+  renderer interpolates where columns outnumber bins
+  (REQ-bars-are-drawn-per-pixel-column).
+- **Wave** is for watching. It **auto-ranges** with a fractional exponent, so a
+  quiet song is legible and a loud one still reads louder; it is not a calibrated
+  meter (REQ-the-wave-view-auto-gains).
+- The panel is **resizable** from its top edge, 130–260 px, by resizing the grid
+  row rather than the canvas, so the wheel strips that share the row grow with it
+  and `Scope` needs no size logic of its own (REQ-a-scope-resize-handle).
+- **It must never stop painting for good.** A frozen or black panel with every
+  toggle dead is the failure mode this component has hit twice on real devices
+  (a backgrounded Android tablet; a desktop GPU-process crash). The rules are
+  REQ-the-redraw-loop-can-always-restart, REQ-every-public-mutator-is-a-recovery-path,
+  REQ-a-watchdog-restarts-a-stalled-loop and
+  REQ-a-lost-context-is-escaped-by-replacing-the-canvas: no state may exist from
+  which it cannot start drawing again, and a timer that checks pixels are still
+  arriving replaces guessing which event the platform will send.
 
 ## Requirements
 
@@ -342,11 +207,10 @@ Two consequences worth naming up front, because they are visible:
   in Wave (REQ-spectrum-draws-a-peak-hold).
 - **REQ-the-wave-read-is-float** (v8) — The Wave read is **float**:
   `getFloatTimeDomainData` into a per-channel `Float32Array` (reallocated by
-  `setFftSize` exactly like the byte buffers were). `getByteTimeDomainData`
+  `setFftSize` like the byte buffers). `getByteTimeDomainData`
   quantises to 1/128, so a −25 dBFS signal occupies ~7 of 128 steps and any real
   boost would paint a visible staircase; float also lets the `[-1,1]` clamp see
-  genuine above-0-dBFS excursions that the byte path had already hard-limited to
-  0/255. The auto-gain must add **no measurable per-frame cost**
+  genuine above-0-dBFS excursions that a byte read hard-limits to 0/255. The auto-gain must add **no measurable per-frame cost**
   (REQ-no-per-frame-layout-read, `runtime-performance`): the peak scan is
   **fused into the existing draw loop** — the frame draws with the *previous*
   frame's peak (one frame of lag, ~16 ms, imperceptible) while accumulating this
@@ -374,7 +238,7 @@ Two consequences worth naming up front, because they are visible:
 - **REQ-a-scope-resize-handle** (v11) — A **resize handle**
   (`data-testid="scope-resize-handle"`) sits on the scope panel's **top edge**.
   Dragging it vertically resizes the shared bottom row between
-  `SCOPE_H_MIN` (130 px, the pre-v11 fixed height) and `SCOPE_H_MAX` (260 px,
+  `SCOPE_H_MIN` (130 px, the original fixed height) and `SCOPE_H_MAX` (260 px,
   exactly twice it), by writing a single CSS custom property `--scope-h` on the
   `.bottom` element from script (`style.setProperty` — the shipped CSP allows
   that, but not a `style="…"` attribute in markup); the scope row (`.bottomTop`) takes
@@ -383,19 +247,15 @@ Two consequences worth naming up front, because they are visible:
   unavailable. Because the wheel strips share that row, they resize with the
   scope — this is a consequence of the row, not separate code.
   - The EQUALIZER section's graph reads `--scope-h` too
-    ([equalizer](equalizer.md) REQ-the-eq-page-mirrors-the-scope-row), so the grip now sizes **two** panels. It
-    is a different row of the same grid and is not part of this one's track — the
-    scope row still reads `var(--scope-h, 130px)` and this handle still writes only
-    that property. What the EQ borrows is the *number*, so the two panels cannot
-    be resized out of alignment with each other.
+    ([equalizer](equalizer.md) REQ-the-eq-page-mirrors-the-scope-row): it borrows
+    the *number*, not the row, so the two panels cannot be resized out of alignment.
   - **The dragged height is the scope's minimum, not its height.** While
     the keyboard below is at its cap (keyboard-range.md
     REQ-key-height-follows-key-width) the spare height comes to the scope
     (REQ-spare-height-goes-to-the-scope there), so the scope can stand taller
     than `--scope-h`, and a drag smaller shows nothing until that spare is used
-    up. The EQ graph keeps the dragged height — it borrows the number, not the
-    rendered row. With no spare, which is every default layout up to 2560px wide,
-    the drag behaves exactly as before.
+    up. The EQ graph keeps the dragged height. With no spare (every default layout
+    up to 2560px wide) the drag sets the height directly.
   The handle is a **sibling of the canvas**
   (appended to `.scopeWrap`, like the two corner toggle buttons), so a press on it can
   never reach the canvas `click` listener and reset the peak-hold (REQ-clicking-the-graph-resets-the-peak) — the same
@@ -425,10 +285,9 @@ Two consequences worth naming up front, because they are visible:
 
 - **REQ-the-redraw-loop-can-always-restart** (v12) — **The redraw loop can
   always be restarted.** `start()` cancels any pending frame and re-arms
-  unconditionally instead of early-returning on `running`. That early return was
-  the *only* thing standing between a broken frame chain and recovery: with
-  `running` latched true and no frame queued, every restart path in the
-  component was a no-op. Restarting an already-running loop is harmless — the
+  unconditionally, never early-returning on `running`: with `running` latched
+  true and no frame queued, an early return makes every restart path a no-op.
+  Restarting an already-running loop is harmless — the
   pending frame is cancelled first, so there is never more than one callback in
   flight.
 - **REQ-one-bad-frame-cannot-end-the-loop** (v12) — **One bad frame cannot end
@@ -478,13 +337,8 @@ Two consequences worth naming up front, because they are visible:
   `measure()`, `setFftSize()` and `contextrestored` — so the redraw loop
   allocates nothing (REQ-no-per-frame-layout-read, `runtime-performance`
   REQ-scope-renderers-are-rect-scoped). The peak-hold's `maxByte` (REQ-spectrum-draws-a-peak-hold/REQ-zero-db-is-the-top-of-the-graph)
-  keeps coming from **raw bins**, never from an interpolated value, so its
-  *meaning* is unchanged by this rewrite. Its **band** does widen: the old
-  cutoff showed 0.6·Nyquist (≈14.4 kHz at 48 k) and the new one runs to
-  `SPECTRUM_F_MAX`, so bright material with 14–20 kHz content can now push the
-  held peak a little higher than it used to. That is the definition holding —
-  "the loudest **visible** bar" — not drifting, but it is a visible difference
-  on the same song and is recorded here rather than left to be re-discovered.
+  keeps coming from **raw bins**, never from an interpolated value, over the
+  whole visible band up to `SPECTRUM_F_MAX`: "the loudest **visible** bar".
 - **REQ-the-scale-is-a-permanent-ruler** (v13) — **The scale is a permanent
   bottom ruler**: a short vertical tick at each of `SPECTRUM_TICKS_HZ` (100,
   500, 1 k, 5 k, 10 k) rising from the region's bottom edge, with the frequency
@@ -518,8 +372,8 @@ Two consequences worth naming up front, because they are visible:
 - **REQ-every-drawn-string-gets-a-halo** (v13) — **Every string the component
   draws gets a dark halo**: a `strokeText` outline under the `fillText`, via one
   shared helper.
-  - That helper is `haloText` in `ui/components/canvas-text.ts`, no longer
-    private to this component: the EQ graph ([equalizer](equalizer.md) REQ-the-graph-computes-from-bus-values)
+  - That helper is `haloText` in `ui/components/canvas-text.ts`, shared with the
+    EQ graph ([equalizer](equalizer.md) REQ-the-graph-computes-from-bus-values)
     draws the same small mono labels over the same kind of saturated fill, and
     a copy would drift the first time either was tuned. It sets `lineWidth`,
     `lineJoin`, `strokeStyle` and `fillStyle` without restoring them — a
@@ -573,11 +427,9 @@ Two consequences worth naming up front, because they are visible:
   `contextrestored` is bounded.** `contextlost` still `preventDefault()`s and
   still stops the loop (REQ-canvas-context-loss-is-survivable) — but it now
   records *when*, and if no `contextrestored` arrives within
-  `CONTEXT_RESTORE_MS` the component stops waiting and recovers itself. v12 left
-  this path with no way out at all: `stop()` was the last thing that happened to
-  the panel, no toggle could undo it, and the wait needs no backgrounding to
-  begin — a GPU-process crash fires `contextlost` on a visible, foregrounded
-  tab. Stopping is also how you stop giving a browser that restores lazily any
+  `CONTEXT_RESTORE_MS` the component stops waiting and recovers itself. An
+  unbounded wait is a dead panel no toggle can undo, and needs no backgrounding:
+  a GPU-process crash fires `contextlost` on a visible, foregrounded tab. Stopping is also how you stop giving a browser that restores lazily any
   reason to restore.
 - **REQ-a-lost-context-is-escaped-by-replacing-the-canvas** (v16) — **A provably
   lost context is escaped by replacing the canvas, not by asking for another
@@ -631,13 +483,11 @@ Two consequences worth naming up front, because they are visible:
   through `setScopeStatsSource` ([debug-panel](debug-panel.md)
   REQ-the-debug-extension-contract/REQ-an-unbound-row-reads-n-a) and increments
   `data-rebuilds` on the canvas — on change only, per REQ-the-scope-canvas-carries-a-testid/REQ-no-per-frame-layout-read, which here
-  means essentially never. This symptom has now been reported twice from devices
-  with no console and nothing to read; a third report should arrive with
-  numbers.
+  means essentially never. A device with no console must still be able to report it.
 
 ## Technical design
 
-### Gesture inventory — the resize handle (v11)
+### Gesture inventory — the resize handle
 
 The [recipe](../recipes/design-an-interaction.md) step-1 artefact for the one new
 interactive control this feature adds. Everything else on this panel is a plain
@@ -678,22 +528,16 @@ feature exists to protect. The shortfall is safe *vertically* because the handle
 at the panel's top edge with nothing else hittable within 16 px, so an imprecise touch
 lands on the handle or on inert canvas, never on the wrong control.
 
-**Horizontally it is not free**, and the measured numbers set the rule. The handle has
-to thread between the two corner toggles, which are ~58 px and ~53 px wide plus their
-8 px insets — about 127 px of the panel's width whatever the screen. So the hit box
-is `min(64px, calc(100% - 140px))`: full width where there is room, shrinking rather
-than overlapping where there is not. Measured left/right clearance, viewport width →
-gap: 1440 → 522/527, 768 → 204/209, 430 → 35/40, 390 → 15/20, 375 → 7/12, 360 → 4/9.
-Below **350 px** the remaining gap cannot hold a hittable grip at all, so the handle
-is **dropped** rather than shown unhittable — a stored height still applies, it just
-cannot be changed on that screen. (A fixed 96 px box was the first attempt and
-overlapped the Mono/Stereo button by 1 px at 390 px, which would have swallowed that
-button's last pixel column; the shrink-to-fit width is what replaced it.)
+**Horizontally** the handle threads between the two corner toggles (~127 px of the
+panel's width together), so the hit box is `min(64px, calc(100% - 140px))`: full
+width where there is room, shrinking rather than overlapping where there is not.
+Deliberate: don't make it a fixed width, which overlaps the Mono/Stereo button on a
+phone. Below **350 px** no hittable grip fits, so the handle is **dropped** rather
+than shown unhittable; a stored height still applies.
 
-### Gesture inventory — the Spectrum canvas (v13)
+### Gesture inventory — the Spectrum canvas
 
-The canvas itself becomes interactive in v13 (it previously answered only a click),
-so it owes an inventory too. The Zones button is a plain button and does not.
+The canvas owes an inventory too; the Zones button is a plain button and does not.
 
 | Gesture | Outcome | Precedent |
 | --- | --- | --- |
@@ -728,22 +572,22 @@ interface ScopeAnalysers { mono: AnalyserNode; left?: AnalyserNode; right?: Anal
 interface ScopeOptions { fps?: number; }  // target redraw rate (default 60); see performance-mode
 
 class Scope {
-  get el(): HTMLCanvasElement;          // v16: a getter — REQ-a-lost-context-is-escaped-by-replacing-the-canvas can replace the element underneath
+  get el(): HTMLCanvasElement;          // a getter — REQ-a-lost-context-is-escaped-by-replacing-the-canvas can replace the element underneath
   constructor(analysers: ScopeAnalysers, opts?: ScopeOptions);
-  ensureLive(): void;                   // v16: restart if stalled; a no-op when healthy (REQ-every-public-mutator-is-a-recovery-path)
-  get health(): ScopeHealth;            // v16: liveness readout for the Debug panel (REQ-the-panel-says-whether-it-is-drawing)
-  setMode(m: ScopeMode): void;          // wave | spectrum  (v13: also binds/unbinds the hover listeners)
-  setChannels(c: ScopeChannels): void;  // mono | stereo    (new; stereo needs left+right)
+  ensureLive(): void;                   // restart if stalled; a no-op when healthy (REQ-every-public-mutator-is-a-recovery-path)
+  get health(): ScopeHealth;            // liveness readout for the Debug panel (REQ-the-panel-says-whether-it-is-drawing)
+  setMode(m: ScopeMode): void;          // wave | spectrum  (also binds/unbinds the hover listeners)
+  setChannels(c: ScopeChannels): void;  // mono | stereo (stereo needs left+right)
   get channelMode(): ScopeChannels;     // effective layout (mono unless stereo set with both)
   resetPeak(): void;                     // clear the spectrum peak-hold (also bound to canvas click)
   setFps(fps: number): void;             // change the target redraw rate live (perf-mode tier switch)
-  setFftSize(fftSize: number): void;     // v5: set all three analysers' fftSize live + reallocate read buffers
-  setZones(on: boolean): void;           // v13: show/hide the problem-band overlay (REQ-a-zones-toggle)
-  get zonesOn(): boolean;                // v13
+  setFftSize(fftSize: number): void;     // set all three analysers' fftSize live + reallocate read buffers
+  setZones(on: boolean): void;           // show/hide the problem-band overlay (REQ-a-zones-toggle)
+  get zonesOn(): boolean;
   destroy(): void;
 }
 
-// Liveness (v16, REQ-the-scope-proves-it-is-painting..38). Four exported ms constants, one record, one reader:
+// Liveness (REQ-the-scope-proves-it-is-painting and the REQs after it). Four exported ms constants, one record, one reader:
 const SCOPE_WATCHDOG_MS = 1000;    // how often the watchdog looks; gated on document.hidden
 const SCOPE_STALL_MS = 1200;       // no rAF callback for this long => the frame chain is dead
 const SCOPE_PAINT_STALL_MS = 1500; // frames but no paints => no layout box (clears 15fps weak tier)
@@ -759,7 +603,7 @@ interface ScopeHealth {
 function setScopeStatsSource(fn: () => ScopeHealth): void;
 function scopeStats(): ScopeHealth | undefined;   // undefined => the row reads "n/a"
 
-// Pure, exported, canvas-free — the log frequency axis (v13, REQ-the-frequency-axis-is-logarithmic..29):
+// Pure, exported, canvas-free — the log frequency axis (REQ-the-frequency-axis-is-logarithmic):
 const SPECTRUM_F_MIN = 20;        // Hz at the left edge of the plot
 const SPECTRUM_F_MAX = 20000;     // Hz at the right edge, clamped to Nyquist at read time
 const SPECTRUM_TICKS_HZ: readonly number[];   // [100, 500, 1000, 5000, 10000]
@@ -788,7 +632,7 @@ function dbToFrac(db: number): number;                           // inverse of t
 function decayPeak(heldDb: number, currentMaxDb: number, dtSec: number): number;  // the slow fall
 function updatePeak(state: PeakState, currentMaxDb: number, dtSec: number): PeakState; // push/hold/fall
 
-// Pure, exported, canvas-free — the Wave auto-gain (v8, REQ-the-wave-view-auto-gains):
+// Pure, exported, canvas-free — the Wave auto-gain (REQ-the-wave-view-auto-gains):
 const WAVE_TARGET_PEAK   = 0.9;    // fraction of half-height a fully-normalized trace reaches
 const WAVE_NORM_STRENGTH = 0.85;   // 1 = full normalization, 0 = none; <1 keeps loud louder than soft
 const WAVE_MAX_GAIN      = 32;     // ceiling, so a noise floor is never blown up
@@ -799,10 +643,10 @@ function waveGainTarget(peak: number): number;                              // t
 function updateWaveGain(gain: number, peak: number, dtSec: number): number; // asymmetric one-pole toward it
 ```
 
-`Engine` (`src/audio/engine.ts`) — new public fields `analyserL`, `analyserR`.
-`StudioApi` (`src/ui/studio-api.ts`) — new `readonly analyserL`/`analyserR`.
+`Engine` (`src/audio/engine.ts`) has public `analyserL` / `analyserR`, read through
+`StudioApi` (`src/ui/studio-api.ts`).
 
-The resize handle (v11) — a generic vertical resizer, deliberately **not** coupled to
+The resize handle — a generic vertical resizer, deliberately **not** coupled to
 `Scope`. It writes a CSS custom property on a target element and reports commits; it
 knows nothing about canvases, analysers or grids:
 
@@ -831,7 +675,7 @@ class ResizeHandle {
 
 ```ts
 // src/state/scope-height.ts — device-scoped workspace pref (same class as perf-mode)
-const SCOPE_H_MIN = 130;      // px — the pre-v11 fixed height, the floor
+const SCOPE_H_MIN = 130;      // px — the original fixed height, the floor
 const SCOPE_H_MAX = 260;      // px — exactly twice it, the ceiling
 const SCOPE_H_DEFAULT = 130;  // px — SCOPE_H_MIN; what a fresh boot and a reset give
 const SCOPE_H_STEP = 8;       // px — arrow-key increment
@@ -840,21 +684,12 @@ function readScopeHeight(): number;              // clamped; default on miss/gar
 function writeScopeHeight(px: number): void;     // clamped; swallows quota/private-mode
 ```
 
-It is written generically because a resizer has no business knowing about the scope —
-but it is specced **here**, not in its own facility spec, because the scope is its
-only consumer. A second consumer is what would earn it a spec of its own.
-
 ### Data shapes
 
-```yaml
-ScopeRegion:
-  x: number      # px, top-left within the canvas layout box (CSS px, not bitmap)
-  y: number
-  w: number
-  h: number
-  tag: mono | left | right   # which analyser feeds this region
-  label: string              # '' for mono, 'L'/'R' for stereo
+The constants are declared once, in the contract above; these are the formulas and the
+values the contract does not carry.
 
+```yaml
 STEREO_SIDE_BY_SIDE_MIN_W: 480   # px; at/above -> side-by-side, below -> stacked
 STEREO_GAP: 16                   # px; centre gutter between the side-by-side halves
 
@@ -868,8 +703,6 @@ Peak-hold dB scale (REQ-zero-db-is-the-top-of-the-graph/REQ-a-taller-bar-pins-th
 no analyser change:
 
 ```yaml
-SPECTRUM_DB_TOP: 0       # dB at the top edge of a region (clip)
-SPECTRUM_DB_RANGE: 70    # dB to the bottom edge (matches the analyser's -100..-30 byte range)
 PEAK_DECAY_DB_PER_SEC: ~3  # tuned by ear to feel "real slow"; single tunable constant
 PEAK_HOLD_SEC: ~1.5        # plateau the line is pinned at a new max before it falls
 
@@ -889,12 +722,6 @@ PEAK_HOLD_SEC: ~1.5        # plateau the line is pinned at a new max before it f
 Wave auto-gain (REQ-the-wave-view-auto-gains/REQ-the-wave-read-is-float) — one gain for the whole display, not per channel:
 
 ```yaml
-WAVE_TARGET_PEAK: 0.9        # a fully-normalized trace would reach 90% of the half-height
-WAVE_NORM_STRENGTH: 0.85     # partial normalization; 1 = flatten every song to the same height
-WAVE_MAX_GAIN: 32            # ceiling (binds below ~-36 dBFS)
-WAVE_SILENCE_PEAK: 0.0005    # ~-66 dBFS silence gate
-WAVE_GAIN_FALL_TAU: 0.05     # s, gain decreasing (louder signal) — fast
-WAVE_GAIN_RISE_TAU: 0.6      # s, gain increasing (quieter signal) — slow
 
 # waveGainTarget(peak):
 #   !(peak > WAVE_SILENCE_PEAK) -> 1                       (silence, and NaN, are unity)
@@ -906,20 +733,13 @@ WAVE_GAIN_RISE_TAU: 0.6      # s, gain increasing (quieter signal) — slow
 #   gain + (target - gain) * (1 - exp(-dt / tau))          (frame-rate independent)
 # drawn sample: y = midY + clamp(v * gain, -1, 1) * amp    (amp = r.h / 2 - 4)
 #
-# Drawn height vs source peak (the "loud still reads louder" curve):
-#     0 dBFS -> gain  1.0x -> 100%      -25 dBFS -> gain 10.6x -> 59%
-#    -6 dBFS -> gain  1.7x ->  83%      -36 dBFS -> gain 31.5x -> 50%
-#   -12 dBFS -> gain  2.9x ->  73%     <-66 dBFS -> gain  1.0x -> flat (gated)
-#
 # Scope state: waveGain (init 1) + wavePeak (this-frame max |v| over ALL regions,
 #   reset each frame). Dataset mirror el.dataset.waveGain (1 dp), Wave-view only.
 ```
 
-Log frequency axis (v13, REQ-the-frequency-axis-is-logarithmic..29) — one mapping, four consumers:
+Log frequency axis (REQ-the-frequency-axis-is-logarithmic) — one mapping, four consumers:
 
 ```yaml
-SPECTRUM_F_MIN: 20        # Hz at plot x = 0
-SPECTRUM_F_MAX: 20000     # Hz at the region's right edge; clamped to sampleRate/2 at read time
 SPECTRUM_COL_W: 3         # px per drawn column (the bar loop's step)
 TICK_CHAR_W: 6            # px per char at 10px monospace — the measureText-free estimate
 ZONE_NAME_MIN_W: 300      # px of region width below which zone NAMES drop (bands stay)
@@ -934,11 +754,6 @@ SPECTRUM_ZONES:
 # fracToFreq(f)  = F_MIN * (F_MAX/F_MIN) ** clamp01(f)          # exact inverse
 #   x = r.x + freqToFrac(hz) * r.w           # the plot IS the region: no gutter
 #
-# Where the ticks land, as a fraction of the region width (F_MAX = 20k):
-#   100 -> 23.3%   500 -> 46.6%   1k -> 56.6%   5k -> 79.9%   10k -> 90.0%
-# and the four bands, on a 636px region:
-#   MUD 148..212 (64px)   BOXY 249..296 (47px)   NASAL 340..360 (21px)   HARSH 488..525 (37px)
-#
 # columnBinEdges(cols, fftSize, sampleRate)[c] = fractional bin index at column c's
 #   left edge = fracToFreq(c/cols) * fftSize / sampleRate ; length cols+1, monotonic.
 #   span = edges[c+1] - edges[c]
@@ -950,15 +765,11 @@ SPECTRUM_ZONES:
 Panel height (REQ-a-scope-resize-handle/REQ-the-scope-height-persists) — one number, one CSS custom property:
 
 ```yaml
-SCOPE_H_MIN: 130       # px, the pre-v11 fixed row height
-SCOPE_H_MAX: 260       # px, 2 * MIN
-SCOPE_H_DEFAULT: 130   # px, == MIN
-SCOPE_H_STEP: 8        # px, arrow-key increment
 DOUBLE_TAP_MS: 350     # ms window for the hand-rolled double-tap
 
-# .bottom  flex column (v18; a grid before):
+# .bottom  flex column:
 #            .bottomTop (wheels 120px | scope 1fr)  flex 1 1 0, min-height var(--scope-h, 130px)
-#                                                    <- the resized row; a MINIMUM since v18
+#                                                    <- the resized row; a MINIMUM
 #            EQ section                              auto
 #            keyboard  flex 1000 1 0, floored at 160px, capped by key width
 #                      (keyboard-range.md REQ-key-height-follows-key-width)
@@ -968,93 +779,46 @@ DOUBLE_TAP_MS: 350     # ms window for the hand-rolled double-tap
 
 ### Layer touchpoints & ordering
 
-- **`Engine` constructor** builds the analyser tap. Replace the single
-  `masterComp.output → analyser → master` link with a lossless split→merge so all
-  three analysers are pulled (see Visual aids):
-  `masterComp.output → splitter` ; `splitter[0] → analyserL`, `splitter[1] →
-  analyserR` ; `analyserL → merger[0]`, `analyserR → merger[1]` ; `merger →
-  analyser → master → destination`. `analyserL/R` are configured (the resolved
-  tier's `analyserFftSize`, smoothing 0.2) before use. `ChannelSplitterNode`/`ChannelMergerNode` are created
-  with 2 ports.
-- **`main.ts`** passes the concrete `Engine` (which now structurally satisfies the
-  widened `StudioApi`) to `mountApp`; `window.__synth.engine` therefore exposes
-  `analyserL`/`analyserR` (DEV only) for E2E assertions.
-- **`shell/scope-panel.ts` `buildScopePanel`** constructs `new Scope({ mono: engine.analyser, left:
-  engine.analyserL, right: engine.analyserR }, { fps: PERF_PROFILES[resolveTier()].fps })`,
-  returns the scope so `mountApp` can bind the live `setFps` + `setFftSize` hooks
-  (perf-mode), and adds the
-  `scope-channels-toggle` button beside the existing `scope-toggle`.
-- **`help-content.ts`** `scope` topic text mentions the Mono/Stereo split and the
-  peak-hold (click to reset). CSS for the new button lives in `bottom.module.css`
-  (style-exempt from SDD).
-- **Sizing / redraw cost (REQ-no-per-frame-layout-read)** — the constructor creates a `ResizeObserver` on
-  the canvas that, on resize, reads `clientWidth`/`clientHeight` + `devicePixelRatio`
-  and resizes the bitmap (`el.width`/`el.height`) only when it changes, caching the
-  CSS size + dpr. `draw()`/`syncSize()` read those cached values — never the live
-  layout — so the rAF loop forces no reflow. `mirrorPeak` writes a `dataset` key only
-  when its `toFixed(1)` value changes; `clearDatasetMirror` runs on Wave/Mono-Stereo/
-  reset transitions (not per frame) and is a no-op when already clear. The observer is
-  `disconnect()`ed in `destroy()`. No `ResizeObserver` (jsdom) → measure-on-draw
-  fallback. The canvas CSS bezel (radial-gradient background + inset box-shadow) lives
-  on a dedicated static underlay, `.scopeScreen` — not on the animated canvas, and not
-  on `.scopeWrap`, which carries only the panel frame — so it is not re-rastered each
-  frame.
-- **`Scope.drawSpectrum`** owns the peak-hold (v2): after the existing
-  `getByteFrequencyData` read it takes the max byte over the same visible bins,
-  converts with `byteToDisplayDb`, updates `channel.peakDb` via `decayPeak` (from a
-  clamped inter-frame `dt`), then draws the dashed line + dB label and mirrors the
-  value onto `el.dataset`. The constructor binds a `click` listener on `el` →
-  `resetPeak()` (removed in `destroy`). No `engine.ts`/`app.ts` change — the peak
-  line, label and reset are entirely inside the component; the toggle buttons already
-  sit outside the canvas.
-- **`Scope.drawWave` + `draw`** own the auto-gain (v8). `draw()` updates the shared
-  `waveGain` from the *previous* frame's `wavePeak` and the clamped `dt`, then zeroes
-  `wavePeak`, **before** the region loop — and only while `mode === 'wave'`, so the
-  gain freezes in Spectrum. `drawWave` reads `getFloatTimeDomainData` and, in the one
-  existing per-sample loop, accumulates `max |v|` into `this.wavePeak` while drawing
-  the clamped, scaled sample — no second pass. Like the peak-hold this is entirely
-  inside the component: **no `engine.ts`, `studio-api.ts` or `app.ts` change**, no
-  new button and no new `data-testid` (the gain rides the existing `scope-canvas`
-  dataset). `clearPeakDataset` becomes `clearDatasetMirror` so the `waveGain` key is
-  dropped on the same rare transitions.
-- **`Scope.drawSpectrum` + `buildBottom`** own the frequency axis (v13). Inside the
-  component: the bar loop becomes column-based over `columnBinEdges` (REQ-bars-are-drawn-per-pixel-column), and
-  the region gains a draw order of **midline → zone bands → bars → peak line + dB →
-  ticks → zone names → hover cursor → `L`/`R`** — bands behind the bars, every
-  label in front of them and haloed (REQ-every-drawn-string-gets-a-halo). `setMode` gains the
-  `pointermove`/`pointerleave` bind/unbind (REQ-hovering-reads-out-a-frequency), and `destroy()` removes them
-  unconditionally. In `buildScopePanel`, a third overlay button
-  (`scope-zones-toggle`) is appended to `.scopeWrap` beside the existing two,
-  starting `hidden`; the existing Wave/Spectrum handler gains one line
-  (`zonesToggle.hidden = isWave`), which is the whole of REQ-a-zones-toggle's Spectrum-only
-  rule. **No `engine.ts` or `studio-api.ts` change** — like the peak-hold and the
-  auto-gain before it, this is entirely a rendering feature; the only thing it needs
-  from the audio layer is `analyser.context.sampleRate`, read defensively
-  (`?? 48000`) because the unit suites' analyser stubs carry no `context`.
-- **`ResizeHandle` + `buildScopePanel`** own the resize (v11), and **nothing else does**.
-  `bottom.module.css` changes one declaration — `.bottom`'s first grid track becomes
-  `var(--scope-h, 130px)` (since v18 the scope row's `min-height`; `.bottom` is a
-  flex column). `buildScopePanel` reads `readScopeHeight()`, sets `--scope-h`
-  on the `.bottom` element *before* it is mounted (REQ-the-scope-height-persists: no first-paint jump), and
-  appends a `ResizeHandle` to `.scopeWrap` after the two toggle buttons, with
-  `onCommit: writeScopeHeight`. The handle is returned alongside the `Scope` so its
-  `destroy()` sits wherever `scope.destroy()` does. **No change to `scope.ts`,
-  `engine.ts` or `studio-api.ts`** — if an implementation finds itself editing them,
-  the approach has drifted (the height reaches `Scope` through REQ-no-per-frame-layout-read's observer).
-- **`Scope` + `debug-sources.ts` + `about-debug.ts` + `buildBottom`** own the
-  liveness sweep (v16, REQ-the-scope-proves-it-is-painting..38). Almost all of it is inside `scope.ts`: the two
-  timestamps, the watchdog interval, `ensureLive()` in front of the six mutators, the
-  bounded `contextlost` wait and `rebuildCanvas()`. `attachCanvas`/`detachCanvas` are
-  extracted so the constructor, `destroy()` and the rebuild share **one** listener
-  list — a listener added in one of three places and forgotten in the others is the
-  next bug. Outside the component: `debug-sources.ts` gains a fourth late-bound
-  reader in its existing three-line idiom (`setScopeStatsSource`/`scopeStats`), and
-  `about-debug.ts` one `addRow('Scope')` on the *every-tick* tier
-  ([debug-panel](debug-panel.md) REQ-debug-refresh-is-tiered-by-row-cost — plain field reads). `app.ts` adds a single
-  line beside the live scope knobs it already binds at `buildBottom`'s return:
-  `setScopeStatsSource(() => bottom.scope.health)`. **No `engine.ts` or
-  `studio-api.ts` change** — nothing here needs the audio layer, and the analysers
-  were never the problem (ADR-001/ADR-009 untouched).
+- **`Engine` constructor** builds the analyser tap as a lossless split→merge so all
+  three analysers are pulled: `masterComp.output → splitter` ; `splitter[0] →
+  analyserL`, `splitter[1] → analyserR` ; `analyserL/R → merger[0/1]` ; `merger →
+  analyser → master → destination` (2-port splitter/merger; the tier's
+  `analyserFftSize`, smoothing 0.2). `window.__synth.engine` exposes
+  `analyserL`/`analyserR` in DEV for E2E.
+- **`shell/scope-panel.ts` `buildScopePanel`** constructs `new Scope({ mono:
+  engine.analyser, left: engine.analyserL, right: engine.analyserR }, { fps:
+  PERF_PROFILES[resolveTier()].fps })`, appends the overlay buttons
+  (`scope-toggle`, `scope-channels-toggle`, `scope-zones-toggle`, the last hidden in
+  Wave: `zonesToggle.hidden = isWave`) and the `ResizeHandle` to `.scopeWrap`, sets
+  `--scope-h` from `readScopeHeight()` **before** mounting (no first-paint jump), and
+  returns the scope and handle so `mountApp` binds `setFps` / `setFftSize` and both
+  `destroy()`s.
+- **Everything else is inside `scope.ts`** — peak-hold, auto-gain, the log axis and
+  its overlays, the liveness sweep — and needs nothing from the audio layer but
+  `analyser.context.sampleRate` (read as `?? 48000`, since the unit suites' analyser
+  stubs carry no `context`). Deliberate: a change here that edits `engine.ts` or
+  `studio-api.ts` has drifted (ADR-001/ADR-009). Inside it:
+  - `draw()` updates `waveGain` from the *previous* frame's `wavePeak` before the
+    region loop, only in Wave mode (so the gain freezes in Spectrum); `drawWave`
+    accumulates `max |v|` in its one per-sample loop;
+  - the Spectrum draw order is **midline → zone bands → bars → peak line + dB →
+    ticks → zone names → hover cursor → `L`/`R`**, every label haloed
+    (REQ-every-drawn-string-gets-a-halo); `setMode` binds and unbinds the hover
+    listeners;
+  - `attachCanvas` / `detachCanvas` hold the **one** listener list the constructor,
+    `destroy()` and `rebuildCanvas()` share, so no listener is added in one place and
+    forgotten in another.
+- **Sizing (REQ-no-per-frame-layout-read):** a `ResizeObserver` reads the CSS size
+  and `devicePixelRatio`, resizes the bitmap only on change, and caches both; the rAF
+  loop reads the cache (measure-on-draw where there is no observer, as in jsdom).
+  The bezel lives on the static `.scopeScreen` underlay, not on the animated canvas.
+  `dataset` mirrors are written on change only.
+- **Liveness reporting:** `app.ts` binds `setScopeStatsSource(() =>
+  bottom.scope.health)` (`state/debug-sources.ts`), read by `about-debug.ts`'s
+  `Scope` row on the every-tick tier ([debug-panel](debug-panel.md)
+  REQ-debug-refresh-is-tiered-by-row-cost).
+- **`help-content.ts`**'s `scope` topic covers Mono/Stereo, the peak reset, Zones,
+  the hover readout and the resize handle.
 
 ### Persistence
 
@@ -1065,8 +829,7 @@ DOUBLE_TAP_MS: 350     # ms window for the hand-rolled double-tap
 | Wave/Spectrum, Mono/Stereo, **Zones**, peak-hold, wave gain | in-memory only | *View* state — what you are looking at right now. Not part of a sound or a song, and cheap to re-pick. Every boot starts at **Wave + Mono + Zones off** with no held peak. |
 | Panel height | `localStorage` `websynth.ui.scope.height` | *Workspace* state — how the instrument is arranged on **this** screen. |
 
-v11 does not soften the original rule, it draws the line the rule was always
-implying: a height is not a view mode, it is furniture. It joins the device-scoped
+A height is not a view mode, it is furniture. It joins the device-scoped
 family of `websynth.perf`, `websynth.keyboard.layout` and `websynth.ui.collapsed.*` —
 read at boot, written on change, and **equally excluded from `ParamBus`, presets and
 `SongFile`**. Loading someone else's song must never rearrange your panels, and a
@@ -1544,106 +1307,39 @@ Scenario: The handle holds no global listener at rest (REQ-the-resize-obeys-the-
 
 ## Tests & verification
 
-- Unit: `tests/ui/scope-regions.test.ts` — pure `scopeRegions` geometry (mono single
-  region; stereo two stacked halves tiling the panel; tags/labels); the peak-hold
-  helpers `byteToDisplayDb`/`dbToFrac`/`decayPeak`; the Wave auto-gain helpers
-  `waveGainTarget`/`updateWaveGain` (unity at/above full scale and below the silence
-  gate, the `WAVE_MAX_GAIN` ceiling, monotonic drawn height, asymmetric fall/rise,
-  frame-rate independence); and `Scope.resetPeak()` clearing the dataset mirror —
-  `npm test`.
-- Unit: `tests/ui/scope-trigger.test.ts` (v19) — `findRisingZeroCrossing`: the
-  first upward crossing at any phase, none for silence or a too-long period.
-- Unit: `tests/ui/scope-lifecycle.test.ts` (v12) — one case per recovery route:
-  hidden→visible restarts and measures; a `draw()` that throws once still draws on
-  the following frame; `start()` re-arms after the frame chain was broken with
-  `running` latched true; `contextlost` calls `preventDefault()` and
-  `contextrestored` repaints; `setFps` rejects `0` / negative / `NaN`. Drives a real
-  `Scope` over jsdom with stub analysers and a stubbed 2D context, the way
-  `scope-regions.test.ts` already drives `resetPeak`.
-- Unit: `tests/state/scope-height.test.ts` (v11) — `clampScopeHeight` at and past both
-  ends, rounding, and non-finite input; `readScopeHeight`/`writeScopeHeight` round-trip
-  over `tests/storage-mock.ts`, with a missing key, garbage, an out-of-range value and
-  a throwing storage all resolving to a usable height without escaping an error.
-- Unit: `tests/ui/resize-handle.test.ts` (v11) — **one case per gesture-inventory
-  row**: drag writes the custom property and clamps at both ends; a press with no
-  movement changes nothing and commits nothing; double-tap inside `DOUBLE_TAP_MS`
-  resets (and outside it does not); `ArrowUp`/`ArrowDown` step by `SCOPE_H_STEP`,
-  `Home` resets, `aria-valuenow` follows; `onCommit` fires on release, not per move;
-  no `window` `pointermove` listener at rest and none left after release or
-  `destroy()` (spied `add/removeEventListener`, as `tests/ui/knob.test.ts` does).
-- Unit: `tests/ui/scope-axis.test.ts` (v13) — the log mapping (`freqToFrac` /
-  `fracToFreq` round-trip, equal-octave spacing, clamping); `formatHz` at its
-  boundaries; `visibleTicks` keeping all
-  five on a wide plot and pruning from the middle on a narrow one, with no
-  `measureText` call; `columnBinEdges` monotonic, in-range and cached across the
-  three perf-tier fftSizes; the max-vs-lerp column rule; and — driven over a
-  recording 2D context like `scope-lifecycle.test.ts` does — the halo stroke order,
-  the mode-scoped hover listeners, and touch pointers being ignored.
-- E2E: `e2e/scope.spec.ts` — default "Mono", toggle to "Stereo" and back,
-  orthogonality with Wave/Spectrum, the `analyserL`/`analyserR` data path via
-  `window.__synth.engine`, the Spectrum peak readout rising with sound +
-  click-to-reset (`canvas.dataset.peak`), and the Wave `canvas.dataset.waveGain`
-  mirror appearing in Wave and clearing in Spectrum. (v11) Dragging
-  `scope-resize-handle` upward grows the canvas, grows a wheel strip by the same
-  delta, and survives a `reload()` — `npm run e2e`.
-- Typecheck: `npm run typecheck`.
-- **By eye (ADR-010)** — the auto-gain is a *look*, so a green suite does not verify
-  it. Load a quiet demo (**Nocturne**) and a loud one (**Mordor**) in Wave
-  view: the quiet one must draw a readable trace (roughly half the panel) and the
-  loud one must still draw visibly taller. Then check silence settles flat, a
-  transient from silence does not paint outside its region, and Stereo keeps the L/R
-  height difference on hard-panned material. `WAVE_NORM_STRENGTH` and
-  `WAVE_MAX_GAIN` are the two knobs to retune.
-- **By eye (v11)** — the resize is likewise a *look* and a *feel*. Drag the handle to
-  the ceiling and check: the trace and the spectrum bars scale cleanly with no
-  stretching artefact; the L/R labels still sit clear at each region's bottom-left in
-  **both** stereo layouts; the CRT bezel (`.scopeScreen`) still frames the canvas
-  exactly; the wheel strips grow with it and their thumbs stay on value; and the
-  keyboard gives up its slack down to its 160 px floor and then hands over to a page
-  scroll rather than collapsing. Repeat at phone width — the grip must still clear
-  both corner buttons. The drag itself must track the pointer without lag or rubber
-  banding.
-- **By eye (v13)** — the axis is a *look* and a *claim about where things are*, so
-  the suite cannot verify it. In Spectrum: sweep the filter cutoff and watch the
-  peak of the bars track the ticks (a 440 Hz note must put its fundamental just
-  left of the 500 mark); check the bass reads as a curve and not as three
-  plateaus; check every label survives a full-height bar behind it; turn Zones on
-  and confirm the bands sit where the ear says they do. Then repeat in both stereo
-  layouts and at both ends of the resize handle, and once on the **weak** perf tier
-  (fftSize 256) where the bass is genuinely coarse.
-- Unit: `tests/ui/scope-lifecycle.test.ts` (v16) — the watchdog cases, under
-  `vi.useFakeTimers()` and a stubbed `performance.now`, in their own `describe` (the
-  v12 cases use no timers). They pin: a dropped frame chain restarting with nothing
-  to announce it; the hidden tab staying dark through many ticks; a healthy loop
-  neither cancelled nor re-armed; frames-without-paints measuring rather than
-  rebuilding; an unanswered `contextlost` recovering on its own with no visibility
-  edge; the canvas rebuild carrying class, testid, listeners **and a cleared dataset
-  mirror**; the rebuild abandoned when the replacement's `getContext` returns `null`;
-  each of the six mutators reviving a stalled loop while costing a healthy one
-  nothing; `focus`/`resume` reviving it and an element focus not reaching the
-  handler; `destroy()` taking the interval with it; and the `health` record.
-- E2E: `e2e/scope.spec.ts` (v16) — a `contextlost` that is **never** answered
-  recovering on its own (the twin of the v12 case above it, which does answer it),
-  with `data-rebuilds` reading `1`; and a real backgrounding — a second page brought
-  to the front and back, Playwright's own API rather than a synthetic event — which is
-  the only place in the suite that exercises the actual reported trigger.
-- Dev-bridge assertions: `window.__synth.engine.analyserL` (DEV only); peak readout
-  via the canvas `dataset.peak`/`peakL`/`peakR`; applied wave gain via
-  `dataset.waveGain`; (v13) `dataset.zones` and `dataset.cursorHz`; (v16)
-  `dataset.rebuilds`, and the Debug panel's `debug-scope` row.
-- **By eye (v16)** — the bug this closes has now been reported twice and neither
-  report came from a suite. In Firefox and in Chrome, with a demo playing: stub
-  `requestAnimationFrame` away from the console, watch the trace freeze and the
-  `debug-scope` row go to `stalled`, restore it, and confirm the trace comes back
-  **without touching anything** inside about a second. Then dispatch a cancelable
-  `contextlost` on `scope-canvas` and deliberately never answer it: the panel must
-  return within ~4 s with `rebuilds` reading `1` and `scope-canvas` resolving to a
-  *different* element. Repeat the first one and, while it is stalled, click
-  Wave/Spectrum, Mono/Stereo and Zones in turn — each must bring it back on its own
-  (REQ-every-public-mutator-is-a-recovery-path). Finally background the tab for a few minutes and return; on Android also
-  under Battery Saver, through the recents switcher, and with a rotation while away.
-  The frame age on return must read *large*, which is what proves the loop really was
-  paused while hidden rather than spinning.
+- Unit: `tests/ui/scope-regions.test.ts` (geometry, peak-hold, auto-gain helpers),
+  `tests/ui/scope-trigger.test.ts`, `tests/ui/scope-axis.test.ts` (log mapping,
+  ticks, column binning, halo order, hover listeners),
+  `tests/ui/scope-lifecycle.test.ts` (one case per recovery route, and the watchdog
+  under fake timers), `tests/state/scope-height.test.ts`,
+  `tests/ui/resize-handle.test.ts` (one case per gesture-inventory row) — `npm test`.
+- E2E: `e2e/scope.spec.ts` (Mono/Stereo, the L/R data path, the peak and gain
+  mirrors, the resize surviving a reload, an unanswered `contextlost`, and a real
+  backgrounding) — `npm run e2e`.
+- Dev bridge: `window.__synth.engine.analyserL`; the canvas `dataset` (`peak`,
+  `peakL`, `peakR`, `waveGain`, `zones`, `cursorHz`, `rebuilds`); the Debug panel's
+  `debug-scope` row.
+- **By eye (ADR-010)** — the views are a *look*, so a green suite does not verify
+  them:
+  - **Wave auto-gain:** a quiet demo must draw a readable trace (about half the
+    panel) and a loud one visibly taller; silence settles flat, a transient from
+    silence stays inside its region, Stereo keeps a hard-panned L/R difference.
+    `WAVE_NORM_STRENGTH` and `WAVE_MAX_GAIN` are the two knobs.
+  - **Resize:** at the ceiling the trace and bars scale cleanly, the L/R labels
+    clear in both layouts, the bezel frames the canvas, the wheel strips grow with
+    it, and the keyboard gives up its slack before the page scrolls. At phone width
+    the grip clears both corner buttons.
+  - **Axis:** sweep the cutoff and watch the bars track the ticks (a 440 Hz
+    fundamental sits just left of 500); the bass reads as a curve, every label
+    survives a full-height bar, Zones sit where the ear says; repeat on the weak
+    tier (fftSize 256).
+  - **Liveness**, in Firefox and Chrome with a demo playing: stub
+    `requestAnimationFrame` away, watch `debug-scope` go `stalled`, restore it and
+    see the trace return untouched within about a second; dispatch an unanswered
+    `contextlost` and see the panel return within ~4 s with `rebuilds` at `1`; while
+    stalled, each of Wave/Spectrum, Mono/Stereo and Zones must revive it; background
+    the tab (on Android under Battery Saver, through recents, with a rotation) and
+    check the frame age on return reads large.
 
 ## Open questions / future
 
@@ -1654,14 +1350,12 @@ Scenario: The handle holds no global listener at rest (REQ-the-resize-obeys-the-
   tracks actual available space rather than the viewport.
 - A future **goniometer / Lissajous** (X-Y L-vs-R) view could reuse `analyserL/R`;
   out of scope here.
-- The Wave auto-gain (v8) is deliberately **not exposed** — no third overlay button
+- The Wave auto-gain is deliberately **not exposed** — no third overlay button
   on an already three-cornered panel, and no persisted preference *of its own*. If a
   "1×" (calibrated) escape hatch is ever wanted, `WAVE_NORM_STRENGTH = 0` is already
   the whole implementation of it; the open question is only where the toggle would
-  live. (v11 note: the panel now does persist one thing — its height — but that is
-  workspace state, not a view mode. The argument against persisting *view* state is
-  unchanged; see Persistence.)
-- `ResizeHandle` (v11) is written generically — it writes a CSS custom property on a
+  live (view state is not persisted; the height is workspace state, see Persistence).
+- `ResizeHandle` is written generically — it writes a CSS custom property on a
   target and knows nothing about scopes — but it is specced here rather than in its
   own facility spec because the scope is its only consumer. A **second** consumer
   (resizable floating windows are the obvious candidate) is what would earn it a spec
@@ -1671,14 +1365,14 @@ Scenario: The handle holds no global listener at rest (REQ-the-resize-obeys-the-
   only by pushing the page into a scroll. A viewport-relative ceiling was rejected as
   a rule you cannot see: the handle would stop at a different place on every screen,
   and "twice as tall" is a promise the user can check.
-- **Bass resolution is bounded by `fftSize`, and the log axis magnifies that**
-  (v13). At the weak tier (256) a bin is 187.5 Hz wide and covers roughly the
+- **Bass resolution is bounded by `fftSize`, and the log axis magnifies that.**
+  At the weak tier (256) a bin is 187.5 Hz wide and covers roughly the
   display's first third, so REQ-bars-are-drawn-per-pixel-column's interpolation draws a smooth ramp where there
   is no real detail to draw — honest, but not informative. Raising `fftSize` only
   while in Spectrum would fix it and would fight
   [performance-mode](performance-mode.md) REQ-analyser-fft-size-follows-the-tier, which owns that number for the
   whole app; a Spectrum-only override is the open question, not a decided design.
-- **`SPECTRUM_F_MAX` is 20 kHz, so the top of the plot is usually empty** (v13).
+- **`SPECTRUM_F_MAX` is 20 kHz, so the top of the plot is usually empty**.
   Little music has content above 16 k, and at a 44.1 kHz sample rate the clamp to
   Nyquist eats the last stretch anyway. 20 k was chosen because "20 Hz to 20 kHz"
   is a range the user can check against what they already know, over a tighter
@@ -1688,8 +1382,7 @@ Scenario: The handle holds no global listener at rest (REQ-the-resize-obeys-the-
   Mono/Stereo (see Persistence). If mixing sessions turn out to leave it on
   permanently, that is the evidence that would move it into the device-scoped
   workspace family beside the panel height — not before.
-- ~~There is still **no trigger / zero-crossing sync**~~ — v19,
-  REQ-the-wave-trace-is-triggered. Low notes (below ~190 Hz at the strong tier)
-  still free-run, because the search is a quarter of the buffer; a longer
+- The Wave trigger (REQ-the-wave-trace-is-triggered) searches a quarter of the
+  buffer, so low notes (below ~190 Hz at the strong tier) still free-run; a longer
   analyser on the Wave view would reach them, at an always-on FFT cost the
   perf tiers were set to avoid.
