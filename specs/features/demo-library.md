@@ -74,17 +74,14 @@ what a demo owes the shelf.
 
   `demo-notes.json` is **allowlisted in the SDD guard** alongside
   `src/state/demos/` itself: it is prose about songs, carries no behaviour, and
-  writing a line for a demo must not require a spec change. (It was not, at
-  first — the guard blocked the very first blurb, which is how the omission was
+  writing a line for a demo must not require a spec change.
   found.)
 
-- **REQ-zip-demos-are-indexed-too** — **The zip demos are indexed too.** `1973`
-  and `Run Away 2` are the only demos that use the sampler (a `.json` cannot
-  embed audio), and they were absent from the index entirely — their labels came
-  from mangling the filename (`Run_Away_2` → "Run Away 2"). The generator reads
-  their `song.json` through `parseProjectZip` and indexes them like any other,
-  so the two most feature-complete demos in the library stop being the two least
-  described.
+- **REQ-zip-demos-are-indexed-too** — **The zip demos are indexed too.** A
+  `.websynth.zip` demo is the only kind that carries its own audio (a `.json`
+  cannot embed it), and a filename is not a label (`Run_Away_2`). The generator
+  reads each zip's `song.json` through `parseProjectZip` and indexes it like any
+  other demo.
 
 - **REQ-uses-is-heard-armed-is-playable** — **`uses` is what you will hear;
   `armed` is what you can play.** The two are separate lists because they answer
@@ -129,7 +126,7 @@ what a demo owes the shelf.
   seq + drums + motion · hold a key: arp armed — <blurb>` (the armed phrasing is
   `ARMED_LABEL`'s, which spells out the gesture rather than just naming the
   machine) — so hovering (or a screen reader) answers "what is this?" without a
-  click. (v6) The facts are there when the row is built. The blurb joins them
+  click. The facts are there when the row is built. The blurb joins them
   once the blurbs have loaded, shortly after boot
   (REQ-the-blurbs-load-after-boot). The visible label stays the song's name: the row is already tight on
   mobile, and the fix for a row of unlabelled buttons is not a row of wider
@@ -194,7 +191,7 @@ what a demo owes the shelf.
   its notes are what the ⓘ was pressed for — and its button reads **Loaded** and
   is disabled: the demo is already what is playing, and re-loading it from here
   would silently throw away any edit made since (the row's own button still
-  re-loads it, deliberately, behind the Undo toast) (v4). Any
+  re-loads it, deliberately, behind the Undo toast). Any
   other song apply — a stored slot, an import, a paste, a share link — and **New**
   take it away; **Undo** restores whatever the stash's session showed. It is
   session state, not persisted: after a reload no ⓘ shows. It belongs to the row,
@@ -215,7 +212,7 @@ what a demo owes the shelf.
   `HelpContext.loadDemo`, which the badges are handed from `TourCtx.applyDemo` — the
   same late-bound loader the tour already uses.
 
-  **Both doors open the same library** (v5). The badge's library marks, unfolds
+  **Both doors open the same library**. The badge's library marks, unfolds
   and scrolls to the loaded demo exactly as the row's ⓘ does: a library that
   forgot what was playing depending on which door you came through would contradict
   itself. It is read through `HelpContext.loadedDemo`, taken from
@@ -247,8 +244,7 @@ what a demo owes the shelf.
   each demo's `uses`, so the check is cheap and stays true without naming a
   demo: the union of `uses` across the index must contain `seq`, `drums`,
   `sampler` and `motion`. Removing the last demo that exercises one fails the
-  suite — the prompt to replace it, not to delete the check. Zip demos count:
-  today they are the only ones that use the sampler.
+  suite — the prompt to replace it, not to delete the check. Zip demos count.
 
 ## Technical design
 
@@ -264,10 +260,10 @@ export interface DemoMeta {
   armed?: DemoArmed[];       // 'arp' | 'motion' — omitted when empty
 }                            // v6: no blurb — REQ-the-blurbs-load-after-boot
 export function demoMetaOf(file: SongFile): DemoMeta;
-/** The facts alone — `124 BPM · 16 bars · seq + drums` — the library's facts line (v3). */
+/** The facts alone — `124 BPM · 16 bars · seq + drums` — the library's  facts line. */
 export function demoFacts(meta: DemoMeta): string;
 /** The one-line summary the demo button's title shows (REQ-demo-row-says-what-it-knows):
- *  `demoFacts(meta) — blurb`, or the facts alone while there is no blurb (v6). */
+ *  `demoFacts(meta) — blurb`, or the facts alone while there is no blurb. */
 export function demoSummary(meta: DemoMeta, blurb?: string): string;
 
 // src/state/demo-blurbs.ts — lazy only (v6, REQ-the-blurbs-load-after-boot)
@@ -298,7 +294,7 @@ export interface HelpContext {
   loadedDemo: string | null;                    // v5 — read at click time; the library's focus
 }
 
-// src/ui/onboarding/tour.ts + src/ui/panels/song-panel.ts (v5)
+// src/ui/onboarding/tour.ts + src/ui/panels/song-panel.ts
 interface TourCtx { /* … */ loadedDemo: () => string | null; }    // late-bound in app.ts
 interface SongPanel { /* … */ loadedDemo: () => string | null; }
 ```
@@ -409,7 +405,7 @@ Scenario: The row's tooltips gain their blurbs after boot (v6, REQ-the-blurbs-lo
 
 Scenario: The zip demos are indexed like any other (REQ-zip-demos-are-indexed-too)
   When clean:demos runs
-  Then both *.websynth.zip demos have index entries with their real names
+  Then every *.websynth.zip demo has an index entry with its real name
 # pinned by: tests/state/demo-index.test.ts
 
 Scenario: A stale index fails CI (REQ-demo-facts-are-generated, regression)
@@ -423,7 +419,7 @@ Scenario: A demo button says what it is without being clicked (REQ-demo-row-says
   Then each button's title names its tempo, length and machines
 # pinned by: e2e/demo-library.spec.ts
 
-Scenario: The facts line is the summary without the blurb (v3)
+Scenario: The facts line is the summary without the blurb
   Given a demo's metadata and a blurb
   Then demoSummary(meta, blurb) is demoFacts, " — ", then the blurb, and demoSummary(meta) the facts alone
   And demoFacts drops an unknown tempo or length rather than printing a zero
@@ -441,7 +437,7 @@ Scenario: The library lists every demo and loads none (REQ-the-library-reads-wit
 Scenario: The loaded entry is marked (REQ-the-loaded-demo-carries-an-info-button)
   Given the library is rendered with focus on a demo
   Then exactly that entry carries aria-current
-  And its blurb is unfolded, and its button reads "Loaded" and is disabled (v4)
+  And its blurb is unfolded, and its button reads "Loaded" and is disabled
   And every other entry's button reads "Load"
 # pinned by: tests/ui/demo-library.test.ts
 
