@@ -1,6 +1,9 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { FloatingWindow } from '../../src/ui/components/floating-window';
 
+
+// The minus icon is one stroke, the plus two (ui-icons.ts); serialisation may differ, the paths do not.
+const ICON_PATHS = { minus: 1, plus: 2 } as const;
 const rootSel = `.${FloatingWindow.rootClass}`;
 const inDoc = () => document.querySelector(rootSel) as HTMLElement | null;
 
@@ -133,20 +136,34 @@ describe('FloatingWindow', () => {
     const bar = inDoc()!.querySelector(`.${FloatingWindow.titleBarClass}`)! as HTMLElement;
     const minBtn = bar.firstElementChild as HTMLButtonElement;
     expect(minBtn.classList.contains(FloatingWindow.minBtnClass)).toBe(true);
-    expect(minBtn.textContent).toBe('−');
+    expect(minBtn.querySelectorAll('path')).toHaveLength(ICON_PATHS.minus);
     expect(w.isCollapsed).toBe(false);
 
     minBtn.click();
     expect(w.isCollapsed).toBe(true);
     expect(inDoc()?.classList.contains('collapsed')).toBe(true);
-    expect(minBtn.textContent).toBe('+');
+    expect(minBtn.querySelectorAll('path')).toHaveLength(ICON_PATHS.plus);
     expect(minBtn.getAttribute('aria-expanded')).toBe('false');
 
     minBtn.click();
     expect(w.isCollapsed).toBe(false);
     expect(inDoc()?.classList.contains('collapsed')).toBe(false);
-    expect(minBtn.textContent).toBe('−');
+    expect(minBtn.querySelectorAll('path')).toHaveLength(ICON_PATHS.minus);
     expect(minBtn.getAttribute('aria-expanded')).toBe('true');
+  });
+
+  // floating-window.md REQ-every-window-can-minimise: `−` is not in the
+  // iconography scan's glyph set (it is also typography), so this pins it.
+  it('draws the minimise / restore icon as SVG, never a typed glyph (regression)', () => {
+    const w = new FloatingWindow({ title: 'T' });
+    wins.push(w);
+    w.open();
+    const minBtn = inDoc()!.querySelector(`.${FloatingWindow.minBtnClass}`) as HTMLButtonElement;
+    for (const state of ['expanded', 'minimised']) {
+      expect(minBtn.querySelectorAll('svg.ui-icon'), state).toHaveLength(1);
+      expect(minBtn.textContent, state).toBe('');
+      minBtn.click();
+    }
   });
 
   it('hides a minimised body even when a consumer class lays it out (regression, REQ-a-collapsed-body-stays-hidden)', () => {

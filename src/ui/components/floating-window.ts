@@ -193,7 +193,8 @@ export class FloatingWindow {
 
   /** Reflect the current collapse state on the minimise button (glyph + a11y). */
   private syncMinBtn(): void {
-    this.minBtn.textContent = this._collapsed ? '+' : '−';
+    // Inline SVG, never a typed −/+ (floating-window.md REQ-every-window-can-minimise).
+    this.minBtn.innerHTML = this._collapsed ? UI_ICONS.plus : UI_ICONS.minus;
     this.minBtn.setAttribute('aria-expanded', String(!this._collapsed));
     this.minBtn.setAttribute('aria-label', this._collapsed ? 'Restore' : 'Minimise');
   }
