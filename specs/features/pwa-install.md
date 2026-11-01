@@ -69,7 +69,7 @@ vite-plugin-pwa/workbox), per ADR-003's precedent.
   the same treatment the ⓘ info-badges button gets while the badges are showing).
   The button is **absent** (not disabled) when `document.fullscreenEnabled` is
   falsy (iPhone Safari).
-  - (v6) **"Fullscreen" means the window, not just an element.** The state is
+  - **"Fullscreen" means the window, not just an element.** The state is
     `document.fullscreenElement` **or** `matchMedia('(display-mode: fullscreen)')`.
     The second is the only thing that sees the window-level kind — an installed
     Android app the manifest launched fullscreen, or a desktop F11 — where
@@ -79,7 +79,7 @@ vite-plugin-pwa/workbox), per ADR-003's precedent.
     is synced **at creation** and on `fullscreenchange`, the media query's
     `change`, and window `resize` (the fallback for an engine that does not fire
     the query's `change`); a sync that changes nothing writes nothing.
-  - (v6) **One tap leaves.** Element fullscreen → `exitFullscreen()`. Window-level
+  - **One tap leaves.** Element fullscreen → `exitFullscreen()`. Window-level
     fullscreen with no element → `requestFullscreen()` then `exitFullscreen()` in
     the same gesture — the two taps Android needed, as one. Otherwise →
     `requestFullscreen()`.

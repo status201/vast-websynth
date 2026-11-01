@@ -528,7 +528,7 @@ Scenario: A download that ends behind a closed About raises a toast (REQ-offline
 End-to-end runs in Chromium against `vite preview` (not committed, because
 Playwright's `webServer` is the dev server, which never registers the worker),
 2026-09-14:
-- **Download and offline boot:** every listed file (5.5 MB) saved with live
+- **Download and offline boot:** every listed file saved with live
   progress; offline, the app booted, every file was served, the preset manager,
   export and WiFi-pair dialogs opened, and a never-clicked JSON and zip demo
   loaded. This pass found REQ-cache-lookups-ignore-vary.
