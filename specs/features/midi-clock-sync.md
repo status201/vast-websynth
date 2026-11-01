@@ -337,7 +337,7 @@ Clock.nextStepAt: number          # grid time of the next emitted step — what 
 # Incoming songposition is applied through the join (start when stopped, seekAt when following).
 
 # src/ui/components/sync-section.ts
-buildSyncSection(sync: SyncController, rtc: WebRtcSyncTransport): HTMLElement  # + WiFi link button
+buildSyncSection(sync: SyncController, rtc: WifiLink): HTMLElement  # + WiFi link button
 
 # src/ui/components/knob.ts
 Knob.setDisabled(on): void        # dims + aria-disabled + blocks drag/double-tap
@@ -392,8 +392,9 @@ inverse), so the core never touches `performance`/`ctx` (unit-testable).
 - `Engine.init()` constructs `SyncController` **before** `subscribeParams()`, so the
   gated `transport.bpm` subscription can read `activeMode`. It passes
   `setLocalBpm: (b) => this.bus.set('transport.bpm', b)`. Then it builds
-  `this.rtcSync = new WebRtcSyncTransport()`, calls `addTransport('wifi', …)`, and
-  wires `this.perf.clockRampAllowed`.
+  `this.rtcSync = new WifiSyncTransport()` (the lazy facade,
+  [webrtc-sync](webrtc-sync.md) REQ-the-wifi-transport-loads-at-pairing), calls
+  `addTransport('wifi', …)`, and wires `this.perf.clockRampAllowed`.
 - `initMIDI(engine, bus)` runs post-gesture (input-control
   REQ-midi-access-follows-a-gesture). It builds `MidiSyncTransport(access)` and calls
   `engine.sync.addTransport('midi', sync)`. `onstatechange` calls
