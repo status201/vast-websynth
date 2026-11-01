@@ -48,8 +48,8 @@ its own buffer per sample, and the floor is a choice rather than the spec's.
 **Stable and cheap** follow from the worklet's shape. Feedback is clamped and
 saturated, so no input at any setting can grow it, and one instance per bus does
 about ten operations per sample per channel. Its code is loaded the first time
-a flanger is switched on, so a session that never uses it pays nothing at boot
-beyond a small shell (about 0.3 kB of the entry chunk).
+a flanger is switched on, so a session that never uses it pays only for a small
+shell at boot.
 
 ## Requirements
 
@@ -102,8 +102,7 @@ beyond a small shell (about 0.3 kB of the entry chunk).
   rate, depth and feedback. Each of those subscriptions fires at once with the
   current value, so the node starts on the knobs as they stand and nothing is
   cached at boot ([runtime-performance](runtime-performance.md)
-  REQ-boot-cost-matches-the-request). Measured: the shell adds ~0.3 kB to the
-  entry chunk; the eager version added 2.8 kB and broke `check:bundle`'s ceiling.
+  REQ-boot-cost-matches-the-request).
   - **Offline.** The worklet is precached in `public/sw.js`'s `CORE_ASSETS`,
     and the `flanger-live` chunk joins `main.ts`'s idle warm
     ([pwa-install](pwa-install.md) REQ-service-worker-is-registered), so one online
@@ -113,12 +112,9 @@ beyond a small shell (about 0.3 kB of the entry chunk).
   records the request and applies it only once the node is between `processedIn`
   and `processedOut`. So switching it on mid-load changes nothing audible (the
   dry is at unity), and the bypass crossfade only ever fades in the real wet.
-  - **Why not a wire.** The first build connected `processedIn` straight to
-    `processedOut` until the splice, so the wet was the dry meanwhile. Once the
-    DSP became a lazy chunk, the import outlasted the start of the crossfade, and
-    swapping the wire for the delayed signal mid-fade stepped the waveform:
-    measured on Blink as one burst 40–72 ms into a take (max step 0.036 against
-    0.014 for the bypassed baseline). Gecko happened to splice before the fade.
+  - **Not a wire.** A `processedIn → processedOut` placeholder would be swapped
+    for the delayed signal mid-crossfade once the import outlasts the fade start,
+    which steps the waveform (a burst on Blink).
   - A switch-off before the splice lands is honoured: the flanger stays bypassed.
   - If the import or the load fails, the failure is logged, the flanger stays
     bypassed, and nothing throws into the subscriber that asked (ADR-015). Both
@@ -138,12 +134,11 @@ beyond a small shell (about 0.3 kB of the entry chunk).
   ([effects](effects.md) REQ-a-bypassed-effect-drains-before-disconnect). The
   processor reads a disconnected input as silence and keeps running, so the
   drain happens whichever way the renderer presents the cut.
-- **REQ-the-flanger-sits-between-phaser-and-chorus** — Synth chain: `eq → dist →
-  wah → phaser → flanger → chorus → delay → reverb → duck`. Sampler chain:
-  `eq → dist → phaser → flanger → chorus → delay → reverb → duck`. It sits with
-  the modulation it shares a panel with, ahead of the chorus so it stays in the
-  synth bus's 1-channel stretch and the chorus remains the one insert that makes
-  width. The **drum bus has no flanger**: its phaser is not a slot.
+- **REQ-the-flanger-sits-between-phaser-and-chorus** — On the synth and sampler
+  chains it sits between the phaser and the chorus it shares a panel with
+  ([effects](effects.md) REQ-the-synth-chain-order owns the order). Ahead of the
+  chorus, it stays in the synth bus's 1-channel stretch. The **drum bus has no
+  flanger**: its phaser is not a slot.
 - **REQ-the-flanger-rate-can-be-tempo-locked** — `fx.flanger.rate` and
   `fx.sampler.flanger.rate` are in `TEMPO_LOCKS` (`freq`), resolved through
   `bindTempoLocked`, exactly as the phaser's rate is
@@ -323,25 +318,10 @@ Scenario: The flanger sounds like a flanger, at a steady level (ADR-010)
   should one engage it, `fx.flanger.sync`).
 - `tests/ui/fx-slot-picker.test.ts`, `e2e/chorus.spec.ts`: the three-entry slot.
 - `npm run bench:audio` in Chromium **and** `--browser firefox`, against a
-  bypassed baseline. Sound is signed off by a listener, not by the suite (ADR-010).
-  Measured 2026-10-29 at first ship: a held A2-E3-A3 chord on the boot patch,
-  reverb and delay off, 10 s takes (`bench/flg-{off,on,max}[.firefox].wav`).
-  No bursts, no clipping and no non-finite samples on either engine, after
-  the bypass-until-spliced fix (REQ-an-unloaded-flanger-stays-bypassed) removed the
-  one burst the wire version left on Blink. The level
-  change on enabling is the comb's own: summing a signal with a delayed copy at
-  50/50 averages −3 dB across the spectrum, since the notches remove energy.
-  That sits inside what effects.md REQ-toggling-an-effect-must-not-step-the-level
-  measured for the delay (−5.1 / −1.1 dB).
-
-  ```
-                         rms vs off
-  defaults (fb 0.5)      -1.3 / -2.6 dB
-  depth 1, fb 0.9, 1 Hz  -2.7 / -5.0 dB
-                         Blink / Gecko
-  ```
-
-  **Signed off by ear 2026-10-29** by the owner, at the shipped constants.
+  bypassed baseline; sound is signed off by a listener (ADR-010). The level drop
+  on enabling (−1 to −5 dB) is the comb's own: a 50/50 sum with a delayed copy
+  removes energy at the notches. It is within the delay's own toggle step
+  (effects.md REQ-toggling-an-effect-must-not-step-the-level).
 
 ## Open questions / future
 

@@ -24,17 +24,14 @@ source:
 
 ## Background / Why
 
-The FX rack is six panels across a grid that is already full at desktop widths
-(responsive-synth-panels), and the sampler's header FX cluster is just as
-tight. A chorus is a seventh effect with no room of its own — so, like the two
-LFOs ([lfo](lfo.md) REQ-the-two-lfos-share-one-panel), it **shares** a panel: the
-Phaser's. The panel keeps its title exactly as it was and gains a small caret
-beside it; the caret opens a menu naming the effects that live in the slot.
-Choosing one swaps the panel's whole face — title, on/off switch, knobs — to that
-effect. Both effects are independent: each keeps its own switch and knob values,
-and both may run at once. The component is generic over any number of entries,
-so a later flanger can join the same slot without new UI — and (v3) one did
-([flanger](flanger.md)).
+The FX rack is full at desktop widths (responsive-synth-panels), and so is the
+sampler's header FX cluster. So, like the two LFOs ([lfo](lfo.md)
+REQ-the-two-lfos-share-one-panel), the Phaser, [flanger](flanger.md) and
+[chorus](chorus.md) **share** one panel. Its title gains a small caret that opens
+a menu naming the slot's effects. Choosing one swaps the whole face (title,
+switch, knobs) to that effect. The effects are independent: each keeps its own
+switch and knob values, and they may run at once. The component is generic over
+any number of entries.
 
 ## Requirements
 
