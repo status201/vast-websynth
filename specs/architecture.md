@@ -559,9 +559,8 @@ The three insert chains are built as units by `audio/effects/fx-chain.ts` —
 `createSynthChain` / `createDrumChain` / `createSamplerChain`, held on Engine as
 `synthFx` / `drumFx` / `samplerFx`. Each `FxChain` owns its effect **order**, its
 param **prefixes** and (for the drum comp) its **ratio table**, and exposes
-`fx` (named members, e.g. `drumFx.fx.comp`), `tail` (the last effect's output;
-nothing reads it today — the bank render taps `synthPan`), `wire(input, output)`
-and `bind(bus)`. They are three explicit factories rather than one generic spec
+`fx` (named members, e.g. `drumFx.fx.comp`), `wire(input, output)` and `bind(bus)`; a
+tap point is a named Engine node (the bank render taps `synthPan`), not the chain. They are three explicit factories rather than one generic spec
 because the chains are alike but not identical: only the synth has a wah, only the
 drum bus has a compressor (right after its EQ). `masterComp` stays a flat Engine field — it is a master-bus insert
 (`djLow → djHigh → masterComp → analyser`), not a chain member — and `Engine.drumComp`
