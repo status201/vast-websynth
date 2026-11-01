@@ -333,9 +333,9 @@ than a 16th ([features/meter.md](features/meter.md)). The **motion** machine
 builds its `LaneMeter` with no stutter map: automation must not follow stutter
 remaps.
 
-**A bar is `barTicks`, not 16.** `SEQ_LENGTH` used to mean cells-per-pattern,
-ticks-per-bar and columns-of-UI at once; `state/meter.ts` names the three apart
-(`GRID_CELLS`, `barTicks()`, `LANE_RATES`) and `SEQ_LENGTH` is now just an alias
+**A bar is `barTicks`, not 16.** One constant cannot mean cells-per-pattern,
+ticks-per-bar and columns-of-UI at once: `state/meter.ts` names the three apart
+(`GRID_CELLS`, `barTicks()`, `LANE_RATES`) and `SEQ_LENGTH` is only an alias
 of the first. New code says which one it means — and in the UI goes through
 `ui/lane-grid.ts`, so a grid, its ruler and its beat accents cannot disagree.
 See [ADR-019](decisions/adr-019-the-bar-is-a-tick-count.md).
@@ -513,7 +513,7 @@ voices ─(spread)→ voiceBus ─→ eq → dirt → wah → phaser → flanger
   synth stage so that nothing upstream of it pays for two channels it does not
   need: the voice path is mono end to end (mono oscillators/noise → gains →
   1-channel filter worklet → gains), and the insert chain stays 1-channel through
-  `dist → wah → phaser → flanger → delay` — except after the **chorus** while it is on: it
+  `dirt → wah → phaser → flanger → delay` — except after the **chorus** while it is on: it
   is the one insert short of the delay that makes a second channel, and its
   bypass disconnect takes that away again ([chorus](features/chorus.md)
   REQ-the-chorus-widens-without-changing-level). The delay makes one too while
@@ -532,15 +532,15 @@ voices ─(spread)→ voiceBus ─→ eq → dirt → wah → phaser → flanger
   channel count decides the channel's level
   ([`features/lfo.md`](features/lfo.md) REQ-the-auto-pan-reads-a-stereo-input).
 
-  The **reverb**, last in the chain, is where the
-  synth channel actually becomes stereo on its own — its impulse response is a 2-channel
+  The **reverb**, the last insert before the duck and `synthPan`, is where the
+  synth channel otherwise becomes stereo — its impulse response is a 2-channel
   buffer whose channels are independently randomised and phase-offset, so a
   1-channel input convolves to two decorrelated ones. That is generated stereo,
   not a speaker up-mix; a speaker up-mix (L = R) is what the drum panners and the
   2-channel compressors do to a mono input (ADR-010; see
-  [`features/lfo.md`](features/lfo.md) REQ-pan-sweeps-a-stereo-panner). The bank-render tap
-  ([`features/render-to-sampler.md`](features/render-to-sampler.md)) sits after
-  it, so a rendered bank captures the pan movement.
+  [`features/lfo.md`](features/lfo.md) REQ-pan-sweeps-a-stereo-panner). The bank
+  render ([`features/render-to-sampler.md`](features/render-to-sampler.md)) taps
+  `synthPan`, so a rendered bank captures the pan movement.
 - The **analyser taps pre-master**, so the scope is independent of the master
   volume knob. The tap is a lossless `splitter → analyserL/analyserR → merger →
   analyser` so the scope can also show per-channel L/R (see
@@ -559,11 +559,11 @@ The three insert chains are built as units by `audio/effects/fx-chain.ts` —
 `createSynthChain` / `createDrumChain` / `createSamplerChain`, held on Engine as
 `synthFx` / `drumFx` / `samplerFx`. Each `FxChain` owns its effect **order**, its
 param **prefixes** and (for the drum comp) its **ratio table**, and exposes
-`fx` (named members, e.g. `drumFx.fx.comp`), `tail` (the last effect's output —
-the bank-render tap point), `wire(input, output)` and `bind(bus)`. They are three
-explicit factories rather than one generic spec because the chains are alike but
-not identical: only the synth has a wah, only the drum bus heads with a
-compressor. `masterComp` stays a flat Engine field — it is a master-bus insert
+`fx` (named members, e.g. `drumFx.fx.comp`), `tail` (the last effect's output;
+nothing reads it today — the bank render taps `synthPan`), `wire(input, output)`
+and `bind(bus)`. They are three explicit factories rather than one generic spec
+because the chains are alike but not identical: only the synth has a wah, only the
+drum bus has a compressor (right after its EQ). `masterComp` stays a flat Engine field — it is a master-bus insert
 (`djLow → djHigh → masterComp → analyser`), not a chain member — and `Engine.drumComp`
 remains available as a getter onto `drumFx.fx.comp`, which is what `StudioApi`
 and the drum panel's GR meter read.
@@ -615,6 +615,7 @@ localStorage:
   websynth.ui.collapsed.eq      : EQUALIZER-section collapse state (default folded)
                                   # ui/components/tabs.ts (features/equalizer.md REQ-the-eq-section-is-a-folded-tab-container)
   websynth.ui.collapsed.seqtrack.<t> : per-seq-track fold state # ui/panels/seq-panel.ts — one key per track
+  websynth.ui.collapsed.motiontrack.<i> : per-motion-lane fold state # ui/panels/motion-panel.ts (features/lane-fold.md)
   websynth.ui.collapsed.sample-<chop|stretch|scratch> : the Edit Sample modal's three section folds
                                                         # ui/components/record-sound-modal.ts (features/sample-recorder.md REQ-every-section-below-the-waveform-folds)
   websynth.ui.scope.height : scope panel height in px, 130..260 # state/scope-height.ts — device-scoped workspace pref, NOT a patch param
