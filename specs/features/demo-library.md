@@ -75,7 +75,6 @@ what a demo owes the shelf.
   `demo-notes.json` is **allowlisted in the SDD guard** alongside
   `src/state/demos/` itself: it is prose about songs, carries no behaviour, and
   writing a line for a demo must not require a spec change.
-  found.)
 
 - **REQ-zip-demos-are-indexed-too** — **The zip demos are indexed too.** A
   `.websynth.zip` demo is the only kind that carries its own audio (a `.json`
