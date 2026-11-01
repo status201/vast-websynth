@@ -178,7 +178,7 @@ trade ADR-019 accepts to leave the pattern shape, the schemas and every demo alo
   ([transport](transport.md) REQ-bpm-and-swing-are-live-settable), so a lane at 2
   ticks/cell would play straight under swung hats. A lane whose rate is not 1 subtracts
   the clock's offset for its tick and adds the one its own alternating cells imply; at
-  the default rate this is nil. (v2) Every hit also reports its **span**, the seconds to
+  the default rate this is nil. Every hit also reports its **span**, the seconds to
   the next cell's onset on the same swung grid. The trigger machines ignore it (gate and
   ratchet are fractions of the cell); the motion sequencer interpolates across it
   ([motion-sequencer](motion-sequencer.md)

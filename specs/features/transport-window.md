@@ -88,7 +88,7 @@ show the state ([ADR-014](../decisions/adr-014-dont-make-me-think.md) law 5).
   step; stopped, the **cue** — where Play will begin — matching the machine-tab
   rulers ([transport-position](transport-position.md) REQ-a-position-ruler-above-every-grid), so the two
   surfaces can never disagree about "where are we?". **The bar wraps at song
-  length** (v3): it is the *same* `bar % bars` value that lights the scrubber
+  length**: it is the *same* `bar % bars` value that lights the scrubber
   cell (REQ-the-bar-scrubber), computed once for both, so a one-bar song never
   counts `2.01, 3.01 …` beside a single cell ([transport-position](transport-position.md)
   REQ-the-readout-never-invents-bars, ADR-014 law 5). The step term is the 16th

@@ -83,7 +83,7 @@ cheapest implementation and the most musical one.
   off-switch is folded into the param rather than carried as a separate
   `chord.on`, following the `LFO_DEST_LABELS` idiom. The current voicing's
   **tonic** chord is what both key pictures preview in yellow — the KEY tab's
-  map and, since v3 there, the playable keyboard
+  map and the playable keyboard
   ([scale-quantization](scale-quantization.md) REQ-the-key-is-drawn-not-just-named and
   REQ-a-chord-lands-in-the-edited-register) — because chord memory has no chord
   of its own until a key is held.

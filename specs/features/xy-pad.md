@@ -70,18 +70,11 @@ subscribes to the assigned params.
   gesture ends — and springs back — when the pointer **leaves** the pad
   (`pointerleave`).
 
-  **(v4) Closing the window also ends it.** `pointerleave` is the only exit a
-  wheel gesture has, and a removed element never fires one — so two-finger
-  scrolling the pad and then closing the window (from its ✕, or by toggling the
-  launcher) left both assigned params parked at the swept value, permanently and
-  invisibly. That contradicts *momentary* as stated above: the pad is a
-  performance control, and nothing it does may outlive the gesture.
-
-  The window controller therefore ends any live gesture on close. It calls
-  `endGesture()`, **not** `destroy()`: the window is deliberately kept alive
-  across closes so the axis assignment survives, and tearing the pad down would
-  take that with it. A drag cannot reach this — it ends on `pointerup` — so in
-  practice this is the wheel's missing exit.
+  **Closing the window also ends it.** A removed element never fires
+  `pointerleave`, so without this a wheel sweep followed by a close (✕ or the
+  launcher) would leave both params parked at the swept value. The window
+  controller calls `endGesture()` on close, **not** `destroy()`: the pad is kept
+  alive across closes so the axis assignment survives.
 - **REQ-only-the-axis-assignment-persists** — **Persistence**: the axis
   assignment is saved in songs via SongFile **v3** (an additive, optional `xy`
   field). Loading a file without it restores the defaults. Only the *assignment*
@@ -99,7 +92,7 @@ subscribes to the assigned params.
   Labels and grid are non-interactive (`pointer-events: none`) and never
   intercept a drag/wheel gesture.
 - **REQ-assign-row-hides-behind-a-gear** — **Collapsible assign row behind a
-  gear** (saves window real estate): a **gear** glyph button (`⚙`, `xypad-gear`)
+  gear** (saves window real estate): a **gear** icon button (`UI_ICONS.gear`, `xypad-gear`)
   sits in the **top-left of the floating window** (the title bar, via the
   window's `leading` slot). It toggles the visibility of the X/Y assign dropdown
   row (`.assign`, hidden with the global `collapsed` class). The row **starts
@@ -123,7 +116,8 @@ XyPadStore:   # src/state/xy-pad.ts (pure — no DOM, no bus, no localStorage)
 XyAssign: { x: string; y: string }     # ParamBus ids
 XY_DEFAULT_ASSIGN: { x: 'filter.cutoff', y: 'filter.resonance' }
 
-createXyPad(bus: ParamBus, xy: XyPadStore, effective?: EffectiveXy): { el: HTMLElement; gear: HTMLElement; destroy(): void }
+createXyPad(bus: ParamBus, xy: XyPadStore, effective?: EffectiveXy): { el: HTMLElement; gear: HTMLElement; destroy(): void; endGesture(): void }
+  # endGesture(): spring back any live gesture (the window controller calls it on close)
   # builds the window content; `gear` is the assign-row toggle button the caller
   # places in the window's title bar (`leading` slot). destroy() aborts any
   # gesture (snap to pre), unsubscribes the bus + store + axes source, and

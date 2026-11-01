@@ -82,10 +82,8 @@ releasing the last key stops it again (only if the arp was what started it).
 
 - **REQ-a-sub-16th-rate-schedules-its-own-hits** (every rate plays its own rate,
   v3) — The clock ticks in **16ths**, so a rate finer than 1/16 cannot be
-  one-hit-per-tick. `1/32` used to fall into an `else` branch that fired once
-  per tick with a comment conceding the approximation, which made it **audibly
-  identical to 1/16** — the control was in the dropdown, changed nothing, and
-  said nothing. A division below 1 now schedules `round(1 / division)`
+  one-hit-per-tick (one hit per tick would make `1/32` audibly identical to
+  1/16). A division below 1 schedules `round(1 / division)`
   evenly-spaced hits from the single tick, each at `when + i * sixteenth *
   division`, with the gate measured against that shorter step. `when` is
   sample-accurate and the scheduler works ahead, so a sub-16th hit lands exactly

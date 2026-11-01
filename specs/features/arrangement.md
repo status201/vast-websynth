@@ -74,7 +74,7 @@ bank (bar-quantised), so turning a chain off falls back to live editing.
   - **`seqChain` only.** Drums, sampler and motion accept the field structurally and
     ignore it; they get no transpose control at all.
   - A `REST` slot's offset is preserved, so toggling rest ↔ bank keeps it.
-  - (v10) A write that omits `transpose` keeps the lane's offsets, fitted to the new
+  - A write that omits `transpose` keeps the lane's offsets, fitted to the new
     length (right for the Chain toggle and reorders). **New and a lane's Clear pass
     `transpose: [0]` explicitly**, or a reset chain keeps slot 1's old offset.
 - **REQ-transposition-is-applied-at-trigger** (v5) — The offset shifts the note the
