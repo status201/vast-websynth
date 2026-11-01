@@ -21,258 +21,130 @@ source:
   - src/state/params.ts            # mod.* params + the two append-only label arrays
   - src/ui/components/mod-matrix-window.ts
   - src/state/mod-routing.ts       # the vocabulary + the per-voice rule + depth table
-  - src/state/mod-depth.ts         # REQ-a-modulated-knob-shows-its-reach reach + REQ-a-known-source-shows-its-position position maths, pure
+  - src/state/mod-depth.ts         # reach + position maths for the knob bands, pure
   - src/ui/components/knob.ts      # the range band, the live tick, its direction colour
   - src/ui/components/fx-group.ts  # rowDivider, shared with the Song row
 ```
 
-Many sources into many destinations, with a depth per route — summed in the audio graph, so a
-route costs one `GainNode` and no main-thread work at all.
+Many sources into many destinations, with a depth per route. It sums in the audio
+graph, so a route costs one `GainNode` and no main-thread work.
 
 ## Background / Why
 
-Before this, modulation routing was two dropdowns: each LFO held **exactly one** destination, and
-[lfo](lfo.md) REQ-destinations-are-no-longer-exclusive forbade the two from sharing one. That rule exists only because there is one
-destination slot per LFO — it is a symptom of the shape, not a musical decision — and lfo.md's own
-open questions named the fix: *"A modulation matrix — many sources, many destinations,
-per-destination depth — is the real next step, and it would supersede REQ-a-known-source-shows-its-position rather than
-extend it."*
-
-The implementation is far smaller than the feature sounds, because **the audio graph is already a
-statically wired matrix**. `LFO` never calls `connect()` or `disconnect()` at runtime: all five of
-its taps stay wired to every destination for the whole session, and `setDest` merely cross-fades
-five `GainNode`s so exactly one is non-zero. Routing here has always been a *scalar*. This feature
-raises the gain count and lets the player address them.
-
-[ADR-017](../decisions/adr-017-modulation-in-graph.md) records the boundary that keeps this from
-becoming a third way to move a parameter: **modulation is a graph concern, automation is a bus
-concern.**
+Each LFO used to hold exactly one destination. The audio graph is already a
+statically wired matrix: `LFO` keeps all six of its taps wired for the session, and
+`setDest` only cross-fades their gains. So this feature raises the gain count and
+lets the player address them.
+[ADR-017](../decisions/adr-017-modulation-in-graph.md) records the boundary:
+**modulation is a graph concern, automation is a bus concern.**
 
 ## Requirements
 
-- **REQ-one-gain-per-route-rewired-while-silent** (one gain per route, rewired
-  only while silent) — a route is **one `GainNode` per voice** whose gain is the
-  route's depth. Changing a route's source or destination **ramps that gain to
-  zero first, rewires while it is silent, then ramps back**. Nothing is ever
-  connected or disconnected while audible, so a re-patch cannot click.
+- **REQ-one-gain-per-route-rewired-while-silent** — A route is **one `GainNode` per
+  voice** whose gain is its depth. Changing its source or destination **ramps that
+  gain to zero, rewires while silent, then ramps back**, so nothing is connected or
+  disconnected while audible. **A depth written during a re-patch waits for the
+  rewire.** `setAmount` stores it and ramps nothing while a rewire is pending. A
+  load writes src, dst and amt back to back, and ramping early would drive the old
+  destination at the new one's scale. The cost is at most 54 nodes (6 rows × 8
+  voices + one bus-wide gain per row; 30 + 6 on the `weak` tier's 5 voices). A
+  node per (row × source × destination × voice) would be over 300. The only graph
+  edit happens on a gesture, where a 20 ms mute is inaudible. Nothing rewires per
+  frame, tick or note.
+- **REQ-eight-rows-two-grandfathered** — Rows 0–1 are LFO 1 and LFO 2 and keep
+  their **existing params** (`lfo.dest`/`lfo.amount`, `lfo2.dest`/`lfo2.amount`).
+  Rows 2–7 are `mod.<n>.src` / `.dst` / `.amt` for `n = 0..5`. Grandfathering is
+  the whole back-compat story: no migration code.
+- **REQ-routes-are-inert-by-default** — Every new param defaults to `0` (`src` =
+  `off`, `dst` = `none`, `amt` = 0), so older files load unchanged (ADR-006). They
+  are plain params in the `params` bag: no `SONG_VERSION` bump, and no
+  `serialize.ts`, schema or `llms.txt` change.
+- **REQ-label-arrays-are-append-only** — `MOD_SOURCE_LABELS` and `MOD_DEST_LABELS`
+  are append-only. The stored value is the index.
+- **REQ-destinations-are-summing-params** — The destination list is curated: a
+  destination must be something modulation can *sum into*. `pulse` is absent,
+  because it is a main-thread `setPeriodicWave` write with no node. It stays
+  arbitrated on rows 0–1 ([lfo](lfo.md) REQ-pulse-is-arbitrated). Anything else
+  belongs to the [motion sequencer](motion-sequencer.md) or the [XY Pad](xy-pad.md)
+  (ADR-017), and the window says so.
+- **REQ-resonance-becomes-reachable** — `filter.resonance`, an a-rate worklet
+  `AudioParam` nothing else addresses, is a destination.
+- **REQ-per-voice-sources-cannot-drive-bus-destinations** — Sources are **global**
+  (LFO 1/2, mod wheel, random) or **per-voice** (filter env, amp env, velocity,
+  key). Eight voices' envelopes into one `StereoPannerNode` is mush. So a bus-wide
+  destination under a per-voice source is **greyed with the reason shown, never
+  removed** (`Dropdown.setDisabledOptions`), and the audio layer holds that route at
+  zero. `pan` (the one `synthPan`) is the only bus-wide destination. The
+  sequencer's per-track panners are written per note and are not matrix
+  destinations ([sequencer](sequencer.md) REQ-a-seq-track-carries-a-pan).
+- **REQ-depth-is-in-the-destinations-unit** — A route's amount is scaled by the
+  destination, from one table, `MOD_DEST_SCALE` (`src/state/mod-routing.ts`):
+  pitch ±2400 ¢, cutoff ±48 st, shape ±1, amp ±0.5, pan ±1, sync ±48 st, FM ±8
+  index units, resonance ±4.2, drive ±4. These are deliberately deeper than the
+  LFO taps' own scale (`LFO_DEST_SCALE`, [lfo](lfo.md)
+  REQ-duplicated-destinations-sum-and-stay-bounded). The matrix is the wide router,
+  and the LFO knob is the fine one. Cutoff modulators emit **semitones**, never Hz
+  (ADR-005), enforced in this one table.
+- **REQ-route-depth-is-bipolar** — Amount is `-1..1`, so a route can be inverted.
+  `0` is the no-op.
+- **REQ-two-rows-may-share-a-destination** — Two rows may hold the same
+  destination, and they sum ([lfo](lfo.md)
+  REQ-destinations-are-no-longer-exclusive). The validators always accepted that,
+  so no existing sound changes.
+- **REQ-an-unselected-source-costs-nothing** — The `random` sample-&-hold schedules
+  one value per 16th on its `ConstantSourceNode`, at the tick's own time. That
+  write is **gated on whether any live row reads `random`**. The test is the same
+  liveness predicate that decides a route's gain (`src` set, `dst` set, not
+  per-voice into bus-wide), read from the rows at tick time, so no cache needs
+  invalidating ([runtime-performance](runtime-performance.md)
+  REQ-boot-cost-matches-the-request).
+- **REQ-a-modulated-knob-shows-its-reach** — A faceplate knob that any route
+  targets draws a **range band**: an inner arc over `value ± Σ|depth|`, computed
+  from the route params alone. There is no audio-thread readback and nothing per
+  frame. Details that keep it honest:
+  - both ends run through the param's **own taper**;
+  - it rides an **inner radius**, so a bipolar route reads as two-sided;
+  - an LFO row contributes at `LFO_DEST_SCALE`, and LFO 1's band widens with the
+    **mod wheel**, which adds into its depth ([lfo](lfo.md)
+    REQ-mod-wheel-sums-into-lfo-one).
 
-  (v6) **A depth write during a re-patch waits for the rewire.** `setAmount`
-  stores the depth, but while a rewire is pending it ramps nothing. The rewire
-  applies the depth when it runs. Every song or preset load writes a row's
-  source, destination and amount back to back, and `setAmount` used to ramp the
-  row straight back up inside the mute window. The chains were still wired to
-  the *old* destination, but the gain was scaled for the new one, so a cutoff
-  route could briefly drive pan, or a resonance route take on cutoff's
-  semitone scale, and the "silent" rewire then disconnected an audible gain.
-
-  This is a deliberate step away from `LFO.setDest`, which never rewires at all — it keeps every
-  tap permanently connected and cross-fades five gains. That works for a fixed source and five
-  destinations (10 nodes). Generalising it to a *selectable* source would mean a node per
-  (row × source × destination × voice) — over 300 `GainNode`s, every one summed per block whether
-  it is in use or not, which is the opposite of cheap. One gain per route costs **at most 54
-  nodes** (6 rows × up to 8 voices, plus one bus-wide gain per row — 36 + 6 on the `weak`
-  tier's 5-voice pool) and moves the only graph edit onto a user
-  gesture, where a 20 ms mute is inaudible and arguably wanted — a re-patch *should* sound like
-  one. Nothing rewires per frame, per tick, or per note.
-
-- **REQ-eight-rows-two-grandfathered** (eight rows: two grandfathered, six new)
-  — rows 0–1 are LFO 1 and LFO 2, and they keep their **existing params**:
-  destination `lfo.dest` / `lfo2.dest`, depth `lfo.amount` / `lfo2.amount`. Rows
-  2–7 are six new routes, `mod.<n>.src` / `.dst` / `.amt` for `n = 0..5`.
-  Grandfathering rather than migrating is the whole back-compat story: every
-  saved preset, song and share link keeps its meaning **with no migration
-  code**, because the params it names are untouched.
-
-- **REQ-routes-are-inert-by-default** (inert by default, and free to persist) —
-  every new param defaults to `0` (`src` = `off`, `dst` = `none`, `amt` = 0), so
-  a preset that predates the matrix loads silently
-  ([ADR-006](../decisions/adr-006-no-op-param-defaults.md)). Because they are
-  plain numeric params they ride into presets *and* songs through the existing
-  `params` bag — **no `SONG_VERSION` bump, and `serialize.ts`, the JSON schemas
-  and `llms.txt` are untouched.**
-
-- **REQ-label-arrays-are-append-only** (the label arrays are append-only) —
-  `MOD_SOURCE_LABELS` and `MOD_DEST_LABELS` are append-only, for the same reason
-  as `SCALE_LABELS` and `LFO_DEST_LABELS`: the stored value is the **index**, so
-  inserting or reordering silently re-targets every saved route.
-
-- **REQ-destinations-are-summing-params** (destinations are summing
-  `AudioParam`s, and `pulse` is not one) — the destination list is curated, not
-  the whole param registry, because a destination must be something modulation
-  can *sum into*. `pulse` is deliberately absent: it has no node at all — it is
-  a 240 Hz main-thread `setPeriodicWave` write — so it cannot sum and stays
-  **arbitrated** on rows 0–1 via `lfo.dest` ([lfo](lfo.md) REQ-pulse-is-arbitrated). Anything
-  else a player wants to move belongs to the [motion
-  sequencer](motion-sequencer.md) or the [XY Pad](xy-pad.md); ADR-017 is where
-  that division is argued, and the UI says so rather than looking like a missing
-  feature.
-
-- **REQ-resonance-becomes-reachable** (`resonance` becomes reachable) —
-  `filter.resonance` is an **a-rate `AudioParam` on the filter worklet that
-  nothing can currently address**. It joins the destination list, which makes it
-  the first thing the matrix buys that was previously impossible rather than
-  merely awkward.
-
-- **REQ-per-voice-sources-cannot-drive-bus-destinations** (per-voice sources may
-  not drive bus-wide destinations) — sources are **global** (LFO 1/2, mod wheel,
-  random) or **per-voice** (filter env, amp env, velocity, key). A per-voice
-  source into a bus-wide destination is not well defined: eight voices'
-  envelopes summing into one `StereoPannerNode` is mush, not modulation. Such a
-  destination is therefore **greyed in the list with the reason shown, never
-  removed** — the `Dropdown.setDisabledOptions` idiom lfo.md
-  REQ-destinations-are-no-longer-exclusive already used. `pan` is the only bus-wide
-  destination today, and it stays the only one: the per-voice panners the
-  sequencer's per-track pan adds ([sequencer](sequencer.md)
-  REQ-a-seq-track-carries-a-pan) are **not** matrix destinations. They are written
-  once per note from the owning track's value, not driven by a source, so this
-  rule is untouched — `pan` still means the one `synthPan` on the bus.
-
-- **REQ-depth-is-in-the-destinations-unit** (depth is in the destination's own
-  unit) — a route's amount is scaled by the destination, not by the source:
-  semitones for cutoff, cents for pitch, from one fixed table, `MOD_DEST_SCALE`
-  (`src/state/mod-routing.ts`) — pitch ±2400 ¢, cutoff ±48 st, shape ±1, amp
-  ±0.5, pan ±1, sync ±48 st, FM ±8 index units, plus the two the matrix adds,
-  resonance ±4.2 and drive ±4. These
-  are the matrix's **own** scalars and are deliberately *deeper* than the LFO
-  taps' ([lfo](lfo.md) REQ-duplicated-destinations-sum-and-stay-bounded — pitch ±1200 ¢, cutoff ±24 st, shape ±0.5): the
-  matrix is the wide-range router, the LFO knob the fine one.
-  REQ-a-known-source-shows-its-position is where that difference is drawn.
-  Summation stays bounded because the summands are, and because the
-  `AudioParam`s clamp. [ADR-005](../decisions/adr-005-cutoff-as-midi-note.md)'s
-  rule — cutoff modulators emit **semitones**, never Hz — is now enforced in one
-  table rather than restated per contributor.
-
-- **REQ-route-depth-is-bipolar** (bipolar depth) — amount is `-1..1`, so a route
-  can be inverted without needing an inverted copy of the source. `0` is the
-  no-op (REQ-routes-are-inert-by-default).
-
-- **REQ-two-rows-may-share-a-destination** (the matrix supersedes
-  REQ-a-known-source-shows-its-position's exclusion) — two rows may hold the
-  same destination; they sum, which lfo.md REQ-duplicated-destinations-sum-and-stay-bounded already specified and the
-  audio graph already did. `blockedDests` is deleted; `lfo-routing.ts` keeps the
-  prefix vocabulary the two-page LFO panel still needs. **This can change no
-  existing sound**: the validators already accepted both `dest` params
-  independently, so a file with both LFOs on one destination already loaded and
-  already summed — only the *UI block* disappears.
-
-- **REQ-an-unselected-source-costs-nothing** (a source nothing selects costs
-  nothing) — the `random` sample-&-hold is driven from the main thread: the
-  clock schedules one new value on its `ConstantSourceNode` per 16th, at the
-  tick's own time so it lands with the beat. That write is **gated on whether
-  any live row actually reads `random`** — with no such row the node feeds
-  nothing, and scheduling automation on it forever is pure cost for silence.
-  Liveness is the same predicate that decides a route's gain (`src` set, `dst`
-  set, and not a per-voice source into a bus-wide destination,
-  REQ-per-voice-sources-cannot-drive-bus-destinations), read straight from the
-  rows at tick time rather than cached, so re-patching a row needs no
-  invalidation. This is [runtime-performance](runtime-performance.md)
-  REQ-boot-cost-matches-the-request's rule — cost is proportional to what the
-  player asked for — applied to a modulation source, and it is the same
-  reasoning ADR-012 used to disconnect a bypassed effect.
-
-- **REQ-a-modulated-knob-shows-its-reach** (a modulated knob shows its reach) —
-  a faceplate knob whose param any
-  route points at draws a **range band**: an inner arc spanning `value ± Σ|depth|`,
-  the reach of every route aimed there. It is computed from the route params alone —
-  **no audio-thread readback and nothing per frame** — so it costs a repaint only when
-  a route changes.
-
-  The band shows **reach**. Where modulation currently *is* usually lives on the audio
-  thread and is **per-voice** — eight sounding voices have eight different
-  filter-envelope values — so drawing it would need a port message per frame *and* an
-  answer to "which voice?".
-
-- **REQ-a-known-source-shows-its-position** (a source the main thread already
-  knows also shows its position, v2) — the reach-only rule above was too coarse,
-  and the case it got wrong is the one that matters most. Sources split by
-  **where their current value lives**:
-
-  | | current value | drawn |
-  | --- | --- | --- |
-  | LFO 1/2, random, envelopes, velocity, key | audio thread, and per-voice for four of them | band only |
-  | **mod wheel** | a `ParamBus` param — already here, exactly, for free | band **and** a live tick |
-
-  A route from the mod wheel therefore draws a **position tick** inside its band, at
-  `value + wheel × depth`, moving as the wheel moves.
-
-  This was found by using it: with `mod wheel → resonance` patched, the wheel changed
-  the sound but **nothing on screen moved** — the knob never moves (no route moves a
-  knob; modulation never touches the `ParamBus`) and the band's width is set by AMOUNT,
-  not by the wheel. Meanwhile the *cutoff* band did move, because the wheel widens
-  LFO 1's depth ([lfo](lfo.md) REQ-the-mod-wheel-feeds-lfo-one-only) — so the only thing animating was the one
-  destination the player had not routed. A working feature read as a broken one.
-
-  The wheel is the source a player is physically **holding**, so it is exactly where a
-  static picture is least acceptable — and it is the one whose live value costs
-  nothing. The tick is drawn even at wheel zero, where it sits on the value: "here is
-  where the wheel has you" is information, and it shows the travel about to happen.
-
-  The wheel's contribution to **LFO 1's depth** is deliberately not counted in the
-  tick — that widens the band, which REQ-a-modulated-knob-shows-its-reach already draws. Counting it in both would
-  draw one gesture twice.
-
-  Three details that are load-bearing rather than cosmetic:
-  - Both ends run through the param's **own taper**, not an offset in normalized
-    space, so the band is honest on a `power`-tapered knob like `filter.resonance`
-    where equal param steps are not equal travel.
-  - It rides an **inner radius**. At the value arc's radius the value painted over the
-    band's lower half, and a bipolar route — which swings both ways — read as one-sided
-    headroom.
-  - An LFO row contributes at the **LFO's own** shallower scale (`LFO_DEST_SCALE`,
-    the table the LFO itself scales by — ±24 semitones of
-    cutoff, not the matrix's ±48 — [lfo](lfo.md) REQ-duplicated-destinations-sum-and-stay-bounded), and LFO 1's band widens with
-    the **mod wheel**, because the wheel adds into its depth (REQ-a-modulated-knob-shows-its-reach there). A band
-    that ignored either would promise a sweep the instrument does not play.
-
-  Only six destinations have a knob to draw on — cutoff, resonance, shape, drive,
-  (v7) `sync`, whose knob is `osc2.syncPitch`, and (v8) `fm`, whose knob is `osc1.fm`.
-  `pitch`, `amp` and `pan` are owned by no single control (three oscillator detunes,
-  the tremolo VCA, the bus panner), so they have no band. Knobs are self-wiring
-  ([ADR-008](../decisions/adr-008-components-self-wire-params.md)): each asks whether
-  anything can modulate *it* and subscribes only if so, so the ~100 knobs on the
-  faceplate overwhelmingly subscribe to nothing.
-
-- **REQ-the-bands-direction-has-a-colour** (the band's direction has a colour,
-  v3) — the modulation band and its tick are coloured by which way the routes
-  push: **green is up, yellow is down.** Both states are declared rather than
-  leaving one to the default, so the pair reads as one scale instead of
-  "coloured" versus "normal".
-
-  **Only the band.** A knob's own value arc is never coloured by sign, even on a
-  bipolar control like the filter envelope amount or a matrix AMOUNT — its pointer
-  already says where it sits, and the readout already says `-26st`. Colour is spent
-  on what position *cannot* say, and the direction an unseen route pushes is exactly
-  that: the matrix window is usually shut, so without this the FILTER panel cannot
-  tell an inverted route from a shallow one.
-
-  This is narrower than the rule first shipped, which coloured every bipolar knob's
-  own arc. That version put a signal on something already obvious and, at a glance,
-  made a plain envelope setting look like a modulation state.
-
-  When routes on one destination **disagree in sign** the band stays neutral. "The
-  modulation is negative" is then not a true statement about that knob, and a colour
-  claiming it would be worse than no colour at all — so `modSignFor` is unanimous
-  rather than a sum.
+  Six destinations have a knob: cutoff, resonance, shape, drive, `sync`
+  (`osc2.syncPitch`) and `fm` (`osc1.fm`). `pitch`, `amp` and `pan` have no single
+  control. Knobs self-wire (ADR-008) and subscribe only when something can
+  modulate them.
+- **REQ-a-known-source-shows-its-position** (v2) — A source whose current value the
+  main thread already holds also draws a **position tick**. Only the **mod wheel**
+  qualifies (a `ParamBus` param). The tick sits at `value + wheel × depth` and is
+  drawn even at wheel zero. The other sources live on the audio thread, most of
+  them per voice, so they get the band only. Without the tick, a `mod wheel →
+  resonance` route changed the sound while nothing on screen moved. The wheel's
+  contribution to LFO 1's depth widens the band and is **not** also counted in the
+  tick.
+- **REQ-the-bands-direction-has-a-colour** (v3) — The band and its tick are
+  coloured by which way the routes push: **green up, yellow down**. Only the band
+  is coloured; a knob's own value arc is never coloured by sign, since its pointer
+  and readout already say that. Routes that **disagree in sign** leave it neutral
+  (`modSignFor` is unanimous, not a sum).
 
 ## Technical design
 
 ### Contract / public interface
 
 ```yaml
-src/audio/mod-matrix.ts:               # imports MOD_ROWS from mod-routing; declares none of it
+src/audio/mod-matrix.ts:               # imports MOD_ROWS from mod-routing
   ModMatrix:
     constructor(ctx, sources: ModSources)
-    connectVoice(v: Voice): void       # fan-out, the connectLfoToVoice idiom (REQ-one-gain-per-route-rewired-while-silent)
-    setSource(row, src): void          # cross-fade; never rewires
+    connectVoice(v: Voice): void       # fan-out, the connectLfoToVoice idiom
+    setSource(row, src): void
     setDest(row, dst): void
     setAmount(row, amt): void
 
-src/state/mod-routing.ts:              # pure, UI-and-audio-shared. NOT on ModMatrix.
-  MOD_ROWS: 6                          # the free rows; LFO 1/2 are rows 0-1 (REQ-eight-rows-two-grandfathered)
+src/state/mod-routing.ts:              # pure, UI-and-audio-shared
+  MOD_ROWS: 6                          # the free rows; LFO 1/2 are rows 0-1
   MOD_SOURCE_LABELS: string[]          # APPEND-ONLY; index 0 === 'off'
   MOD_DEST_LABELS: string[]            # APPEND-ONLY; index 0 === 'none'
-  MOD_DEST_SCALE: number[]             # REQ-depth-is-in-the-destinations-unit — the depth table, per destination
-  blockedDests(src): number[]          # REQ-per-voice-sources-cannot-drive-bus-destinations — bus-wide dests under a per-voice source
+  MOD_DEST_SCALE: number[]             # the depth table, per destination
+  blockedDests(src): number[]          # bus-wide dests under a per-voice source
 ```
 
 ### Data shapes (registry)
@@ -281,73 +153,69 @@ src/state/mod-routing.ts:              # pure, UI-and-audio-shared. NOT on ModMa
 mod.<n>.src: { discrete, labels: MOD_SOURCE_LABELS, range: 0..N, default: 0 }   # off
 mod.<n>.dst: { discrete, labels: MOD_DEST_LABELS,   range: 0..M, default: 0 }   # none
 mod.<n>.amt: { range: -1..1, default: 0 }                                        # bipolar, no-op
-# n = 0..5 -> 18 params. Rows 0-1 reuse lfo.dest/lfo.amount and add nothing (REQ-eight-rows-two-grandfathered).
+# n = 0..5 -> 18 params. Rows 0-1 reuse lfo.dest/lfo.amount and add nothing.
 ```
 
 ```yaml
-# Destination table — the unit and depth each route is scaled by (REQ-depth-is-in-the-destinations-unit)
+# Destination table — the unit and depth each route is scaled by
 none:      -                                      -
 cutoff:    v.filter.cutoffNote    a-rate  per-voice   semitones, x48
-resonance: v.filter.resonance     a-rate  per-voice   0..4.2,    x4.2   # REQ-resonance-becomes-reachable
-pitch:     v.pitchTargets()       a-rate  per-voice   cents,     x2400  # the three detunes + the sync pair's junction
+resonance: v.filter.resonance     a-rate  per-voice   0..4.2,    x4.2
+pitch:     v.pitchTargets()       a-rate  per-voice   cents,     x2400  # the detunes + the sync pair's junction
 shape:     v.filter.shape         a-rate  per-voice   0..1,      x1
 amp:       v.tremolo.gain         a-rate  per-voice   base 1,    x0.5
 drive:     v.filter.drive         k-rate  per-voice   0.5..8,    x4
-pan:       Engine.synthPan.pan    a-rate  BUS-WIDE    -1..1,     x1     # REQ-per-voice-sources-cannot-drive-bus-destinations applies
-sync:      v.syncTarget           a-rate  per-voice   semitones, x48    # v7, the SYNC knob's junction (oscillator-sync.md)
-fm:        v.fmTarget             a-rate  per-voice   FM index,  x8     # v8, the FM knob's junction (cross-modulation.md)
+pan:       Engine.synthPan.pan    a-rate  BUS-WIDE    -1..1,     x1
+sync:      v.syncTarget           a-rate  per-voice   semitones, x48    # oscillator-sync.md
+fm:        v.fmTarget             a-rate  per-voice   FM index,  x8     # cross-modulation.md
 ```
 
 ### Gesture inventory — a matrix row (ADR-014)
 
-The window is a table of rows, each `[source ▾] → [dest ▾] [amount] [range]`. Rows 0–1 show
-`LFO 1` / `LFO 2` as fixed text rather than a picker, because their source cannot change.
+Each row is `[source ▾] → [dest ▾] [amount] [range]`. Rows 0–1 show `LFO 1` /
+`LFO 2` as fixed text.
 
 | Gesture | Outcome | Precedent |
 | --- | --- | --- |
 | pick a source | the row's source; `off` frees the row | motion track param picker |
-| pick a destination | cross-fades the route onto it (REQ-one-gain-per-route-rewired-while-silent) | LFO `DEST` dropdown |
-| drag the amount | bipolar depth, shown in the destination's own unit (`+14 st`, `−25 ¢`) | every `Knob` |
+| pick a destination | cross-fades the route onto it | LFO `DEST` dropdown |
+| drag the amount | bipolar depth, in the destination's unit (`+14 st`, `−25 ¢`) | every `Knob` |
 | Shift + drag the amount | fine adjust | app-wide knob convention |
-| double-click the amount | back to `0` — i.e. the route off, without losing its source and destination | knob double-tap resets to the loaded value |
-| hover a disabled destination | its `title` says why (REQ-per-voice-sources-cannot-drive-bus-destinations: "pan is bus-wide; the filter envelope is per-voice") | lfo.md REQ-destinations-are-no-longer-exclusive's holder hint |
+| double-click the amount | back to `0`, keeping src and dst | knob double-tap reset |
+| hover a disabled destination | its `title` says why | the dropdown disabled idiom |
 | drag the title bar | move the window | [floating-window](floating-window.md) REQ-dragged-by-its-title-bar |
-| `Escape` | — deliberately nothing: Escape is panic, app-wide | [floating-window](floating-window.md) REQ-escape-does-not-close-a-window |
-| drag a row onto another | — no reordering. Rows are independent summands, so their order carries no meaning; a drag would imply one | — |
-| a delete button per row | — none: `source = off` is the same act with one fewer control, and it is not destructive (the row keeps its settings) | ADR-014 law 3 |
-| disabling an unassigned row | — never. The row stays live or its own pickers become unreachable | [motion-sequencer](motion-sequencer.md) REQ-single-param-lanes-below-the-xy-lane |
+| `Escape` | nothing — Escape is panic | [floating-window](floating-window.md) REQ-escape-does-not-close-a-window |
+| drag a row onto another | nothing: rows are independent summands | — |
+| a delete button per row | none: `source = off` is the same act | ADR-014 law 3 |
+| disabling an unassigned row | never: its pickers must stay reachable | [motion-sequencer](motion-sequencer.md) REQ-single-param-lanes-below-the-xy-lane |
 
-An unassigned (**idle**) row — a free row whose source is `off`, or an LFO row whose
-destination is `off` — fades every cell after the first, so it reads as "nothing routed
-here". The fade is presentation only. The **knob** takes `opacity` directly; the
-**destination picker** is dimmed through `Dropdown.setDimmed` (on its toggle) and never
-by `opacity` on the picker itself. The picker's open menu is a DOM child of its root,
-so an opacity there makes the option list translucent and lets the next row's
-picker show through it (dropdown.md REQ-a-dropdown-can-be-dimmed). That shipped once
-in v4: the LFO 2 picker's open list was unreadable.
+An **idle** row (a free row with source `off`, or an LFO row with destination
+`off`) fades every cell after the first. The knob takes `opacity`. The destination
+picker is dimmed through `Dropdown.setDimmed`, **never** by `opacity` on the
+picker: its open menu is a DOM child and would turn translucent
+(dropdown.md REQ-a-dropdown-can-be-dimmed).
 
 ### Layer touchpoints & ordering
 
 ```yaml
 construction (engine): ModMatrix is built with ModSources
   { lfo1: lfo.modTap, lfo2: lfo2.modTap, modWheel, random }, BEFORE the voice
-  loop, so connectVoice() can run inside it — the same place
-  connectLfoToVoice(this.lfo, v) already runs. Pitch bend is NOT a matrix
-  source: it wires straight to the osc detune params in the voice loop.
+  loop, so connectVoice() runs inside it beside connectLfoToVoice. Pitch bend is
+  NOT a matrix source: it wires straight to the osc detune params.
 engine (subscribeParams):
   mod.<n>.src -> matrix.setSource(n, round(x))
   mod.<n>.dst -> matrix.setDest(n, round(x))
   mod.<n>.amt -> matrix.setAmount(n, x)
 per-voice sources: Voice exposes filEnv.out, ampEnv.out, and two ConstantSourceNodes
-  (velocity, key) whose offsets are set at noteOn alongside the existing scalars.
-ui: src/ui/components/mod-matrix-window.ts, launched from the LFO panel + Live FX row.
+  (velocity, key) whose offsets are set at noteOn.
+ui: src/ui/components/mod-matrix-window.ts, launched from the LFO panel + Live FX row;
+  one controller, so every launcher toggles the same window.
 ```
 
 ### Persistence
 
-`mod.*` persist as ordinary params inside a preset's or song's `params` bag — no new file
-section, no version bump (REQ-routes-are-inert-by-default). **Not** persisted: the live modulation value (it exists only in
-the audio graph), and the window's open state.
+`mod.*` persist as ordinary params. **Not** persisted: the live modulation value and
+the window's open state.
 
 ## Scenarios (BDD)
 
@@ -392,14 +260,14 @@ Scenario: Two changes in quick succession settle on the last one (REQ-one-gain-p
   Then only the final destination ends up connected, and the gain returns to depth
 # pinned by: tests/audio/mod-matrix.test.ts
 
-Scenario: A depth written mid-re-patch waits for the rewire (v6, REQ-one-gain-per-route-rewired-while-silent, regression)
+Scenario: A depth written mid-re-patch waits for the rewire (REQ-one-gain-per-route-rewired-while-silent, regression)
   Given a route running at depth
   When its source changes and its amount is written straight after (a song load)
   Then every chain stays ramped to zero until the rewire
   And the rewire brings it up to the new depth
 # pinned by: tests/audio/mod-matrix.test.ts
 
-Scenario: Resonance is reachable for the first time (REQ-resonance-becomes-reachable)
+Scenario: Resonance is reachable (REQ-resonance-becomes-reachable)
   Given a route targets resonance
   Then it connects to the filter worklet's resonance AudioParam
 # pinned by: tests/audio/mod-matrix.test.ts
@@ -420,10 +288,9 @@ Scenario: Every launcher toggles one window, never a second (floating-window REQ
 Scenario: The window says where the params it cannot reach live (ADR-017)
   Given the matrix window is open
   Then it names the Motion lanes and the XY Pad
-  # without this the curated destination list reads as a missing feature
 # pinned by: tests/ui/mod-matrix-window.test.ts
 
-Scenario: An idle row's destination picker opens a readable menu (regression, v5)
+Scenario: An idle row's destination picker opens a readable menu (regression)
   Given a row with nothing routed, so it reads as idle
   Then its destination picker's toggle carries the dimmed class and its root does not
   And when the picker is opened, its options render at full opacity, above the rows below
@@ -437,7 +304,7 @@ Scenario: Depth is bipolar (REQ-route-depth-is-bipolar)
 # pinned by: tests/audio/mod-matrix.test.ts
 
 Scenario: The two LFO rows still read their old params (REQ-eight-rows-two-grandfathered, back-compat)
-  Given a preset saved before the matrix with lfo.dest = cutoff and lfo.amount = 0.5
+  Given a preset with lfo.dest = cutoff and lfo.amount = 0.5
   When it loads
   Then row 0 shows cutoff at that depth and sounds exactly as it did
 # pinned by: tests/audio/mod-matrix.test.ts
@@ -463,39 +330,39 @@ Scenario: The band agrees with what is heard (REQ-a-modulated-knob-shows-its-rea
   And raising the mod wheel widens LFO 1's band, because it widens its depth
 # pinned by: tests/state/mod-depth.test.ts
 
-Scenario: A mod-wheel route draws a tick that follows the wheel (v2, REQ-a-known-source-shows-its-position)
+Scenario: A mod-wheel route draws a tick that follows the wheel (REQ-a-known-source-shows-its-position)
   Given a route runs from the mod wheel to resonance
   Then the resonance knob shows a tick inside its band
   And moving the wheel moves the tick
 # pinned by: tests/ui/knob.test.ts, tests/state/mod-depth.test.ts
 
-Scenario: The tick shows at wheel zero, sitting on the value (v2, REQ-a-known-source-shows-its-position, edge)
+Scenario: The tick shows at wheel zero, sitting on the value (REQ-a-known-source-shows-its-position, edge)
   Given a mod-wheel route and the wheel down
   Then the tick is drawn, so the travel about to happen is visible
 # pinned by: tests/ui/knob.test.ts, tests/state/mod-depth.test.ts
 
-Scenario: An audio-thread source gets a band but no tick (v2, REQ-a-known-source-shows-its-position)
+Scenario: An audio-thread source gets a band but no tick (REQ-a-known-source-shows-its-position)
   Given a route runs from LFO 1 to cutoff
   Then the cutoff knob shows a band and no tick, because its position is not known here
 # pinned by: tests/ui/knob.test.ts
 
-Scenario: The wheel widening LFO 1 is drawn once, not twice (v2, REQ-a-known-source-shows-its-position, regression)
+Scenario: The wheel widening LFO 1 is drawn once, not twice (REQ-a-known-source-shows-its-position, regression)
   Given LFO 1 is routed to cutoff and the wheel is raised
   Then the band widens, and no tick appears for it
 # pinned by: tests/state/mod-depth.test.ts
 
-Scenario: An inverted route is visible with the window shut (v3, REQ-the-bands-direction-has-a-colour)
+Scenario: An inverted route is visible with the window shut (REQ-the-bands-direction-has-a-colour)
   Given a route on filter.resonance is negative
   Then the FILTER panel's RESO band and tick read yellow
   And making it positive turns them green
 # pinned by: tests/ui/knob.test.ts
 
-Scenario: A knob's own value is never coloured by its sign (v3, REQ-the-bands-direction-has-a-colour)
+Scenario: A knob's own value is never coloured by its sign (REQ-the-bands-direction-has-a-colour)
   Given a bipolar control set well below zero
   Then its own arc and pointer are unchanged, because position already says that
 # pinned by: tests/ui/knob.test.ts
 
-Scenario: Routes that disagree in sign stay neutral (v3, REQ-the-bands-direction-has-a-colour, edge)
+Scenario: Routes that disagree in sign stay neutral (REQ-the-bands-direction-has-a-colour, edge)
   Given one route up and one route down on the same destination
   Then the band is coloured neither way, because neither would be true
 # pinned by: tests/ui/knob.test.ts, tests/state/mod-depth.test.ts
@@ -509,46 +376,23 @@ Scenario: The matrix does not run on the main thread (REQ-one-gain-per-route-rew
 ## Tests & verification
 
 - Unit: `tests/audio/mod-matrix.test.ts`, `tests/state/mod-params.test.ts`,
-  `tests/ui/mod-matrix-window.test.ts` — `npm test`
-- E2E: `e2e/mod-matrix.spec.ts` — `npm run e2e`
-- Typecheck: `npm run typecheck`; `npm run check:params` (18 new params republish the catalogue)
-- **By ear** ([ADR-010](../decisions/adr-010-musical-stable-cheap-dsp.md)) — this is modulation, so
-  a green suite proves nothing about whether it is musical. `npm run bench:audio`, A/B against
-  `amt: 0`, untested lanes muted ([verify-audio-by-ear](../recipes/verify-audio-by-ear.md)). Two
-  questions in particular: does `resonance` stay stable as a destination at high depth, and does a
-  per-voice envelope → cutoff route sound genuinely **polyphonic** — each voice sweeping on its
-  own — rather than mono-triggered?
-
-## Status
-
-Shipped in stages, each independently useful:
-
-1. **Done** — ADR-017, this spec, the params, the routing engine (including `resonance`
-   as a destination), and REQ-a-known-source-shows-its-position's removal. The matrix is fully functional and reachable
-   through `mod.*` params, so a preset, share link or MCP-authored song can already use
-   it; `blockedDests` now guards the per-voice rule in both layers.
-2. **Done** — the floating window, launched from the Song tab's Live FX row beside the
-   XY Pad's door, sharing one controller so every launcher toggles the same window.
-3. **Done** — the range arcs. A modulated knob draws an inner band over the span
-   modulation can take it (REQ-a-modulated-knob-shows-its-reach).
+  `tests/state/mod-depth.test.ts`, `tests/ui/mod-matrix-window.test.ts`,
+  `tests/ui/knob.test.ts` — `npm test`. E2E: `e2e/mod-matrix.spec.ts`.
+  `npm run check:params` after a param change.
+- **By ear** (ADR-010, [verify-audio-by-ear](../recipes/verify-audio-by-ear.md)),
+  A/B against `amt: 0`: `resonance` stable at high depth, and a per-voice envelope →
+  cutoff route sounding genuinely polyphonic.
 
 ## Open questions / future
 
-- **An envelope follower off the drum bus** — the one distinctive source that is *not* free: it
-  needs an `AnalyserNode` read or a worklet, so it carries main-thread cost that has to be argued
-  on its own terms rather than smuggled in here. Would give sidechain-flavoured movement with no
-  compressor.
-  - **Partly answered elsewhere.** [sidechain-ducking](sidechain-ducking.md) reaches the same
-    musical goal without paying that cost: it keys off the drum machine's *scheduled hits*
-    rather than detecting the drum bus, so there is no follower and no worklet. It is an insert
-    effect, not a matrix source, so this entry stands for anything wanting drum-driven movement
-    on an arbitrary **destination** — but the cheap trigger there is the shape to copy if it is
-    ever built, and a detector should be argued against it rather than from scratch.
-- **Live modulation position on the knobs.** REQ-depth-is-in-the-destinations-unit's range arc is computed from params alone and
-  is free; showing where modulation *currently* is would need a port message per frame, and is
-  per-voice, so "which voice?" needs an answer first.
-- **XY Pad and motion lanes as matrix sources.** Blocked on the automation-side defect ADR-017
-  records: those two, plus Tape Stop, keep three uncoordinated restore caches over one `ParamBus`
-  slot. Fixing that is a prerequisite, and it is an automation change, not a matrix one.
-- Row count is fixed at six free rows. A pool would need the params to become non-scalar state,
-  which is the one thing that would cost a `SONG_VERSION` bump.
+- **An envelope follower off the drum bus.** It needs an analyser read or a worklet,
+  so it carries a cost. [sidechain-ducking](sidechain-ducking.md) reaches the same
+  musical goal from scheduled hits with no follower. Copy that trigger before
+  arguing for a detector.
+- **Live modulation position on the knobs** would need a port message per frame,
+  and it is per-voice, so "which voice?" needs an answer first.
+- **XY Pad and motion lanes as matrix sources** are blocked on the automation
+  defect ADR-017 records: three uncoordinated restore caches over one `ParamBus`
+  slot.
+- Six free rows is fixed. A pool would make the params non-scalar, which costs a
+  `SONG_VERSION` bump.
