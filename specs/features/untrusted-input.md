@@ -79,9 +79,9 @@ decision and the alternatives. This spec is the contract.
 
 - **REQ-the-untrusted-surfaces-are-enumerated** — **The surfaces are
   enumerated.** The trust boundary is: `#song=`, `#songUrl=`, the file input
-  (`.json` / `.zip`) and (v10) a **file dropped on the window**, the PWA `launchQueue`, paste, demo fetches, the WebRTC
+  (`.json` / `.zip`) and a **file dropped on the window**, the PWA `launchQueue`, paste, demo fetches, the WebRTC
   data channel, a scanned QR blob, rehydration from `localStorage` / IndexedDB,
-  MCP tool arguments, (v5) **`POST` bodies to the public MCP endpoint** and (v13)
+  MCP tool arguments, **`POST` bodies to the public MCP endpoint** and
   a **Standard MIDI File** handed to `read_midi`
   ([midi-file-reader](midi-file-reader.md) REQ-a-midi-file-is-bounded).
   Anything reading one of these obeys REQ-bounds-in-the-validator-sizes-in-the-codec … REQ-deserialized-state-is-validated-never-cast. A new ingest surface owes an
@@ -96,8 +96,9 @@ decision and the alternatives. This spec is the contract.
   — a cap applied after the fact has already spent the memory.
 
 - **REQ-the-limits-are-one-module** — **The limits are one module.**
-  `src/state/limits.ts` is the only place a bound is written down: the table
-  below, plus `RESERVED_KEYS` and the `reservedKeyIn(o)` helper
+  `src/state/limits.ts` is the only place a bound is written down, each with its
+  rationale (the table below is the ingest-door subset, not a copy of it), plus
+  `RESERVED_KEYS` and the `reservedKeyIn(o)` helper
   REQ-reserved-keys-are-refused uses. Every consumer imports from it; no literal
   duplicates.
 
@@ -108,7 +109,7 @@ decision and the alternatives. This spec is the contract.
   predicate — it is what REQ-reserved-keys-are-refused's reserved-key check and every shape check are built
   on — and four copies is four chances for them to drift apart silently.
 
-  **(v7) `MAX_RATCHET` joins them**, for the same reason `MICRO_MAX` is there:
+  **`MAX_RATCHET` joins them**, for the same reason `MICRO_MAX` is there:
   it is the other per-step integer bound, and `4` was written out in the
   canonical validator, in the dialect's coercing twin, in the editor's button
   loop and in the published JSON schema — four places, three languages, one
@@ -124,7 +125,7 @@ decision and the alternatives. This spec is the contract.
   now walks the schema for `ratchet`, `micro`, `bend`, `note` and
   `seqTranspose` and checks each against its constant.
 
-  **(v12) `BEND_MAX` is the third per-step integer bound** — the seq-only bend
+  **`BEND_MAX` is the third per-step integer bound** — the seq-only bend
   ([step-settings](step-settings.md) REQ-a-seq-step-carries-a-bend) lives
   beside `MICRO_MAX` for the same reason, and the schema walk now covers it.
 
@@ -178,12 +179,9 @@ decision and the alternatives. This spec is the contract.
   guarantee. `Presets.load` also filters `RESERVED_KEYS` before applying a
   snapshot.
 
-  **(v6) "Everywhere" is now true as written.** The check was at three
-  validators — `validateSeqStep`, `validateTriggerCell`, `checkParams` — and the
-  narrowness was recorded here as a known gap. It is closed: `checkKeys` moved
-  into `validate-utils.ts` beside `isObject` (a copy one validator has and
-  another does not is exactly how this drifted), and every payload object a
-  validator reads now goes through it — adding `validateMotionStep`, the
+  **"Everywhere" means every payload object a validator reads**: `checkKeys`
+  lives in `validate-utils.ts` beside `isObject`, and runs in `validateSeqStep`,
+  `validateTriggerCell`, `checkParams`, `validateMotionStep`, the
   `motionTracks[]` entries and their step cells, `checkXy`, `checkChain`,
   `checkMotionAssigns`, and both preset paths (`checkSnapshot` and the bank's
   `presets` map).
@@ -254,7 +252,7 @@ decision and the alternatives. This spec is the contract.
   toast restores the *session*, not the persisted slot, so an unconfirmed
   overwrite is unrecoverable. This mirrors [presets](presets.md) REQ-preset-import-is-a-two-step-wizard ("never
   a blind merge") and [ADR-014](../decisions/adr-014-dont-make-me-think.md).
-  **Destroy** is the operative word (v2): a slot already holding byte-identical
+  **Destroy** is the operative word: a slot already holding byte-identical
   bytes loses nothing, so re-importing the same link twice does not prompt — a
   guard that cries wolf is a guard the user learns to click through.
   [session-autosave](session-autosave.md)
@@ -457,6 +455,9 @@ export function paramIds(): ReadonlySet<string>;
 ```yaml
 # Sized against the demo corpus plus generous headroom (ADR-015): raising a
 # limit later is additive and safe; lowering one is a breaking change.
+# The ingest-door subset. src/state/limits.ts also holds the value bounds
+# (MAX_STEP, MAX_NAME_CHARS, MIDI_NOTE_MIN/MAX, MICRO_MAX, BEND_MAX, MAX_RATCHET,
+# the stretch and scratch bounds) — read it there, not here.
 MAX_SONG_JSON_BYTES:  8388608     # 8 MB   — the largest demo is ~2 orders below
 MAX_ZIP_ENTRY_BYTES:  67108864    # 64 MB  — one sampler clip (multi-MB WAVs)
 MAX_ZIP_TOTAL_BYTES:  268435456   # 256 MB — 8 slots of clip audio + headroom
@@ -465,7 +466,7 @@ MAX_SIGNAL_BYTES:     262144      # 256 KB — an SDP blob is ~700 bytes
 MAX_SYNC_JOIN_LEAD_MS: 1000       # 1 s — a real join is at most one look-ahead (~225 ms) ahead
 MAX_CHAIN_STEPS:      1024        # 1024 bars is ~34 min at 120 BPM
 MAX_CHAIN_DEPTH:      8           # {enabled,steps:{...}} nesting
-MAX_PARAM_KEYS:       512         # the bus registers ~150
+MAX_PARAM_KEYS:       512         # the bus registers ~440 (public/params.json): headroom is ~15%, not 3x
 MAX_CHAIN_TRANSPOSE:  24          # +/- 2 octaves on a chain slot
 
 # REQ-the-public-endpoint-is-bounded: the public MCP endpoint. Sized the OTHER way — tight, because there is
@@ -475,7 +476,7 @@ MAX_MCP_REQUESTS_PER_MINUTE: 60        # per IP, fixed window
 MAX_MCP_RATE_KEYS:           10000     # the limiter must not become the leak
 MAX_MCP_REQUEST_MS:          15000     # socket to response
 
-# midi-file-reader REQ-a-midi-file-is-bounded (v13). Generous like the in-app limits: a
+# midi-file-reader REQ-a-midi-file-is-bounded. Generous like the in-app limits: a
 # real song's .mid is tens of kB; the public endpoint's body cap is the tighter gate.
 MAX_MIDI_FILE_BYTES:   524288    # 512 kB
 MAX_MIDI_TRACKS:       64        # a full orchestral export is ~20
@@ -606,7 +607,7 @@ Scenario: songUrl requires https and consent
   And an https:// link prompts with the target origin before any request is made
 # pinned by: tests/state/song-link.test.ts, e2e/song-link.spec.ts
 
-Scenario: A songUrl body is cut off at the cap, with or without Content-Length (v9)
+Scenario: A songUrl body is cut off at the cap, with or without Content-Length
   Given a response with no Content-Length whose body streams past MAX_SONG_JSON_BYTES
   When readCappedBody reads it
   Then it resolves null and cancels the stream without reading the rest
@@ -682,7 +683,7 @@ Scenario: Every shipped demo validates without warnings (v3, REQ-an-unresolvable
 - Unit: the files named in the scenarios above — `npm test`
 - E2E: `e2e/song-link.spec.ts` (consent prompt on `#songUrl=`; `#song=` still
   silent) — `npm run e2e`
-- **The shipped CSP (v11)** cannot be seen by e2e, which drives the dev server
+- **The shipped CSP** cannot be seen by e2e, which drives the dev server
   where `csp-dev-styles` relaxes it. `tests/csp.test.ts` pins its shape; its
   effect is checked by `npm run build`, `npx vite preview`, then driving the app
   with a `securitypolicyviolation` listener installed — no event may fire.
