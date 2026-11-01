@@ -28,7 +28,8 @@ them — `src/state/demo-notes.json` (hand-written blurbs) and
 `touch .sdd-skip` locally, or `[skip-sdd]` in a commit / the `skip-sdd` PR label
 in CI. `npm run spec:lint` checks spec *structure* — that a **new REQ id is a
 slug** and not a number (ADR-021), that every `x.md REQ-<id>` citation (in code
-comments too) and every backticked code name in a spec still resolves — and also
+comments too) and every backticked code name in a spec still resolves, and that a
+spec carries no version history (`specs/README.md` → "Not in a spec") — and also
 runs as a `Stop` hook.
 
 Full procedure: `specs/README.md` → "Procedure by change type".

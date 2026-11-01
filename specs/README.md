@@ -228,43 +228,33 @@ spec-free.
 (a gitignored sentinel) locally, or put `[skip-sdd]` in a commit message / add the
 `skip-sdd` PR label for CI.
 
-> The guard checks that a spec *changed*, not that it is *good* — spec quality is
-> the human review gate. A companion check, `scripts/spec-lint.mjs`
-> (`npm run spec:lint`), validates spec *structure*: a metadata block, `id`
-> matching the filename, a valid `status`, that `# pinned by:` **and** `source:`
-> paths resolve, that REQ ids are well-formed and unique — a **new one is a slug,
-> never a number** (ADR-021) and slugs are unique repo-wide — that a cross-spec `[x](x.md) … REQ-<id>` finds that REQ in
-> `x.md`, and that every spec/ADR is listed
-> in this folder map **and** the `decisions/` index. It also checks the prose that
-> points *into* specs and code, wherever it is written: every `x.md REQ-<id>` or
-> bare `x REQ-<id>` citation — in a spec, a root doc **or a code/test comment** —
-> must find that id in `x.md`. A citation **split across a line break** — the
-> spec name ending one line and the id opening the next — is checked too, since a
-> line-at-a-time reader would see it as a bare id belonging to whatever file it
-> sits in. A **bare** `REQ-<slug>` that names no spec at all is checked against
-> every slug in the tree — possible only because a slug is unique repo-wide,
-> which is why ADR-021 replaced the old numbered ids.
-> An ADR, and the spec tooling that documents the id grammar, name ids by example
-> and are exempt,
-> and every backticked code name in a spec or doc (`Class.member`, `someFn()`,
-> `camelCase`) must still be an identifier in the code. A line about the past
-> ("was", "removed", "renamed", "v6's"), an `## Open questions` section, a name the
-> document defines as a key in its own fenced block, and ADRs (which name the
-> alternatives they rejected) are exempt; so is a short, commented list of platform
-> names the code deliberately avoids. Those checks live in
-> `scripts/lib/spec-xref.mjs` and `scripts/lib/spec-reqs.mjs`, and
-> `tests/scripts/spec-xref.test.ts` / `tests/scripts/spec-reqs.test.ts` show they
-> fail on real drift and refuse the ids they exist to refuse. One thing is a warning
-> rather than an error: a `Scenario:` that carries no trailing `#` note at all —
-> neither a `# pinned by:` nor an explicit reason there is none. A spec
-> being drafted has scenarios before it has tests, and blocking that would only
-> teach authors to write the pin first and the test never; but silence is what
-> makes a covered scenario read as a gap, so it is worth saying out loud.
-> It runs in CI (PRs **and** pushes to `main`) **and** unconditionally as a local
-> `Stop` hook (blocking the finish on a malformed spec — it lints even when the
-> turn ended with everything committed, since a clean tree says nothing about the
-> committed specs). Hooks can be disabled by editing `.claude/settings.json`, so
-> CI is the real cross-tool backstop.
+The guard checks that a spec *changed*, not that it is *good* — spec quality is
+the human review gate. `npm run spec:lint` (`scripts/spec-lint.mjs`; its header
+comment is the full list) checks what can be checked mechanically:
+
+- **Structure:** a metadata block, `id` matching the filename, a valid `status`,
+  `# pinned by:` and `source:` paths that resolve, `related:` entries that name a
+  spec, and every spec/ADR listed in this folder map and the `decisions/` index.
+- **REQ ids** (`lib/spec-reqs.mjs`): well-formed and unique; a **new one is a
+  slug, never a number**, and slugs are unique repo-wide (ADR-021).
+- **Citations** (`lib/spec-xref.mjs`): every `x.md REQ-<id>`, bare `x REQ-<id>`
+  or bare `REQ-<slug>` — in a spec, a root doc **or a code/test comment**, even
+  split across a line break — resolves; every backticked code name in a spec or doc
+  is still an identifier in the code. ADRs, past-tense lines and `## Open
+  questions` are exempt from the code-name check. A citation of the *wrong but
+  existing* REQ is invisible to it: review catches that.
+- **Leanness** (`lib/spec-lean.mjs`, not ADRs): errors on version history in the
+  metadata block, a `## vN …` section, or a `(vN)` inside a REQ body past its
+  landing marker ("Not in a spec" above); a spec over 40 kB or a REQ over 2.5 kB is
+  a warning.
+- **Warnings, not errors:** a `Scenario:` with no trailing `#` note at all (a draft
+  has scenarios before tests, but silence reads as a gap), the size budgets, and a
+  non-integer `version`.
+
+`tests/scripts/spec-{xref,reqs,lean}.test.ts` show each rule failing on the text it
+exists to refuse. It runs in CI (PRs and pushes to `main`) and unconditionally as a
+local `Stop` hook. Hooks can be disabled in `.claude/settings.json`, so CI is the
+real cross-tool backstop.
 
 ## Folder map
 
