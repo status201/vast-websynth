@@ -140,8 +140,8 @@ Per [ADR-006](../decisions/adr-006-no-op-param-defaults.md) the default is index
 - **REQ-shared-worklet-contracts-cover-both-models** — The shared worklet
   contracts apply to **both** models unchanged: the `setActive` idle gate
   ([ladder-filter.md](ladder-filter.md) REQ-the-filter-idles-when-gated), the block-constant cutoff
-  coefficient hoist (REQ-shape-is-an-lfo-destination), the mono node
-  (REQ-switching-model-mid-note-is-safe), and `cutoffNote` in MIDI-note units
+  coefficient hoist (ladder-filter.md REQ-filter-coefficients-hoist-per-block), the mono node
+  (ladder-filter.md REQ-the-filter-worklet-is-mono), and `cutoffNote` in MIDI-note units
   with additive semitone modulation
   ([ADR-005](../decisions/adr-005-cutoff-as-midi-note.md)).
 
@@ -186,18 +186,13 @@ q3prev = q3;
 outCh[i] = (cv*v + c0*s0 + c1*s1 + c2*s2 + c3*s3) * POLY_TRIM;   // REQ-shape-morphs-the-pole-mix/REQ-poly-trim-matches-the-levels
 ```
 
-**Why POLY's input rail is wider than the ladder's** (REQ-poly-saturates-only-at-two-points) — this is the one
-non-obvious thing in the model, and it was found by measurement. The ladder
-feeds back `sat(s_n)` *inside* each stage, so at DC `sat(s_n) === v` and the
-state settles at `sat⁻¹(v)`: the cascade **undoes** its own input saturation,
-which is why a filter that saturates in five places still measures near-unity at
-low frequency. POLY's stages are linear, so nothing undoes it — a tight `sat()`
-at the input showed up directly as ~3.5 dB of level-dependent compression, the
-exact growl POLY exists *not* to have, and it dragged POLY 3.5 dB below LADDER.
-Widening the rail to `H = 3` (slope 1 at the origin, bounded to ±3) is
-transparent at instrument levels (~1.4 dB at a 0.5 peak) while leaving `drive`
-its bite (~6 dB of compression at `drive 6`). Do not "simplify" it back to
-`sat()`.
+**Why POLY's input rail is wider than the ladder's** (REQ-poly-saturates-only-at-two-points).
+The ladder feeds back `sat(s_n)` inside each stage, so at DC its state settles at
+`sat⁻¹(v)`: the cascade **undoes** its own input saturation. POLY's stages are
+linear, so a tight input `sat()` would be ~3.5 dB of level-dependent compression,
+the growl POLY exists not to have. `H = 3` (slope 1 at the origin, bounded to ±3)
+is transparent at instrument levels and leaves `drive` its bite. Do not
+"simplify" it back to `sat()`.
 
 Anchor coefficient vectors over `[v, s0, s1, s2, s3]` — binomial, i.e.
 `HP_n = (1 - LP)^n` applied to the loop input:
@@ -359,8 +354,8 @@ Scenario: Factory presets never leak a model (edge)
   they are saturated, so the binomial cancellation is imperfect and the
   high-pass anchors would leak low end. Deliberately out of scope (REQ-shape-is-poly-only);
   revisit only with a measured answer.
-- **HP24 vs HP12 as the top anchor.** `[1, -2, 1, 0, 0]` is the gentler
-  alternative. Decided by ear during implementation; record the winner here.
+- **HP24 is the top anchor**, chosen by ear over the gentler HP12
+  (`[1, -2, 1, 0, 0]`).
 - **More models.** The selector and the per-block branch generalise, so a third
   model (state-variable, Sallen-Key) is an append to `FILTER_MODEL_LABELS` plus
   one more loop.
