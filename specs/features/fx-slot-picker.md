@@ -3,15 +3,11 @@
 ```yaml
 id: fx-slot-picker
 status: implemented
-version: 3   # v3: a third entry — the flanger, between the Phaser and the Chorus
-             #     (REQ-the-slot-lists-its-effects-in-chain-order). The component was
-             #     already generic over N; the rule that fixes the order is new
-             # v2: the shown title opens the menu too (REQ-the-title-opens-the-menu) —
-             #     only the small caret did, and the name beside it looked inert
+version: 3
 owner: core
 related:
   - chorus          # the first effect to share a slot (with the Phaser)
-  - flanger         # v3: the third, between them
+  - flanger         # the third, between them
   - effects
   - fx-group        # the sampler's header group, which hosts a slot too
   - panel-tabs      # the precedent: two pages, one panel, session-only view state
@@ -28,17 +24,14 @@ source:
 
 ## Background / Why
 
-The FX rack is six panels across a grid that is already full at desktop widths
-(responsive-synth-panels), and the sampler's header FX cluster is just as
-tight. A chorus is a seventh effect with no room of its own — so, like the two
-LFOs ([lfo](lfo.md) REQ-the-two-lfos-share-one-panel), it **shares** a panel: the
-Phaser's. The panel keeps its title exactly as it was and gains a small caret
-beside it; the caret opens a menu naming the effects that live in the slot.
-Choosing one swaps the panel's whole face — title, on/off switch, knobs — to that
-effect. Both effects are independent: each keeps its own switch and knob values,
-and both may run at once. The component is generic over any number of entries,
-so a later flanger can join the same slot without new UI — and (v3) one did
-([flanger](flanger.md)).
+The FX rack is full at desktop widths (responsive-synth-panels), and so is the
+sampler's header FX cluster. So, like the two LFOs ([lfo](lfo.md)
+REQ-the-two-lfos-share-one-panel), the Phaser, [flanger](flanger.md) and
+[chorus](chorus.md) **share** one panel. Its title gains a small caret that opens
+a menu naming the slot's effects. Choosing one swaps the whole face (title,
+switch, knobs) to that effect. The effects are independent: each keeps its own
+switch and knob values, and they may run at once. The component is generic over
+any number of entries.
 
 ## Requirements
 
@@ -95,7 +88,7 @@ so a later flanger can join the same slot without new UI — and (v3) one did
   | Gesture | Target | Result |
   | --- | --- | --- |
   | click / tap | caret | opens (or closes) the menu |
-  | click / tap | the shown title (v2) | the same as the caret (REQ-the-title-opens-the-menu) |
+  | click / tap | the shown title | the same as the caret (REQ-the-title-opens-the-menu) |
   | Enter / Space | focused caret | the same — it is a native `<button>` |
   | click / tap | menu entry | shows that view, closes the menu |
   | click outside | anywhere | closes the menu, nothing changes |

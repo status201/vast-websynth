@@ -3,8 +3,7 @@
 ```yaml
 id: media-session
 status: implemented
-version: 2   # v2: the notification's pause is the transport's real Pause — play
-             #     resumes where it paused; only stop panics (REQ-notification-controls-work)
+version: 2
 owner: core
 related:
   - audio-lifecycle
@@ -83,7 +82,7 @@ never touches `ParamBus`, presets or songs.
   [`architecture`](../architecture.md) `Engine.panic`). A handler that the
   browser refuses is skipped without failing the others. Not registering `pause`
   would leave Android pausing our own keep-alive element, which is the one thing
-  that must not happen. (v2) **Pause is the transport's real Pause**
+  that must not happen. **Pause is the transport's real Pause**
   ([transport](transport.md) REQ-pause-resumes-where-it-stopped), not a panic. Until the song transport had
   a Pause, panic was the nearest thing; now a lock-screen pause and play
   continue the song from where it stopped, exactly like the TRANSPORT row's

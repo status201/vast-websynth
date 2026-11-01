@@ -74,7 +74,7 @@ has:
 | --------------------- | --------------------------------------------------------------------------------- |
 | Database schema       | The `ParamBus` registry (`ParamDef`) for scalars; `PatternStore` step grids       |
 | API contract          | Module public interfaces — `ParamBus`, `Engine`, `Song`, `Arrangement`; and the AudioWorklet `port.postMessage` message contracts |
-| Persistence / model   | The `SongFile` JSON schema + `localStorage` keys (`websynth.song.*`, `websynth.preset.*`) |
+| Persistence / model   | The `SongFile` JSON schema + the `websynth.*` `localStorage` keys (the full list is [`architecture.md`](architecture.md) → Persistence) + the IndexedDB clip store |
 | System diagram        | The audio-graph topology (voices → FX buses → master)                             |
 
 See [`architecture.md`](architecture.md) for the system-wide version of all four.
@@ -96,8 +96,28 @@ and indent costs tokens and latency.
   points at (`src/ui/CLAUDE.md`, `e2e/CLAUDE.md`); it deliberately does **not**
   restate architecture. So a detail belongs in the governing spec, not in
   `CLAUDE.md` — and a spec should link to `architecture.md` for the system-wide
-  contracts rather than re-deriving them, while staying standalone enough to read
-  on its own.
+  contracts rather than re-deriving them.
+- **One owner per fact; everyone else links, plus at most one line.** A fact
+  written out in N specs drifts in N−1 of them. The chain order is `effects.md`'s,
+  the song-version ladder `song-mode.md`'s, the limits `untrusted-input.md`'s (and
+  `limits.ts`), the lazy surfaces `lazy-load-failure.md`'s test tables.
+- **A spec says what is true now.** Its REQ keeps the `(vN)` it landed in, and
+  nothing else about versions.
+
+### Not in a spec
+
+`npm run spec:lint` errors on the first three; the rest are review calls.
+
+| Not here | Where it goes instead |
+| --- | --- |
+| a changelog in the `version:` key | `CHANGELOG.md` and git; `version:` is an integer |
+| a `## v3 fix — …` / `### v7 — …` section | the concern it changed, as present-tense rules |
+| `(vN)` / "until v12" / "used to" inside a REQ | delete it; the REQ states the current rule |
+| a post-mortem (what broke, how it was found) | an ADR if it records a choice with a rejected alternative; one "deliberate: don't …" sentence if it guards a local trap; otherwise nowhere |
+| a list a test or code table already holds (`TRIGGERS`, `warmDeferred`, `TEMPO_LOCKS`, `DRUM_MODEL_LABELS`) | cite the table |
+| a figure a script prints (bundle kB, headroom, MB, file counts) | cite the script |
+| a pixel derivation | the guard it justifies, in one sentence |
+| a re-description of what each test asserts | the pin line and the suite name |
 
 ## BDD — scenarios in Gherkin
 
@@ -120,10 +140,9 @@ it follows — that is the normal shape for a group of scenarios sharing a descr
 block. So the rule is *every gherkin block carries at least one pin*, not every
 scenario carries its own. A scenario that genuinely has no test says so in place,
 in the same comment slot, and names the manual procedure instead of leaving the
-slot empty — see `features/responsive-synth-panels.md`, the one spec where
-**none** of the scenarios is automated (rendered geometry at a given viewport,
-which jsdom cannot measure) and which states that as a decision rather than
-letting a reader assume coverage.
+slot empty (`# verified manually on device; jsdom cannot pin this` in
+`features/transport.md`, or meter's `# not automated — a musical claim
+(ADR-010)`), so a reader never assumes coverage that is not there.
 
 ## Spec lifecycle
 
@@ -209,43 +228,33 @@ spec-free.
 (a gitignored sentinel) locally, or put `[skip-sdd]` in a commit message / add the
 `skip-sdd` PR label for CI.
 
-> The guard checks that a spec *changed*, not that it is *good* — spec quality is
-> the human review gate. A companion check, `scripts/spec-lint.mjs`
-> (`npm run spec:lint`), validates spec *structure*: a metadata block, `id`
-> matching the filename, a valid `status`, that `# pinned by:` **and** `source:`
-> paths resolve, that REQ ids are well-formed and unique — a **new one is a slug,
-> never a number** (ADR-021) and slugs are unique repo-wide — that a cross-spec `[x](x.md) … REQ-<id>` finds that REQ in
-> `x.md`, and that every spec/ADR is listed
-> in this folder map **and** the `decisions/` index. It also checks the prose that
-> points *into* specs and code, wherever it is written: every `x.md REQ-<id>` or
-> bare `x REQ-<id>` citation — in a spec, a root doc **or a code/test comment** —
-> must find that id in `x.md`. A citation **split across a line break** — the
-> spec name ending one line and the id opening the next — is checked too, since a
-> line-at-a-time reader would see it as a bare id belonging to whatever file it
-> sits in. A **bare** `REQ-<slug>` that names no spec at all is checked against
-> every slug in the tree — possible only because a slug is unique repo-wide,
-> which is why ADR-021 replaced the old numbered ids.
-> An ADR, and the spec tooling that documents the id grammar, name ids by example
-> and are exempt,
-> and every backticked code name in a spec or doc (`Class.member`, `someFn()`,
-> `camelCase`) must still be an identifier in the code. A line about the past
-> ("was", "removed", "renamed", "v6's"), an `## Open questions` section, a name the
-> document defines as a key in its own fenced block, and ADRs (which name the
-> alternatives they rejected) are exempt; so is a short, commented list of platform
-> names the code deliberately avoids. Those checks live in
-> `scripts/lib/spec-xref.mjs` and `scripts/lib/spec-reqs.mjs`, and
-> `tests/scripts/spec-xref.test.ts` / `tests/scripts/spec-reqs.test.ts` show they
-> fail on real drift and refuse the ids they exist to refuse. One thing is a warning
-> rather than an error: a `Scenario:` that carries no trailing `#` note at all —
-> neither a `# pinned by:` nor an explicit reason there is none. A spec
-> being drafted has scenarios before it has tests, and blocking that would only
-> teach authors to write the pin first and the test never; but silence is what
-> makes a covered scenario read as a gap, so it is worth saying out loud.
-> It runs in CI (PRs **and** pushes to `main`) **and** unconditionally as a local
-> `Stop` hook (blocking the finish on a malformed spec — it lints even when the
-> turn ended with everything committed, since a clean tree says nothing about the
-> committed specs). Hooks can be disabled by editing `.claude/settings.json`, so
-> CI is the real cross-tool backstop.
+The guard checks that a spec *changed*, not that it is *good* — spec quality is
+the human review gate. `npm run spec:lint` (`scripts/spec-lint.mjs`; its header
+comment is the full list) checks what can be checked mechanically:
+
+- **Structure:** a metadata block, `id` matching the filename, a valid `status`,
+  `# pinned by:` and `source:` paths that resolve, `related:` entries that name a
+  spec, and every spec/ADR listed in this folder map and the `decisions/` index.
+- **REQ ids** (`lib/spec-reqs.mjs`): well-formed and unique; a **new one is a
+  slug, never a number**, and slugs are unique repo-wide (ADR-021).
+- **Citations** (`lib/spec-xref.mjs`): every `x.md REQ-<id>`, bare `x REQ-<id>`
+  or bare `REQ-<slug>` — in a spec, a root doc **or a code/test comment**, even
+  split across a line break — resolves; every backticked code name in a spec or doc
+  is still an identifier in the code. ADRs, past-tense lines and `## Open
+  questions` are exempt from the code-name check. A citation of the *wrong but
+  existing* REQ is invisible to it: review catches that.
+- **Leanness** (`lib/spec-lean.mjs`, not ADRs): errors on version history in the
+  metadata block, a `## vN …` section, or a `(vN)` inside a REQ body past its
+  landing marker ("Not in a spec" above); a spec over 40 kB or a REQ over 2.5 kB is
+  a warning.
+- **Warnings, not errors:** a `Scenario:` with no trailing `#` note at all (a draft
+  has scenarios before tests, but silence reads as a gap), the size budgets, and a
+  non-integer `version`.
+
+`tests/scripts/spec-{xref,reqs,lean}.test.ts` show each rule failing on the text it
+exists to refuse. It runs in CI (PRs and pushes to `main`) and unconditionally as a
+local `Stop` hook. Hooks can be disabled in `.claude/settings.json`, so CI is the
+real cross-tool backstop.
 
 ## Folder map
 
@@ -263,11 +272,11 @@ specs/
     filter-models.md   ·  LADDER/POLY model switch + the POLY multimode DSP
     key-tracking.md    ·  note number -> cutoff, in semitones (both models)
     envelopes.md       ·  amp + filter ADSR
-    lfo.md             ·  LFO + mod wheel
+    lfo.md             ·  the two LFOs + mod wheel
     mod-matrix.md      ·  many sources -> many destinations, summed in the audio graph
     voicing.md         ·  poly/mono, unison, glide, drift, pitch bend
     # — effects —
-    effects.md         ·  dirt/wah/phaser/flanger/chorus/delay/reverb/duck insert chain
+    effects.md         ·  the eq/dirt/wah/phaser/flanger/chorus/delay/reverb/duck insert chains (owns the order)
     chorus.md          ·  Juno-style stereo chorus (synth + sampler), MODE I / II / I+II
     flanger.md         ·  worklet flanger (synth + sampler), loaded on first use, in the Phaser slot
     delay-types.md     ·  the delay's TYPE (digital/ping pong/tape/BBD/space echo/reverse) + CHAR, all buses
@@ -276,7 +285,7 @@ specs/
     compressor.md      ·  the FET/VCA worklet compressors (message contract)
     sidechain-ducking.md · trigger-keyed ducker on synth/sampler, keyed by drum hits
     fx-group.md        ·  shared header FX-group UI (knobs hide while bypassed)
-    fx-slot-picker.md  ·  two effects share one panel, chosen from a caret by the title
+    fx-slot-picker.md  ·  effects sharing one panel (Phaser · Flanger · Chorus), chosen from a caret by the title
     fx-patch-decoration.md · unpatched-cable scenery in the empty FX grid cell
     # — transport & sequencing —
     transport.md       ·  the look-ahead clock (start / stop / pause, seek, step router)
@@ -285,7 +294,7 @@ specs/
     transport-window.md · the Song-panel transport row + its floating window (Play/Pause)
     transport-loop.md  ·  loop a range of bars (Loop button + two scrubber picks, bar-line wrap)
     arpeggiator.md     ·  held-note arp + transport ownership
-    sequencer.md       ·  the 16-step synth sequencer
+    sequencer.md       ·  the 4-track, variable-length synth sequencer
     lane-fold.md       ·  the per-lane fold caret shared by the sequencer and motion
     scale-quantization.md ·  key/scale (+ one extra note) as a live pitch filter over every note source
     chord-tools.md     ·  diatonic chord writer (4 tracks) + live chord memory, ≤4-note voicings
@@ -299,7 +308,7 @@ specs/
     arrangement.md     ·  the four chain lanes
     motion-sequencer.md ·  XY param automation machine (anchors, slide/step) + four single-param lanes
     arrangement-rest.md ·  the always-empty "rest" chain slot
-    performance.md     ·  live DJ FX (stutter/fill/drop/tape-stop)
+    performance.md     ·  live DJ FX (DJ filter/stutter/fill/drop/tape-stop)
     midi-clock-sync.md ·  master/slave transport sync over MIDI real-time (24 PPQN)
     webrtc-sync.md     ·  serverless WebRTC DataChannel WiFi sync (LAN, QR/paste pairing)
     xy-pad.md          ·  assignable momentary XY controller (spring-back)
@@ -420,6 +429,7 @@ specs/
     adr-024-a-sync-join-is-timed-by-its-first-pulse.md  ·  a slave's new position sounds on its first pulse; a following slave jumps, never restarts
     adr-025-the-bank-ceiling-is-sixteen-and-the-bar-wraps.md  ·  sixteen banks (A–P, SongFile v9); the bank bar wraps, never pages
     adr-026-oscillator-sync-is-a-per-voice-worklet-pair.md  ·  sync renders osc1 + osc2 in one worklet per voice, only while engaged
+    adr-027-audioparam-automation-is-anchored.md  ·  continuous controls retarget, a cancel pins; never seed a ramp from .value
 ```
 
 > Coverage note: the feature set above documents the current system. New features

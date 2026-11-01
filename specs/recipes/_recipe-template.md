@@ -13,7 +13,7 @@
 ```yaml
 id: <kebab-case-id>          # matches the filename
 status: implemented          # draft | active | implemented
-version: 1                   # bump when the steps change
+version: 1                   # integer, bumped when the steps change — history goes in CHANGELOG, not here
 owner: <name or team>
 related:                     # the worked instance(s) + specs this leans on
   - architecture

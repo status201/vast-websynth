@@ -3,9 +3,7 @@
 ```yaml
 id: floating-window
 status: implemented
-version: 5  # v5: the collapsed body is hidden by the window itself, inline, so a consumer's
-            #     layout class on .body can never keep it visible (REQ-a-collapsed-body-stays-hidden)
-            # v4: a window may veto its own close (REQ-a-window-may-veto-its-close)
+version: 5
 owner: core
 related:
   - architecture

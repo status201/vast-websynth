@@ -3,20 +3,18 @@
 ```yaml
 id: knob-soft-ceiling
 status: implemented
-version: 3                      # v3: KnobOptions.inline — a row layout for a knob that has to sit
-                                #     inside a control row (sequencer.md REQ-the-pan-knob-costs-the-row-no-height)
-                                # v2: the dead region is marked, not left bare (REQ-capped-region-is-marked)
+version: 3
 owner: core
 related:
   - architecture
   - param-reset-baseline        # the gestures this must not disturb
   - runtime-performance         # REQ-ceiling-applies-before-repaint-guard repaint guards, preserved here
   - oscillators                 # the first (and currently only) consumer
-  - lfo                         # REQ-ceiling-is-for-inert-upper-travel's taper is what forced v2
+  - lfo
   - testids
 source:
   - src/ui/components/knob.ts   # uiMax option + setUiMax + the render clamp
-  - src/ui/styles/knob.module.css  # .dead — the marked region (v2)
+  - src/ui/styles/knob.module.css
   - src/ui/panels/lfo-panel.ts  # pulseRateDisclosure: the lfo.rate ceiling on the PWM path
 ```
 

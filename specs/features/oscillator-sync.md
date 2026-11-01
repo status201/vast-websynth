@@ -3,41 +3,19 @@
 ```yaml
 id: oscillator-sync
 status: implemented
-version: 8                     # v8: regression: the pair's `detune` range is ±24000 ¢, past
-                               #     everything the voice can sum (±18000); at ±9600 a low note
-                               #     pushed up hard stopped short of the native path's pitch
-                               # v7: regression: a failed worklet load is forgotten, so the next
-                               #     switch-on retries (through `loadWorkletModule`, like the
-                               #     flanger and reverse delay); it used to leave sync dead until
-                               #     reload, e.g. a fetch failing offline before the precache filled
-                               # v6: soft sync redesigned by ear (REQ-soft-sync-rounds-every-slave-edge):
-                               #     a hard reset with every slave edge rounded, not reversing
-                               #     sync, whose saw ran up then down and so always added a
-                               #     sub-octave (a hum at SYNC 0). v5's two reversal regressions
-                               #     go with it. The bound is ±4 and clamped, not ±2, which a
-                               #     narrow pulse broke in every mode (REQ-the-pair-is-bounded)
-                               # v5: (superseded by v6) regressions on the reversing slave: the
-                               #     1:1 wrap step, the slope flip on leaving soft mode
-                               # v4: regressions: attach follows the master's frequency curve as
-                               #     scheduled (a glide in flight, a note ahead); re-engaging gates the
-                               #     pair by whether the voice sounds now
-                               # v3: cross-modulation — the pair lands on each Osc's pre-level
-                               #     `signal` tap, and takes an a-rate `fm` input (cross-modulation.md)
-                               # v2: review — the engagement state machine moves out of Voice
-                               #     into SyncEngagement (SRP); LFO depths come from LFO_DEST_SCALE;
-                               #     SyncOscNode.create(ctx) loses its unused initialHz
+version: 8
 owner: core
 related:
-  - oscillators                # osc1/osc2 this pairs up; the open question it answers
+  - oscillators                # osc1/osc2 this pairs up
   - mod-matrix                 # the `sync` destination
   - lfo                        # the `sync` destination
   - voicing                    # unison/drift/glide reach the pair through the voice
-  - runtime-performance        # the pair is created on first use (REQ-boot-cost-matches-the-request)
+  - runtime-performance        # the pair is created on first use
   - ../decisions/adr-026-oscillator-sync-is-a-per-voice-worklet-pair
   - ../decisions/adr-010-musical-stable-cheap-dsp
   - ../decisions/adr-012-true-bypass-disconnects
   - ../decisions/adr-017-modulation-in-graph
-  - cross-modulation           # v3: ring mod reads the pair's outputs, FM drives its slave
+  - cross-modulation           # ring mod reads the pair's outputs, FM drives its slave
 source:
   - public/worklets/sync-osc.js      # the DSP
   - src/audio/sync-osc/node.ts       # the wrapper
@@ -47,7 +25,7 @@ source:
   - src/audio/voice.ts               # engage/disengage, the pitch + sync junctions
   - src/audio/engine.ts              # lazy creation, subscriptions
   - src/audio/lfo.ts                 # toSync
-  - src/state/lfo-routing.ts         # LFO_DEST_SCALE — one depth table for the LFO and the arcs
+  - src/state/lfo-routing.ts         # LFO_DEST_SCALE
   - src/audio/mod-matrix.ts          # the sync destination
   - src/state/params.ts              # osc2.sync, osc2.syncPitch, LFO_DEST_LABELS
   - src/state/mod-routing.ts         # MOD_DEST_LABELS
@@ -56,151 +34,108 @@ source:
   - public/sw.js                     # the worklet is precached in CORE_ASSETS
 ```
 
-Oscillator sync locks osc2 (the **slave**) to osc1 (the **master**): every time the
+Oscillator sync locks osc2 (the **slave**) to osc1 (the **master**). Each time the
 master completes a cycle, the slave is reset (**hard**), or reset with every edge
-rounded (**soft**). The
-slave's own pitch then stops being heard as pitch and becomes timbre, and sweeping
-it gives the classic tearing, vocal sync lead.
+rounded (**soft**). The slave's pitch becomes timbre, and sweeping it gives the
+classic tearing sync lead.
 
 ## Background / Why
 
-A native `OscillatorNode` cannot reset its phase, so no form of sync can be built
-from the graph the oscillators already use ([oscillators](oscillators.md) →
-"Open questions" asked for a worklet oscillator to be proposed against ADR-010
-rather than added silently). [ADR-026](../decisions/adr-026-oscillator-sync-is-a-per-voice-worklet-pair.md)
-is that proposal: a per-voice worklet that renders both oscillators while sync is
-engaged, with every discontinuity band-limited, and nothing at all while it is
-not.
-
-The research behind the choice (the kinds of sync, and the five ways to
-band-limit them) is recorded in the ADR. In short: a precomputed-wave bank (the
-PWM trick) is alias-free but cannot sweep, and the sweep *is* the sound; a naive
-reset aliases at −3…−24 dB; polyBLEP gets to −16…−39 dB; the windowed-sinc
-residual shipped here reaches the measurement floor in band.
+A native `OscillatorNode` cannot reset its phase. [ADR-026](../decisions/adr-026-oscillator-sync-is-a-per-voice-worklet-pair.md)
+records the choice: a per-voice worklet that renders both oscillators while sync is
+engaged, with every discontinuity band-limited, and nothing while it is not. The
+ADR holds the band-limiting comparison. In short, a precomputed bank cannot sweep,
+a naive reset aliases at −3…−24 dB and polyBLEP at −16…−39 dB, while the
+windowed-sinc residual reaches the floor in band.
 
 ## Requirements
 
-- **REQ-sync-off-is-the-native-path** — `osc2.sync` defaults to `off`, and while it
-  is off the voice sounds exactly as before sync existed: the native oscillators
-  feed the mixer (through `Osc`'s unity fade gain, an exact `×1`), the sync
-  worklet does not exist (or is disconnected and idle) and nothing a preset or
-  song already contains sounds different (ADR-006).
-- **REQ-sync-has-hard-and-soft-modes** — `osc2.sync` is discrete
-  `off | hard | soft`. **hard** resets the slave to the start of its cycle at the
-  master's wrap. **soft** resets it the same way and rounds every edge the slave
-  makes (REQ-soft-sync-rounds-every-slave-edge): the same pitch-locked sync, darker
-  and smoother. Reversing, threshold, phase-advance, inhibit and overlap variants
-  are out of scope; reversing was built first and rejected by ear before release (v6).
-- **REQ-soft-sync-rounds-every-slave-edge** — In soft mode **each** value jump of
-  the slave, its own wraps and pulse edges as well as the master's resets, glides
-  along a raised cosine over `SOFT_ROUND = 0.2` of the slave's period instead of
-  jumping. All edges, not only the resets: rounding just the resets left the
-  slave's own sharp wraps standing out, heard as a second note entering on every
-  SYNC change. The width follows the slave's own period, so the character holds up
-  the keyboard and a rising SYNC still brightens. It follows the slave's pitch
-  **before FM**, and never exceeds `SOFT_ROUND` of the master's period: a glide
-  longer than the gap to the next edge lets the unsmoothed ramps outrun the
-  lagging drops, and FM stalling the slave while the master kept resetting it
-  piled them up to ~60 (found while implementing). At SYNC 0 soft is therefore a
-  rounded saw, not plain OSC 2.
-- **REQ-sync-pitch-is-the-sweep** — `osc2.syncPitch`, `0..48` semitones, sets
-  the slave's pitch **above** osc2's own octave + tune. It is inert while sync is
-  off. Its default is `12`, so engaging sync is audible straight away (an inert
-  param's default is still a no-op, ADR-006).
+- **REQ-sync-off-is-the-native-path** — `osc2.sync` defaults to `off`. While off,
+  the native oscillators feed the mixer through `Osc`'s unity fade gain, the
+  worklet is absent or disconnected and idle, and nothing existing sounds
+  different (ADR-006).
+- **REQ-sync-has-hard-and-soft-modes** — `osc2.sync` is discrete `off | hard |
+  soft`. **hard** resets the slave to the start of its cycle at the master's wrap.
+  **soft** resets it the same way and rounds every slave edge
+  (REQ-soft-sync-rounds-every-slave-edge). Reversing, threshold, phase-advance,
+  inhibit and overlap variants are out of scope; reversing was rejected by ear (a
+  sub-octave hum at SYNC 0).
+- **REQ-soft-sync-rounds-every-slave-edge** — In soft mode **each** value jump
+  (the slave's own wraps and pulse edges, as well as the resets) glides along a
+  raised cosine over `SOFT_ROUND = 0.2` of the slave's period. Rounding only the
+  resets left the slave's own wraps standing out as an extra note on each SYNC
+  change. The width follows the slave's pitch **before FM** and never exceeds
+  `SOFT_ROUND` of the master's period, so glides cannot pile up when FM stalls the
+  slave. At SYNC 0, soft is a rounded saw, not plain OSC 2.
+- **REQ-sync-pitch-is-the-sweep** — `osc2.syncPitch` (`0..48` st) sets the slave's
+  pitch **above** osc2's own octave + tune. It is inert while sync is off. Its
+  default is `12`, so engaging is audible straight away (an inert param's default
+  is still a no-op).
 - **REQ-the-pair-owns-both-phases** — While engaged, one worklet per voice renders
-  **both** osc1 (output 0) and osc2 (output 1). The master never stays native
-  beside a phantom copy in the worklet: the worklet cannot read a native node's
-  phase, voices run for the whole session, and two pitch computations would
-  drift apart, so at ratio 1 the pair would comb-cancel note to note instead of
-  reinforcing. One owner makes the lock structural.
-- **REQ-the-pair-follows-every-osc-control** — The pair plays what the OSC 1 / OSC 2
-  panels say: wave, octave, tune and pulse width (including a live PWM sweep)
-  reach it through a mirror on each `Osc`. The pair's outputs land on each
-  `Osc.signal`, the pre-level tap the native fade feeds too, so level stays on
-  `Osc.out` and there is one level control whichever path is sounding (v3; the
-  tap is what ring mod and FM read, [cross-modulation](cross-modulation.md)
-  REQ-oscillator-signals-are-tapped-pre-level). Glide uses the same
-  maths as the native oscillator (`FrequencyLine`). A pair attached mid-note
-  takes over the master's frequency curve as it is scheduled (`FrequencyLine.follow`):
-  a glide in flight carries on to its target, and a note set a lookahead ahead
-  still lands at its own time. The sub-oscillator stays
-  native and unsynced.
-- **REQ-every-pitch-source-reaches-the-pair** — Pitch bend, the per-note bend,
-  both LFOs' `pitch`, analogue drift and matrix `pitch` routes move the pair
-  exactly as they move the native oscillators. Each source connects to the
-  voice's `pitchTargets()` — the three native detunes plus one pitch junction
-  that feeds the pair — so the list is written once, not per call site. The
-  pair's `detune` param spans **±24000 ¢**, beyond the most the sources can sum
-  (both LFOs at `LFO_DEST_SCALE.pitch`, every matrix row at
-  `MOD_DEST_SCALE[pitch]` and a step bend of `BEND_MAX`: ±18000 ¢), so an AudioParam
-  clamp never makes the pair disagree with the native detunes, which have none.
+  **both** osc1 (output 0) and osc2 (output 1). The worklet cannot read a native
+  node's phase, and two pitch computations would drift and comb-cancel at ratio 1.
+  One owner makes the lock structural.
+- **REQ-the-pair-follows-every-osc-control** — Wave, octave, tune and pulse width
+  (including a live PWM sweep) reach the pair through a mirror on each `Osc`. Its
+  outputs land on each `Osc.signal`, the pre-level tap the native fade feeds too,
+  so level stays on `Osc.out` ([cross-modulation](cross-modulation.md)
+  REQ-oscillator-signals-are-tapped-pre-level). Glide uses the native maths
+  (`FrequencyLine`). A pair attached mid-note follows the master's scheduled curve
+  (`FrequencyLine.follow`), so a glide in flight finishes and a lookahead note
+  lands on time. The sub-oscillator stays native and unsynced.
+- **REQ-every-pitch-source-reaches-the-pair** — Pitch bend, the per-note bend, both
+  LFOs' `pitch`, drift and matrix `pitch` routes connect to `pitchTargets()`: the
+  three native detunes plus one pitch junction feeding the pair, written once. The
+  pair's `detune` spans **±24000 ¢**, beyond the ±18000 ¢ the sources can sum
+  (both LFOs at `LFO_DEST_SCALE.pitch`, every matrix row at `MOD_DEST_SCALE[pitch]`,
+  `BEND_MAX`). So no clamp makes the pair disagree with the native detunes.
 - **REQ-sync-is-a-modulation-destination** — `sync` is appended to
-  `MOD_DEST_LABELS` (full scale ±48 st) and to `LFO_DEST_LABELS` (±24 st at full
-  amount). Both sum into a per-voice sync junction whose own offset is the knob,
-  so per-voice sources work in-graph and sample-accurately — the filter envelope
-  sweeping sync, the archetypal patch (ADR-017). The SYNC knob draws its reach
-  arc from both, like CUTOFF ([mod-matrix](mod-matrix.md)
+  `MOD_DEST_LABELS` (±48 st) and `LFO_DEST_LABELS` (±24 st). Both sum into a
+  per-voice sync junction whose offset is the knob, so per-voice sources work
+  in-graph (ADR-017); the filter envelope sweeping sync is the archetypal patch.
+  The SYNC knob draws its reach arc ([mod-matrix](mod-matrix.md)
   REQ-a-modulated-knob-shows-its-reach).
-- **REQ-engaging-sync-crossfades** — Engaging or disengaging crossfades the native
-  and pair paths with complementary `RAMP_BYPASS` ramps, then **disconnects** the
-  side that went silent (ADR-012): the native oscillators are cut from the voice
-  while sync is on, and the pair while it is off. Blink then skips the cut
-  source, since nothing pulls it; Gecko still renders a started node it holds
-  ([cross-modulation](cross-modulation.md) REQ-cross-mod-disconnects-when-unused),
-  so there the saving is the chain downstream of the cut, not the source. A toggle made inside the
-  crossfade window supersedes the earlier one, never races it.
-- **REQ-the-pair-is-built-on-first-use** — No sync worklet module is loaded and no
-  pair node exists until `osc2.sync` first leaves `off`
-  ([runtime-performance](runtime-performance.md) REQ-boot-cost-matches-the-request). Until the pairs are ready, voices
-  keep playing native. If the module load fails, the synth plays on native, the
-  failure is logged (never thrown into a subscriber) and it is **forgotten**: the
-  next time `osc2.sync` leaves `off` the load is tried again, as the flanger's and
-  reverse delay's are (the shared `loadWorkletModule`). Only a load is retried;
-  once the module is in, the pairs are built once and a failure building them is
-  not, since attaching a voice twice would double its modulation. The worklet file is
-  in the service worker's precached `CORE_ASSETS` beside the other worklets, so an
-  installed app can engage sync offline. The thin wrapper is a static import, on
-  purpose. An `import()` of it saved 0.8 kB of entry chunk, but it added a hashed
-  chunk that an offline session may never have fetched. That would be a second
-  way for the first engagement to fail, and it would buy almost nothing.
-- **REQ-the-pair-idles-with-the-voice** — An engaged pair follows the voice's
-  lifecycle exactly like the filter ([ladder-filter](ladder-filter.md)
-  REQ-the-filter-idles-when-gated): active from `noteOn`, inactive once the
-  voice goes idle. The amp VCA is closed at every flip, so the gate is
-  inaudible. Engaging sets the gate from whether the voice sounds **now**, so a
-  voice that went idle while a disengage was still crossfading is not left with
-  an active pair.
+- **REQ-engaging-sync-crossfades** — Engaging or disengaging crossfades native and
+  pair with complementary `RAMP_BYPASS` ramps, then **disconnects** the silent side
+  (ADR-012). Blink then skips the cut source. Gecko still renders a started node
+  it holds ([cross-modulation](cross-modulation.md)
+  REQ-cross-mod-disconnects-when-unused), so there the saving is downstream only.
+  A toggle inside the window supersedes the earlier one. Engaging adds no click
+  (rendered on both engines).
+- **REQ-the-pair-is-built-on-first-use** — No module is loaded and no pair exists
+  until `osc2.sync` first leaves `off` ([runtime-performance](runtime-performance.md)
+  REQ-boot-cost-matches-the-request). Until then, voices play native. A failed load
+  is logged (never thrown into a subscriber) and **forgotten**, so the next switch-on
+  retries (the shared `loadWorkletModule`). Only the load retries: once the module
+  is in, the pairs are built once, since attaching twice would double modulation.
+  The worklet is in `CORE_ASSETS`, so an installed app can engage offline. The
+  thin wrapper is a static import on purpose: a hashed lazy chunk an offline
+  session never fetched would be a second way to fail.
+- **REQ-the-pair-idles-with-the-voice** — An engaged pair follows the voice like
+  the filter ([ladder-filter](ladder-filter.md) REQ-the-filter-idles-when-gated):
+  active from `noteOn`, inactive once idle, with the VCA closed at every flip.
+  Engaging sets the gate from whether the voice sounds **now**.
 - **REQ-every-discontinuity-is-band-limited** — Each value jump (saw/square edges,
   hard resets, wave/width changes) gets a band-limited step residual, each slope
-  jump (triangle corners, sine resets) a band-limited ramp, and a sine reset's
-  curvature jump a third-order residual, all placed at the event's sub-sample
-  time. A soft glide is continuous in value and slope, and the curvature jumps at
-  its two ends get the third-order residual. Below 12 samples (a slave above
-  ~800 Hz at 48 kHz) a glide hands its jump back to the step residual, entirely
-  so by 4 samples (~2.4 kHz): shorter glides cannot be band-limited, and would
-  only have shaped harmonics above ~10 kHz. The kernel is a Blackman-Harris-windowed sinc of half-length
-  `16` at cutoff `0.42·fs`, integrated once per module and shared by every
-  instance. It needs lookahead, so **both** outputs are delayed by the same 16
-  samples (0.33 ms at 48 kHz) and stay aligned.
-- **REQ-the-reset-keeps-the-overshoot** — A hard reset does not put the slave at
-  phase 0; it puts it where it would be had it started at the master's exact
-  wrap instant (`overshoot × slave increment`). Without that, the slave's cycle
-  length jitters by up to a sample, which is heard as roughness at high pitch.
-- **REQ-the-slave-is-dc-free** — The slave output passes a 5 Hz DC blocker, and a
-  pulse's analytic mean (`2w−1`) is subtracted from both oscillators. A synced
-  wave's mean moves with the ratio, and a sweep would otherwise push a
-  sub-audio wobble into the filter. The native oscillators carry no DC either,
-  so this is what keeps the engage crossfade from thumping.
+  jump a band-limited ramp, and a sine reset's curvature jump a third-order
+  residual, all at the event's sub-sample time. A soft glide's end curvature
+  jumps get the third-order residual. Below 12 samples (a slave above ~800 Hz at
+  48 kHz) a glide hands its jump back to the step residual, fully by 4 samples. The
+  kernel is a Blackman-Harris-windowed sinc, half-length `16`, cutoff `0.42·fs`,
+  integrated once per module. Its lookahead delays **both** outputs by the same 16
+  samples (0.33 ms at 48 kHz).
+- **REQ-the-reset-keeps-the-overshoot** — A hard reset puts the slave where it
+  would be had it started at the master's exact wrap (`overshoot × slave
+  increment`), not at 0. Otherwise the cycle jitters by up to a sample.
+- **REQ-the-slave-is-dc-free** — The slave passes a 5 Hz DC blocker, and a pulse's
+  analytic mean (`2w−1`) is subtracted from both oscillators, so a sweep pushes no
+  sub-audio wobble into the filter and the engage crossfade does not thump.
 - **REQ-the-pair-is-bounded** — Output is finite and within **±4** for any
-  parameter, including NaN and Infinity: every increment is clamped to
-  `[0, 0.45]` cycles per sample (so at most one crossing per breakpoint per
-  sample, never past Nyquist), the sync offset is clamped to `[-24, 72]` st,
-  both outputs are clamped to ±4, and a block that still ends non-finite resets
-  the pair and outputs silence (ADR-010 *stable*). The naive waves stay within
-  ±1.9, but a narrow pulse's mean shifted by the DC blocker plus ringing reaches
-  ~2.25 in **every** mode, sync off included, and soft sync under extreme FM
-  ~3.4. The old ±2 was never true of a 0.95 pulse. The clamp only guarantees the
-  bound; nothing short of a pathological patch reaches it.
+  parameter, NaN and Infinity included. Every increment is clamped to `[0, 0.45]`
+  cycles per sample. The sync offset is clamped to `[-24, 72]` st. Both outputs are
+  clamped to ±4, and a block ending non-finite resets the pair to silence (ADR-010
+  *stable*). A narrow pulse with ringing reaches ~2.25 in every mode, and soft sync
+  under extreme FM ~3.4.
 
 ## Technical design
 
@@ -222,12 +157,12 @@ SyncOscNode (src/audio/sync-osc/node.ts):
   master / slave: GainNode        # the two outputs' fade gains, 0 until engaged
   freq: FrequencyLine             # drives the a-rate `frequency` param (Hz)
   detune, syncPitch: AudioParam   # a-rate (cents, semitones), fed by the voice's junctions
-  fm: AudioParam                  # a-rate FM index β (v3, cross-modulation.md REQ-fm-reaches-the-sync-pair)
+  fm: AudioParam                  # a-rate FM index β (cross-modulation.md REQ-fm-reaches-the-sync-pair)
   setMode(m)                      # k-rate `mode`: 0 free (tests), 1 hard, 2 soft
   masterMirror, slaveMirror       # OscMirror -> wave1/2, masterCents/slaveCents, width1/2 (k-rate)
-  setActive(on)                   # the idle gate (REQ-the-pair-idles-with-the-voice)
+  setActive(on)                   # the idle gate
 SyncEngagement (src/audio/sync-osc/engagement.ts):  # one per voice; owns the state machine
-  attach(pair)                    # once: mirrors on, the master's frequency curve followed as scheduled, stored mode applied
+  attach(pair)                    # once: mirrors on, the master's curve followed, stored mode applied
   setMode(m)                      # stored before a pair exists; engage/disengage crossfade
   setFrequency(hz, when, glide)   # every note, engaged or not
   setVoiceActive(on)              # idle gate, only while engaged
@@ -237,15 +172,15 @@ FrequencyLine (src/audio/frequency-line.ts):
   at(t)                           # closed-form value of the curve at t
 Osc:
   setMirror(m | null)             # pushes current wave/cents/width at once, then every change
-  fadeNative(on) / dropNative()   # REQ-engaging-sync-crossfades
+  fadeNative(on) / dropNative()
   frequencyAt(t)
 Voice:                            # owns the junctions; delegates engagement to SyncEngagement
-  pitchTargets(): AudioParam[]    # REQ-every-pitch-source-reaches-the-pair
+  pitchTargets(): AudioParam[]
   syncTarget: AudioParam          # the sync junction's offset
   attachSync(node)                # plugs the junctions in, then SyncEngagement.attach
   setSyncMode(m) / setSyncPitch(st)
 LFO_DEST_SCALE (src/state/lfo-routing.ts):
-  sync: 24                        # read by LFO.update AND mod-depth's arc — one number, two readers
+  sync: 24                        # read by LFO.update AND mod-depth's arc
 ```
 
 ### Worklet message contract
@@ -277,10 +212,11 @@ graph (per voice, engaged):
 ui: OSC 2 panel — SYNC segmented (off/hard/soft) + SYNC knob (shown while sync != off)
 ```
 
-The junctions are `ConstantSourceNode`s at offset 0 (pitch) and at the knob's
-value (sync), so every target in every list stays an `AudioParam`. The native
-path's connections are unchanged; the pitch junction is an *additional*
-destination of each source, which is why sync-off renders exactly as before.
+The junctions are `ConstantSourceNode`s (offset 0 for pitch, the knob for sync),
+so every target stays an `AudioParam`. The pitch junction is an *additional*
+destination of each source, which is why sync-off renders exactly as before. A new
+pitch source connects to **every** `pitchTargets()` entry, never to a hand-listed
+set (ADR-026).
 
 ## Scenarios (BDD)
 
@@ -303,9 +239,6 @@ Scenario: A failed load is retried on the next switch-on (regression, REQ-the-pa
   Then a warning is logged, nothing throws and the voices play native
   When osc2.sync leaves off again
   Then the module loads and one pair is attached per voice
-  # Found in the pre-release sweep: the failed promise was memoized as resolved,
-  # so a transient fetch failure (offline before the precache filled) left sync
-  # dead until reload, while the flanger and reverse delay retried.
 # pinned by: tests/audio/engine-sync.test.ts
 
 Scenario: Engaging crossfades native to pair, then cuts the native side (REQ-engaging-sync-crossfades)
@@ -332,9 +265,6 @@ Scenario: Every pitch source reaches the pair (REQ-every-pitch-source-reaches-th
 Scenario: The pair's pitch range covers every source summed (regression, REQ-every-pitch-source-reaches-the-pair)
   Given both LFOs, every matrix row and a step bend at full pitch depth
   Then their sum lies inside the pair's `detune` range
-  # Found in the pre-release sweep: the range was ±9600 ¢, so past 8 octaves
-  # the pair stopped while the native oscillators went on (a 30 Hz note pushed
-  # +10000 ¢: ~9.7 kHz native, 7.7 kHz synced).
 # pinned by: tests/audio/sync-osc-worklet.test.ts
 
 Scenario: Sync is a modulation destination (REQ-sync-is-a-modulation-destination)
@@ -352,9 +282,6 @@ Scenario: Hard sync locks the slave to the master's period (REQ-sync-has-hard-an
 Scenario: A wrap that lands exactly on a sample still resets (regression, REQ-sync-has-hard-and-soft-modes)
   Given a master period of a whole number of samples
   Then every master wrap resets the slave
-  # Found while implementing: a breakpoint at the very end of a span was deferred
-  # to "the next span", the phase normalised past 1 with no event, and the slave
-  # was never reset — sync silently off on every integer-period pitch.
 # pinned by: tests/audio/sync-osc-worklet.test.ts (the 64-sample period case)
 
 Scenario: Soft sync rounds every slave edge (REQ-soft-sync-rounds-every-slave-edge)
@@ -366,16 +293,11 @@ Scenario: Soft sync rounds every slave edge (REQ-soft-sync-rounds-every-slave-ed
 Scenario: Soft sync stays locked to the master (REQ-sync-has-hard-and-soft-modes)
   Given the pair in soft mode at a non-integer ratio
   Then the slave output repeats with the master's period
-  # The first soft design reversed the slave, which repeats only every two
-  # master periods: a sub-octave under every note, heard as a hum at SYNC 0.
 # pinned by: tests/audio/sync-osc-worklet.test.ts
 
 Scenario: An FM-stalled slave does not pile its glides up (regression, REQ-soft-sync-rounds-every-slave-edge)
   Given the pair in soft mode on a 20 kHz master, SYNC -24 st, a triangle slave and FM 4
   Then every output sample stays within ±4, and within ±3.5 for any FM up to 16
-  # Found while implementing: glide widths followed the instantaneous slave
-  # increment, which FM stalls near 0, so 200-sample glides stacked up between
-  # resets 2 samples apart and the output reached ~60.
 # pinned by: tests/audio/sync-osc-worklet.test.ts
 
 Scenario: Sync aliasing is at the floor in band (REQ-every-discontinuity-is-band-limited)
@@ -418,67 +340,28 @@ Scenario: The SYNC knob is only on show while sync is engaged
 
 ## Tests & verification
 
-- Unit: `tests/audio/sync-osc-worklet.test.ts` (the DSP under the stubbed
-  worklet globals, the pattern of `ladder-filter-worklet.test.ts`),
-  `tests/audio/voice-sync.test.ts`, `tests/audio/engine-sync.test.ts`, plus the
-  existing `mod-matrix` / `mod-depth` / `params` suites — `npm test`.
-- E2E: `e2e/controls.spec.ts` — `npm run e2e`.
-- **The alias metric** is objective because a hard-synced wave is exactly periodic
-  at the master's frequency: with a half-integer period in samples, every folded
-  partial lands *between* the harmonics, so the DFT bins between them measure
-  aliasing directly.
-- Measured at 48 kHz (prototype, Node):
-  - The shipped kernel puts saw, triangle and square slaves at or below −60 dB in
-    band, and at −36…−89 dB in total, against −3…−24 dB naive and −16…−39 dB for
-    polyBLEP.
-  - A **sine slave** degrades above ~3 kHz masters (−17…−46 dB at the top). A
-    sine segment near Nyquist has higher-order jumps that do not converge, so
-    only oversampling would fix it. That is accepted under ADR-010.
-- **Cost** (Node, 8 voices all sounding, vibrato on): ~3.5–12% of one core
-  across runs and settings, the top end being a 1 kHz note at ratio 8. The
-  ladder filter, which runs regardless, measures ~3.4% the same way. The pair
-  runs only for sounding voices with sync on. Not yet measured inside a browser.
-- **Rendered through the real graph** (`npm run bench:audio`, A2 held, saw/saw,
-  LFO on `sync`, 2026-10-27):
-  - The spectral centroid holds at ~1.6 kHz with sync off. It sweeps
-    1.47–2.62 kHz at the LFO's period with hard sync, and 1.68–2.54 kHz with
-    soft.
-  - Firefox renders the same sweep (1.52–2.72 kHz against a steady 1.85 kHz).
-  - That proves the pair engages and the LFO destination works in-graph on both
-    engines. It is not a listening verdict.
-- **Soft sync was chosen by ear** (2026-10-30, `npm run bench:audio` A2, OSC 2
-  alone stepping SYNC 0 → 7 → 12 → 19 with `--alternate`, and an LFO sweep, each
-  against hard and a sync-off baseline):
-  - Reversing (the v1–v5 design): a 55 Hz triangle under an A2 note at SYNC 0,
-    heard as mains hum, plus a buzz wherever the phases settled unevenly.
-  - Rounding only the resets (12% and 30% of the master period): too close to
-    hard on sweeps, and each SYNC step sounded like an extra note entering.
-  - Rounding every edge over 20% of the slave's period: no extra notes, clearly
-    its own sound. 40% was the same but duller. Measured on the stepped take:
-    0 step bursts/s against hard's 191, and −62 dB above 4 kHz against −23.
-- **By ear** (ADR-010, `recipes/verify-audio-by-ear.md`):
-  - `npm run bench:audio` on Chromium **and** `--browser firefox`, because the
-    pair is driven by AudioParam automation.
-  - A/B against the sync-off baseline, on a demo with the drums muted.
-  - Passing tests do not settle how it sounds.
+- Unit: `tests/audio/sync-osc-worklet.test.ts` (the DSP under stubbed worklet
+  globals, like `ladder-filter-worklet.test.ts`), `tests/audio/voice-sync.test.ts`,
+  `tests/audio/engine-sync.test.ts`, and the `mod-matrix` / `mod-depth` / `params`
+  suites — `npm test`. E2E: `e2e/controls.spec.ts`.
+- **The alias metric** is objective: a hard-synced wave is exactly periodic at the
+  master's frequency. With a half-integer period in samples, every folded partial
+  lands *between* the harmonics, where the DFT bins measure it directly. A **sine
+  slave** degrades above ~3 kHz masters (higher-order jumps that only oversampling
+  would fix). That is accepted under ADR-010.
+- **Cost** (Node, 8 sounding voices): ~3.5–12 % of one core, against the ladder
+  filter's ~3.4 %. The pair runs only for sounding voices with sync on.
+- **By ear** (ADR-010, `recipes/verify-audio-by-ear.md`): `npm run bench:audio` on
+  Chromium **and** `--browser firefox` (the pair is driven by automation), A/B
+  against sync-off with the drums muted.
 
 ## Open questions / future
 
-- **The engage step is level-matched on Blink, not on Gecko.** Gecko's native
-  oscillators render quieter: sync-off rms 0.0160 there, against 0.0248 on
-  Chromium. The pair is the same DSP on both (0.0251), so on Firefox engaging
-  sync is ~4 dB louder. The difference lives in the native path and predates
-  this feature. Settle it by ear before compensating either side.
-- ~~The engage crossfade itself (toggling sync over a held note) has not been
-  rendered.~~ Rendered 2026-10-30 with `--alternate osc2.sync=0,1 --every 0.6`, OSC 2
-  alone at SYNC 0, on both engines: 88 and 89 bursts/s against 90 and 93 with sync
-  left off, so engaging and disengaging add no click. The peak rises from 0.032 to
-  0.037 inside each crossfade, the native oscillator and the pair not being
-  phase-aligned while both sound: a brief bump, not a step.
-
-- Threshold ("weak") sync is the cheapest next mode — the same DSP behind a gate.
-- ~~Ring mod and linear FM are all-native neighbours and want their own spec.~~
-  Done in v3: [cross-modulation](cross-modulation.md). FM inside the pair is not
-  through-zero yet.
-- The sub-oscillator could join the pair as a third phase if a locked sub turns
-  out to matter by ear.
+- **The engage step is level-matched on Blink, not Gecko.** Gecko's native
+  oscillators render quieter (sync-off RMS 0.0160 against 0.0248), while the pair is
+  the same on both. So on Firefox engaging is ~4 dB louder. The gap is in the native
+  path. Settle it by ear before compensating either side.
+- Threshold ("weak") sync is the cheapest next mode: the same DSP behind a gate.
+- FM inside the pair is not through-zero yet ([cross-modulation](cross-modulation.md)).
+- The sub-oscillator could join the pair as a third phase if a locked sub matters
+  by ear.

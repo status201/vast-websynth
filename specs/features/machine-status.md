@@ -3,10 +3,7 @@
 ```yaml
 id: machine-status
 status: implemented
-version: 4  # v4: the Arpeggiator tab gets a lamp too, driven by arp.on (REQ-the-arpeggiator-tab-has-a-lamp)
-            # v3: the lane-title ↗ glyph is dropped below 720px (REQ-the-navigation-link-is-visible-at-rest)
-            # v2: Chain/Mute/Solo in every machine header, shared with the Song
-            #     tab's lane cards (REQ-lane-controls-live-on-both-surfaces)
+version: 4
 owner: core
 related:
   - song-mode
@@ -72,7 +69,7 @@ answers "is this on?" and clicking it leads to where the real toggle lives.
   The title carries a `↗` glyph that is legible without hover. A hover-only
   affordance is invisible on touch, and this ships as an installable PWA used on
   phones. The glyph is `aria-hidden` — the button's `aria-label` already names
-  the destination, so it must not be announced as "north east arrow". (v3) **It
+  the destination, so it must not be announced as "north east arrow". **It
   is dropped below 720 px**, the app's phone breakpoint. The four lane cards are
   already two-up by 992 px, so on a phone each title shares a very narrow card
   with its Chain/Mute/Solo controls, and the glyph costs width the machine's

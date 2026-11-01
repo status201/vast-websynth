@@ -3,15 +3,7 @@
 ```yaml
 id: add-a-modal-dialog
 status: implemented
-version: 6   # v6: step 0 — a dialog's body is a lazy chunk, loaded from its button through
-             #     loadSurface and warmed at idle when it must work offline
-             # v5: open modals form a stack — only the top one answers Escape (the oldest used
-             #     to, closing the modal UNDER a confirm); Modal.anyOpen() lets the
-             #     global shortcuts stand down while one is open
-             # v4: a modal still playing its close fade is reaped the moment
-             #     any modal opens — a closed dialog must not outlive its answer
-             # v3: the backdrop carries no backdrop-filter
-             #     (runtime-performance.md REQ-no-viewport-scaled-compositing-on-hot-surfaces)
+version: 6
 owner: core
 related:
   - architecture
@@ -119,7 +111,9 @@ the top one closes alone. The next Escape closes the next one down.
 
 **While any modal is open, the global shortcuts stand down** (v5,
 [input-control](../features/input-control.md) REQ-shortcuts-yield-to-an-open-modal).
-`Modal.anyOpen()` is the query they ask; a fading modal no longer counts.
+They ask `anyModalOpen()` from the CSS-free `src/ui/modal-stack.ts` (so
+`shortcuts.ts` never pulls in Modal's stylesheet); `Modal.anyOpen()` is the same
+query for code that already imports `Modal`. A fading modal does not count.
 
 ### 3. Verify
 

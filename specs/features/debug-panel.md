@@ -3,32 +3,12 @@
 ```yaml
 id: debug-panel
 status: implemented
-version: 15  # v15: an Offline copy row (debug-offline) — play-offline.md's state, via the
-             #      extension contract (REQ-the-debug-extension-contract), no contract change
-             # v14: an Errors row keeps the last uncaught errors and rejections
-             #      (REQ-the-panel-keeps-the-last-errors), and Share report hands the
-             #      readout to the OS share sheet (REQ-the-report-can-be-shared)
-             # v13: a Scope row (debug-scope) reports whether the visualizer is
-             #      actually painting — scope.md REQ-the-panel-says-whether-it-is-drawing, a REQ-the-debug-extension-contract extension, no
-             #      contract change.
-             # v12: sizes read in kB below a megabyte ("1 key · 3 kB", not
-             #      "1 keys · 0.0 MB"), and the Unregister confirm says what it
-             #      does — the caches stay (REQ-a-debug-row-may-carry-one-action)
-             # v11: the ctx-state row also names the autoplay verdict — the one
-             #      glance that says whether a start modal was shown at all, and
-             #      why a boot could be audible (audio-lifecycle.md
+version: 15
 #      REQ-nothing-is-audible-before-the-first-start/REQ-the-gesture-is-required-only-when-required)
-             # v10: the Suspend action goes through Engine.suspendForDebug() so the
              #      universal statechange re-arm can tell a deliberate suspend from
              #      an OS one, and the ctx-state row shows when a resume is waiting
-             #      for a gesture (audio-lifecycle.md v5 REQ-a-resume-that-does-not-take-is-retried/REQ-an-unasked-suspension-is-recovered)
-             # v9: about.ts split five ways — the panel is now about-debug.ts,
              #     the late-bound row sources are state/debug-sources.ts, and
              #     createAboutButton is about-button.ts (runtime-performance REQ-boot-cost-matches-the-request)
-             # v8: createAboutButton takes the tour hook too, and the section
-             #     header class is now the shared `.secFold` (onboarding.md v15)
-             # v7: + the Background audio row (audio-lifecycle.md REQ-the-measurement-is-visible-either-way)
-             # v6: + the Media session row (media-session.md REQ-session-is-observable-on-device); v5 put
              #     Clock.dropouts on the Transport row (audio-lifecycle REQ-the-glitch-recovery-is-observable)
 owner: core
 related:
@@ -109,7 +89,7 @@ instead of transcribing it from a phone screen.
   **Background audio** (`debug-background` — v7, the watchdog's underrun/drift
   readings while hidden and any suspends it made;
   [audio-lifecycle](audio-lifecycle.md) REQ-the-measurement-is-visible-either-way), **Local storage**
-  (`debug-storage`, `storageUsage()`). (v12) Every size in the grid goes through
+  (`debug-storage`, `storageUsage()`). Every size in the grid goes through
   the shared `formatBytes` (`utils/format.ts`): one decimal of MB from a
   megabyte up, whole kB below — a few kilobytes used to read `0.0 MB`, which
   says "empty" about a store that is not — and counts through `plural`, so one
@@ -149,7 +129,7 @@ instead of transcribing it from a phone screen.
   `setMidiStatsSource`), the wake lock (**Wake lock**, `debug-wake`, via
   `setWakeLockSource`) and [`scope`](scope.md) (**Scope**, `debug-scope`, via
   `setScopeStatsSource` — whether the visualizer is painting, and how often it
-  had to recover; scope.md REQ-the-panel-says-whether-it-is-drawing) and (v15)
+  had to recover; scope.md REQ-the-panel-says-whether-it-is-drawing) and
   [`play-offline`](play-offline.md) (**Offline copy**, `debug-offline`, from
   `getOfflineCopy().state` via `formatOfflineState` — whether this device holds a
   full offline copy, which is the answer to "why did that part not open offline?").
@@ -157,7 +137,7 @@ instead of transcribing it from a phone screen.
   reads **"n/a"** rather than blank or a crash, so the panel degrades cleanly in
   any boot order.
 
-### v3 — actions
+### Actions
 
 - **REQ-a-debug-row-may-carry-one-action** — **A row may carry one inline action
   button** in its value cell (`addRow(name, action)`), which is why the value is
@@ -169,7 +149,7 @@ instead of transcribing it from a phone screen.
   (`debug-clips-clear`: nulls every sampler slot, then `SampleAutosave.clear()`
   for orphans), **Session autosave ▸ Clear** (`debug-session-clear`:
   `SessionAutosave.clear()` + reload) and **Service worker ▸ Unregister**
-  (`debug-sw-unregister`: unregister all + reload). (v12) It does **not** delete
+  (`debug-sw-unregister`: unregister all + reload). It does **not** delete
   the caches — the next registration of the same version reuses them — and its
   confirm now says so; it used to promise "Drop the offline cache", which the
   code never did. Deleting the caches is the factory reset's job
@@ -208,7 +188,7 @@ instead of transcribing it from a phone screen.
   ~500 ms (REQ-debug-refreshes-while-expanded). Its value is cached between
   checks and written synchronously like every other row.
 
-### v4 — cost
+### Cost
 
 - **REQ-debug-refresh-is-tiered-by-row-cost** — **`refresh()` is tiered by row
   cost**, generalizing REQ-the-service-worker-row-polls-slowly's guard from
@@ -233,7 +213,7 @@ instead of transcribing it from a phone screen.
   it is opened to diagnose. `refresh(force)` runs **all** tiers, and is used for the
   initial build and for the expand repaint (REQ-debug-refreshes-while-expanded).
 
-### v14 — errors and sharing
+### Errors and sharing
 
 - **REQ-the-panel-keeps-the-last-errors** — **The panel keeps the last
   errors.** An uncaught error or unhandled promise rejection was the one class

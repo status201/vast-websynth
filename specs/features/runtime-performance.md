@@ -3,39 +3,7 @@
 ```yaml
 id: runtime-performance
 status: implemented
-version: 14  # v14: REQ-boot-cost-matches-the-request — the demo blurbs, the WiFi sync transport and the
-             #      sync roles leave the boot path: entry 499.3 → 472.9 kB, boot JS −26.4 kB
-             #      (−9.0 kB gzip), boot links and CSS unchanged (demo-library.md v6,
-             #      webrtc-sync.md v9, midi-clock-sync.md v10)
-             # v13: REQ-a-drag-follows-only-its-own-pointer — a second finger no longer drives,
-             #      or ends, another control's drag (multi-touch)
-             # v12: REQ-boot-cost-matches-the-request — the second sweep: the authoring-dialect
-             #      expander, the project zip codec and four click-only surfaces leave the
-             #      boot path (519.8 → 493.5 kB of boot JS); the boot payload is the entry
-             #      PLUS its static chunks, and a split that fragments the entry CSS is
-             #      refused (the Record window and Mod Matrix splits were measured and dropped)
-             # v11: REQ-layout-reads-precede-writes — a loop that measures and positions many
-             #      elements does all its reading before any of its writing
-             # v10: REQ-a-worklet-optimisation-is-bit-exact also says how to MEASURE one — a
-             #      microbenchmark of the call is not evidence, and got two of three
-             #      answers wrong here
-             # v9: REQ-visibility-gating-is-for-pixels-not-sound — a draw-only loop may hold a visibility-gated,
-             #     low-frequency watchdog to prove it came back (scope.md REQ-a-watchdog-restarts-a-stalled-loop)
-             # v8: REQ-no-work-for-offscreen-dom — a folded section counts as off screen (scratch.md)
-             # v7: REQ-boot-cost-matches-the-request — the time-stretch DSP defers behind the FIT button
-             # v6: REQ-boot-cost-matches-the-request — deferring a surface makes its load fallible; the
-             #     trigger owes the user a report when the import rejects
-             # v5: REQ-immutable-artefacts-are-shared — a bank of expensive artefacts is built per entry on
-             #     first use, not whole; the PWM duty bank charged every patch
-             #     ~86 MB of native memory for the one wave it actually used
-             # v4: REQ-no-viewport-scaled-compositing-on-hot-surfaces — no viewport-scaled compositing effect on a persistent
-             #     overlay; the modal backdrop's blur cost a third of the frame
-             #     rate whenever any dialog was open
-             # v3: REQ-boot-cost-matches-the-request — the onboarding layer and the Help & About modal load
-             #     on demand; the eager button factory and the late-bound Debug
-             #     setters split out so nothing drags the bodies back in
-             # v2: visibility gating is for pixels, not for sound (REQ-visibility-gating-is-for-pixels-not-sound);
-             #     REQ-no-work-for-offscreen-dom scoped explicitly to repaints
+version: 14
 owner: core
 related:
   - architecture
@@ -109,99 +77,45 @@ so a reviewer has something concrete to hold a new feature against.
 - **REQ-boot-cost-matches-the-request** — **Boot cost is proportional to what
   the user asked for.** Nothing whose size scales with *content* may be
   downloaded, parsed or generated eagerly at boot when the user will use at most
-  one of it. Demo songs are fetched on click ([`song-mode.md`](song-mode.md));
-  reverb IRs are generated on first use of a size ([`effects.md`](effects.md));
-  the oscillator-sync worklet and its per-voice nodes are built the first time sync
-  is engaged ([`oscillator-sync.md`](oscillator-sync.md)); the flanger's DSP code
-  and worklet load on its first switch-on, behind a shell that stays bypassed
-  until then ([`flanger.md`](flanger.md) REQ-the-flanger-loads-on-first-use); the
-  delay's non-digital types load on a delay's first non-digital TYPE, and DIGITAL
-  loads nothing new ([`delay-types.md`](delay-types.md) REQ-the-other-types-load-on-first-use);
-  Dirt's other types load on their first choice ([dirt-types](dirt-types.md)
-  REQ-the-other-dirt-types-load-on-first-use). (v14) The demos' hand-written
-  blurbs load after boot, so the index the row needs carries facts only
-  ([demo-library](demo-library.md) REQ-the-blurbs-load-after-boot). The WiFi sync
-  transport loads at pairing ([webrtc-sync](webrtc-sync.md)
-  REQ-the-wifi-transport-loads-at-pairing), and the MIDI-clock master and slave
-  load when a sync mode is selected ([midi-clock-sync](midi-clock-sync.md)
-  REQ-the-sync-roles-load-with-the-mode).
-  Applies to bundle payload and to synchronous CPU alike.
+  one of it, and **a surface reached only by a deliberate click is loaded by that
+  click** (`import()` at its trigger). Applies to bundle payload and to
+  synchronous CPU alike. The rule is about *reachability, not size*: a small
+  module on a click path is fine to defer, and the engine and panels are not
+  deferrable at all.
 
-  **A surface reached only by a deliberate click is loaded by that click.** A modal the
-  player may never open still costs every visitor its parse time when it is imported
-  statically, and the instrument is playable without any of them. So the on-demand
-  surfaces are behind `import()` at their trigger: the sample recorder/editor, the
-  preset manager, the audio-export dialog, the WiFi pair modal (which also defers
-  `jsqr`), the MP3 encoder (`lamejs`), the authoring-guide prompt text behind the
-  AI Prompt button, the time-stretch DSP behind a slot row's FIT button
-  ([time-stretch](time-stretch.md) REQ-the-slot-fit-button-is-a-quick-fit), and the Help & About modal. (v12) Also the
-  song **Export** and **Paste** dialogs, the **AI Prompt** modal body and the
-  **Performance** settings modal ([performance-mode](performance-mode.md)) — and two
-  *operations* rather than
-  surfaces: the authoring-dialect expander, fetched by `Song.parse` only for an
-  author file ([song-authoring-dialect](song-authoring-dialect.md)
-  REQ-the-expander-loads-with-the-first-author-file), and the zip codec, fetched by
-  `project.ts` only for a project zip ([project-export](project-export.md)). The onboarding layer — the tour, the
-  info badges and the ~54 kB of help copy they read — loads on the first `startTour()`
-  or badge toggle, behind the synchronous `Onboarding` facade so no caller learns that
-  it is lazy.
+  **This REQ does not list the deferred surfaces.** Each one's own spec names its
+  trigger (e.g. [flanger](flanger.md) REQ-the-flanger-loads-on-first-use,
+  [delay-types](delay-types.md) REQ-the-other-types-load-on-first-use,
+  [webrtc-sync](webrtc-sync.md) REQ-the-wifi-transport-loads-at-pairing), and the
+  catalogue is code: `tests/ui/lazy-load-failure.test.ts`'s `TRIGGERS` / `EXEMPT`
+  tables ([lazy-load-failure](lazy-load-failure.md)) and `main.ts`'s
+  `warmDeferred` list. A new deferred surface adds itself there, not here.
 
-  A **synchronous facade over a lazy body** is the pattern wherever callers already
-  hold the surface at boot. `Onboarding`'s five methods keep their exact signatures:
-  the two commands (`startTour`, `toggleInfoBadges`) return `void` and start the load
-  internally, and the two readers answer from facade-held state — `shouldAutoLaunch()`
-  reads only `localStorage`, and `isInfoBadgesActive()` is `false` until the body
-  exists, which is not an approximation because the badges cannot be showing before
-  they are loaded. Unlike the on-demand modals, the facade **memoizes its import
-  promise**: those modals re-`import()` freely because opening one twice is
-  idempotent, whereas resolving this one *constructs state*, and two triggers (the ⓘ
-  button and the `?` key) must not build two `InfoBadges`.
-
-  The rule is about *reachability, not size*: a small module on a click path is fine to
-  defer, and a large one on the boot path (the engine, the panels) is not deferrable at
-  all. Where a heavy module also exports the **button** that opens it, the button
-  factory moves to its own module so the body stays behind the click — importing a
-  factory eagerly to get a lazy body defeats the split. About is the worked example:
-  `about-button.ts` keeps the factory and the open/close lifecycle and `import()`s
-  `about-modal.ts` on the click, while the three late-bound Debug row setters that
-  `main.ts` calls at boot move to `state/debug-sources.ts`. **Both** edges had to go —
-  cutting only the button would have left `main.ts` holding the modal in the entry
-  chunk. A deferred surface the user can reach *offline* is warmed on idle
-  ([`pwa-install.md`](pwa-install.md) REQ-service-worker-is-registered).
-
-  **The boot payload is the entry chunk plus every chunk it imports statically**
-  (v12). The bundler (rolldown) only merges a module shared by the entry and a lazy
-  chunk back into the entry when that creates no circular chunk dependency; when it
-  cannot, the module becomes a sibling chunk that the entry still loads at boot
-  (`dist/index.html` lists each as a `modulepreload`). The bytes do not go away —
-  `index-*.js` just stops counting them — and **its CSS moves with it**: a
-  `<link>` loaded *before* `index-*.css` instead of its place inside it, which
-  reorders the cascade. That happened in this sweep: splitting the Record window
-  and the Mod Matrix bodies pushed `collapse-toggle`, `modal`, `dialog` and `toast`
-  out of the entry, saved ~1 kB of real boot JS each, and grew the arp panel from
-  169 to 240 px. Both splits were dropped. So a split is judged by the **boot set**
-  (entry + modulepreloads), and the entry's CSS links must be unchanged by it —
-  a side-effect `import '…module.css'` does not hold a stylesheet in place (it is
-  tree-shaken), so a split whose stylesheet leaves the entry CSS is acceptable only
-  when every class it styles lives in the deferred body itself (the dialogs'
-  shared `chooser.module.css` is the one case — it was the Export dialog's
-  `export-song-modal.module.css` until chooser-rows.md — verified by a
-  computed-style comparison of the dialogs against the previous build).
-
-  **Deferring makes a surface's load fallible, and that cost is the trigger's to pay**
-  (v6). A static import cannot fail after boot; an `import()` can, and the default —
-  `void open()` on a click handler — turns that failure into a control that does
-  nothing, which reads as a broken app rather than a missing chunk. So a trigger added
-  under this REQ is not finished until it also handles the rejection: the failure
-  path, its wording and its retry rule are
-  [`lazy-load-failure.md`](lazy-load-failure.md), which every deferred surface in the
-  app now routes through. (A *warm* is the exception that proves it — it swallows its
-  error precisely because it is not a gesture.)
+  - **A synchronous facade over a lazy body** is the pattern wherever callers
+    already hold the surface at boot (`Onboarding`, `WifiSyncTransport`): commands
+    start the load internally, readers answer from facade-held state, and the
+    facade **memoizes its import promise** when resolving it constructs state (two
+    triggers must not build two bodies). Plain on-demand modals may re-`import()`.
+  - **A button factory lives apart from the body it opens**, or importing the
+    factory eagerly pulls the body back in (`about-button.ts` / `about-modal.ts`;
+    `main.ts`'s boot-time setters live in `state/debug-sources.ts` for the same
+    reason). Every edge to the body has to go.
+  - **The boot payload is the entry chunk plus every chunk it imports
+    statically** (`dist/index.html`'s `modulepreload`s). When rolldown cannot merge
+    a shared module back into the entry it becomes a sibling chunk the entry still
+    loads, and **its CSS moves with it**, reordering the cascade. So a split is
+    judged by the **boot set**, and the entry's CSS links must be unchanged by it,
+    unless every class the moved stylesheet styles lives in the deferred body
+    (`chooser.module.css` is that case).
+  - **Deferring makes a load fallible, and the trigger pays for it**: a trigger is
+    not finished until it handles the rejection
+    ([lazy-load-failure](lazy-load-failure.md)). A *warm* swallows its error,
+    because it is not a gesture; a deferred surface reachable offline is warmed on
+    idle ([pwa-install](pwa-install.md) REQ-service-worker-is-registered).
 
   **The gate is `npm run build` + `npm run check:bundle`:** the entry chunk stays
-  under Vite's 500 kB warning threshold, and `scripts/check-bundle.mjs` fails when
-  `dist/assets/index-*.js` crosses it — the signal that something joined the boot
-  path that should not have. CI's `build` job runs both.
+  under 500 kB and `scripts/check-bundle.mjs` (which prints the headroom) fails
+  past it. CI's `build` job runs both.
 
 - **REQ-immutable-artefacts-are-shared** — **Expensive immutable artefacts are
   shared, not rebuilt per instance.** An artefact that is a pure function of its
@@ -209,7 +123,7 @@ so a reviewer has something concrete to hold a new feature against.
   `WaveShaperNode` curve) is cached by those inputs and shared across every
   consumer. The three FX chains share one IR bank.
 
-  **Sharing is half the rule; the other half is *when*** (v5). Where such artefacts
+  **Sharing is half the rule; the other half is *when***. Where such artefacts
   form a **bank** — a set indexed by a discrete control — the entry is built **on
   first use of that index**, never the bank on first use of any index. `reverb.ts`'s
   `irFor` is the reference: five IR durations exist, and only the size actually
@@ -365,7 +279,7 @@ so a reviewer has something concrete to hold a new feature against.
   there are eight orders of margin — but that is an argument for *checking*
   against the frozen vectors, never for assuming.
 
-  **(v10) And it MUST be measured in situ.** A microbenchmark of the operation
+  **And it MUST be measured in situ.** A microbenchmark of the operation
   alone is not evidence, because in isolation the call is the critical path
   while in the real loop it overlaps with the surrounding work. Measured against
   the whole `process()`, in a **paired** A/B (interleaved reps, judged on the
@@ -387,7 +301,7 @@ so a reviewer has something concrete to hold a new feature against.
   is invisible from outside the loop, which is the whole reason for the rule.
 
 - **REQ-visibility-gating-is-for-pixels-not-sound** — **Visibility gating is for
-  pixels, not for sound** (v2). A loop that only *draws* SHOULD stop while the
+  pixels, not for sound**. A loop that only *draws* SHOULD stop while the
   document is hidden (`Scope` is the reference: it pauses its redraw on
   `visibilitychange`). A loop that changes **what is heard** MUST NOT — and
   therefore MUST NOT be driven by `requestAnimationFrame` alone, because
@@ -404,7 +318,7 @@ so a reviewer has something concrete to hold a new feature against.
   the XY pad's spring-back) are exempt — they last well under a second with the
   user watching.
 
-  (v9) A draw-only loop MAY hold a **low-frequency, visibility-gated watchdog** that
+  A draw-only loop MAY hold a **low-frequency, visibility-gated watchdog** that
   proves it is still painting and restarts it if not — `Scope` is again the reference
   ([`scope.md`](scope.md) REQ-a-watchdog-restarts-a-stalled-loop). "Stop while hidden" is a rule about doing *work*,
   not about forgetting how to come back: a supervisor that returns on its first line
@@ -413,8 +327,8 @@ so a reviewer has something concrete to hold a new feature against.
   low-frequency (~1 Hz), allocate nothing, read no layout, and die with its component.
 
 - **REQ-no-viewport-scaled-compositing-on-hot-surfaces** — **No compositing
-  effect whose cost scales with the viewport may sit on a persistent overlay**
-  (v4). A `backdrop-filter` on a full-screen, long-lived element makes the
+  effect whose cost scales with the viewport may sit on a persistent overlay**.
+  A `backdrop-filter` on a full-screen, long-lived element makes the
   compositor re-render the whole viewport every frame for as long as it is
   mounted. Unlike every other rule here, that cost is **independent of what the
   overlay contains and of whether anything beneath it changed** — so it cannot
@@ -592,16 +506,10 @@ Scenario: a worklet speed rewrite changes no samples
   surfaces), `tests/ui/overlay-cost.test.ts` (REQ-no-viewport-scaled-compositing-on-hot-surfaces's drift pin) — `npm test`
 - E2E: `e2e/session.spec.ts`, `e2e/motion.spec.ts`, `e2e/patterns.spec.ts` — `npm run e2e`
 - Typecheck: `npm run typecheck`
-- Boot payload: `npm run build && npm run check:bundle` — the entry + `demos` chunk
-  sizes are the REQ-boot-cost-matches-the-request metric, and CI's `build` job fails
-  the entry chunk over 500 kB. Before that gate, regressions were caught only by a
-  human reading the build warning; that is how the onboarding layer stayed eager for
-  a release after this spec said it was lazy. The ceiling only catches the cliff: a
-  `dist/assets/index-*.js` that grows without a deliberate reason is still the signal
-  to re-check what joined the boot path (477 kB at the time the gate landed; 486.9 kB
-  before the v12 sweep). The gate reads `index-*.js` only, which understates the boot
-  set by whatever rolldown hoists into sibling chunks (33 kB before v12) — see the
-  boot-payload paragraph under REQ-boot-cost-matches-the-request.
+- Boot payload: `npm run build && npm run check:bundle` (prints the entry size and its
+  headroom). The gate reads `index-*.js` only, which understates the boot set by
+  whatever rolldown hoists into sibling chunks; a growth without a deliberate reason
+  is the signal to re-check what joined the boot path.
 - Profiling: a DevTools Performance trace of boot (REQ-boot-cost-matches-the-request/REQ-immutable-artefacts-are-shared) and a 10 s trace of a
   motion-heavy demo playing (REQ-automation-is-not-an-edit/REQ-no-allocation-in-a-hot-loop/REQ-dom-writes-are-guarded-on-what-is-rendered — watch the GC sawtooth).
 - REQ-no-viewport-scaled-compositing-on-hot-surfaces is a *frame-rate* rule that its unit test can only pin by proxy (the absence

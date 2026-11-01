@@ -3,13 +3,7 @@
 ```yaml
 id: iconography
 status: implemented
-version: 5   # v5: the carets are drawn at twice their old size inside the same box
-             #     (REQ-a-caret-fills-its-box)
-             # v4: the octave-shift row is `-` / `=` (input-control.md REQ-octave-shift-is-minus-and-equal); the
-             #     arrow caps this spec was written for live on in the Shift+arrows row
-             # v3: `download` — the About card's Play offline button (play-offline.md)
-             # v2: iconTextEl emits the bare svg beside its label, as iconLabel does —
-             #     its span wrapper had silently dropped the icon/text gap (regression)
+version: 5
 owner: ui
 related:
   - architecture

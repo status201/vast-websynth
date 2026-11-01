@@ -3,11 +3,7 @@
 ```yaml
 id: render-to-sampler
 status: implemented
-version: 6   # v6: REQ-an-outside-stop-aborts-the-render — Esc / Panic / a media-key pause mid-render no longer wedges it
-             # v5: REQ-a-render-is-refused-while-busy — the reverse guard: a capture waits for a render
-             # v4: a rendered bar is the song's bar, not always 16 steps (REQ-one-bar-means-the-songs-bar)
-             # v3: explicit start(0) + a render blocks a playhead seek (REQ-the-buffer-starts-exactly-on-a-bar/REQ-a-render-is-refused-while-busy)
-             # v2: a `seq.render` help badge explains the section + the two-pass tail bake
+version: 6
 owner: core
 related:
   - architecture
@@ -15,7 +11,8 @@ related:
   - sampler
   - sequencer
   - arrangement
-  - lane-mixer
+  - song-mode           # the LaneMixer
+  - meter
   - onboarding
 source:
   - src/audio/recorder/bank-render.ts
@@ -23,113 +20,79 @@ source:
   - public/worklets/recorder.js
   - src/audio/engine.ts
   - src/ui/panels/seq-panel.ts
-  - src/ui/onboarding/help-content.ts   # `seq.render` help topic (v2)
-  - src/ui/onboarding/info-badges.ts      # its badge anchor (v2)
+  - src/ui/onboarding/help-content.ts
+  - src/ui/onboarding/info-badges.ts
 ```
 
 ## Background / Why
 
-The synth is deliberately single-instance (performance). To layer harmonies, the
-user *resamples*: render the sequencer's current edit bank (one bar, 16 steps)
-through the live synth + FX chain and load the result into a sampler slot — the
-sampler then replays it while the live synth plays something else. The capture
-must be **exactly** one bar long and start **exactly** on the bar boundary, or
-the loop drifts against the grid and is unusable.
+The synth is deliberately single-instance. To layer, the user *resamples*: render
+the sequencer's current edit bank (one bar) through the live synth + FX and load
+it into a sampler slot, which replays it while the synth plays something else. The
+capture must be **exactly** one bar long and start **exactly** on the bar, or the
+loop drifts against the grid.
 
 ## Requirements
 
-- **REQ-the-rendered-buffer-has-exact-length** (exact length) — The rendered
-  buffer is exactly `round(16 × sixteenthDuration × sampleRate)` samples, where
-  `sixteenthDuration` is read from the `Clock` when the render pass starts.
-  Swing does not change this: the clock's grid accumulator is never offset by
-  swing (swing only displaces the *emitted* time of odd 16ths within the bar).
-- **REQ-the-buffer-starts-exactly-on-a-bar** (exact start) — The buffer's first
-  sample corresponds exactly to a bar boundary of the transport grid. Achieved
-  by frame-tagging capture: the recorder worklet posts `currentFrame` with each
-  chunk; `startSample = round(step0Time × sampleRate) − firstCapturedFrame` maps
-  the scheduled (sample-accurate) time of step 0 into the captured stream. The
-  node is armed *before* `clock.start(0)`, whose 50 ms pre-roll guarantees
-  `firstCapturedFrame ≤ startSample`. The `0` is **explicit**: since
-  [transport](transport.md) REQ-the-cue-is-where-start-begins a plain `start()` resumes from the user's cue,
-  and this capture's origin is the absolute `step === 0`.
-- **REQ-a-two-pass-loop-bake** (two-pass loop bake) — The bank plays **twice**;
-  the kept bar is the **second** (`[step0 + barSamples, step0 + 2·barSamples)`),
-  so bar 1's delay/reverb/release tail is baked into the loop's start and the
-  sample wraps seamlessly.
-- **REQ-capture-is-synth-only-post-fx** (synth-only, post-FX tap) — Capture taps
-  the synth channel output at `synthPan` — post-reverb, post-pan,
-  pre-`preMaster` — via a dedicated second zero-output `RecorderNode`. The chain
-  is `reverb → synthPan → preMaster`, so the tap sits downstream of the whole
-  insert chain *and* of the one shared stereo panner
-  ([architecture](../architecture.md), [lfo](lfo.md) REQ-duplicated-destinations-sum-and-stay-bounded): a rendered bank
-  carries the same width the live synth has. Drums/sampler live on other buses
-  and are never captured; they keep playing audibly during the render
-  (monitoring).
-- **REQ-render-preconditions-are-forced-then-restored** (forced preconditions,
-  restored after) — For the duration of the render the engine forces: sequencer
-  enabled, seq lane audible (mute/solo overridden at the `LaneMixer`), and the
-  **seq chain lane disabled** — an enabled chain advances banks per bar, which
-  would make pass 2 a different bank; a disabled lane's play bank follows the
-  edit bank, which is exactly the bank being rendered. All three are restored
-  from live state (`ParamBus` values / saved chain) when the render ends,
-  success or failure.
-- **REQ-a-render-is-refused-while-busy** (guards) — A render is refused while
-  another render or a `RecorderController` capture is in flight. The UI
-  additionally disables the action when the edit bank has no active steps and
-  when MIDI sync mode is `slave` (a slave does not own the clock, and estimator
-  BPM writes would break REQ-the-rendered-buffer-has-exact-length). Conversely a
-  **playhead seek is refused while a render is in flight**
-  ([transport-position](transport-position.md) REQ-seeking-is-refused-in-three-states) — the crop is pure frame
-  arithmetic off `step === 0` and `stopAtStep`, so a jump would truncate or
-  unbound it. (v5) **And the reverse:** an export or a manual take is refused
-  while a render is in flight ([audio-export](audio-export.md)
-  REQ-a-capture-waits-for-a-bank-render) — an export started mid-render used to
-  stop the transport under it and strand the render with its preconditions
-  never restored.
-- **REQ-an-outside-stop-aborts-the-render** (v6) — A transport stop the render
-  did not issue itself (Esc, Panic, a Media Session pause, the space bar) ends
-  the render: the capture is discarded, `render()` rejects with *render
-  interrupted*, and the preconditions are restored as for any failure
-  (REQ-render-preconditions-are-forced-then-restored). The render used to wait
-  for a `step >= stopAtStep` tick that a stopped clock never sends — the
-  promise never settled, the button stayed on *Rendering…* and the forced
-  state was never restored, until a reload.
-- **REQ-the-slot-load-contract** (slot load contract) — On success the buffer
-  lands in the chosen slot via the settled pair `SamplerMachine.setBuffer(slot,
-  buf)` + `PatternStore.setSampleName(slot, name)`, name `seq-<bank
-  letter>-<bpm>bpm`. Like every sampler buffer, the audio is **not** persisted —
-  re-render (the seq bank *is* persisted in the song) or save a file from the
-  slot's ✎ editor.
-- **REQ-anti-click-fades-on-the-render** (anti-click fades) — A short fade
-  (`RENDER_FADE_MS = 3`, ~128 samples at 44.1 kHz) is applied at both crop
-  boundaries via `buffer-dsp`'s `fadeIn`/`fadeOut`; it never changes the buffer
-  length.
-- **REQ-the-sequencer-tab-hosts-import** (UI) — The Sequencer tab gains an
-  "Import into sampler" section: a
-  slot dropdown (`S1…S8 — <name | empty>`, refreshed on sample-meta changes,
-  testid `seq-import-slot`) and a Render button (testid `seq-import-render`)
-  that shows a busy state while rendering. The transport is left stopped when
-  the render completes (same convention as Export Song).
-- **REQ-the-render-button-carries-a-badge** (help badge, v2) — The Render button
-  carries an info badge ([onboarding](onboarding.md) REQ-info-badges-show-per-control-help/REQ-seq-render-has-a-help-badge): topic
-  `seq.render`, anchored to `seq-import-render`. Nothing on screen explains the
-  section, and the button's most surprising behaviour — the **two-pass** bake of
-  REQ-a-two-pass-loop-bake — makes it look hung for ~2 bars, so the copy must
-  state in user words: what it does (records the bank you can see through the
-  live synth + FX into the chosen sampler slot, freeing the synth to play
-  something else), that it **plays the bar twice and keeps the second pass** so
-  the reverb/delay tails are already ringing at the loop's start, what to expect
-  afterwards (the derived slot name of REQ-the-slot-load-contract, transport
-  left stopped), both disabled reasons (REQ-a-render-is-refused-while-busy:
-  empty bank / slaved to MIDI clock) and that the audio is not persisted with
-  the song (REQ-the-slot-load-contract).
-
-- **REQ-one-bar-means-the-songs-bar** (v4) — **"One bar" means the song's bar.**
-  The render length and the crop window are `barTicks × sixteenthDuration()`,
-  not `16 ×` ([meter](meter.md) REQ-bar-exact-capture-follows-bar-ticks), so resampling a bank in 7/8 yields a 7/8
-  bar that loops seamlessly instead of a 4/4 one that does not. Swing still
-  never moves a bar boundary — the clock's grid accumulator is unswung — so the
-  crop stays frame-exact at any swing.
+- **REQ-the-rendered-buffer-has-exact-length** — The buffer is exactly
+  `round(barTicks × sixteenthDuration × sampleRate)` samples, with
+  `sixteenthDuration` read from the `Clock` when the pass starts
+  (REQ-one-bar-means-the-songs-bar). Swing and per-step `micro` do not change it:
+  the clock's grid accumulator is never offset; only the *emitted* time moves.
+- **REQ-the-buffer-starts-exactly-on-a-bar** — The first sample is a bar boundary.
+  The recorder posts `currentFrame` with each chunk
+  ([audio-export](audio-export.md) REQ-each-chunk-is-frame-tagged), and
+  `startSample = round(step0Time × sampleRate) − firstCapturedFrame`. The node is
+  armed *before* `clock.start(0)`, whose 50 ms pre-roll guarantees
+  `firstCapturedFrame ≤ startSample`. The `0` is explicit, because a plain
+  `start()` begins at the cue ([transport](transport.md)
+  REQ-the-cue-is-where-start-begins).
+- **REQ-a-two-pass-loop-bake** — The bank plays **twice**, and the **second** bar
+  is kept, so bar 1's delay/reverb/release tail is baked into the loop's start and
+  the sample wraps seamlessly.
+- **REQ-capture-is-synth-only-post-fx** — A dedicated second zero-output
+  `RecorderNode` taps `synthPan`: downstream of the whole insert chain (duck
+  included, [effects](effects.md) REQ-the-synth-chain-order) and of the shared
+  stereo panner ([lfo](lfo.md) REQ-pan-sweeps-a-stereo-panner), pre-`preMaster`.
+  So a rendered bank carries the live width. Drums and sampler are never captured
+  and keep playing (monitoring).
+- **REQ-render-preconditions-are-forced-then-restored** — For the render the
+  engine forces the sequencer enabled, the seq lane audible (mute/solo overridden
+  at the `LaneMixer`) and the **seq chain lane disabled**, so pass 2 is the same
+  bank (a disabled lane plays the edit bank). All three are restored from live
+  state when the render ends, on success or failure.
+- **REQ-a-render-is-refused-while-busy** — A render is refused while another render
+  or a `RecorderController` capture is in flight. The UI also disables it for an
+  empty edit bank and in MIDI `slave` mode, since a slave does not own the clock.
+  A **seek is refused while a render runs** ([transport-position](transport-position.md)
+  REQ-seeking-is-refused-in-three-states), because the crop is frame arithmetic
+  off `step === 0`. In the other direction, an export or manual take is refused
+  mid-render ([audio-export](audio-export.md) REQ-a-capture-waits-for-a-bank-render).
+- **REQ-an-outside-stop-aborts-the-render** (v6) — A transport stop the render did
+  not issue (Esc, Panic, a Media Session pause, the space bar) discards the
+  capture, rejects `render()` with *render interrupted*, and restores the
+  preconditions. A stopped clock never delivers the `stopAtStep` tick.
+- **REQ-the-slot-load-contract** — On success the buffer lands via
+  `SamplerMachine.setBuffer(slot, buf)` + `PatternStore.setSampleName(slot, name)`,
+  named `seq-<bank letter>-<bpm>bpm`. The audio is then an ordinary clip: kept on
+  the device ([sample-persistence](sample-persistence.md)), carried by a project
+  `.zip` ([project-export](project-export.md)), and absent from a song `.json`,
+  which stores only the name (and the seq bank, so it can be re-rendered).
+- **REQ-anti-click-fades-on-the-render** — `RENDER_FADE_MS = 3` fades at both crop
+  edges via `buffer-dsp`'s `fadeIn`/`fadeOut`. The length never changes.
+- **REQ-the-sequencer-tab-hosts-import** — The Sequencer tab's "Import into
+  sampler" section holds a slot dropdown (`S1…S8 — <name | empty>`, refreshed on
+  sample-meta changes, `seq-import-slot`) and a Render button (`seq-import-render`)
+  with a busy state. The transport is left stopped afterwards.
+- **REQ-the-render-button-carries-a-badge** (v2) — Topic `seq.render` on
+  `seq-import-render` ([onboarding](onboarding.md)
+  REQ-info-badges-show-per-control-help/REQ-seq-render-has-a-help-badge). In user
+  words it says: what it does; that it **plays the bar twice and keeps the second**
+  (so it looks busy for ~2 bars); the derived slot name and the stopped transport;
+  and both disabled reasons.
+- **REQ-one-bar-means-the-songs-bar** (v4) — The render length and crop are
+  `barTicks × sixteenthDuration()` ([meter](meter.md)
+  REQ-bar-exact-capture-follows-bar-ticks), so a 7/8 bank yields a 7/8 loop.
 
 ## Technical design
 
@@ -137,43 +100,28 @@ the loop drifts against the grid and is unusable.
 
 ```yaml
 bank-render.ts:  # src/audio/recorder/bank-render.ts
-  bankCropRange(step0Time, sixteenthS, sampleRate, firstFrame):  # pure
+  bankCropRange(step0Time, sixteenthS, sampleRate, firstFrame, barTicks?):  # pure
     -> { start, end }        # bar-2 window; end - start === barSamples
   BankRenderController:
-    render(): Promise<CapturedAudio>   # rejects on re-entry / missing frame tag / short capture
+    render(): Promise<CapturedAudio>   # rejects on re-entry / missing frame tag / short capture / outside stop
     isRendering(): boolean
     onState(fn(rendering: boolean)) -> unsubscribe
     constructor(clock, node: RecorderNode, prepare: () => (() => void), blocked?: () => boolean)
-      # prepare = Engine closure forcing REQ-render-preconditions-are-forced-then-restored, returns the restore fn
-      # blocked = refuse while the song recorder captures (both restart the clock)
-RecorderNode additions:  # src/audio/recorder/node.ts (see audio-export.md)
-  firstFrame: number | null   # frame index of the first captured sample, reset by start()
+      # prepare = Engine closure forcing the preconditions, returns the restore fn
+      # blocked = refuse while the song recorder captures
+RecorderNode.firstFrame: number | null   # see audio-export.md
 constants: RENDER_BARS = 2, RENDER_TAIL_MS = 350, RENDER_FADE_MS = 3
 ```
 
 ### Layer touchpoints & ordering
 
 ```yaml
-graph: synthPan -> bankRender RecorderNode (zero-output sink; fan-out alongside
-  the existing synthPan -> preMaster edge). Chain: voiceBus -> synthFx -> reverb
-  -> synthPan -> preMaster, so the tap is post-FX AND post-pan.
+graph: synthPan -> bankRender RecorderNode (zero-output sink, beside synthPan -> preMaster)
 engine: Engine.init() creates the node + controller after the transport modules;
-  the prepare() closure lives in Engine so LaneMixer / private state never leaks
-  into the controller (ADR-008/009)
-ui: seq-panel section calls engine.bankRender.render(), then setBuffer +
-  setSampleName (record-sound-modal precedent); exposed via StudioApi.bankRender
+  prepare() lives in Engine so LaneMixer / private state never leaks (ADR-008/009)
+ui: seq-panel calls engine.bankRender.render(), then setBuffer + setSampleName;
+  exposed via StudioApi.bankRender
 ```
-
-### Worklet message contract
-
-Chunk messages gain a frame tag (backward-compatible; see audio-export.md):
-`{ l: Float32Array, r: Float32Array, f: number }` where `f` = `currentFrame` of
-the chunk's first sample. Consumers that ignore `f` are unaffected.
-
-### Persistence
-
-None. Rendered audio is in-memory only (REQ-the-slot-load-contract); the slot *name* persists via
-`PatternStore.sampleNames` as for any sample.
 
 ## Scenarios (BDD)
 
@@ -208,7 +156,7 @@ Scenario: Re-entry is refused (edge)
   Then it rejects and the in-flight render is unaffected
 # pinned by: tests/audio/recorder/bank-render.test.ts
 
-Scenario: A stop from outside aborts the render (regression, v6)
+Scenario: A stop from outside aborts the render (regression, REQ-an-outside-stop-aborts-the-render)
   Given a render is in flight
   When something else stops the transport before the second bar ends
   Then render() rejects, the forced state is restored, and a new render is accepted
@@ -220,33 +168,24 @@ Scenario: Import lands in the chosen slot with a derived name
   Then sampler slot 3 holds the buffer and its name is seq-<bank>-<bpm>bpm
 # pinned by: e2e/render-to-sampler.spec.ts
 
-Scenario: The Render button explains itself (v2)
+Scenario: The Render button explains itself (REQ-the-render-button-carries-a-badge)
   Given the info badges are on and the Sequencer tab is open
   When the user clicks the badge on the Render button
   Then the modal says what the import does and why the bar plays twice
-    (the reverb/delay tail bake of REQ-a-two-pass-loop-bake)
 # pinned by: tests/ui/help-content.test.ts (topic copy), e2e/onboarding.spec.ts
 ```
 
 ## Tests & verification
 
-- Unit: `tests/audio/recorder/bank-render.test.ts`,
-  `tests/ui/help-content.test.ts` (REQ-the-render-button-carries-a-badge copy) — `npm test`
-- E2E: `e2e/render-to-sampler.spec.ts` (real audio graph; asserts the exact
-  sample count via `window.__synth`) — `npm run e2e`
-- Typecheck: `npm run typecheck`
+- Unit: `tests/audio/recorder/bank-render.test.ts`, `tests/ui/help-content.test.ts`
+  — `npm test`. E2E: `e2e/render-to-sampler.spec.ts` (real graph; exact sample
+  count via `window.__synth`).
 
 ## Open questions / future
 
-- **Per-step micro-timing is not accounted for in the crop.** REQ-the-rendered-buffer-has-exact-length's reasoning —
-  the grid accumulator is never offset, only the emitted time is — applies to
-  [step-settings](step-settings.md) REQ-a-step-carries-a-micro-offset's `micro` exactly as it does to swing, so
-  the bar length stays exact. The consequence is the same as swing's and is
-  accepted for the same reason: a micro-timed **first** cell nudged early sounds
-  before the crop start, and a **last** cell nudged late after its end, so either
-  can be clipped from the rendered loop. Moving the crop to follow them would make
-  the bar length depend on pattern content, which REQ-the-rendered-buffer-has-exact-length exists to prevent. Nudge
-  the interior cells, or leave the edges straight.
-- A "render drum bank" sibling would reuse `BankRenderController` with a tap on
-  `drumReverb.output` and a drum-lane prepare closure.
-- Optional normalize / trim-silence post-steps could reuse `buffer-dsp.ts`.
+- **Micro-timed edge cells can be clipped.** A first cell nudged early (or a last
+  nudged late, [step-settings](step-settings.md) REQ-a-step-carries-a-micro-offset)
+  falls outside the crop. Following them would make the length depend on content,
+  which REQ-the-rendered-buffer-has-exact-length forbids. Nudge interior cells.
+- A "render drum bank" sibling would reuse `BankRenderController` with a tap on the
+  drum chain's output and a drum-lane prepare closure.

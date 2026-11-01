@@ -62,7 +62,7 @@ export const MAX_CHAIN_TRANSPOSE = 24;
  */
 export const MAX_STEP = 2 ** 31;
 
-/** Keys in a `params` map. The bus registers ~150; unknown ids are kept (ADR-007). */
+/** Keys in a `params` map. The bus registers ~440 (public/params.json), so this is ~15% headroom, not 3×; unknown ids are kept (ADR-007). */
 export const MAX_PARAM_KEYS = 512;
 
 /**
@@ -85,7 +85,7 @@ export const MAX_NAME_CHARS = 50;
  * One `POST /mcp` body. An eighth of {@link MAX_SONG_JSON_BYTES}: a public
  * endpoint pays CPU for everything it parses, and no authored song is near
  * either number. Enforced against a *running* count while the socket is read,
- * per REQ-a-curve-carries-rate-not-position — a cap applied after buffering has already spent the memory.
+ * per untrusted-input.md REQ-bounds-in-the-validator-sizes-in-the-codec — a cap applied after buffering has already spent the memory.
  */
 export const MAX_MCP_REQUEST_BYTES = 1024 * 1024;
 

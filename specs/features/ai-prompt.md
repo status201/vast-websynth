@@ -3,18 +3,7 @@
 ```yaml
 id: ai-prompt
 status: implemented
-version: 9   # v9: the guide stops selling songs short — REQ-output-rules-guard-weaker-agents keeps its
-             #     anti-give-up guards but drops the "~80 lines" anchor; REQ-the-guide-sets-the-ambition adds
-             #     SONG CRAFT, REQ-the-guide-teaches-the-key adds the KEY block
-             # v8: REQ-the-modal-body-loads-on-click — the modal body is a lazy chunk beside the guide; the button stays eager
-             # v7: the guide no longer tells agents the app blocks two LFOs sharing a
-             #     destination — that rule was removed in lfo.md v8, and this text ships
-             #     over the public MCP `get_song_format`
-             # v6: REQ-the-modal-offers-the-connector — the modal names the hosted MCP connector as the
-             #     shorter route; the PROMPT TEXT deliberately does not
-             # v5: REQ-the-params-table-is-generated — the worked example is the built-in "Mordor", renamed
-             #     from "I Feel Love"
-             # v4: the reply pastes back in (step 3) instead of going via a file
+version: 9
 owner: ui
 related:
   - song-mode
@@ -109,7 +98,7 @@ is ~40 lines. The prompt-building logic moved to the pure
 
 - **REQ-output-rules-guard-weaker-agents** — The OUTPUT RULES are anti-give-up
   guardrails for weaker agents: respond with exactly ONE JSON object and no
-  prose; NEVER truncate or emit placeholders; never bail out or summarize. (v9)
+  prose; NEVER truncate or emit placeholders; never bail out or summarize.
   They reassure without capping: a full arrangement fits one reply because
   **length lives in the chains** (a bar costs one chain letter), and when output
   is genuinely tight the fallback is to keep the form and reuse banks, never to
@@ -143,7 +132,7 @@ is ~40 lines. The prompt-building logic moved to the pure
 - **REQ-llms-txt-introduces-the-app** — `public/llms.txt` gives crawling agents
   the app intro, both format names + schema URLs, the grid dimensions and drum
   track names, and points at the in-app AI Prompt for the live PARAMS table
-  (which is bus-generated and would drift if duplicated). (v6) It also names the
+  (which is bus-generated and would drift if duplicated). It also names the
   **hosted MCP endpoint** ([mcp-server](mcp-server.md) REQ-streamable-http-is-one-message-per-post) rather than
   describing the server as repo-only: an agent reaching `llms.txt` under its own
   steam is exactly the reader who can act on a connector URL, and telling it to
@@ -183,7 +172,7 @@ is ~40 lines. The prompt-building logic moved to the pure
   so a click would show a `405` JSON body and read as a broken link.
 
 - **REQ-the-modal-body-loads-on-click** — **The modal body loads on click**
-  (v8, [runtime-performance](runtime-performance.md)
+  ([runtime-performance](runtime-performance.md)
   REQ-boot-cost-matches-the-request). `ai-prompt.ts` keeps the button and the
   open/close lifecycle; `ai-prompt-modal.ts` (`buildModal`, with the paste fragment
   it embeds) is fetched alongside the guide on the first click, and either

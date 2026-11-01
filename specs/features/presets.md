@@ -3,35 +3,7 @@
 ```yaml
 id: presets
 status: implemented
-version: 18  # v18: review: one predicate, `isPatchParam`, now excludes the key and the master
-             #      compressor too, so the dirty marker, the song pin, the catalogue and the
-             #      guide agree with Save and load (v17 had added a second predicate beside it)
-             # v17: REQ-a-preset-is-only-a-sound — capture() keeps only sound params and apply()
-             #      ignores song-level ones, so loading a user preset never moves the tempo or
-             #      a machine (it restored the whole bus as saved; v9's "ignored on load" for
-             #      motion keys was never true of the snapshot's own keys) (regression)
-             # v16: REQ-loading-a-preset-starts-from-the-default-sound states that the synth EQ curve is
-             #      part of the sound and resets (scenario pinned)
-             # v15: REQ-loading-a-preset-starts-from-the-default-sound — Presets.apply resets every sound
-             #      param to its default before restoring, except the key and the master compressor,
-             #      so a preset saved before a param existed no longer inherits it
-             # v14: five cross-mod/sync showcases (24 factory presets; the count leaves the REQ id,
-             #      the old "nineteen" id is now REQ-factory-presets-span-the-instrument-families);
-             #      REQ-a-factory-preset-sets-the-full-sound covers osc1.fm/ring, osc2.sync, both pulse
-             #      widths and the six mod rows; REQ-an-older-factory-seed-is-refreshed
-             # v13: a preset or bank name is at most 50 characters (untrusted-input.md REQ-names-are-capped)
-             # v12: a snapshot drops UNSAVED_PARAMS (REQ-a-preset-is-a-snapshot); the delete open question is struck — v11 shipped it
-             # v11: a stored preset can be deleted, and an edited factory preset reverted
-             #      (REQ-a-stored-preset-can-be-deleted)
-             # v10: REQ-the-preset-wizard-reports-every-problem — the import wizard reports EVERY problem, not the
-             #      first, and the ones it can only warn about are shown too
-             # v9: the motion sequencer is not part of a sound (REQ-motion-is-not-part-of-a-sound)
-             # v8: REQ-a-factory-preset-sets-the-full-sound covers the FX tempo locks — a bank that ENGAGES an
-             #     effect must pin its .sync (tempo-lock.md REQ-sync-defaults-to-free)
-             # v7: the loaded song's sound is a pinned dropdown entry (REQ-a-songs-sound-is-a-selectable-entry),
-             #     and an options rebuild never relabels the selector (REQ-rebuilding-options-never-relabels)
-             # v6: REQ-a-factory-preset-sets-the-full-sound spells out WHY only presets leak, and is now pinned
-             # v5: the import wizard is reachable with an already-parsed payload
+version: 18
 owner: core
 related:
   - architecture
@@ -45,14 +17,14 @@ related:
   - ../decisions/adr-014-dont-make-me-think
 source:
   - src/state/preset.ts
-  - src/state/preset-file.ts             # v4: pure file build/parse/merge
+  - src/state/preset-file.ts             # pure file build/parse/merge
   - src/state/preset-validate.ts         # the file format + its validator (preset-authoring.md)
   - src/state/serialize.ts               # roundParams (export precision)
-  - src/state/preset-session.ts          # v7: isPatchParam/patchSnapshot + the song-sound slot
+  - src/state/preset-session.ts          # isPatchParam/patchSnapshot + the song-sound slot
   - src/audio/engine.ts                  # main.ts seeds on boot
   - src/ui/shell/header.ts               # preset-select dropdown + the manager button
-  - src/ui/panels/song-panel.ts          # v7: applySong pins the song's sound
-  - src/ui/components/preset-manager-modal.ts # v4: save / export / import
+  - src/ui/panels/song-panel.ts          # applySong pins the song's sound
+  - src/ui/components/preset-manager-modal.ts # save / export / import
 ```
 
 Save/recall of a **sound** (the scalar param snapshot only) — distinct from a
@@ -66,15 +38,11 @@ Factory presets are seeded into `localStorage` on first boot so the dropdown is
 never empty. Presets deliberately **do not** include pattern/song state — that is
 what songs are for.
 
-Until v4 a preset could never leave the browser: sounds lived in `localStorage`
-and died with it. A cleared profile, a second machine or a second browser meant
-starting over, and there was no way to hand a patch to anyone else. v4 adds the
-two files that fix it, and keeps the vintage naming they come from — a **preset**
-is one sound, a **bank** is a collection of them (Roland JX/Juno: PATCH + BANK;
-Yamaha DX7: VOICE + 32-VOICE BANK). "Patch" is deliberately *not* used for the
-collection, which would invert forty years of usage.
+Two files let a sound leave the browser, with the vintage naming: a **preset** is
+one sound, a **bank** a collection (Roland JX/Juno: PATCH + BANK; Yamaha DX7:
+VOICE + 32-VOICE BANK). "Patch" is deliberately *not* used for the collection.
 
-The header's single Save button becomes one **manager** modal rather than
+The header's single Save button opens one **manager** modal rather than
 sprouting four sibling buttons in an already-crowded header
 ([responsive-header](responsive-header.md)) — one obvious door to everything you
 can do with a sound ([ADR-014](../decisions/adr-014-dont-make-me-think.md) law 1).
@@ -96,7 +64,7 @@ can do with a sound ([ADR-014](../decisions/adr-014-dont-make-me-think.md) law 1
   The remaining three — `ember`, `vellum`, `prism` — are the POLY-model
   showcases that arrived with [filter-models](filter-models.md); each leans on
   something LADDER cannot do, so flipping the model switch on one is the A/B.
-  (v14) Five more are the [cross-modulation](cross-modulation.md) and
+  Five more are the [cross-modulation](cross-modulation.md) and
   [oscillator-sync](oscillator-sync.md) showcases, each built on something the
   plain oscillators cannot do. Each one's A/B is a single knob turned to 0:
   - `tines` is an FM electric piano: a sine carrier with the filter envelope on
@@ -114,56 +82,30 @@ can do with a sound ([ADR-014](../decisions/adr-014-dont-make-me-think.md) law 1
   switching between factory presets is deterministic: no param from the previous
   patch leaks through (per the
   [add-a-factory-preset](../recipes/add-a-factory-preset.md) recipe).
-  - **Why this was the preset side's job and not the loader's** (until v15).
-    `Song.apply` calls `bus.resetDefaults()` before `bus.restore(file.params)`,
-    so a song cannot leak — anything it omits returns to its default. `Presets.apply`
-    was a bare `bus.restore(snap)`, so a preset leaked whatever it omitted. A
-    reset there was thought to change what a *user-saved sparse* preset means,
-    so the fix was for each factory bank to be complete. (v15 does add the reset,
-    REQ-loading-a-preset-starts-from-the-default-sound. A user's own save is a
-    full snapshot and an authored sparse one is expanded on import, so no sparse
-    preset was relying on the overlay. Complete banks still matter: a bank file
-    must stand on its own, and the shared non-default values have to be written
-    somewhere.) That makes REQ-a-factory-preset-sets-the-full-sound an invariant a human has
-    to remember on every new param — which is exactly why it is now pinned by a
-    test rather than by the recipe's prose. Two params had already slipped
-    through (`lfo.sync` from [lfo](lfo.md) v6, `lfo2.*` from v7).
-  - **(v14) The oscillators' cross-modulation and the mod matrix are covered.**
-    Three more slipped the same way: `osc2.sync`, then `osc1.fm` and
-    `osc1.ring`, and the pulse widths before them. A matrix row is in the same
-    class, because a showcase that routes the filter envelope to `fm` would
-    leave that route playing under the next preset (before v15's loader reset,
-    REQ-loading-a-preset-starts-from-the-default-sound, which now catches any
-    such slip as well). Every bank therefore pins
-    `osc1.fm`, `osc1.ring`, `osc2.sync`, both `pulseWidth`s and the six
-    `mod.N.src` unconditionally. They come from one shared `PLAIN_VOICE`
-    baseline that each bank spreads first and then overrides. The baseline
-    also carries the values at least half the banks already shared (no sub, one
-    unison voice, both LFOs parked), so each bank lists only what defines it.
-    That kept the entry chunk under its ceiling ([runtime-performance](runtime-performance.md))
-    once the five showcases arrived. Every resolved bank was checked identical to
-    its spelled-out form. `fx.reverb.on` is kept in each bank even though most
-    have it on: an effect that is on by default would switch on, unasked, in a
-    bank that forgot it.
-    `osc2.syncPitch` and a row's `dst` / `amt` are scoped to engaged use, as the
-    FX sub-params are: inert while sync is off or the row's source is `off`.
-  - **(v8) The FX tempo locks are covered too, but only where the effect is
-    engaged.** A bank that sets `fx.delay.on: 1` must also set `fx.delay.sync`,
-    or the delay inherits whatever division the previously loaded patch was locked
-    to ([tempo-lock](tempo-lock.md) REQ-sync-defaults-to-free). Scoped to engaged effects because that
-    is the existing convention for every other FX sub-param — a bypassed effect's
-    settings are inert, so only the `.on` flags are pinned unconditionally. The
-    pinning test follows the same scope, so it cannot drift from the rule.
+  - The loader also resets what a preset omits
+    (REQ-loading-a-preset-starts-from-the-default-sound), but complete banks still
+    matter: a bank file must stand on its own. The invariant is pinned by a test,
+    not by the recipe's prose, because every new param can slip it.
+  - Every bank pins `osc1.fm`, `osc1.ring`, `osc2.sync`, both `pulseWidth`s and the
+    six `mod.N.src` unconditionally, from one shared `PLAIN_VOICE` baseline each
+    bank spreads first (it also carries the values most banks share: no sub, one
+    unison voice, both LFOs parked), so each bank lists only what defines it and
+    the entry chunk stays small ([runtime-performance](runtime-performance.md)).
+    `fx.reverb.on` is kept in every bank: an effect on by default would switch on,
+    unasked, in a bank that forgot it.
+  - **Engaged-only sub-params.** `osc2.syncPitch`, a matrix row's `dst` / `amt`,
+    and every FX sub-param including its tempo lock (a bank that sets
+    `fx.delay.on: 1` also sets `fx.delay.sync`, [tempo-lock](tempo-lock.md)
+    REQ-sync-defaults-to-free) are pinned only where the switch is engaged; a
+    bypassed effect's settings are inert. The pinning test has the same scope.
 - **REQ-an-older-factory-seed-is-refreshed** (v14) — `ensureFactoryPresets()`
   re-seeds a stored factory slot when **every entry it holds equals the current
   factory definition** but it lacks some of the current keys. Such a slot is an
   older seed, not an edit. A Save captures every sound param (hundreds of them),
-  so a user's own copy is never a subset of a ~50-key factory bank. Without
-  this, a returning user keeps the stale seed: `load()` reads the store before
-  `FACTORY`. Since v15 the stale seed would still *sound* right, because the
-  loader resets what it lacks (REQ-loading-a-preset-starts-from-the-default-sound).
-  But it would show as modified (REQ-modified-is-computed-not-tracked) though
-  nobody touched it, and an export of the bank would write the stale copy.
+  so a user's own copy is never a subset of a ~50-key factory bank. Otherwise
+  `load()` (store before `FACTORY`) keeps the stale seed: it sounds right (the
+  loader resets what it lacks) but shows as modified
+  (REQ-modified-is-computed-not-tracked) and exports the stale copy.
   - A slot that differs on any value is left alone. An edit and a factory value
     retuned between releases cannot be told apart, and keeping a user's sound
     wins.
@@ -178,8 +120,7 @@ can do with a sound ([ADR-014](../decisions/adr-014-dont-make-me-think.md) law 1
   first sets every **sound** param the preset omits to its registered default,
   then restores the preset, in one bulk apply. A sound param is one
   `isPatchParam` counts (it marks the selector dirty). Two families are not, so a
-  preset leaves them alone (v18; until then the predicate counted them and only
-  the load exempted them):
+  preset leaves them alone:
   - `scale.*` and `chord.*`, the key: it belongs to the song being played, not
     to a sound auditioned over it.
   - `fx.master.*`, the master compressor: it is mastering for everything, and no
@@ -190,13 +131,12 @@ can do with a sound ([ADR-014](../decisions/adr-014-dont-make-me-think.md) law 1
   dialled for the previous patch colours the next one. This is deliberate; the
   EQ is in the synth's FX chain, not on the master.
 
-  Why: a preset saved before a param existed does not mention it, and before v15
-  it inherited whatever the previous patch had. FM or sync from `tines` or
-  `tear` played on under an older user preset. With ADR-006 every param's
-  default is a no-op, so starting from defaults reproduces the sound exactly as
-  it was saved. It fixes factory banks, user presets and imports in one place,
-  for every param still to come. The reset baselines follow the bulk apply, so
-  a double-tap on an omitted param returns to its default.
+  Why: a preset saved before a param existed does not mention it, and must not
+  inherit the previous patch's value (FM from `tines` under an old preset). With
+  ADR-006 every default is a no-op, so starting from defaults reproduces the sound
+  as saved, for factory banks, user presets, imports and every param still to
+  come. The reset baselines follow, so a double-tap on an omitted param returns to
+  its default.
 - **REQ-a-preset-is-only-a-sound** (v17) — **A preset holds a sound and nothing
   else.** One predicate, `isPatchParam` (`preset-session.ts`), decides what a
   sound is: the synth voice and its FX, not the song's machines, the key or the
@@ -208,15 +148,10 @@ can do with a sound ([ADR-014](../decisions/adr-014-dont-make-me-think.md) law 1
   disagree. So Save, Export and loading agree, and a preset picked mid-song never
   moves the tempo or the key, switches the arp, sequencers or motion lanes, or
   changes the drum and sampler buses' FX. Re-selecting a song's own sound leaves
-  its key alone too, as it leaves its tempo. A file saved before v17, or written by hand, may still carry
-  song-level keys: they stay in the file and are ignored on load, and the import
+  its key alone too, as it leaves its tempo. An older or hand-written file may still
+  carry song-level keys: they stay in the file, are ignored on load, and the import
   wizard says so ([preset-authoring](preset-authoring.md)
   REQ-semantic-validation-needs-the-bus).
-
-  Why: `capture` used to take the whole bus and `apply` to restore every key,
-  so loading a user preset put the tempo and the machines back to how they were
-  at save time. The guard `isPatchParam` only kept *omitted* song params from
-  being reset; a snapshot's own song keys went straight through.
 - **REQ-the-active-preset-name-is-session-state** — The active preset name is
   tracked by the session (shared with songs).
 - **REQ-preset-save-rounds-to-four-figures** — `save()` rounds the snapshot to 4
@@ -226,7 +161,7 @@ can do with a sound ([ADR-014](../decisions/adr-014-dont-make-me-think.md) law 1
   full-precision (live state is untouched; rounding is a serialization-boundary
   concern).
 
-### v4 — files
+### Files
 
 - **REQ-two-preset-file-shapes** — **Two file shapes**, both plain JSON carrying
   a `format` tag and a `version`, both rounded at the boundary like `save()`
@@ -259,8 +194,7 @@ can do with a sound ([ADR-014](../decisions/adr-014-dont-make-me-think.md) law 1
   wrong-typed file is refused with a reason**, not silently ignored: a non-JSON
   file, a JSON file with the wrong `format` tag, or a bank whose `presets` map
   is absent/empty each report what was wrong — *every* reason it found, not the
-  first (REQ-the-preset-wizard-reports-every-problem, which this sentence's
-  singular "a reason" is exactly why nothing caught). Symmetrically, dropping a
+  first (REQ-the-preset-wizard-reports-every-problem). Symmetrically, dropping a
   **preset or bank** file on the *song* Import button
   ([song-mode](song-mode.md)) is detected and answered with a pointer to Preset
   ▸ Import rather than a generic "invalid song" — the two file families share
@@ -275,18 +209,12 @@ can do with a sound ([ADR-014](../decisions/adr-014-dont-make-me-think.md) law 1
   loaded patch is untouched, so an import cannot destroy unsaved work. Loading
   one afterwards is a normal REQ-loading-a-preset-is-a-bulk-apply selection.
 
-### v7 — the loaded song's sound
+### The loaded song's sound
 
 - **REQ-a-songs-sound-is-a-selectable-entry** — **A loaded song's sound is a
-  selectable entry, not just a label.** Loading a song or demo sets the
-  selector's *label* to the song name
-  (REQ-the-active-preset-name-is-session-state), but until v7 that name was
-  never an *option*: the menu listed only `Presets.list()`. So auditioning any
-  preset against a demo destroyed the demo's sound, and the only way back was to
-  reload the demo — discarding every other edit made since. That is the opposite
-  of what a preset selector is for.
-
-  The song's patch is therefore **pinned as the first option**, labelled with the
+  selectable entry, not just a label** (REQ-the-active-preset-name-is-session-state),
+  so auditioning presets against a demo never loses the demo's sound. The song's
+  patch is **pinned as the first option**, labelled with the
   song's name and separated from the preset list by a divider
   ([dropdown](dropdown.md) REQ-a-list-can-be-split-by-dividers). Selecting it re-applies that patch exactly as
   REQ-loading-a-preset-is-a-bulk-apply applies a preset, baselines included.
@@ -315,31 +243,22 @@ can do with a sound ([ADR-014](../decisions/adr-014-dont-make-me-think.md) law 1
   first option when the current value is absent from the new list — and the
   displayed value is *often* absent here, because a song name
   (REQ-a-songs-sound-is-a-selectable-entry) or a dirty marker (`"Ember *"`) is
-  not a preset name. So `onPresetsChanged` — which fires on **import**, an
-  action REQ-importing-never-changes-the-live-sound guarantees changes no sound
-  — silently repainted the header from the song's name to `"acid"` while
-  `PresetSession.label` still said the song. The label and the audible patch
-  desynchronized with nothing to notice it by. Every rebuild therefore
-  re-asserts `setValue(session.display)` afterwards, and the session stays the
+  not a preset name, and `onPresetsChanged` fires on **import**, which changes no
+  sound (REQ-importing-never-changes-the-live-sound). Every rebuild therefore
+  re-asserts `setValue(session.display)` afterwards, so the session stays the
   single source of what the selector reads.
 
 - **REQ-motion-is-not-part-of-a-sound** (v9) — **The motion sequencer is not
-  part of a sound.** `NON_PATCH_PREFIXES` listed
-  `transport.`/`arp.`/`seq.`/`drum.`/`sampler.` but not `motion.`, so
-  `motion.on`, `motion.mute` and `motion.slide` were captured into presets and
-  reapplied on load — auditioning a sound silently switched a song's automation
-  off. Motion is a song-level machine like the other three; the prefix is added
-  ([meter](meter.md) REQ-motion-joins-the-non-patch-prefixes). Consequence to expect: a previously saved preset
-  that happens to carry `motion.*` keys keeps them in its file, and they are
-  ignored on load rather than applied (true only from v17,
-  REQ-a-preset-is-only-a-sound: until then `apply` restored them).
+  part of a sound.** `motion.` is in `NON_PATCH_PREFIXES` with `transport.`,
+  `arp.`, `seq.`, `drum.` and `sampler.` ([meter](meter.md)
+  REQ-motion-joins-the-non-patch-prefixes), so auditioning a sound never switches a
+  song's automation off. An old preset carrying `motion.*` keys keeps them in its
+  file; they are ignored on load (REQ-a-preset-is-only-a-sound).
 
 - **REQ-the-preset-wizard-reports-every-problem** (v10) — **The wizard reports
-  every problem, not the first.** The home step's error strip rendered
-  `errors[0]` and dropped the rest before they reached the DOM, so a bank with
-  five malformed presets reported one — the user fixed it, re-imported, met the
-  next, and paid a round trip per problem. The validator collects up to
-  `MAX_ERRORS` (50) and this strip is the **only** place they are ever shown:
+  every problem, not the first**, so a bank with five malformed presets costs one
+  round trip, not five. The validator collects up to `MAX_ERRORS` (50) and this
+  strip is the **only** place they are ever shown:
   the paste door raises no dialog of its own ([paste-import](paste-import.md)
   REQ-paste-confirm-routes-by-kind), so it lands here too.
 
@@ -356,16 +275,14 @@ can do with a sound ([ADR-014](../decisions/adr-014-dont-make-me-think.md) law 1
     [dialog](dialog.md) REQ-an-alert-may-offer-copyable-text's `copyable`, because this is a `div` inside a
     `Modal`, not an alert — the mechanism is shared, the `dialog-copy` id is not.
 
-  **Warnings are shown too, on the review step.** `validatePresetPayload` fills a
-  `warnings` array on its `ok: true` branch and nothing rendered it, so a preset
-  that would move the tempo imported without a word. They appear next to the rows
+  **Warnings are shown too, on the review step** (`validatePresetPayload`'s
+  `ok: true` branch carries them, e.g. a key that will be ignored). They appear next to the rows
   the user is deciding about, and they never block Import: a warning says what
   will not survive the load, not that the file is unusable
   ([preset-authoring](preset-authoring.md) REQ-semantic-severity-is-the-callers-choice).
 
 - **REQ-a-stored-preset-can-be-deleted** (v11) — **A stored preset can be
-  deleted.** Saving had no inverse: a list grown by experiments could only be
-  pruned by a factory reset. The manager's **Delete or revert…** row
+  deleted.** The manager's **Delete or revert…** row
   (`preset-mgr-delete`) opens a third step listing exactly the presets
   `Presets.modified()` names (REQ-modified-is-computed-not-tracked) — the ones
   there is something to undo — each with one action named for its outcome:

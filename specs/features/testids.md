@@ -3,73 +3,7 @@
 ```yaml
 id: testids
 status: implemented
-version: 35 # v35: dropdown-fx.dist.type, dropdown-fx.sampler.dist.type (dirt-types.md REQ-dirt-type-testids)
-            # v34: dropdown-<prefix>.type for the three delays (delay-types.md REQ-delay-type-testids)
-            # v33: fxpick-<primary>, fxpick-<primary>-<prefix>, fxview-<prefix>
-            #      (fx-slot-picker.md REQ-fx-slot-picker-testids)
-            # v32: demo-loaded-info, demo-library, demo-library-entry, demo-library-load, demo-library-more
-            #      (demo-library.md REQ-the-library-reads-without-loading, REQ-the-loaded-demo-carries-an-info-button)
-            # v31: seq-bend (+ -track/-dec/-inc/-value), seq-bend-shape, seq-bend-scoop,
-            #      seq-bend-fall (step-settings.md REQ-a-seq-step-carries-a-bend)
-            # v30: file-drop-overlay, file-drop-toast (paste-import.md REQ-a-dropped-file-takes-the-paste-routes)
-            # v29: clear-<lane>-shift-<left|right> (step-grid-editing.md REQ-shift-rotates-the-played-window)
-            # v28: seq-chord-inversion (chord-tools.md REQ-the-writer-can-invert)
-            # v27: sync-midi-channel (input-control.md REQ-the-midi-input-channel-is-selectable)
-            # v26: song-delete + song-delete-toast (song-mode.md REQ-a-saved-song-can-be-deleted); preset-mgr-delete,
-            #      preset-delete-step, preset-delete-row, preset-delete-back (presets.md REQ-a-stored-preset-can-be-deleted)
-            # v25: debug-offline (debug-panel.md v15)
-            # v24: debug-errors and debug-share (debug-panel.md REQ-the-panel-keeps-the-last-errors,
-            #      REQ-the-report-can-be-shared)
-            # v23: the seq track row's mute and pan are named in the catalogue as
-            #      param-minted ids, so knob-seq.t<t>.pan is findable from here
-            # v22: motion's single-param lanes go from two to four, so four id
-            #      families widen to <0..3> and the lane fold caret joins them
-            #      (motion-sequencer.md REQ-extra-single-param-tracks-per-bank/REQ-an-empty-motion-lane-starts-folded).
-            #      seq-track-fold-<t> is unchanged in name and meaning although
-            #      its implementation moved into the shared lane-fold component
-            # v21: debug-scope — the Debug panel's scope-liveness row (scope.md
-            #      REQ-the-panel-says-whether-it-is-drawing)
-            # v20: the song transport's Loop button (transport-loop.md REQ-a-loop-button-on-both-surfaces)
-            #      and the global `loop` / `loop-anchor` cell classes (transport-loop.md REQ-what-the-loop-scrubber-shows);
-            #      the Song row now carries `transport-toggle` too
-            # v19: the About card's Play offline section (play-offline.md REQ-the-about-card-hosts-play-offline)
-            #      and its toast (REQ-data-derived-ids-are-enumerated)
-            # v18: the EQUALIZER section (equalizer.md REQ-eq-tab-ids-are-namespaced). Its tabs are
-            #      eq-NAMESPACED — tab-eq-seq, not tab-seq — because the
-            #      pattern row already owns the bare machine ids and a
-            #      TabContainer mints tab-<id>/panel-<id> from whatever it
-            #      is given. Shadowing them would make every machine-tab
-            #      selector ambiguous.
-            # v17: scope-zones-toggle — the Spectrum-only problem-band overlay
-            #      (scope.md REQ-a-zones-toggle)
-            # v16: the preset import wizard's error strip, its copy button and
-            #      the review step's warnings (presets.md REQ-the-preset-wizard-reports-every-problem)
-            # v15: dialog-copy — an alert's optional "copy the full text"
-            #      button (dialog.md REQ-an-alert-may-offer-copyable-text)
-            # v14: the Edit Sample modal's three fold headers —
-            #      <chop|stretch|scratch>-section/-head/-toggle/-body
-            #      (sample-recorder.md REQ-every-section-below-the-waveform-folds)
-            # v13: the Fit / Shift rows and the slot-row FIT button
-            #      (time-stretch.md)
-            # v12: lazy-load-failed-toast, the deferred-surface load report
-            #      (onboarding.md REQ-the-help-door-never-fails-silently)
-            # v11: the per-step edit row's micro slider exposes its PARTS
-            #      (-micro-track/-dec/-inc/-value), step-settings.md REQ-a-step-carries-a-micro-offset
-            # v10: meter-picker + machine-<lane>-len/-rate/-meter-hint
-            # v9: tempolock-/tempodiv-<paramId> and dropdown-<prefix>.dest
-            #     (tempo-lock.md, lfo.md v9)
-            # v8: scope-resize-handle (scope.md REQ-a-scope-resize-handle)
-            # v7: createPanelTabs' ptab-/ppage- namespace (panel-tabs.md REQ-panel-tab-testids-are-prefixed) and
-            #     the LFO panel's per-page ids (lfo.md REQ-destinations-are-no-longer-exclusive, REQ-the-two-lfos-share-one-panel)
-            # v6: chain-transpose-<up|down>-seq (arrangement.md REQ-a-seq-slot-carries-a-transpose)
-            # v5: ids interpolated from DATA (song-demo-<name>) must be enumerated
-            #     by a test, never spelled — see REQ-data-derived-ids-are-enumerated
-            # v4: chooseDialog's dialog-choice-<id> (dialog.md REQ-choose-dialog-offers-several-options); dialog-cancel
-            #     was always emitted but never catalogued
-            # v3: the About modal's keyboard-layout picker (keyboard-layout.md)
-            # v2: the header's ⓘ/? swap — info-badges replaces help-button, the
-            #     Help chooser's two ids retire, and the badge ids become
-            #     info-badge-* (onboarding.md v15)
+version: 35
 owner: core
 related:
   - architecture
@@ -114,7 +48,7 @@ through the shared factories gets a correct, predictable testid for free.
   `seg-<paramId>` (+ `seg-<paramId>-<idx>` per button), `strip-<paramId>`.
   Renaming a param renames its testid; no call site restates it. `Switch`
   accepts an explicit override for its non-param uses.
-  - (v9) A `Knob` on a lockable param mints two more from the **same** param id:
+  - A `Knob` on a lockable param mints two more from the **same** param id:
     `tempolock-<paramId>` (the note glyph) and `tempodiv-<paramId>` (the division
     chip) — [tempo-lock](tempo-lock.md) REQ-the-lock-is-a-note-glyph/REQ-locked-the-division-replaces-the-dial. Keyed off the *rate/time*
     param the lock governs, not off the `.sync` param it writes, so the three ids
@@ -261,7 +195,7 @@ per-step edit row (StepSettingsEditor):                    # features/step-setti
 
 banks, clear menus & undo:                          # features/banks.md, step-grid-editing.md
   bank-<lane>-<i> · bank-<lane>-follow · bank-<lane>-copy
-  bank-<lane>-add · bank-<lane>-remove              # <i> runs 0..7 now (banks.md)
+  bank-<lane>-add · bank-<lane>-remove              # <i> runs 0..15 (banks.md)
                                                     # -add is ABSENT at the ceiling
   clear-<lane> · clear-<lane>-bank · clear-<lane>-row-<i> · clear-toast-<lane>
   clear-<lane>-shift-<left|right>        # seq / drum / sampler only (REQ-shift-rotates-the-played-window)
@@ -316,7 +250,7 @@ song panel — lanes, chains & live FX:
   song-lane-<seq|drum|sampler>       # + switch-<lane>.mute / .solo / knob-<lane>.master
   song-lane-motion                   # chain + switch-motion.mute only — no solo/volume
   song-lane-title-<lane>             # opens that machine's tab (features/machine-status.md)
-  song-chain-<lane> · chain-chip-<lane>-<idx> · chain-add-<lane>-<i> ·   # <i> 0..7,
+  song-chain-<lane> · chain-chip-<lane>-<idx> · chain-add-<lane>-<i> ·   # <i> 0..15,
                                                     # only as many as that machine has
   chain-add-rest-<lane> · chain-clear-<lane>        # features/arrangement.md
   chain-move-<left|right>-<lane> · chain-remove-<lane>   # the precise reorder path
@@ -370,7 +304,7 @@ audio capture:
     export-audio-progress · export-audio-confirm · export-audio-cancel ·
     export-audio-abort                              # features/audio-export.md
   record-window · record-toggle · record-stop · record-save · record-discard ·
-    record-status · record-timer · record-fmt-<wav|mp3>   # features/record-window.md
+    record-status · record-timer · record-meter · record-fmt-<wav|mp3>   # features/record-window.md
   mic-record-toggle · mic-play · mic-load · mic-undo · mic-reset · mic-close ·
     mic-save-<wav|mp3> · mic-slot-select · mic-fx-<name>  # features/sample-recorder.md
   chop-section · chop-head · chop-toggle · chop-body ·

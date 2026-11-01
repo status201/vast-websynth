@@ -372,8 +372,8 @@ export class Engine {
 
     // Synth auto-pan (lfo.md REQ-pan-sweeps-a-stereo-panner): last stage of the synth channel, so one
     // node pans instead of one per voice and the inserts ahead of the reverb
-    // stay 1-channel (ADR-010, cheap). The reverb — last in the chain — is where
-    // the channel actually becomes stereo: its IR has 2 decorrelated channels,
+    // stay 1-channel (ADR-010, cheap). The reverb, the last insert before the duck,
+    // is where the channel otherwise becomes stereo: its IR has 2 decorrelated channels,
     // so a mono input convolves to two. Centred until the LFO's `pan` drives it.
     this.synthPan = this.ctx.createStereoPanner();
     this.synthPan.pan.value = 0;

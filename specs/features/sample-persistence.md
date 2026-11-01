@@ -3,8 +3,7 @@
 ```yaml
 id: sample-persistence
 status: implemented
-version: 2   # v2: REQ-clips-persist-in-indexeddb — a clip whose channels are identical is stored as
-             #     one channel; storing it as stereo doubled it and made it two-channel on reload
+version: 2
 owner: core
 related:
   - architecture
@@ -40,7 +39,7 @@ carries names only, so songs stay small and shareable).
   produced by the pure `encodeClipWav`, read uncopied (`audioBufferView` — the
   encode is synchronous, so nothing changes the buffer mid-read), and are restored through
   `ctx.decodeAudioData` — the same path Load and a
-  [project-zip](project-export.md) import already use. (v2) The channels are
+  [project-zip](project-export.md) import already use. The channels are
   the ones `encodeClipWav` keeps: **one** when the clip's left and right are
   sample-for-sample identical, two otherwise — the same rule as a project export
   (project-export.md REQ-a-mono-clip-exports-as-mono). Until v2 every clip was

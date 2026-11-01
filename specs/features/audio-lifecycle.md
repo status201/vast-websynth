@@ -3,17 +3,7 @@
 ```yaml
 id: audio-lifecycle
 status: implemented
-version: 6   # v6: REQ-nothing-is-audible-before-the-first-start/REQ-the-gesture-is-required-only-when-required/REQ-post-gesture-work-is-deferred — the context the browser hands us. A context
-             #     created `running` (autoplay permitted) skipped REQ-a-start-is-click-free's fade
-             #     entirely, which is the click that was still being reported;
-             #     the same signal says the start gesture is not needed at all
-             # v5: REQ-a-resume-that-does-not-take-is-retried … REQ-a-bfcache-restore-counts-as-returning — recovery. A resume that does not take is
-             #     retried and then handed to the next gesture (measured: an
-             #     Android tablet under battery saving came back silent, and only
-             #     the Debug panel could revive it)
-             # v4: REQ-the-trip-is-measured-never-inferred — a severe reading trips on ONE window (measured: a Pixel
-             #     8a runs its backgrounded audio clock at 36% of real time)
-             # v3: REQ-breaking-up-background-audio-is-suspended … REQ-the-measurement-is-visible-either-way — the background watchdog
+version: 6
 owner: core
 related:
   - architecture
@@ -30,7 +20,7 @@ source:
   - src/audio/transport/clock.ts
   - src/audio/ios-audio-session.ts
   - src/types/pwa.d.ts                # AudioRenderCapacity ambient types
-  - src/main.ts                        # the "tap to resume" toast (v5, REQ-a-stuck-context-is-visible)
+  - src/main.ts
   - src/ui/studio-api.ts
   - src/ui/components/about-debug.ts   # the Debug rows that surface context state
 ```
@@ -155,7 +145,7 @@ to the first one the user makes anyway, rather than demanded up front.
   page's context and it stays suspended on return. On iOS the call is
   unconditional (the silent loop must be replayed to hold the media-backed
   session category even when the context survived). See
-  [`ios-audio`](ios-audio.md) REQ-foreground-return-resumes-audio. **(v5)**
+  [`ios-audio`](ios-audio.md) REQ-foreground-return-resumes-audio.
   `pageshow` joins `visibilitychange`
   (REQ-a-bfcache-restore-counts-as-returning), the `ctx` `statechange` listener
   is no longer iOS-only (REQ-an-unasked-suspension-is-recovered), and none of
@@ -165,7 +155,7 @@ to the first one the user makes anyway, rather than demanded up front.
 - **REQ-statechange-must-not-fight-a-deliberate-suspend** — **`statechange` must
   not fight a deliberate suspend.** The Debug panel's Suspend action suspends a
   *visible* context, and auto-resuming from `statechange` would undo it
-  instantly. **(v5)** The contract is unchanged; the *mechanism* is. Not
+  instantly. Not
   installing the listener off iOS was a proxy for "do not fight a deliberate
   suspend", and it cost every non-iOS device its only recovery from a suspension
   that arrives while the page is visible. The listener is now installed

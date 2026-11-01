@@ -3,19 +3,7 @@
 ```yaml
 id: sample-recorder
 status: implemented
-version: 8   # v8: REQ-the-editor-owns-its-teardown — a take finishing after the modal closed builds
-             #     no editor (its controls leaked past the only cleanup)
-             # v7: the waveform's peaks are memoised — the preview loop re-scanned the whole
-             #     clip every frame to move a playhead (REQ-the-waveform-redraw-is-cheap)
-             # v6: REQ-the-editor-owns-its-teardown — the modal destroys the controls it builds;
-             #     its seven Dropdowns each left four document/window listeners
-             #     behind on every close
-             # v5: REQ-every-section-below-the-waveform-folds — every editor section is a titled fold: Chop and
-             #     Fit & Shift join Scratch, title left, caret right
-             # v4: REQ-the-recorder-modal-hosts-scratch — the Scratch section (scratch.md)
-             # v3: REQ-the-recorder-modal-hosts-fit-and-shift — the Fit and Shift rows (time-stretch.md)
-             # v2: REQ-the-recorder-node-is-released-with-the-session — a session's RecorderNode is disconnected and its port
-             #     handler cleared on dispose; every modal open leaked one
+version: 8
 owner: core
 related:
   - architecture
@@ -24,13 +12,13 @@ related:
   - time-stretch           # the Fit / Shift rows this modal hosts
   - scratch                # the Scratch section this modal hosts
   - audio-export
-  - onboarding             # REQ-every-section-below-the-waveform-folds borrows the About modal's fold idiom
-  - panel-tabs             # REQ-every-section-below-the-waveform-folds's `websynth.ui.collapsed.*` key convention
-  - iconography            # REQ-every-section-below-the-waveform-folds's caret is UI_ICONS.caretDown, not a character
+  - onboarding             # the fold idiom is the About modal's
+  - panel-tabs             # the `websynth.ui.collapsed.*` key convention
+  - iconography            # the fold caret is UI_ICONS.caretDown
   - testids
 source:
   - src/ui/components/record-sound-modal.ts
-  - src/ui/components/collapse-toggle.ts  # REQ-every-section-below-the-waveform-folds's fold
+  - src/ui/components/collapse-toggle.ts
   - src/ui/styles/record-sound.module.css
   - src/ui/styles/modal.module.css        # .sec / .secFold / .secFoldLabel
   - src/audio/recorder/mic-capture.ts
@@ -39,174 +27,88 @@ source:
   - src/audio/recorder/time-stretch.ts
   - src/audio/recorder/audio-buffer.ts
   - src/audio/recorder/node.ts            # CapturedAudio
-  - src/ui/onboarding/help-content.ts     # the `sampler` topic names REQ-every-section-below-the-waveform-folds's three headings
+  - src/ui/onboarding/help-content.ts     # the `sampler` topic names the three sections
 ```
 
 The Sampler's "Record a sound" modal: record from the mic (or re-edit a loaded
-buffer), edit non-destructively, then save a file or fill a [sampler](sampler.md)
-slot.
+buffer), edit, then save a file or fill a [sampler](sampler.md) slot.
 
 ## Background / Why
 
-Pure DSP (`buffer-dsp.ts`) is kept **AudioContext-free** so it is unit-testable
-exactly like [encode.ts](audio-export.md); the only `CapturedAudio ↔ AudioBuffer`
-bridge is `audio-buffer.ts`, which keeps `buffer-dsp` independent of Web Audio.
-Operations that genuinely need rendering (filter, octave shift) go through an
-`OfflineAudioContext` in `offline-render.ts`. Mic capture needs a **secure
-context** — `localhost` qualifies; the LAN-over-HTTP dev server does not, and the
-modal says so.
+Pure DSP (`buffer-dsp.ts`) is **AudioContext-free**, so it is unit-testable like
+[encode.ts](audio-export.md). The only `CapturedAudio ↔ AudioBuffer` bridge is
+`audio-buffer.ts`. Operations that need rendering (filter, octave shift) go
+through an `OfflineAudioContext` in `offline-render.ts`. Mic capture needs a
+**secure context**: `localhost` qualifies, while the LAN-over-HTTP dev server does
+not, and the modal says so.
 
 ## Requirements
 
 - **REQ-record-through-a-fresh-recorder-node** — Record the mic via a *fresh*
-  `RecorderNode` + a muted-gain tap to `destination` (so the zero-output sink
-  stays pulled).
+  `RecorderNode` + a muted-gain tap to `destination`, so the zero-output sink stays
+  pulled.
 - **REQ-edit-in-captured-audio-space** — Edit in `CapturedAudio` space: crop /
   reverse / normalize / gain / fade in-out, plus filter / octave via
   `OfflineAudioContext`.
-- **REQ-the-recorder-modal-hosts-the-chop-row** — The same modal hosts the
-  **chop row** ([sample-chop](sample-chop.md)): cut the current selection into
-  slices, drag the boundaries on the waveform this spec already draws, and
-  spread them across the sampler's slots. It lives here rather than on the panel
-  because the waveform, the selection handles and the preview it needs are all
-  REQ-edit-in-captured-audio-space's, and duplicating them elsewhere is the
-  thing that would drift.
-
-- **REQ-save-or-load-the-recorded-result** — Save the result (reusing
+- **REQ-the-recorder-modal-hosts-the-chop-row** — The modal hosts the **chop row**
+  ([sample-chop](sample-chop.md)). The waveform, selection handles and preview it
+  needs are this modal's, and duplicating them elsewhere is what would drift.
+- **REQ-save-or-load-the-recorded-result** — Save the result (through
   [encode.ts](audio-export.md)) or load it into a sampler slot.
-- **REQ-a-loaded-slot-reopens-for-editing** — A loaded slot exposes a ✎ button
-  that reopens its buffer in the same editor.
-- **REQ-an-insecure-context-says-so** — On an insecure context, surface a clear
+- **REQ-a-loaded-slot-reopens-for-editing** — A loaded slot's ✎ button reopens its
+  buffer in the same editor.
+- **REQ-an-insecure-context-says-so** — On an insecure context, show a clear
   message instead of failing.
-- **REQ-the-recorder-node-is-released-with-the-session** — (v2) **A session's
-  `RecorderNode` is released with the session.**
-  REQ-record-through-a-fresh-recorder-node's node is *fresh per session*, so
-  unlike the engine's two permanently tapped recorders it has an end — and
-  `MicSession.dispose()` owns it. Disposing disconnects the node **and** clears
-  its `port.onmessage`, because the two leak different things: the
-  `AudioWorkletNode` keeps its processor alive on the render thread, and the
-  message handler keeps the closure holding the captured chunk arrays alive on
-  the main thread.
-
-  Until v2 `dispose()` released the `MediaStreamAudioSourceNode`, the muted gain
-  and the OS mic tracks but not the recorder, so **every open of the modal left one
-  behind** — the leak grows with how often the player records, which is exactly the
-  usage the feature invites. `RecorderNode.dispose()` is the node's own teardown so
-  the knowledge of what it holds stays with it rather than at the call site.
-- **REQ-the-editor-owns-its-teardown** — (v6) **The editor destroys the controls
-  it builds, not just the resources it opens.** (v8) **And builds none after it has
-  closed.** Stopping a take awaits the worklet's final batch; a modal closed in
-  that window had already run its cleanup, and the editor was then built into the
-  closed card — its dropdowns and resize observer created after the one teardown
-  that would ever release them. A take that finishes after the close is disposed
-  and dropped.
-  REQ-the-recorder-node-is-released-with-the-session covers what the *session*
-  holds; this covers what the *modal* holds. The rule is the same and the reason
-  is the same: a thing whose listeners live outside the modal's own subtree is
-  not released by the card being removed from the DOM.
-
-  The case that made this a requirement is `Dropdown`, which registers **four**
-  listeners in its constructor — `click` and `keydown` on `document`, `scroll`
-  and `resize` on `window` — and removes them only in `destroy()`. The editor
-  builds **seven** of them (slot picker, chop count, fit target, fit mode, shift
-  amount, scratch length, scratch preset), so every open-and-close left 28
-  handlers running on every click and keystroke in the app, each retaining a
-  detached menu subtree. Opening the editor is not a rare act — "Edit sample" is
-  on every loaded slot — so this grows with ordinary use, exactly like the v2
-  leak did.
-
-  The modal therefore keeps **one list of what it owns** and empties it in the
-  same `cleanup()` that disposes the session, the scratch graph and the
-  `ResizeObserver`; a control that is built and not registered is the only way
-  to reintroduce the leak. The panels that rebuild dropdowns per row
-  (`sampler-panel.ts`, `drum-panel.ts`) already destroy before rebuilding — this
-  is that discipline for a surface built once per open rather than once per row.
-- **REQ-the-waveform-redraw-is-cheap** — (v7) **Redrawing the waveform does not
-  re-measure the clip.**
-  The editor's `redraw()` runs once per animation frame while a preview plays —
-  that is how the playhead moves — and it called `computePeaks`, which walks the
-  **whole** buffer. So auditioning a clip re-scanned every sample 60 times a
-  second to move a 1 px line: **2.8 ms a frame for a 10 s clip (17% of a 60 fps
-  budget) and 9.0 ms for a 30 s one (54%)**, on the main thread, while audio was
-  playing.
-
-  The peaks are a pure function of the buffer and the column count, and neither
-  moves with the playhead, so they are memoised
+- **REQ-the-recorder-node-is-released-with-the-session** — (v2)
+  `MicSession.dispose()` owns the session's `RecorderNode`. It disconnects the node
+  (whose processor lives on the render thread) **and** clears its `port.onmessage`
+  (whose closure holds the captured chunks). Otherwise every open of the modal
+  leaks one. `RecorderNode.dispose()` is the node's own teardown. Disposal is
+  **idempotent and terminal**: it is reachable from cancel, save and re-open, a
+  double dispose does not throw, and a disposed node accepts no `start`/`stop`.
+- **REQ-the-editor-owns-its-teardown** — (v6) The editor destroys the controls it
+  builds, not just the resources it opens. A `Dropdown` registers `document` and
+  `window` listeners that only `destroy()` removes, and the editor builds seven. So
+  the modal keeps **one list of what it owns** and empties it in the `cleanup()`
+  that disposes the session, the scratch graph and the `ResizeObserver`. A control
+  built and not registered is the only way to leak. **It also builds nothing after
+  it has closed**: a take whose stop resolves after the close is disposed and
+  dropped.
+- **REQ-the-waveform-redraw-is-cheap** — (v7) `redraw()` runs per frame while a
+  preview plays, to move the playhead. So the peaks (a pure function of buffer and
+  column count) are memoised with `createPeakCache()` in `buffer-dsp.ts`, rather
+  than re-scanning the whole buffer every frame
   ([runtime-performance](runtime-performance.md) REQ-immutable-artefacts-are-shared).
-  The memo lives in `buffer-dsp.ts` as `createPeakCache()` rather than inline in
-  the modal, because that is what makes it testable without a canvas — jsdom
-  implements no 2-D context, so a test driven through `redraw()` would be
-  testing the stub.
-
-  It is keyed by buffer **identity**, which is sound only because every
-  operation in `buffer-dsp.ts` is pure: `crop`, `gain`, `normalize`, `reverse`
-  and the fades all return a NEW `CapturedAudio`, so an edit always yields a
-  different object and cannot be missed. That property is pinned by its own test
-  beside the cache's. One entry, not a map — the editor shows one clip at a
-  time, and a map would hold every intermediate edit alive for the modal's life.
-
-- **REQ-the-recorder-modal-hosts-fit-and-shift** — (v3) **The modal hosts a Fit
-  row and a Shift row**, below the chop row: retime the selection to a musical
-  length with its pitch preserved, and shift its pitch with its length
-  preserved. Both go through the same `apply()` path as every other effect
-  button, so the busy latch, the one-level undo and the marks reset that follow
-  an edit are inherited rather than reimplemented. The behaviour and its bounds
-  are [time-stretch](time-stretch.md)
-  REQ-the-editor-gains-a-fit-row/REQ-the-fit-row-preselects-the-nearest-target; what this spec owns is that
-  this modal is where they live — for the reason the [chop row](sample-chop.md)
-  is here too: the waveform, the crop handles, the preview and the undo already
-  exist in this modal, and a second surface that rebuilt them is a second
-  surface that drifts from them.
-
-  Disposal is **idempotent and terminal**: it is reachable from a cancel, a save
-  and a re-open, and a double dispose must not throw. A disposed node accepts no
-  further `start`/`stop`.
-- **REQ-the-recorder-modal-hosts-scratch** — (v4) **The modal hosts a Scratch
-  section**, below the Shift row and folded away until asked for. It applies
-  through the same `runOp` path for the same reason
-  REQ-the-recorder-modal-hosts-fit-and-shift gives. Its editor is a 210 px
-  canvas — too much modal to spend on a section most sessions never open — which
-  makes it the most expensive of the three folds
-  REQ-every-section-below-the-waveform-folds now defines, and the only one whose
-  fold state also gates work (the peak scan, [scratch](scratch.md) REQ-the-scratch-editor-is-a-modal-section). Its
-  behaviour and bounds are [scratch](scratch.md) REQ-the-scratch-editor-is-a-modal-section/REQ-applying-goes-through-run-op; what this spec
-  owns is that it lives here. Two shared pieces move to serve it: the
-  sixteenth-count arithmetic the Fit row used privately is hoisted above both
-  rows, and `playSelection` splits into a `playClip` that can audition an
-  uncommitted render.
-- **REQ-every-section-below-the-waveform-folds** — (v5) **Every section below
-  the waveform is a titled fold**, built by one local factory rather than three
-  hand-rolled headers: **Chop** (REQ-the-recorder-modal-hosts-the-chop-row),
-  **Fit & Shift** (REQ-the-recorder-modal-hosts-fit-and-shift) and **Scratch**
-  (REQ-the-recorder-modal-hosts-scratch). Each is a wrapper holding a header and
-  a body, and each obeys the same four rules:
-
-  1. **The title is on the left, the caret on the right.** The caret is the shared
-     `createCollapseToggle` chevron, whose class carries `margin-left: auto` — so
-     the title is appended **first** and the caret **last**. Appending them the
-     other way round is what pushed the Scratch title to the right edge before v5,
-     against [scratch](scratch.md) REQ-the-scratch-editor-is-a-modal-section's own visual aid.
-  2. **The whole header row is the hit target**, not the 18 px caret
-     (ADR-014 law 6). The caret is the affordance; the header is the button.
-  3. **All three are folded on a first open.** The editor's job at that moment is
-     the waveform and the trim; every section below it is a thing the user goes
-     looking for. Each remembers its own choice afterwards, under
-     `websynth.ui.collapsed.sample-<chop|stretch|scratch>` — the convention
-     [panel-tabs](panel-tabs.md) REQ-selected-page-is-session-only names, and the only view state in this app
-     that survives a reload.
-  4. **One fold idiom per modal.** The header is the About modal's
-     ([onboarding](onboarding.md) REQ-the-key-list-folds-to-six-rows) — `.sec` + `.secFold` + `.secFoldLabel`
-     from `modal.module.css` — because a second lookalike fold in a second modal is
-     how two idioms start.
+  It is keyed by buffer **identity**, which is sound because every `buffer-dsp` op
+  returns a NEW `CapturedAudio`; that property has its own test. It holds one entry,
+  since a map would keep every intermediate edit alive.
+- **REQ-the-recorder-modal-hosts-fit-and-shift** — (v3) The modal hosts the Fit and
+  Shift rows below the chop row ([time-stretch](time-stretch.md)
+  REQ-the-editor-gains-a-fit-row/REQ-the-fit-row-preselects-the-nearest-target).
+  Both go through the same `apply()` path, so busy latch, one-level undo and marks
+  reset are inherited.
+- **REQ-the-recorder-modal-hosts-scratch** — (v4) The modal hosts the Scratch
+  section ([scratch](scratch.md)
+  REQ-the-scratch-editor-is-a-modal-section/REQ-applying-goes-through-run-op),
+  applied through `runOp`. Its 210 px canvas makes it the costliest fold, and the
+  only one whose fold state also gates work (the peak scan). The sixteenth-count
+  arithmetic is shared by Fit and Scratch, and `playClip` auditions an uncommitted
+  render.
+- **REQ-every-section-below-the-waveform-folds** — (v5) **Chop**, **Fit & Shift** and
+  **Scratch** are each a titled fold from one local factory, with four rules:
+  1. **Title left, caret right.** The `createCollapseToggle` chevron carries
+     `margin-left: auto`, so the title is appended **first**.
+  2. **The whole header row is the hit target** (ADR-014 law 6).
+  3. **All three are folded on a first open**, and each remembers its choice under
+     `websynth.ui.collapsed.sample-<chop|stretch|scratch>`
+     ([panel-tabs](panel-tabs.md) REQ-selected-page-is-session-only's convention).
+  4. **One fold idiom**: the About modal's `.sec` + `.secFold` + `.secFoldLabel`
+     from `modal.module.css` ([onboarding](onboarding.md)
+     REQ-the-key-list-folds-to-six-rows).
 
   A section's `onChange` re-runs its own sync (`syncChop` / `syncFit` /
-  `syncScratch`), so an unfold never reveals a stale hint, and a folded Scratch
-  still pays for no peak scan.
-
-  Because the tools are now behind a heading rather than on the page, the
-  `sampler` help topic ([onboarding](onboarding.md)) names all three and says a
-  heading opens them — help that describes controls the reader cannot see is worse
-  than none.
+  `syncScratch`), so an unfold never shows a stale hint. The `sampler` help topic
+  names all three and says a heading opens them.
 
 ## Technical design
 
@@ -220,9 +122,10 @@ mic-capture.ts:
 buffer-dsp.ts (pure, CapturedAudio in/out):
   cloneCaptured / crop / reverse / normalize / gain / fadeIn / fadeOut
   computePeaks(a, width): Float32Array     # waveform viz
+  createPeakCache()                        # one-entry identity memo over computePeaks
   peakDb(a): number
 offline-render.ts:
-  renderEffect(a, fx: RenderEffect): Promise<CapturedAudio>   # filter / octave
+  renderEffect(a, fx: RenderEffect): Promise<CapturedAudio>   # filter / octave / resample
 audio-buffer.ts (the ONLY bridge):
   capturedToAudioBuffer(ctx, a) / audioBufferToCaptured(buf)
 node.ts: CapturedAudio { ... }            # the editor's audio value type
@@ -241,7 +144,7 @@ secure context: openMicSession returns MicCaptureError('insecure-context') off H
 ## Scenarios (BDD)
 
 ```gherkin
-Scenario: Closing the editor leaves no listeners behind (v6, regression)
+Scenario: Closing the editor leaves no listeners behind (regression)
   Given the sample editor has been opened and closed twenty times
   Then the number of document-level listeners is the same as before the first open
   And no detached dropdown menu is still reachable
@@ -253,23 +156,22 @@ Scenario: Record from the mic and load into a slot
   Then slot 0 plays the captured audio
 # pinned by: e2e/mic.spec.ts (fake device + grantPermissions)
 
-Scenario: Closing a session releases its recorder (v2, REQ-the-recorder-node-is-released-with-the-session, regression)
+Scenario: Closing a session releases its recorder (REQ-the-recorder-node-is-released-with-the-session, regression)
   Given a mic session is open
   When it is disposed
   Then its RecorderNode is disconnected and its port handler cleared
   And the mic tracks are stopped
-  # otherwise each modal open strands a worklet node + its captured chunks
 # pinned by: tests/audio/recorder/mic-capture.test.ts (the session releases it),
 #            tests/audio/recorder/node.test.ts (what releasing it does)
 
-Scenario: Disposing twice is harmless (v2, REQ-the-recorder-node-is-released-with-the-session, edge)
+Scenario: Disposing twice is harmless (REQ-the-recorder-node-is-released-with-the-session, edge)
   Given a mic session that has already been disposed
   When dispose runs again from a different exit path
   Then nothing throws and nothing is torn down twice
   And a disposed recorder posts nothing further to its port
 # pinned by: tests/audio/recorder/mic-capture.test.ts, tests/audio/recorder/node.test.ts
 
-Scenario: The editor opens with all three sections folded (v5, REQ-every-section-below-the-waveform-folds)
+Scenario: The editor opens with all three sections folded (REQ-every-section-below-the-waveform-folds)
   Given a slot holding audio
   When the user opens it in the editor for the first time
   Then Chop, Fit & Shift and Scratch each show a header and no body
@@ -299,7 +201,7 @@ Scenario: Insecure context is reported, not crashed (edge)
   Then it shows an insecure-context message instead of throwing
 # pinned by: tests/audio/recorder/mic-capture.test.ts (openMicSession refusals)
 
-Scenario: A take that finishes after the modal closed builds no editor (v8, REQ-the-editor-owns-its-teardown, regression)
+Scenario: A take that finishes after the modal closed builds no editor (REQ-the-editor-owns-its-teardown, regression)
   Given a take being stopped, its final batch still in flight
   When the modal is closed before the stop resolves
   Then the session is disposed and no editor or dropdown is built
@@ -308,18 +210,12 @@ Scenario: A take that finishes after the modal closed builds no editor (v8, REQ-
 
 ## Tests & verification
 
-- `tests/audio/buffer-dsp.test.ts` (pure DSP),
-  `tests/audio/recorder/offline-render.test.ts` (the `OfflineAudioContext`
-  effects — length math and graph shape, against a stubbed context; the filter's
-  response itself is the browser's), `tests/audio/recorder/mic-capture.test.ts`
-  (the `MicError` contract and the session's teardown), `e2e/mic.spec.ts`
-  (`--use-fake-device-for-media-stream` + `grantPermissions(['microphone'])`).
-- `e2e/sample-editor-folds.spec.ts` (REQ-every-section-below-the-waveform-folds) — parameterised over the three
-  sections: folded on a first open, title left of caret, one header toggles one
-  body. The alignment is asserted by geometry, not by DOM order alone, because the
-  bug it regresses was a CSS auto margin acting on an append order that *looked*
-  right in the source.
-- `npm test` / `npm run e2e`.
+- `tests/audio/buffer-dsp.test.ts`, `tests/audio/recorder/offline-render.test.ts`
+  (length math and graph shape against a stubbed context),
+  `tests/audio/recorder/mic-capture.test.ts`, `tests/ui/record-sound-modal.test.ts`,
+  `e2e/mic.spec.ts` (`--use-fake-device-for-media-stream` +
+  `grantPermissions(['microphone'])`), `e2e/sample-editor-folds.spec.ts` (title
+  position by geometry, not DOM order) — `npm test` / `npm run e2e`.
 
 ## Open questions / future
 

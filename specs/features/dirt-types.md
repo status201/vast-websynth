@@ -48,14 +48,9 @@ same time. Mutual exclusion then comes for free. They share DRIVE, TONE and MIX.
 TYPE changes what DRIVE does and which few filters sit around the clipper. Every
 song, preset and share link from before TYPE must sound exactly as it did
 (ADR-006), and the order is musical, stable, cheap (ADR-010). The cheap part
-also covers boot: only DISTORTION ships in the entry chunk.
-
-Once DISTORTION was one of three types, the effect could no longer be called
-Distortion. The panel read "Distortion ▾ DISTORTION", which is redundant and
-wrong for the other two. The long legend also widened the title enough to push
-the ON switch out of the panel and stop the type from truncating. The effect is
-**Dirt**, the players' umbrella term for the overdrive, distortion and fuzz
-family.
+also covers boot: only DISTORTION ships in the entry chunk. The effect is
+**Dirt**, the players' umbrella term for the family, since "Distortion" is now one
+of its three types.
 
 ## Requirements
 

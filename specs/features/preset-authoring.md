@@ -3,13 +3,7 @@
 ```yaml
 id: preset-authoring
 status: implemented
-version: 5   # v5: expansion and the warning follow `isPatchParam` again, now that it excludes the key
-             #     and the master compressor itself (presets.md v18)
-             # v4: the song-setting warning says the key is ignored on load (presets.md
-             #     REQ-a-preset-is-only-a-sound), no longer that loading would change it
-             # v3: REQ-semantic-severity-is-the-callers-choice — the semantic layer's severity is the caller's choice,
-             #     so the app can run those checks without refusing the file
-             # v2: REQ-preset-schemas-are-published — the schemas point at the published /params.* reference
+version: 5
 owner: tooling
 related:
   - presets
@@ -125,7 +119,7 @@ passes it.
   local-only, because it writes into the *server's* working directory and a
   shared host has no such directory a caller can reach
   ([mcp-server](mcp-server.md) REQ-the-remote-profile-is-read-only).
-- **REQ-semantic-severity-is-the-callers-choice** *(v3)* — **The semantic
+- **REQ-semantic-severity-is-the-callers-choice** (v3) — **The semantic
   layer's severity is the caller's choice.** `validatePresetPayload(value, bus,
   { semantics })` takes `'error'` (default —
   REQ-semantic-validation-needs-the-bus unchanged, and what the MCP tools get)

@@ -3,8 +3,7 @@
 ```yaml
 id: paste-import
 status: implemented
-version: 3   # v3: REQ-the-paste-dialog-loads-on-click — the Paste dialog (and the fragment) load with the click
-             # v2: a file dropped on the window takes the same routes (REQ-a-dropped-file-takes-the-paste-routes)
+version: 3
 owner: ui
 related:
   - song-mode
@@ -142,7 +141,7 @@ formats arrive through one textarea, so it simply routes.
   is open the drop is claimed and ignored, as the shortcuts are.
 
 - **REQ-the-paste-dialog-loads-on-click** — **The Paste dialog loads on click**
-  (v3, [runtime-performance](runtime-performance.md)
+  ([runtime-performance](runtime-performance.md)
   REQ-boot-cost-matches-the-request). The Song row's Paste button `import()`s
   `paste-import.ts` through `loadSurface`, and the AI Prompt modal reaches the
   fragment through its own lazy body, so neither door costs boot. The file drop

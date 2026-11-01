@@ -3,9 +3,7 @@
 ```yaml
 id: chord-tools
 status: implemented
-version: 3   # v3: extension voicings — sus2, 6th, add9, 9th — each at most four notes
-             #     (REQ-a-voicing-is-at-most-four-notes)
-             # v2: the chord writer can write inversions (REQ-the-writer-can-invert)
+version: 3
 owner: core
 related:
   - architecture
@@ -85,7 +83,7 @@ cheapest implementation and the most musical one.
   off-switch is folded into the param rather than carried as a separate
   `chord.on`, following the `LFO_DEST_LABELS` idiom. The current voicing's
   **tonic** chord is what both key pictures preview in yellow — the KEY tab's
-  map and, since v3 there, the playable keyboard
+  map and the playable keyboard
   ([scale-quantization](scale-quantization.md) REQ-the-key-is-drawn-not-just-named and
   REQ-a-chord-lands-in-the-edited-register) — because chord memory has no chord
   of its own until a key is held.

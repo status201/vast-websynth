@@ -3,12 +3,7 @@
 ```yaml
 id: section-title
 status: implemented
-version: 4   # v4: a folded section's selected tab dims too — the same yellow burning
-             #     low, never the heading's --text-dim; its LED is untouched (REQ-folded-selected-tab-dims)
-             # v3: the tabs' smaller type starts at 1030px, not 992px, so the MACHINES icon
-             #     cannot push a tab label onto a second line (REQ-compact-drops-text-not-icon)
-             # v2: FX and MACHINES get new glyphs (the pedal and step grid did not
-             #     read at 14px), and a heading dims while its section is folded (REQ-folded-heading-dims)
+version: 4
 owner: ui
 related:
   - equalizer        # REQ-the-eq-section-is-a-folded-tab-container — the first titled TabContainer
@@ -133,7 +128,7 @@ yellow heading reads as a control that does nothing when clicked
   The text is **visually hidden**, not `display: none`, so the heading keeps its
   accessible name. FX and EQUALIZER have room at every width and do not opt in.
 
-  (v3) **The icon alone still costs ~30 px, so the tabs' smaller type starts at
+  **The icon alone still costs ~30 px, so the tabs' smaller type starts at
   1030 px** (`tabs.module.css`; it was 992 px, and the bar's wrap rule stays
   there).
   - At full size the row needs ~957 px of bar, and a label wrapped onto a second

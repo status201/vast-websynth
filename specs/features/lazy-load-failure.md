@@ -3,13 +3,7 @@
 ```yaml
 id: lazy-load-failure
 status: implemented
-version: 7   # v7: the WiFi transport's body and the sync roles join the operation-scoped exemptions
-             #     (webrtc-sync.md v9, midi-clock-sync.md v10)
-             # v6: Dirt's other types join the operation-scoped exemptions (dirt-types.md)
-             # v5: the delay's non-digital types join the operation-scoped exemptions (delay-types.md)
-             # v4: the boot-payload baseline is dated (2026-08-20) — `npm run check:bundle` prints the current sizes
-             # v3: loadSurface is the canonical trigger shape; four hand-rolled triggers fold onto it
-             # v2: the offline sentence points at Play offline (REQ-the-offline-sentence-points-at-play-offline)
+version: 7
 owner: core
 related:
   - runtime-performance   # REQ-every-lazy-trigger-reports — the split that creates this failure mode
@@ -61,11 +55,11 @@ would drift.
 - **REQ-every-lazy-trigger-reports** (every trigger reports) — A trigger that
   `import()`s a **surface** must handle the rejection and tell the user.
   Silently returning is not an option, and neither is a bare `console.error`.
-  The current set is: Help & About, the guided tour, the info badges, the preset
-  manager, the audio-export dialog, the sound recorder, WiFi pairing, and the
-  AI-prompt authoring guide. A new deferred surface joins the list by
-  construction — see the recipe note in
-  [runtime-performance](runtime-performance.md) REQ-boot-cost-matches-the-request.
+  The catalogue is `tests/ui/lazy-load-failure.test.ts`: its `TRIGGERS` table
+  lists every surface and its `EXEMPT` map every `import()` that is not one, each
+  with its reason. This spec does not copy either list. A new deferred surface
+  joins `TRIGGERS` ([runtime-performance](runtime-performance.md)
+  REQ-boot-cost-matches-the-request).
 
 - **REQ-one-wording-for-lazy-failure** (one report, one wording) — The report is
   `showLazyLoadFailure(surface, retry)`, and it is the **only** place the
@@ -113,35 +107,22 @@ would drift.
   warm cannot: a first visit that lost the network before idle, a purged cache,
   a flaky fetch. The one defence that covers every surface is opt-in — a device
   that saved an offline copy ([play-offline](play-offline.md)) has every chunk —
-  so this report is still the backstop for everyone else. (v5) The FX rack's
-  patch-cable scenery is imported at its mount for the same reason the warm
-  stays quiet: it is not a gesture, and a failure only leaves an empty cell
-  ([fx-patch-decoration](fx-patch-decoration.md) REQ-decoration-is-parity-keyed).
+  so this report is still the backstop for everyone else. An `import()` that is
+  not a gesture (the FX rack's patch-cable scenery at its mount,
+  [fx-patch-decoration](fx-patch-decoration.md) REQ-decoration-is-parity-keyed)
+  stays quiet for the same reason the warm does.
 
 - **REQ-lazy-scope-is-surfaces-not-operations** (scope: surfaces, not
   operations) — This is for `import()`s that **open something**. An `import()`
   in the middle of an operation already has a flow that owns its errors, and
   "Couldn't open …" is the wrong sentence for it, so those stay with their own
-  feature: the `lamejs` encoder inside an MP3 export
-  ([audio-export](audio-export.md)) and the `jsqr` decoder inside a QR scan
-  ([webrtc-sync](webrtc-sync.md)). Neither is covered here. Nor is the
-  flanger's DSP, imported by its first switch-on: a failure leaves the effect
-  bypassed and the next switch-on retries ([flanger](flanger.md)
-  REQ-an-unloaded-flanger-stays-bypassed). Nor (v5) are the delay's non-digital
-  types, imported by their first selection: a failure leaves the delay DIGITAL
-  (a failed reverse worklet leaves that type's wet silent), and the next
-  selection or switch-on retries ([delay-types](delay-types.md)
-  REQ-the-other-types-load-on-first-use). Nor (v6) are Dirt's other
-  types, imported by their first choice: a failure leaves Dirt DISTORTION, and
-  the next choice or switch-on retries
-  ([dirt-types](dirt-types.md)
-  REQ-the-other-dirt-types-load-on-first-use). Nor (v7) is WiFi sync's
-  transport body, imported by the first pairing step: the pair modal reports a
-  failed step, and the next one retries ([webrtc-sync](webrtc-sync.md)
-  REQ-the-wifi-transport-loads-at-pairing). Nor are the MIDI-clock roles,
-  imported when a sync mode is selected: a failure is logged, the selection
-  stays armed and the next mode or port change retries
-  ([midi-clock-sync](midi-clock-sync.md) REQ-the-sync-roles-load-with-the-mode).
+  feature, which states its failure state and retry rule (e.g. the `lamejs`
+  encoder, [audio-export](audio-export.md) REQ-a-failed-encode-keeps-the-take; the
+  flanger's DSP, [flanger](flanger.md) REQ-an-unloaded-flanger-stays-bypassed; WiFi
+  sync's body, [webrtc-sync](webrtc-sync.md)
+  REQ-the-wifi-transport-loads-at-pairing). The shared shape: a failure leaves the
+  feature in its last working state and the next gesture retries. The test's
+  `EXEMPT` map is the list, each entry with its reason.
 
 ## Technical design
 
@@ -191,21 +172,21 @@ async function loadThing(): Promise<Thing | null> {
 
 `const { x } = await import(…)` is the form rollup can shake the module's other
 exports against; hoisting the binding and destructuring by assignment re-attaches
-the whole namespace. This is not theoretical — writing it the other way silently
-grew the authoring-guide chunk from 16.25 kB to 19.94 kB by dragging
-`buildPresetGuide` and friends in behind the AI Prompt button. The `npm run
-build` chunk table is where that shows up; nothing else catches it.
+the whole namespace (measured: it dragged `buildPresetGuide` in behind the AI
+Prompt button). The `npm run build` chunk table is where that shows up; nothing
+else catches it.
 
 ### Layer touchpoints & ordering
 
-- `lazy-load-toast.ts` imports only `toast.ts`, which is already in the entry
-  chunk (`main.ts` raises the sampler-restore toast), so the helper adds no new
-  boot-path weight — it must stay that way, or the report would cost every
-  visitor more than the split saves.
+- `components/lazy-load-toast.ts` imports only `toast.ts` (already in the entry
+  chunk) and the `offline-wording.ts` strings, so the helper adds no boot-path
+  weight; it must stay that way, or the report would cost every visitor more than
+  the split saves.
 - Each trigger owns its own `surface` string and its own retry closure; the
   helper holds no state and no registry.
-- `main.ts` warms `lamejs`, `onboarding-impl` and `about-modal` on one
-  `requestIdleCallback` (timeout fallback for Safari <17.4).
+- `main.ts`'s `warmDeferred` warms the offline-reachable deferred chunks on one
+  `requestIdleCallback` (timeout fallback for Safari <17.4); that function is the
+  list ([pwa-install](pwa-install.md) REQ-service-worker-is-registered).
 
 ### Persistence
 
@@ -254,8 +235,8 @@ Scenario: the AI prompt and WiFi pairing report too (REQ-every-lazy-trigger-repo
 Scenario: no deferred surface is left silent (REQ-every-lazy-trigger-reports, drift)
   Given every .ts file under src/ outside vendor/
   When one contains a runtime import() — `await import(` or `import(...).then/.catch`
-  Then that file also calls showLazyLoadFailure, or is one of the three
-    exemptions REQ-lazy-report-is-the-backstop/REQ-lazy-scope-is-surfaces-not-operations name, with its reason recorded beside it
+  Then that file also calls showLazyLoadFailure, or is one of the
+    EXEMPT entries (REQ-lazy-report-is-the-backstop/REQ-lazy-scope-is-surfaces-not-operations), each with its reason recorded beside it
 # pinned by: tests/ui/lazy-load-failure.test.ts
 ```
 
@@ -270,8 +251,8 @@ Scenario: no deferred surface is left silent (REQ-every-lazy-trigger-reports, dr
   - **Structural**, over the source text: no `.ts` under `src/` (outside
     `vendor/`) holds a runtime `import()` without also calling
     `showLazyLoadFailure`, bar the exemptions, each carrying its reason. This is
-    what pins the *set* — the regression this spec exists to prevent is an
-    eighth surface added without a catch, which no behavioural test can see.
+    what pins the *set* — the regression this spec exists to prevent is a
+    new surface added without a catch, which no behavioural test can see.
     It is also, for now, the only pin on the preset manager, the audio-export
     dialog and the sound recorder: all three are private functions behind a
     whole panel's dependency graph, so they are verified by construction and by
@@ -284,11 +265,8 @@ Scenario: no deferred surface is left silent (REQ-every-lazy-trigger-reports, dr
 - Boot payload: `npm run build` — the helper must not pull anything new into the
   entry chunk, each surface must still appear as its own chunk, and **no lazy
   chunk may grow**: adding a guard is a pure control-flow change, so a chunk that
-  gets bigger means the destructure trap above was tripped. Baseline when this was
-  written (2026-08-20; the entry chunk has grown since, so compare against
-  `npm run check:bundle` and the previous build, not these numbers): entry 421.7 kB, about-modal 12.98, authoring-guide 16.25,
-  preset-manager 7.01, export-audio 4.34, record-sound 10.60, sync-pair 31.04,
-  onboarding-impl 62.83.
+  gets bigger means the destructure trap above was tripped. Compare against the
+  previous build's chunk table.
 
 ## Open questions / future
 

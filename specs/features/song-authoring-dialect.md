@@ -3,25 +3,13 @@
 ```yaml
 id: song-authoring-dialect
 status: implemented
-version: 8   # v8: the step grammar names the `micro` override (all machines) and the seq-only
-             #     per-entry `bend`/`bendShape` the expander already accepted
-             # v7: chain letters run A..P and the ladder gains a v9 rung — more than eight
-             #     banks, or a chain naming bank I+ (song-mode.md REQ-song-file-v9-raises-the-bank-ceiling);
-             #     the v8 rung, shipped but never written into the ladder here, is now listed too
-             # v6: the expander loads with the first author file, not at boot; Song.parse is async
-             #     and fromJSON is canonical-only (REQ-the-expander-loads-with-the-first-author-file)
-             # v5: a seqChain letter may carry a +n/-n transpose suffix (REQ-a-chain-letter-may-carry-a-transpose)
-             # v4: bank-level step settings cascade into `tracks` instead of being
-             #     refused next to it (REQ-bank-settings-cascade-into-tracks)
-             # v3: the emitted canonical version is the LOWEST that holds the content
-             #     (REQ-the-emitted-version-is-the-lowest-that-fits), plus the two dialect forms that were shipped but never
-             #     specified — multi-track seq banks (REQ-a-seq-bank-may-carry-four-tracks) and motionTracks (REQ-motion-tracks-is-a-top-level-key)
+version: 8
 owner: state
 related:
   - song-mode
   - ai-prompt
   - sequencer          # REQ-a-seq-bank-may-carry-four-tracks's multi-track banks land in seqTracks (its REQ-a-seq-bank-may-carry-four-tracks)
-  - motion-sequencer   # REQ-motion-tracks-is-a-top-level-key's motionTracks (its REQ-song-file-v5-adds-motion-tracks)
+  - motion-sequencer
   - ../decisions/adr-013-authoring-dialect-input-only
   - ../decisions/adr-007-songfile-additive-versioning
 source:
@@ -70,7 +58,7 @@ exported — see ADR-013.
   **positional** (array of ≤16 entries, short
   arrays rest-padded; entry = `null` | midi | `"A2"` |
   `{note, velocity?, gate?, prob?, ratchet?, tie?, micro?, bend?, bendShape?}`) or the **bank-defaults
-  form** `{notes: [...], velocity?, gate?, prob?, ratchet?, tie?}` where the
+  form** `{notes: [...], velocity?, gate?, prob?, ratchet?, tie?, micro?}` where the
   bank-level settings apply to every ON step (per-entry objects still override).
   On-step defaults: `velocity 0.85, gate 0.5, prob 1, ratchet 1, tie false`;
   off steps expand to `{on: false, note: 60}` + the same defaults. `seq` itself
@@ -125,7 +113,7 @@ exported — see ADR-013.
   demo registration from `song.ts`.
 
 - **REQ-machines-with-content-auto-enable** — **Machines with content
-  auto-enable** (v2): `seq.on`, `drum.on` and `sampler.on` are ParamBus params
+  auto-enable**: `seq.on`, `drum.on` and `sampler.on` are ParamBus params
   that default to **0**, and `Song.apply` resets to defaults before restoring a
   song's params — so an expanded author file whose `params` lacks them would
   import silent despite filled banks (the original bug). Expansion therefore
@@ -167,7 +155,7 @@ exported — see ADR-013.
   `seqTracks`.
 
 - **REQ-bank-settings-cascade-into-tracks** — **Bank-level settings cascade into
-  `tracks` (v4).** `velocity`, `gate`, `prob`, `ratchet`, `tie` and `micro` may sit
+  `tracks`.** `velocity`, `gate`, `prob`, `ratchet`, `tie` and `micro` may sit
   alongside `tracks` and apply to every track that does not set its own.
   Precedence is the same three-tier rule REQ-a-seq-bank-is-positional-or-keyed
   already states, extended by one level: **bank → track → step**, nearest wins.
@@ -196,13 +184,12 @@ exported — see ADR-013.
   as an XY anchor does.
 
 - **REQ-a-chain-letter-may-carry-a-transpose** — **A `seqChain` letter may carry
-  a transpose suffix** (v5): `"A A+5 A+7 A+3"` — an optional `+n` / `-n` of up
+  a transpose suffix**: `"A A+5 A+7 A+3"` — an optional `+n` / `-n` of up
   to `MAX_CHAIN_TRANSPOSE` (24) semitones after a bank letter, expanding to the
   canonical `seqTranspose` array ([song-mode](song-mode.md) REQ-song-file-v7-adds-slot-transpose). This is the
   dialect's headline win from [arrangement](arrangement.md)
-  REQ-a-seq-slot-carries-a-transpose: a four-chord progression that used to need
-  all four banks is now one bank and one chain string — still the compact way to
-  say it now that a machine can hold eight.
+  REQ-a-seq-slot-carries-a-transpose: a four-chord progression is one bank and one
+  chain string, still the compact way to say it with up to sixteen banks.
     - The suffix is **`seqChain`-only** — `drumChain`/`samplerChain`/`motionChain`
       reject it with a message saying so, rather than parsing it and dropping it,
       which is the silent-loss failure Stage 1 spent its effort removing.
@@ -216,7 +203,7 @@ exported — see ADR-013.
       those forms carry numbers, not letters.
 
 - **REQ-the-expander-loads-with-the-first-author-file** — **The expander loads
-  with the first author file, not at boot** (v6). `song-author.ts` is ~15 kB of
+  with the first author file, not at boot**. `song-author.ts` is ~15 kB of
   the entry chunk that no visitor needs until they import a compact file
   ([runtime-performance](runtime-performance.md) REQ-boot-cost-matches-the-request).
   So the module is split in two:
@@ -301,11 +288,12 @@ motion content present    -> 4   # motionBanks/motionAssigns/motionChain
 otherwise                 -> 3   # the long-standing baseline — unchanged forever
 ```
 
-Expansion targets: full 4×16 `seqBanks` / 4×8×16 `drumBanks` (and 4×8×16
+Expansion targets (N = that machine's bank count, at least `MIN_BANK_COUNT`, 4):
+full N×16 `seqBanks` / N×8×16 `drumBanks` (and N×8×16
 `samplerBanks` when present) built from `TRIGGER_CELL_DEFAULTS` with hits
 flipped on — the `drumFrom` idiom, written via `bank[t]?.[s]` for
 `noUncheckedIndexedAccess`. Motion content mirrors the sampler presence rule:
-`motionBanks` (4×16 from `MOTION_STEP_DEFAULTS`) + `motionAssigns` +
+`motionBanks` (N×16 from `MOTION_STEP_DEFAULTS`) + `motionAssigns` +
 `motionChain` are emitted only when the author provided
 `motion`/`motionChain`/`motionTracks`, `motion.on` auto-enables when anchors
 exist (never overriding an explicit author value), and `motionBanks` joins the

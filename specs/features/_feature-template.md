@@ -6,6 +6,8 @@
   Keep it lean (see ../README.md "Format rules"): Markdown for narrative, flat
   YAML for structured schemas, reference code by symbol name not line number.
   Delete any section that genuinely does not apply — don't leave empty headings.
+  A spec says what is true now: no changelog, no "## vN fix" sections, no
+  "used to" — see ../README.md "Not in a spec".
 -->
 
 # <Feature name>
@@ -13,7 +15,7 @@
 ```yaml
 id: <kebab-case-id>          # matches the filename
 status: draft                # draft | active | implemented
-version: 1                   # bump when the contract changes
+version: 1                   # integer, bumped when the contract changes — history goes in CHANGELOG, not here
 owner: <name or team>
 related:                     # other specs this depends on / extends
   - architecture

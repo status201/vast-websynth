@@ -78,7 +78,7 @@ export default defineConfig({
     //
     // So `tests/ui/**` gets jsdom by its directory (every file there is a
     // component test), and everything else gets `node` unless it asks for a
-    // DOM with a `// @vitest-environment jsdom` docblock on line 1 — which 31
+    // DOM with a `// @vitest-environment jsdom` docblock on line 1 — which some
     // files under `tests/audio` and `tests/state` do, mostly for `window`
     // listeners, `Audio` elements, `navigator` or `localStorage`.
     //

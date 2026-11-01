@@ -3,8 +3,7 @@
 ```yaml
 id: play-offline
 status: implemented
-version: 2   # v2: factory reset deletes the copy and it downloads again after the
-             #     reload (REQ-the-copy-is-fetched-again-after-a-reset); one notices watcher per copy (REQ-offline-feedback-while-about-is-closed)
+version: 2
 owner: Gijs
 related:
   - pwa-install          # the service worker this drives (REQ-offline-cancel-and-takeover there)
@@ -177,7 +176,7 @@ the day it ships.
   on `complete`; `Offline download stopped — <reason>.` with a **Retry** action
   on `error`; `A new version was installed — reload to save it offline.` with a
   **Reload** action on `needs-reload`. While About is open the status line is
-  the report and no toast is raised. A user cancel raises nothing. (v2) The
+  the report and no toast is raised. A user cancel raises nothing. The
   toasts are one **watcher per `OfflineCopy`** (`watchOfflineRuns`, in
   `offline-notices.ts`), not the section's: a run can now start with no About
   card built at all (REQ-the-copy-is-fetched-again-after-a-reset). The section
@@ -529,7 +528,7 @@ Scenario: A download that ends behind a closed About raises a toast (REQ-offline
 End-to-end runs in Chromium against `vite preview` (not committed, because
 Playwright's `webServer` is the dev server, which never registers the worker),
 2026-09-14:
-- **Download and offline boot:** every listed file (5.5 MB) saved with live
+- **Download and offline boot:** every listed file saved with live
   progress; offline, the app booted, every file was served, the preset manager,
   export and WiFi-pair dialogs opened, and a never-clicked JSON and zip demo
   loaded. This pass found REQ-cache-lookups-ignore-vary.

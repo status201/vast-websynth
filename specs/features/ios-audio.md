@@ -3,9 +3,7 @@
 ```yaml
 id: ios-audio
 status: implemented
-version: 4   # v4: the ctx 'statechange' listener is no longer iOS-only either — it is
-             #     gated on a deliberate-suspend flag instead (audio-lifecycle REQ-an-unasked-suspension-is-recovered)
-             # v3: the foreground re-arm is no longer iOS-only (audio-lifecycle REQ-foreground-return-rearms-the-context)
+version: 4
 owner: core
 related:
   - architecture
@@ -98,7 +96,7 @@ rig), the iOS session exposes diagnostics rendered in the [`debug-panel`](debug-
   replayed to hold the media-backed category even when the context survived);
   elsewhere it resumes only when `shouldResumeContext(ctx.state)` — the Android
   case, where the OS suspends a hidden page's context and it stays suspended on
-  return. **(v4)** The `ctx` `statechange` listener is **no longer iOS-only**.
+  return. The `ctx` `statechange` listener is **no longer iOS-only**.
   It was, because `'interrupted'` arrives *while visible* and nothing else
   recovers it, whereas off iOS auto-resuming on `statechange` would undo the
   Debug panel's deliberate Suspend. That trade is gone: the listener runs
@@ -110,7 +108,7 @@ rig), the iOS session exposes diagnostics rendered in the [`debug-panel`](debug-
 - **REQ-off-ios-the-workaround-is-inert** (v3) — Off iOS the *session*
   workaround stays fully inert: no `<audio>` element, no media-element source,
   `unlock()`/`rearm()` return immediately, and nothing iOS-specific is
-  persisted. What is **not** iOS-gated (v3) is the visibility re-arm above and
+  persisted. What is **not** iOS-gated is the visibility re-arm above and
   the click-free start fade, both owned by
   [audio-lifecycle](audio-lifecycle.md). `main.ts` is unchanged — `await
   engine.resume()` keeps doing everything.

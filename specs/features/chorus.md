@@ -3,11 +3,7 @@
 ```yaml
 id: chorus
 status: implemented
-version: 3   # v3: regression: a bypassed chorus stops its LFO and starts a fresh one when
-             #     it is switched back on (REQ-the-chorus-drains-briefly, ADR-012)
-             # v2: the flanger joins between the phaser and the chorus (flanger.md), so the
-             #     chorus now follows the flanger; it still comes after all the modulation
-             #     and before the delay (REQ-the-chorus-sits-after-the-phaser)
+version: 3
 owner: core
 related:
   - effects            # the insert-effect contract it implements (WrappedEffect, bypass, drain)
@@ -36,11 +32,9 @@ right. The antiphase is what makes it wide: while one side's pitch drifts up the
 other drifts down, so the image spreads instead of wobbling. There is no feedback
 path, so there is nothing to run away.
 
-It is the first insert that **makes** a stereo image on the synth bus rather than
-carrying one (effects.md "Open questions" recorded its absence), so it is also
-the first to exercise [ADR-023](../decisions/adr-023-the-synth-channel-goes-stereo-on-demand.md)'s
-generalisation: width is paid for only while asked for, and a channel count
-never decides a level.
+It **makes** a stereo image on the synth bus rather than carrying one, so it
+follows [ADR-023](../decisions/adr-023-the-synth-channel-goes-stereo-on-demand.md):
+width is paid for only while asked for, and a channel count never decides a level.
 
 ## Requirements
 
@@ -91,21 +85,17 @@ never decides a level.
   called before the wet ramps back, starts a fresh one at the current rate. It
   starts at phase 0, the taps' rest, so nothing steps
   ([effects](effects.md) REQ-a-bypassed-effect-drains-before-disconnect).
-- **REQ-the-chorus-sits-after-the-phaser** — Synth chain: `eq → dist → wah →
-  phaser → flanger → chorus → delay → reverb → duck`. Sampler chain: `eq → dist →
-  phaser → flanger → chorus → delay → reverb → duck` (v2: the flanger,
-  [flanger](flanger.md) REQ-the-flanger-sits-between-phaser-and-chorus). After the
-  modulation it shares a panel with,
-  before the delay and reverb so their tails carry its width — the pedalboard
-  order. The **drum bus has no chorus**.
+- **REQ-the-chorus-sits-after-the-phaser** — On the synth and sampler chains the
+  chorus follows the phaser and flanger it shares a panel with, and precedes the
+  delay and reverb so their tails carry its width (the pedalboard order;
+  [effects](effects.md) REQ-the-synth-chain-order owns the full order). The **drum
+  bus has no chorus**.
 - **REQ-the-chorus-widens-without-changing-level** — Switching the chorus on adds
-  width, never level. On the synth bus the chain is 1-channel up to the chorus;
-  while it is on, everything after it (delay, reverb, duck) runs 2-channel, and
-  when it is bypassed ADR-012's disconnect drops its stereo edge so the chain is
-  1-channel again — width on demand, ADR-023's first half, with no new splice.
-  The second half is already in place: `synthPan`'s input is pinned to two
-  channels (`forceStereo`), so the mono dry up-mixes to `L = R = x` at unity and
-  meets the stereo wet without a 3 dB step.
+  width, never level. While it is on, the synth chain after it runs 2-channel.
+  Bypassed, ADR-012's disconnect drops its stereo edge, so width is on demand with
+  no splice of its own. `synthPan`'s input is pinned to two channels
+  (`forceStereo`, [lfo](lfo.md) REQ-the-auto-pan-reads-a-stereo-input), so a mono
+  dry up-mixes at unity and meets the stereo wet without a 3 dB step.
 - **REQ-the-chorus-params-default-to-a-no-op** — `chorusParams(prefix)` registers
   `on` (default 0, ADR-006), `rate` 0.05–10 Hz (0.5), `depth` 0–1 (0.5),
   `mode` (0 = FREE) and `mix` 0–1 (0.5), at `fx.chorus` and

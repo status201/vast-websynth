@@ -20,6 +20,10 @@
 //     frozen per spec by lib/req-legacy.mjs (ADR-021)
 //   • every gherkin `Scenario:` carries a trailing `#` note — a pin, or an
 //     explicit reason there is none (warning)
+//   • leanness (lib/spec-lean.mjs, not ADRs): no version history in the metadata
+//     block, no `## vN …` section, no `(vN)` inside a REQ body past its landing
+//     marker; a spec or REQ over the size budget is a warning
+//   • every `related:` entry names a spec or ADR that exists
 // Plus repo-structure checks (drift prevention):
 //   • every spec / ADR / template file is listed in the specs/README.md folder map
 //   • every ADR is listed in the specs/decisions/README.md index
@@ -37,6 +41,7 @@ import { citationsIn, hasReq, staleNamesIn } from './lib/spec-xref.mjs';
 import { globToRegExp } from './lib/glob.mjs';
 import { checkSpecReqs, declaredReqs, duplicateSlugs } from './lib/spec-reqs.mjs';
 import { legacyCeiling } from './lib/req-legacy.mjs';
+import { checkSpecLean, danglingRelated } from './lib/spec-lean.mjs';
 
 function git(args, cwd) {
   try {
@@ -210,7 +215,7 @@ const ROOT_DOCS = ['CLAUDE.md', 'AGENTS.md', 'DEPLOYMENT.md', 'README.md', 'src/
  * still count), and this lint's own tests, whose fixtures are wrong citations and
  * refused ids on purpose.
  */
-const NOT_OURS = /^src\/vendor\/|\.json$|^tests\/scripts\/spec-(?:xref|reqs)\.test\.ts$/;
+const NOT_OURS = /^src\/vendor\/|\.json$|^tests\/scripts\/spec-(?:xref|reqs|lean)\.test\.ts$/;
 
 /**
  * Prose that names ids on purpose which no spec declares — so the bare-slug check
@@ -275,6 +280,8 @@ function lint(failExit) {
   // A slug names one requirement repo-wide, which is the property a number never
   // had and the reason a citation of a slug can resolve on its own.
   const fileOf = new Map(specs.map((f) => [path.basename(f, '.md'), rel(f)]));
+  // `README` too: an ADR may relate to the specs README (the SDD method itself).
+  const allIds = new Set([...specs.map((f) => path.basename(f, '.md')), 'README']);
   for (const { specId, message } of duplicateSlugs(declaredBySpec)) {
     errors.push(`${fileOf.get(specId)}: ${message}`);
   }
@@ -345,6 +352,16 @@ function lint(failExit) {
     for (const { name, line } of unpinnedScenarios(text)) {
       warn(`line ${line}: scenario "${name}" names no \`# pinned by:\` test and gives no reason`);
     }
+
+    // Leanness (lib/spec-lean.mjs): no version history in the metadata, in a
+    // section name or inside a REQ body; outlier sizes are warnings. Not for ADRs —
+    // a decision record is dated history by design.
+    if (!isAdr) {
+      const lean = checkSpecLean(text);
+      lean.errors.forEach(err);
+      lean.warnings.forEach(warn);
+    }
+    for (const v of danglingRelated(block, allIds)) err(`\`related:\` names no spec: ${v}`);
 
     // A cross-spec `[x](x.md) … REQ-<id>` must actually find that id in x.md — this
     // is what rots when a REQ is renamed and its referrers are not. `hasReq`, not a

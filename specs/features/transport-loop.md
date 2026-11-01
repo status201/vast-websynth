@@ -3,17 +3,17 @@
 ```yaml
 id: transport-loop
 status: implemented
-version: 2   # v2: Shift+L toggles Loop from the keyboard (REQ-shift-l-toggles-the-loop)
+version: 2
 owner: core
 related:
-  - transport            # REQ-loop-discoverability: the step router the wrap runs through
+  - transport            # the step router the wrap runs through
   - transport-window     # the two surfaces the Loop button and the picks live on
   - transport-position   # the seek contract, its guard and its four reactions
   - arrangement
-  - sequencer            # REQ-loop-costs-nothing-unless-engaged: a tie across a wrap releases at its gate end
-  - midi-clock-sync      # REQ-a-midi-master-announces-its-seek: a master announces every wrap
+  - sequencer            # a tie across a wrap releases at its gate end
+  - midi-clock-sync      # a master announces every wrap
   - meter                # a bar is `barTicks`, not 16
-  - song-mode            # REQ-loop-costs-nothing-unless-engaged: a load clears the loop
+  - song-mode            # a load clears the loop
   - runtime-performance
   - onboarding
   - ../decisions/adr-014-dont-make-me-think
@@ -31,20 +31,14 @@ the bar timeline to choose which bars.
 
 ## Background / Why
 
-Working on one part of a song means hearing that part again and again. The only
-way to do that was to jump back by hand every time the bar ran out — the
-scrubber ([transport-window](transport-window.md) REQ-the-bar-scrubber) moves the playhead once,
-never repeatedly. Every DAW has a loop (Ableton's loop brace, Logic's cycle), and
-it is the most-used transport control after Play.
-
-The timing is the hard part, and the existing seek does not solve it. A seek is
-applied whenever the user clicks, so up to `scheduleAheadS` of audio from the old
-position still sounds after it ([transport-position](transport-position.md)
-REQ-the-look-ahead-horizon-is-not-cancelled). That is fine once, but a loop jumps every few bars and has to land
-exactly on the bar line. So the loop's jump happens **inside the clock's drain
-loop**, at the moment the step counter moves past the loop's last step. The next
-tick is then scheduled on the same tempo grid, with nothing left over from the
-old position.
+Working on one part of a song means hearing it again and again; the scrubber
+([transport-window](transport-window.md) REQ-the-bar-scrubber) moves the playhead
+once. A seek also leaves up to `scheduleAheadS` of the old position sounding
+([transport-position](transport-position.md)
+REQ-the-look-ahead-horizon-is-not-cancelled), which is fine once but not for a jump
+every few bars that must land on the bar line. So the loop jumps **inside the clock's
+drain loop**, as the counter passes the loop's last step: the next tick is on the
+same grid with nothing left over.
 
 ## Requirements
 
@@ -67,27 +61,22 @@ old position.
   click seeks exactly as before.
 
   This is a **mode**, which [ADR-014](../decisions/adr-014-dont-make-me-think.md)
-  law 2 prefers to avoid. The user asked for it (a button that, once on, lets you
-  pick the range), and the laws' ordering allows it only because of these
-  mitigations:
-    - **The mode is visible on the target itself**, not only on the button (law 5).
-      While Loop is on the scrubber carries a picking style, each cell's `title`
-      says what a click will do ("Loop from bar N" / "Loop bars A–N"), and the
-      anchor cell is marked.
-    - **Seeking stays one gesture away.** ⏮, the machine-tab rulers, `Home` and
-      `Shift`+arrows all still seek
-      ([transport-position](transport-position.md) REQ-a-position-ruler-above-every-grid/REQ-home-and-shift-arrows-seek). Only the
-      scrubber changes job, and only while its button is lit.
-    - **The mode ends when you turn it off**, with the same button that started it.
-  The DAW gesture, dragging a brace in a strip above the timeline, was rejected.
-  It needs a second strip, which the row has no height for
-  ([transport-window](transport-window.md) REQ-the-song-panel-transport-row/REQ-the-scrubber-presents-as-a-timeline), at touch size
-  (law 6: 44 px). On a touch screen the drag would also collide with scrolling
-  the timeline sideways.
+  law 2 avoids. It was asked for, and is allowed only with these mitigations:
+    - **the mode shows on the target** (law 5): a picking style on the scrubber, each
+      cell's `title` says what a click does ("Loop from bar N" / "Loop bars A–N"),
+      and the anchor is marked;
+    - **seeking stays one gesture away**: ⏮, the machine-tab rulers, `Home` and
+      `Shift`+arrows still seek ([transport-position](transport-position.md)
+      REQ-a-position-ruler-above-every-grid/REQ-home-and-shift-arrows-seek);
+    - **the same button ends it**.
+  A DAW loop brace dragged above the timeline was rejected: no height for a second
+  touch-size strip ([transport-window](transport-window.md)
+  REQ-the-song-panel-transport-row/REQ-the-scrubber-presents-as-a-timeline), and the
+  drag collides with scrolling the timeline.
 
 - **REQ-the-loop-wraps-only-on-a-bar-line** — **The loop wraps only on a bar
   line.** After each emitted step the clock asks the loop where to go next
-  (REQ-loop-discoverability of [transport](transport.md)). For a range of bars
+  ([transport](transport.md) REQ-a-step-router-can-redirect-the-next-step). For a range of bars
   `[start, end]`, with `s = start·barTicks` and `e = (end+1)·barTicks`, the next
   step `n` is kept unless **all** of these hold: `n % barTicks === 0`, the loop
   is engaged and not refused (REQ-a-loop-that-cannot-jump-does-not), and
@@ -148,16 +137,13 @@ old position.
   wrap.** A wrap is a jump, and slaves count pulses from their own start, so a
   silent wrap would leave them one loop behind, then two. `SyncController`
   subscribes to `clock.onSeek` and sends `songposition` + `continue` while it is
-  master ([midi-clock-sync](midi-clock-sync.md) REQ-a-midi-master-announces-its-seek). Moving the announce
-  there from `Engine.seekTo` makes **every** jump announce itself, whether a
-  user seek or a loop wrap, from one place.
+  master ([midi-clock-sync](midi-clock-sync.md) REQ-a-midi-master-announces-its-seek),
+  so **every** jump, a user seek or a wrap, announces from one place.
 
-- **REQ-a-tied-note-does-not-hang-across-a-wrap** — **A tied note does not hang
-  across a wrap.** A wrap happens while the last step before it may still be
-  waiting in the look-ahead. The sequencer's seek reaction used to release held
-  notes *now*, which is before a pending note-on, and that note-on then
-  cancelled the release. The seek reaction now releases at each track's own gate
-  end, the same way its stop reaction already does ([sequencer](sequencer.md)
+- **REQ-a-tied-note-does-not-hang-across-a-wrap** — The last step before a wrap may
+  still be in the look-ahead, so a release *now* would precede its note-on and be
+  cancelled by it. The seek reaction releases at each track's own gate end, as the
+  stop reaction does ([sequencer](sequencer.md)
   REQ-a-seek-releases-every-tracks-note/REQ-a-stop-releases-every-tracks-note).
 
 - **REQ-loading-a-song-clears-the-loop** — **Loading a song clears the loop.** A
@@ -197,13 +183,11 @@ old position.
   unavailable.
 
 - **REQ-shift-l-toggles-the-loop** (v2) — **`Shift`+`L` toggles Loop** from any
-  tab, exactly as the Loop button does: refused (and still consumed) while seeking
-  is refused (REQ-a-loop-that-cannot-jump-does-not). Shift, following
-  [record-window](record-window.md) REQ-shift-r-toggles-the-record-window: bare
-  letters belong to the note rows ([keyboard-layout](keyboard-layout.md)) — `L`
-  is not one today, but a loop toggled by a stray key mid-take is a surprise, and
-  the note rows may grow. A bare `l` does nothing. The Loop button's `title`
-  names the key, and the About shortcut list carries it.
+  tab, as the button does, and is refused (still consumed) while seeking is refused.
+  Shift because bare letters belong to the note rows ([keyboard-layout](keyboard-layout.md);
+  [record-window](record-window.md) REQ-shift-r-toggles-the-record-window is the
+  precedent). A bare `l` does nothing. The button's `title` and the About shortcut
+  list name the key.
 
 - **REQ-loop-costs-nothing-unless-engaged** — **Costs nothing unless engaged.**
   The clock's step router is `null` unless Loop is on **and** a range exists, so
@@ -316,7 +300,7 @@ Nothing (REQ-the-loop-is-never-saved).
 ```
 Song-panel transport row, Loop on, looping bars 2–3, playhead in bar 3:
 
-  [TRANSPORT ❐] [Pause] [⏮]  3.05  [Loop]  ▏ 1 ▕▔2▔▕▓3▓▕ 4 ▏
+  [TRANSPORT ↗] [Pause] [⏮]  3.05  [Loop]  ▏ 1 ▕▔2▔▕▓3▓▕ 4 ▏
                  -toggle  -tostart -readout -loop   ▲ `loop` on 2 and 3,
                                                       `playing` on 3
 
@@ -452,9 +436,8 @@ Scenario: No router unless engaged (REQ-loop-costs-nothing-unless-engaged)
   `tests/audio/transport/sequencer.test.ts`,
   `tests/audio/transport/sync/sync-controller.test.ts`,
   `tests/audio/engine-seek.test.ts`, `tests/ui/transport-controls.test.ts`,
-  `tests/ui/shortcuts.test.ts` (v2 — Shift+L) — `npm test`
+  `tests/ui/shortcuts.test.ts` — `npm test`
 - E2E: `e2e/transport-loop.spec.ts` — `npm run e2e`
-- Typecheck: `npm run typecheck`
 - By ear ([ADR-010](../decisions/adr-010-musical-stable-cheap-dsp.md)): a loop across a
   bar with a tied seq note and a drum fill. The wrap must be inaudible as a
   seam, with no hanging voice. Check Chromium and Firefox.
@@ -467,11 +450,6 @@ Scenario: No router unless engaged (REQ-loop-costs-nothing-unless-engaged)
   or a 16th-resolution loop set there, would reuse its geometry
   ([transport-position](transport-position.md) → Open questions), but it is a
   separate, step-level feature.
-- ~~**A slave follows a wrap by re-joining.**~~ Resolved by midi-clock-sync v8:
-  a slave that is already following jumps in place on `continue`
-  (REQ-a-following-slave-jumps-in-place), timed to the wrap's first pulse
-  (REQ-a-join-is-timed-by-its-first-pulse). The restart it used to do had also
-  been leaving the slave a 16th off after a few wraps.
-- ~~**Keyboard shortcuts** for Loop and Pause~~ — v2: Shift+L
-  (REQ-shift-l-toggles-the-loop); Pause is Shift+Space ([transport-window](transport-window.md)
-  REQ-shift-space-pauses).
+- A following slave jumps in place on a wrap's `continue`, timed to its first pulse
+  ([midi-clock-sync](midi-clock-sync.md) REQ-a-following-slave-jumps-in-place,
+  REQ-a-join-is-timed-by-its-first-pulse).

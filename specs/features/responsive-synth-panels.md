@@ -3,28 +3,7 @@
 ```yaml
 id: responsive-synth-panels
 status: implemented
-version: 10  # v10: REQ-selectors-pin-to-the-panel-edges — a panel body is three zones: the
-             #     wave / model selector on top, the knobs centred in the middle, SYNC /
-             #     glide mode / LFO destination at the bottom, so selectors line up across panels;
-             #     REQ-selectors-never-outgrow-their-panel — the switches tighten where the
-             #     panel is narrow (the glide switch had spilled past MIXER below ~1520px)
-             # v9: OSC 1 carries FM + RING (cross-modulation.md REQ-the-modulator-controls-live-on-osc-1),
-             #     so its row break is `.rowBreak.six` and holds until 3200px, the six-knob step
-             # v8: REQ-quad-panels-use-a-fixed-grid — FILTER ENV goes dice-five below 500px too;
-             #     five across overlapped the 36px dials on the 2-column phone faceplate.
-             #     Default --knob-size drops to 30px at ≤720px (layout.css).
-             # v7: REQ-ultrawide-panels-are-one-row — above 2560px every knob group spreads
-             #     evenly and goes to one row where it fits (FILTER from 3200px).
-             #     The 1630px shapes had stayed put while panels doubled in width.
-             # v6: REQ-quad-panels-use-a-fixed-grid — FILTER ENV goes dice-five (A · D / VEL / S · R) at
-             #     ≥1630px. Its third knob row stood ~42px taller than every
-             #     neighbour there and set the height of the whole faceplate row.
-             # v5: REQ-fx-panels-fit-their-knob-run — the FX rack sizes panels to their knob runs above
-             #     1360px. Equal columns had started wrapping the four-knob
-             #     panels, and the rack's extra height pushed the panel below it
-             #     past the fold.
-             # v4: the LFO panel's title row now carries a tab strip (REQ-spread-rows-distribute-when-wide)
-             # v3: the 6-knob FILTER panel (.hex)
+version: 10
 owner: ui
 related:
   - responsive-header
@@ -136,7 +115,7 @@ count changes.
   middle. The LFO keeps its three zones (wave on top, knobs in the middle,
   destination at the bottom — REQ-selectors-pin-to-the-panel-edges); only its
   knob row spreads.
-  - (v4) The LFO panel's **title row is a two-tab strip**
+  - The LFO panel's **title row is a two-tab strip**
     ([panel-tabs](panel-tabs.md), [lfo](lfo.md) REQ-the-two-lfos-share-one-panel). It replaces the title
     rather than joining it, holds a plain `.panelTitle`'s height so the panel
     stays on its neighbours' baseline, and its tabs take an even share of the
@@ -174,7 +153,7 @@ count changes.
     2561px the break is `display: none`, and the four knobs share one even row
     (220px of boxes in a ≥281px row). WIDTH's show/hide toggles the break with
     it, so a hidden WIDTH leaves no empty line.
-  - **OSC 1's break holds until 3200px** (v9). OSC 1 always shows FM and RING
+  - **OSC 1's break holds until 3200px**. OSC 1 always shows FM and RING
     behind its break ([cross-modulation](cross-modulation.md)
     REQ-the-modulator-controls-live-on-osc-1), so with WIDTH it has six knobs,
     which first fit one row at 3200px, the step `.hex` takes for the same six.
@@ -200,7 +179,7 @@ count changes.
   (knob centre ± `scrollWidth`/2) for every knob in every panel at 360–2560px;
   the dial's glow ring is excluded, since its negative inset bleeds outside the
   box by design.
-  - (v8) **Label ink cannot see a dial collision when the labels are short.**
+  - **Label ink cannot see a dial collision when the labels are short.**
     FILTER ENV's five-across row at 420px overlapped its 36px dials while
     `A`/`D`/`S`/`R`/`VEL` stayed clear of each other, so the sweep passed. The
     FILTER ENV scenario therefore asserts box clearance directly in each

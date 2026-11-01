@@ -3,53 +3,7 @@
 ```yaml
 id: onboarding
 status: implemented
-version: 30  # v30: OSC 2 gets its own badge and topic, `osc2` (REQ-each-oscillator-carries-its-own-badge)
-             # v29: one badge for the demo row, song.demos, which opens the demo library; HelpContext gains loadDemo and loadedDemo, TourCtx gains loadedDemo (demo-library.md REQ-info-mode-badges-the-demo-row-once)
-             # v28: help copy catches up with the release (REQ-help-copy-tells-the-truth): 19 factory sounds, Delete or revert…, chord Inversion, drag-and-drop import, the MIDI in picker, aftertouch, wide-screen octaves; the About key list gains the drum/sampler grid row
-             # v27: the Equalizer carries seven badges — one section topic plus a
-             #      graph and a knob-row topic per lane — and its page shells
-             #      join the reflow observer list (REQ-the-equalizer-carries-seven-badges, REQ-a-container-must-tell-badges-when-it-hides)
-             # v26: five badges on the Sampler's selected-slot strip, anchored to
-             #      cells that outlive a slot change (REQ-the-sampler-strip-carries-five-badges)
-             # v25: the help door never fails silently — the About body is warmed
-             #      on idle so it opens offline, and a rejected import says so
-             #      with a retry instead of doing nothing (REQ-the-help-door-never-fails-silently)
-             # v24: a meter topic + badge on the header picker (REQ-the-meter-has-a-help-topic)
-             # v23: a badge hides when its anchor leaves the viewport in EITHER
-             #      direction — the below-the-fold half was missing (REQ-a-badge-shows-only-where-reachable)
-             # v22: the facade's five signatures are unchanged, but its body now
-             #      loads on the first startTour()/badge toggle
-             #      (runtime-performance.md REQ-boot-cost-matches-the-request)
-             # v21: a `mod` badge on the Song row's MOD launcher (REQ-the-mod-launcher-carries-a-badge)
-             # v20: `key` and `seq.chord` badges for the scale/chord tools (REQ-key-and-chord-writer-carry-badges)
-             # v19: an `lfo2.rate` sweet-spot badge, and the LFO panel's page
-             #      shell joins the reflow observer list (REQ-a-container-must-tell-badges-when-it-hides, lfo.md REQ-the-two-lfos-share-one-panel)
-             # v18: while the badges show, the ⓘ button's glyph inverts to the
-             #      badge's own colours, and the `presets` badge moves off its
-             #      neighbour onto the preset selector (REQ-the-info-button-is-a-toggle/REQ-a-presets-topic-anchors-to-the-picker)
-             # v17: the diagram's caps are labelled from the active keyboard
-             #      layout, switchable from a gear beside the section title
-             #      (REQ-keys-are-drawn-as-keys, keyboard-layout.md)
-             # v16: the About key list renders keycaps, and the two note rows
-             #      become a keyboard diagram derived from the real bindings
-             #      (REQ-keys-are-drawn-as-keys)
-             # v15: the Info/Help split collapsed — ⓘ toggles the badges and
-             #      nothing else, ? opens About, the Help chooser modal is gone,
-             #      and About absorbs the tour button + a folded key list
-             #      (REQ-the-info-button-is-a-toggle/REQ-help-copy-tells-the-truth/REQ-the-tour-showcases-the-song-tab/
-             #      REQ-about-key-symbols-are-drawn/REQ-the-info-button-gesture-inventory/REQ-about-is-the-single-door-for-help)
-             # v14: the two audio topics rewritten for the Record window + export
-             #      modal, and Shift+R added to the key list (REQ-the-song-audio-buttons-keep-their-badges/REQ-about-key-symbols-are-drawn)
-             # v13: instant badge toggle — Shift/Ctrl+click or long-press the Help
-             #      button, plus the `?` key; no modal round-trip (REQ-the-info-button-gesture-inventory)
-             # v12: a `song.fx` badge on the Live FX launcher — the last unbadged
-             #      section on the Song tab (REQ-the-live-fx-row-carries-a-badge)
-             # v11: playhead-ruler + Song-transport badges; symbol glyphs in the
-             #      About modal's key list (REQ-the-playhead-ruler-carries-a-badge/REQ-about-key-symbols-are-drawn)
-             # v10: TourCtx.applyDemo is async (demos are fetched on click)
-             # v9: a `seq.render` badge on the Sequencer's "Import into sampler" Render button
-             # v8: per-lane Motion help badges (motion.xy / motion.tracks)
-             # v7: grid-gesture copy, a `presets` topic, and a "Paint a pattern" tour step
+version: 30
 owner: core
 related:
   - architecture
@@ -153,7 +107,7 @@ thing.
   other in-panel badges (e.g. `seq.prob`).
   The demo row beside them carries **one** badge, `song.demos`, on the
   `Demos:` label (`data-help="song.demos"`); its topic body *is* the demo library,
-  which is why `HelpContext` also carries `loadDemo` and `loadedDemo` (v29 — [demo-library](demo-library.md)
+  which is why `HelpContext` also carries `loadDemo` and `loadedDemo` ([demo-library](demo-library.md)
   REQ-info-mode-badges-the-demo-row-once).
 
 - **REQ-a-container-must-tell-badges-when-it-hides** (v19) — **Every container
@@ -167,7 +121,7 @@ thing.
   LFO 2's page. The second page needs no entry: its own anchor
   (`knob-lfo2.rate`) lives inside it, and revealing it is what triggers the
   observer on page 1 collapsing.
-  - (v27) The Equalizer's **`eq-section`** and all three of its page shells
+  - The Equalizer's **`eq-section`** and all three of its page shells
     (`panel-eq-seq`, `panel-eq-drums`, `panel-eq-sampler`) join the list too.
     The three pages are the same height — each takes it from `--scope-h`
     ([equalizer](equalizer.md) REQ-the-eq-page-mirrors-the-scope-row) — so a lane switch resizes neither the
@@ -192,7 +146,7 @@ thing.
       (`top < header.bottom`) → hide, or it paints over the header. Anchors
       *inside* the header are exempt: they never scroll away, so measuring them
       against their own container would hide them permanently (REQ-a-presets-topic-anchors-to-the-picker);
-    - **below** (v23) — the badge's bottom crosses the viewport's
+    - **below** — the badge's bottom crosses the viewport's
       (`top + BADGE_SIZE > innerHeight`) → hide.
   Only the last one is new. Without it the rule was half a rule: scrolling a
   control up under the header dropped its badge, scrolling it down past the fold
@@ -262,8 +216,8 @@ thing.
     destination is aimed at: wobble (cutoff), vibrato (pitch), tremolo (amp) or
     PWM movement (pulse) — and that it does nothing while the LFO destination
     is off.
-  - The two header buttons' tooltips name **what they do**, not what they are
-    (v15): the ⓘ button reads "Show info badges (?)" while inactive and "Hide
+  - The two header buttons' tooltips name **what they do**, not what they are:
+    the ⓘ button reads "Show info badges (?)" while inactive and "Hide
     info badges (?)" while active — the parenthetical is the keyboard route, the
     discoverability leg `recipes/design-an-interaction.md` step 4 asks for. The
     ? button reads "Help & About": it names both things behind it (the guided
@@ -278,8 +232,8 @@ thing.
   Fill/Stutter/Drop/Tape Stop + the DJ filter). Both use `precondition:
   clickTestId('tab-song')` — on *both* steps, not just the first, so **Back**
   from the closing step (or a stray tab click) re-opens the Song tab. The
-  closing step targets the header `info-badges` button (v15; `help-button`
-  before that) and switches no tab, so the tour **ends with the Song tab open
+  closing step targets the header `info-badges` button
+  and switches no tab, so the tour **ends with the Song tab open
   and active** — the user is left ready to play rather than parked on the
   Sequencer. The demo loaded earlier in the tour populates the chains, so the
   lane spotlight lands on real content. Its copy names **both** header doors — ⓘ
@@ -397,7 +351,7 @@ thing.
   The list is also the canonical on-screen shortcut reference, so it must name
   every global key — including `Home` / `Shift`+arrows
   ([transport-position.md](transport-position.md) REQ-home-and-shift-arrows-seek), `Delete` and
-  `Ctrl/Cmd+Z`, which were missing, (v13) `?`, and (v14) `Shift`+`R` for the
+  `Ctrl/Cmd+Z`, which were missing, `?`, and `Shift`+`R` for the
   [Record window](record-window.md) (REQ-shift-r-toggles-the-record-window there). It already carries non-key gestures (`Shift`+drag for fine knob
   control), so a mouse row is in keeping. The v13 `Shift`+click-on-Help row is
   **gone** in v15 along with the gesture itself.
@@ -453,7 +407,7 @@ thing.
     is the one place in the app that would silently drift. Naturals are the
     semitones `{0,2,4,5,7,9,11}` of each row's own base; a sharp occupies the gap
     after the natural below it.
-  - **(v17) The cap labels follow the active keyboard layout.** A cap that
+  - **The cap labels follow the active keyboard layout.** A cap that
     stands for a physical key carries `data-code` and takes its label from
     [keyboard-layout](keyboard-layout.md); switching layout relabels those caps
     **in place**, because the diagram's structure — which rank, which column,

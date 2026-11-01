@@ -3,21 +3,7 @@
 ```yaml
 id: transport
 status: implemented
-version: 11  # v11: a dropout re-origins with DROPOUT_LEAD_S (0.1 s), not start()'s 0.05 s, so an
-             #      early-nudged first step after a backgrounded tab returns is still
-             #      schedulable (REQ-the-transport-catch-up-is-bounded)
-             # v10: REQ-a-start-can-name-its-first-step-time start(fromStep, firstStepAt) and
-             #      REQ-a-jump-can-be-scheduled seekAt(step, at) / nextStepAt — for a sync slave
-             #      that joins on the master's first pulse and follows a jump in place
-             # v9: REQ-a-subscriber-may-not-wedge-the-transport covers ALL FIVE listener fan-outs, not just
-             #     tick and the routed seek — start/stop/seek were bare, and a throwing
-             #     start listener wedged the transport permanently
-             # v8: REQ-pause-resumes-where-it-stopped pause() — a one-shot resume point the cue reports while
-             #     paused; REQ-a-step-router-can-redirect-the-next-step a step router, which the loop wraps through
-             # v7: REQ-the-step-counter-is-bounded-at-ingress the step counter no longer wraps (bounded at ingress
-             #     instead), REQ-swing-offset-is-public swingOffset is public — both for meter.md
-             # v6: REQ-the-transport-catch-up-is-bounded bounded catch-up — a stalled wakeup source (backgrounded
-             #     phone) recovers as silence, never as a burst of missed steps
+version: 11
 owner: core
 related:
   - architecture
@@ -28,8 +14,8 @@ related:
   - performance-mode
   - midi-clock-sync
   - transport-position
-  - transport-window   # v8: the Play/Pause button that calls pause()
-  - transport-loop     # v8: the step router's one consumer
+  - transport-window   # the Play/Pause button that calls pause()
+  - transport-loop     # the step router's one consumer
   - untrusted-input
   - audio-lifecycle
   - ../decisions/adr-015-untrusted-input-is-bounded
@@ -47,268 +33,116 @@ sampler, arrangement, performance, recorder).
 
 ## Background / Why
 
-Timers in the browser are jittery, but `AudioParam` scheduling is sample-accurate.
-The clock uses the classic **"two clocks"** pattern (Chris Wilson, 2013): a timer
-wakes us every ~25 ms to *enqueue* upcoming ticks, but each tick carries the
-**absolute AudioContext time** it should sound, ~100 ms ahead, so consumers
-schedule with `setValueAtTime` etc. and stay tight regardless of timer jitter.
-
-The wakeup timer runs in a **Worker** (v2): a main-thread `setTimeout` is
-throttled to ≥1 s in background tabs (transport stalls) and is delayed by any
-main-thread jank — on mobile, a wake slipping past the look-ahead horizon means
-events get clamped to `currentTime` downstream (`Math.max(when, now)`) and hits
-bunch up. Worker timers are exempt from background-tab throttling and keep
-firing through main-thread jank. Only the *wakeup* moves off-thread; the
-scheduling logic (drain loop, swing, step math) stays on the main thread,
-untouched.
+Browser timers jitter, but `AudioParam` scheduling is sample-accurate. The **"two
+clocks"** pattern (Chris Wilson, 2013): a timer wakes every ~25 ms to *enqueue* ticks,
+each carrying the **absolute AudioContext time** it should sound, ~100 ms ahead. The
+wakeup runs in a **Worker**, because a main-thread `setTimeout` is throttled to ≥ 1 s
+in background tabs and delayed by jank, and a late wake gets hits clamped to
+`currentTime` and bunched. Only the wakeup moves off-thread; the scheduling logic stays
+on the main thread.
 
 ## Requirements
 
 - **REQ-subscribers-get-step-and-audio-time** — Subscribers get `(stepIndex,
-  audioTime)` per 16th-note tick, scheduled `scheduleAheadS` ahead (default
-  `SCHEDULE_AHEAD_S`).
+  audioTime)` per tick, scheduled `scheduleAheadS` ahead (default `SCHEDULE_AHEAD_S`;
+  the weak tier widens it, [performance-mode](performance-mode.md)).
+- **REQ-on-start-fires-before-the-first-tick** — `onStart` fires before the first tick,
+  `onStop` on stop. The [arrangement](arrangement.md) subscribes first.
+- **REQ-bpm-and-swing-are-live-settable** — `setBpm` clamps to `20..400` and `setSwing`
+  to `0..1`, and both **reject non-finite input first**: the clamp idiom passes `NaN`,
+  and a `NaN` tempo stalls the scheduler. A WiFi peer can send one
+  ([webrtc-sync](webrtc-sync.md)). Swing delays off-beat 16ths.
+- **REQ-the-wakeup-timer-is-off-the-main-thread** — The wakeup is a Worker
+  `setInterval` wherever `Worker` exists, with a main-thread `setTimeout` loop as the
+  fallback and test double. A wakeup that arrives after `stop()` emits nothing.
+- **REQ-start-seeds-the-step** — `start(fromStep)` seeds `_step` (clamped,
+  REQ-the-step-counter-is-bounded-at-ingress) **before** firing `onStart`, so the
+  arrangement can read `clock.step` there and seek to the implied bar. Sync's Song
+  Position join uses it ([midi-clock-sync.md](midi-clock-sync.md)
+  REQ-song-position-pointer-jumps-the-slave). `TickSubscriber.start()` keeps a no-arg
+  signature.
+- **REQ-seek-moves-a-running-clock** — `seek(step)` sets `_step` and the cue, **never**
+  `nextStepTime`, so a live jump keeps the grid (`start()` re-origins it to
+  `currentTime + START_LEAD_S`). It works playing or stopped, and fires `onSeek`
+  **synchronously**, so the arrangement re-seeks before any machine reacts. Every
+  relative consumer must react ([transport-position.md](transport-position.md)
+  REQ-every-relative-consumer-reacts-to-a-seek).
+- **REQ-the-cue-is-where-start-begins** — `start(fromStep = this.cue)`. `seek` sets the
+  cue and `stop()` leaves it, so Stop → Play resumes from the last seek. It defaults to
+  0. **Callers that need step 0 say so**: `RecorderController.exportSong` and
+  `BankRenderController` call `start(0)`, since their captures are bounded by absolute
+  step.
+- **REQ-a-subscriber-may-not-wedge-the-transport** — Every listener fan-out the clock
+  owns (`onTick`, `onStart`, `onStop`, `onSeek`, the routed seek) goes through one
+  helper, `fanOut`: each listener in its own `try`, the fan-out continuing, and the
+  caller's work after it running regardless. A throwing start listener would otherwise
+  leave `_playing` true with no timer armed and every retry returning early. A throwing
+  stop listener would strand later ones (hanging notes, unrestored baselines). `tick()`
+  advances `nextStepTime` / `_step` **whether or not a listener throws**, or the worker
+  would re-enter the same step forever. Errors are reported **once per listener**, not
+  per tick. Import validation bounds the values ([untrusted-input](untrusted-input.md)
+  REQ-payload-values-are-bounded); this is the structural half (ADR-015).
+- **REQ-the-transport-catch-up-is-bounded** — A stalled wakeup source (a frozen hidden
+  renderer, screen off) recovers as **silence, not a burst**:
+  - **Dropout recovery.** A wakeup that finds `nextStepTime < now - DROPOUT_S` (0.25 s)
+    re-origins the grid to `now + DROPOUT_LEAD_S`, increments `dropouts`, and **emits
+    nothing**. `DROPOUT_LEAD_S` is 0.1 s (`MAX_EARLY_S` + 40 ms), so the first step can
+    take a deep early nudge ([step-settings](step-settings.md)
+    REQ-an-early-offset-is-capped-in-seconds). `start()` keeps `START_LEAD_S` (0.05 s),
+    part of the sync join timing. While the source stays stalled, every wakeup takes
+    this path.
+  - **A per-wakeup cap.** `MAX_STEPS_PER_WAKEUP` (16) breaks the drain loop, which
+    re-reads `currentTime` and could chase slow listeners forever. After the dropout
+    guard the widest real drain is ~13 steps (400 BPM, the 0.2 s horizon), and steady
+    state is 1–2.
 
-- **REQ-on-start-fires-before-the-first-tick** — `onStart` fires before the
-  first tick; `onStop` on stop. Order matters: the [arrangement](arrangement.md)
-  subscribes first.
-
-- **REQ-bpm-and-swing-are-live-settable** — BPM and swing are live-settable;
-  swing delays off-beat 16ths. `setBpm` clamps to `20..400` and `setSwing` to
-  `0..1` — and both **reject non-finite input first** (v5). `Math.max(20,
-  Math.min(400, NaN))` is `NaN`, so the clamp idiom used app-wide does not
-  survive a `NaN`, and a `NaN` tempo makes `sixteenth` `NaN` and stalls the
-  scheduler. The reachable source is a peer: the WiFi sync wire carries
-  `{t:'tempo', bpm}` ([webrtc-sync](webrtc-sync.md)).
-
-- **REQ-the-wakeup-timer-is-off-the-main-thread** — The wakeup timer runs off
-  the main thread (Worker `setInterval`) wherever `Worker` is available, so the
-  transport survives main-thread jank and background-tab timer throttling. A
-  main-thread `setTimeout` loop is the fallback (and the injectable test
-  double). A wakeup that arrives after `stop()` must not emit ticks.
-
-- **REQ-start-seeds-the-step** (v3) — `start(fromStep = 0)` seeds `_step =
-  fromStep` (masked `& 0xffff` until v7, clamped since —
-  REQ-the-step-counter-is-bounded-at-ingress) **before** firing `onStart`, so a
-  subscriber (the [arrangement](arrangement.md)) can read `clock.step` in
-  `onStart` and seek to the implied bar. Plain `start()` / `start(0)` is
-  bit-identical to v2 (step 0). Used by MIDI/WiFi clock-sync's Song-Position
-  seek ([midi-clock-sync.md](midi-clock-sync.md)
-  REQ-song-position-pointer-jumps-the-slave). `TickSubscriber.start(): void`
-  keeps its no-arg signature (the concrete `Clock` accepts the optional param).
-
-- **REQ-seek-moves-a-running-clock** (v4) — **`seek(step)` moves a *running*
-  clock.** It sets `_step` (and the cue, REQ-the-cue-is-where-start-begins) but
-  **never** `nextStepTime`, so the tempo grid is preserved and a live jump
-  neither retriggers nor shifts phase — the deliberate contrast with `start()`,
-  which re-origins `nextStepTime` to `ctx.currentTime + 0.05`. Valid while
-  playing *and* while stopped. It fires a **new** listener channel `onSeek(fn)`
-  **synchronously**, mirroring `onStart`'s ordering guarantee, so the
-  [arrangement](arrangement.md) (constructed first) re-seeks its lanes before
-  any machine reacts. `TickSubscriber` grows `onSeek` alongside
-  `onStart`/`onStop`. Every consumer that counts position *relatively* must
-  react — see [transport-position.md](transport-position.md) REQ-every-relative-consumer-reacts-to-a-seek.
-
-- **REQ-the-cue-is-where-start-begins** (v4) — **The cue is the position a plain
-  `start()` begins from.** `seek(step)` sets it, `get cue` reads it, and
-  `start(fromStep = this.cue)` honours it; `stop()` leaves it alone, so Stop →
-  Play resumes from the last seeked position. It defaults to `0`, so with no
-  seek ever performed every REQ-start-seeds-the-step guarantee above holds
-  unchanged. **Callers that require step 0 must now say so**:
-  `RecorderController.exportSong` and `BankRenderController` both derive their
-  capture bounds from absolute step numbers and call `start(0)` explicitly — a
-  cued clock would otherwise truncate the capture silently.
-
-- **REQ-a-subscriber-may-not-wedge-the-transport** (v5, v9) — **A subscriber may not
-  wedge the transport.** **(v9) This holds for every listener fan-out the clock
-  owns — `onTick`, `onStart`, `onStop`, `onSeek` and the routed seek — not just
-  the two that had it.** Each listener runs inside its own `try`, the fan-out
-  continues to the remaining listeners, and the caller's own work after the
-  fan-out runs whether or not one threw. One helper (`fanOut`) does this for all
-  five, so a sixth cannot be added without it.
-
-  The three that were bare are the ones that mattered most. `start()` fires its
-  listeners **before** `this.tick()` and `this.timer.start(...)`, with
-  `_playing` already `true` — so a throw escaped past both, leaving a transport
-  that believed it was playing with no timer armed and an early return
-  (`if (this._playing) return`) on every retry: permanently wedged, and
-  unrecoverable without `stop()`. `halt()` fires stop listeners in registration
-  order, so a throw in an early one stranded every later one — hanging the
-  sequencer's notes (`releaseAllAtGateEnd`) and the motion machine's baselines
-  (`restoreBaselines`). `seek()` is the same loop `route()` already guarded,
-  reached instead by a user scrub.
-
-  `tick()` additionally advances `nextStepTime` / `_step` **whether or not one
-  throws**. Previously a
-  throwing listener escaped the `while` body *before* those two lines, leaving
-  `_playing` true and `nextStepTime` unmoved — so the worker re-entered the same
-  step every 25 ms forever and every later-registered lane (drums, sampler,
-  motion, arrangement, the UI playhead) stopped, unrecoverable without a reload.
-  A song with an out-of-range `note` reached this through a throwing
-  `AudioParam` write; the range is now validated at import
-  ([untrusted-input](untrusted-input.md) REQ-payload-values-are-bounded), but this requirement is the
-  structural half — it closes every future variant, not just that one. A caught
-  error is reported **once per listener**, not once per tick: at 40 Hz the
-  latter is a console flood that hides the first, most useful stack. See
-  [ADR-015](../decisions/adr-015-untrusted-input-is-bounded.md) for why
-  isolation lives here rather than around each `AudioParam` write.
-
-- **REQ-the-transport-catch-up-is-bounded** (v6) — **The catch-up is bounded: a
-  stalled wakeup source recovers as silence, not as a burst.** The drain loop is
-  a `while` over `nextStepTime < now + scheduleAheadS`, so if the grid falls far
-  behind `now` it used to emit *every* missed 16th in one pass — each with a
-  `when` in the past, clamped to `now` downstream (`Math.max(when, now)`) and
-  therefore all sounding at once. Chrome/Android freezes or throttles a hidden
-  page's renderer when the screen turns off (a Pixel 8a does; a Samsung tablet
-  does not), which stops the worker wakeups while `ctx.currentTime` keeps
-  advancing — so a minute of missed steps arrived as one machine-gun burst of
-  several hundred notes with `_step` racing through the song. Two bounds close
-  it:
-  - **Dropout recovery.** A wakeup that finds `nextStepTime < now - DROPOUT_S`
-    (0.25 s — well past what the look-ahead horizon absorbs) treats it as a
-    dropout: it re-origins the grid to `now + DROPOUT_LEAD_S`, increments
-    `dropouts`, and **returns without emitting anything**. (**v11**) The lead is
-    0.1 s — `MAX_EARLY_S` plus 40 ms — rather than `start()`'s 0.05 s: 50 ms is
-    less than the deepest early micro-nudge
-    ([step-settings](step-settings.md) REQ-an-early-offset-is-capped-in-seconds),
-    so the first hit after a backgrounded tab came back used to clamp to on-time.
-    `start()` keeps 0.05 s: it is the step under the Play press, and its lead is
-    part of the sync join timing. The missed
-    steps are never played. The next healthy wakeup drains a grid that is in the
-    present, so recovery costs one skipped horizon and no burst — and while the
-    source stays stalled, every wakeup takes this path, so a frozen renderer is
-    simply silent.
-  - **A per-wakeup cap.** `MAX_STEPS_PER_WAKEUP` (16) breaks the drain loop. The
-    loop re-reads `ctx.currentTime` on every iteration, so a slow enough set of
-    listeners can make it chase its own tail and never terminate; the cap ends
-    the wakeup and the backlog is re-evaluated (and, if it grew past `DROPOUT_S`,
-    dropped) on the next one. Normal operation never reaches it: after the
-    dropout guard the widest possible drain is `(DROPOUT_S + scheduleAheadS) /
-    sixteenth` ≈ 13 steps at the extreme corner (400 BPM, the weak tier's 0.2 s
-    horizon), and steady state is 1–2.
-
-  **The playhead does not fast-forward across the gap.** `_step` is left where it
-  was, so playback resumes from the step it was on: a dropout is a *pause*, not a
-  seek. Fast-forwarding would jump the [arrangement](arrangement.md) to an
-  arbitrary bar with none of the intervening steps ever having sounded, and the
-  cost of not doing it is that song position drifts behind wall-clock time by the
-  gap — invisible for a standalone transport, and re-anchored by the next Song
-  Position message when slaved ([midi-clock-sync](midi-clock-sync.md)
-  REQ-a-midi-master-announces-its-seek/REQ-a-slave-refuses-to-seek-locally).
-  The transport is deliberately **not** stopped, so devices that do play with the
-  screen off keep doing so. `dropouts` is exposed for the Debug panel
-  ([debug-panel](debug-panel.md)) — on the phone where this reproduces there is no
-  console. See [audio-lifecycle](audio-lifecycle.md) for the surrounding policy
-  (context re-arm, click-free start).
-
-- **REQ-the-step-counter-is-bounded-at-ingress** (v7) — **The step counter does
-  not wrap; it is bounded at ingress.** `_step` was masked with `& 0xffff` in
-  `start`, `seek` and the drain loop, and the "Open questions" note below
-  justified it: `0x10000 % SEQ_LENGTH === 0`, so the wrap was bar-aligned. That
-  holds **only for bar lengths dividing 65536** — i.e. powers of two. `65536 %
-  12 === 4`, `% 20 === 16`, `% 14 === 2`, so as soon as [meter](meter.md) REQ-bar-ticks-is-the-arrangement-bar-line
-  made a bar 12, 14 or 20 ticks, the wrap would jump bar *and* lane phase
-  mid-song (~2 h 16 min at 120 BPM, and immediately reachable via a large
-  `seek`).
-
-  `_step` is therefore a plain monotonic counter, and the bound moves to the two
-  places a position **enters** the clock: `start(fromStep)` and `seek(step)` clamp
-  to `0..MAX_STEP` (`src/state/limits.ts`), refusing non-finite input first — the
-  same shape `setBpm` uses (REQ-bpm-and-swing-are-live-settable), and what
-  [ADR-015](../decisions/adr-015-untrusted-input-is-bounded.md) actually asks for
-  (*bound the payload*, not *mask the state*). `MAX_STEP` is `2**31`, ~8.5 years of
-  16ths at 120 BPM, so it is a guard rail rather than a reachable limit.
-
-  Two call sites lose a workaround rather than gaining one:
-  `SyncSlave.reanchor`'s `(a - b) & 0xffff` plus a `> 0x8000` "wrapped negative"
-  test becomes a plain subtraction and a `< 0` test, and
-  `RecorderController.exportSong`'s elapsed-step counting no longer *has* to be
-  elapsed-based (it stays, being correct either way). `SyncMaster` keeps its
-  `& 0x3fff` — that is the MIDI Song-Position wire format, not our counter.
-
-- **REQ-swing-offset-is-public** (v7) — **`swingOffset(step)` is public**, so a
-  consumer scheduling on a coarser grid than a 16th can undo the clock's swing
-  and apply its own ([meter](meter.md) REQ-swing-is-computed-on-the-lanes-grid). The drain loop computes its
-  offset through the same method, so there is one definition of swing, not two.
-
-- **REQ-pause-resumes-where-it-stopped** (v8) — **`pause()` stops, and the next
-  `start()` resumes where this run stopped.** Stop → Play returns to the cue
-  (REQ-the-cue-is-where-start-begins), which is the right behaviour for Stop but
-  leaves no way to continue from the middle of a song. `pause()` stops exactly
-  as `stop()` does (same listeners, same `onStop` reactions everywhere) and also
-  records a **resume point**: the step the run would have emitted next. Hardware
-  and DAWs handle it the same way: Elektron's PLAY pauses and resumes while STOP
-  returns, and an MPC has PLAY next to PLAY START.
-  - **The resume point is the first step not yet scheduled** (`_step`), not the
-    step audible at that moment. Steps already inside the look-ahead were handed
-    to the machines at absolute times, and they sound after the pause just as
-    they do after a stop ([transport-position](transport-position.md) REQ-the-look-ahead-horizon-is-not-cancelled).
-    Resuming at `_step` therefore plays no step twice and skips none.
-  - **It is used once and cleared by anything that sets a position.** `start()`
-    uses it and clears it. `seek()` clears it, because the user has chosen a new
-    position. `stop()` clears it **even when already stopped**: Stop
-    always means "back to the cue", so Esc/Panic after a pause cancels the
-    resume. Stop → Play after a paused run has resumed therefore still returns
-    to the cue, not to where the pause happened.
-  - **`cue` stays the one public "where Play begins" number.** It returns the
-    resume point while one is set and the seek position otherwise. Every surface
-    that already shows the cue (the rulers' cue ring, the song readout) shows the
-    resume point during a pause without any change. While playing the resume
-    point is always clear, so the ring still marks where Stop → Play returns.
-    The two inputs are private, which keeps transport-position REQ-one-position-number-not-two's "one
-    position number" true.
-  - `paused` is `true` from a `pause()` until the resume point is cleared.
-    Plain `start()` without a pause still behaves as REQ-start-seeds-the-step/REQ-the-cue-is-where-start-begins describe:
-    `_resume` is `null`, so `cue` is the seek position.
-
-- **REQ-a-step-router-can-redirect-the-next-step** (v8) — **A step router can
-  redirect the next step, as a jump.**
-  `setStepRouter(fn | null)` installs a function the drain loop consults
-  **after** the counter advances past each emitted step: `fn(next)` returns the
-  step to emit next. Returning `next` changes nothing. Any other value is a
-  **jump**, which differs from a seek in three ways:
-  - it happens **inside the drain**, so the routed step is the very next tick on
-    the unchanged grid. There is no look-ahead leftover and no retrigger, which
-    a seek clicked mid-horizon cannot guarantee
-    ([transport-position](transport-position.md) REQ-the-look-ahead-horizon-is-not-cancelled);
-  - the counter moves to `clampStep(result)` and `onSeek` fires synchronously
-    so every relative consumer catches up (transport-position REQ-every-relative-consumer-reacts-to-a-seek), but the
-    **cue does not move**, since the user did not choose that position;
-  - each `onSeek` listener runs in its own `try`, as REQ-a-subscriber-may-not-wedge-the-transport requires for tick
-    listeners, because a throw here would escape the drain loop the same way.
-    A throwing router counts as "no jump" and is reported once.
-  The clock knows nothing about bars or loops. The router is supplied by
-  [transport-loop](transport-loop.md), which keeps the clock's hot path at one
-  `null` check while nothing is installed.
-
-- **REQ-a-start-can-name-its-first-step-time** (v10) — **`start(fromStep,
-  firstStepAt?)` can say when its first step sounds.** Without it the first step
-  sounds `START_LEAD_S` (50 ms) after `start()` is called, exactly as before —
-  the default is unchanged, and `START_LEAD_S` is the named constant the literal
-  `0.05` used to be. With it, `nextStepTime = max(firstStepAt, currentTime)`: a
-  time in the past sounds now, never earlier. A sync slave uses it to put its
-  first step on the master's first pulse rather than on the moment a message
-  happened to arrive ([midi-clock-sync](midi-clock-sync.md)
-  REQ-a-join-is-timed-by-its-first-pulse). Bounding a remote-supplied time is
-  the caller's job; the clock only refuses non-finite input (it falls back to
-  the default lead).
-
-- **REQ-a-jump-can-be-scheduled** (v10) — **`seekAt(step, at)` jumps at an audio
-  time, on the unchanged grid.** It is a jump in exactly the router's sense
-  (REQ-a-step-router-can-redirect-the-next-step): the counter moves, the grid does
-  not, `onSeek` fires, the cue does not move. What it adds is *when*: the jump
-  lands on the grid step nearest `at`.
-  - If that step has **not been emitted yet**, the jump is held and applied
-    inside the drain, just before that step is emitted — so it sounds as the
-    new position.
-  - If the look-ahead has **already emitted** it (and perhaps more), the jump
-    applies at once, advanced by the `k` steps already emitted at or after `at`:
-    the next emitted step is `step + k`, which is where the new position has
-    got to by then. Those `k` steps have gone out with their old numbers; that
-    cannot be undone, only not compounded.
-  Stopped, it is a plain `seek(step)`. `start`, `stop` and `seek` drop a held
-  jump. `nextStepAt` exposes the grid time of the next step to be emitted —
-  unswung, the time a jump announced now would sound
+  `_step` is **not** fast-forwarded: a dropout is a pause, not a seek. The song then
+  lags wall-clock by the gap, which the next Song Position re-anchors when slaved
+  ([midi-clock-sync](midi-clock-sync.md)). The transport is not stopped, so devices
+  that play with the screen off keep playing. `dropouts` is shown in the
+  [debug panel](debug-panel.md) ([audio-lifecycle](audio-lifecycle.md) has the
+  surrounding policy).
+- **REQ-the-step-counter-is-bounded-at-ingress** — `_step` is a plain monotonic
+  counter, never masked. A 16-bit wrap is bar-aligned only for bar lengths dividing
+  65536, so 12/14/20-tick bars ([meter](meter.md)
+  REQ-bar-ticks-is-the-arrangement-bar-line) would jump phase. The bound sits where a
+  position **enters**: `start(fromStep)` and `seek(step)` clamp to `0..MAX_STEP`
+  (`src/state/limits.ts`, `2**31`, ~8.5 years of 16ths), refusing non-finite input
+  first (ADR-015: bound the payload, don't mask the state). `SyncMaster`'s `& 0x3fff`
+  is the MIDI wire format, not this counter.
+- **REQ-swing-offset-is-public** — `swingOffset(step)` is public, so a coarser-grid
+  consumer can undo it and apply its own ([meter](meter.md)
+  REQ-swing-is-computed-on-the-lanes-grid). The drain loop uses the same method.
+- **REQ-pause-resumes-where-it-stopped** — `pause()` stops exactly as `stop()` does and
+  records a **resume point**, as Elektron PLAY or MPC PLAY vs PLAY START do:
+  - the resume point is `_step`, the first step not yet scheduled. Steps already in the
+    look-ahead sound after the pause ([transport-position](transport-position.md)
+    REQ-the-look-ahead-horizon-is-not-cancelled), so none plays twice or is skipped;
+  - it is used once. `start()` uses and clears it, `seek()` clears it, and `stop()`
+    clears it **even when already stopped**, so Esc/Panic after a pause returns to the
+    cue;
+  - `cue` stays the one public "where Play begins" number: `_resume ?? _cue`. Every
+    surface showing the cue shows the resume point during a pause;
+  - `paused` is true from `pause()` until the resume point clears.
+- **REQ-a-step-router-can-redirect-the-next-step** — `setStepRouter(fn | null)`: after
+  the counter advances past each emitted step, `fn(next)` returns the step to emit
+  next. A different value is a **jump**: the very next tick on the unchanged grid,
+  with no look-ahead leftover. The counter moves to `clampStep(result)` and `onSeek`
+  fires (isolated), but the **cue does not move**. A throwing router counts as no jump
+  and is reported once. The clock knows no bars or loops; the router is
+  [transport-loop](transport-loop.md)'s, and the hot path costs one `null` check
+  without it.
+- **REQ-a-start-can-name-its-first-step-time** — `start(fromStep, firstStepAt?)`:
+  `nextStepTime = max(firstStepAt, currentTime)`, otherwise `currentTime +
+  START_LEAD_S`. A sync slave puts its first step on the master's first pulse
   ([midi-clock-sync](midi-clock-sync.md) REQ-a-join-is-timed-by-its-first-pulse).
+  Bounding a remote time is the caller's job; non-finite falls back to the default.
+- **REQ-a-jump-can-be-scheduled** — `seekAt(step, at)` is a router-style jump landing
+  on the grid step nearest `at`. If that step is not yet emitted, the jump is held and
+  applied inside the drain just before it. If the look-ahead already emitted `k` steps
+  at or after `at`, it applies at once as `step + k`. Stopped, it is a plain `seek`.
+  `start`, `stop` and `seek` drop a held jump. `nextStepAt` is the unswung grid time of
+  the next step to be emitted, which is what a join is timed against.
 
 ## Technical design
 
@@ -319,36 +153,26 @@ Clock:   # src/audio/transport/clock.ts (implements TickSubscriber)
   new Clock(ctx, opts?: { timer?: TickTimer, scheduleAheadS?: number })
   get playing: boolean
   get step: number
-  get bpm: number      # the tempo actually running — a slaved clock writes it
-                       # directly, so it can differ from the bus's transport.bpm
-                       # (midi-clock-sync.md); surfaced by debug-panel.md
-  setBpm(b)            # non-finite refused (v5), then clamped 20..400
+  get bpm: number      # the tempo actually running — a slaved clock writes it directly,
+                       # so it can differ from the bus's transport.bpm (debug-panel.md)
+  setBpm(b)            # non-finite refused, then clamped 20..400
   setSwing(s)          # 0 (straight) .. 1
-  swingOffset(step)    # v7: the delay this tick carries; 0 on even steps (REQ-swing-offset-is-public)
-  get cue: number      # v4: where a plain start() begins; 0 until the first seek
-                       # v8: _resume ?? _cue — the resume point while paused (REQ-pause-resumes-where-it-stopped)
-  get paused: boolean  # v8: a resume point is set (REQ-pause-resumes-where-it-stopped)
-  start(fromStep = this.cue) / stop()   # v3: fromStep seeds _step before onStart.
-                       # v4: the default is the cue, not the literal 0.
-                       # v7: clamped 0..MAX_STEP, not masked (REQ-the-step-counter-is-bounded-at-ingress)
-                       # v8: start clears _resume; stop clears it even when stopped
-  pause()              # v8: no-op unless playing; _resume = _step, then stop's body
-                       # (onStop fires with `cue` already reading the resume point)
-  seek(step)           # v4: _cue = _step = step; nextStepTime UNTOUCHED;
-                       # fires onSeek synchronously. Playing or stopped.
-                       # v7: clamped 0..MAX_STEP, non-finite refused (REQ-the-step-counter-is-bounded-at-ingress)
-                       # v8: also clears _resume (REQ-pause-resumes-where-it-stopped)
-  setStepRouter(fn: StepRouter | null)  # v8 (REQ-a-step-router-can-redirect-the-next-step): consulted after each _step++;
-                       # a different result -> _step = clampStep(it), onSeek fires
-                       # (each listener isolated); _cue, _resume, nextStepTime untouched
+  swingOffset(step)    # the delay this tick carries; 0 on even steps
+  get cue: number      # _resume ?? _cue — where a plain start() begins
+  get paused: boolean
+  start(fromStep = this.cue, firstStepAt?) / stop()   # fromStep clamped 0..MAX_STEP
+  pause()              # no-op unless playing; _resume = _step, then stop's body
+  seek(step)           # _cue = _step = clamp(step); nextStepTime UNTOUCHED; onSeek; clears _resume
+  seekAt(step, at)     # a scheduled jump on the unchanged grid
+  get nextStepAt: number
+  setStepRouter(fn: StepRouter | null)
   nudge(seconds)       # ±0.05 s future-grid shift (midi-clock-sync phase correction)
-  get dropouts: number # v6: stalled-wakeup recoveries this session (REQ-the-transport-catch-up-is-bounded);
-                       # monotonic, never reset — surfaced by debug-panel.md
+  get dropouts: number # stalled-wakeup recoveries this session; monotonic
   onTick(fn) / onStart(fn) / onStop(fn) / onSeek(fn) -> unsubscribe
-constants: LOOKAHEAD_MS = 25, SCHEDULE_AHEAD_S = 0.1 (default; perf tier may widen it)
-           DROPOUT_S = 0.25, MAX_STEPS_PER_WAKEUP = 16   # v6, REQ-the-transport-catch-up-is-bounded
+constants: LOOKAHEAD_MS = 25, SCHEDULE_AHEAD_S = 0.1, START_LEAD_S = 0.05,
+           DROPOUT_S = 0.25, DROPOUT_LEAD_S = 0.1, MAX_STEPS_PER_WAKEUP = 16
 TickListener: (step, when) => void        # tick-source.ts
-StepRouter:   (next: number) => number     # clock.ts, v8 (REQ-a-step-router-can-redirect-the-next-step)
+StepRouter:   (next: number) => number     # clock.ts
 TickTimer:   # src/audio/transport/tick-timer.ts — the wakeup source
   start(cb, intervalMs) / stop()
   WorkerTimer   # setInterval in a Worker (clock-timer-worker.ts, Vite `new URL` bundling)
@@ -356,11 +180,8 @@ TickTimer:   # src/audio/transport/tick-timer.ts — the wakeup source
   defaultTickTimer() -> WorkerTimer if `Worker` exists, else TimeoutTimer
 ```
 
-The worker protocol is `postMessage({cmd:'start', ms} | {cmd:'stop'})` in,
-empty wakeup messages out. One persistent worker per `WorkerTimer` (lazy on
-first `start()`), message-driven start/stop — no per-play worker spawn. The
-`Clock` guards its drain with `playing`, so a wakeup landing after `stop()`
-(message in flight) emits nothing (REQ-the-wakeup-timer-is-off-the-main-thread).
+The worker protocol is `postMessage({cmd:'start', ms} | {cmd:'stop'})` in, empty
+wakeups out: one persistent worker per `WorkerTimer`, lazy on first `start()`.
 
 ### Data shapes (registry)
 
@@ -369,29 +190,22 @@ transport.bpm:   { range: 40..240, default: 120, step: 1, format: bpm }
 transport.swing: { range: 0..1, default: 0 }
 ```
 
+The knob clamps `40..240` and the clock `20..400`, because Tape Stop
+([performance](performance.md)) ramps below the UI floor.
+
 ### Layer touchpoints & ordering
 
 ```yaml
 engine (subscribeParams): transport.bpm -> clock.setBpm; transport.swing -> clock.setSwing
-construction order (engine): new Arrangement(...) BEFORE the machines, so on each
-  tick the play banks are settled before the machines read them (see arrangement.md)
-UI: header transport-play button toggles clock.start()/stop()
-    v8: the song transport's Play/Pause calls clock.pause() to pause, and the
-    header button (via UiBridge.toggleTransport) to play — transport-window.md
-v8 step router: installed only by LoopDriver (transport-loop.md), only while a
-  loop is engaged; a jump's onSeek fan-out has the same order as a seek's
-v4 seek fan-out (order guaranteed by the same construction order):
-  clock.seek -> Arrangement (play banks settle) -> machines -> the UI ruler
-  UI never calls clock.seek directly; it goes through Engine.seekTo, which owns
-  the refusal states + the sync-master announce (transport-position.md
+construction order (engine): new Arrangement(...) BEFORE the machines, so the play banks
+  are settled before the machines read them (arrangement.md)
+UI: the header transport-play button toggles start/stop; the song transport's
+  Play/Pause calls clock.pause() (transport-window.md)
+step router: installed only by LoopDriver (transport-loop.md), only while a loop is engaged
+seek fan-out: clock.seek -> Arrangement (play banks settle) -> machines -> the UI ruler;
+  the UI goes through Engine.seekTo (transport-position.md
   REQ-seeking-is-refused-in-three-states/REQ-a-sync-master-announces-its-seek)
-recorders: RecorderController.exportSong / BankRenderController call start(0)
-  EXPLICITLY (REQ-the-cue-is-where-start-begins) — they bound their captures by absolute step number
 ```
-
-Note the registry clamps BPM to `40..240` for the UI knob, while `Clock.setBpm`
-clamps to `20..400` — Tape Stop ([performance](performance.md)) ramps BPM below
-the UI floor.
 
 ## Scenarios (BDD)
 
@@ -407,7 +221,7 @@ Scenario: Swing delays the off-beat 16ths (edge)
   Then even steps keep their time and odd steps are pushed later
 # pinned by: tests/audio/transport/clock.test.ts
 
-Scenario: A throwing subscriber cannot wedge the clock (v5, regression)
+Scenario: A throwing subscriber cannot wedge the clock (regression)
   Given a running clock with a subscriber that throws on every tick
   When the timer fires
   Then the step counter still advances and nextStepTime still moves
@@ -415,7 +229,7 @@ Scenario: A throwing subscriber cannot wedge the clock (v5, regression)
   And the error is reported once for that listener, not once per tick
 # pinned by: tests/audio/transport/clock.test.ts
 
-Scenario: A throwing start listener cannot wedge the transport (v9, regression)
+Scenario: A throwing start listener cannot wedge the transport (regression)
   Given a stopped clock with an onStart listener that throws
   When start() is called
   Then the remaining start listeners still run
@@ -423,21 +237,21 @@ Scenario: A throwing start listener cannot wedge the transport (v9, regression)
   And a later stop() then start() plays normally
 # pinned by: tests/audio/transport/clock.test.ts
 
-Scenario: A throwing stop listener does not strand the later ones (v9, regression)
+Scenario: A throwing stop listener does not strand the later ones (regression)
   Given a running clock with two onStop listeners, the first of which throws
   When stop() is called
   Then the second stop listener still runs
   And the error is reported once for that listener
 # pinned by: tests/audio/transport/clock.test.ts
 
-Scenario: A throwing seek listener does not escape a user scrub (v9, regression)
+Scenario: A throwing seek listener does not escape a user scrub (regression)
   Given a clock with an onSeek listener that throws
   When seek(n) is called directly, not through the router
   Then the remaining seek listeners still run
   And the step counter is still at n
 # pinned by: tests/audio/transport/clock.test.ts
 
-Scenario: A non-finite tempo leaves the clock alone (v5, edge)
+Scenario: A non-finite tempo leaves the clock alone (edge)
   Given a clock at 120 BPM
   When setBpm(NaN) — or setSwing(NaN) — is called
   Then the tempo and swing are unchanged
@@ -449,7 +263,7 @@ Scenario: No ticks after stop, even from an in-flight wakeup (edge)
   Then no tick is emitted and the timer has been told to stop
 # pinned by: tests/audio/transport/tick-timer.test.ts
 
-Scenario: start(fromStep) seeds the step before onStart (v3)
+Scenario: start(fromStep) seeds the step before onStart (REQ-start-seeds-the-step)
   Given the clock is stopped
   When start(96) is called
   Then an onStart subscriber reads clock.step === 96
@@ -457,14 +271,14 @@ Scenario: start(fromStep) seeds the step before onStart (v3)
    And start() / start(0) still begins at step 0 (regression)
 # pinned by: tests/audio/transport/clock.test.ts
 
-Scenario: seek moves the step without disturbing the grid (v4)
+Scenario: seek moves the step without disturbing the grid (REQ-seek-moves-a-running-clock)
   Given the clock is playing
   When seek(37) is called
   Then clock.step is 37, nextStepTime is unchanged, and onSeek fired once
    And the next tick continues on the same tempo grid (no retrigger)
 # pinned by: tests/audio/transport/clock.test.ts
 
-Scenario: A seek while stopped cues the next start (v4)
+Scenario: A seek while stopped cues the next start (REQ-the-cue-is-where-start-begins)
   Given the clock is stopped and has never been seeked
   When seek(64) is called and then start() (no argument)
   Then the first tick fires for step 64
@@ -477,7 +291,7 @@ Scenario: Transport survives a backgrounded tab (device)
   Then the grid held (worker timers are exempt from tab timer throttling)
 # verified manually on device; jsdom cannot pin this
 
-Scenario: A stalled wakeup source drops the gap instead of bursting it (v6, regression)
+Scenario: A stalled wakeup source drops the gap instead of bursting it (REQ-the-transport-catch-up-is-bounded, regression)
   Given the clock is playing at 120 BPM
   When the audio clock jumps 60 s ahead before the next wakeup
   Then that wakeup emits no ticks at all
@@ -486,91 +300,91 @@ Scenario: A stalled wakeup source drops the gap instead of bursting it (v6, regr
    And its `when` is in the future, not the past
 # pinned by: tests/audio/transport/clock.test.ts
 
-Scenario: The step after a dropout has room for an early nudge (v11, REQ-the-transport-catch-up-is-bounded)
+Scenario: The step after a dropout has room for an early nudge (REQ-the-transport-catch-up-is-bounded)
   Given the clock has just recovered from a dropout
   When the next wakeup emits the first step
   Then that step's `when` is at least MAX_EARLY_S after the wakeup's currentTime
 # pinned by: tests/audio/transport/clock.test.ts
 
-Scenario: A jitter-sized delay is still absorbed, not treated as a dropout (v6, edge)
+Scenario: A jitter-sized delay is still absorbed, not treated as a dropout (edge)
   Given the clock is playing at 120 BPM
   When a wakeup arrives late enough to owe two steps (under DROPOUT_S)
   Then both steps are emitted on that wakeup and `dropouts` stays 0
 # pinned by: tests/audio/transport/clock.test.ts
 
-Scenario: One wakeup can never emit an unbounded run (v6, edge)
+Scenario: One wakeup can never emit an unbounded run (edge)
   Given a clock whose listeners advance the audio clock as they run
   When the timer fires
   Then at most MAX_STEPS_PER_WAKEUP ticks are emitted before the wakeup ends
 # pinned by: tests/audio/transport/clock.test.ts
 
-Scenario: The step counter passes 65536 without folding (v7, REQ-the-step-counter-is-bounded-at-ingress)
+Scenario: The step counter passes 65536 without folding (REQ-the-step-counter-is-bounded-at-ingress)
   Given a clock started just below 65536
   When it ticks past it
   Then the step keeps increasing — no wrap, so no lane changes phase
 # pinned by: tests/audio/transport/clock.test.ts
 
-Scenario: A position is clamped at ingress, not masked (v7, REQ-the-step-counter-is-bounded-at-ingress, edge)
+Scenario: A position is clamped at ingress, not masked (REQ-the-step-counter-is-bounded-at-ingress, edge)
   Given a stopped clock
   When seek(1e12) — or seek(-5), or seek(NaN) — is called
   Then the position lands inside 0..MAX_STEP and never as a folded remainder
 # pinned by: tests/audio/transport/clock.test.ts
 
-Scenario: swingOffset agrees with the times the drain loop emits (v7, REQ-swing-offset-is-public)
+Scenario: swingOffset agrees with the times the drain loop emits (REQ-swing-offset-is-public)
   Given setSwing(0.5)
   When a tick fires for an odd step
   Then swingOffset(step) equals the delay that tick's `when` carried
    And it is 0 for an even step at any swing amount
 # pinned by: tests/audio/transport/clock.test.ts
 
-Scenario: Pause resumes from the first unscheduled step (v8, REQ-pause-resumes-where-it-stopped)
+Scenario: Pause resumes from the first unscheduled step (REQ-pause-resumes-where-it-stopped)
   Given a playing clock that has emitted steps 0..4
   When pause() is called
   Then playing is false, onStop fired once, paused is true and cue reads 5
   And the next start() emits step 5 first
 # pinned by: tests/audio/transport/clock.test.ts
 
-Scenario: Stop after a resumed run still returns to the cue (v8, REQ-pause-resumes-where-it-stopped)
+Scenario: Stop after a resumed run still returns to the cue (REQ-pause-resumes-where-it-stopped)
   Given the cue is 0, and the clock was paused at 5 and then resumed
   When stop() and then start() are called
   Then the first tick is step 0, not 5
 # pinned by: tests/audio/transport/clock.test.ts
 
-Scenario: A seek or a stop cancels a pending resume (v8, REQ-pause-resumes-where-it-stopped, edge)
+Scenario: A seek or a stop cancels a pending resume (REQ-pause-resumes-where-it-stopped, edge)
   Given the clock is paused at step 5
   When seek(12) is called, then start()
   Then the first tick is step 12
   And paused at 5 again, stop() while already stopped makes cue read the old cue
 # pinned by: tests/audio/transport/clock.test.ts
 
-Scenario: A routed step is a jump on the same grid (v8, REQ-a-step-router-can-redirect-the-next-step)
+Scenario: A routed step is a jump on the same grid (REQ-a-step-router-can-redirect-the-next-step)
   Given a playing clock whose router sends 8 to 2
   When the drain emits step 7
   Then the next tick is step 2 at exactly one 16th after step 7's grid time
   And onSeek fired once, while cue and nextStepTime were not re-seeded
 # pinned by: tests/audio/transport/clock.test.ts
 
-Scenario: A throwing router or seek listener cannot wedge the drain (v8, REQ-a-step-router-can-redirect-the-next-step, edge)
+Scenario: A throwing router or seek listener cannot wedge the drain (REQ-a-step-router-can-redirect-the-next-step, edge)
   Given a router that throws, or an onSeek listener that throws on a jump
   When the timer fires
   Then the step counter still advances and later tick listeners still run
 # pinned by: tests/audio/transport/clock.test.ts
 
-Scenario: A start can put its first step at a given time (v10, REQ-a-start-can-name-its-first-step-time)
+Scenario: A start can put its first step at a given time (REQ-a-start-can-name-its-first-step-time)
   Given a stopped clock and currentTime 1.0
   When start(4, 1.3) is called
   Then step 4 is emitted with when 1.3
    And start(4) alone still puts it at 1.05, and start(4, 0.2) at 1.0
 # pinned by: tests/audio/transport/clock.test.ts
 
-Scenario: A scheduled jump lands on the step nearest its time (v10, REQ-a-jump-can-be-scheduled)
+Scenario: A scheduled jump lands on the step nearest its time (REQ-a-jump-can-be-scheduled)
   Given a playing clock whose look-ahead has not reached time T
   When seekAt(32, T) is called
   Then the step emitted at T's grid time is 32, the steps before it keep counting
    And onSeek fired once, the cue did not move, and the grid was not re-seeded
 # pinned by: tests/audio/transport/clock.test.ts
 
-Scenario: A scheduled jump the look-ahead has passed is caught up (v10, REQ-a-jump-can-be-scheduled, edge)
+Scenario: A scheduled jump the look-ahead has passed is caught up (REQ-a-jump-can-be-scheduled, edge)
   Given a playing clock that has already emitted the steps at T and T + one 16th
   When seekAt(32, T) is called
   Then the next emitted step is 34 — where the new position has got to by then
@@ -580,19 +394,12 @@ Scenario: A scheduled jump the look-ahead has passed is caught up (v10, REQ-a-ju
 ## Tests & verification
 
 - `tests/audio/transport/clock.test.ts` (fake timers driving the injected
-  `TimeoutTimer` — jsdom has no `Worker`).
-- `tests/audio/transport/tick-timer.test.ts` (timer protocol: mock-timer Clock
-  integration, `TimeoutTimer` loop semantics, `WorkerTimer` message protocol
-  against a stubbed `Worker`).
-- E2E `patterns`/`arp` specs exercise the real worker path in Chromium.
-- `npm test`.
+  `TimeoutTimer`; jsdom has no `Worker`), `tests/audio/transport/tick-timer.test.ts`
+  (the timer protocol, `WorkerTimer` against a stubbed `Worker`). The `patterns`/`arp`
+  E2E specs exercise the real worker in Chromium. `npm test`.
 
 ## Open questions / future
 
-- `step` is a monotonically increasing 16th counter; bar logic is `step %
-  barTicks` (consumed by the arrangement + step machines — [meter](meter.md)).
-  It no longer wraps at all: the old 16-bit mask was only phase-safe for bar
-  lengths dividing 65536, and REQ-the-step-counter-is-bounded-at-ingress replaced it with a clamp at ingress.
-- `nudge` and `seek` are deliberately different tools: `nudge` shifts *when* the
-  future grid ticks (sub-10 ms, phase only); `seek` changes *which* step, leaving
-  the grid alone. Neither is expressible in terms of the other.
+- `nudge` and `seek` are different tools: `nudge` shifts *when* the future grid ticks
+  (phase only), and `seek` changes *which* step, leaving the grid alone. Neither can
+  be expressed with the other.

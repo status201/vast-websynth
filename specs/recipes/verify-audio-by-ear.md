@@ -3,10 +3,7 @@
 ```yaml
 id: verify-audio-by-ear
 status: implemented
-version: 3  # v3: a StereoPanner's law is chosen by its INPUT channel count, and
-            #     beating hides a 3 dB effect — both from ADR-023
-            # v2: the mono-down-mix gotcha — per-channel checks miss stereo
-            #     decorrelation, and pure tones do not reproduce it
+version: 3
 owner: core
 related:
   - architecture

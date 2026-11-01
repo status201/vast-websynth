@@ -510,7 +510,7 @@ export function registerDefaults(bus: ParamBus): void {
     { id: 'arp.gate', min: 0.05, max: 1, default: 0.5, format: fmtPct },
 
     // ----- Mod matrix (specs/features/mod-matrix.md, ADR-017) -----
-    // Six free rows; LFO 1/2 are rows 0-1 and keep lfo.dest / lfo.amount (REQ-meter-ts-names-the-three-jobs).
+    // Six free rows; LFO 1/2 are rows 0-1 and keep lfo.dest / lfo.amount (mod-matrix.md REQ-eight-rows-two-grandfathered).
     // src 0 = off, dst 0 = none, amt 0 = silent: all three are no-ops, so a preset
     // that predates the matrix loads unchanged (ADR-006).
     ...modMatrixParams(),
@@ -635,7 +635,7 @@ function modMatrixParams(): ParamDef[] {
     out.push(
       { id: `mod.${n}.src`, min: 0, max: MOD_SOURCE_LABELS.length - 1, default: 0, step: 1, taper: 'discrete', labels: MOD_SOURCE_LABELS },
       { id: `mod.${n}.dst`, min: 0, max: MOD_DEST_LABELS.length - 1, default: 0, step: 1, taper: 'discrete', labels: MOD_DEST_LABELS },
-      // Bipolar (REQ-the-drum-fill-is-relative-to-its-lane): a negative amount inverts the route, so no source needs an
+      // Bipolar (mod-matrix.md REQ-route-depth-is-bipolar): a negative amount inverts the route, so no source needs an
       // inverted twin. 0 is the no-op.
       { id: `mod.${n}.amt`, min: -1, max: 1, default: 0, format: fmtPct },
     );
@@ -654,7 +654,7 @@ function fxOnParam(prefix: string): ParamDef {
 
 /**
  * The tempo lock every rate/time knob carries (tempo-lock.md REQ-sync-defaults-to-free), for the
- * same reason `fxOnParam` exists: nine identical copies otherwise.
+ * same reason `fxOnParam` exists: one identical copy per lockable param otherwise.
  *
  * Index 0 is `free` — what every existing patch has, and an exact no-op: the
  * rate keeps its stored value and is merely overridden while synced (ADR-006).
@@ -885,7 +885,7 @@ function samplerTrackParams(): ParamDef[] {
     out.push({ id: `sampler.t${i}.rev`, min: 0, max: 1, default: 0, step: 1, taper: 'discrete', labels: ['fwd', 'rev'] });
     out.push({ id: `sampler.t${i}.attack`, min: 0, max: 0.5, default: 0, format: fmtMs });
     out.push({ id: `sampler.t${i}.decay`, min: 0, max: 4, default: 0, format: fmtMs });
-    // Choke group + mono (REQ-each-machine-has-a-step-rate). Both default to what the machine already did:
+    // Choke group + mono (sampler.md REQ-a-slot-can-cut-another-slot). Both default to what the machine already did:
     // no group, and hits that layer.
     out.push({ id: `sampler.t${i}.choke`, min: 0, max: 4, default: 0, step: 1, taper: 'discrete', labels: ['off', '1', '2', '3', '4'] });
     out.push({ id: `sampler.t${i}.poly`, min: 0, max: 1, default: 0, step: 1, taper: 'discrete', labels: ['poly', 'mono'] });
@@ -908,7 +908,7 @@ function drumTrackParams(): ParamDef[] {
     out.push({ id: `drum.t${i}.pan`, min: -1, max: 1, default: 0, format: fmtPan });
     out.push({ id: `drum.t${i}.mute`, min: 0, max: 1, default: 0, step: 1, taper: 'discrete', labels: ['on', 'mute'] });
     // Voice model — defaults to the track's own classic voice, so files that
-    // omit it (every pre-model song/preset) sound unchanged (REQ-cells-beyond-the-length-are-hidden).
+    // omit it (every pre-model song/preset) sound unchanged (drum-machine.md REQ-a-drum-tracks-algorithm-is-selectable).
     out.push({ id: `drum.t${i}.model`, min: 0, max: DRUM_MODEL_LABELS.length - 1, default: i, step: 1, taper: 'discrete', labels: DRUM_MODEL_LABELS });
   }
   return out;

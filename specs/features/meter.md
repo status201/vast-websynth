@@ -3,11 +3,7 @@
 ```yaml
 id: meter
 status: implemented
-version: 3  # v3: REQ-a-multi-bar-lane-restarts-with-its-chain — a chained lane whose loop is a
-            #     whole number of bars re-phases at its chain's slot 0 (a 2-bar lane in an
-            #     odd-length chain played its halves swapped on every other pass)
-            # v2: REQ-swing-is-computed-on-the-lanes-grid — each hit also reports its span to the
-            #     next cell's onset on the swung grid, for the motion playhead
+version: 3
 owner: core
 related:
   - architecture
@@ -28,18 +24,18 @@ related:
   - ../decisions/adr-006-no-op-param-defaults
 source:
   - src/state/meter.ts                       # the vocabulary (REQ-meter-ts-names-the-three-jobs)
-  - src/state/params.ts                      # the ten scalars (REQ-meter-is-two-bus-scalars/REQ-each-machine-has-a-loop-length/REQ-each-machine-has-a-step-rate)
+  - src/state/params.ts                      # the ten scalars
   - src/state/limits.ts                      # MAX_STEP (REQ-the-step-counter-must-not-wrap)
-  - src/state/preset-session.ts              # the `motion.` prefix fix (REQ-motion-joins-the-non-patch-prefixes)
+  - src/state/preset-session.ts              # the `motion.` prefix (REQ-motion-joins-the-non-patch-prefixes)
   - src/audio/transport/clock.ts             # unwrapped step + swingOffset
   - src/audio/transport/lane-meter.ts        # one lane's length/rate/swing
   - src/audio/transport/arrangement.ts       # the bar line (REQ-bar-ticks-is-the-arrangement-bar-line)
   - src/audio/transport/performance.ts       # stepIndex(step, cells, rate) (REQ-stutter-composes-with-length-and-rate)
   - src/audio/transport/sequencer.ts
-  - src/audio/transport/drum-machine.ts      # incl. the meter-relative fill (REQ-the-drum-fill-is-relative-to-its-lane)
+  - src/audio/transport/drum-machine.ts      # the meter-relative fill (REQ-the-drum-fill-is-relative-to-its-lane)
   - src/audio/transport/sampler-machine.ts
   - src/audio/transport/motion-machine.ts
-  - src/audio/transport/motion-curve.ts      # scalarAt's `cells` (REQ-each-machine-has-a-loop-length)
+  - src/audio/transport/motion-curve.ts      # scalarAt's `cells`
   - src/audio/transport/sync/sync-types.ts   # the `meter` message (REQ-meter-travels-on-the-wifi-wire)
   - src/audio/transport/sync/sync-master.ts
   - src/audio/transport/sync/sync-slave.ts
@@ -58,25 +54,19 @@ source:
   - src/state/authoring-guide.ts             # the METER block agents read
 ```
 
-The cross-cutting facility that makes the instrument play in something other than
-4/4 — and lets one machine fight the bar on purpose.
+The cross-cutting facility that lets the instrument play outside 4/4, and lets one
+machine fight the bar on purpose.
 
 ## Background / Why
 
-`SEQ_LENGTH = 16` was one constant doing three unrelated jobs: how many cells a
-pattern holds, how long a bar is, and how many columns the UI draws. Every bar
-line in the app was written `step % SEQ_LENGTH`, so 3/4 and 7/8 were not
-*declined* — they were never expressible. Splitting the three jobs apart is most
-of this feature; the rest is two controls per machine.
-
-The model is the one every groovebox uses, so a player already knows it: a bar is
-a number of ticks, and each machine loops over `length` cells at `rate` ticks per
-cell. A lane matching the bar is in meter; a lane that doesn't phases against it
-(polymeter); a lane on a triplet rate fights it inside the bar (polyrhythm).
-
-[ADR-019](../decisions/adr-019-the-bar-is-a-tick-count.md) records why meter is a
-tick count rather than a `{num, den}`, why the grid stays 16 cells (and what that
-costs), and why the clock is left alone.
+`SEQ_LENGTH = 16` once did three unrelated jobs: cells per pattern, bar length and UI
+columns. Splitting them is most of this feature; the rest is two controls per machine.
+The model is every groovebox's: a bar is a number of ticks, and each machine loops
+`length` cells at `rate` ticks per cell. A lane matching the bar is in meter, one that
+doesn't phases against it (polymeter), and one on a triplet rate fights it inside the
+bar (polyrhythm). [ADR-019](../decisions/adr-019-the-bar-is-a-tick-count.md) records
+why meter is a tick count, why the grid stays 16 cells, and why the clock is left
+alone.
 
 ## Vocabulary
 
@@ -87,204 +77,127 @@ barTicks      beats × ticksPerBeat          7/8 → 7 × 2 = 14
 laneTicks     len cells × rate ticks/cell   len 10 × 1/8 → 20 ticks = 5/4
 ```
 
-| Signature | beats | unit | barTicks | at 1/16 | at 1/8 |
-| --- | --- | --- | --- | --- | --- |
-| 4/4 | 4 | 1/4 | 16 | 16 | 8 |
-| 3/4 | 3 | 1/4 | 12 | 12 | 6 |
-| 5/4 | 5 | 1/4 | 20 | — | 10 |
-| 7/4 | 7 | 1/4 | 28 | — | 14 |
-| 6/8 | 6 | 1/8 | 12 | 12 | 6 |
-| 7/8 | 7 | 1/8 | 14 | 14 | 7 |
-| 5/8 | 5 | 1/8 | 10 | 10 | 5 |
-| 9/8 | 9 | 1/8 | 18 | — | 9 |
-| 12/8 | 12 | 1/8 | 24 | — | 12 |
+| Signature | barTicks | cells at 1/16 | cells at 1/8 |
+| --- | --- | --- | --- |
+| 4/4 | 16 | 16 | 8 |
+| 3/4 · 6/8 | 12 | 12 | 6 |
+| 5/4 | 20 | — | 10 |
+| 7/4 | 28 | — | 14 |
+| 7/8 | 14 | 14 | 7 |
+| 5/8 | 10 | 10 | 5 |
+| 9/8 | 18 | — | 9 |
+| 12/8 | 24 | — | 12 |
 
-A bar longer than `GRID_CELLS` ticks needs a coarser lane rate to fit one grid;
-that is the trade [ADR-019](../decisions/adr-019-the-bar-is-a-tick-count.md)
-accepts in exchange for leaving the pattern shape, the schemas and every demo
-alone.
+A bar longer than `GRID_CELLS` ticks needs a coarser lane rate to fit one grid, the
+trade ADR-019 accepts to leave the pattern shape, the schemas and every demo alone.
 
 ## Requirements
 
 ### Foundation
 
-- **REQ-the-clock-stays-a-sixteenth-pulse** — **The clock stays a plain 16th
-  pulse.** Meter adds no tick rate, no bar callback and no state to `Clock`
-  ([transport](transport.md) REQ-subscribers-get-step-and-audio-time). Every bar
-  and lane notion is derived downstream from the monotonic `step`.
-
-- **REQ-meter-ts-names-the-three-jobs** — **`src/state/meter.ts` is the only
-  place the three jobs are named.** `GRID_CELLS` (cells per pattern — what
-  `SEQ_LENGTH` now aliases), `barTicks` (bar length) and `LANE_RATES` (ticks per
-  cell) are separate exports, so a call site has to say which one it means. The
-  module is pure and dependency-free, like `song-version.ts`, so the MCP Node
-  bundle can read it.
-
-- **REQ-a-cell-index-is-a-pure-function-of-step** — **A lane's cell index is a
-  pure function of `clock.step`.** No lane keeps a phase accumulator. This is
-  what makes `seek`, Song-Position join, WiFi sync and dropout recovery
+- **REQ-the-clock-stays-a-sixteenth-pulse** — Meter adds no tick rate, bar callback or
+  state to `Clock` ([transport](transport.md) REQ-subscribers-get-step-and-audio-time).
+  Every bar and lane notion is derived downstream from the monotonic `step`.
+- **REQ-meter-ts-names-the-three-jobs** — `src/state/meter.ts` is the only place the
+  three jobs are named: `GRID_CELLS` (cells per pattern; `SEQ_LENGTH` aliases it),
+  `barTicks` (bar length) and `LANE_RATES` (ticks per cell), so a call site must say
+  which it means. It is pure and dependency-free, so the MCP Node bundle can read it.
+- **REQ-a-cell-index-is-a-pure-function-of-step** — No lane keeps a phase accumulator,
+  so `seek`, Song Position join, WiFi sync and dropout recovery
   ([transport](transport.md)
-  REQ-seek-moves-a-running-clock/REQ-the-transport-catch-up-is-bounded) work for
-  a 12- or 14-tick lane with no repair step — the defect `Arrangement.seekTo`
-  ([arrangement](arrangement.md) REQ-a-mid-play-seek-re-seeks-every-lane) exists
-  to fix for chain slots. The one refinement is
-  REQ-a-multi-bar-lane-restarts-with-its-chain, which is still pure — it adds the
-  lane's chain length, never history.
-
-- **REQ-a-multi-bar-lane-restarts-with-its-chain** — **A chained lane whose loop
-  is a whole number of bars (≥ 2) restarts at cell 0 on its chain's slot 0.** Its
-  chain slots address *pages* of the pattern (a 16-cell 1/8 lane is two bars:
-  slot `A A` plays cells 0-7 then 8-15), so the page must follow the chain, not
-  the absolute bar. Counted from the absolute step, a chain whose length is not a
-  multiple of the page count wraps onto the wrong page and every pair plays
-  swapped on alternate passes. The index is offset by the first cell that begins
-  at or after the current chain-loop start (`floor(step / loopTicks) × loopTicks`,
-  `loopTicks = steps.length × barTicks`). Only the index moves: the grid, swing
-  parity, fine-rate fan-out and stutter stay absolute.
-  **A polyrhythm is exempt**: a lane whose loop is *not* a whole number of bars (a
-  12-cell 1/16 lane in 4/4, a 9-cell 1/8 lane in 12/8) keeps its absolute phase
-  and drifts across chain loops as before. So do unchained lanes. Whenever the
-  chain length is already a multiple of the page count the offset is ≡ 0, so
-  every such song plays bit-identically (ADR-006). The METER block agents read
-  (`authoring-guide.ts`, `llms.txt`) states the split — a whole-bar lane pages with
-  its chain, only a polyrhythm drifts — since a 1/8 two-bar bank is the shape
-  `read_midi` suggests.
-
-- **REQ-the-step-counter-must-not-wrap** — **The step counter must not wrap**,
-  because a wrap that is not a multiple of every lane length jumps its phase.
-  See [transport](transport.md) REQ-the-step-counter-is-bounded-at-ingress,
-  which owns the change; this REQ records *why* meter needed it.
+  REQ-seek-moves-a-running-clock/REQ-the-transport-catch-up-is-bounded) need no repair
+  step for a 12- or 14-tick lane (chain slots do need one: [arrangement](arrangement.md)
+  REQ-a-mid-play-seek-re-seeks-every-lane). The one refinement,
+  REQ-a-multi-bar-lane-restarts-with-its-chain, is still pure.
+- **REQ-a-multi-bar-lane-restarts-with-its-chain** — A chained lane whose loop is a
+  whole number of bars (≥ 2) restarts at cell 0 on its chain's slot 0: its slots
+  address *pages* (a 16-cell 1/8 lane is two bars, and slot `A A` plays cells 0–7 then
+  8–15), so the page follows the chain, not the absolute bar. The index is offset by
+  the first cell beginning at or after the chain-loop start (`floor(step / loopTicks) ×
+  loopTicks`, `loopTicks = steps.length × barTicks`). Only the index moves; grid, swing
+  parity, fan-out and stutter stay absolute. **A polyrhythm is exempt** (a loop that is
+  not whole bars, e.g. 12 cells at 1/16 in 4/4) and keeps drifting, as do unchained
+  lanes. When the chain length is a multiple of the page count the offset is ≡ 0, so
+  such songs play bit-identically (ADR-006). The METER block agents read
+  (`authoring-guide.ts`, `llms.txt`) states the split.
+- **REQ-the-step-counter-must-not-wrap** — A wrap that is not a multiple of every lane
+  length jumps phase. [transport](transport.md) REQ-the-step-counter-is-bounded-at-ingress
+  owns the bound.
 
 ### Global meter
 
-- **REQ-meter-is-two-bus-scalars** — **Meter is two `ParamBus` scalars**,
-  `transport.beats` (2..12) and
-  `transport.beatUnit` (discrete `1/4` | `1/8`), defaulting to 4 and `1/4` — i.e.
-  4/4, a no-op ([ADR-006](../decisions/adr-006-no-op-param-defaults.md)). They are
-  song state, not patch state: `NON_PATCH_PREFIXES` already excludes
-  `transport.`, so loading a preset can never change the meter. The global meter
-  setting has no label ('Meter') since it's self-obvious.
-
-- **REQ-bar-ticks-is-the-arrangement-bar-line** — **`barTicks` is the
-  arrangement's bar line.** Chain lanes advance on `step % barTicks === 0` and
-  seek to `floor(step / barTicks)` ([arrangement](arrangement.md)
-  REQ-a-chain-advances-one-slot-per-bar/REQ-start-seeks-every-lane). One bar
-  grid is still shared by all four chain lanes — per-lane *bar counts* were
-  already independent, per-lane bar *lengths* remain out of scope.
-
-- **REQ-bar-exact-capture-follows-bar-ticks** — **Bar-exact capture follows
-  `barTicks`.** Song export's bar count and tail bar
-  ([audio-export](audio-export.md)) and the sampler bank render
-  ([render-to-sampler](render-to-sampler.md)) all measure a bar as `barTicks ×
-  sixteenthDuration()`, so a 7/8 song exports 7/8 bars.
-
-- **REQ-accents-and-ruler-derive-from-the-meter** — **Beat accents and the ruler
-  derive from the meter**, never from `% 4`. The red accent column, the ruler's
-  numbered beats and its tooltip all come from `ticksPerBeat` (scaled by the
-  lane's rate), so 7/8 reads as seven eighths and not as four-plus-a-bit
-  ([transport-position](transport-position.md) REQ-a-position-ruler-above-every-grid).
-
-- **REQ-the-drum-fill-is-relative-to-its-lane** — **The drum fill is expressed
-  relative to its lane**, not to 16. `DrumMachine.playFill` hard-coded `s % 8`,
-  `s >= 12` and `s === 15` ([performance](performance.md)); the same shape is
-  re-derived from the lane's length so a fill in 7/8 lands on the bar's own last
-  step.
+- **REQ-meter-is-two-bus-scalars** — `transport.beats` (2..12) and `transport.beatUnit`
+  (`1/4` | `1/8`), defaulting to 4/4, a no-op (ADR-006). They are song state:
+  `NON_PATCH_PREFIXES` excludes `transport.`, so a preset never changes the meter. The
+  header picker has no label.
+- **REQ-bar-ticks-is-the-arrangement-bar-line** — Chain lanes advance on `step %
+  barTicks === 0` and seek to `floor(step / barTicks)` ([arrangement](arrangement.md)
+  REQ-a-chain-advances-one-slot-per-bar/REQ-start-seeks-every-lane). All four chain
+  lanes share one bar grid; per-lane bar lengths are out of scope.
+- **REQ-bar-exact-capture-follows-bar-ticks** — Song export's bar count and tail bar
+  ([audio-export](audio-export.md)) and the bank render
+  ([render-to-sampler](render-to-sampler.md)) measure a bar as `barTicks ×
+  sixteenthDuration()`.
+- **REQ-accents-and-ruler-derive-from-the-meter** — Beat accents, the ruler's numbered
+  beats and its tooltip come from `ticksPerBeat` (scaled by the lane's rate), never
+  from `% 4` ([transport-position](transport-position.md)
+  REQ-a-position-ruler-above-every-grid).
+- **REQ-the-drum-fill-is-relative-to-its-lane** — `DrumMachine.playFill` derives its
+  shape from the lane's length, so a 7/8 fill lands on the bar's own last step
+  ([drum-machine](drum-machine.md) REQ-drum-lane-follows-the-meter).
 
 ### Per-lane length — polymeter
 
-- **REQ-each-machine-has-a-loop-length** — **Each machine has a loop length**:
-  `seq.len`, `drum.len`, `sampler.len`, `motion.len`, `0..GRID_CELLS`, default
-  **0 = follow the bar** (`clamp(barTicks / rate, 1, GRID_CELLS)`). So picking
-  7/8 puts all four machines in 7/8 with no further setup, and the default is a
-  no-op.
-
-- **REQ-cells-beyond-the-length-are-hidden** — **Cells beyond the length are
-  hidden, never destroyed.** The grid's column count follows the lane
-  (`--steps`), so a 3/4 song draws twelve columns rather than sixteen with four
-  dead ones — a dead column is exactly the control that does nothing which
-  [ADR-014](../decisions/adr-014-dont-make-me-think.md) rules out, and letting
-  the extra cells stay visible would wrap them onto a second row.
-
-  `hidden`, not removed: the DOM, the testids, the selection cursor and the stored
-  steps all survive, so shortening a lane and lengthening it again returns every
-  step untouched, and a meter change is a class flip rather than a DOM rebuild.
-  The position ruler above the grid hides its ticks by the same rule and from the
-  same resolver, so the two cannot disagree.
-
-- **REQ-pattern-arrays-stay-grid-cells-long** — **Pattern arrays stay
-  `GRID_CELLS` long, always.** Only the played *window* shrinks. This is what
-  keeps `song-validate.ts`'s exact-length checks, the published JSON schemas'
-  `minItems/maxItems: 16`, the authoring dialect's rest-padding and all shipped
+- **REQ-each-machine-has-a-loop-length** — `seq.len`, `drum.len`, `sampler.len`,
+  `motion.len`, `0..GRID_CELLS`, default **0 = follow the bar** (`clamp(barTicks /
+  rate, 1, GRID_CELLS)`). Picking 7/8 puts all four machines in 7/8 with no setup.
+- **REQ-cells-beyond-the-length-are-hidden** — The grid's column count follows the lane
+  (`--steps`), so 3/4 draws twelve columns, not sixteen with four dead ones (ADR-014).
+  `hidden`, not removed: DOM, testids, selection and stored steps survive, so shortening
+  and lengthening a lane returns every step, and a meter change is a class flip. The
+  ruler hides its ticks by the same rule from the same resolver.
+- **REQ-pattern-arrays-stay-grid-cells-long** — Pattern arrays are always `GRID_CELLS`
+  long; only the played window shrinks. That keeps `song-validate.ts`'s exact-length
+  checks, the JSON schemas' `minItems/maxItems: 16`, the dialect's rest-padding and the
   demos untouched.
-
-- **REQ-motion-joins-the-non-patch-prefixes** — **`motion.` joins
-  `NON_PATCH_PREFIXES`.** `motion.on`, `motion.mute` and `motion.slide` were
-  being captured into presets and reapplied on load, so auditioning a sound
-  switched the motion machine off — the exact defect the predicate exists to
-  prevent ([presets](presets.md)). `motion.len`/`motion.rate` would inherit it,
-  so the prefix is corrected here rather than worked around.
+- **REQ-motion-joins-the-non-patch-prefixes** — `motion.` is in `NON_PATCH_PREFIXES`,
+  so `motion.on`/`mute`/`slide`/`len`/`rate` are never captured into presets, and
+  auditioning a sound cannot switch the motion machine off ([presets](presets.md)).
 
 ### Per-lane rate — polyrhythm
 
-- **REQ-each-machine-has-a-step-rate** — **Each machine has a step rate**:
-  `seq.rate`, `drum.rate`, `sampler.rate`, `motion.rate`, a discrete index into
-  `LANE_RATES` — *ticks per cell* — defaulting to `1/16` (one tick), a no-op.
-  The values are derived from the straight/dotted/triplet table in
-  `src/utils/tempo.ts` ([tempo-lock](tempo-lock.md)), pinned to it by a drift
-  test so the two spellings of a musical division can never disagree.
-
-- **REQ-coarser-skips-ticks-finer-fans-out** — **Coarser than a 16th skips
-  ticks; finer fans out inside one.** A rate of 2 ticks/cell fires on every
-  second tick; a rate of ⅔ schedules that tick's sub-hits at absolute `when`
-  offsets. Both are exactly what [arpeggiator](arpeggiator.md)
-  REQ-a-sub-16th-rate-schedules-its-own-hits already does, so the clock is
-  untouched and a triplet lane is as sample-accurate as a straight one.
-
-- **REQ-swing-is-computed-on-the-lanes-grid** — **Swing is computed on the
-  lane's own grid.** The clock delays odd *ticks* ([transport](transport.md)
-  REQ-bpm-and-swing-are-live-settable), so a lane at 2 ticks/cell fires only on
-  even ticks and would play dead straight under swung hats. A lane whose rate is
-  not 1 subtracts the clock's offset for its tick and adds the offset its own
-  alternating cells imply. At the default rate this is arithmetically nil.
-
-  (v2) Every hit also reports its **span**: the seconds from this cell's onset
-  to the next cell's, on the same swung grid. Straight, that is the cell's
-  duration; swung, an even cell's span is longer by the next cell's delay and an
-  odd cell's shorter by its own. The trigger machines ignore it — gate and
-  ratchet are fractions of the cell, not of its swung slot — but the motion
-  sequencer interpolates its playhead across it, which is what keeps a slide
-  continuous under swing
-  ([motion-sequencer](motion-sequencer.md) REQ-the-motion-playhead-follows-the-swung-grid).
-
-- **REQ-stutter-composes-with-length-and-rate** — **Stutter composes with length
-  and rate.** `Performance.mapStep` keeps folding the *absolute* step; only the
-  modulo that follows it becomes lane-aware, so a stutter over a 12-cell lane
-  repeats 12-cell material ([performance](performance.md)). Motion still reads
-  the raw step — automation must not follow a stutter remap.
+- **REQ-each-machine-has-a-step-rate** — `seq.rate`, `drum.rate`, `sampler.rate`,
+  `motion.rate`: a discrete index into `LANE_RATES` (ticks per cell), default `1/16`, a
+  no-op. The values mirror the straight/dotted/triplet table in `src/utils/tempo.ts`
+  ([tempo-lock](tempo-lock.md)), pinned to it by a drift test.
+- **REQ-coarser-skips-ticks-finer-fans-out** — A rate of 2 ticks/cell fires every second
+  tick; a rate of ⅔ schedules that tick's sub-hits at absolute `when` offsets, as
+  [arpeggiator](arpeggiator.md) REQ-a-sub-16th-rate-schedules-its-own-hits does. The
+  clock is untouched and a triplet lane is sample-accurate.
+- **REQ-swing-is-computed-on-the-lanes-grid** — The clock delays odd *ticks*
+  ([transport](transport.md) REQ-bpm-and-swing-are-live-settable), so a lane at 2
+  ticks/cell would play straight under swung hats. A lane whose rate is not 1 subtracts
+  the clock's offset for its tick and adds the one its own alternating cells imply; at
+  the default rate this is nil. Every hit also reports its **span**, the seconds to
+  the next cell's onset on the same swung grid. The trigger machines ignore it (gate and
+  ratchet are fractions of the cell); the motion sequencer interpolates across it
+  ([motion-sequencer](motion-sequencer.md)
+  REQ-the-motion-playhead-follows-the-swung-grid).
+- **REQ-stutter-composes-with-length-and-rate** — `Performance.mapStep` folds the
+  *absolute* step and only the modulo after it is lane-aware, so a stutter over a
+  12-cell lane repeats 12-cell material ([performance](performance.md)). Motion reads
+  the raw step; automation does not follow a stutter.
 
 ### Sync & persistence
 
-- **REQ-meter-travels-on-the-wifi-wire** — **Meter travels on the WiFi wire, not
-  the MIDI one.** WebRTC sync gains a `meter` message so peers agree on bar
-  boundaries ([webrtc-sync](webrtc-sync.md)), bounded like every other payload
-  ([untrusted-input](untrusted-input.md)). MIDI real-time has no meter message
-  at all: Song Position stays correct (it counts 16ths, which is meter-neutral)
-  but two peers in different meters will number bars differently — a stated
-  limit in [midi-clock-sync](midi-clock-sync.md), not a silent one.
-
-- **REQ-meter-needs-no-song-file-bump** — **No `SongFile` version bump.** All
-  ten scalars ride in the open `params` map, so there is no new top-level key,
-  no schema change and no migration
-  ([ADR-007](../decisions/adr-007-songfile-additive-versioning.md)). Every
-  default is a no-op, so an **absent** key means 4/4 and a pre-meter file loads
-  and sounds exactly as before.
-
-  Note what this does *not* claim: `capture` writes the whole param snapshot,
-  defaults included (that is how the format has always worked — `fx.dist.on: 0`
-  is present in every file), so **re-saving** an old song adds these ten keys at
-  their defaults. That is a larger file, not a different song. The committed
-  demos are unaffected because they are normalized as stored, never re-captured
-  (`npm run check:demos` is the guard).
+- **REQ-meter-travels-on-the-wifi-wire** — WebRTC sync carries a bounded `meter`
+  message so peers agree on bar boundaries ([webrtc-sync](webrtc-sync.md)). MIDI has no
+  meter message: Song Position (16ths) stays correct, but peers in different meters
+  number bars differently, a stated limit of [midi-clock-sync](midi-clock-sync.md).
+- **REQ-meter-needs-no-song-file-bump** — The ten scalars ride in the open `params`
+  map: no new key, no schema change, no migration (ADR-007). An absent key means 4/4.
+  Re-saving an old song writes the ten keys at their defaults, which is a larger file,
+  not a different song; the demos are stored normalized (`npm run check:demos`).
 
 ## Technical design
 
@@ -307,48 +220,46 @@ barTicks(beats, unitIdx) / ticksPerBeat(unitIdx) / meterLabel(beats, unitIdx)
 laneRate(rateIdx): LaneRate / ticksPerCell(rateIdx): number
 laneCells(len, rateIdx, barTicks): number      # LEN_FOLLOW -> follow the bar
 laneTicks(len, rateIdx, barTicks): number
-cellIndex(step, cells, rateIdx): number        # REQ-a-cell-index-is-a-pure-function-of-step: pure in `step`
+cellIndex(step, cells, rateIdx): number        # pure in `step`
 loopCellShift(step, cells, rateIdx, barTicks, loopTicks): number  # REQ-a-multi-bar-lane-restarts-with-its-chain; 0 = none
 loopCellIndex(step, cells, rateIdx, barTicks, loopTicks): number  # cellIndex minus that shift
-
-Arrangement:   # src/audio/transport/arrangement.ts
-  loopTicks(lane): number            # steps.length × barTicks, 0 when the lane is not chained
 cellsInTick(step, rateIdx): { from, count }    # which cells BEGIN in this tick
 cellOffsetTicks(cell, rateIdx, step): number   # 0 .. <1, for sub-tick scheduling
 
+LaneMeter:     # src/audio/transport/lane-meter.ts — one per machine
+  setLen(len) / setRate(rateIdx) / setBarTicks(ticks)
+  get cells / get rate / cellDuration()
+  new LaneMeter(clock, mapStep?, loopTicks)   # mapStep = perf.mapStep, except motion (raw)
+  forEachHit(step, when, fn: (cellIdx, at, cellDur, span) => void)   # the machines' one entry point
+
+Arrangement:   # src/audio/transport/arrangement.ts
+  loopTicks(lane): number            # steps.length × barTicks, 0 when the lane is not chained
+
 Performance:   # src/audio/transport/performance.ts
-  stepIndex(step, cells, rateIdx): number      # was stepIndex(step)
+  stepIndex(step, cells, rateIdx): number
 
 Clock:         # src/audio/transport/clock.ts
-  swingOffset(step): number          # REQ-swing-is-computed-on-the-lanes-grid — the delay applied to this tick
-  get step: number                   # REQ-the-step-counter-must-not-wrap — unbounded, no longer masked
+  swingOffset(step): number          # the delay applied to this tick
+  get step: number                   # unbounded, never masked
 ```
 
-**Rates are exact rationals, not floats.** `cellsInTick` decides membership by
-comparing `cell × num/den` against integer tick bounds; as a float, `2 / (2/3)`
-is `3.0000000000000004` and a triplet cell lands one tick late. The table mirrors
-`utils/tempo.ts`'s straight/dotted/triplet divisions (`beats × 4 === num / den`)
-and is **pinned to it by a drift test** rather than imported, so this module stays
-arithmetic-only for the MCP bundle.
+**Rates are exact rationals, not floats.** `cellsInTick` compares `cell × num/den`
+against integer tick bounds; as a float, `2 / (2/3)` is `3.0000000000000004` and a
+triplet cell lands a tick late. The table mirrors `utils/tempo.ts` and is pinned to it
+by a drift test rather than imported, so this module stays arithmetic-only.
 
 ### Gesture inventory — METER, and a machine's GRID pair (ADR-014)
 
-Three new controls, all dropdowns, so every gesture each can receive is decided
-here including the ones left unused.
+| Gesture | METER (header) | GRID `LEN` / `RATE` (machine header) |
+| --- | --- | --- |
+| tap / click | open the list; pick a signature (writes **both** params) | open the list; pick a length or rate |
+| hover | — | the cluster's `title` reads the pair out (`14 steps of 1/16 = one 7/8 bar`) |
+| wheel | — deliberately: a flick would change the bar of a playing song, with no undo | — |
+| double-click / long-press / right-click | — every reset value is one pick away | — |
+| keyboard | the shared [dropdown](dropdown.md) handling | same |
 
-| Gesture | METER (header) | GRID `LEN` / `RATE` (machine header) | Precedent |
-| --- | --- | --- | --- |
-| tap / click | open the list; pick a signature | open the list; pick a length or a rate | every `Dropdown` in the app |
-| pick an option | writes **both** meter params at once | writes that one param | — |
-| hover | — | the cluster's `title` reads the pair out in full (`14 steps of 1/16 = one 7/8 bar`) | the FX-group and bank-bar tooltips |
-| wheel over the control | — a wheel here would change the bar of a *playing* song by a flick of the finger, and there is no undo for a transport-wide setting. The chain chip's wheel ([arrangement](arrangement.md)) is safe because a slot transpose is per bar and reversible | — | — |
-| double-click | — nothing to reset to that the list does not already offer (`4/4`, `BAR`, `1/16` are all one click away) | — | — |
-| long-press / right-click | — the control has one job | — | — |
-| keyboard | the shared `Dropdown`'s own arrow/Enter/Escape handling, unchanged | same | [dropdown](dropdown.md) |
-
-The **hint** beside the pair is not interactive: it renders only while the lane
-is off the bar, and says so in words (REQ-cells-beyond-the-length-are-hidden's reasoning applied to text — a
-label that is always present stops being read).
+The **hint** beside the pair is not interactive and renders only while the lane is off
+the bar; a label that is always present stops being read.
 
 ### Data shapes (registry)
 
@@ -360,7 +271,7 @@ seq.len | drum.len | sampler.len | motion.len:
 seq.rate | drum.rate | sampler.rate | motion.rate:
                     { discrete, labels: LANE_RATE_LABELS, default: index of '1/16' }
 # src/state/limits.ts
-MAX_STEP = 2 ** 31   # the transport position bound that replaced the 16-bit mask
+MAX_STEP = 2 ** 31   # the transport position bound
 ```
 
 ### Layer touchpoints & ordering
@@ -368,21 +279,21 @@ MAX_STEP = 2 ** 31   # the transport position bound that replaced the 16-bit mas
 ```yaml
 engine (subscribeParams):
   transport.beats / transport.beatUnit -> barTicks -> arrangement, performance,
-    motion machine, recorder controller (one resolved number, pushed on change)
-  <m>.len / <m>.rate -> that machine only
-machines: seq / drum / sampler read perf.stepIndex(step, cells, rateIdx);
-  motion derives the same index raw (no stutter remap)
-construction order is unchanged: Arrangement before the machines (arrangement.md REQ-arrangement-is-built-before-the-machines)
-ui: meter picker in transport-controls.ts; LEN/RATE per machine in
-  panels/step-panel-scaffold.ts (all four grids already route through it)
-css: the three `repeat(16, …)` grids become `repeat(var(--steps, 16), …)`
+    every LaneMeter, recorder controller (one resolved number, pushed on change)
+  <m>.len / <m>.rate -> that machine's LaneMeter only
+machines: seq / drum / sampler / motion iterate this.lane.forEachHit(step, when, …);
+  seq / drum / sampler map the step through perf.mapStep, motion uses the raw step (no stutter remap)
+construction order: Arrangement before the machines (arrangement.md REQ-arrangement-is-built-before-the-machines)
+ui: the meter picker (components/meter-picker.ts) in the header; LEN/RATE per machine in
+  panels/step-panel-scaffold.ts; every grid resolves through src/ui/lane-grid.ts
+css: the step grids are `repeat(var(--steps, 16), …)`
 ```
 
 ### Persistence
 
-Ten `ParamBus` scalars in `SongFile.params`; nothing else. Deliberately **not**
-persisted: the resolved `barTicks` and lane cell counts (derived every read), and
-anything per-bank — meter is global to the song (REQ-bar-ticks-is-the-arrangement-bar-line).
+Ten `ParamBus` scalars in `SongFile.params`, nothing else. The resolved `barTicks` and
+lane cell counts are derived on every read, and meter is global to the song, not per
+bank.
 
 ## Scenarios (BDD)
 
@@ -490,32 +401,20 @@ Scenario: 7/8 feels like 7/8
 
 ## Tests & verification
 
-- Unit: `tests/state/meter.test.ts` (the vocabulary + every conversion),
-  `tests/audio/transport/clock.test.ts` (REQ-the-step-counter-must-not-wrap),
-  `tests/audio/transport/arrangement.test.ts` (REQ-bar-ticks-is-the-arrangement-bar-line),
-  `tests/audio/transport/sequencer.test.ts` (REQ-a-cell-index-is-a-pure-function-of-step/REQ-each-machine-has-a-loop-length/REQ-coarser-skips-ticks-finer-fans-out),
-  `tests/audio/transport/drum-machine.test.ts` (REQ-the-drum-fill-is-relative-to-its-lane/REQ-swing-is-computed-on-the-lanes-grid),
-  `tests/state/song.test.ts` + `tests/state/preset.test.ts` (REQ-motion-joins-the-non-patch-prefixes/REQ-meter-needs-no-song-file-bump) — `npm test`
-- E2E: `e2e/patterns.spec.ts` — `npm run e2e`
-- Typecheck: `npm run typecheck`
-- **By ear** ([ADR-010](../decisions/adr-010-musical-stable-cheap-dsp.md),
-  [verify-audio-by-ear](../recipes/verify-audio-by-ear.md)) — the real gate.
-  Render with `npm run bench:audio` against a 4/4 baseline and listen for the
-  three things no suite can catch: a 7/8 groove that limps because an accent or a
-  fill still thinks in four; a 3-over-4 lane that smears instead of locking; and
-  a 1/8 lane that sits dead straight under swung hats (REQ-swing-is-computed-on-the-lanes-grid).
+- Unit: `tests/state/meter.test.ts`, `tests/audio/transport/{clock,arrangement,sequencer,drum-machine}.test.ts`,
+  `tests/state/song.test.ts`, `tests/state/preset-session.test.ts` — `npm test`.
+  E2E: `e2e/patterns.spec.ts`.
+- **By ear** (ADR-010, [verify-audio-by-ear](../recipes/verify-audio-by-ear.md)) is the
+  real gate. Render with `npm run bench:audio` against a 4/4 baseline and listen for a
+  7/8 groove that limps (an accent or fill still thinking in four), a 3-over-4 lane that
+  smears instead of locking, and a 1/8 lane dead straight under swung hats.
 
 ## Open questions / future
 
-- **Per-bank or per-chain-slot meter** — a song that moves from 4/4 to 7/8 mid
-  arrangement. The model supports it; the arrangement's seek math and the UI do
-  not.
-- **A 32-cell grid with pages** — the only route to 5/4 at 1/16 resolution.
-  `GRID_CELLS` is the single constant it would change; everything else here
-  composes on top ([ADR-019](../decisions/adr-019-the-bar-is-a-tick-count.md)).
-- **`'1/1' = 4 beats` in `src/utils/tempo.ts`** still means a whole note, which is
-  correct nomenclature but is no longer *a bar* in 3/4. `SYNC_LABELS` is
-  append-only (the index is stored in every preset, song and share link), so a
-  meter-aware `1 BAR` division would have to be appended, never substituted.
-  Tempo-locked LFOs and delays are free-running and never bar-phase-reset, so
-  they behave in 7/8 exactly as they do today.
+- **Per-bank or per-slot meter** (4/4 to 7/8 mid-song): the model allows it; the
+  arrangement's seek math and the UI do not.
+- **A 32-cell grid with pages**, the only route to 5/4 at 1/16. `GRID_CELLS` is the one
+  constant it would change (ADR-019).
+- **`'1/1'` in `src/utils/tempo.ts`** is a whole note, no longer a bar in 3/4.
+  `SYNC_LABELS` is append-only, so a meter-aware `1 BAR` would be appended. Tempo-locked
+  LFOs and delays are free-running and never bar-reset, so they are meter-neutral.

@@ -3,7 +3,7 @@
 ```yaml
 id: empty-play-hint
 status: implemented
-version: 2   # v2: the demo load is awaited (most demos are fetched on click)
+version: 2
 owner: core
 related:
   - play-button-blink

@@ -3,25 +3,16 @@
 ```yaml
 id: fx-group
 status: implemented
-version: 5   # v5: a title companion can collapse with the knobs (`afterTitleCollapses`,
-             #     REQ-a-group-can-host-a-title-companion): the delay's TYPE dropdown is a
-             #     setting, so a bypassed DELAY group is as narrow as it always was
-             #     (delay-types.md REQ-type-is-a-header-dropdown-and-char-a-knob)
-             # v4: `fxGroupParts` hands back its title `label` too, so a slot picker can
-             #     make the title open its menu (fx-slot-picker.md REQ-the-title-opens-the-menu)
-             # v3: REQ-a-group-can-host-a-title-companion — `afterTitle` and `fxGroupParts`, so a
-             #     group can share a slot with another (fx-slot-picker.md)
-             # v2: REQ-fx-group-testids — a rate/time knob in a group also mints the tempo-lock
-             #     ids; the builder itself is unchanged (tempo-lock.md REQ-one-table-declares-lockable-params)
+version: 5
 owner: core
 related:
   - effects
-  - tempo-lock  # v2: the PHASER/DELAY knobs carry a lock the group never sees
+  - tempo-lock  # the PHASER/DELAY knobs carry a lock the group never sees
   - compressor
   - drum-machine
   - sampler
   - song-mode
-  - fx-slot-picker  # v3: the sampler's PHASER / FLANGER / CHORUS slot
+  - fx-slot-picker  # the sampler's PHASER / FLANGER / CHORUS slot
 source:
   - src/ui/components/fx-group.ts
   - src/ui/styles/fx-group.module.css
@@ -67,7 +58,7 @@ behaviour like this lives in one place.
 - **REQ-fx-group-testids** — Testids: the group root carries
   `fxgroup-<onPrefix>`; the switch `switch-<onPrefix>.on`; each knob
   `knob-<paramId>` (minted by the factories).
-  - (v2) A group's rate/time knob mints `tempolock-<paramId>` and
+  - A group's rate/time knob mints `tempolock-<paramId>` and
     `tempodiv-<paramId>` as well ([tempo-lock](tempo-lock.md) REQ-one-table-declares-lockable-params/REQ-the-lock-is-a-note-glyph). The
     builder here is **unchanged** and knows nothing about it: the `Knob` looks its
     own param up in `TEMPO_LOCKS`, which is exactly why the drum and sampler
@@ -87,8 +78,8 @@ behaviour like this lives in one place.
   caller's element, so the group knows nothing about the picker. `fxGroupParts`
   is the same builder handing back its `Knob`s as well as its root, for a caller
   that dims some of them (the chorus's RATE and DEPTH, `dimWhileModeSet`), and
-  (v4) its title `label`, which the slot picker makes clickable;
-  `fxGroup` is `fxGroupParts(...).el`. (v5) With `opts.afterTitleCollapses`
+  its title `label`, which the slot picker makes clickable;
+  `fxGroup` is `fxGroupParts(...).el`. With `opts.afterTitleCollapses`
   the companion **collapses with the knobs** under
   REQ-bypassed-group-collapses-its-knobs. The slot caret leaves it off, since it is
   navigation and a bypassed effect must stay reachable through it. The delay's

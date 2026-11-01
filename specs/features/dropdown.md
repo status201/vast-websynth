@@ -3,39 +3,7 @@
 ```yaml
 id: dropdown
 status: implemented
-version: 17 # v17: REQ-an-open-menu-stays-under-the-sticky-header — the section holding an open
-            #      menu is raised above its sibling sections but not above the header;
-            #      at z-index 100 it painted over the header, which vanished (regression)
-            # v16: REQ-a-toggle-can-carry-a-legend — an unboxed toggle that is a panel's title
-            #      (the synth Delay's TYPE, delay-types.md v4)
-            # v15: one Escape closes only the innermost open menu (stopImmediatePropagation: every
-            #      menu listens on the document); dismissMenu returns a disposer and the Grid
-            #      popover's destroy() uses it (regressions)
-            # v14: ParamDropdown takes an optional testId (delay-types.md REQ-delay-type-testids)
-            # v13: one menu is open at a time (REQ-one-menu-is-open-at-a-time) — every toggle
-            #      stopped its own click, so opening a second menu never reached the
-            #      first one's outside-click close and the two overlapped
-            # v12: dismissMenu takes `inside` triggers outside its root (the FX slot's title),
-            #      so a trigger keeps its menu open without stopping the click, and the
-            #      click still closes every other open menu
-            # v11: REQ-every-fixed-menu-shares-one-anchor-and-dismiss — the anchor rule and the
-            #      Escape-is-consumed rule live in menu-anchor.ts, shared by every fixed
-            #      menu; the Clear menu and the lane popover were letting Escape reach Panic
-            # v10: ParamDropdown.setDimmed, and REQ-a-dropdown-can-be-dimmed's CSS pin widened to
-            #     consumer stylesheets — the mod matrix's idle rows faded a picker
-            #     root with `.idle > *` and the open list went transparent again
-            # v9: REQ-the-menu-closes-on-outside-click — the Escape that closes a menu stops there;
-            #     it used to reach the global Panic shortcut and stop the song
-            # v8: options carry the `dropdown-option` bridge class — the toggle and
-            #     the matching option share an accessible name (REQ-an-option-carries-the-bridge-class)
-            # v7: setOptions takes a dividerAfter group separator, and REQ-a-list-can-be-split-by-dividers writes
-            #     down that a rebuild can strand the displayed value
-            # v6: setDisabledOptions — individual options can be unselectable (REQ-an-option-can-be-unselectable)
-            # v5: setDimmed + the "never dim the root" invariant (REQ-a-dropdown-can-be-dimmed)
-            # v4: the filter row is content type, not faceplate legend (REQ-a-long-list-carries-a-filter)
-            # v3: Up/Down/Home/End walk the options in every dropdown (REQ-arrow-keys-move-the-selection)
-            # v2: a live filter row on long lists (REQ-a-long-list-carries-a-filter); REQ-the-selected-option-scrolls-into-view's focus target
-            #     moves to that input where it exists
+version: 17
 owner: ui
 related:
   - architecture
@@ -49,7 +17,7 @@ source:
   - src/ui/components/dropdown.ts
   - src/ui/components/param-dropdown.ts   # ParamBus-bound wrapper
   - src/ui/styles/dropdown.module.css
-  - src/ui/components/menu-anchor.ts      # v11: anchorMenu + dismissMenu, shared by every fixed menu
+  - src/ui/components/menu-anchor.ts      # anchorMenu + dismissMenu, shared by every fixed menu
 ```
 
 ## Background / Why
@@ -85,7 +53,7 @@ without anyone remembering to ask.
   (falling back to the first option if the current value disappears).
 - **REQ-the-menu-closes-on-outside-click** — The open menu closes on outside
   click and on Escape. `destroy()` removes every document/window listener.
-  (v9) **The Escape that closes a menu is consumed there**, as the arrow keys
+  **The Escape that closes a menu is consumed there**, as the arrow keys
   already were (REQ-arrow-keys-move-the-selection): it used to close the menu
   and then bubble on to the window, where `installShortcuts` reads Escape as
   **Panic** — so dismissing any dropdown with Escape stopped the transport and
@@ -114,7 +82,7 @@ without anyone remembering to ask.
     Panic shortcut and stopped the song, the bug v9 had fixed in `Dropdown`
     alone. `Dropdown` keeps its own key handler, which also walks the options,
     and shares only the anchor.
-  - (v12) `dismissMenu(root, isOpen, close, inside)`: `inside` lists triggers
+  - `dismissMenu(root, isOpen, close, inside)`: `inside` lists triggers
     that sit outside `root` but belong to the control, such as the FX slot's
     title ([fx-slot-picker](fx-slot-picker.md) REQ-the-title-opens-the-menu). A
     click on one is not an outside click, so the trigger need not
@@ -182,7 +150,7 @@ without anyone remembering to ask.
   - `Enter` selects the first still-visible option; the arrow keys move into the
     list (REQ-arrow-keys-move-the-selection); `Escape` closes the menu (REQ-the-menu-closes-on-outside-click) rather than clearing the query
     first — one gesture, one outcome.
-  - **The row is content type, not a legend** (v4): the input and the "No match"
+  - **The row is content type, not a legend**: the input and the "No match"
     line are `--sans`, while the toggle and the options stay on the faceplate
     `--serif` ([typography](typography.md) REQ-serif-is-display-type-only/REQ-sans-is-content-type). The input shipped in v2
     as 10 px Georgia with legend tracking, copied from the sibling `.option`
@@ -229,21 +197,15 @@ without anyone remembering to ask.
     `z-index: 1000`, so later siblings paint over it. REQ-the-menu-is-fixed-and-anchored's "fixed, so it
     escapes its ancestors" holds only while no ancestor creates a stacking or
     containing block.
-  - This is written down because it shipped: the Motion tab's inherited axis
-    pickers carried `opacity: 0.62` on `sel.el`, which made their option lists
-    transparent *and* buried them under the XY pad lane
-    ([motion-sequencer](motion-sequencer.md) REQ-each-motion-step-is-a-mini-xy-pad). Both symptoms, one
-    declaration. Consumers get `setDimmed` so the safe target is the easy one —
-    the same reason [motion-sequencer](motion-sequencer.md) REQ-single-param-lanes-below-the-xy-lane dims a lane's
-    label rather than its row.
-  - (v10) It shipped a **second** time, without anyone writing `opacity` on a
-    dropdown on purpose: the mod matrix faded idle rows with
-    `.idle > *:not(:first-child)`, and a **universal** subject selects the
-    destination picker's root as readily as the knob beside it. So a consumer
-    rule whose subject is `*` (or `:global(.dropdown)`) may not declare a
-    stacking property unless it excludes `:global(.dropdown)`. A picker in such
-    a group is dimmed through `setDimmed` instead, which `ParamDropdown` passes
-    through.
+  - `opacity` on `sel.el` makes the option list transparent *and* buries it under
+    neighbours. Consumers get `setDimmed` so the safe target is the easy one (as
+    [motion-sequencer](motion-sequencer.md) REQ-single-param-lanes-below-the-xy-lane
+    dims a lane's label, not its row).
+  - A **universal** consumer subject (`.idle > *:not(:first-child)`) selects a
+    picker's root as readily as a knob, so a rule whose subject is `*` (or
+    `:global(.dropdown)`) may not declare a stacking property unless it excludes
+    `:global(.dropdown)`; a picker in such a group dims through `setDimmed`
+    (which `ParamDropdown` passes through).
   - The dim is **presentation only**: a dimmed dropdown stays fully interactive
     ([ADR-014](../decisions/adr-014-dont-make-me-think.md) law 2 — the control
     that says "nothing is set here" must be the one that lets you set it). Use
@@ -305,11 +267,9 @@ without anyone remembering to ask.
   value, so the two are buttons with the same accessible name — ambiguous by
   construction, for a test and for anything else walking by role.
 
-  It went unnoticed while the toggle's name was `"1 ▾"`: the caret character was
-  part of the name and made it unique. Drawing the caret
-  ([iconography](iconography.md) REQ-a-control-glyph-is-inline-svg/REQ-an-icon-is-aria-hidden) made the name correctly just `"1"`,
-  which is what a screen reader should say and what broke the audio-export
-  selector. The class is the fix, not a longer name — padding an accessible name
+  The caret is an aria-hidden SVG ([iconography](iconography.md)
+  REQ-a-control-glyph-is-inline-svg/REQ-an-icon-is-aria-hidden), so the toggle's
+  name is correctly just the value. The class is the fix, not a longer name — padding an accessible name
   to disambiguate a selector is a test problem solved at the user's expense. A
   test picks an option by this class; the same bridge-class idiom as
   `switch-label`.
@@ -343,7 +303,7 @@ without anyone remembering to ask.
 `class Dropdown` (`src/ui/components/dropdown.ts`):
 
 - `constructor(options: string[], initial?: string, opts?: DropdownOptions)`
-  — `DropdownOptions = { filter?: boolean }` (omitted ⇒ auto by option count)
+  — `DropdownOptions = { filter?: boolean, legend?: string }` (filter omitted ⇒ auto by option count; legend, REQ-a-toggle-can-carry-a-legend)
 - `el: HTMLElement` — root (`styles.root` + global `dropdown` class)
 - `setOptions(options: string[], opts?: SetOptionsOptions): void`
   — `SetOptionsOptions = { dividerAfter?: number }` (REQ-a-list-can-be-split-by-dividers; omitted ⇒ no divider).
@@ -381,7 +341,7 @@ div.root.dropdown:           # + global `open` class while open
                              # MUST NOT carry opacity/transform/filter (REQ-a-dropdown-can-be-dimmed)
   button.toggle[.dimmed]:    # MUST stay the first <button> child (REQ-a-long-list-carries-a-filter)
     span.label               # current value
-    span.caret               # ▾
+    span.caret               # UI_ICONS.caretDown (inline SVG, iconography.md)
   div.menu:                  # position:fixed, flex column, max-height 280px
                              # fixed, but still a DOM child of the root (REQ-a-dropdown-can-be-dimmed)
     div.filterRow:           # present only above the threshold (REQ-a-long-list-carries-a-filter)
@@ -659,7 +619,7 @@ Scenario: A legend sits above the value and survives a change (v16, REQ-a-toggle
 - Typecheck: `npm run typecheck`
 - Manual: open an XY Pad axis dropdown with a value deep in the param list —
   the list opens scrolled to the highlighted value, with the filter focused;
-  typing narrows it and Enter picks the top hit. Open the LFO DEST (5 options)
+  typing narrows it and Enter picks the top hit. Open the LFO DEST (8 options)
   and drum MODEL (13) pickers — neither shows a filter row.
 
 ## Open questions / future

@@ -3,15 +3,7 @@
 ```yaml
 id: arpeggiator
 status: implemented
-version: 6  # v6: octave/chord copies above MIDI 127 leave the pool (REQ-the-pool-stays-in-midi-range) —
-            #     they were scheduled up to note 156, past Nyquist
-            # v5: the cursor is re-clamped against the CURRENT pool — releasing a key
-            #     mid-bounce indexed past the end and pushed `undefined` into an
-            #     AudioParam (REQ-the-cursor-is-bounded-by-the-live-pool)
-            # v4: the pool is chord-expanded and key-quantized (REQ-arp-pool-is-expanded-then-quantized)
-            # v3: 1/32 actually plays 1/32 (REQ-a-sub-16th-rate-schedules-its-own-hits); `arp.on` in a saved song is
-            #     an *armed* control, by design, and is documented as one (REQ-saved-arp-on-is-armed-not-broken)
-            # v2: the tab carries a status LED for `arp.on` (REQ-armed-arp-is-visible-outside-the-tab)
+version: 6
 owner: core
 related:
   - architecture
@@ -90,10 +82,8 @@ releasing the last key stops it again (only if the arp was what started it).
 
 - **REQ-a-sub-16th-rate-schedules-its-own-hits** (every rate plays its own rate,
   v3) — The clock ticks in **16ths**, so a rate finer than 1/16 cannot be
-  one-hit-per-tick. `1/32` used to fall into an `else` branch that fired once
-  per tick with a comment conceding the approximation, which made it **audibly
-  identical to 1/16** — the control was in the dropdown, changed nothing, and
-  said nothing. A division below 1 now schedules `round(1 / division)`
+  one-hit-per-tick (one hit per tick would make `1/32` audibly identical to
+  1/16). A division below 1 schedules `round(1 / division)`
   evenly-spaced hits from the single tick, each at `when + i * sixteenth *
   division`, with the gate measured against that shorter step. `when` is
   sample-accurate and the scheduler works ahead, so a sub-16th hit lands exactly

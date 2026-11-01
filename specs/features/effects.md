@@ -3,84 +3,37 @@
 ```yaml
 id: effects
 status: implemented
-version: 18  # v18: the distortion becomes Dirt, with a TYPE (distortion · overdrive · fuzz)
-             #      on the synth and sampler buses (dirt-types.md). DISTORTION is the
-             #      default and the unchanged effect; the params keep their fx.dist ids
-             # v17: the drain table catches up: the Delay's live core rests through a bypass
-             #      (delay-types.md v6–v7) and the Chorus's quiesce stops its LFO (chorus.md v3)
-             # v16: the delay gets a TYPE (digital · ping pong · tape · BBD · space echo ·
-             #      reverse) and a CHAR knob on all three buses (delay-types.md). DIGITAL
-             #      is the default and the unchanged delay; the others load on first use
-             # v15: a flanger joins the synth and sampler chains between the phaser
-             #      and the chorus (flanger.md). It is the first insert whose DSP is
-             #      a worklet loaded on first use, and it is channel-transparent, so
-             #      nothing about the chain's channel count changes
-             #      (REQ-the-synth-chain-order)
-             # v14: a chorus joins the synth and sampler chains after the phaser
-             #      (chorus.md). It is the first insert that MAKES a stereo
-             #      image on the synth bus, so the synth chain is 2-channel
-             #      after it while it is on (REQ-the-synth-chain-order)
-             # v13: REQ-the-phaser-sweeps-in-cents — the phaser sweeps each stage in CENTS, as v9
-             #      made the wah do. Its linear-Hz swing pinned the low stages
-             #      at 0 Hz for up to 37% of every cycle — measured a stall,
-             #      not a burst — including at the synth phaser's own default
-             # v12: REQ-the-synth-chain-order — the synth chain is 1-channel only while no
-             #      sequencer track is panned off centre (sequencer.md, ADR-023)
-             # v11: REQ-the-synth-chain-order/REQ-the-drum-bus-chain-order — an EQ heads all three chains
-             #      (equalizer.md). It is a plain chain member, so nothing
-             #      here changes except the order arrays — but the order is
-             #      the contract, and the drum bus's "compressor first" now
-             #      means "first among the effects after the EQ"
-             # v10: REQ-toggling-an-effect-must-not-step-the-level — the wah gets makeup gain, and the bypass crossfade
-             #      gets its own RAMP_BYPASS constant: toggling an effect was a
-             #      16-19 dB level step in 10-20 ms — continuous samples, but
-             #      plainly a click, and the wah was simply mixed too quiet
-             # v9: REQ-the-wah-lfo-sweeps-in-cents — the wah sweeps in CENTS, not Hz. A linear Hz swing
-             #     around a 622 Hz centre reaches 0 Hz at depth 0.415 and the
-             #     bandpass degenerates there — measured; latent in nine demos
-             #     that stage the wah at 0.4-0.6 for a player to open
-             # v8: REQ-a-bypassed-effect-drains-before-disconnect — a bypassed effect DRAINS before it disconnects, so
-             #     re-enabling one can never replay the audio frozen inside it
-             #     (ADR-012's accepted risk, discharged — it bit on a demo load)
-             # v7: REQ-the-synth-chain-order/REQ-the-drum-bus-chain-order — a ducker joins the synth and sampler chains, last
-             #     in both, so the reverb tail ducks too (sidechain-ducking.md)
-             # v6: REQ-wah-phaser-and-delay-can-be-tempo-locked — the wah/phaser rates and the delay times can be locked
-             #     to the tempo (tempo-lock.md); each bind now also watches
-             #     transport.bpm
-             # v5: REQ-a-bypassed-effect-in-a-song-may-be-deliberate — a bypassed / mix-0 effect in a song can be *staged* for
-             #     the player or a motion lane, and is not a defect to clean up
-             # v4: lazy+shared reverb IR bank, bucketed drive curves (REQ-the-reverb-ir-bank-is-lazy-and-shared/REQ-drive-curves-are-bucketed-and-memoized)
-             # v3: true bypass — bypassed effects disconnect their processed path (ADR-012)
+version: 18
 owner: core
 related:
   - architecture
   - compressor
   - performance
-  - performance-mode     # the maxIrS / oversample tier caps REQ-the-reverb-ir-bank-is-lazy-and-shared keys around
-  - runtime-performance  # REQ-every-effect-implements-the-interface/REQ-bypass-and-mix-are-a-crossfade — the boot-cost + shared-artefact rules
+  - performance-mode     # the maxIrS / oversample tier caps
+  - runtime-performance  # the boot-cost + shared-artefact rules
   - fx-group             # shared header FX-group UI (hides knobs while <fx>.on is off)
-  - fx-patch-decoration  # v7: dormant now that six panels divide the grid evenly
-  - tempo-lock           # v6: the rate/time knobs' grid lock, shared with the LFO
-  - sidechain-ducking    # v7: the sixth chain member (synth + sampler, last)
-  - equalizer            # v11: the member that heads all three chains
-  - chorus               # v14: synth + sampler, after the phaser
-  - flanger              # v15: synth + sampler, between the phaser and the chorus
-  - delay-types          # v16: the delay's TYPE + CHAR
-  - dirt-types           # v18: Dirt, the drive effect, and its TYPE
-  - fx-slot-picker       # v14: the chorus shares the phaser's panel
+  - fx-patch-decoration
+  - tempo-lock           # the rate/time knobs' grid lock, shared with the LFO
+  - sidechain-ducking    # the last chain member (synth + sampler)
+  - equalizer            # the member that heads all three chains
+  - chorus
+  - flanger
+  - delay-types          # the delay's TYPE + CHAR
+  - dirt-types           # Dirt, the drive effect, and its TYPE
+  - fx-slot-picker       # phaser · flanger · chorus share one panel
 source:
   - src/audio/effects/effect.ts        # Effect + BypassWrapper + bindBypassMix
   - src/audio/effects/fx-chain.ts      # synth/drum/sampler chain factories
-  - src/audio/effects/ducker.ts        # v7: the trigger-keyed ducker
-  - src/audio/effects/eq.ts            # v11: the per-lane equalizer
-  - src/audio/effects/dirt.ts          # v18: was distortion.ts (dirt-types.md)
+  - src/audio/effects/ducker.ts
+  - src/audio/effects/eq.ts
+  - src/audio/effects/dirt.ts
   - src/audio/effects/wah.ts
   - src/audio/effects/phaser.ts
-  - src/audio/effects/chorus.ts        # v14
-  - src/audio/effects/flanger.ts       # v15 (+ public/worklets/flanger.js)
+  - src/audio/effects/chorus.ts
+  - src/audio/effects/flanger.ts       # (+ public/worklets/flanger.js)
   - src/audio/effects/delay.ts
   - src/audio/effects/reverb.ts
-  - src/audio/drive-curve.ts            # bucketed WaveShaper curve cache (REQ-drive-curves-are-bucketed-and-memoized)
+  - src/audio/drive-curve.ts            # bucketed WaveShaper curve cache
   - src/audio/transport/drum-machine.ts # the per-track drive, same cache
   - src/state/params.ts
   - src/audio/engine.ts                 # holds synthFx/drumFx/samplerFx; wire + bind
@@ -88,374 +41,173 @@ source:
   - src/ui/panels/*                     # per-machine FX groups
 ```
 
-The bypass-able insert effects on the three buses. The [compressor](compressor.md)
-(a worklet) and the DJ filter ([performance](performance.md)) are specified
-separately.
+The bypass-able insert effects on the three buses. This spec **owns the chain
+order**; other specs link here rather than restating it. The
+[compressor](compressor.md) (a worklet) and the DJ filter
+([performance](performance.md)) are specified separately.
 
 ## Background / Why
 
 Each effect owns a fixed `input → DSP → output` graph wired **once** at setup.
-Toggling an effect must never click, so bypass is a **dry/wet crossfade**
-(`BypassWrapper`) — which buys sample continuity but not, on its own, *loudness*
-continuity: an effect that changes the level a lot in a few milliseconds clicks
-anyway, which is REQ-toggling-an-effect-must-not-step-the-level. Since v3 the crossfade is followed by a **delayed
-disconnect** of the processed path (ADR-012): the Web Audio renderer keeps
-computing any subgraph reachable from the destination, so a merely-crossfaded
-convolver/oversampled shaper/compressor still burned audio-thread CPU while
-"off" — the dominant idle cost on mobile. The same five effects are
-instantiated on the synth voice bus; the drum and sampler buses get their own
-subsets, so a song can colour each bus independently.
+Toggling must never click, so bypass is a dry/wet crossfade (`BypassWrapper`),
+followed by a delayed disconnect of the processed path (ADR-012). The renderer
+keeps computing anything reachable from the destination, so a crossfaded-only
+effect would still burn CPU while "off". Each bus builds its own chain, so a song
+colours each bus independently.
 
 ## Requirements
 
 - **REQ-every-effect-implements-the-interface** — Every effect implements
-  `Effect { input, output, setBypass }`. Every insert effect gets that surface
-  by extending **`WrappedEffect`**, which owns the `BypassWrapper` and exposes
-  `input`, `output` and the default `setBypass`. A subclass then contains only
-  its own DSP: build the span from `wrap.processedIn` to `wrap.processedOut`,
-  and `bind` its params. `Compressor` overrides `setBypass` because it also has
-  to clear its gain-reduction meter.
-
-  **`setMix` is deliberately NOT on the base.** `bindBypassMix` subscribes
-  `${prefix}.mix` only when the effect defines `setMix`, and that is the mechanism
-  by which Wah and the compressors — which have no `.mix` param registered at all —
-  opt out. Hoisting `setMix` onto the base would make every effect claim a mix and
-  subscribe a param that does not exist. Effects with a dry/wet declare the
-  one-line `setMix` themselves; its presence *is* the declaration.
-- **REQ-bypass-and-mix-are-a-crossfade** — (v3, ADR-012) Bypass + mix are a
-  click-free crossfade (`BypassWrapper`): wet = `bypassed ? 0 : mix`, dry =
-  `bypassed ? 1 : 1 - mix`, ramped over **`RAMP_BYPASS`** (25 ms, v10 — see
-  REQ-toggling-an-effect-must-not-step-the-level; it was `RAMP_MEDIUM`, the
-  *shortest* constant in the audio layer, for a swap that moves more level than
-  any single knob does). **In addition**, `DISCONNECT_DELAY_MS` (300 ms, ≫ the
-  ramp — twelve time constants, so wet is at −104 dB) after bypassing, the
-  wrapper disconnects its own two edges (`input → processedIn`, `processedOut →
-  wet`) so the processed DSP stops being rendered; un-bypassing cancels any
-  pending disconnect, **reconnects first**, then ramps. The wrapper never
-  disconnects while wet > 0; rapid toggles are safe (timer cancellation);
-  `setMix` while bypassed must not reconnect. Only the wrapper's own edges are
-  touched — internal splices like `Compressor.attachWorklet()` survive, even
-  when attach happens while bypassed-and-disconnected.
+  `Effect { input, output, setBypass }`. Insert effects get it by extending
+  **`WrappedEffect`**, which owns the `BypassWrapper`. A subclass builds only its
+  span from `wrap.processedIn` to `wrap.processedOut` and `bind`s its params.
+  `Compressor` overrides `setBypass` to clear its gain-reduction meter.
+  **`setMix` is deliberately not on the base**: `bindBypassMix` subscribes
+  `${prefix}.mix` only when the effect defines `setMix`. That is how the effects
+  with no `.mix` param opt out: Wah, the compressors, the ducker and the EQ.
+  Its presence *is* the declaration.
+- **REQ-bypass-and-mix-are-a-crossfade** — (ADR-012) Bypass + mix are a crossfade:
+  wet = `bypassed ? 0 : mix`, dry = `bypassed ? 1 : 1 - mix`, ramped over
+  **`RAMP_BYPASS`** (25 ms). At `DISCONNECT_DELAY_MS` (300 ms, twelve time
+  constants, so wet is at −104 dB) after bypassing, the wrapper disconnects its own
+  edges in two stages (REQ-a-bypassed-effect-drains-before-disconnect).
+  Un-bypassing cancels pending disconnects, **reconnects first**, then ramps. It
+  never disconnects while wet > 0. Rapid toggles are safe, and `setMix` while
+  bypassed does not reconnect. Only the wrapper's own edges are touched, so
+  internal splices (`Compressor.attachWorklet()`) survive even when they attach
+  while disconnected.
 - **REQ-an-effects-own-controls-ramp** — An effect's own controls (delay time,
-  feedback, drive, tone, LFO rate/depth, filter Q, the compressor's setters) are
-  smoothed with the shared `RAMP_SMOOTH` constant from `audio/param-utils.ts`,
-  not a literal. The value is 20 ms — deliberately slower than `RAMP_MEDIUM`,
-  because these are swept by hand and zipper audibly at a shorter constant. It
-  had been written out as a bare `0.02` at twelve call sites across five
-  effects, which is a tuning constant with no name and no single place to change
-  it (ADR-010 calls these dialled by ear, so they need to be findable).
+  feedback, drive, tone, LFO rate/depth, filter Q, the compressor's setters) ramp
+  with the shared `RAMP_SMOOTH` (20 ms, `audio/param-utils.ts`), never a literal.
+  They are swept by hand and zipper at anything shorter. Being named makes them
+  findable for tuning by ear (ADR-010).
 - **REQ-a-bypassed-effect-drains-before-disconnect** (v8) — **A bypassed effect
-  drains before it disconnects, so re-enabling one can never replay what was
-  frozen inside it.** Disconnecting a subgraph stops the renderer pulling it,
-  which does not clear it: a `DelayNode`'s ring buffer and a `ConvolverNode`'s
-  tail keep the last audio that went through them, indefinitely. Reconnecting
-  resumes from that state, and the crossfade obligingly ramps it up.
-  [ADR-012](../decisions/adr-012-true-bypass-disconnects.md) foresaw this and
-  accepted it "at wet-mix level, under a fresh ramp, **after a deliberate user
-  toggle**" — but a song load issues dozens of bypass toggles that no user made
-  ([song-mode](song-mode.md) REQ-applying-a-song-is-click-free), and with `fx.delay.feedback` up to 0.95
-  the remnant recirculates rather than decaying. It was heard as a burst of the
-  *previous* song on clicking a demo, with the transport stopped.
-
-  So the disconnect becomes two stages:
-  - at `DISCONNECT_DELAY_MS` (unchanged), disconnect **only** `input → processedIn`
-    and call `quiesce(true)` — no new signal enters, and an effect with an internal
-    feedback loop zeroes it so its memory can actually empty;
-  - after `drainSeconds()`, disconnect `processedOut → wet`. The subgraph has been
-    rendering silence into itself for that long, so what it holds *is* silence and
-    a later reconnect is clean **and immediate**.
+  drains before it disconnects, so re-enabling it never replays what was frozen
+  inside it.** A disconnected `DelayNode` or `ConvolverNode` keeps its state, and
+  a song load issues dozens of bypass toggles with feedback up to 0.95
+  ([song-mode](song-mode.md) REQ-applying-a-song-is-click-free). So:
+  - at `DISCONNECT_DELAY_MS`, disconnect **only** `input → processedIn` and call
+    `quiesce(true)` (an internal feedback loop goes to zero);
+  - after `drainSeconds()`, disconnect `processedOut → wet`. The subgraph now holds
+    silence, so a later reconnect is clean **and immediate**;
   - `setBypass(false)` cancels both timers, reconnects whichever edges are down and
     calls `quiesce(false)` before ramping.
 
-  ADR-012's saving is intact — the DSP costs one bounded drain after a bypass
-  instead of running forever. **Not** the fix ADR-012 sketched ("holding wet at
-  zero for one tail-length after reconnect"): that pays the tail on the way *in*,
-  so switching a delay on would be silent for up to 2 s, which is worse than the
-  bug. Drain on the way out and the user never waits.
-
-  The declarations, following the same "its presence *is* the declaration" idiom
-  as `setMix` in REQ-every-effect-implements-the-interface — a stateless effect overrides neither:
+  The drain is paid on the way out, never on the way in. Holding wet at zero after
+  a reconnect (ADR-012's sketch) was rejected: it would silence a delay for up to
+  2 s on switch-on. A stateless effect overrides neither hook:
 
   | Effect | `drainSeconds()` | `quiesce(on)` |
   | --- | --- | --- |
-  | `Delay` | 2 — the `createDelay(2)` buffer; silence in for that long is silence throughout. (v16) Once a TYPE is chosen, the longest connected core's ([delay-types](delay-types.md) REQ-the-delay-drains-every-live-core) | feedback → 0, restored from the last commanded value; (v17) the live TYPE core also rests, its wow and flutter sines stopped until the release ([delay-types](delay-types.md) REQ-a-type-switch-is-click-free-and-spills) |
-  | `Reverb` | `maxIrS` — an FIR convolver is cleared exactly by one IR length of silence | — |
-  | `Phaser` | 0.1 | feedback → 0 (a 0.05 s loop; it decays in ~25 ms regardless) |
-  | `Flanger` | 0.05 — a ~5.7 ms worklet buffer ([flanger](flanger.md) REQ-the-flanger-drains-before-disconnect) | the node's feedback → 0, restored from the last commanded value |
-  | `Chorus` | 0.05 — two taps of at most ~7 ms, no feedback ([chorus](chorus.md) REQ-the-chorus-drains-briefly) | (v17) no loop to zero: stops its LFO, a fresh one started on release |
+  | `Delay` | 2 (the `createDelay(2)` buffer); with a TYPE chosen, the longest connected core's ([delay-types](delay-types.md) REQ-the-delay-drains-every-live-core) | feedback → 0, restored from the last commanded value; the live TYPE core rests its wow/flutter ([delay-types](delay-types.md) REQ-a-type-switch-is-click-free-and-spills) |
+  | `Reverb` | `maxIrS`: one IR length of silence clears an FIR convolver | — |
+  | `Equalizer` | `EQ_DRAIN_S` = 0.12 ([equalizer](equalizer.md) REQ-the-eq-declares-a-longer-drain) | — |
+  | `Phaser` | 0.1 | feedback → 0 |
+  | `Flanger` | 0.05 ([flanger](flanger.md) REQ-the-flanger-drains-before-disconnect) | the node's feedback → 0, restored |
+  | `Chorus` | 0.05 ([chorus](chorus.md) REQ-the-chorus-drains-briefly) | stops its LFO; a fresh one starts on release |
   | others | `DRAIN_DEFAULT_S` = 0.02 | — |
 
-  `quiesce(true)` writes the feedback gain **directly**, not through `RAMP_SMOOTH`:
-  the wet path is already at zero by then, so there is nothing for a step to be
-  heard in, and a ramp would leave feedback still non-zero for the first part of
-  the drain. `setFeedback` keeps recording the commanded value while quiesced so
-  `quiesce(false)` restores what the knob says, not what it said at bypass time.
-
-- **REQ-the-synth-chain-order** — Synth voice bus chain order: eq → dirt →
-  wah → phaser → flanger → chorus → delay → reverb → duck.
-  - (v15) The **flanger** ([flanger](flanger.md)) sits between the phaser and the
-    chorus, the three sharing one panel. It is channel-transparent, so in front
-    of the chorus it stays in the 1-channel stretch and runs once per sample
-    ([flanger](flanger.md) REQ-the-flanger-sits-between-phaser-and-chorus).
-  - (v14) The **chorus** ([chorus](chorus.md)) sits after the phaser it shares a
-    panel with. It is the one insert that *makes* a stereo image, so while it is
-    on, everything after it runs 2-channel; bypassed, ADR-012's disconnect drops
-    its stereo edge and the chain is 1-channel again — width on demand without a
-    splice of its own ([chorus](chorus.md) REQ-the-chorus-widens-without-changing-level).
-  - (v11) The **eq** is first, and is first on every chain
-    ([equalizer](equalizer.md) REQ-one-equalizer-per-lane): an EQ ahead of the drive shapes what the
-    drive bites on, and on this bus it is also the cheap position — the synth
-    path is 1-channel at its head, so its ten biquads run on one channel.
-    (v12) That holds *until a sequencer track is panned off centre*, which
-    splices a per-voice pan stage in ahead of the chain and makes the whole thing
-    2-channel for as long as it is engaged — the cost that
-    [ADR-023](../decisions/adr-023-the-synth-channel-goes-stereo-on-demand.md)
-    weighs and that [sequencer](sequencer.md) REQ-the-spread-stage-engages-off-centre
-    keeps off every song that does not ask for it.
-  - (v7) The **duck** is last so the reverb tail ducks with everything else,
-    which is the sound it exists to make. It is the one member that is not a
-    self-contained DSP span: its envelope is scheduled from drum-machine hits, so
-    its behaviour is specified in
-    [sidechain-ducking](sidechain-ducking.md) REQ-the-ducker-is-last-in-the-chain rather than here.
-- **REQ-the-drum-bus-chain-order** — Drum bus: [eq →] compressor → phaser →
-  delay → reverb (the compressor sits first *among the effects* so it smashes
-  the dry hits, not the FX wash); sampler bus: eq → dirt → phaser →
-  flanger (v15) → chorus (v14) → delay → reverb → duck. The drum bus has no
-  chorus and no flanger.
-  - (v11) The EQ sits ahead of even the drum compressor, which is the point
-    rather than an accident of ordering: a highpass before the compressor stops
-    the kick pumping the whole kit ([equalizer](equalizer.md) REQ-one-equalizer-per-lane). Filtering
-    a compressor's input is a different tool from filtering its output.
-  - (v7) The drum bus deliberately has **no** ducker: its own hits are the key, so
-    one there could only duck itself
+  `quiesce(true)` writes feedback **directly**, not through `RAMP_SMOOTH`, because
+  wet is already at zero and a ramp would leave feedback non-zero into the drain.
+  `setFeedback` keeps recording the commanded value while quiesced, so
+  `quiesce(false)` restores what the knob says now.
+- **REQ-the-synth-chain-order** — Synth voice bus:
+  **eq → dirt → wah → phaser → flanger → chorus → delay → reverb → duck**, then
+  `synthPan`. The order arrays in `effects/fx-chain.ts` are the code owner.
+  - The **eq** heads every chain ([equalizer](equalizer.md) REQ-one-equalizer-per-lane),
+    so it shapes what the drive bites on.
+  - Phaser, flanger and chorus share one panel ([fx-slot-picker](fx-slot-picker.md)).
+    The flanger is channel-transparent.
+  - **Channel count:** the synth chain is 1-channel at its head. It goes 2-channel
+    after the **chorus** while that is on
+    ([chorus](chorus.md) REQ-the-chorus-widens-without-changing-level), and after
+    a **PING PONG** delay
+    ([delay-types](delay-types.md) REQ-ping-pong-keeps-the-digital-level).
+    The reverb is 2-channel. An off-centre sequencer pan splices a per-voice
+    stage ahead of the whole chain, making all of it 2-channel while engaged
+    ([sequencer](sequencer.md) REQ-the-spread-stage-engages-off-centre, ADR-023).
+    No channel count may decide a level.
+  - The **duck** is last so the reverb tail ducks too
     ([sidechain-ducking](sidechain-ducking.md) REQ-the-ducker-is-last-in-the-chain).
+- **REQ-the-drum-bus-chain-order** — Drum bus: **eq → comp → phaser → delay →
+  reverb**. The compressor is first among the effects so it smashes the dry hits,
+  not the wash. The EQ ahead of it is deliberate: a highpass before the compressor
+  stops the kick pumping the kit. The drum bus has no chorus, no flanger and no
+  ducker (its own hits are the key). Sampler bus: **eq → dirt → phaser → flanger →
+  chorus → delay → reverb → duck**.
 - **REQ-fx-on-below-half-is-bypassed** — `<fx>.on` < 0.5 means bypassed.
-- **REQ-the-reverb-ir-bank-is-lazy-and-shared** — **The reverb IR bank is lazy
-  and shared** (v4). An impulse response is a pure function of `(sampleRate,
-  duration)` and a `ConvolverNode` only ever *reads* its buffer, so the five
-  bank entries live in one process-wide cache keyed by that pair: every `Reverb`
-  — synth, drum and sampler — shares them, and each is generated on **first
-  selection** of its size, not up front. Only the default size (index 2, 1.5 s)
-  is built at construction. Previously each of the three instances rendered all
-  five in the `Engine` constructor: 9.2 s of stereo noise apiece, **2.65 M
-  samples and ~10.6 MB** generated synchronously on the boot path for sizes most
-  sessions never touch. Selecting a size stays instant after its first use,
-  which is what the "don't re-render on knob drags" rule always meant. The
-  perf-tier `maxIrS` cap (REQ-the-wah-lfo-sweeps-in-cents in
-  [performance-mode](performance-mode.md)) is applied *before* the cache key, so
-  capped and uncapped tiers never share a buffer and capped sizes simply
-  collapse onto fewer distinct IRs — the bank still spans five positions, so
-  `size` keeps its meaning.
-- **REQ-drive-curves-are-bucketed-and-memoized** — **Drive curves are bucketed
-  and memoized** (v4). A `WaveShaper` curve is a table built with a
-  transcendental per tap, and DRIVE is a *knob* — rebuilding per bus tick cost
-  ~60–120 allocations a second (8 kB each at Dirt's 2048 taps, plus
-  the drum machine's eight 1024-tap tracks). The amount is quantized to
-  `DRIVE_CURVE_STEPS` (64) buckets and the table cached per bucket by
-  `memoizeDriveCurve` (`src/audio/drive-curve.ts`); the pre/post gains still
-  track the raw amount continuously, so the *sweep* is unchanged and only the
-  table is stepped — inaudible in an interpolated saturation table (ADR-010).
-  The cache returns identity-stable arrays, so callers skip an unchanged
-  `shaper.curve` assignment with a `!==`. Each caller keeps its own cache and
-  its own curve *shape*: only the drum's is anchored at a true identity,
-  preserving `drive 0` as an exact no-op (ADR-006).
-
-- **REQ-a-bypassed-effect-in-a-song-may-be-deliberate** — **A bypassed or `mix:
-  0` effect in a saved song may be deliberate** (v5). A song is a *stage setup
-  for a player*, not only a description of what sounds by itself: an effect
-  saved with `<fx>.on: 0`, or on with `mix: 0`, is routinely **staged** —
-  dialled in and waiting for the [XY pad](xy-pad.md), a
-  [motion](motion-sequencer.md) lane or the player's hand to open it up. The
-  same reading covers an armed `arp.on` ([arpeggiator](arpeggiator.md)
-  REQ-saved-arp-on-is-armed-not-broken). So an inert effect setting is **not**
-  evidence of a mistake and must not be "cleaned up" out of a demo, a preset or
-  the authoring guide's advice. The no-op-default rule (ADR-006) is what makes
-  this safe: a staged effect that nothing opens is silent, exactly as if it were
-  absent.
-- **REQ-wah-phaser-and-delay-can-be-tempo-locked** — (v6) **The wah and phaser
-  rates and the delay times can be locked to the tempo**, through the shared
-  facility [tempo-lock](tempo-lock.md) — which owns the behaviour, the UI and
-  the `<prefix>.sync` param shape. What belongs here is only what it means for
-  an effect:
-  - Each of `Wah`/`Phaser`/`Delay` resolves its rate through `bindTempoLocked`
-    instead of a bare `bus.subscribe`, so its `bind` now also watches
-    `transport.bpm`. A locked effect therefore tracks a tempo ramp or an incoming
-    MIDI clock ([midi-clock-sync](midi-clock-sync.md)) with nothing else touched.
-  - The **setters are unchanged**, so REQ-an-effects-own-controls-ramp's `RAMP_SMOOTH` smoothing still
-    applies: the lock changes *what* value is applied, never *how*.
-  - `<prefix>.sync` defaults to `free`, an exact no-op (ADR-006) — but the
-    factory banks that **engage** one of these effects must pin it, or an engaged
-    effect inherits the previous patch's division ([presets](presets.md) REQ-a-factory-preset-sets-the-full-sound).
-  - The delay is the one whose range a division can leave (`1/1` is 4 s at
-    60 BPM against a registered 1.5 s max). Nothing new clamps it: the UI greys
-    the unreachable rows and the `DelayNode`'s own pre-existing 2 s ceiling is
-    what holds, so no stored patch changes how it sounds.
-
-- **REQ-a-reverb-size-change-ducks** (v8) — **A reverb size change ducks across
-  the IR swap.** `setSize` assigns `convolver.buffer`, which resets the node's
-  state and severs whatever tail it was ringing — heard when a song load changes
-  the size under a tail that is still sounding ([song-mode](song-mode.md)
-  REQ-applying-a-song-is-click-free), and it fires *twice* per load (the reset to the default index, then
-  the song's). The swap is therefore wrapped in the mute-then-edit idiom
-  `ModMatrix.patch` already uses: ramp `wrap.processedOut` to 0 over
-  `RAMP_MEDIUM`, swap on a 40 ms generation-guarded timer, ramp back.
-  `IR_DURATIONS` is coarse enough that sweeping the knob crosses few boundaries.
-  The tail still restarts — that is what changing the size *means*; what goes is
-  the step at the seam.
-
-  **The identity guard compares against the pending target, never against
-  `convolver.buffer`.** Deferring the swap makes the live buffer stale for the
-  whole window, and a song load writes this param *twice in one turn* (REQ-applying-a-song-is-click-free of
-  [song-mode](song-mode.md)): the default, then the song's. Guarding on the live
-  buffer, the second write saw the value the first had not applied yet, concluded
-  it was already there and returned **without superseding the pending swap** — so
-  the default landed 40 ms later. Shipped and reported from the field: two demos
-  asking for 11 % played at the 60 % default, and nudging the knob by one percent
-  made the reverb *smaller*, because that write finally did differ from the live
-  buffer. It only bit when the previous song had left the song's own IR in place,
-  which is what made it intermittent. Any deferred edit owes the same rule: the
-  guard reads the intent, not the state the edit has not reached yet.
-
-- **REQ-the-wah-lfo-sweeps-in-cents** (v9) — **The wah's LFO sweeps its bandpass
-  in cents, not in Hz.** `Wah` modulated `bp.frequency` with a gain of `depth *
-  1500` **linear Hz** around a centre of `midiToHz(75)` = 622.25 Hz. A linear
-  swing around a fixed centre is not a musical sweep (ADR-005: the same "+200
-  Hz" is an octave down low and nothing up high) and, worse, it runs off the end
-  of the parameter: at `depth >= 622.25 / 1500 = 0.415` the LFO trough drives
-  the computed `bp.frequency` to zero or below, where the `AudioParam` clamps at
-  0 and the RBJ bandpass degenerates — `alpha = sin(w0)/2Q = 0`, so the
-  numerator is all zeros over a denominator with a double pole at z = 1.
-
-  Measured through the real graph, a sine-sum source into the real `Wah` +
-  `BypassWrapper`, peak single-sample step in the steady (non-toggling) region:
-
-  ```
-  depth   bp.frequency trough    Blink      Gecko    bursts/s
-  0.35            97 Hz         0.0063     0.0063       0
-  0.40            22 Hz         0.0077     0.0076       0     <- the shipped default
-  0.42            -8 Hz         0.0569     0.0849     1.0     <- clamped at 0
-  0.45           -53 Hz         0.0737     0.0752     1.0
-  0.60          -278 Hz         0.0606     0.0548     1.0
-  ```
-
-  A ~10x jump in discontinuity size, and the burst detector
-  ([verify-audio-by-ear](../recipes/verify-audio-by-ear.md)) goes from silent to
-  firing, the moment the trough crosses zero. Both engines break, and they break
-  *differently* — 0.0569 against 0.0849 at the onset — because a degenerate biquad
-  is exactly where two implementations stop agreeing. Under the cents mapping they
-  match to three decimals at every depth.
-
-  No shipped demo plays the wah over the cliff today: only `Bunk` (0.11) and
-  `Run Away` (0.35) have `fx.wah.on: 1`. It is **latent**, and REQ-a-bypassed-effect-in-a-song-may-be-deliberate is why that
-  still matters — nine demos *stage* the wah at 0.4-0.6 with `on: 0` (`apex-twin`
-  and `hacienda_neworder` at 0.6; `Elegy`, `First_Light`, `Maison`, `Night_Rider`,
-  `Slouch`, `Titulaer`, `fat` at 0.4), waiting for a lane or the player's hand to
-  open it, and opening one is what crosses the cliff. `fx.wah.depth` also
-  **defaults to 0.4**, two percent under it, so nudging the knob up on any patch
-  falls off.
-
-  So the LFO drives **`bp.detune`**, in cents, and `bp.frequency` is a fixed
-  reference written once at construction and never again — the same conclusion
-  [performance](performance.md) REQ-the-dj-sweep-rides-detune reached for the DJ filter, for the same
-  reason: cents *are* log-frequency, so a linear swing in cents is the sweep the
-  ear expects, and `frequency * 2^(detune/1200)` can never reach zero.
-
-  The depth mapping is chosen to **leave the top of every existing sweep exactly
-  where it was**, so no stored song changes its brightest point:
+- **REQ-the-reverb-ir-bank-is-lazy-and-shared** — (v4) An impulse response is a
+  pure function of `(sampleRate, duration)`, and a `ConvolverNode` only reads it.
+  So the five bank entries live in one process-wide cache keyed by that pair,
+  shared by all three `Reverb`s. Each is generated on **first selection** of its
+  size; only the default (index 2, 1.5 s) is built at construction. The perf-tier
+  `maxIrS` cap ([performance-mode](performance-mode.md) REQ-weak-tier-reduces-fx-cost)
+  applies *before* the key, so capped sizes collapse onto fewer IRs while the bank
+  keeps five positions.
+- **REQ-drive-curves-are-bucketed-and-memoized** — (v4) DRIVE is a knob, and a
+  `WaveShaper` curve is a table with a transcendental per tap. So the amount is
+  quantized to `DRIVE_CURVE_STEPS` (64) buckets and cached by `memoizeDriveCurve`
+  (`src/audio/drive-curve.ts`). The pre/post gains track the raw amount, so the
+  sweep is continuous and only the table steps, which is inaudible (ADR-010).
+  Arrays are identity-stable, so callers skip an unchanged `shaper.curve` with
+  `!==`. Each caller keeps its own cache and shape. The drum's is anchored at a
+  true identity, so `drive 0` stays an exact no-op (ADR-006).
+- **REQ-a-bypassed-effect-in-a-song-may-be-deliberate** — (v5) A song is a stage
+  setup for a player. An effect saved with `<fx>.on: 0`, or on with `mix: 0`, is
+  routinely **staged** for the [XY pad](xy-pad.md), a [motion](motion-sequencer.md)
+  lane or the player's hand. So it is not evidence of a mistake and must not be
+  "cleaned up" out of a demo, preset or the authoring guide. Likewise an armed
+  `arp.on` ([arpeggiator](arpeggiator.md) REQ-saved-arp-on-is-armed-not-broken).
+  ADR-006 makes it safe: a staged effect nothing opens is silent.
+- **REQ-wah-phaser-and-delay-can-be-tempo-locked** — (v6) The wah, phaser and
+  flanger rates and the delay times lock to the tempo through
+  [tempo-lock](tempo-lock.md), which owns the behaviour, the UI and `<prefix>.sync`.
+  Here: each resolves its rate through `bindTempoLocked`, so `bind` also watches
+  `transport.bpm` and a locked effect follows a tempo ramp or MIDI clock. The
+  setters are unchanged, so `RAMP_SMOOTH` still applies. `.sync` defaults to
+  `free` (ADR-006), but a factory bank that engages one must pin it
+  ([presets](presets.md) REQ-a-factory-preset-sets-the-full-sound). A division
+  can exceed the delay's registered 1.5 s max. Nothing new clamps it: the UI greys
+  the unreachable rows, and the `DelayNode`'s 2 s ceiling holds.
+- **REQ-a-reverb-size-change-ducks** (v8) — `setSize` assigns `convolver.buffer`,
+  which severs the ringing tail. So the swap uses the mute-then-edit idiom
+  (`ModMatrix.patch`): ramp `wrap.processedOut` to 0 over `RAMP_MEDIUM`, swap on
+  a 40 ms generation-guarded timer, ramp back. **The identity guard compares
+  against the pending target, never against `convolver.buffer`.** A song load
+  writes the size twice in one turn (default, then the song's), and a guard on
+  the live buffer drops the second write. Any deferred edit owes this rule: guard
+  on the intent, not the state the edit has not reached yet.
+- **REQ-the-wah-lfo-sweeps-in-cents** (v9) — **The wah's LFO drives `bp.detune` in
+  cents.** `bp.frequency` is a fixed reference (`midiToHz(75)` = 622.25 Hz)
+  written once. A linear-Hz swing drove the bandpass to 0 Hz at depth ≥ 0.415,
+  where the biquad degenerates and bursts, and the two engines disagree there.
+  The mapping keeps the **top** of every stored sweep where it was; only the
+  bottom moves (default 0.4: 22..1222 Hz becomes 317..1222 Hz):
 
   ```
   depthCents(d) = 1200 * log2(1 + d * 1500 / 622.25)
   ```
-
-  which is the cents equivalent of the old upward excursion. Only the bottom
-  moves, from a dive toward 0 Hz to the symmetric reflection of the top:
-  at the default 0.4, `22 .. 1222 Hz` becomes `317 .. 1222 Hz`; at a shallow 0.18,
-  `352 .. 892 Hz` becomes `434 .. 892 Hz`.
-
-- **REQ-the-phaser-sweeps-in-cents** (v13) — **The phaser's LFO sweeps each
-  allpass stage in cents, too.** v9 fixed the wah and left the phaser on the
-  same linear-Hz mapping: one `depth * 1500` Hz swing added to four
-  stages centred at 600, 739, 909 and 1119 Hz. Any stage whose centre is under
-  the swing is driven below 0 Hz for part of every cycle and clamps there.
-  Measured in Blink and Gecko: an allpass held at the floor is an exact
-  pass-through — no NaN, no burst, unlike the wah's bandpass — so the failure is
-  a **stall**, not a click: that stage simply drops out of the phaser.
-
-  | depth | swing | share of the cycle each stage sits at 0 Hz |
-  | --- | --- | --- |
-  | 0.5 (the synth default) | 750 Hz | 20.5% · 5.5% · 0 · 0 |
-  | 0.7 (drum / sampler default) | 1050 Hz | 30.6% · 25.2% · 16.7% · 0 |
-  | 1 | 1500 Hz | 36.9% · 33.6% · 29.3% · 23.2% |
-
-  Three shipped demos play it past the floor (`Gankogui` 0.405, `Neon` 0.45,
-  `apex-twin` 0.65), and so does the synth phaser's own default.
-
-  So each stage's `detune` carries the sweep, and its `frequency` is its fixed
-  centre, written once. As with the wah, the mapping **keeps the top of every
-  stage's sweep exactly where it was**, so no stored song changes its brightest
-  point — which, because the stages have different centres, takes one depth
-  gain per stage rather than one shared one:
+- **REQ-the-phaser-sweeps-in-cents** (v13) — Each allpass stage's `detune` carries
+  the sweep; its `frequency` is its fixed centre (600, 739, 909, 1119 Hz). Under
+  linear Hz, a stage whose centre sat under the swing clamped at 0 Hz and dropped
+  out of the phaser for up to 37 % of each cycle. One gain per stage keeps the top
+  of each sweep where it was:
 
   ```
   stageCents(d, fc) = 1200 * log2(1 + d * 1500 / fc)
   ```
 
-  Only the bottoms move, from a dive toward 0 Hz to the mirror of the top: the
-  lowest stage at the default 0.5 goes from `-150 .. 1350 Hz` (clamped at 0) to
-  `267 .. 1350 Hz`; at a shallow 0.195, from `308 .. 893 Hz` to `403 .. 893 Hz`.
-  Depth 0 is still no sweep at all.
-
-
-- **REQ-toggling-an-effect-must-not-step-the-level** (v10) — **Toggling an
-  effect must not step the level, and the wah's bandpass carries makeup gain so
-  that it does not.** REQ-bypass-and-mix-are-a-crossfade has claimed since v1
-  that the crossfade means bypass "never clicks". It does prevent a
-  *discontinuity* — measured, the waveform is continuous to the float32 noise
-  floor on both engines — but it says nothing about how much the level moves, or
-  how fast. Measured through the real graph, one held A2, transport stopped, no
-  other effect in the chain:
-
-  ```
-                       enable            bypass
-  wah (Q 3.9)          -13.0 / -15.5 dB  +19.0 / +18.6 dB   in 10-20 ms
-  delay (mix 0.3)        -5.1 /  -1.1 dB   +6.8 /  +5.8 dB
-                        Blink /  Gecko    Blink /  Gecko
-  ```
-
-  A 19 dB jump in 10 ms is heard as a click however smooth the samples are, and
-  it is why the wah is the effect people report: it is the **only** one with no
-  `setMix` (REQ-every-effect-implements-the-interface), so `initialMix = 1`, `update()` computes `dry = 0`, and
-  enabling it does not blend a wah in — it replaces the entire signal with a
-  Q ≈ 4 bandpass that has no output compensation. Every other insert either
-  blends (phaser 0.5, delay 0.3, reverb 0.25) or is broadband (Dirt).
-
-  Two changes, because they fix different halves:
-
-  - **The wah splices a makeup gain** between its bandpass and
-    `wrap.processedOut`. A constant-peak-gain bandpass passes a share of a
-    broadband signal proportional to its bandwidth `f0 / Q`, so the loss goes as
-    `1/sqrt(Q)` and the compensation as **`sqrt(Q)`**. Calibrated against the
-    table above — `2.5 * sqrt(Q)`, which is +14 dB at the default Q of 4 and
-    +5 dB at the minimum of 0.5 — and **capped at ×8 (+18 dB)** so that a
-    high-Q setting with material parked on the centre frequency, where the
-    bandpass is already at unity, cannot run away into the master. It tracks
-    `fx.wah.q` through the existing `setQ`, smoothed with `RAMP_SMOOTH` like any
-    other control (REQ-an-effects-own-controls-ramp). Exact compensation is impossible — the loss depends
-    on the source spectrum, not only on Q — so this removes the step, it does not
-    guarantee unity.
-  - **The crossfade gets its own time constant**, `RAMP_BYPASS` = 25 ms, instead
-    of borrowing `RAMP_MEDIUM`. 10 ms was the shortest constant in the audio
-    layer, and REQ-an-effects-own-controls-ramp already argues that a single effect *knob* zippers at
-    anything under 20 ms; a structural dry↔wet swap was getting half of that.
-    `DISCONNECT_DELAY_MS` moves 150 → 300 ms to keep ADR-012's margin: the
-    disconnect must not land while wet is still audible, and twelve time
-    constants puts it at −104 dB.
-
-  The wah is correspondingly louder than it was, which is the correction, not a
-  side effect: an effect that dropped the bus 16 dB when you switched it on was
-  never at the right level. The demos that engage it were rebalanced in the same
-  change ([song-mode](song-mode.md) — demo data rides with the fix that moved it).
-
+  Depth 0 is still no sweep.
+- **REQ-toggling-an-effect-must-not-step-the-level** (v10) — A continuous
+  crossfade can still step the *level* audibly. The wah has no dry/wet, so
+  enabling it replaced the whole signal with a Q ≈ 4 bandpass: about −16 dB in
+  10–20 ms, heard as a click (measured, bench:audio, both engines). So:
+  - the wah splices a **makeup gain** after its bandpass: `2.5 * sqrt(Q)`, capped
+    at ×8 (+18 dB). It tracks `fx.wah.q` through `setQ` with `RAMP_SMOOTH`. That
+    removes the step without guaranteeing unity, since the loss depends on the
+    spectrum;
+  - the crossfade has its own `RAMP_BYPASS` (25 ms) instead of the shorter
+    `RAMP_MEDIUM`.
 
 ## Technical design
 
@@ -471,20 +223,17 @@ Effect:        # src/audio/effects/effect.ts
 BypassWrapper: # dry/wet crossfade + delayed true-bypass disconnect (ADR-012)
   input / output / dry / wet / processedIn / processedOut: GainNode
   setBypass(b) / setMix(m)
-  # bypassed 150ms -> disconnects input→processedIn, quiesce(true);
-  #   then after drainSeconds() -> disconnects processedOut→wet (v8, REQ-a-bypassed-effect-drains-before-disconnect)
+  # bypassed DISCONNECT_DELAY_MS (300) -> disconnects input→processedIn, quiesce(true);
+  #   then after drainSeconds() -> disconnects processedOut→wet.
   # un-bypass cancels both timers, reconnects and quiesce(false) before ramping.
-  # DISCONNECT_DELAY_MS = 300; DRAIN_DEFAULT_S = 0.02.
-WrappedEffect:  # the two hooks a stateful effect overrides (v8)
-  protected drainSeconds(): number    # how long silence takes to clear its memory
+WrappedEffect:  # the two hooks a stateful effect overrides
+  protected drainSeconds(): number      # default DRAIN_DEFAULT_S (0.02)
   protected quiesce(on: boolean): void  # zero/restore an internal feedback path
 chain(input, fx[], output)  # series-wires input → fx[0] → … → output
-bindBypassMix(bus, prefix, fx)  # the shared `${prefix}.on` → setBypass and
-                                # `${prefix}.mix` → setMix pair (setMix optional:
-                                # the Wah has no dry/wet, so it skips .mix)
+bindBypassMix(bus, prefix, fx)  # `${prefix}.on` → setBypass; `${prefix}.mix` → setMix when defined
 FxChain<E>:    # src/audio/effects/fx-chain.ts — one bus's chain as a unit
   fx: E                      # named members, e.g. drumFx.fx.comp
-  tail: AudioNode            # last effect's output (the bank-render tap point)
+  tail: AudioNode            # the last member's output
   wire(input, output) / bind(bus)
   # createSynthChain / createDrumChain / createSamplerChain — explicit factories,
   # each owning its effect order, param prefixes and (drum) the comp ratio table.
@@ -493,20 +242,22 @@ FxChain<E>:    # src/audio/effects/fx-chain.ts — one bus's chain as a unit
 ### Data shapes (registry — synth bus; drum/sampler mirror with a prefix)
 
 ```yaml
-fx.dist.on/drive/tone/mix/type     # Dirt (tone 200..8000 Hz; v18 type; the ids keep the old name, dirt-types.md)
-fx.wah.on/rate/depth/q/sync        # auto-wah                    (v6: sync)
-fx.phaser.on/rate/depth/feedback/mix/sync                      # (v6: sync)
-fx.chorus.on/rate/depth/mode/mix   # v14, chorus.md — no sync (REQ-the-chorus-has-no-tempo-lock)
-fx.delay.on/time/feedback/mix/sync # time 0.01..1.5 s, feedback 0..0.95 (v6: sync)
-fx.delay.type/char                 # v16, delay-types.md — type 0 = DIGITAL (the no-op), char 0..1
+fx.eq.*                            # equalizer.md
+fx.dist.on/drive/tone/mix/type     # Dirt; the ids keep the old name (dirt-types.md)
+fx.wah.on/rate/depth/q/sync
+fx.phaser.on/rate/depth/feedback/mix/sync
+fx.flanger.*                       # flanger.md — phaserParams shape, own defaults
+fx.chorus.on/rate/depth/mode/mix   # chorus.md — no sync (REQ-the-chorus-has-no-tempo-lock)
+fx.delay.on/time/feedback/mix/sync # time 0.01..1.5 s, feedback 0..0.95
+fx.delay.type/char                 # delay-types.md — type 0 = DIGITAL (the no-op)
 fx.reverb.on/size/damp/mix
+fx.duck.*                          # sidechain-ducking.md
 # all *.on default 0 (off); all are no-ops until enabled
-# *.sync: discrete, labels SYNC_LABELS, range 0..18, default 0 = free — the
-#   tempo lock (REQ-wah-phaser-and-delay-can-be-tempo-locked, tempo-lock.md REQ-sync-defaults-to-free). One `syncParam(prefix)` def, shared
-#   with the LFOs, so the nine locks cannot drift apart.
+# *.sync: one syncParam(prefix) def shared with the LFOs (tempo-lock.md REQ-sync-defaults-to-free);
+#   the lockable set is TEMPO_LOCKS in src/state/tempo-lock.ts
 prefixes:
-  fx.drum.*    : phaser, delay, reverb (+ fx.drum.comp, see compressor.md)
-  fx.sampler.* : dist, phaser, flanger, chorus (v14), delay, reverb
+  fx.drum.*    : eq, phaser, delay, reverb (+ fx.drum.comp, compressor.md)
+  fx.sampler.* : eq, dist, phaser, flanger, chorus, delay, reverb, duck
 ```
 
 ### Layer touchpoints
@@ -516,11 +267,12 @@ engine: the three chains are built by audio/effects/fx-chain.ts and held as
   synthFx / drumFx / samplerFx; each chain's bind(bus) self-wires its members
   at that chain's prefixes (ADR-008), e.g. inside createDrumChain:
     fx.phaser.bind(bus, 'fx.drum.phaser')     # same class, drum prefix
-    fx.delay.bind(bus, 'fx.drum.delay')
-  and `bindBypassMix` (effects/effect.ts) opens the shared `.on`/`.mix` pair,
+  `bindBypassMix` opens the shared `.on`/`.mix` pair,
   `bindTempoLocked` (audio/tempo-bind.ts) the `.rate|.time` + `.sync` + BPM trio.
 graph: Engine calls synthFx/drumFx/samplerFx .wire(<bus>, preMaster)
 ui: synth FX in panels/fx-rack.ts; drum FX in drum-panel.ts; sampler FX in sampler-panel.ts
+new effect: an Effect impl + params + bind(bus, prefix), then the chain factory's
+  `fx` object AND its order array (recipes/add-an-effect.md)
 ```
 
 ## Scenarios (BDD)
@@ -545,26 +297,26 @@ Scenario: Drum reverb is off by default so legacy songs/presets are unchanged
 
 Scenario: A bypassed effect stops costing audio-thread CPU (perf, ADR-012)
   Given an effect is enabled and then bypassed
-  When the wet ramp has finished (150 ms)
+  When DISCONNECT_DELAY_MS (300 ms) has passed
   Then the wrapper has disconnected input→processedIn
    And after the effect's drainSeconds() it has disconnected processedOut→wet too
 # pinned by: tests/audio/effects/bypass.test.ts
 
-Scenario: Two size writes in one turn land on the second (v8, REQ-a-reverb-size-change-ducks, regression)
+Scenario: Two size writes in one turn land on the second (REQ-a-reverb-size-change-ducks, regression)
   Given the reverb holds the small IR and a song load is applying
   When setSize is called with the default and then with the song's value, in one turn
   Then the IR that lands after the mute window is the song's, not the default
    And the reverse pair still moves it, so the guard has not simply gone away
 # pinned by: tests/audio/effects/reverb.test.ts
 
-Scenario: Re-enabling an effect never replays what was frozen in it (v8, REQ-a-bypassed-effect-drains-before-disconnect)
+Scenario: Re-enabling an effect never replays what was frozen in it (REQ-a-bypassed-effect-drains-before-disconnect)
   Given an effect was bypassed while its delay line held audio
   When it is enabled again after the drain has finished
   Then the processed path reconnects holding silence, not the old audio
    And the wet ramp starts immediately — nothing is held back for a tail length
 # pinned by: tests/audio/effects/bypass.test.ts
 
-Scenario: A drain in progress is abandoned if the effect comes back (v8, edge)
+Scenario: A drain in progress is abandoned if the effect comes back (edge)
   Given an effect was bypassed and its input is already disconnected
   When it is enabled again before drainSeconds() has elapsed
   Then both timers are cancelled, both edges are connected, and quiesce is undone
@@ -572,7 +324,7 @@ Scenario: A drain in progress is abandoned if the effect comes back (v8, edge)
 # pinned by: tests/audio/effects/bypass.test.ts
 
 Scenario: Rapid toggle never disconnects mid-ramp (edge)
-  Given an effect is bypassed and re-enabled within 150 ms
+  Given an effect is bypassed and re-enabled within DISCONNECT_DELAY_MS
   Then no disconnect happens and the crossfade proceeds from the reconnected graph
 # pinned by: tests/audio/effects/bypass.test.ts
 
@@ -582,52 +334,52 @@ Scenario: Compressor attach while bypassed-and-disconnected (edge)
   Then the wrapper edges reconnect and the spliced worklet path is intact
 # pinned by: tests/audio/effects/bypass.test.ts
 
-Scenario: Enabling the wah does not step the level (v10, REQ-toggling-an-effect-must-not-step-the-level, regression)
+Scenario: Enabling the wah does not step the level (REQ-toggling-an-effect-must-not-step-the-level, regression)
   Given a held note with the wah bypassed and every other effect off
   When fx.wah.on goes to 1 and then back to 0
   Then the bus level moves by a few dB, not the 16-19 dB it moved before makeup
    And the crossfade takes RAMP_BYPASS, not RAMP_MEDIUM
 # pinned by: tests/audio/effects/wah.test.ts (makeup + constant), bench:audio (the dB)
 
-Scenario: Wah makeup tracks Q and is capped (v10, REQ-toggling-an-effect-must-not-step-the-level, edge)
+Scenario: Wah makeup tracks Q and is capped (REQ-toggling-an-effect-must-not-step-the-level, edge)
   Given fx.wah.q is swept from its minimum of 0.5 to its maximum of 20
   Then the makeup gain follows 2.5*sqrt(Q), smoothed with RAMP_SMOOTH
    And it stops at x8, so a narrow band on the centre frequency cannot run away
 # pinned by: tests/audio/effects/wah.test.ts
 
-Scenario: The disconnect still lands well after the crossfade (v10, REQ-bypass-and-mix-are-a-crossfade, edge)
-  Given the bypass ramp is now RAMP_BYPASS
+Scenario: The disconnect still lands well after the crossfade (REQ-bypass-and-mix-are-a-crossfade, edge)
+  Given the bypass ramp is RAMP_BYPASS
   Then DISCONNECT_DELAY_MS is at least ten of its time constants
    And the wrapper still never disconnects while wet is audible
 # pinned by: tests/audio/effects/bypass.test.ts
 
-Scenario: The wah sweep never reaches 0 Hz, at any depth (v9, REQ-the-wah-lfo-sweeps-in-cents, regression)
+Scenario: The wah sweep never reaches 0 Hz, at any depth (REQ-the-wah-lfo-sweeps-in-cents, regression)
   Given fx.wah.depth is 1 (the widest sweep the param allows)
   When the LFO is at the bottom of its cycle
   Then the bandpass centre is 622.25 / 2^(depthCents/1200) Hz, still well above 0
    And bp.frequency itself is never written after construction — the sweep is detune
 # pinned by: tests/audio/effects/wah.test.ts
 
-Scenario: Raising wah depth past 0.415 no longer steps the output (v9, REQ-the-wah-lfo-sweeps-in-cents, regression)
+Scenario: Raising wah depth past 0.415 no longer steps the output (REQ-the-wah-lfo-sweeps-in-cents, regression)
   Given a wah at depth 0.42, where the old linear-Hz swing clamped at 0 Hz
   Then the sweep is symmetric in octaves about the centre
    And the peak single-sample step stays at the depth-0.35 level, not 10x it
 # pinned by: tests/audio/effects/wah.test.ts (contract), bench:audio (the number)
 
-Scenario: A stored song keeps the top of its wah sweep (v9, REQ-the-wah-lfo-sweeps-in-cents, edge)
+Scenario: A stored song keeps the top of its wah sweep (REQ-the-wah-lfo-sweeps-in-cents, edge)
   Given a demo shipping fx.wah.depth 0.18
   Then the sweep still peaks at 892 Hz, as it did with the linear mapping
    And only the bottom of the sweep moves, from 352 Hz up to 434 Hz
 # pinned by: tests/audio/effects/wah.test.ts
 
-Scenario: No phaser stage stalls at 0 Hz, at any depth (v13, REQ-the-phaser-sweeps-in-cents, regression)
+Scenario: No phaser stage stalls at 0 Hz, at any depth (REQ-the-phaser-sweeps-in-cents, regression)
   Given a phaser at depth 1 (the widest the param allows)
   When the LFO is at the bottom of its cycle
   Then every stage sits at fc / 2^(stageCents/1200), the lowest still above 150 Hz
    And no stage's frequency is ever written after construction — the sweep is detune
 # pinned by: tests/audio/effects/phaser.test.ts
 
-Scenario: A stored song keeps the top of each phaser stage's sweep (v13, REQ-the-phaser-sweeps-in-cents, edge)
+Scenario: A stored song keeps the top of each phaser stage's sweep (REQ-the-phaser-sweeps-in-cents, edge)
   Given a phaser at any depth, including the 0.5 default
   Then each stage still peaks at its centre + depth * 1500 Hz, as it did in linear Hz
    And depth 0 leaves every stage unswept
@@ -658,13 +410,13 @@ Scenario: A drive drag reuses curves instead of rebuilding them (REQ-drive-curve
   And amounts inside one bucket receive the identical array
 # pinned by: tests/audio/drive-curve.test.ts
 
-Scenario: A locked effect takes its rate from the tempo (v6, REQ-wah-phaser-and-delay-can-be-tempo-locked)
+Scenario: A locked effect takes its rate from the tempo (REQ-wah-phaser-and-delay-can-be-tempo-locked)
   Given fx.delay.sync is 1/8 and transport.bpm is 120
   Then the delay runs at 0.25 s, and at 0.5 s once the tempo halves
   And fx.delay.time still holds the value the knob last set
 # pinned by: tests/audio/fx-tempo-lock.test.ts, e2e/fx-tempo-lock.spec.ts
 
-Scenario: Free is an exact no-op (v6, REQ-wah-phaser-and-delay-can-be-tempo-locked, ADR-006)
+Scenario: Free is an exact no-op (REQ-wah-phaser-and-delay-can-be-tempo-locked, ADR-006)
   Given fx.delay.sync is 0
   When the tempo changes
   Then every applied delay time is still the knob's own value
@@ -679,57 +431,15 @@ Scenario: Drive 0 stays an exact no-op after bucketing (REQ-drive-curves-are-buc
 
 ## Tests & verification
 
-- `tests/state/params.test.ts` (each effect's params registered + wired),
-  `tests/audio/effects/effect-bind.test.ts` (per-prefix bind independence),
-  `tests/audio/effects/bypass.test.ts` (true-bypass disconnect state machine,
-  ADR-012), `tests/audio/effects/reverb.test.ts` (the lazy/shared IR bank),
-  `tests/audio/drive-curve.test.ts` (bucketed curve cache),
-  `tests/audio/effects/fx-cost.test.ts` (perf-tier caps), `e2e/controls.spec.ts`,
-  `tests/audio/fx-tempo-lock.test.ts` + `e2e/fx-tempo-lock.spec.ts` (v6, REQ-wah-phaser-and-delay-can-be-tempo-locked),
-  `tests/audio/effects/phaser.test.ts` (v13, REQ-the-phaser-sweeps-in-cents — and the phaser's sound
-  change was verified by ear, ADR-010).
-- `npm test` / `npm run e2e`.
+- `tests/state/params.test.ts`, `tests/audio/effects/{effect-bind,bypass,reverb,wah,phaser,fx-cost}.test.ts`,
+  `tests/audio/drive-curve.test.ts`, `tests/audio/fx-tempo-lock.test.ts`,
+  `e2e/controls.spec.ts`, `e2e/fx-tempo-lock.spec.ts` — `npm test` / `npm run e2e`.
+- Sound changes are signed off by ear (ADR-010, [verify-audio-by-ear](../recipes/verify-audio-by-ear.md)).
 
 ## Open questions / future
 
-- A new effect adds an `Effect` impl + a `BypassWrapper`, its params, and its own
-  `bind(bus, prefix)` — then add it to the relevant chain factory in
-  `effects/fx-chain.ts` (its `fx` object **and** its order array).
-
-- (v16) **The ping-pong half of this is built**, as a TYPE of the delay that
-  defaults to today's mono DIGITAL — the "param defaulting to today's mono
-  behaviour" route argued for below ([delay-types](delay-types.md)
-  REQ-ping-pong-keeps-the-digital-level). The stereo phaser is still open, and
-  the text below is kept as the record of the reasoning.
-- **A stereo phaser and a ping-pong delay are the obvious width upgrade, and
-  neither is built.** Recorded here so the absence reads as a decision rather
-  than an oversight, since the specs have twice described these as stereo when
-  they are not ([scope](scope.md) v9 and v10 both removed such a claim). As
-  shipped: the **phaser** is four allpass biquads driven by *one* LFO through
-  *one* feedback delay, and the **delay** is a single `DelayNode` with a damped
-  feedback loop and no cross-feed. Both are channel-transparent — they carry a
-  stereo image, they never make one. Only the **reverb** (2-channel decorrelated
-  IR) and, since v14, the **chorus** (two antiphase taps, [chorus](chorus.md)) do
-  that. The upgrade would be a second allpass chain at an LFO phase
-  offset, and a delay whose two taps cross-feed. What it costs:
-  - **Twice the DSP per effect, in three chains each** (synth / drum / sampler),
-    always-on for whichever instances are un-bypassed. [ADR-010](../decisions/adr-010-musical-stable-cheap-dsp.md)'s
-    *cheap* is the standing objection; [ADR-012](../decisions/adr-012-true-bypass-disconnects.md)
-    softens it (a bypassed effect is disconnected, so idle cost stays nil) but
-    an enabled one doubles. (v12) There is now a worked precedent for the shape
-    this would have to take:
-    [ADR-023](../decisions/adr-023-the-synth-channel-goes-stereo-on-demand.md)
-    splices the sequencer's per-voice pan stage in **on a gesture** and
-    disconnects it again, so the width is paid for only while it is asked for —
-    and it states the rule any such stage inherits, which is that no channel
-    count may decide a level.
-  - **It changes how every shipped preset and demo sounds.** A width change is
-    not a no-op default ([ADR-006](../decisions/adr-006-no-op-param-defaults.md)),
-    so it either needs a `width`/`spread` param defaulting to today's mono
-    behaviour, or it is a deliberate break. The param is the honest route.
-  - **It cannot be signed off by a green suite.** This is a *sound* change, so
-    [ADR-010](../decisions/adr-010-musical-stable-cheap-dsp.md) and
-    [verify-audio-by-ear](../recipes/verify-audio-by-ear.md) apply: render
-    through the real graph, A/B a bypassed baseline, mute the lanes not under
-    test, and have a human listen. That, not the DSP, is the reason this is a
-    feature rather than a patch.
+- **A stereo phaser is not built.** The phaser is four allpass stages on one LFO
+  and one feedback delay, so it is channel-transparent. A second chain at an LFO
+  phase offset would double its DSP on three buses (ADR-010's *cheap*). It would
+  also change every shipped sound, so it needs a `width` param defaulting to today
+  (ADR-006), splicing on demand like ADR-023, and an ear sign-off.

@@ -3,41 +3,7 @@
 ```yaml
 id: input-control
 status: implemented
-version: 22  # v22: a lit white key sits lower — inset side shading, none where two lit
-             #      white keys meet (REQ-a-lit-white-key-sits-lower)
-             # v21: two computer keys on one note release it with the last key, not the first
-             #      (REQ-a-note-off-names-the-pressed-note); a MIDI note is released after a channel
-             #      change or an unplug (REQ-a-midi-note-is-released-by-whatever-ended-it)
-             # v20: a key held into a text field is still released (REQ-shortcuts-are-suppressed-in-a-field) —
-             #      the keyup in a field returned early and the note hung
-             # v19: the volume knob reads the gain it applies (REQ-the-volume-knob-reads-the-gain-it-applies) —
-             #      it showed 20·log10(volume) over a volume² law, half the real cut
-             # v18: MIDI channel 10 plays the sampler's slots (REQ-channel-ten-plays-the-sampler),
-             #      the synth's input channel is selectable (REQ-the-midi-input-channel-is-selectable),
-             #      CC11 is expression (REQ-cc11-is-expression) and channel aftertouch
-             #      joins the mod wheel (REQ-aftertouch-joins-the-mod-wheel)
-             # v17: the shortcuts stand down while a modal is open (REQ-shortcuts-yield-to-an-open-modal —
-             #      Delete used to clear a step BEHIND a confirm), and the octave moves
-             #      from the arrows to - and = (REQ-octave-shift-is-minus-and-equal), freeing the
-             #      arrows for keyboard navigation of the knobs
-             # v16: losing the window releases the BEND too, not just the notes and Fill —
-             #      hold `'`, Alt-Tab, and the keyup never arrives (REQ-pitch-bend-is-quote-and-slash)
-             # v15: the Pitch wheel help topic names the keys REQ-pitch-bend-is-quote-and-slash binds — it
-             #      still said `.` five versions after `.` was unbound (REQ-pitch-bend-is-quote-and-slash)
-             # v14: the keyboard carries a third highlight layer — static musical
-             #      roles, written as an attribute, outranked by the lit classes
-             #      (REQ-a-third-highlight-layer; the behaviour itself is scale-quantization.md REQ-the-key-is-shown-where-you-play)
-             # v13: the note maps are composed from a positional shape + the
-             #      active keyboard layout, switchable at runtime (REQ-two-key-rows-an-octave-apart/REQ-note-keys-follow-the-layout)
-             # v12: pitch bend matches e.code (Quote/Slash), not e.key — fixes
-             #      dead keys, non-US layouts and a stuck bend on Shift-mid-hold
-             #      (REQ-pitch-bend-is-quote-and-slash)
-             # v11: LOWER/UPPER are exported — the About keyboard diagram is
-             #      derived from them (REQ-two-key-rows-an-octave-apart, onboarding.md REQ-keys-are-drawn-as-keys)
-             # v10: the badges the `?` key toggles are now "info badges", reached
-             #      through UiBridge.toggleInfoBadges (onboarding.md v15); pitch
-             #      bend up moves from `.` to `'`, above `/` (REQ-pitch-bend-is-quote-and-slash)
-             # v9: lit keys + note-offs survive an OCT change (REQ-a-lit-key-is-remembered-as-an-element, REQ-a-note-off-names-the-pressed-note)
+version: 22
 owner: core
 related:
   - architecture
@@ -92,13 +58,13 @@ notes played on another tab no longer overwrite its bank.
   no source double-fires the note funnel.
 
 - **REQ-two-key-rows-an-octave-apart** — Two key rows (lower from C, upper one
-  octave higher); a base octave is shiftable; auto-repeat is ignored. (v11,
-  re-based v13) The note mapping is **exported** and is the single source for
+  octave higher); a base octave is shiftable; auto-repeat is ignored. The
+  note mapping is **exported** and is the single source for
   the About modal's keyboard diagram ([onboarding](onboarding.md) REQ-keys-are-drawn-as-keys),
   which derives each key's rank and column from its semitone rather than
   restating the letters. Adding or moving a binding therefore re-draws the
   diagram; a hand-copied one would drift, and a picture of the keyboard that
-  disagrees with the keyboard is worse than no picture. (v13) What is exported
+  disagrees with the keyboard is worse than no picture. What is exported
   is now **`NOTE_ROWS`** — the canonical positional shape (`code → semitone`,
   the piano). The character-keyed `LOWER`/`UPPER` the keydown branch matches
   against are module-private and **composed** at runtime from `NOTE_ROWS` and
@@ -115,26 +81,21 @@ notes played on another tab no longer overwrite its bank.
   suppressed while focus is in an editable field (`input` / `textarea` /
   `[contenteditable="true"]`): keystrokes reach the field and never play a note,
   toggle transport, bend pitch, shift octave, or trigger a drum fill. (Same
-  `closest(...)` rule the `contextmenu` guard already uses.) (v20) **This gates
-  presses, not releases.** A note, the fill or the bend that was pressed outside
-  a field is released by its `keyup` even when focus has moved into a field
-  since, for the same reason REQ-shortcuts-yield-to-an-open-modal leaves `keyup`
-  ungated. The `keyup` used to return early in a field. Hold `Z`, click the song
-  name field, let go, and the note hung until the window lost focus. A key typed
-  in the field was never recorded as held, so its `keyup` releases nothing. The
-  bend springs back only if a bend key is actually held, so typing `'` in a
-  field cannot reset a MIDI wheel.
+  `closest(...)` rule the `contextmenu` guard already uses.) **This gates
+  presses, not releases.** A note, the fill or the bend pressed outside a field is
+  released by its `keyup` even after focus moved into one (hold `Z`, click a name
+  field, let go: the note must not hang), as REQ-shortcuts-yield-to-an-open-modal
+  leaves `keyup` ungated. A key typed in the field was never recorded as held, so
+  its `keyup` releases nothing, and the bend springs back only if a bend key is
+  held, so typing `'` cannot reset a MIDI wheel.
 
 - **REQ-shortcuts-yield-to-an-open-modal** (v17) — **While a modal is open, the
   global shortcuts do nothing.** A dialog is the whole of the user's attention,
   and the keys belong to it: Space and Enter press its focused button, Tab moves
   through it, Escape closes it (owned by `Modal`,
-  [add-a-modal-dialog](../recipes/add-a-modal-dialog.md)). Before v17 only text
-  fields were exempt, so behind any open confirm **Delete / Backspace cleared
-  the selected step** on the tab underneath, **Space toggled the transport**
-  instead of pressing the focused button (the shortcut's `preventDefault`
-  cancelled the click), Home and Shift+arrows seeked, letters played notes and
-  `F` held a fill. `installShortcuts` asks `Modal.anyOpen()` at the top of
+  [add-a-modal-dialog](../recipes/add-a-modal-dialog.md)); otherwise Delete would
+  clear a step on the tab underneath and Space's `preventDefault` would swallow
+  the focused button's click. `installShortcuts` asks `anyModalOpen()` (modal-stack.ts) at the top of
   `keydown`. `keyup` and `blur` are **not** gated: a key held when the dialog
   opened must still be released when it comes up, or its note would hang.
   Non-modal floating windows do not count — they are tools you play alongside.
@@ -174,12 +135,12 @@ notes played on another tab no longer overwrite its bank.
   Common, 3 bytes, < 0xF8) is routed on its own explicit branch — after the
   ≥0xF8 branch
   and before the mask — to `MidiSyncTransport.handleSongPosition(((d2)<<7)|d1,
-  ts)` (v2; midi-clock-sync REQ-song-position-pointer-jumps-the-slave). `midi.ts` registers the transport via
-  `engine.sync.addTransport('midi', sync)` (v2; was `attachTransport`);
+  ts)` (midi-clock-sync REQ-song-position-pointer-jumps-the-slave). `midi.ts` registers the transport via
+  `engine.sync.addTransport('midi', sync)`;
   `onstatechange` additionally refreshes the sync transport's port counts.
 
-- **REQ-the-sustain-pedal-is-midi-layer** — **Sustain pedal (CC64)**, MIDI-layer
-  (v6): while the pedal is down (CC64 value ≥ 64) a MIDI note-off (0x80, or 0x90
+- **REQ-the-sustain-pedal-is-midi-layer** — **Sustain pedal (CC64)**, MIDI-layer:
+  while the pedal is down (CC64 value ≥ 64) a MIDI note-off (0x80, or 0x90
   vel 0) is **deferred** — it never reaches `bus.noteOff`; the note is
   remembered as *sustained*. Pedal release (value < 64) flushes `bus.noteOff`
   for every sustained note. A note re-pressed while sustained is live again (its
@@ -239,7 +200,7 @@ notes played on another tab no longer overwrite its bank.
   This is the input-layer twin of [sequencer](sequencer.md) REQ-a-stop-releases-every-tracks-note: nothing may
   hold a note whose release depends on state that is free to change underneath it.
 
-  (v21) **Two computer keys on one note release it once, with the last key.**
+  **Two computer keys on one note release it once, with the last key.**
   `,` and `Q` both play C5, and an octave shift mid-hold can line any two keys
   up on one note. The synth has one voice set per note, so a second press only
   retriggers it and the first release used to end it while the other key was
@@ -264,7 +225,7 @@ notes played on another tab no longer overwrite its bank.
     silent alias would keep teaching the arrangement this REQ exists to replace.
   - `'` collides with nothing — it is in neither note row, `keyToMidi` returns
     null for it.
-  - **(v16) Losing the window releases the bend.** The bend is a held-key state,
+  - **Losing the window releases the bend.** The bend is a held-key state,
     so it has the same failure as a held note: no `keyup` ever arrives if focus
     leaves mid-hold, and it springs back only on a key the user is no longer
     pressing. Hold `'`, Alt-Tab, and the synth stays a semitone sharp until you
@@ -273,12 +234,9 @@ notes played on another tab no longer overwrite its bank.
     and for the same reason. Every other way this pair could strand (a dead-key
     layout, a non-US layout, `Shift` pressed or released mid-hold) is already
     closed by matching `e.code`; blur was the one left open.
-  - **(v15) The `pitchBend` help topic names the same two keys.** Its copy kept
-    "the `.` and `/` keys bend it too" from v10 until v15 — a binding that no
-    longer existed, taught by the one place a new player reads about the wheel.
-    Nothing gated it, so the topic is now pinned by a test that asserts both keys
-    and the absence of `.`.
-  - **(v12) These two are matched on `e.code` (`Quote` / `Slash`), not
+  - **The `pitchBend` help topic names the same two keys**, pinned by a test that
+    asserts both keys and the absence of the retired `.`.
+  - **These two are matched on `e.code` (`Quote` / `Slash`), not
     `e.key`** — the only bindings in `installShortcuts` that are. `e.key` answers
     "what character was typed", but this pair is chosen for *where the keys sit*,
     so position is the thing to match. Three failures fall out of that one
@@ -308,8 +266,9 @@ notes played on another tab no longer overwrite its bank.
     *character*, so a remap would leave whatever is down with no key that can
     ever match its `keyup` — a hung voice, the exact failure REQ-a-note-off-names-the-pressed-note exists to
     prevent. The `blur` handler is the precedent for the bulk release.
-  - Only the note rows move. `F`, `Shift`+`R` and `Ctrl/Cmd`+`Z` keep their
-    `e.key` letters ([keyboard-layout](keyboard-layout.md) REQ-layout-scope-is-note-keys-only), and the bend
+  - Only the note rows move. `Shift`+`R`, `Shift`+`L` and `Ctrl/Cmd`+`Z` keep
+    their `e.key` letters, and the fill is the KeyF position wherever `f` is a
+    note ([keyboard-layout](keyboard-layout.md) REQ-layout-scope-is-note-keys-only); the bend
     pair stays positional (REQ-pitch-bend-is-quote-and-slash).
   - The picker's residual risk — a wrong selection means wrong notes, where
     `e.code` could not be wrong — is recorded as
@@ -352,7 +311,7 @@ notes played on another tab no longer overwrite its bank.
     shade is a custom property that the adjacency rules blank out, and `keyboard.ts`
     knows nothing about it.
 
-### v18 — channels, expression, pressure
+### Channels, expression, pressure
 
 - **REQ-channel-ten-plays-the-sampler** (v18) — **MIDI channel 10 plays the
   sampler's slots.** The sampler was programmable but not playable: clicking a

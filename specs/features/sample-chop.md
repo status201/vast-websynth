@@ -3,8 +3,7 @@
 ```yaml
 id: sample-chop
 status: implemented
-version: 2 # v2: REQ-chop-row-lives-in-a-folded-section — the chop row lives in a titled fold
-           # v1: the chop row, equal / detected slices, Spread to slots
+version: 2
 owner: core
 related:
   - sampler
@@ -29,26 +28,17 @@ one-bar loop becomes eight playable one-shots on the existing grid.
 
 ## Background / Why
 
-The [sampler](sampler.md) plays whole files. A beatmaker's core move is the
-opposite: take one long recording, cut it at the transients, and play the pieces
-back in a different order. Without it the machine can only replay what it was
-given, which is why it is the first thing missing from a sampler that has
-everything else.
+A beatmaker cuts one long recording at its transients and replays the pieces in a
+new order. The [record/edit modal](sample-recorder.md) already owns the hard half
+(waveform, selection handles, preview, undo), so chopping is a slice calculation
+plus a way to place the results.
 
-The [record/edit modal](sample-recorder.md) already owns the hard half — a canvas
-waveform from `computePeaks`, draggable selection handles, preview playback,
-undo — so chopping is a slice calculation plus a way to place the results.
-
-**Where the slices go is the whole design.** The obvious shape is a per-step slice
-index (`SamplerStep.slice`), and it was rejected. `SamplerStep` is exactly
-`TriggerCell` today, and splitting the two types costs `serialize.ts`,
-`song-validate.ts` and `song-author.ts` a sampler-only branch each — a song-format
-change ([ADR-007](../decisions/adr-007-songfile-additive-versioning.md)) — to buy
-each slice *less* control than the alternative. Slices go to **slots** instead
-(the MPC's "chop to pads"): no format change, no new step field, and every slice
-inherits the whole per-slot channel from [sampler](sampler.md) REQ-each-slot-has-a-channel/REQ-a-hit-plays-a-window-of-the-buffer —
-pitch it, reverse it, filter it, pan it, trim it further — and is sequenced on the
-eight-lane grid that already exists.
+**Slices go to slots** (the MPC's "chop to pads"), not to a per-step slice index.
+`SamplerStep` is exactly `TriggerCell`, and splitting them would be a song-format
+change (ADR-007) that gave each slice *less* control. As slots, slices inherit the
+whole per-slot channel ([sampler](sampler.md)
+REQ-each-slot-has-a-channel/REQ-a-hit-plays-a-window-of-the-buffer) and the
+existing eight-lane grid.
 
 ## Requirements
 
@@ -97,13 +87,8 @@ eight-lane grid that already exists.
     *made* from the current slot; and
   - the picker can still **move after** a chop, so the fit is re-checked whenever
     it does. A chop that no longer fits **disables Spread and says why** — it is
-    not quietly re-cut, and it is *not* clamped at spread time.
-
-  Filtering the dropdown alone looks sufficient and is not: it left the label
-  promising "4 slices → S6–S9" — naming a slot that does not exist — while Spread
-  stayed live and wrote three. Refusing is the right answer over re-cutting,
-  because the user chose that many slices; dropping the tail and merging it into
-  the last slice are the same silent edit in different clothes.
+    not quietly re-cut, and it is *not* clamped at spread time. The user chose
+    that many slices, and dropping or merging the tail is a silent edit.
 
 - **REQ-spreading-is-confirmed-then-reversible** — **Spreading is confirmed,
   then reversible.** It overwrites up to eight slots at once, so it asks first
@@ -220,14 +205,9 @@ folded, the boundaries stay on the waveform above it:
 | `chop-detect` | cuts at detected onsets | — | — | — | Enter/Space when focused |
 | `chop-spread` | confirms, then fills the slots | — | — | — | Enter/Space when focused |
 
-A `—` is a decision, not an omission. The header and its caret are deliberately
-**one gesture, one outcome** (ADR-014 law 2): the caret does nothing the header
-does not, so nobody has to learn which part of the row is live. Nothing here is
-momentary or continuous except the markers, so nothing else takes a drag or a long
-press, and a second press is simply a second chop — undoable in turn — rather than
-a distinct gesture. Precedent (law 4): the fold is the app's own
-`createCollapseToggle`, unchanged, and the marker drag is the crop handles' own
-interaction one layer down the same canvas.
+A `—` is a decision. The header and caret are one gesture, one outcome (ADR-014
+law 2). Only the markers are continuous, and a second press is a second, undoable
+chop. Precedent (law 4): `createCollapseToggle`, and the crop handles' own drag.
 
 ## Scenarios (BDD)
 

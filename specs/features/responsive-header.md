@@ -3,13 +3,7 @@
 ```yaml
 id: responsive-header
 status: implemented
-version: 7  # v7: the preset selector is width-capped at every width and gives up
-            #     its width before the header overflows; the header never widens
-            #     the .app column (a long preset name pushed Panic/VOL off-screen)
-            # v6: a glyph may carry per-part hook classes for a state stylesheet
-            #     to recolour (the ⓘ disc/stem/dot, onboarding.md REQ-the-glyph-inverts-while-badges-show)
-            # v5: the two ⓘ/? utility buttons swap roles — ⓘ toggles the info
-            #     badges, ? opens Help & About (onboarding.md v15)
+version: 7
 owner: ui
 related:
   - architecture
@@ -83,7 +77,7 @@ end of the row.
   names survive the loss of text labels (`createButton` defaults `aria-label` to
   the `label` option when an icon is set). Stable testids: `preset-save`,
   `perf-settings`, `info-badges`, `about-button`, `fullscreen`. Note the ids
-  follow **function, not position** (v5): `about-button` is the ? glyph, because
+  follow **function, not position**: `about-button` is the ? glyph, because
   that is the button that opens About; the ⓘ glyph beside it is `info-badges`
   because that is what it toggles ([onboarding.md](onboarding.md) REQ-the-info-button-is-a-toggle). The
   retired `help-button` id is not reused.

@@ -3,18 +3,11 @@
 ```yaml
 id: compressor
 status: implemented
-version: 5      # v5: the two per-sample dB conversions are exp/log rather than pow/log10 —
-                #     61% of the processor's cost, bit-exact at the output (REQ-the-coefficient-memo-is-bit-exact)
-                # v4: a DISCRETE param snaps, it does not approach — ratio and autoRelease
-                #     were smoothed like a knob, so "all buttons in" engaged a third of a
-                #     second late and swept ratios the UI never offers (REQ-ratio-and-release-are-indices)
-                # v3: REQ-a-silent-input-stays-silent — the FET path's DC blocker is primed from its first
-                #     sample, so activating the compressor no longer emits the
-                #     saturator's zero-input pedestal as a step (song-mode REQ-applying-a-song-is-click-free)
-                # v2: coefficients are memoized on their k-rate inputs (REQ-coefficients-derive-on-change/REQ-the-coefficient-memo-is-bit-exact)
+version: 5
 owner: core
 related:
   - architecture
+  - effects
   - runtime-performance
   - ../decisions/adr-002-audioworklet-compressor
   - ../decisions/adr-010-musical-stable-cheap-dsp
@@ -28,134 +21,67 @@ source:
   - src/ui/panels/song-panel.ts       # master comp UI + GrMeter
 ```
 
-A scalar feature with **extra structure**: it spans an `AudioWorklet` (its own DSP
-on the audio thread), discrete **index-valued** parameters mapped to real values,
-an async attach lifecycle, and a `port` **message contract** that feeds a UI meter.
-A good template for any worklet-backed effect.
+A scalar feature with extra structure: an `AudioWorklet`, **index-valued**
+parameters mapped to real values, an async attach lifecycle, and a `port` message
+contract that feeds a UI meter. It is the template for a worklet-backed effect.
 
 ## Background / Why
 
-One `hardware-compressor` worklet provides two hardware-modelled character modes,
-fixed per instance via `processorOptions.mode`:
+One `hardware-compressor` worklet provides two character modes, fixed per
+instance via `processorOptions.mode`:
 
-- **`fet`** (UREI 1176 style): feedback detector, hard knee, microsecond attacks,
-  program-dependent release, FET-ish tanh saturation. Heads the **drum** chain
-  (`engine.drumComp`).
-- **`vca`** (SSL G-bus style): feed-forward detector, 6 dB soft knee ("glue"),
-  clean VCA gain, auto-release. Sits `djLow → djHigh → masterComp → analyser` on
-  the **master** bus (`engine.masterComp`); the DJ filter is a series pair, see
-  [performance](performance.md) REQ-the-dj-filter-is-a-series-pair.
+- **`fet`** (1176 style): feedback detector, hard knee, microsecond attacks,
+  program-dependent release, tanh saturation. On the **drum** bus, the first
+  effect after the EQ ([effects](effects.md) REQ-the-drum-bus-chain-order).
+- **`vca`** (SSL G-bus style): feed-forward detector, 6 dB soft knee, clean gain,
+  auto-release. On the **master** bus, `djLow → djHigh → masterComp → analyser`
+  ([performance](performance.md) REQ-the-dj-filter-is-a-series-pair).
 
-The UI exposes musician-friendly **discrete** ratio/release switches (e.g. `4:1`,
-`8:1`, … `ALL`); the engine maps those indices to the real numeric values the
-worklet expects. This keeps the param registry simple and the controls authentic
-to the modelled hardware.
-
-Both modes are tuned for **recognisable character over circuit accuracy** — the
-*musical, stable, cheap* stance that governs the DSP worklets
-([ADR-010](../decisions/adr-010-musical-stable-cheap-dsp.md)): the FET's feedback
-detector and program-dependent release, the VCA's soft-knee "glue" auto-release,
-and "all buttons in" are chosen for *feel*; the DSP is bounded (unit-tested for
-boundedness) and runs cheaply on the audio thread.
+The UI exposes the hardware's **discrete** ratio/release switches (`4:1`, `8:1`, …
+`ALL`), and the engine maps the indices to real values. Both modes favour
+character over circuit accuracy (ADR-010) and are bounded and cheap.
 
 ## Requirements
 
 - **REQ-one-worklet-two-models** — A single worklet (`hardware-compressor`)
   supports both `fet` and `vca` via `processorOptions.mode`, fixed at
   construction.
-- **REQ-two-compressors-two-buses** — Drum compressor sits on the drum bus
-  (`fet`); master compressor sits `djLow → djHigh → masterComp → analyser`
-  (`vca`).
-- **REQ-ratio-and-release-are-indices** — Ratio/release params are stored as
-  **indices**; the engine maps each index to a real value. FET ratio index →
-  `[4, 8, 12, 20, 100]` (`100` = "all buttons in"). Master release index **past
-  the table end** → auto-release.
-
-  **(v4) A discrete param snaps; only a continuous one is smoothed.** Every
-  param went to the worklet through one `setTargetAtTime` — correct for
-  threshold, attack, release and makeup, where a jump would zipper, and wrong
-  for the two that are **choices rather than quantities**: `ratio`, which is a
-  point on the table above, and `autoRelease`, which is a boolean.
-
-  `setTargetAtTime` approaches asymptotically, so selecting *all buttons in*
-  from `20` did not set `100` — it crossed `50`, `80`, `95` on the way, and the
-  k-rate float only rounded up to exactly `100` after roughly ten time
-  constants. The worklet tests `ratio >= 100` to engage the near-limiting slope
-  (REQ-one-worklet-two-models), so the mode arrived about a third of a second
-  after the click, having first run the compressor at ratios the UI does not
-  offer. `autoRelease` has the same shape: a boolean that spends ~340 ms
-  somewhere between false and true.
-
-  `attachWorklet` already used `setValueAtTime` for all six when seeding the
-  node; it was only the live setter that smoothed. So the rule is the seeding
-  path's, applied to the live one: **a param whose value is an index or a flag
-  is written with `setValueAtTime`.**
-- **REQ-worklet-posts-gain-reduction** — The worklet posts current gain
-  reduction (dB) on its `port` at ~31 Hz; the `GrMeter` UI renders it.
+- **REQ-two-compressors-two-buses** — Drum compressor on the drum bus (`fet`);
+  master compressor `djLow → djHigh → masterComp → analyser` (`vca`).
+- **REQ-ratio-and-release-are-indices** — Ratio/release are stored as **indices**
+  and the engine maps them. FET ratio → `[4, 8, 12, 20, 100]` (`100` = "all
+  buttons in"). A master release index **past the table end** → auto-release.
+  **A discrete param snaps; only a continuous one is smoothed.** `ratio` and
+  `autoRelease` are written with `setValueAtTime`. `setTargetAtTime` would pass
+  through ratios the UI does not offer, and reach the worklet's `ratio >= 100` test
+  only after ~ten time constants. Threshold, attack, release and makeup are
+  smoothed. `attachWorklet` seeds all six with `setValueAtTime`.
+- **REQ-worklet-posts-gain-reduction** — The worklet posts gain reduction (dB) on
+  its `port` at ~31 Hz. The `GrMeter` renders it.
 - **REQ-compressor-graph-is-wired-synchronously** — The graph is wired
-  **synchronously** in `Engine`'s constructor; the worklet node is **spliced in
+  **synchronously** in `Engine`'s constructor. The worklet node is **spliced in
   after** `loadModule` via `attachWorklet()`, replaying cached setter values.
-- **REQ-coefficients-derive-on-change** — **Coefficients are derived when their
-  inputs move, not per block.** The envelope and makeup coefficients are
-  functions of the six k-rate params alone, and `mkA`/`dcR` of the sample rate
-  alone. A processor computes the rate-only pair **once at construction**, and
-  the param-derived set **only when one of those params changes** — a knob turn,
-  not a block boundary. Recomputing them per block cost seven
-  `Math.exp`/`Math.pow` per block per instance (~5,000 per second across the
-  drum and master processors) to arrive at the same numbers. This is ADR-010's
-  *cheap*, and it must not cost *musical*: see
-  REQ-the-coefficient-memo-is-bit-exact.
-- **REQ-the-coefficient-memo-is-bit-exact** — **The memo is bit-exact.** Caching
-  a coefficient MUST produce the identical value the per-block computation
-  produced — same expression, same operand order — and the cache MUST be
-  invalidated by every param it reads. A stale coefficient after a knob turn is
-  an audible bug, and a re-derived one that differs in the last bit is a sound
-  change under `runtime-performance.md` REQ-a-worklet-optimisation-is-bit-exact. Pinned by frozen-reference
-  vectors that include a mid-stream k-rate param change.
-
-  **(v5) The same bar, met by the per-sample dB conversions.** The detector's
-  `20·log10(sc)` and the gain's `10^(-gr/20)` are written as `k·log` and
-  `exp(y·k)`. Together they were **61% of this processor's entire cost** —
-  `Math.pow(10, y)` is roughly four times `Math.exp(y·k)` on V8 — so the
-  compressor now costs about 2.6× less per sample, which is what a user pays
-  the moment either compressor is switched on (both default off, and
-  [ADR-012](../decisions/adr-012-true-bypass-disconnects.md) disconnects an idle
-  one, so this is a cost of *use*, not of existing).
-
-  It is bit-exact **at the output**: the identities are exact in real
-  arithmetic, and the double-rounding differs by ~2e-15 relative — some 2.7e7
-  times finer than a float32 ULP — so no sample rounds differently. The frozen
-  vectors above are what certify that, and they were run before the change was
-  kept rather than after it was assumed.
-
-- **REQ-a-silent-input-stays-silent** (v3) — **A silent input produces a silent
-  first block.** The FET saturator is deliberately asymmetric — `tanh(d·(y +
-  0.02))/d` — which is where its second harmonic comes from, and it means the
-  shaper outputs ≈ `+0.02` for an input of **zero**. The 10 Hz DC blocker below
-  it removes that in steady state, but it starts from zeroed state, so the very
-  first sample came out as a full `0.02` step (≈ −34 dBFS) decaying over ~16 ms
-  — a thump.
-
-  A worklet only runs while its processed path is connected, so this fired the
-  first time the drum compressor was un-bypassed after page load: `fx.drum.comp.on`
-  defaults to 0 and demos ship it at 1, which made *clicking a demo* the trigger,
-  with no prior audio needed ([song-mode](song-mode.md) REQ-applying-a-song-is-click-free).
-
-  The blocker's state is therefore **primed from the first sample it sees**
-  (`x[0]` taken as the previous input rather than 0) instead of differencing
-  against silence. One boolean, no per-sample cost. Measured on a silent input:
-  the old code emits `0.02` on sample 0 decaying over ~16 ms; the new one emits
-  **exact zero**.
-
-  **This is a real output change and REQ-the-coefficient-memo-is-bit-exact's frozen vectors moved for it** — the
-  honest accounting, because "bit-exact or it is a sound change" is the standing
-  rule. What moved is only the transient: across the four `fet` digests the
-  per-sample picks are identical bar the last float32 bit, and the *sums* shift by
-  the transient's own integral (≈ the first output sample × the blocker's
-  764-sample time constant — ~285 for the "normal ratio" case). The vectors were
-  re-captured once, under this requirement, and `tests/audio/compressor-worklet.test.ts`
-  now also pins silence-in-silence-out directly, so a future re-capture cannot
-  quietly lose the fix. `vca` mode has no saturation and is untouched.
+- **REQ-coefficients-derive-on-change** — The envelope and makeup coefficients are
+  functions of the six k-rate params alone, and `mkA`/`dcR` of the sample rate. So
+  the rate-only pair is computed **once at construction**, and the param-derived
+  set **only when one of those params changes**, not per block (ADR-010 *cheap*,
+  bounded by REQ-the-coefficient-memo-is-bit-exact).
+- **REQ-the-coefficient-memo-is-bit-exact** — Caching MUST produce the identical
+  value (same expression, same operand order), and every param the cache reads
+  MUST invalidate it (`runtime-performance.md`
+  REQ-a-worklet-optimisation-is-bit-exact). This is pinned by frozen-reference
+  vectors that include a mid-stream k-rate change. The per-sample dB conversions
+  are written as `k·log` and `exp(y·k)`, about 2.6× cheaper than `log10`/`pow`.
+  They are bit-exact **at the output**: the double-rounding difference is ~2e-15
+  relative, far below a float32 ULP.
+- **REQ-a-silent-input-stays-silent** (v3) — The FET saturator is deliberately
+  asymmetric (`tanh(d·(y + 0.02))/d`, the source of its 2nd harmonic), so it
+  outputs ≈ `+0.02` for silence. The 10 Hz DC blocker is **primed from the first
+  sample it sees** rather than from zero, so a silent first block is exactly
+  silent. Without it, a demo load that un-bypassed the drum compressor thumped
+  ([song-mode](song-mode.md) REQ-applying-a-song-is-click-free). The frozen vectors
+  were re-captured for this, and silence-in-silence-out is pinned directly. `vca`
+  has no saturation.
 
 ## Technical design
 
@@ -170,7 +96,7 @@ CompressorNode:   # src/audio/compressor/node.ts
   onGr: ((db: number) => void) | null       # gain-reduction callback (from port)
 
 Compressor (Effect):  # src/audio/effects/compressor.ts
-  # builds its BypassWrapper synchronously so Engine can wire chains in its ctor;
+  # builds its BypassWrapper synchronously so Engine can wire chains in its ctor; no setMix
   attachWorklet()      # splices the real node in (after loadModule) + replays setters
   bind(bus, prefix, ratios, releases?)  # self-wires its params + the index→real maps
   setBypass / setThreshold / setRatio / setAttack / setRelease / setAutoRelease / setMakeup
@@ -198,9 +124,6 @@ fx.master.comp.makeup:    { min: 0, max: 12, default: 0 }
 
 ### Index → real-value mapping
 
-`Compressor.bind(bus, prefix, ratios, releases?)` (the index→real map lives in
-the compressor effect, called once from `Engine.subscribeParams()`):
-
 ```yaml
 drum:   drumComp.bind(bus, 'fx.drum.comp',     [4, 8, 12, 20, 100])
 master: masterComp.bind(bus, 'fx.master.comp', [2, 4, 10], [0.1, 0.3, 0.6, 1.2])
@@ -220,21 +143,17 @@ init (async): await CompressorNode.loadModule(ctx)
               drumComp.bind(...) / masterComp.bind(...) wire params to the bus
 ```
 
-This split exists because `Engine`'s constructor must wire the audio graph
-synchronously, but an `AudioWorkletNode` can't be created until its module is
-loaded (async). The `BypassWrapper` is the placeholder; `attachWorklet()` swaps in
-the real node and replays cached setter values so nothing is lost. The splice
-happens *inside* the wrapper's processed path (`processedIn → node →
-processedOut`), so it also works while the effect is bypassed-and-disconnected
-under true bypass
-([ADR-012](../decisions/adr-012-true-bypass-disconnects.md)).
+The constructor must wire synchronously, but an `AudioWorkletNode` needs its
+module first. The `BypassWrapper` is the placeholder. The splice happens *inside*
+the processed path (`processedIn → node → processedOut`), so it works even while
+bypassed and disconnected (ADR-012).
 
 ### Worklet message contract
 
 ```yaml
 direction: worklet -> main (node.port.onmessage)
 payload:   number               # bare gain reduction in dB (>= 0)
-rate:      ~31 Hz               # 12 × 128 frames ≈ 31 Hz at 48 kHz
+rate:      ~31 Hz               # 12 × 128 frames at 48 kHz
 when:      suppressed while idle (no reduction)
 consumer:  CompressorNode.onGr -> GrMeter UI (testid grmeter-<prefix>)
 params (k-rate AudioParams, NOT messages):
@@ -244,7 +163,7 @@ params (k-rate AudioParams, NOT messages):
 ## Visual aids
 
 ```
-drumBus ─► drumComp (FET) ─► drumPhaser ─► drumDelay ─► drumReverb ─► preMaster
+drumBus ─► drumEq ─► drumComp (FET) ─► drumPhaser ─► drumDelay ─► drumReverb ─► preMaster
 preMaster ─► djLow ─► djHigh ─► masterComp (VCA) ─► analyser ─► master
                               │ port (gain reduction dB, ~31 Hz)
                               └─────────────► GrMeter (grmeter-fx.master.comp)
@@ -294,35 +213,20 @@ Scenario: A knob turn invalidates the memo mid-stream (REQ-the-coefficient-memo-
 
 ## Tests & verification
 
-- Worklet DSP, directly: `tests/audio/compressor-worklet.test.ts` (stubs worklet
-  globals, imports `public/worklets/compressor.js`). Two layers: physics
-  assertions with loose tolerances, and the REQ-the-coefficient-memo-is-bit-exact **frozen-reference digests**
-  covering both modes, `all` buttons, both `blend` release paths, the mono
-  input/output fallbacks and a mid-stream k-rate param change. The digests
-  observe the float32 output — what is heard — so they catch any rewrite that
-  moves a sample.
-- Effect wrapper + index mapping: `tests/audio/effects/compressor.test.ts`.
-- E2E: `e2e/compressor.spec.ts` (switch, knobs, `grmeter-<prefix>` presence, help
-  badges).
-- `npm test` / `npm run e2e` / `npm run typecheck`.
+- `tests/audio/compressor-worklet.test.ts` (stubs worklet globals, imports
+  `public/worklets/compressor.js`): loose physics assertions, plus frozen-reference
+  digests of the float32 output across both modes, `all` buttons, both release
+  paths, the mono fallbacks and a mid-stream k-rate change.
+  `tests/audio/effects/compressor.test.ts` covers the wrapper and the index
+  mapping. `e2e/compressor.spec.ts` — `npm test` / `npm run e2e`.
 
 ## Open questions / future
 
-- The mode is fixed per instance by design; a user-switchable mode would need a new
-  param + worklet re-instantiation. Out of scope.
-- **Splitting the sample loop on `fet` was measured and declined.** `fet` is fixed
-  per instance, so the three `if (fet)` tests inside the loop are loop-invariant
-  and an obvious hoisting target. Constant-folding the flag — the *upper bound* on
-  what a split could recover, since it lets the engine delete the branches
-  outright — is worth **~5% in fet mode and nothing measurable in vca**. That buys
-  one of the two live instances a few percent in exchange for duplicating ~35
-  lines of envelope and gain-computer maths, i.e. two copies of hand-tuned DSP to
-  keep in step. ADR-010 orders *musical* and *stable* above *cheap*; this trade
-  runs the wrong way. Revisit only with a profile showing the compressor loop is
-  the render budget's bottleneck.
-- **The per-sample `Math.log10` and `Math.pow` are the real cost** (~192,000 calls
-  per second across the two instances) and are deliberately untouched here.
-  Replacing them with a dB↔linear lookup table is **not bit-exact**, so under
-  `runtime-performance.md` REQ-a-worklet-optimisation-is-bit-exact it is a *sound change*, not an optimisation —
-  it needs its own spec and an ADR-010 justification, in the spirit of `sat()`
-  in `ladder-filter.js` replacing `tanh`.
+- The mode is fixed per instance by design. A switchable mode needs a new param +
+  worklet re-instantiation.
+- **Splitting the sample loop on `fet` was measured and declined**: at best ~5 % in
+  fet mode and nothing in vca, for two copies of hand-tuned DSP to keep in step.
+  Revisit only with a profile showing the compressor loop is the bottleneck.
+- A dB↔linear lookup table would be cheaper still but is **not bit-exact**, so it
+  is a sound change (REQ-a-worklet-optimisation-is-bit-exact) and needs its own
+  spec and an ADR-010 justification.

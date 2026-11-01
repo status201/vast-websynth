@@ -39,19 +39,13 @@ with OSC 1's waveform: DX-style electric pianos, clangs and basses.
 
 ## Background / Why
 
-[oscillator-sync](oscillator-sync.md) → "Open questions" left both as "all-native
-neighbours that want their own spec". OSC 1 is already the master in sync, so it
-is the modulator here as well. Its panel had three knobs while OSC 2 carried
-WIDTH, SYNC and a segmented control. Putting the two new controls on OSC 1 evens
-the panels out, and it reads correctly: OSC 1's knobs are its *outputs*. LEVEL
-goes to the mixer, FM into OSC 2's pitch, and RING (1×2) into the mixer. SYNC
-stays on OSC 2, because sync is something OSC 2 does to itself.
-
-Five factory presets show off cross-mod and sync: `tines`, `chime` and `growl`
-(FM), `clang` (ring) and `tear` (sync plus FM). Each one's A/B is one knob to 0
-([presets](presets.md) REQ-factory-presets-span-the-instrument-families). OSC 1
-and OSC 2 carry separate help badges, because one topic covering both had grown
-too long ([onboarding](onboarding.md) REQ-each-oscillator-carries-its-own-badge).
+OSC 1 is the master in [sync](oscillator-sync.md), so it is the modulator here too.
+Its knobs are its *outputs*: LEVEL to the mixer, FM into OSC 2's pitch, RING (1×2)
+into the mixer. SYNC stays on OSC 2, because sync is something OSC 2 does to
+itself. Five factory presets show the family (`tines`, `chime`, `growl`, `clang`,
+`tear`); each A/B is one knob to 0 ([presets](presets.md)
+REQ-factory-presets-span-the-instrument-families). OSC 1 and OSC 2 carry separate
+help badges ([onboarding](onboarding.md) REQ-each-oscillator-carries-its-own-badge).
 
 ## Requirements
 
@@ -272,31 +266,17 @@ Scenario: OSC 1 carries the modulator controls (REQ-the-modulator-controls-live-
   | 2.9 kHz | −79 | −44 | −35 | −34 | −15…−11 |
 
   The first two rows are pinned at −50 dB. At a 2.9 kHz master the slave's
-  increment swings across the kernel's 16-sample width and clamps at 0 Hz, so the
-  residuals' locally-constant-increment assumption fails. That is accepted under
-  ADR-010, as the sine slave's top end is (oscillator-sync.md → Tests & verification).
-- **Native FM on both engines** (OfflineAudioContext in Playwright's Chromium and
-  Firefox, 2026-10-28). Both apply `detune` to an audio-rate `frequency` input
-  exactly as the spec says: `(110 Hz, +1200 ¢, dev D)` renders identically to
-  `(220 Hz, 0 ¢, dev 2D)`. That is the property REQ-fm-index-is-relative-to-the-modulator
-  stands on. Both also run **through zero** with the signed frequency: a 50 Hz
-  carrier at 300 Hz deviation matches a signed-phase reference to 1e-4 (Blink) and
-  0.01 (Gecko), against 2.0 for an `|f|` model.
-- **Rendered through the real graph** (`npm run bench:audio`, A2, sine/sine,
-  filter open, Chromium and Firefox):
-  - The takes cover FM β 1, 3 (ratio 1:2) and 6 (through zero), ring of sines
-    and of saws, and FM with sync on and off. None shows non-finite output or
-    bursts above its no-FM baseline.
-  - With OSC 1 muted, FM β 3 at 1:2 measures 0.0122 rms on Blink and 0.0137 on
-    Gecko. Layered with OSC 1 the gap is larger (0.0176 vs 0.0309), because the
-    FM sideband at OSC 1's own pitch adds to it or cancels it depending on the
-    two oscillators' relative phase. That is layering, not FM depth.
-  - `RING_MAKEUP` = √2. Ring 70% of sine×sine measures 0.0225 rms against one
-    sine at LEVEL 70% at 0.0221, on both engines. Saw×saw lands 3.7–4.7 dB under
-    a saw (0.0098 vs 0.0149 on Blink, 0.0087 vs 0.0150 on Gecko).
-  - One Chromium ring-saw take closed the page mid-capture. It did not reproduce
-    in two re-runs.
-  - These are measurements, not a listening verdict.
+  increment swings across the kernel width and clamps at 0 Hz; accepted under
+  ADR-010, like the sine slave's top end.
+- **Native FM on both engines** (OfflineAudioContext, Chromium and Firefox): both
+  apply `detune` to an audio-rate `frequency` input as specified, since `(110 Hz,
+  +1200 ¢, dev D)` renders as `(220 Hz, 0 ¢, dev 2D)`. That is what
+  REQ-fm-index-is-relative-to-the-modulator stands on. Both also run through zero
+  with the signed frequency.
+- Rendered through the real graph on both engines (`npm run bench:audio`): no
+  non-finite output and no bursts above the no-FM baseline. Layered with OSC 1,
+  FM levels differ by engine, because the sideband at OSC 1's pitch adds or
+  cancels with phase. That is layering, not depth.
 - **By ear** (ADR-010) is still owed. A/B against cross-mod off on both engines:
   - FM sine→sine at β 1/3/6 and filter env → `fm`
   - FM with sync on and off

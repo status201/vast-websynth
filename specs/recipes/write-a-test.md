@@ -3,8 +3,7 @@
 ```yaml
 id: write-a-test
 status: implemented
-version: 2  # v2: a test may not name a shipped demo song — pick by kind, read
-            #     expected values from the shipped file, reserve the `test-` prefix
+version: 2
 owner: core
 related:
   - architecture
@@ -60,7 +59,7 @@ To opt in, put the directive on **line 1**:
 // @vitest-environment jsdom
 ```
 
-31 files under `tests/audio` and `tests/state` do — for `window` listeners, an
+Some files under `tests/audio` and `tests/state` do — for `window` listeners, an
 `Audio` element, `navigator`, or `localStorage` reached through an import rather
 than written in the test itself. **You do not have to work out which you are**: a
 test that needs a DOM and lacks the directive fails immediately on

@@ -3,8 +3,7 @@
 ```yaml
 id: song-share-link
 status: implemented
-version: 4   # v4: the fetched body is read under the cap as it streams (REQ-a-linked-fetch-needs-consent)
-             # v3: https-only songUrl + consent dialog + payload/fetch caps (REQ-a-linked-fetch-needs-consent/REQ-share-payload-is-capped)
+version: 4
 owner: state
 related:
   - song-mode
@@ -37,11 +36,10 @@ the Import button, so canonical files, authoring-dialect files, and (via
 
 - **REQ-parse-song-link-recognises-the-hash** — `parseSongLink(hash)` recognises
   `#song=<payload>` (embedded, `{kind:'data'}`) and `#songUrl=<https url>`
-  (fetched, `{kind:'url'}`); anything else returns `null`. **`https:` only**
-  (v3): a `http://`, `javascript:`, `file://` or protocol-relative `songUrl` is
-  ignored. Plain `http` was accepted by the original `https?` test, which made
-  `#songUrl=http://192.168.1.1/…` a zero-click LAN probe from the victim's
-  browser ([untrusted-input](untrusted-input.md) REQ-a-link-may-not-fetch-silently).
+  (fetched, `{kind:'url'}`); anything else returns `null`. **`https:` only**:
+  a `http://`, `javascript:`, `file://` or protocol-relative `songUrl` is
+  ignored, or `#songUrl=http://192.168.1.1/…` would be a zero-click LAN probe from
+  the victim's browser ([untrusted-input](untrusted-input.md) REQ-a-link-may-not-fetch-silently).
 
 - **REQ-share-payload-is-deflated-and-encoded** — `encodeSongPayload(json)`
   deflate-raws the UTF-8 bytes and base64url-encodes them. When the platform
@@ -56,8 +54,8 @@ the Import button, so canonical files, authoring-dialect files, and (via
   button and OS file launches (pwa-install.md REQ-one-import-parse-path), so
   parse errors surface in the existing import-error dialog. Applying is pure
   state, so it works behind the start modal. Errors use the shared
-  `alertDialog`, **never the native `alert()`** (v3 — it was `alert()`, which
-  contradicted this requirement and put payload-derived text in browser chrome).
+  `alertDialog`, **never the native `alert()`** (it would put payload-derived
+  text in browser chrome).
 
 - **REQ-hash-clears-only-on-success** — On a **successful** import the hash is
   consumed via `history.replaceState(null, '', pathname + search)`; on failure
@@ -69,7 +67,7 @@ the Import button, so canonical files, authoring-dialect files, and (via
   action (testid `song-share-link`): `Song.capture` → `toJSON` →
   `encodeSongPayload` → `buildShareUrl(origin, payload)` → clipboard via the
   shared `copyText`/`flashCopied`. The action does not close the modal. It is
-  **disabled while the Project (.zip) kind is selected** (v2): a share URL
+  **disabled while the Project (.zip) kind is selected**: a share URL
   embeds only the song JSON and can never carry the project's sampler audio, so
   offering it there would mislead — the disabled button's `title` explains why
   and points back to Song (.json). Selecting Song (.json) re-enables it and
@@ -79,15 +77,15 @@ the Import button, so canonical files, authoring-dialect files, and (via
   `<origin>/#song=<payload>`. Payloads are base64url so they never need
   percent-encoding.
 
-- **REQ-a-linked-fetch-needs-consent** — **A fetch needs consent (v3).**
+- **REQ-a-linked-fetch-needs-consent** — **A fetch needs consent.**
   `#song=` carries its own payload — no network, no third party — so it keeps
   applying at boot, unprompted. `#songUrl=` first shows a `confirmDialog` naming
   the **target origin**; declining leaves the hash in place and applies nothing.
   That prompt is raised **from the start handler, not from boot's own body**:
   applying a song is pure state and works behind the start modal, but a *dialog*
   raised there renders underneath it and cannot be reached — the same reason the
-  restored-clips toast waits (sample-persistence.md REQ-a-clip-restore-raises-a-toast). **(v6 of
-  audio-lifecycle)** That reason is the modal, not the gesture, so on the
+  restored-clips toast waits (sample-persistence.md REQ-a-clip-restore-raises-a-toast). **(See
+  audio-lifecycle.)** That reason is the modal, not the gesture, so on the
   auto-start path — where no modal is shown at all
   ([audio-lifecycle](audio-lifecycle.md) REQ-the-gesture-is-required-only-when-required/REQ-post-gesture-work-is-deferred) — the prompt is raised
   immediately. Nothing waits for a tap that is never asked for. The request is
@@ -98,7 +96,7 @@ the Import button, so canonical files, authoring-dialect files, and (via
   crosses the cap. Without this, one link made any visitor's browser issue
   an attacker-chosen GET at page load.
 
-- **REQ-share-payload-is-capped** — **The payload is capped (v3).**
+- **REQ-share-payload-is-capped** — **The payload is capped.**
   `decodeSongPayload` inflates through `inflateRaw(bytes, MAX_SONG_JSON_BYTES)`,
   which throws **during** the read rather than after — deflate's ~1032:1 ratio
   otherwise lets an address-bar-sized hash expand to gigabytes

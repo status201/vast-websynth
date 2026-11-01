@@ -3,11 +3,7 @@
 ```yaml
 id: performance-mode
 status: implemented
-version: 8   # v8: REQ-the-settings-modal-loads-on-click — the modal body is a lazy chunk; the tier-coloured button stays eager
-             # v7: REQ-scope-fps-and-fft-apply-live's pause is now SUPERVISED, not softened — the scope still
-             #     stops dead while hidden, and a ~1 Hz watchdog that returns on its
-             #     first line while hidden makes sure it starts again (scope.md REQ-a-watchdog-restarts-a-stalled-loop)
-             # v6: analyser fftSize halved per tier (256/512/1024)
+version: 8
 owner: core
 related:
   - architecture
@@ -98,7 +94,7 @@ differ only by live-applied scope fps + fftSize).
   the effective tier: a concrete tier passes through; `auto` → `detectTier()`.
   `sameAudioProfile(a, b)` is true iff two tiers share **every boot-time
   field**: `latencyHint`, `voiceCount`, `scheduleAheadS`, `reverbIrMaxS`,
-  `fxOversample` (v3). `fps` and `analyserFftSize` are **excluded** — they are
+  `fxOversample`. `fps` and `analyserFftSize` are **excluded** — they are
   applied live, not at boot, so they never force a reload.
 
 - **REQ-the-audio-profile-is-boot-only** — The **audio** profile (buffer, voice
@@ -175,7 +171,7 @@ differ only by live-applied scope fps + fftSize).
   `analyser` + `analyserL`/`analyserR`). Tiers run **256 / 512 / 1024** (weak /
   medium / strong; 1024 is the `EngineOptions` default when the field is
   absent). Boot seeds the analysers with the resolved tier's value (threaded via
-  `EngineOptions`); thereafter it is applied **live** (v5) via
+  `EngineOptions`); thereafter it is applied **live** via
   `Scope.setFftSize(n)`, which sets `analyser.fftSize` on all three and
   reallocates each channel's time-domain + frequency read buffers to match
   ([scope](scope.md) REQ-all-analysers-share-fft-settings). Because it
@@ -183,7 +179,7 @@ differ only by live-applied scope fps + fftSize).
   `sameAudioProfile` (so Medium↔Strong needs no reload).
 
 - **REQ-the-settings-modal-loads-on-click** — **The settings modal loads on
-  click** (v8, [runtime-performance](runtime-performance.md)
+  click** ([runtime-performance](runtime-performance.md)
   REQ-boot-cost-matches-the-request). The header button stays eager — it shows the
   resolved tier, and the pending pulse, from boot — and owns `bootTier` and its own
   re-colouring; `perf-settings-modal.ts` is imported on click and handed both, so

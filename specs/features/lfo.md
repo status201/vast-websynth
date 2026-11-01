@@ -3,28 +3,7 @@
 ```yaml
 id: lfo
 status: implemented
-version: 13                 # v13: LFO_DEST_SCALE (src/state/lfo-routing.ts) is the one depth table —
-                            #      LFO.update scales by it and mod-depth draws arcs from it, so the
-                            #      two copies of ±24/±0.5 that could drift apart are gone
-                            # v12: `sync` appended to LFO_DEST_LABELS (index 7, ±24 st into the
-                            #      sync pair's slave pitch) — oscillator-sync.md REQ-sync-is-a-modulation-destination
-                            # v11: REQ-the-auto-pan-reads-a-stereo-input — synthPan's input is forced to
-                            #      2 channels, so the sweep's law and the channel's level no
-                            #      longer depend on whether the reverb happens to be on (ADR-023)
-                            # v10: `otherLfo` removed from lfo-routing.ts — nothing called it
-                            # v9: REQ-lfo-sync-locks-rate-to-tempo's UI half is SUPERSEDED by tempo-lock.md — the
-                            #     rate knob carries the lock itself, so the standalone
-                            #     sync picker and the dim-in-place are both gone. The
-                            #     param, its encoding and the audio behaviour are
-                            #     unchanged.
-                            # v8: REQ-destinations-are-no-longer-exclusive's mutual exclusion is SUPERSEDED by the mod
-                            #     matrix; the two LFOs become its rows 0-1, keeping
-                            #     lfo.dest / lfo.amount unchanged (mod-matrix.md)
-                            # v7: REQ-there-are-two-lfos..15 — a second LFO (lfo2.*), mutually
-                            #     exclusive destinations, arbitrated PWM, tab pages
-                            # v6: REQ-lfo-sync-locks-rate-to-tempo — lfo.sync locks the rate to the tempo
-                            # v5: lfo.rate is exponentially tapered (REQ-lfo-rate-is-exponentially-tapered)
-                            # v4: `shape` destination — v3: `pulse` implemented
+version: 13
 owner: core
 related:
   - architecture
@@ -32,372 +11,217 @@ related:
   - filter-models        # owns the `shape` destination's target param
   - envelopes
   - effects              # the pan node sits at the end of the synth insert chain
-  - render-to-sampler    # the bank-render tap moved downstream of the panner
+  - render-to-sampler    # the bank-render tap reads the panner
   - oscillators          # owns pulse width; the `pulse` destination drives it
-  - panel-tabs           # v7: hosts the LFO 1 / LFO 2 pages
-  - dropdown             # v8: greying now serves mod-matrix REQ-per-voice-sources-cannot-drive-bus-destinations, not REQ-destinations-are-no-longer-exclusive
-  - mod-matrix           # v8: the LFOs are its rows 0-1; supersedes REQ-destinations-are-no-longer-exclusive
-  - tempo-lock           # v9: owns REQ-lfo-sync-locks-rate-to-tempo's control; the effects share it now
+  - panel-tabs           # hosts the LFO 1 / LFO 2 pages
+  - dropdown
+  - mod-matrix           # the LFOs are its rows 0-1
+  - tempo-lock           # owns the rate lock's control, shared with the effects
 source:
   - src/audio/lfo.ts
-  - src/audio/pwm.ts       # the `pulse` destination's control loop (v3)
+  - src/audio/pwm.ts
   - src/state/params.ts
   - src/audio/engine.ts    # panner construction + LFO fan-out
-  - src/audio/stereo.ts    # v11: forceStereo — REQ-the-auto-pan-reads-a-stereo-input
-  - src/state/lfo-routing.ts   # v8: the two-LFO vocabulary; the REQ-destinations-are-no-longer-exclusive rule is gone
-                               # v13: + LFO_DEST_SCALE, the per-destination depth table
-  - src/ui/panels/lfo-panel.ts # v7: the two-page panel
+  - src/audio/stereo.ts    # forceStereo
+  - src/state/lfo-routing.ts   # the two-LFO vocabulary + LFO_DEST_SCALE
+  - src/ui/panels/lfo-panel.ts # the two-page panel
 ```
 
 **Two** global low-frequency oscillators, each with a selectable destination, plus
-a mod wheel that adds into the first one's depth.
+a mod wheel that adds into the first one's depth. Further routing (many
+destinations per source, per-route depth) is the [mod matrix](mod-matrix.md).
 
 ## Background / Why
 
 An LFO provides cyclic modulation (vibrato, tremolo, filter wobble). Each is a
-single engine-level node (not per-voice), routed to one destination at a time. The
-**mod wheel** sums into LFO 1's amount so a performance gesture can bring modulation
-in on top of the patched base amount — clamped to `[0, 1]` so it never overshoots.
-
-Until v7 there was exactly one LFO, which made a patch choose between a filter
-sweep *and* a vibrato. v7 adds an identical second LFO (`lfo2.*`), off by default.
-The two are kept on **different destinations** so the pair reads as two independent
-movements rather than one doubled one — and because `pulse`, alone among the
-destinations, genuinely cannot be shared (REQ-pulse-is-arbitrated).
+single engine-level node (not per-voice). The **mod wheel** sums into LFO 1's
+amount so a performance gesture brings modulation in on top of the patched base,
+clamped to `[0, 1]`. A second, identical LFO (`lfo2.*`, off by default) lets a
+patch have a filter sweep *and* a vibrato.
 
 ## Requirements
 
 - **REQ-each-lfo-has-four-controls** — Each LFO has rate / amount / waveform /
-  destination.
+  destination, plus the tempo lock `sync` (REQ-lfo-sync-locks-rate-to-tempo):
+  five params per LFO.
 - **REQ-mod-wheel-sums-into-lfo-one** — LFO 1's effective amount = `min(1,
-  lfo.amount + master.modWheel)`; **both** `lfo.amount` and `master.modWheel`
-  recompute it. LFO 2's effective amount is `lfo2.amount` alone — see
-  REQ-the-mod-wheel-feeds-lfo-one-only.
+  lfo.amount + master.modWheel)`; **both** inputs recompute it. LFO 2's is
+  `lfo2.amount` alone (REQ-the-mod-wheel-feeds-lfo-one-only).
 - **REQ-destination-is-one-of-the-labels** — Destination is one of the
-  `LFO_DEST_LABELS` (range `0..7`, v12). Labels are **append-only**: an index is
-  a stored value in every preset, song and share link, so reordering silently
-  rewrites saved patches.
-- **REQ-pan-sweeps-a-stereo-panner** — (v2) The `pan` destination sweeps a
-  single `StereoPannerNode` on the **synth bus**, placed after the insert chain
-  and before `preMaster`. At full amount the sweep is hard L↔R;
-  `StereoPannerNode.pan` clamps to `±1` by construction, so the destination is
-  bounded for any amount. Because the LFO is global (one oscillator shared by
-  all voices), a bus panner and a per-voice panner are audibly identical here —
-  the bus node is chosen so that only one node pans, instead of one per voice,
-  and so that the insert chain upstream of the reverb stays 1-channel (ADR-010,
-  *cheap*; same reasoning as [ladder-filter](ladder-filter.md)
-  REQ-the-filter-worklet-is-mono). The reverb itself is mono-in / stereo-out — a
-  2-channel decorrelated IR — so it, not the panner, is where the synth channel
-  first becomes stereo; the panner then pans that stereo signal rather than
-  up-mixing a mono one. Either way the CPU argument holds for the four inserts
-  ahead of it and for the eight voices behind them.
-- **REQ-the-auto-pan-reads-a-stereo-input** — (v11) **`synthPan`'s input is
-  forced to two channels.** REQ-pan-sweeps-a-stereo-panner's last sentence was
-  true only while the reverb was *on*. A `StereoPannerNode` passes a **stereo**
-  input through untouched at centre but applies the **equal-power** law to a
-  **mono** one, and with the reverb bypassed ([ADR-012](../decisions/adr-012-true-bypass-disconnects.md)
-  disconnects its wet edge, so nothing upstream supplies a second channel) the
-  synth channel arrived mono — measured at exactly **3.01 dB** down, ratio
-  0.7075, on a held note with the reverb off against the same note with the
-  reverb on and its mix at 0. Switching the reverb on therefore also made the
-  dry synth 3 dB louder, and changed the sweep from a point source to a stereo
-  fold. One node's channel count decided the level of the whole channel.
-
-  `forceStereo` (`src/audio/stereo.ts`) pins `synthPan` to `channelCount 2`,
-  `channelCountMode 'explicit'`, `channelInterpretation 'speakers'`, so a mono
-  input up-mixes to `L = R = x` and passes at unity whatever is upstream. The
-  reverb-on path is unchanged (it was already 2-channel); the reverb-off path
-  gains the 3 dB it should always have had, and the sweep uses one law
-  everywhere. This is what lets [sequencer](sequencer.md)
-  REQ-the-spread-stage-engages-off-centre splice per-track pan in and out without
-  the level moving. The same helper is what the sampler's per-slot pan already
-  did by hand ([sampler](sampler.md) REQ-each-slot-has-a-channel).
-- **REQ-amplitude-destinations-are-smoothed** — (v2) The **amplitude-domain**
-  destinations (`amp`, `pan`) — and, from v4, the coefficient-domain `shape`
-  (REQ-shape-destination-sweeps-the-pole-mix) — are fed through a shared
-  one-pole-ish lowpass (`lowpass`, 200 Hz, `Q = 0.5` — critically damped, no
-  overshoot), so a `square`/`saw` waveform's instantaneous jump becomes a ~2 ms
-  slew instead of a click. The **frequency-domain** destinations (`pitch`,
-  `cutoff`) are fed from the oscillator directly: a stepped octave or filter
-  jump is a musical event, not a click. At LFO rates the smoothing is inaudible
-  on shape (−0.02 dB, ~6° at 20 Hz). Each LFO owns its own smoothing filter.
-  - (v8) `modTap`, the unit-amplitude output the [mod matrix](mod-matrix.md) reads,
-    is a **fourth consumer of the smoothed path**. It has to be: a matrix route can
-    land on any destination, including the amplitude-domain ones, and the tap cannot
-    know which in advance. The same "inaudible at LFO rates" measurement is what
-    makes that safe for the frequency-domain destinations it may also feed.
-- **REQ-pulse-destination-sweeps-width** — (v3) The `pulse` destination sweeps
-  oscillator **pulse width**. It is the one destination with **no audio-node
-  output**: a native `OscillatorNode` has no width `AudioParam`, so it is driven
-  by `PwmDriver` from a JS-side mirror of the LFO shape rather than by a gain
-  node. Its contract, rate cap and cost budget live in
-  [oscillators](oscillators.md) REQ-width-swaps-a-precomputed-wave and the four
-  PWM rules after it, ending at oscillators.md
-  REQ-a-background-tab-throttles-pwm. Because one LFO holds one destination,
-  that LFO's JS mirror and its own audio oscillator are never both in use, so
-  they cannot drift against each other in any way a listener can hear — still
-  true with two LFOs, since each owns its own oscillator and only the driver's
-  owner runs a mirror (REQ-pulse-is-arbitrated).
-- **REQ-shape-destination-sweeps-the-pole-mix** — (v4) The `shape` destination
-  sweeps the POLY filter's pole-mix morph, `filter.shape`
+  `LFO_DEST_LABELS` (range `0..7`). Labels are **append-only**: an index is a
+  stored value in every preset, song and share link.
+- **REQ-pan-sweeps-a-stereo-panner** — (v2) The `pan` destination sweeps one
+  `StereoPannerNode` (`synthPan`) on the **synth bus**, after the insert chain and
+  before `preMaster`. `pan` clamps to `±1` by construction, so the destination is
+  bounded for any amount. The LFO is global, so a bus panner sounds identical to
+  per-voice panners, and it is one node instead of eight. It also keeps the head of
+  the insert chain 1-channel (ADR-010; where the chain turns 2-channel is
+  [effects](effects.md) REQ-the-synth-chain-order).
+- **REQ-the-auto-pan-reads-a-stereo-input** — (v11) **`synthPan`'s input is forced
+  to two channels.** A `StereoPannerNode` passes stereo through at centre but
+  applies the equal-power law to **mono**, which is 3.01 dB down. So whether
+  anything upstream happened to be 2-channel decided the whole channel's level.
+  `forceStereo` (`src/audio/stereo.ts`) pins `channelCount 2`, `'explicit'`,
+  `'speakers'`, so mono up-mixes to `L = R = x` at unity. That is what lets
+  per-track pan splice in and out without the level moving
+  ([sequencer](sequencer.md) REQ-the-spread-stage-engages-off-centre, ADR-023). The
+  sampler's per-slot pan uses the same helper ([sampler](sampler.md)
+  REQ-each-slot-has-a-channel).
+- **REQ-amplitude-destinations-are-smoothed** — (v2) `amp`, `pan` and `shape`
+  (REQ-shape-destination-sweeps-the-pole-mix) are fed through a shared lowpass
+  (200 Hz, `Q = 0.5`, critically damped). That turns a square/saw jump into a
+  ~2 ms slew instead of a click. `pitch`, `cutoff` and `sync` are fed raw: a
+  stepped octave is a musical event. Each LFO owns its own smoothing filter.
+  `modTap`, the unit-amplitude output the [mod matrix](mod-matrix.md) reads, is
+  also on the smoothed path, since a route may land on any destination. That is
+  inaudible at LFO rates (−0.02 dB at 20 Hz).
+- **REQ-pulse-destination-sweeps-width** — (v3) `pulse` sweeps oscillator pulse
+  width. It is the one destination with **no audio-node output**: a native
+  `OscillatorNode` has no width `AudioParam`, so `PwmDriver` drives it from a
+  JS-side mirror of the LFO shape. Contract, rate cap and cost live in
+  [oscillators](oscillators.md) REQ-width-swaps-a-precomputed-wave through
+  oscillators.md REQ-a-background-tab-throttles-pwm. One LFO holds one
+  destination, so its mirror and its own oscillator are never both in use.
+- **REQ-shape-destination-sweeps-the-pole-mix** — (v4) `shape` sweeps the POLY
+  filter's pole-mix morph `filter.shape` by `±0.5` around the knob
   ([filter-models.md](filter-models.md)
-  REQ-shape-morphs-the-pole-mix/REQ-shape-is-an-lfo-destination) — the LFO
-  sweeps the filter's *type*, not just its cutoff. Depth is `±0.5` around the
-  knob's position. Despite being frequency-domain in effect, it is fed from the
-  **smoothed** path like `amp`/`pan`, not the raw path like `cutoff`: it moves
-  filter *coefficients*, so a `square` waveform's instantaneous jump is a click,
-  not a musical step. It is a no-op under the LADDER model, which ignores
-  `filter.shape` (filter-models REQ-shape-is-poly-only).
-- **REQ-lfo-rate-is-exponentially-tapered** — (v5) `lfo.rate` is **exponentially
-  tapered**. Rate is perceived in octaves, not in Hz: linearly, the musically
-  useful sub-1 Hz region occupied the first ~5% of the knob's travel (~9 px of a
-  200 px drag) while half the dial was spent between 10 and 20 Hz. `exp` spreads
-  it evenly — each equal turn is a constant *ratio*, so 0.05→0.5→5 Hz are
-  equally spaced, matching how every hardware LFO rate pot is wired. `min = 0.05
-  > 0`, which `exp` requires.
-  - **Stored values are untouched.** Presets, songs and share links hold the
-    rate in Hz, so every saved patch loads at exactly the rate it always had and
-    `preset-validate` sees no change. The registered range stays `0.05..20`.
-  - **One thing does change**: motion-sequencer anchors are stored in *taper
-    space* (`MotionStep.x/y`, 0..1) and resolved via `fromNorm` at play time
-    ([motion-sequencer](motion-sequencer.md)), so a motion lane whose axis is
-    assigned to `lfo.rate` replays at a different rate than it was recorded at —
-    a mid-travel anchor moves from ~10 Hz to 1 Hz. No factory demo assigns that
-    axis. Accepted rather than migrated: the alternative is a song-format
-    version that rewrites stored coordinates per axis param, which is a lot of
-    machinery for a lane nothing ships.
-
-- **REQ-lfo-sync-locks-rate-to-tempo** — (v6) **`lfo.sync` locks the rate to the
-  tempo.** A free-running LFO drifts against the song: set a 3 Hz wobble at 120
-  BPM, change to 128, and it no longer lines up with anything. `lfo.sync` is a
-  discrete param whose index 0 is `free` — **the default, and an exact no-op** —
-  followed by the note divisions from `utils/tempo.ts` (`1/1`, `1/1 D`, `1/1 T`,
-  … `1/32 T`). Rules:
-  - While synced, the effective rate is `1 / (beats * 60 / bpm)` and is
-    recomputed on **every** `transport.bpm` change, so the wobble tracks a tempo
-    ramp or an incoming MIDI clock without the user touching anything.
-  - `lfo.rate` itself is **not rewritten**. The stored patch value is what the
-    knob returns to when sync goes back to `free`, and a synced patch that loads
-    on a build without this param still sounds as it always did (ADR-006).
-  - ~~The rate knob **dims** while synced~~ — **superseded in v9.** The knob now
-    carries the lock itself: the note glyph in its label row toggles `sync`, and
-    the chosen division replaces the dial ([tempo-lock](tempo-lock.md) REQ-the-lock-is-a-note-glyph/REQ-locked-the-division-replaces-the-dial).
-    The standalone full-width sync picker is gone with it, freeing a row on both
-    LFO pages. The dim was right while the picker sat two rows below — the knob
-    had to keep its place so you could see what it would return to. It is wrong
-    once the picker *is* the knob: two controls would say the same thing, one of
-    them inert. Nothing about the param or the audio changed.
-  - The division list is the **same table** the tempo-sync help badges recommend
-    from (tempo-sync-help.md), so the advisory and the real thing cannot
-    disagree. That spec's "Open questions" proposed exactly this promotion — and
-    v9 completes it, since the wah, phaser and delay now share this lock
-    ([tempo-lock](tempo-lock.md)) rather than the LFO having a private one.
-  - `pwm.setRate` follows the same effective rate, since PWM rides the LFO
-    (REQ-pulse-destination-sweeps-width). With two LFOs, "the LFO" means the one that owns the driver
-    (REQ-pulse-is-arbitrated).
-
-- **REQ-there-are-two-lfos** — (v7) **There are two LFOs**, `lfo.*` and
-  `lfo2.*`, identical in every respect except
-  REQ-the-mod-wheel-feeds-lfo-one-only. Both param sets are produced by **one
-  `lfoParams(prefix)` factory** in `registerDefaults`, so range, default, taper,
-  format and label array cannot drift apart — "the same as the first one" is a
-  structural guarantee, not a comment. Both reuse `WAVE_LABELS`,
-  `LFO_DEST_LABELS` and `SYNC_LABELS` verbatim
-  (REQ-destination-is-one-of-the-labels's append-only rule covers both), and v9
-  shares `syncParam(prefix)` — the same `.sync` def the effects get
-  ([tempo-lock](tempo-lock.md) REQ-sync-defaults-to-free) — so the guarantee now
-  spans the LFOs *and* the wah/phaser/delay rather than the pair alone.
-  `lfo2.dest` defaults to `0` (`off`) **and** `lfo2.amount` to `0` — a double
-  no-op, so every preset, song and share link that predates v7 sounds identical
-  (ADR-006). Being additive scalar params, they need **no song-format version
-  bump** (ADR-007); `SONG_VERSION` stays 7.
-
-- **REQ-the-mod-wheel-feeds-lfo-one-only** — (v7) **The mod wheel feeds LFO 1
-  only.** `master.modWheel` sums into `lfo.amount`
-  (REQ-mod-wheel-sums-into-lfo-one) and does not reach `lfo2.amount`, which is
-  set by its knob alone. This is the one deliberate asymmetry between the two
-  LFOs. The wheel is a performance gesture with one classic meaning — bring in
-  the vibrato — and a wheel that simultaneously opens a second, unrelated
-  modulation is a single gesture with two outcomes (ADR-014 law 2). LFO 2 is the
-  patched, set-and-forget modulator; LFO 1 is the played one.
-
-- **REQ-destinations-are-no-longer-exclusive** — (v7) ~~**Destinations are
-  mutually exclusive, in the UI.**~~ **Superseded in v8 by
-  [mod-matrix](mod-matrix.md) REQ-two-rows-may-share-a-destination.** The two
-  LFOs may now hold the same destination, and it sums — which
-  REQ-duplicated-destinations-sum-and-stay-bounded below already specified and
-  the audio graph already did. `blockedDests` is deleted along with the
-  `paramHint` that named the holder; `lfo-routing.ts` keeps the prefix
-  vocabulary the two-page panel still needs.
-
-  The rule was never musical: it existed because each LFO had exactly **one**
-  destination slot, so sharing one meant losing a route. Once depth is per-route
-  that cost is gone, and blocking the combination only withheld something the
-  engine handled correctly. It also never was a data invariant — `preset-validate`
-  and `song-validate` always accepted both `dest` params anywhere in `0..6`
-  **independently** (rejecting a duplicate would break ADR-007's lenient additive
-  stance), so a hand-authored file could already reach the state the UI forbade.
-  **Removing the block therefore cannot change how any saved sound plays**; it only
-  stops the UI from disagreeing with the data model.
-
-  What replaces it is a rule with an actual reason behind it:
-  [mod-matrix](mod-matrix.md) REQ-per-voice-sources-cannot-drive-bus-destinations greys a **bus-wide** destination while a
-  **per-voice** source is selected, because that combination is genuinely
-  ill-defined. The greying idiom itself — disabled and visible, never removed, with
-  the reason readable without hover (ADR-014 law 6) — is inherited unchanged.
-
-- **REQ-duplicated-destinations-sum-and-stay-bounded** — (v7) **Duplicated
-  destinations sum, and stay bounded.** Every destination except `pulse` is a
-  `GainNode` into a summing `AudioParam`, so a hand-authored file with both LFOs
-  on one destination is well-defined rather than undefined: pitch `±2400` cents,
-  cutoff `±48` semitones (still additive in semitone space — ADR-005 holds),
-  shape `±1.0` around the knob, amp `0.0..2.0` around the tremolo VCA's base
-  `1.0` (the trough touches silence exactly and never inverts), and pan clamped
-  to `±1` by `StereoPannerNode` (REQ-pan-sweeps-a-stereo-panner's bounding
-  argument holds unchanged for two sources). `sync` sums to `±48` semitones
-  around the SYNC knob, and the sync worklet clamps the total to `−24..72`
-  ([oscillator-sync](oscillator-sync.md)).
-
-- **REQ-pulse-is-arbitrated** — (v7) **`pulse` is arbitrated, because it is a
-  parameter write and not a summed connection.** There is one shared `PwmDriver`
-  (REQ-pulse-destination-sweeps-width), and it takes a **source index** and
-  tracks an owner:
-  - A source claims the driver when it selects `pulse` and the driver is either
-    unowned or owned by a **higher** index. It releases when it leaves `pulse`.
-    `setRate` / `setWave` / `setAmount` from a non-owner are ignored.
-  - **Lowest index wins**, not last-to-claim. `bus.restore()` iterates a
-    snapshot's own key order, which is JSON insertion order and so not
-    deterministic across hand-authored files; lowest-index-wins is file-order
-    independent and matches "LFO 1 got there first".
-  - So with both on `pulse`, LFO 1 sweeps the width and **LFO 2's selection is
-    inert** — harmless, since `pulse` has no output node and all five of that
-    LFO's gains sit at `0`.
-  - The owner check is what makes the shared driver safe at all: without it,
-    LFO 2 merely *changing its destination away from* `pulse` would call
-    `setDest(non-pulse)` and stop LFO 1's live sweep.
-
-- **REQ-the-two-lfos-share-one-panel** — (v7) **The two LFOs share one panel, as
-  two tab pages.** The faceplate is an 8-column grid and all eight columns are
-  taken, so LFO 2 is a second page in the LFO panel rather than a ninth panel.
-  The [panel-tabs](panel-tabs.md) strip **is** the panel's header — `LFO 1` and
-  `LFO 2` split the row evenly and there is no separate `LFO` title, so the pair
-  costs no more vertical space than any other panel's heading (panel-tabs
-  REQ-lfo-sync-locks-rate-to-tempo/REQ-there-are-two-lfos). Both pages stay in
-  the DOM with live subscriptions, so the hidden one is already correct when
-  revealed. The selected page is **session-only view state**: never a param,
-  never persisted (panel-tabs.md REQ-selected-page-is-session-only). Because a
-  modulating LFO on the hidden page would otherwise be invisible state, its tab
-  carries a **lamp** whenever `dest !== off && amount > 0` (ADR-014 law 5). The
-  unselected tab is marked by the dashed title rule under it rather than by a
-  dark well (panel-tabs.md REQ-the-strip-replaces-the-title, v3), so the lamp
-  sits on the panel's own ground: an amber dot with a glow, which reads there
-  just as it did in the well.
+  REQ-shape-morphs-the-pole-mix/REQ-shape-is-an-lfo-destination). It moves
+  coefficients, so it is smoothed like `amp`. It is a no-op under LADDER
+  (filter-models REQ-shape-is-poly-only).
+- **REQ-lfo-rate-is-exponentially-tapered** — (v5) `lfo.rate` has an `exp` taper
+  over `0.05..20` Hz. Rate is heard in octaves, so equal turns are equal ratios and
+  the knob's midpoint is 1 Hz. Stored values are Hz and unchanged. Motion anchors
+  are stored in taper space, so a lane on `lfo.rate` resolves differently than
+  under a linear taper. That was accepted rather than migrated: no demo assigns it.
+- **REQ-lfo-sync-locks-rate-to-tempo** — (v6) `lfo.sync` index 0 is `free`, which
+  is the default and an exact no-op. The rest are the note divisions from
+  `utils/tempo.ts`. While synced, the rate is `1 / (beats * 60 / bpm)`,
+  recomputed on every `transport.bpm` change, so it follows a ramp or a MIDI clock.
+  `lfo.rate` is **not rewritten**; it is what the knob returns to on `free`. The
+  control is the knob's own note glyph, and the chosen division replaces the dial
+  ([tempo-lock](tempo-lock.md)
+  REQ-the-lock-is-a-note-glyph/REQ-locked-the-division-replaces-the-dial). The
+  divisions are the table the tempo-sync help badges recommend from. `pwm.setRate`
+  follows the effective rate of whichever LFO owns the driver
+  (REQ-pulse-is-arbitrated).
+- **REQ-there-are-two-lfos** — (v7) `lfo.*` and `lfo2.*` are identical except for
+  REQ-the-mod-wheel-feeds-lfo-one-only. Both come from **one
+  `lfoParams(prefix)` factory**, so they cannot drift apart. They reuse
+  `WAVE_LABELS`, `LFO_DEST_LABELS` and `SYNC_LABELS`, and `syncParam(prefix)` is
+  the same def the effects use ([tempo-lock](tempo-lock.md)
+  REQ-sync-defaults-to-free). `lfo2.dest` defaults to `off` **and** `lfo2.amount`
+  to `0`, a double no-op (ADR-006). Additive scalars need no song-format bump
+  (ADR-007).
+- **REQ-the-mod-wheel-feeds-lfo-one-only** — (v7) `master.modWheel` sums into
+  `lfo.amount` only. The wheel has one classic meaning, bringing in the vibrato,
+  and opening a second modulation too would be one gesture with two outcomes
+  (ADR-014 law 2). LFO 2 is the patched modulator; LFO 1 is the played one.
+- **REQ-destinations-are-no-longer-exclusive** — (v7) The two LFOs may hold the
+  same destination, and it sums
+  (REQ-duplicated-destinations-sum-and-stay-bounded;
+  [mod-matrix](mod-matrix.md) REQ-two-rows-may-share-a-destination). The validators
+  always accepted both `dest` params independently, so allowing it in the UI
+  changes no saved sound. The only destination greying is the matrix's per-voice
+  vs bus-wide rule ([mod-matrix](mod-matrix.md)
+  REQ-per-voice-sources-cannot-drive-bus-destinations, in
+  `src/state/mod-routing.ts`). It greys rather than removes, and the reason is
+  readable without hover (ADR-014 law 6).
+- **REQ-duplicated-destinations-sum-and-stay-bounded** — (v7) Every destination
+  except `pulse` is a `GainNode` into a summing `AudioParam`, so both LFOs on one
+  destination is well-defined: pitch `±2400` cents, cutoff `±48` semitones (still
+  additive, ADR-005), shape `±1.0`, amp `0.0..2.0` around the VCA's base `1.0`
+  (touches silence, never inverts), pan clamped to `±1`, sync `±48` semitones
+  (the sync worklet clamps the total to `−24..72`, [oscillator-sync](oscillator-sync.md)).
+- **REQ-pulse-is-arbitrated** — (v7) `pulse` is a parameter write, not a summed
+  connection, so the one shared `PwmDriver` takes a **source index** and tracks an
+  owner:
+  - a source claims it on selecting `pulse` when it is unowned or owned by a
+    **higher** index, and releases it on leaving. Setters from a non-owner are
+    ignored;
+  - **lowest index wins**, because `bus.restore()` iterates a snapshot in JSON
+    insertion order, which a hand-authored file does not fix;
+  - with both on `pulse`, LFO 2's selection is inert (all six of its output gains
+    sit at `0`);
+  - the owner check is what stops LFO 2 *leaving* `pulse` from stopping LFO 1's
+    sweep.
+- **REQ-the-two-lfos-share-one-panel** — (v7) The faceplate's eight columns are
+  full, so LFO 2 is a second page of the LFO panel. The [panel-tabs](panel-tabs.md)
+  strip **is** the header (`LFO 1` | `LFO 2`). Both pages stay mounted and
+  subscribed. The selected page is session-only view state
+  (panel-tabs.md REQ-selected-page-is-session-only). A tab carries a **lamp**
+  whenever its LFO modulates (`dest !== off && amount > 0`), so a hidden LFO is
+  never invisible state (ADR-014 law 5).
 
 ## Technical design
 
 ### Data shapes (registry)
 
-Both LFOs register the same five params, emitted by one `lfoParams(prefix)`
-factory for `prefix` in `lfo`, `lfo2` (REQ-there-are-two-lfos):
+Both LFOs register the same five params via `lfoParams(prefix)`, prefix in `lfo`, `lfo2`:
 
 ```yaml
-<prefix>.rate:   { range: 0.05..20, default: 4, format: Hz, taper: exp }  # v5, REQ-lfo-rate-is-exponentially-tapered
+<prefix>.rate:   { range: 0.05..20, default: 4, format: Hz, taper: exp }
 <prefix>.amount: { range: 0..1, default: 0 }            # no-op default
 <prefix>.wave:   { discrete, labels: WAVE_LABELS, range: 0..3, default: 0 }
-<prefix>.dest:   { discrete, labels: LFO_DEST_LABELS, range: 0..7, default: 0 }  # v4: +shape, v12: +sync
-<prefix>.sync:   { discrete, labels: SYNC_LABELS, range: 0..18, default: 0 }     # v6, REQ-lfo-sync-locks-rate-to-tempo
-master.modWheel: { range: 0..1, default: 0 }            # sums into LFO 1 only (REQ-the-mod-wheel-feeds-lfo-one-only)
+<prefix>.dest:   { discrete, labels: LFO_DEST_LABELS, range: 0..7, default: 0 }
+<prefix>.sync:   { discrete, labels: SYNC_LABELS, range: 0..18, default: 0 }
+master.modWheel: { range: 0..1, default: 0 }            # sums into LFO 1 only
 ```
 
 `LFO_DEST_LABELS = ['off', 'cutoff', 'pitch', 'amp', 'pulse', 'pan', 'shape', 'sync']`.
-`sync` (v12) sums ±24 semitones at full amount into each voice's sync junction —
+`sync` sums ±24 semitones at full amount into each voice's sync junction. It is
 inert until oscillator sync is engaged ([oscillator-sync](oscillator-sync.md)
-REQ-sync-is-a-modulation-destination). Like pitch and cutoff it is
-frequency-domain and unsmoothed: a stepped slave pitch is a timbre jump.
-Index `0` stays `off`, so the default remains a no-op (ADR-006), and appending
-keeps every value an existing patch can hold (`0..5`) at its original meaning.
-`SYNC_LABELS` (`free` + 18 divisions) comes from `utils/tempo.ts`, index `0` =
-`free`. It used to be re-exported as `LFO_SYNC_LABELS`; v9 dropped the alias when
-the effects started using the same list, since there is no longer an LFO-specific
-division set to name.
+REQ-sync-is-a-modulation-destination), and raw like pitch. `SYNC_LABELS` is
+`free` + 18 divisions from `utils/tempo.ts`.
 
 ### Contract / public interface
 
 ```yaml
-LFO:                   # one instance per LFO; `new LFO(ctx)` twice
-  toPitch:  GainNode   # cents      -> osc detune  (raw)
+LFO:                   # one instance per LFO
+  toPitch:  GainNode   # cents      -> every pitchTargets() entry (raw)
   toCutoff: GainNode   # semitones  -> filter cutoffNote (raw)
   toAmp:    GainNode   # linear     -> tremolo gain (smoothed)
-  toPan:    GainNode   # -1..1      -> synth bus panner.pan (smoothed, v2)
-  toShape:  GainNode   # -0.5..0.5  -> every voice's filter.shape (smoothed, v4)
-  toSync:   GainNode   # semitones  -> every voice's sync junction (raw, v12)
+  toPan:    GainNode   # -1..1      -> synthPan.pan (smoothed)
+  toShape:  GainNode   # -0.5..0.5  -> every voice's filter.shape (smoothed)
+  toSync:   GainNode   # semitones  -> every voice's sync junction (raw)
+  modTap:   AudioNode  # unit-amplitude smoothed output, read by the mod matrix
   setRate(hz) / setWave(idx) / setAmount(0..1) / setDest(idx)
-  bind(bus, prefix, pulse, src, modWheelId?)   # v7: self-wires its own params
+  bind(bus, prefix, pulse, src, modWheelId?)   # self-wires its own params
 # `pulse` has no output node — see PwmDriver (oscillators.md).
-# toPitch reaches each voice's pitchTargets() — the three detunes + the sync pair's junction.
-LFO_DEST_SCALE:        # src/state/lfo-routing.ts (v13) — full-scale depth per destination name
+LFO_DEST_SCALE:        # src/state/lfo-routing.ts — full-scale depth per destination
   { pitch: 1200, cutoff: 24, amp: 0.5, pan: 1, shape: 0.5, sync: 24 }
-  # read by LFO.update (the gains) AND mod-depth.ts (the knob arcs): one table, so the arc cannot lie
-
-LfoPulseSink:          # v7: the slice of PwmDriver an LFO may drive. Structural,
-  setDest(src, d)      #  so lfo.ts imports nothing from pwm.ts and the existing
-  setRate(src, hz)     #  pwm -> lfo import stays a one-way edge.
+  # read by LFO.update (the gains) AND mod-depth.ts (the knob arcs): one table
+LfoPulseSink:          # the slice of PwmDriver an LFO may drive; structural,
+  setDest(src, d)      #  so lfo.ts imports nothing from pwm.ts
+  setRate(src, hz)
   setWave(src, idx)
   setAmount(src, a)
+LFO_PREFIXES:  ['lfo', 'lfo2']   # src/state/lfo-routing.ts
 ```
 
-`bind` is the house param-wiring pattern (ADR-008, as `Effect.bind(bus, prefix)`):
-each LFO subscribes its own `${prefix}.{rate,sync,amount,wave,dest}` plus
-`transport.bpm`, and `modWheelId` only when given. The rate/sync/BPM trio goes
-through the shared `bindTempoLocked` ([tempo-lock](tempo-lock.md) REQ-audio-resolves-the-lock-in-one-place) — PWM
-rides the same callback, so it cannot disagree with the oscillator about the
-effective rate (REQ-pulse-destination-sweeps-width/REQ-pulse-is-arbitrated) — which is LFO 1 only (REQ-the-mod-wheel-feeds-lfo-one-only).
-Putting the mod-wheel sum here rather than in a closure inside the private
-`Engine.subscribeParams()` is what makes it unit-testable against a mock context.
-
-`src/state/lfo-routing.ts` keeps the two-LFO vocabulary and **loses only the rule**:
-
-```yaml
-LFO_PREFIXES:  ['lfo', 'lfo2']
-# otherLfo(p) — DELETED: it had no caller once blockedDests went
-# blockedDests(mine, theirs) — DELETED with REQ-destinations-are-no-longer-exclusive (v8)
-```
-
-What greys a destination now is the per-voice/bus-wide rule in
-[mod-matrix](mod-matrix.md) REQ-per-voice-sources-cannot-drive-bus-destinations, which lives in `src/state/mod-routing.ts` in exactly
-this shape — pure, so the panel and the audio layer cannot disagree.
-
-Depth at full amount, per destination: pitch `±1200` cents, cutoff `±24`
-semitones, amp `±0.5` linear (added to the tremolo VCA's base `1.0`), pan `±1.0`,
-shape `±0.5` (v4). Only the active destination's gain is non-zero; the rest ramp
-to `0`.
+`bind` follows ADR-008. Each LFO subscribes its own params, plus `transport.bpm`,
+plus `modWheelId` when given (LFO 1 only). The rate/sync/BPM trio goes through
+`bindTempoLocked` ([tempo-lock](tempo-lock.md)
+REQ-audio-resolves-the-lock-in-one-place), and PWM rides the same callback. Only
+the active destination's gain is non-zero; the rest ramp to `0`.
 
 ### Layer touchpoints
 
 ```yaml
-engine (subscribeParams):                    # v7: two bind calls replace the block
+engine (subscribeParams):
   this.lfo.bind(bus, 'lfo',  this.pwm, 0, 'master.modWheel')
-  this.lfo2.bind(bus, 'lfo2', this.pwm, 1)   # no mod wheel — REQ-the-mod-wheel-feeds-lfo-one-only
+  this.lfo2.bind(bus, 'lfo2', this.pwm, 1)   # no mod wheel
   osc{1,2}.pulseWidth -> this.pwm.setBase(i, x)   # stays in Engine: osc-owned
-  # bind() must run after init(), which builds this.pwm. It already does:
-  # subscribeParams dereferences this.pwm.
+  # bind() runs after init(), which builds this.pwm
 engine (construction):
-  connectLfoToVoice(lfo, v)  # the 6 per-voice connects, called once per LFO per voice
+  connectLfoToVoice(lfo, v)  # the per-voice connects, once per LFO per voice
   lfo.toPan, lfo2.toPan -> synthPan.pan      # two GainNodes, one AudioParam = sum
-graph (v2):
-  per LFO:       osc -> toPitch, toCutoff                    # raw
-                 osc -> smooth(lowpass 200Hz Q0.5) -> toAmp, toPan, toShape
-  synth bus:     voiceBus -> synthFx(dist..reverb) -> synthPan -> preMaster
-                 synthPan  -> bankRenderNode.input           # tap moved past the panner
+graph:
+  per LFO:       osc -> toPitch, toCutoff, toSync                 # raw
+                 osc -> smooth(lowpass 200Hz Q0.5) -> toAmp, toPan, toShape, modTap
+  synth bus:     voiceBus -> synthFx -> synthPan -> preMaster
+                 synthPan  -> bankRenderNode.input   # the render captures the pan
 ui: src/ui/panels/lfo-panel.ts (both pages) + mod-wheel control
 ```
-
-When the destination is the filter, modulation is additive in **semitones** —
-the same invariant as [ladder-filter](ladder-filter.md) and [envelopes](envelopes.md).
-
-The bank-render tap (see [render-to-sampler](render-to-sampler.md)) reads from
-the panner, not the FX tail, so a rendered bank captures the pan movement the
-user heard.
 
 ## Scenarios (BDD)
 
@@ -413,12 +237,10 @@ Scenario: Amount is clamped at full (edge)
   Then the depth used is the full-scale value, not 1.3x it
 # pinned by: tests/audio/lfo.test.ts
 
-Scenario: The synth channel's level does not depend on the reverb (v11, regression, REQ-the-auto-pan-reads-a-stereo-input)
+Scenario: The synth channel's level does not depend on the reverb (regression, REQ-the-auto-pan-reads-a-stereo-input)
   Given a held note with the synth reverb bypassed
   And the same held note with the reverb on and its mix at 0
-  Then the two render at the same level
-  And before v11 the bypassed one was 3.01 dB quieter, because synthPan
-    applied the equal-power law to a mono input
+  Then the two render at the same level, not 3.01 dB apart
 # pinned by: tests/audio/engine-stereo.test.ts (channel config), and by ear per ADR-010
 
 Scenario: Selecting pan drives the synth bus panner
@@ -438,152 +260,135 @@ Scenario: Only the amplitude-domain destinations are smoothed (edge)
   And toPitch and toCutoff are fed from the oscillator directly
 # pinned by: tests/audio/lfo.test.ts
 
-Scenario: Selecting shape sweeps the POLY pole mix (v4)
+Scenario: Selecting shape sweeps the POLY pole mix (REQ-shape-destination-sweeps-the-pole-mix)
   Given lfo.dest is set to "shape" and lfo.amount is 1
   Then toShape's gain ramps to 0.5 and every other destination gain ramps to 0
   And toShape is fed through the smoothing lowpass, not the raw oscillator
 # pinned by: tests/audio/lfo.test.ts
 
 Scenario: An existing patch's destination index is unchanged
-  Given a preset saved before v2 with any "lfo.dest" in 0..4
+  Given a preset saved with any "lfo.dest" in 0..4
   When it is loaded
   Then validation accepts it and index 3 is still "amp"
   And index 6 is now accepted, while 7 is still rejected
 # pinned by: tests/state/preset-validate.test.ts
 
-Scenario: The rate knob moves in octaves, not in Hz (v5, REQ-lfo-rate-is-exponentially-tapered)
+Scenario: The rate knob moves in octaves, not in Hz (REQ-lfo-rate-is-exponentially-tapered)
   Given lfo.rate is exponentially tapered over 0.05..20
   Then the knob's midpoint is 1 Hz, not 10 Hz
   And equal turns anywhere on the dial multiply the rate by the same factor
 # pinned by: tests/state/params.test.ts
 
-Scenario: An existing patch's stored rate survives the taper change (v5, REQ-lfo-rate-is-exponentially-tapered)
-  Given a preset saved before v5 with "lfo.rate" 12.5
+Scenario: An existing patch's stored rate survives the taper change (REQ-lfo-rate-is-exponentially-tapered)
+  Given a preset with "lfo.rate" 12.5
   When it is loaded
   Then lfo.rate is still exactly 12.5 and validation accepts it
   And only the knob position it maps to has moved
 # pinned by: tests/state/params.test.ts
-Scenario: A synced LFO takes its rate from the tempo (v6, REQ-lfo-sync-locks-rate-to-tempo)
+
+Scenario: A synced LFO takes its rate from the tempo (REQ-lfo-sync-locks-rate-to-tempo)
   Given transport.bpm 120 and lfo.rate 7
   When lfo.sync is set to 1/4
   Then the LFO runs at 2 Hz, and at 1 Hz once the tempo halves
 # pinned by: tests/ui/tempo-sync.test.ts, e2e/lfo-sync.spec.ts
 
-Scenario: Free-running is the default and nothing changes (v6, REQ-lfo-sync-locks-rate-to-tempo, ADR-006)
+Scenario: Free-running is the default and nothing changes (REQ-lfo-sync-locks-rate-to-tempo, ADR-006)
   Given lfo.sync is 0
   When the tempo changes
   Then the LFO keeps the rate the knob set
 # pinned by: e2e/lfo-sync.spec.ts
 
-Scenario: Leaving sync restores the knob's own rate (v6, REQ-lfo-sync-locks-rate-to-tempo)
+Scenario: Leaving sync restores the knob's own rate (REQ-lfo-sync-locks-rate-to-tempo)
   Given a synced LFO whose stored lfo.rate is 7
   When lfo.sync goes back to free
   Then the LFO returns to 7 Hz — the stored value was never rewritten
 # pinned by: e2e/lfo-sync.spec.ts
 
-Scenario: The rate knob shows the division while synced (v9, REQ-lfo-sync-locks-rate-to-tempo)
+Scenario: The rate knob shows the division while synced (REQ-lfo-sync-locks-rate-to-tempo)
   When lfo.sync names a division
   Then knob-lfo.rate shows it on a chip in the dial's place, at 120 BPM reading
     "1/4" over a live "2.00Hz", and keeps its own stored value
 # pinned by: tests/ui/lfo-panel.test.ts, e2e/lfo-sync.spec.ts
 
-Scenario: The standalone sync picker is gone (v9)
+Scenario: There is no standalone sync picker
   Given the LFO panel
   Then neither page carries a sync dropdown of its own
   And each RATE knob carries a tempolock-<prefix>.rate button instead
 # pinned by: tests/ui/lfo-panel.test.ts
 
-Scenario: LFO 2 changes nothing until it is armed (v7, REQ-there-are-two-lfos, ADR-006)
-  Given a preset saved before v7, with no lfo2.* keys
+Scenario: LFO 2 changes nothing until it is armed (REQ-there-are-two-lfos, ADR-006)
+  Given a preset with no lfo2.* keys
   When it is loaded
   Then lfo2.dest is off and lfo2.amount is 0, and the patch sounds unchanged
 # pinned by: tests/state/params.test.ts, e2e/lfo2.spec.ts
 
-Scenario: The two LFOs are registered identically (v7, REQ-there-are-two-lfos)
+Scenario: The two LFOs are registered identically (REQ-there-are-two-lfos)
   Given both param sets come from one lfoParams(prefix) factory
   Then every lfo2.* def matches its lfo.* twin in min, max, default, taper and labels
 # pinned by: tests/state/params.test.ts
 
-Scenario: The mod wheel opens LFO 1 and leaves LFO 2 alone (v7, REQ-the-mod-wheel-feeds-lfo-one-only)
+Scenario: The mod wheel opens LFO 1 and leaves LFO 2 alone (REQ-the-mod-wheel-feeds-lfo-one-only)
   Given lfo.amount 0.3, lfo2.amount 0.4 and both destinations armed
   When master.modWheel moves to 0.5
   Then LFO 1's depth is 0.8 of full scale and LFO 2's is still 0.4
 # pinned by: tests/audio/lfo.test.ts
 
-Scenario: Both LFOs may now hold one destination (v8, REQ-destinations-are-no-longer-exclusive superseded)
+Scenario: Both LFOs may hold one destination (REQ-destinations-are-no-longer-exclusive)
   Given lfo.dest is "cutoff"
   When the user opens LFO 2's destination list
   Then "cutoff" is selectable, not greyed
-  And choosing it sums the two, as REQ-duplicated-destinations-sum-and-stay-bounded always specified
+  And choosing it sums the two (REQ-duplicated-destinations-sum-and-stay-bounded)
 # pinned by: tests/ui/lfo-panel.test.ts, e2e/lfo2.spec.ts
 
-Scenario: A hand-authored duplicate still loads and renders truthfully (v8, edge)
+Scenario: A hand-authored duplicate loads and renders truthfully (edge)
   Given a song puts both LFOs on "amp"
   When the panel renders
   Then each dropdown shows "amp" as its own value, neither is blank
-  And validation accepted the file, as it always did
+  And validation accepts the file
 # pinned by: tests/ui/lfo-panel.test.ts, tests/state/preset-validate.test.ts
 
-Scenario: Two LFOs on one destination sum, bounded (v7, REQ-duplicated-destinations-sum-and-stay-bounded, edge)
+Scenario: Two LFOs on one destination sum, bounded (REQ-duplicated-destinations-sum-and-stay-bounded, edge)
   Given both LFOs are routed to "pan" at full amount
   Then both toPan gains reach 1 and the panner clamps the sum to +/-1
 # pinned by: tests/audio/lfo.test.ts
 
-Scenario: LFO 2 leaving a destination does not stop LFO 1's PWM sweep (v7, REQ-pulse-is-arbitrated)
+Scenario: LFO 2 leaving a destination does not stop LFO 1's PWM sweep (REQ-pulse-is-arbitrated)
   Given LFO 1 owns the pulse driver and is sweeping the width
   When LFO 2 switches its destination from "off" to "cutoff"
   Then the driver keeps running and LFO 1's sweep is uninterrupted
 # pinned by: tests/audio/pwm.test.ts
 
-Scenario: The lower LFO index wins the pulse driver (v7, REQ-pulse-is-arbitrated, edge)
+Scenario: The lower LFO index wins the pulse driver (REQ-pulse-is-arbitrated, edge)
   Given a hand-authored song sets both destinations to "pulse"
   When it loads in either key order
   Then LFO 1 drives the pulse width and LFO 2's setters are ignored
 # pinned by: tests/audio/pwm.test.ts
 
-Scenario: A modulating LFO on the hidden page lights its tab (v7, REQ-the-two-lfos-share-one-panel)
+Scenario: A modulating LFO on the hidden page lights its tab (REQ-the-two-lfos-share-one-panel)
   Given the panel is showing page 1 and lfo2.dest is "pan" at amount 0.6
   Then the LFO 2 tab is lit, and it goes dark when lfo2.amount returns to 0
 # pinned by: tests/ui/lfo-panel.test.ts
 ```
 
-
 ## Tests & verification
 
-- `tests/audio/lfo.test.ts`, `tests/audio/pwm.test.ts`,
-  `tests/state/params.test.ts`, `tests/audio/mod-matrix.test.ts`,
-  `tests/state/preset-validate.test.ts`, `tests/ui/lfo-panel.test.ts`,
-  `e2e/lfo-sync.spec.ts`, `e2e/lfo2.spec.ts`, `e2e/controls.spec.ts`.
-- `npm test` / `npm run e2e`.
+- `tests/audio/lfo.test.ts`, `tests/audio/pwm.test.ts`, `tests/state/params.test.ts`,
+  `tests/audio/mod-matrix.test.ts`, `tests/state/preset-validate.test.ts`,
+  `tests/ui/lfo-panel.test.ts`, `e2e/lfo-sync.spec.ts`, `e2e/lfo2.spec.ts`,
+  `e2e/controls.spec.ts` — `npm test` / `npm run e2e`.
 - **By ear** (ADR-010, `recipes/verify-audio-by-ear.md`): the smoothing constants
-  in REQ-amplitude-destinations-are-smoothed are only settled by listening — square at full depth on both `amp` and
-  `pan`, A/B'd against a bypassed baseline with the other lanes muted. v7 adds
-  three takes that nothing automated can cover: both LFOs off must match the
-  pre-v7 baseline (the REQ-there-are-two-lfos no-op); LFO 1 → `pulse` while LFO 2 is toggled
-  between `cutoff` and `off` must not drop the PWM sweep (REQ-pulse-is-arbitrated); and both LFOs
-  on `amp` at full depth must bottom out at silence smoothly, not click or invert
-  (REQ-duplicated-destinations-sum-and-stay-bounded).
+  (square at full depth on `amp` and `pan`); both LFOs off against a baseline;
+  LFO 1 → `pulse` while LFO 2 toggles away must not drop the sweep; both on `amp`
+  at full depth must bottom out smoothly.
 
 ## Open questions / future
 
-- The LFOs are monophonic/global by design; a per-voice LFO would be a separate
-  feature with its own params.
-- **Two is a hard-coded count, not a pool** — and it stayed that way. The matrix
-  ([mod-matrix](mod-matrix.md)) answered the *routing* half of this: many
-  destinations per source, depth per route, REQ-destinations-are-no-longer-exclusive gone (v8). What it did **not**
-  do is add a third oscillator — `LFO_PREFIXES`, the `lfoParams` factory,
-  `PwmDriver`'s owner arbitration and the two-tab panel all still assume exactly
-  two. A third LFO is now a small, separate change: register `lfo3.*`, and it
-  becomes another matrix source.
-- `Engine` never calls `pwm.dispose()`. Pre-existing; one shared driver (REQ-pulse-is-arbitrated)
-  keeps it a single gap rather than two.
-- ~~The LFO e2e specs reached the private `osc` through an `any` cast.~~ They read
-  `LFO.rateHz` now.
-- `pulse` was a dead label until v3 — `update()` routed only pitch/cutoff/amp, so
-  selecting it silenced all modulation while the UI advertised "PWM movement".
-  Kept at index 4 rather than reclaimed, so no saved patch changed meaning.
+- The LFOs are global by design; a per-voice LFO would be a separate feature.
+- **Two is a hard-coded count.** `LFO_PREFIXES`, `lfoParams`, `PwmDriver`'s owner
+  arbitration and the two-tab panel assume exactly two. A third is: register
+  `lfo3.*`, and it becomes another matrix source.
+- `Engine` never calls `pwm.dispose()`. It is one shared driver, so one gap.
 - Motion lanes and XY assignments store values **normalized 0..1**, so a lane
-  targeting `lfo.dest` shifts meaning when the range grows (`0.5` was `2`/pitch
-  at `0..4`, is `3`/amp at `0..5`). Presets, songs and share links store raw
-  values and are unaffected. Accepted rather than engineered around — automating
-  a discrete destination is not a supported gesture.
+  targeting `lfo.dest` shifts meaning when the label range grows. Presets and songs
+  store raw values. Accepted, since automating a discrete destination is not a
+  supported gesture.

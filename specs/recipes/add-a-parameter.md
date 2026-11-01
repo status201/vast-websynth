@@ -82,16 +82,18 @@ Add a control bound by `paramId`:
 
 ```ts
 new Knob({ bus, paramId: 'fx.myThing.amount', label: 'AMOUNT' }).el
-// or: new Switch({ bus, paramId: 'fx.myThing.on' })
-// or: new Segmented({ bus, paramId: 'fx.myThing.mode' })
+// or: new Switch(bus, 'fx.myThing.on', 'ON').el                  // positional: (bus, paramId, label, testId?)
+// or: new Segmented(bus, 'fx.myThing.mode', ['A', 'B', 'C']).el  // positional: (bus, paramId, labels, icons?)
 ```
 
 The component writes on interaction (`bus.set`) and repaints on `bus.subscribe`.
-It auto-mints a `data-testid` (`knob-<paramId>` / `switch-<paramId>` / `seg-…`).
+It auto-mints a `data-testid` (`knob-<paramId>` / `switch-<paramId>` /
+`seg-<paramId>` and `seg-<paramId>-<i>`; a `Switch` takes an override).
 
-### 4. Verify
+### 4. Regenerate the catalogue and verify
 
 ```bash
+npm run gen:params  # rewrites public/params.json; CI's check:params fails if it is stale
 npm run typecheck   # primary gate
 npm test            # add a registration/behaviour case (see tests/state/params.test.ts)
 ```

@@ -3,15 +3,7 @@
 ```yaml
 id: responsive-machine-header
 status: implemented
-version: 5   # v5: at the 16-bank ceiling the BankBar is wider than a phone, so its segment
-             #     wraps internally (REQ-the-bank-segment-wraps-internally; banks.md
-             #     REQ-the-bank-bar-wraps-rather-than-pages)
-             # v4: the BankBar is VARIABLE width — a machine holds 4..8 banks plus two
-             #     resize arms (banks.md REQ-a-machine-owns-its-bank-count), so the ~57px
-             #     budget below is spent several times over at the ceiling and the row
-             #     wraps as the common case rather than the edge
-             # v3: .laneControls joins .fxCluster as a wrapped header cluster (REQ-lane-controls-are-the-second-cluster)
-             # v2: the wide row's fit is font-metric-dependent, so REQ-above-1140-the-cluster-is-content-sized is pinned from computed style
+version: 5
 owner: ui
 related:
   - responsive-header

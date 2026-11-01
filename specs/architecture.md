@@ -3,29 +3,7 @@
 ```yaml
 id: architecture
 status: implemented
-version: 16  # v16: SeqStep lists the seq-only bend/bendShape; the ParamBus names UNSAVED_PARAMS; storage lists websynth.midi.channel
-             # v15: app.ts is the assembly only; its regions live in ui/shell/ and ui/panels/
-             # v14: every stylesheet declares a cascade layer, so app.ts's import order no
-             #      longer decides layout (css-cascade-layers.md) — the split it blocked is unblocked
-             # v13: the voice path is 1-channel until the SPREAD STAGE engages — a panned
-             #      sequencer track puts two channels through the inserts (ADR-023)
-             # v12: app.ts's IMPORT ORDER is load-bearing for layout — recorded, because it
-             #      blocks the panel extraction that would otherwise be obvious
-             # v11: four more shared helpers, each replacing a verbatim copy —
-             #      safeBarTicks, Arrangement.applyChain, WrappedEffect.quiesceParam,
-             #      createDjButton; and the label lists derive from their counts
-             # v10: typecheck also refuses unused locals and parameters
-             # v9: the smoothing vocabulary is four constants and `rampTo` —
-             #     the unused `rampCancelAndSet` / `RAMP_SLOW` are gone
-             # v8: the audio graph gains a per-lane EQ at the HEAD of all
-             #     three insert chains (equalizer.md); +1 persistence key
-             # v7: REQ-nothing-sounds-until-resume — the context is not created suspended, it is created
-             #     however the BROWSER's autoplay policy says; the graph is
-             #     silent until a deliberate fade either way (audio-lifecycle v6)
-             # v6: the audio graph gains a duck stage on the synth and sampler
-             #     chains, keyed by drum hits (sidechain-ducking.md)
-             # v5: websynth.ui.scope.height joins the persistence keys (scope.md REQ-the-scope-height-persists)
-             # v4: UiBridge in the layer contracts; testids/write-a-test delegation
+version: 16
 owner: core
 related: []
 source:
@@ -69,7 +47,7 @@ means a UI control and its audio effect can be reasoned about independently.
   Engine(bus, …)` + `await engine.init()` before any input — and it is wired all
   the way to `ctx.destination` there.
 
-  **(v7) What is NOT guaranteed is that the context is suspended.** That was the
+  **What is NOT guaranteed is that the context is suspended.** That was the
   standing assumption, stated as fact here and as a comment in `main.ts`, and it
   is only true where the browser's autoplay policy blocks us: an
   autoplay-permitted browser returns a context already `running`, so the whole
@@ -272,19 +250,13 @@ the curve has reached, so it never needs a cancel. These are dialled by ear
 under ADR-010, so they are named in one place rather than spelled as literals at
 the call site.
 
-**Never cancel automation without anchoring it.** `cancelScheduledValues(t)`
-removes the in-flight ramp *and* leaves no event at `t`, so the next scheduled
-ramp starts from "the value of the AudioParam" — which Blink reads as the
-automation's computed value but Gecko reads as the last value explicitly
-assigned, snapping the param back and stepping the output. `cancelAndHoldAtTime`
-would pin it natively and Firefox does not implement it, so a cancel must be
-followed by `setValueAtTime(<the value now>, t)` on the same param. A
-*continuous* control avoids the question entirely: `setTargetAtTime` retargets
-from wherever the curve has reached, so it needs no cancel and may be re-issued
-at any rate. `tests/audio/no-unanchored-cancel.test.ts` fails the suite on a
-cancel that pins nothing; the two bugs that taught this are
-[sidechain-ducking](features/sidechain-ducking.md) and
-[performance](features/performance.md) REQ-the-dj-sweep-rides-detune.
+**Never cancel automation without anchoring it** (ADR-027). A continuous control
+retargets with `setTargetAtTime` and never cancels; an unavoidable
+`cancelScheduledValues(t)` is followed first by `setValueAtTime(<value now>, t)` on
+the same param (`pinParam`); no ramp is seeded from a live `.value`. Gecko reads
+"the value of the AudioParam" as the last value assigned, not the automation's,
+and has no `cancelAndHoldAtTime`. `tests/audio/no-unanchored-cancel.test.ts` fails
+the suite on a cancel that pins nothing.
 
 `ListenerSet` backs every `onStep`/`onNote`/`onFollowChange` hook (the four
 transport machines and `BankBar`), which had each open-coded the same
@@ -361,9 +333,9 @@ than a 16th ([features/meter.md](features/meter.md)). The **motion** machine
 builds its `LaneMeter` with no stutter map: automation must not follow stutter
 remaps.
 
-**A bar is `barTicks`, not 16.** `SEQ_LENGTH` used to mean cells-per-pattern,
-ticks-per-bar and columns-of-UI at once; `state/meter.ts` names the three apart
-(`GRID_CELLS`, `barTicks()`, `LANE_RATES`) and `SEQ_LENGTH` is now just an alias
+**A bar is `barTicks`, not 16.** One constant cannot mean cells-per-pattern,
+ticks-per-bar and columns-of-UI at once: `state/meter.ts` names the three apart
+(`GRID_CELLS`, `barTicks()`, `LANE_RATES`) and `SEQ_LENGTH` is only an alias
 of the first. New code says which one it means — and in the UI goes through
 `ui/lane-grid.ts`, so a grid, its ruler and its beat accents cannot disagree.
 See [ADR-019](decisions/adr-019-the-bar-is-a-tick-count.md).
@@ -541,7 +513,7 @@ voices ─(spread)→ voiceBus ─→ eq → dirt → wah → phaser → flanger
   synth stage so that nothing upstream of it pays for two channels it does not
   need: the voice path is mono end to end (mono oscillators/noise → gains →
   1-channel filter worklet → gains), and the insert chain stays 1-channel through
-  `dist → wah → phaser → flanger → delay` — except after the **chorus** while it is on: it
+  `dirt → wah → phaser → flanger → delay` — except after the **chorus** while it is on: it
   is the one insert short of the delay that makes a second channel, and its
   bypass disconnect takes that away again ([chorus](features/chorus.md)
   REQ-the-chorus-widens-without-changing-level). The delay makes one too while
@@ -560,15 +532,15 @@ voices ─(spread)→ voiceBus ─→ eq → dirt → wah → phaser → flanger
   channel count decides the channel's level
   ([`features/lfo.md`](features/lfo.md) REQ-the-auto-pan-reads-a-stereo-input).
 
-  The **reverb**, last in the chain, is where the
-  synth channel actually becomes stereo on its own — its impulse response is a 2-channel
+  The **reverb**, the last insert before the duck and `synthPan`, is where the
+  synth channel otherwise becomes stereo — its impulse response is a 2-channel
   buffer whose channels are independently randomised and phase-offset, so a
   1-channel input convolves to two decorrelated ones. That is generated stereo,
   not a speaker up-mix; a speaker up-mix (L = R) is what the drum panners and the
   2-channel compressors do to a mono input (ADR-010; see
-  [`features/lfo.md`](features/lfo.md) REQ-pan-sweeps-a-stereo-panner). The bank-render tap
-  ([`features/render-to-sampler.md`](features/render-to-sampler.md)) sits after
-  it, so a rendered bank captures the pan movement.
+  [`features/lfo.md`](features/lfo.md) REQ-pan-sweeps-a-stereo-panner). The bank
+  render ([`features/render-to-sampler.md`](features/render-to-sampler.md)) taps
+  `synthPan`, so a rendered bank captures the pan movement.
 - The **analyser taps pre-master**, so the scope is independent of the master
   volume knob. The tap is a lossless `splitter → analyserL/analyserR → merger →
   analyser` so the scope can also show per-channel L/R (see
@@ -587,11 +559,11 @@ The three insert chains are built as units by `audio/effects/fx-chain.ts` —
 `createSynthChain` / `createDrumChain` / `createSamplerChain`, held on Engine as
 `synthFx` / `drumFx` / `samplerFx`. Each `FxChain` owns its effect **order**, its
 param **prefixes** and (for the drum comp) its **ratio table**, and exposes
-`fx` (named members, e.g. `drumFx.fx.comp`), `tail` (the last effect's output —
-the bank-render tap point), `wire(input, output)` and `bind(bus)`. They are three
-explicit factories rather than one generic spec because the chains are alike but
-not identical: only the synth has a wah, only the drum bus heads with a
-compressor. `masterComp` stays a flat Engine field — it is a master-bus insert
+`fx` (named members, e.g. `drumFx.fx.comp`), `tail` (the last effect's output;
+nothing reads it today — the bank render taps `synthPan`), `wire(input, output)`
+and `bind(bus)`. They are three explicit factories rather than one generic spec
+because the chains are alike but not identical: only the synth has a wah, only the
+drum bus has a compressor (right after its EQ). `masterComp` stays a flat Engine field — it is a master-bus insert
 (`djLow → djHigh → masterComp → analyser`), not a chain member — and `Engine.drumComp`
 remains available as a getter onto `drumFx.fx.comp`, which is what `StudioApi`
 and the drum panel's GR meter read.
@@ -643,6 +615,7 @@ localStorage:
   websynth.ui.collapsed.eq      : EQUALIZER-section collapse state (default folded)
                                   # ui/components/tabs.ts (features/equalizer.md REQ-the-eq-section-is-a-folded-tab-container)
   websynth.ui.collapsed.seqtrack.<t> : per-seq-track fold state # ui/panels/seq-panel.ts — one key per track
+  websynth.ui.collapsed.motiontrack.<i> : per-motion-lane fold state # ui/panels/motion-panel.ts (features/lane-fold.md)
   websynth.ui.collapsed.sample-<chop|stretch|scratch> : the Edit Sample modal's three section folds
                                                         # ui/components/record-sound-modal.ts (features/sample-recorder.md REQ-every-section-below-the-waveform-folds)
   websynth.ui.scope.height : scope panel height in px, 130..260 # state/scope-height.ts — device-scoped workspace pref, NOT a patch param
@@ -817,6 +790,10 @@ and stating the rule is what keeps them distinguishable from neglect.
 - [ADR-019](decisions/adr-019-the-bar-is-a-tick-count.md) — the bar is a **tick
   count**, not a time signature, and every lane's cell index is a pure function
   of `clock.step` (which is what makes a 12- or 14-tick lane survive a seek).
+- [ADR-027](decisions/adr-027-audioparam-automation-is-anchored.md) — **automation
+  is anchored**: a continuous control retargets with `setTargetAtTime` and never
+  cancels; an unavoidable cancel is pinned first with `setValueAtTime`; no ramp is
+  seeded from a live `.value` (Gecko and Blink disagree on all three).
 
 ## Tests & verification
 
