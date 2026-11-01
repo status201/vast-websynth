@@ -115,11 +115,11 @@ vite-plugin-pwa/workbox), per ADR-003's precedent.
   fallback** for navigations (falling back to cached `/`) and all other
   same-origin GETs; non-GET and cross-origin requests pass through untouched. A
   core shell (`/`, manifest, icons, the six `/worklets/*.js`) is precached at
-  install — including `sync-osc.js`, `flanger.js` and (v7) `reverse-delay.js`, which the app
+  install — including `sync-osc.js`, `flanger.js` and `reverse-delay.js`, which the app
   loads only on first use of oscillator sync, of a flanger or of the REVERSE delay, so an
   installed app can still engage them offline ([oscillator-sync](oscillator-sync.md)
   REQ-the-pair-is-built-on-first-use, [flanger](flanger.md) REQ-the-flanger-loads-on-first-use,
-  [delay-types](delay-types.md) REQ-the-other-types-load-on-first-use). (v3) **`/mcp` and `/healthz` pass through too**, by path. Those are
+  [delay-types](delay-types.md) REQ-the-other-types-load-on-first-use). **`/mcp` and `/healthz` pass through too**, by path. Those are
   the public MCP endpoint ([mcp-server](mcp-server.md) REQ-the-http-transport-is-stateless), served from this
   origin by a reverse proxy rather than from `dist/`. They are already safe by
   accident — the traffic is `POST`, which the non-GET rule passes through, and
@@ -130,37 +130,25 @@ vite-plugin-pwa/workbox), per ADR-003's precedent.
   named `websynth-<version>`; `activate` purges every other `websynth-*` cache
   and claims clients. Default guarantee: **offline-ready after the first
   revisit/reload** (runtime caching — the build's full file list is only
-  precached when the user asks, see v4 below). Runtime caching covers only the
+  precached when the user asks, below). Runtime caching covers only the
   chunks the page actually **fetched** while online. The build is not one eager
   bundle — demo songs, jsQR, the sync-pair modal and the lamejs MP3 encoder are
-  all split off. The lazy ones reached from a user gesture (jsQR on QR scan, the
-  sync modal on open) are acceptable to miss offline; **lamejs is warmed on idle
-  at boot** from `main.ts` so offline MP3 export keeps working — see
-  [audio-export](audio-export.md) REQ-the-mp3-encoder-loads-lazily. Any future eagerly-needed lazy chunk
-  must either be warmed the same way or accept an offline gap. **The onboarding
-  chunk is warmed on idle for the same reason**: the tour, the info badges and
-  all the help copy live behind one `import()`
-  ([runtime-performance](runtime-performance.md) REQ-boot-cost-matches-the-request), and help is exactly
-  what a user reaches for when something is confusing — which an offline
-  returning visitor is no less likely to be. The warm also removes any chance
-  the first-visit tour is still fetching when its 350 ms auto-launch fires.
-  **The About card is warmed on idle too** (v2): it is the app's single help
-  door ([onboarding](onboarding.md) REQ-about-is-the-single-door-for-help/REQ-the-help-door-never-fails-silently), so leaving *it* cold made
-  the `?` button dead offline while the tour behind it was fetched and ready —
-  the warm list had covered the room but not the door to it. **(v5) The second
-  sweep's chunks are warmed too** ([runtime-performance](runtime-performance.md)
-  REQ-boot-cost-matches-the-request v12): the authoring-dialect expander and the
-  zip codec (importing or pasting a song offline), the Paste and Export dialogs
-  and the Performance settings — each a thing a player does offline — and the
-  flanger's DSP, imported on its first switch-on ([flanger](flanger.md)
-  REQ-the-flanger-loads-on-first-use), and (v7) the delay-type switch, imported on a
-  delay's first non-digital TYPE ([delay-types](delay-types.md)). The AI Prompt body is deliberately left cold: its round
-  trip needs an AI, so offline it has nothing to offer. All the warms
+  all split off. A deferred chunk a player can reach **offline** is warmed on
+  idle at boot by `main.ts`'s `warmDeferred` (that function is the list, not this
+  spec): the MP3 encoder ([audio-export](audio-export.md)
+  REQ-the-mp3-encoder-loads-lazily), the onboarding layer (help is what a confused
+  offline visitor reaches for, and the warm also beats the tour's 350 ms
+  auto-launch), the About card (the single help door, [onboarding](onboarding.md)
+  REQ-about-is-the-single-door-for-help/REQ-the-help-door-never-fails-silently —
+  warming the room but not the door leaves `?` dead), the importers and dialogs a
+  player uses offline, and the effects' first-use bodies. A gesture-only chunk with
+  nothing to offer offline (jsQR, the sync modal, the AI Prompt body, whose round
+  trip needs an AI) is deliberately left cold. All the warms
   share one `requestIdleCallback`-with-timeout-fallback in `main.ts` and swallow
   their errors: the real `import()` at the trigger retries. A warm is
   prevention, never a guarantee — a first visit that goes offline before idle
   still has nothing cached, which is why the help door also *reports* a failed
-  import rather than doing nothing (onboarding.md REQ-the-help-door-never-fails-silently). (v4) **The full
+  import rather than doing nothing (onboarding.md REQ-the-help-door-never-fails-silently). **The full
   guarantee is opt-in**: the About card's **Play offline**
   ([play-offline](play-offline.md)) downloads every file the build lists in
   `offline-manifest.json` into this cache and marks it complete with a
@@ -258,7 +246,7 @@ offline-copy refresh when an older cache holds the marker
   state is pure and `decodeAudioData` works on a suspended context); the
   prod-gated SW registration on window `load`.
 - `shell/header.ts` appends the fullscreen button (when non-null) into the header's
-  collapsible cluster next to the Perf button (responsive-header.md). The bridge is wired in `app.ts` (`mountApp`): `bridge.importSongBytes` /
+  preset group, last in the row after ⓘ and ? (responsive-header.md). The bridge is wired in `app.ts` (`mountApp`): `bridge.importSongBytes` /
   `bridge.importSongFile` → the Song panel's `importBytes` / `importFile`.
 - `src/types/pwa.d.ts` declares the not-yet-in-lib.dom surfaces:
   `Window.launchQueue` (`LaunchQueue`/`LaunchParams`) and
@@ -428,7 +416,7 @@ Scenario: the MCP endpoint is never cached (v3, REQ-service-worker-is-registered
 - ~~Close the first-visit offline gap without a build step~~ — resolved in v4
   the other way: the build writes the file list, and the user asks for the copy
   ([play-offline](play-offline.md)). Precaching it for *every* visitor is still
-  not done — 7 MB nobody asked for is the boot-cost rule
+  not done — the whole build, tens of MB nobody asked for, is the boot-cost rule
   ([runtime-performance](runtime-performance.md) REQ-boot-cost-matches-the-request) at its worst.
 - Maskable PNG variants (currently only the SVG is maskable).
 - A narrow-form-factor manifest screenshot (the generator's `--screenshot`
