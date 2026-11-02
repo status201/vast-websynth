@@ -18,6 +18,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ### Added
 
+- **ADSR graph in the envelope help.** The ⓘ badges on AMP ENV and FILTER ENV
+  now draw your current envelope under the explanation. Attack, Decay and
+  Release are marked as times along the bottom, and Sustain as a level, each with
+  its value. The FILTER ENV badge also says where the sweep takes the cutoff, in Hz.
 - **FOLLOW on the transport.** A Follow button beside Loop keeps the playing bar
   in view, as before. Switch it off to scroll to another part of a long song
   while it plays without being pulled back; switch it on to jump back to the

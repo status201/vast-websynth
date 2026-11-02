@@ -13,6 +13,8 @@ import {
   type TempoQuantity,
 } from '../../utils/tempo';
 import { syncIdFor, tempoLockFor } from '../../state/tempo-lock';
+import { PHASE_TIME_CONSTANTS, type Adsr } from '../../utils/envelope-curve';
+import { envelopeGraph } from './envelope-graph';
 import { noteGlyph } from '../components/tempo-lock';
 import styles from '../styles/tour.module.css';
 
@@ -287,6 +289,139 @@ export function renderUnisonDetune(ctx: HelpContext): HTMLElement {
     ),
   );
   return wrap;
+}
+
+// ---- The ADSR help under the AMP / FILTER ENV badges (envelope-help-graph.md) ----
+// The copy lives here; the drawing is envelope-graph.ts.
+
+type EnvWhich = 'amp' | 'fil';
+
+const ENV_KNOBS: readonly { key: keyof Adsr; name: string; kind: 'time' | 'level' }[] = [
+  { key: 'attack', name: 'Attack', kind: 'time' },
+  { key: 'decay', name: 'Decay', kind: 'time' },
+  { key: 'sustain', name: 'Sustain', kind: 'level' },
+  { key: 'release', name: 'Release', kind: 'time' },
+];
+
+/** Everything that differs between the two envelopes' help. */
+const ENV_HELP: Record<EnvWhich, { title: string; axis: string; intro: string; knobs: Record<keyof Adsr, string> }> = {
+  amp: {
+    title: 'Amp envelope',
+    axis: 'volume',
+    intro:
+      'Shapes the <strong>volume</strong> of a note over time, from the moment you press a key ' +
+      'until it has faded out.',
+    knobs: {
+      attack: 'how long the note takes to rise to full volume (0 = instant, like a pluck; high = a slow swell)',
+      decay: 'how long it takes to fall from the peak down to the sustain level',
+      sustain: 'how loud it <em>stays</em> while you keep holding the key, however long that is',
+      release: 'how long it takes to fade to silence after you let go',
+    },
+  },
+  fil: {
+    title: 'Filter envelope',
+    axis: 'cutoff',
+    intro:
+      'The same A / D / S / R shape, but instead of volume it moves the <strong>filter ' +
+      'cutoff</strong> over time — great for plucks that open bright then close, or slow sweeps.',
+    knobs: {
+      attack: 'how long the cutoff takes to sweep to its peak',
+      decay: 'how long it takes to fall back from the peak to the sustain level',
+      sustain: 'where the cutoff <em>stays</em> while you keep holding the key, however long that is',
+      release: 'how long it takes to return to the cutoff knob’s setting after you let go',
+    },
+  },
+};
+
+/** Reads one envelope's four params and their knob-formatted readouts. */
+function readEnv(ctx: HelpContext, which: EnvWhich): { env: Adsr; values: Record<keyof Adsr, string> } {
+  const env = {} as Adsr;
+  const values = {} as Record<keyof Adsr, string>;
+  for (const { key } of ENV_KNOBS) {
+    const id = `env.${which}.${key}`;
+    const v = ctx.bus.get(id);
+    env[key] = v;
+    values[key] = ctx.bus.def(id)?.format?.(v) ?? v.toFixed(2);
+  }
+  return { env, values };
+}
+
+/**
+ * The live ADSR help body for the AMP ENV (`'amp'`) or FILTER ENV (`'fil'`)
+ * badge: copy naming each knob as a time or a level, the graph of the current
+ * envelope, and — for the filter — the sweep in Hz (envelope-help-graph.md).
+ */
+export function renderEnvelopeHelp(ctx: HelpContext, which: EnvWhich): HTMLElement {
+  const help = ENV_HELP[which];
+  const { env, values } = readEnv(ctx, which);
+  const wrap = el('div');
+
+  wrap.appendChild(
+    el('p', undefined, `${help.intro} Three of the knobs are <em>times</em>; one is a <em>level</em>:`),
+  );
+
+  const list = el('ul');
+  for (const k of ENV_KNOBS) {
+    const kind = k.kind === 'time' ? '<em>time</em>' : '<em>level</em>, not a time';
+    list.appendChild(
+      el(
+        'li',
+        undefined,
+        `<strong>${k.name[0]}</strong>${k.name.slice(1)} (${kind}): ${help.knobs[k.key]}. ` +
+          `Now <strong>${values[k.key]}</strong>.`,
+      ),
+    );
+  }
+  wrap.appendChild(list);
+
+  wrap.appendChild(envelopeGraph(env, { title: help.title, axis: help.axis, values }));
+
+  if (which === 'fil') {
+    wrap.appendChild(el('p', undefined, filterSweepCaption(ctx, env.sustain)));
+    wrap.appendChild(
+      el(
+        'p',
+        undefined,
+        "How <em>strongly</em> it pushes the cutoff is set by the filter's <strong>ENV</strong> " +
+          'knob; the ADSR knobs here set the shape of that movement.',
+      ),
+    );
+  }
+
+  const pct = Math.round((1 - Math.exp(-PHASE_TIME_CONSTANTS)) * 100);
+  wrap.appendChild(
+    el(
+      'p',
+      styles.sweetFoot!,
+      `Each time is how long the curve takes to get ~${pct}% of the way there; it then eases ` +
+        'in the rest. The graph is your current setting — change a knob and reopen to refresh.',
+    ),
+  );
+  return wrap;
+}
+
+/** The filter envelope in cutoff terms (REQ-the-filter-graph-speaks-in-hertz). */
+function filterSweepCaption(ctx: HelpContext, sustain: number): string {
+  const { bus } = ctx;
+  const cutoff = bus.get('filter.cutoff');
+  const amount = bus.get('filter.envAmount'); // semitones, ±48
+  const st = `${amount >= 0 ? '+' : '−'}${Math.abs(amount).toFixed(0)} st`;
+  if (Math.abs(amount) < 0.5) {
+    return 'The filter’s <strong>ENV</strong> knob is at <strong>0</strong>, so this shape ' +
+      'currently does nothing to the cutoff — turn ENV up (or down) to hear it.';
+  }
+  const base = fmtHz(noteToHz(cutoff));
+  const peak = fmtHz(noteToHz(cutoff + amount));
+  const held = fmtHz(noteToHz(cutoff + amount * sustain));
+  const [lead, verb, way] =
+    amount > 0
+      ? [`With <strong>ENV</strong> at ${st},`, 'opens', 'up']
+      : [`With <strong>ENV</strong> at ${st} the sweep runs <strong>down</strong>:`, 'closes', 'down'];
+  return (
+    `${lead} a note ${verb} the cutoff from ~<strong>${base}</strong> ${way} to ` +
+    `~<strong>${peak}</strong>, settles at ~<strong>${held}</strong> while held, and returns to ` +
+    `${base} on release.`
+  );
 }
 
 export function renderCompThreshold(ctx: HelpContext, prefix: 'fx.drum.comp' | 'fx.master.comp'): HTMLElement {

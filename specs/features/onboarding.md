@@ -637,7 +637,7 @@ components/lazy-load-toast.ts:
 ```
 
 **The facade is synchronous; its body is not.** `tour.ts`, `info-badges.ts`,
-`help-content.ts` and `help-widgets.ts` are ~93 kB reached only from
+`help-content.ts`, `help-widgets.ts` and `envelope-graph.ts` are ~90 kB reached only from
 `onboarding-impl.ts`, which `index.ts` `import()`s on the first `startTour()` or
 `toggleInfoBadges()` ([`runtime-performance.md`](runtime-performance.md) REQ-boot-cost-matches-the-request).
 No caller changes, and none may be made to await: `shell/header.ts` wires

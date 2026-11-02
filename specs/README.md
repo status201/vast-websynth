@@ -369,6 +369,7 @@ specs/
     play-button-blink.md ·  Play LED states: beat blink, idle attract pulse, demo cue
     empty-play-hint.md ·  "nothing to play" modal on empty Play + persisted opt-out
     tempo-sync-help.md ·  BPM "sweet spots" + relationship help badges (click-to-snap)
+    envelope-help-graph.md · the live ADSR graph under the AMP / FILTER ENV badges (A/D/R times, S a level)
     tempo-lock.md      ·  lock a rate/time knob to the grid, inside the knob's own footprint
     performance-mode.md ·  device-scoped audio-quality setting (buffer/voices/scope)
     runtime-performance.md ·  app-wide cost contract (boot budget, gesture-scoped listeners, automation≠edit)

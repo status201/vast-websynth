@@ -8,8 +8,10 @@ owner: core
 related:
   - architecture
   - ladder-filter
+  - envelope-help-graph   # draws this curve under the AMP / FILTER ENV badges
 source:
   - src/audio/envelope.ts
+  - src/utils/envelope-curve.ts
   - src/audio/voice.ts
   - src/state/params.ts
   - src/audio/engine.ts
@@ -71,6 +73,16 @@ LFO.
   It applies to **every** note source — keyboard, MIDI, the sequencer's per-step
   velocity and the arpeggiator's fixed 0.85 — because it lives in `Voice.noteOn`,
   the one place a velocity is already in hand.
+
+- **REQ-the-envelope-curve-is-one-pure-model** — The shape of a phase lives
+  in one pure, DOM-free module, `src/utils/envelope-curve.ts`. A phase's time
+  constant is `phaseTau(seconds)`, a third of the phase, so a knob's time is
+  three time constants (~95% of the way). The segment arithmetic is `approach`,
+  the `setTargetAtTime` closed form. The shortest timed phase is
+  `MIN_PHASE_SECONDS`, which keeps the time constant above zero.
+  - `Envelope` schedules and tracks its curve through these functions.
+  - The help graph ([envelope-help-graph](envelope-help-graph.md)) samples its
+    drawing from them too, so the picture and the sound cannot disagree.
 
 ## Technical design
 
