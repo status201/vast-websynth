@@ -70,7 +70,7 @@ export function buildSynthPanels(bus: ParamBus): HTMLElement {
         knob('sub.octave', 'S.OCT'),
         knob('sub.level', 'S.LVL'),
         knob('unison.voices', 'UNISON'),
-        knob('unison.detune', 'SPREAD'),
+        knob('unison.detune', 'SPRD'),
       ], panelStyles.quad!)],
     });
   }, 'subuni'));

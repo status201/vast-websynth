@@ -270,7 +270,7 @@ export function renderUnisonDetune(ctx: HelpContext): HTMLElement {
     el(
       'p',
       undefined,
-      `<strong>SPREAD</strong> detunes the stacked <strong>UNISON</strong> voices apart for a ` +
+      `<strong>SPRD</strong> (spread) detunes the stacked <strong>UNISON</strong> voices apart for a ` +
         `thick, wide sound — the more voices and the wider the spread, the bigger and more ` +
         `chorused it gets.`,
     ),
@@ -280,7 +280,7 @@ export function renderUnisonDetune(ctx: HelpContext): HTMLElement {
       'p',
       undefined,
       voices <= 1
-        ? `Unison is currently <strong>off</strong> (1 voice), so SPREAD does nothing yet — ` +
+        ? `Unison is currently <strong>off</strong> (1 voice), so SPRD does nothing yet — ` +
             `raise UNISON to 2–4 voices to hear it.`
         : `Right now: <strong>${voices} voices</strong> spread across ` +
             `<strong>±${(detune / 2).toFixed(0)} cents</strong> (${detune.toFixed(0)} cents total).`,

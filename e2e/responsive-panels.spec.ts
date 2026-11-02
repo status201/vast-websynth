@@ -424,17 +424,17 @@ test('no knob label ever reaches its neighbour', async ({ page }) => {
   await page.setViewportSize({ width: 1440, height: 900 });
   await gotoAndStart(page);
 
-  // The measured, pre-existing collision from the spec's Open questions: at phone
-  // widths the SUB / UNI knob box is only 44px while its six-character labels
-  // (S.LVL, UNISON, SPREAD) ink wider, so in a 4-up `.quad` cell they meet. It
+  // The measured collision from the spec's Open questions: at phone widths the
+  // SUB / UNI knob box is narrow while a label like UNISON inks wider, so in a
+  // 4-up `.quad` cell they can meet. SPREAD, the worst, is now SPRD. It
   // belongs to knob typography (a label-width rule), not to the column counts
   // under test, so it is carried here by name rather than passed over in silence.
   //
   // Scoped to that ONE panel below 768px, with a ceiling rather than an exact
   // figure: label ink is font-stack-dependent, and the platforms disagree by
-  // enough to matter. UNISON/SPREAD overlap ~5px on Windows and ~11.5px on the
-  // Linux CI runner, where S.LVL/UNISON meets too (~3.5px) and on Windows does
-  // not. Pinning either platform's number would just make the suite fail on the
+  // enough to matter. Before SPRD, UNISON/SPREAD overlapped ~5px on Windows and
+  // ~11.5px on the Linux CI runner, where S.LVL/UNISON meets too (~3.5px); with
+  // SPRD, Windows is clear. Pinning either platform's number would just make the suite fail on the
   // other — which is exactly the "pins the font stack, not the rule" failure the
   // spec warns about. Every other panel, and this one from 768px up, stays
   // strict. Delete this block when that Open question is closed.
