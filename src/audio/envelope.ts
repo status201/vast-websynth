@@ -16,6 +16,8 @@
  */
 
 import { clamp01 } from '../utils/math';
+// The phase shape is shared with the help graph (envelopes.md REQ-the-envelope-curve-is-one-pure-model).
+import { approach, MIN_PHASE_SECONDS, phaseTau } from '../utils/envelope-curve';
 
 /** A tracked automation event: an anchor (`value`) or a target segment. */
 interface EnvEvent {
@@ -46,22 +48,22 @@ export class Envelope {
     this.source.start();
   }
 
-  setAttack(v: number): void { this.attack = Math.max(0.001, v); }
-  setDecay(v: number): void { this.decay = Math.max(0.001, v); }
+  setAttack(v: number): void { this.attack = Math.max(MIN_PHASE_SECONDS, v); }
+  setDecay(v: number): void { this.decay = Math.max(MIN_PHASE_SECONDS, v); }
   setSustain(v: number): void { this.sustain = clamp01(v); }
-  setRelease(v: number): void { this.release = Math.max(0.001, v); }
+  setRelease(v: number): void { this.release = Math.max(MIN_PHASE_SECONDS, v); }
 
   /** Trigger attack/decay phases. Picks up from the curve's value at `when`. */
   trigger(when: number, peak = 1): void {
     const t = this.anchor(when);
-    this.setTarget(peak, t, this.attack / 3);
-    this.setTarget(peak * this.sustain, t + this.attack, this.decay / 3);
+    this.setTarget(peak, t, phaseTau(this.attack));
+    this.setTarget(peak * this.sustain, t + this.attack, phaseTau(this.decay));
   }
 
   /** Trigger release phase. */
   release_(when: number): void {
     const t = this.anchor(when);
-    this.setTarget(0, t, this.release / 3);
+    this.setTarget(0, t, phaseTau(this.release));
   }
 
   /** Fast cut to silence (voice stealing) — the external-cut entry point. */
@@ -113,12 +115,12 @@ export class Envelope {
     for (const e of this.events) {
       if (e.time > t) break;
       // Advance under the running target segment up to this event.
-      if (seg) v = seg.target + (v - seg.target) * Math.exp(-(e.time - at) / seg.tau);
+      if (seg) v = approach(v, seg.target, e.time - at, seg.tau);
       at = e.time;
       if (e.value !== undefined) { v = e.value; seg = null; }
       else { seg = { target: e.target!, tau: e.tau! }; }
     }
-    if (seg && t > at) v = seg.target + (v - seg.target) * Math.exp(-(t - at) / seg.tau);
+    if (seg && t > at) v = approach(v, seg.target, t - at, seg.tau);
     return v;
   }
 }

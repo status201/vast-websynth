@@ -12,6 +12,7 @@ import {
   renderFilterCutoff,
   renderFilterResonance,
   renderFilterEnvAmount,
+  renderEnvelopeHelp,
   renderUnisonDetune,
   renderCompThreshold,
 } from './help-widgets';
@@ -625,25 +626,14 @@ export const HELP_TOPICS: Record<TopicId, HelpTopic> = {
     title: 'Filter — Resonance',
     body: renderFilterResonance,
   },
+  // Live copy + a graph of the current envelope (envelope-help-graph.md).
   ampenv: {
     title: 'Amp Envelope (ADSR)',
-    body:
-      '<p>Shapes the <strong>volume</strong> of a note over time, from press to release:</p>' +
-      '<ul>' +
-      '<li><strong>A</strong>ttack — how fast it fades in (0 = instant, like a pluck; high = a ' +
-      'slow swell).</li>' +
-      '<li><strong>D</strong>ecay — how it falls from the peak down to the sustain level.</li>' +
-      '<li><strong>S</strong>ustain — the level it holds while you keep the key down.</li>' +
-      '<li><strong>R</strong>elease — how long it takes to fade out after you let go.</li>' +
-      '</ul>',
+    body: (ctx) => renderEnvelopeHelp(ctx, 'amp'),
   },
   filterenv: {
     title: 'Filter Envelope (ADSR)',
-    body:
-      '<p>The same A / D / S / R shape, but instead of volume it moves the <strong>filter ' +
-      'cutoff</strong> over time — great for plucks that open bright then close, or slow sweeps.</p>' +
-      "<p>How <em>strongly</em> it pushes the cutoff is set by the filter's <strong>ENV</strong> " +
-      'knob; the ADSR knobs here set the shape of that movement.</p>',
+    body: (ctx) => renderEnvelopeHelp(ctx, 'fil'),
   },
   lfo: {
     title: 'LFO',

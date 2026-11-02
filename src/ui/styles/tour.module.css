@@ -236,4 +236,72 @@
     color: var(--text-faint);
     line-height: 1.5;
   }
+
+  /* ---- ADSR graph under the AMP / FILTER ENV badges (envelope-help-graph.md) ----
+     Font sizes are viewBox units: the SVG scales to the modal's width. */
+
+  .envGraph {
+    display: block;
+    width: 100%;
+    max-width: 440px;
+    height: auto;
+    margin: 12px auto 8px;
+    overflow: visible;
+  }
+
+  .envAxis {
+    stroke: var(--text-faint);
+    stroke-width: 1;
+  }
+
+  .envGuide {
+    fill: none;
+    stroke: var(--text-faint);
+    stroke-width: 0.75;
+    stroke-dasharray: 2 3;
+  }
+
+  .envBracket {
+    fill: none;
+    stroke: var(--text-dim);
+    stroke-width: 1;
+  }
+
+  .envFill {
+    fill: var(--accent-glow);
+    opacity: 0.35;
+    stroke: none;
+  }
+
+  .envCurve {
+    fill: none;
+    stroke: var(--accent);
+    stroke-width: 2;
+    stroke-linejoin: round;
+    stroke-linecap: round;
+  }
+
+  .envSustain {
+    stroke: var(--accent-secondary);
+    stroke-width: 1;
+    stroke-dasharray: 4 3;
+  }
+
+  .envText {
+    fill: var(--text-dim);
+    font-size: 9px;
+  }
+
+  .envLetter {
+    fill: var(--text);
+    font-size: 11px;
+    font-weight: 700;
+  }
+
+  /* A changing number: mono (typography.md). */
+  .envValue {
+    fill: var(--accent-secondary);
+    font-family: var(--mono);
+    font-size: 9px;
+  }
 }

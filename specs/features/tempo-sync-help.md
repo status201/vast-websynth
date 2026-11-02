@@ -126,6 +126,7 @@ interface HelpTopic { title: string; body: string | ((ctx: HelpContext) => Node)
 function renderTempoSync(ctx, paramId, q: TempoQuantity): HTMLElement
 // + renderFilterCutoff / renderFilterResonance / renderFilterEnvAmount /
 //   renderUnisonDetune / renderCompThreshold(prefix)
+// + renderEnvelopeHelp(ctx, 'amp' | 'fil') — the ADSR graph, owned by envelope-help-graph.md
 ```
 
 ### Data shapes
