@@ -286,7 +286,8 @@ without anyone remembering to ask.
   scrolled made the header vanish under the synth panels.
 
 - **REQ-a-toggle-can-carry-a-legend** (v16) — **`DropdownOptions.legend` turns
-  the toggle into a panel title**: a small legend line carrying the caret,
+  the toggle into a panel title**: a small legend line carrying the caret (as
+  tall as the legend's capitals, [iconography](iconography.md) REQ-a-title-caret-is-cap-high),
   above the value, with no box, no floor width and the panel title's type, so the control
   is exactly as wide as its longest line. Everything else (menu, keys, anchor,
   dismiss, dimming) is the ordinary dropdown's. It is for a value that names

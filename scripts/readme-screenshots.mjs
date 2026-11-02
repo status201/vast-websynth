@@ -9,7 +9,8 @@
 //   vast-websynth.png               the demo playing, pattern row folded, scope on
 //                                   Spectrum, keys lit by the notes
 //   vast-websynth-drum-machine.png  stopped at --bar, Drum Machine tab, with the
-//                                   Transport, Live FX and XY pad windows open
+//                                   Transport (widened to the whole song), Live FX
+//                                   and XY pad windows open
 //   vast-websynth-song-tab.png      the same, on the Song tab
 //
 // Framing is judged by eye — look at all three before committing them.
@@ -35,11 +36,13 @@ const VIEWPORT = { width: 1920, height: 1080 };
 /** Where the machine panel's bottom edge sits in the two scrolled shots. */
 const PANEL_BOTTOM_Y = 1068;
 /** Top-left of each floating window in the two scrolled shots. The XY pad is
- *  placed by its right edge, so it hugs the panel's right side at any width. */
+ *  placed by its right edge, so it hugs the panel's right side at any width.
+ *  TRANSPORT is widened until its bar strip shows the whole song, and LIVE FX
+ *  then follows its right edge, so a longer or shorter demo reflows the row. */
 const WINDOWS = [
-  { testId: 'transport-window', left: 36, top: 202 },
-  { testId: 'livefx-window', left: 934, top: 205 },
-  { testId: 'xypad-window', right: 1873, top: 155 },
+  { testId: 'transport-window', left: 36, top: 202, fitStrip: true },
+  { testId: 'livefx-window', after: 'transport-window', gap: 8, top: 205 },
+  { testId: 'xypad-window', right: 1885, top: 155 },
 ];
 
 // ------------------------------------------------------------- dev server
@@ -148,13 +151,18 @@ async function scrollBottomTo(page, testId, viewportY) {
 }
 
 /** Drag a floating window by its title bar so its corner lands on the target. */
-async function placeWindow(page, { testId, left, right, top }) {
+async function placeWindow(page, { testId, left, right, after, gap = 0, top }) {
   const win = page.getByTestId(testId);
   await win.waitFor({ state: 'visible' });
   const box = await win.boundingBox();
   const bar = await win.locator(':scope > :first-child').boundingBox();
   if (!box || !bar) throw new Error(`${testId} has no bounding box`);
-  const targetLeft = left ?? right - box.width;
+  let targetLeft = left ?? right - box.width;
+  if (after) {
+    const prev = await page.getByTestId(after).boundingBox();
+    if (!prev) throw new Error(`${after} has no bounding box`);
+    targetLeft = prev.x + prev.width + gap;
+  }
   // Grab the bar's middle — clear of the − and × buttons at its ends. Each
   // window is placed as soon as it opens, before the next can cover its bar.
   const x = bar.x + bar.width / 2;
@@ -162,6 +170,23 @@ async function placeWindow(page, { testId, left, right, top }) {
   await page.mouse.move(x, y);
   await page.mouse.down();
   await page.mouse.move(x + targetLeft - box.x, y + top - box.y, { steps: 8 });
+  await page.mouse.up();
+}
+
+/**
+ * Widen a resizable window until its bar strip shows every bar: drag its grip
+ * well past the end, and the grip's live bounds clamp it to exactly "controls +
+ * whole strip" (transport-window.md REQ-the-window-width-is-resizable). The
+ * width is remembered in this page's storage only — a fresh browser context.
+ */
+async function fitStrip(page, testId) {
+  const grip = await page.getByTestId(`${testId}-resize`).boundingBox();
+  if (!grip) throw new Error(`${testId} has no resize grip`);
+  const x = grip.x + grip.width / 2;
+  const y = grip.y + grip.height / 2;
+  await page.mouse.move(x, y);
+  await page.mouse.down();
+  await page.mouse.move(x + 800, y, { steps: 8 });
   await page.mouse.up();
 }
 
@@ -200,6 +225,7 @@ try {
     const page = await openApp(browser);
     await page.getByTestId('transport-open').click();
     await placeWindow(page, transportWin);
+    if (transportWin.fitStrip) await fitStrip(page, transportWin.testId);
     const cell = page.locator('[data-testid^="transportw-scrub-"]').filter({ hasText: new RegExp(`^${BAR}$`) });
     if (await cell.count() === 0) throw new Error(`the song has no bar ${BAR}`);
     await cell.first().click();

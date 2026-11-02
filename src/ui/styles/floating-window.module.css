@@ -105,6 +105,32 @@
   }
 
   .body {
+    /* The resize grip's containing block (REQ-a-window-may-be-resizable): it
+       starts below the title bar and is hidden with the body when minimised. */
+    position: relative;
     padding: 12px;
+  }
+
+  /* A right-edge grip straddling the window's border, the body's full height.
+     Narrower than ADR-014's 44px; floating-window.md records why that is safe. */
+  .resizeRight {
+    position: absolute;
+    top: 0;
+    bottom: 0;
+    right: -7px;
+    width: 12px;
+  }
+
+  /* A corner grip in the body's bottom-right padding; it can only overlap the
+     content's own rounded corner. */
+  .resizeCorner {
+    position: absolute;
+    right: 1px;
+    bottom: 1px;
+    width: 16px;
+    height: 16px;
+    font-size: 13px;
+    align-items: flex-end;
+    justify-content: flex-end;
   }
 }

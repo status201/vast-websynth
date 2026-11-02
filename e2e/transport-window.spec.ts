@@ -1,5 +1,5 @@
 import { test, expect, type Page } from '@playwright/test';
-import { gotoAndStart } from './helpers';
+import { gotoAndStart, startAudio } from './helpers';
 
 /* eslint-disable @typescript-eslint/no-explicit-any */
 const clockStep = (page: Page): Promise<number> =>
@@ -137,6 +137,83 @@ test.describe('TRANSPORT window', () => {
     await page.getByTestId('transport-scrub-2').click();
     expect(await clockStep(page)).toBe(SEQ_LENGTH * 2);
     await expect(page.getByTestId('transport-readout')).toHaveText('3.01');
+  });
+
+  // REQ-the-scrubber-presents-as-a-timeline (regression): flex line-breaking measured the strip's whole
+  // content, so a ~25-bar song wrapped it onto a line of its own while the
+  // window stayed at its cap, with empty space beside it. It now keeps its place
+  // on the controls' line and scrolls.
+  test('a song too long for the window scrolls on the controls\' line', async ({ page }) => {
+    await gotoAndStart(page);
+    await page.getByTestId('tab-song').click();
+    await page.getByTestId('transport-open').click();
+    const win = page.getByTestId('transport-window');
+    const scrub = win.getByTestId('transportw-scrub');
+    const scrolls = (): Promise<boolean> =>
+      scrub.evaluate((el) => el.scrollWidth > el.clientWidth);
+
+    await setSeqChain(page, Array<number>(26).fill(0));
+    await expect(win.locator('[data-testid="transportw-scrub"] button')).toHaveCount(26);
+    const toggleBox = (await win.getByTestId('transportw-toggle').boundingBox())!;
+    const scrubBox = (await scrub.boundingBox())!;
+    // Same line: the two boxes overlap vertically.
+    expect(scrubBox.y).toBeLessThan(toggleBox.y + toggleBox.height);
+    expect(scrubBox.y + scrubBox.height).toBeGreaterThan(toggleBox.y);
+    expect(await scrolls()).toBe(true);
+
+    // A short song still shrink-wraps: no scrolling, the window under its cap.
+    await setSeqChain(page, [0, 0, 1, 0]);
+    await expect(win.locator('[data-testid="transportw-scrub"] button')).toHaveCount(4);
+    expect(await scrolls()).toBe(false);
+    expect((await win.boundingBox())!.width).toBeLessThan(700);
+  });
+
+  // REQ-the-window-width-is-resizable — automatic until dragged, remembered,
+  // double-click back to automatic; nothing to resize for a short song.
+  test('the window width can be dragged, is remembered and resets to automatic', async ({ page }) => {
+    await page.setViewportSize({ width: 1800, height: 900 });
+    await gotoAndStart(page);
+    const open = async (): Promise<void> => {
+      await setSeqChain(page, Array<number>(64).fill(0));
+      await page.getByTestId('tab-song').click();
+      await page.getByTestId('transport-open').click();
+    };
+    await open();
+    const win = page.getByTestId('transport-window');
+    const scrub = win.getByTestId('transportw-scrub');
+
+    // Park it at the left edge, so there is room to grow to the right.
+    const box = (await win.boundingBox())!;
+    await page.mouse.move(box.x + 140, box.y + 15);
+    await page.mouse.down();
+    await page.mouse.move(150, box.y + 15, { steps: 5 });
+    await page.mouse.up();
+
+    const auto = (await win.boundingBox())!.width;
+    const autoStrip = await scrub.evaluate((el) => el.clientWidth);
+    const grip = win.getByTestId('transport-window-resize');
+    const g = (await grip.boundingBox())!;
+    await page.mouse.move(g.x + g.width / 2, g.y + g.height / 2);
+    await page.mouse.down();
+    await page.mouse.move(g.x + g.width / 2 + 300, g.y + g.height / 2, { steps: 5 });
+    await page.mouse.up();
+
+    const dragged = (await win.boundingBox())!.width;
+    expect(Math.round(dragged - auto)).toBe(300);
+    expect(await scrub.evaluate((el) => el.clientWidth)).toBeGreaterThan(autoStrip + 250); // more bars on show
+
+    await page.reload();
+    await startAudio(page);
+    await open();
+    expect(Math.abs((await win.boundingBox())!.width - dragged)).toBeLessThan(1);
+
+    await grip.dblclick();
+    await expect.poll(async () => Math.round((await win.boundingBox())!.width)).toBe(Math.round(auto));
+    expect(await page.evaluate(() => localStorage.getItem('websynth.ui.window.transport.width'))).toBeNull();
+
+    // A short song: the strip already shows every bar, so there is nothing to drag.
+    await setSeqChain(page, [0, 0, 1, 0]);
+    await expect(grip).toBeHidden();
   });
 
   test('the return-to-start button goes back to bar 1', async ({ page }) => {

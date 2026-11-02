@@ -1,6 +1,7 @@
 import styles from '../styles/floating-window.module.css';
 import { clamp } from '../../utils/math';
 import { UI_ICONS } from './ui-icons';
+import { ResizeHandle } from './resize-handle';
 
 /**
  * Reusable **non-modal** floating window — a titled, draggable panel that hovers
@@ -30,6 +31,34 @@ export interface FloatingWindowOptions {
    * launcher's toggle, a keyboard shortcut. For a window holding unsaved work.
    */
   confirmClose?: () => Promise<boolean>;
+  /** Opt-in resize grip (REQ-a-window-may-be-resizable). */
+  resizable?: FloatingWindowResize;
+}
+
+/**
+ * A resizable window's grip (REQ-a-window-may-be-resizable). The consumer owns
+ * the limits, the storage and the reset; the window places the grip and caps
+ * the size to the viewport where it stands.
+ */
+export interface FloatingWindowResize {
+  /** `right`: a width, from the right edge. `down-right`: a square, from the corner. */
+  direction: 'right' | 'down-right';
+  /** Written on the window root; the consumer's CSS reads it. */
+  cssVar: string;
+  /** The consumer's limits, before the viewport cap. */
+  bounds(): { min: number; max: number };
+  /** The consumer's current size, in `cssVar`'s terms. */
+  measure(): number;
+  /** The stored preference; `null` = automatic. */
+  initial: number | null;
+  /** px per arrow key. */
+  step: number;
+  onCommit(px: number): void;
+  onReset(): void;
+  /** aria-label. */
+  label: string;
+  /** Names the gesture. */
+  title: string;
 }
 
 export class FloatingWindow {
@@ -40,6 +69,8 @@ export class FloatingWindow {
   private readonly minBtn: HTMLButtonElement;
   private readonly onCloseCb?: () => void;
   private readonly confirmCloseCb?: () => Promise<boolean>;
+  private readonly resizeOpts?: FloatingWindowResize;
+  private readonly resizer?: ResizeHandle;
   private closeTimer: number | undefined;
   private _isOpen = false;
   private _collapsed = false;
@@ -119,7 +150,60 @@ export class FloatingWindow {
 
     this.root.appendChild(bar);
     this.root.appendChild(this.body);
+
+    // Inside the body, so it starts below the title bar (which stays the drag
+    // area) and goes with the body when the window is minimised.
+    if (opts.resizable) {
+      const r = opts.resizable;
+      this.resizeOpts = r;
+      this.resizer = new ResizeHandle({
+        target: this.root,
+        cssVar: r.cssVar,
+        // Live bounds take over once mounted; these only seed the ARIA range.
+        min: 0,
+        max: 0,
+        initial: r.initial,
+        defaultValue: 0, // unused: onReset clears to the consumer's automatic size
+        step: r.step,
+        onCommit: (px) => r.onCommit(px),
+        onReset: () => { r.onReset(); this.refreshSize(); },
+        testId: `${opts.testId ?? 'floating-window'}-resize`,
+        label: r.label,
+        title: r.title,
+        direction: r.direction,
+        measure: () => r.measure(),
+        bounds: this.resizeBounds,
+        className: r.direction === 'right' ? styles.resizeRight! : styles.resizeCorner!,
+      });
+      this.body.appendChild(this.resizer.el);
+    }
   }
+
+  /**
+   * Re-check a resizable window's room (REQ-a-window-may-be-resizable) — the
+   * consumer calls it when its content's size changes; the window calls it on
+   * open, a viewport change and a restore. A clamped size is not committed, so
+   * the stored one returns when there is room. No-op for a plain window.
+   */
+  refreshSize(): void {
+    if (!this.resizer || !this._isOpen) return;
+    this.resizer.refresh();
+    this.clampIntoView();
+  }
+
+  /** The consumer's bounds, with `max` capped to what fits right of (and, for a
+   *  square, below) where the window stands — so a drag never pushes the window
+   *  off screen, and the window never moves under the pointer. */
+  private readonly resizeBounds = (): { min: number; max: number } => {
+    const r = this.resizeOpts!;
+    const b = r.bounds();
+    const size = r.measure();
+    let max = Math.min(b.max, window.innerWidth - this.pos.left - (this.root.offsetWidth - size));
+    if (r.direction === 'down-right') {
+      max = Math.min(max, window.innerHeight - this.pos.top - (this.root.offsetHeight - size));
+    }
+    return { min: b.min, max };
+  };
 
   get isOpen(): boolean { return this._isOpen; }
 
@@ -139,6 +223,7 @@ export class FloatingWindow {
     // Re-clamp a possibly stale position into the current viewport, then keep it
     // there across resize/orientation changes while open (REQ-window-stays-inside-the-viewport).
     this.clampIntoView();
+    this.refreshSize();
     window.addEventListener('resize', this.onViewportResize);
     window.addEventListener('orientationchange', this.onViewportResize);
   }
@@ -178,7 +263,10 @@ export class FloatingWindow {
     this.setCollapsed(!this._collapsed);
     // Restoring re-grows the body (offsetHeight), which could push it past the
     // bottom edge — re-clamp so a restored window stays in view (REQ-window-stays-inside-the-viewport).
-    if (this._isOpen) this.clampIntoView();
+    if (this._isOpen) {
+      this.clampIntoView();
+      if (!this._collapsed) this.refreshSize();
+    }
   }
 
   private setCollapsed(collapsed: boolean): void {
@@ -235,7 +323,9 @@ export class FloatingWindow {
   }
 
   private readonly onViewportResize = (): void => {
-    if (this._isOpen) this.clampIntoView();
+    if (!this._isOpen) return;
+    this.clampIntoView();
+    this.refreshSize();
   };
 
   private readonly onDragEnd = (): void => { this.endDrag(); };

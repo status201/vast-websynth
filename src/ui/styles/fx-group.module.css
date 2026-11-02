@@ -1,5 +1,8 @@
 @layer components {
   .root {
+    /* The title's size, read by .label and by a slot picker's caret beside it
+       (iconography.md REQ-a-title-caret-is-cap-high), so the two cannot drift. */
+    --fx-title-size: 9px;
     display: flex;
     align-items: center;
     gap: 4px;
@@ -38,7 +41,7 @@
   }
 
   .label {
-    font-size: 9px;
+    font-size: var(--fx-title-size);
     text-transform: uppercase;
     letter-spacing: 0.12em;
     color: var(--accent-secondary);

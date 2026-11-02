@@ -49,7 +49,8 @@ export function createFxSlot(bus: ParamBus, views: readonly FxSlotView[]): FxSlo
 
   const toggle = document.createElement('button');
   toggle.type = 'button';
-  toggle.className = styles.caret!;
+  // `cap-caret`: as tall as the title's capitals (iconography.md REQ-a-title-caret-is-cap-high).
+  toggle.className = `${styles.caret!} cap-caret`;
   toggle.dataset.testid = `fxpick-${primary}`;
   // Icon only (REQ-the-title-is-unchanged-plus-a-caret): the title beside it is the visible name.
   toggle.innerHTML = UI_ICONS.caretDown;

@@ -4,10 +4,13 @@
 @layer shell {
   /* ===== FX section ===== */
 
+  /* No gap: unfolded, the bar and the rack's top row are one surface, the way a
+     tab container's bar and content are (MACHINES, EQUALIZER) — responsive-synth-panels.md
+     REQ-the-fx-bar-joins-its-top-row. */
   .fxSection {
     display: flex;
     flex-direction: column;
-    gap: 8px;
+    gap: 0;
     min-width: 0;
     /* The token every other row uses, not the 22px it is at desktop widths: a
        literal kept FX 14px further in than MACHINES and EQUALIZER once the token
@@ -32,14 +35,24 @@
 
   .fxSection:global(.collapsed) .fxRow { display: none; }
 
+  /* Unfolded, the bar's bottom corners meet the top row's square tops. Folded,
+     nothing hangs under it, so it keeps all four rounded. */
+  .fxSection:not(:global(.collapsed)) .fxSectionBar {
+    border-bottom-left-radius: 0;
+    border-bottom-right-radius: 0;
+  }
+
   /* Six equal columns. Equal is the wrong shape once a panel holds four knobs —
      see the min-width:1360px step below, which sizes panels to their knobs where
      there is room to. This stays the narrow fallback, where nothing fits anyway
-     and shrinking evenly beats overflowing. */
+     and shrinking evenly beats overflowing.
+     -1px so the bar's bottom border and the top row's top borders draw as one
+     rule, like the tab bar's border-bottom (tabs.module.css .bar). */
   .fxRow {
     display: grid;
     grid-template-columns: repeat(6, minmax(0, 1fr));
     gap: 10px;
+    margin-top: -1px;
   }
 
   .fxPanel {
@@ -52,6 +65,15 @@
     flex-direction: column;
     gap: 6px;
     min-width: 0;
+  }
+
+  /* The top row — the first N cells, N = the column count (6 here, 2 at <=992px
+     below) — joins the bar, so its top corners are square. Keyed to N rather than
+     to every panel, so a panel that wraps to a second row stays rounded
+     (responsive-synth-panels.md REQ-the-fx-bar-joins-its-top-row). */
+  .fxPanel:nth-child(-n + 6) {
+    border-top-left-radius: 0;
+    border-top-right-radius: 0;
   }
 
   .fxHeader {
@@ -137,5 +159,12 @@
        currently absent. fx-patch-decoration.module.css mirrors this breakpoint
        (it is display:none above it) — keep the two in sync. */
     .fxRow { grid-template-columns: repeat(2, 1fr); }
+    /* Two columns, so only cells 1-2 are the top row; the rest round again.
+       Change this with the column count above. Same specificity as the base
+       :nth-child(-n + 6) rule, so source order lets it win. */
+    .fxPanel:nth-child(n + 3) {
+      border-top-left-radius: 6px;
+      border-top-right-radius: 6px;
+    }
   }
 }

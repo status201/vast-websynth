@@ -490,7 +490,8 @@ The rest of the design follows from what each view is for:
 ### Gesture inventory — the resize handle
 
 The [recipe](../recipes/design-an-interaction.md) step-1 artefact for the one new
-interactive control this feature adds. Everything else on this panel is a plain
+interactive control this feature adds; the component's generic table is
+[resize-handle](resize-handle.md), and this one is the scope's instance of it. Everything else on this panel is a plain
 button. `—` is a decision, not an omission.
 
 | Gesture | Outcome | Precedent |
@@ -646,35 +647,12 @@ function updateWaveGain(gain: number, peak: number, dtSec: number): number; // a
 `Engine` (`src/audio/engine.ts`) has public `analyserL` / `analyserR`, read through
 `StudioApi` (`src/ui/studio-api.ts`).
 
-The resize handle — a generic vertical resizer, deliberately **not** coupled to
-`Scope`. It writes a CSS custom property on a target element and reports commits; it
-knows nothing about canvases, analysers or grids:
+The resize handle is the shared `ResizeHandle` facility — its contract is
+[resize-handle](resize-handle.md); the scope uses its default `up` direction with
+static bounds and a numeric default.
 
 ```ts
-// src/ui/components/resize-handle.ts
-interface ResizeHandleOptions {
-  target: HTMLElement;      // element the custom property is written on
-  cssVar: string;           // e.g. '--scope-h'
-  min: number;              // px, inclusive
-  max: number;              // px, inclusive
-  initial: number;          // starting height (already clamped by the caller)
-  defaultValue: number;     // what double-tap / Home resets to
-  onCommit(px: number): void;  // fired on release / key commit — NOT per move
-  testId: string;
-  label: string;            // aria-label + title
-}
-
-class ResizeHandle {
-  readonly el: HTMLElement;
-  constructor(opts: ResizeHandleOptions);
-  get value(): number;        // current height in px
-  set(px: number): void;      // clamped; writes the custom property + aria-valuenow
-  destroy(): void;            // detaches drag + key listeners, cancels a pending frame
-}
-```
-
-```ts
-// src/state/scope-height.ts — device-scoped workspace pref (same class as perf-mode)
+// src/state/scope-height.ts — device-scoped workspace pref (same class as perf-mode); stored through state/size-pref.ts
 const SCOPE_H_MIN = 130;      // px — the original fixed height, the floor
 const SCOPE_H_MAX = 260;      // px — exactly twice it, the ceiling
 const SCOPE_H_DEFAULT = 130;  // px — SCOPE_H_MIN; what a fresh boot and a reset give

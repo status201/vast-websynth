@@ -1226,9 +1226,13 @@ export const HELP_TOPICS: Record<TopicId, HelpTopic> = {
       'a bar picks it rather than jumping there. Playback always changes over on a bar line, so ' +
       'the loop never cuts in mid-bar. Switching Loop off keeps the bars dimmed, ready for next ' +
       'time; loading a song clears them. <strong>Shift+L</strong> switches Loop on and off.</p>' +
+      '<p>A long song scrolls, and <strong>Follow</strong> keeps the playing bar in view. Switch ' +
+      'it off to scroll to another part of the song while it plays without being pulled back; ' +
+      'switch it on again to jump back to the playhead.</p>' +
       '<p><strong>TRANSPORT</strong> opens all of this in a floating window that keeps working ' +
       'on every other tab, so you can start, pause, loop and relocate while designing a ' +
-      'sound.</p>' +
+      'sound. For a long song, drag its right edge to see more bars at once; it remembers the ' +
+      'width, and a double-click on the edge sets it back to automatic.</p>' +
       '<p>Moving the playhead and looping are unavailable while an external clock is driving ' +
       'the transport, or while a song export or bank render is recording.</p>',
   },
@@ -1290,7 +1294,8 @@ export const HELP_TOPICS: Record<TopicId, HelpTopic> = {
       '<strong>Drop</strong> dives the filter for a build. <strong>Tape&nbsp;Stop</strong> ' +
       'drags the tempo and the pitch down together, then winds back up on release. ' +
       '<strong>XY&nbsp;Pad</strong> opens the two-axis controller for whichever pair of ' +
-      'parameters it is assigned.</p>' +
+      'parameters it is assigned. Drag its bottom-right corner to make it bigger for finer ' +
+      'control; it remembers the size, and a double-click on the corner shrinks it back.</p>' +
       '<p><strong>LIVE FX</strong> opens all of this in a floating window that keeps working ' +
       'on every other tab, so you can perform while a different tab is in front of you.</p>' +
       '<p>They need the transport running to do much — Fill and Stutter act on the steps as ' +

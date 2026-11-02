@@ -113,6 +113,19 @@
     stroke-linejoin: round;
   }
 
+  /* A caret exactly as tall as the capitals it rides beside
+     (iconography.md REQ-a-title-caret-is-cap-high). Its holder takes the
+     font-size of the text it matches, so `cap` is that text's cap height in
+     whichever face renders. `caretDown`'s glyph spans 7 of its 16 units (4.95
+     to 11.95), so a 16/7-cap box makes it one cap high, and the negative margins
+     trim the empty rows so the bigger box adds no height to the row. Global for
+     the same reason as `.ui-icon`: two components' carets share it. */
+  .cap-caret > svg.ui-icon {
+    width: calc(1cap * 16 / 7);
+    height: calc(1cap * 16 / 7);
+    margin-block: calc(-1cap * 4.95 / 7) calc(-1cap * 4.05 / 7);
+  }
+
   /* Solid sub-shapes (carets, triangles, dice pips) opt out of the stroke. */
   svg.ui-icon .fill {
     fill: currentColor;

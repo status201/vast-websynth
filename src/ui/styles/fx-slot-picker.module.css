@@ -18,7 +18,11 @@
     border: none;
     color: var(--text-dim);
     cursor: pointer;
-    font-size: 12px;
+    /* The title's own size, so base.css's `.cap-caret` sizes the glyph to the
+       title's cap height (iconography.md REQ-a-title-caret-is-cap-high): 11px is
+       the synth rack's `.fxTitle`; a sampler FX group sets 9px for its label and
+       this alike. */
+    font-size: var(--fx-title-size, 11px);
     line-height: 1;
   }
 

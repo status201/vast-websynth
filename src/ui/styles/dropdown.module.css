@@ -263,7 +263,9 @@
     text-shadow: 0 1px 0 rgba(0, 0, 0, 0.7);
   }
 
-  .root.titled .caret { grid-area: caret; justify-self: start; font-size: 10px; }
+  /* Cap-high beside the legend (iconography.md REQ-a-title-caret-is-cap-high):
+     the legend's 8px in the toggle's face; base.css's `.cap-caret` sizes the glyph. */
+  .root.titled .caret { grid-area: caret; justify-self: start; font-size: 8px; display: inline-flex; }
 
   .root.titled:global(.open) .caret,
   .root.titled .toggle:focus-visible .caret {

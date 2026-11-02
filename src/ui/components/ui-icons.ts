@@ -65,6 +65,10 @@ export const UI_ICONS = {
    *  rotating, because its label sits beside it). */
   caretRight: icon('<path class="fill" d="M4.95 1.2 L11.95 8 L4.95 14.8 Z"/>'),
 
+  /** ◢ — a resizable window's corner grip (floating-window.md REQ-a-window-may-be-resizable):
+   *  the OS convention of diagonal ridges in the bottom-right corner. */
+  resizeCorner: icon('<path d="M14 5 L5 14"/><path d="M14 9.5 L9.5 14"/>'),
+
   /** ✕ — close a floating window, dismiss a toast, remove a chain slot. */
   close: icon('<path d="M4 4 L12 12"/><path d="M12 4 L4 12"/>'),
   /** ＋ — "add one more": the bank bar's grow arm (banks.md REQ-a-bank-is-added-on-demand).

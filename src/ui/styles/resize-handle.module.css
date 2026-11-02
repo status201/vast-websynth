@@ -1,4 +1,4 @@
-/* Vertical resize handle — see specs/features/scope.md → Gesture inventory.
+/* The shared resize grip — see specs/features/resize-handle.md.
    Appearance and interaction only: POSITION AND SIZE are the consumer's, passed
    as a second class (the same split `.scopeToggle` makes against switch.module.css),
    because only the consumer knows what the handle has to sit clear of. */
@@ -46,5 +46,30 @@
   .root:global(.dragging) .grip {
     opacity: 1;
     background: linear-gradient(180deg, var(--accent-secondary) 0%, #6a553c 100%);
+  }
+
+  /* A right edge (REQ-a-handle-has-a-direction): the same pill, stood upright. */
+  .right { cursor: ew-resize; }
+  .right .grip {
+    width: 5px;
+    max-width: none;
+    height: 100%;
+    max-height: 48px;
+  }
+
+  /* A corner: the grip is the drawn `resizeCorner` glyph rather than a pill, so
+     the pill's box is dropped and the glyph takes its colour and opacity. */
+  .corner { cursor: nwse-resize; color: var(--text-dim); }
+  .corner .grip {
+    display: contents;
+  }
+  .corner :global(svg.ui-icon) {
+    opacity: 0.55;
+  }
+  .corner:hover :global(svg.ui-icon),
+  .corner:focus-visible :global(svg.ui-icon),
+  .corner:global(.dragging) :global(svg.ui-icon) {
+    opacity: 1;
+    color: var(--accent-secondary);
   }
 }

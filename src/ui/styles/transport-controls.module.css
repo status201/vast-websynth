@@ -15,13 +15,17 @@
   /* Same row inside the floating window — the title bar frames it, so no divider.
      The window is shrink-to-fit (floating-window.module.css sets only a min-width),
      so it needs the cap: without one a 64-bar song would grow the window past the
-     viewport instead of scrolling the timeline inside it (REQ-the-scrubber-presents-as-a-timeline). */
+     viewport instead of scrolling the timeline inside it (REQ-the-scrubber-presents-as-a-timeline).
+     `.scrub`'s basis is what keeps a long song on the controls' line at the cap. */
   .window {
     display: flex;
     align-items: center;
     gap: 12px;
     flex-wrap: wrap;
-    max-width: min(90vw, 880px);
+    /* Unset: automatic, shrink-to-fit up to the cap. Dragged
+       (REQ-the-window-width-is-resizable): the user's width, cap and all. */
+    width: var(--transport-w, auto);
+    max-width: var(--transport-w, min(90vw, 880px));
   }
 
   /* Play/Pause (transport-window.md REQ-pause-and-stop-are-separate-verbs): wide enough for "Pause", so the row
@@ -54,9 +58,14 @@
     display: flex;
     align-items: center;
     gap: 2px;
-    /* Shrink (then scroll) but never grow: the bed IS the song, so a four-bar
+    /* Keeps its place on the controls' line (REQ-the-scrubber-presents-as-a-timeline):
+       line-breaking measures the ~8-cell basis, not the content width. With
+       `auto` a 25-bar song wrapped the whole strip onto a line of its own, and
+       the window stayed at its cap with empty space beside it. Grows into the
+       free space but never past its cells: the bed IS the song, so a four-bar
        song must not stretch it across the row with empty black after bar 4. */
-    flex: 0 1 auto;
+    flex: 1 1 192px;
+    max-width: max-content;
     min-width: 0;
     overflow-x: auto;
     overflow-y: hidden;

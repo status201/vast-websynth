@@ -244,7 +244,7 @@ sampler slots:                                      # features/sampler.md
 
 xy pad:                                             # features/xy-pad.md
   xypad-surface · xypad-dot · xypad-hint · xypad-gear ·
-  xypad-axis-<x|y> · xypad-assign-<x|y> · xypad-window
+  xypad-axis-<x|y> · xypad-assign-<x|y> · xypad-window · xypad-window-resize
 
 song panel — lanes, chains & live FX:
   song-lane-<seq|drum|sampler>       # + switch-<lane>.mute / .solo / knob-<lane>.master
@@ -288,11 +288,11 @@ song panel — files:
   song-share-link                                   # Copy Link (features/song-share-link.md)
 
 transport row & window:                             # features/transport-window.md
-  transport-open · transport-window
+  transport-open · transport-window · transport-window-resize
   transport-toggle · transport-tostart · transport-readout · transport-loop ·
-    transport-scrub · transport-scrub-<bar>
+    transport-follow · transport-scrub · transport-scrub-<bar>
   transportw-toggle · transportw-tostart · transportw-readout · transportw-loop ·
-    transportw-scrub · transportw-scrub-<bar>
+    transportw-follow · transportw-scrub · transportw-scrub-<bar>
   # scrub cells carry GLOBAL state classes: `playing` (current bar), `loop` (in
   # the effective loop range), `loop-anchor` (a pending first pick) —
   # features/transport-loop.md REQ-what-the-loop-scrubber-shows

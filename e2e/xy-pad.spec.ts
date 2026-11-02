@@ -1,5 +1,5 @@
 import { test, expect, type Page } from '@playwright/test';
-import { gotoAndStart, busGet } from './helpers';
+import { gotoAndStart, busGet, startAudio } from './helpers';
 
 /**
  * The XY Pad — a non-modal floating controller launched from the Song tab's
@@ -118,6 +118,65 @@ test.describe('XY Pad', () => {
     // Releasing springs it back to exactly where it started.
     await page.mouse.up();
     await expect.poll(() => busGet(page, 'filter.cutoff')).toBeCloseTo(pre, 2);
+  });
+
+  // REQ-the-pad-is-resizable — the corner grip grows the square; the size is
+  // remembered; double-click goes back to 240.
+  test('the corner grip grows the pad, which stays square, mapped and remembered', async ({ page }) => {
+    await page.setViewportSize({ width: 1600, height: 1200 });
+    await page.getByTestId('perf-xypad').click();
+    const surface = page.getByTestId('xypad-surface');
+    const before = (await surface.boundingBox())!;
+    expect(Math.round(before.width)).toBe(240);
+
+    const grip = page.getByTestId('xypad-window-resize');
+    const g = (await grip.boundingBox())!;
+    await page.mouse.move(g.x + g.width / 2, g.y + g.height / 2);
+    await page.mouse.down();
+    await page.mouse.move(g.x + g.width / 2 + 200, g.y + g.height / 2 + 120, { steps: 5 });
+    await page.mouse.up();
+
+    const after = (await surface.boundingBox())!;
+    expect(Math.round(after.width)).toBe(440); // the larger delta (200) wins
+    expect(Math.abs(after.width - after.height)).toBeLessThan(1);
+
+    // The pointer mapping follows the bigger surface: its centre is the middle of both axes.
+    await page.mouse.move(after.x + after.width / 2, after.y + after.height / 2);
+    await page.mouse.down();
+    const dot = page.getByTestId('xypad-dot');
+    const at = await dot.evaluate((el) => [parseFloat(el.style.left), parseFloat(el.style.top)]);
+    await page.mouse.up();
+    expect(Math.abs(at[0]! - 50)).toBeLessThan(1);
+    expect(Math.abs(at[1]! - 50)).toBeLessThan(1);
+
+    // Remembered across a reload.
+    await page.reload();
+    await startAudio(page);
+    await page.getByTestId('tab-song').click();
+    await page.getByTestId('perf-xypad').click();
+    expect(Math.round((await surface.boundingBox())!.width)).toBe(440);
+
+    // Double-click forgets it.
+    await grip.dblclick();
+    await expect.poll(async () => Math.round((await surface.boundingBox())!.width)).toBe(240);
+    expect(await page.evaluate(() => localStorage.getItem('websynth.ui.window.xypad.size'))).toBeNull();
+  });
+
+  test('the pad stops at 960 px, and sooner where the viewport ends', async ({ page }) => {
+    await page.setViewportSize({ width: 1600, height: 800 });
+    await page.getByTestId('perf-xypad').click();
+    const surface = page.getByTestId('xypad-surface');
+    const g = (await page.getByTestId('xypad-window-resize').boundingBox())!;
+    await page.mouse.move(g.x + g.width / 2, g.y + g.height / 2);
+    await page.mouse.down();
+    await page.mouse.move(g.x + 2000, g.y + 2000, { steps: 5 });
+    await page.mouse.up();
+
+    const s = (await surface.boundingBox())!;
+    const win = (await page.getByTestId('xypad-window').boundingBox())!;
+    expect(s.width).toBeLessThanOrEqual(960);
+    expect(win.y + win.height).toBeLessThanOrEqual(800 + 1); // the viewport, not 960, had the last word
+    expect(win.x + win.width).toBeLessThanOrEqual(1600 + 1);
   });
 
   test('the axis assignment round-trips through a saved song (v3)', async ({ page }) => {

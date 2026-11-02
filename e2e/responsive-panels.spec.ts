@@ -552,3 +552,61 @@ test('no FX rack panel wraps its knob run', async ({ page }) => {
     }
   }
 });
+
+/**
+ * REQ-the-fx-bar-joins-its-top-row: unfolded, the FX bar and the rack's top row
+ * are one surface, as a tab container's bar and content are. The top row is the
+ * first N grid cells, N being the column count (6 wide, 2 at <=992px), so the
+ * narrow case is where a selector that squared every panel would fail. The bar
+ * is the `fx` section's first child and the grid its last, as above.
+ */
+test('the FX bar joins its top row of panels', async ({ page }) => {
+  await gotoAndStart(page);
+
+  const measure = () => page.evaluate(() => {
+    const section = document.querySelector('[data-testid="fx"]')!;
+    const bar = section.firstElementChild as HTMLElement;
+    const grid = section.lastElementChild as HTMLElement;
+    const barCs = getComputedStyle(bar);
+    return {
+      collapsed: section.classList.contains('collapsed'),
+      barBottom: bar.getBoundingClientRect().bottom,
+      barRadius: [barCs.borderBottomLeftRadius, barCs.borderBottomRightRadius],
+      panels: [...grid.children].map((p) => {
+        const cs = getComputedStyle(p);
+        return {
+          top: p.getBoundingClientRect().top,
+          bottom: p.getBoundingClientRect().bottom,
+          radius: [cs.borderTopLeftRadius, cs.borderTopRightRadius],
+        };
+      }),
+    };
+  });
+  const unfold = async () => {
+    if ((await measure()).collapsed) await page.locator('[data-testid="fx"] > :first-child').click();
+    expect((await measure()).collapsed, 'the FX section is unfolded').toBe(false);
+  };
+
+  for (const [width, cols] of [[1400, 6], [900, 2]] as const) {
+    await page.setViewportSize({ width, height: 900 });
+    await unfold();
+    const m = await measure();
+    expect(m.panels.length, 'six rack panels').toBe(6);
+    expect(m.barRadius, `the unfolded bar's bottom corners are square at ${width}px`).toEqual(['0px', '0px']);
+    m.panels.forEach((p, i) => {
+      if (i < cols) {
+        // One shared 1px rule: the panel's top border is the bar's bottom one.
+        expect(p.top, `panel ${i + 1} meets the bar at ${width}px`).toBeCloseTo(m.barBottom - 1, 0);
+        expect(p.radius, `panel ${i + 1}'s top corners are square at ${width}px`).toEqual(['0px', '0px']);
+      } else {
+        expect(p.radius, `panel ${i + 1}'s top corners stay rounded at ${width}px`).toEqual(['6px', '6px']);
+        expect(p.top - m.panels[i - cols]!.bottom, `panel ${i + 1} keeps the 10px row gap`).toBeCloseTo(10, 0);
+      }
+    });
+  }
+
+  await page.locator('[data-testid="fx"] > :first-child').click();
+  const folded = await measure();
+  expect(folded.collapsed, 'the FX section is folded').toBe(true);
+  expect(folded.barRadius, 'the folded bar is fully rounded').toEqual(['6px', '6px']);
+});
