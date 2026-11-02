@@ -7,7 +7,7 @@
 //
 // Outputs (public/), each 1920×1080:
 //   vast-websynth.png               the demo playing, pattern row folded, scope on
-//                                   Spectrum, keys lit by the notes
+//                                   Wave caught at a full swing, keys lit by the notes
 //   vast-websynth-drum-machine.png  stopped at --bar, Drum Machine tab, with the
 //                                   Transport (widened to the whole song), Live FX
 //                                   and XY pad windows open
@@ -19,7 +19,7 @@
 // Framing is judged by eye — look at all three before committing them.
 
 import { spawn } from 'node:child_process';
-import { existsSync, statSync } from 'node:fs';
+import { existsSync, statSync, writeFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { chromium } from 'playwright';
 
@@ -206,6 +206,71 @@ async function catchChord(page) {
   ).catch(() => console.warn('readme-screenshots: no chord within 30 s — shooting anyway'));
 }
 
+/** How full a Wave trace looks *in a screenshot*, and whether keys are lit:
+ *  decoded in the page, since Node has no PNG decoder here. `swing` is the
+ *  trace's vertical extent per 24px block, averaged, as a fraction of the
+ *  scope's height; `lit` is the share of the keyboard that is note-orange. */
+async function judgeShot(page, png, scope, keys) {
+  return page.evaluate(async ({ b64, scope, keys }) => {
+    const img = new Image();
+    img.src = `data:image/png;base64,${b64}`;
+    await img.decode();
+    const c = document.createElement('canvas');
+    c.width = img.width;
+    c.height = img.height;
+    const ctx = c.getContext('2d');
+    ctx.drawImage(img, 0, 0);
+    const px = (r) => ctx.getImageData(Math.round(r.x), Math.round(r.y), Math.round(r.width), Math.round(r.height));
+    const trace = (d, i) => d[i] > 150 && d[i + 1] > 50 && d[i + 2] < 90;
+    const s = px(scope);
+    let sum = 0;
+    let n = 0;
+    for (let x0 = 0; x0 + 24 <= s.width; x0 += 24) {
+      let lo = s.height;
+      let hi = -1;
+      for (let x = x0; x < x0 + 24; x += 2) {
+        for (let y = 0; y < s.height; y++) {
+          if (trace(s.data, (y * s.width + x) * 4)) { lo = Math.min(lo, y); hi = Math.max(hi, y); }
+        }
+      }
+      if (hi >= 0) { sum += (hi - lo) / s.height; n++; }
+    }
+    const k = px(keys);
+    let orange = 0;
+    for (let i = 0; i < k.data.length; i += 16) {
+      if (k.data[i] > 200 && k.data[i + 1] > 80 && k.data[i + 1] < 180 && k.data[i + 2] < 110) orange++;
+    }
+    return { swing: n ? sum / n : 0, lit: orange / (k.data.length / 16) };
+  }, { b64: png.toString('base64'), scope, keys });
+}
+
+/**
+ * Shoot the playing hero until the Wave trace in the *image* swings across the
+ * scope with keys lit — a full trace lasts only a few hundred ms, and the scope
+ * redraws every frame, so a check before the screenshot proves nothing about
+ * it. Nocturne's swing is ~0.13 median and reaches 0.5 a few times a minute.
+ * `minLit` (~2% of the keyboard orange) means a key is lit: two lit keys and a
+ * full swing rarely coincide in Nocturne (best 0.27 in 120 s). Keeps
+ * the best qualifying take if none reaches `minSwing` in time.
+ */
+async function shootWave(page, file, { minSwing = 0.5, minLit = 0.02, timeoutMs = 120_000 } = {}) {
+  const scope = await page.getByTestId('scope-canvas').boundingBox();
+  const keys = await page.getByTestId('keyboard').boundingBox();
+  if (!scope || !keys) throw new Error('scope or keyboard has no bounding box');
+  const deadline = Date.now() + timeoutMs;
+  let best = null;
+  while (Date.now() < deadline) {
+    const png = await page.screenshot();
+    const m = await judgeShot(page, png, scope, keys);
+    if (m.lit >= minLit && (!best || m.swing > best.swing)) best = { png, ...m };
+    if (best && best.swing >= minSwing) break;
+  }
+  if (!best) throw new Error('no take with lit keys');
+  if (best.swing < minSwing) console.warn(`readme-screenshots: best wave swing ${best.swing.toFixed(2)} < ${minSwing}`);
+  writeFileSync(publicDir + file, best.png);
+  console.log(`wrote public/${file} (${best.png.length} bytes, swing ${best.swing.toFixed(2)})`);
+}
+
 async function shoot(page, file) {
   // Two frames, so the last click's paint is on screen.
   await page.evaluate(() => new Promise((r) => requestAnimationFrame(() => requestAnimationFrame(r))));
@@ -218,15 +283,15 @@ async function shoot(page, file) {
 const [transportWin, liveFxWin, xyWin] = WINDOWS;
 const browser = await chromium.launch({ args: ['--autoplay-policy=no-user-gesture-required'] });
 try {
-  // 1 — the hero: playing, at the top, pattern row folded, scope on Spectrum.
+  // 1 — the hero: playing, at the top, pattern row folded, scope on Wave (its
+  // default) — shot 4 shows the Spectrum, so between them both views are seen.
   {
     const page = await openApp(browser);
     await page.locator('[data-testid="pattern-row"] [aria-label="Collapse panel"]').first().click();
-    await page.getByTestId('scope-toggle').click();
     await page.getByTestId('transport-play').click();
-    await catchChord(page);
+    await page.waitForTimeout(4000);
     await scrollTo(page, 0);
-    await shoot(page, 'vast-websynth.png');
+    await shootWave(page, 'vast-websynth.png');
     await page.close();
   }
 
