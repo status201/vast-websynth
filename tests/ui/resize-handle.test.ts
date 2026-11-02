@@ -371,3 +371,174 @@ describe('ResizeHandle — listener hygiene', () => {
     expect(h.handle.value).toBe(before);
   });
 });
+
+// ---------------------------------------------------------------------------
+// The facility's options beyond the scope (specs/features/resize-handle.md):
+// directions, an automatic start, live bounds and a reset to automatic.
+// ---------------------------------------------------------------------------
+
+const pointerXY = (type: string, clientX: number, clientY: number): PointerEvent => {
+  const e = new MouseEvent(type, { clientX, clientY, bubbles: true, button: 0 });
+  Object.defineProperty(e, 'pointerId', { value: 1 });
+  return e as PointerEvent;
+};
+
+type Extra = Partial<ConstructorParameters<typeof ResizeHandle>[0]>;
+
+function mountWith(extra: Extra): Harness & { resets: number[] } {
+  const raf = stubRaf();
+  const target = document.createElement('div');
+  document.body.appendChild(target);
+  const commits: number[] = [];
+  const resets: number[] = [];
+  const handle = new ResizeHandle({
+    target,
+    cssVar: '--w',
+    min: 100,
+    max: 1000,
+    initial: 200,
+    defaultValue: 200,
+    step: 10,
+    onCommit: (px) => commits.push(px),
+    testId: 'w-resize',
+    label: 'Width',
+    title: 'Drag to resize',
+    ...extra,
+  });
+  target.appendChild(handle.el);
+  return {
+    target, handle, commits, raf, resets,
+    height: () => Number.parseInt(target.style.getPropertyValue('--w'), 10),
+  };
+}
+
+/** Each stroke a second apart, so back-to-back drags never read as a double-tap. */
+let clock = 0;
+function dragXY(h: Harness, dx: number, dy: number): void {
+  clock += 1000;
+  vi.spyOn(performance, 'now').mockReturnValue(clock);
+  h.handle.el.dispatchEvent(pointerXY('pointerdown', 500, 500));
+  window.dispatchEvent(pointerXY('pointermove', 500 + dx, 500 + dy));
+  h.raf.flush();
+  window.dispatchEvent(pointerXY('pointerup', 500 + dx, 500 + dy));
+}
+
+const keyOn = (el: HTMLElement, k: string): void => {
+  el.dispatchEvent(new KeyboardEvent('keydown', { key: k, bubbles: true, cancelable: true }));
+};
+
+describe('ResizeHandle — directions (REQ-a-handle-has-a-direction)', () => {
+  it('right: follows the pointer rightwards, ignores vertical, steps with →/←', () => {
+    const h = mountWith({ direction: 'right' });
+    expect(h.handle.el.getAttribute('aria-orientation')).toBe('vertical');
+    dragXY(h, 30, -200);
+    expect(h.handle.value).toBe(230);
+    keyOn(h.handle.el, 'ArrowRight');
+    expect(h.handle.value).toBe(240);
+    keyOn(h.handle.el, 'ArrowLeft');
+    keyOn(h.handle.el, 'ArrowUp'); // not this direction's key
+    expect(h.handle.value).toBe(230);
+    expect(h.commits).toEqual([230, 240, 230]);
+  });
+
+  it('down-right: the larger delta wins, in either axis', () => {
+    const h = mountWith({ direction: 'down-right' });
+    dragXY(h, 30, 10);
+    expect(h.handle.value).toBe(230);
+    dragXY(h, -5, 40);
+    expect(h.handle.value).toBe(270);
+    dragXY(h, -50, 20);
+    expect(h.handle.value).toBe(220);
+  });
+
+  it('down-right: → and ↓ grow, ← and ↑ shrink, and the grip is drawn', () => {
+    const h = mountWith({ direction: 'down-right' });
+    expect(h.handle.el.querySelector('svg.ui-icon')).not.toBeNull();
+    keyOn(h.handle.el, 'ArrowDown');
+    keyOn(h.handle.el, 'ArrowRight');
+    expect(h.handle.value).toBe(220);
+    keyOn(h.handle.el, 'ArrowUp');
+    keyOn(h.handle.el, 'ArrowLeft');
+    expect(h.handle.value).toBe(200);
+  });
+});
+
+describe('ResizeHandle — automatic size (REQ-a-handle-may-start-automatic, REQ-a-handle-may-reset-to-automatic)', () => {
+  it('null leaves the property unset, and a gesture starts from measure()', () => {
+    const h = mountWith({ direction: 'right', initial: null, measure: () => 300, onReset: () => {} });
+    expect(h.target.style.getPropertyValue('--w')).toBe('');
+    expect(h.handle.value).toBeNull();
+    dragXY(h, 20, 0);
+    expect(h.height()).toBe(320);
+    expect(h.commits).toEqual([320]);
+  });
+
+  it('an arrow key from automatic steps from the measured size', () => {
+    const h = mountWith({ direction: 'right', initial: null, measure: () => 300, onReset: () => {} });
+    keyOn(h.handle.el, 'ArrowLeft');
+    expect(h.handle.value).toBe(290);
+  });
+
+  it('double-tap with onReset clears to automatic and commits nothing', () => {
+    let resets = 0;
+    const h = mountWith({ initial: 400, onReset: () => { resets++; } });
+    h.handle.el.dispatchEvent(pointer('pointerdown', 500));
+    window.dispatchEvent(pointer('pointerup', 500));
+    h.handle.el.dispatchEvent(pointer('pointerdown', 500));
+    expect(h.target.style.getPropertyValue('--w')).toBe('');
+    expect(h.handle.value).toBeNull();
+    expect(h.handle.el.hasAttribute('aria-valuenow')).toBe(false);
+    expect(resets).toBe(1);
+    expect(h.commits).toEqual([]);
+  });
+
+  it('Home with onReset does the same', () => {
+    let resets = 0;
+    const h = mountWith({ initial: 400, onReset: () => { resets++; } });
+    keyOn(h.handle.el, 'Home');
+    expect(h.handle.value).toBeNull();
+    expect(resets).toBe(1);
+  });
+});
+
+describe('ResizeHandle — live bounds (REQ-a-handle-may-have-live-bounds)', () => {
+  it('refresh() clamps the choice without committing, and gives it back with room', () => {
+    let bounds = { min: 200, max: 1000 };
+    const h = mountWith({ initial: 500, bounds: () => bounds });
+    h.handle.refresh();
+    expect(h.handle.value).toBe(500);
+
+    bounds = { min: 200, max: 400 };
+    h.handle.refresh();
+    expect(h.handle.value).toBe(400);
+    expect(h.handle.el.getAttribute('aria-valuemax')).toBe('400');
+    expect(h.commits).toEqual([]);
+
+    bounds = { min: 200, max: 1000 };
+    h.handle.refresh();
+    expect(h.handle.value).toBe(500); // the stored choice, not the clamp
+  });
+
+  it('a handle with no range left is hidden until there is room again', () => {
+    let bounds = { min: 300, max: 300 };
+    const h = mountWith({ initial: null, bounds: () => bounds, measure: () => 300, onReset: () => {} });
+    h.handle.refresh();
+    expect(h.handle.el.hidden).toBe(true);
+    bounds = { min: 300, max: 600 };
+    h.handle.refresh();
+    expect(h.handle.el.hidden).toBe(false);
+  });
+
+  it('bounds are read at gesture start, so a drag clamps to the live range', () => {
+    let bounds = { min: 100, max: 1000 };
+    const h = mountWith({ direction: 'right', bounds: () => bounds });
+    bounds = { min: 100, max: 250 };
+    dragXY(h, 500, 0);
+    expect(h.handle.value).toBe(250);
+  });
+
+  it('with live bounds the initial value waits for refresh() to be clamped', () => {
+    const h = mountWith({ initial: 700, min: 0, max: 0, bounds: () => ({ min: 240, max: 960 }) });
+    expect(h.height()).toBe(700); // not clamped to the 0..0 seed range
+  });
+});

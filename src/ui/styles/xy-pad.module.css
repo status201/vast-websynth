@@ -5,7 +5,9 @@
     display: flex;
     flex-direction: column;
     gap: 10px;
-    width: 240px;
+    /* The side, dragged from the window's corner (xy-pad.md REQ-the-pad-is-resizable);
+       the surface below is 100% wide and square, so it follows. */
+    width: var(--xy-size, 240px);
   }
 
   .assign {

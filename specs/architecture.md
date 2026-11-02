@@ -618,6 +618,8 @@ localStorage:
   websynth.ui.collapsed.sample-<chop|stretch|scratch> : the Edit Sample modal's three section folds
                                                         # ui/components/record-sound-modal.ts (features/sample-recorder.md REQ-every-section-below-the-waveform-folds)
   websynth.ui.scope.height : scope panel height in px, 130..260 # state/scope-height.ts — device-scoped workspace pref, NOT a patch param
+  websynth.ui.window.transport.width : TRANSPORT window width in px; absent = automatic  # state/size-pref.ts (features/transport-window.md)
+  websynth.ui.window.xypad.size      : XY Pad side in px, 240..960; absent = 240         # state/size-pref.ts (features/xy-pad.md)
 sessionStorage:
   websynth.session.tab : this tab's id, which mints the `websynth.session.<tab>` key above.
                          # Deliberately *session* storage — it must die with the tab and

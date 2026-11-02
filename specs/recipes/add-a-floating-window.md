@@ -91,6 +91,17 @@ starts a window drag (same guard as the ✕ button). The worked instance is the 
 Pad's gear, which collapses its axis dropdowns — see
 [`xy-pad`](../features/xy-pad.md).
 
+**Optional — a resize grip (`resizable`).** For a tool whose content is worth
+more room, pass `resizable` and let your CSS read the custom property it writes
+on the window, with today's size as the fallback (`width: var(--tool-w, 240px)`).
+You supply the limits (`bounds()`), the live size (`measure()`), the stored
+preference (`initial`, via `src/state/size-pref.ts`) and what commit and reset do;
+the window places the grip, caps it to the viewport and hides it while minimised.
+Call `win.refreshSize()` when your content's size changes. Worked instances: the
+TRANSPORT window's right edge (`transport-controls.ts`) and the XY Pad's corner
+(`xy-pad-window.ts`) — [floating-window](../features/floating-window.md)
+REQ-a-window-may-be-resizable, [resize-handle](../features/resize-handle.md).
+
 **Optional — more than one launcher.** When two buttons must open the *same*
 window (the XY Pad is launched from the Song panel and from inside LIVE FX), move
 the lazy build into a small controller with `toggle()` / `isOpen()` /

@@ -3,13 +3,14 @@
 ```yaml
 id: xy-pad
 status: implemented
-version: 4
+version: 5
 owner: core
 related:
   - architecture
   - floating-window
   - song-mode
   - performance
+  - resize-handle       # the corner grip (REQ-the-pad-is-resizable)
 source:
   - src/state/xy-pad.ts                 # XyPadStore (axis assignment, pure)
   - src/ui/components/xy-pad.ts          # the pad surface + assign dropdowns
@@ -18,6 +19,7 @@ source:
   - src/ui/components/xy-pad-window.ts    # single shared window controller + launch button
   - src/ui/panels/song-panel.ts          # the "XY Pad" launch button
   - src/state/song.ts
+  - src/state/size-pref.ts            # the remembered pad size
 ```
 
 ## Background / Why
@@ -78,7 +80,9 @@ subscribes to the assigned params.
 - **REQ-only-the-axis-assignment-persists** — **Persistence**: the axis
   assignment is saved in songs via SongFile **v3** (an additive, optional `xy`
   field). Loading a file without it restores the defaults. Only the *assignment*
-  persists — live dragging is momentary and never written.
+  persists in a song — live dragging is momentary and never written. The pad's
+  **size** (REQ-the-pad-is-resizable) is remembered too, but as a device-scoped
+  workspace preference in `localStorage`, never in a song.
 - **REQ-pad-shows-short-axis-labels** — **On-surface axis labels + finer grid**
   (orientation only, no behaviour change): the pad surface shows the **short
   name** of each assigned param — its id's last dotted segment, lowercased
@@ -103,6 +107,26 @@ subscribes to the assigned params.
   never starts a window drag. The collapse state is in-memory only (not
   persisted, not in songs) but survives close/reopen because the pad instance is
   kept alive across closes.
+
+- **REQ-the-pad-is-resizable** (v5) — **The pad can be dragged bigger** from a
+  corner grip at the window's bottom right ([floating-window](floating-window.md)
+  REQ-a-window-may-be-resizable, `xypad-window-resize`), for finer control,
+  especially under a finger.
+  - **A square from 240 px to 960 px**: four times the side of the default.
+    The side is written as `--xy-size` on the window. The pad's `.root` width
+    reads it and the surface stays `aspect-ratio: 1/1`, so nothing else changes:
+    the dot, labels and grid are placed in %, and a drag reads the surface's rect
+    at each event. The assign dropdowns widen with it.
+  - **The viewport has the last word.** The window caps the side to what fits
+    where it stands, so on a laptop the reachable size is usually below 960.
+    Opening or closing the assign row changes the window's height, so the gear
+    re-checks the room (`refreshSize()`).
+  - **Double-tap or `Home` on the grip** goes back to 240 px and forgets the
+    stored size.
+  - **Remembered** under `websynth.ui.window.xypad.size`, read when the window is
+    first built and written once per gesture: a workspace preference like the
+    scope's height, not a param and not in a song
+    (REQ-only-the-axis-assignment-persists).
 
 ## Technical design
 
@@ -188,6 +212,10 @@ JSON schema (public/schema/websynth-song.schema.json): version.enum tracks SONG_
                xy object (required x/y strings)
 # Version numbers are deliberately NOT restated here — song-mode.md owns the ladder.
 NOT persisted: the live dragged values (momentary); the window open/closed state.
+```
+
+```yaml
+websynth.ui.window.xypad.size: px   # state/size-pref.ts, 240..960; absent = 240 (REQ-the-pad-is-resizable)
 ```
 
 The assignment is UI/persistence state the Engine does not own, so `XyPadStore` is
@@ -289,6 +317,23 @@ Scenario: The surface labels each axis with the assigned param's short name
   When the user reassigns X to lfo.rate
   Then the xypad-axis-x label reads "rate"
 # pinned by: tests/ui/xy-pad.test.ts
+
+Scenario: Dragging the corner grows the pad, still square and still mapped (REQ-the-pad-is-resizable)
+  Given the XY Pad window open at its default 240 px
+  When the user drags xypad-window-resize down and to the right
+  Then the surface is larger and still square
+  And a press at the centre of the larger surface sets both axes to the middle of their range
+  When the page is reloaded and the window reopened
+  Then the pad opens at the dragged size
+  When the user double-clicks the grip
+  Then the pad is back to 240 px
+# pinned by: e2e/xy-pad.spec.ts
+
+Scenario: The pad never grows past 960 px or out of the viewport (REQ-the-pad-is-resizable)
+  Given the XY Pad window open
+  When the user drags the corner far beyond the viewport
+  Then the side stops at the smaller of 960 px and the room the viewport leaves
+# pinned by: e2e/xy-pad.spec.ts
 ```
 
 ## Tests & verification

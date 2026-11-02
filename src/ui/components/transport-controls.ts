@@ -7,6 +7,9 @@ import styles from '../styles/transport-controls.module.css';
 import { UI_ICONS } from './ui-icons';
 import { effectiveLoopRange } from '../../audio/transport/transport-loop';
 import { audibleTimeline } from '../audible';
+import {
+  TRANSPORT_WIDTH_KEY, readSizePref, writeSizePref, clearSizePref,
+} from '../../state/size-pref';
 
 /**
  * The song-scale transport shared by the Song panel's row and the TRANSPORT
@@ -21,6 +24,9 @@ import { audibleTimeline } from '../audible';
 export interface TransportControlsOptions {
   /** Namespaces every testid so two instances coexist. Default `'transport'`. */
   testIdPrefix?: string;
+  /** After the scrubber is rebuilt — only when the bar count changes, never per
+   *  bar — so a resizable host can re-check its bounds (REQ-the-window-width-is-resizable). */
+  onStructure?: () => void;
 }
 
 /** Global state class marking the current bar — as the rulers use. */
@@ -29,6 +35,23 @@ const AT_CLASS = 'playing';
  *  same reason as `playing`: E2E has nothing else to select past CSS Modules. */
 const LOOP_CLASS = 'loop';
 const ANCHOR_CLASS = 'loop-anchor';
+
+/**
+ * Follow (REQ-follow-keeps-the-playhead-in-view): one switch for every instance,
+ * because the Song row and the window show the same transport — two Follows
+ * could each disagree with the other. A view preference, so neither a param nor
+ * persisted: every session starts following.
+ */
+let following = true;
+const followListeners = new Set<() => void>();
+const setFollowing = (on: boolean): void => {
+  if (on === following) return;
+  following = on;
+  for (const l of followListeners) l();
+};
+
+/** Test seam: back to the session default, telling every live instance. */
+export function resetTransportFollow(): void { setFollowing(true); }
 
 /**
  * `[Play/Pause, |◀, bar.step, Loop, scrubber]` — the same set on both surfaces
@@ -106,6 +129,11 @@ export function buildTransportControls(
   });
   out.push(loopBtn);
 
+  // Between Loop and the scrubber it governs (REQ-follow-keeps-the-playhead-in-view).
+  const followBtn = createDjButton('Follow', `${p}-follow`);
+  followBtn.addEventListener('click', () => { setFollowing(!following); });
+  out.push(followBtn);
+
   const scrub = document.createElement('div');
   scrub.className = styles.scrub!;
   scrub.dataset.testid = `${p}-scrub`;
@@ -142,6 +170,7 @@ export function buildTransportControls(
     litBar = -1;
     loopKey = '';
     paintLoop();
+    opts.onStructure?.();
   };
 
   /** What the loop paint last drew — so the per-bar arrangement notify, which
@@ -193,7 +222,8 @@ export function buildTransportControls(
    * only ever runs on a bar change, never per tick.
    */
   const keepInView = (cell: HTMLElement): void => {
-    if (scrub.clientWidth <= 0) return;
+    // Off, the user owns the scroll position (REQ-follow-keeps-the-playhead-in-view).
+    if (!following || scrub.clientWidth <= 0) return;
     const left = cell.offsetLeft;
     const right = left + cell.offsetWidth;
     if (left < scrub.scrollLeft) scrub.scrollLeft = Math.max(0, left - 2);
@@ -238,7 +268,23 @@ export function buildTransportControls(
   engine.arrangement.onChange(paintLoop);
   engine.loop.onChange(paintLoop);
 
+  /** Button state, and on turning Follow back on, catch the strip up with the
+   *  playhead now rather than at the next bar. */
+  const syncFollow = (): void => {
+    followBtn.classList.toggle('on', following);
+    followBtn.setAttribute('aria-pressed', String(following));
+    followBtn.title = following
+      ? 'Following the playhead — click to scroll the song freely'
+      : 'Follow the playhead: off lets you scroll the song freely';
+    const at = cells[litBar];
+    if (following && at) keepInView(at);
+  };
+  // Never removed, like every other listener here: both surfaces are built once
+  // and live as long as the app.
+  followListeners.add(syncFollow);
+
   paint();
+  syncFollow();
   return out;
 }
 
@@ -257,6 +303,30 @@ export function bindSeekAvailability(engine: StudioApi, host: HTMLElement): void
 
 /** Class for a hosting row: the Song panel's dashed-divider variant. */
 export const transportRowClass = styles.row!;
+
+/** Sanity range for a stored width; the live bounds below are the real limits. */
+const TRANSPORT_W_FLOOR = 160;
+const TRANSPORT_W_CEIL = 8192;
+
+/**
+ * The window's width limits (REQ-the-window-width-is-resizable), measured from
+ * the row: the controls plus the strip at its basis, up to the controls plus
+ * the whole strip, so every bar can show and no further. Runs once per gesture
+ * and on a bar-count change — never per tick.
+ */
+function transportWidthBounds(body: HTMLElement, controls: HTMLElement[]): { min: number; max: number } {
+  const cs = getComputedStyle(body);
+  const gap = Number.parseFloat(cs.columnGap) || 0;
+  const pad = (Number.parseFloat(cs.paddingLeft) || 0) + (Number.parseFloat(cs.paddingRight) || 0);
+  const scrub = controls.find((c) => c.classList.contains(styles.scrub!));
+  let fixed = pad + gap * Math.max(0, controls.length - 1);
+  for (const c of controls) if (c !== scrub) fixed += c.offsetWidth;
+  const strip = scrub?.scrollWidth ?? 0;
+  // The strip's flex basis is the narrowest it gets before it would wrap onto a
+  // line of its own — read from `.scrub`, which is the one place it is written.
+  const basis = scrub ? Number.parseFloat(getComputedStyle(scrub).flexBasis) || 0 : 0;
+  return { min: Math.ceil(fixed + Math.min(basis, strip)), max: Math.ceil(fixed + strip) };
+}
 
 /**
  * The "TRANSPORT" launcher (Song panel). Doubles as the section title and opens
@@ -282,16 +352,34 @@ export function createTransportWindowLauncher(
   b.addEventListener('click', () => {
     if (win?.isOpen) { win.close(); return; }
     if (!win) {
-      win = new FloatingWindow({
+      let controls: HTMLElement[] = [];
+      const w: FloatingWindow = new FloatingWindow({
         title: 'TRANSPORT',
         testId: 'transport-window',
         onClose: () => b.classList.remove('on'),
+        // REQ-the-window-width-is-resizable: automatic until dragged, and never
+        // narrower than the strip's basis or wider than the whole song.
+        resizable: {
+          direction: 'right',
+          cssVar: '--transport-w',
+          bounds: () => transportWidthBounds(w.body, controls),
+          measure: () => w.body.offsetWidth,
+          initial: readSizePref(TRANSPORT_WIDTH_KEY, TRANSPORT_W_FLOOR, TRANSPORT_W_CEIL),
+          step: 24,
+          onCommit: (px) => writeSizePref(TRANSPORT_WIDTH_KEY, px),
+          onReset: () => clearSizePref(TRANSPORT_WIDTH_KEY),
+          label: 'TRANSPORT window width',
+          title: 'Drag to resize — double-click for the automatic width',
+        },
       });
-      win.body.className += ` ${styles.window!}`;
-      for (const c of buildTransportControls(engine, bridge, { testIdPrefix: 'transportw' })) {
-        win.body.appendChild(c);
-      }
-      bindSeekAvailability(engine, win.body);
+      win = w;
+      w.body.className += ` ${styles.window!}`;
+      controls = buildTransportControls(engine, bridge, {
+        testIdPrefix: 'transportw',
+        onStructure: () => w.refreshSize(),
+      });
+      for (const c of controls) w.body.appendChild(c);
+      bindSeekAvailability(engine, w.body);
     }
     win.open();
     b.classList.add('on');

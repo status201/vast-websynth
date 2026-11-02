@@ -44,7 +44,8 @@ any number of entries.
 - **REQ-the-title-is-unchanged-plus-a-caret** — Each view's title is built exactly
   as before (same element, class and text). The additions are the picker's
   caret, an icon-only button placed right after the title — inline SVG
-  `caretDown` ([iconography](iconography.md)), never a typed `▾` — and, from v2,
+  `caretDown` ([iconography](iconography.md)), never a typed `▾`, as tall as the
+  title's capitals (iconography REQ-a-title-caret-is-cap-high) — and, from v2,
   the picker's own `.title` hook on the title element (REQ-the-title-opens-the-menu).
   The picker moves with the view, so the caret always sits beside the title being
   shown.

@@ -16,8 +16,24 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+### Added
+
+- **FOLLOW on the transport.** A Follow button beside Loop keeps the playing bar
+  in view, as before. Switch it off to scroll to another part of a long song
+  while it plays without being pulled back; switch it on to jump back to the
+  playhead. The Song row and the TRANSPORT window share it.
+- **Resizable TRANSPORT and XY Pad windows.** Drag the TRANSPORT window's right
+  edge to see more bars of a long song, or the XY Pad's bottom-right corner to make
+  the pad bigger, up to four times its size, for finer control. Both remember
+  their size; double-click the edge or corner to go back to the default.
+
 ### Fixed
 
+- The TRANSPORT window no longer leaves empty space beside a song of about
+  25–30 bars: the bar strip stays on the controls' line and scrolls, instead of
+  dropping to a row of its own in a window still at full width.
+- The carets beside the FX titles (DIRT, PHASER, DELAY) are now as tall as the
+  capitals beside them.
 - **Songs keep importing as the instrument grows.** A song file may now carry up
   to 2048 parameters (was 512). Every save writes every parameter, and the app had
   grown to 437, close to refusing its own songs.

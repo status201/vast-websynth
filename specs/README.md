@@ -347,7 +347,8 @@ specs/
     toast.md           ·  transient bottom-center notification with one action (Undo)
     progress-bar.md    ·  shared determinate/indeterminate progress bar (export, offline download)
     lazy-load-failure.md ·  what every deferred surface says when its import() rejects
-    floating-window.md ·  reusable non-modal draggable window (no backdrop/Escape + minimise)
+    floating-window.md ·  reusable non-modal draggable window (no backdrop/Escape + minimise, opt-in resize)
+    resize-handle.md   ·  the shared resize grip (up / right / corner; live bounds, automatic reset)
     live-fx-window.md  ·  floating "LIVE FX" window: DJ controls reachable off the Song tab
     typography.md      ·  the type rule: serif is display, sans is content, mono is readouts
     iconography.md     ·  the icon rule: a glyph that labels a control is inline SVG, never a font character

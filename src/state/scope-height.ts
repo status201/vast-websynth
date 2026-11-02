@@ -14,6 +14,8 @@
  * scope and the PITCH/OCT/MOD wheel strips share.
  */
 
+import { readSizePref, writeSizePref } from './size-pref';
+
 const STORE_KEY = 'websynth.ui.scope.height';
 
 /** px — the pre-v11 fixed row height, and the floor. */
@@ -38,20 +40,10 @@ export function clampScopeHeight(px: number): number {
 
 /** The stored height, clamped. Any miss, garbage or storage failure → default. */
 export function readScopeHeight(): number {
-  try {
-    const raw = localStorage.getItem(STORE_KEY);
-    if (raw === null) return SCOPE_H_DEFAULT;
-    return clampScopeHeight(Number.parseInt(raw, 10));
-  } catch {
-    return SCOPE_H_DEFAULT; // private mode / disabled storage — non-fatal
-  }
+  return readSizePref(STORE_KEY, SCOPE_H_MIN, SCOPE_H_MAX) ?? SCOPE_H_DEFAULT;
 }
 
 /** Persist the height, clamped. A full quota costs the preference, not the app. */
 export function writeScopeHeight(px: number): void {
-  try {
-    localStorage.setItem(STORE_KEY, String(clampScopeHeight(px)));
-  } catch {
-    /* private mode / quota — non-fatal */
-  }
+  writeSizePref(STORE_KEY, clampScopeHeight(px));
 }

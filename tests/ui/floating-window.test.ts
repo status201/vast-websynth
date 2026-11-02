@@ -330,3 +330,90 @@ describe('FloatingWindow', () => {
     vi.useRealTimers();
   });
 });
+
+// REQ-a-window-may-be-resizable — an opt-in grip; the window caps it to the viewport.
+describe('FloatingWindow — resizable', () => {
+  const ORIG_W = window.innerWidth;
+  const ORIG_H = window.innerHeight;
+  let wins: FloatingWindow[] = [];
+  // A closed window stays in the DOM for its 200ms fade; start every case clean.
+  beforeEach(() => { document.body.innerHTML = ''; });
+  afterEach(() => {
+    wins.forEach((w) => w.close());
+    wins = [];
+    Object.defineProperty(window, 'innerWidth', { value: ORIG_W, configurable: true, writable: true });
+    Object.defineProperty(window, 'innerHeight', { value: ORIG_H, configurable: true, writable: true });
+  });
+
+  const resize = (over: Partial<NonNullable<ConstructorParameters<typeof FloatingWindow>[0]['resizable']>> = {}) => ({
+    direction: 'right' as const,
+    cssVar: '--w',
+    bounds: () => ({ min: 200, max: 900 }),
+    measure: () => 300,
+    initial: null,
+    step: 10,
+    onCommit: () => {},
+    onReset: () => {},
+    label: 'Width',
+    title: 'Drag to resize',
+    ...over,
+  });
+  const mk = (opts: ConstructorParameters<typeof FloatingWindow>[0]) => {
+    const w = new FloatingWindow(opts);
+    wins.push(w);
+    return w;
+  };
+  const grip = (testId: string) => document.querySelector(`[data-testid="${testId}-resize"]`) as HTMLElement | null;
+
+  it('a resizable window carries a separator grip; a plain one does not', () => {
+    mk({ title: 'A', testId: 'a', resizable: resize() }).open();
+    mk({ title: 'B', testId: 'b' }).open();
+    expect(grip('a')?.getAttribute('role')).toBe('separator');
+    expect(grip('b')).toBeNull();
+  });
+
+  it('the grip lives in the body, so minimising hides it with the body', () => {
+    const w = mk({ title: 'A', testId: 'a', resizable: resize() });
+    w.open();
+    expect(grip('a')!.parentElement).toBe(w.body);
+    (document.querySelector(`.${FloatingWindow.minBtnClass}`) as HTMLButtonElement).click();
+    expect(w.body.style.display).toBe('none');
+  });
+
+  it('caps the maximum to what fits right of where the window stands', () => {
+    Object.defineProperty(window, 'innerWidth', { value: 1000, configurable: true, writable: true });
+    const w = mk({ title: 'A', testId: 'a', initial: { left: 600, top: 50 }, resizable: resize() });
+    w.open();
+    // jsdom has no layout: give the root its 300px content plus 24px of chrome.
+    const winRoot = grip('a')!.closest('[data-testid="a"]') as HTMLElement;
+    Object.defineProperty(winRoot, 'offsetWidth', { get: () => 324, configurable: true });
+    w.refreshSize();
+    expect(grip('a')!.getAttribute('aria-valuemax')).toBe('376'); // 1000 − 600 − 24
+  });
+
+  it('a square is capped by the height below it too', () => {
+    Object.defineProperty(window, 'innerWidth', { value: 2000, configurable: true, writable: true });
+    Object.defineProperty(window, 'innerHeight', { value: 700, configurable: true, writable: true });
+    const w = mk({
+      title: 'A', testId: 'a', initial: { left: 100, top: 100 },
+      resizable: resize({ direction: 'down-right', bounds: () => ({ min: 240, max: 960 }), measure: () => 240 }),
+    });
+    w.open();
+    const winRoot = grip('a')!.closest('[data-testid="a"]') as HTMLElement;
+    Object.defineProperty(winRoot, 'offsetWidth', { get: () => 266, configurable: true });
+    Object.defineProperty(winRoot, 'offsetHeight', { get: () => 300, configurable: true });
+    w.refreshSize();
+    expect(grip('a')!.getAttribute('aria-valuemax')).toBe('540'); // 700 − 100 − (300 − 240)
+  });
+
+  it('a stored size is applied on build; a reset clears it', () => {
+    let resets = 0;
+    const w = mk({ title: 'A', testId: 'a', resizable: resize({ initial: 480, onReset: () => { resets++; } }) });
+    w.open();
+    const winRoot = grip('a')!.closest('[data-testid="a"]') as HTMLElement;
+    expect(winRoot.style.getPropertyValue('--w')).not.toBe('');
+    grip('a')!.dispatchEvent(new KeyboardEvent('keydown', { key: 'Home', bubbles: true, cancelable: true }));
+    expect(winRoot.style.getPropertyValue('--w')).toBe('');
+    expect(resets).toBe(1);
+  });
+});

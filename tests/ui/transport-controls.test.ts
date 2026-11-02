@@ -1,7 +1,8 @@
 // @vitest-environment jsdom
-import { describe, it, expect, vi } from 'vitest';
+import { describe, it, expect, vi, afterEach } from 'vitest';
 import {
   buildTransportControls, bindSeekAvailability, createTransportWindowLauncher,
+  resetTransportFollow,
 } from '../../src/ui/components/transport-controls';
 import { PatternStore, SEQ_LENGTH } from '../../src/state/patterns';
 import { UiBridge } from '../../src/ui/ui-bridge';
@@ -52,14 +53,37 @@ const byId = (root: HTMLElement, id: string): HTMLElement =>
 const scrubCells = (root: HTMLElement): HTMLButtonElement[] =>
   [...root.querySelectorAll('[data-testid="transport-scrub"] button')] as HTMLButtonElement[];
 
+/** jsdom has no layout: stub the metrics the keep-in-view math reads (and
+ *  scrollLeft, which jsdom pins at 0) — a 200px scroller over 25px cells. */
+function stubScroller(root: HTMLElement): { scrub: HTMLElement; writes: () => number } {
+  const scrub = byId(root, 'transport-scrub');
+  let scrollLeft = 0;
+  let writes = 0;
+  Object.defineProperty(scrub, 'scrollLeft', {
+    get: () => scrollLeft,
+    set: (v: number) => { scrollLeft = v; writes++; },
+  });
+  Object.defineProperty(scrub, 'clientWidth', { get: () => 200 });
+  scrubCells(root).forEach((c, i) => {
+    Object.defineProperty(c, 'offsetLeft', { get: () => i * 25 });
+    Object.defineProperty(c, 'offsetWidth', { get: () => 24 });
+  });
+  return { scrub, writes: () => writes };
+}
+
+// Follow is one module-level switch (REQ-follow-keeps-the-playhead-in-view):
+// a test that turns it off must not leak that into the next.
+afterEach(() => { resetTransportFollow(); });
+
 describe('buildTransportControls', () => {
   // REQ-one-transport-control-builder/REQ-the-song-panel-transport-row (v5) — the Song row is no longer compact: same set as the window.
-  it('renders Play/Pause, ⏮, readout, Loop and scrubber, in that order', () => {
+  it('renders Play/Pause, ⏮, readout, Loop, Follow and scrubber, in that order', () => {
     const { api, bridge } = harness();
     const root = host(buildTransportControls(api, bridge));
     const ids = [...root.children].map((c) => (c as HTMLElement).dataset.testid);
     expect(ids).toEqual([
-      'transport-toggle', 'transport-tostart', 'transport-readout', 'transport-loop', 'transport-scrub',
+      'transport-toggle', 'transport-tostart', 'transport-readout', 'transport-loop',
+      'transport-follow', 'transport-scrub',
     ]);
   });
 
@@ -210,24 +234,12 @@ describe('buildTransportControls', () => {
   });
 
   // REQ-the-scrubber-presents-as-a-timeline — the timeline is one scrolling line, so the lit cell can leave the
-  // view. jsdom has no layout: stub the three metrics the math reads (and
-  // scrollLeft, which jsdom pins at 0) so the arithmetic itself is under test.
+  // view. The layout is stubbed so the arithmetic itself is under test.
   it('scrolls the lit cell back into view, and only on a bar change', () => {
     const { api, bridge, arrangement, clock } = harness();
     const root = host(buildTransportControls(api, bridge));
     arrangement.setDrumChain([...Array(40).keys()].map((i) => i % 4), true);
-
-    const scrub = byId(root, 'transport-scrub');
-    let scrollLeft = 0;
-    Object.defineProperty(scrub, 'scrollLeft', {
-      get: () => scrollLeft,
-      set: (v: number) => { scrollLeft = v; },
-    });
-    Object.defineProperty(scrub, 'clientWidth', { get: () => 200 });
-    scrubCells(root).forEach((c, i) => {
-      Object.defineProperty(c, 'offsetLeft', { get: () => i * 25 });
-      Object.defineProperty(c, 'offsetWidth', { get: () => 24 });
-    });
+    const { scrub } = stubScroller(root);
 
     clock.fireSeek(SEQ_LENGTH * 20); // bar 21: cell 20 spans 500..524, far right
     expect(scrub.scrollLeft).toBe(326); // 524 - 200 + 2
@@ -237,6 +249,38 @@ describe('buildTransportControls', () => {
 
     clock.fireSeek(0); // back left, clamped at the origin rather than -2
     expect(scrub.scrollLeft).toBe(0);
+  });
+
+  // REQ-follow-keeps-the-playhead-in-view — off, the user owns the scroll position.
+  it('Follow is on by default; off writes no scroll, on again catches up at once', () => {
+    const { api, bridge, arrangement, clock } = harness();
+    const root = host(buildTransportControls(api, bridge));
+    arrangement.setDrumChain([...Array(40).keys()].map((i) => i % 4), true);
+    const { scrub, writes } = stubScroller(root);
+    const follow = byId(root, 'transport-follow') as HTMLButtonElement;
+    expect(follow.classList.contains('on')).toBe(true);
+    expect(follow.getAttribute('aria-pressed')).toBe('true');
+
+    follow.click();
+    expect(follow.classList.contains('on')).toBe(false);
+    expect(follow.getAttribute('aria-pressed')).toBe('false');
+    clock.fireSeek(SEQ_LENGTH * 20); // bar 21, out of view
+    expect(writes()).toBe(0);
+    // The lit class still moves: only the scroll is the user's.
+    expect(scrubCells(root)[20]!.classList.contains('playing')).toBe(true);
+
+    follow.click(); // back on: the strip catches up now, not at the next bar
+    expect(scrub.scrollLeft).toBe(326); // 524 - 200 + 2
+  });
+
+  it('both surfaces share one Follow', () => {
+    const { api, bridge } = harness();
+    const row = host(buildTransportControls(api, bridge));
+    const win = host(buildTransportControls(api, bridge, { testIdPrefix: 'transportw' }));
+    (byId(win, 'transportw-follow') as HTMLButtonElement).click();
+    expect(byId(row, 'transport-follow').classList.contains('on')).toBe(false);
+    (byId(row, 'transport-follow') as HTMLButtonElement).click();
+    expect(byId(win, 'transportw-follow').classList.contains('on')).toBe(true);
   });
 
   it('⏮ returns to the top (REQ-the-song-panel-transport-row)', () => {

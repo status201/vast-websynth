@@ -277,7 +277,8 @@ export class Dropdown {
     label.className = styles.label!;
     label.textContent = this._value;
     const caret = document.createElement('span');
-    caret.className = styles.caret!;
+    // Beside a legend the caret is as tall as its capitals (iconography.md REQ-a-title-caret-is-cap-high).
+    caret.className = this.legend !== undefined ? `${styles.caret!} cap-caret` : styles.caret!;
     caret.innerHTML = UI_ICONS.caretDown;
     if (this.legend !== undefined) {
       const legend = document.createElement('span');

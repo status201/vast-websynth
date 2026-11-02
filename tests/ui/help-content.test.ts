@@ -239,6 +239,9 @@ describe('help-content transport-position topics', () => {
     expect(body).toMatch(/chains? above|chain/);  // cells line up with chain slots
     expect(body).toMatch(/floating window|window/);
     expect(body).toMatch(/external clock|export|render/); // when seeking is refused
+    // transport-window.md REQ-follow-keeps-the-playhead-in-view / REQ-the-window-width-is-resizable.
+    expect(body).toContain('Follow');
+    expect(body).toMatch(/drag its right edge/);
   });
 
   // live-fx-window.md REQ-live-fx-row-carries-a-help-badge — the sibling badge on the row below the transport.
@@ -252,6 +255,7 @@ describe('help-content transport-position topics', () => {
     expect(body).toMatch(/momentary|hold/);        // the buttons are not latches
     expect(body).toMatch(/floating window|window/); // what LIVE FX adds
     expect(body).toContain('external clock');       // Tape Stop while slaved
+    expect(body).toMatch(/corner/);                 // xy-pad.md REQ-the-pad-is-resizable
     // The compressor sharing the row has its own badge; don't duplicate it.
     expect(body).not.toMatch(/compressor/i);
   });

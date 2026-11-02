@@ -3,13 +3,14 @@
 ```yaml
 id: floating-window
 status: implemented
-version: 6
+version: 7
 owner: core
 related:
   - architecture
   - dialog            # REQ-a-window-may-veto-its-close's confirm is a Modal, which outranks a window
   - record-window     # REQ-a-window-may-veto-its-close's first and only user
   - ../recipes/add-a-floating-window.md
+  - resize-handle     # REQ-a-window-may-be-resizable's grip
 source:
   - src/ui/components/floating-window.ts
   - src/ui/styles/floating-window.module.css
@@ -110,6 +111,44 @@ matrix) reuse it.
       asking about — no special casing needed.
   Without `confirmClose` the path is byte-for-byte v3: synchronous, no await, no
   behaviour change for the three existing windows.
+- **REQ-a-window-may-be-resizable** (v7) — Optional `opts.resizable` gives the
+  window a [resize handle](resize-handle.md) with testid `${testId}-resize`. Its
+  CSS custom property is written on the window **root**, so the consumer's
+  content reads it by inheritance. A window without the option has no grip and
+  sizes as before.
+  - **Two grips.** `right` is a strip down the right edge **below the title
+    bar** (the bar stays the drag area). It sizes a width. `down-right` is a
+    corner at the bottom right, drawn as `UI_ICONS.resizeCorner`, never a typed
+    glyph ([iconography](iconography.md)). It sizes a square.
+  - **The viewport caps the size where the window stands.** The consumer's
+    `bounds()` are wrapped. `max` is lowered to what still fits right of `left`
+    (and, for `down-right`, below `top`), counting the window's chrome around the
+    sized content. So a drag never pushes the window off screen and the window
+    never moves under the pointer. A window parked against the right edge is
+    moved left before it can grow, as an OS window is.
+  - **Re-checked when the room changes**: on `open()`, on the viewport
+    `resize` / `orientationchange` the window already re-clamps on, on restore
+    from minimised, and on `refreshSize()`, which the consumer calls when its
+    content's size changes. A clamped size is not committed
+    ([resize-handle](resize-handle.md) REQ-a-handle-may-have-live-bounds), so
+    the stored preference comes back when there is room again. The position is
+    re-clamped after each check.
+  - **Hidden while minimised**: there is no body to size.
+  - **The consumer owns limits, storage and reset**. The window only places the
+    grip and applies the viewport cap.
+
+  | Gesture | Target | Outcome |
+  | --- | --- | --- |
+  | drag → / ← | `right` grip | width, live, clamped |
+  | drag ↘ / ↖ | `down-right` grip | the square's side, the larger delta wins |
+  | double-tap · `Home` | either grip | the consumer's reset |
+  | arrows (focused) | either grip | ± the consumer's step |
+
+  The rest of the component's table is [resize-handle](resize-handle.md). The grip
+  is narrower than ADR-014's 44 px: 12 px straddling the edge and 16 px in the corner.
+  Each sits at the window's outer edge with nothing else hittable beside it, so a
+  loose touch lands on the grip or on inert window chrome, never on another
+  control. That is the scope grip's deviation, for the same reason.
 
 ## Technical design
 
@@ -137,6 +176,21 @@ FloatingWindowOptions:
                                       # (pointerdown stopped)
   onClose?: () => void                # caller cleanup, once per close
   confirmClose?: () => Promise<boolean>   # REQ-a-window-may-veto-its-close; false vetoes the close (guards EVERY door)
+  resizable?: FloatingWindowResize    # REQ-a-window-may-be-resizable
+
+FloatingWindowResize:
+  direction: 'right' | 'down-right'
+  cssVar: string                      # written on the root; the consumer's CSS reads it
+  bounds(): { min, max }              # the consumer's limits, before the viewport cap
+  measure(): number                   # the consumer's current size in cssVar's terms
+  initial: number | null              # the stored preference; null = automatic
+  step: number                        # px per arrow key
+  onCommit(px: number): void          # store it
+  onReset(): void                     # forget it
+  label: string                       # aria-label
+  title: string                       # names the gesture
+
+FloatingWindow.refreshSize(): void    # re-check the bounds after the content's size changed
 ```
 
 ### Layer touchpoints & ordering
@@ -277,10 +331,24 @@ Scenario: A resize / orientation change pulls an off-screen window back into vie
   When the viewport shrinks (a resize or orientationchange fires)
   Then its left/top are re-clamped inside the new viewport
 # pinned by: tests/ui/floating-window.test.ts
+
+Scenario: A resizable window carries a grip; a plain one does not (REQ-a-window-may-be-resizable)
+  Given one FloatingWindow with resizable { direction: 'right' } and testId "w", and one without
+  Then the first holds a separator with testid "w-resize" and the second holds none
+  When the first is minimised
+  Then its grip is hidden, and restoring shows it
+# pinned by: tests/ui/floating-window.test.ts
+
+Scenario: The viewport caps the size where the window stands (REQ-a-window-may-be-resizable)
+  Given a resizable window at left 600 in a 1000 px viewport, its content 300 px wide inside 24 px of chrome
+  And the consumer's bounds allow up to 900 px
+  When refreshSize() runs
+  Then the grip's maximum is 376 px (1000 − 600 − 24)
+# pinned by: tests/ui/floating-window.test.ts
 ```
 
 ## Tests & verification
 
 - Unit: `tests/ui/floating-window.test.ts` — `npm test`
-- E2E (via the XY Pad): `e2e/xy-pad.spec.ts` — `npm run e2e`
+- E2E (via the XY Pad and TRANSPORT): `e2e/xy-pad.spec.ts`, `e2e/transport-window.spec.ts` — `npm run e2e`
 - Typecheck: `npm run typecheck`

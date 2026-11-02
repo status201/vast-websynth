@@ -3,7 +3,7 @@
 ```yaml
 id: iconography
 status: implemented
-version: 5
+version: 6
 owner: ui
 related:
   - architecture
@@ -143,6 +143,28 @@ is that rule's real home; REQ-ui-icons-are-self-stroking there now references it
     are as they were;
   - the rotating carets (`dropdown.module.css`, `tabs.module.css`,
     `fx-slot-picker.module.css`) still turn about the same centre.
+  The two FX-title carets go one step further: REQ-a-title-caret-is-cap-high.
+
+- **REQ-a-title-caret-is-cap-high** (v6) — **A caret that rides an FX title is
+  exactly as tall as the title's capitals.** That covers the slot picker's caret
+  beside PHASER/FLANGER/CHORUS and the titled dropdown's caret beside the DELAY /
+  DIRT legend ([dropdown](dropdown.md)). At a font-size of its own, a caret drew
+  at 7/16 em and sat visibly shorter than the uppercase word it belongs to.
+  - **Sized in `cap`, not px, by one rule.** The caret's holder takes its text's
+    font-size and wears the global `cap-caret` class; `base.css`'s
+    `.cap-caret > svg.ui-icon` makes the SVG box `1cap × 16/7`, so the 7-unit
+    glyph is exactly one cap height in whichever face actually renders (Inter,
+    Segoe, Roboto). A px size would be right on one platform only. The glyph's
+    geometry lives in that one rule beside `caretDown`'s other contract, never
+    restated per component.
+  - **No layout moves.** Negative block margins trim the empty viewBox rows
+    above and below the glyph (4.95 and 4.05 of 16 units), so the larger box
+    adds no height to the title row or the legend's grid row.
+  - **One number per title.** The slot picker reads `--fx-title-size`, which
+    defaults to the synth rack's 11px `.fxTitle` and is set to 9px on a sampler
+    FX group, where `fx-group.module.css`'s `.label` reads the same variable. So
+    the title and its caret cannot drift apart. The titled dropdown's caret takes
+    the `.legend`'s 8px in the toggle's own face.
 
 - **REQ-icon-rule-is-pinned-by-a-test** — **The rule is pinned by
   `tests/ui/iconography.test.ts`**, for the same reason
@@ -246,6 +268,7 @@ plus / minus:                  + −   # the bank bar's grow/shrink arms (banks.
 check:                         ✓     # "Linked ✓", tour confirmation
 gear:                          ⚙     # in-panel settings reveal
 popOut:                        ❐     # "opens a floating window"
+resizeCorner:                  ◢     # a resizable window's corner grip (floating-window.md)
 edit:                          ✎     # sampler slot editor
 menu:                          ☰     # responsive header toggle
 sparkle:                       ✨    # AI Prompt
@@ -332,6 +355,12 @@ Scenario: a caret spans most of its box (v5, REQ-a-caret-fills-its-box)
   Then each glyph's long side spans 13.6 of the 16 viewBox units and its short side 7
   And its centre is where the old, half-size glyph's was
 # pinned by: tests/ui/ui-icons.test.ts
+
+Scenario: an FX title's caret is cap-high and moves no layout (v6, REQ-a-title-caret-is-cap-high)
+  Given the slot picker's caret and the titled dropdown's caret
+  Then both wear `cap-caret`, whose one base.css rule sizes the SVG box 16/7 cap with the glyph's empty rows trimmed
+  And the slot picker's font-size and the sampler FX label's both read --fx-title-size
+# pinned by: tests/ui/title-caret.test.ts (CSS text; the rendered size is checked by eye)
 
 Scenario: the superseded font-swap path is gone (REQ-one-icon-builder-four-sets, regression)
   Given the About modal's key list

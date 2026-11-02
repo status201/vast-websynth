@@ -3,6 +3,15 @@ import type { XyPadStore } from '../../state/xy-pad';
 import type { EffectiveXy } from '../../state/xy-effective';
 import { FloatingWindow } from './floating-window';
 import { createXyPad } from './xy-pad';
+import {
+  XY_PAD_SIZE_KEY, readSizePref, writeSizePref, clearSizePref,
+} from '../../state/size-pref';
+
+/** The pad's side (xy-pad.md REQ-the-pad-is-resizable): the default 240 px —
+ *  also `.root`'s `var(--xy-size, 240px)` fallback, which CSS must spell out —
+ *  up to four times it; the window caps it further to the viewport. */
+const XY_PAD_SIDE_MIN = 240;
+const XY_PAD_SIDE_MAX = XY_PAD_SIDE_MIN * 4;
 
 /**
  * Single shared owner of the XY Pad floating window. The pad can be launched from
@@ -29,18 +38,33 @@ export function createXyPadWindowController(bus: ParamBus, xy: XyPadStore, effec
     if (win) return win;
     // Build the pad first so its gear can seed the window's title-bar slot.
     const pad = createXyPad(bus, xy, effective);
-    win = new FloatingWindow({
+    const w: FloatingWindow = new FloatingWindow({
       title: 'XY Pad',
       testId: 'xypad-window',
       leading: pad.gear,
+      resizable: {
+        direction: 'down-right',
+        cssVar: '--xy-size',
+        bounds: () => ({ min: XY_PAD_SIDE_MIN, max: XY_PAD_SIDE_MAX }),
+        measure: () => pad.el.offsetWidth,
+        initial: readSizePref(XY_PAD_SIZE_KEY, XY_PAD_SIDE_MIN, XY_PAD_SIDE_MAX),
+        step: 16,
+        onCommit: (px) => writeSizePref(XY_PAD_SIZE_KEY, px),
+        onReset: () => clearSizePref(XY_PAD_SIZE_KEY),
+        label: 'XY Pad size',
+        title: 'Drag to resize — double-click for the default size',
+      },
       // Every close routes through here — the ✕ and the launcher toggle alike —
       // so it is the one place a live gesture can be ended. A wheel gesture
       // otherwise ends only on `pointerleave`, which a removed element never
       // fires, leaving both params swept (xy-pad.md REQ-wheel-nudges-the-dot).
       onClose: () => { pad.endGesture(); emit(false); },
     });
-    win.body.appendChild(pad.el);
-    return win;
+    win = w;
+    w.body.insertBefore(pad.el, w.body.firstChild);
+    // The assign row changes the window's height, so the room changes too.
+    pad.gear.addEventListener('click', () => w.refreshSize());
+    return w;
   }
 
   return {
