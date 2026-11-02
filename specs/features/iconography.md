@@ -3,7 +3,7 @@
 ```yaml
 id: iconography
 status: implemented
-version: 6
+version: 7
 owner: ui
 related:
   - architecture
@@ -160,6 +160,15 @@ is that rule's real home; REQ-ui-icons-are-self-stroking there now references it
   - **No layout moves.** Negative block margins trim the empty viewBox rows
     above and below the glyph (4.95 and 4.05 of 16 units), so the larger box
     adds no height to the title row or the legend's grid row.
+  - **It stands on the text's baseline, so its top is the capitals' top.**
+    Centring it is not enough: Georgia's capitals sit above the middle of the
+    line box. So the legend and its caret are **baseline-aligned**. The caret
+    is a block holding the SVG inline at `vertical-align: baseline`, and an
+    inline SVG's baseline is its bottom *margin* edge, which the trimmed row
+    puts on the glyph's bottom.
+  - **At ~1x it rides 1px higher** (`max-resolution: 1.49dppx`). Hinting
+    draws the 8px capitals above their metric top there, so the exact caret
+    read a pixel low at 100%. For a caret, low is the worse error.
   - **One number per title.** The slot picker reads `--fx-title-size`, which
     defaults to the synth rack's 11px `.fxTitle` and is set to 9px on a sampler
     FX group, where `fx-group.module.css`'s `.label` reads the same variable. So
@@ -361,6 +370,18 @@ Scenario: an FX title's caret is cap-high and moves no layout (v6, REQ-a-title-c
   Then both wear `cap-caret`, whose one base.css rule sizes the SVG box 16/7 cap with the glyph's empty rows trimmed
   And the slot picker's font-size and the sampler FX label's both read --fx-title-size
 # pinned by: tests/ui/title-caret.test.ts (CSS text; the rendered size is checked by eye)
+
+Scenario: the titled dropdown's caret tops out at the legend's cap top (v7, REQ-a-title-caret-is-cap-high, regression)
+  Given the synth FX rack, unfolded, with the DIRT and DELAY legends
+  Then at 2x each caret's glyph bottom is on its legend's baseline
+  And so its top is the legend's cap top, within 0.25px
+  And at 1x both sit exactly 1px higher, where hinted capitals draw
+  And opening the menu moves neither
+# Bug: the grid row centred the caret, and Georgia's capitals sit above the
+# line box's middle, so the caret's top landed 0.38-0.77px below DELAY's.
+# pinned by: tests/ui/title-caret.test.ts (CSS text) and
+#            e2e/title-caret.spec.ts (the rendered offset at 1x and 2x, Chromium;
+#            the 1x lift itself was judged by eye in Chrome and Firefox)
 
 Scenario: the superseded font-swap path is gone (REQ-one-icon-builder-four-sets, regression)
   Given the About modal's key list

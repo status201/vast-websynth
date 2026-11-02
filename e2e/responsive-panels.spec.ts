@@ -478,15 +478,16 @@ test('no knob label ever reaches its neighbour', async ({ page }) => {
 /**
  * REQ-fx-panels-fit-their-knob-run — the FX rack sizes its panels to their knob runs.
  *
- * The rack holds panels of unequal content (PHASER and DUCK carry four knobs,
- * the rest three), so equal columns size every panel for the widest or for
- * none. Going from five panels to six did the latter: at 1440px each column
- * fell to 220px against the 242px a four-knob panel needs, both wrapped a knob
- * onto a second row, and the rack grew 177px -> 255px — which, on a faceplate
- * that does not scroll, pushed the panel below it past the fold.
+ * The rack holds panels of unequal content (PHASER, DELAY and DUCK carry four
+ * knobs, the rest three), so equal columns size every panel for the widest or
+ * for none. Two failures follow. Too narrow a column wraps a knob onto a second
+ * row, and the rack grew 177px -> 255px, which on a faceplate that does not
+ * scroll pushed the panel below it past the fold. A floor wider than the rack
+ * spills: a grid cannot wrap, so when DELAY's CHAR made a third four-knob panel
+ * DUCK ran 26px past the FX bar on an iPad Pro 13" (1376px).
  *
  * Measured rather than eyeballed, for the reason REQ-a-cell-is-never-narrower-than-a-knob is: this is rendered
- * geometry, and the failure is a wrap, not a class name. `.fxPanel` carries no
+ * geometry, and the failure is a wrap or a spill, not a class name. `.fxPanel` carries no
  * testid, so a panel is recovered as the cell of the rack's grid (the `fx`
  * section's last child) that holds its knobs — not as a fixed ancestor, since
  * the Phaser panel nests its knobs one level deeper, in a shared-slot view
@@ -496,7 +497,7 @@ const RACK = {
   dist: ['fx.dist.drive', 'fx.dist.tone', 'fx.dist.mix'],
   wah: ['fx.wah.rate', 'fx.wah.depth', 'fx.wah.q'],
   phaser: ['fx.phaser.rate', 'fx.phaser.depth', 'fx.phaser.feedback', 'fx.phaser.mix'],
-  delay: ['fx.delay.time', 'fx.delay.feedback', 'fx.delay.mix'],
+  delay: ['fx.delay.time', 'fx.delay.feedback', 'fx.delay.char', 'fx.delay.mix'],
   reverb: ['fx.reverb.size', 'fx.reverb.damp', 'fx.reverb.mix'],
   duck: ['fx.duck.amount', 'fx.duck.attack', 'fx.duck.release', 'fx.duck.src'],
 } as const;
@@ -507,13 +508,18 @@ test('no FX rack panel wraps its knob run', async ({ page }) => {
   // and would measure nothing at all.
   for (const name of Object.keys(RACK)) await busSet(page, `fx.${name}.on`, 1);
 
-  // 1360px is REQ-fx-panels-fit-their-knob-run's step itself — the tightest width the rule claims — and
-  // 1920px is where six equal columns would also have fitted, so a regression
-  // that only restores the wide case still fails here.
-  for (const width of [1360, 1440, 1600, 1920]) {
+  // Both of REQ-fx-panels-fit-their-knob-run's steps from each side: 1320px is
+  // the 40px-knob tier's tightest width, 1376px an iPad Pro 13" in landscape
+  // (where the rack spilled 26px past its bar once DELAY had four knobs), and
+  // 1409/1410px the edge of the 44px tier. 1920px is where six equal columns
+  // would also have fitted, so a regression that only restores the wide case
+  // still fails here.
+  for (const width of [1320, 1376, 1409, 1410, 1440, 1600, 1920]) {
     await page.setViewportSize({ width, height: 900 });
     const rack = await page.evaluate((panels) => {
-      const out: Record<string, { rows: number; top: number; width: number }> = {};
+      const out: Record<string, { rows: number; top: number; width: number; right: number }> = {};
+      const section = document.querySelector('[data-testid="fx"]')!;
+      const barRight = section.firstElementChild!.getBoundingClientRect().right;
       for (const [name, ids] of Object.entries(panels)) {
         const knobs = (ids as string[]).map((id) => {
           const el = document.querySelector(`[data-testid="knob-${id}"]`) as HTMLElement | null;
@@ -528,6 +534,8 @@ test('no FX rack panel wraps its knob run', async ({ page }) => {
           rows: new Set(knobs.map((k) => k.offsetTop)).size,
           top: Math.round(panel.getBoundingClientRect().top),
           width: Math.round(panel.getBoundingClientRect().width),
+          // How far the panel ends past the FX bar: a floor that does not fit spills.
+          right: panel.getBoundingClientRect().right - barRight,
         };
       }
       return out;
@@ -535,19 +543,20 @@ test('no FX rack panel wraps its knob run', async ({ page }) => {
 
     for (const [name, m] of Object.entries(rack)) {
       expect(m.rows, `${name} keeps its knobs on one row at ${width}px`).toBe(1);
+      expect(m.right, `${name} ends inside the FX bar at ${width}px`).toBeLessThanOrEqual(0.5);
     }
     // One panel row: the rack never stacks, so its height is one panel's.
     expect(new Set(Object.values(rack).map((m) => m.top)).size,
       `the rack is a single row of panels at ${width}px`).toBe(1);
     // The rule itself, not just its symptom: a four-knob panel is never the
     // narrower one. `1fr` is an equal share with a `min-content` floor, so the
-    // floor only bites while the share is too small — above ~1546px the share
+    // floor only bites while the share is too small — above ~1570px the share
     // clears 242px unaided and the rack is equal-width again, which is why this
     // is `>=` everywhere and `>` only where the floor is doing the work.
-    for (const [wide, narrow] of [['phaser', 'dist'], ['duck', 'reverb']] as const) {
+    for (const [wide, narrow] of [['phaser', 'dist'], ['delay', 'wah'], ['duck', 'reverb']] as const) {
       const cmp = expect(rack[wide]!.width,
         `${wide.toUpperCase()} vs ${narrow.toUpperCase()} at ${width}px`);
-      if (width < 1546) cmp.toBeGreaterThan(rack[narrow]!.width);
+      if (width < 1570) cmp.toBeGreaterThan(rack[narrow]!.width);
       else cmp.toBeGreaterThanOrEqual(rack[narrow]!.width);
     }
   }

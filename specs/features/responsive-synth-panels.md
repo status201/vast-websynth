@@ -3,7 +3,7 @@
 ```yaml
 id: responsive-synth-panels
 status: implemented
-version: 11
+version: 12
 owner: ui
 related:
   - responsive-header
@@ -235,42 +235,24 @@ count changes.
     construction; the tightening targets the segmented switches' buttons only
     (`:not(.dropdown)`, the dropdown's global bridge class).
 
-- **REQ-fx-panels-fit-their-knob-run** — (v5) **No FX rack panel is ever
-  narrower than its own knob run.** The rack (`.fxRow`) holds panels of
-  *unequal* content — a four-knob panel (PHASER, DUCK) spends `4×52 + 3×4 =
-  220px` on its run, a three-knob panel 164px — so a single equal column width
-  cannot serve them all, exactly as a 4+2 split cannot serve `.hex`
-  (REQ-filter-hex-has-three-even-shapes). Above **1360px** the tracks are
-  `minmax(min-content, 1fr)`, which is an equal share with a floor: `1fr` hands
-  every panel the same width, and the `min-content` floor lifts a four-knob
-  panel off it when that share falls below the 242px its run plus 22px of
-  padding and border needs.
-  - **So the rack is equal-width when it can afford to be.** Above ~1546px the
-    equal share clears 242px on its own and every panel is the same width, as
-    before. Between 1360px and there, the four-knob panels hold at 242px and the
-    three-knob ones absorb the difference — at 1440px, 242px against 210px.
-    Only the tight case is treated specially, which is why the rule reads as no
-    visible change on a wide monitor.
-  - **`.fxKnobs` must not wrap for this to mean anything.** A wrapping flex row's
-    min-content is **one knob**, so the track would ask for 52px and the rule
-    would collapse back to equal columns. `flex-wrap: nowrap` above the step is
-    safe and is the only place it is safe: the track is guaranteed ≥ the run, and
-    the run is font-independent (fixed knob boxes), so nothing is left to wrap
-    for.
-  - **Why 1360px.** It is where the six minimums first fit:
-    `2×242 + 4×186 + 5×10` of gaps `+ 44` of side margin ≈ 1350px. A grid cannot
-    wrap, so below that the rule would spill past the rack's right edge and be
-    **clipped silently** — the equal-column fallback takes over instead and lets
-    the knob rows wrap, which is what this rack did below ~1294px when it held
-    five panels.
-  - **This is REQ-a-cell-is-never-narrower-than-a-knob for a second grid, and it is not cosmetic.** Six equal
-    columns need 1546px before a four-knob panel clears 242px. When the rack went
-    from five panels to six, each column fell to 220px at 1440px, PHASER and DUCK
-    each dropped a knob onto a second row, and the rack grew **177px → 255px**.
-    The faceplate is a fixed-height grid that does not scroll, so that 78px came
-    out of the panel below: the sequencer's step-settings row went past the fold,
-    taking its `position: fixed` info badge with it — unreachable, since a fixed
-    element cannot be scrolled into view.
+- **REQ-fx-panels-fit-their-knob-run** — **No FX rack panel is ever
+  narrower than its own knob run, and the rack never overflows its bar.** The
+  rack (`.fxRow`) holds unequal panels: a four-knob panel (PHASER, DELAY,
+  DUCK) needs 242px at the 44px knob, a three-knob one 186px. So above the
+  step the tracks are `minmax(min-content, 1fr)`, an equal share with a floor,
+  and `.fxKnobs` is `nowrap`. A wrapping row's min-content is one knob, which
+  would void the floor. Nowrap is safe there because the track is ≥ the run.
+  - **The steps are where the six minimums fit.** Outside the rack sit 68px:
+    `.app`'s 2×12 padding and 2×22 of `--side-margin`. At 44px knobs the
+    minimums total `3×242 + 3×186 + 5×10 = 1334px`, which first fits at
+    1402px, so that tier starts at **1410px**. From **1320px** to there, the
+    rack's knobs step down to 40px, the faceplate's own ≤1280px size: `3×226 +
+    3×174 + 50 = 1250px`, which fits from 1318px. Below 1320px the equal-column
+    fallback lets knob rows wrap. A floor that does not fit is not a fallback:
+    a grid cannot wrap, so it spills past the bar.
+  - **Not cosmetic.** A wrapped knob row costs the rack a second row (177px →
+    255px), and the faceplate does not scroll, so the step-settings row and its
+    fixed info badge go past the fold.
 
 - **REQ-the-fx-bar-joins-its-top-row** — **Unfolded, the FX bar and the rack's
   top row of panels read as one surface, the way MACHINES and EQUALIZER do.**
@@ -541,13 +523,22 @@ Scenario: No switch outgrows its panel (REQ-selectors-never-outgrow-their-panel)
 # pinned by: e2e/responsive-panels.spec.ts (no switch outgrows its panel)
 
 Scenario: No FX rack panel wraps its knob run at desktop widths (REQ-fx-panels-fit-their-knob-run)
-  Given the app is open at 1360px, 1440px, 1600px or 1920px
+  Given the app is open at 1320px, 1376px, 1409px, 1410px, 1440px, 1600px or 1920px
   And every effect in the synth FX rack is engaged
   Then each panel lays its knobs on exactly one row
   And the rack is one panel row tall
+  And the rack ends inside the FX bar
   And no four-knob panel is narrower than a three-knob one
-  And below 1546px, where the equal share stops clearing 242px,
+  And below 1570px, where the equal share stops clearing 242px,
     the four-knob panels are strictly wider
+# pinned by: e2e/responsive-panels.spec.ts (no FX rack panel wraps its knob run)
+
+Scenario: The rack fits an iPad Pro 13" in landscape (REQ-fx-panels-fit-their-knob-run, regression)
+  Given the app is open at 1376px
+  Then the rack's knobs are 40px and DUCK ends inside the FX bar
+  And at 1410px they are 44px again
+# Bug: DELAY's CHAR made a third four-knob panel; the 1360px step was sized for
+# two, so from 1360px to ~1401px the rack spilled 26px past its bar.
 # pinned by: e2e/responsive-panels.spec.ts (no FX rack panel wraps its knob run)
 
 Scenario: The FX bar joins its top row of panels (REQ-the-fx-bar-joins-its-top-row)
@@ -568,7 +559,7 @@ Scenario: The FX bar joins its top row of panels (REQ-the-fx-bar-joins-its-top-r
   360/420/499/500/820/1281/1400/1440/1629/1630/1920/2560px, and 2800/3199/3200/3440/5120px for
   REQ-ultrawide-panels-are-one-row (viewports changed *within* a test:
   each boot is a full AudioContext), plus REQ-a-cell-is-never-narrower-than-a-knob's label-ink sweep and REQ-fx-panels-fit-their-knob-run's
-  FX rack sweep at 1360/1440/1600/1920px, and REQ-the-fx-bar-joins-its-top-row's
+  FX rack sweep at 1320/1376/1409/1410/1440/1600/1920px, and REQ-the-fx-bar-joins-its-top-row's
   bar-to-panel join at 1400px and 900px.
 - Typecheck: `npm run typecheck` (confirms `styles.quad` / `.hex` / `.quint` compile).
 - Manual (`npm run dev`), device-emulate / resize:

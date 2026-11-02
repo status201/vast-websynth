@@ -43,7 +43,7 @@
   }
 
   /* Six equal columns. Equal is the wrong shape once a panel holds four knobs —
-     see the min-width:1360px step below, which sizes panels to their knobs where
+     see the min-width:1320px steps below, which sizes panels to their knobs where
      there is room to. This stays the narrow fallback, where nothing fits anyway
      and shrinking evenly beats overflowing.
      -1px so the bar's bottom border and the top row's top borders draw as one
@@ -120,37 +120,32 @@
     flex-wrap: wrap;
   }
 
-  /* No FX panel is ever narrower than its own knob run — responsive-synth-panels
-     REQ-the-scope-drop-shadow-is-dropped. The panels do not hold equal amounts: a four-knob panel (Phaser, Duck)
-     spends 4x52 + 3x4 = 220px on its knob run against a three-knob panel's 164px,
-     so one equal column width cannot serve them all. It served none when the rack
-     went from five panels to six: at 1440px each column fell to 220px against the
-     242px a four-knob panel needs, both wrapped a knob onto a second row, and the
-     rack grew 177px -> 255px. That 78px is not free. The faceplate is a
-     fixed-height grid that does not scroll, and it pushed the sequencer's
-     step-settings row past the fold.
+  /* No FX panel is ever narrower than its own knob run, and the rack never
+     overflows its bar (responsive-synth-panels.md REQ-fx-panels-fit-their-knob-run).
+     The panels hold unequal runs: a four-knob panel (Phaser, Delay, Duck) needs
+     242px at the 44px knob, a three-knob one 186px. Equal columns serve none of
+     them in the tight band, and a wrapped knob row costs the fixed-height
+     faceplate a second rack row (177px -> 255px) and the step-settings row below.
 
-     `minmax(min-content, 1fr)` is an equal share with a floor: 1fr hands every
-     panel the same width, and min-content lifts a four-knob panel off it when
-     that share drops below its 242px. So above ~1546px, where the share clears
-     242px unaided, the rack is equal-width exactly as before; only the tight band
-     is treated specially (at 1440px: 242px against 210px).
+     `minmax(min-content, 1fr)` is an equal share with a floor; `.fxKnobs` must not
+     wrap, or its min-content is ONE knob and the floor means nothing. Nowrap is
+     safe only where the floor fits, because a grid cannot wrap: a floor that
+     does not fit spills past the bar.
 
-     `.fxKnobs` must stop wrapping for the floor to mean anything: a wrapping
-     row's min-content is ONE knob, so the track would ask for 52px and we would
-     be back to equal columns. Nowrap is safe here and only here — the track is
-     guaranteed >= the run, and the run is font-independent (fixed knob boxes), so
-     there is nothing left to wrap for.
-
-     The 1360px step is where the six panels' minimums (2x242 + 4x186 + 5x10 gaps
-     + 44px of side margin = ~1350px) first fit. Below it the rule would spill
-     past the rack's right edge and be clipped silently, so the equal-column
-     fallback takes over and wraps knobs instead — which is what this rack did
-     below ~1294px before the sixth panel existed. */
-  @media (min-width: 1360px) {
+     So the steps are where the six minimums fit, with 68px outside the rack
+     (.app's 2x12 padding + 2x22 --side-margin):
+       >= 1410px  44px knobs: 3x242 + 3x186 + 5x10 = 1334px, fits from 1402px.
+       1320-1409  40px knobs, the faceplate's own <=1280px size:
+                  3x226 + 3x174 + 50 = 1250px, fits from 1318px (iPad Pro 13").
+       < 1320px   the equal-column fallback above; knob rows wrap.
+     A new knob in any panel moves these numbers — re-measure them. */
+  @media (min-width: 1320px) {
     .fxRow { grid-template-columns: repeat(6, minmax(min-content, 1fr)); }
     .fxPanel { min-width: auto; }
     .fxKnobs { flex-wrap: nowrap; }
+  }
+  @media (min-width: 1320px) and (max-width: 1409px) {
+    .fxRow { --knob-size: 40px; }
   }
 
   @media (max-width: 992px) {
