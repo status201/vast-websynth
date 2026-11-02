@@ -283,6 +283,7 @@
     transition: transform 120ms ease;
   }
   .root.titled:global(.open) .caret { transform: none; }
+  .root.titled:global(.open) .caret > :global(svg.ui-icon) { transform: rotate(180deg); }
 
   /* At ~1x the rasteriser hints the legend's 8px capitals onto whole pixels and
      they draw a pixel above their metric cap top, so the metric-exact caret
@@ -291,7 +292,6 @@
   @media (max-resolution: 1.49dppx) {
     .root.titled .caret { position: relative; top: -1px; }
   }
-  .root.titled:global(.open) .caret > :global(svg.ui-icon) { transform: rotate(180deg); }
 
   .root.titled:global(.open) .caret,
   .root.titled .toggle:focus-visible .caret {

@@ -57,6 +57,9 @@
 
   /* ===== Responsive ===== */
 
+  /* The FX rack borrows this 40px for its own 1320-1409px band, where its six
+     panels fit only at the smaller knob (fx-rack.module.css,
+     responsive-synth-panels.md REQ-fx-panels-fit-their-knob-run). Change both. */
   @media (max-width: 1280px) {
     .app {
       --knob-size: 40px;
