@@ -35,6 +35,12 @@ Vanilla TypeScript + Vite, zero runtime dependencies.
   </a>
 </p>
 
+<p align="center">
+  <a href="https://vast.status201.com/">
+    <img src="public/vast-websynth-eq-scope.png" alt="VAST G1-J8 — free in-browser synthesizer, sequencer, drum machine and sampler" width="960">
+  </a>
+</p>
+
 ## Features
 
 - **8-voice polyphony** with mono/poly switching and glide

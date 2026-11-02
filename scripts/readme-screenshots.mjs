@@ -12,6 +12,9 @@
 //                                   Transport (widened to the whole song), Live FX
 //                                   and XY pad windows open
 //   vast-websynth-song-tab.png      the same, on the Song tab
+//   vast-websynth-eq-scope.png      the demo playing, machines folded, the scope
+//                                   at its full height on Spectrum, and the
+//                                   EQUALIZER unfolded on its Sequencer tab
 //
 // Framing is judged by eye — look at all three before committing them.
 
@@ -95,17 +98,19 @@ if (!url) {
 
 // ------------------------------------------------------------------ steps
 
-/** A booted page with the demo loaded, the pattern row open on the Song tab. */
-async function openApp(browser) {
+/** A booted page with the demo loaded, the pattern row open on the Song tab.
+ *  `prefs` are extra workspace entries seeded into storage before boot. */
+async function openApp(browser, prefs = {}) {
   const page = await browser.newPage({ viewport: VIEWPORT, deviceScaleFactor: 1 });
-  await page.addInitScript(() => {
+  await page.addInitScript((extra) => {
     try {
       localStorage.setItem('websynth.onboarding.done', '1');
       localStorage.setItem('websynth.perf', 'off');
       localStorage.setItem('websynth.hint.emptyplay', '1');
       localStorage.setItem('websynth.ui.collapsed.pattern', '0');
+      for (const [k, v] of Object.entries(extra)) localStorage.setItem(k, v);
     } catch { /* ignore */ }
-  });
+  }, prefs);
   await page.goto(url);
 
   // Whichever start gate this browser gets (audio-lifecycle.md REQ-the-gesture-is-required-only-when-required).
@@ -190,6 +195,17 @@ async function fitStrip(page, testId) {
   await page.mouse.up();
 }
 
+/** With the transport playing: let the spectrum fill in, then catch a chord —
+ *  wait until three or more keys are lit by the playing notes (keyboard.ts
+ *  marks them `.seq`), so the scope shows a full band rather than one bass note. */
+async function catchChord(page) {
+  await page.waitForTimeout(4000);
+  await page.waitForFunction(
+    () => [...document.querySelectorAll('.seq')].filter((el) => /key/i.test(el.className)).length >= 3,
+    null, { timeout: 30_000, polling: 50 },
+  ).catch(() => console.warn('readme-screenshots: no chord within 30 s — shooting anyway'));
+}
+
 async function shoot(page, file) {
   // Two frames, so the last click's paint is on screen.
   await page.evaluate(() => new Promise((r) => requestAnimationFrame(() => requestAnimationFrame(r))));
@@ -208,13 +224,7 @@ try {
     await page.locator('[data-testid="pattern-row"] [aria-label="Collapse panel"]').first().click();
     await page.getByTestId('scope-toggle').click();
     await page.getByTestId('transport-play').click();
-    // Let the spectrum fill in, then catch a chord: wait until three or more keys
-    // are lit by the playing notes (keyboard.ts marks them `.seq`).
-    await page.waitForTimeout(4000);
-    await page.waitForFunction(
-      () => [...document.querySelectorAll('.seq')].filter((el) => /key/i.test(el.className)).length >= 3,
-      null, { timeout: 30_000, polling: 50 },
-    ).catch(() => console.warn('readme-screenshots: no chord within 30 s — shooting anyway'));
+    await catchChord(page);
     await scrollTo(page, 0);
     await shoot(page, 'vast-websynth.png');
     await page.close();
@@ -239,6 +249,25 @@ try {
       await scrollBottomTo(page, 'pattern-row', PANEL_BOTTOM_Y);
       await shoot(page, file);
     }
+    await page.close();
+  }
+
+  // 4 — the analysis pair: playing, machines folded, the scope at its ceiling
+  // (src/state/scope-height.ts SCOPE_H_MAX, seeded as the stored preference)
+  // on Spectrum, and the EQUALIZER unfolded on its Sequencer tab, scrolled so
+  // the keyboard's bottom edge sits where the machine panel's does above.
+  {
+    const page = await openApp(browser, {
+      'websynth.ui.scope.height': '260',
+      'websynth.ui.collapsed.eq': '0',
+    });
+    await page.locator('[data-testid="pattern-row"] [aria-label="Collapse panel"]').first().click();
+    await page.getByTestId('tab-eq-seq').click();
+    await page.getByTestId('scope-toggle').click();
+    await page.getByTestId('transport-play').click();
+    await catchChord(page);
+    await scrollBottomTo(page, 'keyboard', PANEL_BOTTOM_Y);
+    await shoot(page, 'vast-websynth-eq-scope.png');
     await page.close();
   }
 } finally {
