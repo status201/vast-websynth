@@ -51,7 +51,9 @@
   .fxRow {
     display: grid;
     grid-template-columns: repeat(6, minmax(0, 1fr));
-    gap: 10px;
+    /* 2px across and down: one tight unit under the bar (responsive-synth-panels.md
+       REQ-the-fx-bar-joins-its-top-row). The fit sums below count it. */
+    gap: 2px;
     margin-top: -1px;
   }
 
@@ -132,13 +134,14 @@
      safe only where the floor fits, because a grid cannot wrap: a floor that
      does not fit spills past the bar.
 
-     So the steps are where the six minimums fit, with 68px outside the rack
-     (.app's 2x12 padding + 2x22 --side-margin):
-       >= 1410px  44px knobs: 3x242 + 3x186 + 5x10 = 1334px, fits from 1402px.
+     So the steps sit above where the six minimums fit, with 68px outside the
+     rack (.app's 2x12 padding + 2x22 --side-margin):
+       >= 1410px  44px knobs: 3x242 + 3x186 + 5x2 = 1294px, fits from 1362px.
        1320-1409  40px knobs, the faceplate's own <=1280px size:
-                  3x226 + 3x174 + 50 = 1250px, fits from 1318px (iPad Pro 13").
+                  3x226 + 3x174 + 10 = 1210px, fits from 1278px (iPad Pro 13").
        < 1320px   the equal-column fallback above; knob rows wrap.
-     A new knob in any panel moves these numbers — re-measure them. */
+     The ~40px of headroom at each step is deliberate: a panel at its floor
+     reads cramped. A new knob in any panel moves these numbers — re-measure. */
   @media (min-width: 1320px) {
     .fxRow { grid-template-columns: repeat(6, minmax(min-content, 1fr)); }
     .fxPanel { min-width: auto; }

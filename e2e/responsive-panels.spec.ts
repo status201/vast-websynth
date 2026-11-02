@@ -609,7 +609,7 @@ test('the FX bar joins its top row of panels', async ({ page }) => {
         expect(p.radius, `panel ${i + 1}'s top corners are square at ${width}px`).toEqual(['0px', '0px']);
       } else {
         expect(p.radius, `panel ${i + 1}'s top corners stay rounded at ${width}px`).toEqual(['6px', '6px']);
-        expect(p.top - m.panels[i - cols]!.bottom, `panel ${i + 1} keeps the 10px row gap`).toBeCloseTo(10, 0);
+        expect(p.top - m.panels[i - cols]!.bottom, `panel ${i + 1} keeps the rack's 2px row gap`).toBeCloseTo(2, 0);
       }
     });
   }

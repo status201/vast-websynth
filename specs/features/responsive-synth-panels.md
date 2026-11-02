@@ -3,13 +3,14 @@
 ```yaml
 id: responsive-synth-panels
 status: implemented
-version: 12
+version: 13
 owner: ui
 related:
   - responsive-header
   - architecture
   - filter-models
 source:
+  - src/ui/styles/synth-panels.module.css # .main (REQ-the-faceplate-grid-gap-is-5px)
   - src/ui/panels/synth-panels.ts    # buildSynthPanels: the .quad/.hex rows
   - src/ui/components/panel.ts       # knobRow + panelZones: the row shapes, top / knobs / bottom
   - src/ui/styles/panel.module.css   # .quad + .hex grid rules, .panelKnobs
@@ -47,8 +48,8 @@ before. `space-evenly` on the flex row (rather than a rigid grid) keeps the
 2-knob LFO from over-spreading to the far quarters.
 
 The wide end has the mirror problem. `.main` stays 8 columns at every width
-above 1280px, so on an ultrawide the panels keep growing — a 281px knob row at
-2560px is 601px at 5120px — while the 1630px shapes stay put. The result mixes
+above 1280px, so on an ultrawide the panels keep growing — a 285px knob row at
+2560px is 605px at 5120px — while the 1630px shapes stay put. The result mixes
 three looks side by side: `.spread` rows clustered in the middle at a 4px gap,
 grid panels flung to their quarters, and 2×2 / 3×2 / dice-five blocks with room
 for a whole row to spare. REQ-ultrawide-panels-are-one-row applies the reflow's
@@ -63,6 +64,13 @@ count changes.
 
 ## Requirements
 
+- **REQ-the-faceplate-grid-gap-is-5px** — **The synth panels sit 5px apart**,
+  across and down, at every column count (`.main`'s `gap`, 8, 4 or 2 columns).
+  That is deliberately wider than the FX rack's 2px
+  (REQ-the-fx-bar-joins-its-top-row), so the faceplate and the rack read as two
+  sections. The 2-column phone layout shares it: a single value keeps the grid
+  from getting wider gaps at narrower widths.
+
 - **REQ-quad-panels-use-a-fixed-grid** — The 4-knob synth panels — **SUB / UNI**
   and **AMP ENV** — lay their knobs out via a shared `.quad` grid, not stacked
   `row()`s and not flex-wrap. Two panels have since outgrown it and kept the
@@ -73,11 +81,11 @@ count changes.
 
   | width | `.quint` | shape | why |
   | --- | --- | --- | --- |
-  | ≥2561px | 5 columns | one row; the dice-five placements are undone | REQ-ultrawide-panels-are-one-row — five 52px boxes fit a 281px row |
+  | ≥2561px | 5 columns | one row; the dice-five placements are undone | REQ-ultrawide-panels-are-one-row — five 52px boxes fit a 285px row |
   | 1630–2560px | 3 columns × 2 rows | **dice-five**: A · D over S · R in the corners, VEL in the middle column, spanning both rows and vertically centred | three rows stood ~42px taller than any neighbour (3×74 + 2×8 = 238px of knobs against a segmented + two rows ≈ 196px), and the faceplate row takes its tallest panel's height, out of the section below it. The panel fits three columns from here on (the `.hex` step, REQ-filter-hex-has-three-even-shapes) |
   | 1281–1629px | 2 columns | A D / S R / VEL, the fifth spanning the row and centred | FILTER (`.hex` 2×3 + its segmented) and OSC 1 already stand taller, so the third row costs nothing |
   | 500–1280px | 5 columns | one row; the span is undone | panels widen on the reflow, where five fit |
-  | ≤499px | 3 columns × 2 rows | **dice-five**, the same rule as 1630–2560px | the 2-column phone faceplate (`.main` ≤992px; 30px dials in a 38px box from ≤720px) leaves a ~164px body at 420px: five cells of ~30px, dial against dial with no air — they overlapped outright at the earlier 36px size. Three columns give ~52px cells. The extra knob row costs nothing — the LFO beside it (tabs + wave + knobs + destination) stands taller |
+  | ≤499px | 3 columns × 2 rows | **dice-five**, the same rule as 1630–2560px | the 2-column phone faceplate (`.main` ≤992px; 30px dials in a 38px box from ≤720px) leaves a ~166px body at 420px: five cells of ~33px, dial against dial with no air — they overlapped outright at the earlier 36px size. Three columns give ~55px cells. The extra knob row costs nothing — the LFO beside it (tabs + wave + knobs + destination) stands taller |
 
   - **One dice-five, two ranges.** The placement is a single CSS block whose
     media list is `(min-width: 1630px) and (max-width: 2560px), (max-width: 499px)`,
@@ -135,14 +143,14 @@ count changes.
 
 - **REQ-ultrawide-panels-are-one-row** — (v7) **Above 2560px every synth panel
   spreads its knobs evenly and lays them on one row as soon as that row fits.**
-  A knob row there is `(W − 312) / 8` px wide (281 @2560, 391 @3440, 601 @5120)
+  A knob row there is `(W − 277) / 8` px wide (285 @2560, 395 @3440, 605 @5120)
   and a one-row layout needs `n × 52 + (n − 1) × 4` px — the boxes, not the
   labels (≤41px ink), are the constraint:
 
   | from | change | row needed | row at the step |
   | --- | --- | --- | --- |
-  | 2561px | `.spread` goes `space-evenly` (OSC 1, OSC 2, MIXER, LFO); `.quad` 4 columns (SUB/UNI, AMP ENV); `.quint` 5 columns, dice-five undone (FILTER ENV) | 220 / 276px | 281px |
-  | 3200px | `.hex` 6 columns (FILTER) | 332px | 361px — 60px cells |
+  | 2561px | `.spread` goes `space-evenly` (OSC 1, OSC 2, MIXER, LFO); `.quad` 4 columns (SUB/UNI, AMP ENV); `.quint` 5 columns, dice-five undone (FILTER ENV) | 220 / 276px | 285px |
+  | 3200px | `.hex` 6 columns (FILTER) | 332px | 365px — 61px cells |
 
   - **OSC 1/2's WIDTH joins the row.** On the square wave each oscillator
     shows a fourth knob, WIDTH (oscillators.md REQ-oscillators-have-a-pulse-width).
@@ -151,7 +159,7 @@ count changes.
     on its own centred line exactly as before, never a 3+1 wrap, and the two
     4px row gaps either side of the break give the 8px a separate row had. From
     2561px the break is `display: none`, and the four knobs share one even row
-    (220px of boxes in a ≥281px row). WIDTH's show/hide toggles the break with
+    (220px of boxes in a ≥285px row). WIDTH's show/hide toggles the break with
     it, so a hidden WIDTH leaves no empty line.
   - **OSC 1's break holds until 3200px**. OSC 1 always shows FM and RING
     behind its break ([cross-modulation](cross-modulation.md)
@@ -162,8 +170,8 @@ count changes.
   - **Why ≤2560px is untouched.** 2560 is where the user judged the faceplate
     right, and where FILTER's six would not fit anyway (47px cells for a 52px
     box — REQ-a-cell-is-never-narrower-than-a-knob).
-  - **Why FILTER waits for 3200px.** Six boxes first fit at ~2970px with no air
-    between them; 3200px gives 8px, the same comfort `.hex`'s 1630px step chose.
+  - **Why FILTER waits for 3200px.** Six boxes first fit at ~2935px with no air
+    between them; 3200px gives ~9px, the comfort `.hex`'s 1630px step chose.
     Between the two steps FILTER is the one 3×2 panel — and so sets the row's
     height exactly as it does at 2560px; nothing grows.
   - **The row gets shorter.** From 3200px the tallest panel is the LFO (tabs +
@@ -219,15 +227,15 @@ count changes.
   keep their size and tracking, so a tightened switch is the same switch with
   less air, not smaller type.
   - **Where it applies: 1281–1629px and ≤499px**, the two ranges where a body is
-    narrower than a natural-width switch (121–161px on the 8-column faceplate,
-    138–158px on a phone). They are viewport ranges, like every other rule in
+    narrower than a natural-width switch (125–165px on the 8-column faceplate,
+    140–160px on a phone). They are viewport ranges, like every other rule in
     this spec, because the faceplate grid fixes a body's width at each viewport
     width. A container query would also work, but the codebase uses none, and the
     sweep below proves the ranges. Everywhere else the switches keep their
     natural padding.
   - **What it fixed.** Measured at natural width, the glide switch (169px)
-    spilled past the MIXER panel's border at every 8-column width below ~1520px
-    (14px a side at 1281px) and on a 360px phone. At 1281px OSC 2's sync switch
+    spilled past the MIXER panel's border at every 8-column width below ~1470px
+    (12px a side at 1281px) and on a 360px phone. At 1281px OSC 2's sync switch
     (141px) and the wave pickers (156px) ran into the panel padding too. Tightening
     alone was not enough for the glide switch: OFF / ALWAYS / LEGATO is still
     ~139px, hence ON (voicing.md REQ-the-glide-switch-reads-on).
@@ -242,12 +250,14 @@ count changes.
   step the tracks are `minmax(min-content, 1fr)`, an equal share with a floor,
   and `.fxKnobs` is `nowrap`. A wrapping row's min-content is one knob, which
   would void the floor. Nowrap is safe there because the track is ≥ the run.
-  - **The steps are where the six minimums fit.** Outside the rack sit 68px:
-    `.app`'s 2×12 padding and 2×22 of `--side-margin`. At 44px knobs the
-    minimums total `3×242 + 3×186 + 5×10 = 1334px`, which first fits at
-    1402px, so that tier starts at **1410px**. From **1320px** to there, the
-    rack's knobs step down to 40px, the faceplate's own ≤1280px size: `3×226 +
-    3×174 + 50 = 1250px`, which fits from 1318px. Below 1320px the equal-column
+  - **The steps sit above where the six minimums fit.** Outside the rack sit
+    68px: `.app`'s 2×12 padding and 2×22 of `--side-margin`. At 44px knobs the
+    minimums total `3×242 + 3×186 + 5×2 = 1294px` (the rack's 2px gap), which
+    first fits at 1362px; that tier starts at **1410px**. From **1320px** to
+    there, the rack's knobs step down to 40px, the faceplate's own ≤1280px size:
+    `3×226 + 3×174 + 10 = 1210px`, which fits from 1278px. The ~40px of headroom
+    at each step is kept on purpose: a panel just at its floor reads cramped,
+    so lowering the steps to the fit is not a free win. Below 1320px the equal-column
     fallback lets knob rows wrap. A floor that does not fit is not a fallback:
     a grid cannot wrap, so it spills past the bar.
   - **Not cosmetic.** A wrapped knob row costs the rack a second row (177px →
@@ -267,11 +277,15 @@ count changes.
     Every other corner keeps the 6px radius. Folded, the bar is fully rounded
     again, because nothing hangs under it.
   - **"Top row" is the first *N* cells, where *N* is the column count**: 6 above
-    992px and 2 at ≤992px. Below that, rows 2 and 3 keep their 10px row gap and
-    their rounded tops. *N* is written twice, in the grid template and in the
+    992px and 2 at ≤992px. Below that, rows 2 and 3 keep their rounded tops and
+    the rack's gap. *N* is written twice, in the grid template and in the
     `:nth-child` rule beside it, so the two change together. The selector is
     keyed to *N*, not to "every panel", so a seventh panel would wrap onto a
     second row of the 6-column grid and still come out right.
+  - **The panels sit 2px apart**, across and down (`.fxRow`'s `gap`). The rack
+    reads as one tight unit under its bar, not six loose cards. The faceplate's
+    `.main` grid is 5px (REQ-the-faceplate-grid-gap-is-5px), so the two grids
+    read as different sections.
 
 ## Technical design
 
@@ -547,7 +561,7 @@ Scenario: The FX bar joins its top row of panels (REQ-the-fx-bar-joins-its-top-r
   And the bar's bottom corners and every panel's top corners are square
   When the viewport narrows to 900px
   Then panels 1 and 2 meet the bar the same way, with square top corners
-  And panels 3 to 6 keep rounded top corners, 10px below the row above
+  And panels 3 to 6 keep rounded top corners, 2px below the row above
   When the FX section is folded
   Then the bar's bottom corners are rounded again
 # pinned by: e2e/responsive-panels.spec.ts (the FX bar joins its top row of panels)

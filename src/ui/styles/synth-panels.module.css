@@ -8,7 +8,10 @@
   .main {
     display: grid;
     grid-template-columns: repeat(8, minmax(0, 1fr));
-    gap: 10px;
+    /* One value at every column count, wider than the FX rack's 2px so the two
+       read as separate sections (responsive-synth-panels.md
+       REQ-the-faceplate-grid-gap-is-5px). */
+    gap: 5px;
     margin: 0 var(--side-margin);
   }
 
@@ -17,9 +20,6 @@
   }
 
   @media (max-width: 992px) {
-    .main {
-      grid-template-columns: repeat(2, minmax(0, 1fr));
-      gap: 8px;
-    }
+    .main { grid-template-columns: repeat(2, minmax(0, 1fr)); }
   }
 }
