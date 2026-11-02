@@ -33,7 +33,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
   25–30 bars: the bar strip stays on the controls' line and scrolls, instead of
   dropping to a row of its own in a window still at full width.
 - The carets beside the FX titles (DIRT, PHASER, DELAY) are now as tall as the
-  capitals beside them.
+  capitals beside them, and the DIRT and DELAY carets line up with their tops
+  instead of sitting a pixel low.
 - The open FX section reads as one piece, like MACHINES and EQUALIZER: the
   effect panels sit right under the FX bar, with no gap and square corners where
   they meet. On narrow screens, where the panels wrap onto several rows, only the

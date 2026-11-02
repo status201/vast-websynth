@@ -264,8 +264,34 @@
   }
 
   /* Cap-high beside the legend (iconography.md REQ-a-title-caret-is-cap-high):
-     the legend's 8px in the toggle's face; base.css's `.cap-caret` sizes the glyph. */
-  .root.titled .caret { grid-area: caret; justify-self: start; font-size: 8px; display: inline-flex; }
+     the legend's 8px in the toggle's face; base.css's `.cap-caret` sizes the glyph.
+     Baseline-aligned with the legend, not centred: Georgia's capitals sit above
+     the line box's middle, so a centred caret topped out below them. The caret
+     is a block with the SVG inline on the baseline, and an inline SVG's baseline
+     is its bottom margin edge, which `.cap-caret`'s trimmed bottom row puts on
+     the glyph's bottom. So the glyph stands on the baseline and its top is the
+     cap top. */
+  .root.titled .legend { align-self: baseline; }
+  .root.titled .caret { grid-area: caret; justify-self: start; align-self: baseline; font-size: 8px; display: block; }
+  /* Open, the glyph turns about its own centre, not the caret box's: that box
+     is now the legend's line box, whose middle is not the glyph's, so turning
+     the box would drop the caret 1.5px. The glyph spans 4.95-11.95 of the
+     16-unit viewBox, so its centre is at 8.45/16 = 52.8125%. */
+  .root.titled .caret > :global(svg.ui-icon) {
+    vertical-align: baseline;
+    transform-origin: 50% 52.8125%;
+    transition: transform 120ms ease;
+  }
+  .root.titled:global(.open) .caret { transform: none; }
+
+  /* At ~1x the rasteriser hints the legend's 8px capitals onto whole pixels and
+     they draw a pixel above their metric cap top, so the metric-exact caret
+     reads a pixel low (seen in Chrome and Firefox at 100%; flush when zoomed).
+     Low is the worse error for a caret, so lift it there only. */
+  @media (max-resolution: 1.49dppx) {
+    .root.titled .caret { position: relative; top: -1px; }
+  }
+  .root.titled:global(.open) .caret > :global(svg.ui-icon) { transform: rotate(180deg); }
 
   .root.titled:global(.open) .caret,
   .root.titled .toggle:focus-visible .caret {

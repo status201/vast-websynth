@@ -54,4 +54,26 @@ describe('FX title carets are cap-high (iconography.md REQ-a-title-caret-is-cap-
     const legendSize = /font-size: (\d+px)/.exec(rule(sheet, '.legend'))![1];
     expect(rule(sheet, '.root.titled .caret')).toContain(`font-size: ${legendSize}`);
   });
+
+  it('the titled dropdown caret stands on the legend\'s baseline (v7, regression)', () => {
+    // Centred, it topped out below Georgia's capitals; the rendered offset is
+    // e2e/title-caret.spec.ts.
+    const sheet = css('ui/styles/dropdown.module.css');
+    expect(rule(sheet, '.root.titled .legend')).toContain('align-self: baseline');
+    const caret = rule(sheet, '.root.titled .caret');
+    expect(caret).toContain('align-self: baseline');
+    expect(caret).toContain('display: block');
+    const svg = rule(sheet, '.root.titled .caret > :global(svg.ui-icon)');
+    expect(svg).toContain('vertical-align: baseline');
+    // Open, it turns about the glyph's centre: (4.95 + 11.95) / 2 of 16 units.
+    expect(svg).toContain(`transform-origin: 50% ${+(((4.95 + 11.95) / 2 / 16) * 100).toFixed(4)}%`);
+  });
+
+  it('at ~1x, where hinting lifts the capitals, the caret rides 1px higher', () => {
+    const sheet = css('ui/styles/dropdown.module.css');
+    const m = /@media \(max-resolution: 1\.49dppx\)\s*\{\s*\.root\.titled \.caret\s*\{([^}]*)\}/.exec(sheet);
+    expect(m, 'the 1x block lifts the titled caret').not.toBeNull();
+    expect(m![1]).toContain('position: relative');
+    expect(m![1]).toContain('top: -1px');
+  });
 });
