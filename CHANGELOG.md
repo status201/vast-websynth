@@ -54,8 +54,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 - **Tighter panel grids.** The synth panels now sit 5px apart (was 10px, 8px on
   phones) and the FX panels 2px apart, so the faceplate and the effects rack
   read as two distinct sections.
-- **SUB / UNI's SPREAD knob is now labelled SPRD**, so it no longer runs into
-  UNISON on narrow panels and phones.
+- **SUB / UNI's UNISON and SPREAD knobs are now labelled UNI and SPRD**, so
+  their labels no longer run into each other on narrow panels and phones. The
+  help topics still spell out unison and spread in full.
 - **Specs are lean again** (contributors). `specs/` was cut from 3.1 MB to 2.6 MB:
   version history, post-mortems and copied lists are gone, and dozens of
   statements that no longer matched the code were corrected. `npm run spec:lint`

@@ -18,7 +18,7 @@ source:
   - src/audio/oscillator.ts    # Osc.setFrequency: the anchored glide
   - src/state/params.ts
   - src/ui/shell/header.ts           # the VOICE segmented
-  - src/ui/panels/synth-panels.ts    # UNISON + GLIDE
+  - src/ui/panels/synth-panels.ts    # UNI (unison) + GLIDE
   - src/ui/shell/bottom.ts           # pitch-bend + transpose strips
 ```
 
@@ -121,7 +121,7 @@ engine (subscribeParams) -> Polyphony setters (poly/unison/glide/drift live ther
   analog.drift  -> polyphony.setDrift(x)               # drift source owned by Polyphony
   master.pitchBend -> rampTo(this.pitchBend.offset, x * PITCH_BEND_RANGE_CENTS, FAST)
 note flow: bus.onNote -> Engine.playNote/ releaseNote -> Polyphony (unless passthroughSuppressed)
-ui: src/ui/shell/header.ts (VOICE), src/ui/panels/synth-panels.ts (UNISON, GLIDE), src/ui/shell/bottom.ts (pitch-bend + transpose)
+ui: src/ui/shell/header.ts (VOICE), src/ui/panels/synth-panels.ts (UNI, GLIDE), src/ui/shell/bottom.ts (pitch-bend + transpose)
 ```
 
 ## Scenarios (BDD)

@@ -545,8 +545,8 @@ export const HELP_TOPICS: Record<TopicId, HelpTopic> = {
       'octave below. Set its <strong>wave</strong>, <strong>S.OCT</strong> (octave) and ' +
       '<strong>S.LVL</strong> (level) for body and bass.</p>' +
       '<p><strong>Unison</strong> stacks detuned copies of each voice for a huge, wide sound. ' +
-      '<strong>UNISON</strong> sets how many copies; <strong>SPRD</strong> (spread) sets how far they ' +
-      'detune apart. 1 voice = off.</p>',
+      '<strong>UNI</strong> (unison) sets how many copies play, 1 to 4 voices; ' +
+      '<strong>SPRD</strong> (spread) sets how far apart they detune. 1 voice = off.</p>',
   },
   mixer: {
     title: 'Mixer & Glide',

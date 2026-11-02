@@ -3,7 +3,7 @@
 ```yaml
 id: responsive-synth-panels
 status: implemented
-version: 14
+version: 15
 owner: ui
 related:
   - responsive-header
@@ -102,10 +102,21 @@ count changes.
   - **The corners mirror AMP ENV.** Its 2×2 spreads across the panel the same
     way, so the two envelope panels side by side read as the same instrument,
     with VEL filling the space AMP ENV leaves empty.
+- **REQ-sub-uni-labels-are-short** — **SUB / UNI's knobs are labelled `S.OCT`,
+  `S.LVL`, `UNI` and `SPRD`.** It is the only 4-up panel whose knobs drop to a
+  38px box on a phone, and a label at 9px/0.12em inks past that box, so six
+  letters met the neighbour: `UNISON`/`SPREAD` overlapped ~5px at 360px in
+  Chromium on Windows and ~11.5px on Linux, and visibly in Firefox at desktop
+  widths. With these labels no two knob labels meet on any panel at any width,
+  on Windows and on Linux, so the label sweep holds every panel to the same
+  strict rule. The help topics spell both out — UNI (unison), SPRD (spread) —
+  so the short words cost no meaning. A new label here stays at five
+  characters or fewer.
+
 - **REQ-above-1280-quads-are-two-by-two** — **From 1281px to 2560px** (the 8-column
   `.main` grid, narrow panels) `.quad` is a **2-column** grid → the knobs render
   as a **2×2** block. Row-major fill preserves each panel's pairing (SUB/UNI:
-  S.OCT/S.LVL over UNISON/SPRD; envelopes: A/D over S/R).
+  S.OCT/S.LVL over UNI/SPRD; envelopes: A/D over S/R).
 - **REQ-below-1280-quads-are-one-row** — **At/below 1280px** (the 4-column and
   2-column `.main` reflows, wider panels) `.quad` is a **4-column** grid → the
   knobs render as a **single row**. This holds across the whole ≤1280px range
@@ -422,7 +433,7 @@ None. Pure layout; no state, params, or audio touched.
 ```gherkin
 Scenario: 4-knob panels are a single row on a tablet
   Given the app is open at an 820px-wide viewport
-  Then the SUB / UNI knobs (S.OCT, S.LVL, UNISON, SPRD) share one row
+  Then the SUB / UNI knobs (S.OCT, S.LVL, UNI, SPRD) share one row
   And the FILTER ENV knobs (A, D, S, R, VEL) share one row — .quint's span is undone
   And the six FILTER knobs (CUTOFF, RESO, SHAPE, DRIVE, ENV, KEYTRK) render 3x2
 # pinned by: e2e/responsive-panels.spec.ts (the wide panels each collapse to a
@@ -509,11 +520,8 @@ Scenario: No knob's label ever reaches its neighbour (REQ-a-cell-is-never-narrow
   Given the app is open at any width from 360px to 5120px
   Then for every pair of knobs sharing a row in a panel
   And measuring each label's ink as its centre plus/minus scrollWidth/2
-  Then the two extents do not overlap
-  Except in SUB / UNI below 768px, where the 4-up cell is narrower than its
-    six-character labels — the pre-existing collision in "Open questions"
-    below, carried in the test as a bounded exception scoped to that one panel
-    so it is stated rather than skipped
+  Then the two extents do not overlap, in every panel, SUB / UNI included
+    (REQ-sub-uni-labels-are-short)
 # pinned by: e2e/responsive-panels.spec.ts (no knob label ever reaches its
 #            neighbour)
 
@@ -595,22 +603,6 @@ Scenario: The FX bar joins its top row of panels (REQ-the-fx-bar-joins-its-top-r
   e2e does; the manual pass is for judging whether the result *looks* right.)
 
 ## Open questions / future
-
-- **SUB / UNI labels may touch at phone widths** (`.quad` 4-up). The knob box
-  is a fixed `--knob-size + 8px` — 38px at that breakpoint — while a label like
-  `UNISON` at 9px/0.12em inks past it, so in a 4-up cell that narrow it can
-  meet its neighbour. The unison detune knob is labelled **`SPRD`**, not
-  `SPREAD`, for exactly this reason (the shorter-word fix): its six letters were
-  the worst offender, overlapping `UNISON` ~5px at 360px in Chromium on Windows
-  and ~11.5px on the Linux CI runner, and visibly in Firefox at desktop widths.
-  With `SPRD`, Chromium on Windows is clear at every width from 360px to 5120px.
-
-  **How much** depends on the font stack, which is why the test bounds it rather
-  than pinning a figure: the Linux runner also measured `S.LVL`/`UNISON`
-  meeting (~3.5px) where Windows did not. `e2e/responsive-panels.spec.ts`
-  therefore still excuses only this panel, only below 768px, and only up to
-  20px — so a real regression fails while a font difference does not. Closing
-  this question means deleting that block once the Linux run is clear too.
 
 - A future panel needing a knob count other than 4 or 6 makes a third hand-rolled
   grid class; at that point generalise to a count-parameterised one rather than

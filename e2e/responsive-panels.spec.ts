@@ -424,26 +424,12 @@ test('no knob label ever reaches its neighbour', async ({ page }) => {
   await page.setViewportSize({ width: 1440, height: 900 });
   await gotoAndStart(page);
 
-  // The measured collision from the spec's Open questions: at phone widths the
-  // SUB / UNI knob box is narrow while a label like UNISON inks wider, so in a
-  // 4-up `.quad` cell they can meet. SPREAD, the worst, is now SPRD. It
-  // belongs to knob typography (a label-width rule), not to the column counts
-  // under test, so it is carried here by name rather than passed over in silence.
-  //
-  // Scoped to that ONE panel below 768px, with a ceiling rather than an exact
-  // figure: label ink is font-stack-dependent, and the platforms disagree by
-  // enough to matter. Before SPRD, UNISON/SPREAD overlapped ~5px on Windows and
-  // ~11.5px on the Linux CI runner, where S.LVL/UNISON meets too (~3.5px); with
-  // SPRD, Windows is clear. Pinning either platform's number would just make the suite fail on the
-  // other — which is exactly the "pins the font stack, not the rule" failure the
-  // spec warns about. Every other panel, and this one from 768px up, stays
-  // strict. Delete this block when that Open question is closed.
-  const NARROW_EXCEPTION = { panel: PANELS.subuni as readonly string[], belowWidth: 768, maxOverlapPx: 20 };
-
+  // Strict for every panel at every width. SUB / UNI is the tightest: its 4-up
+  // `.quad` cell drops to a 38px box on a phone, which is why its labels are
+  // five characters or fewer (REQ-sub-uni-labels-are-short).
   const widths = [360, 414, 480, 600, 768, 820, 992, 1024, 1280, 1400, 1440, 1630, 1920, 2560,
     2561, 3200, 3440, 5120];
   const collisions: string[] = [];
-  const tolerated: string[] = [];
 
   for (const width of widths) {
     await page.setViewportSize({ width, height: 900 });
@@ -458,19 +444,11 @@ test('no knob label ever reaches its neighbour', async ({ page }) => {
           const gap = (b.left + b.width / 2 - b.ink / 2) - (a.left + a.width / 2 + a.ink / 2);
           if (gap >= -0.5) continue; // touching is allowed; overlapping is not
 
-          const where = `${width}px: ${a.label}/${b.label} overlap by ${(-gap).toFixed(1)}px`;
-          const excused = panel === NARROW_EXCEPTION.panel
-            && width < NARROW_EXCEPTION.belowWidth
-            && -gap <= NARROW_EXCEPTION.maxOverlapPx;
-          (excused ? tolerated : collisions).push(where);
+          collisions.push(`${width}px: ${a.label}/${b.label} overlap by ${(-gap).toFixed(1)}px`);
         }
       }
     }
   }
-
-  // Reported, not swallowed: the known defect stays visible in the run output,
-  // and its size is on record if someone comes to fix the label-width rule.
-  if (tolerated.length) console.log(`known SUB / UNI label collisions:\n  ${tolerated.join('\n  ')}`);
 
   expect(collisions).toEqual([]);
 });

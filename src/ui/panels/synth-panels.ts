@@ -69,7 +69,7 @@ export function buildSynthPanels(bus: ParamBus): HTMLElement {
       knobs: [knobRow([
         knob('sub.octave', 'S.OCT'),
         knob('sub.level', 'S.LVL'),
-        knob('unison.voices', 'UNISON'),
+        knob('unison.voices', 'UNI'),
         knob('unison.detune', 'SPRD'),
       ], panelStyles.quad!)],
     });
