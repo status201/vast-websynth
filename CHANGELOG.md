@@ -34,6 +34,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
   dropping to a row of its own in a window still at full width.
 - The carets beside the FX titles (DIRT, PHASER, DELAY) are now as tall as the
   capitals beside them.
+- The open FX section reads as one piece, like MACHINES and EQUALIZER: the
+  effect panels sit right under the FX bar, with no gap and square corners where
+  they meet. On narrow screens, where the panels wrap onto several rows, only the
+  top row joins the bar.
 - **Songs keep importing as the instrument grows.** A song file may now carry up
   to 2048 parameters (was 512). Every save writes every parameter, and the app had
   grown to 437, close to refusing its own songs.

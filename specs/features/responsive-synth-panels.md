@@ -3,7 +3,7 @@
 ```yaml
 id: responsive-synth-panels
 status: implemented
-version: 10
+version: 11
 owner: ui
 related:
   - responsive-header
@@ -13,7 +13,7 @@ source:
   - src/ui/panels/synth-panels.ts    # buildSynthPanels: the .quad/.hex rows
   - src/ui/components/panel.ts       # knobRow + panelZones: the row shapes, top / knobs / bottom
   - src/ui/styles/panel.module.css   # .quad + .hex grid rules, .panelKnobs
-  - src/ui/styles/fx-rack.module.css # .fxRow (REQ-fx-panels-fit-their-knob-run)
+  - src/ui/styles/fx-rack.module.css # .fxRow (REQ-fx-panels-fit-their-knob-run, REQ-the-fx-bar-joins-its-top-row)
 ```
 
 ## Background / Why
@@ -271,6 +271,25 @@ count changes.
     out of the panel below: the sequencer's step-settings row went past the fold,
     taking its `position: fixed` info badge with it — unreachable, since a fixed
     element cannot be scrolled into view.
+
+- **REQ-the-fx-bar-joins-its-top-row** — **Unfolded, the FX bar and the rack's
+  top row of panels read as one surface, the way MACHINES and EQUALIZER do.**
+  Those two are tab containers, where the bar and its content are one box split
+  by a single 1px rule. The FX bar is a box of its own above a grid of boxes, and
+  a gap plus four rounded corners per panel made the open rack look unrelated
+  to its heading.
+  - **No gap, one rule.** `.fxSection` has no gap. `.fxRow` sits 1px up, so the
+    bar's bottom border and the top-row panels' top borders draw as one line.
+  - **Square where they meet, rounded everywhere else.** The unfolded bar has
+    square bottom corners, and the **top row** of panels has square top corners.
+    Every other corner keeps the 6px radius. Folded, the bar is fully rounded
+    again, because nothing hangs under it.
+  - **"Top row" is the first *N* cells, where *N* is the column count**: 6 above
+    992px and 2 at ≤992px. Below that, rows 2 and 3 keep their 10px row gap and
+    their rounded tops. *N* is written twice, in the grid template and in the
+    `:nth-child` rule beside it, so the two change together. The selector is
+    keyed to *N*, not to "every panel", so a seventh panel would wrap onto a
+    second row of the 6-column grid and still come out right.
 
 ## Technical design
 
@@ -530,6 +549,17 @@ Scenario: No FX rack panel wraps its knob run at desktop widths (REQ-fx-panels-f
   And below 1546px, where the equal share stops clearing 242px,
     the four-knob panels are strictly wider
 # pinned by: e2e/responsive-panels.spec.ts (no FX rack panel wraps its knob run)
+
+Scenario: The FX bar joins its top row of panels (REQ-the-fx-bar-joins-its-top-row)
+  Given the app is open at 1400px with the FX section unfolded
+  Then every rack panel's top border is the bar's bottom border, with no gap
+  And the bar's bottom corners and every panel's top corners are square
+  When the viewport narrows to 900px
+  Then panels 1 and 2 meet the bar the same way, with square top corners
+  And panels 3 to 6 keep rounded top corners, 10px below the row above
+  When the FX section is folded
+  Then the bar's bottom corners are rounded again
+# pinned by: e2e/responsive-panels.spec.ts (the FX bar joins its top row of panels)
 ```
 
 ## Tests & verification
@@ -538,7 +568,8 @@ Scenario: No FX rack panel wraps its knob run at desktop widths (REQ-fx-panels-f
   360/420/499/500/820/1281/1400/1440/1629/1630/1920/2560px, and 2800/3199/3200/3440/5120px for
   REQ-ultrawide-panels-are-one-row (viewports changed *within* a test:
   each boot is a full AudioContext), plus REQ-a-cell-is-never-narrower-than-a-knob's label-ink sweep and REQ-fx-panels-fit-their-knob-run's
-  FX rack sweep at 1360/1440/1600/1920px.
+  FX rack sweep at 1360/1440/1600/1920px, and REQ-the-fx-bar-joins-its-top-row's
+  bar-to-panel join at 1400px and 900px.
 - Typecheck: `npm run typecheck` (confirms `styles.quad` / `.hex` / `.quint` compile).
 - Manual (`npm run dev`), device-emulate / resize:
   - **360–499px** (phones): FILTER ENV is the dice-five, its dials clear of each
