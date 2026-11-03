@@ -14,8 +14,16 @@ import { makeMockAudioContext, type MockAudioContext } from '../mock-audio-conte
  * IR's worth of `Math.random`/`pow`/`sin`.
  */
 
-const mk = (ctx: MockAudioContext, maxIrS?: number): Reverb =>
-  new Reverb(ctx as unknown as AudioContext, maxIrS === undefined ? undefined : { maxIrS });
+/** A Reverb that has been switched on — the bank's behaviour once it is in use.
+ *  `off` keeps it as it boots: bypassed, holding no IR
+ *  (effects.md REQ-a-reverb-prepares-its-ir-on-first-use). */
+const mk = (ctx: MockAudioContext, maxIrS?: number, off = false): Reverb => {
+  const r = new Reverb(ctx as unknown as AudioContext, maxIrS === undefined ? undefined : { maxIrS });
+  if (!off) r.setBypass(false);
+  return r;
+};
+const heldIr = (r: Reverb): AudioBuffer | null =>
+  (r as unknown as { convolver: ConvolverNode }).convolver.buffer;
 
 // The cache is process-wide and keyed by sample rate, so each test takes its own
 // rate rather than needing a test-only reset hatch on the production module.
@@ -51,10 +59,35 @@ beforeEach(() => { vi.useFakeTimers(); });
 afterEach(() => { vi.clearAllTimers(); vi.useRealTimers(); });
 
 describe('Reverb IR bank', () => {
-  it('generates only the default size at construction', () => {
+  it('generates only the default size when first switched on', () => {
     const ctx = freshCtx();
     mk(ctx);
     expect(generated(ctx)).toBe(1);
+  });
+
+  // effects.md REQ-a-reverb-prepares-its-ir-on-first-use. Assigning
+  // convolver.buffer prepares the kernel synchronously (12-17 ms in Blink, 23-34
+  // ms in Gecko), and the three chains each did it at boot for reverbs that may
+  // never be switched on.
+  it('builds and holds no IR while it has never been switched on', () => {
+    const ctx = freshCtx();
+    const all = [mk(ctx, undefined, true), mk(ctx, undefined, true), mk(ctx, undefined, true)];
+    for (const r of all) r.setSize(0.1); // a song load writing the size, reverbs off
+    vi.advanceTimersByTime(200);
+    expect(generated(ctx)).toBe(0);
+    for (const r of all) expect(heldIr(r)).toBeNull();
+  });
+
+  it('a size written before the first switch-on is the one it builds', () => {
+    const ctx = freshCtx();
+    const r = mk(ctx, undefined, true);
+    r.setSize(0); // the shortest tail, chosen while off
+    const out = (r as unknown as { wrap: { processedOut: GainNode } }).wrap.processedOut;
+    // Nothing has rung, so there is nothing to duck either.
+    expect(out.gain.setTargetAtTime as unknown as ReturnType<typeof vi.fn>).not.toHaveBeenCalled();
+    r.setBypass(false);
+    expect(generated(ctx)).toBe(1);
+    expect(heldIr(r)!.length).toBe(Math.floor(ctx.sampleRate * 0.4));
   });
 
   it('shares one bank across every Reverb on the same context', () => {

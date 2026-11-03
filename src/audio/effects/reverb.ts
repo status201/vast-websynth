@@ -56,9 +56,12 @@ export class Reverb extends WrappedEffect {
   /**
    * The IR the convolver should end up holding — assigned up front, not when the
    * deferred swap lands, so it is what `setSize` compares against. `convolver.buffer`
-   * cannot serve: it lags by the mute window (see setSize).
+   * cannot serve: it lags by the mute window (see setSize). Null until the
+   * reverb is first switched on (REQ-a-reverb-prepares-its-ir-on-first-use).
    */
-  private targetIr: AudioBuffer;
+  private targetIr: AudioBuffer | null = null;
+  /** The size index last asked for, kept while there is no IR to apply it to. */
+  private targetIdx = DEFAULT_IR;
 
   constructor(ctx: AudioContext, opts?: { maxIrS?: number }) {
     super(ctx, 0.25);
@@ -74,8 +77,10 @@ export class Reverb extends WrappedEffect {
     // (performance-mode.md REQ-weak-tier-reduces-fx-cost). The cap is part of the cache key, so tiers
     // with different caps never share a buffer.
     this.maxIrS = opts?.maxIrS ?? 4;
-    this.targetIr = this.irAt(DEFAULT_IR);
-    this.convolver.buffer = this.targetIr;
+    // No IR yet (effects.md REQ-a-reverb-prepares-its-ir-on-first-use): assigning
+    // `convolver.buffer` prepares the convolution kernel synchronously, 12-34 ms
+    // a time, and three chains each did it at boot for reverbs that may never
+    // be switched on. A convolver with no buffer outputs silence.
 
     this.wrap.processedIn.connect(this.convolver).connect(this.damp).connect(this.wrap.processedOut);
   }
@@ -86,6 +91,16 @@ export class Reverb extends WrappedEffect {
   }
 
   setMix(m: number): void { this.wrap.setMix(m); }
+
+  /** The first switch-on builds and assigns the IR the size asks for. Before
+   *  the wrapper reconnects, so the convolver is ready when signal arrives. */
+  override setBypass(b: boolean): void {
+    if (!b && this.targetIr === null) {
+      this.targetIr = this.irAt(this.targetIdx);
+      this.convolver.buffer = this.targetIr;
+    }
+    super.setBypass(b);
+  }
 
   /**
    * A convolver is FIR: one IR length of silence in and it holds nothing of what
@@ -105,6 +120,10 @@ export class Reverb extends WrappedEffect {
   setSize(v: number): void {
     const last = IR_DURATIONS.length - 1;
     const idx = Math.max(0, Math.min(last, Math.round(v * last)));
+    this.targetIdx = idx;
+    // Never switched on: nothing has rung and there is no IR to swap, so the
+    // size is only recorded (REQ-a-reverb-prepares-its-ir-on-first-use).
+    if (this.targetIr === null) return;
     const buf = this.irAt(idx);
     // Against the PENDING target, never against `convolver.buffer` — which is
     // stale for the whole mute window and made the guard lie. A song load writes
