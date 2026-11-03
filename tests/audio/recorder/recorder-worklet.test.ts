@@ -129,3 +129,36 @@ describe('recorder worklet batching', () => {
     expect(posts).toHaveLength(0);
   });
 });
+
+describe('recorder worklet silence (audio-export.md REQ-a-silent-quantum-is-captured-as-silence)', () => {
+  beforeEach(() => { vi.stubGlobal('currentFrame', 0); });
+
+  it('captures a channel-less quantum as a quantum of zeros, in place', () => {
+    // Gecko hands a silent input over with NO channels. Skipping those quanta cut
+    // the silence out of the take: a Firefox recording lost its whole lead-in.
+    const { proc, posts, pump } = rig();
+    pump(4);
+    for (let i = 0; i < 8; i++) proc.process([[]]);
+    pump(4); // 4 + 8 + 4 = one full batch
+    expect(posts).toHaveLength(1);
+    const l = posts[0]!.l!;
+    const r = posts[0]!.r!;
+    expect(l).toHaveLength(BATCH_QUANTA * BLOCK);
+    // The silent stretch is zeros, exactly where it was played...
+    expect(l.subarray(4 * BLOCK, 12 * BLOCK).every((v) => v === 0)).toBe(true);
+    expect(r.subarray(4 * BLOCK, 12 * BLOCK).every((v) => v === 0)).toBe(true);
+    // ...and the audio either side of it is untouched, so the frames stay contiguous.
+    expect(l[4 * BLOCK - 1]).toBe((BLOCK - 1) / BLOCK);
+    expect(l[12 * BLOCK + 1]).toBe(1 / BLOCK);
+    expect(r[12 * BLOCK + 1]).toBe(-1 / BLOCK);
+  });
+
+  it('opens a take on silence, tagged with the frame it started on', () => {
+    const { proc, posts } = rig();
+    vi.stubGlobal('currentFrame', 4800);
+    for (let i = 0; i < BATCH_QUANTA; i++) proc.process([[]]);
+    expect(posts).toHaveLength(1);
+    expect(posts[0]!.f).toBe(4800);
+    expect(posts[0]!.l!.every((v) => v === 0)).toBe(true);
+  });
+});

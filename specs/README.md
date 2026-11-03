@@ -275,6 +275,7 @@ specs/
     lfo.md             ·  the two LFOs + mod wheel
     mod-matrix.md      ·  many sources -> many destinations, summed in the audio graph
     voicing.md         ·  poly/mono, unison, glide, drift, pitch bend
+    live-trigger-timing.md · where a key, MIDI note or pad lands: one render burst ahead (cross-cutting)
     # — effects —
     effects.md         ·  the eq/dirt/wah/phaser/flanger/chorus/delay/reverb/duck insert chains (owns the order)
     chorus.md          ·  Juno-style stereo chorus (synth + sampler), MODE I / II / I+II

@@ -395,9 +395,21 @@ describe('DrumMachine.onHit', () => {
   });
 
   it('fires on a manual audition, so an auditioned pad pumps too', () => {
-    const { dm, seen } = hits();
+    const { ctx, dm, seen } = hits();
     dm.triggerTrack(3, 0.8);
-    expect(seen).toEqual([[3, 0, 0.8]]);
+    // One render quantum ahead: the mock reports no baseLatency (live-trigger-timing.md).
+    expect(seen).toEqual([[3, 128 / ctx.sampleRate, 0.8]]);
+  });
+
+  it('schedules an audition one render burst ahead (live-trigger-timing.md REQ-a-live-trigger-starts-ahead-of-the-render)', () => {
+    // At bare currentTime the hit could land in the past of a render burst, and
+    // its envelope then started most of the way through: under load a live
+    // snare's first-sample jump reached 57x that of the same hit scheduled ahead.
+    const { ctx, dm, seen } = hits();
+    ctx.currentTime = 3;
+    (ctx as unknown as { baseLatency: number }).baseLatency = 0.01;
+    dm.triggerTrack(1, 0.9);
+    expect(seen[0]![1]).toBeCloseTo(3.01, 12);
   });
 
   it('does not fire for a track that has no voice', () => {

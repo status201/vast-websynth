@@ -3,6 +3,14 @@ import { buildLfoPanel } from '../../src/ui/panels/lfo-panel';
 import { LFO_DEST_LABELS, ParamBus, registerDefaults } from '../../src/state/params';
 import { SYNC_LABELS } from '../../src/utils/tempo';
 
+/** Open the Dropdown at (or inside) `el` if it is not open: option buttons are
+ *  built on open (dropdown.md REQ-options-are-built-when-the-menu-opens). */
+function openDd<T extends HTMLElement>(el: T): T {
+  const dd = el.classList.contains('dropdown') ? el : el.querySelector<HTMLElement>('.dropdown');
+  if (dd && !dd.classList.contains('open')) dd.querySelector<HTMLButtonElement>('button')!.click();
+  return el;
+}
+
 /**
  * The two-page LFO panel: mutually exclusive destinations (lfo.md REQ-destinations-are-no-longer-exclusive) and
  * the off-screen-active lamp (REQ-the-two-lfos-share-one-panel).
@@ -28,7 +36,7 @@ function destOption(el: HTMLElement, page: '1' | '2', label: string): HTMLButton
   // By testid, not by position: the RATE knob's tempo lock is a dropdown too, and
   // it sits ahead of this one (tempo-lock.md REQ-locked-the-division-replaces-the-dial).
   const dd = el.querySelector<HTMLElement>(`[data-testid="dropdown-${prefix}.dest"]`)!;
-  const opts = [...dd.querySelectorAll<HTMLButtonElement>('button')];
+  const opts = [...openDd(dd).querySelectorAll<HTMLButtonElement>('button')];
   return opts.find((o) => o.textContent === label)!;
 }
 

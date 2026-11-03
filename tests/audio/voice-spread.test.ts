@@ -30,9 +30,17 @@ describe('Voice spread stage', () => {
     return { ctx, voice, bus };
   }
 
-  it('connectTo wires the dry edge only, leaving the bus mono', async () => {
-    const { voice, bus } = await build();
-    voice.connectTo(bus as unknown as AudioNode);
+  /** A voice on the bus and sounding: an idle one is unplugged, edges and all
+   *  (voicing.md REQ-an-idle-voice-is-unplugged), so the stage is a sounding voice's. */
+  async function sounding() {
+    const rig = await build();
+    rig.voice.connectTo(rig.bus as unknown as AudioNode);
+    rig.voice.noteOn(60, 0.8, 0);
+    return rig;
+  }
+
+  it('a sounding voice wires the dry edge only, leaving the bus mono', async () => {
+    const { voice, bus } = await sounding();
 
     expect(voice.spreadDry.connect).toHaveBeenCalledWith(bus);
     expect(voice.panner.connect).not.toHaveBeenCalled();
@@ -59,8 +67,7 @@ describe('Voice spread stage', () => {
   });
 
   it('engaging attaches the panned edge and crossfades onto it', async () => {
-    const { voice, bus } = await build();
-    voice.connectTo(bus as unknown as AudioNode);
+    const { voice, bus } = await sounding();
     voice.setSpread(true);
 
     expect(voice.panner.connect).toHaveBeenCalledWith(bus);
@@ -72,16 +79,14 @@ describe('Voice spread stage', () => {
   });
 
   it('engaging twice does not re-attach the edge', async () => {
-    const { voice, bus } = await build();
-    voice.connectTo(bus as unknown as AudioNode);
+    const { voice } = await sounding();
     voice.setSpread(true);
     voice.setSpread(true);
     expect((voice.panner.connect as unknown as ReturnType<typeof vi.fn>).mock.calls).toHaveLength(1);
   });
 
   it('dropSpread cuts the edge, and only after it has been attached', async () => {
-    const { voice, bus } = await build();
-    voice.connectTo(bus as unknown as AudioNode);
+    const { voice } = await sounding();
 
     voice.dropSpread();                     // never engaged — nothing to cut
     expect(voice.panner.disconnect).not.toHaveBeenCalled();

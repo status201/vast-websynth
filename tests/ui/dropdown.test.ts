@@ -16,15 +16,44 @@ describe('Dropdown', () => {
 
   const toggleOf = (d: Dropdown) =>
     d.el.querySelector<HTMLButtonElement>(`.${styles.toggle!}`)!;
+  /** Open the menu if it is not already: the option buttons are built on open
+   *  (dropdown.md REQ-options-are-built-when-the-menu-opens). */
+  const openMenu = (d: Dropdown): void => {
+    if (!d.el.classList.contains('open')) toggleOf(d).click();
+  };
 
   it('renders a toggle and one option per entry, marking the active one', () => {
     dd = new Dropdown(['A', 'B', 'C'], 'B');
     document.body.appendChild(dd.el);
     expect(dd.el.classList.contains(styles.root!)).toBe(true);
+    openMenu(dd);
     expect(dd.el.querySelectorAll(`.${styles.option!}`).length).toBe(3);
     expect(dd.value).toBe('B');
     expect(dd.el.querySelector(`.${styles.label!}`)?.textContent).toBe('B');
     expect(dd.el.querySelector(`.${styles.option!}.active`)?.textContent).toBe('B');
+  });
+
+  // dropdown.md REQ-options-are-built-when-the-menu-opens: built eagerly, the page's 55 dropdowns held
+  // 3,177 option buttons, 40% of the boot DOM, mostly in parameter pickers
+  // nobody had opened.
+  it('builds no option buttons until it opens, yet shows and keeps its value', () => {
+    dd = new Dropdown(Array.from({ length: 400 }, (_, i) => 'p' + i), 'p7');
+    document.body.appendChild(dd.el);
+    expect(dd.el.querySelectorAll(`.${styles.option!}`)).toHaveLength(0);
+    expect(dd.value).toBe('p7');
+    expect(dd.el.querySelector(`.${styles.label!}`)?.textContent).toBe('p7');
+    dd.setValue('p9'); // no buttons to touch, and nothing breaks
+    toggleOf(dd).click();
+    expect(dd.el.querySelectorAll(`.${styles.option!}`)).toHaveLength(400);
+    expect(dd.el.querySelector(`.${styles.option!}.active`)?.textContent).toBe('p9');
+  });
+
+  it('rebuilds at once when setOptions runs while the menu is open', () => {
+    dd = new Dropdown(['A', 'B'], 'A');
+    document.body.appendChild(dd.el);
+    toggleOf(dd).click();
+    dd.setOptions(['A', 'B', 'C']);
+    expect(dd.el.querySelectorAll(`.${styles.option!}`)).toHaveLength(3);
   });
 
   it('toggles the open class when the toggle is clicked', () => {
@@ -53,6 +82,8 @@ describe('Dropdown', () => {
 
   it('setValue updates the toggle label and active classes', () => {
     dd = new Dropdown(['A', 'B'], 'A');
+    document.body.appendChild(dd.el);
+    openMenu(dd);
     dd.setValue('B');
     expect(dd.el.querySelector(`.${styles.label!}`)?.textContent).toBe('B');
     expect(dd.el.querySelector(`.${styles.option!}.active`)?.textContent).toBe('B');
@@ -150,8 +181,10 @@ describe('Dropdown', () => {
 
     const filterOf = (d: Dropdown) =>
       d.el.querySelector<HTMLInputElement>('[data-testid="dropdown-filter"]');
-    const options = (d: Dropdown) =>
-      [...d.el.querySelectorAll<HTMLButtonElement>(`.${styles.option!}`)];
+    const options = (d: Dropdown) => {
+      openMenu(d);
+      return [...d.el.querySelectorAll<HTMLButtonElement>(`.${styles.option!}`)];
+    };
     const visible = (d: Dropdown) => options(d).filter((o) => !o.hidden);
     const type = (d: Dropdown, q: string): void => {
       const input = filterOf(d)!;
@@ -242,13 +275,20 @@ describe('Dropdown', () => {
     it('focuses the filter on open and still scrolls to the selection', () => {
       dd = new Dropdown(['a.one', 'b.two'], 'b.two', { filter: true });
       document.body.appendChild(dd.el);
-      const active = options(dd).find((o) => o.textContent === 'b.two')!;
+      // jsdom has no scrollIntoView; the component optional-calls it. On the
+      // prototype, since the option does not exist until the menu opens.
+      const proto = HTMLElement.prototype as unknown as { scrollIntoView?: unknown };
+      const had = proto.scrollIntoView;
       const spy = vi.fn();
-      // jsdom has no scrollIntoView; the component optional-calls it.
-      (active as unknown as { scrollIntoView: unknown }).scrollIntoView = spy;
-      toggleOf(dd).click();
-      expect(document.activeElement).toBe(filterOf(dd));
-      expect(spy).toHaveBeenCalled();
+      proto.scrollIntoView = spy;
+      try {
+        toggleOf(dd).click();
+        expect(document.activeElement).toBe(filterOf(dd));
+        expect(spy).toHaveBeenCalled();
+        expect((spy.mock.contexts[0] as HTMLElement).textContent).toBe('b.two');
+      } finally {
+        proto.scrollIntoView = had;
+      }
     });
 
     it('reopening clears the query and shows everything again', () => {
@@ -279,7 +319,7 @@ describe('Dropdown', () => {
       expect(options(dd).length).toBe(35);
       // The rebuilt input must be the live node, not a detached leftover.
       expect(dd.el.contains(input!)).toBe(true);
-      toggleOf(dd).click();
+      openMenu(dd);
       type(dd, 'opt-1');
       // opt-1 and opt-10..opt-19
       expect(visible(dd)).toHaveLength(11);
@@ -287,6 +327,8 @@ describe('Dropdown', () => {
 
     it('setValue still marks the active option with a filter present', () => {
       dd = new Dropdown(many(30), 'opt-0');
+      document.body.appendChild(dd.el);
+      openMenu(dd);
       dd.setValue('opt-7');
       expect(dd.el.querySelector(`.${styles.option!}.active`)?.textContent).toBe('opt-7');
       expect(dd.el.querySelector(`.${styles.label!}`)?.textContent).toBe('opt-7');
@@ -445,8 +487,10 @@ describe('Dropdown', () => {
     });
   });
   describe('disabled options (v6, REQ-an-option-can-be-unselectable)', () => {
-    const optionsOf = (d: Dropdown) =>
-      [...d.el.querySelectorAll<HTMLButtonElement>(`.${styles.option!}`)];
+    const optionsOf = (d: Dropdown) => {
+      openMenu(d);
+      return [...d.el.querySelectorAll<HTMLButtonElement>(`.${styles.option!}`)];
+    };
     const optionOf = (d: Dropdown, label: string) =>
       optionsOf(d).find((o) => o.textContent === label)!;
 
@@ -506,7 +550,7 @@ describe('Dropdown', () => {
       document.body.appendChild(dd.el);
       dd.setDisabledOptions(['B']);
       // Opening lands on the current selection (REQ-the-selected-option-scrolls-into-view), so A already has focus.
-      toggleOf(dd).click();
+      openMenu(dd);
       expect(document.activeElement).toBe(optionOf(dd, 'A'));
 
       document.dispatchEvent(
@@ -521,8 +565,10 @@ describe('Dropdown', () => {
   // dropdown.md REQ-a-list-can-be-split-by-dividers — a group rule, so the preset selector can separate the
   // loaded song's pinned sound from the preset list (presets.md REQ-a-songs-sound-is-a-selectable-entry).
   describe('dividerAfter', () => {
-    const optionsOf = (d: Dropdown) =>
-      [...d.el.querySelectorAll<HTMLButtonElement>(`.${styles.option!}`)];
+    const optionsOf = (d: Dropdown) => {
+      openMenu(d);
+      return [...d.el.querySelectorAll<HTMLButtonElement>(`.${styles.option!}`)];
+    };
 
     it('marks the last option of the first group and no other', () => {
       dd = new Dropdown([]);
@@ -607,6 +653,7 @@ describe('Dropdown legend (v16, REQ-a-toggle-can-carry-a-legend)', () => {
     document.body.append(dd.el, plain.el);
     try {
       expect(dd.el.classList.contains(styles.titled!)).toBe(true);
+      dd.el.querySelector<HTMLButtonElement>(`.${styles.toggle!}`)!.click(); // options are built on open
       [...dd.el.querySelectorAll<HTMLButtonElement>(`.${styles.option!}`)].find((o) => o.textContent === 'TAPE')!.click();
       const toggle = dd.el.querySelector(`.${styles.toggle!}`)!;
       expect(toggle.querySelector(`.${styles.legend!}`)?.textContent).toBe('Delay');

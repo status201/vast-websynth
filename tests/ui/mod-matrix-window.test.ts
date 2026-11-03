@@ -28,8 +28,15 @@ const byId = (root: HTMLElement, id: string) =>
   root.querySelector<HTMLElement>(`[data-testid="${id}"]`)!;
 
 /** An option button inside a row's destination picker, by label. */
+/** Open a Dropdown (its root, by testid) if it is not open: option buttons are
+ *  built on open (dropdown.md REQ-options-are-built-when-the-menu-opens). */
+function openDd(dd: HTMLElement): HTMLElement {
+  if (!dd.classList.contains('open')) dd.querySelector<HTMLButtonElement>('button')!.click();
+  return dd;
+}
+
 function destOption(root: HTMLElement, row: number, label: string): HTMLButtonElement {
-  return [...byId(root, `mod-dst-${row}`).querySelectorAll<HTMLButtonElement>('button')]
+  return [...openDd(byId(root, `mod-dst-${row}`)).querySelectorAll<HTMLButtonElement>('button')]
     .find((b) => b.textContent === label)!;
 }
 
@@ -68,7 +75,7 @@ describe('mod matrix window', () => {
 
   it('writes a chosen source through to the bus', () => {
     const { bus, root } = build();
-    const opt = [...byId(root, 'mod-src-2').querySelectorAll<HTMLButtonElement>('button')]
+    const opt = [...openDd(byId(root, 'mod-src-2')).querySelectorAll<HTMLButtonElement>('button')]
       .find((b) => b.textContent === MOD_SOURCE_LABELS[MOD_SRC.lfo1]!)!;
     opt.click();
     expect(bus.get('mod.0.src')).toBe(MOD_SRC.lfo1);

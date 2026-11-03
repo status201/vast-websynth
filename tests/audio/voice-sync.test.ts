@@ -20,6 +20,9 @@ import {
 type Spy = ReturnType<typeof vi.fn>;
 interface MockNode { connect: Spy; disconnect: Spy; gain: MockAudioParam }
 
+/** The pair's idle gate: scheduled on its `active` param, never messaged
+ *  (ladder-filter.md REQ-the-gate-is-scheduled-not-messaged). */
+const gate = (n: MockAudioWorkletNode) => n.parameters.get('active').setValueAtTime;
 const HARD = 1;
 const SOFT = 2;
 
@@ -63,7 +66,7 @@ describe('sync off is the native path (REQ-sync-off-is-the-native-path)', () => 
   it('attaching a pair while off leaves it silent and unconnected to the oscillators', async () => {
     const { voice, master, node } = await build();
     expect(master.connect).not.toHaveBeenCalledWith(voice.osc1.signal);
-    expect(node.port.postMessage).toHaveBeenLastCalledWith(false);
+    expect(gate(node)).toHaveBeenLastCalledWith(0, expect.any(Number));
   });
 });
 
@@ -211,20 +214,20 @@ describe('FM reaches the pair (cross-modulation.md REQ-fm-reaches-the-sync-pair)
 describe('the pair idles with the voice (REQ-the-pair-idles-with-the-voice)', () => {
   it('is active from noteOn and inactive once the voice is idle — only while engaged', async () => {
     const { voice, node } = await build();
-    const post = node.port.postMessage;
+    const post = gate(node);
     voice.noteOn(60, 0.8, 0);
-    expect(post).toHaveBeenLastCalledWith(false); // not engaged: never woken
+    expect(post).toHaveBeenLastCalledWith(0, expect.any(Number)); // not engaged: never woken
 
     voice.setSyncMode(HARD);
-    expect(post).toHaveBeenLastCalledWith(true); // engaged over a sounding note
+    expect(post).toHaveBeenLastCalledWith(1, expect.any(Number)); // engaged over a sounding note
     voice.noteOff(0);
     vi.runOnlyPendingTimers();
     vi.runOnlyPendingTimers();
     expect(voice.state).toBe('idle');
-    expect(post).toHaveBeenLastCalledWith(false);
+    expect(post).toHaveBeenLastCalledWith(0, expect.any(Number));
 
     voice.noteOn(62, 0.8, 1);
-    expect(post).toHaveBeenLastCalledWith(true);
+    expect(post).toHaveBeenLastCalledWith(1, expect.any(Number));
   });
 
   // Regression: off → the voice idles inside the disconnect window → on again
@@ -238,12 +241,12 @@ describe('the pair idles with the voice (REQ-the-pair-idles-with-the-voice)', ()
     voice.kill(0);
     vi.advanceTimersByTime(40); // past the kill's 30 ms, inside the 300 ms window
     voice.setSyncMode(HARD);
-    expect(node.port.postMessage).toHaveBeenLastCalledWith(false);
+    expect(gate(node)).toHaveBeenLastCalledWith(0, expect.any(Number));
   });
 
   it('engaging over an idle voice does not wake the pair', async () => {
     const { voice, node } = await build();
     voice.setSyncMode(HARD);
-    expect(node.port.postMessage).toHaveBeenLastCalledWith(false);
+    expect(gate(node)).toHaveBeenLastCalledWith(0, expect.any(Number));
   });
 });

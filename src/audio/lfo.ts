@@ -32,10 +32,22 @@ export const enum LfoDest {
 }
 
 /** Control-signal smoothing for the amplitude-domain outputs (lfo.md REQ-amplitude-destinations-are-smoothed).
- *  Q = 0.5 is critically damped — a step settles without overshoot, so the
- *  smoothed depth never exceeds the depth that was asked for. */
-const SMOOTH_HZ = 200;
-const SMOOTH_Q = 0.5;
+ *  Linear Q = 0.5 is critically damped — a step settles without overshoot, so
+ *  the smoothed depth never exceeds the depth that was asked for. Web Audio
+ *  reads a lowpass Q in **dB**, so that 0.5 is written as its dB value: a bare
+ *  `0.5` is linear ≈ 1.06, underdamped, and overshoots a step by ~19%. */
+export const SMOOTH_HZ = 200;
+export const SMOOTH_Q_DB = 20 * Math.log10(0.5);
+
+/** The critically damped control-signal lowpass — the LFO's, and the
+ *  sample-&-hold's (mod-matrix.md REQ-random-steps-are-smoothed). */
+export function createControlSmoother(ctx: BaseAudioContext): BiquadFilterNode {
+  const smooth = ctx.createBiquadFilter();
+  smooth.type = 'lowpass';
+  smooth.frequency.value = SMOOTH_HZ;
+  smooth.Q.value = SMOOTH_Q_DB;
+  return smooth;
+}
 
 /**
  * A global LFO. Exposes six pre-scaled output nodes: pitch (cents), cutoff
@@ -117,10 +129,7 @@ export class LFO {
     this.osc.connect(this.toSync);
 
     // Amplitude-domain destinations: via the de-clicking lowpass.
-    const smooth = ctx.createBiquadFilter();
-    smooth.type = 'lowpass';
-    smooth.frequency.value = SMOOTH_HZ;
-    smooth.Q.value = SMOOTH_Q;
+    const smooth = createControlSmoother(ctx);
     this.osc.connect(smooth);
     smooth.connect(this.toAmp);
     smooth.connect(this.toPan);

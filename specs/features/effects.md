@@ -3,7 +3,7 @@
 ```yaml
 id: effects
 status: implemented
-version: 19
+version: 20
 owner: core
 related:
   - architecture
@@ -177,6 +177,15 @@ colours each bus independently.
   writes the size twice in one turn (default, then the song's), and a guard on
   the live buffer drops the second write. Any deferred edit owes this rule: guard
   on the intent, not the state the edit has not reached yet.
+- **REQ-a-reverb-prepares-its-ir-on-first-use** — A Reverb holds no IR until it
+  is first switched on: the constructor assigns no `convolver.buffer`, and a
+  `setSize` before then only records the size (no IR built, no duck: nothing has
+  rung). The first `setBypass(false)` builds the chosen size and assigns it. A
+  buffer assignment prepares the convolution kernel synchronously on the main
+  thread, tens of milliseconds for the default IR, and done at construction it
+  cost every boot that for each of the three chains, reverbs on or not
+  ([runtime-performance](runtime-performance.md) REQ-boot-cost-matches-the-request).
+  A reverb that is on at boot pays the same as before, at its enable.
 - **REQ-the-wah-lfo-sweeps-in-cents** (v9) — **The wah's LFO drives `bp.detune` in
   cents.** `bp.frequency` is a fixed reference (`midiToHz(75)` = 622.25 Hz)
   written once. A linear-Hz swing drove the bandpass to 0 Hz at depth ≥ 0.415,
@@ -300,6 +309,14 @@ Scenario: A bypassed effect stops costing audio-thread CPU (perf, ADR-012)
   Then the wrapper has disconnected input→processedIn
    And after the effect's drainSeconds() it has disconnected processedOut→wet too
 # pinned by: tests/audio/effects/bypass.test.ts
+
+Scenario: A reverb that is never switched on builds no IR (REQ-a-reverb-prepares-its-ir-on-first-use, regression)
+  Given three Reverbs built at boot, all bypassed
+  When their size is written while they stay off
+  Then no IR is generated and no convolver holds a buffer
+  When one is switched on
+  Then it builds and holds the size that was written, and only that one
+# pinned by: tests/audio/effects/reverb.test.ts
 
 Scenario: Two size writes in one turn land on the second (REQ-a-reverb-size-change-ducks, regression)
   Given the reverb holds the small IR and a song load is applying

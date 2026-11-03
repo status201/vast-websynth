@@ -74,8 +74,13 @@ test('pasting a bank routes into the preset import review step', async ({ page }
   await expect(page.getByTestId('preset-import-row-Pasted Lead')).toBeVisible();
   await page.getByTestId('preset-import-confirm').click();
 
-  // Imported sounds reach the header dropdown; the live patch is untouched.
-  await expect(page.getByTestId('preset-select')).toContainText('Pasted Lead');
+  // Imported sounds reach the header dropdown; the live patch is untouched. The
+  // list is built when the menu opens (dropdown.md REQ-options-are-built-when-the-menu-opens),
+  // so look where a player would: in the open menu, not the closed toggle.
+  const select = page.getByTestId('preset-select');
+  await select.locator('button').first().click();
+  await expect(select.locator('.dropdown-option', { hasText: /^Pasted Lead$/ })).toBeVisible();
+  await page.keyboard.press('Escape');
 });
 
 // The paste door shows no errors of its own (REQ-paste-confirm-routes-by-kind/REQ-a-refused-load-leaves-the-text), so a bad pasted

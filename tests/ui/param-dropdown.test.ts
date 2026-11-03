@@ -3,6 +3,14 @@ import { ParamDropdown } from '../../src/ui/components/param-dropdown';
 import { ParamBus, registerDefaults, LFO_DEST_LABELS } from '../../src/state/params';
 import styles from '../../src/ui/styles/dropdown.module.css';
 
+/** Open the Dropdown at (or inside) `el` if it is not open: option buttons are
+ *  built on open (dropdown.md REQ-options-are-built-when-the-menu-opens). */
+function openDd<T extends HTMLElement>(el: T): T {
+  const dd = el.classList.contains('dropdown') ? el : el.querySelector<HTMLElement>('.dropdown');
+  if (dd && !dd.classList.contains('open')) dd.querySelector<HTMLButtonElement>('button')!.click();
+  return el;
+}
+
 function bus() {
   const b = new ParamBus();
   registerDefaults(b);
@@ -15,7 +23,7 @@ describe('ParamDropdown', () => {
   afterEach(() => { pd?.destroy(); pd = undefined; });
 
   const options = (p: ParamDropdown) =>
-    [...p.el.querySelectorAll<HTMLButtonElement>(`.${styles.option!}`)];
+    [...openDd(p.el).querySelectorAll<HTMLButtonElement>(`.${styles.option!}`)];
   const label = (p: ParamDropdown) =>
     p.el.querySelector(`.${styles.label!}`)?.textContent;
 

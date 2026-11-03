@@ -4,7 +4,7 @@ import type { PatternStore } from '../../state/patterns';
 import { DRUM_TRACK_COUNT } from '../../state/patterns';
 import { LaneMeter } from './lane-meter';
 import { Kick, Snare, HiHat, Tom, Clap, Conga, Bongo, Cowbell, Clave, Shaker, makeNoiseBuffer, type DrumSynth } from '../drums/drum-synths';
-import { rampTo, RAMP_MEDIUM, toneCutoff } from '../param-utils';
+import { rampTo, RAMP_MEDIUM, toneCutoff, liveStartTime } from '../param-utils';
 import { memoizeDriveCurve } from '../drive-curve';
 import { chokeAt, forEachActiveHit } from './step-hits';
 import type { TickSubscriber } from './tick-source';
@@ -262,9 +262,10 @@ export class DrumMachine {
     if (pan) rampTo(pan.pan, p, this.ctx, RAMP_MEDIUM);
   }
 
-  /** Manual trigger (for UI auditioning). */
+  /** Manual trigger (for UI auditioning), one render burst ahead so its
+   *  attack is never anchored in the past (live-trigger-timing.md REQ-a-live-trigger-starts-ahead-of-the-render). */
   triggerTrack(track: number, velocity = 0.9): void {
-    this.fire(track, this.ctx.currentTime, velocity);
+    this.fire(track, liveStartTime(this.ctx), velocity);
   }
 
   private onTick(step: number, when: number): void {

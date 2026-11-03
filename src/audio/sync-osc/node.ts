@@ -28,6 +28,8 @@ export class SyncOscNode {
 
   /** k-rate: 1 hard, 2 soft (REQ-sync-has-hard-and-soft-modes); 0 free-runs, used only by tests. */
   private readonly mode: AudioParam;
+  /** The idle gate (REQ-the-pair-idles-with-the-voice); written only by `setActive`. */
+  private readonly active: AudioParam;
 
   private constructor(private readonly node: AudioWorkletNode, ctx: BaseAudioContext) {
     const p = (name: string): AudioParam => node.parameters.get(name)!;
@@ -35,6 +37,7 @@ export class SyncOscNode {
     this.syncPitch = p('syncPitch');
     this.fm = p('fm');
     this.mode = p('mode');
+    this.active = p('active');
     // The processor's own `frequency` default; `SyncEngagement.attach` moves it to
     // wherever the voice's pitch curve has reached.
     this.freq = new FrequencyLine(p('frequency'), 440);
@@ -61,9 +64,11 @@ export class SyncOscNode {
     this.slaveMirror = mirror('wave2', 'slaveCents', 'width2');
   }
 
-  /** Idle gate (REQ-the-pair-idles-with-the-voice) — the same message the ladder filter takes. */
+  /** Idle gate (REQ-the-pair-idles-with-the-voice) — scheduled, like the ladder filter's
+   *  (ladder-filter.md REQ-the-gate-is-scheduled-not-messaged), so an engaged pair is awake
+   *  by the block its note's attack opens in. */
   setActive(on: boolean): void {
-    this.node.port.postMessage(on);
+    this.active.setValueAtTime(on ? 1 : 0, this.node.context.currentTime);
   }
 
   setMode(m: number): void {

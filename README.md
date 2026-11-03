@@ -178,6 +178,9 @@ npm run cascade:conflicts   # list rules whose winner depends on stylesheet load
 npm run bench:audio                        # render takes through the real engine, to listen to
 npm run bench:metrics -- bench/take.wav    # measure a rendered take (--compare a/b for A/B)
 
+# Cost — audio thread and main thread, in Chromium (runtime-performance.md)
+npm run bench:perf                         # ten fixed scenarios; --name saves a run, --compare a b diffs two
+
 # MCP server (see MCP server below)
 npm run start:mcp:http # serve the HTTP transport on 127.0.0.1:8787
 npm run build:mcp      # rebuild the song-core bundle it imports

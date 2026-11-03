@@ -3,7 +3,7 @@
 ```yaml
 id: dropdown
 status: implemented
-version: 17
+version: 18
 owner: ui
 related:
   - architecture
@@ -285,6 +285,10 @@ without anyone remembering to ask.
   just the menu, above the header: opening the LFO destination with the page
   scrolled made the header vanish under the synth panels.
 
+- **REQ-options-are-built-when-the-menu-opens** — **Option buttons are built on
+  the first open after `setOptions`**, or at once if open; closed, the labels are
+  data. Built eagerly, the closed lists were the largest part of the boot DOM
+  ([runtime-performance](runtime-performance.md) REQ-boot-cost-matches-the-request).
 - **REQ-a-toggle-can-carry-a-legend** (v16) — **`DropdownOptions.legend` turns
   the toggle into a panel title**: a small legend line carrying the caret (as
   tall as the legend's capitals, [iconography](iconography.md) REQ-a-title-caret-is-cap-high),
@@ -402,6 +406,11 @@ None. The selected value belongs to the consumer (bus param, preset session…).
 ## Scenarios (BDD)
 
 ```gherkin
+Scenario: A closed dropdown builds no option buttons (REQ-options-are-built-when-the-menu-opens, regression)
+  Given a closed dropdown with 400 options, it holds no buttons
+  When it opens, all 400 exist; a setOptions while open rebuilds them
+# pinned by: tests/ui/dropdown.test.ts
+
 Scenario: Escape closes any fixed menu without reaching Panic (regression, v11, REQ-every-fixed-menu-shares-one-anchor-and-dismiss)
   Given the Clear menu, the lane popover or the FX slot picker is open
   When the user presses Escape

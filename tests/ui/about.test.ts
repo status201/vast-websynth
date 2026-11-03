@@ -920,7 +920,9 @@ describe('About modal — the keyboard-layout picker', () => {
   it('offers auto plus every tabulated layout', async () => {
     const { gear } = await openAbout();
     gear.click();
-    const select = document.querySelector('[data-testid="shortcuts-layout-select"]')!;
+    const select = document.querySelector<HTMLElement>('[data-testid="shortcuts-layout-select"]')!;
+    // Options are built on open (dropdown.md REQ-options-are-built-when-the-menu-opens).
+    if (!select.classList.contains('open')) select.querySelector<HTMLButtonElement>('button')!.click();
     const text = select.textContent ?? '';
     expect(text).toContain('Auto-detect');
     for (const id of Object.keys(LAYOUTS) as Array<keyof typeof LAYOUTS>) {

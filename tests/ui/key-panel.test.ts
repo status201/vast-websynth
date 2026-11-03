@@ -28,8 +28,15 @@ const byId = (el: HTMLElement, id: string) =>
   el.querySelector<HTMLElement>(`[data-testid="${id}"]`)!;
 
 /** The chord dropdown's option buttons, by label. */
+/** Open a Dropdown (its root, by testid) if it is not open: option buttons are
+ *  built on open (dropdown.md REQ-options-are-built-when-the-menu-opens). */
+function openDd(dd: HTMLElement): HTMLElement {
+  if (!dd.classList.contains('open')) dd.querySelector<HTMLButtonElement>('button')!.click();
+  return dd;
+}
+
 function chordOption(el: HTMLElement, label: string): HTMLButtonElement {
-  const dd = byId(el, 'key-chord');
+  const dd = openDd(byId(el, 'key-chord'));
   return [...dd.querySelectorAll<HTMLButtonElement>('button')]
     .find((o) => o.textContent === label)!;
 }
@@ -122,7 +129,7 @@ describe('KEY panel', () => {
   describe('the extra note', () => {
     const DORIAN = SCALE_LABELS.indexOf('dorian');
     const extraOption = (el: HTMLElement, label: string): HTMLButtonElement =>
-      [...byId(el, 'key-extra').querySelectorAll<HTMLButtonElement>('button')]
+      [...openDd(byId(el, 'key-extra')).querySelectorAll<HTMLButtonElement>('button')]
         .find((o) => o.textContent === label)!;
 
     it('disables its options while chromatic, and says why', () => {

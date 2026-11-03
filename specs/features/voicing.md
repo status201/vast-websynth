@@ -3,7 +3,7 @@
 ```yaml
 id: voicing
 status: implemented
-version: 9
+version: 12
 owner: core
 related:
   - architecture
@@ -11,6 +11,8 @@ related:
   - scale-quantization
   - chord-tools
   - arpeggiator
+  - runtime-performance  # REQ-an-idle-voice-is-unplugged answers its open question
+  - sequencer            # the spread stage is the voice's second output edge
 source:
   - src/audio/polyphony.ts     # voice pool, alloc, unison, glide, drift (ADR-008)
   - src/audio/engine.ts        # builds voices; thin playNote/releaseNote delegators
@@ -37,6 +39,10 @@ for bass and leads, poly for chords, unison for a fat stack, and per-voice
 
 - **REQ-mode-switch-kills-all-voices** — `voicing.mode` toggles mono/poly, and
   switching **kills all voices** so no note hangs across the change.
+- **REQ-a-live-note-starts-ahead-of-the-render** — A note with no time of its
+  own, and its release, land at `liveStartTime(ctx)`, one render burst ahead
+  ([live-trigger-timing](live-trigger-timing.md)
+  REQ-a-live-trigger-starts-ahead-of-the-render).
 - **REQ-unison-stacks-detuned-copies** — Unison stacks `1..4` detuned copies per
   note (`unison.detune` cents).
 - **REQ-glide-controls-portamento** — Glide time + mode control portamento; the
@@ -67,6 +73,21 @@ for bass and leads, poly for chords, unison for a fat stack, and per-voice
 - **REQ-voice-lifecycle-gates-the-ladder** — (v2) Voices boot with the filter
   inactive, `noteOn` activates it unconditionally, and release-completion / `kill`
   deactivate it ([ladder-filter](ladder-filter.md) REQ-the-filter-idles-when-gated).
+- **REQ-an-idle-voice-is-unplugged** — The same lifecycle decides whether a voice
+  is **connected to the voice bus at all**. An idle voice's output edges (the dry
+  edge, and the panned edge while the spread stage is engaged — [sequencer](sequencer.md)
+  REQ-the-spread-stage-engages-off-centre) are **disconnected**, so the renderer,
+  which pulls only what reaches the destination, skips the whole voice: its three
+  oscillators, gains, sources and filter worklet (ADR-012's true bypass, applied to
+  voices). Pool voices boot unplugged; `noteOn` plugs the voice in, synchronously
+  and before its attack (which lands at `when >= liveStartTime`), whatever its
+  state; release completion and `kill`'s fade window unplug it, at the same
+  moments they deactivate the filter, when its VCA has already reached silence
+  (15 time constants into the release; 30 ms after `kill`'s 3 ms cut). The spread
+  stage keeps its own engaged state while a voice is unplugged and applies it when
+  the voice is plugged back in, so engaging it never reconnects an idle voice.
+  The saving is what `npm run bench:perf`'s idle and held-note scenarios print;
+  with every voice sounding there is nothing to skip.
 - **REQ-passthrough-remembers-what-it-played** — (v3) A raw key may be re-pitched
   by the key or expanded into a chord ([scale-quantization](scale-quantization.md),
   [chord-tools](chord-tools.md)). `Polyphony.releaseNote` looks up by note number,
@@ -127,6 +148,40 @@ ui: src/ui/shell/header.ts (VOICE), src/ui/panels/synth-panels.ts (UNI, GLIDE), 
 ## Scenarios (BDD)
 
 ```gherkin
+Scenario: A pool voice boots unplugged (REQ-an-idle-voice-is-unplugged)
+  Given a voice connected to the voice bus by connectTo
+  Then neither of its output edges reaches the bus until a note arrives
+# pinned by: tests/audio/voice.test.ts
+
+Scenario: A note plugs the voice in before its attack (REQ-an-idle-voice-is-unplugged)
+  Given an unplugged voice
+  When noteOn fires
+  Then its dry edge is connected to the bus within that call
+  And a second noteOn on the plugged voice connects nothing twice
+# pinned by: tests/audio/voice.test.ts
+
+Scenario: Release completion and kill unplug the voice (REQ-an-idle-voice-is-unplugged)
+  Given a sounding voice
+  When its release completes, or kill's fade window passes with no new note
+  Then its output edges are disconnected from the bus
+  And a noteOn inside kill's window keeps it plugged
+# pinned by: tests/audio/voice.test.ts
+
+Scenario: The spread stage never plugs an idle voice back in (REQ-an-idle-voice-is-unplugged, edge)
+  Given an unplugged voice and the spread stage engaging
+  Then its panned edge stays disconnected
+  When a note plugs the voice in
+  Then both its dry and its panned edge reach the bus
+  And unplugging it again takes both edges down
+# pinned by: tests/audio/voice.test.ts
+
+Scenario: An idle synth costs a fraction of what it did (REQ-an-idle-voice-is-unplugged, perf)
+  Given the default patch with no note held
+  When npm run bench:perf measures idle and 1 note
+  Then the audio load falls well below the all-voices-rendering baseline
+  And a note started on an unplugged voice still starts without a click
+# pinned by: npm run bench:perf --compare (a before/after pair); onsets by ear and 3rd-difference scan, Blink and Gecko
+
 Scenario: Releasing an older key in mono does not cut the sounding note (regression)
   Given voicing.mode is mono
   And the user holds C3, then holds E3 while still holding C3
@@ -141,6 +196,14 @@ Scenario: A glide leaves from the pitch in flight, not the last one assigned (re
   Then the frequency curve is pinned at the value the glide had reached
   And the new approach starts from that value on Blink and on Gecko alike
 # pinned by: tests/audio/oscillator-glide.test.ts, recipes/verify-audio-by-ear.md
+
+Scenario: A live note is scheduled a render burst ahead (REQ-a-live-note-starts-ahead-of-the-render, regression)
+  Given the context reports a baseLatency
+  When a key plays a note with no time of its own, and releases it
+  Then the attack is anchored at currentTime + baseLatency, not at currentTime
+  And the release is placed with the same margin, after the attack
+  And a note given its own time is scheduled exactly there
+# pinned by: tests/audio/polyphony.test.ts
 
 Scenario: Switching mono<->poly never leaves a hanging note
   Given a note is sounding
@@ -201,6 +264,8 @@ Scenario: A key held as the arp comes on still releases (REQ-passthrough-remembe
   ([verify-audio-by-ear](../recipes/verify-audio-by-ear.md); a chord released at
   once cannot expose an allocation bug). The anchored glide is pinned by the suite
   and was A/B'd on Blink; the **Gecko** correction is still owed a Firefox listen.
+- **Audio-thread cost**: `npm run bench:perf` (Blink tracing) for
+  REQ-an-idle-voice-is-unplugged — compare `--name` runs before and after.
 
 ## Open questions / future
 

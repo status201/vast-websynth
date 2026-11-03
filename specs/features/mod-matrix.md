@@ -3,7 +3,7 @@
 ```yaml
 id: mod-matrix
 status: implemented
-version: 8
+version: 9
 owner: core
 related:
   - architecture
@@ -18,6 +18,7 @@ source:
   - src/audio/mod-matrix.ts        # route table, fan-out, source/dest wiring
   - src/audio/engine.ts            # builds the matrix in the voice loop; subscribes mod.*
   - src/audio/voice.ts             # exposes the per-voice sources
+  - src/audio/sample-hold.ts       # the random source and its smoother
   - src/state/params.ts            # mod.* params + the two append-only label arrays
   - src/ui/components/mod-matrix-window.ts
   - src/state/mod-routing.ts       # the vocabulary + the per-voice rule + depth table
@@ -98,6 +99,12 @@ lets the player address them.
   per-voice into bus-wide), read from the rows at tick time, so no cache needs
   invalidating ([runtime-performance](runtime-performance.md)
   REQ-boot-cost-matches-the-request).
+- **REQ-random-steps-are-smoothed** — The sample-&-hold's steps reach the matrix
+  through the same control smoother as the LFO taps ([lfo](lfo.md)
+  REQ-amplitude-destinations-are-smoothed), so a new value arrives as a ~3 ms
+  slew rather than a step. Raw, every roll is a full-bandwidth step in
+  whatever the route drives, which into amp is a click every 16th. `SampleHold` owns the source and its
+  smoother, and the matrix reads its smoothed `out`.
 - **REQ-a-modulated-knob-shows-its-reach** — A faceplate knob that any route
   targets draws a **range band**: an inner arc over `value ± Σ|depth|`, computed
   from the route params alone. There is no audio-thread readback and nothing per
@@ -236,6 +243,13 @@ Scenario: Routing random anywhere starts the sample-&-hold (REQ-an-unselected-so
   When the transport runs
   Then one new value is scheduled per 16th, at that tick's own time
 # pinned by: tests/audio/mod-matrix.test.ts (usesSource)
+
+Scenario: A sample-&-hold step reaches the matrix smoothed (REQ-random-steps-are-smoothed, regression)
+  Given the engine's random source
+  When a new value is rolled at a tick
+  Then it is written on the ConstantSourceNode at the tick's time
+  And the matrix reads it through the critically damped control smoother, never raw
+# pinned by: tests/audio/sample-hold.test.ts
 
 Scenario: A route the matrix refuses does not wake the source (REQ-an-unselected-source-costs-nothing, edge)
   Given a row routes a per-voice source to a bus-wide destination

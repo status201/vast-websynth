@@ -3,7 +3,7 @@
 ```yaml
 id: lfo
 status: implemented
-version: 13
+version: 14
 owner: core
 related:
   - architecture
@@ -69,12 +69,15 @@ patch have a filter sweep *and* a vibrato.
   REQ-each-slot-has-a-channel).
 - **REQ-amplitude-destinations-are-smoothed** — (v2) `amp`, `pan` and `shape`
   (REQ-shape-destination-sweeps-the-pole-mix) are fed through a shared lowpass
-  (200 Hz, `Q = 0.5`, critically damped). That turns a square/saw jump into a
-  ~2 ms slew instead of a click. `pitch`, `cutoff` and `sync` are fed raw: a
+  (200 Hz, linear `Q = 0.5`, critically damped), built by `createControlSmoother`.
+  That turns a square/saw jump into a ~3 ms slew with no overshoot instead of a
+  click. Web Audio reads a lowpass `Q` in **dB**, so the value written is
+  `SMOOTH_Q_DB` = 20·log10(0.5) ≈ −6.02; a bare `0.5` is linear Q ≈ 1.06, which
+  overshoots a step by ~19%. `pitch`, `cutoff` and `sync` are fed raw: a
   stepped octave is a musical event. Each LFO owns its own smoothing filter.
   `modTap`, the unit-amplitude output the [mod matrix](mod-matrix.md) reads, is
   also on the smoothed path, since a route may land on any destination. That is
-  inaudible at LFO rates (−0.02 dB at 20 Hz).
+  inaudible at LFO rates (−0.09 dB at 20 Hz).
 - **REQ-pulse-destination-sweeps-width** — (v3) `pulse` sweeps oscillator pulse
   width. It is the one destination with **no audio-node output**: a native
   `OscillatorNode` has no width `AudioParam`, so `PwmDriver` drives it from a
@@ -258,6 +261,12 @@ Scenario: Only the amplitude-domain destinations are smoothed (edge)
   Given the LFO waveform is square
   Then toAmp and toPan are fed through the smoothing lowpass
   And toPitch and toCutoff are fed from the oscillator directly
+# pinned by: tests/audio/lfo.test.ts
+
+Scenario: The smoother is critically damped in the unit Web Audio reads (regression)
+  Given the LFO's smoothing lowpass
+  Then its Q is written in dB, as SMOOTH_Q_DB
+  And converted back to linear it is 0.5, so a step settles without overshoot
 # pinned by: tests/audio/lfo.test.ts
 
 Scenario: Selecting shape sweeps the POLY pole mix (REQ-shape-destination-sweeps-the-pole-mix)

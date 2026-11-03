@@ -3,7 +3,7 @@
 ```yaml
 id: ladder-filter
 status: implemented
-version: 7
+version: 9
 owner: core
 related:
   - architecture
@@ -65,14 +65,19 @@ on-screen value is shown in Hz.
   `outputChannelCount: [1]`). The voice path is mono end to end, and stereo first
   appears downstream by up-mix. A stereo node would compute identical samples
   twice (ADR-010 *cheap*).
-- **REQ-the-filter-idles-when-gated** — An *active flag* posted over the port gates
-  the per-sample DSP. While inactive the processor zeroes its state once, outputs
-  silence and skips all per-sample work. The oscillators feed the filter forever
-  and the VCA is downstream, so input-silence detection could never fire; the flag
-  is the only workable gate. `noteOn` posts `true` **unconditionally**, and the
-  worklet **defaults to active**, so a lost `false` can only waste CPU, never
-  silence a note. The VCA is closed whenever the flag flips, so the gate is
-  inaudible.
+- **REQ-the-filter-idles-when-gated** — A k-rate `active` AudioParam gates the
+  per-sample DSP. On its active-to-idle edge the processor zeroes its state once;
+  while idle it outputs silence and skips all per-sample work. The oscillators feed
+  the filter forever and the VCA is downstream, so input-silence detection could
+  never fire; the gate is the only workable one. `noteOn` sets it **unconditionally**,
+  and the param **defaults to 1**, so a missed idle write can only waste CPU, never
+  silence a note.
+- **REQ-the-gate-is-scheduled-not-messaged** — `setActive` writes `active` with
+  `setValueAtTime` at `currentTime`, the clock the envelope schedules its attack
+  on (at `when >= currentTime`), so the filter is awake by the block the VCA opens
+  in. A port message is serviced whenever the audio thread gets to it, so nothing
+  orders it against the note's automation: a late one would start the note on
+  silence and jump the filter in under an open VCA.
 - **REQ-filter-coefficients-hoist-per-block** — The pole coefficient `g` costs a
   `pow` + `exp` per sample. When every `cutoffNote` sample in a quantum is equal,
   `g` is computed **once per block** and cached until the constant changes. A
@@ -87,6 +92,12 @@ on-screen value is shown in Hz.
   ([runtime-performance](runtime-performance.md)
   REQ-a-worklet-optimisation-is-bit-exact). `sat(0) === 0`, so zeroing on
   deactivate keeps the carries consistent.
+- **REQ-drive-moves-without-a-step** — `drive` is k-rate, so a knob write, a
+  motion lane or a matrix `drive` route reaches the DSP as one value per block,
+  which would land as a step in the input gain, a click. A block whose `drive`
+  differs from the previous block's **ramps linearly across the block** from the
+  old value to the new one, in both models. A constant `drive` takes the
+  unramped path, so the output stays bit-identical to the frozen reference.
 - **REQ-ladder-is-filter-model-zero** — This is filter model `0`. The worklet also
   hosts POLY, selected by a k-rate `model` param ([filter-models.md](filter-models.md),
   ADR-016). The branch sits **outside** the sample loop, so the ladder stays
@@ -102,7 +113,7 @@ on-screen value is shown in Hz.
 LadderFilterNode:  # src/audio/ladder-filter/node.ts
   static loadModule(ctx): Promise<void>   # await once per context, before voices
   cutoffNote: AudioParam                  # note units; env + LFO sum in here
-  setActive(on: boolean)                  # port.postMessage(boolean)
+  setActive(on: boolean)                  # active.setValueAtTime(on ? 1 : 0, currentTime)
   # (+ resonance / drive / shape / model / keytrack params per the node's surface)
 Voice setters (per-voice, called by the engine):
   setFilterCutoff(note) / setFilterResonance(r) / setFilterDrive(d) / setFilterEnvAmount(semis)
@@ -227,11 +238,26 @@ Scenario: A varying cutoff block stays per-sample accurate (REQ-filter-coefficie
   And the high-cutoff half passes energy the all-low run does not
 # pinned by: tests/audio/ladder-filter-worklet.test.ts
 
+Scenario: The gate wakes the filter on the envelope's clock (REQ-the-gate-is-scheduled-not-messaged, regression)
+  Given a pool voice whose filter is idle
+  When noteOn fires
+  Then active is set to 1 with setValueAtTime at the context's currentTime, not by a port message
+  And the attack is anchored at or after that time
+  And the worklet runs its DSP on the first block whose active param reads 1
+# pinned by: tests/audio/voice.test.ts, tests/audio/ladder-filter-worklet.test.ts
+
 Scenario: A lost deactivate can only cost CPU, never a note (safety edge)
   Given a voice whose filter missed a setActive(false)
   When the voice is allocated again and noteOn fires
-  Then setActive(true) is posted unconditionally and the note sounds
+  Then setActive(true) is scheduled unconditionally and the note sounds
 # pinned by: tests/audio/voice.test.ts
+
+Scenario: A drive change ramps across the block instead of stepping (REQ-drive-moves-without-a-step, regression)
+  Given a quiet sine held through the open filter at drive 1.2
+  When the next block arrives with drive 2
+  Then the output's second difference across the change stays within 1.5x its steady state
+  And a block whose drive did not change still equals the frozen reference
+# pinned by: tests/audio/ladder-filter-worklet.test.ts
 
 Scenario: Adding a second model left this one bit-identical (REQ-ladder-is-filter-model-zero, regression)
   Given the model param sits at its default 0

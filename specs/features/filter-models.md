@@ -3,7 +3,7 @@
 ```yaml
 id: filter-models
 status: implemented
-version: 1
+version: 4
 owner: core
 related:
   - ladder-filter
@@ -116,10 +116,26 @@ Per [ADR-006](../decisions/adr-006-no-op-param-defaults.md) the default is index
   carried saturations are **re-primed** from the current states on the switching
   block so the ladder path resumes self-consistent. Output stays finite across
   the switch.
+- **REQ-a-model-switch-crossfades** — The switch is **click-free**: for
+  `MODEL_XF_S` (5 ms) the outgoing model keeps running on a copy of the state
+  taken at the switch, and the output is a linear crossfade from it to the
+  incoming model. The two models settle at different passband levels and from
+  different internal states, so swapping the recurrence on a block edge steps
+  the output on a held note, a click at every switch. The incoming model runs on the shared state exactly
+  as before, so once the fade is over the output is the un-faded output; only
+  the fade window pays for two models. A processor's first block, and the first
+  block after a deactivate, have nothing to fade from and run plain.
 - **REQ-poly-trim-matches-the-levels** — **Level matching**: `POLY_TRIM` is
   tuned so that at the *default* resonance (0.5) the two models put out the same
-  **passband** level — within 0.1 dB on a sub-cutoff sine — so flipping the
-  switch is an A/B of character rather than of loudness. Two honest caveats.
+  **passband** level on a sub-cutoff sine **at one operating point**: drive 1 and
+  a 0.5 peak, where they meet within 0.1 dB — so flipping the switch is an A/B of
+  character rather than of loudness. The match cannot hold everywhere: LADDER's
+  drive multiplies its feedback too (`sat((x - res·fb)·drive)`), so its passband
+  gain falls as drive rises, while POLY's resonance compensation is independent
+  of drive. Measured at resonance 0.5: at the default drive 1.2, POLY is +1.5 dB
+  on a quiet input (0.05 peak), +0.2 dB at 0.5 and −0.8 dB at full scale; at
+  drive 2 the quiet-input gap is +3.3 dB. Whether to re-centre the trim on the
+  default drive is a by-ear call (ADR-010). Two further honest caveats.
   Away from that resonance they diverge by REQ-poly-preserves-the-low-end's ~10
   dB, which is the feature. And **broadband** POLY reads about **2 dB hotter**
   on harmonically rich material (measured on the `basic` patch's two saws),
@@ -235,10 +251,10 @@ move — new scalars never bump it (ADR-007).
 
 ### Worklet message contract
 
-Unchanged. The `port` still carries only the boolean active flag
-([ladder-filter.md](ladder-filter.md) REQ-the-filter-idles-when-gated), shared by both models — model
-selection travels as an AudioParam, not a message, so it is sample-scheduled and
-automatable like everything else.
+None. The idle gate is the `active` AudioParam ([ladder-filter.md](ladder-filter.md)
+REQ-the-gate-is-scheduled-not-messaged), shared by both models, and model
+selection is an AudioParam too, so everything the processor is told is
+sample-scheduled and automatable.
 
 ## Visual aids
 
@@ -312,6 +328,13 @@ Scenario: Switching model mid-note stays finite and resumes clean (edge)
   When the model switches back to LADDER and blocks are processed
   Then every sample is finite
   And the ladder path matches a ladder processor primed to the same states
+# pinned by: tests/audio/poly-filter-worklet.test.ts
+
+Scenario: A model switch on a held note does not click (REQ-a-model-switch-crossfades, regression)
+  Given a sine held through the filter at the default resonance
+  When the model flips LADDER -> POLY and back on block edges
+  Then the output's second difference across each switch stays within 1.5x its steady state
+  And after MODEL_XF_S the output equals an un-faded processor's sample for sample
 # pinned by: tests/audio/poly-filter-worklet.test.ts
 
 Scenario: The LFO can sweep SHAPE through the smoothed path

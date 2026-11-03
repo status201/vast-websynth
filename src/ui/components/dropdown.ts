@@ -51,6 +51,11 @@ export class Dropdown {
   private filterRow: HTMLElement | null = null;
   private filterInput: HTMLInputElement | null = null;
   private options: string[] = [];
+  /** Where `setOptions` asked for a divider, kept for the build. */
+  private dividerAt = -1;
+  /** The option buttons no longer match `options`: built on the next open
+   *  (REQ-options-are-built-when-the-menu-opens). */
+  private stale = false;
   /** Labels that render but cannot be chosen (REQ-an-option-can-be-unselectable). Kept as a set rather
    *  than a per-button flag so it survives `setOptions` rebuilding the list. */
   private disabledOpts = new Set<string>();
@@ -113,11 +118,27 @@ export class Dropdown {
     // The threshold can be crossed in both directions (`Presets.list()` grows as
     // the user saves), so the row is (re)decided on every call.
     this.ensureFilter(this.forceFilter ?? options.length >= FILTER_MIN_OPTIONS);
+    this.dividerAt = (opts?.dividerAfter ?? 0) - 1;
+    if (!options.includes(this._value) && options.length > 0) {
+      this._value = options[0]!;
+    }
+    // The buttons wait for an open (REQ-options-are-built-when-the-menu-opens):
+    // a closed list is data. One already open is rebuilt now, as the user is
+    // looking at it.
+    this.stale = true;
+    if (this.open) this.renderList();
+    else this.list.innerHTML = '';
+    this.renderToggle();
+  }
+
+  /** Build the option buttons from `options` (REQ-options-are-built-when-the-menu-opens). */
+  private renderList(): void {
+    this.stale = false;
     this.list.innerHTML = '';
     // A border on the option itself, not a separate element: nothing extra for
     // the arrow-key walk to land on or the filter to count (REQ-a-list-can-be-split-by-dividers).
-    const dividerAt = (opts?.dividerAfter ?? 0) - 1;
-    for (const [i, opt] of options.entries()) {
+    const dividerAt = this.dividerAt;
+    for (const [i, opt] of this.options.entries()) {
       const item = document.createElement('button');
       item.type = 'button';
       // `dropdown-option` is a bridge class, not styling: the toggle and the
@@ -137,11 +158,7 @@ export class Dropdown {
       });
       this.list.appendChild(item);
     }
-    if (!options.includes(this._value) && options.length > 0) {
-      this._value = options[0]!;
-    }
     this.resetFilter();
-    this.renderToggle();
   }
 
   setValue(v: string): void {
@@ -297,6 +314,7 @@ export class Dropdown {
     if (o) menuOpened(this.el, () => this.setOpen(false));
     else menuClosed(this.el);
     if (o) {
+      if (this.stale) this.renderList();
       // Always open on the whole list — a persisted query would be invisible
       // state hiding options (REQ-a-long-list-carries-a-filter, ADR-014 law 5).
       this.resetFilter();

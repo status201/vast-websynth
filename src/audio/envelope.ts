@@ -74,7 +74,9 @@ export class Envelope {
 
   /** Approximate time at which release will be effectively silent. */
   releaseDuration(): number {
-    return this.release * 5; // ~5 time constants → effectively zero
+    // Five knob times, and a knob time is PHASE_TIME_CONSTANTS (3) time
+    // constants, so 15 τ: ~-130 dB, effectively zero.
+    return this.release * 5;
   }
 
   /**

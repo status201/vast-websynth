@@ -10,7 +10,8 @@ import {
 /**
  * Voice lifecycle → ladder-filter idle gating (ladder-filter.md REQ-the-filter-idles-when-gated,
  * voicing.md REQ-voice-lifecycle-gates-the-ladder). The filter worklet is the mock node; we assert the
- * active-flag posts on its port.
+ * writes to its `active` param — scheduled, never a port message
+ * (REQ-the-gate-is-scheduled-not-messaged).
  */
 describe('Voice filter idle gating', () => {
   beforeEach(() => {
@@ -25,47 +26,64 @@ describe('Voice filter idle gating', () => {
   async function build() {
     const ctx = makeMockAudioContext();
     const voice = await Voice.create(ctx as unknown as AudioContext);
-    const port = MockAudioWorkletNode.instances[0]!.port;
-    return { voice, port };
+    const node = MockAudioWorkletNode.instances[0]!;
+    const gate = node.parameters.get('active').setValueAtTime;
+    return { ctx, voice, node, gate };
   }
 
-  it('boots idle: posts false at construction', async () => {
-    const { port } = await build();
-    expect(port.postMessage).toHaveBeenLastCalledWith(false);
+  it('boots idle: closes the gate at construction', async () => {
+    const { gate } = await build();
+    expect(gate).toHaveBeenLastCalledWith(0, 0);
   });
 
-  it('noteOn posts true unconditionally on every call', async () => {
-    const { voice, port } = await build();
+  it('noteOn opens the gate unconditionally on every call', async () => {
+    const { voice, gate } = await build();
     voice.noteOn(60, 0.8, 0);
-    voice.noteOn(62, 0.8, 1); // retrigger while playing — still posts
-    const flags = port.postMessage.mock.calls.map((c) => c[0]);
-    expect(flags).toEqual([false, true, true]);
+    voice.noteOn(62, 0.8, 1); // retrigger while playing — still writes
+    expect(gate.mock.calls.map((c) => c[0])).toEqual([0, 1, 1]);
+  });
+
+  it("wakes the filter on the envelope's clock, not by message (REQ-the-gate-is-scheduled-not-messaged)", async () => {
+    // A port message landed whenever the audio thread got to it; when that was
+    // a block or two after the attack began, the note started on silence and
+    // jumped in under an open VCA — 9 of 12 note-ons to idle voices clicked.
+    const { ctx, voice, node, gate } = await build();
+    ctx.currentTime = 2;
+    const attack = voice.ampEnv.out.gain.setValueAtTime as unknown as ReturnType<typeof vi.fn>;
+    attack.mockClear();
+    voice.noteOn(60, 0.8, 2.05); // a sequencer note, a look-ahead away
+    expect(gate).toHaveBeenLastCalledWith(1, 2);
+    // The attack's anchor is at or after the gate's time, so the filter is
+    // awake by the block the VCA opens in.
+    const anchorAt = attack.mock.calls.at(-1)![1] as number;
+    expect(anchorAt).toBeGreaterThanOrEqual(2);
+    expect(node.port.postMessage).not.toHaveBeenCalled();
   });
 
   it('release completion deactivates the filter', async () => {
-    const { voice, port } = await build();
+    const { voice, gate } = await build();
     voice.noteOn(60, 0.8, 0);
     voice.noteOff(0);
     vi.runAllTimers(); // the releaseTimer
     expect(voice.state).toBe('idle');
-    expect(port.postMessage).toHaveBeenLastCalledWith(false);
+    expect(gate).toHaveBeenLastCalledWith(0, expect.any(Number));
   });
 
   it('kill deactivates after the fade window', async () => {
-    const { voice, port } = await build();
+    const { voice, gate } = await build();
     voice.noteOn(60, 0.8, 0);
     voice.kill(0);
     vi.advanceTimersByTime(50);
-    expect(port.postMessage).toHaveBeenLastCalledWith(false);
+    expect(gate).toHaveBeenLastCalledWith(0, expect.any(Number));
   });
 
   it('a noteOn inside the kill fade window wins — no late deactivate', async () => {
-    const { voice, port } = await build();
+    const { voice, gate } = await build();
     voice.noteOn(60, 0.8, 0);
     voice.kill(0);
     voice.noteOn(64, 0.8, 0); // voice re-claimed before the fade timer fires
     vi.advanceTimersByTime(50);
-    expect(port.postMessage).toHaveBeenLastCalledWith(true);
+    expect(gate).toHaveBeenLastCalledWith(1, expect.any(Number));
   });
 });
 
@@ -234,5 +252,85 @@ describe('Voice velocity → filter envelope (REQ-the-filter-worklet-module-is-a
     expect(filPeak()).toBe(1);   // the ringing note's sweep is already scheduled
     voice.noteOn(62, 0.4, 0.5);
     expect(filPeak()).toBeCloseTo(0.4, 10);
+  });
+});
+
+/**
+ * An idle voice is off the bus entirely (voicing.md REQ-an-idle-voice-is-unplugged):
+ * the renderer pulls only what reaches the destination, so a silent voice's three
+ * oscillators, gains and filter cost nothing. Measured with `npm run bench:perf`:
+ * idle audio load 15.7% -> 4.8% of the callback in Blink.
+ */
+describe('Voice output edges (REQ-an-idle-voice-is-unplugged)', () => {
+  beforeEach(() => {
+    vi.useFakeTimers();
+    installMockAudioWorkletNode();
+  });
+  afterEach(() => {
+    vi.useRealTimers();
+    vi.unstubAllGlobals();
+  });
+
+  async function onBus() {
+    const ctx = makeMockAudioContext();
+    const voice = await Voice.create(ctx as unknown as AudioContext);
+    const bus = ctx.createGain();
+    voice.connectTo(bus as unknown as AudioNode);
+    const dry = voice.spreadDry as unknown as { connect: ReturnType<typeof vi.fn>; disconnect: ReturnType<typeof vi.fn> };
+    const pan = voice.panner as unknown as { connect: ReturnType<typeof vi.fn>; disconnect: ReturnType<typeof vi.fn> };
+    const toBus = (fn: ReturnType<typeof vi.fn>) => fn.mock.calls.filter((c) => c[0] === bus).length;
+    return { voice, bus, dry, pan, toBus };
+  }
+
+  it('boots unplugged: neither edge reaches the bus until a note arrives', async () => {
+    const { dry, pan, toBus } = await onBus();
+    expect(toBus(dry.connect)).toBe(0);
+    expect(toBus(pan.connect)).toBe(0);
+  });
+
+  it('a note plugs it in within the call, and a second note connects nothing twice', async () => {
+    const { voice, dry, toBus } = await onBus();
+    voice.noteOn(60, 0.8, 0.05); // a note a look-ahead away still plugs NOW
+    expect(toBus(dry.connect)).toBe(1);
+    voice.noteOn(62, 0.8, 0.1);
+    expect(toBus(dry.connect)).toBe(1);
+  });
+
+  it('release completion unplugs it', async () => {
+    const { voice, dry, toBus } = await onBus();
+    voice.noteOn(60, 0.8, 0);
+    voice.noteOff(0);
+    expect(toBus(dry.disconnect)).toBe(0); // still releasing
+    vi.runAllTimers();
+    expect(voice.state).toBe('idle');
+    expect(toBus(dry.disconnect)).toBe(1);
+  });
+
+  it('kill unplugs it after the fade window — unless a note re-claims it first', async () => {
+    const killed = await onBus();
+    killed.voice.noteOn(60, 0.8, 0);
+    killed.voice.kill(0);
+    vi.advanceTimersByTime(50);
+    expect(killed.toBus(killed.dry.disconnect)).toBe(1);
+
+    const reclaimed = await onBus();
+    reclaimed.voice.noteOn(60, 0.8, 0);
+    reclaimed.voice.kill(0);
+    reclaimed.voice.noteOn(64, 0.8, 0);
+    vi.advanceTimersByTime(50);
+    expect(reclaimed.toBus(reclaimed.dry.disconnect)).toBe(0);
+  });
+
+  it('the spread stage never plugs an idle voice back in (edge)', async () => {
+    const { voice, dry, pan, toBus } = await onBus();
+    voice.setSpread(true);                 // engaged while the voice is idle
+    expect(toBus(pan.connect)).toBe(0);
+    voice.noteOn(60, 0.8, 0);              // the note brings both edges
+    expect(toBus(dry.connect)).toBe(1);
+    expect(toBus(pan.connect)).toBe(1);
+    voice.noteOff(0);
+    vi.runAllTimers();                     // and idling takes both down
+    expect(toBus(dry.disconnect)).toBe(1);
+    expect(toBus(pan.disconnect)).toBe(1);
   });
 });

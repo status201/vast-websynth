@@ -28,6 +28,8 @@ describe('Reverb IR duration cap', () => {
       ctx as unknown as AudioContext,
       maxIrS === undefined ? undefined : { maxIrS },
     );
+    // On, so sizes build (effects.md REQ-a-reverb-prepares-its-ir-on-first-use).
+    reverb.setBypass(false);
     for (let i = 0; i < 5; i++) reverb.setSize(i / 4);
     return (ctx.createBuffer as unknown as Spy).mock.calls
       // Length is a whole number of frames, so recover the duration to the ms.

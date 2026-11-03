@@ -3,7 +3,7 @@
 ```yaml
 id: sample-recorder
 status: implemented
-version: 8
+version: 9
 owner: core
 related:
   - architecture
@@ -82,6 +82,14 @@ not, and the modal says so.
   It is keyed by buffer **identity**, which is sound because every `buffer-dsp` op
   returns a NEW `CapturedAudio`; that property has its own test. It holds one entry,
   since a map would keep every intermediate edit alive.
+- **REQ-the-preview-fades-like-the-slot** — The editor's preview plays a clip with
+  the sampler's own edges: in over `SAMPLER_ATTACK` and out over `CHOKE_FADE`,
+  finishing as the buffer runs out ([sampler](sampler.md)
+  REQ-a-slot-starts-from-zero, REQ-a-slot-ends-at-zero), and a Stop mid-clip fades
+  the same `CHOKE_FADE` from the level it had reached instead of cutting.
+  Started and stopped raw, a selection cut mid-waveform clicked at both ends in
+  the preview while the same selection played clean from its slot.
+  `clipFades` in `src/audio/clip-fades.ts` is the one place the shape is written.
 - **REQ-the-recorder-modal-hosts-fit-and-shift** — (v3) The modal hosts the Fit and
   Shift rows below the chop row ([time-stretch](time-stretch.md)
   REQ-the-editor-gains-a-fit-row/REQ-the-fit-row-preselects-the-nearest-target).
@@ -144,6 +152,13 @@ secure context: openMicSession returns MicCaptureError('insecure-context') off H
 ## Scenarios (BDD)
 
 ```gherkin
+Scenario: The preview fades in and out like the slot it is auditioning (REQ-the-preview-fades-like-the-slot, regression)
+  Given a selection cut mid-waveform
+  When it is previewed
+  Then its gain ramps from 0 over SAMPLER_ATTACK and down to 0 as the buffer ends
+  And a Stop mid-clip ramps to 0 over CHOKE_FADE from the level then reached
+# pinned by: tests/audio/clip-fades.test.ts
+
 Scenario: Closing the editor leaves no listeners behind (regression)
   Given the sample editor has been opened and closed twenty times
   Then the number of document-level listeners is the same as before the first open

@@ -18,6 +18,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ### Added
 
+- **`npm run bench:perf`**: a performance test that measures the audio thread, not
+  just the page: ten fixed scenarios (idle, chords, every effect, the heaviest voice
+  path, two demos, the weak tier), each repeated, read from Chrome's audio trace. Save
+  a run with `--name` and compare two with `--compare`.
+
 - **ADSR graph in the envelope help.** The ⓘ badges on AMP ENV and FILTER ENV
   now draw your current envelope under the explanation. Attack, Decay and
   Release are marked as times along the bottom, and Sustain as a level, each with
@@ -33,6 +38,34 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ### Fixed
 
+- The sample editor's preview no longer clicks at the edges of a selection, or when
+  you stop it mid-clip: it fades in and out the way the sampler slot will play it.
+- A sampler clip that ends mid-sound (a chopped slice, a cropped recording, a loop
+  cut on the beat) no longer clicks when it runs out: it fades to silence over its
+  last 5 ms, the way it already faded in over its first.
+- Stopping the transport while a sampler clip plays no longer sometimes ticks: the
+  clip's short fade-out is timed a moment ahead, like a live note, instead of for
+  an instant the audio engine may already have passed.
+- In Firefox, a recording now starts when you press Record. It used to start at
+  the first sound, dropping any silence before it, because Firefox hands silence
+  over as no audio at all and the recorder skipped it.
+- A note played on the keyboard, the computer keys or MIDI, and a drum or sampler
+  pad tapped by hand, no longer sometimes starts with a click. Each was timed for
+  the instant it was played, which the audio engine could already have rendered
+  past, so its attack started most of the way up. They now start one audio buffer
+  ahead (10 ms in Chrome on a typical Windows setup, less on low-latency devices,
+  20 ms in Firefox, which does not report its buffer). Notes clicked more on a
+  busy computer, especially right after MONO/POLY or Panic; a sampler pad almost
+  always did, since its fade-in is shorter than the gap.
+- Switching the filter between LADDER and POLY while a note sounds no longer
+  clicks: the two models now crossfade over 5 ms instead of swapping on the spot.
+- Moving DRIVE in a jump (a motion lane, the XY Pad, a mod-matrix route) no
+  longer clicks: each change glides across one audio block.
+- A mod-matrix route from RANDOM no longer clicks on every 16th. The new value
+  still steps in, just with the same short slew the LFOs use, so RANDOM into amp
+  is a stepped tremolo rather than a click track.
+- The LFO's smoothing on AMP, PAN and SHAPE (and every LFO route in the mod
+  matrix) no longer overshoots a square or saw step by about 19%.
 - The TRANSPORT window no longer leaves empty space beside a song of about
   25–30 bars: the bar strip stays on the controls' line and scrolls, instead of
   dropping to a row of its own in a window still at full width.
@@ -55,6 +88,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ### Changed
 
+- **The synth costs far less while it is not playing.** A voice that has finished
+  sounding is now taken off the audio graph until its next note, so the browser stops
+  computing it: measured in Chrome, the audio work at rest drops by about two thirds
+  (17% to 6% of the budget), one held note by half, and a typical song by about a
+  fifth. More headroom on phones and laptops, and less battery while the app sits
+  open. Notes start exactly as before.
+- The page is about 40% lighter: a dropdown builds its list the first time you
+  open it, so the parameter pickers (about 440 entries each) no longer sit in the
+  page unseen. Every menu looks and works the same.
+- The app starts a little faster (about 40 ms in Chrome, 90 ms in Firefox): the
+  three reverbs no longer prepare their impulse response until one is first
+  switched on.
 - **Tighter panel grids.** The synth panels now sit 5px apart (was 10px, 8px on
   phones) and the FX panels 2px apart, so the faceplate and the effects rack
   read as two distinct sections.

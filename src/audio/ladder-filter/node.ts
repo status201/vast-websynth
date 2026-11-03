@@ -14,6 +14,8 @@ export class LadderFilterNode {
   readonly model: AudioParam;
   /** POLY pole-mix morph, 0 = LP24 … 1 = HP24. The LFO sums in here (REQ-input-and-poles-are-saturated). */
   readonly shape: AudioParam;
+  /** The idle gate (ladder-filter.md REQ-the-filter-idles-when-gated); written only by `setActive`. */
+  private readonly active: AudioParam;
 
   private constructor(private readonly node: AudioWorkletNode) {
     this.input = node;
@@ -23,15 +25,21 @@ export class LadderFilterNode {
     this.drive = node.parameters.get('drive')!;
     this.model = node.parameters.get('model')!;
     this.shape = node.parameters.get('shape')!;
+    this.active = node.parameters.get('active')!;
   }
 
   /**
    * Idle gating (ladder-filter.md REQ-the-filter-idles-when-gated): while inactive the processor skips
-   * its per-sample DSP and outputs silence. The downstream ampVCA is closed
-   * whenever this flips, so the step is inaudible by construction.
+   * its per-sample DSP and outputs silence.
+   *
+   * Scheduled at `currentTime`, never messaged (REQ-the-gate-is-scheduled-not-messaged):
+   * a voice's envelope anchors its attack at `when >= currentTime` on this same
+   * clock, so the filter is awake by the block the VCA opens in. A port message
+   * lands whenever the audio thread gets to it, and a late one let the note
+   * start on silence and jump to full level a block or two in.
    */
   setActive(on: boolean): void {
-    this.node.port.postMessage(on);
+    this.active.setValueAtTime(on ? 1 : 0, this.node.context.currentTime);
   }
 
   static async create(ctx: AudioContext): Promise<LadderFilterNode> {

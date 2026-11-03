@@ -3,7 +3,7 @@
 ```yaml
 id: oscillator-sync
 status: implemented
-version: 8
+version: 9
 owner: core
 related:
   - oscillators                # osc1/osc2 this pairs up
@@ -113,8 +113,10 @@ windowed-sinc residual reaches the floor in band.
   session never fetched would be a second way to fail.
 - **REQ-the-pair-idles-with-the-voice** — An engaged pair follows the voice like
   the filter ([ladder-filter](ladder-filter.md) REQ-the-filter-idles-when-gated):
-  active from `noteOn`, inactive once idle, with the VCA closed at every flip.
-  Engaging sets the gate from whether the voice sounds **now**.
+  active from `noteOn`, inactive once idle. It is the same scheduled `active`
+  param ([ladder-filter](ladder-filter.md) REQ-the-gate-is-scheduled-not-messaged),
+  so an engaged pair is awake by the block its note's attack opens in. Engaging
+  sets the gate from whether the voice sounds **now**.
 - **REQ-every-discontinuity-is-band-limited** — Each value jump (saw/square edges,
   hard resets, wave/width changes) gets a band-limited step residual, each slope
   jump a band-limited ramp, and a sine reset's curvature jump a third-order
@@ -186,7 +188,7 @@ LFO_DEST_SCALE (src/state/lfo-routing.ts):
 ### Worklet message contract
 
 ```yaml
-port in:  boolean                 # active flag; defaults to true so a lost message costs CPU, never a note
+port in:  none                    # the idle gate is the k-rate `active` param, default 1
 port out: none
 processorOptions:                 # measurement hooks for the alias test; the node never passes them
   kernel: 'sinc' | 'poly' | 'naive'

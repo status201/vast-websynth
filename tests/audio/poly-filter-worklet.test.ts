@@ -40,10 +40,13 @@ beforeAll(async () => {
 
 function makeParams(over: Record<string, number> = {}): Record<string, Float32Array> {
   const d: Record<string, number> = {
-    cutoffNote: 90, resonance: 0, drive: 1, model: POLY, shape: 0, ...over,
+    cutoffNote: 90, resonance: 0, drive: 1, model: POLY, shape: 0, active: 1, ...over,
   };
   return Object.fromEntries(Object.entries(d).map(([k, v]) => [k, new Float32Array([v])]));
 }
+
+/** The same params with the idle gate closed (ladder-filter.md REQ-the-filter-idles-when-gated). */
+const idle = (p: Record<string, Float32Array>): Record<string, Float32Array> => ({ ...p, active: new Float32Array([0]) });
 
 function run(
   proc: ProcessorLike,
@@ -267,11 +270,59 @@ describe('POLY filter model — model switching (REQ-switching-model-mid-note-is
     const proc = new Processor();
     expect(peak(run(proc, params, gen, 10))).toBeGreaterThan(0);
 
-    proc.port.onmessage!({ data: false });
-    expect(peak(run(proc, params, gen, 10))).toBe(0); // hot input, silent output
+    expect(peak(run(proc, idle(params), gen, 10))).toBe(0); // hot input, silent output
 
-    proc.port.onmessage!({ data: true });
     // Deactivation zeroed the state, so the restart matches a fresh processor.
     expect(run(proc, params, gen, 10)).toEqual(run(new Processor(), params, gen, 10));
+  });
+});
+
+describe('POLY filter model — the switch crossfades (REQ-a-model-switch-crossfades)', () => {
+  /** A held 220 Hz tone with its own sample counter, so a run can be split. */
+  const held = () => {
+    let n = 0;
+    return () => 0.5 * Math.sin((2 * Math.PI * 220 * n++) / SR);
+  };
+  /** The default patch: resonance 0.5, drive 1.2. */
+  const at = (model: number) => makeParams({ model, resonance: 0.5, drive: 1.2 });
+  const maxD2 = (a: Float32Array, from: number, to: number): number => {
+    let m = 0;
+    for (let i = Math.max(2, from); i < to; i++) m = Math.max(m, Math.abs(a[i]! - 2 * a[i - 1]! + a[i - 2]!));
+    return m;
+  };
+
+  it('does not click when the model flips on a held note', () => {
+    // Verified to discriminate: with the fade removed the switches read ~0.10
+    // and ~0.12 against a steady-state ~0.0011 — the models settle at different
+    // passband levels from different internal states — and with it ~0.0013.
+    const proc = new Processor();
+    const gen = held();
+    const segs = [LADDER, POLY, LADDER].map((m) => run(proc, at(m), gen, 40));
+    const all = new Float32Array(segs.length * 40 * BLOCK);
+    segs.forEach((s, i) => all.set(s, i * 40 * BLOCK));
+    const seg = 40 * BLOCK;
+    const steady = Math.max(maxD2(all, 20 * BLOCK, seg - BLOCK), maxD2(all, seg + 20 * BLOCK, 2 * seg - BLOCK));
+    for (const t of [seg, 2 * seg]) {
+      expect(maxD2(all, t - BLOCK / 2, t + 3 * BLOCK), `switch at ${t}`).toBeLessThan(steady * 1.5);
+    }
+  });
+
+  it('is the un-faded output once the fade is over', () => {
+    // Same history on both; one of them is told it has no previous model, so
+    // its switch block runs plain. The fade only ever touches its own window.
+    const faded = new Processor();
+    const plain = new Processor();
+    const g1 = held();
+    const g2 = held();
+    run(faded, at(LADDER), g1, 20);
+    run(plain, at(LADDER), g2, 20);
+    (plain as unknown as { model: number }).model = -1;
+    const a = run(faded, at(POLY), g1, 8);
+    const b = run(plain, at(POLY), g2, 8);
+    const xf = Math.round(SR * 0.005);
+    let early = 0;
+    for (let i = 0; i < xf; i++) early = Math.max(early, Math.abs(a[i]! - b[i]!));
+    expect(early).toBeGreaterThan(1e-4); // the fade did something
+    expect(Array.from(a.subarray(xf))).toEqual(Array.from(b.subarray(xf)));
   });
 });

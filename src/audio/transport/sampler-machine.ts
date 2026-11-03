@@ -7,25 +7,12 @@ import { clamp01 } from '../../utils/math';
 import type { TickSubscriber } from './tick-source';
 import { ListenerSet } from '../../utils/listeners';
 import { LaneMeter } from './lane-meter';
-import { rampTo, RAMP_MEDIUM, toneCutoff } from '../param-utils';
+import { rampTo, RAMP_MEDIUM, toneCutoff, liveStartTime } from '../param-utils';
 import { forceStereo } from '../stereo';
 import { reverseBuffer } from '../recorder/audio-buffer';
+import { CHOKE_FADE, SAMPLER_ATTACK } from '../clip-fades';
 
 export type SamplerStepListener = (step: number, when: number) => void;
-
-/** Click-free cut: ramp the per-hit gain to 0 over CHOKE_FADE, stop just after. */
-const CHOKE_FADE = 0.005;
-/**
- * Attack ramp on a slot's per-hit gain (sampler.md REQ-a-slot-starts-from-zero).
- *
- * User audio is exactly the material we cannot assume anything about: a sample
- * whose first frame is not near zero used to start on a full-scale step, which is
- * a click on every hit. 0.5 ms is ~24 samples at 48 kHz — Web Audio ramps are
- * sample-accurate, so this is not rounded up to a render block. Enough to turn a
- * step into a slope, far too short to soften a transient: a chop's own attack is
- * orders of magnitude longer.
- */
-const SAMPLER_ATTACK = 0.0005;
 
 const CHOKE_STOP = 0.03;
 
@@ -302,9 +289,10 @@ export class SamplerMachine {
     return made;
   }
 
-  /** Manual trigger (for UI auditioning). */
+  /** Manual trigger (UI audition, MIDI pads), one render burst ahead so its
+   *  attack is never anchored in the past (live-trigger-timing.md REQ-a-live-trigger-starts-ahead-of-the-render). */
   triggerSlot(slot: number, velocity = 0.9): void {
-    this.play(slot, this.ctx.currentTime, velocity);
+    this.play(slot, liveStartTime(this.ctx), velocity);
   }
 
   private play(slot: number, when: number, velocity: number, chokeAt?: number): void {
@@ -322,8 +310,9 @@ export class SamplerMachine {
 
     // ---- The voice window (REQ-a-hit-plays-a-window-of-the-buffer) ----
     // Every branch below is skipped at the slot's defaults, so an untouched slot
-    // takes the pre-v8 path exactly: no rate write, no start offset, no scheduled
-    // stop. That is what makes ADR-006's promise here a code path, not a claim.
+    // takes the pre-v8 path: no rate write, no start offset. The one thing it now
+    // always gets is the fade into its buffer's end (REQ-a-slot-ends-at-zero), the
+    // last CHOKE_FADE of the clip, which is what stops a non-zero last frame clicking.
     const pitch = this.pitch[slot] ?? 0;
     const rate = pitch === 0 ? 1 : Math.pow(2, pitch / 12);
     if (pitch !== 0) src.playbackRate.value = rate;
@@ -354,7 +343,14 @@ export class SamplerMachine {
     // would mean re-writing an automation curve already in flight, which needs
     // `cancelAndHoldAtTime` — not available everywhere this app runs.
     let hard: number | undefined;
-    if (trimmed) hard = t + (endSec - startSec) / rate;
+    const windowEnd = t + (endSec - startSec) / rate;
+    // A window that runs to the buffer's own end has nothing past it to fade
+    // through, so the fade starts CHOKE_FADE early and reaches 0 as the buffer
+    // runs out (REQ-a-slot-ends-at-zero). Reversed, the buffer's end is the
+    // window's START, since the copy plays backwards from it.
+    const toBufferEnd = reversed ? startSec <= 0 : endSec >= dur;
+    if (toBufferEnd) hard = windowEnd - CHOKE_FADE;
+    else if (trimmed) hard = windowEnd;
     if (chokeAt !== undefined) {
       const gate = chokeAt + shift;
       hard = hard === undefined ? gate : Math.min(hard, gate);
@@ -428,7 +424,9 @@ export class SamplerMachine {
    * last bar's one-shots out of it.
    */
   stopAll(): void {
-    const now = this.ctx.currentTime;
+    // One render burst ahead, not bare currentTime: a 5 ms fade anchored in the
+    // past renders as a hard cut (live-trigger-timing.md REQ-a-cut-made-now-starts-ahead-of-the-render).
+    const now = liveStartTime(this.ctx);
     // The same cut a choke makes — `cutHit` computes the fade's anchor with
     // `gainAt` rather than reading a live `gain.value` (which Gecko does not
     // keep current under automation) and refuses to re-stop a hit already

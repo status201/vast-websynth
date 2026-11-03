@@ -3,6 +3,21 @@ import { SamplerMachine } from '../../../src/audio/transport/sampler-machine';
 import { makeMockAudioContext, makeStubBuffer, type MockAudioContext } from '../mock-audio-context';
 import { createPerfStub, makeTransportRig } from './rig';
 
+/** A clip long enough that its natural end (sampler.md REQ-a-slot-ends-at-zero) lies
+ *  past anything a test does, for the tests whose subject is something else. */
+const longBuf = (): AudioBuffer => makeStubBuffer(44100 * 8, 44100);
+const LONG_S = 8;
+
+/**
+ * The stop() calls that cut a hit SHORT. Every hit also schedules one at its
+ * buffer's natural end (REQ-a-slot-ends-at-zero), and that one is not a cut, so
+ * "was it cut?" means "was it stopped before its buffer ran out?". Hits in these
+ * tests start within the first tick, so the buffer's length is the natural end.
+ */
+type StopSpy = { stop: { mock: { calls: unknown[][] } }; buffer: AudioBuffer | null };
+const cutShort = (src: StopSpy): unknown[][] =>
+  src.stop.mock.calls.filter((c) => (c[0] as number) < (src.buffer?.duration ?? Infinity));
+
 function build(perf = createPerfStub()) {
   const ctx: MockAudioContext = makeMockAudioContext();
   const { clock, patterns, arrangement } = makeTransportRig(perf);
@@ -19,6 +34,22 @@ function build(perf = createPerfStub()) {
 }
 
 describe('SamplerMachine', () => {
+  it('fades a hit to zero as its buffer runs out (REQ-a-slot-ends-at-zero, regression)', () => {
+    // A clip that ends mid-waveform used to stop on a full-scale step: a sine
+    // cut at its crest measured 1,079x its own body's 3rd difference at the cut.
+    const { ctx, sm } = build();
+    sm.setBuffer(0, makeStubBuffer(44100, 44100)); // 1.0 s
+    sm.triggerSlot(0);
+    const g = ctx.createGain.mock.results.at(-1)!.value;
+    const t0 = ctx.createBufferSource.mock.results.at(-1)!.value.start.mock.calls[0][0] as number;
+    const ramps = g.gain.linearRampToValueAtTime.mock.calls as [number, number][];
+    // Held at velocity until CHOKE_FADE before the end, then down to 0 AT the end.
+    expect(g.gain.setValueAtTime).toHaveBeenCalledWith(0.9, t0 + 1 - 0.005);
+    expect(ramps.at(-1)![0]).toBe(0);
+    expect(ramps.at(-1)![1]).toBeCloseTo(t0 + 1, 12);
+  });
+
+
   it('does not play an empty slot even when the step is active', () => {
     const { ctx, clock, patterns, sm } = build();
     sm.setEnabled(true);
@@ -30,7 +61,7 @@ describe('SamplerMachine', () => {
   it('plays a loaded slot on an active step', () => {
     const { ctx, clock, patterns, sm } = build();
     sm.setEnabled(true);
-    sm.setBuffer(0, makeStubBuffer());
+    sm.setBuffer(0, longBuf());
     patterns.setSamplerCell(0, 0, { on: true, velocity: 0.6 });
     clock.fireTick(0);
     expect(ctx.createBufferSource).toHaveBeenCalledTimes(1);
@@ -38,7 +69,7 @@ describe('SamplerMachine', () => {
 
   it('does nothing while disabled', () => {
     const { ctx, clock, patterns, sm } = build();
-    sm.setBuffer(0, makeStubBuffer());
+    sm.setBuffer(0, longBuf());
     patterns.setSamplerCell(0, 0, { on: true });
     clock.fireTick(0);
     expect(ctx.createBufferSource).not.toHaveBeenCalled();
@@ -47,7 +78,7 @@ describe('SamplerMachine', () => {
   it('skips a muted slot', () => {
     const { ctx, clock, patterns, sm } = build();
     sm.setEnabled(true);
-    sm.setBuffer(1, makeStubBuffer());
+    sm.setBuffer(1, longBuf());
     patterns.setSamplerCell(1, 0, { on: true });
     sm.setSlotMute(1, true);
     clock.fireTick(0);
@@ -58,7 +89,7 @@ describe('SamplerMachine', () => {
     const { ctx, clock, patterns, sm } = build();
     sm.setEnabled(true);
     patterns.setSamplerEditBank(2); // disabled lane → play bank tracks edit bank
-    sm.setBuffer(0, makeStubBuffer());
+    sm.setBuffer(0, longBuf());
     patterns.setSamplerCell(0, 0, { on: true });
     clock.fireTick(0); // arrangement recomputes samplerPlayBank = 2 at the bar
     expect(ctx.createBufferSource).toHaveBeenCalledTimes(1);
@@ -76,7 +107,7 @@ describe('SamplerMachine', () => {
   it('plays ratchet sub-hits evenly spaced across the step', () => {
     const { ctx, clock, patterns, sm } = build();
     sm.setEnabled(true);
-    sm.setBuffer(0, makeStubBuffer());
+    sm.setBuffer(0, longBuf());
     patterns.setSamplerCell(0, 0, { on: true, ratchet: 3 });
     clock.fireTick(0);
     expect(ctx.createBufferSource).toHaveBeenCalledTimes(3);
@@ -90,7 +121,7 @@ describe('SamplerMachine', () => {
   it('chokes the hit at gate × step duration when gate < 1', () => {
     const { ctx, clock, patterns, sm } = build();
     sm.setEnabled(true);
-    sm.setBuffer(0, makeStubBuffer());
+    sm.setBuffer(0, longBuf());
     patterns.setSamplerCell(0, 0, { on: true, velocity: 0.6, gate: 0.5 });
     clock.fireTick(0);
     const cut = clock.sixteenthDuration() * 0.5;
@@ -104,22 +135,23 @@ describe('SamplerMachine', () => {
   it('does not schedule a cut at gate 1 (natural decay)', () => {
     const { ctx, clock, patterns, sm } = build();
     sm.setEnabled(true);
-    sm.setBuffer(0, makeStubBuffer());
+    sm.setBuffer(0, longBuf());
     patterns.setSamplerCell(0, 0, { on: true });
     clock.fireTick(0);
     const src = ctx.createBufferSource.mock.results[0]!.value;
     const g = ctx.createGain.mock.results.at(-1)!.value;
     // "No cut" is a ramp DOWN to 0 that never happens — not "no scheduling at
     // all": every hit now ramps up from 0 as its attack (REQ-a-slot-starts-from-zero).
-    const down = g.gain.linearRampToValueAtTime.mock.calls.filter((c: number[]) => c[0] === 0);
+    // The fade into the buffer's own end (REQ-a-slot-ends-at-zero) is not a cut.
+    const down = g.gain.linearRampToValueAtTime.mock.calls.filter((c: number[]) => c[0] === 0 && c[1]! < LONG_S);
     expect(down).toHaveLength(0);
-    expect(src.stop).not.toHaveBeenCalled();
+    expect(cutShort(src)).toHaveLength(0);
   });
 
   it('skips the step when the probability roll fails', () => {
     const { ctx, clock, patterns, sm } = build();
     sm.setEnabled(true);
-    sm.setBuffer(0, makeStubBuffer());
+    sm.setBuffer(0, longBuf());
     patterns.setSamplerCell(0, 0, { on: true, prob: 0.5 });
     const rnd = vi.spyOn(Math, 'random').mockReturnValue(0.9);
     clock.fireTick(0);
@@ -135,20 +167,37 @@ describe('SamplerMachine', () => {
     it('fades and stops a tied hit that had no choke of its own', () => {
       const { ctx, clock, patterns, sm } = build();
       sm.setEnabled(true);
-      sm.setBuffer(0, makeStubBuffer());
+      sm.setBuffer(0, longBuf());
       patterns.setSamplerCell(0, 0, { on: true, velocity: 0.6, gate: 1, tie: true });
       clock.fireTick(0);
 
       const src = ctx.createBufferSource.mock.results[0]!.value;
       const g = ctx.createGain.mock.results.at(-1)!.value; // per-hit velocity gain
-      expect(src.stop).not.toHaveBeenCalled(); // tie ⇒ nothing scheduled
+      expect(cutShort(src)).toHaveLength(0); // tie ⇒ no cut, only its natural end
 
       ctx.currentTime = 4;
       sm.stopAll();
 
-      expect(g.gain.cancelScheduledValues).toHaveBeenCalledWith(4);
-      expect(g.gain.linearRampToValueAtTime).toHaveBeenCalledWith(0, 4.005);
-      expect(src.stop).toHaveBeenCalledWith(4.03);
+      // One render quantum ahead: the mock reports no baseLatency (live-trigger-timing.md).
+      const at = 4 + 128 / ctx.sampleRate;
+      expect(g.gain.cancelScheduledValues).toHaveBeenCalledWith(at);
+      expect(g.gain.linearRampToValueAtTime).toHaveBeenCalledWith(0, at + 0.005);
+      expect(src.stop).toHaveBeenCalledWith(at + 0.03);
+    });
+
+    it('cuts one render burst ahead (live-trigger-timing.md REQ-a-cut-made-now-starts-ahead-of-the-render)', () => {
+      // A 5 ms fade anchored at bare currentTime could already be over when it
+      // rendered, i.e. a hard cut: under load 6 of 34 stops ticked, 0 of 34 ahead.
+      const { ctx, clock, patterns, sm } = build();
+      sm.setEnabled(true);
+      sm.setBuffer(0, longBuf());
+      patterns.setSamplerCell(0, 0, { on: true, velocity: 0.6, gate: 1, tie: true });
+      clock.fireTick(0);
+      const g = ctx.createGain.mock.results.at(-1)!.value;
+      ctx.currentTime = 4;
+      (ctx as unknown as { baseLatency: number }).baseLatency = 0.01;
+      sm.stopAll();
+      expect(g.gain.cancelScheduledValues.mock.calls.at(-1)![0]).toBeCloseTo(4.01, 12);
     });
 
     // v12 regression. `stopAll` open-coded the four lines `cutHit` owns and had
@@ -159,7 +208,7 @@ describe('SamplerMachine', () => {
     it('anchors the fade analytically rather than reading gain.value', () => {
       const { ctx, clock, patterns, sm } = build();
       sm.setEnabled(true);
-      sm.setBuffer(0, makeStubBuffer());
+      sm.setBuffer(0, longBuf());
       patterns.setSamplerCell(0, 0, { on: true, velocity: 0.6, gate: 1, tie: true });
       clock.fireTick(0);
       const g = ctx.createGain.mock.results.at(-1)!.value;
@@ -178,7 +227,7 @@ describe('SamplerMachine', () => {
     it('does not push the end of a hit that is already ending sooner', () => {
       const { ctx, clock, patterns, sm } = build();
       sm.setEnabled(true);
-      sm.setBuffer(0, makeStubBuffer());
+      sm.setBuffer(0, longBuf());
       patterns.setSamplerCell(0, 0, { on: true, velocity: 0.6, gate: 1, tie: true });
       clock.fireTick(0);
       const src = ctx.createBufferSource.mock.results[0]!.value;
@@ -197,7 +246,7 @@ describe('SamplerMachine', () => {
     it('leaves a finished hit alone — onended drops it from the in-flight set', () => {
       const { ctx, clock, patterns, sm } = build();
       sm.setEnabled(true);
-      sm.setBuffer(0, makeStubBuffer());
+      sm.setBuffer(0, longBuf());
       patterns.setSamplerCell(0, 0, { on: true, velocity: 0.6 });
       clock.fireTick(0);
 
@@ -205,20 +254,20 @@ describe('SamplerMachine', () => {
       src.onended?.();          // the sample ran out on its own
       sm.stopAll();
 
-      expect(src.stop).not.toHaveBeenCalled();
+      expect(cutShort(src)).toHaveLength(0);
       expect(src.disconnect).toHaveBeenCalled();
     });
 
     it('is not wired to the clock itself — the stop policy lives in Engine', () => {
       const { ctx, clock, patterns, sm } = build();
       sm.setEnabled(true);
-      sm.setBuffer(0, makeStubBuffer());
+      sm.setBuffer(0, longBuf());
       patterns.setSamplerCell(0, 0, { on: true, velocity: 0.6, gate: 1, tie: true });
       clock.fireTick(0);
 
       const src = ctx.createBufferSource.mock.results[0]!.value;
       clock.fireStop();
-      expect(src.stop).not.toHaveBeenCalled();
+      expect(cutShort(src)).toHaveLength(0);
     });
   });
 
@@ -228,13 +277,13 @@ describe('SamplerMachine', () => {
     const seen: number[] = [];
     const off = sm.onBufferChange((slot) => seen.push(slot));
 
-    sm.setBuffer(3, makeStubBuffer());
+    sm.setBuffer(3, longBuf());
     sm.setBuffer(3, null);
-    sm.setBuffer(99, makeStubBuffer()); // out of range: no slot changed, no event
+    sm.setBuffer(99, longBuf()); // out of range: no slot changed, no event
     expect(seen).toEqual([3, 3]);
 
     off();
-    sm.setBuffer(0, makeStubBuffer());
+    sm.setBuffer(0, longBuf());
     expect(seen).toEqual([3, 3]);
   });
 });
@@ -252,7 +301,7 @@ describe('a slot starts from zero and carries its choke (v7, REQ-a-slot-starts-f
   it('ramps up from 0 instead of jumping to velocity', () => {
     const { ctx, clock, patterns, sm } = build();
     sm.setEnabled(true);
-    sm.setBuffer(0, makeStubBuffer());
+    sm.setBuffer(0, longBuf());
     patterns.setSamplerCell(0, 0, { on: true, velocity: 0.6 });
     clock.fireTick(0);
 
@@ -268,7 +317,7 @@ describe('a slot starts from zero and carries its choke (v7, REQ-a-slot-starts-f
   it('shifts the choke by the same delta when the start is clamped out of the past', () => {
     const { ctx, clock, patterns, sm } = build();
     sm.setEnabled(true);
-    sm.setBuffer(0, makeStubBuffer());
+    sm.setBuffer(0, longBuf());
     patterns.setSamplerCell(0, 0, { on: true, velocity: 0.6, gate: 0.5 });
 
     ctx.currentTime = 2;              // "now" is well past the tick's scheduled time
@@ -339,7 +388,8 @@ describe('the per-slot channel and voice window (v8, REQ-each-slot-has-a-channel
     const src = lastSrc(rig.ctx);
     expect(src.playbackRate.value).toBe(1); // no rate write
     expect(src.start.mock.calls[0]).toHaveLength(1); // no start offset
-    expect(src.stop).not.toHaveBeenCalled(); // no scheduled cut
+    // No cut of its own: only the fade into the buffer's end (REQ-a-slot-ends-at-zero).
+    expect(src.stop.mock.calls).toEqual([[(2 - 0.005) + 0.03]]);
   });
 
   it('pitches by varispeed', () => {
@@ -382,7 +432,9 @@ describe('the per-slot channel and voice window (v8, REQ-each-slot-has-a-channel
     const src = lastSrc(rig.ctx);
     // … is the LAST 0.5 s of the reversed copy.
     expect(src.start).toHaveBeenCalledWith(0, 1.5);
-    expect(src.stop).toHaveBeenCalledWith(0.5 + 0.03);
+    // That window ends where the reversed copy does, so it fades out BEFORE the
+    // end rather than after it (REQ-a-slot-ends-at-zero).
+    expect(src.stop).toHaveBeenCalledWith((0.5 - 0.005) + 0.03);
     expect(rig.ctx.createBuffer).toHaveBeenCalledTimes(1); // the copy was built
   });
 
@@ -511,7 +563,7 @@ describe('choke groups, mono and the voice cap (v9, REQ-a-slot-can-cut-another-s
     clock.fireTick(0);
     const open = ctx.createGain.mock.results.at(-1)!.value;
     const openSrc = ctx.createBufferSource.mock.results.at(-1)!.value;
-    expect(openSrc.stop).not.toHaveBeenCalled();
+    expect(cutShort(openSrc)).toHaveLength(0);
 
     clock.fireTick(0.08);
     expect(open.gain.linearRampToValueAtTime).toHaveBeenCalledWith(0, 0.085);
@@ -546,7 +598,7 @@ describe('choke groups, mono and the voice cap (v9, REQ-a-slot-can-cut-another-s
     clock.fireTick(0);
     const other = ctx.createBufferSource.mock.results.at(-1)!.value;
     clock.fireTick(0.08);
-    expect(other.stop).not.toHaveBeenCalled();
+    expect(cutShort(other)).toHaveLength(0);
   });
 
   it('groups are independent of one another (edge)', () => {
@@ -559,7 +611,18 @@ describe('choke groups, mono and the voice cap (v9, REQ-a-slot-can-cut-another-s
     clock.fireTick(0);
     const first = ctx.createBufferSource.mock.results.at(-1)!.value;
     clock.fireTick(0.08);
-    expect(first.stop).not.toHaveBeenCalled();
+    expect(cutShort(first)).toHaveLength(0);
+  });
+
+  it('schedules an audition one render burst ahead (live-trigger-timing.md REQ-a-live-trigger-starts-ahead-of-the-render)', () => {
+    // A slot's 0.5 ms attack anchored in the past rendered already done: under
+    // load a live slot's onset reached 27x that of the same hit scheduled ahead.
+    const { ctx, sm } = loaded();
+    ctx.currentTime = 3;
+    (ctx as unknown as { baseLatency: number }).baseLatency = 0.01;
+    sm.triggerSlot(0);
+    const src = ctx.createBufferSource.mock.results.at(-1)!.value as { start: ReturnType<typeof vi.fn> };
+    expect(src.start.mock.calls.at(-1)![0]).toBeCloseTo(3.01, 12);
   });
 
   it('a mono slot cuts its own previous hit', () => {
@@ -576,7 +639,7 @@ describe('choke groups, mono and the voice cap (v9, REQ-a-slot-can-cut-another-s
     sm.triggerSlot(0);
     const first = ctx.createBufferSource.mock.results.at(-1)!.value;
     sm.triggerSlot(0);
-    expect(first.stop).not.toHaveBeenCalled();
+    expect(cutShort(first)).toHaveLength(0);
     expect(ctx.createBufferSource).toHaveBeenCalledTimes(2);
   });
 
@@ -586,7 +649,7 @@ describe('choke groups, mono and the voice cap (v9, REQ-a-slot-can-cut-another-s
     sm.triggerSlot(1);
     const other = ctx.createBufferSource.mock.results.at(-1)!.value;
     sm.triggerSlot(0);
-    expect(other.stop).not.toHaveBeenCalled();
+    expect(cutShort(other)).toHaveLength(0);
   });
 
   it('steals the oldest hit rather than stacking without limit (REQ-a-slots-polyphony-is-bounded)', () => {
@@ -595,7 +658,7 @@ describe('choke groups, mono and the voice cap (v9, REQ-a-slot-can-cut-another-s
     const oldest = ctx.createBufferSource.mock.results.at(-1)!.value;
     // 16 is the cap; the 17th is what forces a steal.
     for (let i = 0; i < 16; i++) sm.triggerSlot(0);
-    expect(oldest.stop).toHaveBeenCalled();
+    expect(cutShort(oldest).length).toBeGreaterThan(0); // stolen, not merely ending
   });
 
   it('does not steal below the cap (REQ-a-slots-polyphony-is-bounded, edge)', () => {
@@ -603,7 +666,7 @@ describe('choke groups, mono and the voice cap (v9, REQ-a-slot-can-cut-another-s
     sm.triggerSlot(0);
     const oldest = ctx.createBufferSource.mock.results.at(-1)!.value;
     for (let i = 0; i < 14; i++) sm.triggerSlot(0);
-    expect(oldest.stop).not.toHaveBeenCalled();
+    expect(cutShort(oldest)).toHaveLength(0);
   });
 
   it('never pushes an already-ending hit later (edge)', () => {

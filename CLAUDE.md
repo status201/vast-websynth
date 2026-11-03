@@ -70,6 +70,10 @@ Scripts are in `package.json`. Only the non-obvious ones need saying:
   renders through Gecko: it and Blink disagree on `AudioParam` automation
   audibly, and the mock param can't model it, so a change touching automation
   gets both.
+- `npm run bench:perf` measures the **audio thread** (render-callback load, from
+  Blink's trace) and the main thread across ten fixed scenarios; `--name` saves a
+  run, `--compare a b` diffs two. A change that should cost less is shown with a
+  before/after pair, not argued. → `features/runtime-performance.md`.
 - Tests: `specs/recipes/write-a-test.md` (Vitest + Playwright, the mock
   `AudioContext`, the storage mock, why tests live outside `src/`). There is no
   linter. **A DOM is opt-in**: `tests/ui/**` gets jsdom, everything else runs

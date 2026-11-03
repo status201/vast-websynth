@@ -14,6 +14,33 @@ export const RAMP_SMOOTH = 0.02;
  */
 export const RAMP_BYPASS = 0.025;
 
+/** Frames per render quantum — the shortest a live note's margin can be. */
+const RENDER_QUANTUM_FRAMES = 128;
+/** The longest live margin, whatever the device reports: past this it is latency. */
+export const LIVE_MARGIN_MAX_S = 0.02;
+
+/**
+ * Where a trigger with no time of its own lands — a key, a MIDI note, a pad
+ * (live-trigger-timing.md REQ-a-live-trigger-starts-ahead-of-the-render):
+ * `currentTime` plus one render
+ * burst. The renderer runs a device callback's worth of quanta back to back, so
+ * bare `currentTime` can already be in the past by the time the event is read,
+ * and an attack anchored in the past renders most of the way to peak on its
+ * first sample. `baseLatency` is that burst. A realtime context that reports
+ * none (Gecko says `0`) gets the ceiling, since 10 ms was measured too short
+ * there (REQ-the-margin-follows-the-device); an offline context, with no burst
+ * to outrun, gets one quantum. Only a realtime context has `getOutputTimestamp`.
+ */
+export function liveStartTime(ctx: BaseAudioContext): number {
+  const quantum = RENDER_QUANTUM_FRAMES / ctx.sampleRate;
+  const rt = ctx as Partial<AudioContext>;
+  const base = rt.baseLatency;
+  const burst = typeof base === 'number' && Number.isFinite(base) && base > 0
+    ? base
+    : typeof rt.getOutputTimestamp === 'function' ? LIVE_MARGIN_MAX_S : quantum;
+  return ctx.currentTime + Math.min(LIVE_MARGIN_MAX_S, Math.max(quantum, burst));
+}
+
 export function rampTo(
   param: AudioParam,
   value: number,
