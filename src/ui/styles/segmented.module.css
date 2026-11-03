@@ -48,6 +48,16 @@
     opacity: 0.85;
   }
 
+  /* Not in play in the current mode (voicing.md REQ-the-trigger-switches-dim-in-poly):
+     the Knob's disabled look, so a dimmed switch and a dimmed knob read as one idea. */
+  .disabled {
+    opacity: 0.45;
+  }
+
+  .disabled button {
+    cursor: default;
+  }
+
   .icons button { padding: 5px 7px; min-width: 0; }
 
   .icons button :global(svg.wave-icon) { display: block; width: 22px; height: 13px; }

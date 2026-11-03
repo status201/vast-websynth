@@ -3,7 +3,7 @@ import type { Performance } from './performance';
 import type { PatternStore, SeqStep } from '../../state/patterns';
 import { SEQ_TRACK_COUNT } from '../../state/patterns';
 import { MIDI_NOTE_MIN, MIDI_NOTE_MAX } from '../../state/limits';
-import type { SynthOutput } from './note-output';
+import type { NoteOptions, SynthOutput } from './note-output';
 import { ScaleQuantizer } from './scale-quantizer';
 import { microOffset, rollProb, stepBend, stepHits } from './step-hits';
 import type { TickSubscriber } from './tick-source';
@@ -62,6 +62,8 @@ export class StepSequencer {
   private enabled = false;
   private muted = false;
   private polyphonic = true;
+  /** `seq.tieMode`: false = Legato (the default), true = Re-strike (ADR-028). */
+  private restrikeTies = false;
   private readonly tracks: SeqTrackState[] =
     Array.from({ length: SEQ_TRACK_COUNT }, newTrackState);
   private readonly stepListeners = new ListenerSet<[number, number]>();
@@ -110,6 +112,13 @@ export class StepSequencer {
     if (!poly) {
       for (let t = 1; t < this.tracks.length; t++) this.releaseTrack(this.tracks[t]!);
     }
+  }
+
+  /** `seq.tieMode` Re-strike (REQ-re-strike-keeps-the-old-tie) or Legato
+   *  (REQ-a-tie-continues-the-note-without-retriggering). Read at the next tied
+   *  step, so a change mid-tie simply takes over there. */
+  setRestrikeTies(on: boolean): void {
+    this.restrikeTies = on;
   }
 
   /** Per-track mute (REQ-per-track-mute): stop triggering, keep the playhead advancing. */
@@ -242,20 +251,27 @@ export class StepSequencer {
     // step the user sees, so a lane at 1/8 must hold twice as long (meter.md
     // REQ-each-machine-has-a-step-rate). At the default rate the two are the same number.
     const hits = stepHits(s, at, cellDur);
-    for (const h of hits) {
+    // A legato tie CONTINUES the held note on this step's first sub-hit: the pool
+    // moves its voices to `note` without striking them (REQ-a-tie-continues-the-note-without-retriggering).
+    // It also owns the fallback, releasing the old note itself when its voices are
+    // gone, so nothing here has to. The later sub-hits of a ratchet strike as usual.
+    const continues = st.prevTied && st.lastPlayedNote >= 0 && !this.restrikeTies;
+    hits.forEach((h, i) => {
       // Each sub-hit bends over its own gate (step-settings.md REQ-every-sub-hit-re-bends);
       // a step at bend 0 passes no bend at all.
-      this.output.playNote(note, s.velocity, h.t, { pan: st.pan, panGroup: st.index, bend: stepBend(s, h) });
+      const opts: NoteOptions = { pan: st.pan, panGroup: st.index, bend: stepBend(s, h) };
+      if (continues && i === 0) opts.legatoFrom = st.lastPlayedNote;
+      this.output.playNote(note, s.velocity, h.t, opts);
       // The final sub-hit holds (no release) when the step ties into the next.
       if (!h.holds) this.output.releaseNote(note, h.gateEnd);
-    }
-    // A tie carries its voice only into the SAME pitch (REQ-the-note-releases-at-gate-end).
-    // In poly the new pitch took a voice of its own, and the tied one is about
-    // to stop being `lastPlayedNote` — the only handle stop and seek release
-    // through — so it would ring forever. After the attack, not before: in mono
-    // the new note has already taken over those voices, which makes this a no-op
-    // there instead of a release racing the glide.
-    if (st.prevTied && st.lastPlayedNote >= 0 && st.lastPlayedNote !== note) {
+    });
+    // Re-strike (REQ-re-strike-keeps-the-old-tie): a tie carries its voice only
+    // into the SAME pitch. In poly the new pitch took a voice of its own, and the
+    // tied one is about to stop being `lastPlayedNote` — the only handle stop and
+    // seek release through — so it would ring forever. After the attack, not
+    // before: in mono the new note has already taken over those voices, which
+    // makes this a no-op there instead of a release racing the glide.
+    if (this.restrikeTies && st.prevTied && st.lastPlayedNote >= 0 && st.lastPlayedNote !== note) {
       this.output.releaseNote(st.lastPlayedNote, at);
     }
     st.lastPlayedNote = note;

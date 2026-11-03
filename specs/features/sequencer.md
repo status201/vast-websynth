@@ -3,7 +3,7 @@
 ```yaml
 id: sequencer
 status: implemented
-version: 14
+version: 15
 owner: core
 related:
   - architecture
@@ -22,6 +22,7 @@ related:
   - scale-quantization
   - chord-tools
   - ../decisions/adr-023-the-synth-channel-goes-stereo-on-demand
+  - ../decisions/adr-028-a-tie-never-re-strikes
 source:
   - src/audio/transport/sequencer.ts
   - src/audio/transport/scale-quantizer.ts   # the transposed note is then quantized
@@ -69,10 +70,44 @@ scoped to its own visible grid and pinned to one bank.
   the seq-only bend ([step-settings](step-settings.md) REQ-a-seq-step-carries-a-bend).
   `micro` is applied here rather than inside `stepHits`.
 - **REQ-the-note-releases-at-gate-end** — Release the held note at `gateEnd`; `tie`
-  holds the last ratchet sub-hit into the next step. **A tie only carries its voice
-  into the same pitch**: when the next step sounds a *different* note, the tied note
-  is released at that step's attack. In poly the new pitch takes its own voice and
-  nothing else would release the old one; in mono it is a no-op.
+  holds the last ratchet sub-hit into the next step, which then decides how the held
+  note goes on (REQ-a-tie-continues-the-note-without-retriggering).
+- **REQ-a-tie-continues-the-note-without-retriggering** — While `seq.tieMode` is
+  **Legato** (0, the default), a step that sounds after a tied step on the same track
+  **continues** that track's held note instead of striking a new one. Its first
+  sub-hit is played with `legatoFrom: lastPlayedNote`, and the voice pool hands the
+  held voices over without retriggering either envelope ([voicing](voicing.md)
+  REQ-a-legato-note-takes-over-the-held-voices):
+  - **the same pitch** sounds as one note, so the amp and filter envelopes run on
+    through decay into sustain. A short-decay pluck tied over four steps is one
+    pluck, not four.
+  - **a different pitch** moves the voices to it, gliding as `glide.mode` /
+    `mixer.glide` say. Each track is monophonic, so this holds in **Poly** too: tie
+    plus glide slides one track's line without Mono voicing.
+  - the step's own **velocity** does not re-strike: the note keeps its first
+    strike's level, and so does the mod-matrix velocity source. Its **bend** still
+    applies, because the step that sounds defines the pitch ([step-settings](step-settings.md)
+    REQ-every-sub-hit-re-bends).
+  - only the **first** sub-hit continues. A ratcheted step's later sub-hits strike as
+    they always did.
+  - if the held voices are gone (stolen by another track's note), the step plays a
+    normal note-on and the pool releases what is left of the old note. A tie never
+    strands a voice.
+
+  The old tie re-struck: it skipped the release, then sent a full note-on, so
+  `Envelope.trigger` re-attacked from wherever the curve had fallen. That was
+  inaudible at sustain 1 and a new pluck on a short decay, and the filter envelope
+  re-swept on every tied step ([ADR-028](../decisions/adr-028-a-tie-never-re-strikes.md)).
+- **REQ-re-strike-keeps-the-old-tie** — `seq.tieMode` **Re-strike** (1) keeps that
+  behaviour **exactly**, for the songs whose sound depends on it: no `legatoFrom` is
+  passed, every tied-into step strikes a note-on, and a tie into a different pitch
+  releases the tied note at the new step's attack (after it, so it is a no-op in mono
+  and races no glide; in poly the new pitch took its own voice and nothing else would
+  release the old one). It is a song-level `seq.*` scalar, so presets never carry it
+  and no `SongFile` bump is needed. The demos built on the re-pluck set it in their
+  params. A trigger switch at Single still applies under it in Mono, per envelope
+  ([voicing](voicing.md) REQ-single-trigger-legatos-a-mono-line): overlapping notes on
+  a single-trigger mono synth do not re-strike that envelope.
 - **REQ-mute-keeps-the-playhead-advancing** — `setMuted` stops triggering but keeps
   the playhead advancing, and leaves live play and the voice bus untouched.
 - **REQ-seq-master-sets-the-voice-bus-volume** — `seq.master` is the voice-bus volume
@@ -222,6 +257,7 @@ StepSequencer:  # src/audio/transport/sequencer.ts
   setTrackMuted(track, muted)
   setTrackPan(track, p)         # -1..1, rides the next note
   setPolyphonic(poly)           # gates tracks 2..4
+  setRestrikeTies(on)           # seq.tieMode: false legato (default) · true re-strike
   onStep(fn) / onNote(fn) -> unsubscribe      # playhead + note viz
   # onNote's releaseAt is the LAST sub-hit's gate end (= lastReleaseAt)
   # reads patterns.seqBank(arrangement.seqPlayBank) each tick via clock.onTick
@@ -247,7 +283,8 @@ CollapseToggleOptions.onChange?(collapsed): void   # from the one place `.collap
 BankBar.setFollowing(on): void   # src/ui/components/bank-bar.ts
 
 SynthOutput:           # src/audio/transport/note-output.ts
-  playNote(note, velocity, when?, opts?)   # opts.pan -1..1, opts.panGroup
+  playNote(note, velocity, when?, opts?)   # opts.pan -1..1, opts.panGroup,
+                                           # opts.legatoFrom (the held note it continues)
   releaseNote(note, when?)
   # opts is optional at every layer, so the arp and live keys stay centred
 
@@ -268,6 +305,7 @@ seq.t<i>.pan:  { range: -1..1, default: 0, format: fmtPan }   # i = 0..3
 seq.master: { range: 0..1, default: 1 }      # voice-bus volume (no-op default)
 seq.mute:   { discrete, labels: [on, mute], default: 0 }   # lane mixer (song-mode)
 seq.solo:   { discrete, labels: [off, solo], default: 0 }
+seq.tieMode: { discrete, labels: [legato, re-strike], default: 0 }   # ADR-028: the default is the fix
 seq.len / seq.rate                           # meter.md
 # step data: SeqStep[] in PatternStore (not the bus) — see step-settings.md
 ```
@@ -281,8 +319,13 @@ engine (subscribeParams):
   seq.t<i>.pan -> this.seq.setTrackPan(i, v)  # Engine holds the four values and drives
     # voice.setSpread(some non-zero)
   seq.mute/solo -> laneMixer.setMute/setSolo (-> seq.setMuted), see song-mode.md
+  seq.tieMode -> this.seq.setRestrikeTies(v >= 0.5)
 hit math: stepHits / rollProb (step-hits.ts); releases voice at gateEnd
 ui: src/ui/panels/seq-panel.ts (seq-step-<i> buttons + StepSettingsEditor)
+  the edit row carries a TIES Segmented (seg-seq.tieMode) right after the
+  step's Tie button: the per-step switch and the song-wide meaning sit together
+  gestures (ADR-014): click a segment = set the mode for the whole song; no drag,
+  no wheel, no long-press. Keyboard: Tab focus + Enter/Space, as every Segmented.
 step input:
   seq-panel: one setArmed(on) owns `armed` + recBtn '.on' + stepRow '.recording';
     arming also calls bankBar.setFollowing(false);
@@ -367,14 +410,47 @@ Scenario: Stopping the song ends a tied note instead of hanging it (REQ-a-stop-r
   And the user never has to reach for Panic to silence it
 # pinned by: tests/audio/transport/sequencer.test.ts
 
-Scenario: A tie into a different pitch releases the tied note (REQ-the-note-releases-at-gate-end, regression)
-  Given voicing is poly and a step holding note 60 ties into a step holding note 64
+Scenario: A tie into the same pitch is one note, not a re-pluck (REQ-a-tie-continues-the-note-without-retriggering, regression)
+  Given seq.tieMode is Legato and a step holding note 60 ties into a step holding note 60
   When the second step fires
-  Then note 60 is released at the second step's attack while 64 sounds
+  Then it is played with legatoFrom 60 and nothing releases 60 between the two
+  And through the real pool the voice is not re-struck, so neither envelope retriggers
+# pinned by: tests/audio/transport/sequencer.test.ts
+
+Scenario: A tie into a different pitch hands its voice over, in Poly too (REQ-a-tie-continues-the-note-without-retriggering)
+  Given seq.tieMode is Legato, voicing is poly and a step holding note 60 ties into a step holding note 64
+  When the second step fires
+  Then 60's voice moves to 64 without a retrigger and no second voice is taken
+  And nothing releases 60, because 60 no longer holds a voice
   And after a stop no voice is left sounding
-  And a tie into the SAME pitch still keeps its voice, unreleased
+# pinned by: tests/audio/transport/sequencer.test.ts
+
+Scenario: Only the first sub-hit of a ratcheted step continues the tie (REQ-a-tie-continues-the-note-without-retriggering, edge)
+  Given seq.tieMode is Legato and a tied step runs into a step with ratchet 3
+  When that step fires
+  Then its first sub-hit carries legatoFrom and the other two strike as plain note-ons
+# pinned by: tests/audio/transport/sequencer.test.ts
+
+Scenario: A tie whose voice was stolen still sounds and strands nothing (REQ-a-tie-continues-the-note-without-retriggering, edge)
+  Given a tied note whose voices another track's note has stolen
+  When the tied-into step fires
+  Then it plays as a normal note-on and no voice is left claiming the old note
+# pinned by: tests/audio/polyphony.test.ts
+
+Scenario: Re-strike keeps the old tie exactly (REQ-re-strike-keeps-the-old-tie, back-compat)
+  Given seq.tieMode is Re-strike and a step holding note 60 ties into a step holding note 64
+  When the second step fires
+  Then 64 is played with no legatoFrom, and note 60 is released at 64's attack, after it
+  And a tie into the SAME pitch re-strikes its voice without releasing it
   And in mono the release is a no-op, because 64 already took 60's voices
 # pinned by: tests/audio/transport/sequencer.test.ts
+
+Scenario: An old song with no tieMode plays Legato (REQ-re-strike-keeps-the-old-tie, ADR-028)
+  Given a song file that carries no seq.tieMode key
+  When it loads
+  Then seq.tieMode is 0 and its ties continue their notes
+  And only a song that names seq.tieMode 1 re-strikes
+# pinned by: tests/state/params.test.ts
 
 Scenario: The stop release is never scheduled before the note-on (edge)
   Given a note-on is still sitting in the transport look-ahead when the user stops
@@ -475,3 +551,10 @@ Scenario: Two tracks on one pitch collapse to one pan (REQ-two-tracks-on-one-pit
   build without the stage (must be identical), tracks spread hard L/R, and the same
   with an LFO on `pan`. Render Firefox too: this writes an `AudioParam` at note-on and
   relies on up-mixing. `audio-metrics` reads the mono down-mix, so check per channel.
+- **The tie is signed off by ear** (ADR-010): Re-strike runs the pre-v15 code path
+  unchanged (no `legatoFrom` reaches the pool), which the suite pins call for call.
+  Rendered takes cannot confirm it: two renders of one demo at the same commit
+  differ as much as Re-strike and Legato do (10 ms envelope correlation ~0.84 either
+  way, even with one oscillator and no unison or drift). So the comparison is a
+  listen: a re-pluck demo at Re-strike against the build before, and at Legato
+  against Re-strike.

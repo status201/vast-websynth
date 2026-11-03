@@ -967,10 +967,19 @@ export const HELP_TOPICS: Record<TopicId, HelpTopic> = {
   'seq.tie': {
     title: 'Tie / Slide',
     body:
-      '<p><strong>Tie</strong> holds the step into the next one instead of releasing it, for ' +
-      'smooth legato lines.</p>' +
-      '<p>With <strong>glide</strong> turned up (and Mono voicing) the held note <em>slides</em> ' +
-      'in pitch to the next step — the classic acid-bassline slide.</p>',
+      '<p><strong>Tie</strong> holds the step into the next one: the next step carries on the same ' +
+      'note instead of starting a new one, so a tied run is one attack — a smooth legato line.</p>' +
+      '<p>Tied into a <em>different</em> pitch, the note moves there without a new attack, and with ' +
+      '<strong>glide</strong> turned up it <em>slides</em> — the classic acid-bassline slide. Each ' +
+      'track is its own line, so this works in Poly too.</p>' +
+      '<p><strong>Ties</strong> beside it sets this for the whole song: <strong>LEGATO</strong> is the ' +
+      'above; <strong>RE-STRIKE</strong> re-attacks the held voice on every tied step, the older ' +
+      'behaviour some songs are built on — repeated plucks with no gap between them.</p>' +
+      '<p>That sounds close to an untied step at <strong>gate 100%</strong>, but is not the same. ' +
+      'At gate 100% the note is released as the next one starts, so in Poly the next note takes a ' +
+      'fresh voice from silence while the old one fades out under it, and in Mono a LEGATO glide ' +
+      'does not slide into it. RE-STRIKE keeps the one voice and re-attacks it from wherever it ' +
+      'had decayed to, with no tail, and it still slides.</p>',
   },
   'seq.bend': {
     title: 'Bend (scoop / fall)',

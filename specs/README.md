@@ -274,7 +274,7 @@ specs/
     envelopes.md       ·  amp + filter ADSR
     lfo.md             ·  the two LFOs + mod wheel
     mod-matrix.md      ·  many sources -> many destinations, summed in the audio graph
-    voicing.md         ·  poly/mono, unison, glide, drift, pitch bend
+    voicing.md         ·  poly/mono, unison, glide, drift, pitch bend, single/multi trigger per envelope
     live-trigger-timing.md · where a key, MIDI note or pad lands: one render burst ahead (cross-cutting)
     # — effects —
     effects.md         ·  the eq/dirt/wah/phaser/flanger/chorus/delay/reverb/duck insert chains (owns the order)
@@ -295,7 +295,7 @@ specs/
     transport-window.md · the Song-panel transport row + its floating window (Play/Pause)
     transport-loop.md  ·  loop a range of bars (Loop button + two scrubber picks, bar-line wrap)
     arpeggiator.md     ·  held-note arp + transport ownership
-    sequencer.md       ·  the 4-track, variable-length synth sequencer
+    sequencer.md       ·  the 4-track, variable-length synth sequencer; legato / re-strike ties
     lane-fold.md       ·  the per-lane fold caret shared by the sequencer and motion
     scale-quantization.md ·  key/scale (+ one extra note) as a live pitch filter over every note source
     chord-tools.md     ·  diatonic chord writer (4 tracks) + live chord memory, ≤4-note voicings
@@ -433,6 +433,7 @@ specs/
     adr-025-the-bank-ceiling-is-sixteen-and-the-bar-wraps.md  ·  sixteen banks (A–P, SongFile v9); the bank bar wraps, never pages
     adr-026-oscillator-sync-is-a-per-voice-worklet-pair.md  ·  sync renders osc1 + osc2 in one worklet per voice, only while engaged
     adr-027-audioparam-automation-is-anchored.md  ·  continuous controls retarget, a cancel pins; never seed a ramp from .value
+    adr-028-a-tie-never-re-strikes.md  ·  a tie continues its note; the old re-pluck is seq.tieMode Re-strike, not a version gate
 ```
 
 > Coverage note: the feature set above documents the current system. New features

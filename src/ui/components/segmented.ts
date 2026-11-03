@@ -35,6 +35,20 @@ export class Segmented {
     });
   }
 
+  /**
+   * Dim the switch and refuse input, keeping its place and its value — the
+   * `Knob.setDisabled` look (voicing.md REQ-the-trigger-switches-dim-in-poly). The
+   * native `disabled` blocks the click and the keyboard alike; `why` becomes the
+   * tooltip while dimmed, so the control says what would bring it back.
+   */
+  setDisabled(on: boolean, why?: string): void {
+    this.el.classList.toggle(styles.disabled!, on);
+    this.el.setAttribute('aria-disabled', String(on));
+    for (const b of this.buttons) b.disabled = on;
+    if (on && why) this.el.title = why;
+    else this.el.removeAttribute('title');
+  }
+
   destroy(): void {
     this.unsub();
   }

@@ -320,7 +320,9 @@ describe('StepSequencer', () => {
     expect(playNote).toHaveBeenNthCalledWith(3, 60, expect.any(Number), 2 * sub, { pan: 0, panGroup: 0 });
   });
 
-  it('tie holds into the next step instead of releasing first (legato)', () => {
+  // sequencer.md REQ-a-tie-continues-the-note-without-retriggering (v15) — the
+  // default, Legato: the step after a tie CONTINUES the held note.
+  it('tie continues the held note into the next step (legato, v15)', () => {
     const { clock, patterns, arrangement, perf } = makeTransportRig();
     const playNote = vi.fn();
     const releaseNote = vi.fn();
@@ -335,9 +337,65 @@ describe('StepSequencer', () => {
     expect(playNote).toHaveBeenCalledWith(60, expect.any(Number), 0, { pan: 0, panGroup: 0 });
     expect(releaseNote).not.toHaveBeenCalled();
 
+    clock.fireTick(0.125);
+    // The next step continues 60 as 64 — the pool hands the voice over — and
+    // nothing here releases 60: the pool owns that, fallback included.
+    expect(playNote).toHaveBeenLastCalledWith(64, expect.any(Number), 0.125,
+      { pan: 0, panGroup: 0, legatoFrom: 60 });
+    expect(releaseNote.mock.calls.filter(([n]) => n === 60)).toEqual([]);
+  });
+
+  it('a tie into the SAME pitch continues it, unreleased (legato, v15, regression)', () => {
+    const { clock, patterns, arrangement, perf } = makeTransportRig();
+    const playNote = vi.fn();
+    const releaseNote = vi.fn();
+    const seq = new StepSequencer({ playNote, releaseNote }, clock, patterns, arrangement, perf);
+    seq.setEnabled(true);
+    patterns.setSeqStep(0, 0, { on: true, note: 60, gate: 0.5, tie: true });
+    patterns.setSeqStep(0, 1, { on: true, note: 60, gate: 0.5 });
+
+    clock.fireTick(0);
+    clock.fireTick(0.125);
+    expect(playNote).toHaveBeenLastCalledWith(60, expect.any(Number), 0.125,
+      { pan: 0, panGroup: 0, legatoFrom: 60 });
+    // Its one release is its own gate end, never anything between the two steps.
+    expect(releaseNote.mock.calls).toEqual([[60, 0.125 + 0.0625]]);
+  });
+
+  it('only the first sub-hit of a ratcheted step continues the tie (v15, edge)', () => {
+    const { clock, patterns, arrangement, perf } = makeTransportRig();
+    const playNote = vi.fn();
+    const seq = new StepSequencer({ playNote, releaseNote: vi.fn() }, clock, patterns, arrangement, perf);
+    seq.setEnabled(true);
+    patterns.setSeqStep(0, 0, { on: true, note: 60, gate: 0.5, tie: true });
+    patterns.setSeqStep(0, 1, { on: true, note: 60, gate: 0.5, ratchet: 3 });
+
+    clock.fireTick(0);
+    playNote.mockClear();
+    clock.fireTick(0.125);
+    const froms = playNote.mock.calls.map(([, , , o]) => (o as { legatoFrom?: number }).legatoFrom);
+    expect(froms).toEqual([60, undefined, undefined]);
+  });
+
+  // sequencer.md REQ-re-strike-keeps-the-old-tie — the pre-v15 tie, kept exactly.
+  it('re-strike keeps the old tie: a plain note-on, then the tied note released after it', () => {
+    const { clock, patterns, arrangement, perf } = makeTransportRig();
+    const playNote = vi.fn();
+    const releaseNote = vi.fn();
+    const output: SynthOutput = { playNote, releaseNote };
+
+    const seq = new StepSequencer(output, clock, patterns, arrangement, perf);
+    seq.setEnabled(true);
+    seq.setRestrikeTies(true);
+    patterns.setSeqStep(0, 0, { on: true, note: 60, gate: 0.5, tie: true });
+    patterns.setSeqStep(0, 1, { on: true, note: 64, gate: 0.5 });
+
+    clock.fireTick(0);
+    expect(releaseNote).not.toHaveBeenCalled();
+
     clock.fireTick(0.125); // next step attacks without first releasing the tied note
     expect(playNote).toHaveBeenCalledWith(64, expect.any(Number), 0.125, { pan: 0, panGroup: 0 });
-    // v13 (REQ-the-note-releases-at-gate-end): a tie into a DIFFERENT pitch does
+    // v13 (REQ-re-strike-keeps-the-old-tie): a tie into a DIFFERENT pitch does
     // release the tied note — but only after the new attack, never before it,
     // which is what keeps mono's glide legato.
     const attack = playNote.mock.invocationCallOrder[1]!;
@@ -359,7 +417,7 @@ describe('StepSequencer', () => {
         osc1: { detuneParam: {} },
         osc2: { detuneParam: {} },
         sub: { detuneParam: {} },
-        noteOn: vi.fn(() => { v.state = 'playing'; }),
+        noteOn: vi.fn((_n: number, _v: number, _t: number, _o?: { retriggerAmp?: boolean; retriggerFil?: boolean }) => { v.state = 'playing'; }),
         noteOff: vi.fn(() => { v.state = 'releasing'; }),
         kill: vi.fn(() => { v.state = 'idle'; }),
         setGroupPan: vi.fn(),
@@ -367,7 +425,7 @@ describe('StepSequencer', () => {
       return v;
     }
 
-    function build(poly: boolean) {
+    function build(poly: boolean, tieMode = 0) {
       const rig = makeTransportRig();
       const voices = Array.from({ length: 4 }, fakeVoice);
       const pool = new Polyphony(
@@ -375,11 +433,60 @@ describe('StepSequencer', () => {
       pool.setPoly(poly);
       const seq = new StepSequencer(pool, rig.clock, rig.patterns, rig.arrangement, rig.perf);
       seq.setEnabled(true);
+      seq.setRestrikeTies(tieMode === 1);
       return { ...rig, voices };
     }
+    /** Per noteOn: was either envelope struck? A legato tie strikes neither. */
+    const retriggers = (v: ReturnType<typeof fakeVoice>) =>
+      v.noteOn.mock.calls.map(([, , , o]) => (o?.retriggerAmp ?? true) || (o?.retriggerFil ?? true));
 
-    it('releases the tied note in poly, so nothing hangs past a stop', () => {
+    // REQ-a-tie-continues-the-note-without-retriggering (v15) — the default, Legato.
+    it('legato: hands the tied voice over to a new pitch in poly, unstruck', () => {
       const { clock, patterns, voices } = build(true);
+      patterns.setSeqStep(0, 0, { on: true, note: 60, gate: 1, tie: true });
+      patterns.setSeqStep(0, 1, { on: true, note: 64, gate: 0.5 });
+
+      clock.fireTick(0);
+      clock.fireTick(0.125);
+      const used = voices.filter((v) => v.noteOn.mock.calls.length > 0);
+      expect(used).toHaveLength(1); // no second voice taken
+      expect(used[0]!.noteOn.mock.calls.map(([n]) => n)).toEqual([60, 64]);
+      expect(retriggers(used[0]!)).toEqual([true, false]);
+      // Released once, as 64 at its gate end — never as 60.
+      expect(used[0]!.noteOff).toHaveBeenCalledTimes(1);
+      expect(used[0]!.noteOff).toHaveBeenCalledWith(0.125 + 0.0625);
+
+      clock.fireStop();
+      expect(voices.filter((v) => v.state === 'playing')).toEqual([]);
+    });
+
+    it('legato: a tie into the same pitch is one note — the envelope is never re-struck (regression)', () => {
+      const { clock, patterns, voices } = build(true);
+      patterns.setSeqStep(0, 0, { on: true, note: 60, gate: 1, tie: true });
+      patterns.setSeqStep(0, 1, { on: true, note: 60, gate: 1, tie: true });
+
+      clock.fireTick(0);
+      clock.fireTick(0.125);
+      const used = voices.filter((v) => v.noteOn.mock.calls.length > 0);
+      expect(used).toHaveLength(1);
+      expect(retriggers(used[0]!)).toEqual([true, false]);
+      expect(used[0]!.noteOff).not.toHaveBeenCalled();
+    });
+
+    it('legato: mono continues on its own voice without a re-strike', () => {
+      const { clock, patterns, voices } = build(false);
+      patterns.setSeqStep(0, 0, { on: true, note: 60, gate: 1, tie: true });
+      patterns.setSeqStep(0, 1, { on: true, note: 64, gate: 1, tie: true });
+
+      clock.fireTick(0);
+      clock.fireTick(0.125);
+      expect(retriggers(voices[0]!)).toEqual([true, false]);
+      expect(voices[0]!.noteOff).not.toHaveBeenCalled();
+    });
+
+    // REQ-re-strike-keeps-the-old-tie — exactly the v13 behaviour.
+    it('re-strike: releases the tied note in poly, so nothing hangs past a stop', () => {
+      const { clock, patterns, voices } = build(true, 1);
       patterns.setSeqStep(0, 0, { on: true, note: 60, gate: 1, tie: true });
       patterns.setSeqStep(0, 1, { on: true, note: 64, gate: 0.5 });
 
@@ -394,8 +501,8 @@ describe('StepSequencer', () => {
       expect(voices.filter((v) => v.state === 'playing')).toEqual([]);
     });
 
-    it('keeps a same-pitch tie on its voice, unreleased', () => {
-      const { clock, patterns, voices } = build(true);
+    it('re-strike: keeps a same-pitch tie on its voice, unreleased, but struck again', () => {
+      const { clock, patterns, voices } = build(true, 1);
       patterns.setSeqStep(0, 0, { on: true, note: 60, gate: 1, tie: true });
       patterns.setSeqStep(0, 1, { on: true, note: 60, gate: 1, tie: true });
 
@@ -404,10 +511,11 @@ describe('StepSequencer', () => {
       const used = voices.filter((v) => v.noteOn.mock.calls.length > 0);
       expect(used).toHaveLength(1);
       expect(used[0]!.noteOff).not.toHaveBeenCalled();
+      expect(retriggers(used[0]!)).toEqual([true, true]);
     });
 
-    it('is a no-op in mono, where the new note already owns the voice', () => {
-      const { clock, patterns, voices } = build(false);
+    it('re-strike: the release is a no-op in mono, where the new note already owns the voice', () => {
+      const { clock, patterns, voices } = build(false, 1);
       patterns.setSeqStep(0, 0, { on: true, note: 60, gate: 1, tie: true });
       patterns.setSeqStep(0, 1, { on: true, note: 64, gate: 1, tie: true });
 
@@ -494,11 +602,13 @@ describe('StepSequencer — four tracks (sequencer.md REQ-four-tracks-per-bank/R
    *  of notes per tick, which vi.fn() call order alone makes awkward to read. */
   function build(scale = new ScaleQuantizer()) {
     const { clock, patterns, arrangement, perf } = makeTransportRig();
-    const played: { note: number; when: number; pan?: number; panGroup?: number }[] = [];
+    const played: { note: number; when: number; pan?: number; panGroup?: number; from?: number }[] = [];
     const released: { note: number }[] = [];
     const output: SynthOutput = {
       playNote: (note, _vel, when, opts) => {
-        played.push({ note, when: when ?? 0, pan: opts?.pan, panGroup: opts?.panGroup });
+        const p: (typeof played)[number] = { note, when: when ?? 0, pan: opts?.pan, panGroup: opts?.panGroup };
+        if (opts?.legatoFrom !== undefined) p.from = opts.legatoFrom;
+        played.push(p);
       },
       releaseNote: (note) => { released.push({ note }); },
     };
@@ -735,12 +845,12 @@ describe('StepSequencer — four tracks (sequencer.md REQ-four-tracks-per-bank/R
       clock.step = 16;
       clock.fireTick(0.2);      // bar 2, slot 1 (+5): 61 + 5 = 66 -> 65
       expect(played.map((p) => p.note)).toEqual([65]);
-      // The release carries 65 — bar 2's OWN quantized pitch. The tied voice from
-      // bar 1 is ringing at 60 and must not be re-pitched under it, which is
-      // exactly what re-deriving the quantize at the release site would do. It is
-      // released at 60, the quantized pitch it started — a tie into a different
-      // pitch ends at the new attack (REQ-the-note-releases-at-gate-end, v13).
-      expect(released.map((r) => r.note)).toEqual([65, 60]);
+      // The tied voice from bar 1 is handed over FROM 60 — the quantized pitch it
+      // started, which is what `lastPlayedNote` must hold — to bar 2's own
+      // quantized 65 (REQ-a-tie-continues-the-note-without-retriggering, v15).
+      // Re-deriving the quantize at that point would name a note nothing holds.
+      expect(played[0]!.from).toBe(60);
+      expect(released.map((r) => r.note)).toEqual([65]);
     });
 
     it('releases a note tied across a bar line at ITS OWN pitch (edge)', () => {
@@ -769,10 +879,11 @@ describe('StepSequencer — four tracks (sequencer.md REQ-four-tracks-per-bank/R
       clock.fireTick(0.2);            // bar 2, slot 1 (+7): step 0 plays 62+7
       expect(played.map((p) => p.note)).toEqual([69]);
       // What must NOT happen is the new bar's release carrying a pitch the old bar
-      // never started; the 69 released here is its own note. The tied 60 ends at
-      // 69's attack under its OWN pitch — a tie carries its voice only into the
-      // same pitch (REQ-the-note-releases-at-gate-end, v13).
-      expect(released.map((r) => r.note)).toEqual([69, 60]);
+      // never started; the 69 released here is its own note. The tied voice is
+      // handed over from its OWN pitch, 60, not the new slot's 67
+      // (REQ-a-tie-continues-the-note-without-retriggering, v15).
+      expect(played[0]!.from).toBe(60);
+      expect(released.map((r) => r.note)).toEqual([69]);
     });
 
     it('releases a tie into a REST at the pitch it started, not the new slot’s (edge)', () => {

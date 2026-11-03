@@ -2,7 +2,7 @@
   "format": "websynth-params",
   "version": 1,
   "songVersion": 9,
-  "count": 437,
+  "count": 440,
   "params": [
     {
       "id": "voicing.mode",
@@ -329,6 +329,19 @@
       "patch": true
     },
     {
+      "id": "env.amp.trigger",
+      "min": 0,
+      "max": 1,
+      "default": 0,
+      "patch": true,
+      "step": 1,
+      "taper": "discrete",
+      "labels": [
+        "multi",
+        "single"
+      ]
+    },
+    {
       "id": "env.fil.attack",
       "min": 0.001,
       "max": 4,
@@ -355,6 +368,19 @@
       "max": 6,
       "default": 0.4,
       "patch": true
+    },
+    {
+      "id": "env.fil.trigger",
+      "min": 0,
+      "max": 1,
+      "default": 0,
+      "patch": true,
+      "step": 1,
+      "taper": "discrete",
+      "labels": [
+        "multi",
+        "single"
+      ]
     },
     {
       "id": "lfo.rate",
@@ -2634,6 +2660,19 @@
       "labels": [
         "off",
         "solo"
+      ]
+    },
+    {
+      "id": "seq.tieMode",
+      "min": 0,
+      "max": 1,
+      "default": 0,
+      "patch": false,
+      "step": 1,
+      "taper": "discrete",
+      "labels": [
+        "legato",
+        "re-strike"
       ]
     },
     {

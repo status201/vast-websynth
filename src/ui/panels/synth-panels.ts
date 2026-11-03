@@ -1,6 +1,6 @@
 import type { ParamBus } from '../../state/params';
 import {
-  WAVE_LABELS, GLIDE_MODE_LABELS, FILTER_MODEL_LABELS, OSC_SYNC_LABELS,
+  WAVE_LABELS, GLIDE_MODE_LABELS, ENV_TRIGGER_LABELS, FILTER_MODEL_LABELS, OSC_SYNC_LABELS,
 } from '../../state/params';
 import { Knob } from '../components/knob';
 import { Segmented } from '../components/segmented';
@@ -21,6 +21,11 @@ const panel = createPanel;
  * the shell's state, which is what lets it live outside `app.ts`.
  */
 export function buildSynthPanels(bus: ParamBus): HTMLElement {
+  // The two MULTI | SINGLE switches only mean something to a mono voice: dimmed in
+  // POLY, not hidden, like SHAPE under LADDER (voicing.md REQ-the-trigger-switches-dim-in-poly).
+  const ampTrigger = new Segmented(bus, 'env.amp.trigger', ENV_TRIGGER_LABELS);
+  const filTrigger = new Segmented(bus, 'env.fil.trigger', ENV_TRIGGER_LABELS);
+
   const main = document.createElement('div');
   main.className = synthStyles.main!;
   const knob = (paramId: string, label: string): HTMLElement => new Knob({ bus, paramId, label }).el;
@@ -110,6 +115,11 @@ export function buildSynthPanels(bus: ParamBus): HTMLElement {
 
   main.appendChild(panel('AMP ENV', (b) => {
     panelZones(b, {
+      // MULTI | SINGLE: whether a mono note over a held one re-strikes THIS
+      // envelope (voicing.md REQ-single-trigger-legatos-a-mono-line). Here, not by
+      // GLIDE, because it is an envelope it decides — glide decides pitch. In the
+      // top zone, on the line its OSC and FILTER neighbours' selectors sit on.
+      top: ampTrigger.el,
       knobs: [knobRow([
         knob('env.amp.attack', 'A'),
         knob('env.amp.decay', 'D'),
@@ -125,6 +135,9 @@ export function buildSynthPanels(bus: ParamBus): HTMLElement {
     // hardware uses. At its default 0 it does nothing, so the panel reads
     // exactly as it did until someone reaches for it.
     panelZones(b, {
+      // Its own MULTI | SINGLE, so a legato line can hold its level (AMP ENV at
+      // SINGLE) and still re-sweep the filter on every note (this at MULTI).
+      top: filTrigger.el,
       knobs: [knobRow([
         knob('env.fil.attack', 'A'),
         knob('env.fil.decay', 'D'),
@@ -134,6 +147,13 @@ export function buildSynthPanels(bus: ParamBus): HTMLElement {
       ], panelStyles.quint!)],
     });
   }, 'filterenv'));
+
+  bus.subscribe('voicing.mode', (v) => {
+    const poly = v >= 0.5;
+    const why = 'Mono only: choose MONO in the header to use single trigger';
+    ampTrigger.setDisabled(poly, why);
+    filTrigger.setDisabled(poly, why);
+  });
 
   // Two LFOs behind a tab strip, so the pair costs one grid column, not two
   // (lfo.md REQ-the-two-lfos-share-one-panel). Its own module — see the note there.

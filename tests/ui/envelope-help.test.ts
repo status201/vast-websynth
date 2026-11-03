@@ -21,6 +21,15 @@ const render = (which: 'amp' | 'fil', values?: Record<string, number>) =>
 const fmt = (ctx: HelpContext, id: string) => ctx.bus.def(id)!.format!(ctx.bus.get(id));
 
 describe('envelope help graph', () => {
+  it('explains every control on its panel (REQ-the-copy-covers-every-control-on-the-panel)', () => {
+    const fil = render('fil').textContent!;
+    expect(fil).toContain('VEL');
+    expect(fil).toContain('MULTI / SINGLE');
+    const amp = render('amp').textContent!;
+    expect(amp).toContain('MULTI / SINGLE');
+    expect(amp).not.toContain('VEL');
+  });
+
   it('both badges are live bodies', () => {
     expect(typeof HELP_TOPICS.ampenv.body).toBe('function');
     expect(typeof HELP_TOPICS.filterenv.body).toBe('function');

@@ -4,6 +4,8 @@ import styles from '../styles/seq.module.css';
 import { createLaneFold } from '../components/lane-fold';
 import editStyles from '../styles/step-settings.module.css';
 import type { ParamBus } from '../../state/params';
+import { TIE_MODE_LABELS } from '../../state/params';
+import { Segmented } from '../components/segmented';
 import type { StudioApi } from '../studio-api';
 import type { PatternUndo } from '../../state/pattern-undo';
 import type { UiBridge } from '../ui-bridge';
@@ -36,6 +38,17 @@ import { ALL_CELLS, bindLaneGrid, laneGrid } from '../lane-grid';
 import { createWheelStepper } from '../wheel-steps';
 import { clamp } from '../../utils/math';
 import { MIDI_NOTE_MAX } from '../../state/limits';
+
+/** One labelled control of the edit row: the label, ready for its control. */
+function labelledCtrl(label: string): HTMLDivElement {
+  const ctrl = document.createElement('div');
+  ctrl.className = editStyles.ctrl!;
+  const l = document.createElement('div');
+  l.className = editStyles.ctrlLabel!;
+  l.textContent = label;
+  ctrl.appendChild(l);
+  return ctrl;
+}
 
 // Repaint a step cell: lit state, note label, the per-step settings viz
 // (gate/velocity/prob/ratchet/tie/micro) and a tooltip with the exact values.
@@ -360,12 +373,16 @@ export function buildSeqPanel(
   });
   const edit = editor.el;
 
-  const noteCtrl = document.createElement('div');
-  noteCtrl.className = editStyles.ctrl!;
-  const noteLabel = document.createElement('div');
-  noteLabel.className = editStyles.ctrlLabel!;
-  noteLabel.textContent = 'Note';
-  noteCtrl.appendChild(noteLabel);
+  // What every Tie in this song does — right after the step's own Tie switch, so
+  // the per-step choice and its song-wide meaning are read together
+  // (sequencer.md REQ-a-tie-continues-the-note-without-retriggering / REQ-re-strike-keeps-the-old-tie).
+  const tieModeCtrl = labelledCtrl('Ties');
+  tieModeCtrl.appendChild(new Segmented(bus, 'seq.tieMode', TIE_MODE_LABELS).el);
+  tieModeCtrl.title = 'How every tie in this song plays: LEGATO continues the note '
+    + '(one attack, slides to a new pitch); RE-STRIKE re-attacks the held voice on each tied step';
+  edit.insertBefore(tieModeCtrl, edit.querySelector('[data-testid="seq-tie"]')?.nextSibling ?? null);
+
+  const noteCtrl = labelledCtrl('Note');
   const downBtn = document.createElement('button');
   downBtn.className = switchStyles.root!;
   downBtn.textContent = '−';
@@ -394,12 +411,7 @@ export function buildSeqPanel(
   // Sits beside the note stepper because it edits the same thing — the pitch of the
   // step under the cursor — only across all four tracks at once. Picking a degree
   // writes immediately; there is no separate commit, matching the Clear ▾ rows.
-  const chordCtrl = document.createElement('div');
-  chordCtrl.className = editStyles.ctrl!;
-  const chordLabel = document.createElement('div');
-  chordLabel.className = editStyles.ctrlLabel!;
-  chordLabel.textContent = 'Chord';
-  chordCtrl.appendChild(chordLabel);
+  const chordCtrl = labelledCtrl('Chord');
   const chordDd = new Dropdown(['—']);
   chordDd.el.dataset.testid = 'seq-chord';
   chordCtrl.appendChild(chordDd.el);
@@ -407,12 +419,7 @@ export function buildSeqPanel(
 
   // Which tone the written chord puts in the bass (chord-tools.md REQ-the-writer-can-invert).
   // Panel state only — it shapes what is written, never what plays.
-  const invCtrl = document.createElement('div');
-  invCtrl.className = editStyles.ctrl!;
-  const invLabel = document.createElement('div');
-  invLabel.className = editStyles.ctrlLabel!;
-  invLabel.textContent = 'Inversion';
-  invCtrl.appendChild(invLabel);
+  const invCtrl = labelledCtrl('Inversion');
   const invDd = new Dropdown(INVERSION_LABELS, INVERSION_LABELS[0]);
   invDd.el.dataset.testid = 'seq-chord-inversion';
   invCtrl.title = 'Which chord tone the Chord writer puts in the bass';

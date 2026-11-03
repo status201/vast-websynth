@@ -18,6 +18,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ### Added
 
+- **SINGLE trigger for Mono patches, per envelope.** A MULTI | SINGLE switch at the
+  top of AMP ENV and of FILTER ENV. On SINGLE, a note played while another key is
+  still held lets that envelope carry on instead of starting it again. AMP ENV at
+  SINGLE gives a legato line one attack; leave FILTER ENV at MULTI and every note
+  still gets its own filter sweep. MULTI, the default, is how every patch has always
+  played. Both switches dim while the synth is in POLY, where they do nothing.
 - **`npm run bench:perf`**: a performance test that measures the audio thread, not
   just the page: ten fixed scenarios (idle, chords, every effect, the heaviest voice
   path, two demos, the weak tier), each repeated, read from Chrome's audio trace. Save
@@ -38,6 +44,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ### Fixed
 
+- **Tie now ties.** A tied step used to keep its voice but start the envelopes
+  again on the next step, so on a short-decay sound every tied step was a new pluck
+  and the filter swept again. A tied run now plays as one note. Tied into a new pitch,
+  the note moves there without a new attack, and with glide up it slides. Each track
+  is its own line, so that works in Poly too.
 - Tone and damping filters no longer add a small resonant bump at their cutoff.
   Dirt's tone, the reverb and chorus darkening, every drum and sampler TONE, the
   sample editor's low/high-pass edits and the DJ filter at rest were set as if
@@ -95,6 +106,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ### Changed
 
+- **A new "Ties" setting in the sequencer's edit row: LEGATO | RE-STRIKE.** LEGATO
+  is the fixed tie above, and it is what every song plays from now on. RE-STRIKE is
+  the old behaviour: the held voice re-attacks on each tied step, repeated plucks
+  with no gap. Blue Monday, Take on Me, Sweet Dreams, Around the World,
+  Luftballons, Night Rider and both Ageispolis demos are built on that sound and keep it. **If a
+  song you saved relied on it, its tied runs now hold instead of re-plucking: set
+  Ties to RE-STRIKE and save it again.**
 - **The app now rests while nothing plays.** The scope used to redraw a flat line
   sixty times a second with no sound to show; it now stops once everything is
   still and wakes within a twentieth of a second of the next sound, or the moment
