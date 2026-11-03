@@ -33,6 +33,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ### Fixed
 
+- A sampler clip that ends mid-sound (a chopped slice, a cropped recording, a loop
+  cut on the beat) no longer clicks when it runs out: it fades to silence over its
+  last 5 ms, the way it already faded in over its first.
 - Stopping the transport while a sampler clip plays no longer sometimes ticks: the
   clip's short fade-out is timed a moment ahead, like a live note, instead of for
   an instant the audio engine may already have passed.

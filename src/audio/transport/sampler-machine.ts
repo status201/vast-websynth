@@ -323,8 +323,9 @@ export class SamplerMachine {
 
     // ---- The voice window (REQ-a-hit-plays-a-window-of-the-buffer) ----
     // Every branch below is skipped at the slot's defaults, so an untouched slot
-    // takes the pre-v8 path exactly: no rate write, no start offset, no scheduled
-    // stop. That is what makes ADR-006's promise here a code path, not a claim.
+    // takes the pre-v8 path: no rate write, no start offset. The one thing it now
+    // always gets is the fade into its buffer's end (REQ-a-slot-ends-at-zero), the
+    // last CHOKE_FADE of the clip, which is what stops a non-zero last frame clicking.
     const pitch = this.pitch[slot] ?? 0;
     const rate = pitch === 0 ? 1 : Math.pow(2, pitch / 12);
     if (pitch !== 0) src.playbackRate.value = rate;
@@ -355,7 +356,14 @@ export class SamplerMachine {
     // would mean re-writing an automation curve already in flight, which needs
     // `cancelAndHoldAtTime` — not available everywhere this app runs.
     let hard: number | undefined;
-    if (trimmed) hard = t + (endSec - startSec) / rate;
+    const windowEnd = t + (endSec - startSec) / rate;
+    // A window that runs to the buffer's own end has nothing past it to fade
+    // through, so the fade starts CHOKE_FADE early and reaches 0 as the buffer
+    // runs out (REQ-a-slot-ends-at-zero). Reversed, the buffer's end is the
+    // window's START, since the copy plays backwards from it.
+    const toBufferEnd = reversed ? startSec <= 0 : endSec >= dur;
+    if (toBufferEnd) hard = windowEnd - CHOKE_FADE;
+    else if (trimmed) hard = windowEnd;
     if (chokeAt !== undefined) {
       const gate = chokeAt + shift;
       hard = hard === undefined ? gate : Math.min(hard, gate);

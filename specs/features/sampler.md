@@ -3,7 +3,7 @@
 ```yaml
 id: sampler
 status: implemented
-version: 14
+version: 15
 owner: core
 related:
   - architecture
@@ -107,6 +107,15 @@ and a [project zip](project-export.md) carries them.
   - a start clamped out of the past shifts the **choke by the same delta**, so a short
     gate keeps its length instead of collapsing or dropping the hit. The ramp anchors
     at the clamped start.
+- **REQ-a-slot-ends-at-zero** — The end's twin of REQ-a-slot-starts-from-zero:
+  a hit whose window runs to the end of its buffer (forwards, the window's end is
+  the buffer's; reversed, its start is) fades its per-hit gain to 0 over
+  `CHOKE_FADE`, **finishing as the buffer runs out**. Without it nothing shaped a
+  natural end, and a clip whose last frame is not near zero (a chopped slice, a
+  cropped take, a loop cut on the beat) stopped on a full-scale step: a sine cut
+  at its crest measured 1,079x its own body's 3rd difference at the cut, on every
+  hit. A window that ends inside the buffer still fades after its end, where the
+  buffer has audio to fade through.
 - **REQ-each-slot-has-a-channel** — Each slot carries the drum tracks' channel shape
   ([drum-machine](drum-machine.md) REQ-per-track-drum-params), downstream of the
   per-hit gain:
@@ -254,6 +263,13 @@ Scenario: Loading another song does not leave the old song's audio behind (regre
   Then slot 0 is empty and its label reverts to the placeholder — never the new
     name over the old audio
 # pinned by: e2e/song.spec.ts, tests/state/song.test.ts
+
+Scenario: A hit that plays to its buffer's end fades out before it (REQ-a-slot-ends-at-zero, regression)
+  Given a slot whose sample ends mid-waveform, and a hit with no window, decay or short gate
+  When the hit plays
+  Then its gain ramps to 0 over CHOKE_FADE, reaching 0 at the buffer's natural end
+  And a reversed hit does the same at the end of its reversed window
+# pinned by: tests/audio/transport/sampler-machine.test.ts
 
 Scenario: A slot ramps up from zero rather than jumping to velocity (REQ-a-slot-starts-from-zero, regression)
   Given a sample whose first frame is not near silence
