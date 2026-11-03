@@ -3,7 +3,7 @@
 ```yaml
 id: filter-models
 status: implemented
-version: 3
+version: 4
 owner: core
 related:
   - ladder-filter
@@ -128,8 +128,15 @@ Per [ADR-006](../decisions/adr-006-no-op-param-defaults.md) the default is index
   block after a deactivate, have nothing to fade from and run plain.
 - **REQ-poly-trim-matches-the-levels** — **Level matching**: `POLY_TRIM` is
   tuned so that at the *default* resonance (0.5) the two models put out the same
-  **passband** level — within 0.1 dB on a sub-cutoff sine — so flipping the
-  switch is an A/B of character rather than of loudness. Two honest caveats.
+  **passband** level on a sub-cutoff sine **at one operating point**: drive 1 and
+  a 0.5 peak, where they meet within 0.1 dB — so flipping the switch is an A/B of
+  character rather than of loudness. The match cannot hold everywhere: LADDER's
+  drive multiplies its feedback too (`sat((x - res·fb)·drive)`), so its passband
+  gain falls as drive rises, while POLY's resonance compensation is independent
+  of drive. Measured at resonance 0.5: at the default drive 1.2, POLY is +1.5 dB
+  on a quiet input (0.05 peak), +0.2 dB at 0.5 and −0.8 dB at full scale; at
+  drive 2 the quiet-input gap is +3.3 dB. Whether to re-centre the trim on the
+  default drive is a by-ear call (ADR-010). Two further honest caveats.
   Away from that resonance they diverge by REQ-poly-preserves-the-low-end's ~10
   dB, which is the feature. And **broadband** POLY reads about **2 dB hotter**
   on harmonically rich material (measured on the `basic` patch's two saws),
