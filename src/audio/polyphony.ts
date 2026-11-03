@@ -1,4 +1,5 @@
 import { Voice } from './voice';
+import { liveStartTime } from './param-utils';
 import { assertIndex } from '../utils/array';
 import type { NoteOptions } from './transport/note-output';
 
@@ -61,9 +62,10 @@ export class Polyphony {
 
   // ---------- Note handling ----------
 
-  /** Play a note at the given audio time (defaults to now). */
+  /** Play a note at the given audio time — a live note (none given) a render
+   *  burst ahead of now (REQ-a-live-note-starts-ahead-of-the-render). */
   playNote(note: number, velocity = 0.8, when?: number, opts?: NoteOptions): void {
-    const t = when ?? this.ctx.currentTime;
+    const t = when ?? liveStartTime(this.ctx);
     // Threaded straight through to every voice this note uses, unison copies
     // included — a spread chord is still one track, in one place.
     const pan = opts?.pan ?? 0;
@@ -137,9 +139,10 @@ export class Polyphony {
     for (const v of this.voices) v.dropSpread();
   }
 
-  /** Release a note at the given audio time (defaults to now). */
+  /** Release a note at the given audio time — a live release with the same
+   *  margin as a live note, so a quick tap still releases after it attacks. */
   releaseNote(note: number, when?: number): void {
-    const t = when ?? this.ctx.currentTime;
+    const t = when ?? liveStartTime(this.ctx);
     const vs = this.heldNotes.get(note);
     if (vs) {
       for (const v of vs) v.noteOff(t);

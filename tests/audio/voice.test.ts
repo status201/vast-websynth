@@ -10,7 +10,8 @@ import {
 /**
  * Voice lifecycle → ladder-filter idle gating (ladder-filter.md REQ-the-filter-idles-when-gated,
  * voicing.md REQ-voice-lifecycle-gates-the-ladder). The filter worklet is the mock node; we assert the
- * active-flag posts on its port.
+ * writes to its `active` param — scheduled, never a port message
+ * (REQ-the-gate-is-scheduled-not-messaged).
  */
 describe('Voice filter idle gating', () => {
   beforeEach(() => {
@@ -25,47 +26,64 @@ describe('Voice filter idle gating', () => {
   async function build() {
     const ctx = makeMockAudioContext();
     const voice = await Voice.create(ctx as unknown as AudioContext);
-    const port = MockAudioWorkletNode.instances[0]!.port;
-    return { voice, port };
+    const node = MockAudioWorkletNode.instances[0]!;
+    const gate = node.parameters.get('active').setValueAtTime;
+    return { ctx, voice, node, gate };
   }
 
-  it('boots idle: posts false at construction', async () => {
-    const { port } = await build();
-    expect(port.postMessage).toHaveBeenLastCalledWith(false);
+  it('boots idle: closes the gate at construction', async () => {
+    const { gate } = await build();
+    expect(gate).toHaveBeenLastCalledWith(0, 0);
   });
 
-  it('noteOn posts true unconditionally on every call', async () => {
-    const { voice, port } = await build();
+  it('noteOn opens the gate unconditionally on every call', async () => {
+    const { voice, gate } = await build();
     voice.noteOn(60, 0.8, 0);
-    voice.noteOn(62, 0.8, 1); // retrigger while playing — still posts
-    const flags = port.postMessage.mock.calls.map((c) => c[0]);
-    expect(flags).toEqual([false, true, true]);
+    voice.noteOn(62, 0.8, 1); // retrigger while playing — still writes
+    expect(gate.mock.calls.map((c) => c[0])).toEqual([0, 1, 1]);
+  });
+
+  it("wakes the filter on the envelope's clock, not by message (REQ-the-gate-is-scheduled-not-messaged)", async () => {
+    // A port message landed whenever the audio thread got to it; when that was
+    // a block or two after the attack began, the note started on silence and
+    // jumped in under an open VCA — 9 of 12 note-ons to idle voices clicked.
+    const { ctx, voice, node, gate } = await build();
+    ctx.currentTime = 2;
+    const attack = voice.ampEnv.out.gain.setValueAtTime as unknown as ReturnType<typeof vi.fn>;
+    attack.mockClear();
+    voice.noteOn(60, 0.8, 2.05); // a sequencer note, a look-ahead away
+    expect(gate).toHaveBeenLastCalledWith(1, 2);
+    // The attack's anchor is at or after the gate's time, so the filter is
+    // awake by the block the VCA opens in.
+    const anchorAt = attack.mock.calls.at(-1)![1] as number;
+    expect(anchorAt).toBeGreaterThanOrEqual(2);
+    expect(node.port.postMessage).not.toHaveBeenCalled();
   });
 
   it('release completion deactivates the filter', async () => {
-    const { voice, port } = await build();
+    const { voice, gate } = await build();
     voice.noteOn(60, 0.8, 0);
     voice.noteOff(0);
     vi.runAllTimers(); // the releaseTimer
     expect(voice.state).toBe('idle');
-    expect(port.postMessage).toHaveBeenLastCalledWith(false);
+    expect(gate).toHaveBeenLastCalledWith(0, expect.any(Number));
   });
 
   it('kill deactivates after the fade window', async () => {
-    const { voice, port } = await build();
+    const { voice, gate } = await build();
     voice.noteOn(60, 0.8, 0);
     voice.kill(0);
     vi.advanceTimersByTime(50);
-    expect(port.postMessage).toHaveBeenLastCalledWith(false);
+    expect(gate).toHaveBeenLastCalledWith(0, expect.any(Number));
   });
 
   it('a noteOn inside the kill fade window wins — no late deactivate', async () => {
-    const { voice, port } = await build();
+    const { voice, gate } = await build();
     voice.noteOn(60, 0.8, 0);
     voice.kill(0);
     voice.noteOn(64, 0.8, 0); // voice re-claimed before the fade timer fires
     vi.advanceTimersByTime(50);
-    expect(port.postMessage).toHaveBeenLastCalledWith(true);
+    expect(gate).toHaveBeenLastCalledWith(1, expect.any(Number));
   });
 });
 

@@ -40,10 +40,13 @@ beforeAll(async () => {
 
 function makeParams(over: Record<string, number> = {}): Record<string, Float32Array> {
   const d: Record<string, number> = {
-    cutoffNote: 90, resonance: 0, drive: 1, model: POLY, shape: 0, ...over,
+    cutoffNote: 90, resonance: 0, drive: 1, model: POLY, shape: 0, active: 1, ...over,
   };
   return Object.fromEntries(Object.entries(d).map(([k, v]) => [k, new Float32Array([v])]));
 }
+
+/** The same params with the idle gate closed (ladder-filter.md REQ-the-filter-idles-when-gated). */
+const idle = (p: Record<string, Float32Array>): Record<string, Float32Array> => ({ ...p, active: new Float32Array([0]) });
 
 function run(
   proc: ProcessorLike,
@@ -267,10 +270,8 @@ describe('POLY filter model — model switching (REQ-switching-model-mid-note-is
     const proc = new Processor();
     expect(peak(run(proc, params, gen, 10))).toBeGreaterThan(0);
 
-    proc.port.onmessage!({ data: false });
-    expect(peak(run(proc, params, gen, 10))).toBe(0); // hot input, silent output
+    expect(peak(run(proc, idle(params), gen, 10))).toBe(0); // hot input, silent output
 
-    proc.port.onmessage!({ data: true });
     // Deactivation zeroed the state, so the restart matches a fresh processor.
     expect(run(proc, params, gen, 10)).toEqual(run(new Processor(), params, gen, 10));
   });

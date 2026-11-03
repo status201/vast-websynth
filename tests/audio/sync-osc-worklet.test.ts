@@ -349,10 +349,8 @@ describe('the idle gate (REQ-the-pair-idles-with-the-voice)', () => {
     const proc = new Processor({});
     const p = params({ frequency: 440, mode: HARD });
     const a = new Float32Array(BLOCK), b = new Float32Array(BLOCK);
-    proc.port.onmessage?.({ data: false });
-    proc.process([], [[a], [b]], p);
+    proc.process([], [[a], [b]], { ...p, active: new Float32Array([0]) });
     expect(a.every((v) => v === 0) && b.every((v) => v === 0)).toBe(true);
-    proc.port.onmessage?.({ data: true });
     for (let i = 0; i < 4; i++) proc.process([], [[a], [b]], p);
     expect(a.some((v) => v !== 0)).toBe(true);
   });

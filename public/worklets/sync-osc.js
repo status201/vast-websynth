@@ -191,6 +191,10 @@ class SyncOscProcessor extends AudioWorkletProcessor {
       { name: 'width1', defaultValue: 0.5, minValue: 0.5, maxValue: 0.95, automationRate: 'k-rate' },
       { name: 'width2', defaultValue: 0.5, minValue: 0.5, maxValue: 0.95, automationRate: 'k-rate' },
       { name: 'mode', defaultValue: MODE_HARD, minValue: 0, maxValue: 2, automationRate: 'k-rate' },
+      // The idle gate, the ladder filter's (ladder-filter.md REQ-the-gate-is-scheduled-not-messaged):
+      // an AudioParam so it wakes on the clock the note's attack opens on. Default 1,
+      // so a missed idle write can only cost CPU, never a note.
+      { name: 'active', defaultValue: 1, minValue: 0, maxValue: 1, automationRate: 'k-rate' },
     ];
   }
 
@@ -223,14 +227,10 @@ class SyncOscProcessor extends AudioWorkletProcessor {
     // recomputed only when its input actually moved.
     this.lastD = NaN; this.lastDE = 1;
     this.lastSp = NaN; this.lastSpE = 1;
-    // Same idle gate as the ladder filter (ladder-filter.md REQ-the-filter-idles-when-gated):
-    // defaults on, so a lost message can only cost CPU, never a note.
+    // Same idle gate as the ladder filter (ladder-filter.md REQ-the-filter-idles-when-gated),
+    // read from the `active` param each block; this is what the last block saw,
+    // so waking resets the correction rings exactly once.
     this.active = true;
-    this.port.onmessage = (e) => {
-      const on = e.data === true;
-      if (on && !this.active) this.reset();
-      this.active = on;
-    };
   }
 
   reset() {
@@ -410,7 +410,12 @@ class SyncOscProcessor extends AudioWorkletProcessor {
     const out1 = outputs[1] && outputs[1][0];
     if (!out0 || !out1) return true;
     const len = out0.length;
-    if (!this.active) {
+    // `< 0.5` for idle, so anything odd reads as active: CPU, never a note.
+    const gate = params.active;
+    const on = !(gate && gate[0] < 0.5);
+    if (on && !this.active) this.reset();
+    this.active = on;
+    if (!on) {
       out0.fill(0);
       out1.fill(0);
       return true;

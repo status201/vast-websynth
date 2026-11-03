@@ -3,6 +3,7 @@ import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 import { Polyphony } from '../../src/audio/polyphony';
 import type { Voice } from '../../src/audio/voice';
 import { makeMockAudioContext } from './mock-audio-context';
+import { LIVE_MARGIN_MAX_S } from '../../src/audio/param-utils';
 
 /**
  * A minimal Voice stub: Polyphony only reads `state`/`noteOnAt`/`noteOffAt` and
@@ -217,4 +218,45 @@ describe('Polyphony', () => {
     });
   });
 
+  describe('a live note starts ahead of the render (voicing.md REQ-a-live-note-starts-ahead-of-the-render)', () => {
+    // Anchored at bare currentTime, a note could land a render burst in the
+    // past, and its attack then rendered most of the way to peak on its first
+    // sample: 22 of 110 live note-ons clicked through the real graph, 0 of 92
+    // scheduled 3-50 ms ahead.
+    const at = (fn: ReturnType<typeof vi.fn>) => fn.mock.calls.at(-1)![2] as number;
+
+    it('places an unscheduled note and its release one burst (baseLatency) ahead', () => {
+      const { ctx, voices, poly } = build();
+      ctx.currentTime = 5;
+      (ctx as unknown as { baseLatency: number }).baseLatency = 0.01;
+      poly.playNote(60, 0.8);
+      expect(at(voices[0]!.noteOn)).toBeCloseTo(5.01, 12);
+      poly.releaseNote(60);
+      // Same margin, so the release never lands before the attack.
+      expect(voices[0]!.noteOff.mock.calls.at(-1)![0]).toBeCloseTo(5.01, 12);
+    });
+
+    it('takes at least one render quantum where no baseLatency is reported', () => {
+      const { ctx, voices, poly } = build();
+      ctx.currentTime = 1;
+      poly.playNote(60, 0.8);
+      expect(at(voices[0]!.noteOn)).toBeCloseTo(1 + 128 / ctx.sampleRate, 12);
+    });
+
+    it('never adds more than LIVE_MARGIN_MAX_S, whatever the device reports', () => {
+      const { ctx, voices, poly } = build();
+      ctx.currentTime = 1;
+      (ctx as unknown as { baseLatency: number }).baseLatency = 0.5;
+      poly.playNote(60, 0.8);
+      expect(at(voices[0]!.noteOn)).toBeCloseTo(1 + LIVE_MARGIN_MAX_S, 12);
+    });
+
+    it('leaves a note that carries its own time exactly where it was put', () => {
+      const { ctx, voices, poly } = build();
+      ctx.currentTime = 2;
+      (ctx as unknown as { baseLatency: number }).baseLatency = 0.01;
+      poly.playNote(60, 0.8, 2.1); // a sequencer step, a look-ahead away
+      expect(at(voices[0]!.noteOn)).toBe(2.1);
+    });
+  });
 });

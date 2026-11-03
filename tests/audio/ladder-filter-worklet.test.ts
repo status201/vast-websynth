@@ -34,10 +34,13 @@ beforeAll(async () => {
 /** Defaults mirror the parameterDescriptors — `model: 0` is the LADDER path. */
 function makeParams(over: Record<string, number> = {}): Record<string, Float32Array> {
   const d: Record<string, number> = {
-    cutoffNote: 90, resonance: 0, drive: 1, model: 0, shape: 0, ...over,
+    cutoffNote: 90, resonance: 0, drive: 1, model: 0, shape: 0, active: 1, ...over,
   };
   return Object.fromEntries(Object.entries(d).map(([k, v]) => [k, new Float32Array([v])]));
 }
+
+/** The same params with the idle gate closed (ladder-filter.md REQ-the-filter-idles-when-gated). */
+const idle = (p: Record<string, Float32Array>): Record<string, Float32Array> => ({ ...p, active: new Float32Array([0]) });
 
 /** Run `blocks` mono blocks through the processor; returns one flat Float32Array. */
 function run(
@@ -145,11 +148,10 @@ describe('ladder-filter worklet DSP', () => {
     const before = run(proc, params, gen, 10);
     expect(peak(before)).toBeGreaterThan(0); // active by default
 
-    proc.port.onmessage!({ data: false });
-    const silent = run(proc, params, gen, 10);
+    const silent = run(proc, idle(params), gen, 10);
     expect(peak(silent)).toBe(0); // hot input, zero output — DSP skipped
 
-    proc.port.onmessage!({ data: true });
+    // The gate opens again: the very first block runs.
     const after = run(proc, params, gen, 10);
     // Deactivation zeroed the state, so reactivation matches a fresh filter
     // bit-for-bit on the same input.
@@ -258,9 +260,7 @@ describe('ladder-filter worklet DSP', () => {
 
     const proc = new Processor();
     run(proc, params, gen, 12);          // build up non-zero stage + carry state
-    proc.port.onmessage!({ data: false }); // zeroes the state — and the carries
-    run(proc, params, gen, 4);           // inactive: DSP skipped
-    proc.port.onmessage!({ data: true });
+    run(proc, idle(params), gen, 4);     // idle: zeroes the state — and the carries — and skips the DSP
 
     // A stale carry would make the restart diverge from a fresh processor.
     expect(run(proc, params, gen, 12)).toEqual(run(new Processor(), params, gen, 12));

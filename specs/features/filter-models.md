@@ -3,7 +3,7 @@
 ```yaml
 id: filter-models
 status: implemented
-version: 2
+version: 3
 owner: core
 related:
   - ladder-filter
@@ -245,10 +245,10 @@ move — new scalars never bump it (ADR-007).
 
 ### Worklet message contract
 
-Unchanged. The `port` still carries only the boolean active flag
-([ladder-filter.md](ladder-filter.md) REQ-the-filter-idles-when-gated), shared by both models — model
-selection travels as an AudioParam, not a message, so it is sample-scheduled and
-automatable like everything else.
+None. The idle gate is the `active` AudioParam ([ladder-filter.md](ladder-filter.md)
+REQ-the-gate-is-scheduled-not-messaged), shared by both models, and model
+selection is an AudioParam too, so everything the processor is told is
+sample-scheduled and automatable.
 
 ## Visual aids
 

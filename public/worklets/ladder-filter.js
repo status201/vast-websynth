@@ -121,6 +121,17 @@ class LadderFilterProcessor extends AudioWorkletProcessor {
         maxValue: 1,
         automationRate: 'a-rate',
       },
+      // The idle gate (ladder-filter.md REQ-the-filter-idles-when-gated). An
+      // AudioParam, not a port message, so it is set on the same clock as the
+      // envelope that opens the VCA (REQ-the-gate-is-scheduled-not-messaged).
+      // Defaults to 1, so a missed idle write can only cost CPU, never a note.
+      {
+        name: 'active',
+        defaultValue: 1,
+        minValue: 0,
+        maxValue: 1,
+        automationRate: 'k-rate',
+      },
     ];
   }
 
@@ -135,23 +146,10 @@ class LadderFilterProcessor extends AudioWorkletProcessor {
     // sat(0) === 0, so zeroing the whole array leaves it self-consistent.
     this.state = [newChannelState(), newChannelState()];
     // Idle gating: the voice's oscillators feed us forever and the amp VCA is
-    // downstream, so silence detection can never fire — the host posts an
-    // explicit active flag instead. Defaults ON so a lost message can only
-    // cost CPU, never silence a note. Any step is masked by the closed VCA.
-    this.active = true;
-    this.port.onmessage = (e) => {
-      const on = !!e.data;
-      if (!on) {
-        // Zero state so reactivation starts from a clean filter — and forget
-        // the model and drive, so it also starts with no fade and no ramp,
-        // exactly like a freshly constructed processor.
-        for (const s of this.state) if (s) s.fill(0);
-        this.model = -1;
-        this.xfPos = this.xfLen;
-        this.lastDrive = NaN;
-      }
-      this.active = on;
-    };
+    // downstream, so silence detection can never fire — the host drives the
+    // `active` param instead. Whether the last block ran, so the active-to-idle
+    // edge can zero the state exactly once.
+    this.wasActive = true;
     // Block-constant cutoff cache (REQ-filter-coefficients-hoist-per-block): the pole coefficient `g` only
     // depends on the cutoff value, so when a block is all-equal we compute it
     // once and reuse it across blocks until the value changes. NaN forces the
@@ -190,10 +188,24 @@ class LadderFilterProcessor extends AudioWorkletProcessor {
     const output = outputs[0];
     if (!output || output.length === 0) return true;
 
-    if (!this.active) {
+    // The idle gate (REQ-the-filter-idles-when-gated). `< 0.5` rather than
+    // `>= 0.5` for "idle", so anything odd reads as active: CPU, never a note.
+    const gate = params.active;
+    if (gate && gate[0] < 0.5) {
+      if (this.wasActive) {
+        // Zero state so reactivation starts from a clean filter — and forget
+        // the model and drive, so it also starts with no fade and no ramp,
+        // exactly like a freshly constructed processor.
+        this.wasActive = false;
+        for (const s of this.state) if (s) s.fill(0);
+        this.model = -1;
+        this.xfPos = this.xfLen;
+        this.lastDrive = NaN;
+      }
       for (let ch = 0; ch < output.length; ch++) output[ch].fill(0);
       return true;
     }
+    this.wasActive = true;
 
     const channels = output.length;
     const len = output[0].length;

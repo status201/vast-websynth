@@ -33,6 +33,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ### Fixed
 
+- A note played on the keyboard, the computer keys or MIDI no longer sometimes
+  starts with a click. The note was timed for the instant it was played, which the
+  audio engine could already have rendered past, so its attack started most of the
+  way up. Live notes now start one audio buffer ahead (10 ms on a typical Windows
+  setup, less on low-latency devices). It happened more on a busy computer, and
+  especially right after switching MONO/POLY or Panic.
 - Switching the filter between LADDER and POLY while a note sounds no longer
   clicks: the two models now crossfade over 5 ms instead of swapping on the spot.
 - Moving DRIVE in a jump (a motion lane, the XY Pad, a mod-matrix route) no
