@@ -7,7 +7,7 @@ import { clamp01 } from '../../utils/math';
 import type { TickSubscriber } from './tick-source';
 import { ListenerSet } from '../../utils/listeners';
 import { LaneMeter } from './lane-meter';
-import { rampTo, RAMP_MEDIUM, toneCutoff } from '../param-utils';
+import { rampTo, RAMP_MEDIUM, toneCutoff, liveStartTime } from '../param-utils';
 import { forceStereo } from '../stereo';
 import { reverseBuffer } from '../recorder/audio-buffer';
 
@@ -302,9 +302,10 @@ export class SamplerMachine {
     return made;
   }
 
-  /** Manual trigger (for UI auditioning). */
+  /** Manual trigger (UI audition, MIDI pads), one render burst ahead so its
+   *  attack is never anchored in the past (live-trigger-timing.md REQ-a-live-trigger-starts-ahead-of-the-render). */
   triggerSlot(slot: number, velocity = 0.9): void {
-    this.play(slot, this.ctx.currentTime, velocity);
+    this.play(slot, liveStartTime(this.ctx), velocity);
   }
 
   private play(slot: number, when: number, velocity: number, chokeAt?: number): void {

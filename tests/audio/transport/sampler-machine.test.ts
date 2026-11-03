@@ -562,6 +562,17 @@ describe('choke groups, mono and the voice cap (v9, REQ-a-slot-can-cut-another-s
     expect(first.stop).not.toHaveBeenCalled();
   });
 
+  it('schedules an audition one render burst ahead (live-trigger-timing.md REQ-a-live-trigger-starts-ahead-of-the-render)', () => {
+    // A slot's 0.5 ms attack anchored in the past rendered already done: under
+    // load a live slot's onset reached 27x that of the same hit scheduled ahead.
+    const { ctx, sm } = loaded();
+    ctx.currentTime = 3;
+    (ctx as unknown as { baseLatency: number }).baseLatency = 0.01;
+    sm.triggerSlot(0);
+    const src = ctx.createBufferSource.mock.results.at(-1)!.value as { start: ReturnType<typeof vi.fn> };
+    expect(src.start.mock.calls.at(-1)![0]).toBeCloseTo(3.01, 12);
+  });
+
   it('a mono slot cuts its own previous hit', () => {
     const { ctx, sm } = loaded();
     sm.setSlotMono(0, true);

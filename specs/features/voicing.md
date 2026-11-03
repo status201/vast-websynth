@@ -3,7 +3,7 @@
 ```yaml
 id: voicing
 status: implemented
-version: 10
+version: 11
 owner: core
 related:
   - architecture
@@ -13,7 +13,6 @@ related:
   - arpeggiator
 source:
   - src/audio/polyphony.ts     # voice pool, alloc, unison, glide, drift (ADR-008)
-  - src/audio/param-utils.ts   # liveStartTime: where an unscheduled note lands
   - src/audio/engine.ts        # builds voices; thin playNote/releaseNote delegators
   - src/audio/voice.ts
   - src/audio/oscillator.ts    # Osc.setFrequency: the anchored glide
@@ -39,21 +38,9 @@ for bass and leads, poly for chords, unison for a fat stack, and per-voice
 - **REQ-mode-switch-kills-all-voices** — `voicing.mode` toggles mono/poly, and
   switching **kills all voices** so no note hangs across the change.
 - **REQ-a-live-note-starts-ahead-of-the-render** — A note with no time of its
-  own (keyboard, QWERTY, MIDI: `playNote`/`releaseNote` without `when`) is
-  placed at `liveStartTime(ctx)`: `currentTime` plus one render burst, which the
-  browser reports as `baseLatency` (bounded to one render quantum at least and
-  `LIVE_MARGIN_MAX_S` at most). The renderer runs a device callback's worth of
-  quanta back to back, so a note scheduled at bare `currentTime` can land in the
-  past by up to that burst. A `setTargetAtTime` attack anchored in the past is
-  rendered as if it had already been running, so its first audible sample is
-  most of the way to peak — a click on the note's first sample. Measured on held
-  sines through the real graph: anchored at `currentTime`, 22 of 110 note-ons
-  clicked (11-50x the 3rd-difference floor, the rate swinging with machine load);
-  scheduled 3-50 ms ahead, 0 of 92. A partial margin does not help, since one stale quantum
-  (2.7 ms) already skips ~80% of a 5 ms attack, so the margin is the whole
-  burst. The release takes the same margin, so a quick tap still releases after
-  it attacks. A note that carries its own time (sequencer, arpeggiator) is
-  already ahead and is untouched.
+  own, and its release, land at `liveStartTime(ctx)`, one render burst ahead
+  ([live-trigger-timing](live-trigger-timing.md)
+  REQ-a-live-trigger-starts-ahead-of-the-render).
 - **REQ-unison-stacks-detuned-copies** — Unison stacks `1..4` detuned copies per
   note (`unison.detune` cents).
 - **REQ-glide-controls-portamento** — Glide time + mode control portamento; the

@@ -20,8 +20,9 @@ const RENDER_QUANTUM_FRAMES = 128;
 export const LIVE_MARGIN_MAX_S = 0.02;
 
 /**
- * Where a note with no time of its own lands (voicing.md
- * REQ-a-live-note-starts-ahead-of-the-render): `currentTime` plus one render
+ * Where a trigger with no time of its own lands — a key, a MIDI note, a pad
+ * (live-trigger-timing.md REQ-a-live-trigger-starts-ahead-of-the-render):
+ * `currentTime` plus one render
  * burst. The renderer runs a device callback's worth of quanta back to back, so
  * bare `currentTime` can already be in the past by the time the event is read,
  * and an attack anchored in the past renders most of the way to peak on its

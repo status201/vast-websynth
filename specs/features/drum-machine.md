@@ -3,7 +3,7 @@
 ```yaml
 id: drum-machine
 status: implemented
-version: 14
+version: 15
 owner: core
 related:
   - architecture
@@ -164,7 +164,7 @@ DrumMachine:  # src/audio/transport/drum-machine.ts
   setTrackTone(i, amt) / setTrackDrive(i, amt) / setTrackPan(i, p)
   setTrackModel(i, model)              # swap the voice (REQ-swapping-a-model-never-severs-a-voice)
   setLaneAudible(on)                   # the lane mixer's mute/solo verdict
-  triggerTrack(i, velocity)            # UI audition
+  triggerTrack(i, velocity)            # UI audition, one render burst ahead (live-trigger-timing.md)
   onStep(fn) -> unsubscribe
   onHit(fn: (track, when, velocity) => void) -> unsubscribe
 MODEL_BUILDERS: ((ctx, noise) => DrumSynth)[]   # drum-machine.ts, index = model value

@@ -3,7 +3,7 @@
 ```yaml
 id: sampler
 status: implemented
-version: 13
+version: 14
 owner: core
 related:
   - architecture
@@ -177,7 +177,7 @@ SamplerMachine:  # src/audio/transport/sampler-machine.ts
   setSlotPitch(slot, semitones) / setSlotStart(slot, f) / setSlotEnd(slot, f)              # read at trigger
   setSlotRev(slot, on) / setSlotAttack(slot, s) / setSlotDecay(slot, s)
   setSlotChokeGroup(slot, group) / setSlotMono(slot, on)   # 0 = no group
-  triggerSlot(slot, velocity?)     # manual audition — same play(), reproduces a voice bug stopped
+  triggerSlot(slot, velocity?)     # manual audition — same play(), reproduces a voice bug stopped; one render burst ahead (live-trigger-timing.md)
   onStep(fn) -> unsubscribe
   onBufferChange(fn) -> unsubscribe   # slot's buffer replaced/cleared
   stopAll()                        # fade + stop every in-flight hit (through cutHit)

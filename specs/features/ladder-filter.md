@@ -78,8 +78,8 @@ on-screen value is shown in Hz.
   in. A port message is serviced whenever the audio thread gets to it, so nothing
   orders it against the note's automation: a late one would start the note on
   silence and jump the filter in under an open VCA. This holds by construction;
-  the note-on click it was suspected of is [voicing](voicing.md)
-  REQ-a-live-note-starts-ahead-of-the-render.
+  the note-on click it was suspected of is [live-trigger-timing](live-trigger-timing.md)
+  REQ-a-live-trigger-starts-ahead-of-the-render.
 - **REQ-filter-coefficients-hoist-per-block** — The pole coefficient `g` costs a
   `pow` + `exp` per sample. When every `cutoffNote` sample in a quantum is equal,
   `g` is computed **once per block** and cached until the constant changes. A
