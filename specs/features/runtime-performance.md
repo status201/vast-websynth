@@ -510,7 +510,9 @@ Scenario: a worklet speed rewrite changes no samples
   scenarios (idle, held notes, all synth FX, the heavy per-voice path, two demos,
   the weak tier), each repeated, read from Blink's `webaudio` trace: load per
   render callback (mean, p95, max), the worst 128-frame block against its budget,
-  plus main-thread busy %, style recalcs and fps. `--name` saves a run under
+  plus main-thread busy %, style recalcs, and main-thread frames and displayed
+  frames per second from the same trace (never a rAF counter in the page, which
+  would itself be the idle frame it measures). `--name` saves a run under
   `bench/`, `--compare a b` diffs two. No web API reports render load, which is
   why this goes through tracing; compare runs from one machine.
 - Boot payload: `npm run build && npm run check:bundle` (prints the entry size and its
