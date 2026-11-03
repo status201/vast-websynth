@@ -31,10 +31,10 @@
 //
 // See specs/features/runtime-performance.md.
 
-import { spawn } from 'node:child_process';
-import { mkdirSync, existsSync, readFileSync, writeFileSync } from 'node:fs';
+import { mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { chromium } from 'playwright';
+import { startDevServer, bootApp } from './lib/bench-app.mjs';
 
 const root = fileURLToPath(new URL('../', import.meta.url));
 const benchDir = `${root}bench`;
@@ -113,33 +113,9 @@ if (!SCENARIOS.length) {
 
 // ------------------------------------------------------------- dev server
 
-async function waitForServer(url, timeoutMs = 60_000) {
-  const deadline = Date.now() + timeoutMs;
-  while (Date.now() < deadline) {
-    try { if ((await fetch(url)).ok) return; } catch { /* not up yet */ }
-    await new Promise((r) => setTimeout(r, 250));
-  }
-  throw new Error(`server did not come up at ${url}`);
-}
-
-let server = null;
 let url = flag('url');
-// Kill once, from wherever we leave (an orphaned vite holds rolldown's native
-// binding and the next `npm ci` fails with EPERM — see audio-bench.mjs).
-const stopServer = () => { const s = server; server = null; if (s) s.kill(); };
-process.on('exit', stopServer);
-for (const sig of ['SIGINT', 'SIGTERM', 'SIGHUP']) process.on(sig, () => { stopServer(); process.exit(130); });
-
-if (!url) {
-  // `localhost` can resolve to the address family vite is not listening on;
-  // pin the host so the URL below is the one it serves.
-  url = `http://127.0.0.1:${PORT}/`;
-  const viteBin = `${root}node_modules/vite/bin/vite.js`;
-  if (!existsSync(viteBin)) { console.error('perf-bench: run `npm install` first.'); process.exit(1); }
-  server = spawn(process.execPath, [viteBin, '--port', String(PORT), '--strictPort', '--host', '127.0.0.1'], { cwd: root, stdio: 'ignore' });
-  console.log(`perf-bench: starting vite on ${url}`);
-  await waitForServer(url);
-}
+let stopServer = () => {};
+if (!url) ({ url, stop: stopServer } = await startDevServer({ root, port: PORT, tag: 'perf-bench' }));
 
 // ------------------------------------------------------------------ runs
 
@@ -149,16 +125,7 @@ const median = (a) => q(a, 0.5);
 async function runOnce(browser, sc) {
   const context = await browser.newContext({ viewport: { width: 1600, height: 1000 } });
   const page = await context.newPage();
-  await page.addInitScript((tier) => {
-    localStorage.setItem('websynth.onboarding.done', '1');
-    localStorage.setItem('websynth.perf', tier);
-    localStorage.setItem('websynth.hint.emptyplay', '1');
-  }, sc.tier ?? 'medium');
-  await page.goto(url);
-  await page.waitForFunction(() => window.__synth?.engine.ctx.state === 'running' || Boolean(document.querySelector('.start-btn')));
-  const start = page.getByRole('button', { name: 'Tap to start' });
-  if (await start.count() > 0) { await start.click(); await start.waitFor({ state: 'hidden' }); }
-  await page.waitForFunction(() => window.__synth?.engine.ctx.state === 'running');
+  await bootApp(page, url, { tier: sc.tier ?? 'medium' });
   if (sc.demo) {
     await page.getByTestId('tab-song').click();
     const btn = page.getByTestId(`song-demo-${sc.demo}`);

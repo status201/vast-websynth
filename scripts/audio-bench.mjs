@@ -79,10 +79,10 @@
 //
 // See specs/recipes/verify-audio-by-ear.md.
 
-import { spawn } from 'node:child_process';
 import { mkdirSync, existsSync, readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { chromium, firefox } from 'playwright';
+import { startDevServer, bootApp } from './lib/bench-app.mjs';
 
 const root = fileURLToPath(new URL('../', import.meta.url));
 const benchDir = `${root}bench`;
@@ -198,56 +198,9 @@ const notes = opts.note.split(',').map((s) => toMidi(s));
 
 // ------------------------------------------------------------- dev server
 
-async function waitForServer(url, timeoutMs = 60_000) {
-  const deadline = Date.now() + timeoutMs;
-  while (Date.now() < deadline) {
-    try {
-      const res = await fetch(url);
-      if (res.ok) return;
-    } catch {
-      /* not up yet */
-    }
-    await new Promise((r) => setTimeout(r, 250));
-  }
-  throw new Error(`server did not come up at ${url}`);
-}
-
-let server = null;
 let url = opts.url;
-
-// Kill once, from wherever we leave: the `finally` below, Ctrl-C, or a crash.
-// An orphaned vite holds node_modules' native rolldown binding open, and the
-// next `npm ci` fails with EPERM on a file nobody can see is in use.
-const stopServer = () => {
-  const s = server;
-  server = null;
-  if (s) s.kill();
-};
-process.on('exit', stopServer);
-for (const sig of ['SIGINT', 'SIGTERM', 'SIGHUP']) {
-  process.on(sig, () => {
-    stopServer();
-    process.exit(130);
-  });
-}
-
-if (!url) {
-  url = `http://localhost:${PORT}/`;
-  // Vite's own binary under the running Node — no `npx`, no shell. On Windows
-  // `kill()` reaches only the cmd wrapper, so anything spawned through one
-  // survives as an orphan holding the port and the binding.
-  const viteBin = `${root}node_modules/vite/bin/vite.js`;
-  if (!existsSync(viteBin)) {
-    console.error(`audio-bench: ${viteBin} is missing — run \`npm install\` first.`);
-    process.exit(1);
-  }
-  server = spawn(process.execPath, [viteBin, '--port', String(PORT), '--strictPort'], {
-    cwd: root,
-    stdio: 'ignore',
-  });
-  console.log(`audio-bench: starting vite on ${url}`);
-  await waitForServer(url);
-}
+let stopServer = () => {};
+if (!url) ({ url, stop: stopServer } = await startDevServer({ root, port: PORT, tag: 'audio-bench' }));
 
 // ------------------------------------------------------------------- take
 
@@ -268,32 +221,7 @@ try {
   const context = await browser.newContext({ acceptDownloads: true });
   const page = await context.newPage();
 
-  // Same boot flags the e2e helpers use: no onboarding overlay, and a pinned
-  // performance tier so a take is reproducible across machines.
-  await page.addInitScript(() => {
-    try {
-      localStorage.setItem('websynth.onboarding.done', '1');
-      localStorage.setItem('websynth.perf', 'medium');
-      localStorage.setItem('websynth.hint.emptyplay', '1');
-    } catch { /* ignore */ }
-  });
-  await page.goto(url);
-
-  // Get past whichever start gate this browser gets (audio-lifecycle.md REQ-the-gesture-is-required-only-when-required).
-  // The modal exists only to buy a user gesture, so it is shown only where the
-  // browser demands one — and Playwright launches both engines with autoplay
-  // already permitted, so usually there is no modal at all. Waiting for the
-  // button alone times out on that path; wait for either outcome, exactly as
-  // `e2e/helpers.ts` startAudio does.
-  await page.waitForFunction(() =>
-    Boolean(document.querySelector('.start-btn'))
-    || window.__synth?.engine.ctx.state === 'running');
-  const start = page.getByRole('button', { name: 'Tap to start' });
-  if (await start.count() > 0) {
-    await start.click();
-    await start.waitFor({ state: 'hidden' });
-  }
-  await page.waitForFunction(() => window.__synth?.engine.ctx.state === 'running');
+  await bootApp(page, url);
 
   if (opts.project) {
     // The app's OWN import path (song-panel's file input accepts .json and .zip),
