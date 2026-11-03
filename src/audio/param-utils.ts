@@ -26,13 +26,18 @@ export const LIVE_MARGIN_MAX_S = 0.02;
  * burst. The renderer runs a device callback's worth of quanta back to back, so
  * bare `currentTime` can already be in the past by the time the event is read,
  * and an attack anchored in the past renders most of the way to peak on its
- * first sample. `baseLatency` is that burst; a context without one (offline)
- * gets one quantum.
+ * first sample. `baseLatency` is that burst. A realtime context that reports
+ * none (Gecko says `0`) gets the ceiling, since 10 ms was measured too short
+ * there (REQ-the-margin-follows-the-device); an offline context, with no burst
+ * to outrun, gets one quantum. Only a realtime context has `getOutputTimestamp`.
  */
 export function liveStartTime(ctx: BaseAudioContext): number {
   const quantum = RENDER_QUANTUM_FRAMES / ctx.sampleRate;
-  const base = (ctx as Partial<AudioContext>).baseLatency;
-  const burst = typeof base === 'number' && Number.isFinite(base) && base > 0 ? base : quantum;
+  const rt = ctx as Partial<AudioContext>;
+  const base = rt.baseLatency;
+  const burst = typeof base === 'number' && Number.isFinite(base) && base > 0
+    ? base
+    : typeof rt.getOutputTimestamp === 'function' ? LIVE_MARGIN_MAX_S : quantum;
   return ctx.currentTime + Math.min(LIVE_MARGIN_MAX_S, Math.max(quantum, burst));
 }
 

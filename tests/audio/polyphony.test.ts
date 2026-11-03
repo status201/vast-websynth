@@ -236,11 +236,21 @@ describe('Polyphony', () => {
       expect(voices[0]!.noteOff.mock.calls.at(-1)![0]).toBeCloseTo(5.01, 12);
     });
 
-    it('takes at least one render quantum where no baseLatency is reported', () => {
+    it('takes one render quantum on an offline context, which has no burst to outrun', () => {
+      // The mock has no getOutputTimestamp, which only a realtime AudioContext has.
       const { ctx, voices, poly } = build();
       ctx.currentTime = 1;
       poly.playNote(60, 0.8);
       expect(at(voices[0]!.noteOn)).toBeCloseTo(1 + 128 / ctx.sampleRate, 12);
+    });
+
+    it('takes the ceiling on a realtime context that reports no burst (Gecko: baseLatency 0)', () => {
+      // 10 ms was measured too short in Gecko (2 of 9 onsets still clicked); 20 ms held.
+      const { ctx, voices, poly } = build();
+      ctx.currentTime = 1;
+      Object.assign(ctx, { baseLatency: 0, getOutputTimestamp: () => ({ contextTime: 0, performanceTime: 0 }) });
+      poly.playNote(60, 0.8);
+      expect(at(voices[0]!.noteOn)).toBeCloseTo(1 + LIVE_MARGIN_MAX_S, 12);
     });
 
     it('never adds more than LIVE_MARGIN_MAX_S, whatever the device reports', () => {

@@ -40,9 +40,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
   pad tapped by hand, no longer sometimes starts with a click. Each was timed for
   the instant it was played, which the audio engine could already have rendered
   past, so its attack started most of the way up. They now start one audio buffer
-  ahead (10 ms on a typical Windows setup, less on low-latency devices). Notes
-  clicked more on a busy computer, especially right after MONO/POLY or Panic; a
-  sampler pad almost always did, since its fade-in is shorter than the gap.
+  ahead (10 ms in Chrome on a typical Windows setup, less on low-latency devices,
+  20 ms in Firefox, which does not report its buffer). Notes clicked more on a
+  busy computer, especially right after MONO/POLY or Panic; a sampler pad almost
+  always did, since its fade-in is shorter than the gap.
 - Switching the filter between LADDER and POLY while a note sounds no longer
   clicks: the two models now crossfade over 5 ms instead of swapping on the spot.
 - Moving DRIVE in a jump (a motion lane, the XY Pad, a mod-matrix route) no

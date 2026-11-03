@@ -3,7 +3,7 @@
 ```yaml
 id: live-trigger-timing
 status: implemented
-version: 1
+version: 2
 owner: core
 related:
   - voicing          # live notes: Polyphony.playNote / releaseNote
@@ -44,21 +44,27 @@ reports the burst as `baseLatency`.
 - **REQ-a-live-trigger-starts-ahead-of-the-render** — A trigger with no time of
   its own is placed at `liveStartTime(ctx)`: `currentTime` plus one render burst,
   `baseLatency`, bounded to one render quantum at least and `LIVE_MARGIN_MAX_S`
-  (20 ms) at most. A context reporting no `baseLatency` (Gecko reports `0`, an
-  offline context has none) gets one quantum. Measured on held sines through the
+  (20 ms) at most. A realtime context reporting no burst (Gecko reports
+  `baseLatency` `0`) gets `LIVE_MARGIN_MAX_S`; an offline context, which has no
+  render burst to outrun, gets one quantum. Measured on held sines through the
   real graph in Blink: anchored at `currentTime`, 22 of 110 note-ons clicked
   (11-50x the 3rd-difference floor, the rate swinging with machine load);
   scheduled 3-50 ms ahead, 0 of 92; the shipped path, 0 of 20 against 3 of 20 for
   the old timing in the same loaded session. Drum and sampler pads under load
   showed the same split: live, the worst snare onset was 3x and its first-sample
   jump 57x those of the same hits scheduled 10 ms ahead, the kick's jump 13x and
-  a sampler slot's onset 27x, at unchanged medians.
+  a sampler slot's onset 27x, at unchanged medians. In Gecko, onsets clicked 1 of
+  9 at `currentTime`, 2 of 9 at 10 ms ahead and 0 of 18 at 20-40 ms; releases
+  at `currentTime` clicked about 1 in 3 at every attack margin, which is
+  REQ-a-live-release-takes-the-same-margin's case.
 - **REQ-a-live-release-takes-the-same-margin** — A live release (`releaseNote`
   with no time) takes the same margin as the attack it ends, so a quick tap still
   releases after it attacks.
 - **REQ-the-margin-follows-the-device** — The margin is the device's burst, not a
-  constant: up to 20 ms of added key-to-sound latency where the browser reports a
-  large one (10 ms on a typical Windows setup), less on a low-latency device.
+  constant, where the browser reports one: 10 ms in Blink on a typical Windows
+  setup, less on a low-latency device. Where it does not (Gecko), it is the 20 ms
+  ceiling, because 10 ms was measured too short there; that is the added
+  key-to-sound latency a Firefox player pays.
 
 ## Technical design
 
@@ -81,9 +87,9 @@ Scenario: A live note and its release land one burst ahead (REQ-a-live-trigger-s
 # pinned by: tests/audio/polyphony.test.ts
 
 Scenario: The margin is bounded both ways (REQ-the-margin-follows-the-device, edge)
-  Given a context reporting no baseLatency, or one of 500 ms
+  Given an offline context, or a realtime one reporting a baseLatency of 0, or one of 500 ms
   When a live note plays
-  Then it lands one render quantum ahead, or LIVE_MARGIN_MAX_S ahead
+  Then it lands one render quantum ahead, LIVE_MARGIN_MAX_S ahead, or LIVE_MARGIN_MAX_S ahead
 # pinned by: tests/audio/polyphony.test.ts
 
 Scenario: A pad audition starts one burst ahead (REQ-a-live-trigger-starts-ahead-of-the-render, regression)
@@ -104,5 +110,6 @@ Scenario: A scheduled hit is untouched (REQ-a-live-trigger-starts-ahead-of-the-r
   `tests/audio/transport/sampler-machine.test.ts`.
 - By ear, on a busy machine: fast notes on the computer keys and repeated pad
   taps, especially right after Panic or a MONO/POLY switch. No first-sample clicks.
-- Gecko is unmeasured: in a Firefox take the capture opens only once the note is
-  sounding, so the onset cannot be read from it.
+- `--browser firefox` takes read onsets since [audio-export](audio-export.md)
+  REQ-a-silent-quantum-is-captured-as-silence; before it, a Firefox take opened
+  only once the note was sounding.
