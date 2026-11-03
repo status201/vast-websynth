@@ -112,9 +112,8 @@ and a [project zip](project-export.md) carries them.
   the buffer's; reversed, its start is) fades its per-hit gain to 0 over
   `CHOKE_FADE`, **finishing as the buffer runs out**. Without it nothing shaped a
   natural end, and a clip whose last frame is not near zero (a chopped slice, a
-  cropped take, a loop cut on the beat) stopped on a full-scale step: a sine cut
-  at its crest measured 1,079x its own body's 3rd difference at the cut, on every
-  hit. A window that ends inside the buffer still fades after its end, where the
+  cropped take, a loop cut on the beat) stopped on a full-scale step, a click on
+  every hit. A window that ends inside the buffer still fades after its end, where the
   buffer has audio to fade through.
 - **REQ-each-slot-has-a-channel** — Each slot carries the drum tracks' channel shape
   ([drum-machine](drum-machine.md) REQ-per-track-drum-params), downstream of the

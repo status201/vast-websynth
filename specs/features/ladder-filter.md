@@ -77,9 +77,7 @@ on-screen value is shown in Hz.
   on (at `when >= currentTime`), so the filter is awake by the block the VCA opens
   in. A port message is serviced whenever the audio thread gets to it, so nothing
   orders it against the note's automation: a late one would start the note on
-  silence and jump the filter in under an open VCA. This holds by construction;
-  the note-on click it was suspected of is [live-trigger-timing](live-trigger-timing.md)
-  REQ-a-live-trigger-starts-ahead-of-the-render.
+  silence and jump the filter in under an open VCA.
 - **REQ-filter-coefficients-hoist-per-block** — The pole coefficient `g` costs a
   `pow` + `exp` per sample. When every `cutoffNote` sample in a quantum is equal,
   `g` is computed **once per block** and cached until the constant changes. A
@@ -96,8 +94,7 @@ on-screen value is shown in Hz.
   deactivate keeps the carries consistent.
 - **REQ-drive-moves-without-a-step** — `drive` is k-rate, so a knob write, a
   motion lane or a matrix `drive` route reaches the DSP as one value per block,
-  and a changed value used to land as a step in the input gain: a 1.2 -> 3 jump
-  measured 10x the 3rd-difference floor on a held sine. A block whose `drive`
+  which would land as a step in the input gain, a click. A block whose `drive`
   differs from the previous block's **ramps linearly across the block** from the
   old value to the new one, in both models. A constant `drive` takes the
   unramped path, so the output stays bit-identical to the frozen reference.

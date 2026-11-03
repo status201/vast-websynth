@@ -120,9 +120,8 @@ Per [ADR-006](../decisions/adr-006-no-op-param-defaults.md) the default is index
   `MODEL_XF_S` (5 ms) the outgoing model keeps running on a copy of the state
   taken at the switch, and the output is a linear crossfade from it to the
   incoming model. The two models settle at different passband levels and from
-  different internal states, so swapping the recurrence on a block edge stepped
-  the output on a held note: measured 50-70x the take's 3rd-difference floor on
-  a sine, at every switch. The incoming model runs on the shared state exactly
+  different internal states, so swapping the recurrence on a block edge steps
+  the output on a held note, a click at every switch. The incoming model runs on the shared state exactly
   as before, so once the fade is over the output is the un-faded output; only
   the fade window pays for two models. A processor's first block, and the first
   block after a deactivate, have nothing to fade from and run plain.

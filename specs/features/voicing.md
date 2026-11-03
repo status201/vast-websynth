@@ -86,12 +86,8 @@ for bass and leads, poly for chords, unison for a fat stack, and per-voice
   (15 time constants into the release; 30 ms after `kill`'s 3 ms cut). The spread
   stage keeps its own engaged state while a voice is unplugged and applies it when
   the voice is plugged back in, so engaging it never reconnects an idle voice.
-  Measured with `npm run bench:perf` (Blink, 3 reps, medians), audio load per
-  render callback: idle 17.4% → 5.6%, one held note 17.6% → 8.4%, a 4-note chord
-  17.8% → 13.1%, the two demos 27.3% → 22.2% and 29.9% → 23.9%, weak-tier idle
-  10.7% → 4.1%; all eight voices sounding is unchanged, as it should be. Onsets on
-  re-plugged voices measured clean in both engines (32 in Blink under load, worst
-  2.2x the held note's 3rd difference; 16 in Gecko, worst 1.9x).
+  The saving is what `npm run bench:perf`'s idle and held-note scenarios print;
+  with every voice sounding there is nothing to skip.
 - **REQ-passthrough-remembers-what-it-played** — (v3) A raw key may be re-pitched
   by the key or expanded into a chord ([scale-quantization](scale-quantization.md),
   [chord-tools](chord-tools.md)). `Polyphony.releaseNote` looks up by note number,
@@ -184,7 +180,7 @@ Scenario: An idle synth costs a fraction of what it did (REQ-an-idle-voice-is-un
   When npm run bench:perf measures idle and 1 note
   Then the audio load falls well below the all-voices-rendering baseline
   And a note started on an unplugged voice still starts without a click
-# pinned by: npm run bench:perf (bench/perf-before.json vs bench/perf-after.json); npm run bench:audio onset scan
+# pinned by: npm run bench:perf --compare (a before/after pair); onsets by ear and 3rd-difference scan, Blink and Gecko
 
 Scenario: Releasing an older key in mono does not cut the sounding note (regression)
   Given voicing.mode is mono

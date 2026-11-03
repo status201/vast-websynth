@@ -287,8 +287,8 @@ without anyone remembering to ask.
 
 - **REQ-options-are-built-when-the-menu-opens** — **Option buttons are built on
   the first open after `setOptions`**, or at once if open; closed, the labels are
-  data. Eager, 55 dropdowns held 3,177 buttons (40% of the boot DOM) ([runtime-performance](runtime-performance.md)
-  REQ-boot-cost-matches-the-request).
+  data. Built eagerly, the closed lists were the largest part of the boot DOM
+  ([runtime-performance](runtime-performance.md) REQ-boot-cost-matches-the-request).
 - **REQ-a-toggle-can-carry-a-legend** (v16) — **`DropdownOptions.legend` turns
   the toggle into a panel title**: a small legend line carrying the caret (as
   tall as the legend's capitals, [iconography](iconography.md) REQ-a-title-caret-is-cap-high),

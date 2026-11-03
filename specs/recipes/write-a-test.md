@@ -174,3 +174,5 @@ Scenario: No shipped demo may claim the reserved test- prefix
 - `npm test` (Vitest), `npm run e2e` (Playwright), `npm run typecheck`.
 - For anything that changes the *sound*: `npm run bench:audio` +
   `npm run bench:metrics` ([verify-audio-by-ear](verify-audio-by-ear.md)).
+- For anything that should *cost* less: a before/after pair of `npm run bench:perf`
+  runs (`--name`, then `--compare`; [runtime-performance](../features/runtime-performance.md)).

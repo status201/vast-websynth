@@ -102,9 +102,8 @@ lets the player address them.
 - **REQ-random-steps-are-smoothed** — The sample-&-hold's steps reach the matrix
   through the same control smoother as the LFO taps ([lfo](lfo.md)
   REQ-amplitude-destinations-are-smoothed), so a new value arrives as a ~3 ms
-  slew rather than a step. Raw, every 16th was a full-bandwidth step in
-  whatever the route drives: `random` into amp measured 95x the 3rd-difference
-  floor of a held sine, once per 16th. `SampleHold` owns the source and its
+  slew rather than a step. Raw, every roll is a full-bandwidth step in
+  whatever the route drives, which into amp is a click every 16th. `SampleHold` owns the source and its
   smoother, and the matrix reads its smoothed `out`.
 - **REQ-a-modulated-knob-shows-its-reach** — A faceplate knob that any route
   targets draws a **range band**: an inner arc over `value ± Σ|depth|`, computed

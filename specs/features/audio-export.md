@@ -93,9 +93,8 @@ reuses it. `lamejs` is large and pre-minified, so it is a lazy chunk
   The spec gives an input zero channels when nothing upstream is actively
   processing, and Gecko does exactly that for silence (a closed VCA is a gain-0
   node, which emits a null chunk). Skipping it dropped every such quantum from
-  the take: a Firefox recording started at the first sound instead of at Record
-  (measured: a 3.92 s take came out 2.90 s, its 1.0 s lead-in gone), and the
-  frames that `firstFrame` maps to no longer followed one another. Blink hands
+  the take: a Firefox recording started at the first sound instead of at Record,
+  and the frames that `firstFrame` maps to no longer followed one another. Blink hands
   the recorder a silent channel instead, so it never took this path.
 - **REQ-chunks-are-batched-then-flushed** (v10) — The worklet accumulates
   `RECORD_BATCH_QUANTA` (16) quanta per message, about 43 ms at 48 kHz. That cuts

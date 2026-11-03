@@ -254,7 +254,7 @@ SynthOutput:           # src/audio/transport/note-output.ts
 Polyphony.playNote(note, velocity, when?, opts?)   # threads opts.pan
 Voice:                 # src/audio/voice.ts
   noteOn(note, velocity, when, opts?)
-  connectTo(dest)                       # wires BOTH output edges (dry + panned)
+  connectTo(dest)                       # names the bus; BOTH output edges (dry + panned) plug in with a note (voicing.md REQ-an-idle-voice-is-unplugged)
   setSpread(on)
 forceStereo(node)      # src/audio/stereo.ts
 ```

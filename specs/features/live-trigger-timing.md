@@ -46,27 +46,18 @@ reports the burst as `baseLatency`.
   `baseLatency`, bounded to one render quantum at least and `LIVE_MARGIN_MAX_S`
   (20 ms) at most. A realtime context reporting no burst (Gecko reports
   `baseLatency` `0`) gets `LIVE_MARGIN_MAX_S`; an offline context, which has no
-  render burst to outrun, gets one quantum. Measured on held sines through the
-  real graph in Blink: anchored at `currentTime`, 22 of 110 note-ons clicked
-  (11-50x the 3rd-difference floor, the rate swinging with machine load);
-  scheduled 3-50 ms ahead, 0 of 92; the shipped path, 0 of 20 against 3 of 20 for
-  the old timing in the same loaded session. Drum and sampler pads under load
-  showed the same split: live, the worst snare onset was 3x and its first-sample
-  jump 57x those of the same hits scheduled 10 ms ahead, the kick's jump 13x and
-  a sampler slot's onset 27x, at unchanged medians. In Gecko, onsets clicked 1 of
-  9 at `currentTime`, 2 of 9 at 10 ms ahead and 0 of 18 at 20-40 ms; releases
-  at `currentTime` clicked about 1 in 3 at every attack margin, which is
-  REQ-a-live-release-takes-the-same-margin's case.
+  render burst to outrun, gets one quantum. Through the real graph, in both
+  engines, notes and pad hits anchored at `currentTime` clicked at random under
+  load and the same hits a burst ahead did not.
 - **REQ-a-live-release-takes-the-same-margin** — A live release (`releaseNote`
   with no time) takes the same margin as the attack it ends, so a quick tap still
   releases after it attacks.
 - **REQ-a-cut-made-now-starts-ahead-of-the-render** — A fade that ends a sound
   *now* is a trigger too: Stop's sampler cut (`SamplerMachine.stopAll`, a 5 ms
   ramp) lands at `liveStartTime`. Anchored at bare `currentTime`, a ramp that
-  short can already be over when it renders, which makes it a hard cut: under
-  load 6 of 34 stops ticked (up to 6.8x the 3rd-difference floor of the cut
-  sample), 0 of 34 one burst ahead. The synth's kill (Panic, a MONO/POLY switch)
-  measured clean at `currentTime`, 0 of 10, and is left there.
+  short can already be over when it renders, which makes it a hard cut.
+  Deliberate: the synth's kill (Panic, a MONO/POLY switch) measured clean at
+  `currentTime` and is left there.
 - **REQ-the-margin-follows-the-device** — The margin is the device's burst, not a
   constant, where the browser reports one: 10 ms in Blink on a typical Windows
   setup, less on a low-latency device. Where it does not (Gecko), it is the 20 ms

@@ -182,9 +182,8 @@ colours each bus independently.
   `setSize` before then only records the size (no IR built, no duck: nothing has
   rung). The first `setBypass(false)` builds the chosen size and assigns it. A
   buffer assignment prepares the convolution kernel synchronously on the main
-  thread, measured at 12-17 ms in Blink and 23-34 ms in Gecko for the default
-  1.5 s stereo IR, and the three chains each did it at boot, so a session with
-  every reverb off paid ~40 ms (Blink) to ~90 ms (Gecko) of boot for nothing
+  thread, tens of milliseconds for the default IR, and done at construction it
+  cost every boot that for each of the three chains, reverbs on or not
   ([runtime-performance](runtime-performance.md) REQ-boot-cost-matches-the-request).
   A reverb that is on at boot pays the same as before, at its enable.
 - **REQ-the-wah-lfo-sweeps-in-cents** (v9) — **The wah's LFO drives `bp.detune` in
