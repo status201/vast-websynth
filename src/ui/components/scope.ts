@@ -713,7 +713,7 @@ export class Scope {
     if (this.lostAt >= 0) return;
     // A sleeping loop is not a stall: wake it, uncounted, so the change this call
     // is about gets drawn (REQ-a-scope-with-nothing-to-show-sleeps).
-    if (this.asleep) { this.start(); return; }
+    if (this.asleep) { this.wake(); return; }
     if (this.running && performance.now() - this.lastFrameTs < SCOPE_STALL_MS) return;
     this.restart();
   }
@@ -832,7 +832,7 @@ export class Scope {
     this.hoverX = e.offsetX;
     this.hoverY = e.offsetY;
     // The cursor readout is drawn by the loop, so a sleeping one wakes for it.
-    if (this.asleep) this.start();
+    this.wake();
   };
 
   private readonly onPointerLeave = (): void => { this.clearHover(); };
@@ -897,7 +897,7 @@ export class Scope {
     }
     // A new box is a blank or stale bitmap: a sleeping loop wakes to repaint it
     // (REQ-a-scope-with-nothing-to-show-sleeps).
-    if (this.asleep) this.start();
+    this.wake();
   }
 
   /** Ready-to-draw guard from the cached size — no layout read in the rAF loop. */
@@ -1027,9 +1027,14 @@ export class Scope {
   private readonly onWakePoll = (): void => {
     if (this.pollChannel(this.mono)
       || (this.channels === 'stereo' && (this.pollChannel(this.left) || this.pollChannel(this.right)))) {
-      this.start();
+      this.wake();
     }
   };
+
+  /** Back to drawing if asleep; a no-op on a running or stopped loop. Not a restart. */
+  private wake(): void {
+    if (this.asleep) this.start();
+  }
 
   private pollChannel(c: Channel | null): boolean {
     if (!c) return false;
