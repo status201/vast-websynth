@@ -15,6 +15,13 @@ export interface NoteOptions {
   /** A per-note pitch bend (step-settings.md REQ-a-bend-is-per-voice). Absent =
    *  no bend; only the sequencer sets it. */
   bend?: NoteBend;
+  /**
+   * The held note this one CONTINUES rather than strikes: its voices move to the
+   * new pitch with no envelope retrigger, or — when they are gone — it is released
+   * and this note strikes as usual (voicing.md REQ-a-legato-note-takes-over-the-held-voices).
+   * Only the sequencer's legato tie sets it (sequencer.md REQ-a-tie-continues-the-note-without-retriggering).
+   */
+  legatoFrom?: number;
 }
 
 /**

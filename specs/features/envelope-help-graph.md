@@ -3,10 +3,11 @@
 ```yaml
 id: envelope-help-graph
 status: implemented
-version: 1
+version: 2
 owner: ui/onboarding
 related:
   - envelopes          # the envelope this draws, and the curve model it shares
+  - voicing            # the MULTI | SINGLE switch both panels carry
   - tempo-sync-help    # the dynamic-body mechanism (REQ-a-help-body-may-be-a-function)
   - onboarding         # the info badges that open it
   - typography
@@ -60,6 +61,13 @@ snapshot taken when the badge opens, like the relationship badges in
   `filter.envAmount` and `noteToHz`: the base Hz, the peak Hz and the sustain Hz.
   - A negative `filter.envAmount` makes the caption say the sweep goes **down**.
   - At `0` it says the shape currently does nothing and names the ENV knob.
+- **REQ-the-copy-covers-every-control-on-the-panel** — (v2) A badge explains its
+  whole panel, not just the four ADSR knobs. FILTER ENV names **VEL**
+  ([envelopes](envelopes.md) REQ-filter-env-follows-velocity), and each panel names
+  its own **MULTI / SINGLE** switch and what that one decides
+  ([voicing](voicing.md) REQ-single-trigger-legatos-a-mono-line). The filter's
+  paragraph gives the musical reason for splitting the two: AMP at SINGLE over
+  FILTER at MULTI keeps the level and re-sweeps every note.
 - **REQ-the-graph-is-accessible-and-csp-safe** — The SVG is `role="img"` with an
   `aria-label` that spells out the four values. It is built with
   `createElementNS` and styled only through classes. No element carries a `style`
@@ -170,6 +178,12 @@ Scenario: A zero or negative ENV is said plainly (edge)
   And given filter.envAmount is -24 the caption says the sweep goes down
 # pinned by: tests/ui/envelope-help.test.ts
 
+Scenario: Every control on the panel is explained (REQ-the-copy-covers-every-control-on-the-panel)
+  When the filterenv help body renders
+  Then it names VEL and the MULTI / SINGLE switch
+  And the ampenv body names its own MULTI / SINGLE switch, and not VEL
+# pinned by: tests/ui/envelope-help.test.ts
+
 Scenario: The graph is CSP-safe and labelled for assistive tech
   When either envelope help body renders
   Then no element in it carries a style attribute
@@ -192,8 +206,9 @@ Scenario: The graph is CSP-safe and labelled for assistive tech
 
 ## Open questions / future
 
-- `filter.velAmount` scales the filter envelope's peak. The graph draws the
-  full-velocity shape, and the caption does not mention velocity yet.
+- `filter.velAmount` scales the filter envelope's peak. The copy says so
+  (REQ-the-copy-covers-every-control-on-the-panel), but the graph still draws the
+  full-velocity shape.
 - With a negative `filter.envAmount`, the graph still rises. It draws the
   envelope, and the caption says the cutoff moves down. Flipping the plot, or
   labelling its axis in Hz, would show the direction in the drawing as well.

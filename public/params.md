@@ -55,10 +55,12 @@ Schemas: [`llms.txt`](llms.txt).
 - "env.amp.decay": number  // range 0.001..4, default 0.2
 - "env.amp.sustain": number  // range 0..1, default 0.8
 - "env.amp.release": number  // range 0.001..6, default 0.4
+- "env.amp.trigger": number  // range 0..1, default 0, step 1, values 0=multi 1=single
 - "env.fil.attack": number  // range 0.001..4, default 0.005
 - "env.fil.decay": number  // range 0.001..4, default 0.6
 - "env.fil.sustain": number  // range 0..1, default 0.2
 - "env.fil.release": number  // range 0.001..6, default 0.4
+- "env.fil.trigger": number  // range 0..1, default 0, step 1, values 0=multi 1=single
 - "lfo.rate": number  // range 0.05..20, default 4
 - "lfo.amount": number  // range 0..1, default 0
 - "lfo.wave": number  // range 0..3, default 0, step 1, values 0=sine 1=triangle 2=saw 3=square
@@ -267,6 +269,7 @@ Schemas: [`llms.txt`](llms.txt).
 - "seq.t2.pan": number  // range -1..1, default 0
 - "seq.t3.pan": number  // range -1..1, default 0
 - "seq.solo": number  // range 0..1, default 0, step 1, values 0=off 1=solo
+- "seq.tieMode": number  // range 0..1, default 0, step 1, values 0=legato 1=re-strike
 - "seq.len": number  // range 0..16, default 0, step 1
 - "seq.rate": number  // range 0..8, default 2, step 1, values 0=1/32 1=1/16 T 2=1/16 3=1/8 T 4=1/16 D 5=1/8 6=1/4 T 7=1/8 D 8=1/4
 - "drum.on": number  // range 0..1, default 0, step 1, values 0=off 1=on

@@ -267,6 +267,10 @@ export const OSC_SYNC_LABELS = ['off', 'hard', 'soft'];
 // an index here is a stored value in every preset, song and share link.
 export const VOICING_LABELS = ['mono', 'poly'];
 export const GLIDE_MODE_LABELS = ['off', 'always', 'legato'];
+/** `env.amp.trigger` / `env.fil.trigger` (voicing.md REQ-single-trigger-legatos-a-mono-line). Append-only. */
+export const ENV_TRIGGER_LABELS = ['multi', 'single'];
+/** `seq.tieMode` (sequencer.md REQ-re-strike-keeps-the-old-tie). Append-only. */
+export const TIE_MODE_LABELS = ['legato', 're-strike'];
 export const UNISON_LABELS = ['off', '2', '3', '4'];
 // Re-exported so panels pull the key's labels from the same place as every other
 // label array; the tables themselves are pure and live in utils
@@ -380,12 +384,19 @@ export function registerDefaults(bus: ParamBus): void {
     { id: 'env.amp.decay', min: 0.001, max: 4, default: 0.2, format: fmtMs },
     { id: 'env.amp.sustain', min: 0, max: 1, default: 0.8, format: fmtPct },
     { id: 'env.amp.release', min: 0.001, max: 6, default: 0.4, format: fmtMs },
+    // Mono single-trigger (voicing.md REQ-single-trigger-legatos-a-mono-line): a
+    // note over a held one lets this envelope run on. Multi is today's behaviour,
+    // so the default changes no preset or song (ADR-006).
+    { id: 'env.amp.trigger', min: 0, max: 1, default: 0, step: 1, taper: 'discrete', labels: ENV_TRIGGER_LABELS },
 
     // ----- Filter envelope -----
     { id: 'env.fil.attack', min: 0.001, max: 4, default: 0.005, format: fmtMs },
     { id: 'env.fil.decay', min: 0.001, max: 4, default: 0.6, format: fmtMs },
     { id: 'env.fil.sustain', min: 0, max: 1, default: 0.2, format: fmtPct },
     { id: 'env.fil.release', min: 0.001, max: 6, default: 0.4, format: fmtMs },
+    // The filter envelope's own single-trigger, so a legato line can keep its level
+    // and still re-sweep (voicing.md REQ-single-trigger-legatos-a-mono-line). ADR-006.
+    { id: 'env.fil.trigger', min: 0, max: 1, default: 0, step: 1, taper: 'discrete', labels: ENV_TRIGGER_LABELS },
 
     // ----- LFO 1 and LFO 2 -----
     // Both from one factory, so "identical to the first one" (lfo.md REQ-there-are-two-lfos) is
@@ -548,6 +559,10 @@ export function registerDefaults(bus: ParamBus): void {
       id: `seq.t${t}.pan`, min: -1, max: 1, default: 0, format: fmtPan,
     })),
     { id: 'seq.solo', min: 0, max: 1, default: 0, step: 1, taper: 'discrete', labels: ['off', 'solo'] },
+    // What a tie does (sequencer.md REQ-a-tie-continues-the-note-without-retriggering).
+    // NOT a no-op default, on purpose: 0 is the fixed, legato tie, and 1 keeps the
+    // old re-striking one for the songs built on it — ADR-028 records why.
+    { id: 'seq.tieMode', min: 0, max: 1, default: 0, step: 1, taper: 'discrete', labels: TIE_MODE_LABELS },
     ...laneMeterParams('seq'),
 
     // ----- Drum machine -----

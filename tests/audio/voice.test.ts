@@ -334,3 +334,68 @@ describe('Voice output edges (REQ-an-idle-voice-is-unplugged)', () => {
     expect(toBus(pan.disconnect)).toBe(1);
   });
 });
+
+/**
+ * A retrigger-free noteOn CONTINUES the note (voicing.md
+ * REQ-a-legato-note-takes-over-the-held-voices): the pitch moves, the envelopes
+ * do not start again. This is what makes a legato tie one note rather than a
+ * re-pluck (sequencer.md REQ-a-tie-continues-the-note-without-retriggering).
+ */
+describe('Voice noteOn without a retrigger (REQ-a-legato-note-takes-over-the-held-voices)', () => {
+  beforeEach(() => {
+    vi.useFakeTimers();
+    installMockAudioWorkletNode();
+  });
+  afterEach(() => {
+    vi.useRealTimers();
+    vi.unstubAllGlobals();
+  });
+
+  async function build() {
+    const ctx = makeMockAudioContext();
+    const voice = await Voice.create(ctx as unknown as AudioContext);
+    const amp = vi.spyOn(voice.ampEnv, 'trigger');
+    const fil = vi.spyOn(voice.filEnv, 'trigger');
+    const pitch = vi.spyOn(voice.osc1, 'setFrequency');
+    return { voice, amp, fil, pitch };
+  }
+
+  it('moves the pitch but triggers neither envelope', async () => {
+    const { voice, amp, fil, pitch } = await build();
+    voice.noteOn(60, 0.8, 0);
+    voice.noteOn(64, 0.3, 0.125, { retriggerAmp: false, retriggerFil: false });
+    expect(amp).toHaveBeenCalledTimes(1);
+    expect(fil).toHaveBeenCalledTimes(1);
+    expect(pitch).toHaveBeenCalledTimes(2);
+    expect(voice.state).toBe('playing');
+  });
+
+  it('continues only the envelope it is told to (voicing.md REQ-single-trigger-legatos-a-mono-line)', async () => {
+    const { voice, amp, fil } = await build();
+    voice.noteOn(60, 0.8, 0);
+    voice.noteOn(64, 0.8, 0.125, { retriggerAmp: false }); // filter re-sweeps
+    expect(amp).toHaveBeenCalledTimes(1);
+    expect(fil).toHaveBeenCalledTimes(2);
+    expect(voice.noteOnAt).toBe(0); // not a new strike: the level ran on
+    voice.noteOn(67, 0.8, 0.25, { retriggerFil: false });  // level re-strikes
+    expect(amp).toHaveBeenCalledTimes(2);
+    expect(fil).toHaveBeenCalledTimes(2);
+    expect(voice.noteOnAt).toBe(0.25);
+  });
+
+  it('keeps the first strike as its age, so the long tie is still the oldest note', async () => {
+    const { voice } = await build();
+    voice.noteOn(60, 0.8, 0);
+    voice.noteOn(64, 0.8, 0.125, { retriggerAmp: false, retriggerFil: false });
+    expect(voice.noteOnAt).toBe(0);
+  });
+
+  it('still strikes by default', async () => {
+    const { voice, amp, fil } = await build();
+    voice.noteOn(60, 0.8, 0);
+    voice.noteOn(64, 0.8, 0.125);
+    expect(amp).toHaveBeenCalledTimes(2);
+    expect(fil).toHaveBeenCalledTimes(2);
+    expect(voice.noteOnAt).toBe(0.125);
+  });
+});

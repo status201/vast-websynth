@@ -27,6 +27,21 @@ const NO_PAN_GROUP = -1;
  */
 const SPREAD_UNITY = Math.SQRT2;
 
+/** What `Voice.noteOn` takes beyond pitch, velocity and time. */
+export interface VoiceNoteOptions {
+  detuneCents?: number;
+  glide?: boolean;
+  pan?: number;
+  panGroup?: number;
+  bend?: NoteBend;
+  /** false = the amp envelope runs on, and the first strike's velocity and
+   *  `noteOnAt` stand (voicing.md REQ-a-legato-note-takes-over-the-held-voices,
+   *  REQ-single-trigger-legatos-a-mono-line). Default true. */
+  retriggerAmp?: boolean;
+  /** false = the filter envelope runs on. Default true. */
+  retriggerFil?: boolean;
+}
+
 export class Voice {
   readonly out: GainNode;
   readonly osc1: Osc;
@@ -367,12 +382,9 @@ export class Voice {
     rampTo(this.panner.pan, pan, this.ctx, RAMP_MEDIUM);
   }
 
-  noteOn(
-    note: number,
-    velocity: number,
-    when: number,
-    opts?: { detuneCents?: number; glide?: boolean; pan?: number; panGroup?: number; bend?: NoteBend },
-  ): void {
+  noteOn(note: number, velocity: number, when: number, opts?: VoiceNoteOptions): void {
+    const retriggerAmp = opts?.retriggerAmp ?? true;
+    const retriggerFil = opts?.retriggerFil ?? true;
     if (this.releaseTimer !== null) {
       clearTimeout(this.releaseTimer);
       this.releaseTimer = null;
@@ -380,7 +392,9 @@ export class Voice {
     this.wake();
     this.currentNote = note;
     this.state = 'playing';
-    this.noteOnAt = when;
+    // A continued note keeps its age, so the pool's oldest-first stealing still
+    // sees the long-held tie as the oldest note it is.
+    if (retriggerAmp) this.noteOnAt = when;
     // Pan lands AT the note, not now: a voice stolen from a differently panned
     // track must not drag its new position back over the tail it is replacing.
     // A short target rather than a step, so the hand-off glides (sequencer.md
@@ -410,9 +424,16 @@ export class Voice {
     // *this* note, so a ramp from the previous note's values would smear two notes
     // together (mod-matrix.md REQ-per-voice-sources-cannot-drive-bus-destinations). Key is normalised around middle C over ±4
     // octaves, so a route's depth means the same thing on every destination.
-    this.velocitySource.offset.setValueAtTime(velocity, when);
     this.keySource.offset.setValueAtTime(clamp((note - 60) / 48, -1, 1), when);
-    this.ampEnv.trigger(when, Math.max(0.01, velocity));
+    // A continued envelope is not struck again: it runs on from where it is
+    // (sequencer.md REQ-a-tie-continues-the-note-without-retriggering). The
+    // velocity belongs to the amp's strike. The pitch, bend and key tracking above
+    // did move — that is what makes it a legato note, not a held one.
+    if (retriggerAmp) {
+      this.velocitySource.offset.setValueAtTime(velocity, when);
+      this.ampEnv.trigger(when, Math.max(0.01, velocity));
+    }
+    if (!retriggerFil) return;
     // Velocity → filter (envelopes.md REQ-filter-env-follows-velocity). `filVelAmount` 0 gives exactly the
     // hard-coded 1 this used to pass, so the default changes nothing; at 1 the
     // sweep scales straight with velocity. Scaling the envelope's PEAK scales the

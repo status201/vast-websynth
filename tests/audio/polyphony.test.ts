@@ -19,7 +19,7 @@ function fakeVoice() {
     osc1: { detuneParam: {} },
     osc2: { detuneParam: {} },
     sub: { detuneParam: {} },
-    noteOn: vi.fn(() => { v.state = 'playing'; }),
+    noteOn: vi.fn((_n: number, _v: number, _t: number, _o?: { retriggerAmp?: boolean; retriggerFil?: boolean }) => { v.state = 'playing'; }),
     noteOff: vi.fn(() => { v.state = 'releasing'; }),
     kill: vi.fn(() => { v.state = 'idle'; }),
   };
@@ -267,6 +267,160 @@ describe('Polyphony', () => {
       (ctx as unknown as { baseLatency: number }).baseLatency = 0.01;
       poly.playNote(60, 0.8, 2.1); // a sequencer step, a look-ahead away
       expect(at(voices[0]!.noteOn)).toBe(2.1);
+    });
+  });
+  type Call = [number, number, number, { retriggerAmp?: boolean; retriggerFil?: boolean }?];
+  /** What each noteOn on `v` asked of the AMP envelope: true = struck, false = continued. */
+  const strikes = (v: ReturnType<typeof fakeVoice>) =>
+    (v.noteOn.mock.calls as unknown as Call[]).map(([, , , o]) => o?.retriggerAmp ?? true);
+  /** The same, for the FILTER envelope. */
+  const sweeps = (v: ReturnType<typeof fakeVoice>) =>
+    (v.noteOn.mock.calls as unknown as Call[]).map(([, , , o]) => o?.retriggerFil ?? true);
+
+  describe('a legato note takes over the held voices (voicing.md REQ-a-legato-note-takes-over-the-held-voices)', () => {
+    it('moves the held voice to the new pitch without striking it', () => {
+      const { voices, poly } = build();
+      poly.playNote(60, 0.8, 0);
+      poly.playNote(64, 0.8, 0.125, { legatoFrom: 60 });
+      expect(voices[0]!.noteOn.mock.calls.map(([n]) => n)).toEqual([60, 64]);
+      expect(strikes(voices[0]!)).toEqual([true, false]);
+      expect(sweeps(voices[0]!)).toEqual([true, false]);
+      // No second voice was taken.
+      expect(voices.slice(1).every((v) => v.noteOn.mock.calls.length === 0)).toBe(true);
+    });
+
+    it('files the voice under the new note: releasing 64 stops it, releasing 60 does nothing', () => {
+      const { voices, poly } = build();
+      poly.playNote(60, 0.8, 0);
+      poly.playNote(64, 0.8, 0.125, { legatoFrom: 60 });
+      poly.releaseNote(60, 0.2);
+      expect(voices[0]!.noteOff).not.toHaveBeenCalled();
+      poly.releaseNote(64, 0.25);
+      expect(voices[0]!.noteOff).toHaveBeenCalledWith(0.25);
+    });
+
+    it('continues a same-pitch note on its own voices', () => {
+      const { voices, poly } = build();
+      poly.setUnisonCount(2);
+      poly.playNote(60, 0.8, 0);
+      poly.playNote(60, 0.3, 0.125, { legatoFrom: 60 });
+      expect(strikes(voices[0]!)).toEqual([true, false]);
+      expect(strikes(voices[1]!)).toEqual([true, false]);
+      poly.releaseNote(60, 0.3);
+      expect(voices[0]!.noteOff).toHaveBeenCalledTimes(1);
+      expect(voices[1]!.noteOff).toHaveBeenCalledTimes(1);
+    });
+
+    it('joins a pitch another track already holds, so one release stops both (edge)', () => {
+      const { voices, poly } = build();
+      poly.playNote(64, 0.8, 0); // another track's note → voice0
+      poly.playNote(60, 0.8, 0); // the tied note → voice1
+      poly.playNote(64, 0.8, 0.125, { legatoFrom: 60 });
+      expect(strikes(voices[1]!)).toEqual([true, false]);
+      poly.releaseNote(64, 0.3);
+      expect(voices[0]!.noteOff).toHaveBeenCalledWith(0.3);
+      expect(voices[1]!.noteOff).toHaveBeenCalledWith(0.3);
+    });
+
+    it('falls back to a struck note when the held voices were stolen (edge)', () => {
+      const { voices, poly } = build(1);
+      poly.playNote(60, 0.8, 0);   // the tied note
+      poly.playNote(67, 0.8, 0.1); // another track steals the only voice
+      voices[0]!.noteOn.mockClear();
+      poly.playNote(64, 0.8, 0.125, { legatoFrom: 60 });
+      expect(strikes(voices[0]!)).toEqual([true]);
+      // Nothing still claims 60, so a later release of it touches no voice.
+      voices[0]!.noteOff.mockClear();
+      poly.releaseNote(60, 0.2);
+      expect(voices[0]!.noteOff).not.toHaveBeenCalled();
+    });
+
+    it('releases what is left of the old note when it cannot continue it (edge)', () => {
+      const { voices, poly } = build();
+      poly.playNote(60, 0.8, 0);
+      voices[0]!.state = 'releasing'; // a voice no longer playing cannot be continued
+      poly.playNote(64, 0.8, 0.125, { legatoFrom: 60 });
+      expect(voices[0]!.noteOff).toHaveBeenCalledWith(0.125);
+      expect(voices.some((v) => v.noteOn.mock.calls.some(([n]) => n === 64))).toBe(true);
+    });
+
+    it('continues in mono on the fixed voices', () => {
+      const { voices, poly } = build();
+      poly.setPoly(false);
+      poly.playNote(60, 0.8, 0);
+      poly.playNote(64, 0.8, 0.125, { legatoFrom: 60 });
+      expect(strikes(voices[0]!)).toEqual([true, false]);
+    });
+  });
+
+  describe('single trigger legatos a mono line (voicing.md REQ-single-trigger-legatos-a-mono-line)', () => {
+    it('does not re-strike a note played over a held one', () => {
+      const { voices, poly } = build();
+      poly.setPoly(false);
+      poly.setSingleTrigger('amp', true);
+      poly.setSingleTrigger('fil', true);
+      poly.playNote(48, 0.8, 0);
+      poly.playNote(52, 0.8, 0.1); // C3 still held
+      expect(strikes(voices[0]!)).toEqual([true, false]);
+      expect(sweeps(voices[0]!)).toEqual([true, false]);
+    });
+
+    it('keeps each envelope on its own switch: single amp, multi filter', () => {
+      const { voices, poly } = build();
+      poly.setPoly(false);
+      poly.setSingleTrigger('amp', true);
+      poly.playNote(48, 0.8, 0);
+      poly.playNote(52, 0.8, 0.1);
+      expect(strikes(voices[0]!)).toEqual([true, false]); // the level runs on
+      expect(sweeps(voices[0]!)).toEqual([true, true]);   // the filter re-sweeps
+    });
+
+    it('and the reverse: multi amp, single filter', () => {
+      const { voices, poly } = build();
+      poly.setPoly(false);
+      poly.setSingleTrigger('fil', true);
+      poly.playNote(48, 0.8, 0);
+      poly.playNote(52, 0.8, 0.1);
+      expect(strikes(voices[0]!)).toEqual([true, true]);
+      expect(sweeps(voices[0]!)).toEqual([true, false]);
+    });
+
+    it('a legato tie continues both, whatever the switches say', () => {
+      const { voices, poly } = build();
+      poly.setPoly(false);
+      poly.playNote(48, 0.8, 0);
+      poly.playNote(52, 0.8, 0.1, { legatoFrom: 48 });
+      expect(strikes(voices[0]!)).toEqual([true, false]);
+      expect(sweeps(voices[0]!)).toEqual([true, false]);
+    });
+
+    it('re-strikes a detached note, played after every key is up', () => {
+      const { voices, poly } = build();
+      poly.setPoly(false);
+      poly.setSingleTrigger('amp', true);
+      poly.setSingleTrigger('fil', true);
+      poly.playNote(48, 0.8, 0);
+      poly.releaseNote(48, 0.05);
+      poly.playNote(52, 0.8, 0.1);
+      expect(strikes(voices[0]!)).toEqual([true, true]);
+    });
+
+    it('changes nothing at multi, the default (back-compat)', () => {
+      const { voices, poly } = build();
+      poly.setPoly(false);
+      poly.playNote(48, 0.8, 0);
+      poly.playNote(52, 0.8, 0.1);
+      expect(strikes(voices[0]!)).toEqual([true, true]);
+    });
+
+    it('is ignored in poly, where every note has its own voice', () => {
+      const { voices, poly } = build();
+      poly.setSingleTrigger('amp', true);
+      poly.setSingleTrigger('fil', true);
+      poly.playNote(48, 0.8, 0);
+      poly.playNote(52, 0.8, 0.1);
+      expect(strikes(voices[0]!)).toEqual([true]);
+      expect(strikes(voices[1]!)).toEqual([true]);
     });
   });
 });

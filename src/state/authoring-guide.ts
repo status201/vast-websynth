@@ -278,7 +278,12 @@ NOTES
   REQ-destinations-are-no-longer-exclusive), and duplicates stay bounded.
   The mod wheel adds depth to LFO 1 only.
 - Use "prob" (< 1) for evolving hats/ghost notes, "ratchet" (2-4) for rolls, and "tie" + "mixer.glide"
-  in Mono voicing ("voicing.mode": 0) for acid slides.
+  for acid slides. A tie CONTINUES the note: the next step sounds without a new attack (same pitch = one
+  long note, a new pitch = a legato slide), per track, in Poly too. To repeat a pitch with a fresh pluck
+  and no gap, use "gate": 1 without "tie". "seq.tieMode": 1 ("re-strike") instead re-attacks the held
+  voice on every tied step (the older behaviour); leave it at 0 unless a song is built on that sound.
+  "env.amp.trigger" / "env.fil.trigger": 1 ("single") gives a Mono patch the same no-re-attack legato for
+  overlapping live notes, per envelope: amp single + filter multi keeps the level but re-sweeps every note.
 - Drum/sampler hits: "gate" < 1 chokes a hit early (tight/choked open hats, gated snares), "ratchet" 2-4
   makes rolls, "prob" < 1 makes ghost notes, and "tie" lets the last ratchet hit of a choked step ring out.
 - "micro" (-12..12) nudges ONE step off the grid, in 1/24 of a step: negative = early (pushing, urgent),
@@ -289,7 +294,7 @@ NOTES
   "bendShape": "scoop" (default) starts that far away and slides onto the note — "bend": -1 or -2 is a
   sung/guitar scoop into a lead note; "fall" starts on the note and bends away — "bend": -12 is a dive
   at the end of a phrase, +12 an octave leap. Use it on a few accent notes, not every step; unlike
-  "tie" + glide it needs no Mono voicing and moves only that note.
+  "tie" + glide it bends inside ONE note rather than into the next.
 - Two bus compressors are available: "fx.drum.comp.*" (1176 FET style — punchy drums; ratio index 4 = ALL,
   the crushed all-buttons-in sound) and "fx.master.comp.*" (SSL G bus style — mix glue; release index 4 = auto).
   Their "ratio"/"release" params are discrete INDICES — see the value maps in PARAMS.
@@ -460,7 +465,9 @@ SOUND DESIGN NOTES
   Percussive (pluck/bass stab): tiny attack, short "env.fil.decay", "env.fil.sustain" 0, high
   "filter.envAmount". Sustained (pad/strings): long attacks and releases, sustain near 1, low envAmount.
 - "voicing.mode": 0 = mono (one note at a time — basses, leads, acid), 1 = poly (chords, pads).
-  Glide only bends between notes in mono: set "glide.mode" 1/2 and "mixer.glide" > 0.
+  Glide bends between notes in mono (and, in either mode, into a sequencer step that a tie runs into):
+  set "glide.mode" 1/2 and "mixer.glide" > 0. "env.amp.trigger" / "env.fil.trigger" 1 (single) stop a
+  mono note played over a held one re-starting that envelope.
 - Fatten with "unison.voices"/"unison.detune", "analog.drift" (per-voice tuning wander), a detuned
   osc2, or "sub.level" for weight an octave down. "mixer.noise" adds breath/attack transient.
 - "fx.flanger.*" is a jet-sweep flanger (rate/depth/feedback/mix; "sync" locks the rate to the tempo) — for

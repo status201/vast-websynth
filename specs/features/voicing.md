@@ -3,7 +3,7 @@
 ```yaml
 id: voicing
 status: implemented
-version: 12
+version: 13
 owner: core
 related:
   - architecture
@@ -12,7 +12,9 @@ related:
   - chord-tools
   - arpeggiator
   - runtime-performance  # REQ-an-idle-voice-is-unplugged answers its open question
-  - sequencer            # the spread stage is the voice's second output edge
+  - sequencer            # the spread stage is the voice's second output edge; the legato tie
+  - envelopes            # what a retrigger is
+  - ../decisions/adr-028-a-tie-never-re-strikes
 source:
   - src/audio/polyphony.ts     # voice pool, alloc, unison, glide, drift (ADR-008)
   - src/audio/engine.ts        # builds voices; thin playNote/releaseNote delegators
@@ -20,8 +22,9 @@ source:
   - src/audio/oscillator.ts    # Osc.setFrequency: the anchored glide
   - src/state/params.ts
   - src/ui/shell/header.ts           # the VOICE segmented
-  - src/ui/panels/synth-panels.ts    # UNI (unison) + GLIDE
+  - src/ui/panels/synth-panels.ts    # UNI (unison) + GLIDE + the AMP ENV trigger switch
   - src/ui/shell/bottom.ts           # pitch-bend + transpose strips
+  - src/audio/transport/note-output.ts  # NoteOptions.legatoFrom
 ```
 
 How notes become voices: poly vs mono, unison stacking, glide, analogue drift,
@@ -114,6 +117,44 @@ for bass and leads, poly for chords, unison for a fat stack, and per-voice
   Stealing order is unchanged, and this is not refcounting. The map is keyed by
   note number, so two sequencer tracks on one pitch share a voice and the later
   pan wins ([sequencer](sequencer.md) REQ-two-tracks-on-one-pitch-share-a-pan).
+- **REQ-a-legato-note-takes-over-the-held-voices** — (v13) `playNote(note, velocity,
+  when, { legatoFrom })` asks the pool to **continue** `legatoFrom` as `note` rather
+  than strike it. When `legatoFrom` is held and every voice under it is `playing`,
+  those voices are re-filed under `note` (a voice still appears in one entry
+  only) and each gets `noteOn(..., { retriggerAmp: false, retriggerFil: false })`: the
+  new pitch, glide, bend and key tracking land as for any note, while neither envelope
+  is triggered and the velocity source and `noteOnAt` keep the first strike's
+  values. A tie continues both envelopes whatever the trigger switches below say. If `note` is already held by something else (another sequencer track on that
+  pitch), the voices **join** its entry, which is the same collapse
+  REQ-two-tracks-on-one-pitch-share-a-pan records. When the voices are gone, it
+  releases whatever `legatoFrom` still holds and plays `note` as a normal note-on, so
+  the caller never has to release `legatoFrom` itself. Mono continues on its fixed
+  voices whenever `legatoFrom` is held. Only the [sequencer](sequencer.md) passes it
+  (REQ-a-tie-continues-the-note-without-retriggering).
+- **REQ-single-trigger-legatos-a-mono-line** — (v13) `env.amp.trigger` and
+  `env.fil.trigger` pick, **each for its own envelope**, how a **mono** voice treats a
+  note that arrives while another is held: **Multi** (0, default, ADR-006) re-strikes
+  that envelope as before; **Single** (1) lets it run on, as `legatoFrom` does. That is
+  the Minimoog's single-trigger, split per envelope as on the Sub 37 and Voyager,
+  because the split is the musical part: a SINGLE amp over a MULTI filter plays a
+  legato line with no dip in level while every note still gets its own filter sweep;
+  the reverse keeps one filter sweep opening across a phrase of re-attacked notes. Both
+  are patch params, so presets carry them. **Poly ignores them**: there each note has
+  its own voice and nothing to continue. They pair with `glide.mode` LEGATO (glide
+  only when overlapping), which decides the pitch where these decide the envelopes.
+  The velocity source and `noteOnAt` follow the **amp** envelope: a note that re-strikes
+  its level is a new strike, one that only re-sweeps its filter is not. A re-swept
+  filter takes the new note's velocity for its depth (envelopes.md
+  REQ-filter-env-follows-velocity).
+- **REQ-the-trigger-switches-dim-in-poly** — While `voicing.mode` is POLY both
+  MULTI | SINGLE switches are **dimmed** (opacity 0.45, the `Knob` disabled look) and
+  take no clicks, with a tooltip saying they are Mono only. They keep their place
+  rather than hiding, as SHAPE does under LADDER (filter-models.md
+  REQ-shape-is-poly-only, ADR-014): the switch reads as "not in play in this mode",
+  never as a layout that jumps. The stored value is untouched, so switching back to
+  MONO brings the setting back as it was. `Segmented.setDisabled(on, why?)` does the
+  dimming, and the native `disabled` on its buttons blocks the click and the
+  keyboard alike.
 
 ## Technical design
 
@@ -125,6 +166,8 @@ unison.voices:     { discrete, labels: UNISON_LABELS, range: 1..4, default: 1 } 
 unison.detune:     { range: 0..50, default: 12, unit: cents }
 mixer.glide:       { range: 0..1, default: 0, format: ms }
 glide.mode:        { discrete, labels: GLIDE_MODE_LABELS, range: 0..2, default: 1 }  # 'always'
+env.amp.trigger:   { discrete, labels: [multi, single], range: 0..1, default: 0 }   # no-op default
+env.fil.trigger:   { discrete, labels: [multi, single], range: 0..1, default: 0 }   # no-op default
 analog.drift:      { range: 0..1, default: 0 }                                       # no-op default
 master.pitchBend:  { range: -1..1, default: 0, unit: semitones }
 keyboard.transpose:{ discrete, range: -2..2, default: 0 }
@@ -139,10 +182,28 @@ engine (subscribeParams) -> Polyphony setters (poly/unison/glide/drift live ther
   unison.detune -> polyphony.setUnisonDetune(x)
   mixer.glide   -> all((v, x) => v.setGlide(x))        # per-voice, stays in Engine
   glide.mode    -> polyphony.setGlideMode(x)
+  env.amp.trigger -> polyphony.setSingleTrigger('amp', v >= 0.5)
+  env.fil.trigger -> polyphony.setSingleTrigger('fil', v >= 0.5)
   analog.drift  -> polyphony.setDrift(x)               # drift source owned by Polyphony
   master.pitchBend -> rampTo(this.pitchBend.offset, x * PITCH_BEND_RANGE_CENTS, FAST)
 note flow: bus.onNote -> Engine.playNote/ releaseNote -> Polyphony (unless passthroughSuppressed)
-ui: src/ui/shell/header.ts (VOICE), src/ui/panels/synth-panels.ts (UNI, GLIDE), src/ui/shell/bottom.ts (pitch-bend + transpose)
+ui: src/ui/shell/header.ts (VOICE), src/ui/panels/synth-panels.ts (UNI, GLIDE, and a
+  MULTI | SINGLE Segmented in the top zone of AMP ENV (seg-env.amp.trigger) and of
+  FILTER ENV (seg-env.fil.trigger)), src/ui/shell/bottom.ts (pitch-bend + transpose)
+  gestures (ADR-014) for the trigger switches: click a segment; no drag, wheel or long-press;
+  in POLY none at all (dimmed, REQ-the-trigger-switches-dim-in-poly)
+```
+
+### Contract
+
+```yaml
+Polyphony:                       # src/audio/polyphony.ts
+  playNote(note, velocity, when?, opts?)   # opts.legatoFrom continues that held note
+  setSingleTrigger(env: 'amp' | 'fil', on)  # single-trigger per envelope (mono only)
+Voice.noteOn(note, velocity, when, opts?: VoiceNoteOptions)  # opts.retriggerAmp = false: amp envelope runs on,
+                                           #   velocity source and noteOnAt untouched
+                                           # opts.retriggerFil = false: filter envelope runs on
+                                           # both default true
 ```
 
 ## Scenarios (BDD)
@@ -240,6 +301,54 @@ Scenario: A note keeps its own voices when the pool has room (REQ-a-stolen-voice
   Then an idle voice is taken and every held note still owns its own voices
 # pinned by: tests/audio/polyphony.test.ts
 
+Scenario: A legato note moves the held voices without a retrigger (REQ-a-legato-note-takes-over-the-held-voices)
+  Given voicing is poly and note 60 is held on one voice
+  When note 64 is played with legatoFrom 60
+  Then that same voice receives noteOn(64, …) triggering neither envelope, and no other voice is taken
+  And releasing 64 stops it, while releasing 60 does nothing
+# pinned by: tests/audio/polyphony.test.ts
+
+Scenario: A legato note onto a pitch another track holds joins it (REQ-a-legato-note-takes-over-the-held-voices, edge)
+  Given note 64 is held on one voice and note 60 on another
+  When 64 is played with legatoFrom 60
+  Then both voices are filed under 64 and one release of 64 stops both
+# pinned by: tests/audio/polyphony.test.ts
+
+Scenario: A legato note whose voices were stolen falls back to a strike (REQ-a-legato-note-takes-over-the-held-voices, edge)
+  Given legatoFrom names a note that no longer holds a voice
+  When the note is played
+  Then it takes a voice with a normal, retriggering noteOn
+# pinned by: tests/audio/polyphony.test.ts
+
+Scenario: A retrigger-free noteOn leaves both envelopes running (REQ-a-legato-note-takes-over-the-held-voices)
+  Given a sounding voice
+  When noteOn arrives with retriggerAmp and retriggerFil false
+  Then neither the amp nor the filter envelope is triggered, and the pitch still moves
+  And with only one of them false, only the other envelope is triggered
+# pinned by: tests/audio/voice.test.ts
+
+Scenario: Single trigger keeps a mono legato line on one attack (REQ-single-trigger-legatos-a-mono-line)
+  Given voicing is mono and env.amp.trigger and env.fil.trigger are single
+  When C3 is held and E3 is played over it
+  Then E3 does not retrigger the envelopes
+  And a note played after every key is up retriggers as usual
+  And with both multi, or in poly, E3 retriggers exactly as before
+# pinned by: tests/audio/polyphony.test.ts
+
+Scenario: Each envelope keeps its own trigger (REQ-single-trigger-legatos-a-mono-line)
+  Given voicing is mono, env.amp.trigger is single and env.fil.trigger is multi
+  When C3 is held and E3 is played over it
+  Then E3 re-sweeps the filter envelope but leaves the amp envelope running
+# pinned by: tests/audio/polyphony.test.ts
+
+Scenario: The trigger switches dim in Poly and come back in Mono (REQ-the-trigger-switches-dim-in-poly)
+  Given env.amp.trigger is single and voicing.mode is poly
+  Then both MULTI | SINGLE switches are dimmed, their buttons disabled and titled Mono only
+  And a click on one changes nothing
+  When voicing.mode becomes mono
+  Then both are enabled again and AMP ENV still reads SINGLE
+# pinned by: tests/ui/segmented.test.ts, tests/ui/synth-panels-trigger.test.ts
+
 Scenario: Glide defaults reproduce legacy behaviour (backward compat, edge)
   Given glide.mode is 'always' (1) and mixer.glide is 0
   Then notes retrigger with no audible portamento
@@ -256,7 +365,7 @@ Scenario: A key held as the arp comes on still releases (REQ-passthrough-remembe
 ## Tests & verification
 
 - `tests/state/params.test.ts`, `tests/state/preset.test.ts`,
-  `tests/audio/polyphony.test.ts`, `tests/audio/engine-scale.test.ts` (against the
+  `tests/audio/polyphony.test.ts`, `tests/audio/voice.test.ts`, `tests/audio/engine-scale.test.ts` (against the
   production `Engine.handleNote`), `tests/audio/oscillator-glide.test.ts`,
   `e2e/controls.spec.ts` — `npm test` / `npm run e2e`.
 - **By ear** (ADR-010): voice stealing with a nine-note chord released
@@ -270,4 +379,5 @@ Scenario: A key held as the arp comes on still releases (REQ-passthrough-remembe
 ## Open questions / future
 
 - New voice params keep **no-op defaults** ([add-a-parameter](../recipes/add-a-parameter.md)).
-- Mono note priority with fallback (last / low / high) is unbuilt.
+- Mono note priority with fallback (last / low / high) is unbuilt. With it, Single
+  trigger would also continue (not re-strike) the note a released key falls back to.

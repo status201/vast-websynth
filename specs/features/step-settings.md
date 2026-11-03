@@ -3,7 +3,7 @@
 ```yaml
 id: step-settings
 status: implemented
-version: 6
+version: 7
 owner: core
 related:
   - architecture
@@ -49,7 +49,8 @@ downstream gain cut), so the envelope scheduled inside the hit is never disturbe
 **Micro-timing** is the per-step counterpart of global [swing](transport.md), with
 swing's bound and technique: an offset on the emitted `when`, never on the grid. So
 neither the clock nor the [meter](meter.md) is touched. **Pitch bend** bends one note
-inside itself, unlike tie + glide (into the next note, mono only) or
+inside itself, unlike tie + glide (into the next note, one track's line —
+[sequencer](sequencer.md) REQ-a-tie-continues-the-note-without-retriggering) or
 `master.pitchBend` (every voice). The vocabulary is the guitarist's and singer's: a
 signed amount and a *scoop* (arrive) or *fall* (leave). The written `note` stays the
 pitch the step means: highlighted, quantized and transposed.

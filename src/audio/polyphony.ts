@@ -1,4 +1,4 @@
-import { Voice } from './voice';
+import { Voice, type VoiceNoteOptions } from './voice';
 import { liveStartTime } from './param-utils';
 import { assertIndex } from '../utils/array';
 import type { NoteOptions } from './transport/note-output';
@@ -18,6 +18,8 @@ export class Polyphony {
   private unisonCount = 1;
   private unisonDetune = 12;
   private glideMode = 1; // 0 off · 1 always · 2 legato
+  /** Per envelope: single-trigger (true) or multi — mono only (voicing.md REQ-single-trigger-legatos-a-mono-line). */
+  private readonly singleTrigger = { amp: false, fil: false };
   private readonly heldNotes = new Map<number, Voice[]>();
 
   // Analogue oscillator drift — slow random detune summed into all oscs.
@@ -49,6 +51,7 @@ export class Polyphony {
   setUnisonCount(n: number): void { this.unisonCount = Math.max(1, Math.round(n)); }
   setUnisonDetune(cents: number): void { this.unisonDetune = cents; }
   setGlideMode(mode: number): void { this.glideMode = Math.round(mode); }
+  setSingleTrigger(env: 'amp' | 'fil', on: boolean): void { this.singleTrigger[env] = on; }
   setDrift(amount: number): void {
     this.driftAmount = amount;
     if (amount > 0) {
@@ -66,18 +69,30 @@ export class Polyphony {
    *  burst ahead of now (REQ-a-live-note-starts-ahead-of-the-render). */
   playNote(note: number, velocity = 0.8, when?: number, opts?: NoteOptions): void {
     const t = when ?? liveStartTime(this.ctx);
-    // Threaded straight through to every voice this note uses, unison copies
-    // included — a spread chord is still one track, in one place.
-    const pan = opts?.pan ?? 0;
-    const panGroup = opts?.panGroup;
-    // A per-note bend bends every unison copy alike (step-settings.md REQ-a-bend-is-per-voice).
-    const bend = opts?.bend;
     const count = Math.max(1, Math.min(this.unisonCount, this.voices.length));
     // Legato = glide only when another note is already sounding.
     const anySounding = this.heldNotes.size > 0;
-    const glide = this.glideMode === 1 ? true : this.glideMode === 2 ? anySounding : false;
+    // What every voice this note uses gets, unison copies included: a spread chord
+    // is still one track, in one place, and a per-note bend bends every copy alike
+    // (step-settings.md REQ-a-bend-is-per-voice). Only the detune differs per copy.
+    const base: VoiceNoteOptions = {
+      glide: this.glideMode === 1 ? true : this.glideMode === 2 ? anySounding : false,
+      pan: opts?.pan ?? 0,
+      panGroup: opts?.panGroup,
+      bend: opts?.bend,
+    };
+
+    const from = opts?.legatoFrom;
 
     if (!this.polyMode) {
+      // Mono plays its fixed voices either way, so continuing a note is only a
+      // question of whether the envelopes are struck again: neither when the caller
+      // continues a note still held (a legato tie), and each one not when a note is
+      // still held and its own trigger is single (REQ-single-trigger-legatos-a-mono-line).
+      const continues = from !== undefined && this.heldNotes.has(from);
+      const restrikes = (env: 'amp' | 'fil') => !(continues || (this.singleTrigger[env] && anySounding));
+      const retriggerAmp = restrikes('amp');
+      const retriggerFil = restrikes('fil');
       const used: Voice[] = [];
       for (let i = 0; i < count; i++) {
         const v = this.voices[i]!;
@@ -88,17 +103,24 @@ export class Polyphony {
         // rather than by stealing. Evicting leaves exactly one entry: the
         // newest note.
         this.evictVoice(v);
-        v.noteOn(note, velocity, t, { detuneCents: this.unisonOffset(i, count), glide, pan, panGroup, bend });
+        v.noteOn(note, velocity, t, { ...base, detuneCents: this.unisonOffset(i, count), retriggerAmp, retriggerFil });
         used.push(v);
       }
       this.heldNotes.set(note, used);
       return;
     }
 
+    if (from !== undefined) {
+      if (this.continueNote(from, note, velocity, t, base)) return;
+      // Its voices are gone — stolen by another note. Whatever still claims the
+      // old note goes, so the caller never strands it, and this one strikes.
+      if (from !== note) this.releaseNote(from, t);
+    }
+
     const existing = this.heldNotes.get(note);
     if (existing && existing.some((v) => v.state !== 'idle')) {
       for (let i = 0; i < existing.length; i++) {
-        existing[i]!.noteOn(note, velocity, t, { detuneCents: this.unisonOffset(i, existing.length), glide, pan, panGroup, bend });
+        existing[i]!.noteOn(note, velocity, t, { ...base, detuneCents: this.unisonOffset(i, existing.length) });
       }
       return;
     }
@@ -110,10 +132,34 @@ export class Polyphony {
       // voice, and releasing that key sends noteOff to a voice now sounding
       // something else — audible as "let go of one key, a different note stops".
       this.evictVoice(v);
-      v.noteOn(note, velocity, t, { detuneCents: this.unisonOffset(i, count), glide, pan, panGroup, bend });
+      v.noteOn(note, velocity, t, { ...base, detuneCents: this.unisonOffset(i, count) });
       used.push(v);
     }
     this.heldNotes.set(note, used);
+  }
+
+  /**
+   * Re-file `from`'s voices under `note` and move them there without striking
+   * (voicing.md REQ-a-legato-note-takes-over-the-held-voices). False — and nothing
+   * touched — when `from` holds no voice that is still playing.
+   *
+   * A pitch some other source already holds is JOINED, not overwritten: replacing
+   * its entry would orphan that source's voices, which no release could then reach.
+   * Sharing one entry is the same collapse two tracks on one pitch already make
+   * (sequencer.md REQ-two-tracks-on-one-pitch-share-a-pan).
+   */
+  private continueNote(from: number, note: number, velocity: number, t: number, base: VoiceNoteOptions): boolean {
+    const vs = this.heldNotes.get(from);
+    if (!vs || vs.length === 0 || vs.some((v) => v.state !== 'playing')) return false;
+    this.heldNotes.delete(from);
+    for (let i = 0; i < vs.length; i++) {
+      vs[i]!.noteOn(note, velocity, t, {
+        ...base, detuneCents: this.unisonOffset(i, vs.length), retriggerAmp: false, retriggerFil: false,
+      });
+    }
+    const joined = this.heldNotes.get(note);
+    this.heldNotes.set(note, joined ? [...joined, ...vs] : vs);
+    return true;
   }
 
   /**

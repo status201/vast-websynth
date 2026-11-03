@@ -1229,6 +1229,9 @@ export class Engine {
     // Analogue drift / glide mode
     bus.subscribe('analog.drift', (x) => this.polyphony.setDrift(x));
     bus.subscribe('glide.mode', (x) => this.polyphony.setGlideMode(x));
+    // Mono single-trigger (voicing.md REQ-single-trigger-legatos-a-mono-line).
+    bus.subscribe('env.amp.trigger', (v) => this.polyphony.setSingleTrigger('amp', v >= 0.5));
+    bus.subscribe('env.fil.trigger', (v) => this.polyphony.setSingleTrigger('fil', v >= 0.5));
 
     // Mixer
     bus.subscribe('mixer.noise', all((v, x) => v.setNoiseLevel(x)));
@@ -1344,6 +1347,8 @@ export class Engine {
     // Tracks 2-4 only sound in poly voicing (sequencer.md REQ-poly-voicing-gates-the-extra-tracks); each track
     // also has its own mute (REQ-per-track-mute), independent of the lane-wide seq.mute.
     bus.subscribe('voicing.mode', (v) => this.seq.setPolyphonic(v >= 0.5));
+    // Legato or re-striking ties (sequencer.md REQ-a-tie-continues-the-note-without-retriggering, ADR-028).
+    bus.subscribe('seq.tieMode', (v) => this.seq.setRestrikeTies(v >= 0.5));
     for (let t = 0; t < SEQ_TRACK_COUNT; t++) {
       const track = t;
       bus.subscribe(`seq.t${t}.mute`, (v) => this.seq.setTrackMuted(track, v >= 0.5));

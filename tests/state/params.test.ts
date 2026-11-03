@@ -1,5 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import { ParamBus, registerDefaults } from '../../src/state/params';
+import { isPatchParam } from '../../src/state/preset-session';
 import { fromNorm } from '../../src/utils/taper';
 
 describe('ParamBus', () => {
@@ -539,5 +540,39 @@ describe('the flanger params default to a no-op (flanger.md REQ-the-flanger-para
     bus.restore({ 'fx.phaser.on': 1 });
     expect(bus.get('fx.flanger.on')).toBe(0);
     expect(bus.get('fx.sampler.flanger.on')).toBe(0);
+  });
+});
+
+/**
+ * The tie's mode and mono single-trigger (sequencer.md REQ-re-strike-keeps-the-old-tie,
+ * voicing.md REQ-single-trigger-legatos-a-mono-line, ADR-028).
+ */
+describe('seq.tieMode and the envelope triggers', () => {
+  it('an old song with no tieMode plays Legato; only one that names 1 re-strikes', () => {
+    const bus = new ParamBus();
+    registerDefaults(bus);
+    bus.set('seq.tieMode', 1);
+    // What every song load does: reset, then restore what the file carries.
+    bus.resetDefaults();
+    bus.restore({ 'seq.on': 1 });
+    expect(bus.get('seq.tieMode')).toBe(0);
+    bus.resetDefaults();
+    bus.restore({ 'seq.tieMode': 1 });
+    expect(bus.get('seq.tieMode')).toBe(1);
+  });
+
+  it('both envelope triggers default to multi, so no preset or song changes (ADR-006)', () => {
+    const bus = new ParamBus();
+    registerDefaults(bus);
+    for (const id of ['env.amp.trigger', 'env.fil.trigger']) {
+      expect(bus.get(id)).toBe(0);
+      expect(bus.def(id)!.labels).toEqual(['multi', 'single']);
+    }
+  });
+
+  it('the tie mode is the song’s and the trigger is the patch’s', () => {
+    expect(isPatchParam('seq.tieMode')).toBe(false);
+    expect(isPatchParam('env.amp.trigger')).toBe(true);
+    expect(isPatchParam('env.fil.trigger')).toBe(true);
   });
 });

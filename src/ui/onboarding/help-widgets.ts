@@ -351,6 +351,18 @@ function readEnv(ctx: HelpContext, which: EnvWhich): { env: Adsr; values: Record
  * badge: copy naming each knob as a time or a level, the graph of the current
  * envelope, and — for the filter — the sweep in Hz (envelope-help-graph.md).
  */
+/** The MULTI / SINGLE paragraph, per envelope: each panel's switch decides only its own. */
+const TRIGGER_HELP: Record<EnvWhich, string> = {
+  amp:
+    '<strong>MULTI / SINGLE</strong> (Mono only): with MULTI every note starts this envelope ' +
+    'again. With SINGLE, a note played while another key is still held carries on at the level ' +
+    'it has reached, so a legato line has one attack and only a detached note re-strikes.',
+  fil:
+    '<strong>MULTI / SINGLE</strong> (Mono only): the same choice for the filter. Set AMP ENV to ' +
+    'SINGLE and this to MULTI, and a legato line keeps its level while every note still gets its ' +
+    'own filter sweep. The other way round, one sweep opens across a phrase of re-struck notes.',
+};
+
 export function renderEnvelopeHelp(ctx: HelpContext, which: EnvWhich): HTMLElement {
   const help = ENV_HELP[which];
   const { env, values } = readEnv(ctx, which);
@@ -386,7 +398,18 @@ export function renderEnvelopeHelp(ctx: HelpContext, which: EnvWhich): HTMLEleme
           'knob; the ADSR knobs here set the shape of that movement.',
       ),
     );
+    // envelopes.md REQ-filter-env-follows-velocity — the fifth knob on this panel.
+    wrap.appendChild(
+      el(
+        'p',
+        undefined,
+        '<strong>VEL</strong>: how much playing harder deepens the sweep. At 0 every note sweeps ' +
+          'the full depth; turned up, soft notes sweep less and sound darker.',
+      ),
+    );
   }
+  // voicing.md REQ-single-trigger-legatos-a-mono-line — the switch at the top of each panel.
+  wrap.appendChild(el('p', undefined, TRIGGER_HELP[which]));
 
   const pct = Math.round((1 - Math.exp(-PHASE_TIME_CONSTANTS)) * 100);
   wrap.appendChild(

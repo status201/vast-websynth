@@ -213,6 +213,7 @@
     "seq.t2.pan": -0.45,
     "seq.t3.pan": 0.45,
     "seq.solo": 0,
+    "seq.tieMode": 1,
     "seq.len": 16,
     "seq.rate": 5,
     "drum.on": 1,

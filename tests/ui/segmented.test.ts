@@ -9,6 +9,21 @@ function bus() {
 }
 
 describe('Segmented', () => {
+  it('setDisabled dims it, blocks clicks and carries the reason (voicing.md REQ-the-trigger-switches-dim-in-poly)', () => {
+    const b = bus();
+    const seg = new Segmented(b, 'osc1.wave', WAVE_LABELS);
+    const buttons = seg.el.querySelectorAll('button');
+    seg.setDisabled(true, 'Mono only');
+    expect(seg.el.getAttribute('aria-disabled')).toBe('true');
+    expect(seg.el.title).toBe('Mono only');
+    (buttons[0] as HTMLButtonElement).click();
+    expect(b.get('osc1.wave')).toBe(2); // unchanged
+    seg.setDisabled(false);
+    expect(seg.el.hasAttribute('title')).toBe(false);
+    (buttons[0] as HTMLButtonElement).click();
+    expect(b.get('osc1.wave')).toBe(0);
+  });
+
   it('renders one button per label with stable testids', () => {
     const seg = new Segmented(bus(), 'osc1.wave', WAVE_LABELS);
     expect(seg.el.dataset.testid).toBe('seg-osc1.wave');

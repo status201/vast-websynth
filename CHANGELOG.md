@@ -18,6 +18,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ### Added
 
+- **SINGLE trigger for Mono patches, per envelope.** A MULTI | SINGLE switch at the
+  top of AMP ENV and of FILTER ENV. On SINGLE, a note played while another key is
+  still held lets that envelope carry on instead of starting it again. AMP ENV at
+  SINGLE gives a legato line one attack; leave FILTER ENV at MULTI and every note
+  still gets its own filter sweep. MULTI, the default, is how every patch has always
+  played. Both switches dim while the synth is in POLY, where they do nothing.
 - **`npm run bench:perf`**: a performance test that measures the audio thread, not
   just the page: ten fixed scenarios (idle, chords, every effect, the heaviest voice
   path, two demos, the weak tier), each repeated, read from Chrome's audio trace. Save
@@ -36,8 +42,51 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
   the pad bigger, up to four times its size, for finer control. Both remember
   their size; double-click the edge or corner to go back to the default.
 
+### Changed
+
+- **A new "Ties" setting in the sequencer's edit row: LEGATO | RE-STRIKE.** LEGATO
+  is the fixed tie above, and it is what every song plays from now on. RE-STRIKE is
+  the old behaviour: the held voice re-attacks on each tied step, repeated plucks
+  with no gap. Blue Monday, Take on Me, Sweet Dreams, Around the World,
+  Luftballons, Night Rider and both Ageispolis demos are built on that sound and keep it. **If a
+  song you saved relied on it, its tied runs now hold instead of re-plucking: set
+  Ties to RE-STRIKE and save it again.**
+- **The app now rests while nothing plays.** The scope used to redraw a flat line
+  sixty times a second with no sound to show; it now stops once everything is
+  still and wakes within a twentieth of a second of the next sound, or the moment
+  you touch it. Measured in Chrome, the idle page's main-thread work drops from
+  about 3% to 0.3%. The Debug panel's Scope row reads "asleep" while it rests.
+- **The synth costs far less while it is not playing.** A voice that has finished
+  sounding is now taken off the audio graph until its next note, so the browser stops
+  computing it: measured in Chrome, the audio work at rest drops by about two thirds
+  (17% to 6% of the budget), one held note by half, and a typical song by about a
+  fifth. More headroom on phones and laptops, and less battery while the app sits
+  open. Notes start exactly as before.
+- The page is about 40% lighter: a dropdown builds its list the first time you
+  open it, so the parameter pickers (about 440 entries each) no longer sit in the
+  page unseen. Every menu looks and works the same.
+- The app starts a little faster (about 40 ms in Chrome, 90 ms in Firefox): the
+  three reverbs no longer prepare their impulse response until one is first
+  switched on.
+- **Tighter panel grids.** The synth panels now sit 5px apart (was 10px, 8px on
+  phones) and the FX panels 2px apart, so the faceplate and the effects rack
+  read as two distinct sections.
+- **SUB / UNI's UNISON and SPREAD knobs are now labelled UNI and SPRD**, so
+  their labels no longer run into each other on narrow panels and phones. The
+  help topics still spell out unison and spread in full.
+- **Specs are lean again** (contributors). `specs/` was cut from 3.1 MB to 2.6 MB:
+  version history, post-mortems and copied lists are gone, and dozens of
+  statements that no longer matched the code were corrected. `npm run spec:lint`
+  now refuses version history in a spec, and warns when a spec or requirement
+  outgrows its size budget.
+
 ### Fixed
 
+- **Tie now ties.** A tied step used to keep its voice but start the envelopes
+  again on the next step, so on a short-decay sound every tied step was a new pluck
+  and the filter swept again. A tied run now plays as one note. Tied into a new pitch,
+  the note moves there without a new attack, and with glide up it slides. Each track
+  is its own line, so that works in Poly too.
 - Tone and damping filters no longer add a small resonant bump at their cutoff.
   Dirt's tone, the reverb and chorus darkening, every drum and sampler TONE, the
   sample editor's low/high-pass edits and the DJ filter at rest were set as if
@@ -92,37 +141,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 - The floating windows' minimise / restore button draws its − and + as icons,
   like every other control, instead of typed characters that some phones render
   in a different font.
-
-### Changed
-
-- **The app now rests while nothing plays.** The scope used to redraw a flat line
-  sixty times a second with no sound to show; it now stops once everything is
-  still and wakes within a twentieth of a second of the next sound, or the moment
-  you touch it. Measured in Chrome, the idle page's main-thread work drops from
-  about 3% to 0.3%. The Debug panel's Scope row reads "asleep" while it rests.
-- **The synth costs far less while it is not playing.** A voice that has finished
-  sounding is now taken off the audio graph until its next note, so the browser stops
-  computing it: measured in Chrome, the audio work at rest drops by about two thirds
-  (17% to 6% of the budget), one held note by half, and a typical song by about a
-  fifth. More headroom on phones and laptops, and less battery while the app sits
-  open. Notes start exactly as before.
-- The page is about 40% lighter: a dropdown builds its list the first time you
-  open it, so the parameter pickers (about 440 entries each) no longer sit in the
-  page unseen. Every menu looks and works the same.
-- The app starts a little faster (about 40 ms in Chrome, 90 ms in Firefox): the
-  three reverbs no longer prepare their impulse response until one is first
-  switched on.
-- **Tighter panel grids.** The synth panels now sit 5px apart (was 10px, 8px on
-  phones) and the FX panels 2px apart, so the faceplate and the effects rack
-  read as two distinct sections.
-- **SUB / UNI's UNISON and SPREAD knobs are now labelled UNI and SPRD**, so
-  their labels no longer run into each other on narrow panels and phones. The
-  help topics still spell out unison and spread in full.
-- **Specs are lean again** (contributors). `specs/` was cut from 3.1 MB to 2.6 MB:
-  version history, post-mortems and copied lists are gone, and dozens of
-  statements that no longer matched the code were corrected. `npm run spec:lint`
-  now refuses version history in a spec, and warns when a spec or requirement
-  outgrows its size budget.
 
 ## [2.19.0] - 2026-10-30
 
