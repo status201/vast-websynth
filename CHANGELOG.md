@@ -18,6 +18,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ### Added
 
+- **`npm run bench:perf`**: a performance test that measures the audio thread, not
+  just the page: ten fixed scenarios (idle, chords, every effect, the heaviest voice
+  path, two demos, the weak tier), each repeated, read from Chrome's audio trace. Save
+  a run with `--name` and compare two with `--compare`.
+
 - **ADSR graph in the envelope help.** The ⓘ badges on AMP ENV and FILTER ENV
   now draw your current envelope under the explanation. Attack, Decay and
   Release are marked as times along the bottom, and Sustain as a level, each with
@@ -83,6 +88,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ### Changed
 
+- **The synth costs far less while it is not playing.** A voice that has finished
+  sounding is now taken off the audio graph until its next note, so the browser stops
+  computing it: measured in Chrome, the audio work at rest drops by about two thirds
+  (17% to 6% of the budget), one held note by half, and a typical song by about a
+  fifth. More headroom on phones and laptops, and less battery while the app sits
+  open. Notes start exactly as before.
 - The page is about 40% lighter: a dropdown builds its list the first time you
   open it, so the parameter pickers (about 440 entries each) no longer sit in the
   page unseen. Every menu looks and works the same.

@@ -119,6 +119,12 @@ export class Voice {
   private spreadDest: AudioNode | null = null;
   private spreadAttached = false;
   /**
+   * Whether the output edges reach the bus at all (voicing.md
+   * REQ-an-idle-voice-is-unplugged). An idle voice is unplugged, so the renderer,
+   * which pulls only what reaches the destination, skips all of it.
+   */
+  private plugged = false;
+  /**
    * Which sequencer track's pan knob this voice is currently following, so a
    * knob turned over a ringing note moves it instead of waiting for the next
    * one. `NO_PAN_GROUP` for live keys, MIDI and the arpeggiator — they are
@@ -297,13 +303,30 @@ export class Voice {
   }
 
   /**
-   * Wire both output edges to the voice bus. The panned one is held back until
+   * Name the voice bus. Nothing is connected yet: a pool voice boots idle and so
+   * unplugged, and its first `noteOn` plugs it in (voicing.md
+   * REQ-an-idle-voice-is-unplugged). The panned edge is further held back until
    * {@link setSpread} engages it (sequencer.md REQ-the-spread-stage-engages-off-centre).
    */
   connectTo(dest: AudioNode): void {
     this.spreadDest = dest;
-    this.spreadDry.connect(dest);
-    if (this.spreadAttached) this.panner.connect(dest);
+    if (this.state !== 'idle') this.plug();
+  }
+
+  /** Connect the output edges: the dry one, and the panned one if engaged. */
+  private plug(): void {
+    if (this.plugged || !this.spreadDest) return;
+    this.plugged = true;
+    this.spreadDry.connect(this.spreadDest);
+    if (this.spreadAttached) this.panner.connect(this.spreadDest);
+  }
+
+  /** Take both output edges off the bus. Only ever with the VCA already silent. */
+  private unplug(): void {
+    if (!this.plugged || !this.spreadDest) return;
+    this.plugged = false;
+    this.spreadDry.disconnect(this.spreadDest);
+    if (this.spreadAttached) this.panner.disconnect(this.spreadDest);
   }
 
   /**
@@ -318,7 +341,9 @@ export class Voice {
   setSpread(on: boolean): void {
     if (on && !this.spreadAttached) {
       this.spreadAttached = true;
-      if (this.spreadDest) this.panner.connect(this.spreadDest);
+      // An unplugged voice only records it: `plug` attaches the edge with the
+      // note, so engaging the stage never reconnects an idle voice.
+      if (this.spreadDest && this.plugged) this.panner.connect(this.spreadDest);
     }
     rampTo(this.spreadDry.gain, on ? 0 : 1, this.ctx, RAMP_BYPASS);
     rampTo(this.spreadWet.gain, on ? SPREAD_UNITY : 0, this.ctx, RAMP_BYPASS);
@@ -329,7 +354,7 @@ export class Voice {
   dropSpread(): void {
     if (!this.spreadAttached) return;
     this.spreadAttached = false;
-    this.panner.disconnect();
+    if (this.plugged) this.panner.disconnect();
   }
 
   /**
@@ -352,6 +377,9 @@ export class Voice {
       clearTimeout(this.releaseTimer);
       this.releaseTimer = null;
     }
+    // Back on the bus first, synchronously, so the attack (at `when`, at or after
+    // the live start time) has somewhere to go (REQ-an-idle-voice-is-unplugged).
+    this.plug();
     // Unconditionally every call: a lost deactivate may cost CPU, never a note.
     this.filter.setActive(true);
     this.sync.setVoiceActive(true);
@@ -420,6 +448,8 @@ export class Voice {
         this.currentNote = -1;
         this.filter.setActive(false);
         this.sync.setVoiceActive(false);
+        // Fifteen release time constants in: the VCA is ~-130 dB.
+        this.unplug();
       }
     }, delayMs);
   }
@@ -441,6 +471,8 @@ export class Voice {
       if (this.state !== 'idle') return;
       this.filter.setActive(false);
       this.sync.setVoiceActive(false);
+      // Ten of the cut's 3 ms time constants in: the VCA is ~-87 dB.
+      this.unplug();
     }, 30);
   }
 

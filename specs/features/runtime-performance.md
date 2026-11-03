@@ -506,6 +506,13 @@ Scenario: a worklet speed rewrite changes no samples
   surfaces), `tests/ui/overlay-cost.test.ts` (REQ-no-viewport-scaled-compositing-on-hot-surfaces's drift pin) — `npm test`
 - E2E: `e2e/session.spec.ts`, `e2e/motion.spec.ts`, `e2e/patterns.spec.ts` — `npm run e2e`
 - Typecheck: `npm run typecheck`
+- Audio-thread cost: `npm run bench:perf` (`scripts/perf-bench.mjs`). Ten fixed
+  scenarios (idle, held notes, all synth FX, the heavy per-voice path, two demos,
+  the weak tier), each repeated, read from Blink's `webaudio` trace: load per
+  render callback (mean, p95, max), the worst 128-frame block against its budget,
+  plus main-thread busy %, style recalcs and fps. `--name` saves a run under
+  `bench/`, `--compare a b` diffs two. No web API reports render load, which is
+  why this goes through tracing; compare runs from one machine.
 - Boot payload: `npm run build && npm run check:bundle` (prints the entry size and its
   headroom). The gate reads `index-*.js` only, which understates the boot set by
   whatever rolldown hoists into sibling chunks; a growth without a deliberate reason
@@ -527,6 +534,6 @@ Scenario: a worklet speed rewrite changes no samples
   `tests/global-move-listeners.test.ts` scans `src/`: every global
   `pointermove`/`mousemove`/`touchmove` listener must be removed, with the same
   handler, by the file that adds it.
-- The oscillators of a fully idle voice still run (only the ladder filter is
-  idle-gated). Gating them would need a per-voice start/stop model — worth measuring
-  before attempting.
+- ~~The oscillators of a fully idle voice still run.~~ Measured and done without a
+  start/stop model: an idle voice is unplugged from the bus, so none of it renders
+  ([voicing](voicing.md) REQ-an-idle-voice-is-unplugged).

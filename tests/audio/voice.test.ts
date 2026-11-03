@@ -254,3 +254,83 @@ describe('Voice velocity → filter envelope (REQ-the-filter-worklet-module-is-a
     expect(filPeak()).toBeCloseTo(0.4, 10);
   });
 });
+
+/**
+ * An idle voice is off the bus entirely (voicing.md REQ-an-idle-voice-is-unplugged):
+ * the renderer pulls only what reaches the destination, so a silent voice's three
+ * oscillators, gains and filter cost nothing. Measured with `npm run bench:perf`:
+ * idle audio load 15.7% -> 4.8% of the callback in Blink.
+ */
+describe('Voice output edges (REQ-an-idle-voice-is-unplugged)', () => {
+  beforeEach(() => {
+    vi.useFakeTimers();
+    installMockAudioWorkletNode();
+  });
+  afterEach(() => {
+    vi.useRealTimers();
+    vi.unstubAllGlobals();
+  });
+
+  async function onBus() {
+    const ctx = makeMockAudioContext();
+    const voice = await Voice.create(ctx as unknown as AudioContext);
+    const bus = ctx.createGain();
+    voice.connectTo(bus as unknown as AudioNode);
+    const dry = voice.spreadDry as unknown as { connect: ReturnType<typeof vi.fn>; disconnect: ReturnType<typeof vi.fn> };
+    const pan = voice.panner as unknown as { connect: ReturnType<typeof vi.fn>; disconnect: ReturnType<typeof vi.fn> };
+    const toBus = (fn: ReturnType<typeof vi.fn>) => fn.mock.calls.filter((c) => c[0] === bus).length;
+    return { voice, bus, dry, pan, toBus };
+  }
+
+  it('boots unplugged: neither edge reaches the bus until a note arrives', async () => {
+    const { dry, pan, toBus } = await onBus();
+    expect(toBus(dry.connect)).toBe(0);
+    expect(toBus(pan.connect)).toBe(0);
+  });
+
+  it('a note plugs it in within the call, and a second note connects nothing twice', async () => {
+    const { voice, dry, toBus } = await onBus();
+    voice.noteOn(60, 0.8, 0.05); // a note a look-ahead away still plugs NOW
+    expect(toBus(dry.connect)).toBe(1);
+    voice.noteOn(62, 0.8, 0.1);
+    expect(toBus(dry.connect)).toBe(1);
+  });
+
+  it('release completion unplugs it', async () => {
+    const { voice, dry, toBus } = await onBus();
+    voice.noteOn(60, 0.8, 0);
+    voice.noteOff(0);
+    expect(toBus(dry.disconnect)).toBe(0); // still releasing
+    vi.runAllTimers();
+    expect(voice.state).toBe('idle');
+    expect(toBus(dry.disconnect)).toBe(1);
+  });
+
+  it('kill unplugs it after the fade window — unless a note re-claims it first', async () => {
+    const killed = await onBus();
+    killed.voice.noteOn(60, 0.8, 0);
+    killed.voice.kill(0);
+    vi.advanceTimersByTime(50);
+    expect(killed.toBus(killed.dry.disconnect)).toBe(1);
+
+    const reclaimed = await onBus();
+    reclaimed.voice.noteOn(60, 0.8, 0);
+    reclaimed.voice.kill(0);
+    reclaimed.voice.noteOn(64, 0.8, 0);
+    vi.advanceTimersByTime(50);
+    expect(reclaimed.toBus(reclaimed.dry.disconnect)).toBe(0);
+  });
+
+  it('the spread stage never plugs an idle voice back in (edge)', async () => {
+    const { voice, dry, pan, toBus } = await onBus();
+    voice.setSpread(true);                 // engaged while the voice is idle
+    expect(toBus(pan.connect)).toBe(0);
+    voice.noteOn(60, 0.8, 0);              // the note brings both edges
+    expect(toBus(dry.connect)).toBe(1);
+    expect(toBus(pan.connect)).toBe(1);
+    voice.noteOff(0);
+    vi.runAllTimers();                     // and idling takes both down
+    expect(toBus(dry.disconnect)).toBe(1);
+    expect(toBus(pan.disconnect)).toBe(1);
+  });
+});
