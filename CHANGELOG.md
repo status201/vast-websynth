@@ -45,7 +45,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 ### Changed
 
 - **A new "Ties" setting in the sequencer's edit row: LEGATO | RE-STRIKE.** LEGATO
-  is the fixed tie above, and it is what every song plays from now on. RE-STRIKE is
+  is the fixed tie below, and it is what every song plays from now on. RE-STRIKE is
   the old behaviour: the held voice re-attacks on each tied step, repeated plucks
   with no gap. Blue Monday, Take on Me, Sweet Dreams, Around the World,
   Luftballons, Night Rider and both Ageispolis demos are built on that sound and keep it. **If a
