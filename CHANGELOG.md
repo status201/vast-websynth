@@ -33,6 +33,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ### Fixed
 
+- In Firefox, a recording now starts when you press Record. It used to start at
+  the first sound, dropping any silence before it, because Firefox hands silence
+  over as no audio at all and the recorder skipped it.
 - A note played on the keyboard, the computer keys or MIDI, and a drum or sampler
   pad tapped by hand, no longer sometimes starts with a click. Each was timed for
   the instant it was played, which the audio engine could already have rendered

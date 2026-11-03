@@ -17,6 +17,10 @@
 /** Quanta per message. Keep in sync with RECORD_BATCH_QUANTA in recorder/node.ts. */
 const BATCH_QUANTA = 16;
 
+/** Frames in a quantum whose input has no channels to measure it by. 128 until the
+ *  host says otherwise (`renderQuantumSize`, where the AudioWorkletGlobalScope has it). */
+const RENDER_QUANTUM = typeof renderQuantumSize === 'number' ? renderQuantumSize : 128;
+
 class RecorderProcessor extends AudioWorkletProcessor {
   static get parameterDescriptors() {
     return [];
@@ -80,14 +84,15 @@ class RecorderProcessor extends AudioWorkletProcessor {
 
   process(inputs) {
     if (!this.recording) return true;
+    // An input with NO channels is silence, not nothing (audio-export.md
+    // REQ-a-silent-quantum-is-captured-as-silence): the spec gives an input zero
+    // channels when nothing upstream is actively processing, and Gecko does so
+    // for every gain-0 stretch. Skipping it cut the silence out of the take.
     const input = inputs[0];
-    if (!input || input.length === 0) return true;
+    const srcL = input && input[0] && input[0].length > 0 ? input[0] : null;
+    const srcR = srcL && input[1] && input[1].length === srcL.length ? input[1] : srcL;
 
-    const srcL = input[0];
-    const srcR = input[1] || input[0];
-    if (!srcL || srcL.length === 0) return true;
-
-    const n = srcL.length;
+    const n = srcL ? srcL.length : RENDER_QUANTUM;
     if (this.batchL === null || this.batchL.length < BATCH_QUANTA * n) {
       this.batchL = new Float32Array(BATCH_QUANTA * n);
       this.batchR = new Float32Array(BATCH_QUANTA * n);
@@ -99,8 +104,13 @@ class RecorderProcessor extends AudioWorkletProcessor {
     if (this.filled === 0) this.batchFirstFrame = currentFrame;
 
     // The render buffer is reused by the engine, so copy before transferring.
-    this.batchL.set(srcL, this.filled);
-    this.batchR.set(srcR.length === n ? srcR : srcL, this.filled);
+    if (srcL) {
+      this.batchL.set(srcL, this.filled);
+      this.batchR.set(srcR, this.filled);
+    } else {
+      this.batchL.fill(0, this.filled, this.filled + n);
+      this.batchR.fill(0, this.filled, this.filled + n);
+    }
     this.filled += n;
 
     if (this.filled >= BATCH_QUANTA * n) this.flush(false);

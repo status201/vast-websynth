@@ -3,7 +3,7 @@
 ```yaml
 id: audio-export
 status: implemented
-version: 15
+version: 16
 owner: core
 related:
   - architecture
@@ -88,6 +88,15 @@ reuses it. `lamejs` is large and pre-minified, so it is a lazy chunk
   `RecorderNode` keeps the first as `firstFrame` (reset by `start()`), so a
   consumer maps a scheduled time to an offset: `offset = round(when × sampleRate)
   − firstFrame`. Consumed by [render-to-sampler](render-to-sampler.md).
+- **REQ-a-silent-quantum-is-captured-as-silence** — A quantum whose input
+  arrives with **no channels** is captured as one quantum of zeros, not skipped.
+  The spec gives an input zero channels when nothing upstream is actively
+  processing, and Gecko does exactly that for silence (a closed VCA is a gain-0
+  node, which emits a null chunk). Skipping it dropped every such quantum from
+  the take: a Firefox recording started at the first sound instead of at Record
+  (measured: a 3.92 s take came out 2.90 s, its 1.0 s lead-in gone), and the
+  frames that `firstFrame` maps to no longer followed one another. Blink hands
+  the recorder a silent channel instead, so it never took this path.
 - **REQ-chunks-are-batched-then-flushed** (v10) — The worklet accumulates
   `RECORD_BATCH_QUANTA` (16) quanta per message, about 43 ms at 48 kHz. That cuts
   ~375 messages/s to ~23, so a main-thread stall no longer queues hundreds of held
@@ -307,6 +316,13 @@ Scenario: A batched capture is frame-identical to a per-quantum one (REQ-chunks-
   Then every captured sample matches the unbatched capture, in the same order
   And no gap appears at a batch boundary
 # pinned by: tests/audio/recorder/node.test.ts
+
+Scenario: A silent stretch is captured, not skipped (REQ-a-silent-quantum-is-captured-as-silence, regression)
+  Given a capture whose input arrives with no channels for some quanta
+  When the worklet processes them
+  Then each one adds a quantum of zeros to the take
+  And the frames around them stay contiguous, the batch tags following on
+# pinned by: tests/audio/recorder/recorder-worklet.test.ts
 
 Scenario: Stopping mid-batch keeps the tail (REQ-chunks-are-batched-then-flushed, regression)
   Given a capture stopped part-way through a batch
