@@ -128,7 +128,7 @@ instead of transcribing it from a phone screen.
   [`midi-clock-sync`](midi-clock-sync.md) (**MIDI ports**, `debug-midi`, via
   `setMidiStatsSource`), the wake lock (**Wake lock**, `debug-wake`, via
   `setWakeLockSource`) and [`scope`](scope.md) (**Scope**, `debug-scope`, via
-  `setScopeStatsSource` — whether the visualizer is painting, and how often it
+  `setScopeStatsSource` — whether the visualizer is painting or asleep, and how often it
   had to recover; scope.md REQ-the-panel-says-whether-it-is-drawing) and
   [`play-offline`](play-offline.md) (**Offline copy**, `debug-offline`, from
   `getOfflineCopy().state` via `formatOfflineState` — whether this device holds a

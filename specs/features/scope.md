@@ -412,7 +412,8 @@ The rest of the design follows from what each view is for:
 - **REQ-a-watchdog-restarts-a-stalled-loop** (v16) — **A ~1 Hz watchdog restarts
   a stalled loop.** A `window.setInterval` inside the component checks — and
   **only while `document.hidden` is false** — whether the last frame is older
-  than `SCOPE_STALL_MS`; if it is, it `measure()`s and `start()`s. Frames
+  than `SCOPE_STALL_MS`; if it is, it `measure()`s and `start()`s (a sleeping
+  loop is not a stall: REQ-a-scope-with-nothing-to-show-sleeps). Frames
   arriving while paints are not means the layout box is gone, not the loop: that
   escalates to `measure()` alone and never to a canvas rebuild, because a panel
   with no box has nothing to draw and reports `no box` instead. The timer
@@ -477,7 +478,7 @@ The rest of the design follows from what each view is for:
   `focus` does not bubble, so a capturing listener would route every knob,
   button and field in the app through here.
 - **REQ-the-panel-says-whether-it-is-drawing** (v16) — **The panel says out loud
-  whether it is drawing.** `Scope.health` reports drawing/stalled, the age of
+  whether it is drawing.** `Scope.health` reports drawing/asleep/stalled, the age of
   the last frame and paint, whether there is a layout box, whether the context
   is lost, and the restart/rebuild/loss counters. It reaches the Debug panel
   through `setScopeStatsSource` ([debug-panel](debug-panel.md)
@@ -607,14 +608,16 @@ class Scope {
   destroy(): void;
 }
 
-// Liveness (REQ-the-scope-proves-it-is-painting and the REQs after it). Four exported ms constants, one record, one reader:
+// Liveness (REQ-the-scope-proves-it-is-painting and the REQs after it). Exported ms constants, one record, one reader:
 const SCOPE_WATCHDOG_MS = 1000;    // how often the watchdog looks; gated on document.hidden
 const SCOPE_STALL_MS = 1200;       // no rAF callback for this long => the frame chain is dead
 const SCOPE_PAINT_STALL_MS = 1500; // frames but no paints => no layout box (clears 15fps weak tier)
 const CONTEXT_RESTORE_MS = 3000;   // a contextrestored that has not come by now is not coming
 const REBUILD_MIN_GAP_MS = 5000;   // one canvas rebuild per this, so a dead GPU cannot leak
+const SCOPE_SLEEP_AFTER_MS = 500;  // quiet frames for this long => asleep (REQ-a-scope-with-nothing-to-show-sleeps)
+const SCOPE_WAKE_POLL_MS = 50;     // a sleeping scope's analyser read: its only work
 interface ScopeHealth {
-  drawing: boolean; frameAgeMs: number; paintAgeMs: number;
+  asleep: boolean; drawing: boolean; frameAgeMs: number; paintAgeMs: number;
   hasBox: boolean; contextLost: boolean;
   restarts: number; rebuilds: number; losses: number;
 }
