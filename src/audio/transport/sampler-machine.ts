@@ -14,7 +14,7 @@ import { reverseBuffer } from '../recorder/audio-buffer';
 export type SamplerStepListener = (step: number, when: number) => void;
 
 /** Click-free cut: ramp the per-hit gain to 0 over CHOKE_FADE, stop just after. */
-const CHOKE_FADE = 0.005;
+export const CHOKE_FADE = 0.005;
 /**
  * Attack ramp on a slot's per-hit gain (sampler.md REQ-a-slot-starts-from-zero).
  *
@@ -25,7 +25,7 @@ const CHOKE_FADE = 0.005;
  * step into a slope, far too short to soften a transient: a chop's own attack is
  * orders of magnitude longer.
  */
-const SAMPLER_ATTACK = 0.0005;
+export const SAMPLER_ATTACK = 0.0005;
 
 const CHOKE_STOP = 0.03;
 

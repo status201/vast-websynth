@@ -33,6 +33,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ### Fixed
 
+- The sample editor's preview no longer clicks at the edges of a selection, or when
+  you stop it mid-clip: it fades in and out the way the sampler slot will play it.
 - A sampler clip that ends mid-sound (a chopped slice, a cropped recording, a loop
   cut on the beat) no longer clicks when it runs out: it fades to silence over its
   last 5 ms, the way it already faded in over its first.
