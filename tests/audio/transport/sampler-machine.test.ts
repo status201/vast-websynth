@@ -146,9 +146,26 @@ describe('SamplerMachine', () => {
       ctx.currentTime = 4;
       sm.stopAll();
 
-      expect(g.gain.cancelScheduledValues).toHaveBeenCalledWith(4);
-      expect(g.gain.linearRampToValueAtTime).toHaveBeenCalledWith(0, 4.005);
-      expect(src.stop).toHaveBeenCalledWith(4.03);
+      // One render quantum ahead: the mock reports no baseLatency (live-trigger-timing.md).
+      const at = 4 + 128 / ctx.sampleRate;
+      expect(g.gain.cancelScheduledValues).toHaveBeenCalledWith(at);
+      expect(g.gain.linearRampToValueAtTime).toHaveBeenCalledWith(0, at + 0.005);
+      expect(src.stop).toHaveBeenCalledWith(at + 0.03);
+    });
+
+    it('cuts one render burst ahead (live-trigger-timing.md REQ-a-cut-made-now-starts-ahead-of-the-render)', () => {
+      // A 5 ms fade anchored at bare currentTime could already be over when it
+      // rendered, i.e. a hard cut: under load 6 of 34 stops ticked, 0 of 34 ahead.
+      const { ctx, clock, patterns, sm } = build();
+      sm.setEnabled(true);
+      sm.setBuffer(0, makeStubBuffer());
+      patterns.setSamplerCell(0, 0, { on: true, velocity: 0.6, gate: 1, tie: true });
+      clock.fireTick(0);
+      const g = ctx.createGain.mock.results.at(-1)!.value;
+      ctx.currentTime = 4;
+      (ctx as unknown as { baseLatency: number }).baseLatency = 0.01;
+      sm.stopAll();
+      expect(g.gain.cancelScheduledValues.mock.calls.at(-1)![0]).toBeCloseTo(4.01, 12);
     });
 
     // v12 regression. `stopAll` open-coded the four lines `cutHit` owns and had

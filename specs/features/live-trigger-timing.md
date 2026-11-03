@@ -3,12 +3,12 @@
 ```yaml
 id: live-trigger-timing
 status: implemented
-version: 2
+version: 3
 owner: core
 related:
   - voicing          # live notes: Polyphony.playNote / releaseNote
   - drum-machine     # the pad audition: DrumMachine.triggerTrack
-  - sampler          # the slot audition and MIDI pads: SamplerMachine.triggerSlot
+  - sampler          # the slot audition, MIDI pads and Stop's cut: triggerSlot, stopAll
   - envelopes        # REQ-envelope-scheduling-is-future-time-safe: the attack this protects
   - ../decisions/adr-010-musical-stable-cheap-dsp
 source:
@@ -60,6 +60,13 @@ reports the burst as `baseLatency`.
 - **REQ-a-live-release-takes-the-same-margin** — A live release (`releaseNote`
   with no time) takes the same margin as the attack it ends, so a quick tap still
   releases after it attacks.
+- **REQ-a-cut-made-now-starts-ahead-of-the-render** — A fade that ends a sound
+  *now* is a trigger too: Stop's sampler cut (`SamplerMachine.stopAll`, a 5 ms
+  ramp) lands at `liveStartTime`. Anchored at bare `currentTime`, a ramp that
+  short can already be over when it renders, which makes it a hard cut: under
+  load 6 of 34 stops ticked (up to 6.8x the 3rd-difference floor of the cut
+  sample), 0 of 34 one burst ahead. The synth's kill (Panic, a MONO/POLY switch)
+  measured clean at `currentTime`, 0 of 10, and is left there.
 - **REQ-the-margin-follows-the-device** — The margin is the device's burst, not a
   constant, where the browser reports one: 10 ms in Blink on a typical Windows
   setup, less on a low-latency device. Where it does not (Gecko), it is the 20 ms
@@ -75,7 +82,7 @@ export function liveStartTime(ctx: BaseAudioContext): number;
 ```
 
 Callers: `Polyphony.playNote` / `releaseNote` when `when` is absent,
-`DrumMachine.triggerTrack`, `SamplerMachine.triggerSlot`.
+`DrumMachine.triggerTrack`, `SamplerMachine.triggerSlot`, `SamplerMachine.stopAll`.
 
 ## Scenarios (BDD)
 
@@ -97,6 +104,12 @@ Scenario: A pad audition starts one burst ahead (REQ-a-live-trigger-starts-ahead
   When a drum pad or a sampler pad is triggered by hand
   Then its hit is scheduled at currentTime + baseLatency
 # pinned by: tests/audio/transport/drum-machine.test.ts, tests/audio/transport/sampler-machine.test.ts
+
+Scenario: Stop's sampler cut lands one burst ahead (REQ-a-cut-made-now-starts-ahead-of-the-render, regression)
+  Given a sampler hit sounding and a context reporting a baseLatency
+  When the transport stops
+  Then the hit's fade is anchored at currentTime + baseLatency, not at currentTime
+# pinned by: tests/audio/transport/sampler-machine.test.ts
 
 Scenario: A scheduled hit is untouched (REQ-a-live-trigger-starts-ahead-of-the-render)
   Given a note or a step that carries its own time

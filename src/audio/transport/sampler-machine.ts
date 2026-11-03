@@ -429,7 +429,9 @@ export class SamplerMachine {
    * last bar's one-shots out of it.
    */
   stopAll(): void {
-    const now = this.ctx.currentTime;
+    // One render burst ahead, not bare currentTime: a 5 ms fade anchored in the
+    // past renders as a hard cut (live-trigger-timing.md REQ-a-cut-made-now-starts-ahead-of-the-render).
+    const now = liveStartTime(this.ctx);
     // The same cut a choke makes — `cutHit` computes the fade's anchor with
     // `gainAt` rather than reading a live `gain.value` (which Gecko does not
     // keep current under automation) and refuses to re-stop a hit already

@@ -33,6 +33,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ### Fixed
 
+- Stopping the transport while a sampler clip plays no longer sometimes ticks: the
+  clip's short fade-out is timed a moment ahead, like a live note, instead of for
+  an instant the audio engine may already have passed.
 - In Firefox, a recording now starts when you press Record. It used to start at
   the first sound, dropping any silence before it, because Firefox hands silence
   over as no audio at all and the recorder skipped it.
