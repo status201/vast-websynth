@@ -68,6 +68,15 @@ function mixCoeffs(shape, out) {
   for (let k = 0; k < 5; k++) out[k] = a[k] + (b[k] - a[k]) * f;
 }
 
+// MIDI note → Hz (clamped just under Nyquist) → one-pole coefficient. Every path
+// calls this one expression, so a hoisted constant block is bit-exact with the
+// per-sample path (REQ-filter-coefficients-hoist-per-block).
+function poleCoef(note, sr) {
+  const freq = 440 * Math.pow(2, (note - 69) / 12);
+  const fNorm = Math.min(Math.max(freq / sr, 0.0001), 0.49);
+  return 1 - Math.exp(-2 * Math.PI * fNorm);
+}
+
 // The model switch's crossfade (filter-models.md REQ-a-model-switch-crossfades).
 const MODEL_XF_S = 0.005;
 
@@ -247,11 +256,7 @@ class LadderFilterProcessor extends AudioWorkletProcessor {
     if (cutoffConst) {
       if (c0 !== this.lastCutoff) {
         this.lastCutoff = c0;
-        // MIDI note → Hz (clamped < Nyquist) → one-pole coefficient. Identical
-        // expression to the per-sample path, so a constant block is bit-exact.
-        const freq = 440 * Math.pow(2, (c0 - 69) / 12);
-        const fNorm = Math.min(Math.max(freq / sampleRate, 0.0001), 0.49);
-        this.lastG = 1 - Math.exp(-2 * Math.PI * fNorm);
+        this.lastG = poleCoef(c0, sampleRate);
       }
       gBlock = this.lastG;
     }
@@ -357,14 +362,7 @@ function polyBlock(s, inCh, outCh, k) {
   for (let i = 0; i < outCh.length; i++) {
     const res = resStatic ? resArr[0] : resArr[i];
 
-    let g;
-    if (cutoffConst) {
-      g = gBlock;
-    } else {
-      const freq = 440 * Math.pow(2, (cutoffArr[i] - 69) / 12);
-      const fNorm = Math.min(Math.max(freq / sr, 0.0001), 0.49);
-      g = 1 - Math.exp(-2 * Math.PI * fNorm);
-    }
+    const g = cutoffConst ? gBlock : poleCoef(cutoffArr[i], sr);
 
     // Only when the shape is genuinely being swept (filter-models.md REQ-mix-coefficients-resolve-once-per-block).
     if (!shapeConst) {
@@ -420,16 +418,8 @@ function ladderBlock(s, inCh, outCh, k) {
   for (let i = 0; i < outCh.length; i++) {
     const res = resStatic ? resArr[0] : resArr[i];
 
-    // One-pole coefficient: hoisted (constant block) or per-sample. MIDI
-    // note → Hz, clamped just under Nyquist. Same math either way.
-    let g;
-    if (cutoffConst) {
-      g = gBlock;
-    } else {
-      const freq = 440 * Math.pow(2, (cutoffArr[i] - 69) / 12);
-      const fNorm = Math.min(Math.max(freq / sr, 0.0001), 0.49);
-      g = 1 - Math.exp(-2 * Math.PI * fNorm);
-    }
+    // One-pole coefficient: hoisted (constant block) or per-sample.
+    const g = cutoffConst ? gBlock : poleCoef(cutoffArr[i], sr);
 
     const x = inCh ? inCh[i] : 0;
     const drive = dStep === 0 ? drive0 : drive0 + dStep * (i + 1);

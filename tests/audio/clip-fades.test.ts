@@ -1,8 +1,7 @@
 import { describe, it, expect, vi } from 'vitest';
 import { readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
-import { clipFades, fadeOutAt } from '../../src/audio/clip-fades';
-import { SAMPLER_ATTACK, CHOKE_FADE } from '../../src/audio/transport/sampler-machine';
+import { clipFades, fadeOutAt, SAMPLER_ATTACK, CHOKE_FADE } from '../../src/audio/clip-fades';
 
 /**
  * The editor preview's edges are the sampler's (sample-recorder.md

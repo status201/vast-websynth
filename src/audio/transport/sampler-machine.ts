@@ -10,22 +10,9 @@ import { LaneMeter } from './lane-meter';
 import { rampTo, RAMP_MEDIUM, toneCutoff, liveStartTime } from '../param-utils';
 import { forceStereo } from '../stereo';
 import { reverseBuffer } from '../recorder/audio-buffer';
+import { CHOKE_FADE, SAMPLER_ATTACK } from '../clip-fades';
 
 export type SamplerStepListener = (step: number, when: number) => void;
-
-/** Click-free cut: ramp the per-hit gain to 0 over CHOKE_FADE, stop just after. */
-export const CHOKE_FADE = 0.005;
-/**
- * Attack ramp on a slot's per-hit gain (sampler.md REQ-a-slot-starts-from-zero).
- *
- * User audio is exactly the material we cannot assume anything about: a sample
- * whose first frame is not near zero used to start on a full-scale step, which is
- * a click on every hit. 0.5 ms is ~24 samples at 48 kHz — Web Audio ramps are
- * sample-accurate, so this is not rounded up to a render block. Enough to turn a
- * step into a slope, far too short to soften a transient: a chop's own attack is
- * orders of magnitude longer.
- */
-export const SAMPLER_ATTACK = 0.0005;
 
 const CHOKE_STOP = 0.03;
 

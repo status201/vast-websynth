@@ -377,12 +377,7 @@ export class Voice {
       clearTimeout(this.releaseTimer);
       this.releaseTimer = null;
     }
-    // Back on the bus first, synchronously, so the attack (at `when`, at or after
-    // the live start time) has somewhere to go (REQ-an-idle-voice-is-unplugged).
-    this.plug();
-    // Unconditionally every call: a lost deactivate may cost CPU, never a note.
-    this.filter.setActive(true);
-    this.sync.setVoiceActive(true);
+    this.wake();
     this.currentNote = note;
     this.state = 'playing';
     this.noteOnAt = when;
@@ -446,10 +441,8 @@ export class Voice {
       if (this.state === 'releasing') {
         this.state = 'idle';
         this.currentNote = -1;
-        this.filter.setActive(false);
-        this.sync.setVoiceActive(false);
         // Fifteen release time constants in: the VCA is ~-130 dB.
-        this.unplug();
+        this.sleep();
       }
     }, delayMs);
   }
@@ -469,11 +462,32 @@ export class Voice {
     // noteOn re-claimed the voice meanwhile (it posts its own true) (REQ-the-filter-idles-when-gated).
     window.setTimeout(() => {
       if (this.state !== 'idle') return;
-      this.filter.setActive(false);
-      this.sync.setVoiceActive(false);
       // Ten of the cut's 3 ms time constants in: the VCA is ~-87 dB.
-      this.unplug();
+      this.sleep();
     }, 30);
+  }
+
+  /**
+   * Everything a note needs awake, before its attack: back on the bus first,
+   * synchronously, so the attack (at `when`, at or after the live start time) has
+   * somewhere to go (REQ-an-idle-voice-is-unplugged), then the idle gates.
+   * Unconditionally every note: a lost deactivate may cost CPU, never a note.
+   */
+  private wake(): void {
+    this.plug();
+    this.filter.setActive(true);
+    this.sync.setVoiceActive(true);
+  }
+
+  /**
+   * The idle voice's whole saving: the gates shut (ladder-filter.md
+   * REQ-the-filter-idles-when-gated, oscillator-sync.md REQ-the-pair-idles-with-the-voice)
+   * and the voice off the bus. Only ever with the VCA already silent.
+   */
+  private sleep(): void {
+    this.filter.setActive(false);
+    this.sync.setVoiceActive(false);
+    this.unplug();
   }
 
   setGlide(seconds: number): void {
