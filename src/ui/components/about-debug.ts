@@ -60,6 +60,7 @@ function formatScopeHealth(h: ReturnType<typeof scopeStats>): string {
   if (!h) return 'n/a';
   const state = h.contextLost ? 'ctx lost'
     : !h.hasBox ? 'no box'
+    : h.asleep ? 'asleep'
     : h.drawing ? 'drawing'
     : `stalled ${(Math.min(h.frameAgeMs, h.paintAgeMs) / 1000).toFixed(1)}s`;
   const counts = [

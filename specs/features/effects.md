@@ -3,7 +3,7 @@
 ```yaml
 id: effects
 status: implemented
-version: 20
+version: 21
 owner: core
 related:
   - architecture
@@ -217,6 +217,21 @@ colours each bus independently.
     spectrum;
   - the crossfade has its own `RAMP_BYPASS` (25 ms) instead of the shorter
     `RAMP_MEDIUM`.
+- **REQ-a-fixed-filter-is-a-true-butterworth** — A lowpass or highpass whose
+  resonance no control sets (a tone, a damp, a filter at rest) is a true
+  Butterworth: `Q = BUTTERWORTH_Q_DB`, 20·log10(√½) ≈ −3.01. Web Audio reads a
+  lowpass/highpass `Q` in **dB** ([equalizer](equalizer.md)), so the linear 0.7
+  or 0.707 these were written with is a resonant bump instead: +1.7 dB just below
+  the cutoff, 3.7 dB above Butterworth at it, and at a 20 kHz "open" cutoff
+  +0.75 dB at 15 kHz where Butterworth is within 0.11 dB. The sites: the reverb's
+  damp, the chorus tone, Dirt's tone, a drum track's tone, a sampler slot's tone
+  at `res` 0 ([sampler](sampler.md) REQ-each-slot-has-a-channel), the sample
+  editor's lowpass/highpass edits ([sample-recorder](sample-recorder.md)) and each
+  side of the DJ filter while it rests ([performance](performance.md)
+  REQ-the-dj-filter-is-a-series-pair). A resonance a control sets keeps its own
+  scale: the sampler's `res` rises from this floor, the DJ sweep's Q curve, the
+  wah, the synth filter. The delay damp and the ring-mod highpass were already
+  Butterworth ([delay-types](delay-types.md), [cross-modulation](cross-modulation.md)).
 
 ## Technical design
 
@@ -438,6 +453,13 @@ Scenario: Free is an exact no-op (REQ-wah-phaser-and-delay-can-be-tempo-locked, 
   Then every applied delay time is still the knob's own value
 # pinned by: tests/audio/fx-tempo-lock.test.ts
 
+Scenario: A fixed lowpass or highpass is a true Butterworth (REQ-a-fixed-filter-is-a-true-butterworth, regression)
+  Given the reverb damp, the chorus tone, Dirt's tone, a drum track's tone, a sampler slot's tone at res 0,
+    the editor's lowpass/highpass edit and both DJ filter sides at rest
+  Then each one's Q is BUTTERWORTH_Q_DB, read in dB
+  And a sampler slot at res 1 and a DJ sweep keep the resonance they had
+# pinned by: tests/audio/butterworth-q.test.ts
+
 Scenario: Drive 0 stays an exact no-op after bucketing (REQ-drive-curves-are-bucketed-and-memoized, edge)
   Given the drum machine's identity-anchored curve
   When drive is 0
@@ -448,7 +470,7 @@ Scenario: Drive 0 stays an exact no-op after bucketing (REQ-drive-curves-are-buc
 ## Tests & verification
 
 - `tests/state/params.test.ts`, `tests/audio/effects/{effect-bind,bypass,reverb,wah,phaser,fx-cost}.test.ts`,
-  `tests/audio/drive-curve.test.ts`, `tests/audio/fx-tempo-lock.test.ts`,
+  `tests/audio/drive-curve.test.ts`, `tests/audio/fx-tempo-lock.test.ts`, `tests/audio/butterworth-q.test.ts`,
   `e2e/controls.spec.ts`, `e2e/fx-tempo-lock.spec.ts` — `npm test` / `npm run e2e`.
 - Sound changes are signed off by ear (ADR-010, [verify-audio-by-ear](../recipes/verify-audio-by-ear.md)).
 

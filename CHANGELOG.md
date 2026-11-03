@@ -38,6 +38,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ### Fixed
 
+- Tone and damping filters no longer add a small resonant bump at their cutoff.
+  Dirt's tone, the reverb and chorus darkening, every drum and sampler TONE, the
+  sample editor's low/high-pass edits and the DJ filter at rest were set as if
+  their resonance were a plain number, which the browser reads in decibels: about
+  +1.7 dB just under each cutoff. Through the DJ filter that lifted the top of
+  every song slightly (+0.75 dB at 15 kHz); the master is now flat there. DJ
+  sweeps and the sampler's RES keep the resonance they had.
 - The sample editor's preview no longer clicks at the edges of a selection, or when
   you stop it mid-clip: it fades in and out the way the sampler slot will play it.
 - A sampler clip that ends mid-sound (a chopped slice, a cropped recording, a loop
@@ -88,6 +95,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ### Changed
 
+- **The app now rests while nothing plays.** The scope used to redraw a flat line
+  sixty times a second with no sound to show; it now stops once everything is
+  still and wakes within a twentieth of a second of the next sound, or the moment
+  you touch it. Measured in Chrome, the idle page's main-thread work drops from
+  about 3% to 0.3%. The Debug panel's Scope row reads "asleep" while it rests.
 - **The synth costs far less while it is not playing.** A voice that has finished
   sounding is now taken off the audio graph until its next note, so the browser stops
   computing it: measured in Chrome, the audio work at rest drops by about two thirds

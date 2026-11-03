@@ -1,4 +1,4 @@
-import { WrappedEffect, bindBypassMix } from './effect';
+import { WrappedEffect, bindBypassMix, BUTTERWORTH_Q_DB } from './effect';
 import { rampTo, RAMP_MEDIUM } from '../param-utils';
 import type { ParamBus } from '../../state/params';
 
@@ -70,7 +70,7 @@ export class Reverb extends WrappedEffect {
     this.damp = ctx.createBiquadFilter();
     this.damp.type = 'lowpass';
     this.damp.frequency.value = 8000;
-    this.damp.Q.value = 0.707;
+    this.damp.Q.value = BUTTERWORTH_Q_DB; // effects.md REQ-a-fixed-filter-is-a-true-butterworth
 
     // Weak perf tiers cap the IR *durations*, never the bank size, so
     // setSize's 0..1 → index mapping and preset values keep their meaning

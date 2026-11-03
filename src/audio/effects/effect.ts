@@ -56,12 +56,12 @@ export const DISCONNECT_DELAY_MS = 300;
  * reads a lowpass or highpass biquad's `Q` in **dB**, so this is
  * 20·log10(1/√2) ≈ −3.01, not 0.7071 — which read as dB is a linear Q of
  * ~1.09 and a +1.7 dB peak (equalizer.md). Every true-Butterworth filter in
- * the audio layer uses it, and lives here because every one of them already
- * imports this module (in `param-utils.ts` it split that module into a chunk of
- * its own, an extra boot request): the delay loops (delay-types.md
- * REQ-every-type-is-bounded), ring mod's DC filter (cross-modulation.md
- * REQ-ring-is-dc-free) and Dirt's DC block (dirt-types.md
- * REQ-every-dirt-type-is-bounded).
+ * the audio layer uses it (effects.md REQ-a-fixed-filter-is-a-true-butterworth), and it lives here rather than in
+ * `param-utils.ts`, where it split that module into a chunk of its own, an
+ * extra boot request: the delay loops (delay-types.md REQ-every-type-is-bounded),
+ * ring mod's DC filter (cross-modulation.md REQ-ring-is-dc-free), Dirt's DC block
+ * (dirt-types.md REQ-every-dirt-type-is-bounded), and every tone, damp and
+ * resting filter whose resonance no control sets.
  */
 export const BUTTERWORTH_Q_DB = 20 * Math.log10(Math.SQRT1_2);
 

@@ -3,7 +3,7 @@
 ```yaml
 id: sampler
 status: implemented
-version: 15
+version: 16
 owner: core
 related:
   - architecture
@@ -132,8 +132,10 @@ and a [project zip](project-export.md) carries them.
   - **The panner's input is forced stereo** (`slotGains` declares `channelCount = 2,
     'explicit'`), or a mono clip would arrive 3 dB down at centre. The up-mix is unity,
     and the filter still runs mono for a mono clip.
-  - At `tone` 1 / `res` 0 the lowpass is at 20 kHz, Q 0.7 (flat within ~0.1 dB below
-    12 kHz): the same near-no-op every drum track carries. A true bypass would need
+  - At `tone` 1 / `res` 0 the lowpass is a Butterworth at 20 kHz (flat within
+    0.02 dB below 12 kHz, [effects](effects.md) REQ-a-fixed-filter-is-a-true-butterworth):
+    the same near-no-op every drum track carries. `res` rises linearly from that
+    Butterworth floor to `RES_Q_MAX` (12 dB). A true bypass would need
     eight more wrappers and a mid-hit rewire.
 - **REQ-a-hit-plays-a-window-of-the-buffer** — Six per-slot values are read by `play()`
   at trigger time, since each shapes one hit: `pitch`, `start`, `end`, `rev`, `attack`,
@@ -208,7 +210,7 @@ sampler.t{i}.mute:   { discrete, labels: [on, mute], default: 0 }   # per slot 0
 sampler.t{i}.vol:    { range: 0..1,    default: 1 }
 sampler.t{i}.pan:    { range: -1..1,   default: 0 }
 sampler.t{i}.tone:   { range: 0..1,    default: 1 }    # 1 = open (20 kHz)
-sampler.t{i}.res:    { range: 0..1,    default: 0 }    # 0 = Q 0.7
+sampler.t{i}.res:    { range: 0..1,    default: 0 }    # 0 = Butterworth
 sampler.t{i}.pitch:  { range: -24..24, default: 0, step: 1, unit: st }
 sampler.t{i}.start:  { range: 0..1,    default: 0 }    # fraction of the buffer
 sampler.t{i}.end:    { range: 0..1,    default: 1 }

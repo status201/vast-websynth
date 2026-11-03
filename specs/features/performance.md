@@ -3,7 +3,7 @@
 ```yaml
 id: performance
 status: implemented
-version: 9
+version: 10
 owner: core
 related:
   - architecture
@@ -75,7 +75,10 @@ reaching into the machines.
   ones, which clicks on the master bus. A motion lane straddling centre would do
   that several times a bar. `djLow` rests transparent and sweeps down to 130 Hz
   as `x → -1`. `djHigh` rests at 20 Hz and sweeps up to 4 kHz as `x → +1`. Centre
-  is where both are transparent (`|x| < 0.02`). Filter Drop dives `djLow` only.
+  is where both are transparent (`|x| < 0.02`). A resting side is a true
+  Butterworth ([effects](effects.md) REQ-a-fixed-filter-is-a-true-butterworth), so
+  it is transparent in fact; a side that sweeps takes the sweep's own resonance
+  curve. Filter Drop dives `djLow` only.
   The extra biquad in the master path is an accepted cost.
 - **REQ-the-dj-sweep-rides-detune** (v7) — **The sweep rides `detune`, through
   `setTargetAtTime` alone. The DJ filter path never calls

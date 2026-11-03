@@ -7,6 +7,7 @@ import {
   CONTEXT_RESTORE_MS,
   REBUILD_MIN_GAP_MS,
 } from '../../src/ui/components/scope';
+import { frameScheduler, recordingCtx, sizeCanvas } from './scope-harness';
 
 /**
  * Scope recovery — scope.md REQ-the-redraw-loop-can-always-restart through
@@ -29,68 +30,6 @@ import {
  * own frame timestamps.
  */
 
-/** A hand-driven `requestAnimationFrame`, with real cancel semantics. */
-function frameScheduler() {
-  const pending = new Map<number, FrameRequestCallback>();
-  let nextId = 1;
-  vi.stubGlobal('requestAnimationFrame', (cb: FrameRequestCallback) => {
-    const id = nextId++;
-    pending.set(id, cb);
-    return id;
-  });
-  let cancels = 0;
-  vi.stubGlobal('cancelAnimationFrame', (id: number) => {
-    if (pending.delete(id)) cancels++;
-  });
-  return {
-    get queued() { return pending.size; },
-    /** Frames actually cancelled — how "did a healthy mutator churn the loop" is asked. */
-    get cancels() { return cancels; },
-    /** Run whatever is queued. A throw is caught, as the browser's event loop does. */
-    run(ts: number): unknown[] {
-      const due = [...pending.values()];
-      pending.clear();
-      const thrown: unknown[] = [];
-      for (const cb of due) { try { cb(ts); } catch (e) { thrown.push(e); } }
-      return thrown;
-    },
-    /** What a renderer freeze does to a queued callback: it never arrives. */
-    dropQueued(): void { pending.clear(); },
-  };
-}
-
-/** A 2D context that records the calls made against it. */
-function recordingCtx() {
-  const calls: string[] = [];
-  const grad = { addColorStop: () => undefined };
-  const target: Record<string, unknown> = {};
-  let failNextClear = false;
-  const ctx = new Proxy(target, {
-    get(t, prop: string) {
-      if (prop === 'createLinearGradient') return () => grad;
-      if (prop in t) return t[prop];
-      return (...args: unknown[]) => {
-        calls.push(prop);
-        if (prop === 'clearRect' && failNextClear) {
-          failNextClear = false;
-          throw new Error('context is toast');
-        }
-        return args.length ? undefined : undefined;
-      };
-    },
-    set(t, prop: string, v) { t[prop] = v; return true; },
-  });
-  return {
-    ctx: ctx as unknown as CanvasRenderingContext2D,
-    calls,
-    drew: () => calls.includes('clearRect'),
-    reset: () => { calls.length = 0; },
-    breakNextDraw: () => { failNextClear = true; },
-    /** What a browser that HAS the API answers once the context is gone (REQ-scope-detection-is-free-or-it-does-not-happen). */
-    loseContext: () => { target['isContextLost'] = () => true; },
-  };
-}
-
 /**
  * A 2D context on a browser with no `isContextLost` at all — the proxy's `get` trap
  * returns a recording stub for every unknown prop, so without this the component
@@ -102,12 +41,17 @@ function ctxWithoutLossApi() {
   return painter;
 }
 
+/**
+ * Always sounding: these cases are about a loop that must keep running, and a
+ * silent scope now sleeps (scope.md REQ-a-scope-with-nothing-to-show-sleeps,
+ * pinned on its own in scope-sleep.test.ts), which would read as a stopped loop here.
+ */
 const fakeAnalyser = (): AnalyserNode => ({
   fftSize: 1024,
   frequencyBinCount: 512,
   smoothingTimeConstant: 0.2,
-  getFloatTimeDomainData: () => undefined,
-  getByteFrequencyData: () => undefined,
+  getFloatTimeDomainData: (a: Float32Array) => { a.fill(0.25); },
+  getByteFrequencyData: (a: Uint8Array) => { a.fill(128); },
 } as unknown as AnalyserNode);
 
 let hidden = false;
@@ -115,12 +59,6 @@ const setHidden = (v: boolean): void => {
   hidden = v;
   document.dispatchEvent(new Event('visibilitychange'));
 };
-
-/** Build a Scope that can actually paint: jsdom reports a 0×0 box otherwise. */
-function sizeCanvas(el: HTMLCanvasElement, w = 320, h = 120): void {
-  Object.defineProperty(el, 'clientWidth', { value: w, configurable: true });
-  Object.defineProperty(el, 'clientHeight', { value: h, configurable: true });
-}
 
 function mountScope(painter = recordingCtx()) {
   vi.spyOn(HTMLCanvasElement.prototype, 'getContext').mockReturnValue(

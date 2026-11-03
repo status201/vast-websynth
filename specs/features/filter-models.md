@@ -134,8 +134,11 @@ Per [ADR-006](../decisions/adr-006-no-op-param-defaults.md) the default is index
   gain falls as drive rises, while POLY's resonance compensation is independent
   of drive. Measured at resonance 0.5: at the default drive 1.2, POLY is +1.5 dB
   on a quiet input (0.05 peak), +0.2 dB at 0.5 and −0.8 dB at full scale; at
-  drive 2 the quiet-input gap is +3.3 dB. Whether to re-centre the trim on the
-  default drive is a by-ear call (ADR-010). Two further honest caveats.
+  drive 2 the quiet-input gap is +3.3 dB. Deliberate: the trim is not re-centred.
+  The default patch reaches the filter at about a 0.6 peak (saws at 0.7 and 0.5
+  through the voice's 0.5 mix), where the gap at the default drive is +0.2 dB,
+  and a gap that moves with input level has no single trim to follow it. Two
+  further honest caveats.
   Away from that resonance they diverge by REQ-poly-preserves-the-low-end's ~10
   dB, which is the feature. And **broadband** POLY reads about **2 dB hotter**
   on harmonically rich material (measured on the `basic` patch's two saws),

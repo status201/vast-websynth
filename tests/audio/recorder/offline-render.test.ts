@@ -1,6 +1,7 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { renderEffect, renderPitchShift } from '../../../src/audio/recorder/offline-render';
 import { MAX_PITCH_SHIFT_SEMITONES } from '../../../src/state/limits';
+import { BUTTERWORTH_Q_DB } from '../../../src/audio/effects/effect';
 import type { CapturedAudio } from '../../../src/audio/recorder/node';
 
 /**
@@ -152,10 +153,10 @@ describe('renderEffect — output length', () => {
 });
 
 describe('renderEffect — the graph it builds', () => {
-  it('routes a filter through a biquad of that kind at Q 0.707', async () => {
+  it('routes a filter through a Butterworth biquad of that kind', async () => {
     await renderEffect(captured(64), { kind: 'highpass', freq: 1200 });
     const g = graphs[0]!;
-    expect(g.biquad).toEqual({ type: 'highpass', freq: 1200, q: 0.707 });
+    expect(g.biquad).toEqual({ type: 'highpass', freq: 1200, q: BUTTERWORTH_Q_DB });
     expect(g.connectedToDestination).toEqual(['biquad']); // source → biquad → out
     expect(g.playbackRate).toBe(1);
     expect(g.started).toBe(true);

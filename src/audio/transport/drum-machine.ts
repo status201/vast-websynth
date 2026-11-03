@@ -6,6 +6,7 @@ import { LaneMeter } from './lane-meter';
 import { Kick, Snare, HiHat, Tom, Clap, Conga, Bongo, Cowbell, Clave, Shaker, makeNoiseBuffer, type DrumSynth } from '../drums/drum-synths';
 import { rampTo, RAMP_MEDIUM, toneCutoff, liveStartTime } from '../param-utils';
 import { memoizeDriveCurve } from '../drive-curve';
+import { BUTTERWORTH_Q_DB } from '../effects/effect';
 import { chokeAt, forEachActiveHit } from './step-hits';
 import type { TickSubscriber } from './tick-source';
 import { ListenerSet } from '../../utils/listeners';
@@ -112,7 +113,7 @@ export class DrumMachine {
       const tone = this.ctx.createBiquadFilter();
       tone.type = 'lowpass';
       tone.frequency.value = toneCutoff(1); // open (no-op)
-      tone.Q.value = 0.7;
+      tone.Q.value = BUTTERWORTH_Q_DB; // effects.md REQ-a-fixed-filter-is-a-true-butterworth
 
       const g = this.ctx.createGain();
       g.gain.value = 0.85;

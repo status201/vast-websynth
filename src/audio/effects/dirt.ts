@@ -1,4 +1,4 @@
-import { WrappedEffect, bindBypassMix } from './effect';
+import { WrappedEffect, bindBypassMix, BUTTERWORTH_Q_DB } from './effect';
 import { memoizeDriveCurve } from '../drive-curve';
 import { RAMP_SMOOTH } from '../param-utils';
 import { dirtTypeOf } from '../../state/dirt';
@@ -98,7 +98,7 @@ export class Dirt extends WrappedEffect {
     const tone = ctx.createBiquadFilter();
     tone.type = 'lowpass';
     tone.frequency.value = 3000;
-    tone.Q.value = 0.7;
+    tone.Q.value = BUTTERWORTH_Q_DB; // effects.md REQ-a-fixed-filter-is-a-true-butterworth
 
     const postGain = ctx.createGain();
     postGain.gain.value = 0.7;

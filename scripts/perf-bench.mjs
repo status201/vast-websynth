@@ -23,7 +23,10 @@
 // inflate the very timings they report.
 //
 // The main thread comes from CDP's Performance metrics over the same window,
-// plus a requestAnimationFrame counter. Chromium only: Gecko has no equivalent
+// and frames from the same trace: `BeginMainThreadFrame` (main-thread frames)
+// and `DrawFrame` (frames displayed). Never a requestAnimationFrame counter in
+// the page: a rAF loop is itself a main-thread frame every vsync, which is the
+// very cost an idle scenario has to be able to show as gone. Chromium only: Gecko has no equivalent
 // trace. The dev server is the target because scenarios are set up through the
 // dev-only `window.__synth` bridge; the audio thread runs the same worklets and
 // graph either way. Numbers are this machine's: compare runs from one machine,
@@ -56,7 +59,7 @@ const fmtRow = (name, r) =>
   + ` | >50% ${String(r.over50).padStart(3)} >90% ${String(r.over90).padStart(3)}`
   + ` | worst block ${r.quantumMax.toFixed(2)}/${r.budgetQ.toFixed(2)} ms`
   + ` | main ${(r.mainTask * 100).toFixed(1).padStart(5)}% (script ${(r.mainScript * 100).toFixed(1)}%)`
-  + ` ${r.recalcPerS.toFixed(0).padStart(3)} recalc/s ${r.fps.toFixed(0)} fps`;
+  + ` ${r.recalcPerS.toFixed(0).padStart(3)} recalc/s ${r.mainFps.toFixed(0).padStart(2)} main frames/s ${r.fps.toFixed(0)} fps`;
 
 const cmpIdx = argv.indexOf('--compare');
 if (cmpIdx >= 0) {
@@ -139,9 +142,6 @@ async function runOnce(browser, sc) {
     for (const [k, v] of Object.entries(params ?? {})) s.bus.set(k, v);
     for (const n of notes ?? []) s.bus.noteOn(n, 0.8);
     if (play) s.engine.clock.start();
-    window.__perfFrames = 0;
-    const tick = () => { window.__perfFrames++; requestAnimationFrame(tick); };
-    requestAnimationFrame(tick);
     return s.engine.ctx.sampleRate;
   }, { params: sc.params, notes: sc.notes, play: sc.play });
   await page.waitForTimeout(SETTLE_MS);
@@ -149,17 +149,18 @@ async function runOnce(browser, sc) {
   const cdp = await context.newCDPSession(page);
   await cdp.send('Performance.enable');
   const events = [];
-  cdp.on('Tracing.dataCollected', (e) => { for (const ev of e.value) if (ev.cat === 'webaudio' || ev.cat === 'audio') events.push(ev); });
+  const FRAME_EVENTS = new Set(['BeginMainThreadFrame', 'DrawFrame']);
+  cdp.on('Tracing.dataCollected', (e) => {
+    for (const ev of e.value) if (ev.cat === 'webaudio' || ev.cat === 'audio' || FRAME_EVENTS.has(ev.name)) events.push(ev);
+  });
   const done = new Promise((res) => cdp.once('Tracing.tracingComplete', res));
   const metrics = async () => Object.fromEntries((await cdp.send('Performance.getMetrics')).metrics.map((x) => [x.name, x.value]));
   const m0 = await metrics();
-  const f0 = await page.evaluate(() => window.__perfFrames);
-  await cdp.send('Tracing.start', { traceConfig: { includedCategories: ['webaudio', 'audio'] }, transferMode: 'ReportEvents' });
+  await cdp.send('Tracing.start', { traceConfig: { includedCategories: ['webaudio', 'audio', 'devtools.timeline', 'disabled-by-default-devtools.timeline.frame'] }, transferMode: 'ReportEvents' });
   await page.waitForTimeout(MEASURE_MS);
   await cdp.send('Tracing.end');
   await done;
   const m1 = await metrics();
-  const f1 = await page.evaluate(() => window.__perfFrames);
   await context.close();
 
   const wall = m1.Timestamp - m0.Timestamp;
@@ -178,7 +179,8 @@ async function runOnce(browser, sc) {
     quantumP99: q(blocks, 0.99), quantumMax: q(blocks, 1), budgetQ: (128 / sr) * 1000,
     mainTask: (m1.TaskDuration - m0.TaskDuration) / wall, mainScript: (m1.ScriptDuration - m0.ScriptDuration) / wall,
     recalcPerS: (m1.RecalcStyleCount - m0.RecalcStyleCount) / wall, layoutPerS: (m1.LayoutCount - m0.LayoutCount) / wall,
-    fps: (f1 - f0) / wall, heapMB: m1.JSHeapUsedSize / 1e6,
+    mainFps: events.filter((e) => e.name === 'BeginMainThreadFrame').length / wall,
+    fps: events.filter((e) => e.name === 'DrawFrame').length / wall, heapMB: m1.JSHeapUsedSize / 1e6,
   };
 }
 

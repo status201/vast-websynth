@@ -6,6 +6,7 @@
  * sampler toy, not a formant-preserving shifter).
  */
 import type { CapturedAudio } from './node';
+import { BUTTERWORTH_Q_DB } from '../effects/effect';
 import { capturedToAudioBuffer } from './audio-buffer';
 import { timeStretch, type StretchMode } from './time-stretch';
 import { MAX_PITCH_SHIFT_SEMITONES } from '../../state/limits';
@@ -45,7 +46,7 @@ export async function renderEffect(a: CapturedAudio, fx: RenderEffect): Promise<
     const biquad = oac.createBiquadFilter();
     biquad.type = fx.kind;
     biquad.frequency.value = fx.freq;
-    biquad.Q.value = 0.707;
+    biquad.Q.value = BUTTERWORTH_Q_DB; // effects.md REQ-a-fixed-filter-is-a-true-butterworth
     src.connect(biquad);
     node = biquad;
   }

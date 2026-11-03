@@ -318,6 +318,13 @@ so a reviewer has something concrete to hold a new feature against.
   the XY pad's spring-back) are exempt — they last well under a second with the
   user watching.
 
+  A draw-only loop SHOULD also stop arming frames while what it would draw cannot
+  change, and wake on whatever would change it: a live `requestAnimationFrame`
+  chain is a main-thread frame every vsync even when each one repaints the same
+  pixels, and every such frame restyles any running CSS animation, composited or
+  not. `Scope` is the reference again ([`scope.md`](scope.md)
+  REQ-a-scope-with-nothing-to-show-sleeps).
+
   A draw-only loop MAY hold a **low-frequency, visibility-gated watchdog** that
   proves it is still painting and restarts it if not — `Scope` is again the reference
   ([`scope.md`](scope.md) REQ-a-watchdog-restarts-a-stalled-loop). "Stop while hidden" is a rule about doing *work*,
@@ -510,7 +517,9 @@ Scenario: a worklet speed rewrite changes no samples
   scenarios (idle, held notes, all synth FX, the heavy per-voice path, two demos,
   the weak tier), each repeated, read from Blink's `webaudio` trace: load per
   render callback (mean, p95, max), the worst 128-frame block against its budget,
-  plus main-thread busy %, style recalcs and fps. `--name` saves a run under
+  plus main-thread busy %, style recalcs, and main-thread frames and displayed
+  frames per second from the same trace (never a rAF counter in the page, which
+  would itself be the idle frame it measures). `--name` saves a run under
   `bench/`, `--compare a b` diffs two. No web API reports render load, which is
   why this goes through tracing; compare runs from one machine.
 - Boot payload: `npm run build && npm run check:bundle` (prints the entry size and its
