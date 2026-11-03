@@ -6,6 +6,14 @@ import { DIRT_TYPE_LABELS } from '../../src/state/dirt';
 import ddStyles from '../../src/ui/styles/dropdown.module.css';
 import fxStyles from '../../src/ui/styles/fx-rack.module.css';
 
+/** Open the Dropdown at (or inside) `el` if it is not open: option buttons are
+ *  built on open (dropdown.md REQ-options-are-built-when-the-menu-opens). */
+function openDd<T extends HTMLElement>(el: T): T {
+  const dd = el.classList.contains('dropdown') ? el : el.querySelector<HTMLElement>('.dropdown');
+  if (dd && !dd.classList.contains('open')) dd.querySelector<HTMLButtonElement>('button')!.click();
+  return el;
+}
+
 /**
  * dirt-types.md REQ-dirt-type-is-the-panel-title and REQ-dirt-type-testids —
  * the synth rack's Dirt panel and the sampler's DIRT header group.
@@ -49,7 +57,7 @@ describe.each(surfaces)('the %s Dirt', (_name, prefix, build) => {
 
   it('choosing FUZZ sets the param', () => {
     const { b, $ } = mount();
-    const opts = [...$(`dropdown-${prefix}.type`)!.querySelectorAll<HTMLButtonElement>(`.${ddStyles.option!}`)];
+    const opts = [...openDd($(`dropdown-${prefix}.type`)!).querySelectorAll<HTMLButtonElement>(`.${ddStyles.option!}`)];
     expect(opts.map((o) => o.textContent)).toEqual(DIRT_TYPE_LABELS);
     opts.find((o) => o.textContent === 'FUZZ')!.click();
     expect(b.get(`${prefix}.type`)).toBe(2);

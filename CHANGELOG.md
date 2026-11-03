@@ -78,6 +78,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ### Changed
 
+- The page is about 40% lighter: a dropdown builds its list the first time you
+  open it, so the parameter pickers (about 440 entries each) no longer sit in the
+  page unseen. Every menu looks and works the same.
 - The app starts a little faster (about 40 ms in Chrome, 90 ms in Firefox): the
   three reverbs no longer prepare their impulse response until one is first
   switched on.

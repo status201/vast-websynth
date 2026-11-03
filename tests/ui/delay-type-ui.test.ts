@@ -6,6 +6,14 @@ import { DELAY_TYPE_LABELS } from '../../src/state/delay';
 import ddStyles from '../../src/ui/styles/dropdown.module.css';
 import fxStyles from '../../src/ui/styles/fx-rack.module.css';
 
+/** Open the Dropdown at (or inside) `el` if it is not open: option buttons are
+ *  built on open (dropdown.md REQ-options-are-built-when-the-menu-opens). */
+function openDd<T extends HTMLElement>(el: T): T {
+  const dd = el.classList.contains('dropdown') ? el : el.querySelector<HTMLElement>('.dropdown');
+  if (dd && !dd.classList.contains('open')) dd.querySelector<HTMLButtonElement>('button')!.click();
+  return el;
+}
+
 /**
  * delay-types.md REQ-type-is-a-header-dropdown-and-char-a-knob and
  * REQ-delay-type-testids — the synth rack's Delay panel, and the header group the
@@ -51,7 +59,7 @@ describe.each(surfaces)('the %s delay', (_name, prefix, build) => {
 
   it('choosing a type sets the param', () => {
     const { b, $ } = mount();
-    const opts = [...$(`dropdown-${prefix}.type`)!.querySelectorAll<HTMLButtonElement>(`.${ddStyles.option!}`)];
+    const opts = [...openDd($(`dropdown-${prefix}.type`)!).querySelectorAll<HTMLButtonElement>(`.${ddStyles.option!}`)];
     expect(opts.map((o) => o.textContent)).toEqual(DELAY_TYPE_LABELS);
     opts.find((o) => o.textContent === 'TAPE')!.click();
     expect(b.get(`${prefix}.type`)).toBe(2);
