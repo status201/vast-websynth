@@ -390,8 +390,23 @@ export const CONTEXT_RESTORE_MS = 3000;
  */
 export const REBUILD_MIN_GAP_MS = 5000;
 
+/**
+ * Quiet frames for this long put the loop to sleep (REQ-a-scope-with-nothing-to-show-sleeps):
+ * a rAF chain is a main-thread frame every vsync even when each frame redraws a
+ * flat line, and every such frame also restyles any running CSS animation.
+ */
+export const SCOPE_SLEEP_AFTER_MS = 500;
+
+/** How often a sleeping scope reads its analysers for sound — and nothing else. */
+export const SCOPE_WAKE_POLL_MS = 50;
+
+/** The bottom of the Spectrum's dB scale: a held peak here has nothing left to fall. */
+const SPECTRUM_FLOOR_DB = SPECTRUM_DB_TOP - SPECTRUM_DB_RANGE;
+
 /** What the panel knows about its own liveness — the Debug panel's row. (REQ-the-panel-says-whether-it-is-drawing) */
 export interface ScopeHealth {
+  /** Sleeping with nothing to show (REQ-a-scope-with-nothing-to-show-sleeps): not drawing, and not stalled. */
+  asleep: boolean;
   /** A frame arrived recently AND a paint landed recently. */
   drawing: boolean;
   frameAgeMs: number;
@@ -470,6 +485,18 @@ export class Scope {
   private losses = 0;
   /** The ~1 Hz supervisor. `window.setInterval` id; 0 = not running. (REQ-a-watchdog-restarts-a-stalled-loop) */
   private watchdog = 0;
+  /**
+   * Sleeping with nothing to show (REQ-a-scope-with-nothing-to-show-sleeps): no
+   * frame armed, only `wakePoll` running. `start()` and `stop()` both clear it, so
+   * every way back into this component wakes it without knowing about sleep.
+   */
+  private asleep = false;
+  /** The wake poll's `window.setInterval` id; 0 = not polling. */
+  private wakePoll = 0;
+  /** Whether the frame just drawn showed anything that can still change by itself. */
+  private frameBusy = true;
+  /** `performance.now()` of the first quiet frame in the current run of them; -1 = none. */
+  private quietSince = -1;
   private ctx: CanvasRenderingContext2D | null;
   private readonly mono: Channel;
   private readonly left: Channel | null;
@@ -684,6 +711,9 @@ export class Scope {
     // Still inside the restore window we asked for: REQ-canvas-context-loss-is-survivable says stay stopped, and
     // restarting would only spend frames on a context whose every method is a no-op.
     if (this.lostAt >= 0) return;
+    // A sleeping loop is not a stall: wake it, uncounted, so the change this call
+    // is about gets drawn (REQ-a-scope-with-nothing-to-show-sleeps).
+    if (this.asleep) { this.start(); return; }
     if (this.running && performance.now() - this.lastFrameTs < SCOPE_STALL_MS) return;
     this.restart();
   }
@@ -722,6 +752,9 @@ export class Scope {
     // Inside the restore window — REQ-canvas-context-loss-is-survivable's pause is deliberate, and it is the only
     // period in which a stopped loop on a visible page is correct.
     if (this.lostAt >= 0) return;
+    // Asleep is the other period in which a stopped loop on a visible page is
+    // correct: the wake poll owns it (REQ-a-scope-with-nothing-to-show-sleeps).
+    if (this.asleep) return;
     const now = performance.now();
     if (!this.running || now - this.lastFrameTs > SCOPE_STALL_MS) { this.restart(); return; }
     // Frames are arriving but nothing is landing: `draw()` is early-returning on
@@ -776,6 +809,7 @@ export class Scope {
     const frameAgeMs = now - this.lastFrameTs;
     const paintAgeMs = now - this.lastPaintTs;
     return {
+      asleep: this.asleep,
       drawing: this.running && frameAgeMs < SCOPE_STALL_MS && paintAgeMs < SCOPE_PAINT_STALL_MS,
       frameAgeMs,
       paintAgeMs,
@@ -797,6 +831,8 @@ export class Scope {
     if (e.pointerType !== 'mouse') return;
     this.hoverX = e.offsetX;
     this.hoverY = e.offsetY;
+    // The cursor readout is drawn by the loop, so a sleeping one wakes for it.
+    if (this.asleep) this.start();
   };
 
   private readonly onPointerLeave = (): void => { this.clearHover(); };
@@ -859,6 +895,9 @@ export class Scope {
       this.bitmapW = bw;
       this.bitmapH = bh;
     }
+    // A new box is a blank or stale bitmap: a sleeping loop wakes to repaint it
+    // (REQ-a-scope-with-nothing-to-show-sleeps).
+    if (this.asleep) this.start();
   }
 
   /** Ready-to-draw guard from the cached size — no layout read in the rAF loop. */
@@ -935,6 +974,7 @@ export class Scope {
    * callback in flight.
    */
   private start(): void {
+    this.clearSleep();
     cancelAnimationFrame(this.rafId);
     this.running = true;
     // Arming counts as a liveness event, so a just-started loop is not "stalled"
@@ -960,12 +1000,57 @@ export class Scope {
         // Only on the way out: a throw leaves this stale, which is exactly the
         // signal we want. Not evidence of pixels — see REQ-the-scope-proves-it-is-painting.
         this.lastPaintTs = performance.now();
+        this.settle(this.lastPaintTs);
       }
     };
     this.rafId = requestAnimationFrame(loop);
   }
 
+  /**
+   * After a drawn frame: a run of quiet ones `SCOPE_SLEEP_AFTER_MS` long puts the
+   * loop to sleep (REQ-a-scope-with-nothing-to-show-sleeps). The frame on screen
+   * is the last one drawn, which is exactly what it will go on showing.
+   */
+  private settle(now: number): void {
+    if (this.frameBusy) { this.quietSince = -1; return; }
+    if (this.quietSince < 0) { this.quietSince = now; return; }
+    if (now - this.quietSince < SCOPE_SLEEP_AFTER_MS) return;
+    this.stop();
+    this.asleep = true;
+    this.wakePoll = window.setInterval(this.onWakePoll, SCOPE_WAKE_POLL_MS);
+  }
+
+  /**
+   * The sleeping scope's only work: read the analysers it would draw and wake on
+   * a sample over the silence gate. No canvas, no layout, no dataset write.
+   */
+  private readonly onWakePoll = (): void => {
+    if (this.pollChannel(this.mono)
+      || (this.channels === 'stereo' && (this.pollChannel(this.left) || this.pollChannel(this.right)))) {
+      this.start();
+    }
+  };
+
+  private pollChannel(c: Channel | null): boolean {
+    if (!c) return false;
+    c.analyser.getFloatTimeDomainData(c.wave);
+    const data = c.wave;
+    for (let i = 0; i < data.length; i++) {
+      const v = data[i]!;
+      if (v > WAVE_SILENCE_PEAK || v < -WAVE_SILENCE_PEAK) return true;
+    }
+    return false;
+  }
+
+  /** Leave sleep, whichever way the loop is going next. */
+  private clearSleep(): void {
+    this.asleep = false;
+    this.quietSince = -1;
+    if (this.wakePoll) { clearInterval(this.wakePoll); this.wakePoll = 0; }
+  }
+
   private stop(): void {
+    this.clearSleep();
     this.running = false;
     cancelAnimationFrame(this.rafId);
     // Forget the last frame time so the first frame after resuming has dt 0 — the
@@ -976,9 +1061,15 @@ export class Scope {
   }
 
   private draw(): void {
+    // A frame that never got drawn proves nothing is quiet, so it never counts
+    // toward sleep (REQ-a-scope-with-nothing-to-show-sleeps).
+    this.frameBusy = true;
     if (!this.syncSize()) return;
     const ctx = this.ctx;
     if (!ctx) return;
+    // Busy from here only if something on screen can still move by itself: a
+    // hover cursor, sound (below, per view) or a peak-hold still falling.
+    this.frameBusy = this.hoverX !== null;
     // Seconds since the previous frame, clamped — drives the dt-based peak decay
     // identically at ~30/60fps. The clamp caps any residual gap after a pause.
     const now = performance.now();
@@ -1011,6 +1102,9 @@ export class Scope {
       else this.drawSpectrum(ctx, channel, region, dt);
       if (region.label) this.drawLabel(ctx, region);
     }
+    // Wave: anything over the silence gate (which also snaps the auto-gain to 1,
+    // so a silent trace is a still one).
+    if (this.mode === 'wave' && this.wavePeak > WAVE_SILENCE_PEAK) this.frameBusy = true;
 
     // The pointer can be inside the canvas but outside every region — the stereo
     // centre gutter — where there is no frequency to report. No region drew a
@@ -1124,6 +1218,8 @@ export class Scope {
     );
     channel.peakDb = next.db;
     channel.peakHoldS = next.holdS;
+    // Spectrum: a bar off the floor, or a held peak still falling toward it.
+    if (maxByte > 0 || channel.peakDb > SPECTRUM_FLOOR_DB) this.frameBusy = true;
     this.drawPeak(ctx, r, channel.peakDb);
     this.mirrorPeak(r.tag, channel.peakDb);
     this.drawTicks(ctx, r, fMax);

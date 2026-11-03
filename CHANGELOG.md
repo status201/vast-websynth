@@ -95,6 +95,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ### Changed
 
+- **The app now rests while nothing plays.** The scope used to redraw a flat line
+  sixty times a second with no sound to show; it now stops once everything is
+  still and wakes within a twentieth of a second of the next sound, or the moment
+  you touch it. Measured in Chrome, the idle page's main-thread work drops from
+  about 3% to 0.3%. The Debug panel's Scope row reads "asleep" while it rests.
 - **The synth costs far less while it is not playing.** A voice that has finished
   sounding is now taken off the audio graph until its next note, so the browser stops
   computing it: measured in Chrome, the audio work at rest drops by about two thirds

@@ -3,7 +3,7 @@
 ```yaml
 id: scope
 status: implemented
-version: 21
+version: 22
 owner: status201
 related:
   - architecture
@@ -484,6 +484,25 @@ The rest of the design follows from what each view is for:
   REQ-the-debug-extension-contract/REQ-an-unbound-row-reads-n-a) and increments
   `data-rebuilds` on the canvas — on change only, per REQ-the-scope-canvas-carries-a-testid/REQ-no-per-frame-layout-read, which here
   means essentially never. A device with no console must still be able to report it.
+- **REQ-a-scope-with-nothing-to-show-sleeps** — **The redraw loop sleeps
+  while there is nothing to draw.** Once every channel's input has stayed at or
+  under `WAVE_SILENCE_PEAK` for `SCOPE_SLEEP_AFTER_MS` (500 ms) and the frame on
+  screen has settled (in Spectrum, every peak-hold at the floor; no hover readout
+  showing), the loop draws that frame and stops arming `requestAnimationFrame`.
+  Asleep, a `SCOPE_WAKE_POLL_MS` (50 ms) timer reads each analyser's time-domain
+  data and nothing else: no canvas, no layout, no dataset write. A sample over
+  the gate restarts the loop, so a sound's first frame is at most one poll late.
+  Every other way in wakes it too and draws: a public mutator
+  (REQ-every-public-mutator-is-a-recovery-path), a pointer move, leave or click on
+  the canvas, a re-measure, a restored or rebuilt canvas, becoming visible. Sleep
+  is a liveness state, not a stall: the watchdog and `ensureLive` leave a sleeping
+  loop alone, `health` reports it as `asleep` rather than stalled, and the Debug
+  panel's Scope row says so. While hidden the poll is stopped as well, so the
+  pause-while-hidden rule is unchanged. Why: a rAF chain is a main-thread frame
+  every vsync even when each frame redraws a flat line, so an idle app spent most
+  of its main-thread time redrawing silence, and every such frame also restyled
+  the play button's composited attract pulse, 60 style recalcs a second that the
+  pulse alone never needs ([runtime-performance](runtime-performance.md)).
 
 ## Technical design
 
@@ -1274,6 +1293,43 @@ Scenario: Every drawn label is haloed so a bright bar cannot swallow it (v13, RE
   And the alignment a caller changed is restored, so the L/R label still draws left-aligned
 # pinned by: tests/ui/scope-axis.test.ts (stroke order); appearance by eye (ADR-010)
 
+Scenario: A silent scope stops arming frames (REQ-a-scope-with-nothing-to-show-sleeps)
+  Given the Wave view and an input at or under WAVE_SILENCE_PEAK
+  When SCOPE_SLEEP_AFTER_MS passes
+  Then it draws once more and requests no further animation frame
+  And only the wake poll runs, reading the analysers and touching no canvas
+# pinned by: tests/ui/scope-sleep.test.ts
+
+Scenario: A sound wakes it within one poll (REQ-a-scope-with-nothing-to-show-sleeps)
+  Given a sleeping scope
+  When a poll reads a sample over WAVE_SILENCE_PEAK
+  Then the loop restarts and draws on the next frame
+# pinned by: tests/ui/scope-sleep.test.ts
+
+Scenario: The Spectrum stays awake until its peak-holds have fallen (REQ-a-scope-with-nothing-to-show-sleeps, edge)
+  Given the Spectrum view with a held peak above the floor and a silent input
+  Then the loop keeps drawing while the peak decays, and sleeps once every hold is at the floor
+# pinned by: tests/ui/scope-sleep.test.ts
+
+Scenario: Any control or pointer wakes it and it redraws (REQ-a-scope-with-nothing-to-show-sleeps)
+  Given a sleeping scope
+  When the mode or channel toggle, the fps or FFT setter, a pointer over the canvas or a click acts on it
+  Then a frame is drawn showing the change
+# pinned by: tests/ui/scope-sleep.test.ts
+
+Scenario: A sleeping loop is not a stall (REQ-a-scope-with-nothing-to-show-sleeps, REQ-a-watchdog-restarts-a-stalled-loop)
+  Given a scope that has slept for longer than SCOPE_STALL_MS
+  When the watchdog ticks and ensureLive is called
+  Then neither restarts it, and health reports asleep, not stalled
+  And while the page is hidden no wake poll runs
+# pinned by: tests/ui/scope-sleep.test.ts
+
+Scenario: An idle app costs almost nothing on the main thread (REQ-a-scope-with-nothing-to-show-sleeps, perf)
+  Given the app open, the transport stopped and nothing sounding
+  When npm run bench:perf measures idle
+  Then main-thread busy falls to near zero against a before run
+# pinned by: npm run bench:perf --compare (a before/after pair)
+
 Scenario: The handle holds no global listener at rest (REQ-the-resize-obeys-the-cost-contract)
   Given a mounted resize handle that is not being dragged
   Then it has registered no window pointermove listener
@@ -1289,7 +1345,9 @@ Scenario: The handle holds no global listener at rest (REQ-the-resize-obeys-the-
   `tests/ui/scope-trigger.test.ts`, `tests/ui/scope-axis.test.ts` (log mapping,
   ticks, column binning, halo order, hover listeners),
   `tests/ui/scope-lifecycle.test.ts` (one case per recovery route, and the watchdog
-  under fake timers), `tests/state/scope-height.test.ts`,
+  under fake timers; its frame scheduler and recording context are
+  `tests/ui/scope-harness.ts`), `tests/ui/scope-sleep.test.ts` (sleep, wake, and
+  that a sleeping loop is no stall), `tests/state/scope-height.test.ts`,
   `tests/ui/resize-handle.test.ts` (one case per gesture-inventory row) — `npm test`.
 - E2E: `e2e/scope.spec.ts` (Mono/Stereo, the L/R data path, the peak and gain
   mirrors, the resize surviving a reload, an unanswered `contextlost`, and a real
