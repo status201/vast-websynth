@@ -68,6 +68,9 @@ function mixCoeffs(shape, out) {
   for (let k = 0; k < 5; k++) out[k] = a[k] + (b[k] - a[k]) * f;
 }
 
+// The model switch's crossfade (filter-models.md REQ-a-model-switch-crossfades).
+const MODEL_XF_S = 0.005;
+
 // One channel's filter state: 4 pole states + the 4 carried saturations (REQ-the-sat-carry-is-per-sample).
 // POLY uses slots 0..3 and 7 (the half-sample feedback tap); slots 4..6 are the
 // LADDER-only carries, re-primed whenever the model changes (REQ-the-filter-worklet-is-mono).
@@ -139,8 +142,13 @@ class LadderFilterProcessor extends AudioWorkletProcessor {
     this.port.onmessage = (e) => {
       const on = !!e.data;
       if (!on) {
-        // Zero state so reactivation starts from a clean filter.
+        // Zero state so reactivation starts from a clean filter — and forget
+        // the model and drive, so it also starts with no fade and no ramp,
+        // exactly like a freshly constructed processor.
         for (const s of this.state) if (s) s.fill(0);
+        this.model = -1;
+        this.xfPos = this.xfLen;
+        this.lastDrive = NaN;
       }
       this.active = on;
     };
@@ -155,6 +163,26 @@ class LadderFilterProcessor extends AudioWorkletProcessor {
     this.coef = new Float64Array(5);
     // Scratch for the per-sample fallback when shape is genuinely modulated.
     this.coefScratch = new Float64Array(5);
+    // The model crossfade (filter-models.md REQ-a-model-switch-crossfades): the
+    // model the last block ran (-1 = none yet, so the first block has nothing to
+    // fade from), the outgoing model and a copy of the state it runs on, and how
+    // far into the fade we are (`xfPos === xfLen` = not fading).
+    this.model = -1;
+    this.xfFrom = 0;
+    this.xfState = [newChannelState(), newChannelState()];
+    this.xfLen = Math.max(1, Math.round(sampleRate * MODEL_XF_S));
+    this.xfPos = this.xfLen;
+    this.xfOut = new Float32Array(128);
+    // The previous block's drive (ladder-filter.md REQ-drive-moves-without-a-step);
+    // NaN until a block has run, so the first block never ramps.
+    this.lastDrive = NaN;
+    // The per-block values both model runners read — filled once per process()
+    // so a crossfade's second run sees exactly what the first one did.
+    this.blk = {
+      sr: sampleRate, cutoffConst: true, gBlock: 0, cutoffArr: null, resArr: null,
+      resStatic: true, drive0: 1, dStep: 0, shapeConst: true, shapeArr: null,
+      coef: this.coef, scratch: this.coefScratch,
+    };
   }
 
   process(inputs, outputs, params) {
@@ -168,11 +196,28 @@ class LadderFilterProcessor extends AudioWorkletProcessor {
     }
 
     const channels = output.length;
-    const sr = sampleRate;
-    const drive = params.drive[0];
+    const len = output[0].length;
+    const k = this.blk;
     const cutoffArr = params.cutoffNote;
     const resArr = params.resonance;
-    const resStatic = resArr.length === 1;
+    k.cutoffArr = cutoffArr;
+    k.resArr = resArr;
+    k.resStatic = resArr.length === 1;
+
+    // Drive (ladder-filter.md REQ-drive-moves-without-a-step): k-rate, so a new
+    // value arrives once per block. A changed one ramps across this block from
+    // the last block's value instead of stepping; a held one takes the plain
+    // path, so a constant drive is bit-identical to the frozen reference.
+    const drive = params.drive[0];
+    const dPrev = this.lastDrive;
+    this.lastDrive = drive;
+    if (dPrev === dPrev && dPrev !== drive) {
+      k.drive0 = dPrev;
+      k.dStep = (drive - dPrev) / len;
+    } else {
+      k.drive0 = drive;
+      k.dStep = 0;
+    }
 
     // Block-constant cutoff hoist (REQ-filter-coefficients-hoist-per-block): env + LFO are always wired to
     // cutoffNote, so the host hands us a full 128-length array — but it is
@@ -193,15 +238,36 @@ class LadderFilterProcessor extends AudioWorkletProcessor {
         // MIDI note → Hz (clamped < Nyquist) → one-pole coefficient. Identical
         // expression to the per-sample path, so a constant block is bit-exact.
         const freq = 440 * Math.pow(2, (c0 - 69) / 12);
-        const fNorm = Math.min(Math.max(freq / sr, 0.0001), 0.49);
+        const fNorm = Math.min(Math.max(freq / sampleRate, 0.0001), 0.49);
         this.lastG = 1 - Math.exp(-2 * Math.PI * fNorm);
       }
       gBlock = this.lastG;
     }
+    k.cutoffConst = cutoffConst;
+    k.gBlock = gBlock;
 
     // Which model runs this block (filter-models.md REQ-both-models-live-in-one-worklet). One compare per
     // render quantum, never per sample.
     const model = params.model[0] >= 0.5 ? 1 : 0;
+
+    // A switch (filter-models.md REQ-a-model-switch-crossfades): the outgoing
+    // model goes on running on a copy of the state for MODEL_XF_S, faded out
+    // under the incoming one, which carries on from the shared state as before.
+    if (model !== this.model) {
+      if (this.model >= 0) {
+        for (let ch = 0; ch < channels; ch++) {
+          let s = this.state[ch];
+          if (!s) { s = newChannelState(); this.state[ch] = s; }
+          let o = this.xfState[ch];
+          if (!o) { o = newChannelState(); this.xfState[ch] = o; }
+          o.set(s);
+        }
+        this.xfFrom = this.model;
+        this.xfPos = 0;
+      }
+      this.model = model;
+    }
+    const fading = this.xfPos < this.xfLen;
 
     // Block-constant shape hoist (filter-models.md REQ-mix-coefficients-resolve-once-per-block), the cutoff hoist's twin: the LFO is
     // permanently connected to `shape`, so a full 128-length array always
@@ -214,11 +280,15 @@ class LadderFilterProcessor extends AudioWorkletProcessor {
     for (let i = 1; i < shapeArr.length; i++) {
       if (shapeArr[i] !== sh0) { shapeConst = false; break; }
     }
-    const coef = this.coef;
-    if (model === 1 && shapeConst && sh0 !== this.lastShape) {
+    const polyRuns = model === 1 || (fading && this.xfFrom === 1);
+    if (polyRuns && shapeConst && sh0 !== this.lastShape) {
       this.lastShape = sh0;
-      mixCoeffs(sh0, coef);
+      mixCoeffs(sh0, this.coef);
     }
+    k.shapeConst = shapeConst;
+    k.shapeArr = shapeArr;
+
+    if (fading && this.xfOut.length !== len) this.xfOut = new Float32Array(len);
 
     for (let ch = 0; ch < channels; ch++) {
       const inCh = input && input[ch] ? input[ch] : null;
@@ -228,118 +298,158 @@ class LadderFilterProcessor extends AudioWorkletProcessor {
         s = newChannelState();
         this.state[ch] = s;
       }
+      if (model === 1) polyBlock(s, inCh, outCh, k);
+      else ladderBlock(s, inCh, outCh, k);
 
-      // Hoist the state into locals for the sample loop — the carried
-      // saturations (q0..q3prev) turn 10 sat() calls per sample into 5 (REQ-the-sat-carry-is-per-sample).
-      let s0 = s[0], s1 = s[1], s2 = s[2], s3 = s[3];
-      let q0 = s[4], q1 = s[5], q2 = s[6], q3prev = s[7];
-
-      if (model === 1) {
-        // ---- POLY: bass-preserving multimode (filter-models.md) ----
-        // Saturation only at the input and on the feedback tap; the four stages
-        // stay linear (REQ-filter-modulation-is-additive-semitones). Two sat() calls per sample against the ladder's
-        // five — the glassier model is also the cheaper one.
-        let mv = coef[0], m0 = coef[1], m1 = coef[2], m2 = coef[3], m3 = coef[4];
-        const scratch = this.coefScratch;
-
-        for (let i = 0; i < outCh.length; i++) {
-          const res = resStatic ? resArr[0] : resArr[i];
-
-          let g;
-          if (cutoffConst) {
-            g = gBlock;
-          } else {
-            const freq = 440 * Math.pow(2, (cutoffArr[i] - 69) / 12);
-            const fNorm = Math.min(Math.max(freq / sr, 0.0001), 0.49);
-            g = 1 - Math.exp(-2 * Math.PI * fNorm);
-          }
-
-          // Only when the shape is genuinely being swept (filter-models.md REQ-mix-coefficients-resolve-once-per-block).
-          if (!shapeConst) {
-            mixCoeffs(shapeArr[i], scratch);
-            mv = scratch[0]; m0 = scratch[1]; m1 = scratch[2];
-            m2 = scratch[3]; m3 = scratch[4];
-          }
-
-          const x = inCh ? inCh[i] : 0;
-
-          const q3 = sat(s3);
-          const fb = (q3 + q3prev) * 0.5;
-
-          // Drive saturates the input alone (against the wide rail), so
-          // resonance behaviour stays independent of it. The (1 + res*BASS_COMP)
-          // pre-gain is the bass-preservation trick: it cancels the 1/(1+res)
-          // the feedback subtraction would otherwise cost the low end (REQ-filter-changes-reach-every-voice).
-          const v = satWide(x * drive) * (1 + res * BASS_COMP) - res * fb;
-
-          s0 += g * (v - s0);
-          s1 += g * (s0 - s1);
-          s2 += g * (s1 - s2);
-          s3 += g * (s2 - s3);
-          q3prev = q3;
-
-          // Pole mix (REQ-input-and-poles-are-saturated). |v| is bounded by (1 + res) + res and the four
-          // linear one-poles cannot exceed it, so this stays finite (REQ-the-filter-worklet-module-is-awaited).
-          outCh[i] = (mv * v + m0 * s0 + m1 * s1 + m2 * s2 + m3 * s3) * POLY_TRIM;
-        }
-
-        // POLY never reads the LADDER-only carries, so they would go stale
-        // across a POLY episode. Re-prime them from the pole states once per
-        // block, so a switch back to LADDER resumes a self-consistent
-        // recurrence (filter-models.md REQ-switching-model-mid-note-is-safe). The pole states themselves carry
-        // over untouched — they mean the same thing in both models, so the
-        // switch is a character crossfade, not a reset.
-        q0 = sat(s0); q1 = sat(s1); q2 = sat(s2);
-      } else {
-        // ---- LADDER: the original recurrence, untouched (ladder-filter.md) ----
-        for (let i = 0; i < outCh.length; i++) {
-          const res = resStatic ? resArr[0] : resArr[i];
-
-          // One-pole coefficient: hoisted (constant block) or per-sample. MIDI
-          // note → Hz, clamped just under Nyquist. Same math either way.
-          let g;
-          if (cutoffConst) {
-            g = gBlock;
-          } else {
-            const freq = 440 * Math.pow(2, (cutoffArr[i] - 69) / 12);
-            const fNorm = Math.min(Math.max(freq / sr, 0.0001), 0.49);
-            g = 1 - Math.exp(-2 * Math.PI * fNorm);
-          }
-
-          const x = inCh ? inCh[i] : 0;
-
-          // sat(s3) is needed twice — by the feedback tap and by stage 4's own
-          // update — so compute it once. The other half of the half-sample tap is
-          // last sample's sat(s3) (which is what `s4 = s3` used to hold).
-          const q3 = sat(s3);
-
-          // Half-sample feedback delay smooths self-oscillation; taking it from
-          // saturated states bounds the loop (|fb| < 1, so it can't run away).
-          const fb = (q3 + q3prev) * 0.5;
-
-          // Input drive + saturation, then a saturated one-pole per stage.
-          // `v` carries each stage's saturated output into the next stage's input
-          // — and that same value is next sample's sat() of this stage's state.
-          let v = sat((x - res * fb) * drive);
-          s0 += g * (v - q0);
-          v = q0 = sat(s0);
-          s1 += g * (v - q1);
-          v = q1 = sat(s1);
-          s2 += g * (v - q2);
-          v = q2 = sat(s2);
-          s3 += g * (v - q3);
-          q3prev = q3;
-
-          // Level compensation as resonance rises (filter loses passband gain)
-          outCh[i] = s3 * (1 + res * RES_MAKEUP);
+      if (fading) {
+        let o = this.xfState[ch];
+        if (!o) { o = newChannelState(); this.xfState[ch] = o; }
+        const old = this.xfOut;
+        if (this.xfFrom === 1) polyBlock(o, inCh, old, k);
+        else ladderBlock(o, inCh, old, k);
+        // Linear: the two models filter the same input, so their outputs are
+        // correlated and an equal-gain fade holds the level.
+        const n = this.xfLen;
+        let p = this.xfPos;
+        for (let i = 0; i < len && p < n; i++, p++) {
+          outCh[i] = old[i] + (outCh[i] - old[i]) * ((p + 1) / n);
         }
       }
-
-      s[0] = s0; s[1] = s1; s[2] = s2; s[3] = s3;
-      s[4] = q0; s[5] = q1; s[6] = q2; s[7] = q3prev;
     }
+    if (fading) this.xfPos = Math.min(this.xfLen, this.xfPos + len);
     return true;
   }
+}
+
+/**
+ * One block of POLY — bass-preserving multimode (filter-models.md) — on channel
+ * state `s`. Saturation only at the input and on the feedback tap; the four
+ * stages stay linear (REQ-filter-modulation-is-additive-semitones). Two sat()
+ * calls per sample against the ladder's five — the glassier model is also the
+ * cheaper one.
+ */
+function polyBlock(s, inCh, outCh, k) {
+  const sr = k.sr;
+  const cutoffConst = k.cutoffConst, gBlock = k.gBlock, cutoffArr = k.cutoffArr;
+  const resArr = k.resArr, resStatic = k.resStatic;
+  const drive0 = k.drive0, dStep = k.dStep;
+  const shapeConst = k.shapeConst, shapeArr = k.shapeArr;
+  const coef = k.coef;
+  const scratch = k.scratch;
+
+  // Hoist the state into locals for the sample loop.
+  let s0 = s[0], s1 = s[1], s2 = s[2], s3 = s[3];
+  let q3prev = s[7];
+  let mv = coef[0], m0 = coef[1], m1 = coef[2], m2 = coef[3], m3 = coef[4];
+
+  for (let i = 0; i < outCh.length; i++) {
+    const res = resStatic ? resArr[0] : resArr[i];
+
+    let g;
+    if (cutoffConst) {
+      g = gBlock;
+    } else {
+      const freq = 440 * Math.pow(2, (cutoffArr[i] - 69) / 12);
+      const fNorm = Math.min(Math.max(freq / sr, 0.0001), 0.49);
+      g = 1 - Math.exp(-2 * Math.PI * fNorm);
+    }
+
+    // Only when the shape is genuinely being swept (filter-models.md REQ-mix-coefficients-resolve-once-per-block).
+    if (!shapeConst) {
+      mixCoeffs(shapeArr[i], scratch);
+      mv = scratch[0]; m0 = scratch[1]; m1 = scratch[2];
+      m2 = scratch[3]; m3 = scratch[4];
+    }
+
+    const x = inCh ? inCh[i] : 0;
+    const drive = dStep === 0 ? drive0 : drive0 + dStep * (i + 1);
+
+    const q3 = sat(s3);
+    const fb = (q3 + q3prev) * 0.5;
+
+    // Drive saturates the input alone (against the wide rail), so
+    // resonance behaviour stays independent of it. The (1 + res*BASS_COMP)
+    // pre-gain is the bass-preservation trick: it cancels the 1/(1+res)
+    // the feedback subtraction would otherwise cost the low end (REQ-filter-changes-reach-every-voice).
+    const v = satWide(x * drive) * (1 + res * BASS_COMP) - res * fb;
+
+    s0 += g * (v - s0);
+    s1 += g * (s0 - s1);
+    s2 += g * (s1 - s2);
+    s3 += g * (s2 - s3);
+    q3prev = q3;
+
+    // Pole mix (REQ-input-and-poles-are-saturated). |v| is bounded by (1 + res) + res and the four
+    // linear one-poles cannot exceed it, so this stays finite (REQ-the-filter-worklet-module-is-awaited).
+    outCh[i] = (mv * v + m0 * s0 + m1 * s1 + m2 * s2 + m3 * s3) * POLY_TRIM;
+  }
+
+  // POLY never reads the LADDER-only carries, so they would go stale
+  // across a POLY episode. Re-prime them from the pole states once per
+  // block, so a switch back to LADDER resumes a self-consistent
+  // recurrence (filter-models.md REQ-switching-model-mid-note-is-safe). The pole states themselves carry
+  // over untouched — they mean the same thing in both models.
+  s[0] = s0; s[1] = s1; s[2] = s2; s[3] = s3;
+  s[4] = sat(s0); s[5] = sat(s1); s[6] = sat(s2); s[7] = q3prev;
+}
+
+/** One block of LADDER — the original recurrence, untouched (ladder-filter.md) — on channel state `s`. */
+function ladderBlock(s, inCh, outCh, k) {
+  const sr = k.sr;
+  const cutoffConst = k.cutoffConst, gBlock = k.gBlock, cutoffArr = k.cutoffArr;
+  const resArr = k.resArr, resStatic = k.resStatic;
+  const drive0 = k.drive0, dStep = k.dStep;
+
+  // Hoist the state into locals for the sample loop — the carried
+  // saturations (q0..q3prev) turn 10 sat() calls per sample into 5 (REQ-the-sat-carry-is-per-sample).
+  let s0 = s[0], s1 = s[1], s2 = s[2], s3 = s[3];
+  let q0 = s[4], q1 = s[5], q2 = s[6], q3prev = s[7];
+
+  for (let i = 0; i < outCh.length; i++) {
+    const res = resStatic ? resArr[0] : resArr[i];
+
+    // One-pole coefficient: hoisted (constant block) or per-sample. MIDI
+    // note → Hz, clamped just under Nyquist. Same math either way.
+    let g;
+    if (cutoffConst) {
+      g = gBlock;
+    } else {
+      const freq = 440 * Math.pow(2, (cutoffArr[i] - 69) / 12);
+      const fNorm = Math.min(Math.max(freq / sr, 0.0001), 0.49);
+      g = 1 - Math.exp(-2 * Math.PI * fNorm);
+    }
+
+    const x = inCh ? inCh[i] : 0;
+    const drive = dStep === 0 ? drive0 : drive0 + dStep * (i + 1);
+
+    // sat(s3) is needed twice — by the feedback tap and by stage 4's own
+    // update — so compute it once. The other half of the half-sample tap is
+    // last sample's sat(s3) (which is what `s4 = s3` used to hold).
+    const q3 = sat(s3);
+
+    // Half-sample feedback delay smooths self-oscillation; taking it from
+    // saturated states bounds the loop (|fb| < 1, so it can't run away).
+    const fb = (q3 + q3prev) * 0.5;
+
+    // Input drive + saturation, then a saturated one-pole per stage.
+    // `v` carries each stage's saturated output into the next stage's input
+    // — and that same value is next sample's sat() of this stage's state.
+    let v = sat((x - res * fb) * drive);
+    s0 += g * (v - q0);
+    v = q0 = sat(s0);
+    s1 += g * (v - q1);
+    v = q1 = sat(s1);
+    s2 += g * (v - q2);
+    v = q2 = sat(s2);
+    s3 += g * (v - q3);
+    q3prev = q3;
+
+    // Level compensation as resonance rises (filter loses passband gain)
+    outCh[i] = s3 * (1 + res * RES_MAKEUP);
+  }
+
+  s[0] = s0; s[1] = s1; s[2] = s2; s[3] = s3;
+  s[4] = q0; s[5] = q1; s[6] = q2; s[7] = q3prev;
 }
 
 registerProcessor('ladder-filter', LadderFilterProcessor);

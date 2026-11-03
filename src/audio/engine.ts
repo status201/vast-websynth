@@ -2,6 +2,7 @@ import { LadderFilterNode } from './ladder-filter/node';
 import { SyncOscNode } from './sync-osc/node';
 import { Voice } from './voice';
 import { LFO } from './lfo';
+import { SampleHold } from './sample-hold';
 import { PwmDriver } from './pwm';
 import { Compressor } from './effects/compressor';
 import { createSynthChain, createDrumChain, createSamplerChain } from './effects/fx-chain';
@@ -209,7 +210,7 @@ export class Engine {
   private readonly pitchBend: ConstantSourceNode;
   /** Global matrix sources with no other home (mod-matrix.md). */
   private readonly modWheelSource: ConstantSourceNode;
-  private readonly randomSource: ConstantSourceNode;
+  private readonly randomSource: SampleHold;
   private readonly noise: AudioBufferSourceNode;
 
   // Voice allocation + voicing (poly/unison/glide/drift) and the Song-tab lane
@@ -444,16 +445,15 @@ export class Engine {
     this.modWheelSource.offset.value = 0;
     this.modWheelSource.start();
     // Sample & hold: one value, re-rolled per clock tick (wired in init()). Bipolar,
-    // so a route's depth reads like every other source's.
-    this.randomSource = this.ctx.createConstantSource();
-    this.randomSource.offset.value = 0;
-    this.randomSource.start();
+    // so a route's depth reads like every other source's; smoothed, so a roll is
+    // a slew rather than a click (mod-matrix.md REQ-random-steps-are-smoothed).
+    this.randomSource = new SampleHold(this.ctx);
 
     this.modMatrix = new ModMatrix(this.ctx, {
       lfo1: this.lfo.modTap,
       lfo2: this.lfo2.modTap,
       modWheel: this.modWheelSource,
-      random: this.randomSource,
+      random: this.randomSource.out,
     });
     this.modMatrix.setPanTarget(this.synthPan.pan);
 
@@ -629,7 +629,7 @@ export class Engine {
     // route reads `random`, which is the default (mod-matrix.md REQ-an-unselected-source-costs-nothing).
     this.clock.onTick((_step, when) => {
       if (!this.modMatrix.usesSource(MOD_SRC.random)) return;
-      this.randomSource.offset.setValueAtTime(Math.random() * 2 - 1, when);
+      this.randomSource.roll(Math.random() * 2 - 1, when);
     });
 
     this.subscribeParams();

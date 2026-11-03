@@ -33,6 +33,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ### Fixed
 
+- Switching the filter between LADDER and POLY while a note sounds no longer
+  clicks: the two models now crossfade over 5 ms instead of swapping on the spot.
+- Moving DRIVE in a jump (a motion lane, the XY Pad, a mod-matrix route) no
+  longer clicks: each change glides across one audio block.
+- A mod-matrix route from RANDOM no longer clicks on every 16th. The new value
+  still steps in, just with the same short slew the LFOs use, so RANDOM into amp
+  is a stepped tremolo rather than a click track.
+- The LFO's smoothing on AMP, PAN and SHAPE (and every LFO route in the mod
+  matrix) no longer overshoots a square or saw step by about 19%.
 - The TRANSPORT window no longer leaves empty space beside a song of about
   25–30 bars: the bar strip stays on the controls' line and scrolls, instead of
   dropping to a row of its own in a window still at full width.

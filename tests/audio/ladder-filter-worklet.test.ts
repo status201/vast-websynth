@@ -311,4 +311,28 @@ describe('ladder-filter worklet DSP', () => {
     // would use cutoffArr[0]=36 for the whole block and the peaks would match.
     expect(peak(out)).toBeGreaterThan(peak(low) * 3);
   });
+
+  it('ramps a drive change across the block instead of stepping (REQ-drive-moves-without-a-step)', () => {
+    // Low level and an open filter, so drive acts as plain gain and nothing
+    // downstream smooths the step: at cutoff 90 the four poles hide it. Verified
+    // to discriminate: with the ramp removed the transition reads ~53x the
+    // steady-state second difference; with it, the same as the settled tone.
+    const proc = new Processor();
+    const tone = (n: number) => 0.05 * Math.sin((2 * Math.PI * 220 * n) / SR);
+    let n = 0;
+    const gen = () => tone(n++);
+    const before = run(proc, makeParams({ drive: 1.2, cutoffNote: 130 }), gen, 40);
+    const after = run(proc, makeParams({ drive: 2, cutoffNote: 130 }), gen, 40);
+    const all = new Float32Array(before.length + after.length);
+    all.set(before);
+    all.set(after, before.length);
+    const d2 = (from: number, to: number): number => {
+      let m = 0;
+      for (let i = Math.max(2, from); i < to; i++) m = Math.max(m, Math.abs(all[i]! - 2 * all[i - 1]! + all[i - 2]!));
+      return m;
+    };
+    const t = before.length;
+    const steady = Math.max(d2(20 * BLOCK, t - BLOCK), d2(t + 20 * BLOCK, all.length));
+    expect(d2(t - BLOCK / 2, t + 3 * BLOCK)).toBeLessThan(steady * 1.5);
+  });
 });

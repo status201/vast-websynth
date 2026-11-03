@@ -3,7 +3,7 @@
 ```yaml
 id: ladder-filter
 status: implemented
-version: 7
+version: 8
 owner: core
 related:
   - architecture
@@ -87,6 +87,13 @@ on-screen value is shown in Hz.
   ([runtime-performance](runtime-performance.md)
   REQ-a-worklet-optimisation-is-bit-exact). `sat(0) === 0`, so zeroing on
   deactivate keeps the carries consistent.
+- **REQ-drive-moves-without-a-step** — `drive` is k-rate, so a knob write, a
+  motion lane or a matrix `drive` route reaches the DSP as one value per block,
+  and a changed value used to land as a step in the input gain: a 1.2 -> 3 jump
+  measured 10x the 3rd-difference floor on a held sine. A block whose `drive`
+  differs from the previous block's **ramps linearly across the block** from the
+  old value to the new one, in both models. A constant `drive` takes the
+  unramped path, so the output stays bit-identical to the frozen reference.
 - **REQ-ladder-is-filter-model-zero** — This is filter model `0`. The worklet also
   hosts POLY, selected by a k-rate `model` param ([filter-models.md](filter-models.md),
   ADR-016). The branch sits **outside** the sample loop, so the ladder stays
@@ -232,6 +239,13 @@ Scenario: A lost deactivate can only cost CPU, never a note (safety edge)
   When the voice is allocated again and noteOn fires
   Then setActive(true) is posted unconditionally and the note sounds
 # pinned by: tests/audio/voice.test.ts
+
+Scenario: A drive change ramps across the block instead of stepping (REQ-drive-moves-without-a-step, regression)
+  Given a quiet sine held through the open filter at drive 1.2
+  When the next block arrives with drive 2
+  Then the output's second difference across the change stays within 1.5x its steady state
+  And a block whose drive did not change still equals the frozen reference
+# pinned by: tests/audio/ladder-filter-worklet.test.ts
 
 Scenario: Adding a second model left this one bit-identical (REQ-ladder-is-filter-model-zero, regression)
   Given the model param sits at its default 0

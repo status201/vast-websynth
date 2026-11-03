@@ -1,5 +1,5 @@
 import { describe, it, expect, vi } from 'vitest';
-import { LFO } from '../../src/audio/lfo';
+import { LFO, SMOOTH_Q_DB } from '../../src/audio/lfo';
 import { ParamBus, registerDefaults, LFO_DEST_LABELS } from '../../src/state/params';
 import { LFO_DEST_SCALE } from '../../src/state/lfo-routing';
 import { SYNC_LABELS } from '../../src/utils/tempo';
@@ -161,7 +161,10 @@ describe('LFO control-signal smoothing (REQ-amplitude-destinations-are-smoothed)
     const { smooth } = build();
     expect(smooth.type).toBe('lowpass');
     expect(smooth.frequency.value).toBe(200);
-    expect(smooth.Q.value).toBe(0.5);
+    // In dB, the unit Web Audio reads a lowpass Q in: a bare 0.5 here is linear
+    // Q ≈ 1.06, which overshoots a step by ~19% (REQ-amplitude-destinations-are-smoothed).
+    expect(smooth.Q.value).toBe(SMOOTH_Q_DB);
+    expect(Math.pow(10, smooth.Q.value / 20)).toBeCloseTo(0.5, 12);
   });
 });
 

@@ -3,7 +3,7 @@
 ```yaml
 id: filter-models
 status: implemented
-version: 1
+version: 2
 owner: core
 related:
   - ladder-filter
@@ -116,6 +116,16 @@ Per [ADR-006](../decisions/adr-006-no-op-param-defaults.md) the default is index
   carried saturations are **re-primed** from the current states on the switching
   block so the ladder path resumes self-consistent. Output stays finite across
   the switch.
+- **REQ-a-model-switch-crossfades** — The switch is **click-free**: for
+  `MODEL_XF_S` (5 ms) the outgoing model keeps running on a copy of the state
+  taken at the switch, and the output is a linear crossfade from it to the
+  incoming model. The two models settle at different passband levels and from
+  different internal states, so swapping the recurrence on a block edge stepped
+  the output on a held note: measured 50-70x the take's 3rd-difference floor on
+  a sine, at every switch. The incoming model runs on the shared state exactly
+  as before, so once the fade is over the output is the un-faded output; only
+  the fade window pays for two models. A processor's first block, and the first
+  block after a deactivate, have nothing to fade from and run plain.
 - **REQ-poly-trim-matches-the-levels** — **Level matching**: `POLY_TRIM` is
   tuned so that at the *default* resonance (0.5) the two models put out the same
   **passband** level — within 0.1 dB on a sub-cutoff sine — so flipping the
@@ -312,6 +322,13 @@ Scenario: Switching model mid-note stays finite and resumes clean (edge)
   When the model switches back to LADDER and blocks are processed
   Then every sample is finite
   And the ladder path matches a ladder processor primed to the same states
+# pinned by: tests/audio/poly-filter-worklet.test.ts
+
+Scenario: A model switch on a held note does not click (REQ-a-model-switch-crossfades, regression)
+  Given a sine held through the filter at the default resonance
+  When the model flips LADDER -> POLY and back on block edges
+  Then the output's second difference across each switch stays within 1.5x its steady state
+  And after MODEL_XF_S the output equals an un-faded processor's sample for sample
 # pinned by: tests/audio/poly-filter-worklet.test.ts
 
 Scenario: The LFO can sweep SHAPE through the smoothed path
