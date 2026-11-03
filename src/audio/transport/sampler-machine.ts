@@ -11,6 +11,7 @@ import { rampTo, RAMP_MEDIUM, toneCutoff, liveStartTime } from '../param-utils';
 import { forceStereo } from '../stereo';
 import { reverseBuffer } from '../recorder/audio-buffer';
 import { CHOKE_FADE, SAMPLER_ATTACK } from '../clip-fades';
+import { BUTTERWORTH_Q_DB } from '../effects/effect';
 
 export type SamplerStepListener = (step: number, when: number) => void;
 
@@ -23,8 +24,9 @@ const CHOKE_STOP = 0.03;
  */
 const MIN_WINDOW = 0.001;
 
-/** `res` 0 is Q 0.7 — flat, and therefore a no-op (ADR-006). */
-const RES_Q_MIN = 0.7;
+/** `res` 0 is a true Butterworth: flat, and so a no-op at the open tone (ADR-006,
+ *  effects.md REQ-a-fixed-filter-is-a-true-butterworth). Q is read in dB here. */
+const RES_Q_MIN = BUTTERWORTH_Q_DB;
 const RES_Q_MAX = 12;
 
 /** A 0..1 `res` knob mapped to the slot filter's Q. */

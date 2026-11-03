@@ -1,5 +1,6 @@
 import { describe, it, expect, vi } from 'vitest';
 import { SamplerMachine } from '../../../src/audio/transport/sampler-machine';
+import { BUTTERWORTH_Q_DB } from '../../../src/audio/effects/effect';
 import { makeMockAudioContext, makeStubBuffer, type MockAudioContext } from '../mock-audio-context';
 import { createPerfStub, makeTransportRig } from './rig';
 
@@ -364,7 +365,7 @@ describe('the per-slot channel and voice window (v8, REQ-each-slot-has-a-channel
     const tone = ctx.createBiquadFilter.mock.results[0]!.value;
     expect(tone.type).toBe('lowpass');
     expect(tone.frequency.value).toBeCloseTo(20000, 0); // open
-    expect(tone.Q.value).toBeCloseTo(0.7, 5); // flat
+    expect(tone.Q.value).toBe(BUTTERWORTH_Q_DB); // flat (effects.md REQ-a-fixed-filter-is-a-true-butterworth)
     expect(ctx.createStereoPanner.mock.results[0]!.value.pan.value).toBe(0);
   });
 

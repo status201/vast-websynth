@@ -11,7 +11,7 @@ import { ParamBus, registerDefaults } from '../state/params';
 import { masterLevel } from '../state/master-level';
 import { rampTo, RAMP_FAST, RAMP_MEDIUM } from './param-utils';
 import { forceStereo } from './stereo';
-import { DISCONNECT_DELAY_MS } from './effects/effect';
+import { DISCONNECT_DELAY_MS, BUTTERWORTH_Q_DB } from './effects/effect';
 import { Polyphony } from './polyphony';
 import { LaneMixer } from './lane-mixer';
 import type { SynthOutput, NoteOptions } from './transport/note-output';
@@ -399,11 +399,11 @@ export class Engine {
     this.djLow = this.ctx.createBiquadFilter();
     this.djLow.type = 'lowpass';
     this.djLow.frequency.value = 20000; // reference only; never written again
-    this.djLow.Q.value = 0.7;
+    this.djLow.Q.value = BUTTERWORTH_Q_DB;  // at rest (effects.md REQ-a-fixed-filter-is-a-true-butterworth)
     this.djHigh = this.ctx.createBiquadFilter();
     this.djHigh.type = 'highpass';
     this.djHigh.frequency.value = 20;   // reference only; never written again
-    this.djHigh.Q.value = 0.7;
+    this.djHigh.Q.value = BUTTERWORTH_Q_DB;
 
     // SSL-style bus compressor after the DJ filter (sweeps breathe through
     // it) and before the analyser (the scope shows the compression).

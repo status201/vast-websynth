@@ -3,7 +3,7 @@
 ```yaml
 id: sample-recorder
 status: implemented
-version: 9
+version: 10
 owner: core
 related:
   - architecture
@@ -204,7 +204,7 @@ Scenario: Pure DSP is deterministic and AudioContext-free
 Scenario: A rendered effect changes the length it should, and only then (REQ-edit-in-captured-audio-space)
   Given a captured take
   When renderEffect applies a filter
-  Then the output is the same length, through a biquad at Q 0.707
+  Then the output is the same length, through a Butterworth biquad (Q BUTTERWORTH_Q_DB)
   When it applies Octave Up (or Down) instead
   Then the take is resampled: half the length (or double), no filter in the graph
   And an empty take short-circuits rather than building a 0-frame context

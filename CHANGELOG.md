@@ -38,6 +38,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ### Fixed
 
+- Tone and damping filters no longer add a small resonant bump at their cutoff.
+  Dirt's tone, the reverb and chorus darkening, every drum and sampler TONE, the
+  sample editor's low/high-pass edits and the DJ filter at rest were set as if
+  their resonance were a plain number, which the browser reads in decibels: about
+  +1.7 dB just under each cutoff. Through the DJ filter that lifted the top of
+  every song slightly (+0.75 dB at 15 kHz); the master is now flat there. DJ
+  sweeps and the sampler's RES keep the resonance they had.
 - The sample editor's preview no longer clicks at the edges of a selection, or when
   you stop it mid-clip: it fades in and out the way the sampler slot will play it.
 - A sampler clip that ends mid-sound (a chopped slice, a cropped recording, a loop

@@ -1,4 +1,5 @@
 import type { ParamBus } from '../../state/params';
+import { BUTTERWORTH_Q_DB } from '../effects/effect';
 import { RAMP_SMOOTH } from '../param-utils';
 import { cellIndex, DEFAULT_LANE_RATE, GRID_CELLS } from '../../state/meter';
 import type { TickSubscriber } from './tick-source';
@@ -21,8 +22,10 @@ const TAPE_TICK_MS = 16;
 const DJ_OPEN_HZ = 20000;
 /** Where the highpass side rests: below the band, i.e. transparent. */
 const DJ_HP_REST_HZ = 20;
-/** Resting resonance for both sides. */
-const DJ_REST_Q = 0.7;
+/** A resting side: a true Butterworth, so it is transparent in fact (effects.md REQ-a-fixed-filter-is-a-true-butterworth). */
+const DJ_REST_Q = BUTTERWORTH_Q_DB;
+/** Where a sweeping side's resonance starts, rising with the sweep; dialled by ear, in dB. */
+const DJ_SWEEP_Q = 0.7;
 
 /**
  * The sweep is `detune`, in cents, not `frequency` in Hz (performance.md REQ-the-dj-sweep-rides-detune).
@@ -182,9 +185,9 @@ export class Performance {
     const hi = Math.max(0, x);  // 0..1 of highpass
     const dead = Math.abs(x) < 0.02;
     this.side(this.djLow, dead ? 0 : lo * DJ_LP_SPAN_CENTS,
-      dead ? DJ_REST_Q : DJ_REST_Q + lo * 3, tau);
+      dead || lo === 0 ? DJ_REST_Q : DJ_SWEEP_Q + lo * 3, tau);
     this.side(this.djHigh, dead ? 0 : hi * DJ_HP_SPAN_CENTS,
-      dead ? DJ_REST_Q : DJ_REST_Q + hi * 3, tau);
+      dead || hi === 0 ? DJ_REST_Q : DJ_SWEEP_Q + hi * 3, tau);
   }
 
   /**

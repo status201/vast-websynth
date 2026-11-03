@@ -3,7 +3,7 @@
 ```yaml
 id: drum-machine
 status: implemented
-version: 15
+version: 16
 owner: core
 related:
   - architecture
@@ -204,7 +204,7 @@ engine (subscribeParams):
   drum.t{i}.* -> setTrackVolume/ Tune/ Decay/ Tone/ Drive/ Pan/ Mute/ Model
     (loop runs DRUM_TRACK_COUNT, not a literal 8)
 hit math: stepHits + chokeAt + rollProb (step-hits.ts); choke via chokeRoute (drum-synths.ts)
-graph: voice.output -> drive(preGain->waveShaper->postGain) -> tone(lowpass biquad)
+graph: voice.output -> drive(preGain->waveShaper->postGain) -> tone(Butterworth lowpass, effects.md REQ-a-fixed-filter-is-a-true-butterworth)
          -> trackGain -> pan(StereoPanner) -> drumBus -> the drum chain (effects.md) -> preMaster
 ui: src/ui/panels/drum-panel.ts (drum-step-<t>-<s> grid + per-track mute + the sound-design
     row: KIT dropdown + randomize, then the tuning strip knob-drum.t<i>.{tune,decay,tone,drive,pan,vol}

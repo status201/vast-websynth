@@ -3,7 +3,7 @@
 ```yaml
 id: chorus
 status: implemented
-version: 3
+version: 4
 owner: core
 related:
   - effects            # the insert-effect contract it implements (WrappedEffect, bypass, drain)
@@ -40,7 +40,8 @@ width is paid for only while asked for, and a channel count never decides a leve
 
 - **REQ-the-chorus-is-two-antiphase-taps** — `Chorus` (a `WrappedEffect`)
   builds `processedIn → tone → tapL, tapR → merger(L, R) → processedOut`:
-  - `tone` is a lowpass biquad (`CHORUS_TONE_HZ`, Q 0.707) pinned to **one
+  - `tone` is a lowpass biquad (`CHORUS_TONE_HZ`, a true Butterworth:
+    [effects](effects.md) REQ-a-fixed-filter-is-a-true-butterworth) pinned to **one
     channel** (`channelCount 1`, `'explicit'`). It is the BBD's darkening, and it
     down-mixes a stereo input (the sampler bus) *before* the delays, so both taps
     always run mono — half the work of a channel-transparent design.

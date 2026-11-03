@@ -1,4 +1,4 @@
-import { WrappedEffect, bindBypassMix } from './effect';
+import { WrappedEffect, bindBypassMix, BUTTERWORTH_Q_DB } from './effect';
 import { clamp01 } from '../../utils/math';
 import { RAMP_SMOOTH } from '../param-utils';
 import type { ParamBus } from '../../state/params';
@@ -47,7 +47,7 @@ export class Chorus extends WrappedEffect {
     const tone = ctx.createBiquadFilter();
     tone.type = 'lowpass';
     tone.frequency.value = CHORUS_TONE_HZ;
-    tone.Q.value = Math.SQRT1_2;
+    tone.Q.value = BUTTERWORTH_Q_DB; // effects.md REQ-a-fixed-filter-is-a-true-butterworth
     tone.channelCount = 1;
     tone.channelCountMode = 'explicit';
 
