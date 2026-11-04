@@ -51,12 +51,11 @@ export function startTheme(): void {
   if (started) return;
   started = true;
   applyTheme(resolveTheme(currentThemePref()));
-  if (typeof matchMedia !== 'function') return;
-  const follow = (): void => {
+  // For the page's life: the document never goes away, so nothing unsubscribes.
+  onSystemThemeChange(() => {
     const now = currentThemePref();
     if (now === 'auto' || now === null) applyTheme(resolveTheme(now));
-  };
-  for (const q of [CONTRAST_QUERY, LIGHT_QUERY]) matchMedia(q).addEventListener('change', follow);
+  });
 }
 
 /**

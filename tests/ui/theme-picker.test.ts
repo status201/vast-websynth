@@ -15,6 +15,9 @@ async function mount() {
   return { picker, tiles, THEMES };
 }
 
+/** A colour as jsdom writes it back, so a hex and the rgb() it becomes compare equal. */
+const norm = (c: string) => { const p = document.createElement('span'); p.style.background = c; return p.style.background; };
+
 const key = (el: HTMLElement, k: string) => {
   const e = new KeyboardEvent('keydown', { key: k, bubbles: true, cancelable: true });
   el.dispatchEvent(e);
@@ -80,7 +83,6 @@ describe('the theme picker', () => {
       removeEventListener: (_t: string, fn: () => void) => { listeners.delete(fn); },
     }));
     const { tiles, THEMES, picker } = await mount();
-    const norm = (c: string) => { const p = document.createElement('span'); p.style.background = c; return p.style.background; };
     const chipsOf = (t: HTMLElement) => [...t.querySelectorAll<HTMLElement>('[aria-hidden] > span')].map((c) => c.style.background);
     const swatchOf = (id: string) => THEMES.find((t) => t.id === id)!.swatch.map(norm);
 
@@ -105,7 +107,6 @@ describe('the theme picker', () => {
     const chips = tiles[1]!.querySelectorAll<HTMLElement>('[aria-hidden] > span');
     expect(chips).toHaveLength(4);
     // jsdom normalises a hex to rgb(); compare through a probe so both read alike.
-    const norm = (c: string) => { const p = document.createElement('span'); p.style.background = c; return p.style.background; };
     expect([...chips].map((c) => c.style.background)).toEqual(THEMES[0]!.swatch.map(norm));
   });
 

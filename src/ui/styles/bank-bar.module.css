@@ -64,7 +64,7 @@
 
   .btn:global(.playing) .dot {
     background: var(--led-on);
-    box-shadow: 0 0 6px color-mix(in srgb, var(--led-on) 85%, transparent);
+    box-shadow: 0 0 6px var(--led-glow);
   }
 
   /* While the lane rests, no bank is playing — recolour the play-bank dot amber

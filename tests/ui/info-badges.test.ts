@@ -181,3 +181,22 @@ describe('InfoBadges.position batches its layout reads (REQ-layout-reads-precede
     expect(seq.lastIndexOf('read')).toBeLessThan(seq.indexOf('write'));
   });
 });
+
+describe('badge placement (onboarding.md REQ-a-settings-topic-anchors-to-the-gauge)', () => {
+  it("puts the Settings badge on the button's top-left corner, the side away from the ⓘ toggle", () => {
+    // place() sets left 300 and right 300 + width; 'corner' overhangs the right
+    // edge by 6 (right - 14 for a 20px badge), 'corner-left' the left edge by 6.
+    const header = document.querySelector('[data-testid="app-header"]')!;
+    const gauge = document.createElement('button');
+    gauge.dataset.testid = 'perf-settings';
+    header.appendChild(gauge);
+    place(gauge, 20, 24, 36);
+    show();
+    const badge = document.querySelector<HTMLElement>('[data-testid="info-badge-settings"]')!;
+    expect(badge.style.display).toBe('');
+    expect([badge.style.left, badge.style.top]).toEqual(['294px', '14px']);
+    // Every other header badge keeps the default top-right corner.
+    const play = document.querySelector<HTMLElement>('[data-testid="info-badge-transport"]')!;
+    expect(play.style.left).toBe(`${300 + 100 - 14}px`);
+  });
+});

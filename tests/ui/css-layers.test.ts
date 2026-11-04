@@ -21,7 +21,8 @@ const stripComments = (css: string): string => css.replace(/\/\*[\s\S]*?\*\//g, 
 /** Every stylesheet the app ships except layers.css itself, repo-relative. */
 function stylesheets(): string[] {
   const out: string[] = [];
-  for (const dir of ['src/styles', 'src/ui/styles']) {
+  // src/styles/themes too: a theme file outside its layer would outrank every module.
+  for (const dir of ['src/styles', 'src/styles/themes', 'src/ui/styles']) {
     for (const f of readdirSync(root(dir)).sort()) {
       if (f.endsWith('.css') && !(dir === 'src/styles' && f === 'layers.css')) out.push(`${dir}/${f}`);
     }
@@ -80,7 +81,8 @@ describe('cascade layers (specs/features/css-cascade-layers.md)', () => {
   it('keeps the global sheets beneath every module (REQ-a-composer-outranks-what-it-composes)', () => {
     // The reset, the tokens and the .app grid are what every component builds
     // on; layered above one, a global element rule would override it.
-    const globals = ['src/styles/base.css', 'src/styles/theme.css', 'src/styles/layout.css'];
+    const globals = sheets.filter((s) => s.startsWith('src/styles/'));
+    expect(globals).toEqual(expect.arrayContaining(['src/styles/base.css', 'src/styles/theme.css', 'src/styles/themes/vibrant.css']));
     const highestGlobal = Math.max(...globals.map((g) => layers.indexOf(layerOf(readFileSync(root(g), 'utf8')))));
     const lowestModule = Math.min(...sheets
       .filter((s) => s.startsWith('src/ui/styles/'))

@@ -1,12 +1,15 @@
 /*
- * The default theme (Dark) — every token, and the one place each is declared
- * (specs/features/ui-themes.md). A module colours ONLY through these, by role
+ * Every token, and the one place each is declared (specs/features/ui-themes.md):
+ * these values ARE the Dark theme. Dark is not the default look — Vibrant is
+ * (REQ-vibrant-is-the-default) — but it is what every token is until a theme says
+ * otherwise. A module colours ONLY through these, by role
  * (REQ-tokens-are-named-by-role); tests/ui/theme-tokens.test.ts fails a literal.
  *
  * A BASE token holds a colour of its own and every theme redefines it. A DERIVED
  * token is built from bases — a gradient of two of them, or an alpha of one via
- * color-mix (REQ-an-alpha-derives-from-its-base) — and is declared here only: a
- * theme that changes the base changes it too.
+ * color-mix (REQ-an-alpha-derives-from-its-base) — so a theme that changes the
+ * base changes it too; a theme redefines one only where following its base would
+ * be wrong (High contrast's glows are transparent; Light keeps Dark's screen inks).
  */
 @layer theme {
   :root {
@@ -73,6 +76,8 @@
     --accent-glow: color-mix(in srgb, var(--accent) 50%, transparent);
     --accent-secondary: #f4cd5e;
     --accent-secondary-glow: color-mix(in srgb, var(--accent-secondary) 45%, transparent);
+    /* The catch-light along a control's top lip (`inset 0 1px 0 var(--lip)`). */
+    --lip: color-mix(in srgb, var(--accent-secondary) 5%, transparent);
     /* The active yellow burning low: a tab that is selected but folded out of
        sight (section-title.md REQ-folded-selected-tab-dims). Kept a yellow so it still reads as a tab,
        never the headings' --text-dim. */
@@ -82,6 +87,8 @@
     --accent-bad: #e0403a;
     --accent-bad-glow: color-mix(in srgb, var(--accent) 50%, transparent);
     --led-on: #ff3a20;
+    /* The halo of a lit LED. */
+    --led-glow: color-mix(in srgb, var(--led-on) 85%, transparent);
     --led-off: #2a0a05;
     /* Half lit: enabled but silent (a muted lane's tab LED). */
     --led-dim: #8c2414;

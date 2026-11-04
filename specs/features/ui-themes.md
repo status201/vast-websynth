@@ -13,7 +13,7 @@ related:
   - runtime-performance   # canvases never resolve a colour per frame
   - architecture          # the persistence table
 source:
-  - src/styles/theme.css             # the default (Dark) token set — the one place a token is declared
+  - src/styles/theme.css             # every token, at Dark's values — the one place a token is declared
   - src/styles/themes/light.css      # Light
   - src/styles/themes/contrast.css   # High contrast
   - src/styles/themes/pastel.css     # Pastel
@@ -44,6 +44,7 @@ source:
   - tests/ui/theme-picker.test.ts
   - tests/ui/theme-contrast.test.ts
   - tests/ui/panel-tint.test.ts
+  - tests/theme-css.ts               # the one reader of theme tokens the tests share
   - e2e/theme.spec.ts
 ```
 
@@ -88,8 +89,10 @@ Fonts are system stacks only — the app bundles no font file
   colour is written `color-mix(in srgb, var(--base) N%, transparent)`, not as a
   second literal, so a theme that changes a base gets every alpha of it for free.
   (Mixing with `transparent` in sRGB is exact: the result is the base at alpha N %.)
-- **REQ-every-theme-defines-every-token** — A theme block declares every token the
-  default `:root` declares, so no theme silently inherits one Dark colour.
+- **REQ-every-theme-defines-every-token** — A theme block declares every *base*
+  token `theme.css`'s `:root` declares (Dark's values), so no theme silently
+  inherits one Dark colour; a derived token follows its base unless the theme
+  redefines it too.
 - **REQ-screens-are-their-own-family** — The display windows (scope, EQ graph,
   sample waveform, scratch graph, FX patch bay) colour through the `--screen-*`
   family, separate from the panel surfaces, so a light theme can keep its screens
@@ -146,7 +149,8 @@ Fonts are system stacks only — the app bundles no font file
   stores it; there is no Apply step, so a wrong choice is undone by picking again.
   The picker is the **Theme** section of the header's **Settings** dialog — the
   former Performance dialog, which keeps its Performance section below it, since
-  both are how this device runs the app rather than part of the music.
+  both are how this device runs the app rather than part of the music. Its help
+  topic: [onboarding](onboarding.md) REQ-a-settings-topic-anchors-to-the-gauge.
 - **REQ-auto-shows-what-it-would-pick** — The Auto tile always wears the colours
   of the theme the system setting resolves to, whichever tile is selected — it
   answers "what would Auto give me?", so it never mirrors the chosen theme. The
@@ -185,7 +189,7 @@ Fonts are system stacks only — the app bundles no font file
   `tint`, the FX rack), never per call site in CSS. The panel paints
   `var(--panel-tint, var(--panel))`, and `theme.css` maps each `data-tint` to its
   `--panel-tint-<section>` token. Those tokens are derived — `var(--panel)` on
-  `:root` — so Dark, Light and High contrast are untouched; Pastel gives each
+  `:root` — so every theme but Pastel is untouched; Pastel gives each
   section its own flat colour. The header, the machine tabs, the scope, the
   keyboard and the dialogs stay on `--panel`: a tint names a section of the
   synth, and those are not one.
@@ -210,7 +214,7 @@ Fonts are system stacks only — the app bundles no font file
 
 ```yaml
 theme_ids: dark | light | pastel | vibrant | contrast      # `auto` is a stored choice, not a theme
-theme_selector: ":root[data-theme=\"<id>\"]"     # dark is also plain :root (the default)
+theme_selector: ":root[data-theme=\"<id>\"]"     # dark is also plain :root (the tokens' own values)
 theme_files: src/styles/themes/<id>.css           # one @layer theme block each
 THEMES: "readonly ThemeInfo[] — the shipped themes, in picker order"   # src/state/theme.ts
 ThemeInfo_id: ThemeId
@@ -224,7 +228,9 @@ DEFAULT_THEME: vibrant      # no choice; under prefers-contrast: more, contrast
 AUTO_FALLBACK: dark         # Auto's last resort
 resolveTheme: "(pref | null, matches) => ThemeId — auto, and no choice, resolved against the system queries"
 applyTheme: "(id) => void — data-theme + both metas; on a change, invalidateScreenPalette()"  # src/ui/theme.ts
-startTheme: "() => void — boot: apply, then follow the system while the choice is auto"
+startTheme: "() => void — boot: apply, then follow the system while the choice is auto, or there is none"
+currentThemePref: "() => ThemePref | null — the choice in force (the one copy; the picker reads it)"
+onSystemThemeChange: "(fn) => () => void — fn runs on any change to a system setting Auto reads"
 setThemePref: "(pref) => ThemeId — store, apply, return what it resolved to"
 PanelTint: "osc | mixer | filter | env | mod | fx"                                # src/ui/components/panel.ts
 createPanel: "(title, build, helpId?, tint?: PanelTint) => HTMLElement — sets data-tint"
@@ -232,7 +238,7 @@ createTabbedPanel: "({ prefix, help?, pages, tint? }) => { el, tabs } — sets d
 panel_tint_tokens: "--panel-tint-<PanelTint> — var(--panel) on :root; Pastel's own colour"
 onPaletteChange: "(fn) => () => void — fn runs after each invalidation; the return unsubscribes"  # src/ui/theme-colors.ts
 screenPalette: "() => ScreenPalette — cached; re-resolved on a theme change"
-ScreenPalette_ink: the screen's grid, labels, curves in the amber of the default  # --screen-ink
+ScreenPalette_ink: the screen's grid, labels, curves (Dark's amber)               # --screen-ink
 ScreenPalette_trace: the main trace / curve                                       # --screen-trace
 ScreenPalette_hot: clip and cut marks                                             # --screen-hot
 ScreenPalette_highlight: a grabbed handle                                         # --screen-highlight
@@ -249,7 +255,7 @@ under these roles (by REQ-tokens-are-named-by-role):
 | --- | --- |
 | `--bg`, `--panel*`, `--rule`, `--wood*` | the chassis: page, panel faces and borders, hairlines, cheeks |
 | `--text*` | type: body, dim/faint, soft/label/hint, error/bad/good |
-| `--accent*`, `--led-*` | the amber/orange voice, status LEDs |
+| `--accent*`, `--led-*`, `--lip` | the accent voice, status LEDs and a lit LED's halo (`--led-glow`), the catch-light along a control's top lip |
 | `--well*`, `--tray`, `--recess*`, `--raised*`, `--menu*`, `--handle-*` | control surfaces: a button's bed, the bed a row of buttons sits in, a tab strip's bed, a selected control, a popover, a grip |
 | `--switch-on-*` | a switch that is on: its bed and its ink (REQ-an-on-switch-reads-as-on) |
 | `--lit*`, `--ink*`, `--playing` | a lit (on) control in its three colours (accent, bad, warm), the dark type printed on a lit fill, the accent as a lit fill with type on it (`--lit-accent`, `--lit-accent-ink`: a DJ button that is on, the info badge), and the bar the playhead is in (inked with `--ink-strong`) |
@@ -262,7 +268,8 @@ under these roles (by REQ-tokens-are-named-by-role):
 
 A `THEMES` row in `src/state/theme.ts`, a `src/styles/themes/<id>.css` block
 defining every base token, a `<link>` to it in `index.html`, and an entry in
-`public/theme-boot.js` — the pins above fail until all four agree.
+`public/theme-boot.js` — the pins fail until all four agree (`tests/ui/theme.test.ts`
+checks the link and the boot entry, `theme-tokens.test.ts` the block).
 
 ### Layer touchpoints & ordering
 
@@ -475,17 +482,21 @@ Scenario: a theme change repaints a canvas once, and a destroyed one is not told
 - Unit: `tests/ui/theme-tokens.test.ts` (the literal pin, the var() resolution
   pin), `tests/ui/theme-colors.test.ts`, `tests/state/theme.test.ts` (registry,
   stored choice, Auto), `tests/ui/theme.test.ts` (applying, following the
-  system, the boot script against the registry), `tests/ui/theme-picker.test.ts`
-  — `npm test`
-- Contrast: `tests/ui/theme-contrast.test.ts` — WCAG ratios from the theme files.
+  system, the boot script against the registry), `tests/ui/theme-picker.test.ts`,
+  `tests/ui/panel-tint.test.ts` (each section names itself) — `npm test`
+- Contrast: `tests/ui/theme-contrast.test.ts` — WCAG ratios from the theme files:
+  text on every surface, type on its own fills, and an on switch against an off one.
 - No flash on reload: `e2e/theme.spec.ts` (dev server); the shipped CSP by hand
   against `npm run build && npx vite preview`.
 - Typecheck: `npm run typecheck`
 - Zero-change proof for a token move: `npm run cascade:fingerprint -- --out
   base.ndjson.gz` on the old tree, then `--compare base.ndjson.gz --rendered` on
   the new one, on **both** `--server dev` and the build (they order CSS differently).
+  Captures are in Dark (`--theme <id>` for another).
 - By eye, Firefox first then Chrome: each theme across synth, drums, sampler,
   song, a modal, an open menu, the EQ, the scope and the sample waveform.
+- README art: `node scripts/readme-screenshots.mjs --only pastel,vibrant` retakes
+  the two theme shots (the other four are pinned to Dark).
 
 ## Open questions / future
 

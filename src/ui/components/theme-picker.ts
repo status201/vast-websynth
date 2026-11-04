@@ -23,7 +23,6 @@ export function createThemePicker(): ThemePicker {
     { value: 'auto', name: 'Auto' },
     ...THEMES.map((t) => ({ value: t.id, name: t.name })),
   ];
-  let pref = currentThemePref();
 
   const el = document.createElement('div');
 
@@ -33,6 +32,8 @@ export function createThemePicker(): ThemePicker {
   row.setAttribute('aria-label', 'Theme');
   row.dataset.testid = 'theme-picker';
 
+  /** Each tile's four chips, painted by `render`. */
+  const chipsOf: HTMLElement[][] = [];
   const tiles = options.map((opt) => {
     const tile = document.createElement('button');
     tile.type = 'button';
@@ -42,11 +43,13 @@ export function createThemePicker(): ThemePicker {
     const chips = document.createElement('span');
     chips.className = styles.chips!;
     chips.setAttribute('aria-hidden', 'true');
-    for (let i = 0; i < 4; i++) {
+    const own = Array.from({ length: 4 }, () => {
       const chip = document.createElement('span');
       chip.className = styles.chip!;
-      chips.appendChild(chip);
-    }
+      return chip;
+    });
+    chips.append(...own);
+    chipsOf.push(own);
     const name = document.createElement('span');
     name.className = styles.name!;
     name.textContent = opt.name;
@@ -85,12 +88,13 @@ export function createThemePicker(): ThemePicker {
   status.dataset.testid = 'theme-status';
 
   function choose(value: ThemePref): void {
-    pref = value;
     setThemePref(value);
     render();
   }
 
   function render(): void {
+    // The choice in force lives in ui/theme.ts — read, never copied here.
+    const pref = currentThemePref();
     // What Auto resolves to on this device — never the chosen theme, so the Auto
     // tile answers "what would Auto give me?" (REQ-auto-shows-what-it-would-pick).
     const auto = resolveTheme('auto');
@@ -104,9 +108,7 @@ export function createThemePicker(): ThemePicker {
       tile.classList.toggle('active', on);
       tile.tabIndex = on ? 0 : -1;
       const swatch = themeInfo(value === 'auto' ? auto : value).swatch;
-      tile.querySelectorAll<HTMLElement>(`.${styles.chip!}`).forEach((chip, k) => {
-        chip.style.background = swatch[k]!;
-      });
+      chipsOf[i]!.forEach((chip, k) => { chip.style.background = swatch[k]!; });
     });
     const strong = document.createElement('strong');
     strong.textContent = themeInfo(auto).name;

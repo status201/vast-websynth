@@ -2,8 +2,7 @@
 //
 // The canvases' colour source (specs/features/ui-themes.md REQ-canvas-reads-the-screen-tokens).
 import { describe, it, expect, vi, afterEach } from 'vitest';
-import { readFileSync } from 'node:fs';
-import path from 'node:path';
+import { resolvedToken } from '../theme-css';
 import {
   DARK_SCREEN, invalidateScreenPalette, onPaletteChange, paletteDerived, parseColor, rgba, screenPalette,
   type ScreenPalette,
@@ -13,17 +12,6 @@ afterEach(() => {
   invalidateScreenPalette();
   vi.restoreAllMocks();
 });
-
-// process.cwd(), not import.meta.url: under jsdom the global URL is jsdom's, which fs rejects.
-/** theme.css's `:root` tokens, with var() chains resolved — what the default theme computes. */
-function darkTokens(): Map<string, string> {
-  const css = readFileSync(path.join(process.cwd(), 'src/styles/theme.css'), 'utf8')
-    .replace(/\/\*[\s\S]*?\*\//g, '');
-  const root = /:root\s*\{([^{}]*)\}/.exec(css)![1]!;
-  const raw = new Map([...root.matchAll(/(--[\w-]+)\s*:\s*([^;]+);/g)].map((m) => [m[1]!, m[2]!.trim()]));
-  const resolve = (v: string): string => v.replace(/var\((--[\w-]+)\)/g, (_m, n: string) => resolve(raw.get(n)!));
-  return new Map([...raw].map(([k, v]) => [k, resolve(v)]));
-}
 
 const hex = (h: string) => [1, 3, 5].map((i) => parseInt(h.slice(i, i + 2), 16));
 
@@ -46,13 +34,12 @@ describe('screenPalette (REQ-canvas-reads-the-screen-tokens)', () => {
   });
 
   it('keeps its Dark fallback equal to theme.css (no drift)', () => {
-    const tokens = darkTokens();
     const names: Record<keyof ScreenPalette, string> = {
       ink: '--screen-ink', trace: '--screen-trace', hot: '--screen-hot',
       highlight: '--screen-highlight', cue: '--screen-cue',
     };
     for (const [key, token] of Object.entries(names) as [keyof ScreenPalette, string][]) {
-      const v = tokens.get(token);
+      const v = resolvedToken('dark', token);
       expect(v, token).toMatch(/^#[0-9a-f]{6}$/i);
       expect([...DARK_SCREEN[key]], token).toEqual(hex(v!));
     }

@@ -129,7 +129,7 @@ otherwise never gets.
 ```
 
 There is no fourth face and no size scale — sizes are set per component. These
-are the **default** theme's values: a [theme](ui-themes.md) redefines `--serif`
+are Dark's values — the tokens' own: a [theme](ui-themes.md) redefines `--serif`
 and `--sans` (never `--mono`, ui-themes.md REQ-mono-is-not-themed). This spec
 still decides which face a piece of text gets; a theme only decides what each
 face is.

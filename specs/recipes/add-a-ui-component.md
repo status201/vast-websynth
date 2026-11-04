@@ -65,6 +65,13 @@ this one ([css-cascade-layers](../features/css-cascade-layers.md)
 REQ-a-composer-outranks-what-it-composes). Where the import sits no longer
 matters; a file with no layer fails `tests/ui/css-layers.test.ts`.
 
+**Colour only through a token**, named by what it colours — `var(--well)`,
+`var(--text-dim)`, an alpha as `color-mix(in srgb, var(--accent) 18%, transparent)`.
+A hex or `rgb()` of the palette fails `tests/ui/theme-tokens.test.ts` (black or white
+shadow and shine are the exception). If no token fits the role, add one to
+`theme.css` and to every theme file ([ui-themes](../features/ui-themes.md)
+REQ-every-colour-is-a-token); a canvas reads its colours from `ui/theme-colors.ts`.
+
 ### 3. Mount + test
 
 `appendChild` it where it belongs (a region under `ui/shell/`, or a panel). Add a jsdom unit test

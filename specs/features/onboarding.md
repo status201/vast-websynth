@@ -3,7 +3,7 @@
 ```yaml
 id: onboarding
 status: implemented
-version: 30
+version: 31
 owner: core
 related:
   - architecture
@@ -265,6 +265,21 @@ thing.
     exemption from the scrolled-under-the-header rule, and hiding on a zero-size
     anchor when the cluster collapses behind the hamburger below 720px
     ([responsive-header](responsive-header.md) REQ-below-720-the-preset-cluster-hides).
+
+- **REQ-a-settings-topic-anchors-to-the-gauge** (v31) — **A `settings` topic
+  anchors to the header's Settings button** (`perf-settings`, the gauge), placed
+  `'corner-left'`: the button's top-left corner, the side away from the ⓘ
+  toggle. Its copy covers both sections of the dialog — **Theme** (the looks,
+  that Vibrant is the default and a system asking for more contrast gets High
+  contrast, what Auto follows, that the choice is per device and never in a song;
+  [ui-themes](ui-themes.md)) and **Performance** (what a tier trades, what Auto
+  picks, and that buffer and voice changes wait for a reload;
+  [performance-mode](performance-mode.md)).
+  - Deliberate exception to REQ-a-presets-topic-anchors-to-the-picker's
+    reasoning: the presets topic had the selector to move to, but the dialog
+    this badge explains is not on screen while the badges show, so the button is
+    the only place it can sit. It takes the corner away from ⓘ rather than leave
+    the dialog unexplained.
 
 - **REQ-the-tour-teaches-the-grid-gestures** (v7) — **The tour teaches the grid
   gestures.** A "Paint a pattern" step sits between the pattern-tabs step and
@@ -701,6 +716,12 @@ Scenario: Header badges survive a scroll (v23, REQ-a-badge-shows-only-where-reac
   Then the transport / voicing / panic badges are still shown — a header anchor
     never scrolls away, and the header sits nowhere near the fold
 # pinned by: tests/ui/info-badges.test.ts
+
+Scenario: The Settings button explains its dialog, from the corner away from ⓘ (v31, REQ-a-settings-topic-anchors-to-the-gauge)
+  Given the info badges are on
+  Then the Settings button carries a badge at its top-left corner, not its top-right
+  And its topic covers the theme (the default, Auto, per device) and the performance tier (and the reload)
+# pinned by: tests/ui/info-badges.test.ts, tests/ui/help-content.test.ts
 
 Scenario: Song file buttons each explain themselves
   Given the info badges are on and the Song tab is open

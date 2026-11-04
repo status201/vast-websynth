@@ -13,6 +13,8 @@ import styles from '../styles/tour.module.css';
 import { HELP_TOPICS, type TopicId } from './help-content';
 import type { ParamBus } from '../../state/params';
 
+type Placement = 'corner' | 'corner-left' | 'after';
+
 interface Anchor {
   topic: TopicId;
   /** Locate the element the badge should pin to (null = skip if absent). */
@@ -22,9 +24,11 @@ interface Anchor {
    * it into the anchor's top-right corner — good for full-width panels and
    * controls. 'after' sits just to the right of a content-width label so it
    * doesn't cover the text (the FX effect titles, whose on/off switch is pushed
-   * to the far right, leaving a gap).
+   * to the far right, leaving a gap). 'corner-left' is the top-left corner, for a
+   * header button whose right side is the ⓘ toggle itself (onboarding.md
+   * REQ-a-settings-topic-anchors-to-the-gauge).
    */
-  place?: 'corner' | 'after';
+  place?: Placement;
 }
 
 /** Badge diameter — keep in sync with `.badge` width/height in tour.module.css. */
@@ -49,6 +53,9 @@ const ANCHORS: Anchor[] = [
   // REQ-a-presets-topic-anchors-to-the-picker): on Save the badge sat close enough to the ⓘ toggle to pull the eye
   // off it, and the topic's copy opens on the dropdown anyway.
   { topic: 'presets', find: () => byTestId('preset-select') },
+  // The dialog it explains is not on screen while the badges show, so the button
+  // carries it — on the corner away from the ⓘ toggle beside it.
+  { topic: 'settings', find: () => byTestId('perf-settings'), place: 'corner-left' },
   { topic: 'oscillators', find: () => byHelp('oscillators') },
   { topic: 'osc2', find: () => byHelp('osc2') },
   { topic: 'subuni', find: () => byHelp('subuni') },
@@ -187,7 +194,7 @@ const ANCHORS: Anchor[] = [
 export class InfoBadges {
   private active = false;
   private layer: HTMLElement | null = null;
-  private badges: Array<{ el: HTMLElement; anchor: Element; place: 'corner' | 'after'; inHeader: boolean }> = [];
+  private badges: Array<{ el: HTMLElement; anchor: Element; place: Placement; inHeader: boolean }> = [];
   /** Scratch for `position()`'s read phase, reused across frames so batching
    *  the reads costs no allocation (REQ-no-allocation-in-a-hot-loop). */
   private readonly rects: DOMRect[] = [];
@@ -335,6 +342,10 @@ export class InfoBadges {
         // Just right of a content-width label, vertically centred on it.
         left = r.right + 4;
         top = r.top + r.height / 2 - BADGE_SIZE / 2;
+      } else if (place === 'corner-left') {
+        // The mirror of 'corner': the badge overhangs the left edge by as much.
+        left = r.left - 6;
+        top = r.top - 6;
       } else {
         left = r.right - 14;
         top = r.top - 6;

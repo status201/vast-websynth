@@ -4,42 +4,7 @@
 // REQ-light-body-text-meets-aa, REQ-pastel-reads-on-every-tint). WCAG 2 ratios, computed from the theme files' own
 // flat colour tokens: each text token against each surface text sits on.
 import { describe, it, expect } from 'vitest';
-import { readFileSync } from 'node:fs';
-import path from 'node:path';
-
-const themeTokens = (id: string): Map<string, string> => {
-  const css = readFileSync(path.join(process.cwd(), `src/styles/themes/${id}.css`), 'utf8')
-    .replace(/\/\*[\s\S]*?\*\//g, '');
-  const map = new Map<string, string>();
-  for (const b of css.matchAll(/([^{}]+)\{([^{}]*)\}/g)) {
-    if (!b[1]!.trim().startsWith(`:root[data-theme="${id}"]`)) continue;
-    for (const t of b[2]!.matchAll(/(--[\w-]+)\s*:\s*([^;]+);/g)) map.set(t[1]!, t[2]!.trim());
-  }
-  return map;
-};
-
-/** Dark's `:root` tokens from theme.css. */
-const rootTokens = (): Map<string, string> => {
-  const css = readFileSync(path.join(process.cwd(), 'src/styles/theme.css'), 'utf8').replace(/\/\*[\s\S]*?\*\//g, '');
-  const root = /:root\s*\{([^{}]*)\}/.exec(css)![1]!;
-  return new Map([...root.matchAll(/(--[\w-]+)\s*:\s*([^;]+);/g)].map((m) => [m[1]!, m[2]!.trim()]));
-};
-
-/**
- * What a token computes to in a theme: its own block over Dark's `:root`, with
- * `var()` chains followed — so a derived token (`--playing: var(--accent-secondary)`)
- * is checked with the colour the theme actually gives it.
- */
-function resolved(id: string, token: string): string {
-  const tokens = new Map([...rootTokens(), ...(id === 'dark' ? [] : themeTokens(id))]);
-  let v = tokens.get(token);
-  for (let i = 0; v && i < 10; i++) {
-    const m = /^var\((--[\w-]+)\)$/.exec(v);
-    if (!m) break;
-    v = tokens.get(m[1]!);
-  }
-  return v ?? '';
-}
+import { resolvedToken as resolved, themeTokens } from '../theme-css';
 
 /** WCAG relative luminance of a #rrggbb. */
 function luminance(hex: string): number {

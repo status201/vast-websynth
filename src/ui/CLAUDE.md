@@ -5,7 +5,8 @@ architecture, the `StudioApi`/`UiBridge` contracts and the SDD rules.
 
 All component/panel styling is in `src/ui/styles/*.module.css`. Global CSS is
 only `src/styles/layers.css` (the cascade-layer order), `src/styles/base.css`
-(reset), `src/styles/theme.css` (custom properties), and
+(reset), `src/styles/theme.css` (custom properties — Dark's values),
+`src/styles/themes/<id>.css` (one block per other theme), and
 `src/styles/layout.css` (`.app` grid + responsive).
 
 - **No `style="…"` in markup.** The shipped Content Security Policy has no
@@ -16,6 +17,7 @@ only `src/styles/layers.css` (the cascade-layer order), `src/styles/base.css`
   REQ-defence-in-depth-at-delivery.
 
 - **Typography**: `--serif` is display type only (identity, headings, faceplate legends); body copy and anything the user types is `--sans` (the inherited default); changing digits are `--mono`. A new serif fails `tests/ui/typography.test.ts` until declared. → `specs/features/typography.md`.
+- **Colour**: only through a token named by its role (`var(--well)`, `var(--text-dim)`; an alpha is `color-mix(in srgb, var(--accent) 18%, transparent)`) — a palette hex or `rgb()` fails `tests/ui/theme-tokens.test.ts`; black/white shadow and shine are the exception. No token fits? Add one to `theme.css` and every theme file. Five themes recolour every token, so two places that share a value but not a role get two tokens. → `specs/features/ui-themes.md`.
 - **Icons**: a glyph that labels a control (arrow, caret, `✕`, `⚙`, emoji) is inline SVG from `components/ui-icons.ts`, never a typed character — no font is bundled, so Android substitutes a symbol face. Punctuation inside a sentence stays text. `tests/ui/iconography.test.ts` pins it. → `specs/features/iconography.md`.
 - **Every stylesheet is one `@layer <name> { … }` block, so import order is not layout**: the order is `src/styles/layers.css`, and a later layer wins whatever the specificity — pick the layer above every module sharing an element with yours. A sheet with no layer fails `tests/ui/css-layers.test.ts`; `!important` runs the order backwards; prove a CSS move with `scripts/css-cascade/`. → `specs/features/css-cascade-layers.md`.
 - State classes (`.on`, `.active`, `.hidden`, `.playing`, `.collapsed`, `.synced`) are global — match them with `:global(.on)` in module selectors. `.synced` is on a `Knob` root while its param is tempo-locked, and **two** modules key off it (`knob.module.css` hides the dial, `tempo-lock.module.css` shows the chip in its place) — which is exactly why it is global rather than either module's own. → `specs/features/tempo-lock.md`.

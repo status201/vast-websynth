@@ -1,8 +1,7 @@
 // Each synth section names itself, so a theme can colour it
 // (specs/features/ui-themes.md REQ-pastel-tints-each-panel).
 import { describe, it, expect, vi } from 'vitest';
-import { readFileSync } from 'node:fs';
-import path from 'node:path';
+import { cssText as css, rootTokens } from '../theme-css';
 import { buildSynthPanels } from '../../src/ui/panels/synth-panels';
 import { buildFxRack } from '../../src/ui/panels/fx-rack';
 import { createPanel, type PanelTint } from '../../src/ui/components/panel';
@@ -13,8 +12,6 @@ import fxStyles from '../../src/ui/styles/fx-rack.module.css';
 const TINTS: PanelTint[] = ['osc', 'mixer', 'filter', 'env', 'mod', 'fx'];
 
 const bus = () => { const b = new ParamBus(); registerDefaults(b); return b; };
-const css = (rel: string) =>
-  readFileSync(path.join(process.cwd(), rel), 'utf8').replace(/\/\*[\s\S]*?\*\//g, '');
 
 describe('the panels name their section', () => {
   it('tints the eight synth panels by what they do', () => {
@@ -53,12 +50,12 @@ describe('the panels name their section', () => {
 
 describe('a tint is a token (REQ-pastel-tints-each-panel)', () => {
   const theme = css('src/styles/theme.css');
-  const root = /:root\s*\{([^{}]*)\}/.exec(theme)![1]!;
+  const root = rootTokens();
 
   it('maps each data-tint to its own token, which is the plain panel on :root', () => {
     for (const t of TINTS) {
       expect(theme, t).toMatch(new RegExp(`\\[data-tint="${t}"\\]\\s*\\{\\s*--panel-tint:\\s*var\\(--panel-tint-${t}\\);\\s*\\}`));
-      expect(root, t).toMatch(new RegExp(`--panel-tint-${t}:\\s*var\\(--panel\\);`));
+      expect(root.get(`--panel-tint-${t}`), t).toBe('var(--panel)');
     }
   });
 

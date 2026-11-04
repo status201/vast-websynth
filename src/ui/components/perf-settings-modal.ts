@@ -57,16 +57,33 @@ export interface PerfSettingsModalContext {
   onTierPreview?: (tier: PerfTier) => void;
 }
 
+/**
+ * The Settings dialog: one section per device setting, each built by its own
+ * owner — the theme picker by theme-picker.ts, the tier below by
+ * `buildPerfSection` — so this only composes them.
+ */
 export function openPerfSettingsModal(opts: PerfSettingsModalContext): void {
-  const { bootTier, syncButton } = opts;
-  let pref = readPerfPref();
-
   const picker = createThemePicker();
   const modal = new Modal({ title: 'Settings', onClose: picker.destroy });
 
-  const themeTitle = sectionTitle('Theme');
   const perfTitle = sectionTitle('Performance');
   perfTitle.classList.add(styles.sectionBreak!);
+
+  const closeBtn = createButton({
+    label: 'Close',
+    className: `${switchStyles.root!} ${Modal.closeBtnClass}`,
+    onClick: () => modal.close(),
+  });
+
+  modal.body.append(sectionTitle('Theme'), picker.el, perfTitle, ...buildPerfSection(opts), closeBtn);
+  modal.open();
+}
+
+/** The Performance section (performance-mode.md REQ-a-perf-button-opens-the-picker): the tier
+ *  control, what it resolves to here, and the reload it may need. */
+function buildPerfSection(opts: PerfSettingsModalContext): HTMLElement[] {
+  const { bootTier, syncButton } = opts;
+  let pref = readPerfPref();
 
   const desc = document.createElement('div');
   desc.className = styles.desc!;
@@ -121,12 +138,6 @@ export function openPerfSettingsModal(opts: PerfSettingsModalContext): void {
   });
   reloadBtn.classList.add(styles.reloadBtn!, 'hidden');
 
-  const closeBtn = createButton({
-    label: 'Close',
-    className: `${switchStyles.root!} ${Modal.closeBtnClass}`,
-    onClick: () => modal.close(),
-  });
-
   function render(): void {
     buttons.forEach((b, i) => b.classList.toggle('active', OPTIONS[i]!.value === pref));
 
@@ -149,16 +160,6 @@ export function openPerfSettingsModal(opts: PerfSettingsModalContext): void {
     reloadBtn.classList.toggle('hidden', !needsReload);
   }
 
-  modal.body.appendChild(themeTitle);
-  modal.body.appendChild(picker.el);
-  modal.body.appendChild(perfTitle);
-  modal.body.appendChild(desc);
-  modal.body.appendChild(modeRow);
-  modal.body.appendChild(help);
-  modal.body.appendChild(status);
-  modal.body.appendChild(reloadHint);
-  modal.body.appendChild(reloadBtn);
-  modal.body.appendChild(closeBtn);
   render();
-  modal.open();
+  return [desc, modeRow, help, status, reloadHint, reloadBtn];
 }

@@ -9,6 +9,7 @@ import { EQ_BANDS } from '../../src/state/eq';
 import { MOTION_TRACK_COUNT, MOTION_TRACK_LABELS } from '../../src/state/patterns';
 import { formatHzFull } from '../../src/ui/components/scope';
 import { CHORUS_MODE_LABELS } from '../../src/state/chorus';
+import { THEMES } from '../../src/state/theme';
 
 /** The Clear button as help copy renders it — the caret is an icon, not a `▾`
  *  (iconography.md REQ-a-control-glyph-is-inline-svg), so the assertions go through the same helper. */
@@ -187,6 +188,24 @@ describe('help-content presets topic', () => {
     // The import wizard's whole point: nothing is written until you confirm.
     expect(body).toContain('review');
     expect(body).toContain('until you confirm');
+  });
+});
+
+/** The header's Settings button (onboarding.md REQ-a-settings-topic-anchors-to-the-gauge). */
+describe('help-content settings topic', () => {
+  it('names every theme the picker offers, so the copy cannot fall behind the registry', () => {
+    const body = bodyOf('settings');
+    for (const t of THEMES) expect(body, t.name).toContain(t.name);
+    expect(body).toContain('Auto');
+  });
+
+  it('says what is the default, that it is per device, and when performance needs a reload', () => {
+    const body = bodyOf('settings');
+    expect(body).toContain('<strong>Vibrant</strong> is the default');
+    expect(body).toContain('this device');
+    expect(body).toContain('song');
+    for (const tier of ['Weak', 'Strong']) expect(body, tier).toContain(tier);
+    expect(body).toContain('reload');
   });
 });
 

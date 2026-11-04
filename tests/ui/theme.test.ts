@@ -1,12 +1,12 @@
 // Putting a theme on the page, before first paint and after (specs/features/ui-themes.md).
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
-import { readFileSync } from 'node:fs';
+import { readdirSync } from 'node:fs';
 import path from 'node:path';
 import { installLocalStorageMock } from '../storage-mock';
+import { readSource as read } from '../css-source';
+import { themeTokens } from '../theme-css';
 import type { ThemeInfo } from '../../src/state/theme';
 
-const ROOT = process.cwd();
-const read = (rel: string) => readFileSync(path.join(ROOT, rel), 'utf8');
 const BOOT = read('public/theme-boot.js');
 
 const CONTRAST = '(prefers-contrast: more)';
@@ -194,6 +194,18 @@ describe('the boot script (REQ-the-boot-script-agrees-with-the-registry)', () =>
 });
 
 describe('delivery (REQ-the-theme-applies-before-first-paint)', () => {
+  it('links exactly one stylesheet per shipped theme but Dark, which is theme.css', async () => {
+    // A theme file nobody links ships nothing; a listed theme with no file looks Dark.
+    const { state } = await fresh();
+    const html = read('index.html');
+    const linked = [...html.matchAll(/href="\/src\/styles\/themes\/([\w-]+)\.css"/g)].map((m) => m[1]).sort();
+    const files = readdirSync(path.join(process.cwd(), 'src/styles/themes')).filter((n) => n.endsWith('.css'))
+      .map((n) => n.replace(/\.css$/, '')).sort();
+    const shipped = state.THEMES.map((t) => t.id).filter((id) => id !== 'dark').sort();
+    expect(linked).toEqual(files);
+    expect(files).toEqual(shipped);
+  });
+
   it('loads theme-boot.js as a classic script ahead of the first stylesheet', () => {
     const html = read('index.html');
     const tag = /<script src="\/theme-boot\.js"><\/script>/.exec(html);
@@ -212,23 +224,10 @@ describe('delivery (REQ-the-theme-applies-before-first-paint)', () => {
 });
 
 describe('the picker swatches (REQ-a-theme-is-a-palette-and-two-faces)', () => {
-  /** `--name: value` in the theme's own block — theme.css's :root for Dark, its file for the rest. */
-  function tokensOf(id: string): Map<string, string> {
-    const css = (id === 'dark' ? read('src/styles/theme.css') : read(`src/styles/themes/${id}.css`))
-      .replace(/\/\*[\s\S]*?\*\//g, '');
-    const selector = id === 'dark' ? /^:root$/ : new RegExp(`^:root\\[data-theme=["']${id}["']\\]$`);
-    const map = new Map<string, string>();
-    for (const m of css.matchAll(/([^{}]+)\{([^{}]*)\}/g)) {
-      if (!selector.test(m[1]!.trim())) continue;
-      for (const t of m[2]!.matchAll(/(--[\w-]+)\s*:\s*([^;]+);/g)) map.set(t[1]!, t[2]!.trim().toLowerCase());
-    }
-    return map;
-  }
-
   it('shows only colours the theme itself declares', async () => {
     const { state } = await fresh();
     for (const t of state.THEMES) {
-      const own = new Set(tokensOf(t.id).values());
+      const own = new Set([...themeTokens(t.id).values()].map((v) => v.toLowerCase()));
       expect(t.swatch.filter((c) => !own.has(c.toLowerCase())), `${t.id}'s swatch`).toEqual([]);
     }
   });

@@ -11,6 +11,7 @@ import { describe, it, expect } from 'vitest';
 import { existsSync, readdirSync, readFileSync, statSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import path from 'node:path';
+import { rootTokens, themeTokens } from '../theme-css';
 
 const ROOT = fileURLToPath(new URL('../../', import.meta.url));
 const MODULES = path.join(ROOT, 'src/ui/styles');
@@ -55,16 +56,6 @@ function forbidden(value: string): string[] {
   return [...hits.filter((h) => !NEUTRAL.test(h)), ...(named ? [named[0]] : [])];
 }
 
-/** `--name: value` declarations in a :root-ish block of a theme file. */
-function tokens(file: string, selector: RegExp): Map<string, string> {
-  const map = new Map<string, string>();
-  for (const m of read(file).matchAll(/([^{}]+)\{([^{}]*)\}/g)) {
-    if (!selector.test(m[1]!.trim())) continue;
-    for (const t of m[2]!.matchAll(/(--[\w-]+)\s*:\s*([^;]+);/g)) map.set(t[1]!, t[2]!.trim());
-  }
-  return map;
-}
-
 const allTs = (dir: string): string[] =>
   readdirSync(dir).flatMap((n) => {
     const p = path.join(dir, n);
@@ -73,7 +64,7 @@ const allTs = (dir: string): string[] =>
 
 describe('theme tokens (specs/features/ui-themes.md)', () => {
   const decls = governed.flatMap(declarations);
-  const root = tokens(THEME, /^:root$/);
+  const root = rootTokens();
 
   it('parsed the stylesheets at all', () => {
     // Guards the guard: a parser that matched nothing would pass everything.
@@ -131,7 +122,7 @@ describe('theme tokens (specs/features/ui-themes.md)', () => {
     expect(base).toContain('--well-top');
     for (const file of cssIn(THEMES)) {
       const id = path.basename(file, '.css');
-      const theme = tokens(file, new RegExp(`^:root\\[data-theme=["']${id}["']\\]$`));
+      const theme = themeTokens(id);
       expect(theme.size, `${id}.css declares no :root[data-theme="${id}"] block`).toBeGreaterThan(0);
       expect(base.filter((k) => !theme.has(k)), `${id}.css is missing`).toEqual([]);
     }
