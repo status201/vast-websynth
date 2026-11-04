@@ -22,7 +22,7 @@
     font-family: inherit;
     font-size: 14px;
     letter-spacing: 0.02em;
-    background: #0a0805;
+    background: var(--field);
     color: var(--text);
     border: 1px solid var(--panel-border);
     border-radius: 4px;
@@ -56,12 +56,12 @@
   /* Destructive affirmative button (Clear / New) — composed with switch `.root`,
      so it keeps the base button styling and only recolours the edge/label red. */
   .danger {
-    border-color: rgba(255, 58, 32, 0.55);
+    border-color: color-mix(in srgb, var(--led-on) 55%, transparent);
     color: var(--text-bad);
   }
 
   .danger:hover {
-    color: #ff8a76;
-    border-color: rgba(255, 58, 32, 0.85);
+    color: var(--text-bad-hover);
+    border-color: color-mix(in srgb, var(--led-on) 85%, transparent);
   }
 }

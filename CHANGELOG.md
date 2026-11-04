@@ -25,6 +25,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ### Changed
 
+- Groundwork for UI themes: every colour in the app now goes through a named
+  theme token, so High contrast, Light and Pastel themes can follow. The look
+  does not change. One deliberate exception: a sample that needs reloading is now
+  named in the same soft red as the preset wizard's error list (it was a shade
+  darker).
 - **rhodes** sounds like a suitcase Rhodes now. The amp's "vibrato" is really a
   stereo auto-pan, so LFO 1 pans at 1/8 and LFO 2 adds a light tremolo at 1/16,
   both in time with the song. Playing hard makes it bark: a hard note opens the

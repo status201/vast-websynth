@@ -22,7 +22,7 @@
     border-radius: 8px;
     pointer-events: none;
     box-shadow:
-      0 0 0 9999px rgba(8, 6, 3, 0.78),
+      0 0 0 9999px color-mix(in srgb, var(--scrim-ink) 78%, transparent),
       0 0 0 2px var(--accent),
       0 0 22px 6px var(--accent-glow);
     transition: left 0.25s ease, top 0.25s ease, width 0.25s ease, height 0.25s ease;
@@ -34,7 +34,7 @@
      shape and lifetime, so it carried the same cost. */
   .centered {
     box-shadow: none;
-    background: rgba(8, 6, 3, 0.82);
+    background: color-mix(in srgb, var(--scrim-ink) 82%, transparent);
     border-radius: 0;
   }
 
@@ -115,7 +115,7 @@
 
   button.toggleActive:not(:active),
   button.toggleActive:global(.on) {
-    box-shadow: 0 0 8px var(--accent-glow), inset 0 1px 0 rgba(244, 205, 94, 0.06);
+    box-shadow: 0 0 8px var(--accent-glow), inset 0 1px 0 color-mix(in srgb, var(--accent-secondary) 6%, transparent);
   }
 
   /* While the badges show, the ⓘ glyph *becomes* a badge: the accent disc and the

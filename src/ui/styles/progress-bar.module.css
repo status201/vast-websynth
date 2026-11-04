@@ -6,7 +6,7 @@
   .track {
     height: 8px;
     border-radius: 4px;
-    background: #0c0905;
+    background: var(--tray-top);
     border: 1px solid rgba(255, 255, 255, 0.12);
     overflow: hidden;
   }

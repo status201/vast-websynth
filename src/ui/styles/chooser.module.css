@@ -32,7 +32,7 @@
 
   .row:global(.on) {
     border-color: var(--accent);
-    background: rgba(232, 116, 46, 0.08);
+    background: color-mix(in srgb, var(--accent) 8%, transparent);
   }
 
   .row:disabled {

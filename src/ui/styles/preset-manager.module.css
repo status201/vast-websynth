@@ -49,7 +49,7 @@
     border: 1px solid currentColor;
   }
 
-  .chipNew { color: #6fcf7f; }
+  .chipNew { color: var(--text-good); }
   .chipIdentical { color: rgba(255, 255, 255, 0.45); }
   .chipConflict { color: var(--accent); }
 
@@ -60,17 +60,17 @@
   .errors {
     margin: 4px 0 6px;
     font-size: 12px;
-    color: #e2705a;
+    color: var(--text-error);
   }
 
-  .errorList { border-color: rgba(226, 112, 90, 0.4); }
+  .errorList { border-color: color-mix(in srgb, var(--text-error) 40%, transparent); }
 
   .errorRow {
     padding: 5px 10px;
     font-size: 11px;
     line-height: 1.5;
-    color: #e2705a;
-    border-bottom: 1px solid rgba(226, 112, 90, 0.16);
+    color: var(--text-error);
+    border-bottom: 1px solid color-mix(in srgb, var(--text-error) 16%, transparent);
     overflow-wrap: anywhere;
   }
 
@@ -91,14 +91,14 @@
     color: var(--accent-secondary);
   }
 
-  .warnList { border-color: rgba(244, 205, 94, 0.35); }
+  .warnList { border-color: color-mix(in srgb, var(--accent-secondary) 35%, transparent); }
 
   .warnRow {
     padding: 5px 10px;
     font-size: 11px;
     line-height: 1.5;
     opacity: 0.85;
-    border-bottom: 1px solid rgba(244, 205, 94, 0.16);
+    border-bottom: 1px solid color-mix(in srgb, var(--accent-secondary) 16%, transparent);
     overflow-wrap: anywhere;
   }
 

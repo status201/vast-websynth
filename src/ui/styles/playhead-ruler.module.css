@@ -30,7 +30,7 @@
     color: var(--text-dim);
   }
 
-  .tick:hover { background: rgba(244, 205, 94, 0.18); color: var(--accent); }
+  .tick:hover { background: color-mix(in srgb, var(--accent-secondary) 18%, transparent); color: var(--accent); }
 
   /* The CUE — where Play (or Stop → Play) will begin. An outline, deliberately not
      a fill, so it reads as a marker rather than "this is sounding" and stays
@@ -49,7 +49,7 @@
   .tick:global(.playing) {
     background: var(--accent-secondary);
     border-color: var(--accent-secondary);
-    color: #120a04;
+    color: var(--ink-strong);
     box-shadow: 0 0 6px var(--accent-secondary-glow);
   }
 
@@ -111,7 +111,7 @@
   }
 
   .barNav:hover {
-    background: rgba(244, 205, 94, 0.18);
+    background: color-mix(in srgb, var(--accent-secondary) 18%, transparent);
     border-color: var(--accent-secondary);
     color: var(--accent);
   }

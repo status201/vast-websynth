@@ -54,11 +54,11 @@
   .action {
     flex-shrink: 0;
     color: var(--accent-secondary);
-    border-color: rgba(244, 205, 94, 0.55);
+    border-color: color-mix(in srgb, var(--accent-secondary) 55%, transparent);
   }
 
   .action:hover {
-    border-color: rgba(244, 205, 94, 0.85);
+    border-color: color-mix(in srgb, var(--accent-secondary) 85%, transparent);
   }
 
   /* Dismiss ✕ — quiet by default, legible on hover. */

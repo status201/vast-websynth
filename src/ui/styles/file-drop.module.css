@@ -13,7 +13,7 @@
     justify-content: center;
     border: 2px dashed var(--accent);
     border-radius: 12px;
-    background: rgba(5, 3, 2, 0.72);
+    background: color-mix(in srgb, var(--scrim-ink) 72%, transparent);
     color: var(--accent);
     font-family: var(--sans);
     font-size: 16px;

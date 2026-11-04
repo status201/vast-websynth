@@ -26,7 +26,7 @@
        icon lands on the same x as the MACHINES and EQUALIZER ones and the title's
        own vertical padding sets a matching height (section-title.md REQ-heading-icons-share-one-x). */
     padding: 0 10px 0 6px;
-    background: linear-gradient(180deg, #0a0604 0%, #16100b 100%);
+    background: var(--recess);
     border: 1px solid var(--panel-border);
     border-radius: 6px;
     box-shadow: var(--panel-shadow);

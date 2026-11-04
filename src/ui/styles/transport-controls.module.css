@@ -70,7 +70,7 @@
     overflow-x: auto;
     overflow-y: hidden;
     padding: 2px;
-    background: #0c0905;
+    background: var(--tray-top);
     border-radius: 2px;
   }
 
@@ -93,7 +93,7 @@
        instant too — this is a position display, not a link. */
   }
 
-  .bar:hover { background: rgba(244, 205, 94, 0.18); color: var(--accent); }
+  .bar:hover { background: color-mix(in srgb, var(--accent-secondary) 18%, transparent); color: var(--accent); }
 
   /* The bar the transport is in — the global `playing` state class, as the
      machine-tab rulers use, so both surfaces are found the same way. The rulers'
@@ -102,8 +102,8 @@
   .bar:global(.playing) {
     background: var(--accent-secondary);
     border-color: var(--accent-secondary);
-    color: #120a04;
-    box-shadow: inset 0 0 0 1px rgba(255, 246, 214, 0.45);
+    color: var(--ink-strong);
+    box-shadow: inset 0 0 0 1px var(--lit-ring);
   }
 
   /* The loop range (transport-loop.md REQ-what-the-loop-scrubber-shows) — a bracket of accent rails top and
@@ -116,8 +116,8 @@
   }
   .bar:global(.loop):global(.playing) {
     box-shadow: inset 0 3px 0 var(--accent), inset 0 -3px 0 var(--accent),
-      inset 0 0 0 1px rgba(255, 246, 214, 0.45);
-    color: #120a04;
+      inset 0 0 0 1px var(--lit-ring);
+    color: var(--ink-strong);
   }
 
   /* Loop on: the cells pick instead of seeking (REQ-with-loop-on-a-click-picks-a-bar), so the mode is drawn on the
@@ -134,13 +134,13 @@
 
   /* Loop off with a remembered range (REQ-turning-loop-off-keeps-the-range): the bracket stays, dimmed. */
   .loopIdle .bar:global(.loop) {
-    box-shadow: inset 0 3px 0 rgba(244, 205, 94, 0.3), inset 0 -3px 0 rgba(244, 205, 94, 0.3);
+    box-shadow: inset 0 3px 0 color-mix(in srgb, var(--accent-secondary) 30%, transparent), inset 0 -3px 0 color-mix(in srgb, var(--accent-secondary) 30%, transparent);
     color: var(--text-dim);
   }
   .loopIdle .bar:global(.loop):global(.playing) {
-    box-shadow: inset 0 3px 0 rgba(244, 205, 94, 0.3), inset 0 -3px 0 rgba(244, 205, 94, 0.3),
-      inset 0 0 0 1px rgba(255, 246, 214, 0.45);
-    color: #120a04;
+    box-shadow: inset 0 3px 0 color-mix(in srgb, var(--accent-secondary) 30%, transparent), inset 0 -3px 0 color-mix(in srgb, var(--accent-secondary) 30%, transparent),
+      inset 0 0 0 1px var(--lit-ring);
+    color: var(--ink-strong);
   }
 
   /* Seeking refused (slaved, or a capture in flight) — say so rather than

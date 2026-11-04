@@ -666,6 +666,8 @@ export function renderQr(canvas: HTMLCanvasElement, text: string): void {
 
     const ctx = canvas.getContext('2d');
     if (!ctx) return; // jsdom / no 2d context — paste still works, sizing already set
+    // Literal black on white in every theme: a scanner needs the contrast
+    // (ui-themes.md REQ-the-pairing-qr-stays-black-on-white).
     ctx.fillStyle = '#ffffff';
     ctx.fillRect(0, 0, dim, dim);
     ctx.fillStyle = '#000000';

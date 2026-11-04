@@ -11,7 +11,7 @@
   .divider {
     width: 1px;
     height: 28px;
-    background: rgba(244, 205, 94, 0.15);
+    background: color-mix(in srgb, var(--accent-secondary) 15%, transparent);
     margin: 0 4px;
   }
 

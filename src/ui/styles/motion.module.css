@@ -10,8 +10,8 @@
     width: 100%;
     height: 64px;
     padding: 0;
-    background: linear-gradient(180deg, #171310, #0e0b09);
-    border: 1px solid #3a2f26;
+    background: var(--pad-bed);
+    border: 1px solid var(--pad-border);
     border-radius: 4px;
     box-shadow: inset 0 2px 6px rgba(0, 0, 0, 0.6);
     cursor: crosshair;
@@ -19,12 +19,12 @@
   }
 
   .pad.beat {
-    border-color: #5a3626;
+    border-color: var(--pad-border-hover);
   }
 
   .pad:global(.playing) {
-    border-color: #ffb051;
-    box-shadow: inset 0 2px 6px rgba(0, 0, 0, 0.6), 0 0 6px rgba(255, 176, 81, 0.55);
+    border-color: var(--motion);
+    box-shadow: inset 0 2px 6px rgba(0, 0, 0, 0.6), 0 0 6px color-mix(in srgb, var(--motion) 55%, transparent);
   }
 
   /* Faint center crosshair so an empty pad still reads as a 2-D surface. */
@@ -33,7 +33,7 @@
     content: '';
     position: absolute;
     pointer-events: none;
-    background: rgba(255, 176, 81, 0.08);
+    background: color-mix(in srgb, var(--motion) 8%, transparent);
   }
   .pad::before { left: 50%; top: 0; bottom: 0; width: 1px; }
   .pad::after { top: 50%; left: 0; right: 0; height: 1px; }
@@ -43,15 +43,15 @@
     width: 9px;
     height: 9px;
     border-radius: 50%;
-    background: #ffb051;
-    box-shadow: 0 0 5px rgba(255, 176, 81, 0.8);
+    background: var(--motion);
+    box-shadow: 0 0 5px color-mix(in srgb, var(--motion) 80%, transparent);
     transform: translate(-50%, -50%);
     pointer-events: none;
     display: none;
   }
 
   .pad:global(.on) .dot { display: block; }
-  .pad.beat .dot { background: #ff7a4d; box-shadow: 0 0 5px rgba(255, 122, 77, 0.8); }
+  .pad.beat .dot { background: var(--motion-beat); box-shadow: 0 0 5px color-mix(in srgb, var(--motion-beat) 80%, transparent); }
 
   /* The connecting graph for the selected axis, drawn over the whole grid.
      Explicit width/height: an absolutely-positioned SVG is a replaced element,
@@ -65,17 +65,17 @@
   }
   .graph polyline {
     fill: none;
-    stroke: rgba(255, 176, 81, 0.55);
+    stroke: color-mix(in srgb, var(--motion) 55%, transparent);
     stroke-width: 1.5;
     vector-effect: non-scaling-stroke;
   }
   .graph circle {
-    fill: rgba(255, 176, 81, 0.9);
+    fill: color-mix(in srgb, var(--motion) 90%, transparent);
   }
   /* The bar-line carry: what the curve does between this bar and its neighbours
      (motion-sequencer.md REQ-cross-bank-carry). Dashed + dimmer so it reads as "leaving the bar". */
   .graph polyline.carry {
-    stroke: rgba(255, 176, 81, 0.32);
+    stroke: color-mix(in srgb, var(--motion) 32%, transparent);
     stroke-dasharray: 3 3;
   }
 
@@ -89,7 +89,7 @@
     flex-wrap: wrap;
     margin-bottom: 6px;
     font-size: 11px;
-    color: #b9a58f;
+    color: var(--text-soft);
     /* Solid divider fencing the machine header (on/banks/undo/clear) off from the
        XY lane settings — the same rule the Drum tab uses below its grid
        (drum.module.css .tuning). The XY↔tracks divider below stays dashed. */
@@ -101,7 +101,7 @@
     font-size: 10px;
     letter-spacing: 0.08em;
     text-transform: uppercase;
-    color: #8f7a63;
+    color: var(--text-label);
   }
   /* An axis dropdown showing an inherited (non-overridden) assignment is dimmed via
      `Dropdown.setDimmed` (dropdown.md REQ-a-dropdown-can-be-dimmed), which owns the styling. There is no
@@ -109,7 +109,7 @@
      dropdown ROOT, which faded the open option list and trapped it behind the pads. */
   .hint {
     font-size: 10px;
-    color: #77664f;
+    color: var(--text-hint);
   }
 
   /* Per-lane value readout (motion-sequencer.md REQ-a-motion-steps-value-is-readable-without-hovering). Permanent chrome, not a
@@ -125,7 +125,7 @@
     font-size: 10px;
     letter-spacing: 0.04em;
     font-variant-numeric: tabular-nums;
-    color: #8f7a63;
+    color: var(--text-label);
     white-space: nowrap;
   }
 
@@ -144,7 +144,7 @@
     right: 0;
     bottom: 0;
     height: 0;
-    background: linear-gradient(180deg, var(--accent) 0%, rgba(232, 116, 46, 0.35) 100%);
+    background: linear-gradient(180deg, var(--accent) 0%, color-mix(in srgb, var(--accent) 35%, transparent) 100%);
     border-radius: 0 0 3px 3px;
     pointer-events: none;
   }

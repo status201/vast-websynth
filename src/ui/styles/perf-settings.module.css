@@ -79,7 +79,7 @@
   }
 
   :is(button.tierWeak, button.tierMedium, button.tierStrong):not(:active) {
-    box-shadow: 0 0 8px var(--tier-glow), inset 0 1px 0 rgba(244, 205, 94, 0.06);
+    box-shadow: 0 0 8px var(--tier-glow), inset 0 1px 0 color-mix(in srgb, var(--accent-secondary) 6%, transparent);
   }
 
   /* Pending reload: the chosen mode differs from what the engine is actually

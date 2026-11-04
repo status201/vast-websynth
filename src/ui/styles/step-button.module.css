@@ -5,7 +5,7 @@
     width: 100%;
     height: 32px;
     border-radius: 4px;
-    background: linear-gradient(180deg, #1a1410, #0a0805);
+    background: var(--well);
     border: 1px solid var(--panel-border);
     color: var(--text-faint);
     font-size: 9px;
@@ -14,7 +14,7 @@
     cursor: pointer;
     letter-spacing: 0.04em;
     box-shadow:
-      inset 0 1px 0 rgba(244, 205, 94, 0.05),
+      inset 0 1px 0 color-mix(in srgb, var(--accent-secondary) 5%, transparent),
       inset 0 -1px 2px rgba(0, 0, 0, 0.5),
       0 1px 2px rgba(0, 0, 0, 0.5);
   }
@@ -22,32 +22,32 @@
   .root:active { transform: translateY(1px); }
 
   .on {
-    background: linear-gradient(180deg, #d4602a 0%, #8a3010 100%);
-    color: #f4e4c2;
-    border-color: #d4602a;
+    background: var(--lit);
+    color: var(--lit-text);
+    border-color: var(--lit-top);
     box-shadow:
-      0 0 8px rgba(232, 116, 46, 0.5),
-      inset 0 1px 0 rgba(255, 220, 180, 0.3),
+      0 0 8px var(--accent-glow),
+      inset 0 1px 0 var(--lit-shine),
       inset 0 -1px 2px rgba(0, 0, 0, 0.5);
     text-shadow: 0 1px 0 rgba(0, 0, 0, 0.6);
   }
 
   .red.on {
-    background: linear-gradient(180deg, #d4302a 0%, #8a1010 100%);
-    border-color: #d4302a;
+    background: var(--lit-bad);
+    border-color: var(--lit-bad-top);
     box-shadow:
-      0 0 8px rgba(255, 58, 32, 0.5),
-      inset 0 1px 0 rgba(255, 180, 160, 0.3),
+      0 0 8px color-mix(in srgb, var(--led-on) 50%, transparent),
+      inset 0 1px 0 var(--lit-bad-shine),
       inset 0 -1px 2px rgba(0, 0, 0, 0.5);
   }
 
   .yellow.on {
-    background: linear-gradient(180deg, #e8b542 0%, #8a6010 100%);
-    border-color: #e8b542;
-    color: #1a1410;
+    background: var(--lit-warm);
+    border-color: var(--lit-warm-top);
+    color: var(--ink);
     box-shadow:
-      0 0 8px rgba(244, 205, 94, 0.5),
-      inset 0 1px 0 rgba(255, 240, 180, 0.4),
+      0 0 8px color-mix(in srgb, var(--accent-secondary) 50%, transparent),
+      inset 0 1px 0 var(--lit-warm-shine),
       inset 0 -1px 2px rgba(0, 0, 0, 0.5);
   }
 
@@ -56,7 +56,7 @@
     outline-offset: -2px;
     box-shadow:
       0 0 12px var(--accent-secondary-glow),
-      inset 0 1px 0 rgba(244, 205, 94, 0.2);
+      inset 0 1px 0 color-mix(in srgb, var(--accent-secondary) 20%, transparent);
   }
 
   /* Selection cursor. Qualified with `.root` so it outranks the accent-specific
@@ -91,9 +91,9 @@
   /* With the viz fill present, the lit look moves from the button background
      to the .fill layer; the root keeps the dark socket plus the accent border. */
   .on.has-viz {
-    background: linear-gradient(180deg, #1a1410, #0a0805);
+    background: var(--well);
     box-shadow:
-      inset 0 1px 0 rgba(244, 205, 94, 0.05),
+      inset 0 1px 0 color-mix(in srgb, var(--accent-secondary) 5%, transparent),
       inset 0 -1px 2px rgba(0, 0, 0, 0.5),
       0 1px 2px rgba(0, 0, 0, 0.5);
   }
@@ -113,11 +113,11 @@
        per tick. No transition: this is a timing readout, not an animation. */
     left: calc(var(--sb-micro, 0) * 100%);
     border-radius: 3px;
-    background: linear-gradient(180deg, #d4602a 0%, #8a3010 100%);
+    background: var(--lit);
     filter: brightness(calc(0.45 + 0.75 * var(--sb-vel, 0.8)));
     box-shadow:
-      0 0 8px rgba(232, 116, 46, 0.5),
-      inset 0 1px 0 rgba(255, 220, 180, 0.3),
+      0 0 8px var(--accent-glow),
+      inset 0 1px 0 var(--lit-shine),
       inset 0 -1px 2px rgba(0, 0, 0, 0.5);
     pointer-events: none;
   }
@@ -126,10 +126,10 @@
 
   /* red-accent cells (drum/sampler beat columns) keep their red when lit */
   .red .fill {
-    background: linear-gradient(180deg, #d4302a 0%, #8a1010 100%);
+    background: var(--lit-bad);
     box-shadow:
-      0 0 8px rgba(255, 58, 32, 0.5),
-      inset 0 1px 0 rgba(255, 180, 160, 0.3),
+      0 0 8px color-mix(in srgb, var(--led-on) 50%, transparent),
+      inset 0 1px 0 var(--lit-bad-shine),
       inset 0 -1px 2px rgba(0, 0, 0, 0.5);
   }
 
@@ -154,7 +154,7 @@
     left: 3px;
     height: 3px;
     width: calc(var(--sb-ratchet, 1) * 5px - 2px); /* N ticks of 3px + 2px gaps */
-    background: repeating-linear-gradient(90deg, #f4cd5e 0 3px, transparent 3px 5px);
+    background: repeating-linear-gradient(90deg, var(--accent-secondary) 0 3px, transparent 3px 5px);
     z-index: 1;
     pointer-events: none;
   }
@@ -174,10 +174,10 @@
     pointer-events: none;
   }
   .bendUp.on::before {
-    background: linear-gradient(to top left, transparent calc(50% - 0.75px), #f4cd5e 50%, transparent calc(50% + 0.75px));
+    background: linear-gradient(to top left, transparent calc(50% - 0.75px), var(--accent-secondary) 50%, transparent calc(50% + 0.75px));
   }
   .bendDown.on::before {
-    background: linear-gradient(to bottom left, transparent calc(50% - 0.75px), #f4cd5e 50%, transparent calc(50% + 0.75px));
+    background: linear-gradient(to bottom left, transparent calc(50% - 0.75px), var(--accent-secondary) 50%, transparent calc(50% + 0.75px));
   }
 
   /* The keyboard focus ring (step-grid-editing.md REQ-a-trigger-grid-is-reachable-by-keyboard).

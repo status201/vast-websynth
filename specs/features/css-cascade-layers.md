@@ -95,7 +95,8 @@ segmented control they were written to override.
   `scripts/css-cascade/fingerprint.mjs`: the computed style and box of every
   element in every captured state × viewport, compared against a baseline taken
   before the change, on **both** `vite dev` and the built app. Zero differences,
-  or each one explained.
+  or each one explained. A move of colour literals into tokens compares with
+  `--rendered` ([ui-themes](ui-themes.md) REQ-a-token-move-is-proven-by-fingerprint).
 
 ## Technical design
 

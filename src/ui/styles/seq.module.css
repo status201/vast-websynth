@@ -18,7 +18,7 @@
     outline: 1px solid var(--accent-secondary);
     outline-offset: 4px;
     border-radius: 3px;
-    box-shadow: 0 0 8px rgba(232, 116, 46, 0.35);
+    box-shadow: 0 0 8px color-mix(in srgb, var(--accent) 35%, transparent);
   }
 
   .noteDisplay {

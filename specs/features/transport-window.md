@@ -312,7 +312,7 @@ The scrubber (REQ-the-scrubber-presents-as-a-timeline) — square cells the heig
 near-black bed whose 2px gaps are the dividers. One line; a long song scrolls:
 
   ┌─────────────────────────────────────────────┐
-  │ │ 1 │ 2 │ 3 │ 4 │ 5 │ 6 │▓7▓│ 8 │ 9 │10 │11 │→   #0c0905 bed, 35px cells
+  │ │ 1 │ 2 │ 3 │ 4 │ 5 │ 6 │▓7▓│ 8 │ 9 │10 │11 │→   --tray-top bed, 35px cells
   └─────────────────────────────────────────────┘    ▓ = the global `playing`
 ```
 

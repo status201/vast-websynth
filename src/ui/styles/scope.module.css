@@ -6,7 +6,7 @@
        (.scopeScreen) so the animated canvas bitmap never re-rasters it. The canvas
        itself is transparent and sits above that underlay. */
     background: transparent;
-    border: 1px solid #2a1c10;
+    border: 1px solid var(--screen-border);
     border-radius: 3px;
     display: block;
     position: relative;

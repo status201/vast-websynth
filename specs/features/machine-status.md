@@ -224,7 +224,7 @@ so the tab dots read as the same hardware as every other indicator in the app:
 
 ```yaml
 on:    --led-on  + 8px red glow    # fully lit — enabled and audible
-muted: #8c2414, no glow            # half lit  — enabled but silent
+muted: --led-dim, no glow          # half lit  — enabled but silent
 off:   --led-off + inset shadow    # unlit     — disabled (the .led base)
 ```
 

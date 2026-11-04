@@ -1,41 +1,156 @@
+/*
+ * The default theme (Dark) — every token, and the one place each is declared
+ * (specs/features/ui-themes.md). A module colours ONLY through these, by role
+ * (REQ-tokens-are-named-by-role); tests/ui/theme-tokens.test.ts fails a literal.
+ *
+ * A BASE token holds a colour of its own and every theme redefines it. A DERIVED
+ * token is built from bases — a gradient of two of them, or an alpha of one via
+ * color-mix (REQ-an-alpha-derives-from-its-base) — and is declared here only: a
+ * theme that changes the base changes it too.
+ */
 @layer theme {
   :root {
+    /* ===== Chassis ===== */
     --bg: #0e0a06;
     --bg-deep: #050302;
     --panel: linear-gradient(180deg, #2c2620 0%, #1a1612 100%);
     --panel-flat: #1c1814;
     --panel-border: #5d4628;
+    /* A cap's edge on a recessed key row (the KEY tab's sharp rank). */
+    --panel-border-dim: #3d2e1b;
     --panel-shadow:
       0 8px 24px rgba(0, 0, 0, 0.65),
-      inset 0 1px 0 rgba(244, 205, 94, 0.08),
+      inset 0 1px 0 color-mix(in srgb, var(--accent-secondary) 8%, transparent),
       inset 0 0 0 1px rgba(0, 0, 0, 0.3);
+    /* The faceplate's hairline rule: under a panel title, between LFO tabs, atop
+       a modal footer. One colour, so the dividers cannot drift apart. */
+    --rule: color-mix(in srgb, var(--accent-secondary) 18%, transparent);
+    --wood: linear-gradient(180deg, #4a2d18 0%, #6b3e1f 30%, #3a2010 70%, #2a1808 100%);
+    --wood-grain:
+      repeating-linear-gradient(
+        90deg,
+        rgba(0, 0, 0, 0.15) 0px,
+        rgba(0, 0, 0, 0.15) 1px,
+        transparent 1px,
+        transparent 3px,
+        rgba(255, 200, 120, 0.05) 3px,
+        rgba(255, 200, 120, 0.05) 5px,
+        transparent 5px,
+        transparent 9px
+      );
+
+    /* ===== Type ===== */
     --text: #e8d8b6;
     --text-dim: #a89372;
     --text-faint: #5d4a33;
+    /* Three steps between --text and --text-dim, for a machine's own small print:
+       a header line, a control's caption, a hint. */
+    --text-soft: #b9a58f;
+    --text-label: #8f7a63;
+    --text-hint: #77664f;
+    /* Red for *text* — error lines, destructive labels. --accent-bad is a fill
+       colour and too dark to read as type on the card. */
+    --text-bad: #ff6a52;
+    --text-bad-hover: #ff8a76;
+    /* A problem being reported (the preset wizard's error list, a sample that
+       needs reloading) — softer than --text-bad, which is an action's label. */
+    --text-error: #e2705a;
+    --border-error: #7a2b22;
+    --text-good: #6fcf7f;
+
+    /* ===== Accents and LEDs ===== */
     --accent: #e8742e;
-    --accent-glow: rgba(232, 116, 46, 0.5);
+    --accent-glow: color-mix(in srgb, var(--accent) 50%, transparent);
     --accent-secondary: #f4cd5e;
-    --accent-secondary-glow: rgba(244, 205, 94, 0.45);
-    /* The faceplate's hairline rule: under a panel title, between LFO tabs, atop
-       a modal footer. One colour, so the dividers cannot drift apart. */
-    --rule: rgba(244, 205, 94, 0.18);
+    --accent-secondary-glow: color-mix(in srgb, var(--accent-secondary) 45%, transparent);
     /* The active yellow burning low: a tab that is selected but folded out of
        sight (section-title.md REQ-folded-selected-tab-dims). Kept a yellow so it still reads as a tab,
        never the headings' --text-dim. */
     --accent-secondary-dim: #9f853d;
     --accent-good: #6fb86a;
-    --accent-good-glow: rgba(111, 184, 106, 0.42);
+    --accent-good-glow: color-mix(in srgb, var(--accent-good) 42%, transparent);
     --accent-bad: #e0403a;
-    /* Red for *text* — error lines, destructive labels. --accent-bad is a fill
-       colour and too dark to read as type on the card. */
-    --text-bad: #ff6a52;
-    --accent-bad-glow: rgba(232, 116, 46, 0.5);
+    --accent-bad-glow: color-mix(in srgb, var(--accent) 50%, transparent);
     --led-on: #ff3a20;
     --led-off: #2a0a05;
+    /* Half lit: enabled but silent (a muted lane's tab LED). */
+    --led-dim: #8c2414;
+    /* The green LED: the Play button's cue. */
+    --led-good: #4ade50;
+    /* The gain-reduction meter's hot end (its cool end is --accent-secondary). */
+    --meter-hot: #e0633a;
+    /* The motion sequencer's own amber, warmer than --accent-secondary so a
+       motion lane never reads as a step lane; and its beat-step dot. */
+    --motion: #ffb051;
+    --motion-beat: #ff7a4d;
+
+    /* ===== Control surfaces =====
+       well   — the bed a button sits in (step buttons, switches, toggles)
+       tray   — the bed a ROW of buttons sits in (bank bar, segmented control)
+       recess — a tab strip's or rack's sunken bed
+       raised — a selected control standing out of its tray
+       field  — a text field's background */
+    --well-top: #1a1410;
+    --well-bottom: #0a0805;
+    --well: linear-gradient(180deg, var(--well-top), var(--well-bottom));
+    --tray-top: #0c0905;
+    --tray-bottom: #1a1410;
+    --tray: linear-gradient(180deg, var(--tray-top), var(--tray-bottom));
+    --recess-top: #0a0604;
+    --recess-bottom: #16100b;
+    --recess: linear-gradient(180deg, var(--recess-top) 0%, var(--recess-bottom) 100%);
+    --raised-top: #4a3525;
+    --raised-bottom: #2a1c10;
+    --raised: linear-gradient(180deg, var(--raised-top), var(--raised-bottom));
+    --field: #0a0805;
+    /* A popover menu and its hovered row. */
+    --menu: linear-gradient(180deg, #221c16 0%, #15110d 100%);
+    --menu-hover: linear-gradient(180deg, #3a2a18, #1f1610);
+    /* A grip: the resize handle, a slider's thumb. */
+    --handle-light: #6a553c;
+    --handle-dark: #2a1c10;
+    --handle-edge: #1a0e08;
+    --handle: linear-gradient(180deg, var(--handle-light) 0%, var(--handle-dark) 100%);
+    /* A touch pad (the motion sequencer's XY steps). */
+    --pad-bed: linear-gradient(180deg, #171310, #0e0b09);
+    --pad-border: #3a2f26;
+    --pad-border-hover: #5a3626;
+
+    /* ===== Lit controls =====
+       A control that is ON, in three colours: the accent (a set step, a playing
+       chip), bad (an accent/accented hit) and warm (a tie, a selection). Each is a
+       gradient, its top as the edge colour, and a shine along its top lip. */
+    --lit-top: #d4602a;
+    --lit-bottom: #8a3010;
+    --lit: linear-gradient(180deg, var(--lit-top) 0%, var(--lit-bottom) 100%);
+    --lit-shine: rgba(255, 220, 180, 0.3);
+    --lit-text: #f4e4c2;
+    --lit-bad-top: #d4302a;
+    --lit-bad-bottom: #8a1010;
+    --lit-bad: linear-gradient(180deg, var(--lit-bad-top) 0%, var(--lit-bad-bottom) 100%);
+    --lit-bad-shine: rgba(255, 180, 160, 0.3);
+    --lit-warm-top: #e8b542;
+    --lit-warm-bottom: #8a6010;
+    --lit-warm: linear-gradient(180deg, var(--lit-warm-top) 0%, var(--lit-warm-bottom) 100%);
+    --lit-warm-shine: rgba(255, 240, 180, 0.4);
+    /* The inner ring on a lit bar in the transport/ruler. */
+    --lit-ring: rgba(255, 246, 214, 0.45);
+    /* Dark type printed on a lit fill. */
+    --ink: #1a1410;
+    --ink-strong: #120a04;
+
+    /* ===== Keyboard ===== */
+    --key-bed: linear-gradient(180deg, #0a0604 0%, #1a0e08 100%);
     --key-white: linear-gradient(180deg, #ece1bc 0%, #c8b890 100%);
     --key-white-active: linear-gradient(180deg, #f4b56a 0%, #d4602a 100%);
     --key-black: linear-gradient(180deg, #1a0e08 0%, #050302 100%);
     --key-black-active: linear-gradient(180deg, #d4502a 0%, #8a2810 100%);
+    --key-white-ink: rgba(60, 40, 20, 0.6);
+    --key-white-shade: rgba(80, 50, 20, 0.4);
+    --key-white-shine: rgba(255, 240, 200, 0.4);
+    --key-white-active-shine: rgba(255, 220, 180, 0.4);
+    --key-black-active-shine: rgba(255, 180, 130, 0.3);
+    --key-black-active-glow: rgba(232, 80, 32, 0.5);
     /* Musical roles in the current key — read by BOTH key pictures: the KEY tab's map
        (key.module.css, solid fills) and the playable keyboard (keyboard.module.css, a
        bottom-weighted wash). One palette so the two cannot drift into two colour codes
@@ -62,24 +177,52 @@
     --key-role-out-edge: #4a3d2e;
     --key-role-out-black: #16120e;
     --knob-bg: radial-gradient(circle at 35% 30%, #3a342c 0%, #1a1410 70%, #050302 100%);
-    --knob-ring: rgba(244, 205, 94, 0.12);
-    --wood: linear-gradient(180deg, #4a2d18 0%, #6b3e1f 30%, #3a2010 70%, #2a1808 100%);
-    --wood-grain:
-      repeating-linear-gradient(
-        90deg,
-        rgba(0, 0, 0, 0.15) 0px,
-        rgba(0, 0, 0, 0.15) 1px,
-        transparent 1px,
-        transparent 3px,
-        rgba(255, 200, 120, 0.05) 3px,
-        rgba(255, 200, 120, 0.05) 5px,
-        transparent 5px,
-        transparent 9px
-      );
+    --knob-ring: color-mix(in srgb, var(--accent-secondary) 12%, transparent);
+
+    /* ===== Screens (REQ-screens-are-their-own-family) =====
+       The display windows — scope, EQ graph, sample waveform, scratch graph. The
+       canvases read the --screen-* inks through src/ui/theme-colors.ts. */
+    --screen: radial-gradient(ellipse at center, #0a0604 0%, #050302 100%);
+    --screen-border: #2a1c10;
+    --screen-ink: var(--accent-secondary);
+    --screen-trace: var(--accent);
+    --screen-hot: var(--led-on);
+    --screen-highlight: #ffe9a8;
+    --screen-cue: #7fd6ff;
+    /* The FX patch bay: its well, the shade that sinks its rim, the hero lead's
+       cable and plug, and the six hues of the cables behind it. */
+    --patch-bay: radial-gradient(ellipse 78% 86% at 50% 48%, #0c0c0a 0%, #0a0806 58%, #050403 100%);
+    --patch-shade: #050403;
+    --patch-cable: #1a1209;
+    --patch-boot: #1a130c;
+    --patch-barrel: #241e18;
+    --patch-metal: #3a3129;
+    --cable-brown: #17100a;
+    --cable-brown-lit: color-mix(in srgb, var(--accent) 5%, transparent);
+    --cable-red: #1b0d0a;
+    --cable-red-lit: rgba(200, 72, 66, 0.042);
+    --cable-blue: #0c1219;
+    --cable-blue-lit: rgba(96, 138, 186, 0.04);
+    --cable-green: #0d1710;
+    --cable-green-lit: rgba(108, 160, 104, 0.04);
+    --cable-amber: #1a1408;
+    --cable-amber-lit: color-mix(in srgb, var(--accent-secondary) 4.6%, transparent);
+    --cable-violet: #150c16;
+    --cable-violet-lit: rgba(140, 110, 180, 0.038);
+
+    /* ===== Overlays and app chrome ===== */
+    /* A modal's backdrop, the tour's spotlight, the rest overlay, a file drop. */
+    --scrim-ink: #080603;
+    --scrollbar-thumb: linear-gradient(180deg, #6b3e1f, #3a2010);
+    --scrollbar-thumb-hover: linear-gradient(180deg, var(--accent), #8a3a14);
+    --start-btn: linear-gradient(180deg, #2a2a30, #18181c);
+
+    /* ===== Faces (typography.md decides which; a theme decides what) ===== */
     --serif: 'Georgia', 'Times New Roman', serif;
     --sans: 'Inter', system-ui, -apple-system, sans-serif;
     /* Readouts and pasted text. Also the only face with reliable tabular figures:
-       Georgia's are proportional old-style, so a serif counter jitters per digit. */
+       Georgia's are proportional old-style, so a serif counter jitters per digit.
+       Never themed (ui-themes.md REQ-mono-is-not-themed). */
     --mono: ui-monospace, 'SFMono-Regular', Menlo, Consolas, monospace;
 
     /* Responsive sizing tokens — overridden per-breakpoint on `.app`

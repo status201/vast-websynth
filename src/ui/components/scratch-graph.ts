@@ -7,6 +7,7 @@ import {
 import { MAX_SCRATCH_POINTS, MAX_SCRATCH_RATE } from '../../state/limits';
 import { DOUBLE_TAP_MS } from './gesture-timing';
 import { clamp01 } from '../../utils/math';
+import { paletteDerived, rgba } from '../theme-colors';
 
 /**
  * The scratch editor's canvas (scratch.md REQ-the-graph-is-two-lanes-on-output-time/REQ-the-preview-lane-remaps-cached-peaks/REQ-the-scratch-gesture-inventory).
@@ -65,18 +66,23 @@ const RATE_SNAP = 0.25;
 /** Sixteenths in a quarter note — the lighter of the two grid accents. */
 const QUARTER = 4;
 
-const COL_GRID = 'rgba(244, 205, 94, 0.10)';
-const COL_BEAT = 'rgba(244, 205, 94, 0.20)';
-const COL_BAR = 'rgba(244, 205, 94, 0.45)';
-const COL_ZERO = 'rgba(244, 205, 94, 0.30)';
-const COL_UNITY = 'rgba(244, 205, 94, 0.14)';
-const COL_WAVE = '#e8742e';
-const COL_WAVE_DIM = 'rgba(232, 116, 46, 0.22)';
-const COL_CURVE = '#f4cd5e';
-const COL_DOT = '#ffe9a8';
-const COL_CUT = 'rgba(255, 58, 32, 0.55)';
-const COL_OFF = 'rgba(255, 58, 32, 0.13)';
-const COL_CUE = '#7fd6ff';
+/** The graph's inks, from the screen tokens (ui-themes.md REQ-canvas-reads-the-screen-tokens). */
+const colours = paletteDerived((p) => ({
+  grid: rgba(p.ink, 0.1),
+  beat: rgba(p.ink, 0.2),
+  bar: rgba(p.ink, 0.45),
+  zero: rgba(p.ink, 0.3),
+  unity: rgba(p.ink, 0.14),
+  selection: rgba(p.ink, 0.05),
+  curve: rgba(p.ink),
+  wave: rgba(p.trace),
+  waveDim: rgba(p.trace, 0.22),
+  cueZone: rgba(p.trace, 0.16),
+  dot: rgba(p.highlight),
+  cut: rgba(p.hot, 0.55),
+  off: rgba(p.hot, 0.13),
+  cue: rgba(p.cue),
+}));
 
 export interface ScratchGraphOptions {
   curve: ScratchCurve;
@@ -424,18 +430,19 @@ export class ScratchGraph {
   }
 
   private drawGrid(g: CanvasRenderingContext2D, w: number): void {
+    const c = colours();
     g.lineWidth = 1;
     for (let s = 0; s <= this.steps; s++) {
       const x = Math.round((s / this.steps) * w) + 0.5;
-      g.strokeStyle = s % this.barTicks === 0 ? COL_BAR
-        : s % QUARTER === 0 ? COL_BEAT : COL_GRID;
+      g.strokeStyle = s % this.barTicks === 0 ? c.bar
+        : s % QUARTER === 0 ? c.beat : c.grid;
       g.beginPath();
       g.moveTo(x, PREVIEW_Y);
       g.lineTo(x, RATE_Y + RATE_H);
       g.stroke();
     }
     // Unity and zero, the two rates a player reads the curve against.
-    for (const [v, col] of [[0, COL_ZERO], [1, COL_UNITY], [-1, COL_UNITY]] as const) {
+    for (const [v, col] of [[0, c.zero], [1, c.unity], [-1, c.unity]] as const) {
       const y = Math.round(this.yOfRate(v)) + 0.5;
       g.strokeStyle = col;
       g.beginPath();
@@ -448,6 +455,7 @@ export class ScratchGraph {
   private drawPreview(
     g: CanvasRenderingContext2D, w: number, plan: ReturnType<typeof scratchPlan>,
   ): void {
+    const c = colours();
     const cols = Math.max(1, Math.floor(w));
     const mid = PREVIEW_Y + PREVIEW_H / 2;
     const half = PREVIEW_H / 2 - 1;
@@ -455,7 +463,7 @@ export class ScratchGraph {
     // Off-record first, underneath: the shading is the answer to "why is this
     // stretch of my scratch silent?" (REQ-the-cue-auto-places-from-the-excursion), and it has to read as a region.
     if (this.srcFrames > 0 && this.outFrames > 0) {
-      g.fillStyle = COL_OFF;
+      g.fillStyle = c.off;
       let seg = 0;
       let runFrom = -1;
       for (let x = 0; x <= cols; x++) {
@@ -474,7 +482,7 @@ export class ScratchGraph {
     const warped = warpPeaks(
       this.peaks, this.curve, this.srcFrames, this.outFrames, cols,
     );
-    g.fillStyle = COL_WAVE;
+    g.fillStyle = c.wave;
     for (let x = 0; x < cols; x++) {
       const lo = warped[x * 2]!;
       const hi = warped[x * 2 + 1]!;
@@ -488,9 +496,10 @@ export class ScratchGraph {
   private drawCuts(
     g: CanvasRenderingContext2D, w: number, plan: ReturnType<typeof scratchPlan>,
   ): void {
-    g.fillStyle = 'rgba(244, 205, 94, 0.05)';
+    const c = colours();
+    g.fillStyle = c.selection;
     g.fillRect(0, CUT_Y, w, CUT_H);
-    g.fillStyle = COL_CUT;
+    g.fillStyle = c.cut;
     for (let i = 0; i < plan.n; i++) {
       if (!cutIn(plan, i)) continue;
       const x0 = this.xOf(plan.t[i]!);
@@ -500,8 +509,9 @@ export class ScratchGraph {
   }
 
   private drawCurve(g: CanvasRenderingContext2D, plan: ReturnType<typeof scratchPlan>): void {
+    const c = colours();
     if (plan.n === 0) return;
-    g.strokeStyle = COL_CURVE;
+    g.strokeStyle = c.curve;
     g.lineWidth = 1.5;
     g.beginPath();
     g.moveTo(this.xOf(plan.t[0]!), this.yOfRate(plan.v0[0]!));
@@ -515,7 +525,7 @@ export class ScratchGraph {
     g.stroke();
 
     for (const p of this.curve.points) {
-      g.fillStyle = COL_DOT;
+      g.fillStyle = c.dot;
       g.beginPath();
       g.arc(this.xOf(p.t), this.yOfRate(p.v), DOT_PX, 0, Math.PI * 2);
       g.fill();
@@ -525,11 +535,12 @@ export class ScratchGraph {
   private drawSource(
     g: CanvasRenderingContext2D, w: number, plan: ReturnType<typeof scratchPlan>,
   ): void {
+    const c = colours();
     const pw = Math.floor(this.peaks.length / 2);
     const mid = SOURCE_Y + SOURCE_H / 2;
     const half = SOURCE_H / 2 - 1;
 
-    g.fillStyle = COL_WAVE_DIM;
+    g.fillStyle = c.waveDim;
     for (let x = 0; x < w && pw > 0; x++) {
       const c = Math.min(pw - 1, Math.floor((x / w) * pw));
       const lo = this.peaks[c * 2]!;
@@ -551,18 +562,18 @@ export class ScratchGraph {
       }
       const x0 = (lo / this.srcFrames) * w;
       const x1 = (hi / this.srcFrames) * w;
-      g.fillStyle = 'rgba(232, 116, 46, 0.16)';
+      g.fillStyle = c.cueZone;
       g.fillRect(x0, SOURCE_Y, Math.max(1, x1 - x0), SOURCE_H);
     }
 
     const cx = Math.round(this.xOf(plan.cue)) + 0.5;
-    g.strokeStyle = COL_CUE;
+    g.strokeStyle = c.cue;
     g.lineWidth = 1.5;
     g.beginPath();
     g.moveTo(cx, SOURCE_Y);
     g.lineTo(cx, SOURCE_Y + SOURCE_H);
     g.stroke();
-    g.fillStyle = COL_CUE;
+    g.fillStyle = c.cue;
     g.beginPath();
     g.moveTo(cx - 4, SOURCE_Y);
     g.lineTo(cx + 4, SOURCE_Y);

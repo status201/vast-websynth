@@ -2,7 +2,7 @@
   .root {
     width: 36px;
     height: 8px;
-    border: 1px solid rgba(244, 205, 94, 0.25);
+    border: 1px solid color-mix(in srgb, var(--accent-secondary) 25%, transparent);
     border-radius: 2px;
     background: rgba(0, 0, 0, 0.35);
     overflow: hidden;
@@ -16,7 +16,7 @@
     /* Right-anchored leftward growth via a compositor-only transform (no layout). */
     transform: scaleX(0);
     transform-origin: right;
-    background: linear-gradient(to left, var(--accent-secondary), #e0633a);
+    background: linear-gradient(to left, var(--accent-secondary), var(--meter-hot));
     /* No transition, deliberately. The worklet posts gain reduction every ~32ms,
        so a 60ms ease never finished before the next value overrode it: the fill
        lagged permanently and a fast transient's peak was never actually reached,

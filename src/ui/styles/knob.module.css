@@ -72,7 +72,7 @@
     background: var(--knob-bg);
     box-shadow:
       0 2px 3px rgba(0, 0, 0, 0.7),
-      inset 0 1px 1px rgba(244, 205, 94, 0.12),
+      inset 0 1px 1px color-mix(in srgb, var(--accent-secondary) 12%, transparent),
       inset 0 -2px 4px rgba(0, 0, 0, 0.6),
       0 0 0 1px rgba(0, 0, 0, 0.5);
     cursor: ns-resize;

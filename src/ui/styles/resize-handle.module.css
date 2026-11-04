@@ -28,11 +28,11 @@
     max-width: 48px;
     height: 5px;
     border-radius: 3px;
-    background: linear-gradient(180deg, #6a553c 0%, #2a1c10 100%);
-    border: 1px solid #1a0e08;
+    background: var(--handle);
+    border: 1px solid var(--handle-edge);
     box-shadow:
       0 1px 2px rgba(0, 0, 0, 0.6),
-      inset 0 1px 0 rgba(244, 205, 94, 0.18);
+      inset 0 1px 0 color-mix(in srgb, var(--accent-secondary) 18%, transparent);
     opacity: 0.55;
   }
 
@@ -45,7 +45,7 @@
 
   .root:global(.dragging) .grip {
     opacity: 1;
-    background: linear-gradient(180deg, var(--accent-secondary) 0%, #6a553c 100%);
+    background: linear-gradient(180deg, var(--accent-secondary) 0%, var(--handle-light) 100%);
   }
 
   /* A right edge (REQ-a-handle-has-a-direction): the same pill, stood upright. */
