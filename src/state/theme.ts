@@ -23,8 +23,9 @@ export interface ThemeInfo {
   /** `<meta name="color-scheme">` — native scrollbars and form controls. */
   colorScheme: 'dark' | 'light';
   /**
-   * The picker tile's chips: the theme's `--bg`, `--text`, `--accent` and
-   * `--accent-secondary`. Pinned equal to its stylesheet by tests/ui/theme.test.ts.
+   * The picker tile's four chips — the colours that say which theme it is (Dark's
+   * page, type and accents; Pastel's section faces). Each must be a colour the
+   * theme declares, pinned by tests/ui/theme.test.ts.
    */
   swatch: readonly [string, string, string, string];
 }
@@ -33,6 +34,7 @@ export interface ThemeInfo {
 export const THEMES: readonly ThemeInfo[] = [
   { id: 'dark', name: 'Dark', metaColor: '#1a1a1a', colorScheme: 'dark', swatch: ['#0e0a06', '#e8d8b6', '#e8742e', '#f4cd5e'] },
   { id: 'light', name: 'Light', metaColor: '#ece6da', colorScheme: 'light', swatch: ['#cfc7b8', '#2a2118', '#a8440f', '#8f5c00'] },
+  { id: 'pastel', name: 'Pastel', metaColor: '#141210', colorScheme: 'dark', swatch: ['#f0dc94', '#b7d3e9', '#f1b5a0', '#bcdcb4'] },
   { id: 'contrast', name: 'High contrast', metaColor: '#000000', colorScheme: 'dark', swatch: ['#000000', '#ffffff', '#ffb000', '#ffe600'] },
 ];
 

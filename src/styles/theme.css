@@ -39,6 +39,16 @@
         transparent 9px
       );
 
+    /* A synth section's face (ui-themes.md REQ-pastel-tints-each-panel): the panel
+       builders set data-tint, the rules after this block map it. Derived, so only a
+       theme that colours its sections (Pastel) sets them. */
+    --panel-tint-osc: var(--panel);
+    --panel-tint-mixer: var(--panel);
+    --panel-tint-filter: var(--panel);
+    --panel-tint-env: var(--panel);
+    --panel-tint-mod: var(--panel);
+    --panel-tint-fx: var(--panel);
+
     /* ===== Type ===== */
     --text: #e8d8b6;
     --text-dim: #a89372;
@@ -138,6 +148,14 @@
     /* Dark type printed on a lit fill. */
     --ink: #1a1410;
     --ink-strong: #120a04;
+    /* The bar the playhead is in (transport and ruler), inked with --ink-strong.
+       Dark's is the selected yellow; a theme whose yellow is deep enough to read
+       as type needs a brighter one here. */
+    --playing: var(--accent-secondary);
+    /* The accent as a lit fill with type on it — a DJ button that is on, the
+       info badge — and that type. Dark's accent is bright enough to be both. */
+    --lit-accent: var(--accent);
+    --lit-accent-ink: var(--bg-deep);
 
     /* ===== Keyboard ===== */
     --key-bed: linear-gradient(180deg, #0a0604 0%, #1a0e08 100%);
@@ -213,6 +231,11 @@
     --cable-violet-lit: rgba(140, 110, 180, 0.038);
 
     /* ===== Overlays and app chrome ===== */
+    /* A keyboard-shortcut keycap in the About card, its legend, and the sharp
+       rank's dimmer legend. Dark's caps are the deep chassis colour. */
+    --keycap: var(--bg-deep);
+    --keycap-ink: var(--text);
+    --keycap-sharp-ink: var(--text-dim);
     /* A modal's backdrop, the tour's spotlight, the rest overlay, a file drop. */
     --scrim-ink: #080603;
     /* A lane resting under the rest overlay: washed out, not shut away like a
@@ -236,4 +259,12 @@
     --side-margin: 22px; /* section inset clearing the wood cheeks */
     --cheek-w: 16px;     /* wood-grain side cheek width */
   }
+
+  /* Each section's tint, on the panel that names it (REQ-pastel-tints-each-panel). */
+  [data-tint="osc"] { --panel-tint: var(--panel-tint-osc); }
+  [data-tint="mixer"] { --panel-tint: var(--panel-tint-mixer); }
+  [data-tint="filter"] { --panel-tint: var(--panel-tint-filter); }
+  [data-tint="env"] { --panel-tint: var(--panel-tint-env); }
+  [data-tint="mod"] { --panel-tint: var(--panel-tint-mod); }
+  [data-tint="fx"] { --panel-tint: var(--panel-tint-fx); }
 }

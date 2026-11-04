@@ -93,6 +93,9 @@
     --lit-ring: rgba(255, 246, 214, 0.55);
     --ink: #1a1410;
     --ink-strong: #120a04;
+    --playing: #e8b542;
+    --lit-accent: #e8742e;
+    --lit-accent-ink: #120a04;
 
     /* ===== Keyboard ===== */
     --key-bed: linear-gradient(180deg, #8f8270 0%, #ada08a 100%);
@@ -150,6 +153,7 @@
     /* ===== Overlays and app chrome ===== */
     --scrim-ink: #1a140e;
     --veil: #efe9de;
+    --keycap-sharp-ink: #463c31;
     --scrollbar-thumb: linear-gradient(180deg, #c8996a, #a8794a);
     --start-btn: linear-gradient(180deg, #fbf8f2, #e2dbcd);
 

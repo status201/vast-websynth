@@ -47,8 +47,8 @@
      still showing through. Uses the global `playing` state class, the same one
      StepButton's playhead carries. */
   .tick:global(.playing) {
-    background: var(--accent-secondary);
-    border-color: var(--accent-secondary);
+    background: var(--playing);
+    border-color: var(--playing);
     color: var(--ink-strong);
     box-shadow: 0 0 6px var(--accent-secondary-glow);
   }

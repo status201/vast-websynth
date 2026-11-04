@@ -51,7 +51,7 @@ export function buildSynthPanels(bus: ParamBus): HTMLElement {
         ], panelStyles.six!),
       ], panelStyles.spread!)],
     });
-  }, 'oscillators'));
+  }, 'oscillators', 'osc'));
 
   main.appendChild(panel('OSC 2', (b) => {
     panelZones(b, {
@@ -65,7 +65,7 @@ export function buildSynthPanels(bus: ParamBus): HTMLElement {
       // Sync locks osc2 to osc1, so it lives on the slave's panel (oscillator-sync.md).
       bottom: new Segmented(bus, 'osc2.sync', OSC_SYNC_LABELS).el,
     });
-  }, 'osc2'));
+  }, 'osc2', 'osc'));
 
   main.appendChild(panel('SUB / UNI', (b) => {
     panelZones(b, {
@@ -78,7 +78,7 @@ export function buildSynthPanels(bus: ParamBus): HTMLElement {
         knob('unison.detune', 'SPRD'),
       ], panelStyles.quad!)],
     });
-  }, 'subuni'));
+  }, 'subuni', 'osc'));
 
   main.appendChild(panel('MIXER', (b) => {
     panelZones(b, {
@@ -89,7 +89,7 @@ export function buildSynthPanels(bus: ParamBus): HTMLElement {
       ], panelStyles.spread!)],
       bottom: new Segmented(bus, 'glide.mode', GLIDE_MODE_SHOWN).el,
     });
-  }, 'mixer'));
+  }, 'mixer', 'mixer'));
 
   main.appendChild(panel('FILTER', (b) => {
     // One .hex grid: 3x2 above 1280px, a single row on wider tablet panels.
@@ -111,7 +111,7 @@ export function buildSynthPanels(bus: ParamBus): HTMLElement {
     // rather than hide: the control keeps its place, so the switch reads as
     // "this model has more to offer", not as a jumping layout (ADR-014).
     bus.subscribe('filter.model', (m) => shape.setDisabled(Math.round(m) === 0));
-  }, 'filter'));
+  }, 'filter', 'filter'));
 
   main.appendChild(panel('AMP ENV', (b) => {
     panelZones(b, {
@@ -127,7 +127,7 @@ export function buildSynthPanels(bus: ParamBus): HTMLElement {
         knob('env.amp.release', 'R'),
       ], panelStyles.quad!)],
     });
-  }, 'ampenv'));
+  }, 'ampenv', 'env'));
 
   main.appendChild(panel('FILTER ENV', (b) => {
     // VEL sits with the filter envelope, not on the FILTER panel, because it
@@ -146,7 +146,7 @@ export function buildSynthPanels(bus: ParamBus): HTMLElement {
         knob('filter.velAmount', 'VEL'),
       ], panelStyles.quint!)],
     });
-  }, 'filterenv'));
+  }, 'filterenv', 'env'));
 
   bus.subscribe('voicing.mode', (v) => {
     const poly = v >= 0.5;

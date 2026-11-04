@@ -2,7 +2,7 @@
 
 ```yaml
 id: ui-themes
-status: active
+status: implemented
 version: 1
 owner: ui
 related:
@@ -16,6 +16,11 @@ source:
   - src/styles/theme.css             # the default (Dark) token set — the one place a token is declared
   - src/styles/themes/light.css      # Light
   - src/styles/themes/contrast.css   # High contrast
+  - src/styles/themes/pastel.css     # Pastel
+  - src/ui/components/panel.ts       # createPanel / createTabbedPanel set data-tint
+  - src/ui/panels/synth-panels.ts    # which section each faceplate panel is
+  - src/ui/panels/lfo-panel.ts
+  - src/ui/panels/fx-rack.ts         # every FX group is "fx"
   - src/styles/base.css              # html/body take var(--sans)
   - src/ui/styles/                   # every module colours through tokens
   - src/ui/theme-colors.ts           # canvases read the screen tokens through this
@@ -37,6 +42,7 @@ source:
   - tests/ui/theme.test.ts
   - tests/ui/theme-picker.test.ts
   - tests/ui/theme-contrast.test.ts
+  - tests/ui/panel-tint.test.ts
   - e2e/theme.spec.ts
 ```
 
@@ -149,11 +155,23 @@ Fonts are system stacks only — the app bundles no font file
   `--accent`, `--accent-secondary`) at 3:1. `--text-faint` is the unlit tier and,
   as in Dark, is meant to recede. Light's screens, patch bay and model badge stay
   dark, with Dark's bright inks (REQ-screens-are-their-own-family).
-- **REQ-pastel-tints-each-panel** — Each machine panel carries a `data-tint`
-  naming its section, and its chrome paints `var(--panel-tint, var(--panel))`.
-  Every theme maps each `--panel-tint-<section>` token; Dark, Light and High
-  contrast map them all to `--panel`, Pastel gives each section its own colour with
-  dark legends on it.
+- **REQ-pastel-tints-each-panel** — Each synth faceplate panel and each FX group
+  carries a `data-tint` naming its section — `osc` (OSC 1, OSC 2, SUB / UNI),
+  `mixer`, `filter`, `env` (both envelopes), `mod` (the LFOs), `fx` (every effect
+  group) — set by the panel builder (`createPanel`'s `tint`, `createTabbedPanel`'s
+  `tint`, the FX rack), never per call site in CSS. The panel paints
+  `var(--panel-tint, var(--panel))`, and `theme.css` maps each `data-tint` to its
+  `--panel-tint-<section>` token. Those tokens are derived — `var(--panel)` on
+  `:root` — so Dark, Light and High contrast are untouched; Pastel gives each
+  section its own flat colour. The header, the machine tabs, the scope, the
+  keyboard and the dialogs stay on `--panel`: a tint names a section of the
+  synth, and those are not one.
+- **REQ-pastel-reads-on-every-tint** — Pastel is light pastel faceplates with dark
+  legends on a black chassis between wood cheeks. Its body text reads at 4.5:1 or
+  better and its small print and accents at 3:1 on every flat surface **and every
+  section tint** (REQ-light-body-text-meets-aa's rule, with the tints added) —
+  except the page itself: the black chassis carries no type.
+  Screens stay dark. Display type is a condensed grotesque, content the system sans.
 
 ## Technical design
 
@@ -168,13 +186,17 @@ ThemeInfo_id: ThemeId
 ThemeInfo_name: the picker label
 ThemeInfo_metaColor: the <meta name="theme-color"> value
 ThemeInfo_colorScheme: "dark | light — the <meta name=\"color-scheme\"> value"
-ThemeInfo_swatch: "[--bg, --text, --accent, --accent-secondary] — the picker tile's chips, pinned equal to the theme's tokens"
+ThemeInfo_swatch: "four colours that say which theme it is — the picker tile's chips; each one a colour the theme declares"
 THEME_KEY: websynth.ui.theme
 readThemePref: "() => ThemePref — dark when missing or not shipped"
 resolveTheme: "(pref, matches) => ThemeId — auto resolved against the system queries"
 applyTheme: "(id) => void — data-theme + both metas; on a change, invalidateScreenPalette()"  # src/ui/theme.ts
 startTheme: "() => void — boot: apply, then follow the system while the choice is auto"
 setThemePref: "(pref) => ThemeId — store, apply, return what it resolved to"
+PanelTint: "osc | mixer | filter | env | mod | fx"                                # src/ui/components/panel.ts
+createPanel: "(title, build, helpId?, tint?: PanelTint) => HTMLElement — sets data-tint"
+createTabbedPanel: "({ prefix, help?, pages, tint? }) => { el, tabs } — sets data-tint"
+panel_tint_tokens: "--panel-tint-<PanelTint> — var(--panel) on :root; Pastel's own colour"
 onPaletteChange: "(fn) => () => void — fn runs after each invalidation; the return unsubscribes"  # src/ui/theme-colors.ts
 screenPalette: "() => ScreenPalette — cached; re-resolved on a theme change"
 ScreenPalette_ink: the screen's grid, labels, curves in the amber of the default  # --screen-ink
@@ -196,10 +218,17 @@ under these roles (by REQ-tokens-are-named-by-role):
 | `--text*` | type: body, dim/faint, soft/label/hint, error/bad/good |
 | `--accent*`, `--led-*` | the amber/orange voice, status LEDs |
 | `--well*`, `--tray`, `--recess*`, `--raised*`, `--menu*`, `--handle-*` | control surfaces: a button's bed, the bed a row of buttons sits in, a tab strip's bed, a selected control, a popover, a grip |
-| `--lit*`, `--ink*` | a lit (on) control in its three colours (accent, bad, warm), and the dark type printed on a lit fill |
+| `--lit*`, `--ink*`, `--playing` | a lit (on) control in its three colours (accent, bad, warm), the dark type printed on a lit fill, the accent as a lit fill with type on it (`--lit-accent`, `--lit-accent-ink`: a DJ button that is on, the info badge), and the bar the playhead is in (inked with `--ink-strong`) |
 | `--key-*` | the playable keyboard and the musical-role colours |
 | `--screen*`, `--patch-*`, `--cable-*` | display windows, the FX patch bay and its cables |
+| `--keycap*` | the About card's shortcut keycaps and their legends |
 | `--scrim-ink`, `--veil`, `--scrollbar-*`, `--start-btn`, `--badge-bed`, `--motion*`, `--meter-hot` | overlays — a modal's backdrop (`--scrim-ink`) apart from a resting lane's wash (`--veil`, which a light theme fades toward its panel) — scrollbars, the start button, the brand's model badge, the motion sequencer's own amber, the gain-reduction meter's hot end |
+
+### Adding a theme
+
+A `THEMES` row in `src/state/theme.ts`, a `src/styles/themes/<id>.css` block
+defining every base token, a `<link>` to it in `index.html`, and an entry in
+`public/theme-boot.js` — the pins above fail until all four agree.
 
 ### Layer touchpoints & ordering
 
@@ -314,7 +343,7 @@ Scenario: the boot script runs before the stylesheets, and offline (REQ-the-them
 
 Scenario: a picker tile's chips are its theme's colours (REQ-a-theme-is-a-palette-and-two-faces)
   Given a theme in THEMES
-  Then its swatch equals the --bg, --text, --accent and --accent-secondary its theme file declares
+  Then every colour in its swatch is a value its own theme block declares
 # pinned by: tests/ui/theme.test.ts
 
 Scenario: picking a theme applies and stores it at once (REQ-choosing-a-theme-previews-it)
@@ -345,6 +374,36 @@ Scenario: Light's body text meets AA (REQ-light-body-text-meets-aa)
   Then body text reads at 4.5:1 and the small print and accents at 3:1 on every flat surface
 # pinned by: tests/ui/theme-contrast.test.ts
 
+Scenario: every synth panel and FX group names its section (REQ-pastel-tints-each-panel)
+  Given the synth panels and the FX rack, built
+  Then OSC 1, OSC 2 and SUB / UNI carry data-tint="osc", MIXER "mixer", FILTER "filter",
+    both envelopes "env", the LFO panel "mod", and every FX group "fx"
+# pinned by: tests/ui/panel-tint.test.ts
+
+Scenario: a tint is a token, and only Pastel moves it (REQ-pastel-tints-each-panel)
+  Given theme.css
+  Then each PanelTint has a [data-tint] rule setting --panel-tint to --panel-tint-<section>,
+    each --panel-tint-<section> is var(--panel) on :root, and the panel and FX group chrome read
+    var(--panel-tint, var(--panel))
+# pinned by: tests/ui/panel-tint.test.ts
+
+Scenario: type on its own fill stays legible (regression, REQ-tokens-are-named-by-role)
+  Given the playing bar (transport, ruler), the About card's keycaps, a lit DJ button and the info badge
+  When Pastel made the accents deep enough to read as type, and the chassis black
+  Then they had dark type on dark fills — so each fill has its own token (--playing, --keycap*,
+    --lit-accent*), and every ink reads on its fill at 4.5:1 in every theme
+# pinned by: tests/ui/theme-contrast.test.ts
+
+Scenario: the start button draws the theme's focus ring (regression)
+  Given the "Tap to start" button, focused at boot
+  Then its ring is the theme's accent, not the browser's default blue
+# pinned by: tests/ui/theme-tokens.test.ts
+
+Scenario: Pastel's text reads on every tint (REQ-pastel-reads-on-every-tint)
+  Given pastel.css
+  Then body text reads at 4.5:1 and small print and accents at 3:1 on every flat surface but the chassis, and every --panel-tint-*
+# pinned by: tests/ui/theme-contrast.test.ts
+
 Scenario: a theme change repaints a canvas once, and a destroyed one is not told (REQ-a-theme-change-repaints-the-canvases)
   Given a subscriber to onPaletteChange
   When the theme changes
@@ -371,12 +430,9 @@ Scenario: a theme change repaints a canvas once, and a destroyed one is not told
 
 ## Open questions / future
 
-- **Delivery is staged.** Shipped: the tokens (REQ-every-colour-is-a-token through
-  REQ-a-token-move-is-proven-by-fingerprint); the mechanism — the registry, the
-  stored choice, the boot script, Auto and the picker; and Light and High
-  contrast. Still to build: Pastel and the panel `data-tint` hook
-  (REQ-pastel-tints-each-panel). A new theme is a `THEMES` row, a theme file
-  linked from `index.html`, and a boot-script entry.
+- Only the synth sections are tinted. The machines could be too (a drum
+  machine in one colour, the sampler in another), but they share one tab
+  container, so a tint there would change with the tab rather than mark a place.
 - High contrast's focus rings use the accent like every theme's; a thicker ring
   would need a ring-width token the modules do not read yet.
 - The header button keeps its gauge icon and its tier colour, because the perf

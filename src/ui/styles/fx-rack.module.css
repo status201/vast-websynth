@@ -58,7 +58,7 @@
   }
 
   .fxPanel {
-    background: var(--panel);
+    background: var(--panel-tint, var(--panel));
     border: 1px solid var(--panel-border);
     border-radius: 6px;
     box-shadow: var(--panel-shadow);

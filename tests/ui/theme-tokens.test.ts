@@ -141,6 +141,12 @@ describe('theme tokens (specs/features/ui-themes.md)', () => {
     for (const file of cssIn(THEMES)) expect(read(file)).not.toMatch(/--mono\s*:/);
   });
 
+  it("draws the start button's focus ring in the theme's accent, not the browser's blue (regression)", () => {
+    const ring = declarations(path.join(GLOBALS, 'base.css'))
+      .find((d) => d.where === 'base.css .start-btn:focus-visible' && d.prop === 'outline');
+    expect(ring?.value).toMatch(/var\(--accent-secondary\)/);
+  });
+
   it('lets the content face follow the theme (REQ-a-theme-is-a-palette-and-two-faces)', () => {
     const body = declarations(path.join(GLOBALS, 'base.css')).filter((d) => d.where === 'base.css html, body');
     expect(body.find((d) => d.prop === 'font-family')?.value).toBe('var(--sans)');

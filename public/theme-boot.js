@@ -14,6 +14,7 @@
   var THEMES = {
     dark: ['#1a1a1a', 'dark'],
     light: ['#ece6da', 'light'],
+    pastel: ['#141210', 'dark'],
     contrast: ['#000000', 'dark'],
   };
   var has = function (id) { return Object.prototype.hasOwnProperty.call(THEMES, id); };

@@ -293,9 +293,9 @@
   }
 
   .djBtn:global(.on) {
-    background: linear-gradient(180deg, var(--accent) 0%, var(--lit-bottom) 100%);
+    background: linear-gradient(180deg, var(--lit-accent) 0%, var(--lit-bottom) 100%);
     color: var(--ink);
-    border-color: var(--accent);
+    border-color: var(--lit-accent);
     box-shadow: 0 0 10px var(--accent-glow), inset 0 1px 0 var(--lit-shine);
   }
 

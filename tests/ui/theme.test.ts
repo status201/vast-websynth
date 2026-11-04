@@ -211,12 +211,11 @@ describe('the picker swatches (REQ-a-theme-is-a-palette-and-two-faces)', () => {
     return map;
   }
 
-  it("shows each theme's own --bg, --text, --accent and --accent-secondary", async () => {
+  it('shows only colours the theme itself declares', async () => {
     const { state } = await fresh();
     for (const t of state.THEMES) {
-      const tokens = tokensOf(t.id);
-      const want = ['--bg', '--text', '--accent', '--accent-secondary'].map((k) => tokens.get(k));
-      expect(t.swatch.map((c) => c.toLowerCase()), t.id).toEqual(want);
+      const own = new Set(tokensOf(t.id).values());
+      expect(t.swatch.filter((c) => !own.has(c.toLowerCase())), `${t.id}'s swatch`).toEqual([]);
     }
   });
 });

@@ -8,6 +8,7 @@ import { createFxSlot } from '../components/fx-slot-picker';
 import { createCollapseToggle } from '../components/collapse-toggle';
 import { createSectionTitle } from '../components/section-title';
 import { isCompact } from '../viewport';
+import type { PanelTint } from '../components/panel';
 import fxStyles from '../styles/fx-rack.module.css';
 
 /**
@@ -110,6 +111,8 @@ const RACK: readonly RackEntry[] = [
 function fxPanel(bus: ParamBus, entry: RackEntry): HTMLElement {
   const el = document.createElement('div');
   el.className = fxStyles.fxPanel!;
+  // Every effect group is one section to a theme (ui-themes.md REQ-pastel-tints-each-panel).
+  el.dataset.tint = 'fx' satisfies PanelTint;
 
   if (!isSlot(entry)) {
     const view = fxView(bus, entry);

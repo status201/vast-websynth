@@ -24,7 +24,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
   its amount adds vibrato.
 - **UI themes**: besides Dark there is now **Light** (a cream faceplate with
   dark legends; the screens stay dark, like hardware) and **High contrast**
-  (black and white with amber and yellow, flat, every label at 7:1 or better).
+  (black and white with amber and yellow, flat, every label at 7:1 or better),
+  and **Pastel**: painted faceplates on a black chassis, each synth section its
+  own colour (oscillators yellow, mixer blue, filter salmon, envelopes green,
+  LFOs lilac, effects apricot) with dark legends in a condensed face.
   **Auto** follows your system's light/dark and high-contrast settings. Pick
   one in the new **Settings** dialog — the header's gauge button, which now
   holds the theme above the Performance tier. The choice is kept per device and

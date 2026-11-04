@@ -29,6 +29,7 @@ export function buildLfoPanel(bus: ParamBus): HTMLElement {
   const { el, tabs } = createTabbedPanel({
     prefix: 'lfo',
     help: 'lfo',
+    tint: 'mod',
     // The tabs are this panel's heading, so they carry the full name — there is
     // no separate "LFO" title left for them to disambiguate against.
     pages: LFO_PREFIXES.map((prefix, i) => ({

@@ -171,8 +171,8 @@
        content — nudge back by the same amount so the label sits truly centred. */
     text-indent: 0.06em;
     line-height: 1;
-    color: var(--text);
-    background: var(--bg-deep);
+    color: var(--keycap-ink);
+    background: var(--keycap);
     border: 1px solid var(--panel-border);
     border-radius: 3px;
     box-shadow:
@@ -201,8 +201,8 @@
   }
 
   .capSharp {
-    color: var(--text-dim);
-    background: var(--bg-deep);
+    color: var(--keycap-sharp-ink);
+    background: var(--keycap);
     border-color: var(--panel-border-dim);
   }
 

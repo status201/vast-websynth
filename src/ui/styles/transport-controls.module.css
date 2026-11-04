@@ -100,8 +100,8 @@
      outer glow would be clipped by the scroller's overflow, so this one lights as
      a solid segment with an inset rim instead. */
   .bar:global(.playing) {
-    background: var(--accent-secondary);
-    border-color: var(--accent-secondary);
+    background: var(--playing);
+    border-color: var(--playing);
     color: var(--ink-strong);
     box-shadow: inset 0 0 0 1px var(--lit-ring);
   }

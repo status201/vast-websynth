@@ -1,7 +1,7 @@
 // @vitest-environment node
 //
 // Text contrast per theme (specs/features/ui-themes.md REQ-high-contrast-reads-at-seven-to-one,
-// REQ-light-body-text-meets-aa). WCAG 2 ratios, computed from the theme files' own
+// REQ-light-body-text-meets-aa, REQ-pastel-reads-on-every-tint). WCAG 2 ratios, computed from the theme files' own
 // flat colour tokens: each text token against each surface text sits on.
 import { describe, it, expect } from 'vitest';
 import { readFileSync } from 'node:fs';
@@ -17,6 +17,29 @@ const themeTokens = (id: string): Map<string, string> => {
   }
   return map;
 };
+
+/** Dark's `:root` tokens from theme.css. */
+const rootTokens = (): Map<string, string> => {
+  const css = readFileSync(path.join(process.cwd(), 'src/styles/theme.css'), 'utf8').replace(/\/\*[\s\S]*?\*\//g, '');
+  const root = /:root\s*\{([^{}]*)\}/.exec(css)![1]!;
+  return new Map([...root.matchAll(/(--[\w-]+)\s*:\s*([^;]+);/g)].map((m) => [m[1]!, m[2]!.trim()]));
+};
+
+/**
+ * What a token computes to in a theme: its own block over Dark's `:root`, with
+ * `var()` chains followed — so a derived token (`--playing: var(--accent-secondary)`)
+ * is checked with the colour the theme actually gives it.
+ */
+function resolved(id: string, token: string): string {
+  const tokens = new Map([...rootTokens(), ...(id === 'dark' ? [] : themeTokens(id))]);
+  let v = tokens.get(token);
+  for (let i = 0; v && i < 10; i++) {
+    const m = /^var\((--[\w-]+)\)$/.exec(v);
+    if (!m) break;
+    v = tokens.get(m[1]!);
+  }
+  return v ?? '';
+}
 
 /** WCAG relative luminance of a #rrggbb. */
 function luminance(hex: string): number {
@@ -35,15 +58,17 @@ const SURFACES = [
   '--bg', '--panel-flat', '--well-top', '--well-bottom', '--field',
   '--tray-top', '--tray-bottom', '--recess-top', '--recess-bottom', '--raised-top', '--raised-bottom',
 ];
+/** The section faces a theme may colour (REQ-pastel-tints-each-panel). */
+const TINTS = ['osc', 'mixer', 'filter', 'env', 'mod', 'fx'].map((s) => `--panel-tint-${s}`);
 const BODY = ['--text', '--text-soft', '--text-dim'];
 const SMALL_PRINT = ['--text-label', '--text-hint', '--text-bad', '--text-error', '--text-good', '--accent', '--accent-secondary'];
 
 /** Each failing pair as `text on surface = ratio`, so a failure names what to fix. */
-function below(id: string, texts: string[], min: number): string[] {
+function below(id: string, texts: string[], min: number, surfaces = SURFACES): string[] {
   const t = themeTokens(id);
   const out: string[] = [];
   for (const fg of texts) {
-    for (const bg of SURFACES) {
+    for (const bg of surfaces) {
       const a = t.get(fg);
       const b = t.get(bg);
       expect(a, `${id}: ${fg}`).toMatch(/^#[0-9a-f]{6}$/i);
@@ -54,6 +79,19 @@ function below(id: string, texts: string[], min: number): string[] {
   }
   return out;
 }
+
+/**
+ * Type printed on a fill that is not a surface: the bar the playhead is in, the
+ * About card's keycaps, a lit DJ button and the info badge. Found by eye in Pastel, where a deep yellow and a
+ * black cap had dark type on them; pinned for every theme.
+ */
+const INKED_FILLS: [ink: string, fill: string][] = [
+  ['--ink-strong', '--playing'],
+  ['--keycap-ink', '--keycap'],
+  ['--keycap-sharp-ink', '--keycap'],
+  ['--ink', '--lit-accent'],
+  ['--lit-accent-ink', '--lit-accent'],
+];
 
 describe('theme contrast', () => {
   it('measures the way WCAG does', () => {
@@ -68,5 +106,27 @@ describe('theme contrast', () => {
   it('gives Light body text 4.5:1 and its small print 3:1 (REQ-light-body-text-meets-aa)', () => {
     expect(below('light', BODY, 4.5)).toEqual([]);
     expect(below('light', SMALL_PRINT, 3)).toEqual([]);
+  });
+
+  it('keeps type on its own fills legible in every theme (regression)', () => {
+    const bad: string[] = [];
+    for (const id of ['dark', 'light', 'pastel', 'contrast']) {
+      for (const [ink, fill] of INKED_FILLS) {
+        const a = resolved(id, ink);
+        const b = resolved(id, fill);
+        expect(a, `${id}: ${ink}`).toMatch(/^#[0-9a-f]{6}$/i);
+        expect(b, `${id}: ${fill}`).toMatch(/^#[0-9a-f]{6}$/i);
+        const r = contrast(a, b);
+        if (r < 4.5) bad.push(`${id}: ${ink} on ${fill} = ${r.toFixed(2)}`);
+      }
+    }
+    expect(bad).toEqual([]);
+  });
+
+  it('gives Pastel the same on every surface and every section face (REQ-pastel-reads-on-every-tint)', () => {
+    // Not on --bg: Pastel's page is the black chassis, which carries no type.
+    const faces = [...SURFACES.filter((s) => s !== '--bg'), ...TINTS];
+    expect(below('pastel', BODY, 4.5, faces)).toEqual([]);
+    expect(below('pastel', SMALL_PRINT, 3, faces)).toEqual([]);
   });
 });

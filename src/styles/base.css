@@ -89,6 +89,12 @@
     transform: translateY(1px);
   }
 
+  /* The theme's ring, not the browser's blue one (ui-themes.md). */
+  .start-btn:focus-visible {
+    outline: 2px solid var(--accent-secondary);
+    outline-offset: 3px;
+  }
+
   /* ===== Icons (specs/features/iconography.md) =====
      Every glyph that labels a control is inline SVG from `ui-icons.ts`, not a
      font character — Inter is not bundled, so on Android `--sans` falls back to
