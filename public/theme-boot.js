@@ -15,6 +15,7 @@
     dark: ['#1a1a1a', 'dark'],
     light: ['#ece6da', 'light'],
     pastel: ['#141210', 'dark'],
+    vibrant: ['#00363c', 'dark'],
     contrast: ['#000000', 'dark'],
   };
   var has = function (id) { return Object.prototype.hasOwnProperty.call(THEMES, id); };
@@ -22,12 +23,15 @@
 
   var id = null;
   try { id = localStorage.getItem('websynth.ui.theme'); } catch (e) { /* storage blocked */ }
+  var contrast = has('contrast') && matches('(prefers-contrast: more)');
   if (id === 'auto') {
-    id = has('contrast') && matches('(prefers-contrast: more)') ? 'contrast'
+    id = contrast ? 'contrast'
       : has('light') && matches('(prefers-color-scheme: light)') ? 'light'
       : 'dark';
   }
-  if (!has(id)) id = 'dark';
+  // No choice (missing, unknown, not shipped): Vibrant, unless the system asks
+  // for more contrast (REQ-vibrant-is-the-default).
+  if (!has(id)) id = contrast ? 'contrast' : has('vibrant') ? 'vibrant' : 'dark';
 
   document.documentElement.setAttribute('data-theme', id);
   var color = document.querySelector('meta[name="theme-color"]');

@@ -118,8 +118,8 @@
     box-shadow: 0 0 8px var(--accent-glow), inset 0 1px 0 color-mix(in srgb, var(--accent-secondary) 6%, transparent);
   }
 
-  /* While the badges show, the ⓘ glyph *becomes* a badge: the accent disc and the
-     `--bg-deep` ink of `.badge` below, so the control that hides them wears one
+  /* While the badges show, the ⓘ glyph *becomes* a badge: the `--lit-accent` disc
+     and `--lit-accent-ink` of `.badge` below, so the control that hides them wears one
      (onboarding.md REQ-the-glyph-inverts-while-badges-show). The border/glow above is generic — Fullscreen has it
      too — which is why colour, not chrome, is what makes this button legible as
      the badges' own switch. Only the ⓘ glyph carries these part hooks
@@ -129,19 +129,20 @@
      Specificity: each selector below is 0-3-2, over switch.module's
      `.root :global(svg.hdr-icon)` (0-2-1) and `… .fill` (0-3-1). */
   button.toggleActive :global(svg.hdr-icon .disc) {
-    /* currentColor is the --accent set just above, so disc and glow can't drift. */
-    fill: currentColor;
+    /* The badge's own fill, not currentColor: a theme whose --accent is deep enough
+       to be type lights its badges brighter (ui-themes.md --lit-accent). */
+    fill: var(--lit-accent);
   }
 
   button.toggleActive :global(svg.hdr-icon .stem) {
-    stroke: var(--bg-deep);
+    stroke: var(--lit-accent-ink);
     /* Optical, not a second shape: dark-on-orange reads thinner than the idle
        light-on-dark, so the stem needs a hair more weight to hold the same look. */
     stroke-width: 1.4;
   }
 
   button.toggleActive :global(svg.hdr-icon .dot) {
-    fill: var(--bg-deep);
+    fill: var(--lit-accent-ink);
   }
 
   /* ---- Help mode (i) badges ---- */

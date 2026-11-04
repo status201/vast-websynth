@@ -33,8 +33,8 @@ describe('the stored theme (REQ-the-theme-is-a-device-preference)', () => {
   beforeEach(() => { store = installLocalStorageMock(); });
   afterEach(() => vi.unstubAllGlobals());
 
-  it('is Dark when nothing is stored', () => {
-    expect(readThemePref()).toBe('dark');
+  it('is no choice when nothing is stored', () => {
+    expect(readThemePref()).toBeNull();
   });
 
   it('round-trips every shipped id and auto under websynth.ui.theme', () => {
@@ -46,26 +46,48 @@ describe('the stored theme (REQ-the-theme-is-a-device-preference)', () => {
     expect(THEME_KEY).toBe('websynth.ui.theme');
   });
 
-  it('reads an unknown or unshipped value as Dark (edge)', () => {
+  it('reads an unknown or unshipped value as no choice (edge)', () => {
     const shipped = new Set<string>(THEMES.map((t) => t.id));
     const unshipped = (['light', 'contrast', 'pastel'] as const).filter((id) => !shipped.has(id));
     for (const v of ['neon', '__proto__', 'constructor', '', 'DARK', ...unshipped]) {
       store.set(THEME_KEY, v);
-      expect(readThemePref(), v).toBe('dark');
+      expect(readThemePref(), v).toBeNull();
     }
   });
 
-  it('reads Dark when storage throws (edge)', () => {
+  it('reads no choice when storage throws (edge)', () => {
     vi.stubGlobal('localStorage', { getItem: () => { throw new Error('denied'); } });
-    expect(readThemePref()).toBe('dark');
+    expect(readThemePref()).toBeNull();
     expect(() => writeThemePref('auto')).not.toThrow();
   });
 });
 
 describe('resolving a choice (REQ-auto-follows-the-system)', () => {
-  it('passes a shipped theme through, and turns anything else into Dark', () => {
+  it('passes a shipped theme through, and treats anything else as no choice', () => {
     for (const t of THEMES) expect(resolveTheme(t.id, system())).toBe(t.id);
-    expect(resolveTheme('neon' as never, system())).toBe('dark');
+    expect(resolveTheme('neon' as never, system())).toBe('vibrant');
+  });
+});
+
+describe('no choice (REQ-vibrant-is-the-default)', () => {
+  it('is Vibrant under a light or a dark system alike', () => {
+    expect(resolveTheme(null, system())).toBe('vibrant');
+    expect(resolveTheme(null, system(LIGHT_QUERY))).toBe('vibrant');
+  });
+
+  it('gives way to High contrast when the system asks for more contrast', () => {
+    expect(resolveTheme(null, system(CONTRAST_QUERY))).toBe('contrast');
+    expect(resolveTheme(null, system(CONTRAST_QUERY, LIGHT_QUERY))).toBe('contrast');
+  });
+
+  it('falls back to Dark where Vibrant does not ship, and keeps the contrast rule only if it does', () => {
+    withShipped([], () => {
+      expect(resolveTheme(null, system(CONTRAST_QUERY))).toBe('dark');
+    });
+    withShipped(['contrast'], () => {
+      expect(resolveTheme(null, system(CONTRAST_QUERY))).toBe('contrast');
+      expect(resolveTheme(null, system())).toBe('dark');
+    });
   });
 
   it('asks for more contrast first, then a light scheme, then lands on Dark', () => {

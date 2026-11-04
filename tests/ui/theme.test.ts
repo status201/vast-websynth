@@ -115,6 +115,19 @@ describe('following the system (REQ-auto-follows-the-system)', () => {
     expect(document.documentElement.dataset.theme).toBe('dark');
   });
 
+  it('with no choice, is Vibrant and follows only the contrast setting live (REQ-vibrant-is-the-default)', async () => {
+    const sys = stubSystem();
+    const { ui } = await fresh();
+    ui.startTheme();
+    expect(document.documentElement.dataset.theme).toBe('vibrant');
+    sys.set(LIGHT, true);
+    expect(document.documentElement.dataset.theme).toBe('vibrant');
+    sys.set(CONTRAST, true);
+    expect(document.documentElement.dataset.theme).toBe('contrast');
+    sys.set(CONTRAST, false);
+    expect(document.documentElement.dataset.theme).toBe('vibrant');
+  });
+
   it('leaves a concrete choice alone when the system changes', async () => {
     const sys = stubSystem();
     store.set('websynth.ui.theme', 'auto');
@@ -131,8 +144,9 @@ describe('following the system (REQ-auto-follows-the-system)', () => {
     const { ui } = await fresh();
     const add = vi.spyOn(globalThis, 'matchMedia');
     ui.startTheme();
+    const once = add.mock.calls.length;
     ui.startTheme();
-    expect(add).toHaveBeenCalledTimes(2); // one per query, once
+    expect(add).toHaveBeenCalledTimes(once);
   });
 });
 
@@ -175,7 +189,7 @@ describe('the boot script (REQ-the-boot-script-agrees-with-the-registry)', () =>
     vi.stubGlobal('localStorage', { getItem: () => { throw new Error('denied'); } });
     vi.stubGlobal('matchMedia', undefined);
     expect(boot).not.toThrow();
-    expect(document.documentElement.dataset.theme).toBe('dark');
+    expect(document.documentElement.dataset.theme).toBe('vibrant');
   });
 });
 

@@ -36,6 +36,13 @@ describe('the theme picker', () => {
     expect(tiles.map((t) => t.dataset.testid)).toEqual(['theme-auto', ...THEMES.map((t) => `theme-${t.id}`)]);
   });
 
+  it('with no choice stored, selects the theme on the page (REQ-vibrant-is-the-default)', async () => {
+    const { tiles } = await mount();
+    const checked = tiles.filter((t) => t.getAttribute('aria-checked') === 'true');
+    expect(checked.map((t) => t.dataset.testid)).toEqual(['theme-vibrant']);
+    expect(store.has('websynth.ui.theme')).toBe(false);
+  });
+
   it('starts on the stored choice, the only tile in the tab order', async () => {
     store.set('websynth.ui.theme', 'auto');
     const { tiles } = await mount();
@@ -54,12 +61,43 @@ describe('the theme picker', () => {
     expect(store.get('websynth.ui.theme')).toBe('dark');
   });
 
-  it('names what Auto picked, and says nothing under a concrete choice', async () => {
+  it('names what Auto picked, or would pick (REQ-auto-shows-what-it-would-pick)', async () => {
     await mount();
-    expect(sel('theme-status')!.hidden).toBe(true);
-    sel('theme-auto')!.click();
     expect(sel('theme-status')!.hidden).toBe(false);
-    expect(sel('theme-status')!.textContent).toContain('Dark');
+    expect(sel('theme-status')!.textContent).toBe('Auto would pick Dark on this device.');
+    sel('theme-auto')!.click();
+    expect(sel('theme-status')!.textContent).toBe('Auto picked Dark on this device.');
+  });
+
+  it("shows the system's pick on the Auto tile, not the chosen theme, and follows the system live (regression)", async () => {
+    // A system that prefers a light scheme, whose change listeners the test can fire.
+    let light = true;
+    const listeners = new Set<() => void>();
+    vi.stubGlobal('matchMedia', (q: string) => ({
+      media: q,
+      get matches() { return q.includes('light') && light; },
+      addEventListener: (_t: string, fn: () => void) => { listeners.add(fn); },
+      removeEventListener: (_t: string, fn: () => void) => { listeners.delete(fn); },
+    }));
+    const { tiles, THEMES, picker } = await mount();
+    const norm = (c: string) => { const p = document.createElement('span'); p.style.background = c; return p.style.background; };
+    const chipsOf = (t: HTMLElement) => [...t.querySelectorAll<HTMLElement>('[aria-hidden] > span')].map((c) => c.style.background);
+    const swatchOf = (id: string) => THEMES.find((t) => t.id === id)!.swatch.map(norm);
+
+    sel('theme-dark')!.click();
+    expect(chipsOf(tiles[0]!)).toEqual(swatchOf('light'));
+    expect(sel('theme-status')!.textContent).toBe('Auto would pick Light on this device.');
+    // Picking another theme does not dress Auto in it.
+    sel('theme-pastel')!.click();
+    expect(chipsOf(tiles[0]!)).toEqual(swatchOf('light'));
+
+    light = false;
+    for (const fn of [...listeners]) fn();
+    expect(chipsOf(tiles[0]!)).toEqual(swatchOf('dark'));
+    expect(sel('theme-status')!.textContent).toBe('Auto would pick Dark on this device.');
+
+    picker.destroy();
+    expect(listeners.size).toBe(0);
   });
 
   it("paints each tile's chips with its theme's swatch", async () => {
@@ -125,7 +163,8 @@ describe('the Settings dialog', () => {
     document.body.appendChild(btn);
     expect(btn.getAttribute('aria-label') ?? btn.title).toMatch(/^Settings/);
     btn.click();
-    await vi.waitFor(() => { if (!sel('perf-mode')) throw new Error('modal not open yet'); });
+    // A cold import after resetModules: give the lazy chunk room under a loaded full run.
+    await vi.waitFor(() => { if (!sel('perf-mode')) throw new Error('modal not open yet'); }, { timeout: 5000 });
     const picker = sel('theme-picker')!;
     expect(picker).not.toBeNull();
     expect(picker.compareDocumentPosition(sel('perf-mode')!) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();

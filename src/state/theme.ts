@@ -11,7 +11,7 @@
  * `THEMES` (REQ-the-boot-script-agrees-with-the-registry). Add a theme in both.
  */
 
-export type ThemeId = 'dark' | 'light' | 'contrast' | 'pastel';
+export type ThemeId = 'dark' | 'light' | 'contrast' | 'pastel' | 'vibrant';
 export type ThemePref = ThemeId | 'auto';
 
 export interface ThemeInfo {
@@ -35,11 +35,15 @@ export const THEMES: readonly ThemeInfo[] = [
   { id: 'dark', name: 'Dark', metaColor: '#1a1a1a', colorScheme: 'dark', swatch: ['#0e0a06', '#e8d8b6', '#e8742e', '#f4cd5e'] },
   { id: 'light', name: 'Light', metaColor: '#ece6da', colorScheme: 'light', swatch: ['#cfc7b8', '#2a2118', '#a8440f', '#8f5c00'] },
   { id: 'pastel', name: 'Pastel', metaColor: '#141210', colorScheme: 'dark', swatch: ['#f0dc94', '#b7d3e9', '#f1b5a0', '#bcdcb4'] },
+  { id: 'vibrant', name: 'Vibrant', metaColor: '#00363c', colorScheme: 'dark', swatch: ['#fb2c36', '#00afbd', '#ffbfa8', '#64beda'] },
   { id: 'contrast', name: 'High contrast', metaColor: '#000000', colorScheme: 'dark', swatch: ['#000000', '#ffffff', '#ffb000', '#ffe600'] },
 ];
 
 export const THEME_KEY = 'websynth.ui.theme';
-export const DEFAULT_THEME: ThemeId = 'dark';
+/** The look with no choice stored (REQ-vibrant-is-the-default). */
+export const DEFAULT_THEME: ThemeId = 'vibrant';
+/** Auto's last resort, and what anything unresolvable lands on: the tokens' own values. */
+export const AUTO_FALLBACK: ThemeId = 'dark';
 
 /** Auto's two system questions (REQ-auto-follows-the-system). */
 export const CONTRAST_QUERY = '(prefers-contrast: more)';
@@ -50,18 +54,21 @@ export function isShipped(v: unknown): v is ThemeId {
   return typeof v === 'string' && THEMES.some((t) => t.id === v);
 }
 
-/** A shipped theme's entry; Dark for anything else. */
+/** A shipped theme's entry; Dark (the first) for anything else. */
 export function themeInfo(id: string): ThemeInfo {
   return THEMES.find((t) => t.id === id) ?? THEMES[0]!;
 }
 
-/** The stored choice; `dark` when missing, unknown or not shipped (untrusted-input.md). */
-export function readThemePref(): ThemePref {
+/**
+ * The stored choice, or `null` for none — missing, unknown or not shipped
+ * (untrusted-input.md). No choice is not Dark: it resolves to the default look.
+ */
+export function readThemePref(): ThemePref | null {
   try {
     const v = localStorage.getItem(THEME_KEY);
-    return v === 'auto' || isShipped(v) ? v : DEFAULT_THEME;
+    return v === 'auto' || isShipped(v) ? v : null;
   } catch {
-    return DEFAULT_THEME;
+    return null;
   }
 }
 
@@ -81,11 +88,15 @@ const systemMatch: MediaMatch = (q) =>
 
 /**
  * The theme a choice puts on the page. `auto` asks the system: more contrast,
- * then a light scheme, then Dark — each step only if that theme ships.
+ * then a light scheme, then Dark. No choice (`null`) is Vibrant, unless the
+ * system asks for more contrast (REQ-vibrant-is-the-default). Each step only if
+ * that theme ships.
  */
-export function resolveTheme(pref: ThemePref = readThemePref(), matches: MediaMatch = systemMatch): ThemeId {
-  if (pref !== 'auto') return isShipped(pref) ? pref : DEFAULT_THEME;
-  if (isShipped('contrast') && matches(CONTRAST_QUERY)) return 'contrast';
+export function resolveTheme(pref: ThemePref | null, matches: MediaMatch = systemMatch): ThemeId {
+  const contrast = isShipped('contrast') && matches(CONTRAST_QUERY);
+  if (pref === null) return contrast ? 'contrast' : isShipped(DEFAULT_THEME) ? DEFAULT_THEME : AUTO_FALLBACK;
+  if (pref !== 'auto') return isShipped(pref) ? pref : resolveTheme(null, matches);
+  if (contrast) return 'contrast';
   if (isShipped('light') && matches(LIGHT_QUERY)) return 'light';
-  return DEFAULT_THEME;
+  return AUTO_FALLBACK;
 }

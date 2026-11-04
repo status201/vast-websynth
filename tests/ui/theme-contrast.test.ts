@@ -110,7 +110,7 @@ describe('theme contrast', () => {
 
   it('keeps type on its own fills legible in every theme (regression)', () => {
     const bad: string[] = [];
-    for (const id of ['dark', 'light', 'pastel', 'contrast']) {
+    for (const id of ['dark', 'light', 'pastel', 'vibrant', 'contrast']) {
       for (const [ink, fill] of INKED_FILLS) {
         const a = resolved(id, ink);
         const b = resolved(id, fill);
@@ -121,6 +121,11 @@ describe('theme contrast', () => {
       }
     }
     expect(bad).toEqual([]);
+  });
+
+  it('gives Vibrant the same as Light on every surface (REQ-vibrant-keeps-its-red-for-fills)', () => {
+    expect(below('vibrant', BODY, 4.5)).toEqual([]);
+    expect(below('vibrant', SMALL_PRINT, 3)).toEqual([]);
   });
 
   it('gives Pastel the same on every surface and every section face (REQ-pastel-reads-on-every-tint)', () => {

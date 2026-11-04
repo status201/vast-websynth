@@ -3,7 +3,7 @@
 // shipped theme — where a pick applies and stores at once; there is no Apply.
 // Loaded with the dialog, so none of it costs the boot.
 import { THEMES, resolveTheme, themeInfo, type ThemePref } from '../../state/theme';
-import { currentThemePref, setThemePref } from '../theme';
+import { currentThemePref, onSystemThemeChange, setThemePref } from '../theme';
 import { onPaletteChange } from '../theme-colors';
 import styles from '../styles/theme-picker.module.css';
 
@@ -91,31 +91,32 @@ export function createThemePicker(): ThemePicker {
   }
 
   function render(): void {
-    const resolved = resolveTheme(pref);
+    // What Auto resolves to on this device — never the chosen theme, so the Auto
+    // tile answers "what would Auto give me?" (REQ-auto-shows-what-it-would-pick).
+    const auto = resolveTheme('auto');
+    // With no choice stored, the theme on the page is the selected tile
+    // (REQ-vibrant-is-the-default) — picking any tile then stores a choice.
+    const selected: ThemePref = pref ?? resolveTheme(null);
     tiles.forEach((tile, i) => {
       const value = options[i]!.value;
-      const on = value === pref;
+      const on = value === selected;
       tile.setAttribute('aria-checked', String(on));
       tile.classList.toggle('active', on);
       tile.tabIndex = on ? 0 : -1;
-      // Auto shows the theme it currently lands on.
-      const swatch = themeInfo(value === 'auto' ? resolved : value).swatch;
+      const swatch = themeInfo(value === 'auto' ? auto : value).swatch;
       tile.querySelectorAll<HTMLElement>(`.${styles.chip!}`).forEach((chip, k) => {
         chip.style.background = swatch[k]!;
       });
     });
-    status.hidden = pref !== 'auto';
-    status.textContent = '';
-    if (pref === 'auto') {
-      const strong = document.createElement('strong');
-      strong.textContent = themeInfo(resolved).name;
-      status.append('Auto picked ', strong, ' on this device.');
-    }
+    const strong = document.createElement('strong');
+    strong.textContent = themeInfo(auto).name;
+    status.replaceChildren(pref === 'auto' ? 'Auto picked ' : 'Auto would pick ', strong, ' on this device.');
   }
 
   el.append(row, help, status);
   render();
-  // Under Auto the system can change while the dialog is open.
-  const off = onPaletteChange(render);
-  return { el, destroy: off };
+  // The system can change while the dialog is open: under Auto that changes the
+  // theme on the page; under any choice it changes what Auto would pick.
+  const offs = [onPaletteChange(render), onSystemThemeChange(render)];
+  return { el, destroy: () => { for (const off of offs) off(); } };
 }

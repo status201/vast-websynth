@@ -128,7 +128,9 @@ lets the player address them.
   contribution to LFO 1's depth widens the band and is **not** also counted in the
   tick.
 - **REQ-the-bands-direction-has-a-colour** (v3) — The band and its tick are
-  coloured by which way the routes push: **green up, yellow down**. Only the band
+  coloured by which way the routes push: **green up** (`--accent-good`), **down in
+  the selected colour** (`--accent-secondary` — yellow in Dark; a theme decides,
+  [ui-themes](ui-themes.md)). Only the band
   is coloured; a knob's own value arc is never coloured by sign, since its pointer
   and readout already say that. Routes that **disagree in sign** leave it neutral
   (`modSignFor` is unanimous, not a sum).

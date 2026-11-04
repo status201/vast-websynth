@@ -231,7 +231,7 @@
 
   /*
    * Direction of the modulation band and its tick (mod-matrix.md REQ-the-bands-direction-has-a-colour): green is up,
-   * yellow is down.
+   * the selected colour (yellow in Dark) is down.
    *
    * Only the INNER band is coloured. A knob's own value needs no colour — its pointer
    * already says where it is, and colouring that too spent a signal on something

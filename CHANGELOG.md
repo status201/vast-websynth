@@ -22,13 +22,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
   mono, a slow glide on every note and a long spring-and-reverb tail, for slow
   octave leaps as well as solos. LFO 1 is already aimed at pitch, so turning up
   its amount adds vibrato.
-- **UI themes**: besides Dark there is now **Light** (a cream faceplate with
-  dark legends; the screens stay dark, like hardware) and **High contrast**
-  (black and white with amber and yellow, flat, every label at 7:1 or better),
-  and **Pastel**: painted faceplates on a black chassis, each synth section its
-  own colour (oscillators yellow, mixer blue, filter salmon, envelopes green,
-  LFOs lilac, effects apricot) with dark legends in a condensed face.
-  **Auto** follows your system's light/dark and high-contrast settings. Pick
+- **UI themes**, and a new look by default: **Vibrant** — deep teal faceplates
+  between red cheeks, with sky-blue, teal, peach and red accents. The original
+  walnut-and-amber look is still there as **Dark**; pick it in Settings to get it
+  back. Also new: **Light** (a cream faceplate with dark legends; the screens stay
+  dark, like hardware), **Pastel** (painted faceplates on a black chassis, each
+  synth section its own colour — oscillators yellow, mixer blue, filter salmon,
+  envelopes green, LFOs lilac, effects apricot — with dark legends in a condensed
+  face) and **High contrast** (black and white with amber and yellow, flat, every
+  label at 7:1 or better; a system set to more contrast gets it until you pick
+  something else). **Auto** follows your system's light/dark and high-contrast settings. Pick
   one in the new **Settings** dialog — the header's gauge button, which now
   holds the theme above the Performance tier. The choice is kept per device and
   applied before the page first draws, so a reload never flashes the wrong
@@ -37,8 +40,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 ### Changed
 
 - Groundwork for UI themes: every colour in the app now goes through a named
-  theme token, so High contrast, Light and Pastel themes can follow. The look
-  does not change. One deliberate exception: a sample that needs reloading is now
+  theme token, so the themes above can exist. Dark looks exactly as the app
+  did. One deliberate exception: a sample that needs reloading is now
   named in the same soft red as the preset wizard's error list (it was a shade
   darker).
 - **rhodes** sounds like a suitcase Rhodes now. The amp's "vibrato" is really a

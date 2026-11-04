@@ -24,7 +24,7 @@ const watchFirstTheme = () => {
 
 test('a picked theme applies at once, survives a reload, and is on the page before the first stylesheet', async ({ page }) => {
   await gotoAndStart(page);
-  await expect(page.locator('html')).toHaveAttribute('data-theme', 'dark');
+  await expect(page.locator('html')).toHaveAttribute('data-theme', 'vibrant'); // no choice yet: the default (REQ-vibrant-is-the-default)
 
   await page.getByTestId('perf-settings').click();
   await page.getByTestId('theme-light').click();

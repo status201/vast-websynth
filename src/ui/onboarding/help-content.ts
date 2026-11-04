@@ -900,9 +900,10 @@ export const HELP_TOPICS: Record<TopicId, HelpTopic> = {
       '<p>Pick a <strong>root</strong> and a <strong>scale</strong>, and every note the synth ' +
       'plays is nudged onto the nearest note of that key — the sequencer, the arpeggiator and ' +
       'the keyboard alike. Wrong notes stop being possible.</p>' +
-      '<p>The keyboard picture is the map: <strong>orange</strong> is the root, ' +
-      '<strong>yellow</strong> the notes of the chord, <strong>brown</strong> the rest of the ' +
-      'scale, <strong>blue</strong> the extra note, and dark keys are the notes now out of play.</p>' +
+      '<p>The keyboard picture is the map, one colour per role: the <strong>root</strong>, ' +
+      'the notes of the <strong>chord</strong>, the rest of the <strong>scale</strong> and the ' +
+      '<strong>extra note</strong> — the legend under it names each colour in your theme — and ' +
+      'the plain keys are the notes now out of play.</p>' +
       '<p>Once you pick a scale, the <strong>keyboard at the bottom of the screen</strong> ' +
       'wears those same colours, faintly — so you can see the key under your fingers while ' +
       'you play, without coming back to this tab.</p>' +
@@ -1270,8 +1271,8 @@ export const HELP_TOPICS: Record<TopicId, HelpTopic> = {
       'the same controls that live on the LFO panel, shown here beside the rest.</p>' +
       '<p><strong>Amount is bipolar.</strong> Past zero the route inverts — the source pushes ' +
       'its destination <em>down</em> instead of up. On the synth panels a modulated knob draws ' +
-      'an inner arc over the range it can now reach: <strong>green</strong> for up, ' +
-      '<strong>yellow</strong> for down. A mod-wheel route also shows a moving tick, so you ' +
+      'an inner arc over the range it can now reach: <strong>green</strong> for up, and the ' +
+      'colour of a selected switch for down. A mod-wheel route also shows a moving tick, so you ' +
       'can see where the wheel currently has it.</p>' +
       '<p>The destination list is short on purpose: these are the things the synth can move ' +
       '<em>as it plays a note</em>, at full audio rate, for free. To move anything else — an ' +

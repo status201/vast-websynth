@@ -287,10 +287,12 @@ describe('help-content key & chord topics', () => {
     for (const source of ['sequencer', 'arpeggiator', 'keyboard']) {
       expect(body, source).toContain(source);
     }
-    // The map's colours have no on-screen legend beyond three words.
-    for (const colour of ['orange', 'yellow', 'brown']) {
-      expect(body, colour).toContain(colour);
+    // The map's roles, by name — not by colour: a theme decides the colours
+    // (ui-themes.md), and the legend under the map shows each one.
+    for (const role of ['root', 'chord', 'scale', 'extra note', 'legend']) {
+      expect(body, role).toContain(role);
     }
+    for (const colour of ['orange', 'yellow', 'brown']) expect(body, colour).not.toContain(colour);
     // Where to make it permanent — that lives on another tab.
     expect(body).toContain('Snap');
   });
@@ -424,7 +426,10 @@ describe('help-content mod topic', () => {
     // The three things the window itself cannot show.
     expect(body).toMatch(/bipolar/i);
     expect(body).toMatch(/invert/i);
-    for (const colour of ['green', 'yellow']) expect(body, colour).toContain(colour);
+    // Up is green in every theme; down is the theme's selected colour, named by
+    // what else wears it (mod-matrix.md REQ-the-bands-direction-has-a-colour).
+    expect(body).toContain('green');
+    expect(body).toContain('selected switch');
     // ADR-017's boundary — without it the short list reads as a missing feature.
     expect(body).toContain('Motion');
     expect(body).toContain('XY Pad');

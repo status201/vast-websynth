@@ -1,0 +1,143 @@
+/*
+ * Vibrant (specs/features/ui-themes.md REQ-vibrant-keeps-its-red-for-fills): deep
+ * teal faceplates between red cheeks, near-white and peach legends, sky blue for
+ * "selected", bright teal for a lit step, peach for a tie. The palette's pure red
+ * (#fb2c36) cannot carry type on any surface here — it is a fill (LEDs, accented
+ * steps, the cheeks, a lit DJ button's base); red type and the knob arcs use a
+ * lighter coral of it.
+ */
+@layer theme {
+  :root[data-theme="vibrant"] {
+    /* ===== Chassis ===== */
+    --bg: #00363c;
+    --bg-deep: #00262a;
+    --panel: linear-gradient(180deg, #005d66 0%, #00525a 100%);
+    --panel-flat: #00565e;
+    --panel-border: #00afbd;
+    --panel-border-dim: #00838e;
+    --wood: linear-gradient(180deg, #fb2c36 0%, #d81f2a 45%, #a3141d 100%);
+    --wood-grain: linear-gradient(transparent, transparent);
+
+    /* ===== Type ===== */
+    --text: #fff4ef;
+    --text-dim: #ffbfa8;
+    --text-faint: #4f9aa2;
+    --text-soft: #ffe2d8;
+    --text-label: #f7b6a0;
+    --text-hint: #e6a894;
+    --text-bad: #ff8a8f;
+    --text-bad-hover: #ffa8ac;
+    --text-error: #ff9a8a;
+    --border-error: #ff6e75;
+    --text-good: #7be0a0;
+
+    /* ===== Accents and LEDs ===== */
+    --accent: #ff6e75;
+    --accent-secondary: #64beda;
+    --accent-secondary-dim: #3d8aa3;
+    --accent-good: #3fd18a;
+    --accent-bad: #fb2c36;
+    --led-on: #fb2c36;
+    --led-off: #003a40;
+    --led-dim: #8a2a30;
+    --led-good: #3fe08a;
+    --meter-hot: #fb2c36;
+    --motion: #ffbfa8;
+    --motion-beat: #ff6e75;
+
+    /* ===== Control surfaces ===== */
+    --well-top: #00474e;
+    --well-bottom: #003a40;
+    --tray-top: #00343a;
+    --tray-bottom: #00434a;
+    --recess-top: #00303a;
+    --recess-bottom: #003f46;
+    --raised-top: #004e57;
+    --raised-bottom: #004a52;
+    --field: #002f34;
+    --menu: linear-gradient(180deg, #00636c 0%, #004a52 100%);
+    --menu-hover: linear-gradient(180deg, #007a85, #00636c);
+    --handle-light: #64beda;
+    --handle-dark: #00636c;
+    --handle-edge: #002a2e;
+    --pad-bed: linear-gradient(180deg, #004a52, #003a40);
+    --pad-border: #00838e;
+    --pad-border-hover: #ff6e75;
+
+    /* ===== Lit controls: teal on, red accented, peach warm ===== */
+    --lit-top: #00afbd;
+    --lit-bottom: #00737d;
+    --lit-shine: rgba(220, 255, 255, 0.35);
+    --lit-text: #002a2e;
+    --lit-bad-top: #fb2c36;
+    --lit-bad-bottom: #a3141d;
+    --lit-bad-shine: rgba(255, 200, 200, 0.35);
+    --lit-warm-top: #ffbfa8;
+    --lit-warm-bottom: #e08a70;
+    --lit-warm-shine: rgba(255, 245, 240, 0.45);
+    --lit-ring: rgba(255, 255, 255, 0.55);
+    --ink: #002a2e;
+    --ink-strong: #001a1d;
+    --playing: #64beda;
+    --lit-accent: #ff6e75;
+    --lit-accent-ink: #001a1d;
+
+    /* ===== Keyboard ===== */
+    --key-bed: linear-gradient(180deg, #001a1d 0%, #00303a 100%);
+    --key-white: linear-gradient(180deg, #fff7f3 0%, #f0d8cf 100%);
+    --key-white-active: linear-gradient(180deg, #ff8a8f 0%, #fb2c36 100%);
+    --key-black: linear-gradient(180deg, #003a40 0%, #001a1d 100%);
+    --key-black-active: linear-gradient(180deg, #ff6e75 0%, #c81e28 100%);
+    --key-white-ink: rgba(0, 54, 60, 0.7);
+    --key-white-shade: rgba(0, 54, 60, 0.35);
+    --key-white-shine: rgba(255, 255, 255, 0.6);
+    --key-white-active-shine: rgba(255, 220, 220, 0.4);
+    --key-black-active-shine: rgba(255, 200, 200, 0.3);
+    --key-black-active-glow: rgba(251, 44, 54, 0.5);
+    /* Roles: root coral, chord sky, scale peach, extra bright teal, out deep teal. */
+    --key-role-root-black: #c81e28;
+    --key-role-chord-black: #2a7f99;
+    --key-role-scale: #ffbfa8;
+    --key-role-scale-edge: #e8a088;
+    --key-role-scale-black: #8a5a4a;
+    --key-role-extra: #00afbd;
+    --key-role-extra-edge: #4fd4de;
+    --key-role-extra-black: #00636c;
+    --key-role-out: #003a40;
+    --key-role-out-edge: #00636c;
+    --key-role-out-black: #002a2e;
+    --knob-bg: radial-gradient(circle at 35% 30%, #0a7480 0%, #00474e 70%, #00262a 100%);
+
+    /* ===== Screens ===== */
+    --screen: radial-gradient(ellipse at center, #001c1f 0%, #000d0f 100%);
+    --screen-border: #00838e;
+    --screen-highlight: #ffbfa8;
+    --screen-cue: #00e5f0;
+    --badge-bed: #001a1d;
+    --patch-bay: radial-gradient(ellipse 78% 86% at 50% 48%, #00262a 0%, #001a1d 58%, #000f11 100%);
+    --patch-shade: #000f11;
+    --patch-cable: #00343a;
+    --patch-boot: #00434a;
+    --patch-barrel: #005058;
+    --patch-metal: #3a8a92;
+    --cable-brown: #2a1410;
+    --cable-red: #3a0a10;
+    --cable-red-lit: rgba(251, 44, 54, 0.06);
+    --cable-blue: #0a2a40;
+    --cable-blue-lit: rgba(100, 190, 218, 0.06);
+    --cable-green: #0a3a2a;
+    --cable-green-lit: rgba(63, 209, 138, 0.05);
+    --cable-amber: #3a2a0a;
+    --cable-violet: #2a1040;
+    --cable-violet-lit: rgba(170, 120, 230, 0.05);
+
+    /* ===== Overlays and app chrome ===== */
+    --scrim-ink: #001214;
+    --scrollbar-thumb: linear-gradient(180deg, #00afbd, #00636c);
+    --start-btn: linear-gradient(180deg, #006670, #00474e);
+
+    /* ===== Faces: a geometric sans for the legends ===== */
+    --serif: 'Futura', 'Trebuchet MS', system-ui, sans-serif;
+    --sans: 'Inter', system-ui, -apple-system, sans-serif;
+  }
+}

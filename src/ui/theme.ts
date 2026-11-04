@@ -18,8 +18,11 @@ import {
 } from '../state/theme';
 import { invalidateScreenPalette } from './theme-colors';
 
-/** The choice in force — kept here so Auto still follows when storage is blocked. */
-let pref: ThemePref | null = null;
+/**
+ * The choice in force — kept here so Auto still follows when storage is blocked.
+ * `null` is no choice (the default look); `undefined`, not read yet.
+ */
+let pref: ThemePref | null | undefined;
 let started = false;
 
 /** `data-theme` and both metas; on an actual change, the canvases repaint (REQ-a-theme-change-repaints-the-canvases). */
@@ -33,21 +36,39 @@ export function applyTheme(id: ThemeId): void {
   if (changed) invalidateScreenPalette();
 }
 
-/** The choice in force: the stored one until `setThemePref` changes it. */
-export function currentThemePref(): ThemePref {
-  return (pref ??= readThemePref());
+/** The choice in force: the stored one until `setThemePref` changes it; `null` for none. */
+export function currentThemePref(): ThemePref | null {
+  if (pref === undefined) pref = readThemePref();
+  return pref;
 }
 
-/** Boot: apply the choice (a no-op after theme-boot.js), then follow the system under Auto. Idempotent. */
+/**
+ * Boot: apply the choice (a no-op after theme-boot.js), then follow the system
+ * where the theme depends on it — under Auto, and with no choice (whose high-
+ * contrast exception is live too, REQ-vibrant-is-the-default). Idempotent.
+ */
 export function startTheme(): void {
   if (started) return;
   started = true;
   applyTheme(resolveTheme(currentThemePref()));
   if (typeof matchMedia !== 'function') return;
   const follow = (): void => {
-    if (currentThemePref() === 'auto') applyTheme(resolveTheme('auto'));
+    const now = currentThemePref();
+    if (now === 'auto' || now === null) applyTheme(resolveTheme(now));
   };
   for (const q of [CONTRAST_QUERY, LIGHT_QUERY]) matchMedia(q).addEventListener('change', follow);
+}
+
+/**
+ * Run `fn` whenever a system setting Auto reads changes, whatever the stored
+ * choice — the picker's Auto tile shows what Auto would pick even while another
+ * theme is chosen (REQ-auto-shows-what-it-would-pick). Returns the unsubscribe.
+ */
+export function onSystemThemeChange(fn: () => void): () => void {
+  if (typeof matchMedia !== 'function') return () => {};
+  const lists = [CONTRAST_QUERY, LIGHT_QUERY].map((q) => matchMedia(q));
+  for (const l of lists) l.addEventListener('change', fn);
+  return () => { for (const l of lists) l.removeEventListener('change', fn); };
 }
 
 /** Store a choice and apply it at once (REQ-choosing-a-theme-previews-it). Returns the theme it resolved to. */
