@@ -37,7 +37,7 @@
     display: grid;
     grid-template-rows: subgrid; /* no-subgrid engines fall back to auto rows (unaligned, fine) */
     grid-row: span 4;
-    background: linear-gradient(180deg, #0c0905, #16100b);
+    background: linear-gradient(180deg, var(--tray-top), var(--recess-bottom));
     border: 1px solid var(--panel-border);
     border-radius: 6px;
     padding: 10px;
@@ -137,7 +137,7 @@
     width: 28px;
     height: 28px;
     border-radius: 4px;
-    background: linear-gradient(180deg, #1a1410, #0a0805);
+    background: var(--well);
     border: 1px solid var(--panel-border);
     color: var(--text);
     font-family: var(--serif);
@@ -167,8 +167,8 @@
        confused with the selection border and both can show at once. */
     color: var(--accent-good);
     background:
-      linear-gradient(180deg, rgba(111, 184, 106, 0.16), rgba(111, 184, 106, 0.05)),
-      linear-gradient(180deg, #1a1410, #0a0805);
+      linear-gradient(180deg, color-mix(in srgb, var(--accent-good) 16%, transparent), color-mix(in srgb, var(--accent-good) 5%, transparent)),
+      var(--well);
   }
 
   .chip:global(.sel) { border-color: var(--accent-secondary); }
@@ -179,9 +179,9 @@
      that instant). Selection still reads: it is on the border, untouched. */
   .chip:global(.playing),
   .chip[data-transposed='true']:global(.playing) {
-    background: linear-gradient(180deg, #d4602a 0%, #8a3010 100%);
-    color: #f4e4c2;
-    box-shadow: 0 0 8px rgba(232, 116, 46, 0.5);
+    background: var(--lit);
+    color: var(--lit-text);
+    box-shadow: 0 0 8px var(--accent-glow);
   }
 
   /* ---- Drag to reorder (arrangement.md REQ-a-chip-is-dragged-to-its-place) ----
@@ -216,7 +216,7 @@
     justify-content: center;
   }
   .chip.rest svg { width: 16px; height: 16px; display: block; }
-  .chip.rest:global(.playing) svg { color: #f4e4c2; }
+  .chip.rest:global(.playing) svg { color: var(--lit-text); }
 
   /* Rest add-button: matches the A/B/C/D add-buttons but carries the rest glyph.
      Centring comes from .add — only the glyph size is specific to this one. 14px
@@ -258,7 +258,7 @@
     min-width: 26px;
     min-height: 26px; /* match .ctl, so the whole row shares one control height */
     padding: 5px 7px;
-    background: linear-gradient(180deg, #1a1410, #0a0805);
+    background: var(--well);
     border: 1px solid var(--panel-border);
     border-radius: 3px;
     color: var(--text-dim);
@@ -293,10 +293,10 @@
   }
 
   .djBtn:global(.on) {
-    background: linear-gradient(180deg, #e8742e 0%, #8a3010 100%);
-    color: #1a1410;
-    border-color: var(--accent);
-    box-shadow: 0 0 10px var(--accent-glow), inset 0 1px 0 rgba(255, 220, 180, 0.3);
+    background: linear-gradient(180deg, var(--lit-accent) 0%, var(--lit-bottom) 100%);
+    color: var(--ink);
+    border-color: var(--lit-accent);
+    box-shadow: 0 0 10px var(--accent-glow), inset 0 1px 0 var(--lit-shine);
   }
 
   /* "Opens a new window" glyph inside the LIVE FX launcher button. */

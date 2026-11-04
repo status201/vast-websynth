@@ -1,0 +1,84 @@
+/* The Settings dialog's Theme row (ui-themes.md REQ-choosing-a-theme-previews-it):
+   a radio group of tiles, each four colour chips over a name. The chips' colours
+   are set from script (the theme's swatch), since a tile shows a theme that is
+   not the one on the page. */
+
+@layer components {
+  /* Three equal columns: Auto and five themes are two full rows, never a
+     straggler on a row of its own. */
+  .row {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 8px;
+    margin-top: 12px;
+  }
+
+  .tile {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 6px;
+    min-width: 0;
+    padding: 8px 10px 6px;
+    background: var(--well);
+    border: 1px solid var(--panel-border);
+    border-radius: 4px;
+    color: var(--text-dim);
+    font-family: inherit;
+    cursor: pointer;
+    box-shadow: inset 0 1px 2px rgba(0, 0, 0, 0.6);
+  }
+
+  .tile:hover {
+    color: var(--text);
+  }
+
+  .tile:global(.active) {
+    background: var(--raised);
+    border-color: var(--accent);
+    color: var(--accent-secondary);
+    box-shadow: 0 0 6px var(--accent-glow), inset 0 1px 0 color-mix(in srgb, var(--accent-secondary) 15%, transparent);
+  }
+
+  .tile:focus-visible {
+    outline: 2px solid var(--accent-secondary);
+    outline-offset: 2px;
+  }
+
+  .chips {
+    display: flex;
+    border-radius: 2px;
+    overflow: hidden;
+    box-shadow: 0 0 0 1px rgba(0, 0, 0, 0.6);
+  }
+
+  .chip {
+    width: 12px;
+    height: 18px;
+  }
+
+  .name {
+    font-size: 11px;
+    font-weight: 700;
+    letter-spacing: 0.04em;
+  }
+
+  .help {
+    margin-top: 10px;
+    font-size: 11.5px;
+    line-height: 1.5;
+    color: var(--text-dim);
+  }
+
+  .status {
+    margin-top: 6px;
+    font-size: 12.5px;
+    line-height: 1.5;
+    color: var(--text-dim);
+  }
+
+  .status strong {
+    font-weight: 800;
+    color: var(--accent-secondary);
+  }
+}

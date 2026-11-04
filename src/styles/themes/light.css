@@ -1,0 +1,166 @@
+/*
+ * Light (specs/features/ui-themes.md): a cream faceplate with dark legends, maple
+ * cheeks and light knobs. The display windows and the patch bay stay dark, the way
+ * hardware screens do (REQ-screens-are-their-own-family), so their inks are set
+ * here to Dark's bright ones rather than following this theme's deeper accents.
+ * Lit controls keep their fills: an orange step reads on any panel.
+ */
+@layer theme {
+  :root[data-theme="light"] {
+    /* ===== Chassis ===== */
+    --bg: #cfc7b8;
+    --bg-deep: #bdb4a3;
+    --panel: linear-gradient(180deg, #f4efe6 0%, #e5ded0 100%);
+    --panel-flat: #ece6da;
+    --panel-border: #a8977a;
+    --panel-border-dim: #c9bda7;
+    --panel-shadow:
+      0 6px 18px rgba(60, 40, 20, 0.22),
+      inset 0 1px 0 rgba(255, 255, 255, 0.7),
+      inset 0 0 0 1px rgba(60, 40, 20, 0.06);
+    --rule: color-mix(in srgb, var(--text) 16%, transparent);
+    --wood: linear-gradient(180deg, #c8996a 0%, #dcb283 30%, #b98a58 70%, #a8794a 100%);
+    --wood-grain:
+      repeating-linear-gradient(
+        90deg,
+        rgba(80, 40, 10, 0.12) 0px,
+        rgba(80, 40, 10, 0.12) 1px,
+        transparent 1px,
+        transparent 3px,
+        rgba(255, 240, 210, 0.12) 3px,
+        rgba(255, 240, 210, 0.12) 5px,
+        transparent 5px,
+        transparent 9px
+      );
+
+    /* ===== Type ===== */
+    --text: #2a2118;
+    --text-dim: #5a4c3c;
+    --text-faint: #8d7f6b;
+    --text-soft: #4a3e31;
+    --text-label: #645644;
+    --text-hint: #6a5c4e;
+    --text-bad: #a82a16;
+    --text-bad-hover: #93220f;
+    --text-error: #a8341f;
+    --border-error: #d98a7c;
+    --text-good: #246b2e;
+
+    /* ===== Accents and LEDs ===== */
+    --accent: #a8440f;
+    --accent-secondary: #8f5c00;
+    --accent-secondary-dim: #b89a5a;
+    --accent-good: #3a8a35;
+    --accent-bad: #c8302a;
+    --led-on: #e8321c;
+    --led-off: #d9c9bc;
+    --led-dim: #c98a7c;
+    --led-good: #28a836;
+    --meter-hot: #d0522a;
+    --motion: #c07012;
+    --motion-beat: #d6552a;
+
+    /* ===== Control surfaces ===== */
+    --well-top: #e9e3d8;
+    --well-bottom: #d8d0c1;
+    --tray-top: #cdc4b3;
+    --tray-bottom: #ddd5c6;
+    --recess-top: #c9c0ae;
+    --recess-bottom: #d9d1c2;
+    --raised-top: #fdfaf4;
+    --raised-bottom: #e8e1d4;
+    --switch-on-bed: #f3d9a4;
+    --switch-on-ink: #1a1410;
+    --field: #fbf8f2;
+    --menu: linear-gradient(180deg, #f8f4ec 0%, #ece6db 100%);
+    --menu-hover: linear-gradient(180deg, #f3dcc0, #e8cca8);
+    --handle-light: #c2b29a;
+    --handle-dark: #8f7d64;
+    --handle-edge: #6e5e48;
+    --pad-bed: linear-gradient(180deg, #e4ddcf, #d5cdbd);
+    --pad-border: #b9ac96;
+    --pad-border-hover: #c98a5a;
+
+    /* ===== Lit controls ===== */
+    --lit-top: #d4602a;
+    --lit-bottom: #9a3812;
+    --lit-shine: rgba(255, 220, 180, 0.35);
+    --lit-text: #fff6e6;
+    --lit-bad-top: #d4302a;
+    --lit-bad-bottom: #8a1010;
+    --lit-bad-shine: rgba(255, 180, 160, 0.3);
+    --lit-warm-top: #e8b542;
+    --lit-warm-bottom: #9a6c14;
+    --lit-warm-shine: rgba(255, 240, 180, 0.4);
+    --lit-ring: rgba(255, 246, 214, 0.55);
+    --ink: #1a1410;
+    --ink-strong: #120a04;
+    --playing: #e8b542;
+    --lit-accent: #e8742e;
+    --lit-accent-ink: #120a04;
+
+    /* ===== Keyboard ===== */
+    --key-bed: linear-gradient(180deg, #8f8270 0%, #ada08a 100%);
+    --key-white: linear-gradient(180deg, #fbf7ee 0%, #e2d8c2 100%);
+    --key-white-active: linear-gradient(180deg, #f4b56a 0%, #d4602a 100%);
+    --key-black: linear-gradient(180deg, #2a2219 0%, #0e0b08 100%);
+    --key-black-active: linear-gradient(180deg, #d4502a 0%, #8a2810 100%);
+    --key-white-ink: rgba(60, 40, 20, 0.6);
+    --key-white-shade: rgba(80, 50, 20, 0.3);
+    --key-white-shine: rgba(255, 255, 255, 0.6);
+    --key-white-active-shine: rgba(255, 220, 180, 0.4);
+    --key-black-active-shine: rgba(255, 180, 130, 0.3);
+    --key-black-active-glow: rgba(232, 80, 32, 0.4);
+    /* The four roles, lightened for a cream key and a pale map (scale-quantization.md). */
+    --key-role-root-black: #a8461a;
+    --key-role-chord-black: #8a5c00;
+    --key-role-scale: #e2bf92;
+    --key-role-scale-edge: #c79d6c;
+    --key-role-scale-black: #7a5530;
+    --key-role-extra: #9dbbd6;
+    --key-role-extra-edge: #5b84a6;
+    --key-role-extra-black: #3f6585;
+    --key-role-out: #e9e3d8;
+    --key-role-out-edge: #c4b9a6;
+    --key-role-out-black: #5e5446;
+    --knob-bg: radial-gradient(circle at 35% 30%, #fffdf8 0%, #e2dacb 65%, #b4a892 100%);
+    --knob-ring: color-mix(in srgb, var(--text) 18%, transparent);
+
+    /* ===== Screens — dark, like hardware ===== */
+    --screen: radial-gradient(ellipse at center, #0a0604 0%, #050302 100%);
+    --screen-border: #5a4a38;
+    --screen-ink: #f4cd5e;
+    --screen-trace: #e8742e;
+    --screen-hot: #ff3a20;
+    --screen-highlight: #ffe9a8;
+    --screen-cue: #7fd6ff;
+    --badge-bed: #1a140e;
+    --patch-bay: radial-gradient(ellipse 78% 86% at 50% 48%, #0c0c0a 0%, #0a0806 58%, #050403 100%);
+    --patch-shade: #050403;
+    --patch-cable: #1a1209;
+    --patch-boot: #1a130c;
+    --patch-barrel: #241e18;
+    --patch-metal: #3a3129;
+    --cable-brown: #17100a;
+    --cable-red: #1b0d0a;
+    --cable-red-lit: rgba(200, 72, 66, 0.042);
+    --cable-blue: #0c1219;
+    --cable-blue-lit: rgba(96, 138, 186, 0.04);
+    --cable-green: #0d1710;
+    --cable-green-lit: rgba(108, 160, 104, 0.04);
+    --cable-amber: #1a1408;
+    --cable-violet: #150c16;
+    --cable-violet-lit: rgba(140, 110, 180, 0.038);
+
+    /* ===== Overlays and app chrome ===== */
+    --scrim-ink: #1a140e;
+    --veil: #efe9de;
+    --keycap-sharp-ink: #463c31;
+    --scrollbar-thumb: linear-gradient(180deg, #c8996a, #a8794a);
+    --start-btn: linear-gradient(180deg, #fbf8f2, #e2dbcd);
+
+    /* ===== Faces ===== */
+    --serif: 'Georgia', 'Times New Roman', serif;
+    --sans: 'Inter', system-ui, -apple-system, sans-serif;
+  }
+}

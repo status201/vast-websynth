@@ -40,6 +40,16 @@ import {
 } from '../../state/limits';
 import { UI_ICONS } from './ui-icons';
 import { plural } from '../../utils/format';
+import { onPaletteChange, paletteDerived, rgba } from '../theme-colors';
+
+/** The waveform's inks, from the screen tokens (ui-themes.md REQ-canvas-reads-the-screen-tokens). */
+const waveColours = paletteDerived((p) => ({
+  midline: rgba(p.ink, 0.07),
+  clipped: rgba(p.hot),
+  inside: rgba(p.trace),
+  outside: rgba(p.trace, 0.18),
+  mark: rgba(p.ink),
+}));
 
 const FADE_MS = 150;
 const BOOST_FACTOR = 2; // ≈ +6 dB
@@ -104,6 +114,9 @@ export function openRecordSoundModal(engine: StudioApi, opts: RecordSoundOptions
   let lastAction = 'Ready';
   let onPlayingChange: ((playing: boolean) => void) | null = null;
   let redrawHook: (() => void) | null = null;
+  // The waveform paints on demand, so a theme change asks for one repaint
+  // (ui-themes.md REQ-a-theme-change-repaints-the-canvases); cleanup unsubscribes.
+  const offPalette = onPaletteChange(() => redrawHook?.());
   /** Interior chop boundaries, absolute sample indices (sample-chop.md REQ-two-ways-to-place-the-cuts). */
   let marks: number[] = [];
   /** Re-reads `marks` into the chop row's labels and disabled states. */
@@ -176,6 +189,7 @@ export function openRecordSoundModal(engine: StudioApi, opts: RecordSoundOptions
     stopPreview();
     onPlayingChange = null;
     redrawHook = null;
+    offPalette();
     syncChop = null;
     syncFit = null;
     syncScratch = null;
@@ -334,7 +348,8 @@ export function openRecordSoundModal(engine: StudioApi, opts: RecordSoundOptions
       g.setTransform(dpr, 0, 0, dpr, 0, 0);
       g.clearRect(0, 0, w, h);
 
-      g.strokeStyle = 'rgba(244, 205, 94, 0.07)';
+      const ink = waveColours();
+      g.strokeStyle = ink.midline;
       g.lineWidth = 1;
       g.beginPath();
       g.moveTo(0, h / 2);
@@ -350,11 +365,7 @@ export function openRecordSoundModal(engine: StudioApi, opts: RecordSoundOptions
         const sample = (c / cols) * len;
         const inside = sample >= cropStart && sample < cropEnd;
         const clipped = max > 1 || min < -1;
-        g.strokeStyle = clipped
-          ? '#ff3a20'
-          : inside
-            ? '#e8742e'
-            : 'rgba(232, 116, 46, 0.18)';
+        g.strokeStyle = clipped ? ink.clipped : inside ? ink.inside : ink.outside;
         g.lineWidth = 1;
         const y1 = h / 2 - clamp1(max) * (h / 2 - 2);
         const y2 = h / 2 - clamp1(min) * (h / 2 - 2);
@@ -369,7 +380,7 @@ export function openRecordSoundModal(engine: StudioApi, opts: RecordSoundOptions
         const pos = cropStart + elapsed * buf.sampleRate;
         if (pos >= cropStart && pos <= cropEnd) {
           const x = xOf(pos);
-          g.strokeStyle = '#f4cd5e';
+          g.strokeStyle = ink.mark;
           g.lineWidth = 1.5;
           g.beginPath();
           g.moveTo(x, 0);
@@ -384,7 +395,7 @@ export function openRecordSoundModal(engine: StudioApi, opts: RecordSoundOptions
       for (const m of marks) {
         if (m <= cropStart || m >= cropEnd) continue;
         const x = xOf(m);
-        g.strokeStyle = '#f4cd5e';
+        g.strokeStyle = ink.mark;
         g.lineWidth = 1;
         g.setLineDash([3, 3]);
         g.beginPath();

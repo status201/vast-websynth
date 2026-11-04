@@ -1,13 +1,13 @@
 @layer panels {
   .load {
-    background: linear-gradient(180deg, #1a1410, #0a0805);
+    background: var(--well);
     border: 1px solid var(--panel-border);
     border-radius: 4px;
     cursor: pointer;
     font-family: var(--sans);
     color: var(--text-faint);
     box-shadow:
-      inset 0 1px 0 rgba(244, 205, 94, 0.05),
+      inset 0 1px 0 var(--lip),
       inset 0 -1px 2px rgba(0, 0, 0, 0.5),
       0 1px 2px rgba(0, 0, 0, 0.5);
     transition: background 80ms ease, border-color 80ms ease;
@@ -31,29 +31,29 @@
     text-align: left;
     padding: 4px 7px;
     min-height: 24px;
-    background: linear-gradient(180deg, #1a1410, #0a0805);
+    background: var(--well);
     border: 1px solid var(--panel-border);
     border-radius: 4px;
     box-shadow:
-      inset 0 1px 0 rgba(244, 205, 94, 0.05),
+      inset 0 1px 0 var(--lip),
       inset 0 -1px 2px rgba(0, 0, 0, 0.5),
       0 1px 2px rgba(0, 0, 0, 0.5);
   }
 
   .name:global(.needs-reload) {
-    color: #d9694f;
-    border-color: #7a2b22;
+    color: var(--text-error);
+    border-color: var(--border-error);
     font-style: italic;
   }
 
   .edit {
-    background: linear-gradient(180deg, #1a1410, #0a0805);
+    background: var(--well);
     border: 1px solid var(--panel-border);
     border-radius: 4px;
     cursor: pointer;
     font-family: var(--sans);
     box-shadow:
-      inset 0 1px 0 rgba(244, 205, 94, 0.05),
+      inset 0 1px 0 var(--lip),
       inset 0 -1px 2px rgba(0, 0, 0, 0.5),
       0 1px 2px rgba(0, 0, 0, 0.5);
     transition: background 80ms ease, border-color 80ms ease;
@@ -73,13 +73,13 @@
      — there is no shared base class here to inherit from. Tighter horizontal
      padding than .edit because it shares a fixed-width row with four other controls. */
   .fit {
-    background: linear-gradient(180deg, #1a1410, #0a0805);
+    background: var(--well);
     border: 1px solid var(--panel-border);
     border-radius: 4px;
     cursor: pointer;
     font-family: var(--sans);
     box-shadow:
-      inset 0 1px 0 rgba(244, 205, 94, 0.05),
+      inset 0 1px 0 var(--lip),
       inset 0 -1px 2px rgba(0, 0, 0, 0.5),
       0 1px 2px rgba(0, 0, 0, 0.5);
     transition: background 80ms ease, border-color 80ms ease, color 80ms ease;
@@ -97,13 +97,13 @@
   .fit:disabled { opacity: 0.4; cursor: not-allowed; }
 
   .rec {
-    background: linear-gradient(180deg, #1a1410, #0a0805);
+    background: var(--well);
     border: 1px solid var(--panel-border);
     border-radius: 4px;
     cursor: pointer;
     font-family: var(--sans);
     box-shadow:
-      inset 0 1px 0 rgba(244, 205, 94, 0.05),
+      inset 0 1px 0 var(--lip),
       inset 0 -1px 2px rgba(0, 0, 0, 0.5),
       0 1px 2px rgba(0, 0, 0, 0.5);
     transition: background 80ms ease, border-color 80ms ease;

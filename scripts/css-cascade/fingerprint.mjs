@@ -22,6 +22,12 @@
  * injects strictly in import order — which is where e2e, and the reverted
  * app.ts split, live.
  *
+ * `--rendered` (compare only) ignores custom properties and compares colours as
+ * numbers — the proof for moving literals into tokens (see `sameRendered`).
+ *
+ * Every capture is in the Dark theme; `--theme <id>` captures another (the
+ * app's default look is Vibrant, and a baseline must not move with a default).
+ *
  * Options: --filter <substr> (state@viewport ids), --browser firefox,
  * --port <n> (default 4179), --jobs <n> (default 3), --limit <n> diffs shown per id.
  */
@@ -75,7 +81,7 @@ function capture() {
 
 async function captureOne(browser, url, { id, state, vp }) {
   const t0 = Date.now();
-  const { page, close } = await openState(browser, url, state, vp);
+  const { page, close } = await openState(browser, url, state, vp, typeof args.theme === 'string' ? args.theme : 'dark');
   try {
     const cap = await page.evaluate(capture);
     console.error(`  ${id} — ${Object.keys(cap.elements).length} elements (${Date.now() - t0} ms)`);
@@ -122,6 +128,52 @@ function readFingerprint(file) {
  */
 const norm = (v) => v.trim().replace(/\s+/g, ' ').replace(/(_[A-Za-z][\w-]*?)_[a-z0-9]{5}_\d+/g, '$1');
 
+/**
+ * `--rendered` (specs/features/ui-themes.md REQ-a-token-move-is-proven-by-fingerprint):
+ * the compare for moving colour literals into tokens. Two things differ that no
+ * pixel does — a custom property's raw text (a new or rewritten token), and the
+ * serialisation of a colour: `color-mix(in srgb, #f4cd5e 5%, transparent)`
+ * computes to `color(srgb 0.956863 0.803922 0.368627 / 0.05)`, which is
+ * `rgba(244, 205, 94, 0.05)` exactly. So custom properties are skipped and every
+ * colour is rewritten to integer rgba before comparing. `--tolerance <n>` also
+ * accepts colours within n/255 per channel (a deliberate merge of near-identical
+ * literals) — leave it at 0 to see such merges listed by name.
+ */
+const rendered = Boolean(args.rendered);
+const tolerance = Number(args.tolerance ?? 0);
+const COLOR = /color\(srgb ([\d.e-]+) ([\d.e-]+) ([\d.e-]+)(?: \/ ([\d.e-]+))?\)|rgba?\((\d+(?:\.\d+)?), (\d+(?:\.\d+)?), (\d+(?:\.\d+)?)(?:, ([\d.e-]+))?\)/g;
+/** A value split into its non-colour text and its colours as [r, g, b, a]. */
+function colours(v) {
+  const parts = [];
+  const cols = [];
+  let last = 0;
+  for (const m of v.matchAll(COLOR)) {
+    parts.push(v.slice(last, m.index));
+    last = m.index + m[0].length;
+    cols.push(m[1] !== undefined
+      ? [m[1] * 255, m[2] * 255, m[3] * 255, m[4] === undefined ? 1 : Number(m[4])]
+      : [Number(m[5]), Number(m[6]), Number(m[7]), m[8] === undefined ? 1 : Number(m[8])]);
+  }
+  parts.push(v.slice(last));
+  return { text: parts.join('\u0002'), cols };
+}
+/** A gradient's first stop at 0% and last at 100% are its defaults: `(a, b)` is `(a 0%, b 100%)`. */
+const defaultStops = (v) => v.replace(/\) 0%, /g, '), ').replace(/\) 100%\)/g, '))');
+function sameRendered(x, y) {
+  if (x === y) return true;
+  if (x === undefined || y === undefined) return false;
+  const a = colours(defaultStops(x));
+  const b = colours(defaultStops(y));
+  if (a.text !== b.text || a.cols.length !== b.cols.length) return false;
+  return a.cols.every((c, i) => {
+    const d = b.cols[i];
+    // A fully transparent colour is one colour whatever its channels say.
+    if (c[3] === 0 && d[3] === 0) return true;
+    return Math.abs(c[3] - d[3]) <= 0.002
+      && [0, 1, 2].every((k) => Math.abs(Math.round(c[k]) - Math.round(d[k])) <= tolerance);
+  });
+}
+
 /** Expand one state's capture into path → { prop → value }-ish accessors. */
 function styleOf(cap, idx) {
   return cap.table[idx].split('\u0001');
@@ -152,11 +204,12 @@ function diffState(a, b, volatile = new Set()) {
       const va = styleOf(a, ea[slot]);
       const vb = styleOf(b, eb[slot]);
       a.props.forEach((p, i) => {
+        if (rendered && p.startsWith('--')) return;
         const j = propsB.get(p);
         const x = norm(va[i]);
         const y = j === undefined ? undefined : norm(vb[j]);
         const key = `${path}${slot === 's' ? '' : slot}|${p}`;
-        if (x !== y && !volatile.has(key)) {
+        if (!(rendered ? sameRendered(x, y) : x === y) && !volatile.has(key)) {
           lines.push({ key, text: `${label}${slot === 's' ? '' : slot}: ${p}: ${x} -> ${y}` });
         }
       });

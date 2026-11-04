@@ -10,7 +10,7 @@
     justify-content: center;
     gap: 3px;
     pointer-events: none; /* the step grid underneath stays clickable */
-    background: rgba(6, 4, 2, 0.62);
+    background: color-mix(in srgb, var(--veil) 62%, transparent);
     border-radius: 6px;
     color: var(--accent-secondary);
     z-index: 5;
@@ -22,7 +22,7 @@
     width: 46px;
     height: 46px;
     display: block;
-    filter: drop-shadow(0 0 10px rgba(232, 116, 46, 0.45));
+    filter: drop-shadow(0 0 10px color-mix(in srgb, var(--accent) 45%, transparent));
   }
 
   .caption {

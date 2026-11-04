@@ -53,9 +53,9 @@
        Both are corrections to this exact string's shape — revisit them if the
        face, the size or the model number ever changes. */
     padding: 4px calc(8px - 0.14em) 2px 8px;
-    border: 1px solid rgba(232, 116, 46, 0.55);
+    border: 1px solid color-mix(in srgb, var(--accent) 55%, transparent);
     border-radius: 3px;
-    background: rgba(0, 0, 0, 0.4);
+    background: var(--badge-bed);
     line-height: 1;
   }
 

@@ -1,5 +1,22 @@
 import styles from '../styles/scope.module.css';
 import { haloText } from './canvas-text';
+import { onPaletteChange, paletteDerived, rgba, type ScreenPalette } from '../theme-colors';
+
+/** The scope's inks, from the screen tokens (ui-themes.md REQ-canvas-reads-the-screen-tokens). */
+const colours = paletteDerived((p) => ({
+  palette: p,
+  midline: rgba(p.ink, 0.07),
+  label: rgba(p.ink, 0.6),
+  zoneFill: rgba(p.ink, 0.08),
+  zoneName: rgba(p.ink, 0.75),
+  tick: rgba(p.ink, 0.45),
+  tickLabel: rgba(p.ink, 0.75),
+  cursor: rgba(p.ink, 0.55),
+  cursorLabel: rgba(p.ink),
+  peak: rgba(p.ink, 0.9),
+  peakHot: rgba(p.hot),
+  wave: rgba(p.trace),
+}));
 
 export type ScopeMode = 'wave' | 'spectrum';
 export type ScopeChannels = 'mono' | 'stereo';
@@ -508,6 +525,8 @@ export class Scope {
   private cssH = 0;
   /** Spectrum gradients per region box — allocated once, not per frame. */
   private readonly gradCache = new Map<string, CanvasGradient>();
+  /** The palette the cached gradients were built from. */
+  private gradPalette: ScreenPalette | null = null;
   /** Column→bin boundaries per (cols, fftSize, sampleRate) — see REQ-bars-are-drawn-per-pixel-column. */
   private readonly edgeCache = new Map<string, Float32Array>();
   /** Pruned ruler per (regionW, fMax) — `visibleTicks` allocates, the loop must not. */
@@ -526,6 +545,11 @@ export class Scope {
   private cursorShown = false;
   private dpr = typeof window !== 'undefined' ? window.devicePixelRatio || 1 : 1;
   private ro: ResizeObserver | null = null;
+  /**
+   * Unsubscribes the theme-change wake: a sleeping scope would keep the old
+   * theme's screen until a signal woke it (ui-themes.md REQ-a-theme-change-repaints-the-canvases).
+   */
+  private readonly offPalette: () => void;
   /** Last value mirrored to each dataset key — lets us skip redundant per-frame writes. */
   private readonly mirrored: {
     peak: string; peakL: string; peakR: string; waveGain: string; zones: string; cursorHz: string;
@@ -556,6 +580,7 @@ export class Scope {
     // Pause the redraw loop while the tab is hidden — a backgrounded scope is
     // pure wasted main-thread work that can starve the audio thread on mobile.
     document.addEventListener('visibilitychange', this.onVisibility);
+    this.offPalette = onPaletteChange(this.onEnsureLive);
     // A bfcache restore can reach a visible page without a visibilitychange
     // (REQ-becoming-visible-re-measures) — and it is exactly the path that drops a queued frame.
     window.addEventListener('pageshow', this.onVisibility);
@@ -1122,13 +1147,20 @@ export class Scope {
 
   /** Faint horizontal mid-line for a region (vintage CRT look). */
   private spectrumGradient(ctx: CanvasRenderingContext2D, r: ScopeRegion): CanvasGradient {
+    // A cached gradient holds the colours it was built with; a new palette (a
+    // theme change) starts the cache over.
+    const p = colours().palette;
+    if (p !== this.gradPalette) {
+      this.gradCache.clear();
+      this.gradPalette = p;
+    }
     const key = `${r.y}:${r.h}`;
     let grad = this.gradCache.get(key);
     if (!grad) {
       grad = ctx.createLinearGradient(0, r.y + r.h, 0, r.y);
-      grad.addColorStop(0, '#e8742e');
-      grad.addColorStop(0.6, '#f4cd5e');
-      grad.addColorStop(1, '#ff3a20');
+      grad.addColorStop(0, rgba(p.trace));
+      grad.addColorStop(0.6, rgba(p.ink));
+      grad.addColorStop(1, rgba(p.hot));
       this.gradCache.set(key, grad);
     }
     return grad;
@@ -1136,7 +1168,7 @@ export class Scope {
 
   private drawMidline(ctx: CanvasRenderingContext2D, r: ScopeRegion): void {
     const midY = r.y + r.h / 2;
-    ctx.strokeStyle = 'rgba(244, 205, 94, 0.07)';
+    ctx.strokeStyle = colours().midline;
     ctx.lineWidth = 1;
     ctx.beginPath();
     ctx.moveTo(r.x, midY);
@@ -1151,7 +1183,7 @@ export class Scope {
     // top-right) sit flush with the canvas corners, so a top-anchored label hides
     // behind them. Same dodge the peak-dB readout makes by centring. (REQ-scope-renderers-are-rect-scoped)
     ctx.textBaseline = 'bottom';
-    haloText(ctx, r.label, r.x + 4, r.y + r.h - 4, 'rgba(244, 205, 94, 0.6)');
+    haloText(ctx, r.label, r.x + 4, r.y + r.h - 4, colours().label);
   }
 
   private drawWave(ctx: CanvasRenderingContext2D, channel: Channel, r: ScopeRegion): void {
@@ -1162,7 +1194,7 @@ export class Scope {
     const amp = r.h / 2 - 4;
     const gain = this.waveGain;
     ctx.lineWidth = 1.8;
-    ctx.strokeStyle = '#e8742e';
+    ctx.strokeStyle = colours().wave;
     ctx.beginPath();
     // Triggered (REQ-the-wave-trace-is-triggered): start at the first rising zero
     // crossing in the first quarter, draw a fixed three quarters — so the span is
@@ -1292,7 +1324,7 @@ export class Scope {
 
   /** The shaded problem bands, behind the bars. (REQ-a-zones-toggle) */
   private drawZoneBands(ctx: CanvasRenderingContext2D, r: ScopeRegion, fMax: number): void {
-    ctx.fillStyle = 'rgba(244, 205, 94, 0.08)';
+    ctx.fillStyle = colours().zoneFill;
     for (const z of SPECTRUM_ZONES) {
       const x0 = this.xForFreq(r, z.from, fMax);
       ctx.fillRect(x0, r.y, this.xForFreq(r, z.to, fMax) - x0, r.h);
@@ -1312,7 +1344,7 @@ export class Scope {
     ctx.textBaseline = 'top';
     for (const z of SPECTRUM_ZONES) {
       const mid = (this.xForFreq(r, z.from, fMax) + this.xForFreq(r, z.to, fMax)) / 2;
-      haloText(ctx, z.name, mid, r.y + ZONE_NAME_TOP, 'rgba(244, 205, 94, 0.75)');
+      haloText(ctx, z.name, mid, r.y + ZONE_NAME_TOP, colours().zoneName);
     }
     ctx.restore();
   }
@@ -1322,7 +1354,7 @@ export class Scope {
     const ticks = this.ticksFor(r.w, fMax);
     const bottom = r.y + r.h;
     ctx.save();
-    ctx.strokeStyle = 'rgba(244, 205, 94, 0.45)';
+    ctx.strokeStyle = colours().tick;
     ctx.lineWidth = 1;
     ctx.beginPath();
     for (const t of ticks) {
@@ -1335,7 +1367,7 @@ export class Scope {
     ctx.textAlign = 'center';
     ctx.textBaseline = 'bottom';
     for (const t of ticks) {
-      haloText(ctx, t.label, r.x + t.labelX, bottom - 5, 'rgba(244, 205, 94, 0.75)');
+      haloText(ctx, t.label, r.x + t.labelX, bottom - 5, colours().tickLabel);
     }
     ctx.restore();
   }
@@ -1362,7 +1394,7 @@ export class Scope {
       this.mirrorCursor(`${rounded}`);
     }
     ctx.save();
-    ctx.strokeStyle = 'rgba(244, 205, 94, 0.55)';
+    ctx.strokeStyle = colours().cursor;
     ctx.lineWidth = 1;
     ctx.beginPath();
     const x = Math.round(hx) + 0.5;
@@ -1373,7 +1405,7 @@ export class Scope {
     const left = frac > 0.5;
     ctx.textAlign = left ? 'right' : 'left';
     ctx.textBaseline = 'middle';
-    haloText(ctx, this.cursorLabel, hx + (left ? -5 : 5), hy, '#f4cd5e');
+    haloText(ctx, this.cursorLabel, hx + (left ? -5 : 5), hy, colours().cursorLabel);
     ctx.restore();
   }
 
@@ -1382,7 +1414,7 @@ export class Scope {
     if (!Number.isFinite(peakDb)) return;
     const y = r.y + r.h - dbToFrac(peakDb) * (r.h - 2);
     // Turn the red accent on as the peak approaches 0 dB (clip).
-    const color = peakDb >= -0.05 ? '#ff3a20' : 'rgba(244, 205, 94, 0.9)';
+    const color = peakDb >= -0.05 ? colours().peakHot : colours().peak;
     ctx.save();
     ctx.setLineDash([4, 4]);
     ctx.lineWidth = 1;
@@ -1482,6 +1514,7 @@ export class Scope {
     document.removeEventListener('visibilitychange', this.onVisibility);
     window.removeEventListener('pageshow', this.onVisibility);
     window.removeEventListener('focus', this.onEnsureLive);
+    this.offPalette();
     document.removeEventListener('resume' as 'visibilitychange', this.onEnsureLive);
   }
 }

@@ -76,7 +76,7 @@
 
   .closeBtn:hover {
     color: var(--text);
-    background: rgba(232, 116, 46, 0.18);
+    background: color-mix(in srgb, var(--accent) 18%, transparent);
   }
 
   /* Minimise button — mirrors .closeBtn but sits on the far left (no margin-left). */
@@ -101,7 +101,7 @@
 
   .minBtn:hover {
     color: var(--text);
-    background: rgba(232, 116, 46, 0.18);
+    background: color-mix(in srgb, var(--accent) 18%, transparent);
   }
 
   .body {

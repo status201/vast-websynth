@@ -14,7 +14,7 @@
     align-items: center;
     gap: 10px;
     padding: 7px 10px 7px 12px;
-    background: linear-gradient(180deg, #1a1410, #0a0805);
+    background: var(--well);
     border: 1px solid var(--panel-border);
     border-radius: 4px;
     color: var(--text);
@@ -28,7 +28,7 @@
     cursor: pointer;
     box-shadow:
       inset 0 1px 2px rgba(0, 0, 0, 0.7),
-      0 1px 0 rgba(244, 205, 94, 0.04);
+      0 1px 0 color-mix(in srgb, var(--accent-secondary) 4%, transparent);
   }
 
   /* An inherited / not-explicitly-set value (dropdown.md REQ-a-dropdown-can-be-dimmed). Compounded with
@@ -69,15 +69,15 @@
        `.list` owns the overflow, not this element (dropdown.md REQ-a-long-list-carries-a-filter). */
     flex-direction: column;
     overflow: hidden;
-    background: linear-gradient(180deg, #221c16 0%, #15110d 100%);
+    background: var(--menu);
     border: 1px solid var(--panel-border);
     border-radius: 4px;
     padding: 4px;
     z-index: 1000;
     box-shadow:
       0 8px 24px rgba(0, 0, 0, 0.85),
-      0 0 0 1px rgba(244, 205, 94, 0.05),
-      inset 0 1px 0 rgba(244, 205, 94, 0.08);
+      0 0 0 1px color-mix(in srgb, var(--accent-secondary) 5%, transparent),
+      inset 0 1px 0 color-mix(in srgb, var(--accent-secondary) 8%, transparent);
   }
 
   .root:global(.open) .menu {
@@ -168,7 +168,7 @@
   }
 
   .option:hover {
-    background: linear-gradient(180deg, #3a2a18, #1f1610);
+    background: var(--menu-hover);
     color: var(--accent-secondary);
   }
 
@@ -187,10 +187,10 @@
   }
 
   .option:global(.active) {
-    background: linear-gradient(180deg, #4a3525, #2a1c10);
+    background: var(--raised);
     color: var(--accent-secondary);
     text-shadow: 0 0 4px var(--accent-secondary-glow);
-    box-shadow: inset 0 1px 0 rgba(244, 205, 94, 0.15);
+    box-shadow: inset 0 1px 0 color-mix(in srgb, var(--accent-secondary) 15%, transparent);
   }
 
   /* Group rule (dropdown.md REQ-a-list-can-be-split-by-dividers) — a border on the last option of the first

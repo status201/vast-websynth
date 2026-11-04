@@ -7,6 +7,7 @@ import {
   SPECTRUM_ZONES, freqToFrac, fracToFreq, formatHzFull, visibleTicks,
 } from './scope';
 import { haloText } from './canvas-text';
+import { onPaletteChange, paletteDerived, rgba } from '../theme-colors';
 import { clamp } from '../../utils/math';
 import styles from '../styles/eq.module.css';
 import { DOUBLE_TAP_MS } from './gesture-timing';
@@ -41,11 +42,20 @@ const RULER_H = 13;
 const LABEL_FONT = '10px ui-monospace, monospace';
 const BAND_FONT = '8px ui-monospace, monospace';
 
-const INK = '#f4cd5e';
-const GRID = 'rgba(244, 205, 94, 0.10)';
-const ZERO_LINE = 'rgba(244, 205, 94, 0.22)';
-const CURVE = '#e8742e';
-const ZONE_FILL = 'rgba(244, 205, 94, 0.05)';
+/** The graph's inks, from the screen tokens (ui-themes.md REQ-canvas-reads-the-screen-tokens). */
+const colours = paletteDerived((p) => ({
+  ink: rgba(p.ink),
+  grid: rgba(p.ink, 0.1),
+  zeroLine: rgba(p.ink, 0.22),
+  zoneFill: rgba(p.ink, 0.05),
+  flatDot: rgba(p.ink, 0.45),
+  bandLabel: rgba(p.ink, 0.5),
+  tick: rgba(p.ink, 0.3),
+  tickLabel: rgba(p.ink, 0.7),
+  hover: rgba(p.ink, 0.35),
+  curve: rgba(p.trace),
+  curveFill: rgba(p.trace, 0.18),
+}));
 
 /**
  * How near a band's dot a double-tap must land to reset it, in CSS px. Used only
@@ -133,6 +143,8 @@ export class EqGraph {
     for (const id of eqCurveParamIds(this.prefix)) {
       this.unsubs.push(this.bus.subscribe(id, () => this.invalidate()));
     }
+    // A theme change repaints the curve once (ui-themes.md REQ-a-theme-change-repaints-the-canvases).
+    this.unsubs.push(onPaletteChange(() => this.invalidate()));
 
     this.canvas.addEventListener('pointerdown', this.handleDown);
     this.canvas.addEventListener('pointermove', this.handleHover);
@@ -376,7 +388,7 @@ export class EqGraph {
   /** The Spectrum's named problem bands, faintly — the same four, in the same
    *  places, so the two views teach one vocabulary. */
   private drawZones(ctx: CanvasRenderingContext2D, h: number): void {
-    ctx.fillStyle = ZONE_FILL;
+    ctx.fillStyle = colours().zoneFill;
     for (const z of SPECTRUM_ZONES) {
       const x0 = this.xForHz(z.from);
       const x1 = this.xForHz(z.to);
@@ -388,14 +400,14 @@ export class EqGraph {
     ctx.lineWidth = 1;
     for (const db of [-12, -6, 6, 12]) {
       const y = Math.round(this.yForDb(db)) + 0.5;
-      ctx.strokeStyle = GRID;
+      ctx.strokeStyle = colours().grid;
       ctx.beginPath();
       ctx.moveTo(0, y);
       ctx.lineTo(this.cssW, y);
       ctx.stroke();
     }
     const zero = Math.round(this.yForDb(0)) + 0.5;
-    ctx.strokeStyle = ZERO_LINE;
+    ctx.strokeStyle = colours().zeroLine;
     ctx.beginPath();
     ctx.moveTo(0, zero);
     ctx.lineTo(this.cssW, zero);
@@ -422,13 +434,13 @@ export class EqGraph {
     ctx.lineTo(this.cssW, zero);
     ctx.lineTo(0, zero);
     ctx.closePath();
-    ctx.fillStyle = 'rgba(232, 116, 46, 0.18)';
+    ctx.fillStyle = colours().curveFill;
     ctx.fill();
 
     ctx.beginPath();
     ctx.moveTo(0, pts[0]!);
     for (let i = 1; i < pts.length; i++) ctx.lineTo(i * 2, pts[i]!);
-    ctx.strokeStyle = CURVE;
+    ctx.strokeStyle = colours().curve;
     ctx.lineWidth = 2;
     ctx.lineJoin = 'round';
     ctx.stroke();
@@ -447,9 +459,9 @@ export class EqGraph {
       const y = this.yForDb(g);
       ctx.beginPath();
       ctx.arc(x, y, 3, 0, Math.PI * 2);
-      ctx.fillStyle = Math.abs(g) < 0.05 ? 'rgba(244, 205, 94, 0.45)' : INK;
+      ctx.fillStyle = Math.abs(g) < 0.05 ? colours().flatDot : colours().ink;
       ctx.fill();
-      haloText(ctx, band.label, x, h - 4, 'rgba(244, 205, 94, 0.5)');
+      haloText(ctx, band.label, x, h - 4, colours().bandLabel);
     }
   }
 
@@ -458,14 +470,14 @@ export class EqGraph {
     ctx.textAlign = 'center';
     ctx.textBaseline = 'bottom';
     for (const t of visibleTicks(this.cssW)) {
-      ctx.strokeStyle = 'rgba(244, 205, 94, 0.30)';
+      ctx.strokeStyle = colours().tick;
       ctx.lineWidth = 1;
       const x = Math.round(t.x) + 0.5;
       ctx.beginPath();
       ctx.moveTo(x, this.plotH());
       ctx.lineTo(x, this.plotH() + 3);
       ctx.stroke();
-      haloText(ctx, t.label, t.labelX, this.cssH - 1, 'rgba(244, 205, 94, 0.7)');
+      haloText(ctx, t.label, t.labelX, this.cssH - 1, colours().tickLabel);
     }
   }
 
@@ -474,7 +486,7 @@ export class EqGraph {
     if (this.hoverX < 0 || this.hoverX > this.cssW) return;
     const hz = fracToFreq(this.hoverX / Math.max(1, this.cssW));
     const db = eqResponseDb(s, hz, this.sampleRate);
-    ctx.strokeStyle = 'rgba(244, 205, 94, 0.35)';
+    ctx.strokeStyle = colours().hover;
     ctx.lineWidth = 1;
     const x = Math.round(this.hoverX) + 0.5;
     ctx.beginPath();
@@ -487,7 +499,7 @@ export class EqGraph {
     ctx.textAlign = left ? 'right' : 'left';
     ctx.textBaseline = 'top';
     const label = `${formatHzFull(hz)}  ${db >= 0 ? '+' : ''}${db.toFixed(1)} dB`;
-    haloText(ctx, label, this.hoverX + (left ? -5 : 5), 3, INK);
+    haloText(ctx, label, this.hoverX + (left ? -5 : 5), 3, colours().ink);
   }
 
   /**

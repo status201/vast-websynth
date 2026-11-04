@@ -6,7 +6,8 @@
 
 @layer chrome {
   .panel {
-    background: var(--panel);
+    /* A section's tint where a theme gives it one (ui-themes.md REQ-pastel-tints-each-panel). */
+    background: var(--panel-tint, var(--panel));
     border: 1px solid var(--panel-border);
     border-radius: 6px;
     box-shadow: var(--panel-shadow);

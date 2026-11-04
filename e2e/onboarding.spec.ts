@@ -93,10 +93,16 @@ test('the ⓘ button toggles the badges and ? replays the tour', async ({ page }
   await expect(page.getByTestId('info-badges')).toHaveClass(/toggleActive/);
   await expect(page.getByTestId('info-badges')).toHaveAttribute('aria-pressed', 'true');
 
-  // …and the glyph itself becomes a badge — the accent disc and --bg-deep ink
-  // the floating badges use — so the control that hides them wears one (REQ-the-glyph-inverts-while-badges-show).
-  await expect(disc).toHaveCSS('fill', 'rgb(232, 116, 46)'); // --accent
-  await expect(tittle).toHaveCSS('fill', 'rgb(5, 3, 2)'); // --bg-deep
+  // …and the glyph itself becomes a badge — the disc and ink the floating badges
+  // use — so the control that hides them wears one (REQ-the-glyph-inverts-while-badges-show).
+  // Read from a badge rather than spelled, so the check holds in every theme.
+  const badge = page.locator('[data-testid^="info-badge-"]:not([data-testid="info-badge-layer"])').first();
+  const wear = await badge.evaluate((el) => {
+    const cs = getComputedStyle(el);
+    return { fill: cs.backgroundColor, ink: cs.color };
+  });
+  await expect(disc).toHaveCSS('fill', wear.fill);
+  await expect(tittle).toHaveCSS('fill', wear.ink);
 
   // A section badge anchored via `data-help` opens its contextual modal.
   const subuni = page.getByTestId('info-badge-subuni');

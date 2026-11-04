@@ -1,6 +1,13 @@
 import styles from '../styles/panel.module.css';
 import { createPanelTabs, type PanelTabs } from './panel-tabs';
 
+/**
+ * The synth section a panel belongs to — the hook a theme colours sections by
+ * (ui-themes.md REQ-pastel-tints-each-panel). Set by the builder as `data-tint`;
+ * theme.css maps each to its `--panel-tint-<section>` token.
+ */
+export type PanelTint = 'osc' | 'mixer' | 'filter' | 'env' | 'mod' | 'fx';
+
 /** One page of a tabbed panel, built in place like a plain panel's body. */
 export interface PanelPageSpec {
   id: string;
@@ -15,12 +22,15 @@ export interface TabbedPanelOptions {
   /** Help topic id — lands on the tab row, never on a tab (REQ-data-help-sits-on-the-tab-row). */
   help?: string;
   pages: PanelPageSpec[];
+  /** The section this panel belongs to (REQ-pastel-tints-each-panel). */
+  tint?: PanelTint;
 }
 
 /** The bare faceplate panel box. Both forms fill it with a header + a body. */
-function panelRoot(): HTMLElement {
+function panelRoot(tint?: PanelTint): HTMLElement {
   const el = document.createElement('div');
   el.className = styles.panel!;
+  if (tint) el.dataset.tint = tint;
   return el;
 }
 
@@ -79,8 +89,9 @@ export function createPanel(
   title: string,
   build: (body: HTMLElement) => void,
   helpId?: string,
+  tint?: PanelTint,
 ): HTMLElement {
-  const el = panelRoot();
+  const el = panelRoot(tint);
 
   const t = document.createElement('div');
   t.className = styles.panelTitle!;
@@ -110,7 +121,7 @@ export function createPanel(
  * fully built stack.
  */
 export function createTabbedPanel(opts: TabbedPanelOptions): { el: HTMLElement; tabs: PanelTabs } {
-  const el = panelRoot();
+  const el = panelRoot(opts.tint);
 
   const pages = opts.pages.map((p) => {
     const content = panelBody();

@@ -316,6 +316,8 @@ export type TopicId =
   | 'voicing'
   | 'panic'
   | 'presets'
+  // The header's Settings button (onboarding.md REQ-a-settings-topic-anchors-to-the-gauge).
+  | 'settings'
   | 'oscillators'
   | 'osc2'
   | 'subuni'
@@ -463,6 +465,24 @@ export const HELP_TOPICS: Record<TopicId, HelpTopic> = {
       'pointer, a runaway pattern), hit <strong>Panic</strong> to silence everything instantly ' +
       'and stop the transport. Harmless to press any time. The <strong>Esc</strong> key does the ' +
       'same thing.</p>',
+  },
+  settings: {
+    title: 'Settings',
+    body:
+      '<p>Settings are about <em>this device</em>, not the music: nothing here travels in a ' +
+      'song, a preset or a share link.</p>' +
+      '<p><strong>Theme</strong> is how the app looks. <strong>Vibrant</strong> is the default; ' +
+      '<strong>Dark</strong> is the original walnut and amber, <strong>Light</strong> a cream ' +
+      'faceplate with dark screens, <strong>Pastel</strong> paints each synth section its own ' +
+      'colour, and <strong>High contrast</strong> keeps every label easy to read. ' +
+      '<strong>Auto</strong> follows your system — more contrast gives High contrast, a light ' +
+      'scheme gives Light, anything else Dark — and its tile shows which one it would pick. ' +
+      'Until you choose, a system set to more contrast gets High contrast.</p>' +
+      '<p><strong>Performance</strong> matches the audio to what this device can keep up with. ' +
+      '<strong>Weak</strong> uses a larger audio buffer and fewer voices, so slow hardware stops ' +
+      'crackling; <strong>Strong</strong> keeps latency low on a fast machine; <strong>Auto</strong> ' +
+      "picks one from your hardware. The button's colour shows the tier in use. A change to the " +
+      'buffer or the number of voices waits for a reload — the dialog says when, and offers one.</p>',
   },
   presets: {
     title: 'Presets',
@@ -900,9 +920,10 @@ export const HELP_TOPICS: Record<TopicId, HelpTopic> = {
       '<p>Pick a <strong>root</strong> and a <strong>scale</strong>, and every note the synth ' +
       'plays is nudged onto the nearest note of that key — the sequencer, the arpeggiator and ' +
       'the keyboard alike. Wrong notes stop being possible.</p>' +
-      '<p>The keyboard picture is the map: <strong>orange</strong> is the root, ' +
-      '<strong>yellow</strong> the notes of the chord, <strong>brown</strong> the rest of the ' +
-      'scale, <strong>blue</strong> the extra note, and dark keys are the notes now out of play.</p>' +
+      '<p>The keyboard picture is the map, one colour per role: the <strong>root</strong>, ' +
+      'the notes of the <strong>chord</strong>, the rest of the <strong>scale</strong> and the ' +
+      '<strong>extra note</strong> — the legend under it names each colour in your theme — and ' +
+      'the plain keys are the notes now out of play.</p>' +
       '<p>Once you pick a scale, the <strong>keyboard at the bottom of the screen</strong> ' +
       'wears those same colours, faintly — so you can see the key under your fingers while ' +
       'you play, without coming back to this tab.</p>' +
@@ -1270,8 +1291,8 @@ export const HELP_TOPICS: Record<TopicId, HelpTopic> = {
       'the same controls that live on the LFO panel, shown here beside the rest.</p>' +
       '<p><strong>Amount is bipolar.</strong> Past zero the route inverts — the source pushes ' +
       'its destination <em>down</em> instead of up. On the synth panels a modulated knob draws ' +
-      'an inner arc over the range it can now reach: <strong>green</strong> for up, ' +
-      '<strong>yellow</strong> for down. A mod-wheel route also shows a moving tick, so you ' +
+      'an inner arc over the range it can now reach: <strong>green</strong> for up, and the ' +
+      'colour of a selected switch for down. A mod-wheel route also shows a moving tick, so you ' +
       'can see where the wheel currently has it.</p>' +
       '<p>The destination list is short on purpose: these are the things the synth can move ' +
       '<em>as it plays a note</em>, at full audio rate, for free. To move anything else — an ' +

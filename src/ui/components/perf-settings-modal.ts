@@ -1,9 +1,12 @@
-// The Performance settings modal body (performance-mode.md). Split from
+// The Settings modal body: the theme picker (ui-themes.md
+// REQ-choosing-a-theme-previews-it), then the Performance tier (performance-mode.md).
+// Both are how this device runs the app, never part of a song. Split from
 // `perf-settings.ts` so the header button — which shows the resolved tier from
 // boot — stays eager and this loads with the click
 // (runtime-performance.md REQ-boot-cost-matches-the-request).
 import { Modal } from './modal';
 import { createButton } from './button';
+import { createThemePicker } from './theme-picker';
 import {
   readPerfPref,
   writePerfPref,
@@ -38,6 +41,14 @@ function tierBlurb(tier: PerfTier): string {
   return `${TIER_LATENCY[tier]}, ${p.voiceCount} voices, ${p.fps} fps`;
 }
 
+/** A section heading inside the dialog — the small uppercase label the Mode row uses. */
+function sectionTitle(text: string): HTMLElement {
+  const h = document.createElement('h3');
+  h.className = styles.sectionTitle!;
+  h.textContent = text;
+  return h;
+}
+
 export interface PerfSettingsModalContext {
   /** The tier the running engine was built with (captured at boot by the button). */
   bootTier: PerfTier;
@@ -46,11 +57,33 @@ export interface PerfSettingsModalContext {
   onTierPreview?: (tier: PerfTier) => void;
 }
 
+/**
+ * The Settings dialog: one section per device setting, each built by its own
+ * owner — the theme picker by theme-picker.ts, the tier below by
+ * `buildPerfSection` — so this only composes them.
+ */
 export function openPerfSettingsModal(opts: PerfSettingsModalContext): void {
+  const picker = createThemePicker();
+  const modal = new Modal({ title: 'Settings', onClose: picker.destroy });
+
+  const perfTitle = sectionTitle('Performance');
+  perfTitle.classList.add(styles.sectionBreak!);
+
+  const closeBtn = createButton({
+    label: 'Close',
+    className: `${switchStyles.root!} ${Modal.closeBtnClass}`,
+    onClick: () => modal.close(),
+  });
+
+  modal.body.append(sectionTitle('Theme'), picker.el, perfTitle, ...buildPerfSection(opts), closeBtn);
+  modal.open();
+}
+
+/** The Performance section (performance-mode.md REQ-a-perf-button-opens-the-picker): the tier
+ *  control, what it resolves to here, and the reload it may need. */
+function buildPerfSection(opts: PerfSettingsModalContext): HTMLElement[] {
   const { bootTier, syncButton } = opts;
   let pref = readPerfPref();
-
-  const modal = new Modal({ title: 'Performance' });
 
   const desc = document.createElement('div');
   desc.className = styles.desc!;
@@ -105,12 +138,6 @@ export function openPerfSettingsModal(opts: PerfSettingsModalContext): void {
   });
   reloadBtn.classList.add(styles.reloadBtn!, 'hidden');
 
-  const closeBtn = createButton({
-    label: 'Close',
-    className: `${switchStyles.root!} ${Modal.closeBtnClass}`,
-    onClick: () => modal.close(),
-  });
-
   function render(): void {
     buttons.forEach((b, i) => b.classList.toggle('active', OPTIONS[i]!.value === pref));
 
@@ -133,13 +160,6 @@ export function openPerfSettingsModal(opts: PerfSettingsModalContext): void {
     reloadBtn.classList.toggle('hidden', !needsReload);
   }
 
-  modal.body.appendChild(desc);
-  modal.body.appendChild(modeRow);
-  modal.body.appendChild(help);
-  modal.body.appendChild(status);
-  modal.body.appendChild(reloadHint);
-  modal.body.appendChild(reloadBtn);
-  modal.body.appendChild(closeBtn);
   render();
-  modal.open();
+  return [desc, modeRow, help, status, reloadHint, reloadBtn];
 }

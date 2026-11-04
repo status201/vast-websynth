@@ -602,6 +602,7 @@ localStorage:
   websynth.session.<tab> : debounced autosave of the live session, one per tab (silent boot restore)  # state/session-autosave.ts
   websynth.session    : the pre-v8 single key — still READ once so an existing session survives, never written
   websynth.perf       : performance-mode pref (auto|weak|medium|strong)  # state/perf-mode.ts — device-scoped, NOT a patch param
+  websynth.ui.theme   : UI theme (dark|light|pastel|vibrant|contrast|auto)  # state/theme.ts — device-scoped, NOT a patch param; read before first paint by public/theme-boot.js
   websynth.midisync   : sync mode (off|master|slave)   # state/sync-mode.ts — device-scoped, NOT a patch param
   websynth.midi.channel : MIDI input channel, 0 = omni, else 1..16 except 10  # state/midi-channel.ts — device-scoped, NOT a patch param
   websynth.onboarding.done : guided-tour completed flag        # ui/onboarding

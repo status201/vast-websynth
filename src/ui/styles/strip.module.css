@@ -2,7 +2,7 @@
   .root {
     flex: 1;
     height: 100%;
-    background: linear-gradient(180deg, #0a0805, #1a1410);
+    background: linear-gradient(180deg, var(--well-bottom), var(--well-top));
     border: 1px solid var(--panel-border);
     border-radius: 4px;
     position: relative;
@@ -10,7 +10,7 @@
     cursor: ns-resize;
     box-shadow:
       inset 0 2px 4px rgba(0, 0, 0, 0.8),
-      inset 0 -1px 0 rgba(244, 205, 94, 0.04);
+      inset 0 -1px 0 color-mix(in srgb, var(--accent-secondary) 4%, transparent);
   }
 
   .thumb {
@@ -18,13 +18,13 @@
     left: 2px;
     right: 2px;
     height: 22px;
-    background: linear-gradient(180deg, #6a553c 0%, #2a1c10 50%, #6a553c 100%);
+    background: linear-gradient(180deg, var(--handle-light) 0%, var(--handle-dark) 50%, var(--handle-light) 100%);
     border-radius: 3px;
     box-shadow:
       0 2px 4px rgba(0, 0, 0, 0.7),
-      inset 0 1px 0 rgba(244, 205, 94, 0.2);
+      inset 0 1px 0 color-mix(in srgb, var(--accent-secondary) 20%, transparent);
     pointer-events: none;
-    border: 1px solid #1a0e08;
+    border: 1px solid var(--handle-edge);
   }
 
   .label {

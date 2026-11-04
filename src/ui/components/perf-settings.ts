@@ -1,4 +1,5 @@
-// "Performance" button + modal: a device-scoped audio-quality preference in three
+// The header's Settings button (gauge icon) — its dialog holds the theme picker
+// (ui-themes.md) and, the part this file owns, the Performance mode: a device-scoped audio-quality preference in three
 // tiers (Auto / Weak / Medium / Strong), persisted outside the ParamBus (see
 // state/perf-mode.ts). Each tier maps to a PERF_PROFILE (buffer latency, polyphony,
 // scope fps). The audio fields (buffer + voices) are fixed at AudioContext build, so
@@ -34,9 +35,11 @@ export interface PerfSettingsOptions {
 
 export function createPerfSettingsButton(opts: PerfSettingsOptions = {}): HTMLButtonElement {
   const btn = createButton({
-    label: 'Performance settings',
+    // The Settings dialog — theme and performance (ui-themes.md); the gauge and
+    // the tier colour stay, since the tier is the setting worth seeing at a glance.
+    label: 'Settings — theme and performance',
     icon: HEADER_ICONS.perf,
-    title: 'Performance settings',
+    title: 'Settings — theme and performance',
     testId: 'perf-settings',
     onClick: () => void open(),
   });
@@ -63,7 +66,7 @@ export function createPerfSettingsButton(opts: PerfSettingsOptions = {}): HTMLBu
   syncButton(); // initial state at boot
 
   async function open(): Promise<void> {
-    const m = await loadSurface('the performance settings', () => import('./perf-settings-modal'), () => void open());
+    const m = await loadSurface('the settings', () => import('./perf-settings-modal'), () => void open());
     m?.openPerfSettingsModal({ bootTier, syncButton, onTierPreview: opts.onTierPreview });
   }
 

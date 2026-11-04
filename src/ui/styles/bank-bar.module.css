@@ -19,7 +19,7 @@
     flex-wrap: wrap;
     min-width: 0;
     gap: 2px;
-    background: linear-gradient(180deg, #0c0905, #1a1410);
+    background: var(--tray);
     border: 1px solid var(--panel-border);
     border-radius: 4px;
     padding: 2px;
@@ -56,15 +56,15 @@
   }
 
   .btn:global(.active) {
-    background: linear-gradient(180deg, #4a3525, #2a1c10);
+    background: var(--raised);
     color: var(--accent-secondary);
     text-shadow: 0 0 4px var(--accent-secondary-glow);
-    box-shadow: inset 0 1px 0 rgba(244, 205, 94, 0.15);
+    box-shadow: inset 0 1px 0 color-mix(in srgb, var(--accent-secondary) 15%, transparent);
   }
 
   .btn:global(.playing) .dot {
     background: var(--led-on);
-    box-shadow: 0 0 6px rgba(255, 58, 32, 0.85);
+    box-shadow: 0 0 6px var(--led-glow);
   }
 
   /* While the lane rests, no bank is playing — recolour the play-bank dot amber
@@ -88,7 +88,7 @@
        at the letter's height while the box carried on down past the dot row —
        visibly high in a bar whose other six buttons are two rows tall. */
     justify-content: center;
-    background: linear-gradient(180deg, #1a1410, #0a0805);
+    background: var(--well);
     border: 1px solid var(--panel-border);
     border-radius: 3px;
     color: var(--text-dim);

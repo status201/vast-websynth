@@ -11,6 +11,9 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover, user-scalable=no" />
     <meta name="theme-color" content="#1a1a1a" />
     <meta name="color-scheme" content="dark" />
+    <!-- The stored UI theme, on <html data-theme> before any stylesheet paints, and the two metas above
+         set to match (ui-themes.md REQ-the-theme-applies-before-first-paint). Classic and external: the CSP allows no inline script. -->
+    <script src="/theme-boot.js"></script>
     <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
     <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
     <link rel="manifest" href="/site.webmanifest" />
@@ -98,6 +101,11 @@
     <link rel="stylesheet" href="/src/styles/layers.css" />
     <link rel="stylesheet" href="/src/styles/base.css" />
     <link rel="stylesheet" href="/src/styles/theme.css" />
+    <!-- The other themes: each a :root[data-theme="<id>"] block in the theme layer (ui-themes.md). -->
+    <link rel="stylesheet" href="/src/styles/themes/light.css" />
+    <link rel="stylesheet" href="/src/styles/themes/pastel.css" />
+    <link rel="stylesheet" href="/src/styles/themes/vibrant.css" />
+    <link rel="stylesheet" href="/src/styles/themes/contrast.css" />
     <link rel="stylesheet" href="/src/styles/layout.css" />
   </head>
   <body>

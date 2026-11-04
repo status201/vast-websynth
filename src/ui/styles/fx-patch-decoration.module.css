@@ -17,7 +17,7 @@
     overflow: hidden; /* cables that run past the bay disappear behind the rack */
     pointer-events: none;
     border-radius: 6px;
-    background: radial-gradient(ellipse 78% 86% at 50% 48%, #0c0c0a 0%, #0a0806 58%, #050403 100%);
+    background: var(--patch-bay);
     box-shadow: inset 0 0 22px rgba(0, 0, 0, 0.75);
     /* Only the ≤992px 2-column grid leaves a gap to fill; the 5-column row is
        full, and a 6th child would wrap onto a row of its own (REQ-decoration-occupies-one-grid-cell).
@@ -37,9 +37,9 @@
     inset: 0;
     background: radial-gradient(
       ellipse 76% 88% at 50% 48%,
-      rgba(5, 4, 3, 0) 38%,
-      rgba(5, 4, 3, 0.55) 76%,
-      rgba(5, 4, 3, 0.94) 100%
+      color-mix(in srgb, var(--patch-shade) 0%, transparent) 38%,
+      color-mix(in srgb, var(--patch-shade) 55%, transparent) 76%,
+      color-mix(in srgb, var(--patch-shade) 94%, transparent) 100%
     );
   }
 
@@ -64,12 +64,12 @@
      custom props on the cable's <g> (the inline-custom-prop pattern StepButton
      uses), so one pair of stroke rules serves every wire. */
 
-  .hueBrown  { --wire: #17100a; --wire-lit: rgba(232, 116, 46, 0.05); }
-  .hueRed    { --wire: #1b0d0a; --wire-lit: rgba(200, 72, 66, 0.042); }
-  .hueBlue   { --wire: #0c1219; --wire-lit: rgba(96, 138, 186, 0.04); }
-  .hueGreen  { --wire: #0d1710; --wire-lit: rgba(108, 160, 104, 0.04); }
-  .hueAmber  { --wire: #1a1408; --wire-lit: rgba(244, 205, 94, 0.046); }
-  .hueViolet { --wire: #150c16; --wire-lit: rgba(140, 110, 180, 0.038); }
+  .hueBrown  { --wire: var(--cable-brown); --wire-lit: var(--cable-brown-lit); }
+  .hueRed    { --wire: var(--cable-red); --wire-lit: var(--cable-red-lit); }
+  .hueBlue   { --wire: var(--cable-blue); --wire-lit: var(--cable-blue-lit); }
+  .hueGreen  { --wire: var(--cable-green); --wire-lit: var(--cable-green-lit); }
+  .hueAmber  { --wire: var(--cable-amber); --wire-lit: var(--cable-amber-lit); }
+  .hueViolet { --wire: var(--cable-violet); --wire-lit: var(--cable-violet-lit); }
 
   /* ===== Background cables (stretched layer) =====
      Deliberately thinner and darker than the hero lead: that contrast is the only
@@ -118,24 +118,24 @@
   /* ===== The hero lead (undistorted layer) ===== */
 
   .cable {
-    stroke: #1a1209;
+    stroke: var(--patch-cable);
     stroke-width: 4.6;
   }
 
   .sheen {
-    stroke: rgba(232, 116, 46, 0.1);
+    stroke: color-mix(in srgb, var(--accent) 10%, transparent);
     stroke-width: 0.9;
   }
 
   /* ===== The plug ===== */
 
   .boot {
-    fill: #1a130c;
+    fill: var(--patch-boot);
   }
 
   .barrel {
-    fill: #241e18;
-    stroke: rgba(244, 205, 94, 0.12);
+    fill: var(--patch-barrel);
+    stroke: color-mix(in srgb, var(--accent-secondary) 12%, transparent);
     stroke-width: 0.7;
   }
 
@@ -145,14 +145,14 @@
   }
 
   .collar {
-    fill: #3a3129;
-    stroke: rgba(244, 205, 94, 0.2);
+    fill: var(--patch-metal);
+    stroke: color-mix(in srgb, var(--accent-secondary) 20%, transparent);
     stroke-width: 0.6;
   }
 
   /* Sleeve: two rails read as a shaft without a fill that would go flat. */
   .shaft {
-    stroke: #3a3129;
+    stroke: var(--patch-metal);
     stroke-width: 1.6;
   }
 
@@ -162,11 +162,11 @@
   }
 
   .tip {
-    fill: #3a3129;
+    fill: var(--patch-metal);
   }
 
   .glint {
-    stroke: rgba(244, 205, 94, 0.2);
+    stroke: color-mix(in srgb, var(--accent-secondary) 20%, transparent);
     stroke-width: 0.8;
   }
 }

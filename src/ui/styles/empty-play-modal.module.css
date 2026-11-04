@@ -78,7 +78,7 @@
   /* The affirmative action glows like the Song tab's demo buttons. */
   .demoBtn {
     color: var(--accent-secondary);
-    border-color: rgba(244, 205, 94, 0.45);
+    border-color: var(--accent-secondary-glow);
     text-shadow: 0 0 6px var(--accent-secondary-glow);
   }
 

@@ -121,12 +121,12 @@
   }
 
   .danger {
-    border-color: rgba(224, 64, 58, 0.45);
+    border-color: color-mix(in srgb, var(--accent-bad) 45%, transparent);
     color: var(--accent-bad);
   }
 
   .danger:hover:not(:disabled) {
-    background: rgba(224, 64, 58, 0.16);
+    background: color-mix(in srgb, var(--accent-bad) 16%, transparent);
     border-color: var(--accent-bad);
   }
 }

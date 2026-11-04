@@ -95,7 +95,8 @@ segmented control they were written to override.
   `scripts/css-cascade/fingerprint.mjs`: the computed style and box of every
   element in every captured state × viewport, compared against a baseline taken
   before the change, on **both** `vite dev` and the built app. Zero differences,
-  or each one explained.
+  or each one explained. A move of colour literals into tokens compares with
+  `--rendered` ([ui-themes](ui-themes.md) REQ-a-token-move-is-proven-by-fingerprint).
 
 ## Technical design
 
@@ -105,7 +106,8 @@ The order, lowest to highest, as declared in `src/styles/layers.css`:
 
 ```yaml
 reset:       src/styles/base.css             # element defaults
-theme:       src/styles/theme.css            # the custom properties
+theme:       src/styles/theme.css            # the custom properties (Dark's values)
+             src/styles/themes/<id>.css      # each other theme's block (ui-themes.md)
 app-layout:  src/styles/layout.css           # the .app grid
 controls:    leaf controls other modules decorate — switch, segmented, tabs,
              knob, dropdown, step-button, strip, section-title, value-bubble,

@@ -1,0 +1,175 @@
+/*
+ * Pastel (specs/features/ui-themes.md REQ-pastel-reads-on-every-tint): a black
+ * chassis between walnut cheeks, and painted faceplates — each synth section its
+ * own flat pastel (REQ-pastel-tints-each-panel), dark legends on all of them.
+ * Unsectioned surfaces (the header, the machine tabs, the scope and keyboard
+ * frames, dialogs) are a plain cream. Screens stay dark, as in Light.
+ */
+@layer theme {
+  :root[data-theme="pastel"] {
+    /* ===== Chassis ===== */
+    --bg: #141210;
+    --bg-deep: #0a0908;
+    --panel: #ebe6db;
+    --panel-flat: #ebe6db;
+    --panel-border: #3a332b;
+    --panel-border-dim: #8a8070;
+    --panel-shadow:
+      0 4px 14px rgba(0, 0, 0, 0.55),
+      inset 0 1px 0 rgba(255, 255, 255, 0.5),
+      inset 0 0 0 1px rgba(0, 0, 0, 0.08);
+    --rule: color-mix(in srgb, var(--text) 22%, transparent);
+    --wood: linear-gradient(180deg, #4a2d18 0%, #6b3e1f 30%, #3a2010 70%, #2a1808 100%);
+    --wood-grain:
+      repeating-linear-gradient(
+        90deg,
+        rgba(0, 0, 0, 0.15) 0px,
+        rgba(0, 0, 0, 0.15) 1px,
+        transparent 1px,
+        transparent 3px,
+        rgba(255, 200, 120, 0.05) 3px,
+        rgba(255, 200, 120, 0.05) 5px,
+        transparent 5px,
+        transparent 9px
+      );
+
+    /* ===== Section faces ===== */
+    --panel-tint-osc: #f0dc94;
+    --panel-tint-mixer: #b7d3e9;
+    --panel-tint-filter: #f1b5a0;
+    --panel-tint-env: #bcdcb4;
+    --panel-tint-mod: #d3c3e6;
+    --panel-tint-fx: #f3c99a;
+
+    /* ===== Type ===== */
+    --text: #1d1a16;
+    --text-dim: #463e35;
+    --text-faint: #857a6b;
+    --text-soft: #2e2822;
+    --text-label: #4f463c;
+    --text-hint: #5a5045;
+    --text-bad: #9a2412;
+    --text-bad-hover: #7a1a0a;
+    --text-error: #962a16;
+    --border-error: #c9786a;
+    --text-good: #1f5f28;
+
+    /* ===== Accents and LEDs ===== */
+    --accent: #9c3a0a;
+    --accent-secondary: #6e4700;
+    --accent-secondary-dim: #a08a5a;
+    --accent-good: #2f7a2c;
+    --accent-bad: #c0281f;
+    --led-on: #e8321c;
+    --led-off: #cdbfb2;
+    --led-dim: #c47a6a;
+    --led-good: #22a032;
+    --meter-hot: #c84a22;
+    --motion: #b0620e;
+    --motion-beat: #c84e24;
+
+    /* ===== Control surfaces ===== */
+    --well-top: #f7f3ec;
+    --well-bottom: #e6e0d4;
+    --tray-top: #d6cfc2;
+    --tray-bottom: #e4ded2;
+    --recess-top: #d2cbbd;
+    --recess-bottom: #e0d9cc;
+    --raised-top: #ffffff;
+    --raised-bottom: #efe9de;
+    --switch-on-bed: #f3d9a4;
+    --switch-on-ink: #1a1410;
+    --field: #fbf9f4;
+    --menu: linear-gradient(180deg, #f8f5ee 0%, #ece7dd 100%);
+    --menu-hover: linear-gradient(180deg, #f3dcc0, #e8cca8);
+    --handle-light: #c2b29a;
+    --handle-dark: #8f7d64;
+    --handle-edge: #4a3f30;
+    --pad-bed: linear-gradient(180deg, #e8e2d6, #d9d2c4);
+    --pad-border: #8a8070;
+    --pad-border-hover: #b8703a;
+
+    /* ===== Lit controls ===== */
+    --lit-top: #d4602a;
+    --lit-bottom: #9a3812;
+    --lit-shine: rgba(255, 220, 180, 0.35);
+    --lit-text: #fff6e6;
+    --lit-bad-top: #d4302a;
+    --lit-bad-bottom: #8a1010;
+    --lit-bad-shine: rgba(255, 180, 160, 0.3);
+    --lit-warm-top: #e8b542;
+    --lit-warm-bottom: #9a6c14;
+    --lit-warm-shine: rgba(255, 240, 180, 0.4);
+    --lit-ring: rgba(255, 246, 214, 0.55);
+    --ink: #1a1410;
+    --ink-strong: #120a04;
+    --playing: #e8b542;
+    --lit-accent: #e8742e;
+    --lit-accent-ink: #120a04;
+
+    /* ===== Keyboard ===== */
+    --key-bed: linear-gradient(180deg, #0a0908 0%, #1c1916 100%);
+    --key-white: linear-gradient(180deg, #fbf7ee 0%, #e2d8c2 100%);
+    --key-white-active: linear-gradient(180deg, #f4b56a 0%, #d4602a 100%);
+    --key-black: linear-gradient(180deg, #2a2219 0%, #0e0b08 100%);
+    --key-black-active: linear-gradient(180deg, #d4502a 0%, #8a2810 100%);
+    --key-white-ink: rgba(60, 40, 20, 0.6);
+    --key-white-shade: rgba(80, 50, 20, 0.3);
+    --key-white-shine: rgba(255, 255, 255, 0.6);
+    --key-white-active-shine: rgba(255, 220, 180, 0.4);
+    --key-black-active-shine: rgba(255, 180, 130, 0.3);
+    --key-black-active-glow: rgba(232, 80, 32, 0.4);
+    --key-role-root-black: #a8461a;
+    --key-role-chord-black: #6e4700;
+    --key-role-scale: #e2bf92;
+    --key-role-scale-edge: #c79d6c;
+    --key-role-scale-black: #7a5530;
+    --key-role-extra: #9dbbd6;
+    --key-role-extra-edge: #5b84a6;
+    --key-role-extra-black: #3f6585;
+    --key-role-out: #e9e3d8;
+    --key-role-out-edge: #c4b9a6;
+    --key-role-out-black: #5e5446;
+    --knob-bg: radial-gradient(circle at 35% 30%, #fffdf8 0%, #e2dacb 65%, #b4a892 100%);
+    --knob-ring: color-mix(in srgb, var(--text) 18%, transparent);
+
+    /* ===== Screens — dark, like hardware ===== */
+    --screen: radial-gradient(ellipse at center, #0a0604 0%, #050302 100%);
+    --screen-border: #3a332b;
+    --screen-ink: #f4cd5e;
+    --screen-trace: #e8742e;
+    --screen-hot: #ff3a20;
+    --screen-highlight: #ffe9a8;
+    --screen-cue: #7fd6ff;
+    --badge-bed: #1a140e;
+    --patch-bay: radial-gradient(ellipse 78% 86% at 50% 48%, #0c0c0a 0%, #0a0806 58%, #050403 100%);
+    --patch-shade: #050403;
+    --patch-cable: #1a1209;
+    --patch-boot: #1a130c;
+    --patch-barrel: #241e18;
+    --patch-metal: #3a3129;
+    --cable-brown: #17100a;
+    --cable-red: #1b0d0a;
+    --cable-red-lit: rgba(200, 72, 66, 0.042);
+    --cable-blue: #0c1219;
+    --cable-blue-lit: rgba(96, 138, 186, 0.04);
+    --cable-green: #0d1710;
+    --cable-green-lit: rgba(108, 160, 104, 0.04);
+    --cable-amber: #1a1408;
+    --cable-violet: #150c16;
+    --cable-violet-lit: rgba(140, 110, 180, 0.038);
+
+    /* ===== Overlays and app chrome ===== */
+    --scrim-ink: #080603;
+    --veil: #ece6da;
+    /* Black caps, as on the chassis — so their legends are light. */
+    --keycap-ink: #ece6da;
+    --keycap-sharp-ink: #b8ae9e;
+    --scrollbar-thumb: linear-gradient(180deg, #6b3e1f, #3a2010);
+    --start-btn: linear-gradient(180deg, #fbf8f2, #e2dbcd);
+
+    /* ===== Faces: a condensed grotesque for the legends ===== */
+    --serif: 'Arial Narrow', 'Roboto Condensed', 'Helvetica Neue', Arial, sans-serif;
+    --sans: 'Inter', system-ui, -apple-system, sans-serif;
+  }
+}

@@ -80,6 +80,9 @@ describe('overlay compositing cost (runtime-performance.md REQ-no-viewport-scale
     expect([...found].sort()).toEqual([...VIEWPORT_EFFECT_OK].sort());
   });
 
+  /** A plain translucent dim: the scrim token at an alpha (ui-themes.md REQ-an-alpha-derives-from-its-base). */
+  const DIM = /background:\s*color-mix\(in srgb, var\(--scrim-ink\) \d+%, transparent\)/;
+
   it('keeps the modal backdrop a plain dim (regression)', () => {
     // The bug: this one declaration was inherited by every Modal — confirms,
     // the preset manager, export, record-sound, the WiFi pair wizard, About and
@@ -89,13 +92,13 @@ describe('overlay compositing cost (runtime-performance.md REQ-no-viewport-scale
     expect(backdrop.body).not.toMatch(/backdrop-filter/);
     // The dim is what actually separates the card from the faceplate; losing it
     // to a later cleanup would make this pin pass for the wrong reason.
-    expect(backdrop.body).toMatch(/background:\s*rgba\(/);
+    expect(backdrop.body).toMatch(DIM);
   });
 
   it('keeps the tour\'s centred step a plain dim (regression)', () => {
     // The second copy, acquired by imitation from the rule above.
     const centered = find('tour.module.css', '.centered')!;
     expect(centered.body).not.toMatch(/backdrop-filter/);
-    expect(centered.body).toMatch(/background:\s*rgba\(/);
+    expect(centered.body).toMatch(DIM);
   });
 });

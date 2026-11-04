@@ -9,6 +9,7 @@ import { EQ_BANDS } from '../../src/state/eq';
 import { MOTION_TRACK_COUNT, MOTION_TRACK_LABELS } from '../../src/state/patterns';
 import { formatHzFull } from '../../src/ui/components/scope';
 import { CHORUS_MODE_LABELS } from '../../src/state/chorus';
+import { THEMES } from '../../src/state/theme';
 
 /** The Clear button as help copy renders it — the caret is an icon, not a `▾`
  *  (iconography.md REQ-a-control-glyph-is-inline-svg), so the assertions go through the same helper. */
@@ -190,6 +191,24 @@ describe('help-content presets topic', () => {
   });
 });
 
+/** The header's Settings button (onboarding.md REQ-a-settings-topic-anchors-to-the-gauge). */
+describe('help-content settings topic', () => {
+  it('names every theme the picker offers, so the copy cannot fall behind the registry', () => {
+    const body = bodyOf('settings');
+    for (const t of THEMES) expect(body, t.name).toContain(t.name);
+    expect(body).toContain('Auto');
+  });
+
+  it('says what is the default, that it is per device, and when performance needs a reload', () => {
+    const body = bodyOf('settings');
+    expect(body).toContain('<strong>Vibrant</strong> is the default');
+    expect(body).toContain('this device');
+    expect(body).toContain('song');
+    for (const tier of ['Weak', 'Strong']) expect(body, tier).toContain(tier);
+    expect(body).toContain('reload');
+  });
+});
+
 /** The gesture tour step (onboarding.md REQ-the-tour-teaches-the-grid-gestures). */
 describe('the tour', () => {
   it('teaches the grid gestures on the drum grid, before the Song-tab steps', () => {
@@ -287,10 +306,12 @@ describe('help-content key & chord topics', () => {
     for (const source of ['sequencer', 'arpeggiator', 'keyboard']) {
       expect(body, source).toContain(source);
     }
-    // The map's colours have no on-screen legend beyond three words.
-    for (const colour of ['orange', 'yellow', 'brown']) {
-      expect(body, colour).toContain(colour);
+    // The map's roles, by name — not by colour: a theme decides the colours
+    // (ui-themes.md), and the legend under the map shows each one.
+    for (const role of ['root', 'chord', 'scale', 'extra note', 'legend']) {
+      expect(body, role).toContain(role);
     }
+    for (const colour of ['orange', 'yellow', 'brown']) expect(body, colour).not.toContain(colour);
     // Where to make it permanent — that lives on another tab.
     expect(body).toContain('Snap');
   });
@@ -424,7 +445,10 @@ describe('help-content mod topic', () => {
     // The three things the window itself cannot show.
     expect(body).toMatch(/bipolar/i);
     expect(body).toMatch(/invert/i);
-    for (const colour of ['green', 'yellow']) expect(body, colour).toContain(colour);
+    // Up is green in every theme; down is the theme's selected colour, named by
+    // what else wears it (mod-matrix.md REQ-the-bands-direction-has-a-colour).
+    expect(body).toContain('green');
+    expect(body).toContain('selected switch');
     // ADR-017's boundary — without it the short list reads as a missing feature.
     expect(body).toContain('Motion');
     expect(body).toContain('XY Pad');

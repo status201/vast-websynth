@@ -122,8 +122,8 @@
     border-radius: 50%;
     opacity: 0;
     /* The base `.led` keeps the outer 1px ring underneath; this is the lit face. */
-    box-shadow: 0 0 8px rgba(232, 116, 46, 0.85), inset 0 1px 1px rgba(255, 255, 255, 0.4);
-    background: #e8742e;
+    box-shadow: 0 0 8px color-mix(in srgb, var(--accent) 85%, transparent), inset 0 1px 1px rgba(255, 255, 255, 0.4);
+    background: var(--accent);
     will-change: opacity;
   }
 
@@ -132,8 +132,8 @@
   }
 
   .playBtn:global(.cue) :global(.switch-led)::after {
-    background: #4ade50;
-    box-shadow: 0 0 8px rgba(74, 222, 80, 0.9), inset 0 1px 1px rgba(255, 255, 255, 0.4);
+    background: var(--led-good);
+    box-shadow: 0 0 8px color-mix(in srgb, var(--led-good) 90%, transparent), inset 0 1px 1px rgba(255, 255, 255, 0.4);
     animation: ledFlash 0.4s linear infinite;
   }
 
@@ -222,12 +222,12 @@
        segmented controls, so the hamburger reads as toggled on. The descendant
        compound outranks switch.module's base `.root`. */
     .header.menuOpen .menuToggle {
-      background: linear-gradient(180deg, #4a3525, #2a1c10);
-      border-color: rgba(244, 205, 94, 0.5);
+      background: var(--raised);
+      border-color: color-mix(in srgb, var(--accent-secondary) 50%, transparent);
       color: var(--accent-secondary);
       box-shadow:
         0 0 8px var(--accent-secondary-glow),
-        inset 0 1px 0 rgba(244, 205, 94, 0.15);
+        inset 0 1px 0 color-mix(in srgb, var(--accent-secondary) 15%, transparent);
     }
   }
 }

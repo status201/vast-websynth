@@ -15,7 +15,7 @@
     display: flex;
     align-items: center;
     justify-content: center;
-    background: rgba(8, 6, 3, 0.82);
+    background: color-mix(in srgb, var(--scrim-ink) 82%, transparent);
     z-index: 1000;
     transition: opacity 180ms ease;
   }
@@ -97,7 +97,7 @@
   .meta a {
     color: var(--accent-secondary);
     text-decoration: none;
-    border-bottom: 1px dashed rgba(244, 205, 94, 0.4);
+    border-bottom: 1px dashed color-mix(in srgb, var(--accent-secondary) 40%, transparent);
   }
 
   .meta a:hover {
@@ -171,8 +171,8 @@
        content — nudge back by the same amount so the label sits truly centred. */
     text-indent: 0.06em;
     line-height: 1;
-    color: var(--text);
-    background: var(--bg-deep);
+    color: var(--keycap-ink);
+    background: var(--keycap);
     border: 1px solid var(--panel-border);
     border-radius: 3px;
     box-shadow:
@@ -201,9 +201,9 @@
   }
 
   .capSharp {
-    color: var(--text-dim);
-    background: var(--bg-deep);
-    border-color: #3d2e1b;
+    color: var(--keycap-sharp-ink);
+    background: var(--keycap);
+    border-color: var(--panel-border-dim);
   }
 
   /* A gap in the sharp rank (E–F, B–C). Occupies a real cap-sized box so both
@@ -305,7 +305,7 @@
 
   .gearBtn:hover {
     color: var(--text);
-    background: rgba(232, 116, 46, 0.18);
+    background: color-mix(in srgb, var(--accent) 18%, transparent);
   }
 
   .gearBtn[aria-expanded='true'] {
@@ -386,7 +386,7 @@
     font-family: var(--mono);
     font-size: 12px;
     line-height: 1.45;
-    background: #0a0805;
+    background: var(--field);
     color: var(--text);
     border: 1px solid var(--panel-border);
     border-radius: 4px;
@@ -406,7 +406,7 @@
     font-family: var(--mono);
     font-size: 11px;
     line-height: 1.4;
-    background: #0a0805;
+    background: var(--field);
     color: var(--text);
     border: 1px solid var(--panel-border);
     border-radius: 4px;
@@ -432,7 +432,7 @@
     flex-wrap: wrap;
     margin-top: 16px;
     padding: 10px 12px;
-    background: #0a0805;
+    background: var(--field);
     border: 1px solid var(--panel-border);
     border-left: 2px solid var(--accent-secondary);
     border-radius: 4px;
@@ -458,7 +458,7 @@
     font-family: var(--mono);
     font-size: 11px;
     line-height: 1.4;
-    background: #0a0805;
+    background: var(--field);
     color: var(--text);
     border: 1px solid var(--panel-border);
     border-radius: 4px;

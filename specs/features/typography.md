@@ -12,6 +12,7 @@ related:
   - dialog             # the `font-family: inherit` pattern for text fields
   - webrtc-sync        # where the rule used to live
   - transport-window   # the tabular-figures case (REQ-typography-rule-is-pinned-by-a-test there)
+  - ui-themes          # what each face IS, per theme
 source:
   - src/styles/theme.css      # the three tokens
   - src/styles/base.css       # the app default (sans)
@@ -77,7 +78,7 @@ otherwise never gets.
   - **every `<input>` and `<textarea>`** whose contents are prose or a name
     (code and pasted blobs take `--mono`, REQ-mono-is-readouts-and-pasted-text).
 
-  Sans is also the default: `base.css` sets `html, body` to Inter, so the
+  Sans is also the default: `base.css` sets `html, body` to `var(--sans)`, so the
   correct face is usually the one you get by **not declaring one**.
 
 - **REQ-mono-is-readouts-and-pasted-text** — **`--mono` is readouts and pasted
@@ -127,12 +128,16 @@ otherwise never gets.
 --mono:  "ui-monospace, 'SFMono-Regular', Menlo, Consolas, monospace"  # readouts
 ```
 
-There is no fourth face and no size scale — sizes are set per component.
+There is no fourth face and no size scale — sizes are set per component. These
+are Dark's values — the tokens' own: a [theme](ui-themes.md) redefines `--serif`
+and `--sans` (never `--mono`, ui-themes.md REQ-mono-is-not-themed). This spec
+still decides which face a piece of text gets; a theme only decides what each
+face is.
 
 ### Layer touchpoints & ordering
 
 - `base.css` loads before `theme.css` (`index.html`), and sets the `html, body`
-  face to the same stack `--sans` holds. Sans is therefore the inherited
+  face to `var(--sans)`, so a theme that redefines the token re-faces the app. Sans is therefore the inherited
   default, and **every** `var(--serif)` / `var(--mono)` in `src/ui/styles/` is an
   opt-in that this spec governs. Grepping `var(--serif)` enumerates them.
 - Purely a styling contract: no bus param, no engine coupling, nothing to
@@ -194,4 +199,6 @@ Scenario: the allowlist cannot rot silently (edge, REQ-typography-rule-is-pinned
   legend's clothes. Left serif deliberately, to keep the menu of one piece with
   its toggle; revisit if the ids grow longer.
 - No type *scale* is specified (sizes range 7.5 px–26 px, set per component).
-  Worth doing only if a second theme ever lands.
+  [ui-themes](ui-themes.md) now makes the faces themeable, but a theme changes
+  faces, not sizes, so a scale is still not needed — revisit if a theme's face
+  ever reads too large or small at the shared sizes.

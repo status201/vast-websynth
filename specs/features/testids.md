@@ -377,6 +377,9 @@ shared UI:
                                                     # features/empty-play-hint.md
   perf-settings · perf-status · perf-mode · perf-mode-<tier> · perf-reload ·
     perf-reload-hint                                # features/performance-mode.md
+  theme-picker · theme-auto · theme-<id> · theme-status
+                                                    # the Settings dialog's Theme row
+                                                    # features/ui-themes.md
   play-offline · play-offline-button · play-offline-status · play-offline-progress
                                                     # About card, above factory-reset
                                                     # features/play-offline.md
