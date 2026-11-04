@@ -469,7 +469,7 @@ export const HELP_TOPICS: Record<TopicId, HelpTopic> = {
     body:
       '<p>A <strong>preset</strong> is one <em>sound</em> — every knob and switch on the synth, ' +
       'nothing else. (A <strong>song</strong>, over on the Song tab, is the whole arrangement: ' +
-      'patterns, chains and a sound.) The dropdown flips through 24 factory sounds plus your own; ' +
+      'patterns, chains and a sound.) The dropdown flips through 25 factory sounds plus your own; ' +
       'pick one and play.</p>' +
       '<p>The <strong>Presets</strong> button is the one door for everything else:</p>' +
       '<ul>' +

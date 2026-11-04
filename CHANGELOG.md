@@ -16,6 +16,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+### Added
+
+- **summer**, a new factory preset: a mid-70s ARP 2600-style lead. One saw in
+  mono, a slow glide on every note and a long spring-and-reverb tail, for slow
+  octave leaps as well as solos. LFO 1 is already aimed at pitch, so turning up
+  its amount adds vibrato.
+
 ## [2.20.0] - 2026-11-04
 
 ### Added
