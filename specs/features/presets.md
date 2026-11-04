@@ -63,7 +63,11 @@ can do with a sound ([ADR-014](../decisions/adr-014-dont-make-me-think.md) law 1
   `solina`, `brass`), leads/plucks (`lead`, `pluck`) and FX basses (`wobble`).
   `summer` is a mid-70s lead in the ARP 2600 manner: one saw in mono, a slow
   glide that is always on, and a long tail made of the SPACE ECHO's spring
-  ([delay-types](delay-types.md)) into the reverb.
+  ([delay-types](delay-types.md)) into the reverb. `rhodes` is a suitcase
+  electric piano: LFO 1 auto-pans the synth bus at 1/8 (the amp's "vibrato") and
+  LFO 2 adds a light 1/16 tremolo, both tempo-locked. Velocity drives the filter,
+  its envelope peak through `filter.velAmount` and its saturation through a
+  matrix route to `drive`, so a hard note barks and a soft one stays round.
   The remaining three — `ember`, `vellum`, `prism` — are the POLY-model
   showcases that arrived with [filter-models](filter-models.md); each leans on
   something LADDER cannot do, so flipping the model switch on one is the A/B.

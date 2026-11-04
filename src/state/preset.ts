@@ -202,7 +202,14 @@ const FACTORY: FactoryBank = {
     'filter.cutoff': 90, 'filter.resonance': 0.2, 'filter.drive': 1.0, 'filter.envAmount': 22,
     'env.amp.attack': 0.001, 'env.amp.decay': 2.2, 'env.amp.sustain': 0, 'env.amp.release': 0.35,
     'env.fil.decay': 0.5, 'env.fil.sustain': 0.12, 'env.fil.release': 0.3,
-    'lfo.rate': 2.5, 'lfo.amount': 0.60, 'lfo.dest': 3,
+    // Suitcase amp: its "vibrato" is a stereo auto-pan (LFO 1, 1/8), under a
+    // light 1/16 tremolo (LFO 2). Both follow the tempo.
+    'lfo.amount': 0.8, 'lfo.dest': 5, 'lfo.sync': 10,
+    'lfo2.amount': 0.1, 'lfo2.dest': 3, 'lfo2.sync': 13,
+    // The bark: a hard note opens the filter further and drives it harder, so
+    // the saturation's harmonics ring through on the strike and mellow after.
+    'filter.velAmount': 0.6,
+    'mod.0.src': MOD_SRC.velocity, 'mod.0.dst': MOD_DST.drive, 'mod.0.amt': 0.35,
     'fx.reverb.on': 1, 'fx.reverb.size': 0.4, 'fx.reverb.damp': 0.5, 'fx.reverb.mix': 0.15,
     'master.volume': 0.8,
   },
