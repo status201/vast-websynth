@@ -13,6 +13,8 @@
   // id → [<meta name="theme-color">, <meta name="color-scheme">]
   var THEMES = {
     dark: ['#1a1a1a', 'dark'],
+    light: ['#ece6da', 'light'],
+    contrast: ['#000000', 'dark'],
   };
   var has = function (id) { return Object.prototype.hasOwnProperty.call(THEMES, id); };
   var matches = function (q) { return !!(window.matchMedia && window.matchMedia(q).matches); };

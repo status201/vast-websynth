@@ -189,6 +189,8 @@
     --screen-hot: var(--led-on);
     --screen-highlight: #ffe9a8;
     --screen-cue: #7fd6ff;
+    /* The brand's model badge — a tiny readout, dark on every panel. */
+    --badge-bed: rgba(0, 0, 0, 0.4);
     /* The FX patch bay: its well, the shade that sinks its rim, the hero lead's
        cable and plug, and the six hues of the cables behind it. */
     --patch-bay: radial-gradient(ellipse 78% 86% at 50% 48%, #0c0c0a 0%, #0a0806 58%, #050403 100%);
@@ -213,6 +215,9 @@
     /* ===== Overlays and app chrome ===== */
     /* A modal's backdrop, the tour's spotlight, the rest overlay, a file drop. */
     --scrim-ink: #080603;
+    /* A lane resting under the rest overlay: washed out, not shut away like a
+       modal's backdrop. Dark's is the scrim; a light theme fades to its panel. */
+    --veil: var(--scrim-ink);
     --scrollbar-thumb: linear-gradient(180deg, #6b3e1f, #3a2010);
     --scrollbar-thumb-hover: linear-gradient(180deg, var(--accent), #8a3a14);
     --start-btn: linear-gradient(180deg, #2a2a30, #18181c);

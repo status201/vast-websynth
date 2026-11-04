@@ -17,14 +17,15 @@ import {
 const system = (...on: string[]) => (q: string) => on.includes(q);
 
 /**
- * Ship extra themes for one test. Auto's rule names themes that land in later
- * stages; this checks the order it asks in, and the skip, before they exist.
+ * Run with exactly these themes shipped (Dark first), whatever the registry
+ * lists today — so Auto's order and its skip are checked for every mix.
  */
 function withShipped(ids: ThemeInfo['id'][], fn: () => void): void {
   const list = THEMES as ThemeInfo[];
-  const added = ids.map((id) => ({ ...THEMES[0]!, id, name: id }));
-  list.push(...added);
-  try { fn(); } finally { list.splice(list.length - added.length, added.length); }
+  const saved = [...list];
+  const entry = (id: ThemeInfo['id']) => saved.find((t) => t.id === id) ?? { ...saved[0]!, id, name: id };
+  list.splice(0, list.length, ...(['dark', ...ids] as const).map(entry));
+  try { fn(); } finally { list.splice(0, list.length, ...saved); }
 }
 
 describe('the stored theme (REQ-the-theme-is-a-device-preference)', () => {
@@ -79,8 +80,13 @@ describe('resolving a choice (REQ-auto-follows-the-system)', () => {
     withShipped(['light'], () => {
       expect(resolveTheme('auto', system(CONTRAST_QUERY, LIGHT_QUERY))).toBe('light');
     });
+    withShipped(['contrast'], () => {
+      expect(resolveTheme('auto', system(LIGHT_QUERY))).toBe('dark');
+    });
     // With Dark alone, Auto has nowhere else to go.
-    if (THEMES.length === 1) expect(resolveTheme('auto', system(CONTRAST_QUERY, LIGHT_QUERY))).toBe('dark');
+    withShipped([], () => {
+      expect(resolveTheme('auto', system(CONTRAST_QUERY, LIGHT_QUERY))).toBe('dark');
+    });
   });
 
   it('lands on Dark where there is no matchMedia (edge)', () => {

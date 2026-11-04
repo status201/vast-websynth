@@ -22,11 +22,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
   mono, a slow glide on every note and a long spring-and-reverb tail, for slow
   octave leaps as well as solos. LFO 1 is already aimed at pitch, so turning up
   its amount adds vibrato.
-- A **Settings** dialog: the header's gauge button now opens it, with a Theme
-  picker above the Performance tier. The choice is kept per device, and is
+- **UI themes**: besides Dark there is now **Light** (a cream faceplate with
+  dark legends; the screens stay dark, like hardware) and **High contrast**
+  (black and white with amber and yellow, flat, every label at 7:1 or better).
+  **Auto** follows your system's light/dark and high-contrast settings. Pick
+  one in the new **Settings** dialog — the header's gauge button, which now
+  holds the theme above the Performance tier. The choice is kept per device and
   applied before the page first draws, so a reload never flashes the wrong
-  colours. Dark is the only theme so far; **Auto** will follow your system's
-  light/dark and high-contrast settings as the other themes arrive.
+  colours.
 
 ### Changed
 

@@ -32,6 +32,8 @@ export interface ThemeInfo {
 /** The shipped themes, in picker order. A theme not listed here cannot be chosen or stored. */
 export const THEMES: readonly ThemeInfo[] = [
   { id: 'dark', name: 'Dark', metaColor: '#1a1a1a', colorScheme: 'dark', swatch: ['#0e0a06', '#e8d8b6', '#e8742e', '#f4cd5e'] },
+  { id: 'light', name: 'Light', metaColor: '#ece6da', colorScheme: 'light', swatch: ['#cfc7b8', '#2a2118', '#a8440f', '#8f5c00'] },
+  { id: 'contrast', name: 'High contrast', metaColor: '#000000', colorScheme: 'dark', swatch: ['#000000', '#ffffff', '#ffb000', '#ffe600'] },
 ];
 
 export const THEME_KEY = 'websynth.ui.theme';

@@ -14,6 +14,8 @@ related:
   - architecture          # the persistence table
 source:
   - src/styles/theme.css             # the default (Dark) token set — the one place a token is declared
+  - src/styles/themes/light.css      # Light
+  - src/styles/themes/contrast.css   # High contrast
   - src/styles/base.css              # html/body take var(--sans)
   - src/ui/styles/                   # every module colours through tokens
   - src/ui/theme-colors.ts           # canvases read the screen tokens through this
@@ -34,6 +36,8 @@ source:
   - tests/state/theme.test.ts
   - tests/ui/theme.test.ts
   - tests/ui/theme-picker.test.ts
+  - tests/ui/theme-contrast.test.ts
+  - e2e/theme.spec.ts
 ```
 
 A named look for the whole app — a colour palette and two type faces — chosen per
@@ -133,6 +137,18 @@ Fonts are system stacks only — the app bundles no font file
   demand, and a sleeping scope is woken, so none of them keeps the old theme's
   colours until something else happens to redraw it. A canvas unsubscribes when
   it is destroyed.
+- **REQ-high-contrast-reads-at-seven-to-one** — In High contrast every text token
+  (body, small print, error/good, both accents, and even `--text-faint`) reads at
+  7:1 or better (WCAG AAA) on every flat surface text is printed on — the page, a
+  panel, a well, a field, a tray, a recess, a raised control. Every surface is one
+  flat colour and every glow is `transparent`, so no state depends on a shade.
+  Display type is the system sans, not a small serif.
+- **REQ-light-body-text-meets-aa** — In Light, body text (`--text`, `--text-soft`,
+  `--text-dim`) reads at 4.5:1 or better on every such surface, and the small print
+  and accents (`--text-label`, `--text-hint`, the error/good reds and greens,
+  `--accent`, `--accent-secondary`) at 3:1. `--text-faint` is the unlit tier and,
+  as in Dark, is meant to recede. Light's screens, patch bay and model badge stay
+  dark, with Dark's bright inks (REQ-screens-are-their-own-family).
 - **REQ-pastel-tints-each-panel** — Each machine panel carries a `data-tint`
   naming its section, and its chrome paints `var(--panel-tint, var(--panel))`.
   Every theme maps each `--panel-tint-<section>` token; Dark, Light and High
@@ -183,7 +199,7 @@ under these roles (by REQ-tokens-are-named-by-role):
 | `--lit*`, `--ink*` | a lit (on) control in its three colours (accent, bad, warm), and the dark type printed on a lit fill |
 | `--key-*` | the playable keyboard and the musical-role colours |
 | `--screen*`, `--patch-*`, `--cable-*` | display windows, the FX patch bay and its cables |
-| `--scrim-ink`, `--scrollbar-*`, `--start-btn`, `--motion*`, `--meter-hot` | overlays, scrollbars, the start button, the motion sequencer's own amber, the gain-reduction meter's hot end |
+| `--scrim-ink`, `--veil`, `--scrollbar-*`, `--start-btn`, `--badge-bed`, `--motion*`, `--meter-hot` | overlays — a modal's backdrop (`--scrim-ink`) apart from a resting lane's wash (`--veil`, which a light theme fades toward its panel) — scrollbars, the start button, the brand's model badge, the motion sequencer's own amber, the gain-reduction meter's hot end |
 
 ### Layer touchpoints & ordering
 
@@ -313,6 +329,22 @@ Scenario: the picker is one radio group for the keyboard (REQ-choosing-a-theme-p
   Then the next (or last) tile is selected and focused, the key does not propagate, and only that tile has tabindex 0
 # pinned by: tests/ui/theme-picker.test.ts
 
+Scenario: a picked theme survives a reload with no flash (REQ-the-theme-applies-before-first-paint)
+  Given the user picked Light in the Settings dialog
+  When the page reloads
+  Then data-theme is "light" the first time it is set, while the document still has no stylesheet
+# pinned by: e2e/theme.spec.ts
+
+Scenario: High contrast reads at 7:1 (REQ-high-contrast-reads-at-seven-to-one)
+  Given every text token and every flat surface in contrast.css
+  Then each pair's WCAG ratio is at least 7
+# pinned by: tests/ui/theme-contrast.test.ts
+
+Scenario: Light's body text meets AA (REQ-light-body-text-meets-aa)
+  Given light.css
+  Then body text reads at 4.5:1 and the small print and accents at 3:1 on every flat surface
+# pinned by: tests/ui/theme-contrast.test.ts
+
 Scenario: a theme change repaints a canvas once, and a destroyed one is not told (REQ-a-theme-change-repaints-the-canvases)
   Given a subscriber to onPaletteChange
   When the theme changes
@@ -327,9 +359,9 @@ Scenario: a theme change repaints a canvas once, and a destroyed one is not told
   stored choice, Auto), `tests/ui/theme.test.ts` (applying, following the
   system, the boot script against the registry), `tests/ui/theme-picker.test.ts`
   — `npm test`
-- No flash on reload: by hand against `npm run build && npx vite preview` (the
-  shipped CSP), with a non-Dark theme stored — an e2e lands with the first
-  theme that is not Dark, when there is something to see.
+- Contrast: `tests/ui/theme-contrast.test.ts` — WCAG ratios from the theme files.
+- No flash on reload: `e2e/theme.spec.ts` (dev server); the shipped CSP by hand
+  against `npm run build && npx vite preview`.
 - Typecheck: `npm run typecheck`
 - Zero-change proof for a token move: `npm run cascade:fingerprint -- --out
   base.ndjson.gz` on the old tree, then `--compare base.ndjson.gz --rendered` on
@@ -340,13 +372,16 @@ Scenario: a theme change repaints a canvas once, and a destroyed one is not told
 ## Open questions / future
 
 - **Delivery is staged.** Shipped: the tokens (REQ-every-colour-is-a-token through
-  REQ-a-token-move-is-proven-by-fingerprint), and the mechanism — the registry,
-  the stored choice, the boot script, Auto and the picker. `THEMES` lists Dark
-  only, so the picker offers Auto and Dark and Auto always lands on Dark. Still to
-  build, in order: High contrast and Light (each a `THEMES` row, a theme file and
-  a boot-script entry); Pastel and the panel `data-tint` hook
-  (REQ-pastel-tints-each-panel).
+  REQ-a-token-move-is-proven-by-fingerprint); the mechanism — the registry, the
+  stored choice, the boot script, Auto and the picker; and Light and High
+  contrast. Still to build: Pastel and the panel `data-tint` hook
+  (REQ-pastel-tints-each-panel). A new theme is a `THEMES` row, a theme file
+  linked from `index.html`, and a boot-script entry.
+- High contrast's focus rings use the accent like every theme's; a thicker ring
+  would need a ring-width token the modules do not read yet.
 - The header button keeps its gauge icon and its tier colour, because the perf
   tier is the one setting worth seeing at a glance; its label says "Settings".
-- Light's key-role colours need light variants that still read as the same four
-  roles on a pale key ([scale-quantization](scale-quantization.md)).
+- Light's key roles are lightened (tan scale, pale slate extra, near-white out)
+  and High contrast's differ in hue and lightness (amber, yellow, blue, violet);
+  both are judged by eye so far, not by a rule
+  ([scale-quantization](scale-quantization.md)).

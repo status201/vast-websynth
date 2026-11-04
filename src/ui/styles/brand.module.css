@@ -55,7 +55,7 @@
     padding: 4px calc(8px - 0.14em) 2px 8px;
     border: 1px solid color-mix(in srgb, var(--accent) 55%, transparent);
     border-radius: 3px;
-    background: rgba(0, 0, 0, 0.4);
+    background: var(--badge-bed);
     line-height: 1;
   }
 

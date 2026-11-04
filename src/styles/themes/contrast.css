@@ -1,0 +1,147 @@
+/*
+ * High contrast (specs/features/ui-themes.md): black panels, white type, white
+ * borders, and two bright accents — amber for "on", yellow for "selected". No
+ * gradients and no glows: every surface is one flat colour, so nothing a control
+ * says depends on a shade. Every text token reads at 7:1 or better on every
+ * surface it sits on (REQ-high-contrast-reads-at-seven-to-one). Display type is
+ * the system sans: a small serif legend is the hardest thing on the panel to read.
+ */
+@layer theme {
+  :root[data-theme="contrast"] {
+    /* ===== Chassis ===== */
+    --bg: #000000;
+    --bg-deep: #000000;
+    --panel: #000000;
+    --panel-flat: #000000;
+    --panel-border: #ffffff;
+    --panel-border-dim: #a0a0a0;
+    --panel-shadow: 0 0 0 0 transparent;
+    --rule: #a0a0a0;
+    --wood: #1c1c1c;
+    --wood-grain: linear-gradient(transparent, transparent);
+
+    /* ===== Type ===== */
+    --text: #ffffff;
+    --text-dim: #e8e8e8;
+    --text-faint: #c4c4c4;
+    --text-soft: #f2f2f2;
+    --text-label: #dcdcdc;
+    --text-hint: #d0d0d0;
+    --text-bad: #ff9a8f;
+    --text-bad-hover: #ffb8af;
+    --text-error: #ffa094;
+    --border-error: #ffa094;
+    --text-good: #7dff8a;
+
+    /* ===== Accents and LEDs ===== */
+    --accent: #ffb000;
+    --accent-glow: transparent;
+    --accent-secondary: #ffe600;
+    --accent-secondary-glow: transparent;
+    --accent-secondary-dim: #b8a600;
+    --accent-good: #4dff6a;
+    --accent-good-glow: transparent;
+    --accent-bad: #ff4d3d;
+    --accent-bad-glow: transparent;
+    --led-on: #ff4a2a;
+    --led-off: #3a3a3a;
+    --led-dim: #a83a26;
+    --led-good: #4dff6a;
+    --meter-hot: #ff6a3a;
+    --motion: #ff9a3d;
+    --motion-beat: #ff6a4d;
+
+    /* ===== Control surfaces ===== */
+    --well-top: #000000;
+    --well-bottom: #000000;
+    --tray-top: #000000;
+    --tray-bottom: #000000;
+    --recess-top: #000000;
+    --recess-bottom: #000000;
+    --raised-top: #262626;
+    --raised-bottom: #262626;
+    --field: #000000;
+    --menu: #000000;
+    --menu-hover: #3a3a3a;
+    --handle-light: #ffffff;
+    --handle-dark: #ffffff;
+    --handle-edge: #000000;
+    --pad-bed: #000000;
+    --pad-border: #ffffff;
+    --pad-border-hover: #ffe600;
+
+    /* ===== Lit controls ===== */
+    --lit-top: #ffb000;
+    --lit-bottom: #ffb000;
+    --lit-shine: transparent;
+    --lit-text: #000000;
+    --lit-bad-top: #ff4d3d;
+    --lit-bad-bottom: #ff4d3d;
+    --lit-bad-shine: transparent;
+    --lit-warm-top: #ffe600;
+    --lit-warm-bottom: #ffe600;
+    --lit-warm-shine: transparent;
+    --lit-ring: #000000;
+    --ink: #000000;
+    --ink-strong: #000000;
+
+    /* ===== Keyboard ===== */
+    --key-bed: #000000;
+    --key-white: #ffffff;
+    --key-white-active: #ffb000;
+    --key-black: #262626;
+    --key-black-active: #ffb000;
+    --key-white-ink: rgba(0, 0, 0, 0.9);
+    --key-white-shade: rgba(0, 0, 0, 0.5);
+    --key-white-shine: transparent;
+    --key-white-active-shine: transparent;
+    --key-black-active-shine: transparent;
+    --key-black-active-glow: transparent;
+    /* Four roles that differ in hue AND lightness, so they part without colour vision. */
+    --key-role-root-black: #c98a00;
+    --key-role-chord-black: #b8a600;
+    --key-role-scale: #3fa9f5;
+    --key-role-scale-edge: #8fd0ff;
+    --key-role-scale-black: #1f6fb0;
+    --key-role-extra: #d070ff;
+    --key-role-extra-edge: #e6a8ff;
+    --key-role-extra-black: #8a3fb0;
+    --key-role-out: #262626;
+    --key-role-out-edge: #6a6a6a;
+    --key-role-out-black: #111111;
+    --knob-bg: #262626;
+    --knob-ring: #5a5a5a;
+
+    /* ===== Screens ===== */
+    --screen: #000000;
+    --screen-border: #ffffff;
+    --screen-highlight: #ffffff;
+    --screen-cue: #00e5ff;
+    --badge-bed: #000000;
+    --patch-bay: #000000;
+    --patch-shade: #000000;
+    --patch-cable: #3a3a3a;
+    --patch-boot: #3a3a3a;
+    --patch-barrel: #4a4a4a;
+    --patch-metal: #9a9a9a;
+    --cable-brown: #3a2a1a;
+    --cable-red: #4a1a14;
+    --cable-red-lit: rgba(255, 90, 70, 0.08);
+    --cable-blue: #142a4a;
+    --cable-blue-lit: rgba(90, 160, 255, 0.08);
+    --cable-green: #143a1a;
+    --cable-green-lit: rgba(90, 255, 110, 0.08);
+    --cable-amber: #3a3010;
+    --cable-violet: #2e1a3a;
+    --cable-violet-lit: rgba(200, 120, 255, 0.08);
+
+    /* ===== Overlays and app chrome ===== */
+    --scrim-ink: #000000;
+    --scrollbar-thumb: #ffffff;
+    --start-btn: #000000;
+
+    /* ===== Faces ===== */
+    --serif: system-ui, -apple-system, 'Segoe UI', sans-serif;
+    --sans: 'Inter', system-ui, -apple-system, sans-serif;
+  }
+}

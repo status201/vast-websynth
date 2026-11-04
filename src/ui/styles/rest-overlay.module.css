@@ -10,7 +10,7 @@
     justify-content: center;
     gap: 3px;
     pointer-events: none; /* the step grid underneath stays clickable */
-    background: color-mix(in srgb, var(--scrim-ink) 62%, transparent);
+    background: color-mix(in srgb, var(--veil) 62%, transparent);
     border-radius: 6px;
     color: var(--accent-secondary);
     z-index: 5;
