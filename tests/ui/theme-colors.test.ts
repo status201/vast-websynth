@@ -5,7 +5,7 @@ import { describe, it, expect, vi, afterEach } from 'vitest';
 import { readFileSync } from 'node:fs';
 import path from 'node:path';
 import {
-  DARK_SCREEN, invalidateScreenPalette, paletteDerived, parseColor, rgba, screenPalette,
+  DARK_SCREEN, invalidateScreenPalette, onPaletteChange, paletteDerived, parseColor, rgba, screenPalette,
   type ScreenPalette,
 } from '../../src/ui/theme-colors';
 
@@ -56,6 +56,28 @@ describe('screenPalette (REQ-canvas-reads-the-screen-tokens)', () => {
       expect(v, token).toMatch(/^#[0-9a-f]{6}$/i);
       expect([...DARK_SCREEN[key]], token).toEqual(hex(v!));
     }
+  });
+});
+
+describe('a theme change (REQ-a-theme-change-repaints-the-canvases)', () => {
+  it('tells each subscriber once per change, and the next read resolves afresh', () => {
+    const before = screenPalette();
+    const fn = vi.fn(() => expect(screenPalette()).not.toBe(before));
+    const off = onPaletteChange(fn);
+    invalidateScreenPalette();
+    expect(fn).toHaveBeenCalledTimes(1);
+    off();
+    invalidateScreenPalette();
+    expect(fn).toHaveBeenCalledTimes(1);
+  });
+
+  it('lets a subscriber unsubscribe while being told (a canvas destroyed by the repaint)', () => {
+    const second = vi.fn();
+    const offFirst: () => void = onPaletteChange(() => offFirst());
+    const offSecond = onPaletteChange(second);
+    invalidateScreenPalette();
+    expect(second).toHaveBeenCalledTimes(1);
+    offSecond();
   });
 });
 

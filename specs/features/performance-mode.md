@@ -9,6 +9,7 @@ related:
   - architecture
   - voicing
   - effects
+  - ui-themes   # shares the Settings dialog
 source:
   - src/state/perf-mode.ts
   - src/audio/engine.ts
@@ -125,8 +126,10 @@ differ only by live-applied scope fps + fftSize).
   for all tiers** (it was the v1 perf-only "lightening"; now a baseline cost cut
   everywhere). Wave and Spectrum draw with no `shadowBlur`/`shadowColor`.
 
-- **REQ-a-perf-button-opens-the-picker** — A header "Perf" button opens a modal
-  with an **Auto / Weak / Medium / Strong** control; changing it persists
+- **REQ-a-perf-button-opens-the-picker** — A header button (gauge icon, labelled
+  "Settings") opens the **Settings** dialog, whose Performance section — below
+  the theme picker ([ui-themes](ui-themes.md) REQ-choosing-a-theme-previews-it) —
+  holds an **Auto / Weak / Medium / Strong** control; changing it persists
   immediately, applies fps live, and shows a "reload to apply" hint + button
   only when the new choice crosses an **audio** boundary
   (`!sameAudioProfile(resolveTier(pref), bootTier)`) — so Medium↔Strong never

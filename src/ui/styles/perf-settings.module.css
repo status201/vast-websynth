@@ -1,7 +1,24 @@
-/* Performance modal — readable sentence-case body copy (the shared Modal .tag
-   style is an uppercase italic tagline, wrong for paragraphs). */
+/* Settings modal (Theme, then Performance) — readable sentence-case body copy
+   (the shared Modal .tag style is an uppercase italic tagline, wrong for paragraphs). */
 
 @layer components {
+  .sectionTitle {
+    margin: 14px 0 0;
+    font-family: inherit;
+    font-size: 10px;
+    font-weight: 700;
+    letter-spacing: 0.18em;
+    text-transform: uppercase;
+    color: var(--text-dim);
+  }
+
+  /* The rule between the two sections. */
+  .sectionBreak {
+    margin-top: 22px;
+    padding-top: 14px;
+    border-top: 1px solid var(--rule);
+  }
+
   .desc {
     margin-top: 12px;
     font-size: 12.5px;

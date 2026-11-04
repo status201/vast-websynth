@@ -92,6 +92,8 @@ var CORE_ASSETS = [
   '/site.webmanifest',
   '/favicon.svg',
   '/apple-touch-icon.png',
+  // Runs before first paint to apply the stored UI theme (ui-themes.md REQ-the-theme-applies-before-first-paint).
+  '/theme-boot.js',
   '/icon-192.png',
   '/icon-512.png',
   '/worklets/ladder-filter.js',

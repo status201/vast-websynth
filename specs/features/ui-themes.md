@@ -17,12 +17,23 @@ source:
   - src/styles/base.css              # html/body take var(--sans)
   - src/ui/styles/                   # every module colours through tokens
   - src/ui/theme-colors.ts           # canvases read the screen tokens through this
+  - src/state/theme.ts               # the registry, the stored choice, Auto's resolution
+  - src/ui/theme.ts                  # puts a theme on the document; follows the system under Auto
+  - public/theme-boot.js             # applies the stored theme before first paint
+  - index.html                       # loads theme-boot.js ahead of the stylesheets
+  - public/sw.js                     # theme-boot.js is a CORE_ASSETS entry
+  - src/ui/components/theme-picker.ts  # the Theme row of the Settings dialog
+  - src/ui/components/perf-settings-modal.ts  # the Settings dialog that holds it
   - src/ui/components/scope.ts
   - src/ui/components/eq-graph.ts
   - src/ui/components/scratch-graph.ts
   - src/ui/components/record-sound-modal.ts
   - scripts/css-cascade/fingerprint.mjs  # --rendered: the zero-change proof for a token move
   - tests/ui/theme-tokens.test.ts
+  - tests/ui/theme-colors.test.ts
+  - tests/state/theme.test.ts
+  - tests/ui/theme.test.ts
+  - tests/ui/theme-picker.test.ts
 ```
 
 A named look for the whole app — a colour palette and two type faces — chosen per
@@ -89,19 +100,39 @@ Fonts are system stacks only — the app bundles no font file
 - **REQ-the-theme-is-a-device-preference** — The chosen theme is stored under
   `localStorage['websynth.ui.theme']` as one of `dark | light | contrast | pastel |
   auto`, like the perf tier: per device, never in a song, a preset or a share
-  link. A missing or unknown value means `dark`
+  link. Only a theme the registry (`THEMES`) lists is accepted: a missing,
+  unknown or not-yet-shipped value means `dark`
   ([untrusted-input](untrusted-input.md)).
 - **REQ-the-theme-applies-before-first-paint** — The stored theme is on
   `<html data-theme>` before the first frame, so a reload never flashes Dark
-  first. A tiny external classic script in `<head>` does it (the shipped CSP
-  allows no inline script), and it is a `CORE_ASSETS` entry so it works offline.
-  `<meta name="theme-color">` follows the theme.
+  first. A tiny external classic script in `<head>`, ahead of the stylesheets,
+  does it (the shipped CSP allows no inline script), and it is a `CORE_ASSETS`
+  entry so it works offline. `<meta name="theme-color">` (the browser's own
+  chrome) and `<meta name="color-scheme">` (native scrollbars and form controls)
+  follow the theme.
+- **REQ-the-boot-script-agrees-with-the-registry** — `public/theme-boot.js` is
+  outside the bundle and cannot import `src/state/theme.ts`, so it carries its
+  own copy of the shipped ids, their meta values and Auto's rule. A test runs the
+  script for every stored value under every system setting and fails if it puts a
+  different theme, or different meta values, on the page than `resolveTheme()`
+  and the registry would.
 - **REQ-auto-follows-the-system** — `auto` resolves to `contrast` under
   `prefers-contrast: more`, else to `light` under `prefers-color-scheme: light`,
-  else `dark`, and re-resolves live when the system setting changes. Under
-  `forced-colors: active` the app leaves the system's colours alone.
+  else `dark` — each step only if that theme ships — and re-resolves live when the
+  system setting changes. Under `forced-colors: active` the app leaves the
+  system's colours alone.
 - **REQ-choosing-a-theme-previews-it** — Picking a theme applies it at once and
   stores it; there is no Apply step, so a wrong choice is undone by picking again.
+  The picker is the **Theme** section of the header's **Settings** dialog — the
+  former Performance dialog, which keeps its Performance section below it, since
+  both are how this device runs the app rather than part of the music. Under
+  Auto a status line names the theme the system setting picked.
+- **REQ-a-theme-change-repaints-the-canvases** — A theme change drops the cached
+  screen palette and tells every open canvas (`onPaletteChange`), which repaints
+  once: the EQ graph, the scratch graph and the sample waveform draw only on
+  demand, and a sleeping scope is woken, so none of them keeps the old theme's
+  colours until something else happens to redraw it. A canvas unsubscribes when
+  it is destroyed.
 - **REQ-pastel-tints-each-panel** — Each machine panel carries a `data-tint`
   naming its section, and its chrome paints `var(--panel-tint, var(--panel))`.
   Every theme maps each `--panel-tint-<section>` token; Dark, Light and High
@@ -116,6 +147,19 @@ Fonts are system stacks only — the app bundles no font file
 theme_ids: dark | light | contrast | pastel      # `auto` is a stored choice, not a theme
 theme_selector: ":root[data-theme=\"<id>\"]"     # dark is also plain :root (the default)
 theme_files: src/styles/themes/<id>.css           # one @layer theme block each
+THEMES: "readonly ThemeInfo[] — the shipped themes, in picker order"   # src/state/theme.ts
+ThemeInfo_id: ThemeId
+ThemeInfo_name: the picker label
+ThemeInfo_metaColor: the <meta name="theme-color"> value
+ThemeInfo_colorScheme: "dark | light — the <meta name=\"color-scheme\"> value"
+ThemeInfo_swatch: "[--bg, --text, --accent, --accent-secondary] — the picker tile's chips, pinned equal to the theme's tokens"
+THEME_KEY: websynth.ui.theme
+readThemePref: "() => ThemePref — dark when missing or not shipped"
+resolveTheme: "(pref, matches) => ThemeId — auto resolved against the system queries"
+applyTheme: "(id) => void — data-theme + both metas; on a change, invalidateScreenPalette()"  # src/ui/theme.ts
+startTheme: "() => void — boot: apply, then follow the system while the choice is auto"
+setThemePref: "(pref) => ThemeId — store, apply, return what it resolved to"
+onPaletteChange: "(fn) => () => void — fn runs after each invalidation; the return unsubscribes"  # src/ui/theme-colors.ts
 screenPalette: "() => ScreenPalette — cached; re-resolved on a theme change"
 ScreenPalette_ink: the screen's grid, labels, curves in the amber of the default  # --screen-ink
 ScreenPalette_trace: the main trace / curve                                       # --screen-trace
@@ -162,14 +206,22 @@ looks, not part of the music.
 
 ## Gesture inventory
 
-The theme picker (one row of theme tiles, per ADR-014):
+The theme picker (one row of theme tiles, per ADR-014) — a radio group: the row
+is `role="radiogroup"`, each tile a `role="radio"` button with its colour chips
+and name, Auto first.
 
 | Gesture | Target | Result |
 | --- | --- | --- |
 | click / tap | a tile | that theme applies at once and is stored (REQ-choosing-a-theme-previews-it) |
-| ←/→, Home/End | the focused row | moves the selection, applying it (a radio group) |
-| Enter / Space | a focused tile | selects it |
-| Tab | the row | one stop for the row, not one per tile |
+| ←/↑, →/↓ | a focused tile | moves to the previous / next tile, wrapping, and selects it |
+| Home / End | a focused tile | moves to the first / last tile and selects it |
+| Enter / Space | a focused tile | selects it (the native button click) |
+| Tab | the row | one stop for the row — the selected tile (roving `tabindex`) |
+| Escape | anywhere in it | not consumed: the dialog closes |
+
+The keys the row handles stop there ([input-control](input-control.md)): no
+arrow reaches the global shortcuts. Testids: `theme-picker` (the row),
+`theme-<id>` and `theme-auto` (the tiles), `theme-status`.
 
 ## Scenarios (BDD)
 
@@ -210,12 +262,74 @@ Scenario: the canvas fallback cannot drift from theme.css (REQ-canvas-reads-the-
   Given the Dark values screenPalette() falls back to
   Then each equals the value theme.css resolves that --screen-* token to
 # pinned by: tests/ui/theme-colors.test.ts
+
+Scenario: a stored theme survives a reload (REQ-the-theme-is-a-device-preference)
+  Given the user picked a theme
+  Then websynth.ui.theme holds its id, and the next boot resolves to it
+# pinned by: tests/state/theme.test.ts
+
+Scenario: an unknown or unshipped stored value means Dark (edge, REQ-the-theme-is-a-device-preference)
+  Given websynth.ui.theme holds "neon", "__proto__", or the id of a theme not in THEMES
+  Then readThemePref() is "dark" and the boot script puts data-theme="dark" on the page
+# pinned by: tests/state/theme.test.ts, tests/ui/theme.test.ts
+
+Scenario: Auto follows the system's contrast, then its light/dark setting (REQ-auto-follows-the-system)
+  Given the stored choice is auto
+  Then prefers-contrast: more gives contrast, prefers-color-scheme: light gives light, else dark
+  And a theme that does not ship is skipped to the next rule
+# pinned by: tests/state/theme.test.ts
+
+Scenario: Auto re-resolves when the system setting changes (REQ-auto-follows-the-system)
+  Given the stored choice is auto and the app has started
+  When the system's colour-scheme query fires a change
+  Then the page's theme is resolved again; with a concrete choice it is left alone
+# pinned by: tests/ui/theme.test.ts
+
+Scenario: the boot script and the registry agree (REQ-the-boot-script-agrees-with-the-registry)
+  Given every stored value (missing, each id, auto, unknown) under every system setting
+  When public/theme-boot.js runs
+  Then data-theme, the theme-color meta and the color-scheme meta equal what resolveTheme() and THEMES give
+# pinned by: tests/ui/theme.test.ts
+
+Scenario: the boot script runs before the stylesheets, and offline (REQ-the-theme-applies-before-first-paint)
+  Given index.html and the service worker
+  Then a classic theme-boot.js script precedes the first stylesheet link, and CORE_ASSETS lists it
+# pinned by: tests/ui/theme.test.ts
+
+Scenario: a picker tile's chips are its theme's colours (REQ-a-theme-is-a-palette-and-two-faces)
+  Given a theme in THEMES
+  Then its swatch equals the --bg, --text, --accent and --accent-secondary its theme file declares
+# pinned by: tests/ui/theme.test.ts
+
+Scenario: picking a theme applies and stores it at once (REQ-choosing-a-theme-previews-it)
+  Given the Settings dialog is open
+  When the user clicks a theme tile
+  Then <html data-theme> changes, websynth.ui.theme is written, and the tile is aria-checked
+# pinned by: tests/ui/theme-picker.test.ts
+
+Scenario: the picker is one radio group for the keyboard (REQ-choosing-a-theme-previews-it)
+  Given focus on the selected tile
+  When the user presses → (or End)
+  Then the next (or last) tile is selected and focused, the key does not propagate, and only that tile has tabindex 0
+# pinned by: tests/ui/theme-picker.test.ts
+
+Scenario: a theme change repaints a canvas once, and a destroyed one is not told (REQ-a-theme-change-repaints-the-canvases)
+  Given a subscriber to onPaletteChange
+  When the theme changes
+  Then it runs once and the next screenPalette() resolves afresh; after it unsubscribes it does not run
+# pinned by: tests/ui/theme-colors.test.ts, tests/ui/theme.test.ts
 ```
 
 ## Tests & verification
 
 - Unit: `tests/ui/theme-tokens.test.ts` (the literal pin, the var() resolution
-  pin), `tests/ui/theme-colors.test.ts` — `npm test`
+  pin), `tests/ui/theme-colors.test.ts`, `tests/state/theme.test.ts` (registry,
+  stored choice, Auto), `tests/ui/theme.test.ts` (applying, following the
+  system, the boot script against the registry), `tests/ui/theme-picker.test.ts`
+  — `npm test`
+- No flash on reload: by hand against `npm run build && npx vite preview` (the
+  shipped CSP), with a non-Dark theme stored — an e2e lands with the first
+  theme that is not Dark, when there is something to see.
 - Typecheck: `npm run typecheck`
 - Zero-change proof for a token move: `npm run cascade:fingerprint -- --out
   base.ndjson.gz` on the old tree, then `--compare base.ndjson.gz --rendered` on
@@ -226,12 +340,13 @@ Scenario: the canvas fallback cannot drift from theme.css (REQ-canvas-reads-the-
 ## Open questions / future
 
 - **Delivery is staged.** Shipped: the tokens (REQ-every-colour-is-a-token through
-  REQ-a-token-move-is-proven-by-fingerprint) — Dark only, no visible change. Still
-  to build, in order: the mechanism (registry `src/state/theme.ts`, persistence,
-  boot script, Auto, the picker); High contrast and Light; Pastel and the panel
-  `data-tint` hook. Their scenarios are added with their tests.
-- Where the picker lives: the header's Perf modal is the only device-settings
-  surface today, but "Perf" is the wrong label for a look. Decide with the
-  mechanism — a Settings modal that holds both is the likely answer.
+  REQ-a-token-move-is-proven-by-fingerprint), and the mechanism — the registry,
+  the stored choice, the boot script, Auto and the picker. `THEMES` lists Dark
+  only, so the picker offers Auto and Dark and Auto always lands on Dark. Still to
+  build, in order: High contrast and Light (each a `THEMES` row, a theme file and
+  a boot-script entry); Pastel and the panel `data-tint` hook
+  (REQ-pastel-tints-each-panel).
+- The header button keeps its gauge icon and its tier colour, because the perf
+  tier is the one setting worth seeing at a glance; its label says "Settings".
 - Light's key-role colours need light variants that still read as the same four
   roles on a pale key ([scale-quantization](scale-quantization.md)).

@@ -1,0 +1,134 @@
+// The Settings dialog's Theme row (specs/features/ui-themes.md REQ-choosing-a-theme-previews-it).
+import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
+import { installLocalStorageMock } from '../storage-mock';
+
+const sel = (id: string) => document.querySelector<HTMLElement>(`[data-testid="${id}"]`);
+
+/** A fresh picker — `ui/theme.ts` keeps the choice in force, so each test gets new modules. */
+async function mount() {
+  vi.resetModules();
+  const { createThemePicker } = await import('../../src/ui/components/theme-picker');
+  const { THEMES } = await import('../../src/state/theme');
+  const picker = createThemePicker();
+  document.body.appendChild(picker.el);
+  const tiles = [...picker.el.querySelectorAll<HTMLButtonElement>('[role="radio"]')];
+  return { picker, tiles, THEMES };
+}
+
+const key = (el: HTMLElement, k: string) => {
+  const e = new KeyboardEvent('keydown', { key: k, bubbles: true, cancelable: true });
+  el.dispatchEvent(e);
+  return e;
+};
+
+let store: Map<string, string>;
+beforeEach(() => { store = installLocalStorageMock(); });
+afterEach(() => {
+  vi.unstubAllGlobals();
+  document.body.innerHTML = '';
+  delete document.documentElement.dataset.theme;
+});
+
+describe('the theme picker', () => {
+  it('offers Auto, then every shipped theme, as one radio group', async () => {
+    const { tiles, THEMES } = await mount();
+    expect(sel('theme-picker')!.getAttribute('role')).toBe('radiogroup');
+    expect(tiles.map((t) => t.dataset.testid)).toEqual(['theme-auto', ...THEMES.map((t) => `theme-${t.id}`)]);
+  });
+
+  it('starts on the stored choice, the only tile in the tab order', async () => {
+    store.set('websynth.ui.theme', 'auto');
+    const { tiles } = await mount();
+    expect(tiles.map((t) => t.getAttribute('aria-checked'))).toEqual(tiles.map((_, i) => String(i === 0)));
+    expect(tiles.map((t) => t.tabIndex)).toEqual(tiles.map((_, i) => (i === 0 ? 0 : -1)));
+  });
+
+  it('applies and stores a click at once, with no Apply step', async () => {
+    const { tiles } = await mount();
+    sel('theme-auto')!.click();
+    expect(store.get('websynth.ui.theme')).toBe('auto');
+    expect(document.documentElement.dataset.theme).toBe('dark');
+    expect(sel('theme-auto')!.getAttribute('aria-checked')).toBe('true');
+    expect(tiles.filter((t) => t.getAttribute('aria-checked') === 'true')).toHaveLength(1);
+    sel('theme-dark')!.click();
+    expect(store.get('websynth.ui.theme')).toBe('dark');
+  });
+
+  it('names what Auto picked, and says nothing under a concrete choice', async () => {
+    await mount();
+    expect(sel('theme-status')!.hidden).toBe(true);
+    sel('theme-auto')!.click();
+    expect(sel('theme-status')!.hidden).toBe(false);
+    expect(sel('theme-status')!.textContent).toContain('Dark');
+  });
+
+  it("paints each tile's chips with its theme's swatch", async () => {
+    const { tiles, THEMES } = await mount();
+    const chips = tiles[1]!.querySelectorAll<HTMLElement>('[aria-hidden] > span');
+    expect(chips).toHaveLength(4);
+    // jsdom normalises a hex to rgb(); compare through a probe so both read alike.
+    const norm = (c: string) => { const p = document.createElement('span'); p.style.background = c; return p.style.background; };
+    expect([...chips].map((c) => c.style.background)).toEqual(THEMES[0]!.swatch.map(norm));
+  });
+
+  it('moves and selects with the arrows, Home and End, wrapping, and keeps the keys to itself', async () => {
+    const { tiles } = await mount();
+    const outside = vi.fn();
+    document.addEventListener('keydown', outside);
+    try {
+      const n = tiles.length;
+      const at = () => tiles.findIndex((t) => t.getAttribute('aria-checked') === 'true');
+      const start = at();
+      tiles[start]!.focus();
+
+      expect(key(tiles[start]!, 'ArrowRight').defaultPrevented).toBe(true);
+      expect(at()).toBe((start + 1) % n);
+      expect(document.activeElement).toBe(tiles[at()]);
+      expect(tiles[at()]!.tabIndex).toBe(0);
+
+      key(tiles[at()]!, 'Home');
+      expect(at()).toBe(0);
+      key(tiles[0]!, 'ArrowLeft');
+      expect(at()).toBe(n - 1); // wraps
+      key(tiles[n - 1]!, 'End');
+      expect(at()).toBe(n - 1);
+      key(tiles[n - 1]!, 'ArrowDown');
+      expect(at()).toBe(0); // wraps
+      expect(store.get('websynth.ui.theme')).toBe('auto');
+      expect(outside).not.toHaveBeenCalled();
+
+      // Escape is not the picker's: it reaches the dialog.
+      expect(key(tiles[0]!, 'Escape').defaultPrevented).toBe(false);
+      expect(outside).toHaveBeenCalledTimes(1);
+    } finally {
+      document.removeEventListener('keydown', outside);
+    }
+  });
+
+  it('stops following theme changes once destroyed', async () => {
+    const { picker } = await mount();
+    const colors = await import('../../src/ui/theme-colors');
+    sel('theme-auto')!.click();
+    picker.destroy();
+    sel('theme-status')!.textContent = 'stale';
+    colors.invalidateScreenPalette();
+    expect(sel('theme-status')!.textContent).toBe('stale');
+  });
+});
+
+describe('the Settings dialog', () => {
+  it('holds the theme picker above the performance tier', async () => {
+    vi.resetModules();
+    vi.stubGlobal('navigator', { hardwareConcurrency: 12, deviceMemory: 16, userAgent: 'Windows' });
+    const { createPerfSettingsButton } = await import('../../src/ui/components/perf-settings');
+    const btn = createPerfSettingsButton();
+    document.body.appendChild(btn);
+    expect(btn.getAttribute('aria-label') ?? btn.title).toMatch(/^Settings/);
+    btn.click();
+    await vi.waitFor(() => { if (!sel('perf-mode')) throw new Error('modal not open yet'); });
+    const picker = sel('theme-picker')!;
+    expect(picker).not.toBeNull();
+    expect(picker.compareDocumentPosition(sel('perf-mode')!) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+    expect(document.body.textContent).toContain('Settings');
+  });
+});

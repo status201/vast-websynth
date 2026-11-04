@@ -7,7 +7,7 @@ import {
 import { MAX_SCRATCH_POINTS, MAX_SCRATCH_RATE } from '../../state/limits';
 import { DOUBLE_TAP_MS } from './gesture-timing';
 import { clamp01 } from '../../utils/math';
-import { paletteDerived, rgba } from '../theme-colors';
+import { onPaletteChange, paletteDerived, rgba } from '../theme-colors';
 
 /**
  * The scratch editor's canvas (scratch.md REQ-the-graph-is-two-lanes-on-output-time/REQ-the-preview-lane-remaps-cached-peaks/REQ-the-scratch-gesture-inventory).
@@ -119,6 +119,8 @@ export class ScratchGraph {
   private bw = 0;
   private bh = 0;
   private ro: ResizeObserver | null = null;
+  /** Unsubscribes the theme-change repaint (ui-themes.md REQ-a-theme-change-repaints-the-canvases). */
+  private offPalette: (() => void) | null = null;
 
   private readonly onDown: (e: PointerEvent) => void;
   private readonly onMove: (e: PointerEvent) => void;
@@ -155,6 +157,7 @@ export class ScratchGraph {
       this.ro = new ResizeObserver(() => this.redraw());
       this.ro.observe(this.el);
     }
+    this.offPalette = onPaletteChange(() => this.redraw());
     this.redraw();
   }
 
@@ -191,6 +194,8 @@ export class ScratchGraph {
     this.detachDrag();
     this.ro?.disconnect();
     this.ro = null;
+    this.offPalette?.();
+    this.offPalette = null;
     hideValueBubble();
   }
 

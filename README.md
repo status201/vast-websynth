@@ -354,6 +354,7 @@ src/
     demos/           drop-in *.json SongFiles / *.websynth.zip projects,
                      found at build time, fetched when clicked
     perf-mode.ts     performance-mode preference + device-tier detection
+    theme.ts         UI theme registry + the stored choice (applied pre-paint by public/theme-boot.js)
     tempo-lock.ts    which knobs can be locked to the grid, and in what unit
   utils/             dependency-free helpers importable from any layer: zip codec,
                      deflate-raw streams, param tapers, scale/chord theory,

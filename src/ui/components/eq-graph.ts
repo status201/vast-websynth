@@ -7,7 +7,7 @@ import {
   SPECTRUM_ZONES, freqToFrac, fracToFreq, formatHzFull, visibleTicks,
 } from './scope';
 import { haloText } from './canvas-text';
-import { paletteDerived, rgba } from '../theme-colors';
+import { onPaletteChange, paletteDerived, rgba } from '../theme-colors';
 import { clamp } from '../../utils/math';
 import styles from '../styles/eq.module.css';
 import { DOUBLE_TAP_MS } from './gesture-timing';
@@ -143,6 +143,8 @@ export class EqGraph {
     for (const id of eqCurveParamIds(this.prefix)) {
       this.unsubs.push(this.bus.subscribe(id, () => this.invalidate()));
     }
+    // A theme change repaints the curve once (ui-themes.md REQ-a-theme-change-repaints-the-canvases).
+    this.unsubs.push(onPaletteChange(() => this.invalidate()));
 
     this.canvas.addEventListener('pointerdown', this.handleDown);
     this.canvas.addEventListener('pointermove', this.handleHover);

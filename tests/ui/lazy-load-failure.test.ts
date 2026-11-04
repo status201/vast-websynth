@@ -225,12 +225,12 @@ describe('A deferred help surface that cannot load (onboarding.md REQ-the-help-d
     expect(toastText()).toContain('WiFi pairing');
   });
 
-  it('reports when the Performance settings will not load', async () => {
+  it('reports when the Settings will not load', async () => {
     const btn = createPerfSettingsButton();
     document.body.appendChild(btn);
     btn.click();
     await vi.waitFor(() => expect(toast()).toBeTruthy());
-    expect(toastText()).toContain('the performance settings');
+    expect(toastText()).toContain('the settings');
     expect(document.querySelector('[data-testid="perf-mode"]')).toBeNull();
   });
 });

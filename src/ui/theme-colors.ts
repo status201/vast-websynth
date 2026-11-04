@@ -88,9 +88,25 @@ export function screenPalette(): ScreenPalette {
   return (cached ??= resolve());
 }
 
-/** Forget the cached palette, so the next read resolves the tokens again. For a theme change. */
+const listeners = new Set<() => void>();
+
+/**
+ * Forget the cached palette, so the next read resolves the tokens again, and
+ * tell every subscribed canvas to repaint. For a theme change
+ * (REQ-a-theme-change-repaints-the-canvases).
+ */
 export function invalidateScreenPalette(): void {
   cached = null;
+  for (const fn of [...listeners]) fn();
+}
+
+/**
+ * Run `fn` after each theme change — a canvas that paints only on demand
+ * schedules its repaint here. Returns the unsubscribe, for its `destroy()`.
+ */
+export function onPaletteChange(fn: () => void): () => void {
+  listeners.add(fn);
+  return () => { listeners.delete(fn); };
 }
 
 /**

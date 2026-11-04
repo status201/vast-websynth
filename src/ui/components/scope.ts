@@ -1,6 +1,6 @@
 import styles from '../styles/scope.module.css';
 import { haloText } from './canvas-text';
-import { paletteDerived, rgba, type ScreenPalette } from '../theme-colors';
+import { onPaletteChange, paletteDerived, rgba, type ScreenPalette } from '../theme-colors';
 
 /** The scope's inks, from the screen tokens (ui-themes.md REQ-canvas-reads-the-screen-tokens). */
 const colours = paletteDerived((p) => ({
@@ -545,6 +545,11 @@ export class Scope {
   private cursorShown = false;
   private dpr = typeof window !== 'undefined' ? window.devicePixelRatio || 1 : 1;
   private ro: ResizeObserver | null = null;
+  /**
+   * Unsubscribes the theme-change wake: a sleeping scope would keep the old
+   * theme's screen until a signal woke it (ui-themes.md REQ-a-theme-change-repaints-the-canvases).
+   */
+  private readonly offPalette: () => void;
   /** Last value mirrored to each dataset key — lets us skip redundant per-frame writes. */
   private readonly mirrored: {
     peak: string; peakL: string; peakR: string; waveGain: string; zones: string; cursorHz: string;
@@ -575,6 +580,7 @@ export class Scope {
     // Pause the redraw loop while the tab is hidden — a backgrounded scope is
     // pure wasted main-thread work that can starve the audio thread on mobile.
     document.addEventListener('visibilitychange', this.onVisibility);
+    this.offPalette = onPaletteChange(this.onEnsureLive);
     // A bfcache restore can reach a visible page without a visibilitychange
     // (REQ-becoming-visible-re-measures) — and it is exactly the path that drops a queued frame.
     window.addEventListener('pageshow', this.onVisibility);
@@ -1508,6 +1514,7 @@ export class Scope {
     document.removeEventListener('visibilitychange', this.onVisibility);
     window.removeEventListener('pageshow', this.onVisibility);
     window.removeEventListener('focus', this.onEnsureLive);
+    this.offPalette();
     document.removeEventListener('resume' as 'visibilitychange', this.onEnsureLive);
   }
 }

@@ -40,7 +40,7 @@ import {
 } from '../../state/limits';
 import { UI_ICONS } from './ui-icons';
 import { plural } from '../../utils/format';
-import { paletteDerived, rgba } from '../theme-colors';
+import { onPaletteChange, paletteDerived, rgba } from '../theme-colors';
 
 /** The waveform's inks, from the screen tokens (ui-themes.md REQ-canvas-reads-the-screen-tokens). */
 const waveColours = paletteDerived((p) => ({
@@ -114,6 +114,9 @@ export function openRecordSoundModal(engine: StudioApi, opts: RecordSoundOptions
   let lastAction = 'Ready';
   let onPlayingChange: ((playing: boolean) => void) | null = null;
   let redrawHook: (() => void) | null = null;
+  // The waveform paints on demand, so a theme change asks for one repaint
+  // (ui-themes.md REQ-a-theme-change-repaints-the-canvases); cleanup unsubscribes.
+  const offPalette = onPaletteChange(() => redrawHook?.());
   /** Interior chop boundaries, absolute sample indices (sample-chop.md REQ-two-ways-to-place-the-cuts). */
   let marks: number[] = [];
   /** Re-reads `marks` into the chop row's labels and disabled states. */
@@ -186,6 +189,7 @@ export function openRecordSoundModal(engine: StudioApi, opts: RecordSoundOptions
     stopPreview();
     onPlayingChange = null;
     redrawHook = null;
+    offPalette();
     syncChop = null;
     syncFit = null;
     syncScratch = null;
