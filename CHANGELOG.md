@@ -16,6 +16,22 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+### Added
+
+- **summer**, a new factory preset: a mid-70s ARP 2600-style lead. One saw in
+  mono, a slow glide on every note and a long spring-and-reverb tail, for slow
+  octave leaps as well as solos. LFO 1 is already aimed at pitch, so turning up
+  its amount adds vibrato.
+
+### Changed
+
+- **rhodes** sounds like a suitcase Rhodes now. The amp's "vibrato" is really a
+  stereo auto-pan, so LFO 1 pans at 1/8 and LFO 2 adds a light tremolo at 1/16,
+  both in time with the song. Playing hard makes it bark: a hard note opens the
+  filter further and drives it into saturation, while a soft one stays round. If
+  your browser already holds the old factory rhodes, it is kept as-is; put it back
+  from the Preset manager to get the new sound.
+
 ## [2.20.0] - 2026-11-04
 
 ### Added

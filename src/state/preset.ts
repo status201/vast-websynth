@@ -202,7 +202,14 @@ const FACTORY: FactoryBank = {
     'filter.cutoff': 90, 'filter.resonance': 0.2, 'filter.drive': 1.0, 'filter.envAmount': 22,
     'env.amp.attack': 0.001, 'env.amp.decay': 2.2, 'env.amp.sustain': 0, 'env.amp.release': 0.35,
     'env.fil.decay': 0.5, 'env.fil.sustain': 0.12, 'env.fil.release': 0.3,
-    'lfo.rate': 2.5, 'lfo.amount': 0.60, 'lfo.dest': 3,
+    // Suitcase amp: its "vibrato" is a stereo auto-pan (LFO 1, 1/8), under a
+    // light 1/16 tremolo (LFO 2). Both follow the tempo.
+    'lfo.amount': 0.8, 'lfo.dest': 5, 'lfo.sync': 10,
+    'lfo2.amount': 0.1, 'lfo2.dest': 3, 'lfo2.sync': 13,
+    // The bark: a hard note opens the filter further and drives it harder, so
+    // the saturation's harmonics ring through on the strike and mellow after.
+    'filter.velAmount': 0.6,
+    'mod.0.src': MOD_SRC.velocity, 'mod.0.dst': MOD_DST.drive, 'mod.0.amt': 0.35,
     'fx.reverb.on': 1, 'fx.reverb.size': 0.4, 'fx.reverb.damp': 0.5, 'fx.reverb.mix': 0.15,
     'master.volume': 0.8,
   },
@@ -399,6 +406,26 @@ const FACTORY: FactoryBank = {
     'fx.delay.on': 1, 'fx.delay.time': 0.32, 'fx.delay.feedback': 0.3, 'fx.delay.mix': 0.2, 'fx.delay.sync': 0,
     'fx.reverb.on': 1, 'fx.reverb.size': 0.5, 'fx.reverb.damp': 0.4, 'fx.reverb.mix': 0.15,
     'master.volume': 0.75, 'voicing.mode': 0,
+  },
+  summer: {
+    ...PLAIN_VOICE,
+    // ARP 2600-style lead: one saw, mono, a slow glide that is always on (the
+    // one-pole lag reads like the 2600's portamento), and a long wet tail — the
+    // SPACE ECHO's spring at full CHAR on a short time, into a big reverb.
+    'osc1.wave': 2, 'osc1.level': 0.75,
+    'osc2.wave': 2, 'osc2.octave': 0, 'osc2.detune': 0, 'osc2.level': 0,
+    'analog.drift': 0.15,
+    'mixer.glide': 0.25, 'glide.mode': 1,
+    'filter.cutoff': 88, 'filter.resonance': 0.4, 'filter.drive': 1.2, 'filter.envAmount': 8,
+    'filter.keytrack': 0.5,
+    'env.amp.attack': 0.015, 'env.amp.decay': 0.3, 'env.amp.sustain': 1, 'env.amp.release': 0.35,
+    'env.fil.attack': 0.02, 'env.fil.decay': 0.8, 'env.fil.sustain': 0.6, 'env.fil.release': 0.35,
+    // Vibrato staged for the solo: LFO 1 aimed at pitch, its amount left at 0.
+    'lfo.rate': 5.5, 'lfo.dest': 2,
+    'fx.delay.on': 1, 'fx.delay.type': 4, 'fx.delay.char': 1, 'fx.delay.time': 0.08,
+    'fx.delay.feedback': 0.1, 'fx.delay.mix': 0.25, 'fx.delay.sync': 0,
+    'fx.reverb.on': 1, 'fx.reverb.size': 0.8, 'fx.reverb.damp': 0.55, 'fx.reverb.mix': 0.32,
+    'master.volume': 0.8, 'voicing.mode': 0,
   },
 };
 

@@ -9,7 +9,7 @@ const INDEX_KEY = 'websynth.preset.index';
 const FACTORY_NAMES = [
   'acid', 'b3', 'basic', 'bass', 'bells', 'brass', 'chime', 'clang', 'ember',
   'growl', 'lead', 'pad', 'pbass', 'piano', 'pluck', 'prism', 'reese', 'rhodes',
-  'solina', 'tear', 'tines', 'upright', 'vellum', 'wobble',
+  'solina', 'summer', 'tear', 'tines', 'upright', 'vellum', 'wobble',
 ];
 
 describe('Presets', () => {

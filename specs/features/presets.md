@@ -53,14 +53,21 @@ can do with a sound ([ADR-014](../decisions/adr-014-dont-make-me-think.md) law 1
   number>`) = `patchSnapshot(savedParams(bus.snapshot()))` — every sound param
   (REQ-a-preset-is-only-a-sound) except the `UNSAVED_PARAMS` (`master.expression`, [input-control](input-control.md)
   REQ-cc11-is-expression), so a pedal left heel-down never saves into a sound.
-- **REQ-factory-presets-span-the-instrument-families** — The 24 factory presets (`acid`, `b3`,
+- **REQ-factory-presets-span-the-instrument-families** — The 25 factory presets (`acid`, `b3`,
   `basic`, `bass`, `bells`, `brass`, `chime`, `clang`, `ember`, `growl`, `lead`,
-  `pad`, `pbass`, `piano`, `pluck`, `prism`, `reese`, `rhodes`, `solina`, `tear`,
-  `tines`, `upright`, `vellum`, `wobble`) are seeded by `ensureFactoryPresets()`
+  `pad`, `pbass`, `piano`, `pluck`, `prism`, `reese`, `rhodes`, `solina`, `summer`,
+  `tear`, `tines`, `upright`, `vellum`, `wobble`) are seeded by `ensureFactoryPresets()`
   on boot (if absent, or an older seed — REQ-an-older-factory-seed-is-refreshed). Sixteen cover
   the core instrument families: basses (`bass`, `upright`, `pbass`, `reese`,
   `acid`), keys (`piano`, `rhodes`, `b3`, `bells`), ensemble/poly (`pad`,
   `solina`, `brass`), leads/plucks (`lead`, `pluck`) and FX basses (`wobble`).
+  `summer` is a mid-70s lead in the ARP 2600 manner: one saw in mono, a slow
+  glide that is always on, and a long tail made of the SPACE ECHO's spring
+  ([delay-types](delay-types.md)) into the reverb. `rhodes` is a suitcase
+  electric piano: LFO 1 auto-pans the synth bus at 1/8 (the amp's "vibrato") and
+  LFO 2 adds a light 1/16 tremolo, both tempo-locked. Velocity drives the filter,
+  its envelope peak through `filter.velAmount` and its saturation through a
+  matrix route to `drive`, so a hard note barks and a soft one stays round.
   The remaining three — `ember`, `vellum`, `prism` — are the POLY-model
   showcases that arrived with [filter-models](filter-models.md); each leans on
   something LADDER cannot do, so flipping the model switch on one is the A/B.
