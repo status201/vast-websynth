@@ -25,6 +25,9 @@
  * `--rendered` (compare only) ignores custom properties and compares colours as
  * numbers — the proof for moving literals into tokens (see `sameRendered`).
  *
+ * Every capture is in the Dark theme; `--theme <id>` captures another (the
+ * app's default look is Vibrant, and a baseline must not move with a default).
+ *
  * Options: --filter <substr> (state@viewport ids), --browser firefox,
  * --port <n> (default 4179), --jobs <n> (default 3), --limit <n> diffs shown per id.
  */
@@ -78,7 +81,7 @@ function capture() {
 
 async function captureOne(browser, url, { id, state, vp }) {
   const t0 = Date.now();
-  const { page, close } = await openState(browser, url, state, vp);
+  const { page, close } = await openState(browser, url, state, vp, typeof args.theme === 'string' ? args.theme : 'dark');
   try {
     const cap = await page.evaluate(capture);
     console.error(`  ${id} — ${Object.keys(cap.elements).length} elements (${Date.now() - t0} ms)`);

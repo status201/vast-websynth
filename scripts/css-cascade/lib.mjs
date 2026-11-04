@@ -164,17 +164,22 @@ export async function launch(browserName = 'chromium') {
  * call: empty storage, so nothing a previous state persisted (a fold, a tab)
  * leaks in. The same three flags e2e sets keep the tour, Performance mode and
  * the empty-play hint out of the picture.
+ *
+ * The UI theme is pinned (Dark unless `theme` says otherwise): the app's
+ * default look is not Dark, and a capture must not change because a default
+ * did (specs/features/ui-themes.md REQ-a-token-move-is-proven-by-fingerprint).
  */
-export async function openState(browser, url, state, vp) {
+export async function openState(browser, url, state, vp, theme = 'dark') {
   const context = await browser.newContext({ viewport: { width: vp.width, height: vp.height } });
   const page = await context.newPage();
-  await page.addInitScript(() => {
+  await page.addInitScript((t) => {
     try {
       localStorage.setItem('websynth.onboarding.done', '1');
       localStorage.setItem('websynth.perf', 'off');
       localStorage.setItem('websynth.hint.emptyplay', '1');
+      localStorage.setItem('websynth.ui.theme', t);
     } catch { /* ignore */ }
-  });
+  }, theme);
   await page.goto(url);
   await page.getByTestId('app-header').waitFor({ state: 'visible' });
   const start = page.getByRole('button', { name: 'Tap to start' });

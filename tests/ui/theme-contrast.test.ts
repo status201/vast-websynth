@@ -123,6 +123,20 @@ describe('theme contrast', () => {
     expect(bad).toEqual([]);
   });
 
+  it('makes an on switch read as on without its LED, in every theme (regression, REQ-an-on-switch-reads-as-on)', () => {
+    for (const id of ['dark', 'light', 'pastel', 'vibrant', 'contrast']) {
+      const bedChanges = resolved(id, '--switch-on-bed') !== resolved(id, '--well');
+      const inkStep = contrast(resolved(id, '--switch-on-ink'), resolved(id, '--text-dim'));
+      expect(bedChanges || inkStep >= 2, `${id}: same bed, ink step ${inkStep.toFixed(2)}`).toBe(true);
+      // A lit cap's legend is still type on a fill.
+      if (bedChanges) {
+        const bed = resolved(id, '--switch-on-bed');
+        expect(bed, `${id}: --switch-on-bed`).toMatch(/^#[0-9a-f]{6}$/i);
+        expect(contrast(resolved(id, '--switch-on-ink'), bed), id).toBeGreaterThanOrEqual(4.5);
+      }
+    }
+  });
+
   it('gives Vibrant the same as Light on every surface (REQ-vibrant-keeps-its-red-for-fills)', () => {
     expect(below('vibrant', BODY, 4.5)).toEqual([]);
     expect(below('vibrant', SMALL_PRINT, 3)).toEqual([]);

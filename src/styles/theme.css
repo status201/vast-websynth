@@ -113,6 +113,11 @@
     --raised-bottom: #2a1c10;
     --raised: linear-gradient(180deg, var(--raised-top), var(--raised-bottom));
     --field: #0a0805;
+    /* A switch that is on, LED or not (ui-themes.md REQ-an-on-switch-reads-as-on).
+       Dark's ink step from --text-dim is enough on its own; a theme whose two
+       inks sit close lights the cap instead. */
+    --switch-on-bed: var(--well);
+    --switch-on-ink: var(--text);
     /* A popover menu and its hovered row. */
     --menu: linear-gradient(180deg, #221c16 0%, #15110d 100%);
     --menu-hover: linear-gradient(180deg, #3a2a18, #1f1610);

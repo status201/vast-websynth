@@ -4,8 +4,14 @@
 // scrollbars) at 1920×1080, DPR 1. Run manually and commit the output:
 //
 //   node scripts/readme-screenshots.mjs [--demo <name>] [--bar <n>] [--url <app url>]
+//                                       [--only <shot,shot>]
 //
-// Outputs (public/), each 1920×1080:
+// --only takes shot names (hero, machines, eq, pastel, vibrant) and retakes just
+// those, so adding one shot does not churn every committed PNG.
+//
+// Outputs (public/), each 1920×1080. The first four are in the Dark theme,
+// pinned: the app's default look is Vibrant, and a retake must not change look
+// because a default did (ui-themes.md).
 //   vast-websynth.png               the demo playing, pattern row folded, scope on
 //                                   Wave caught at a full swing, keys lit by the notes
 //   vast-websynth-drum-machine.png  stopped at --bar, Drum Machine tab, with the
@@ -15,6 +21,10 @@
 //   vast-websynth-eq-scope.png      the demo playing, machines folded, the scope
 //                                   at its full height on Spectrum, and the
 //                                   EQUALIZER unfolded on its Sequencer tab
+//   vast-websynth-theme-pastel.png  Pastel: Bunk playing, FX open, the Sequencer
+//                                   tab following the playhead
+//   vast-websynth-theme-vibrant.png Vibrant: Bunk playing, FX folded, the Motion
+//                                   tab following the playhead
 //
 // Framing is judged by eye — look at all three before committing them.
 
@@ -33,6 +43,10 @@ const flag = (name, fallback) => {
   return i >= 0 && args[i + 1] !== undefined ? args[i + 1] : fallback;
 };
 const DEMO = flag('demo', 'Nocturne');
+/** The two theme shots play their own demo: busy on every lane, so both tabs move. */
+const THEME_DEMO = 'Bunk';
+const ONLY = flag('only', null)?.split(',');
+const wanted = (name) => !ONLY || ONLY.includes(name);
 const BAR = Number(flag('bar', '9'));
 
 const VIEWPORT = { width: 1920, height: 1080 };
@@ -99,8 +113,9 @@ if (!url) {
 // ------------------------------------------------------------------ steps
 
 /** A booted page with the demo loaded, the pattern row open on the Song tab.
- *  `prefs` are extra workspace entries seeded into storage before boot. */
-async function openApp(browser, prefs = {}) {
+ *  `prefs` are extra workspace entries seeded into storage before boot; the
+ *  theme is Dark unless they say otherwise. */
+async function openApp(browser, prefs = {}, demo = DEMO) {
   const page = await browser.newPage({ viewport: VIEWPORT, deviceScaleFactor: 1 });
   await page.addInitScript((extra) => {
     try {
@@ -108,6 +123,7 @@ async function openApp(browser, prefs = {}) {
       localStorage.setItem('websynth.perf', 'off');
       localStorage.setItem('websynth.hint.emptyplay', '1');
       localStorage.setItem('websynth.ui.collapsed.pattern', '0');
+      localStorage.setItem('websynth.ui.theme', 'dark');
       for (const [k, v] of Object.entries(extra)) localStorage.setItem(k, v);
     } catch { /* ignore */ }
   }, prefs);
@@ -125,11 +141,11 @@ async function openApp(browser, prefs = {}) {
   await page.waitForFunction(() => window.__synth?.engine.ctx.state === 'running');
 
   await page.getByTestId('tab-song').click();
-  const btn = page.getByTestId(`song-demo-${DEMO}`);
-  if (await btn.count() === 0) throw new Error(`no demo named "${DEMO}" (check the Song panel's Demos row)`);
+  const btn = page.getByTestId(`song-demo-${demo}`);
+  if (await btn.count() === 0) throw new Error(`no demo named "${demo}" (check the Song panel's Demos row)`);
   if (!(await btn.isVisible())) await page.getByTestId('song-demo-more').click();
   await btn.click();
-  await page.locator(`[data-testid="demo-loaded-info"][aria-label="About ${DEMO}"]`)
+  await page.locator(`[data-testid="demo-loaded-info"][aria-label="About ${demo}"]`)
     .waitFor({ state: 'attached', timeout: 30_000 });
 
   // Leave the page as a visitor would see it: the demo row folded again, and
@@ -285,7 +301,7 @@ const browser = await chromium.launch({ args: ['--autoplay-policy=no-user-gestur
 try {
   // 1 — the hero: playing, at the top, pattern row folded, scope on Wave (its
   // default) — shot 4 shows the Spectrum, so between them both views are seen.
-  {
+  if (wanted('hero')) {
     const page = await openApp(browser);
     await page.locator('[data-testid="pattern-row"] [aria-label="Collapse panel"]').first().click();
     await page.getByTestId('transport-play').click();
@@ -296,7 +312,7 @@ try {
   }
 
   // 2 + 3 — stopped at BAR, the three windows open, scrolled to the machine panel.
-  {
+  if (wanted('machines')) {
     const page = await openApp(browser);
     await page.getByTestId('transport-open').click();
     await placeWindow(page, transportWin);
@@ -321,7 +337,7 @@ try {
   // (src/state/scope-height.ts SCOPE_H_MAX, seeded as the stored preference)
   // on Spectrum, and the EQUALIZER unfolded on its Sequencer tab, scrolled so
   // the keyboard's bottom edge sits where the machine panel's does above.
-  {
+  if (wanted('eq')) {
     const page = await openApp(browser, {
       'websynth.ui.scope.height': '260',
       'websynth.ui.collapsed.eq': '0',
@@ -333,6 +349,29 @@ try {
     await catchChord(page);
     await scrollBottomTo(page, 'keyboard', PANEL_BOTTOM_Y);
     await shoot(page, 'vast-websynth-eq-scope.png');
+    await page.close();
+  }
+
+  // 5 + 6 — the themes (ui-themes.md): Bunk playing, a machine tab following the
+  // playhead (FOLLOW is on by default), scrolled so the machine panel's bottom
+  // edge sits where it does in shots 2 and 3. Pastel shows the FX row above its
+  // painted sections; Vibrant folds it, so the Motion lanes get the room.
+  const THEME_SHOTS = [
+    { name: 'pastel', tab: 'seq', fxFolded: false, file: 'vast-websynth-theme-pastel.png' },
+    { name: 'vibrant', tab: 'motion', fxFolded: true, file: 'vast-websynth-theme-vibrant.png' },
+  ];
+  for (const t of THEME_SHOTS) {
+    if (!wanted(t.name)) continue;
+    const page = await openApp(browser, {
+      'websynth.ui.theme': t.name,
+      'websynth.ui.collapsed.fx': t.fxFolded ? '1' : '0',
+    }, THEME_DEMO);
+    await page.getByTestId(`tab-${t.tab}`).click();
+    await page.getByTestId('transport-play').click();
+    // Into the song, past the intro bars, so every lane is playing.
+    await page.waitForTimeout(6000);
+    await scrollBottomTo(page, 'pattern-row', PANEL_BOTTOM_Y);
+    await shoot(page, t.file);
     await page.close();
   }
 } finally {

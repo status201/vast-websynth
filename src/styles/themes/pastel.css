@@ -77,6 +77,8 @@
     --recess-bottom: #e0d9cc;
     --raised-top: #ffffff;
     --raised-bottom: #efe9de;
+    --switch-on-bed: #f3d9a4;
+    --switch-on-ink: #1a1410;
     --field: #fbf9f4;
     --menu: linear-gradient(180deg, #f8f5ee 0%, #ece7dd 100%);
     --menu-hover: linear-gradient(180deg, #f3dcc0, #e8cca8);

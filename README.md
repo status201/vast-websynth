@@ -41,6 +41,23 @@ Vanilla TypeScript + Vite, zero runtime dependencies.
   </a>
 </p>
 
+<p align="center">
+  <a href="https://vast.status201.com/">
+    <img src="public/vast-websynth-theme-pastel.png" alt="VAST G1-J8 in the Pastel theme — each synth section its own painted colour, the sequencer following the playhead" width="960">
+  </a>
+</p>
+
+<p align="center">
+  <a href="https://vast.status201.com/">
+    <img src="public/vast-websynth-theme-vibrant.png" alt="VAST G1-J8 in the Vibrant theme — teal, red and peach, the motion sequencer following the playhead" width="960">
+  </a>
+</p>
+
+<p align="center">
+  Five looks — Vibrant, Dark, Light, Pastel and High contrast — or Auto to follow your system.<br>
+  Pick one in Settings; it is kept per device.
+</p>
+
 ## Features
 
 - **8-voice polyphony** with mono/poly switching and glide

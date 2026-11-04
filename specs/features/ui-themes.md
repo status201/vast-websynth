@@ -109,6 +109,8 @@ Fonts are system stacks only — the app bundles no font file
   not a pixel) and colours compared as numbers, so `color(srgb …)` and the
   `rgba()` it equals are one colour. A deliberate merge of two near-identical
   literals into one token shows up there by name, and is listed in the change.
+  Captures pin the theme to Dark (`--theme <id>` for another), so a baseline
+  never moves because the default look changed.
 - **REQ-the-theme-is-a-device-preference** — The chosen theme is stored under
   `localStorage['websynth.ui.theme']` as one of `dark | light | pastel | vibrant |
   contrast | auto`, like the perf tier: per device, never in a song, a preset or a share
@@ -151,6 +153,13 @@ Fonts are system stacks only — the app bundles no font file
   status line names that theme either way ("Auto picked Light on this device"
   while Auto is selected, "Auto would pick Light" otherwise), and both follow a
   system change live while the dialog is open.
+- **REQ-an-on-switch-reads-as-on** — A switch that is on (`.on`) must look on
+  without its LED: plenty have none (a lane's FOLLOW). It paints
+  `--switch-on-bed` with `--switch-on-ink`, and in every theme the on state
+  either changes the bed or steps the ink at least 2:1 away from the off ink
+  (`--text-dim`). Dark's ink step clears that (cream over tan), so its tokens are
+  its well and text; the light themes' two inks are both dark and High
+  contrast's both near white, so each lights the cap instead.
 - **REQ-a-theme-change-repaints-the-canvases** — A theme change drops the cached
   screen palette and tells every open canvas (`onPaletteChange`), which repaints
   once: the EQ graph, the scratch graph and the sample waveform draw only on
@@ -242,6 +251,7 @@ under these roles (by REQ-tokens-are-named-by-role):
 | `--text*` | type: body, dim/faint, soft/label/hint, error/bad/good |
 | `--accent*`, `--led-*` | the amber/orange voice, status LEDs |
 | `--well*`, `--tray`, `--recess*`, `--raised*`, `--menu*`, `--handle-*` | control surfaces: a button's bed, the bed a row of buttons sits in, a tab strip's bed, a selected control, a popover, a grip |
+| `--switch-on-*` | a switch that is on: its bed and its ink (REQ-an-on-switch-reads-as-on) |
 | `--lit*`, `--ink*`, `--playing` | a lit (on) control in its three colours (accent, bad, warm), the dark type printed on a lit fill, the accent as a lit fill with type on it (`--lit-accent`, `--lit-accent-ink`: a DJ button that is on, the info badge), and the bar the playhead is in (inked with `--ink-strong`) |
 | `--key-*` | the playable keyboard and the musical-role colours |
 | `--screen*`, `--patch-*`, `--cable-*` | display windows, the FX patch bay and its cables |
@@ -424,6 +434,12 @@ Scenario: a tint is a token, and only Pastel moves it (REQ-pastel-tints-each-pan
     each --panel-tint-<section> is var(--panel) on :root, and the panel and FX group chrome read
     var(--panel-tint, var(--panel))
 # pinned by: tests/ui/panel-tint.test.ts
+
+Scenario: an on switch without an LED reads as on (regression, REQ-an-on-switch-reads-as-on)
+  Given a lane's FOLLOW switch, which shows "on" by its colours alone
+  When Pastel dimmed it from one dark brown to another (1.7:1)
+  Then every theme must change the bed for "on", or step the ink at least 2:1 from the off ink
+# pinned by: tests/ui/theme-contrast.test.ts
 
 Scenario: type on its own fill stays legible (regression, REQ-tokens-are-named-by-role)
   Given the playing bar (transport, ruler), the About card's keycaps, a lit DJ button and the info badge
