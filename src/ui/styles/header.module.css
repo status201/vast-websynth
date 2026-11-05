@@ -12,7 +12,9 @@
     margin: 0 var(--side-margin);
     background: var(--panel);
     border: 1px solid var(--panel-border);
-    border-radius: 6px;
+    /* Square on top: stuck to the viewport's edge, rounded top corners left two
+       notches the page scrolled through them. */
+    border-radius: 0 0 6px 6px;
     box-shadow: var(--panel-shadow);
     position: sticky;
     top: 0;
@@ -93,7 +95,7 @@
   }
 
   .playBtn:global(.on) :global(.switch-label) {
-    color: var(--accent-secondary);
+    color: var(--play-on-ink);
   }
 
   .playBtn:global(.blink) :global(.switch-led) {

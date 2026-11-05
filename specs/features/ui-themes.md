@@ -163,19 +163,34 @@ Fonts are system stacks only — the app bundles no font file
   either changes the bed or steps the ink at least 2:1 away from the off ink
   (`--text-dim`). Dark's ink step clears that (cream over tan), so its tokens are
   its well and text; the light themes' two inks are both dark and High
-  contrast's both near white, so each lights the cap instead.
+  contrast's both near white, so each lights the cap instead. The header's Play
+  switch prints its legend in `--play-on-ink` while the transport runs: Dark's
+  amber (`--accent-secondary`) on its dark well, and in a theme that lights the
+  cap, the cap's own `--switch-on-ink`, so Play reads like every other on switch.
+  Either way it reads on the on bed at 4.5:1.
 - **REQ-a-theme-change-repaints-the-canvases** — A theme change drops the cached
   screen palette and tells every open canvas (`onPaletteChange`), which repaints
   once: the EQ graph, the scratch graph and the sample waveform draw only on
   demand, and a sleeping scope is woken, so none of them keeps the old theme's
   colours until something else happens to redraw it. A canvas unsubscribes when
   it is destroyed.
-- **REQ-high-contrast-reads-at-seven-to-one** — In High contrast every text token
-  (body, small print, error/good, both accents, and even `--text-faint`) reads at
-  7:1 or better (WCAG AAA) on every flat surface text is printed on — the page, a
-  panel, a well, a field, a tray, a recess, a raised control. Every surface is one
-  flat colour and every glow is `transparent`, so no state depends on a shade.
-  Display type is the system sans, not a small serif.
+- **REQ-every-theme-states-its-contrast** — Every shipped theme has a text rule
+  in `tests/ui/theme-contrast.test.ts`'s `RULES` table, and a theme with none
+  fails the suite. WCAG AA is the floor for every theme, Dark included: body
+  text 4.5:1 and small print 3:1 on every flat surface its type sits on. A
+  selected control's bed (`--raised`) is checked against the two legends it
+  carries, each at its own tier: the lit accent, and an armed segment's
+  `--text-soft`. The REQs below tighten the floor (High contrast) or widen the
+  surfaces (Pastel's tints). The checks that span themes (type on its own fills,
+  an on switch, the Play legend) run over `THEMES`, so a new theme gets them
+  without being named.
+- **REQ-high-contrast-reads-at-seven-to-one** — In High contrast every text
+  token (body, small print, error/good, both accents, and even `--text-faint`)
+  reads at 7:1 or better (WCAG AAA) on every flat surface text is printed on —
+  the page, a panel, a well, a field, a tray, a recess — and a selected
+  control's two legends on its bed do too. Every surface is one flat colour and
+  every glow is `transparent`, so no state depends on a shade. Display type is
+  the system sans, not a small serif.
 - **REQ-light-body-text-meets-aa** — In Light, body text (`--text`, `--text-soft`,
   `--text-dim`) reads at 4.5:1 or better on every such surface, and the small print
   and accents (`--text-label`, `--text-hint`, the error/good reds and greens,
@@ -257,7 +272,7 @@ under these roles (by REQ-tokens-are-named-by-role):
 | `--text*` | type: body, dim/faint, soft/label/hint, error/bad/good |
 | `--accent*`, `--led-*`, `--lip` | the accent voice, status LEDs and a lit LED's halo (`--led-glow`), the catch-light along a control's top lip |
 | `--well*`, `--tray`, `--recess*`, `--raised*`, `--menu*`, `--handle-*` | control surfaces: a button's bed, the bed a row of buttons sits in, a tab strip's bed, a selected control, a popover, a grip |
-| `--switch-on-*` | a switch that is on: its bed and its ink (REQ-an-on-switch-reads-as-on) |
+| `--switch-on-*`, `--play-on-ink` | a switch that is on: its bed and its ink, and the Play switch's legend while playing (REQ-an-on-switch-reads-as-on) |
 | `--lit*`, `--ink*`, `--playing` | a lit (on) control in its three colours (accent, bad, warm), the dark type printed on a lit fill, the accent as a lit fill with type on it (`--lit-accent`, `--lit-accent-ink`: a DJ button that is on, the info badge), and the bar the playhead is in (inked with `--ink-strong`) |
 | `--key-*` | the playable keyboard and the musical-role colours |
 | `--screen*`, `--patch-*`, `--cable-*` | display windows, the FX patch bay and its cables |
@@ -268,8 +283,9 @@ under these roles (by REQ-tokens-are-named-by-role):
 
 A `THEMES` row in `src/state/theme.ts`, a `src/styles/themes/<id>.css` block
 defining every base token, a `<link>` to it in `index.html`, and an entry in
-`public/theme-boot.js` — the pins fail until all four agree (`tests/ui/theme.test.ts`
-checks the link and the boot entry, `theme-tokens.test.ts` the block).
+`public/theme-boot.js` — the pins fail until all four agree. The steps, the
+contrast rule a theme states and the derived tokens a new palette breaks:
+[add-a-theme](../recipes/add-a-theme.md).
 
 ### Layer touchpoints & ordering
 
@@ -448,6 +464,21 @@ Scenario: an on switch without an LED reads as on (regression, REQ-an-on-switch-
   Then every theme must change the bed for "on", or step the ink at least 2:1 from the off ink
 # pinned by: tests/ui/theme-contrast.test.ts
 
+Scenario: an armed segment reads on its selected bed (regression, REQ-every-theme-states-its-contrast)
+  Given a sync section's mode that is selected but not connected (armed)
+  When it printed --text-dim at 85% opacity, which fades the bed and the legend together,
+    Dark's legend fell to 3.3:1 at the top of the bed
+  Then it prints --text-soft at full opacity, and reads at 4.5:1 on --raised in every theme;
+    unselected < armed < lit stays three tiers (faint, soft, the lit accent)
+# pinned by: tests/ui/theme-contrast.test.ts
+
+Scenario: the Play legend reads on its lit cap (regression, REQ-an-on-switch-reads-as-on)
+  Given the header's Play switch while the transport runs, whose legend the header recolours
+  When it kept Dark's amber (--accent-secondary) on a theme's lit cap: sky blue on teal in
+    Vibrant (2.1:1), yellow on yellow in High contrast (1:1), brown on cream in Light (4.1:1)
+  Then its legend is --play-on-ink, and reads at 4.5:1 on --switch-on-bed in every theme
+# pinned by: tests/ui/theme-contrast.test.ts
+
 Scenario: type on its own fill stays legible (regression, REQ-tokens-are-named-by-role)
   Given the playing bar (transport, ruler), the About card's keycaps, a lit DJ button and the info badge
   When Pastel made the accents deep enough to read as type, and the chassis black
@@ -485,7 +516,8 @@ Scenario: a theme change repaints a canvas once, and a destroyed one is not told
   system, the boot script against the registry), `tests/ui/theme-picker.test.ts`,
   `tests/ui/panel-tint.test.ts` (each section names itself) — `npm test`
 - Contrast: `tests/ui/theme-contrast.test.ts` — WCAG ratios from the theme files:
-  text on every surface, type on its own fills, and an on switch against an off one.
+  each theme's stated text rule (`RULES`), type on its own fills, an on switch
+  against an off one, and the Play legend; every loop runs over `THEMES`.
 - No flash on reload: `e2e/theme.spec.ts` (dev server); the shipped CSP by hand
   against `npm run build && npx vite preview`.
 - Typecheck: `npm run typecheck`

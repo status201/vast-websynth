@@ -50,6 +50,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
   filter further and drives it into saturation, while a soft one stays round. If
   your browser already holds the old factory rhodes, it is kept as-is; put it back
   from the Preset manager to get the new sound.
+- The header's top corners are square, so while you scroll and it sticks to the
+  top of the window, the page no longer shows through two little notches.
+
+### Fixed
+
+- A sync mode that is selected but not connected yet (the Song tab's
+  *armed* Master or Slave) has an easier-to-read label: it used to be faded along
+  with its button and was hard to read in the Dark theme.
 
 ## [2.20.0] - 2026-11-04
 

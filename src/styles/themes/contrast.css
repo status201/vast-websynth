@@ -62,6 +62,7 @@
     --raised-bottom: #262626;
     --switch-on-bed: #ffe600;
     --switch-on-ink: #000000;
+    --play-on-ink: var(--switch-on-ink);
     --field: #000000;
     --menu: #000000;
     --menu-hover: #3a3a3a;

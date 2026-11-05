@@ -56,6 +56,7 @@
     --raised-bottom: #004a52;
     --switch-on-bed: #00838e;
     --switch-on-ink: #ffffff;
+    --play-on-ink: var(--switch-on-ink);
     --field: #002f34;
     --menu: linear-gradient(180deg, #00636c 0%, #004a52 100%);
     --menu-hover: linear-gradient(180deg, #007a85, #00636c);
