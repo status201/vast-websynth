@@ -93,7 +93,7 @@
   }
 
   .playBtn:global(.on) :global(.switch-label) {
-    color: var(--accent-secondary);
+    color: var(--play-on-ink);
   }
 
   .playBtn:global(.blink) :global(.switch-led) {

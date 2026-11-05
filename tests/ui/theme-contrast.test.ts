@@ -102,6 +102,21 @@ describe('theme contrast', () => {
     }
   });
 
+  it('prints the Play legend legibly on its on bed, in every theme (regression, REQ-an-on-switch-reads-as-on)', () => {
+    const bad: string[] = [];
+    for (const id of ['dark', 'light', 'pastel', 'vibrant', 'contrast']) {
+      const ink = resolved(id, '--play-on-ink');
+      expect(ink, `${id}: --play-on-ink`).toMatch(/^#[0-9a-f]{6}$/i);
+      // Dark's on bed is its well, a gradient: the legend must read on both ends.
+      const lit = resolved(id, '--switch-on-bed') !== resolved(id, '--well');
+      for (const bed of lit ? ['--switch-on-bed'] : ['--well-top', '--well-bottom']) {
+        const r = contrast(ink, resolved(id, bed));
+        if (r < 4.5) bad.push(`${id}: --play-on-ink on ${bed} = ${r.toFixed(2)}`);
+      }
+    }
+    expect(bad).toEqual([]);
+  });
+
   it('gives Vibrant the same as Light on every surface (REQ-vibrant-keeps-its-red-for-fills)', () => {
     expect(below('vibrant', BODY, 4.5)).toEqual([]);
     expect(below('vibrant', SMALL_PRINT, 3)).toEqual([]);

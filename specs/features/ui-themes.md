@@ -163,7 +163,11 @@ Fonts are system stacks only — the app bundles no font file
   either changes the bed or steps the ink at least 2:1 away from the off ink
   (`--text-dim`). Dark's ink step clears that (cream over tan), so its tokens are
   its well and text; the light themes' two inks are both dark and High
-  contrast's both near white, so each lights the cap instead.
+  contrast's both near white, so each lights the cap instead. The header's Play
+  switch prints its legend in `--play-on-ink` while the transport runs: Dark's
+  amber (`--accent-secondary`) on its dark well, and in a theme that lights the
+  cap, the cap's own `--switch-on-ink`, so Play reads like every other on switch.
+  Either way it reads on the on bed at 4.5:1.
 - **REQ-a-theme-change-repaints-the-canvases** — A theme change drops the cached
   screen palette and tells every open canvas (`onPaletteChange`), which repaints
   once: the EQ graph, the scratch graph and the sample waveform draw only on
@@ -257,7 +261,7 @@ under these roles (by REQ-tokens-are-named-by-role):
 | `--text*` | type: body, dim/faint, soft/label/hint, error/bad/good |
 | `--accent*`, `--led-*`, `--lip` | the accent voice, status LEDs and a lit LED's halo (`--led-glow`), the catch-light along a control's top lip |
 | `--well*`, `--tray`, `--recess*`, `--raised*`, `--menu*`, `--handle-*` | control surfaces: a button's bed, the bed a row of buttons sits in, a tab strip's bed, a selected control, a popover, a grip |
-| `--switch-on-*` | a switch that is on: its bed and its ink (REQ-an-on-switch-reads-as-on) |
+| `--switch-on-*`, `--play-on-ink` | a switch that is on: its bed and its ink, and the Play switch's legend while playing (REQ-an-on-switch-reads-as-on) |
 | `--lit*`, `--ink*`, `--playing` | a lit (on) control in its three colours (accent, bad, warm), the dark type printed on a lit fill, the accent as a lit fill with type on it (`--lit-accent`, `--lit-accent-ink`: a DJ button that is on, the info badge), and the bar the playhead is in (inked with `--ink-strong`) |
 | `--key-*` | the playable keyboard and the musical-role colours |
 | `--screen*`, `--patch-*`, `--cable-*` | display windows, the FX patch bay and its cables |
@@ -446,6 +450,13 @@ Scenario: an on switch without an LED reads as on (regression, REQ-an-on-switch-
   Given a lane's FOLLOW switch, which shows "on" by its colours alone
   When Pastel dimmed it from one dark brown to another (1.7:1)
   Then every theme must change the bed for "on", or step the ink at least 2:1 from the off ink
+# pinned by: tests/ui/theme-contrast.test.ts
+
+Scenario: the Play legend reads on its lit cap (regression, REQ-an-on-switch-reads-as-on)
+  Given the header's Play switch while the transport runs, whose legend the header recolours
+  When it kept Dark's amber (--accent-secondary) on a theme's lit cap: sky blue on teal in
+    Vibrant (2.1:1), yellow on yellow in High contrast (1:1), brown on cream in Light (4.1:1)
+  Then its legend is --play-on-ink, and reads at 4.5:1 on --switch-on-bed in every theme
 # pinned by: tests/ui/theme-contrast.test.ts
 
 Scenario: type on its own fill stays legible (regression, REQ-tokens-are-named-by-role)
