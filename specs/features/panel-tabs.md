@@ -160,8 +160,8 @@ whole of this component.
     the plain titles beside it. The strip *is* the header, so it should look like
     one, and the rule now does the well's old job of marking the page you are
     not on.
-  - The lamp (REQ-set-lit-puts-a-lamp-on-a-tab) stays out of flow at the tab's
-    left edge, centred on the 14 px **text line** rather than on the box,
+  - The lamp (REQ-set-lit-puts-a-lamp-on-a-tab) stays out of flow, inset 10 px
+    from the tab's left edge (clear of the divider), centred on the 14 px **text line** rather than on the box,
     because the bottom padding would otherwise drop it 3 px below the label.
 
 - **REQ-panel-tabs-share-the-row-evenly** — Tabs **share the row evenly**

@@ -145,7 +145,7 @@
      box — the bottom padding would drop it 3px below the label. */
   .panelTabLamp {
     position: absolute;
-    left: 5px;
+    left: 10px;
     top: 7px;
     transform: translateY(-50%);
     width: 4px;
