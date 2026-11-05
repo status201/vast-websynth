@@ -397,6 +397,7 @@ specs/
     add-a-demo-song.md        ·  a drop-in demo SongFile (data only)
     add-a-drum-voice.md       ·  a new synthesised drum track
     add-a-factory-preset.md   ·  a built-in sound preset
+    add-a-theme.md            ·  a named UI look (palette + faces), wired in four places
     add-a-tour-step.md        ·  a guided-tour / help step
     evolve-the-song-format.md ·  bump the SongFile version, stay back-compat
     write-a-test.md           ·  unit (Vitest) + E2E (Playwright) conventions

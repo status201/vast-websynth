@@ -174,12 +174,23 @@ Fonts are system stacks only — the app bundles no font file
   demand, and a sleeping scope is woken, so none of them keeps the old theme's
   colours until something else happens to redraw it. A canvas unsubscribes when
   it is destroyed.
-- **REQ-high-contrast-reads-at-seven-to-one** — In High contrast every text token
-  (body, small print, error/good, both accents, and even `--text-faint`) reads at
-  7:1 or better (WCAG AAA) on every flat surface text is printed on — the page, a
-  panel, a well, a field, a tray, a recess, a raised control. Every surface is one
-  flat colour and every glow is `transparent`, so no state depends on a shade.
-  Display type is the system sans, not a small serif.
+- **REQ-every-theme-states-its-contrast** — Every shipped theme has a text rule
+  in `tests/ui/theme-contrast.test.ts`'s `RULES` table, and a theme with none
+  fails the suite. WCAG AA is the floor for every theme, Dark included: body
+  text 4.5:1 and small print 3:1 on every flat surface its type sits on. A
+  selected control's bed (`--raised`) is checked against the two legends it
+  carries, each at its own tier: the lit accent, and an armed segment's
+  `--text-soft`. The REQs below tighten the floor (High contrast) or widen the
+  surfaces (Pastel's tints). The checks that span themes (type on its own fills,
+  an on switch, the Play legend) run over `THEMES`, so a new theme gets them
+  without being named.
+- **REQ-high-contrast-reads-at-seven-to-one** — In High contrast every text
+  token (body, small print, error/good, both accents, and even `--text-faint`)
+  reads at 7:1 or better (WCAG AAA) on every flat surface text is printed on —
+  the page, a panel, a well, a field, a tray, a recess — and a selected
+  control's two legends on its bed do too. Every surface is one flat colour and
+  every glow is `transparent`, so no state depends on a shade. Display type is
+  the system sans, not a small serif.
 - **REQ-light-body-text-meets-aa** — In Light, body text (`--text`, `--text-soft`,
   `--text-dim`) reads at 4.5:1 or better on every such surface, and the small print
   and accents (`--text-label`, `--text-hint`, the error/good reds and greens,
@@ -272,8 +283,9 @@ under these roles (by REQ-tokens-are-named-by-role):
 
 A `THEMES` row in `src/state/theme.ts`, a `src/styles/themes/<id>.css` block
 defining every base token, a `<link>` to it in `index.html`, and an entry in
-`public/theme-boot.js` — the pins fail until all four agree (`tests/ui/theme.test.ts`
-checks the link and the boot entry, `theme-tokens.test.ts` the block).
+`public/theme-boot.js` — the pins fail until all four agree. The steps, the
+contrast rule a theme states and the derived tokens a new palette breaks:
+[add-a-theme](../recipes/add-a-theme.md).
 
 ### Layer touchpoints & ordering
 
@@ -452,6 +464,14 @@ Scenario: an on switch without an LED reads as on (regression, REQ-an-on-switch-
   Then every theme must change the bed for "on", or step the ink at least 2:1 from the off ink
 # pinned by: tests/ui/theme-contrast.test.ts
 
+Scenario: an armed segment reads on its selected bed (regression, REQ-every-theme-states-its-contrast)
+  Given a sync section's mode that is selected but not connected (armed)
+  When it printed --text-dim at 85% opacity, which fades the bed and the legend together,
+    Dark's legend fell to 3.3:1 at the top of the bed
+  Then it prints --text-soft at full opacity, and reads at 4.5:1 on --raised in every theme;
+    unselected < armed < lit stays three tiers (faint, soft, the lit accent)
+# pinned by: tests/ui/theme-contrast.test.ts
+
 Scenario: the Play legend reads on its lit cap (regression, REQ-an-on-switch-reads-as-on)
   Given the header's Play switch while the transport runs, whose legend the header recolours
   When it kept Dark's amber (--accent-secondary) on a theme's lit cap: sky blue on teal in
@@ -496,7 +516,8 @@ Scenario: a theme change repaints a canvas once, and a destroyed one is not told
   system, the boot script against the registry), `tests/ui/theme-picker.test.ts`,
   `tests/ui/panel-tint.test.ts` (each section names itself) — `npm test`
 - Contrast: `tests/ui/theme-contrast.test.ts` — WCAG ratios from the theme files:
-  text on every surface, type on its own fills, and an on switch against an off one.
+  each theme's stated text rule (`RULES`), type on its own fills, an on switch
+  against an off one, and the Play legend; every loop runs over `THEMES`.
 - No flash on reload: `e2e/theme.spec.ts` (dev server); the shipped CSP by hand
   against `npm run build && npx vite preview`.
 - Typecheck: `npm run typecheck`

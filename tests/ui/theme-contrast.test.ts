@@ -1,10 +1,12 @@
 // @vitest-environment node
 //
-// Text contrast per theme (specs/features/ui-themes.md REQ-high-contrast-reads-at-seven-to-one,
-// REQ-light-body-text-meets-aa, REQ-pastel-reads-on-every-tint). WCAG 2 ratios, computed from the theme files' own
-// flat colour tokens: each text token against each surface text sits on.
+// Text contrast per theme (specs/features/ui-themes.md REQ-every-theme-states-its-contrast
+// and the per-theme REQs its RULES name). WCAG 2 ratios, computed from the theme
+// files' own flat colour tokens: each text token against each surface text sits
+// on, a selected control's two legends on its bed, and type on its own fills.
 import { describe, it, expect } from 'vitest';
-import { resolvedToken as resolved, themeTokens } from '../theme-css';
+import { resolvedToken as resolved } from '../theme-css';
+import { THEMES } from '../../src/state/theme';
 
 /** WCAG relative luminance of a #rrggbb. */
 function luminance(hex: string): number {
@@ -18,28 +20,41 @@ function contrast(a: string, b: string): number {
   return (hi! + 0.05) / (lo! + 0.05);
 }
 
-/** Every flat surface text is printed on: the page, a panel, a button's well, a field, a tray, a tab strip, a selected control. */
+/** Every flat surface any text is printed on: the page, a panel, a button's well, a field, a tray, a tab strip. */
 const SURFACES = [
   '--bg', '--panel-flat', '--well-top', '--well-bottom', '--field',
-  '--tray-top', '--tray-bottom', '--recess-top', '--recess-bottom', '--raised-top', '--raised-bottom',
+  '--tray-top', '--tray-bottom', '--recess-top', '--recess-bottom',
 ];
+/**
+ * A selected control's bed (--raised) carries only two legends: the lit accent
+ * (small print's tier) and an armed segment's --text-soft (body's tier;
+ * segmented.module.css). Checked as those pairs rather than every text token.
+ */
+const RAISED = ['--raised-top', '--raised-bottom'];
 /** The section faces a theme may colour (REQ-pastel-tints-each-panel). */
 const TINTS = ['osc', 'mixer', 'filter', 'env', 'mod', 'fx'].map((s) => `--panel-tint-${s}`);
 const BODY = ['--text', '--text-soft', '--text-dim'];
 const SMALL_PRINT = ['--text-label', '--text-hint', '--text-bad', '--text-error', '--text-good', '--accent', '--accent-secondary'];
 
-/** Each failing pair as `text on surface = ratio`, so a failure names what to fix. */
+/**
+ * Two tokens' ratio as the theme computes them (`var()` followed). Each must be one
+ * flat #rrggbb: anything else would measure NaN, and NaN is never "below" a minimum.
+ */
+function ratio(id: string, fg: string, bg: string): number {
+  const a = resolved(id, fg);
+  const b = resolved(id, bg);
+  expect(a, `${id}: ${fg}`).toMatch(/^#[0-9a-f]{6}$/i);
+  expect(b, `${id}: ${bg}`).toMatch(/^#[0-9a-f]{6}$/i);
+  return contrast(a, b);
+}
+
+/** Each failing pair as `id: text on surface = ratio`, so a failure names what to fix. */
 function below(id: string, texts: string[], min: number, surfaces = SURFACES): string[] {
-  const t = themeTokens(id);
   const out: string[] = [];
   for (const fg of texts) {
     for (const bg of surfaces) {
-      const a = t.get(fg);
-      const b = t.get(bg);
-      expect(a, `${id}: ${fg}`).toMatch(/^#[0-9a-f]{6}$/i);
-      expect(b, `${id}: ${bg}`).toMatch(/^#[0-9a-f]{6}$/i);
-      const r = contrast(a!, b!);
-      if (r < min) out.push(`${fg} on ${bg} = ${r.toFixed(2)}`);
+      const r = ratio(id, fg, bg);
+      if (r < min) out.push(`${id}: ${fg} on ${bg} = ${r.toFixed(2)}`);
     }
   }
   return out;
@@ -58,74 +73,65 @@ const INKED_FILLS: [ink: string, fill: string][] = [
   ['--lit-accent-ink', '--lit-accent'],
 ];
 
+/**
+ * Each shipped theme's text rule: body text and small print on every flat surface
+ * its type sits on. WCAG AA (4.5:1 body, 3:1 small print) is the floor; High
+ * contrast holds everything, --text-faint included, to AAA.
+ */
+interface Rule { req: string; body: number; small: number; surfaces?: string[]; alsoBody?: string[] }
+const RULES: Record<string, Rule> = {
+  dark: { req: 'REQ-every-theme-states-its-contrast', body: 4.5, small: 3 },
+  light: { req: 'REQ-light-body-text-meets-aa', body: 4.5, small: 3 },
+  // Not on --bg: Pastel's page is the black chassis, which carries no type.
+  pastel: { req: 'REQ-pastel-reads-on-every-tint', body: 4.5, small: 3, surfaces: [...SURFACES.filter((s) => s !== '--bg'), ...TINTS] },
+  vibrant: { req: 'REQ-vibrant-keeps-its-red-for-fills', body: 4.5, small: 3 },
+  contrast: { req: 'REQ-high-contrast-reads-at-seven-to-one', body: 7, small: 7, alsoBody: ['--text-faint'] },
+};
+const IDS = THEMES.map((t) => t.id);
+
+/**
+ * The flat colours an on switch's legend sits on: the theme's lit cap, or — where
+ * the on bed is the well, a gradient (Dark) — both ends of the well.
+ */
+function onBeds(id: string): string[] {
+  const lit = resolved(id, '--switch-on-bed') !== resolved(id, '--well');
+  return lit ? ['--switch-on-bed'] : ['--well-top', '--well-bottom'];
+}
+
 describe('theme contrast', () => {
   it('measures the way WCAG does', () => {
     expect(contrast('#000000', '#ffffff')).toBeCloseTo(21, 5);
     expect(contrast('#777777', '#ffffff')).toBeCloseTo(4.48, 2);
   });
 
-  it('reads at 7:1 or better everywhere in High contrast (REQ-high-contrast-reads-at-seven-to-one)', () => {
-    expect(below('contrast', [...BODY, ...SMALL_PRINT, '--text-faint'], 7)).toEqual([]);
-  });
-
-  it('gives Light body text 4.5:1 and its small print 3:1 (REQ-light-body-text-meets-aa)', () => {
-    expect(below('light', BODY, 4.5)).toEqual([]);
-    expect(below('light', SMALL_PRINT, 3)).toEqual([]);
+  it('holds every shipped theme to a stated contrast rule (REQ-every-theme-states-its-contrast)', () => {
+    // A theme with no row here fails: a new theme states its rule before it ships.
+    expect(IDS.filter((id) => !(id in RULES))).toEqual([]);
+    for (const id of IDS) {
+      const r = RULES[id]!;
+      const at = `${id} (${r.req})`;
+      expect(below(id, [...BODY, ...(r.alsoBody ?? [])], r.body, r.surfaces), at).toEqual([]);
+      expect(below(id, SMALL_PRINT, r.small, r.surfaces), at).toEqual([]);
+      expect(below(id, ['--text-soft'], r.body, RAISED), `${at}, an armed segment`).toEqual([]);
+      expect(below(id, ['--accent-secondary'], r.small, RAISED), `${at}, a selected control`).toEqual([]);
+    }
   });
 
   it('keeps type on its own fills legible in every theme (regression)', () => {
-    const bad: string[] = [];
-    for (const id of ['dark', 'light', 'pastel', 'vibrant', 'contrast']) {
-      for (const [ink, fill] of INKED_FILLS) {
-        const a = resolved(id, ink);
-        const b = resolved(id, fill);
-        expect(a, `${id}: ${ink}`).toMatch(/^#[0-9a-f]{6}$/i);
-        expect(b, `${id}: ${fill}`).toMatch(/^#[0-9a-f]{6}$/i);
-        const r = contrast(a, b);
-        if (r < 4.5) bad.push(`${id}: ${ink} on ${fill} = ${r.toFixed(2)}`);
-      }
-    }
+    const bad = IDS.flatMap((id) => INKED_FILLS.flatMap(([ink, fill]) => below(id, [ink], 4.5, [fill])));
     expect(bad).toEqual([]);
   });
 
   it('makes an on switch read as on without its LED, in every theme (regression, REQ-an-on-switch-reads-as-on)', () => {
-    for (const id of ['dark', 'light', 'pastel', 'vibrant', 'contrast']) {
-      const bedChanges = resolved(id, '--switch-on-bed') !== resolved(id, '--well');
-      const inkStep = contrast(resolved(id, '--switch-on-ink'), resolved(id, '--text-dim'));
-      expect(bedChanges || inkStep >= 2, `${id}: same bed, ink step ${inkStep.toFixed(2)}`).toBe(true);
-      // A lit cap's legend is still type on a fill.
-      if (bedChanges) {
-        const bed = resolved(id, '--switch-on-bed');
-        expect(bed, `${id}: --switch-on-bed`).toMatch(/^#[0-9a-f]{6}$/i);
-        expect(contrast(resolved(id, '--switch-on-ink'), bed), id).toBeGreaterThanOrEqual(4.5);
-      }
+    for (const id of IDS) {
+      const inkStep = ratio(id, '--switch-on-ink', '--text-dim');
+      expect(onBeds(id)[0] === '--switch-on-bed' || inkStep >= 2, `${id}: same bed, ink step ${inkStep.toFixed(2)}`).toBe(true);
     }
+    // The legend is still type on whatever bed it lands on.
+    expect(IDS.flatMap((id) => below(id, ['--switch-on-ink'], 4.5, onBeds(id)))).toEqual([]);
   });
 
   it('prints the Play legend legibly on its on bed, in every theme (regression, REQ-an-on-switch-reads-as-on)', () => {
-    const bad: string[] = [];
-    for (const id of ['dark', 'light', 'pastel', 'vibrant', 'contrast']) {
-      const ink = resolved(id, '--play-on-ink');
-      expect(ink, `${id}: --play-on-ink`).toMatch(/^#[0-9a-f]{6}$/i);
-      // Dark's on bed is its well, a gradient: the legend must read on both ends.
-      const lit = resolved(id, '--switch-on-bed') !== resolved(id, '--well');
-      for (const bed of lit ? ['--switch-on-bed'] : ['--well-top', '--well-bottom']) {
-        const r = contrast(ink, resolved(id, bed));
-        if (r < 4.5) bad.push(`${id}: --play-on-ink on ${bed} = ${r.toFixed(2)}`);
-      }
-    }
-    expect(bad).toEqual([]);
-  });
-
-  it('gives Vibrant the same as Light on every surface (REQ-vibrant-keeps-its-red-for-fills)', () => {
-    expect(below('vibrant', BODY, 4.5)).toEqual([]);
-    expect(below('vibrant', SMALL_PRINT, 3)).toEqual([]);
-  });
-
-  it('gives Pastel the same on every surface and every section face (REQ-pastel-reads-on-every-tint)', () => {
-    // Not on --bg: Pastel's page is the black chassis, which carries no type.
-    const faces = [...SURFACES.filter((s) => s !== '--bg'), ...TINTS];
-    expect(below('pastel', BODY, 4.5, faces)).toEqual([]);
-    expect(below('pastel', SMALL_PRINT, 3, faces)).toEqual([]);
+    expect(IDS.flatMap((id) => below(id, ['--play-on-ink'], 4.5, onBeds(id)))).toEqual([]);
   });
 });

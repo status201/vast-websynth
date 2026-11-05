@@ -38,14 +38,14 @@
 
   /* Armed: the choice is remembered and still selected, but nothing is connected
      so it isn't doing anything (midi-clock-sync REQ-an-armed-sync-section). Keep the pressed well,
-     drop the amber glow — reads as "selected, not lit". `--text-dim` (not
-     `--text-faint`, which *is* the unselected colour) keeps three legible tiers:
-     unselected < armed < lit. */
+     drop the amber glow — reads as "selected, not lit". `--text-soft` (not
+     `--text-faint`, which *is* the unselected colour) keeps three tiers:
+     unselected < armed < lit. No opacity: it fades the bed and the legend
+     together, and Dark's armed legend fell to 3.3:1 (ui-themes.md REQ-every-theme-states-its-contrast). */
   .root button:global(.active):global(.armed),
   :global(.segmented) button.active.armed {
-    color: var(--text-dim);
+    color: var(--text-soft);
     text-shadow: none;
-    opacity: 0.85;
   }
 
   /* Not in play in the current mode (voicing.md REQ-the-trigger-switches-dim-in-poly):
