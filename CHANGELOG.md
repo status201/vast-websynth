@@ -16,6 +16,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+## [2.21.0] - 2026-11-05
+
 ### Added
 
 - **summer**, a new factory preset: a mid-70s ARP 2600-style lead. One saw in
@@ -3349,7 +3351,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
   in-app sample recorder/editor. See the git history prior to this changelog
   for the detailed evolution.
 
-[Unreleased]: https://github.com/status201/vast-websynth/compare/v2.20.0...HEAD
+[Unreleased]: https://github.com/status201/vast-websynth/compare/v2.21.0...HEAD
+[2.21.0]: https://github.com/status201/vast-websynth/compare/v2.20.0...v2.21.0
 [2.20.0]: https://github.com/status201/vast-websynth/compare/v2.19.0...v2.20.0
 [2.19.0]: https://github.com/status201/vast-websynth/compare/v2.18.0...v2.19.0
 [2.18.0]: https://github.com/status201/vast-websynth/compare/v2.17.1...v2.18.0
