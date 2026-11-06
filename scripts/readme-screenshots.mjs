@@ -10,7 +10,7 @@
 // those, so adding one shot does not churn every committed PNG.
 //
 // Outputs (public/), each 1920×1080. The first four are in the Dark theme,
-// pinned: the app's default look is Vibrant, and a retake must not change look
+// pinned: the app's default look follows the system (Auto), and a retake must not change look
 // because a default did (ui-themes.md).
 //   vast-websynth.png               the demo playing, pattern row folded, scope on
 //                                   Wave caught at a full swing, keys lit by the notes

@@ -43,7 +43,7 @@ function tierBlurb(tier: PerfTier): string {
   return `${TIER_LATENCY[tier]}, ${p.voiceCount} voices, ${p.fps} fps`;
 }
 
-/** A section heading inside the dialog — the small uppercase label the Mode row uses. */
+/** A section heading inside the dialog — the Mode row's uppercase label, a size up so it heads its section. */
 function sectionTitle(text: string): HTMLElement {
   const h = document.createElement('h3');
   h.className = styles.sectionTitle!;

@@ -32,6 +32,10 @@ export default defineConfig({
     trace: 'on-first-retry',
     navigationTimeout: 45_000,
     actionTimeout: 15_000,
+    // A fresh device is on Auto (ui-themes.md REQ-auto-is-the-default), and
+    // Playwright's default scheme is light, which Auto answers with Light. A dark
+    // scheme keeps the suite in the default look, Classic.
+    colorScheme: 'dark',
   },
   projects: [
     {

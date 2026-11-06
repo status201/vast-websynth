@@ -30,15 +30,14 @@
 
   var id = null;
   try { id = localStorage.getItem('websynth.ui.theme'); } catch (e) { /* storage blocked */ }
-  var contrast = has('contrast') && matches('(prefers-contrast: more)');
-  if (id === 'auto') {
-    id = contrast ? 'contrast'
+  // Auto — and no choice (missing, unknown, not shipped), which is Auto
+  // (REQ-auto-is-the-default): more contrast, then a light scheme, then Classic.
+  if (!has(id)) {
+    id = has('contrast') && matches('(prefers-contrast: more)') ? 'contrast'
       : has('light') && matches('(prefers-color-scheme: light)') ? 'light'
+      : has('classic') ? 'classic'
       : 'dark';
   }
-  // No choice (missing, unknown, not shipped): Vibrant, unless the system asks
-  // for more contrast (REQ-vibrant-is-the-default).
-  if (!has(id)) id = contrast ? 'contrast' : has('vibrant') ? 'vibrant' : 'dark';
 
   document.documentElement.setAttribute('data-theme', id);
   var color = document.querySelector('meta[name="theme-color"]');

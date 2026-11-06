@@ -81,7 +81,7 @@ export function createThemePicker(): ThemePicker {
 
   const help = document.createElement('div');
   help.className = styles.help!;
-  help.textContent = "Auto follows this device's light / dark and high-contrast settings.";
+  help.textContent = "Auto follows this device's high-contrast and light settings, and is Classic otherwise.";
 
   const status = document.createElement('div');
   status.className = styles.status!;
@@ -98,12 +98,10 @@ export function createThemePicker(): ThemePicker {
     // What Auto resolves to on this device — never the chosen theme, so the Auto
     // tile answers "what would Auto give me?" (REQ-auto-shows-what-it-would-pick).
     const auto = resolveTheme('auto');
-    // With no choice stored, the theme on the page is the selected tile
-    // (REQ-vibrant-is-the-default) — picking any tile then stores a choice.
-    const selected: ThemePref = pref ?? resolveTheme(null);
     tiles.forEach((tile, i) => {
       const value = options[i]!.value;
-      const on = value === selected;
+      // No stored choice reads as Auto, so its tile is the selected one (REQ-auto-is-the-default).
+      const on = value === pref;
       tile.setAttribute('aria-checked', String(on));
       tile.classList.toggle('active', on);
       tile.tabIndex = on ? 0 : -1;

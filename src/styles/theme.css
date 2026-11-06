@@ -1,7 +1,7 @@
 /*
  * Every token, and the one place each is declared (specs/features/ui-themes.md):
- * these values ARE the Dark theme. Dark is not the default look — Vibrant is
- * (REQ-vibrant-is-the-default) — but it is what every token is until a theme says
+ * these values ARE the Dark theme. Dark is not the default look — Auto is, and
+ * it falls back to Classic (REQ-auto-is-the-default) — but it is what every token is until a theme says
  * otherwise. A module colours ONLY through these, by role
  * (REQ-tokens-are-named-by-role); tests/ui/theme-tokens.test.ts fails a literal.
  *

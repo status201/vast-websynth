@@ -33,8 +33,8 @@ describe('the stored theme (REQ-the-theme-is-a-device-preference)', () => {
   beforeEach(() => { store = installLocalStorageMock(); });
   afterEach(() => vi.unstubAllGlobals());
 
-  it('is no choice when nothing is stored', () => {
-    expect(readThemePref()).toBeNull();
+  it('is Auto when nothing is stored (REQ-auto-is-the-default)', () => {
+    expect(readThemePref()).toBe('auto');
   });
 
   it('round-trips every shipped id and auto under websynth.ui.theme', () => {
@@ -46,64 +46,46 @@ describe('the stored theme (REQ-the-theme-is-a-device-preference)', () => {
     expect(THEME_KEY).toBe('websynth.ui.theme');
   });
 
-  it('reads an unknown or unshipped value as no choice (edge)', () => {
+  it('reads an unknown or unshipped value as Auto (edge, REQ-auto-is-the-default)', () => {
     const shipped = new Set<string>(THEMES.map((t) => t.id));
     const unshipped = (['light', 'contrast', 'pastel'] as const).filter((id) => !shipped.has(id));
     for (const v of ['neon', '__proto__', 'constructor', '', 'DARK', ...unshipped]) {
       store.set(THEME_KEY, v);
-      expect(readThemePref(), v).toBeNull();
+      expect(readThemePref(), v).toBe('auto');
     }
   });
 
-  it('reads no choice when storage throws (edge)', () => {
+  it('reads Auto when storage throws (edge)', () => {
     vi.stubGlobal('localStorage', { getItem: () => { throw new Error('denied'); } });
-    expect(readThemePref()).toBeNull();
+    expect(readThemePref()).toBe('auto');
     expect(() => writeThemePref('auto')).not.toThrow();
   });
 });
 
 describe('resolving a choice (REQ-auto-follows-the-system)', () => {
-  it('passes a shipped theme through, and treats anything else as no choice', () => {
+  it('passes a shipped theme through, and resolves anything else as Auto', () => {
     for (const t of THEMES) expect(resolveTheme(t.id, system())).toBe(t.id);
-    expect(resolveTheme('neon' as never, system())).toBe('vibrant');
-  });
-});
-
-describe('no choice (REQ-vibrant-is-the-default)', () => {
-  it('is Vibrant under a light or a dark system alike', () => {
-    expect(resolveTheme(null, system())).toBe('vibrant');
-    expect(resolveTheme(null, system(LIGHT_QUERY))).toBe('vibrant');
+    expect(resolveTheme('neon' as never, system())).toBe('classic');
+    expect(resolveTheme('neon' as never, system(LIGHT_QUERY))).toBe('light');
   });
 
-  it('gives way to High contrast when the system asks for more contrast', () => {
-    expect(resolveTheme(null, system(CONTRAST_QUERY))).toBe('contrast');
-    expect(resolveTheme(null, system(CONTRAST_QUERY, LIGHT_QUERY))).toBe('contrast');
-  });
-
-  it('falls back to Dark where Vibrant does not ship, and keeps the contrast rule only if it does', () => {
-    withShipped([], () => {
-      expect(resolveTheme(null, system(CONTRAST_QUERY))).toBe('dark');
-    });
-    withShipped(['contrast'], () => {
-      expect(resolveTheme(null, system(CONTRAST_QUERY))).toBe('contrast');
-      expect(resolveTheme(null, system())).toBe('dark');
-    });
-  });
-
-  it('asks for more contrast first, then a light scheme, then lands on Dark', () => {
-    withShipped(['light', 'contrast'], () => {
-      expect(resolveTheme('auto', system(CONTRAST_QUERY, LIGHT_QUERY))).toBe('contrast');
-      expect(resolveTheme('auto', system(LIGHT_QUERY))).toBe('light');
-      expect(resolveTheme('auto', system())).toBe('dark');
-    });
+  it('asks for more contrast first, then a light scheme, then lands on Classic', () => {
+    expect(resolveTheme('auto', system(CONTRAST_QUERY, LIGHT_QUERY))).toBe('contrast');
+    expect(resolveTheme('auto', system(CONTRAST_QUERY))).toBe('contrast');
+    expect(resolveTheme('auto', system(LIGHT_QUERY))).toBe('light');
+    expect(resolveTheme('auto', system())).toBe('classic');
   });
 
   it('skips a rule whose theme does not ship', () => {
-    withShipped(['light'], () => {
+    withShipped(['light', 'classic'], () => {
       expect(resolveTheme('auto', system(CONTRAST_QUERY, LIGHT_QUERY))).toBe('light');
     });
-    withShipped(['contrast'], () => {
-      expect(resolveTheme('auto', system(LIGHT_QUERY))).toBe('dark');
+    withShipped(['contrast', 'classic'], () => {
+      expect(resolveTheme('auto', system(LIGHT_QUERY))).toBe('classic');
+    });
+    // Where Classic does not ship, Dark — the tokens' own values.
+    withShipped(['light', 'contrast'], () => {
+      expect(resolveTheme('auto', system())).toBe('dark');
     });
     // With Dark alone, Auto has nowhere else to go.
     withShipped([], () => {
@@ -111,10 +93,10 @@ describe('no choice (REQ-vibrant-is-the-default)', () => {
     });
   });
 
-  it('lands on Dark where there is no matchMedia (edge)', () => {
+  it('lands on Classic where there is no matchMedia (edge)', () => {
     // The node environment has none: the default system answers no to everything.
     expect(typeof globalThis.matchMedia).toBe('undefined');
-    expect(resolveTheme('auto')).toBe('dark');
+    expect(resolveTheme('auto')).toBe('classic');
   });
 
   it('gives Dark for an id the registry does not list', () => {

@@ -20,9 +20,9 @@ import { invalidateScreenPalette } from './theme-colors';
 
 /**
  * The choice in force — kept here so Auto still follows when storage is blocked.
- * `null` is no choice (the default look); `undefined`, not read yet.
+ * No stored choice reads as `auto` (REQ-auto-is-the-default); `undefined`, not read yet.
  */
-let pref: ThemePref | null | undefined;
+let pref: ThemePref | undefined;
 let started = false;
 
 /** `data-theme` and both metas; on an actual change, the canvases repaint (REQ-a-theme-change-repaints-the-canvases). */
@@ -36,16 +36,16 @@ export function applyTheme(id: ThemeId): void {
   if (changed) invalidateScreenPalette();
 }
 
-/** The choice in force: the stored one until `setThemePref` changes it; `null` for none. */
-export function currentThemePref(): ThemePref | null {
+/** The choice in force: the stored one until `setThemePref` changes it; `auto` for none. */
+export function currentThemePref(): ThemePref {
   if (pref === undefined) pref = readThemePref();
   return pref;
 }
 
 /**
  * Boot: apply the choice (a no-op after theme-boot.js), then follow the system
- * where the theme depends on it — under Auto, and with no choice (whose high-
- * contrast exception is live too, REQ-vibrant-is-the-default). Idempotent.
+ * while the choice is Auto — which includes no choice at all
+ * (REQ-auto-is-the-default). Idempotent.
  */
 export function startTheme(): void {
   if (started) return;
@@ -54,7 +54,7 @@ export function startTheme(): void {
   // For the page's life: the document never goes away, so nothing unsubscribes.
   onSystemThemeChange(() => {
     const now = currentThemePref();
-    if (now === 'auto' || now === null) applyTheme(resolveTheme(now));
+    if (now === 'auto') applyTheme(resolveTheme(now));
   });
 }
 

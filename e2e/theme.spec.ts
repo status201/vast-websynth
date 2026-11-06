@@ -23,17 +23,25 @@ const watchFirstTheme = () => {
 };
 
 test('a picked theme applies at once, survives a reload, and is on the page before the first stylesheet', async ({ page }) => {
+  // The config pins a dark scheme; say so here too, since this test depends on it.
+  await page.emulateMedia({ colorScheme: 'dark' });
   await gotoAndStart(page);
-  await expect(page.locator('html')).toHaveAttribute('data-theme', 'vibrant'); // no choice yet: the default (REQ-vibrant-is-the-default)
+  // No choice yet: Auto, which lands on Classic under a dark scheme (REQ-auto-is-the-default).
+  await expect(page.locator('html')).toHaveAttribute('data-theme', 'classic');
+  await page.emulateMedia({ colorScheme: 'light' });
+  await expect(page.locator('html')).toHaveAttribute('data-theme', 'light'); // followed live
+  await page.emulateMedia({ colorScheme: 'dark' });
+  await expect(page.locator('html')).toHaveAttribute('data-theme', 'classic');
 
+  const bodyBg = () => page.evaluate(() => getComputedStyle(document.body).backgroundColor);
+  const before = await bodyBg();
   await page.getByTestId('perf-settings').click();
   await page.getByTestId('theme-light').click();
   await expect(page.locator('html')).toHaveAttribute('data-theme', 'light');
   await expect(page.getByTestId('theme-light')).toHaveAttribute('aria-checked', 'true');
   expect(await page.evaluate(() => localStorage.getItem('websynth.ui.theme'))).toBe('light');
   // The page itself changed colour, not just an attribute.
-  const bg = await page.evaluate(() => getComputedStyle(document.body).backgroundColor);
-  expect(bg).not.toBe('rgb(14, 10, 6)');
+  expect(await bodyBg()).not.toBe(before);
 
   await page.addInitScript(watchFirstTheme);
   await page.reload();

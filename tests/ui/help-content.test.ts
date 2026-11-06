@@ -201,7 +201,8 @@ describe('help-content settings topic', () => {
 
   it('says what is the default, that it is per device, and when performance needs a reload', () => {
     const body = bodyOf('settings');
-    expect(body).toContain('<strong>Vibrant</strong> is the default');
+    expect(body).toContain('<strong>Auto</strong> is the default');
+    expect(body).toContain('anything else <strong>Classic</strong>');
     expect(body).toContain('this device');
     expect(body).toContain('song');
     for (const tier of ['Weak', 'Strong']) expect(body, tier).toContain(tier);

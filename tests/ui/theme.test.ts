@@ -91,10 +91,12 @@ describe('applying a theme (REQ-the-theme-applies-before-first-paint)', () => {
 
   it('stores and applies a choice at once (REQ-choosing-a-theme-previews-it)', async () => {
     const { ui } = await fresh();
-    expect(ui.setThemePref('auto')).toBe('dark');
+    expect(ui.setThemePref('auto')).toBe('classic');
     expect(store.get('websynth.ui.theme')).toBe('auto');
     expect(ui.currentThemePref()).toBe('auto');
-    expect(document.documentElement.dataset.theme).toBe('dark');
+    expect(document.documentElement.dataset.theme).toBe('classic');
+    expect(ui.setThemePref('dark')).toBe('dark');
+    expect(store.get('websynth.ui.theme')).toBe('dark');
   });
 });
 
@@ -103,29 +105,32 @@ describe('following the system (REQ-auto-follows-the-system)', () => {
     const sys = stubSystem();
     store.set('websynth.ui.theme', 'auto');
     const { state, ui } = await fresh();
-    ship(state.THEMES, ['light', 'contrast']);
+    ship(state.THEMES, ['light', 'contrast', 'classic']);
     ui.startTheme();
-    expect(document.documentElement.dataset.theme).toBe('dark');
+    expect(document.documentElement.dataset.theme).toBe('classic');
     sys.set(LIGHT, true);
     expect(document.documentElement.dataset.theme).toBe('light');
     sys.set(CONTRAST, true);
     expect(document.documentElement.dataset.theme).toBe('contrast');
     sys.set(CONTRAST, false);
     sys.set(LIGHT, false);
-    expect(document.documentElement.dataset.theme).toBe('dark');
+    expect(document.documentElement.dataset.theme).toBe('classic');
   });
 
-  it('with no choice, is Vibrant and follows only the contrast setting live (REQ-vibrant-is-the-default)', async () => {
+  it('with no choice, is on Auto and follows the system live, storing nothing (REQ-auto-is-the-default)', async () => {
     const sys = stubSystem();
     const { ui } = await fresh();
     ui.startTheme();
-    expect(document.documentElement.dataset.theme).toBe('vibrant');
+    expect(ui.currentThemePref()).toBe('auto');
+    expect(document.documentElement.dataset.theme).toBe('classic');
     sys.set(LIGHT, true);
-    expect(document.documentElement.dataset.theme).toBe('vibrant');
+    expect(document.documentElement.dataset.theme).toBe('light');
     sys.set(CONTRAST, true);
     expect(document.documentElement.dataset.theme).toBe('contrast');
     sys.set(CONTRAST, false);
-    expect(document.documentElement.dataset.theme).toBe('vibrant');
+    sys.set(LIGHT, false);
+    expect(document.documentElement.dataset.theme).toBe('classic');
+    expect(store.has('websynth.ui.theme')).toBe(false);
   });
 
   it('leaves a concrete choice alone when the system changes', async () => {
@@ -189,7 +194,7 @@ describe('the boot script (REQ-the-boot-script-agrees-with-the-registry)', () =>
     vi.stubGlobal('localStorage', { getItem: () => { throw new Error('denied'); } });
     vi.stubGlobal('matchMedia', undefined);
     expect(boot).not.toThrow();
-    expect(document.documentElement.dataset.theme).toBe('vibrant');
+    expect(document.documentElement.dataset.theme).toBe('classic');
   });
 });
 

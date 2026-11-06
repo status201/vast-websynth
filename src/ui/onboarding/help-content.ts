@@ -471,15 +471,15 @@ export const HELP_TOPICS: Record<TopicId, HelpTopic> = {
     body:
       '<p>Settings are about <em>this device</em>, not the music: nothing here travels in a ' +
       'song, a preset or a share link.</p>' +
-      '<p><strong>Theme</strong> is how the app looks. <strong>Vibrant</strong> is the default; ' +
-      '<strong>Dark</strong> is the original walnut and amber, <strong>Light</strong> a cream ' +
-      'faceplate with dark screens, <strong>Pastel</strong> paints each synth section its own ' +
-      'colour, <strong>Classic</strong> is a studio rack in slate and teal, <strong>Jungle</strong> ' +
-      'khaki faceplates in teal and rose, <strong>Race</strong> a racing livery in orange and ' +
-      'red on ink, and <strong>High contrast</strong> keeps every label easy to read. ' +
-      '<strong>Auto</strong> follows your system — more contrast gives High contrast, a light ' +
-      'scheme gives Light, anything else Dark — and its tile shows which one it would pick. ' +
-      'Until you choose, a system set to more contrast gets High contrast.</p>' +
+      '<p><strong>Theme</strong> is how the app looks. <strong>Auto</strong> is the default: ' +
+      'it follows your system — more contrast gives High contrast, a light scheme gives Light, ' +
+      'anything else <strong>Classic</strong>, a studio rack in slate and teal — and its tile ' +
+      'shows which one it would pick. <strong>Dark</strong> is the original walnut and amber, ' +
+      '<strong>Light</strong> a cream faceplate with dark screens, <strong>Pastel</strong> paints ' +
+      'each synth section its own colour, <strong>Vibrant</strong> is deep teal between red ' +
+      'cheeks, <strong>Jungle</strong> khaki faceplates in teal and rose, <strong>Race</strong> a ' +
+      'racing livery in orange and red on ink, and <strong>High contrast</strong> keeps every ' +
+      'label easy to read.</p>' +
       "<p><strong>UI size</strong> zooms the whole interface, the way your browser's zoom does: " +
       'from 50% to 150%, in the same steps. Smaller fits more on a phone; larger gives a tablet ' +
       'bigger knobs. It applies when you let go of the slider, and <strong>Reset</strong> returns ' +

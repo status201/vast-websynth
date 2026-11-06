@@ -39,10 +39,11 @@ describe('the theme picker', () => {
     expect(tiles.map((t) => t.dataset.testid)).toEqual(['theme-auto', ...THEMES.map((t) => `theme-${t.id}`)]);
   });
 
-  it('with no choice stored, selects the theme on the page (REQ-vibrant-is-the-default)', async () => {
+  it('with no choice stored, selects the Auto tile (REQ-auto-is-the-default)', async () => {
     const { tiles } = await mount();
     const checked = tiles.filter((t) => t.getAttribute('aria-checked') === 'true');
-    expect(checked.map((t) => t.dataset.testid)).toEqual(['theme-vibrant']);
+    expect(checked.map((t) => t.dataset.testid)).toEqual(['theme-auto']);
+    expect(sel('theme-status')!.textContent).toBe('Auto picked Classic on this device.');
     expect(store.has('websynth.ui.theme')).toBe(false);
   });
 
@@ -57,19 +58,21 @@ describe('the theme picker', () => {
     const { tiles } = await mount();
     sel('theme-auto')!.click();
     expect(store.get('websynth.ui.theme')).toBe('auto');
-    expect(document.documentElement.dataset.theme).toBe('dark');
+    expect(document.documentElement.dataset.theme).toBe('classic');
     expect(sel('theme-auto')!.getAttribute('aria-checked')).toBe('true');
     expect(tiles.filter((t) => t.getAttribute('aria-checked') === 'true')).toHaveLength(1);
     sel('theme-dark')!.click();
     expect(store.get('websynth.ui.theme')).toBe('dark');
+    expect(document.documentElement.dataset.theme).toBe('dark');
+    expect(sel('theme-dark')!.getAttribute('aria-checked')).toBe('true');
   });
 
   it('names what Auto picked, or would pick (REQ-auto-shows-what-it-would-pick)', async () => {
     await mount();
     expect(sel('theme-status')!.hidden).toBe(false);
-    expect(sel('theme-status')!.textContent).toBe('Auto would pick Dark on this device.');
-    sel('theme-auto')!.click();
-    expect(sel('theme-status')!.textContent).toBe('Auto picked Dark on this device.');
+    expect(sel('theme-status')!.textContent).toBe('Auto picked Classic on this device.');
+    sel('theme-dark')!.click();
+    expect(sel('theme-status')!.textContent).toBe('Auto would pick Classic on this device.');
   });
 
   it("shows the system's pick on the Auto tile, not the chosen theme, and follows the system live (regression)", async () => {
@@ -95,8 +98,8 @@ describe('the theme picker', () => {
 
     light = false;
     for (const fn of [...listeners]) fn();
-    expect(chipsOf(tiles[0]!)).toEqual(swatchOf('dark'));
-    expect(sel('theme-status')!.textContent).toBe('Auto would pick Dark on this device.');
+    expect(chipsOf(tiles[0]!)).toEqual(swatchOf('classic'));
+    expect(sel('theme-status')!.textContent).toBe('Auto would pick Classic on this device.');
 
     picker.destroy();
     expect(listeners.size).toBe(0);

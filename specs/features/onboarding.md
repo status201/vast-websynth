@@ -271,8 +271,8 @@ thing.
   anchors to the header's Settings button** (`perf-settings`, the gauge), placed
   `'corner-left'`: the button's top-left corner, the side away from the ⓘ
   toggle. Its copy covers all three sections of the dialog — **Theme** (the looks,
-  that Vibrant is the default and a system asking for more contrast gets High
-  contrast, what Auto follows, that the choice is per device and never in a song;
+  that Auto is the default, what Auto follows and that it falls back to Classic,
+  that the choice is per device and never in a song;
   [ui-themes](ui-themes.md)), **UI size** (zooms the whole interface like the
   browser's zoom, 50–150%, applied on release; [ui-scale](ui-scale.md)) and
   **Performance** (what a tier trades, what Auto

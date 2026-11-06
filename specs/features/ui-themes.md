@@ -3,7 +3,7 @@
 ```yaml
 id: ui-themes
 status: implemented
-version: 3
+version: 4
 owner: ui
 related:
   - typography            # the faces a theme sets
@@ -52,9 +52,10 @@ source:
 ```
 
 A named look for the whole app — a colour palette and two type faces — chosen per
-device. **Vibrant** is the default look; **Dark** (the original walnut-and-amber
-faceplate, and the tokens' own values), **Light**, **Pastel**, **Classic**, **Jungle**,
-**Race** and **High contrast** are the others.
+device. Until a device chooses, it is on **Auto**, which follows the system and
+otherwise shows **Classic**, the default look. **Dark** (the original
+walnut-and-amber faceplate, and the tokens' own values), **Light**, **Pastel**,
+**Vibrant**, **Jungle**, **Race** and **High contrast** are the others.
 
 ## Background / Why
 
@@ -121,15 +122,13 @@ Fonts are system stacks only — the app bundles no font file
   `localStorage['websynth.ui.theme']` as one of `dark | light | pastel | vibrant |
   classic | jungle | race | contrast | auto`, like the perf tier: per device, never in a song, a preset or a share
   link. Only a theme the registry (`THEMES`) lists, or `auto`, is a choice: a
-  missing, unknown or not-yet-shipped value is **no choice**
-  (REQ-vibrant-is-the-default, [untrusted-input](untrusted-input.md)).
-- **REQ-vibrant-is-the-default** — With no choice stored, the app is **Vibrant**
-  — except under `prefers-contrast: more`, which gets **High contrast**: a need
-  outranks a look. That one system setting is followed live, as under Auto;
-  `prefers-color-scheme` is not (Vibrant is the look, light or dark system). The
-  picker then shows the tile of the theme on the page as selected, and picking any
-  tile stores a choice. Dark stays the tokens' own values (`theme.css` `:root`),
-  and Auto's last resort.
+  missing, unknown or not-yet-shipped value is **no choice**, which is Auto
+  (REQ-auto-is-the-default, [untrusted-input](untrusted-input.md)).
+- **REQ-auto-is-the-default** — With no choice stored, the choice *is* `auto`:
+  the app resolves and follows the system exactly as under a stored Auto
+  (REQ-auto-follows-the-system), and the picker shows the Auto tile as selected.
+  Nothing is written until the user picks a tile. **Classic** is the default look,
+  which is Auto's last step; Dark stays the tokens' own values (`theme.css` `:root`).
 - **REQ-the-theme-applies-before-first-paint** — The stored theme is on
   `<html data-theme>` before the first frame, so a reload never flashes Dark
   first. A tiny external classic script in `<head>`, ahead of the stylesheets,
@@ -146,8 +145,10 @@ Fonts are system stacks only — the app bundles no font file
   second pre-paint job ([ui-scale](ui-scale.md) REQ-the-scale-applies-before-first-paint).
 - **REQ-auto-follows-the-system** — `auto` resolves to `contrast` under
   `prefers-contrast: more`, else to `light` under `prefers-color-scheme: light`,
-  else `dark` — each step only if that theme ships — and re-resolves live when the
-  system setting changes. Under `forced-colors: active` the app leaves the
+  else `classic` — each step only if that theme ships, and `dark` if Classic does
+  not — and re-resolves live when the system setting changes. There is no
+  "dark scheme gives Dark" step: a browser always reports light or dark, so such a
+  step would leave Classic unreachable; Classic is itself a dark theme. Under `forced-colors: active` the app leaves the
   system's colours alone.
 - **REQ-choosing-a-theme-previews-it** — Picking a theme applies it at once and
   stores it; there is no Apply step, so a wrong choice is undone by picking again.
@@ -285,13 +286,12 @@ ThemeInfo_metaColor: the <meta name="theme-color"> value
 ThemeInfo_colorScheme: "dark | light — the <meta name=\"color-scheme\"> value"
 ThemeInfo_swatch: "four colours that say which theme it is — the picker tile's chips; each one a colour the theme declares"
 THEME_KEY: websynth.ui.theme
-readThemePref: "() => ThemePref | null — null when there is no choice: missing, unknown or not shipped"
-DEFAULT_THEME: vibrant      # no choice; under prefers-contrast: more, contrast
-AUTO_FALLBACK: dark         # Auto's last resort
-resolveTheme: "(pref | null, matches) => ThemeId — auto, and no choice, resolved against the system queries"
+readThemePref: "() => ThemePref — 'auto' when there is no choice: missing, unknown or not shipped"
+DEFAULT_THEME: classic      # Auto's last resort, and so the default look
+resolveTheme: "(pref, matches) => ThemeId — a shipped id is itself; auto is resolved against the system queries"
 applyTheme: "(id) => void — data-theme + both metas; on a change, invalidateScreenPalette()"  # src/ui/theme.ts
-startTheme: "() => void — boot: apply, then follow the system while the choice is auto, or there is none"
-currentThemePref: "() => ThemePref | null — the choice in force (the one copy; the picker reads it)"
+startTheme: "() => void — boot: apply, then follow the system while the choice is auto"
+currentThemePref: "() => ThemePref — the choice in force (the one copy; the picker reads it)"
 onSystemThemeChange: "(fn) => () => void — fn runs on any change to a system setting Auto reads"
 setThemePref: "(pref) => ThemeId — store, apply, return what it resolved to"
 PanelTint: "osc | mixer | filter | env | mod | fx"                                # src/ui/components/panel.ts
@@ -417,22 +417,22 @@ Scenario: a stored theme survives a reload (REQ-the-theme-is-a-device-preference
   Then websynth.ui.theme holds its id, and the next boot resolves to it
 # pinned by: tests/state/theme.test.ts
 
-Scenario: an unknown or unshipped stored value is no choice (edge, REQ-the-theme-is-a-device-preference)
+Scenario: an unknown or unshipped stored value is no choice, which is Auto (edge, REQ-the-theme-is-a-device-preference)
   Given websynth.ui.theme holds "neon", "__proto__", or the id of a theme not in THEMES
-  Then readThemePref() is null and the boot script puts the default theme on the page
+  Then readThemePref() is auto and the boot script puts Auto's theme on the page
 # pinned by: tests/state/theme.test.ts, tests/ui/theme.test.ts
 
-Scenario: with no choice the app is Vibrant, unless the system asks for more contrast (REQ-vibrant-is-the-default)
+Scenario: with no choice the app is on Auto (REQ-auto-is-the-default)
   Given nothing is stored under websynth.ui.theme
-  Then the theme is vibrant, under a light or a dark system alike
-  And under prefers-contrast: more it is contrast, and it follows that setting live
-  And the picker shows that theme's tile as the selected one
-# pinned by: tests/state/theme.test.ts, tests/ui/theme.test.ts, tests/ui/theme-picker.test.ts
+  Then the theme is classic under a dark system, light under a light one,
+    and contrast under prefers-contrast: more, each followed live
+  And the picker shows the Auto tile as the selected one, and nothing is stored
+# pinned by: tests/state/theme.test.ts, tests/ui/theme.test.ts, tests/ui/theme-picker.test.ts, e2e/theme.spec.ts
 
-Scenario: Auto follows the system's contrast, then its light/dark setting (REQ-auto-follows-the-system)
+Scenario: Auto follows the system's contrast, then its light setting (REQ-auto-follows-the-system)
   Given the stored choice is auto
-  Then prefers-contrast: more gives contrast, prefers-color-scheme: light gives light, else dark
-  And a theme that does not ship is skipped to the next rule
+  Then prefers-contrast: more gives contrast, prefers-color-scheme: light gives light, else classic
+  And a theme that does not ship is skipped to the next rule (dark where classic does not ship)
 # pinned by: tests/state/theme.test.ts
 
 Scenario: Auto re-resolves when the system setting changes (REQ-auto-follows-the-system)
@@ -461,7 +461,7 @@ Scenario: Auto shows the system's pick, not the chosen theme (regression, REQ-au
   Given the system prefers a light scheme and the user picks Dark
   Then the Auto tile wears Light's chips and the status line says "Auto would pick Light"
   When the system turns dark while the dialog is open
-  Then the Auto tile turns to Dark's chips without any click
+  Then the Auto tile turns to Classic's chips without any click
 # pinned by: tests/ui/theme-picker.test.ts
 
 Scenario: picking a theme applies and stores it at once (REQ-choosing-a-theme-previews-it)

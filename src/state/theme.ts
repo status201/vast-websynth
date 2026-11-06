@@ -43,10 +43,11 @@ export const THEMES: readonly ThemeInfo[] = [
 ];
 
 export const THEME_KEY = 'websynth.ui.theme';
-/** The look with no choice stored (REQ-vibrant-is-the-default). */
-export const DEFAULT_THEME: ThemeId = 'vibrant';
-/** Auto's last resort, and what anything unresolvable lands on: the tokens' own values. */
-export const AUTO_FALLBACK: ThemeId = 'dark';
+/**
+ * Auto's last resort, and so the look of a device that never chose
+ * (REQ-auto-is-the-default). Where it does not ship, Dark: the tokens' own values.
+ */
+export const DEFAULT_THEME: ThemeId = 'classic';
 
 /** Auto's two system questions (REQ-auto-follows-the-system). */
 export const CONTRAST_QUERY = '(prefers-contrast: more)';
@@ -63,15 +64,15 @@ export function themeInfo(id: string): ThemeInfo {
 }
 
 /**
- * The stored choice, or `null` for none — missing, unknown or not shipped
- * (untrusted-input.md). No choice is not Dark: it resolves to the default look.
+ * The stored choice, or `auto` for none — missing, unknown or not shipped
+ * (REQ-auto-is-the-default; a stored value is untrusted, untrusted-input.md).
  */
-export function readThemePref(): ThemePref | null {
+export function readThemePref(): ThemePref {
   try {
     const v = localStorage.getItem(THEME_KEY);
-    return v === 'auto' || isShipped(v) ? v : null;
+    return isShipped(v) ? v : 'auto';
   } catch {
-    return null;
+    return 'auto';
   }
 }
 
@@ -90,16 +91,13 @@ const systemMatch: MediaMatch = (q) =>
   typeof matchMedia === 'function' && matchMedia(q).matches;
 
 /**
- * The theme a choice puts on the page. `auto` asks the system: more contrast,
- * then a light scheme, then Dark. No choice (`null`) is Vibrant, unless the
- * system asks for more contrast (REQ-vibrant-is-the-default). Each step only if
- * that theme ships.
+ * The theme a choice puts on the page. A shipped id is itself; `auto` (and
+ * anything not shipped) asks the system: more contrast, then a light scheme,
+ * then Classic (REQ-auto-follows-the-system). Each step only if that theme ships.
  */
-export function resolveTheme(pref: ThemePref | null, matches: MediaMatch = systemMatch): ThemeId {
-  const contrast = isShipped('contrast') && matches(CONTRAST_QUERY);
-  if (pref === null) return contrast ? 'contrast' : isShipped(DEFAULT_THEME) ? DEFAULT_THEME : AUTO_FALLBACK;
-  if (pref !== 'auto') return isShipped(pref) ? pref : resolveTheme(null, matches);
-  if (contrast) return 'contrast';
+export function resolveTheme(pref: ThemePref, matches: MediaMatch = systemMatch): ThemeId {
+  if (isShipped(pref)) return pref;
+  if (isShipped('contrast') && matches(CONTRAST_QUERY)) return 'contrast';
   if (isShipped('light') && matches(LIGHT_QUERY)) return 'light';
-  return AUTO_FALLBACK;
+  return isShipped(DEFAULT_THEME) ? DEFAULT_THEME : 'dark';
 }

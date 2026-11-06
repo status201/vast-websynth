@@ -34,6 +34,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
   **Race** is a racing livery: golden orange on ink black, strawberry red
   accents and red cheeks with a golden pinstripe. Each keeps every label readable.
 
+### Changed
+
+- **A new device starts on Auto, and Auto's default is Classic.** Until you pick
+  a theme, Settings shows **Auto** as selected: a system asking for more contrast
+  gets High contrast, a light scheme gets Light, and anything else gets Classic
+  (Auto used to fall back to Dark, and a device that hadn't chosen got Vibrant).
+  A theme you picked by name stays as it was; if you picked Auto on a dark
+  system, it now shows Classic where it showed Dark.
+- The **Theme**, **UI size** and **Performance** headings in Settings are a
+  little larger.
+
 ### Fixed
 
 - **An exported song no longer ends with a stray note.** The first step of the

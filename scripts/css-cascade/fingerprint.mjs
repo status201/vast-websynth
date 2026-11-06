@@ -26,7 +26,7 @@
  * numbers — the proof for moving literals into tokens (see `sameRendered`).
  *
  * Every capture is in the Dark theme; `--theme <id>` captures another (the
- * app's default look is Vibrant, and a baseline must not move with a default).
+ * app's default look follows the system (Auto), and a baseline must not move with a default).
  *
  * Options: --filter <substr> (state@viewport ids), --browser firefox,
  * --port <n> (default 4179), --jobs <n> (default 3), --limit <n> diffs shown per id.

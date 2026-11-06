@@ -142,12 +142,14 @@ someone has looked at it.
   reads below 3:1 as type on every surface. It colours LEDs, accented steps and
   the cheeks, and its red text uses a lighter coral.
 - **Auto never picks a new theme.** Auto resolves only to High contrast, Light or
-  Dark (REQ-auto-follows-the-system). Choosing a theme for a system setting
+  Classic (REQ-auto-follows-the-system). Choosing a theme for a system setting
   means changing `resolveTheme()` **and** the boot script's copy of the rule.
-- **Making it the default** is `DEFAULT_THEME` plus the boot script's no-choice
-  line. The boot test runs every stored value and system against
-  `resolveTheme()`, so it fails if only one changes. Tell existing users: the
-  look changes for everyone who never chose one.
+- **Making it the default** means making it Auto's last step, because a device
+  that never chose is on Auto (REQ-auto-is-the-default). That is `DEFAULT_THEME`
+  plus the boot script's `'classic'` fallback. The boot test runs every stored
+  value and system against `resolveTheme()`, so it fails if only one changes.
+  Tell existing users: the look changes for everyone on Auto, including everyone
+  who never chose a theme.
 - **A module that recolours a control's state** can override the theme's
   token for it: a later layer wins. That is how the Play legend went amber on
   every lit cap. If your theme looks wrong in one place only, grep the
