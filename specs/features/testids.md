@@ -233,6 +233,9 @@ motion tab:                                         # features/motion-sequencer.
 sampler slots:                                      # features/sampler.md
   sampler-load-<slot> · sampler-name-<slot> · sampler-edit-<slot> ·
   sampler-file-<slot> · sampler-record ·
+  sampler-del-<slot> · sampler-del-toast             # Del replaces Load while the slot holds a
+    # name or a buffer (sampler.md REQ-a-filled-slot-offers-del-not-load): both are always in
+    # the DOM, one hidden, so assert on visibility, not presence.
   sampler-fit-<slot>                                # the row's FIT button
     # (sampler.md REQ-a-slot-row-carries-a-fit-button / time-stretch.md REQ-the-slot-fit-button-is-a-quick-fit). Hidden with sampler-edit-<slot>
     # while the slot holds no buffer, so assert on visibility, not presence.

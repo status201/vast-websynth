@@ -13,7 +13,7 @@ import { CHORUS_MODE_OVERRIDES } from '../../state/chorus';
 import { StepButton } from '../components/step-button';
 import {
   bankBarFor, wrapGridWithRestOverlay, wirePlayhead, playheadRulerFor, laneControlsFor, laneMeterControlsFor, GridCursor, clearMenuFor,
-  samplerSlotClearRow, VisibilityGate, type MachinePanel,
+  samplerSlotClearRow, ejectSamplerFile, VisibilityGate, type MachinePanel,
 } from './step-panel-scaffold';
 import { attachGridGestures } from '../components/grid-gestures';
 import type { RecordSoundOptions } from '../components/record-sound-modal';
@@ -51,7 +51,7 @@ async function openRecordSoundModal(engine: StudioApi, opts?: RecordSoundOptions
 }
 
 /**
- * Width of a slot row's control cluster — Load, name, ✎, FIT, mute.
+ * Width of a slot row's control cluster — Load (or Del), name, ✎, FIT, mute.
  *
  * Wider than the drum panel's 130px because a sampler row carries a filename, and
  * wider again since the FIT button joined it (time-stretch.md REQ-the-slot-fit-button-is-a-quick-fit): at 210px
@@ -180,6 +180,8 @@ export function buildSamplerPanel(
   const stepBtns: StepButton[][] = [];
   const cellRows: HTMLElement[] = [];
   const labels: HTMLButtonElement[] = [];
+  const loadBtns: HTMLButtonElement[] = [];
+  const delBtns: HTMLButtonElement[] = [];
   const editBtns: HTMLButtonElement[] = [];
   const fitBtns: HTMLButtonElement[] = [];
 
@@ -293,6 +295,16 @@ export function buildSamplerPanel(
     lbl.title = name
       ? (loaded ? 'Click to audition' : 'Reload this audio file (not saved in songs)')
       : 'Load a WAV/MP3 file';
+    // Load while empty, Del once the slot holds anything — a missing file's name
+    // included (sampler.md REQ-a-filled-slot-offers-del-not-load).
+    const filled = name != null || loaded;
+    const loadBtn = loadBtns[slot];
+    if (loadBtn) loadBtn.style.display = filled ? 'none' : '';
+    const delBtn = delBtns[slot];
+    if (delBtn) {
+      delBtn.style.display = filled ? '' : 'none';
+      delBtn.title = `Remove ${name ?? 'this sound'} from the slot (its steps stay)`;
+    }
     const editBtn = editBtns[slot];
     if (editBtn) editBtn.style.display = loaded ? '' : 'none';
 
@@ -357,12 +369,49 @@ export function buildSamplerPanel(
     loadBtn.textContent = 'Load';
     loadBtn.title = 'Load a WAV/MP3 file into this slot';
     loadBtn.addEventListener('click', () => fileInput.click());
+    loadBtns[slot] = loadBtn;
     ctrls.appendChild(loadBtn);
+
+    // Ejects the file, never the steps, so a replacement drops into the pattern
+    // (sampler.md REQ-a-filled-slot-offers-del-not-load). Undo, not a confirm:
+    // the buffer is still referenced, so taking it back costs nothing.
+    const delBtn = document.createElement('button');
+    delBtn.className = samplerStyles.load!;
+    delBtn.dataset.testid = `sampler-del-${slot}`;
+    delBtn.textContent = 'Del';
+    delBtn.style.display = 'none';
+    delBtn.addEventListener('click', () => {
+      const name = engine.patterns.sampleNames[slot] ?? null;
+      // The newest action wins: a decode still in flight must not refill the slot.
+      ++loadTickets[slot]!;
+      const restore = ejectSamplerFile(engine, slot);
+      refreshLabel(slot);
+      if (!restore) return;
+      showToast({
+        message: `Removed ${name ?? SAMPLER_SLOT_LABELS[slot] ?? `S${slot + 1}`}`,
+        actionLabel: 'Undo',
+        testId: 'sampler-del-toast',
+        onAction: () => {
+          // Only into a slot still empty: a file loaded or recorded since stays.
+          if (engine.sampler.buffers[slot] != null || engine.patterns.sampleNames[slot] != null) return;
+          ++loadTickets[slot]!;
+          restore();
+          refreshLabel(slot);
+        },
+      });
+    });
+    delBtns[slot] = delBtn;
+    ctrls.appendChild(delBtn);
 
     const label = document.createElement('button');
     label.className = samplerStyles.name!;
     label.dataset.testid = `sampler-name-${slot}`;
-    label.addEventListener('click', () => engine.sampler.triggerSlot(slot, 0.9));
+    // A name with audio auditions; one without opens the picker — the reload
+    // its .needs-reload title promises (REQ-a-filled-slot-offers-del-not-load).
+    label.addEventListener('click', () => {
+      if (engine.sampler.buffers[slot] != null) engine.sampler.triggerSlot(slot, 0.9);
+      else fileInput.click();
+    });
     labels[slot] = label;
     ctrls.appendChild(label);
 

@@ -14,6 +14,9 @@
     padding: 4px 7px !important;
     min-height: 24px !important;
     font-size: 9px !important;
+    /* Load and Del take turns in this place (sampler.md REQ-a-filled-slot-offers-del-not-load):
+       one width for both, so the name beside them never shifts. */
+    min-width: 4.4em;
     flex-shrink: 0;
   }
 

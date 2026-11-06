@@ -581,6 +581,7 @@ export function samplerSlotClearRow(engine: StudioApi, undo: PatternUndo, slot: 
   const name = engine.patterns.sampleNames[slot] ?? null;
   const buf = engine.sampler.buffers[slot] ?? null;
   let steps = false;
+  let restore: (() => void) | null = null;
   return {
     label: name ?? SAMPLER_SLOT_LABELS[slot] ?? `S${slot + 1}`,
     // A named slot is content even with an empty grid — the item removes the
@@ -590,20 +591,36 @@ export function samplerSlotClearRow(engine: StudioApi, undo: PatternUndo, slot: 
       || name !== null || buf !== null,
     clear: () => {
       steps = engine.patterns.clearSamplerSlot(slot);
-      // Buffer first, then the name: the meta event is what repaints the row
-      // label, and it reads `buffers[slot]` for the .needs-reload hint.
-      if (buf) engine.sampler.setBuffer(slot, null);
-      if (name !== null) engine.patterns.setSampleName(slot, null);
-      return steps || name !== null || buf !== null;
+      restore = ejectSamplerFile(engine, slot);
+      return steps || restore !== null;
     },
     undo: () => {
       // Only when the store actually pushed one. An unconditional call would pop
       // the user's PREVIOUS sampler edit off the lane's stack whenever the slot
       // held no steps — silent data loss dressed up as an Undo.
       if (steps) undo.undo('sampler');
-      if (buf) engine.sampler.setBuffer(slot, buf);
-      if (name !== null) engine.patterns.setSampleName(slot, name);
+      restore?.();
     },
+  };
+}
+
+/**
+ * Take a sampler slot's file out — its buffer and its name — leaving the steps
+ * alone (sampler.md REQ-a-filled-slot-offers-del-not-load; the Clear row above adds the steps).
+ * Returns the reversal, or `null` when the slot held neither. The reversal hands
+ * back the same `AudioBuffer`, so nothing is re-decoded.
+ */
+export function ejectSamplerFile(engine: StudioApi, slot: number): (() => void) | null {
+  const name = engine.patterns.sampleNames[slot] ?? null;
+  const buf = engine.sampler.buffers[slot] ?? null;
+  if (name === null && buf === null) return null;
+  // Buffer first, then the name: the meta event is what repaints the row
+  // label, and it reads `buffers[slot]` for the .needs-reload hint.
+  if (buf) engine.sampler.setBuffer(slot, null);
+  if (name !== null) engine.patterns.setSampleName(slot, null);
+  return () => {
+    if (buf) engine.sampler.setBuffer(slot, buf);
+    if (name !== null) engine.patterns.setSampleName(slot, name);
   };
 }
 
