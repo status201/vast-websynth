@@ -12,6 +12,7 @@ import { clamp } from '../../utils/math';
 import styles from '../styles/eq.module.css';
 import { DOUBLE_TAP_MS } from './gesture-timing';
 import { dragStillHeld } from './pointer-drag';
+import { backingScale, onUiScaleChange, toLocal } from '../ui-scale';
 
 /**
  * The drawable EQ curve — `specs/features/equalizer.md` REQ-the-curve-is-drawn-by-dragging/REQ-the-graph-computes-from-bus-values/REQ-the-drawn-curve-is-exact.
@@ -145,6 +146,8 @@ export class EqGraph {
     }
     // A theme change repaints the curve once (ui-themes.md REQ-a-theme-change-repaints-the-canvases).
     this.unsubs.push(onPaletteChange(() => this.invalidate()));
+    // A UI scale change can leave the CSS box alone and still change the bitmap it needs.
+    this.unsubs.push(onUiScaleChange(() => { this.measure(); this.invalidate(); }));
 
     this.canvas.addEventListener('pointerdown', this.handleDown);
     this.canvas.addEventListener('pointermove', this.handleHover);
@@ -198,7 +201,7 @@ export class EqGraph {
     if (w === 0 || h === 0) return;
     this.cssW = w;
     this.cssH = h;
-    this.dpr = window.devicePixelRatio || 1;
+    this.dpr = backingScale(); // devicePixelRatio × the UI scale (ui-scale.md REQ-canvases-stay-sharp-at-any-scale)
     const bw = Math.round(w * this.dpr);
     const bh = Math.round(h * this.dpr);
     if (bw !== this.bitmapW || bh !== this.bitmapH) {
@@ -339,7 +342,7 @@ export class EqGraph {
     if (this.dragging) return;
     // `offsetX` rather than a rect read: a getBoundingClientRect() here would be
     // a reflow on every pointer move (the Scope's finding).
-    this.hoverX = e.offsetX;
+    this.hoverX = toLocal(e.offsetX); // viewport px → canvas CSS px (ui-scale.md)
     this.invalidate();
   };
 
@@ -352,8 +355,10 @@ export class EqGraph {
   private posOf(e: PointerEvent): { x: number; y: number } {
     const r = this.rect ?? this.canvas.getBoundingClientRect();
     // jsdom reports a zero rect; fall back to the offsets so tests can drive it.
-    if (r.width === 0 || r.height === 0) return { x: e.offsetX, y: e.offsetY };
-    return { x: e.clientX - r.left, y: e.clientY - r.top };
+    // Viewport px → the canvas's own CSS px, which cssW and the bands are in
+    // (ui-scale.md REQ-coordinates-are-converted-at-the-read).
+    if (r.width === 0 || r.height === 0) return { x: toLocal(e.offsetX), y: toLocal(e.offsetY) };
+    return { x: toLocal(e.clientX - r.left), y: toLocal(e.clientY - r.top) };
   }
 
   /* ---------- drawing ---------- */

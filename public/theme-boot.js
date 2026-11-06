@@ -1,5 +1,9 @@
 /*
- * Puts the stored UI theme on <html data-theme> before the first frame, so a
+ * The two pre-paint jobs, so a reload never shows a wrong first frame: the
+ * stored UI theme, then the stored UI scale. One file, because each extra
+ * classic script here is another request that blocks the first paint.
+ *
+ * 1. The theme. Puts it on <html data-theme> before the first frame, so a
  * reload never flashes Dark first (specs/features/ui-themes.md
  * REQ-the-theme-applies-before-first-paint). A classic script, external because
  * the shipped CSP allows no inline script, loaded ahead of the stylesheets.
@@ -38,4 +42,38 @@
   if (color) color.setAttribute('content', THEMES[id][0]);
   var scheme = document.querySelector('meta[name="color-scheme"]');
   if (scheme) scheme.setAttribute('content', THEMES[id][1]);
+})();
+
+/*
+ * 2. The UI scale (specs/features/ui-scale.md REQ-the-scale-applies-before-first-paint).
+ * At 100% — nothing stored, or anything that is not exactly a stop — it touches
+ * nothing (REQ-a-hundred-percent-is-a-no-op). A touch-first device rewrites the
+ * viewport tag; everything else zooms <html> through CSSOM, which the CSP allows.
+ *
+ * It cannot import src/state/ui-scale.ts, so it repeats the stops, the key, the
+ * engine query and the viewport string; tests/ui/ui-scale-boot.test.ts runs this
+ * file against that module (REQ-the-boot-script-agrees-with-the-state).
+ */
+(function () {
+  var STOPS = [50, 67, 75, 80, 90, 100, 110, 125, 150];
+  var raw = null;
+  try { raw = localStorage.getItem('websynth.ui.scale'); } catch (e) { /* storage blocked */ }
+  if (raw === null) return;
+  var pct = Number(raw);
+  if (String(pct) !== raw || STOPS.indexOf(pct) < 0 || pct === 100) return;
+
+  var s = pct / 100;
+  var root = document.documentElement;
+  var touch = !!(window.matchMedia && window.matchMedia('(hover: none) and (pointer: coarse)').matches);
+  if (touch) {
+    var meta = document.querySelector('meta[name="viewport"]');
+    if (!meta) return;
+    // Before the rewrite: WebKit folds the page scale into devicePixelRatio.
+    root.setAttribute('data-ui-base-dpr', String(window.devicePixelRatio || 1));
+    meta.setAttribute('content',
+      'initial-scale=' + s + ', minimum-scale=' + s + ', maximum-scale=' + s + ', viewport-fit=cover, user-scalable=no');
+  } else {
+    root.style.setProperty('zoom', String(s));
+    root.style.setProperty('--ui-zoom', String(s));
+  }
 })();

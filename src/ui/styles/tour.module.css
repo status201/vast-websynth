@@ -42,7 +42,7 @@
     position: fixed;
     pointer-events: auto;
     z-index: 1101;
-    width: min(330px, 92vw);
+    width: min(330px, calc(92vw / var(--ui-zoom, 1)));
     background: var(--panel);
     border: 1px solid var(--panel-border);
     border-radius: 8px;

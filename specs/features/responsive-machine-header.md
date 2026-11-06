@@ -170,7 +170,7 @@ No new module and no new component — a wrapper `div` plus three CSS rules.
   min-width: 0;
 }
 
-@media (max-width: 1140px) {
+@container viewport (max-width: 1140px) {
   .fxCluster { flex-basis: 100%; }   /* REQ-below-1140-the-cluster-takes-its-own-row */
 }
 ```
@@ -189,7 +189,7 @@ header.appendChild(fx);
 
 - `src/ui/styles/panel.module.css` — `flex-wrap` added to
   `.patternPanelHeader` (~line 54); new `.fxCluster` rule beside it; the
-  `flex-basis: 100%` line goes in the **existing** `@media (max-width: 1140px)`
+  `flex-basis: 100%` line goes in the **existing** `@container viewport (max-width: 1140px)`
   block, preserving the file's fixed breakpoint cascade order
   1280 → 1140 → 992 → 720.
 - `src/ui/panels/sampler-panel.ts` — the four `fxGroup` calls move from

@@ -8,6 +8,7 @@ import { MAX_SCRATCH_POINTS, MAX_SCRATCH_RATE } from '../../state/limits';
 import { DOUBLE_TAP_MS } from './gesture-timing';
 import { clamp01 } from '../../utils/math';
 import { onPaletteChange, paletteDerived, rgba } from '../theme-colors';
+import { backingScale, onUiScaleChange, toLocal } from '../ui-scale';
 
 /**
  * The scratch editor's canvas (scratch.md REQ-the-graph-is-two-lanes-on-output-time/REQ-the-preview-lane-remaps-cached-peaks/REQ-the-scratch-gesture-inventory).
@@ -121,6 +122,7 @@ export class ScratchGraph {
   private ro: ResizeObserver | null = null;
   /** Unsubscribes the theme-change repaint (ui-themes.md REQ-a-theme-change-repaints-the-canvases). */
   private offPalette: (() => void) | null = null;
+  private offScale: (() => void) | null = null;
 
   private readonly onDown: (e: PointerEvent) => void;
   private readonly onMove: (e: PointerEvent) => void;
@@ -158,6 +160,7 @@ export class ScratchGraph {
       this.ro.observe(this.el);
     }
     this.offPalette = onPaletteChange(() => this.redraw());
+    this.offScale = onUiScaleChange(() => this.redraw());
     this.redraw();
   }
 
@@ -196,6 +199,8 @@ export class ScratchGraph {
     this.ro = null;
     this.offPalette?.();
     this.offPalette = null;
+    this.offScale?.();
+    this.offScale = null;
     hideValueBubble();
   }
 
@@ -229,7 +234,8 @@ export class ScratchGraph {
     const r = this.canvas.getBoundingClientRect();
     // jsdom has no layout, and a hidden panel measures zero — treat a degenerate
     // rect as the origin rather than dividing by it.
-    return { x: e.clientX - (r.left || 0), y: e.clientY - (r.top || 0) };
+    // Viewport px → the canvas's own CSS px, which width() is in (ui-scale.md REQ-coordinates-are-converted-at-the-read).
+    return { x: toLocal(e.clientX - (r.left || 0)), y: toLocal(e.clientY - (r.top || 0)) };
   }
 
   /* -------------------------------------------------------------- gestures */
@@ -415,7 +421,7 @@ export class ScratchGraph {
     const g = this.canvas.getContext('2d');
     if (!g || w <= 0) return;
 
-    const dpr = window.devicePixelRatio || 1;
+    const dpr = backingScale(); // devicePixelRatio × the UI scale (ui-scale.md REQ-canvases-stay-sharp-at-any-scale)
     const nbw = Math.round(w * dpr);
     const nbh = Math.round(CANVAS_H * dpr);
     if (nbw !== this.bw || nbh !== this.bh) {

@@ -200,7 +200,8 @@ DOM: root (.root, position:fixed, z-index 950) > [ .titleBar (.minBtn + [leading
 drag: pointerdown on .titleBar -> record start pointer + window pos; window-level
       pointermove updates clamped left/top; pointerup/pointercancel ends. setPointerCapture
       on the title bar retargets moves to it (optional-chained for jsdom).
-      The clamp (against window.innerWidth/innerHeight minus the window size) is a
+      The clamp (against the window's width/height in local px, viewportWidth()/
+      viewportHeight() from ui-scale.ts, minus the window size) is a
       single shared helper, also invoked on open(), on resize/orientationchange
       while open, and on restore-from-minimised (REQ-window-stays-inside-the-viewport).
 minimise button: far-left child; click stops propagation (no drag) and toggles the

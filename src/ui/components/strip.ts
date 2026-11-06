@@ -1,6 +1,7 @@
 import styles from '../styles/strip.module.css';
 import type { ParamBus } from '../../state/params';
 import { dragStillHeld } from './pointer-drag';
+import { localRect, toLocal } from '../ui-scale';
 
 export interface StripOptions {
   bus: ParamBus;
@@ -104,8 +105,10 @@ export class Strip {
   }
 
   private updateFromPointer(clientY: number): void {
-    const rect = this.el.getBoundingClientRect();
-    const rel = Math.max(0, Math.min(rect.height - 22, clientY - rect.top - 11));
+    // Local px: the 22 px thumb is a CSS length the UI scale's zoom applies to
+    // (ui-scale.md REQ-coordinates-are-converted-at-the-read).
+    const rect = localRect(this.el.getBoundingClientRect());
+    const rel = Math.max(0, Math.min(rect.height - 22, toLocal(clientY) - rect.top - 11));
     const norm = 1 - rel / (rect.height - 22);
     const def = this.opts.bus.def(this.opts.paramId);
     if (!def) return;

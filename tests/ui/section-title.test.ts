@@ -53,7 +53,8 @@ describe('compact (REQ-compact-drops-text-not-icon)', () => {
 
   it('hides the text visually, never with display:none, from 1140px down', () => {
     const css = readSource('src/ui/styles/section-title.module.css');
-    const media = css.slice(css.indexOf('@media (max-width: 1140px)'));
+    // A breakpoint is a container query (ui-scale.md REQ-breakpoints-follow-the-effective-width).
+    const media = css.slice(css.indexOf('@container viewport (max-width: 1140px)'));
     expect(media.length, 'the 1140px step exists').toBeLessThan(css.length);
     const hide = media.slice(0, media.indexOf('}'));
     expect(hide).toContain('.compact :global(.icon-label)');

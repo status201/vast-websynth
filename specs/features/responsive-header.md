@@ -186,7 +186,7 @@ addition to the shared `headerGroup` class.
 - `src/ui/shell/header.ts` — adds the toggle + `presetGroup` class; all other header
   construction unchanged.
 - `src/ui/styles/header.module.css` — `.menuToggle { display: none }` and
-  `.headerBreak { display: none }` by default; an `@media (max-width: 720px)`
+  `.headerBreak { display: none }` by default; an `@container viewport (max-width: 720px)`
   block (placed **after** the existing `≤992px` block so it wins at narrow
   widths) shows the toggle, hides `.presetGroup`, reveals it via
   `.header.menuOpen .presetGroup { display: flex; flex-basis: 100% }`, and

@@ -41,6 +41,7 @@ import {
 import { UI_ICONS } from './ui-icons';
 import { plural } from '../../utils/format';
 import { onPaletteChange, paletteDerived, rgba } from '../theme-colors';
+import { backingScale, toLocal } from '../ui-scale';
 
 /** The waveform's inks, from the screen tokens (ui-themes.md REQ-canvas-reads-the-screen-tokens). */
 const waveColours = paletteDerived((p) => ({
@@ -339,7 +340,7 @@ export function openRecordSoundModal(engine: StudioApi, opts: RecordSoundOptions
       const w = canvas.clientWidth;
       const h = canvas.clientHeight;
       if (w === 0 || h === 0) return;
-      const dpr = window.devicePixelRatio || 1;
+      const dpr = backingScale(); // devicePixelRatio × the UI scale (ui-scale.md REQ-canvases-stay-sharp-at-any-scale)
       const nbw = Math.round(w * dpr);
       const nbh = Math.round(h * dpr);
       if (nbw !== bw || nbh !== bh) { canvas.width = nbw; canvas.height = nbh; bw = nbw; bh = nbh; }
@@ -453,7 +454,7 @@ export function openRecordSoundModal(engine: StudioApi, opts: RecordSoundOptions
         handle.setPointerCapture(e.pointerId);
         const onMove = (ev: PointerEvent): void => {
           const rect = wrap.getBoundingClientRect();
-          const s = sampleAt(ev.clientX - rect.left);
+          const s = sampleAt(toLocal(ev.clientX - rect.left));
           const gap = Math.max(1, Math.floor(sampleLen() * 0.005));
           if (which === 'start') cropStart = Math.max(0, Math.min(s, cropEnd - gap));
           else cropEnd = Math.min(sampleLen(), Math.max(s, cropStart + gap));
@@ -483,7 +484,7 @@ export function openRecordSoundModal(engine: StudioApi, opts: RecordSoundOptions
       let idx = -1;
       let best = GRAB_PX;
       marks.forEach((m, i) => {
-        const d = Math.abs(xOf(m) - (e.clientX - rect.left));
+        const d = Math.abs(xOf(m) - toLocal(e.clientX - rect.left));
         if (d < best) { best = d; idx = i; }
       });
       if (idx < 0) return;
@@ -494,7 +495,7 @@ export function openRecordSoundModal(engine: StudioApi, opts: RecordSoundOptions
         const lo = (marks[idx - 1] ?? cropStart) + gap;
         const hi = (marks[idx + 1] ?? cropEnd) - gap;
         if (hi <= lo) return;
-        marks[idx] = Math.max(lo, Math.min(sampleAt(ev.clientX - rect.left), hi));
+        marks[idx] = Math.max(lo, Math.min(sampleAt(toLocal(ev.clientX - rect.left)), hi));
         redraw();
       };
       const onUp = (ev: PointerEvent): void => {

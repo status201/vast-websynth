@@ -3,6 +3,7 @@
  * (dropdown.md REQ-every-fixed-menu-shares-one-anchor-and-dismiss). Written out
  * four times before, and two of the copies let Escape through to Panic.
  */
+import { localRect, viewportHeight } from '../ui-scale';
 
 /**
  * What a fixed `.menu`'s `min-width: 100%` becomes. For a fixed box that 100%
@@ -11,14 +12,18 @@
  */
 export type MenuWidth = 'toggle' | 'content';
 
-/** Anchor a fixed menu under its toggle, flipped above near the bottom edge. */
+/**
+ * Anchor a fixed menu under its toggle, flipped above near the bottom edge. The
+ * rect is read in local px: the menu's `left`/`top` are lengths the UI scale's
+ * zoom applies to (ui-scale.md REQ-coordinates-are-converted-at-the-read).
+ */
 export function anchorMenu(toggle: HTMLElement, menu: HTMLElement, width: MenuWidth): void {
-  const r = toggle.getBoundingClientRect();
+  const r = localRect(toggle.getBoundingClientRect());
   const s = menu.style;
   s.minWidth = width === 'toggle' ? `${r.width}px` : '0px';
   s.left = `${r.left}px`;
   const mh = menu.offsetHeight; // measurable: the caller has already shown it
-  const flipUp = r.bottom + 6 + mh > window.innerHeight && r.top - 6 - mh > 0;
+  const flipUp = r.bottom + 6 + mh > viewportHeight() && r.top - 6 - mh > 0;
   s.top = `${flipUp ? r.top - 6 - mh : r.bottom + 6}px`;
 }
 

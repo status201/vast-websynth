@@ -139,7 +139,8 @@ Fonts are system stacks only — the app bundles no font file
   own copy of the shipped ids, their meta values and Auto's rule. A test runs the
   script for every stored value under every system setting and fails if it puts a
   different theme, or different meta values, on the page than `resolveTheme()`
-  and the registry would.
+  and the registry would. The same script also applies the stored UI scale, its
+  second pre-paint job ([ui-scale](ui-scale.md) REQ-the-scale-applies-before-first-paint).
 - **REQ-auto-follows-the-system** — `auto` resolves to `contrast` under
   `prefers-contrast: more`, else to `light` under `prefers-color-scheme: light`,
   else `dark` — each step only if that theme ships — and re-resolves live when the

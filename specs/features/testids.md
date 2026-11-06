@@ -380,6 +380,9 @@ shared UI:
   theme-picker · theme-auto · theme-<id> · theme-status
                                                     # the Settings dialog's Theme row
                                                     # features/ui-themes.md
+  ui-scale-slider · ui-scale-value · ui-scale-reset
+                                                    # the Settings dialog's UI size row
+                                                    # features/ui-scale.md
   play-offline · play-offline-button · play-offline-status · play-offline-progress
                                                     # About card, above factory-reset
                                                     # features/play-offline.md

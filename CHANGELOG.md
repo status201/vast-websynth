@@ -16,6 +16,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+### Added
+
+- **UI size**, in Settings: zoom the whole interface from 50% to 150% in the
+  browser's own zoom steps, remembered on this device. Phones and tablets, which
+  have no Ctrl +/−, get the same reflowing zoom a desktop browser has; on a
+  desktop it is kept even where the browser forgets its zoom between visits. It
+  applies when you let go of the slider, and **Reset** returns to 100%, where
+  nothing about the page changes.
+
 ## [2.21.0] - 2026-11-05
 
 ### Added

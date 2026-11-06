@@ -17,6 +17,7 @@ import { type WebRtcDiagnostics, summarizeDiagnostics } from '../../audio/transp
 import modalStyles from '../styles/modal.module.css';
 import { UI_ICONS, iconLabel, iconTextEl, type IconName } from './ui-icons';
 import { NOT_DOWNLOADED_YET, PLAY_OFFLINE_HINT } from '../offline-wording';
+import { viewportWidth } from '../ui-scale';
 
 type El = HTMLElement;
 
@@ -658,7 +659,7 @@ export function renderQr(canvas: HTMLCanvasElement, text: string): void {
 
     // Upscale a small crisp bitmap to a large display box — do NOT draw a big
     // bitmap and clamp it down (the v1 bug: ~2 px/module, unscannable).
-    const vw = typeof window !== 'undefined' ? window.innerWidth : QR_MAX_PX;
+    const vw = typeof window !== 'undefined' ? viewportWidth() : QR_MAX_PX; // local px (ui-scale.md)
     const displayPx = Math.min(QR_MAX_PX, Math.round(vw * 0.92));
     canvas.style.width = `${displayPx}px`;
     canvas.style.height = `${displayPx}px`;

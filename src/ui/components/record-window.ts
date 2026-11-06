@@ -9,6 +9,7 @@ import styles from '../styles/record-window.module.css';
 import { UI_ICONS } from './ui-icons';
 import { encodeFailureText } from '../encode-failure';
 import { clamp01 } from '../../utils/math';
+import { viewportWidth } from '../ui-scale';
 
 /**
  * The free-form recorder's floating transport (record-window.md).
@@ -308,7 +309,7 @@ export function createRecordWindowLauncher(
       // Every window shares one default position and z-index with no
       // bring-to-front, so a fourth would open exactly on top of the other
       // three (floating-window.md). Offset it.
-      initial: { left: Math.max(24, Math.round(window.innerWidth / 2 - 220)), top: 148 },
+      initial: { left: Math.max(24, Math.round(viewportWidth() / 2 - 220)), top: 148 },
       onClose: () => { syncTimer(); },
       // Supplied unconditionally, but a no-op while idle: an idle window must
       // close instantly rather than making you dismiss a dialog for nothing.

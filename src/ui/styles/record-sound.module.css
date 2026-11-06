@@ -1,5 +1,5 @@
 @layer components {
-  .modal { width: min(680px, 94vw); }
+  .modal { width: min(680px, calc(94vw / var(--ui-zoom, 1))); }
 
   .text {
     margin-top: 14px;

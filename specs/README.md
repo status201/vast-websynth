@@ -353,6 +353,7 @@ specs/
     live-fx-window.md  ·  floating "LIVE FX" window: DJ controls reachable off the Song tab
     typography.md      ·  the type rule: serif is display, sans is content, mono is readouts
     ui-themes.md       ·  named looks (Dark/Light/Pastel/Vibrant/High contrast): every colour is a role token
+    ui-scale.md        ·  device-scoped UI zoom (50–150%): viewport tag on touch, CSS zoom elsewhere; breakpoints are @container
     iconography.md     ·  the icon rule: a glyph that labels a control is inline SVG, never a font character
     css-cascade-layers.md ·  every stylesheet declares its @layer; import order never decides the cascade
     brand.md           ·  the VAST / G1-J8 / tagline block, shared by header + modals

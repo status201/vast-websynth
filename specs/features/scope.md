@@ -169,7 +169,7 @@ The rest of the design follows from what each view is for:
   E2E assert without a 2D context.)
 - **REQ-no-per-frame-layout-read** (performance) — The redraw loop must do **no
   per-frame layout read and no per-frame DOM mutation**: the canvas bitmap is
-  sized from a `ResizeObserver` (cached CSS box + dpr), not by reading
+  sized from a `ResizeObserver` (cached CSS box + backing scale), not by reading
   `clientWidth`/`clientHeight` inside the rAF loop, and the `dataset` mirror
   only writes on change (REQ-the-scope-canvas-carries-a-testid). So an animated
   scope costs a single composited canvas raster, not a full page
@@ -809,7 +809,9 @@ DOUBLE_TAP_MS: 350     # ms window for the hand-rolled double-tap
     `destroy()` and `rebuildCanvas()` share, so no listener is added in one place and
     forgotten in another.
 - **Sizing (REQ-no-per-frame-layout-read):** a `ResizeObserver` reads the CSS size
-  and `devicePixelRatio`, resizes the bitmap only on change, and caches both; the rAF
+  and `backingScale()` (`devicePixelRatio` × the UI scale, no DOM read;
+  [ui-scale](ui-scale.md) REQ-canvases-stay-sharp-at-any-scale), resizes the bitmap
+  only on change, and caches both. A UI-scale change re-measures once; the rAF
   loop reads the cache (measure-on-draw where there is no observer, as in jsdom).
   The bezel lives on the static `.scopeScreen` underlay, not on the animated canvas.
   `dataset` mirrors are written on change only.

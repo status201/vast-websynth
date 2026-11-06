@@ -112,6 +112,7 @@ Vanilla TypeScript + Vite, zero runtime dependencies.
 - **Oscilloscope / spectrum display** (mono or stereo, with a max-dB peak-hold readout). The spectrum reads on a **log frequency scale** marked at 100 / 500 / 1k / 5k / 10k Hz — hover it to read the exact frequency under the pointer, or hit **Zones** to shade the four bands that usually need fixing (mud, boxy, nasal, harsh). Plus pitch-bend and mod wheels
 - **Performance mode**: three tiers (Weak / Medium / Strong, or Auto) that scale latency, polyphony, effect cost (reverb tail length, Dirt oversampling, transport look-ahead) and the visualiser's frame rate to your device — keeping audio glitch-free on slow hardware while keeping latency low on fast machines
 - **UI themes**: Vibrant (the default: teal, red and peach), Dark (the original walnut and amber), Light (screens stay dark, like hardware), Pastel (each synth section its own painted colour) and High contrast (7:1 or better throughout), or Auto to follow the system. Chosen per device in **Settings**, and applied before the first frame, so a reload never flashes the wrong colours
+- **UI size**: zoom the whole interface from 50% to 150% in the browser's zoom steps — what Ctrl +/− does on a desktop, on phones and tablets too. Chosen per device in **Settings**, applied before the first frame, and the layout reflows into the space it leaves
 - **Install it as an app**: add to your homescreen / install from the browser menu and VAST behaves like a native instrument — it **works offline**: press **Play offline** in Help & About to save every demo, dialog and help page on the device, and new versions update that copy by themselves, launches fullscreen on Android, **keeps the screen awake while the audio runs**, opens `.json`/`.websynth.zip` song files directly (desktop), stays audible with the iPhone mute switch on (iOS 17+), and there's a fullscreen toggle in the header for browser play too
 - **Problem reports without a console**: Help & About ▸ Debug shows the app's last uncaught errors, **Copy report** includes them, and on a device that can share, **Share report** sends the report straight to another app
 
@@ -198,7 +199,7 @@ npm run bench:audio                        # render takes through the real engin
 npm run bench:metrics -- bench/take.wav    # measure a rendered take (--compare a/b for A/B)
 
 # Cost — audio thread and main thread, in Chromium (runtime-performance.md)
-npm run bench:perf                         # ten fixed scenarios; --name saves a run, --compare a b diffs two
+npm run bench:perf                         # eleven fixed scenarios; --name saves a run, --compare a b diffs two
 
 # MCP server (see MCP server below)
 npm run start:mcp:http # serve the HTTP transport on 127.0.0.1:8787
@@ -373,6 +374,7 @@ src/
                      found at build time, fetched when clicked
     perf-mode.ts     performance-mode preference + device-tier detection
     theme.ts         UI theme registry + the stored choice (applied pre-paint by public/theme-boot.js)
+    ui-scale.ts      UI zoom stops + the stored choice (applied pre-paint by the same script)
     tempo-lock.ts    which knobs can be locked to the grid, and in what unit
   utils/             dependency-free helpers importable from any layer: zip codec,
                      deflate-raw streams, param tapers, scale/chord theory,

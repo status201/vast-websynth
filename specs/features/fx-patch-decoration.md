@@ -84,7 +84,7 @@ fx-patch-decoration.ts:
     # exactly two inline <svg> layers (cables, lead). No options, no state, no disposer.
 fx-rack.ts buildFxRack: after the panels,
   if (fx.childElementCount % 2 === 1) import(fx-patch-decoration).then(append)
-fx-rack.module.css: .fxRow's @media (max-width: 992px) rule is the breakpoint mirrored
+fx-rack.module.css: .fxRow's @container viewport (max-width: 992px) rule is the breakpoint mirrored
 collapse: inside .fxRow, so .fxSection.collapsed .fxRow { display: none } hides it
 ```
 

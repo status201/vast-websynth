@@ -1,6 +1,7 @@
 import styles from '../styles/resize-handle.module.css';
 import { LONG_DOUBLE_TAP_MS as DOUBLE_TAP_MS } from './gesture-timing';
 import { UI_ICONS } from './ui-icons';
+import { toLocal } from '../ui-scale';
 
 /**
  * The shared resize grip — the ARIA window-splitter (specs/features/resize-handle.md).
@@ -284,7 +285,9 @@ export class ResizeHandle {
 
   private onPointerMove = (e: PointerEvent): void => {
     if (!this.dragging) return;
-    const next = this.clamp(this.startValue + this.dir.grow(e.clientX - this.startX, e.clientY - this.startY));
+    // The pointer moves in viewport px, the size is local px (ui-scale.md
+    // REQ-coordinates-are-converted-at-the-read), so the grip stays under the finger.
+    const next = this.clamp(this.startValue + this.dir.grow(toLocal(e.clientX - this.startX), toLocal(e.clientY - this.startY)));
     if (next === this.current && !this.moved) return;
     this.moved = true;
     this.schedule(next);

@@ -56,7 +56,7 @@
 
   /* Phones: the grid would crush three controls into ~110px each, well under the
      44px touch target once padding is counted. Stack instead (ADR-014 law 6). */
-  @media (max-width: 560px) {
+  @container viewport (max-width: 560px) {
     .matrix { min-width: 0; }
     .row {
       grid-template-columns: 1fr 44px;

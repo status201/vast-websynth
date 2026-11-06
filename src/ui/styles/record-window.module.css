@@ -9,7 +9,7 @@
     gap: 10px;
     /* The window is shrink-to-fit (floating-window sets only a min-width), and
        the PAUSED status line is the widest thing in here. */
-    max-width: min(92vw, 460px);
+    max-width: min(calc(92vw / var(--ui-zoom, 1)), 460px);
   }
 
   .row {

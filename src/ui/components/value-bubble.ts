@@ -1,4 +1,5 @@
 import styles from '../styles/value-bubble.module.css';
+import { localRect, viewportWidth } from '../ui-scale';
 
 /**
  * A transient value readout pinned above the control under the pointer, for
@@ -53,14 +54,16 @@ export function showValueBubble(
   }
   bubble.classList.toggle(styles.peek!, !!opts.peek);
 
-  const a = anchor.getBoundingClientRect();
+  // Local px: left/top are lengths the UI scale's zoom applies to (ui-scale.md
+  // REQ-coordinates-are-converted-at-the-read); offsetWidth already is.
+  const a = localRect(anchor.getBoundingClientRect());
   // offsetWidth/Height are 0 under jsdom (no layout); the clamps below then
   // simply resolve to the anchor's own edges, which is harmless.
   const w = bubble.offsetWidth;
   const h = bubble.offsetHeight;
 
   let left = a.left + a.width / 2 - w / 2;
-  const maxLeft = window.innerWidth - w - MARGIN_PX;
+  const maxLeft = viewportWidth() - w - MARGIN_PX;
   if (left > maxLeft) left = maxLeft;
   if (left < MARGIN_PX) left = MARGIN_PX;
 

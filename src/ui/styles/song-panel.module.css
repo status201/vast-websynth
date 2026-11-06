@@ -27,7 +27,7 @@
     row-gap: 8px; /* the gap between the cards' internal rows (was .lane's flex gap) */
   }
 
-  @media (max-width: 992px) {
+  @container viewport (max-width: 992px) {
     .chains {
       grid-template-columns: repeat(2, 1fr);
     }
@@ -100,7 +100,7 @@
   /* Phones (machine-status.md REQ-the-navigation-link-is-visible-at-rest v3): the cards are already two-up by 992px, so
      the glyph is spending width the machine's NAME needs. It exists to replace a
      hover affordance, which a touch device hasn't got anyway. */
-  @media (max-width: 720px) {
+  @container viewport (max-width: 720px) {
     .arrow {
       display: none;
     }
@@ -334,7 +334,7 @@
   /* Wide (> 1280px, the same boundary the rest of the panel uses): the two share
      one row, pinned to the outer edges, so the widest section of the tab stops
      costing two rows of height. The pair carries the single dashed rule. */
-  @media (min-width: 1281px) {
+  @container viewport (min-width: 1281px) {
     .ioPair {
       display: flex;
       align-items: center;

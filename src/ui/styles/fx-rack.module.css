@@ -142,16 +142,16 @@
        < 1320px   the equal-column fallback above; knob rows wrap.
      The ~40px of headroom at each step is deliberate: a panel at its floor
      reads cramped. A new knob in any panel moves these numbers — re-measure. */
-  @media (min-width: 1320px) {
+  @container viewport (min-width: 1320px) {
     .fxRow { grid-template-columns: repeat(6, minmax(min-content, 1fr)); }
     .fxPanel { min-width: auto; }
     .fxKnobs { flex-wrap: nowrap; }
   }
-  @media (min-width: 1320px) and (max-width: 1409px) {
+  @container viewport (min-width: 1320px) and (max-width: 1409px) {
     .fxRow { --knob-size: 40px; }
   }
 
-  @media (max-width: 992px) {
+  @container viewport (max-width: 992px) {
     /* An odd effect count in two columns leaves the last cell empty; the
        patch-cable decoration fills it. Six effects divide evenly, so it is
        currently absent. fx-patch-decoration.module.css mirrors this breakpoint
