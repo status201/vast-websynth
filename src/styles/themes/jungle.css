@@ -105,6 +105,10 @@
     --playing: #d6a2ad;
     --lit-accent: #d6a2ad;
     --lit-accent-ink: #1c1418;
+    /* A lit DJ button is a sunset, pale khaki warming into rose: Old Rose over
+       the lit step's dark teal went muddy where they met. */
+    --dj-lit-top: #ddd0b8;
+    --dj-lit-bottom: #c98e9a;
 
     /* ===== Keyboard ===== */
     --key-bed: linear-gradient(180deg, #182a30 0%, #263a41 100%);

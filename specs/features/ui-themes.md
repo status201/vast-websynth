@@ -252,7 +252,9 @@ Fonts are system stacks only — the app bundles no font file
   each other (khaki on Jungle Teal is 1.8:1), so it takes Pastel's model: a deep
   Blue Slate chassis between Jungle Teal cheeks, Khaki Beige faceplates, and dark
   slate legends on them. Each palette colour is a **fill**: Jungle Teal is a lit
-  step, Old Rose an accented one, Muted Olive a tie. Where a colour has to be type,
+  step, Old Rose an accented one, Muted Olive a tie, and a lit DJ button is pale
+  khaki warming into rose (Old Rose over the lit step's dark teal went muddy where
+  the two met). Where a colour has to be type,
   the accent and "selected", it is the same hue darkened until it reads (a deep
   rose, a deep slate). Its text meets Light's bar on every surface. Screens stay
   dark. Display type is a humanist sans.
@@ -315,7 +317,7 @@ under these roles (by REQ-tokens-are-named-by-role):
 | `--accent*`, `--led-*`, `--lip` | the accent voice, status LEDs and a lit LED's halo (`--led-glow`), the catch-light along a control's top lip |
 | `--well*`, `--tray`, `--recess*`, `--raised*`, `--menu*`, `--handle-*` | control surfaces: a button's bed, the bed a row of buttons sits in, a tab strip's bed, a selected control, a popover, a grip |
 | `--switch-on-*`, `--play-on-ink` | a switch that is on: its bed and its ink, and the Play switch's legend while playing (REQ-an-on-switch-reads-as-on) |
-| `--lit*`, `--ink*`, `--playing` | a lit (on) control in its three colours (accent, bad, warm), the dark type printed on a lit fill, the accent as a lit fill with type on it (`--lit-accent`, `--lit-accent-ink`: a DJ button that is on, the info badge), and the bar the playhead is in (inked with `--ink-strong`) |
+| `--lit*`, `--ink*`, `--playing` | a lit (on) control in its three colours (accent, bad, warm), the dark type printed on a lit fill, the accent as a lit fill with type on it (`--lit-accent`, `--lit-accent-ink`: the info badge), a lit DJ button's gradient (`--dj-lit-top` → `--dj-lit-bottom`, inked with `--ink`; by default the accent into the lit step's foot), and the bar the playhead is in (inked with `--ink-strong`) |
 | `--key-*` | the playable keyboard and the musical-role colours |
 | `--screen*`, `--patch-*`, `--cable-*` | display windows, the FX patch bay and its cables |
 | `--keycap*` | the About card's shortcut keycaps and their legends |

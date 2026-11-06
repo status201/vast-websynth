@@ -70,6 +70,7 @@ const INKED_FILLS: [ink: string, fill: string][] = [
   ['--keycap-ink', '--keycap'],
   ['--keycap-sharp-ink', '--keycap'],
   ['--ink', '--lit-accent'],
+  ['--ink', '--dj-lit-top'],
   ['--lit-accent-ink', '--lit-accent'],
 ];
 

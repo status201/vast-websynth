@@ -176,6 +176,11 @@
        info badge — and that type. Dark's accent is bright enough to be both. */
     --lit-accent: var(--accent);
     --lit-accent-ink: var(--bg-deep);
+    /* A lit DJ button's gradient (the Song panel's FOLLOW, the live FX), inked
+       with --ink. Its own pair so a theme can blend two colours that suit each
+       other, rather than whatever its accent and its lit step's foot happen to be. */
+    --dj-lit-top: var(--lit-accent);
+    --dj-lit-bottom: var(--lit-bottom);
 
     /* ===== Keyboard ===== */
     --key-bed: linear-gradient(180deg, #0a0604 0%, #1a0e08 100%);
