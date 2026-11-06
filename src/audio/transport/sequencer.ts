@@ -260,12 +260,13 @@ export class StepSequencer {
       // Each sub-hit bends over its own gate (step-settings.md REQ-every-sub-hit-re-bends);
       // a step at bend 0 passes no bend at all.
       const opts: NoteOptions = { pan: st.pan, panGroup: st.index, bend: stepBend(s, h) };
-      // The continued note follows this step's velocity across the step
-      // (REQ-a-tie-continues-the-note-without-retriggering): the lane's own step
-      // length, so a 1/8 lane glides over its longer step.
+      // The continued note follows this step's velocity across the time it sounds
+      // in the step (REQ-a-tie-continues-the-note-without-retriggering): until the
+      // next sub-hit strikes, or its own release, or — tying on — the whole step,
+      // the lane's own length, so a 1/8 lane glides over its longer step.
       if (continues && i === 0) {
         opts.legatoFrom = st.lastPlayedNote;
-        opts.legatoGlide = cellDur;
+        opts.legatoGlide = hits.length > 1 ? hits[1]!.t - h.t : h.holds ? cellDur : h.gateEnd - h.t;
       }
       this.output.playNote(note, s.velocity, h.t, opts);
       // The final sub-hit holds (no release) when the step ties into the next.

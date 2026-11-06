@@ -127,7 +127,7 @@ has a use for it.
     removes it.
   - The cost: while the page really does scroll, the keys are sized for ~17px
     more width than they have, which is under 1px of height.
-- **REQ-the-observer-watches-only-what-its-write-cannot-resize** — (v4) **The
+- **REQ-the-observer-watches-only-what-its-write-cannot-resize** — **The
   observer watches a zero-height sizer, not the keyboard.** The sizer is an
   empty block in `.keyboardWrap` before the keys, so its width is the keyboard's
   border-box width and its height is always 0; the keys' content width is that

@@ -116,7 +116,7 @@ export class Polyphony {
     }
 
     if (from !== undefined) {
-      if (this.continueNote(from, note, velocity, t, base, opts?.legatoGlide)) return;
+      if (this.continueNote(from, note, velocity, t, { ...base, levelGlide: opts?.legatoGlide })) return;
       // Its voices are gone — stolen by another note. Whatever still claims the
       // old note goes, so the caller never strands it, and this one strikes.
       if (from !== note) this.releaseNote(from, t);
@@ -153,15 +153,13 @@ export class Polyphony {
    * Sharing one entry is the same collapse two tracks on one pitch already make
    * (sequencer.md REQ-two-tracks-on-one-pitch-share-a-pan).
    */
-  private continueNote(
-    from: number, note: number, velocity: number, t: number, base: VoiceNoteOptions, levelGlide?: number,
-  ): boolean {
+  private continueNote(from: number, note: number, velocity: number, t: number, base: VoiceNoteOptions): boolean {
     const vs = this.heldNotes.get(from);
     if (!vs || vs.length === 0 || vs.some((v) => v.state !== 'playing')) return false;
     this.heldNotes.delete(from);
     for (let i = 0; i < vs.length; i++) {
       vs[i]!.noteOn(note, velocity, t, {
-        ...base, detuneCents: this.unisonOffset(i, vs.length), retriggerAmp: false, retriggerFil: false, levelGlide,
+        ...base, detuneCents: this.unisonOffset(i, vs.length), retriggerAmp: false, retriggerFil: false,
       });
     }
     const joined = this.heldNotes.get(note);

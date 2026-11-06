@@ -420,26 +420,37 @@ describe('Voice noteOn without a retrigger (REQ-a-legato-note-takes-over-the-hel
     expect(voice.noteOnAt).toBe(0);
   });
 
+  /** Every automation call written to an envelope's gain, as one count. */
+  const writes = (env: Voice['ampEnv']) => {
+    const g = env.out.gain as unknown as Record<'setValueAtTime' | 'setTargetAtTime' | 'cancelScheduledValues', ReturnType<typeof vi.fn>>;
+    return g.setValueAtTime.mock.calls.length + g.setTargetAtTime.mock.calls.length
+      + g.cancelScheduledValues.mock.calls.length;
+  };
+
   it('a ramp follows from where the last step left it, not from the first strike', async () => {
     const { voice } = await build();
     const ampScale = vi.spyOn(voice.ampEnv, 'rescale');
     voice.noteOn(60, 0.2, 0);
     voice.noteOn(60, 0.4, 0.15, { ...CONTINUE, levelGlide: 0.15 });
-    voice.noteOn(60, 0.4, 0.30, { ...CONTINUE, levelGlide: 0.15 }); // unchanged: nothing
+    const before = writes(voice.ampEnv);
+    voice.noteOn(60, 0.4, 0.30, { ...CONTINUE, levelGlide: 0.15 }); // unchanged: nothing reaches the gain
+    expect(writes(voice.ampEnv)).toBe(before);
     voice.noteOn(60, 0.6, 0.45, { ...CONTINUE, levelGlide: 0.15 });
-    expect(ampScale.mock.calls.map(([t, peak]) => [t, peak])).toEqual([[0.15, 0.4], [0.45, 0.6]]);
+    expect(ampScale.mock.calls.map(([t, peak]) => [t, peak])).toEqual([[0.15, 0.4], [0.30, 0.4], [0.45, 0.6]]);
+    expect(writes(voice.ampEnv)).toBeGreaterThan(before);
   });
 
   it('writes nothing at an unchanged velocity, or with no levelGlide', async () => {
     const { voice } = await build();
-    const ampScale = vi.spyOn(voice.ampEnv, 'rescale');
-    const filScale = vi.spyOn(voice.filEnv, 'rescale');
+    voice.setFilterVelAmount(1);
     const velGlide = voice.velocitySource.offset.setTargetAtTime as unknown as ReturnType<typeof vi.fn>;
     voice.noteOn(60, 0.5, 0);
+    const amp0 = writes(voice.ampEnv);
+    const fil0 = writes(voice.filEnv);
     voice.noteOn(60, 0.5, 0.15, { ...CONTINUE, levelGlide: 0.15 }); // same velocity
     voice.noteOn(64, 0.9, 0.30, CONTINUE);                           // a single-trigger overlap
-    expect(ampScale).not.toHaveBeenCalled();
-    expect(filScale).not.toHaveBeenCalled();
+    expect(writes(voice.ampEnv)).toBe(amp0);
+    expect(writes(voice.filEnv)).toBe(fil0);
     expect(velGlide).not.toHaveBeenCalled();
   });
 
@@ -451,5 +462,40 @@ describe('Voice noteOn without a retrigger (REQ-a-legato-note-takes-over-the-hel
     voice.noteOn(60, 0.6, 0.15, { retriggerAmp: false, levelGlide: 0.15 }); // filter re-sweeps
     expect(ampScale).toHaveBeenCalledTimes(1);
     expect(filScale).not.toHaveBeenCalled();
+  });
+
+  // Code review: one shared velocity gated both envelopes, so after a
+  // single-trigger overlap struck only the filter, a tie back to the remembered
+  // velocity left the filter at the overlap's peak.
+  it('each envelope follows from its own peak, after a split strike (regression)', async () => {
+    const { voice } = await build();
+    voice.setFilterVelAmount(1);
+    const filScale = vi.spyOn(voice.filEnv, 'rescale');
+    voice.noteOn(60, 0.5, 0);                                     // both struck at 0.5
+    voice.noteOn(64, 1.0, 0.15, { retriggerAmp: false });         // amp single: only the filter strikes, at 1.0
+    const fil0 = writes(voice.filEnv);
+    voice.noteOn(64, 0.5, 0.30, { ...CONTINUE, levelGlide: 0.15 }); // a tie back to 0.5
+    expect(filScale).toHaveBeenCalledWith(0.30, 0.5, expect.closeTo(0.05, 12));
+    expect(writes(voice.filEnv)).toBeGreaterThan(fil0);           // the filter does follow
+  });
+
+  // Code review: a glide queued for a later step must not carry onto a note
+  // struck before it (a live key on the same voice).
+  it('a strike cancels a velocity glide queued after it, anchored by its own value', async () => {
+    const { voice } = await build();
+    const vel = voice.velocitySource.offset as unknown as Record<'setValueAtTime' | 'cancelScheduledValues', ReturnType<typeof vi.fn>>;
+    voice.noteOn(60, 0.2, 0);
+    voice.noteOn(60, 0.9, 0.09, { ...CONTINUE, levelGlide: 0.125 }); // queued at 0.09
+    voice.noteOn(62, 0.4, 0.01);                                     // struck before it
+    expect(vel.cancelScheduledValues).toHaveBeenLastCalledWith(0.01);
+    expect(vel.setValueAtTime).toHaveBeenLastCalledWith(0.4, 0.01);
+  });
+
+  it('a strike with no glide queued writes the velocity exactly as before (no cancel)', async () => {
+    const { voice } = await build();
+    const vel = voice.velocitySource.offset as unknown as Record<'cancelScheduledValues', ReturnType<typeof vi.fn>>;
+    voice.noteOn(60, 0.2, 0);
+    voice.noteOn(62, 0.4, 0.2);
+    expect(vel.cancelScheduledValues).not.toHaveBeenCalled();
   });
 });

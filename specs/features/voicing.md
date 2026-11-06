@@ -127,7 +127,10 @@ for bass and leads, poly for chords, unison for a fat stack, and per-voice
   `legatoGlide` rides along as the voice's `levelGlide`: a new velocity rescales both
   envelopes and glides the velocity source over it ([envelopes](envelopes.md)
   REQ-a-continued-note-rescales-without-restarting), and an unchanged one writes
-  nothing. Only a continuation carries it — a single-trigger overlap below never
+  nothing. Each envelope compares against **its own** peak, since a single-trigger
+  switch on one of them can leave the two struck at different velocities. A strike
+  cancels a velocity-source glide still queued after it (anchored by the strike's
+  own value), so a live note never inherits a sequenced step's velocity. Only a continuation carries it — a single-trigger overlap below never
   does, so live legato playing keeps its first strike's level. A tie continues both envelopes whatever the trigger switches below say. If `note` is already held by something else (another sequencer track on that
   pitch), the voices **join** its entry, which is the same collapse
   REQ-two-tracks-on-one-pitch-share-a-pan records. When the voices are gone, it

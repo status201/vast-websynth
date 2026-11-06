@@ -38,9 +38,14 @@ export class Envelope {
 
   // Chronological mirror of everything scheduled on out.gain.
   private events: EnvEvent[] = [{ time: 0, value: 0 }];
-  /** The last strike's peak and where its attack ends — what `rescale` re-aims. */
-  private peak = 0;
-  private attackEnd = 0;
+  /**
+   * The sounding strike, as it was struck — what `rescale` re-aims. Null when
+   * never struck, or released or cut since: there is nothing to rescale then.
+   * Its own phase times, so a knob turned since cannot move this note's phases.
+   */
+  private struck: {
+    peak: number; attackEnd: number; attack: number; decay: number; sustain: number;
+  } | null = null;
 
   constructor(private readonly ctx: AudioContext) {
     this.source = ctx.createConstantSource();
@@ -59,42 +64,51 @@ export class Envelope {
   /** Trigger attack/decay phases. Picks up from the curve's value at `when`. */
   trigger(when: number, peak = 1): void {
     const t = this.anchor(when);
-    this.peak = peak;
-    this.attackEnd = t + this.attack;
-    this.setTarget(peak, t, phaseTau(this.attack));
-    this.setTarget(peak * this.sustain, this.attackEnd, phaseTau(this.decay));
+    const { attack, decay, sustain } = this;
+    this.struck = { peak, attackEnd: t + attack, attack, decay, sustain };
+    this.setTarget(peak, t, phaseTau(attack));
+    this.setTarget(peak * sustain, t + attack, phaseTau(decay));
   }
 
   /**
    * Move a sounding envelope to the level a strike at `peak` would have at its
    * current phase, without a new attack (envelopes.md
    * REQ-a-continued-note-rescales-without-restarting). In the attack, the attack
-   * aims at the new peak and the decay keeps its start; past it, the level moves
-   * to the new sustain over `tau` — or the decay's own time constant while the
-   * decay is still running and slower. An unchanged peak schedules nothing.
+   * aims at the new peak and the decay keeps its start; in the decay, the decay
+   * aims at the new sustain on its own time constant; in the sustain, the level
+   * moves there over `tau`. Nothing is scheduled at an unchanged peak, past the
+   * attack at sustain 0, or on an envelope that is not sounding.
    */
   rescale(when: number, peak: number, tau: number): void {
-    if (peak === this.peak) return;
+    const s = this.struck;
+    if (!s || peak === s.peak) return;
+    const inAttack = Math.max(when, this.ctx.currentTime) < s.attackEnd;
+    // Past the attack at sustain 0 the target is 0 at any peak: a pluck decays as struck.
+    if (!inAttack && s.sustain === 0) { s.peak = peak; return; }
     const t = this.anchor(when);
-    this.peak = peak;
-    if (t < this.attackEnd) {
-      this.setTarget(peak, t, phaseTau(this.attack));
-      this.setTarget(peak * this.sustain, this.attackEnd, phaseTau(this.decay));
+    s.peak = peak;
+    if (inAttack) {
+      this.setTarget(peak, t, phaseTau(s.attack));
+      this.setTarget(peak * s.sustain, s.attackEnd, phaseTau(s.decay));
       return;
     }
-    const decaying = t < this.attackEnd + this.decay;
-    const glide = decaying ? Math.max(tau, phaseTau(this.decay)) : tau;
-    this.setTarget(peak * this.sustain, t, Math.max(glide, phaseTau(MIN_PHASE_SECONDS)));
+    // A running decay keeps its own time constant: re-aiming a memoryless segment
+    // from where it is, on the same constant, retraces the decay exactly.
+    const decaying = t < s.attackEnd + s.decay;
+    const glide = decaying ? phaseTau(s.decay) : Math.max(tau, phaseTau(MIN_PHASE_SECONDS));
+    this.setTarget(peak * s.sustain, t, glide);
   }
 
   /** Trigger release phase. */
   release_(when: number): void {
+    this.struck = null;
     const t = this.anchor(when);
     this.setTarget(0, t, phaseTau(this.release));
   }
 
   /** Fast cut to silence (voice stealing) — the external-cut entry point. */
   cutFast(when: number, tau = 0.003): void {
+    this.struck = null;
     const t = this.anchor(when);
     this.setTarget(0, t, tau);
   }

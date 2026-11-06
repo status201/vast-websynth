@@ -1,6 +1,6 @@
 import { Osc } from './oscillator';
 import { Envelope } from './envelope';
-import { phaseTau } from '../utils/envelope-curve';
+import { MIN_PHASE_SECONDS, phaseTau } from '../utils/envelope-curve';
 import { LadderFilterNode } from './ladder-filter/node';
 import { clamp, midiToHz, clamp01 } from '../utils/math';
 import { rampTo, RAMP_FAST, RAMP_MEDIUM, RAMP_BYPASS } from './param-utils';
@@ -35,8 +35,9 @@ export interface VoiceNoteOptions {
   pan?: number;
   panGroup?: number;
   bend?: NoteBend;
-  /** false = the amp envelope runs on, and the first strike's velocity and
-   *  `noteOnAt` stand (voicing.md REQ-a-legato-note-takes-over-the-held-voices,
+  /** false = the amp envelope runs on: `noteOnAt` stays the first strike's, and
+   *  so does its velocity unless `levelGlide` asks the note to follow the new one
+   *  (voicing.md REQ-a-legato-note-takes-over-the-held-voices,
    *  REQ-single-trigger-legatos-a-mono-line). Default true. */
   retriggerAmp?: boolean;
   /** false = the filter envelope runs on. Default true. */
@@ -132,8 +133,10 @@ export class Voice {
   state: VoiceState = 'idle';
   noteOnAt = 0;
   noteOffAt = 0;
-  /** The velocity the sounding note is at — its strike's, or the last one a legato tie glided to. */
+  /** The velocity source's value — the amp strike's, or the last one a legato tie glided it to. */
   private velocity = 0;
+  /** When the last velocity-source glide starts; a strike before it cancels it. */
+  private velocityGlideAt = -Infinity;
 
   private readonly ctx: AudioContext;
   private glideTime = 0;
@@ -440,26 +443,32 @@ export class Voice {
     // A legato tie (`levelGlide`) still FOLLOWS a new velocity: each continued
     // envelope is rescaled to that velocity's level over the step, and the
     // velocity source glides with it (envelopes.md
-    // REQ-a-continued-note-rescales-without-restarting). An unchanged velocity
-    // writes nothing. Gliding the source needs no cancel: a later strike's
-    // setValueAtTime simply ends the target.
+    // REQ-a-continued-note-rescales-without-restarting). Each envelope compares
+    // its own peak, so an unchanged velocity writes nothing even when a
+    // single-trigger switch struck the two at different velocities.
     const glide = opts?.levelGlide;
-    const follows = glide !== undefined && velocity !== this.velocity;
-    const tau = follows ? phaseTau(glide) : 0;
+    const tau = glide === undefined ? 0 : phaseTau(Math.max(glide, MIN_PHASE_SECONDS));
+    const vel = this.velocitySource.offset;
     if (retriggerAmp) {
+      // A glide queued after this strike would carry a sequenced step's velocity
+      // onto this note; cancelled here, anchored by the strike's own value.
+      if (this.velocityGlideAt >= when) vel.cancelScheduledValues(when);
+      vel.setValueAtTime(velocity, when);
       this.velocity = velocity;
-      this.velocitySource.offset.setValueAtTime(velocity, when);
       this.ampEnv.trigger(when, Math.max(0.01, velocity));
-    } else if (follows) {
-      this.velocitySource.offset.setTargetAtTime(velocity, when, tau);
+    } else if (glide !== undefined) {
+      if (velocity !== this.velocity) {
+        vel.setTargetAtTime(velocity, when, tau);
+        this.velocity = velocity;
+        this.velocityGlideAt = when;
+      }
       this.ampEnv.rescale(when, Math.max(0.01, velocity), tau);
     }
     if (retriggerFil) {
       this.filEnv.trigger(when, this.filPeak(velocity));
-    } else if (follows) {
+    } else if (glide !== undefined) {
       this.filEnv.rescale(when, this.filPeak(velocity), tau);
     }
-    if (follows) this.velocity = velocity;
   }
 
   /**

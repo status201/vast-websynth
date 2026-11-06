@@ -341,7 +341,7 @@ describe('StepSequencer', () => {
     // The next step continues 60 as 64 — the pool hands the voice over — and
     // nothing here releases 60: the pool owns that, fallback included.
     expect(playNote).toHaveBeenLastCalledWith(64, expect.any(Number), 0.125,
-      { pan: 0, panGroup: 0, legatoFrom: 60, legatoGlide: 0.125 });
+      { pan: 0, panGroup: 0, legatoFrom: 60, legatoGlide: 0.0625 }); // released at gate 0.5
     expect(releaseNote.mock.calls.filter(([n]) => n === 60)).toEqual([]);
   });
 
@@ -357,7 +357,7 @@ describe('StepSequencer', () => {
     clock.fireTick(0);
     clock.fireTick(0.125);
     expect(playNote).toHaveBeenLastCalledWith(60, expect.any(Number), 0.125,
-      { pan: 0, panGroup: 0, legatoFrom: 60, legatoGlide: 0.125 });
+      { pan: 0, panGroup: 0, legatoFrom: 60, legatoGlide: 0.0625 }); // released at gate 0.5
     // Its one release is its own gate end, never anything between the two steps.
     expect(releaseNote.mock.calls).toEqual([[60, 0.125 + 0.0625]]);
   });
@@ -376,28 +376,32 @@ describe('StepSequencer', () => {
     const froms = playNote.mock.calls.map(([, , , o]) => (o as { legatoFrom?: number }).legatoFrom);
     expect(froms).toEqual([60, undefined, undefined]);
     const glides = playNote.mock.calls.map(([, , , o]) => (o as { legatoGlide?: number }).legatoGlide);
-    expect(glides).toEqual([0.125, undefined, undefined]);
+    // The first sub-hit sounds until the second strikes: a third of the step.
+    expect(glides[0]).toBeCloseTo(0.125 / 3, 12);
+    expect(glides.slice(1)).toEqual([undefined, undefined]);
   });
 
   // REQ-a-tie-continues-the-note-without-retriggering: a tied run follows its
   // steps' velocities — the regression was a crescendo written across ties that
   // stayed at its first step's level.
-  it('a tied crescendo hands every tied-into step its velocity and the step length (regression)', () => {
+  it('a tied crescendo hands every tied-into step its velocity and the time it sounds (regression)', () => {
     const { clock, patterns, arrangement, perf } = makeTransportRig();
     const playNote = vi.fn();
     const seq = new StepSequencer({ playNote, releaseNote: vi.fn() }, clock, patterns, arrangement, perf);
     seq.setEnabled(true);
     const vels = [0.2, 0.3, 0.4, 0.5];
-    vels.forEach((velocity, i) =>
-      patterns.setSeqStep(0, i, { on: true, note: 60, gate: 1, velocity, tie: i < vels.length - 1 }));
+    // The run ends on a short step: released at a quarter of it.
+    vels.forEach((velocity, i) => patterns.setSeqStep(0, i, {
+      on: true, note: 60, velocity, gate: i < vels.length - 1 ? 1 : 0.25, tie: i < vels.length - 1,
+    }));
     for (let i = 0; i < vels.length; i++) clock.fireTick(i * 0.125);
     const calls = playNote.mock.calls.map(([n, v, , o]) =>
       [n, v, (o as { legatoFrom?: number }).legatoFrom, (o as { legatoGlide?: number }).legatoGlide]);
     expect(calls).toEqual([
       [60, 0.2, undefined, undefined],
-      [60, 0.3, 60, 0.125],
+      [60, 0.3, 60, 0.125],   // tying on: the whole step
       [60, 0.4, 60, 0.125],
-      [60, 0.5, 60, 0.125],
+      [60, 0.5, 60, 0.03125], // released inside the step: its gate, not the step
     ]);
   });
 

@@ -79,19 +79,25 @@ LFO.
   **at its current phase**, without starting a new attack. It is how a legato tie
   follows the tied step's velocity ([sequencer](sequencer.md)
   REQ-a-tie-continues-the-note-without-retriggering).
-  - **In the attack** (before `trigger`'s attack end): the attack aims at the new
+  - **In the attack** (before the strike's attack end): the attack aims at the new
     peak on its own time constant, and the decay still starts at the same attack
     end, aiming at `peak × sustain`.
-  - **Past the attack**: the curve moves to `peak × sustain` with time constant
-    `tau`, or the decay's own if the decay is still running and is slower, so a
-    level change never cuts a decay short.
-  - **At an unchanged peak it schedules nothing**, so a tie whose velocity does not
-    change is bit-identical to one that cannot follow at all.
+  - **In the decay**: the curve aims at the new `peak × sustain` on the **decay's**
+    time constant, so the decay keeps its timing. Aiming at the same target on the
+    same time constant from where the curve already is retraces the original curve
+    exactly (a `setTargetAtTime` segment is memoryless), so a level change neither
+    stretches nor cuts a decay.
+  - **In the sustain**: the curve moves to the new `peak × sustain` over `tau`.
+  - **It schedules nothing** at an unchanged peak (a tie whose velocity does not
+    change is bit-identical to one that cannot follow at all), past the attack
+    when the sustain is 0 (`peak × sustain` is 0 either way: a pluck decays as
+    struck), and on an envelope that is not sounding — never struck, or released
+    or cut since. A silent voice is never faded in without an attack.
+  - The phase times are the ones the strike ran with, so a knob turned since moves
+    the next strike, not this one's phase boundaries.
   - It anchors through the same tracked model as `trigger`
     (REQ-envelope-scheduling-is-future-time-safe), so it is future-time-safe and
-    `valueAt` stays exact. A sustain of 0 leaves nothing to rescale: a decayed
-    pluck stays silent, which is what striking it at the new peak would also give
-    by then.
+    `valueAt` stays exact.
 
 - **REQ-the-envelope-curve-is-one-pure-model** — The shape of a phase lives
   in one pure, DOM-free module, `src/utils/envelope-curve.ts`. A phase's time
@@ -202,6 +208,20 @@ Scenario: A rescale in the attack keeps the attack's timing (v4, REQ-a-continued
 Scenario: An unchanged peak schedules nothing (v4, REQ-a-continued-note-rescales-without-restarting)
   Given a sounding envelope
   When it is rescaled to the peak it was triggered at
+  Then no automation is written to its gain
+# pinned by: tests/audio/envelope.test.ts
+
+Scenario: A rescale in the decay keeps the decay's timing (REQ-a-continued-note-rescales-without-restarting, regression)
+  Given a pluck (sustain 0) still decaying, and a slow level glide
+  When it is rescaled to a new peak
+  Then nothing is scheduled, and with a sustain above 0 the decay aims at the new
+    sustain level on the decay's own time constant, not the glide's
+# Bug (code review): the slower of the two time constants stretched a pluck's decay.
+# pinned by: tests/audio/envelope.test.ts
+
+Scenario: A silent envelope is never rescaled (REQ-a-continued-note-rescales-without-restarting, edge)
+  Given an envelope never struck, or released or cut since its strike
+  When it is rescaled to a new peak
   Then no automation is written to its gain
 # pinned by: tests/audio/envelope.test.ts
 ```

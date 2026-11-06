@@ -85,12 +85,14 @@ scoped to its own visible grid and pinned to one bank.
     `mixer.glide` say. Each track is monophonic, so this holds in **Poly** too: tie
     plus glide slides one track's line without Mono voicing.
   - the step's own **velocity** is followed, not struck: the continued note
-    glides its level **across the whole step** to the level the new velocity
-    would give it — the amp envelope, the filter envelope's velocity-scaled depth
-    and the mod-matrix velocity source alike, each reaching ~95% by the step's end
+    glides its level **across the time it sounds in the step** to the level the new
+    velocity would give it — the amp envelope, the filter envelope's velocity-scaled
+    depth and the mod-matrix velocity source alike, each reaching ~95% by then
     ([envelopes](envelopes.md) REQ-a-continued-note-rescales-without-restarting).
-    The sequencer passes the step's length (`cellDur`, so a 1/8 lane glides over its
-    longer step) as `legatoGlide` with `legatoFrom`. A velocity ramp across a tied
+    The sequencer passes that time as `legatoGlide` with `legatoFrom`: the step's
+    length (`cellDur`, so a 1/8 lane glides over its longer step) when it ties on,
+    its gate when it releases inside the step, and the first sub-hit's span when it
+    ratchets (the next sub-hit strikes anyway). A velocity ramp across a tied
     run is therefore a crescendo, and an unchanged velocity schedules nothing. Its **bend** still
     applies, because the step that sounds defines the pitch ([step-settings](step-settings.md)
     REQ-every-sub-hit-re-bends).
@@ -446,7 +448,8 @@ Scenario: A tie whose voice was stolen still sounds and strands nothing (REQ-a-t
 Scenario: A tied crescendo swells under Legato (REQ-a-tie-continues-the-note-without-retriggering, regression)
   Given seq.tieMode is Legato and a run of same-pitch tied steps whose velocities rise
   When the run plays
-  Then every tied-into step passes legatoGlide equal to the step's length with its legatoFrom
+  Then every tied-into step passes legatoGlide equal to the time it sounds in the step with its legatoFrom
+  And a run's last step, released at gate 0.25, glides over that quarter step, not the whole one
   And through the real voice the amp level moves toward each new velocity without a new attack
 # Bug: a velocity ramp across ties stayed at its first step's level — the swell a
 # song wrote in velocities was only heard under Re-strike.
@@ -579,3 +582,9 @@ Scenario: Two tracks on one pitch collapse to one pan (REQ-two-tracks-on-one-pit
   way, even with one oscillator and no unison or drift). So the comparison is a
   listen: a re-pluck demo at Re-strike against the build before, and at Legato
   against Re-strike.
+- **A tied crescendo is signed off the same way**: a velocity ramp across ties at
+  Legato against Re-strike, on both engines, with every lane but the swelling tracks
+  muted (`bench:audio --set drum.mute=1 --set seq.t0.mute=1`-style). Measured
+  through the whole mix the swell drowns in the other parts. Isolated, the
+  two modes' per-step level is the comparison: Legato should climb with Re-strike,
+  minus its re-attack.

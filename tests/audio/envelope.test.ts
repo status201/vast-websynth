@@ -139,14 +139,69 @@ describe('Envelope.rescale', () => {
     expect(gain.setTargetAtTime).toHaveBeenLastCalledWith(0.4, 1, 0.05);
   });
 
-  it('never cuts a running decay short: the slower time constant wins', () => {
+  it("in the decay, keeps the decay's own time constant — neither cut short nor stretched", () => {
+    for (const glideTau of [0.01, 0.5]) {
+      const { env, gain } = build();
+      env.setAttack(0.01);
+      env.setDecay(0.9); // tau 0.3, still running at t = 0.2
+      env.setSustain(0.5);
+      env.trigger(0, 1);
+      env.rescale(0.2, 0.5, glideTau);
+      expect(gain.setTargetAtTime).toHaveBeenLastCalledWith(0.25, 0.2, 0.3);
+    }
+  });
+
+  // Code review: the slower of glide and decay stretched a pluck's decay, even at
+  // sustain 0, where the target does not move at all.
+  it('schedules nothing past the attack at sustain 0: a pluck decays as struck (regression)', () => {
     const { env, gain } = build();
-    env.setAttack(0.01);
-    env.setDecay(0.9); // tau 0.3, still running at t = 0.2
+    env.setAttack(0.005);
+    env.setDecay(0.05);
+    env.setSustain(0);
+    env.trigger(0, 0.5);
+    gain.setValueAtTime.mockClear();
+    gain.setTargetAtTime.mockClear();
+    gain.cancelScheduledValues.mockClear();
+    env.rescale(0.02, 0.9, 0.042); // mid-decay
+    env.rescale(0.5, 0.3, 0.042);  // long decayed
+    expect(gain.setValueAtTime).not.toHaveBeenCalled();
+    expect(gain.setTargetAtTime).not.toHaveBeenCalled();
+    expect(gain.cancelScheduledValues).not.toHaveBeenCalled();
+  });
+
+  it('never rescales a silent envelope: never struck, released or cut (edge)', () => {
+    const cases: ((env: Envelope) => void)[] = [
+      () => {},
+      (env) => { env.trigger(0, 0.5); env.release_(0.2); },
+      (env) => { env.trigger(0, 0.5); env.cutFast(0.2); },
+    ];
+    for (const setup of cases) {
+      const { env, gain } = build();
+      env.setSustain(1);
+      setup(env);
+      gain.setValueAtTime.mockClear();
+      gain.setTargetAtTime.mockClear();
+      env.rescale(1, 0.9, 0.05);
+      expect(gain.setValueAtTime).not.toHaveBeenCalled();
+      expect(gain.setTargetAtTime).not.toHaveBeenCalled();
+    }
+  });
+
+  it("uses the strike's phase times, not a knob turned since (edge)", () => {
+    const { env, gain } = build();
+    env.setAttack(2);   // tau 2/3; ends at 2
+    env.setDecay(0.3);  // tau 0.1
     env.setSustain(0.5);
-    env.trigger(0, 1);
-    env.rescale(0.2, 0.5, 0.01);
-    expect(gain.setTargetAtTime).toHaveBeenLastCalledWith(0.25, 0.2, 0.3);
+    env.trigger(0, 0.2);
+    env.setAttack(0.005);
+    env.setDecay(3);
+    env.setSustain(1);
+    gain.setTargetAtTime.mockClear();
+    env.rescale(1, 0.8, 0.05);
+    const calls = gain.setTargetAtTime.mock.calls as [number, number, number][];
+    const want = [[0.8, 1, 2 / 3], [0.4, 2, 0.1]];
+    expect(calls).toHaveLength(2);
+    calls.forEach((c, i) => c.forEach((x, j) => expect(x).toBeCloseTo(want[i]![j]!, 9)));
   });
 
   it('in the attack, aims the attack at the new peak and keeps its end (edge)', () => {
