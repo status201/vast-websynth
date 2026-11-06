@@ -10,5 +10,6 @@ export default defineConfig({
   test: {
     include: ['scripts/gen-params.ts'],
     environment: 'node',
+    fsModuleCache: false, // see vite.config.ts: a cached glob misses new files
   },
 });

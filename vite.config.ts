@@ -67,6 +67,11 @@ export default defineConfig({
     port: 5173,
   },
   test: {
+    // Off: the cache keys a module on its own text, so an `import.meta.glob` (the demo
+    // list in src/state/song.ts) replays the files it matched when it was cached, and
+    // a newly added demo is invisible to local runs until `vitest --clearCache`.
+    fsModuleCache: false,
+    //
     // Tests live outside `src/` so `tsc` / `npm run typecheck` are unaffected
     // (tsconfig include is `src` only).
     //

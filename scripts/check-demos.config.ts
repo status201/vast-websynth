@@ -11,6 +11,7 @@ export default defineConfig({
   test: {
     include: ['scripts/clean-demos.ts'],
     environment: 'node',
+    fsModuleCache: false, // see vite.config.ts: a cached glob misses new files
     env: { CLEAN_DEMOS_CHECK: '1' },
   },
 });
