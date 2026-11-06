@@ -3,11 +3,12 @@
 ```yaml
 id: toast
 status: implemented
-version: 1
+version: 2
 owner: websynth
 related:
   - architecture
   - session-autosave   # primary consumer (the load-undo toast)
+  - rickroll-easter-egg  # asks isToastShowing() before offering
 source:
   - src/ui/components/toast.ts
   - src/ui/styles/toast.module.css
@@ -49,6 +50,11 @@ and have a guaranteed release signal.
   (z 1100) — an alert or tour opened over a live toast must cover it.
 - **REQ-toast-testids** — Stable testids: `toast-host`, `toast` (overridable via
   `opts.testId`), `toast-action`, `toast-dismiss`.
+- **REQ-a-caller-can-ask-whether-a-toast-is-showing** — `isToastShowing()` is
+  true while a toast is in the host and false after every exit path. A caller
+  that only *offers* something uses it to stand down rather than replace a
+  toast that may be holding someone's Undo
+  ([rickroll-easter-egg](rickroll-easter-egg.md) REQ-the-egg-never-takes-a-toast).
 
 ## Technical design
 
@@ -68,6 +74,7 @@ export interface ToastHandle {
   onDismiss(fn: () => void): void;
 }
 export function showToast(opts: ToastOptions): ToastHandle;
+export function isToastShowing(): boolean;
 ```
 
 ### Layer touchpoints & ordering
@@ -111,6 +118,15 @@ Scenario: sticky toast never times out
   Given a toast with durationMs 0
   When any amount of time elapses
   Then it remains until dismissed manually
+# pinned by: tests/ui/toast.test.ts
+
+Scenario: isToastShowing follows the toast's life (REQ-a-caller-can-ask-whether-a-toast-is-showing)
+  Given no toast has been shown
+  Then isToastShowing() is false
+  When a toast is shown
+  Then it is true
+  When the toast times out, or is dismissed, or its action fires
+  Then it is false again
 # pinned by: tests/ui/toast.test.ts
 ```
 

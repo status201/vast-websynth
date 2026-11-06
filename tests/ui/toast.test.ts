@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
-import { showToast } from '../../src/ui/components/toast';
+import { showToast, isToastShowing } from '../../src/ui/components/toast';
 
 const byId = (id: string) => document.querySelector<HTMLElement>(`[data-testid="${id}"]`);
 const clickId = (id: string) => (byId(id) as HTMLButtonElement).click();
@@ -88,5 +88,27 @@ describe('toast', () => {
     showToast({ message: 'b' }); // dismisses a
     a.dismiss(); // stale handle — must be a no-op for b
     expect(byId('toast-host')!.textContent).toContain('b');
+  });
+
+  // toast.md REQ-a-caller-can-ask-whether-a-toast-is-showing
+  it('isToastShowing follows the toast through every exit path', () => {
+    showToast({ message: 'clear' }).dismiss(); // module state outlives the DOM reset
+    expect(isToastShowing()).toBe(false);
+
+    showToast({ message: 'timeout', durationMs: 1000 });
+    expect(isToastShowing()).toBe(true);
+    vi.advanceTimersByTime(1000);
+    expect(isToastShowing()).toBe(false);
+
+    showToast({ message: 'x' });
+    clickId('toast-dismiss');
+    expect(isToastShowing()).toBe(false);
+
+    showToast({ message: 'x', actionLabel: 'Go', onAction: () => {} });
+    clickId('toast-action');
+    expect(isToastShowing()).toBe(false);
+
+    showToast({ message: 'x' }).dismiss();
+    expect(isToastShowing()).toBe(false);
   });
 });

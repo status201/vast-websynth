@@ -114,3 +114,13 @@ export function showToast(opts: ToastOptions): ToastHandle {
   current = handle;
   return handle;
 }
+
+/**
+ * Whether a toast is in the host right now (toast.md
+ * REQ-a-caller-can-ask-whether-a-toast-is-showing). For callers that only
+ * *offer* something: the host is single-slot, so showing a toast would replace
+ * one that may be holding the player's Undo.
+ */
+export function isToastShowing(): boolean {
+  return current !== null;
+}

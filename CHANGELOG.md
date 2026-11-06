@@ -27,6 +27,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 - **Rickroll**, a new demo: Never Gonna Give You Up, start to finish. The strings
   and the vocal line were played through the synth and ride in the sampler,
   scoops and vibrato included; bass, keys, brass hits and drums play live.
+- A little something for anyone who knows the words.
 
 ### Fixed
 

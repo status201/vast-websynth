@@ -6,7 +6,7 @@
  * live in `shell/` and `panels/`; nothing is built here (architecture.md).
  */
 import { pinAppliedSong } from '../state/preset-session';
-import { Song, DEMO_SONGS } from '../state/song';
+import { Song, DEMO_SONGS, demoNames } from '../state/song';
 import { PERF_PROFILES, type PerfTier } from '../state/perf-mode';
 import { setScopeStatsSource } from '../state/debug-sources';
 import { createOnboarding, type Onboarding } from './onboarding';
@@ -17,6 +17,7 @@ import { buildSynthPanels } from './panels/synth-panels';
 import { buildFxRack } from './panels/fx-rack';
 import { buildPatternRow } from './shell/pattern-row';
 import { buildBottom } from './shell/bottom';
+import { installEasterEgg } from './shell/easter-egg';
 
 export function mountApp(root: HTMLElement, deps: ShellDeps): Onboarding {
   const { engine, bus, bridge, session, xy } = deps;
@@ -76,6 +77,16 @@ export function mountApp(root: HTMLElement, deps: ShellDeps): Onboarding {
   const patternRow = buildPatternRow(deps);
   songLoadDemo = patternRow.loadDemo;
   songLoadedDemo = patternRow.loadedDemo;
+  // Hidden on purpose (rickroll-easter-egg.md). Needs the Song panel's loader,
+  // bound just above, and the header's Play button, built earlier.
+  installEasterEgg({
+    bus,
+    loadDemo: (name) => songLoadDemo(name),
+    loadedDemo: () => songLoadedDemo(),
+    isPlaying: () => engine.clock.playing,
+    startTransport: () => bridge.toggleTransport(),
+    demoNames,
+  });
   // Share links import bytes; OS-launched song files (installed-PWA
   // file_handlers) arrive as a File and take the Song panel's Import-button door,
   // sized before they are read (pwa-install.md REQ-one-import-parse-path,

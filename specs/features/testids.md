@@ -281,6 +281,7 @@ song panel — files:
   demo-library · demo-library-entry · demo-library-load · demo-library-more   # the library window (features/demo-library.md);
                                        #   one entry + Load per demo, found by text, never by a data-minted id
   file-drop-overlay · file-drop-toast    # paste-import.md v2 — the window-wide drop
+  easter-egg-toast                       # features/rickroll-easter-egg.md — the offer; its button is toast-action
   song-paste + paste-modal · paste-input · paste-status · paste-confirm ·
     paste-cancel · paste-read-clipboard             # features/paste-import.md
   export-modal · export-kind-<json|project> · export-project-note ·
