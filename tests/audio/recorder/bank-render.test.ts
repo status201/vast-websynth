@@ -193,12 +193,15 @@ describe('BankRenderController', () => {
     expect(out.left.length).toBe(16000);
   });
 
-  it('stops after exactly RENDER_BARS bars', async () => {
+  // REQ-a-two-pass-loop-bake, regression: the render stopped the clock from its
+  // own tick listener, the last registered, so every lane had already scheduled
+  // the third pass's first step, and it sounded live in the render's tail.
+  it('stops after exactly RENDER_BARS bars, never handing out the next step (regression)', async () => {
     const { ctrl, run, clock } = harness();
     const steps: number[] = [];
-    clock.onTick((s) => steps.push(s));
+    clock.onTick((s) => steps.push(s)); // registered first, like every lane at boot
     await run(ctrl.render());
-    expect(Math.max(...steps)).toBe(RENDER_BARS * SEQ_LENGTH);
+    expect(steps).toEqual(Array.from({ length: RENDER_BARS * SEQ_LENGTH }, (_, i) => i));
     expect(clock.playing).toBe(false); // transport left stopped
   });
 });

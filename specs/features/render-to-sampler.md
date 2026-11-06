@@ -3,7 +3,7 @@
 ```yaml
 id: render-to-sampler
 status: implemented
-version: 6
+version: 7
 owner: core
 related:
   - architecture
@@ -49,7 +49,11 @@ loop drifts against the grid.
   REQ-the-cue-is-where-start-begins).
 - **REQ-a-two-pass-loop-bake** — The bank plays **twice**, and the **second** bar
   is kept, so bar 1's delay/reverb/release tail is baked into the loop's start and
-  the sample wraps seamlessly.
+  the sample wraps seamlessly. **Exactly two passes:** the clock's step limit
+  ends the render ([transport](transport.md) REQ-a-step-limit-halts-before-the-step).
+  It halts in place of step `RENDER_BARS × barTicks`, so no lane is handed the
+  third pass's first step. The crop never reached that step, but every lane
+  played it live, including the drums and sampler that keep monitoring.
 - **REQ-capture-is-synth-only-post-fx** — A dedicated second zero-output
   `RecorderNode` taps `synthPan`: downstream of the whole insert chain (duck
   included, [effects](effects.md) REQ-the-synth-chain-order) and of the shared
@@ -71,7 +75,8 @@ loop drifts against the grid.
 - **REQ-an-outside-stop-aborts-the-render** (v6) — A transport stop the render did
   not issue (Esc, Panic, a Media Session pause, the space bar) discards the
   capture, rejects `render()` with *render interrupted*, and restores the
-  preconditions. A stopped clock never delivers the `stopAtStep` tick.
+  preconditions. A stopped clock never reaches the step limit, so without this
+  the render would never end.
 - **REQ-the-slot-load-contract** — On success the buffer lands via
   `SamplerMachine.setBuffer(slot, buf)` + `PatternStore.setSampleName(slot, name)`,
   named `seq-<bank letter>-<bpm>bpm`. The audio is then an ordinary clip: kept on
@@ -154,6 +159,17 @@ Scenario: Re-entry is refused (edge)
   Given a render is in flight
   When render() is called again
   Then it rejects and the in-flight render is unaffected
+# pinned by: tests/audio/recorder/bank-render.test.ts
+
+Scenario: The render does not play a third pass's first step (regression, REQ-a-two-pass-loop-bake)
+  Given a lane registered before the render, as every machine is at boot
+  When a bank is rendered
+  Then the lane receives exactly the steps 0 .. 2 × barTicks − 1
+  And the transport is left stopped
+# Bug: the render stopped the clock from its own tick listener, the last one
+# registered, so every lane had already scheduled step 2 × barTicks. The crop
+# excluded it, but it sounded live in the render's tail. Same cause as the song
+# export's (audio-export.md REQ-the-capture-keeps-a-tail).
 # pinned by: tests/audio/recorder/bank-render.test.ts
 
 Scenario: A stop from outside aborts the render (regression, REQ-an-outside-stop-aborts-the-render)

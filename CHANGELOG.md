@@ -34,7 +34,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 - **An exported song no longer ends with a stray note.** The first step of the
   song used to sound again just after the last bar, in the tail of every export.
   The transport now stops in that step's place, so the tail is the song's own
-  reverb and nothing else.
+  reverb and nothing else. **Import into sampler** had the same stray step at the
+  end of its two passes. The clip never contained it, but you heard it, and now
+  it doesn't play.
 - **Legato ties follow the steps' velocities.** A tied run whose velocities
   rise now swells, as it does under Re-strike, but without re-attacking: the held
   note glides its level (and, with filter VEL up, its brightness) to each step's

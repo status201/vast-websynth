@@ -89,7 +89,7 @@ export class BankRenderController {
         this.clock.stop();
         this.node.start(); // arm before audio so the pre-roll is captured
         // A stop we did not issue (Esc, Panic, a media-key pause) ends the
-        // render — no further tick will ever reach `stopAtStep`
+        // render — a stopped clock never reaches the step limit below
         // (REQ-an-outside-stop-aborts-the-render).
         this.unsubStop = this.clock.onStop(() => {
           this.unsubscribe();
@@ -101,15 +101,18 @@ export class BankRenderController {
             step0Time = when;
             sixteenthS = this.clock.sixteenthDuration();
           }
-          if (step >= stopAtStep) {
-            this.unsubscribe();
-            this.clock.stop();
-            window.setTimeout(() => {
-              // `finish` awaits the recorder's flush (audio-export.md REQ-chunks-are-batched-then-flushed),
-              // so it settles the promise rather than returning into it.
-              this.finish(step0Time, sixteenthS).then(resolve, reject);
-            }, RENDER_TAIL_MS);
-          }
+        });
+        // The clock ends the render, in place of step `stopAtStep`
+        // (REQ-a-two-pass-loop-bake, transport.md REQ-a-step-limit-halts-before-the-step).
+        // Stopping from the tick above came one step late: it runs after every
+        // lane, which had already scheduled the third pass's first step.
+        this.clock.limitSteps(stopAtStep, () => {
+          this.unsubscribe(); // the halt that follows is ours, not an interruption
+          window.setTimeout(() => {
+            // `finish` awaits the recorder's flush (audio-export.md REQ-chunks-are-batched-then-flushed),
+            // so it settles the promise rather than returning into it.
+            this.finish(step0Time, sixteenthS).then(resolve, reject);
+          }, RENDER_TAIL_MS);
         });
         // Explicit 0: the crop is frame arithmetic off the absolute `step === 0`,
         // and a plain start() now resumes from the user's cue (transport.md REQ-the-cue-is-where-start-begins).
