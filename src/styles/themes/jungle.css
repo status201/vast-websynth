@@ -124,6 +124,7 @@
     --key-black-active-glow: rgba(102, 143, 128, 0.5);
     /* Roles: root deep rose, chord deep slate, scale olive, extra old rose. */
     --key-role-root-black: #6e2c3b;
+    --key-role-root-ink: #f4efe4;
     --key-role-chord-black: #263c43;
     --key-role-scale: #a0af84;
     --key-role-scale-edge: #84946a;

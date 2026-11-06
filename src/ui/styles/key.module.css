@@ -155,7 +155,7 @@
     font-family: var(--sans);
     font-size: 8px;
     font-weight: 700;
-    color: var(--bg-deep);
+    color: var(--key-role-root-ink);
     pointer-events: none;
   }
   .black > .rootLabel {

@@ -99,7 +99,11 @@
     --key-white-active-shine: rgba(230, 255, 250, 0.4);
     --key-black-active-shine: rgba(230, 255, 250, 0.3);
     --key-black-active-glow: rgba(138, 176, 171, 0.5);
-    /* Roles: root teal, chord powder, scale charcoal blue, extra the one brick. */
+    /* Roles: root teal, chord blue, scale charcoal blue, extra the one brick. Root
+       and chord are deeper than the accent and the selected powder they would
+       follow: those pale tints vanish washed over an ivory key. */
+    --key-role-root: #3fa392;
+    --key-role-chord: #6a9bc0;
     --key-role-root-black: #4f716b;
     --key-role-chord-black: #5f7684;
     --key-role-scale: #3e505b;

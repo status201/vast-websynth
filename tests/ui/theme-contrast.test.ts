@@ -71,6 +71,7 @@ const INKED_FILLS: [ink: string, fill: string][] = [
   ['--keycap-sharp-ink', '--keycap'],
   ['--ink', '--lit-accent'],
   ['--ink', '--dj-lit-top'],
+  ['--key-role-root-ink', '--key-role-root'], // the KEY map's root letter on its key
   ['--lit-accent-ink', '--lit-accent'],
 ];
 

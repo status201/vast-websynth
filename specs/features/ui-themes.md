@@ -245,7 +245,10 @@ Fonts are system stacks only — the app bundles no font file
   the teal so it never reads as "on". The palette has no warm colour, and the app
   needs one: an LED, an accented step and an error are red in every theme. Classic
   adds exactly **one** off-palette colour for them, a dusty brick, and nothing else.
-  Gradients are soft (faceplates, wells) and the cheeks carry no grain. Its text
+  The key roles do not follow the pale accents: washed over an ivory key, a pale
+  teal root and a powder chord tone vanished, so the root is a deeper teal and the
+  chord tone a deeper blue. Gradients are soft (faceplates, wells) and the cheeks
+  carry no grain. Its text
   meets Light's bar on every surface. Display type is a Swiss grotesque.
 - **REQ-jungle-prints-on-khaki** — Jungle is khaki faceplates in a canopy of teal
   and slate. Its five colours are all mid-tones, and no two of them carry type on
@@ -318,7 +321,7 @@ under these roles (by REQ-tokens-are-named-by-role):
 | `--well*`, `--tray`, `--recess*`, `--raised*`, `--menu*`, `--handle-*` | control surfaces: a button's bed, the bed a row of buttons sits in, a tab strip's bed, a selected control, a popover, a grip |
 | `--switch-on-*`, `--play-on-ink` | a switch that is on: its bed and its ink, and the Play switch's legend while playing (REQ-an-on-switch-reads-as-on) |
 | `--lit*`, `--ink*`, `--playing` | a lit (on) control in its three colours (accent, bad, warm), the dark type printed on a lit fill, the accent as a lit fill with type on it (`--lit-accent`, `--lit-accent-ink`: the info badge), a lit DJ button's gradient (`--dj-lit-top` → `--dj-lit-bottom`, inked with `--ink`; by default the accent into the lit step's foot), and the bar the playhead is in (inked with `--ink-strong`) |
-| `--key-*` | the playable keyboard and the musical-role colours |
+| `--key-*` | the playable keyboard and the musical-role colours, and the KEY map's root letter on its key (`--key-role-root-ink`) |
 | `--screen*`, `--patch-*`, `--cable-*` | display windows, the FX patch bay and its cables |
 | `--keycap*` | the About card's shortcut keycaps and their legends |
 | `--scrim-ink`, `--veil`, `--scrollbar-*`, `--start-btn`, `--badge-bed`, `--motion*`, `--meter-hot` | overlays — a modal's backdrop (`--scrim-ink`) apart from a resting lane's wash (`--veil`, which a light theme fades toward its panel) — scrollbars, the start button, the brand's model badge, the motion sequencer's own amber, the gain-reduction meter's hot end |

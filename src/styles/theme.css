@@ -205,6 +205,9 @@
        → specs/features/scale-quantization.md REQ-the-key-is-drawn-not-just-named / REQ-the-key-is-shown-where-you-play. */
     --key-role-root: var(--accent);
     --key-role-root-black: #b4501a;
+    /* The KEY map's root letter, printed on --key-role-root. Dark's root is bright
+       enough to take the chassis colour; a theme whose root is deep lightens it. */
+    --key-role-root-ink: var(--bg-deep);
     --key-role-chord: var(--accent-secondary);
     --key-role-chord-black: #b8912f;
     --key-role-scale: #7a4a24;

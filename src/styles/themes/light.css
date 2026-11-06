@@ -115,6 +115,7 @@
     --key-black-active-glow: rgba(232, 80, 32, 0.4);
     /* The four roles, lightened for a cream key and a pale map (scale-quantization.md). */
     --key-role-root-black: #a8461a;
+    --key-role-root-ink: #fff6e6;
     --key-role-chord-black: #8a5c00;
     --key-role-scale: #e2bf92;
     --key-role-scale-edge: #c79d6c;
