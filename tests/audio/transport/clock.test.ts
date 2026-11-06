@@ -767,3 +767,77 @@ describe('Clock first-step time and scheduled jumps (v10)', () => {
     clock.stop();
   });
 });
+
+// transport.md REQ-a-step-limit-halts-before-the-step
+describe('Clock.limitSteps', () => {
+  function rig() {
+    vi.useFakeTimers();
+    const ctx = { currentTime: 0 } as { currentTime: number };
+    const clock = new Clock(ctx as unknown as AudioContext, { timer: new TimeoutTimer() });
+    clock.setBpm(120); // one 16th = 0.125 s
+    const steps: number[] = [];
+    clock.onTick((s) => steps.push(s)); // registered first, like every lane
+    const stops = vi.fn();
+    clock.onStop(stops);
+    const run = (seconds: number): void => {
+      for (let i = 0; i < Math.round(seconds / 0.025); i++) {
+        ctx.currentTime += 0.025;
+        vi.advanceTimersByTime(25);
+      }
+    };
+    return { ctx, clock, steps, stops, run };
+  }
+
+  it('emits exactly n steps, then calls onLimit and halts in place of step n', () => {
+    const { ctx, clock, steps, stops, run } = rig();
+    let haltedAt = -1;
+    const onLimit = vi.fn(() => { haltedAt = ctx.currentTime; });
+    clock.limitSteps(8, onLimit);
+    clock.start(0);
+    run(3);
+    expect(steps).toEqual([0, 1, 2, 3, 4, 5, 6, 7]);
+    expect(onLimit).toHaveBeenCalledTimes(1);
+    expect(stops).toHaveBeenCalledTimes(1);
+    expect(clock.playing).toBe(false);
+    // In the wakeup where step 8 came due: its time (0.05 s lead + 8 × 0.125)
+    // was inside the 0.1 s look-ahead, and not long before.
+    const step8At = 0.05 + 8 * 0.125;
+    expect(haltedAt).toBeGreaterThan(step8At - 0.1 - 0.026);
+    expect(haltedAt).toBeLessThanOrEqual(step8At - 0.1 + 0.026);
+  });
+
+  it('counts emissions, so a looping router cannot make it unreachable', () => {
+    const { clock, steps, run } = rig();
+    clock.setStepRouter((next) => (next >= 4 ? 0 : next)); // a 4-step loop
+    clock.limitSteps(10, () => {});
+    clock.start(0);
+    run(3);
+    expect(steps).toEqual([0, 1, 2, 3, 0, 1, 2, 3, 0, 1]);
+    expect(clock.playing).toBe(false);
+  });
+
+  it('a stop before the limit clears it, so the next run is unlimited', () => {
+    const { clock, steps, run } = rig();
+    const onLimit = vi.fn();
+    clock.limitSteps(20, onLimit);
+    clock.start(0);
+    run(0.5);
+    clock.stop();
+    clock.start(0);
+    run(4);
+    expect(onLimit).not.toHaveBeenCalled();
+    expect(clock.playing).toBe(true);
+    expect(steps.length).toBeGreaterThan(20);
+    clock.stop();
+  });
+
+  it('halts even if onLimit throws (REQ-a-subscriber-may-not-wedge-the-transport)', () => {
+    const { clock, steps, run } = rig();
+    vi.spyOn(console, 'error').mockImplementation(() => {});
+    clock.limitSteps(2, () => { throw new Error('boom'); });
+    clock.start(0);
+    run(1);
+    expect(steps).toEqual([0, 1]);
+    expect(clock.playing).toBe(false);
+  });
+});

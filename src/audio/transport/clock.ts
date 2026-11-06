@@ -84,6 +84,9 @@ export class Clock implements TickSubscriber {
   private router: StepRouter | null = null;
   /** A jump held for the grid step nearest `at` (REQ-a-jump-can-be-scheduled). */
   private pendingJump: { step: number; at: number } | null = null;
+  /** Steps left to emit before the clock halts in place of the next one
+   *  (REQ-a-step-limit-halts-before-the-step); null = unlimited. Cleared by every stop. */
+  private stepLimit: { remaining: number; onLimit: () => void } | null = null;
   /** The router that threw this run, reported once (see `route`). */
   private routerFaulted = false;
   /** Seek listeners already reported as throwing (see `fanOut`). */
@@ -284,6 +287,7 @@ export class Clock implements TickSubscriber {
     if (!this._playing) return;
     this._playing = false;
     this.pendingJump = null;
+    this.stepLimit = null;
     this.timer.stop();
     // Registration order matters here — the sequencer's note release and the
     // motion machine's baseline restore are downstream of earlier subscribers,
@@ -304,6 +308,18 @@ export class Clock implements TickSubscriber {
   toggle(): void {
     if (this._playing) this.stop();
     else this.start();
+  }
+
+  /**
+   * Emit exactly `n` more steps, then call `onLimit` and halt **instead of
+   * emitting the next one** (transport.md REQ-a-step-limit-halts-before-the-step).
+   * A listener that stops the clock from its own tick is too late: the lanes
+   * registered before it have already scheduled that step. Counts emissions,
+   * not step numbers, so a loop or a jump cannot make it unreachable. Any stop
+   * clears it.
+   */
+  limitSteps(n: number, onLimit: () => void): void {
+    this.stepLimit = { remaining: Math.max(0, Math.floor(n)), onLimit };
   }
 
   /** Subscribe to tick events. Returns an unsubscribe function. */
@@ -353,6 +369,18 @@ export class Clock implements TickSubscriber {
       // slow enough listeners would keep this loop running. End the wakeup; the
       // next one re-evaluates the backlog (and drops it, above, if it grew).
       if (emitted++ >= MAX_STEPS_PER_WAKEUP) break;
+      // The step limit is checked BEFORE the fan-out, so the step it ends on
+      // reaches no listener (REQ-a-step-limit-halts-before-the-step).
+      if (this.stepLimit) {
+        if (this.stepLimit.remaining <= 0) {
+          const { onLimit } = this.stepLimit;
+          this.stepLimit = null;
+          this.fanOut([onLimit], this.faultedStopListeners, 'step-limit');
+          this.halt();
+          break;
+        }
+        this.stepLimit.remaining--;
+      }
       const sixteenth = 60 / this._bpm / 4;
       // Lay the off-beat 16ths back. Offset only the emitted time, never the
       // accumulated grid — so swing can't drift, and (max 0.5 * sixteenth) an

@@ -3,7 +3,7 @@
 ```yaml
 id: transport
 status: implemented
-version: 11
+version: 12
 owner: core
 related:
   - architecture
@@ -82,6 +82,18 @@ on the main thread.
   would re-enter the same step forever. Errors are reported **once per listener**, not
   per tick. Import validation bounds the values ([untrusted-input](untrusted-input.md)
   REQ-payload-values-are-bounded); this is the structural half (ADR-015).
+- **REQ-a-step-limit-halts-before-the-step** — `limitSteps(n, onLimit)` lets a
+  caller end the transport after exactly `n` more emitted steps. When the next
+  step comes due, the clock calls `onLimit` and halts in its place: it does **not**
+  emit that step to any listener. A listener that stopped the clock from inside
+  its own tick could not promise this. Listeners run in registration order, so
+  every lane registered before it would already have scheduled the step. That is
+  how a song export rendered the next pass's first step into its tail
+  ([audio-export](audio-export.md) REQ-the-capture-keeps-a-tail). The count is of
+  emissions, not step numbers, so a loop or a scheduled jump cannot make it
+  unreachable. Any stop clears the limit. `onLimit` runs isolated, like every
+  fan-out (REQ-a-subscriber-may-not-wedge-the-transport), and the halt happens
+  whether or not it throws.
 - **REQ-the-transport-catch-up-is-bounded** — A stalled wakeup source (a frozen hidden
   renderer, screen off) recovers as **silence, not a burst**:
   - **Dropout recovery.** A wakeup that finds `nextStepTime < now - DROPOUT_S` (0.25 s)
@@ -166,6 +178,7 @@ Clock:   # src/audio/transport/clock.ts (implements TickSubscriber)
   seekAt(step, at)     # a scheduled jump on the unchanged grid
   get nextStepAt: number
   setStepRouter(fn: StepRouter | null)
+  limitSteps(n, onLimit)   # emit n more steps, then onLimit + halt instead of emitting the next
   nudge(seconds)       # ±0.05 s future-grid shift (midi-clock-sync phase correction)
   get dropouts: number # stalled-wakeup recoveries this session; monotonic
   onTick(fn) / onStart(fn) / onStop(fn) / onSeek(fn) -> unsubscribe
@@ -227,6 +240,15 @@ Scenario: A throwing subscriber cannot wedge the clock (regression)
   Then the step counter still advances and nextStepTime still moves
   And the other subscribers still receive their ticks
   And the error is reported once for that listener, not once per tick
+# pinned by: tests/audio/transport/clock.test.ts
+
+Scenario: A step limit halts before the step, not after it (REQ-a-step-limit-halts-before-the-step)
+  Given a tick listener registered before the limit is set
+  When the clock is started with limitSteps(n, onLimit)
+  Then the listener receives exactly the steps 0..n-1
+  And onLimit fires once, then the clock stops, in the wakeup where step n came due
+  And the limit counts emissions, so a step router looping back still stops it after n
+  And a stop before the limit is reached clears it, so the next start runs unlimited
 # pinned by: tests/audio/transport/clock.test.ts
 
 Scenario: A throwing start listener cannot wedge the transport (regression)

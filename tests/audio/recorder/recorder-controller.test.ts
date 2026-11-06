@@ -149,8 +149,8 @@ describe('RecorderController.exportSong', () => {
     clock.onTick((s) => steps.push(s));
     ctrl.exportSong('wav');
     drain(350);
-    // It stops at the first tick >= stopAtStep, so that step is the last seen.
-    expect(steps[steps.length - 1]).toBe(FALLBACK_BARS * SEQ_LENGTH);
+    // Exactly stopAtStep steps reach the lanes: 0 .. stopAtStep-1.
+    expect(steps[steps.length - 1]).toBe(FALLBACK_BARS * SEQ_LENGTH - 1);
   });
 
   it('multiplies the rendered length by runs (v7, REQ-export-song-renders-from-the-top)', () => {
@@ -160,7 +160,7 @@ describe('RecorderController.exportSong', () => {
     clock.onTick((s) => steps.push(s));
     ctrl.exportSong('wav', { runs: 3 });
     drain(350);
-    expect(steps[steps.length - 1]).toBe(2 * 3 * SEQ_LENGTH);
+    expect(steps[steps.length - 1]).toBe(2 * 3 * SEQ_LENGTH - 1);
   });
 
   it('clamps runs to 1..MAX_RUNS', () => {
@@ -171,7 +171,7 @@ describe('RecorderController.exportSong', () => {
       clock.onTick((s) => steps.push(s));
       ctrl.exportSong('wav', { runs: given });
       drain(350);
-      expect(steps[steps.length - 1]).toBe(expected * SEQ_LENGTH);
+      expect(steps[steps.length - 1]).toBe(expected * SEQ_LENGTH - 1);
       vi.useRealTimers();
     }
   });
@@ -180,6 +180,25 @@ describe('RecorderController.exportSong', () => {
 // ---------- The tail (REQ-the-capture-keeps-a-tail) ----------
 
 describe('the export tail', () => {
+  // REQ-the-capture-keeps-a-tail, regression: the export stopped the clock from
+  // its own tick listener — the last registered — so every lane had already
+  // scheduled step stopAtStep, the next pass's step 0, and it sounded in the tail.
+  it("never hands the lanes the next pass's first step (regression)", async () => {
+    for (const tailBar of [false, true]) {
+      const { ctrl, arrangement, clock, finish } = harness();
+      arrangement.setSeqChain([0, 1], true); // 2 bars = 32 steps
+      // Registered before the export, exactly like the sequencer and drums at boot.
+      const steps: number[] = [];
+      clock.onTick((s) => steps.push(s));
+      ctrl.exportSong('wav', { tailBar });
+      await finish(tailBar ? 2000 : 350);
+      expect(steps).toEqual(Array.from({ length: 2 * SEQ_LENGTH }, (_, i) => i));
+      expect(ctrl.phase).toBe('idle');
+      expect(ctrl.lastExportInterrupted()).toBe(false);
+      vi.useRealTimers();
+    }
+  });
+
   it('waits TAIL_MS by default — bar-exact, as the audio bench needs', () => {
     const { ctrl, node, runTransport } = harness();
     ctrl.exportSong('wav'); // no opts: the scripts/audio-bench.mjs call shape

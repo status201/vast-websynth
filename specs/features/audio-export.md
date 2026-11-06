@@ -3,7 +3,7 @@
 ```yaml
 id: audio-export
 status: implemented
-version: 16
+version: 17
 owner: core
 related:
   - architecture
@@ -46,9 +46,12 @@ reuses it. `lamejs` is large and pre-minified, so it is a lazy chunk
   (`FALLBACK_BARS` = 4 when none is enabled), auto-stops and downloads.
   `stopAtStep = bars × runs × barTicks`. `runs` is clamped to 1..`MAX_RUNS` (10)
   and defaults to 1. Repeats need no arrangement support, since every lane wraps
-  its slot index. The end condition counts **steps elapsed since the export
-  started** (`elapsedSteps`), not the clock's absolute step. So an imported song's
-  `bars` cannot make the bound unreachable. A **seek is refused while an export
+  its slot index. The end condition is the clock's **step limit**
+  ([transport](transport.md) REQ-a-step-limit-halts-before-the-step). Exactly
+  `stopAtStep` steps are emitted, and the clock halts in place of the next one.
+  It counts emissions, not the clock's absolute step, so an imported song's
+  `bars` cannot make the bound unreachable. `elapsedSteps` counts the same ticks
+  for `exportProgress()`. A **seek is refused while an export
   is in flight** ([transport-position](transport-position.md)
   REQ-seeking-is-refused-in-three-states); `isExporting()` is what that guard
   reads. A manual take is unbounded and does not take the guard.
@@ -263,6 +266,16 @@ Scenario: The tail bar lets a reverb decay instead of cutting it (REQ-the-captur
   And no further step is triggered during it — the transport is already stopped
 # pinned by: tests/audio/recorder/recorder-controller.test.ts (timing),
 #            npm run bench:audio A/B (the only check that it SOUNDS right — ADR-010)
+
+Scenario: The tail does not replay the first step (regression, REQ-the-capture-keeps-a-tail)
+  Given a two-bar song with a note on the first step
+  When it is exported, with or without the tail bar
+  Then the lanes receive exactly steps 0..31 and never step 32
+  And no note sounds in the tail
+# Bug: the export stopped the clock from its own tick listener. That was the last one
+# registered, so every lane had already scheduled step 32 (the next pass's step 0),
+# and its first note sounded about 45 ms into the tail of every export and audio-bench take.
+# pinned by: tests/audio/recorder/recorder-controller.test.ts, npm run bench:audio (onsets)
 
 Scenario: An omitted opts renders one bar-exact pass (regression, REQ-the-capture-keeps-a-tail)
   When exportSong(fmt) is called with no options — as scripts/audio-bench.mjs does

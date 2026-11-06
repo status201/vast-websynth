@@ -286,26 +286,20 @@ export class RecorderController {
     this.stopAtStep = stopAtStep;
     this.elapsedSteps = 0;
     this.begin();             // arm before audio so nothing is clipped
-    // Count steps ELAPSED rather than testing the clock's absolute step. When
-    // `_step` still wrapped at `& 0xffff`, `step >= stopAtStep` was unreachable
-    // once `bars × runs > 4096` and the export simply never stopped, recording
-    // into memory indefinitely. The wrap is gone (transport.md REQ-the-step-counter-is-bounded-at-ingress) and this
-    // is now merely the clearer of two correct forms: the capture starts at
-    // step 0 but a cued clock need not, so elapsed steps say what we mean
-    // (audio-export.md REQ-export-song-renders-from-the-top).
-    this.unsubTick = this.clock.onTick(() => {
-      // Post-increment, so `step` is 0,1,2,… — exactly what `clock.step` read
-      // before. The rendered length is therefore
-      // byte-identical to v8's (it stops on the FIRST tick at or past the
-      // bound, so that step is the last one rendered), which the audio bench
-      // and verify-audio-by-ear.md depend on.
-      const step = this.elapsedSteps++;
-      if (step >= stopAtStep) {
-        this.unhookStop(); // this stop is ours
-        this.clock.stop();
-        this.tailTimer = window.setTimeout(() => void this.finishExport(format), tailMs);
-      }
+    // The clock ends the pass, not a tick listener of ours (audio-export.md
+    // REQ-the-capture-keeps-a-tail, transport.md REQ-a-step-limit-halts-before-the-step).
+    // A listener registered here runs after every lane, so stopping from it came
+    // one step late: each lane had already scheduled step `stopAtStep`, the next
+    // pass's first step, and its first note sounded in the tail. The limit halts
+    // in that step's place, in the same wakeup, so the stop and the tail start
+    // exactly when they always did. It counts emitted steps, not the clock's
+    // absolute step, so the bound is reachable whatever the song's length.
+    this.clock.limitSteps(stopAtStep, () => {
+      this.unhookStop(); // the halt that follows is ours, not an interruption
+      this.tailTimer = window.setTimeout(() => void this.finishExport(format), tailMs);
     });
+    // Counts the same ticks, for `exportProgress()` only.
+    this.unsubTick = this.clock.onTick(() => { this.elapsedSteps++; });
     // The 0 is explicit: the capture must begin at the top of the arrangement,
     // and a plain start() now resumes from the user's cue (transport.md REQ-the-cue-is-where-start-begins),
     // which would truncate the export silently. Fires onStart → arrangement.
