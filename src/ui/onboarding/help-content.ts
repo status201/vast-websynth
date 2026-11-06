@@ -474,7 +474,9 @@ export const HELP_TOPICS: Record<TopicId, HelpTopic> = {
       '<p><strong>Theme</strong> is how the app looks. <strong>Vibrant</strong> is the default; ' +
       '<strong>Dark</strong> is the original walnut and amber, <strong>Light</strong> a cream ' +
       'faceplate with dark screens, <strong>Pastel</strong> paints each synth section its own ' +
-      'colour, and <strong>High contrast</strong> keeps every label easy to read. ' +
+      'colour, <strong>Classic</strong> is a studio rack in slate and teal, <strong>Jungle</strong> ' +
+      'khaki faceplates in teal and rose, <strong>Race</strong> a racing livery in orange and ' +
+      'red on ink, and <strong>High contrast</strong> keeps every label easy to read. ' +
       '<strong>Auto</strong> follows your system — more contrast gives High contrast, a light ' +
       'scheme gives Light, anything else Dark — and its tile shows which one it would pick. ' +
       'Until you choose, a system set to more contrast gets High contrast.</p>' +
@@ -1073,7 +1075,9 @@ export const HELP_TOPICS: Record<TopicId, HelpTopic> = {
       '<p>Eight slots that each play your own sound as a one-shot on a 16-step grid. ' +
       '<strong>Load</strong> a WAV/MP3 into a slot, or use <strong>Record a sound</strong> to ' +
       'capture from your mic and edit it. The ' + g('edit', 'Edit') +
-      ' button re-opens a loaded sound in the editor.</p>' +
+      ' button re-opens a loaded sound in the editor. <strong>Del</strong> takes a slot\'s file ' +
+      'out again and leaves its steps where they are, ready for another sound; the toast ' +
+      'offers <strong>Undo</strong>.</p>' +
       '<p>With a MIDI pad controller, <strong>channel 10</strong> plays the slots: C1 (note 36) ' +
       'is slot 1, up to slot 8, and how hard you hit is how loud it plays.</p>' +
       GRID_GESTURES +
@@ -1104,7 +1108,8 @@ export const HELP_TOPICS: Record<TopicId, HelpTopic> = {
       '<strong>Scratch</strong> to print it into the clip. Undo takes it straight back.</p>' +
       '<p>Plays while the transport runs, with its own master and effects. A saved ' +
       '<strong>song</strong> stores only the slots\' filenames, so you re-load the audio after ' +
-      'opening one; export a <strong>project</strong> instead and the audio travels with it.</p>',
+      'opening one (click a slot\'s name to pick its file); export a <strong>project</strong> ' +
+      'instead and the audio travels with it.</p>',
   },
 
   'sampler.pitch': {

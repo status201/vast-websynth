@@ -79,6 +79,9 @@
     --lit-warm-bottom: #e08a70;
     --lit-warm-shine: rgba(255, 245, 240, 0.45);
     --lit-ring: rgba(255, 255, 255, 0.55);
+    /* Sky blue vanishes on the teal step (REQ-step-marks-read-on-every-bed). */
+    --step-mark: #ffffff;
+    --step-mark-edge: #001a1d;
     --ink: #002a2e;
     --ink-strong: #001a1d;
     --playing: #64beda;

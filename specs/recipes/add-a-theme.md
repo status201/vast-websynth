@@ -22,10 +22,11 @@ source:
 
 A repeatable **playbook** for a new named look. Every colour in the app is a
 token named by its role, so a theme is one block of token values plus the four
-places that must agree on its id. The worked instances are the four themes
-[ui-themes](../features/ui-themes.md) ships beside Dark: Light, Pastel, Vibrant
-and High contrast. Vibrant is the closest model for a dark theme, Light for a
-light one.
+places that must agree on its id. The worked instances are the seven themes
+[ui-themes](../features/ui-themes.md) ships beside Dark: Light, Pastel, Vibrant,
+Classic, Jungle, Race and High contrast. Vibrant (or Classic, Race) is the
+closest model for a dark theme, Light for a light one, and Pastel or Jungle for
+light faceplates on a dark chassis.
 
 ## Background / Why
 
@@ -130,6 +131,13 @@ someone has looked at it.
     light the cap.
   - `--play-on-ink`: if you lit the cap, point it at `var(--switch-on-ink)`.
   - `--veil`: on a light theme, fade it toward the panel, not black.
+  - `--step-mark` with `--step-mark-edge`: ratchet ticks and the bend stroke.
+    If your "selected" colour sits close to your lit step, draw the marks in
+    white (Vibrant, Classic, Race, High contrast); the rim carries them on the
+    other bed.
+  - `--dj-lit-top` → `--dj-lit-bottom`: a lit DJ button's gradient. By default it
+    is your accent into the foot of your lit step, which suits a theme whose two
+    are one family and goes muddy where they are not (Jungle's rose over teal).
 - **A palette's loudest colour may only work as a fill.** Vibrant's pure red
   reads below 3:1 as type on every surface. It colours LEDs, accented steps and
   the cheeks, and its red text uses a lighter coral.

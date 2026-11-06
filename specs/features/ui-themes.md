@@ -3,7 +3,7 @@
 ```yaml
 id: ui-themes
 status: implemented
-version: 1
+version: 3
 owner: ui
 related:
   - typography            # the faces a theme sets
@@ -18,6 +18,9 @@ source:
   - src/styles/themes/contrast.css   # High contrast
   - src/styles/themes/pastel.css     # Pastel
   - src/styles/themes/vibrant.css    # Vibrant
+  - src/styles/themes/classic.css    # Classic
+  - src/styles/themes/jungle.css     # Jungle
+  - src/styles/themes/race.css       # Race
   - src/ui/components/panel.ts       # createPanel / createTabbedPanel set data-tint
   - src/ui/panels/synth-panels.ts    # which section each faceplate panel is
   - src/ui/panels/lfo-panel.ts
@@ -50,8 +53,8 @@ source:
 
 A named look for the whole app — a colour palette and two type faces — chosen per
 device. **Vibrant** is the default look; **Dark** (the original walnut-and-amber
-faceplate, and the tokens' own values), **Light**, **Pastel** and **High contrast**
-are the others.
+faceplate, and the tokens' own values), **Light**, **Pastel**, **Classic**, **Jungle**,
+**Race** and **High contrast** are the others.
 
 ## Background / Why
 
@@ -116,7 +119,7 @@ Fonts are system stacks only — the app bundles no font file
   never moves because the default look changed.
 - **REQ-the-theme-is-a-device-preference** — The chosen theme is stored under
   `localStorage['websynth.ui.theme']` as one of `dark | light | pastel | vibrant |
-  contrast | auto`, like the perf tier: per device, never in a song, a preset or a share
+  classic | jungle | race | contrast | auto`, like the perf tier: per device, never in a song, a preset or a share
   link. Only a theme the registry (`THEMES`) lists, or `auto`, is a choice: a
   missing, unknown or not-yet-shipped value is **no choice**
   (REQ-vibrant-is-the-default, [untrusted-input](untrusted-input.md)).
@@ -169,6 +172,17 @@ Fonts are system stacks only — the app bundles no font file
   amber (`--accent-secondary`) on its dark well, and in a theme that lights the
   cap, the cap's own `--switch-on-ink`, so Play reads like every other on switch.
   Either way it reads on the on bed at 4.5:1.
+- **REQ-step-marks-read-on-every-bed** — The marks a step button draws over
+  itself, the ratchet ticks and the bend stroke
+  ([step-settings](step-settings.md)), paint `--step-mark` with a 1px
+  `--step-mark-edge` rim (`drop-shadow`). They can land on the lit fill (`--lit`;
+  `--lit-bad` on a beat column) or, past a short gate, on the bare well, so one
+  colour must read on all of them. In every theme the mark or its rim reads at
+  3:1 or better (WCAG non-text) on `--well-top`, `--well-bottom`, `--lit-top` and
+  `--lit-bad-top`, and the mark reads at 3:1 on its rim. `--step-mark` follows
+  `--accent-secondary` unless a theme's selected colour is too close to its lit
+  step: Vibrant's sky blue on bright teal and High contrast's yellow on amber
+  were both invisible, so those two draw white marks.
 - **REQ-a-theme-change-repaints-the-canvases** — A theme change drops the cached
   screen palette and tells every open canvas (`onPaletteChange`), which repaints
   once: the EQ graph, the scratch graph and the sample waveform draw only on
@@ -223,13 +237,45 @@ Fonts are system stacks only — the app bundles no font file
   end of a meter — and red **type** and the knob arcs use a lighter coral of it.
   Its text meets Light's bar (REQ-light-body-text-meets-aa) on every surface.
   Display type is a geometric sans.
+- **REQ-classic-keeps-one-warm-signal** — Classic is a studio rack in slate and
+  onyx: Dark Slate Grey faceplates on an Onyx page between matte Carbon Black
+  cheeks, Charcoal Blue borders, and Muted Teal as the one light colour of its
+  palette, so teal carries "on" (the lit step, with onyx ink on it), the knob arcs
+  and the dim legends. "Selected" is a powder tint of the charcoal blue, cooler than
+  the teal so it never reads as "on". The palette has no warm colour, and the app
+  needs one: an LED, an accented step and an error are red in every theme. Classic
+  adds exactly **one** off-palette colour for them, a dusty brick, and nothing else.
+  The key roles do not follow the pale accents: washed over an ivory key, a pale
+  teal root and a powder chord tone vanished, so the root is a deeper teal and the
+  chord tone a deeper blue. Gradients are soft (faceplates, wells) and the cheeks
+  carry no grain. Its text
+  meets Light's bar on every surface. Display type is a Swiss grotesque.
+- **REQ-jungle-prints-on-khaki** — Jungle is khaki faceplates in a canopy of teal
+  and slate. Its five colours are all mid-tones, and no two of them carry type on
+  each other (khaki on Jungle Teal is 1.8:1), so it takes Pastel's model: a deep
+  Blue Slate chassis between Jungle Teal cheeks, Khaki Beige faceplates, and dark
+  slate legends on them. Each palette colour is a **fill**: Jungle Teal is a lit
+  step, Old Rose an accented one, Muted Olive a tie, and a lit DJ button is pale
+  khaki warming into rose (Old Rose over the lit step's dark teal went muddy where
+  the two met). Where a colour has to be type,
+  the accent and "selected", it is the same hue darkened until it reads (a deep
+  rose, a deep slate). Its text meets Light's bar on every surface. Screens stay
+  dark. Display type is a humanist sans.
+- **REQ-race-is-orange-on-ink** — Race is a racing livery: Ink Black faceplates,
+  Golden Orange for "on" (the lit step and the accent, which read on each other at
+  9:1), Strawberry Red for an accented step and the LEDs, Powder Blue for
+  "selected" and the playhead, Cerulean for the borders and a tie. The cheeks are
+  strawberry red with a golden pinstripe (`--wood-grain` over `--wood`). Its lit
+  fills are glossy, a strong gradient with a bright shine; every other surface is
+  near flat. Its text meets Light's bar on every surface. Display type is a DIN-style
+  sans.
 
 ## Technical design
 
 ### Contract / public interface
 
 ```yaml
-theme_ids: dark | light | pastel | vibrant | contrast      # `auto` is a stored choice, not a theme
+theme_ids: dark | light | pastel | vibrant | classic | jungle | race | contrast   # `auto` is a stored choice, not a theme
 theme_selector: ":root[data-theme=\"<id>\"]"     # dark is also plain :root (the tokens' own values)
 theme_files: src/styles/themes/<id>.css           # one @layer theme block each
 THEMES: "readonly ThemeInfo[] — the shipped themes, in picker order"   # src/state/theme.ts
@@ -274,8 +320,8 @@ under these roles (by REQ-tokens-are-named-by-role):
 | `--accent*`, `--led-*`, `--lip` | the accent voice, status LEDs and a lit LED's halo (`--led-glow`), the catch-light along a control's top lip |
 | `--well*`, `--tray`, `--recess*`, `--raised*`, `--menu*`, `--handle-*` | control surfaces: a button's bed, the bed a row of buttons sits in, a tab strip's bed, a selected control, a popover, a grip |
 | `--switch-on-*`, `--play-on-ink` | a switch that is on: its bed and its ink, and the Play switch's legend while playing (REQ-an-on-switch-reads-as-on) |
-| `--lit*`, `--ink*`, `--playing` | a lit (on) control in its three colours (accent, bad, warm), the dark type printed on a lit fill, the accent as a lit fill with type on it (`--lit-accent`, `--lit-accent-ink`: a DJ button that is on, the info badge), and the bar the playhead is in (inked with `--ink-strong`) |
-| `--key-*` | the playable keyboard and the musical-role colours |
+| `--lit*`, `--ink*`, `--playing` | a lit (on) control in its three colours (accent, bad, warm), the dark type printed on a lit fill, the accent as a lit fill with type on it (`--lit-accent`, `--lit-accent-ink`: the info badge), a lit DJ button's gradient (`--dj-lit-top` → `--dj-lit-bottom`, inked with `--ink`; by default the accent into the lit step's foot), and the bar the playhead is in (inked with `--ink-strong`) |
+| `--key-*` | the playable keyboard and the musical-role colours, and the KEY map's root letter on its key (`--key-role-root-ink`) |
 | `--screen*`, `--patch-*`, `--cable-*` | display windows, the FX patch bay and its cables |
 | `--keycap*` | the About card's shortcut keycaps and their legends |
 | `--scrim-ink`, `--veil`, `--scrollbar-*`, `--start-btn`, `--badge-bed`, `--motion*`, `--meter-hot` | overlays — a modal's backdrop (`--scrim-ink`) apart from a resting lane's wash (`--veil`, which a light theme fades toward its panel) — scrollbars, the start button, the brand's model badge, the motion sequencer's own amber, the gain-reduction meter's hot end |
@@ -439,6 +485,20 @@ Scenario: a picked theme survives a reload with no flash (REQ-the-theme-applies-
 Scenario: High contrast reads at 7:1 (REQ-high-contrast-reads-at-seven-to-one)
   Given every text token and every flat surface in contrast.css
   Then each pair's WCAG ratio is at least 7
+# pinned by: tests/ui/theme-contrast.test.ts
+
+Scenario: ratchet ticks read on an unaccented step (regression, REQ-step-marks-read-on-every-bed)
+  Given a lit step with ratchet 3 off the beat, in Vibrant or High contrast
+  When the ticks painted --accent-secondary, sky blue on teal and yellow on amber
+  Then only the beat columns' red showed them; now in every theme the mark or its rim
+    reads at 3:1 on the well and on both lit fills, and the mark at 3:1 on its rim
+# pinned by: tests/ui/theme-contrast.test.ts
+
+Scenario: Classic, Jungle and Race each meet their contrast rule (REQ-classic-keeps-one-warm-signal, REQ-jungle-prints-on-khaki, REQ-race-is-orange-on-ink)
+  Given classic.css, jungle.css and race.css
+  Then body text reads at 4.5:1 and the small print and accents at 3:1 on every flat surface,
+    and each passes the checks every theme runs (type on its own fills, an on switch,
+    the Play legend, the step marks)
 # pinned by: tests/ui/theme-contrast.test.ts
 
 Scenario: Light's body text meets AA (REQ-light-body-text-meets-aa)

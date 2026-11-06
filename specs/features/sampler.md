@@ -3,7 +3,7 @@
 ```yaml
 id: sampler
 status: implemented
-version: 16
+version: 17
 owner: core
 related:
   - architecture
@@ -94,6 +94,21 @@ and a [project zip](project-export.md) carries them.
   shared by every bank. The row owns its reversal: the toast's **Undo** restores name
   and buffer (still referenced, nothing re-decoded) and calls the lane's pattern undo
   **only** if a step mutation was pushed.
+- **REQ-a-filled-slot-offers-del-not-load** — A slot row's first button is **Load**
+  while the slot is empty and **Del** once it holds a name *or* a buffer — the shape
+  after a song import with its file missing included, which otherwise had no way out
+  short of `Clear ▾` (which also wipes the steps). Del ejects the **file only**:
+  `setBuffer(slot, null)`, then `sampleNames[slot] → null`; the slot's steps stay in
+  every bank, so a replacement file drops straight into the pattern. Del takes the
+  slot's load ticket, so a decode still in flight is discarded rather than refilling
+  the slot (REQ-slots-are-filled-by-load-or-record: the last action wins). A toast
+  offers **Undo**, which hands back the same name and `AudioBuffer` (nothing is
+  decoded again), and only while the slot is still empty: a file loaded or recorded
+  there since is never overwritten. The eject and its reversal are one helper,
+  `ejectSamplerFile`, which REQ-clear-ejects-the-slot's row uses too. Clicking the
+  **name** of a slot with no audio opens the file picker — the reload a
+  `.needs-reload` label promises, and the Load an empty slot's label promises; a
+  loaded name still auditions.
 - **REQ-sampler-lane-length-comes-from-the-meter** — `sampler.len` / `sampler.rate`
   decide how many cells play and how long each lasts ([meter](meter.md)
   REQ-each-machine-has-a-loop-length/REQ-each-machine-has-a-step-rate). The defaults
@@ -194,6 +209,8 @@ SamplerMachine:  # src/audio/transport/sampler-machine.ts
 engine (init):                     # the POLICY, so the capture exception fits
   clock.onStop(() => { if (recorder.isCapturing() || bankRender.isRendering()) return;
                        sampler.stopAll(); })
+ejectSamplerFile(engine, slot): (() => void) | null # src/ui/panels/step-panel-scaffold.ts
+  # name + buffer out (buffer first); returns their restore, or null when the slot held neither
 samplerSlotClearRow(engine, undo, slot): ClearRow   # src/ui/panels/step-panel-scaffold.ts
   # reads name + buffer when the MENU OPENS (the label, and hasContent), so its undo can
   # restore them; clear() reports true if steps, name or buffer went
@@ -234,7 +251,8 @@ engine (subscribeParams):
 graph: perHitGain -> slotIn -> slotTone -> slotGain -> slotPan -> samplerBus
        -> the sampler FX chain (effects.md REQ-the-drum-bus-chain-order) -> preMaster
 ui: src/ui/panels/sampler-panel.ts
-  sampler-step-<slot>-<s> grid; sampler-load/name/edit/file-<slot>; per-slot mute
+  sampler-step-<slot>-<s> grid; sampler-load/del/name/edit/file-<slot>; per-slot mute;
+  the Del toast is sampler-del-toast
   a selected-slot strip below the grid (like the drum tuning strip), rebinding on a row
   change so it never widens the row controls: PITCH START END ATK DECAY TONE RES PAN VOL,
   a REV switch and sampler-slot-reset. Knob/Switch testids derive from the paramId.
@@ -242,6 +260,21 @@ ui: src/ui/panels/sampler-panel.ts
   slot change (onboarding.md REQ-the-sampler-strip-carries-five-badges).
   A Load decode failure reports via alertDialog (dialog.md), not alert()
 ```
+
+## Gesture inventory
+
+A slot row's file controls (ADR-014). Grid gestures are
+[step-grid-editing](step-grid-editing.md)'s.
+
+| Gesture | Target | Result |
+| --- | --- | --- |
+| click / tap | **Load** (empty slot) | opens the file picker; the pick decodes into the slot |
+| click / tap | **Del** (named or loaded slot) | ejects name + buffer, keeps the steps; toast with Undo (REQ-a-filled-slot-offers-del-not-load) |
+| click / tap | the name, audio loaded | auditions the slot (`triggerSlot`) |
+| click / tap | the name, no audio (empty or `.needs-reload`) | opens the file picker |
+| click / tap | the toast's **Undo** | restores the ejected name + buffer, if the slot is still empty |
+
+All are native buttons, so Enter / Space do the same from the keyboard.
 
 ## Scenarios (BDD)
 
@@ -320,6 +353,40 @@ Scenario: Undoing a name-only clear does not pop someone else's edit (REQ-clear-
   Then the name and buffer return and the earlier edit is still on the stack —
     the lane's pattern undo was never called, because no step mutation was pushed
 # pinned by: tests/ui/clear-menu-sampler.test.ts
+
+Scenario: Del ejects the file and keeps the steps (REQ-a-filled-slot-offers-del-not-load)
+  Given slot 0 plays "kick.wav" and has steps
+  Then its row shows Del, not Load
+  When the user presses Del
+  Then sampleNames[0] and the slot's buffer are null, the steps are untouched,
+    the row shows Load again and a toast offers Undo
+# pinned by: tests/ui/sampler-panel.test.ts
+
+Scenario: Del's Undo brings the same file back (REQ-a-filled-slot-offers-del-not-load)
+  Given slot 0's file was just removed with Del
+  When the user presses the toast's Undo
+  Then the name and the very same AudioBuffer are back
+  But if a file was loaded into slot 0 in between, Undo leaves that file alone
+# pinned by: tests/ui/sampler-panel.test.ts
+
+Scenario: A song's missing file can be removed (regression, REQ-a-filled-slot-offers-del-not-load)
+  Given a song import names slot 0 "kick.wav" but its audio is missing (.needs-reload)
+  When the user presses Del
+  Then the name is gone and the slot is empty — before, only Clear ▾ (which also
+    wiped the steps) or New song could remove it
+# pinned by: tests/ui/sampler-panel.test.ts
+
+Scenario: Del discards a decode still in flight (edge, REQ-a-filled-slot-offers-del-not-load)
+  Given slot 0 holds a name and a newer file's decode is still pending
+  When the user presses Del and the decode then finishes
+  Then the slot stays empty
+# pinned by: tests/ui/sampler-panel.test.ts
+
+Scenario: Clicking a missing file's name opens the picker (REQ-a-filled-slot-offers-del-not-load)
+  Given slot 0 shows "kick.wav" with the .needs-reload hint
+  When the user clicks the name
+  Then the file picker opens, and nothing is auditioned
+# pinned by: tests/ui/sampler-panel.test.ts
 
 Scenario: Clear bank leaves the filenames alone (REQ-clear-ejects-the-slot, edge)
   Given slots are named and banks A and B both trigger them

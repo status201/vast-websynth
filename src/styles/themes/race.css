@@ -1,0 +1,149 @@
+/*
+ * Race (specs/features/ui-themes.md REQ-race-is-orange-on-ink): a racing livery.
+ * Ink Black faceplates, Golden Orange for "on" (the lit step and the accent),
+ * Strawberry Red for an accented step and the LEDs, Powder Blue for "selected"
+ * and the playhead, Cerulean for the borders and a tie. Strawberry cheeks with a
+ * golden pinstripe. The lit fills are glossy — a strong gradient, a bright shine,
+ * like paint — and every other surface is near flat.
+ */
+@layer theme {
+  :root[data-theme="race"] {
+    /* ===== Chassis ===== */
+    --bg: #011627;
+    --bg-deep: #000c16;
+    --panel: linear-gradient(180deg, #0a2540 0%, #051b30 100%);
+    --panel-flat: #071f37;
+    --panel-border: #1c7293;
+    --panel-border-dim: #12506a;
+    --wood: linear-gradient(180deg, #ff3a55 0%, #f71735 45%, #b80d26 100%);
+    /* The pinstripe: one golden band down each red cheek. */
+    --wood-grain: linear-gradient(90deg, transparent 0 58%, #f3a738 58% 72%, transparent 72%);
+
+    /* ===== Type ===== */
+    --text: #eef4f8;
+    --text-dim: #9eb3c2;
+    --text-faint: #4a6a82;
+    --text-soft: #c9d6df;
+    --text-label: #a9bccb;
+    --text-hint: #8fa6b7;
+    --text-bad: #ff6b7d;
+    --text-bad-hover: #ff8f9c;
+    --text-error: #ff7f8c;
+    --border-error: #a0122a;
+    --text-good: #6fe0a0;
+
+    /* ===== Accents and LEDs ===== */
+    --accent: #f3a738;
+    --accent-secondary: #9eb3c2;
+    --accent-secondary-dim: #5f7686;
+    --accent-good: #3fc98a;
+    --accent-bad: #f71735;
+    --led-on: #f71735;
+    --led-off: #0a1e30;
+    --led-dim: #7a1424;
+    --led-good: #3fe08a;
+    --meter-hot: #f71735;
+    --motion: #ffd27a;
+    --motion-beat: #ff7a45;
+
+    /* ===== Control surfaces ===== */
+    --well-top: #0a2238;
+    --well-bottom: #010f1c;
+    --tray-top: #000c16;
+    --tray-bottom: #071c30;
+    --recess-top: #000a14;
+    --recess-bottom: #06192b;
+    --raised-top: #12395a;
+    --raised-bottom: #0b2a44;
+    /* An on switch lights its cap orange, like a lit step. */
+    --switch-on-bed: #f3a738;
+    --switch-on-ink: #011627;
+    --play-on-ink: var(--switch-on-ink);
+    --field: #000e1a;
+    --menu: linear-gradient(180deg, #0c2a48 0%, #061d33 100%);
+    --menu-hover: linear-gradient(180deg, #1c7293, #135a76);
+    --handle-light: #9eb3c2;
+    --handle-dark: #1c7293;
+    --handle-edge: #000c16;
+    --pad-bed: linear-gradient(180deg, #0a2238, #031426);
+    --pad-border: #1c7293;
+    --pad-border-hover: #f3a738;
+
+    /* ===== Lit controls: glossy orange on, strawberry accented, cerulean tie ===== */
+    --lit-top: #ffbe5c;
+    --lit-bottom: #e08a14;
+    --lit-shine: rgba(255, 255, 255, 0.55);
+    --lit-text: #011627;
+    --lit-bad-top: #ff3d58;
+    --lit-bad-bottom: #c00f2a;
+    --lit-bad-shine: rgba(255, 230, 235, 0.5);
+    --lit-warm-top: #2a8fb5;
+    --lit-warm-bottom: #145a78;
+    --lit-warm-shine: rgba(220, 245, 255, 0.45);
+    --lit-ring: rgba(255, 255, 255, 0.6);
+    /* Powder vanishes on the orange step (REQ-step-marks-read-on-every-bed). */
+    --step-mark: #ffffff;
+    --step-mark-edge: #011627;
+    --ink: #011627;
+    --ink-strong: #000c16;
+
+    /* ===== Keyboard ===== */
+    --key-bed: linear-gradient(180deg, #000c16 0%, #071c30 100%);
+    --key-white: linear-gradient(180deg, #f5f8fa 0%, #cdd8e0 100%);
+    --key-white-active: linear-gradient(180deg, #ffd08a 0%, #f3a738 100%);
+    --key-black: linear-gradient(180deg, #12293e 0%, #000c16 100%);
+    --key-black-active: linear-gradient(180deg, #ffbe5c 0%, #c97a10 100%);
+    --key-white-ink: rgba(1, 22, 39, 0.6);
+    --key-white-shade: rgba(1, 22, 39, 0.3);
+    --key-white-shine: rgba(255, 255, 255, 0.7);
+    --key-white-active-shine: rgba(255, 255, 255, 0.5);
+    --key-black-active-shine: rgba(255, 255, 255, 0.4);
+    --key-black-active-glow: rgba(243, 167, 56, 0.5);
+    /* Roles: root orange, chord powder, scale cerulean, extra strawberry. */
+    --key-role-root-black: #c97a10;
+    --key-role-chord-black: #5f7686;
+    --key-role-scale: #1c7293;
+    --key-role-scale-edge: #2a8fb5;
+    --key-role-scale-black: #0f4560;
+    --key-role-extra: #f71735;
+    --key-role-extra-edge: #ff5a70;
+    --key-role-extra-black: #8a0c20;
+    --key-role-out: #071c30;
+    --key-role-out-edge: #12395a;
+    --key-role-out-black: #000c16;
+    --knob-bg: radial-gradient(circle at 35% 30%, #1c4466 0%, #0a2238 70%, #000c16 100%);
+
+    /* ===== Screens ===== */
+    --screen: radial-gradient(ellipse at center, #031a2e 0%, #000a14 100%);
+    --screen-border: #1c7293;
+    --screen-highlight: #fff1d6;
+    --screen-cue: #6fd0f0;
+    --badge-bed: #000c16;
+    --patch-bay: radial-gradient(ellipse 78% 86% at 50% 48%, #04182a 0%, #021220 58%, #000810 100%);
+    --patch-shade: #000810;
+    --patch-cable: #0a1c2c;
+    --patch-boot: #0e2234;
+    --patch-barrel: #152c40;
+    --patch-metal: #3e5a70;
+    --cable-brown: #1a140c;
+    --cable-red: #2a0a12;
+    --cable-red-lit: rgba(247, 23, 53, 0.06);
+    --cable-blue: #0a2236;
+    --cable-blue-lit: rgba(28, 114, 147, 0.07);
+    --cable-green: #0a2a20;
+    --cable-green-lit: rgba(63, 201, 138, 0.05);
+    --cable-amber: #2a1e08;
+    --cable-violet: #1a1030;
+    --cable-violet-lit: rgba(150, 120, 220, 0.05);
+
+    /* ===== Overlays and app chrome ===== */
+    --scrim-ink: #000810;
+    --scrollbar-thumb: linear-gradient(180deg, #1c7293, #0f4560);
+    --scrollbar-thumb-hover: linear-gradient(180deg, #f3a738, #c97a10);
+    --start-btn: linear-gradient(180deg, #0c2a48, #031426);
+
+    /* ===== Faces: a DIN-style sans for the legends ===== */
+    --serif: Bahnschrift, 'DIN Alternate', 'DIN Condensed', 'Arial Narrow', sans-serif;
+    --sans: 'Inter', system-ui, -apple-system, sans-serif;
+  }
+}

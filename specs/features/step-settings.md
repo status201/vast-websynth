@@ -227,7 +227,8 @@ consumers: sequencer.ts, drum-machine.ts, sampler-machine.ts all import step-hit
 ui: src/ui/components/step-settings.ts (StepSettingsEditor) — shared edit row;
     each panel owns its own selection cursor. StepButton.setViz() shows gate width,
     velocity brightness, ratchet ticks, tie/prob, micro as a horizontal shift of the
-    fill, and a bend direction stroke in the lower corner (::before; ::after is ratchet)
+    fill, and a bend direction stroke in the lower corner (::before; ::after is ratchet);
+    the marks' colours: ui-themes.md REQ-step-marks-read-on-every-bed
     makeSlider grows { center, snap, format } rather than a second slider implementation
 bend: sequencer.ts computes stepBend(s, h) per sub-hit -> NoteOptions -> Polyphony
     -> Voice.noteOn -> scheduleBend on voice.noteBend.offset. The editor's optional

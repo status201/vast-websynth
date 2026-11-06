@@ -160,6 +160,11 @@
     --lit-warm-shine: rgba(255, 240, 180, 0.4);
     /* The inner ring on a lit bar in the transport/ruler. */
     --lit-ring: rgba(255, 246, 214, 0.45);
+    /* The marks a step draws over itself — ratchet ticks, the bend stroke — and
+       their rim, so they read on the lit fill and on the bare well alike
+       (ui-themes.md REQ-step-marks-read-on-every-bed). */
+    --step-mark: var(--accent-secondary);
+    --step-mark-edge: #000000;
     /* Dark type printed on a lit fill. */
     --ink: #1a1410;
     --ink-strong: #120a04;
@@ -171,6 +176,11 @@
        info badge — and that type. Dark's accent is bright enough to be both. */
     --lit-accent: var(--accent);
     --lit-accent-ink: var(--bg-deep);
+    /* A lit DJ button's gradient (the Song panel's FOLLOW, the live FX), inked
+       with --ink. Its own pair so a theme can blend two colours that suit each
+       other, rather than whatever its accent and its lit step's foot happen to be. */
+    --dj-lit-top: var(--lit-accent);
+    --dj-lit-bottom: var(--lit-bottom);
 
     /* ===== Keyboard ===== */
     --key-bed: linear-gradient(180deg, #0a0604 0%, #1a0e08 100%);
@@ -195,6 +205,9 @@
        → specs/features/scale-quantization.md REQ-the-key-is-drawn-not-just-named / REQ-the-key-is-shown-where-you-play. */
     --key-role-root: var(--accent);
     --key-role-root-black: #b4501a;
+    /* The KEY map's root letter, printed on --key-role-root. Dark's root is bright
+       enough to take the chassis colour; a theme whose root is deep lightens it. */
+    --key-role-root-ink: var(--bg-deep);
     --key-role-chord: var(--accent-secondary);
     --key-role-chord-black: #b8912f;
     --key-role-scale: #7a4a24;

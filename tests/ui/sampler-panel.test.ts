@@ -147,3 +147,96 @@ describe('sampler panel slot writes', () => {
     expect(h.buffers[0]).toBe(original);
   });
 });
+
+/** sampler.md REQ-a-filled-slot-offers-del-not-load: Del ejects a slot's file, never its steps. */
+describe('sampler panel Del', () => {
+  beforeEach(() => { document.body.innerHTML = ''; });
+  afterEach(() => { document.body.innerHTML = ''; });
+
+  const btn = (id: string): HTMLButtonElement => document.querySelector<HTMLButtonElement>(`[data-testid="${id}"]`)!;
+  const shown = (id: string): boolean => btn(id).style.display !== 'none';
+  const undoDel = (): void => btn('sampler-del-toast').querySelector<HTMLButtonElement>('[data-testid="toast-action"]')!.click();
+
+  it('offers Load on an empty slot and Del on a filled one', () => {
+    const h = harness();
+    expect(shown('sampler-load-0')).toBe(true);
+    expect(shown('sampler-del-0')).toBe(false);
+    h.engine.sampler.setBuffer(0, fakeBuffer(0.5));
+    h.patterns.setSampleName(0, 'kick.wav');
+    expect(shown('sampler-load-0')).toBe(false);
+    expect(shown('sampler-del-0')).toBe(true);
+  });
+
+  it('ejects name and buffer, keeps the steps, and Undo brings the same file back', () => {
+    const h = harness();
+    const buf = fakeBuffer(0.5);
+    h.engine.sampler.setBuffer(0, buf);
+    h.patterns.setSampleName(0, 'kick.wav');
+    h.patterns.setSamplerCell(0, 4, { on: true });
+
+    btn('sampler-del-0').click();
+    expect(h.buffers[0]).toBeNull();
+    expect(h.patterns.sampleNames[0]).toBeNull();
+    expect(h.patterns.sampler[0]![4]!.on).toBe(true);
+    expect(shown('sampler-load-0')).toBe(true);
+    expect(shown('sampler-del-0')).toBe(false);
+
+    undoDel();
+    expect(h.buffers[0]).toBe(buf);
+    expect(h.patterns.sampleNames[0]).toBe('kick.wav');
+    expect(shown('sampler-del-0')).toBe(true);
+  });
+
+  it('removes a song\'s missing file (regression: only Clear ▾, which also wiped the steps, could)', () => {
+    const h = harness();
+    h.patterns.setSampleName(0, 'kick.wav'); // a song import: a name, no audio
+    expect(btn('sampler-name-0').classList.contains('needs-reload')).toBe(true);
+    expect(shown('sampler-del-0')).toBe(true);
+    btn('sampler-del-0').click();
+    expect(h.patterns.sampleNames[0]).toBeNull();
+    expect(btn('sampler-name-0').classList.contains('needs-reload')).toBe(false);
+    expect(shown('sampler-load-0')).toBe(true);
+  });
+
+  it('Undo leaves a file loaded since alone', async () => {
+    const h = harness();
+    h.engine.sampler.setBuffer(0, fakeBuffer(0.5));
+    h.patterns.setSampleName(0, 'kick.wav');
+    btn('sampler-del-0').click();
+    const newer = fakeBuffer(1);
+    pick(0, 'snare.wav');
+    await settle();
+    h.decodes[0]!(newer);
+    await settle();
+    undoDel();
+    expect(h.buffers[0]).toBe(newer);
+    expect(h.patterns.sampleNames[0]).toBe('snare.wav');
+  });
+
+  it('discards a decode still in flight (edge)', async () => {
+    const h = harness();
+    h.patterns.setSampleName(0, 'kick.wav');
+    pick(0, 'snare.wav');
+    await settle(); // the decode is pending
+    btn('sampler-del-0').click();
+    h.decodes[0]!(fakeBuffer(1));
+    await settle();
+    expect(h.buffers[0]).toBeNull();
+    expect(h.patterns.sampleNames[0]).toBeNull();
+  });
+
+  it('a name without audio opens the picker; a loaded one auditions', () => {
+    const h = harness();
+    const input = btn('sampler-file-0') as unknown as HTMLInputElement;
+    const open = vi.spyOn(input, 'click').mockImplementation(() => {});
+    h.patterns.setSampleName(0, 'kick.wav');
+    btn('sampler-name-0').click();
+    expect(open).toHaveBeenCalledTimes(1);
+    expect(h.engine.sampler.triggerSlot).not.toHaveBeenCalled();
+
+    h.engine.sampler.setBuffer(0, fakeBuffer(0.5));
+    btn('sampler-name-0').click();
+    expect(h.engine.sampler.triggerSlot).toHaveBeenCalledWith(0, 0.9);
+    expect(open).toHaveBeenCalledTimes(1);
+  });
+});

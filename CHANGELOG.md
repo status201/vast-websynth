@@ -28,6 +28,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
   and the vocal line were played through the synth and ride in the sampler,
   scoops and vibrato included; bass, keys, brass hits and drums play live.
 - A little something for anyone who knows the words.
+- **Three new themes**, in Settings. **Classic** is a studio rack in slate and
+  onyx, with muted teal for whatever is on. **Jungle** has khaki faceplates in a
+  teal and slate canopy: steps light in teal, accents in old rose, ties in olive.
+  **Race** is a racing livery: golden orange on ink black, strawberry red
+  accents and red cheeks with a golden pinstripe. Each keeps every label readable.
 
 ### Fixed
 
@@ -46,6 +51,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
   loop completed with undelivered notifications" error in the Debug panel. The
   on-screen keyboard's sizing watched the keyboard itself, whose height it
   changes; it now watches a zero-height strip of the same width.
+- **A sampler slot's file can be removed.** Once a slot holds a file, its
+  **Load** button becomes **Del**: it takes the file out and leaves the slot's
+  steps alone, ready for another sound, and the toast offers **Undo**. It also
+  removes the name of a file a song refers to but you don't have, which before
+  only **Clear** (which wiped the steps too) or **New song** could do. Clicking
+  such a missing file's name now opens the file picker, as its tooltip always
+  said it would.
+- **Ratchet ticks show on every step in Vibrant and High contrast.** Off the
+  beat they were sky blue on a teal step (Vibrant) or yellow on amber (High
+  contrast), so only the red beat columns showed them. They, and the bend stroke,
+  now draw in white in those two themes, and every theme gives them a thin rim
+  so they read on a lit step and on a bare one.
 
 ## [2.21.0] - 2026-11-05
 

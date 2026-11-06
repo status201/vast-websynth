@@ -20,6 +20,9 @@
     light: ['#ece6da', 'light'],
     pastel: ['#141210', 'dark'],
     vibrant: ['#00363c', 'dark'],
+    classic: ['#03120e', 'dark'],
+    jungle: ['#263a41', 'dark'],
+    race: ['#011627', 'dark'],
     contrast: ['#000000', 'dark'],
   };
   var has = function (id) { return Object.prototype.hasOwnProperty.call(THEMES, id); };

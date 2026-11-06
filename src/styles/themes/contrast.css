@@ -85,6 +85,9 @@
     --lit-warm-bottom: #ffe600;
     --lit-warm-shine: transparent;
     --lit-ring: #000000;
+    /* Yellow on amber is 1.3:1 (REQ-step-marks-read-on-every-bed). */
+    --step-mark: #ffffff;
+    --step-mark-edge: #000000;
     --ink: #000000;
     --ink-strong: #000000;
 

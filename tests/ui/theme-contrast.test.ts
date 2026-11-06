@@ -70,6 +70,8 @@ const INKED_FILLS: [ink: string, fill: string][] = [
   ['--keycap-ink', '--keycap'],
   ['--keycap-sharp-ink', '--keycap'],
   ['--ink', '--lit-accent'],
+  ['--ink', '--dj-lit-top'],
+  ['--key-role-root-ink', '--key-role-root'], // the KEY map's root letter on its key
   ['--lit-accent-ink', '--lit-accent'],
 ];
 
@@ -85,6 +87,10 @@ const RULES: Record<string, Rule> = {
   // Not on --bg: Pastel's page is the black chassis, which carries no type.
   pastel: { req: 'REQ-pastel-reads-on-every-tint', body: 4.5, small: 3, surfaces: [...SURFACES.filter((s) => s !== '--bg'), ...TINTS] },
   vibrant: { req: 'REQ-vibrant-keeps-its-red-for-fills', body: 4.5, small: 3 },
+  classic: { req: 'REQ-classic-keeps-one-warm-signal', body: 4.5, small: 3 },
+  // Not on --bg: like Pastel's, Jungle's page is the dark chassis, which carries no type.
+  jungle: { req: 'REQ-jungle-prints-on-khaki', body: 4.5, small: 3, surfaces: SURFACES.filter((s) => s !== '--bg') },
+  race: { req: 'REQ-race-is-orange-on-ink', body: 4.5, small: 3 },
   contrast: { req: 'REQ-high-contrast-reads-at-seven-to-one', body: 7, small: 7, alsoBody: ['--text-faint'] },
 };
 const IDS = THEMES.map((t) => t.id);
@@ -133,5 +139,21 @@ describe('theme contrast', () => {
 
   it('prints the Play legend legibly on its on bed, in every theme (regression, REQ-an-on-switch-reads-as-on)', () => {
     expect(IDS.flatMap((id) => below(id, ['--play-on-ink'], 4.5, onBeds(id)))).toEqual([]);
+  });
+
+  it('draws step marks that read on every bed, in every theme (regression, REQ-step-marks-read-on-every-bed)', () => {
+    // Ratchet ticks off the beat vanished in Vibrant (sky blue on teal) and High
+    // contrast (yellow on amber). A mark lands on the fill or, past a short gate,
+    // on the well; on each, the mark or its rim must carry 3:1.
+    const BEDS = ['--well-top', '--well-bottom', '--lit-top', '--lit-bad-top'];
+    const bad: string[] = [];
+    for (const id of IDS) {
+      for (const bed of BEDS) {
+        const best = Math.max(ratio(id, '--step-mark', bed), ratio(id, '--step-mark-edge', bed));
+        if (best < 3) bad.push(`${id}: --step-mark/--step-mark-edge on ${bed} = ${best.toFixed(2)}`);
+      }
+    }
+    bad.push(...IDS.flatMap((id) => below(id, ['--step-mark'], 3, ['--step-mark-edge'])));
+    expect(bad).toEqual([]);
   });
 });

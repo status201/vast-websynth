@@ -146,7 +146,10 @@
   /* prob < 100% → dashed border ("might not fire") */
   .prob.on { border-style: dashed; }
 
-  /* ratchet > 1 → one tick per sub-hit along the top edge */
+  /* ratchet > 1 → one tick per sub-hit along the top edge. The ticks and the
+     bend stroke paint --step-mark inside a --step-mark-edge rim: a short gate
+     leaves them over the bare well, so they must read on it and on the fill
+     (ui-themes.md REQ-step-marks-read-on-every-bed). */
   .ratchet.on::after {
     content: '';
     position: absolute;
@@ -154,7 +157,7 @@
     left: 3px;
     height: 3px;
     width: calc(var(--sb-ratchet, 1) * 5px - 2px); /* N ticks of 3px + 2px gaps */
-    background: repeating-linear-gradient(90deg, var(--accent-secondary) 0 3px, transparent 3px 5px);
+    background: repeating-linear-gradient(90deg, var(--step-mark) 0 3px, transparent 3px 5px);
     z-index: 1;
     pointer-events: none;
   }
@@ -173,11 +176,17 @@
     z-index: 1;
     pointer-events: none;
   }
+  /* Every step mark's rim, in one place. */
+  .ratchet.on::after,
+  .bendUp.on::before,
+  .bendDown.on::before {
+    filter: drop-shadow(0 0 1px var(--step-mark-edge));
+  }
   .bendUp.on::before {
-    background: linear-gradient(to top left, transparent calc(50% - 0.75px), var(--accent-secondary) 50%, transparent calc(50% + 0.75px));
+    background: linear-gradient(to top left, transparent calc(50% - 0.75px), var(--step-mark) 50%, transparent calc(50% + 0.75px));
   }
   .bendDown.on::before {
-    background: linear-gradient(to bottom left, transparent calc(50% - 0.75px), var(--accent-secondary) 50%, transparent calc(50% + 0.75px));
+    background: linear-gradient(to bottom left, transparent calc(50% - 0.75px), var(--step-mark) 50%, transparent calc(50% + 0.75px));
   }
 
   /* The keyboard focus ring (step-grid-editing.md REQ-a-trigger-grid-is-reachable-by-keyboard).
