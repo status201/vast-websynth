@@ -132,7 +132,7 @@
   .collapse[aria-expanded='false'] { transform: rotate(-90deg); }
 
   /* Responsive — narrow screens */
-  @media (max-width: 992px) {
+  @container viewport (max-width: 992px) {
     .bar { flex-wrap: wrap; }
   }
 
@@ -141,7 +141,7 @@
      caret and the MACHINES icon — needs ~957px of bar, and a label wraps onto a
      second line below a 1028px viewport (measured: 42px-tall tabs from 993 to
      1027px). 1030 covers that band with a couple of pixels to spare. */
-  @media (max-width: 1030px) {
+  @container viewport (max-width: 1030px) {
     .tab {
       padding: 7px 10px;
       font-size: 10px;

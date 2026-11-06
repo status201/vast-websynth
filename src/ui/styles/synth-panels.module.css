@@ -15,11 +15,11 @@
     margin: 0 var(--side-margin);
   }
 
-  @media (max-width: 1280px) {
+  @container viewport (max-width: 1280px) {
     .main { grid-template-columns: repeat(4, minmax(0, 1fr)); }
   }
 
-  @media (max-width: 992px) {
+  @container viewport (max-width: 992px) {
     .main { grid-template-columns: repeat(2, minmax(0, 1fr)); }
   }
 }

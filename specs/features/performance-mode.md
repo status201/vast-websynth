@@ -128,7 +128,8 @@ differ only by live-applied scope fps + fftSize).
 
 - **REQ-a-perf-button-opens-the-picker** — A header button (gauge icon, labelled
   "Settings") opens the **Settings** dialog, whose Performance section — below
-  the theme picker ([ui-themes](ui-themes.md) REQ-choosing-a-theme-previews-it) —
+  the theme picker ([ui-themes](ui-themes.md) REQ-choosing-a-theme-previews-it)
+  and the UI size ([ui-scale](ui-scale.md)) —
   holds an **Auto / Weak / Medium / Strong** control; changing it persists
   immediately, applies fps live, and shows a "reload to apply" hint + button
   only when the new choice crosses an **audio** boundary

@@ -2,6 +2,7 @@ import styles from '../styles/floating-window.module.css';
 import { clamp } from '../../utils/math';
 import { UI_ICONS } from './ui-icons';
 import { ResizeHandle } from './resize-handle';
+import { toLocal, viewportWidth, viewportHeight } from '../ui-scale';
 
 /**
  * Reusable **non-modal** floating window — a titled, draggable panel that hovers
@@ -97,7 +98,7 @@ export class FloatingWindow {
     this.onCloseCb = opts.onClose;
     this.confirmCloseCb = opts.confirmClose;
     this.pos = opts.initial ?? {
-      left: Math.max(24, Math.round((typeof window !== 'undefined' ? window.innerWidth : 800) / 2 - 150)),
+      left: Math.max(24, Math.round((typeof window !== 'undefined' ? viewportWidth() : 800) / 2 - 150)),
       top: 96,
     };
 
@@ -198,9 +199,9 @@ export class FloatingWindow {
     const r = this.resizeOpts!;
     const b = r.bounds();
     const size = r.measure();
-    let max = Math.min(b.max, window.innerWidth - this.pos.left - (this.root.offsetWidth - size));
+    let max = Math.min(b.max, viewportWidth() - this.pos.left - (this.root.offsetWidth - size));
     if (r.direction === 'down-right') {
-      max = Math.min(max, window.innerHeight - this.pos.top - (this.root.offsetHeight - size));
+      max = Math.min(max, viewportHeight() - this.pos.top - (this.root.offsetHeight - size));
     }
     return { min: b.min, max };
   };
@@ -302,15 +303,20 @@ export class FloatingWindow {
 
   private readonly onDragMove = (e: PointerEvent): void => {
     if (!this.dragging) return;
-    this.applyClampedPos(this.startLeft + (e.clientX - this.startX), this.startTop + (e.clientY - this.startY));
+    // The pointer moves in viewport px, the window in local px (ui-scale.md
+    // REQ-coordinates-are-converted-at-the-read): 1:1 under the finger at any scale.
+    this.applyClampedPos(
+      this.startLeft + toLocal(e.clientX - this.startX),
+      this.startTop + toLocal(e.clientY - this.startY),
+    );
   };
 
   /** Store `left`/`top` clamped to the current viewport and write them to the
    *  root. Shared by drag and by the open/resize re-clamp (REQ-window-stays-inside-the-viewport) so the bounds
    *  are identical. */
   private applyClampedPos(left: number, top: number): void {
-    const maxLeft = Math.max(0, window.innerWidth - this.root.offsetWidth);
-    const maxTop = Math.max(0, window.innerHeight - this.root.offsetHeight);
+    const maxLeft = Math.max(0, viewportWidth() - this.root.offsetWidth);
+    const maxTop = Math.max(0, viewportHeight() - this.root.offsetHeight);
     this.pos.left = clamp(left, 0, maxLeft);
     this.pos.top = clamp(top, 0, maxTop);
     this.root.style.left = `${this.pos.left}px`;

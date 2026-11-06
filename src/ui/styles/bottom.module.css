@@ -132,7 +132,7 @@
     z-index: 2;
   }
 
-  @media (max-width: 350px) {
+  @container viewport (max-width: 350px) {
     /* !important for the same reason .scopeToggle needs it above: this class and
        resize-handle.module.css's .root are both single-class selectors on the same
        element, so bundle order — not intent — would otherwise decide. */

@@ -51,7 +51,7 @@
      is — so the word goes and the dial + value stay. `title` carries the name for
      a hover or a long-press. Paired with `seq.module.css`'s `.trackCtrls` width at
      this same breakpoint — change one, change the other. */
-  @media (max-width: 720px) {
+  @container viewport (max-width: 720px) {
     .inline .label { display: none; }
   }
 

@@ -4,6 +4,7 @@ import { ParamBus } from './state/params';
 import { PERF_PROFILES, resolveTier } from './state/perf-mode';
 import { mountApp } from './ui/app';
 import { startTheme } from './ui/theme';
+import { initUiScale } from './ui/ui-scale';
 import { installShortcuts } from './ui/shortcuts';
 import { primeDetection } from './state/keyboard-layout';
 import { initMIDI } from './audio/midi';
@@ -39,6 +40,9 @@ async function boot() {
   // public/theme-boot.js put the stored theme on the page before first paint;
   // this takes over from it and follows the system under Auto (ui-themes.md).
   startTheme();
+  // ...and the stored UI scale; at 100% this touches nothing (ui-scale.md
+  // REQ-a-hundred-percent-is-a-no-op), and it runs before any panel measures.
+  initUiScale();
   // Build the synth and mount the full UI immediately. Whether the AudioContext
   // comes back suspended is the *browser's* call, not ours — an autoplay-permitted
   // one is rendering from the moment it exists — so the boot does not assume it:

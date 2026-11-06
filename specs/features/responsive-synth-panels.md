@@ -355,7 +355,7 @@ LFO page passes its knob row **and** the pulse-rate hint as `knobs`.
   ```
 
   `.spread` (REQ-spread-rows-distribute-when-wide) is inert by default (its `.panelRow` centred flex stands);
-  the same `@media (max-width: 1280px)` block (which already switches `.main` to
+  the same `@container viewport (max-width: 1280px)` block (which already switches `.main` to
   4 columns) adds both overrides:
 
   ```css
@@ -377,16 +377,16 @@ LFO page passes its knob row **and** the pulse-rate hint as `knobs`.
   .quint { grid-template-columns: repeat(2, minmax(0, 1fr)); }        /* A D / S R / VEL */
   .quint > *:last-child { grid-column: 1 / -1; }
 
-  @media (min-width: 1630px) {
+  @container viewport (min-width: 1630px) {
     .hex { repeat(3, minmax(0, 1fr)); }
   }
-  @media (max-width: 1280px) {
+  @container viewport (max-width: 1280px) {
     .hex { repeat(3, minmax(0, 1fr)); }
     .quint { repeat(5, minmax(0, 1fr)); }
     .quint > *:last-child { grid-column: auto; }
   }
   /* Last in the file, so at ≤499px it beats the 1280px block on source order. */
-  @media (min-width: 1630px) and (max-width: 2560px), (max-width: 499px) {
+  @container viewport ((min-width: 1630px) and (max-width: 2560px)) or (max-width: 499px) {
     .quint { repeat(3, minmax(0, 1fr)); }                             /* dice-five */
     .quint > :nth-child(1) { grid-column: 1; grid-row: 1; }           /* A */
     .quint > :nth-child(2) { grid-column: 3; grid-row: 1; }           /* D */
@@ -407,7 +407,7 @@ LFO page passes its knob row **and** the pulse-rate hint as `knobs`.
   spare height. It is breakpoint-free: the zones hold at every width.
   `.panelEdge` (REQ-selectors-never-outgrow-their-panel) is `max-width: 100%`
   everywhere and tightens its switch's buttons in one block,
-  `@media (min-width: 1281px) and (max-width: 1629px), (max-width: 499px)`. It is
+  `@container viewport ((min-width: 1281px) and (max-width: 1629px)) or (max-width: 499px)`. It is
   in layer `chrome`, above `segmented.module.css`'s `controls`, so it wins without
   `!important`.
 - `src/ui/panels/synth-panels.ts` — seven `panel()` call sites, each a `knobRow`: two `.quad`

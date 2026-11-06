@@ -26,8 +26,8 @@
   }
 
   .card {
-    width: min(440px, 92vw);
-    max-height: 86vh;
+    width: min(440px, calc(92vw / var(--ui-zoom, 1)));
+    max-height: calc(86vh / var(--ui-zoom, 1));
     overflow-y: auto;
     background: var(--panel);
     border: 1px solid var(--panel-border);
@@ -37,7 +37,7 @@
   }
 
   .cardWide {
-    width: min(720px, 94vw);
+    width: min(720px, calc(94vw / var(--ui-zoom, 1)));
   }
 
   .title {
@@ -483,7 +483,7 @@
 
   /* On phones the modal is height-capped + scrollable (the base .card); shrink the
      tall textareas so the actions (incl. Close) come into reach with little scroll. */
-  @media (max-width: 720px) {
+  @container viewport (max-width: 720px) {
     .aiText { height: 220px; }
     .aiBrief { height: 64px; }
     .pasteText { height: 130px; }

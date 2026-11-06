@@ -25,7 +25,7 @@
     display: none;
   }
 
-  @media (max-width: 992px) {
+  @container viewport (max-width: 992px) {
     .root { display: block; }
   }
 
@@ -106,7 +106,7 @@
 
   /* The bundle's strokes are non-scaling, so on a phone-sized bay they'd take up
      proportionally far more of it and the tangle would read as spaghetti. */
-  @media (max-width: 560px) {
+  @container viewport (max-width: 560px) {
     .bgCable { stroke-width: 1.8; }
     .thin { stroke-width: 1.2; }
     /* The curtain's 10 runs compress into a phone-width bay, so at full strength

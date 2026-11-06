@@ -9,6 +9,7 @@ import { createButton, setButtonLabel } from '../components/button';
 import { clamp } from '../../utils/math';
 import styles from '../styles/tour.module.css';
 import { iconTextEl } from '../components/ui-icons';
+import { localRect, viewportWidth, viewportHeight } from '../ui-scale';
 
 export type Placement = 'auto' | 'top' | 'bottom' | 'left' | 'right';
 
@@ -315,10 +316,16 @@ export class Tour {
     const target = step.target ? resolveTarget(step.target) : null;
     if (!target) {
       this.spotlight.classList.add(styles.centered!);
-      Object.assign(this.spotlight.style, { left: '0px', top: '0px', width: '100vw', height: '100vh' });
+      // Viewport units divided by the UI scale's zoom (ui-scale.md REQ-viewport-units-are-divided-by-the-zoom).
+      Object.assign(this.spotlight.style, {
+        left: '0px', top: '0px',
+        width: 'calc(100vw / var(--ui-zoom, 1))', height: 'calc(100vh / var(--ui-zoom, 1))',
+      });
     } else {
       this.spotlight.classList.remove(styles.centered!);
-      const r = target.getBoundingClientRect();
+      // Local px: these are lengths the UI scale's zoom applies to
+      // (ui-scale.md REQ-coordinates-are-converted-at-the-read).
+      const r = localRect(target.getBoundingClientRect());
       const pad = 6;
       Object.assign(this.spotlight.style, {
         left: `${r.left - pad}px`,
@@ -328,9 +335,9 @@ export class Tour {
       });
     }
 
-    const cr = this.callout.getBoundingClientRect();
-    const rect = target ? target.getBoundingClientRect() : null;
-    const p = placeCallout(rect, cr.width, cr.height, window.innerWidth, window.innerHeight, step.placement);
+    const cr = localRect(this.callout.getBoundingClientRect());
+    const rect = target ? localRect(target.getBoundingClientRect()) : null;
+    const p = placeCallout(rect, cr.width, cr.height, viewportWidth(), viewportHeight(), step.placement);
     Object.assign(this.callout.style, { left: `${p.left}px`, top: `${p.top}px` });
   }
 }

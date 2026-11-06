@@ -35,11 +35,12 @@ export interface PerfSettingsOptions {
 
 export function createPerfSettingsButton(opts: PerfSettingsOptions = {}): HTMLButtonElement {
   const btn = createButton({
-    // The Settings dialog — theme and performance (ui-themes.md); the gauge and
-    // the tier colour stay, since the tier is the setting worth seeing at a glance.
-    label: 'Settings — theme and performance',
+    // The Settings dialog — theme, UI size and performance (ui-themes.md,
+    // ui-scale.md); the gauge and the tier colour stay, since the tier is the
+    // setting worth seeing at a glance.
+    label: 'Settings — theme, UI size and performance',
     icon: HEADER_ICONS.perf,
-    title: 'Settings — theme and performance',
+    title: 'Settings — theme, UI size and performance',
     testId: 'perf-settings',
     onClick: () => void open(),
   });

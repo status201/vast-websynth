@@ -478,6 +478,10 @@ export const HELP_TOPICS: Record<TopicId, HelpTopic> = {
       '<strong>Auto</strong> follows your system — more contrast gives High contrast, a light ' +
       'scheme gives Light, anything else Dark — and its tile shows which one it would pick. ' +
       'Until you choose, a system set to more contrast gets High contrast.</p>' +
+      "<p><strong>UI size</strong> zooms the whole interface, the way your browser's zoom does: " +
+      'from 50% to 150%, in the same steps. Smaller fits more on a phone; larger gives a tablet ' +
+      'bigger knobs. It applies when you let go of the slider, and <strong>Reset</strong> returns ' +
+      'to 100%.</p>' +
       '<p><strong>Performance</strong> matches the audio to what this device can keep up with. ' +
       '<strong>Weak</strong> uses a larger audio buffer and fewer voices, so slow hardware stops ' +
       'crackling; <strong>Strong</strong> keeps latency low on a fast machine; <strong>Auto</strong> ' +

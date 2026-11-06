@@ -147,7 +147,8 @@ thing.
       *inside* the header are exempt: they never scroll away, so measuring them
       against their own container would hide them permanently (REQ-a-presets-topic-anchors-to-the-picker);
     - **below** — the badge's bottom crosses the viewport's
-      (`top + BADGE_SIZE > innerHeight`) → hide.
+      (`top + BADGE_SIZE > viewportHeight()`, the window's height in local px:
+      [ui-scale](ui-scale.md) REQ-coordinates-are-converted-at-the-read) → hide.
   Both directions, or a badge scrolled past the fold stays pinned off-screen,
   reachable by nothing. The thresholds are deliberate mirrors: **any** overlap
   with the band hides, so a half-clipped badge — as unreachable as a fully hidden
@@ -269,10 +270,12 @@ thing.
 - **REQ-a-settings-topic-anchors-to-the-gauge** (v31) — **A `settings` topic
   anchors to the header's Settings button** (`perf-settings`, the gauge), placed
   `'corner-left'`: the button's top-left corner, the side away from the ⓘ
-  toggle. Its copy covers both sections of the dialog — **Theme** (the looks,
+  toggle. Its copy covers all three sections of the dialog — **Theme** (the looks,
   that Vibrant is the default and a system asking for more contrast gets High
   contrast, what Auto follows, that the choice is per device and never in a song;
-  [ui-themes](ui-themes.md)) and **Performance** (what a tier trades, what Auto
+  [ui-themes](ui-themes.md)), **UI size** (zooms the whole interface like the
+  browser's zoom, 50–150%, applied on release; [ui-scale](ui-scale.md)) and
+  **Performance** (what a tier trades, what Auto
   picks, and that buffer and voice changes wait for a reload;
   [performance-mode](performance-mode.md)).
   - Deliberate exception to REQ-a-presets-topic-anchors-to-the-picker's

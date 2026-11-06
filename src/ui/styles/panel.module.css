@@ -400,7 +400,7 @@
      neighbour, taken from the section below). Three columns buy a dice-five,
      two rows tall like AMP ENV beside it — that rule is the last block in the
      file, since it is shared with phone widths. */
-  @media (min-width: 1630px) {
+  @container viewport (min-width: 1630px) {
     .hex { grid-template-columns: repeat(3, minmax(0, 1fr)); }
   }
 
@@ -411,7 +411,7 @@
      fit at ~2970px, with no air). ≤2560px is untouched. Both blocks sit after the
      1630px one so they win on source order. The dice-five stops at 2560px, so
      .quint only has to undo the base span on VEL, as the 1280px block does. */
-  @media (min-width: 2561px) {
+  @container viewport (min-width: 2561px) {
     .spread { justify-content: space-evenly; }
     .rowBreak { display: none; }
     .quad { grid-template-columns: repeat(4, minmax(0, 1fr)); }
@@ -419,12 +419,12 @@
     .quint > *:last-child { grid-column: auto; }
   }
 
-  @media (min-width: 3200px) {
+  @container viewport (min-width: 3200px) {
     .hex { grid-template-columns: repeat(6, minmax(0, 1fr)); }
     .rowBreak.six { display: none; }
   }
 
-  @media (max-width: 1280px) {
+  @container viewport (max-width: 1280px) {
     /* Panels widen on the 4-col (and later 2-col) reflow — the four knobs fit one
        row. Holds through every narrower width. */
     .quad { grid-template-columns: repeat(4, minmax(0, 1fr)); }
@@ -438,7 +438,7 @@
     .spread { justify-content: space-evenly; }
   }
 
-  @media (max-width: 1140px) {
+  @container viewport (max-width: 1140px) {
     /* Machine panel headers: the FX cluster leads its own full-width row, so the
        machine controls (switch/master/banks/undo/actions) never reflow around an
        individual effect group. */
@@ -455,7 +455,7 @@
      so the shape cannot depend on rule order and the DOM (Tab) order is
      untouched. Label ink is no constraint: no two boxes share a column, and VEL
      shares no label line with a corner. */
-  @media (min-width: 1630px) and (max-width: 2560px), (max-width: 499px) {
+  @container viewport ((min-width: 1630px) and (max-width: 2560px)) or (max-width: 499px) {
     .quint { grid-template-columns: repeat(3, minmax(0, 1fr)); }
     .quint > :nth-child(1) { grid-column: 1; grid-row: 1; } /* A */
     .quint > :nth-child(2) { grid-column: 3; grid-row: 1; } /* D */
@@ -471,7 +471,7 @@
      less air: the side padding and min-width floor go, the type stays. Wins over
      segmented.module.css by layer (chrome > controls). The LFO's destination
      dropdown is a .panelEdge too, but full-width already — hence :not(.dropdown). */
-  @media (min-width: 1281px) and (max-width: 1629px), (max-width: 499px) {
+  @container viewport ((min-width: 1281px) and (max-width: 1629px)) or (max-width: 499px) {
     .panelEdge:not(:global(.dropdown)) > button {
       padding-left: 5px;
       padding-right: 5px;

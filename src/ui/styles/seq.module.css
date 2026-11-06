@@ -85,7 +85,7 @@
 
   /* The inline knob drops its "PAN" word at this breakpoint (knob.module.css), so
      the cluster hands the width back to the step grid. */
-  @media (max-width: 720px) {
+  @container viewport (max-width: 720px) {
     .trackCtrls { width: 172px; }
   }
 

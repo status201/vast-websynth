@@ -10,7 +10,7 @@
     /* dvh tracks mobile browser chrome; overrides base.css 100vh. The bottom
        1fr row fills spare space when it fits, and floors via .bottom's
        minmax() when content overflows (page scrolls — keyboard always there). */
-    min-height: 100dvh;
+    min-height: calc(100dvh / var(--ui-zoom, 1));
   }
 
   /* Wood-grain side cheeks (behind content) */
@@ -60,7 +60,7 @@
   /* The FX rack borrows this 40px for its own 1320-1409px band, where its six
      panels fit only at the smaller knob (fx-rack.module.css,
      responsive-synth-panels.md REQ-fx-panels-fit-their-knob-run). Change both. */
-  @media (max-width: 1280px) {
+  @container viewport (max-width: 1280px) {
     .app {
       --knob-size: 40px;
       gap: 8px;
@@ -70,13 +70,13 @@
   /* The header wraps onto extra rows from 1140px down (header.module.css), so
      its fixed 80px track must size to content or the wrapped row paints over
      the panels below. */
-  @media (max-width: 1140px) {
+  @container viewport (max-width: 1140px) {
     .app {
       grid-template-rows: auto auto auto auto 1fr;
     }
   }
 
-  @media (max-width: 992px) {
+  @container viewport (max-width: 992px) {
     .app {
       --knob-size: 36px;
       --side-margin: 8px;
@@ -91,7 +91,7 @@
 
   /* Phones. Only the default size shrinks: a knob built with an explicit
      `size` (EQ, sequencer pan, machine tabs) sets --knob-size inline and keeps it. */
-  @media (max-width: 720px) {
+  @container viewport (max-width: 720px) {
     .app {
       --knob-size: 30px;
     }

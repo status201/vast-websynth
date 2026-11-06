@@ -86,7 +86,8 @@ block on `:root[data-theme="<id>"]`:
 - `index.html`: a `<link rel="stylesheet" href="/src/styles/themes/<id>.css">`
   beside the other theme links, after `theme.css`.
 - `public/theme-boot.js`: an entry in its `THEMES` map with the same
-  `[metaColor, colorScheme]` as the registry row.
+  `[metaColor, colorScheme]` as the registry row. (The file's second block is
+  the UI scale's — [ui-scale](../features/ui-scale.md); leave it alone.)
 
 ### 4. State its contrast — `tests/ui/theme-contrast.test.ts`
 

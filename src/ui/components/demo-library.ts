@@ -14,6 +14,7 @@ import { demoFacts } from '../../state/demo-meta';
 import { DEMO_BLURBS } from '../../state/demo-blurbs';
 import switchStyles from '../styles/switch.module.css';
 import styles from '../styles/demo-library.module.css';
+import { toLocal } from '../ui-scale';
 
 export interface DemoLibraryOptions {
   /** The Song panel's `loadDemo` — the one door every demo load goes through. */
@@ -144,7 +145,9 @@ function dropIdleToggles(folds: Fold[]): void {
 function scrollToEntry(entry: HTMLElement): void {
   const card = entry.closest<HTMLElement>(`.${Modal.cardClass}`);
   if (!card) return;
-  card.scrollTop += entry.getBoundingClientRect().top - card.getBoundingClientRect().top - 12;
+  // The rect delta is viewport px, scrollTop the card's own zoomed px (ui-scale.md
+  // REQ-coordinates-are-converted-at-the-read): unconverted it overshoots under the UI scale.
+  card.scrollTop += toLocal(entry.getBoundingClientRect().top - card.getBoundingClientRect().top) - 12;
 }
 
 /** {@link renderDemoLibrary} in its own Modal, framed the way an info badge's topic is. */

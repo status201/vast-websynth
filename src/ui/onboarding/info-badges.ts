@@ -12,6 +12,7 @@ import switchStyles from '../styles/switch.module.css';
 import styles from '../styles/tour.module.css';
 import { HELP_TOPICS, type TopicId } from './help-content';
 import type { ParamBus } from '../../state/params';
+import { localRect, viewportHeight, type LocalRect } from '../ui-scale';
 
 type Placement = 'corner' | 'corner-left' | 'after';
 
@@ -197,7 +198,7 @@ export class InfoBadges {
   private badges: Array<{ el: HTMLElement; anchor: Element; place: Placement; inHeader: boolean }> = [];
   /** Scratch for `position()`'s read phase, reused across frames so batching
    *  the reads costs no allocation (REQ-no-allocation-in-a-hot-loop). */
-  private readonly rects: DOMRect[] = [];
+  private readonly rects: LocalRect[] = [];
   private rafQueued = false;
   private ro: ResizeObserver | null = null;
   private headerEl: Element | null = null;
@@ -312,8 +313,11 @@ export class InfoBadges {
     // the viewport is bounded at BOTH ends: the sticky header's bottom edge,
     // which content badges must not scroll up into (they'd paint over it), and
     // the fold, past which a badge is pinned where nothing can click it.
-    const headerBottom = this.headerEl?.getBoundingClientRect().bottom ?? 0;
-    const fold = window.innerHeight;
+    // Local px throughout: left/top and BADGE_SIZE are lengths the UI scale's
+    // zoom applies to (ui-scale.md REQ-coordinates-are-converted-at-the-read).
+    // At 100% localRect returns the rect itself, so this hot path allocates nothing.
+    const headerBottom = this.headerEl ? localRect(this.headerEl.getBoundingClientRect()).bottom : 0;
+    const fold = viewportHeight();
 
     // READ PHASE — every measurement before any write
     // (runtime-performance.md REQ-layout-reads-precede-writes). A style write
@@ -323,7 +327,7 @@ export class InfoBadges {
     // cannot show it).
     if (this.rects.length !== this.badges.length) this.rects.length = this.badges.length;
     for (let i = 0; i < this.badges.length; i++) {
-      this.rects[i] = this.badges[i]!.anchor.getBoundingClientRect();
+      this.rects[i] = localRect(this.badges[i]!.anchor.getBoundingClientRect());
     }
 
     // WRITE PHASE.

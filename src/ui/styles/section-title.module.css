@@ -41,7 +41,7 @@
   /* REQ-compact-drops-text-not-icon — the pattern row's seven tabs leave no room for the word below this
      width (measured: ~1057px needed, 1010px available at a 1080px viewport).
      Visually hidden, never display:none, so the heading keeps its accessible name. */
-  @media (max-width: 1140px) {
+  @container viewport (max-width: 1140px) {
     .compact :global(.icon-label) {
       position: absolute;
       width: 1px;

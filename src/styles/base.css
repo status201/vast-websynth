@@ -41,6 +41,23 @@
     overscroll-behavior: none;
   }
 
+  /* The size container every width breakpoint queries (`@container viewport`,
+     never `@media` — ui-scale.md REQ-breakpoints-follow-the-effective-width).
+     Under the UI scale's CSS zoom a media query still sees the whole window;
+     this container's width is the zoomed one, so the layout reflows the way it
+     does under the browser's own zoom. Inline-size only: html's width never
+     depends on its content anyway, and its height must stay free. */
+  html {
+    container: viewport / inline-size;
+  }
+
+  /* Set for one forced layout after a live UI-scale change, so Firefox
+     re-evaluates the queries above against the new zoom (`requery()` in
+     src/ui/ui-scale.ts). Absent at rest. */
+  html[data-ui-requery] {
+    container-type: normal;
+  }
+
   button {
     font: inherit;
     color: inherit;
@@ -55,7 +72,7 @@
     /* min-height (not height) so the faceplate fills the viewport when it
        fits but grows + scrolls when it doesn't. width:100% (not 100vw)
        avoids horizontal jitter from the vertical scrollbar's width. */
-    min-height: 100vh;
+    min-height: calc(100vh / var(--ui-zoom, 1));
     width: 100%;
     display: flex;
     flex-direction: column;

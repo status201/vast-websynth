@@ -107,6 +107,9 @@ const SCENARIOS = [
   { name: 'zip demo playing', demo: firstDemo('.zip'), play: true },
   { name: 'json demo playing', demo: firstDemo('.json'), play: true },
   { name: 'weak tier idle', tier: 'weak', notes: [] },
+  // Crosses the 1630/1320/1280/1140/1030 px breakpoints every 250 ms: the cost of re-matching them
+  // (ui-scale.md REQ-breakpoints-follow-the-effective-width) shows here, if anywhere.
+  { name: 'window resizing', notes: [], resize: [1600, 1200, 1000] },
 ].filter((s) => !only.length || only.includes(s.name));
 
 if (!SCENARIOS.length) {
@@ -157,7 +160,14 @@ async function runOnce(browser, sc) {
   const metrics = async () => Object.fromEntries((await cdp.send('Performance.getMetrics')).metrics.map((x) => [x.name, x.value]));
   const m0 = await metrics();
   await cdp.send('Tracing.start', { traceConfig: { includedCategories: ['webaudio', 'audio', 'devtools.timeline', 'disabled-by-default-devtools.timeline.frame'] }, transferMode: 'ReportEvents' });
-  await page.waitForTimeout(MEASURE_MS);
+  if (sc.resize) {
+    for (let t = 0, i = 0; t < MEASURE_MS; t += 250, i++) {
+      await page.setViewportSize({ width: sc.resize[i % sc.resize.length], height: 1000 });
+      await page.waitForTimeout(250);
+    }
+  } else {
+    await page.waitForTimeout(MEASURE_MS);
+  }
   await cdp.send('Tracing.end');
   await done;
   const m1 = await metrics();

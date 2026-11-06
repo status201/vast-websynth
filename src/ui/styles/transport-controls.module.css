@@ -25,7 +25,7 @@
     /* Unset: automatic, shrink-to-fit up to the cap. Dragged
        (REQ-the-window-width-is-resizable): the user's width, cap and all. */
     width: var(--transport-w, auto);
-    max-width: var(--transport-w, min(90vw, 880px));
+    max-width: var(--transport-w, min(calc(90vw / var(--ui-zoom, 1)), 880px));
   }
 
   /* Play/Pause (transport-window.md REQ-pause-and-stop-are-separate-verbs): wide enough for "Pause", so the row

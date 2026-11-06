@@ -1,4 +1,4 @@
-/* Settings modal (Theme, then Performance) — readable sentence-case body copy
+/* Settings modal (Theme, UI size, then Performance) — readable sentence-case body copy
    (the shared Modal .tag style is an uppercase italic tagline, wrong for paragraphs). */
 
 @layer components {
@@ -12,7 +12,7 @@
     color: var(--text-dim);
   }
 
-  /* The rule between the two sections. */
+  /* The rule above every section but the first. */
   .sectionBreak {
     margin-top: 22px;
     padding-top: 14px;
@@ -57,6 +57,27 @@
   .status strong {
     font-weight: 800;
     color: var(--accent-secondary);
+  }
+
+  /* UI size row (ui-scale.md REQ-the-slider-commits-on-release): the native range
+     takes the row's spare width; the readout is a changing number, so mono with a
+     fixed width — the row must not shift as it goes from 50% to 150%. */
+  .scaleSlider {
+    flex: 1;
+    min-width: 0;
+    accent-color: var(--accent);
+  }
+
+  .scaleValue {
+    min-width: 4.5ch;
+    text-align: right;
+    font-family: var(--mono);
+    font-size: 12.5px;
+    color: var(--text);
+  }
+
+  .scaleReset {
+    flex: none;
   }
 
   .reloadHint {

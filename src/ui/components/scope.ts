@@ -1,6 +1,7 @@
 import styles from '../styles/scope.module.css';
 import { haloText } from './canvas-text';
 import { onPaletteChange, paletteDerived, rgba, type ScreenPalette } from '../theme-colors';
+import { backingScale, onUiScaleChange, toLocal } from '../ui-scale';
 
 /** The scope's inks, from the screen tokens (ui-themes.md REQ-canvas-reads-the-screen-tokens). */
 const colours = paletteDerived((p) => ({
@@ -550,6 +551,8 @@ export class Scope {
    * theme's screen until a signal woke it (ui-themes.md REQ-a-theme-change-repaints-the-canvases).
    */
   private readonly offPalette: () => void;
+  /** Unsubscribes the UI-scale re-measure. */
+  private readonly offScale: () => void;
   /** Last value mirrored to each dataset key — lets us skip redundant per-frame writes. */
   private readonly mirrored: {
     peak: string; peakL: string; peakR: string; waveGain: string; zones: string; cursorHz: string;
@@ -581,6 +584,9 @@ export class Scope {
     // pure wasted main-thread work that can starve the audio thread on mobile.
     document.addEventListener('visibilitychange', this.onVisibility);
     this.offPalette = onPaletteChange(this.onEnsureLive);
+    // A UI scale change can leave the canvas's CSS box alone and still change the
+    // bitmap it needs (ui-scale.md REQ-canvases-stay-sharp-at-any-scale).
+    this.offScale = onUiScaleChange(this.onScaleChange);
     // A bfcache restore can reach a visible page without a visibilitychange
     // (REQ-becoming-visible-re-measures) — and it is exactly the path that drops a queued frame.
     window.addEventListener('pageshow', this.onVisibility);
@@ -724,6 +730,7 @@ export class Scope {
 
   /** `window` focus and the Page Lifecycle `resume` — see the constructor. (REQ-every-public-mutator-is-a-recovery-path) */
   private readonly onEnsureLive = (): void => { this.ensureLive(); };
+  private readonly onScaleChange = (): void => { this.measure(); this.wake(); };
 
   /**
    * Restart the loop if — and **only** if — it has actually stalled. The guard is
@@ -854,8 +861,10 @@ export class Scope {
    */
   private readonly onPointerMove = (e: PointerEvent): void => {
     if (e.pointerType !== 'mouse') return;
-    this.hoverX = e.offsetX;
-    this.hoverY = e.offsetY;
+    // Viewport px → the canvas's own CSS px, which cssW/cssH are in (ui-scale.md
+    // REQ-coordinates-are-converted-at-the-read). A divide, never a layout read.
+    this.hoverX = toLocal(e.offsetX);
+    this.hoverY = toLocal(e.offsetY);
     // The cursor readout is drawn by the loop, so a sleeping one wakes for it.
     this.wake();
   };
@@ -900,7 +909,7 @@ export class Scope {
     const w = this.canvas.clientWidth;
     const h = this.canvas.clientHeight;
     if (w === 0 || h === 0) return;
-    const dpr = window.devicePixelRatio || 1;
+    const dpr = backingScale(); // devicePixelRatio × the UI scale; no DOM read
     const bw = Math.round(w * dpr);
     const bh = Math.round(h * dpr);
     // Nothing moved: keep the caches. This is what makes `measure()` cheap enough to
@@ -1515,6 +1524,7 @@ export class Scope {
     window.removeEventListener('pageshow', this.onVisibility);
     window.removeEventListener('focus', this.onEnsureLive);
     this.offPalette();
+    this.offScale();
     document.removeEventListener('resume' as 'visibilitychange', this.onEnsureLive);
   }
 }

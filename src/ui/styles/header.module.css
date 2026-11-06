@@ -41,7 +41,7 @@
     margin-right: 4px;
   }
 
-  @media (max-width: 1679px) {
+  @container viewport (max-width: 1679px) {
     .headerBrand {
       zoom: 0.6;
       padding-right: 24px;
@@ -164,7 +164,7 @@
      neither shrink nor wrap in the 993–1140px range, so it (and the .app grid
      column it widens) overflows right and is clipped by the page's
      overflow-x:hidden. Let it wrap onto a second row instead. */
-  @media (max-width: 1140px) {
+  @container viewport (max-width: 1140px) {
     .header { flex-wrap: wrap; }
     .headerSpacer { display: none; }
     .headerGroup { flex-wrap: wrap; }
@@ -189,7 +189,7 @@
     }
   }
 
-  @media (max-width: 992px) {
+  @container viewport (max-width: 992px) {
     .header {
       gap: 8px 10px;
       padding: 8px 10px;
@@ -198,7 +198,7 @@
     .headerGroup { gap: 8px 10px; }
   }
 
-  @media (max-width: 720px) {
+  @container viewport (max-width: 720px) {
     /* Collapse the preset cluster behind the hamburger so the sticky header stays
        compact; it expands inline as its own row only while the menu is open. */
     .menuToggle {

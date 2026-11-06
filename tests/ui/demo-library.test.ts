@@ -7,6 +7,8 @@ import { demoNames, demoMetaFor, demoFileFor } from '../../src/state/song';
 import { DEMO_BLURBS } from '../../src/state/demo-blurbs';
 import { demoFacts } from '../../src/state/demo-meta';
 import styles from '../../src/ui/styles/demo-library.module.css';
+import { Modal } from '../../src/ui/components/modal';
+import { applyUiScale } from '../../src/ui/ui-scale';
 
 /**
  * demo-library.md REQ-the-library-reads-without-loading / REQ-the-loaded-demo-carries-an-info-button.
@@ -191,5 +193,30 @@ describe('the song.demos help topic (REQ-info-mode-badges-the-demo-row-once)', (
     const marked = entries(node).filter((e) => e.getAttribute('aria-current') === 'true');
     expect(marked.map(entryName)).toEqual([loaded]);
     expect(loadOf(marked[0]!).textContent).toBe('Loaded');
+  });
+});
+
+describe('the loaded entry scrolls into view under the UI scale (ui-scale.md REQ-coordinates-are-converted-at-the-read)', () => {
+  afterEach(() => applyUiScale(100));
+
+  it('converts the viewport-px rect delta into the card’s own px before adding it to scrollTop', () => {
+    // jsdom has no matchMedia, so this is the zoom engine: 150% puts zoom 1.5 on <html>.
+    applyUiScale(150);
+    const frames: FrameRequestCallback[] = [];
+    vi.stubGlobal('requestAnimationFrame', (fn: FrameRequestCallback) => frames.push(fn));
+    const card = document.createElement('div');
+    card.className = Modal.cardClass;
+    let scrollTop = 0; // jsdom keeps no scroll position
+    Object.defineProperty(card, 'scrollTop', { get: () => scrollTop, set: (v: number) => { scrollTop = v; } });
+    document.body.appendChild(card);
+    // The focused entry sits 300 viewport px below the card's top: 200 of the card's own px at 150%.
+    const rectAt = (top: number): DOMRect =>
+      ({ top, left: 0, right: 0, bottom: top, width: 0, height: 0, x: 0, y: top, toJSON: () => ({}) }) as DOMRect;
+    const rects = vi.spyOn(Element.prototype, 'getBoundingClientRect')
+      .mockImplementation(function (this: Element) { return rectAt(this === card ? 100 : 400); });
+    card.appendChild(renderDemoLibrary({ loadDemo: async () => {}, close: () => {}, focus: demoNames().at(-1)! }));
+    for (const fn of frames) fn(0);
+    expect(scrollTop).toBe(200 - 12);
+    rects.mockRestore();
   });
 });
