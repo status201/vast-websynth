@@ -24,6 +24,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
   desktop it is kept even where the browser forgets its zoom between visits. It
   applies when you let go of the slider, and **Reset** returns to 100%, where
   nothing about the page changes.
+- **Rickroll**, a new demo: Never Gonna Give You Up, start to finish. The strings
+  and the vocal line were played through the synth and ride in the sampler,
+  scoops and vibrato included; bass, keys, brass hits and drums play live.
 
 ### Fixed
 

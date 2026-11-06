@@ -327,6 +327,16 @@
       "sampler"
     ]
   },
+  "Rickroll.websynth.zip": {
+    "name": "Rickroll",
+    "bpm": 114,
+    "bars": 113,
+    "uses": [
+      "seq",
+      "drums",
+      "sampler"
+    ]
+  },
   "Run_Away.websynth.json": {
     "name": "Run Away",
     "bpm": 125,
