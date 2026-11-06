@@ -82,6 +82,30 @@ test.describe('keyboard height', () => {
     expect(Math.round(m.keyH)).toBe(130);
   });
 
+  // REQ-the-observer-watches-only-what-its-write-cannot-resize: the observer used to
+  // watch the keyboard whose height its --kb-key-w write changes, which the browser
+  // reports as an uncaught "ResizeObserver loop" error on a resize like this one.
+  test('resizing the window raises no ResizeObserver error', async ({ page }) => {
+    await page.addInitScript(() => {
+      const w = window as unknown as { __roErrors: string[] };
+      w.__roErrors = [];
+      window.addEventListener('error', (e) => {
+        if (/ResizeObserver/.test(e.message)) w.__roErrors.push(e.message);
+      });
+    });
+    await open(page, 2739, 1330, DEFAULT);
+    const wide = await measure(page);
+    await page.setViewportSize({ width: 1440, height: 900 });
+    await expect.poll(async () => Math.round((await measure(page)).keyW)).toBeLessThan(Math.round(wide.keyW));
+    await page.setViewportSize({ width: 2739, height: 1330 });
+    await expect.poll(async () => Math.round((await measure(page)).keyW)).toBe(Math.round(wide.keyW));
+    // Two frames past the last resize: an undelivered notification is reported
+    // at the end of the frame that raised it.
+    await page.evaluate(() => new Promise((r) => requestAnimationFrame(() => requestAnimationFrame(r))));
+    const errors = await page.evaluate(() => (window as unknown as { __roErrors: string[] }).__roErrors);
+    expect(errors).toEqual([]);
+  });
+
   test('no spare height means the page scrolls, not the keys shrinking', async ({ page }) => {
     await open(page, 1920, 1080, EXPANDED);
     const m = await measure(page);

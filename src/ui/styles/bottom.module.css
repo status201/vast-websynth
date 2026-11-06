@@ -142,7 +142,7 @@
   /* A white key stays between 1.6x and 4.5x as tall as it is wide, over a 160px
      floor that wins wherever keys are narrow (keyboard-range.md
      REQ-key-height-follows-key-width). --kb-key-w is the white-key width, written
-     by app.ts's keyboard ResizeObserver; unset before the first observation, the
+     by bottom.ts's keyboard ResizeObserver; unset before the first observation, the
      min falls back to the floor and the max to no cap. The 30px is this wrap's
      chrome around the keys: padding 2x8 + border 2x1 + the keyboard's padding 2x6. */
   .keyboardWrap {
@@ -154,5 +154,12 @@
     flex: 1000 1 0;
     min-height: max(160px, calc(var(--kb-key-w, 0px) * 1.6 + 30px));
     max-height: max(160px, calc(var(--kb-key-w, 100vh) * 4.5 + 30px));
+  }
+
+  /* What the keyboard's ResizeObserver watches: as wide as the keyboard, never
+     any height, so the --kb-key-w it writes cannot resize it (keyboard-range.md
+     REQ-the-observer-watches-only-what-its-write-cannot-resize). */
+  .keyboardSizer {
+    height: 0;
   }
 }

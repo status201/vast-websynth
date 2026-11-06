@@ -64,18 +64,31 @@ export function buildBottom(
   // which makes the page fit, which hides it — every frame. So both are derived
   // from the width the keyboard would have with no scrollbar, which showing one
   // cannot change (keyboard-range.md REQ-the-key-size-ignores-the-page-scrollbar).
+  //
+  // What is observed is a zero-height sizer, not the keyboard: writing --kb-key-w
+  // resizes the keyboard's height, and a callback that resizes an element its
+  // observer watches is reported as an uncaught "ResizeObserver loop" error
+  // (keyboard-range.md REQ-the-observer-watches-only-what-its-write-cannot-resize).
+  // The sizer spans the keyboard's border box; the keys get that minus its padding.
   const phone = isPhone();
   const keyboard = new Keyboard({ bus, ...keyboardRange(0, phone) });
-  kbWrap.appendChild(keyboard.el);
+  const sizer = document.createElement('div');
+  sizer.className = bottomStyles.keyboardSizer!;
+  sizer.setAttribute('aria-hidden', 'true');
+  kbWrap.append(sizer, keyboard.el);
   if (typeof ResizeObserver !== 'undefined') {
     let keyW = '';
     new ResizeObserver((entries) => {
-      const width = entries[entries.length - 1]!.contentRect.width + pageScrollbarWidth();
+      const cs = getComputedStyle(keyboard.el);
+      const chrome = parseFloat(cs.paddingLeft) + parseFloat(cs.paddingRight)
+        + parseFloat(cs.borderLeftWidth) + parseFloat(cs.borderRightWidth);
+      const keysW = Math.max(0, entries[entries.length - 1]!.contentRect.width - (chrome || 0));
+      const width = keysW + pageScrollbarWidth();
       const range = keyboardRange(width, isPhone());
       keyboard.setRange(range);
       const next = `${whiteKeyPx(width, range.octaves)}px`;
       if (next !== keyW) bottom.style.setProperty('--kb-key-w', (keyW = next));
-    }).observe(keyboard.el);
+    }).observe(sizer);
   }
   bottom.appendChild(kbWrap);
 

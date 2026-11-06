@@ -3,7 +3,7 @@
 ```yaml
 id: keyboard-range
 status: implemented
-version: 3
+version: 4
 owner: core
 related:
   - input-control            # the on-screen keyboard this sizes; the lit-key rules it keeps
@@ -67,7 +67,8 @@ has a use for it.
   seventh octave (to B7 = 107) would sound 131 at OCT +2, past MIDI's 127. C1–B6
   at ±2 spans 0–119. Past the cap the keys simply widen again.
 - **REQ-a-resize-rebuilds-only-on-a-change** — The range is re-derived when the
-  keyboard is resized (a `ResizeObserver` on its element — no layout read on a
+  keyboard is resized (a `ResizeObserver` on its row's sizer,
+  REQ-the-observer-watches-only-what-its-write-cannot-resize — no layout read on a
   hot path, runtime-performance.md), and the keys are rebuilt **only** when the
   derived range differs from the drawn one. A resize that keeps the octave count
   touches no key element.
@@ -126,6 +127,25 @@ has a use for it.
     removes it.
   - The cost: while the page really does scroll, the keys are sized for ~17px
     more width than they have, which is under 1px of height.
+- **REQ-the-observer-watches-only-what-its-write-cannot-resize** — (v4) **The
+  observer watches a zero-height sizer, not the keyboard.** The sizer is an
+  empty block in `.keyboardWrap` before the keys, so its width is the keyboard's
+  border-box width and its height is always 0; the keys' content width is that
+  minus the keyboard's own horizontal padding and border, read from its computed
+  style when the observer fires.
+  - **Why.** A `ResizeObserver` callback that changes the size of an element it
+    observes — *any* box dimension, height included — leaves that element's
+    notification undelivered this frame, and the browser reports it as an
+    uncaught `ResizeObserver loop completed with undelivered notifications`
+    error, which the Debug panel logs (debug-panel.md
+    REQ-the-panel-keeps-the-last-errors). Writing `--kb-key-w` changes the
+    keyboard's height, so observing the keyboard itself raised it on every resize
+    that changed the key width — narrowing a 2739×1330 window to 1440×900 shrank
+    the keys 150 → 130px inside the callback. Nothing looped (the second callback
+    finds the width unchanged), but a benign error is still an error in the log.
+  - The sizer's width depends on nothing the observer writes, so the write can
+    resize nothing observed. The one exception is the page scrollbar, which the
+    width already ignores (REQ-the-key-size-ignores-the-page-scrollbar).
 - **REQ-spare-height-goes-to-the-scope** — (v2) **The keyboard takes spare
   height first, up to its cap; the scope takes the rest.** `.bottom` is a flex
   column — scope row, EQ section, keyboard — where the keyboard has a far larger
@@ -168,13 +188,16 @@ class Keyboard {
 
 ```yaml
 ui/shell/bottom.ts buildBottom: constructs the Keyboard at keyboardRange(0, isPhone()) — the
-  base range, since nothing is laid out yet — then a ResizeObserver on keyboard.el
-  calls setRange(keyboardRange(contentRect.width, isPhone())). The observer fires
+  base range, since nothing is laid out yet — then a ResizeObserver on the
+  zero-height sizer (v4, REQ-the-observer-watches-only-what-its-write-cannot-resize)
+  calls setRange(keyboardRange(width, isPhone())), width being the sizer's minus the
+  keyboard's horizontal padding + border. The observer fires
   after layout and before paint, so a wide screen never paints the base range.
 ui/components/keyboard.ts: owns the rebuild (REQ-a-rebuild-strands-nothing); the
   range rule itself stays out of the component.
 ui/shell/bottom.ts buildBottom (v2): the same observer writes --kb-key-w (whole px, and only
-  when it changes) on .bottom. Width never depends on height, so it cannot loop.
+  when it changes) on .bottom. That changes the keyboard's height, which is why the
+  keyboard itself is not what is observed (v4).
 ui/styles/bottom.module.css (v2): .bottom is a flex column; .bottomTop
   flex 1 1 0 + min-height var(--scope-h, 130px); .keyboardWrap flex 1000 1 0 with
   the REQ-key-height-follows-key-width min/max-height read from --kb-key-w. Until
@@ -249,6 +272,15 @@ Scenario: The page scrollbar cannot make the keyboard wiggle (regression, REQ-th
 # Bug: the keyboard alternated 169.2px / 168.0px every frame while the body's
 # scrollbar toggled; the keys were sized from a width the scrollbar changes.
 # pinned by: e2e/page-scrollbar.spec.ts
+
+Scenario: Resizing the window raises no ResizeObserver error (regression, REQ-the-observer-watches-only-what-its-write-cannot-resize)
+  Given a 2739x1330 viewport with the default panels open
+  When the window is resized to 1440x900 and back
+  Then the key size follows each width
+  And no "ResizeObserver loop" error reaches the window
+# Bug: the Debug panel logged "ResizeObserver loop completed with undelivered
+# notifications" — the observer watched the keyboard whose height its write changed.
+# pinned by: e2e/keyboard-height.spec.ts
 
 Scenario: No spare height means the page scrolls, not the keys shrinking (edge)
   Given everything is expanded on a 1920x1080 viewport

@@ -25,6 +25,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
   applies when you let go of the slider, and **Reset** returns to 100%, where
   nothing about the page changes.
 
+### Fixed
+
+- Resizing the window (or changing the UI size) no longer logs a "ResizeObserver
+  loop completed with undelivered notifications" error in the Debug panel. The
+  on-screen keyboard's sizing watched the keyboard itself, whose height it
+  changes; it now watches a zero-height strip of the same width.
+
 ## [2.21.0] - 2026-11-05
 
 ### Added
