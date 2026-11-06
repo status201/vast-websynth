@@ -46,6 +46,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
   loop completed with undelivered notifications" error in the Debug panel. The
   on-screen keyboard's sizing watched the keyboard itself, whose height it
   changes; it now watches a zero-height strip of the same width.
+- **Ratchet ticks show on every step in Vibrant and High contrast.** Off the
+  beat they were sky blue on a teal step (Vibrant) or yellow on amber (High
+  contrast), so only the red beat columns showed them. They, and the bend stroke,
+  now draw in white in those two themes, and every theme gives them a thin rim
+  so they read on a lit step and on a bare one.
 
 ## [2.21.0] - 2026-11-05
 

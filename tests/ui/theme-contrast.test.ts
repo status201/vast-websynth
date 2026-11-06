@@ -134,4 +134,20 @@ describe('theme contrast', () => {
   it('prints the Play legend legibly on its on bed, in every theme (regression, REQ-an-on-switch-reads-as-on)', () => {
     expect(IDS.flatMap((id) => below(id, ['--play-on-ink'], 4.5, onBeds(id)))).toEqual([]);
   });
+
+  it('draws step marks that read on every bed, in every theme (regression, REQ-step-marks-read-on-every-bed)', () => {
+    // Ratchet ticks off the beat vanished in Vibrant (sky blue on teal) and High
+    // contrast (yellow on amber). A mark lands on the fill or, past a short gate,
+    // on the well; on each, the mark or its rim must carry 3:1.
+    const BEDS = ['--well-top', '--well-bottom', '--lit-top', '--lit-bad-top'];
+    const bad: string[] = [];
+    for (const id of IDS) {
+      for (const bed of BEDS) {
+        const best = Math.max(ratio(id, '--step-mark', bed), ratio(id, '--step-mark-edge', bed));
+        if (best < 3) bad.push(`${id}: --step-mark/--step-mark-edge on ${bed} = ${best.toFixed(2)}`);
+      }
+    }
+    bad.push(...IDS.flatMap((id) => below(id, ['--step-mark'], 3, ['--step-mark-edge'])));
+    expect(bad).toEqual([]);
+  });
 });

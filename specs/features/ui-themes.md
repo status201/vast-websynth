@@ -3,7 +3,7 @@
 ```yaml
 id: ui-themes
 status: implemented
-version: 1
+version: 2
 owner: ui
 related:
   - typography            # the faces a theme sets
@@ -169,6 +169,17 @@ Fonts are system stacks only — the app bundles no font file
   amber (`--accent-secondary`) on its dark well, and in a theme that lights the
   cap, the cap's own `--switch-on-ink`, so Play reads like every other on switch.
   Either way it reads on the on bed at 4.5:1.
+- **REQ-step-marks-read-on-every-bed** — The marks a step button draws over
+  itself, the ratchet ticks and the bend stroke
+  ([step-settings](step-settings.md)), paint `--step-mark` with a 1px
+  `--step-mark-edge` rim (`drop-shadow`). They can land on the lit fill (`--lit`;
+  `--lit-bad` on a beat column) or, past a short gate, on the bare well, so one
+  colour must read on all of them. In every theme the mark or its rim reads at
+  3:1 or better (WCAG non-text) on `--well-top`, `--well-bottom`, `--lit-top` and
+  `--lit-bad-top`, and the mark reads at 3:1 on its rim. `--step-mark` follows
+  `--accent-secondary` unless a theme's selected colour is too close to its lit
+  step: Vibrant's sky blue on bright teal and High contrast's yellow on amber
+  were both invisible, so those two draw white marks.
 - **REQ-a-theme-change-repaints-the-canvases** — A theme change drops the cached
   screen palette and tells every open canvas (`onPaletteChange`), which repaints
   once: the EQ graph, the scratch graph and the sample waveform draw only on
@@ -439,6 +450,13 @@ Scenario: a picked theme survives a reload with no flash (REQ-the-theme-applies-
 Scenario: High contrast reads at 7:1 (REQ-high-contrast-reads-at-seven-to-one)
   Given every text token and every flat surface in contrast.css
   Then each pair's WCAG ratio is at least 7
+# pinned by: tests/ui/theme-contrast.test.ts
+
+Scenario: ratchet ticks read on an unaccented step (regression, REQ-step-marks-read-on-every-bed)
+  Given a lit step with ratchet 3 off the beat, in Vibrant or High contrast
+  When the ticks painted --accent-secondary, sky blue on teal and yellow on amber
+  Then only the beat columns' red showed them; now in every theme the mark or its rim
+    reads at 3:1 on the well and on both lit fills, and the mark at 3:1 on its rim
 # pinned by: tests/ui/theme-contrast.test.ts
 
 Scenario: Light's body text meets AA (REQ-light-body-text-meets-aa)

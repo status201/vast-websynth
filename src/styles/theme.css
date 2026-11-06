@@ -160,6 +160,11 @@
     --lit-warm-shine: rgba(255, 240, 180, 0.4);
     /* The inner ring on a lit bar in the transport/ruler. */
     --lit-ring: rgba(255, 246, 214, 0.45);
+    /* The marks a step draws over itself — ratchet ticks, the bend stroke — and
+       their rim, so they read on the lit fill and on the bare well alike
+       (ui-themes.md REQ-step-marks-read-on-every-bed). */
+    --step-mark: var(--accent-secondary);
+    --step-mark-edge: #000000;
     /* Dark type printed on a lit fill. */
     --ink: #1a1410;
     --ink-strong: #120a04;
