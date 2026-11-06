@@ -158,7 +158,6 @@
     height: 3px;
     width: calc(var(--sb-ratchet, 1) * 5px - 2px); /* N ticks of 3px + 2px gaps */
     background: repeating-linear-gradient(90deg, var(--step-mark) 0 3px, transparent 3px 5px);
-    filter: drop-shadow(0 0 1px var(--step-mark-edge));
     z-index: 1;
     pointer-events: none;
   }
@@ -174,9 +173,14 @@
     bottom: 3px;
     width: 8px;
     height: 6px;
-    filter: drop-shadow(0 0 1px var(--step-mark-edge));
     z-index: 1;
     pointer-events: none;
+  }
+  /* Every step mark's rim, in one place. */
+  .ratchet.on::after,
+  .bendUp.on::before,
+  .bendDown.on::before {
+    filter: drop-shadow(0 0 1px var(--step-mark-edge));
   }
   .bendUp.on::before {
     background: linear-gradient(to top left, transparent calc(50% - 0.75px), var(--step-mark) 50%, transparent calc(50% + 0.75px));

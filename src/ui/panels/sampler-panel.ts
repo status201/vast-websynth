@@ -381,14 +381,14 @@ export function buildSamplerPanel(
     delBtn.textContent = 'Del';
     delBtn.style.display = 'none';
     delBtn.addEventListener('click', () => {
-      const name = engine.patterns.sampleNames[slot] ?? null;
+      const removed = slotName(slot); // read before the eject clears the name
       // The newest action wins: a decode still in flight must not refill the slot.
       ++loadTickets[slot]!;
       const restore = ejectSamplerFile(engine, slot);
       refreshLabel(slot);
       if (!restore) return;
       showToast({
-        message: `Removed ${name ?? SAMPLER_SLOT_LABELS[slot] ?? `S${slot + 1}`}`,
+        message: `Removed ${removed}`,
         actionLabel: 'Undo',
         testId: 'sampler-del-toast',
         onAction: () => {
