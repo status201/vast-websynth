@@ -341,7 +341,7 @@ describe('StepSequencer', () => {
     // The next step continues 60 as 64 — the pool hands the voice over — and
     // nothing here releases 60: the pool owns that, fallback included.
     expect(playNote).toHaveBeenLastCalledWith(64, expect.any(Number), 0.125,
-      { pan: 0, panGroup: 0, legatoFrom: 60 });
+      { pan: 0, panGroup: 0, legatoFrom: 60, legatoGlide: 0.125 });
     expect(releaseNote.mock.calls.filter(([n]) => n === 60)).toEqual([]);
   });
 
@@ -357,7 +357,7 @@ describe('StepSequencer', () => {
     clock.fireTick(0);
     clock.fireTick(0.125);
     expect(playNote).toHaveBeenLastCalledWith(60, expect.any(Number), 0.125,
-      { pan: 0, panGroup: 0, legatoFrom: 60 });
+      { pan: 0, panGroup: 0, legatoFrom: 60, legatoGlide: 0.125 });
     // Its one release is its own gate end, never anything between the two steps.
     expect(releaseNote.mock.calls).toEqual([[60, 0.125 + 0.0625]]);
   });
@@ -375,6 +375,30 @@ describe('StepSequencer', () => {
     clock.fireTick(0.125);
     const froms = playNote.mock.calls.map(([, , , o]) => (o as { legatoFrom?: number }).legatoFrom);
     expect(froms).toEqual([60, undefined, undefined]);
+    const glides = playNote.mock.calls.map(([, , , o]) => (o as { legatoGlide?: number }).legatoGlide);
+    expect(glides).toEqual([0.125, undefined, undefined]);
+  });
+
+  // REQ-a-tie-continues-the-note-without-retriggering: a tied run follows its
+  // steps' velocities — the regression was a crescendo written across ties that
+  // stayed at its first step's level.
+  it('a tied crescendo hands every tied-into step its velocity and the step length (regression)', () => {
+    const { clock, patterns, arrangement, perf } = makeTransportRig();
+    const playNote = vi.fn();
+    const seq = new StepSequencer({ playNote, releaseNote: vi.fn() }, clock, patterns, arrangement, perf);
+    seq.setEnabled(true);
+    const vels = [0.2, 0.3, 0.4, 0.5];
+    vels.forEach((velocity, i) =>
+      patterns.setSeqStep(0, i, { on: true, note: 60, gate: 1, velocity, tie: i < vels.length - 1 }));
+    for (let i = 0; i < vels.length; i++) clock.fireTick(i * 0.125);
+    const calls = playNote.mock.calls.map(([n, v, , o]) =>
+      [n, v, (o as { legatoFrom?: number }).legatoFrom, (o as { legatoGlide?: number }).legatoGlide]);
+    expect(calls).toEqual([
+      [60, 0.2, undefined, undefined],
+      [60, 0.3, 60, 0.125],
+      [60, 0.4, 60, 0.125],
+      [60, 0.5, 60, 0.125],
+    ]);
   });
 
   // sequencer.md REQ-re-strike-keeps-the-old-tie — the pre-v15 tie, kept exactly.
@@ -939,6 +963,17 @@ describe('StepSequencer — meter (meter.md)', () => {
     // 7/8 = 14 ticks.
     expect(playhead(rig(0, DEFAULT_LANE_RATE, 14), 16))
       .toEqual([0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 0, 1]);
+  });
+
+  it("a legato tie glides over the lane's own step, so a 1/8 lane glides twice as long", () => {
+    const r = rig(0, rateOf('1/8'));
+    r.patterns.setSeqStep(0, 0, { on: true, note: 60, gate: 1, velocity: 0.2, tie: true });
+    r.patterns.setSeqStep(0, 1, { on: true, note: 60, gate: 1, velocity: 0.6 });
+    for (let s = 0; s < 4; s++) r.clock.fireTick(s * 0.125);
+    const glide = r.playNote.mock.calls
+      .map(([, , , o]) => (o as { legatoGlide?: number }).legatoGlide)
+      .find((g) => g !== undefined);
+    expect(glide).toBeCloseTo(0.25, 9);
   });
 
   it('is bit-identical to pre-meter at the defaults (regression)', () => {

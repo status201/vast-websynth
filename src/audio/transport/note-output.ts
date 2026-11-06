@@ -22,6 +22,13 @@ export interface NoteOptions {
    * Only the sequencer's legato tie sets it (sequencer.md REQ-a-tie-continues-the-note-without-retriggering).
    */
   legatoFrom?: number;
+  /**
+   * Seconds over which the continued note follows this note's velocity — the
+   * step's length. Set only with `legatoFrom` (sequencer.md
+   * REQ-a-tie-continues-the-note-without-retriggering); a note that ends up
+   * struck instead ignores it.
+   */
+  legatoGlide?: number;
 }
 
 /**

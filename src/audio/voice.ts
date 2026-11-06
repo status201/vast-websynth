@@ -1,5 +1,6 @@
 import { Osc } from './oscillator';
 import { Envelope } from './envelope';
+import { phaseTau } from '../utils/envelope-curve';
 import { LadderFilterNode } from './ladder-filter/node';
 import { clamp, midiToHz, clamp01 } from '../utils/math';
 import { rampTo, RAMP_FAST, RAMP_MEDIUM, RAMP_BYPASS } from './param-utils';
@@ -40,6 +41,11 @@ export interface VoiceNoteOptions {
   retriggerAmp?: boolean;
   /** false = the filter envelope runs on. Default true. */
   retriggerFil?: boolean;
+  /** Seconds over which a continued (not re-struck) envelope follows a new
+   *  velocity — a legato tie's step length (sequencer.md
+   *  REQ-a-tie-continues-the-note-without-retriggering). Absent = the first
+   *  strike's level stands, as for a single-trigger overlap. */
+  levelGlide?: number;
 }
 
 export class Voice {
@@ -126,6 +132,8 @@ export class Voice {
   state: VoiceState = 'idle';
   noteOnAt = 0;
   noteOffAt = 0;
+  /** The velocity the sounding note is at — its strike's, or the last one a legato tie glided to. */
+  private velocity = 0;
 
   private readonly ctx: AudioContext;
   private glideTime = 0;
@@ -429,17 +437,40 @@ export class Voice {
     // (sequencer.md REQ-a-tie-continues-the-note-without-retriggering). The
     // velocity belongs to the amp's strike. The pitch, bend and key tracking above
     // did move — that is what makes it a legato note, not a held one.
+    // A legato tie (`levelGlide`) still FOLLOWS a new velocity: each continued
+    // envelope is rescaled to that velocity's level over the step, and the
+    // velocity source glides with it (envelopes.md
+    // REQ-a-continued-note-rescales-without-restarting). An unchanged velocity
+    // writes nothing. Gliding the source needs no cancel: a later strike's
+    // setValueAtTime simply ends the target.
+    const glide = opts?.levelGlide;
+    const follows = glide !== undefined && velocity !== this.velocity;
+    const tau = follows ? phaseTau(glide) : 0;
     if (retriggerAmp) {
+      this.velocity = velocity;
       this.velocitySource.offset.setValueAtTime(velocity, when);
       this.ampEnv.trigger(when, Math.max(0.01, velocity));
+    } else if (follows) {
+      this.velocitySource.offset.setTargetAtTime(velocity, when, tau);
+      this.ampEnv.rescale(when, Math.max(0.01, velocity), tau);
     }
-    if (!retriggerFil) return;
-    // Velocity → filter (envelopes.md REQ-filter-env-follows-velocity). `filVelAmount` 0 gives exactly the
-    // hard-coded 1 this used to pass, so the default changes nothing; at 1 the
-    // sweep scales straight with velocity. Scaling the envelope's PEAK scales the
-    // sweep depth in semitones (filEnv → filEnvScale → cutoffNote), so a soft
-    // note is duller without its base cutoff moving.
-    this.filEnv.trigger(when, 1 - this.filVelAmount + this.filVelAmount * velocity);
+    if (retriggerFil) {
+      this.filEnv.trigger(when, this.filPeak(velocity));
+    } else if (follows) {
+      this.filEnv.rescale(when, this.filPeak(velocity), tau);
+    }
+    if (follows) this.velocity = velocity;
+  }
+
+  /**
+   * Velocity → filter (envelopes.md REQ-filter-env-follows-velocity). `filVelAmount` 0 gives exactly the
+   * hard-coded 1 this used to pass, so the default changes nothing; at 1 the
+   * sweep scales straight with velocity. Scaling the envelope's PEAK scales the
+   * sweep depth in semitones (filEnv → filEnvScale → cutoffNote), so a soft
+   * note is duller without its base cutoff moving.
+   */
+  private filPeak(velocity: number): number {
+    return 1 - this.filVelAmount + this.filVelAmount * velocity;
   }
 
   setSubWave(idx: number): void { this.sub.setWave(idx); }

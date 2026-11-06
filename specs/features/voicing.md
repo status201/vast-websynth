@@ -3,7 +3,7 @@
 ```yaml
 id: voicing
 status: implemented
-version: 13
+version: 14
 owner: core
 related:
   - architecture
@@ -123,8 +123,12 @@ for bass and leads, poly for chords, unison for a fat stack, and per-voice
   those voices are re-filed under `note` (a voice still appears in one entry
   only) and each gets `noteOn(..., { retriggerAmp: false, retriggerFil: false })`: the
   new pitch, glide, bend and key tracking land as for any note, while neither envelope
-  is triggered and the velocity source and `noteOnAt` keep the first strike's
-  values. A tie continues both envelopes whatever the trigger switches below say. If `note` is already held by something else (another sequencer track on that
+  is triggered and `noteOnAt` keeps the first strike's time. The caller's
+  `legatoGlide` rides along as the voice's `levelGlide`: a new velocity rescales both
+  envelopes and glides the velocity source over it ([envelopes](envelopes.md)
+  REQ-a-continued-note-rescales-without-restarting), and an unchanged one writes
+  nothing. Only a continuation carries it — a single-trigger overlap below never
+  does, so live legato playing keeps its first strike's level. A tie continues both envelopes whatever the trigger switches below say. If `note` is already held by something else (another sequencer track on that
   pitch), the voices **join** its entry, which is the same collapse
   REQ-two-tracks-on-one-pitch-share-a-pan records. When the voices are gone, it
   releases whatever `legatoFrom` still holds and plays `note` as a normal note-on, so
@@ -306,6 +310,13 @@ Scenario: A legato note moves the held voices without a retrigger (REQ-a-legato-
   When note 64 is played with legatoFrom 60
   Then that same voice receives noteOn(64, …) triggering neither envelope, and no other voice is taken
   And releasing 64 stops it, while releasing 60 does nothing
+# pinned by: tests/audio/polyphony.test.ts
+
+Scenario: Only a continuation carries the level glide (REQ-a-legato-note-takes-over-the-held-voices)
+  Given a note is held, in poly and in mono
+  When a note is played with legatoFrom and legatoGlide
+  Then the continued voices receive that glide as levelGlide
+  And a mono single-trigger overlap, played with no legatoFrom, receives none
 # pinned by: tests/audio/polyphony.test.ts
 
 Scenario: A legato note onto a pitch another track holds joins it (REQ-a-legato-note-takes-over-the-held-voices, edge)

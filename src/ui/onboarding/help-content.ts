@@ -993,7 +993,9 @@ export const HELP_TOPICS: Record<TopicId, HelpTopic> = {
     title: 'Tie / Slide',
     body:
       '<p><strong>Tie</strong> holds the step into the next one: the next step carries on the same ' +
-      'note instead of starting a new one, so a tied run is one attack — a smooth legato line.</p>' +
+      'note instead of starting a new one, so a tied run is one attack — a smooth legato line. ' +
+      'It still follows each step\'s <strong>velocity</strong>, gliding there across the step, so ' +
+      'velocities rising over a tied run make a swell.</p>' +
       '<p>Tied into a <em>different</em> pitch, the note moves there without a new attack, and with ' +
       '<strong>glide</strong> turned up it <em>slides</em> — the classic acid-bassline slide. Each ' +
       'track is its own line, so this works in Poly too.</p>' +

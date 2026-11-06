@@ -105,3 +105,86 @@ describe('Envelope future-time-safe scheduling', () => {
     expect(gain.setTargetAtTime).toHaveBeenLastCalledWith(0, 0.5, 0.003);
   });
 });
+
+/**
+ * envelopes.md REQ-a-continued-note-rescales-without-restarting: a legato tie
+ * moves a sounding envelope to a new velocity's level without a new attack.
+ */
+describe('Envelope.rescale', () => {
+  it('past the attack, moves to the new sustain level along tau — no new attack', () => {
+    const { env, gain } = build();
+    env.setAttack(0.03);
+    env.setDecay(0.06);
+    env.setSustain(1);
+    env.trigger(0, 0.2);
+    gain.setTargetAtTime.mockClear();
+    env.rescale(1, 0.6, 0.04);
+    const [v, t] = lastAnchor(gain);
+    expect(t).toBe(1);
+    expect(v).toBeCloseTo(0.2, 4); // anchored where the curve is, not restarted from 0
+    // One segment, straight to the new sustain level: no attack toward a peak first.
+    expect(gain.setTargetAtTime.mock.calls).toEqual([[0.6, 1, 0.04]]);
+    // And the model follows it, so the next phase change anchors truthfully.
+    env.release_(1.04);
+    expect(lastAnchor(gain)[0]).toBeCloseTo(approach(0.2, 0.6, 0.04, 0.04), 4);
+  });
+
+  it('scales by the sustain: the level is what a strike at the new peak would hold', () => {
+    const { env, gain } = build();
+    env.setAttack(0.01);
+    env.setDecay(0.01);
+    env.setSustain(0.5);
+    env.trigger(0, 0.4);
+    env.rescale(1, 0.8, 0.05);
+    expect(gain.setTargetAtTime).toHaveBeenLastCalledWith(0.4, 1, 0.05);
+  });
+
+  it('never cuts a running decay short: the slower time constant wins', () => {
+    const { env, gain } = build();
+    env.setAttack(0.01);
+    env.setDecay(0.9); // tau 0.3, still running at t = 0.2
+    env.setSustain(0.5);
+    env.trigger(0, 1);
+    env.rescale(0.2, 0.5, 0.01);
+    expect(gain.setTargetAtTime).toHaveBeenLastCalledWith(0.25, 0.2, 0.3);
+  });
+
+  it('in the attack, aims the attack at the new peak and keeps its end (edge)', () => {
+    const { env, gain } = build();
+    env.setAttack(0.3); // tau 0.1; ends at 1.3
+    env.setDecay(0.6);  // tau 0.2
+    env.setSustain(0.5);
+    env.trigger(1, 0.2);
+    gain.setTargetAtTime.mockClear();
+    env.rescale(1.1, 0.8, 0.05);
+    const calls = gain.setTargetAtTime.mock.calls as [number, number, number][];
+    expect(calls).toHaveLength(2);
+    const want = [[0.8, 1.1, 0.1], [0.4, 1.3, 0.2]];
+    calls.forEach((c, i) => c.forEach((x, j) => expect(x).toBeCloseTo(want[i]![j]!, 9)));
+  });
+
+  it('schedules nothing at an unchanged peak', () => {
+    const { env, gain } = build();
+    env.setSustain(1);
+    env.trigger(0, 0.5);
+    gain.setValueAtTime.mockClear();
+    gain.setTargetAtTime.mockClear();
+    gain.cancelScheduledValues.mockClear();
+    env.rescale(1, 0.5, 0.05);
+    expect(gain.setValueAtTime).not.toHaveBeenCalled();
+    expect(gain.setTargetAtTime).not.toHaveBeenCalled();
+    expect(gain.cancelScheduledValues).not.toHaveBeenCalled();
+  });
+
+  it('is future-time-safe: anchors the value the curve reaches, not the live value', () => {
+    const { env, gain } = build();
+    env.setAttack(0.01);
+    env.setDecay(0.01);
+    env.setSustain(1);
+    env.trigger(0.1, 0.3); // the note has not sounded yet: gain.value is still 0
+    env.rescale(0.4, 0.5, 0.05);
+    const [v, t] = lastAnchor(gain);
+    expect(t).toBe(0.4);
+    expect(v).toBeCloseTo(0.3, 3);
+  });
+});

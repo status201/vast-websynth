@@ -398,4 +398,58 @@ describe('Voice noteOn without a retrigger (REQ-a-legato-note-takes-over-the-hel
     expect(fil).toHaveBeenCalledTimes(2);
     expect(voice.noteOnAt).toBe(0.125);
   });
+
+  // sequencer.md REQ-a-tie-continues-the-note-without-retriggering: a continued
+  // note follows the tied step's velocity over the step, without a new attack.
+  const CONTINUE = { retriggerAmp: false, retriggerFil: false } as const;
+
+  it('follows a new velocity: both envelopes rescale and the velocity source glides', async () => {
+    const { voice, amp, fil } = await build();
+    voice.setFilterVelAmount(1);
+    const ampScale = vi.spyOn(voice.ampEnv, 'rescale');
+    const filScale = vi.spyOn(voice.filEnv, 'rescale');
+    const velGlide = voice.velocitySource.offset.setTargetAtTime as unknown as ReturnType<typeof vi.fn>;
+    voice.noteOn(60, 0.2, 0);
+    voice.noteOn(60, 0.6, 0.15, { ...CONTINUE, levelGlide: 0.15 });
+    const tau = 0.15 / 3; // reaches ~95% by the step's end
+    expect(ampScale).toHaveBeenCalledWith(0.15, 0.6, tau);
+    expect(filScale).toHaveBeenCalledWith(0.15, 0.6, tau);
+    expect(velGlide).toHaveBeenLastCalledWith(0.6, 0.15, tau);
+    expect(amp).toHaveBeenCalledTimes(1); // never a new attack
+    expect(fil).toHaveBeenCalledTimes(1);
+    expect(voice.noteOnAt).toBe(0);
+  });
+
+  it('a ramp follows from where the last step left it, not from the first strike', async () => {
+    const { voice } = await build();
+    const ampScale = vi.spyOn(voice.ampEnv, 'rescale');
+    voice.noteOn(60, 0.2, 0);
+    voice.noteOn(60, 0.4, 0.15, { ...CONTINUE, levelGlide: 0.15 });
+    voice.noteOn(60, 0.4, 0.30, { ...CONTINUE, levelGlide: 0.15 }); // unchanged: nothing
+    voice.noteOn(60, 0.6, 0.45, { ...CONTINUE, levelGlide: 0.15 });
+    expect(ampScale.mock.calls.map(([t, peak]) => [t, peak])).toEqual([[0.15, 0.4], [0.45, 0.6]]);
+  });
+
+  it('writes nothing at an unchanged velocity, or with no levelGlide', async () => {
+    const { voice } = await build();
+    const ampScale = vi.spyOn(voice.ampEnv, 'rescale');
+    const filScale = vi.spyOn(voice.filEnv, 'rescale');
+    const velGlide = voice.velocitySource.offset.setTargetAtTime as unknown as ReturnType<typeof vi.fn>;
+    voice.noteOn(60, 0.5, 0);
+    voice.noteOn(60, 0.5, 0.15, { ...CONTINUE, levelGlide: 0.15 }); // same velocity
+    voice.noteOn(64, 0.9, 0.30, CONTINUE);                           // a single-trigger overlap
+    expect(ampScale).not.toHaveBeenCalled();
+    expect(filScale).not.toHaveBeenCalled();
+    expect(velGlide).not.toHaveBeenCalled();
+  });
+
+  it('rescales only the envelope that is continued', async () => {
+    const { voice } = await build();
+    const ampScale = vi.spyOn(voice.ampEnv, 'rescale');
+    const filScale = vi.spyOn(voice.filEnv, 'rescale');
+    voice.noteOn(60, 0.2, 0);
+    voice.noteOn(60, 0.6, 0.15, { retriggerAmp: false, levelGlide: 0.15 }); // filter re-sweeps
+    expect(ampScale).toHaveBeenCalledTimes(1);
+    expect(filScale).not.toHaveBeenCalled();
+  });
 });

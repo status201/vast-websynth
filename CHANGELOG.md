@@ -27,6 +27,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ### Fixed
 
+- **Legato ties follow the steps' velocities.** A tied run whose velocities
+  rise now swells, as it does under Re-strike, but without re-attacking: the held
+  note glides its level (and, with filter VEL up, its brightness) to each step's
+  velocity across that step. A tie at an unchanged velocity sounds exactly as
+  before. The 1985-2 demo's swells are back.
 - Resizing the window (or changing the UI size) no longer logs a "ResizeObserver
   loop completed with undelivered notifications" error in the Debug panel. The
   on-screen keyboard's sizing watched the keyboard itself, whose height it

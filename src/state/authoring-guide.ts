@@ -279,7 +279,9 @@ NOTES
   The mod wheel adds depth to LFO 1 only.
 - Use "prob" (< 1) for evolving hats/ghost notes, "ratchet" (2-4) for rolls, and "tie" + "mixer.glide"
   for acid slides. A tie CONTINUES the note: the next step sounds without a new attack (same pitch = one
-  long note, a new pitch = a legato slide), per track, in Poly too. To repeat a pitch with a fresh pluck
+  long note, a new pitch = a legato slide), per track, in Poly too. The held note glides to each tied
+  step's "velocity" across that step, so rising velocities over a tied run are a crescendo with no
+  re-attack. To repeat a pitch with a fresh pluck
   and no gap, use "gate": 1 without "tie". "seq.tieMode": 1 ("re-strike") instead re-attacks the held
   voice on every tied step (the older behaviour); leave it at 0 unless a song is built on that sound.
   "env.amp.trigger" / "env.fil.trigger": 1 ("single") gives a Mono patch the same no-re-attack legato for

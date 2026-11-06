@@ -3,7 +3,7 @@
 ```yaml
 id: sequencer
 status: implemented
-version: 15
+version: 16
 owner: core
 related:
   - architecture
@@ -84,8 +84,14 @@ scoped to its own visible grid and pinned to one bank.
   - **a different pitch** moves the voices to it, gliding as `glide.mode` /
     `mixer.glide` say. Each track is monophonic, so this holds in **Poly** too: tie
     plus glide slides one track's line without Mono voicing.
-  - the step's own **velocity** does not re-strike: the note keeps its first
-    strike's level, and so does the mod-matrix velocity source. Its **bend** still
+  - the step's own **velocity** is followed, not struck: the continued note
+    glides its level **across the whole step** to the level the new velocity
+    would give it — the amp envelope, the filter envelope's velocity-scaled depth
+    and the mod-matrix velocity source alike, each reaching ~95% by the step's end
+    ([envelopes](envelopes.md) REQ-a-continued-note-rescales-without-restarting).
+    The sequencer passes the step's length (`cellDur`, so a 1/8 lane glides over its
+    longer step) as `legatoGlide` with `legatoFrom`. A velocity ramp across a tied
+    run is therefore a crescendo, and an unchanged velocity schedules nothing. Its **bend** still
     applies, because the step that sounds defines the pitch ([step-settings](step-settings.md)
     REQ-every-sub-hit-re-bends).
   - only the **first** sub-hit continues. A ratcheted step's later sub-hits strike as
@@ -437,10 +443,25 @@ Scenario: A tie whose voice was stolen still sounds and strands nothing (REQ-a-t
   Then it plays as a normal note-on and no voice is left claiming the old note
 # pinned by: tests/audio/polyphony.test.ts
 
+Scenario: A tied crescendo swells under Legato (REQ-a-tie-continues-the-note-without-retriggering, regression)
+  Given seq.tieMode is Legato and a run of same-pitch tied steps whose velocities rise
+  When the run plays
+  Then every tied-into step passes legatoGlide equal to the step's length with its legatoFrom
+  And through the real voice the amp level moves toward each new velocity without a new attack
+# Bug: a velocity ramp across ties stayed at its first step's level — the swell a
+# song wrote in velocities was only heard under Re-strike.
+# pinned by: tests/audio/transport/sequencer.test.ts, tests/audio/voice.test.ts
+
+Scenario: An unchanged velocity across a tie writes no level change (REQ-a-tie-continues-the-note-without-retriggering)
+  Given seq.tieMode is Legato and a tie between two steps at the same velocity
+  When the second step fires
+  Then neither envelope nor the velocity source is written by it
+# pinned by: tests/audio/voice.test.ts
+
 Scenario: Re-strike keeps the old tie exactly (REQ-re-strike-keeps-the-old-tie, back-compat)
   Given seq.tieMode is Re-strike and a step holding note 60 ties into a step holding note 64
   When the second step fires
-  Then 64 is played with no legatoFrom, and note 60 is released at 64's attack, after it
+  Then 64 is played with no legatoFrom and no legatoGlide, and note 60 is released at 64's attack, after it
   And a tie into the SAME pitch re-strikes its voice without releasing it
   And in mono the release is a no-op, because 64 already took 60's voices
 # pinned by: tests/audio/transport/sequencer.test.ts

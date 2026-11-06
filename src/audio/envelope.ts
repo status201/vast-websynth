@@ -38,6 +38,9 @@ export class Envelope {
 
   // Chronological mirror of everything scheduled on out.gain.
   private events: EnvEvent[] = [{ time: 0, value: 0 }];
+  /** The last strike's peak and where its attack ends — what `rescale` re-aims. */
+  private peak = 0;
+  private attackEnd = 0;
 
   constructor(private readonly ctx: AudioContext) {
     this.source = ctx.createConstantSource();
@@ -56,8 +59,32 @@ export class Envelope {
   /** Trigger attack/decay phases. Picks up from the curve's value at `when`. */
   trigger(when: number, peak = 1): void {
     const t = this.anchor(when);
+    this.peak = peak;
+    this.attackEnd = t + this.attack;
     this.setTarget(peak, t, phaseTau(this.attack));
-    this.setTarget(peak * this.sustain, t + this.attack, phaseTau(this.decay));
+    this.setTarget(peak * this.sustain, this.attackEnd, phaseTau(this.decay));
+  }
+
+  /**
+   * Move a sounding envelope to the level a strike at `peak` would have at its
+   * current phase, without a new attack (envelopes.md
+   * REQ-a-continued-note-rescales-without-restarting). In the attack, the attack
+   * aims at the new peak and the decay keeps its start; past it, the level moves
+   * to the new sustain over `tau` — or the decay's own time constant while the
+   * decay is still running and slower. An unchanged peak schedules nothing.
+   */
+  rescale(when: number, peak: number, tau: number): void {
+    if (peak === this.peak) return;
+    const t = this.anchor(when);
+    this.peak = peak;
+    if (t < this.attackEnd) {
+      this.setTarget(peak, t, phaseTau(this.attack));
+      this.setTarget(peak * this.sustain, this.attackEnd, phaseTau(this.decay));
+      return;
+    }
+    const decaying = t < this.attackEnd + this.decay;
+    const glide = decaying ? Math.max(tau, phaseTau(this.decay)) : tau;
+    this.setTarget(peak * this.sustain, t, Math.max(glide, phaseTau(MIN_PHASE_SECONDS)));
   }
 
   /** Trigger release phase. */

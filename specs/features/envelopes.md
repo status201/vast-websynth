@@ -3,7 +3,7 @@
 ```yaml
 id: envelopes
 status: implemented
-version: 3
+version: 4
 owner: core
 related:
   - architecture
@@ -73,6 +73,25 @@ LFO.
   It applies to **every** note source — keyboard, MIDI, the sequencer's per-step
   velocity and the arpeggiator's fixed 0.85 — because it lives in `Voice.noteOn`,
   the one place a velocity is already in hand.
+
+- **REQ-a-continued-note-rescales-without-restarting** — `Envelope.rescale(when,
+  peak, tau)` moves a sounding envelope to the level a strike at `peak` would have
+  **at its current phase**, without starting a new attack. It is how a legato tie
+  follows the tied step's velocity ([sequencer](sequencer.md)
+  REQ-a-tie-continues-the-note-without-retriggering).
+  - **In the attack** (before `trigger`'s attack end): the attack aims at the new
+    peak on its own time constant, and the decay still starts at the same attack
+    end, aiming at `peak × sustain`.
+  - **Past the attack**: the curve moves to `peak × sustain` with time constant
+    `tau`, or the decay's own if the decay is still running and is slower, so a
+    level change never cuts a decay short.
+  - **At an unchanged peak it schedules nothing**, so a tie whose velocity does not
+    change is bit-identical to one that cannot follow at all.
+  - It anchors through the same tracked model as `trigger`
+    (REQ-envelope-scheduling-is-future-time-safe), so it is future-time-safe and
+    `valueAt` stays exact. A sustain of 0 leaves nothing to rescale: a decayed
+    pluck stays silent, which is what striking it at the new peak would also give
+    by then.
 
 - **REQ-the-envelope-curve-is-one-pure-model** — The shape of a phase lives
   in one pure, DOM-free module, `src/utils/envelope-curve.ts`. A phase's time
@@ -166,6 +185,24 @@ Scenario: A sequenced gated note releases with a ramp, not a snap (regression)
   Then the release anchors at the sustain-level value the curve reaches at
     gateEnd — not the pre-attack live param value (~0), which cut the note
     instantly and clicked
+# pinned by: tests/audio/envelope.test.ts
+
+Scenario: A rescale past the attack moves the sustain level (v4, REQ-a-continued-note-rescales-without-restarting)
+  Given an envelope triggered at peak 0.2 with sustain 1, now in its sustain
+  When it is rescaled to peak 0.6 with time constant tau
+  Then it anchors at the curve's value and approaches 0.6 along tau, with no new attack
+# pinned by: tests/audio/envelope.test.ts
+
+Scenario: A rescale in the attack keeps the attack's timing (v4, REQ-a-continued-note-rescales-without-restarting, edge)
+  Given an envelope still in its attack
+  When it is rescaled to a new peak
+  Then the attack aims at the new peak and the decay still starts at the original attack end
+# pinned by: tests/audio/envelope.test.ts
+
+Scenario: An unchanged peak schedules nothing (v4, REQ-a-continued-note-rescales-without-restarting)
+  Given a sounding envelope
+  When it is rescaled to the peak it was triggered at
+  Then no automation is written to its gain
 # pinned by: tests/audio/envelope.test.ts
 ```
 

@@ -351,6 +351,41 @@ describe('Polyphony', () => {
       poly.playNote(64, 0.8, 0.125, { legatoFrom: 60 });
       expect(strikes(voices[0]!)).toEqual([true, false]);
     });
+
+    /** The levelGlide each noteOn on `v` carried. */
+    const glides = (v: ReturnType<typeof fakeVoice>) =>
+      (v.noteOn.mock.calls as unknown as [number, number, number, { levelGlide?: number }?][])
+        .map(([, , , o]) => o?.levelGlide);
+
+    it('hands the legato glide to the continued voices, in poly and mono', () => {
+      for (const poly_ of [true, false]) {
+        const { voices, poly } = build();
+        poly.setPoly(poly_);
+        poly.playNote(60, 0.2, 0);
+        poly.playNote(60, 0.6, 0.125, { legatoFrom: 60, legatoGlide: 0.125 });
+        expect(glides(voices[0]!)).toEqual([undefined, 0.125]);
+      }
+    });
+
+    it('a single-trigger overlap carries no glide: live legato keeps its first level', () => {
+      const { voices, poly } = build();
+      poly.setPoly(false);
+      poly.setSingleTrigger('amp', true);
+      poly.playNote(48, 0.2, 0);
+      poly.playNote(52, 0.9, 0.1); // 48 still held, no legatoFrom
+      expect(strikes(voices[0]!)).toEqual([true, false]);
+      expect(glides(voices[0]!)).toEqual([undefined, undefined]);
+    });
+
+    it('a stolen tie strikes fresh, so it carries no glide either (edge)', () => {
+      const { voices, poly } = build(1);
+      poly.playNote(60, 0.8, 0);
+      poly.playNote(67, 0.8, 0.1); // steals the only voice
+      voices[0]!.noteOn.mockClear();
+      poly.playNote(64, 0.3, 0.125, { legatoFrom: 60, legatoGlide: 0.125 });
+      expect(strikes(voices[0]!)).toEqual([true]);
+      expect(glides(voices[0]!)).toEqual([undefined]);
+    });
   });
 
   describe('single trigger legatos a mono line (voicing.md REQ-single-trigger-legatos-a-mono-line)', () => {
