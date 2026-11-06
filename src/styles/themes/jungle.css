@@ -1,0 +1,176 @@
+/*
+ * Jungle (specs/features/ui-themes.md REQ-jungle-prints-on-khaki): khaki
+ * faceplates in a canopy of teal and slate. The five palette colours are all
+ * mid-tones and none carries type on another, so this is Pastel's model: a deep
+ * Blue Slate chassis between Jungle Teal cheeks, Khaki Beige faces, dark slate
+ * legends. The palette colours are fills — Jungle Teal a lit step, Old Rose an
+ * accented one and the playhead, Muted Olive a tie. Where one must be type (the
+ * accent, "selected") it is the same hue, darkened until it reads. Screens stay dark.
+ */
+@layer theme {
+  :root[data-theme="jungle"] {
+    /* ===== Chassis ===== */
+    --bg: #263a41;
+    --bg-deep: #182a30;
+    --panel: linear-gradient(180deg, #cdc1ad 0%, #bcae96 100%);
+    --panel-flat: #c3b59f;
+    --panel-border: #4a6670;
+    --panel-border-dim: #8f8670;
+    --panel-shadow:
+      0 4px 14px rgba(0, 0, 0, 0.45),
+      inset 0 1px 0 rgba(255, 255, 255, 0.4),
+      inset 0 0 0 1px rgba(0, 0, 0, 0.08);
+    --rule: color-mix(in srgb, var(--text) 22%, transparent);
+    --wood: linear-gradient(180deg, #668f80 0%, #577d72 45%, #4a6670 100%);
+    --wood-grain:
+      repeating-linear-gradient(
+        90deg,
+        rgba(0, 0, 0, 0.08) 0px,
+        rgba(0, 0, 0, 0.08) 1px,
+        transparent 1px,
+        transparent 4px,
+        rgba(214, 240, 220, 0.06) 4px,
+        rgba(214, 240, 220, 0.06) 5px,
+        transparent 5px,
+        transparent 8px
+      );
+
+    /* ===== Type ===== */
+    --text: #172427;
+    --text-dim: #2a3b3f;
+    --text-faint: #6b6a5c;
+    --text-soft: #1f2f33;
+    --text-label: #2f4044;
+    --text-hint: #374a4e;
+    --text-bad: #6e1b2a;
+    --text-bad-hover: #521220;
+    --text-error: #6e2230;
+    --border-error: #b9737f;
+    --text-good: #24481f;
+
+    /* ===== Accents and LEDs: the palette's hues, darkened to read as type ===== */
+    --accent: #6e2c3b;
+    --accent-secondary: #263c43;
+    --accent-secondary-dim: #6f8a92;
+    --accent-good: #4f7a3a;
+    --accent-bad: #b0404f;
+    --led-on: #c43a4c;
+    --led-off: #a99d88;
+    --led-dim: #b98a8f;
+    --led-good: #4f9a3a;
+    --meter-hot: #b0404f;
+    --motion: #5f6e3a;
+    --motion-beat: #8e3a4a;
+
+    /* ===== Control surfaces ===== */
+    --well-top: #e6dfd0;
+    --well-bottom: #d6ccb9;
+    --tray-top: #b8ab95;
+    --tray-bottom: #c6b9a3;
+    --recess-top: #b3a690;
+    --recess-bottom: #c0b39d;
+    --raised-top: #efe9dd;
+    --raised-bottom: #e0d7c5;
+    /* An on switch lights its cap in the canopy's teal. */
+    --switch-on-bed: #8fb3a5;
+    --switch-on-ink: #0f1d1a;
+    --play-on-ink: var(--switch-on-ink);
+    --field: #f1ece2;
+    --menu: linear-gradient(180deg, #efe9dd 0%, #e0d7c5 100%);
+    --menu-hover: linear-gradient(180deg, #ead0d5, #d6a2ad);
+    --handle-light: #a0af84;
+    --handle-dark: #668f80;
+    --handle-edge: #263c43;
+    --pad-bed: linear-gradient(180deg, #e0d7c5, #cdc1ad);
+    --pad-border: #8f8670;
+    --pad-border-hover: #6e2c3b;
+
+    /* ===== Lit controls: teal on, rose accented, olive tie ===== */
+    --lit-top: #668f80;
+    --lit-bottom: #4f7365;
+    --lit-shine: rgba(230, 255, 245, 0.3);
+    --lit-text: #0f1d1a;
+    --lit-bad-top: #c27f8c;
+    --lit-bad-bottom: #9c5866;
+    --lit-bad-shine: rgba(255, 225, 230, 0.35);
+    --lit-warm-top: #a0af84;
+    --lit-warm-bottom: #7f8f62;
+    --lit-warm-shine: rgba(250, 255, 230, 0.4);
+    --lit-ring: rgba(255, 255, 245, 0.5);
+    --step-mark-edge: #f4efe4;
+    --ink: #0f1d1a;
+    --ink-strong: #0a1412;
+    /* The playhead's bar and a lit accent are Old Rose: the deep slate and the
+       deep rose that read as type are too dark to carry ink. */
+    --playing: #d6a2ad;
+    --lit-accent: #d6a2ad;
+    --lit-accent-ink: #1c1418;
+
+    /* ===== Keyboard ===== */
+    --key-bed: linear-gradient(180deg, #182a30 0%, #263a41 100%);
+    --key-white: linear-gradient(180deg, #f6f1e7 0%, #ddd3c0 100%);
+    --key-white-active: linear-gradient(180deg, #8fb3a5 0%, #668f80 100%);
+    --key-black: linear-gradient(180deg, #34494f 0%, #182a30 100%);
+    --key-black-active: linear-gradient(180deg, #8fb3a5 0%, #4f7365 100%);
+    --key-white-ink: rgba(23, 36, 39, 0.6);
+    --key-white-shade: rgba(23, 36, 39, 0.3);
+    --key-white-shine: rgba(255, 255, 255, 0.6);
+    --key-white-active-shine: rgba(230, 255, 245, 0.4);
+    --key-black-active-shine: rgba(230, 255, 245, 0.3);
+    --key-black-active-glow: rgba(102, 143, 128, 0.5);
+    /* Roles: root deep rose, chord deep slate, scale olive, extra old rose. */
+    --key-role-root-black: #6e2c3b;
+    --key-role-chord-black: #263c43;
+    --key-role-scale: #a0af84;
+    --key-role-scale-edge: #84946a;
+    --key-role-scale-black: #5a6a3e;
+    --key-role-extra: #d6a2ad;
+    --key-role-extra-edge: #b9808c;
+    --key-role-extra-black: #7d4e58;
+    --key-role-out: #e6dfd0;
+    --key-role-out-edge: #bcae96;
+    --key-role-out-black: #4a5458;
+    --knob-bg: radial-gradient(circle at 35% 30%, #faf6ee 0%, #ddd3c0 65%, #a99d88 100%);
+    --knob-ring: color-mix(in srgb, var(--text) 18%, transparent);
+
+    /* ===== Screens — dark, like hardware ===== */
+    --screen: radial-gradient(ellipse at center, #10201f 0%, #08100f 100%);
+    --screen-border: #4a6670;
+    --screen-ink: #c3b59f;
+    --screen-trace: #d6a2ad;
+    --screen-hot: #e05a6a;
+    --screen-highlight: #f0e8d8;
+    --screen-cue: #9fd0c0;
+    --badge-bed: #182a30;
+    --patch-bay: radial-gradient(ellipse 78% 86% at 50% 48%, #0e1c1a 0%, #0a1513 58%, #050b0a 100%);
+    --patch-shade: #050b0a;
+    --patch-cable: #14201c;
+    --patch-boot: #18241f;
+    --patch-barrel: #22302b;
+    --patch-metal: #4a5e5a;
+    --cable-brown: #1c1a12;
+    --cable-red: #241216;
+    --cable-red-lit: rgba(214, 162, 173, 0.05);
+    --cable-blue: #121c24;
+    --cable-blue-lit: rgba(74, 102, 112, 0.06);
+    --cable-green: #10201a;
+    --cable-green-lit: rgba(160, 175, 132, 0.05);
+    --cable-amber: #22200f;
+    --cable-violet: #1a1420;
+    --cable-violet-lit: rgba(150, 130, 190, 0.04);
+
+    /* ===== Overlays and app chrome ===== */
+    --scrim-ink: #0a1416;
+    --veil: #c3b59f;
+    /* Dark caps, as on the chassis — so their legends are light. */
+    --keycap-ink: #ece5d7;
+    --keycap-sharp-ink: #b8ae9e;
+    --scrollbar-thumb: linear-gradient(180deg, #668f80, #4a6670);
+    --scrollbar-thumb-hover: linear-gradient(180deg, #d6a2ad, #9c5866);
+    --start-btn: linear-gradient(180deg, #efe9dd, #cdc1ad);
+
+    /* ===== Faces: a humanist sans for the legends ===== */
+    --serif: 'Gill Sans', 'Gill Sans MT', Optima, Candara, 'Segoe UI', sans-serif;
+    --sans: 'Inter', system-ui, -apple-system, sans-serif;
+  }
+}

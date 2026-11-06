@@ -85,6 +85,10 @@ const RULES: Record<string, Rule> = {
   // Not on --bg: Pastel's page is the black chassis, which carries no type.
   pastel: { req: 'REQ-pastel-reads-on-every-tint', body: 4.5, small: 3, surfaces: [...SURFACES.filter((s) => s !== '--bg'), ...TINTS] },
   vibrant: { req: 'REQ-vibrant-keeps-its-red-for-fills', body: 4.5, small: 3 },
+  classic: { req: 'REQ-classic-keeps-one-warm-signal', body: 4.5, small: 3 },
+  // Not on --bg: like Pastel's, Jungle's page is the dark chassis, which carries no type.
+  jungle: { req: 'REQ-jungle-prints-on-khaki', body: 4.5, small: 3, surfaces: SURFACES.filter((s) => s !== '--bg') },
+  race: { req: 'REQ-race-is-orange-on-ink', body: 4.5, small: 3 },
   contrast: { req: 'REQ-high-contrast-reads-at-seven-to-one', body: 7, small: 7, alsoBody: ['--text-faint'] },
 };
 const IDS = THEMES.map((t) => t.id);

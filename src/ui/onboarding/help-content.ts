@@ -474,7 +474,9 @@ export const HELP_TOPICS: Record<TopicId, HelpTopic> = {
       '<p><strong>Theme</strong> is how the app looks. <strong>Vibrant</strong> is the default; ' +
       '<strong>Dark</strong> is the original walnut and amber, <strong>Light</strong> a cream ' +
       'faceplate with dark screens, <strong>Pastel</strong> paints each synth section its own ' +
-      'colour, and <strong>High contrast</strong> keeps every label easy to read. ' +
+      'colour, <strong>Classic</strong> is a studio rack in slate and teal, <strong>Jungle</strong> ' +
+      'khaki faceplates in teal and rose, <strong>Race</strong> a racing livery in orange and ' +
+      'red on ink, and <strong>High contrast</strong> keeps every label easy to read. ' +
       '<strong>Auto</strong> follows your system — more contrast gives High contrast, a light ' +
       'scheme gives Light, anything else Dark — and its tile shows which one it would pick. ' +
       'Until you choose, a system set to more contrast gets High contrast.</p>' +

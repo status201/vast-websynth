@@ -11,7 +11,7 @@
  * `THEMES` (REQ-the-boot-script-agrees-with-the-registry). Add a theme in both.
  */
 
-export type ThemeId = 'dark' | 'light' | 'contrast' | 'pastel' | 'vibrant';
+export type ThemeId = 'dark' | 'light' | 'contrast' | 'pastel' | 'vibrant' | 'classic' | 'jungle' | 'race';
 export type ThemePref = ThemeId | 'auto';
 
 export interface ThemeInfo {
@@ -36,6 +36,9 @@ export const THEMES: readonly ThemeInfo[] = [
   { id: 'light', name: 'Light', metaColor: '#ece6da', colorScheme: 'light', swatch: ['#cfc7b8', '#2a2118', '#a8440f', '#8f5c00'] },
   { id: 'pastel', name: 'Pastel', metaColor: '#141210', colorScheme: 'dark', swatch: ['#f0dc94', '#b7d3e9', '#f1b5a0', '#bcdcb4'] },
   { id: 'vibrant', name: 'Vibrant', metaColor: '#00363c', colorScheme: 'dark', swatch: ['#fb2c36', '#00afbd', '#ffbfa8', '#64beda'] },
+  { id: 'classic', name: 'Classic', metaColor: '#03120e', colorScheme: 'dark', swatch: ['#03120e', '#26413c', '#8ab0ab', '#a9c2d0'] },
+  { id: 'jungle', name: 'Jungle', metaColor: '#263a41', colorScheme: 'dark', swatch: ['#c3b59f', '#668f80', '#d6a2ad', '#a0af84'] },
+  { id: 'race', name: 'Race', metaColor: '#011627', colorScheme: 'dark', swatch: ['#011627', '#f3a738', '#f71735', '#1c7293'] },
   { id: 'contrast', name: 'High contrast', metaColor: '#000000', colorScheme: 'dark', swatch: ['#000000', '#ffffff', '#ffb000', '#ffe600'] },
 ];
 

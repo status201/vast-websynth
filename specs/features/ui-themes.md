@@ -3,7 +3,7 @@
 ```yaml
 id: ui-themes
 status: implemented
-version: 2
+version: 3
 owner: ui
 related:
   - typography            # the faces a theme sets
@@ -18,6 +18,9 @@ source:
   - src/styles/themes/contrast.css   # High contrast
   - src/styles/themes/pastel.css     # Pastel
   - src/styles/themes/vibrant.css    # Vibrant
+  - src/styles/themes/classic.css    # Classic
+  - src/styles/themes/jungle.css     # Jungle
+  - src/styles/themes/race.css       # Race
   - src/ui/components/panel.ts       # createPanel / createTabbedPanel set data-tint
   - src/ui/panels/synth-panels.ts    # which section each faceplate panel is
   - src/ui/panels/lfo-panel.ts
@@ -50,8 +53,8 @@ source:
 
 A named look for the whole app — a colour palette and two type faces — chosen per
 device. **Vibrant** is the default look; **Dark** (the original walnut-and-amber
-faceplate, and the tokens' own values), **Light**, **Pastel** and **High contrast**
-are the others.
+faceplate, and the tokens' own values), **Light**, **Pastel**, **Classic**, **Jungle**,
+**Race** and **High contrast** are the others.
 
 ## Background / Why
 
@@ -116,7 +119,7 @@ Fonts are system stacks only — the app bundles no font file
   never moves because the default look changed.
 - **REQ-the-theme-is-a-device-preference** — The chosen theme is stored under
   `localStorage['websynth.ui.theme']` as one of `dark | light | pastel | vibrant |
-  contrast | auto`, like the perf tier: per device, never in a song, a preset or a share
+  classic | jungle | race | contrast | auto`, like the perf tier: per device, never in a song, a preset or a share
   link. Only a theme the registry (`THEMES`) lists, or `auto`, is a choice: a
   missing, unknown or not-yet-shipped value is **no choice**
   (REQ-vibrant-is-the-default, [untrusted-input](untrusted-input.md)).
@@ -234,13 +237,40 @@ Fonts are system stacks only — the app bundles no font file
   end of a meter — and red **type** and the knob arcs use a lighter coral of it.
   Its text meets Light's bar (REQ-light-body-text-meets-aa) on every surface.
   Display type is a geometric sans.
+- **REQ-classic-keeps-one-warm-signal** — Classic is a studio rack in slate and
+  onyx: Dark Slate Grey faceplates on an Onyx page between matte Carbon Black
+  cheeks, Charcoal Blue borders, and Muted Teal as the one light colour of its
+  palette, so teal carries "on" (the lit step, with onyx ink on it), the knob arcs
+  and the dim legends. "Selected" is a powder tint of the charcoal blue, cooler than
+  the teal so it never reads as "on". The palette has no warm colour, and the app
+  needs one: an LED, an accented step and an error are red in every theme. Classic
+  adds exactly **one** off-palette colour for them, a dusty brick, and nothing else.
+  Gradients are soft (faceplates, wells) and the cheeks carry no grain. Its text
+  meets Light's bar on every surface. Display type is a Swiss grotesque.
+- **REQ-jungle-prints-on-khaki** — Jungle is khaki faceplates in a canopy of teal
+  and slate. Its five colours are all mid-tones, and no two of them carry type on
+  each other (khaki on Jungle Teal is 1.8:1), so it takes Pastel's model: a deep
+  Blue Slate chassis between Jungle Teal cheeks, Khaki Beige faceplates, and dark
+  slate legends on them. Each palette colour is a **fill**: Jungle Teal is a lit
+  step, Old Rose an accented one, Muted Olive a tie. Where a colour has to be type,
+  the accent and "selected", it is the same hue darkened until it reads (a deep
+  rose, a deep slate). Its text meets Light's bar on every surface. Screens stay
+  dark. Display type is a humanist sans.
+- **REQ-race-is-orange-on-ink** — Race is a racing livery: Ink Black faceplates,
+  Golden Orange for "on" (the lit step and the accent, which read on each other at
+  9:1), Strawberry Red for an accented step and the LEDs, Powder Blue for
+  "selected" and the playhead, Cerulean for the borders and a tie. The cheeks are
+  strawberry red with a golden pinstripe (`--wood-grain` over `--wood`). Its lit
+  fills are glossy, a strong gradient with a bright shine; every other surface is
+  near flat. Its text meets Light's bar on every surface. Display type is a DIN-style
+  sans.
 
 ## Technical design
 
 ### Contract / public interface
 
 ```yaml
-theme_ids: dark | light | pastel | vibrant | contrast      # `auto` is a stored choice, not a theme
+theme_ids: dark | light | pastel | vibrant | classic | jungle | race | contrast   # `auto` is a stored choice, not a theme
 theme_selector: ":root[data-theme=\"<id>\"]"     # dark is also plain :root (the tokens' own values)
 theme_files: src/styles/themes/<id>.css           # one @layer theme block each
 THEMES: "readonly ThemeInfo[] — the shipped themes, in picker order"   # src/state/theme.ts
@@ -457,6 +487,13 @@ Scenario: ratchet ticks read on an unaccented step (regression, REQ-step-marks-r
   When the ticks painted --accent-secondary, sky blue on teal and yellow on amber
   Then only the beat columns' red showed them; now in every theme the mark or its rim
     reads at 3:1 on the well and on both lit fills, and the mark at 3:1 on its rim
+# pinned by: tests/ui/theme-contrast.test.ts
+
+Scenario: Classic, Jungle and Race each meet their contrast rule (REQ-classic-keeps-one-warm-signal, REQ-jungle-prints-on-khaki, REQ-race-is-orange-on-ink)
+  Given classic.css, jungle.css and race.css
+  Then body text reads at 4.5:1 and the small print and accents at 3:1 on every flat surface,
+    and each passes the checks every theme runs (type on its own fills, an on switch,
+    the Play legend, the step marks)
 # pinned by: tests/ui/theme-contrast.test.ts
 
 Scenario: Light's body text meets AA (REQ-light-body-text-meets-aa)

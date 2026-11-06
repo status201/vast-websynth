@@ -1,0 +1,149 @@
+/*
+ * Classic (specs/features/ui-themes.md REQ-classic-keeps-one-warm-signal): a studio
+ * rack in slate and onyx. Dark Slate Grey faceplates on an Onyx page between matte
+ * Carbon Black cheeks, Charcoal Blue borders, and Muted Teal — the palette's one
+ * light colour — for "on": the lit step, the knob arcs, the dim legends.
+ * "Selected" is a powder tint of the charcoal blue, cooler than the teal. The
+ * palette has no warm colour, so exactly one is added for the LEDs, an accented
+ * step and an error: a dusty brick. Soft gradients, no grain.
+ */
+@layer theme {
+  :root[data-theme="classic"] {
+    /* ===== Chassis ===== */
+    --bg: #03120e;
+    --bg-deep: #010a07;
+    --panel: linear-gradient(180deg, #2b4842 0%, #223a35 100%);
+    --panel-flat: #26413c;
+    --panel-border: #3e505b;
+    --panel-border-dim: #2f3e46;
+    --wood: linear-gradient(180deg, #232823 0%, #1a1d1a 45%, #101310 100%);
+    --wood-grain: linear-gradient(transparent, transparent);
+
+    /* ===== Type ===== */
+    --text: #dce8e6;
+    --text-dim: #8ab0ab;
+    --text-faint: #5b7a75;
+    --text-soft: #c2d6d3;
+    --text-label: #9dbdb8;
+    --text-hint: #8faba7;
+    --text-bad: #eb9784;
+    --text-bad-hover: #f2b0a1;
+    --text-error: #e6a08f;
+    --border-error: #a0523f;
+    --text-good: #9fd4a6;
+
+    /* ===== Accents and LEDs: teal on, powder selected, one brick ===== */
+    --accent: #a3c6c1;
+    --accent-secondary: #a9c2d0;
+    --accent-secondary-dim: #6f8794;
+    --accent-good: #7fbf8a;
+    --accent-bad: #c8664f;
+    --led-on: #d9674d;
+    --led-off: #1c2420;
+    --led-dim: #6b3a2e;
+    --led-good: #6fd08a;
+    --meter-hot: #c8664f;
+    --motion: #e0a090;
+    --motion-beat: #c8664f;
+
+    /* ===== Control surfaces ===== */
+    --well-top: #1a1d1a;
+    --well-bottom: #0e120f;
+    --tray-top: #0b1310;
+    --tray-bottom: #1a1d1a;
+    --recess-top: #06110d;
+    --recess-bottom: #141a17;
+    --raised-top: #3e505b;
+    --raised-bottom: #2f3e46;
+    /* The teal and the legends sit close, so an on switch lights its cap. */
+    --switch-on-bed: #8ab0ab;
+    --switch-on-ink: #03120e;
+    --play-on-ink: var(--switch-on-ink);
+    --field: #0b1512;
+    --menu: linear-gradient(180deg, #2b4842 0%, #1f3530 100%);
+    --menu-hover: linear-gradient(180deg, #3e505b, #2f3e46);
+    --handle-light: #8ab0ab;
+    --handle-dark: #3e505b;
+    --handle-edge: #03120e;
+    --pad-bed: linear-gradient(180deg, #1a1d1a, #0e120f);
+    --pad-border: #3e505b;
+    --pad-border-hover: #8ab0ab;
+
+    /* ===== Lit controls: teal on, brick accented, powder tie ===== */
+    --lit-top: #9cc0bb;
+    --lit-bottom: #6f938e;
+    --lit-shine: rgba(230, 255, 250, 0.3);
+    --lit-text: #03120e;
+    --lit-bad-top: #c8664f;
+    --lit-bad-bottom: #8f4232;
+    --lit-bad-shine: rgba(255, 210, 195, 0.3);
+    --lit-warm-top: #a9c2d0;
+    --lit-warm-bottom: #7890a0;
+    --lit-warm-shine: rgba(240, 248, 255, 0.4);
+    --lit-ring: rgba(230, 255, 250, 0.5);
+    /* The powder sits too close to the teal step (REQ-step-marks-read-on-every-bed). */
+    --step-mark: #ffffff;
+    --step-mark-edge: #03120e;
+    --ink: #03120e;
+    --ink-strong: #010a07;
+
+    /* ===== Keyboard ===== */
+    --key-bed: linear-gradient(180deg, #010a07 0%, #1a1d1a 100%);
+    --key-white: linear-gradient(180deg, #eef3f2 0%, #c9d6d4 100%);
+    --key-white-active: linear-gradient(180deg, #c3dbd7 0%, #8ab0ab 100%);
+    --key-black: linear-gradient(180deg, #2a3330 0%, #0e120f 100%);
+    --key-black-active: linear-gradient(180deg, #8ab0ab 0%, #4f716b 100%);
+    --key-white-ink: rgba(3, 18, 14, 0.6);
+    --key-white-shade: rgba(3, 18, 14, 0.3);
+    --key-white-shine: rgba(255, 255, 255, 0.6);
+    --key-white-active-shine: rgba(230, 255, 250, 0.4);
+    --key-black-active-shine: rgba(230, 255, 250, 0.3);
+    --key-black-active-glow: rgba(138, 176, 171, 0.5);
+    /* Roles: root teal, chord powder, scale charcoal blue, extra the one brick. */
+    --key-role-root-black: #4f716b;
+    --key-role-chord-black: #5f7684;
+    --key-role-scale: #3e505b;
+    --key-role-scale-edge: #5a6f7c;
+    --key-role-scale-black: #26343b;
+    --key-role-extra: #c8664f;
+    --key-role-extra-edge: #e08a72;
+    --key-role-extra-black: #7a3a2c;
+    --key-role-out: #1a1d1a;
+    --key-role-out-edge: #2f3a36;
+    --key-role-out-black: #0e120f;
+    --knob-bg: radial-gradient(circle at 35% 30%, #3c423d 0%, #1a1d1a 70%, #03120e 100%);
+
+    /* ===== Screens ===== */
+    --screen: radial-gradient(ellipse at center, #06140f 0%, #010806 100%);
+    --screen-border: #3e505b;
+    --screen-highlight: #e6f2f0;
+    --screen-cue: #a9d6e8;
+    --badge-bed: #010a07;
+    --patch-bay: radial-gradient(ellipse 78% 86% at 50% 48%, #0a1a15 0%, #06120e 58%, #020906 100%);
+    --patch-shade: #020906;
+    --patch-cable: #14201c;
+    --patch-boot: #18241f;
+    --patch-barrel: #22302b;
+    --patch-metal: #4a5e5a;
+    --cable-brown: #1a1a14;
+    --cable-red: #241310;
+    --cable-red-lit: rgba(200, 102, 79, 0.05);
+    --cable-blue: #121c24;
+    --cable-blue-lit: rgba(169, 194, 208, 0.05);
+    --cable-green: #10201a;
+    --cable-green-lit: rgba(138, 176, 171, 0.05);
+    --cable-amber: #22200f;
+    --cable-violet: #1a1420;
+    --cable-violet-lit: rgba(150, 130, 190, 0.04);
+
+    /* ===== Overlays and app chrome ===== */
+    --scrim-ink: #010806;
+    --scrollbar-thumb: linear-gradient(180deg, #3e505b, #26413c);
+    --scrollbar-thumb-hover: linear-gradient(180deg, #8ab0ab, #3e505b);
+    --start-btn: linear-gradient(180deg, #2b4842, #1a2e2a);
+
+    /* ===== Faces: a Swiss grotesque for the legends ===== */
+    --serif: 'Helvetica Neue', Helvetica, Arial, sans-serif;
+    --sans: 'Inter', system-ui, -apple-system, sans-serif;
+  }
+}

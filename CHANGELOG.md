@@ -28,6 +28,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
   and the vocal line were played through the synth and ride in the sampler,
   scoops and vibrato included; bass, keys, brass hits and drums play live.
 - A little something for anyone who knows the words.
+- **Three new themes**, in Settings. **Classic** is a studio rack in slate and
+  onyx, with muted teal for whatever is on. **Jungle** has khaki faceplates in a
+  teal and slate canopy: steps light in teal, accents in old rose, ties in olive.
+  **Race** is a racing livery: golden orange on ink black, strawberry red
+  accents and red cheeks with a golden pinstripe. Each keeps every label readable.
 
 ### Fixed
 
