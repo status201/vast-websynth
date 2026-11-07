@@ -2,6 +2,7 @@ import { assertIndex } from '../utils/array';
 import { clampInt } from '../utils/math';
 import { MAX_CHAIN_TRANSPOSE } from './limits';
 import { GRID_CELLS } from './meter';
+import { ListenerSet } from '../utils/listeners';
 
 /**
  * Non-scalar state — step grids for the sequencer and drum machine.
@@ -489,21 +490,21 @@ export class PatternStore {
   private _samplerEdit = 0;
   private _motionEdit = 0;
 
-  private readonly seqListeners = new Set<(track: number, index: number, step: SeqStep) => void>();
-  private readonly drumListeners = new Set<(track: number, step: number, cell: DrumCell) => void>();
-  private readonly samplerListeners = new Set<(slot: number, step: number, cell: SamplerStep) => void>();
-  private readonly seqBankListeners = new Set<(bank: readonly (readonly SeqStep[])[]) => void>();
-  private readonly drumBankListeners = new Set<(bank: readonly (readonly DrumCell[])[]) => void>();
-  private readonly samplerBankListeners = new Set<(bank: readonly (readonly SamplerStep[])[]) => void>();
-  private readonly motionListeners = new Set<(index: number, step: MotionStep) => void>();
-  private readonly motionBankListeners = new Set<(bank: readonly MotionStep[]) => void>();
-  private readonly motionTrackListeners = new Set<(track: number, index: number) => void>();
-  private readonly sampleMetaListeners = new Set<(slot: number, name: string | null) => void>();
-  private readonly editBankListeners = new Set<() => void>();
-  private readonly bankCountListeners = new Set<() => void>();
-  private readonly bankDropListeners = new Set<(m: Machine, bank: number) => void>();
-  private readonly mutateListeners = new Set<(m: PatternMutation) => void>();
-  private readonly bulkRestoreListeners = new Set<() => void>();
+  private readonly seqListeners = new ListenerSet<[track: number, index: number, step: SeqStep]>();
+  private readonly drumListeners = new ListenerSet<[track: number, step: number, cell: DrumCell]>();
+  private readonly samplerListeners = new ListenerSet<[slot: number, step: number, cell: SamplerStep]>();
+  private readonly seqBankListeners = new ListenerSet<[bank: readonly (readonly SeqStep[])[]]>();
+  private readonly drumBankListeners = new ListenerSet<[bank: readonly (readonly DrumCell[])[]]>();
+  private readonly samplerBankListeners = new ListenerSet<[bank: readonly (readonly SamplerStep[])[]]>();
+  private readonly motionListeners = new ListenerSet<[index: number, step: MotionStep]>();
+  private readonly motionBankListeners = new ListenerSet<[bank: readonly MotionStep[]]>();
+  private readonly motionTrackListeners = new ListenerSet<[track: number, index: number]>();
+  private readonly sampleMetaListeners = new ListenerSet<[slot: number, name: string | null]>();
+  private readonly editBankListeners = new ListenerSet();
+  private readonly bankCountListeners = new ListenerSet();
+  private readonly bankDropListeners = new ListenerSet<[m: Machine, bank: number]>();
+  private readonly mutateListeners = new ListenerSet<[m: PatternMutation]>();
+  private readonly bulkRestoreListeners = new ListenerSet();
 
   constructor() {
     this.seqBanks = Array.from({ length: MIN_BANK_COUNT }, makeSeqBank);
@@ -567,7 +568,7 @@ export class PatternStore {
   }
 
   private emitBankCount(): void {
-    for (const l of this.bankCountListeners) l();
+    this.bankCountListeners.emit();
   }
 
   /** Re-clamp every edit cursor into its machine's current count. */
@@ -682,9 +683,9 @@ export class PatternStore {
     }
     this.clampEditBanks();
     if (wasEditing) this.emitBank(m);
-    for (const l of this.bankDropListeners) l(m, gone);
+    this.bankDropListeners.emit(m, gone);
     this.emitBankCount();
-    for (const l of this.editBankListeners) l();
+    this.editBankListeners.emit();
     return true;
   }
 
@@ -730,7 +731,7 @@ export class PatternStore {
     if (n === this._seqEdit) return;
     this._seqEdit = n;
     this.emitBankSeq();
-    for (const l of this.editBankListeners) l();
+    this.editBankListeners.emit();
   }
 
   setDrumEditBank(i: number): void {
@@ -738,7 +739,7 @@ export class PatternStore {
     if (n === this._drumEdit) return;
     this._drumEdit = n;
     this.emitBankDrum();
-    for (const l of this.editBankListeners) l();
+    this.editBankListeners.emit();
   }
 
   setSamplerEditBank(i: number): void {
@@ -746,7 +747,7 @@ export class PatternStore {
     if (n === this._samplerEdit) return;
     this._samplerEdit = n;
     this.emitBankSampler();
-    for (const l of this.editBankListeners) l();
+    this.editBankListeners.emit();
   }
 
   setMotionEditBank(i: number): void {
@@ -755,7 +756,7 @@ export class PatternStore {
     this._motionEdit = n;
     this.emitBankMotion();
     this.emitAllMotionTracks();
-    for (const l of this.editBankListeners) l();
+    this.editBankListeners.emit();
   }
 
   // ---- Mutations (operate on the edit bank) ----
@@ -765,7 +766,7 @@ export class PatternStore {
     if (!s) return;
     this.emitMutate(() => ({ kind: 'seq', bank: this._seqEdit, track, index, before: { ...s } }));
     Object.assign(s, patch);
-    for (const l of this.seqListeners) l(track, index, s);
+    this.seqListeners.emit(track, index, s);
   }
 
   /**
@@ -801,7 +802,7 @@ export class PatternStore {
         s.on = true;
         s.note = note;
       }
-      for (const l of this.seqListeners) l(t, index, s);
+      this.seqListeners.emit(t, index, s);
     }
     return true;
   }
@@ -830,7 +831,7 @@ export class PatternStore {
         const next = map(s.note);
         if (next === s.note) continue;
         s.note = next;
-        for (const l of this.seqListeners) l(t, i, s);
+        this.seqListeners.emit(t, i, s);
       }
     }
     return true;
@@ -841,7 +842,7 @@ export class PatternStore {
     if (!cell) return;
     this.emitMutate(() => ({ kind: 'drum', bank: this._drumEdit, track, step, before: { ...cell } }));
     Object.assign(cell, patch);
-    for (const l of this.drumListeners) l(track, step, cell);
+    this.drumListeners.emit(track, step, cell);
   }
 
   setSamplerCell(slot: number, step: number, patch: Partial<SamplerStep>): void {
@@ -849,7 +850,7 @@ export class PatternStore {
     if (!cell) return;
     this.emitMutate(() => ({ kind: 'sampler', bank: this._samplerEdit, slot, step, before: { ...cell } }));
     Object.assign(cell, patch);
-    for (const l of this.samplerListeners) l(slot, step, cell);
+    this.samplerListeners.emit(slot, step, cell);
   }
 
   setMotionStep(index: number, patch: Partial<MotionStep>): void {
@@ -857,7 +858,7 @@ export class PatternStore {
     if (!s) return;
     this.emitMutate(() => ({ kind: 'motion', bank: this._motionEdit, index, before: { ...s } }));
     Object.assign(s, patch);
-    for (const l of this.motionListeners) l(index, s);
+    this.motionListeners.emit(index, s);
   }
 
   setMotionTrackStep(track: number, index: number, patch: Partial<MotionTrackStep>): void {
@@ -867,7 +868,7 @@ export class PatternStore {
       kind: 'motion-track', bank: this._motionEdit, track, index, before: { ...s },
     }));
     Object.assign(s, patch);
-    for (const l of this.motionTrackListeners) l(track, index);
+    this.motionTrackListeners.emit(track, index);
   }
 
   /** Choose (or clear) the parameter an extra track drives, for the edit bank. */
@@ -879,7 +880,7 @@ export class PatternStore {
     }));
     if (param) t.param = param;
     else delete t.param;
-    for (const l of this.motionTrackListeners) l(track, -1);
+    this.motionTrackListeners.emit(track, -1);
   }
 
   /** Clear one extra track's anchors (its param choice is configuration, kept —
@@ -906,7 +907,7 @@ export class PatternStore {
   setSampleName(slot: number, name: string | null): void {
     if (slot < 0 || slot >= SAMPLER_SLOT_COUNT) return;
     this.sampleNames[slot] = name;
-    for (const l of this.sampleMetaListeners) l(slot, name);
+    this.sampleMetaListeners.emit(slot, name);
   }
 
   // ---- Bulk clears (step-grid-editing.md REQ-clear-menu-clears-in-bulk/REQ-one-bulk-action-one-undo-entry) ----
@@ -943,7 +944,7 @@ export class PatternStore {
         const s = assertIndex(row, i, 'seqSteps');
         if (!s.on) continue;
         s.on = false;
-        for (const l of this.seqListeners) l(t, i, s);
+        this.seqListeners.emit(t, i, s);
       }
     }
     return true;
@@ -1007,7 +1008,7 @@ export class PatternStore {
         const s = assertIndex(bank, i, 'motionSteps');
         if (!s.on) continue;
         s.on = false;
-        for (const l of this.motionListeners) l(i, s);
+        this.motionListeners.emit(i, s);
       }
     }
     for (const t of hitTracks) {
@@ -1016,7 +1017,7 @@ export class PatternStore {
         const s = assertIndex(steps, i, 'motionTrackSteps');
         if (!s.on) continue;
         s.on = false;
-        for (const l of this.motionTrackListeners) l(t, i);
+        this.motionTrackListeners.emit(t, i);
       }
     }
     return true;
@@ -1040,7 +1041,7 @@ export class PatternStore {
         const cell = assertIndex(row, s, 'drumCells');
         if (!cell.on) continue;
         cell.on = false;
-        for (const l of this.drumListeners) l(t, s, cell);
+        this.drumListeners.emit(t, s, cell);
       }
     }
     return true;
@@ -1062,7 +1063,7 @@ export class PatternStore {
         const cell = assertIndex(row, s, 'samplerCells');
         if (!cell.on) continue;
         cell.on = false;
-        for (const l of this.samplerListeners) l(sl, s, cell);
+        this.samplerListeners.emit(sl, s, cell);
       }
     }
     return true;
@@ -1079,7 +1080,7 @@ export class PatternStore {
     const bank = this.seqBanks[b]!;
     return rotateRows(bank, cells, dir,
       () => this.emitMutate(() => ({ kind: 'seq-copy', bank: b, before: bank.map((r) => r.map((s) => ({ ...s }))) })),
-      (t, i, s) => { for (const l of this.seqListeners) l(t, i, s); });
+      (t, i, s) => { this.seqListeners.emit(t, i, s); });
   }
 
   rotateDrumBank(dir: 1 | -1, cells: number): boolean {
@@ -1087,7 +1088,7 @@ export class PatternStore {
     const bank = this.drumBanks[b]!;
     return rotateRows(bank, cells, dir,
       () => this.emitMutate(() => ({ kind: 'drum-copy', bank: b, before: bank.map((r) => r.map((c) => ({ ...c }))) })),
-      (t, i, c) => { for (const l of this.drumListeners) l(t, i, c); });
+      (t, i, c) => { this.drumListeners.emit(t, i, c); });
   }
 
   rotateSamplerBank(dir: 1 | -1, cells: number): boolean {
@@ -1095,51 +1096,21 @@ export class PatternStore {
     const bank = this.samplerBanks[b]!;
     return rotateRows(bank, cells, dir,
       () => this.emitMutate(() => ({ kind: 'sampler-copy', bank: b, before: bank.map((r) => r.map((c) => ({ ...c }))) })),
-      (t, i, c) => { for (const l of this.samplerListeners) l(t, i, c); });
+      (t, i, c) => { this.samplerListeners.emit(t, i, c); });
   }
 
   copySeqBank(from: number, to: number): void {
-    const n = this.seqBanks.length;
-    const a = clampBankIn(from, n), b = clampBankIn(to, n);
-    if (a === b) return;
-    const src = assertIndex(this.seqBanks, a, 'seqBanks');
-    const dst = assertIndex(this.seqBanks, b, 'seqBanks');
-    this.emitMutate(() => ({ kind: 'seq-copy', bank: b, before: dst.map((row) => row.map((s) => ({ ...s }))) }));
-    for (let t = 0; t < dst.length; t++) {
-      const srcRow = assertIndex(src, t, 'seqTracks');
-      const dstRow = assertIndex(dst, t, 'seqTracks');
-      for (let i = 0; i < dstRow.length; i++) Object.assign(assertIndex(dstRow, i, 'seqSteps'), assertIndex(srcRow, i, 'seqSteps'));
-    }
+    const b = copyGridBank(this.seqBanks, from, to, 'seq', (k, bank, before) => this.emitMutate(() => ({ kind: k, bank, before })));
     if (b === this._seqEdit) this.emitBankSeq();
   }
 
   copyDrumBank(from: number, to: number): void {
-    const n = this.drumBanks.length;
-    const a = clampBankIn(from, n), b = clampBankIn(to, n);
-    if (a === b) return;
-    const src = assertIndex(this.drumBanks, a, 'drumBanks');
-    const dst = assertIndex(this.drumBanks, b, 'drumBanks');
-    this.emitMutate(() => ({ kind: 'drum-copy', bank: b, before: dst.map((row) => row.map((c) => ({ ...c }))) }));
-    for (let t = 0; t < dst.length; t++) {
-      const srcRow = assertIndex(src, t, 'drumTracks');
-      const dstRow = assertIndex(dst, t, 'drumTracks');
-      for (let s = 0; s < dstRow.length; s++) Object.assign(assertIndex(dstRow, s, 'drumCells'), assertIndex(srcRow, s, 'drumCells'));
-    }
+    const b = copyGridBank(this.drumBanks, from, to, 'drum', (k, bank, before) => this.emitMutate(() => ({ kind: k, bank, before })));
     if (b === this._drumEdit) this.emitBankDrum();
   }
 
   copySamplerBank(from: number, to: number): void {
-    const n = this.samplerBanks.length;
-    const a = clampBankIn(from, n), b = clampBankIn(to, n);
-    if (a === b) return;
-    const src = assertIndex(this.samplerBanks, a, 'samplerBanks');
-    const dst = assertIndex(this.samplerBanks, b, 'samplerBanks');
-    this.emitMutate(() => ({ kind: 'sampler-copy', bank: b, before: dst.map((row) => row.map((c) => ({ ...c }))) }));
-    for (let t = 0; t < dst.length; t++) {
-      const srcRow = assertIndex(src, t, 'samplerTracks');
-      const dstRow = assertIndex(dst, t, 'samplerTracks');
-      for (let s = 0; s < dstRow.length; s++) Object.assign(assertIndex(dstRow, s, 'samplerCells'), assertIndex(srcRow, s, 'samplerCells'));
-    }
+    const b = copyGridBank(this.samplerBanks, from, to, 'sampler', (k, bank, before) => this.emitMutate(() => ({ kind: k, bank, before })));
     if (b === this._samplerEdit) this.emitBankSampler();
   }
 
@@ -1170,23 +1141,19 @@ export class PatternStore {
   // ---- Subscriptions ----
 
   onSeqChange(fn: (track: number, index: number, step: SeqStep) => void): () => void {
-    this.seqListeners.add(fn);
-    return () => { this.seqListeners.delete(fn); };
+    return this.seqListeners.add(fn);
   }
 
   onDrumChange(fn: (track: number, step: number, cell: DrumCell) => void): () => void {
-    this.drumListeners.add(fn);
-    return () => { this.drumListeners.delete(fn); };
+    return this.drumListeners.add(fn);
   }
 
   onSamplerChange(fn: (slot: number, step: number, cell: SamplerStep) => void): () => void {
-    this.samplerListeners.add(fn);
-    return () => { this.samplerListeners.delete(fn); };
+    return this.samplerListeners.add(fn);
   }
 
   onSampleMetaChange(fn: (slot: number, name: string | null) => void): () => void {
-    this.sampleMetaListeners.add(fn);
-    return () => { this.sampleMetaListeners.delete(fn); };
+    return this.sampleMetaListeners.add(fn);
   }
 
   /**
@@ -1197,8 +1164,7 @@ export class PatternStore {
    * take the copy-armed state with it (banks.md REQ-a-machine-owns-its-bank-count).
    */
   onBankCountChange(fn: () => void): () => void {
-    this.bankCountListeners.add(fn);
-    return () => { this.bankCountListeners.delete(fn); };
+    return this.bankCountListeners.add(fn);
   }
 
   /**
@@ -1207,13 +1173,11 @@ export class PatternStore {
    * A removed bank is always the highest one, so no surviving index shifts.
    */
   onBankDrop(fn: (m: Machine, bank: number) => void): () => void {
-    this.bankDropListeners.add(fn);
-    return () => { this.bankDropListeners.delete(fn); };
+    return this.bankDropListeners.add(fn);
   }
 
   onEditBankChange(fn: () => void): () => void {
-    this.editBankListeners.add(fn);
-    return () => { this.editBankListeners.delete(fn); };
+    return this.editBankListeners.add(fn);
   }
 
   /**
@@ -1221,80 +1185,72 @@ export class PatternStore {
    * pattern-undo.md REQ-capture-happens-at-the-mutation-entry). `restore()` and `setSampleName` never emit.
    */
   onMutate(fn: (m: PatternMutation) => void): () => void {
-    this.mutateListeners.add(fn);
-    return () => { this.mutateListeners.delete(fn); };
+    return this.mutateListeners.add(fn);
   }
 
   /** Fires at the start of `restore()` — a whole-store overwrite (song load). */
   onBulkRestore(fn: () => void): () => void {
-    this.bulkRestoreListeners.add(fn);
-    return () => { this.bulkRestoreListeners.delete(fn); };
+    return this.bulkRestoreListeners.add(fn);
   }
 
   /** Emit a mutation record; `make` runs (and clones) only when someone listens. */
   private emitMutate(make: () => PatternMutation): void {
     if (this.mutateListeners.size === 0) return;
     const m = make();
-    for (const l of this.mutateListeners) l(m);
+    this.mutateListeners.emit(m);
   }
 
   /** Fires once when the active edit bank changes (not per-cell). */
   onSeqBankChange(fn: (bank: readonly (readonly SeqStep[])[]) => void): () => void {
-    this.seqBankListeners.add(fn);
-    return () => { this.seqBankListeners.delete(fn); };
+    return this.seqBankListeners.add(fn);
   }
 
   onDrumBankChange(fn: (bank: readonly (readonly DrumCell[])[]) => void): () => void {
-    this.drumBankListeners.add(fn);
-    return () => { this.drumBankListeners.delete(fn); };
+    return this.drumBankListeners.add(fn);
   }
 
   onSamplerBankChange(fn: (bank: readonly (readonly SamplerStep[])[]) => void): () => void {
-    this.samplerBankListeners.add(fn);
-    return () => { this.samplerBankListeners.delete(fn); };
+    return this.samplerBankListeners.add(fn);
   }
 
   onMotionChange(fn: (index: number, step: MotionStep) => void): () => void {
-    this.motionListeners.add(fn);
-    return () => { this.motionListeners.delete(fn); };
+    return this.motionListeners.add(fn);
   }
 
   onMotionBankChange(fn: (bank: readonly MotionStep[]) => void): () => void {
-    this.motionBankListeners.add(fn);
-    return () => { this.motionBankListeners.delete(fn); };
+    return this.motionBankListeners.add(fn);
   }
 
   /** An extra track changed. `index` is the step, or -1 for a param change. */
   onMotionTrackChange(fn: (track: number, index: number) => void): () => void {
-    this.motionTrackListeners.add(fn);
-    return () => { this.motionTrackListeners.delete(fn); };
+    return this.motionTrackListeners.add(fn);
   }
 
   /** Repaint every extra-track cell (bank switch / restore / copy). */
   private emitAllMotionTracks(): void {
     for (let t = 0; t < MOTION_TRACK_COUNT; t++) {
-      for (const l of this.motionTrackListeners) l(t, -1);
+      this.motionTrackListeners.emit(t, -1);
     }
   }
 
   private emitBankSeq(): void {
     const bank = assertIndex(this.seqBanks, this._seqEdit, 'seqBanks');
-    for (const l of this.seqBankListeners) l(bank);
+    this.seqBankListeners.emit(bank);
   }
 
   private emitBankDrum(): void {
     const bank = assertIndex(this.drumBanks, this._drumEdit, 'drumBanks');
-    for (const l of this.drumBankListeners) l(bank);
+    this.drumBankListeners.emit(bank);
   }
 
   private emitBankSampler(): void {
     const bank = assertIndex(this.samplerBanks, this._samplerEdit, 'samplerBanks');
-    for (const l of this.samplerBankListeners) l(bank);
+    this.samplerBankListeners.emit(bank);
   }
 
   private emitBankMotion(): void {
     const bank = assertIndex(this.motionBanks, this._motionEdit, 'motionBanks');
-    for (const l of this.motionBankListeners) l(bank);
+    this.motionBankListeners.emit(bank);
   }
 
   // ---- Serialisation (used by Song save/load) ----
@@ -1332,7 +1288,7 @@ export class PatternStore {
   restore(snap: Partial<PatternSnapshot>, counts?: BankCounts): void {
     // A whole-store overwrite: undo stacks must drop their (now stale) history
     // before the new state lands (pattern-undo.md REQ-restore-fires-a-bulk-hook).
-    for (const l of this.bulkRestoreListeners) l();
+    this.bulkRestoreListeners.emit();
 
     // Size every machine BEFORE filling it, so the fill loops can run over the
     // destination and stay authoritative.
@@ -1453,9 +1409,9 @@ export class PatternStore {
     this.emitBankMotion();
     this.emitAllMotionTracks();
     for (let i = 0; i < SAMPLER_SLOT_COUNT; i++) {
-      for (const l of this.sampleMetaListeners) l(i, this.sampleNames[i] ?? null);
+      this.sampleMetaListeners.emit(i, this.sampleNames[i] ?? null);
     }
-    for (const l of this.editBankListeners) l();
+    this.editBankListeners.emit();
   }
 }
 
@@ -1466,6 +1422,30 @@ export class PatternStore {
  * before the first write — the caller's undo snapshot. Returns false, writing
  * nothing, when no step in the window is on.
  */
+/**
+ * Copy grid bank `from` over `to` in place — the seq, drum and sampler banks share
+ * the shape (rows of cells). `capture` records the target's pre-state for undo
+ * before anything is written. Returns the clamped target, or -1 when the two are
+ * the same bank (nothing done).
+ */
+function copyGridBank<T extends object, K extends 'seq' | 'drum' | 'sampler'>(
+  banks: T[][][], from: number, to: number, machine: K,
+  capture: (kind: `${K}-copy`, bank: number, before: T[][]) => void,
+): number {
+  const n = banks.length;
+  const a = clampBankIn(from, n), b = clampBankIn(to, n);
+  if (a === b) return -1;
+  const src = assertIndex(banks, a, `${machine}Banks`);
+  const dst = assertIndex(banks, b, `${machine}Banks`);
+  capture(`${machine}-copy`, b, dst.map((row) => row.map((c) => ({ ...c }))));
+  for (let t = 0; t < dst.length; t++) {
+    const srcRow = assertIndex(src, t, `${machine}Tracks`);
+    const dstRow = assertIndex(dst, t, `${machine}Tracks`);
+    for (let i = 0; i < dstRow.length; i++) Object.assign(assertIndex(dstRow, i, `${machine}Cells`), assertIndex(srcRow, i, `${machine}Cells`));
+  }
+  return b;
+}
+
 function rotateRows<T extends { on: boolean }>(
   bank: T[][],
   cells: number,
