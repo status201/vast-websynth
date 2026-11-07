@@ -3,8 +3,6 @@
 // DOM and writes no clipboard: see `specs/features/failure-report.md`.
 import { MAX_ERRORS } from '../state/validate-utils';
 
-declare const __APP_VERSION__: string;
-
 /**
  * A failure worth putting on the clipboard.
  *

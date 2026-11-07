@@ -1,5 +1,5 @@
 import { Voice, type VoiceNoteOptions } from './voice';
-import { liveStartTime } from './param-utils';
+import { liveStartTime, rampTo } from './param-utils';
 import { assertIndex } from '../utils/array';
 import type { NoteOptions } from './transport/note-output';
 
@@ -59,7 +59,7 @@ export class Polyphony {
     } else if (this.driftTimer !== null) {
       clearInterval(this.driftTimer);
       this.driftTimer = null;
-      this.drift.offset.setTargetAtTime(0, this.ctx.currentTime, 0.12); // settle back
+      rampTo(this.drift.offset, 0, this.ctx, 0.12); // settle back
     }
   }
 
@@ -219,7 +219,7 @@ export class Polyphony {
   private driftStep = (): void => {
     const range = this.driftAmount * 12; // ±12 cents at full
     const target = range <= 0 ? 0 : (Math.random() * 2 - 1) * range;
-    this.drift.offset.setTargetAtTime(target, this.ctx.currentTime, 0.12);
+    rampTo(this.drift.offset, target, this.ctx, 0.12);
   };
 
   /**

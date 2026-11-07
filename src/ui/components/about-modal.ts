@@ -21,8 +21,6 @@ import type { StudioApi } from '../studio-api';
 import switchStyles from '../styles/switch.module.css';
 import dialogStyles from '../styles/dialog.module.css';
 
-declare const __APP_VERSION__: string;
-
 export function buildModal(close: () => void, engine: StudioApi, deps: AboutDeps): {
   backdrop: HTMLElement;
   refreshDebug: () => void;

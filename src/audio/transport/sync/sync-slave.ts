@@ -2,6 +2,7 @@ import type { Clock } from '../clock';
 import { JOIN_LEAD_MS, type SyncMessage } from './sync-types';
 import { PulseBpmEstimator } from './bpm-estimator';
 import { MAX_SYNC_JOIN_LEAD_MS } from '../../../state/limits';
+import { ListenerSet } from '../../../utils/listeners';
 
 /**
  * Slave role: follow a remote transport arriving as `SyncMessage`s.
@@ -82,7 +83,7 @@ export class SyncSlave {
     windowPulses: WINDOW_PULSES, emaAlpha: EMA_ALPHA, gapResetMs: GAP_RESET_MS,
   });
   private unsubs: Array<() => void> = [];
-  private readonly changeListeners = new Set<() => void>();
+  private readonly changeListeners = new ListenerSet();
 
   /** Recent local grid times, newest last — every step, at its UNSWUNG time (v8: a
    *  jump to an odd step puts pulse 0 on an odd step, which even-only records
@@ -182,8 +183,7 @@ export class SyncSlave {
   }
 
   onChange(cb: () => void): () => void {
-    this.changeListeners.add(cb);
-    return () => { this.changeListeners.delete(cb); };
+    return this.changeListeners.add(cb);
   }
 
   /**
@@ -428,6 +428,6 @@ export class SyncSlave {
   }
 
   private emitChange(): void {
-    for (const l of this.changeListeners) l();
+    this.changeListeners.emit();
   }
 }

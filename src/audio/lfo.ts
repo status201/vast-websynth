@@ -3,8 +3,8 @@ import { rampTo, RAMP_MEDIUM } from './param-utils';
 import { bindTempoLocked } from './tempo-bind';
 import { clamp01 } from '../utils/math';
 import { LFO_DEST_SCALE } from '../state/lfo-routing';
+import { WAVE_TYPES, waveIndex } from './waves';
 
-const WAVE_TYPES: OscillatorType[] = ['sine', 'triangle', 'sawtooth', 'square'];
 
 /**
  * The slice of `PwmDriver` an LFO is allowed to drive (oscillators.md REQ-set-periodic-wave-is-immediate).
@@ -201,7 +201,7 @@ export class LFO {
   }
 
   setWave(idx: number): void {
-    const t = WAVE_TYPES[Math.max(0, Math.min(WAVE_TYPES.length - 1, Math.round(idx)))];
+    const t = WAVE_TYPES[waveIndex(idx)];
     if (t) this.osc.type = t;
   }
 

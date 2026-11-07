@@ -1,6 +1,6 @@
-import { pinParam, BUTTERWORTH_Q_DB } from './effect';
+import { pinParam, butterworth } from './effect';
 import { DELAY_DAMP_HZ, clampDelayFeedback, clampDelayTime } from './delay';
-import { RAMP_SMOOTH } from '../param-utils';
+import { RAMP_SMOOTH, rampTo } from '../param-utils';
 import { loadWorkletModule } from '../worklet-module';
 import { clamp01 } from '../../utils/math';
 import type { DelayType } from '../../state/delay';
@@ -58,7 +58,7 @@ abstract class CoreBase {
 
   /** Write a knob: at once before the first wake, with the effect controls' smoothing after (effects.md REQ-an-effects-own-controls-ramp). */
   write(p: AudioParam, v: number): void {
-    if (this.awake) p.setTargetAtTime(v, this.ctx.currentTime, RAMP_SMOOTH);
+    if (this.awake) rampTo(p, v, this.ctx, RAMP_SMOOTH);
     else p.value = v;
   }
 
@@ -146,15 +146,6 @@ export function pingPongWidth(char: number): number {
 export function pingPongGains(char: number): [near: number, far: number] {
   const theta = (Math.PI / 4) * (1 - pingPongWidth(char));
   return [Math.SQRT2 * Math.cos(theta), Math.SQRT2 * Math.sin(theta)];
-}
-
-/** A Butterworth lowpass or highpass at `hz`: no bump, so never above unity in a loop (REQ-every-type-is-bounded). */
-function butterworth(ctx: BaseAudioContext, type: 'lowpass' | 'highpass', hz: number): BiquadFilterNode {
-  const f = ctx.createBiquadFilter();
-  f.type = type;
-  f.frequency.value = hz;
-  f.Q.value = BUTTERWORTH_Q_DB;
-  return f;
 }
 
 /**

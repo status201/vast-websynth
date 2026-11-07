@@ -1,5 +1,5 @@
-import { WrappedEffect, bindBypassMix, BUTTERWORTH_Q_DB } from './effect';
-import { rampTo, RAMP_MEDIUM } from '../param-utils';
+import { WrappedEffect, bindBypassMix, butterworth } from './effect';
+import { rampTo, RAMP_MEDIUM, MUTE_SETTLE_MS } from '../param-utils';
 import type { ParamBus } from '../../state/params';
 
 /** The five selectable tail lengths (seconds), shortest → longest. */
@@ -8,13 +8,8 @@ const IR_DURATIONS = [0.4, 0.8, 1.5, 2.5, 4.0];
 /** Index `setSize` starts on — the middle of the bank, and the default `size`. */
 const DEFAULT_IR = 2;
 
-/**
- * How long the effect's own output is ducked around an IR swap (effects.md
- * REQ-a-reverb-size-change-ducks) — ~4 time constants of `RAMP_MEDIUM`, the same window `ModMatrix.patch`
- * mutes for before it rewires, and for the same reason: the gain is inaudible
- * well before the edit lands.
- */
-const IR_SWAP_MUTE_MS = 40;
+/** How long the effect's own output is ducked around an IR swap (effects.md REQ-a-reverb-size-change-ducks). */
+const IR_SWAP_MUTE_MS = MUTE_SETTLE_MS;
 
 /**
  * Process-wide IR cache (runtime-performance.md REQ-boot-cost-matches-the-request/REQ-immutable-artefacts-are-shared). An IR is a pure
@@ -67,10 +62,7 @@ export class Reverb extends WrappedEffect {
     super(ctx, 0.25);
 
     this.convolver = ctx.createConvolver();
-    this.damp = ctx.createBiquadFilter();
-    this.damp.type = 'lowpass';
-    this.damp.frequency.value = 8000;
-    this.damp.Q.value = BUTTERWORTH_Q_DB; // effects.md REQ-a-fixed-filter-is-a-true-butterworth
+    this.damp = butterworth(ctx, 'lowpass', 8000);
 
     // Weak perf tiers cap the IR *durations*, never the bank size, so
     // setSize's 0..1 → index mapping and preset values keep their meaning
@@ -149,7 +141,7 @@ export class Reverb extends WrappedEffect {
   setDamp(d: number): void {
     // 0 = bright (12 kHz), 1 = dark (1 kHz)
     const hz = 12000 - d * 11000;
-    this.damp.frequency.setTargetAtTime(hz, this.ctx.currentTime, 0.05);
+    rampTo(this.damp.frequency, hz, this.ctx, 0.05);
   }
 
   bind(bus: ParamBus, prefix: string): void {

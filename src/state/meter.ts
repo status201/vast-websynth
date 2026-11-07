@@ -15,6 +15,7 @@
  * `patterns.ts` (and so this) into a plain-Node bundle, so nothing here may touch
  * the DOM, an AudioContext or `import.meta.glob`.
  */
+import { clampInt } from '../utils/math';
 
 /** Cells in one pattern grid. The one constant a longer grid would change. */
 export const GRID_CELLS = 16;
@@ -93,13 +94,9 @@ export const METER_PRESETS: readonly MeterPreset[] = [
   { label: '12/8', beats: 12, unit: 1 },
 ];
 
-function clampInt(v: number, min: number, max: number): number {
-  // Non-finite floored to `min` first: the app-wide `max(min, min(max, v))` idiom
-  // returns NaN for NaN (untrusted-input.md REQ-no-subscriber-can-wedge-the-clock), and a NaN bar length would
-  // make every modulo below NaN and stall every machine at once.
-  if (!Number.isFinite(v)) return min;
-  return Math.max(min, Math.min(max, Math.round(v)));
-}
+// `clampInt` floors a non-finite value to `min`: a NaN bar length would make every
+// modulo below NaN and stall every machine at once (untrusted-input.md
+// REQ-no-subscriber-can-wedge-the-clock).
 
 /**
  * Sanitise a bar length arriving from outside `meter.ts`.

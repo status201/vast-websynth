@@ -1,6 +1,6 @@
 import type { StudioApi } from '../studio-api';
 import type { ParamBus } from '../../state/params';
-import type { VisibilityGate } from '../panels/step-panel-scaffold';
+import type { VisibilityGate } from './visibility-gate';
 import { BANK_LABELS } from '../../state/patterns';
 import { GRID_CELLS } from '../../state/meter';
 import { beatOfCell, isBeatCell, laneCellAt, laneGrid, onLaneGridChange } from '../lane-grid';

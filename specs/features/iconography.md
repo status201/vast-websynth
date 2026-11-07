@@ -215,9 +215,6 @@ export type IconName = keyof typeof UI_ICONS;
 /** SVG markup for `name`. Safe to `innerHTML` — no interpolation. */
 export function icon(name: IconName): string;
 
-/** An icon as an element. `label` sets role="img" + aria-label (REQ-an-icon-is-aria-hidden). */
-export function iconEl(name: IconName, label?: string): HTMLElement;
-
 /** Icon + text in one markup string; the icon is aria-hidden (REQ-an-icon-is-aria-hidden). */
 export function iconLabel(name: IconName, text: string, pos?: 'before' | 'after'): string;
 
@@ -231,10 +228,9 @@ style: `innerHTML` on a value that came from a peer or a file would make it
 markup ([untrusted-input](untrusted-input.md)). Both emit the same
 `.icon-label` span, so the two look identical — and "identical" is a claim about
 **DOM shape**: the gap comes from `svg.ui-icon + .icon-label` in `base.css`, which
-only matches direct siblings. (v2) `iconTextEl` used to append `iconEl`'s `<span>`
-around the svg, so the rule never matched and every caller — the pairing
-wizard's "Linked" and hint lines, the tour's confirmation — rendered its glyph
-flush against the text. It now emits the bare svg.
+only matches direct siblings. So `iconTextEl` emits the **bare** svg: wrapped in a
+`<span>`, the rule would never match and every caller's glyph would sit flush
+against its text.
 
 `INFO_SHAPE` is exported alongside them — the one drawing `header-icons.ts`
 reuses (REQ-one-icon-builder-four-sets).

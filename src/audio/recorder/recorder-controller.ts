@@ -5,6 +5,7 @@ import { DEFAULT_BAR_TICKS, safeBarTicks} from '../../state/meter';
 import { clamp } from '../../utils/math';
 import { encodeWav, encodeMp3 } from './encode';
 import { triggerDownload } from '../../utils/download';
+import { ListenerSet } from '../../utils/listeners';
 
 export type ExportFormat = 'wav' | 'mp3';
 
@@ -29,7 +30,7 @@ export interface ExportOptions {
 export const FALLBACK_BARS = 4;
 /** Grace period after the final bar so the worklet captures scheduled
  *  look-ahead audio + reverb/release tails before we read the buffer. */
-const TAIL_MS = 350;
+export const TAIL_MS = 350;
 /** Ceiling on `ExportOptions.runs` — export renders in real time, so ten passes of
  *  a long song is already a ten-minute wait (audio-export.md open questions). */
 export const MAX_RUNS = 10;
@@ -47,7 +48,7 @@ export const MAX_RUNS = 10;
  */
 export class RecorderController {
   private _phase: RecorderPhase = 'idle';
-  /** True while an automatic export pass owns the transport (REQ-meter-ts-names-the-three-jobs's seek guard
+  /** True while an automatic export pass owns the transport (transport-position.md REQ-seeking-is-refused-in-three-states's seek guard
    *  keys off this, NOT off "a capture is running"). */
   private exporting = false;
   private finishing = false;
@@ -77,7 +78,7 @@ export class RecorderController {
   /** Whether the last export was ended by a stop it did not issue (REQ-an-outside-stop-ends-the-export). */
   private exportInterrupted = false;
   private unsubStop: (() => void) | null = null;
-  private readonly phaseListeners = new Set<(phase: RecorderPhase) => void>();
+  private readonly phaseListeners = new ListenerSet<[phase: RecorderPhase]>();
 
   /**
    * @param blocked  refuses a new capture while something else owns the transport
@@ -142,14 +143,13 @@ export class RecorderController {
   }
 
   onPhase(fn: (phase: RecorderPhase) => void): () => void {
-    this.phaseListeners.add(fn);
-    return () => { this.phaseListeners.delete(fn); };
+    return this.phaseListeners.add(fn);
   }
 
   private setPhase(phase: RecorderPhase): void {
     if (this._phase === phase) return;
     this._phase = phase;
-    for (const l of this.phaseListeners) l(phase);
+    this.phaseListeners.emit(phase);
   }
 
   private begin(): void {
@@ -325,7 +325,7 @@ export class RecorderController {
   }
 
   /**
-   * Abort a render in flight and write nothing (REQ-each-machine-has-a-loop-length). Export is real time —
+   * Abort a render in flight and write nothing (audio-export.md REQ-the-modal-is-the-renders-own-surface). Export is real time —
    * ten runs of a long song is a ten-minute wait — so the progress UI needs a
    * Cancel that genuinely cancels; a dead button beside a long bar is worse than
    * no button. A no-op unless a pass is actually recording.

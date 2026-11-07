@@ -1,4 +1,5 @@
 import type { SyncMessage, SyncTransport } from './sync-types';
+import { ListenerSet } from '../../../utils/listeners';
 
 /**
  * Web MIDI implementation of `SyncTransport` — a dumb byte↔message mapper.
@@ -26,8 +27,8 @@ const MSG_FOR: Record<number, SyncMessage> = {
 };
 
 export class MidiSyncTransport implements SyncTransport {
-  private readonly messageListeners = new Set<(msg: SyncMessage, receivedAtMs: number) => void>();
-  private readonly portListeners = new Set<() => void>();
+  private readonly messageListeners = new ListenerSet<[msg: SyncMessage, receivedAtMs: number]>();
+  private readonly portListeners = new ListenerSet();
 
   constructor(private readonly access: MIDIAccess) {}
 
@@ -59,8 +60,7 @@ export class MidiSyncTransport implements SyncTransport {
   }
 
   onMessage(cb: (msg: SyncMessage, receivedAtMs: number) => void): () => void {
-    this.messageListeners.add(cb);
-    return () => { this.messageListeners.delete(cb); };
+    return this.messageListeners.add(cb);
   }
 
   /** Fed by midi.ts with any status byte >= 0xF8. Unknown ones (clock tick
@@ -79,7 +79,7 @@ export class MidiSyncTransport implements SyncTransport {
 
   /** Fed by midi.ts on `statechange` — port counts feed the status line. */
   refreshPorts(): void {
-    for (const l of this.portListeners) l();
+    this.portListeners.emit();
   }
 
   ports(): { ins: number; outs: number } {
@@ -87,12 +87,11 @@ export class MidiSyncTransport implements SyncTransport {
   }
 
   onPortsChange(cb: () => void): () => void {
-    this.portListeners.add(cb);
-    return () => { this.portListeners.delete(cb); };
+    return this.portListeners.add(cb);
   }
 
   private emit(msg: SyncMessage, at: number): void {
-    for (const l of this.messageListeners) l(msg, at);
+    this.messageListeners.emit(msg, at);
   }
 }
 

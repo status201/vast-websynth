@@ -1,7 +1,6 @@
 import { FrequencyLine } from './frequency-line';
-import { rampTo, RAMP_BYPASS } from './param-utils';
-
-const WAVE_TYPES: OscillatorType[] = ['sine', 'triangle', 'sawtooth', 'square'];
+import { rampTo, RAMP_BYPASS, RAMP_MEDIUM, RAMP_FAST } from './param-utils';
+import { WAVE_TYPES, waveIndex } from './waves';
 
 /** Index of `square` in WAVE_TYPES — the only wave pulse width applies to. */
 const SQUARE = 3;
@@ -180,7 +179,7 @@ export class Osc {
   }
 
   setWave(idx: number): void {
-    const i = Math.max(0, Math.min(WAVE_TYPES.length - 1, Math.round(idx)));
+    const i = waveIndex(idx);
     const t = WAVE_TYPES[i];
     if (!t) return;
     this.waveIdx = i;
@@ -230,7 +229,7 @@ export class Osc {
   }
 
   setLevel(v: number): void {
-    this.out.gain.setTargetAtTime(v, this.ctx.currentTime, 0.01);
+    rampTo(this.out.gain, v, this.ctx, RAMP_MEDIUM);
   }
 
   /** The OscillatorNode's detune AudioParam — for connecting LFO / pitch bend. */
@@ -246,7 +245,7 @@ export class Osc {
   private applyDetune(): void {
     // LFO/pitchBend modulate via separate AudioNode → detune connection.
     const cents = this.cents;
-    this.osc.detune.setTargetAtTime(cents, this.ctx.currentTime, 0.005);
+    rampTo(this.osc.detune, cents, this.ctx, RAMP_FAST);
     this.mirror?.cents(cents);
   }
 

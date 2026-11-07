@@ -1,4 +1,5 @@
 import { describe, it, expect } from 'vitest';
+import { MAX_SAMPLE_NAME_CHARS } from '../../src/state/limits';
 import { PatternStore, SEQ_LENGTH, MIN_BANK_COUNT, MAX_BANK_COUNT, MOTION_TRACK_COUNT, SAMPLER_SLOT_COUNT, REST, clampChainStep, emptyPatternBanks, emptyPatternSnapshot, type SeqStep, type DrumCell } from '../../src/state/patterns';
 
 describe('clampChainStep', () => {
@@ -16,6 +17,27 @@ describe('clampChainStep', () => {
     expect(clampChainStep(5, MIN_BANK_COUNT)).toBe(MIN_BANK_COUNT - 1);
     expect(clampChainStep(5, MAX_BANK_COUNT)).toBe(5);
     expect(clampChainStep(99, MAX_BANK_COUNT)).toBe(MAX_BANK_COUNT - 1);
+  });
+  it('caps and cleans a sample name at both entry points (untrusted-input.md REQ-names-are-capped, regression)', () => {
+    const store = new PatternStore();
+    const long = 'k'.repeat(500) + '.wav';
+    store.setSampleName(0, `\u0007${long}`);
+    expect(store.sampleNames[0]!.length).toBe(MAX_SAMPLE_NAME_CHARS);
+    expect(store.sampleNames[0]!.startsWith('k')).toBe(true); // control character gone
+    store.setSampleName(1, '   ');
+    expect(store.sampleNames[1]).toBeNull();
+    const snap = emptyPatternSnapshot();
+    store.restore({ ...snap, sampleNames: [long, 42 as unknown as string, null] });
+    expect(store.sampleNames[0]!.length).toBe(MAX_SAMPLE_NAME_CHARS);
+    expect(store.sampleNames[1]).toBeNull();
+  });
+
+  it('a non-finite index is bank A, never NaN (banks.md REQ-a-bank-index-is-always-a-bank)', () => {
+    expect(clampChainStep(NaN, MIN_BANK_COUNT)).toBe(0);
+    expect(clampChainStep(Infinity, MIN_BANK_COUNT)).toBe(0);
+    const store = new PatternStore();
+    expect(store.seqBank(NaN)).toBe(store.seqBank(0));
+    expect(store.motionBank(NaN)).toBe(store.motionBank(0));
   });
 });
 

@@ -22,7 +22,7 @@ import { cleanName } from './names';
  *   contract: an agent writing a sound wants "osc1.shape is not a parameter"
  *   now, not a silently-clamped patch later.
  *
- * Both callers pass a bus, and they want opposite severities (REQ-modified-is-computed-not-tracked): the MCP
+ * Both callers pass a bus, and they want opposite severities (preset-authoring.md REQ-semantic-severity-is-the-callers-choice): the MCP
  * tools take the semantic findings as **errors** — an author wants the file
  * refused until it says what they meant — while `parsePresetPayload`
  * (preset-file.ts) asks for **warnings**, because the importer already has the

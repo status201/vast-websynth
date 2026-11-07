@@ -22,6 +22,15 @@ function sat(x) {
 // Make-up gain to offset the passband level lost as resonance rises (LADDER).
 const RES_MAKEUP = 0.25;
 
+/**
+ * A pole state below −400 dB is 0. A gated or silent voice's poles decay
+ * geometrically, and the last stretch to zero runs through the subnormal range,
+ * where every multiply is slow; flushing at block end is inaudible either way.
+ */
+function flush(x) {
+  return x > -1e-20 && x < 1e-20 ? 0 : x;
+}
+
 // POLY's input rail. The LADDER's stages feed back sat(s_n), so at DC
 // sat(s_n) === v and the state settles at sat^-1(v) — the cascade *undoes* the
 // input saturation, which is why the ladder measures near-unity at low
@@ -42,11 +51,11 @@ function satWide(x) {
 // stays put as the peak rises, instead of sagging under it. 1 is exact unity.
 const BASS_COMP = 1;
 // Level match against LADDER at the *default* resonance (0.5), so flipping the
-// switch is an A/B of character, not of loudness (REQ-the-filter-idles-when-gated). Above that POLY is
-// louder — that is REQ-filter-changes-reach-every-voice working. Dialled by ear, like RES_MAKEUP (ADR-010).
+// switch is an A/B of character, not of loudness (filter-models.md REQ-poly-trim-matches-the-levels). Above that POLY is
+// louder — that is filter-models.md REQ-poly-preserves-the-low-end working. Dialled by ear, like RES_MAKEUP (ADR-010).
 const POLY_TRIM = 0.85;
 
-// POLY pole-mix anchors (REQ-input-and-poles-are-saturated), as coefficients over [v, s0, s1, s2, s3].
+// POLY pole-mix anchors (filter-models.md REQ-shape-morphs-the-pole-mix), as coefficients over [v, s0, s1, s2, s3].
 // Binomial — HP_n is (1 - LP)^n applied to the loop input — so the four stage
 // outputs the cascade already computed yield LP24/LP12/BP12/HP24 for ~5 mul.
 // Feedback always stays on s3, so the resonant peak tracks cutoff in every mode.
@@ -121,8 +130,8 @@ class LadderFilterProcessor extends AudioWorkletProcessor {
         maxValue: 1,
         automationRate: 'k-rate',
       },
-      // POLY pole-mix morph (REQ-input-and-poles-are-saturated). a-rate so the LFO can sum into it and
-      // sweep the filter's *type*; ignored entirely by the LADDER path (REQ-self-oscillation-stays-gentle).
+      // POLY pole-mix morph (filter-models.md REQ-shape-morphs-the-pole-mix). a-rate so the LFO can sum into it and
+      // sweep the filter's *type*; ignored entirely by the LADDER path (filter-models.md REQ-shape-is-poly-only).
       {
         name: 'shape',
         defaultValue: 0,
@@ -380,7 +389,7 @@ function polyBlock(s, inCh, outCh, k) {
     // Drive saturates the input alone (against the wide rail), so
     // resonance behaviour stays independent of it. The (1 + res*BASS_COMP)
     // pre-gain is the bass-preservation trick: it cancels the 1/(1+res)
-    // the feedback subtraction would otherwise cost the low end (REQ-filter-changes-reach-every-voice).
+    // the feedback subtraction would otherwise cost the low end (filter-models.md REQ-poly-preserves-the-low-end).
     const v = satWide(x * drive) * (1 + res * BASS_COMP) - res * fb;
 
     s0 += g * (v - s0);
@@ -389,8 +398,8 @@ function polyBlock(s, inCh, outCh, k) {
     s3 += g * (s2 - s3);
     q3prev = q3;
 
-    // Pole mix (REQ-input-and-poles-are-saturated). |v| is bounded by (1 + res) + res and the four
-    // linear one-poles cannot exceed it, so this stays finite (REQ-the-filter-worklet-module-is-awaited).
+    // Pole mix (filter-models.md REQ-shape-morphs-the-pole-mix). |v| is bounded by (1 + res) + res and the four
+    // linear one-poles cannot exceed it, so this stays finite (filter-models.md REQ-poly-output-is-finite-and-bounded).
     outCh[i] = (mv * v + m0 * s0 + m1 * s1 + m2 * s2 + m3 * s3) * POLY_TRIM;
   }
 
@@ -399,8 +408,9 @@ function polyBlock(s, inCh, outCh, k) {
   // block, so a switch back to LADDER resumes a self-consistent
   // recurrence (filter-models.md REQ-switching-model-mid-note-is-safe). The pole states themselves carry
   // over untouched — they mean the same thing in both models.
+  s0 = flush(s0); s1 = flush(s1); s2 = flush(s2); s3 = flush(s3);
   s[0] = s0; s[1] = s1; s[2] = s2; s[3] = s3;
-  s[4] = sat(s0); s[5] = sat(s1); s[6] = sat(s2); s[7] = q3prev;
+  s[4] = sat(s0); s[5] = sat(s1); s[6] = sat(s2); s[7] = flush(q3prev);
 }
 
 /** One block of LADDER — the original recurrence, untouched (ladder-filter.md) — on channel state `s`. */
@@ -450,8 +460,8 @@ function ladderBlock(s, inCh, outCh, k) {
     outCh[i] = s3 * (1 + res * RES_MAKEUP);
   }
 
-  s[0] = s0; s[1] = s1; s[2] = s2; s[3] = s3;
-  s[4] = q0; s[5] = q1; s[6] = q2; s[7] = q3prev;
+  s[0] = flush(s0); s[1] = flush(s1); s[2] = flush(s2); s[3] = flush(s3);
+  s[4] = flush(q0); s[5] = flush(q1); s[6] = flush(q2); s[7] = flush(q3prev);
 }
 
 registerProcessor('ladder-filter', LadderFilterProcessor);

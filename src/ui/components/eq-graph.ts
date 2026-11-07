@@ -5,7 +5,7 @@ import {
 } from '../../state/eq';
 import {
   SPECTRUM_ZONES, freqToFrac, fracToFreq, formatHzFull, visibleTicks,
-} from './scope';
+} from './scope-math';
 import { haloText } from './canvas-text';
 import { onPaletteChange, paletteDerived, rgba } from '../theme-colors';
 import { clamp } from '../../utils/math';

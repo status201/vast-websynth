@@ -9,6 +9,7 @@ import type { SamplerMachine } from '../audio/transport/sampler-machine';
 import type { MotionMachine } from '../audio/transport/motion-machine';
 import type { RecorderController } from '../audio/recorder/recorder-controller';
 import type { BankRenderController } from '../audio/recorder/bank-render';
+import type { ClipPreview } from '../audio/recorder/clip-preview';
 import type { SyncController } from '../audio/transport/sync/sync-controller';
 import type { WifiLink } from '../audio/transport/sync/wifi-sync';
 import type { Compressor } from '../audio/effects/compressor';
@@ -56,6 +57,8 @@ export interface StudioApi {
   readonly recorder: RecorderController;
   /** Resample the seq edit bank into a bar-exact buffer (render / onState). */
   readonly bankRender: BankRenderController;
+  /** The sample editor's audition player, with the slot's edges (play / stop / playing). */
+  readonly clipPreview: ClipPreview;
   /** MIDI clock sync master/slave (mode / setMode / status / onStatus). */
   readonly sync: SyncController;
   /** WebRTC WiFi sync transport — drives the pair modal (webrtc-sync.md). */

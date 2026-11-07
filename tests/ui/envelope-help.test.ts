@@ -4,7 +4,7 @@ import { renderEnvelopeHelp } from '../../src/ui/onboarding/help-widgets';
 import { phaseWidths, ENV_GRAPH_MIN_PHASE } from '../../src/ui/onboarding/envelope-graph';
 import { HELP_TOPICS, type HelpContext } from '../../src/ui/onboarding/help-content';
 import { ParamBus, registerDefaults } from '../../src/state/params';
-import { noteToHz } from '../../src/utils/tempo';
+import { midiToHz } from '../../src/utils/math';
 
 /** The ADSR graph under the AMP / FILTER ENV badges (envelope-help-graph.md). */
 
@@ -90,7 +90,7 @@ describe('envelope help graph', () => {
     const amount = ctx.bus.get('filter.envAmount');
     const text = renderEnvelopeHelp(ctx, 'fil').textContent!;
     const hz = (n: number) => {
-      const v = noteToHz(n);
+      const v = midiToHz(n);
       return v >= 1000 ? `${(v / 1000).toFixed(2)} kHz` : `${v.toFixed(0)} Hz`;
     };
     expect(text).toContain(hz(cutoff));

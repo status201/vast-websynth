@@ -109,8 +109,9 @@ export interface SongFile {
 
 /**
  * The narrow sampler view `apply` needs to evict stale audio (song-mode.md
- * REQ-stale-sampler-audio-is-evicted). Structural, so `state/` never imports the audio layer —
- * `SamplerMachine` satisfies it.
+ * REQ-stale-sampler-audio-is-evicted). Structural, so the song model never depends on a live
+ * audio object — `SamplerMachine` satisfies it. (`state/` does import the audio layer's *pure*
+ * codecs — `project.ts` and `sample-autosave.ts` encode clips — but never an Engine-owned node.)
  */
 export interface SamplerSlots {
   setBuffer(slot: number, buf: AudioBuffer | null): void;
@@ -237,7 +238,7 @@ export const Song = {
     // previous song's sample keeps playing under the new song's label, with no
     // .needs-reload hint to betray it. Done BEFORE restore so the store's own
     // sample-meta emit repaints each slot against the settled buffers. A file
-    // that OMITS sampleNames renames nothing, so the REQ-a-bank-with-no-anchors-writes-nothing inherit exception
+    // that OMITS sampleNames renames nothing, so the song-mode.md REQ-apply-resets-to-defaults-first inherit exception
     // below still holds for v1 files.
     if (sampler && file.sampleNames) {
       for (let i = 0; i < patterns.sampleNames.length; i++) {
@@ -355,7 +356,7 @@ export const Song = {
   /**
    * Slot-picker contents: every JSON demo name (drop-in and built-in) plus the
    * user's stored slots, deduped and sorted. Drop-ins are listed even though
-   * `loadSlot` cannot return them — they are fetched, not bundled (REQ-motion-mute-is-an-ordinary-param) — so
+   * `loadSlot` cannot return them — they are fetched, not bundled (song-mode.md REQ-drop-in-demos-are-fetched-on-click) — so
    * the Song panel's Load button falls back to `loadDemo` for a name with no
    * stored slot. Zip demos stay out, as they always have: they are project
    * bundles, not song files.
@@ -434,7 +435,7 @@ export const Song = {
   /**
    * A stored slot, else a **built-in** demo. Stays synchronous and JSON-only, so
    * the fetched demos (drop-in JSON and zip alike) are not reachable here —
-   * `SongPanel.loadDemo` is the door that knows about all three (REQ-motion-mute-is-an-ordinary-param).
+   * `SongPanel.loadDemo` is the door that knows about all three (song-mode.md REQ-drop-in-demos-are-fetched-on-click).
    */
   loadSlot(name: string): SongFile | null {
     const raw = store.readRaw(name);

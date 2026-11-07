@@ -99,6 +99,8 @@ notes played on another tab no longer overwrite its bank.
   `keydown`. `keyup` and `blur` are **not** gated: a key held when the dialog
   opened must still be released when it comes up, or its note would hang.
   Non-modal floating windows do not count — they are tools you play alongside.
+  Every modal counts, `Modal` or not: About, the AI Prompt and the start modal
+  join the stack themselves ([add-a-modal-dialog](../recipes/add-a-modal-dialog.md)).
 
 - **REQ-octave-shift-is-minus-and-equal** (v17) — **The keyboard octave shifts
   on `-` and `=`, not the arrow keys.** The bare arrows are navigation — a focused
@@ -701,6 +703,12 @@ Scenario: An open modal silences the shortcuts behind it (v17, REQ-shortcuts-yie
   Then no step is cleared, the transport does not toggle, nothing seeks and no note plays
    And a note held when the dialog opened is still released on its keyup
 # pinned by: tests/ui/shortcuts.test.ts
+
+Scenario: A hand-built dialog counts as a modal too (REQ-shortcuts-yield-to-an-open-modal, regression)
+  Given About or the AI Prompt is open
+  Then anyModalOpen() is true, so the shortcuts and the file drop stand down
+   And with a confirm raised over the AI Prompt, Escape closes only the confirm
+# pinned by: tests/ui/about.test.ts, tests/ui/ai-prompt.test.ts
 
 Scenario: - and = shift the octave; the bare arrows do not (v17, REQ-octave-shift-is-minus-and-equal)
   Given the default base octave

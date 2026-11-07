@@ -81,7 +81,9 @@ character over circuit accuracy (ADR-010) and are bounded and cheap.
   silent. Without it, a demo load that un-bypassed the drum compressor thumped
   ([song-mode](song-mode.md) REQ-applying-a-song-is-click-free). The frozen vectors
   were re-captured for this, and silence-in-silence-out is pinned directly. `vca`
-  has no saturation.
+  has no saturation. On a silent tail the blocker's output decays geometrically;
+  it is flushed to 0 below 1e-20 (−400 dB) at block end, like the envelopes, so it
+  never crawls through the subnormal range.
 
 ## Technical design
 
@@ -209,6 +211,12 @@ Scenario: A knob turn invalidates the memo mid-stream (REQ-the-coefficient-memo-
   And the output matches the un-memoized implementation sample for sample
 # pinned by: tests/audio/compressor-worklet.test.ts
 #            ('vca/fet, k-rate params change mid-stream')
+
+Scenario: A silent tail settles the DC blocker to exactly zero (REQ-a-silent-input-stays-silent, regression)
+  Given a FET compressor that has passed a signal
+  When it is fed silence for a second
+  Then its DC-blocker state is exactly 0, not a subnormal on its way there
+# pinned by: tests/audio/compressor-worklet.test.ts
 ```
 
 ## Tests & verification

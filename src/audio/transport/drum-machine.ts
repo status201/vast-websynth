@@ -4,9 +4,9 @@ import type { PatternStore } from '../../state/patterns';
 import { DRUM_TRACK_COUNT } from '../../state/patterns';
 import { LaneMeter } from './lane-meter';
 import { Kick, Snare, HiHat, Tom, Clap, Conga, Bongo, Cowbell, Clave, Shaker, makeNoiseBuffer, type DrumSynth } from '../drums/drum-synths';
-import { rampTo, RAMP_MEDIUM, toneCutoff, liveStartTime } from '../param-utils';
+import { rampTo, RAMP_MEDIUM, MUTE_SETTLE_MS, toneCutoff, liveStartTime } from '../param-utils';
 import { memoizeDriveCurve } from '../drive-curve';
-import { BUTTERWORTH_Q_DB } from '../effects/effect';
+import { butterworth } from '../effects/effect';
 import { chokeAt, forEachActiveHit } from './step-hits';
 import type { TickSubscriber } from './tick-source';
 import { ListenerSet } from '../../utils/listeners';
@@ -49,12 +49,8 @@ const MODEL_BUILDERS: readonly ((ctx: AudioContext, noise: AudioBuffer) => DrumS
 const CLOSED_HAT_MODEL = 2;
 const OPEN_HAT_MODEL = 3;
 
-/**
- * How long a model swap waits before disconnecting the voice it replaced
- * (REQ-swapping-a-model-never-severs-a-voice) — ~4 time constants of `RAMP_MEDIUM`, the same window
- * `ModMatrix.patch` mutes for, by which point the outgoing voice is inaudible.
- */
-const MODEL_SWAP_FADE_MS = 40;
+/** How long a model swap waits before disconnecting the voice it replaced (REQ-swapping-a-model-never-severs-a-voice). */
+const MODEL_SWAP_FADE_MS = MUTE_SETTLE_MS;
 
 export class DrumMachine {
   readonly tracks: DrumSynth[] = [];
@@ -90,9 +86,11 @@ export class DrumMachine {
     private readonly perf: Performance,
     private readonly drumBus: GainNode,
     private readonly fxOversample = true,
+    /** The engine's noise buffer, shared rather than built a second time. */
+    noise?: AudioBuffer,
   ) {
     this.lane = new LaneMeter(clock, (s) => perf.mapStep(s), () => arrangement.loopTicks('drum'));
-    this.noise = makeNoiseBuffer(this.ctx, 2);
+    this.noise = noise ?? makeNoiseBuffer(this.ctx, 2);
 
     // Track order must match DRUM_TRACKS in patterns.ts; each track boots on
     // its classic voice (model index = track index, REQ-a-drum-tracks-algorithm-is-selectable).
@@ -110,10 +108,7 @@ export class DrumMachine {
       shaper.oversample = 'none';
       const drivePost = this.ctx.createGain();
 
-      const tone = this.ctx.createBiquadFilter();
-      tone.type = 'lowpass';
-      tone.frequency.value = toneCutoff(1); // open (no-op)
-      tone.Q.value = BUTTERWORTH_Q_DB; // effects.md REQ-a-fixed-filter-is-a-true-butterworth
+      const tone = butterworth(this.ctx, 'lowpass', toneCutoff(1)); // open (no-op)
 
       const g = this.ctx.createGain();
       g.gain.value = 0.85;

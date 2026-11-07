@@ -62,6 +62,9 @@ export class ParamBus {
   }
 
   set(id: ParamId, value: number, silent = false): void {
+    // Refused, not clamped: `clamp` passes NaN through, and a NaN written to an
+    // AudioParam throws inside the subscriber (architecture.md REQ-the-bus-refuses-a-non-finite-value).
+    if (!Number.isFinite(value)) return;
     const def = this.defs.get(id);
     if (!def) {
       if (!this.values.has(id)) this.values.set(id, value);
@@ -271,7 +274,7 @@ export const GLIDE_MODE_LABELS = ['off', 'always', 'legato'];
 export const ENV_TRIGGER_LABELS = ['multi', 'single'];
 /** `seq.tieMode` (sequencer.md REQ-re-strike-keeps-the-old-tie). Append-only. */
 export const TIE_MODE_LABELS = ['legato', 're-strike'];
-export const UNISON_LABELS = ['off', '2', '3', '4'];
+const UNISON_LABELS = ['off', '2', '3', '4'];
 // Re-exported so panels pull the key's labels from the same place as every other
 // label array; the tables themselves are pure and live in utils
 // (specs/features/scale-quantization.md).
@@ -307,7 +310,7 @@ const fmtFilterShape = (v: number) =>
  * (input-control.md REQ-cc11-is-expression). An expression pedal resting heel-down
  * when Save is pressed must not produce a song that loads silent.
  */
-export const UNSAVED_PARAMS: ReadonlySet<ParamId> = new Set(['master.expression']);
+const UNSAVED_PARAMS: ReadonlySet<ParamId> = new Set(['master.expression']);
 
 /** `snap` without the `UNSAVED_PARAMS` — what a song or preset capture stores. */
 export function savedParams(snap: Record<ParamId, number>): Record<ParamId, number> {

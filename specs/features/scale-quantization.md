@@ -69,7 +69,7 @@ which belongs to the melody, not the harmony. It plays as written but is not a s
   the drift.
 - **REQ-resolve-once-release-the-stored-note** — A note-off must release the note the
   note-on resolved, or a key change while holding strands the voice. The sequencer and
-  arp store the resolved note (`st.lastPlayedNote`, `arp.lastTriggered`). The
+  arp store the resolved note (`st.lastPlayedNote`, `arp.lastNote`). The
   passthrough uses `Engine.heldIn` ([voicing](voicing.md)
   REQ-passthrough-remembers-what-it-played), cleared by panic / `killAll`.
 - **REQ-the-scale-mapping-is-a-lookup-table** — A 128-entry `Uint8Array` (**not**

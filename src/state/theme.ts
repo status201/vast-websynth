@@ -10,6 +10,7 @@
  * Auto's rule; tests/ui/theme.test.ts runs it against `resolveTheme()` and
  * `THEMES` (REQ-the-boot-script-agrees-with-the-registry). Add a theme in both.
  */
+import { readPref, writePref } from './prefs';
 
 export type ThemeId = 'dark' | 'light' | 'contrast' | 'pastel' | 'vibrant' | 'classic' | 'jungle' | 'race';
 export type ThemePref = ThemeId | 'auto';
@@ -47,14 +48,14 @@ export const THEME_KEY = 'websynth.ui.theme';
  * Auto's last resort, and so the look of a device that never chose
  * (REQ-auto-is-the-default). Where it does not ship, Dark: the tokens' own values.
  */
-export const DEFAULT_THEME: ThemeId = 'classic';
+const DEFAULT_THEME: ThemeId = 'classic';
 
 /** Auto's two system questions (REQ-auto-follows-the-system). */
 export const CONTRAST_QUERY = '(prefers-contrast: more)';
 export const LIGHT_QUERY = '(prefers-color-scheme: light)';
 
 /** True when `v` names a theme that ships. */
-export function isShipped(v: unknown): v is ThemeId {
+function isShipped(v: unknown): v is ThemeId {
   return typeof v === 'string' && THEMES.some((t) => t.id === v);
 }
 
@@ -68,20 +69,12 @@ export function themeInfo(id: string): ThemeInfo {
  * (REQ-auto-is-the-default; a stored value is untrusted, untrusted-input.md).
  */
 export function readThemePref(): ThemePref {
-  try {
-    const v = localStorage.getItem(THEME_KEY);
-    return isShipped(v) ? v : 'auto';
-  } catch {
-    return 'auto';
-  }
+  const v = readPref(THEME_KEY);
+  return isShipped(v) ? v : 'auto';
 }
 
 export function writeThemePref(pref: ThemePref): void {
-  try {
-    localStorage.setItem(THEME_KEY, pref);
-  } catch {
-    /* private mode / quota — the choice still applies for this visit */
-  }
+  writePref(THEME_KEY, pref);
 }
 
 /** Whether a media query matches on this device. Injected so the rule is testable. */

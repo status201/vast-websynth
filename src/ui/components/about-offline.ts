@@ -57,7 +57,7 @@ function noneStatus(total: number | null, remaining: number | null): string {
   return `${PITCH} · ${formatBytes(total)}${left}`;
 }
 
-export function offlineView(s: OfflineState): OfflineView {
+function offlineView(s: OfflineState): OfflineView {
   switch (s.kind) {
     case 'unsupported':
       return {

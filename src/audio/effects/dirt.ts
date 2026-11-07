@@ -1,6 +1,6 @@
-import { WrappedEffect, bindBypassMix, BUTTERWORTH_Q_DB } from './effect';
+import { WrappedEffect, bindBypassMix, butterworth } from './effect';
 import { memoizeDriveCurve } from '../drive-curve';
-import { RAMP_SMOOTH } from '../param-utils';
+import { RAMP_SMOOTH, rampTo } from '../param-utils';
 import { dirtTypeOf } from '../../state/dirt';
 import type { ParamBus } from '../../state/params';
 import type { DirtSwitch } from './dirt-switch';
@@ -60,10 +60,10 @@ export interface DirtNodes {
  * dip holds it.
  */
 export function applyDrive(ctx: BaseAudioContext, n: DirtNodes, v: Voicing, amount: number, post = true): void {
-  n.preGain.gain.setTargetAtTime(v.preGain(amount), ctx.currentTime, RAMP_SMOOTH);
+  rampTo(n.preGain.gain, v.preGain(amount), ctx, RAMP_SMOOTH);
   const curve = v.curve(amount);
   if (n.shaper.curve !== curve) n.shaper.curve = curve;
-  if (post) n.postGain.gain.setTargetAtTime(v.postGain(amount), ctx.currentTime, RAMP_SMOOTH);
+  if (post) rampTo(n.postGain.gain, v.postGain(amount), ctx, RAMP_SMOOTH);
 }
 
 /** The switch's module, imported once for every Dirt; a failure is forgotten. */
@@ -95,10 +95,7 @@ export class Dirt extends WrappedEffect {
     // Weak perf tiers skip the 4× up/down-sampling (performance-mode.md REQ-weak-tier-reduces-fx-cost).
     shaper.oversample = opts?.oversample === false ? 'none' : '4x';
 
-    const tone = ctx.createBiquadFilter();
-    tone.type = 'lowpass';
-    tone.frequency.value = 3000;
-    tone.Q.value = BUTTERWORTH_Q_DB; // effects.md REQ-a-fixed-filter-is-a-true-butterworth
+    const tone = butterworth(ctx, 'lowpass', 3000);
 
     const postGain = ctx.createGain();
     postGain.gain.value = 0.7;
@@ -119,7 +116,7 @@ export class Dirt extends WrappedEffect {
     else applyDrive(this.ctx, this.nodes, DISTORTION_VOICING, amount);
   }
   setTone(hz: number): void {
-    this.nodes.tone.frequency.setTargetAtTime(hz, this.ctx.currentTime, RAMP_SMOOTH);
+    rampTo(this.nodes.tone.frequency, hz, this.ctx, RAMP_SMOOTH);
   }
   /** REQ-a-dirt-type-switch-is-click-free; DISTORTION needs no switch until another type has been chosen. */
   setType(v: number): void {

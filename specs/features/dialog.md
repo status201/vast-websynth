@@ -204,13 +204,12 @@ Callers that adopt this facility (native → helper):
 src/ui/panels/song-panel.ts:
   per-lane Clear  -> confirmDialog({ danger:true, confirmLabel:'Clear' })  # NEW guard;
                      skipped when the chain is already just [0] (nothing to lose)
-  Song Save       -> promptName     (was prompt('Song name:'); promptDialog until v6)
-  Song New        -> confirmDialog({ danger:true })  (was confirm('Clear all banks and chains?'))
-  Import errors   -> alertDialog + copyable (v5; the full list, not the shown 8)
+  Song Save       -> promptName
+  Song New        -> confirmDialog({ danger:true })
+  Import errors   -> alertDialog + copyable (the full list, not the shown 8)
   import/demo/clip failures -> alertDialog + copyable   # failure-report.md REQ-every-failure-surface-emits-one
 src/ui/components/preset-manager-modal.ts: Save current sound -> promptName
-                          (was prompt('Preset name:') in the header; promptDialog until v6)
-src/ui/panels/sampler-panel.ts: decode error -> alertDialog + copyable (was alert('Unsupported…'))
+src/ui/panels/sampler-panel.ts: decode error -> alertDialog + copyable
 src/main.ts:              boot-failure alert() stays NATIVE (app graph never
                           initialised — must not depend on healthy app DOM/CSS)
 ```

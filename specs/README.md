@@ -287,7 +287,7 @@ specs/
     sidechain-ducking.md · trigger-keyed ducker on synth/sampler, keyed by drum hits
     fx-group.md        ·  shared header FX-group UI (knobs hide while bypassed)
     fx-slot-picker.md  ·  effects sharing one panel (Phaser · Flanger · Chorus), chosen from a caret by the title
-    fx-patch-decoration.md · unpatched-cable scenery in the empty FX grid cell
+    fx-patch-decoration.md · unpatched-cable scenery for an empty FX grid cell (dormant: six panels leave none)
     # — transport & sequencing —
     transport.md       ·  the look-ahead clock (start / stop / pause, seek, step router)
     meter.md           ·  time signatures + per-lane length/rate (polymeter, polyrhythm)

@@ -427,3 +427,17 @@ describe('the FET path emits nothing for a silent input (REQ-a-silent-input-stay
     expect(silentRun('vca').peak).toBe(0);
   });
 });
+
+describe('hardware-compressor worklet DC-blocker flush (regression)', () => {
+  it('a silent tail settles the FET DC blocker to exactly 0', () => {
+    const proc = new Processor({ processorOptions: { mode: 'fet' } }) as unknown as ProcessorLike & { dcY0: number; dcY1: number };
+    const params = makeParams();
+    // Below the threshold, so no gain reduction moves the saturator during the tail.
+    runSine(proc, params, 0.05, 0.05, 20);
+    // ~1 s of silence: the blocker decays by dcR (~0.9987) a sample, to ~1e-29 —
+    // below the flush, far above an underflow — so only the flush makes it 0.
+    runSine(proc, params, 0, 0, 400);
+    expect(proc.dcY0).toBe(0);
+    expect(proc.dcY1).toBe(0);
+  });
+});

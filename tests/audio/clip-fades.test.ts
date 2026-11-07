@@ -1,7 +1,6 @@
 import { describe, it, expect, vi } from 'vitest';
-import { readFileSync } from 'node:fs';
-import { fileURLToPath } from 'node:url';
 import { clipFades, fadeOutAt, SAMPLER_ATTACK, CHOKE_FADE } from '../../src/audio/clip-fades';
+import { ClipPreview } from '../../src/audio/recorder/clip-preview';
 
 /**
  * The editor preview's edges are the sampler's (sample-recorder.md
@@ -57,13 +56,56 @@ describe('fadeOutAt', () => {
   });
 });
 
-describe('the editor preview goes through the fades', () => {
-  it('shapes its source with clipFades, and fades a Stop instead of cutting', () => {
-    // The modal is not built under the mock, so the wiring is pinned at the
-    // source, the way engine-stereo.test.ts pins forceStereo.
-    const src = readFileSync(fileURLToPath(new URL('../../src/ui/components/record-sound-modal.ts', import.meta.url)), 'utf8');
-    expect(src).toContain('clipFades(gain.gain, t, node.buffer.duration)');
-    expect(src).toContain('fadeOutAt(fade.gain.gain, at, fade.levelAt(at))');
-    expect(src).not.toContain('node.connect(engine.ctx.destination)');
+describe('the editor preview goes through the fades (ClipPreview)', () => {
+  function previewRig() {
+    const gainParam = param();
+    const gain = { gain: gainParam, connect: vi.fn(), disconnect: vi.fn() };
+    const src = {
+      buffer: null as { duration: number } | null,
+      onended: null as (() => void) | null,
+      connect: vi.fn(() => gain), start: vi.fn(), stop: vi.fn(), disconnect: vi.fn(),
+    };
+    const destination = {};
+    const ctx = {
+      currentTime: 1, sampleRate: 48000, destination,
+      createBufferSource: () => src,
+      createGain: () => gain,
+      createBuffer: (_ch: number, len: number, sr: number) => ({
+        duration: len / sr, getChannelData: () => new Float32Array(len),
+      }),
+    };
+    const preview = new ClipPreview(ctx as unknown as AudioContext);
+    const clip = { left: new Float32Array(48000), right: new Float32Array(48000), sampleRate: 48000 };
+    return { preview, clip, src, gain, gainParam, destination };
+  }
+
+  it('shapes its source with the slot\'s edges and plays outside the master bus', () => {
+    const { preview, clip, src, gain, gainParam, destination } = previewRig();
+    preview.play(clip, () => {});
+    expect(preview.playing).toBe(true);
+    expect(gainParam.setValueAtTime.mock.calls[0]![0]).toBe(0);              // starts from silence
+    expect(gainParam.linearRampToValueAtTime.mock.calls.at(-1)![0]).toBe(0); // and ends there
+    expect(src.connect).toHaveBeenCalledWith(gain);
+    expect(gain.connect).toHaveBeenCalledWith(destination);
+    expect(src.start).toHaveBeenCalled();
+  });
+
+  it('fades a Stop from the level reached instead of cutting', () => {
+    const { preview, clip, src, gainParam } = previewRig();
+    preview.play(clip, () => {});
+    preview.stop();
+    expect(preview.playing).toBe(false);
+    expect(gainParam.cancelScheduledValues).toHaveBeenCalled();
+    const stopAt = (src.stop.mock.calls[0] as number[])[0]!;
+    expect(stopAt).toBeGreaterThan(1); // scheduled past the fade, not now
+  });
+
+  it('reports a clip that ran out by itself, and not a replaced one', () => {
+    const { preview, clip, src } = previewRig();
+    const ended = vi.fn();
+    preview.play(clip, ended);
+    src.onended!();
+    expect(ended).toHaveBeenCalledTimes(1);
+    expect(preview.playing).toBe(false);
   });
 });

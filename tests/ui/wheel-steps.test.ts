@@ -74,7 +74,7 @@ describe('createWheelStepper (wheel-steps.md)', () => {
 describe('every stepped wheel control uses the stepper (wheel-steps.md)', () => {
   const src = (rel: string): string =>
     readFileSync(fileURLToPath(new URL('../../' + rel, import.meta.url)), 'utf8');
-  for (const file of ['src/ui/panels/song-panel.ts', 'src/ui/panels/seq-panel.ts']) {
+  for (const file of ['src/ui/components/chain-lane.ts', 'src/ui/panels/seq-panel.ts']) {
     it(`${file} drives its semitones through a stepper`, () => {
       const s = src(file);
       expect(s).toContain('createWheelStepper');

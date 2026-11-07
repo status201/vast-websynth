@@ -1,5 +1,5 @@
-import { WrappedEffect, bindBypassMix, BUTTERWORTH_Q_DB } from './effect';
-import { RAMP_SMOOTH } from '../param-utils';
+import { WrappedEffect, bindBypassMix, butterworth } from './effect';
+import { RAMP_SMOOTH, rampTo } from '../param-utils';
 import { bindTempoLocked } from '../tempo-bind';
 import { delayTypeOf } from '../../state/delay';
 import type { ParamBus } from '../../state/params';
@@ -40,10 +40,7 @@ export class Delay extends WrappedEffect {
     this.feedback = ctx.createGain();
     this.feedback.gain.value = 0.4;
 
-    this.damp = ctx.createBiquadFilter();
-    this.damp.type = 'lowpass';
-    this.damp.frequency.value = DELAY_DAMP_HZ;
-    this.damp.Q.value = BUTTERWORTH_Q_DB;
+    this.damp = butterworth(ctx, 'lowpass', DELAY_DAMP_HZ);
 
     // input → delay → damp → feedback → delay (loop)
     //                 ↘ processedOut
@@ -59,7 +56,7 @@ export class Delay extends WrappedEffect {
   setMix(m: number): void { this.wrap.setMix(m); }
   setTime(s: number): void {
     if (this.sw) return;
-    this.delay.delayTime.setTargetAtTime(clampDelayTime(s), this.ctx.currentTime, RAMP_SMOOTH);
+    rampTo(this.delay.delayTime, clampDelayTime(s), this.ctx, RAMP_SMOOTH);
   }
   setFeedback(f: number): void {
     if (this.sw) return;
@@ -67,7 +64,7 @@ export class Delay extends WrappedEffect {
     // says now rather than what it said when the effect was bypassed.
     this.fb = clampDelayFeedback(f);
     if (this.quiesced) return;
-    this.feedback.gain.setTargetAtTime(this.fb, this.ctx.currentTime, RAMP_SMOOTH);
+    rampTo(this.feedback.gain, this.fb, this.ctx, RAMP_SMOOTH);
   }
 
   /**

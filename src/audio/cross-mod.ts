@@ -1,7 +1,7 @@
 import type { Osc } from './oscillator';
 import { FrequencyLine } from './frequency-line';
 import { rampTo, RAMP_FAST, RAMP_MEDIUM } from './param-utils';
-import { BUTTERWORTH_Q_DB, DISCONNECT_DELAY_MS } from './effects/effect';
+import { BUTTERWORTH_Q_DB, DISCONNECT_DELAY_MS, butterworth } from './effects/effect';
 
 /**
  * The ring product's gain against an oscillator at the same knob value
@@ -129,10 +129,7 @@ export class CrossMod {
 
     this.ringVCA = ctx.createGain();
     this.ringVCA.gain.value = 0;
-    this.ringHP = ctx.createBiquadFilter();
-    this.ringHP.type = 'highpass';
-    this.ringHP.frequency.value = RING_HP_HZ;
-    this.ringHP.Q.value = RING_HP_Q_DB;
+    this.ringHP = butterworth(ctx, 'highpass', RING_HP_HZ);
     this.ringLevel = ctx.createGain();
     this.ringLevel.gain.value = 0;
     this.ringVCA.connect(this.ringHP).connect(this.ringLevel);

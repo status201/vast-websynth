@@ -6,7 +6,7 @@ import { LONG_DOUBLE_TAP_MS } from './gesture-timing';
 /** Peek threshold, and the double-tap window it shares (motion-sequencer REQ-the-pad-write-is-deferred). */
 export const HOLD_MS = 350;
 /** Travel that turns a press into a drag — the same slop `grid-gestures.ts` uses. */
-export const SLOP_PX = 6;
+const SLOP_PX = 6;
 /** Coarse quantization: 20 steps, so two lanes can land on the same level (REQ-a-coarse-pad-drag-snaps). */
 export const SNAP_STEPS = 20;
 /** Px of travel spanning the full 0..1 range under Shift (REQ-shift-drag-is-fine-and-unsnapped). */

@@ -29,7 +29,7 @@ const t = (text: string): { text: string } => ({ text });
 /**
  * A keycap labelled with an icon (iconography.md REQ-a-control-glyph-is-inline-svg). `name` is not
  * decoration: the cap holds no text, so it is the only thing a screen reader
- * has to go on (REQ-layout-detection-is-a-hint-not-a-verdict there).
+ * has to go on (iconography.md REQ-an-icon-is-aria-hidden).
  */
 const k = (icon: IconName, name: string): { icon: IconName; name: string } => ({ icon, name });
 

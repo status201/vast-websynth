@@ -32,9 +32,9 @@ const SCHEDULE_AHEAD_S = 0.1;
 /**
  * How long after `start()` its first step sounds, unless the caller names a time
  * (transport.md REQ-a-start-can-name-its-first-step-time). Also the re-origin a
- * dropout recovers to. Exported because a sync master's join is timed against it.
+ * dropout recovers to. (A sync master times its join with its own `JOIN_LEAD_MS`.)
  */
-export const START_LEAD_S = 0.05;
+const START_LEAD_S = 0.05;
 
 /**
  * How far the step grid may fall behind `currentTime` before a wakeup counts as
@@ -480,7 +480,9 @@ export class Clock implements TickSubscriber {
    * call (a correction should be inaudible); no-op while stopped.
    */
   nudge(seconds: number): void {
-    if (!this._playing) return;
+    // A NaN would make `nextStepTime` NaN and stop the drain for good
+    // (midi-clock-sync.md REQ-phase-correction-uses-nudge).
+    if (!this._playing || !Number.isFinite(seconds)) return;
     this.nextStepTime += Math.max(-0.05, Math.min(0.05, seconds));
   }
 }

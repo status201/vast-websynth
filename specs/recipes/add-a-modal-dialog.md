@@ -100,12 +100,11 @@ business seeing it. This is deliberately *not* a one-modal-at-a-time rule —
 dialogs legitimately stack on top of open modals (a confirm raised from the
 preset manager) and that keeps working. Only the *dying* ones are collected.
 
-**Only the top modal answers Escape** (v5). Every open modal used to add its own
-capture-phase `keydown` listener to `window`, and listeners on one target in one
-phase run in the order they were added — so the *oldest* modal saw Escape
-first, closed itself and stopped the event. With a confirm raised from the
-preset manager, Escape closed the manager and left the confirm standing, its
-question still pending and its OK still live. So open modals form a **stack**:
+**Only the top modal answers Escape.** Listeners on one target in one phase run in
+the order they were added, so if every open modal answered its own capture-phase
+`keydown`, the *oldest* would see Escape first, close itself and stop the event —
+a confirm raised from the preset manager would be left standing with its OK still
+live. So open modals form a **stack**:
 each still listens, but a modal that is not the top one lets the key pass, and
 the top one closes alone. The next Escape closes the next one down.
 
@@ -114,6 +113,13 @@ the top one closes alone. The next Escape closes the next one down.
 They ask `anyModalOpen()` from the CSS-free `src/ui/modal-stack.ts` (so
 `shortcuts.ts` never pulls in Modal's stylesheet); `Modal.anyOpen()` is the same
 query for code that already imports `Modal`. A fading modal does not count.
+
+**A dialog not built on `Modal` joins the stack by hand.** About, the AI Prompt
+(both reuse one card across opens) and the start modal build their own backdrop;
+each calls `pushModal` when it shows and `removeModal` when it hides, and answers
+Escape only while `isTopModal` says it is on top. Without that the shortcuts and
+the file drop act on the instrument behind it, and a confirm raised from inside
+it loses Escape to the dialog underneath.
 
 ### 3. Verify
 

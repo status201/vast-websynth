@@ -2,11 +2,11 @@ import { describe, it, expect, vi } from 'vitest';
 import {
   sweetSpots,
   sweetSpotsInRange,
-  noteToHz,
   syncedRateHz,
   SYNC_LABELS,
   DIVISIONS,
 } from '../../src/utils/tempo';
+import { midiToHz } from '../../src/utils/math';
 import { renderTempoSync } from '../../src/ui/onboarding/help-widgets';
 import { ParamBus, registerDefaults } from '../../src/state/params';
 
@@ -58,9 +58,9 @@ describe('tempo-sync math', () => {
     }
   });
 
-  it('noteToHz maps A4 (69) to 440 Hz and one octave up to 880', () => {
-    expect(near(noteToHz(69), 440)).toBe(true);
-    expect(near(noteToHz(81), 880, 1e-9)).toBe(true);
+  it('midiToHz maps A4 (69) to 440 Hz and one octave up to 880', () => {
+    expect(near(midiToHz(69), 440)).toBe(true);
+    expect(near(midiToHz(81), 880, 1e-9)).toBe(true);
   });
 });
 

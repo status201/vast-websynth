@@ -1,5 +1,5 @@
 import { clamp01 } from '../../utils/math';
-import { RAMP_SMOOTH } from '../param-utils';
+import { RAMP_SMOOTH, rampTo } from '../param-utils';
 import { bindTempoLocked } from '../tempo-bind';
 import { loadWorkletModule } from '../worklet-module';
 import type { ParamBus } from '../../state/params';
@@ -63,7 +63,7 @@ export async function spliceFlanger(
     let first = true;
     return (v: number): void => {
       if (first) p.setValueAtTime(v, ctx.currentTime);
-      else p.setTargetAtTime(v, ctx.currentTime, RAMP_SMOOTH);
+      else rampTo(p, v, ctx, RAMP_SMOOTH);
       first = false;
     };
   };

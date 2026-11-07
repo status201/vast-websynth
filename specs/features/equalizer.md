@@ -33,7 +33,7 @@ source:
   - src/ui/panels/eq-panel.ts          # the EQUALIZER section
   - src/ui/components/eq-graph.ts      # the drawable curve
   - src/ui/components/canvas-text.ts   # haloText, shared with Scope
-  - src/ui/components/scope.ts
+  - src/ui/components/scope-math.ts   # the shared frequency axis and zones
   - src/ui/components/tabs.ts          # TabOptions.title (a section-title) + .pageClass
   - src/ui/shell/bottom.ts             # buildBottom mounts it
   - src/ui/styles/eq.module.css

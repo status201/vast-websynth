@@ -37,6 +37,7 @@ source:
   - src/ui/components/eq-graph.ts          # REQ-a-drag-follows-only-its-own-pointer
   - src/ui/components/pointer-drag.ts      # REQ-a-drag-follows-only-its-own-pointer — is the drag still live?
   - src/ui/panels/step-panel-scaffold.ts
+  - src/ui/components/visibility-gate.ts   # VisibilityGate: a hidden panel does no playhead work
   - src/ui/shell/pattern-row.ts             # REQ-no-work-for-offscreen-dom — one gate per machine tab
   - src/ui/shell/header.ts                  # REQ-boot-cost-matches-the-request — the preset manager loads on click
   - src/main.ts                             # REQ-boot-cost-matches-the-request — the idle warms (lamejs,

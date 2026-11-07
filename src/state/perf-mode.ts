@@ -15,6 +15,7 @@
  * scope (see `ui/components/scope.ts` `setFps`/`setFftSize`) and so are excluded
  * from `sameAudioProfile`.
  */
+import { readPref, writePref } from './prefs';
 
 const STORE_KEY = 'websynth.perf';
 
@@ -49,24 +50,16 @@ const TIERS: readonly PerfTier[] = ['weak', 'medium', 'strong'];
 
 /** Stored preference, defaulting to 'auto'. Migrates legacy v1 values on read. */
 export function readPerfPref(): PerfPref {
-  try {
-    const v = localStorage.getItem(STORE_KEY);
-    if (v === 'auto' || (v && (TIERS as readonly string[]).includes(v))) return v as PerfPref;
-    // Legacy v1 values: 'on' was the reduced profile (~weak), 'off' was full (~strong).
-    if (v === 'on') return 'weak';
-    if (v === 'off') return 'strong';
-    return 'auto';
-  } catch {
-    return 'auto';
-  }
+  const v = readPref(STORE_KEY);
+  if (v === 'auto' || (v && (TIERS as readonly string[]).includes(v))) return v as PerfPref;
+  // Legacy v1 values: 'on' was the reduced profile (~weak), 'off' was full (~strong).
+  if (v === 'on') return 'weak';
+  if (v === 'off') return 'strong';
+  return 'auto';
 }
 
 export function writePerfPref(pref: PerfPref): void {
-  try {
-    localStorage.setItem(STORE_KEY, pref);
-  } catch {
-    /* private mode / quota — non-fatal */
-  }
+  writePref(STORE_KEY, pref);
 }
 
 function navMemoryGb(): number | undefined {

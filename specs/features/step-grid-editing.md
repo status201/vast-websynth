@@ -26,6 +26,7 @@ source:
   - src/ui/components/clear-menu.ts       # the Clear ▾ header control
   - src/ui/components/gesture-timing.ts   # the double-tap / hold windows, in one place
   - src/ui/panels/step-panel-scaffold.ts  # wires both into every machine tab
+  - src/ui/components/grid-cursor.ts      # GridCursor, the drum/sampler selection
   - src/ui/panels/seq-panel.ts
   - src/ui/panels/drum-panel.ts
   - src/ui/panels/sampler-panel.ts

@@ -11,7 +11,7 @@ related:
   - sequencer            # the note display's scroll-to-change
 source:
   - src/ui/wheel-steps.ts
-  - src/ui/panels/song-panel.ts   # the chain chip's transpose
+  - src/ui/components/chain-lane.ts   # the chain chip's transpose
   - src/ui/panels/seq-panel.ts    # the step button and the note display
 ```
 

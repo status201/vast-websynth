@@ -15,7 +15,8 @@ related:
   - debug-panel
   - toast
 source:
-  - src/audio/engine.ts
+  - src/audio/lifecycle.ts            # AudioLifecycle: resume, retry, re-arms, the fades
+  - src/audio/engine.ts               # builds it and delegates its public verbs
   - src/audio/background-watchdog.ts
   - src/audio/transport/clock.ts
   - src/audio/ios-audio-session.ts
@@ -354,21 +355,25 @@ shows. Its rules come from device reports that do not reproduce on a desktop:
 ### Contract / public interface
 
 ```yaml
-# src/audio/engine.ts
+# src/audio/lifecycle.ts — AudioLifecycle, built by Engine; Engine.resume / autoplayAllowed /
+# onFirstGesture / suspendForDebug / audioRecovery / onAudioBlocked delegate to it
 RESUME_FADE_S = 0.15                 # module constant
-RESUME_VERIFY_MS = 400               # v5: how long ctx.resume() gets to actually take
-RESUME_RETRY_MS  = 150               # v5: gap between attempts
-RESUME_RETRIES   = 2                 # v5: retries after the first attempt (3 total)
-Engine.resume(): Promise<void>       # unlock()s (iOS + Android) → (if resuming) fadeInMaster() → ctx.resume()
-                                     #   v5: → verify → retry → arm the gesture fallback
-Engine.autoplayAllowed: boolean      # v6, REQ-the-gesture-is-required-only-when-required: the context reached 'running' with no gesture
-Engine.onFirstGesture(fn): () => void     # v6, REQ-post-gesture-work-is-deferred: one-shot RESUME_GESTURES arming; returns a disarm
-Engine.suspendForDebug(): Promise<void>   # v5: the ONLY suspend that sets deliberateSuspend
-Engine.audioRecovery: AudioRecoveryState  # v5: { blocked, attempts, gestureArmed }
-Engine.onAudioBlocked(fn: (blocked: boolean) => void): () => void   # v5: returns an unsubscribe
-Engine.installContextRearm(): void   # private, called from init(); replaces installIosRearm
+RESUME_VERIFY_MS = 400               # how long ctx.resume() gets to actually take
+RESUME_RETRY_MS  = 150               # gap between attempts
+RESUME_RETRIES   = 2                 # retries after the first attempt (3 total)
+resume(): Promise<void>              # unlock()s (iOS + Android) → (if resuming) fadeInMaster() → ctx.resume()
+                                     #   → verify → retry → arm the gesture fallback
+autoplayAllowed: boolean             # REQ-the-gesture-is-required-only-when-required: the context reached 'running' with no gesture
+rereadAutoplay(): void               # Engine calls it at the end of init() — the third read of that verdict
+onFirstGesture(fn): () => void       # REQ-post-gesture-work-is-deferred: one-shot RESUME_GESTURES arming; returns a disarm
+suspendForDebug(): Promise<void>     # the ONLY suspend that sets deliberateSuspend
+audioRecovery: AudioRecoveryState    # { blocked, attempts, gestureArmed }
+onAudioBlocked(fn: (blocked: boolean) => void): () => void   # returns an unsubscribe
+hasRun: boolean                      # everRan — gates Engine's master.volume / expression subscriptions
+installContextRearm(): void          # called from Engine.init()
                                      #   visibilitychange + pageshow (all platforms)
-                                     #   statechange (all platforms, v5 — gated on deliberateSuspend)
+                                     #   statechange (all platforms — gated on deliberateSuspend)
+suspendForGlitch(): void             # the BackgroundAudioWatchdog's onGlitch
 
 # src/audio/transport/clock.ts       — see transport.md REQ-the-transport-catch-up-is-bounded
 Clock.dropouts: number               # recoveries this session (monotonic, never reset)
@@ -427,7 +432,7 @@ main.ts:           autoplayAllowed ? await resume() + onStart({defer}) : showSta
                    #   immediate: the clips toast + the #songUrl= consent dialog
                    the start handler still awaits engine.resume()
                    #   v5: engine.onAudioBlocked(...) → sticky showToast / dismiss (REQ-a-stuck-context-is-visible)
-ui (about.ts):     Transport row appends `· <n> dropouts` (debug-panel.md)
+ui (about-debug.ts): Transport row appends `· <n> dropouts` (debug-panel.md)
                    #   v5: Suspend goes through engine.suspendForDebug(); the ctx-state row
                    #   appends `· awaiting gesture` while the fallback is armed
 wake lock:         unchanged — it follows ctx.state from main.ts and the OS drops it
@@ -498,6 +503,13 @@ Scenario: A backgrounded tab that underruns is suspended (v3)
    And returning to the foreground resumes it and fades back in
    And the transport continues from the step it was on
 # pinned by: tests/audio/background-watchdog.test.ts
+
+Scenario: The glitch fade starts from where the master is, not from .value (regression, ADR-027)
+  Given a fade-in that is half way up when the watchdog trips
+  When the master is faded out for the suspend
+  Then the fade is anchored at half the level, computed from the schedule
+  And never at the AudioParam's .value, which Gecko does not keep current under automation
+# pinned by: tests/audio/engine-resume.test.ts
 
 Scenario: A device that plays cleanly in the background is left alone (v3)
   Given the page is hidden and every window reports no underruns

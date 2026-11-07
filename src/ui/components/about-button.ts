@@ -9,7 +9,7 @@
 // `about-modal.ts` is the point: importing a factory eagerly to reach a lazy
 // body would put the body back in the entry chunk. The Debug section's
 // late-bound row sources live in `state/debug-sources.ts` for the same reason.
-import { Modal } from './modal';
+import { isTopModal, pushModal, removeModal } from '../modal-stack';
 import { createButton } from './button';
 import { HEADER_ICONS } from './header-icons';
 import { loadSurface } from './lazy-load-toast';
@@ -39,15 +39,11 @@ export function createAboutButton(engine: StudioApi, deps: AboutDeps): HTMLButto
   let closeTimer: number | undefined;
   let refreshTimer: number | undefined;
 
-  // A dialog stacked on top (the factory-reset confirm) owns Escape: its own
-  // capture listener registered later would be starved by this one's
-  // stopImmediatePropagation, so yield while any other backdrop is visible.
-  const dialogOnTop = (): boolean =>
-    [...document.querySelectorAll(`.${Modal.backdropClass}`)]
-      .some((el) => el !== card?.backdrop && !el.classList.contains('hidden'));
-
+  // On the modal stack while open (add-a-modal-dialog.md), so the global
+  // shortcuts and the file drop stand down behind it, and a dialog stacked on top
+  // (the factory-reset confirm) owns Escape rather than closing this underneath.
   const onKey = (e: KeyboardEvent) => {
-    if (e.key === 'Escape' && !dialogOnTop()) {
+    if (e.key === 'Escape' && card && isTopModal(card)) {
       // Beat the global Escape→panic handler in shortcuts.ts.
       e.preventDefault();
       e.stopImmediatePropagation();
@@ -61,6 +57,7 @@ export function createAboutButton(engine: StudioApi, deps: AboutDeps): HTMLButto
 
   function close(): void {
     if (!card) return;
+    removeModal(card);
     window.removeEventListener('keydown', onKey, true);
     engine.ctx.removeEventListener('statechange', onState);
     window.clearInterval(refreshTimer);
@@ -91,6 +88,8 @@ export function createAboutButton(engine: StudioApi, deps: AboutDeps): HTMLButto
     // Force reflow so the opacity transition runs from the .hidden state.
     void backdrop.offsetWidth;
     backdrop.classList.remove('hidden');
+    removeModal(card); // a second open while open must not stack it twice
+    pushModal(card);
     card.refreshDebug();
     // What this device holds offline — once per open, never at boot and never
     // in the poll below: it reads the cache (play-offline.md REQ-offline-state-is-checked-when-about-opens).

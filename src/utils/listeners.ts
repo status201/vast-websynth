@@ -16,6 +16,9 @@ export class ListenerSet<Args extends unknown[] = []> {
     return () => { this.fns.delete(fn); };
   }
 
+  /** How many listeners are registered — so an emit can skip building its payload. */
+  get size(): number { return this.fns.size; }
+
   /** Call every listener, in registration order. */
   emit(...args: Args): void {
     for (const fn of this.fns) fn(...args);

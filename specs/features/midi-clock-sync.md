@@ -203,7 +203,8 @@ instrument hostage: only a live link makes a role run.
   writes are suppressed, so a WiFi master wins and a MIDI-only one falls back
   (REQ-an-explicit-tempo-message). A `tempo` within 0.05 BPM is skipped.
 - **REQ-phase-correction-uses-nudge** — `Clock.nudge(seconds)` shifts the future grid
-  (clamped ±0.05 s, a no-op when stopped). The smoothed pulse-vs-grid error is
+  (clamped ±0.05 s, a no-op when stopped, and a non-finite correction is ignored —
+  a NaN grid time would stop the transport's drain until the next stop). The smoothed pulse-vs-grid error is
   applied as at most ±10 ms, at most once per beat, with a 5 ms deadband.
 - **REQ-a-post-start-settle-window** — After a join *starts* a stopped slave, pulses
   are **ignored** for `startSettleBaseMs (300) + 12 pulse intervals` from the join's
@@ -671,6 +672,12 @@ Scenario: A locally started slave still restarts on a join (REQ-a-following-slav
   When a start arrives
   Then it stops and restarts on the start's first pulse, rather than jumping a grid of unknown phase
 # pinned by: tests/audio/transport/sync/sync-slave.test.ts
+
+Scenario: A non-finite phase correction is ignored (REQ-phase-correction-uses-nudge, regression)
+  Given a running clock
+  When a correction of NaN arrives
+  Then the future grid is unchanged and the transport keeps ticking
+# pinned by: tests/audio/transport/clock.test.ts
 ```
 
 ## Tests & verification

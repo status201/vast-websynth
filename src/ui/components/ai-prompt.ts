@@ -13,6 +13,7 @@ import { createButton } from './button';
 import { showLazyLoadFailure } from './lazy-load-toast';
 import songStyles from '../styles/song-panel.module.css';
 import { UI_ICONS } from './ui-icons';
+import { isTopModal, pushModal, removeModal } from '../modal-stack';
 
 /**
  * The two routes the embedded paste step hands its payload to — the Song panel
@@ -37,8 +38,11 @@ export function createAiPromptButton(bus: ParamBus, routes: AiPromptRoutes): HTM
   let backdrop: HTMLElement | null = null;
   let closeTimer: number | undefined;
 
+  // On the modal stack while open, so the global shortcuts and the file drop
+  // stand down behind it, and a dialog raised from inside it (the paste route's
+  // confirm) owns Escape instead of this closing underneath it.
   const onKey = (e: KeyboardEvent) => {
-    if (e.key === 'Escape') {
+    if (e.key === 'Escape' && backdrop && isTopModal(backdrop)) {
       // Beat the global Escape→panic handler in shortcuts.ts.
       e.preventDefault();
       e.stopImmediatePropagation();
@@ -48,6 +52,7 @@ export function createAiPromptButton(bus: ParamBus, routes: AiPromptRoutes): HTM
 
   function close(): void {
     if (!backdrop) return;
+    removeModal(backdrop);
     window.removeEventListener('keydown', onKey, true);
     backdrop.classList.add('hidden');
     const el = backdrop;
@@ -90,6 +95,8 @@ export function createAiPromptButton(bus: ParamBus, routes: AiPromptRoutes): HTM
     // Force reflow so the opacity transition runs from the .hidden state.
     void backdrop.offsetWidth;
     backdrop.classList.remove('hidden');
+    removeModal(backdrop); // a second open while open must not stack it twice
+    pushModal(backdrop);
     window.addEventListener('keydown', onKey, true);
   }
 

@@ -58,7 +58,7 @@ snapshot taken when the badge opens, like the relationship badges in
   there.
 - **REQ-the-filter-graph-speaks-in-hertz** — The FILTER ENV variant adds a caption
   that turns the shape into cutoff terms. It uses `filter.cutoff`,
-  `filter.envAmount` and `noteToHz`: the base Hz, the peak Hz and the sustain Hz.
+  `filter.envAmount` and `midiToHz`: the base Hz, the peak Hz and the sustain Hz.
   - A negative `filter.envAmount` makes the caption say the sweep goes **down**.
   - At `0` it says the shape currently does nothing and names the ENV knob.
 - **REQ-the-copy-covers-every-control-on-the-panel** — (v2) A badge explains its

@@ -29,19 +29,16 @@ import {
 import { ScratchGraph } from './scratch-graph';
 import { createCollapseToggle } from './collapse-toggle';
 import { capturedToAudioBuffer } from '../../audio/recorder/audio-buffer';
-import { clipFades, fadeOutAt } from '../../audio/clip-fades';
-import { liveStartTime } from '../../audio/param-utils';
 import { encodeWav, encodeMp3 } from '../../audio/recorder/encode';
 import { triggerDownload } from '../../utils/download';
-import { SAMPLER_SLOT_COUNT, SAMPLER_SLOT_LABELS } from '../../state/patterns';
+import { SAMPLER_SLOT_COUNT, slotOptionLabels, slotTag } from '../../state/patterns';
 import {
   MIN_STRETCH_RATIO, MAX_STRETCH_RATIO, MAX_STRETCH_OUTPUT_FRAMES,
-  MAX_PITCH_SHIFT_SEMITONES, MAX_SCRATCH_STEPS,
-} from '../../state/limits';
+  MAX_PITCH_SHIFT_SEMITONES } from '../../state/limits';
 import { UI_ICONS } from './ui-icons';
-import { plural } from '../../utils/format';
 import { onPaletteChange, paletteDerived, rgba } from '../theme-colors';
 import { backingScale, toLocal } from '../ui-scale';
+import { FIT_TARGETS, fitLabel as fitLabelFor, nearestTarget as nearestTargetFor } from '../../state/fit-targets';
 
 /** The waveform's inks, from the screen tokens (ui-themes.md REQ-canvas-reads-the-screen-tokens). */
 const waveColours = paletteDerived((p) => ({
@@ -103,12 +100,9 @@ export function openRecordSoundModal(engine: StudioApi, opts: RecordSoundOptions
   let undoSnapshot: CapturedAudio | null = null;
   let cropStart = 0;
   let cropEnd = 0;
-  let previewSrc: AudioBufferSourceNode | null = null;
-  /** The preview's edge gain and the level its shape reaches at any time
-   *  (sample-recorder.md REQ-the-preview-fades-like-the-slot). */
-  let previewFade: { gain: GainNode; levelAt: (at: number) => number } | null = null;
-  let previewStartTime = 0;
-  let previewClipSamples = 0;
+  /** The audition player — the audio layer's, with the slot's edges (sample-recorder.md
+   *  REQ-the-preview-fades-like-the-slot). */
+  const preview = engine.clipPreview;
   let playRaf = 0;
   let resizeObs: ResizeObserver | null = null;
   let cleaned = false;
@@ -156,27 +150,7 @@ export function openRecordSoundModal(engine: StudioApi, opts: RecordSoundOptions
   const stopPreview = (ended = false): void => {
     cancelAnimationFrame(playRaf);
     playRaf = 0;
-    if (previewSrc) {
-      const src = previewSrc;
-      const fade = previewFade;
-      previewSrc = null;
-      previewFade = null;
-      const release = (): void => {
-        try { src.disconnect(); } catch { /* already disconnected */ }
-        try { fade?.gain.disconnect(); } catch { /* already disconnected */ }
-      };
-      if (ended || !fade) {
-        try { src.stop(); } catch { /* already stopped */ }
-        release();
-      } else {
-        // Mid-clip: fade from where the shape has got to, then stop, rather than
-        // cutting on whatever sample is playing (REQ-the-preview-fades-like-the-slot).
-        const at = liveStartTime(engine.ctx);
-        const silentAt = fadeOutAt(fade.gain.gain, at, fade.levelAt(at));
-        src.onended = release;
-        try { src.stop(silentAt); } catch { release(); }
-      }
-    }
+    preview.stop(ended);
     onPlayingChange?.(false);
     redrawHook?.();
   };
@@ -376,8 +350,8 @@ export function openRecordSoundModal(engine: StudioApi, opts: RecordSoundOptions
         g.stroke();
       }
 
-      if (previewSrc && previewClipSamples > 0) {
-        const elapsed = engine.ctx.currentTime - previewStartTime;
+      if (preview.playing && preview.samples > 0) {
+        const elapsed = engine.ctx.currentTime - preview.startTime;
         const pos = cropStart + elapsed * buf.sampleRate;
         if (pos >= cropStart && pos <= cropEnd) {
           const x = xOf(pos);
@@ -419,25 +393,14 @@ export function openRecordSoundModal(engine: StudioApi, opts: RecordSoundOptions
      */
     const playClip = (c: CapturedAudio): void => {
       stopPreview();
-      const node = engine.ctx.createBufferSource();
-      node.buffer = capturedToAudioBuffer(engine.ctx, c);
       // The slot's edges, so a selection cut mid-waveform previews the way it
       // will play (sample-recorder.md REQ-the-preview-fades-like-the-slot).
-      const gain = engine.ctx.createGain();
-      const t = liveStartTime(engine.ctx);
-      const levelAt = clipFades(gain.gain, t, node.buffer.duration);
-      node.connect(gain).connect(engine.ctx.destination);
-      previewStartTime = t;
-      previewClipSamples = Math.min(c.left.length, c.right.length);
-      node.onended = (): void => { if (previewSrc === node) stopPreview(true); };
-      previewSrc = node;
-      previewFade = { gain, levelAt };
-      node.start(t);
+      preview.play(c, () => stopPreview(true));
       onPlayingChange?.(true);
       cancelAnimationFrame(playRaf);
       const loop = (): void => {
         redraw();
-        if (previewSrc) playRaf = requestAnimationFrame(loop);
+        if (preview.playing) playRaf = requestAnimationFrame(loop);
       };
       playRaf = requestAnimationFrame(loop);
     };
@@ -553,10 +516,8 @@ export function openRecordSoundModal(engine: StudioApi, opts: RecordSoundOptions
      *
      * This sits above both rows rather than inside Fit's, because
      * time-stretch.md REQ-the-editor-gains-a-fit-row forbids re-deriving what a bar is and a second
-     * derivation for the scratch length would be exactly that. */
-    const FIT_TARGETS: readonly number[] = [
-      ...Array.from({ length: 32 }, (_, i) => i + 1), 48, MAX_SCRATCH_STEPS,
-    ];
+     * derivation for the scratch length would be exactly that. The pure half is
+     * state/fit-targets.ts; what is left here binds it to this session. */
 
     const srOf = (): number => working?.sampleRate ?? engine.ctx.sampleRate;
     const selFrames = (): number => Math.max(0, cropEnd - cropStart);
@@ -565,28 +526,13 @@ export function openRecordSoundModal(engine: StudioApi, opts: RecordSoundOptions
     const framesFor = (steps: number): number =>
       Math.round(steps * engine.clock.sixteenthDuration() * srOf());
 
-    const fitLabel = (steps: number): string => {
-      const bars = steps / Math.max(1, engine.barTicks);
-      if (Number.isInteger(bars)) return `${steps} · ${plural(bars, 'bar')}`;
-      if (bars === 0.5) return `${steps} · ½ bar`;
-      if (bars === 0.25) return `${steps} · ¼ bar`;
-      return `${steps}`;
-    };
+    const fitLabel = (steps: number): string => fitLabelFor(steps, engine.barTicks);
     const stepsFor = (label: string): number =>
       FIT_TARGETS.find((s) => fitLabel(s) === label) ?? 0;
 
     /** The target closest to how long the selection already is — what both rows
      *  preselect, so the first thing offered is the one that barely moves. */
-    const nearestTarget = (): number => {
-      const frames = selFrames();
-      let best = FIT_TARGETS[0]!;
-      let bestErr = Infinity;
-      for (const s of FIT_TARGETS) {
-        const err = Math.abs(framesFor(s) - frames);
-        if (err < bestErr) { bestErr = err; best = s; }
-      }
-      return best;
-    };
+    const nearestTarget = (): number => nearestTargetFor(selFrames(), framesFor);
 
     const allButtons: HTMLButtonElement[] = [];
     let busy = false;
@@ -698,7 +644,7 @@ export function openRecordSoundModal(engine: StudioApi, opts: RecordSoundOptions
     });
     const playBtn = createButton({ label: 'Play', led: true, testId: 'mic-play' });
     playBtn.addEventListener('click', () => {
-      if (previewSrc) stopPreview();
+      if (preview.playing) stopPreview();
       else playSelection();
     });
     onPlayingChange = (playing: boolean): void => {
@@ -710,11 +656,7 @@ export function openRecordSoundModal(engine: StudioApi, opts: RecordSoundOptions
 
     // Built before the chop row, which needs to know where a spread would start
     // to decide how many slices fit (sample-chop.md REQ-no-slice-spreads-into-a-missing-slot).
-    const slotOptions = Array.from({ length: SAMPLER_SLOT_COUNT }, (_, i) => {
-      const name = engine.patterns.sampleNames[i] ?? null;
-      const tag = SAMPLER_SLOT_LABELS[i] ?? `S${i + 1}`;
-      return `${tag} — ${name ?? 'empty'}`;
-    });
+    const slotOptions = slotOptionLabels(engine.patterns.sampleNames);
     const picker = own(new Dropdown(
       slotOptions,
       slotOptions[Math.max(0, Math.min(defaultSlot, SAMPLER_SLOT_COUNT - 1))],
@@ -787,7 +729,6 @@ export function openRecordSoundModal(engine: StudioApi, opts: RecordSoundOptions
     chopRow.appendChild(chopLabel);
 
     const startSlot = (): number => Math.max(0, slotOptions.indexOf(picker.value));
-    const slotTag = (i: number): string => SAMPLER_SLOT_LABELS[i] ?? `S${i + 1}`;
     /** REQ-the-result-is-exactly-out-frames — offer only counts that fit from the picker's slot, so a spread can
      *  never quietly drop the slices it has no room for. */
     const fittingCounts = (): string[] => {
@@ -1187,7 +1128,7 @@ export function openRecordSoundModal(engine: StudioApi, opts: RecordSoundOptions
         repick = true;
       }
 
-      // REQ-a-segment-may-be-cut — preselect the target nearest what the selection already is, so
+      // time-stretch.md REQ-the-fit-row-preselects-the-nearest-target — preselect the target nearest what the selection already is, so
       // the offered action is the one that barely moves the audio. Only on a real
       // change of material: re-picking under a dragging crop handle would fight
       // whatever the user had chosen.
@@ -1268,7 +1209,7 @@ export function openRecordSoundModal(engine: StudioApi, opts: RecordSoundOptions
         const existing = engine.patterns.sampleNames[slot] ?? null;
         engine.patterns.setSampleName(
           slot,
-          existing ?? `recording-${SAMPLER_SLOT_LABELS[slot] ?? slot + 1}`,
+          existing ?? `recording-${slotTag(slot)}`,
         );
         modal.close();
       },

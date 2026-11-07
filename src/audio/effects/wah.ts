@@ -1,17 +1,24 @@
 import { WrappedEffect, bindBypassMix } from './effect';
 import { clamp01, midiToHz } from '../../utils/math';
-import { RAMP_SMOOTH } from '../param-utils';
+import { RAMP_SMOOTH, rampTo } from '../param-utils';
 import { bindTempoLocked } from '../tempo-bind';
+import { stageCents } from './phaser';
 import type { ParamBus } from '../../state/params';
 
 /** The sweep's fixed pivot: MIDI 75 = D#5 = 622.25 Hz. */
 const CENTER_NOTE = 75;
 const CENTER_HZ = midiToHz(CENTER_NOTE);
+/** `fx.wah.q`'s ceiling (params.ts) — the ring-down the drain is sized for. */
+const WAH_Q_MAX = 20;
 /**
- * The upward reach at full depth, as the linear-Hz mapping expressed it. Kept
- * only so `depthCents` can reproduce that top exactly — see REQ-the-wah-lfo-sweeps-in-cents.
+ * How long the bandpass rings after its input stops (effects.md
+ * REQ-bypass-and-mix-are-a-crossfade's drain table; add-an-effect.md: a resonant
+ * biquad is not memoryless). A bandpass's envelope decays with time constant
+ * Q / (π·f0), so the worst case is the highest Q at the bottom of the sweep —
+ * full depth puts the centre `stageCents(1)` below the pivot, ~182 Hz — and
+ * ~6.9 constants is −60 dB: about 0.24 s.
  */
-const SWEEP_TOP_HZ = 1500;
+export const WAH_DRAIN_S = (6.9 * WAH_Q_MAX) / (Math.PI * (CENTER_HZ / Math.pow(2, stageCents(1, CENTER_HZ) / 1200)));
 /**
  * Makeup for the bandpass's insertion loss (effects.md REQ-toggling-an-effect-must-not-step-the-level). A
  * constant-peak-gain bandpass passes a share of a broadband signal proportional
@@ -43,6 +50,9 @@ export class Wah extends WrappedEffect {
 
   private depth = 0.6;
 
+  /** The resonant bandpass rings for longer than `DRAIN_DEFAULT_S` (see `WAH_DRAIN_S`). */
+  protected override drainSeconds(): number { return WAH_DRAIN_S; }
+
   constructor(ctx: AudioContext) {
     super(ctx, 1);
 
@@ -68,17 +78,17 @@ export class Wah extends WrappedEffect {
   }
 
   setRate(hz: number): void {
-    this.lfo.frequency.setTargetAtTime(hz, this.ctx.currentTime, RAMP_SMOOTH);
+    rampTo(this.lfo.frequency, hz, this.ctx, RAMP_SMOOTH);
   }
   setDepth(d: number): void {
     this.depth = clamp01(d);
-    this.lfoDepth.gain.setTargetAtTime(this.depthCents(), this.ctx.currentTime, RAMP_SMOOTH);
+    rampTo(this.lfoDepth.gain, this.depthCents(), this.ctx, RAMP_SMOOTH);
   }
   setQ(q: number): void {
-    this.bp.Q.setTargetAtTime(q, this.ctx.currentTime, RAMP_SMOOTH);
+    rampTo(this.bp.Q, q, this.ctx, RAMP_SMOOTH);
     // A narrower band throws away more of the signal, so the makeup tracks it
     // rather than being a fixed trim (REQ-toggling-an-effect-must-not-step-the-level).
-    this.makeup.gain.setTargetAtTime(makeupFor(q), this.ctx.currentTime, RAMP_SMOOTH);
+    rampTo(this.makeup.gain, makeupFor(q), this.ctx, RAMP_SMOOTH);
   }
 
   bind(bus: ParamBus, prefix: string): void {
@@ -98,9 +108,10 @@ export class Wah extends WrappedEffect {
    *
    * The curve is the cents equivalent of that old *upward* excursion, so the top
    * of every stored song's sweep is exactly where it was and only the bottom
-   * moves — 22 Hz becomes 317 Hz at the default depth of 0.4.
+   * moves — 22 Hz becomes 317 Hz at the default depth of 0.4. The phaser's
+   * `stageCents` is the same curve, so the wah is one stage centred on its pivot.
    */
   private depthCents(): number {
-    return 1200 * Math.log2(1 + this.depth * SWEEP_TOP_HZ / CENTER_HZ);
+    return stageCents(this.depth, CENTER_HZ);
   }
 }

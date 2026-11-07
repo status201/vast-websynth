@@ -26,12 +26,13 @@ import {
   buildQuantizeTable, chordDegrees, degreeLabel, diatonicChord, invertChord, INVERSION_LABELS, noteName, scaleSize,
 } from '../../utils/music';
 import { capturedToAudioBuffer } from '../../audio/recorder/audio-buffer';
+import { UI_ICONS } from '../components/ui-icons';
 import {
   BANK_LABELS,
-  SAMPLER_SLOT_COUNT,
-  SAMPLER_SLOT_LABELS,
   SEQ_TRACK_COUNT,
   SEQ_TRACK_LABELS,
+  slotOptionLabels,
+  slotTag,
   type SeqStep,
 } from '../../state/patterns';
 import { ALL_CELLS, bindLaneGrid, laneGrid } from '../lane-grid';
@@ -385,8 +386,9 @@ export function buildSeqPanel(
   const noteCtrl = labelledCtrl('Note');
   const downBtn = document.createElement('button');
   downBtn.className = switchStyles.root!;
-  downBtn.textContent = '−';
+  downBtn.innerHTML = UI_ICONS.minus; // a drawn glyph (iconography.md)
   downBtn.title = 'Lower pitch — Shift+click for a full octave';
+  downBtn.setAttribute('aria-label', 'Lower pitch');
   downBtn.addEventListener('click', (e) => bumpNote(e.shiftKey ? -12 : -1));
   noteCtrl.appendChild(downBtn);
   const noteDisplay = document.createElement('div');
@@ -401,8 +403,9 @@ export function buildSeqPanel(
   noteCtrl.appendChild(noteDisplay);
   const upBtn = document.createElement('button');
   upBtn.className = switchStyles.root!;
-  upBtn.textContent = '+';
+  upBtn.innerHTML = UI_ICONS.plus;
   upBtn.title = 'Raise pitch — Shift+click for a full octave';
+  upBtn.setAttribute('aria-label', 'Raise pitch');
   upBtn.addEventListener('click', (e) => bumpNote(e.shiftKey ? 12 : 1));
   noteCtrl.appendChild(upBtn);
   edit.insertBefore(noteCtrl, edit.firstChild); // note picker leads the row
@@ -486,12 +489,7 @@ export function buildSeqPanel(
   importLabel.textContent = 'Import into sampler';
   importRow.appendChild(importLabel);
 
-  const slotOptions = (): string[] =>
-    Array.from({ length: SAMPLER_SLOT_COUNT }, (_, i) => {
-      const name = engine.patterns.sampleNames[i] ?? null;
-      const tag = SAMPLER_SLOT_LABELS[i] ?? `S${i + 1}`;
-      return `${tag} — ${name ?? 'empty'}`;
-    });
+  const slotOptions = (): string[] => slotOptionLabels(engine.patterns.sampleNames);
   const slotPicker = new Dropdown(slotOptions(), slotOptions()[0]);
   slotPicker.el.dataset.testid = 'seq-import-slot';
   const selectedSlot = (): number => {
@@ -530,7 +528,7 @@ export function buildSeqPanel(
       engine.sampler.setBuffer(slot, capturedToAudioBuffer(engine.ctx, captured));
       const name = `seq-${BANK_LABELS[bank] ?? bank + 1}-${bpm}bpm`;
       engine.patterns.setSampleName(slot, name);
-      importStatus.textContent = `${name} → ${SAMPLER_SLOT_LABELS[slot] ?? slot + 1}`;
+      importStatus.textContent = `${name} → ${slotTag(slot)}`;
     } catch (err) {
       importStatus.textContent = err instanceof Error ? err.message : 'render failed';
     }
@@ -546,7 +544,7 @@ export function buildSeqPanel(
     renderBtn.disabled = rendering || empty || slaved;
     renderBtn.textContent = rendering ? 'Rendering…' : 'Render';
     renderBtn.title = slaved
-      ? 'Unavailable while slaved to MIDI clock'
+      ? 'Unavailable while slaved to an external clock'
       : empty
         ? 'Add steps to the bank first'
         : 'Render this bank (2 bars: tails bake into the loop) into the chosen sampler slot';

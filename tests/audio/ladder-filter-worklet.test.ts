@@ -336,3 +336,18 @@ describe('ladder-filter worklet DSP', () => {
     expect(d2(t - BLOCK / 2, t + 3 * BLOCK)).toBeLessThan(steady * 1.5);
   });
 });
+
+describe('ladder-filter worklet state flush (filter-models.md REQ-poly-output-is-finite-and-bounded, regression)', () => {
+  for (const model of [0, 1]) {
+    it(`a silent tail settles its pole states to exactly 0 (model ${model})`, () => {
+      const proc = new Processor() as unknown as ProcessorLike & { state: Float64Array[] };
+      const params = makeParams({ model, cutoffNote: 40, resonance: 0 });
+      run(proc, params, (n) => (n < 256 ? Math.sin(n / 5) : 0), 8);
+      // ~0.27 s of silence: the poles decay by (1 - g) a sample (g ~ 0.011 at
+      // note 40), to ~1e-60 — far below the flush, far above an underflow to 0,
+      // so only the flush makes them exactly 0.
+      run(proc, params, () => 0, 100);
+      for (const v of proc.state[0]!) expect(v).toBe(0);
+    });
+  }
+});

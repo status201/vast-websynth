@@ -57,6 +57,7 @@ function harness() {
     },
     patterns: { sampleNames: () => Array<string | null>(8).fill(null), setSampleName: vi.fn() },
     sampler: { buffers: () => Array<AudioBuffer | null>(8).fill(null), setBuffer: vi.fn() },
+    clipPreview: { playing: false, startTime: 0, samples: 0, play: vi.fn(), stop: vi.fn() },
   } as unknown as StudioApi;
   return engine;
 }

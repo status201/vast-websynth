@@ -25,6 +25,7 @@ source:
   - src/audio/recorder/time-stretch.ts
   - src/audio/recorder/offline-render.ts
   - src/ui/components/record-sound-modal.ts
+  - src/state/fit-targets.ts           # FIT_TARGETS, fitLabel, nearestTarget — the pure half of the Fit row
   - src/ui/components/collapse-toggle.ts
   - src/ui/panels/sampler-panel.ts
   - src/state/limits.ts

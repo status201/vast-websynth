@@ -152,6 +152,11 @@ also records why the count is the array length).
   ([responsive-machine-header](responsive-machine-header.md)
   REQ-machine-header-wraps-at-every-width). The `+`/`−` arms live inside the
   segment and wrap with the letters, so they always sit after the last bank.
+- **REQ-a-bank-index-is-always-a-bank** — Every bank index the store resolves —
+  a chain step, an edit bank, a `seqBank(i)`-style read — is clamped with
+  `clampInt` into `0..count-1`, and a **non-finite** index is bank A. A NaN must
+  never reach an array read: `banks[NaN]` is `undefined`, and every caller trusts
+  the store to return a bank.
 
 ## Technical design
 
@@ -331,6 +336,12 @@ Scenario: A chain naming a bank the file omits grows the machine
   Then the Sequencer has five banks, E is blank, and the chain is unchanged
   And that bar plays silence rather than bank D
 # pinned by: tests/state/song.test.ts, tests/audio/transport/arrangement.test.ts
+
+Scenario: A NaN bank index resolves to bank A (regression)
+  Given a chain step or a bank read arrives as NaN
+  When the store clamps it
+  Then it resolves to bank A, never to undefined
+# pinned by: tests/state/patterns.test.ts
 ```
 
 ## Tests & verification

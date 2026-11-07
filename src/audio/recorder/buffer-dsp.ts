@@ -47,11 +47,17 @@ export function reverse(a: CapturedAudio): CapturedAudio {
  * Silent input is returned unchanged (no divide-by-zero / NaN).
  */
 export function normalize(a: CapturedAudio, targetPeak = 0.99): CapturedAudio {
+  const peak = peakAbs(a);
+  if (peak === 0 || !Number.isFinite(peak)) return cloneCaptured(a);
+  return gain(a, targetPeak / peak);
+}
+
+/** Largest absolute sample across both channels. */
+function peakAbs(a: CapturedAudio): number {
   let peak = 0;
   for (const v of a.left) { const av = v < 0 ? -v : v; if (av > peak) peak = av; }
   for (const v of a.right) { const av = v < 0 ? -v : v; if (av > peak) peak = av; }
-  if (peak === 0 || !Number.isFinite(peak)) return cloneCaptured(a);
-  return gain(a, targetPeak / peak);
+  return peak;
 }
 
 /** Multiply every sample by `factor` (Boost uses ~2 ≈ +6 dB). Clamping is
@@ -66,9 +72,7 @@ export function gain(a: CapturedAudio, factor: number): CapturedAudio {
 
 /** Peak level in dBFS across both channels. Silent input → `-Infinity`. */
 export function peakDb(a: CapturedAudio): number {
-  let peak = 0;
-  for (const v of a.left) { const av = v < 0 ? -v : v; if (av > peak) peak = av; }
-  for (const v of a.right) { const av = v < 0 ? -v : v; if (av > peak) peak = av; }
+  const peak = peakAbs(a);
   return peak > 0 ? 20 * Math.log10(peak) : -Infinity;
 }
 
@@ -210,7 +214,7 @@ export interface OnsetOptions {
 }
 
 /**
- * Interior boundaries at transients (REQ-a-loaded-slot-reopens-for-editing).
+ * Interior boundaries at transients (sample-chop.md REQ-detect-onsets-is-pure-and-cheap).
  *
  * Short-time RMS over a mono mixdown, then peaks in the *rising* edge of that
  * envelope. Energy alone finds the loudest moment of a hit, which is behind its
@@ -223,7 +227,7 @@ export interface OnsetOptions {
  * merges two real hits.
  *
  * Deliberately simple — no FFT, no spectral flux (ADR-010: cheap, and the user
- * can drag every boundary anyway, REQ-save-or-load-the-recorded-result).
+ * can drag every boundary anyway, sample-chop.md REQ-two-ways-to-place-the-cuts).
  */
 export function detectOnsets(a: CapturedAudio, opts: OnsetOptions = {}): number[] {
   const len = Math.min(a.left.length, a.right.length);

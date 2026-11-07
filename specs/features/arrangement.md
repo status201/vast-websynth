@@ -18,6 +18,7 @@ source:
   - src/audio/transport/arrangement.ts
   - src/state/patterns.ts
   - src/ui/panels/song-panel.ts
+  - src/ui/components/chain-lane.ts
 ```
 
 Four independent chain lanes (sequencer / drums / sampler / motion) that sequence
@@ -183,7 +184,7 @@ bank clamp: clampChainStep(step, patterns.bankCount(lane)) -> 0..count-1 (or RES
             the count argument is REQUIRED (ADR-022)
 transpose: seq only. StepSequencer reads arrangement.seqTranspose at trigger time
            (sequencer.md REQ-every-note-is-shifted-by-the-slot-transpose)
-ui: src/ui/panels/song-panel.ts buildChainLane(...) -> set*Chain
+ui: src/ui/components/chain-lane.ts buildChainLane(...) -> set*Chain   # one per lane, built by song-panel.ts
 reorder: src/ui/components/chip-reorder.ts attachChipReorder({ chips, onReorder }),
          one controller for all four lanes, re-attached by renderStructure() and disposed
          before each rebuild. It reports intent only and never reorders the DOM, so a drop

@@ -74,8 +74,7 @@ differ only by live-applied scope fps + fftSize).
   `auto`.
 
 - **REQ-perf-profiles-are-the-single-source** — `PERF_PROFILES: Record<PerfTier,
-  PerfProfile>` is the single source of truth for every tier-dependent knob (v3
-  added three FX-cost fields; v4 added `analyserFftSize`): `weak = {
+  PerfProfile>` is the single source of truth for every tier-dependent knob: `weak = {
   latencyHint:'playback', voiceCount:5, fps:15, scheduleAheadS:0.2,
   reverbIrMaxS:1.5, fxOversample:false, analyserFftSize:256 }`, `medium = {
   'interactive', 8, 30, 0.1, 4, true, 512 }`, `strong = { 'interactive', 8, 60,

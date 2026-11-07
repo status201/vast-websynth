@@ -29,9 +29,7 @@ import { installErrorLog } from './state/error-log';
 import { offlineRedownloadPending } from './state/offline-redownload';
 import { plural } from './utils/format';
 import type { Onboarding } from './ui/onboarding';
-
-// Injected by Vite's `define` (vite.config.ts) — same precedent as about.ts.
-declare const __APP_VERSION__: string;
+import { pushModal, removeModal } from './ui/modal-stack';
 
 /** Bounded wait for a `#songUrl=` download, so a dead host can't hang boot. */
 const SONG_FETCH_TIMEOUT_MS = 15_000;
@@ -48,7 +46,7 @@ async function boot() {
   // one is rendering from the moment it exists — so the boot does not assume it:
   // the master bus is seeded silent and only `Engine.resume()` raises it
   // (audio-lifecycle.md REQ-nothing-is-audible-before-the-first-start). Which of the two start paths runs is decided at
-  // the end of boot from `engine.autoplayAllowed` (REQ-about-is-the-single-door-for-help).
+  // the end of boot from `engine.autoplayAllowed` (audio-lifecycle.md REQ-the-gesture-is-required-only-when-required).
   const bus = new ParamBus();
   // Persisted sampler clips (sample-persistence.md REQ-boot-restores-clips-before-the-ui): kick the IndexedDB
   // read off FIRST — it needs no AudioContext, so its I/O overlaps the worklet
@@ -99,8 +97,8 @@ async function boot() {
   // mountApp, so the sampler panel constructs already seeing loaded slots — no
   // .needs-reload flash, and no race with the share-link / launchQueue
   // importers wired further down. A clip is restored only for a slot the
-  // session names (REQ-the-sync-section-has-two-topics); orphans are dropped, undecodable ones skipped
-  // (REQ-a-motion-topic-anchors-to-the-tab) so the slot simply keeps its hint.
+  // session names (sample-persistence.md REQ-clips-restore-only-with-a-session); orphans are dropped, undecodable ones skipped
+  // (sample-persistence.md REQ-an-undecodable-clip-is-skipped) so the slot simply keeps its hint.
   const restoredClips = await restoreSamplerClips(engine, restored != null, clipsPromise);
 
   // Per-machine step-grid undo — pure state like session/xy, so it lives here
@@ -205,7 +203,7 @@ async function boot() {
   // song, #songUrl=<https url> points at a hosted song/project file. Both
   // funnel through the same import path as the Import button / launchQueue,
   // so parse errors surface in the normal import dialog. The hash is consumed
-  // only on success (REQ-callout-placement-adapts), so a bad link stays visible in the address bar for
+  // only on success (song-share-link.md REQ-hash-clears-only-on-success), so a bad link stays visible in the address bar for
   // the user to inspect/copy.
   const link = parseSongLink(window.location.hash);
 
@@ -240,7 +238,7 @@ async function boot() {
 
   // An embedded payload applies at boot: it is pure state, so it works behind
   // the start modal (like launchQueue above). A #songUrl= link cannot — it has
-  // to ASK first (REQ-a-motion-topic-anchors-to-the-tab), and a dialog raised now would render *under* the start
+  // to ASK first (song-share-link.md REQ-a-linked-fetch-needs-consent), and a dialog raised now would render *under* the start
   // modal, unreachable. So it waits for the start gesture, the same reason the
   // restored-clips toast does.
   if (link?.kind === 'data') void applySongLink(link);
@@ -286,7 +284,7 @@ async function boot() {
   // The start modal exists to buy a user gesture, so it is shown only when the
   // browser actually demands one (audio-lifecycle.md REQ-the-gesture-is-required-only-when-required). A context created
   // `running` means the output stream is already open — audio is unblocked, and
-  // resuming here takes REQ-the-info-button-gesture-inventory's fade, so the start is click-free without it.
+  // resuming here takes audio-lifecycle.md REQ-a-start-is-click-free's fade, so the start is click-free without it.
   if (engine.autoplayAllowed) {
     await engine.resume();
     syncWake(); // no statechange fires on this path — see the wake lock above
@@ -440,6 +438,7 @@ function showStartModal(engine: Engine, onboarding: Onboarding, onStart: () => v
     if (started) return;
     started = true;
     startBtn.removeEventListener('click', start);
+    removeModal(backdrop);
     await engine.resume(); // invoked within the gesture → unlocks audio
     onStart(); // e.g. initMIDI — any permission prompt follows the gesture
     backdrop.classList.add('hidden');
@@ -456,6 +455,8 @@ function showStartModal(engine: Engine, onboarding: Onboarding, onStart: () => v
   card.appendChild(startBtn);
   backdrop.appendChild(card);
   document.body.appendChild(backdrop);
+  // On the modal stack, so no global shortcut acts on the instrument behind it.
+  pushModal(backdrop);
   startBtn.focus();
 }
 

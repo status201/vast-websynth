@@ -11,6 +11,7 @@
  * viewport string; tests/ui/ui-scale-boot.test.ts runs it against this module
  * (REQ-the-boot-script-agrees-with-the-state). Change one, change both.
  */
+import { readPref, writePref, removePref } from './prefs';
 
 /** The browser's zoom steps from 50 to 150 (REQ-the-scale-snaps-to-browser-steps). */
 export const UI_SCALE_STOPS: readonly number[] = [50, 67, 75, 80, 90, 100, 110, 125, 150];
@@ -33,25 +34,17 @@ export function isScaleStop(v: unknown): v is number {
  * not exactly a stop's decimal string (untrusted-input.md).
  */
 export function readUiScale(): number {
-  try {
-    const raw = localStorage.getItem(UI_SCALE_KEY);
-    if (raw === null) return UI_SCALE_DEFAULT;
-    const n = Number(raw);
-    return isScaleStop(n) && String(n) === raw ? n : UI_SCALE_DEFAULT;
-  } catch {
-    return UI_SCALE_DEFAULT;
-  }
+  const raw = readPref(UI_SCALE_KEY);
+  if (raw === null) return UI_SCALE_DEFAULT;
+  const n = Number(raw);
+  return isScaleStop(n) && String(n) === raw ? n : UI_SCALE_DEFAULT;
 }
 
 /** Store a stop; 100 is stored as the key's absence. Anything else is ignored. */
 export function writeUiScale(pct: number): void {
   if (!isScaleStop(pct)) return;
-  try {
-    if (pct === UI_SCALE_DEFAULT) localStorage.removeItem(UI_SCALE_KEY);
-    else localStorage.setItem(UI_SCALE_KEY, String(pct));
-  } catch {
-    /* private mode / quota — the scale still applies for this visit */
-  }
+  if (pct === UI_SCALE_DEFAULT) removePref(UI_SCALE_KEY);
+  else writePref(UI_SCALE_KEY, String(pct));
 }
 
 /** Whether a media query matches here. Injected so the choice is testable. */

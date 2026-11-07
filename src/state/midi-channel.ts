@@ -4,6 +4,7 @@
 // plugged into, not the song, so it is a remembered setting rather than a bus
 // param that presets and songs would carry. A leaf module, so `midi.ts` (audio)
 // and the Sync section (UI) both reach it without reaching each other.
+import { readPref, writePref } from './prefs';
 
 /** MIDI channel 10 (1-based) — the General MIDI drum channel; it plays the sampler. */
 export const DRUM_CHANNEL = 10;
@@ -22,7 +23,7 @@ function valid(n: number): MidiInputChannel {
 export function midiInputChannel(): MidiInputChannel {
   if (current === null) {
     let stored = 0;
-    try { stored = Number(localStorage.getItem(KEY) ?? 0); } catch { /* storage blocked */ }
+    stored = Number(readPref(KEY) ?? 0);
     current = valid(stored);
   }
   return current;
@@ -30,7 +31,7 @@ export function midiInputChannel(): MidiInputChannel {
 
 export function setMidiInputChannel(ch: MidiInputChannel): void {
   current = valid(ch);
-  try { localStorage.setItem(KEY, String(current)); } catch { /* storage blocked: session-only */ }
+  writePref(KEY, String(current)); // blocked storage: session-only
 }
 
 /** Test seam: forget the cached value so the next read goes back to storage. */

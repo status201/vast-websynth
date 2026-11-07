@@ -500,6 +500,10 @@ class SyncOscProcessor extends AudioWorkletProcessor {
       this.n++;
     }
 
+    // The DC blocker decays geometrically toward 0 once the pair goes quiet; flush
+    // it before it crawls through the subnormal range (−400 dB: inaudible either way).
+    if (this.dcY > -1e-20 && this.dcY < 1e-20) this.dcY = 0;
+
     // Stable (ADR-010): anything non-finite that slipped through resets the pair
     // rather than latching NaN into the filter downstream.
     if (!Number.isFinite(out0[len - 1]) || !Number.isFinite(out1[len - 1])) {
@@ -540,6 +544,8 @@ function waveIndex(v) {
   return i < 0 ? 0 : i > 3 ? 3 : i;
 }
 
+// 0.5..0.95 mirrors PWM_MIN_WIDTH / PWM_MAX_WIDTH in src/audio/oscillator.ts, which a
+// worklet cannot import — change both together.
 function widthOf(v) {
   const w = finiteOr(v, 0.5);
   return w < 0.5 ? 0.5 : w > 0.95 ? 0.95 : w;

@@ -3,6 +3,8 @@
 
 /** Click-free cut: ramp the per-hit gain to 0 over CHOKE_FADE, stop just after. */
 export const CHOKE_FADE = 0.005;
+/** When a choked source is stopped: past its `CHOKE_FADE`, with margin for the render burst. */
+export const CHOKE_STOP = 0.03;
 /**
  * Attack ramp on a slot's per-hit gain (sampler.md REQ-a-slot-starts-from-zero).
  *

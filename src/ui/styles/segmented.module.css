@@ -1,6 +1,5 @@
 @layer controls {
-  .root,
-  :global(.segmented) {
+  .root {
     display: inline-flex;
     background: var(--tray);
     border: 1px solid var(--panel-border);
@@ -12,8 +11,7 @@
       0 1px 0 color-mix(in srgb, var(--accent-secondary) 4%, transparent);
   }
 
-  .root button,
-  :global(.segmented) button {
+  .root button {
     padding: 5px 9px;
     font-size: 8px;
     text-transform: uppercase;
@@ -26,8 +24,7 @@
     font-family: var(--serif);
   }
 
-  .root button:global(.active),
-  :global(.segmented) button.active {
+  .root button:global(.active) {
     background: var(--raised);
     color: var(--accent-secondary);
     text-shadow: 0 0 4px var(--accent-secondary-glow);
@@ -42,8 +39,7 @@
      `--text-faint`, which *is* the unselected colour) keeps three tiers:
      unselected < armed < lit. No opacity: it fades the bed and the legend
      together, and Dark's armed legend fell to 3.3:1 (ui-themes.md REQ-every-theme-states-its-contrast). */
-  .root button:global(.active):global(.armed),
-  :global(.segmented) button.active.armed {
+  .root button:global(.active):global(.armed) {
     color: var(--text-soft);
     text-shadow: none;
   }

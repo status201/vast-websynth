@@ -235,6 +235,13 @@ Scenario: Release completion and kill unplug the voice (REQ-an-idle-voice-is-unp
   And a noteOn inside kill's window keeps it plugged
 # pinned by: tests/audio/voice.test.ts
 
+Scenario: A second release re-arms the idle timer instead of adding one (REQ-an-idle-voice-is-unplugged, regression)
+  Given a releasing voice
+  When noteOff arrives again for a later time
+  Then only the later release's timer is armed
+  And the voice is not idled and unplugged while its later tail still sounds
+# pinned by: tests/audio/voice.test.ts
+
 Scenario: The spread stage never plugs an idle voice back in (REQ-an-idle-voice-is-unplugged, edge)
   Given an unplugged voice and the spread stage engaging
   Then its panned edge stays disconnected

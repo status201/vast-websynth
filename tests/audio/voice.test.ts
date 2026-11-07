@@ -306,6 +306,15 @@ describe('Voice output edges (REQ-an-idle-voice-is-unplugged)', () => {
     expect(toBus(dry.disconnect)).toBe(1);
   });
 
+  it('a second release re-arms the idle timer rather than adding one (regression)', async () => {
+    const { voice } = await onBus();
+    voice.noteOn(60, 0.8, 0);
+    voice.noteOff(0);
+    const armed = vi.getTimerCount();
+    voice.noteOff(0.5); // a later release: the earlier timer must not survive it
+    expect(vi.getTimerCount()).toBe(armed);
+  });
+
   it('kill unplugs it after the fade window — unless a note re-claims it first', async () => {
     const killed = await onBus();
     killed.voice.noteOn(60, 0.8, 0);

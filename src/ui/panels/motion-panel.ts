@@ -173,7 +173,7 @@ export function buildMotionPanel(
   header.appendChild(createUndoButton(undo, 'motion'));
   // Motion keeps its own per-pad gestures (step-grid-editing.md REQ-motion-keeps-its-own-gesture) — this is
   // the bulk escape hatch, since clearing 16 anchors by double-tapping each is
-  // exactly the tedium REQ-motion-has-the-fourth-chain-lane exists to remove. The bank's axis override survives.
+  // exactly the tedium step-grid-editing.md REQ-clear-menu-clears-in-bulk exists to remove. The bank's axis override survives.
   // Motion has no selection cursor, so there is no "selected row" to clear.
   // Instead the menu lists every lane that currently holds steps — offering an
   // already-empty lane would be a dead item (ADR-014 law 1).
