@@ -114,6 +114,13 @@ They ask `anyModalOpen()` from the CSS-free `src/ui/modal-stack.ts` (so
 `shortcuts.ts` never pulls in Modal's stylesheet); `Modal.anyOpen()` is the same
 query for code that already imports `Modal`. A fading modal does not count.
 
+**A dialog not built on `Modal` joins the stack by hand.** About, the AI Prompt
+(both reuse one card across opens) and the start modal build their own backdrop;
+each calls `pushModal` when it shows and `removeModal` when it hides, and answers
+Escape only while `isTopModal` says it is on top. Without that the shortcuts and
+the file drop act on the instrument behind it, and a confirm raised from inside
+it loses Escape to the dialog underneath.
+
 ### 3. Verify
 
 ```bash

@@ -1,6 +1,7 @@
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 import { recordError, clearErrorLog } from '../../src/state/error-log';
 import { createAboutButton } from '../../src/ui/components/about-button';
+import { anyModalOpen } from '../../src/ui/modal-stack';
 import { formatOfflineState } from '../../src/ui/components/about-debug';
 import { setClipStatsSource } from '../../src/state/debug-sources';
 import { restoreFactorySettings } from '../../src/state/factory-reset';
@@ -188,6 +189,17 @@ describe('About modal — Debug section', () => {
   // runtime-performance.md REQ-boot-cost-matches-the-request — the card is behind a dynamic import, so both
   // clicks of a double-click get past the `if (!backdrop)` guard if that guard
   // is read before the await. Checking it afterwards is what makes this pass.
+  it('joins the modal stack while open, so the global shortcuts stand down (input-control.md REQ-shortcuts-yield-to-an-open-modal, regression)', async () => {
+    const { engine } = stubEngine('running');
+    const btn = createAboutButton(engine, TOUR);
+    document.body.appendChild(btn);
+    expect(anyModalOpen()).toBe(false);
+    await openModal(btn);
+    expect(anyModalOpen()).toBe(true);
+    closeOpenModal();
+    expect(anyModalOpen()).toBe(false);
+  });
+
   it('builds one card when two clicks race the lazy import', async () => {
     const { engine } = stubEngine('running');
     const btn = createAboutButton(engine, TOUR);

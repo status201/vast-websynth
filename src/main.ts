@@ -29,6 +29,7 @@ import { installErrorLog } from './state/error-log';
 import { offlineRedownloadPending } from './state/offline-redownload';
 import { plural } from './utils/format';
 import type { Onboarding } from './ui/onboarding';
+import { pushModal, removeModal } from './ui/modal-stack';
 
 /** Bounded wait for a `#songUrl=` download, so a dead host can't hang boot. */
 const SONG_FETCH_TIMEOUT_MS = 15_000;
@@ -437,6 +438,7 @@ function showStartModal(engine: Engine, onboarding: Onboarding, onStart: () => v
     if (started) return;
     started = true;
     startBtn.removeEventListener('click', start);
+    removeModal(backdrop);
     await engine.resume(); // invoked within the gesture → unlocks audio
     onStart(); // e.g. initMIDI — any permission prompt follows the gesture
     backdrop.classList.add('hidden');
@@ -453,6 +455,8 @@ function showStartModal(engine: Engine, onboarding: Onboarding, onStart: () => v
   card.appendChild(startBtn);
   backdrop.appendChild(card);
   document.body.appendChild(backdrop);
+  // On the modal stack, so no global shortcut acts on the instrument behind it.
+  pushModal(backdrop);
   startBtn.focus();
 }
 

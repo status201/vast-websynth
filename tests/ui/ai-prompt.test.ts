@@ -5,6 +5,7 @@ import { ParamBus, registerDefaults } from '../../src/state/params';
 import { Song, DEMO_SONGS } from '../../src/state/song';
 import { expandAuthorSong } from '../../src/state/song-author';
 import modalStyles from '../../src/ui/styles/modal.module.css';
+import { anyModalOpen, pushModal, removeModal } from '../../src/ui/modal-stack';
 
 function bus() {
   const b = new ParamBus();
@@ -123,6 +124,20 @@ describe('AI Prompt modal', () => {
   const routes = (): AiPromptRoutes => ({
     onSong: vi.fn(async () => true),
     onPresets: vi.fn(),
+  });
+
+  it('joins the modal stack while open, and Escape closes it only when it is on top (regression)', async () => {
+    const btn = createAiPromptButton(bus(), routes());
+    document.body.appendChild(btn);
+    btn.click();
+    await vi.waitFor(() => expect(anyModalOpen()).toBe(true));
+    const above = {};
+    pushModal(above); // a dialog raised from inside it, e.g. the paste route's confirm
+    window.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape' }));
+    expect(anyModalOpen()).toBe(true);
+    removeModal(above);
+    window.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape' }));
+    expect(anyModalOpen()).toBe(false);
   });
 
   it('opens a card that is both base .card (capped/scrollable) and .cardWide', async () => {
