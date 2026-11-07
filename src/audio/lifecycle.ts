@@ -62,6 +62,8 @@ export class AudioLifecycle {
   private deliberateSuspend = false;
   /** True while the watchdog's fade-out is still holding the master at 0 (REQ-the-glitch-fade-out-is-always-undone). */
   private glitchMuted = false;
+  /** Context time the last fade-in started — what `masterLevelAt` reads instead of `.value`. */
+  private fadeInFrom = -Infinity;
   /** The watchdog's pending suspend, cancellable if we come back first (REQ-the-glitch-fade-out-is-always-undone). */
   private glitchTimer: number | null = null;
   /** Consecutive failed recovery runs (REQ-a-resume-that-does-not-take-is-retried). */
@@ -303,6 +305,21 @@ export class AudioLifecycle {
     this.master.gain.cancelScheduledValues(t);
     this.master.gain.setValueAtTime(0, t);
     this.master.gain.linearRampToValueAtTime(level, t + RESUME_FADE_S);
+    this.fadeInFrom = t;
+  }
+
+  /**
+   * Where the master gain is at `t`, from the schedule this class wrote — never
+   * from `.value`, which Gecko does not keep current under automation (ADR-027).
+   * Silent before the first start and while the glitch fade holds it down; part
+   * way up while a fade-in runs; else the knob's level (the master.volume
+   * subscription retargets within a few `RAMP_MEDIUM` constants).
+   */
+  private masterLevelAt(t: number): number {
+    if (!this.everRan || this.glitchMuted) return 0;
+    const level = masterLevel(this.bus.get('master.volume'), this.bus.get('master.expression'));
+    const since = t - this.fadeInFrom;
+    return since >= 0 && since < RESUME_FADE_S ? level * (since / RESUME_FADE_S) : level;
   }
 
   /**
@@ -374,7 +391,7 @@ export class AudioLifecycle {
   suspendForGlitch(): void {
     const t = this.ctx.currentTime;
     this.master.gain.cancelScheduledValues(t);
-    this.master.gain.setValueAtTime(this.master.gain.value, t);
+    this.master.gain.setValueAtTime(this.masterLevelAt(t), t);
     this.master.gain.linearRampToValueAtTime(0, t + GLITCH_FADE_S);
     this.glitchMuted = true;
     this.clearGlitchTimer();

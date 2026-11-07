@@ -67,6 +67,7 @@ function engineLike(
     clock: { playing: over.playing ?? false },
     deliberateSuspend: false,
     glitchMuted: false,
+    fadeInFrom: -Infinity,
     glitchTimer: null,
     resumeAttempts: 0,
     blocked: false,
@@ -269,6 +270,19 @@ describe('AudioLifecycle.resume glitch-mute restore (REQ-the-glitch-fade-out-is-
     expect(gain.setValueAtTime).toHaveBeenCalledWith(0, 12.5);
     expect(gain.linearRampToValueAtTime).toHaveBeenCalledWith(0.8 * 0.8, 12.5 + 0.15);
     expect((engine as unknown as { glitchMuted: boolean }).glitchMuted).toBe(false);
+  });
+
+  it('anchors the glitch fade at the level the schedule has reached, never at .value (ADR-027, regression)', async () => {
+    const { ctx, gain, engine, resume } = engineLike({ volume: 0.8 });
+    ctx.resume.mockImplementation(() => { ctx.state = 'running'; return Promise.resolve(); });
+    await resume();                     // fade-in 0 -> 0.64 starts at 12.5
+    gain.setValueAtTime.mockClear();
+    ctx.currentTime = 12.5 + 0.075;     // half way up the 150 ms fade
+    (engine as unknown as { suspendForGlitch: () => void }).suspendForGlitch();
+    const [v, at] = gain.setValueAtTime.mock.calls[0] as [number, number];
+    expect(at).toBe(12.575);
+    expect(v).toBeCloseTo(0.8 * 0.8 / 2, 6); // the mock's .value stays 0 — reading it would anchor at 0
+    expect(gain.linearRampToValueAtTime).toHaveBeenLastCalledWith(0, 12.575 + 0.06);
   });
 
   it('still leaves a running context with no outstanding mute completely alone', async () => {

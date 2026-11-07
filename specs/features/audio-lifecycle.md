@@ -504,6 +504,13 @@ Scenario: A backgrounded tab that underruns is suspended (v3)
    And the transport continues from the step it was on
 # pinned by: tests/audio/background-watchdog.test.ts
 
+Scenario: The glitch fade starts from where the master is, not from .value (regression, ADR-027)
+  Given a fade-in that is half way up when the watchdog trips
+  When the master is faded out for the suspend
+  Then the fade is anchored at half the level, computed from the schedule
+  And never at the AudioParam's .value, which Gecko does not keep current under automation
+# pinned by: tests/audio/engine-resume.test.ts
+
 Scenario: A device that plays cleanly in the background is left alone (v3)
   Given the page is hidden and every window reports no underruns
   Then nothing is suspended, however long it stays hidden

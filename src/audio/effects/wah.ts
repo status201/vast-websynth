@@ -8,6 +8,17 @@ import type { ParamBus } from '../../state/params';
 /** The sweep's fixed pivot: MIDI 75 = D#5 = 622.25 Hz. */
 const CENTER_NOTE = 75;
 const CENTER_HZ = midiToHz(CENTER_NOTE);
+/** `fx.wah.q`'s ceiling (params.ts) — the ring-down the drain is sized for. */
+const WAH_Q_MAX = 20;
+/**
+ * How long the bandpass rings after its input stops (effects.md
+ * REQ-bypass-and-mix-are-a-crossfade's drain table; add-an-effect.md: a resonant
+ * biquad is not memoryless). A bandpass's envelope decays with time constant
+ * Q / (π·f0), so the worst case is the highest Q at the bottom of the sweep —
+ * full depth puts the centre `stageCents(1)` below the pivot, ~182 Hz — and
+ * ~6.9 constants is −60 dB: about 0.24 s.
+ */
+export const WAH_DRAIN_S = (6.9 * WAH_Q_MAX) / (Math.PI * (CENTER_HZ / Math.pow(2, stageCents(1, CENTER_HZ) / 1200)));
 /**
  * Makeup for the bandpass's insertion loss (effects.md REQ-toggling-an-effect-must-not-step-the-level). A
  * constant-peak-gain bandpass passes a share of a broadband signal proportional
@@ -38,6 +49,9 @@ export class Wah extends WrappedEffect {
   private readonly makeup: GainNode;
 
   private depth = 0.6;
+
+  /** The resonant bandpass rings for longer than `DRAIN_DEFAULT_S` (see `WAH_DRAIN_S`). */
+  protected override drainSeconds(): number { return WAH_DRAIN_S; }
 
   constructor(ctx: AudioContext) {
     super(ctx, 1);

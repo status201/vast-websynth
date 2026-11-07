@@ -143,3 +143,11 @@ describe('Wah makeup gain (effects.md REQ-toggling-an-effect-must-not-step-the-l
     expect(call[2]).toBe(0.02);                                  // RAMP_SMOOTH
   });
 });
+
+describe('wah drain (effects.md drain table, regression)', () => {
+  it('outlasts the bandpass ring-down at Q 20 at the bottom of the sweep', async () => {
+    const { WAH_DRAIN_S } = await import('../../../src/audio/effects/wah');
+    expect(WAH_DRAIN_S).toBeGreaterThan(0.2);
+    expect(WAH_DRAIN_S).toBeLessThan(0.3);
+  });
+});

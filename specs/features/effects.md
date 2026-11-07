@@ -105,6 +105,7 @@ colours each bus independently.
   | `Phaser` | 0.1 | feedback → 0 |
   | `Flanger` | 0.05 ([flanger](flanger.md) REQ-the-flanger-drains-before-disconnect) | the node's feedback → 0, restored |
   | `Chorus` | 0.05 ([chorus](chorus.md) REQ-the-chorus-drains-briefly) | stops its LFO; a fresh one starts on release |
+  | `Wah` | `WAH_DRAIN_S` ≈ 0.24: −60 dB of the bandpass's ring-down at Q 20 at the bottom of its sweep | — |
   | others | `DRAIN_DEFAULT_S` = 0.02 | — |
 
   `quiesce(true)` writes feedback **directly**, not through `RAMP_SMOOTH`, because
