@@ -56,7 +56,7 @@ export function buildChainLane(
   /** Write one slot's semitone offset, clamped, and re-render. */
   const setSlotTranspose = (idx: number, semis: number): void => {
     if (!pitched || idx < 0 || idx >= lane.steps.length) return;
-    if (lane.steps[idx] === REST) return; // nothing to shift (REQ-each-motion-step-is-a-mini-xy-pad)
+    if (lane.steps[idx] === REST) return; // a rest plays nothing, so nothing to shift (arrangement-rest.md REQ-a-resting-lane-plays-nothing)
     const next = [...lane.transpose];
     next[idx] = clampTranspose(semis);
     if (next[idx] === lane.transpose[idx]) return;

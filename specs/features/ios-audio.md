@@ -160,7 +160,7 @@ engine.init(): installContextRearm() (after graph + voices exist) — visibility
   not on iosSession.active)
 engine.resume(): unlock() (sync, in gesture) → shouldResumeContext(ctx.state) ? fade + ctx.resume()
 main.ts: unchanged — start handler still calls `await engine.resume()`
-ui (about.ts): buildDebugSection reads engine.iosAudio for its two rows (panel owned by debug-panel)
+ui (about-debug.ts): buildDebugSection reads engine.iosAudio for its two rows (panel owned by debug-panel)
 ```
 
 ### Persistence

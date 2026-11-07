@@ -432,7 +432,7 @@ main.ts:           autoplayAllowed ? await resume() + onStart({defer}) : showSta
                    #   immediate: the clips toast + the #songUrl= consent dialog
                    the start handler still awaits engine.resume()
                    #   v5: engine.onAudioBlocked(...) → sticky showToast / dismiss (REQ-a-stuck-context-is-visible)
-ui (about.ts):     Transport row appends `· <n> dropouts` (debug-panel.md)
+ui (about-debug.ts): Transport row appends `· <n> dropouts` (debug-panel.md)
                    #   v5: Suspend goes through engine.suspendForDebug(); the ctx-state row
                    #   appends `· awaiting gesture` while the fallback is armed
 wake lock:         unchanged — it follows ctx.state from main.ts and the OS drops it

@@ -226,10 +226,10 @@ loopCellIndex(step, cells, rateIdx, barTicks, loopTicks): number  # cellIndex mi
 cellsInTick(step, rateIdx): { from, count }    # which cells BEGIN in this tick
 cellOffsetTicks(cell, rateIdx, step): number   # 0 .. <1, for sub-tick scheduling
 
-LaneMeter:     # src/audio/transport/lane-meter.ts — one per machine
+LaneMeter:     # src/audio/transport/lane-meter.ts — one per machine, and one in the arpeggiator
   setLen(len) / setRate(rateIdx) / setBarTicks(ticks)
   get cells / get rate / cellDuration()
-  new LaneMeter(clock, mapStep?, loopTicks)   # mapStep = perf.mapStep, except motion (raw)
+  new LaneMeter(clock, mapStep?, loopTicks)   # mapStep = perf.mapStep, except motion and the arp (raw)
   forEachHit(step, when, fn: (cellIdx, at, cellDur, span) => void)   # the machines' one entry point
 
 Arrangement:   # src/audio/transport/arrangement.ts

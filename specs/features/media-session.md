@@ -167,7 +167,7 @@ engine ctor:    this.media = new MediaSessionKeepAlive(transportMediaHandlers({.
                 # the transport closes over this.clock/resume/panic — called long after construction
 engine.resume(): iosSession.unlock(); media.unlock()   # both in-gesture, both no-ops off their OS
 engine.installContextRearm(): on foreground → media.rearm() alongside the context resume
-ui (about.ts):  one row reading engine.mediaSession (panel owned by debug-panel.md)
+ui (about-debug.ts):  one row reading engine.mediaSession (panel owned by debug-panel.md)
 NOT wired:      clock.onStart/onStop — playbackState tracks the audio session (REQ-playback-state-mirrors-the-session)
 ```
 

@@ -357,6 +357,7 @@ src/
   main.ts            boot: create Engine + ParamBus, mount UI, wire input
   audio/             AudioContext graph
     engine.ts        AudioContext owner: graph wiring, param subscriptions, transport
+    lifecycle.ts     context start/resume: verified + retried resume, gesture re-arm, the click-free fade
     polyphony.ts     voice pool + note allocation (poly/mono, unison, glide, drift)
     lane-mixer.ts    Song-tab mute / solo / volume across seq / drum / sampler
     voice.ts         one voice: 2 osc + noise → filter (LADDER/POLY) → amp
@@ -388,16 +389,18 @@ src/
     theme.ts         UI theme registry + the stored choice (applied pre-paint by public/theme-boot.js)
     ui-scale.ts      UI zoom stops + the stored choice (applied pre-paint by the same script)
     tempo-lock.ts    which knobs can be locked to the grid, and in what unit
+    prefs.ts         the one try/catch around device-local preferences in localStorage
   utils/             dependency-free helpers importable from any layer: zip codec,
                      deflate-raw streams, param tapers, scale/chord theory,
                      BPM<->note-division math, the ADSR curve, wake lock
   ui/                hand-built DOM components and panels (incl. song-panel:
-                     chains, DJ FX, song I/O). studio-api.ts is the UI's narrow
+                     song I/O and DJ FX, with each chain lane in components/chain-lane.ts). studio-api.ts is the UI's narrow
                      view of the Engine (see specs ADR-009); app.ts assembles the
                      page from the regions in ui/shell/ (header, MACHINES row,
                      bottom column) and ui/panels/
   styles/            Global CSS: layers.css (the cascade layer order), base.css (reset),
-                     theme.css (custom properties), layout.css (.app grid + responsive)
+                     theme.css (custom properties), themes/*.css (one block per other theme),
+                     layout.css (.app grid + responsive)
   ui/styles/         CSS Modules (*.module.css — each one a single @layer block, so
                      import order never decides which wins; see specs css-cascade-layers)
 public/worklets/     ladder-filter.js, compressor.js, recorder.js, sync-osc.js, flanger.js, reverse-delay.js (audio thread)

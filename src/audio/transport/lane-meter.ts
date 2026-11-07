@@ -30,8 +30,8 @@ export type LaneHitListener = (
  * One machine's share of the meter: how many cells it loops over and how fast
  * (specs/features/meter.md REQ-each-machine-has-a-loop-length/REQ-each-machine-has-a-step-rate/REQ-coarser-skips-ticks-finer-fans-out/REQ-swing-is-computed-on-the-lanes-grid).
  *
- * Held by the sequencer, drum machine, sampler and motion sequencer so the
- * length/rate arithmetic exists once. Everything it computes is a pure function
+ * Held by the sequencer, drum machine, sampler and motion sequencer — and by the
+ * arpeggiator, for its onsets alone — so the length/rate arithmetic exists once. Everything it computes is a pure function
  * of the absolute tick (meter.md REQ-a-cell-index-is-a-pure-function-of-step), so a 12- or 14-cell lane survives a
  * seek, a Song-Position join and a dropout with no state to repair.
  */

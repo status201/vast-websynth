@@ -429,7 +429,8 @@ export const HELP_TOPICS: Record<TopicId, HelpTopic> = {
       'straight pattern into a shuffling, human groove. At 0% the grid is dead straight; turn it ' +
       'up for more shuffle.</p>' +
       '<p>It lives on the clock, so it shapes <em>everything</em> at once — the sequencer, drums, ' +
-      'sampler and arpeggiator all stay locked together.</p>',
+      'sampler and arpeggiator all stay locked together. A part running slower than 16ths ' +
+      'swings on its own grid: at 1/8 it lays back its off-beat eighths.</p>',
   },
   meter: {
     title: 'Meter (time signature)',

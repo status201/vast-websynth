@@ -332,7 +332,8 @@ and **`LaneMeter`**
 on a tick a coarser lane skips, two or three inside one tick for a rate finer
 than a 16th ([features/meter.md](features/meter.md)). The **motion** machine
 builds its `LaneMeter` with no stutter map: automation must not follow stutter
-remaps.
+remaps. The **arpeggiator** owns one too, for its onsets alone
+([features/arpeggiator.md](features/arpeggiator.md) REQ-the-arp-runs-on-a-lanes-grid).
 
 **A bar is `barTicks`, not 16.** One constant cannot mean cells-per-pattern,
 ticks-per-bar and columns-of-UI at once: `state/meter.ts` names the three apart

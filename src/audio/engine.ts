@@ -755,6 +755,7 @@ export class Engine {
     this.drums.lane.setBarTicks(ticks);
     this.sampler.lane.setBarTicks(ticks);
     this.motion.lane.setBarTicks(ticks);
+    this.arp.setBarTicks(ticks);
     this.recorder.setBarTicks(ticks);
     this.bankRender.setBarTicks(ticks);
     this.loopDriver.setBarTicks(ticks);

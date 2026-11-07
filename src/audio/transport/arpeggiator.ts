@@ -117,6 +117,10 @@ export class Arpeggiator {
     const i = Number.isFinite(r) ? Math.round(r) : 2;
     this.lane.setRate(ARP_LANE_RATE[i] ?? ARP_LANE_RATE[2]!);
   }
+  /** The bar in ticks — pushed like every LaneMeter's (meter.md), so the arp's
+   *  grid is never a stale meter's, though only its onsets are read. */
+  setBarTicks(ticks: number): void { this.lane.setBarTicks(ticks); }
+
   setOctaves(o: number): void { this.octaves = Math.max(1, Math.min(4, Math.round(o))); }
   setGate(g: number): void { this.gate = Math.max(0.05, Math.min(1, g)); }
 
