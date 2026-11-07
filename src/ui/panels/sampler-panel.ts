@@ -19,6 +19,7 @@ import { attachGridGestures } from '../components/grid-gestures';
 import type { RecordSoundOptions } from '../components/record-sound-modal';
 import { alertDialog } from '../components/dialog';
 import { buildFailureReportFor } from '../failure-report';
+import { oversizedFileMessage } from '../../state/import-cap';
 import { loadSurface } from '../components/lazy-load-toast';
 import { StepSettingsEditor, paintTriggerCell } from '../components/step-settings';
 import { audioBufferToCaptured, capturedToAudioBuffer } from '../../audio/recorder/audio-buffer';
@@ -342,6 +343,18 @@ export function buildSamplerPanel(
     fileInput.addEventListener('change', async () => {
       const f = fileInput.files?.[0];
       if (!f) return;
+      // Sized before it is read (untrusted-input.md REQ-a-file-is-sized-before-it-is-read):
+      // `arrayBuffer()` would buffer a 2 GB pick whole before decode could refuse it.
+      const oversized = oversizedFileMessage(f);
+      if (oversized) {
+        await alertDialog({
+          title: 'Load failed',
+          message: oversized,
+          copyable: buildFailureReportFor('Load failed', oversized, f.name),
+          copyLabel: 'Copy error',
+        });
+        return;
+      }
       // The last file picked wins, not the last decode to finish
       // (sampler.md REQ-slots-are-filled-by-load-or-record): a second Load before the first decoded
       // used to be overwritten by it if the first happened to finish later.

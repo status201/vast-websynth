@@ -172,7 +172,12 @@ decision and the alternatives. This spec is the contract.
     copy cut back to 50 would land on the very preset it renamed away from;
   - backstops: `Presets.save` cleans its key, and `PresetSession.setActive` /
     `setActiveSong` clean what the header shows, so an autosave restore or a
-    legacy long name can never display more than 50.
+    legacy long name can never display more than 50;
+  - sampler slot names: `PatternStore.setSampleName` and `restore` clean every
+    name at `MAX_SAMPLE_NAME_CHARS` (120 — a file name runs longer than a title),
+    so a song's `sampleNames` or a picked file can never put an unbounded string
+    in the strip, the dropdowns or the chips. Clips are keyed by slot index, so a
+    shortened name breaks no match.
   Presets already stored under a longer name are not renamed (a storage-key
   migration); the selector's width cap holds them.
   `midi-file.ts`'s track-name cleaner is the same function with
@@ -226,8 +231,8 @@ decision and the alternatives. This spec is the contract.
   is read.** A `File` already says how big it is, so checking `File.size` costs
   nothing and checking the bytes costs all of them. Every door that takes a file
   — the Song panel's Import button, the installed PWA's `launchQueue`, a file
-  dropped on the window and the Preset manager's Import (v15: it read first, so a
-  dropped preset was capped and a picked one was not) — asks `oversizedFileMessage` **before** `arrayBuffer()`
+  dropped on the window, the Preset manager's Import and a sampler slot's Load
+  (each of the last two once read first) — asks `oversizedFileMessage` **before** `arrayBuffer()`
   or `text()`, and a refused file is never read. The cap comes from
   `importCapFor`, decided from the name and MIME type alone by `fileKindOf` — the
   same rule the drop routes by, so a file's kind and its cap cannot disagree. A

@@ -1,8 +1,9 @@
 import { assertIndex } from '../utils/array';
 import { clampInt } from '../utils/math';
-import { MAX_CHAIN_TRANSPOSE } from './limits';
+import { MAX_CHAIN_TRANSPOSE, MAX_SAMPLE_NAME_CHARS } from './limits';
 import { GRID_CELLS } from './meter';
 import { ListenerSet } from '../utils/listeners';
+import { cleanName } from './names';
 
 /**
  * Non-scalar state — step grids for the sequencer and drum machine.
@@ -294,6 +295,16 @@ export interface PatternSnapshot {
   motionEditBank?: number;
   /** Optional so v1-v4 song files (no extra motion tracks) still restore cleanly. */
   motionTracks?: (MotionTrack | null)[][];
+}
+
+/**
+ * A slot name made safe to show: a payload chooses it (a song's `sampleNames`, a
+ * picked file's name), so it is cleaned and capped like any name
+ * (untrusted-input.md REQ-names-are-capped). Blank or not a string reads as no name.
+ */
+function cleanSampleName(name: unknown): string | null {
+  if (typeof name !== 'string') return null;
+  return cleanName(name, MAX_SAMPLE_NAME_CHARS) || null;
 }
 
 /** Clamp into `0..count-1`; a non-finite index is bank A (REQ-a-bank-index-is-always-a-bank).
@@ -906,8 +917,9 @@ export class PatternStore {
 
   setSampleName(slot: number, name: string | null): void {
     if (slot < 0 || slot >= SAMPLER_SLOT_COUNT) return;
-    this.sampleNames[slot] = name;
-    this.sampleMetaListeners.emit(slot, name);
+    const clean = cleanSampleName(name);
+    this.sampleNames[slot] = clean;
+    this.sampleMetaListeners.emit(slot, clean);
   }
 
   // ---- Bulk clears (step-grid-editing.md REQ-clear-menu-clears-in-bulk/REQ-one-bulk-action-one-undo-entry) ----
@@ -1389,7 +1401,7 @@ export class PatternStore {
     }
     if (snap.sampleNames) {
       for (let i = 0; i < SAMPLER_SLOT_COUNT; i++) {
-        this.sampleNames[i] = snap.sampleNames[i] ?? null;
+        this.sampleNames[i] = cleanSampleName(snap.sampleNames[i]);
       }
     }
     // Unconditional, and AFTER the resize. The conditional form this replaces

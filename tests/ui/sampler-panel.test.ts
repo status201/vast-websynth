@@ -97,6 +97,20 @@ describe('sampler panel slot writes', () => {
   beforeEach(() => { document.body.innerHTML = ''; });
   afterEach(() => { document.body.innerHTML = ''; });
 
+  it('refuses an oversized file without reading it (untrusted-input.md REQ-a-file-is-sized-before-it-is-read, regression)', async () => {
+    const h = harness();
+    const input = document.querySelector<HTMLInputElement>('[data-testid="sampler-file-0"]')!;
+    const file = new File([new Uint8Array(8)], 'huge.wav', { type: 'audio/wav' });
+    Object.defineProperty(file, 'size', { value: 2 * 1024 * 1024 * 1024 });
+    const read = vi.spyOn(file, 'arrayBuffer');
+    Object.defineProperty(input, 'files', { value: [file], configurable: true });
+    input.dispatchEvent(new Event('change'));
+    await settle();
+    expect(read).not.toHaveBeenCalled();
+    expect(h.decodes).toHaveLength(0);
+    expect(document.body.textContent).toContain('"huge.wav" is larger than');
+  });
+
   it('the last file picked wins, whichever decode finishes last (REQ-slots-are-filled-by-load-or-record, regression)', async () => {
     const h = harness();
     const first = fakeBuffer(1);

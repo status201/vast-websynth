@@ -77,6 +77,13 @@ export const MAX_PARAM_KEYS = 2048;
 export const MAX_NAME_CHARS = 50;
 
 /**
+ * A sampler slot's name — a file name, which runs longer than a title — in code
+ * points (untrusted-input.md REQ-names-are-capped). Cosmetic: clips are keyed by
+ * slot index, never by name, so shortening one breaks no match.
+ */
+export const MAX_SAMPLE_NAME_CHARS = 120;
+
+/**
  * The public MCP endpoint (untrusted-input.md REQ-the-public-endpoint-is-bounded, ADR-020). Everything above
  * is sized *generously* — refusing a real song is the worse failure. These four
  * are sized the other way, and the difference is deliberate: every other surface
