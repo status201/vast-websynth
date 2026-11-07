@@ -183,21 +183,6 @@ export const UI_ICONS = {
 export type IconName = keyof typeof UI_ICONS;
 
 /**
- * An icon as an element. Pass `label` for an icon standing alone where no
- * button carries the name — a bare `<span>` is invisible to a screen reader,
- * so it needs both `role="img"` and the label (REQ-heading-is-icon-then-text).
- */
-export function iconEl(name: IconName, label?: string): HTMLElement {
-  const el = document.createElement('span');
-  el.innerHTML = UI_ICONS[name];
-  if (label !== undefined) {
-    el.setAttribute('role', 'img');
-    el.setAttribute('aria-label', label);
-  }
-  return el;
-}
-
-/**
  * Icon + text as one markup string. The icon is `aria-hidden` and the text is
  * the accessible name, which deliberately **shortens** it: "AI Prompt", never
  * "sparkles AI Prompt" (REQ-heading-is-icon-then-text).
@@ -227,9 +212,9 @@ export function iconTextEl(
   const label = document.createElement('span');
   label.className = 'icon-label';
   label.textContent = text;
-  // The bare <svg>, not `iconEl`'s <span> around it: base.css spaces the pair
-  // with `svg.ui-icon + .icon-label`, which only matches direct siblings. A
-  // wrapper here silently dropped the gap on every caller (iconography.md v2).
+  // The bare <svg>, never a <span> around it: base.css spaces the pair with
+  // `svg.ui-icon + .icon-label`, which only matches direct siblings, so a
+  // wrapper would silently drop the gap on every caller.
   wrap.innerHTML = UI_ICONS[name];
   const glyph = wrap.firstElementChild!;
   if (pos === 'before') wrap.append(label);

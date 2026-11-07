@@ -65,8 +65,8 @@ reaching into the machines.
   ([transport-position.md](transport-position.md) REQ-every-relative-consumer-reacts-to-a-seek).
   Otherwise the old anchor would clamp the new position back into the old window.
   Fill / Drop / DJ Filter / Tape Stop hold no position and are unaffected.
-- **REQ-stutter-composes-with-lane-length** (v5) — `stepIndex(step, cells, rateIdx)`
-  folds the **absolute** step through `mapStep` before resolving a cell. So a
+- **REQ-stutter-composes-with-lane-length** — A trigger machine's `LaneMeter`
+  folds the **absolute** step through `Performance.mapStep` before resolving a cell. So a
   stutter window is independent of the meter, and over a 12-cell lane it repeats
   12-cell material ([meter](meter.md) REQ-stutter-composes-with-length-and-rate).
 - **REQ-the-dj-filter-is-a-series-pair** (v6) — **The DJ filter is a series

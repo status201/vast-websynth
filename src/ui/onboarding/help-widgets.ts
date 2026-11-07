@@ -6,12 +6,12 @@
 import type { HelpContext } from './help-content';
 import {
   SYNC_LABELS,
-  noteToHz,
   spotValue,
   sweetSpotsInRange,
   syncedValue,
   type TempoQuantity,
 } from '../../utils/tempo';
+import { midiToHz } from '../../utils/math';
 import { syncIdFor, tempoLockFor } from '../../state/tempo-lock';
 import { PHASE_TIME_CONSTANTS, type Adsr } from '../../utils/envelope-curve';
 import { envelopeGraph } from './envelope-graph';
@@ -185,7 +185,7 @@ export function renderFilterCutoff(ctx: HelpContext): HTMLElement {
   const { bus } = ctx;
   const cutoff = bus.get('filter.cutoff');
   const reso = bus.get('filter.resonance');
-  const hz = fmtHz(noteToHz(cutoff));
+  const hz = fmtHz(midiToHz(cutoff));
   const wrap = el('div');
   wrap.appendChild(
     el(
@@ -212,7 +212,7 @@ export function renderFilterCutoff(ctx: HelpContext): HTMLElement {
 export function renderFilterResonance(ctx: HelpContext): HTMLElement {
   const { bus } = ctx;
   const reso = bus.get('filter.resonance');
-  const cutoffHz = fmtHz(noteToHz(bus.get('filter.cutoff')));
+  const cutoffHz = fmtHz(midiToHz(bus.get('filter.cutoff')));
   const wrap = el('div');
   wrap.appendChild(
     el(
@@ -239,8 +239,8 @@ export function renderFilterEnvAmount(ctx: HelpContext): HTMLElement {
   const { bus } = ctx;
   const cutoff = bus.get('filter.cutoff');
   const env = bus.get('filter.envAmount'); // semitones, ±48
-  const fromHz = fmtHz(noteToHz(cutoff));
-  const toHz = fmtHz(noteToHz(cutoff + env));
+  const fromHz = fmtHz(midiToHz(cutoff));
+  const toHz = fmtHz(midiToHz(cutoff + env));
   const dir = env > 0 ? 'up to' : env < 0 ? 'down to' : 'at';
   const wrap = el('div');
   wrap.appendChild(
@@ -433,9 +433,9 @@ function filterSweepCaption(ctx: HelpContext, sustain: number): string {
     return 'The filter’s <strong>ENV</strong> knob is at <strong>0</strong>, so this shape ' +
       'currently does nothing to the cutoff — turn ENV up (or down) to hear it.';
   }
-  const base = fmtHz(noteToHz(cutoff));
-  const peak = fmtHz(noteToHz(cutoff + amount));
-  const held = fmtHz(noteToHz(cutoff + amount * sustain));
+  const base = fmtHz(midiToHz(cutoff));
+  const peak = fmtHz(midiToHz(cutoff + amount));
+  const held = fmtHz(midiToHz(cutoff + amount * sustain));
   const [lead, verb, way] =
     amount > 0
       ? [`With <strong>ENV</strong> at ${st},`, 'opens', 'up']

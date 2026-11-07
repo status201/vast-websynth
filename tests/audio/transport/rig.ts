@@ -1,25 +1,21 @@
 import { Arrangement } from '../../../src/audio/transport/arrangement';
 import type { Performance } from '../../../src/audio/transport/performance';
-import { PatternStore, SEQ_LENGTH } from '../../../src/state/patterns';
-import { cellIndex, DEFAULT_LANE_RATE } from '../../../src/state/meter';
+import { PatternStore } from '../../../src/state/patterns';
 import { TestClock } from './test-clock';
 
 /**
  * Shared rig for the transport-machine suites.
  *
  * A real `Performance` needs an AudioContext (it owns the DJ filter), so the
- * machines get a stub exposing only what they actually read: `mapStep` /
- * `stepIndex` (the stutter remap), plus `fillActive` / `setFill` for the drum
- * machine's fill. `stepIndex` is derived from *this stub's* `mapStep`, so a
- * test that injects a custom remap gets a consistent bank index too.
+ * machines get a stub exposing only what they actually read: `mapStep` (the
+ * stutter remap, which each machine's `LaneMeter` folds into a cell), plus
+ * `fillActive` / `setFill` for the drum machine's fill.
  */
 export function createPerfStub(
   mapStep: (s: number) => number = (s) => s,
 ): Performance & { fillActive: boolean } {
   return {
     mapStep,
-    stepIndex: (s: number, cells = SEQ_LENGTH, rate = DEFAULT_LANE_RATE) =>
-      cellIndex(mapStep(s), cells, rate),
     fillActive: false,
     setFill() {},
   } as unknown as Performance & { fillActive: boolean };

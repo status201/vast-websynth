@@ -215,9 +215,6 @@ export type IconName = keyof typeof UI_ICONS;
 /** SVG markup for `name`. Safe to `innerHTML` — no interpolation. */
 export function icon(name: IconName): string;
 
-/** An icon as an element. `label` sets role="img" + aria-label (REQ-an-icon-is-aria-hidden). */
-export function iconEl(name: IconName, label?: string): HTMLElement;
-
 /** Icon + text in one markup string; the icon is aria-hidden (REQ-an-icon-is-aria-hidden). */
 export function iconLabel(name: IconName, text: string, pos?: 'before' | 'after'): string;
 

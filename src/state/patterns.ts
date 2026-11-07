@@ -395,7 +395,7 @@ export function makeDrumBank(): DrumCell[][] {
   );
 }
 
-export function makeSamplerBank(): SamplerStep[][] {
+function makeSamplerBank(): SamplerStep[][] {
   return Array.from({ length: SAMPLER_SLOT_COUNT }, () =>
     Array.from({ length: SEQ_LENGTH }, () => ({ ...TRIGGER_CELL_DEFAULTS }))
   );

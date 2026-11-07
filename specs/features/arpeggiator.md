@@ -117,7 +117,7 @@ releasing the last key stops it again (only if the arp was what started it).
   notes. That duplication is the direct consequence of REQ-arp-takes-over-the-note-stream owning note triggering, and
   it is what lets one finger drive an arpeggiated progression.
 
-  Release safety comes free from the existing shape: `lastTriggered` already stores the
+  Release safety comes free from the existing shape: `lastNote` already stores the
   note that was played, so the quantized note is what gets released
   ([scale-quantization](scale-quantization.md) REQ-resolve-once-release-the-stored-note). Both transforms are early returns
   at their defaults (`chromatic`, `chord.voicing: off`), so v4 is inaudible until a key

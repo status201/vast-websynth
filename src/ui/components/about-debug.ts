@@ -26,8 +26,6 @@ import switchStyles from '../styles/switch.module.css';
 import dialogStyles from '../styles/dialog.module.css';
 import styles from '../styles/modal.module.css';
 
-declare const __APP_VERSION__: string;
-
 /** An inline action button attached to a row's value cell (REQ-a-debug-row-may-carry-one-action). */
 interface RowAction {
   label: string;

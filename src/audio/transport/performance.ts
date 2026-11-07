@@ -1,7 +1,6 @@
 import type { ParamBus } from '../../state/params';
 import { BUTTERWORTH_Q_DB } from '../effects/effect';
 import { RAMP_SMOOTH } from '../param-utils';
-import { cellIndex, DEFAULT_LANE_RATE, GRID_CELLS } from '../../state/meter';
 import type { TickSubscriber } from './tick-source';
 import { defaultTickTimer, type TickTimer } from './tick-timer';
 
@@ -120,21 +119,6 @@ export class Performance {
     const n = this.stutterSize;
     const off = (((rawStep - this.anchor) % n) + n) % n;
     return this.anchor + off;
-  }
-
-  /**
-   * The stutter-mapped step folded into a bank position — what the seq, drum
-   * and sampler machines read each tick. (The motion sequencer deliberately
-   * derives the same index from the *raw* step instead: automation must not
-   * follow stutter remaps.)
-   *
-   * `mapStep` still folds the **absolute** step, so a stutter over a 12-cell
-   * lane repeats 12-cell material and a stutter window is unaffected by the
-   * lane's length or rate (meter.md REQ-stutter-composes-with-length-and-rate). Only the modulo that follows it is
-   * lane-aware.
-   */
-  stepIndex(step: number, cells: number = GRID_CELLS, rateIdx: number = DEFAULT_LANE_RATE): number {
-    return cellIndex(this.mapStep(step), cells, rateIdx);
   }
 
   // ---- Fill ----

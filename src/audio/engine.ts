@@ -160,9 +160,9 @@ export class Engine {
   /** The drum-bus compressor. Kept as a named accessor for `StudioApi`. */
   get drumComp(): Compressor { return this.drumFx.fx.comp; }
 
-  readonly preMaster!: GainNode;
-  readonly drumBus!: GainNode;
-  readonly samplerBus!: GainNode;
+  private readonly preMaster: GainNode;
+  private readonly drumBus: GainNode;
+  private readonly samplerBus: GainNode;
 
   readonly patterns: PatternStore;
   readonly clock: Clock;
@@ -261,7 +261,7 @@ export class Engine {
   /** True while the watchdog's fade-out is still holding the master at 0 (REQ-the-glitch-fade-out-is-always-undone). */
   private glitchMuted = false;
   /** The watchdog's pending suspend, cancellable if we come back first (REQ-the-glitch-fade-out-is-always-undone). */
-  private glitchTimer: ReturnType<typeof setTimeout> | null = null;
+  private glitchTimer: number | null = null;
   /** Consecutive failed recovery runs (REQ-a-resume-that-does-not-take-is-retried). */
   private resumeAttempts = 0;
   /** True from the moment we give up until a resume actually takes (REQ-a-stuck-context-is-visible). */
@@ -920,7 +920,7 @@ export class Engine {
   /** Drop the watchdog's pending suspend, if one is still in flight (REQ-the-glitch-fade-out-is-always-undone). */
   private clearGlitchTimer(): void {
     if (this.glitchTimer === null) return;
-    clearTimeout(this.glitchTimer);
+    window.clearTimeout(this.glitchTimer);
     this.glitchTimer = null;
   }
 
@@ -953,7 +953,7 @@ export class Engine {
     this.master.gain.linearRampToValueAtTime(0, t + GLITCH_FADE_S);
     this.glitchMuted = true;
     this.clearGlitchTimer();
-    this.glitchTimer = setTimeout(() => {
+    this.glitchTimer = window.setTimeout(() => {
       this.glitchTimer = null;
       // Coming back inside the fade window cancels this, so by here the page is
       // still hidden and the suspend is still the right answer.

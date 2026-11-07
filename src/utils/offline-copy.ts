@@ -468,8 +468,6 @@ export class OfflineCopy {
   }
 }
 
-declare const __APP_VERSION__: string;
-
 let instance: OfflineCopy | null = null;
 
 /** The page's one instance, so a download outlives the About card (REQ-one-offline-state-machine-many-views). */

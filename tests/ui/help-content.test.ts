@@ -141,7 +141,7 @@ describe('help-content seq.render topic', () => {
     expect(body).toMatch(/reverb/i);
     // Both disabled reasons (render-to-sampler.md REQ-a-render-is-refused-while-busy).
     expect(body).toMatch(/no steps/i);
-    expect(body).toMatch(/MIDI clock/i);
+    expect(body).toContain('external clock (MIDI or WiFi)');
   });
 });
 

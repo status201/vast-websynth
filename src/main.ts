@@ -30,9 +30,6 @@ import { offlineRedownloadPending } from './state/offline-redownload';
 import { plural } from './utils/format';
 import type { Onboarding } from './ui/onboarding';
 
-// Injected by Vite's `define` (vite.config.ts) — same precedent as about-modal.ts.
-declare const __APP_VERSION__: string;
-
 /** Bounded wait for a `#songUrl=` download, so a dead host can't hang boot. */
 const SONG_FETCH_TIMEOUT_MS = 15_000;
 

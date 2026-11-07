@@ -47,14 +47,14 @@ export const THEME_KEY = 'websynth.ui.theme';
  * Auto's last resort, and so the look of a device that never chose
  * (REQ-auto-is-the-default). Where it does not ship, Dark: the tokens' own values.
  */
-export const DEFAULT_THEME: ThemeId = 'classic';
+const DEFAULT_THEME: ThemeId = 'classic';
 
 /** Auto's two system questions (REQ-auto-follows-the-system). */
 export const CONTRAST_QUERY = '(prefers-contrast: more)';
 export const LIGHT_QUERY = '(prefers-color-scheme: light)';
 
 /** True when `v` names a theme that ships. */
-export function isShipped(v: unknown): v is ThemeId {
+function isShipped(v: unknown): v is ThemeId {
   return typeof v === 'string' && THEMES.some((t) => t.id === v);
 }
 

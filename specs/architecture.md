@@ -317,12 +317,11 @@ cursor). `paintTriggerCell` lives with `stepTitle` in
 `ui/components/step-settings.ts`; the seq panel keeps its own painter because it
 also writes the note name as the button label. Every `data-testid` is unchanged.
 
-The transport machines additionally share three helpers:
+The transport machines additionally share two helpers:
 `forEachActiveHit(bank, idx, when, stepDur, muted, fire)`
 (`audio/transport/step-hits.ts`) — the one-shot lane sweep (skip muted, skip
 off, roll `prob`, expand ratchets) used by the drum machine and the sampler;
-`Performance.stepIndex(step, cells, rateIdx)` = `cellIndex(mapStep(step), …)`,
-read by the seq/drum/sampler machines; and **`LaneMeter`**
+and **`LaneMeter`**
 (`audio/transport/lane-meter.ts`), which each of the four machines owns as
 `.lane` and asks `forEachHit(step, when, fn)` — usually one cell per tick, none
 on a tick a coarser lane skips, two or three inside one tick for a rate finer

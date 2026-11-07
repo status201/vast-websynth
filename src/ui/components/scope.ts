@@ -64,7 +64,7 @@ export function scopeRegions(channels: ScopeChannels, w: number, h: number): Sco
 }
 
 /** dB shown at the very top of a spectrum region — i.e. "clip" (REQ-zero-db-is-the-top-of-the-graph). */
-export const SPECTRUM_DB_TOP = 0;
+const SPECTRUM_DB_TOP = 0;
 
 /**
  * dB span from the top of a region to its bottom. 70 matches the AnalyserNode's
@@ -131,7 +131,7 @@ export function updatePeak(state: PeakState, currentMaxDb: number, dtSec: number
  */
 
 /** Fraction of a region's half-height a *fully* normalized trace would reach. */
-export const WAVE_TARGET_PEAK = 0.9;
+const WAVE_TARGET_PEAK = 0.9;
 
 /**
  * How hard to normalize: 1 = flatten every song to the same height, 0 = no boost.
@@ -147,10 +147,10 @@ export const WAVE_MAX_GAIN = 32;
 export const WAVE_SILENCE_PEAK = 0.0005;
 
 /** Seconds. Gain *dropping* (the signal got louder) — fast, so nothing overshoots. */
-export const WAVE_GAIN_FALL_TAU = 0.05;
+const WAVE_GAIN_FALL_TAU = 0.05;
 
 /** Seconds. Gain *rising* (the signal got quieter) — slow, so the trace can't pump. */
-export const WAVE_GAIN_RISE_TAU = 0.6;
+const WAVE_GAIN_RISE_TAU = 0.6;
 
 /**
  * The clamped target gain for a frame peak (REQ-the-wave-view-auto-gains). Pure (canvas-free), so it is
@@ -198,7 +198,7 @@ const LABEL_FONT = '10px ui-monospace, monospace';
 const ZONE_FONT = '9px ui-monospace, monospace';
 
 /** Px per drawn column. The bar loop steps in pixels now, not in bins (REQ-bars-are-drawn-per-pixel-column). */
-export const SPECTRUM_COL_W = 3;
+const SPECTRUM_COL_W = 3;
 
 /**
  * Px per character at the component's 10px monospace — the width *estimate* that
@@ -212,7 +212,7 @@ export const TICK_CHAR_W = 6;
 const TICK_MIN_GAP = 6;
 
 /** Region width below which zone *names* are dropped; the bands themselves stay. */
-export const ZONE_NAME_MIN_W = 300;
+const ZONE_NAME_MIN_W = 300;
 
 /** Px below a region's top edge where zone names sit — clear of the corner buttons. */
 const ZONE_NAME_TOP = 22;

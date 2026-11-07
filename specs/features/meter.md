@@ -30,7 +30,7 @@ source:
   - src/audio/transport/clock.ts             # unwrapped step + swingOffset
   - src/audio/transport/lane-meter.ts        # one lane's length/rate/swing
   - src/audio/transport/arrangement.ts       # the bar line (REQ-bar-ticks-is-the-arrangement-bar-line)
-  - src/audio/transport/performance.ts       # stepIndex(step, cells, rate) (REQ-stutter-composes-with-length-and-rate)
+  - src/audio/transport/performance.ts       # mapStep, the stutter fold LaneMeter applies (REQ-stutter-composes-with-length-and-rate)
   - src/audio/transport/sequencer.ts
   - src/audio/transport/drum-machine.ts      # the meter-relative fill (REQ-the-drum-fill-is-relative-to-its-lane)
   - src/audio/transport/sampler-machine.ts
@@ -236,7 +236,7 @@ Arrangement:   # src/audio/transport/arrangement.ts
   loopTicks(lane): number            # steps.length × barTicks, 0 when the lane is not chained
 
 Performance:   # src/audio/transport/performance.ts
-  stepIndex(step, cells, rateIdx): number
+  mapStep(step): number              # the stutter fold; LaneMeter resolves the cell from it
 
 Clock:         # src/audio/transport/clock.ts
   swingOffset(step): number          # the delay applied to this tick

@@ -14,7 +14,7 @@ export const CHORUS_SWING_S = 0.003;
 /** The shortest delay either tap may reach (chorus.md REQ-the-chorus-delay-never-reaches-zero). */
 export const CHORUS_MIN_DELAY_S = 0.0005;
 /** The BBD's darkening on the wet path — a lowpass ahead of both taps. */
-export const CHORUS_TONE_HZ = 9000;
+const CHORUS_TONE_HZ = 9000;
 
 /**
  * The swing for a depth, in seconds: `depth * CHORUS_SWING_S`, clamped so

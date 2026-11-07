@@ -42,7 +42,7 @@ const DISPLAY_TYPE = [
   // same sense as `drum .trackLabel`. Every other cell in that window is a control.
   'mod.module.css .fixedSrc',
   'rest-overlay.module.css .caption',
-  'segmented.module.css .root button, :global(.segmented) button',
+  'segmented.module.css .root button',
   'seq.module.css .noteDisplay',
   'song-panel.module.css .chip',
   'step-button.module.css .root',

@@ -10,7 +10,7 @@ export const RENDER_BARS = 2;
  *  look-ahead audio before we read the buffer (mirrors exportSong's TAIL_MS). */
 export const RENDER_TAIL_MS = 350;
 /** Anti-click fade at each crop boundary (~128 samples at 44.1 kHz). */
-export const RENDER_FADE_MS = 3;
+const RENDER_FADE_MS = 3;
 
 /**
  * Map the render window (the *second* bar) into the captured stream —

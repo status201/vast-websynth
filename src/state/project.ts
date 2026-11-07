@@ -37,7 +37,7 @@ export type ProjectParse =
   | { ok: false; errors: string[] };
 
 /** An import refused because the zip codec chunk could not be fetched. */
-export const ZIP_READER_UNAVAILABLE =
+const ZIP_READER_UNAVAILABLE =
   'The project reader could not be loaded — check your connection and try again.';
 
 /**

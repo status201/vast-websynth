@@ -5,8 +5,7 @@
  * the demo loader, the scope's live performance knobs). The regions themselves
  * live in `shell/` and `panels/`; nothing is built here (architecture.md).
  */
-import { pinAppliedSong } from '../state/preset-session';
-import { Song, DEMO_SONGS, demoNames } from '../state/song';
+import { demoNames } from '../state/song';
 import { PERF_PROFILES, type PerfTier } from '../state/perf-mode';
 import { setScopeStatsSource } from '../state/debug-sources';
 import { createOnboarding, type Onboarding } from './onboarding';
@@ -20,7 +19,7 @@ import { buildBottom } from './shell/bottom';
 import { installEasterEgg } from './shell/easter-egg';
 
 export function mountApp(root: HTMLElement, deps: ShellDeps): Onboarding {
-  const { engine, bus, bridge, session, xy } = deps;
+  const { engine, bus, bridge } = deps;
   root.innerHTML = '';
 
   // Late-bound hooks, filled once their panels are built; the tour calls them.
@@ -34,20 +33,11 @@ export function mountApp(root: HTMLElement, deps: ShellDeps): Onboarding {
     setScopeFps(PERF_PROFILES[tier].fps);
     setScopeFft(PERF_PROFILES[tier].analyserFftSize);
   };
-  // Default loads a demo without UI sync; replaced by the Song panel's own
-  // loader (which also syncs the slot dropdown) once buildPatternRow runs.
-  // Only the built-in is reachable here — the drop-in and zip demos are
-  // fetched on click and so are inherently async (song-mode.md REQ-song-lane-titles-navigate) — but
-  // this fallback is replaced a few lines below and never actually used.
-  // The real unknown-name fallback lives in `resolveDemoName` (song-mode.md REQ-drop-in-demos-are-fetched-on-click),
-  // which `SongPanel.loadDemo` applies to every caller including the tour.
-  let songLoadDemo: (name: string) => Promise<void> = async (name) => {
-    const file = DEMO_SONGS[name] ?? Object.values(DEMO_SONGS)[0];
-    if (file) {
-      Song.apply(file, bus, engine.patterns, engine.arrangement, xy, engine.sampler);
-      pinAppliedSong(session, file.name, bus);
-    }
-  };
+  // Late-bound to the Song panel's loader once buildPatternRow runs below —
+  // nothing can ask for a demo before then. The unknown-name fallback lives in
+  // `resolveDemoName` (song-mode.md REQ-drop-in-demos-are-fetched-on-click), which
+  // `SongPanel.loadDemo` applies to every caller including the tour.
+  let songLoadDemo: (name: string) => Promise<void> = async () => {};
 
   // The demo the Song panel last loaded — rebound below with the loader, for the
   // demo library's info-badge door (demo-library.md REQ-info-mode-badges-the-demo-row-once).

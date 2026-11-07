@@ -114,7 +114,6 @@ const DIVISIONS: Division[]
 function sweetSpots(bpm: number): SweetSpot[]                 // beat = 60/bpm
 function sweetSpotsInRange(bpm, min, max, q: TempoQuantity): SweetSpot[]
 function spotValue(s: SweetSpot, quantity: TempoQuantity): number
-function noteToHz(note: number): number                      // 440·2^((n-69)/12)
 const SYNC_LABELS: string[]                                  // ['free', ...DIVISIONS labels]
 function syncedRateHz(syncIndex: number, bpm: number): number | null   // the LFO tempo lock
 

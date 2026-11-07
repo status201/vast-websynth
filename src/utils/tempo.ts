@@ -82,9 +82,6 @@ export function sweetSpotsInRange(
     .sort((a, b) => spotValue(a, quantity) - spotValue(b, quantity));
 }
 
-/** MIDI note number → frequency in Hz (A4 = note 69 = 440 Hz). */
-export { midiToHz as noteToHz } from './math';
-
 /**
  * The `lfo.sync` value map (lfo.md REQ-lfo-sync-locks-rate-to-tempo): index 0 is **free-running** — the
  * default, and an exact no-op — then one entry per division, in `DIVISIONS`
@@ -106,7 +103,7 @@ export const SYNC_LABELS: string[] = ['free', ...DIVISIONS.map((d) => d.label)];
  * This is the root of both quantities — `syncedRateHz` is its reciprocal — so a
  * guard added here cannot be missed by one of them (tempo-lock.md REQ-audio-resolves-the-lock-in-one-place).
  */
-export function syncedTimeSec(syncIndex: number, bpm: number): number | null {
+function syncedTimeSec(syncIndex: number, bpm: number): number | null {
   const i = Math.round(syncIndex);
   if (i <= 0 || i > DIVISIONS.length) return null;
   if (!Number.isFinite(bpm) || bpm <= 0) return null;
