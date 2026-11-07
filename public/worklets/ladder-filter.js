@@ -22,6 +22,15 @@ function sat(x) {
 // Make-up gain to offset the passband level lost as resonance rises (LADDER).
 const RES_MAKEUP = 0.25;
 
+/**
+ * A pole state below −400 dB is 0. A gated or silent voice's poles decay
+ * geometrically, and the last stretch to zero runs through the subnormal range,
+ * where every multiply is slow; flushing at block end is inaudible either way.
+ */
+function flush(x) {
+  return x > -1e-20 && x < 1e-20 ? 0 : x;
+}
+
 // POLY's input rail. The LADDER's stages feed back sat(s_n), so at DC
 // sat(s_n) === v and the state settles at sat^-1(v) — the cascade *undoes* the
 // input saturation, which is why the ladder measures near-unity at low
@@ -399,8 +408,9 @@ function polyBlock(s, inCh, outCh, k) {
   // block, so a switch back to LADDER resumes a self-consistent
   // recurrence (filter-models.md REQ-switching-model-mid-note-is-safe). The pole states themselves carry
   // over untouched — they mean the same thing in both models.
+  s0 = flush(s0); s1 = flush(s1); s2 = flush(s2); s3 = flush(s3);
   s[0] = s0; s[1] = s1; s[2] = s2; s[3] = s3;
-  s[4] = sat(s0); s[5] = sat(s1); s[6] = sat(s2); s[7] = q3prev;
+  s[4] = sat(s0); s[5] = sat(s1); s[6] = sat(s2); s[7] = flush(q3prev);
 }
 
 /** One block of LADDER — the original recurrence, untouched (ladder-filter.md) — on channel state `s`. */
@@ -450,8 +460,8 @@ function ladderBlock(s, inCh, outCh, k) {
     outCh[i] = s3 * (1 + res * RES_MAKEUP);
   }
 
-  s[0] = s0; s[1] = s1; s[2] = s2; s[3] = s3;
-  s[4] = q0; s[5] = q1; s[6] = q2; s[7] = q3prev;
+  s[0] = flush(s0); s[1] = flush(s1); s[2] = flush(s2); s[3] = flush(s3);
+  s[4] = flush(q0); s[5] = flush(q1); s[6] = flush(q2); s[7] = flush(q3prev);
 }
 
 registerProcessor('ladder-filter', LadderFilterProcessor);

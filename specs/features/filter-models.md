@@ -93,7 +93,10 @@ Per [ADR-006](../decisions/adr-006-no-op-param-defaults.md) the default is index
   the loop input at `3(1+res) + res`, and four linear one-poles with
   `g ∈ (0,1)` are strictly stable, so no state can exceed it. Measured worst
   case — full-scale noise × `drive 8` × `resonance 4.2` × HP24 — peaks near 13,
-  inside the ceiling the ladder's own boundedness test already uses.
+  inside the ceiling the ladder's own boundedness test already uses. Stable also
+  means cheap at rest: both models flush a pole state below 1e-20 (−400 dB) to 0
+  at block end, so a silent voice's decaying poles never run through the slow
+  subnormal range.
 - **REQ-shape-morphs-the-pole-mix** — `filter.shape` (`[0, 1]`, **default `0`**)
   morphs the pole mix across four anchors — **LP24 → LP12 → BP12 → HP24** — as a
   linear crossfade between adjacent anchors. `0` is LP24, so the default is a
@@ -356,6 +359,12 @@ Scenario: Factory presets never leak a model (edge)
   Given the user selects POLY and then loads any factory preset
   Then that preset's own filter.model applies, because every factory preset sets it
 # pinned by: tests/state/preset.test.ts
+
+Scenario: A silent tail settles the pole states to exactly zero (REQ-poly-output-is-finite-and-bounded, regression)
+  Given either model has filtered a signal
+  When it is fed silence
+  Then every pole state reaches exactly 0 once it falls below −400 dB
+# pinned by: tests/audio/ladder-filter-worklet.test.ts
 ```
 
 ## Tests & verification

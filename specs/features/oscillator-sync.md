@@ -131,7 +131,9 @@ windowed-sinc residual reaches the floor in band.
   increment`), not at 0. Otherwise the cycle jitters by up to a sample.
 - **REQ-the-slave-is-dc-free** — The slave passes a 5 Hz DC blocker, and a pulse's
   analytic mean (`2w−1`) is subtracted from both oscillators, so a sweep pushes no
-  sub-audio wobble into the filter and the engage crossfade does not thump.
+  sub-audio wobble into the filter and the engage crossfade does not thump. The
+  blocker's state is flushed to 0 below 1e-20 at block end, so a quiet pair does
+  not decay through the subnormal range.
 - **REQ-the-pair-is-bounded** — Output is finite and within **±4** for any
   parameter, NaN and Infinity included. Every increment is clamped to `[0, 0.45]`
   cycles per sample. The sync offset is clamped to `[-24, 72]` st. Both outputs are

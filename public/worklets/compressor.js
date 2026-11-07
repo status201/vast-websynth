@@ -281,6 +281,11 @@ class HardwareCompressorProcessor extends AudioWorkletProcessor {
     // Flush denormal-range envelope state.
     if (gr < 1e-6) gr = 0;
     if (grSlow < 1e-6) grSlow = 0;
+    // And the FET DC blocker's, which decays geometrically on silent input (the
+    // saturator's +0.02 pedestal is constant, so the difference is 0): −400 dB,
+    // inaudible, but slow arithmetic all the way down through the subnormals.
+    if (dcY0 > -1e-20 && dcY0 < 1e-20) dcY0 = 0;
+    if (dcY1 > -1e-20 && dcY1 < 1e-20) dcY1 = 0;
     this.gr = gr;
     this.grSlow = grSlow;
     this.gPrev = gPrev;

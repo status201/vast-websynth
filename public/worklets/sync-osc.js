@@ -500,6 +500,10 @@ class SyncOscProcessor extends AudioWorkletProcessor {
       this.n++;
     }
 
+    // The DC blocker decays geometrically toward 0 once the pair goes quiet; flush
+    // it before it crawls through the subnormal range (−400 dB: inaudible either way).
+    if (this.dcY > -1e-20 && this.dcY < 1e-20) this.dcY = 0;
+
     // Stable (ADR-010): anything non-finite that slipped through resets the pair
     // rather than latching NaN into the filter downstream.
     if (!Number.isFinite(out0[len - 1]) || !Number.isFinite(out1[len - 1])) {
