@@ -5,7 +5,7 @@ import type { TourStep } from './tour';
 import { UI_ICONS, iconLabel, type IconName } from '../components/ui-icons';
 import type { ParamBus } from '../../state/params';
 import { EQ_BANDS } from '../../state/eq';
-import { formatHzFull } from '../components/scope';
+import { formatHzFull } from '../components/scope-math';
 import { BANK_LABELS, MIN_BANK_COUNT, MAX_BANK_COUNT } from '../../state/patterns';
 import {
   renderTempoSync,

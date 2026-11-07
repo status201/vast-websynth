@@ -14,6 +14,7 @@ related:
   - debug-panel                       # the Scope row that reports this panel's liveness
 source:
   - src/ui/components/scope.ts
+  - src/ui/components/scope-math.ts   # the pure half: regions, axes, peak hold, ticks, zones (re-exported by scope.ts)
   - src/state/debug-sources.ts        # setScopeStatsSource — the Debug panel's reader
   - src/ui/components/about-debug.ts  # the "Scope" row
   - src/ui/components/canvas-text.ts  # haloText, hoisted out of this component

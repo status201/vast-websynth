@@ -11,7 +11,6 @@ import panelStyles from '../styles/panel.module.css';
 import { PlayheadHighlighter, type PlayheadCell } from '../components/playhead-highlighter';
 import { buildPlayheadRuler, type PlayheadRuler } from '../components/playhead-ruler';
 import { buildRestOverlay, type RestLane, type RestOverlay } from '../components/rest-overlay';
-import { StepButton } from '../components/step-button';
 import { createClearMenu } from '../components/clear-menu';
 import { showToast } from '../components/toast';
 import type { PatternUndo } from '../../state/pattern-undo';
@@ -21,8 +20,12 @@ import { Dropdown } from '../components/dropdown';
 import { anchorMenu, dismissMenu, menuClosed, menuOpened } from '../components/menu-anchor';
 import { laneGrid, onLaneGridChange } from '../lane-grid';
 import dropdownStyles from '../styles/dropdown.module.css';
-import { ListenerSet } from '../../utils/listeners';
 import { audibleTimeline } from '../audible';
+import { VisibilityGate } from '../components/visibility-gate';
+
+// Built here once, now components of their own; re-exported so the panels keep one import.
+export { VisibilityGate } from '../components/visibility-gate';
+export { GridCursor } from '../components/grid-cursor';
 
 /**
  * `<m>.len` as labels: index 0 is the `LEN_FOLLOW` sentinel, and it reads as
@@ -210,38 +213,6 @@ export function wrapGridWithRestOverlay(
   el.appendChild(restOverlay.el);
   bankBar.onFollowChange(() => restOverlay.refresh());
   return { el, restOverlay };
-}
-
-/**
- * Whether a machine panel's content is actually on screen.
- *
- * `TabContainer` hides an inactive panel with a class, so all four panels stay
- * live and subscribed: without this gate every one of them repaints its playhead
- * on every 16th — ~50 class writes a tick against DOM nobody can see — and the
- * Motion panel re-projects its SVG graph every bar (runtime-performance.md
- * REQ-no-work-for-offscreen-dom).
- *
- * Panels are built **before** the `TabContainer` exists, so a gate starts
- * `shown` and is corrected by the first `onViewChange`; a panel can never be
- * stuck dark. `whenShown` is how deferred work catches up on reveal — the point
- * of the gate is to skip work, not to show stale state.
- */
-export class VisibilityGate {
-  private visible = true;
-  private readonly showListeners = new ListenerSet();
-
-  get shown(): boolean { return this.visible; }
-
-  set(visible: boolean): void {
-    if (visible === this.visible) return;
-    this.visible = visible;
-    if (visible) this.showListeners.emit();
-  }
-
-  /** Run `fn` whenever the panel becomes visible again. Returns a disposer. */
-  whenShown(fn: () => void): () => void {
-    return this.showListeners.add(fn);
-  }
 }
 
 /**
@@ -697,98 +668,3 @@ export function clearMenuFor(
   });
 }
 
-/**
- * The 2-D selection cursor the drum and sampler grids share: exactly one cell
- * carries `StepButton.selectedClass`, and moving it runs the panel's own
- * refresh work (`onMove`).
- */
-export class GridCursor {
-  private row = 0;
-  private col = 0;
-  private keyboard = false;
-
-  constructor(
-    private readonly cells: readonly (readonly StepButton[])[],
-    private readonly onMove: () => void,
-  ) {}
-
-  get selRow(): number { return this.row; }
-  get selCol(): number { return this.col; }
-
-  set(row: number, col: number): void {
-    const prev = this.cells[this.row]?.[this.col]?.el;
-    prev?.classList.remove(StepButton.selectedClass);
-    if (this.keyboard && prev) prev.tabIndex = -1;
-    this.row = row;
-    this.col = col;
-    const next = this.cells[row]?.[col]?.el;
-    next?.classList.add(StepButton.selectedClass);
-    // The one Tab stop follows the selection, however it moved (REQ-a-trigger-grid-is-reachable-by-keyboard).
-    if (this.keyboard && next) next.tabIndex = 0;
-    this.onMove();
-  }
-
-  /**
-   * Make the grid keyboard-reachable (step-grid-editing.md
-   * REQ-a-trigger-grid-is-reachable-by-keyboard): one Tab stop — the selected
-   * cell — arrows to move within the played window, Enter to toggle. Only those
-   * keys are consumed; Space, Delete, Shift+arrows and the note keys pass on.
-   */
-  enableKeyboard(opts: {
-    isOn(row: number, col: number): boolean;
-    onToggle(row: number, col: number, on: boolean): void;
-    /** The lane's played cells — the window the arrows stay inside. */
-    cols(): number;
-    /** A row's name for the cell's accessible label. */
-    rowLabel(row: number): string;
-  }): void {
-    this.keyboard = true;
-    this.cells.forEach((row, r) => row.forEach((sb, c) => {
-      sb.el.tabIndex = r === this.row && c === this.col ? 0 : -1;
-      sb.el.addEventListener('keydown', (e) => this.onKey(e, opts));
-      sb.el.addEventListener('focus', () => this.label(r, c, opts));
-    }));
-  }
-
-  private label(r: number, c: number, opts: { isOn(r: number, c: number): boolean; rowLabel(r: number): string }): void {
-    const el = this.cells[r]?.[c]?.el;
-    if (!el) return;
-    const text = `${opts.rowLabel(r)}, step ${c + 1}, ${opts.isOn(r, c) ? 'on' : 'off'}`;
-    if (el.getAttribute('aria-label') !== text) el.setAttribute('aria-label', text);
-  }
-
-  private onKey(
-    e: KeyboardEvent,
-    opts: {
-      isOn(r: number, c: number): boolean;
-      onToggle(r: number, c: number, on: boolean): void;
-      cols(): number;
-      rowLabel(r: number): string;
-    },
-  ): void {
-    if (e.ctrlKey || e.metaKey || e.altKey || e.shiftKey) return; // Shift+arrows seek
-    const last = Math.max(0, Math.min(opts.cols(), this.cells[this.row]?.length ?? 1) - 1);
-    let r = this.row;
-    let c = Math.min(this.col, last);
-    switch (e.key) {
-      case 'ArrowLeft': c = Math.max(0, c - 1); break;
-      case 'ArrowRight': c = Math.min(last, c + 1); break;
-      case 'ArrowUp': r = Math.max(0, r - 1); break;
-      case 'ArrowDown': r = Math.min(this.cells.length - 1, r + 1); break;
-      case 'Home': c = 0; break;
-      case 'End': c = last; break;
-      case 'Enter':
-        e.preventDefault();
-        e.stopPropagation();
-        opts.onToggle(this.row, this.col, !opts.isOn(this.row, this.col));
-        this.label(this.row, this.col, opts);
-        return;
-      default:
-        return; // Space, Delete, letters: not ours
-    }
-    e.preventDefault();
-    e.stopPropagation();
-    if (r !== this.row || c !== this.col) this.set(r, c);
-    this.cells[r]?.[c]?.el.focus();
-  }
-}

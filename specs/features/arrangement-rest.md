@@ -19,7 +19,7 @@ source:
   - src/state/song-validate.ts                   # accept REST in chain steps
   - src/ui/components/rest-glyph.ts              # shared inline-SVG rest icon
   - src/ui/components/rest-overlay.ts            # machine-tab "resting" overlay
-  - src/ui/panels/song-panel.ts                  # rest add-button + rest chip
+  - src/ui/components/chain-lane.ts              # rest add-button + rest chip
   - src/ui/panels/seq-panel.ts                   # rest overlay wiring
   - src/ui/panels/drum-panel.ts                  # rest overlay wiring
   - src/ui/panels/sampler-panel.ts               # rest overlay wiring
