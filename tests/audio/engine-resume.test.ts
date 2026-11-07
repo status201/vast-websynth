@@ -2,21 +2,21 @@
 import { readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 import { describe, it, expect, vi, afterEach } from 'vitest';
-import { Engine } from '../../src/audio/engine';
+import { AudioLifecycle } from '../../src/audio/lifecycle';
 import { makeParam, type MockAudioParam } from './mock-audio-context';
 
 /**
- * `Engine.resume()` — the click-free start (audio-lifecycle.md
+ * `AudioLifecycle.resume()` (Engine delegates to it) — the click-free start (audio-lifecycle.md
  * REQ-a-start-is-click-free/REQ-the-fade-never-dips-live-audio,
  * audio-lifecycle.md REQ-the-ramp-is-scheduled-before-the-await),
  * the context re-arm policy (REQ-foreground-return-rearms-the-context/REQ-statechange-must-not-fight-a-deliberate-suspend/REQ-an-unasked-suspension-is-recovered/REQ-a-bfcache-restore-counts-as-returning) and the recovery policy
  * (REQ-a-resume-that-does-not-take-is-retried/REQ-a-stuck-context-is-visible/REQ-the-glitch-fade-out-is-always-undone).
  *
- * A real `Engine` needs an AudioContext, worklet modules and an async `init()`,
- * none of which these methods touch: they read `ctx` / `master` / `bus` /
+ * A real `AudioLifecycle` is built by Engine around a live AudioContext, none
+ * of which these methods need: they read `ctx` / `master` / `bus` /
  * `iosSession` / `media` and a handful of own fields. So — exactly as
  * `engine-seek.test.ts` does for the seek guard — they are invoked against a
- * structural stub built on `Engine.prototype`, which pins the **production**
+ * structural stub built on `AudioLifecycle.prototype`, which pins the **production**
  * code rather than a re-implementation of it. Building it with `Object.create`
  * rather than by listing methods means the whole call graph is the real one:
  * `resume()` really does reach `runResume` → `armGestureResume` → `notifyBlocked`.
@@ -30,7 +30,7 @@ interface CtxStub {
 }
 
 /** Every stub built by a case, so its armed window listeners can be released. */
-const built: Engine[] = [];
+const built: AudioLifecycle[] = [];
 
 afterEach(() => {
   for (const e of built) (e as unknown as { disarmGesture: (() => void) | null }).disarmGesture?.();
@@ -56,7 +56,7 @@ function engineLike(
   const media = { unlock: vi.fn(), rearm: vi.fn() };
   // Field initialisers live in the constructor, which is exactly what this
   // sidesteps — so every own field the methods read is seeded here by hand.
-  const engine = Object.assign(Object.create(Engine.prototype) as object, {
+  const engine = Object.assign(Object.create(AudioLifecycle.prototype) as object, {
     ctx,
     master: { gain },
     // Per id: the master level is volume² × expression² (input-control.md
@@ -77,7 +77,7 @@ function engineLike(
     disarmGesture: null,
     resuming: null,
     blockedListeners: new Set<(b: boolean) => void>(),
-  }) as unknown as Engine;
+  }) as unknown as AudioLifecycle;
   built.push(engine);
   return {
     ctx,
@@ -95,7 +95,7 @@ async function settle(p: Promise<void>): Promise<void> {
   await p;
 }
 
-describe('Engine.resume fade-in (click-free start)', () => {
+describe('AudioLifecycle.resume fade-in (click-free start)', () => {
   it('ramps the master up from silence over the fade', async () => {
     const { ctx, gain, resume } = engineLike({ volume: 0.8 });
     ctx.resume.mockImplementation(() => { ctx.state = 'running'; return Promise.resolve(); });
@@ -178,7 +178,7 @@ describe('Engine.resume fade-in (click-free start)', () => {
  * REQ-a-resume-that-does-not-take-is-retried/REQ-a-stuck-context-is-visible — a resume is verified, not trusted. Fake timers throughout:
  * both the 400 ms verification race and the 150 ms retry gap are real waits.
  */
-describe('Engine.resume recovery (REQ-a-resume-that-does-not-take-is-retried/REQ-a-stuck-context-is-visible)', () => {
+describe('AudioLifecycle.resume recovery (REQ-a-resume-that-does-not-take-is-retried/REQ-a-stuck-context-is-visible)', () => {
   it('retries, then arms a gesture fallback when the resume keeps failing', async () => {
     vi.useFakeTimers();
     const { ctx, engine, resume } = engineLike();
@@ -257,7 +257,7 @@ describe('Engine.resume recovery (REQ-a-resume-that-does-not-take-is-retried/REQ
 });
 
 /** REQ-the-glitch-fade-out-is-always-undone — the watchdog's fade to zero is undone by whatever brings us back. */
-describe('Engine.resume glitch-mute restore (REQ-the-glitch-fade-out-is-always-undone)', () => {
+describe('AudioLifecycle.resume glitch-mute restore (REQ-the-glitch-fade-out-is-always-undone)', () => {
   it('restores the master on a context that came back running by itself', async () => {
     const { gain, engine, resume } = engineLike({ state: 'running', volume: 0.8 });
     (engine as unknown as { glitchMuted: boolean }).glitchMuted = true;
@@ -334,10 +334,10 @@ describe('REQ-nothing-is-audible-before-the-first-start at the source', () => {
     expect(src).not.toMatch(/this\.master\.gain\.value = (?!0;)/);
   });
 
-  it('gates the master.volume subscription on everRan', () => {
+  it('gates the master.volume subscription on the lifecycle having run', () => {
     const sub = /subscribe\('master\.volume', \(x\) => \{([\s\S]*?)\n {4}\}\);/.exec(src);
     expect(sub, 'the master.volume subscription moved — re-point this test').not.toBeNull();
-    expect(sub![1]).toMatch(/if \(!this\.everRan\) return;/);
+    expect(sub![1]).toMatch(/if \(!this\.lifecycle\.hasRun\) return;/);
   });
 });
 
@@ -347,7 +347,7 @@ describe('REQ-nothing-is-audible-before-the-first-start at the source', () => {
  * touch instead of demanding a dedicated tap. Registered on the real jsdom
  * `window`, so each case disarms what it armed.
  */
-describe('Engine.onFirstGesture (REQ-post-gesture-work-is-deferred)', () => {
+describe('AudioLifecycle.onFirstGesture (REQ-post-gesture-work-is-deferred)', () => {
   it('runs once on the next gesture and removes every listener', () => {
     const { engine } = engineLike();
     const fn = vi.fn();
@@ -392,7 +392,7 @@ function rearmLike(over: { state?: string; ios?: boolean; glitchMuted?: boolean;
   };
   const resume = vi.fn(() => Promise.resolve());
   const media = { unlock: vi.fn(), rearm: vi.fn() };
-  const engine = Object.assign(Object.create(Engine.prototype) as object, {
+  const engine = Object.assign(Object.create(AudioLifecycle.prototype) as object, {
     ctx,
     resume,
     iosSession: { active: over.ios ?? false },
@@ -402,7 +402,7 @@ function rearmLike(over: { state?: string; ios?: boolean; glitchMuted?: boolean;
     glitchTimer: null,
     // The automatic re-arms stay out of the way until audio has run once.
     everRan: over.everRan ?? true,
-  }) as unknown as Engine;
+  }) as unknown as AudioLifecycle;
   (engine as unknown as { installContextRearm: () => void }).installContextRearm();
   return { ctx, resume, media, engine };
 }
@@ -418,7 +418,7 @@ function statechangeHandler(ctx: { addEventListener: ReturnType<typeof vi.fn> })
   return call![1] as () => void;
 }
 
-describe('Engine context re-arm', () => {
+describe('AudioLifecycle context re-arm', () => {
   it('resumes a context the OS suspended while the page was hidden (Android)', () => {
     const { resume } = rearmLike({ state: 'suspended' });
     becomeVisible();
@@ -496,7 +496,7 @@ describe('Engine context re-arm', () => {
   });
 });
 
-describe('Engine.suspendForDebug (REQ-an-unasked-suspension-is-recovered)', () => {
+describe('AudioLifecycle.suspendForDebug (REQ-an-unasked-suspension-is-recovered)', () => {
   it('marks the suspend deliberate, and any resume clears that', async () => {
     const { ctx, engine } = engineLike({ state: 'running' });
     const priv = engine as unknown as { deliberateSuspend: boolean };

@@ -116,7 +116,7 @@ material keyed by feature name).
 | `src/state/preset*.ts` | `features/presets.md`, `features/preset-authoring.md`, `recipes/add-a-factory-preset.md` |
 | `src/state/demos/` | `recipes/add-a-demo-song.md` (data drop-in — SDD-exempt) |
 | `src/audio/engine.ts` | `specs/architecture.md`, ADR-008, ADR-009 |
-| context start / background / resume | `features/audio-lifecycle.md`, `features/ios-audio.md`, `features/media-session.md` |
+| context start / background / resume — `src/audio/lifecycle.ts` | `features/audio-lifecycle.md`, `features/ios-audio.md`, `features/media-session.md` |
 | `public/sw.js`, the **offline copy** (`utils/offline-copy.ts`, `scripts/lib/offline-manifest.mjs`) | `features/pwa-install.md`, `features/play-offline.md` — every cache lookup passes `{ ignoreVary: true }` (hosts send `Vary: Origin`, and a file saved by `fetch()` then never matches the script request for it); `npm run e2e` runs the dev server, which has no worker, so verify against `vite preview` |
 | `src/audio/effects/` | `features/effects.md`, `recipes/add-an-effect.md`, ADR-012 |
 | the **chorus** or **flanger**, or effects sharing one panel (`effects/chorus.ts`, `effects/flanger.ts`, `src/state/chorus.ts`, `components/fx-slot-picker.ts`) | `features/chorus.md`, `features/flanger.md`, `features/fx-slot-picker.md` — a slot's entries run in chain order (Phaser · Flanger · Chorus), and the flanger stays bypassed until its lazy DSP is in |

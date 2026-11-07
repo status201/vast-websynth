@@ -160,7 +160,8 @@ Engine:          # src/audio/engine.ts
                                  #   self-wire via Effect.bind(bus, prefix) — ADR-008
   playNote / releaseNote         # thin delegators to Polyphony (SynthOutput surface)
   # owns: AudioContext, voices[voiceCount: 8, 5 on the weak tier], FX chain, arrangement, perf, seq, drums, sampler, motion
-  # delegates: Polyphony (voice alloc + unison/glide/drift), LaneMixer (mute/solo/vol)
+  # delegates: Polyphony (voice alloc + unison/glide/drift), LaneMixer (mute/solo/vol),
+  #   AudioLifecycle (resume/retry/re-arm/fades — audio/lifecycle.ts, features/audio-lifecycle.md)
 
 StudioApi:       # src/ui/studio-api.ts  (the UI's narrow view of Engine — ADR-009)
   # patterns, arrangement, clock, loop, perf, seq, drums, sampler, motion, recorder,
