@@ -44,6 +44,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
   system, it now shows Classic where it showed Dark.
 - The **Theme**, **UI size** and **Performance** headings in Settings are a
   little larger.
+- Each theme tile in Settings shows its colours as a strip across the whole tile,
+  rather than four small chips in the middle.
 
 ### Fixed
 
@@ -74,6 +76,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
   contrast), so only the red beat columns showed them. They, and the bend stroke,
   now draw in white in those two themes, and every theme gives them a thin rim
   so they read on a lit step and on a bare one.
+- **The Fullscreen button reads while it is on in every theme.** In Classic,
+  Vibrant, Race and High contrast it filled with the accent colour, under an icon
+  of the same colour. It now keeps its usual background with a coloured outline
+  and icon, as in Dark.
+- **A lit step's note name is sharp in themes with dark lettering** (Classic,
+  Vibrant, Jungle, Race and High contrast). It carried a black shadow meant for
+  light lettering, which only blurred dark letters.
+- **Pastel's logo tagline is as wide as the logo above it**, like every other
+  theme's. Pastel's narrow lettering left it well short of the G1-J8 badge.
 
 ## [2.21.0] - 2026-11-05
 
