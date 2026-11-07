@@ -107,8 +107,15 @@
 
      The glow, though, yields to the switch's pressed shadow (`.root:active`) —
      except on a button that is also `on`, which kept its glow when pressed back
-     when this was settled by specificity, and still does. */
+     when this was settled by specificity, and still does.
+
+     The bed stays the idle well: Fullscreen also carries the global `on`, and a
+     theme that lights an on switch's cap (`--switch-on-bed`) would otherwise fill
+     it, leaving the accent glyph on an accent-ish cap (ui-themes.md
+     REQ-an-on-switch-reads-as-on). Outline and glyph alone say "active", in every
+     theme. */
   button.toggleActive {
+    background: var(--well);
     border-color: var(--accent);
     color: var(--accent);
   }

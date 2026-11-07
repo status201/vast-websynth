@@ -172,7 +172,8 @@ Fonts are system stacks only — the app bundles no font file
   switch prints its legend in `--play-on-ink` while the transport runs: Dark's
   amber (`--accent-secondary`) on its dark well, and in a theme that lights the
   cap, the cap's own `--switch-on-ink`, so Play reads like every other on switch.
-  Either way it reads on the on bed at 4.5:1.
+  Either way it reads on the on bed at 4.5:1. Except: a `toggleActive` header
+  icon (Fullscreen is also `on`) keeps `--well`; outline and glyph say on.
 - **REQ-step-marks-read-on-every-bed** — The marks a step button draws over
   itself, the ratchet ticks and the bend stroke
   ([step-settings](step-settings.md)), paint `--step-mark` with a 1px
@@ -539,6 +540,12 @@ Scenario: the Play legend reads on its lit cap (regression, REQ-an-on-switch-rea
     Vibrant (2.1:1), yellow on yellow in High contrast (1:1), brown on cream in Light (4.1:1)
   Then its legend is --play-on-ink, and reads at 4.5:1 on --switch-on-bed in every theme
 # pinned by: tests/ui/theme-contrast.test.ts
+
+Scenario: active Fullscreen keeps its well (regression, REQ-an-on-switch-reads-as-on)
+  Given Fullscreen engaged, so its button is both "on" and toggleActive
+  When Race lit its cap with --switch-on-bed, the --accent glyph all but vanished
+  Then it keeps --well: an --accent outline and glyph
+# not pinned: jsdom has no cascade layers; check by eye
 
 Scenario: type on its own fill stays legible (regression, REQ-tokens-are-named-by-role)
   Given the playing bar (transport, ruler), the About card's keycaps, a lit DJ button and the info badge
