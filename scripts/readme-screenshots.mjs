@@ -6,7 +6,7 @@
 //   node scripts/readme-screenshots.mjs [--demo <name>] [--bar <n>] [--url <app url>]
 //                                       [--only <shot,shot>]
 //
-// --only takes shot names (hero, machines, eq, pastel, vibrant) and retakes just
+// --only takes shot names (hero, machines, eq, pastel, classic, help) and retakes just
 // those, so adding one shot does not churn every committed PNG.
 //
 // Outputs (public/), each 1920×1080. The first four are in the Dark theme,
@@ -23,10 +23,12 @@
 //                                   EQUALIZER unfolded on its Sequencer tab
 //   vast-websynth-theme-pastel.png  Pastel: Bunk playing, FX open, the Sequencer
 //                                   tab following the playhead
-//   vast-websynth-theme-vibrant.png Vibrant: Bunk playing, FX folded, the Motion
+//   vast-websynth-theme-classic.png Classic: Bunk playing, FX folded, the Motion
 //                                   tab following the playhead
+//   vast-websynth-help-badges.png   Race: Bunk stopped, FX folded, the Sequencer
+//                                   tab, info badges on and AMP ENV's help open
 //
-// Framing is judged by eye — look at all three before committing them.
+// Framing is judged by eye — look at every shot before committing it.
 
 import { spawn } from 'node:child_process';
 import { existsSync, statSync, writeFileSync } from 'node:fs';
@@ -355,10 +357,11 @@ try {
   // 5 + 6 — the themes (ui-themes.md): Bunk playing, a machine tab following the
   // playhead (FOLLOW is on by default), scrolled so the machine panel's bottom
   // edge sits where it does in shots 2 and 3. Pastel shows the FX row above its
-  // painted sections; Vibrant folds it, so the Motion lanes get the room.
+  // painted sections; Classic folds it, so the Motion lanes get the room, and
+  // waits for motion Bank B (Bunk's bars 13–14), whose lanes are lit at both ends.
   const THEME_SHOTS = [
     { name: 'pastel', tab: 'seq', fxFolded: false, file: 'vast-websynth-theme-pastel.png' },
-    { name: 'vibrant', tab: 'motion', fxFolded: true, file: 'vast-websynth-theme-vibrant.png' },
+    { name: 'classic', tab: 'motion', fxFolded: true, bank: 1, file: 'vast-websynth-theme-classic.png' },
   ];
   for (const t of THEME_SHOTS) {
     if (!wanted(t.name)) continue;
@@ -370,8 +373,34 @@ try {
     await page.getByTestId('transport-play').click();
     // Into the song, past the intro bars, so every lane is playing.
     await page.waitForTimeout(6000);
+    if (t.bank !== undefined) {
+      // FOLLOW shows the bank that plays, so wait for this one to come round
+      // (a 14-bar song at 96 BPM loops in ~35 s), then a beat into its bar.
+      await page.locator(`[data-testid="bank-${t.tab}-${t.bank}"].playing.active`)
+        .waitFor({ state: 'attached', timeout: 60_000 });
+      await page.waitForTimeout(800);
+    }
     await scrollBottomTo(page, 'pattern-row', PANEL_BOTTOM_Y);
     await shoot(page, t.file);
+    await page.close();
+  }
+
+  // 7 — help (onboarding.md): Race, Bunk loaded and stopped, FX folded, the
+  // Sequencer tab, at the top; the info badges on and AMP ENV's opened, so its
+  // help modal with the live envelope graph sits over the dimmed badges.
+  if (wanted('help')) {
+    const page = await openApp(browser, {
+      'websynth.ui.theme': 'race',
+      'websynth.ui.collapsed.fx': '1',
+    }, THEME_DEMO);
+    await page.getByTestId('tab-seq').click();
+    await scrollTo(page, 0);
+    await page.getByTestId('info-badges').click();
+    await page.getByTestId('info-badge-ampenv').click();
+    await page.getByRole('dialog', { name: 'Amp Envelope (ADSR)' }).waitFor({ state: 'visible' });
+    // Let the modal's entrance settle before the frame is taken.
+    await page.waitForTimeout(500);
+    await shoot(page, 'vast-websynth-help-badges.png');
     await page.close();
   }
 } finally {

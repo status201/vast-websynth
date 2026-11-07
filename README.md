@@ -49,13 +49,23 @@ Vanilla TypeScript + Vite, zero runtime dependencies.
 
 <p align="center">
   <a href="https://vast.status201.com/">
-    <img src="public/vast-websynth-theme-vibrant.png" alt="VAST G1-J8 in the Vibrant theme — teal, red and peach, the motion sequencer following the playhead" width="960">
+    <img src="public/vast-websynth-theme-classic.png" alt="VAST G1-J8 in the Classic theme — deep teal and sage, the motion sequencer following the playhead on bank B" width="960">
   </a>
 </p>
 
 <p align="center">
   Eight looks — Classic, Vibrant, Dark, Light, Pastel, Jungle, Race and High contrast — or Auto to follow your system.<br>
   Pick one in Settings; it is kept per device.
+</p>
+
+<p align="center">
+  <a href="https://vast.status201.com/">
+    <img src="public/vast-websynth-help-badges.png" alt="VAST G1-J8 in the Race theme — the help badges on, AMP ENV's help open with a live graph of the envelope as it is set" width="960">
+  </a>
+</p>
+
+<p align="center">
+  Every control that isn't obvious gets its own help badge: tap ⓘ, then any badge, for what it does and how to use it.
 </p>
 
 ## Features
