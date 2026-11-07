@@ -46,6 +46,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
   little larger.
 - Each theme tile in Settings shows its colours as a strip across the whole tile,
   rather than four small chips in the middle.
+- **A clean-up pass** (contributors). 62 code comments that cited the wrong spec
+  rule after the switch to named requirements are corrected, and the architecture
+  notes list all six audio worklets and the whole StudioApi. The Engine's
+  start/resume logic is its own module (`audio/lifecycle.ts`); the scope's maths,
+  the Song tab's chain lane and the sample editor's preview player are split out
+  of their oversized files. Shared helpers replace duplicated ramps, fixed
+  filters, slot labels and preference storage, and dead code is gone.
 
 ### Fixed
 
@@ -85,6 +92,35 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
   light lettering, which only blurred dark letters.
 - **Pastel's logo tagline is as wide as the logo above it**, like every other
   theme's. Pastel's narrow lettering left it well short of the G1-J8 badge.
+- **The help no longer tells you New and Load can't be undone** — both show an
+  Undo toast. The Render help now gives its real reasons for being greyed out
+  (a render already running, an empty bank, or following any external clock —
+  MIDI or WiFi), and the mod-wheel help says it drives LFO 1 and is a mod-matrix
+  source too.
+- **The AI preset guide gives the cutoff its real range** (30..130, not 0..127),
+  so an agent no longer writes a cutoff the synth clamps.
+- **Space and Delete no longer reach the instrument behind Help & About, the AI
+  Prompt or the start screen.** Escape over a confirm raised from the AI Prompt
+  closes the confirm, not the prompt underneath it.
+- **Loading a huge file into a sampler slot is refused before it is read**, like
+  every other file you can open, instead of being read whole into memory first.
+- **A sample name from a song file is capped** (120 characters), so an imported
+  song can no longer put an endless name across the sampler strip.
+- **A broken value can no longer silence or stall the audio**: the parameter bus
+  refuses a NaN outright, the clock ignores a NaN phase correction from a sync
+  link instead of stopping, and a NaN bank index resolves to bank A.
+- **A voice released twice is not cut off early**: the second release now
+  replaces the first one's timer instead of leaving it to idle the voice while
+  its tail still sounds.
+- **The wah rings out before its bypass disconnects it** at high Q, and the fade
+  that goes quiet when a backgrounded tab breaks up now starts from the level
+  the audio is actually at on Firefox too.
+- **Less work at rest**: the filter's poles, the compressor's DC blocker and the
+  oscillator sync pair settle to exactly zero on silence instead of decaying
+  slowly through tiny numbers that are costly to compute.
+- The minus and plus buttons on the note picker, the step settings and the Song
+  tab's transpose are drawn icons, so Android can no longer swap them for a
+  symbol from another font.
 
 ## [2.21.0] - 2026-11-05
 
