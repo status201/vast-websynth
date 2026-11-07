@@ -45,15 +45,18 @@
     outline-offset: 2px;
   }
 
+  /* The strip spans the tile's width, four equal chips, so every tile's preview
+     is the same size whatever its name. */
   .chips {
     display: flex;
+    align-self: stretch;
     border-radius: 2px;
     overflow: hidden;
     box-shadow: 0 0 0 1px rgba(0, 0, 0, 0.6);
   }
 
   .chip {
-    width: 12px;
+    flex: 1 1 0;
     height: 18px;
   }
 
