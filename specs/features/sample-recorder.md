@@ -26,6 +26,7 @@ source:
   - src/audio/recorder/offline-render.ts
   - src/audio/recorder/time-stretch.ts
   - src/audio/recorder/audio-buffer.ts
+  - src/audio/recorder/clip-preview.ts    # ClipPreview, the audition player (StudioApi.clipPreview)
   - src/audio/recorder/node.ts            # CapturedAudio
   - src/ui/onboarding/help-content.ts     # the `sampler` topic names the three sections
 ```
@@ -86,7 +87,10 @@ not, and the modal says so.
   the sampler's own edges: in over `SAMPLER_ATTACK` and out over `CHOKE_FADE`,
   finishing as the buffer runs out ([sampler](sampler.md)
   REQ-a-slot-starts-from-zero, REQ-a-slot-ends-at-zero), and a Stop mid-clip fades
-  the same `CHOKE_FADE` from the level it had reached instead of cutting.
+  the same `CHOKE_FADE` from the level it had reached instead of cutting. The
+  player is the audio layer's `ClipPreview`, reached as `StudioApi.clipPreview`, so
+  the editor builds no audio graph of its own; it plays to `ctx.destination`,
+  outside the master bus.
   Started and stopped raw, a selection cut mid-waveform clicked at both ends in
   the preview while the same selection played clean from its slot.
   `clipFades` in `src/audio/clip-fades.ts` is the one place the shape is written.

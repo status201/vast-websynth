@@ -165,7 +165,7 @@ Engine:          # src/audio/engine.ts
 
 StudioApi:       # src/ui/studio-api.ts  (the UI's narrow view of Engine — ADR-009)
   # patterns, arrangement, clock, loop, perf, seq, drums, sampler, motion, recorder,
-  # bankRender, sync, rtcSync, analyser, analyserL, analyserR, ctx, drumComp,
+  # bankRender, clipPreview, sync, rtcSync, analyser, analyserL, analyserR, ctx, drumComp,
   # masterComp, barTicks, autoplayAllowed;
   # diagnostics: iosAudio, mediaSession, backgroundAudio, audioRecovery;
   # verbs: panic(), resume(), seekTo(), canSeek(), suspendForDebug(),

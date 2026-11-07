@@ -29,8 +29,6 @@ import {
 import { ScratchGraph } from './scratch-graph';
 import { createCollapseToggle } from './collapse-toggle';
 import { capturedToAudioBuffer } from '../../audio/recorder/audio-buffer';
-import { clipFades, fadeOutAt } from '../../audio/clip-fades';
-import { liveStartTime } from '../../audio/param-utils';
 import { encodeWav, encodeMp3 } from '../../audio/recorder/encode';
 import { triggerDownload } from '../../utils/download';
 import { SAMPLER_SLOT_COUNT, slotOptionLabels, slotTag } from '../../state/patterns';
@@ -103,12 +101,9 @@ export function openRecordSoundModal(engine: StudioApi, opts: RecordSoundOptions
   let undoSnapshot: CapturedAudio | null = null;
   let cropStart = 0;
   let cropEnd = 0;
-  let previewSrc: AudioBufferSourceNode | null = null;
-  /** The preview's edge gain and the level its shape reaches at any time
-   *  (sample-recorder.md REQ-the-preview-fades-like-the-slot). */
-  let previewFade: { gain: GainNode; levelAt: (at: number) => number } | null = null;
-  let previewStartTime = 0;
-  let previewClipSamples = 0;
+  /** The audition player — the audio layer's, with the slot's edges (sample-recorder.md
+   *  REQ-the-preview-fades-like-the-slot). */
+  const preview = engine.clipPreview;
   let playRaf = 0;
   let resizeObs: ResizeObserver | null = null;
   let cleaned = false;
@@ -156,27 +151,7 @@ export function openRecordSoundModal(engine: StudioApi, opts: RecordSoundOptions
   const stopPreview = (ended = false): void => {
     cancelAnimationFrame(playRaf);
     playRaf = 0;
-    if (previewSrc) {
-      const src = previewSrc;
-      const fade = previewFade;
-      previewSrc = null;
-      previewFade = null;
-      const release = (): void => {
-        try { src.disconnect(); } catch { /* already disconnected */ }
-        try { fade?.gain.disconnect(); } catch { /* already disconnected */ }
-      };
-      if (ended || !fade) {
-        try { src.stop(); } catch { /* already stopped */ }
-        release();
-      } else {
-        // Mid-clip: fade from where the shape has got to, then stop, rather than
-        // cutting on whatever sample is playing (REQ-the-preview-fades-like-the-slot).
-        const at = liveStartTime(engine.ctx);
-        const silentAt = fadeOutAt(fade.gain.gain, at, fade.levelAt(at));
-        src.onended = release;
-        try { src.stop(silentAt); } catch { release(); }
-      }
-    }
+    preview.stop(ended);
     onPlayingChange?.(false);
     redrawHook?.();
   };
@@ -376,8 +351,8 @@ export function openRecordSoundModal(engine: StudioApi, opts: RecordSoundOptions
         g.stroke();
       }
 
-      if (previewSrc && previewClipSamples > 0) {
-        const elapsed = engine.ctx.currentTime - previewStartTime;
+      if (preview.playing && preview.samples > 0) {
+        const elapsed = engine.ctx.currentTime - preview.startTime;
         const pos = cropStart + elapsed * buf.sampleRate;
         if (pos >= cropStart && pos <= cropEnd) {
           const x = xOf(pos);
@@ -419,25 +394,14 @@ export function openRecordSoundModal(engine: StudioApi, opts: RecordSoundOptions
      */
     const playClip = (c: CapturedAudio): void => {
       stopPreview();
-      const node = engine.ctx.createBufferSource();
-      node.buffer = capturedToAudioBuffer(engine.ctx, c);
       // The slot's edges, so a selection cut mid-waveform previews the way it
       // will play (sample-recorder.md REQ-the-preview-fades-like-the-slot).
-      const gain = engine.ctx.createGain();
-      const t = liveStartTime(engine.ctx);
-      const levelAt = clipFades(gain.gain, t, node.buffer.duration);
-      node.connect(gain).connect(engine.ctx.destination);
-      previewStartTime = t;
-      previewClipSamples = Math.min(c.left.length, c.right.length);
-      node.onended = (): void => { if (previewSrc === node) stopPreview(true); };
-      previewSrc = node;
-      previewFade = { gain, levelAt };
-      node.start(t);
+      preview.play(c, () => stopPreview(true));
       onPlayingChange?.(true);
       cancelAnimationFrame(playRaf);
       const loop = (): void => {
         redraw();
-        if (previewSrc) playRaf = requestAnimationFrame(loop);
+        if (preview.playing) playRaf = requestAnimationFrame(loop);
       };
       playRaf = requestAnimationFrame(loop);
     };
@@ -698,7 +662,7 @@ export function openRecordSoundModal(engine: StudioApi, opts: RecordSoundOptions
     });
     const playBtn = createButton({ label: 'Play', led: true, testId: 'mic-play' });
     playBtn.addEventListener('click', () => {
-      if (previewSrc) stopPreview();
+      if (preview.playing) stopPreview();
       else playSelection();
     });
     onPlayingChange = (playing: boolean): void => {

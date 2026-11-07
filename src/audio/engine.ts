@@ -34,6 +34,7 @@ import { WifiSyncTransport, type WifiLink } from './transport/sync/wifi-sync';
 import { RecorderNode } from './recorder/node';
 import { RecorderController } from './recorder/recorder-controller';
 import { BankRenderController } from './recorder/bank-render';
+import { ClipPreview } from './recorder/clip-preview';
 import { PatternStore, DRUM_TRACK_COUNT, SEQ_TRACK_COUNT, MOTION_TRACK_COUNT, SAMPLER_SLOT_COUNT } from '../state/patterns';
 import { barTicks } from '../state/meter';
 import { XyPadStore } from '../state/xy-pad';
@@ -154,6 +155,8 @@ export class Engine {
   perf!: Performance;
   recorder!: RecorderController;
   bankRender!: BankRenderController;
+  /** The sample editor's audition player (sample-recorder.md REQ-the-preview-fades-like-the-slot). */
+  readonly clipPreview: ClipPreview;
   sync!: SyncController;
   rtcSync!: WifiLink;
   /** The Song transport's loop — on/off, range, pending pick (transport-loop.md).
@@ -375,6 +378,7 @@ export class Engine {
     this.modMatrix.setPanTarget(this.synthPan.pan);
 
     this.lifecycle = new AudioLifecycle(this.ctx, this.master, this.bus, this.iosSession, this.media);
+    this.clipPreview = new ClipPreview(this.ctx);
 
     // One 2 s white-noise buffer: the noise oscillator loops it, the drum voices read it.
     this.noiseBuffer = makeNoiseBuffer(this.ctx);
