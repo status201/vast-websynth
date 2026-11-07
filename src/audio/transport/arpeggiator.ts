@@ -2,10 +2,21 @@ import type { ParamBus } from '../../state/params';
 import type { SynthOutput } from './note-output';
 import type { TickSubscriber } from './tick-source';
 import { ScaleQuantizer } from './scale-quantizer';
+import { LaneMeter } from './lane-meter';
 import { MIDI_NOTE_MAX } from '../../state/limits';
+import { LANE_RATES } from '../../state/meter';
+import { ARP_RATE_LABELS } from '../../state/params';
 
-// Dropdown labels live in ARP_PATTERN_LABELS / ARP_RATE_LABELS (state/params.ts).
-const RATE_DIVISIONS = [4, 2, 1, 0.5]; // 16ths per step at each rate
+/**
+ * `arp.rate` index → the `LANE_RATES` row with the same label, so an arp at 1/8
+ * runs on exactly the grid a 1/8 lane does (arpeggiator.md
+ * REQ-the-arp-runs-on-a-lanes-grid). Resolved once; a label with no lane row
+ * falls back to 1/16.
+ */
+const ARP_LANE_RATE: readonly number[] = ARP_RATE_LABELS.map((label) => {
+  const i = LANE_RATES.findIndex((r) => r.label === label);
+  return i >= 0 ? i : LANE_RATES.findIndex((r) => r.label === '1/16');
+});
 
 /**
  * Held-note arpeggiator. While enabled, presses on the keyboard/MIDI are
@@ -15,7 +26,13 @@ const RATE_DIVISIONS = [4, 2, 1, 0.5]; // 16ths per step at each rate
 export class Arpeggiator {
   private enabled = false;
   private pattern = 0;
-  private rateIdx = 2; // 16th
+  /**
+   * Where the arp's hits fall: the same onsets, swing and cell length a lane at
+   * this rate gets (meter.md REQ-coarser-skips-ticks-finer-fans-out,
+   * REQ-swing-is-computed-on-the-lanes-grid). No stutter fold and no chain: the
+   * arp follows held keys, not a pattern, so only its onsets are read.
+   */
+  private readonly lane: LaneMeter;
   private octaves = 1;
   private gate = 0.5;
   private heldOrder: number[] = []; // in press order
@@ -37,6 +54,8 @@ export class Arpeggiator {
     private readonly clock: TickSubscriber,
     private readonly scale: ScaleQuantizer = new ScaleQuantizer(),
   ) {
+    this.lane = new LaneMeter(clock);
+    this.setRate(2); // 1/16, the param's default
     bus.onNote((on, note) => {
       if (!this.enabled) return;
       if (on) {
@@ -94,35 +113,22 @@ export class Arpeggiator {
   }
 
   setPattern(p: number): void { this.pattern = Math.round(p); }
-  setRate(r: number): void { this.rateIdx = Math.round(r); }
+  setRate(r: number): void {
+    const i = Number.isFinite(r) ? Math.round(r) : 2;
+    this.lane.setRate(ARP_LANE_RATE[i] ?? ARP_LANE_RATE[2]!);
+  }
   setOctaves(o: number): void { this.octaves = Math.max(1, Math.min(4, Math.round(o))); }
   setGate(g: number): void { this.gate = Math.max(0.05, Math.min(1, g)); }
 
   private onTick(step: number, when: number): void {
     if (!this.enabled || this.heldOrder.length === 0) return;
-    const division = RATE_DIVISIONS[this.rateIdx] ?? 1;
-    const sixteenth = this.clock.sixteenthDuration();
-
-    // At or above a 16th, one tick is at most one hit: skip the ticks that are
-    // not on the subdivision boundary.
-    if (division >= 1) {
-      if (step % division !== 0) return;
-      this.fire(when, sixteenth * division);
-      return;
-    }
-
-    // Below a 16th the clock cannot help — it only ticks in 16ths — so a single
-    // tick schedules all of that step's hits itself, evenly spaced.
-    // `when` is sample-accurate and the scheduler runs ahead of the audio clock,
-    // so an off-tick hit lands exactly as precisely as a tick-aligned one.
-    //
-    // This replaces a branch that fired *once* per tick with a comment calling
-    // it a good-enough approximation: it made 1/32 audibly identical to 1/16, so
-    // the dropdown entry did nothing at all (arpeggiator.md REQ-a-sub-16th-rate-schedules-its-own-hits). Written
-    // generally, so a finer rate appended to RATE_DIVISIONS needs no new branch.
-    const stepDur = sixteenth * division;
-    const hits = Math.round(1 / division); // 0.5 -> 2
-    for (let i = 0; i < hits; i++) this.fire(when + i * stepDur, stepDur);
+    // The lane's grid decides every onset: none on a tick a coarser rate skips,
+    // two inside one tick at 1/32 (REQ-a-sub-16th-rate-schedules-its-own-hits),
+    // and swing applied on the arp's own grid, so a 1/8 arp swings its off-beat
+    // eighths instead of sitting dead straight under swung hats
+    // (REQ-the-arp-runs-on-a-lanes-grid). The gate is a fraction of the cell, as
+    // every machine's is.
+    this.lane.forEachHit(step, when, (_cell, at, cellDur) => this.fire(at, cellDur));
   }
 
   /** Pick this step's note and schedule it for `when`, holding it for `stepDur`

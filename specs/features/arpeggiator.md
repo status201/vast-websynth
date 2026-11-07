@@ -83,12 +83,24 @@ releasing the last key stops it again (only if the arp was what started it).
 - **REQ-a-sub-16th-rate-schedules-its-own-hits** (every rate plays its own rate,
   v3) — The clock ticks in **16ths**, so a rate finer than 1/16 cannot be
   one-hit-per-tick (one hit per tick would make `1/32` audibly identical to
-  1/16). A division below 1 schedules `round(1 / division)`
-  evenly-spaced hits from the single tick, each at `when + i * sixteenth *
-  division`, with the gate measured against that shorter step. `when` is
-  sample-accurate and the scheduler works ahead, so a sub-16th hit lands exactly
-  as precisely as a tick-aligned one. The rule is general, not a 1/32 special
-  case: a finer rate added to `RATES` needs no new branch.
+  1/16). A rate finer than a 16th schedules every hit that falls inside the
+  tick at its own sample-accurate offset, with the gate measured against that
+  shorter cell. `when` is sample-accurate and the scheduler works ahead, so a
+  sub-16th hit lands exactly as precisely as a tick-aligned one. The rule is
+  general, not a 1/32 special case — it is the lane grid's
+  (REQ-the-arp-runs-on-a-lanes-grid).
+- **REQ-the-arp-runs-on-a-lanes-grid** — **The arp's hits fall exactly where a
+  lane's cells at the same rate would.** It owns a `LaneMeter` set to the
+  `LANE_RATES` row named like its `arp.rate` (`ARP_LANE_RATE`), and fires once per
+  hit `forEachHit` hands it, at that hit's time, gating a fraction of its cell.
+  So the arp gets the instrument's one definition of a rate: the same onsets, the
+  same cell length, and **swing on its own grid**
+  ([meter](meter.md) REQ-swing-is-computed-on-the-lanes-grid) — a 1/8 arp swings
+  its off-beat eighths with the sequencer instead of playing dead straight under
+  swung hats, which is what its own `step % division` grid did. At 1/16, and at
+  any rate with swing at 0, every hit is where it always was. The arp passes no
+  stutter fold and no chain loop: it follows held keys, not a pattern, so only
+  the onsets are read, never the cell index.
 
 - **REQ-saved-arp-on-is-armed-not-broken** (`arp.on` in a song is armed, not
   broken, v3) — A song may save `arp.on: 1` while carrying no arp notes of its
@@ -143,7 +155,8 @@ Arpeggiator:  # src/audio/transport/arpeggiator.ts
   passthroughSuppressed: boolean      # engine reads this to gate note passthrough
   setEnabled(on) / setPattern(i) / setRate(i) / setOctaves(n) / setGate(g)
   # subscribes to bus.onNote (held set) and clock.onTick (schedule)
-RATE_DIVISIONS: [4, 2, 1, 0.5]      # sixteenths per step — the ONLY const here
+ARP_LANE_RATE: arp.rate index -> LANE_RATES index, by label (1/4, 1/8, 1/16, 1/32)
+lane: LaneMeter                     # the arp's onsets, swing and cell length (REQ-the-arp-runs-on-a-lanes-grid)
 # The label arrays live in src/state/params.ts, not on Arpeggiator:
 #   ARP_PATTERN_LABELS: ['up','down','updn','rand','play']
 #   ARP_RATE_LABELS:    ['1/4','1/8','1/16','1/32']
@@ -241,6 +254,14 @@ Scenario: Octaves past the top of the MIDI range are dropped (v6, REQ-the-pool-s
   Given a note held at 120 and arp.octaves is 4
   When the arp runs through its whole pattern, in every mode
   Then it plays 120 only (132, 144 and 156 are dropped), never a note above 127
+# pinned by: tests/audio/transport/arpeggiator.test.ts
+
+Scenario: A 1/8 arp swings its off-beat eighths (REQ-the-arp-runs-on-a-lanes-grid, regression)
+  Given arp.rate is 1/8, one key is held and swing is at 100%
+  When four ticks are dispatched
+  Then the second note lands half an eighth late, where a 1/8 sequencer lane's would
+  And with swing at 0 it lands on the straight eighth, as before
+  # the bug: the arp counted step % 2 and fired on the even ticks, which swing never moves
 # pinned by: tests/audio/transport/arpeggiator.test.ts
 ```
 

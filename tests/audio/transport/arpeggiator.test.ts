@@ -227,6 +227,22 @@ describe('Arpeggiator pattern generation', () => {
     expect(played(playNote)).toEqual([60, 72, 60, 72]);
   });
 
+  it('a 1/8 arp swings its off-beat eighths on its own grid (REQ-the-arp-runs-on-a-lanes-grid, regression)', () => {
+    for (const [swing, second] of [[1, 0.375], [0, 0.25]] as const) {
+      const { clock, bus, arp, playNote } = setup();
+      clock.swing = swing;
+      arp.setEnabled(true);
+      arp.setRate(1); // 1/8 → a cell every two ticks
+      bus.noteOn(60);
+      clock.fireTicks(4); // steps 0..3 at 0, 0.125, 0.25, 0.375
+      const times = playNote.mock.calls.map((c) => c[2] as number);
+      expect(times).toHaveLength(2);
+      expect(times[0]).toBeCloseTo(0, 9);
+      // Full swing delays an off-beat cell by half of it: 0.25 + 0.5 × 0.25.
+      expect(times[1]).toBeCloseTo(second, 9);
+    }
+  });
+
   it('only triggers on the chosen subdivision boundary', () => {
     const { clock, bus, arp, playNote } = setup();
     arp.setEnabled(true);
