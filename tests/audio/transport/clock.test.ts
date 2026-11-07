@@ -67,6 +67,17 @@ describe('Clock nudge (MIDI clock sync phase correction)', () => {
     clock.stop();
   });
 
+  it('ignores a non-finite correction, so the grid never goes NaN (regression)', () => {
+    const { ctx, clock, ev } = startedClock();
+    clock.start();
+    clock.nudge(NaN);
+    clock.nudge(-Infinity);
+    ctx.currentTime += 0.125;
+    vi.advanceTimersByTime(25);
+    expect(ev[1]!.when).toBeCloseTo(0.175, 6);
+    clock.stop();
+  });
+
   it('is a no-op while stopped', () => {
     const { clock, ev } = startedClock();
     clock.nudge(0.04);

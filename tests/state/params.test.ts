@@ -4,6 +4,19 @@ import { isPatchParam } from '../../src/state/preset-session';
 import { fromNorm } from '../../src/utils/taper';
 
 describe('ParamBus', () => {
+  it('refuses a non-finite value: no change, no notification (architecture.md REQ-the-bus-refuses-a-non-finite-value)', () => {
+    const bus = new ParamBus();
+    registerDefaults(bus);
+    const before = bus.get('filter.cutoff');
+    const heard: number[] = [];
+    bus.subscribe('filter.cutoff', (v) => heard.push(v));
+    heard.length = 0; // subscribe may replay the current value
+    bus.set('filter.cutoff', NaN);
+    bus.set('filter.cutoff', Infinity);
+    expect(bus.get('filter.cutoff')).toBe(before);
+    expect(heard).toEqual([]);
+  });
+
   it('returns the default for a registered param', () => {
     const bus = new ParamBus();
     bus.register({ id: 'a', min: 0, max: 10, default: 5 });

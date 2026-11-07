@@ -480,7 +480,9 @@ export class Clock implements TickSubscriber {
    * call (a correction should be inaudible); no-op while stopped.
    */
   nudge(seconds: number): void {
-    if (!this._playing) return;
+    // A NaN would make `nextStepTime` NaN and stop the drain for good
+    // (midi-clock-sync.md REQ-phase-correction-uses-nudge).
+    if (!this._playing || !Number.isFinite(seconds)) return;
     this.nextStepTime += Math.max(-0.05, Math.min(0.05, seconds));
   }
 }

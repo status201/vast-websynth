@@ -497,6 +497,10 @@ export class Voice {
     // marked idle (stealable) while its tail is still sounding.
     const untilRelease = Math.max(0, when - this.ctx.currentTime);
     const delayMs = (untilRelease + this.ampEnv.releaseDuration() + 0.1) * 1000;
+    // A second release (a later one rescheduled) replaces the first timer: left
+    // armed, the earlier one would idle and unplug a voice still in its tail
+    // (REQ-an-idle-voice-is-unplugged).
+    if (this.releaseTimer !== null) clearTimeout(this.releaseTimer);
     this.releaseTimer = window.setTimeout(() => {
       this.releaseTimer = null;
       if (this.state === 'releasing') {

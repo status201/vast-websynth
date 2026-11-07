@@ -42,6 +42,10 @@ means a UI control and its audio effect can be reasoned about independently.
 - **REQ-every-param-is-registered-once** — Every scalar parameter is registered
   exactly once in `registerDefaults()` with `min/max/default` (and optional
   `taper`/`format`).
+- **REQ-the-bus-refuses-a-non-finite-value** — `ParamBus.set` ignores a NaN or
+  infinite value: the param keeps its value and no subscriber hears anything. The
+  range clamp cannot catch it (NaN fails both comparisons), and every subscriber
+  that ramps an `AudioParam` would throw on it. Pinned by `tests/state/params.test.ts`.
 - **REQ-nothing-sounds-until-resume** — **Nothing sounds until `Engine.resume()`
   deliberately fades it in.** The graph *is* built at boot — `boot()` runs `new
   Engine(bus, …)` + `await engine.init()` before any input — and it is wired all

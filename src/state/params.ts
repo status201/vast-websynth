@@ -62,6 +62,9 @@ export class ParamBus {
   }
 
   set(id: ParamId, value: number, silent = false): void {
+    // Refused, not clamped: `clamp` passes NaN through, and a NaN written to an
+    // AudioParam throws inside the subscriber (architecture.md REQ-the-bus-refuses-a-non-finite-value).
+    if (!Number.isFinite(value)) return;
     const def = this.defs.get(id);
     if (!def) {
       if (!this.values.has(id)) this.values.set(id, value);
