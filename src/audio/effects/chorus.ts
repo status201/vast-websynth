@@ -1,6 +1,6 @@
-import { WrappedEffect, bindBypassMix, BUTTERWORTH_Q_DB } from './effect';
+import { WrappedEffect, bindBypassMix, butterworth } from './effect';
 import { clamp01 } from '../../utils/math';
-import { RAMP_SMOOTH } from '../param-utils';
+import { RAMP_SMOOTH, rampTo } from '../param-utils';
 import type { ParamBus } from '../../state/params';
 import { chorusModePreset } from '../../state/chorus';
 
@@ -44,10 +44,7 @@ export class Chorus extends WrappedEffect {
 
     // One channel from here on: a stereo input (the sampler bus) is down-mixed
     // once, so both taps run mono (REQ-the-chorus-is-two-antiphase-taps).
-    const tone = ctx.createBiquadFilter();
-    tone.type = 'lowpass';
-    tone.frequency.value = CHORUS_TONE_HZ;
-    tone.Q.value = BUTTERWORTH_Q_DB; // effects.md REQ-a-fixed-filter-is-a-true-butterworth
+    const tone = butterworth(ctx, 'lowpass', CHORUS_TONE_HZ);
     tone.channelCount = 1;
     tone.channelCountMode = 'explicit';
 
@@ -75,7 +72,7 @@ export class Chorus extends WrappedEffect {
   setMix(m: number): void { this.wrap.setMix(m); }
   setRate(hz: number): void {
     this.rate = hz;
-    this.lfo?.frequency.setTargetAtTime(hz, this.ctx.currentTime, RAMP_SMOOTH);
+    if (this.lfo) rampTo(this.lfo.frequency, hz, this.ctx, RAMP_SMOOTH);
   }
   setDepth(d: number): void {
     const w = chorusSwing(d);

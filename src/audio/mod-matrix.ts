@@ -1,5 +1,5 @@
 import type { Voice } from './voice';
-import { rampTo, RAMP_MEDIUM } from './param-utils';
+import { rampTo, RAMP_MEDIUM, MUTE_SETTLE_MS } from './param-utils';
 import {
   MOD_ROWS, MOD_SRC, MOD_DST, MOD_DEST_SCALE, isPerVoiceSource, isBusWideDest,
 } from '../state/mod-routing';
@@ -127,13 +127,12 @@ export class ModMatrix {
     const gen = ++r.gen;
     r.rewiring = true;
 
-    // ~4 time constants of RAMP_MEDIUM: the gain is inaudible well before the rewire.
     window.setTimeout(() => {
       if (this.rows[row]?.gen !== gen) return;   // superseded by a later change
       r.rewiring = false;
       this.rewire(row);
       this.applyGain(row);
-    }, 40);
+    }, MUTE_SETTLE_MS);
   }
 
   /** Disconnect whatever the row's chains hold, then connect what they should. */

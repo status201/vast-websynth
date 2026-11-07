@@ -1,6 +1,7 @@
 import { applyDrive, type DirtNodes, type Voicing } from './dirt';
 import { VOICINGS, VoicingRouter } from './dirt-voicings';
 import { dirtTypeOf, type DirtType } from '../../state/dirt';
+import { rampTo } from '../param-utils';
 
 /** The wet path's glide to silence before a type swap (dirt-types.md REQ-a-dirt-type-switch-is-click-free). */
 export const TYPE_DIP_S = 0.005;
@@ -50,7 +51,7 @@ export class DirtSwitch {
     }
     if (this.dipped || this.target === this.type) return;
     this.dipped = true;
-    this.nodes.postGain.gain.setTargetAtTime(0, this.ctx.currentTime, TYPE_DIP_S);
+    rampTo(this.nodes.postGain.gain, 0, this.ctx, TYPE_DIP_S);
     this.swapTimer = window.setTimeout(() => {
       this.swapTimer = null;
       this.swap();

@@ -10,12 +10,11 @@ import { LaneMeter } from './lane-meter';
 import { rampTo, RAMP_MEDIUM, toneCutoff, liveStartTime } from '../param-utils';
 import { forceStereo } from '../stereo';
 import { reverseBuffer } from '../recorder/audio-buffer';
-import { CHOKE_FADE, SAMPLER_ATTACK } from '../clip-fades';
+import { CHOKE_FADE, CHOKE_STOP, SAMPLER_ATTACK, fadeOutAt } from '../clip-fades';
 import { BUTTERWORTH_Q_DB } from '../effects/effect';
 
 export type SamplerStepListener = (step: number, when: number) => void;
 
-const CHOKE_STOP = 0.03;
 
 /**
  * The shortest window a `start`/`end` pair may resolve to (sampler.md REQ-a-hit-plays-a-window-of-the-buffer).
@@ -270,9 +269,7 @@ export class SamplerMachine {
     // last `stop()` call is the one that counts. Reported, so the voice cap can
     // tell a hit it actually freed from one that was already on its way out.
     if (at + CHOKE_STOP >= h.stopAt) return false;
-    h.g.gain.cancelScheduledValues(at);
-    h.g.gain.setValueAtTime(gainAt(h, at), at);
-    h.g.gain.linearRampToValueAtTime(0, at + CHOKE_FADE);
+    fadeOutAt(h.g.gain, at, gainAt(h, at));
     h.src.stop(at + CHOKE_STOP);
     h.stopAt = at + CHOKE_STOP;
     return true;

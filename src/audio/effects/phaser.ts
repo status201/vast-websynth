@@ -1,6 +1,6 @@
 import { WrappedEffect, bindBypassMix } from './effect';
 import { clamp01 } from '../../utils/math';
-import { RAMP_SMOOTH } from '../param-utils';
+import { RAMP_SMOOTH, rampTo } from '../param-utils';
 import { bindTempoLocked } from '../tempo-bind';
 import type { ParamBus } from '../../state/params';
 
@@ -90,20 +90,20 @@ export class Phaser extends WrappedEffect {
 
   setMix(m: number): void { this.wrap.setMix(m); }
   setRate(hz: number): void {
-    this.lfo.frequency.setTargetAtTime(hz, this.ctx.currentTime, RAMP_SMOOTH);
+    rampTo(this.lfo.frequency, hz, this.ctx, RAMP_SMOOTH);
   }
   setDepth(d: number): void {
     this.depth = clamp01(d);
     for (let i = 0; i < STAGES; i++) {
       const cents = stageCents(this.depth, this.stages[i]!.frequency.value);
-      this.lfoDepths[i]!.gain.setTargetAtTime(cents, this.ctx.currentTime, RAMP_SMOOTH);
+      rampTo(this.lfoDepths[i]!.gain, cents, this.ctx, RAMP_SMOOTH);
     }
   }
   setFeedback(f: number): void {
     // Recorded even while quiesced, so the restore lands on the current knob.
     this.fb = Math.max(0, Math.min(0.95, f));
     if (this.quiesced) return;
-    this.feedback.gain.setTargetAtTime(this.fb, this.ctx.currentTime, RAMP_SMOOTH);
+    rampTo(this.feedback.gain, this.fb, this.ctx, RAMP_SMOOTH);
   }
 
   /**

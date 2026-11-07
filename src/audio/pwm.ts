@@ -1,6 +1,7 @@
 import { LfoDest } from './lfo';
 import { PWM_MAX_WIDTH, PWM_MIN_WIDTH, type Osc } from './oscillator';
 import { clamp01 } from '../utils/math';
+import { waveIndex } from './waves';
 
 /** Control-loop rate. Smoothness is `PWM_CONTROL_HZ / lfoRate` duty updates per
  *  cycle — 240 at 1 Hz, ~24 at the PWM_RATE_MAX cap (oscillators.md REQ-set-periodic-wave-is-immediate). */
@@ -32,7 +33,7 @@ interface PwmSource {
   wave: number;
 }
 
-/** One LFO cycle, evaluated in JS. Shapes mirror `WAVE_TYPES` in `lfo.ts`:
+/** One LFO cycle, evaluated in JS. Shapes mirror `WAVE_TYPES` in `waves.ts`:
  *  sine / triangle / sawtooth / square, each bipolar and starting at 0 (or +1
  *  for square), matching the phase convention of the native OscillatorNode. */
 function shape(wave: number, p: number): number {
@@ -102,7 +103,7 @@ export class PwmDriver {
   }
 
   setWave(src: number, idx: number): void {
-    this.slot(src).wave = Math.max(0, Math.min(3, Math.round(idx)));
+    this.slot(src).wave = waveIndex(idx);
   }
 
   /** Which LFO is sweeping the width, or null. Exposed for tests + the specs. */

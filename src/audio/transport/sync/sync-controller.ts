@@ -4,6 +4,7 @@ import { readSyncMode, writeSyncMode } from '../../../state/sync-mode';
 import { type TickTimer, TimeoutTimer } from '../tick-timer';
 import type { SyncMaster } from './sync-master';
 import type { SyncSlave } from './sync-slave';
+import { ListenerSet } from '../../../utils/listeners';
 
 /** The lazy role module (REQ-the-sync-roles-load-with-the-mode). */
 export type SyncRoles = typeof import('./sync-roles');
@@ -85,7 +86,7 @@ export class SyncController {
   private master: SyncMaster | null = null;
   private slave: SyncSlave | null = null;
   private slaveUnsub: (() => void) | null = null;
-  private readonly statusListeners = new Set<(s: SyncStatus) => void>();
+  private readonly statusListeners = new ListenerSet<[s: SyncStatus]>();
   private readonly persist: boolean;
   private readonly nowMs: () => number;
   private readonly watchdog: TickTimer;
@@ -174,8 +175,7 @@ export class SyncController {
   }
 
   onStatus(cb: (s: SyncStatus) => void): () => void {
-    this.statusListeners.add(cb);
-    return () => { this.statusListeners.delete(cb); };
+    return this.statusListeners.add(cb);
   }
 
   private broadcast(msg: SyncMessage, atMs?: number): void {
@@ -348,6 +348,6 @@ export class SyncController {
 
   private emitStatus(): void {
     const s = this.status;
-    for (const l of this.statusListeners) l(s);
+    this.statusListeners.emit(s);
   }
 }

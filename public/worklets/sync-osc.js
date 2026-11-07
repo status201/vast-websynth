@@ -540,6 +540,8 @@ function waveIndex(v) {
   return i < 0 ? 0 : i > 3 ? 3 : i;
 }
 
+// 0.5..0.95 mirrors PWM_MIN_WIDTH / PWM_MAX_WIDTH in src/audio/oscillator.ts, which a
+// worklet cannot import — change both together.
 function widthOf(v) {
   const w = finiteOr(v, 0.5);
   return w < 0.5 ? 0.5 : w > 0.95 ? 0.95 : w;

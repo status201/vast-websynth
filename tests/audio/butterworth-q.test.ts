@@ -93,8 +93,8 @@ describe('every fixed lowpass/highpass is a true Butterworth (REQ-a-fixed-filter
     // path from the repo root, since jsdom's URL does not resolve file: URLs).
     const src = (rel: string) => readFileSync(join(process.cwd(), 'src', rel), 'utf8');
     const engine = src('audio/engine.ts');
-    expect(engine).toContain('this.djLow.Q.value = BUTTERWORTH_Q_DB;');
-    expect(engine).toContain('this.djHigh.Q.value = BUTTERWORTH_Q_DB;');
+    expect(engine).toContain("this.djLow = butterworth(this.ctx, 'lowpass', 20000);");
+    expect(engine).toContain("this.djHigh = butterworth(this.ctx, 'highpass', 20);");
     expect(src('audio/recorder/offline-render.ts')).toContain('biquad.Q.value = BUTTERWORTH_Q_DB;');
   });
 });

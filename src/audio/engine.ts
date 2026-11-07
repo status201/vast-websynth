@@ -11,7 +11,7 @@ import { ParamBus, registerDefaults } from '../state/params';
 import { masterLevel } from '../state/master-level';
 import { rampTo, RAMP_FAST, RAMP_MEDIUM } from './param-utils';
 import { forceStereo } from './stereo';
-import { DISCONNECT_DELAY_MS, BUTTERWORTH_Q_DB } from './effects/effect';
+import { DISCONNECT_DELAY_MS, butterworth } from './effects/effect';
 import { Polyphony } from './polyphony';
 import { LaneMixer } from './lane-mixer';
 import type { SynthOutput, NoteOptions } from './transport/note-output';
@@ -19,6 +19,7 @@ import { Clock } from './transport/clock';
 import { Arpeggiator } from './transport/arpeggiator';
 import { StepSequencer } from './transport/sequencer';
 import { DrumMachine } from './transport/drum-machine';
+import { makeNoiseBuffer } from './drums/drum-synths';
 import { SamplerMachine } from './transport/sampler-machine';
 import { MotionMachine } from './transport/motion-machine';
 import { Arrangement } from './transport/arrangement';
@@ -212,6 +213,7 @@ export class Engine {
   private readonly modWheelSource: ConstantSourceNode;
   private readonly randomSource: SampleHold;
   private readonly noise: AudioBufferSourceNode;
+  private readonly noiseBuffer: AudioBuffer;
 
   // Voice allocation + voicing (poly/unison/glide/drift) and the Song-tab lane
   // mixer (mute/solo/volume) are delegated out of the Engine (ADR-008).
@@ -396,14 +398,9 @@ export class Engine {
     this.samplerFx.wire(this.samplerBus, this.preMaster);
 
     // DJ performance filter — transparent by default, swept live via detune.
-    this.djLow = this.ctx.createBiquadFilter();
-    this.djLow.type = 'lowpass';
-    this.djLow.frequency.value = 20000; // reference only; never written again
-    this.djLow.Q.value = BUTTERWORTH_Q_DB;  // at rest (effects.md REQ-a-fixed-filter-is-a-true-butterworth)
-    this.djHigh = this.ctx.createBiquadFilter();
-    this.djHigh.type = 'highpass';
-    this.djHigh.frequency.value = 20;   // reference only; never written again
-    this.djHigh.Q.value = BUTTERWORTH_Q_DB;
+    // Frequencies are references only, never written again; Butterworth at rest.
+    this.djLow = butterworth(this.ctx, 'lowpass', 20000);
+    this.djHigh = butterworth(this.ctx, 'highpass', 20);
 
     // SSL-style bus compressor after the DJ filter (sweeps breathe through
     // it) and before the analyser (the scope shows the compression).
@@ -457,7 +454,9 @@ export class Engine {
     });
     this.modMatrix.setPanTarget(this.synthPan.pan);
 
-    this.noise = this.createNoiseSource();
+    // One 2 s white-noise buffer: the noise oscillator loops it, the drum voices read it.
+    this.noiseBuffer = makeNoiseBuffer(this.ctx);
+    this.noise = this.createNoiseSource(this.noiseBuffer);
 
     this.patterns = new PatternStore();
     this.clock = new Clock(this.ctx, { scheduleAheadS: opts.scheduleAheadS });
@@ -517,7 +516,7 @@ export class Engine {
     };
     this.arp = new Arpeggiator(synthOutput, this.bus, this.clock, this.scale);
     this.seq = new StepSequencer(synthOutput, this.clock, this.patterns, this.arrangement, this.perf, this.scale);
-    this.drums = new DrumMachine(this.ctx, this.clock, this.patterns, this.arrangement, this.perf, this.drumBus, this.fxOversample);
+    this.drums = new DrumMachine(this.ctx, this.clock, this.patterns, this.arrangement, this.perf, this.drumBus, this.fxOversample, this.noiseBuffer);
     this.sampler = new SamplerMachine(this.ctx, this.clock, this.patterns, this.arrangement, this.perf, this.samplerBus);
     // Motion writes params (not audio), evaluated against the audio clock's now.
     this.motion = new MotionMachine(this.clock, this.patterns, this.arrangement, this.xyStore, this.bus, {
@@ -1427,11 +1426,7 @@ export class Engine {
 
   // ---------- Noise source ----------
 
-  private createNoiseSource(): AudioBufferSourceNode {
-    const sr = this.ctx.sampleRate;
-    const buf = this.ctx.createBuffer(1, sr * 2, sr);
-    const data = buf.getChannelData(0);
-    for (let i = 0; i < data.length; i++) data[i] = Math.random() * 2 - 1;
+  private createNoiseSource(buf: AudioBuffer): AudioBufferSourceNode {
     const src = this.ctx.createBufferSource();
     src.buffer = buf;
     src.loop = true;

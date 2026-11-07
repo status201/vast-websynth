@@ -1,17 +1,13 @@
 import { WrappedEffect, bindBypassMix } from './effect';
 import { clamp01, midiToHz } from '../../utils/math';
-import { RAMP_SMOOTH } from '../param-utils';
+import { RAMP_SMOOTH, rampTo } from '../param-utils';
 import { bindTempoLocked } from '../tempo-bind';
+import { stageCents } from './phaser';
 import type { ParamBus } from '../../state/params';
 
 /** The sweep's fixed pivot: MIDI 75 = D#5 = 622.25 Hz. */
 const CENTER_NOTE = 75;
 const CENTER_HZ = midiToHz(CENTER_NOTE);
-/**
- * The upward reach at full depth, as the linear-Hz mapping expressed it. Kept
- * only so `depthCents` can reproduce that top exactly — see REQ-the-wah-lfo-sweeps-in-cents.
- */
-const SWEEP_TOP_HZ = 1500;
 /**
  * Makeup for the bandpass's insertion loss (effects.md REQ-toggling-an-effect-must-not-step-the-level). A
  * constant-peak-gain bandpass passes a share of a broadband signal proportional
@@ -68,17 +64,17 @@ export class Wah extends WrappedEffect {
   }
 
   setRate(hz: number): void {
-    this.lfo.frequency.setTargetAtTime(hz, this.ctx.currentTime, RAMP_SMOOTH);
+    rampTo(this.lfo.frequency, hz, this.ctx, RAMP_SMOOTH);
   }
   setDepth(d: number): void {
     this.depth = clamp01(d);
-    this.lfoDepth.gain.setTargetAtTime(this.depthCents(), this.ctx.currentTime, RAMP_SMOOTH);
+    rampTo(this.lfoDepth.gain, this.depthCents(), this.ctx, RAMP_SMOOTH);
   }
   setQ(q: number): void {
-    this.bp.Q.setTargetAtTime(q, this.ctx.currentTime, RAMP_SMOOTH);
+    rampTo(this.bp.Q, q, this.ctx, RAMP_SMOOTH);
     // A narrower band throws away more of the signal, so the makeup tracks it
     // rather than being a fixed trim (REQ-toggling-an-effect-must-not-step-the-level).
-    this.makeup.gain.setTargetAtTime(makeupFor(q), this.ctx.currentTime, RAMP_SMOOTH);
+    rampTo(this.makeup.gain, makeupFor(q), this.ctx, RAMP_SMOOTH);
   }
 
   bind(bus: ParamBus, prefix: string): void {
@@ -98,9 +94,10 @@ export class Wah extends WrappedEffect {
    *
    * The curve is the cents equivalent of that old *upward* excursion, so the top
    * of every stored song's sweep is exactly where it was and only the bottom
-   * moves — 22 Hz becomes 317 Hz at the default depth of 0.4.
+   * moves — 22 Hz becomes 317 Hz at the default depth of 0.4. The phaser's
+   * `stageCents` is the same curve, so the wah is one stage centred on its pivot.
    */
   private depthCents(): number {
-    return 1200 * Math.log2(1 + this.depth * SWEEP_TOP_HZ / CENTER_HZ);
+    return stageCents(this.depth, CENTER_HZ);
   }
 }

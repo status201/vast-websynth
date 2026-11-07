@@ -3,6 +3,7 @@ import { type TickTimer, defaultTickTimer } from '../tick-timer';
 import { ClockOffsetEstimator } from './clock-offset';
 import { encodeSignal, decodeSignal } from './webrtc-signaling';
 import { type WebRtcDiagnostics, type CandInfo, emptyDiagnostics, parseCandidate } from './webrtc-diagnostics';
+import { ListenerSet } from '../../../utils/listeners';
 
 /**
  * WebRTC DataChannel implementation of `SyncTransport` — the WiFi sibling of
@@ -63,9 +64,9 @@ export class WebRtcSyncTransport implements SyncTransport {
   private _linked = false;
   private pingCount = 0;
 
-  private readonly messageListeners = new Set<(msg: SyncMessage, receivedAtMs: number) => void>();
-  private readonly portListeners = new Set<() => void>();
-  private readonly diagListeners = new Set<() => void>();
+  private readonly messageListeners = new ListenerSet<[msg: SyncMessage, receivedAtMs: number]>();
+  private readonly portListeners = new ListenerSet();
+  private readonly diagListeners = new ListenerSet();
   private diag: WebRtcDiagnostics = emptyDiagnostics();
   private disconnectTimer = 0;
   private statsTimer = 0;
@@ -106,8 +107,7 @@ export class WebRtcSyncTransport implements SyncTransport {
   }
 
   onMessage(cb: (msg: SyncMessage, receivedAtMs: number) => void): () => void {
-    this.messageListeners.add(cb);
-    return () => { this.messageListeners.delete(cb); };
+    return this.messageListeners.add(cb);
   }
 
   ports(): { ins: number; outs: number } {
@@ -115,8 +115,7 @@ export class WebRtcSyncTransport implements SyncTransport {
   }
 
   onPortsChange(cb: () => void): () => void {
-    this.portListeners.add(cb);
-    return () => { this.portListeners.delete(cb); };
+    return this.portListeners.add(cb);
   }
 
   /** Live diagnostics for the current/last pairing attempt (REQ-every-sync-attempt-is-recorded). */
@@ -125,8 +124,7 @@ export class WebRtcSyncTransport implements SyncTransport {
   }
 
   onDiagnostics(cb: () => void): () => void {
-    this.diagListeners.add(cb);
-    return () => { this.diagListeners.delete(cb); };
+    return this.diagListeners.add(cb);
   }
 
   get linked(): boolean {
@@ -381,15 +379,15 @@ export class WebRtcSyncTransport implements SyncTransport {
   }
 
   private emit(msg: SyncMessage, at: number): void {
-    for (const l of this.messageListeners) l(msg, at);
+    this.messageListeners.emit(msg, at);
   }
 
   private firePortsChange(): void {
-    for (const l of this.portListeners) l();
+    this.portListeners.emit();
   }
 
   private fireDiag(): void {
-    for (const l of this.diagListeners) l();
+    this.diagListeners.emit();
   }
 }
 

@@ -1,6 +1,6 @@
 import { WrappedEffect, bindBypassMix } from './effect';
 import { clamp01 } from '../../utils/math';
-import { RAMP_SMOOTH } from '../param-utils';
+import { RAMP_SMOOTH, rampTo } from '../param-utils';
 import type { ParamBus } from '../../state/params';
 
 /** `<prefix>.src` index that keys off every drum track (sidechain-ducking.md REQ-the-duck-key-is-one-track-or-any). */
@@ -85,7 +85,7 @@ export class Ducker extends WrappedEffect {
 
   setAmount(a: number): void {
     // Negative: the envelope *subtracts* from the intrinsic 1 (REQ-the-gain-law-is-bounded-by-construction).
-    this.depthGain.gain.setTargetAtTime(-clamp01(a), this.ctx.currentTime, RAMP_SMOOTH);
+    rampTo(this.depthGain.gain, -clamp01(a), this.ctx, RAMP_SMOOTH);
   }
   setAttack(s: number): void {
     this.attack = Math.max(0.001, s);

@@ -2,6 +2,7 @@ import type { Machine, PatternStore } from '../../state/patterns';
 import { REST, clampChainStep, clampTranspose } from '../../state/patterns';
 import { DEFAULT_BAR_TICKS, safeBarTicks} from '../../state/meter';
 import type { TickSubscriber } from './tick-source';
+import { ListenerSet } from '../../utils/listeners';
 
 /**
  * Song arrangement: independent chain lanes (sequencer, drums, sampler, motion).
@@ -77,7 +78,7 @@ export class Arrangement {
   private samplerPos = 0;
   private motionPos = 0;
   private expectFirstBar = true;
-  private readonly changeListeners = new Set<() => void>();
+  private readonly changeListeners = new ListenerSet();
 
   /**
    * Bar length in 16th ticks (meter.md REQ-bar-ticks-is-the-arrangement-bar-line). `DEFAULT_BAR_TICKS` is 4/4, so an
@@ -264,12 +265,11 @@ export class Arrangement {
   }
 
   onChange(fn: () => void): () => void {
-    this.changeListeners.add(fn);
-    return () => { this.changeListeners.delete(fn); };
+    return this.changeListeners.add(fn);
   }
 
   private notify(): void {
-    for (const l of this.changeListeners) l();
+    this.changeListeners.emit();
   }
 
   /** That lane's machine's bank count — the bound every chain index clamps to. */

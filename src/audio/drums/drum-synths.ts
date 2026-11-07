@@ -8,6 +8,7 @@
  * so a long song does not accumulate stopped-but-connected nodes (the
  * persistent `output` gain, built once in the constructor, is never touched).
  */
+import { CHOKE_FADE, CHOKE_STOP } from '../clip-fades';
 export interface DrumSynth {
   /**
    * `GainNode`, not `AudioNode`: every implementation already builds one, and a
@@ -26,7 +27,6 @@ export interface DrumSynth {
   setDecay(seconds: number): void;
 }
 
-const CHOKE_FADE = 0.005;
 
 /**
  * How long an envelope takes to reach TRUE zero before its source stops
@@ -65,7 +65,7 @@ function chokeRoute(
   g.gain.setValueAtTime(1, chokeAt);
   g.gain.linearRampToValueAtTime(0, chokeAt + CHOKE_FADE);
   g.connect(output);
-  return { dest: g, stopAt: (n) => Math.max(start, Math.min(n, chokeAt + 0.03)), choke: g };
+  return { dest: g, stopAt: (n) => Math.max(start, Math.min(n, chokeAt + CHOKE_STOP)), choke: g };
 }
 
 /**

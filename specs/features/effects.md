@@ -172,7 +172,7 @@ colours each bus independently.
 - **REQ-a-reverb-size-change-ducks** (v8) — `setSize` assigns `convolver.buffer`,
   which severs the ringing tail. So the swap uses the mute-then-edit idiom
   (`ModMatrix.patch`): ramp `wrap.processedOut` to 0 over `RAMP_MEDIUM`, swap on
-  a 40 ms generation-guarded timer, ramp back. **The identity guard compares
+  a `MUTE_SETTLE_MS` (40 ms, ~4 time constants) generation-guarded timer, ramp back. **The identity guard compares
   against the pending target, never against `convolver.buffer`.** A song load
   writes the size twice in one turn (default, then the song's), and a guard on
   the live buffer drops the second write. Any deferred edit owes this rule: guard
@@ -230,8 +230,10 @@ colours each bus independently.
   side of the DJ filter while it rests ([performance](performance.md)
   REQ-the-dj-filter-is-a-series-pair). A resonance a control sets keeps its own
   scale: the sampler's `res` rises from this floor, the DJ sweep's Q curve, the
-  wah, the synth filter. The delay damp and the ring-mod highpass were already
-  Butterworth ([delay-types](delay-types.md), [cross-modulation](cross-modulation.md)).
+  wah, the synth filter. The delay damp and the ring-mod highpass are Butterworth
+  too ([delay-types](delay-types.md), [cross-modulation](cross-modulation.md)).
+  Every one of them is built by `butterworth(ctx, type, hz)` in `effects/effect.ts`,
+  so the Q cannot be mistyped at a new site.
 
 ## Technical design
 

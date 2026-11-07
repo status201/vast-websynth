@@ -1,4 +1,5 @@
 import { MAX_CHAIN_STEPS } from '../../state/limits';
+import { ListenerSet } from '../../utils/listeners';
 
 /**
  * The transport loop's state (transport-loop.md): whether Loop is on, which bars
@@ -26,7 +27,7 @@ export class TransportLoop {
   private _enabled = false;
   private _range: LoopRange | null = null;
   private _anchor: number | null = null;
-  private readonly listeners = new Set<() => void>();
+  private readonly listeners = new ListenerSet();
 
   get enabled(): boolean { return this._enabled; }
   /** The range as picked — never shortened by the song (REQ-the-loop-range-is-limited-to-the-song). */
@@ -74,12 +75,11 @@ export class TransportLoop {
   }
 
   onChange(fn: () => void): () => void {
-    this.listeners.add(fn);
-    return () => { this.listeners.delete(fn); };
+    return this.listeners.add(fn);
   }
 
   private notify(): void {
-    for (const l of this.listeners) l();
+    this.listeners.emit();
   }
 }
 

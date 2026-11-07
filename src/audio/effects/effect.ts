@@ -65,6 +65,15 @@ export const DISCONNECT_DELAY_MS = 300;
  */
 export const BUTTERWORTH_Q_DB = 20 * Math.log10(Math.SQRT1_2);
 
+/** A Butterworth lowpass or highpass at `hz` — the one way a fixed filter is built (REQ-a-fixed-filter-is-a-true-butterworth). */
+export function butterworth(ctx: BaseAudioContext, type: 'lowpass' | 'highpass', hz: number): BiquadFilterNode {
+  const f = ctx.createBiquadFilter();
+  f.type = type;
+  f.frequency.value = hz;
+  f.Q.value = BUTTERWORTH_Q_DB;
+  return f;
+}
+
 /**
  * How long a stateless effect needs, fed silence, before what it holds *is*
  * silence — one `RAMP_MEDIUM`-ish settle for a biquad or a gain, no more. An
@@ -244,7 +253,7 @@ export class BypassWrapper {
   private update(): void {
     const wet = this.bypassed ? 0 : this.mix;
     const dry = this.bypassed ? 1 : 1 - this.mix;
-    const ctx = this.dry.context as AudioContext;
+    const ctx = this.dry.context;
     rampTo(this.dry.gain, dry, ctx, RAMP_BYPASS);
     rampTo(this.wet.gain, wet, ctx, RAMP_BYPASS);
   }

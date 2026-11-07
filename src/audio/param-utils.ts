@@ -14,6 +14,13 @@ export const RAMP_SMOOTH = 0.02;
  */
 export const RAMP_BYPASS = 0.025;
 
+/**
+ * How long to wait after ramping a gain to 0 at `RAMP_MEDIUM` before an edit
+ * that would click if heard — a rewire, an IR swap, a voice disconnect: ~4 time
+ * constants, so the gain is inaudible well before the edit lands.
+ */
+export const MUTE_SETTLE_MS = 40;
+
 /** Frames per render quantum — the shortest a live note's margin can be. */
 const RENDER_QUANTUM_FRAMES = 128;
 /** The longest live margin, whatever the device reports: past this it is latency. */
@@ -41,14 +48,17 @@ export function liveStartTime(ctx: BaseAudioContext): number {
   return ctx.currentTime + Math.min(LIVE_MARGIN_MAX_S, Math.max(quantum, burst));
 }
 
+/**
+ * Glide `param` to `value` from now, exponentially with `timeConstant` — the
+ * one way a control change reaches an AudioParam without a zipper or a step.
+ */
 export function rampTo(
   param: AudioParam,
   value: number,
-  ctx: AudioContext,
+  ctx: BaseAudioContext,
   timeConstant = RAMP_FAST,
 ): void {
-  const t = ctx.currentTime;
-  param.setTargetAtTime(value, t, timeConstant);
+  param.setTargetAtTime(value, ctx.currentTime, timeConstant);
 }
 
 /**

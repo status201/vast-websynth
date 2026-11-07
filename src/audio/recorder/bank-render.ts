@@ -2,13 +2,15 @@ import type { Clock } from '../transport/clock';
 import type { CapturedAudio, RecorderNode } from './node';
 import { DEFAULT_BAR_TICKS, safeBarTicks} from '../../state/meter';
 import { crop, fadeIn, fadeOut } from './buffer-dsp';
+import { TAIL_MS } from './recorder-controller';
+import { ListenerSet } from '../../utils/listeners';
 
 /** Passes played per render: bar 1 primes delay/reverb/release tails, bar 2 is
  *  kept — so the tail is baked into the loop's start and it wraps seamlessly. */
 export const RENDER_BARS = 2;
 /** Grace period after the final bar so the worklet captures the scheduled
- *  look-ahead audio before we read the buffer (mirrors exportSong's TAIL_MS). */
-export const RENDER_TAIL_MS = 350;
+ *  look-ahead audio before we read the buffer — export's own `TAIL_MS`. */
+export const RENDER_TAIL_MS = TAIL_MS;
 /** Anti-click fade at each crop boundary (~128 samples at 44.1 kHz). */
 const RENDER_FADE_MS = 3;
 
@@ -48,7 +50,7 @@ export class BankRenderController {
   private rendering = false;
   private unsubTick: (() => void) | null = null;
   private unsubStop: (() => void) | null = null;
-  private readonly stateListeners = new Set<(rendering: boolean) => void>();
+  private readonly stateListeners = new ListenerSet<[rendering: boolean]>();
   /** Bar length in 16th ticks (meter.md REQ-bar-exact-capture-follows-bar-ticks) — a rendered bar must be the
    *  song's bar, not always 16 steps. The Engine pushes changes here. */
   private barTicks = DEFAULT_BAR_TICKS;
@@ -67,12 +69,11 @@ export class BankRenderController {
   isRendering(): boolean { return this.rendering; }
 
   onState(fn: (rendering: boolean) => void): () => void {
-    this.stateListeners.add(fn);
-    return () => { this.stateListeners.delete(fn); };
+    return this.stateListeners.add(fn);
   }
 
   private notify(): void {
-    for (const l of this.stateListeners) l(this.rendering);
+    this.stateListeners.emit(this.rendering);
   }
 
   async render(): Promise<CapturedAudio> {

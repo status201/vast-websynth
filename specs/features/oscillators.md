@@ -17,6 +17,7 @@ related:
 source:
   - src/audio/oscillator.ts    # duty bank + setPulseWidth
   - src/audio/pwm.ts
+  - src/audio/waves.ts         # WAVE_TYPES, the one wave table oscillators, LFOs and PWM index
   - src/audio/voice.ts
   - src/state/params.ts
   - src/audio/engine.ts        # subscribeParams (osc1/osc2/sub/noise)

@@ -435,7 +435,7 @@ export class Voice {
     // *this* note, so a ramp from the previous note's values would smear two notes
     // together (mod-matrix.md REQ-per-voice-sources-cannot-drive-bus-destinations). Key is normalised around middle C over ±4
     // octaves, so a route's depth means the same thing on every destination.
-    this.keySource.offset.setValueAtTime(clamp((note - 60) / 48, -1, 1), when);
+    this.keySource.offset.setValueAtTime(clamp((note - KEY_CENTER) / 48, -1, 1), when);
     // A continued envelope is not struck again: it runs on from where it is
     // (sequencer.md REQ-a-tie-continues-the-note-without-retriggering). The
     // velocity belongs to the amp's strike. The pitch, bend and key tracking above
