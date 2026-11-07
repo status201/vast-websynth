@@ -130,6 +130,9 @@ someone has looked at it.
   - `--switch-on-bed` and `--switch-on-ink`: if your on and off inks sit close,
     light the cap.
   - `--play-on-ink`: if you lit the cap, point it at `var(--switch-on-ink)`.
+  - `--brand-tagline-tracking`: with a new `--serif`, check that the logo's
+    tagline still ends under the end of `G1-J8` (brand.md
+    REQ-the-tagline-spans-the-badge-row); a condensed face needs more.
   - `--lit-text-shadow`: the shadow under a lit step's note name. Black lifts
     light type; under dark type it only blurs, so make it `transparent`.
   - `--veil`: on a light theme, fade it toward the panel, not black.

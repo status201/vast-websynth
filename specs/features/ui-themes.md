@@ -74,9 +74,10 @@ Fonts are system stacks only — the app bundles no font file
 ## Requirements
 
 - **REQ-a-theme-is-a-palette-and-two-faces** — A theme is an id, a display name,
-  and a value for every colour token plus `--serif` (display) and `--sans`
-  (content). [typography](typography.md) still decides *which* face a piece of
-  text gets; a theme only decides what each face *is*.
+  and a value for every colour token plus `--serif` (display; its tagline
+  tracking too, [brand](brand.md)) and `--sans` (content).
+  [typography](typography.md) still decides *which* face a piece of text gets;
+  a theme only decides what each face *is*.
 - **REQ-mono-is-not-themed** — `--mono` is the same in every theme: it is the
   one face with tabular figures ([typography](typography.md)
   REQ-mono-is-readouts-and-pasted-text), and a theme must not make a counter jitter.
@@ -173,7 +174,7 @@ Fonts are system stacks only — the app bundles no font file
   amber (`--accent-secondary`) on its dark well, and in a theme that lights the
   cap, the cap's own `--switch-on-ink`, so Play reads like every other on switch.
   Either way it reads on the on bed at 4.5:1. Except: a `toggleActive` header
-  icon (Fullscreen is also `on`) keeps `--well`; outline and glyph say on.
+  icon (Fullscreen is also `on`) keeps `--well`.
 - **REQ-step-marks-read-on-every-bed** — The marks a step button draws over
   itself, the ratchet ticks and the bend stroke
   ([step-settings](step-settings.md)), paint `--step-mark` with a 1px
@@ -545,7 +546,7 @@ Scenario: active Fullscreen keeps its well (regression, REQ-an-on-switch-reads-a
   Given Fullscreen engaged, so its button is both "on" and toggleActive
   When Race lit its cap with --switch-on-bed, the --accent glyph all but vanished
   Then it keeps --well: an --accent outline and glyph
-# not pinned: jsdom has no cascade layers; check by eye
+# not pinned: check by eye
 
 Scenario: type on its own fill stays legible (regression, REQ-tokens-are-named-by-role)
   Given the playing bar (transport, ruler), the About card's keycaps, a lit DJ button and the info badge

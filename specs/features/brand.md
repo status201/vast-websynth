@@ -3,7 +3,7 @@
 ```yaml
 id: brand
 status: implemented
-version: 4
+version: 5
 owner: ui
 related:
   - architecture
@@ -92,6 +92,16 @@ not a feature — it owns markup and styling only, and has no state.
     is what the eye reads as centred. It is written down here because a
     symmetric `padding: 3px 8px` looks like the tidy version, and reverting to
     it is the obvious wrong move.
+
+- **REQ-the-tagline-spans-the-badge-row** (v5) — **The tagline ends near the
+  end of the `G1-J8` badge**, within a few pixels, in every theme. Each theme's
+  `--serif` sets the string at its own width, so its tracking is the theme's
+  `--brand-tagline-tracking` ([ui-themes](ui-themes.md)): 0.15em, except
+  Pastel's 0.23em, whose Arial Narrow set it ~24px short of the row.
+  - Tuned against the faces Windows ships. Where a theme's first face is
+    missing, its fallback sets a different width; re-measure, don't guess.
+  - Not pinned: jsdom lays out no text. Checked by eye, and by measuring the
+    tagline's text range against the badge's right edge in each theme.
 
 ## Technical design
 

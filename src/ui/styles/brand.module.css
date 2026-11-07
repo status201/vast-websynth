@@ -63,7 +63,9 @@
     font-family: var(--serif);
     font-size: 7.5px;
     font-style: normal;
-    letter-spacing: 0.15em;
+    /* Per theme: each --serif sets this string at its own width, and the tagline
+       ends under the badge's end (brand.md REQ-the-tagline-spans-the-badge-row). */
+    letter-spacing: var(--brand-tagline-tracking);
     color: var(--text);
     text-transform: uppercase;
     margin-top: 4px;

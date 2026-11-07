@@ -166,5 +166,6 @@
     /* ===== Faces ===== */
     --serif: 'Georgia', 'Times New Roman', serif;
     --sans: 'Inter', system-ui, -apple-system, sans-serif;
+    --brand-tagline-tracking: 0.15em;
   }
 }

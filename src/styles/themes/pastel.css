@@ -175,5 +175,7 @@
     /* ===== Faces: a condensed grotesque for the legends ===== */
     --serif: 'Arial Narrow', 'Roboto Condensed', 'Helvetica Neue', Arial, sans-serif;
     --sans: 'Inter', system-ui, -apple-system, sans-serif;
+    /* Arial Narrow sets the tagline ~24px short of the badge row at 0.15em. */
+    --brand-tagline-tracking: 0.23em;
   }
 }

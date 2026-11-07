@@ -178,5 +178,6 @@
     /* ===== Faces: a humanist sans for the legends ===== */
     --serif: 'Gill Sans', 'Gill Sans MT', Optima, Candara, 'Segoe UI', sans-serif;
     --sans: 'Inter', system-ui, -apple-system, sans-serif;
+    --brand-tagline-tracking: 0.15em;
   }
 }
