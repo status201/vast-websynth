@@ -196,7 +196,7 @@ export function motionTrackDepth(bank: readonly (MotionTrack | null)[] | null | 
 export const SEQ_LENGTH = GRID_CELLS;
 
 /** Sequencer tracks per bank (sequencer.md REQ-four-tracks-per-bank). Track 0 is the pre-v3
- *  sequencer; 1..3 are the additions and only sound in poly voicing (REQ-song-file-v4-adds-motion-banks). */
+ *  sequencer; 1..3 are the additions and only sound in poly voicing (sequencer.md REQ-poly-voicing-gates-the-extra-tracks). */
 export const SEQ_TRACK_COUNT = 4;
 /** Derived, for the reason {@link MOTION_TRACK_LABELS} gives. */
 export const SEQ_TRACK_LABELS: string[] =
@@ -902,7 +902,7 @@ export class PatternStore {
   // Each emits exactly ONE `*-copy` mutation carrying a clone of the whole
   // pre-clear bank, so a single Undo press restores everything — emitting N
   // per-cell mutations would cost N undo presses to reverse one click. Only
-  // `on` is reset (REQ-set-steps-are-anchors): a cleared step keeps its note/velocity/gate, so
+  // `on` is reset (step-grid-editing.md REQ-toggling-off-is-non-destructive): a cleared step keeps its note/velocity/gate, so
   // re-toggling it restores the step exactly. Each returns whether anything
   // changed, so a caller can skip the toast on an already-empty bank.
 
@@ -970,7 +970,7 @@ export class PatternStore {
    * named, cleared under a SINGLE `motion-copy` mutation carrying the whole
    * pre-clear bank — anchors, axis override and both tracks — so one Undo
    * press restores everything however narrow the clear was. Only `on` is reset
-   * (REQ-set-steps-are-anchors) and the axis override / track params survive: they are
+   * (step-grid-editing.md REQ-toggling-off-is-non-destructive) and the axis override / track params survive: they are
    * configuration, not step data.
    */
   private clearMotionCells(xy: boolean, tracks: readonly number[]): boolean {

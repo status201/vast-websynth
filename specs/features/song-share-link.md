@@ -217,6 +217,5 @@ Scenario: Round-trip encode/decode
 
 - A QR code for the share URL (the WiFi-sync pair modal already renders QR).
 - A **remembered per-origin allow-list** for `#songUrl=`, so a host the user
-  already trusted stops prompting. (The size cap and the consent gate that this
-  bullet used to defer both landed in v3 — see REQ-a-linked-fetch-needs-consent/REQ-share-payload-is-capped.)
-- ~~Streaming the fetched body~~ — done in v4 (REQ-a-linked-fetch-needs-consent).
+  already trusted stops prompting. (The size cap and the consent gate are in
+  place: REQ-a-linked-fetch-needs-consent/REQ-share-payload-is-capped.)

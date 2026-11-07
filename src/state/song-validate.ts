@@ -441,10 +441,10 @@ export function validateSongFile(value: unknown): SongValidation {
 
   if (errors.length > 0) return { ok: false, errors };
 
-  // REQ-drop-in-demos-are-fetched-on-click — advisory, and only once the shape is known good, so the traversal
+  // untrusted-input.md REQ-an-unresolvable-target-warns — advisory, and only once the shape is known good, so the traversal
   // can trust the fields it walks. `warnings` is omitted rather than empty when
   // there is nothing to say, so a clean song's result stays deep-equal to its
-  // pre-REQ-drop-in-demos-are-fetched-on-click shape and nothing downstream can start depending on the key.
+  // pre-REQ-an-unresolvable-target-warns shape and nothing downstream can start depending on the key.
   const file = value as unknown as SongFile;
   const warnings = unresolvedTargets(file);
   return warnings.length > 0 ? { ok: true, file, warnings } : { ok: true, file };

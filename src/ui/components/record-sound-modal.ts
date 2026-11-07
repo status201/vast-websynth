@@ -1187,7 +1187,7 @@ export function openRecordSoundModal(engine: StudioApi, opts: RecordSoundOptions
         repick = true;
       }
 
-      // REQ-a-segment-may-be-cut — preselect the target nearest what the selection already is, so
+      // time-stretch.md REQ-the-fit-row-preselects-the-nearest-target — preselect the target nearest what the selection already is, so
       // the offered action is the one that barely moves the audio. Only on a real
       // change of material: re-picking under a dragging crop handle would fight
       // whatever the user had chosen.

@@ -259,7 +259,7 @@ export function buildSongPanel(bus: ParamBus, engine: StudioApi, session: Preset
     // is single-slot, so a second toast would replace this one and take the Undo
     // affordance with it. And never a dialog — the song loaded fine, and
     // interrupting a good import to report a lane that will not sweep is the
-    // guard-crying-wolf failure REQ-song-file-v4-adds-motion-banks warns about.
+    // guard-crying-wolf failure untrusted-input.md REQ-an-unresolvable-target-warns guards against.
     const dead = unresolvedTargets(file);
     const note = dead.length > 0
       ? ` — ${plural(dead.length, 'automation target')} not recognised`
@@ -315,7 +315,7 @@ export function buildSongPanel(bus: ParamBus, engine: StudioApi, session: Preset
   // The launcher doubles as the section title; the row carries the same set as
   // the floating window — Play/Pause and Loop included (transport-window.md
   // REQ-one-transport-control-builder, v5). BPM and SWING are on neither surface: they are permanently in
-  // the header, and only that copy knows to disable itself while slaved (REQ-set-steps-are-anchors).
+  // the header, and only that copy knows to disable itself while slaved (midi-clock-sync.md REQ-the-bpm-knob-shows-slaved).
   const transport = el('div', transportRowClass);
   transport.appendChild(createTransportWindowLauncher(engine, bridge));
   for (const c of buildTransportControls(engine, bridge)) {
@@ -466,7 +466,7 @@ export function buildSongPanel(bus: ParamBus, engine: StudioApi, session: Preset
     // still decoding must not be followed by a late re-mark.
     if (!persist) setLoadedDemo(name);
     // Undo (or any newer apply) during the sequential decodes below must win:
-    // a late clip may not touch the restored session's slots (REQ-song-file-v4-adds-motion-banks).
+    // a late clip may not touch the restored session's slots (session-autosave.md REQ-superseded-async-work-must-not-leak).
     const token = applyToken;
     // JSON only — after a reload, .needs-reload correctly reappears.
     const saved = persist && await saveImportedSlot(file);
@@ -617,7 +617,7 @@ export function buildSongPanel(bus: ParamBus, engine: StudioApi, session: Preset
   // sources and all four callers share, so no surface can reintroduce the silent
   // guess. It resolves before any fetch: a declined demo costs no network.
   // A name no source owns resolves to the first demo rather than to silence
-  // (REQ-motion-mute-is-an-ordinary-param, v18) — demo files are data, so the tour's `DEMO_FOR_TOUR` constant
+  // (song-mode.md REQ-drop-in-demos-are-fetched-on-click) — demo files are data, so the tour's `DEMO_FOR_TOUR` constant
   // can be orphaned by a rename that touches no code. Resolving BEFORE the
   // shadow question keeps the dialog naming the song that is actually loading.
   const loadDemo = async (name: string): Promise<void> => {
@@ -1200,7 +1200,7 @@ function buildChainLane(
   /**
    * Name a toolbar button three ways at once — testid, tooltip, screen reader.
    * `◀ ▶ ✕` had none of the three while `− + Clear` beside them had all of
-   * them; REQ-the-xy-window-axes-follow-motion makes the move buttons the precise path a drag falls back to,
+   * them; arrangement.md REQ-a-chip-is-dragged-to-its-place makes the move buttons the precise path a drag falls back to,
    * so they owe the same tooltip everything else in the row has
    * (recipes/design-an-interaction.md step 4).
    */

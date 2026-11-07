@@ -22,7 +22,7 @@ import { renderDemoLibrary } from '../components/demo-library';
  * A control's glyph inside help copy, drawn rather than typed (iconography.md
  * REQ-a-control-glyph-is-inline-svg). `<strong>` because that is how this copy already marks a control's
  * name; the SVG is aria-hidden, so the label on the wrapper is what a screen
- * reader gets — without it the sentence would simply lose a word (REQ-studio-api-exposes-both-channels).
+ * reader gets — without it the sentence would simply lose a word (iconography.md REQ-an-icon-is-aria-hidden).
  */
 const g = (name: IconName, label: string): string =>
   `<strong role="img" aria-label="${label}">${UI_ICONS[name]}</strong>`;
@@ -453,7 +453,7 @@ export const HELP_TOPICS: Record<TopicId, HelpTopic> = {
     title: 'Mono / Poly',
     body:
       '<p>How many notes can sound at once.</p>' +
-      '<p><strong>Poly</strong> plays chords — up to 8 notes together. Best for pads, keys and ' +
+      '<p><strong>Poly</strong> plays chords — up to 8 notes together (5 on the Weak performance tier). Best for pads, keys and ' +
       'anything harmonic.</p>' +
       '<p><strong>Mono</strong> plays one note at a time, like a classic bass or lead synth. ' +
       'Mono is also what makes <strong>GLIDE</strong> slide musically from note to note.</p>',
@@ -684,8 +684,9 @@ export const HELP_TOPICS: Record<TopicId, HelpTopic> = {
   fx: {
     title: 'Effects chain',
     body:
-      '<p>A chain of eight effects the synth runs through: <strong>Dirt → Wah → Phaser → ' +
-      'Flanger → Chorus → Delay → Reverb → Duck</strong>. Each has an on/off switch and a few knobs. Switch one on ' +
+      '<p>The synth runs through its <strong>EQ</strong> (its own section, below the scope) and then a chain ' +
+      'of eight effects: <strong>Dirt → Wah → Phaser → Flanger → Chorus → Delay → Reverb → Duck</strong>. ' +
+      'Each has an on/off switch and a few knobs. Switch one on ' +
       'and tweak — they turn a plain tone into something spacious or gnarly. Click the (i) on ' +
       'each effect for details.</p>' +
       '<p>Phaser, Flanger and Chorus share a panel: click its title, or the arrow next to it, to switch ' +
@@ -1052,9 +1053,9 @@ export const HELP_TOPICS: Record<TopicId, HelpTopic> = {
       'it like any sample: put it on the sampler grid, retune it, or re-open it with ' +
       g('edit', 'Edit') + '.</p>' +
       '<p><strong>Button greyed out?</strong> Either the bank has no steps yet (there would be ' +
-      'nothing to record), a recording or song export is running (both need the transport), or ' +
-      'the synth is slaved to an external MIDI clock — it needs to own the tempo to cut the bar ' +
-      'exactly.</p>' +
+      'nothing to record), a render is already running, or the synth is slaved to an external ' +
+      'clock (MIDI or WiFi) — it needs to own the tempo to cut the bar exactly. While a recording ' +
+      'or song export is running, Render refuses with a message instead: both need the transport.</p>' +
       '<p>The recorded audio is <em>not</em> saved inside a song file (only the slot name is), the ' +
       'same as any loaded sample. Render it again after loading, or save it to disk from the ' +
       'slot’s ' + g('edit', 'Edit') + ' editor.</p>',
@@ -1345,8 +1346,8 @@ export const HELP_TOPICS: Record<TopicId, HelpTopic> = {
       '<p>Loads the song chosen in the <strong>Slot</strong> dropdown back from your browser, ' +
       "replacing the current banks, chains and settings. Slots are the songs you've " +
       '<strong>Saved</strong> (plus the demos).</p>' +
-      '<p>It only loads — your current unsaved work is discarded, so <strong>Save</strong> first ' +
-      'if you want to return to it.</p>',
+      '<p>Loading replaces your current work. The <strong>Undo</strong> toast that appears right ' +
+      'after brings it back; <strong>Save</strong> first if you want to keep it as a song.</p>',
   },
   'song.save': {
     title: 'Save',
@@ -1386,7 +1387,8 @@ export const HELP_TOPICS: Record<TopicId, HelpTopic> = {
     title: 'New',
     body:
       '<p>Clears every bank and chain — sequencer, drums, sampler and motion — back to empty so ' +
-      'you can start a fresh song. It asks for confirmation first, as it cannot be undone.</p>' +
+      'you can start a fresh song. It asks for confirmation first, and the <strong>Undo</strong> toast ' +
+      'that follows brings the old song back if you change your mind.</p>' +
       '<p><strong>Save</strong> or <strong>Export</strong> anything you want to keep before ' +
       'pressing it.</p>',
   },
@@ -1493,14 +1495,15 @@ export const HELP_TOPICS: Record<TopicId, HelpTopic> = {
   modWheel: {
     title: 'Mod wheel',
     body:
-      '<p>Boosts the LFO on top of its Amount knob — pushing the wheel up deepens whatever ' +
-      'the LFO is pointed at: <strong>wobble</strong> (cutoff), <strong>vibrato</strong> ' +
+      '<p>Boosts <strong>LFO 1</strong> on top of its Amount knob — pushing the wheel up deepens ' +
+      'whatever LFO 1 is pointed at: <strong>wobble</strong> (cutoff), <strong>vibrato</strong> ' +
       '(pitch), <strong>tremolo</strong> (amp), <strong>PWM movement</strong> (pulse), ' +
       '<strong>auto-pan</strong> (pan), a <strong>filter-shape sweep</strong> (shape) or a ' +
       '<strong>sync sweep</strong> (sync).</p>' +
       '<p>On a MIDI keyboard, <strong>channel aftertouch</strong> (pressing harder on a held key) ' +
       'drives it too; the higher of the two wins.</p>' +
-      '<p>If the LFO destination is off, the wheel does nothing — pick a destination first.</p>',
+      '<p>It is also a source in the <strong>Mod matrix</strong>: route it there to drive any ' +
+      'other destination. With LFO 1 off and no matrix route using it, the wheel does nothing.</p>',
   },
   scope: {
     title: 'Wave / Spectrum view',

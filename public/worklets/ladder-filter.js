@@ -42,11 +42,11 @@ function satWide(x) {
 // stays put as the peak rises, instead of sagging under it. 1 is exact unity.
 const BASS_COMP = 1;
 // Level match against LADDER at the *default* resonance (0.5), so flipping the
-// switch is an A/B of character, not of loudness (REQ-the-filter-idles-when-gated). Above that POLY is
-// louder — that is REQ-filter-changes-reach-every-voice working. Dialled by ear, like RES_MAKEUP (ADR-010).
+// switch is an A/B of character, not of loudness (filter-models.md REQ-poly-trim-matches-the-levels). Above that POLY is
+// louder — that is filter-models.md REQ-poly-preserves-the-low-end working. Dialled by ear, like RES_MAKEUP (ADR-010).
 const POLY_TRIM = 0.85;
 
-// POLY pole-mix anchors (REQ-input-and-poles-are-saturated), as coefficients over [v, s0, s1, s2, s3].
+// POLY pole-mix anchors (filter-models.md REQ-shape-morphs-the-pole-mix), as coefficients over [v, s0, s1, s2, s3].
 // Binomial — HP_n is (1 - LP)^n applied to the loop input — so the four stage
 // outputs the cascade already computed yield LP24/LP12/BP12/HP24 for ~5 mul.
 // Feedback always stays on s3, so the resonant peak tracks cutoff in every mode.
@@ -121,8 +121,8 @@ class LadderFilterProcessor extends AudioWorkletProcessor {
         maxValue: 1,
         automationRate: 'k-rate',
       },
-      // POLY pole-mix morph (REQ-input-and-poles-are-saturated). a-rate so the LFO can sum into it and
-      // sweep the filter's *type*; ignored entirely by the LADDER path (REQ-self-oscillation-stays-gentle).
+      // POLY pole-mix morph (filter-models.md REQ-shape-morphs-the-pole-mix). a-rate so the LFO can sum into it and
+      // sweep the filter's *type*; ignored entirely by the LADDER path (filter-models.md REQ-shape-is-poly-only).
       {
         name: 'shape',
         defaultValue: 0,
@@ -380,7 +380,7 @@ function polyBlock(s, inCh, outCh, k) {
     // Drive saturates the input alone (against the wide rail), so
     // resonance behaviour stays independent of it. The (1 + res*BASS_COMP)
     // pre-gain is the bass-preservation trick: it cancels the 1/(1+res)
-    // the feedback subtraction would otherwise cost the low end (REQ-filter-changes-reach-every-voice).
+    // the feedback subtraction would otherwise cost the low end (filter-models.md REQ-poly-preserves-the-low-end).
     const v = satWide(x * drive) * (1 + res * BASS_COMP) - res * fb;
 
     s0 += g * (v - s0);
@@ -389,8 +389,8 @@ function polyBlock(s, inCh, outCh, k) {
     s3 += g * (s2 - s3);
     q3prev = q3;
 
-    // Pole mix (REQ-input-and-poles-are-saturated). |v| is bounded by (1 + res) + res and the four
-    // linear one-poles cannot exceed it, so this stays finite (REQ-the-filter-worklet-module-is-awaited).
+    // Pole mix (filter-models.md REQ-shape-morphs-the-pole-mix). |v| is bounded by (1 + res) + res and the four
+    // linear one-poles cannot exceed it, so this stays finite (filter-models.md REQ-poly-output-is-finite-and-bounded).
     outCh[i] = (mv * v + m0 * s0 + m1 * s1 + m2 * s2 + m3 * s3) * POLY_TRIM;
   }
 

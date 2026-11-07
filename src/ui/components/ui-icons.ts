@@ -12,7 +12,7 @@
  * Modeled on `rest-glyph.ts` rather than `header-icons.ts`: no per-context
  * stylesheet is required, because `base.css` strokes `svg.ui-icon` globally and
  * sizes it in `em` — so one icon renders correctly on a keycap, in a button and
- * inside a help paragraph, at each one's own font-size (REQ-compact-drops-text-not-icon).
+ * inside a help paragraph, at each one's own font-size (iconography.md REQ-ui-icons-are-self-stroking).
  *
  * No inline colour anywhere: `currentColor` is what lets a state class tint a
  * glyph that knows nothing about that state. Solid sub-shapes opt out of the

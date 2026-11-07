@@ -47,7 +47,7 @@ export const MAX_RUNS = 10;
  */
 export class RecorderController {
   private _phase: RecorderPhase = 'idle';
-  /** True while an automatic export pass owns the transport (REQ-meter-ts-names-the-three-jobs's seek guard
+  /** True while an automatic export pass owns the transport (transport-position.md REQ-seeking-is-refused-in-three-states's seek guard
    *  keys off this, NOT off "a capture is running"). */
   private exporting = false;
   private finishing = false;
@@ -325,7 +325,7 @@ export class RecorderController {
   }
 
   /**
-   * Abort a render in flight and write nothing (REQ-each-machine-has-a-loop-length). Export is real time —
+   * Abort a render in flight and write nothing (audio-export.md REQ-the-modal-is-the-renders-own-surface). Export is real time —
    * ten runs of a long song is a ten-minute wait — so the progress UI needs a
    * Cancel that genuinely cancels; a dead button beside a long bar is worse than
    * no button. A no-op unless a pass is actually recording.

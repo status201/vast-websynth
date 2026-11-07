@@ -115,7 +115,7 @@ export function installShortcuts(engine: StudioApi, bus: ParamBus, bridge: UiBri
 
   // A layout switch re-keys `held` out from under itself: an entry stored under
   // the old character can never match a future keyup, so it would hang exactly
-  // like the octave shift in REQ-home-and-shift-arrows-seek. Release everything first, then remap —
+  // like the octave shift in input-control.md REQ-a-note-off-names-the-pressed-note. Release everything first, then remap —
   // same rule the `blur` handler follows (input-control.md REQ-note-keys-follow-the-layout).
   onLayoutChange(() => {
     releaseAll();

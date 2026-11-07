@@ -28,7 +28,7 @@ export class UiBridge {
   /** Clear the selected step on the active machine tab (Delete/Backspace —
    * step-grid-editing.md REQ-delete-clears-the-selected-step). Same late-bound seam as undoActiveMachine:
    * returns whether it acted, so the key falls through on the Arp/Song/Motion
-   * tabs (Motion has no selection cursor — REQ-question-mark-toggles-the-badges). */
+   * tabs (Motion has no selection cursor — step-grid-editing.md REQ-motion-keeps-its-own-gesture). */
   clearSelectedStep = (): boolean => false;
   /** Toggle the ⓘ info badges — the `?` key's route (input-control.md REQ-question-mark-toggles-the-badges,
    * onboarding.md REQ-the-info-button-gesture-inventory). Lives here rather than in `shortcuts.ts` so the

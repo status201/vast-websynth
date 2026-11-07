@@ -461,7 +461,7 @@ Bank — many sounds in one file (use this when asked for a set, a kit, or sever
 Names (the file's and each preset's) are up to ${MAX_NAME_CHARS} characters; a longer one is shortened on import.
 
 SOUND DESIGN NOTES
-- "filter.cutoff" is a MIDI NOTE NUMBER (0..127), NOT Hz — 60 is middle C, +12 is an octave up. The
+- "filter.cutoff" is a MIDI NOTE NUMBER (30..130), NOT Hz — 60 is middle C, +12 is an octave up. The
   filter envelope ("filter.envAmount", in semitones) and the LFO add to it in the same semitone space.
 - The shape of a sound is mostly: waveforms + octaves, cutoff/resonance, and the two envelopes.
   Percussive (pluck/bass stab): tiny attack, short "env.fil.decay", "env.fil.sustain" 0, high

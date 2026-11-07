@@ -711,7 +711,7 @@ function scanChainString(
 }
 
 /**
- * A `seqChain` plus its per-slot transposes (REQ-motion-baselines-are-unchanged). Only the string form
+ * A `seqChain` plus its per-slot transposes (song-authoring-dialect.md REQ-a-chain-letter-may-carry-a-transpose). Only the string form
  * carries the `+n` suffix; the array and object forms are numbers, so they take
  * a parallel `seqTranspose` key at the top level instead.
  */
@@ -935,7 +935,7 @@ export function expandAuthorSong(value: unknown): SongValidation {
 
   if (errors.length > 0) return { ok: false, errors };
 
-  // REQ-the-xy-window-axes-follow-motion: a machine whose banks carry hits auto-enables, unless the author
+  // song-authoring-dialect.md REQ-machines-with-content-auto-enable: a machine whose banks carry hits auto-enables, unless the author
   // set its on/off param explicitly — seq.on/drum.on/sampler.on default to 0
   // and Song.apply resets params first, so the song would import silent.
   const hasHits = (banks: { on: boolean }[][]): boolean =>

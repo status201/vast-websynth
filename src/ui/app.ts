@@ -39,7 +39,7 @@ export function mountApp(root: HTMLElement, deps: ShellDeps): Onboarding {
   // Only the built-in is reachable here — the drop-in and zip demos are
   // fetched on click and so are inherently async (song-mode.md REQ-song-lane-titles-navigate) — but
   // this fallback is replaced a few lines below and never actually used.
-  // The real unknown-name fallback lives in `resolveDemoName` (REQ-a-taller-bar-pins-the-peak, v18),
+  // The real unknown-name fallback lives in `resolveDemoName` (song-mode.md REQ-drop-in-demos-are-fetched-on-click),
   // which `SongPanel.loadDemo` applies to every caller including the tour.
   let songLoadDemo: (name: string) => Promise<void> = async (name) => {
     const file = DEMO_SONGS[name] ?? Object.values(DEMO_SONGS)[0];

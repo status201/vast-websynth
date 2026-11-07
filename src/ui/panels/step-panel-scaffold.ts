@@ -62,7 +62,7 @@ interface LaneHooks {
   onContentChange(fn: () => void): () => void;
   /** `when` is the step's audio time (transport-position.md REQ-the-playhead-is-drawn-when-it-is-heard). */
   onStep(fn: (idx: number, when: number) => void): () => void;
-  /** Clear the edit bank; true when something was actually cleared (REQ-motion-has-the-fourth-chain-lane). */
+  /** Clear the edit bank; true when something was actually cleared (step-grid-editing.md REQ-clear-menu-clears-in-bulk). */
   clearBank(): boolean;
   /** This machine's bank count, MIN_BANK_COUNT..MAX_BANK_COUNT (banks.md REQ-a-machine-owns-its-bank-count). */
   bankCount(): number;
@@ -522,7 +522,7 @@ export function playheadRulerFor(
 export interface MachinePanel {
   readonly el: HTMLElement;
   /** Switch the selected step off (Delete/Backspace). Non-destructive: the
-   *  step keeps its note/velocity/gate, per REQ-set-steps-are-anchors. */
+   *  step keeps its note/velocity/gate, per step-grid-editing.md REQ-toggling-off-is-non-destructive. */
   clearSelectedStep(): void;
   /** Driven by `TabContainer.onViewChange`; see {@link VisibilityGate}. */
   readonly gate: VisibilityGate;
@@ -585,7 +585,7 @@ export function samplerSlotClearRow(engine: StudioApi, undo: PatternUndo, slot: 
   return {
     label: name ?? SAMPLER_SLOT_LABELS[slot] ?? `S${slot + 1}`,
     // A named slot is content even with an empty grid — the item removes the
-    // name, so offering it is the whole point (REQ-song-file-v4-adds-motion-banks). Filtering on steps alone
+    // name, so offering it is the whole point (sampler.md REQ-clear-ejects-the-slot). Filtering on steps alone
     // is exactly the bug this row exists to fix.
     hasContent: (engine.patterns.sampler[slot]?.some((c) => c.on) ?? false)
       || name !== null || buf !== null,
@@ -628,7 +628,7 @@ export function ejectSamplerFile(engine: StudioApi, slot: number): (() => void) 
  * The lane's `Clear ▾` header control, wired to the store's bulk-clear entry
  * points (step-grid-editing.md REQ-clear-menu-clears-in-bulk/REQ-a-bulk-clear-reports-itself). Each clear is ONE PatternStore
  * mutation, so the toast's Undo — and the machine's Undo button, and Ctrl+Z —
- * all reverse the whole thing in a single press (REQ-both-motion-modes-share-one-frame-loop).
+ * all reverse the whole thing in a single press (step-grid-editing.md REQ-one-bulk-action-one-undo-entry).
  *
  * `rows` is resolved every time the menu opens. A machine with a selection
  * cursor returns its one selected row; Motion has no cursor, so it returns
@@ -647,7 +647,7 @@ export function clearMenuFor(
 
   // Nothing cleared ⇒ no toast and no undo entry: an "Undo" that does nothing
   // is worse than no toast at all. `onUndo` overrides the lane's pattern undo for
-  // a row that cleared more than steps and therefore reverses itself (REQ-both-motion-modes-share-one-frame-loop).
+  // a row that cleared more than steps and therefore reverses itself (step-grid-editing.md REQ-one-bulk-action-one-undo-entry).
   const report = (what: string, changed: boolean, onUndo?: () => void): void => {
     if (!changed) return;
     showToast({
@@ -686,7 +686,7 @@ export function clearMenuFor(
       : {}),
     ...(rows
       ? {
-        // The one place the no-dead-item rule lives (REQ-motion-has-the-fourth-chain-lane): panels hand over
+        // The one place the no-dead-item rule lives (step-grid-editing.md REQ-clear-menu-clears-in-bulk): panels hand over
         // every row they have, and an empty one never reaches the menu.
         rows: () => rows().filter((r) => r.hasContent).map((r) => ({
           label: r.label,

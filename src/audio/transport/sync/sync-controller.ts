@@ -223,7 +223,7 @@ export class SyncController {
    * A transport's port counts changed — which may arm or release the role
    * (REQ-link-liveness-beats-port-presence). If its outputs came up (0 → >0) while we are master, announce the
    * current state to *that transport only* so a newly-linked peer joins in
-   * phase without restarting the others (REQ-song-position-pointer-jumps-the-slave/15).
+   * phase without restarting the others (REQ-song-position-pointer-jumps-the-slave/REQ-midi-and-wifi-coexist).
    */
   private onPortsChange(id: TransportId): void {
     this.loadRoles(); // a retry, should an earlier import have failed

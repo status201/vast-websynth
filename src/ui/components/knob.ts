@@ -455,7 +455,7 @@ export class Knob {
    * Use this where the ceiling only applies in some states — the LFO RATE knob
    * is capped only while `lfo.dest === pulse`, because that is the only path the
    * engine clamps (oscillators.md REQ-pwm-rate-is-clamped). Where a control is inert *entirely*,
-   * `setDisabled` is the right treatment instead (REQ-a-sync-section-in-the-song-panel): a soft ceiling says
+   * `setDisabled` is the right treatment instead (knob-soft-ceiling.md REQ-ceiling-is-for-inert-upper-travel): a soft ceiling says
    * "this part of the travel does nothing", dimming says "none of it does".
    */
   setUiMax(max: number | null): void {

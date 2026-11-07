@@ -366,7 +366,7 @@ export class MotionMachine {
   };
 
   /**
-   * Frame scratch, refilled each frame rather than rebuilt (REQ-motion-has-the-fourth-chain-lane): the XY Pad's
+   * Frame scratch, refilled each frame rather than rebuilt (runtime-performance.md REQ-no-allocation-in-a-hot-loop): the XY Pad's
    * base assignment, the axes this bank actually drives, and the value read off
    * the curve. Private and never handed out, so the sharing is invisible.
    */

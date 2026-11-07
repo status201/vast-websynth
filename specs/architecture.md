@@ -64,11 +64,12 @@ means a UI control and its audio effect can be reasoned about independently.
 ## Tech stack
 
 ```yaml
-language: TypeScript            # ^7.0.2, strict + noUncheckedIndexedAccess + noUnused{Locals,Parameters}
-build:      Vite                # ^8.2.2   (vite build) + tsc --noEmit
-unit_tests: Vitest              # ^4.1.11  (jsdom env)
-e2e_tests:  "@playwright/test"  # ^1.62.1  (headless Chromium)
-dom_env:    jsdom               # ^30.0.1  (unit-test DOM)
+# versions: package.json's devDependencies are the only record — not restated here
+language: TypeScript            # strict + noUncheckedIndexedAccess + noUnused{Locals,Parameters}
+build:      Vite                # (vite build) + tsc --noEmit
+unit_tests: Vitest              # node env by default; a DOM is opt-in (recipes/write-a-test.md)
+e2e_tests:  "@playwright/test"  # headless Chromium in CI; Firefox via the pw configs and bench --browser
+dom_env:    jsdom               # tests/ui/** and files that opt in with `@vitest-environment jsdom`
 runtime_deps: none              # zero — no `dependencies` block in package.json
 vendored:                       # NOT npm dependencies — see ADR-003
   lamejs: src/vendor/lamejs/    # MIT MP3 encoder (audio export)
@@ -158,13 +159,16 @@ Engine:          # src/audio/engine.ts
   subscribeParams()              # wires params to the audio graph (once); FX/comps
                                  #   self-wire via Effect.bind(bus, prefix) — ADR-008
   playNote / releaseNote         # thin delegators to Polyphony (SynthOutput surface)
-  # owns: AudioContext, voices[8], FX chain, arrangement, perf, seq, drums, sampler, motion
+  # owns: AudioContext, voices[voiceCount: 8, 5 on the weak tier], FX chain, arrangement, perf, seq, drums, sampler, motion
   # delegates: Polyphony (voice alloc + unison/glide/drift), LaneMixer (mute/solo/vol)
 
 StudioApi:       # src/ui/studio-api.ts  (the UI's narrow view of Engine — ADR-009)
-  # patterns, arrangement, clock, perf, seq, drums, sampler, motion, recorder,
+  # patterns, arrangement, clock, loop, perf, seq, drums, sampler, motion, recorder,
   # bankRender, sync, rtcSync, analyser, analyserL, analyserR, ctx, drumComp,
-  # masterComp, iosAudio + panic()/resume().
+  # masterComp, barTicks, autoplayAllowed;
+  # diagnostics: iosAudio, mediaSession, backgroundAudio, audioRecovery;
+  # verbs: panic(), resume(), seekTo(), canSeek(), suspendForDebug(),
+  # onFirstGesture(), onAudioBlocked().
   # Engine satisfies it structurally;
   # UI signatures take StudioApi so Engine internals stay invisible to the UI.
 
@@ -288,18 +292,11 @@ Each region's stylesheet is its own too (`styles/header.module.css` and its
 siblings, layer `shell`), beside the panel chrome they all share
 (`styles/panel.module.css`, layer `chrome`).
 
-This split was first tried and **reverted**, because moving a builder moved its
-component imports — and **CSS Modules inject in import order**, so where an
-import sat in `app.ts` was part of the app's layout. Moving the panels below
-the shell's stylesheet made the **pattern row 71px taller** (pushing the scope
-out of the viewport and failing a hover assertion three files away); moving them
-above `knob` un-hid the header's **hamburger on a wide screen**. `tsc` and the
-unit suite saw none of it. Every stylesheet now declares a cascade layer
+Moving a builder moves its component imports, and CSS Modules inject in import
+order — so the split depends on every stylesheet declaring a cascade layer
 ([css-cascade-layers](features/css-cascade-layers.md)), which takes source order
-out of the cascade between modules — that is what made this a plain file move,
-proven pixel-identical by `scripts/css-cascade/fingerprint.mjs`. (The 71px was
-two `.patternRow` `min-height` rules that `tabs.module.css` had always beaten
-by load order; moving an import made them apply. Both were dead and are gone.)
+out of the cascade between modules. A move like this is proven pixel-identical
+with `scripts/css-cascade/fingerprint.mjs`, not by `tsc` or the unit suite.
 
 The four machine tabs share their **chrome** through
 `ui/panels/step-panel-scaffold.ts` — composable helpers, not one template, since
@@ -679,12 +676,16 @@ into the committed demos and share links.)
 - **Filter cutoff is a MIDI note number, not Hz.** The ladder filter worklet takes
   `cutoffNote` so envelope/LFO modulators sum in **semitones** via Web Audio's
   native `AudioParam` input summation. Keep modulation additive in semitone space.
-- **AudioWorklets** (`ladder-filter`, `hardware-compressor`, `recorder`, `sync-osc`)
-  live as plain JS in `public/worklets/` and must be `loadModule()`-ed (awaited)
-  before the nodes that use them are created. `Engine.init()` is async for this
-  reason. `sync-osc` is the one loaded on first use rather than in `init()`
+- **AudioWorklets** (`ladder-filter`, `hardware-compressor`, `recorder`, `sync-osc`,
+  `flanger`, `reverse-delay`) live as plain JS in `public/worklets/` and must be
+  `loadModule()`-ed (awaited) before the nodes that use them are created.
+  `Engine.init()` is async for this reason. Three load in `init()`; the other three
+  load on first use — `sync-osc` when sync is first engaged
   ([`features/oscillator-sync.md`](features/oscillator-sync.md)
-  REQ-the-pair-is-built-on-first-use). All four are precached by the service worker.
+  REQ-the-pair-is-built-on-first-use), `flanger` with the flanger's lazy DSP
+  ([`features/flanger.md`](features/flanger.md)) and `reverse-delay` with the
+  delay's REVERSE type ([`features/delay-types.md`](features/delay-types.md)).
+  All six are precached by the service worker (`CORE_ASSETS` in `public/sw.js`).
 - **DSP worklets favour _musical, stable, cheap_ over physical accuracy** —
   perceived behaviour first, bounded/no-NaN output always, minimal per-sample
   cost. The multiplier differs per worklet and it is worth being exact about
@@ -708,7 +709,8 @@ into the committed demos and share links.)
   [ADR-014](decisions/adr-014-dont-make-me-think.md); the grids' worked instance
   is [`features/step-grid-editing.md`](features/step-grid-editing.md).
 - **CSS Modules** for all component/panel styling (`src/ui/styles/*.module.css`);
-  global CSS is only `base.css` / `theme.css` / `layout.css`. State classes
+  global CSS is only `src/styles/` — `layers.css` (the layer order), `base.css`,
+  `theme.css`, `layout.css` and the per-theme `themes/*.css` blocks. State classes
   (`.on`, `.active`, `.playing`, …) are global — match with `:global(...)`.
 - **Typography** — `--serif` is display type (identity, headings, faceplate
   legends), `--sans` is content (body copy, status lines, anything the user

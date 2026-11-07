@@ -44,7 +44,7 @@ export class PresetSession {
    * A preset/song became active (selected, saved, loaded, or boot). Clean.
    *
    * Deliberately leaves `songSound` alone: picking a preset is exactly the act
-   * REQ-motion-joins-the-non-patch-prefixes exists to make survivable, so it must not unpin the sound being
+   * presets.md REQ-a-songs-sound-is-a-selectable-entry exists to make survivable, so it must not unpin the sound being
    * compared against. Only {@link setActiveSong} replaces it.
    */
   setActive(name: string): void {

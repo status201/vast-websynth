@@ -39,7 +39,7 @@ export function bankCropRange(
  * play the bank twice, crop bar 2 by frame arithmetic.
  *
  * The controller owns only transport + capture. Engine-state juggling
- * (force seq enabled/audible, disable the seq chain lane — REQ-meter-is-two-bus-scalars) lives in the
+ * (force seq enabled/audible, disable the seq chain lane — render-to-sampler.md REQ-render-preconditions-are-forced-then-restored) lives in the
  * injected `prepare()` closure, which returns its own restore function; it is
  * always restored, success or failure. `blocked()` refuses a render while the
  * song recorder is capturing (both restart the clock).

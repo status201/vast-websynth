@@ -546,7 +546,7 @@ export function buildSeqPanel(
     renderBtn.disabled = rendering || empty || slaved;
     renderBtn.textContent = rendering ? 'Rendering…' : 'Render';
     renderBtn.title = slaved
-      ? 'Unavailable while slaved to MIDI clock'
+      ? 'Unavailable while slaved to an external clock'
       : empty
         ? 'Add steps to the bank first'
         : 'Render this bank (2 bars: tails bake into the loop) into the chosen sampler slot';

@@ -179,13 +179,6 @@ export class Arrangement {
   get motionChainPos(): number { return this.motionPos; }
 
   /**
-   * @param transpose per-slot semitone offsets (arrangement.md REQ-a-seq-slot-carries-a-transpose). Omitted
-   * by every caller that does not arrange pitch — including the whole pre-v7
-   * corpus — in which case the lane keeps the offsets it already had, resized to
-   * the new chain. That is what lets `◀ ▶ ✕` and the bank-add buttons keep
-   * calling this with two arguments and still do the right thing.
-   */
-  /**
    * Set the bar length in 16th ticks (meter.md REQ-bar-ticks-is-the-arrangement-bar-line). Idempotent, so the
    * Engine can push it on any param change.
    *
@@ -247,6 +240,13 @@ export class Arrangement {
     else this.motionPos = pos;
   }
 
+  /**
+   * @param transpose per-slot semitone offsets (arrangement.md REQ-a-seq-slot-carries-a-transpose). Omitted
+   * by every caller that does not arrange pitch — including the whole pre-v7
+   * corpus — in which case the lane keeps the offsets it already had, resized to
+   * the new chain. That is what lets `◀ ▶ ✕` and the bank-add buttons keep
+   * calling this with two arguments and still do the right thing.
+   */
   setSeqChain(steps: number[], enabled: boolean, transpose?: number[], origin?: readonly number[]): void {
     this.applyChain('seq', this.seq, steps, enabled, transpose, origin, this.seqPos);
   }
