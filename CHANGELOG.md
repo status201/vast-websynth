@@ -109,6 +109,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 - **A broken value can no longer silence or stall the audio**: the parameter bus
   refuses a NaN outright, the clock ignores a NaN phase correction from a sync
   link instead of stopping, and a NaN bank index resolves to bank A.
+- **The arpeggiator swings.** At 1/8 and 1/4 it used to play dead straight while
+  the sequencer and drums swung; it now runs on exactly the grid a sequencer lane
+  at the same rate does, off-beats swung with the rest. At 1/16, or with swing at
+  zero, nothing changes.
 - **A voice released twice is not cut off early**: the second release now
   replaces the first one's timer instead of leaving it to idle the voice while
   its tail still sounds.
