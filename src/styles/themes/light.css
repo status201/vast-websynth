@@ -87,6 +87,7 @@
     --lit-bottom: #9a3812;
     --lit-shine: rgba(255, 220, 180, 0.35);
     --lit-text: #fff6e6;
+    --lit-text-shadow: rgba(0, 0, 0, 0.6);
     --lit-bad-top: #d4302a;
     --lit-bad-bottom: #8a1010;
     --lit-bad-shine: rgba(255, 180, 160, 0.3);

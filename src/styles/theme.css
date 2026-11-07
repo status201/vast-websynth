@@ -150,6 +150,9 @@
     --lit: linear-gradient(180deg, var(--lit-top) 0%, var(--lit-bottom) 100%);
     --lit-shine: rgba(255, 220, 180, 0.3);
     --lit-text: #f4e4c2;
+    /* The shadow under --lit-text: it lifts light type off the lit fill, and is
+       transparent where the type is dark, which a black shadow only blurs. */
+    --lit-text-shadow: rgba(0, 0, 0, 0.6);
     --lit-bad-top: #d4302a;
     --lit-bad-bottom: #8a1010;
     --lit-bad: linear-gradient(180deg, var(--lit-bad-top) 0%, var(--lit-bad-bottom) 100%);

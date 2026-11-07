@@ -74,6 +74,7 @@
     --lit-bottom: #6f938e;
     --lit-shine: rgba(230, 255, 250, 0.3);
     --lit-text: #03120e;
+    --lit-text-shadow: transparent;
     --lit-bad-top: #c8664f;
     --lit-bad-bottom: #8f4232;
     --lit-bad-shine: rgba(255, 210, 195, 0.3);

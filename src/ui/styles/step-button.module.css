@@ -29,7 +29,7 @@
       0 0 8px var(--accent-glow),
       inset 0 1px 0 var(--lit-shine),
       inset 0 -1px 2px rgba(0, 0, 0, 0.5);
-    text-shadow: 0 1px 0 rgba(0, 0, 0, 0.6);
+    text-shadow: 0 1px 0 var(--lit-text-shadow);
   }
 
   .red.on {

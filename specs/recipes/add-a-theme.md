@@ -130,6 +130,8 @@ someone has looked at it.
   - `--switch-on-bed` and `--switch-on-ink`: if your on and off inks sit close,
     light the cap.
   - `--play-on-ink`: if you lit the cap, point it at `var(--switch-on-ink)`.
+  - `--lit-text-shadow`: the shadow under a lit step's note name. Black lifts
+    light type; under dark type it only blurs, so make it `transparent`.
   - `--veil`: on a light theme, fade it toward the panel, not black.
   - `--step-mark` with `--step-mark-edge`: ratchet ticks and the bend stroke.
     If your "selected" colour sits close to your lit step, draw the marks in
