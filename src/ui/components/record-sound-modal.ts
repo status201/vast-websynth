@@ -34,12 +34,11 @@ import { triggerDownload } from '../../utils/download';
 import { SAMPLER_SLOT_COUNT, slotOptionLabels, slotTag } from '../../state/patterns';
 import {
   MIN_STRETCH_RATIO, MAX_STRETCH_RATIO, MAX_STRETCH_OUTPUT_FRAMES,
-  MAX_PITCH_SHIFT_SEMITONES, MAX_SCRATCH_STEPS,
-} from '../../state/limits';
+  MAX_PITCH_SHIFT_SEMITONES } from '../../state/limits';
 import { UI_ICONS } from './ui-icons';
-import { plural } from '../../utils/format';
 import { onPaletteChange, paletteDerived, rgba } from '../theme-colors';
 import { backingScale, toLocal } from '../ui-scale';
+import { FIT_TARGETS, fitLabel as fitLabelFor, nearestTarget as nearestTargetFor } from '../../state/fit-targets';
 
 /** The waveform's inks, from the screen tokens (ui-themes.md REQ-canvas-reads-the-screen-tokens). */
 const waveColours = paletteDerived((p) => ({
@@ -517,10 +516,8 @@ export function openRecordSoundModal(engine: StudioApi, opts: RecordSoundOptions
      *
      * This sits above both rows rather than inside Fit's, because
      * time-stretch.md REQ-the-editor-gains-a-fit-row forbids re-deriving what a bar is and a second
-     * derivation for the scratch length would be exactly that. */
-    const FIT_TARGETS: readonly number[] = [
-      ...Array.from({ length: 32 }, (_, i) => i + 1), 48, MAX_SCRATCH_STEPS,
-    ];
+     * derivation for the scratch length would be exactly that. The pure half is
+     * state/fit-targets.ts; what is left here binds it to this session. */
 
     const srOf = (): number => working?.sampleRate ?? engine.ctx.sampleRate;
     const selFrames = (): number => Math.max(0, cropEnd - cropStart);
@@ -529,28 +526,13 @@ export function openRecordSoundModal(engine: StudioApi, opts: RecordSoundOptions
     const framesFor = (steps: number): number =>
       Math.round(steps * engine.clock.sixteenthDuration() * srOf());
 
-    const fitLabel = (steps: number): string => {
-      const bars = steps / Math.max(1, engine.barTicks);
-      if (Number.isInteger(bars)) return `${steps} · ${plural(bars, 'bar')}`;
-      if (bars === 0.5) return `${steps} · ½ bar`;
-      if (bars === 0.25) return `${steps} · ¼ bar`;
-      return `${steps}`;
-    };
+    const fitLabel = (steps: number): string => fitLabelFor(steps, engine.barTicks);
     const stepsFor = (label: string): number =>
       FIT_TARGETS.find((s) => fitLabel(s) === label) ?? 0;
 
     /** The target closest to how long the selection already is — what both rows
      *  preselect, so the first thing offered is the one that barely moves. */
-    const nearestTarget = (): number => {
-      const frames = selFrames();
-      let best = FIT_TARGETS[0]!;
-      let bestErr = Infinity;
-      for (const s of FIT_TARGETS) {
-        const err = Math.abs(framesFor(s) - frames);
-        if (err < bestErr) { bestErr = err; best = s; }
-      }
-      return best;
-    };
+    const nearestTarget = (): number => nearestTargetFor(selFrames(), framesFor);
 
     const allButtons: HTMLButtonElement[] = [];
     let busy = false;
