@@ -33,7 +33,7 @@ import { clipFades, fadeOutAt } from '../../audio/clip-fades';
 import { liveStartTime } from '../../audio/param-utils';
 import { encodeWav, encodeMp3 } from '../../audio/recorder/encode';
 import { triggerDownload } from '../../utils/download';
-import { SAMPLER_SLOT_COUNT, SAMPLER_SLOT_LABELS } from '../../state/patterns';
+import { SAMPLER_SLOT_COUNT, slotOptionLabels, slotTag } from '../../state/patterns';
 import {
   MIN_STRETCH_RATIO, MAX_STRETCH_RATIO, MAX_STRETCH_OUTPUT_FRAMES,
   MAX_PITCH_SHIFT_SEMITONES, MAX_SCRATCH_STEPS,
@@ -710,11 +710,7 @@ export function openRecordSoundModal(engine: StudioApi, opts: RecordSoundOptions
 
     // Built before the chop row, which needs to know where a spread would start
     // to decide how many slices fit (sample-chop.md REQ-no-slice-spreads-into-a-missing-slot).
-    const slotOptions = Array.from({ length: SAMPLER_SLOT_COUNT }, (_, i) => {
-      const name = engine.patterns.sampleNames[i] ?? null;
-      const tag = SAMPLER_SLOT_LABELS[i] ?? `S${i + 1}`;
-      return `${tag} — ${name ?? 'empty'}`;
-    });
+    const slotOptions = slotOptionLabels(engine.patterns.sampleNames);
     const picker = own(new Dropdown(
       slotOptions,
       slotOptions[Math.max(0, Math.min(defaultSlot, SAMPLER_SLOT_COUNT - 1))],
@@ -787,7 +783,6 @@ export function openRecordSoundModal(engine: StudioApi, opts: RecordSoundOptions
     chopRow.appendChild(chopLabel);
 
     const startSlot = (): number => Math.max(0, slotOptions.indexOf(picker.value));
-    const slotTag = (i: number): string => SAMPLER_SLOT_LABELS[i] ?? `S${i + 1}`;
     /** REQ-the-result-is-exactly-out-frames — offer only counts that fit from the picker's slot, so a spread can
      *  never quietly drop the slices it has no room for. */
     const fittingCounts = (): string[] => {
@@ -1268,7 +1263,7 @@ export function openRecordSoundModal(engine: StudioApi, opts: RecordSoundOptions
         const existing = engine.patterns.sampleNames[slot] ?? null;
         engine.patterns.setSampleName(
           slot,
-          existing ?? `recording-${SAMPLER_SLOT_LABELS[slot] ?? slot + 1}`,
+          existing ?? `recording-${slotTag(slot)}`,
         );
         modal.close();
       },

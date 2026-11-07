@@ -10,6 +10,7 @@
  * Auto's rule; tests/ui/theme.test.ts runs it against `resolveTheme()` and
  * `THEMES` (REQ-the-boot-script-agrees-with-the-registry). Add a theme in both.
  */
+import { readPref, writePref } from './prefs';
 
 export type ThemeId = 'dark' | 'light' | 'contrast' | 'pastel' | 'vibrant' | 'classic' | 'jungle' | 'race';
 export type ThemePref = ThemeId | 'auto';
@@ -68,20 +69,12 @@ export function themeInfo(id: string): ThemeInfo {
  * (REQ-auto-is-the-default; a stored value is untrusted, untrusted-input.md).
  */
 export function readThemePref(): ThemePref {
-  try {
-    const v = localStorage.getItem(THEME_KEY);
-    return isShipped(v) ? v : 'auto';
-  } catch {
-    return 'auto';
-  }
+  const v = readPref(THEME_KEY);
+  return isShipped(v) ? v : 'auto';
 }
 
 export function writeThemePref(pref: ThemePref): void {
-  try {
-    localStorage.setItem(THEME_KEY, pref);
-  } catch {
-    /* private mode / quota — the choice still applies for this visit */
-  }
+  writePref(THEME_KEY, pref);
 }
 
 /** Whether a media query matches on this device. Injected so the rule is testable. */

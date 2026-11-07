@@ -15,7 +15,7 @@ import { StepButton } from '../components/step-button';
 import { createClearMenu } from '../components/clear-menu';
 import { showToast } from '../components/toast';
 import type { PatternUndo } from '../../state/pattern-undo';
-import { BANK_LABELS, MIN_BANK_COUNT, SAMPLER_SLOT_LABELS } from '../../state/patterns';
+import { BANK_LABELS, MIN_BANK_COUNT, slotTag } from '../../state/patterns';
 import { GRID_CELLS, LANE_RATE_LABELS, meterLabel, ticksPerCell } from '../../state/meter';
 import { Dropdown } from '../components/dropdown';
 import { anchorMenu, dismissMenu, menuClosed, menuOpened } from '../components/menu-anchor';
@@ -583,7 +583,7 @@ export function samplerSlotClearRow(engine: StudioApi, undo: PatternUndo, slot: 
   let steps = false;
   let restore: (() => void) | null = null;
   return {
-    label: name ?? SAMPLER_SLOT_LABELS[slot] ?? `S${slot + 1}`,
+    label: name ?? slotTag(slot),
     // A named slot is content even with an empty grid — the item removes the
     // name, so offering it is the whole point (sampler.md REQ-clear-ejects-the-slot). Filtering on steps alone
     // is exactly the bug this row exists to fix.

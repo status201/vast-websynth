@@ -109,8 +109,9 @@ export interface SongFile {
 
 /**
  * The narrow sampler view `apply` needs to evict stale audio (song-mode.md
- * REQ-stale-sampler-audio-is-evicted). Structural, so `state/` never imports the audio layer —
- * `SamplerMachine` satisfies it.
+ * REQ-stale-sampler-audio-is-evicted). Structural, so the song model never depends on a live
+ * audio object — `SamplerMachine` satisfies it. (`state/` does import the audio layer's *pure*
+ * codecs — `project.ts` and `sample-autosave.ts` encode clips — but never an Engine-owned node.)
  */
 export interface SamplerSlots {
   setBuffer(slot: number, buf: AudioBuffer | null): void;

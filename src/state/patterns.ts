@@ -1,4 +1,5 @@
 import { assertIndex } from '../utils/array';
+import { clampInt } from '../utils/math';
 import { MAX_CHAIN_TRANSPOSE } from './limits';
 import { GRID_CELLS } from './meter';
 
@@ -210,6 +211,16 @@ export const SAMPLER_SLOT_COUNT = 8;
 export const SAMPLER_SLOT_LABELS: string[] =
   Array.from({ length: SAMPLER_SLOT_COUNT }, (_, i) => `S${i + 1}`);
 
+/** A slot's short tag (`S1`…), the one spelling every surface uses. */
+export function slotTag(slot: number): string {
+  return SAMPLER_SLOT_LABELS[slot] ?? `S${slot + 1}`;
+}
+
+/** One picker row per slot — `S1 — kick.wav`, `S2 — empty` — for every slot picker. */
+export function slotOptionLabels(names: readonly (string | null | undefined)[]): string[] {
+  return Array.from({ length: SAMPLER_SLOT_COUNT }, (_, i) => `${slotTag(i)} — ${names[i] ?? 'empty'}`);
+}
+
 /**
  * Bank counts (banks.md REQ-a-machine-owns-its-bank-count, ADR-022).
  *
@@ -284,9 +295,10 @@ export interface PatternSnapshot {
   motionTracks?: (MotionTrack | null)[][];
 }
 
-/** Clamp into `0..count-1`. `count` is the owning machine's, never a constant. */
+/** Clamp into `0..count-1`; a non-finite index is bank A (REQ-a-bank-index-is-always-a-bank).
+ *  `count` is the owning machine's, never a constant. */
 function clampBankIn(i: number, count: number): number {
-  return Math.max(0, Math.min(count - 1, Math.round(i)));
+  return clampInt(i, 0, count - 1);
 }
 
 /**

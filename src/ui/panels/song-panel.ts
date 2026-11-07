@@ -1233,9 +1233,9 @@ function buildChainLane(
   // (arrangement.md gesture inventory).
   if (pitched) {
     controls.append(
-      labelled(mk('−', () => { if (sel >= 0) nudgeSlot(sel, -1); }),
+      labelled(mkIcon(UI_ICONS.minus, () => { if (sel >= 0) nudgeSlot(sel, -1); }),
         'chain-transpose-down-seq', 'Transpose the selected bar down a semitone'),
-      labelled(mk('+', () => { if (sel >= 0) nudgeSlot(sel, 1); }),
+      labelled(mkIcon(UI_ICONS.plus, () => { if (sel >= 0) nudgeSlot(sel, 1); }),
         'chain-transpose-up-seq', 'Transpose the selected bar up a semitone'),
     );
   }

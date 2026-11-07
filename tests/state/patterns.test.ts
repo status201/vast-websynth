@@ -17,6 +17,13 @@ describe('clampChainStep', () => {
     expect(clampChainStep(5, MAX_BANK_COUNT)).toBe(5);
     expect(clampChainStep(99, MAX_BANK_COUNT)).toBe(MAX_BANK_COUNT - 1);
   });
+  it('a non-finite index is bank A, never NaN (banks.md REQ-a-bank-index-is-always-a-bank)', () => {
+    expect(clampChainStep(NaN, MIN_BANK_COUNT)).toBe(0);
+    expect(clampChainStep(Infinity, MIN_BANK_COUNT)).toBe(0);
+    const store = new PatternStore();
+    expect(store.seqBank(NaN)).toBe(store.seqBank(0));
+    expect(store.motionBank(NaN)).toBe(store.motionBank(0));
+  });
 });
 
 describe('PatternStore', () => {

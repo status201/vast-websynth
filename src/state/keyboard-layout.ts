@@ -15,6 +15,7 @@
  * keyboard is plugged in must never travel inside a preset or a song
  * (`sync-mode.ts` / `perf-mode.ts` precedent).
  */
+import { readChoice, writePref } from './prefs';
 
 const STORE_KEY = 'websynth.keyboard.layout';
 
@@ -77,21 +78,11 @@ export const LAYOUTS: Record<LayoutId, { label: string; keys: KeyTable }> = {
 
 /** Stored preference, defaulting to 'auto'. Bad/absent values read as 'auto'. */
 export function readLayoutPref(): LayoutPref {
-  try {
-    const v = localStorage.getItem(STORE_KEY);
-    if (v && (PREFS as readonly string[]).includes(v)) return v as LayoutPref;
-    return 'auto';
-  } catch {
-    return 'auto';
-  }
+  return readChoice(STORE_KEY, PREFS, 'auto');
 }
 
 export function writeLayoutPref(pref: LayoutPref): void {
-  try {
-    localStorage.setItem(STORE_KEY, pref);
-  } catch {
-    /* private mode / quota — non-fatal */
-  }
+  writePref(STORE_KEY, pref);
   for (const cb of listeners) cb();
 }
 

@@ -589,6 +589,13 @@ PatternStore step types: # src/state/patterns.ts
 
 ### Persistence
 
+A device-scoped preference (the `websynth.ui.*`, `perf`, `midisync`,
+`midi.channel`, keyboard-layout and hint keys) reads and writes through
+`state/prefs.ts` — `readPref` / `writePref` / `removePref` / `readChoice` — the one
+try/catch around `localStorage`: blocked or full storage reads as "nothing
+stored" and costs the preference, never the app. The value it returns is
+untrusted, so the caller validates it.
+
 ```yaml
 localStorage:
   websynth.preset.*   : factory + user presets   # state/preset.ts

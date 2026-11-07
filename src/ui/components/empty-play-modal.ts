@@ -4,6 +4,7 @@ import switchStyles from '../styles/switch.module.css';
 import dialogStyles from '../styles/dialog.module.css';
 import styles from '../styles/empty-play-modal.module.css';
 import { UI_ICONS } from './ui-icons';
+import { readPref, writePref, removePref } from '../../state/prefs';
 
 /**
  * The "nothing to play yet" hint (empty-play-hint.md): shown instead of
@@ -17,11 +18,7 @@ import { UI_ICONS } from './ui-icons';
 export const EMPTY_PLAY_HINT_KEY = 'websynth.hint.emptyplay';
 
 export function emptyPlayHintDismissed(): boolean {
-  try {
-    return localStorage.getItem(EMPTY_PLAY_HINT_KEY) === '1';
-  } catch {
-    return false;
-  }
+  return readPref(EMPTY_PLAY_HINT_KEY) === '1';
 }
 
 export interface EmptyPlayModalOptions {
@@ -69,12 +66,9 @@ export function openEmptyPlayModal(opts: EmptyPlayModalOptions): void {
   box.type = 'checkbox';
   box.dataset.testid = 'empty-play-dismiss';
   box.addEventListener('change', () => {
-    try {
-      if (box.checked) localStorage.setItem(EMPTY_PLAY_HINT_KEY, '1');
-      else localStorage.removeItem(EMPTY_PLAY_HINT_KEY);
-    } catch {
-      /* private mode — the hint simply shows again next time */
-    }
+    // Blocked storage: the hint simply shows again next time.
+    if (box.checked) writePref(EMPTY_PLAY_HINT_KEY, '1');
+    else removePref(EMPTY_PLAY_HINT_KEY);
   });
   dismiss.appendChild(box);
   dismiss.appendChild(document.createTextNode("Don't show this again"));

@@ -1,5 +1,6 @@
 import tabStyles from '../styles/tabs.module.css';
 import { UI_ICONS } from './ui-icons';
+import { readPref, writePref } from '../../state/prefs';
 
 /**
  * Reusable fold/unfold chevron. Toggles a `.collapsed` class on `target`
@@ -46,20 +47,12 @@ export interface CollapseToggleOptions {
  * second place for private-mode behaviour to drift.
  */
 export function readStoredCollapse(key: string): boolean | null {
-  try {
-    const v = localStorage.getItem(key);
-    return v === null ? null : v === '1';
-  } catch {
-    return null;
-  }
+  const v = readPref(key);
+  return v === null ? null : v === '1';
 }
 
 export function writeStoredCollapse(key: string, collapsed: boolean): void {
-  try {
-    localStorage.setItem(key, collapsed ? '1' : '0');
-  } catch {
-    /* private mode / quota — non-fatal */
-  }
+  writePref(key, collapsed ? '1' : '0');
 }
 
 export function createCollapseToggle(

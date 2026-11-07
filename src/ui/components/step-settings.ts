@@ -7,6 +7,7 @@ import type { StepButton } from './step-button';
 import { plural } from '../../utils/format';
 import { clamp01 } from '../../utils/math';
 import { dragStillHeld } from './pointer-drag';
+import { UI_ICONS } from './ui-icons';
 
 /**
  * Per-step settings edit row shared by the sequencer, drum and sampler
@@ -299,17 +300,18 @@ function makeSlider(
   const stepBtn = (glyph: string, dir: number, tid: string): HTMLButtonElement => {
     const b = document.createElement('button');
     b.className = `${switchStyles.root!} ${styles.stepBtn!}`;
-    b.textContent = glyph;
+    b.innerHTML = glyph; // a drawn glyph (iconography.md), so it needs a name
     const titles = opts.stepTitles;
     if (titles) b.title = dir > 0 ? titles[1] : titles[0];
+    b.setAttribute('aria-label', titles ? b.title : dir > 0 ? 'Increase' : 'Decrease');
     if (opts.testid) b.dataset.testid = `${opts.testid}-${tid}`;
     b.addEventListener('click', () => write(get() + dir * (opts.keyStep ?? 1)));
     return b;
   };
 
-  if (opts.stepper) root.appendChild(stepBtn('−', -1, 'dec'));
+  if (opts.stepper) root.appendChild(stepBtn(UI_ICONS.minus, -1, 'dec'));
   root.appendChild(track);
-  if (opts.stepper) root.appendChild(stepBtn('+', 1, 'inc'));
+  if (opts.stepper) root.appendChild(stepBtn(UI_ICONS.plus, 1, 'inc'));
   root.appendChild(valLabel);
   if (opts.testid) valLabel.dataset.testid = `${opts.testid}-value`;
 

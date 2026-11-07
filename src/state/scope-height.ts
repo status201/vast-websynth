@@ -13,6 +13,7 @@
  * The value is the scope row's minimum height (`.bottomTop`'s min-height) in px, which the
  * scope and the PITCH/OCT/MOD wheel strips share.
  */
+import { clampInt } from '../utils/math';
 
 import { readSizePref, writeSizePref } from './size-pref';
 
@@ -34,8 +35,7 @@ export const SCOPE_H_STEP = 8;
  * an unusable panel is unreachable.
  */
 export function clampScopeHeight(px: number): number {
-  if (!Number.isFinite(px)) return SCOPE_H_DEFAULT;
-  return Math.min(SCOPE_H_MAX, Math.max(SCOPE_H_MIN, Math.round(px)));
+  return clampInt(px, SCOPE_H_MIN, SCOPE_H_MAX, SCOPE_H_DEFAULT);
 }
 
 /** The stored height, clamped. Any miss, garbage or storage failure → default. */

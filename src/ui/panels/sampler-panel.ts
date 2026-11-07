@@ -25,7 +25,7 @@ import { audioBufferToCaptured, capturedToAudioBuffer } from '../../audio/record
 import { showToast } from '../components/toast';
 import { NOT_DOWNLOADED_YET, PLAY_OFFLINE_HINT } from '../offline-wording';
 import { MIN_STRETCH_RATIO, MAX_STRETCH_RATIO } from '../../state/limits';
-import { SAMPLER_SLOT_COUNT, SAMPLER_SLOT_LABELS } from '../../state/patterns';
+import { SAMPLER_SLOT_COUNT, slotTag } from '../../state/patterns';
 import { ALL_CELLS, bindLaneGrid, laneGrid } from '../lane-grid';
 import panelStyles from '../styles/panel.module.css';
 import drumStyles from '../styles/drum.module.css';
@@ -290,7 +290,7 @@ export function buildSamplerPanel(
     if (!lbl) return;
     const name = engine.patterns.sampleNames[slot] ?? null;
     const loaded = engine.sampler.buffers[slot] != null;
-    lbl.textContent = name ?? `${SAMPLER_SLOT_LABELS[slot] ?? `S${slot + 1}`} …`;
+    lbl.textContent = name ?? `${slotTag(slot)} …`;
     lbl.classList.toggle('needs-reload', name != null && !loaded);
     lbl.title = name
       ? (loaded ? 'Click to audition' : 'Reload this audio file (not saved in songs)')
@@ -487,7 +487,7 @@ export function buildSamplerPanel(
     isOn: (sl, s) => engine.patterns.sampler[sl]?.[s]?.on ?? false,
     onToggle: (sl, s, on) => engine.patterns.setSamplerCell(sl, s, { on }),
     cols: () => laneGrid(bus, 'sampler').cells,
-    rowLabel: (sl) => engine.patterns.sampleNames[sl] ?? SAMPLER_SLOT_LABELS[sl] ?? `S${sl + 1}`,
+    rowLabel: (sl) => engine.patterns.sampleNames[sl] ?? slotTag(sl),
   });
 
   // ---- Selected-slot strip (sound design for the selected slot) ----
@@ -511,8 +511,7 @@ export function buildSamplerPanel(
     { suffix: 'vol', label: 'VOL' },
   ];
   const CHOKE_LABELS = ['off', '1', '2', '3', '4'];
-  const slotName = (slot: number): string =>
-    engine.patterns.sampleNames[slot] ?? SAMPLER_SLOT_LABELS[slot] ?? `S${slot + 1}`;
+  const slotName = (slot: number): string => engine.patterns.sampleNames[slot] ?? slotTag(slot);
 
   const strip = document.createElement('div');
   strip.className = drumStyles.tuning!;
@@ -617,7 +616,7 @@ export function buildSamplerPanel(
   const selectedLabel = document.createElement('div');
   selectedLabel.className = editStyles.selectedLabel!;
   const renderSelected = () => {
-    const name = engine.patterns.sampleNames[cursor.selRow] ?? SAMPLER_SLOT_LABELS[cursor.selRow] ?? `S${cursor.selRow + 1}`;
+    const name = slotName(cursor.selRow);
     selectedLabel.textContent = `${name} · step ${cursor.selCol + 1}`;
   };
   editor.el.insertBefore(selectedLabel, editor.el.firstChild);
