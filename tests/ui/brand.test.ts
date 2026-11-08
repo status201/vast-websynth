@@ -1,4 +1,6 @@
 import { describe, it, expect } from 'vitest';
+import { readFileSync } from 'node:fs';
+import path from 'node:path';
 import { createBrand } from '../../src/ui/components/brand';
 import brandStyles from '../../src/ui/styles/brand.module.css';
 import headerStyles from '../../src/ui/styles/header.module.css';
@@ -37,5 +39,32 @@ describe('brand block (brand.md)', () => {
     const el = createBrand();
     expect(el.classList.contains(headerStyles.headerBrand!)).toBe(false);
     expect(headerStyles.headerBrand).toBeTruthy(); // the class still exists
+  });
+
+  // jsdom lays out no text, so these pin what keeps the width, not the width.
+  describe("Pastel's logo on every platform (regression)", () => {
+    const pastel = readFileSync(path.join(process.cwd(), 'src/styles/themes/pastel.css'), 'utf8');
+    const brandCss = readFileSync(path.join(process.cwd(), 'src/ui/styles/brand.module.css'), 'utf8');
+
+    it('tracks the tagline alike in every theme (REQ-the-tagline-spans-the-badge-row)', () => {
+      const rule = /\.brandTagline\s*\{([^}]*)\}/.exec(brandCss)![1]!;
+      expect(rule).toMatch(/letter-spacing:\s*0\.15em/);
+    });
+
+    it('sets VAST bold, because 900 is Arial Black on Windows (REQ-the-name-weight-stays-in-the-family)', () => {
+      expect(/\.brandName\s*\{([^}]*)\}/.exec(brandCss)![1]).toContain('var(--brand-name-weight, 900)');
+      expect(pastel).toMatch(/--brand-name-weight:\s*700;/);
+    });
+
+    it('reaches a narrow face on each platform before a normal-width one (REQ-pastel-names-a-narrow-face-per-platform)', () => {
+      const stack = /--serif:([^;]*);/.exec(pastel)![1]!;
+      const firstWide = stack.indexOf("'Helvetica Neue'");
+      expect(firstWide).toBeGreaterThan(0);
+      for (const narrow of ["'Arial Narrow'", "'Liberation Sans Narrow'", 'sans-serif-condensed', "'DejaVu Sans Condensed'"]) {
+        const at = stack.indexOf(narrow);
+        expect(at, narrow).toBeGreaterThanOrEqual(0);
+        expect(at, narrow).toBeLessThan(firstWide);
+      }
+    });
   });
 });

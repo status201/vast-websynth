@@ -150,6 +150,5 @@
     /* ===== Faces: a Swiss grotesque for the legends ===== */
     --serif: 'Helvetica Neue', Helvetica, Arial, sans-serif;
     --sans: 'Inter', system-ui, -apple-system, sans-serif;
-    --brand-tagline-tracking: 0.15em;
   }
 }

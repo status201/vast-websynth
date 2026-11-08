@@ -3,7 +3,7 @@
 ```yaml
 id: brand
 status: implemented
-version: 5
+version: 6
 owner: ui
 related:
   - architecture
@@ -93,15 +93,30 @@ not a feature — it owns markup and styling only, and has no state.
     symmetric `padding: 3px 8px` looks like the tidy version, and reverting to
     it is the obvious wrong move.
 
-- **REQ-the-tagline-spans-the-badge-row** (v5) — **The tagline ends near the
-  end of the `G1-J8` badge**, within a few pixels, in every theme. Each theme's
-  `--serif` sets the string at its own width, so its tracking is the theme's
-  `--brand-tagline-tracking` ([ui-themes](ui-themes.md)): 0.15em, except
-  Pastel's 0.23em, whose Arial Narrow set it ~24px short of the row.
-  - Tuned against the faces Windows ships. Where a theme's first face is
-    missing, its fallback sets a different width; re-measure, don't guess.
-  - Not pinned: jsdom lays out no text. Checked by eye, and by measuring the
-    tagline's text range against the badge's right edge in each theme.
+- **REQ-the-tagline-spans-the-badge-row** (v6) — **The tagline ends near the
+  end of the `G1-J8` badge**, within a few pixels, in every theme and on every
+  platform: its tracking is 0.15em everywhere, and it is the row that a theme
+  keeps in proportion to it. The tagline and `VAST` share `--serif`, so a face's
+  width moves both.
+  - A tracking tuned to one platform's fallback overshoots on the others, and a
+    wider tagline stretches the block. That is why tracking is not per theme.
+- **REQ-the-name-weight-stays-in-the-family** (v6) — **`VAST` must not change
+  width class with the platform.** `.brandName` is 900 unless the theme sets
+  `--brand-name-weight`. On Windows the browser treats Arial Narrow and Arial
+  Black as one family, so 900 under `'Arial Narrow'` draws `VAST` in Arial Black,
+  21px wider than the Arial Narrow Bold other platforms draw. A condensed theme
+  therefore sets 700, which is bold in that family everywhere; Pastel does.
+- **REQ-pastel-names-a-narrow-face-per-platform** (v6) — **Pastel's `--serif`
+  names a narrow face for each platform before any normal-width one**: Arial
+  Narrow (Windows, macOS), Liberation Sans Narrow, Roboto Condensed,
+  `sans-serif-condensed` (Android's name for it) and DejaVu Sans Condensed. A
+  machine with none of them falls to Helvetica Neue or Arial, which behave as
+  Classic does on that platform.
+  - Tagline minus row, full-size, measured in Chromium on Windows with each font
+    file: Arial Narrow −3px, Roboto Condensed −6.7px, DejaVu Sans Condensed
+    −3.1px, Arial +10.7px. Liberation Sans Narrow is Arial Narrow's metric clone.
+  - Only Windows has been seen. On the others the face is what these names are
+    documented to resolve to; a face added to the stack is measured the same way.
 
 ## Technical design
 
@@ -145,6 +160,13 @@ Scenario: the header logo never wraps (REQ-a-consumer-may-scale-the-block)
   Then the header's brand tagline sits on a single line
    And the header's brand block is zoomed to 0.6 below 1680px and to 1 from 1680px up
 # pinned by: e2e/responsive-header.spec.ts (a very long preset name never overflows at any width)
+
+Scenario: Pastel's logo keeps its width without Arial Narrow's Windows quirk (regression, REQ-the-tagline-spans-the-badge-row, REQ-the-name-weight-stays-in-the-family, REQ-pastel-names-a-narrow-face-per-platform)
+  Given the Pastel theme on a platform where Arial Narrow is missing, or where 900 is not Arial Black
+  Then the tagline is tracked at 0.15em, as in every other theme
+   And VAST is set bold in the same narrow family, not black in a wider one
+   And the stack reaches a narrow face before any normal-width one
+# pinned by: tests/ui/brand.test.ts (the width itself: measured, jsdom lays out no text)
 ```
 
 ## Tests & verification

@@ -56,6 +56,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ### Fixed
 
+- **The Pastel logo no longer stretches on Mac, Android and Linux.** Its tagline
+  ran past the `G1-J8` badge there. Pastel now names a narrow face for each
+  platform and sets `VAST` in bold, so on Windows too it is the same condensed
+  logo rather than Arial Black.
 - **An exported song no longer ends with a stray note.** The first step of the
   song used to sound again just after the last bar, in the tail of every export.
   The transport now stops in that step's place, so the tail is the song's own

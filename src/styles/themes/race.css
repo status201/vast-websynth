@@ -146,6 +146,5 @@
     /* ===== Faces: a DIN-style sans for the legends ===== */
     --serif: Bahnschrift, 'DIN Alternate', 'DIN Condensed', 'Arial Narrow', sans-serif;
     --sans: 'Inter', system-ui, -apple-system, sans-serif;
-    --brand-tagline-tracking: 0.15em;
   }
 }

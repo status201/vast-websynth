@@ -24,7 +24,8 @@
   .brandName {
     font-family: var(--serif);
     font-size: 26px;
-    font-weight: 900;
+    /* A condensed theme sets 700 (brand.md REQ-the-name-weight-stays-in-the-family). */
+    font-weight: var(--brand-name-weight, 900);
     letter-spacing: 0.18em;
     color: var(--accent-secondary);
     text-shadow:
@@ -63,9 +64,8 @@
     font-family: var(--serif);
     font-size: 7.5px;
     font-style: normal;
-    /* Per theme: each --serif sets this string at its own width, and the tagline
-       ends under the badge's end (brand.md REQ-the-tagline-spans-the-badge-row). */
-    letter-spacing: var(--brand-tagline-tracking);
+    /* Ends under the badge's end (brand.md REQ-the-tagline-spans-the-badge-row). */
+    letter-spacing: 0.15em;
     color: var(--text);
     text-transform: uppercase;
     margin-top: 4px;

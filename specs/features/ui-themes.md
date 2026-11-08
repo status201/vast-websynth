@@ -74,8 +74,8 @@ Fonts are system stacks only — the app bundles no font file
 ## Requirements
 
 - **REQ-a-theme-is-a-palette-and-two-faces** — A theme is an id, a display name,
-  and a value for every colour token plus `--serif` (display; its tagline
-  tracking too, [brand](brand.md)) and `--sans` (content).
+  and a value for every colour token plus `--serif` (display; a condensed one
+  sets the logo's weight, [brand](brand.md)) and `--sans` (content).
   [typography](typography.md) still decides *which* face a piece of text gets;
   a theme only decides what each face *is*.
 - **REQ-mono-is-not-themed** — `--mono` is the same in every theme: it is the

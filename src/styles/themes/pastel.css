@@ -173,9 +173,12 @@
     --start-btn: linear-gradient(180deg, #fbf8f2, #e2dbcd);
 
     /* ===== Faces: a condensed grotesque for the legends ===== */
-    --serif: 'Arial Narrow', 'Roboto Condensed', 'Helvetica Neue', Arial, sans-serif;
+    /* A narrow face per platform before any normal-width one
+       (brand.md REQ-pastel-names-a-narrow-face-per-platform). */
+    --serif: 'Arial Narrow', 'Liberation Sans Narrow', 'Roboto Condensed', sans-serif-condensed,
+      'DejaVu Sans Condensed', 'Helvetica Neue', Arial, sans-serif;
     --sans: 'Inter', system-ui, -apple-system, sans-serif;
-    /* Arial Narrow sets the tagline ~24px short of the badge row at 0.15em. */
-    --brand-tagline-tracking: 0.23em;
+    /* 900 is Arial Black on Windows (brand.md REQ-the-name-weight-stays-in-the-family). */
+    --brand-name-weight: 700;
   }
 }
