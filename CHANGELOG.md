@@ -16,6 +16,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+## [2.22.0] - 2026-11-08
+
 ### Added
 
 - **UI size**, in Settings: zoom the whole interface from 50% to 150% in the
@@ -56,10 +58,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ### Fixed
 
-- **The Pastel logo no longer stretches on Mac, Android and Linux.** Its tagline
-  ran past the `G1-J8` badge there. Pastel now names a narrow face for each
-  platform and sets `VAST` in bold, so on Windows too it is the same condensed
-  logo rather than Arial Black.
 - **An exported song no longer ends with a stray note.** The first step of the
   song used to sound again just after the last bar, in the tail of every export.
   The transport now stops in that step's place, so the tail is the song's own
@@ -95,7 +93,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
   Vibrant, Jungle, Race and High contrast). It carried a black shadow meant for
   light lettering, which only blurred dark letters.
 - **Pastel's logo tagline is as wide as the logo above it**, like every other
-  theme's. Pastel's narrow lettering left it well short of the G1-J8 badge.
+  theme's. It used to stop well short of the G1-J8 badge on Windows, where `VAST`
+  was drawn in Arial Black. `VAST` is now bold in Pastel's narrow lettering, and
+  Pastel names a narrow font for each platform.
 - **The help no longer tells you New and Load can't be undone** — both show an
   Undo toast. The Render help now gives its real reasons for being greyed out
   (a render already running, an empty bank, or following any external clock —
@@ -3465,7 +3465,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
   in-app sample recorder/editor. See the git history prior to this changelog
   for the detailed evolution.
 
-[Unreleased]: https://github.com/status201/vast-websynth/compare/v2.21.0...HEAD
+[Unreleased]: https://github.com/status201/vast-websynth/compare/v2.22.0...HEAD
+[2.22.0]: https://github.com/status201/vast-websynth/compare/v2.21.0...v2.22.0
 [2.21.0]: https://github.com/status201/vast-websynth/compare/v2.20.0...v2.21.0
 [2.20.0]: https://github.com/status201/vast-websynth/compare/v2.19.0...v2.20.0
 [2.19.0]: https://github.com/status201/vast-websynth/compare/v2.18.0...v2.19.0
