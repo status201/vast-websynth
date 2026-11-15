@@ -90,8 +90,15 @@ so a reviewer has something concrete to hold a new feature against.
   [webrtc-sync](webrtc-sync.md) REQ-the-wifi-transport-loads-at-pairing), and the
   catalogue is code: `tests/ui/lazy-load-failure.test.ts`'s `TRIGGERS` / `EXEMPT`
   tables ([lazy-load-failure](lazy-load-failure.md)) and `main.ts`'s
-  `warmDeferred` list. A new deferred surface adds itself there, not here.
+  `warmDeferred` list. A new deferred surface adds itself there, not here, and is
+  built the way REQ-a-deferred-surface-keeps-its-edges says.
 
+  **The gate is `npm run build` + `npm run check:bundle`:** the entry chunk stays
+  under 500 kB and `scripts/check-bundle.mjs` (which prints the headroom) fails
+  past it. CI's `build` job runs both.
+
+- **REQ-a-deferred-surface-keeps-its-edges** — **A deferral holds only if no edge
+  pulls the body back into the boot set**, and the patterns that keep it so:
   - **A synchronous facade over a lazy body** is the pattern wherever callers
     already hold the surface at boot (`Onboarding`, `WifiSyncTransport`): commands
     start the load internally, readers answer from facade-held state, and the
@@ -102,21 +109,16 @@ so a reviewer has something concrete to hold a new feature against.
     `main.ts`'s boot-time setters live in `state/debug-sources.ts` for the same
     reason). Every edge to the body has to go.
   - **The boot payload is the entry chunk plus every chunk it imports
-    statically** (`dist/index.html`'s `modulepreload`s). When rolldown cannot merge
-    a shared module back into the entry it becomes a sibling chunk the entry still
-    loads, and **its CSS moves with it**, reordering the cascade. So a split is
-    judged by the **boot set**, and the entry's CSS links must be unchanged by it,
-    unless every class the moved stylesheet styles lives in the deferred body
-    (`chooser.module.css` is that case).
+    statically** (`dist/index.html`'s `modulepreload`s). A shared module rolldown
+    cannot merge back becomes a sibling chunk the entry still loads, and **its CSS
+    moves with it**, so a split is judged by the **boot set**, and the entry's CSS
+    links must not change unless every class the moved sheet styles lives in the
+    deferred body.
   - **Deferring makes a load fallible, and the trigger pays for it**: a trigger is
     not finished until it handles the rejection
     ([lazy-load-failure](lazy-load-failure.md)). A *warm* swallows its error,
     because it is not a gesture; a deferred surface reachable offline is warmed on
     idle ([pwa-install](pwa-install.md) REQ-deferred-chunks-are-warmed-on-idle).
-
-  **The gate is `npm run build` + `npm run check:bundle`:** the entry chunk stays
-  under 500 kB and `scripts/check-bundle.mjs` (which prints the headroom) fails
-  past it. CI's `build` job runs both.
 
 - **REQ-immutable-artefacts-are-shared** — **Expensive immutable artefacts are
   shared, not rebuilt per instance.** An artefact that is a pure function of its
@@ -130,21 +132,13 @@ so a reviewer has something concrete to hold a new feature against.
   `irFor` is the reference: five IR durations exist, and only the size actually
   selected is ever generated.
 
-  A bank built eagerly charges every patch for the whole index space, and the bill
-  scales with the *resolution* of a control rather than with what the player
-  touched. The PWM duty bank ([`oscillators.md`](oscillators.md) REQ-a-wave-bank-entry-is-built-on-first-use) is the
-  worked example: 128 `PeriodicWave`s at ~670 KB of native memory each cost **~86 MB
-  in one synchronous burst** the first time any width left `0.5` — for a patch that
-  typically needs *one* of them.
-
-  Two properties make this class of cost worth its own sentence in the rule:
-  - It hides from the usual tools. Blink's wave tables, a `ConvolverNode`'s
-    internal FFT state and decoded `AudioBuffer`s are **native**, so they never
-    appear in a JS heap snapshot and the JS heap does not move. A tab's total
-    memory is the only place they show.
-  - It is not reachable by the other rules here. REQ-boot-cost-matches-the-request governs the boot path and
-    REQ-no-allocation-in-a-hot-loop governs loops; a bank built lazily-but-wholly on a mid-session gesture
-    is outside both, and was the gap this rule now closes.
+  A bank built eagerly charges every patch for the whole index space, scaled by
+  a control's *resolution* rather than by what the player touched (the PWM duty
+  bank, [`oscillators.md`](oscillators.md) REQ-a-wave-bank-entry-is-built-on-first-use).
+  The cost is **native** memory, which no JS heap snapshot shows — a tab's total
+  memory is the only place it appears — and a bank built wholly on a mid-session
+  gesture escapes both REQ-boot-cost-matches-the-request and
+  REQ-no-allocation-in-a-hot-loop, which is why it has its own rule.
 
   **Building lazily is the whole of the rule — nothing is released again.** Once a
   shared artefact exists it is kept for the session, because reacquiring it is
@@ -152,16 +146,10 @@ so a reviewer has something concrete to hold a new feature against.
   rebuild, which is an audible glitch if it lands on a user gesture mid-song.
   [ADR-018](../decisions/adr-018-audio-graph-memory-is-committed-not-reclaimed.md)
   records that trade — a bypassed effect gives back its CPU
-  ([ADR-012](../decisions/adr-012-true-bypass-disconnects.md)), not its memory —
-  and gives it back after one bounded **drain**, not instantly, since it has to
-  render itself empty before it can be detached ([effects](effects.md) REQ-a-bypassed-effect-drains-before-disconnect) —
-  and answers any future "free it while it is off" proposal, including the ~30 MB
-  of reverb kernels the three FX chains hold from boot.
-
-  It also records the **measurement** rule learned alongside it: renderer
-  working-set deltas during active audio are too noisy to attribute anything
-  (28–205 MB spread for identical work). Isolated micro-benchmarks — one node
-  type, one page — are the instrument; ablation on the running app is not.
+  ([ADR-012](../decisions/adr-012-true-bypass-disconnects.md), after one bounded
+  drain — [effects](effects.md) REQ-a-bypassed-effect-drains-before-disconnect),
+  not its memory — and the measurement rule beside it: isolated micro-benchmarks,
+  never working-set deltas on the running app.
 
 - **REQ-global-listeners-live-only-for-a-gesture** — **Global input listeners
   exist only for the duration of a gesture.** A component MUST NOT hold a

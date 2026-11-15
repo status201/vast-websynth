@@ -230,6 +230,8 @@ asks first or leaves a way back.
     A new take recorded from an opened slot is a fresh recording.
   - Re-record goes back to the Record screen through the same guard as Close.
 
+## Technical design
+
 ### Gesture inventory (ADR-014)
 
 | Control | Tap / click | Drag | Long press | Double | Keyboard |
@@ -251,8 +253,6 @@ asks first or leaves a way back.
 
 A `—` is a decision. Nothing is momentary: the button toggles, and
 `R` is a press, not a hold (ADR-014 law 2).
-
-## Technical design
 
 ### Contract / public interface
 
