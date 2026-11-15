@@ -35,15 +35,13 @@ sequencer. The computer keyboard is that source: `installShortcuts` calls
 `bus.noteOn`/`noteOff` **once** per key, and separately drives a `UiBridge` purely
 to *repaint* the on-screen keyboard (highlight the matching key). The bridge must
 stay visual-only — if it also fired the bus, a computer key would emit **two**
-note-ons, which the funnel forwards to every consumer (double-triggering a voice,
-and advancing the sequencer's Step-Input cursor by two). MIDI is wired through Web
+note-ons, which the funnel forwards to every consumer. MIDI is wired through Web
 MIDI when available and degrades silently when not.
 
 The funnel stays deliberately **undiscriminating** — it cannot know a note was meant
 for one particular consumer — so a consumer that *captures* rather than plays notes
 must scope itself. The sequencer's Step Input is the one such consumer: it is armed
-only while its own grid is on screen ([sequencer](sequencer.md) REQ-step-input-arms-only-on-screen), which is why
-notes played on another tab no longer overwrite its bank.
+only while its own grid is on screen ([sequencer](sequencer.md) REQ-step-input-arms-only-on-screen).
 
 ## Requirements
 
