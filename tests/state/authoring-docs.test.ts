@@ -98,7 +98,7 @@ describe('websynth-song-author.schema.json', () => {
  * MCP `get_song_format` tool serve. The published pair fell behind `capture()`
  * twice (v5 and v6 shipped without them) and the guide's canonical EXAMPLE SHAPE
  * sat at 4 while its own TOP-LEVEL SHAPE said 6 — so all three are pinned to
- * `SONG_VERSION` rather than trusted (song-mode.md REQ-song-file-is-a-versioned-union).
+ * `SONG_VERSION` rather than trusted (song-file.md REQ-song-file-is-a-versioned-union).
  */
 describe('the published canonical version', () => {
   it('is the top of the schema version enum', () => {

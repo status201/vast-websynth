@@ -99,7 +99,7 @@ and indent costs tokens and latency.
   contracts rather than re-deriving them.
 - **One owner per fact; everyone else links, plus at most one line.** A fact
   written out in N specs drifts in N−1 of them. The chain order is `effects.md`'s,
-  the song-version ladder `song-mode.md`'s, the limits `untrusted-input.md`'s (and
+  the song-version ladder `song-file.md`'s, the limits `untrusted-input.md`'s (and
   `limits.ts`), the lazy surfaces `lazy-load-failure.md`'s test tables.
 - **A spec says what is true now.** Its REQ keeps the `(vN)` it landed in, and
   nothing else about versions.
@@ -315,6 +315,7 @@ specs/
     xy-pad.md          ·  assignable momentary XY controller (spring-back)
     # — songs & persistence —
     song-mode.md       ·  the cross-cutting integration feature
+    song-file.md       ·  the on-disk SongFile: version ladder, import validation, canonical form
     demo-library.md    ·  what a shipped demo is + the generated metadata behind the shelf + the library window
     rickroll-easter-egg.md ·  playing the "Never gonna give you up" hook offers the Rickroll demo (hidden on purpose)
     untrusted-input.md ·  the trust boundary: payload limits, ranges, consent (cross-cutting)

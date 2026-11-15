@@ -30,7 +30,7 @@ source:
 Sampler slot audio lives only in `SamplerMachine.buffers`; a saved/exported song
 persists just the filenames (`SongFile.sampleNames`), so every export/import loses
 the audio and the sampler panel falls back to the `.needs-reload` hint
-([song-mode](song-mode.md) REQ-audio-is-never-embedded-in-the-json, [sampler](sampler.md) REQ-only-sample-filenames-persist). This feature adds a
+([song-file](song-file.md) REQ-audio-is-never-embedded-in-the-json, [sampler](sampler.md) REQ-only-sample-filenames-persist). This feature adds a
 **"Project"** export: a `<name>.websynth.zip` containing the canonical compact song
 JSON plus each loaded slot's audio clip, importable in one step, and a loader path
 so future demos can ship as zips with audio. The `.json` song format is untouched.

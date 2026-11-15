@@ -7,6 +7,7 @@ date: 2026-05-15
 deciders: core
 related:
   - ../features/song-mode
+  - ../features/song-file
   - ../recipes/evolve-the-song-format
 ```
 
@@ -103,7 +104,7 @@ new files degrade gracefully. The procedure is captured in
 > is unchanged.
 
 > **Follow-up (2026-10-02):** **v9** raises the same dimension's ceiling from 8 to
-> 16 banks per machine ([`features/song-mode`](../features/song-mode.md)
+> 16 banks per machine ([`features/song-file`](../features/song-file.md)
 > REQ-song-file-v9-raises-the-bank-ceiling) — again no field, again a relaxation,
 > again bumped only so an older build names the version instead of a range. The
 > decision is unchanged.

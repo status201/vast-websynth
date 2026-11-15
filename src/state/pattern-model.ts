@@ -224,7 +224,7 @@ export function slotOptionLabels(names: readonly (string | null | undefined)[]):
  * (the two published JSON schemas, llms.txt) are pinned to it by
  * `tests/state/authoring-docs.test.ts`. A raise also owes a SONG_VERSION bump
  * and a dialect ladder rung: 8 (A..H) was SongFile v8's ceiling, 16 (A..P) is
- * v9's (song-mode.md REQ-song-file-v9-raises-the-bank-ceiling).
+ * v9's (song-file.md REQ-song-file-v9-raises-the-bank-ceiling).
  */
 export const MIN_BANK_COUNT = 4;
 export const MAX_BANK_COUNT = 16;

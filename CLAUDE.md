@@ -112,7 +112,7 @@ material keyed by feature name).
 | --- | --- |
 | `src/state/params.ts` — a new param | `recipes/add-a-parameter.md`, ADR-001, ADR-006 |
 | `src/state/patterns.ts` | `features/banks.md`, `features/step-settings.md`, ADR-004 |
-| `src/state/song*.ts`, `src/state/serialize.ts` | `features/song-mode.md`, `recipes/evolve-the-song-format.md`, ADR-007/011/013 |
+| `src/state/song*.ts`, `src/state/serialize.ts` | `features/song-mode.md`, `features/song-file.md` (the format), `recipes/evolve-the-song-format.md`, ADR-007/011/013 |
 | `src/state/preset*.ts` | `features/presets.md`, `features/preset-authoring.md`, `recipes/add-a-factory-preset.md` |
 | `src/state/demos/` | `recipes/add-a-demo-song.md` (data drop-in — SDD-exempt) |
 | `src/audio/engine.ts` | `specs/architecture.md`, ADR-008, ADR-009 |

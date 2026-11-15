@@ -230,7 +230,7 @@ until used ([lane-fold](lane-fold.md)). The tab sits between Sampler and Song.
     demos;
   - **load pads, never truncates**: C and D arrive blank and unassigned;
   - **a deeper bank is v8 content**: the dialect ladder's `anyMotionTrackGrown`
-    stamps v8 ([song-mode](song-mode.md) REQ-song-file-v8-widens-the-bank-count), or
+    stamps v8 ([song-file](song-file.md) REQ-song-file-v8-widens-the-bank-count), or
     an older build would accept v5 and silently drop the lane;
   - **the validator bounds the inner array**: a bank with more than
     `MOTION_TRACK_COUNT` tracks is an error, as `checkSeqTracks` does.

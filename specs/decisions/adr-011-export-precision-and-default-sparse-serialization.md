@@ -7,6 +7,7 @@ date: 2026-06-28
 deciders: core
 related:
   - ../features/song-mode
+  - ../features/song-file
   - ../features/presets
   - ../recipes/evolve-the-song-format
 ```

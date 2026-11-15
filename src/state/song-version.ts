@@ -12,7 +12,7 @@
  * guide the MCP `get_song_format` tool serves) advertise the version to external
  * tools, and they fell a version behind twice before
  * `tests/state/authoring-docs.test.ts` pinned them to this constant
- * (song-mode.md REQ-song-file-is-a-versioned-union). See `specs/recipes/evolve-the-song-format.md`.
+ * (song-file.md REQ-song-file-is-a-versioned-union). See `specs/recipes/evolve-the-song-format.md`.
  */
 
 /** The version `Song.capture()` writes. Bumping the format starts here. */

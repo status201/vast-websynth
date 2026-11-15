@@ -755,7 +755,7 @@ function chainTransposeOf(chain: ChainData): number[] {
  *
  * `expandChain` returns `ChainData`, which is the *canonical* shape and must not
  * grow a field the format does not have (`seqTranspose` is a sibling of
- * `seqChain`, never a member — song-mode.md REQ-song-file-v7-adds-slot-transpose). A `WeakMap` keyed on the
+ * `seqChain`, never a member — song-file.md REQ-song-file-v7-adds-slot-transpose). A `WeakMap` keyed on the
  * returned object keeps the parse result reachable without widening that type or
  * threading an out-parameter through the recursive `{steps: {...}}` form.
  */
