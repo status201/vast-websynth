@@ -62,10 +62,8 @@ notes played on another tab no longer overwrite its bank.
   note mapping is **exported** and is the single source for
   the About modal's keyboard diagram ([onboarding](onboarding.md) REQ-keys-are-drawn-as-keys),
   which derives each key's rank and column from its semitone rather than
-  restating the letters. Adding or moving a binding therefore re-draws the
-  diagram; a hand-copied one would drift, and a picture of the keyboard that
-  disagrees with the keyboard is worse than no picture. What is exported
-  is now **`NOTE_ROWS`** — the canonical positional shape (`code → semitone`,
+  restating the letters, so a moved binding re-draws the diagram. What is
+  exported is **`NOTE_ROWS`** — the canonical positional shape (`code → semitone`,
   the piano). The character-keyed `LOWER`/`UPPER` the keydown branch matches
   against are module-private and **composed** at runtime from `NOTE_ROWS` and
   the active layout's `code → character` table
@@ -105,8 +103,7 @@ notes played on another tab no longer overwrite its bank.
 - **REQ-octave-shift-is-minus-and-equal** (v17) — **The keyboard octave shifts
   on `-` and `=`, not the arrow keys.** The bare arrows are navigation — a focused
   slider, knob or list owns them ([knob-keyboard-access](knob-keyboard-access.md),
-  [dropdown](dropdown.md) REQ-arrow-keys-move-the-selection) — and binding them
-  app-wide made every such control a tug-of-war with the octave. `-` shifts
+  [dropdown](dropdown.md) REQ-arrow-keys-move-the-selection). `-` shifts
   down and `=` up, matched on `e.code` (`Minus` / `Equal`) for the reason the bend
   is (REQ-pitch-bend-is-quote-and-slash): the pair is chosen for *where it sits*,
   the two keys right of `0`, and on QWERTZ/AZERTY those codes carry other
@@ -114,7 +111,7 @@ notes played on another tab no longer overwrite its bank.
   (`NumpadSubtract` / `NumpadAdd`) do the same. The range is unchanged (base
   octave 0..7). Shift+arrows still move the playhead a bar
   ([transport-position](transport-position.md) REQ-home-and-shift-arrows-seek); a
-  bare arrow now does nothing globally.
+  bare arrow does nothing globally.
 
 - **REQ-midi-access-follows-a-gesture** — MIDI access is requested only after a
   **user gesture** — the "Tap to start" click where there is one, and otherwise
@@ -123,23 +120,17 @@ notes played on another tab no longer overwrite its bank.
   Chrome ≥124 shows a permission prompt for *all* MIDI access (sysex or not),
   and an unprompted load-time permission dialog is hostile to the (majority)
   MIDI-less visitor. The request passes an explicit `{ sysex: false }`; a denied
-  prompt degrades exactly like absence of Web MIDI (logged, no error). Note:
-  Chrome's DevTools deprecation line ("Web MIDI will ask a permission…") is
-  informational and cannot be silenced from code.
+  prompt degrades exactly like absence of Web MIDI (logged, no error).
 
 - **REQ-one-module-owns-the-midi-access** — `midi.ts` is the **sole owner** of
   the shared `MIDIAccess` handler properties (`onmidimessage`/`onstatechange`
   are single-assignment — a second owner would silently clobber them). System
-  Real-Time bytes (status ≥ 0xF8) are dispatched **before** the `& 0xf0`
-  channel-voice mask (0xF8 & 0xF0 = 0xF0 would mis-dispatch) and routed to the
-  clock-sync transport (see [midi-clock-sync](midi-clock-sync.md)); they never
-  reach note/CC handling. A leading **`0xF2` Song Position Pointer** (System
-  Common, 3 bytes, < 0xF8) is routed on its own explicit branch — after the
-  ≥0xF8 branch
-  and before the mask — to `MidiSyncTransport.handleSongPosition(((d2)<<7)|d1,
-  ts)` (midi-clock-sync REQ-song-position-pointer-jumps-the-slave). `midi.ts` registers the transport via
-  `engine.sync.addTransport('midi', sync)`;
-  `onstatechange` additionally refreshes the sync transport's port counts.
+  Real-Time bytes (≥ 0xF8) and a leading **`0xF2` Song Position Pointer** are
+  dispatched **before** the `& 0xf0` channel-voice mask (0xF8 & 0xF0 = 0xF0 would
+  mis-dispatch) to the clock-sync transport ([midi-clock-sync](midi-clock-sync.md)
+  REQ-song-position-pointer-jumps-the-slave), never to note/CC handling.
+  `midi.ts` registers that transport, and `onstatechange` refreshes its port
+  counts.
 
 - **REQ-the-sustain-pedal-is-midi-layer** — **Sustain pedal (CC64)**, MIDI-layer:
   while the pedal is down (CC64 value ≥ 64) a MIDI note-off (0x80, or 0x90
@@ -163,28 +154,21 @@ notes played on another tab no longer overwrite its bank.
   other non-note key it goes through the `UiBridge` (`toggleInfoBadges`) rather
   than importing the onboarding layer into `shortcuts.ts` — same reason as
   `toggleTransport` / `undoActiveMachine`. Behaviour is owned by
-  [onboarding](onboarding.md) REQ-the-info-button-gesture-inventory; since v15 it is the *second* route to the
-  badges rather than a shortcut past a modal, the first being the header's ⓘ
-  button (onboarding REQ-the-info-button-is-a-toggle).
+  [onboarding](onboarding.md) REQ-the-info-button-gesture-inventory; it is the
+  second route to the badges, the first being the header's ⓘ button
+  (onboarding REQ-the-info-button-is-a-toggle).
 
 - **REQ-a-lit-key-is-remembered-as-an-element** (v9) — **A lit key is remembered
   as an element, never re-derived.** `keyboard.transpose` (the OCT strip) shifts
   the note→element mapping: an element sounds `note + transpose * 12`, so the
   key *for* a sounding note is `note - transpose * 12`. Both highlight APIs
-  resolve that through **one** private `keyFor(note)` — including `highlight`,
-  which previously did not de-transpose and so disagreed with `seqHighlight`
-  about where the same MIDI note lives. (Visible consequence, and correct: at
-  OCT +2 a computer key playing C4 has no key on the drawn board and lights
-  nothing, rather than lighting the key that actually sounds C6.) The light-up
-  **stores the resolved element**; the light-down removes the class from *that*
-  element rather than resolving the note again, because re-deriving goes wrong: the
-  sequencer's viz schedules its on and its off as two separate deferred timers
-  (`shell/bottom.ts`, at the notes' audible moments), so any OCT change in between —
-  including a **song/demo load**, since `Song.apply` restores
-  `keyboard.transpose` and most demos ship a non-zero one — resolved the off to
-  a different element, or to none at all (`keys.get` misses silently). The key
-  stayed lit until the next transport stop, the only caller of
-  `clearSeqHighlights`. Lit entries are **refcounted**, so two of the four
+  resolve that through **one** private `keyFor(note)`, so `highlight` and
+  `seqHighlight` agree (at OCT +2 a computer key playing C4 lights nothing: it has
+  no key on the drawn board). The light-up **stores the resolved element**; the
+  light-down removes the class from *that* element, never re-resolving — the
+  sequencer's on and off are two deferred timers (`shell/bottom.ts`), and an OCT
+  change between them (a song or demo load restores `keyboard.transpose`) would
+  resolve the off to another key or none. Lit entries are **refcounted**, so two of the four
   sequencer tracks sounding the same note cannot have the first release dim a
   key the second is still holding.
 
@@ -192,13 +176,12 @@ notes played on another tab no longer overwrite its bank.
   note that was pressed.** Two sources re-computed it at release time against
   mutable state and stranded the note when that state moved mid-hold:
     - the **on-screen keyboard** stores the sounding note alongside the element at
-      `pointerdown` and releases *that*, so moving OCT while a key is held no
-      longer sends `noteOff` for a different MIDI number (a hung voice);
+      `pointerdown` and releases *that*, so moving OCT while a key is held cannot
+      send `noteOff` for a different MIDI number;
     - **`installShortcuts`** keys its held-note map by the *case-folded key* and
-      stores the note it pressed, so neither the octave shift (`-`/`=` since v17) nor a Shift
-      press mid-hold (which flips `e.key` between `z` and `Z`) can make `keyup`
-      compute a different identity, miss the map, and skip `release()` entirely
-      (a hung voice *and* a stuck-lit key until the window lost focus).
+      stores the note it pressed, so neither the octave shift (`-`/`=`) nor a Shift
+      press mid-hold (`z` ↔ `Z`) can make `keyup` miss the map and skip
+      `release()`.
   This is the input-layer twin of [sequencer](sequencer.md) REQ-a-stop-releases-every-tracks-note: nothing may
   hold a note whose release depends on state that is free to change underneath it.
 
@@ -214,50 +197,25 @@ notes played on another tab no longer overwrite its bank.
 
 - **REQ-pitch-bend-is-quote-and-slash** (v10) — **Pitch bend is `'` up and `/`
   down, chosen for where the keys sit.** Both write `master.pitchBend` (+1 / −1)
-  on keydown and spring back to 0 on keyup, as before. What changed is which key
-  means *up*: it was `.`, and `.` and `/` are **horizontally** adjacent while
-  bend is a **vertical** gesture, so neither assignment was derivable — you
-  memorised it or you guessed. On the standard layout `'` sits directly
-  **above** `/`, one row up, so the physical arrangement states the mapping and
-  the About list can show it as two stacked rows that mirror the keys
-  ([onboarding](onboarding.md) REQ-about-key-symbols-are-drawn/REQ-the-key-list-folds-to-six-rows).
-  - `.` is left **unbound**. It is not kept as an alias: two keys for one
-    outcome is what
-    [ADR-014](../decisions/adr-014-dont-make-me-think.md) law 2 rules out, and a
-    silent alias would keep teaching the arrangement this REQ exists to replace.
-  - `'` collides with nothing — it is in neither note row, `keyToMidi` returns
-    null for it.
-  - **Losing the window releases the bend.** The bend is a held-key state,
-    so it has the same failure as a held note: no `keyup` ever arrives if focus
-    leaves mid-hold, and it springs back only on a key the user is no longer
-    pressing. Hold `'`, Alt-Tab, and the synth stays a semitone sharp until you
-    press and release the key again. The `blur` handler already performs the
-    bulk release for held notes and Fill — the bend belongs in the same place
-    and for the same reason. Every other way this pair could strand (a dead-key
-    layout, a non-US layout, `Shift` pressed or released mid-hold) is already
-    closed by matching `e.code`; blur was the one left open.
-  - **The `pitchBend` help topic names the same two keys**, pinned by a test that
-    asserts both keys and the absence of the retired `.`.
-  - **These two are matched on `e.code` (`Quote` / `Slash`), not
-    `e.key`** — the only bindings in `installShortcuts` that are. `e.key` answers
-    "what character was typed", but this pair is chosen for *where the keys sit*,
-    so position is the thing to match. Three failures fall out of that one
-    change:
-    - **Dead keys.** Where `'` is a dead key (US-International; several European
-      layouts) `e.key` is `Dead` and bend-up was simply unreachable. A dead key
-      still fires `keydown` with the right `code`.
-    - **Layouts.** On QWERTZ and AZERTY neither `'` nor `/` is where a `e.key`
-      match assumes; `Quote`/`Slash` name the physical keys the diagram draws.
-    - **A stuck bend.** Hold `/`, press `Shift`, release: `e.key` on the `keyup`
-      is `?`, the release branch missed, and the bend **stayed at −1** until the
-      next bend press. `'` had the same hole via `"`. Matching `code` makes the
-      press and its release agree by construction — the same rule REQ-a-note-off-names-the-pressed-note sets
-      for note-offs: nothing may hold state whose release depends on a value
-      free to change mid-hold.
-  - `?` keeps its branch **above** this one and returns, so `Shift`+`Slash`
-    toggles the info badges rather than bending (REQ-question-mark-toggles-the-badges). With modifiers
-    otherwise ignored, `Shift`+`Quote` does bend — the physical key bends,
-    which is the whole premise.
+  on keydown and spring back to 0 on keyup. On the standard layout `'` sits
+  directly **above** `/`, so the arrangement states the vertical gesture, and the
+  About list draws them as two stacked rows ([onboarding](onboarding.md)
+  REQ-about-key-symbols-are-drawn/REQ-the-key-list-folds-to-six-rows).
+  - `.` is **unbound** — no alias: two keys for one outcome is what
+    [ADR-014](../decisions/adr-014-dont-make-me-think.md) law 2 rules out. `'` is
+    in neither note row.
+  - **Matched on `e.code` (`Quote` / `Slash`), not `e.key`** — the only such
+    bindings in `installShortcuts`. The pair is chosen for *position*, so position
+    is what is matched: a dead `'` (US-International) still fires the right
+    `code`, QWERTZ and AZERTY bend on the keys the diagram draws, and a `Shift`
+    pressed mid-hold cannot make the `keyup` miss (`?` / `"`) and strand the bend —
+    REQ-a-note-off-names-the-pressed-note's rule: no state whose release depends on
+    a value free to change mid-hold.
+  - **Losing the window releases the bend**, in the `blur` handler beside held
+    notes and Fill — a `keyup` never arrives once focus has left.
+  - `?` keeps its branch **above** this one, so `Shift`+`Slash` toggles the info
+    badges (REQ-question-mark-toggles-the-badges); `Shift`+`Quote` bends.
+  - The `pitchBend` help topic names the same two keys, pinned by a test.
 
 - **REQ-note-keys-follow-the-layout** (v13) — **The note keys follow a
   switchable keyboard layout.** `installShortcuts` rebuilds `LOWER`/`UPPER`
@@ -280,21 +238,14 @@ notes played on another tab no longer overwrite its bank.
   not a lit key.**
   `Keyboard.setKeyRoles(state | null)` marks each key with the musical role its pitch
   class plays in the current key ([scale-quantization](scale-quantization.md) REQ-the-key-is-shown-where-you-play,
-  which owns *what* the roles mean). It is a different kind of state from the two that
-  came before, and the difference is what keeps it safe:
-  - **Static, not evented.** `active` and `seq` are transient and refcounted, so they
-    must remember the element they lit (REQ-a-lit-key-is-remembered-as-an-element). A role is a *standing* property of a
-    pitch class that changes only when the user changes the key, so it is written to
-    every key at once and needs no bookkeeping to unwind.
-  - **An attribute, never `setLit`.** Roles go to `data-role`; the lit states stay the
-    global `active` / `seq` classes. Routing a third state through `setLit` would put
-    it in the same refcounted maps as the two whose element-remembering REQ-a-lit-key-is-remembered-as-an-element and
-    REQ-a-note-off-names-the-pressed-note pin, where a full-keyboard sweep could strand a held note's light. Separate
-    channels cannot interfere; the same reason `litActive` and `litSeq` are two maps
-    and not one.
-  - **Pitch class, so OCT is free.** `keyFor` shifts by whole octaves and pitch class
-    survives that, so unlike everything else in REQ-a-lit-key-is-remembered-as-an-element a role needs no de-transposing
-    and no repaint when `keyboard.transpose` moves.
+  which owns *what* the roles mean):
+  - **Static, not evented.** A role is a standing property of a pitch class, written
+    to every key at once when the key changes — no refcount, nothing to unwind.
+  - **An attribute, never `setLit`.** Roles go to `data-role`; the lit states stay
+    the global `active` / `seq` classes, so a full-keyboard sweep can never touch the
+    refcounted maps REQ-a-lit-key-is-remembered-as-an-element pins.
+  - **Pitch class, so OCT is free**: a role needs no de-transposing and no repaint
+    when `keyboard.transpose` moves.
   - **The lit classes win.** A key that is pressed or sequenced shows that, and its
     role tint steps aside — enforced in CSS, so no JS ordering can get it wrong.
 
@@ -316,10 +267,8 @@ notes played on another tab no longer overwrite its bank.
 ### Channels, expression, pressure
 
 - **REQ-channel-ten-plays-the-sampler** (v18) — **MIDI channel 10 plays the
-  sampler's slots.** The sampler was programmable but not playable: clicking a
-  slot name at a fixed velocity was the only manual trigger. Channel 10 is the
-  General MIDI drum channel, where every pad controller and drum module already
-  sends, so it needs no setup: a note-on on channel 10 triggers slot
+  sampler's slots.** Channel 10 is the General MIDI drum channel, where every
+  pad controller and drum module already sends, so it needs no setup: a note-on on channel 10 triggers slot
   `note − 36` (C1 = slot 1 … G1 = slot 8) through `SamplerMachine.triggerSlot`
   at the note's velocity. Notes outside 36..43 are ignored; note-offs are
   ignored (a slot plays its own length, like a step). **Channel 10 never reaches
@@ -345,9 +294,8 @@ notes played on another tab no longer overwrite its bank.
   the (channel, note) pairs it sent `noteOn` for. Two rules follow:
   - **The channel filter gates note-ons, not note-offs.** A note-off for a
     pair the synth sounded is honoured even if the input channel has changed
-    since (REQ-the-midi-input-channel-is-selectable). Before, changing the
-    channel with a key down dropped that key's note-off as "another channel's",
-    and the note hung.
+    since (REQ-the-midi-input-channel-is-selectable), so changing the channel
+    with a key down cannot hang its note.
   - **A port that goes away releases what it was holding.** On every
     `statechange`, a remembered port that is missing from `access.inputs` or
     reads `disconnected` has its notes released. If that port is holding the
@@ -388,9 +336,7 @@ notes played on another tab no longer overwrite its bank.
   gesture riding inside the level, and the knob shows the level. The engine's
   gain and the knob's text both call `masterLevel` in `src/state/master-level.ts`,
   so the number and the sound cannot disagree (the role `src/state/eq.ts` plays
-  for the EQ's filters and its drawn curve). Through v18 the readout was
-  `20·log10(volume)` over the squared law — half the real cut: the default 0.8
-  read −1.9 dB while playing at −3.9 dB.
+  for the EQ's filters and its drawn curve).
 - **REQ-aftertouch-joins-the-mod-wheel** (v18) — **Channel aftertouch joins the
   mod wheel.** Pressing into the keys (0xD0) is the most common expressive
   gesture a keyboard offers. It drives the same destination as the mod wheel —
@@ -409,28 +355,26 @@ installShortcuts(engine, bus, bridge: UiBridge): void   # src/ui/shortcuts.ts
   LOWER: z s x d c v g b h n j m ,    # semitone offsets from C
   UPPER: q 2 w 3 e r 5 t 6 y 7 u i    # one octave up
   baseOctave (shiftable); ignores e.repeat
-  keyId(k) = k.length === 1 ? k.toLowerCase() : k   # v9: one key identity
-  NOTE_ROWS.lower / .upper: Record<code, semitone>            # v13 — the piano shape
+  keyId(k) = k.length === 1 ? k.toLowerCase() : k   # one key identity
+  NOTE_ROWS.lower / .upper: Record<code, semitone>  # the piano shape
   LOWER / UPPER: Record<char, semitone>             # composed with the layout
                                      # (REQ-two-key-rows-an-octave-apart); also the source for About's
                                      # keyboard diagram. Rebuilt on layout change.
-  held: Map<keyId, note>             # v9, REQ-a-note-off-names-the-pressed-note: the note PRESSED, so keyup never
-                                     # recomputes it against a shifted baseOctave
+  held: Map<keyId, note>             # the note PRESSED (REQ-a-note-off-names-the-pressed-note)
   '?' -> bridge.toggleInfoBadges()   # REQ-question-mark-toggles-the-badges; ordered above the bend branch below
   code 'Quote' -> master.pitchBend +1   # REQ-pitch-bend-is-quote-and-slash; matched on e.code, not e.key
   code 'Slash' -> master.pitchBend -1   # REQ-pitch-bend-is-quote-and-slash; '.' is unbound
-  keyup on either code -> 0             # same code both ways, so Shift mid-hold
-                                        #   can no longer strand the bend
+  keyup on either code -> 0             # same code both ways
 UiBridge: pressKey(note) / releaseKey(note)             # visual-only -> keyboard.highlight(note, on)
   # never calls bus.noteOn/off; the one note-on per key is installShortcuts' (REQ-a-key-emits-exactly-one-note-on)
   toggleInfoBadges()                 # -> Onboarding.toggleInfoBadges (REQ-question-mark-toggles-the-badges)
 initMIDI(engine, bus): Promise<void>                    # src/audio/midi.ts
   requestMIDIAccess({ sysex: false })  # explicit; called post-gesture (REQ-midi-access-follows-a-gesture)
   status >= 0xF8 -> MidiSyncTransport.handleRealtimeByte(byte, ev.timeStamp)  # REQ-one-module-owns-the-midi-access, before the mask
-  data[0] === 0xF2 -> MidiSyncTransport.handleSongPosition(((d2)<<7)|d1, ev.timeStamp)  # REQ-one-module-owns-the-midi-access (v2), before the mask
+  data[0] === 0xF2 -> MidiSyncTransport.handleSongPosition(((d2)<<7)|d1, ev.timeStamp)  # before the mask
   0x90 Note On (d2==0 -> noteOff) ; 0x80 Note Off  -> bus.noteOn/noteOff
   note on/off route through SustainPedal first (REQ-the-sustain-pedal-is-midi-layer); CC64 -> pedal.setPedal(v>=64)
-  builds MidiSyncTransport(access) -> engine.sync.addTransport('midi', ...)  # midi-clock-sync v2
+  builds MidiSyncTransport(access) -> engine.sync.addTransport('midi', ...)  # midi-clock-sync
 SustainPedal                                            # src/audio/sustain-pedal.ts (pure, REQ-the-sustain-pedal-is-midi-layer)
   noteOn(note): void          # marks held; un-sustains a retriggered note
   noteOff(note): boolean      # false = deferred (pedal down); true = pass to bus.noteOff
@@ -440,10 +384,6 @@ note funnel: bus.onNote -> Engine.playNote/releaseNote (unless passthroughSuppre
   (sequencer.md REQ-step-input-arms-only-on-screen) — the funnel itself stays undiscriminating
 ```
 
-> Note: there is **no** `window.__synthKeyboard` / `window.__transportToggle`
-> global anymore — input is driven via `UiBridge` and the bus. The only dev global
-> is `window.__synth` (see [architecture](../architecture.md)).
-
 ### Layer touchpoints
 
 ```yaml
@@ -451,16 +391,12 @@ boot (main.ts): builds the UiBridge, installShortcuts(...)
 start gesture (main.ts showStartModal): initMIDI(...) fires on tap-to-start (REQ-midi-access-follows-a-gesture)
 on-screen keyboard: src/ui/components/keyboard.ts -> bus.noteOn/noteOff directly
   keyboard.highlight(note, on): visual-only key toggle (the UiBridge target; no bus call)
-  keyFor(note) = keys.get(note - transpose * 12)   # v9, REQ-a-lit-key-is-remembered-as-an-element — the ONE resolver,
-    shared by highlight + seqHighlight; lit elements are stored, never re-derived
-  litActive / litSeq: Map<note, {el, count}>       # v9 — refcounted, cleared by
-    clearSeqHighlights() (litSeq only; its sole caller is clock.onStop in shell/bottom.ts)
-  activeByPointer: Map<pointerId, {key, sounding}> # v9, REQ-a-note-off-names-the-pressed-note — release `sounding`
-  setKeyRoles(state|null): el.dataset.role per key # v14, REQ-a-third-highlight-layer — no map, no refcount,
-    keyed by (midi % 12); null clears. Guarded: skips a write already in place.
+  keyFor(note) = keys.get(note - transpose * 12)   # the ONE resolver (REQ-a-lit-key-is-remembered-as-an-element)
+  litActive / litSeq: Map<note, {el, count}>       # refcounted; clearSeqHighlights() on clock.onStop
+  activeByPointer: Map<pointerId, {key, sounding}> # release `sounding` (REQ-a-note-off-names-the-pressed-note)
+  setKeyRoles(state|null): el.dataset.role per key # REQ-a-third-highlight-layer — keyed by midi % 12, no refcount
 shell/bottom.ts wiring: bridge.pressKey/releaseKey -> keyboard.highlight(note, true/false)
-  onKeyChange(bus, ...) -> keyboard.setKeyRoles(...)  # v14 — src/ui/key-roles.ts owns
-    the vocabulary; the component takes a state object and stays free of music theory
+  onKeyChange(bus, ...) -> keyboard.setKeyRoles(...)  # src/ui/key-roles.ts owns the vocabulary
 arp ownership: when the arp's passthroughSuppressed is set, the engine gates raw note
   passthrough (Engine.arpPassthroughSuppressed); the sequencer never does
 ```
@@ -468,14 +404,14 @@ arp ownership: when the arp's passthroughSuppressed is set, the engine gates raw
 ## Scenarios (BDD)
 
 ```gherkin
-Scenario: Channel 10 plays the sampler, never the synth (v18, REQ-channel-ten-plays-the-sampler)
+Scenario: Channel 10 plays the sampler, never the synth (REQ-channel-ten-plays-the-sampler)
   Given MIDI input
   When a note-on for note 36 velocity 100 arrives on channel 10
   Then sampler slot 1 is triggered at velocity 100/127 and no synth note plays
   And note 43 triggers slot 8, and note 44 or a channel-10 CC does nothing
 # pinned by: tests/audio/midi.test.ts
 
-Scenario: The input channel filters what plays the synth (v18, REQ-the-midi-input-channel-is-selectable)
+Scenario: The input channel filters what plays the synth (REQ-the-midi-input-channel-is-selectable)
   Given the MIDI in channel is set to 2
   When notes arrive on channels 1 and 2
   Then only the channel 2 note plays
@@ -483,7 +419,7 @@ Scenario: The input channel filters what plays the synth (v18, REQ-the-midi-inpu
   And a stored channel of 10 or 99 reads as Omni
 # pinned by: tests/audio/midi.test.ts, tests/state/midi-channel.test.ts
 
-Scenario: CC11 rides inside the volume (v18, REQ-cc11-is-expression)
+Scenario: CC11 rides inside the volume (REQ-cc11-is-expression)
   Given master.volume is 0.8
   When CC11 sends 64
   Then master.expression is 64/127 and master.volume is unchanged
@@ -497,13 +433,13 @@ Scenario: A bend held at Save time is not saved (REQ-the-pitch-wheel-is-never-sa
   And a sequencer step's bend of +2 is still in the captured song
 # pinned by: tests/state/song.test.ts
 
-Scenario: The volume readout is the applied gain (v19, REQ-the-volume-knob-reads-the-gain-it-applies)
+Scenario: The volume readout is the applied gain (REQ-the-volume-knob-reads-the-gain-it-applies)
   Given master.volume is 0.5
   Then the knob reads -12.0dB, and the engine's master gain is 0.25
   And at 0.8 it reads -3.9dB, and at 1 it reads 0.0dB
 # pinned by: tests/state/master-level.test.ts
 
-Scenario: Aftertouch and the mod wheel take the larger (v18, REQ-aftertouch-joins-the-mod-wheel)
+Scenario: Aftertouch and the mod wheel take the larger (REQ-aftertouch-joins-the-mod-wheel)
   Given the mod wheel at 0.25
   When channel pressure rises to 1 and falls back to 0
   Then master.modWheel goes to 1 and returns to 0.25
@@ -519,63 +455,54 @@ Scenario: A single computer key fires exactly one note-on (regression, no double
   Given the Sequencer's Step Input is armed with the cursor at step 0
   When the user presses one computer key (e.g. 'x' = D)
   Then that single step is filled and the cursor advances by exactly one
-  # because the UiBridge highlight is visual-only — the key emits one bus.noteOn,
-  # not two (which would fill two steps / play two voices)
 # pinned by: e2e/patterns.spec.ts, tests/ui/keyboard.test.ts
 
-Scenario: Moving OCT mid-playback leaves no key lit (v9, REQ-a-lit-key-is-remembered-as-an-element, regression)
+Scenario: Moving OCT mid-playback leaves no key lit (REQ-a-lit-key-is-remembered-as-an-element, regression)
   Given the sequencer is playing and has lit a key for a sounding note
-  When keyboard.transpose changes before that note's light-off is due
-  Then the light-off clears the key that was actually lit
-  And no key is left glowing until the next transport stop
+  When keyboard.transpose changes before that note's light-off is due — by OCT, or by a demo load restoring its own
+  Then the light-off clears the key that was actually lit, and no key is left glowing
 # pinned by: tests/ui/keyboard.test.ts
 
-Scenario: Loading a demo mid-playback leaves no key lit (v9, REQ-a-lit-key-is-remembered-as-an-element, regression)
-  Given a demo is playing with keys lit by the sequencer
-  When another demo is loaded, restoring its own keyboard.transpose
-  Then every previously lit key still clears on its own schedule
-# pinned by: tests/ui/keyboard.test.ts
-
-Scenario: Two tracks on the same note do not dim each other (v9, edge)
+Scenario: Two tracks on the same note do not dim each other (edge)
   Given two sequencer tracks sound the same note with different gates
   When the shorter one releases
   Then the key stays lit until the longer one releases too
 # pinned by: tests/ui/keyboard.test.ts
 
-Scenario: A role does not disturb a lit key (v14, REQ-a-third-highlight-layer)
+Scenario: A role does not disturb a lit key (REQ-a-third-highlight-layer)
   Given a key is lit by the sequencer and carries an in-scale role
   When the key is re-roled by a change of scale, and then the light-off falls due
   Then the light-off still clears the element it lit
   And the key keeps whichever role it now has
 # pinned by: tests/ui/keyboard.test.ts
 
-Scenario: Two lit white keys side by side read as one pressed span (v22, REQ-a-lit-white-key-sits-lower)
+Scenario: Two lit white keys side by side read as one pressed span (REQ-a-lit-white-key-sits-lower)
   Given C4 and D4 are both lit, by a finger, a computer key, MIDI or the sequencer
   Then C4 is shaded on its left edge only and D4 on its right edge only
   And a lone lit white key is shaded on both edges
 # pinned by: keyboard.module.css sibling rules; appearance by eye (jsdom computes no box-shadow)
 
-Scenario: Moving OCT while a key is held does not hang the voice (v9, REQ-a-note-off-names-the-pressed-note)
+Scenario: Moving OCT while a key is held does not hang the voice (REQ-a-note-off-names-the-pressed-note)
   Given a key on the on-screen keyboard is held down
   When keyboard.transpose changes and the pointer is then released
   Then bus.noteOff names the note that pointerdown played, so no voice hangs
 # pinned by: tests/ui/keyboard.test.ts
 
-Scenario: Shifting octave while a computer key is held releases it (v9, REQ-a-note-off-names-the-pressed-note, regression)
+Scenario: Shifting octave while a computer key is held releases it (REQ-a-note-off-names-the-pressed-note, regression)
   Given the user holds 'z'
-  When they press the octave-up key (`=`, v17) and then release 'z'
+  When they press the octave-up key (`=`) and then release 'z'
   Then exactly one bus.noteOff fires, for the note 'z' originally played
-  And the on-screen key un-lights — previously both waited for a window blur
+  And the on-screen key un-lights
 # pinned by: tests/ui/shortcuts.test.ts
 
-Scenario: Two keys on one note release it with the last key (v21, REQ-a-note-off-names-the-pressed-note, regression)
+Scenario: Two keys on one note release it with the last key (REQ-a-note-off-names-the-pressed-note, regression)
   Given the user holds ',' and 'q', which both play C5
   When they release ','
   Then the note keeps sounding: no bus.noteOff, and no second noteOn when 'q' went down
   And releasing 'q' sends the one noteOff
 # pinned by: tests/ui/shortcuts.test.ts
 
-Scenario: Changing the MIDI channel with a key down still releases it (v21, REQ-a-midi-note-is-released-by-whatever-ended-it, regression)
+Scenario: Changing the MIDI channel with a key down still releases it (REQ-a-midi-note-is-released-by-whatever-ended-it, regression)
   Given the synth listens on channel 1 and a channel-1 key is held
   When the input channel is switched to 2 and the key is released
   Then the note is released
@@ -583,7 +510,7 @@ Scenario: Changing the MIDI channel with a key down still releases it (v21, REQ-
   And a channel-1 pedal-up, or a bend back to centre, from the holder of that pedal or bend still lands
 # pinned by: tests/audio/midi.test.ts
 
-Scenario: Unplugging a keyboard releases its notes, pedal and bend (v21, REQ-a-midi-note-is-released-by-whatever-ended-it, regression)
+Scenario: Unplugging a keyboard releases its notes, pedal and bend (REQ-a-midi-note-is-released-by-whatever-ended-it, regression)
   Given a key held, the sustain pedal down and the bend pushed up on one port
   When that port disappears and statechange fires
   Then every note it held is released, the sustained ones too, and the bend is centred
@@ -596,21 +523,11 @@ Scenario: MIDI Note On with velocity 0 is a Note Off (edge)
   Then bus.noteOff(60) is called
 # pinned by: tests/audio/midi.test.ts (channel-voice messages)
 
-Scenario: A MIDI clock pulse never reaches note handling (edge)
-  Given a MIDI device interleaves 0xF8 clock bytes with note messages
-  When a single-byte 0xF8 message arrives
-  Then it is routed to the sync transport before the 0xf0 status mask
-  And no note or CC handler runs for it
-# pinned by: tests/audio/midi.test.ts (system messages route before the channel
-#            mask), tests/audio/transport/sync/midi-sync-transport.test.ts
-
-Scenario: A Song Position Pointer routes to the sync transport (edge)
-  Given a MIDI master sends 0xF2 lsb msb (beat position)
-  When the 3-byte message arrives
-  Then it routes to handleSongPosition(((msb)<<7)|lsb, ts) before the 0xf0 mask
-  And no note or CC handler runs for it
-# pinned by: tests/audio/midi.test.ts (system messages route before the channel
-#            mask), tests/audio/transport/sync/midi-sync-transport.test.ts
+Scenario: Clock pulses and Song Position never reach note handling (edge)
+  Given a MIDI device interleaves 0xF8 clock bytes and 0xF2 lsb msb with note messages
+  Then each routes to the sync transport before the 0xf0 status mask — 0xF2 as handleSongPosition(((msb)<<7)|lsb, ts)
+  And no note or CC handler runs for either
+# pinned by: tests/audio/midi.test.ts, tests/audio/transport/sync/midi-sync-transport.test.ts
 
 Scenario: No Web MIDI is a silent no-op
   Given navigator.requestMIDIAccess is undefined
@@ -655,43 +572,22 @@ Scenario: CC64 63/64 boundary (edge)
   Then sustained notes flush and later note-offs pass through (63 is "up")
 # pinned by: tests/audio/midi.test.ts (the 63 case over the wire), tests/audio/sustain-pedal.test.ts
 
-Scenario: Pitch bend sits on the vertically stacked keys (v10, REQ-pitch-bend-is-quote-and-slash)
+Scenario: Pitch bend sits on the physical Quote and Slash keys (REQ-pitch-bend-is-quote-and-slash)
   Given no editable field has focus
-  When the user holds the Quote key then releases it
-  Then master.pitchBend went to 1 and sprang back to 0
-  When the user holds the Slash key then releases it
-  Then master.pitchBend went to -1 and sprang back to 0
-  When the user presses .
-  Then nothing happens — it is unbound, not an alias for bend up
+  When the user holds Quote, then Slash, releasing each
+  Then master.pitchBend goes to 1, then -1, springing back to 0 each time
+  And . does nothing — it is unbound
+  And a dead Quote key (e.key 'Dead') still bends, because the branch matches e.code
+  And Shift pressed mid-hold (e.key '?' or '"' on the keyup) still releases the bend
+  And losing the window mid-hold returns the bend to 0, with the held notes and Fill
 # pinned by: tests/ui/shortcuts.test.ts
 
-Scenario: Losing the window releases a held bend (regression, v16, REQ-pitch-bend-is-quote-and-slash)
-  Given the user is holding Quote and master.pitchBend is 1
-  When the window loses focus, so no keyup ever arrives
-  Then master.pitchBend returns to 0
-  And the held notes and Fill are released as before
-# pinned by: tests/ui/shortcuts.test.ts
-
-Scenario: Shift pressed mid-hold still releases the bend (regression, v12, REQ-pitch-bend-is-quote-and-slash)
-  Given the user is holding Slash and master.pitchBend is -1
-  When they press Shift and then release Slash, so e.key reads '?' not '/'
-  Then master.pitchBend returns to 0
-  And the same holds for Quote, whose shifted e.key is '"'
-# pinned by: tests/ui/shortcuts.test.ts
-
-Scenario: A dead-key layout can still bend (v12, REQ-pitch-bend-is-quote-and-slash)
-  Given a layout where the Quote key is dead, so e.key reports 'Dead'
-  When the user presses it
-  Then master.pitchBend goes to 1 — the branch matches e.code, not e.key
-# pinned by: tests/ui/shortcuts.test.ts
-
-Scenario: The Pitch wheel help names the keys that bend (regression, v15, REQ-pitch-bend-is-quote-and-slash)
+Scenario: The Pitch wheel help names the keys that bend (REQ-pitch-bend-is-quote-and-slash)
   Given the `pitchBend` help topic
-  Then it names ' for up and / for down
-  And it no longer names the unbound . key
+  Then it names ' for up and / for down, and not the unbound . key
 # pinned by: tests/ui/help-content.test.ts
 
-Scenario: ? toggles the info badges without bending pitch (v8, REQ-question-mark-toggles-the-badges)
+Scenario: ? toggles the info badges without bending pitch (REQ-question-mark-toggles-the-badges)
   Given no editable field has focus
   When the user presses ? (Shift + /)
   Then UiBridge.toggleInfoBadges is called once
@@ -705,14 +601,14 @@ Scenario: Typing in a text field does not play notes
   And a 'z' that originates outside an editable field still plays a note
 # pinned by: tests/ui/shortcuts.test.ts
 
-Scenario: A note held into a text field is still released (v20, REQ-shortcuts-are-suppressed-in-a-field, regression)
+Scenario: A note held into a text field is still released (REQ-shortcuts-are-suppressed-in-a-field, regression)
   Given 'z' is held, playing a note, with no field focused
   When focus moves into a text field and 'z' is released there
   Then the note is released
   And a ' typed in the field does not reset a pitch bend nobody is holding on the keyboard
 # pinned by: tests/ui/shortcuts.test.ts
 
-Scenario: An open modal silences the shortcuts behind it (v17, REQ-shortcuts-yield-to-an-open-modal, regression)
+Scenario: An open modal silences the shortcuts behind it (REQ-shortcuts-yield-to-an-open-modal, regression)
   Given a confirm dialog is open over a machine tab with a selected step
   When the user presses Delete, Space, Home or 'z'
   Then no step is cleared, the transport does not toggle, nothing seeks and no note plays
@@ -725,7 +621,7 @@ Scenario: A hand-built dialog counts as a modal too (REQ-shortcuts-yield-to-an-o
    And with a confirm raised over the AI Prompt, Escape closes only the confirm
 # pinned by: tests/ui/about.test.ts, tests/ui/ai-prompt.test.ts
 
-Scenario: - and = shift the octave; the bare arrows do not (v17, REQ-octave-shift-is-minus-and-equal)
+Scenario: - and = shift the octave; the bare arrows do not (REQ-octave-shift-is-minus-and-equal)
   Given the default base octave
   When the user presses = and then 'z'
   Then 'z' plays one octave higher, and - brings it back
@@ -739,31 +635,23 @@ Scenario: - and = shift the octave; the bare arrows do not (v17, REQ-octave-shif
 - `e2e/controls.spec.ts`, `e2e/smoke.spec.ts` (input drives the engine; assert via
   `window.__synth.bus`).
 - `e2e/patterns.spec.ts` (one key = one Step-Input step, the no-double-trigger
-  regression); `tests/ui/keyboard.test.ts` (`keyboard.highlight` is visual-only, and
-  v14: `setKeyRoles` writes roles without touching the lit maps).
+  regression); `tests/ui/keyboard.test.ts` (`keyboard.highlight` is visual-only;
+  `setKeyRoles` never touches the lit maps).
 - `tests/audio/midi.test.ts` (the byte-level dispatch: the CC map, the vel-0
   note-off, System Real-Time / Song Position routing ahead of the channel mask,
   and REQ-one-module-owns-the-midi-access's sole ownership of `onmidimessage`, driven through `initMIDI`
   against `tests/audio/fake-midi-access.ts`).
 - `tests/audio/sustain-pedal.test.ts` (the CC64 deferral state machine, REQ-the-sustain-pedal-is-midi-layer).
-- v18: `tests/audio/midi.test.ts` (channel 10 → pads, the input channel, CC11,
-  aftertouch), `tests/state/midi-channel.test.ts` (the remembered channel and its
-  untrusted stored value), `tests/audio/engine-resume.test.ts` (the fade lands on
-  volume² × expression²), `tests/state/song.test.ts` (expression is never saved).
-  **By ear, with a pedal**: CC11 is the one v18 change to the output level —
-  sweep it during a demo and confirm a smooth swell with no zipper or click.
-- v19: `tests/state/master-level.test.ts` (the volume law, and the `master.volume`
-  readout taken from the shipped param def, REQ-the-volume-knob-reads-the-gain-it-applies).
-- `tests/ui/shortcuts.test.ts` — every global key, including v17's octave on `-`/`=`
-  (REQ-octave-shift-is-minus-and-equal) and the shortcuts standing down under a modal
-  (REQ-shortcuts-yield-to-an-open-modal); `tests/ui/modal.test.ts` for the stack it asks.
+- `tests/state/midi-channel.test.ts` (the stored channel, untrusted),
+  `tests/state/master-level.test.ts` (the volume law and its readout),
+  `tests/state/song.test.ts` (expression is never saved). **By ear, with a
+  pedal**: sweep CC11 during a demo — a smooth swell, no zipper or click.
+- `tests/ui/shortcuts.test.ts` — every global key and the modal stand-down;
+  `tests/ui/modal.test.ts` for the stack it asks.
 - `npm run e2e` / `npm test` / `npm run typecheck`.
 
 ## Open questions / future
 
-- ~~MIDI CC mapping (mod wheel, pitch bend)~~ — done: CC1/7/71/74 + pitch bend
-  map to bus params, CC64 is the sustain pedal (REQ-the-sustain-pedal-is-midi-layer). v18 adds CC11, channel
-  aftertouch and the input channel. Still unmapped: CC64 half-pedalling (we treat
-  it as a switch), polyphonic aftertouch, and program change — which would need a
-  decision about what a program number names (a factory preset by index? a saved
-  slot?) before it could mean anything.
+- Unmapped MIDI: CC64 half-pedalling (treated as a switch), polyphonic
+  aftertouch, and program change — which first needs a decision about what a
+  program number names (a factory preset by index? a saved slot?).
