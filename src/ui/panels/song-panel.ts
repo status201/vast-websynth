@@ -1,6 +1,5 @@
 import type { ParamBus } from '../../state/params';
 import type { PresetSession } from '../../state/preset-session';
-import { pinAppliedSong } from '../../state/preset-session';
 import type { XyPadStore } from '../../state/xy-pad';
 import type { StudioApi } from '../studio-api';
 import type { UiBridge } from '../ui-bridge';
@@ -19,18 +18,12 @@ import { buildSyncSection } from '../components/sync-section';
 import {
   buildTransportControls, createTransportWindowLauncher, bindSeekAvailability, transportRowClass,
 } from '../components/transport-controls';
-import { confirmDialog, promptName, alertDialog, chooseDialog } from '../components/dialog';
-import {
-  buildFailureReport, buildFailureReportFor, failureMessage, isCapped, thrownMessage,
-} from '../failure-report';
-import { describePresetPayload, type PresetParse } from '../../state/preset-file';
+import { confirmDialog, promptName } from '../components/dialog';
+import type { PresetParse } from '../../state/preset-file';
 // The Paste dialog loads on its click (runtime-performance.md REQ-boot-cost-matches-the-request).
 import { showToast } from '../components/toast';
 import { installFileDrop } from '../file-drop';
 import { loadSurface } from '../components/lazy-load-toast';
-import { reportIfNewerVersion } from '../components/version-skew-toast';
-import { unresolvedTargets } from '../../state/song-validate';
-import { SAMPLER_SLOT_COUNT, emptyPatternSnapshot } from '../../state/patterns';
 import switchStyles from '../styles/switch.module.css';
 import segmentedStyles from '../styles/segmented.module.css';
 import styles from '../styles/song-panel.module.css';
@@ -38,17 +31,9 @@ import { UI_ICONS } from '../components/ui-icons';
 import { buildChainLane } from '../components/chain-lane';
 import { createButton } from '../components/button';
 import panelStyles from '../styles/panel.module.css';
-import {
-  Song, DEMO_SONGS, JSON_DEMOS, ZIP_DEMOS, demoNames, demoMetaFor, demoFileFor, isDemoName, resolveDemoName,
-  type SongFile,
-} from '../../state/song';
+import { Song, demoNames, demoMetaFor, demoFileFor, isDemoName } from '../../state/song';
 import { demoSummary } from '../../state/demo-meta';
 import { whenIdle } from '../../utils/idle';
-import { oversizedFileMessage } from '../../state/import-cap';
-import {
-  buildProjectZip, parseProjectZip, encodeClip, projectFilename, parseSongOrProject,
-  type ProjectClipOut, type ProjectClipIn,
-} from '../../state/project';
 // The Export dialog loads on its click (project-export.md REQ-the-zip-codec-loads-with-the-first-zip).
 /**
  * The export dialog loads on the click that opens it — a player who never
@@ -64,10 +49,9 @@ async function openExportAudioModal(engine: StudioApi, fmt: ExportFormat): Promi
   m?.openExportAudioModal(engine, fmt);
 }
 import { createRecordWindowLauncher } from '../components/record-window';
-import { encodeSongPayload, buildShareUrl } from '../../state/song-link';
-import { triggerDownload } from '../../utils/download';
-import { audioBufferView } from '../../audio/recorder/audio-buffer';
-import { plural } from '../../utils/format';
+import { createSongSession, type SlotPicker } from './song-session';
+import { createSongIo } from './song-io';
+import { createDemoLoader } from './demo-loader';
 
 /** Demo buttons shown inline; the rest hide behind "All Demos" (song-mode.md REQ-the-demo-row-overflows-into-a-menu).
  *  Was 6, which hid most of a growing library; 10 is what fits a desktop row. */
@@ -134,131 +118,6 @@ export interface SongPanel {
 
 export function buildSongPanel(bus: ParamBus, engine: StudioApi, session: PresetSession, xy: XyPadStore, bridge: UiBridge, xyWin: XyPadWindowController, modWin: ModMatrixWindowController): SongPanel {
   const root = el('div', `${panelStyles.patternPanel!} ${styles.panel!}`);
-
-  // Apply a song AND label the selector with its name (all apply sites route
-  // through here so the header reflects the loaded song). Each apply bumps the
-  // token so async work from a superseded apply (project-zip clip decodes)
-  // can detect it lost the session (session-autosave.md REQ-superseded-async-work-must-not-leak).
-  let applyToken = 0;
-  const applySong = (file: SongFile): void => {
-    applyToken++;
-    // `engine.sampler` lets apply evict audio the incoming song renames, so a
-    // slot's label can never outlive the sound under it (song-mode.md REQ-stale-sampler-audio-is-evicted).
-    Song.apply(file, bus, engine.patterns, engine.arrangement, xy, engine.sampler);
-    // Pin the song's sound so the selector can offer it back (presets.md
-    // REQ-a-songs-sound-is-a-selectable-entry) — from the bus after the apply; `pinAppliedSong` says why.
-    pinAppliedSong(session, file.name, bus);
-    toTop();
-  };
-
-  /**
-   * Return the playhead to bar 1 (song-mode.md REQ-a-load-lands-on-bar-one). A song carries no
-   * position — the cue is transient (transport-position.md → Persistence) — so
-   * without this the incoming song inherits the outgoing one's playhead and cue:
-   * a demo clicked mid-play started wherever the last arrangement had reached,
-   * and the readout kept quoting a bar the new song no longer has.
-   *
-   * Via `StudioApi.seekTo`, never `clock.seek`, so the three refusals (slaved /
-   * exporting / rendering) hold — a refused seek is a silent no-op and the song
-   * still loads. Called AFTER the apply: `set*Chain` zeroes each lane position
-   * but leaves `expectFirstBar`, and only a following seek re-arms it, so the
-   * incoming chain plays slot 0 for a full bar.
-   */
-  const toTop = (): void => {
-    // Clear first: the loop driver cues a stopped transport into an engaged
-    // range, which must not race this seek (song-mode.md REQ-a-load-lands-on-bar-one, v26). A range
-    // names bars of the OUTGOING song (transport-loop.md REQ-loading-a-song-clears-the-loop).
-    engine.loop.clear();
-    engine.seekTo(0);
-  };
-
-  // ---- Load-undo safety net (session-autosave.md REQ-every-destructive-apply-stashes-first/REQ-undo-restores-the-stashed-file) ----
-  // Every destructive apply stashes the session it overwrites — the captured
-  // SongFile PLUS the live sampler AudioBuffer refs (a SongFile only carries
-  // names) — and offers Undo via a toast. The stash lives solely in the
-  // toast's closure, so dismissal/replacement releases the buffers.
-  interface SessionStash {
-    file: SongFile;
-    buffers: (AudioBuffer | null)[];
-    slot: string;
-    /** `sessionSlot` at stash time — Undo must not leave the Save guard (REQ-every-slot-write-is-guarded)
-     *  describing a session that no longer exists. */
-    sourceSlot: string | null;
-    /** `loadedDemo` at stash time — Undo brings back the ⓘ the session showed
-     *  (demo-library.md REQ-the-loaded-demo-carries-an-info-button). */
-    loadedDemo: string | null;
-  }
-
-  /**
-   * The stored slot this session was last read from or written to — `null` after
-   * a demo, a New, or an import that did not persist (session-autosave.md
-   * REQ-every-slot-write-is-guarded). It is what tells Save "this name is *your* song, save it" apart
-   * from "this name is someone else's song, ask first". Deliberately NOT
-   * `dropdown.value`: a demo click sets that to the demo's name, and saving over
-   * a slot that merely shares a demo's name is exactly the silent loss the guard
-   * exists to stop.
-   */
-  let sessionSlot: string | null = null;
-
-  /**
-   * The demo the session was last loaded from — the one whose button wears the
-   * ⓘ (demo-library.md REQ-the-loaded-demo-carries-an-info-button). Session state only: every
-   * other apply and New clear it, and a reload forgets it.
-   */
-  let loadedDemo: string | null = null;
-  // Rebound once the demo row exists (below), where it also moves the ⓘ.
-  let setLoadedDemo = (name: string | null): void => { loadedDemo = name; };
-
-  // Only ever called from click handlers, so `dropdown` (built below) exists.
-  const stashCurrent = (): SessionStash => ({
-    file: Song.capture(bus, engine.patterns, engine.arrangement, session.label || 'My Song', xy),
-    buffers: [...engine.sampler.buffers],
-    slot: dropdown.value,
-    sourceSlot: sessionSlot,
-    loadedDemo,
-  });
-  const restoreStash = (stash: SessionStash): void => {
-    applySong(stash.file);
-    for (let i = 0; i < SAMPLER_SLOT_COUNT; i++) {
-      engine.sampler.setBuffer(i, stash.buffers[i] ?? null);
-      // Re-fire the meta event AFTER the buffer lands — that's what clears
-      // .needs-reload in the sampler panel (same idiom as the zip import).
-      engine.patterns.setSampleName(i, stash.file.sampleNames?.[i] ?? null);
-    }
-    refreshList();
-    selectSlot(stash.slot);
-    sessionSlot = stash.sourceSlot;
-    setLoadedDemo(stash.loadedDemo);
-  };
-  const showUndoToast = (message: string, stash: SessionStash): void => {
-    showToast({
-      message,
-      actionLabel: 'Undo',
-      testId: 'song-undo-toast',
-      onAction: () => restoreStash(stash),
-    });
-  };
-  const applySongWithUndo = (file: SongFile, verb = 'Loaded'): void => {
-    const stash = stashCurrent();
-    applySong(file);
-    // Whatever arrived, it is no longer the demo the ⓘ names; the two demo
-    // paths set it again right after this returns.
-    setLoadedDemo(null);
-    // untrusted-input.md REQ-an-unresolvable-target-warns. Asked here rather than threaded from each
-    // importer because every route in — file, paste, share link, zip, demo —
-    // funnels through this one call, so one question covers all of them.
-    //
-    // Folded into the undo toast rather than raised as its own: the toast host
-    // is single-slot, so a second toast would replace this one and take the Undo
-    // affordance with it. And never a dialog — the song loaded fine, and
-    // interrupting a good import to report a lane that will not sweep is the
-    // guard-crying-wolf failure untrusted-input.md REQ-an-unresolvable-target-warns guards against.
-    const dead = unresolvedTargets(file);
-    const note = dead.length > 0
-      ? ` — ${plural(dead.length, 'automation target')} not recognised`
-      : '';
-    showUndoToast(`${verb} "${file.name}"${note}`, stash);
-  };
 
   // ---- Chain lanes (each with DJ mute / solo / volume) ----
   const chains = el('div', styles.chains!);
@@ -346,8 +205,8 @@ export function buildSongPanel(bus: ParamBus, engine: StudioApi, session: Preset
   root.appendChild(fx);
 
   // ---- Song I/O ----
-  const io = el('div', styles.io!);
-  io.appendChild(el('div', styles.sectionLabel!, 'Song'));
+  const ioRow = el('div', styles.io!);
+  ioRow.appendChild(el('div', styles.sectionLabel!, 'Song'));
 
   const dropdown = new Dropdown(Song.list(), Song.list()[0] ?? '');
   dropdown.el.dataset.testid = 'song-slot-select';
@@ -368,288 +227,16 @@ export function buildSongPanel(bus: ParamBus, engine: StudioApi, session: Preset
   const selectSlot = (name: string): void => { dropdown.setValue(name); syncDelete(); };
   dropdown.onChange(() => syncDelete());
 
-  /**
-   * The import rejection dialog. It renders the first 8 messages and summarises
-   * the rest — but the validator collects up to MAX_ERRORS (50) and they are
-   * written nowhere else, so the Copy button gets the **whole array**, and the
-   * truncation line names it (song-mode.md REQ-a-rejected-import-is-copyable-in-full, dialog.md REQ-an-alert-may-offer-copyable-text).
-   */
-  /**
-   * Report a list of parse failures: the first few bulleted, **all** of them on
-   * the clipboard (song-mode.md REQ-a-rejected-import-is-copyable-in-full, dialog.md REQ-an-alert-may-offer-copyable-text). The two callers below
-   * are the app's only multi-error alerts, so the composition lives here rather
-   * than in `failure-report.ts`, which stays pure.
-   */
-  const failureAlert = (
-    title: string, lead: string, errors: string[], file?: string,
-  ): Promise<void> => alertDialog({
-    title,
-    message: failureMessage(lead, errors),
-    copyable: buildFailureReport({ title, file, errors, capped: isCapped(errors) }),
-  });
-
-  /**
-   * The same dialog for a step that *threw* rather than returned errors: the
-   * message after `lead`, and the report a user can copy
-   * (failure-report.md REQ-a-thrown-value-is-named-here).
-   */
-  const thrownAlert = (title: string, lead: string, e: unknown, file?: string): Promise<void> => {
-    const message = thrownMessage(e);
-    return alertDialog({
-      title,
-      message: lead + message,
-      copyable: buildFailureReportFor(title, message, file),
-      copyLabel: 'Copy error',
-    });
+  const picker: SlotPicker = {
+    get value() { return dropdown.value; },
+    refresh: refreshList,
+    select: selectSlot,
   };
-
-  const showImportErrors = (errors: string[], file?: string): Promise<void> =>
-    failureAlert('Import failed', 'Could not import song', errors, file);
-
-  /**
-   * Persist an imported song to its slot — but never *silently* over a
-   * **different** existing one (session-autosave.md
-   * REQ-the-undo-net-covers-the-session/REQ-an-identical-slot-is-not-a-conflict,
-   * untrusted-input.md REQ-an-import-may-not-destroy-saved-work).
-   *
-   * The name comes from the file, so with a share link it is attacker-chosen: a
-   * song called "My Song" would otherwise destroy the user's slot of that name
-   * at boot, and the load-undo toast cannot bring it back — it restores the
-   * in-memory session, not localStorage. Declining still leaves the song
-   * applied; only the persistence is skipped, so nothing is lost either way.
-   * Re-importing a song the slot already holds asks nothing (`planImportSave`
-   * compares contents, not just the name — REQ-an-identical-slot-is-not-a-conflict). Returns whether the slot
-   * was written.
-   */
-  const saveImportedSlot = async (file: SongFile): Promise<boolean> => {
-    const plan = Song.planImportSave(file);
-    if (plan.conflict) {
-      const ok = await confirmDialog({
-        title: 'Replace your saved song?',
-        message: `You already have a saved song called "${plan.name}". Saving this import would replace it.`,
-        detail: 'The imported song is loaded either way — declining just keeps your saved copy.',
-        confirmLabel: 'Replace it',
-        cancelLabel: 'Keep mine',
-        danger: true,
-      });
-      if (!ok) return false;
-    }
-    Song.saveSlot(file.name, file);
-    return true;
-  };
-
-  /**
-   * Shared project-bundle apply (import + demo zips): apply the song, persist it
-   * if it is the user's, then decode the clips into the sampler — sequentially
-   * (8 × multi-MB WAVs, project-export.md REQ-clip-codec-is-memory-aware). A failed clip never aborts: the
-   * slot just keeps the .needs-reload hint; failures collect into ONE alert.
-   *
-   * `persist` is what separates the two callers (session-autosave.md REQ-a-demo-click-never-writes-a-slot).
-   * An import is the user's work arriving and earns a slot; a **demo** is
-   * read-only content and must not write one — this path persisting
-   * unconditionally is why clicking the 1973 zip demo offered to replace your
-   * saved 1973 while clicking the 1979 JSON demo ignored yours entirely.
-   */
-  const applyProjectBundle = async (
-    { file, clips }: { file: SongFile; clips: ProjectClipIn[] },
-    { persist, name = file.name }: { persist: boolean; name?: string },
-  ): Promise<void> => {
-    applySongWithUndo(file, persist ? 'Imported' : 'Loaded');
-    // Synchronously, before the decodes: an Undo pressed while the clips are
-    // still decoding must not be followed by a late re-mark.
-    if (!persist) setLoadedDemo(name);
-    // Undo (or any newer apply) during the sequential decodes below must win:
-    // a late clip may not touch the restored session's slots (session-autosave.md REQ-superseded-async-work-must-not-leak).
-    const token = applyToken;
-    // JSON only — after a reload, .needs-reload correctly reappears.
-    const saved = persist && await saveImportedSlot(file);
-    // A demo syncs the dropdown the way applyDemo always has; an import only
-    // once its slot exists (a declined overwrite leaves the old selection).
-    if (saved || !persist) {
-      refreshList();
-      selectSlot(name);
-    }
-    sessionSlot = saved ? file.name : null;
-    bridge.cuePlay(); // imports + zip demos are silent until Play (play-button-blink.md REQ-silent-actions-arm-a-green-cue)
-    const failures: string[] = [];
-    for (const clip of clips) {
-      if (token !== applyToken) return;
-      try {
-        // .slice() is mandatory: clip bytes are subarray views of the whole
-        // zip buffer, and decodeAudioData detaches the buffer it is given.
-        const buf = await engine.ctx.decodeAudioData(clip.data.slice().buffer);
-        engine.sampler.setBuffer(clip.slot, buf);
-        // Prefer the song's own sampleNames entry; fall back to the zip entry
-        // name. Always re-set it: setSampleName's meta event is what tells the
-        // sampler panel to drop the .needs-reload hint now the buffer is live.
-        engine.patterns.setSampleName(
-          clip.slot,
-          engine.patterns.sampleNames[clip.slot]
-            ?? clip.entryName.replace(/^.*\//, '').replace(/^\d+-/, ''),
-        );
-      } catch {
-        failures.push(clip.entryName);
-      }
-    }
-    if (failures.length > 0) {
-      await alertDialog({
-        title: 'Some clips failed',
-        message: `The song ${persist ? 'was imported' : 'loaded'}, but these clips `
-          + 'could not be decoded:\n• ' + failures.join('\n• '),
-        copyable: buildFailureReport({ title: 'Some clips failed', errors: failures }),
-        copyLabel: failures.length === 1 ? 'Copy error' : 'Copy errors',
-      });
-    }
-  };
-
-  /**
-   * A demo that failed between its fetch and its parse first asks whether a
-   * deploy outran this tab: then the file is gone for good and the answer is
-   * Reload, not a dialog (version-skew.md REQ-a-stale-failure-offers-reload). A failure
-   * *applying* a song that did arrive is never that, and keeps its dialog.
-   */
-  const reportDemoFailure = async (name: string, report: () => Promise<void>): Promise<void> => {
-    if (await reportIfNewerVersion(`Couldn't load "${name}"`)) return;
-    await report();
-  };
-
-  /**
-   * A demo whose file would not parse. Both demo paths used to collapse this to
-   * `errors[0]` before the dialog existed, so the Copy button faithfully copied
-   * the one message that survived — the diagnosis was already gone by then
-   * (song-mode.md REQ-a-rejected-import-is-copyable-in-full v25).
-   */
-  const showDemoFailure = (name: string, errors: string[]): Promise<void> =>
-    reportDemoFailure(name, () => failureAlert('Demo failed to load', `Could not load "${name}"`, errors, name));
-
-  const loadZipDemo = async (name: string, url: string): Promise<void> => {
-    let res: Awaited<ReturnType<typeof parseProjectZip>>;
-    try {
-      const resp = await fetch(url);
-      if (!resp.ok) throw new Error(`fetch failed (${resp.status})`);
-      res = await parseProjectZip(new Uint8Array(await resp.arrayBuffer()));
-    } catch (e) {
-      await reportDemoFailure(name, () => thrownAlert('Demo failed to load', `Could not load "${name}": `, e, name));
-      return;
-    }
-    if (!res.ok) {
-      await showDemoFailure(name, res.errors.length > 0 ? res.errors : ['invalid project zip']);
-      return;
-    }
-    try {
-      // A demo, not the user's work: no slot is written (REQ-a-demo-click-never-writes-a-slot), and the
-      // dropdown follows the DEMO's name — the button's label is the promise.
-      await applyProjectBundle(res, { persist: false, name });
-    } catch (e) {
-      await thrownAlert('Demo failed to load', `Could not load "${name}": `, e, name);
-    }
-  };
-
-  /** Apply a parsed demo + sync the slot dropdown. The tail every branch ends on. */
-  const applyDemo = (name: string, file: SongFile): void => {
-    applySongWithUndo(file);
-    setLoadedDemo(name);
-    refreshList();
-    selectSlot(name);
-    // A demo is content, not a slot of the user's — so Save must still guard
-    // this name (session-autosave.md
-    // REQ-every-slot-write-is-guarded/REQ-a-demo-click-never-writes-a-slot).
-    sessionSlot = null;
-    bridge.cuePlay(); // nudge Play (play-button-blink.md REQ-silent-actions-arm-a-green-cue)
-  };
-
-  /** Load a STORED slot: the Load button's main branch, and REQ-one-name-two-songs-ask's "Load mine". */
-  const loadStoredSlot = (name: string, file: SongFile): void => {
-    applySongWithUndo(file);
-    sessionSlot = name; // the session now IS this slot — Save it back freely
-    bridge.cuePlay();   // a loaded song is silent until Play (play-button-blink.md REQ-silent-actions-arm-a-green-cue)
-  };
-
-  /**
-   * One name, two songs (song-mode.md REQ-one-name-two-songs-ask). A demo's name is not reserved, so
-   * saving your own "1979" leaves the demo button and the slot list offering
-   * different music under one label — and each door used to silently pick its
-   * own. Ask instead, but only when a **stored** slot shadows the name:
-   * `hasSlot`, not `list()`, which reports demos too.
-   *
-   * Returns whether the caller should go on to load the demo. A dismissal loads
-   * neither — the case a boolean confirm could not express (dialog.md REQ-choose-dialog-offers-several-options).
-   */
-  const demoWinsOverSavedSong = async (name: string): Promise<boolean> => {
-    if (!Song.hasSlot(name)) return true;
-    const choice = await chooseDialog({
-      title: `You have your own "${name}"`,
-      message: `The demo button and your saved song share this name. Which one do you want?`,
-      detail: 'Your saved copy is untouched either way.',
-      choices: [{ id: 'demo', label: 'Load the demo' }, { id: 'mine', label: 'Load mine' }],
-      cancelLabel: 'Cancel',
-    });
-    if (choice === 'mine') {
-      const file = Song.loadSlot(name);
-      // Vanished between the check and the answer (another tab, a delete) —
-      // fall through to the demo rather than loading nothing.
-      if (file) {
-        loadStoredSlot(name, file);
-        selectSlot(name);
-        return false;
-      }
-    }
-    return choice === 'demo';
-  };
-
-  const loadJsonDemo = async (name: string, url: string): Promise<void> => {
-    let res: Awaited<ReturnType<typeof Song.parse>>;
-    try {
-      const resp = await fetch(url);
-      if (!resp.ok) throw new Error(`fetch failed (${resp.status})`);
-      // Same validator the Import button uses, so a corrupt drop-in reports
-      // what is actually wrong with it rather than "not a song".
-      res = await Song.parse(await resp.text());
-    } catch (e) {
-      await reportDemoFailure(name, () => thrownAlert('Demo failed to load', `Could not load "${name}": `, e, name));
-      return;
-    }
-    if (!res.ok) {
-      await showDemoFailure(name, res.errors.length > 0 ? res.errors : ['not a valid song file']);
-      return;
-    }
-    try {
-      applyDemo(name, res.file);
-    } catch (e) {
-      await thrownAlert('Demo failed to load', `Could not load "${name}": `, e, name);
-    }
-  };
-
-  // Shared demo-load: apply the song AND sync the slot dropdown. Used by the
-  // demo buttons, the Load button, the guided tour and the empty-play hint.
-  //
-  // **Resolves when the song has actually been applied.** Only the built-in is
-  // immediate; the drop-in JSON and the project zips are fetched on click
-  // (song-mode.md REQ-drop-in-demos-are-fetched-on-click), so any caller that acts on the loaded song — the tour
-  // starting the transport, the empty-play modal pressing Play — must await this
-  // or it will run against the song that was there before.
-  //
-  // The shadow question (REQ-one-name-two-songs-ask) is asked HERE, on the one door all three demo
-  // sources and all four callers share, so no surface can reintroduce the silent
-  // guess. It resolves before any fetch: a declined demo costs no network.
-  // A name no source owns resolves to the first demo rather than to silence
-  // (song-mode.md REQ-drop-in-demos-are-fetched-on-click) — demo files are data, so the tour's `DEMO_FOR_TOUR` constant
-  // can be orphaned by a rename that touches no code. Resolving BEFORE the
-  // shadow question keeps the dialog naming the song that is actually loading.
-  const loadDemo = async (name: string): Promise<void> => {
-    const resolved = resolveDemoName(name);
-    if (!resolved) return; // no demos at all
-    if (!await demoWinsOverSavedSong(resolved)) return;
-    const file = DEMO_SONGS[resolved];
-    if (file) {
-      applyDemo(resolved, file);
-      return;
-    }
-    const jsonDemo = JSON_DEMOS.find((d) => d.name === resolved);
-    if (jsonDemo) return loadJsonDemo(jsonDemo.name, jsonDemo.url);
-    const zipDemo = ZIP_DEMOS.find((d) => d.name === resolved);
-    if (zipDemo) return loadZipDemo(zipDemo.name, zipDemo.url);
-  };
+  // The loaded song's state, its import/export paths and the demo door
+  // (song-session.ts, song-io.ts, demo-loader.ts) — the panel only wires buttons.
+  const song = createSongSession({ bus, engine, session, xy, picker });
+  const io = createSongIo({ engine, bridge, song, picker });
+  const demos = createDemoLoader({ bridge, song, picker, io });
 
   const loadBtn = el('button', `${switchStyles.root!} ${styles.ctl!}`, 'Load') as HTMLButtonElement;
   loadBtn.dataset.testid = 'song-load';
@@ -658,10 +245,10 @@ export function buildSongPanel(bus: ParamBus, engine: StudioApi, session: Preset
     if (f) {
       // No REQ-one-name-two-songs-ask question here: loadSlot already resolved the name in the
       // user's favour, so this branch never reaches loadDemo for a stored slot.
-      // (A built-in demo name with no slot also lands here — sessionSlot then
+      // (A built-in demo name with no slot also lands here — `song.slot` then
       // marks a demo, not a slot, so `hasSlot` decides.)
-      if (Song.hasSlot(dropdown.value)) loadStoredSlot(dropdown.value, f);
-      else applyDemo(dropdown.value, f);
+      if (Song.hasSlot(dropdown.value)) demos.loadStoredSlot(dropdown.value, f);
+      else demos.applyDemo(dropdown.value, f);
       return;
     }
     // The list also carries the drop-in demos, which `loadSlot` cannot return
@@ -671,7 +258,7 @@ export function buildSongPanel(bus: ParamBus, engine: StudioApi, session: Preset
     // slot or a drop-in, so we only land here when a slot vanished mid-click
     // (deleted in another tab), and loading an unrelated song is a worse answer
     // to that race than loading nothing.
-    if (isDemoName(dropdown.value)) void loadDemo(dropdown.value);
+    if (isDemoName(dropdown.value)) void demos.loadDemo(dropdown.value);
   });
 
   const saveBtn = el('button', `${switchStyles.root!} ${styles.ctl!}`, 'Save') as HTMLButtonElement;
@@ -684,13 +271,13 @@ export function buildSongPanel(bus: ParamBus, engine: StudioApi, session: Preset
       confirmLabel: 'Save',
     });
     if (!name) return;
-    const file = Song.capture(bus, engine.patterns, engine.arrangement, name, xy);
+    const file = song.capture(name);
     // Save is a slot write like any other, so it is guarded like any other
     // (session-autosave.md REQ-every-slot-write-is-guarded) — it was the one path that could destroy a
     // saved song with no dialog and no undo. Silent when this IS the slot the
     // session came from: re-saving your own song after an edit is the normal
     // loop and must stay one click.
-    if (Song.planSlotSave(file, sessionSlot).conflict) {
+    if (Song.planSlotSave(file, song.slot).conflict) {
       const ok = await confirmDialog({
         title: `Replace "${name}"?`,
         message: `A different song is already saved under this name. Saving replaces it.`,
@@ -702,7 +289,7 @@ export function buildSongPanel(bus: ParamBus, engine: StudioApi, session: Preset
       if (!ok) return;
     }
     Song.saveSlot(name, file);
-    sessionSlot = name;
+    song.slot = name;
     // The saved song's params become the new double-tap reset target.
     bus.setBaselines(file.params);
     Song.download(file);
@@ -724,7 +311,7 @@ export function buildSongPanel(bus: ParamBus, engine: StudioApi, session: Preset
     Song.deleteSlot(name);
     // The session no longer comes from a slot, so the next Save of this name is
     // a new slot, not a silent overwrite (session-autosave.md REQ-every-slot-write-is-guarded).
-    if (sessionSlot === name) sessionSlot = null;
+    if (song.slot === name) song.slot = null;
     refreshList();
     selectSlot(Song.list()[0] ?? '');
     showToast({ message: `Deleted "${name}"`, testId: 'song-delete-toast' });
@@ -735,51 +322,11 @@ export function buildSongPanel(bus: ParamBus, engine: StudioApi, session: Preset
   fileInput.accept = '.json,.zip,application/json,application/zip';
   fileInput.style.display = 'none';
   fileInput.dataset.testid = 'song-import-file';
-  // One import surface for both formats (pwa-install.md REQ-one-import-parse-path): sniff the
-  // magic bytes (PK first, extension fallback) and route to the project-zip
-  // or plain-JSON parser — shared verbatim by the file input and the
-  // installed-PWA file-launch path (SongPanel.importBytes).
-  const importBytes = async (bytes: Uint8Array, name: string): Promise<boolean> => {
-    const res = await parseSongOrProject(bytes, name);
-    if (!res.ok) {
-      // Preset and bank files share the `.websynth.json` tail with songs, so
-      // users land here by mistake. Point at the right door instead of reporting
-      // a schema failure they can do nothing with (presets.md REQ-a-malformed-preset-is-refused-with-a-reason).
-      const wrongDoor = describePresetPayload(new TextDecoder().decode(bytes));
-      if (wrongDoor) {
-        await alertDialog({
-          title: `That is a ${wrongDoor} file`,
-          message: `"${name}" holds sounds, not a song.\n\nOpen it from the header's Preset button → Import.`,
-        });
-        return false;
-      }
-      await showImportErrors(res.errors, name);
-      return false;
-    }
-    try {
-      await applyProjectBundle(res, { persist: true }); // the user's work — it earns a slot
-      return true;
-    } catch (e) {
-      await thrownAlert('Import failed', 'Song imported but failed to apply: ', e, name);
-      return false;
-    }
-  };
-  // Sized before it is read (untrusted-input.md REQ-a-file-is-sized-before-it-is-read):
-  // `File.size` is free, and a cap applied after `arrayBuffer()` has already
-  // spent the memory.
-  const importFile = async (file: File): Promise<boolean> => {
-    const oversized = oversizedFileMessage(file);
-    if (oversized) {
-      await showImportErrors([oversized], file.name);
-      return false;
-    }
-    return importBytes(new Uint8Array(await file.arrayBuffer()), file.name);
-  };
   fileInput.addEventListener('change', async () => {
     const f = fileInput.files?.[0];
     if (!f) return;
     fileInput.value = '';
-    await importFile(f);
+    await io.importFile(f);
   });
   const importBtn = el('button', `${switchStyles.root!} ${styles.ctl!}`, 'Import') as HTMLButtonElement;
   importBtn.dataset.testid = 'song-import';
@@ -788,7 +335,7 @@ export function buildSongPanel(bus: ParamBus, engine: StudioApi, session: Preset
   // The same two routes the ✨ AI Prompt modal's step 3 uses — songs through the
   // file path above, presets through the manager's review step (paste-import.md).
   const pasteRoutes = {
-    onSong: importBytes,
+    onSong: io.importBytes,
     onPresets: (parse: PresetParse) => bridge.openPresetImport(parse),
     bus, // so a pasted preset is checked against the registry too (REQ-deserialized-state-is-validated-never-cast)
   };
@@ -805,51 +352,15 @@ export function buildSongPanel(bus: ParamBus, engine: StudioApi, session: Preset
   // to the browser, which would navigate away from the session.
   installFileDrop(pasteRoutes);
 
-  // Export: Song (.json, the unchanged path) or Project (.zip with the loaded
-  // sampler clips) — chosen in a modal (project-export.md REQ-export-modal-offers-song-or-project).
-  const doExport = async (kind: 'json' | 'project', fmt: 'wav' | 'mp3'): Promise<void> => {
-    const name = dropdown.value || 'My Song';
-    const file = Song.capture(bus, engine.patterns, engine.arrangement, name, xy);
-    if (kind === 'json') {
-      Song.download(file);
-      return;
-    }
-    const clips: ProjectClipOut[] = [];
-    for (let slot = 0; slot < SAMPLER_SLOT_COUNT; slot++) {
-      const buf = engine.sampler.buffers[slot];
-      if (!buf) continue;
-      // Encode + materialize one clip at a time (8 × multi-MB WAVs — REQ-clip-codec-is-memory-aware).
-      // Uncopied: encoding only reads, and a slot's buffer is replaced, never
-      // written in place (sampler.md REQ-set-buffer-is-the-one-door).
-      const { blob, ext } = await encodeClip(audioBufferView(buf), fmt);
-      clips.push({ slot, data: new Uint8Array(await blob.arrayBuffer()), ext });
-    }
-    const bytes = await buildProjectZip(file, clips);
-    triggerDownload(new Blob([bytes as BlobPart], { type: 'application/zip' }), projectFilename(name));
-  };
-  // An export that fails says so — the zip codec is a lazy chunk now, and a
-  // rejection here used to vanish into `void` (project-export.md REQ-the-zip-codec-loads-with-the-first-zip).
-  const runExport = async (kind: 'json' | 'project', fmt: 'wav' | 'mp3'): Promise<void> => {
-    try {
-      await doExport(kind, fmt);
-    } catch (e) {
-      await thrownAlert('Export failed', 'The song could not be exported: ', e, dropdown.value || 'My Song');
-    }
-  };
-
   const exportBtn = el('button', `${switchStyles.root!} ${styles.ctl!}`, 'Export') as HTMLButtonElement;
   exportBtn.dataset.testid = 'song-export';
   const openExportSong = async (): Promise<void> => {
     const m = await loadSurface('the export dialog', () => import('../components/export-song-modal'), () => void openExportSong());
     m?.openExportSongModal({
       hasSamplerAudio: engine.sampler.buffers.some((b) => b != null),
-      onExport: (kind, fmt) => { void runExport(kind, fmt); },
+      onExport: (kind, fmt) => { void io.runExport(kind, fmt); },
       // Copy Link: the current song as a #song= URL (song-share-link.md REQ-export-modal-copies-a-link).
-      makeShareUrl: async () => {
-        const name = dropdown.value || 'My Song';
-        const file = Song.capture(bus, engine.patterns, engine.arrangement, name, xy);
-        return buildShareUrl(window.location.origin, await encodeSongPayload(Song.toJSON(file)));
-      },
+      makeShareUrl: io.makeShareUrl,
     });
   };
   exportBtn.addEventListener('click', () => void openExportSong());
@@ -864,44 +375,24 @@ export function buildSongPanel(bus: ParamBus, engine: StudioApi, session: Preset
       danger: true,
     });
     if (!ok) return;
-    // Confirmed — but still stash + toast (session-autosave.md REQ-every-destructive-apply-stashes-first): New is
-    // the one path that also nulls the sampler buffers, so Undo is the only
-    // way back to a stash with its audio intact.
-    const stash = stashCurrent();
-    applyToken++; // a confirmed New also supersedes any in-flight clip decodes
-    setLoadedDemo(null);
-    // Same authoritative blank the load path uses (song-mode.md REQ-apply-resets-to-defaults-first).
-    engine.patterns.restore(emptyPatternSnapshot());
-    for (let i = 0; i < SAMPLER_SLOT_COUNT; i++) engine.sampler.setBuffer(i, null);
-    // Explicit [0]: an omitted transpose keeps slot 1's, and a blank song is
-    // not a fourth up (arrangement REQ-a-seq-slot-carries-a-transpose).
-    engine.arrangement.setSeqChain([0], false, [0]);
-    engine.arrangement.setDrumChain([0], false);
-    engine.arrangement.setSamplerChain([0], false);
-    engine.arrangement.setMotionChain([0], false);
-    // New does not route through applySong, so it resets the playhead itself
-    // (song-mode.md REQ-a-load-lands-on-bar-one) — otherwise a blank one-bar song kept the cleared
-    // song's bar number in the readout.
-    toTop();
-    sessionSlot = null; // a blank session belongs to no slot (REQ-every-slot-write-is-guarded)
-    showUndoToast('Started a new song', stash);
+    song.startBlank();
   });
 
-  io.appendChild(el('span', styles.ioLabel!, 'Slot:'));
-  io.appendChild(dropdown.el);
-  io.appendChild(loadBtn);
-  io.appendChild(saveBtn);
-  io.appendChild(deleteBtn);
-  io.appendChild(importBtn);
-  io.appendChild(pasteBtn);
-  io.appendChild(exportBtn);
-  io.appendChild(newBtn);
-  io.appendChild(fileInput);
+  ioRow.appendChild(el('span', styles.ioLabel!, 'Slot:'));
+  ioRow.appendChild(dropdown.el);
+  ioRow.appendChild(loadBtn);
+  ioRow.appendChild(saveBtn);
+  ioRow.appendChild(deleteBtn);
+  ioRow.appendChild(importBtn);
+  ioRow.appendChild(pasteBtn);
+  ioRow.appendChild(exportBtn);
+  ioRow.appendChild(newBtn);
+  ioRow.appendChild(fileInput);
 
   const demosLabel = el('span', styles.ioLabel!, 'Demos:');
   // The ⓘ-mode badge for the whole row pins here (demo-library.md REQ-info-mode-badges-the-demo-row-once).
   demosLabel.dataset.help = 'song.demos';
-  io.appendChild(demosLabel);
+  ioRow.appendChild(demosLabel);
   const mkDemoBtn = (name: string, onClick: () => void): HTMLButtonElement => {
     const d = el('button', `${switchStyles.root!} ${styles.demo!}`, name) as HTMLButtonElement;
     d.dataset.testid = `song-demo-${name}`;
@@ -915,7 +406,7 @@ export function buildSongPanel(bus: ParamBus, engine: StudioApi, session: Preset
   // the three a name belongs to (the fetched ones need a user gesture anyway, so
   // decodeAudioData is unlocked — project-export.md REQ-zip-demos-auto-register).
   const demoButtonByName = new Map(
-    demoNames().map((name) => [name, mkDemoBtn(name, () => { void loadDemo(name); })] as const));
+    demoNames().map((name) => [name, mkDemoBtn(name, () => { void demos.loadDemo(name); })] as const));
   const demoButtons = [...demoButtonByName.values()];
   // The blurbs join the tooltips once they have loaded, after boot
   // (demo-library.md REQ-the-blurbs-load-after-boot). A warm, not a gesture: a
@@ -937,7 +428,7 @@ export function buildSongPanel(bus: ParamBus, engine: StudioApi, session: Preset
   // button cannot nest inside a button. Its library is a lazy chunk.
   const openDemoLibrary = async (): Promise<void> => {
     const m = await loadSurface('the demo library', () => import('../components/demo-library'), () => void openDemoLibrary());
-    m?.openDemoLibrary({ loadDemo, focus: loadedDemo });
+    m?.openDemoLibrary({ loadDemo: demos.loadDemo, focus: song.loadedDemo });
   };
   const demoInfo = createButton({
     label: 'About this demo',
@@ -946,8 +437,7 @@ export function buildSongPanel(bus: ParamBus, engine: StudioApi, session: Preset
     testId: 'demo-loaded-info',
     onClick: () => void openDemoLibrary(),
   });
-  setLoadedDemo = (name: string | null): void => {
-    loadedDemo = name;
+  song.onLoadedDemoChange((name) => {
     const btn = name === null ? undefined : demoButtonByName.get(name);
     if (!btn) {
       demoInfo.remove();
@@ -956,11 +446,11 @@ export function buildSongPanel(bus: ParamBus, engine: StudioApi, session: Preset
     demoInfo.setAttribute('aria-label', `About ${name}`);
     demoInfo.title = `About ${name}`;
     btn.after(demoInfo);
-  };
+  });
   // Only the first DEMO_ROW_LIMIT stay inline; the rest tuck behind an
   // "All Demos" toggle so the row doesn't crowd the panel (song-mode.md REQ-the-demo-row-overflows-into-a-menu).
   // `.io` is a wrapping flex, so a higher limit costs horizontal space only.
-  for (const d of demoButtons.slice(0, DEMO_ROW_LIMIT)) io.appendChild(d);
+  for (const d of demoButtons.slice(0, DEMO_ROW_LIMIT)) ioRow.appendChild(d);
   const overflowDemos = demoButtons.slice(DEMO_ROW_LIMIT);
   if (overflowDemos.length > 0) {
     const moreBtn = el('button', `${switchStyles.root!} ${styles.ctl!}`, 'All Demos') as HTMLButtonElement;
@@ -973,11 +463,11 @@ export function buildSongPanel(bus: ParamBus, engine: StudioApi, session: Preset
       moreBtn.classList.toggle('on', open);
       moreBtn.textContent = open ? 'Less' : 'All Demos';
     });
-    io.appendChild(moreBtn);
-    io.appendChild(overflow);
+    ioRow.appendChild(moreBtn);
+    ioRow.appendChild(overflow);
   }
-  io.appendChild(createAiPromptButton(bus, pasteRoutes));
-  root.appendChild(io);
+  ioRow.appendChild(createAiPromptButton(bus, pasteRoutes));
+  root.appendChild(ioRow);
 
   // ---- Sync + Audio ----
   // One wrapper so the two rows can pair up on a wide screen — Sync hard left,
@@ -1042,5 +532,11 @@ export function buildSongPanel(bus: ParamBus, engine: StudioApi, session: Preset
   ioPair.appendChild(aio);
   root.appendChild(ioPair);
 
-  return { el: root, loadDemo, importBytes, importFile, loadedDemo: () => loadedDemo };
+  return {
+    el: root,
+    loadDemo: demos.loadDemo,
+    importBytes: io.importBytes,
+    importFile: io.importFile,
+    loadedDemo: () => song.loadedDemo,
+  };
 }

@@ -18,6 +18,8 @@ related:
 source:
   - src/state/session-autosave.ts
   - src/ui/panels/song-panel.ts
+  - src/ui/panels/song-session.ts         # the stash, the Undo toast, the apply token, the slot provenance
+  - src/ui/panels/song-io.ts              # saveImportedSlot, applyProjectBundle
   - src/main.ts
 ```
 
@@ -198,7 +200,7 @@ happy path.
   ask when the name is the slot **this session came from**. Re-saving your own
   song after an edit is the normal loop and must stay one click, whereas saving
   *onto* a name whose song you have not been working on is a Save-As over
-  someone else's work. The panel tracks that provenance as `sessionSlot` — the
+  someone else's work. The panel tracks that provenance as `SongSession.slot` — the
   stored slot the session was last read from or written to, `null` after a demo,
   a New, or an import that did not persist — and it is stashed and restored with
   the undo net
@@ -245,12 +247,12 @@ on `song-validate`/`serialize`, not `song.ts`.
   [sample-persistence](sample-persistence.md) REQ-boot-restores-clips-before-the-ui) → `mountApp` → construct +
   `attach()` the autosaver → share-link hook (unchanged position; applies over
   the restore via the import path).
-- `song-panel.ts`: `applySongWithUndo(file, verb)` wraps the existing
-  `applySong` choke point — stash (file + `[...engine.sampler.buffers]` +
-  dropdown value) → apply → toast. Used by `loadDemo`, Load,
-  `applyProjectBundle`; New stashes/toasts inside its confirmed branch.
-  `applySong` bumps the apply token; `applyProjectBundle`'s sequential clip
-  loop re-checks it before each `setBuffer`.
+- `song-session.ts` (`createSongSession`, the one owner of this state):
+  `applyWithUndo(file, verb)` wraps the `apply` choke point — stash (file +
+  `[...engine.sampler.buffers]` + picker value) → apply → toast. Used by the demo
+  door (`demo-loader.ts`), Load and `applyProjectBundle` (`song-io.ts`);
+  `startBlank()` is New's confirmed branch. `apply` bumps the apply token;
+  `applyProjectBundle`'s sequential clip loop re-checks it before each `setBuffer`.
 - Undo re-fires `setSampleName` per slot after restoring buffers — the meta
   event is what clears `.needs-reload` in the sampler panel (same idiom as the
   project-zip import).
@@ -261,9 +263,9 @@ on `song-validate`/`serialize`, not `song.ts`.
   `planSlotSave(file, from)` = `file.name !== from && slotDiffers(file)`, of which
   `planImportSave(file)` is the no-provenance case (`from = null`) — so the Save
   button and the import path cannot drift apart. The dialogs live in
-  `song-panel.ts` (`saveImportedSlot`, the Save handler), which own the decisions
-  the plan only describes — the `preset-file.ts` `planImport` idiom.
-- `sessionSlot` (REQ-every-slot-write-is-guarded) is a single `string | null` in the panel closure, set
+  `song-io.ts` (`saveImportedSlot`) and `song-panel.ts` (the Save handler), which
+  own the decisions the plan only describes — the `preset-file.ts` `planImport` idiom.
+- `SongSession.slot` (REQ-every-slot-write-is-guarded) is a single `string | null`, set
   by Save and by a Load that resolved to a **stored** slot, cleared by demos /
   New / a non-persisting import, and carried in `SessionStash` so Undo restores
   it with the dropdown value it already stashes.

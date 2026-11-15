@@ -109,9 +109,9 @@ describe('a confirmed skew is remembered (version-skew.md REQ-a-confirmed-skew-i
 });
 
 describe('a demo that fails under a newer release (version-skew.md REQ-a-stale-failure-offers-reload)', () => {
-  // The demo loaders are private to a panel with a whole app behind it, so the
+  // The demo loaders are private to the panel's demo door (demo-loader.ts), so the
   // routing is pinned on the source.
-  const src = readFileSync(path.join(process.cwd(), 'src/ui/panels/song-panel.ts'), 'utf8');
+  const src = readFileSync(path.join(process.cwd(), 'src/ui/panels/demo-loader.ts'), 'utf8');
   const body = (fn: string) => {
     const start = src.indexOf(`const ${fn} = async`);
     return src.slice(start, src.indexOf('\n  };', start));

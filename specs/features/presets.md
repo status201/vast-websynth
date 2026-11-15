@@ -23,7 +23,7 @@ source:
   - src/state/preset-session.ts          # isPatchParam/patchSnapshot + the song-sound slot
   - src/audio/engine.ts                  # main.ts seeds on boot
   - src/ui/shell/header.ts               # preset-select dropdown + the manager button
-  - src/ui/panels/song-panel.ts          # applySong pins the song's sound
+  - src/ui/panels/song-session.ts        # SongSession.apply pins the song's sound
   - src/ui/components/preset-manager-modal.ts # save / export / import
 ```
 
@@ -402,7 +402,7 @@ header.ts:     presetOptions()  = songSound ? [song.name, ...list() minus that n
                  onPresetsChanged: refreshPresetOptions })
 dropdown pick: songSound?.name match -> Presets.apply(bus, songSound.patch)  # REQ-a-songs-sound-is-a-selectable-entry
                else Presets.load(name) -> Presets.apply;  then session.setActive(name)
-song-panel:    applySong -> Song.apply(...) -> session.setActiveSong(
+song-session:  apply -> Song.apply(...) -> session.setActiveSong(
                  file.name, patchSnapshot(bus.snapshot()))             # REQ-a-songs-sound-is-a-selectable-entry
 main.ts:       autosave restore -> Song.apply -> session.setActiveSong(...)  # same
 modal save:    promptDialog (dialog.md) -> Presets.save -> bus.setBaselines(snap)
@@ -414,7 +414,7 @@ modal import:  <input type=file> -> parsePresetPayload(text, bus) -> planImport 
                       .reviewList scroll box + preset-import-copy   # v10, REQ-the-preset-wizard-reports-every-problem
                ok  -> preset-import-warnings on the review step, above the actions;
                       never disables preset-import-confirm
-song-panel:    showImportErrors gains the preset/bank sniff (REQ-a-malformed-preset-is-refused-with-a-reason)
+song-io:       importBytes gains the preset/bank sniff (REQ-a-malformed-preset-is-refused-with-a-reason)
 ```
 
 Ordering that matters: `bus.setBaselines(snap)` runs on **save**, not on import —
@@ -422,7 +422,7 @@ an import never touches the live patch (REQ-importing-never-changes-the-live-sou
 must not move. And `setValue` runs **after** `setOptions`, never before: the
 rebuild is what strands the label (REQ-rebuilding-options-never-relabels).
 
-`applySong` is the one choke point every song apply already routes through
+`SongSession.apply` is the one choke point every song apply already routes through
 (`applyDemo`, `loadStoredSlot`, `applyProjectBundle`, the share-link and file
 importers), so REQ-a-songs-sound-is-a-selectable-entry's pin cannot be reintroduced-around by a new load surface.
 

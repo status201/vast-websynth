@@ -18,6 +18,7 @@ source:
   - src/audio/ios-audio-session.ts
   - src/state/project.ts
   - src/ui/panels/song-panel.ts
+  - src/ui/panels/song-io.ts            # importBytes / importFile behind SongPanel
   - src/ui/ui-bridge.ts
   - src/ui/app.ts
   - src/main.ts

@@ -39,6 +39,9 @@ source:
   - src/audio/transport/lane-mix.ts           # audibleLanes (pure mute/solo rule)
   - src/audio/transport/sampler-machine.ts    # sampler lane playback
   - src/ui/panels/song-panel.ts               # the Song tab
+  - src/ui/panels/song-session.ts             # the loaded song: apply, slot provenance, the undo net
+  - src/ui/panels/song-io.ts                  # import / export / share link, and their failure dialogs
+  - src/ui/panels/demo-loader.ts              # the one door every demo comes through
 ```
 
 The big integration feature. It exercises almost every layer — scalar params (via
