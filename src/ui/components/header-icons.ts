@@ -28,7 +28,7 @@ export const HEADER_ICONS = {
    * ⓘ — the info-badges toggle. Same glyph the badges themselves draw, and
    * while they are showing it takes their colours too: `tour.module.css` fills
    * `.disc` with the accent and inks `.stem`/`.dot` in `--bg-deep`
-   * (onboarding.md REQ-the-glyph-inverts-while-badges-show). The part classes are inert until then — no colour
+   * (info-badges.md REQ-the-glyph-inverts-while-badges-show). The part classes are inert until then — no colour
    * is declared here, as for every other glyph.
    */
   info: icon(INFO_SHAPE),

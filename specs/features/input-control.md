@@ -152,9 +152,9 @@ only while its own grid is on screen ([sequencer](sequencer.md) REQ-step-input-a
   other non-note key it goes through the `UiBridge` (`toggleInfoBadges`) rather
   than importing the onboarding layer into `shortcuts.ts` — same reason as
   `toggleTransport` / `undoActiveMachine`. Behaviour is owned by
-  [onboarding](onboarding.md) REQ-the-info-button-gesture-inventory; it is the
+  [info-badges](info-badges.md) REQ-the-info-button-gesture-inventory; it is the
   second route to the badges, the first being the header's ⓘ button
-  (onboarding REQ-the-info-button-is-a-toggle).
+  (info-badges REQ-the-info-button-is-a-toggle).
 
 - **REQ-a-lit-key-is-remembered-as-an-element** (v9) — **A lit key is remembered
   as an element, never re-derived.** `keyboard.transpose` (the OCT strip) shifts

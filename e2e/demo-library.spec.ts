@@ -192,7 +192,7 @@ test.describe('demo info without a hover', () => {
     await page.getByTestId('tab-song').click();
     const [a] = await twoDemos(page);
     await page.getByTestId('info-badges').click();
-    // A badge below the fold is hidden until scrolled to (onboarding.md REQ-a-badge-shows-only-where-reachable).
+    // A badge below the fold is hidden until scrolled to (info-badges.md REQ-a-badge-shows-only-where-reachable).
     await page.locator('[data-help="song.demos"]').scrollIntoViewIfNeeded();
 
     const badge = page.getByTestId('info-badge-song.demos');

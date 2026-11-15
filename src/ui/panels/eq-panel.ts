@@ -183,7 +183,7 @@ function buildLanePage(
   const knobs = document.createElement('div');
   knobs.className = styles.knobs!;
   // The row, not a knob, anchors the info badge: one topic speaks for all three
-  // (onboarding.md REQ-the-equalizer-carries-seven-badges), and it must be per lane because only the visible
+  // (info-badges.md REQ-the-equalizer-carries-seven-badges), and it must be per lane because only the visible
   // page's anchor has a box.
   knobs.dataset.help = `eq.knobs.${lane.key}`;
   for (const [suffix, label] of [['hp', 'HP'], ['lp', 'LP'], ['width', 'Q']] as const) {

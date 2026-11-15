@@ -57,7 +57,7 @@ a graph of the curve that will play, and a fold.
   - a **dashed divider** under the XY lane and a **solid** one under the machine
     header. Track cells use a wider gap.
 
-  Help badges ([onboarding](onboarding.md)
+  Help badges ([info-badges](info-badges.md)
   REQ-info-badges-show-per-control-help/REQ-the-motion-tab-carries-two-lane-badges):
   `motion` on `tab-motion`, `motion.xy` on the XY header, and `motion.tracks` once on
   the A row.

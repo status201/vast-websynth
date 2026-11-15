@@ -103,7 +103,7 @@ is that rule's real home; REQ-ui-icons-are-self-stroking there now references it
   - `header-icons.ts` — `class="hdr-icon"`, sized and stroked by
     `switch.module.css`, with per-part hook classes (`.disc` / `.stem` / `.dot`)
     that `tour.module.css` recolours while the info badges show
-    ([onboarding](onboarding.md) REQ-the-glyph-inverts-while-badges-show). Three stylesheets key off that class.
+    ([info-badges](info-badges.md) REQ-the-glyph-inverts-while-badges-show). Three stylesheets key off that class.
   - `wave-icons.ts` — index-parallel to `WAVE_LABELS` in `state/params.ts`.
   - `rest-glyph.ts` — one glyph with its own viewBox and stroke weight.
 

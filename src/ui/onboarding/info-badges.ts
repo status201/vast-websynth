@@ -3,7 +3,7 @@
 // chrome, so the synth still looks like a real instrument.
 //
 // The badges are named for the glyph they draw, which is also the glyph on the
-// header button that switches them on (onboarding.md REQ-info-badges-show-per-control-help/REQ-the-info-button-is-a-toggle). What a badge
+// header button that switches them on (info-badges.md REQ-info-badges-show-per-control-help/REQ-the-info-button-is-a-toggle). What a badge
 // *opens* is still a "help topic" — hence `HELP_TOPICS` and the `data-help`
 // anchors below; the boundary is deliberate.
 import { Modal } from '../components/modal';
@@ -26,7 +26,7 @@ interface Anchor {
    * controls. 'after' sits just to the right of a content-width label so it
    * doesn't cover the text (the FX effect titles, whose on/off switch is pushed
    * to the far right, leaving a gap). 'corner-left' is the top-left corner, for a
-   * header button whose right side is the ⓘ toggle itself (onboarding.md
+   * header button whose right side is the ⓘ toggle itself (info-badges.md
    * REQ-a-settings-topic-anchors-to-the-gauge).
    */
   place?: Placement;
@@ -50,7 +50,7 @@ const ANCHORS: Anchor[] = [
   { topic: 'panic', find: () => byTestId('panic') },
   // Covers the whole preset cluster — the selector plus the one door beside it
   // for save / export preset / export bank / import-with-review (presets.md
-  // REQ-one-door-for-saving). Pinned to the selector rather than that button (onboarding.md
+  // REQ-one-door-for-saving). Pinned to the selector rather than that button (info-badges.md
   // REQ-a-presets-topic-anchors-to-the-picker): on Save the badge sat close enough to the ⓘ toggle to pull the eye
   // off it, and the topic's copy opens on the dropdown anyway.
   { topic: 'presets', find: () => byTestId('preset-select') },
@@ -84,7 +84,7 @@ const ANCHORS: Anchor[] = [
   // compressor is bypassed (fx-group collapse) and help must stay reachable.
   { topic: 'fx.drum.comp', find: () => byTestId('fxgroup-fx.drum.comp') },
   { topic: 'fx.master.comp', find: () => byTestId('fxgroup-fx.master.comp') },
-  // The Equalizer (onboarding.md REQ-the-equalizer-carries-seven-badges). The section badge pins to the root, as
+  // The Equalizer (info-badges.md REQ-the-equalizer-carries-seven-badges). The section badge pins to the root, as
   // `fx` does, so it stays reachable while the section is folded. The page badges
   // are one id per lane: only the visible page's anchor has a box.
   { topic: 'eq', find: () => byTestId('eq-section') },
@@ -124,7 +124,7 @@ const ANCHORS: Anchor[] = [
   // reads as part of it. On the label it tucks exactly as the knob badges do.
   { topic: 'sampler.choke', find: () => byHelp('sampler.choke') },
   { topic: 'motion', find: () => byTestId('tab-motion') },
-  // Short per-lane Motion badges (onboarding.md REQ-the-motion-tab-carries-two-lane-badges): pinned to the panel via
+  // Short per-lane Motion badges (info-badges.md REQ-the-motion-tab-carries-two-lane-badges): pinned to the panel via
   // data-help, so they hide/reposition on tab switch like the other in-panel badges.
   { topic: 'motion.xy', find: () => byHelp('motion.xy') },
   { topic: 'motion.tracks', find: () => byHelp('motion.tracks') },
@@ -265,7 +265,7 @@ export class InfoBadges {
       '[data-testid="fx"]', '[data-testid="pattern-row"]', '[data-testid="panel-seq"]',
       // The LFO panel's first page — a display:none <-> flex shell like
       // panel-seq, so the lfo.rate badge needs it to come back after a page
-      // switch (onboarding.md REQ-a-container-must-tell-badges-when-it-hides). Page 2 needs no entry: revealing it is
+      // switch (info-badges.md REQ-a-container-must-tell-badges-when-it-hides). Page 2 needs no entry: revealing it is
       // what collapses page 1, which is what fires this.
       '[data-testid="ppage-lfo-1"]',
       // The Equalizer's fold and its three page shells (REQ-a-container-must-tell-badges-when-it-hides, v27). Neither
@@ -309,7 +309,7 @@ export class InfoBadges {
   };
 
   private position(): void {
-    // A badge is shown only where it can be reached (onboarding.md REQ-a-badge-shows-only-where-reachable), so
+    // A badge is shown only where it can be reached (info-badges.md REQ-a-badge-shows-only-where-reachable), so
     // the viewport is bounded at BOTH ends: the sticky header's bottom edge,
     // which content badges must not scroll up into (they'd paint over it), and
     // the fold, past which a badge is pinned where nothing can click it.

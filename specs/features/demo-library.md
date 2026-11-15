@@ -197,7 +197,7 @@ what a demo owes the shelf.
   take it away; **Undo** restores whatever the stash's session showed. It is
   session state, not persisted: after a reload no ⓘ shows. It belongs to the row,
   not to the ⓘ-mode layer, so the badges' "no added chrome while off" rule
-  ([onboarding](onboarding.md) REQ-info-badges-show-per-control-help) is untouched.
+  ([info-badges](info-badges.md) REQ-info-badges-show-per-control-help) is untouched.
 
   *Gestures* (ADR-014): it is a plain `<button>` — click or tap opens the library,
   Enter/Space do the same when focused. No long-press: iOS claims long-press for

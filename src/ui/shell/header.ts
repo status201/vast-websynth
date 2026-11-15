@@ -212,7 +212,7 @@ function buildPresetGroup(
     createPerfSettingsButton({ onTierPreview: previewScopeTier }),
   );
   // ⓘ then ? — one toggles the badges, the other opens Help & About, and each
-  // does only that (onboarding.md REQ-the-info-button-is-a-toggle/REQ-about-is-the-single-door-for-help).
+  // does only that (info-badges.md REQ-the-info-button-is-a-toggle, onboarding.md REQ-about-is-the-single-door-for-help).
   presetGroup.appendChild(
     createInfoBadgesButton({
       toggle: onboarding.toggleInfoBadges,

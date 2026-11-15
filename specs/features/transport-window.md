@@ -119,7 +119,7 @@ show the state ([ADR-014](../decisions/adr-014-dont-make-me-think.md) law 5).
 - **REQ-the-transport-row-carries-a-help-badge** — **The row carries a help
   badge** on its launcher — which is also its section title, so the badge sits
   on the row's leading control. Topic `transport.song`
-  ([onboarding](onboarding.md) REQ-the-playhead-ruler-carries-a-badge): the `bar.step` readout, the scrubber's
+  ([info-badges](info-badges.md) REQ-the-playhead-ruler-carries-a-badge): the `bar.step` readout, the scrubber's
   one-cell-per-chain-slot correspondence, what the floating window adds, and the
   states where seeking is refused (REQ-seeking-respects-the-one-guard). It
   also covers Play/Pause against the header's Play/Stop

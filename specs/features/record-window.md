@@ -99,7 +99,7 @@ REQ-capture-is-a-five-phase-machine.
   REQ-home-and-shift-arrows-seek). It routes through a late-bound
   `UiBridge.toggleRecordWindow`. It is listed in the About shortcut table
   ([onboarding](onboarding.md) REQ-about-key-symbols-are-drawn), and the launcher
-  carries the `song.record` badge ([onboarding](onboarding.md)
+  carries the `song.record` badge ([info-badges](info-badges.md)
   REQ-the-song-audio-buttons-keep-their-badges).
 - **REQ-the-record-format-is-seeded-not-owned** — The window's WAV/MP3 segmented is
   seeded from the Song tab's default and overridable per take **without writing

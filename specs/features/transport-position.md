@@ -122,7 +122,7 @@ sequencer carries tie state, and stutter remaps against an anchor. None derive f
   scheduled voice would cost more than the artefact.
 - **REQ-every-ruler-tick-carries-a-title** — Every tick's `title` names the gesture.
   Each tab's ruler carries a help badge (`transport.ruler.<lane>`,
-  [onboarding](onboarding.md) REQ-the-playhead-ruler-carries-a-badge), and the keys are
+  [info-badges](info-badges.md) REQ-the-playhead-ruler-carries-a-badge), and the keys are
   in the About shortcut table ([onboarding](onboarding.md)
   REQ-about-key-symbols-are-drawn) and the README: the
   [recipe](../recipes/design-an-interaction.md)'s discoverability triple.

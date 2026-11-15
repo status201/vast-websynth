@@ -182,7 +182,7 @@ while bypassed, and a curve computed from bus values with no analyser and no loo
   side.
 - **REQ-the-eq-explains-itself-through-badges** (v3) — Seven badges: `eq` on the
   section root, and per lane `eq.graph.<lane>` and `eq.knobs.<lane>` (the knob row
-  carries `data-help`). [onboarding](onboarding.md)
+  carries `data-help`). [info-badges](info-badges.md)
   REQ-the-equalizer-carries-seven-badges owns them. The graph topic's band list
   is generated from `EQ_BANDS`.
 

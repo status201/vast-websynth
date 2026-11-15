@@ -192,7 +192,7 @@
 
   /* One control of the selected-slot strip. Persistent: the Knob inside is
      rebuilt on every slot change, this is not, because an info badge resolves its
-     anchor once and keeps it (onboarding.md REQ-the-sampler-strip-carries-five-badges). */
+     anchor once and keeps it (info-badges.md REQ-the-sampler-strip-carries-five-badges). */
   .slotCell {
     display: flex;
     align-items: center;

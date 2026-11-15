@@ -90,7 +90,7 @@ loop drifts against the grid.
   sample-meta changes, `seq-import-slot`) and a Render button (`seq-import-render`)
   with a busy state. The transport is left stopped afterwards.
 - **REQ-the-render-button-carries-a-badge** (v2) — Topic `seq.render` on
-  `seq-import-render` ([onboarding](onboarding.md)
+  `seq-import-render` ([info-badges](info-badges.md)
   REQ-info-badges-show-per-control-help/REQ-seq-render-has-a-help-badge). In user
   words it says: what it does; that it **plays the bar twice and keeps the second**
   (so it looks busy for ~2 bars); the derived slot name and the stopped transport;

@@ -23,7 +23,7 @@ function bodyOf(id: keyof typeof HELP_TOPICS): string {
   return t.body as string;
 }
 
-/** The two transport-sync help topics (onboarding.md REQ-the-sync-section-has-two-topics / midi-clock-sync v2). */
+/** The two transport-sync help topics (info-badges.md REQ-the-sync-section-has-two-topics / midi-clock-sync v2). */
 describe('help-content sync topics', () => {
   it('has a `sync` topic explaining Master/Slave + USB-MIDI', () => {
     const t = HELP_TOPICS['sync'];
@@ -47,7 +47,7 @@ describe('help-content sync topics', () => {
   });
 });
 
-/** The Motion machine topic (onboarding.md REQ-a-motion-topic-anchors-to-the-tab / motion-panel.md REQ-each-motion-step-is-a-mini-xy-pad). */
+/** The Motion machine topic (info-badges.md REQ-a-motion-topic-anchors-to-the-tab / motion-panel.md REQ-each-motion-step-is-a-mini-xy-pad). */
 describe('help-content motion topic', () => {
   it('has a `motion` topic explaining the Y/X graph view', () => {
     const t = HELP_TOPICS['motion'];
@@ -70,7 +70,7 @@ describe('help-content motion topic', () => {
     expect(body).toContain(CLEAR_BTN);
   });
 
-  // The two short per-lane badges (onboarding.md REQ-the-motion-tab-carries-two-lane-badges / motion-sequencer.md v6).
+  // The two short per-lane badges (info-badges.md REQ-the-motion-tab-carries-two-lane-badges / motion-sequencer.md v6).
   it('has a short `motion.xy` topic for the XY lane', () => {
     const t = HELP_TOPICS['motion.xy'];
     expect(t).toBeTruthy();
@@ -128,7 +128,7 @@ describe('help-content seq topic', () => {
   });
 });
 
-/** The Render button's badge (onboarding.md REQ-seq-render-has-a-help-badge / render-to-sampler.md REQ-the-render-button-carries-a-badge). */
+/** The Render button's badge (info-badges.md REQ-seq-render-has-a-help-badge / render-to-sampler.md REQ-the-render-button-carries-a-badge). */
 describe('help-content seq.render topic', () => {
   it('explains the import and why the bar plays twice', () => {
     const t = HELP_TOPICS['seq.render'];
@@ -175,7 +175,7 @@ describe('help-content time-stretch copy', () => {
   });
 });
 
-/** The header Presets button (onboarding.md REQ-a-presets-topic-anchors-to-the-picker). */
+/** The header Presets button (info-badges.md REQ-a-presets-topic-anchors-to-the-picker). */
 describe('help-content presets topic', () => {
   it('separates a preset from a song and covers export/import', () => {
     const t = HELP_TOPICS['presets'];
@@ -191,7 +191,7 @@ describe('help-content presets topic', () => {
   });
 });
 
-/** The header's Settings button (onboarding.md REQ-a-settings-topic-anchors-to-the-gauge). */
+/** The header's Settings button (info-badges.md REQ-a-settings-topic-anchors-to-the-gauge). */
 describe('help-content settings topic', () => {
   it('names every theme the picker offers, so the copy cannot fall behind the registry', () => {
     const body = bodyOf('settings');
@@ -225,7 +225,7 @@ describe('the tour', () => {
   });
 });
 
-/** Playhead-ruler + Song-transport badges (onboarding.md REQ-the-playhead-ruler-carries-a-badge). */
+/** Playhead-ruler + Song-transport badges (info-badges.md REQ-the-playhead-ruler-carries-a-badge). */
 describe('help-content transport-position topics', () => {
   const LANES = ['seq', 'drum', 'sampler', 'motion'] as const;
 
@@ -346,7 +346,7 @@ describe('the tour names a demo that exists', () => {
 });
 
 /**
- * The Equalizer's badges (onboarding.md REQ-the-equalizer-carries-seven-badges, equalizer.md REQ-the-eq-explains-itself-through-badges). The panel
+ * The Equalizer's badges (info-badges.md REQ-the-equalizer-carries-seven-badges, equalizer.md REQ-the-eq-explains-itself-through-badges). The panel
  * says almost nothing about itself in words: eight abbreviations, a lamp that
  * looks like a switch, a dropdown that switches the EQ on. This is what a player
  * reads instead, so its claims are pinned like any other contract.
@@ -433,7 +433,7 @@ describe('help-content equalizer topics', () => {
   });
 });
 
-/** The mod matrix badge (onboarding.md REQ-the-mod-launcher-carries-a-badge). */
+/** The mod matrix badge (info-badges.md REQ-the-mod-launcher-carries-a-badge). */
 describe('help-content mod topic', () => {
   it('has a `mod` topic covering bipolar depth, the knob colours and the boundary', () => {
     const t = HELP_TOPICS['mod'];
@@ -456,7 +456,7 @@ describe('help-content mod topic', () => {
   });
 });
 
-/** onboarding.md REQ-each-oscillator-carries-its-own-badge — one topic per oscillator panel. */
+/** info-badges.md REQ-each-oscillator-carries-its-own-badge — one topic per oscillator panel. */
 describe('help-content oscillator topics', () => {
   it('OSC 1 explains the shared controls once, then FM and RING', () => {
     const body = bodyOf('oscillators');

@@ -83,7 +83,7 @@ shared controller so both launchers toggle one instance (never two).
   (REQ-launcher-doubles-as-section-title), so the badge sits on the row's
   leading control, exactly as the transport row's does
   ([transport-window](transport-window.md) REQ-the-transport-row-carries-a-help-badge). Topic `song.fx`
-  ([onboarding](onboarding.md) REQ-the-live-fx-row-carries-a-badge), written as that topic's sibling and
+  ([info-badges](info-badges.md) REQ-the-live-fx-row-carries-a-badge), written as that topic's sibling and
   covering the same ground in the same order: what the row is, each control
   (DJ&nbsp;Filter, Fill, Stutter + its size, Drop, Tape&nbsp;Stop, XY&nbsp;Pad),
   what the floating window adds, and the states where an effect is reduced. It

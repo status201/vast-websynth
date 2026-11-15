@@ -129,7 +129,7 @@ describe('installShortcuts Ctrl/Cmd+Z routing (pattern-undo.md REQ-ctrl-z-undoes
   });
 });
 
-// input-control.md REQ-question-mark-toggles-the-badges / onboarding.md REQ-the-info-button-gesture-inventory. One install for the describe,
+// input-control.md REQ-question-mark-toggles-the-badges / info-badges.md REQ-the-info-button-gesture-inventory. One install for the describe,
 // like the others above: every setup() leaks a window handler.
 describe('installShortcuts ? toggles the info badges (input-control.md REQ-question-mark-toggles-the-badges)', () => {
   const { bus, bridge } = setup();

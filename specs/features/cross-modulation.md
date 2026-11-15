@@ -47,7 +47,7 @@ into the mixer. SYNC stays on OSC 2, because sync is something OSC 2 does to
 itself. Five factory presets show the family (`tines`, `chime`, `growl`, `clang`,
 `tear`); each A/B is one knob to 0 ([presets](presets.md)
 REQ-factory-presets-span-the-instrument-families). OSC 1 and OSC 2 carry separate
-help badges ([onboarding](onboarding.md) REQ-each-oscillator-carries-its-own-badge).
+help badges ([info-badges](info-badges.md) REQ-each-oscillator-carries-its-own-badge).
 
 ## Requirements
 

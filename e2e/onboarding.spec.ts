@@ -86,7 +86,7 @@ test('the ⓘ button toggles the badges and ? replays the tour', async ({ page }
   const tittle = page.locator('[data-testid="info-badges"] svg.hdr-icon .dot');
   await expect(disc).toHaveCSS('fill', 'none');
 
-  // One click on ⓘ switches the badges on (onboarding.md REQ-the-info-button-is-a-toggle).
+  // One click on ⓘ switches the badges on (info-badges.md REQ-the-info-button-is-a-toggle).
   await page.getByTestId('info-badges').click();
 
   // The ⓘ button now reads as active (orange) while the badges show.
@@ -112,7 +112,7 @@ test('the ⓘ button toggles the badges and ? replays the tour', async ({ page }
   await expect(subuniDialog).toBeVisible();
   await subuniDialog.getByRole('button', { name: 'Close' }).click();
 
-  // The header preset selector carries its own badge (onboarding.md REQ-a-presets-topic-anchors-to-the-picker); its
+  // The header preset selector carries its own badge (info-badges.md REQ-a-presets-topic-anchors-to-the-picker); its
   // copy has to separate a preset (one sound) from a song (the arrangement).
   const presetBadge = page.getByTestId('info-badge-presets');
   await expect(presetBadge).toBeVisible();
@@ -151,7 +151,7 @@ test('the ⓘ button toggles the badges and ? replays the tour', async ({ page }
   await page.getByTestId('fx').click({ position: { x: 20, y: 10 } }); // expand again
   await expect(distBadge).toBeVisible();
 
-  // The Sequencer's Render button (onboarding.md REQ-seq-render-has-a-help-badge): its badge must say why
+  // The Sequencer's Render button (info-badges.md REQ-seq-render-has-a-help-badge): its badge must say why
   // the render plays the bar twice, or the wait reads as a hang. The tab row
   // opens on Arpeggiator, so reveal the Sequencer first — the badge repositions
   // via the pattern-row ResizeObserver.
@@ -164,7 +164,7 @@ test('the ⓘ button toggles the badges and ? replays the tour', async ({ page }
   await expect(renderDialog).toContainText('twice');
   await renderDialog.getByRole('button', { name: 'Close' }).click();
 
-  // The playhead ruler carries a badge on every machine tab (onboarding.md
+  // The playhead ruler carries a badge on every machine tab (info-badges.md
   // REQ-the-playhead-ruler-carries-a-badge) — one topic id per lane, because a hidden tab's anchor measures 0×0
   // and takes its badge with it. Check two tabs so the per-lane wiring is real.
   await page.getByTestId('ruler-seq').scrollIntoViewIfNeeded();
@@ -233,7 +233,7 @@ test('the ⓘ button toggles the badges and ? replays the tour', async ({ page }
 });
 
 test('the ⓘ button is a pure toggle and the ? button never touches the badges', async ({ page }) => {
-  // onboarding.md REQ-the-info-button-is-a-toggle/REQ-the-info-button-gesture-inventory: the v13 modifier-click and long-press existed to
+  // info-badges.md REQ-the-info-button-is-a-toggle/REQ-the-info-button-gesture-inventory: the v13 modifier-click and long-press existed to
   // skip a chooser modal that no longer exists, so a plain click is the whole
   // inventory — and the modifier click must be no more than a plain click.
   await page.addInitScript(() => {
@@ -348,7 +348,7 @@ test('contextual badges hide when their control scrolls off either edge', async 
   const keysBadge = page.getByTestId('info-badge-keyboard');   // content, page bottom
   await expect(oscBadge).toBeVisible();
   await expect(voicingBadge).toBeVisible();
-  // The other half of the rule (onboarding.md REQ-a-badge-shows-only-where-reachable): the keyboard is below the
+  // The other half of the rule (info-badges.md REQ-a-badge-shows-only-where-reachable): the keyboard is below the
   // fold at this height, so its badge is hidden rather than pinned off-screen.
   await expect(keysBadge).toBeHidden();
 
@@ -381,7 +381,7 @@ test('contextual badges hide when their control scrolls off either edge', async 
   }
 });
 
-// onboarding.md REQ-each-oscillator-carries-its-own-badge: OSC 1 and OSC 2 each carry a badge,
+// info-badges.md REQ-each-oscillator-carries-its-own-badge: OSC 1 and OSC 2 each carry a badge,
 // and each opens its own topic.
 test('each oscillator panel carries its own info badge', async ({ page }) => {
   await page.addInitScript(() => {

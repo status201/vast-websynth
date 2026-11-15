@@ -31,7 +31,7 @@ export class UiBridge {
    * tabs (Motion has no selection cursor — step-grid-editing.md REQ-motion-keeps-its-own-gesture). */
   clearSelectedStep = (): boolean => false;
   /** Toggle the ⓘ info badges — the `?` key's route (input-control.md REQ-question-mark-toggles-the-badges,
-   * onboarding.md REQ-the-info-button-gesture-inventory). Lives here rather than in `shortcuts.ts` so the
+   * info-badges.md REQ-the-info-button-gesture-inventory). Lives here rather than in `shortcuts.ts` so the
    * shortcut layer never imports the onboarding layer, exactly like
    * `toggleTransport`. Assigned in buildHeader, where onboarding exists. */
   toggleInfoBadges = (): void => {};
