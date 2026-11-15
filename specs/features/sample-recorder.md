@@ -131,9 +131,8 @@ asks first or leaves a way back.
   never pushes the waveform, the edit bar or the footer out of view. **Effects**
   is selected on a first open, and the selected tab is remembered for the session
   only, never persisted ([panel-tabs](panel-tabs.md)
-  REQ-selected-page-is-session-only). A tab change re-runs its page's sync
-  (`syncChop` / `syncFit` / `syncScratch`), so a page is never shown with a stale
-  hint. The `sampler` help topic names the four tabs.
+  REQ-selected-page-is-session-only). A tab change re-runs that page's `sync`
+  (`ToolPage.sync`, studio-tools.ts), so a page is never shown with a stale hint. The `sampler` help topic names the four tabs.
 - **REQ-the-studio-fills-the-screen** — (v11) The studio is a near-full-screen
   card: 16 px inside the viewport on desktop, edge to edge at ≤720 px. It is a
   column of three bands:

@@ -241,7 +241,7 @@ src/ui/components/record-sound-modal.ts:
   scratch panel + row built AFTER the shift row (they read `working` and the crop the same way)
   FIT_TARGETS / framesFor / fitLabel / stepsFor are shared by the Fit row and the scratch length
   playClip(clip) lets Preview audition an uncommitted render
-  apply goes through runOp(); syncScratch joins syncChop / syncFit (called from setBusy and afterMutate)
+  apply goes through runOp(); the page's sync joins the Chop and Fit & Shift pages' (called from setBusy and afterMutate)
 ```
 
 ### Persistence
