@@ -150,8 +150,12 @@ ParamBus:        # src/state/params.ts
                                  #   stop). Per-param listeners still fire.
   snapshot() / restore(snap)     # bulk save/load (restore suppresses onChange)
                                  #   a song stores savedParams(snapshot()), which drops
-                                 #   UNSAVED_PARAMS (master.expression, input-control.md REQ-cc11-is-expression);
+                                 #   UNSAVED_PARAMS (master.expression, master.pitchBend — input-control.md
+                                 #   REQ-cc11-is-expression, REQ-the-pitch-wheel-is-never-saved);
                                  #   a preset keeps only its sound params (presets.md REQ-a-preset-is-only-a-sound)
+  addSnapshotOverlay(map) -> unsub  # snapshot() reports map's ids at map's values, not live —
+                                 #   automation's baselines (motion-sequencer.md
+                                 #   REQ-a-capture-mid-play-stores-the-baselines); get() stays live
   resetDefaults()                # every param back to default
   onBulkApply(fn) -> unsub       # fn(ids) after restore()/resetDefaults() — the ids a bulk
                                  #   apply set, without the edit signal (motion-sequencer.md

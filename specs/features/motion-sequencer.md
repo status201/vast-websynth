@@ -3,7 +3,7 @@
 ```yaml
 id: motion-sequencer
 status: implemented
-version: 19
+version: 20
 owner: core
 related:
   - xy-pad
@@ -27,6 +27,7 @@ source:
   - src/state/patterns.ts                   # motion banks + per-bank assigns + tracks
   - src/utils/taper.ts                      # norm<->value mapping
   - src/state/xy-effective.ts               # observable effective-assignment resolver
+  - src/state/params.ts                     # snapshot overlay: a capture stores the baselines
   - src/ui/panels/motion-panel.ts
   - src/ui/panels/step-panel-scaffold.ts    # lane hooks: bank bar content dot, playhead, Clear ▾
   - src/ui/components/motion-step-pad.ts
@@ -121,6 +122,15 @@ until used ([lane-fold](lane-fold.md)). The tab sits between Sampler and Song.
   loaded mid-play, or a knob turned, is what Stop returns to; motion still wins on
   its next frame. The machine's own writes run under `withoutChangeSignal`, and it
   only *records* from these signals, so there is no loop.
+- **REQ-a-capture-mid-play-stores-the-baselines** — Automation is not the authored
+  sound, so a capture must not store it. The machine registers its baseline map with
+  `ParamBus.addSnapshotOverlay` once, and `ParamBus.snapshot()` reports each param in
+  it at its **baseline** instead of its live value. So a song save, slot, export,
+  share link, project zip, preset save or [session autosave](session-autosave.md)
+  taken mid-play stores exactly what Stop would return to. A knob turned mid-play is
+  captured, because it re-baselines (REQ-a-load-or-an-edit-rebaselines). `get()`,
+  the knobs and the audio keep the live value. The map is empty while stopped, so a
+  capture then is unchanged.
 - **REQ-motion-automation-is-not-an-edit** — Every machine write (axes, tracks,
   restores) runs inside `ParamBus.withoutChangeSignal`. Per-param listeners still
   fire. Only the global `onChange` ("the user changed the sound") is withheld, so the
@@ -423,7 +433,8 @@ The **fold button** is a plain `<button type="button">`:
   `setMuted(m)`, `setSlide(on)`, `setTrackSlide(track, on)`, `onStep(cb)`; a
   `clock.onStop` restore and a `clock.onSeek` latch-clear. Latch state `held` (the bank
   whose writes are live, `-1` while resting) drives the park, cleared wherever the
-  latch is and by every restore. Built by `Engine.init()` after the sampler; exposed
+  latch is and by every restore. The baseline map is registered as the bus's snapshot
+  overlay at construction and never removed (REQ-a-capture-mid-play-stores-the-baselines). Built by `Engine.init()` after the sampler; exposed
   as `StudioApi.motion`. `MotionMachineOptions`: `now`, `fps`, `raf`/`caf`, `timer?:
   TickTimer` (default `defaultTickTimer()`), `doc?` (default `document`). The machine
   lives as long as the page, so its `visibilitychange` listener is never removed.
@@ -868,6 +879,24 @@ Scenario: A song loaded mid-play keeps its own values after Stop (REQ-a-load-or-
   And a knob turned on an automated param mid-play is the value Stop returns to
 # pinned by: tests/audio/transport/motion-machine.test.ts, tests/state/params.test.ts
 
+Scenario: Saving mid-play stores the authored value, not the automated one (REQ-a-capture-mid-play-stores-the-baselines, regression)
+  Given filter.cutoff is 60 and motion drives it away from 60 while playing
+  When a song (or a preset, or the session autosave) is captured mid-play
+  Then the captured filter.cutoff is 60
+  And the live value the knob and the audio see is still the automated one
+# pinned by: tests/audio/transport/motion-machine.test.ts, tests/state/params.test.ts
+
+Scenario: A knob turned mid-play is what a mid-play save stores (REQ-a-capture-mid-play-stores-the-baselines)
+  Given motion drives filter.cutoff and the user turns it to 75 mid-play
+  When a song is captured before the next stop
+  Then the captured filter.cutoff is 75
+# pinned by: tests/audio/transport/motion-machine.test.ts
+
+Scenario: A capture while stopped is unchanged (REQ-a-capture-mid-play-stores-the-baselines, back-compat)
+  Given the transport has stopped, so no param is held by automation
+  Then snapshot() reports every live value exactly
+# pinned by: tests/audio/transport/motion-machine.test.ts, tests/state/params.test.ts
+
 Scenario: A seek keeps the baselines (REQ-a-seek-clears-the-tick-latch)
   Given motion drove filter.cutoff away from its saved value
   When the playhead is seeked mid-play
@@ -967,7 +996,6 @@ Scenario: Dialect motion bank expands
 
 ## Pitfalls (documented behaviour)
 
-- Saving **while playing** captures the momentary automated values; stop first.
 - Dragging an automated knob mid-play: motion wins next write, and Stop returns to
   where you left the knob (REQ-a-load-or-an-edit-rebaselines).
 - Assigning `transport.bpm` is allowed (tempo automation); slave-sync gating prevents

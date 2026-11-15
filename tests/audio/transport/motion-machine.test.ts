@@ -5,6 +5,7 @@ import { PatternStore, SEQ_LENGTH, MOTION_TRACK_COUNT } from '../../../src/state
 import { LANE_RATES } from '../../../src/state/meter';
 import { ParamBus, registerDefaults } from '../../../src/state/params';
 import { XyPadStore } from '../../../src/state/xy-pad';
+import { Song } from '../../../src/state/song';
 import { fromNorm, toNorm } from '../../../src/utils/taper';
 import { TestClock } from './test-clock';
 
@@ -151,6 +152,47 @@ describe('MotionMachine', () => {
       bus.set('filter.cutoff', 70); // the user, through the change signal
       clock.fireStop();
       expect(bus.get('filter.cutoff')).toBe(70);
+    });
+  });
+
+  // motion-sequencer.md REQ-a-capture-mid-play-stores-the-baselines (regression): a save taken
+  // mid-play stored the momentary automated values, so the reloaded song sounded different.
+  describe('a capture mid-play stores the baselines, not the automated values', () => {
+    function automating() {
+      const r = build();
+      r.bus.set('filter.cutoff', 60);
+      r.machine.setEnabled(true);
+      anchor(r.patterns, 0, 1, 1); // drives cutoff + resonance (the XY defaults)
+      r.clock.fireStart();
+      r.clock.fireTick(0);
+      r.machine.frame(0);
+      return r;
+    }
+
+    it('snapshot() and Song.capture report the pre-play value while get() stays live', () => {
+      const { bus, patterns, arrangement, xy } = automating();
+      const live = bus.get('filter.cutoff');
+      expect(live).not.toBe(60); // automation took over
+      expect(bus.snapshot()['filter.cutoff']).toBe(60);
+      expect(bus.get('filter.cutoff')).toBe(live);
+      const file = Song.capture(bus, patterns, arrangement, 'Mid-play', xy);
+      expect(file.params['filter.cutoff']).toBe(60);
+      expect(file.params['filter.resonance']).toBe(bus.def('filter.resonance')!.default);
+    });
+
+    it('a knob turned mid-play is what the capture stores', () => {
+      const { bus, machine } = automating();
+      bus.set('filter.cutoff', 75); // the user, through the change signal
+      machine.frame(0.01);          // motion wins the live value again
+      expect(bus.get('filter.cutoff')).not.toBe(75);
+      expect(bus.snapshot()['filter.cutoff']).toBe(75);
+    });
+
+    it('once stopped, the snapshot is the live state exactly', () => {
+      const { bus, clock } = automating();
+      clock.fireStop();
+      const live = Object.fromEntries(bus.ids().map((id) => [id, bus.get(id)]));
+      expect(bus.snapshot()).toEqual(live);
     });
   });
 
