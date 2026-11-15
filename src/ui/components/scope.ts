@@ -1,6 +1,5 @@
 import styles from '../styles/scope.module.css';
-import { haloText } from './canvas-text';
-import { onPaletteChange, paletteDerived, rgba, type ScreenPalette } from '../theme-colors';
+import { onPaletteChange } from '../theme-colors';
 import { backingScale, onUiScaleChange, toLocal } from '../ui-scale';
 import {
   type ScopeMode,
@@ -10,44 +9,21 @@ import {
   SPECTRUM_DB_TOP,
   SPECTRUM_DB_RANGE,
   byteToDisplayDb,
-  dbToFrac,
   updatePeak,
   WAVE_SILENCE_PEAK,
   updateWaveGain,
   SPECTRUM_F_MAX,
-  LABEL_FONT,
-  ZONE_FONT,
   SPECTRUM_COL_W,
-  ZONE_NAME_MIN_W,
-  ZONE_NAME_TOP,
-  SPECTRUM_ZONES,
-  freqToFrac,
   fracToFreq,
   formatHzFull,
-  type SpectrumTick,
-  visibleTicks,
-  findRisingZeroCrossing,
-  columnBinEdges,
 } from './scope-math';
+import {
+  SpectrumCaches, drawMidline, drawLabel, drawWave, drawBars, drawZoneBands, drawZoneNames,
+  drawTicks, drawCursorLine, drawPeak,
+} from './scope-render';
 
 // The pure half is re-exported, so this stays the scope's one public module.
 export * from './scope-math';
-
-/** The scope's inks, from the screen tokens (ui-themes.md REQ-canvas-reads-the-screen-tokens). */
-const colours = paletteDerived((p) => ({
-  palette: p,
-  midline: rgba(p.ink, 0.07),
-  label: rgba(p.ink, 0.6),
-  zoneFill: rgba(p.ink, 0.08),
-  zoneName: rgba(p.ink, 0.75),
-  tick: rgba(p.ink, 0.45),
-  tickLabel: rgba(p.ink, 0.75),
-  cursor: rgba(p.ink, 0.55),
-  cursorLabel: rgba(p.ink),
-  peak: rgba(p.ink, 0.9),
-  peakHot: rgba(p.hot),
-  wave: rgba(p.trace),
-}));
 
 
 /**
@@ -229,14 +205,8 @@ export class Scope {
   /** Cached CSS layout box + devicePixelRatio, refreshed only by the ResizeObserver. */
   private cssW = 0;
   private cssH = 0;
-  /** Spectrum gradients per region box — allocated once, not per frame. */
-  private readonly gradCache = new Map<string, CanvasGradient>();
-  /** The palette the cached gradients were built from. */
-  private gradPalette: ScreenPalette | null = null;
-  /** Column→bin boundaries per (cols, fftSize, sampleRate) — see REQ-bars-are-drawn-per-pixel-column. */
-  private readonly edgeCache = new Map<string, Float32Array>();
-  /** Pruned ruler per (regionW, fMax) — `visibleTicks` allocates, the loop must not. */
-  private readonly tickCache = new Map<string, SpectrumTick[]>();
+  /** Gradients, column→bin edges and rulers — allocated once, not per frame (scope-render.ts). */
+  private readonly caches = new SpectrumCaches();
   /** Problem-band overlay (REQ-a-zones-toggle). Spectrum-only, memory-only, default off. */
   private zones = false;
   /** Pointer position in canvas CSS px while hovering the Spectrum; null = none. */
@@ -676,31 +646,7 @@ export class Scope {
    * perf-tier fftSize switch, and a restored (blank, unsized) canvas context.
    */
   private dropCaches(): void {
-    this.gradCache.clear();
-    this.edgeCache.clear();
-    this.tickCache.clear();
-  }
-
-  /** Cached column→bin boundaries — allocating this per frame is the thing REQ-no-per-frame-layout-read forbids. */
-  private binEdges(cols: number, fftSize: number, sampleRate: number): Float32Array {
-    const key = `${cols}:${fftSize}:${sampleRate}`;
-    let edges = this.edgeCache.get(key);
-    if (!edges) {
-      edges = columnBinEdges(cols, fftSize, sampleRate);
-      this.edgeCache.set(key, edges);
-    }
-    return edges;
-  }
-
-  /** Cached ruler for a plot width — `visibleTicks` sorts and allocates. */
-  private ticksFor(regionW: number, fMax: number): SpectrumTick[] {
-    const key = `${Math.round(regionW)}:${fMax}`;
-    let ticks = this.tickCache.get(key);
-    if (!ticks) {
-      ticks = visibleTicks(regionW, fMax);
-      this.tickCache.set(key, ticks);
-    }
-    return ticks;
+    this.caches.clear();
   }
 
   /**
@@ -842,9 +788,9 @@ export class Scope {
     // One renderer drives every region (DRY): mono = 1 region, stereo = 2.
     for (const region of scopeRegions(this.channels, w, h)) {
       const channel = this.channelFor(region.tag);
-      if (this.mode === 'wave') this.drawWave(ctx, channel, region);
+      if (this.mode === 'wave') this.paintWave(ctx, channel, region);
       else this.drawSpectrum(ctx, channel, region, dt);
-      if (region.label) this.drawLabel(ctx, region);
+      if (region.label) drawLabel(ctx, region);
     }
     // Wave: anything over the silence gate (which also snaps the auto-gain to 1,
     // so a silent trace is a still one).
@@ -859,81 +805,9 @@ export class Scope {
     }
   }
 
-  /** Faint horizontal mid-line for a region (vintage CRT look). */
-  private spectrumGradient(ctx: CanvasRenderingContext2D, r: ScopeRegion): CanvasGradient {
-    // A cached gradient holds the colours it was built with; a new palette (a
-    // theme change) starts the cache over.
-    const p = colours().palette;
-    if (p !== this.gradPalette) {
-      this.gradCache.clear();
-      this.gradPalette = p;
-    }
-    const key = `${r.y}:${r.h}`;
-    let grad = this.gradCache.get(key);
-    if (!grad) {
-      grad = ctx.createLinearGradient(0, r.y + r.h, 0, r.y);
-      grad.addColorStop(0, rgba(p.trace));
-      grad.addColorStop(0.6, rgba(p.ink));
-      grad.addColorStop(1, rgba(p.hot));
-      this.gradCache.set(key, grad);
-    }
-    return grad;
-  }
-
-  private drawMidline(ctx: CanvasRenderingContext2D, r: ScopeRegion): void {
-    const midY = r.y + r.h / 2;
-    ctx.strokeStyle = colours().midline;
-    ctx.lineWidth = 1;
-    ctx.beginPath();
-    ctx.moveTo(r.x, midY);
-    ctx.lineTo(r.x + r.w, midY);
-    ctx.stroke();
-  }
-
-
-  private drawLabel(ctx: CanvasRenderingContext2D, r: ScopeRegion): void {
-    ctx.font = LABEL_FONT;
-    // Bottom-left: the corner overlay buttons (Mono/Stereo top-left, Wave/Spectrum
-    // top-right) sit flush with the canvas corners, so a top-anchored label hides
-    // behind them. Same dodge the peak-dB readout makes by centring. (REQ-scope-renderers-are-rect-scoped)
-    ctx.textBaseline = 'bottom';
-    haloText(ctx, r.label, r.x + 4, r.y + r.h - 4, colours().label);
-  }
-
-  private drawWave(ctx: CanvasRenderingContext2D, channel: Channel, r: ScopeRegion): void {
-    this.drawMidline(ctx, r);
+  private paintWave(ctx: CanvasRenderingContext2D, channel: Channel, r: ScopeRegion): void {
     channel.analyser.getFloatTimeDomainData(channel.wave);
-    const data = channel.wave;
-    const midY = r.y + r.h / 2;
-    const amp = r.h / 2 - 4;
-    const gain = this.waveGain;
-    ctx.lineWidth = 1.8;
-    ctx.strokeStyle = colours().wave;
-    ctx.beginPath();
-    // Triggered (REQ-the-wave-trace-is-triggered): start at the first rising zero
-    // crossing in the first quarter, draw a fixed three quarters — so the span is
-    // the same whether or not a trigger was found, and silence free-runs from 0.
-    const search = data.length >> 2;
-    const len = data.length - search;
-    const start = Math.max(0, findRisingZeroCrossing(data, search));
-    // One pass: draw the scaled sample *and* accumulate the raw peak that will set
-    // the next frame's gain. The two extra ops per sample sit inside a loop already
-    // issuing a lineTo, so the auto-gain costs nothing measurable. (REQ-the-wave-read-is-float)
-    let peak = this.wavePeak;
-    for (let i = 0; i < len; i++) {
-      const x = r.x + (i / (len - 1)) * r.w;
-      const v = data[start + i] ?? 0;
-      const a = v < 0 ? -v : v;
-      if (a > peak) peak = a;
-      // Clamp *after* the gain: there is no ctx.clip(), so an un-clamped overshoot
-      // during the fast fall would paint into the neighbouring stereo region.
-      const s = v * gain;
-      const y = midY + (s < -1 ? -1 : s > 1 ? 1 : s) * amp;
-      if (i === 0) ctx.moveTo(x, y);
-      else ctx.lineTo(x, y);
-    }
-    this.wavePeak = peak;
-    ctx.stroke();
+    this.wavePeak = drawWave(ctx, channel.wave, r, this.waveGain, this.wavePeak);
   }
 
   private drawSpectrum(
@@ -942,7 +816,7 @@ export class Scope {
     r: ScopeRegion,
     dtSec: number,
   ): void {
-    this.drawMidline(ctx, r);
+    drawMidline(ctx, r);
     const analyser = channel.analyser;
     analyser.getByteFrequencyData(channel.freq);
     const data = channel.freq;
@@ -954,12 +828,12 @@ export class Scope {
     // region a dead strip (and put an 80px hole down the middle of side-by-side
     // stereo) to protect one label at one end. (REQ-a-zones-toggle)
     const cols = Math.max(1, Math.floor(r.w / SPECTRUM_COL_W));
-    const edges = this.binEdges(cols, analyser.fftSize, sampleRate);
+    const edges = this.caches.binEdges(cols, analyser.fftSize, sampleRate);
 
     // Bands go behind the bars; their names go in front, further down.
-    if (this.zones) this.drawZoneBands(ctx, r, fMax);
+    if (this.zones) drawZoneBands(ctx, r, fMax);
 
-    const maxByte = this.drawBars(ctx, r, data, edges, cols);
+    const maxByte = drawBars(ctx, r, data, edges, cols, this.caches.gradient(ctx, r));
 
     // Peak-hold: pushed up by the loudest visible bar, held briefly, then falls slowly.
     const next = updatePeak(
@@ -971,129 +845,20 @@ export class Scope {
     channel.peakHoldS = next.holdS;
     // Spectrum: a bar off the floor, or a held peak still falling toward it.
     if (maxByte > 0 || channel.peakDb > SPECTRUM_FLOOR_DB) this.frameBusy = true;
-    this.drawPeak(ctx, r, channel.peakDb);
+    drawPeak(ctx, r, channel.peakDb);
     this.mirrorPeak(r.tag, channel.peakDb);
-    this.drawTicks(ctx, r, fMax);
-    if (this.zones) this.drawZoneNames(ctx, r, fMax);
-    this.drawCursor(ctx, r, fMax);
+    drawTicks(ctx, r, this.caches.rulerFor(r.w, fMax));
+    if (this.zones) drawZoneNames(ctx, r, fMax);
+    this.paintCursor(ctx, r, fMax);
   }
 
   /**
-   * The bars themselves, and the raw peak byte they were drawn from (REQ-bars-are-drawn-per-pixel-column).
-   * Column-based, not bin-based: a log axis maps the two ends of the spectrum in
-   * opposite directions, so a column covering whole bins takes the **max** over
-   * them (a narrow peak must never be averaged away) while a column narrower than
-   * a bin **interpolates** between its neighbours (otherwise the bottom third is
-   * three flat plateaus, which is what makes a naive log analyser look broken).
+   * The hover cursor (REQ-hovering-reads-out-a-frequency), for the region the
+   * pointer is actually in — so in Stereo you read the channel you point at. The
+   * label string is rebuilt only when the rounded frequency changes; the stroke
+   * is scope-render.ts's.
    */
-  private drawBars(
-    ctx: CanvasRenderingContext2D,
-    r: ScopeRegion,
-    data: Uint8Array,
-    edges: Float32Array,
-    cols: number,
-  ): number {
-    ctx.fillStyle = this.spectrumGradient(ctx, r);
-    const nBins = data.length;
-    const colW = r.w / cols;
-    const barW = Math.max(1, colW - 1);
-    const maxH = r.h - 2;
-    let maxByte = 0;
-    for (let c = 0; c < cols; c++) {
-      const b0 = edges[c] ?? 0;
-      const b1 = edges[c + 1] ?? 0;
-      let level: number;
-      if (b1 - b0 >= 1) {
-        const lo = Math.max(0, Math.floor(b0));
-        const hi = Math.min(nBins - 1, Math.ceil(b1) - 1);
-        let m = 0;
-        for (let i = lo; i <= hi; i++) { const b = data[i] ?? 0; if (b > m) m = b; }
-        level = m;
-        if (m > maxByte) maxByte = m;
-      } else {
-        const mid = (b0 + b1) / 2;
-        const i0 = Math.min(nBins - 1, Math.max(0, Math.floor(mid)));
-        const i1 = Math.min(nBins - 1, i0 + 1);
-        const a = data[i0] ?? 0;
-        const b = data[i1] ?? 0;
-        level = a + (b - a) * (mid - i0);
-        // The held peak reads RAW bins, never the interpolation (REQ-bars-are-drawn-per-pixel-column).
-        if (a > maxByte) maxByte = a;
-        if (b > maxByte) maxByte = b;
-      }
-      const bh = (level / 255) * maxH;
-      if (bh < 0.5) continue;
-      ctx.fillRect(r.x + c * colW, r.y + r.h - bh, barW, bh);
-    }
-    return maxByte;
-  }
-
-  /**
-   * Canvas x of a frequency inside a region — the one place a Hz becomes a pixel,
-   * so the bands, their names and anything added later cannot drift apart.
-   */
-  private xForFreq(r: ScopeRegion, hz: number, fMax: number): number {
-    return r.x + freqToFrac(hz, fMax) * r.w;
-  }
-
-  /** The shaded problem bands, behind the bars. (REQ-a-zones-toggle) */
-  private drawZoneBands(ctx: CanvasRenderingContext2D, r: ScopeRegion, fMax: number): void {
-    ctx.fillStyle = colours().zoneFill;
-    for (const z of SPECTRUM_ZONES) {
-      const x0 = this.xForFreq(r, z.from, fMax);
-      ctx.fillRect(x0, r.y, this.xForFreq(r, z.to, fMax) - x0, r.h);
-    }
-  }
-
-  /**
-   * The band names, in front of the bars. Inset from the region top so they clear
-   * the two corner overlay buttons, and dropped entirely on a region too narrow to
-   * hold them — the shading still says where the band is. (REQ-a-zones-toggle)
-   */
-  private drawZoneNames(ctx: CanvasRenderingContext2D, r: ScopeRegion, fMax: number): void {
-    if (r.w < ZONE_NAME_MIN_W || r.h < ZONE_NAME_TOP + 12) return;
-    ctx.save();
-    ctx.font = ZONE_FONT;
-    ctx.textAlign = 'center';
-    ctx.textBaseline = 'top';
-    for (const z of SPECTRUM_ZONES) {
-      const mid = (this.xForFreq(r, z.from, fMax) + this.xForFreq(r, z.to, fMax)) / 2;
-      haloText(ctx, z.name, mid, r.y + ZONE_NAME_TOP, colours().zoneName);
-    }
-    ctx.restore();
-  }
-
-  /** The bottom ruler: a short tick per labelled frequency, the label above it. (REQ-the-scale-is-a-permanent-ruler) */
-  private drawTicks(ctx: CanvasRenderingContext2D, r: ScopeRegion, fMax: number): void {
-    const ticks = this.ticksFor(r.w, fMax);
-    const bottom = r.y + r.h;
-    ctx.save();
-    ctx.strokeStyle = colours().tick;
-    ctx.lineWidth = 1;
-    ctx.beginPath();
-    for (const t of ticks) {
-      const x = Math.round(r.x + t.x) + 0.5;
-      ctx.moveTo(x, bottom);
-      ctx.lineTo(x, bottom - 4);
-    }
-    ctx.stroke();
-    ctx.font = LABEL_FONT;
-    ctx.textAlign = 'center';
-    ctx.textBaseline = 'bottom';
-    for (const t of ticks) {
-      haloText(ctx, t.label, r.x + t.labelX, bottom - 5, colours().tickLabel);
-    }
-    ctx.restore();
-  }
-
-  /**
-   * The hover cursor: a line at the pointer and the frequency under it (REQ-hovering-reads-out-a-frequency).
-   * Drawn only for the region the pointer is actually in, so in Stereo you read
-   * the channel you are pointing at. The label rides the pointer's own Y and flips
-   * side at the halfway mark, which keeps it clear of the corner chrome without a
-   * fixed anchor that could collide.
-   */
-  private drawCursor(ctx: CanvasRenderingContext2D, r: ScopeRegion, fMax: number): void {
+  private paintCursor(ctx: CanvasRenderingContext2D, r: ScopeRegion, fMax: number): void {
     const hx = this.hoverX;
     const hy = this.hoverY;
     if (hx === null || hy === null) return;
@@ -1107,45 +872,7 @@ export class Scope {
       this.cursorLabel = formatHzFull(hz);
       this.mirrorCursor(`${rounded}`);
     }
-    ctx.save();
-    ctx.strokeStyle = colours().cursor;
-    ctx.lineWidth = 1;
-    ctx.beginPath();
-    const x = Math.round(hx) + 0.5;
-    ctx.moveTo(x, r.y);
-    ctx.lineTo(x, r.y + r.h);
-    ctx.stroke();
-    ctx.font = LABEL_FONT;
-    const left = frac > 0.5;
-    ctx.textAlign = left ? 'right' : 'left';
-    ctx.textBaseline = 'middle';
-    haloText(ctx, this.cursorLabel, hx + (left ? -5 : 5), hy, colours().cursorLabel);
-    ctx.restore();
-  }
-
-  /** The dotted max-dB peak-hold line + its dB label for one region. (REQ-spectrum-draws-a-peak-hold/11) */
-  private drawPeak(ctx: CanvasRenderingContext2D, r: ScopeRegion, peakDb: number): void {
-    if (!Number.isFinite(peakDb)) return;
-    const y = r.y + r.h - dbToFrac(peakDb) * (r.h - 2);
-    // Turn the red accent on as the peak approaches 0 dB (clip).
-    const color = peakDb >= -0.05 ? colours().peakHot : colours().peak;
-    ctx.save();
-    ctx.setLineDash([4, 4]);
-    ctx.lineWidth = 1;
-    ctx.strokeStyle = color;
-    ctx.beginPath();
-    ctx.moveTo(r.x, y);
-    ctx.lineTo(r.x + r.w, y);
-    ctx.stroke();
-    ctx.setLineDash([]);
-    ctx.font = LABEL_FONT;
-    // Centre the value within the region so it can't hide behind the corner buttons.
-    ctx.textAlign = 'center';
-    // Flip the label below the line when it's hugging the top edge.
-    const near = y < r.y + 12;
-    ctx.textBaseline = near ? 'top' : 'bottom';
-    haloText(ctx, `${peakDb.toFixed(1)} dB`, r.x + r.w / 2, near ? y + 2 : y - 2, color);
-    ctx.restore();
+    drawCursorLine(ctx, r, hx, hy, frac, this.cursorLabel);
   }
 
   /**

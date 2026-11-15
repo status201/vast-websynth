@@ -15,6 +15,7 @@ related:
 source:
   - src/ui/components/scope.ts
   - src/ui/components/scope-math.ts   # the pure half: regions, axes, peak hold, ticks, zones (re-exported by scope.ts)
+  - src/ui/components/scope-render.ts # the painters + SpectrumCaches; `Scope` decides what to draw, these draw it
   - src/state/debug-sources.ts        # setScopeStatsSource — the Debug panel's reader
   - src/ui/components/about-debug.ts  # the "Scope" row
   - src/ui/components/canvas-text.ts  # haloText, hoisted out of this component
@@ -794,8 +795,9 @@ DOUBLE_TAP_MS: 350     # ms window for the hand-rolled double-tap
   `--scope-h` from `readScopeHeight()` **before** mounting (no first-paint jump), and
   returns the scope and handle so `mountApp` binds `setFps` / `setFftSize` and both
   `destroy()`s.
-- **Everything else is inside `scope.ts`** — peak-hold, auto-gain, the log axis and
-  its overlays, the liveness sweep — and needs nothing from the audio layer but
+- **Everything else is inside `scope.ts`** (the loop, peak-hold, auto-gain, the
+  liveness sweep) **and its two helpers** — `scope-math.ts` (the pure axes and
+  regions) and `scope-render.ts` (the painters) — and needs nothing from the audio layer but
   `analyser.context.sampleRate` (read as `?? 48000`, since the unit suites' analyser
   stubs carry no `context`). Deliberate: a change here that edits `engine.ts` or
   `studio-api.ts` has drifted (ADR-001/ADR-009). Inside it:
