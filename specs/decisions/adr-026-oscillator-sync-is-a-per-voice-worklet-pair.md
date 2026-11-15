@@ -117,3 +117,17 @@ SYNC 0. Before release, soft became a hard reset with every slave edge rounded
 ([oscillator-sync](../features/oscillator-sync.md) v6,
 REQ-soft-sync-rounds-every-slave-edge), chosen by ear over reversing and over
 rounding only the resets.
+
+## Note (2026-11-15)
+
+The pair now also runs with sync **off**, free-running in mode 0, for one patch shape:
+FM onto a square OSC 2 whose width can move
+([cross-modulation](../features/cross-modulation.md)
+REQ-an-fm-carrier-with-a-pulse-width-runs-in-the-pair). On Gecko, a native width
+swap rebuilds the wave's tables on the audio thread, and under FM that costs several
+render quanta. The pair changes width without rebuilding anything. In that mode the
+pair is level-matched to the native nodes
+([oscillator-sync](../features/oscillator-sync.md)
+REQ-free-running-matches-the-native-level), because the browser peak-normalizes a
+`PeriodicWave` and the pair's naive waves are not. The decision stands: every patch
+outside that shape still pays nothing.

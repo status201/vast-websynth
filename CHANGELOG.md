@@ -16,6 +16,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+### Fixed
+
+- **Firefox no longer stutters and drops out with FM on a pulse wave.** With OSC 1's
+  FM up, OSC 2 on square, and an LFO on PULSE or WIDTH turned up, Firefox's audio
+  ran as slow as a tenth of real time and then stopped; turning WIDTH crackled.
+  Firefox rebuilds an oscillator's wavetables on its audio thread at every width
+  change, which is far more expensive on an FM'd oscillator, and every voice paid
+  it, sounding or not. Idle voices now skip those rebuilds. An FM'd pulse with a
+  moving width now plays through the sync engine instead, free-running, which
+  needs no rebuilds at all, at the same level as before. Above an FM amount of
+  about 1, such patches sound a little different, because FM there does not run
+  through zero.
+
 ## [2.22.0] - 2026-11-08
 
 ### Added

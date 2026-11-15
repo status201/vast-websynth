@@ -196,3 +196,90 @@ describe('the duty bank', () => {
     expect(last).toBeGreaterThan(0);
   });
 });
+
+describe('width reaches only a heard oscillator (REQ-wave-writes-reach-only-a-heard-oscillator)', () => {
+  it('an asleep oscillator stores the width and applies it once on waking', () => {
+    const { osc, node } = build();
+    osc.setWave(SQUARE);
+    osc.setAwake(false);
+    for (let i = 1; i <= 20; i++) osc.setPulseWidth(0.5 + i * 0.02);
+    // On Gecko each of these would rebuild the wave's tables on the audio thread.
+    expect(node.setPeriodicWave).not.toHaveBeenCalled();
+
+    osc.setAwake(true);
+    expect(node.setPeriodicWave).toHaveBeenCalledTimes(1);
+    osc.setAwake(false);
+    osc.setAwake(true); // the width did not move: nothing to catch up on
+    expect(node.setPeriodicWave).toHaveBeenCalledTimes(1);
+  });
+
+  it('a width that returns to the applied entry while asleep costs nothing on waking', () => {
+    const { osc, node } = build();
+    osc.setWave(SQUARE);
+    osc.setPulseWidth(0.7);
+    expect(node.setPeriodicWave).toHaveBeenCalledTimes(1);
+    osc.setAwake(false);
+    osc.setPulseWidth(0.9);
+    osc.setPulseWidth(0.7);
+    osc.setAwake(true);
+    expect(node.setPeriodicWave).toHaveBeenCalledTimes(1);
+  });
+
+  it('a native node faded out under the pair takes no swaps, but its mirror does', () => {
+    const { osc, node } = build();
+    const widths: number[] = [];
+    osc.setMirror({ wave: () => {}, cents: () => {}, width: (w) => widths.push(w) });
+    osc.setWave(SQUARE);
+    osc.fadeNative(false);
+    osc.setPulseWidth(0.8);
+    expect(node.setPeriodicWave).not.toHaveBeenCalled();
+    expect(widths[widths.length - 1]).toBe(0.8);
+
+    osc.fadeNative(true);
+    expect(node.setPeriodicWave).toHaveBeenCalledTimes(1);
+  });
+
+  it('a wave change while asleep is caught up on waking', () => {
+    const { osc, node } = build();
+    osc.setWave(SAW);
+    osc.setPulseWidth(0.9);
+    osc.setAwake(false);
+    osc.setWave(SQUARE);
+    expect(node.setPeriodicWave).not.toHaveBeenCalled();
+    osc.setAwake(true);
+    expect(node.setPeriodicWave).toHaveBeenCalledTimes(1);
+  });
+});
+
+describe('a wave reaches only a heard oscillator (REQ-wave-writes-reach-only-a-heard-oscillator)', () => {
+  /** Count writes to the mock node's `type`, which a plain property hides. */
+  function typeWrites(node: { type: string }) {
+    let value = node.type;
+    const writes: string[] = [];
+    Object.defineProperty(node, 'type', {
+      get: () => value,
+      set: (v: string) => { value = v; writes.push(v); },
+    });
+    return writes;
+  }
+
+  it('an asleep oscillator writes its type once on waking, and only what moved', () => {
+    const { osc, node } = build();
+    const writes = typeWrites(node);
+    osc.setAwake(false);
+    osc.setWave(1);
+    osc.setWave(0);
+    expect(writes).toEqual([]);
+    osc.setAwake(true);
+    expect(writes).toEqual(['sine']);
+    osc.setWave(0); // already showing
+    expect(writes).toEqual(['sine']);
+  });
+
+  it('a saw that is already showing is never rewritten', () => {
+    const { osc, node } = build();
+    const writes = typeWrites(node);
+    osc.setWave(SAW);
+    expect(writes).toEqual([]);
+  });
+});

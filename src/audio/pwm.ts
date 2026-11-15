@@ -86,6 +86,10 @@ export class PwmDriver {
   constructor(
     private readonly voices: readonly PwmVoice[],
     private readonly now: () => number,
+    /** Told when the owner changes hands: whether a width sweeps decides whether
+     *  an FM'd pulse runs in the sync pair (cross-modulation.md
+     *  REQ-an-fm-carrier-with-a-pulse-width-runs-in-the-pair). */
+    private readonly onOwner?: () => void,
   ) {}
 
   /** A source declares whether it is on `pulse`; the driver re-decides the owner. */
@@ -135,6 +139,7 @@ export class PwmDriver {
     if (next === this.owner) return;
     this.owner = next;
     this.sync();
+    this.onOwner?.();
   }
 
   /** `i` is 0 for osc1, 1 for osc2. Writing a base while PWM is idle applies it

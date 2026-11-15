@@ -4,7 +4,8 @@ import { loadWorkletModule } from '../worklet-module';
 
 /**
  * The oscillator-sync pair (oscillator-sync.md, ADR-026): one worklet per voice
- * that renders osc1 (master) and osc2 (slave) together while sync is engaged.
+ * that renders osc1 (master) and osc2 (slave) together while sync is engaged, or
+ * free-running for an FM'd pulse (REQ-the-pair-free-runs-for-a-pulse-carrier).
  *
  * Thin by design, like `LadderFilterNode` — the engagement crossfade belongs to
  * `SyncEngagement` and the modulation wiring to `Voice`. What lives here is the node, its params, the two
@@ -26,7 +27,8 @@ export class SyncOscNode {
   readonly masterMirror: OscMirror;
   readonly slaveMirror: OscMirror;
 
-  /** k-rate: 1 hard, 2 soft (REQ-sync-has-hard-and-soft-modes); 0 free-runs, used only by tests. */
+  /** k-rate: 1 hard, 2 soft (REQ-sync-has-hard-and-soft-modes); 0 free-runs, for a pulse
+   *  carrier under FM (REQ-the-pair-free-runs-for-a-pulse-carrier). */
   private readonly mode: AudioParam;
   /** The idle gate (REQ-the-pair-idles-with-the-voice); written only by `setActive`. */
   private readonly active: AudioParam;

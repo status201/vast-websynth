@@ -4,6 +4,7 @@ import { fileURLToPath } from 'node:url';
 import { Engine } from '../../src/audio/engine';
 import { Polyphony } from '../../src/audio/polyphony';
 import { LFO } from '../../src/audio/lfo';
+import { PAIR_RELEASE_HOLD_MS } from '../../src/audio/cross-mod';
 import {
   makeMockAudioContext,
   installMockAudioWorkletNode,
@@ -139,11 +140,11 @@ describe('the LFO sync destination (REQ-sync-is-a-modulation-destination)', () =
 describe('FM is in use while the knob or a route says so (cross-modulation.md REQ-cross-mod-disconnects-when-unused)', () => {
   it('engages every voice when the index is up or a live row targets fm, and only then', async () => {
     const { MOD_DST } = await import('../../src/state/mod-routing');
-    const voices = [{ setFmInUse: vi.fn() }, { setFmInUse: vi.fn() }];
+    const voices = [{ setFmInUse: vi.fn(), setPairFree: vi.fn() }, { setFmInUse: vi.fn(), setPairFree: vi.fn() }];
     let routed = false;
     const usesDest = vi.fn(() => routed);
     const engine = Object.assign(Object.create(Engine.prototype) as object, {
-      voices, fmIndex: 0, modMatrix: { usesDest },
+      voices, fmIndex: 0, modMatrix: { usesDest }, pairFree: false,
     }) as unknown as { refreshFm(): void; fmIndex: number };
 
     engine.refreshFm();
@@ -165,5 +166,102 @@ describe('FM is in use while the knob or a route says so (cross-modulation.md RE
     const body = src('audio/engine.ts');
     expect(body).toMatch(/mod\.\$\{n\}\.src`, \(v\) => \{ this\.modMatrix\.setSource\(row, v\); this\.refreshFm\(\); \}/);
     expect(body).toMatch(/mod\.\$\{n\}\.dst`, \(v\) => \{ this\.modMatrix\.setDest\(row, v\); this\.refreshFm\(\); \}/);
+  });
+});
+
+describe('an FM carrier with a pulse width frees the pairs (cross-modulation.md REQ-an-fm-carrier-with-a-pulse-width-runs-in-the-pair)', () => {
+  // The release hold is a `window.setTimeout`; this suite runs under node.
+  beforeEach(() => { vi.useFakeTimers(); vi.stubGlobal('window', globalThis); });
+  afterEach(() => vi.useRealTimers());
+  const SQUARE = 3;
+  const SAW = 2;
+  function predicate() {
+    const voices = [{ setFmInUse: vi.fn(), setPairFree: vi.fn() }, { setFmInUse: vi.fn(), setPairFree: vi.fn() }];
+    const pwm = { pwmOwner: null as number | null };
+    const ensureSync = vi.fn(async () => {});
+    const engine = Object.assign(Object.create(Engine.prototype) as object, {
+      voices, fmIndex: 0, modMatrix: { usesDest: () => false }, pwm, ensureSync,
+      fmInUse: false, osc2Wave: SAW, osc2Width: 0.5, pairFree: false,
+    }) as unknown as {
+      refreshFm(): void; refreshPairFree(): void;
+      fmIndex: number; osc2Wave: number; osc2Width: number;
+    };
+    const freed = () => voices.map((v) => v.setPairFree.mock.calls.at(-1)?.[0]);
+    return { engine, voices, pwm, ensureSync, freed };
+  }
+
+  it('frees every voice only while FM is in use on a square whose width can move', () => {
+    const { engine, pwm, ensureSync, freed } = predicate();
+    engine.fmIndex = 0.4;
+    engine.osc2Wave = SQUARE;
+    engine.refreshFm();
+    // A square at 0.5 with no PWM swaps nothing: it keeps the native, through-zero path.
+    expect(freed()).toEqual([undefined, undefined]);
+    expect(ensureSync).not.toHaveBeenCalled();
+
+    pwm.pwmOwner = 0; // an LFO takes the pulse destination
+    engine.refreshPairFree();
+    expect(freed()).toEqual([true, true]);
+    expect(ensureSync).toHaveBeenCalledTimes(1);
+
+    engine.fmIndex = 0;
+    engine.refreshFm();
+    expect(freed()).toEqual([true, true]); // held: a release waits
+    vi.advanceTimersByTime(PAIR_RELEASE_HOLD_MS);
+    expect(freed()).toEqual([false, false]);
+  });
+
+  it('a predicate back to true inside the hold cancels the release (a WIDTH drag through 0.5)', () => {
+    const { engine, voices } = predicate();
+    engine.fmIndex = 2;
+    engine.osc2Wave = SQUARE;
+    engine.osc2Width = 0.6;
+    engine.refreshFm();
+    engine.osc2Width = 0.5;
+    engine.refreshPairFree();
+    vi.advanceTimersByTime(PAIR_RELEASE_HOLD_MS / 2);
+    engine.osc2Width = 0.52;
+    engine.refreshPairFree();
+    vi.advanceTimersByTime(PAIR_RELEASE_HOLD_MS * 2);
+    for (const v of voices) expect(v.setPairFree.mock.calls).toEqual([[true]]);
+  });
+
+  it('a re-ask while freed asks for the pairs again, so a failed load is retried', () => {
+    const { engine, pwm, ensureSync } = predicate();
+    engine.fmIndex = 0.4;
+    engine.osc2Wave = SQUARE;
+    pwm.pwmOwner = 0;
+    engine.refreshFm();
+    expect(ensureSync).toHaveBeenCalledTimes(1);
+    engine.refreshPairFree(); // e.g. the next WIDTH move after a failed load
+    expect(ensureSync).toHaveBeenCalledTimes(2);
+  });
+
+  it('the WIDTH knob alone frees them under FM, and leaving square releases them', () => {
+    const { engine, voices, freed } = predicate();
+    engine.fmIndex = 2;
+    engine.osc2Wave = SQUARE;
+    engine.osc2Width = 0.6;
+    engine.refreshFm();
+    expect(freed()).toEqual([true, true]);
+
+    // A WIDTH drag re-asks on every move; only a change of answer reaches the voices.
+    engine.osc2Width = 0.7;
+    engine.refreshPairFree();
+    for (const v of voices) expect(v.setPairFree).toHaveBeenCalledTimes(1);
+
+    engine.osc2Wave = SAW;
+    engine.refreshPairFree();
+    vi.advanceTimersByTime(PAIR_RELEASE_HOLD_MS);
+    expect(freed()).toEqual([false, false]);
+  });
+
+  it('every input of the predicate re-asks it', () => {
+    const body = src('audio/engine.ts');
+    expect(body).toMatch(/new PwmDriver\(this\.voices, \(\) => this\.ctx\.currentTime, \(\) => this\.refreshPairFree\(\)\)/);
+    // The predicate runs before the write, so a width or wave that frees the pair
+    // never reaches the native nodes on its way there.
+    expect(body).toMatch(/bus\.subscribe\('osc2\.wave', \(x\) => \{[^}]*this\.refreshPairFree\(\);\s+for \(const v of this\.voices\) v\.osc2\.setWave\(x\);/);
+    expect(body).toMatch(/bus\.subscribe\('osc2\.pulseWidth', \(x\) => \{[^}]*this\.refreshPairFree\(\);\s+this\.pwm\.setBase\(1, x\);/);
   });
 });

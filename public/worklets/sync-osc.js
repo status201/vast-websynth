@@ -3,7 +3,8 @@
  *
  * Renders osc1 (the master, output 0) and osc2 (the slave, output 1) together, so
  * the phase relation between them is structural rather than two clocks that could
- * drift apart (REQ-the-pair-owns-both-phases). Runs only while sync is engaged;
+ * drift apart (REQ-the-pair-owns-both-phases). Runs only while sync is engaged, or
+ * free-running in mode 0 for an FM'd pulse (REQ-the-pair-free-runs-for-a-pulse-carrier);
  * the native oscillators carry the sound otherwise.
  *
  * Every discontinuity — a waveform's own edge, a sync reset, a wave or width
@@ -30,7 +31,8 @@ const TRI = 1;
 const SAW = 2;
 const SQUARE = 3;
 
-/** `mode`: 0 = free-running (no sync), 1 = hard, 2 = soft. */
+/** `mode`: 0 = free-running (no sync, and the sync offset ignored: the slave is
+ *  plain OSC 2 — REQ-the-pair-free-runs-for-a-pulse-carrier), 1 = hard, 2 = soft. */
 const MODE_HARD = 1;
 const MODE_SOFT = 2;
 
@@ -51,6 +53,11 @@ const DC_HZ = 5;
  *  reach ~2.25 in any mode, and soft sync under extreme FM ~3.4. The clamp only
  *  guarantees the bound; nothing short of a pathological patch reaches it. */
 const OUT_MAX = 4;
+/** Free-running stands in for the native nodes, so it matches their level
+ *  (REQ-free-running-matches-the-native-level). The browser peak-normalizes every
+ *  PeriodicWave, and a band-limited edge overshoots by this much of a 2-unit jump:
+ *  0.166-0.179 across the duty bank and the built-in square and saw on Blink. */
+const FREE_OVERSHOOT = 0.175;
 
 /** Correction ring: must hold a kernel's lookahead plus the longest soft glide
  *  and its closing kernel (`half + SOFT_W_MAX + half`). */
@@ -164,6 +171,15 @@ function innerBreak(wave, width) {
   return -1;
 }
 
+/** The gain that brings a naive wave to the native node's peak-normalized level
+ *  (REQ-free-running-matches-the-native-level): a DC-free pulse peaks at 2w plus
+ *  the overshoot, a saw at 1 plus it, and sine and triangle at 1. */
+function nativeLevel(wave, width) {
+  if (wave === SQUARE) return 1 / (2 * width + FREE_OVERSHOOT);
+  if (wave === SAW) return 1 / (1 + FREE_OVERSHOOT);
+  return 1;
+}
+
 const EPS = 1e-9;
 
 function makeOsc() {
@@ -219,6 +235,11 @@ class SyncOscProcessor extends AudioWorkletProcessor {
     // The master's naive value at the previous sample: FM's modulator, one sample
     // late, which no ear resolves and which costs nothing to keep.
     this.mPrev = 0;
+    // Each output's level gain (REQ-free-running-matches-the-native-level): 1 when
+    // synced, ramped per block toward its target, snapped after a reset.
+    this.g0 = 1;
+    this.g1 = 1;
+    this.gSnap = true;
     // Whether this block's slave edges glide (`mode` is k-rate), and the
     // increment their width follows (see `edge`).
     this.soft = false;
@@ -239,6 +260,7 @@ class SyncOscProcessor extends AudioWorkletProcessor {
     this.dcX = 0;
     this.dcY = 0;
     this.mPrev = 0;
+    this.gSnap = true;
   }
 
   /**
@@ -434,9 +456,22 @@ class SyncOscProcessor extends AudioWorkletProcessor {
     const pw2 = widthOf(params.width2[0]);
     const half = this.half;
     const soft = (this.soft = mode === MODE_SOFT);
+    const synced = mode === MODE_HARD || soft;
 
     this.retarget(this.m, this.acc0, w1, pw1);
     this.retarget(this.s, this.acc1, w2, pw2);
+
+    // Level gains, ramped linearly across the block from where the last one ended.
+    const t0 = synced ? 1 : nativeLevel(this.m.wave, this.m.width);
+    const t1 = synced ? 1 : nativeLevel(this.s.wave, this.s.width);
+    if (this.gSnap) { this.g0 = t0; this.g1 = t1; this.gSnap = false; }
+    let g0 = this.g0, g1 = this.g1;
+    const dg0 = (t0 - g0) / len, dg1 = (t1 - g1) / len;
+    this.g0 = t0;
+    this.g1 = t1;
+    // FM's modulator is the master at the level it is heard at, as the native path's
+    // is (it reads osc1.signal), so freeing the pair does not change the FM depth.
+    const mGain = t0;
 
     // The two per-block pitch constants; the a-rate parts are folded in per sample.
     const mK = exp2(mCents / 1200) / sampleRate;
@@ -451,7 +486,7 @@ class SyncOscProcessor extends AudioWorkletProcessor {
       // branch, so no per-sample isFinite is needed (the block-end guard backs it up).
       const f = fFull ? freq[i] : freq[0];
       const d = dFull ? det[i] : det[0];
-      let sp = spFull ? sync[i] : sync[0];
+      let sp = synced ? (spFull ? sync[i] : sync[0]) : 0;
       sp = sp > SYNC_MIN ? (sp < SYNC_MAX ? sp : SYNC_MAX) : SYNC_MIN;
 
       if (d !== this.lastD) { this.lastD = d; this.lastDE = exp2(d / 1200); }
@@ -472,7 +507,7 @@ class SyncOscProcessor extends AudioWorkletProcessor {
       this.wInc = sNom > mInc ? sNom : mInc;
 
       const reset = this.advance(this.m, this.acc0, 0, 1, mInc, false);
-      if (reset >= 0 && (mode === MODE_HARD || mode === MODE_SOFT)) {
+      if (reset >= 0 && synced) {
         // The slave runs up to the master's wrap, is synced there, then runs on.
         this.advance(this.s, this.acc1, 0, reset, sInc, soft);
         this.syncSlave(reset, sInc);
@@ -483,7 +518,7 @@ class SyncOscProcessor extends AudioWorkletProcessor {
 
       const slot = this.n & RING_MASK;
       const mv = value(this.m.wave, this.m.p, this.m.width);
-      this.mPrev = mv;
+      this.mPrev = mv * mGain;
       this.acc0[slot] += mv;
       this.acc1[slot] += value(this.s.wave, this.s.p, this.s.width);
       const outSlot = (this.n - half) & RING_MASK;
@@ -494,9 +529,12 @@ class SyncOscProcessor extends AudioWorkletProcessor {
       const y1 = x1 - this.dcX + this.dcR * this.dcY;
       this.dcX = x1;
       this.dcY = y1;
+      g0 += dg0;
+      g1 += dg1;
+      const z0 = y0 * g0, z1 = y1 * g1;
       // NaN passes both compares untouched, for the block-end guard below.
-      out0[i] = y0 > OUT_MAX ? OUT_MAX : y0 < -OUT_MAX ? -OUT_MAX : y0;
-      out1[i] = y1 > OUT_MAX ? OUT_MAX : y1 < -OUT_MAX ? -OUT_MAX : y1;
+      out0[i] = z0 > OUT_MAX ? OUT_MAX : z0 < -OUT_MAX ? -OUT_MAX : z0;
+      out1[i] = z1 > OUT_MAX ? OUT_MAX : z1 < -OUT_MAX ? -OUT_MAX : z1;
       this.n++;
     }
 

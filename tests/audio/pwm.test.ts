@@ -326,3 +326,24 @@ describe('PwmDriver arbitration (REQ-lfo-rate-is-exponentially-tapered)', () => 
     expect(widths[0].at(-1)).toBeCloseTo(0.7, 6);
   });
 });
+
+describe('the owner change is announced (cross-modulation.md REQ-an-fm-carrier-with-a-pulse-width-runs-in-the-pair)', () => {
+  beforeEach(() => vi.useFakeTimers());
+  afterEach(() => vi.useRealTimers());
+
+  it('tells its listener each time the owner changes hands, and only then', () => {
+    const { voices } = fakeVoices();
+    const onOwner = vi.fn();
+    const pwm = new PwmDriver(voices, () => 0, onOwner);
+    pwm.setDest(1, PULSE);
+    expect(onOwner).toHaveBeenCalledTimes(1);
+    pwm.setDest(0, PULSE); // the lower index takes it over
+    expect(onOwner).toHaveBeenCalledTimes(2);
+    pwm.setDest(1, CUTOFF); // not the owner: nothing changes hands
+    expect(onOwner).toHaveBeenCalledTimes(2);
+    pwm.setDest(0, CUTOFF);
+    expect(onOwner).toHaveBeenCalledTimes(3);
+    expect(pwm.pwmOwner).toBeNull();
+    pwm.dispose();
+  });
+});
