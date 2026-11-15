@@ -1,5 +1,6 @@
 import { showToast } from './toast';
 import { NOT_DOWNLOADED_YET, PLAY_OFFLINE_HINT } from '../offline-wording';
+import { reportIfNewerVersion } from './version-skew-toast';
 
 /**
  * The report a deferred surface owes the user when its `import()` rejects
@@ -16,20 +17,29 @@ import { NOT_DOWNLOADED_YET, PLAY_OFFLINE_HINT } from '../offline-wording';
  * One place for the wording, because the distinction it draws is the useful
  * part: offline says *why* and what fixes it, online says the fetch failed.
  * Retry is offered either way — by the time the toast is read the connection
- * may well be back.
+ * may well be back. The one exception: online, when a newer release is live,
+ * the chunk is gone for good, so that report offers Reload (version-skew.md).
  */
 export function showLazyLoadFailure(surface: string, retry: () => void): void {
+  const failed = (cause: string): void => {
+    showToast({
+      message: `Couldn't open ${surface} — ${cause}`,
+      actionLabel: 'Retry',
+      onAction: retry,
+      testId: 'lazy-load-failed-toast',
+    });
+  };
   // `navigator.onLine === false` is trustworthy (a false only ever means no
   // link); `true` merely means an interface is up, which is why the online
   // branch stays vague about the cause rather than blaming the network.
-  const offline = navigator.onLine === false;
-  showToast({
-    message: offline
-      ? `Couldn't open ${surface} — ${NOT_DOWNLOADED_YET}. ${PLAY_OFFLINE_HINT}`
-      : `Couldn't open ${surface} — the download failed.`,
-    actionLabel: 'Retry',
-    onAction: retry,
-    testId: 'lazy-load-failed-toast',
+  if (navigator.onLine === false) {
+    failed(`${NOT_DOWNLOADED_YET}. ${PLAY_OFFLINE_HINT}`);
+    return;
+  }
+  // Online, a deploy may have replaced the chunk: then Retry can never work and
+  // the report says Reload instead (version-skew.md REQ-a-stale-failure-offers-reload).
+  void reportIfNewerVersion(`Couldn't open ${surface}`).then((skew) => {
+    if (!skew) failed('the download failed.');
   });
 }
 

@@ -24,6 +24,8 @@ import { alertDialog, confirmDialog } from './ui/components/dialog';
 import { buildFailureReportFor, thrownMessage } from './ui/failure-report';
 import { WakeLockManager } from './utils/wake-lock';
 import { showToast, type ToastHandle } from './ui/components/toast';
+import { onTakeover } from './ui/components/version-skew-toast';
+import { watchForTakeover } from './utils/live-version';
 import { setClipStatsSource, setMidiStatsSource, setWakeLockSource } from './state/debug-sources';
 import { installErrorLog } from './state/error-log';
 import { offlineRedownloadPending } from './state/offline-redownload';
@@ -308,6 +310,10 @@ async function boot() {
       void navigator.serviceWorker.register(`/sw.js?v=${__APP_VERSION__}`).catch(() => {});
     if (document.readyState === 'complete') register();
     else window.addEventListener('load', register);
+    // A newer release's worker claiming this tab has just purged our cache, so
+    // later fetches of this release's files will start failing: say so, once
+    // (version-skew.md REQ-a-takeover-by-a-newer-worker-is-announced).
+    watchForTakeover(navigator.serviceWorker, (v) => onTakeover(v));
   }
 
   // The MP3 encoder (~153 kB of pre-minified lamejs) is split into its own

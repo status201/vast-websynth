@@ -19,14 +19,15 @@
  */
 import { ListenerSet } from './listeners';
 import { delay } from './async';
+import { OFFLINE_MANIFEST_URL, watchForTakeover, workerVersion } from './live-version';
 
 // ---- the contract shared with sw.js (REQ-one-offline-marker-contract) ----
 
 /** The marker's cache key. Mirrored by `OFFLINE_MARKER` in sw.js. */
 export const OFFLINE_MARKER_URL = '/__offline-copy';
 
-/** Where the build writes the file list (scripts/lib/offline-manifest.mjs). */
-export const OFFLINE_MANIFEST_URL = '/offline-manifest.json';
+/** Where the build writes the file list — owned by live-version.ts, which the version-skew probe also reads. */
+export { OFFLINE_MANIFEST_URL };
 
 /** Every cache the worker names starts with this. Mirrors `CACHE_PREFIX` in sw.js. */
 export const OFFLINE_CACHE_PREFIX = 'websynth-';
@@ -177,16 +178,6 @@ export async function deleteOfflineCopies(cacheStorage: CacheStorage): Promise<{
   );
   await Promise.all(names.map((n) => cacheStorage.delete(n)));
   return { hadCopy: markers.some(Boolean) };
-}
-
-/** The `?v=` a worker was registered with (`/sw.js?v=<version>`). */
-function workerVersion(worker: ServiceWorker | null | undefined): string | null {
-  if (!worker) return null;
-  try {
-    return new URL(worker.scriptURL).searchParams.get('v');
-  } catch {
-    return null;
-  }
 }
 
 const isQuotaError = (err: unknown): boolean =>
@@ -350,11 +341,7 @@ export class OfflineCopy {
     // A new release's worker taking over purges this version's cache on
     // activate, so everything written from here on would be thrown away. The
     // first visit's clients.claim() is this version, and is not a takeover.
-    const onControllerChange = (): void => {
-      const v = workerVersion(sw.controller);
-      if (v !== null && v !== this.deps.version) this.stop('takeover');
-    };
-    sw.addEventListener('controllerchange', onControllerChange);
+    const stopWatching = watchForTakeover(sw, () => this.stop('takeover'), this.deps.version);
     this.set({ kind: 'downloading', doneFiles: 0, totalFiles: 0, doneBytes: 0, totalBytes: 0 });
     let next: OfflineState;
     try {
@@ -362,7 +349,7 @@ export class OfflineCopy {
     } catch {
       next = { kind: 'error', reason: 'worker', failed: 0 };
     } finally {
-      sw.removeEventListener('controllerchange', onControllerChange);
+      stopWatching();
     }
     if (abort.signal.aborted) next = this.stopReason === 'takeover' ? { kind: 'needs-reload' } : await this.inspect();
     this.set(next);

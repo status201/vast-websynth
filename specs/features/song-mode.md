@@ -182,6 +182,9 @@ demos, the load path **must stay backward compatible** as the format grows.
     another tab deletes the slot mid-click).
   - **Offline:** a demo not yet clicked is not cached, unless the device saved an
     offline copy ([play-offline](play-offline.md) REQ-the-build-writes-the-file-list).
+  - **After a deploy:** a failed demo load first asks whether a newer release is
+    live, and then offers Reload instead of the failure dialog
+    ([version-skew](version-skew.md) REQ-a-stale-failure-offers-reload).
   - **Coverage:** `tests/state/demo-files.ts` globs the drop-ins for the test bundle,
     so every one is still checked by `validateSongFile`; `e2e/helpers.ts` reads
     `demos-index.json` and the directory (Playwright has no Vite), so a stale index

@@ -77,6 +77,13 @@ export const MAX_PARAM_KEYS = 2048;
 export const MAX_NAME_CHARS = 50;
 
 /**
+ * The `version` the version-skew probe reads from the build's file list
+ * (version-skew.md REQ-the-version-probe-is-bounded). Ours are `x.y.z`; anything longer
+ * is not one we wrote, and reads as "unknown".
+ */
+export const MAX_VERSION_CHARS = 32;
+
+/**
  * A sampler slot's name — a file name, which runs longer than a title — in code
  * points (untrusted-input.md REQ-names-are-capped). Cosmetic: clips are keyed by
  * slot index, never by name, so shortening one breaks no match.

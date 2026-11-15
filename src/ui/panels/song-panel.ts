@@ -28,6 +28,7 @@ import { describePresetPayload, type PresetParse } from '../../state/preset-file
 import { showToast } from '../components/toast';
 import { installFileDrop } from '../file-drop';
 import { loadSurface } from '../components/lazy-load-toast';
+import { reportIfNewerVersion } from '../components/version-skew-toast';
 import { unresolvedTargets } from '../../state/song-validate';
 import { SAMPLER_SLOT_COUNT, emptyPatternSnapshot } from '../../state/patterns';
 import switchStyles from '../styles/switch.module.css';
@@ -502,23 +503,40 @@ export function buildSongPanel(bus: ParamBus, engine: StudioApi, session: Preset
   };
 
   /**
+   * A demo that failed between its fetch and its parse first asks whether a
+   * deploy outran this tab: then the file is gone for good and the answer is
+   * Reload, not a dialog (version-skew.md REQ-a-stale-failure-offers-reload). A failure
+   * *applying* a song that did arrive is never that, and keeps its dialog.
+   */
+  const reportDemoFailure = async (name: string, report: () => Promise<void>): Promise<void> => {
+    if (await reportIfNewerVersion(`Couldn't load "${name}"`)) return;
+    await report();
+  };
+
+  /**
    * A demo whose file would not parse. Both demo paths used to collapse this to
    * `errors[0]` before the dialog existed, so the Copy button faithfully copied
    * the one message that survived — the diagnosis was already gone by then
    * (song-mode.md REQ-a-rejected-import-is-copyable-in-full v25).
    */
   const showDemoFailure = (name: string, errors: string[]): Promise<void> =>
-    failureAlert('Demo failed to load', `Could not load "${name}"`, errors, name);
+    reportDemoFailure(name, () => failureAlert('Demo failed to load', `Could not load "${name}"`, errors, name));
 
   const loadZipDemo = async (name: string, url: string): Promise<void> => {
+    let res: Awaited<ReturnType<typeof parseProjectZip>>;
     try {
       const resp = await fetch(url);
       if (!resp.ok) throw new Error(`fetch failed (${resp.status})`);
-      const res = await parseProjectZip(new Uint8Array(await resp.arrayBuffer()));
-      if (!res.ok) {
-        await showDemoFailure(name, res.errors.length > 0 ? res.errors : ['invalid project zip']);
-        return;
-      }
+      res = await parseProjectZip(new Uint8Array(await resp.arrayBuffer()));
+    } catch (e) {
+      await reportDemoFailure(name, () => thrownAlert('Demo failed to load', `Could not load "${name}": `, e, name));
+      return;
+    }
+    if (!res.ok) {
+      await showDemoFailure(name, res.errors.length > 0 ? res.errors : ['invalid project zip']);
+      return;
+    }
+    try {
       // A demo, not the user's work: no slot is written (REQ-a-demo-click-never-writes-a-slot), and the
       // dropdown follows the DEMO's name — the button's label is the promise.
       await applyProjectBundle(res, { persist: false, name });
@@ -580,16 +598,22 @@ export function buildSongPanel(bus: ParamBus, engine: StudioApi, session: Preset
   };
 
   const loadJsonDemo = async (name: string, url: string): Promise<void> => {
+    let res: Awaited<ReturnType<typeof Song.parse>>;
     try {
       const resp = await fetch(url);
       if (!resp.ok) throw new Error(`fetch failed (${resp.status})`);
       // Same validator the Import button uses, so a corrupt drop-in reports
       // what is actually wrong with it rather than "not a song".
-      const res = await Song.parse(await resp.text());
-      if (!res.ok) {
-        await showDemoFailure(name, res.errors.length > 0 ? res.errors : ['not a valid song file']);
-        return;
-      }
+      res = await Song.parse(await resp.text());
+    } catch (e) {
+      await reportDemoFailure(name, () => thrownAlert('Demo failed to load', `Could not load "${name}": `, e, name));
+      return;
+    }
+    if (!res.ok) {
+      await showDemoFailure(name, res.errors.length > 0 ? res.errors : ['not a valid song file']);
+      return;
+    }
+    try {
       applyDemo(name, res.file);
     } catch (e) {
       await thrownAlert('Demo failed to load', `Could not load "${name}": `, e, name);
