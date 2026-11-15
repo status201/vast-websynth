@@ -134,15 +134,14 @@ instrument hostage: only a live link makes a role run.
   every `onStart`, any tick where `|bpm − lastSent| ≥ 0.1`, the idle heartbeat and
   `announceTo`. MIDI has no byte for it, so `MidiSyncTransport.send` drops it.
 - **REQ-master-flush-is-best-effort** — `MIDIOutput.send(data, atMs)` queues
-  future-timestamped bytes, and an untimestamped byte sent later **overtakes** them.
-  So a Start would arrive ahead of the queued idle tail, which interleaved stale
-  pulses into the run and sent a MIDI slave a beat ahead. `SyncTransport.flush?()`
-  cancels scheduled-but-unsent messages. `MidiSyncTransport` does `output.clear()`
-  on each output in `try/catch`, since Chromium may not implement it. The master
-  calls it **before** `start` and **before** `stop`, never around `announceTo`,
-  which would cancel run pulses other locked slaves need. WebRTC sends immediately
-  and omits it. Timestamping 0xFA past the queued tail was rejected: it delays the
-  start by up to `idleHorizonMs`.
+  future-timestamped bytes, and an untimestamped byte sent later **overtakes** them,
+  so a Start would land among the queued idle pulses. `SyncTransport.flush?()`
+  cancels scheduled-but-unsent messages: `MidiSyncTransport` does `output.clear()`
+  on each output in `try/catch` (Chromium may not implement it). The master calls
+  it **before** `start` and **before** `stop`, never around `announceTo`, which
+  would cancel run pulses other locked slaves need. WebRTC sends immediately and
+  omits it. Deliberate: don't timestamp 0xFA past the tail instead — that delays
+  the start by up to `idleHorizonMs`.
 - **REQ-a-midi-master-announces-its-seek** — `SyncController` subscribes
   `clock.onSeek`. So every jump (a user seek or a [loop](transport-loop.md) wrap,
   [transport](transport.md) REQ-a-step-router-can-redirect-the-next-step) announces
@@ -203,16 +202,15 @@ instrument hostage: only a live link makes a role run.
   writes are suppressed, so a WiFi master wins and a MIDI-only one falls back
   (REQ-an-explicit-tempo-message). A `tempo` within 0.05 BPM is skipped.
 - **REQ-phase-correction-uses-nudge** — `Clock.nudge(seconds)` shifts the future grid
-  (clamped ±0.05 s, a no-op when stopped, and a non-finite correction is ignored —
-  a NaN grid time would stop the transport's drain until the next stop). The smoothed pulse-vs-grid error is
-  applied as at most ±10 ms, at most once per beat, with a 5 ms deadband.
+  (clamped ±0.05 s; a no-op when stopped; a non-finite correction is ignored). The
+  smoothed pulse-vs-grid error is applied as at most ±10 ms, at most once per beat,
+  with a 5 ms deadband.
 - **REQ-a-post-start-settle-window** — After a join *starts* a stopped slave, pulses
   are **ignored** for `startSettleBaseMs (300) + 12 pulse intervals` from the join's
   first step. That covers any in-flight scheduled span plus jitter. Only stall
-  bookkeeping runs. The estimator is deliberately **not** interval-gated: Web MIDI
-  delivery is bursty, and a "too close" heuristic biased tempo low (a 111 BPM master
-  read as ~76). The window-span math is burst-immune, so contamination is excluded by
-  *time*. After the settle the estimator's `gapResetMs` clears its window (the EMA
+  bookkeeping runs. Deliberate: the estimator is **not** interval-gated — Web MIDI
+  delivery is bursty and a "too close" heuristic biases tempo low; the window-span
+  math is burst-immune, so contamination is excluded by *time*. After the settle the estimator's `gapResetMs` clears its window (the EMA
   survives), and the first pulse **anchors** the counter (REQ-sync-phase-re-anchor).
   From a cold pulse-only master, lock is delayed ~0.5–0.8 s; with the idle clock or a
   `tempo` message it costs nothing.
@@ -248,7 +246,8 @@ instrument hostage: only a live link makes a role run.
 - **REQ-the-bpm-knob-shows-slaved** — `Knob.setDisabled(on)` adds a `disabled` class
   + `aria-disabled` and blocks drag **and** double-tap. `shell/header.ts` sets it
   from `engine.sync.onStatus` as `activeMode === 'slave'`, with the tooltip "Tempo
-  follows the sync master while slaved".
+  follows the sync master while slaved". The dimmed knob holds the restore value;
+  the status line shows the followed BPM.
 - **REQ-a-sync-section-in-the-song-panel** — The Song panel's "Sync" section
   (`StudioApi.sync`) has an Off/Master/Slave segmented control and a status line.
   Testids: `sync-mode-off/master/slave`, `sync-status`. The status reads `MIDI
@@ -438,7 +437,7 @@ Scenario: Slave converges on the master tempo
 
 Scenario: Jittered pulses do not make the tempo flap (edge)
   Given pulses at 120 BPM with up to ±3 ms of jitter
-  Then the smoothed estimate stays within 120 ± 1; a single first-window write may reach ±1.5 (2·jitter over a one-beat span)
+  Then the smoothed estimate stays within 120 ± 1 (the first window's write within ±1.5)
   And BPM writes are throttled (>= 250 ms apart, >= 0.5 BPM delta)
 # pinned by: tests/audio/transport/sync/bpm-estimator.test.ts, sync-slave.test.ts
 
@@ -689,8 +688,7 @@ Scenario: A non-finite phase correction is ignored (REQ-phase-correction-uses-nu
   `tests/audio/transport/performance.test.ts`, `tests/ui/{sync-section,knob}.test.ts`
   — `npm test`. The WiFi transport is tested under [webrtc-sync](webrtc-sync.md).
 - End to end: `tests/audio/transport/sync/sync-loopback.test.ts` — two real Clocks, a
-  real master and slave, and a wire that delivers like Web MIDI or a DataChannel. It
-  is the only test joining the two halves.
+  real master and slave, and a wire that delivers like Web MIDI or a DataChannel.
 - E2E: `e2e/sync.spec.ts`. Headless Chromium has no MIDI ports, which makes it the
   proof of the armed state: selecting Slave must leave the BPM knob live.
 - Manual: two `localhost:5173` tabs + a virtual MIDI loopback (e.g. loopMIDI).
@@ -700,8 +698,5 @@ Scenario: A non-finite phase correction is ignored (REQ-phase-correction-uses-nu
 
 - **Note forwarding**: forward note-on/off so a slave voices the master's keyboard.
   The `SyncMessage` union can grow without breaking the interface.
-- **Configurable STUN (WiFi)**, see [webrtc-sync](webrtc-sync.md).
-- **The BPM knob while slaved** holds the local (restore) value under the dim; the
-  status line's followed BPM disambiguates.
 - **Per-port routing**: sends broadcast to every MIDI output, and liveness is a
   whole-transport question, so a slave cannot say *which* input it follows.
