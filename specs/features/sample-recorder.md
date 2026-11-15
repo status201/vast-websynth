@@ -22,7 +22,11 @@ related:
   - responsive-machine-header  # where the Sampler's record button sits
   - testids
 source:
-  - src/ui/components/record-sound-modal.ts
+  - src/ui/components/record-sound-modal.ts  # the frame, the guard, the material, the Edit screen
+  - src/ui/components/record-screen.ts      # the Record screen: mic, meter, count-in, bound
+  - src/ui/components/studio-waveform.ts    # the waveform, crop handles and boundary drags
+  - src/ui/components/studio-tools.ts       # the four tool pages over a ToolContext
+  - src/ui/components/studio-kit.ts         # inks, canvas sizing, readouts the screens share
   - src/ui/components/studio-transport.ts  # the toolbar's Play / beat light / BPM / CLICK
   - src/state/edit-history.ts              # EditHistory, the undo stack
   - src/ui/panels/step-panel-scaffold.ts   # samplerSlotFilled / snapshotSamplerSlot / writeSamplerSlot
@@ -271,7 +275,14 @@ audio-buffer.ts (the ONLY bridge):
 node.ts: CapturedAudio { ... }            # the editor's audio value type
 record-sound-modal.ts:
   openRecordSoundModal(engine, { slot?, source?, toggleTransport })   # toggleTransport required
-  MAX_TAKE_SECONDS = 120 · UNDO_DEPTH = 10 · UNDO_FRAME_BUDGET
+  UNDO_DEPTH = 10 · UNDO_FRAME_BUDGET · MAX_TAKE_SECONDS (re-exported from record-screen.ts)
+record-screen.ts:
+  buildRecordScreen(deps) -> { state: RecState, press(), destroy() }   # owns the mic session
+studio-tools.ts:
+  buildEffectsPage / buildChopPage / buildStretchPage / buildScratchPage (ctx: ToolContext)
+    # ToolContext: the material, the selection, the marks, runOp — no page holds the audio
+studio-waveform.ts:
+  createWaveform(deps) -> { el, redraw(), destroy() }   # writes a dragged crop back via setCrop
 studio-transport.ts:
   createStudioTransport({ engine, metronome, toggleTransport, onClickChange? })
     -> { el, onHeardBeat(fn) -> unsubscribe, destroy() }
