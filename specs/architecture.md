@@ -164,7 +164,8 @@ ParamBus:        # src/state/params.ts
 
 Engine:          # src/audio/engine.ts
   init()                         # async: loads worklets, builds voices + transport
-  subscribeParams()              # wires params to the audio graph (once); FX/comps
+  subscribeParams()              # wires params to the audio graph (once), through bindVoiceParams /
+                                 # bindMachineParams (engine-params.ts); FX/comps
                                  #   self-wire via Effect.bind(bus, prefix) — ADR-008
   playNote / releaseNote         # thin delegators to Polyphony (SynthOutput surface)
   # owns: AudioContext, voices[voiceCount: 8, 5 on the weak tier], FX chain, arrangement, perf, seq, drums, sampler, motion

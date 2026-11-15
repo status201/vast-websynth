@@ -52,8 +52,10 @@ Where you subscribe depends on **who owns the param** (see
 self-wire their params):
 
 ```ts
-// per-voice (osc/filter/env): in Engine.subscribeParams(), fan out via all(...)
+// per-voice (osc/filter/env): in bindVoiceParams (src/audio/engine-params.ts), fan out via all(...)
 bus.subscribe('osc1.level', all((v, x) => v.osc1.setLevel(x)));
+
+// a machine's param (arp/seq/drum/sampler/motion, lane mute/solo): bindMachineParams, same file
 
 // an insert effect's param: add it to that Effect's own bind(bus, prefix)
 //   src/audio/effects/<name>.ts
@@ -66,8 +68,11 @@ bind(bus: ParamBus, prefix: string): void {
 bus.subscribe('master.volume', (x) => rampTo(this.master.gain, x * x, this.ctx, RAMP_MEDIUM));
 ```
 
-- `all(fn)` (`(v, x) => …` for each `Voice`) is for per-voice params and stays
-  in `Engine.subscribeParams()`.
+- `all(fn)` (`(v, x) => …` for each `Voice`) is for per-voice params and lives
+  in `bindVoiceParams`. **Registration order is boot order** (`subscribe` fires at
+  once), so a new line goes beside its family, never into the other binder.
+  `Engine.subscribeParams()` keeps only what crosses the two (mod matrix, master,
+  transport, meter, the LFO and FX self-binds).
 - For an **insert effect**, add the subscribe to that effect's `bind(bus, prefix)`
   so the param contract lives with the component that owns it (the same class
   binds at `fx.drum.*` / `fx.sampler.*` for the bus variants).
@@ -123,7 +128,7 @@ npm test            # add a registration/behaviour case (see tests/state/params.
 ```gherkin
 Scenario: A newly added param is live and persisted
   Given a ParamDef registered in registerDefaults
-  And a matching subscribe in subscribeParams
+  And a matching subscribe in Engine.subscribeParams or one of its binders (engine-params.ts)
   And a control bound to its paramId in the UI
   When the user moves the control
   Then bus.get(id) reflects the value and the audio graph applies it
