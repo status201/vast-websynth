@@ -214,6 +214,10 @@ export class MotionMachine {
     bus.onChange((id, v) => {
       if (this.baselines.has(id)) this.baselines.set(id, v);
     });
+    // A save, export or autosave mid-play stores these, not the automated
+    // values (REQ-a-capture-mid-play-stores-the-baselines). Never removed: the
+    // machine lives as long as the page does.
+    bus.addSnapshotOverlay(this.baselines);
   }
 
   /**

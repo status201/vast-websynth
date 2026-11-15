@@ -18,6 +18,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ### Fixed
 
+- **Saving while playing no longer stores what the motion lanes were doing.** A song
+  save, slot, export, share link, project zip, preset save or the session autosave
+  taken mid-play captured each automated parameter wherever the sweep happened to be,
+  so the reloaded song sounded different. It now stores the value Stop returns to: the
+  one you set, including a knob you turned while it played. Playback is not
+  interrupted.
+- **A held pitch bend is no longer saved.** Saving while the PITCH wheel, the `'`/`/`
+  keys, a MIDI bend or a Tape Stop dive held the pitch away from centre produced a
+  song that loaded detuned. The live pitch bend is now left out of songs, the session
+  autosave and presets, like the expression pedal. Per-note bends on sequencer steps
+  are saved as before.
 - **Firefox no longer stutters and drops out with FM on a pulse wave.** With OSC 1's
   FM up, OSC 2 on square, and an LFO on PULSE or WIDTH turned up, Firefox's audio
   ran as slow as a tenth of real time and then stopped; turning WIDTH crackled.

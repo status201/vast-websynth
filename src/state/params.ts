@@ -51,6 +51,7 @@ export class ParamBus {
   private readonly changeListeners = new Set<(id: ParamId, v: number) => void>();
   private suppressChange = 0;
   private readonly bulkApplyListeners = new Set<(ids: readonly ParamId[]) => void>();
+  private readonly snapshotOverlays = new Set<ReadonlyMap<ParamId, number>>();
 
   register(def: ParamDef): void {
     this.defs.set(def.id, def);
@@ -162,11 +163,30 @@ export class ParamBus {
     for (const l of this.noteListeners) l(false, note, 0);
   }
 
-  /** Snapshot for preset save. */
+  /**
+   * The authored sound, for every save, export and autosave — not the
+   * instantaneous state: an id held by a registered overlay (automation's
+   * baselines) is reported at the overlay's value, so a capture taken mid-play
+   * stores what Stop would return to (motion-sequencer.md
+   * REQ-a-capture-mid-play-stores-the-baselines). `get()` stays live.
+   */
   snapshot(): Record<ParamId, number> {
     const out: Record<ParamId, number> = {};
     for (const [id, v] of this.values) out[id] = v;
+    for (const overlay of this.snapshotOverlays) {
+      for (const [id, v] of overlay) if (this.values.has(id)) out[id] = v;
+    }
     return out;
+  }
+
+  /**
+   * Register a *live* map whose values stand in for the bus's own in
+   * {@link snapshot} — automation is not the authored sound. Read only when a
+   * snapshot is taken, so it costs nothing per write.
+   */
+  addSnapshotOverlay(values: ReadonlyMap<ParamId, number>): () => void {
+    this.snapshotOverlays.add(values);
+    return () => this.snapshotOverlays.delete(values);
   }
 
   /** Restore from preset. Fires per-param listeners (so audio + UI update),
@@ -308,9 +328,12 @@ const fmtFilterShape = (v: number) =>
  * Params that describe the performer's hands rather than the song or the sound,
  * and so are never written into a song, a session autosave or a preset
  * (input-control.md REQ-cc11-is-expression). An expression pedal resting heel-down
- * when Save is pressed must not produce a song that loads silent.
+ * when Save is pressed must not produce a song that loads silent — nor a held
+ * pitch wheel or a Tape Stop dive one that loads detuned
+ * (input-control.md REQ-the-pitch-wheel-is-never-saved). A sequencer step's own
+ * `bend` is pattern data, not this param, and saves as ever.
  */
-const UNSAVED_PARAMS: ReadonlySet<ParamId> = new Set(['master.expression']);
+const UNSAVED_PARAMS: ReadonlySet<ParamId> = new Set(['master.expression', 'master.pitchBend']);
 
 /** `snap` without the `UNSAVED_PARAMS` — what a song or preset capture stores. */
 export function savedParams(snap: Record<ParamId, number>): Record<ParamId, number> {

@@ -64,6 +64,25 @@ describe('ParamBus', () => {
     expect(seen).toEqual([0]);
   });
 
+  // motion-sequencer.md REQ-a-capture-mid-play-stores-the-baselines
+  it('a snapshot overlay stands in for the live value of its ids only', () => {
+    const bus = new ParamBus();
+    bus.register({ id: 'x', min: 0, max: 100, default: 1 });
+    bus.register({ id: 'y', min: 0, max: 100, default: 2 });
+    bus.set('x', 40);
+    const held = new Map<string, number>();
+    const off = bus.addSnapshotOverlay(held);
+    expect(bus.snapshot()).toEqual({ x: 40, y: 2 }); // empty overlay: identity
+
+    held.set('x', 10);      // read live, not copied at registration
+    held.set('ghost', 5);   // an id the bus does not hold is never added
+    expect(bus.snapshot()).toEqual({ x: 10, y: 2 });
+    expect(bus.get('x')).toBe(40); // get() stays live
+
+    off();
+    expect(bus.snapshot()).toEqual({ x: 40, y: 2 });
+  });
+
   it('round-trips through snapshot/restore', () => {
     const a = new ParamBus();
     a.register({ id: 'x', min: 0, max: 100, default: 1 });

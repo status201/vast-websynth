@@ -3,7 +3,7 @@
 ```yaml
 id: input-control
 status: implemented
-version: 22
+version: 23
 owner: core
 related:
   - architecture
@@ -373,6 +373,14 @@ notes played on another tab no longer overwrite its bank.
   `Presets.capture`): a pedal resting heel-down when Save is pressed would
   otherwise produce a song that loads silent. Loading a song resets it to 1, its
   default, until the pedal next moves.
+- **REQ-the-pitch-wheel-is-never-saved** — `master.pitchBend` joins
+  `UNSAVED_PARAMS`, for the reason REQ-cc11-is-expression gives. The PITCH strip,
+  `'` / `/`, MIDI pitch bend and Tape Stop's dive all write it, and all of them
+  spring back. So a song, session autosave or preset taken while one is held, or
+  mid-dive, would otherwise load detuned. Loading resets it to 0, its default.
+  Only the live wheel is excluded. A sequencer step's `bend` / `bendShape`
+  ([step-settings](step-settings.md) REQ-a-seq-step-carries-a-bend) is pattern data
+  and saves as before, and so does a motion lane assigned to `master.pitchBend`.
 - **REQ-the-volume-knob-reads-the-gain-it-applies** (v19) — **The volume knob
   reads the gain it applies.** The `master.volume` readout is the dB of the gain
   the engine applies at expression 1: `20·log10(masterLevel(volume, 1))`, which
@@ -481,6 +489,13 @@ Scenario: CC11 rides inside the volume (v18, REQ-cc11-is-expression)
   Then master.expression is 64/127 and master.volume is unchanged
   And neither a preset nor a saved song carries master.expression
 # pinned by: tests/audio/midi.test.ts, tests/state/preset-session.test.ts, tests/audio/engine-resume.test.ts, tests/state/song.test.ts
+
+Scenario: A bend held at Save time is not saved (REQ-the-pitch-wheel-is-never-saved, regression)
+  Given the pitch wheel (or `'`, or MIDI bend, or a Tape Stop dive) holds master.pitchBend at 1
+  When a song, the session autosave or a preset is captured
+  Then the capture carries no master.pitchBend, so the song loads in tune
+  And a sequencer step's bend of +2 is still in the captured song
+# pinned by: tests/state/song.test.ts
 
 Scenario: The volume readout is the applied gain (v19, REQ-the-volume-knob-reads-the-gain-it-applies)
   Given master.volume is 0.5

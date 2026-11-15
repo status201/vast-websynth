@@ -930,7 +930,7 @@ describe('SongFile v8/v9 — MIN..MAX_BANK_COUNT banks per machine (song-mode.md
 });
 
 // input-control.md REQ-cc11-is-expression — the performer's hands are never saved.
-describe('captures leave out the expression pedal', () => {
+describe('captures leave out the performer\'s hands (expression pedal, pitch wheel)', () => {
   it('Song.capture and Presets.capture omit master.expression', async () => {
     const { Presets } = await import('../../src/state/preset');
     const bus = new ParamBus();
@@ -940,5 +940,20 @@ describe('captures leave out the expression pedal', () => {
     expect(file.params).not.toHaveProperty('master.expression');
     expect(file.params['master.volume']).toBe(0.8);
     expect(Presets.capture(bus)).not.toHaveProperty('master.expression');
+  });
+
+  // input-control.md REQ-the-pitch-wheel-is-never-saved (regression): a wheel held, or a
+  // Tape Stop dive under way, at Save time produced a song that loaded detuned.
+  it('Song.capture and Presets.capture omit a held master.pitchBend but keep a step bend', async () => {
+    const { Presets } = await import('../../src/state/preset');
+    const bus = new ParamBus();
+    registerDefaults(bus);
+    const patterns = new PatternStore();
+    patterns.setSeqStep(0, 3, { on: true, note: 60, bend: 2 });
+    bus.set('master.pitchBend', 1);    // wheel held up at Save time
+    const file = Song.capture(bus, patterns, fakeArrangement() as never, 'Bent?');
+    expect(file.params).not.toHaveProperty('master.pitchBend');
+    expect(file.seqBanks[0]![3]).toMatchObject({ on: true, note: 60, bend: 2 });
+    expect(Presets.capture(bus)).not.toHaveProperty('master.pitchBend');
   });
 });

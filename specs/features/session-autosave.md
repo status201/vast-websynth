@@ -47,7 +47,8 @@ happy path.
   (REQ-each-tab-autosaves-to-its-own-key), debounced ~1.5 s after the last
   change. Capture runs **only** inside the debounced callback, never
   synchronously in a change listener (so mid-`Song.apply` states are never
-  captured).
+  captured). Taken mid-play, it stores each automated param's baseline, not its
+  sweep ([motion-sequencer](motion-sequencer.md) REQ-a-capture-mid-play-stores-the-baselines).
 - **REQ-autosave-triggers-on-any-change** — Autosave triggers: any
   `ParamBus.onChange`, any `PatternStore` per-cell / bank-level / edit-bank /
   sample-meta change, any `XyPadStore` change, and **structural** `Arrangement`

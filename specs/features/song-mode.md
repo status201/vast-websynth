@@ -533,8 +533,9 @@ sparse cells (drop fields equal to the cell's restore default):
            # and apply() does not reset the store first, so velocity/gate must be present
 params:  every param except UNSAVED_PARAMS kept (rounded) — not default-omitted (forward-compat:
          a future default change must not silently move old songs). capture() stores
-         savedParams(snapshot), so a live-only param such as master.expression never
-         reaches a file (input-control.md REQ-cc11-is-expression)
+         savedParams(snapshot), so a live-only param such as master.expression or
+         master.pitchBend never reaches a file (input-control.md REQ-cc11-is-expression,
+         REQ-the-pitch-wheel-is-never-saved)
 whitespace: download() -> pretty (2-space indent + trailing \n) — byte-identical to
             clean:demos output, so an export dropped into src/state/demos/ diffs
             cleanly with no later churn; saveSlot()/project-zip/share-link/AI-prompt
