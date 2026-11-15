@@ -78,7 +78,7 @@ export function createAboutButton(engine: StudioApi, deps: AboutDeps): HTMLButto
     // The catch is REQ-the-help-door-never-fails-silently: this is the app's single help door, so a rejected
     // import must say so rather than leave the ? button looking dead. `main.ts`
     // warms this chunk on idle to keep the case rare offline (pwa-install.md
-    // REQ-service-worker-is-registered), but a first visit that lost the network before idle has nothing
+    // REQ-deferred-chunks-are-warmed-on-idle), but a first visit that lost the network before idle has nothing
     // cached — hence the retry, which is a real one since nothing is memoized.
     const m = await loadSurface('Help & About', () => import('./about-modal'), () => void open());
     if (!m) return;

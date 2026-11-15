@@ -53,7 +53,7 @@ async function open(): Promise<void> {
 
 If the dialog must work offline, add its import to the idle warm list in
 `src/main.ts` (`warmDeferred`, [pwa-install](../features/pwa-install.md)
-REQ-service-worker-is-registered). Leave it cold only when offline it has nothing
+REQ-deferred-chunks-are-warmed-on-idle). Leave it cold only when offline it has nothing
 to offer, as the AI Prompt body does. `npm run check:bundle` shows what the
 entry chunk saved.
 

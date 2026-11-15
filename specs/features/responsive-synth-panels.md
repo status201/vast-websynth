@@ -82,20 +82,18 @@ count changes.
   | width | `.quint` | shape | why |
   | --- | --- | --- | --- |
   | ≥2561px | 5 columns | one row; the dice-five placements are undone | REQ-ultrawide-panels-are-one-row — five 52px boxes fit a 285px row |
-  | 1630–2560px | 3 columns × 2 rows | **dice-five**: A · D over S · R in the corners, VEL in the middle column, spanning both rows and vertically centred | three rows stood ~42px taller than any neighbour (3×74 + 2×8 = 238px of knobs against a segmented + two rows ≈ 196px), and the faceplate row takes its tallest panel's height, out of the section below it. The panel fits three columns from here on (the `.hex` step, REQ-filter-hex-has-three-even-shapes) |
+  | 1630–2560px | 3 columns × 2 rows | **dice-five**: A · D over S · R in the corners, VEL in the middle column, spanning both rows and vertically centred | three rows would stand ~42px taller than any neighbour, and the faceplate row takes its tallest panel's height; three columns fit from here (the `.hex` step) |
   | 1281–1629px | 2 columns | A D / S R / VEL, the fifth spanning the row and centred | FILTER (`.hex` 2×3 + its segmented) and OSC 1 already stand taller, so the third row costs nothing |
   | 500–1280px | 5 columns | one row; the span is undone | panels widen on the reflow, where five fit |
-  | ≤499px | 3 columns × 2 rows | **dice-five**, the same rule as 1630–2560px | the 2-column phone faceplate (`.main` ≤992px; 30px dials in a 38px box from ≤720px) leaves a ~166px body at 420px: five cells of ~33px, dial against dial with no air — they overlapped outright at the earlier 36px size. Three columns give ~55px cells. The extra knob row costs nothing — the LFO beside it (tabs + wave + knobs + destination) stands taller |
+  | ≤499px | 3 columns × 2 rows | **dice-five**, the same rule as 1630–2560px | a ~166px phone body gives five columns ~33px cells, dial against dial; three give ~55px. The extra row costs nothing — the LFO beside it stands taller |
 
   - **One dice-five, two ranges.** The placement is a single CSS block whose
     media list is `(min-width: 1630px) and (max-width: 2560px), (max-width: 499px)`,
     so the wide and the phone shape cannot drift apart.
 
-  - **Why the dice-five is not the label-ink problem REQ-a-cell-is-never-narrower-than-a-knob guards.** The
-    corners sit in columns 1 and 3 and VEL in column 2, so no two knob boxes
-    share a column, and VEL, offset half a row, shares no label line with a
-    corner. `.hex`'s 1630px threshold is set by three six-character labels on
-    one line; the envelope's one-to-three-character labels are nowhere near it.
+  - **No label collision** (REQ-a-cell-is-never-narrower-than-a-knob): no two
+    knob boxes share a column, and VEL, offset half a row, shares no label line
+    with a corner.
   - **Placement is explicit, not auto-flow.** Each child is placed by position
     (`nth-child`), so the shape cannot depend on rule order, and the DOM order
     (A, D, S, R, VEL) — hence Tab order — is untouched.
@@ -185,9 +183,8 @@ count changes.
     between them; 3200px gives ~9px, the comfort `.hex`'s 1630px step chose.
     Between the two steps FILTER is the one 3×2 panel — and so sets the row's
     height exactly as it does at 2560px; nothing grows.
-  - **The row gets shorter.** From 3200px the tallest panel is the LFO (tabs +
-    wave + knobs + destination), and the faceplate row drops from 245px to
-    ~203px — height the scope and keyboard below take up.
+  - **The row gets shorter.** From 3200px the tallest panel is the LFO, and the
+    faceplate row drops from 245px to ~203px, which the scope and keyboard take.
 
 - **REQ-a-cell-is-never-narrower-than-a-knob** — **A column count may never make
   a cell narrower than a knob's ink.** The knob box is a fixed `--knob-size +

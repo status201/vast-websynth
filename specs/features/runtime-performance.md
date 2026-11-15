@@ -112,7 +112,7 @@ so a reviewer has something concrete to hold a new feature against.
     not finished until it handles the rejection
     ([lazy-load-failure](lazy-load-failure.md)). A *warm* swallows its error,
     because it is not a gesture; a deferred surface reachable offline is warmed on
-    idle ([pwa-install](pwa-install.md) REQ-service-worker-is-registered).
+    idle ([pwa-install](pwa-install.md) REQ-deferred-chunks-are-warmed-on-idle).
 
   **The gate is `npm run build` + `npm run check:bundle`:** the entry chunk stays
   under 500 kB and `scripts/check-bundle.mjs` (which prints the headroom) fails

@@ -327,19 +327,19 @@ async function boot() {
   // same kind of split, and help is exactly what a user reaches for when they
   // are stuck — including offline, on a revisit. Warming it also means the
   // first-visit tour is never still fetching when its 350 ms auto-launch fires.
-  // pwa-install.md REQ-service-worker-is-registered, runtime-performance.md REQ-boot-cost-matches-the-request.
+  // pwa-install.md REQ-deferred-chunks-are-warmed-on-idle, runtime-performance.md REQ-boot-cost-matches-the-request.
   const warmOnboarding = () => void import('./ui/onboarding/onboarding-impl').catch(() => {});
   // The About card is the door those live behind — the app's single help
   // surface (onboarding.md REQ-about-is-the-single-door-for-help) — and warming the room but not the door left
   // the ? button dead offline, doing nothing at all. Same split, same warm.
-  // onboarding.md REQ-the-help-door-never-fails-silently, pwa-install.md REQ-service-worker-is-registered.
+  // onboarding.md REQ-the-help-door-never-fails-silently, pwa-install.md REQ-deferred-chunks-are-warmed-on-idle.
   const warmAbout = () => void import('./ui/components/about-modal').catch(() => {});
   // The second sweep of deferred surfaces and operations (runtime-performance.md
   // REQ-boot-cost-matches-the-request v12) — every one is something a player uses
   // offline: importing or pasting a song (the dialect expander, the zip codec, the
   // Paste dialog), exporting it, and the Performance settings. The AI Prompt body is left cold: its round trip needs an AI, so
   // offline it has nothing to offer, and its trigger reports a failed load.
-  // pwa-install.md REQ-service-worker-is-registered.
+  // pwa-install.md REQ-deferred-chunks-are-warmed-on-idle.
   const warmDeferred = () => {
     for (const load of [
       () => import('./state/song-author'),

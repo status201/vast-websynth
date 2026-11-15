@@ -120,48 +120,38 @@ vite-plugin-pwa/workbox), per ADR-003's precedent.
   loads only on first use of oscillator sync, of a flanger or of the REVERSE delay, so an
   installed app can still engage them offline ([oscillator-sync](oscillator-sync.md)
   REQ-the-pair-is-built-on-first-use, [flanger](flanger.md) REQ-the-flanger-loads-on-first-use,
-  [delay-types](delay-types.md) REQ-the-other-types-load-on-first-use). **`/mcp` and `/healthz` pass through too**, by path. Those are
-  the public MCP endpoint ([mcp-server](mcp-server.md) REQ-the-http-transport-is-stateless), served from this
-  origin by a reverse proxy rather than from `dist/`. They are already safe by
-  accident — the traffic is `POST`, which the non-GET rule passes through, and
-  `GET /mcp` answers `405`, which `fetchAndCache`'s `status === 200 && type ===
-  'basic'` test declines to cache. Naming them makes it safe **on purpose**: an
-  API response has no business in a cache keyed by app version, and the accident
-  stops holding the moment that endpoint ever answers a GET with 200. Caches are
-  named `websynth-<version>`; `activate` purges every other `websynth-*` cache
-  and claims clients — so a tab still on the previous release loses its cache
-  the moment the new one opens anywhere ([version-skew](version-skew.md) owns
-  what that tab then says). Default guarantee: **offline-ready after the first
-  revisit/reload** (runtime caching — the build's full file list is only
-  precached when the user asks, below). Runtime caching covers only the
-  chunks the page actually **fetched** while online. The build is not one eager
-  bundle — demo songs, jsQR, the sync-pair modal and the lamejs MP3 encoder are
-  all split off. A deferred chunk a player can reach **offline** is warmed on
-  idle at boot by `main.ts`'s `warmDeferred` (that function is the list, not this
-  spec): the MP3 encoder ([audio-export](audio-export.md)
-  REQ-the-mp3-encoder-loads-lazily), the onboarding layer (help is what a confused
-  offline visitor reaches for, and the warm also beats the tour's 350 ms
-  auto-launch), the About card (the single help door, [onboarding](onboarding.md)
-  REQ-about-is-the-single-door-for-help/REQ-the-help-door-never-fails-silently —
-  warming the room but not the door leaves `?` dead), the importers and dialogs a
-  player uses offline, and the effects' first-use bodies. A gesture-only chunk with
-  nothing to offer offline (jsQR, the sync modal, the AI Prompt body, whose round
-  trip needs an AI) is deliberately left cold. All the warms
-  share one `requestIdleCallback`-with-timeout-fallback in `main.ts` and swallow
-  their errors: the real `import()` at the trigger retries. A warm is
-  prevention, never a guarantee — a first visit that goes offline before idle
-  still has nothing cached, which is why the help door also *reports* a failed
-  import rather than doing nothing (onboarding.md REQ-the-help-door-never-fails-silently). **The full
-  guarantee is opt-in**: the About card's **Play offline**
-  ([play-offline](play-offline.md)) downloads every file the build lists in
-  `offline-manifest.json` into this cache and marks it complete with a
-  `/__offline-copy` marker. The `install` handler then keeps that promise across
-  releases: after `CORE_ASSETS`, if an **older** `websynth-*` cache holds the
-  marker, it refreshes the whole copy into the new cache (copying unchanged
-  hashed assets, fetching the rest) and **rejects the install on any failure**,
-  so the old worker and its complete cache stay in charge until a refresh
-  succeeds (play-offline.md REQ-the-copy-survives-a-release). A device that never pressed the button
-  installs exactly as before.
+  [delay-types](delay-types.md) REQ-the-other-types-load-on-first-use). **`/mcp` and `/healthz` pass through too**, by path:
+  the public MCP endpoint ([mcp-server](mcp-server.md) REQ-the-http-transport-is-stateless) is served from this
+  origin by a reverse proxy, and an API response has no business in a cache keyed
+  by app version — named on purpose, not left to the non-GET rule and the
+  `status === 200` test (a `GET /mcp` answers `405`). Caches are named
+  `websynth-<version>`; `activate` purges every other `websynth-*` cache and
+  claims clients — so a tab still on the previous release loses its cache the
+  moment the new one opens anywhere ([version-skew](version-skew.md) owns what
+  that tab then says). Default guarantee: **offline-ready after the first
+  revisit/reload** — runtime caching covers only the chunks a page actually
+  **fetched** while online (REQ-deferred-chunks-are-warmed-on-idle widens that).
+- **REQ-deferred-chunks-are-warmed-on-idle** — The build is not one eager bundle
+  (demo songs, jsQR, the sync-pair modal and the MP3 encoder are split off), so a
+  deferred chunk a player can reach **offline** is warmed on idle at boot by
+  `main.ts`'s `warmDeferred` — that function is the list, not this spec. It holds
+  the MP3 encoder ([audio-export](audio-export.md) REQ-the-mp3-encoder-loads-lazily),
+  the onboarding layer (it also beats the tour's 350 ms auto-launch), the About
+  card ([onboarding](onboarding.md) REQ-about-is-the-single-door-for-help — warming
+  the room but not the door leaves `?` dead), the importers and dialogs a player
+  uses offline, and the effects' first-use bodies. A gesture-only chunk with
+  nothing to offer offline (jsQR, the sync modal, the AI Prompt body) is left cold.
+  The warms share one `requestIdleCallback`-with-timeout-fallback and swallow
+  their errors; the real `import()` at the trigger retries. A warm is prevention,
+  never a guarantee, which is why the help door also *reports* a failed import
+  (onboarding.md REQ-the-help-door-never-fails-silently). **The full guarantee is
+  opt-in**: the About card's **Play offline** ([play-offline](play-offline.md))
+  downloads every file in `offline-manifest.json` into this cache and marks it
+  complete with `/__offline-copy`. While an **older** `websynth-*` cache holds that
+  marker, `install` refreshes the whole copy into the new cache after
+  `CORE_ASSETS` and **rejects on any failure**, so the old worker and its complete
+  cache stay in charge until a refresh succeeds (play-offline.md
+  REQ-the-copy-survives-a-release). A device that never pressed it installs as before.
 - **REQ-one-import-parse-path** (single import parse path) — Sniffing + parsing
   import bytes
   (`bytes → { file, clips } | errors`) is one pure function
@@ -386,7 +376,7 @@ Scenario: the MCP endpoint is never cached (v3, REQ-service-worker-is-registered
   (v4: for the whole app, press About → **Play offline** first — see
   [play-offline](play-offline.md) Tests & verification),
   worklets load, Tap-to-start makes sound; **the `?` button opens the About
-  card and its tour button starts the tour** (REQ-service-worker-is-registered's warm set — the only check
+  card and its tour button starts the tour** (REQ-deferred-chunks-are-warmed-on-idle's warm set — the only check
   that the warms actually landed in the cache); Application panel shows one
   `websynth-<version>` cache; a version bump purges the old cache.
 - Icons: `node scripts/generate-icons.mjs` regenerates the committed PNGs.
@@ -409,7 +399,7 @@ Scenario: the MCP endpoint is never cached (v3, REQ-service-worker-is-registered
 - iOS blackens apple-touch-icon transparency — the generator bakes `#050302`.
 - A tab loaded under version N whose SW updates to N+1 mid-session could miss
   an N-hashed lazy chunk; accepted risk. Note this is a real exposure, not a
-  non-issue: REQ-service-worker-is-registered enumerates several split chunks and **none** loads eagerly —
+  non-issue: REQ-deferred-chunks-are-warmed-on-idle enumerates several split chunks and **none** loads eagerly —
   demos are fetched on click ([song-mode](song-mode.md) REQ-drop-in-demos-are-fetched-on-click), and lamejs, the
   onboarding body, jsQR and the WiFi pair modal are all `import()`ed on demand
   (some warmed on idle from `main.ts`, which is not the same as bundled).

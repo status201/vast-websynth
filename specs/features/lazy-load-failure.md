@@ -7,7 +7,7 @@ version: 8
 owner: core
 related:
   - runtime-performance   # REQ-every-lazy-trigger-reports — the split that creates this failure mode
-  - pwa-install           # REQ-service-worker-is-registered — the idle warm that prevents it
+  - pwa-install           # REQ-deferred-chunks-are-warmed-on-idle — the idle warm that prevents it
   - toast                 # the surface the report is rendered on
   - version-skew          # REQ-a-stale-failure-offers-reload — the online report when a newer release is live
   - onboarding            # REQ-the-help-door-never-fails-silently — the help door, the worked example
@@ -102,7 +102,7 @@ would drift.
 
 - **REQ-lazy-report-is-the-backstop** (report is the backstop, not the plan) —
   The primary defence is the idle warm ([`pwa-install.md`](pwa-install.md)
-  REQ-service-worker-is-registered): a surface reachable offline is fetched on idle at boot, so one online
+  REQ-deferred-chunks-are-warmed-on-idle): a surface reachable offline is fetched on idle at boot, so one online
   visit makes it permanently available. The warm swallows its own error and
   never reports — it is not a gesture, and a toast for something the user did
   not ask for is noise. REQ-every-lazy-trigger-reports's report covers what the
@@ -190,7 +190,7 @@ else catches it.
   helper holds no state and no registry.
 - `main.ts`'s `warmDeferred` warms the offline-reachable deferred chunks on one
   `requestIdleCallback` (timeout fallback for Safari <17.4); that function is the
-  list ([pwa-install](pwa-install.md) REQ-service-worker-is-registered).
+  list ([pwa-install](pwa-install.md) REQ-deferred-chunks-are-warmed-on-idle).
 
 ### Persistence
 

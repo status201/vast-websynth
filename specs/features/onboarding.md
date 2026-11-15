@@ -667,7 +667,7 @@ facade must already exist and answer then. The two readers keep working because
 cannot be showing before the code that shows them exists. The load is memoized,
 so the ⓘ button and the `?` key racing each other still yield one `InfoBadges`.
 Because a returning visitor can reach help **offline**, the chunk is also warmed
-on idle from `main.ts` ([`pwa-install.md`](pwa-install.md) REQ-service-worker-is-registered).
+on idle from `main.ts` ([`pwa-install.md`](pwa-install.md) REQ-deferred-chunks-are-warmed-on-idle).
 
 ### Layer touchpoints
 

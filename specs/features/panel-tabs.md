@@ -127,20 +127,12 @@ whole of this component.
   It gets there by being the **same box**: a tab declares the title's 14 px
   line box, 6 px bottom padding and 1 px dashed rule, so the row is 21 px for the
   same reason the title is.
-  - **Both sides of the match declare their `line-height` in px.** Leaving
-    either to the font makes the equality a property of the machine rather than
-    of the stylesheet: `--sans` is `'Inter', system-ui, …` and no build ships
-    Inter as a webfont, so `line-height: normal` at 10 px resolves against
-    whatever the OS substitutes — a 14 px line box on Segoe UI, 11 px on the
-    Linux CI runner's fallback. That is exactly how a title that measured 21 px
-    on the author's box measured 18 px under a 21 px tab row in CI: the tab had
-    its explicit line-height from the start; `.panelTitle`, which predates this
-    component, did not.
-  - Because the drift only shows where the fonts differ, the requirement is
-    pinned **twice**: as CSS text (`tests/ui/panel-header-height.test.ts`, which
-    runs everywhere and computes both box heights from the declarations), and by
-    measuring the laid-out rows in a real browser (`e2e/lfo2.spec.ts` — jsdom has
-    no layout engine, so only an E2E assertion can see the rendered box).
+  - **Both sides of the match declare their `line-height` in px**, so the
+    equality belongs to the stylesheet, not the machine: no build ships Inter, so
+    `line-height: normal` at 10 px is 14 px on Segoe UI and 11 px on Linux. Pinned
+    **twice** — as CSS text (`tests/ui/panel-header-height.test.ts`, computing both
+    box heights from the declarations) and by measuring the laid-out rows
+    (`e2e/lfo2.spec.ts`), since only a real layout engine sees the rendered box.
   - **The labels sit on every other title's line.** With the same line box,
     padding, size, tracking and weight as `.panelTitle`, and the text at the top
     of both boxes, a tab's label and a plain title share a baseline across the
@@ -155,14 +147,11 @@ whole of this component.
     divider meets the rule at a corner and traces that open tab's outline.
     **Selected** wears the panel-title look exactly (`--accent-secondary` and the
     title's text shadow); **unselected** is `--text-faint`, and `--text-dim` on
-    hover. Why: v2's unselected tab was a dark `Switch` well and the selected one
-    had a gold outline, which made the header read as a control strip next to
-    the plain titles beside it. The strip *is* the header, so it should look like
-    one, and the rule now does the well's old job of marking the page you are
-    not on.
-  - The lamp (REQ-set-lit-puts-a-lamp-on-a-tab) stays out of flow, inset 10 px
-    from the tab's left edge (clear of the divider), centred on the 14 px **text line** rather than on the box,
-    because the bottom padding would otherwise drop it 3 px below the label.
+    hover. The strip *is* the header, so it looks like one, and the rule marks the
+    page you are not on.
+  - The lamp (REQ-set-lit-puts-a-lamp-on-a-tab) stays out of flow, 10 px in from
+    the left edge, centred on the 14 px **text line**, not
+    the box (the padding would drop it 3 px low).
 
 - **REQ-panel-tabs-share-the-row-evenly** — Tabs **share the row evenly**
   (`flex: 1 1 0`): 50/50 for two, 33/33/33 for three. A content-width strip

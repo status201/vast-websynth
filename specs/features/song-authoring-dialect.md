@@ -224,7 +224,7 @@ exported — see ADR-013.
       written (REQ-the-dialect-is-input-only), so an author string there is
       refused (`null`) rather than expanded.
     - The expander's chunk is warmed on idle with the other deferred surfaces
-      ([pwa-install](pwa-install.md) REQ-service-worker-is-registered), so pasting
+      ([pwa-install](pwa-install.md) REQ-deferred-chunks-are-warmed-on-idle), so pasting
       an AI reply works offline after one online visit.
 
 ## Technical design

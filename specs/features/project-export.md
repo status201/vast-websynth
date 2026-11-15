@@ -70,7 +70,7 @@ so future demos can ship as zips with audio. The `.json` song format is untouche
   import-error dialog; on export it is an **Export failed** alert, not a click that
   does nothing. The **Export** dialog itself is a surface and loads on its click
   through `loadSurface`. Both chunks are warmed on idle
-  ([pwa-install](pwa-install.md) REQ-service-worker-is-registered).
+  ([pwa-install](pwa-install.md) REQ-deferred-chunks-are-warmed-on-idle).
 - **REQ-deflate-helpers-are-shared** — The shared deflate helpers live in
   `src/utils/compression.ts` (extracted from `webrtc-signaling.ts`, behaviour
   identical) so the zip module does not depend on an audio/signaling module.
