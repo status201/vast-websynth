@@ -3,7 +3,7 @@
 ```yaml
 id: oscillator-sync
 status: implemented
-version: 9
+version: 10
 owner: core
 related:
   - oscillators                # osc1/osc2 this pairs up
@@ -53,7 +53,42 @@ windowed-sinc residual reaches the floor in band.
 - **REQ-sync-off-is-the-native-path** — `osc2.sync` defaults to `off`. While off,
   the native oscillators feed the mixer through `Osc`'s unity fade gain, the
   worklet is absent or disconnected and idle, and nothing existing sounds
-  different (ADR-006).
+  different (ADR-006). There is one exception: a pair freed for a pulse carrier
+  (REQ-the-pair-free-runs-for-a-pulse-carrier).
+- **REQ-the-pair-free-runs-for-a-pulse-carrier** — The pair also engages while its
+  voice is freed (`setFree(true)`, [cross-modulation](cross-modulation.md)
+  REQ-an-fm-carrier-with-a-pulse-width-runs-in-the-pair). It runs in mode 0,
+  **free-running**:
+  - No reset.
+  - The slave runs at OSC 2's own octave + tune.
+  - The sync offset (knob and routes) is ignored, so a SYNC setting left behind
+    does not retune OSC 2.
+  - Each output is level-matched to the native node it stands in for
+    (REQ-free-running-matches-the-native-level).
+
+  The pair is engaged while `osc2.sync` is not off **or** the voice is freed. Both
+  use the same crossfade and idle gate. A sync mode takes precedence over free:
+  hard or soft while freed only changes the mode param, and turning sync off while
+  freed keeps the pair, in mode 0. FM and every pitch source reach the pair as they
+  do under sync.
+- **REQ-free-running-matches-the-native-level** — In mode 0 each output is
+  scaled to the level the native node gives for the same wave and width. The
+  browser peak-normalizes a `PeriodicWave`, its built-in types included, so the
+  native level falls as a pulse narrows; the pair's naive waves do not. On Blink,
+  the peak of the band-limited table is `2w + G` for a DC-free pulse of width `w`
+  and `1 + G` for a saw. `G` is the edge overshoot, 0.166–0.179 across the duty
+  bank and the built-in waves. Sine and triangle have no overshoot and peak at 1.
+  So the gain is `1 / (2w + FREE_OVERSHOOT)` for a pulse, `1 / (1 + FREE_OVERSHOOT)`
+  for a saw, and 1 for sine and triangle, with `FREE_OVERSHOOT` = 0.175. One
+  constant stays within 0.05 dB of every computed peak. Gecko normalizes the same
+  way: held notes matched the native node within 0.15 dB on both engines (pulse
+  0.5–0.95, saw, sine, triangle). FM's modulator is scaled by the master's gain
+  too, because the native path's FM reads `osc1.signal`, which is the normalized
+  level. Without that, freeing the pair would raise the FM depth by 1.18× for a saw
+  master and about 2× for a narrow pulse. Unmatched, a song's FM'd
+  pulse at width 0.61–0.76 came in 3–4.5 dB hot, into a driven filter. The gain
+  ramps linearly across a block, since a width moves per block. Hard and soft
+  keep gain 1, the level they have always had, so no saved sync patch changes.
 - **REQ-sync-has-hard-and-soft-modes** — `osc2.sync` is discrete `off | hard |
   soft`. **hard** resets the slave to the start of its cycle at the master's wrap.
   **soft** resets it the same way and rounds every slave edge
@@ -103,7 +138,8 @@ windowed-sinc residual reaches the floor in band.
   A toggle inside the window supersedes the earlier one. Engaging adds no click
   (rendered on both engines).
 - **REQ-the-pair-is-built-on-first-use** — No module is loaded and no pair exists
-  until `osc2.sync` first leaves `off` ([runtime-performance](runtime-performance.md)
+  until `osc2.sync` first leaves `off`, or a voice is first freed
+  (REQ-the-pair-free-runs-for-a-pulse-carrier) ([runtime-performance](runtime-performance.md)
   REQ-boot-cost-matches-the-request). Until then, voices play native. A failed load
   is logged (never thrown into a subscriber) and **forgotten**, so the next switch-on
   retries (the shared `loadWorkletModule`). Only the load retries: once the module
@@ -162,12 +198,13 @@ SyncOscNode (src/audio/sync-osc/node.ts):
   freq: FrequencyLine             # drives the a-rate `frequency` param (Hz)
   detune, syncPitch: AudioParam   # a-rate (cents, semitones), fed by the voice's junctions
   fm: AudioParam                  # a-rate FM index β (cross-modulation.md REQ-fm-reaches-the-sync-pair)
-  setMode(m)                      # k-rate `mode`: 0 free (tests), 1 hard, 2 soft
+  setMode(m)                      # k-rate `mode`: 0 free-running (no reset, sync offset ignored), 1 hard, 2 soft
   masterMirror, slaveMirror       # OscMirror -> wave1/2, masterCents/slaveCents, width1/2 (k-rate)
   setActive(on)                   # the idle gate
 SyncEngagement (src/audio/sync-osc/engagement.ts):  # one per voice; owns the state machine
   attach(pair)                    # once: mirrors on, the master's curve followed, stored mode applied
   setMode(m)                      # stored before a pair exists; engage/disengage crossfade
+  setFree(on)                     # engaged = mode != 0 || free; free alone runs mode 0
   setFrequency(hz, when, glide)   # every note, engaged or not
   setVoiceActive(on)              # idle gate, only while engaged
   # one pending disconnect at a time: a toggle inside the window clears it
@@ -244,6 +281,33 @@ Scenario: A failed load is retried on the next switch-on (regression, REQ-the-pa
   When osc2.sync leaves off again
   Then the module loads and one pair is attached per voice
 # pinned by: tests/audio/engine-sync.test.ts
+
+Scenario: A freed voice engages its pair free-running (REQ-the-pair-free-runs-for-a-pulse-carrier)
+  Given a voice with its pair attached and sync off
+  When the voice is freed
+  Then the pair runs in mode 0 and crossfades in as for sync
+  When sync is set to hard and back to off
+  Then the pair stays engaged, in mode 1 and then mode 0
+  When the voice is released
+  Then the native side crossfades back in
+# pinned by: tests/audio/voice-sync.test.ts
+
+Scenario: Free-running matches the native level (REQ-free-running-matches-the-native-level)
+  Given the pair in mode 0 with a square slave at widths 0.5 to 0.95, or a saw
+  Then the slave's RMS is the native peak-normalized level within 0.3 dB
+  And the same patch in hard mode keeps the unscaled level
+# pinned by: tests/audio/sync-osc-worklet.test.ts
+
+Scenario: Free-running FM reads the master at its matched level (REQ-free-running-matches-the-native-level)
+  Given the pair with a saw master
+  Then free-running, FM's modulator peaks at 1/(1 + FREE_OVERSHOOT)
+  And under hard sync it peaks at the naive 1
+# pinned by: tests/audio/sync-osc-worklet.test.ts
+
+Scenario: Free-running ignores the sync offset (REQ-the-pair-free-runs-for-a-pulse-carrier)
+  Given the pair in mode 0 with a sync offset of 12 semitones
+  Then the slave runs at its own pitch, the same as with no offset
+# pinned by: tests/audio/sync-osc-worklet.test.ts
 
 Scenario: Engaging crossfades native to pair, then cuts the native side (REQ-engaging-sync-crossfades)
   Given a voice with its pair attached
@@ -363,8 +427,9 @@ Scenario: The SYNC knob is only on show while sync is engaged
 
 - **The engage step is level-matched on Blink, not Gecko.** Gecko's native
   oscillators render quieter (sync-off RMS 0.0160 against 0.0248), while the pair is
-  the same on both. So on Firefox engaging is ~4 dB louder. The gap is in the native
-  path. Settle it by ear before compensating either side.
+  the same on both. So on Firefox engaging is ~4 dB louder. A pair freed for a pulse
+  carrier has the same step. The gap is in the native path. Settle it by ear before
+  compensating either side.
 - Threshold ("weak") sync is the cheapest next mode: the same DSP behind a gate.
 - FM inside the pair is not through-zero yet ([cross-modulation](cross-modulation.md)).
 - The sub-oscillator could join the pair as a third phase if a locked sub matters

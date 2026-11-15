@@ -23,6 +23,15 @@ export const RING_HP_HZ = 20;
 export const RING_HP_Q_DB = BUTTERWORTH_Q_DB;
 
 /**
+ * How long a pair freed for a pulse carrier stays freed after the predicate goes
+ * false (cross-modulation.md REQ-an-fm-carrier-with-a-pulse-width-runs-in-the-pair).
+ * Each release hands the voice back to its native nodes, and their catch-up write
+ * costs render quanta on Gecko under FM. Without the hold, a WIDTH drag through
+ * 0.5 toggles the pair back and forth.
+ */
+export const PAIR_RELEASE_HOLD_MS = 1000;
+
+/**
  * A set of edges that exist only while their path can be heard (ADR-012,
  * REQ-cross-mod-disconnects-when-unused). Engaging connects at once — before the
  * caller's gain rises; disengaging waits `DISCONNECT_DELAY_MS` for the gain to

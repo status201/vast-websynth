@@ -15,6 +15,9 @@ import { DISCONNECT_DELAY_MS } from '../effects/effect';
 export class SyncEngagement {
   private pair: SyncOscNode | null = null;
   private mode = 0;
+  /** Freed for a pulse carrier: the pair is the sound even with sync off, free-running
+   *  (REQ-the-pair-free-runs-for-a-pulse-carrier). */
+  private free = false;
   /** Whether the pair, not the native oscillators, is (or is fading to be) the sound. */
   private engaged = false;
   /** The pending disconnect of whichever side went silent; a later toggle cancels it. */
@@ -50,6 +53,15 @@ export class SyncEngagement {
     this.apply();
   }
 
+  /**
+   * Engage the pair with sync off, free-running (REQ-the-pair-free-runs-for-a-pulse-carrier).
+   * Stored before a pair exists, like the mode.
+   */
+  setFree(on: boolean): void {
+    this.free = on;
+    this.apply();
+  }
+
   /** Engaged or not, so that engaging over a held note starts at its pitch. */
   setFrequency(hz: number, when: number, glideSec: number): void {
     this.pair?.freq.set(hz, when, glideSec);
@@ -69,8 +81,9 @@ export class SyncEngagement {
   private apply(): void {
     const pair = this.pair;
     if (!pair) return;
-    const on = this.mode !== 0;
-    // A hard <-> soft change while engaged is just the mode param.
+    const on = this.mode !== 0 || this.free;
+    // A mode change while engaged is just the mode param — hard, soft, or 0 (free)
+    // when sync goes off under a freed pair.
     if (on) pair.setMode(this.mode);
     if (on === this.engaged) return;
     this.engaged = on;

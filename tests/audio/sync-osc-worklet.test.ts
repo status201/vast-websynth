@@ -118,10 +118,83 @@ describe('hard sync locks the slave to the master (REQ-sync-has-hard-and-soft-mo
   });
 
   it('does not repeat with the master period when free-running', () => {
-    const { slave } = render({ frequency: SR / 64, syncPitch: semis(2.7), mode: 0, wave2: SAW }, 8192);
+    // Free-running ignores the sync offset, so the slave is detuned by its own cents.
+    const { slave } = render({ frequency: SR / 64, slaveCents: 270, mode: 0, wave2: SAW }, 8192);
     let worst = 0;
     for (let n = 4096; n < 8000; n++) worst = Math.max(worst, Math.abs(slave[n]! - slave[n - 64]!));
     expect(worst).toBeGreaterThan(0.1);
+  });
+});
+
+describe('free-running matches the native level (REQ-free-running-matches-the-native-level)', () => {
+  // The browser peak-normalizes a PeriodicWave; Blink's band-limited peaks, computed
+  // from its 4096-point table, are 2w + 0.166..0.179 for a pulse and 1.1785 for a saw.
+  const nativePeak = (wave: number, w: number) => (wave === SQUARE ? 2 * w + 0.171 : 1.1785);
+  /** The naive wave's RMS: a DC-free pulse is sqrt(4w(1-w)), a saw 1/sqrt(3). */
+  const rawRms = (wave: number, w: number) => (wave === SQUARE ? Math.sqrt(4 * w * (1 - w)) : 1 / Math.sqrt(3));
+  const rmsDb = (x: Float32Array, from: number) => {
+    let t = 0;
+    for (let n = from; n < x.length; n++) t += x[n]! * x[n]!;
+    return 10 * Math.log10(t / (x.length - from));
+  };
+  const db = (v: number) => 20 * Math.log10(v);
+  // A whole number of periods (SR / 200), so the RMS window holds no partial cycle.
+  const cases: Array<[string, number, number]> = [
+    ['square 0.5', SQUARE, 0.5], ['square 0.61', SQUARE, 0.61], ['square 0.8', SQUARE, 0.8],
+    ['square 0.95', SQUARE, 0.95], ['saw', SAW, 0.5],
+  ];
+
+  for (const [name, wave, w] of cases) {
+    it(`${name}: the slave sits at the native level free-running, unscaled under hard sync`, () => {
+      const base = { frequency: SR / 200, wave2: wave, width2: w, syncPitch: 0 };
+      const free = rmsDb(render({ ...base, mode: 0 }, 200 * 60).slave, 200 * 20);
+      const hard = rmsDb(render({ ...base, mode: HARD }, 200 * 60).slave, 200 * 20);
+      expect(Math.abs(free - db(rawRms(wave, w) / nativePeak(wave, w))), `free ${name}`).toBeLessThan(0.3);
+      expect(Math.abs(hard - db(rawRms(wave, w))), `hard ${name}`).toBeLessThan(0.3);
+    });
+  }
+
+  it('the master is matched too, and sine and triangle are left alone', () => {
+    const base = { frequency: SR / 200, mode: 0, syncPitch: 0 };
+    const saw = rmsDb(render({ ...base, wave1: SAW }, 200 * 60).master, 200 * 20);
+    expect(Math.abs(saw - db(rawRms(SAW, 0.5) / 1.1785))).toBeLessThan(0.3);
+    const sine = rmsDb(render({ ...base, wave1: SINE }, 200 * 60).master, 200 * 20);
+    expect(Math.abs(sine - db(Math.SQRT1_2))).toBeLessThan(0.3);
+    const tri = rmsDb(render({ ...base, wave1: TRI }, 200 * 60).master, 200 * 20);
+    expect(Math.abs(tri - db(1 / Math.sqrt(3)))).toBeLessThan(0.3);
+  });
+});
+
+describe('free-running FM reads the master at its matched level (REQ-free-running-matches-the-native-level)', () => {
+  /** The largest |modulator| the processor keeps for FM over a render. */
+  function modulatorPeak(mode: number): number {
+    const proc = new Processor({});
+    const p = params({ frequency: SR / 200, wave1: SAW, mode, syncPitch: 0, fm: 1 });
+    let peak = 0;
+    for (let b = 0; b < 40; b++) {
+      proc.process([], [[new Float32Array(BLOCK)], [new Float32Array(BLOCK)]], p);
+      peak = Math.max(peak, Math.abs((proc as unknown as { mPrev: number }).mPrev));
+    }
+    return peak;
+  }
+
+  it('scales the modulator free-running, as the native path reads osc1.signal', () => {
+    // The native FM reads OSC 1 at its peak-normalized level; unscaled, freeing the
+    // pair would raise the FM depth by the master's 1/nativeLevel.
+    expect(modulatorPeak(0)).toBeLessThanOrEqual(1 / 1.175 + 1e-9);
+    expect(modulatorPeak(0)).toBeGreaterThan(0.8);
+    expect(modulatorPeak(HARD)).toBeGreaterThan(0.95);
+  });
+});
+
+describe('free-running ignores the sync offset (REQ-the-pair-free-runs-for-a-pulse-carrier)', () => {
+  it('renders the slave the same with a 12 st offset as with none', () => {
+    const base = { frequency: 220, mode: 0, wave2: SQUARE, width2: 0.7 };
+    const a = render({ ...base, syncPitch: 0 }, 4096).slave;
+    const b = render({ ...base, syncPitch: 12 }, 4096).slave;
+    let worst = 0;
+    for (let n = 0; n < a.length; n++) worst = Math.max(worst, Math.abs(a[n]! - b[n]!));
+    expect(worst).toBe(0);
   });
 });
 

@@ -250,3 +250,70 @@ describe('the pair idles with the voice (REQ-the-pair-idles-with-the-voice)', ()
     expect(gate(node)).toHaveBeenLastCalledWith(0, expect.any(Number));
   });
 });
+
+describe('a freed voice engages its pair free-running (REQ-the-pair-free-runs-for-a-pulse-carrier)', () => {
+  it('crossfades the pair in at mode 0, keeps it through a sync round trip, and releases it', async () => {
+    const { voice, param, master, native } = await build();
+    voice.setPairFree(true);
+    expect(param('mode').value).toBe(0);
+    expect(master.connect).toHaveBeenCalledWith(voice.osc1.signal);
+    expect(lastTarget(master.gain)).toBe(1);
+    expect(lastTarget(native('osc2').fade.gain)).toBe(0);
+
+    const ramps = master.gain.setTargetAtTime.mock.calls.length;
+    voice.setSyncMode(HARD);
+    expect(param('mode').value).toBe(HARD);
+    voice.setSyncMode(0);
+    expect(param('mode').value).toBe(0); // still the sound, free-running again
+    expect(master.gain.setTargetAtTime.mock.calls.length).toBe(ramps); // no crossfade either way
+
+    voice.setPairFree(false);
+    expect(lastTarget(master.gain)).toBe(0);
+    expect(lastTarget(native('osc2').fade.gain)).toBe(1);
+  });
+
+  it('a freedom stored before the pair exists is applied at attach', async () => {
+    const { voice, pair, param, master } = await build(false);
+    voice.setPairFree(true);
+    voice.attachSync(pair);
+    expect(param('mode').value).toBe(0);
+    expect(lastTarget(master.gain)).toBe(1);
+  });
+});
+
+describe('width swaps follow the voice awake (oscillators.md REQ-wave-writes-reach-only-a-heard-oscillator)', () => {
+  it('an idle voice takes no swaps; noteOn applies the current width, idling stops them again', async () => {
+    const { ctx, voice, native } = await build(false);
+    (ctx as unknown as Record<string, unknown>).createPeriodicWave = vi.fn(() => ({}));
+    const swap = vi.fn();
+    (native('osc2').osc as any).setPeriodicWave = swap;
+    voice.osc2.setWave(3);
+    for (let i = 1; i <= 10; i++) voice.osc2.setPulseWidth(0.5 + i * 0.04);
+    expect(swap).not.toHaveBeenCalled(); // pool voices boot idle
+
+    voice.noteOn(60, 0.8, 0);
+    expect(swap).toHaveBeenCalledTimes(1);
+    voice.osc2.setPulseWidth(0.6);
+    expect(swap).toHaveBeenCalledTimes(2); // sounding: the sweep is heard
+
+    voice.kill(0);
+    vi.advanceTimersByTime(40);
+    expect(voice.state).toBe('idle');
+    voice.osc2.setPulseWidth(0.7);
+    expect(swap).toHaveBeenCalledTimes(2);
+  });
+});
+
+describe('the sub sleeps with the voice too (oscillators.md REQ-wave-writes-reach-only-a-heard-oscillator)', () => {
+  it('a sub wave change on an idle voice writes nothing until a note wakes it', async () => {
+    const { voice } = await build(false);
+    const node = (voice as any).sub.osc as { type: string };
+    let value = node.type;
+    const writes: string[] = [];
+    Object.defineProperty(node, 'type', { get: () => value, set: (v: string) => { value = v; writes.push(v); } });
+    voice.setSubWave(1);
+    expect(writes).toEqual([]);
+    voice.noteOn(60, 0.8, 0);
+    expect(writes).toEqual(['triangle']);
+  });
+});

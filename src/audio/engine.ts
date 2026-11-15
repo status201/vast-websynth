@@ -4,6 +4,9 @@ import { Voice } from './voice';
 import { LFO } from './lfo';
 import { SampleHold } from './sample-hold';
 import { PwmDriver } from './pwm';
+import { PWM_MIN_WIDTH } from './oscillator';
+import { SQUARE_WAVE, waveIndex } from './waves';
+import { PAIR_RELEASE_HOLD_MS } from './cross-mod';
 import { Compressor } from './effects/compressor';
 import { createSynthChain, createDrumChain, createSamplerChain } from './effects/fx-chain';
 import { CompressorNode } from './compressor/node';
@@ -187,13 +190,21 @@ export class Engine {
   private laneMixer!: LaneMixer;
 
   /**
-   * The oscillator-sync pairs, built the first time `osc2.sync` leaves `off` and
-   * never before (oscillator-sync.md REQ-the-pair-is-built-on-first-use). Memoized,
+   * The oscillator-sync pairs, built the first time `osc2.sync` leaves `off` or a
+   * pulse carrier frees them, and never before (oscillator-sync.md
+   * REQ-the-pair-is-built-on-first-use). Memoized,
    * so a mode flicked back and forth loads the module once; `null` until then.
    */
   private syncReady: Promise<void> | null = null;
   /** `osc1.fm`, kept for `refreshFm` — half of FM's in-use predicate. */
   private fmIndex = 0;
+  /** The inputs of the pulse-carrier predicate (`refreshPairFree`), and its last answer. */
+  private fmInUse = false;
+  private osc2Wave = 2;
+  private osc2Width = PWM_MIN_WIDTH;
+  private pairFree = false;
+  /** The pending release of a freed pair; a predicate back to true cancels it. */
+  private pairReleaseTimer: number | null = null;
 
   /**
    * Raw key/MIDI note → the notes it actually sounded, so a note-off releases exactly
@@ -426,7 +437,7 @@ export class Engine {
 
     // PWM writes params on every voice, so it is built once the pool exists.
     // Its timer only runs while an LFO is on `pulse` (oscillators.md REQ-set-periodic-wave-is-immediate).
-    this.pwm = new PwmDriver(this.voices, () => this.ctx.currentTime);
+    this.pwm = new PwmDriver(this.voices, () => this.ctx.currentTime, () => this.refreshPairFree());
 
     // Arrangement first so its clock tick runs before the machines read
     // the play banks for the same tick.
@@ -830,6 +841,41 @@ export class Engine {
   private refreshFm(): void {
     const on = this.fmIndex > 0 || this.modMatrix.usesDest(MOD_DST.fm);
     for (const v of this.voices) v.setFmInUse(on);
+    this.fmInUse = on;
+    this.refreshPairFree();
+  }
+
+  /**
+   * FM onto a square whose width can move runs in the sync pair, free-running
+   * (cross-modulation.md REQ-an-fm-carrier-with-a-pulse-width-runs-in-the-pair):
+   * on Gecko each width swap on an FM'd native oscillator costs render quanta.
+   * Only a change of answer reaches the voices, so a WIDTH drag costs a compare.
+   * Freeing is immediate; releasing waits `PAIR_RELEASE_HOLD_MS`, so a drag through
+   * 0.5 does not toggle the pair (and pay the natives' catch-up each time).
+   */
+  private refreshPairFree(): void {
+    const want = this.fmInUse && this.osc2Wave === SQUARE_WAVE
+      && (this.osc2Width > PWM_MIN_WIDTH || this.pwm.pwmOwner !== null);
+    if (want) {
+      if (this.pairReleaseTimer !== null) {
+        clearTimeout(this.pairReleaseTimer);
+        this.pairReleaseTimer = null;
+      }
+      if (!this.pairFree) this.setPairFree(true);
+      // Re-asked while freed, so a failed module load is retried (it is memoized).
+      else void this.ensureSync();
+    } else if (this.pairFree && this.pairReleaseTimer === null) {
+      this.pairReleaseTimer = window.setTimeout(() => {
+        this.pairReleaseTimer = null;
+        this.setPairFree(false);
+      }, PAIR_RELEASE_HOLD_MS);
+    }
+  }
+
+  private setPairFree(on: boolean): void {
+    this.pairFree = on;
+    if (on) void this.ensureSync();
+    for (const v of this.voices) v.setPairFree(on);
   }
 
   private subscribeParams(): void {
@@ -877,7 +923,13 @@ export class Engine {
     bus.subscribe('osc1.ring', all((v, x) => v.setRing(x)));
 
     // OSC 2
-    bus.subscribe('osc2.wave', all((v, x) => v.osc2.setWave(x)));
+    bus.subscribe('osc2.wave', (x) => {
+      // The predicate first, as for the width: switching to square under FM frees
+      // the pair before the natives would pick up the standing width.
+      this.osc2Wave = waveIndex(x);
+      this.refreshPairFree();
+      for (const v of this.voices) v.osc2.setWave(x);
+    });
     bus.subscribe('osc2.octave', all((v, x) => v.setOscOctave(2, x)));
     bus.subscribe('osc2.detune', all((v, x) => v.setOscTune(2, x)));
     bus.subscribe('osc2.level', all((v, x) => v.osc2.setLevel(x)));
@@ -941,7 +993,14 @@ export class Engine {
     this.lfo2.bind(bus, 'lfo2', this.pwm, 1);
     // The base widths belong to the oscillators, not to an LFO, so they stay here.
     bus.subscribe('osc1.pulseWidth', (x) => this.pwm.setBase(0, x));
-    bus.subscribe('osc2.pulseWidth', (x) => this.pwm.setBase(1, x));
+    bus.subscribe('osc2.pulseWidth', (x) => {
+      // The predicate first: a width that frees the pair must not reach the
+      // native nodes on its way there (cross-modulation.md
+      // REQ-an-fm-carrier-with-a-pulse-width-runs-in-the-pair).
+      if (Number.isFinite(x)) this.osc2Width = x;
+      this.refreshPairFree();
+      this.pwm.setBase(1, x);
+    });
 
     // Insert effects self-wire their own params (ADR-008); each chain carries
     // its own prefixes and (for the drum comp) its ratio table.

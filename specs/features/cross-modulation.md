@@ -3,7 +3,7 @@
 ```yaml
 id: cross-modulation
 status: implemented
-version: 1
+version: 2
 owner: core
 related:
   - oscillators                # the two Osc wrappers this taps
@@ -108,6 +108,34 @@ help badges ([onboarding](onboarding.md) REQ-each-oscillator-carries-its-own-bad
   Disengaging cuts the connections `DISCONNECT_DELAY_MS` after the gain reached 0. A re-engage inside
   that window cancels the cut instead of racing it. While FM is disengaged,
   OSC 2's `frequency` has no input and keeps the browser's k-rate fast path.
+- **REQ-an-fm-carrier-with-a-pulse-width-runs-in-the-pair** — Each voice plays
+  through its sync pair in **free-running** mode ([oscillator-sync](oscillator-sync.md)
+  REQ-the-pair-free-runs-for-a-pulse-carrier) instead of its native nodes while
+  three things hold:
+  - FM is in use.
+  - OSC 2 is square.
+  - OSC 2's width can leave 0.5: its WIDTH knob is above 0.5, or an LFO owns the
+    `pulse` destination.
+
+  The reason is that on Gecko, a width swap on an FM'd native oscillator costs
+  several render quanta of audio-thread time, and the cost grows with β
+  ([oscillators](oscillators.md) REQ-wave-writes-reach-only-a-heard-oscillator, with
+  measurements). So FM plus PWM overran the render callback until the stream died.
+  The pair takes width as a k-rate param and swaps nothing. Every engine behaves the
+  same way, because the predicate checks the patch, not the browser. The trade-off:
+  FM inside the pair is not through-zero (REQ-fm-reaches-the-sync-pair), so above
+  β ≈ 1 these patches sound different from the native path. A square at width 0.5
+  with no PWM keeps the native, through-zero path. Freeing is immediate. The
+  predicate is asked before a new wave or width is written, so once the pairs exist
+  the write that frees them never reaches the native nodes. The first freeing waits
+  for one module load, as sync's first engagement does, and the natives take the
+  writes until it lands. The predicate re-asks the load while freed, so a failed
+  load is retried at the next change. Releasing waits `PAIR_RELEASE_HOLD_MS`,
+  and a predicate back to true inside the hold cancels the release. Each release
+  hands the voice back to its native nodes, whose catch-up write is a rebuild under
+  FM, so without the hold a WIDTH drag through 0.5 would toggle the pair. The Engine
+  owns the predicate, since it is the one place that sees FM's in-use state, OSC 2's
+  wave and width, and the PWM owner.
 - **REQ-cross-mod-is-bounded** — The registry clamps the knobs. In the worklet,
   β is clamped to `±16` and the result to the existing increment bounds, and the
   block-end NaN guard still applies. On the native path, Web Audio clamps an
@@ -145,10 +173,12 @@ CrossMod (src/audio/cross-mod.ts):   # one per voice, owned by Voice
   setRatio(cents1, cents2)      # k, ramped
   setFrequency(hz, when, glide) # f_note, every note
   setRing(level)                # knob; engages/disengages itself
+PAIR_RELEASE_HOLD_MS            # cross-mod.ts: how long a freed pair outlives its predicate
 Voice:
   fmTarget: AudioParam
   setOscOctave(osc, o) / setOscTune(osc, cents)   # the Osc write, then k
   setFm(beta) / setFmInUse(on) / setRing(level)
+  setPairFree(on)               # the engine's pulse-carrier predicate -> SyncEngagement.setFree
 SyncOscNode:
   fm: AudioParam                # a-rate, β
 ModMatrix:
@@ -163,6 +193,10 @@ routing:  src/state/mod-routing.ts -> MOD_DEST_LABELS += fm, MOD_DEST_SCALE[fm] 
 engine:   osc1.fm -> all(v.setFm), refreshFm()
           mod.N.src / mod.N.dst -> refreshFm()     # in use = fm > 0 || modMatrix.usesDest(fm)
           osc1.ring -> all(v.setRing)
+          refreshFm / osc2.wave / osc2.pulseWidth / PWM owner -> refreshPairFree()
+            # fmInUse && osc2 square && (width > 0.5 || pwmOwner != null)
+            # -> ensureSync() then all(v.setPairFree); a release waits PAIR_RELEASE_HOLD_MS
+            # osc2.wave / osc2.pulseWidth ask the predicate BEFORE writing the oscillators
           osc{1,2}.octave/detune -> v.setOscOctave / v.setOscTune
 graph (per voice):
   fmMod(ConstantSource, offset = β) -> fmAmt.gain (base 0)   ; matrix fm routes -> fmMod.offset
@@ -243,6 +277,29 @@ Scenario: Ring is its own level, DC-blocked (REQ-ring-is-its-own-level, REQ-ring
   When it returns to 0 the inputs are disconnected after the delay
 # pinned by: tests/audio/cross-mod.test.ts
 
+Scenario: An FM'd pulse runs in the pair (regression, REQ-an-fm-carrier-with-a-pulse-width-runs-in-the-pair)
+  Given osc1.fm is 0.4 and osc2.wave is square at width 0.5 with no LFO on pulse
+  Then no voice frees its pair and no sync worklet is loaded
+  When an LFO's destination becomes pulse
+  Then the sync worklet is loaded and every voice frees its pair
+  When osc1.fm returns to 0
+  Then every voice releases it once PAIR_RELEASE_HOLD_MS has passed
+# pinned by: tests/audio/engine-sync.test.ts
+
+Scenario: A WIDTH drag through 0.5 does not toggle the pair (regression, REQ-an-fm-carrier-with-a-pulse-width-runs-in-the-pair)
+  Given the pairs are freed by osc2.pulseWidth 0.6 under FM
+  When the width touches 0.5 and rises again inside PAIR_RELEASE_HOLD_MS
+  Then no voice is released
+# pinned by: tests/audio/engine-sync.test.ts
+
+Scenario: The WIDTH knob alone frees the pair under FM (REQ-an-fm-carrier-with-a-pulse-width-runs-in-the-pair)
+  Given osc1.fm is 2 and osc2.wave is square
+  When osc2.pulseWidth rises above 0.5
+  Then every voice frees its pair
+  When osc2.wave becomes saw
+  Then every voice releases it after the hold
+# pinned by: tests/audio/engine-sync.test.ts
+
 Scenario: OSC 1 carries the modulator controls (REQ-the-modulator-controls-live-on-osc-1)
   Then the OSC 1 panel shows knob-osc1.fm and knob-osc1.ring
   And they sit on a second line until 3200px, where OSC 1 goes to one row
@@ -281,6 +338,9 @@ Scenario: OSC 1 carries the modulator controls (REQ-the-modulator-controls-live-
   - FM sine→sine at β 1/3/6 and filter env → `fm`
   - FM with sync on and off
   - ring at non-integer ratios, including whether saw×saw wants more than √2
+  - FM onto a square with PWM, through the free pair, against the same patch
+    on the native path (FM 0.4 and 2). On Firefox, also against the stutter it
+    replaces.
 
 ## Open questions / future
 

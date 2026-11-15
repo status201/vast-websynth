@@ -1,9 +1,6 @@
 import { FrequencyLine } from './frequency-line';
 import { rampTo, RAMP_BYPASS, RAMP_MEDIUM, RAMP_FAST } from './param-utils';
-import { WAVE_TYPES, waveIndex } from './waves';
-
-/** Index of `square` in WAVE_TYPES — the only wave pulse width applies to. */
-const SQUARE = 3;
+import { SQUARE_WAVE as SQUARE, WAVE_TYPES, waveIndex } from './waves';
 
 /** Duty-bank resolution (oscillators.md REQ-width-swaps-a-precomputed-wave). A full LFO cycle sweeps the bank
  *  up and back, so this caps smoothness at slow rates where the control loop is
@@ -107,10 +104,21 @@ export class Osc {
   private detuneCents = 0;
   private waveIdx = 2;
   private pulseWidth = PWM_MIN_WIDTH;
+  /** The wave index the native node is showing — the constructor's sawtooth. */
+  private appliedWave = 2;
   /** The bank entry currently applied, or -1 when the native type is in use.
    *  Lets the control loop call `setPulseWidth` at will and only touch the node
    *  when the duty actually moves to a new entry. */
   private appliedIdx = -1;
+  /**
+   * Whether the native node can be heard: its voice is awake, and the node is not
+   * faded out under the sync pair. A wave or width reaches the node only while both
+   * are true (oscillators.md REQ-wave-writes-reach-only-a-heard-oscillator). On
+   * Gecko every `type` write and every swap rebuilds the wave's tables on the audio
+   * thread, and Gecko renders a node whether or not anything hears it.
+   */
+  private awake = true;
+  private nativeOn = true;
   private mirror: OscMirror | null = null;
 
   /** Starts at the node's own value (the constructor's `frequency.value = 440`). */
@@ -168,7 +176,21 @@ export class Osc {
       this.osc.connect(this.fade);
       this.nativeAttached = true;
     }
+    this.nativeOn = on;
+    // Back in: catch up on any wave or width that moved while the pair was the sound.
+    if (on) this.applyShape();
     rampTo(this.fade.gain, on ? 1 : 0, this.ctx, RAMP_BYPASS);
+  }
+
+  /**
+   * The voice woke (a note) or slept (idle). Asleep, a wave or width is stored but
+   * not applied; waking applies it before the attack, and the applied-state checks
+   * make that free when nothing moved
+   * (oscillators.md REQ-wave-writes-reach-only-a-heard-oscillator).
+   */
+  setAwake(on: boolean): void {
+    this.awake = on;
+    if (on) this.applyShape();
   }
 
   /** Cut the native node once its fade-out has settled, so it stops rendering. */
@@ -180,16 +202,11 @@ export class Osc {
 
   setWave(idx: number): void {
     const i = waveIndex(idx);
-    const t = WAVE_TYPES[i];
-    if (!t) return;
+    if (!WAVE_TYPES[i]) return;
     this.waveIdx = i;
-    // Setting a native type discards any applied PeriodicWave, so the cached
-    // bank entry is stale either way.
-    this.osc.type = t;
-    this.appliedIdx = -1;
-    // Re-apply the standing width, so switching *to* square picks up a knob
-    // position (or an in-flight PWM sweep) set while another wave was live.
-    if (i === SQUARE) this.applyWidth();
+    // Switching *to* square picks up the standing width — a knob position, or an
+    // in-flight PWM sweep, set while another wave was live.
+    this.applyShape();
     this.mirror?.wave(i);
   }
 
@@ -200,13 +217,25 @@ export class Osc {
   setPulseWidth(width: number): void {
     if (!Number.isFinite(width)) return;
     this.pulseWidth = Math.max(PWM_MIN_WIDTH, Math.min(PWM_MAX_WIDTH, width));
-    if (this.waveIdx === SQUARE) this.applyWidth();
+    if (this.waveIdx === SQUARE) this.applyShape();
     this.mirror?.width(this.pulseWidth);
   }
 
-  private applyWidth(): void {
+  /** Bring the native node to the current wave and width, writing only what moved. */
+  private applyShape(): void {
+    // Unheard: leave the applied state alone, so the node catches up when it is heard.
+    if (!this.awake || !this.nativeOn) return;
+    if (this.waveIdx !== SQUARE) {
+      if (this.appliedWave === this.waveIdx) return;
+      this.osc.type = WAVE_TYPES[this.waveIdx]!;
+      this.appliedWave = this.waveIdx;
+      // A native type discards any applied PeriodicWave.
+      this.appliedIdx = -1;
+      return;
+    }
     const idx = bankIndex(this.pulseWidth);
-    if (idx === this.appliedIdx) return;
+    if (this.appliedWave === SQUARE && idx === this.appliedIdx) return;
+    this.appliedWave = SQUARE;
     this.appliedIdx = idx;
     if (idx === 0) {
       // Exactly 50% — the native band-limited square, i.e. the pre-v2 sound.

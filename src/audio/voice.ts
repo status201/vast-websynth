@@ -253,8 +253,12 @@ export class Voice {
     this.filEnv.out.connect(this.filEnvScale);
     this.filEnvScale.connect(this.filter.cutoffNote);
 
-    // Pool voices boot idle — no note yet, so the filter can sleep (REQ-the-filter-idles-when-gated).
+    // Pool voices boot idle — no note yet, so the filter can sleep (REQ-the-filter-idles-when-gated)
+    // and no wave write reaches the oscillators (oscillators.md REQ-wave-writes-reach-only-a-heard-oscillator).
     this.filter.setActive(false);
+    this.osc1.setAwake(false);
+    this.osc2.setAwake(false);
+    this.sub.setAwake(false);
   }
 
   /**
@@ -293,6 +297,15 @@ export class Voice {
   /** `osc2.sync`: 0 off, 1 hard, 2 soft (REQ-sync-has-hard-and-soft-modes). */
   setSyncMode(m: number): void {
     this.sync.setMode(m);
+  }
+
+  /**
+   * The engine's pulse-carrier predicate: FM onto a square whose width moves
+   * (cross-modulation.md REQ-an-fm-carrier-with-a-pulse-width-runs-in-the-pair).
+   * The pair then free-runs in place of the native nodes.
+   */
+  setPairFree(on: boolean): void {
+    this.sync.setFree(on);
   }
 
   setSyncPitch(semitones: number): void {
@@ -542,6 +555,9 @@ export class Voice {
     this.plug();
     this.filter.setActive(true);
     this.sync.setVoiceActive(true);
+    this.osc1.setAwake(true);
+    this.osc2.setAwake(true);
+    this.sub.setAwake(true);
   }
 
   /**
@@ -552,6 +568,9 @@ export class Voice {
   private sleep(): void {
     this.filter.setActive(false);
     this.sync.setVoiceActive(false);
+    this.osc1.setAwake(false);
+    this.osc2.setAwake(false);
+    this.sub.setAwake(false);
     this.unplug();
   }
 

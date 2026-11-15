@@ -705,7 +705,9 @@ into the committed demos and share links.)
   (`channelCount: 1`, [`features/ladder-filter.md`](features/ladder-filter.md)
   REQ-the-filter-worklet-is-mono), so 8-voice polyphony is its whole budget; the **compressors** are two
   bus instances running 2 channels each; the **sync pair** is one per voice with two
-  mono outputs, and exists and runs only while sync is engaged and its voice sounds. "Academically correct" DSP (ZDF,
+  mono outputs, and exists and runs only while sync is engaged (or the pair is freed for an
+  FM'd pulse, [`features/cross-modulation.md`](features/cross-modulation.md)
+  REQ-an-fm-carrier-with-a-pulse-width-runs-in-the-pair) and its voice sounds. "Academically correct" DSP (ZDF,
   oversampling, thermal models) is declined unless it is *also* cheap and stable. See
   [ADR-010](decisions/adr-010-musical-stable-cheap-dsp.md).
 - **No-op defaults for new params.** New analogue/song params default to a value

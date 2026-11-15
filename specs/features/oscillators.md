@@ -3,7 +3,7 @@
 ```yaml
 id: oscillators
 status: implemented
-version: 7
+version: 8
 owner: core
 related:
   - architecture
@@ -62,6 +62,21 @@ so it snapshots into presets and songs for free.
   (see the crossover below). A patch that sweeps the whole range converges on the
   whole bank, paid gradually ([runtime-performance](runtime-performance.md)
   REQ-boot-cost-matches-the-request/REQ-immutable-artefacts-are-shared).
+- **REQ-wave-writes-reach-only-a-heard-oscillator** — A wave or width change
+  reaches a native node only while that node can be heard. That means two things:
+  its voice is awake, from `noteOn` until idle ([voicing](voicing.md)
+  REQ-an-idle-voice-is-unplugged); and the native node is the sound, not faded out
+  under the sync pair. Otherwise `Osc` stores the change, still mirrors it to the
+  pair, and applies it when the node is heard again. Each write is deduplicated, so
+  only what actually moved touches the node. `Voice.wake()` runs before the attack,
+  so a note always starts at the current wave and width. The reason is Gecko: there
+  a swap is not a pointer change. Every `setPeriodicWave`, and every `type` write,
+  ships the coefficients to the **audio thread**. Gecko builds the wave's
+  band-limited tables there, lazily, one per pitch range the oscillator passes
+  through. It also renders every started node it holds, so an idle voice paid the
+  same as a sounding one. Under FM a swap costs several render quanta
+  ([cross-modulation](cross-modulation.md)
+  REQ-an-fm-carrier-with-a-pulse-width-runs-in-the-pair).
 - **REQ-pulse-destination-sweeps-unipolar** — (v2) The LFO's `pulse` destination
   sweeps **upward** from the knob: `width = base + depth·(lfo+1)/2·(0.95−base)`.
   Duty `d` and `1−d` have identical magnitude spectra, so a bipolar sweep around
@@ -114,6 +129,10 @@ Osc:
   setPulseWidth(0.5..0.95)
   # width is ignored unless the wave is square; 0.5 restores osc.type='square'
   # the native node runs through a unity `fade` gain (oscillator-sync crossfades it)
+  setAwake(on)          # the voice's wake/sleep; asleep = wave + width stored, not applied
+  fadeNative(on)        # off = the pair is the sound; wave + width stored, not applied
+waves.ts:
+  SQUARE_WAVE           # the one `*.wave` index pulse width applies to
 pwm.ts:
   PWM_BANK_SIZE   # duty-bank resolution
   PWM_CONTROL_HZ  # control-loop rate
@@ -121,6 +140,8 @@ pwm.ts:
   PwmDriver.setBase(i, width) / dispose
   PwmDriver.setDest(src, d) / setAmount(src, a) / setRate(src, hz) / setWave(src, i)
     # src = the LFO index; setBase is osc-owned and takes no src
+  PwmDriver(voices, now, onOwner?)  # onOwner: told when the owner changes hands
+  PwmDriver.pwmOwner                # the LFO index sweeping the width, or null
 ```
 
 Smoothness is `PWM_CONTROL_HZ ÷ rate` updates per cycle. Below about
@@ -202,6 +223,30 @@ Scenario: A width never selected costs nothing (REQ-a-wave-bank-entry-is-built-o
   Then no PeriodicWave exists for any entry in the upper half
 # pinned by: tests/audio/oscillator-pwm.test.ts
 
+Scenario: An idle voice takes no width swaps (regression, REQ-wave-writes-reach-only-a-heard-oscillator)
+  Given osc2.wave is square and the voice is asleep
+  When the width moves across several bank entries
+  Then setPeriodicWave is not called
+  When the voice wakes
+  Then the current width is applied once, and waking again without a move applies nothing
+# pinned by: tests/audio/oscillator-pwm.test.ts, tests/audio/voice-sync.test.ts
+
+Scenario: An idle voice takes no wave writes either (REQ-wave-writes-reach-only-a-heard-oscillator)
+  Given the voice is asleep on a saw
+  When osc2.wave changes to triangle
+  Then the native node's type is not written
+  When the voice wakes
+  Then the type is written once, and a wave set back to the one showing writes nothing
+# pinned by: tests/audio/oscillator-pwm.test.ts
+
+Scenario: A native node under the pair takes no width swaps (regression, REQ-wave-writes-reach-only-a-heard-oscillator)
+  Given osc2.wave is square and its native node is faded out under the sync pair
+  When the width moves
+  Then the pair's width param follows but setPeriodicWave is not called
+  When the native node fades back in
+  Then the current width is applied
+# pinned by: tests/audio/oscillator-pwm.test.ts
+
 Scenario: The control loop runs only for the pulse destination
   Given lfo.dest is "cutoff"
   Then no PWM timer is scheduled
@@ -268,6 +313,20 @@ Scenario: The rate cap is shown on the knob, not only in prose (REQ-pwm-rate-is-
 - **By ear** (ADR-010, `recipes/verify-audio-by-ear.md`): `PWM_CONTROL_HZ`,
   `PWM_BANK_SIZE` and `PWM_RATE_MAX` are settled by listening for duty stepping,
   on a demo with the drums muted (an isolated held note renders unrepresentatively).
+- **What a swap costs per engine** (REQ-wave-writes-reach-only-a-heard-oscillator).
+  Firefox has no `OfflineAudioContext.suspend`, so a swap is modelled as a chain of
+  nodes per voice, each starting on a fresh duty wave every 1/240 s. The control is
+  the same chain on native sine, which Gecko computes without tables. The probe
+  ran 8 voices, a saw modulator, and best of 2 runs, in ms per swap:
+
+  | engine | no FM | FM β 0.39 | β 2 | β 6 |
+  | --- | --- | --- | --- | --- |
+  | Blink, 55–440 Hz | ~0 | ~0 | ~0 | ~0 |
+  | Gecko, 55 Hz | 0.43 | 0.86 | 5.9 | 18.5 |
+  | Gecko, 110 Hz | 0.42 | 1.2 | 8.2 | 16.0 |
+  | Gecko, 440 Hz | 0.47 | 2.2 | 11.4 | — |
+
+  A render quantum is 2.67 ms at 48 kHz.
 
 ## Open questions / future
 
@@ -277,5 +336,7 @@ Scenario: The rate cap is shown on the knob, not only in prose (REQ-pwm-rate-is-
 - An audio-rate width `AudioParam` would need a worklet oscillator replacing the
   native ones for every voice. The one worklet oscillator there is, the sync pair
   ([ADR-026](../decisions/adr-026-oscillator-sync-is-a-per-voice-worklet-pair.md)),
-  runs only while sync is engaged, and takes a-rate width as a side effect. Native
-  PWM is unchanged.
+  runs only while sync is engaged or freed for an FM'd pulse
+  ([cross-modulation](cross-modulation.md)
+  REQ-an-fm-carrier-with-a-pulse-width-runs-in-the-pair), and takes a-rate width as
+  a side effect. Native PWM is unchanged.
