@@ -10,8 +10,8 @@ import {
 import { frameScheduler, recordingCtx, sizeCanvas } from './scope-harness';
 
 /**
- * Scope recovery — scope.md REQ-the-redraw-loop-can-always-restart through
- * scope.md REQ-becoming-visible-re-measures.
+ * Scope recovery — scope-health.md REQ-the-redraw-loop-can-always-restart through
+ * scope-health.md REQ-becoming-visible-re-measures.
  *
  * A device report: the scope went black while the app was backgrounded and
  * **stayed** black on return, even once audio was running again. The canvas is
@@ -43,7 +43,7 @@ function ctxWithoutLossApi() {
 
 /**
  * Always sounding: these cases are about a loop that must keep running, and a
- * silent scope now sleeps (scope.md REQ-a-scope-with-nothing-to-show-sleeps,
+ * silent scope now sleeps (scope-health.md REQ-a-scope-with-nothing-to-show-sleeps,
  * pinned on its own in scope-sleep.test.ts), which would read as a stopped loop here.
  */
 const fakeAnalyser = (): AnalyserNode => ({

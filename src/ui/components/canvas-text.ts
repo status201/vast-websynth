@@ -2,7 +2,7 @@
  * Canvas text that stays readable on top of whatever is behind it.
  *
  * Hoisted out of `Scope` when the EQ graph needed the same treatment
- * (scope.md REQ-every-drawn-string-gets-a-halo, equalizer.md REQ-the-graph-computes-from-bus-values). Both draw small mono labels over
+ * (scope-spectrum.md REQ-every-drawn-string-gets-a-halo, equalizer.md REQ-the-graph-computes-from-bus-values). Both draw small mono labels over
  * saturated shapes — the Spectrum's bars, the EQ's filled curve — and the
  * alternative was a second copy that would drift the first time either was
  * tuned. It is deliberately a plain function rather than a mixin or a base

@@ -129,7 +129,7 @@ instead of transcribing it from a phone screen.
   `setMidiStatsSource`), the wake lock (**Wake lock**, `debug-wake`, via
   `setWakeLockSource`) and [`scope`](scope.md) (**Scope**, `debug-scope`, via
   `setScopeStatsSource` — whether the visualizer is painting or asleep, and how often it
-  had to recover; scope.md REQ-the-panel-says-whether-it-is-drawing) and
+  had to recover; scope-health.md REQ-the-panel-says-whether-it-is-drawing) and
   [`play-offline`](play-offline.md) (**Offline copy**, `debug-offline`, from
   `getOfflineCopy().state` via `formatOfflineState` — whether this device holds a
   full offline copy, which is the answer to "why did that part not open offline?").
@@ -262,7 +262,7 @@ AboutDeps { startTour(): void }        # declared here; about-modal imports it t
 setClipStatsSource(fn: () => { count: number; bytes: number }): void   # late-bound row source
 setMidiStatsSource(fn: () => { inputs: number; outputs: number }): void
 setWakeLockSource(fn: () => { supported: boolean; held: boolean }): void
-setScopeStatsSource(fn: () => ScopeHealth): void   # scope.md REQ-the-panel-says-whether-it-is-drawing; bound by app.ts
+setScopeStatsSource(fn: () => ScopeHealth): void   # scope-health.md REQ-the-panel-says-whether-it-is-drawing; bound by app.ts
 clipStats(): { count: number; bytes: number } | undefined   # undefined = unbound -> "n/a"
 midiStats(): { inputs: number; outputs: number } | undefined
 wakeState(): { supported: boolean; held: boolean } | undefined

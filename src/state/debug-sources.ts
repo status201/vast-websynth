@@ -40,7 +40,7 @@ export function midiStats(): { inputs: number; outputs: number } | undefined {
 }
 
 /**
- * Bound by `app.ts`, which owns the `Scope` (scope.md REQ-the-panel-says-whether-it-is-drawing). The one row that
+ * Bound by `app.ts`, which owns the `Scope` (scope-health.md REQ-the-panel-says-whether-it-is-drawing). The one row that
  * answers "is the panel actually painting?" — this symptom has been reported twice
  * from devices with no console, and both times there was nothing to read.
  */

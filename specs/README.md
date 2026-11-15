@@ -390,6 +390,8 @@ specs/
     factory-reset.md   ·  About-modal "Restore to Factory Settings" (clear all local data + app caches, reload)
     play-offline.md    ·  About-modal "Play offline": save every app file on the device, kept current per release
     scope.md           ·  wave/spectrum live visualizer + mono/stereo split
+    scope-spectrum.md  ·  the Spectrum view: log axis, peak hold, ticks, zones, hover readout
+    scope-health.md    ·  the scope never stops painting: watchdog, context loss, idle sleep
   recipes/             ← repeatable how-tos / playbooks
     _recipe-template.md       ·  copy this to start a new recipe
     add-a-parameter.md       ·  the 3-edit pattern for any new scalar param

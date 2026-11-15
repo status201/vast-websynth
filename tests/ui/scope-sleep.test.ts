@@ -11,7 +11,7 @@ import {
 import { frameScheduler, recordingCtx, sizeCanvas } from './scope-harness';
 
 /**
- * scope.md REQ-a-scope-with-nothing-to-show-sleeps. Idle, the scope redrew a flat
+ * scope-health.md REQ-a-scope-with-nothing-to-show-sleeps. Idle, the scope redrew a flat
  * line every vsync: most of the app's idle main-thread time, and a main-thread
  * frame that restyled the play button's composited pulse 60 times a second. A
  * silent scope now stops arming frames and polls its analysers instead.

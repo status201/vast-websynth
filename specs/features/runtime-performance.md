@@ -312,12 +312,12 @@ so a reviewer has something concrete to hold a new feature against.
   change, and wake on whatever would change it: a live `requestAnimationFrame`
   chain is a main-thread frame every vsync even when each one repaints the same
   pixels, and every such frame restyles any running CSS animation, composited or
-  not. `Scope` is the reference again ([`scope.md`](scope.md)
+  not. `Scope` is the reference again ([scope-health](scope-health.md)
   REQ-a-scope-with-nothing-to-show-sleeps).
 
   A draw-only loop MAY hold a **low-frequency, visibility-gated watchdog** that
   proves it is still painting and restarts it if not — `Scope` is again the reference
-  ([`scope.md`](scope.md) REQ-a-watchdog-restarts-a-stalled-loop). "Stop while hidden" is a rule about doing *work*,
+  ([scope-health](scope-health.md) REQ-a-watchdog-restarts-a-stalled-loop). "Stop while hidden" is a rule about doing *work*,
   not about forgetting how to come back: a supervisor that returns on its first line
   while `document.hidden` does no work either, and stopping without one is how that
   panel twice ended up dead for the life of the page. The watchdog must be

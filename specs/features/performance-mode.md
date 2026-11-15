@@ -109,7 +109,7 @@ differ only by live-applied scope fps + fftSize).
   immediately (no reload). fps throttling is timestamp-based (`now - lastDrawTs
   >= 1000/fps`; `fps >= 60` means draw every frame), correct on high-refresh
   displays. The scope always pauses its redraw loop while the tab is hidden
-  (`visibilitychange`) — still true as written, and since [scope](scope.md)
+  (`visibilitychange`) — still true as written, and since [scope-health](scope-health.md)
   REQ-a-watchdog-restarts-a-stalled-loop it is also *supervised*: a ~1 Hz watchdog returns on its first line
   while hidden, so it costs a backgrounded tab nothing and exists only to
   guarantee the loop comes back. Note: the [motion

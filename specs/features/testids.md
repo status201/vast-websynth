@@ -140,7 +140,7 @@ shell (ui/shell/*, panels/fx-rack.ts):
   preset-select · preset-save        # preset-save opens the manager
   scope-toggle · scope-channels-toggle · scope-canvas    # features/scope.md
   scope-resize-handle                # features/scope.md REQ-a-scope-resize-handle — drags the panel taller
-  scope-zones-toggle                 # features/scope.md REQ-a-zones-toggle — hidden unless Spectrum
+  scope-zones-toggle                 # features/scope-spectrum.md REQ-a-zones-toggle — hidden unless Spectrum
   eq-section                         # features/equalizer.md — the whole folded section
   tab-eq-<seq|drums|sampler>         # equalizer.md REQ-eq-tab-ids-are-namespaced — NOT tab-<lane>: those
   panel-eq-<seq|drums|sampler>       #   belong to the pattern row (REQ-a-catalogue-id-is-not-renamed-alone)
