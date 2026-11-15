@@ -382,6 +382,7 @@ specs/
     tempo-lock.md      ·  lock a rate/time knob to the grid, inside the knob's own footprint
     performance-mode.md ·  device-scoped audio-quality setting (buffer/voices/scope)
     runtime-performance.md ·  app-wide cost contract (boot budget, gesture-scoped listeners, automation≠edit)
+    shared-helpers.md  ·  the reused code: src/utils/ + its import rule, smoothing vocabulary, shell regions, step-panel scaffold
     ios-audio.md       ·  iOS silent-switch unlock (media-backed context) + interruption re-arm
     audio-lifecycle.md ·  click-free start, foreground re-arm, screen-off dropout recovery
     media-session.md   ·  Android keep-alive: silent loop + MediaSession so the OS sees a player

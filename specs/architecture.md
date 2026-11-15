@@ -214,200 +214,15 @@ Arrangement / Performance:  # src/audio/transport/
 
 ### Shared utilities
 
-Pure, side-effect-free helpers under `src/utils/` — importable from **any** layer.
-Each replaced a helper that had been copy-pasted across modules.
+The shared helpers — `src/utils/` and its import rule, the `AudioParam` smoothing
+vocabulary, `ListenerSet`, the shell's regions, the step-panel scaffold, the
+machines' shared sweeps and the effect base class — are
+[shared-helpers](features/shared-helpers.md)'s.
 
-The import rule is **directional, not absolute**: a util may never import from
-`audio/` or `ui/`, so the audio layer can use one without dragging in UI code
-(REQ-ui-and-audio-never-call-each-other, ADR-001) and neither layer can reach the other through here. It *may*
-import a **pure declaration** from `state/` — `state/limits.ts` (the one place a
-bound is written down, ADR-015) and the `ParamDef` **type** from `state/params.ts`
-— because duplicating either is the drift the single-source rules exist to
-prevent. Three do today: `music.ts` and `zip.ts` take bounds from `limits.ts`,
-`taper.ts` takes `ParamDef` as a type-only import. Nothing here imports a
-`state/` module that *holds* state.
-
-```yaml
-utils/math.ts:       clamp(v,min,max) · clamp01(v) · midiToHz(note)   # A4 = 69 = 440 Hz
-utils/taper.ts:      toNorm(def,v) · fromNorm(def,n)                  # param taper mapping
-utils/base64url.ts:  toBase64Url(bytes) · fromBase64Url(s)            # RFC 4648 §5, unpadded
-utils/array.ts:      assertIndex(arr,i,name) · IndexError
-utils/compression.ts: deflateRaw / inflateRaw                          # zip codec + share links
-utils/zip.ts:        the hand-written zip reader/writer (ADR-003)
-utils/wake-lock.ts:  screen wake lock, follows engine.ctx state
-utils/listeners.ts:  ListenerSet<Args> — add(fn) -> disposer · emit(...args)
-utils/async.ts:      delay(ms, signal?) · withTimeout(p, ms, fallback)   # bounded waits; never reject
-                     # the Engine's resume verify, the factory reset's capped wipes,
-                     # the offline copy's worker poll
-utils/format.ts:     plural(n, noun) · formatBytes(bytes) · megabytes(bytes)
-                     # every count and size the UI spells out ("3 presets", "7.1 MB", "35 kB")
-utils/offline-copy.ts: OfflineCopy state machine + the page/worker cache contract
-                     # features/play-offline.md — platform code like wake-lock.ts, no UI
-utils/music.ts:      scale tables · buildQuantizeTable · diatonicChord · degreeLabel
-                     # features/scale-quantization.md, features/chord-tools.md.
-                     # SCALE_LABELS is APPEND-ONLY — a song stores the index.
-utils/tempo.ts:      DIVISIONS · sweetSpots(bpm) · syncedValue(...) · nearestDivision(...)
-                     # BPM <-> note-division math. Two consumers, which is why it
-                     # is here: the UI's sweet-spot badges (features/tempo-sync-help.md)
-                     # and the audio layer resolving `lfo.sync` (features/lfo.md REQ-lfo-rate-is-exponentially-tapered).
-                     # It started under ui/onboarding/, which audio may not import.
-```
-
-Audio-side, `audio/param-utils.ts` holds the smoothing vocabulary every
-`AudioParam` write shares: `rampTo(param, value, ctx, tau)` /
-over four named time constants — `RAMP_FAST` 5 ms, `RAMP_MEDIUM` 10 ms,
-`RAMP_SMOOTH` 20 ms (the insert effects' own controls, which zipper audibly at
-anything shorter) and `RAMP_BYPASS` 25 ms (an effect's whole dry/wet swap, which
-moves far more level than any one knob — [effects](features/effects.md) REQ-bypass-and-mix-are-a-crossfade).
-There is deliberately no cancel-then-ramp helper: `rampTo` retargets from wherever
-the curve has reached, so it never needs a cancel. These are dialled by ear
-under ADR-010, so they are named in one place rather than spelled as literals at
-the call site.
-
-**Never cancel automation without anchoring it** (ADR-027). A continuous control
-retargets with `setTargetAtTime` and never cancels; an unavoidable
-`cancelScheduledValues(t)` is followed first by `setValueAtTime(<value now>, t)` on
-the same param (`pinParam`); no ramp is seeded from a live `.value`. Gecko reads
-"the value of the AudioParam" as the last value assigned, not the automation's,
-and has no `cancelAndHoldAtTime`. `tests/audio/no-unanchored-cancel.test.ts` fails
+**Never cancel automation without anchoring it** (ADR-027, below): an unavoidable
+`cancelScheduledValues(t)` is pinned first with `setValueAtTime` (`pinParam`), because
+Gecko has no `cancelAndHoldAtTime`. `tests/audio/no-unanchored-cancel.test.ts` fails
 the suite on a cancel that pins nothing.
-
-`ListenerSet` backs every `onStep`/`onNote`/`onFollowChange` hook (the four
-transport machines and `BankBar`), which had each open-coded the same
-`Set` + `add → return () => delete` pair.
-
-**`ui/app.ts` is the assembly, not the parts.** `mountApp` builds the five
-regions in page order and wires the hooks that cross them; each region lives
-in its own module and binds the bridge hooks its controls own:
-
-```
-ui/app.ts                  mountApp: order + the late-bound hooks (FX expand, demo
-                           loader, the scope's live perf knobs and Debug source)
-ui/shell/header.ts         brand, preset cluster, transport, voicing
-                           (binds openPresetImport, toggleInfoBadges)
-ui/shell/play-button.ts    the Play button + its LED state machine
-                           (binds toggleTransport, cuePlay)
-ui/panels/synth-panels.ts  the eight synth panels (bus only)
-ui/panels/fx-rack.ts       the insert-effect rack (bus only)
-ui/shell/pattern-row.ts    the MACHINES tabs + their tab-scoped routing
-                           (binds undoActiveMachine, clearSelectedStep, showTab)
-ui/shell/bottom.ts         wheels, the EQ row, the keyboard (binds pressKey, releaseKey)
-ui/shell/scope-panel.ts    the scope, its three toggles and its resize grip
-ui/shell/deps.ts           ShellDeps — what main.ts hands mountApp; each region's
-                           signature takes the Pick<ShellDeps, …> it reads
-ui/viewport.ts             the two mount-time breakpoints (isCompact, isPhone)
-```
-
-Each region's stylesheet is its own too (`styles/header.module.css` and its
-siblings, layer `shell`), beside the panel chrome they all share
-(`styles/panel.module.css`, layer `chrome`).
-
-Moving a builder moves its component imports, and CSS Modules inject in import
-order — so the split depends on every stylesheet declaring a cascade layer
-([css-cascade-layers](features/css-cascade-layers.md)), which takes source order
-out of the cascade between modules. A move like this is proven pixel-identical
-with `scripts/css-cascade/fingerprint.mjs`, not by `tsc` or the unit suite.
-
-The four machine tabs share their **chrome** through
-`ui/panels/step-panel-scaffold.ts` — composable helpers, not one template, since
-the panel bodies genuinely differ (note labels, a tuning strip, slot loaders, an
-SVG graph). One internal `laneHooks(engine, lane)` switch maps the systematic
-per-lane accessor families (PatternStore edit/copy/content, Arrangement play
-bank, the machine's `onStep`), and the exported helpers read from it:
-`bankBarFor` (the A–P bar, `testidPrefix` = lane), `wrapGridWithRestOverlay`
-(the `position: relative` wrapper + overlay + follow wiring),
-`wirePlayhead` (highlight only while edit bank === play bank, refreshing the
-overlay on the same tick — and only while the panel's `VisibilityGate` reports it
-on screen, re-syncing to the current step on reveal; painted when the step is
-*heard*, via `ui/audible.ts`, not when the clock schedules it —
-transport-position.md REQ-the-playhead-is-drawn-when-it-is-heard), `VisibilityGate` itself
-(inactive tabs stay mounted, so `shell/pattern-row.ts` drives every panel's gate from one
-`tabs.onViewChange`) and `GridCursor` (the drum/sampler 2-D selection
-cursor). `paintTriggerCell` lives with `stepTitle` in
-`ui/components/step-settings.ts`; the seq panel keeps its own painter because it
-also writes the note name as the button label. Every `data-testid` is unchanged.
-
-The transport machines additionally share two helpers:
-`forEachActiveHit(bank, idx, when, stepDur, muted, fire)`
-(`audio/transport/step-hits.ts`) — the one-shot lane sweep (skip muted, skip
-off, roll `prob`, expand ratchets) used by the drum machine and the sampler;
-and **`LaneMeter`**
-(`audio/transport/lane-meter.ts`), which each of the four machines owns as
-`.lane` and asks `forEachHit(step, when, fn)` — usually one cell per tick, none
-on a tick a coarser lane skips, two or three inside one tick for a rate finer
-than a 16th ([features/meter.md](features/meter.md)). The **motion** machine
-builds its `LaneMeter` with no stutter map: automation must not follow stutter
-remaps. The **arpeggiator** owns one too, for its onsets alone
-([features/arpeggiator.md](features/arpeggiator.md) REQ-the-arp-runs-on-a-lanes-grid).
-
-**A bar is `barTicks`, not 16.** One constant cannot mean cells-per-pattern,
-ticks-per-bar and columns-of-UI at once: `state/meter.ts` names the three apart
-(`GRID_CELLS`, `barTicks()`, `LANE_RATES`) and `SEQ_LENGTH` is only an alias
-of the first. New code says which one it means — and in the UI goes through
-`ui/lane-grid.ts`, so a grid, its ruler and its beat accents cannot disagree.
-See [ADR-019](decisions/adr-019-the-bar-is-a-tick-count.md).
-
-Four more helpers exist for the same reason — each replaced a body that had been
-written out verbatim more than once, where the copies agreed and the risk was
-that one day they would not:
-
-- **`safeBarTicks(ticks)`** (`state/meter.ts`) — `LaneMeter`, `Arrangement`,
-  `LoopDriver`, `RecorderController` and `BankRenderController` each clamped the
-  bar length by hand, identically. One number leaves `Engine.applyMeter()` and
-  reached five copies of one rule (ADR-019). Note the fallback is
-  `DEFAULT_BAR_TICKS`, not `1`: a one-tick bar would wrap every lane every tick.
-- **`Arrangement.applyChain(...)`** — the four `set<Lane>Chain` methods differed
-  only in which lane they wrote and which position counter they reset, so the
-  load-bearing warning above the clamp (*not* `steps.map(clampChainStep)`, since
-  `map` passes the index) was repeated four times. The position counters stay
-  separate fields: they are read on the tick path, and the caller passes a reset.
-- **`WrappedEffect.quiesceParam(p, on, held)`** — `Delay` and `Phaser` had the
-  same anchored cancel for their feedback loop. The subtlety worth stating once
-  is *why* it is anchored, and why it is not ramped. Its body is `pinParam`
-  (`effects/effect.ts`), which the delay types' cores share through one
-  `HeldFeedback` ([delay-types](features/delay-types.md)).
-- **`loadWorkletModule(ctx, url)`** (`audio/worklet-module.ts`) — the flanger and
-  the reverse delay each loaded their worklet on first use with the same
-  memo-and-forget-a-failure body; the sync pair joined them (oscillator-sync.md v7),
-  having memoized a failure for the session.
-- **`createDjButton(label, testid)`** (`ui/components/button.ts`) — the transport
-  row and the LIVE FX row each had a private `djButton`. They looked different
-  and were not: both local aliases resolved to `song-panel.module.css`.
-
-The **label lists** follow the same rule as their counts: `SEQ_TRACK_LABELS` and
-`SAMPLER_SLOT_LABELS` are derived from `SEQ_TRACK_COUNT` / `SAMPLER_SLOT_COUNT`
-the way `MOTION_TRACK_LABELS` and `BANK_LABELS` already were, and
-`DRUM_TRACK_LABELS` is spread from `PatternStore`'s `DRUM_TRACKS` rather than
-retyped — `params.ts` already imported that array for `duck.src`, so a rename
-would have left the knob labels, the duck source list and the authoring guide
-disagreeing about what track 3 is called.
-
-Insert effects additionally share `bindBypassMix(bus, prefix, fx)`
-(`audio/effects/effect.ts`) — the `${prefix}.on` → `setBypass` and
-`${prefix}.mix` → `setMix` subscriptions every `Effect.bind` opened by hand.
-`Compressor.bind` calls it too, for the `.on` half alone: it defines no `setMix`,
-and that absence is exactly how the helper knows not to subscribe a `.mix` param
-the compressors and the wah do not have.
-
-Every insert effect extends **`WrappedEffect`** (`audio/effects/effect.ts`),
-which owns the `BypassWrapper`, publishes its `input`/`output` as the `Effect`
-surface and delegates `setBypass`. A subclass is then only its DSP span plus its
-`bind`; `Compressor` overrides `setBypass` to also clear its GR meter.
-`setMix` stays off the base deliberately — see effects.md REQ-every-effect-implements-the-interface.
-
-Their **params** come from one factory per shared effect in
-`state/params.ts` (`dirtParams`, `phaserParams`, `delayParams`, `reverbParams`,
-over `fxOnParam`), instantiated per prefix, so the three chains cannot drift into
-three different delays. Per-chain defaults are arguments, not copies. The wah and
-the compressors stay longhand — each appears once. `npm run check:params` is the
-gate: `public/params.json` and `public/params.md` must regenerate byte-identical.
-
-The four payload validators share `state/validate-utils.ts`
-(`isObject`, `describeValue`, `MAX_ERRORS`, `AddError`) — `isObject` is a
-security predicate under ADR-015, and it had four copies. `checkUnit` /
-`checkRatchet` keep one copy each in `song-validate.ts` and `song-author.ts`:
-same names, different signatures, because the canonical validator refuses what
-the dialect coerces (ADR-013).
 
 ### Event flow / propagation
 
@@ -635,27 +450,17 @@ localStorage:
   websynth.ui.window.transport.width : TRANSPORT window width in px; absent = automatic  # state/size-pref.ts (features/transport-window.md)
   websynth.ui.window.xypad.size      : XY Pad side in px, 240..960; absent = 240         # state/size-pref.ts (features/xy-pad.md)
 sessionStorage:
-  websynth.session.tab : this tab's id, which mints the `websynth.session.<tab>` key above.
-                         # Deliberately *session* storage — it must die with the tab and
-                         # survive that tab's reload, which is exactly what makes the
-                         # autosave per-tab (state/session-autosave.ts,
-                         # features/session-autosave.md REQ-each-tab-autosaves-to-its-own-key)
-  websynth.offline.redownload : "1" — the one intent a factory reset writes back after
-                         # wiping everything, so the offline copy it deleted downloads
-                         # again after the reload; consumed at that boot
-                         # (state/offline-redownload.ts, features/play-offline.md REQ-the-copy-is-fetched-again-after-a-reset)
+  websynth.session.tab : this tab's id, minting `websynth.session.<tab>` — dies with the tab,
+                         # survives its reload (features/session-autosave.md REQ-each-tab-autosaves-to-its-own-key)
+  websynth.offline.redownload : "1" — a factory reset's one write-back, consumed at the next boot
+                         # (features/play-offline.md REQ-the-copy-is-fetched-again-after-a-reset)
 indexedDB:               # db `websynth`, store `clips` — state/idb-clip-kv.ts
-  clips[<slot>]       : one sampler clip as 16-bit WAV bytes, keyed by slot index.
-                        # Binary does not fit localStorage, so the audio half of the
-                        # reload safety net lives here (features/sample-persistence.md).
-                        # Names are NOT stored — `sampleNames` in the autosaved session
-                        # is the single source of truth (REQ-new-params-default-to-a-no-op there). Restored before
-                        # the UI mounts, and only for slots a restored session names.
+  clips[<slot>]       : one sampler clip as 16-bit WAV bytes, keyed by slot index
+                        # (features/sample-persistence.md). Names are NOT stored —
+                        # the autosaved session's `sampleNames` is the source of truth.
 not_persisted:
-  decoded audio buffers  # only the encoded WAV bytes above are kept; a SongFile itself
-                         # still carries filenames alone (sampleNames), so a *saved song*
-                         # reloads its audio — or travels as a project-zip download
-                         # (features/project-export.md)
+  decoded audio buffers  # only the WAV bytes above; a SongFile carries filenames alone
+                         # (features/project-export.md carries the audio)
 ```
 
 All three stores are wiped together by **Restore to Factory Settings**
@@ -754,13 +559,10 @@ into the committed demos and share links.)
 The *why* behind the choices above — and the alternatives each one rejected —
 lives in [`decisions/`](decisions/) as Architecture Decision Records.
 
-This list is a **selection, not the index** — it carries the decisions that
-constrain work anywhere in the system, so a reader who never opens
-`decisions/` still cannot violate one by accident. A decision scoped to one
-subsystem belongs in that feature's spec instead, and
-[`decisions/README.md`](decisions/README.md) is the complete list. Say which
-side a new ADR falls on when you write it; the omissions below are deliberate,
-and stating the rule is what keeps them distinguishable from neglect.
+This list is a **selection, not the index**: the decisions that constrain work
+anywhere in the system. A decision scoped to one subsystem belongs in that
+feature's spec, and [`decisions/README.md`](decisions/README.md) is the complete
+list; the omissions below are deliberate.
 
 - [ADR-000](decisions/adr-000-spec-driven-development.md) — Spec-Driven Development
   as the working method (enforced, not optional).
@@ -804,11 +606,8 @@ and stating the rule is what keeps them distinguishable from neglect.
   in the codec, the numbers in `state/limits.ts`), and **no `Clock` subscriber can
   wedge the transport** — `tick()` isolates each listener and advances anyway.
 - [ADR-017](decisions/adr-017-modulation-in-graph.md) — **modulation lives in the
-  audio graph, automation lives on the bus**, and the boundary is *whether the
-  destination has a real `AudioParam`*: an audio-rate signal source sums into one
-  through a per-route `GainNode`, while a timeline or gesture writes any
-  registered param via `bus.set`. A destination with no node (`pulse`) is
-  therefore not offered by the mod matrix at all.
+  audio graph, automation lives on the bus**; the boundary is whether the
+  destination has a real `AudioParam`.
 - [ADR-019](decisions/adr-019-the-bar-is-a-tick-count.md) — the bar is a **tick
   count**, not a time signature, and every lane's cell index is a pure function
   of `clock.step` (which is what makes a 12- or 14-tick lane survive a seek).
