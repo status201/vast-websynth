@@ -195,9 +195,8 @@ thing.
   - Empty gaps are **cap-sized invisible spacers**, not margins, and caps have a
     fixed width (only multi-character caps grow), so the half-cap offset is exact
     by construction.
-  - The cell class is **`.combo`, not `.key`** — `.key` is also the Debug
-    section's left-column class ([debug-panel](debug-panel.md)), where the
-    monospace label treatment is still correct.
+  - The cell class is **`.combo`, not `.key`**, which is the Debug section's
+    left column ([debug-panel](debug-panel.md)).
 
 - **REQ-about-is-the-single-door-for-help** (v15) — **About is the single door
   for help.** With the chooser modal gone, the About modal carries a full-width
