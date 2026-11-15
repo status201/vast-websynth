@@ -39,7 +39,7 @@ import { RecorderController } from './recorder/recorder-controller';
 import { BankRenderController } from './recorder/bank-render';
 import { ClipPreview } from './recorder/clip-preview';
 import { PatternStore, DRUM_TRACK_COUNT, SEQ_TRACK_COUNT, MOTION_TRACK_COUNT, SAMPLER_SLOT_COUNT } from '../state/patterns';
-import { barTicks } from '../state/meter';
+import { barTicks, ticksPerBeat } from '../state/meter';
 import { XyPadStore } from '../state/xy-pad';
 import { IosAudioSession, type IosAudioDiagnostics } from './ios-audio-session';
 import { MediaSessionKeepAlive, transportMediaHandlers, type MediaSessionDiagnostics } from './media-session';
@@ -750,6 +750,12 @@ export class Engine {
    */
   get barTicks(): number {
     return barTicks(this.bus.get('transport.beats'), this.bus.get('transport.beatUnit'));
+  }
+
+  /** One beat in 16th ticks, as `transport.beatUnit` says it — what the
+   *  metronome counts (metronome.md REQ-beats-follow-the-transport-while-playing). */
+  get beatTicks(): number {
+    return ticksPerBeat(this.bus.get('transport.beatUnit'));
   }
 
   /**

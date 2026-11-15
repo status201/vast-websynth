@@ -3,7 +3,7 @@
 ```yaml
 id: responsive-machine-header
 status: implemented
-version: 5
+version: 6
 owner: ui
 related:
   - responsive-header
@@ -12,9 +12,11 @@ related:
   - sampler
   - banks
   - step-grid-editing
+  - sample-recorder        # what the Sampler's record button opens
 source:
   - src/ui/styles/panel.module.css   # .patternPanelHeader wrap + .fxCluster
-  - src/ui/panels/sampler-panel.ts    # DIRT / PHASER·FLANGER·CHORUS / DELAY / REVERB / DUCK cluster
+  - src/ui/panels/sampler-panel.ts    # DIRT / PHASER·FLANGER·CHORUS / DELAY / REVERB / DUCK cluster; the record button
+  - src/ui/styles/sampler.module.css  # .headerRow / .rec
   - src/ui/panels/drum-panel.ts       # COMP (+GR meter) / PHASER / DELAY / REVERB cluster
 ```
 
@@ -148,6 +150,18 @@ somewhere predictable rather than mid-cluster.
   (`.addRow`) wraps the same way for the same reason. No bank is hidden, paged or
   collapsed ([banks](banks.md) REQ-the-bank-bar-wraps-rather-than-pages).
 
+- **REQ-the-record-button-holds-the-top-right** (v6) — **The Sampler's `Record a
+  sound` button is not a header item.** It is a prominent button (mic icon +
+  label, at least 32 px tall, the secondary accent) beside the header, in a
+  `.headerRow` wrapper: the header takes `flex: 1; min-width: 0` and the button
+  `flex: none`, aligned to the top. So it holds the **top-right corner of the
+  Sampler tab** at any width above 720 px, however many rows the header wraps
+  onto. At ≤720 px the wrapper turns into a column and the button becomes the
+  header's **last, full-width row**, a thumb-sized target under everything
+  else. It keeps its `sampler-record` testid
+  (REQ-machine-header-testids-are-preserved), and the row never overflows
+  (REQ-machine-header-wraps-at-every-width).
+
 ## Technical design
 
 ### Contract / public interface
@@ -222,19 +236,24 @@ no `ParamBus` param or `SongFile` field is involved.
 ## Visual aids
 
 ```
- WIDE (>1140px) — unchanged, one row:
-┌──────────────────────────────────────────────────────┐
-│ [SAMPLER] (M) [FOLLOW][A B C D][COPY] [UNDO] [Rec]   │
-│                    │DIRT ●  │PHASER ● ○ ○ ○ ○        │
-└──────────────────────────────────────────────────────┘
+ WIDE (>1140px) — one row, record button pinned top-right:
+┌──────────────────────────────────────────────────────────────┐
+│ [SAMPLER] (M) [FOLLOW][A B C D][COPY] [UNDO] [CLEAR] │DIRT ● │ [● RECORD A SOUND] │
+└──────────────────────────────────────────────────────────────┘
 
- NARROW (≤1140px) — deterministic two units:
+ NARROW (≤1140px) — deterministic two units, button still top-right:
+┌───────────────────────────────────────────────────────┐
+│ [SAMPLER] (M) [FOLLOW][A B C D]     │ [● RECORD A SOUND] │
+│ [COPY] [UNDO] [CLEAR]               │                    │
+├─────────────────────────────────────┤                    │
+│ │DIRT ● ○ ○ ○   │PHASER ● ○ ○ ○ ○   │                    │
+└───────────────────────────────────────────────────────┘
+
+ PHONE (≤720px) — the button is the last, full-width row:
 ┌────────────────────────────────────┐
-│ [SAMPLER] (M) [FOLLOW][A B C D]    │  machine controls
-│ [COPY] [UNDO] [Record a sound]     │  (wrap among themselves)
-├────────────────────────────────────┤
-│ │DIRT ● ○ ○ ○   │PHASER ● ○ ○ ○ ○  │  .fxCluster, flex-basis:100%
-│ │DELAY ●        │REVERB ●          │  (wraps internally)
+│ [SAMPLER] (M) [FOLLOW][A B C D]    │
+│ │DIRT ● ○ ○ ○   │PHASER …          │
+│ [●  RECORD A SOUND               ] │
 └────────────────────────────────────┘
 ```
 
@@ -278,6 +297,16 @@ Scenario: A sixteen-bank machine still fits a phone (v5, REQ-the-bank-segment-wr
   Then the panel does not scroll horizontally
   And bank P is visible below bank A's row
 # pinned by: e2e/banks.spec.ts
+
+Scenario: The record button holds the top-right corner (REQ-the-record-button-holds-the-top-right)
+  Given the Sampler tab is selected
+  When the viewport is 1280px or 1024px wide
+  Then the sampler-record button's right edge is the header row's right edge
+  And its top is level with the machine switch's row
+  When the viewport is 375px wide
+  Then the button sits below every other header control and spans the row
+  And the panel does not scroll horizontally
+# pinned by: e2e/machine-header.spec.ts
 
 Scenario: A bypassed effect still anchors its help badge (regression)
   Given fx.sampler.reverb.on is 0 (the default)

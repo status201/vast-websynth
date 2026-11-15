@@ -17,7 +17,7 @@ related:
   - transport            # REQ-visibility-gating-is-for-pixels-not-sound — the worker-timer guarantee it generalises
   - oscillators          # REQ-immutable-artefacts-are-shared — the PWM duty bank, the worked example
   - lazy-load-failure    # REQ-boot-cost-matches-the-request — what a deferred surface says when its load fails
-  - scratch              # REQ-no-work-for-offscreen-dom — a folded section counts as off screen
+  - scratch              # REQ-no-work-for-offscreen-dom — a hidden tab counts as off screen
 source:
   - src/state/params.ts
   - src/state/song.ts
@@ -197,11 +197,12 @@ so a reviewer has something concrete to hold a new feature against.
   REQ-visibility-gating-is-for-pixels-not-sound for the loops it must never be
   applied to.
 
-  A **folded** section counts as off screen. The sample editor's scratch graph
-  ([scratch](scratch.md) REQ-the-preview-lane-remaps-cached-peaks) re-derives its source peaks from the selection,
-  which a crop drag would otherwise pay for on every pointermove with the section
-  closed; it is gated on the fold and re-synced from the collapse toggle's own
-  change callback, which fires on reveal.
+  A **folded** section, or a tab that is not showing, counts as off screen. The
+  sample studio's scratch graph ([scratch](scratch.md)
+  REQ-the-preview-lane-remaps-cached-peaks) re-derives its source peaks from the
+  selection, which a crop drag would otherwise pay for on every pointermove with
+  another tab showing; it is gated on the Scratch tab being active and re-synced
+  when the tab is picked.
 
 - **REQ-automation-is-not-an-edit** — **Automation is not an edit.** A param
   write made by the machine (motion-sequencer automation, a Tape Stop pitch

@@ -31,13 +31,11 @@ async function loadClip(page: Page, slot = 0, name = 'break.wav'): Promise<void>
   await expect(page.getByTestId(`sampler-name-${slot}`)).toHaveText(name);
 }
 
-/** Open the editor and unfold the scratch section, which starts collapsed. */
+/** Open the editor and pick the Scratch tab (the editor opens on Effects). */
 async function openScratch(page: Page, slot = 0): Promise<void> {
   await page.getByTestId(`sampler-edit-${slot}`).click();
-  await expect(page.getByTestId('scratch-section')).toBeVisible();
-  const body = page.getByTestId('scratch-body');
-  if (!(await body.isVisible())) await page.getByTestId('scratch-toggle').click();
-  await expect(body).toBeVisible();
+  await page.getByTestId('ptab-sample-scratch').click();
+  await expect(page.getByTestId('scratch-graph')).toBeVisible();
 }
 
 /**
@@ -104,10 +102,10 @@ test.describe('scratch', () => {
     expect(await slotDuration(page, 0)).toBeCloseTo(1.7, 2);
   });
 
-  test('the section starts folded away (REQ-the-scratch-editor-is-a-modal-section)', async ({ page }) => {
+  test('the scratch editor waits on its tab (REQ-the-scratch-editor-is-a-modal-section)', async ({ page }) => {
     await loadClip(page);
     await page.getByTestId('sampler-edit-0').click();
-    await expect(page.getByTestId('scratch-section')).toBeVisible();
-    await expect(page.getByTestId('scratch-body')).toBeHidden();
+    await expect(page.getByTestId('ptab-sample-scratch')).toBeVisible();
+    await expect(page.getByTestId('scratch-graph')).toBeHidden();
   });
 });

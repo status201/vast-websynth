@@ -146,6 +146,23 @@ export const UI_ICONS = {
    *  the whole app on the device (play-offline.md REQ-one-offline-state-machine-many-views). */
   download: icon('<path d="M8 2.5 V9.5"/><path d="M4.8 6.6 L8 9.8 L11.2 6.6"/><path d="M2.5 10.5 V13 H13.5 V10.5"/>'),
 
+  /** 🎙 — the Sampler's Record a sound (sample-recorder.md): a capsule on a
+   *  stand, the cradle drawn as an open arc so it reads at 12px. */
+  mic: icon(
+    '<rect x="5.8" y="1.8" width="4.4" height="7.6" rx="2.2"/>' +
+    '<path d="M3.6 7.6 A4.4 4.4 0 0 0 12.4 7.6"/>' +
+    '<path d="M8 12 V14.2"/><path d="M5.6 14.2 H10.4"/>',
+  ),
+
+  /** ● — the studio's Record face and its REC readout. Solid, like a tape deck's. */
+  record: icon('<circle class="fill" cx="8" cy="8" r="4.6"/>'),
+
+  /** ■ — Stop, wherever a take or the transport is stopped from the studio. */
+  stop: icon('<rect class="fill" x="4" y="4" width="8" height="8" rx="1"/>'),
+
+  /** ▶ — Play, on the studio's transport strip and its Play selection. */
+  play: icon('<path class="fill" d="M5 3.2 L12.6 8 L5 12.8 Z"/>'),
+
   // — section headings (section-title.md REQ-heading-is-icon-then-text). No character stood in for
   //   these; they are drawn at ~14px, which is what the detail is sized for. —
 

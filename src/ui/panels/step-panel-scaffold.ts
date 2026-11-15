@@ -582,17 +582,37 @@ export function samplerSlotClearRow(engine: StudioApi, undo: PatternUndo, slot: 
  * back the same `AudioBuffer`, so nothing is re-decoded.
  */
 export function ejectSamplerFile(engine: StudioApi, slot: number): (() => void) | null {
+  if (!samplerSlotFilled(engine, slot)) return null;
+  const restore = snapshotSamplerSlot(engine, slot);
+  writeSamplerSlot(engine, slot, null, null);
+  return restore;
+}
+
+/** Whether a sampler slot holds anything — audio, or a name waiting for its
+ *  file (sampler.md REQ-a-filled-slot-offers-del-not-load). */
+export function samplerSlotFilled(engine: StudioApi, slot: number): boolean {
+  return engine.sampler.buffers[slot] != null || engine.patterns.sampleNames[slot] != null;
+}
+
+/**
+ * Write a slot's audio and name together. Buffer first, then the name: the
+ * meta event is what repaints the row label, and it reads `buffers[slot]` for
+ * the .needs-reload hint.
+ */
+export function writeSamplerSlot(
+  engine: StudioApi, slot: number, buffer: AudioBuffer | null, name: string | null,
+): void {
+  engine.sampler.setBuffer(slot, buffer);
+  engine.patterns.setSampleName(slot, name);
+}
+
+/** Capture a slot's audio and name; the returned function puts both back. The
+ *  one reversal every slot-filling action's Undo uses (sampler.md, sample-chop.md
+ *  REQ-spreading-is-confirmed-then-reversible, sample-recorder.md REQ-one-primary-action-per-screen). */
+export function snapshotSamplerSlot(engine: StudioApi, slot: number): () => void {
+  const buffer = engine.sampler.buffers[slot] ?? null;
   const name = engine.patterns.sampleNames[slot] ?? null;
-  const buf = engine.sampler.buffers[slot] ?? null;
-  if (name === null && buf === null) return null;
-  // Buffer first, then the name: the meta event is what repaints the row
-  // label, and it reads `buffers[slot]` for the .needs-reload hint.
-  if (buf) engine.sampler.setBuffer(slot, null);
-  if (name !== null) engine.patterns.setSampleName(slot, null);
-  return () => {
-    if (buf) engine.sampler.setBuffer(slot, buf);
-    if (name !== null) engine.patterns.setSampleName(slot, name);
-  };
+  return () => writeSamplerSlot(engine, slot, buffer, name);
 }
 
 /**

@@ -630,8 +630,6 @@ localStorage:
                                   # ui/components/tabs.ts (features/equalizer.md REQ-the-eq-section-is-a-folded-tab-container)
   websynth.ui.collapsed.seqtrack.<t> : per-seq-track fold state # ui/panels/seq-panel.ts — one key per track
   websynth.ui.collapsed.motiontrack.<i> : per-motion-lane fold state # ui/panels/motion-panel.ts (features/lane-fold.md)
-  websynth.ui.collapsed.sample-<chop|stretch|scratch> : the Edit Sample modal's three section folds
-                                                        # ui/components/record-sound-modal.ts (features/sample-recorder.md REQ-every-section-below-the-waveform-folds)
   websynth.ui.scope.height : scope panel height in px, 130..260 # state/scope-height.ts — device-scoped workspace pref, NOT a patch param
   websynth.ui.window.transport.width : TRANSPORT window width in px; absent = automatic  # state/size-pref.ts (features/transport-window.md)
   websynth.ui.window.xypad.size      : XY Pad side in px, 240..960; absent = 240         # state/size-pref.ts (features/xy-pad.md)

@@ -33,7 +33,20 @@ function makeCtx() {
   const ctx = makeMockAudioContext() as unknown as Record<string, unknown>;
   ctx.destination = { connect: vi.fn(), disconnect: vi.fn() };
   ctx.createMediaStreamSource = vi.fn(() => ({ connect: vi.fn(), disconnect: vi.fn() }));
-  return ctx as unknown as AudioContext & { createMediaStreamSource: ReturnType<typeof vi.fn> };
+  // The meter's tap (sample-recorder.md REQ-the-mic-opens-with-the-studio): a
+  // window that reads as a steady ±0.5 square, so peak and RMS are both 0.5.
+  ctx.createAnalyser = vi.fn(() => ({
+    fftSize: 2048,
+    connect: vi.fn(),
+    disconnect: vi.fn(),
+    getFloatTimeDomainData: vi.fn((a: Float32Array) => {
+      for (let i = 0; i < a.length; i++) a[i] = i % 2 ? 0.5 : -0.5;
+    }),
+  }));
+  return ctx as unknown as AudioContext & {
+    createMediaStreamSource: ReturnType<typeof vi.fn>;
+    createAnalyser: ReturnType<typeof vi.fn>;
+  };
 }
 
 /** Replace `navigator.mediaDevices` (absent in jsdom, and read-only when present). */
@@ -182,6 +195,35 @@ describe('a live mic session', () => {
     for (const t of tracks) expect(t.stop).toHaveBeenCalledTimes(1);
     // Cancel, save and re-open all reach dispose; a second pass must be inert.
     expect(recorderStub.dispose).toHaveBeenCalledTimes(1);
+  });
+
+  it('level() reads the mic through its analyser, and stops reading once disposed', async () => {
+    const { stream } = fakeStream();
+    stubMediaDevices({ getUserMedia: vi.fn(async () => stream) });
+    const ctx = makeCtx();
+
+    const session = await openMicSession(ctx);
+    const lv = session.level();
+    expect(lv.peak).toBeCloseTo(0.5);
+    expect(lv.rms).toBeCloseTo(0.5);
+
+    session.dispose();
+    const analyser = ctx.createAnalyser.mock.results[0]!.value;
+    // REQ-the-recorder-node-is-released-with-the-session covers the level tap too.
+    expect(analyser.disconnect).toHaveBeenCalled();
+    expect(session.level()).toEqual({ peak: 0, rms: 0 });
+  });
+
+  it('startedAt is the context time the take was armed at', async () => {
+    const { stream } = fakeStream();
+    stubMediaDevices({ getUserMedia: vi.fn(async () => stream) });
+    const ctx = makeCtx();
+    (ctx as unknown as { currentTime: number }).currentTime = 3.25;
+
+    const session = await openMicSession(ctx);
+    expect(session.startedAt).toBe(0);
+    session.start();
+    expect(session.startedAt).toBe(3.25);
   });
 
   it('start() is idempotent while armed, so a double tap records one take', async () => {

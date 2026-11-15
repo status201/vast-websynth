@@ -19,6 +19,14 @@ export function removeModal(m: object): void {
   if (at >= 0) stack.splice(at, 1);
 }
 
+/** True when the event originates inside an editable field, where keystrokes
+ *  must reach the field rather than act as a shortcut — the global ones, or a
+ *  dialog's own (input-control.md). CSS-free here so both can import it. */
+export function isEditableTarget(e: Event): boolean {
+  const t = e.target as HTMLElement | null;
+  return !!t?.closest?.('input, textarea, [contenteditable="true"]');
+}
+
 /** Whether `m` is the top modal — the only one that answers Escape. */
 export function isTopModal(m: object): boolean {
   return stack[stack.length - 1] === m;

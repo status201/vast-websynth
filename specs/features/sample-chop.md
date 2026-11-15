@@ -3,7 +3,7 @@
 ```yaml
 id: sample-chop
 status: implemented
-version: 2
+version: 3
 owner: core
 related:
   - sampler
@@ -14,12 +14,11 @@ related:
   - toast
   - untrusted-input
   - dropdown
-  - iconography          # REQ-chop-row-lives-in-a-folded-section's caret is an inline SVG, not a character
+  - panel-tabs           # REQ-chop-row-lives-in-a-tab's strip
   - testids
 source:
   - src/audio/recorder/buffer-dsp.ts        # sliceEqual / detectOnsets (pure)
   - src/ui/components/record-sound-modal.ts # the chop row, markers, Spread
-  - src/ui/components/collapse-toggle.ts    # REQ-chop-row-lives-in-a-folded-section's fold
   - src/audio/transport/sampler-machine.ts  # setBuffer — the one fill path
 ```
 
@@ -115,17 +114,17 @@ existing eight-lane grid.
   attack, and only one of those is still a chop. A test asserting "within a few
   ms" passes either way, which is why the ones here assert the direction.
 
-- **REQ-chop-row-lives-in-a-folded-section** — (v2) **The chop row lives inside
-  a folded, titled section** headed `Chop`, alongside the modal's other two —
-  the shape and its rules are [sample-recorder](sample-recorder.md) REQ-every-section-below-the-waveform-folds, which
-  owns them for all three. What this spec owns is the consequence: the row is
-  **folded on a first open**, so the chop is something the user goes to rather
-  than something the editor opens with.
+- **REQ-chop-row-lives-in-a-tab** — (v3) **The chop row is the studio's `Chop`
+  tab** — the tab strip and its rules are [sample-recorder](sample-recorder.md)
+  REQ-the-tools-are-tabs. What this spec owns is the consequence: the editor
+  opens on Effects, so the chop is something the user goes to rather than
+  something the editor opens with.
 
-  The **boundary markers are not part of the fold**. They are strokes on the
-  waveform this modal already draws (REQ-two-ways-to-place-the-cuts), and the waveform is above every
-  section — so a chop laid out and then folded away stays visible and stays
-  draggable. Folding the row hides the *controls*, never the cut.
+  The **boundary markers are not part of the tab**. They are strokes on the
+  waveform the studio already draws (REQ-two-ways-to-place-the-cuts), and the
+  waveform is above every tab — so a chop laid out and then left for another tab
+  stays visible and stays draggable. Switching tabs hides the *controls*, never
+  the cut.
 
 ## Technical design
 
@@ -159,8 +158,8 @@ prev: Array<{ slot: number; buffer: AudioBuffer | null; name: string | null }>
 
 ```yaml
 record-sound-modal.ts:
-  chop section (below the cutoff row), a fold — see sample-recorder.md REQ-every-section-below-the-waveform-folds:
-    head `Chop` + caret; body holds the chop row
+  the `Chop` tab — see sample-recorder.md REQ-the-tools-are-tabs:
+    its page holds the chop row
   chop row: Dropdown(counts) · Detect · Spread to slots
   markers drawn by `redraw`, dragged on the canvas — the hit test checks markers
     BEFORE the crop handles, which are separate DOM elements and keep priority
@@ -181,44 +180,37 @@ destructive edit in this modal already makes.
 ## Visual aids
 
 ```
-editor modal, below the cutoff row — folded on a first open (REQ-chop-row-lives-in-a-folded-section)
-+-----------------------------------------------------------------+
-| CHOP                                                          v  |
-|.................................................................|
+the studio's Chop tab (REQ-chop-row-lives-in-a-tab)
+|  .:iI|Ii:.  |  .:iI|Ii:.  |  .:iI|Ii:.  |  .:iI|Ii:.  |   <- markers, on every tab
+  effects : CHOP : fit & shift : scratch
 | Chop: 4 slices -> S1-S4      [4 slices v] [Chop][Detect][Spread] |
-+-----------------------------------------------------------------+
-
-folded, the boundaries stay on the waveform above it:
-|  .:iI|Ii:.  |  .:iI|Ii:.  |  .:iI|Ii:.  |  .:iI|Ii:.  |   <- markers
-| CHOP                                                          >  |
 ```
 
 ### Gesture inventory (ADR-014)
 
 | Control | Tap / click | Drag | Long press | Double | Keyboard |
 | --- | --- | --- | --- | --- | --- |
-| `chop-head` (the whole title row) | folds / unfolds the section | — | — | — | — |
-| `chop-toggle` (the caret) | the same, and only that | — | — | — | Enter/Space when focused |
+| `ptab-sample-chop` | shows the chop row | — | — | — | Enter/Space when focused |
 | a boundary marker on the waveform | — | moves the cut (REQ-two-ways-to-place-the-cuts) | — | — | — |
 | `chop-count` | opens the list | — | — | — | inherited from [dropdown](dropdown.md) |
 | `chop-equal` | cuts the selection into equal slices | — | — | — | Enter/Space when focused |
 | `chop-detect` | cuts at detected onsets | — | — | — | Enter/Space when focused |
 | `chop-spread` | confirms, then fills the slots | — | — | — | Enter/Space when focused |
 
-A `—` is a decision. The header and caret are one gesture, one outcome (ADR-014
-law 2). Only the markers are continuous, and a second press is a second, undoable
-chop. Precedent (law 4): `createCollapseToggle`, and the crop handles' own drag.
+A `—` is a decision. Only the markers are continuous, and a second press is a
+second, undoable chop. Precedent (law 4): `createPanelTabs`, and the crop
+handles' own drag.
 
 ## Scenarios (BDD)
 
 ```gherkin
-Scenario: The chop row is folded away until asked for (v2, REQ-chop-row-lives-in-a-folded-section)
+Scenario: The chop row waits on its tab (REQ-chop-row-lives-in-a-tab)
   Given a slot holding audio
-  When the user opens it in the editor for the first time
-  Then the Chop header is visible and the chop row is not
-  When the user clicks the header
+  When the user opens it in the editor
+  Then the Chop tab is visible and the chop row is not
+  When the user picks the Chop tab
   Then the chop row appears with its slice count and its buttons
-# pinned by: e2e/sample-editor-folds.spec.ts, e2e/sample-chop.spec.ts
+# pinned by: e2e/sample-editor-tabs.spec.ts, e2e/sample-chop.spec.ts
 
 Scenario: Chop a break into four and play the pieces
   Given a 2 s loop is loaded in the editor
@@ -284,8 +276,8 @@ Scenario: Declining the confirmation changes nothing (REQ-spreading-is-confirmed
 - Unit: `tests/audio/buffer-dsp.test.ts` — `sliceEqual`, `sliceRanges`,
   `detectOnsets` against synthetic material with known onsets.
 - E2E: `e2e/sample-chop.spec.ts` — the chop row, the fitted count, spread, its
-  confirmation and its undo. Its `openEditor` helper unfolds the section first
-  (REQ-chop-row-lives-in-a-folded-section); `e2e/sample-editor-folds.spec.ts` is what asserts the fold itself.
+  confirmation and its undo. Its `openEditor` helper picks the tab first
+  (REQ-chop-row-lives-in-a-tab); `e2e/sample-editor-tabs.spec.ts` is what asserts the tabs themselves.
 - **By ear** ([ADR-010](../decisions/adr-010-musical-stable-cheap-dsp.md)): a chop
   is only right if the slices *start on the hit*. Render one with
   `npm run bench:audio -- --sample <break.wav> --slot 0 --hits 4` and listen for a

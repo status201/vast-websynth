@@ -20,13 +20,18 @@ export function cloneCaptured(a: CapturedAudio): CapturedAudio {
   return { left: a.left.slice(), right: a.right.slice(), sampleRate: a.sampleRate };
 }
 
+/** Frames both channels hold — a take's length. */
+export function capturedFrames(a: CapturedAudio): number {
+  return Math.min(a.left.length, a.right.length);
+}
+
 /**
  * Keep samples `[startSample, endSample)`. Indices are clamped to the buffer;
  * an invalid (empty/reversed) range is a no-op (returns a clone) so callers
  * never get a zero-length buffer that would break playback/encoding.
  */
 export function crop(a: CapturedAudio, startSample: number, endSample: number): CapturedAudio {
-  const len = Math.min(a.left.length, a.right.length);
+  const len = capturedFrames(a);
   const s = Math.max(0, Math.min(Math.floor(startSample), len));
   const e = Math.max(0, Math.min(Math.floor(endSample), len));
   if (e <= s) return cloneCaptured(a);
@@ -108,7 +113,7 @@ export function fadeOut(a: CapturedAudio, ms: number): CapturedAudio {
  */
 export function computePeaks(a: CapturedAudio, width: number): Float32Array {
   const out = new Float32Array(Math.max(0, width) * 2);
-  const len = Math.min(a.left.length, a.right.length);
+  const len = capturedFrames(a);
   if (width <= 0 || len === 0) return out;
   for (let c = 0; c < width; c++) {
     const start = Math.floor((c / width) * len);
@@ -184,7 +189,7 @@ const ONSET_BACKOFF_FRAMES = 3;
 
 /** Interior boundaries dividing `[from, to)` into `n` equal slices. */
 export function sliceEqual(a: CapturedAudio, n: number, from = 0, to = -1): number[] {
-  const len = Math.min(a.left.length, a.right.length);
+  const len = capturedFrames(a);
   const s = Math.max(0, Math.min(Math.floor(from), len));
   const e = to < 0 ? len : Math.max(s, Math.min(Math.floor(to), len));
   const count = Math.max(1, Math.floor(n));
@@ -230,7 +235,7 @@ export interface OnsetOptions {
  * can drag every boundary anyway, sample-chop.md REQ-two-ways-to-place-the-cuts).
  */
 export function detectOnsets(a: CapturedAudio, opts: OnsetOptions = {}): number[] {
-  const len = Math.min(a.left.length, a.right.length);
+  const len = capturedFrames(a);
   const from = Math.max(0, Math.min(Math.floor(opts.from ?? 0), len));
   const to = Math.max(from, Math.min(Math.floor(opts.to ?? len), len));
   const maxSlices = Math.max(1, Math.floor(opts.maxSlices ?? 8));
