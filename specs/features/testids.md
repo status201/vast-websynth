@@ -377,6 +377,8 @@ shared UI:
                                                     # features/audio-lifecycle.md REQ-a-stuck-context-is-visible
   lazy-load-failed-toast                            # a deferred surface's import()
                                                     #   rejected (onboarding.md REQ-the-help-door-never-fails-silently)
+  version-skew-toast · version-skew-takeover-toast  # a newer release outran this tab
+                                                    # features/version-skew.md
   empty-play-modal · empty-play-demo · empty-play-dismiss · empty-play-close
                                                     # features/empty-play-hint.md
   perf-settings · perf-status · perf-mode · perf-mode-<tier> · perf-reload ·

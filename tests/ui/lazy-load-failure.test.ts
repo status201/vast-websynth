@@ -33,6 +33,17 @@ import type { WebRtcSyncTransport } from '../../src/audio/transport/sync/webrtc-
  */
 const h = vi.hoisted(() => ({ aboutFails: true, implFails: true }));
 
+// Online, a failure first asks the server which version it serves
+// (version-skew.md REQ-a-failure-asks-whether-a-newer-version-is-live). Answer
+// "unknown", so every online case here reports the failed download as before;
+// the skew branch is tests/ui/version-skew.test.ts's.
+beforeEach(() => {
+  vi.stubGlobal('fetch', async () => new Response('', { status: 404 }));
+});
+afterEach(() => {
+  vi.unstubAllGlobals();
+});
+
 // The recovery case stubs the card rather than returning the real module. Two
 // suites racing to transform the whole About graph (about-modal → about-shortcuts
 // + about-debug → patterns.ts, dropdown.ts) is enough to push about.test.ts past

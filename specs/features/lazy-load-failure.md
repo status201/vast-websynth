@@ -3,12 +3,13 @@
 ```yaml
 id: lazy-load-failure
 status: implemented
-version: 7
+version: 8
 owner: core
 related:
   - runtime-performance   # REQ-every-lazy-trigger-reports — the split that creates this failure mode
   - pwa-install           # REQ-service-worker-is-registered — the idle warm that prevents it
   - toast                 # the surface the report is rendered on
+  - version-skew          # REQ-a-stale-failure-offers-reload — the online report when a newer release is live
   - onboarding            # REQ-the-help-door-never-fails-silently — the help door, the worked example
   - presets
   - audio-export
@@ -70,6 +71,7 @@ would drift.
   | --- | --- |
   | `false` | `Couldn't open <surface> — you're offline and this part of the app isn't downloaded yet. Next time you're online, About → Play offline saves all of it.` |
   | `true` | `Couldn't open <surface> — the download failed.` |
+  | `true`, and the server serves a newer version | [version-skew](version-skew.md)'s Reload toast instead (REQ-a-stale-failure-offers-reload) |
 
   The split is not decoration: offline names a cause the user can act on
   (reconnect once and it stays available), whereas `onLine === true` only means
@@ -179,8 +181,10 @@ else catches it.
 ### Layer touchpoints & ordering
 
 - `components/lazy-load-toast.ts` imports only `toast.ts` (already in the entry
-  chunk) and the `offline-wording.ts` strings, so the helper adds no boot-path
-  weight; it must stay that way, or the report would cost every visitor more than
+  chunk), the `offline-wording.ts` strings and `version-skew-toast.ts` (itself
+  only those two plus the `live-version.ts` leaf,
+  [version-skew](version-skew.md)), so the helper adds next to no boot-path
+  weight. It must stay that way, or the report would cost every visitor more than
   the split saves.
 - Each trigger owns its own `surface` string and its own retry closure; the
   helper holds no state and no registry.

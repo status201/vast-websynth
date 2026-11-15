@@ -28,6 +28,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
   needs no rebuilds at all, at the same level as before. Above an FM amount of
   about 1, such patches sound a little different, because FM there does not run
   through zero.
+- A tab left open across an update no longer offers a **Retry** that can never
+  work. If a demo or a dialog fails to load because a newer version has been
+  published since the tab opened, it now says so and offers **Reload**. Your
+  session is kept. When the new version opens in another tab, the old one shows
+  a notice to reload.
 
 ## [2.22.0] - 2026-11-08
 

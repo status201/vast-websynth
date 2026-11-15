@@ -33,6 +33,17 @@ for long** (`Cache-Control: no-cache` is right for them):
   ([play-offline](specs/features/play-offline.md) REQ-the-build-writes-the-file-list, REQ-the-copy-survives-a-release). A stale list
   belongs to the previous version, so the refresh rejects it and the update waits.
 
+**Don't empty `assets/` when you deploy.** Copy the new `dist/` over the old one,
+and prune old files only afterwards, keeping at least the previous release's.
+A tab opened before the deploy keeps running the old release, and fetches that
+release's hashed files later: a demo song on click, a dialog's chunk on first
+open. A file whose content didn't change comes back under the same name, but
+any file that changed is gone if `assets/` was emptied, and that click 404s.
+Hashed names never collide, so leftovers cost only disk space. If a file is
+missing anyway, the old tab notices that the server is on a newer version and
+offers **Reload** instead of a Retry that can't work
+([version-skew](specs/features/version-skew.md) REQ-a-deploy-keeps-the-previous-assets).
+
 ## Security headers
 
 The **Content-Security-Policy is a `<meta>` tag in `index.html`**, so it ships

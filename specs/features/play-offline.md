@@ -238,7 +238,7 @@ offlineManifestPlugin(version): VitePlugin             # apply: build, closeBund
 
 # src/utils/offline-copy.ts  (page)
 OFFLINE_MARKER_URL: "/__offline-copy"
-OFFLINE_MANIFEST_URL: "/offline-manifest.json"
+OFFLINE_MANIFEST_URL: "/offline-manifest.json"   # re-exported from live-version.ts (version-skew.md reads it too)
 OFFLINE_CACHE_PREFIX: "websynth-"
 offlineCacheName(version): "websynth-<version>"
 parseOfflineManifest(raw: unknown, version): OfflineManifest | null

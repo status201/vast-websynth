@@ -128,7 +128,9 @@ vite-plugin-pwa/workbox), per ADR-003's precedent.
   API response has no business in a cache keyed by app version, and the accident
   stops holding the moment that endpoint ever answers a GET with 200. Caches are
   named `websynth-<version>`; `activate` purges every other `websynth-*` cache
-  and claims clients. Default guarantee: **offline-ready after the first
+  and claims clients — so a tab still on the previous release loses its cache
+  the moment the new one opens anywhere ([version-skew](version-skew.md) owns
+  what that tab then says). Default guarantee: **offline-ready after the first
   revisit/reload** (runtime caching — the build's full file list is only
   precached when the user asks, below). Runtime caching covers only the
   chunks the page actually **fetched** while online. The build is not one eager
