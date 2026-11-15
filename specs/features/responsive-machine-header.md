@@ -123,7 +123,7 @@ somewhere predictable rather than mid-cluster.
   `bank-<lane>-*`,
   `sampler-record` and `seq-step-input` are unaffected. (`motion-view-x|y` has
   since moved out of the machine header into the Motion tab's own XY-lane row —
-  see [motion-sequencer](motion-sequencer.md) REQ-each-motion-step-is-a-mini-xy-pad — so this rule no longer
+  see [motion-panel](motion-panel.md) REQ-each-motion-step-is-a-mini-xy-pad — so this rule no longer
   covers it.)
 
 - **REQ-lane-controls-are-the-second-cluster** (v3) — **`.laneControls` is the

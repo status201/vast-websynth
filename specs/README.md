@@ -308,6 +308,7 @@ specs/
     pattern-undo.md    ·  per-machine step-grid undo (button + scoped Ctrl+Z)
     arrangement.md     ·  the four chain lanes
     motion-sequencer.md ·  XY param automation machine (anchors, slide/step) + four single-param lanes
+    motion-panel.md    ·  the Motion tab: step pads (peek/snap/fine), lane headers, fold, the curve graph
     arrangement-rest.md ·  the always-empty "rest" chain slot
     performance.md     ·  live DJ FX (DJ filter/stutter/fill/drop/tape-stop)
     midi-clock-sync.md ·  master/slave transport sync over MIDI real-time (24 PPQN)

@@ -466,7 +466,7 @@ export function buildMotionPanel(
         onSet: (_x, y) => patterns.setMotionTrackStep(track, step, { on: true, v: y }),
         // Clearing returns the cell to the default step (level included), so a
         // cleared cell reads like an untouched one instead of keeping its old
-        // parked height (motion-sequencer.md REQ-single-param-lanes-below-the-xy-lane).
+        // parked height (motion-panel.md REQ-single-param-lanes-below-the-xy-lane).
         onClear: () => patterns.setMotionTrackStep(track, step, { ...MOTION_TRACK_STEP_DEFAULTS }),
         // Only y is meaningful on a level cell, so only y reaches the readout.
         onGesture: (g) =>

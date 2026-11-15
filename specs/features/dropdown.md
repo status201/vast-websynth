@@ -199,7 +199,7 @@ without anyone remembering to ask.
     containing block.
   - `opacity` on `sel.el` makes the option list transparent *and* buries it under
     neighbours. Consumers get `setDimmed` so the safe target is the easy one (as
-    [motion-sequencer](motion-sequencer.md) REQ-single-param-lanes-below-the-xy-lane
+    [motion-panel](motion-panel.md) REQ-single-param-lanes-below-the-xy-lane
     dims a lane's label, not its row).
   - A **universal** consumer subject (`.idle > *:not(:first-child)`) selects a
     picker's root as readily as a knob, so a rule whose subject is `*` (or

@@ -24,7 +24,7 @@ function build() {
   return { bus, xy, patterns, lane, eff };
 }
 
-describe('createEffectiveXy (motion-sequencer.md REQ-the-xy-window-axes-follow-motion)', () => {
+describe('createEffectiveXy (motion-panel.md REQ-the-xy-window-axes-follow-motion)', () => {
   it('resolves to the base assignment while motion is off, even with an override', () => {
     const { patterns, eff } = build();
     patterns.setMotionAssign({ x: 'fx.delay.time', y: 'fx.delay.mix' });

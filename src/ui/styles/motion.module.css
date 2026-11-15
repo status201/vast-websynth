@@ -79,7 +79,7 @@
     stroke-dasharray: 3 3;
   }
 
-  /* The XY lane's own header (motion-sequencer.md REQ-each-motion-step-is-a-mini-xy-pad): launcher, view toggle,
+  /* The XY lane's own header (motion-panel.md REQ-each-motion-step-is-a-mini-xy-pad): launcher, view toggle,
      Slide/Step, the axes it drives and the hint reading them back — one row,
      directly above its pads, so the toggle sits beside the readout it controls. */
   .xyHeader {
@@ -112,7 +112,7 @@
     color: var(--text-hint);
   }
 
-  /* Per-lane value readout (motion-sequencer.md REQ-a-motion-steps-value-is-readable-without-hovering). Permanent chrome, not a
+  /* Per-lane value readout (motion-panel.md REQ-a-motion-steps-value-is-readable-without-hovering). Permanent chrome, not a
      hover popup — the pads are far too small to carry their own label, and
      ADR-014 law 6 rules out putting the value somewhere only a mouse can reach.
      Modelled on the Knob's `.num`: a reserved height so appearing text never
@@ -134,7 +134,7 @@
     text-shadow: 0 0 6px var(--accent-glow);
   }
 
-  /* ---- extra single-param tracks (motion-sequencer.md REQ-single-param-lanes-below-the-xy-lane) ---- */
+  /* ---- extra single-param tracks (motion-panel.md REQ-single-param-lanes-below-the-xy-lane) ---- */
 
   /* Level cell: same box as the XY pad, but the value reads as a bottom-up fill
      instead of a dot, so a row of them is legible as a bar graph at a glance. */
@@ -214,7 +214,7 @@
 
   /* A folded lane keeps its whole header row — caret, param picker, STEP/SLIDE,
      readout — so it can still be assigned and reopened; only the cells and the
-     graph go away (motion-sequencer.md REQ-an-empty-motion-lane-starts-folded). */
+     graph go away (motion-panel.md REQ-an-empty-motion-lane-starts-folded). */
   .trackBody { min-width: 0; }
   .folded .trackBody { display: none; }
 

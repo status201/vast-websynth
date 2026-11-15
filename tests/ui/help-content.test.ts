@@ -47,7 +47,7 @@ describe('help-content sync topics', () => {
   });
 });
 
-/** The Motion machine topic (onboarding.md REQ-a-motion-topic-anchors-to-the-tab / motion-sequencer.md REQ-each-motion-step-is-a-mini-xy-pad). */
+/** The Motion machine topic (onboarding.md REQ-a-motion-topic-anchors-to-the-tab / motion-panel.md REQ-each-motion-step-is-a-mini-xy-pad). */
 describe('help-content motion topic', () => {
   it('has a `motion` topic explaining the Y/X graph view', () => {
     const t = HELP_TOPICS['motion'];

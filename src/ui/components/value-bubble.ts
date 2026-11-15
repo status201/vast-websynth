@@ -4,7 +4,7 @@ import { localRect, viewportWidth } from '../ui-scale';
 /**
  * A transient value readout pinned above the control under the pointer, for
  * gestures whose target is too small to carry its own label — the motion
- * sequencer's 16-per-lane pads (motion-sequencer.md REQ-a-motion-steps-value-is-readable-without-hovering).
+ * sequencer's 16-per-lane pads (motion-panel.md REQ-a-motion-steps-value-is-readable-without-hovering).
  *
  * Deliberately **not** a hover tooltip: it exists only while a gesture is
  * running, and disappears on release. The always-visible half of that

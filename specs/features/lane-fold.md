@@ -36,7 +36,7 @@ them. The sequencer met it first at v3, when tracks 2–4 arrived
 auto-reveal list, about thirty lines.
 
 The motion sequencer then hit the identical problem going from two single-param
-lanes to four ([motion-sequencer](motion-sequencer.md)
+lanes to four ([motion-panel](motion-panel.md)
 REQ-an-empty-motion-lane-starts-folded). Copying thirty lines is how the two
 would start disagreeing — on the storage key's shape, on whether clearing a lane
 re-folds it, on which caret is drawn — so the behaviour is extracted here and
@@ -83,7 +83,7 @@ Both survive; they answer different questions.
   it would have been. The component cannot enforce this (it never touches either
   half), so it is written down here and both consumers are checked against it:
   the motion panel splits `paintHeader` from `paintBody`
-  ([motion-sequencer](motion-sequencer.md) REQ-a-folded-motion-lane-does-no-repaint), and the
+  ([motion-panel](motion-panel.md) REQ-a-folded-motion-lane-does-no-repaint), and the
   sequencer's header carries only a mute Switch, which is bus-bound and repaints
   itself.
 

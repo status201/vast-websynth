@@ -13,7 +13,7 @@ function bank(anchors: Record<number, { x: number; y: number }>): MotionStep[] {
 /** Anchor-centre x in viewBox space. */
 const cx = (s: number): number => ((s + 0.5) / 16) * 100;
 
-describe('motionGraphPoints (motion-sequencer.md REQ-each-motion-step-is-a-mini-xy-pad)', () => {
+describe('motionGraphPoints (motion-panel.md REQ-each-motion-step-is-a-mini-xy-pad)', () => {
   it('slide mode returns the plain anchor polyline', () => {
     const b = bank({ 2: { x: 0.25, y: 1 }, 10: { x: 0.75, y: 0 } });
     const { line, dots } = motionGraphPoints(b, 'y', 'slide');

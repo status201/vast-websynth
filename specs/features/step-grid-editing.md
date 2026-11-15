@@ -97,9 +97,9 @@ parameter locks, Push step detail). Bulk deletion is one menu item with one undo
   what was cleared, with **Undo** wired to the machine's `PatternUndo`.
 - **REQ-motion-keeps-its-own-gesture** — Motion cells are mini XY pads where a press
   *is* a value. So tap / hold / paint do not apply: drag-to-set and double-tap-to-clear
-  stay ([motion-sequencer](motion-sequencer.md) REQ-each-motion-step-is-a-mini-xy-pad).
+  stay ([motion-panel](motion-panel.md) REQ-each-motion-step-is-a-mini-xy-pad).
   Hold carries the same *meaning*, inspect without disturbing: the pad's commit is
-  deferred ([motion-sequencer](motion-sequencer.md)
+  deferred ([motion-panel](motion-panel.md)
   REQ-the-pads-gesture-set-peek-snap-fine), so a held press reads the value. Motion
   takes the Clear menu, single-entry undo and the toast. **`Delete` does not reach
   it**: with no cursor it would act on invisible "last touched" state (law 5), and

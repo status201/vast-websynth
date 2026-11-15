@@ -8,7 +8,7 @@ const def = (over: Partial<ParamDef>): ParamDef => ({
 } as ParamDef);
 
 /**
- * Pins the fallback chain lifted out of `Knob` (motion-sequencer.md REQ-a-motion-steps-value-is-readable-without-hovering), so
+ * Pins the fallback chain lifted out of `Knob` (motion-panel.md REQ-a-motion-steps-value-is-readable-without-hovering), so
  * the knobs and the motion readout keep describing a parameter identically.
  */
 describe('formatParam', () => {

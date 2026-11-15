@@ -11,7 +11,7 @@ import type { UiBridge } from '../../src/ui/ui-bridge';
 import { installLocalStorageMock } from '../storage-mock';
 
 /**
- * The Motion panel's cost gate — motion-sequencer.md REQ-the-ab-lane-repaint-is-gated-on-visibility,
+ * The Motion panel's cost gate — motion-panel.md REQ-the-ab-lane-repaint-is-gated-on-visibility,
  * runtime-performance.md REQ-no-work-for-offscreen-dom.
  *
  * A lane repaint clears and rebuilds an SVG polyline plus up to 16 circles and
@@ -216,7 +216,7 @@ describe('Motion panel draws on the lane, not the bank (REQ-the-motion-graph-fol
 
 
 /**
- * The fold — motion-sequencer.md REQ-an-empty-motion-lane-starts-folded and
+ * The fold — motion-panel.md REQ-an-empty-motion-lane-starts-folded and
  * REQ-a-folded-motion-lane-does-no-repaint, over lane-fold.md's component.
  *
  * Read the fold off the button's `title` rather than off a CSS-Module class:

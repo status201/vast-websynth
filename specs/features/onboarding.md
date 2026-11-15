@@ -170,7 +170,7 @@ thing.
   copy explains the mini-pad anchors and, above all, the **Y/X graph view**: the
   overlay line projects one axis at a time (the toggle picks which assigned
   param it traces; the dots never move) and its shape follows Step/Slide mode.
-  See [motion-sequencer.md](motion-sequencer.md)
+  See [motion-panel](motion-panel.md)
   REQ-each-motion-step-is-a-mini-xy-pad.
 
 - **REQ-the-info-button-is-a-toggle** (v4, rewritten v15) — **The header's ⓘ
@@ -300,7 +300,7 @@ thing.
   lane's row** (`data-help="motion.tracks"`, one shared badge covering every
   single-param lane, since their number varies). Each is a 2–3 sentence quick explainer — the XY-pad automation and the
   single-param tracks respectively — for users who don't want the full Motion
-  write-up. See [motion-sequencer.md](motion-sequencer.md)
+  write-up. See [motion-panel](motion-panel.md)
   REQ-each-motion-step-is-a-mini-xy-pad.
 
 - **REQ-seq-render-has-a-help-badge** (v9) — **The Sequencer's Render

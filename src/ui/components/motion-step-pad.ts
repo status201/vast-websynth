@@ -3,7 +3,7 @@ import styles from '../styles/motion.module.css';
 import { clamp01 } from '../../utils/math';
 import { LONG_DOUBLE_TAP_MS } from './gesture-timing';
 
-/** Peek threshold, and the double-tap window it shares (motion-sequencer REQ-the-pad-write-is-deferred). */
+/** Peek threshold, and the double-tap window it shares (motion-panel.md REQ-the-pad-write-is-deferred). */
 export const HOLD_MS = 350;
 /** Travel that turns a press into a drag — the same slop `grid-gestures.ts` uses. */
 const SLOP_PX = 6;
@@ -31,7 +31,7 @@ export interface MotionStepPadOptions {
   beat?: boolean;
   /**
    * 'xy' (default) — the two-axis pad: a dot at the literal (x, y).
-   * 'level' — an extra motion track's single-param cell (motion-sequencer.md
+   * 'level' — an extra motion track's single-param cell (motion-panel.md
    * REQ-single-param-lanes-below-the-xy-lane): only y is meaningful and it renders as a bottom-up fill bar. The
    * gesture handling is identical, which is the point of sharing the component.
    */
@@ -41,7 +41,7 @@ export interface MotionStepPadOptions {
   /** Double-click / double-tap cleared the step. */
   onClear: () => void;
   /**
-   * The live gesture, for the panel's readout (motion-sequencer.md REQ-a-motion-steps-value-is-readable-without-hovering).
+   * The live gesture, for the panel's readout (motion-panel.md REQ-a-motion-steps-value-is-readable-without-hovering).
    * Fires on press, on every value change and once with `null` on release. The
    * pad reports normalized numbers only — the panel owns the parameter, so it
    * owns the formatting.
@@ -52,7 +52,7 @@ export interface MotionStepPadOptions {
 type Phase = 'idle' | 'pending' | 'drag' | 'peek';
 
 /**
- * One motion-sequencer step: a mini XY pad (motion-sequencer.md REQ-each-motion-step-is-a-mini-xy-pad), or a
+ * One motion-sequencer step: a mini XY pad (motion-panel.md REQ-each-motion-step-is-a-mini-xy-pad), or a
  * single-value level cell for the A/B lanes (REQ-single-param-lanes-below-the-xy-lane). The dot sits at the
  * literal (x, y); double-click (or a fast double-tap) clears the anchor.
  * Rendering is driven by `setStep`/`setLevel` so the panel's PatternStore

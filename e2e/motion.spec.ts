@@ -46,7 +46,7 @@ async function openMotionTab(page: Page): Promise<void> {
 
 /**
  * Unfold a single-param lane if it is folded. An EMPTY lane ships folded
- * (motion-sequencer.md REQ-an-empty-motion-lane-starts-folded), so a test that reaches straight for its
+ * (motion-panel.md REQ-an-empty-motion-lane-starts-folded), so a test that reaches straight for its
  * cells would be clicking something with no box. Picking a parameter opens a
  * lane by itself, so this is only needed before touching an UNASSIGNED one.
  */
@@ -199,7 +199,7 @@ test('the graph traces the selected axis and the view toggle switches it', async
 });
 
 /**
- * The value readout + peek (motion-sequencer.md REQ-a-motion-steps-value-is-readable-without-hovering/REQ-the-pads-gesture-set-peek-snap-fine). These are the
+ * The value readout + peek (motion-panel.md REQ-a-motion-steps-value-is-readable-without-hovering/REQ-the-pads-gesture-set-peek-snap-fine). These are the
  * gestures that make "give lane A and lane B the same value" workable, so they
  * are checked against the real panel rather than only in jsdom.
  */
@@ -249,7 +249,7 @@ test('holding a pad reads its value without writing it', async ({ page }) => {
 
   // `setTrackLevel` above tapped this same cell, and a second press within
   // MotionStepPad's HOLD_MS is a double-tap — it clears instead of peeking
-  // (motion-sequencer.md REQ-the-pad-write-is-deferred; the two windows share one constant). Playwright
+  // (motion-panel.md REQ-the-pad-write-is-deferred; the two windows share one constant). Playwright
   // gets from that tap to this press in ~120ms, so without stepping outside the
   // window the hold below is swallowed and nothing is under test. Deterministic
   // coverage of the window itself is in tests/ui/motion-step-pad.test.ts.
@@ -358,8 +358,8 @@ test('the XY Pad axes follow the motion bank override (effective assignment)', a
 });
 
 /**
- * The extra single-param lanes — specs/features/motion-sequencer.md
- * REQ-extra-single-param-tracks-per-bank/REQ-single-param-lanes-below-the-xy-lane. The curve maths is unit-tested; this pins the panel wiring and
+ * The extra single-param lanes — specs/features/motion-sequencer.md REQ-extra-single-param-tracks-per-bank, motion-panel.md
+ * REQ-single-param-lanes-below-the-xy-lane. The curve maths is unit-tested; this pins the panel wiring and
  * that a lane really drives its param through the live engine.
  */
 test('an extra motion lane drives its own param and restores on stop', async ({ page }) => {
@@ -429,7 +429,7 @@ test('extra motion tracks survive a save → new → load round-trip', async ({ 
 });
 
 /**
- * Panel layout — specs/features/motion-sequencer.md REQ-each-motion-step-is-a-mini-xy-pad/REQ-single-param-lanes-below-the-xy-lane: each lane's
+ * Panel layout — specs/features/motion-panel.md REQ-each-motion-step-is-a-mini-xy-pad/REQ-single-param-lanes-below-the-xy-lane: each lane's
  * controls sit above its own cells, and Slide/Step is per lane.
  */
 test('each lane carries its own controls above its cells', async ({ page }) => {
@@ -467,7 +467,7 @@ test('each lane carries its own controls above its cells', async ({ page }) => {
 });
 
 /**
- * motion-sequencer.md REQ-each-motion-step-is-a-mini-xy-pad / dropdown.md REQ-a-dropdown-can-be-dimmed — regression. An inherited axis
+ * motion-panel.md REQ-each-motion-step-is-a-mini-xy-pad / dropdown.md REQ-a-dropdown-can-be-dimmed — regression. An inherited axis
  * picker is dimmed, and that dim used to sit on the dropdown ROOT: `opacity`
  * composited the fixed-position menu with it (unreadable options) and opened a
  * stacking context that trapped the menu's z-index behind the pads below.
@@ -595,7 +595,7 @@ test('a bank filled only in its A/B tracks lights its bank dot', async ({ page }
 });
 
 /**
- * The fold — specs/features/motion-sequencer.md REQ-an-empty-motion-lane-starts-folded, over
+ * The fold — specs/features/motion-panel.md REQ-an-empty-motion-lane-starts-folded, over
  * features/lane-fold.md's shared component. Four lanes only fit because the
  * empty ones are folded, and only a real browser can say whether a cell has a
  * box, so the height claim is pinned here rather than in jsdom.

@@ -5,7 +5,7 @@
  * that does not use them. The sequencer met that first with tracks 2-4
  * (sequencer.md REQ-tracks-two-to-four-collapse) and the motion sequencer met
  * the identical problem going from two single-param lanes to four
- * (motion-sequencer.md REQ-an-empty-motion-lane-starts-folded), so the thirty
+ * (motion-panel.md REQ-an-empty-motion-lane-starts-folded), so the thirty
  * lines that solved it live here instead of in both panels.
  *
  * Not `createCollapseToggle` (lane-fold.md "Not createCollapseToggle"): that one
