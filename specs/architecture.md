@@ -588,7 +588,7 @@ ParamDef:                # the scalar "schema" — src/state/params.ts
   format?: (v) => string
   labels?: string[]      # for discrete params
 
-PatternStore step types: # src/state/patterns.ts
+PatternStore step types: # src/state/pattern-model.ts (re-exported by patterns.ts)
   StepSettings: { velocity, gate, prob, ratchet, tie, micro }   # micro: step-settings.md REQ-a-step-carries-a-micro-offset
   SeqStep:     StepSettings + { on, note, bend, bendShape }   # bend/bendShape: seq only, step-settings.md REQ-a-seq-step-carries-a-bend
   TriggerCell: StepSettings + { on }   # DrumCell / SamplerStep

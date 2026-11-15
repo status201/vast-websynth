@@ -14,6 +14,7 @@ related:
   - arrangement
 source:
   - src/state/patterns.ts
+  - src/state/pattern-model.ts          # bank counts, clamps, blank-bank factories (re-exported by patterns.ts)
   - src/ui/components/bank-bar.ts
   - src/ui/panels/step-panel-scaffold.ts
   - src/ui/panels/*-panel.ts

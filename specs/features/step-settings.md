@@ -25,7 +25,7 @@ related:
 source:
   - src/audio/transport/step-hits.ts     # pure hit math
   - src/audio/transport/sequencer.ts     # the seq's own micro application
-  - src/state/patterns.ts                # StepSettings shapes + defaults
+  - src/state/pattern-model.ts           # StepSettings shapes + defaults (re-exported by patterns.ts)
   - src/state/limits.ts                  # MICRO_UNITS / MICRO_MAX / BEND_MAX
   - src/state/serialize.ts               # sparse encode (micro 0 is dropped)
   - src/audio/drums/drum-synths.ts       # chokeRoute (one-shot choke)
