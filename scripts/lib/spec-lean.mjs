@@ -81,7 +81,9 @@ export function checkSpecLean(text) {
   });
   flushReq();
 
-  const bytes = Buffer.byteLength(text);
+  // Measured on LF text, like the REQ bodies above: a Windows checkout's CRLF
+  // would otherwise put the same spec ~1.5% over the line it sits under on CI.
+  const bytes = Buffer.byteLength(text.replace(/\r\n/g, '\n'));
   if (bytes > SPEC_BYTES_WARN) {
     warnings.push(`${bytes} bytes (over ${SPEC_BYTES_WARN}) — see specs/README.md "Not in a spec"`);
   }
