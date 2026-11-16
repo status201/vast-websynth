@@ -334,7 +334,8 @@ specs/
     # — audio I/O —
     audio-export.md    ·  WAV/MP3 capture of the master (phases, runs, tail bar)
     record-window.md   ·  floating record transport: pause, timer, save-or-discard
-    sample-recorder.md ·  mic record + buffer editor
+    sample-recorder.md ·  the sample studio: mic record (meter, count-in) + buffer editor
+    metronome.md       ·  beat source + click for recording; follows the transport, runs free when stopped
     sample-chop.md     ·  chop a break into slices and spread them across the slots
     render-to-sampler.md ·  resample a seq bank into a sampler slot (bar-exact)
     time-stretch.md    ·  fit a clip to a bar or N sixteenths, pitch preserved (offline)

@@ -3,7 +3,7 @@
 ```yaml
 id: time-stretch
 status: implemented
-version: 3
+version: 4
 owner: core
 related:
   - architecture
@@ -18,7 +18,7 @@ related:
   - dropdown
   - lazy-load-failure    # why the FIT load reports its own sentence
   - runtime-performance  # the DSP defers to the click that needs it
-  - iconography
+  - panel-tabs           # the Fit & Shift tab
   - testids
 source:
   - src/audio/recorder/fft.ts
@@ -26,7 +26,6 @@ source:
   - src/audio/recorder/offline-render.ts
   - src/ui/components/record-sound-modal.ts
   - src/state/fit-targets.ts           # FIT_TARGETS, fitLabel, nearestTarget — the pure half of the Fit row
-  - src/ui/components/collapse-toggle.ts
   - src/ui/panels/sampler-panel.ts
   - src/state/limits.ts
   - src/ui/onboarding/help-content.ts   # the `sampler` / `sampler.pitch` copy
@@ -99,8 +98,9 @@ material.
   no confirm. **Undo reverts only the fit it offers**: it restores only while the
   slot still holds exactly the clip the fit wrote. Otherwise it would overwrite a
   newer file under that file's name ([sampler](sampler.md)
-  REQ-a-slots-audio-matches-its-label). Inside the modal the one-level
-  `undoSnapshot` covers it and no toast is raised.
+  REQ-a-slots-audio-matches-its-label). Inside the studio its undo stack
+  ([sample-recorder](sample-recorder.md) REQ-undo-is-a-stack) covers it and no
+  toast is raised.
 - **REQ-a-fitted-clip-is-not-renamed** — It is the same sound at a new length, and a
   rename evicts a slot's audio ([sampler](sampler.md)
   REQ-a-slots-audio-matches-its-label).
@@ -120,11 +120,11 @@ material.
   sentence ("Couldn't fit the clip"; [lazy-load-failure](lazy-load-failure.md)
   REQ-lazy-scope-is-surfaces-not-operations). Inside the editor the DSP came with
   the modal.
-- **REQ-fit-and-shift-share-a-folded-section** — (v2) Both rows share **one** folded
-  section, `Fit & Shift` ([sample-recorder](sample-recorder.md)
-  REQ-every-section-below-the-waveform-folds owns the shape). They are one question
-  asked two ways: retime and keep the pitch, or repitch and keep the time. It is
-  folded on a first open. The slot row's FIT stays the no-clicks path.
+- **REQ-fit-and-shift-share-a-tab** — (v4) Both rows share **one** tab of the
+  studio, `Fit & Shift` ([sample-recorder](sample-recorder.md)
+  REQ-the-tools-are-tabs owns the strip). They are one question asked two ways:
+  retime and keep the pitch, or repitch and keep the time. The slot row's FIT
+  stays the no-clicks path.
 
 ## Technical design
 
@@ -178,8 +178,8 @@ src/audio/recorder/fft.ts:           pure; no imports
 src/audio/recorder/time-stretch.ts:  pure; imports fft.ts, limits.ts, node.ts (type only)
 src/audio/recorder/offline-render.ts: 'resample' + renderPitchShift (async, OfflineAudioContext)
 src/ui/components/record-sound-modal.ts:
-  one `Fit & Shift` fold holding both rows, built AFTER the chop row
-  both go through apply()/setBusy()/afterMutate(), so undo, the busy latch and the marks reset are inherited
+  one `Fit & Shift` tab holding both rows, built AFTER the chop page
+  both go through runOp()/setBusy()/afterMutate(), so undo, the busy latch and the marks reset are inherited
 src/ui/panels/sampler-panel.ts:
   FIT button per slot row, shown by refreshLabel(slot) beside the edit button;
   title recomputed there and on tempo change
@@ -194,10 +194,9 @@ or any record that a clip was stretched.
 ## Visual aids
 
 ```
-editor modal, below the chop section — folded on a first open
+the studio's Fit & Shift tab
+  effects : chop : FIT & SHIFT : scratch
 +-----------------------------------------------------------------+
-| FIT & SHIFT                                                   v  |
-|.................................................................|
 | Fit: 1.87 s -> 2.00 s · 1.07x   [16 · 1 bar v] [Rhythmic v] [Fit]|
 | Shift: pitch only, length kept  [+0 st v]                [Shift] |
 +-----------------------------------------------------------------+
@@ -210,8 +209,7 @@ sampler slot row
 
 | Control | Tap / click | Drag | Long press | Double | Keyboard |
 | --- | --- | --- | --- | --- | --- |
-| `stretch-head` (the whole title row) | folds / unfolds both rows | — | — | — | — |
-| `stretch-toggle` (the caret) | the same, and only that | — | — | — | Enter/Space when focused |
+| `ptab-sample-stretch` | shows both rows | — | — | — | Enter/Space when focused |
 | `fit-target` | opens the list | — | — | — | inherited from [dropdown](dropdown.md) |
 | `fit-mode` | opens the list | — | — | — | inherited from [dropdown](dropdown.md) |
 | `fit-apply` | fits the selection to the target | — | — | — | Enter/Space when focused |
@@ -220,18 +218,18 @@ sampler slot row
 | `sampler-fit-<slot>` | fits to the nearest bar length, raises the Undo toast | — | — | — | Enter/Space when focused |
 
 A `—` is a decision: nothing here is continuous, and a second press is a second
-undoable edit. The fold is the app's `createCollapseToggle`, unchanged.
+undoable edit. The tab is the app's `createPanelTabs`, unchanged.
 
 ## Scenarios (BDD)
 
 ```gherkin
-Scenario: Fit and Shift open together, and start closed (REQ-fit-and-shift-share-a-folded-section)
+Scenario: Fit and Shift show together, on their own tab (REQ-fit-and-shift-share-a-tab)
   Given a slot holding audio
-  When the user opens it in the editor for the first time
-  Then the Fit & Shift header is visible and neither row is
-  When the user clicks the header
+  When the user opens it in the editor
+  Then the Fit & Shift tab is visible and neither row is
+  When the user picks the tab
   Then both the Fit row and the Shift row appear
-# pinned by: e2e/sample-editor-folds.spec.ts, e2e/time-stretch.spec.ts
+# pinned by: e2e/sample-editor-tabs.spec.ts, e2e/time-stretch.spec.ts
 
 Scenario: a clip is fitted to an exact target length
   Given a captured clip of an arbitrary length
@@ -300,8 +298,8 @@ Scenario: The fit's Undo does not overwrite a newer clip (REQ-the-quick-fit-is-r
 - Unit: `tests/audio/fft.test.ts`, `tests/audio/time-stretch.test.ts`,
   `tests/audio/recorder/offline-render.test.ts`, `tests/ui/sampler-panel.test.ts`,
   `tests/ui/help-content.test.ts` (help text has no other gate) — `npm test`.
-- E2E: `e2e/time-stretch.spec.ts` (unfolds the section first),
-  `e2e/sample-editor-folds.spec.ts` (the fold itself).
+- E2E: `e2e/time-stretch.spec.ts` (picks the tab first),
+  `e2e/sample-editor-tabs.spec.ts` (the tabs themselves).
 - **By ear — the acceptance test** (ADR-010,
   [verify-audio-by-ear](../recipes/verify-audio-by-ear.md)), transport stopped:
 

@@ -1,26 +1,348 @@
 @layer components {
-  .modal { width: min(680px, calc(94vw / var(--ui-zoom, 1))); }
+  /* ---- The frame (sample-recorder.md REQ-the-studio-fills-the-screen) ----
+     The card is Modal's `.card` (same layer); `[role='dialog']` makes this rule
+     outrank it on specificity, never on load order (add-a-modal-dialog.md). */
+  .modal[role='dialog'] {
+    width: min(1600px, calc(calc(100vw / var(--ui-zoom, 1)) - 32px));
+    height: calc(calc(100vh / var(--ui-zoom, 1)) - 32px);
+    max-height: none;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+    padding: 16px 22px 14px;
+  }
 
-  .text {
-    margin-top: 14px;
-    font-size: 13px;
-    line-height: 1.6;
+  /* Modal's body, filled: toolbar · screen · footer. */
+  .studio {
+    flex: 1;
+    min-height: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    margin-top: 10px;
+  }
+
+  .toolbar {
+    flex: none;
+    display: flex;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 10px 18px;
+    padding-bottom: 10px;
+    border-bottom: 1px dashed var(--rule);
+  }
+
+  .crumbs {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin-right: auto;
+    font-size: 11px;
+    letter-spacing: 0.2em;
+    text-transform: uppercase;
+    color: var(--text-faint);
+  }
+
+  .crumb:global(.active) {
+    color: var(--accent-secondary);
+    font-weight: 700;
+  }
+
+  .crumbSep { color: var(--text-hint); }
+
+  /* The transport strip (REQ-the-transport-is-in-reach). */
+  .transport {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+  }
+
+  .led {
+    width: 14px;
+    height: 14px;
+    flex: none;
+    border-radius: 50%;
+    background: var(--led-off);
+    box-shadow: inset 0 1px 2px rgba(0, 0, 0, 0.7);
+  }
+
+  /* Playing: the accent. Stopped: the free-running metronome, in the secondary. */
+  .ledPlay {
+    background: var(--accent);
+    box-shadow: 0 0 8px var(--accent-glow);
+  }
+
+  .ledFree {
+    background: var(--accent-secondary);
+    box-shadow: 0 0 8px var(--accent-secondary-glow);
+  }
+
+  .ledDown {
+    transform: scale(1.3);
+  }
+
+  .bpm {
+    min-width: 6.5ch;
+    font-family: var(--mono);
+    font-size: 12px;
     color: var(--text-dim);
   }
 
-  .hint,
-  .cutoff {
-    margin-top: 10px;
-    font-size: 11px;
-    color: var(--text-faint);
-    letter-spacing: 0.03em;
+  /* The one region that scrolls. */
+  .screen {
+    position: relative;
+    flex: 1;
+    min-height: 0;
+    overflow-y: auto;
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    padding: 2px;
   }
+
+  .screen > * { flex: none; }
+
+  /* The waveform (Edit) and the live take (Record) take whatever height the
+     screen has left, so a tall tool page shrinks them instead of scrolling the
+     page's own controls out of reach. */
+  .screen > .waveWrap,
+  .screen > .liveWave {
+    flex: 1 1 0;
+  }
+
+  .footer {
+    flex: none;
+    display: flex;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 8px;
+    padding-top: 12px;
+    border-top: 1px solid var(--panel-border);
+  }
+
+  .footSpacer { flex: 1; }
+
+  /* The footer's one primary action (REQ-one-primary-action-per-screen). */
+  .primary {
+    min-height: 36px;
+    padding: 6px 18px;
+    font-size: 12px;
+    font-weight: 700;
+    color: var(--accent-secondary);
+    border-color: var(--accent-secondary);
+  }
+
+  /* Out of the pressed state, so the switch's own press shadow still shows
+     (css-cascade-layers.md REQ-a-composers-base-rule-yields-to-a-controls-state). */
+  .primary:not(:active) {
+    box-shadow: 0 0 10px var(--accent-secondary-glow);
+  }
+
+  .slot {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 10px;
+    text-transform: uppercase;
+    letter-spacing: 0.1em;
+    color: var(--text-dim);
+  }
+
+  /* ---- Record screen (REQ-the-record-screen-shows-every-state) ---- */
+
+  .banner {
+    display: flex;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 10px;
+    padding: 8px 12px;
+    font-size: 12px;
+    color: var(--text-dim);
+    background: var(--field);
+    border: 1px solid var(--panel-border);
+    border-left: 2px solid var(--accent-secondary);
+    border-radius: 4px;
+  }
+
+  .liveWave {
+    width: 100%;
+    min-height: 90px;
+    display: block;
+    background: var(--screen);
+    border: 1px solid var(--screen-border);
+    border-radius: 4px;
+    box-shadow: inset 0 0 18px rgba(0, 0, 0, 0.8);
+  }
+
+  .meterRow {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+  }
+
+  .meterLabel {
+    font-size: 10px;
+    letter-spacing: 0.18em;
+    text-transform: uppercase;
+    color: var(--text-dim);
+  }
+
+  .meter {
+    position: relative;
+    flex: 1;
+    height: 12px;
+    border-radius: 3px;
+    overflow: hidden;
+    background: linear-gradient(90deg, var(--accent-good) 0%, var(--accent-good) 60%, var(--accent-secondary) 85%, var(--meter-hot) 100%);
+    border: 1px solid var(--panel-border);
+  }
+
+  .meterCover {
+    position: absolute;
+    top: 0;
+    right: 0;
+    bottom: 0;
+    width: 100%;
+    background: var(--field);
+  }
+
+  .meterDb {
+    min-width: 6ch;
+    font-family: var(--mono);
+    font-size: 11px;
+    color: var(--text-dim);
+    text-align: right;
+  }
+
+  .clip {
+    padding: 2px 6px;
+    font-size: 9px;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    color: var(--text-hint);
+    border: 1px solid var(--panel-border);
+    border-radius: 3px;
+  }
+
+  .clipOn {
+    color: var(--text);
+    background: var(--accent-bad);
+    border-color: var(--accent-bad);
+  }
+
+  .recArea {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 8px;
+    padding: 8px 0;
+  }
+
+  /* The big round button. Its face follows `data-state`. */
+  .recBtn {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 2px;
+    width: 112px;
+    height: 112px;
+    border-radius: 50%;
+    font-family: var(--sans);
+    color: var(--text);
+    background: var(--well);
+    border: 2px solid var(--led-on);
+    box-shadow:
+      inset 0 1px 0 var(--lip),
+      0 2px 6px rgba(0, 0, 0, 0.6),
+      0 0 14px var(--led-glow);
+    cursor: pointer;
+  }
+
+  .recBtn:disabled {
+    opacity: 0.5;
+    cursor: default;
+    box-shadow: inset 0 1px 0 var(--lip), 0 2px 6px rgba(0, 0, 0, 0.6);
+  }
+
+  .recFace {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    min-height: 44px;
+    font-size: 40px;
+    font-family: var(--mono);
+    font-weight: 700;
+    line-height: 1;
+    color: var(--led-on);
+  }
+
+  .recLabel {
+    font-size: 11px;
+    font-weight: 700;
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+  }
+
+  .recBtn[data-state='counting'] .recFace { color: var(--accent-secondary); }
+
+  .timer {
+    font-family: var(--mono);
+    font-size: 15px;
+    color: var(--text-dim);
+  }
+
+  .recording .timer { color: var(--text-bad); }
+
+  .stateLine {
+    max-width: 60ch;
+    font-size: 13px;
+    line-height: 1.5;
+    text-align: center;
+    color: var(--text-dim);
+  }
+
+  .countRow {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    font-size: 12px;
+    color: var(--text-dim);
+    cursor: pointer;
+  }
+
+  .countRow input { accent-color: var(--accent); }
+
+  .tip {
+    font-size: 11px;
+    text-align: center;
+    color: var(--text-faint);
+  }
+
+  /* Recording: a pulsing frame round the screen. Opacity only, so the pulse is
+     composited, and it runs only while a take is live. */
+  .recording::after {
+    content: '';
+    position: absolute;
+    inset: 0;
+    border: 2px solid var(--led-on);
+    border-radius: 6px;
+    pointer-events: none;
+    animation: recPulse 0.9s ease-in-out infinite alternate;
+  }
+
+  @keyframes recPulse {
+    from { opacity: 0.25; }
+    to { opacity: 1; }
+  }
+
+  /* ---- Edit screen ---- */
 
   .waveWrap {
     position: relative;
     width: 100%;
-    height: 160px;
-    margin-top: 16px;
+    min-height: 120px;
     touch-action: none;
   }
 
@@ -34,18 +356,54 @@
     box-shadow: inset 0 0 18px rgba(0, 0, 0, 0.8);
   }
 
+  /* 20px wide for a finger, drawn as the same two rails. */
   .handle {
     position: absolute;
     top: 0;
     height: 100%;
-    width: 12px;
-    margin-left: -6px;
+    width: 20px;
+    margin-left: -10px;
     cursor: ew-resize;
     background: color-mix(in srgb, var(--accent-secondary) 18%, transparent);
     border-left: 2px solid var(--accent-secondary);
     border-right: 2px solid var(--accent-secondary);
     box-shadow: 0 0 6px var(--accent-secondary-glow);
     touch-action: none;
+  }
+
+  .editBar {
+    display: flex;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 8px;
+  }
+
+  .status {
+    flex: 1 1 260px;
+    min-width: 0;
+    font-family: var(--mono);
+    font-size: 11px;
+    color: var(--text-dim);
+    letter-spacing: 0.02em;
+    text-align: right;
+  }
+
+  .tabBar { margin-top: 4px; }
+
+  .page {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    width: 100%;
+    min-width: 0;
+    padding-top: 12px;
+  }
+
+  .hint,
+  .cutoff {
+    font-size: 11px;
+    color: var(--text-faint);
+    letter-spacing: 0.03em;
   }
 
   .cutoff {
@@ -58,49 +416,15 @@
 
   .fxRow {
     display: flex;
-    flex-wrap: wrap;
-    gap: 8px;
-    margin-top: 12px;
-  }
-
-  /* The slot / save row closes the modal, so its rule is SOLID where every section
-     divider above it is dashed — with all three sections folded, a fourth dashed
-     line 22px under the Scratch header read as a section that had lost its title.
-     The extra margin is the other half of the same fix: a different weight still
-     needs room to be seen as different. */
-  .actions {
-    display: flex;
     align-items: center;
     flex-wrap: wrap;
     gap: 8px;
-    margin-top: 28px;
-    border-top: 1px solid var(--panel-border);
-    padding-top: 16px;
-  }
-
-  .slot {
-    display: inline-flex;
-    align-items: center;
-    gap: 6px;
-    font-size: 10px;
-    text-transform: uppercase;
-    letter-spacing: 0.1em;
-    color: var(--text-dim);
-  }
-
-  .status {
-    margin-top: 8px;
-    font-family: var(--mono);
-    font-size: 11px;
-    color: var(--text-dim);
-    letter-spacing: 0.02em;
   }
 
   .autoplay {
     display: flex;
     align-items: center;
     gap: 8px;
-    margin-top: 10px;
     font-size: 11px;
     color: var(--text-faint);
     letter-spacing: 0.03em;
@@ -118,15 +442,16 @@
     animation: flash 0.3s ease-out alternate 2;
   }
 
-  /* ---- Editor sections: Chop, Fit & Shift, Scratch (sample-recorder.md REQ-every-section-below-the-waveform-folds) ----
-     Folds rather than extra modals: each edits the same selection through the same
-     undo, and a second surface is what sample-chop.md warns drifts. The header is
-     the About modal's — `.sec` + `.secFold` + `.secFoldLabel` from
-     modal.module.css, applied in record-sound-modal.ts — so there is one fold
-     idiom per modal and no lookalike to keep in step. Only the body is ours.
+  /* A phone: edge to edge, and the waveform keeps its room. */
+  @container viewport (max-width: 720px) {
+    .modal[role='dialog'] {
+      width: calc(100vw / var(--ui-zoom, 1));
+      height: calc(100vh / var(--ui-zoom, 1));
+      border-radius: 0;
+      border-width: 0;
+      padding: 12px 12px 10px;
+    }
 
-     `.collapsed` is a global state class, so it needs :global() here. */
-  .foldBody:global(.collapsed) {
-    display: none;
+    .status { text-align: left; }
   }
 }

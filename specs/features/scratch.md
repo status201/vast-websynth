@@ -3,12 +3,12 @@
 ```yaml
 id: scratch
 status: implemented
-version: 2
+version: 3
 owner: core
 related:
   - architecture
   - sampler              # owns the buffers this rewrites, and the row the editor is reached from
-  - sample-recorder      # the editor modal that hosts the scratch section
+  - sample-recorder      # the studio that hosts the Scratch tab
   - sample-chop          # the sibling op in the same modal; same "applies to the selection" rule
   - time-stretch         # the sibling offline op, and the mid/side rule this inherits
   - sample-persistence   # a scratched clip persists because it lands through setBuffer
@@ -19,8 +19,8 @@ related:
   - dropdown
   - iconography          # the dice button's glyph
   - typography
-  - runtime-performance  # a folded section pays for no peak scan
-  - panel-tabs           # the `websynth.ui.collapsed.*` key convention
+  - runtime-performance  # a hidden tab pays for no peak scan
+  - panel-tabs           # the tab strip
   - testids
 source:
   - src/audio/recorder/scratch-curve.ts
@@ -102,13 +102,12 @@ higher" (ADR-014 law 2). The resulting position is drawn as a preview
   and `MAX_SCRATCH_STEPS` live in `src/state/limits.ts`, and the output allocation
   reuses `MAX_STRETCH_OUTPUT_FRAMES`. The stretch ratio bounds do **not** apply:
   the output length comes from a sixteenth count, not from the input length.
-- **REQ-the-scratch-editor-is-a-modal-section** (v2) — A folded section of the Edit
-  Sample modal, operating on the current selection ([sample-chop](sample-chop.md)
-  REQ-chop-divides-the-selection), not a second surface. Its header follows
-  [sample-recorder](sample-recorder.md) REQ-every-section-below-the-waveform-folds:
-  **title `Scratch` left, caret right**, with the whole row a hit target. Folded,
-  it pays for **no peak scan**: the recompute is gated on the body's `.collapsed`
-  class and re-run by the fold's `onChange`.
+- **REQ-the-scratch-editor-is-a-modal-section** (v2) — The `Scratch` tab of the
+  sample studio ([sample-recorder](sample-recorder.md) REQ-the-tools-are-tabs),
+  operating on the current selection ([sample-chop](sample-chop.md)
+  REQ-chop-divides-the-selection), not a second surface. While another tab
+  shows, it pays for **no peak scan**: the recompute is gated on the Scratch tab
+  being the active one and re-run when the tab is picked.
 - **REQ-the-graph-is-two-lanes-on-output-time** — Two lanes on one x-axis of
   **output time**, gridded in sixteenths with the beat accented from
   `engine.barTicks` ([meter](meter.md) REQ-bar-exact-capture-follows-bar-ticks).
@@ -128,7 +127,7 @@ higher" (ADR-014 law 2). The resulting position is drawn as a preview
   curve's own excursion, so a preset that pulls back first still reads inside the
   sample. Any off-record region is shaded (ADR-014 law 5).
 - **REQ-applying-goes-through-run-op** — Applying uses the modal's `runOp`, which
-  brings the busy latch, the one-level undo, the crop reset and the auto-play with
+  brings the busy latch, the undo stack, the crop reset and the auto-play with
   it. The result lands through `SamplerMachine.setBuffer`
   ([sampler](sampler.md) REQ-set-buffer-is-the-one-door) on load into a slot.
 - **REQ-a-scratched-clip-is-not-renamed** — A rename evicts the buffer
@@ -250,17 +249,16 @@ src/ui/components/record-sound-modal.ts:
 The scratched audio persists like any clip, via `setBuffer` and `onBufferChange`
 ([sample-persistence](sample-persistence.md)
 REQ-clip-writes-are-debounced-through-one-hook), once loaded into a slot. The
-curve lives only while the modal is open. The one stored thing is the fold state,
-`websynth.ui.collapsed.sample-scratch`, a view preference
-([panel-tabs](panel-tabs.md) REQ-selected-page-is-session-only's convention).
+curve lives only while the studio is open. Nothing else is stored: which tab
+shows is session-only ([panel-tabs](panel-tabs.md)
+REQ-selected-page-is-session-only).
 
 ## Visual aids
 
 ```
-editor modal, below the Fit & Shift section, folded on a first open
+the studio's Scratch tab
+  effects : chop : fit & shift : SCRATCH
 +---------------------------------------------------------------------+
-| SCRATCH                                                          v   |
-|.....................................................................|
 | cut  ####        ######        ####          16 · 1 bar at 92 BPM    |
 | +-------------- warped result preview (read-only) ----------------+  |
 | |    .:iII|Ii:.    .:iI|Ii:.:iI|Ii:.        .:iiIIIIIIIii:.       |  |
@@ -282,8 +280,7 @@ editor modal, below the Fit & Shift section, folded on a first open
 
 | Control | Tap / click | Drag | Long press | Double | Keyboard |
 | --- | --- | --- | --- | --- | --- |
-| `scratch-head` (the whole title row) | folds / unfolds the section | — | — | — | — |
-| `scratch-toggle` (the caret) | the same, and only that | — | — | — | Enter/Space when focused |
+| `ptab-sample-scratch` | shows the scratch editor | — | — | — | Enter/Space when focused |
 | a curve point | selects it | x = timing (snaps to a 32nd), y = rate (snaps to quarters); **Shift** frees both | — | deletes the point | — |
 | empty rate lane | adds a point there | adds a point, then drags it | — | — | — |
 | a segment's cut band | toggles the crossfader closed / open | — | — | — | — |
@@ -310,10 +307,12 @@ Scenario: a scratch is exactly as long as the bar it was drawn against
   Then the result is exactly round(N * sixteenthDuration * sampleRate) frames long
 # pinned by: tests/audio/scratch.test.ts
 
-Scenario: the section's title sits left of its caret (REQ-the-scratch-editor-is-a-modal-section, regression)
+Scenario: the scratch editor waits on its tab (REQ-the-scratch-editor-is-a-modal-section)
   Given the editor is open on a clip
-  Then the Scratch header shows "Scratch" to the LEFT of its caret
-# pinned by: e2e/sample-editor-folds.spec.ts
+  Then the Scratch tab is offered and its graph is not showing
+  When the user picks the Scratch tab
+  Then the graph and its row show, and the waveform is still in view
+# pinned by: e2e/sample-editor-tabs.spec.ts
 
 Scenario: pitch rides the speed
   Given a 440 Hz sine
@@ -400,8 +399,7 @@ Scenario: the editor explains itself (docs)
 - Unit: `tests/audio/scratch-curve.test.ts`, `tests/audio/scratch.test.ts` (pitch
   by autocorrelation, as in `tests/audio/time-stretch.test.ts`),
   `tests/ui/scratch-graph.test.ts`, `tests/ui/help-content.test.ts` — `npm test`.
-- E2E: `e2e/scratch.spec.ts`; `e2e/sample-editor-folds.spec.ts` asserts the header
-  by geometry, not DOM order.
+- E2E: `e2e/scratch.spec.ts`; `e2e/sample-editor-tabs.spec.ts` asserts the tab.
 - **By ear — the acceptance test** (ADR-010,
   [verify-audio-by-ear](../recipes/verify-audio-by-ear.md)), transport stopped:
 

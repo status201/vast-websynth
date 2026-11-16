@@ -284,7 +284,11 @@ launch:                        ↗     # song card → chain
 waveBurst:                     —     # FX section heading (section-title.md)
 padMachine:                    —     # MACHINES section heading
 sliders:                        —     # EQUALIZER section heading
-download:                       —     # About → Play offline (play-offline.md)
+download:                       —     # About → Play offline (play-offline.md); the sample studio's WAV/MP3
+mic:                            🎙    # the Sampler's Record a sound (sample-recorder.md)
+record:                         ●     # the studio's Record face and its REC readout
+stop:                           ■     # the studio's Stop face and the transport strip's Stop
+play:                           ▶     # the studio's transport strip Play and Play selection
 ```
 
 ```yaml

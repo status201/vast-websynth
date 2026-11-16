@@ -211,6 +211,10 @@ engine (init):                     # the POLICY, so the capture exception fits
                        sampler.stopAll(); })
 ejectSamplerFile(engine, slot): (() => void) | null # src/ui/panels/step-panel-scaffold.ts
   # name + buffer out (buffer first); returns their restore, or null when the slot held neither
+samplerSlotFilled(engine, slot): boolean             # audio or a name — what Load vs Del, and Load vs Replace, read
+writeSamplerSlot(engine, slot, buffer, name): void   # the one write of both, buffer first
+snapshotSamplerSlot(engine, slot): () => void        # capture both; the restore every slot-filling Undo uses
+  # (the Del toast, the chop spread, the sample studio's Load)
 samplerSlotClearRow(engine, undo, slot): ClearRow   # src/ui/panels/step-panel-scaffold.ts
   # reads name + buffer when the MENU OPENS (the label, and hasContent), so its undo can
   # restore them; clear() reports true if steps, name or buffer went

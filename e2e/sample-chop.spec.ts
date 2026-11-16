@@ -17,8 +17,8 @@ async function pick(page: Page, testId: string, label: RegExp): Promise<void> {
 
 /**
  * Load a clip into `slot`, open it in the editor via the ✎ button, and unfold the
- * Chop section — every editor section rests closed (sample-recorder.md REQ-every-section-below-the-waveform-folds), so
- * the fold itself belongs to `sample-editor-folds.spec.ts` and not to each test
+ * Chop tab — the editor opens on Effects (sample-recorder.md REQ-the-tools-are-tabs), so
+ * the tabs themselves belong to `sample-editor-tabs.spec.ts` and not to each test
  * here.
  */
 async function openEditor(page: Page, slot: number, name = 'break.wav'): Promise<void> {
@@ -32,18 +32,10 @@ async function openEditor(page: Page, slot: number, name = 'break.wav'): Promise
   await unfoldChop(page);
 }
 
-/**
- * Reveal the chop row, whichever way the stored fold left it. Retried as a unit:
- * reading the visibility and then clicking the toggle is check-then-act, and the
- * editor is still settling on the second call — a click that lands on a row which
- * has just opened folds it again, which failed this spec about twice in ten runs.
- */
+/** Show the chop row. A tab is idempotent — picking it twice still shows it. */
 async function unfoldChop(page: Page): Promise<void> {
-  const row = page.getByTestId('chop-row');
-  await expect(async () => {
-    if (!(await row.isVisible())) await page.getByTestId('chop-toggle').click();
-    await expect(row).toBeVisible({ timeout: 1000 });
-  }).toPass({ timeout: 10_000 });
+  await page.getByTestId('ptab-sample-chop').click();
+  await expect(page.getByTestId('chop-row')).toBeVisible();
 }
 
 /**
@@ -167,8 +159,11 @@ test.describe('sample chop', () => {
     await page.getByTestId('chop-equal').click();
     await expect(page.getByTestId('chop-spread')).toBeEnabled();
 
-    // Reverse re-bases every sample index the boundaries were expressed in.
+    // Reverse re-bases every sample index the boundaries were expressed in. It
+    // lives on the Effects tab, so the chop row is checked again on its own.
+    await page.getByTestId('ptab-sample-effects').click();
     await page.getByTestId('mic-fx-reverse').click();
+    await unfoldChop(page);
     await expect(page.getByTestId('chop-spread')).toBeDisabled();
     await expect(page.getByTestId('chop-row')).toContainText('cut the selection');
   });

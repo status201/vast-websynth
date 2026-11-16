@@ -184,3 +184,56 @@ describe('Modal stacking (v5)', () => {
     expect(Modal.anyOpen()).toBe(false);
   });
 });
+
+// add-a-modal-dialog.md v7: a guard asked before the user's ways out.
+describe('Modal close guard (v7)', () => {
+  const esc = () => window.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true, cancelable: true }));
+
+  it('stays open while beforeClose says no, and closes once it says yes', async () => {
+    let allow = false;
+    const onClose = vi.fn();
+    const m = new Modal({ title: 'Guarded', onClose, beforeClose: () => allow });
+    try {
+      m.open();
+      esc();
+      expect(onClose).not.toHaveBeenCalled();
+      allow = true;
+      esc();
+      expect(onClose).toHaveBeenCalledTimes(1);
+    } finally {
+      m.close();
+    }
+  });
+
+  it('asks through the ✕ as well, and waits for an async answer', async () => {
+    let answer: (v: boolean) => void = () => {};
+    const guard = vi.fn(() => new Promise<boolean>((r) => { answer = r; }));
+    const onClose = vi.fn();
+    const m = new Modal({ title: 'Guarded', onClose, beforeClose: guard, closeButton: true, closeTestId: 'g-x' });
+    try {
+      m.open();
+      document.querySelector<HTMLButtonElement>('[data-testid="g-x"]')!.click();
+      esc(); // a second ask while the first is pending is ignored
+      expect(guard).toHaveBeenCalledTimes(1);
+      answer(false);
+      await Promise.resolve(); await Promise.resolve();
+      expect(onClose).not.toHaveBeenCalled();
+      esc();
+      answer(true);
+      await Promise.resolve(); await Promise.resolve();
+      expect(onClose).toHaveBeenCalledTimes(1);
+    } finally {
+      m.close();
+    }
+  });
+
+  it('close() never asks', () => {
+    const guard = vi.fn(() => false);
+    const onClose = vi.fn();
+    const m = new Modal({ title: 'Guarded', onClose, beforeClose: guard });
+    m.open();
+    m.close();
+    expect(guard).not.toHaveBeenCalled();
+    expect(onClose).toHaveBeenCalledTimes(1);
+  });
+});

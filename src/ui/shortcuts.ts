@@ -4,7 +4,7 @@ import type { UiBridge } from './ui-bridge';
 import { LAYOUTS, resolveLayout, onLayoutChange } from '../state/keyboard-layout';
 // The stack alone, not Modal: the shortcut layer stays free of every component
 // and its stylesheet, so it can be installed before any UI exists.
-import { anyModalOpen } from './modal-stack';
+import { anyModalOpen, isEditableTarget } from './modal-stack';
 
 /**
  * The piano shape: which **physical** key is which semitone, two rows of C..C.
@@ -47,12 +47,6 @@ function rebuildNoteMaps(): void {
 }
 rebuildNoteMaps();
 
-/** True when the event originates inside an editable field, where keystrokes
- *  must reach the field rather than play the synth. */
-function isEditableTarget(e: Event): boolean {
-  const t = e.target as HTMLElement | null;
-  return !!t?.closest('input, textarea, [contenteditable="true"]');
-}
 
 export function installShortcuts(engine: StudioApi, bus: ParamBus, bridge: UiBridge): void {
   let baseOctave = 4; // bottom row starts at C4

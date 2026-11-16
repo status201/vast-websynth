@@ -309,25 +309,24 @@ audio capture:
     export-audio-abort                              # features/audio-export.md
   record-window · record-toggle · record-stop · record-save · record-discard ·
     record-status · record-timer · record-meter · record-fmt-<wav|mp3>   # features/record-window.md
-  mic-record-toggle · mic-play · mic-load · mic-undo · mic-reset · mic-close ·
-    mic-save-<wav|mp3> · mic-slot-select · mic-fx-<name>  # features/sample-recorder.md
-  chop-section · chop-head · chop-toggle · chop-body ·
-    chop-row · chop-count · chop-equal · chop-detect · chop-spread ·
+  mic-record-toggle · mic-play · mic-load · mic-undo · mic-redo · mic-reset ·
+    mic-close · mic-cancel · mic-rerecord · mic-save-<wav|mp3> · mic-slot-select ·
+    mic-fx-<name> · mic-meter · mic-timer · mic-state · mic-countin · mic-status ·
+    mic-load-toast · mic-retry · rec-restore · rec-screen-<record|edit> ·
+    rec-transport-toggle · rec-beat-led · rec-bpm · rec-click   # features/sample-recorder.md
+    # The four tools are `createPanelTabs({ prefix: 'sample' })` pages, so they
+    # mint ptab-sample-<effects|chop|stretch|scratch> and
+    # ppage-sample-<…> (features/panel-tabs.md REQ-panel-tab-testids-are-prefixed).
+  chop-row · chop-count · chop-equal · chop-detect · chop-spread ·
     chop-toast                                        # features/sample-chop.md
-    # The editor modal's three sections all mint the same four ids —
-    # <base>-section (the wrapper), -head (the clickable title row), -toggle
-    # (the caret button) and -body (what folds). One shape, so a fold test can
-    # be written once and parameterised. # features/sample-recorder.md REQ-every-section-below-the-waveform-folds
     # The boundaries themselves are canvas strokes, not elements, so they mint no
     # ids — a chop is asserted through the slots it fills, not through its markers.
-  stretch-section · stretch-head · stretch-toggle · stretch-body ·
-    fit-row · fit-target · fit-mode · fit-apply · fit-hint ·
+  fit-row · fit-target · fit-mode · fit-apply · fit-hint ·
     shift-row · shift-amount · shift-apply ·
     fit-toast · fit-load-failed-toast                 # features/time-stretch.md
     # `fit-toast` is raised by the SLOT-ROW button (sampler-fit-<slot>), not by the
-    # modal: inside the modal the one-level undo already covers the edit.
-  scratch-section · scratch-head · scratch-toggle · scratch-body · scratch-graph ·
-    scratch-canvas · scratch-legend · scratch-row · scratch-hint ·
+    # studio: inside it the undo stack already covers the edit.
+  scratch-graph · scratch-canvas · scratch-legend · scratch-row · scratch-hint ·
     scratch-length · scratch-preset · scratch-random · scratch-preview ·
     scratch-apply                                     # features/scratch.md
     # The curve's points, its cut bands and its cue are canvas strokes, not

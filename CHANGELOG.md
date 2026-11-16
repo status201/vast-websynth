@@ -18,6 +18,33 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ### Fixed
 
+- **A recording can no longer be lost by accident.** One click outside the
+  recorder, Escape, or the Close button sitting right beside Record threw a take
+  away without a word. Clicking outside now does nothing, Escape and ✕ ask before
+  discarding anything not yet in a slot or downloaded, and the Close button is gone.
+  If you do discard a take, the next Record a sound offers it back.
+- **The song can be stopped while you record over it.** Stopping the song meant
+  closing the recorder, and so losing the take. The recorder now has the song's
+  own Play/Stop in its top bar.
+- **Recording in time had nothing to keep time with.** With the song stopped
+  there was no tempo to play to, and a take started wherever you happened to press.
+  The recorder now has a beat light that blinks on every beat (orange while the song
+  plays, amber while it is stopped), a **CLICK** metronome at the song's tempo that
+  is never part of an export, and an optional **Count-in** that counts one bar and
+  starts the take on the downbeat, so it lines up with your bars for Fit and Chop.
+- **The Record screen gave no sign it was recording.** It now shows a live input
+  meter with a clip light from the moment it opens, a big button that says what it
+  will do, a running timer, a red frame while recording, and the take drawn as it
+  comes in. **R** starts and stops. A take stops itself after two minutes rather
+  than filling memory.
+- **Opening Chop, Fit & Shift or Scratch left almost no room to work.** The editor
+  is now a full-screen studio, and its tools are tabs under a waveform that stays in
+  view. **Load into S3** (or **Replace S3**) is the one big button at the bottom,
+  and its toast offers Undo in case you picked the wrong slot.
+- **Undo only went back one step.** It now goes back ten edits, Redo goes forward
+  again, and Reset can be undone too.
+- **The Record a sound button was easy to miss.** It is now a large button at the
+  top right of the Sampler tab (the bottom of the header on a phone).
 - **Saving while playing no longer stores what the motion lanes were doing.** A song
   save, slot, export, share link, project zip, preset save or the session autosave
   taken mid-play captured each automated parameter wherever the sweep happened to be,

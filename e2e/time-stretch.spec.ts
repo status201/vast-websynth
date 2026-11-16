@@ -39,15 +39,14 @@ async function loadClip(page: Page, slot = 0, name = 'break.wav'): Promise<void>
 }
 
 /**
- * Open the editor on `slot` and unfold the Fit & Shift section, which rests closed
- * like every other editor section (sample-recorder.md REQ-every-section-below-the-waveform-folds). The fold itself is
- * asserted by `sample-editor-folds.spec.ts`.
+ * Open the editor on `slot` and pick the Fit & Shift tab — the editor opens on
+ * Effects (sample-recorder.md REQ-the-tools-are-tabs). The tabs themselves are
+ * asserted by `sample-editor-tabs.spec.ts`.
  */
 async function openStretch(page: Page, slot = 0): Promise<void> {
   await page.getByTestId(`sampler-edit-${slot}`).click();
-  const row = page.getByTestId('fit-row');
-  if (!(await row.isVisible())) await page.getByTestId('stretch-toggle').click();
-  await expect(row).toBeVisible();
+  await page.getByTestId('ptab-sample-stretch').click();
+  await expect(page.getByTestId('fit-row')).toBeVisible();
 }
 
 /**

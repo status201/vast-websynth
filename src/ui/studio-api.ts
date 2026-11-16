@@ -112,6 +112,9 @@ export interface StudioApi {
    * the way the transport does — deriving it twice is how they drift.
    */
   readonly barTicks: number;
+  /** One beat in 16th ticks (`transport.beatUnit`) — the metronome's beat
+   *  (metronome.md REQ-beats-follow-the-transport-while-playing). */
+  readonly beatTicks: number;
 
   /** Stop the transport and silence every voice (Panic / Esc). */
   panic(): void;

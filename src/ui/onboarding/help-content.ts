@@ -1075,8 +1075,8 @@ export const HELP_TOPICS: Record<TopicId, HelpTopic> = {
     title: 'Sampler',
     body:
       '<p>Eight slots that each play your own sound as a one-shot on a 16-step grid. ' +
-      '<strong>Load</strong> a WAV/MP3 into a slot, or use <strong>Record a sound</strong> to ' +
-      'capture from your mic and edit it. The ' + g('edit', 'Edit') +
+      '<strong>Load</strong> a WAV/MP3 into a slot, or use <strong>Record a sound</strong> ' +
+      '(top right of the tab) to capture from your mic and edit it. The ' + g('edit', 'Edit') +
       ' button re-opens a loaded sound in the editor. <strong>Del</strong> takes a slot\'s file ' +
       'out again and leaves its steps where they are, ready for another sound; the toast ' +
       'offers <strong>Undo</strong>.</p>' +
@@ -1086,18 +1086,27 @@ export const HELP_TOPICS: Record<TopicId, HelpTopic> = {
       '<p>Select a slot and the strip below the grid becomes <em>that slot\'s</em> voice: ' +
       'tune it, trim it, reverse it, filter it, place it in the stereo field. The controls ' +
       'that need explaining carry their own badge while these are on.</p>' +
-      '<p>The editor keeps its bigger tools folded under three headings — ' +
-      '<strong>Chop</strong>, <strong>Fit &amp; Shift</strong> and <strong>Scratch</strong>. ' +
-      'Click a heading to open it; it stays as you left it.</p>' +
+      '<p>The recorder fills the screen. Its input meter is live before you press ' +
+      '<strong>Record</strong>, so you can check your level first; the timer and a red frame ' +
+      'show while it records. <strong>Count-in</strong> counts one bar first, so the take ' +
+      'starts on a downbeat. <strong>Play</strong> at the top starts and stops the song without ' +
+      'leaving the recorder, the light beside it blinks on every beat, and <strong>CLICK</strong> ' +
+      'turns on a metronome click (use headphones, or the mic hears it too) that is never part of an export. Nothing ' +
+      'you record is thrown away without asking, and a discarded take can be restored the ' +
+      'next time you open it.</p>' +
+      '<p>The editor keeps its tools on four tabs under the waveform — ' +
+      '<strong>Effects</strong>, <strong>Chop</strong>, <strong>Fit &amp; Shift</strong> and ' +
+      '<strong>Scratch</strong>. <strong>Undo</strong> and <strong>Redo</strong> step through ' +
+      'every edit, and <strong>Load into</strong> puts the result in the slot you pick.</p>' +
       '<p>Open <strong>Chop</strong> to cut a break into slices and spread them ' +
       'across the slots — the classic way to turn one bar of drums into eight playable hits.</p>' +
       '<p>A loop recorded at someone else\'s tempo can be made to fit yours. ' +
       '<strong>FIT</strong> on the slot row retimes it to the nearest bar length in one press, ' +
       'and offers <strong>Undo</strong> afterwards. The editor\'s <strong>Fit &amp; Shift</strong> ' +
-      'section lets you name the length yourself — one bar, or any count of sixteenths — and pick ' +
+      'tab lets you name the length yourself — one bar, or any count of sixteenths — and pick ' +
       '<em>Rhythmic</em> for drums and loops or <em>Tonal</em> for pads and sustained sounds. ' +
       'The pitch stays exactly where it was, which is what separates this from PITCH. ' +
-      '<strong>Shift</strong>, in the same section, does the opposite: it moves the pitch and ' +
+      '<strong>Shift</strong>, on the same tab, does the opposite: it moves the pitch and ' +
       'leaves the length alone.</p>' +
       '<p>Open <strong>Scratch</strong> in the editor to draw a turntable gesture over the ' +
       'clip. The lower lane is the <em>speed</em> of the record: drag a point up and the ' +

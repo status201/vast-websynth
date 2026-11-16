@@ -3,7 +3,7 @@
 ```yaml
 id: add-a-modal-dialog
 status: implemented
-version: 6
+version: 7
 owner: core
 related:
   - architecture
@@ -70,6 +70,11 @@ const modal = new Modal({
                                    // flow that must not vanish on a stray outside
                                    // click (e.g. the WiFi pair wizard). Escape
                                    // still closes; provide an explicit Close button.
+  closeButton: true,               // optional; a ✕ at the title's right edge
+                                   // (UI_ICONS.close) that closes like Escape.
+  closeTestId: 'my-close',         // optional; the ✕'s data-testid.
+  beforeClose: () => confirmDiscard(),  // optional guard: Escape and the ✕ ask it
+                                   // first, and the modal stays open on false.
 });
 modal.body.appendChild(buildContents());   // caller appends into modal.body
 ```
@@ -139,6 +144,14 @@ npm test            # tests/ui/modal.test.ts
 - **Do teardown in `onClose`.** It fires exactly once per close (Escape,
   backdrop click, or `close()`). The record-sound modal disconnects its media
   stream / observers there — leaking those is the classic bug.
+- **A guard covers the user's ways out, not yours.** `beforeClose` (sync or
+  async) runs for Escape and the ✕ — through `requestClose()`, which a caller's
+  own Cancel button should use too. `close()` itself stays unconditional, so a
+  flow that has just saved its work closes without being asked. A second
+  Escape while the guard is still answering is ignored. The sample studio uses
+  it to ask before discarding a recording
+  ([sample-recorder](../features/sample-recorder.md)
+  REQ-nothing-closes-the-studio-by-accident).
 - **Escape beats panic.** `Modal` captures Escape (`stopImmediatePropagation`)
   so it closes the dialog instead of triggering the global panic handler. A
   non-modal tool must *not* do this — use `FloatingWindow` for that.
@@ -174,6 +187,14 @@ Scenario: Escape closes the top modal only (v5, regression)
   When the user presses Escape
   Then the confirm closes and the preset manager stays open
    And a second Escape closes the preset manager
+# pinned by: tests/ui/modal.test.ts
+
+Scenario: A guarded modal asks before Escape closes it (v7)
+  Given a Modal whose beforeClose answers false
+  When the user presses Escape or clicks its ✕
+  Then it stays open and onClose has not fired
+  When beforeClose answers true
+  Then the next Escape closes it, while close() never asks
 # pinned by: tests/ui/modal.test.ts
 
 Scenario: anyOpen reports an open modal, not a fading one (v5)

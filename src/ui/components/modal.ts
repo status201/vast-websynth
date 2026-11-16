@@ -1,5 +1,6 @@
 import styles from '../styles/modal.module.css';
 import { pushModal, removeModal, isTopModal, anyModalOpen } from '../modal-stack';
+import { UI_ICONS } from './ui-icons';
 
 /**
  * Reusable modal dialog — the backdrop / card / title / Escape /
@@ -22,6 +23,17 @@ export interface ModalOptions {
    * button; Escape still closes.
    */
   dismissOnBackdrop?: boolean;
+  /**
+   * A guard asked before Escape, the ✕ or `requestClose()` close the modal;
+   * `false` (or a promise of it) keeps it open. `close()` never asks — a flow
+   * that has just saved its work closes unconditionally
+   * (add-a-modal-dialog.md, sample-recorder.md REQ-nothing-closes-the-studio-by-accident).
+   */
+  beforeClose?: () => boolean | Promise<boolean>;
+  /** Draw a ✕ at the title's right edge that closes like Escape (guarded). */
+  closeButton?: boolean;
+  /** `data-testid` for that ✕. */
+  closeTestId?: string;
 }
 
 /**
@@ -49,6 +61,9 @@ export class Modal {
 
   private readonly backdrop: HTMLElement;
   private readonly onCloseCb?: () => void;
+  private readonly guard?: () => boolean | Promise<boolean>;
+  /** A guard is being answered; a second Escape must not stack a second ask. */
+  private asking = false;
   private closeTimer: number | undefined;
   private opened = false;
   private closed = false;
@@ -73,12 +88,13 @@ export class Modal {
 
   constructor(opts: ModalOptions) {
     this.onCloseCb = opts.onClose;
+    this.guard = opts.beforeClose;
 
     this.backdrop = document.createElement('div');
     this.backdrop.className = `${styles.backdrop!} hidden`;
     if (opts.dismissOnBackdrop !== false) {
       this.backdrop.addEventListener('pointerdown', (e) => {
-        if (e.target === this.backdrop) this.close();
+        if (e.target === this.backdrop) void this.requestClose();
       });
     }
 
@@ -89,7 +105,23 @@ export class Modal {
 
     const title = document.createElement('div');
     title.className = styles.title!;
-    title.textContent = opts.title;
+    if (opts.closeButton) {
+      // Text in its own span so the ✕ can sit at the far right of the row.
+      title.classList.add(styles.titleBar!);
+      const text = document.createElement('span');
+      text.textContent = opts.title;
+      const x = document.createElement('button');
+      x.type = 'button';
+      x.className = styles.titleClose!;
+      x.innerHTML = UI_ICONS.close;
+      x.title = 'Close';
+      x.setAttribute('aria-label', 'Close');
+      if (opts.closeTestId) x.dataset.testid = opts.closeTestId;
+      x.addEventListener('click', () => { void this.requestClose(); });
+      title.append(text, x);
+    } else {
+      title.textContent = opts.title;
+    }
 
     this.body = document.createElement('div');
     this.body.className = styles.body!;
@@ -110,9 +142,42 @@ export class Modal {
       // Beat the global Escape→panic handler in shortcuts.ts.
       e.preventDefault();
       e.stopImmediatePropagation();
-      this.close();
+      void this.requestClose();
     }
   };
+
+  /**
+   * Close the way a user does — through `beforeClose` when there is one.
+   * Resolves `true` when the modal closed.
+   */
+  async requestClose(): Promise<boolean> {
+    if (this.closed) return true;
+    if (!this.guard) { this.close(); return true; }
+    if (this.asking) return false;
+    let answer: boolean | Promise<boolean>;
+    try {
+      answer = this.guard();
+    } catch {
+      return false;
+    }
+    // A guard with nothing to ask answers at once, and the modal closes in the
+    // same turn as the key press — exactly as an unguarded one does.
+    if (typeof answer === 'boolean') {
+      if (answer) this.close();
+      return answer;
+    }
+    this.asking = true;
+    let ok = false;
+    try {
+      ok = await answer;
+    } catch {
+      ok = false;
+    } finally {
+      this.asking = false;
+    }
+    if (ok) this.close();
+    return ok;
+  }
 
   open(): void {
     if (this.opened) return;

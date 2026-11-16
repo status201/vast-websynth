@@ -23,10 +23,13 @@ const TABLET = { width: 1024, height: 768 };
 // sidechain-ducking.md REQ-ducking-adds-no-new-gesture) moved it: five collapsed groups need 1580px
 // before the row fits under Windows metrics, ~110px more than four did. CI's
 // fonts need more still — 1600px, which used to clear four groups by 20px,
-// wrapped there on all three attempts. This is deliberately far past both, since
-// nothing but a headless viewport is being spent: the assertion is "given room
-// to spare", so the width should not be a number the next group can creep up on.
-const WIDE = { width: 1900, height: 900 };
+// wrapped there on all three attempts. The Sampler's record button
+// (REQ-the-record-button-holds-the-top-right) then took ~200px beside the header,
+// leaving it 1606px of a 1900px viewport — which CI's fonts wrapped. This is
+// deliberately far past all of that, since nothing but a headless viewport is
+// being spent: the assertion is "given room to spare", so the width should not
+// be a number the next group can creep up on.
+const WIDE = { width: 2400, height: 900 };
 
 const SAMPLER_FX = ['dist', 'phaser', 'delay', 'reverb'] as const;
 const fxId = (name: string) => `fxgroup-fx.sampler.${name}`;
@@ -106,6 +109,37 @@ test.describe('responsive machine header', () => {
     const dist = (await page.getByTestId(fxId('dist')).boundingBox())!;
     expect(dist.y).toBeLessThan(machine.y + machine.height);
     expect(dist.y + dist.height).toBeGreaterThan(machine.y);
+    expect(await horizontalOverflow(page)).toBe(0);
+  });
+
+  // REQ-the-record-button-holds-the-top-right: the way into the sample studio is
+  // not a header item — it keeps the tab's top-right corner however the header
+  // wraps, and on a phone it is the header's last, full-width row.
+  test('pins the record button top-right, and last and full-width on a phone', async ({ page }) => {
+    await gotoAndStart(page);
+    await page.getByTestId('tab-sampler').click();
+    const rec = page.getByTestId('sampler-record');
+    const header = page.getByTestId('switch-sampler.on').locator('xpath=..');
+
+    for (const size of [DESKTOP, TABLET]) {
+      await page.setViewportSize(size);
+      const r = (await rec.boundingBox())!;
+      const row = (await rec.locator('xpath=..').boundingBox())!;
+      const machine = (await page.getByTestId('switch-sampler.on').boundingBox())!;
+      // Its right edge is the row's right edge…
+      expect(Math.abs((row.x + row.width) - (r.x + r.width))).toBeLessThanOrEqual(1);
+      // …and it sits on the machine switch's row, at the top.
+      expect(r.y).toBeLessThan(machine.y + machine.height);
+      expect(r.y + r.height).toBeGreaterThan(machine.y);
+      expect(r.height).toBeGreaterThanOrEqual(32);
+      expect(await horizontalOverflow(page)).toBe(0);
+    }
+
+    await page.setViewportSize({ width: 375, height: 812 });
+    const r = (await rec.boundingBox())!;
+    const h = (await header.boundingBox())!;
+    expect(r.y).toBeGreaterThanOrEqual(h.y + h.height - 1);
+    expect(r.width).toBeGreaterThanOrEqual(h.width - 2);
     expect(await horizontalOverflow(page)).toBe(0);
   });
 

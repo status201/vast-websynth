@@ -13,7 +13,7 @@ import { CHORUS_MODE_OVERRIDES } from '../../state/chorus';
 import { StepButton } from '../components/step-button';
 import {
   bankBarFor, wrapGridWithRestOverlay, wirePlayhead, playheadRulerFor, laneControlsFor, laneMeterControlsFor, GridCursor, clearMenuFor,
-  samplerSlotClearRow, ejectSamplerFile, VisibilityGate, type MachinePanel,
+  samplerSlotClearRow, ejectSamplerFile, samplerSlotFilled, VisibilityGate, type MachinePanel,
 } from './step-panel-scaffold';
 import { attachGridGestures } from '../components/grid-gestures';
 import type { RecordSoundOptions } from '../components/record-sound-modal';
@@ -32,23 +32,29 @@ import panelStyles from '../styles/panel.module.css';
 import drumStyles from '../styles/drum.module.css';
 import samplerStyles from '../styles/sampler.module.css';
 import editStyles from '../styles/step-settings.module.css';
-import { UI_ICONS } from '../components/ui-icons';
+import { UI_ICONS, iconLabel } from '../components/ui-icons';
 
 /**
- * The recorder/editor is ~19 kB of modal that a player reaching for the sampler
+ * The sample studio (recorder, editor, metronome) is a large modal that a player reaching for the sampler
  * may never open, so it loads on the click that opens it
  * (runtime-performance.md REQ-boot-cost-matches-the-request). Both call sites go through here.
  */
-async function openRecordSoundModal(engine: StudioApi, opts?: RecordSoundOptions): Promise<void> {
+async function openRecordSoundModal(
+  engine: StudioApi,
+  bridge: UiBridge,
+  opts: Omit<RecordSoundOptions, 'toggleTransport'> = {},
+): Promise<void> {
   // A missing chunk is reported with a retry rather than swallowed
   // (lazy-load-failure.md). The retry carries `opts`, so the "render into
   // this slot" door reopens on the same slot the click named.
   const m = await loadSurface(
     'the sound recorder',
     () => import('../components/record-sound-modal'),
-    () => void openRecordSoundModal(engine, opts),
+    () => void openRecordSoundModal(engine, bridge, opts),
   );
-  m?.openRecordSoundModal(engine, opts);
+  // The studio's Play is the header's own (transport-window.md
+  // REQ-play-pause-is-not-a-second-truth) — injected here, once, for both doors.
+  m?.openRecordSoundModal(engine, { ...opts, toggleTransport: () => bridge.toggleTransport() });
 }
 
 /**
@@ -95,13 +101,16 @@ export function buildSamplerPanel(
     () => [samplerSlotClearRow(engine, undo, cursor.selRow)],
     () => laneGrid(bus, 'sampler').cells));
 
+  // Not a header item: it holds the tab's top-right corner however the header
+  // wraps, and becomes the last full-width row on a phone
+  // (responsive-machine-header.md REQ-the-record-button-holds-the-top-right).
   const recBtn = document.createElement('button');
+  recBtn.type = 'button';
   recBtn.className = `${samplerStyles.rec!}`;
   recBtn.dataset.testid = 'sampler-record';
-  recBtn.textContent = 'Record a sound';
-  recBtn.title = 'Record a sound from your microphone';
-  recBtn.addEventListener('click', () => void openRecordSoundModal(engine));
-  header.appendChild(recBtn);
+  recBtn.innerHTML = iconLabel('mic', 'Record a sound');
+  recBtn.title = 'Record a sound from your microphone, then edit it and load it into a slot';
+  recBtn.addEventListener('click', () => void openRecordSoundModal(engine, bridge));
 
   // One cluster so the header breaks between machine controls and FX rather
   // than mid-cluster (responsive-machine-header.md).
@@ -151,7 +160,11 @@ export function buildSamplerPanel(
   ]));
   header.appendChild(fx);
 
-  root.appendChild(header);
+  const headerRow = document.createElement('div');
+  headerRow.className = samplerStyles.headerRow!;
+  header.classList.add(samplerStyles.headerMain!);
+  headerRow.append(header, recBtn);
+  root.appendChild(headerRow);
 
   // Declared here rather than beside wirePlayhead below, because the ruler is
   // built before the grid and needs the same gate.
@@ -406,7 +419,7 @@ export function buildSamplerPanel(
         testId: 'sampler-del-toast',
         onAction: () => {
           // Only into a slot still empty: a file loaded or recorded since stays.
-          if (engine.sampler.buffers[slot] != null || engine.patterns.sampleNames[slot] != null) return;
+          if (samplerSlotFilled(engine, slot)) return;
           ++loadTickets[slot]!;
           restore();
           refreshLabel(slot);
@@ -437,7 +450,7 @@ export function buildSamplerPanel(
     editBtn.addEventListener('click', () => {
       const buf = engine.sampler.buffers[slot];
       if (!buf) return;
-      void openRecordSoundModal(engine, { slot, source: audioBufferToCaptured(buf) });
+      void openRecordSoundModal(engine, bridge, { slot, source: audioBufferToCaptured(buf) });
     });
     editBtns[slot] = editBtn;
     ctrls.appendChild(editBtn);
