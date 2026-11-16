@@ -138,7 +138,9 @@ asks first or leaves a way back.
   column of three bands:
   - the **toolbar** (screen breadcrumb `Record › Edit` + the transport strip,
     REQ-the-transport-is-in-reach),
-  - the **screen**, which alone scrolls,
+  - the **screen**, which alone scrolls, and only vertically: what overhangs
+    its sides (the crop handles, centred on the waveform's edges) is clipped,
+    never a sideways scroll,
   - the **footer**, which holds the screen's actions.
 
   The waveform grows with the card instead of being a fixed 160 px.
@@ -406,6 +408,12 @@ Scenario: The song can be stopped from inside the studio (REQ-the-transport-is-i
   Then the transport stops and the studio is still open
   And the press went through the header's Play, never straight to the clock
 # pinned by: e2e/mic.spec.ts, tests/ui/studio-transport.test.ts
+
+Scenario: The edit screen never scrolls sideways (REQ-the-studio-fills-the-screen, regression)
+  Given a slot holding audio, opened in the editor
+  When the viewport is 900px or 1400px wide
+  Then the edit screen is no wider than its box, so no horizontal scrollbar shows
+# pinned by: e2e/sample-editor-tabs.spec.ts
 
 Scenario: One tool page at a time, Effects first (REQ-the-tools-are-tabs)
   Given a slot holding audio

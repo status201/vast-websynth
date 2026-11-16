@@ -60,4 +60,17 @@ test.describe('sample studio — tool tabs', () => {
     // The footer's primary action is in view without scrolling.
     await expect(page.getByTestId('mic-load')).toBeInViewport();
   });
+
+  // Regression: the screen scrolls vertically, and CSS turns the other axis into
+  // `auto` with it — so the right crop handle, which hangs half outside the
+  // waveform, made a 6px sideways scroll at every width. Playwright hides
+  // scrollbars, so this reads the overflow, not the bar.
+  test('the edit screen never scrolls sideways (REQ-the-studio-fills-the-screen)', async ({ page }) => {
+    await openEditor(page);
+    const screen = page.getByTestId('rec-screen-edit');
+    for (const width of [900, 1400]) {
+      await page.setViewportSize({ width, height: 900 });
+      await expect.poll(() => screen.evaluate((el) => el.scrollWidth - el.clientWidth)).toBe(0);
+    }
+  });
 });

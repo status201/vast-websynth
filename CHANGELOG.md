@@ -45,6 +45,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
   again, and Reset can be undone too.
 - **The Record a sound button was easy to miss.** It is now a large button at the
   top right of the Sampler tab (the bottom of the header on a phone).
+- **Edit sample no longer shows a horizontal scrollbar.** The waveform's right crop
+  handle hung a few pixels past the edge, which put a scrollbar under the tools at
+  every window size.
 - **Saving while playing no longer stores what the motion lanes were doing.** A song
   save, slot, export, share link, project zip, preset save or the session autosave
   taken mid-play captured each automated parameter wherever the sweep happened to be,
