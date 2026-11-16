@@ -99,7 +99,7 @@ and indent costs tokens and latency.
   contracts rather than re-deriving them.
 - **One owner per fact; everyone else links, plus at most one line.** A fact
   written out in N specs drifts in N−1 of them. The chain order is `effects.md`'s,
-  the song-version ladder `song-mode.md`'s, the limits `untrusted-input.md`'s (and
+  the song-version ladder `song-file.md`'s, the limits `untrusted-input.md`'s (and
   `limits.ts`), the lazy surfaces `lazy-load-failure.md`'s test tables.
 - **A spec says what is true now.** Its REQ keeps the `(vN)` it landed in, and
   nothing else about versions.
@@ -308,6 +308,7 @@ specs/
     pattern-undo.md    ·  per-machine step-grid undo (button + scoped Ctrl+Z)
     arrangement.md     ·  the four chain lanes
     motion-sequencer.md ·  XY param automation machine (anchors, slide/step) + four single-param lanes
+    motion-panel.md    ·  the Motion tab: step pads (peek/snap/fine), lane headers, fold, the curve graph
     arrangement-rest.md ·  the always-empty "rest" chain slot
     performance.md     ·  live DJ FX (DJ filter/stutter/fill/drop/tape-stop)
     midi-clock-sync.md ·  master/slave transport sync over MIDI real-time (24 PPQN)
@@ -315,6 +316,7 @@ specs/
     xy-pad.md          ·  assignable momentary XY controller (spring-back)
     # — songs & persistence —
     song-mode.md       ·  the cross-cutting integration feature
+    song-file.md       ·  the on-disk SongFile: version ladder, import validation, canonical form
     demo-library.md    ·  what a shipped demo is + the generated metadata behind the shelf + the library window
     rickroll-easter-egg.md ·  playing the "Never gonna give you up" hook offers the Rickroll demo (hidden on purpose)
     untrusted-input.md ·  the trust boundary: payload limits, ranges, consent (cross-cutting)
@@ -371,7 +373,8 @@ specs/
     keyboard-layout.md ·  QWERTY/AZERTY/QWERTZ/Dvorak note-key mapping + picker
     keyboard-range.md  ·  on-screen keyboard size: octaves follow its width, key height is bounded by key width
     testids.md         ·  the stable `data-testid` contract + full catalogue
-    onboarding.md      ·  guided tour + info badges
+    onboarding.md      ·  guided tour, help copy, About
+    info-badges.md     ·  per-control ⓘ badges, the header toggle, where a badge may show
     play-button-blink.md ·  Play LED states: beat blink, idle attract pulse, demo cue
     empty-play-hint.md ·  "nothing to play" modal on empty Play + persisted opt-out
     tempo-sync-help.md ·  BPM "sweet spots" + relationship help badges (click-to-snap)
@@ -379,6 +382,7 @@ specs/
     tempo-lock.md      ·  lock a rate/time knob to the grid, inside the knob's own footprint
     performance-mode.md ·  device-scoped audio-quality setting (buffer/voices/scope)
     runtime-performance.md ·  app-wide cost contract (boot budget, gesture-scoped listeners, automation≠edit)
+    shared-helpers.md  ·  the reused code: src/utils/ + its import rule, smoothing vocabulary, shell regions, step-panel scaffold
     ios-audio.md       ·  iOS silent-switch unlock (media-backed context) + interruption re-arm
     audio-lifecycle.md ·  click-free start, foreground re-arm, screen-off dropout recovery
     media-session.md   ·  Android keep-alive: silent loop + MediaSession so the OS sees a player
@@ -387,6 +391,8 @@ specs/
     factory-reset.md   ·  About-modal "Restore to Factory Settings" (clear all local data + app caches, reload)
     play-offline.md    ·  About-modal "Play offline": save every app file on the device, kept current per release
     scope.md           ·  wave/spectrum live visualizer + mono/stereo split
+    scope-spectrum.md  ·  the Spectrum view: log axis, peak hold, ticks, zones, hover readout
+    scope-health.md    ·  the scope never stops painting: watchdog, context loss, idle sleep
   recipes/             ← repeatable how-tos / playbooks
     _recipe-template.md       ·  copy this to start a new recipe
     add-a-parameter.md       ·  the 3-edit pattern for any new scalar param

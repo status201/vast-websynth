@@ -85,7 +85,7 @@ exported — see ADR-013.
   ([banks](banks.md) REQ-a-chain-reference-grows-the-machine) — and because that
   is grown-machine content with no array length to give it away, such a chain
   puts the expanded file on the same version a matching authored bank would:
-  **v8** for E..H ([song-mode](song-mode.md) REQ-song-file-v8-widens-the-bank-count),
+  **v8** for E..H ([song-file](song-file.md) REQ-song-file-v8-widens-the-bank-count),
   **v9** for I..P (REQ-song-file-v9-raises-the-bank-ceiling). String/array
   shorthands imply `enabled: true`; an omitted chain expands to
   `{enabled: false, steps: [0]}`.
@@ -127,7 +127,7 @@ exported — see ADR-013.
 - **REQ-the-emitted-version-is-the-lowest-that-fits** — **The emitted canonical
   version is the LOWEST that can hold what was authored**, never a bare
   `SONG_VERSION`. The ladder, top rung first: **9** when any machine carries
-  more than eight banks or any chain names bank I or later (song-mode.md
+  more than eight banks or any chain names bank I or later (song-file.md
   REQ-song-file-v9-raises-the-bank-ceiling), else **8** when any machine carries
   more than four banks, any chain names bank E..H, or any motion bank uses a lane
   past the second (REQ-song-file-v8-widens-the-bank-count), else **7** when any chain slot carries
@@ -186,7 +186,7 @@ exported — see ADR-013.
 - **REQ-a-chain-letter-may-carry-a-transpose** — **A `seqChain` letter may carry
   a transpose suffix**: `"A A+5 A+7 A+3"` — an optional `+n` / `-n` of up
   to `MAX_CHAIN_TRANSPOSE` (24) semitones after a bank letter, expanding to the
-  canonical `seqTranspose` array ([song-mode](song-mode.md) REQ-song-file-v7-adds-slot-transpose). This is the
+  canonical `seqTranspose` array ([song-file](song-file.md) REQ-song-file-v7-adds-slot-transpose). This is the
   dialect's headline win from [arrangement](arrangement.md)
   REQ-a-seq-slot-carries-a-transpose: a four-chord progression is one bank and one
   chain string, still the compact way to say it with up to sixteen banks.
@@ -224,7 +224,7 @@ exported — see ADR-013.
       written (REQ-the-dialect-is-input-only), so an author string there is
       refused (`null`) rather than expanded.
     - The expander's chunk is warmed on idle with the other deferred surfaces
-      ([pwa-install](pwa-install.md) REQ-service-worker-is-registered), so pasting
+      ([pwa-install](pwa-install.md) REQ-deferred-chunks-are-warmed-on-idle), so pasting
       an AI reply works offline after one online visit.
 
 ## Technical design
@@ -279,8 +279,8 @@ AuthorMotionTrack: '{param: paramId, steps: [{step: 0..15, v: 0..1}, …]} | nul
 The emitted canonical version (REQ-the-emitted-version-is-the-lowest-that-fits):
 
 ```yaml
-> 8 banks / chain names I+ -> 9   # the raised ceiling (song-mode.md REQ-song-file-v9-raises-the-bank-ceiling)
-> 4 banks / chain names E+ / motion lane 3-4 -> 8   # (song-mode.md REQ-song-file-v8-widens-the-bank-count)
+> 8 banks / chain names I+ -> 9   # the raised ceiling (song-file.md REQ-song-file-v9-raises-the-bank-ceiling)
+> 4 banks / chain names E+ / motion lane 3-4 -> 8   # (song-file.md REQ-song-file-v8-widens-the-bank-count)
 chain slot transposed     -> 7   # seqTranspose   (arrangement.md REQ-a-seq-slot-carries-a-transpose)
 seq bank uses tracks 2-4  -> 6   # seqTracks      (sequencer.md REQ-song-file-v6-adds-seq-tracks)
 motionTracks present      -> 5   # motionTracks   (motion-sequencer.md REQ-song-file-v5-adds-motion-tracks)

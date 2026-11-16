@@ -21,6 +21,7 @@ source:
   - src/audio/recorder/audio-buffer.ts  # audioBufferView — the uncopied read the export encodes from
   - src/ui/components/export-song-modal.ts
   - src/ui/panels/song-panel.ts         # export modal wiring + zip import + demo-zip buttons
+  - src/ui/panels/song-io.ts            # applyProjectBundle, the export and the zip import
   - src/state/song.ts                   # ZIP_DEMOS (?url glob)
 ```
 
@@ -29,7 +30,7 @@ source:
 Sampler slot audio lives only in `SamplerMachine.buffers`; a saved/exported song
 persists just the filenames (`SongFile.sampleNames`), so every export/import loses
 the audio and the sampler panel falls back to the `.needs-reload` hint
-([song-mode](song-mode.md) REQ-audio-is-never-embedded-in-the-json, [sampler](sampler.md) REQ-only-sample-filenames-persist). This feature adds a
+([song-file](song-file.md) REQ-audio-is-never-embedded-in-the-json, [sampler](sampler.md) REQ-only-sample-filenames-persist). This feature adds a
 **"Project"** export: a `<name>.websynth.zip` containing the canonical compact song
 JSON plus each loaded slot's audio clip, importable in one step, and a loader path
 so future demos can ship as zips with audio. The `.json` song format is untouched.
@@ -69,7 +70,7 @@ so future demos can ship as zips with audio. The `.json` song format is untouche
   import-error dialog; on export it is an **Export failed** alert, not a click that
   does nothing. The **Export** dialog itself is a surface and loads on its click
   through `loadSurface`. Both chunks are warmed on idle
-  ([pwa-install](pwa-install.md) REQ-service-worker-is-registered).
+  ([pwa-install](pwa-install.md) REQ-deferred-chunks-are-warmed-on-idle).
 - **REQ-deflate-helpers-are-shared** — The shared deflate helpers live in
   `src/utils/compression.ts` (extracted from `webrtc-signaling.ts`, behaviour
   identical) so the zip module does not depend on an audio/signaling module.
@@ -202,10 +203,10 @@ export (song-panel):
   kind project -> capture; per loaded slot audioBufferToCaptured -> await encodeClip(fmt)
                   -> await blob.arrayBuffer()  (sequentially — REQ-clip-codec-is-memory-aware)
                   -> buildProjectZip -> triggerDownload(application/zip, projectFilename)
-import (song-panel):
+import (song-io.ts, behind the Song panel's Import):
   fileInput accepts .json,.zip; sniff first 4 bytes (sniffImportKind)
   zip -> parseProjectZip; errors reuse the alertDialog bullet-list idiom
-      -> applyProjectBundle: applySong -> Song.saveSlot (JSON only — REQ-slots-stay-json-only)
+      -> applyProjectBundle: SongSession.applyWithUndo -> Song.saveSlot (JSON only — REQ-slots-stay-json-only)
          -> decode clips sequentially with ctx.decodeAudioData(clip.data.slice().buffer)
          -> sampler.setBuffer, then ALWAYS setSampleName (the song's own name, or the
             zip entry name as fallback) — its meta event is what tells the sampler

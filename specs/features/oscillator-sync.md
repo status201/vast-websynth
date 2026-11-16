@@ -23,7 +23,9 @@ source:
   - src/audio/frequency-line.ts      # the glide maths Osc and the pair share
   - src/audio/oscillator.ts          # native fade + the mirror the pair follows
   - src/audio/voice.ts               # engage/disengage, the pitch + sync junctions
-  - src/audio/engine.ts              # lazy creation, subscriptions
+  - src/audio/osc-pair-policy.ts     # OscPairPolicy.ensureSync: lazy, memoized creation
+  - src/audio/engine-params.ts       # the osc2.sync / osc2.syncPitch subscriptions
+  - src/audio/engine.ts              # pitch + LFO wiring per voice
   - src/audio/lfo.ts                 # toSync
   - src/state/lfo-routing.ts         # LFO_DEST_SCALE
   - src/audio/mod-matrix.ts          # the sync destination
@@ -240,7 +242,7 @@ outputs: 2, mono each             # 0 = master (osc1), 1 = slave (osc2)
 ```yaml
 registry: src/state/params.ts -> osc2.sync, osc2.syncPitch, LFO_DEST_LABELS += sync
 routing:  src/state/mod-routing.ts -> MOD_DEST_LABELS += sync, MOD_DEST_SCALE[sync] = 48
-engine:   osc2.sync      -> ensureSync() (lazy, memoized) then all(v.setSyncMode)
+engine:   osc2.sync      -> pairs.ensureSync() (lazy, memoized) then all(v.setSyncMode)
           osc2.syncPitch -> all(v.setSyncPitch)
 graph (per voice, engaged):
   pitch sources -> pitchTargets() = [osc1.detune, osc2.detune, sub.detune, pitchMod.offset]

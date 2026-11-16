@@ -813,7 +813,7 @@ describe('Song — meter back-compat (meter.md REQ-meter-needs-no-song-file-bump
   });
 });
 
-describe('SongFile v8/v9 — MIN..MAX_BANK_COUNT banks per machine (song-mode.md REQ-song-file-v8-widens-the-bank-count, REQ-song-file-v9-raises-the-bank-ceiling)', () => {
+describe('SongFile v8/v9 — MIN..MAX_BANK_COUNT banks per machine (song-file.md REQ-song-file-v8-widens-the-bank-count, REQ-song-file-v9-raises-the-bank-ceiling)', () => {
   const applyTo = (file: SongFile) => {
     const bus = new ParamBus();
     registerDefaults(bus);

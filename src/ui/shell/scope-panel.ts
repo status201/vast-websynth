@@ -44,7 +44,7 @@ export function buildScopePanel(
     scope.setMode(isWave ? 'wave' : 'spectrum');
     toggle.textContent = isWave ? 'Wave' : 'Spectrum';
     // The problem-band overlay only means anything over a frequency axis, so its
-    // button rides the view rather than sitting on the panel forever (scope REQ-a-zones-toggle).
+    // button rides the view rather than sitting on the panel forever (scope-spectrum REQ-a-zones-toggle).
     zonesToggle.hidden = isWave;
   });
   scopeWrap.appendChild(toggle);
@@ -57,7 +57,7 @@ export function buildScopePanel(
   });
   scopeWrap.appendChild(chanToggle);
   // Problem-frequency overlay — bottom-right, the one corner free of chrome, which
-  // is also why the spectrum plot reserves a gutter there (scope REQ-a-zones-toggle). Hidden
+  // is also why the spectrum plot reserves a gutter there (scope-spectrum REQ-a-zones-toggle). Hidden
   // until the view that gives it meaning is on screen; declared BEFORE the
   // Wave/Spectrum handler above runs, but after that button so tab order still
   // reads left-to-right, top-to-bottom.
@@ -71,7 +71,7 @@ export function buildScopePanel(
   scopeWrap.appendChild(zonesToggle);
   // Resize grip on the panel's top edge. A SIBLING of the canvas, like the two
   // toggles above — that is what keeps a press on it from reaching the canvas
-  // click listener and resetting the peak-hold (scope REQ-clicking-the-graph-resets-the-peak/REQ-a-scope-resize-handle). It resizes
+  // click listener and resetting the peak-hold (scope-spectrum REQ-clicking-the-graph-resets-the-peak, scope REQ-a-scope-resize-handle). It resizes
   // the shared grid row, so the PITCH/OCT/MOD strips grow with the scope.
   const scopeResize = new ResizeHandle({
     target: resizeTarget,

@@ -486,7 +486,7 @@ export class EqGraph {
     }
   }
 
-  /** Frequency and gain under the cursor, like the Spectrum's (scope.md REQ-hovering-reads-out-a-frequency). */
+  /** Frequency and gain under the cursor, like the Spectrum's (scope-spectrum.md REQ-hovering-reads-out-a-frequency). */
   private drawHover(ctx: CanvasRenderingContext2D, s: EqSettings, h: number): void {
     if (this.hoverX < 0 || this.hoverX > this.cssW) return;
     const hz = fracToFreq(this.hoverX / Math.max(1, this.cssW));

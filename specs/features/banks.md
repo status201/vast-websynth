@@ -14,6 +14,7 @@ related:
   - arrangement
 source:
   - src/state/patterns.ts
+  - src/state/pattern-model.ts          # bank counts, clamps, blank-bank factories (re-exported by patterns.ts)
   - src/ui/components/bank-bar.ts
   - src/ui/panels/step-panel-scaffold.ts
   - src/ui/panels/*-panel.ts
@@ -231,7 +232,7 @@ follow (REQ-follow-tracks-the-play-bank):
 
 A machine's count is **not** a stored field but the length of its array in the
 `SongFile`, so a four-bank song keeps its old bytes. The version history of the
-ceiling is [song-mode](song-mode.md)'s (REQ-song-file-v8-widens-the-bank-count,
+ceiling is [song-file](song-file.md)'s (REQ-song-file-v8-widens-the-bank-count,
 REQ-song-file-v9-raises-the-bank-ceiling). The ordering inside
 `Song.apply` is load-bearing: `restore()` runs **before** the chain setters, so a
 chain is always re-clamped against freshly-sized arrays and can never outlive the

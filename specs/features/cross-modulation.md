@@ -24,7 +24,9 @@ source:
   - src/audio/sync-osc/engagement.ts # the pair lands on Osc.signal
   - src/audio/sync-osc/node.ts       # SyncOscNode.fm
   - public/worklets/sync-osc.js      # the `fm` param
-  - src/audio/engine.ts              # subscriptions + the FM in-use predicate
+  - src/audio/engine.ts              # the mod-matrix and pulse-width subscriptions
+  - src/audio/engine-params.ts       # bindVoiceParams: osc1.fm / osc1.ring / osc2.wave
+  - src/audio/osc-pair-policy.ts     # OscPairPolicy: the FM in-use and pulse-carrier predicates
   - src/audio/mod-matrix.ts          # the fm destination, usesDest
   - src/state/params.ts              # osc1.fm, osc1.ring
   - src/state/mod-routing.ts         # MOD_DEST_LABELS += fm
@@ -45,7 +47,7 @@ into the mixer. SYNC stays on OSC 2, because sync is something OSC 2 does to
 itself. Five factory presets show the family (`tines`, `chime`, `growl`, `clang`,
 `tear`); each A/B is one knob to 0 ([presets](presets.md)
 REQ-factory-presets-span-the-instrument-families). OSC 1 and OSC 2 carry separate
-help badges ([onboarding](onboarding.md) REQ-each-oscillator-carries-its-own-badge).
+help badges ([info-badges](info-badges.md) REQ-each-oscillator-carries-its-own-badge).
 
 ## Requirements
 
@@ -178,7 +180,7 @@ Voice:
   fmTarget: AudioParam
   setOscOctave(osc, o) / setOscTune(osc, cents)   # the Osc write, then k
   setFm(beta) / setFmInUse(on) / setRing(level)
-  setPairFree(on)               # the engine's pulse-carrier predicate -> SyncEngagement.setFree
+  setPairFree(on)               # OscPairPolicy's pulse-carrier predicate -> SyncEngagement.setFree
 SyncOscNode:
   fm: AudioParam                # a-rate, β
 ModMatrix:
@@ -190,11 +192,11 @@ ModMatrix:
 ```yaml
 registry: src/state/params.ts -> osc1.fm, osc1.ring
 routing:  src/state/mod-routing.ts -> MOD_DEST_LABELS += fm, MOD_DEST_SCALE[fm] = 8
-engine:   osc1.fm -> all(v.setFm), refreshFm()
-          mod.N.src / mod.N.dst -> refreshFm()     # in use = fm > 0 || modMatrix.usesDest(fm)
+engine:   osc1.fm -> pairs.setFmIndex (all(v.setFm), then refreshFm)   # bindVoiceParams
+          mod.N.src / mod.N.dst -> pairs.refreshFm()   # in use = fm > 0 || modMatrix.usesDest(fm)
           osc1.ring -> all(v.setRing)
-          refreshFm / osc2.wave / osc2.pulseWidth / PWM owner -> refreshPairFree()
-            # fmInUse && osc2 square && (width > 0.5 || pwmOwner != null)
+          refreshFm / osc2.wave / osc2.pulseWidth / PWM owner -> pairs.refreshPairFree()
+            # OscPairPolicy: fmInUse && osc2 square && (width > 0.5 || pwmOwner != null)
             # -> ensureSync() then all(v.setPairFree); a release waits PAIR_RELEASE_HOLD_MS
             # osc2.wave / osc2.pulseWidth ask the predicate BEFORE writing the oscillators
           osc{1,2}.octave/detune -> v.setOscOctave / v.setOscTune

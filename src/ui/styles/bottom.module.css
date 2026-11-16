@@ -102,7 +102,7 @@
   /* Problem-band overlay toggle — bottom-right, the only corner with no chrome in
      either stereo layout (the L/R labels sit bottom-LEFT). The spectrum reserves no
      width for it: on a narrow panel the button covers the 10k tick label, which is
-     cheaper than costing every panel a dead strip. See specs/features/scope.md REQ-a-zones-toggle.
+     cheaper than costing every panel a dead strip. See specs/features/scope-spectrum.md REQ-a-zones-toggle.
      `!important` for the same reason .scopeToggle needs it: this class and
      switch.module.css's .root are both single-class selectors on the same element,
      so bundle order — not intent — would otherwise decide. */

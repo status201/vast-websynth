@@ -345,7 +345,7 @@ export function laneControlsFor(
  * (responsive-machine-header.md), and it has ~67px of slack there on this
  * machine's own font stack. Two labelled dropdowns are ~169px, which fits
  * locally and wraps on a CI runner's wider fallback font — and a wrapped header
- * pushes the per-step edit row past the fold, where onboarding.md REQ-a-badge-shows-only-where-reachable
+ * pushes the per-step edit row past the fold, where info-badges.md REQ-a-badge-shows-only-where-reachable
  * correctly hides its info badge. A 60px toggle cannot be the straw, and the
  * popover then has room to label both controls properly and show what the pair
  * amounts to in words. `Clear ▾` sits two controls away, so the idiom is already

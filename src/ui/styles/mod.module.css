@@ -36,7 +36,7 @@
   }
 
   /* An unassigned route fades its cells — never the row itself, or its own pickers
-     would become unreachable (motion-sequencer.md REQ-single-param-lanes-below-the-xy-lane). The source picker is
+     would become unreachable (motion-panel.md REQ-single-param-lanes-below-the-xy-lane). The source picker is
      deliberately left at full strength: it is the one control you need to click.
      A picker is excluded and dimmed by setDimmed() on its toggle instead: its open
      menu is a DOM child of its root, so opacity there fades the option list too

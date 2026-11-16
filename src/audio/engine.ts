@@ -1,12 +1,10 @@
 import { LadderFilterNode } from './ladder-filter/node';
-import { SyncOscNode } from './sync-osc/node';
 import { Voice } from './voice';
 import { LFO } from './lfo';
 import { SampleHold } from './sample-hold';
 import { PwmDriver } from './pwm';
-import { PWM_MIN_WIDTH } from './oscillator';
-import { SQUARE_WAVE, waveIndex } from './waves';
-import { PAIR_RELEASE_HOLD_MS } from './cross-mod';
+import { OscPairPolicy } from './osc-pair-policy';
+import { bindVoiceParams, bindMachineParams } from './engine-params';
 import { Compressor } from './effects/compressor';
 import { createSynthChain, createDrumChain, createSamplerChain } from './effects/fx-chain';
 import { CompressorNode } from './compressor/node';
@@ -38,7 +36,7 @@ import { RecorderNode } from './recorder/node';
 import { RecorderController } from './recorder/recorder-controller';
 import { BankRenderController } from './recorder/bank-render';
 import { ClipPreview } from './recorder/clip-preview';
-import { PatternStore, DRUM_TRACK_COUNT, SEQ_TRACK_COUNT, MOTION_TRACK_COUNT, SAMPLER_SLOT_COUNT } from '../state/patterns';
+import { PatternStore, SEQ_TRACK_COUNT } from '../state/patterns';
 import { barTicks, ticksPerBeat } from '../state/meter';
 import { XyPadStore } from '../state/xy-pad';
 import { IosAudioSession, type IosAudioDiagnostics } from './ios-audio-session';
@@ -190,21 +188,13 @@ export class Engine {
   private laneMixer!: LaneMixer;
 
   /**
-   * The oscillator-sync pairs, built the first time `osc2.sync` leaves `off` or a
-   * pulse carrier frees them, and never before (oscillator-sync.md
-   * REQ-the-pair-is-built-on-first-use). Memoized,
-   * so a mode flicked back and forth loads the module once; `null` until then.
+   * The oscillator-sync pairs and when the voices use them — built the first
+   * time `osc2.sync` leaves `off` or a pulse carrier frees them, and never before
+   * (oscillator-sync.md REQ-the-pair-is-built-on-first-use; cross-modulation.md
+   * REQ-an-fm-carrier-with-a-pulse-width-runs-in-the-pair). Built in `init()`,
+   * once the pool exists.
    */
-  private syncReady: Promise<void> | null = null;
-  /** `osc1.fm`, kept for `refreshFm` — half of FM's in-use predicate. */
-  private fmIndex = 0;
-  /** The inputs of the pulse-carrier predicate (`refreshPairFree`), and its last answer. */
-  private fmInUse = false;
-  private osc2Wave = 2;
-  private osc2Width = PWM_MIN_WIDTH;
-  private pairFree = false;
-  /** The pending release of a freed pair; a predicate back to true cancels it. */
-  private pairReleaseTimer: number | null = null;
+  private pairs!: OscPairPolicy;
 
   /**
    * Raw key/MIDI note → the notes it actually sounded, so a note-off releases exactly
@@ -437,7 +427,13 @@ export class Engine {
 
     // PWM writes params on every voice, so it is built once the pool exists.
     // Its timer only runs while an LFO is on `pulse` (oscillators.md REQ-set-periodic-wave-is-immediate).
-    this.pwm = new PwmDriver(this.voices, () => this.ctx.currentTime, () => this.refreshPairFree());
+    this.pairs = new OscPairPolicy({
+      ctx: this.ctx,
+      voices: this.voices,
+      fmRouted: () => this.modMatrix.usesDest(MOD_DST.fm),
+      pwmOwned: () => this.pwm.pwmOwner !== null,
+    });
+    this.pwm = new PwmDriver(this.voices, () => this.ctx.currentTime, () => this.pairs.refreshPairFree());
 
     // Arrangement first so its clock tick runs before the machines read
     // the play banks for the same tick.
@@ -815,79 +811,12 @@ export class Engine {
   }
 
   /**
-   * Build one sync pair per voice, once (REQ-the-pair-is-built-on-first-use). The
-   * wrapper itself is a static import: deferring it saved 0.8 kB of entry chunk
-   * but added a hashed chunk that an offline session may never have fetched,
-   * while the worklet it loads is precached with the other three (public/sw.js).
-   * A failed load is logged and forgotten, so the next switch-on tries again; the
-   * synth plays on native meanwhile, and nothing throws into the subscriber that
-   * asked (ADR-015). Building the pairs is not retried: attaching a voice twice
-   * would double its modulation.
+   * Every param's subscriber, registered in boot order (engine-params.ts: order
+   * is part of the contract). The synth voice's and the machines' blocks are
+   * binders of their own; what stays inline crosses those boundaries.
    */
-  private ensureSync(): Promise<void> {
-    this.syncReady ??= SyncOscNode.loadModule(this.ctx)
-      .then(
-        () => { for (const v of this.voices) v.attachSync(SyncOscNode.create(this.ctx)); },
-        (err: unknown) => {
-          this.syncReady = null;
-          console.warn('[sync] the sync worklet failed to load; sync stays off until it is switched on again', err);
-        },
-      )
-      .catch((err: unknown) => {
-        console.warn('[sync] building the sync pairs failed; sync stays off', err);
-      });
-    return this.syncReady;
-  }
-
-  /**
-   * FM is engaged while anything can make it heard — the knob, or a live matrix
-   * route on `fm` (cross-modulation.md REQ-cross-mod-disconnects-when-unused). The
-   * Engine is the one place that sees both.
-   */
-  private refreshFm(): void {
-    const on = this.fmIndex > 0 || this.modMatrix.usesDest(MOD_DST.fm);
-    for (const v of this.voices) v.setFmInUse(on);
-    this.fmInUse = on;
-    this.refreshPairFree();
-  }
-
-  /**
-   * FM onto a square whose width can move runs in the sync pair, free-running
-   * (cross-modulation.md REQ-an-fm-carrier-with-a-pulse-width-runs-in-the-pair):
-   * on Gecko each width swap on an FM'd native oscillator costs render quanta.
-   * Only a change of answer reaches the voices, so a WIDTH drag costs a compare.
-   * Freeing is immediate; releasing waits `PAIR_RELEASE_HOLD_MS`, so a drag through
-   * 0.5 does not toggle the pair (and pay the natives' catch-up each time).
-   */
-  private refreshPairFree(): void {
-    const want = this.fmInUse && this.osc2Wave === SQUARE_WAVE
-      && (this.osc2Width > PWM_MIN_WIDTH || this.pwm.pwmOwner !== null);
-    if (want) {
-      if (this.pairReleaseTimer !== null) {
-        clearTimeout(this.pairReleaseTimer);
-        this.pairReleaseTimer = null;
-      }
-      if (!this.pairFree) this.setPairFree(true);
-      // Re-asked while freed, so a failed module load is retried (it is memoized).
-      else void this.ensureSync();
-    } else if (this.pairFree && this.pairReleaseTimer === null) {
-      this.pairReleaseTimer = window.setTimeout(() => {
-        this.pairReleaseTimer = null;
-        this.setPairFree(false);
-      }, PAIR_RELEASE_HOLD_MS);
-    }
-  }
-
-  private setPairFree(on: boolean): void {
-    this.pairFree = on;
-    if (on) void this.ensureSync();
-    for (const v of this.voices) v.setPairFree(on);
-  }
-
   private subscribeParams(): void {
     const bus = this.bus;
-    const all = (fn: (v: Voice, value: number) => void) =>
-      (value: number) => { for (const v of this.voices) fn(v, value); };
 
     // Voicing (poly/mono, unison, glide, drift all live in Polyphony)
     bus.subscribe('voicing.mode', (v) => this.polyphony.setPoly(v >= 0.5));
@@ -896,8 +825,8 @@ export class Engine {
     // gain write, so it is safe to drag. None of this runs per frame (ADR-017).
     for (let n = 0; n < MOD_ROWS; n++) {
       const row = n;
-      bus.subscribe(`mod.${n}.src`, (v) => { this.modMatrix.setSource(row, v); this.refreshFm(); });
-      bus.subscribe(`mod.${n}.dst`, (v) => { this.modMatrix.setDest(row, v); this.refreshFm(); });
+      bus.subscribe(`mod.${n}.src`, (v) => { this.modMatrix.setSource(row, v); this.pairs.refreshFm(); });
+      bus.subscribe(`mod.${n}.dst`, (v) => { this.modMatrix.setDest(row, v); this.pairs.refreshFm(); });
       bus.subscribe(`mod.${n}.amt`, (v) => this.modMatrix.setAmount(row, v));
     }
     // The mod wheel is a depth scalar on LFO 1 (lfo.md REQ-the-mod-wheel-feeds-lfo-one-only) AND a matrix source.
@@ -906,90 +835,10 @@ export class Engine {
       rampTo(this.modWheelSource.offset, v, this.ctx, RAMP_MEDIUM);
     });
 
-    // Key / scale. `subscribe` fires immediately, so the table is built at boot and
-    // rebuilt only on change — never per note (scale-quantization.md REQ-the-scale-mapping-is-a-lookup-table).
-    bus.subscribe('scale.root', (v) => this.scale.setRoot(Math.round(v)));
-    bus.subscribe('scale.type', (v) => this.scale.setScale(Math.round(v)));
-    bus.subscribe('scale.extra', (v) => this.scale.setExtra(Math.round(v)));
-    bus.subscribe('chord.voicing', (v) => this.scale.setChord(Math.round(v)));
-    // Mono suppresses chord expansion — chord-tools.md REQ-mono-gates-the-live-chord-path.
-    bus.subscribe('voicing.mode', (v) => this.scale.setPoly(v >= 0.5));
-
-    // OSC 1
-    bus.subscribe('osc1.wave', all((v, x) => v.osc1.setWave(x)));
-    bus.subscribe('osc1.octave', all((v, x) => v.setOscOctave(1, x)));
-    bus.subscribe('osc1.detune', all((v, x) => v.setOscTune(1, x)));
-    bus.subscribe('osc1.level', all((v, x) => v.osc1.setLevel(x)));
-    // Cross-modulation (cross-modulation.md): OSC 1 is the modulator.
-    bus.subscribe('osc1.fm', (x) => {
-      this.fmIndex = x;
-      for (const v of this.voices) v.setFm(x);
-      this.refreshFm();
+    // The synth voice: key/scale through the filter envelope (engine-params.ts).
+    bindVoiceParams(bus, {
+      voices: this.voices, polyphony: this.polyphony, scale: this.scale, pairs: this.pairs,
     });
-    bus.subscribe('osc1.ring', all((v, x) => v.setRing(x)));
-
-    // OSC 2
-    bus.subscribe('osc2.wave', (x) => {
-      // The predicate first, as for the width: switching to square under FM frees
-      // the pair before the natives would pick up the standing width.
-      this.osc2Wave = waveIndex(x);
-      this.refreshPairFree();
-      for (const v of this.voices) v.osc2.setWave(x);
-    });
-    bus.subscribe('osc2.octave', all((v, x) => v.setOscOctave(2, x)));
-    bus.subscribe('osc2.detune', all((v, x) => v.setOscTune(2, x)));
-    bus.subscribe('osc2.level', all((v, x) => v.osc2.setLevel(x)));
-
-    // Oscillator sync (oscillator-sync.md). Every voice is told the mode even
-    // before its pair exists: it stores it, and `attachSync` applies it once the
-    // pair lands — until then the voice plays native.
-    bus.subscribe('osc2.sync', (x) => {
-      if (Math.round(x) !== 0) void this.ensureSync();
-      for (const v of this.voices) v.setSyncMode(x);
-    });
-    bus.subscribe('osc2.syncPitch', all((v, x) => v.setSyncPitch(x)));
-
-    // Sub oscillator
-    bus.subscribe('sub.wave', all((v, x) => v.setSubWave(x)));
-    bus.subscribe('sub.octave', all((v, x) => v.setSubOctave(x)));
-    bus.subscribe('sub.level', all((v, x) => v.setSubLevel(x)));
-
-    // Unison
-    bus.subscribe('unison.voices', (x) => this.polyphony.setUnisonCount(x));
-    bus.subscribe('unison.detune', (x) => this.polyphony.setUnisonDetune(x));
-
-    // Analogue drift / glide mode
-    bus.subscribe('analog.drift', (x) => this.polyphony.setDrift(x));
-    bus.subscribe('glide.mode', (x) => this.polyphony.setGlideMode(x));
-    // Mono single-trigger (voicing.md REQ-single-trigger-legatos-a-mono-line).
-    bus.subscribe('env.amp.trigger', (v) => this.polyphony.setSingleTrigger('amp', v >= 0.5));
-    bus.subscribe('env.fil.trigger', (v) => this.polyphony.setSingleTrigger('fil', v >= 0.5));
-
-    // Mixer
-    bus.subscribe('mixer.noise', all((v, x) => v.setNoiseLevel(x)));
-    bus.subscribe('mixer.glide', all((v, x) => v.setGlide(x)));
-
-    // Filter
-    bus.subscribe('filter.cutoff', all((v, x) => v.setFilterCutoff(x)));
-    bus.subscribe('filter.resonance', all((v, x) => v.setFilterResonance(x)));
-    bus.subscribe('filter.drive', all((v, x) => v.setFilterDrive(x)));
-    bus.subscribe('filter.envAmount', all((v, x) => v.setFilterEnvAmount(x)));
-    bus.subscribe('filter.velAmount', all((v, x) => v.setFilterVelAmount(x)));
-    bus.subscribe('filter.model', all((v, x) => v.setFilterModel(x)));
-    bus.subscribe('filter.shape', all((v, x) => v.setFilterShape(x)));
-    bus.subscribe('filter.keytrack', all((v, x) => v.setFilterKeytrack(x)));
-
-    // Amp envelope
-    bus.subscribe('env.amp.attack', all((v, x) => v.ampEnv.setAttack(x)));
-    bus.subscribe('env.amp.decay', all((v, x) => v.ampEnv.setDecay(x)));
-    bus.subscribe('env.amp.sustain', all((v, x) => v.ampEnv.setSustain(x)));
-    bus.subscribe('env.amp.release', all((v, x) => v.ampEnv.setRelease(x)));
-
-    // Filter envelope
-    bus.subscribe('env.fil.attack', all((v, x) => v.filEnv.setAttack(x)));
-    bus.subscribe('env.fil.decay', all((v, x) => v.filEnv.setDecay(x)));
-    bus.subscribe('env.fil.sustain', all((v, x) => v.filEnv.setSustain(x)));
-    bus.subscribe('env.fil.release', all((v, x) => v.filEnv.setRelease(x)));
 
     // The LFOs self-wire their own params (ADR-008), including the tempo lock
     // and the `pulse` path's share of PwmDriver — which arbitrates between the
@@ -1003,8 +852,7 @@ export class Engine {
       // The predicate first: a width that frees the pair must not reach the
       // native nodes on its way there (cross-modulation.md
       // REQ-an-fm-carrier-with-a-pulse-width-runs-in-the-pair).
-      if (Number.isFinite(x)) this.osc2Width = x;
-      this.refreshPairFree();
+      this.pairs.setOsc2Width(x);
       this.pwm.setBase(1, x);
     });
 
@@ -1074,94 +922,13 @@ export class Engine {
       bus.subscribe(`${prefix}.rate`, (v) => lane().setRate(v));
     }
 
-    // ----- Arpeggiator -----
-    bus.subscribe('arp.on', (v) => this.arp.setEnabled(v >= 0.5));
-    bus.subscribe('arp.pattern', (v) => this.arp.setPattern(v));
-    bus.subscribe('arp.rate', (v) => this.arp.setRate(v));
-    bus.subscribe('arp.octaves', (v) => this.arp.setOctaves(v));
-    bus.subscribe('arp.gate', (v) => this.arp.setGate(v));
-
-    // ----- Sequencer -----
-    bus.subscribe('seq.on', (v) => this.seq.setEnabled(v >= 0.5));
-    // Tracks 2-4 only sound in poly voicing (sequencer.md REQ-poly-voicing-gates-the-extra-tracks); each track
-    // also has its own mute (REQ-per-track-mute), independent of the lane-wide seq.mute.
-    bus.subscribe('voicing.mode', (v) => this.seq.setPolyphonic(v >= 0.5));
-    // Legato or re-striking ties (sequencer.md REQ-a-tie-continues-the-note-without-retriggering, ADR-028).
-    bus.subscribe('seq.tieMode', (v) => this.seq.setRestrikeTies(v >= 0.5));
-    for (let t = 0; t < SEQ_TRACK_COUNT; t++) {
-      const track = t;
-      bus.subscribe(`seq.t${t}.mute`, (v) => this.seq.setTrackMuted(track, v >= 0.5));
-      // Per-track pan (REQ-a-seq-track-carries-a-pan). Three jobs on one write:
-      // the sequencer stamps it on the notes it schedules from now on, the voices
-      // already sounding this track follow it live, and the spread stage decides
-      // whether the panned edges belong in the graph at all.
-      bus.subscribe(`seq.t${t}.pan`, (v) => {
-        this.seqPans[track] = v;
-        this.seq.setTrackPan(track, v);
-        this.polyphony.setGroupPan(track, v);
-        this.updateSpread();
-      });
-    }
-    // Synth voice-bus volume (independent of mute: seq mute stops triggering,
-    // not the bus, so live keys keep playing at this level).
-    bus.subscribe('seq.master', (v) => rampTo(this.voiceBus.gain, v, this.ctx, RAMP_MEDIUM));
-
-    // ----- Song-tab lane mixer (mute + solo across all three machines) -----
-    bus.subscribe('seq.mute', (v) => this.laneMixer.setMute('seq', v >= 0.5));
-    bus.subscribe('drum.mute', (v) => this.laneMixer.setMute('drum', v >= 0.5));
-    bus.subscribe('sampler.mute', (v) => this.laneMixer.setMute('sampler', v >= 0.5));
-    bus.subscribe('seq.solo', (v) => this.laneMixer.setSolo('seq', v >= 0.5));
-    bus.subscribe('drum.solo', (v) => this.laneMixer.setSolo('drum', v >= 0.5));
-    bus.subscribe('sampler.solo', (v) => this.laneMixer.setSolo('sampler', v >= 0.5));
-
-    // ----- Drums -----
-    bus.subscribe('drum.on', (v) => this.drums.setEnabled(v >= 0.5));
-    bus.subscribe('drum.choke', (v) => this.drums.setChokeEnabled(v >= 0.5));
-    bus.subscribe('drum.master', (v) => this.laneMixer.setDrumVol(v));
-    for (let i = 0; i < DRUM_TRACK_COUNT; i++) {
-      const track = i;
-      bus.subscribe(`drum.t${i}.vol`, (v) => this.drums.setTrackVolume(track, v));
-      bus.subscribe(`drum.t${i}.tune`, (v) => this.drums.setTrackTune(track, v));
-      bus.subscribe(`drum.t${i}.decay`, (v) => this.drums.setTrackDecay(track, v));
-      bus.subscribe(`drum.t${i}.tone`, (v) => this.drums.setTrackTone(track, v));
-      bus.subscribe(`drum.t${i}.drive`, (v) => this.drums.setTrackDrive(track, v));
-      bus.subscribe(`drum.t${i}.pan`, (v) => this.drums.setTrackPan(track, v));
-      bus.subscribe(`drum.t${i}.mute`, (v) => this.drums.setTrackMute(track, v >= 0.5));
-      bus.subscribe(`drum.t${i}.model`, (v) => this.drums.setTrackModel(track, v));
-    }
-
-    // ----- Sampler -----
-    bus.subscribe('sampler.on', (v) => this.sampler.setEnabled(v >= 0.5));
-    bus.subscribe('sampler.master', (v) => this.laneMixer.setSamplerVol(v));
-    for (let i = 0; i < SAMPLER_SLOT_COUNT; i++) {
-      const slot = i;
-      bus.subscribe(`sampler.t${i}.mute`, (v) => this.sampler.setSlotMute(slot, v >= 0.5));
-      // The per-slot channel (sampler.md REQ-each-slot-has-a-channel) …
-      bus.subscribe(`sampler.t${i}.vol`, (v) => this.sampler.setSlotVol(slot, v));
-      bus.subscribe(`sampler.t${i}.pan`, (v) => this.sampler.setSlotPan(slot, v));
-      bus.subscribe(`sampler.t${i}.tone`, (v) => this.sampler.setSlotTone(slot, v));
-      bus.subscribe(`sampler.t${i}.res`, (v) => this.sampler.setSlotRes(slot, v));
-      // … and its voice window (REQ-a-hit-plays-a-window-of-the-buffer).
-      bus.subscribe(`sampler.t${i}.pitch`, (v) => this.sampler.setSlotPitch(slot, v));
-      bus.subscribe(`sampler.t${i}.start`, (v) => this.sampler.setSlotStart(slot, v));
-      bus.subscribe(`sampler.t${i}.end`, (v) => this.sampler.setSlotEnd(slot, v));
-      bus.subscribe(`sampler.t${i}.rev`, (v) => this.sampler.setSlotRev(slot, v >= 0.5));
-      bus.subscribe(`sampler.t${i}.attack`, (v) => this.sampler.setSlotAttack(slot, v));
-      bus.subscribe(`sampler.t${i}.decay`, (v) => this.sampler.setSlotDecay(slot, v));
-      // Choke group + mono (REQ-a-slot-can-cut-another-slot).
-      bus.subscribe(`sampler.t${i}.choke`, (v) => this.sampler.setSlotChokeGroup(slot, v));
-      bus.subscribe(`sampler.t${i}.poly`, (v) => this.sampler.setSlotMono(slot, v >= 0.5));
-    }
-
-    // ----- Motion sequencer -----
-    bus.subscribe('motion.on', (v) => this.motion.setEnabled(v >= 0.5));
-    bus.subscribe('motion.mute', (v) => this.motion.setMuted(v >= 0.5));
-    bus.subscribe('motion.slide', (v) => this.motion.setSlide(v >= 0.5));
-    // Each extra motion track interpolates on its own mode (REQ-set-steps-are-anchors).
-    for (let t = 0; t < MOTION_TRACK_COUNT; t++) {
-      const track = t;
-      bus.subscribe(`motion.t${t}.slide`, (v) => this.motion.setTrackSlide(track, v >= 0.5));
-    }
+    // The arpeggiator, the four machines and the lane mixer (engine-params.ts).
+    bindMachineParams(bus, {
+      arp: this.arp, seq: this.seq, drums: this.drums, sampler: this.sampler,
+      motion: this.motion, laneMixer: this.laneMixer, polyphony: this.polyphony,
+      onSeqPan: (track, v) => { this.seqPans[track] = v; this.updateSpread(); },
+      setSynthBusLevel: (v) => rampTo(this.voiceBus.gain, v, this.ctx, RAMP_MEDIUM),
+    });
   }
 
   // ---------- Noise source ----------

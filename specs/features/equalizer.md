@@ -182,7 +182,7 @@ while bypassed, and a curve computed from bus values with no analyser and no loo
   side.
 - **REQ-the-eq-explains-itself-through-badges** (v3) — Seven badges: `eq` on the
   section root, and per lane `eq.graph.<lane>` and `eq.knobs.<lane>` (the knob row
-  carries `data-help`). [onboarding](onboarding.md)
+  carries `data-help`). [info-badges](info-badges.md)
   REQ-the-equalizer-carries-seven-badges owns them. The graph topic's band list
   is generated from `EQ_BANDS`.
 
@@ -295,7 +295,7 @@ autosave. There is no serialization code.
 | tap | the graph | A zero-length drag — sets the one band under the pointer. |
 | `Shift` + drag | the graph | Fine: quarter the dB travel (the scratch graph's precedent). |
 | double-tap | a band column | That band back to 0 dB ([param-reset-baseline](param-reset-baseline.md) precedent). |
-| pointermove, no button | the graph | Hover readout of Hz and dB ([scope](scope.md) REQ-hovering-reads-out-a-frequency). Desktop only, never the sole route. |
+| pointermove, no button | the graph | Hover readout of Hz and dB ([scope-spectrum](scope-spectrum.md) REQ-hovering-reads-out-a-frequency). Desktop only, never the sole route. |
 | wheel | the graph | **Nothing** — the bottom row scrolls the page. |
 | right-click / long-press | the graph | **Nothing.** |
 | tap | a tab's LED | **Nothing** (REQ-the-eq-tab-led-only-indicates). |

@@ -30,7 +30,7 @@ here rather than written into ADR-022.
 **`MAX_BANK_COUNT` is 16 (A–P), and `SONG_VERSION` goes to 9.** The bump adds no
 field. It is there for the same reason ADR-022's v8 bump was: an older build
 should report "unsupported song version 9", not "must have 4..8 banks", which
-reads like a corrupt file ([song-mode](../features/song-mode.md)
+reads like a corrupt file ([song-file](../features/song-file.md)
 REQ-song-file-v9-raises-the-bank-ceiling). The authoring dialect's chain
 alphabet runs A..P, and its version ladder gains a v9 rung, so an AI-written
 song is stamped v9 only when it needs more than eight banks

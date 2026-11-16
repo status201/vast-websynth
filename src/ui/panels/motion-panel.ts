@@ -73,7 +73,7 @@ export function buildMotionPanel(
   // drives and the hint reading them back — one row, directly above its pads.
   const xyHeader = document.createElement('div');
   xyHeader.className = styles.xyHeader!;
-  // Anchor for the short XY-lane help badge (onboarding.md REQ-the-motion-tab-carries-two-lane-badges).
+  // Anchor for the short XY-lane help badge (info-badges.md REQ-the-motion-tab-carries-two-lane-badges).
   xyHeader.dataset.help = 'motion.xy';
   xyHeader.appendChild(xyPadLaunchButton(xyWin, 'motion-xypad'));
 
@@ -423,7 +423,7 @@ export function buildMotionPanel(
     // lane, so only the XY lane above is fenced off (REQ-each-motion-step-is-a-mini-xy-pad).
     row.className = styles.trackRow! + (track === 0 ? ` ${styles.laneDivider!}` : '');
     // The shared A/B help badge anchors here, on the first track's row
-    // (onboarding.md REQ-the-motion-tab-carries-two-lane-badges).
+    // (info-badges.md REQ-the-motion-tab-carries-two-lane-badges).
     if (track === 0) row.dataset.help = 'motion.tracks';
 
     const ctrls = document.createElement('div');
@@ -466,7 +466,7 @@ export function buildMotionPanel(
         onSet: (_x, y) => patterns.setMotionTrackStep(track, step, { on: true, v: y }),
         // Clearing returns the cell to the default step (level included), so a
         // cleared cell reads like an untouched one instead of keeping its old
-        // parked height (motion-sequencer.md REQ-single-param-lanes-below-the-xy-lane).
+        // parked height (motion-panel.md REQ-single-param-lanes-below-the-xy-lane).
         onClear: () => patterns.setMotionTrackStep(track, step, { ...MOTION_TRACK_STEP_DEFAULTS }),
         // Only y is meaningful on a level cell, so only y reaches the readout.
         onGesture: (g) =>

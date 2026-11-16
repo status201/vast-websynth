@@ -49,7 +49,7 @@ function ago(at: number | null): string {
 }
 
 /**
- * The scope's liveness in one line (scope.md REQ-the-panel-says-whether-it-is-drawing). `drawing` is the common case
+ * The scope's liveness in one line (scope-health.md REQ-the-panel-says-whether-it-is-drawing). `drawing` is the common case
  * and reads as such; anything else names what is wrong, because this row exists to
  * be read back off a device that cannot be attached to a debugger. The counters are
  * always shown once non-zero — a scope that recovered is still evidence.
@@ -233,7 +233,7 @@ export function buildDebugSection(engine: StudioApi): {
   midiVal.dataset.testid = 'debug-midi';
   const wakeVal = addRow('Wake lock');
   wakeVal.dataset.testid = 'debug-wake';
-  // Is the scope actually painting? (scope.md REQ-the-panel-says-whether-it-is-drawing) The panel going dead after a
+  // Is the scope actually painting? (scope-health.md REQ-the-panel-says-whether-it-is-drawing) The panel going dead after a
   // backgrounding has now been reported twice from devices with no console, and
   // both times there was nothing to read. The counters are the whole point.
   const scopeVal = addRow('Scope');

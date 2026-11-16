@@ -87,7 +87,7 @@ export function mountApp(root: HTMLElement, deps: ShellDeps): Onboarding {
   const bottom = buildBottom(deps);
   setScopeFps = (fps) => bottom.scope.setFps(fps);
   setScopeFft = (fftSize) => bottom.scope.setFftSize(fftSize);
-  // Whether the panel is actually painting, for the Debug row (scope.md REQ-the-panel-says-whether-it-is-drawing).
+  // Whether the panel is actually painting, for the Debug row (scope-health.md REQ-the-panel-says-whether-it-is-drawing).
   // Same late-bound idiom as the two knobs above — the owner of the state binds it.
   setScopeStatsSource(() => bottom.scope.health);
   root.appendChild(bottom.el);

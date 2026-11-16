@@ -15,8 +15,8 @@ import {
 } from '../../src/ui/components/scope';
 
 /**
- * The Spectrum's log frequency axis and its scale — scope.md
- * REQ-the-frequency-axis-is-logarithmic through scope.md REQ-hovering-reads-out-a-frequency.
+ * The Spectrum's log frequency axis and its scale — scope-spectrum.md
+ * REQ-the-frequency-axis-is-logarithmic through scope-spectrum.md REQ-hovering-reads-out-a-frequency.
  *
  * The axis used to be linear in bin index, which put 100/500/1k inside the leftmost
  * 7% of the panel and made the whole "mud" band about five pixels wide — a scale

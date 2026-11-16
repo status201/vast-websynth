@@ -98,7 +98,7 @@ one argument for the sentinel; it was never the only one.
   `pointer-events: none`). The **Motion** tab has the XY lane plus
   `MOTION_TRACK_COUNT` single-param lanes; **each** is wrapped in its own
   overlay, so they all dim together off the shared `motionResting`. A folded
-  lane ([motion-sequencer](motion-sequencer.md) REQ-an-empty-motion-lane-starts-folded) still carries its
+  lane ([motion-panel](motion-panel.md) REQ-an-empty-motion-lane-starts-folded) still carries its
   overlay — the fold hides the body, it does not unbuild it. The `ctrls`/header rows stay outside
   the dim (as the XY lane's axis header does), keeping the param pickers usable.
 

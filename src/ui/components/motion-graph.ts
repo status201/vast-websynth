@@ -5,14 +5,14 @@ import {
 
 /**
  * Pure geometry for the Motion panel's axis-graph overlay
- * (motion-sequencer.md REQ-each-motion-step-is-a-mini-xy-pad) — no DOM, so it is unit-testable like
+ * (motion-panel.md REQ-each-motion-step-is-a-mini-xy-pad) — no DOM, so it is unit-testable like
  * `motion-curve.ts`. Coordinates are in the graph SVG's 0–100 viewBox space,
  * y-down (an anchor value of 1 draws at y=0).
  *
  * Dots always sit at the anchor centres — geometry, not the visible anchor
  * marker: the panel strokes each as a circle that the overlay's non-uniform
  * viewBox flattens into a tick on the line, and the round dot a reader sees at an
- * anchor belongs to the pad underneath (motion-sequencer.md REQ-each-motion-step-is-a-mini-xy-pad). The line is
+ * anchor belongs to the pad underneath (motion-panel.md REQ-each-motion-step-is-a-mini-xy-pad). The line is
  * mode-aware:
  *   - 'slide' — the anchor-to-anchor polyline (the panel only strokes it when
  *     there are ≥ 2 points, matching the machine's constant-value single-anchor
@@ -33,7 +33,7 @@ import {
  * implementation.
  *
  * (v16) Every coordinate is a fraction of the **lane's** played length, not the
- * bank's 16 (motion-sequencer.md REQ-the-motion-graph-follows-the-lane). `cells` is the same argument
+ * bank's 16 (motion-panel.md REQ-the-motion-graph-follows-the-lane). `cells` is the same argument
  * `scalarAt` takes and defaults the same way, so a caller with no meter is
  * unaffected — but the panel has one, and passing it is what keeps the drawing
  * on the grid the pads are drawn on. Before it existed a 9-cell lane squeezed

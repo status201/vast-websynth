@@ -274,7 +274,7 @@ describe('ResizeHandle — keyboard', () => {
 });
 
 // Scenario: Pressing the handle never resets the spectrum peak-hold (regression)
-describe('ResizeHandle — sibling of the canvas (scope REQ-clicking-the-graph-resets-the-peak)', () => {
+describe('ResizeHandle — sibling of the canvas (scope-spectrum REQ-clicking-the-graph-resets-the-peak)', () => {
   it('a stroke on the handle never reaches a sibling canvas click listener', () => {
     const raf = stubRaf();
     // Mirrors .scopeWrap: canvas and handle are siblings, not parent and child.

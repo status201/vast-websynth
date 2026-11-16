@@ -196,7 +196,7 @@ Each row is `[source ▾] → [dest ▾] [amount] [range]`. Rows 0–1 show `LFO
 | `Escape` | nothing — Escape is panic | [floating-window](floating-window.md) REQ-escape-does-not-close-a-window |
 | drag a row onto another | nothing: rows are independent summands | — |
 | a delete button per row | none: `source = off` is the same act | ADR-014 law 3 |
-| disabling an unassigned row | never: its pickers must stay reachable | [motion-sequencer](motion-sequencer.md) REQ-single-param-lanes-below-the-xy-lane |
+| disabling an unassigned row | never: its pickers must stay reachable | [motion-panel](motion-panel.md) REQ-single-param-lanes-below-the-xy-lane |
 
 An **idle** row (a free row with source `off`, or an LFO row with destination
 `off`) fades every cell after the first. The knob takes `opacity`. The destination

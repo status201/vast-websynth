@@ -282,7 +282,7 @@ test.describe('EQUALIZER section', () => {
   });
 
   /**
-   * onboarding.md REQ-the-equalizer-carries-seven-badges + REQ-a-container-must-tell-badges-when-it-hides (v27). Neither opening the section (absorbed by
+   * info-badges.md REQ-the-equalizer-carries-seven-badges + REQ-a-container-must-tell-badges-when-it-hides (v27). Neither opening the section (absorbed by
    * the keyboard row) nor a lane switch (three pages of one height) resizes the
    * body, so the badges only follow either if the section and its page shells are
    * observed — without them this fails at the unfold. The tab is therefore

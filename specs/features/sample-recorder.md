@@ -22,7 +22,11 @@ related:
   - responsive-machine-header  # where the Sampler's record button sits
   - testids
 source:
-  - src/ui/components/record-sound-modal.ts
+  - src/ui/components/record-sound-modal.ts  # the frame, the guard, the material, the Edit screen
+  - src/ui/components/record-screen.ts      # the Record screen: mic, meter, count-in, bound
+  - src/ui/components/studio-waveform.ts    # the waveform, crop handles and boundary drags
+  - src/ui/components/studio-tools.ts       # the four tool pages over a ToolContext
+  - src/ui/components/studio-kit.ts         # inks, canvas sizing, readouts the screens share
   - src/ui/components/studio-transport.ts  # the toolbar's Play / beat light / BPM / CLICK
   - src/state/edit-history.ts              # EditHistory, the undo stack
   - src/ui/panels/step-panel-scaffold.ts   # samplerSlotFilled / snapshotSamplerSlot / writeSamplerSlot
@@ -127,9 +131,8 @@ asks first or leaves a way back.
   never pushes the waveform, the edit bar or the footer out of view. **Effects**
   is selected on a first open, and the selected tab is remembered for the session
   only, never persisted ([panel-tabs](panel-tabs.md)
-  REQ-selected-page-is-session-only). A tab change re-runs its page's sync
-  (`syncChop` / `syncFit` / `syncScratch`), so a page is never shown with a stale
-  hint. The `sampler` help topic names the four tabs.
+  REQ-selected-page-is-session-only). A tab change re-runs that page's `sync`
+  (`ToolPage.sync`, studio-tools.ts), so a page is never shown with a stale hint. The `sampler` help topic names the four tabs.
 - **REQ-the-studio-fills-the-screen** — (v11) The studio is a near-full-screen
   card: 16 px inside the viewport on desktop, edge to edge at ≤720 px. It is a
   column of three bands:
@@ -227,6 +230,8 @@ asks first or leaves a way back.
     A new take recorded from an opened slot is a fresh recording.
   - Re-record goes back to the Record screen through the same guard as Close.
 
+## Technical design
+
 ### Gesture inventory (ADR-014)
 
 | Control | Tap / click | Drag | Long press | Double | Keyboard |
@@ -249,8 +254,6 @@ asks first or leaves a way back.
 A `—` is a decision. Nothing is momentary: the button toggles, and
 `R` is a press, not a hold (ADR-014 law 2).
 
-## Technical design
-
 ### Contract / public interface
 
 ```yaml
@@ -271,7 +274,14 @@ audio-buffer.ts (the ONLY bridge):
 node.ts: CapturedAudio { ... }            # the editor's audio value type
 record-sound-modal.ts:
   openRecordSoundModal(engine, { slot?, source?, toggleTransport })   # toggleTransport required
-  MAX_TAKE_SECONDS = 120 · UNDO_DEPTH = 10 · UNDO_FRAME_BUDGET
+  UNDO_DEPTH = 10 · UNDO_FRAME_BUDGET · MAX_TAKE_SECONDS (re-exported from record-screen.ts)
+record-screen.ts:
+  buildRecordScreen(deps) -> { state: RecState, press(), destroy() }   # owns the mic session
+studio-tools.ts:
+  buildEffectsPage / buildChopPage / buildStretchPage / buildScratchPage (ctx: ToolContext)
+    # ToolContext: the material, the selection, the marks, runOp — no page holds the audio
+studio-waveform.ts:
+  createWaveform(deps) -> { el, redraw(), destroy() }   # writes a dragged crop back via setCrop
 studio-transport.ts:
   createStudioTransport({ engine, metronome, toggleTransport, onClickChange? })
     -> { el, onHeardBeat(fn) -> unsubscribe, destroy() }

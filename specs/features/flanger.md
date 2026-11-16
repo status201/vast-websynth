@@ -105,7 +105,7 @@ shell at boot.
   REQ-boot-cost-matches-the-request).
   - **Offline.** The worklet is precached in `public/sw.js`'s `CORE_ASSETS`,
     and the `flanger-live` chunk joins `main.ts`'s idle warm
-    ([pwa-install](pwa-install.md) REQ-service-worker-is-registered), so one online
+    ([pwa-install](pwa-install.md) REQ-deferred-chunks-are-warmed-on-idle), so one online
     visit makes the first switch-on work offline.
 - **REQ-an-unloaded-flanger-stays-bypassed** — Until the DSP is spliced in, the
   flanger stays bypassed whatever `<prefix>.on` says: `Flanger.setBypass(false)`

@@ -113,11 +113,11 @@ test.describe('mod matrix', () => {
     expect(Number(toggleOpacity)).toBeLessThan(1);
   });
 
-  test('the MOD launcher carries an info badge (onboarding REQ-the-mod-launcher-carries-a-badge)', async ({ page }) => {
+  test('the MOD launcher carries an info badge (info-badges REQ-the-mod-launcher-carries-a-badge)', async ({ page }) => {
     await gotoAndStart(page);
     await page.getByTestId('tab-song').click();
     // The badge sits on its anchor, so the anchor has to be on screen — badges hide
-    // with the control they annotate (onboarding.md REQ-a-container-must-tell-badges-when-it-hides).
+    // with the control they annotate (info-badges.md REQ-a-container-must-tell-badges-when-it-hides).
     await page.getByTestId('perf-mod').scrollIntoViewIfNeeded();
     await page.getByTestId('info-badges').click();
 

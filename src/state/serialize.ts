@@ -164,7 +164,7 @@ export function compactSongForExport(file: SongFile): Record<string, unknown> {
   }
   // v7 — and only when it carries information. An all-zero array is what every
   // pre-v7 song has, so dropping it is what keeps those files byte-identical
-  // through this function (song-mode.md REQ-song-file-v7-adds-slot-transpose, ADR-011 default-sparse).
+  // through this function (song-file.md REQ-song-file-v7-adds-slot-transpose, ADR-011 default-sparse).
   if (file.seqTranspose?.some((t) => t !== 0)) out.seqTranspose = [...file.seqTranspose];
   return out;
 }

@@ -31,7 +31,7 @@ const up = (): MouseEvent => new MouseEvent('pointerup');
 const lastY = (onSet: ReturnType<typeof vi.fn>): number =>
   onSet.mock.calls[onSet.mock.calls.length - 1]![1] as number;
 
-describe('MotionStepPad (motion-sequencer.md REQ-the-pads-gesture-set-peek-snap-fine)', () => {
+describe('MotionStepPad (motion-panel.md REQ-the-pads-gesture-set-peek-snap-fine)', () => {
   beforeEach(() => {
     document.body.innerHTML = '';
     vi.useFakeTimers();

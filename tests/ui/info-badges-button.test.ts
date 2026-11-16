@@ -3,13 +3,13 @@ import { createInfoBadgesButton, type InfoBadgesDeps } from '../../src/ui/compon
 import tourStyles from '../../src/ui/styles/tour.module.css';
 
 /**
- * The ⓘ button's gesture inventory (specs/features/onboarding.md REQ-the-info-button-is-a-toggle/REQ-the-info-button-gesture-inventory).
+ * The ⓘ button's gesture inventory (specs/features/info-badges.md REQ-the-info-button-is-a-toggle/REQ-the-info-button-gesture-inventory).
  * One gesture, one outcome: a click toggles the badges in either state, and the
  * three gestures v13 bolted onto the old Help button are gone — a modifier-click
  * or a long press is now just a click. Those are the `—` rows of the inventory,
  * asserted here so they cannot quietly grow a second meaning again.
  */
-describe('Info badges button (onboarding.md REQ-the-info-button-is-a-toggle/REQ-the-info-button-gesture-inventory)', () => {
+describe('Info badges button (info-badges.md REQ-the-info-button-is-a-toggle/REQ-the-info-button-gesture-inventory)', () => {
   let active = false;
   let deps: InfoBadgesDeps;
   let toggle: ReturnType<typeof vi.fn>;

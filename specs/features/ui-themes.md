@@ -156,7 +156,7 @@ Fonts are system stacks only — the app bundles no font file
   The picker is the **Theme** section of the header's **Settings** dialog — the
   former Performance dialog, which keeps its Performance section below it, since
   both are how this device runs the app rather than part of the music. Its help
-  topic: [onboarding](onboarding.md) REQ-a-settings-topic-anchors-to-the-gauge.
+  topic: [info-badges](info-badges.md) REQ-a-settings-topic-anchors-to-the-gauge.
 - **REQ-auto-shows-what-it-would-pick** — The Auto tile always wears the colours
   of the theme the system setting resolves to, whichever tile is selected — it
   answers "what would Auto give me?", so it never mirrors the chosen theme. The

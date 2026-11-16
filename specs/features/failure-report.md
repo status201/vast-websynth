@@ -132,14 +132,14 @@ failure path.
 
 ```yaml
 via alertDialog copyable (dialog REQ-an-alert-may-offer-copyable-text):
-  src/ui/panels/song-panel.ts:
+  src/ui/panels/song-io.ts + demo-loader.ts:
     showImportErrors      -> every validator message, capped flag from MAX_ERRORS
     'Import failed' (apply threw) -> the exception message
     'Some clips failed'   -> the undecodable clip names
     'Demo failed to load' -> showDemoFailure: the parse's whole error array;
                              the catch's exception message otherwise  # song-mode REQ-a-rejected-import-is-copyable-in-full v25
     'Export failed'       -> the exception message
-    # the three exception rows share one local thrownAlert(title, lead, e, file)
+    # the exception rows share song-io.ts's thrownAlert(title, lead, e, file)
   src/ui/panels/sampler-panel.ts:
     'Load failed'         -> the decode message
   src/main.ts:

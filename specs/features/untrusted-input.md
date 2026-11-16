@@ -59,19 +59,10 @@ funnel every surface routes through, and `ParamBus.set` clamps every *registered
 param to `def.min/max` — so an imported song can never be louder, more resonant
 or more feedback-y than the UI itself allows.
 
-What was missing was **magnitude**. [ADR-007](../decisions/adr-007-songfile-additive-versioning.md)
-makes the validator lenient about *shape* so old files keep loading, and that
-leniency was mistakenly extended to *size and range*:
-
-- `SeqStep.note` was checked `Number.isFinite` but not `0..127`. `midiToHz(1e6)`
-  is `Infinity`, `AudioParam.setValueAtTime(Infinity)` throws, and the throw
-  escaped an un-try/caught listener loop in `Clock.tick` — which then re-entered
-  the same step every 25 ms forever. One step object in a link, and the
-  instrument is dead until reload.
-- Chain `steps`, decompressed byte counts, zip entry counts and param-key counts
-  had no ceiling at all, so a link that fits in an address bar could expand to
-  gigabytes or to millions of DOM nodes.
-
+What this spec adds is **magnitude**. [ADR-007](../decisions/adr-007-songfile-additive-versioning.md)
+makes the validator lenient about *shape* so old files keep loading; that
+leniency does not extend to *size and range*, where one out-of-range value can
+wedge the clock and a link that fits in an address bar can expand to gigabytes.
 [ADR-015](../decisions/adr-015-untrusted-input-is-bounded.md) records the
 decision and the alternatives. This spec is the contract.
 
@@ -97,50 +88,30 @@ decision and the alternatives. This spec is the contract.
 
 - **REQ-the-limits-are-one-module** — **The limits are one module.**
   `src/state/limits.ts` is the only place a bound is written down, each with its
-  rationale (the table below is the ingest-door subset, not a copy of it), plus
-  `RESERVED_KEYS` and the `reservedKeyIn(o)` helper
-  REQ-reserved-keys-are-refused uses. Every consumer imports from it; no literal
-  duplicates.
+  rationale (the table below is the ingest-door subset), plus `RESERVED_KEYS` and
+  the `reservedKeyIn(o)` helper REQ-reserved-keys-are-refused uses. Every consumer
+  imports from it, the three per-step integer bounds included (`MICRO_MAX`,
+  `MAX_RATCHET`, `BEND_MAX` — [step-settings](step-settings.md)
+  REQ-a-seq-step-carries-a-bend); a step's minimum `1` stays a literal.
 
-  The validators' shared *machinery* lives in `src/state/validate-utils.ts` for the
-  same reason: `isObject`, `describeValue`, the `AddError` type and `MAX_ERRORS`
-  had a copy each in `song-validate.ts`, `song-author.ts`, `preset-validate.ts`
-  and (for `isObject`) `paste-payload.ts`. `isObject` in particular is a security
-  predicate — it is what REQ-reserved-keys-are-refused's reserved-key check and every shape check are built
-  on — and four copies is four chances for them to drift apart silently.
+  The validators' shared machinery — `isObject`, `describeValue`, `AddError`,
+  `MAX_ERRORS` — lives in `src/state/validate-utils.ts` for the same reason:
+  `isObject` is the security predicate every shape check and the reserved-key
+  check are built on, and copies drift.
 
-  **`MAX_RATCHET` joins them**, for the same reason `MICRO_MAX` is there:
-  it is the other per-step integer bound, and `4` was written out in the
-  canonical validator, in the dialect's coercing twin, in the editor's button
-  loop and in the published JSON schema — four places, three languages, one
-  rule. The *minimum* stays a literal `1`, which is what a step is rather than
-  something tunable.
+  **The published schemas are pinned to this module.**
+  `tests/state/authoring-docs.test.ts` walks the canonical schema's `ratchet`,
+  `micro`, `bend`, `note` and `seqTranspose` against their constants, so a raised
+  bound cannot leave `public/schema/websynth-song.schema.json` rejecting files the
+  runtime accepts.
 
-  **The published schema is pinned to this module too.** The *author* schema's
-  structural constants already were; the **canonical** one had only its version
-  enum and its field names checked, so its numbers could drift freely. Raising a
-  bound here would have left `public/schema/websynth-song.schema.json` rejecting
-  files the runtime accepts, with every test green — the same silent-drift
-  failure the version pin exists to prevent. `tests/state/authoring-docs.test.ts`
-  now walks the schema for `ratchet`, `micro`, `bend`, `note` and
-  `seqTranspose` and checks each against its constant.
-
-  **`BEND_MAX` is the third per-step integer bound** — the seq-only bend
-  ([step-settings](step-settings.md) REQ-a-seq-step-carries-a-bend) lives
-  beside `MICRO_MAX` for the same reason, and the schema walk now covers it.
-
-  What is **not** shared: `checkUnit` and `checkRatchet` exist in both
-  `song-validate.ts` and `song-author.ts` under the same names with **different
-  signatures** (`void` versus `number | undefined`), because the canonical
-  validator rejects while the dialect coerces-and-reports. That difference is the
-  point of having two parsers, so they stay separate and each carries a comment
-  saying so. Unifying them would be a behaviour change to a trust boundary, not a
-  deduplication.
+  Deliberate: `checkUnit` / `checkRatchet` stay separate in `song-validate.ts` and
+  `song-author.ts` — same names, different signatures — because the canonical
+  validator rejects while the dialect coerces-and-reports. Unifying them would
+  change a trust boundary, not deduplicate.
 
 - **REQ-payload-values-are-bounded** — **Bounded values.** `SeqStep.note` is an
-  integer `0..127` in **both** the canonical validator and the dialect (the
-  dialect already enforced this; the canonical format was the looser of the
-  two). Chain `steps` is `1..MAX_CHAIN_STEPS`. `params` carries at most
+  integer `0..127` in **both** the canonical validator and the dialect. Chain `steps` is `1..MAX_CHAIN_STEPS`. `params` carries at most
   `MAX_PARAM_KEYS` keys. Existing checks are unchanged: `Number.isFinite` on
   every number, exact grid dimensions, `KNOWN_SONG_VERSIONS`.
 
@@ -186,9 +157,8 @@ decision and the alternatives. This spec is the contract.
 - **REQ-reserved-keys-are-refused** — **Reserved keys are refused where a
   payload object is copied.** The motivating path is `PatternStore.restore`,
   which does `Object.assign(cell, DEFAULTS, parsedCell)` — that invokes the
-  `__proto__` setter. Today every read field is an own property so the effect is
-  inert, but that is a coincidence of the defaults covering every field, not a
-  guarantee. `Presets.load` also filters `RESERVED_KEYS` before applying a
+  `__proto__` setter — inert only because the defaults happen to cover every
+  field. `Presets.load` also filters `RESERVED_KEYS` before applying a
   snapshot.
 
   **"Everywhere" means every payload object a validator reads**: `checkKeys`
@@ -198,13 +168,11 @@ decision and the alternatives. This spec is the contract.
   `checkMotionAssigns`, and both preset paths (`checkSnapshot` and the bank's
   `presets` map).
 
-  Two of those were live rather than theoretical. The motion cells reach the
-  same `Object.assign(cell, DEFAULTS, parsed)` the seq cells do, so they were
-  the motivating path with no guard on it. And the bank loop writes
-  `presets[n] = …` with `n` straight out of `JSON.parse`, which for `__proto__`
-  is a `[[Set]]` that re-points that map's prototype. The rest read named fields
-  and were never copies; they are guarded for uniformity, because a rule with
-  exceptions is a rule nobody can apply without checking.
+  Two are live paths: the motion cells reach the same `Object.assign`, and the
+  bank loop writes `presets[n] = …` with `n` from `JSON.parse` (a `__proto__` key
+  re-points that map's prototype). The rest read named fields; they are guarded
+  for uniformity, because a rule with exceptions cannot be applied without
+  checking.
 
 - **REQ-no-subscriber-can-wedge-the-clock** — **No subscriber can wedge the
   clock.** `Clock.tick` isolates each listener and advances `nextStepTime` /
@@ -224,7 +192,7 @@ decision and the alternatives. This spec is the contract.
   `MAX_SONG_JSON_BYTES` (`readCappedBody`): a `Content-Length` over the cap is
   refused before any read, and a body without one — or one that lies — is
   cancelled the moment it crosses the cap, never buffered whole and measured
-  afterwards (**v9**). Failures use the shared `alertDialog`, never the native
+  afterwards. Failures use the shared `alertDialog`, never the native
   `alert()`.
 
 - **REQ-a-file-is-sized-before-it-is-read** (v14) — **A file is sized before it
@@ -245,11 +213,6 @@ decision and the alternatives. This spec is the contract.
   (reached through `UiBridge.importSongFile`), so they cannot drift apart again;
   the drop keeps its own routing, because it also takes presets, but asks the
   same function.
-
-  Until v14 only the drop checked. The other two doors read the whole file into
-  memory and left the refusal to `zipRead`, which is exactly the cap-after-the-fact
-  REQ-bounds-in-the-validator-sizes-in-the-codec forbids. A 2 GB file chosen with
-  Import was buffered whole before being turned away.
 
 - **REQ-deserialized-state-is-validated-never-cast** — **Deserialized state is
   validated, never cast.** Anything reaching `JSON.parse` is passed through a
@@ -282,12 +245,8 @@ decision and the alternatives. This spec is the contract.
   values are still in `localStorage`, orphaned and unreachable through the UI.
 
   The name is user-chosen on the Save dialog and **payload-chosen** on every
-  ingest surface of REQ-the-untrusted-surfaces-are-enumerated, so this is
-  REQ-an-import-may-not-destroy-saved-work's failure by a different route: that
-  requirement guards the *collision prompt*, and the prompt does fire here
-  (`slotDiffers` sees the index JSON and reports a difference), but it names the
-  wrong stakes — it offers to replace "a saved song called index" when what is
-  actually at risk is the whole list.
+  ingest surface, and REQ-an-import-may-not-destroy-saved-work's prompt would name
+  the wrong stakes ("a saved song called index", when the whole list is at risk).
 
   The fix belongs in `SlotStore`, at the one place a name becomes a key, and it
   is an **escape rather than a refusal**: "index" is a legitimate thing to call a
@@ -304,7 +263,7 @@ decision and the alternatives. This spec is the contract.
   keeps the six runtime-computed `innerHTML` sites from becoming one after a
   careless refactor.
 
-  (**v11**) **`style-src` is `'self'` only** — no `'unsafe-inline'`, so a
+  **`style-src` is `'self'` only** — no `'unsafe-inline'`, so a
   style attribute or `<style>` element smuggled into markup is not applied
   (the CSS-injection half of an HTML injection: overlaying UI, exfiltrating via
   attribute selectors). What that rules out, and what it does not:
@@ -405,10 +364,9 @@ decision and the alternatives. This spec is the contract.
   parser ([mcp-server](mcp-server.md) REQ-the-public-endpoint-is-bounded-not-authenticated).
 
 - **REQ-a-pairing-sdp-is-shape-checked** (v10) — **A pairing code's SDP is
-  shape-checked.** The envelope (`k`, `s`, size) was validated but the SDP body
-  went to `setRemoteDescription` as-is. The browser's parser is the hardened
-  layer and stays the real defence; `looksLikeSdp` is the cheap one in front of
-  it: the body must open with `v=0` and every line must be a lowercase `x=`
+  shape-checked**, as well as its envelope (`k`, `s`, size). The browser's parser
+  is the hardened layer and stays the real defence; `looksLikeSdp` is the cheap
+  one in front of it: the body must open with `v=0` and every line must be a lowercase `x=`
   type followed by printable ASCII, CRLF- or LF-separated. Anything else is
   refused as a `SignalDecodeError` with the app's own message, before WebRTC
   sees it.
@@ -456,9 +414,8 @@ export type SongValidation =
   | { ok: true; file: SongFile; warnings?: string[] }
   | { ok: false; errors: string[] };
 
-// src/state/params.ts — the id set, without standing up an Engine. Built once,
-// lazily: the validator is on the boot path via the share-link and session
-// restore, and runtime-performance.md REQ-boot-cost-matches-the-request counts module-init work.
+// src/state/params.ts — the id set, without an Engine; built once, lazily, since the
+// validator is on the boot path (runtime-performance.md REQ-boot-cost-matches-the-request).
 export function paramIds(): ReadonlySet<string>;
 ```
 
@@ -521,10 +478,8 @@ channel is introduced.
 
 REQ-an-unresolvable-target-warns's `warnings` is deliberately **not** an error path: it rides the `ok: true`
 branch, nothing rejects on it, and it is the only thing the validator reports
-that is not a refusal. Earlier versions of this spec said "no new error channel
-is introduced" full stop; that still holds for refusals, and the distinction is
-the point — a warning must never acquire the power to stop an import, or it has
-quietly become an error and taken ADR-007's forward-compatibility with it.
+that is not a refusal. A warning must never acquire the power to stop an import,
+or it has quietly become an error and taken ADR-007's forward-compatibility with it.
 
 ### Persistence
 
@@ -718,7 +673,3 @@ Scenario: Every shipped demo validates without warnings (v3, REQ-an-unresolvable
 
 - **`#songUrl=` allow-list.** Consent covers the drive-by; a remembered
   per-origin allow-list would remove the prompt for a host the user trusts.
-- ~~**Streaming the fetched body**~~ — done in v9 (REQ-a-link-may-not-fetch-silently, `readCappedBody`).
-- ~~**The SDP from a scanned QR** reaches `setRemoteDescription` unvalidated.~~
-  v10: REQ-a-pairing-sdp-is-shape-checked.
-- ~~**Dropping `style-src 'unsafe-inline'`**~~ — v11, REQ-defence-in-depth-at-delivery.

@@ -24,7 +24,7 @@ saved songs or demos**. This is the load-bearing backward-compatibility playbook
 
 Users save song files and demos ship as data, so the load path must keep parsing
 older files forever. The format has done this eight times; the ladder is
-[song-mode](../features/song-mode.md) REQ-song-file-is-a-versioned-union.
+[song-file](../features/song-file.md) REQ-song-file-is-a-versioned-union.
 The contract: **additive, optional, defaulted** — never required, never repurposed.
 
 > **Two kinds of bump.** Most add an optional field, which is what the steps below
@@ -96,7 +96,7 @@ applyMyNewThing(file.myNewThing ?? DEFAULT_MY_NEW_THING);
 ### 4b. Let it survive the compaction boundary + validator + the published docs
 
 Five more places must learn the field or it is silently dropped / rejected / or the
-docs go stale (they fell a version behind **twice** — song-mode.md REQ-song-file-is-a-versioned-union). The last
+docs go stale (they fell a version behind **twice** — song-file.md REQ-song-file-is-a-versioned-union). The last
 two bullets each record a miss that really happened here, so read them as history
 rather than as caution:
 

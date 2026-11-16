@@ -770,7 +770,7 @@ describe('the version ladder (recipes/evolve-the-song-format.md)', () => {
   });
 
   it('a machine past v8\'s eight-bank ceiling is the TOP rung, v9', () => {
-    // song-mode.md REQ-song-file-v9-raises-the-bank-ceiling: a v8 build caps a
+    // song-file.md REQ-song-file-v9-raises-the-bank-ceiling: a v8 build caps a
     // machine at eight, so anything past H must say 9 rather than meet that build
     // as "must have 4..8 banks (got 9)".
     const nine = expandOk(base({ seq: Array.from({ length: 9 }, () => ['C4']) }));

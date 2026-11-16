@@ -219,7 +219,7 @@ describe('createXyPad', () => {
   });
 });
 
-describe('createXyPad with an effective-axes source (motion-sequencer.md REQ-the-xy-window-axes-follow-motion)', () => {
+describe('createXyPad with an effective-axes source (motion-panel.md REQ-the-xy-window-axes-follow-motion)', () => {
   /** Manual EffectiveXy stub the test drives directly. */
   function stubEffective(initial: { x: string; y: string }) {
     let value = { ...initial };

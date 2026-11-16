@@ -93,10 +93,10 @@ createPlayButton (shell/play-button.ts): owns the cueArmed flag + refreshIdleBli
   bridge.cuePlay AND subscribes bus 'seq.on'/'drum.on'/'sampler.on' (value on
   -> cuePlay). Runs before buildPatternRow, so the hook is live before any
   cueing UI exists.
-song-panel.ts: applyDemo (the tail EVERY demo branch ends on — built-in,
-  fetched JSON drop-in, and the tour), the Load button, applyProjectBundle
-  (imports + zip demos + share links + OS launches) and buildChainLane's
-  Chain-enable click call bridge.cuePlay().
+demo-loader.ts: applyDemo (the tail EVERY demo branch ends on — built-in,
+  fetched JSON drop-in, and the tour) and loadStoredSlot (the Load button);
+  song-io.ts: applyProjectBundle (imports + zip demos + share links + OS
+  launches); and buildChainLane's Chain-enable click — each calls bridge.cuePlay().
 header.module.css: .playBtn:global(.attract)/.playBtn:global(.cue) animate the
   OPACITY of a lit ::after overlay on the :global(.switch-led) dot (REQ-blinks-animate-opacity-only) —
   ledPulse / ledFlash, module-scoped. The dot itself is only made

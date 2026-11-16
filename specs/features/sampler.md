@@ -261,7 +261,7 @@ ui: src/ui/panels/sampler-panel.ts
   change so it never widens the row controls: PITCH START END ATK DECAY TONE RES PAN VOL,
   a REV switch and sampler-slot-reset. Knob/Switch testids derive from the paramId.
   Explained controls sit in persistent `data-help` cells, so the five badges survive a
-  slot change (onboarding.md REQ-the-sampler-strip-carries-five-badges).
+  slot change (info-badges.md REQ-the-sampler-strip-carries-five-badges).
   A Load decode failure reports via alertDialog (dialog.md), not alert()
 ```
 

@@ -231,7 +231,7 @@ const RULER_HELP: HelpTopic = {
 };
 
 /**
- * What each EQ band is for, keyed by its label in `EQ_BANDS` (onboarding.md
+ * What each EQ band is for, keyed by its label in `EQ_BANDS` (info-badges.md
  * REQ-the-equalizer-carries-seven-badges). Only the prose is authored here: the band list below is generated
  * from the table the filters are built from, so the help cannot give a band a
  * frequency the audio does not use. A label with no entry fails
@@ -316,7 +316,7 @@ export type TopicId =
   | 'voicing'
   | 'panic'
   | 'presets'
-  // The header's Settings button (onboarding.md REQ-a-settings-topic-anchors-to-the-gauge).
+  // The header's Settings button (info-badges.md REQ-a-settings-topic-anchors-to-the-gauge).
   | 'settings'
   | 'oscillators'
   | 'osc2'
@@ -335,7 +335,7 @@ export type TopicId =
   | 'lfo.rate'
   | 'lfo2.rate'
   | 'fx'
-  // The Equalizer (onboarding.md REQ-the-equalizer-carries-seven-badges): the section, then a graph and a knob
+  // The Equalizer (info-badges.md REQ-the-equalizer-carries-seven-badges): the section, then a graph and a knob
   // row per lane — per lane for the ruler's reason below.
   | 'eq'
   | 'eq.graph.seq'
@@ -514,7 +514,7 @@ export const HELP_TOPICS: Record<TopicId, HelpTopic> = {
       '<em>overwrite</em> or <em>skip</em>. Nothing is written until you confirm, and the sound ' +
       'you are currently playing is never touched.</p>',
   },
-  // OSC 1 and OSC 2 carry a badge each (onboarding.md REQ-each-oscillator-carries-its-own-badge):
+  // OSC 1 and OSC 2 carry a badge each (info-badges.md REQ-each-oscillator-carries-its-own-badge):
   // the shared controls are explained once, here, and `osc2` points back to them.
   oscillators: {
     title: 'OSC 1',

@@ -522,7 +522,7 @@ export function buildSamplerPanel(
   // one shared row driven by the selection cursor. Per-row knobs were the obvious
   // alternative and are the wrong one — the row controls are a fixed narrow width and would
   // have to hold nine knobs and a switch, eight times over.
-  // `help` pins an info badge to this control's CELL (onboarding.md REQ-the-sampler-strip-carries-five-badges). Only
+  // `help` pins an info badge to this control's CELL (info-badges.md REQ-the-sampler-strip-carries-five-badges). Only
   // the controls a player cannot guess carry one, and each covers its neighbours:
   // START speaks for END, DECAY for ATK, TONE for RES.
   const SLOT_PARAMS: { suffix: string; label: string; help?: string }[] = [
@@ -559,7 +559,7 @@ export function buildSamplerPanel(
    * `InfoBadges` resolves each anchor when the badges are switched on and then
    * *keeps the element*. A badge pinned to `knob-sampler.t0.pitch` would be
    * holding a detached node the moment the cursor moved to another slot, measure
-   * 0x0, and silently vanish (onboarding.md REQ-the-sampler-strip-carries-five-badges).
+   * 0x0, and silently vanish (info-badges.md REQ-the-sampler-strip-carries-five-badges).
    */
   const cellFor = (help?: string): HTMLElement => {
     const cell = document.createElement('div');

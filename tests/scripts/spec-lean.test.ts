@@ -92,6 +92,16 @@ describe('outlier sizes are warnings, never errors', () => {
     expect(errs(text)).toEqual([]);
   });
 
+  it('measures LF text, so a CRLF checkout is not flagged where CI is not', () => {
+    // Just under the budget as LF; over it once every newline is CRLF.
+    const lines = Array.from({ length: 2000 }, () => 'x'.repeat(18)).join('\n');
+    const lf = `${meta('version: 1')}\n${lines}\n`;
+    expect(Buffer.byteLength(lf)).toBeLessThan(SPEC_BYTES_WARN);
+    const crlf = lf.replace(/\n/g, '\r\n');
+    expect(Buffer.byteLength(crlf)).toBeGreaterThan(SPEC_BYTES_WARN);
+    expect(warns(crlf).some((w) => w.includes('bytes'))).toBe(false);
+  });
+
   it('is quiet for a small spec', () => {
     expect(warns(`${meta('version: 1')}\n${reqs('- **REQ-a-rule** — Short.')}`)).toEqual([]);
   });

@@ -200,7 +200,7 @@ test.describe('the selected-slot strip', () => {
 });
 
 /**
- * onboarding.md REQ-the-sampler-strip-carries-five-badges — the slot strip's info badges.
+ * info-badges.md REQ-the-sampler-strip-carries-five-badges — the slot strip's info badges.
  *
  * The regression these exist for is invisible in a unit test: a `Knob` binds its
  * paramId at construction, so the strip rebuilds every control when the cursor
@@ -213,7 +213,7 @@ test.describe('the slot strip info badges', () => {
   const TOPICS = ['sampler.pitch', 'sampler.window', 'sampler.env', 'sampler.tone', 'sampler.choke'];
 
   /** A badge below the fold is pinned where nothing can click it, so `position()`
-   *  hides it (onboarding.md REQ-a-badge-shows-only-where-reachable). The strip sits low on the page — scroll it
+   *  hides it (info-badges.md REQ-a-badge-shows-only-where-reachable). The strip sits low on the page — scroll it
    *  into view and let the scroll listener reflow before asserting. */
   const showStrip = async (page: Page): Promise<void> => {
     await page.getByTestId('sampler-slot-reset').scrollIntoViewIfNeeded();
@@ -265,7 +265,7 @@ test.describe('the slot strip info badges', () => {
     await showStrip(page);
     await expect(page.getByTestId('info-badge-sampler.tone')).toBeVisible();
 
-    // A hidden anchor measures 0x0 and its badge hides (onboarding.md REQ-a-badge-shows-only-where-reachable);
+    // A hidden anchor measures 0x0 and its badge hides (info-badges.md REQ-a-badge-shows-only-where-reachable);
     // the reflow observer is what brings it back.
     await page.getByTestId('tab-drums').click();
     await expect(page.getByTestId('info-badge-sampler.tone')).toBeHidden();

@@ -121,7 +121,7 @@ test.describe('scope mono/stereo', () => {
     expect(await peakDb()).toBeNull();
   });
 
-  test('Zones is Spectrum-only and toggles the overlay (scope.md REQ-a-zones-toggle)', async ({ page }) => {
+  test('Zones is Spectrum-only and toggles the overlay (scope-spectrum.md REQ-a-zones-toggle)', async ({ page }) => {
     await gotoAndStart(page);
     const mode = page.getByTestId('scope-toggle');
     const zones = page.getByTestId('scope-zones-toggle');
@@ -149,7 +149,7 @@ test.describe('scope mono/stereo', () => {
     expect(await canvasZones()).toBeNull();
   });
 
-  test('hovering the Spectrum reads out a frequency (scope.md REQ-hovering-reads-out-a-frequency)', async ({ page }) => {
+  test('hovering the Spectrum reads out a frequency (scope-spectrum.md REQ-hovering-reads-out-a-frequency)', async ({ page }) => {
     await gotoAndStart(page);
     const mode = page.getByTestId('scope-toggle');
     const canvas = page.getByTestId('scope-canvas');
@@ -198,7 +198,7 @@ test.describe('scope mono/stereo', () => {
     expect(await waveGain(page)).toBeNull();
   });
 
-  // scope.md REQ-canvas-context-loss-is-survivable — a backgrounded tab can have its canvas backing store
+  // scope-health.md REQ-canvas-context-loss-is-survivable — a backgrounded tab can have its canvas backing store
   // reclaimed. The recovery is the pair of listeners, and this proves they are
   // wired in a real browser: the loop is still painting after the round trip.
   test('a lost and restored canvas context keeps drawing', async ({ page }) => {
@@ -224,7 +224,7 @@ test.describe('scope mono/stereo', () => {
       .toBeGreaterThanOrEqual(1);
   });
 
-  // scope.md REQ-waiting-for-contextrestored-is-bounded/REQ-a-lost-context-is-escaped-by-replacing-the-canvas
+  // scope-health.md REQ-waiting-for-contextrestored-is-bounded/REQ-a-lost-context-is-escaped-by-replacing-the-canvas
   // — the twin of the case above, and the hole v12 left: here
   // the restore is deliberately NEVER given. `stop()` was the last thing that ever
   // happened to the panel, and no control could undo it. Note there is no
@@ -257,7 +257,7 @@ test.describe('scope mono/stereo', () => {
     expect(box!.height).toBeGreaterThan(0);
   });
 
-  // scope.md REQ-a-watchdog-restarts-a-stalled-loop — the only case in the suite that backgrounds the page for
+  // scope-health.md REQ-a-watchdog-restarts-a-stalled-loop — the only case in the suite that backgrounds the page for
   // real rather than dispatching a synthetic event at it.
   test('the scope comes back from a real backgrounding', async ({ page, context }) => {
     await gotoAndStart(page);

@@ -78,11 +78,11 @@ shows. Its rules come from device reports that do not reproduce on a desktop:
   unconditionally first (it is the in-gesture session-category call —
   [`ios-audio`](ios-audio.md) REQ-resume-unlocks-before-anything).
 
-  **Two exceptions, and neither is a dip** — in both the gain is already at 0, so
-  the fade is a ramp *up* from silence exactly as a real resume's is: `glitchMuted`
-  (REQ-the-glitch-fade-out-is-always-undone) and, since v6, `!everRan` (REQ-nothing-is-audible-before-the-first-start). The guarantee this requirement
-  actually makes is about *audible* audio, not about the context's state, and
-  gating on the state alone was a proxy that failed for a context created running.
+  **Two exceptions, neither a dip** — `glitchMuted`
+  (REQ-the-glitch-fade-out-is-always-undone) and `!everRan`
+  (REQ-nothing-is-audible-before-the-first-start). In both the gain is already 0,
+  so the fade is a ramp *up* from silence. The guarantee is about *audible* audio,
+  not the context's state.
 
 - **REQ-the-ramp-is-scheduled-before-the-await** — **The ramp is scheduled
   before the resume is awaited.** `currentTime` is frozen while a context is
@@ -107,11 +107,7 @@ shows. Its rules come from device reports that do not reproduce on a desktop:
 - **REQ-statechange-must-not-fight-a-deliberate-suspend** — **`statechange` must
   not fight a deliberate suspend.** The Debug panel's Suspend action suspends a
   *visible* context, and auto-resuming from `statechange` would undo it
-  instantly. Not
-  installing the listener off iOS was a proxy for "do not fight a deliberate
-  suspend", and it cost every non-iOS device its only recovery from a suspension
-  that arrives while the page is visible. The listener is now installed
-  everywhere and gated on the intent itself — see
+  instantly. So the listener is gated on that intent, not on the platform — see
   REQ-an-unasked-suspension-is-recovered.
 
 - **REQ-a-frozen-renderer-produces-silence** — **A frozen renderer produces
@@ -137,9 +133,7 @@ shows. Its rules come from device reports that do not reproduce on a desktop:
   iOS counterparts and both no-ops off their platform.
   REQ-a-frozen-renderer-produces-silence above is the *safe* outcome for a page
   the OS has throttled; the keep-alive is the attempt to stop it being throttled
-  at all. It was added after REQ-a-frozen-renderer-produces-silence shipped and
-  fixed the runaway clock on a Pixel 8a without fixing the crackle — which is
-  what ruled out the missed-step burst as the crackle's cause.
+  at all.
 
 - **REQ-breaking-up-background-audio-is-suspended** (v3) — **Backgrounded audio
   that is measurably breaking up is suspended, not left to crackle.** While the
@@ -165,9 +159,8 @@ shows. Its rules come from device reports that do not reproduce on a desktop:
     fraction of render quanta that missed their deadline, i.e. the crackle itself.
     A window is bad at `underrunRatio > 0.01` (≈4 glitches a second at a 128-frame
     quantum, already plainly audible). Started on hide, stopped on show, so it
-    costs nothing in the foreground. **Not universal**: the Pixel 8a this was
-    built for runs a Chrome that does not expose it, which is why the fallback
-    below is not optional.
+    costs nothing in the foreground. **Not universal** (some Android Chromes do
+    not expose it), so the fallback below is not optional.
   - **Audio-clock drift** — `ctx.currentTime` advancing slower than
     `performance.now()` over the window, bad below 90 %. This is the fallback
     where `renderCapacity` is absent, and the only signal that catches an outright
@@ -176,18 +169,15 @@ shows. Its rules come from device reports that do not reproduce on a desktop:
     facility [`transport`](transport.md) REQ-the-wakeup-timer-is-off-the-main-thread uses, so throttled main-thread
     timers cannot blind it.
 
-  **Two bad windows trip — or one, when the reading is severe** (v4:
-  `underrunRatio > 0.1`, or the audio clock under `SEVERE_DRIFT` = 50 % of real
-  time). The second window only ever bought *confirmation*, and it is paid for in
-  audible crackle: the device this exists for measured **35.7 %** — a third of
-  real time — so there was nothing left to confirm. A false trip is close to free
-  (the page is hidden, and returning resumes and fades in either way), while a
-  slow trip is heard. Marginal readings still need their second window.
+  **Two bad windows trip — or one, when the reading is severe**
+  (`underrunRatio > 0.1`, or the audio clock under `SEVERE_DRIFT` = 50 % of real
+  time). A second window buys only confirmation, paid for in audible crackle,
+  while a false trip is close to free (the page is hidden, and returning resumes
+  and fades in either way). Marginal readings still need their second window.
 
-  **No user-agent check anywhere.** The failing device was a Pixel 8a while a
-  Samsung tablet on the same build played through a screen-off fine; gating on
-  "is Android" would have stopped the tablet too. A device that does not underrun
-  never trips.
+  **No user-agent check anywhere.** Deliberate: gating on "is Android" would also
+  stop devices that play through a screen-off fine. A device that does not
+  underrun never trips.
 
 - **REQ-the-trip-never-interrupts-a-capture** (v3) — **It never interrupts a
   real-time capture.** The trip is refused while `recorder.isCapturing()` or
@@ -208,8 +198,8 @@ shows. Its rules come from device reports that do not reproduce on a desktop:
   reach it — which is a finding, not a dead end.
 
 - **REQ-a-resume-that-does-not-take-is-retried** (v5) — **A resume that does not
-  take is retried, then handed to the next gesture.** `resume()` no longer
-  trusts `ctx.resume()`. It races the promise against `RESUME_VERIFY_MS` (400 ms
+  take is retried, then handed to the next gesture.** `resume()` does not trust
+  `ctx.resume()`. It races the promise against `RESUME_VERIFY_MS` (400 ms
   — Android's can hang indefinitely rather than reject) and then reads
   `ctx.state`. While the context is still not running it retries, up to
   `RESUME_RETRIES` (2, so three attempts) with a `RESUME_RETRY_MS` (150 ms) gap;
@@ -272,8 +262,7 @@ shows. Its rules come from device reports that do not reproduce on a desktop:
   crackle that is not making sound.** The trip is refused while the transport is
   stopped. REQ-breaking-up-background-audio-is-suspended exists to stop audible
   break-up; with nothing sounding there is nothing to break up, and the only
-  effect of tripping is a suspend/resume cycle that can go wrong — which is
-  precisely the session that produced v5. The check sits in the watchdog's
+  effect of tripping is a suspend/resume cycle that can go wrong. The check sits in the watchdog's
   `judge()` beside `isBusy` (REQ-the-trip-never-interrupts-a-capture), **not**
   in `beginWatch()`, so a transport started while hidden by a MIDI or WiFi clock
   master ([`midi-clock-sync`](midi-clock-sync.md),
@@ -636,24 +625,9 @@ Scenario: Backgrounded under battery saving and back again (v5, device)
   REQ-a-midi-master-announces-its-seek/REQ-a-slave-refuses-to-seek-locally). Not
   worth special-casing: a device that cannot run its own wakeups cannot hold sync
   either.
-- ~~A `MediaSession`-backed keep-alive would let playback continue rather than go
-  quiet.~~ **Built** (v2) — see [`media-session`](media-session.md). REQ-a-frozen-renderer-produces-silence stayed:
-  it is the safe outcome whenever the keep-alive is not enough (or not enabled).
-- **Remembering the verdict per device — considered and deliberately not built.**
-  The watchdog measures afresh on every backgrounding, so a device that starves
-  its audio pays a short burst of crackle *each time* before the trip (v4 cut that
-  to roughly a quarter-second). Persisting the verdict — a `localStorage` flag set
-  the first time it trips, after which hiding the page fades and suspends
-  immediately with no measurement — would take that to **zero**.
-
-  It is not built because the failure mode is worse than the symptom it removes: a
-  single false trip (a device momentarily starved by something else entirely) would
-  silently disable background playback on hardware that is perfectly capable of it,
-  permanently, via a flag nobody would think to look for. The measurement is
-  self-correcting; a remembered verdict is not.
-
-  If it is ever wanted, the shape that bounds the downside is: **re-measure once
-  per app launch** (the flag only skips measurement for *subsequent* backgroundings
-  within a session) and surface it in the Debug row + clear it on factory reset, so
-  a wrong verdict can never outlive the session that formed it. Cost/benefit says
-  wait for a device where a quarter-second is genuinely unacceptable.
+- **Remembering the verdict per device — deliberately not built.** A starving
+  device pays about a quarter-second of crackle per backgrounding before the trip;
+  a persisted verdict would make that zero, but one false trip would silently
+  disable background playback for good. The measurement self-corrects; a stored
+  verdict does not. If ever wanted: re-measure once per launch, show it in the
+  Debug row, clear it on factory reset.

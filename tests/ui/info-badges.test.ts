@@ -4,7 +4,7 @@ import { InfoBadges } from '../../src/ui/onboarding/info-badges';
 import { ParamBus } from '../../src/state/params';
 
 /**
- * onboarding.md REQ-a-badge-shows-only-where-reachable — a badge is shown only where it can be reached. The
+ * info-badges.md REQ-a-badge-shows-only-where-reachable — a badge is shown only where it can be reached. The
  * badges are `position: fixed`, so `position()` re-pins them on every scroll
  * frame and must bound the viewport at BOTH ends. The sticky-header half was
  * there from the start; the below-the-fold half was not, so scrolling a control
@@ -76,7 +76,7 @@ afterEach(() => {
   vi.unstubAllGlobals();
 });
 
-describe('InfoBadges.position visibility (onboarding.md REQ-a-badge-shows-only-where-reachable)', () => {
+describe('InfoBadges.position visibility (info-badges.md REQ-a-badge-shows-only-where-reachable)', () => {
   it('shows a badge whose anchor sits between the header and the fold', () => {
     anchor('keyboard', 400);
     show();
@@ -182,7 +182,7 @@ describe('InfoBadges.position batches its layout reads (REQ-layout-reads-precede
   });
 });
 
-describe('badge placement (onboarding.md REQ-a-settings-topic-anchors-to-the-gauge)', () => {
+describe('badge placement (info-badges.md REQ-a-settings-topic-anchors-to-the-gauge)', () => {
   it("puts the Settings badge on the button's top-left corner, the side away from the ⓘ toggle", () => {
     // place() sets left 300 and right 300 + width; 'corner' overhangs the right
     // edge by 6 (right - 14 for a 20px badge), 'corner-left' the left edge by 6.

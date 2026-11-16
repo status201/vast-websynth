@@ -215,7 +215,7 @@ export const Song = {
       motionChain: { enabled: arr.motion.enabled, steps: [...arr.motion.steps] },
       // v7, and only when it says something: an all-zero array is what every
       // pre-v7 song has, so omitting it keeps those files byte-identical and
-      // lets compactSongForExport's version floor stay below 7 (song-mode.md
+      // lets compactSongForExport's version floor stay below 7 (song-file.md
       // REQ-song-file-v7-adds-slot-transpose). Same trick seqTracks uses.
       ...(arr.seq.transpose.some((t) => t !== 0)
         ? { seqTranspose: [...arr.seq.transpose] }

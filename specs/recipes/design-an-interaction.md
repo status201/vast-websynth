@@ -89,7 +89,7 @@ has none of these does not exist for the user:
 
 ```yaml
 title:      every interactive element (the tooltip states the gesture, not the noun)
-help badge: ui/onboarding/help-content.ts, for anything non-obvious   # onboarding.md REQ-info-badges-show-per-control-help
+help badge: ui/onboarding/help-content.ts, for anything non-obvious   # info-badges.md REQ-info-badges-show-per-control-help
 tour step:  ui/onboarding/, only for gestures on the primary path     # add-a-tour-step.md
 ```
 

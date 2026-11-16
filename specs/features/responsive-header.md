@@ -79,7 +79,7 @@ end of the row.
   `perf-settings`, `info-badges`, `about-button`, `fullscreen`. Note the ids
   follow **function, not position**: `about-button` is the ? glyph, because
   that is the button that opens About; the ⓘ glyph beside it is `info-badges`
-  because that is what it toggles ([onboarding.md](onboarding.md) REQ-the-info-button-is-a-toggle). The
+  because that is what it toggles ([info-badges](info-badges.md) REQ-the-info-button-is-a-toggle). The
   retired `help-button` id is not reused.
 - **REQ-the-header-never-clips** — The header must never clip content off the
   right edge at any width **and with any preset name**. Its clusters' combined
@@ -175,7 +175,7 @@ addition to the shared `headerGroup` class.
   A glyph may also carry **per-part hook classes** that some *state* stylesheet
   recolours — the ⓘ's `.disc` / `.stem` / `.dot`, inverted from
   `tour.module.css` while the info badges show
-  ([onboarding.md](onboarding.md) REQ-the-glyph-inverts-while-badges-show). They stay inert here: `header-icons.ts`
+  ([info-badges](info-badges.md) REQ-the-glyph-inverts-while-badges-show). They stay inert here: `header-icons.ts`
   still declares no colour, and a glyph with no state stylesheet behind it
   renders exactly as before. Hooks belong to one glyph, so a class shared with
   another button's state (ⓘ and Fullscreen both wear `toggleActive`) cannot

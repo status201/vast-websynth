@@ -127,7 +127,7 @@
 
   /* While the badges show, the ⓘ glyph *becomes* a badge: the `--lit-accent` disc
      and `--lit-accent-ink` of `.badge` below, so the control that hides them wears one
-     (onboarding.md REQ-the-glyph-inverts-while-badges-show). The border/glow above is generic — Fullscreen has it
+     (info-badges.md REQ-the-glyph-inverts-while-badges-show). The border/glow above is generic — Fullscreen has it
      too — which is why colour, not chrome, is what makes this button legible as
      the badges' own switch. Only the ⓘ glyph carries these part hooks
      (`header-icons.ts`), so Fullscreen shares `.toggleActive` without inheriting

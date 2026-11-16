@@ -24,6 +24,8 @@ source:
   - scripts/clean-demos.ts          # the generator + the check:demos gate
   - src/state/song.ts               # JSON_DEMOS / ZIP_DEMOS / demoNames
   - src/ui/panels/song-panel.ts     # the demo row + the loaded demo's ⓘ
+  - src/ui/panels/demo-loader.ts    # loadDemo, the one door every demo comes through
+  - src/ui/panels/song-session.ts   # loadedDemo: who sets and clears it
   - src/ui/components/demo-library.ts  # the library window (lazy)
   - src/ui/onboarding/info-badges.ts   # the one ⓘ-mode badge on the row
 ```
@@ -195,7 +197,7 @@ what a demo owes the shelf.
   take it away; **Undo** restores whatever the stash's session showed. It is
   session state, not persisted: after a reload no ⓘ shows. It belongs to the row,
   not to the ⓘ-mode layer, so the badges' "no added chrome while off" rule
-  ([onboarding](onboarding.md) REQ-info-badges-show-per-control-help) is untouched.
+  ([info-badges](info-badges.md) REQ-info-badges-show-per-control-help) is untouched.
 
   *Gestures* (ADR-014): it is a plain `<button>` — click or tap opens the library,
   Enter/Space do the same when focused. No long-press: iOS claims long-press for
@@ -327,11 +329,11 @@ song-panel   -> mkDemoBtn sets button.title = demoSummary(meta)   (REQ-demo-row-
              -> on idle: import('state/demo-blurbs') -> title = demoSummary(meta, blurb)
                 (REQ-the-blurbs-load-after-boot; a failed warm is swallowed)
 demo-library -> imports demo-blurbs statically (inside its own lazy chunk)
-             -> applySongWithUndo / New clear the loaded demo; applyDemo and a demo zip set it
-                right after their apply; restoreStash puts back the stash's
+             -> SongSession.applyWithUndo / startBlank clear the loaded demo; applyDemo and a
+                demo zip set it right after their apply; an Undo puts back the stash's
                 (REQ-the-loaded-demo-carries-an-info-button)
              -> the ⓘ click -> loadSurface(import('components/demo-library'))
-                -> openDemoLibrary({ loadDemo, focus: loadedDemo })
+                -> openDemoLibrary({ loadDemo: demos.loadDemo, focus: song.loadedDemo })
 info-badges  -> anchor song.demos = [data-help="song.demos"] (the Demos: label)
              -> HELP_TOPICS['song.demos'].body(ctx) = renderDemoLibrary({ loadDemo: ctx.loadDemo,
                   close: ctx.close, focus: ctx.loadedDemo })   (ctx.loadedDemo read at the click, v5)

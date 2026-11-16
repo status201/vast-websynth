@@ -101,7 +101,7 @@ any number of entries.
 - **REQ-a-slot-view-tells-badges-when-it-hides** — Each view is on the
   info-badge reflow list — in the synth rack its shell, `fxview-<prefix>`; in the
   sampler header the group root itself, `fxgroup-<prefix>`
-  ([onboarding](onboarding.md) REQ-a-container-must-tell-badges-when-it-hides): a view
+  ([info-badges](info-badges.md) REQ-a-container-must-tell-badges-when-it-hides): a view
   swap changes no container's size, so without it the hidden title's badge
   would stay pinned and the shown one would not appear.
 - **REQ-fx-slot-picker-testids** — The caret is `fxpick-<primary>`; each menu
