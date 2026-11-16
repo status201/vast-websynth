@@ -15,6 +15,7 @@ source:
   - src/audio/voice.ts
   - src/state/params.ts
   - src/audio/engine.ts
+  - src/audio/engine-params.ts  # bindVoiceParams, called from Engine.subscribeParams
   - src/ui/panels/synth-panels.ts
 ```
 
@@ -142,7 +143,7 @@ everywhere.
 ### Layer touchpoints
 
 ```yaml
-engine (subscribeParams):
+engine (subscribeParams → bindVoiceParams, engine-params.ts):
   env.amp.* -> all((v, x) => v.ampEnv.setAttack/ setDecay/ setSustain/ setRelease)
   env.fil.* -> all((v, x) => v.filEnv.<same>)
   filter.envAmount -> all((v, x) => v.setFilterEnvAmount(x))   # semitone depth

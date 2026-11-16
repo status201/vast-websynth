@@ -17,6 +17,7 @@ source:
   - src/audio/transport/scale-quantizer.ts    # chord() for the live path
   - src/audio/transport/arpeggiator.ts        # the pool expands through chord memory
   - src/audio/engine.ts                       # keyboard/MIDI passthrough expansion
+  - src/audio/engine-params.ts  # bindVoiceParams, called from Engine.subscribeParams
   - src/state/patterns.ts                     # writeSeqChord (one batched undo entry)
   - src/state/params.ts
   - src/ui/panels/seq-panel.ts                # the CHORD ▾ writer
@@ -213,7 +214,7 @@ including the ones deliberately left unused.
 ### Layer touchpoints & ordering
 
 ```yaml
-engine (subscribeParams):
+engine (subscribeParams → bindVoiceParams, engine-params.ts):
   chord.voicing -> quantizer.setChord(round(x))
   voicing.mode  -> quantizer.setPoly(v >= 0.5)     # REQ-mono-gates-the-live-chord-path gate for the live path
 live expansion (both consumers, REQ-chord-memory-reaches-the-arp):

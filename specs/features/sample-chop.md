@@ -157,11 +157,11 @@ prev: Array<{ slot: number; buffer: AudioBuffer | null; name: string | null }>
 ### Layer touchpoints & ordering
 
 ```yaml
-record-sound-modal.ts:
+studio-tools.ts (buildChopPage):
   the `Chop` tab — see sample-recorder.md REQ-the-tools-are-tabs:
     its page holds the chop row
   chop row: Dropdown(counts) · Detect · Spread to slots
-  markers drawn by `redraw`, dragged on the canvas — the hit test checks markers
+  markers drawn by studio-waveform.ts `redraw`, dragged on the canvas — the hit test checks markers
     BEFORE the crop handles, which are separate DOM elements and keep priority
     where they overlap
   Spread: confirmDialog -> crop per range -> setBuffer + setSampleName -> close

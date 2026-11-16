@@ -407,7 +407,7 @@ engine.resume():   deliberateSuspend = false                 # v5: any resume is
                    await ctx.resume() raced with RESUME_VERIFY_MS   # v5, REQ-a-resume-that-does-not-take-is-retried
                    #   ramp already on the timeline (REQ-the-ramp-is-scheduled-before-the-await)
                    still not running ? retry (RESUME_RETRIES) : done
-                   still not running ? armGestureFallback() + notify blocked      # v5, REQ-a-resume-that-does-not-take-is-retried/REQ-a-stuck-context-is-visible
+                   still not running ? armGestureResume() + notify blocked      # v5, REQ-a-resume-that-does-not-take-is-retried/REQ-a-stuck-context-is-visible
 engine.init():     installContextRearm()                     # after the graph + voices exist
                    #   on foreground: resume() as below, plus media.rearm() (REQ-the-os-is-told-there-is-a-player)
                    watchdog.start()                          # v3: AFTER recorder/bankRender —

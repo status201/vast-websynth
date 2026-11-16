@@ -149,7 +149,7 @@ via copyText/flashCopied on an inline control:            # v2
     preset-import-copy    -> every message the preset validator produced,
                              for both the file picker and the paste door
 not an emitter:
-  song-panel 'That is a <preset|bank> file'  # a signpost, not a diagnosis
+  song-io 'That is a <preset|bank> file'     # a signpost, not a diagnosis
 ```
 
 ## Scenarios (BDD)

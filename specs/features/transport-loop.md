@@ -23,7 +23,7 @@ source:
   - src/audio/transport/clock.ts              # setStepRouter (transport.md REQ-a-step-router-can-redirect-the-next-step)
   - src/audio/engine.ts                       # owns both; pushes barTicks
   - src/ui/components/transport-controls.ts   # the Loop button + scrubber picks
-  - src/ui/panels/song-panel.ts               # a load clears the loop
+  - src/ui/panels/song-session.ts             # a load clears the loop
 ```
 
 Loop a range of bars: a **Loop** button on the song transport, and two clicks on
@@ -269,7 +269,7 @@ ui (transport-controls.ts):
   Loop click:  canSeek() ? loop.toggle() : no-op
   cell click:  loop.enabled ? (canSeek() && loop.pick(bar)) : seekTo(bar*barTicks)
   repaint: loop.onChange -> classes + titles; also after a structure rebuild
-song-panel toTop: loop.clear() THEN seekTo(0)   # clear first, so REQ-turning-loop-on-moves-the-cue cannot
+song-session toTop: loop.clear() THEN seekTo(0)   # clear first, so REQ-turning-loop-on-moves-the-cue cannot
                                                  # re-cue into the old range
 ```
 

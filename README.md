@@ -357,7 +357,11 @@ src/
   main.ts            boot: create Engine + ParamBus, mount UI, wire input
   audio/             AudioContext graph
     engine.ts        AudioContext owner: graph wiring, param subscriptions, transport
+    engine-params.ts the voice and machine param binders engine.ts calls (their order is boot order)
+    osc-pair-policy.ts  decides when FM / oscillator sync put a voice on the sync pair
     lifecycle.ts     context start/resume: verified + retried resume, gesture re-arm, the click-free fade
+    background-watchdog.ts, media-session.ts, ios-audio-session.ts
+                     keeping a hidden page's audio alive (or suspending it when it breaks up)
     polyphony.ts     voice pool + note allocation (poly/mono, unison, glide, drift)
     lane-mixer.ts    Song-tab mute / solo / volume across seq / drum / sampler
     voice.ts         one voice: 2 osc + noise → filter (LADDER/POLY) → amp
@@ -365,7 +369,9 @@ src/
     frequency-line.ts  the note-by-note frequency + glide curve, shared by oscillators and the sync pair
     sync-osc/        AudioWorklet wrapper + engagement crossfade for oscillator sync
     cross-mod.ts     ring mod + linear FM (OSC 1 modulating OSC 2), engaged only while in use
+    mod-matrix.ts    the six free modulation routes, each a GainNode into an AudioParam
     tempo-bind.ts    resolves a rate/time param against its tempo lock + BPM
+    metronome.ts     the sample studio's beat source + click (straight to the speakers, never recorded)
     ladder-filter/   AudioWorklet wrapper — hosts both filter models (worklet in public/worklets/)
     compressor/      AudioWorklet wrapper for the 1176/SSL bus compressor
     effects/         eq, dirt, wah, phaser, flanger, chorus, delay, reverb, ducker, compressor
@@ -375,14 +381,23 @@ src/
                      sync/ (transport sync: the master/slave core, plus the MIDI and
                      WiFi (WebRTC) transports and their signalling)
     recorder/        mic capture, pure sample DSP (chop, time-stretch, scratch), WAV/MP3 encode,
-                     AudioWorklet sink (song export + record-a-sound)
+                     AudioWorklet sink (song export + record-a-sound), clip preview, offline renders
   state/
     params.ts        ParamBus + all parameter definitions
-    patterns.ts      PatternStore (seq / drum / sampler / motion banks)
+    patterns.ts      PatternStore: the live seq / drum / sampler / motion banks
+    pattern-model.ts the step and track types, machine constants, factories and clamps
+                     (re-exported by patterns.ts)
+    meter.ts         the bar, the grid and each lane's window (see specs ADR-019)
     preset.ts        factory bank + localStorage persistence
     preset-file.ts   preset/bank file build, parse + import planning (pure)
-    song.ts          full-song save/load + demo songs
+    song.ts          full-song build/apply + localStorage slots + the demo list
+    song-validate.ts, song-version.ts, serialize.ts
+                     checking, versioning and compacting a song file
+    song-author.ts   the compact dialect an AI writes, expanded to a song
+    midi-file.ts     the Standard MIDI File reader (MCP read_midi)
     project.ts       project-zip bundle (song.json + sampler clips) build/parse
+    limits.ts        every bound on untrusted input, in one place
+    edit-history.ts  the sample studio's bounded undo/redo stack
     demos/           drop-in *.json SongFiles / *.websynth.zip projects,
                      found at build time, fetched when clicked
     perf-mode.ts     performance-mode preference + device-tier detection
@@ -392,17 +407,32 @@ src/
     prefs.ts         the one try/catch around device-local preferences in localStorage
   utils/             dependency-free helpers importable from any layer: zip codec,
                      deflate-raw streams, param tapers, scale/chord theory,
-                     BPM<->note-division math, the ADSR curve, wake lock
-  ui/                hand-built DOM components and panels (incl. song-panel:
-                     song I/O and DJ FX, with each chain lane in components/chain-lane.ts). studio-api.ts is the UI's narrow
-                     view of the Engine (see specs ADR-009); app.ts assembles the
-                     page from the regions in ui/shell/ (header, MACHINES row,
-                     bottom column) and ui/panels/
+                     BPM<->note-division math, the ADSR curve, wake lock, the offline copy
+  platform/          iOS / Android detection (separate from the device-tier guess in perf-mode.ts)
+  types/             ambient declarations (the build-stamped version, the PWA types)
+  vendor/            lamejs, qr, jsqr: vendored, not npm packages (see specs ADR-003)
+  ui/                hand-built DOM, no framework
+    app.ts           assembles the page from the regions in shell/ and panels/
+    studio-api.ts    the UI's narrow view of the Engine (see specs ADR-009)
+    shell/           header, pattern row, play button, scope panel, bottom column
+    panels/          synth, FX rack, EQ and one panel per machine. song-panel.ts keeps the
+                     DOM (DJ FX, chain lanes) while song-session.ts holds the loaded song,
+                     song-io.ts imports/exports it and demo-loader.ts is the one door for demos
+    components/      reusable controls (knob, dropdown, modal, floating window, …) and
+                     the sample studio: record-sound-modal.ts frames record-screen.ts,
+                     studio-waveform.ts, studio-tools.ts (the four tool tabs) and studio-transport.ts
+    onboarding/      the guided tour, the info badges and the in-app help text (help-content.ts)
   styles/            Global CSS: layers.css (the cascade layer order), base.css (reset),
                      theme.css (custom properties), themes/*.css (one block per other theme),
                      layout.css (.app grid + responsive)
   ui/styles/         CSS Modules (*.module.css — each one a single @layer block, so
                      import order never decides which wins; see specs css-cascade-layers)
+public/              static files served as-is: sw.js (offline), theme-boot.js, the schemas,
+                     params.{json,md} and llms.txt (generated), icons
 public/worklets/     ladder-filter.js, compressor.js, recorder.js, sync-osc.js, flanger.js, reverse-delay.js (audio thread)
+specs/               the architecture: architecture.md, features/, recipes/, decisions/ (ADRs)
+scripts/             build and dev tooling: release, benches, generators, spec-lint, sdd-guard,
+                     css-cascade/, and mcp/ (the MCP server)
+tests/               Vitest unit tests, mirroring src/ (outside src/ on purpose)
 e2e/                 Playwright end-to-end specs (configs at the root: playwright.config.ts, pw-chrome.config.ts)
 ```

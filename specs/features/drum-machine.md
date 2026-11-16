@@ -19,6 +19,7 @@ source:
   - src/audio/drums/drum-synths.ts
   - src/state/patterns.ts
   - src/audio/engine.ts
+  - src/audio/engine-params.ts  # bindMachineParams, called from Engine.subscribeParams
   - src/ui/panels/drum-panel.ts
 ```
 
@@ -199,7 +200,7 @@ drum.t{i}.model: { range: 0..12, default: i, step: 1, taper: discrete, labels: D
 ### Layer touchpoints
 
 ```yaml
-engine (subscribeParams):
+engine (subscribeParams → bindMachineParams, engine-params.ts):
   drum.on -> setEnabled; drum.master -> laneMixer.setDrumVol
   drum.t{i}.* -> setTrackVolume/ Tune/ Decay/ Tone/ Drive/ Pan/ Mute/ Model
     (loop runs DRUM_TRACK_COUNT, not a literal 8)

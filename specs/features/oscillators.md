@@ -20,7 +20,7 @@ source:
   - src/audio/waves.ts         # WAVE_TYPES, the one wave table oscillators, LFOs and PWM index
   - src/audio/voice.ts
   - src/state/params.ts
-  - src/audio/engine.ts        # subscribeParams (osc1/osc2/sub/noise)
+  - src/audio/engine-params.ts # bindVoiceParams (osc1/osc2/sub/noise)
   - src/ui/panels/synth-panels.ts
 ```
 
@@ -153,7 +153,7 @@ is why the memory is bought back by *when* entries are built, not *how many* exi
 
 ```yaml
 registry: src/state/params.ts -> registerDefaults()
-engine:   src/audio/engine.ts -> subscribeParams()
+engine:   src/audio/engine-params.ts -> bindVoiceParams() (from Engine.subscribeParams)
   osc1.*  -> all((v, x) => v.osc1.setWave/ setOctave/ setDetuneCents/ setLevel)
   osc2.*  -> all((v, x) => v.osc2.<same>)
   sub.*   -> all((v, x) => v.setSubWave/ setSubOctave/ setSubLevel)

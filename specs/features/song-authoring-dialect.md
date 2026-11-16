@@ -108,7 +108,8 @@ exported — see ADR-013.
   (ADR-013).
 
 - **REQ-song-author-is-pure** — `src/state/song-author.ts` is pure and imports
-  only `patterns.ts` + `song-validate.ts` (+ *type-only* `song.ts`), so the MCP
+  only pure modules — `patterns.ts`, `song-validate.ts`, `limits.ts`,
+  `validate-utils.ts`, `song-author-format.ts` — (+ *type-only* `song.ts`), so the MCP
   server's Node bundle can include it without dragging in `import.meta.glob`
   demo registration from `song.ts`.
 
@@ -309,10 +310,10 @@ v3 file.
 
 ### Layer touchpoints & ordering
 
-- `song-author.ts` (pure) ← imports `patterns.ts` constants/defaults +
-  `validateSongFile`; type-only `SongFile`/`ChainData` from `song.ts`.
+- `song-author.ts` (pure) ← imports `patterns.ts` constants/defaults,
+  `validateSongFile`, the `limits.ts` bounds and `validate-utils.ts`; type-only `SongFile`/`ChainData` from `song.ts`.
 - `song.ts` → `Song.parse` branches on `isAuthorSong` (REQ-the-dialect-is-detected-by-shape). Every consumer of
-  `Song.parse` (song-panel import, `parseSongOrProject`
+  `Song.parse` (song-io import, `parseSongOrProject`
   in `project.ts`, launchQueue, song links, file drop, paste) inherits the dialect;
   the MCP tools call `expandAuthorSong` directly. `fromJSON` does not
   (REQ-the-expander-loads-with-the-first-author-file).

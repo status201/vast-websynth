@@ -96,7 +96,7 @@ REQ-every-colour-is-a-token); a canvas reads its colours from `ui/theme-colors.t
   no-op, so this is safe even when `destroy()` runs mid-drag). This both prevents
   the leak above and stops *every* live instance from running its move handler on
   every page pointer move — only the one being dragged listens. `knob.ts` and
-  `strip.ts` are the reference implementations (`record-sound-modal.ts` and
+  `strip.ts` are the reference implementations (`studio-waveform.ts` and
   `floating-window.ts` follow the same shape). The rule is easy to lose in a
   helper: `step-settings.ts`'s slider once attached at construction, and because
   that row is mounted three times with three sliders each, it put **nine**

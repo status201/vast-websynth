@@ -20,7 +20,7 @@ source:
   - public/worklets/ladder-filter.js     # the DSP (audio thread, plain JS)
   - src/audio/ladder-filter/node.ts       # LadderFilterNode wrapper
   - src/state/params.ts                   # filter.* ParamDefs
-  - src/audio/engine.ts                   # subscribeParams (per-voice)
+  - src/audio/engine-params.ts            # bindVoiceParams (per-voice)
   - src/utils/taper.ts                    # power-taper knob mapping
   - src/ui/panels/synth-panels.ts         # the FILTER panel
 ```
@@ -144,7 +144,7 @@ mapping that works at `min = 0` (`exp` requires `min > 0`).
 
 ```yaml
 1_registry:  src/state/params.ts  -> registerDefaults()   # the filter.* ParamDefs
-2_engine:    src/audio/engine.ts  -> subscribeParams()
+2_engine:    src/audio/engine-params.ts  -> bindVoiceParams() (from Engine.subscribeParams)
    filter.cutoff    -> all((v, x) => v.setFilterCutoff(x))      # all() fans to the whole pool
    filter.resonance -> all((v, x) => v.setFilterResonance(x))
    filter.drive     -> all((v, x) => v.setFilterDrive(x))

@@ -212,11 +212,12 @@ SyncEngagement (src/audio/sync-osc/engagement.ts):  # one per voice; owns the st
   # one pending disconnect at a time: a toggle inside the window clears it
 FrequencyLine (src/audio/frequency-line.ts):
   set(hz, when, glideSec)         # the anchored-cancel glide Osc already used
+  follow(src, now)                # take over another line's curve from now: a glide in flight finishes
   at(t)                           # closed-form value of the curve at t
 Osc:
   setMirror(m | null)             # pushes current wave/cents/width at once, then every change
   fadeNative(on) / dropNative()
-  frequencyAt(t)
+  lendFrequencyTo(line, now)      # the pair's line follows this osc's curve (FrequencyLine.follow)
 Voice:                            # owns the junctions; delegates engagement to SyncEngagement
   pitchTargets(): AudioParam[]
   syncTarget: AudioParam          # the sync junction's offset

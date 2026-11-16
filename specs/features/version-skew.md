@@ -17,7 +17,7 @@ source:
   - src/ui/components/version-skew-toast.ts  # the two toasts
   - src/ui/offline-wording.ts                # the shared clauses
   - src/ui/components/lazy-load-toast.ts     # consumer: a failed surface import
-  - src/ui/panels/song-panel.ts              # consumer: a failed demo load
+  - src/ui/panels/demo-loader.ts             # consumer: a failed demo load
   - src/main.ts                              # wires the takeover watch
 ```
 
@@ -157,7 +157,7 @@ in `src/ui/offline-wording.ts` beside `NEWER_VERSION_LIVE` and `RELOAD_TO_GET_IT
   awaits `reportIfNewerVersion` and shows the old failed-download toast only on
   `false`. Its import list grows by the leaf toast module alone (still no
   boot-path weight, per lazy-load-failure.md's layer note).
-- `song-panel.ts`: `loadJsonDemo` / `loadZipDemo` route every fetch-or-parse
+- `demo-loader.ts`: `loadJsonDemo` / `loadZipDemo` route every fetch-or-parse
   failure through one helper that asks `reportIfNewerVersion` first, and keep a
   separate catch around the apply.
 - `main.ts` calls `watchForTakeover(…, onTakeover)` beside the worker

@@ -19,6 +19,7 @@ source:
   - src/audio/transport/sequencer.ts          # trigger site 1 (composes after transpose)
   - src/audio/transport/arpeggiator.ts        # trigger site 2 (the pool)
   - src/audio/engine.ts                       # trigger site 3 (keyboard/MIDI passthrough)
+  - src/audio/engine-params.ts  # bindVoiceParams, called from Engine.subscribeParams
   - src/state/params.ts
   - src/ui/key-roles.ts                       # the one role resolver, shared by both surfaces
   - src/ui/panels/key-panel.ts                # surface 1 — the KEY tab map
@@ -212,7 +213,7 @@ EXTRA_LABELS: ['none', 'blue b5', 'blue b3', 'b7', 'maj 7', 'bebop']
 ### Layer touchpoints & ordering
 
 ```yaml
-engine (subscribeParams):
+engine (subscribeParams → bindVoiceParams, engine-params.ts):
   scale.root -> quantizer.setRoot(round(x))
   scale.type -> quantizer.setScale(round(x))
   scale.extra -> quantizer.setExtra(round(x))

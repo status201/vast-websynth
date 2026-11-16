@@ -177,9 +177,9 @@ limits (src/state/limits.ts):
 src/audio/recorder/fft.ts:           pure; no imports
 src/audio/recorder/time-stretch.ts:  pure; imports fft.ts, limits.ts, node.ts (type only)
 src/audio/recorder/offline-render.ts: 'resample' + renderPitchShift (async, OfflineAudioContext)
-src/ui/components/record-sound-modal.ts:
+src/ui/components/studio-tools.ts (buildStretchPage):
   one `Fit & Shift` tab holding both rows, built AFTER the chop page
-  both go through runOp()/setBusy()/afterMutate(), so undo, the busy latch and the marks reset are inherited
+  both go through runOp() (record-sound-modal.ts: setBusy()/afterMutate()), so undo, the busy latch and the marks reset are inherited
 src/ui/panels/sampler-panel.ts:
   FIT button per slot row, shown by refreshLabel(slot) beside the edit button;
   title recomputed there and on tempo change
