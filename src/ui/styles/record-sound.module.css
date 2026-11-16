@@ -344,6 +344,12 @@
     width: 100%;
     min-height: 120px;
     touch-action: none;
+    /* The crop handles are centred on the selection edge, so at the waveform's
+       ends half of each hangs outside. `.screen` scrolls vertically, which turns
+       its other axis into `auto`: unclipped, that half was a sideways scroll
+       (REQ-the-studio-fills-the-screen). `clip`, not `hidden`, so this box is no
+       scroll container and the handles' glow above and below still shows. */
+    overflow-x: clip;
   }
 
   .wave {
