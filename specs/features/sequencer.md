@@ -32,6 +32,7 @@ source:
   - src/audio/stereo.ts                      # the forced up-mix (lfo.md REQ-the-auto-pan-reads-a-stereo-input)
   - src/state/patterns.ts
   - src/audio/engine.ts
+  - src/audio/engine-params.ts  # bindMachineParams, called from Engine.subscribeParams
   - src/ui/panels/seq-panel.ts
   - src/ui/shell/pattern-row.ts          # ties the arm to tab visibility
   - src/ui/components/tabs.ts            # isVisible / onViewChange
@@ -321,7 +322,7 @@ seq.len / seq.rate                           # meter.md
 ### Layer touchpoints
 
 ```yaml
-engine (subscribeParams):
+engine (subscribeParams → bindMachineParams, engine-params.ts):
   seq.on     -> this.seq.setEnabled(v >= 0.5)
   seq.master -> rampTo(voiceBus.gain, v)      # independent of mute
   seq.t<i>.pan -> this.seq.setTrackPan(i, v)  # Engine holds the four values and drives

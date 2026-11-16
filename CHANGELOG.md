@@ -16,6 +16,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+### Fixed
+
+- **The docs match the code again after the November refactors** (contributors).
+  The README's project layout names the new modules (the Engine's param binders,
+  the Song panel's session / import-export / demo loader, the sample studio's
+  screens, the metronome) and the folders it left out. CLAUDE.md routes to them.
+  30 specs that still placed work in the files it moved out of, or named
+  functions that no longer exist, are corrected. The sync specs name their
+  tuning constants as the code does.
+
 ## [2.22.1] - 2026-11-16
 
 ### Fixed

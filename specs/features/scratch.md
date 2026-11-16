@@ -237,9 +237,9 @@ src/audio/recorder/scratch-curve.ts: pure; imports limits.ts only
 src/audio/recorder/scratch.ts:       pure; imports scratch-curve.ts, buffer-dsp.ts, limits.ts,
                                      node.ts (type only)
 src/ui/components/scratch-graph.ts:  canvas + pointer only; no engine reference (jsdom with a stubbed rect)
-src/ui/components/record-sound-modal.ts:
-  scratch panel + row built AFTER the shift row (they read `working` and the crop the same way)
-  FIT_TARGETS / framesFor / fitLabel / stepsFor are shared by the Fit row and the scratch length
+src/ui/components/studio-tools.ts (buildScratchPage):
+  scratch page built AFTER the Fit & Shift page (both read `working` and the crop through ToolContext)
+  FIT_TARGETS / framesFor / fitLabel (state/fit-targets.ts) and stepsFor are shared by the Fit row and the scratch length
   playClip(clip) lets Preview audition an uncommitted render
   apply goes through runOp(); the page's sync joins the Chop and Fit & Shift pages' (called from setBusy and afterMutate)
 ```

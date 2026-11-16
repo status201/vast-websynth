@@ -85,8 +85,7 @@ never embedded) are [song-file](song-file.md)'s.
   before `patterns.restore`, so the store's meta emit repaints the slot (with its
   `.needs-reload` hint) instead of song A's audio playing under song B's label. A
   file that **omits** `sampleNames` renames nothing and evicts nothing. Callers that
-  hold a sampler pass it (`song-panel.applySong`, the app.ts demo fallback, the
-  boot restore); unit tests without an audio graph omit it.
+  hold a sampler pass it (`SongSession.apply` and the boot restore in `main.ts`); unit tests without an audio graph omit it.
 - **REQ-mute-and-solo-share-one-rule** — Mute/solo audibility follows one shared
   pure rule (solo wins over mute), used by both the engine and the UI.
 - **REQ-play-banks-settle-before-the-machines-read** — Play banks must be
@@ -167,7 +166,7 @@ never embedded) are [song-file](song-file.md)'s.
       position but leaves `expectFirstBar` untouched, so a seek that follows also
       re-arms it — the incoming chain plays slot 0 for a *whole* bar instead of
       advancing at the next bar line.
-    - It lives on the **one apply funnel** (`song-panel.applySong`, which every
+    - It lives on the **one apply funnel** (`SongSession.apply`, which every
       load surface already routes through for `session.setActive`) plus New,
       which deliberately does not route through it (it restores the blank
       snapshot directly). Not in `Song.apply`: that is `state/`-layer and holds
@@ -374,7 +373,7 @@ load-undo safety net (see session-autosave.md): every destructive apply —
 demo persistence: loadDemo NEVER writes a slot (session-autosave REQ-a-demo-click-never-writes-a-slot) —
           applyProjectBundle(res, { persist }) is true only for real imports, so
           a zip demo now syncs the dropdown the way applyDemo always has.
-playhead reset (REQ-a-load-lands-on-bar-one): applySong ends `Song.apply(...)` -> `engine.seekTo(0)`
+playhead reset (REQ-a-load-lands-on-bar-one): SongSession.apply ends `Song.apply(...)` -> toTop() -> `engine.seekTo(0)`
           (AFTER apply, so the chain re-seat re-arms expectFirstBar); New does
           the same after its own restore + chain resets. Both via StudioApi,
           so transport-position.md REQ-seeking-is-refused-in-three-states's refusals are inherited, not re-stated.

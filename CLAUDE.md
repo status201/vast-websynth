@@ -111,11 +111,12 @@ material keyed by feature name).
 | Touching | Read |
 | --- | --- |
 | `src/state/params.ts` — a new param | `recipes/add-a-parameter.md`, ADR-001, ADR-006 |
-| `src/state/patterns.ts` | `features/banks.md`, `features/step-settings.md`, ADR-004 |
+| `src/state/patterns.ts`, `src/state/pattern-model.ts` (the step/track types and factories `patterns.ts` re-exports) | `features/banks.md`, `features/step-settings.md`, ADR-004 |
 | `src/state/song*.ts`, `src/state/serialize.ts` | `features/song-mode.md`, `features/song-file.md` (the format), `recipes/evolve-the-song-format.md`, ADR-007/011/013 |
+| the **Song panel** (`ui/panels/song-panel.ts`, `song-session.ts`, `song-io.ts`, `demo-loader.ts`) | `features/song-mode.md`, `features/session-autosave.md`, `features/demo-library.md` — the panel keeps the DOM; the loaded song's state is `SongSession`, and every demo comes through `demo-loader.ts` |
 | `src/state/preset*.ts` | `features/presets.md`, `features/preset-authoring.md`, `recipes/add-a-factory-preset.md` |
 | `src/state/demos/` | `recipes/add-a-demo-song.md` (data drop-in — SDD-exempt) |
-| `src/audio/engine.ts` | `specs/architecture.md`, ADR-008, ADR-009 |
+| `src/audio/engine.ts`, `engine-params.ts` | `specs/architecture.md`, ADR-008, ADR-009 — the binders in `engine-params.ts` subscribe in boot order, so moving a subscription between them is a behaviour change |
 | context start / background / resume — `src/audio/lifecycle.ts` | `features/audio-lifecycle.md`, `features/ios-audio.md`, `features/media-session.md` |
 | `public/sw.js`, the **offline copy** (`utils/offline-copy.ts`, `scripts/lib/offline-manifest.mjs`) | `features/pwa-install.md`, `features/play-offline.md` — every cache lookup passes `{ ignoreVary: true }` (hosts send `Vary: Origin`, and a file saved by `fetch()` then never matches the script request for it); `npm run e2e` runs the dev server, which has no worker, so verify against `vite preview`. `activate` claims every tab and purges the old cache, so a tab still on the previous release runs uncached after a deploy — what it says then is `features/version-skew.md` |
 | `src/audio/effects/` | `features/effects.md`, `recipes/add-an-effect.md`, ADR-012 |
@@ -130,7 +131,7 @@ material keyed by feature name).
 | a **bar**, a **step count** or anything `% SEQ_LENGTH`-shaped | `features/meter.md` + ADR-019 — the bar is `barTicks`, the grid is `GRID_CELLS`, a lane's window is `laneCells()`. `src/state/meter.ts` names the three apart; in the UI go through `src/ui/lane-grid.ts` |
 | `src/audio/transport/sync/` | `features/midi-clock-sync.md`, `features/webrtc-sync.md` |
 | `src/audio/recorder/` | `features/audio-export.md`, `record-window.md`, `sample-recorder.md`, `sample-chop.md`, `time-stretch.md`, `scratch.md`, `render-to-sampler.md` |
-| the **sample studio** (`ui/components/record-sound-modal.ts`) or its metronome (`src/audio/metronome.ts`) | `features/sample-recorder.md`, `features/metronome.md` — nothing in it may close on a stray click: Escape/✕ go through `Modal`'s `beforeClose`, and the click goes to `ctx.destination`, never the master bus |
+| the **sample studio** (`ui/components/record-sound-modal.ts`, which frames `record-screen.ts`, `studio-waveform.ts`, `studio-tools.ts`, `studio-transport.ts` and `studio-kit.ts`) or its metronome (`src/audio/metronome.ts`) | `features/sample-recorder.md`, `features/metronome.md` — nothing in it may close on a stray click: Escape/✕ go through `Modal`'s `beforeClose`, and the click goes to `ctx.destination`, never the master bus |
 | `public/worklets/` | ADR-010, `recipes/add-an-audioworklet.md`, then the worklet's owner: `features/ladder-filter.md`, `compressor.md`, `oscillator-sync.md`, `flanger.md`, `delay-types.md` (reverse-delay), `audio-export.md` (the recorder) — a new worklet is also a `CORE_ASSETS` entry in `public/sw.js`, or it is missing offline |
 | **oscillator sync** — `src/audio/sync-osc/`, `Voice.pitchTargets()` | `features/oscillator-sync.md` + ADR-026 — a new pitch source connects to **every** `pitchTargets()` entry (the sync pair listens through the fourth), never to a hand-listed set of detunes |
 | **ring mod / FM** — `src/audio/cross-mod.ts`, `Osc.signal` | `features/cross-modulation.md` — a modulator reads an oscillator's pre-level `signal` (native *or* sync pair), never `out`; FM's knob is an index relative to OSC 1, so k = 2^((cents1 − cents2)/1200) must follow both oscillators' octave/tune; both paths are disconnected while at 0 |

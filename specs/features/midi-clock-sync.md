@@ -68,7 +68,7 @@ instrument hostage: only a live link makes a role run.
   mode 'off'    -> 'off'
   mode 'master' -> some link has outs > 0                     ? 'master' : 'off'
   mode 'slave'  -> some link has ins > 0
-                   AND (a message arrived < linkIdleMs ago
+                   AND (a message arrived < LINK_IDLE_MS ago
                         OR clock.playing)                     ? 'slave'  : 'off'
   ```
 
@@ -78,8 +78,8 @@ instrument hostage: only a live link makes a role run.
   selection is still painted as selected, but greyed.
 - **REQ-link-liveness-beats-port-presence** — Ports alone are too weak a signal: a
   virtual cable keeps its port after the peer quits. So a slave needs an input
-  port **and** a message within `linkIdleMs` (3000 ms, past the 100 ms idle pulses
-  and 2 s heartbeat). A `TickTimer` watchdog polls every `watchdogWakeMs` (500 ms)
+  port **and** a message within `LINK_IDLE_MS` (3000 ms, past the 100 ms idle pulses
+  and 2 s heartbeat). A `TickTimer` watchdog polls every `WATCHDOG_WAKE_MS` (500 ms)
   while `mode === 'slave'`, and it re-evaluates on `clock.onStart`/`onStop`,
   `addTransport` and `onPortsChange`. `clock.playing` defers the silence-based
   release, so a USB hiccup never yanks the tempo; `ins === 0` releases at once.
@@ -125,8 +125,8 @@ instrument hostage: only a live link makes a role run.
   from an odd cue clocks its first 16th.
 - **REQ-the-master-keeps-an-idle-clock** — While enabled and **stopped**, the master
   sends timestamped `pulse`s so slaves' estimates are warm before the first Start.
-  The idle timer (`idleWakeMs` 100) schedules pulses covering `(lastScheduledMs,
-  nowMs + idleHorizonMs]` at `sixteenthDuration()/6` spacing, plus a `tempo`
+  The idle timer (`IDLE_WAKE_MS` 100) schedules pulses covering `(lastScheduledMs,
+  nowMs + IDLE_HORIZON_MS]` at `sixteenthDuration()/6` spacing, plus a `tempo`
   heartbeat every 2 s. It starts on `enable()`-while-stopped and on `onStop`, and
   stops on `onStart` and `disable()`. `SyncMaster`'s ctor takes `opts?: { timer?,
   nowMs?, flush? }`.
@@ -141,7 +141,7 @@ instrument hostage: only a live link makes a role run.
   it **before** `start` and **before** `stop`, never around `announceTo`, which
   would cancel run pulses other locked slaves need. WebRTC sends immediately and
   omits it. Deliberate: don't timestamp 0xFA past the tail instead — that delays
-  the start by up to `idleHorizonMs`.
+  the start by up to `IDLE_HORIZON_MS`.
 - **REQ-a-midi-master-announces-its-seek** — `SyncController` subscribes
   `clock.onSeek`. So every jump (a user seek or a [loop](transport-loop.md) wrap,
   [transport](transport.md) REQ-a-step-router-can-redirect-the-next-step) announces
@@ -206,7 +206,7 @@ instrument hostage: only a live link makes a role run.
   smoothed pulse-vs-grid error is applied as at most ±10 ms, at most once per beat,
   with a 5 ms deadband.
 - **REQ-a-post-start-settle-window** — After a join *starts* a stopped slave, pulses
-  are **ignored** for `startSettleBaseMs (300) + 12 pulse intervals` from the join's
+  are **ignored** for `START_SETTLE_BASE_MS (300) + 12 pulse intervals` from the join's
   first step. That covers any in-flight scheduled span plus jitter. Only stall
   bookkeeping runs. Deliberate: the estimator is **not** interval-gated — Web MIDI
   delivery is bursty and a "too close" heuristic biases tempo low; the window-span
@@ -215,8 +215,8 @@ instrument hostage: only a live link makes a role run.
   From a cold pulse-only master, lock is delayed ~0.5–0.8 s; with the idle clock or a
   `tempo` message it costs nothing.
 - **REQ-sync-phase-re-anchor** — The numbering is provably skewed when (a) the
-  smoothed error exceeds `max(reanchorRatio (0.75) × pulse interval, reanchorMinS
-  (0.015))`, or (b) `phaseMissReanchor` (2) consecutive pulses map to a step with no
+  smoothed error exceeds `max(REANCHOR_RATIO (0.75) × pulse interval, REANCHOR_MIN_S
+  (0.015))`, or (b) `PHASE_MISS_REANCHOR` (2) consecutive pulses map to a step with no
   recorded tick. The look-ahead guarantees a tick precedes its pulse. The slave then
   recomputes the counter from the pulse's arrival against the nearest recorded step
   (`round((t − rec.when) / pulseS)` pulses from `(rec.step − startStep) × 6`), and
@@ -348,38 +348,39 @@ Knob.setDisabled(on): void        # dims + aria-disabled + blocks drag/double-ta
 Slave tuning constants (`sync-slave.ts` / `bpm-estimator.ts`):
 
 ```yaml
-estimatorWindow: 25 timestamps    # 24 intervals ~= one beat at 24 PPQN
-emaAlpha: 0.25
-gapResetMs: 250                   # estimator window reset across gaps
-bpmWriteThrottleMs: 250           # AND >= 0.5 BPM delta
-nudgeMaxS: 0.010                  # per correction
-nudgeMinIntervalBeats: 1
-nudgeDeadbandS: 0.005
-stallMs: 1000                     # checked inside a clock.onTick subscription
-tempoMsgFreshMs: 2500             # while a 'tempo' msg is this fresh, suppress pulse-estimate writes
-startSettleBaseMs: 300            # + 12 pulse intervals — post-start pulse-ignore span
-reanchorRatio: 0.75               # |phaseErr| beyond this × pulse interval -> re-anchor
-reanchorMinS: 0.015               # re-anchor floor so jitter spikes can't trigger it
-phaseMissReanchor: 2              # consecutive unmeasurable pulses -> re-anchor
-phaseAlpha: 0.25                  # phase-error smoothing
-tempoWriteMinDelta: 0.05          # ignore a 'tempo' within this of the last written BPM
-tickMemory: 16                    # recorded grid times (steps) — a look-ahead window
+WINDOW_PULSES: 24                 # estimator window in intervals (25 timestamps) ~= one beat at 24 PPQN
+EMA_ALPHA: 0.25                   # estimator smoothing
+GAP_RESET_MS: 250                 # estimator window reset across gaps
+BPM_WRITE_MIN_MS: 250             # setBpm throttle: time...
+BPM_WRITE_MIN_DELTA: 0.5          # ...AND magnitude
+NUDGE_MAX_S: 0.010                # per correction
+NUDGE_MIN_PULSES: 24              # at most one nudge per beat
+NUDGE_DEADBAND_S: 0.005           # corrections below this are transport-latency noise
+STALL_S: 1.0                      # checked inside a clock.onTick subscription
+TEMPO_MSG_FRESH_MS: 2500          # while a 'tempo' msg is this fresh, suppress pulse-estimate writes
+START_SETTLE_BASE_MS: 300         # + 12 pulse intervals — post-start pulse-ignore span
+REANCHOR_RATIO: 0.75              # |phaseErr| beyond this × pulse interval -> re-anchor
+REANCHOR_MIN_S: 0.015             # re-anchor floor so jitter spikes can't trigger it
+PHASE_MISS_REANCHOR: 2            # consecutive unmeasurable pulses -> re-anchor
+PHASE_ALPHA: 0.25                 # phase-error smoothing
+TEMPO_WRITE_MIN_DELTA: 0.05       # ignore a 'tempo' within this of the last written BPM
+TICK_MEMORY: 16                   # recorded grid times (steps) — a look-ahead window
 ```
 
 Master idle-clock + tempo constants (`sync-master.ts`):
 
 ```yaml
-idleWakeMs: 100                   # idle timer wakeup cadence while stopped
-idleHorizonMs: 200                # schedule pulses covering (lastScheduled, now + 200]
-tempoHeartbeatMs: 2000            # idle 'tempo' emission spacing
-tempoSendMinDelta: 0.1            # emit 'tempo' on a tick when |bpm - lastSent| >= this
+IDLE_WAKE_MS: 100                 # idle timer wakeup cadence while stopped
+IDLE_HORIZON_MS: 200              # schedule pulses covering (lastScheduled, now + 200]
+TEMPO_HEARTBEAT_MS: 2000          # idle 'tempo' emission spacing
+TEMPO_SEND_MIN_DELTA: 0.1         # emit 'tempo' on a tick when |bpm - lastSent| >= this
 ```
 
 Link-liveness constants (`sync-controller.ts`):
 
 ```yaml
-linkIdleMs: 3000                  # no sync message for this long -> the slave link is dead
-watchdogWakeMs: 500               # TickTimer poll cadence while mode is 'slave'
+LINK_IDLE_MS: 3000                # no sync message for this long -> the slave link is dead
+WATCHDOG_WAKE_MS: 500             # TickTimer poll cadence while mode is 'slave'
 ```
 
 Time domains: MIDI timestamps are `performance.now()`-domain, while `Clock`
@@ -589,9 +590,9 @@ Scenario: Losing the wire releases the role
 
 Scenario: Clock silence releases only once stopped (REQ-a-stalled-pulse-stream-is-tolerated)
   Given a slave whose master stopped sending (a lingering virtual MIDI port)
-  When linkIdleMs passes while the clock is playing
+  When LINK_IDLE_MS passes while the clock is playing
   Then the role stays active and playback keeps its tempo
-  When the clock stops and linkIdleMs passes
+  When the clock stops and LINK_IDLE_MS passes
   Then the role releases
 # pinned by: tests/audio/transport/sync/sync-controller.test.ts
 

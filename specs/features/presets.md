@@ -613,7 +613,7 @@ Scenario: The pinned sound is the effective patch, not the file's sparse map (RE
   When the song is applied
   Then the pinned patch carries that id at its registered default
   So re-selecting it cannot leak the previous song's value
-# The mechanism is one helper: every caller (app.ts, song-panel.ts, main.ts) pins
+# The mechanism is one helper: every caller (song-session.ts, main.ts) pins
 # through `pinAppliedSong`, which reads the settled bus after `Song.apply` has run
 # `resetDefaults()` — never `file.params`. apply's resetDefaults is what makes the
 # omitted id revert.

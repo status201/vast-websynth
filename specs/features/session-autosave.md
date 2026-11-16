@@ -379,7 +379,7 @@ Scenario: an import confirms before overwriting a saved slot (v5, REQ-the-undo-n
   And declining still applies the song to the session, leaving the slot intact
   And a song with an unused name — or a demo's name — saves without asking
 # pinned by: tests/state/song-import-slot.test.ts (the plan; the dialog wiring is
-#   song-panel's saveImportedSlot, following preset-file.ts planImport)
+#   song-io.ts's saveImportedSlot, following preset-file.ts planImport)
 
 Scenario: re-importing the very same song does not re-ask (v6, REQ-an-identical-slot-is-not-a-conflict, regression)
   Given a song was imported and the user chose "Replace it"
@@ -418,7 +418,7 @@ Scenario: undo mid-import cancels stale clip decodes
   Given a project-zip import is decoding clips
   When the user clicks Undo before decoding finishes
   Then remaining clips never overwrite the restored session's slots
-# pinned by: apply-token guard in song-panel.ts (applyProjectBundle)
+# pinned by: apply-token guard in song-io.ts (applyProjectBundle)
 ```
 
 ## Tests & verification

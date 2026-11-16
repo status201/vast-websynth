@@ -217,9 +217,9 @@ lenient (additive — do NOT require):
 surface:
   fromJSON(text): SongFile | null              # back-compat: returns null on any failure
   parse(text): SongValidation                  # { ok:false, errors:[ "drumBanks[1][3][7].ratchet must be an integer 1..4", ... ] }
-  song-panel Import: shows the first 8 errors via alertDialog (see dialog.md),
+  song-io Import:    shows the first 8 errors via alertDialog (see dialog.md),
                      and hands the WHOLE array to its Copy button   # REQ-a-rejected-import-is-copyable-in-full, v24
-                     applySong wrapped in try/catch (that failure copies too)
+                     SongSession.apply wrapped in try/catch (that failure copies too)
 ```
 
 Four surfaces feed bytes into that one path (`SongPanel.importBytes`): the

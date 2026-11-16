@@ -252,16 +252,16 @@ control channel (sync-control): "{t:'start', at?} | {t:'continue', at?} | {t:'st
 timing channel (sync-timing):   "{t:'pulse', at} | {t:'ping', a} | {t:'pong', a, b}"
 
 # Estimator tuning (clock-offset.ts)
-sampleWindow: 16
-emaAlpha: 0.25
-rttGate: 1.5             # accept only when rtt <= rttGate * min(rtt in window)
+SAMPLE_WINDOW: 16        # the sampleWindow option's default
+EMA_ALPHA: 0.25          # the emaAlpha option's default
+RTT_GATE: 1.5            # accept only when rtt <= RTT_GATE * min(rtt in window)
 
 # Transport tuning (webrtc-sync-transport.ts)
-pingBurstCount: 8
-pingBurstMs: 150
-pingSteadyMs: 1000
-iceCompleteTimeoutMs: 3000
-disconnectGraceMs: 5000     # 'disconnected' recovery window before teardown
+PING_BURST_COUNT: 8
+PING_BURST_MS: 150
+PING_STEADY_MS: 1000
+ICE_TIMEOUT_MS: 3000
+DISCONNECT_GRACE_MS: 5000   # 'disconnected' recovery window before teardown
 
 # Signal blob: "WS2." <codec> "." <base64url payload>
 #   codec 'c' = CompressionStream('deflate-raw') (feature-detected); 'r' = raw UTF-8

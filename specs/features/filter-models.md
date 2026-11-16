@@ -21,7 +21,7 @@ source:
   - src/audio/ladder-filter/node.ts        # model + shape AudioParams
   - src/audio/voice.ts                     # per-voice setters
   - src/audio/lfo.ts                       # shape destination
-  - src/audio/engine.ts                    # subscribeParams fan-out
+  - src/audio/engine-params.ts             # bindVoiceParams: the subscribeParams fan-out
   - src/state/params.ts                    # filter.model / filter.shape
   - src/state/preset.ts                    # factory presets carry both keys
   - src/ui/panels/synth-panels.ts          # FILTER panel model switch
@@ -239,7 +239,7 @@ a judgement call, not a bug fix.
 
 ```yaml
 1_registry:  src/state/params.ts  -> registerDefaults()   # filter.model, filter.shape
-2_engine:    src/audio/engine.ts  -> subscribeParams()
+2_engine:    src/audio/engine-params.ts  -> bindVoiceParams() (from Engine.subscribeParams)
    filter.model -> all((v, x) => v.setFilterModel(x))
    filter.shape -> all((v, x) => v.setFilterShape(x))
    per-voice wiring: lfo.toShape.connect(v.filter.shape)   # beside the toCutoff connect

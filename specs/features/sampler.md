@@ -27,6 +27,7 @@ source:
   - src/audio/transport/sampler-machine.ts
   - src/state/patterns.ts
   - src/audio/engine.ts
+  - src/audio/engine-params.ts  # bindMachineParams, called from Engine.subscribeParams
   - src/ui/panels/sampler-panel.ts
   - src/ui/panels/step-panel-scaffold.ts   # the Clear ▾ row
   - src/audio/recorder/audio-buffer.ts     # reverseBuffer
@@ -249,7 +250,7 @@ store:
 ### Layer touchpoints
 
 ```yaml
-engine (subscribeParams):
+engine (subscribeParams → bindMachineParams, engine-params.ts):
   sampler.on -> setEnabled; sampler.master -> laneMixer.setSamplerVol
   sampler.t{i}.* -> the matching setters
 graph: perHitGain -> slotIn -> slotTone -> slotGain -> slotPan -> samplerBus

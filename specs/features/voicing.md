@@ -18,6 +18,7 @@ related:
 source:
   - src/audio/polyphony.ts     # voice pool, alloc, unison, glide, drift (ADR-008)
   - src/audio/engine.ts        # builds voices; thin playNote/releaseNote delegators
+  - src/audio/engine-params.ts  # bindVoiceParams, called from Engine.subscribeParams
   - src/audio/voice.ts
   - src/audio/oscillator.ts    # Osc.setFrequency: the anchored glide
   - src/state/params.ts
@@ -183,11 +184,11 @@ keyboard.transpose:{ discrete, range: -2..2, default: 0 }
 ### Layer touchpoints
 
 ```yaml
-engine (subscribeParams) -> Polyphony setters (poly/unison/glide/drift live there):
+engine (subscribeParams → bindVoiceParams, engine-params.ts) -> Polyphony setters (poly/unison/glide/drift live there):
   voicing.mode  -> polyphony.setPoly(v >= 0.5)        # kills all voices on change
   unison.voices -> polyphony.setUnisonCount(x)        # max(1, round(x))
   unison.detune -> polyphony.setUnisonDetune(x)
-  mixer.glide   -> all((v, x) => v.setGlide(x))        # per-voice, stays in Engine
+  mixer.glide   -> all((v, x) => v.setGlide(x))        # per-voice
   glide.mode    -> polyphony.setGlideMode(x)
   env.amp.trigger -> polyphony.setSingleTrigger('amp', v >= 0.5)
   env.fil.trigger -> polyphony.setSingleTrigger('fil', v >= 0.5)

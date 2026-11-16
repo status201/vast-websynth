@@ -12,7 +12,7 @@ related:
 source:
   - src/ui/shell/play-button.ts         # createPlayButton — blink state machine
   - src/ui/ui-bridge.ts                 # cuePlay hook
-  - src/ui/panels/song-panel.ts         # demo loads fire the cue
+  - src/ui/panels/demo-loader.ts        # demo loads fire the cue
   - src/ui/styles/header.module.css     # attract / cue keyframes
 ```
 

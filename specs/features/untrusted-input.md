@@ -36,6 +36,7 @@ source:
   - src/main.ts                         # songUrl consent + hardened fetch; launchQueue → importSongFile
   - src/state/import-cap.ts             # the pre-read file cap (REQ-a-file-is-sized-before-it-is-read)
   - src/ui/panels/song-panel.ts         # SongPanel.importFile — the Import button + launchQueue door
+  - src/ui/panels/song-io.ts            # importFile itself: sized before it is read
   - src/ui/file-drop.ts                 # the drop door, same cap
   - src/audio/transport/sync/webrtc-sync-transport.ts  # wire type guard
   - scripts/mcp/tools.mjs               # save_song/save_preset dir containment
@@ -465,7 +466,7 @@ share link (url):   parseSongLink (https only) -> confirmDialog(origin)  # REQ-a
 zip:                sniffImportKind -> zipRead (count/entry/total caps)
                     -> parseProjectZip -> Song.parse
 clock:              tick() -> per-listener try/catch -> advance step ALWAYS  # REQ-no-subscriber-can-wedge-the-clock
-webrtc:             onmessage -> isWireMessage(guard) -> emit   # REQ-deserialized-state-is-validated-never-cast, drops silently
+webrtc:             onmessage -> isWire(guard) -> emit   # REQ-deserialized-state-is-validated-never-cast, drops silently
 mcp (stdio):        save_* -> containedDir(dir) + safeName(name) # REQ-mcp-writes-stay-in-the-working-directory
 mcp (http):         rate limit -> Origin -> capped body read      # REQ-the-public-endpoint-is-bounded
                     -> JSON.parse -> dispatch -> the same validators

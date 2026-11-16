@@ -15,7 +15,7 @@ related:
 source:
   - src/state/params.ts       # filter.keytrack ParamDef
   - src/audio/voice.ts        # the keytracked cutoff recompute
-  - src/audio/engine.ts       # subscribeParams fan-out
+  - src/audio/engine-params.ts  # bindVoiceParams: the subscribeParams fan-out
   - src/ui/panels/synth-panels.ts # the KEYTRK knob
 ```
 
@@ -88,7 +88,7 @@ KEY_CENTER: 60   # the note at which tracking contributes nothing (REQ-keytrack-
 
 ```yaml
 1_registry:  src/state/params.ts  -> registerDefaults()
-2_engine:    src/audio/engine.ts  -> subscribeParams()
+2_engine:    src/audio/engine-params.ts  -> bindVoiceParams() (from Engine.subscribeParams)
    filter.keytrack -> all((v, x) => v.setFilterKeytrack(x))
 3_ui:        src/ui/panels/synth-panels.ts -> FILTER panel, KEYTRK knob
 ```

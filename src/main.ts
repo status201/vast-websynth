@@ -89,7 +89,7 @@ async function boot() {
   const restored = SessionAutosave.load();
   if (restored) {
     Song.apply(restored, bus, engine.patterns, engine.arrangement, xy, engine.sampler);
-    // Same pin the Song panel's applySong makes (presets.md REQ-a-songs-sound-is-a-selectable-entry) — which is
+    // Same pin SongSession.apply makes (presets.md REQ-a-songs-sound-is-a-selectable-entry) — which is
     // why the pinned sound needs no persistence of its own: restoring the song
     // restores it.
     pinAppliedSong(session, restored.name, bus);

@@ -17,6 +17,7 @@ source:
   - src/audio/transport/scale-quantizer.ts   # REQ-arp-pool-is-expanded-then-quantized
   - src/state/params.ts
   - src/audio/engine.ts
+  - src/audio/engine-params.ts  # bindMachineParams, called from Engine.subscribeParams
   - src/ui/panels/arp-panel.ts
   - src/ui/machine-status.ts   # readArpStatus / subscribeArpStatus (REQ-armed-arp-is-visible-outside-the-tab)
 ```
@@ -175,7 +176,7 @@ arp.gate:    { range: 0.05..1, default: 0.5 }
 ### Layer touchpoints
 
 ```yaml
-engine (subscribeParams):
+engine (subscribeParams → bindMachineParams, engine-params.ts):
   arp.on -> arp.setEnabled(v >= 0.5); arp.pattern/rate/octaves/gate -> setters
 note ownership: when enabled, engine routes nothing from bus.onNote to voices;
   the arp's own bus.onNote listener fills the held set

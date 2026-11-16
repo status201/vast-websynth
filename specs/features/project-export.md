@@ -20,7 +20,7 @@ source:
   - src/audio/recorder/encode.ts        # encodeClipWav/encodeClipMp3 + clipChannels (REQ-a-mono-clip-exports-as-mono)
   - src/audio/recorder/audio-buffer.ts  # audioBufferView — the uncopied read the export encodes from
   - src/ui/components/export-song-modal.ts
-  - src/ui/panels/song-panel.ts         # export modal wiring + zip import + demo-zip buttons
+  - src/ui/panels/song-panel.ts         # opens the export modal + the demo-zip buttons
   - src/ui/panels/song-io.ts            # applyProjectBundle, the export and the zip import
   - src/state/song.ts                   # ZIP_DEMOS (?url glob)
 ```
@@ -197,7 +197,7 @@ import matching (tolerates one folder level from an Explorer re-zip):
 ### Layer touchpoints & ordering
 
 ```yaml
-export (song-panel):
+export (song-panel opens the modal; song-io.ts builds the file):
   song-export click -> openExportSongModal({ hasSamplerAudio: sampler.buffers.some(b => b != null) })
   kind json    -> Song.download(Song.capture(...))            # unchanged path
   kind project -> capture; per loaded slot audioBufferToCaptured -> await encodeClip(fmt)
@@ -214,7 +214,7 @@ import (song-io.ts, behind the Song panel's Import):
          per-clip decode failures collect into ONE alert; the song stays applied
 help copy (onboarding.md): the song.export / song.import topics in
   src/ui/onboarding/help-content.ts describe the chooser and the zip import
-demo zips (song.ts + song-panel):
+demo zips (song.ts + the song-panel demo row + demo-loader.ts):
   ZIP_DEMOS from import.meta.glob('./demos/*.websynth.zip', { query: '?url' })
   name = DEMO_INDEX[file] (clean:demos reads it out of the zip); the basename
     mangle is only the fallback (REQ-zip-demos-auto-register)
