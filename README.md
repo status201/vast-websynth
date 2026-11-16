@@ -422,11 +422,11 @@ src/
                      the sample studio: record-sound-modal.ts frames record-screen.ts,
                      studio-waveform.ts, studio-tools.ts (the four tool tabs) and studio-transport.ts
     onboarding/      the guided tour, the info badges and the in-app help text (help-content.ts)
+    styles/          CSS Modules (*.module.css — each one a single @layer block, so
+                     import order never decides which wins; see specs css-cascade-layers)
   styles/            Global CSS: layers.css (the cascade layer order), base.css (reset),
                      theme.css (custom properties), themes/*.css (one block per other theme),
                      layout.css (.app grid + responsive)
-  ui/styles/         CSS Modules (*.module.css — each one a single @layer block, so
-                     import order never decides which wins; see specs css-cascade-layers)
 public/              static files served as-is: sw.js (offline), theme-boot.js, the schemas,
                      params.{json,md} and llms.txt (generated), icons
 public/worklets/     ladder-filter.js, compressor.js, recorder.js, sync-osc.js, flanger.js, reverse-delay.js (audio thread)
