@@ -23,10 +23,13 @@ const TABLET = { width: 1024, height: 768 };
 // sidechain-ducking.md REQ-ducking-adds-no-new-gesture) moved it: five collapsed groups need 1580px
 // before the row fits under Windows metrics, ~110px more than four did. CI's
 // fonts need more still — 1600px, which used to clear four groups by 20px,
-// wrapped there on all three attempts. This is deliberately far past both, since
-// nothing but a headless viewport is being spent: the assertion is "given room
-// to spare", so the width should not be a number the next group can creep up on.
-const WIDE = { width: 1900, height: 900 };
+// wrapped there on all three attempts. The Sampler's record button
+// (REQ-the-record-button-holds-the-top-right) then took ~200px beside the header,
+// leaving it 1606px of a 1900px viewport — which CI's fonts wrapped. This is
+// deliberately far past all of that, since nothing but a headless viewport is
+// being spent: the assertion is "given room to spare", so the width should not
+// be a number the next group can creep up on.
+const WIDE = { width: 2400, height: 900 };
 
 const SAMPLER_FX = ['dist', 'phaser', 'delay', 'reverb'] as const;
 const fxId = (name: string) => `fxgroup-fx.sampler.${name}`;
