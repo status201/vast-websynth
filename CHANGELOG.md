@@ -41,8 +41,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
   than filling memory.
 - **Opening Chop, Fit & Shift or Scratch left almost no room to work.** The editor
   is now a full-screen studio, and its tools are tabs under a waveform that stays in
-  view. **Load into S3** (or **Replace S3**) is the one big button at the bottom,
-  and its toast offers Undo in case you picked the wrong slot.
+  view. **Load into** the chosen slot (**Replace** if it already holds a sound) is
+  the one big button at the bottom, and its toast offers Undo in case you picked
+  the wrong slot.
 - **Undo only went back one step.** It now goes back ten edits, Redo goes forward
   again, and Reset can be undone too.
 - **The Record a sound button was easy to miss.** It is now a large button at the
