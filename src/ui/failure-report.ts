@@ -54,7 +54,7 @@ export function failureMessage(lead: string, errors: string[]): string {
  */
 export function buildFailureReport(r: FailureReport): string {
   const n = r.errors.length;
-  const lines = [`VAST G1-J8 ${__APP_VERSION__} — ${r.title}`, new Date().toISOString()];
+  const lines = [`VAST G1-J8 ${__APP_BUILD__} — ${r.title}`, new Date().toISOString()];
   if (r.file) lines.push(`file: ${r.file}`);
   // Say so when the validator stopped walking, rather than presenting a capped
   // list as a complete one (REQ-count-line-admits-the-cap).

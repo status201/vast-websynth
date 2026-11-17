@@ -409,7 +409,7 @@ src/
                      deflate-raw streams, param tapers, scale/chord theory,
                      BPM<->note-division math, the ADSR curve, wake lock, the offline copy
   platform/          iOS / Android detection (separate from the device-tier guess in perf-mode.ts)
-  types/             ambient declarations (the build-stamped version, the PWA types)
+  types/             ambient declarations (the build-stamped version and build id, the PWA types)
   vendor/            lamejs, qr, jsqr: vendored, not npm packages (see specs ADR-003)
   ui/                hand-built DOM, no framework
     app.ts           assembles the page from the regions in shell/ and panels/

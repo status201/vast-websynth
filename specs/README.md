@@ -353,6 +353,7 @@ specs/
     progress-bar.md    ·  shared determinate/indeterminate progress bar (export, offline download)
     lazy-load-failure.md ·  what every deferred surface says when its import() rejects
     version-skew.md    ·  an old tab after a deploy: a failed load asks the server's version and offers Reload
+    build-id.md        ·  __APP_VERSION__ (the release, compared) vs __APP_BUILD__ (2.22.1+7.c09145c, shown in About)
     floating-window.md ·  reusable non-modal draggable window (no backdrop/Escape + minimise, opt-in resize)
     resize-handle.md   ·  the shared resize grip (up / right / corner; live bounds, automatic reset)
     live-fx-window.md  ·  floating "LIVE FX" window: DJ controls reachable off the Song tab

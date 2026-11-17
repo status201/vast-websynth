@@ -2,8 +2,9 @@
 // Release helper for VAST G1-J8.
 //
 // Takes a version (an explicit x.y.z or a major|minor|patch keyword), bumps
-// package.json — which is the single source of truth the About modal reads via
-// __APP_VERSION__ — and promotes the CHANGELOG's [Unreleased] section to a dated
+// package.json — the single source of truth for __APP_VERSION__, and the base of
+// the About card's build id (specs/features/build-id.md), which reads plain until
+// the printed tag exists — and promotes the CHANGELOG's [Unreleased] section to a dated
 // version heading. It then builds the app, zips the dist/ folder into a
 // release artifact, and prints the exact git + GitHub steps to publish (with
 // the dist zip attached to the release).

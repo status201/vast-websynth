@@ -3,7 +3,7 @@
 ```yaml
 id: failure-report
 status: implemented
-version: 4
+version: 5
 owner: core
 related:
   - dialog
@@ -41,7 +41,8 @@ so what lands on the clipboard is complete even when the view is truncated.
   is *shown* and what is *copied* is the entire point of the facility.
 - **REQ-report-opens-with-a-context-header** — The report opens with a context
   header, so a paste into a chat window or an issue identifies itself without
-  further questions: 1. `VAST G1-J8 <__APP_VERSION__> — <title>` (the title is
+  further questions: 1. `VAST G1-J8 <__APP_BUILD__> — <title>` (the build id, so
+  the report names the exact build; the title is
   the dialog's own, so the report says which failure it is), 2. an ISO-8601
   timestamp (`new Date().toISOString()`), 3. `file: <name>` — **omitted
   entirely** when the caller has no file or link name to give, 4. a count line,
@@ -126,9 +127,8 @@ bullet.
 
 ### Layer touchpoints & ordering
 
-`__APP_VERSION__` is a Vite `define` (`vite.config.ts`), `declare`d per-file
-across the codebase; this module centralises that declaration for the whole
-failure path.
+`__APP_BUILD__` is a build-time constant owned by [build-id](build-id.md)
+REQ-two-constants-release-and-build.
 
 ```yaml
 via alertDialog copyable (dialog REQ-an-alert-may-offer-copyable-text):

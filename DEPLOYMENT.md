@@ -371,6 +371,12 @@ dependencies) cuts a versioned release artifact. It:
 Both zips go on the same GitHub release. They are independent: the site can be
 updated without redeploying the MCP server and vice versa.
 
+The release build's About card reads the plain version (`1.4.0`): the build runs
+before the `v1.4.0` tag exists. Any build made later, from commits past that tag,
+reads e.g. `1.4.0+3.ab12cd3` — commits since the release, then the commit, and
+`.dirty` if the tree had uncommitted changes ([build-id](specs/features/build-id.md)).
+A CI build has no tags in its shallow checkout and also reads plain.
+
 ```bash
 npm run release -- 1.4.0            # explicit version
 npm run release -- minor            # or major / minor / patch

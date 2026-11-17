@@ -3,7 +3,7 @@
 ```yaml
 id: debug-panel
 status: implemented
-version: 15
+version: 16
 #      REQ-nothing-is-audible-before-the-first-start/REQ-the-gesture-is-required-only-when-required)
              #      universal statechange re-arm can tell a deliberate suspend from
              #      an OS one, and the ctx-state row shows when a resume is waiting
@@ -165,7 +165,7 @@ instead of transcribing it from a phone screen.
   REQ-an-unasked-suspension-is-recovered), **Panic** (`debug-panic`, `engine.panic()`), **Test tone**
   (`debug-test-tone`) and **Copy report** (`debug-copy`). The report is built
   from the *row registry* (name + current text, in order), not by scraping the
-  DOM, prefixed with `__APP_VERSION__`, an ISO timestamp and the user agent, and
+  DOM, prefixed with the build id (`__APP_BUILD__`, [build-id](build-id.md)), an ISO timestamp and the user agent, and
   copied via the shared `copyText`/`flashCopied` ([ai-prompt](ai-prompt.md)'s
   helpers).
 - **REQ-the-test-tone-bypasses-the-master-chain** — **The test tone bypasses the
@@ -372,7 +372,7 @@ Scenario: The test tone goes straight to the destination (REQ-the-test-tone-bypa
 
 Scenario: Copy report carries the whole readout (REQ-a-panel-level-actions-block)
   When Copy report is pressed
-  Then the clipboard holds the version, the user agent and every row's value
+  Then the clipboard holds the build id, the user agent and every row's value
 # pinned by: tests/ui/about.test.ts, e2e/debug-panel.spec.ts
 
 Scenario: A destructive action asks first (REQ-a-debug-row-may-carry-one-action)
