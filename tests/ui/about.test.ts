@@ -186,6 +186,17 @@ describe('About modal — Debug section', () => {
     expect(ctxStateRow()?.textContent).toBe('running');
   });
 
+  it('shows the build id on the version line (build-id.md REQ-about-shows-the-build-id)', async () => {
+    const { engine } = stubEngine('running');
+    const btn = createAboutButton(engine, TOUR);
+    document.body.appendChild(btn);
+    await openModal(btn);
+
+    const line = [...document.querySelectorAll('div')].find((d) => d.firstChild?.textContent === 'Version ');
+    expect(line?.textContent).toMatch(/^Version \d+\.\d+\.\d+(\+\d+\.[0-9a-f]{7,}(\.dirty)?)?$/);
+    expect(line?.textContent).toBe(`Version ${__APP_BUILD__}`);
+  });
+
   // runtime-performance.md REQ-boot-cost-matches-the-request — the card is behind a dynamic import, so both
   // clicks of a double-click get past the `if (!backdrop)` guard if that guard
   // is read before the await. Checking it afterwards is what makes this pass.
@@ -426,7 +437,7 @@ describe('About modal — Debug section', () => {
     expect(osc.stop).toHaveBeenCalled();
   });
 
-  it('copies a report of every row plus the version and UA (REQ-a-panel-level-actions-block)', async () => {
+  it('copies a report of every row plus the build id and UA (REQ-a-panel-level-actions-block)', async () => {
     const writeText = vi.fn(async () => {});
     Object.defineProperty(navigator, 'clipboard', { value: { writeText }, configurable: true });
     const { engine } = stubEngine('running');
@@ -435,6 +446,8 @@ describe('About modal — Debug section', () => {
     byId<HTMLButtonElement>('debug-copy').click();
     await vi.waitFor(() => expect(writeText).toHaveBeenCalled());
     const report = writeText.mock.calls[0]![0] as unknown as string;
+    // build-id.md REQ-reports-name-the-build — the report names the build, not just the release.
+    expect(report.split('\n')[0]).toBe(`VAST G1-J8 ${__APP_BUILD__}`);
     expect(report).toContain(navigator.userAgent);
     expect(report).toContain('AudioContext: running');
     expect(report).toContain('Sample rate: 48000 Hz');

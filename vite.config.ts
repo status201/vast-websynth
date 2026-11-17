@@ -1,6 +1,8 @@
 /// <reference types="vitest/config" />
 import { defineConfig } from 'vitest/config';
 import { readFileSync } from 'node:fs';
+import { fileURLToPath } from 'node:url';
+import { buildId } from './scripts/lib/build-id.mjs';
 import { offlineManifestPlugin } from './scripts/lib/offline-manifest.mjs';
 import { cssLayerOrderPlugin } from './scripts/lib/css-layer-order.mjs';
 
@@ -27,6 +29,8 @@ export default defineConfig({
   publicDir: 'public',
   define: {
     __APP_VERSION__: JSON.stringify(pkg.version),
+    // Display only — `2.22.1+7.c09145c` past a release (specs/features/build-id.md).
+    __APP_BUILD__: JSON.stringify(buildId(pkg.version, fileURLToPath(new URL('.', import.meta.url)))),
   },
   // Writes dist/offline-manifest.json — every file the app can request, for the
   // About card's Play offline and the worker's release refresh

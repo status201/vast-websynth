@@ -18,6 +18,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ### Fixed
 
+- **The About card shows the actual, up-to-date build version.** A build made
+  after a release passed for the release itself; it now reads e.g.
+  `2.22.1+7.c09145c` — seven commits past 2.22.1, at commit `c09145c` — with
+  `.dirty` added when built from uncommitted changes. A release build still reads
+  plain `2.22.1`. The Debug section's report and a failed
+  import's copied report open with the same build id, so a pasted report names
+  the exact build.
+
 - **FX panel titles share one typeface.** The Dirt and Delay titles, which are
   their TYPE menus (DISTORTION, DIGITAL), were set in the serif while every other
   panel title (WAH, PHASER) is sans; they now match. The small DIRT / DELAY

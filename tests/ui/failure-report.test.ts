@@ -23,7 +23,9 @@ describe('failure report', () => {
     const lines = buildFailureReport({
       title: 'Import failed', file: 'night-drive.json', errors: ['nope'],
     }).split('\n');
-    expect(lines[0]).toMatch(/^VAST G1-J8 \d+\.\d+\.\d+ — Import failed$/);
+    // The build id, not the bare release (build-id.md REQ-reports-name-the-build).
+    expect(lines[0]).toMatch(/^VAST G1-J8 \d+\.\d+\.\d+(\+\d+\.[0-9a-f]{7,}(\.dirty)?)? — Import failed$/);
+    expect(lines[0]).toBe(`VAST G1-J8 ${__APP_BUILD__} — Import failed`);
     expect(lines[1]).toMatch(/^\d{4}-\d{2}-\d{2}T[\d:.]+Z$/);
     expect(lines[2]).toBe('file: night-drive.json');
   });

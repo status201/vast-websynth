@@ -316,7 +316,8 @@ export function buildDebugSection(engine: StudioApi): {
   const report = (): string => {
     const log = errorLog();
     return [
-      `VAST G1-J8 ${__APP_VERSION__}`,
+      // The build id names the commit (build-id.md REQ-reports-name-the-build).
+      `VAST G1-J8 ${__APP_BUILD__}`,
       new Date().toISOString(),
       navigator.userAgent,
       '',

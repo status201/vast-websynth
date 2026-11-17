@@ -44,7 +44,8 @@ export function buildModal(close: () => void, engine: StudioApi, deps: AboutDeps
   const meta = document.createElement('div');
   meta.className = Modal.metaClass;
   const version = document.createElement('div');
-  version.innerHTML = `Version <strong>${__APP_VERSION__}</strong>`;
+  // The build id, not the bare release (build-id.md REQ-about-shows-the-build-id).
+  version.innerHTML = `Version <strong>${__APP_BUILD__}</strong>`;
   const copyright = document.createElement('div');
   copyright.innerHTML = `&copy; ${new Date().getFullYear()} <strong>Gijs Oliemans</strong>`;
   const source = document.createElement('div');
