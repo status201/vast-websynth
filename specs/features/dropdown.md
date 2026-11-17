@@ -297,8 +297,11 @@ without anyone remembering to ask.
   dismiss, dimming) is the ordinary dropdown's. It is for a value that names
   what the panel *is* (the synth Delay's TYPE: `DELAY ▾` over `TAPE`), where a
   title plus a boxed field beside it ran out of room. The legend is part of
-  the toggle's text, so its accessible name reads "Delay TAPE". It declares no
-  typeface of its own: legend and value inherit the toggle's faceplate serif. Without
+  the toggle's text, so its accessible name reads "Delay TAPE". The legend keeps
+  the toggle's faceplate serif, like the options; the value is set in `--sans`,
+  the face of every other FX panel title (`.fxTitle` declares none and inherits
+  it), so a typed panel's title reads like its neighbours — in the serif,
+  DISTORTION and DIGITAL were the only serif titles in the rack. Without
   `legend` nothing changes.
 
 ## Technical design
@@ -613,6 +616,12 @@ Scenario: A legend sits above the value and survives a change (v16, REQ-a-toggle
   Then the toggle holds the legend "Delay" and the label "TAPE"
    And a Dropdown built without a legend renders no legend element
 # pinned by: tests/ui/dropdown.test.ts
+
+Scenario: A legend's value is set like a panel title (regression, REQ-a-toggle-can-carry-a-legend)
+  Given the synth Dirt and Delay panels, whose titles are TYPE dropdowns with a legend
+  Then the value line (DISTORTION, DIGITAL) is --sans, as the WAH and PHASER titles are
+   And the legend (DIRT, DELAY) and the menu's options stay on the faceplate --serif
+# pinned by: tests/ui/typography.test.ts
 ```
 
 ## Tests & verification
