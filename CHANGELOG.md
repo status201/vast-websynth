@@ -18,6 +18,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ### Fixed
 
+- **FX panel titles share one typeface.** The Dirt and Delay titles, which are
+  their TYPE menus (DISTORTION, DIGITAL), were set in the serif while every other
+  panel title (WAH, PHASER) is sans; they now match. The small DIRT / DELAY
+  legend above them and the menu's options keep the serif.
+
 - **The docs match the code again after the November refactors** (contributors).
   The README's project layout names the new modules (the Engine's param binders,
   the Song panel's session / import-export / demo loader, the sample studio's

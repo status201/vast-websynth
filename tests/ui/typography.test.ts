@@ -119,6 +119,13 @@ describe('the type rule (specs/features/typography.md)', () => {
     expect(faceOf(find('dropdown.module.css', '.option')!)).toBe('var(--serif)');
   });
 
+  it('sets a titled toggle\'s value like a panel title, in sans (regression, dropdown REQ-a-toggle-can-carry-a-legend)', () => {
+    // DISTORTION and DIGITAL were the only serif titles in the FX rack; the
+    // legend above them stays on the toggle's serif.
+    expect(faceOf(find('dropdown.module.css', '.root.titled .label')!)).toBe('var(--sans)');
+    expect(faceOf(find('dropdown.module.css', '.root.titled .legend')!)).toBeUndefined();
+  });
+
   it('sets live position readouts in --mono (regression, REQ-mono-is-readouts-and-pasted-text)', () => {
     // Both count while the transport runs. Georgia's figures are proportional
     // old-style with no `tnum`, so a serif counter shifts sideways per digit.

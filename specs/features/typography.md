@@ -70,6 +70,11 @@ otherwise never gets.
   other thing called a tab. The test cannot catch this either way (declaring
   nothing adds no allowlist entry), which is exactly why it is written down.
 
+  **The same carve-out for a dropdown that is a panel's title.** A toggle with a
+  legend stands in for an FX panel's `.fxTitle`, which is sans, so its value line
+  is `--sans` while its small legend and the options stay serif
+  ([dropdown](dropdown.md) REQ-a-toggle-can-carry-a-legend).
+
 - **REQ-sans-is-content-type** — **`--sans` (Inter) is content type.** Anything
   the user reads as prose or enters as data:
   - body / intro / instruction copy, hints, help text;

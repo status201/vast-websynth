@@ -223,7 +223,8 @@
      line (`DELAY ▾`, a slot title's shape), so the value has the full width: in
      its own column it cost SPACE ECHO an ellipsis at 393 px. Compounded with `.root`
      to win over `.compact`, which a ParamDropdown always adds. Type is
-     fx-rack's `.fxTitle`'s; the face is the toggle's serif. */
+     fx-rack's `.fxTitle`'s; the legend keeps the toggle's serif, the value
+     takes the panel title's sans (`.label` below). */
   .root.titled { display: inline-block; width: auto; min-width: 0; }
 
   .root.titled .toggle {
@@ -255,9 +256,11 @@
   }
 
   /* The toggle's own tracking, not `.fxTitle`'s 0.18em, which ellipsises SPACE
-     ECHO in a 393 px panel; the legend above keeps the title's. */
+     ECHO in a 393 px panel; the legend above keeps the title's. Sans, the face
+     of every other FX panel title (REQ-a-toggle-can-carry-a-legend). */
   .root.titled .label {
     grid-area: label;
+    font-family: var(--sans);
     line-height: 1;
     letter-spacing: 0.1em;
     text-shadow: 0 1px 0 rgba(0, 0, 0, 0.7);
