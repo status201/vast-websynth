@@ -3,7 +3,7 @@
 ```yaml
 id: paste-import
 status: implemented
-version: 3
+version: 4
 owner: ui
 related:
   - song-mode
@@ -48,7 +48,8 @@ Two properties carry the whole design:
 - **Tolerance.** Agents wrap JSON in ```` ```json ```` fences and top-and-tail it
   with prose ("Here's your song! …Let me know if…"). Refusing that input would
   make the feature useless in the one situation it exists for, so the payload is
-  *extracted* before it is parsed.
+  *extracted* before it is parsed — and, when a copy button handed over the
+  Markdown source instead of the text, unescaped (REQ-markdown-escapes-are-undone).
 - **No second pipeline.** Paste classifies and routes; it never validates or
   applies anything itself. A song goes through `SongPanel.importBytes` — the
   exact path the file input uses — so error dialogs, the undo toast, the slot
@@ -69,6 +70,19 @@ formats arrive through one textarea, so it simply routes.
   optional language tag) and otherwise takes the whole text, then slices from
   the first `{` to the **last** `}`. Leading and trailing prose therefore never
   reaches the parser.
+- **REQ-markdown-escapes-are-undone** — **A Markdown-escaped reply still
+  parses.** A chat client's *copy* button can hand over the reply's Markdown
+  source rather than its text, with every bracket escaped: `"seq": \[ … \]`.
+  When the extracted body fails `JSON.parse`, `classifyPayload` retries once
+  with a backslash removed before any ASCII punctuation JSON has no escape for
+  (`\[`, `\]`, `\_`, `\*`, `\#` …). The three escapes JSON does have (`\"`,
+  `\\`, `\/`) and the letter escapes (`\n`, `\u…`) are kept, and an escaped
+  backslash pair is consumed whole, so `\\[` stays `\\[`. The repaired body is
+  what `json` carries. Valid JSON is never rewritten: the repair runs only after
+  the strict parse has failed, and a body that still fails stays `unknown` with
+  the malformed reason (REQ-unknown-always-carries-a-reason). A dropped `.json`
+  is classified by the same function (REQ-a-dropped-file-takes-the-paste-routes),
+  so it gets the same repair.
 - **REQ-classification-is-pure-and-total** — **Classification is pure and
   total.** `classifyPayload(text)`
   returns exactly one of `song` | `author` | `preset` | `bank` | `unknown`, plus
@@ -258,6 +272,14 @@ Scenario: Truncated JSON is refused with a reason (edge)
   Then the classification is unknown with a malformed-JSON reason
   And the confirm button is disabled
 # pinned by: tests/state/paste-payload.test.ts, tests/ui/paste-import.test.ts
+
+Scenario: A Markdown-escaped reply still loads (regression, REQ-markdown-escapes-are-undone)
+  Given an author song copied with a chat client's copy button, its brackets written \[ and \]
+  When it is pasted
+  Then it classifies as author, and json is the body with the escapes removed
+  And a string value holding an escaped backslash before a bracket keeps it
+  And a body that is malformed for another reason is still refused as malformed
+# pinned by: tests/state/paste-payload.test.ts
 
 Scenario: A failed import keeps the pasted text (edge)
   Given a well-formed payload the song validator rejects

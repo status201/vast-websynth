@@ -86,6 +86,51 @@ describe('classifyPayload', () => {
     });
   });
 
+  // REQ-markdown-escapes-are-undone — a chat client's copy button handed over the
+  // Markdown source: every bracket arrives as \[ / \].
+  describe('a Markdown-escaped reply (regression)', () => {
+    const escaped = String.raw`{ "format": "websynth-song-author", "version": 1, "name": "Funk",
+      "seq": \[ { "tracks": \[ \[ {"note":"C2","velocity":1}, null \] \] } \],
+      "drums": \[ { "kick":\[{"step":0,"velocity":1}\] } \] }`;
+
+    it('classifies, and json carries the unescaped body', () => {
+      const res = classifyPayload(escaped);
+      expect(res).toMatchObject({ kind: 'author', name: 'Funk' });
+      expect(res.json).not.toContain('\\');
+      expect(JSON.parse(res.json!)).toMatchObject({
+        seq: [{ tracks: [[{ note: 'C2', velocity: 1 }, null]] }],
+        drums: [{ kick: [{ step: 0, velocity: 1 }] }],
+      });
+    });
+
+    it('also undoes other Markdown escapes, inside a fence', () => {
+      const res = classifyPayload(
+        '```json\n' + String.raw`{"format":"websynth-song-author","name":"a\_b \*x\* \#1","seq":\[\]}` + '\n```',
+      );
+      expect(res).toMatchObject({ kind: 'author', name: 'a_b *x* #1' });
+    });
+
+    it('keeps real JSON escapes, and an escaped backslash before a bracket', () => {
+      // "a\\[" in JSON source is the string a\[ — the pair \\ must be consumed whole.
+      const res = classifyPayload(
+        String.raw`{"format":"websynth-song-author","name":"q\"\/\n\\[","seq":\[\]}`,
+      );
+      expect(res).toMatchObject({ kind: 'author', name: 'q"/\n\\[' });
+    });
+
+    it('never rewrites JSON that already parses', () => {
+      const valid = String.raw`{"format":"websynth-song-author","name":"a\\[b"}`;
+      expect(classifyPayload(valid).json).toBe(valid);
+    });
+
+    it('still refuses a body that is malformed for another reason', () => {
+      expect(classifyPayload(String.raw`{"format":"websynth-song","seqBanks":\[{"on":tr}`)).toMatchObject({
+        kind: 'unknown',
+        reason: expect.stringContaining('incomplete or malformed'),
+      });
+    });
+  });
+
   it('never throws, whatever it is handed', () => {
     for (const junk of ['', '{', '{}', '[]', '{"format":null}', '{"a":{}}']) {
       expect(() => classifyPayload(junk)).not.toThrow();

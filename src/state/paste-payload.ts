@@ -59,6 +59,28 @@ export function extractJson(text: string): string | null {
   return body.slice(start, end + 1).trim();
 }
 
+/**
+ * paste-import.md REQ-markdown-escapes-are-undone — undo a Markdown source
+ * copy's backslash escapes (`\[` → `[`). The first alternative consumes an
+ * escaped backslash (`\\`) whole, so it is never mistaken for the start of `\[`.
+ * The second is every ASCII punctuation mark except the three JSON can escape
+ * (`"`, `\`, `/`); those and the letter escapes are never matched, so they pass
+ * through untouched.
+ */
+const MD_ESCAPE_RE = /\\(\\|[!#-.:-@[\]^_`{-~])/g;
+function unescapeMarkdown(json: string): string {
+  return json.replace(MD_ESCAPE_RE, (pair, ch: string) => (ch === '\\' ? pair : ch));
+}
+
+/** `JSON.parse` that reports failure as `undefined` instead of throwing. */
+function tryParse(json: string): { value: unknown } | undefined {
+  try {
+    return { value: JSON.parse(json) };
+  } catch {
+    return undefined;
+  }
+}
+
 /** A payload's `name`, when it carries a usable one. */
 function nameOf(o: Record<string, unknown>): string | undefined {
   return typeof o['name'] === 'string' && o['name'] ? o['name'] : undefined;
@@ -70,15 +92,18 @@ function nameOf(o: Record<string, unknown>): string | undefined {
  * payload that dropped it (REQ-a-missing-format-tag-is-inferred).
  */
 export function classifyPayload(text: string): PasteClassification {
-  const json = extractJson(text);
+  let json = extractJson(text);
   if (json === null) return { kind: 'unknown', reason: NO_JSON };
 
-  let parsed: unknown;
-  try {
-    parsed = JSON.parse(json);
-  } catch {
-    return { kind: 'unknown', reason: MALFORMED };
+  // REQ-markdown-escapes-are-undone — strict first, so valid JSON is never rewritten.
+  let result = tryParse(json);
+  if (!result) {
+    const repaired = unescapeMarkdown(json);
+    result = repaired === json ? undefined : tryParse(repaired);
+    if (result) json = repaired;
   }
+  if (!result) return { kind: 'unknown', reason: MALFORMED };
+  const parsed = result.value;
   if (!isObject(parsed)) {
     return { kind: 'unknown', reason: 'That JSON is not an object.' };
   }
