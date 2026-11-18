@@ -431,6 +431,16 @@
       "arp"
     ]
   },
+  "Wahwhat.websynth.zip": {
+    "name": "Wahwhat",
+    "bpm": 114,
+    "bars": 22,
+    "uses": [
+      "seq",
+      "drums",
+      "sampler"
+    ]
+  },
   "fat.json": {
     "name": "Fat",
     "bpm": 127,
