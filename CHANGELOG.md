@@ -18,6 +18,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ### Fixed
 
+- **A song copied with ChatGPT's copy button pastes.** That button copies the
+  reply's Markdown source, with every bracket escaped as `\[` `\]`, and Paste
+  refused it as "incomplete or malformed". The escapes are now undone before the
+  song is read, in the Paste box and for a dropped `.json` alike; JSON that was
+  fine already is left exactly as it was.
+
 - **The About card shows the actual, up-to-date build version.** A build made
   after a release passed for the release itself; it now reads e.g.
   `2.22.1+7.c09145c` — seven commits past 2.22.1, at commit `c09145c` — with
