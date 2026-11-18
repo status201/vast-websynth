@@ -64,10 +64,11 @@ export function extractJson(text: string): string | null {
  * copy's backslash escapes (`\[` → `[`). The first alternative consumes an
  * escaped backslash (`\\`) whole, so it is never mistaken for the start of `\[`.
  * The second is every ASCII punctuation mark except the three JSON can escape
- * (`"`, `\`, `/`); those and the letter escapes are never matched, so they pass
+ * (`"`, `\`, `/`), written out rather than as ASCII ranges so it can be checked
+ * by eye; those three and the letter escapes are never matched, so they pass
  * through untouched.
  */
-const MD_ESCAPE_RE = /\\(\\|[!#-.:-@[\]^_`{-~])/g;
+const MD_ESCAPE_RE = /\\(\\|[!#$%&'()*+,\-.:;<=>?@[\]^_`{|}~])/g;
 function unescapeMarkdown(json: string): string {
   return json.replace(MD_ESCAPE_RE, (pair, ch: string) => (ch === '\\' ? pair : ch));
 }
