@@ -18,6 +18,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ### Fixed
 
+- **A short gate's note name is readable in every theme.** Past the end of a
+  lit step's gate bar, the name printed in the bar's ink on the bare button —
+  dark on dark in Classic, Race, Vibrant and High contrast, cream on cream in
+  Light and Pastel. The name is now split where the bar ends: the bar's ink
+  over the bar, the theme's text colour beyond it. Dark looks as it did.
+
 - **A song copied with ChatGPT's copy button pastes.** That button copies the
   reply's Markdown source, with every bracket escaped as `\[` `\]`, and Paste
   refused it as "incomplete or malformed". The escapes are now undone before the

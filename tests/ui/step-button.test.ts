@@ -1,4 +1,9 @@
 import { describe, it, expect, vi } from 'vitest';
+import { readFileSync } from 'node:fs';
+import { resolve } from 'node:path';
+
+// Read from disk: vitest stubs CSS imports, and under jsdom import.meta.url is not a file URL.
+const css = readFileSync(resolve(process.cwd(), 'src/ui/styles/step-button.module.css'), 'utf8');
 import { StepButton } from '../../src/ui/components/step-button';
 
 describe('StepButton', () => {
@@ -23,6 +28,32 @@ describe('StepButton', () => {
     expect(sb.el.textContent).toBe('C3');
     sb.setLabel('D#4');
     expect(sb.el.textContent).toBe('D#4');
+  });
+
+  // ui-themes.md REQ-a-step-label-reads-on-every-bed — the stylesheet prints the
+  // name a second time from data-label, in the fill's ink; the fill has to come
+  // after the label so it covers the label's well ink where it lies.
+  it('mirrors the label into data-label and stacks the fill over the label', () => {
+    const sb = new StepButton('C3');
+    const label = sb.el.firstElementChild as HTMLElement;
+    expect(label.dataset.label).toBe('C3');
+    sb.setLabel('D#4');
+    expect(label.dataset.label).toBe('D#4');
+    expect(sb.el.textContent).toBe('D#4'); // the copy is CSS-only, not text
+
+    sb.setViz({ velocity: 0.8, gate: 0.33, prob: 1, ratchet: 1, tie: false });
+    const fill = sb.el.querySelector(`.${StepButton.fillClass}`)!;
+    expect(sb.el.lastElementChild).toBe(fill);
+    expect(sb.el.firstElementChild).toBe(label);
+  });
+
+  it('draws the fill and clips the lit label from one geometry (REQ-a-step-label-reads-on-every-bed)', () => {
+    const rule = (sel: RegExp): string => css.match(new RegExp(sel.source + String.raw`\s*\{([^}]*)\}`))?.[1] ?? '';
+    const fill = rule(/\n\s*\.fill/);
+    const lit = rule(/\.on\.has-viz \.label::after/);
+    expect(fill).toMatch(/left:\s*var\(--sb-fill-start\)/);
+    expect(fill).toMatch(/width:\s*var\(--sb-fill-width\)/);
+    expect(lit).toMatch(/clip-path:[^;]*--sb-fill-start[^;]*--sb-fill-width/);
   });
 
   it('setViz lazily creates one fill layer and sets the custom props', () => {

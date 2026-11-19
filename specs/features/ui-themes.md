@@ -186,6 +186,10 @@ Fonts are system stacks only — the app bundles no font file
   `--accent-secondary` unless a theme's selected colour is too close to its lit
   step: Vibrant's sky blue on bright teal and High contrast's yellow on amber
   were both invisible, so those two draw white marks.
+- **REQ-a-step-label-reads-on-every-bed** — A lit step's name is split at the
+  gate fill's edge: `--lit-text` over the fill, `--text` over the well; both read
+  `--sb-fill-start`/`--sb-fill-width`. `--lit-text` reads at 3:1 on `--lit-top`
+  and `--lit-bad-top` in every theme.
 - **REQ-a-theme-change-repaints-the-canvases** — A theme change drops the cached
   screen palette and tells every open canvas (`onPaletteChange`), which repaints
   once: the EQ graph, the scratch graph and the sample waveform draw only on
@@ -495,6 +499,11 @@ Scenario: ratchet ticks read on an unaccented step (regression, REQ-step-marks-r
   Then only the beat columns' red showed them; now in every theme the mark or its rim
     reads at 3:1 on the well and on both lit fills, and the mark at 3:1 on its rim
 # pinned by: tests/ui/theme-contrast.test.ts
+
+Scenario: a short gate's note name reads on the well (regression, REQ-a-step-label-reads-on-every-bed)
+  Given a lit step at gate 33% in Classic, its label all --lit-text
+  Then the part past the fill was near-black on the near-black well; now it is --text
+# pinned by: tests/ui/theme-contrast.test.ts, tests/ui/step-button.test.ts
 
 Scenario: Classic, Jungle and Race each meet their contrast rule (REQ-classic-keeps-one-warm-signal, REQ-jungle-prints-on-khaki, REQ-race-is-orange-on-ink)
   Given classic.css, jungle.css and race.css

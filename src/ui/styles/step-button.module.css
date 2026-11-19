@@ -1,5 +1,10 @@
 @layer controls {
   .root {
+    /* The gate fill's geometry, read by .fill AND by the lit label's clip, so the
+       label's ink split can never drift from the fill's edge
+       (ui-themes.md REQ-a-step-label-reads-on-every-bed). */
+    --sb-fill-start: calc(var(--sb-micro, 0) * 100%);
+    --sb-fill-width: calc(8% + var(--sb-gate, 0.5) * 92%); /* floor keeps gate 5% visible */
     position: relative; /* anchors .fill; no overflow:hidden — the tie bridge escapes the cell */
     min-width: 0;
     width: 100%;
@@ -83,19 +88,52 @@
 
   /* ---- Per-step settings visualization (all three machines) ---- */
 
+  /* The label fills the cell (the same box .fill is positioned in, so their
+     percentages agree) and has no z-index: .fill comes after it in the DOM, so
+     where the fill lies it covers the label. */
   .label {
-    position: relative;
-    z-index: 1; /* above .fill so the note name stays readable */
+    position: absolute;
+    inset: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
   }
 
   /* With the viz fill present, the lit look moves from the button background
-     to the .fill layer; the root keeps the dark socket plus the accent border. */
+     to the .fill layer; the root keeps the dark socket plus the accent border.
+     The label itself is ink for the well; its ::after is ink for the fill
+     (ui-themes.md REQ-a-step-label-reads-on-every-bed). */
   .on.has-viz {
     background: var(--well);
+    color: var(--text);
+    text-shadow: none;
     box-shadow:
       inset 0 1px 0 var(--lip),
       inset 0 -1px 2px rgba(0, 0, 0, 0.5),
       0 1px 2px rgba(0, 0, 0, 0.5);
+  }
+
+  /* The same name again in the fill's ink, above the fill and clipped to it.
+     The `/ ""` alt text keeps a screen reader from reading the name twice; an
+     engine without that syntax drops the second line and keeps the first. */
+  .on.has-viz .label::after {
+    content: attr(data-label);
+    content: attr(data-label) / "";
+    position: absolute;
+    inset: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 1;
+    color: var(--lit-text);
+    text-shadow: 0 1px 0 var(--lit-text-shadow);
+    clip-path: inset(
+      0
+      max(0%, 100% - var(--sb-fill-start) - var(--sb-fill-width))
+      0
+      max(0%, var(--sb-fill-start))
+    );
+    pointer-events: none;
   }
 
   /* gate → width, velocity → brightness */
@@ -103,7 +141,7 @@
     display: none;
     position: absolute;
     inset: 0 auto 0 0;
-    width: calc(8% + var(--sb-gate, 0.5) * 92%); /* floor keeps gate 5% visible */
+    width: var(--sb-fill-width);
     /* micro → the hit slides inside its cell, early (left) or late (right).
        `left`, not `translateX`: a percentage translate resolves against the
        element's OWN width, which here is the gate, so a short gate would travel
@@ -111,7 +149,7 @@
        `left` resolves against the cell, which is the distance actually meant.
        Cheap enough — setViz is diffed and only runs when a step changes, never
        per tick. No transition: this is a timing readout, not an animation. */
-    left: calc(var(--sb-micro, 0) * 100%);
+    left: var(--sb-fill-start);
     border-radius: 3px;
     background: var(--lit);
     filter: brightness(calc(0.45 + 0.75 * var(--sb-vel, 0.8)));
@@ -134,14 +172,14 @@
   }
 
   /* tie → bridge across the grid gap into the next cell (overrides gate width) */
+  .tie { --sb-fill-width: calc(100% + 5px); }
   .tie .fill {
-    width: calc(100% + 5px);
     border-top-right-radius: 0;
     border-bottom-right-radius: 0;
   }
 
   /* the drum/sampler grids use a tighter 3px gap */
-  .drum-cell.tie .fill { width: calc(100% + 3px); }
+  .drum-cell.tie { --sb-fill-width: calc(100% + 3px); }
 
   /* prob < 100% → dashed border ("might not fire") */
   .prob.on { border-style: dashed; }
