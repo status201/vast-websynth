@@ -156,4 +156,12 @@ describe('theme contrast', () => {
     bad.push(...IDS.flatMap((id) => below(id, ['--step-mark'], 3, ['--step-mark-edge'])));
     expect(bad).toEqual([]);
   });
+
+  it('prints a step\'s note name in the ink of the bed under it, in every theme (regression, REQ-a-step-label-reads-on-every-bed)', () => {
+    // A 33% gate in Classic printed near-black on the near-black well. The part
+    // over the well is now --text (held by each theme's body rule); the part
+    // over the fill stays --lit-text, which must read on both lit fills.
+    expect(IDS.flatMap((id) => below(id, ['--lit-text'], 3, ['--lit-top', '--lit-bad-top']))).toEqual([]);
+    expect(IDS.flatMap((id) => below(id, ['--text'], 4.5, ['--well-top', '--well-bottom']))).toEqual([]);
+  });
 });

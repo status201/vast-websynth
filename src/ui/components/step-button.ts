@@ -56,7 +56,7 @@ export class StepButton {
     this.el.className = `${styles.root!} ${StepButton.ACCENT_CLASS[accent] ?? ''}`.trim();
     this.labelSpan = document.createElement('span');
     this.labelSpan.className = styles.label!;
-    this.labelSpan.textContent = label;
+    this.setLabel(label);
     this.el.appendChild(this.labelSpan);
   }
 
@@ -95,7 +95,15 @@ export class StepButton {
     this.el.classList.toggle(styles.playing!, p);
   }
 
-  setLabel(s: string): void { this.labelSpan.textContent = s; }
+  /**
+   * The name is also mirrored into `data-label`, which the stylesheet prints a
+   * second time in the fill's ink, clipped to the fill (ui-themes.md
+   * REQ-a-step-label-reads-on-every-bed).
+   */
+  setLabel(s: string): void {
+    this.labelSpan.textContent = s;
+    this.labelSpan.dataset.label = s;
+  }
 
   /**
    * Visualize per-step settings on the button face (all three machines call
@@ -107,7 +115,9 @@ export class StepButton {
     if (!prev) {
       const fill = document.createElement('div');
       fill.className = styles.fill!;
-      this.el.insertBefore(fill, this.labelSpan);
+      // After the label, so the fill covers the label's well ink where it lies
+      // (ui-themes.md REQ-a-step-label-reads-on-every-bed).
+      this.el.appendChild(fill);
       this.el.classList.add(styles['has-viz']!);
     }
     if (prev?.gate !== v.gate) this.el.style.setProperty('--sb-gate', String(v.gate));
