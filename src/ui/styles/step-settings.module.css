@@ -41,11 +41,10 @@
     text-transform: uppercase;
     letter-spacing: 0.12em;
     color: var(--text-dim);
-    /* Right-aligned (and the readout left-aligned) so both hug their own track:
-       the min-width slack then falls between controls, not inside one, and a
-       short label no longer sits nearer the previous slider's readout. */
-    min-width: 56px;
-    text-align: right;
+    /* No min-width: the label is a fixed word, so reserving room only padded a
+       short one away from its own track and toward the previous slider's
+       readout. Only the readout reserves room (.sliderValue), because its text
+       changes and must not move the track. */
   }
 
   .sliderTrack {

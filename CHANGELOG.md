@@ -21,8 +21,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 - **The step settings row's labels sit with their own slider.** VELOCITY,
   GATE, PROB, MICRO and BEND hung at the far left of their label space while the
   slider before them ended in a right-aligned readout, so "80% GATE" read as one
-  control. A label now ends at its own track and a readout starts at its own
-  track, and the spacing falls between the controls.
+  control. A label now takes only the room its word needs and sits against its
+  own track; the readout starts at its track and keeps a fixed width, so a
+  changing value moves nothing. The spacing falls between the controls.
 
 - **A short gate's note name is readable in every theme.** Past the end of a
   lit step's gate bar, the name printed in the bar's ink on the bare button —
