@@ -41,7 +41,10 @@
     text-transform: uppercase;
     letter-spacing: 0.12em;
     color: var(--text-dim);
-    min-width: 56px;
+    /* No min-width: the label is a fixed word, so reserving room only padded a
+       short one away from its own track and toward the previous slider's
+       readout. Only the readout reserves room (.sliderValue), because its text
+       changes and must not move the track. */
   }
 
   .sliderTrack {
@@ -81,7 +84,7 @@
     font-size: 10px;
     color: var(--text-dim);
     min-width: 36px;
-    text-align: right;
+    text-align: left;
     font-variant-numeric: tabular-nums;
   }
 

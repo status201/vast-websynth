@@ -18,6 +18,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ### Fixed
 
+- **The step settings row's labels sit with their own slider.** VELOCITY,
+  GATE, PROB, MICRO and BEND hung at the far left of their label space while the
+  slider before them ended in a right-aligned readout, so "80% GATE" read as one
+  control. A label now takes only the room its word needs and sits against its
+  own track; the readout starts at its track and keeps a fixed width, so a
+  changing value moves nothing. The spacing falls between the controls.
+
+- **The Song tab's demos start on their own line.** They followed straight on
+  from Load, Save, Delete … New, so the demo buttons read as more song actions;
+  they now begin on the next line, with a little more space above them.
+
 - **A short gate's note name is readable in every theme.** Past the end of a
   lit step's gate bar, the name printed in the bar's ink on the bare button —
   dark on dark in Classic, Race, Vibrant and High contrast, cream on cream in
