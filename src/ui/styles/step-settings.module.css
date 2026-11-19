@@ -41,7 +41,11 @@
     text-transform: uppercase;
     letter-spacing: 0.12em;
     color: var(--text-dim);
+    /* Right-aligned (and the readout left-aligned) so both hug their own track:
+       the min-width slack then falls between controls, not inside one, and a
+       short label no longer sits nearer the previous slider's readout. */
     min-width: 56px;
+    text-align: right;
   }
 
   .sliderTrack {
@@ -81,7 +85,7 @@
     font-size: 10px;
     color: var(--text-dim);
     min-width: 36px;
-    text-align: right;
+    text-align: left;
     font-variant-numeric: tabular-nums;
   }
 

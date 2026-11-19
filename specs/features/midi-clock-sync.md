@@ -87,7 +87,7 @@ instrument hostage: only a live link makes a role run.
   a message is what re-arms the role. The role is rebuilt *before* that message is
   handled. A master needs an output port, which also stops its idle clock
   broadcasting into the void.
-- **REQ-the-sync-roles-load-with-the-mode** (v10) — `SyncMaster`/`SyncSlave` live in
+- **REQ-the-sync-roles-load-with-the-mode** — `SyncMaster`/`SyncSlave` live in
   one lazy module, `sync-roles.ts` ([runtime-performance](runtime-performance.md)
   REQ-boot-cost-matches-the-request). The controller imports it whenever the
   selection is not `'off'` (at construction and on `setMode`). Until it lands,
@@ -152,7 +152,7 @@ instrument hostage: only a live link makes a role run.
   `0` sends `start`. Any other step (a Pause → Play, a cue) sends `songposition`
   (`step & 0x3fff`) + `continue`. That is MIDI's own vocabulary: Continue resumes
   from the last Song Position. The flush and trailing `tempo` apply to both.
-- **REQ-a-join-is-timed-by-its-first-pulse** (v8) — **Master:** `start`, and
+- **REQ-a-join-is-timed-by-its-first-pulse** — **Master:** `start`, and
   `songposition` + `continue` (from a start, seek, wrap or an announce to a new
   peer) are scheduled `JOIN_LEAD_MS` (1 ms) before the first pulse at the new
   position, `toPerfMs(clock.nextStepAt) − JOIN_LEAD_MS` (transport.md
@@ -182,7 +182,7 @@ instrument hostage: only a live link makes a role run.
   ts)`; `send` maps it to `[0xf2, beat & 0x7f, (beat>>7) & 0x7f]`. `Clock.start(0)`
   and a plain `start()` behave as bar 0, pos 0, and the
   [Arrangement](arrangement.md) seeks to the bar implied by `clock.step`.
-- **REQ-a-following-slave-jumps-in-place** (v8) — Once a slave's clock was started by
+- **REQ-a-following-slave-jumps-in-place** — Once a slave's clock was started by
   a join (and not stopped or restarted locally since), a further `start`/`continue`
   is `clock.seekAt(step, firstStepAt)` on its phase-locked grid. There is no
   restart and no settle. Pulse numbering follows the jump at its time: earlier pulses
@@ -233,7 +233,7 @@ instrument hostage: only a live link makes a role run.
 
 ### Wire limits and the surfaces
 
-- **REQ-midi-cannot-carry-a-meter** (v6) — MIDI real-time has no time-signature
+- **REQ-midi-cannot-carry-a-meter** — MIDI real-time has no time-signature
   message, so `send` drops `meter` as it drops `tempo`. Song Position counts 16ths
   and stays correct, but peers in different meters number bars differently. WiFi
   carries it ([webrtc-sync](webrtc-sync.md) REQ-the-wire-carries-the-time-signature);
@@ -328,19 +328,11 @@ MidiSyncTransport(access) implements SyncTransport:
   refreshPorts(): void                          # fed by midi.ts onstatechange
   # send: [0xFA|0xFB|0xFC|0xF8] to EVERY output; songposition -> [0xF2,lsb,msb]; tempo/meter -> no byte
 
-# src/audio/transport/clock.ts (the sync-facing surface)
-Clock.nudge(seconds): void        # nextStepTime += clamp(s, ±0.05); no-op stopped
-Clock.start(fromStep = 0, firstStepAt?): void   # seeds _step before onStart (clamped 0..MAX_STEP)
-Clock.seekAt(step, at): void      # a jump on the unchanged grid at audio time `at`
-Clock.nextStepAt: number          # grid time of the next emitted step — what a master's join is timed against
-# Clock.seek/onSeek is a LOCAL gesture: a slave refuses it, a master announces it.
-# Incoming songposition is applied through the join (start when stopped, seekAt when following).
+# src/audio/transport/clock.ts — nudge, start(fromStep, firstStepAt), seekAt and
+# nextStepAt are transport.md's. Clock.seek is LOCAL: a slave refuses it, a master announces it.
 
 # src/ui/components/sync-section.ts
 buildSyncSection(sync: SyncController, rtc: WifiLink): HTMLElement  # + WiFi link button
-
-# src/ui/components/knob.ts
-Knob.setDisabled(on): void        # dims + aria-disabled + blocks drag/double-tap
 ```
 
 ### Data shapes
@@ -682,12 +674,9 @@ Scenario: A non-finite phase correction is ignored (REQ-phase-correction-uses-nu
 
 ## Tests & verification
 
-- Unit: `tests/state/sync-mode.test.ts`,
-  `tests/audio/transport/sync/{bpm-estimator,sync-master,sync-slave,sync-controller,midi-sync-transport}.test.ts`
-  (fake `MIDIAccess` in `tests/audio/fake-midi-access.ts`),
-  `tests/audio/transport/clock.test.ts`, `tests/audio/transport/arrangement.test.ts`,
-  `tests/audio/transport/performance.test.ts`, `tests/ui/{sync-section,knob}.test.ts`
-  — `npm test`. The WiFi transport is tested under [webrtc-sync](webrtc-sync.md).
+- Unit: the scenarios' pin lines, plus `tests/state/sync-mode.test.ts`; the fake
+  `MIDIAccess` is `tests/audio/fake-midi-access.ts`. The WiFi transport is tested
+  under [webrtc-sync](webrtc-sync.md).
 - End to end: `tests/audio/transport/sync/sync-loopback.test.ts` — two real Clocks, a
   real master and slave, and a wire that delivers like Web MIDI or a DataChannel.
 - E2E: `e2e/sync.spec.ts`. Headless Chromium has no MIDI ports, which makes it the
