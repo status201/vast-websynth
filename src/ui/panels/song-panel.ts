@@ -389,6 +389,11 @@ export function buildSongPanel(bus: ParamBus, engine: StudioApi, session: Preset
   ioRow.appendChild(newBtn);
   ioRow.appendChild(fileInput);
 
+  // The demos start their own line, apart from the song actions above
+  // (song-mode.md REQ-the-demo-row-starts-its-own-line).
+  const demosBreak = el('div', styles.ioBreak!);
+  demosBreak.setAttribute('aria-hidden', 'true');
+  ioRow.appendChild(demosBreak);
   const demosLabel = el('span', styles.ioLabel!, 'Demos:');
   // The ⓘ-mode badge for the whole row pins here (demo-library.md REQ-info-mode-badges-the-demo-row-once).
   demosLabel.dataset.help = 'song.demos';

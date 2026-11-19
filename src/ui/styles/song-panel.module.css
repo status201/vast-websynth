@@ -351,6 +351,16 @@
     }
   }
 
+  /* A zero-height, full-width flex item: everything after it (the Demos: label
+     onwards) wraps to a new line of the io row (song-mode.md
+     REQ-the-demo-row-starts-its-own-line). The row's 8px gap applies on both
+     sides of its empty line, so the demos sit 8px further down than a plain
+     wrap would put them: deliberate, it is what separates the two groups. */
+  .ioBreak {
+    flex-basis: 100%;
+    height: 0;
+  }
+
   .demo { color: var(--accent-secondary); }
 
   /* The loaded demo's ⓘ (demo-library.md REQ-the-loaded-demo-carries-an-info-button): an

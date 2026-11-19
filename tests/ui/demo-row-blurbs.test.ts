@@ -10,6 +10,7 @@ import { demoFacts } from '../../src/state/demo-meta';
 import { DEMO_BLURBS } from '../../src/state/demo-blurbs';
 import { TestClock } from '../audio/transport/test-clock';
 import { installLocalStorageMock } from '../storage-mock';
+import styles from '../../src/ui/styles/song-panel.module.css';
 
 /**
  * demo-library.md REQ-the-blurbs-load-after-boot (v6): the row's tooltips carry the
@@ -78,5 +79,15 @@ describe('the demo row gains its blurbs after boot', () => {
     await vi.waitFor(() => expect(button(withNote).title).toBe(`${withNote} — ${facts} — ${blurbOf(withNote)}`));
     expect(button(withNote).getAttribute('aria-label')).toBe(`${withNote}. ${facts} — ${blurbOf(withNote)}`);
     expect(button(withoutNote).title).toBe(`${withoutNote} — ${demoFacts(demoMetaFor(withoutNote)!)}`);
+  });
+});
+
+describe('the demo row starts its own line (song-mode.md REQ-the-demo-row-starts-its-own-line)', () => {
+  it('puts the full-width break right before the Demos: label', () => {
+    panel();
+    const label = document.querySelector<HTMLElement>('[data-help="song.demos"]')!;
+    const before = label.previousElementSibling as HTMLElement | null;
+    expect(before?.classList.contains(styles.ioBreak!)).toBe(true);
+    expect(before?.textContent).toBe('');
   });
 });

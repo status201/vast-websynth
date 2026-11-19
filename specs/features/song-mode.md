@@ -3,7 +3,7 @@
 ```yaml
 id: song-mode
 status: implemented
-version: 32
+version: 33
 owner: core
 related:
   - architecture
@@ -99,6 +99,11 @@ never embedded) are [song-file](song-file.md)'s.
   load, fires `UiBridge.cuePlay` ([play-button-blink](play-button-blink.md)).
   *Which* demos overflow is data, so a test asserts the rule, never that a named
   demo is hidden ([write-a-test](../recipes/write-a-test.md)).
+- **REQ-the-demo-row-starts-its-own-line** — The `Demos:` label opens a new line
+  of the Song section's io row, so demos never trail the song actions (Load …
+  New) on their line. A zero-height, full-width `ioBreak` item before the label
+  forces the wrap; the row stays one wrapping flex, so the demos and the ✨ AI
+  Prompt button after them flow as before.
 - **REQ-song-lane-titles-navigate** (v8) — Each lane
   card's title is a button
   (testid `song-lane-title-<seq|drum|sampler|motion>`) that opens that machine's
@@ -596,6 +601,11 @@ Scenario: With no overflow there is no toggle (REQ-the-demo-row-overflows-into-a
   Given DEMO_ROW_LIMIT or fewer demos are registered
   Then every demo button is visible and no "All Demos" toggle is rendered
 # pinned by: e2e/song.spec.ts
+
+Scenario: The demos start below the song actions (REQ-the-demo-row-starts-its-own-line)
+  Given the Song panel is built
+  Then the item right before the Demos: label is the full-width line break
+# pinned by: tests/ui/demo-row-blurbs.test.ts
 ```
 
 ## Tests & verification

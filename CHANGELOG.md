@@ -25,6 +25,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
   own track; the readout starts at its track and keeps a fixed width, so a
   changing value moves nothing. The spacing falls between the controls.
 
+- **The Song tab's demos start on their own line.** They followed straight on
+  from Load, Save, Delete … New, so the demo buttons read as more song actions;
+  they now begin on the next line, with a little more space above them.
+
 - **A short gate's note name is readable in every theme.** Past the end of a
   lit step's gate bar, the name printed in the bar's ink on the bare button —
   dark on dark in Classic, Race, Vibrant and High contrast, cream on cream in
