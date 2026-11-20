@@ -20,9 +20,9 @@ import { clamp01 } from '../utils/math';
 import { approach, MIN_PHASE_SECONDS, phaseTau } from '../utils/envelope-curve';
 
 /**
- * Release time constants until a tail counts as silent: e^-11 ≈ -96 dB, below a
+ * Release time constants until a tail counts as silent: e^-11 ≈ -95.5 dB, about a
  * 16-bit floor. The voice unplugs there (voicing.md REQ-an-idle-voice-is-unplugged);
- * 15 (-130 dB) kept a busy song's whole pool plugged for no audible gain.
+ * a longer wait only keeps a busy song's pool awake for nothing anyone can hear.
  */
 export const RELEASE_SILENT_TAU = 11;
 

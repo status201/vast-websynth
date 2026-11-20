@@ -87,9 +87,9 @@ for bass and leads, poly for chords, unison for a fat stack, and per-voice
   and before its attack (which lands at `when >= liveStartTime`), whatever its
   state; release completion and `kill`'s fade window unplug it, at the same
   moments they deactivate the filter, when its VCA has already reached silence
-  (11 time constants into the release, ≈ −96 dB, below a 16-bit floor — 15 kept a
-  busy song's whole pool plugged for no audible gain; 30 ms after `kill`'s 3 ms
-  cut). The spread
+  (11 time constants into the release, ≈ −95.5 dB, about a 16-bit floor — a longer
+  wait only keeps a busy song's pool awake for nothing audible; 30 ms after
+  `kill`'s 3 ms cut). The spread
   stage keeps its own engaged state while a voice is unplugged and applies it when
   the voice is plugged back in, so engaging it never reconnects an idle voice.
   The saving is what `npm run bench:perf`'s idle and held-note scenarios print;
@@ -238,10 +238,11 @@ Scenario: Release completion and kill unplug the voice (REQ-an-idle-voice-is-unp
   And a noteOn inside kill's window keeps it plugged
 # pinned by: tests/audio/voice.test.ts
 
-Scenario: A released voice idles once it is inaudible, not at −130 dB (REQ-an-idle-voice-is-unplugged, regression)
+Scenario: A released voice idles once it is inaudible (REQ-an-idle-voice-is-unplugged, regression)
   Given a voice released with an amp release of R seconds
   Then it is still plugged in and releasing just before 11 time constants (R × 11/3 + 0.1 s)
   And it is idle and unplugged just after
+  And the level it idles at lies between −90 and −100 dB
 # pinned by: tests/audio/voice.test.ts
 
 Scenario: A second release re-arms the idle timer instead of adding one (REQ-an-idle-voice-is-unplugged, regression)
