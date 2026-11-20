@@ -1,6 +1,8 @@
 // @vitest-environment jsdom
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 import { Voice } from '../../src/audio/voice';
+import { RELEASE_SILENT_TAU } from '../../src/audio/envelope';
+import { PHASE_TIME_CONSTANTS } from '../../src/utils/envelope-curve';
 import {
   makeMockAudioContext,
   installMockAudioWorkletNode,
@@ -302,6 +304,22 @@ describe('Voice output edges (REQ-an-idle-voice-is-unplugged)', () => {
     voice.noteOff(0);
     expect(toBus(dry.disconnect)).toBe(0); // still releasing
     vi.runAllTimers();
+    expect(voice.state).toBe('idle');
+    expect(toBus(dry.disconnect)).toBe(1);
+  });
+
+  it('a released voice idles once inaudible (RELEASE_SILENT_TAU constants), not at -130 dB (regression)', async () => {
+    const { voice, dry, toBus } = await onBus();
+    const release = 0.6;
+    voice.ampEnv.setRelease(release);
+    voice.noteOn(60, 0.8, 0);
+    voice.noteOff(0);
+    const idleMs = (release / PHASE_TIME_CONSTANTS * RELEASE_SILENT_TAU + 0.1) * 1000;
+    expect(RELEASE_SILENT_TAU).toBeLessThan(15);
+    vi.advanceTimersByTime(idleMs - 5);
+    expect(voice.state).toBe('releasing');
+    expect(toBus(dry.disconnect)).toBe(0);
+    vi.advanceTimersByTime(10);
     expect(voice.state).toBe('idle');
     expect(toBus(dry.disconnect)).toBe(1);
   });

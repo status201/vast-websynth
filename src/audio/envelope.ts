@@ -19,6 +19,13 @@ import { clamp01 } from '../utils/math';
 // The phase shape is shared with the help graph (envelopes.md REQ-the-envelope-curve-is-one-pure-model).
 import { approach, MIN_PHASE_SECONDS, phaseTau } from '../utils/envelope-curve';
 
+/**
+ * Release time constants until a tail counts as silent: e^-11 ≈ -96 dB, below a
+ * 16-bit floor. The voice unplugs there (voicing.md REQ-an-idle-voice-is-unplugged);
+ * 15 (-130 dB) kept a busy song's whole pool plugged for no audible gain.
+ */
+export const RELEASE_SILENT_TAU = 11;
+
 /** A tracked automation event: an anchor (`value`) or a target segment. */
 interface EnvEvent {
   time: number;
@@ -113,11 +120,9 @@ export class Envelope {
     this.setTarget(0, t, tau);
   }
 
-  /** Approximate time at which release will be effectively silent. */
+  /** Time from the release until the tail is inaudible (REQ-an-idle-voice-is-unplugged). */
   releaseDuration(): number {
-    // Five knob times, and a knob time is PHASE_TIME_CONSTANTS (3) time
-    // constants, so 15 τ: ~-130 dB, effectively zero.
-    return this.release * 5;
+    return phaseTau(this.release) * RELEASE_SILENT_TAU;
   }
 
   /**
