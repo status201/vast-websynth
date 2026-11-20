@@ -1,6 +1,8 @@
 // @vitest-environment jsdom
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 import { Voice } from '../../src/audio/voice';
+import { RELEASE_SILENT_TAU } from '../../src/audio/envelope';
+import { PHASE_TIME_CONSTANTS } from '../../src/utils/envelope-curve';
 import {
   makeMockAudioContext,
   installMockAudioWorkletNode,
@@ -302,6 +304,27 @@ describe('Voice output edges (REQ-an-idle-voice-is-unplugged)', () => {
     voice.noteOff(0);
     expect(toBus(dry.disconnect)).toBe(0); // still releasing
     vi.runAllTimers();
+    expect(voice.state).toBe('idle');
+    expect(toBus(dry.disconnect)).toBe(1);
+  });
+
+  it('a released voice idles once its tail is inaudible, -90..-100 dB (regression)', async () => {
+    // Pin the level, not just the formula: a constant that cut an audible tail
+    // (or kept a busy pool awake at -130 dB) fails here.
+    const idleDb = -20 * Math.log10(Math.exp(-RELEASE_SILENT_TAU));
+    expect(idleDb).toBeGreaterThanOrEqual(90);
+    expect(idleDb).toBeLessThanOrEqual(100);
+
+    const { voice, dry, toBus } = await onBus();
+    const release = 0.6;
+    voice.ampEnv.setRelease(release);
+    voice.noteOn(60, 0.8, 0);
+    voice.noteOff(0);
+    const idleMs = (release / PHASE_TIME_CONSTANTS * RELEASE_SILENT_TAU + 0.1) * 1000;
+    vi.advanceTimersByTime(idleMs - 5);
+    expect(voice.state).toBe('releasing');
+    expect(toBus(dry.disconnect)).toBe(0);
+    vi.advanceTimersByTime(10);
     expect(voice.state).toBe('idle');
     expect(toBus(dry.disconnect)).toBe(1);
   });

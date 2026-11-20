@@ -519,7 +519,7 @@ export class Voice {
       if (this.state === 'releasing') {
         this.state = 'idle';
         this.currentNote = -1;
-        // Fifteen release time constants in: the VCA is ~-130 dB.
+        // RELEASE_SILENT_TAU (11) release time constants in: the VCA is ~-96 dB.
         this.sleep();
       }
     }, delayMs);

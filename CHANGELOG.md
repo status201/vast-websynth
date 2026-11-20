@@ -18,6 +18,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ### Fixed
 
+- **Busy songs free their synth voices sooner.** A released note kept its voice
+  running until its tail was ~-130 dB, far below anything audible, so a dense
+  song held the whole pool awake. A voice now rests once its tail is ~-96 dB,
+  which sounds the same and costs less. The Wahwhat demo's synth phaser is off,
+  lightening its heaviest stretch.
+
 - **The step settings row's labels sit with their own slider.** VELOCITY,
   GATE, PROB, MICRO and BEND hung at the far left of their label space while the
   slider before them ended in a right-aligned readout, so "80% GATE" read as one
