@@ -16,6 +16,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+## [2.22.2] - 2026-11-20
+
 ### Fixed
 
 - **Busy songs free their synth voices sooner.** A released note kept its voice
@@ -3579,7 +3581,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
   in-app sample recorder/editor. See the git history prior to this changelog
   for the detailed evolution.
 
-[Unreleased]: https://github.com/status201/vast-websynth/compare/v2.22.1...HEAD
+[Unreleased]: https://github.com/status201/vast-websynth/compare/v2.22.2...HEAD
+[2.22.2]: https://github.com/status201/vast-websynth/compare/v2.22.1...v2.22.2
 [2.22.1]: https://github.com/status201/vast-websynth/compare/v2.22.0...v2.22.1
 [2.22.0]: https://github.com/status201/vast-websynth/compare/v2.21.0...v2.22.0
 [2.21.0]: https://github.com/status201/vast-websynth/compare/v2.20.0...v2.21.0
