@@ -310,6 +310,10 @@ describe('Every deferred-surface trigger is guarded (lazy-load-failure.md REQ-ev
       'src/ui/components/sync-section.ts',
       'src/ui/components/ai-prompt.ts',
       'src/ui/components/perf-settings.ts',
+      // The signal-flow map (signal-flow-map.md REQ-the-map-costs-nothing-until-opened):
+      // its one opener (About and the help topics), then the dialog's one poster.
+      'src/ui/signal-flow/open.ts',
+      'src/ui/signal-flow/signal-flow-modal.ts',
     ];
     for (const f of TRIGGERS) {
       const src = readFileSync(f, 'utf8');

@@ -16,6 +16,24 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+### Added
+
+- **A signal-flow poster.** `docs/signal-flow-light.svg` and
+  `docs/signal-flow-dark.svg` draw every path from a key press to the
+  speakers: inputs, notes and clock, the machines, the synth voice and its
+  modulation, the drum and sampler channels, the FX rack and the master
+  section. The README shows it; `npm run docs:diagram` regenerates it, and
+  `npm run release` redraws it with each new version number.
+- **Explore the signal flow, in the app.** Help & About → *Explore the signal
+  flow* opens the same poster full screen. Pick an area to zoom in and read what
+  it does, or press *Next* to follow the signal from the keys to the speakers.
+  Drag, scroll or pinch to look around; Escape steps back out. It follows your
+  theme (light or dark) and downloads only when you open it.
+- **Show in the signal flow.** Every ⓘ help topic about part of the sound —
+  the filter, an envelope, the delay, the master compressor and some eighty
+  more — has a button that opens the signal-flow map right there, with that
+  block ringed.
+
 ## [2.22.2] - 2026-11-20
 
 ### Fixed

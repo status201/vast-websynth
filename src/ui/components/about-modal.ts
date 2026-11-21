@@ -1,6 +1,6 @@
 // The About card itself: brand, version/copyright/source link, the tour-replay
-// button, the shortcut reference, Play offline, the factory reset, and the Debug
-// section.
+// button, the signal-flow map's door, the shortcut reference, Play offline, the
+// factory reset, and the Debug section.
 //
 // This is the lazy half of the About split — `about-button.ts` stays on the boot
 // path and `import()`s this module on the click that opens it
@@ -16,6 +16,7 @@ import { restoreFactorySettings } from '../../state/factory-reset';
 import { buildShortcuts } from './about-shortcuts';
 import { buildOfflineSection } from './about-offline';
 import { buildDebugSection } from './about-debug';
+import { openSignalFlow } from '../signal-flow/open';
 import type { AboutDeps } from './about-button';
 import type { StudioApi } from '../studio-api';
 import switchStyles from '../styles/switch.module.css';
@@ -71,6 +72,18 @@ export function buildModal(close: () => void, engine: StudioApi, deps: AboutDeps
     },
   });
 
+  // The illustrated signal flow, zoomable (signal-flow-map.md) — beside the tour,
+  // the other way in. Its dialog and poster are their own lazy chunks.
+  const flowBtn = createButton({
+    label: 'Explore the signal flow',
+    className: `${switchStyles.root!} ${Modal.closeBtnClass}`,
+    testId: 'open-signal-flow',
+    onClick: () => {
+      close();
+      void openSignalFlow();
+    },
+  });
+
   const shortcuts = buildShortcuts();
 
   // Save every app file on the device (play-offline.md) — above the reset, the
@@ -90,6 +103,7 @@ export function buildModal(close: () => void, engine: StudioApi, deps: AboutDeps
   card.appendChild(brand);
   card.appendChild(meta);
   card.appendChild(tourBtn);
+  card.appendChild(flowBtn);
   card.appendChild(shortcuts.header);
   card.appendChild(shortcuts.row);
   card.appendChild(shortcuts.keys);

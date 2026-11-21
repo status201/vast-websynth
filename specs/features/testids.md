@@ -404,6 +404,19 @@ onboarding:                                         # features/onboarding.md
   info-badge-layer · info-badge-<topic>   # incl. info-badge-meter (features/meter.md)
   sweet-<paramId>-<label>                           # features/tempo-sync-help.md
 
+signal-flow map:                                    # features/signal-flow-map.md
+  open-signal-flow                                  # in the About modal, under start-tour
+  signal-flow-map                                   # the stage (focusable; takes the map's keys)
+  signal-flow-zone                                  # a hotspot <g>, with data-zone="<zone id>"
+  signal-flow-area                                  # a panel button for a zone, with data-zone
+  signal-flow-title · signal-flow-overview          # the panel's title; the breadcrumb's Overview
+  signal-flow-prev · signal-flow-next               # follow the signal
+  signal-flow-zoom-in · signal-flow-zoom-out · signal-flow-fit
+  signal-flow-close                                 # the ✕ (always closes)
+  signal-flow-ring                                  # a deep link's ring, with data-spot="<block id>"
+  signal-flow-ringed                                # the panel's "Ringed: …" line
+  help-signal-flow                                  # a help topic's "Show in the signal flow"
+
 about → debug panel:                                # features/debug-panel.md
   debug-section · debug-actions
   rows:    debug-ctx-state · -latency · -transport · -perf-tier · -sampler-clips ·
