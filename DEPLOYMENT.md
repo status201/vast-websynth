@@ -358,7 +358,8 @@ range must not be throttled — Claude's request pattern can resemble scraping.
 dependencies) cuts a versioned release artifact. It:
 
 1. Bumps `package.json` and promotes the CHANGELOG `[Unreleased]` section to a
-   dated heading.
+   dated heading, and redraws the signal-flow posters (`docs/signal-flow-*.svg`),
+   which print the version.
 2. Runs `npm run build`.
 3. Zips `dist/` into **`dist-v<version>.zip`** (the deployable build).
 4. Runs `npm run build:mcp` and zips the MCP server into

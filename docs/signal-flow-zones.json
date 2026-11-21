@@ -1,0 +1,1032 @@
+{
+  "width": 7300,
+  "height": 3760,
+  "intro": "Every path from a key press to the speakers, read left to right. Pick an area to zoom in, or follow the signal with Next.",
+  "zones": [
+    {
+      "id": "play",
+      "title": "Play",
+      "blurb": "Everything you play the instrument with: the keys on screen and on your computer, MIDI gear, the wheels, the XY pad, Live FX and Wi-Fi sync. The microphone and audio files feed the sampler.",
+      "x": 40,
+      "y": 250,
+      "w": 490,
+      "h": 3010
+    },
+    {
+      "id": "notes",
+      "title": "Notes & time",
+      "blurb": "What happens to a note before a machine plays it — scale, chords, the arpeggiator — and the clock that keeps every machine in time.",
+      "x": 620,
+      "y": 250,
+      "w": 550,
+      "h": 3010
+    },
+    {
+      "id": "machines",
+      "title": "Machines & sound sources",
+      "blurb": "What makes the sound: the synth with its sequencers, the drum machine and the sampler. Each ends in its own bus.",
+      "x": 1220,
+      "y": 250,
+      "w": 2580,
+      "h": 3010
+    },
+    {
+      "id": "fx",
+      "title": "FX rack",
+      "blurb": "Three insert chains, one per bus, lined up by effect. A bypassed effect is disconnected, so it costs nothing.",
+      "x": 3830,
+      "y": 250,
+      "w": 1870,
+      "h": 3010
+    },
+    {
+      "id": "master",
+      "title": "Master & output",
+      "blurb": "The three buses sum, pass the DJ FILTER, the MASTER COMP and the MASTER VOL, and leave as stereo.",
+      "x": 5740,
+      "y": 250,
+      "w": 1520,
+      "h": 3010
+    },
+    {
+      "id": "synth",
+      "parent": "machines",
+      "title": "Synth",
+      "blurb": "Notes from the keys, the arpeggiator or the step sequencer go to the voice allocator, which plays up to eight copies of the synth voice.",
+      "x": 1232,
+      "y": 262,
+      "w": 2556,
+      "h": 1384
+    },
+    {
+      "id": "drums",
+      "parent": "machines",
+      "title": "Drums",
+      "blurb": "The drum machine: eight synthesized drum tracks, each through its own channel strip, into the drum bus.",
+      "x": 1232,
+      "y": 1694,
+      "w": 2556,
+      "h": 758
+    },
+    {
+      "id": "sampler",
+      "parent": "machines",
+      "title": "Sampler",
+      "blurb": "The sampler machine: eight slots of recorded sound, each through its own channel strip, into the sampler bus.",
+      "x": 1232,
+      "y": 2496,
+      "w": 2556,
+      "h": 752
+    },
+    {
+      "id": "play-keys",
+      "parent": "play",
+      "title": "Keyboards & MIDI",
+      "blurb": "The on-screen keys, the computer keyboard and MIDI IN all send notes the same way. MIDI also brings pitch bend, the mod wheel, volume, sustain and its clock; channel 10 plays the sampler pads.",
+      "x": 48,
+      "y": 278,
+      "w": 474,
+      "h": 674
+    },
+    {
+      "id": "play-ctl",
+      "parent": "play",
+      "title": "Controllers & sync",
+      "blurb": "The wheels bend the pitch and add modulation. The XY pad and Live FX turn knobs for you (purple wires). Wi-Fi sync locks the clock to another device.",
+      "x": 48,
+      "y": 952,
+      "w": 474,
+      "h": 744
+    },
+    {
+      "id": "play-in",
+      "parent": "play",
+      "title": "Sound in",
+      "blurb": "The microphone records into the sample studio and is never heard live. Audio files load straight into a sampler slot.",
+      "x": 48,
+      "y": 2588,
+      "w": 474,
+      "h": 322
+    },
+    {
+      "id": "notes-keys",
+      "parent": "notes",
+      "title": "Key, chord & arpeggiator",
+      "blurb": "KEY quantizes what you play to a scale; CHORD MEMORY turns one key into a chord. While the ARPEGGIATOR is on it takes over the live keys and plays them as a pattern.",
+      "x": 628,
+      "y": 278,
+      "w": 534,
+      "h": 372
+    },
+    {
+      "id": "notes-clock",
+      "parent": "notes",
+      "title": "Clock, song & automation",
+      "blurb": "The CLOCK ticks in 16ths and drives every machine. SYNC follows or leads MIDI or a Wi-Fi peer; ARRANGEMENT chains banks into a song. The PARAMETER BUS is how anything that turns a knob reaches it.",
+      "x": 628,
+      "y": 648,
+      "w": 534,
+      "h": 948
+    },
+    {
+      "id": "notes-studio",
+      "parent": "notes",
+      "title": "Sample studio",
+      "blurb": "Edits a recording before it becomes a sampler slot: crop, normalize, fade, filter, pitch, time-stretch, scratch and chop. Its clip preview goes straight to the output.",
+      "x": 628,
+      "y": 2588,
+      "w": 534,
+      "h": 234
+    },
+    {
+      "id": "seqs",
+      "parent": "synth",
+      "title": "Sequencers & polyphony",
+      "blurb": "The STEP SEQUENCER plays four tracks of notes; the MOTION SEQUENCER automates knobs. POLYPHONY hands each note to a free voice, with unison, glide and voice stealing.",
+      "x": 1258,
+      "y": 288,
+      "w": 864,
+      "h": 650
+    },
+    {
+      "id": "voice",
+      "parent": "synth",
+      "title": "Synth voice",
+      "blurb": "One voice, drawn in full: OSC 1, OSC 2 (with FM and sync), SUB and NOISE mix into the FILTER, then the VCA opened by the AMP ENV. Eight of these play at once.",
+      "x": 2150,
+      "y": 262,
+      "w": 1540,
+      "h": 808
+    },
+    {
+      "id": "mod",
+      "parent": "synth",
+      "title": "Modulation",
+      "blurb": "The control signals that move the voice: two LFOs, the 6-row MOD MATRIX, the S&H RANDOM source, the envelopes and your bend and mod wheels, all on one MOD BUS.",
+      "x": 2150,
+      "y": 1030,
+      "w": 1540,
+      "h": 602
+    },
+    {
+      "id": "drum-machine",
+      "parent": "drums",
+      "title": "Drum machine",
+      "blurb": "Eight tracks of steps trigger eight drum voices, picked from 13 synthesized models and 7 kits. Each hit also tells the DUCK effects when to dip.",
+      "x": 1258,
+      "y": 1718,
+      "w": 854,
+      "h": 682
+    },
+    {
+      "id": "drum-channel",
+      "parent": "drums",
+      "title": "Drum channel",
+      "blurb": "Every drum track has its own DRIVE, TONE, LEVEL and PAN, then all eight sum on the DRUM BUS.",
+      "x": 2160,
+      "y": 1897,
+      "w": 1628,
+      "h": 260
+    },
+    {
+      "id": "sampler-machine",
+      "parent": "sampler",
+      "title": "Sampler pads",
+      "blurb": "Eight slots, each playing a one-shot recording, triggered by the sampler steps or MIDI channel 10. Slots fill from a file, the studio, or by rendering the synth.",
+      "x": 1258,
+      "y": 2508,
+      "w": 854,
+      "h": 682
+    },
+    {
+      "id": "sampler-channel",
+      "parent": "sampler",
+      "title": "Sampler channel",
+      "blurb": "Each slot plays a window of its recording at a pitch, shaped by a hit envelope, a tone filter, its level and pan, then sums on the SAMPLER BUS.",
+      "x": 2160,
+      "y": 2687,
+      "w": 1628,
+      "h": 260
+    },
+    {
+      "id": "fx-synth",
+      "parent": "fx",
+      "title": "Synth effects",
+      "blurb": "The full chain: EQ, DIRT, WAH, PHASER, FLANGER, CHORUS, DELAY, REVERB, DUCK and SYNTH PAN, in that order.",
+      "x": 3850,
+      "y": 435,
+      "w": 1836,
+      "h": 336
+    },
+    {
+      "id": "fx-inserts",
+      "parent": "fx",
+      "title": "How the insert chains work",
+      "blurb": "The rules every chain shares: the fixed order, dry/wet crossfades, what each bus has and lacks, and how DUCK listens to drum hits instead of audio.",
+      "x": 3868,
+      "y": 1098,
+      "w": 1474,
+      "h": 232
+    },
+    {
+      "id": "fx-drum",
+      "parent": "fx",
+      "title": "Drum effects",
+      "blurb": "EQ, the FET COMP, PHASER, DELAY and REVERB. The drums are never ducked.",
+      "x": 3850,
+      "y": 1852,
+      "w": 1836,
+      "h": 336
+    },
+    {
+      "id": "fx-sampler",
+      "parent": "fx",
+      "title": "Sampler effects",
+      "blurb": "EQ, DIRT, PHASER, FLANGER, CHORUS, DELAY, REVERB and DUCK.",
+      "x": 3850,
+      "y": 2642,
+      "w": 1836,
+      "h": 336
+    },
+    {
+      "id": "master-chain",
+      "parent": "master",
+      "title": "Master chain",
+      "blurb": "PRE-MASTER sum → DJ FILTER → MASTER COMP → MASTER VOL → OUTPUT → L / R. The SCOPE and RECORD / EXPORT tap the signal on the way; the metronome and clip preview go straight out.",
+      "x": 5740,
+      "y": 1188,
+      "w": 1512,
+      "h": 912
+    },
+    {
+      "id": "master-stereo",
+      "parent": "master",
+      "title": "Where the signal turns stereo",
+      "blurb": "The synth is mono until SPREAD, CHORUS, PING PONG, REVERB or SYNTH PAN; drums and sampler turn stereo at each channel's PAN.",
+      "x": 5848,
+      "y": 288,
+      "w": 1394,
+      "h": 232
+    },
+    {
+      "id": "master-offpath",
+      "parent": "master",
+      "title": "Not on the audio path",
+      "blurb": "Things that change the sound without being an effect: TAPE STOP, STUTTER, FILL, the microphone and RENDER TO SAMPLER.",
+      "x": 5848,
+      "y": 2318,
+      "w": 1394,
+      "h": 232
+    },
+    {
+      "id": "legend",
+      "title": "Legend",
+      "blurb": "How to read the map: what each wire carries, what the symbols mean, and which colour is which section.",
+      "x": 40,
+      "y": 3310,
+      "w": 7220,
+      "h": 410
+    },
+    {
+      "id": "legend-wires",
+      "parent": "legend",
+      "title": "Wires",
+      "blurb": "The colour and line of a wire say what travels on it: audio (single = mono, double = stereo), notes, velocity, modulation, clock, drum hits, automation and sample data.",
+      "x": 40,
+      "y": 3310,
+      "w": 1760,
+      "h": 410
+    },
+    {
+      "id": "legend-symbols",
+      "parent": "legend",
+      "title": "Symbols",
+      "blurb": "Σ adds signals, × multiplies them, the triangle is the VCA. Dashed frames repeat per voice or track; a lettered tag continues a wire elsewhere.",
+      "x": 1810,
+      "y": 3310,
+      "w": 1720,
+      "h": 410
+    },
+    {
+      "id": "legend-sections",
+      "parent": "legend",
+      "title": "Section colours",
+      "blurb": "The colour strip on every block says which section it belongs to.",
+      "x": 3530,
+      "y": 3310,
+      "w": 840,
+      "h": 410
+    }
+  ],
+  "tour": [
+    "play-keys",
+    "play-ctl",
+    "notes-keys",
+    "notes-clock",
+    "seqs",
+    "voice",
+    "mod",
+    "fx-synth",
+    "fx-inserts",
+    "drum-machine",
+    "drum-channel",
+    "fx-drum",
+    "play-in",
+    "notes-studio",
+    "sampler-machine",
+    "sampler-channel",
+    "fx-sampler",
+    "master-chain",
+    "master-stereo",
+    "master-offpath",
+    "legend-wires",
+    "legend-symbols",
+    "legend-sections"
+  ],
+  "spots": [
+    {
+      "id": "kbd",
+      "title": "ON-SCREEN KEYBOARD",
+      "zone": "play-keys",
+      "x": 60,
+      "y": 290,
+      "w": 450,
+      "h": 180
+    },
+    {
+      "id": "qwerty",
+      "title": "COMPUTER KEYBOARD",
+      "zone": "play-keys",
+      "x": 60,
+      "y": 494,
+      "w": 450,
+      "h": 198
+    },
+    {
+      "id": "midi",
+      "title": "MIDI IN",
+      "zone": "play-keys",
+      "x": 60,
+      "y": 716,
+      "w": 450,
+      "h": 224
+    },
+    {
+      "id": "wheels",
+      "title": "BEND & MOD WHEELS",
+      "zone": "play-ctl",
+      "x": 60,
+      "y": 964,
+      "w": 450,
+      "h": 146
+    },
+    {
+      "id": "xy",
+      "title": "XY PAD",
+      "zone": "play-ctl",
+      "x": 60,
+      "y": 1134,
+      "w": 450,
+      "h": 166
+    },
+    {
+      "id": "livefx",
+      "title": "LIVE FX",
+      "zone": "play-ctl",
+      "x": 60,
+      "y": 1324,
+      "w": 450,
+      "h": 192
+    },
+    {
+      "id": "wifi",
+      "title": "WI-FI SYNC",
+      "zone": "play-ctl",
+      "x": 60,
+      "y": 1540,
+      "w": 450,
+      "h": 144
+    },
+    {
+      "id": "mic",
+      "title": "MICROPHONE",
+      "zone": "play-in",
+      "x": 60,
+      "y": 2600,
+      "w": 450,
+      "h": 146
+    },
+    {
+      "id": "file",
+      "title": "AUDIO FILE",
+      "zone": "play-in",
+      "x": 60,
+      "y": 2770,
+      "w": 450,
+      "h": 128
+    },
+    {
+      "id": "key",
+      "title": "KEY · CHORD",
+      "zone": "notes-keys",
+      "x": 640,
+      "y": 290,
+      "w": 510,
+      "h": 154
+    },
+    {
+      "id": "arp",
+      "title": "ARPEGGIATOR",
+      "zone": "notes-keys",
+      "x": 640,
+      "y": 466,
+      "w": 510,
+      "h": 172
+    },
+    {
+      "id": "clock",
+      "title": "CLOCK",
+      "zone": "notes-clock",
+      "x": 640,
+      "y": 660,
+      "w": 510,
+      "h": 182
+    },
+    {
+      "id": "sync",
+      "title": "SYNC",
+      "zone": "notes-clock",
+      "x": 640,
+      "y": 864,
+      "w": 510,
+      "h": 154
+    },
+    {
+      "id": "arrange",
+      "title": "ARRANGEMENT",
+      "zone": "notes-clock",
+      "x": 640,
+      "y": 1040,
+      "w": 510,
+      "h": 154
+    },
+    {
+      "id": "metro",
+      "title": "METRONOME",
+      "zone": "notes-clock",
+      "x": 640,
+      "y": 1216,
+      "w": 510,
+      "h": 164
+    },
+    {
+      "id": "params",
+      "title": "PARAMETER BUS",
+      "zone": "notes-clock",
+      "x": 640,
+      "y": 1402,
+      "w": 510,
+      "h": 182
+    },
+    {
+      "id": "studio",
+      "title": "SAMPLE STUDIO",
+      "zone": "notes-studio",
+      "x": 640,
+      "y": 2600,
+      "w": 510,
+      "h": 210
+    },
+    {
+      "id": "seq",
+      "title": "STEP SEQUENCER",
+      "zone": "seqs",
+      "x": 1270,
+      "y": 530,
+      "w": 466,
+      "h": 200
+    },
+    {
+      "id": "motion",
+      "title": "MOTION SEQUENCER",
+      "zone": "seqs",
+      "x": 1270,
+      "y": 764,
+      "w": 466,
+      "h": 162
+    },
+    {
+      "id": "poly",
+      "title": "POLYPHONY",
+      "zone": "seqs",
+      "x": 1800,
+      "y": 300,
+      "w": 310,
+      "h": 360
+    },
+    {
+      "id": "pitch",
+      "title": "PITCH",
+      "zone": "voice",
+      "x": 2170,
+      "y": 300,
+      "w": 120,
+      "h": 490
+    },
+    {
+      "id": "osc1",
+      "title": "OSC 1",
+      "zone": "voice",
+      "x": 2330,
+      "y": 300,
+      "w": 260,
+      "h": 154
+    },
+    {
+      "id": "osc2",
+      "title": "OSC 2",
+      "zone": "voice",
+      "x": 2330,
+      "y": 500,
+      "w": 260,
+      "h": 172
+    },
+    {
+      "id": "sub",
+      "title": "SUB",
+      "zone": "voice",
+      "x": 2330,
+      "y": 700,
+      "w": 260,
+      "h": 72
+    },
+    {
+      "id": "noise",
+      "title": "NOISE",
+      "zone": "voice",
+      "x": 2330,
+      "y": 800,
+      "w": 260,
+      "h": 118
+    },
+    {
+      "id": "mixer",
+      "title": "MIXER",
+      "zone": "voice",
+      "x": 2710,
+      "y": 300,
+      "w": 140,
+      "h": 618
+    },
+    {
+      "id": "filter",
+      "title": "FILTER",
+      "zone": "voice",
+      "x": 2900,
+      "y": 470,
+      "w": 250,
+      "h": 300
+    },
+    {
+      "id": "spread",
+      "title": "SPREAD",
+      "zone": "voice",
+      "x": 3480,
+      "y": 545,
+      "w": 180,
+      "h": 150
+    },
+    {
+      "id": "fenv",
+      "title": "FILTER ENV",
+      "zone": "voice",
+      "x": 2950,
+      "y": 822,
+      "w": 200,
+      "h": 146
+    },
+    {
+      "id": "aenv",
+      "title": "AMP ENV",
+      "zone": "voice",
+      "x": 3290,
+      "y": 752,
+      "w": 220,
+      "h": 146
+    },
+    {
+      "id": "lfo1",
+      "title": "LFO 1",
+      "zone": "mod",
+      "x": 2170,
+      "y": 1096,
+      "w": 250,
+      "h": 152
+    },
+    {
+      "id": "lfo2",
+      "title": "LFO 2",
+      "zone": "mod",
+      "x": 2170,
+      "y": 1270,
+      "w": 250,
+      "h": 152
+    },
+    {
+      "id": "route",
+      "title": "MOD ROUTING",
+      "zone": "mod",
+      "x": 2460,
+      "y": 1096,
+      "w": 380,
+      "h": 266
+    },
+    {
+      "id": "rand",
+      "title": "RANDOM",
+      "zone": "mod",
+      "x": 2880,
+      "y": 1096,
+      "w": 250,
+      "h": 160
+    },
+    {
+      "id": "perf",
+      "title": "PERFORMANCE",
+      "zone": "mod",
+      "x": 2880,
+      "y": 1278,
+      "w": 250,
+      "h": 128
+    },
+    {
+      "id": "vnote",
+      "title": "HOW A VOICE PLAYS",
+      "zone": "mod",
+      "x": 3180,
+      "y": 1096,
+      "w": 480,
+      "h": 164
+    },
+    {
+      "id": "drums",
+      "title": "DRUM MACHINE",
+      "zone": "drum-machine",
+      "x": 1270,
+      "y": 1760,
+      "w": 466,
+      "h": 200
+    },
+    {
+      "id": "dstrip0",
+      "title": "DRIVE",
+      "zone": "drum-channel",
+      "x": 2190,
+      "y": 1955,
+      "w": 322,
+      "h": 170
+    },
+    {
+      "id": "dstrip1",
+      "title": "TONE",
+      "zone": "drum-channel",
+      "x": 2566,
+      "y": 1955,
+      "w": 322,
+      "h": 170
+    },
+    {
+      "id": "dstrip2",
+      "title": "LEVEL",
+      "zone": "drum-channel",
+      "x": 2942,
+      "y": 1955,
+      "w": 322,
+      "h": 170
+    },
+    {
+      "id": "dstrip3",
+      "title": "PAN",
+      "zone": "drum-channel",
+      "x": 3318,
+      "y": 1955,
+      "w": 322,
+      "h": 170
+    },
+    {
+      "id": "sampler",
+      "title": "SAMPLER",
+      "zone": "sampler-machine",
+      "x": 1270,
+      "y": 2540,
+      "w": 466,
+      "h": 182
+    },
+    {
+      "id": "sstrip0",
+      "title": "PLAY WINDOW",
+      "zone": "sampler-channel",
+      "x": 2190,
+      "y": 2745,
+      "w": 246.8,
+      "h": 170
+    },
+    {
+      "id": "sstrip1",
+      "title": "HIT ENV",
+      "zone": "sampler-channel",
+      "x": 2490.8,
+      "y": 2745,
+      "w": 246.8,
+      "h": 170
+    },
+    {
+      "id": "sstrip2",
+      "title": "TONE",
+      "zone": "sampler-channel",
+      "x": 2791.6,
+      "y": 2745,
+      "w": 246.8,
+      "h": 170
+    },
+    {
+      "id": "sstrip3",
+      "title": "LEVEL",
+      "zone": "sampler-channel",
+      "x": 3092.4,
+      "y": 2745,
+      "w": 246.8,
+      "h": 170
+    },
+    {
+      "id": "sstrip4",
+      "title": "PAN",
+      "zone": "sampler-channel",
+      "x": 3393.2,
+      "y": 2745,
+      "w": 246.8,
+      "h": 170
+    },
+    {
+      "id": "syn-eq",
+      "title": "EQ",
+      "zone": "fx-synth",
+      "x": 3880,
+      "y": 505,
+      "w": 156,
+      "h": 236
+    },
+    {
+      "id": "syn-dirt",
+      "title": "DIRT",
+      "zone": "fx-synth",
+      "x": 4060,
+      "y": 505,
+      "w": 156,
+      "h": 236
+    },
+    {
+      "id": "syn-wah",
+      "title": "WAH",
+      "zone": "fx-synth",
+      "x": 4240,
+      "y": 505,
+      "w": 156,
+      "h": 236
+    },
+    {
+      "id": "syn-phaser",
+      "title": "PHASER",
+      "zone": "fx-synth",
+      "x": 4420,
+      "y": 505,
+      "w": 156,
+      "h": 236
+    },
+    {
+      "id": "syn-flanger",
+      "title": "FLANGER",
+      "zone": "fx-synth",
+      "x": 4600,
+      "y": 505,
+      "w": 156,
+      "h": 236
+    },
+    {
+      "id": "syn-chorus",
+      "title": "CHORUS",
+      "zone": "fx-synth",
+      "x": 4780,
+      "y": 505,
+      "w": 156,
+      "h": 236
+    },
+    {
+      "id": "syn-delay",
+      "title": "DELAY",
+      "zone": "fx-synth",
+      "x": 4960,
+      "y": 505,
+      "w": 156,
+      "h": 236
+    },
+    {
+      "id": "syn-reverb",
+      "title": "REVERB",
+      "zone": "fx-synth",
+      "x": 5140,
+      "y": 505,
+      "w": 156,
+      "h": 236
+    },
+    {
+      "id": "syn-duck",
+      "title": "DUCK",
+      "zone": "fx-synth",
+      "x": 5320,
+      "y": 505,
+      "w": 156,
+      "h": 236
+    },
+    {
+      "id": "syn-pan",
+      "title": "SYNTH PAN",
+      "zone": "fx-synth",
+      "x": 5500,
+      "y": 505,
+      "w": 156,
+      "h": 236
+    },
+    {
+      "id": "drm-eq",
+      "title": "EQ",
+      "zone": "fx-drum",
+      "x": 3880,
+      "y": 1922,
+      "w": 156,
+      "h": 236
+    },
+    {
+      "id": "drm-comp",
+      "title": "COMP",
+      "zone": "fx-drum",
+      "x": 4060,
+      "y": 1922,
+      "w": 156,
+      "h": 236
+    },
+    {
+      "id": "drm-phaser",
+      "title": "PHASER",
+      "zone": "fx-drum",
+      "x": 4420,
+      "y": 1922,
+      "w": 156,
+      "h": 236
+    },
+    {
+      "id": "drm-delay",
+      "title": "DELAY",
+      "zone": "fx-drum",
+      "x": 4960,
+      "y": 1922,
+      "w": 156,
+      "h": 236
+    },
+    {
+      "id": "drm-reverb",
+      "title": "REVERB",
+      "zone": "fx-drum",
+      "x": 5140,
+      "y": 1922,
+      "w": 156,
+      "h": 236
+    },
+    {
+      "id": "smp-eq",
+      "title": "EQ",
+      "zone": "fx-sampler",
+      "x": 3880,
+      "y": 2712,
+      "w": 156,
+      "h": 236
+    },
+    {
+      "id": "smp-dirt",
+      "title": "DIRT",
+      "zone": "fx-sampler",
+      "x": 4060,
+      "y": 2712,
+      "w": 156,
+      "h": 236
+    },
+    {
+      "id": "smp-phaser",
+      "title": "PHASER",
+      "zone": "fx-sampler",
+      "x": 4420,
+      "y": 2712,
+      "w": 156,
+      "h": 236
+    },
+    {
+      "id": "smp-flanger",
+      "title": "FLANGER",
+      "zone": "fx-sampler",
+      "x": 4600,
+      "y": 2712,
+      "w": 156,
+      "h": 236
+    },
+    {
+      "id": "smp-chorus",
+      "title": "CHORUS",
+      "zone": "fx-sampler",
+      "x": 4780,
+      "y": 2712,
+      "w": 156,
+      "h": 236
+    },
+    {
+      "id": "smp-delay",
+      "title": "DELAY",
+      "zone": "fx-sampler",
+      "x": 4960,
+      "y": 2712,
+      "w": 156,
+      "h": 236
+    },
+    {
+      "id": "smp-reverb",
+      "title": "REVERB",
+      "zone": "fx-sampler",
+      "x": 5140,
+      "y": 2712,
+      "w": 156,
+      "h": 236
+    },
+    {
+      "id": "smp-duck",
+      "title": "DUCK",
+      "zone": "fx-sampler",
+      "x": 5320,
+      "y": 2712,
+      "w": 156,
+      "h": 236
+    },
+    {
+      "id": "dj",
+      "title": "DJ FILTER",
+      "zone": "master-chain",
+      "x": 5880,
+      "y": 1590,
+      "w": 230,
+      "h": 220
+    },
+    {
+      "id": "mcomp",
+      "title": "MASTER COMP",
+      "zone": "master-chain",
+      "x": 6160,
+      "y": 1590,
+      "w": 240,
+      "h": 220
+    },
+    {
+      "id": "vol",
+      "title": "MASTER VOL",
+      "zone": "master-chain",
+      "x": 6470,
+      "y": 1590,
+      "w": 210,
+      "h": 220
+    },
+    {
+      "id": "scope",
+      "title": "SCOPE",
+      "zone": "master-chain",
+      "x": 6300,
+      "y": 1270,
+      "w": 260,
+      "h": 140
+    },
+    {
+      "id": "direct",
+      "title": "DIRECT OUT",
+      "zone": "master-chain",
+      "x": 6620,
+      "y": 1200,
+      "w": 280,
+      "h": 148
+    },
+    {
+      "id": "export",
+      "title": "RECORD / EXPORT",
+      "zone": "master-chain",
+      "x": 6560,
+      "y": 1930,
+      "w": 300,
+      "h": 158
+    }
+  ]
+}

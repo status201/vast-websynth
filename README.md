@@ -65,7 +65,24 @@ Vanilla TypeScript + Vite, zero runtime dependencies.
 </p>
 
 <p align="center">
-  Every control that isn't obvious gets its own help badge: tap ⓘ, then any badge, for what it does and how to use it.
+  Every control that isn't obvious gets its own help badge: tap ⓘ, then any badge, for what it does and how to use it — and, for anything on the signal path, <strong>Show in the signal flow</strong> to see where it sits in the whole instrument.
+</p>
+
+## Signal flow
+
+Every path from a key press to the speakers on one poster: the inputs, notes and
+clock, the machines, the synth voice with its modulation, the drum and sampler
+channels, the three insert chains and the master section. Open it on its own to
+zoom in — or, in the app, open **Help & About → Explore the signal flow** to
+click through it area by area.
+
+<p align="center">
+  <a href="docs/signal-flow-light.svg">
+    <picture>
+      <source media="(prefers-color-scheme: dark)" srcset="docs/signal-flow-dark.svg">
+      <img src="docs/signal-flow-light.svg" alt="VAST G1-J8 signal-flow diagram: inputs, sequencers, the eight-voice synth, drum machine, sampler, FX rack and master section, ending in a stereo output" width="960">
+    </picture>
+  </a>
 </p>
 
 ## Features
@@ -422,6 +439,8 @@ src/
                      the sample studio: record-sound-modal.ts frames record-screen.ts,
                      studio-waveform.ts, studio-tools.ts (the four tool tabs) and studio-transport.ts
     onboarding/      the guided tour, the info badges and the in-app help text (help-content.ts)
+    signal-flow/     the zoomable signal-flow map: camera (view maths), zones (the manifest's
+                     walks), the map, its dialog, open.ts (the lazy door) and help-links.ts
     styles/          CSS Modules (*.module.css — each one a single @layer block, so
                      import order never decides which wins; see specs css-cascade-layers)
   styles/            Global CSS: layers.css (the cascade layer order), base.css (reset),
@@ -431,8 +450,9 @@ public/              static files served as-is: sw.js (offline), theme-boot.js, 
                      params.{json,md} and llms.txt (generated), icons
 public/worklets/     ladder-filter.js, compressor.js, recorder.js, sync-osc.js, flanger.js, reverse-delay.js (audio thread)
 specs/               the architecture: architecture.md, features/, recipes/, decisions/ (ADRs)
+docs/                the signal-flow poster (light + dark SVG) and its zone manifest — generated
 scripts/             build and dev tooling: release, benches, generators, spec-lint, sdd-guard,
-                     css-cascade/, and mcp/ (the MCP server)
+                     css-cascade/, diagram/ (the signal-flow poster) and mcp/ (the MCP server)
 tests/               Vitest unit tests, mirroring src/ (outside src/ on purpose)
 e2e/                 Playwright end-to-end specs (configs at the root: playwright.config.ts, pw-chrome.config.ts)
 ```

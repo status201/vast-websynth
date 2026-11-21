@@ -48,6 +48,9 @@ where a badge may show, and which controls carry one.
   `TopicId` and the `data-help="<topic>"` anchors — because an info badge opens
   a help topic, and the anchors are spread across every panel file. The boundary
   is deliberate, not drift.
+  A topic on the signal path also offers **Show in the signal flow**, which
+  opens the map at that part of the instrument
+  ([signal-flow-map](signal-flow-map.md) REQ-a-help-topic-shows-its-place).
 
 - **REQ-the-info-button-is-a-toggle** (v4, rewritten v15) — **The header's ⓘ
   button (`info-badges`) is a pure toggle.** One click shows the badges, one

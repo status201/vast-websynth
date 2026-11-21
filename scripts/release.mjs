@@ -396,6 +396,7 @@ async function main() {
   arrow(`package-lock.json  ${c.dim(`version → ${targetVersion}`)}`);
   arrow(`CHANGELOG.md       ${c.dim(`promote [Unreleased] → [${targetVersion}] - ${today()}`)}`);
   arrow(`${notesName}    ${c.dim('release notes (for gh --notes-file)')}`);
+  arrow(`docs/signal-flow-{light,dark}.svg  ${c.dim('redrawn: they print the version')}`);
   if (!skipBuild) {
     arrow(`dist/           ${c.dim('build via npm run build')}`);
     arrow(`${zipName}    ${c.dim('zip of dist/ (GitHub release asset)')}`);
@@ -448,11 +449,17 @@ async function main() {
   // via --notes-file, so the markdown notes never need shell-escaping.
   writeFileSync(NOTES_PATH, notes + '\n');
 
+  // The signal-flow posters print the version (signal-flow-map.md): redraw them
+  // from the bumped package.json now, before the build bundles them into the map.
+  const diagram = spawnSync(process.execPath, [fileURLToPath(new URL('scripts/diagram/signal-flow.mjs', root))], { cwd: ROOT_DIR, encoding: 'utf8' });
+  if (diagram.status !== 0) die(`Failed to redraw the signal-flow posters:\n${diagram.stderr || diagram.error?.message}`);
+
   heading('Files written');
   ok('package.json');
   if (lockBumped) ok('package-lock.json');
   ok('CHANGELOG.md');
   ok(notesName);
+  ok('docs/signal-flow-light.svg, docs/signal-flow-dark.svg');
 
   // --- Build + zip dist/ -----------------------------------------------------
   if (skipBuild) {
@@ -482,7 +489,7 @@ async function main() {
   const commitMsg = `[RELEASE] ${tag}`;
   heading('Next: commit, tag & push');
   commands([
-    c.cyan('git') + ' add package.json package-lock.json CHANGELOG.md',
+    c.cyan('git') + ' add package.json package-lock.json CHANGELOG.md docs/signal-flow-light.svg docs/signal-flow-dark.svg',
     c.cyan('git') + ` commit -m ${JSON.stringify(commitMsg)}`,
     c.cyan('git') + ` tag -a ${tag} -m ${JSON.stringify(tag)}`,
     c.cyan('git') + ' push origin main --follow-tags',

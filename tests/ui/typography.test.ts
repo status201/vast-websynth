@@ -26,6 +26,8 @@ const DISPLAY_TYPE = [
   'modal.module.css .title',
   'modal.module.css .tag',
   'tour.module.css .calloutTitle',
+  // The signal-flow map's panel heading: the picked area's name (signal-flow-map.md).
+  'signal-flow.module.css .title',
   // The info badge's content is the letter `i`, not a number — the serif italic
   // *is* the info mark. Display type doing its job; not a REQ-mono-is-readouts-and-pasted-text case.
   'tour.module.css .badge',

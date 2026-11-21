@@ -375,6 +375,7 @@ specs/
     keyboard-range.md  ·  on-screen keyboard size: octaves follow its width, key height is bounded by key width
     testids.md         ·  the stable `data-testid` contract + full catalogue
     onboarding.md      ·  guided tour, help copy, About
+    signal-flow-map.md ·  the zoomable signal-flow poster in About: zones, Prev/Next tour, Escape steps out
     info-badges.md     ·  per-control ⓘ badges, the header toggle, where a badge may show
     play-button-blink.md ·  Play LED states: beat blink, idle attract pulse, demo cue
     empty-play-hint.md ·  "nothing to play" modal on empty Play + persisted opt-out

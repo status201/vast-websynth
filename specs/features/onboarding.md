@@ -202,8 +202,10 @@ thing.
   for help.** With the chooser modal gone, the About modal carries a full-width
   **"Take the guided tour"** button (testid `start-tour`) placed **between the
   version/credits block and the Keyboard Shortcuts header** — above the
-  shortcuts, because replaying the tour is the one action in the modal and
-  everything below it is reference. It is the only tour-replay route in the app;
+  shortcuts, because the actions come before the reference below them. The
+  other way in sits right under it: **"Explore the signal flow"** (testid
+  `open-signal-flow`), the zoomable map of the whole instrument
+  ([signal-flow-map](signal-flow-map.md)). The tour button is the only tour-replay route in the app;
   the first-visit auto-launch (`websynth.onboarding.done`, `main.ts`) is
   unchanged and still calls the same `Onboarding.startTour`. `createAboutButton`
   therefore takes that hook as an injected dep, the same way the tour takes its

@@ -135,8 +135,9 @@ requestOfflineRedownload(): void    # sessionStorage websynth.offline.redownload
 ```yaml
 src/ui/components/about-modal.ts:
   buildModal: card children order ->            # v3: tourBtn + the folded key list
-    [brand, meta, tourBtn, shortcuts sec, layout row, keys,
+    [brand, meta, tourBtn, flowBtn, shortcuts sec, layout row, keys,
      play-offline section, FACTORY-RESET BUTTON, debug.header, debug.body, closeBtn]
+    # flowBtn: "Explore the signal flow" — features/signal-flow-map.md
     # v4: play-offline section — features/play-offline.md REQ-the-about-card-hosts-play-offline
     # `brand` is the shared block (features/brand.md), not a title/tag pair;
     # `layout row` is the gear's picker (features/keyboard-layout.md), which

@@ -1,0 +1,287 @@
+/* The signal-flow map (specs/features/signal-flow-map.md): a near-fullscreen
+   dialog holding the poster stage and the panel beside it. The poster brings
+   its own colours (light or dark, by the theme's scheme); everything drawn
+   here — hotspots, labels, panel — is tokens. */
+@layer components {
+  /* The card, filled: same footprint as the sample studio's. */
+  .card[role='dialog'] {
+    width: calc(calc(100vw / var(--ui-zoom, 1)) - 32px);
+    height: calc(calc(100vh / var(--ui-zoom, 1)) - 32px);
+    max-height: none;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+    padding: 14px 18px 16px;
+  }
+
+  .body {
+    flex: 1;
+    min-height: 0;
+    display: flex;
+    margin-top: 10px;
+  }
+
+  .map {
+    flex: 1;
+    min-width: 0;
+    min-height: 0;
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) 300px;
+    gap: 14px;
+  }
+
+  /* ── the stage ───────────────────────────────────────────────────────── */
+
+  .stage {
+    position: relative;
+    min-width: 0;
+    min-height: 0;
+    overflow: hidden;
+    border: 1px solid var(--panel-border);
+    border-radius: 8px;
+    background: var(--poster-bg, var(--bg-deep));
+    cursor: grab;
+    touch-action: none;
+    user-select: none;
+  }
+
+  .stage:focus-visible {
+    outline: 2px solid var(--accent-secondary);
+    outline-offset: 2px;
+  }
+
+  .dragging {
+    cursor: grabbing;
+  }
+
+  .poster {
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+    display: block;
+  }
+
+  /* A hotspot: an outline that keeps its screen width at any zoom. */
+  .hot rect {
+    fill: color-mix(in srgb, var(--accent-secondary) 5%, transparent);
+    stroke: var(--accent-secondary);
+    stroke-width: 2px;
+    stroke-dasharray: 10 6;
+    vector-effect: non-scaling-stroke;
+    cursor: pointer;
+  }
+
+  .hot:hover rect {
+    fill: color-mix(in srgb, var(--accent-secondary) 16%, transparent);
+    stroke-dasharray: none;
+  }
+
+  /* A leaf's neighbours: present, but not shouting over the detail. */
+  .near rect {
+    fill: transparent;
+    stroke-opacity: 0.55;
+  }
+
+  .labels.near .label {
+    opacity: 0.7;
+    font-size: 12px;
+  }
+
+  /* A deep link's ring around a block (REQ-a-help-topic-shows-its-place). It
+     pulses a few times on arrival to catch the eye, then stays put. */
+  .ring {
+    fill: color-mix(in srgb, var(--accent) 12%, transparent);
+    stroke: var(--accent);
+    stroke-width: 4px;
+    vector-effect: non-scaling-stroke;
+    pointer-events: none;
+    animation: ringPulse 0.9s ease-in-out 0.45s 3;
+  }
+
+  @keyframes ringPulse {
+    50% {
+      stroke-width: 9px;
+      stroke-opacity: 0.45;
+    }
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .ring {
+      animation: none;
+    }
+  }
+
+  .ringed {
+    margin: 0;
+    font-size: 11.5px;
+    font-weight: 700;
+    letter-spacing: 0.08em;
+    color: var(--accent);
+  }
+
+  /* The labels live in screen px, placed by script (--x, --y, --w). */
+  .labels {
+    position: absolute;
+    inset: 0;
+    pointer-events: none;
+    overflow: hidden;
+  }
+
+  .label {
+    position: absolute;
+    left: 0;
+    top: 0;
+    max-width: var(--w, 200px);
+    transform: translate(var(--x, 0), var(--y, 0));
+    padding: 3px 8px;
+    border-radius: 4px;
+    background: var(--panel);
+    border: 1px solid var(--accent-secondary);
+    color: var(--text);
+    font-size: 13px;
+    font-weight: 700;
+    line-height: 1.25;
+    box-shadow: var(--panel-shadow);
+  }
+
+  .zoom {
+    position: absolute;
+    right: 10px;
+    top: 10px;
+    display: flex;
+    gap: 6px;
+  }
+
+  .zoom > button {
+    min-width: 34px;
+    height: 32px;
+    padding: 0 10px;
+    font-size: 13px;
+  }
+
+  /* ── the panel ───────────────────────────────────────────────────────── */
+
+  .panel {
+    min-height: 0;
+    overflow-y: auto;
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    padding-right: 4px;
+  }
+
+  .crumbs {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 2px 6px;
+    font-size: 11px;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    color: var(--text-faint);
+  }
+
+  .crumb {
+    padding: 2px 0;
+    border: none;
+    background: none;
+    color: var(--text-dim);
+    font: inherit;
+    letter-spacing: inherit;
+    text-transform: inherit;
+    cursor: pointer;
+  }
+
+  .crumb:hover {
+    color: var(--accent-secondary);
+    text-decoration: underline;
+  }
+
+  .crumbSep {
+    color: var(--text-hint);
+  }
+
+  .title {
+    margin: 0;
+    font-family: var(--serif);
+    font-size: 21px;
+    font-weight: 900;
+    letter-spacing: 0.06em;
+    color: var(--accent-secondary);
+  }
+
+  .blurb {
+    margin: 0;
+    font-size: 13.5px;
+    line-height: 1.55;
+    color: var(--text);
+  }
+
+  .steps {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+
+  .steps > button {
+    flex: 1;
+  }
+
+  .count {
+    min-width: 52px;
+    text-align: center;
+    font-family: var(--mono);
+    font-size: 12px;
+    color: var(--text-dim);
+  }
+
+  .listHead {
+    margin-top: 6px;
+    font-size: 11px;
+    font-weight: 700;
+    letter-spacing: 0.2em;
+    text-transform: uppercase;
+    color: var(--text-faint);
+  }
+
+  .list {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+  }
+
+  .list > button {
+    justify-content: flex-start;
+    text-align: left;
+  }
+
+  .hint {
+    margin: auto 0 0;
+    padding-top: 8px;
+    font-size: 11.5px;
+    line-height: 1.5;
+    color: var(--text-hint);
+  }
+
+  /* Narrow screens: the panel goes under the stage. */
+  @container viewport (max-width: 720px) {
+    .map {
+      grid-template-columns: minmax(0, 1fr);
+      grid-template-rows: minmax(0, 1fr) auto;
+    }
+
+    .panel {
+      max-height: calc(38vh / var(--ui-zoom, 1));
+    }
+
+    .list {
+      flex-direction: row;
+      flex-wrap: wrap;
+    }
+
+    .hint {
+      display: none;
+    }
+  }
+}

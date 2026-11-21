@@ -13,6 +13,8 @@ import styles from '../styles/tour.module.css';
 import { HELP_TOPICS, type TopicId } from './help-content';
 import type { ParamBus } from '../../state/params';
 import { localRect, viewportHeight, type LocalRect } from '../ui-scale';
+import { SIGNAL_FLOW_LINKS } from '../signal-flow/help-links';
+import { openSignalFlow } from '../signal-flow/open';
 
 type Placement = 'corner' | 'corner-left' | 'after';
 
@@ -386,6 +388,22 @@ export class InfoBadges {
       }));
     }
     modal.body.appendChild(content);
+    // Where this topic sits in the whole instrument (signal-flow-map.md
+    // REQ-a-help-topic-shows-its-place) — only for topics on the signal path.
+    const link = SIGNAL_FLOW_LINKS[id];
+    if (link) {
+      modal.body.appendChild(
+        createButton({
+          label: 'Show in the signal flow',
+          className: `${switchStyles.root!} ${Modal.closeBtnClass}`,
+          testId: 'help-signal-flow',
+          onClick: () => {
+            modal.close();
+            void openSignalFlow(link);
+          },
+        }),
+      );
+    }
     modal.body.appendChild(
       createButton({
         label: 'Close',
