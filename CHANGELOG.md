@@ -30,7 +30,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
   Drag, scroll or pinch to look around; Escape steps back out. It follows your
   theme (light or dark) and downloads only when you open it.
 - **Show in the signal flow.** Every ⓘ help topic about part of the sound —
-  the filter, an envelope, the delay, the master compressor and some seventy
+  the filter, an envelope, the delay, the master compressor and some eighty
   more — has a button that opens the signal-flow map right there, with that
   block ringed.
 
