@@ -11,9 +11,6 @@ related:
   - ../features/song-mode
 ```
 
-> ADR `status` is its own decision lifecycle (`proposed | accepted | superseded
-> by adr-XXX | deprecated`), distinct from a feature spec's lifecycle.
-
 ## Context / Forces
 
 The `ParamBus` ([ADR-001](adr-001-parambus-over-redux.md)) is deliberately

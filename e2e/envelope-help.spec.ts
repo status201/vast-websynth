@@ -1,5 +1,5 @@
 import { test, expect } from '@playwright/test';
-import { startAudio } from './helpers';
+import { gotoAndStart } from './helpers';
 
 /**
  * The ADSR graph under the AMP / FILTER ENV info badges (envelope-help-graph.md):
@@ -10,15 +10,7 @@ import { startAudio } from './helpers';
 type Bridge = { __synth: { bus: { set(id: string, v: number): void } } };
 
 test('AMP ENV and FILTER ENV badges draw the current envelope', async ({ page }) => {
-  await page.addInitScript(() => {
-    try {
-      localStorage.setItem('websynth.onboarding.done', '1'); // suppress auto-tour
-    } catch {
-      /* ignore */
-    }
-  });
-  await page.goto('/');
-  await startAudio(page);
+  await gotoAndStart(page);
   await expect(page.getByTestId('tour-callout')).toBeHidden();
   await page.evaluate(() => {
     const bus = (window as unknown as Bridge).__synth.bus;

@@ -18,6 +18,7 @@ import modalStyles from '../styles/modal.module.css';
 import { UI_ICONS, iconLabel, iconTextEl, type IconName } from './ui-icons';
 import { NOT_DOWNLOADED_YET, PLAY_OFFLINE_HINT } from '../offline-wording';
 import { viewportWidth } from '../ui-scale';
+import { el } from '../dom';
 
 type El = HTMLElement;
 
@@ -40,13 +41,6 @@ const CONNECT_FAIL_MSG =
   + 'through Windows Defender Firewall, or set the Wi-Fi network to Private. A VPN or a virtual '
   + 'network adapter (WSL, Docker, Hyper-V, VirtualBox) can also block it. Make sure both devices '
   + 'are on the same Wi-Fi with client isolation ("AP isolation") off. See the connection details below.';
-
-function el<K extends keyof HTMLElementTagNameMap>(tag: K, className?: string, text?: string): HTMLElementTagNameMap[K] {
-  const e = document.createElement(tag);
-  if (className) e.className = className;
-  if (text !== undefined) e.textContent = text;
-  return e;
-}
 
 /** Sans-serif body/intro/instruction text — the type rule reserves serif for
  *  titles, subtitles and taglines (webrtc-sync REQ-pairing-is-serverless-and-non-trickle). */

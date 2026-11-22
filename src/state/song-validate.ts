@@ -20,6 +20,7 @@
  * tests (every demo must pass `validateSongFile`).
  */
 import type { SongFile } from './song';
+import type { SeqStep, BendShape } from './patterns';
 import { KNOWN_SONG_VERSIONS } from './song-version';
 import {
   MIN_BANK_COUNT, MAX_BANK_COUNT, REST, SEQ_LENGTH, SEQ_TRACK_COUNT, DRUM_TRACK_COUNT,
@@ -83,53 +84,75 @@ export function unresolvedTargets(file: Pick<SongFile, 'xy' | 'motionAssigns' | 
 type CellValidator = (path: string, value: unknown, add: AddError) => void;
 
 
-/**
- * Optional number in [0,1] — absent is fine (loader defaults it), present is checked.
- *
- * `song-author.ts` has a `checkUnit`/`checkRatchet` pair under the same names and a
- * *different* signature (`number | undefined`), and that is deliberate: this
- * validator **refuses** a canonical file, while the dialect **coerces and reports**
- * (ADR-013). They are not two copies of one helper — do not merge them into
- * `validate-utils.ts` (untrusted-input.md REQ-the-limits-are-one-module).
+/*
+ * The per-step field checks, shared with the authoring dialect (`song-author.ts`
+ * imports them). Each reports a bad value and returns the good one. This
+ * validator ignores the return and refuses on any report; the dialect keeps the
+ * return and imports the rest of the song (ADR-013). Refuse-or-coerce is the
+ * caller's decision, so the range and the message are written once
+ * (shared-helpers.md).
  */
-function checkUnit(path: string, v: unknown, add: AddError): void {
-  if (v === undefined) return;
+
+/** Optional number in [0,1] — absent is fine (loader defaults it), present is checked. */
+export function checkUnit(path: string, v: unknown, add: AddError): number | undefined {
+  if (v === undefined) return undefined;
   if (typeof v !== 'number' || !Number.isFinite(v) || v < 0 || v > 1) {
     add(`${path} must be a number 0..1 (got ${describe(v)})`);
+    return undefined;
   }
+  return v;
 }
 
-function checkRatchet(path: string, v: unknown, add: AddError): void {
-  if (v === undefined) return;
+export function checkRatchet(path: string, v: unknown, add: AddError): number | undefined {
+  if (v === undefined) return undefined;
   if (typeof v !== 'number' || !Number.isInteger(v) || v < 1 || v > MAX_RATCHET) {
     add(`${path} must be an integer 1..${MAX_RATCHET} (got ${describe(v)})`);
+    return undefined;
   }
+  return v;
 }
 
 /** Signed integer notches, -MICRO_MAX..+MICRO_MAX (step-settings.md REQ-a-step-carries-a-micro-offset). */
-function checkMicro(path: string, v: unknown, add: AddError): void {
-  if (v === undefined) return;
+export function checkMicro(path: string, v: unknown, add: AddError): number | undefined {
+  if (v === undefined) return undefined;
   if (typeof v !== 'number' || !Number.isInteger(v) || v < -MICRO_MAX || v > MICRO_MAX) {
     add(`${path} must be an integer ${-MICRO_MAX}..${MICRO_MAX} (got ${describe(v)})`);
+    return undefined;
   }
+  return v;
 }
 
 /** Seq-only bend: integer semitones within ±BEND_MAX and a known shape
- *  (step-settings.md REQ-a-seq-step-carries-a-bend). Both optional on disk. */
-function checkBend(path: string, c: Record<string, unknown>, add: AddError): void {
+ *  (step-settings.md REQ-a-seq-step-carries-a-bend). Both optional on disk;
+ *  returns the fields that passed. */
+export function readBend(
+  path: string, c: Record<string, unknown>, add: AddError,
+): Partial<Pick<SeqStep, 'bend' | 'bendShape'>> {
+  const out: Partial<Pick<SeqStep, 'bend' | 'bendShape'>> = {};
   const v = c.bend;
-  if (v !== undefined && (typeof v !== 'number' || !Number.isInteger(v) || v < -BEND_MAX || v > BEND_MAX)) {
-    add(`${path}.bend must be an integer ${-BEND_MAX}..${BEND_MAX} (got ${describe(v)})`);
+  if (v !== undefined) {
+    if (typeof v !== 'number' || !Number.isInteger(v) || v < -BEND_MAX || v > BEND_MAX) {
+      add(`${path}.bend must be an integer ${-BEND_MAX}..${BEND_MAX} (got ${describe(v)})`);
+    } else {
+      out.bend = v;
+    }
   }
   const s = c.bendShape;
-  if (s !== undefined && !(typeof s === 'string' && (BEND_SHAPES as readonly string[]).includes(s))) {
-    add(`${path}.bendShape must be one of ${BEND_SHAPES.join(', ')} (got ${describe(s)})`);
+  if (s !== undefined) {
+    if (typeof s === 'string' && (BEND_SHAPES as readonly string[]).includes(s)) out.bendShape = s as BendShape;
+    else add(`${path}.bendShape must be one of ${BEND_SHAPES.join(', ')} (got ${describe(s)})`);
   }
+  return out;
 }
 
-function checkBool(path: string, v: unknown, add: AddError, optional: boolean): void {
-  if (v === undefined && optional) return;
-  if (typeof v !== 'boolean') add(`${path} must be a boolean (got ${describe(v)})`);
+/** A boolean; with `optional`, absent is fine too. Returns it when it passed. */
+export function checkBool(path: string, v: unknown, add: AddError, optional: boolean): boolean | undefined {
+  if (v === undefined && optional) return undefined;
+  if (typeof v !== 'boolean') {
+    add(`${path} must be a boolean (got ${describe(v)})`);
+    return undefined;
+  }
+  return v;
 }
 
 /** Shared per-step settings — all optional on disk (additive versioning). */
@@ -159,7 +182,7 @@ const validateSeqStep: CellValidator = (path, value, add) => {
     add(`${path}.note must be an integer MIDI note ${MIDI_NOTE_MIN}..${MIDI_NOTE_MAX} (got ${describe(value.note)})`);
   }
   checkStepSettings(path, value, add);
-  checkBend(path, value, add);
+  readBend(path, value, add);
 };
 
 const validateTriggerCell: CellValidator = (path, value, add) => {

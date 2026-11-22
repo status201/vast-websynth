@@ -5,14 +5,7 @@ import { ParamBus, registerDefaults } from '../../src/state/params';
 import { DIRT_TYPE_LABELS } from '../../src/state/dirt';
 import ddStyles from '../../src/ui/styles/dropdown.module.css';
 import fxStyles from '../../src/ui/styles/fx-rack.module.css';
-
-/** Open the Dropdown at (or inside) `el` if it is not open: option buttons are
- *  built on open (dropdown.md REQ-options-are-built-when-the-menu-opens). */
-function openDd<T extends HTMLElement>(el: T): T {
-  const dd = el.classList.contains('dropdown') ? el : el.querySelector<HTMLElement>('.dropdown');
-  if (dd && !dd.classList.contains('open')) dd.querySelector<HTMLButtonElement>('button')!.click();
-  return el;
-}
+import { openDd } from './open-dropdown';
 
 /**
  * dirt-types.md REQ-dirt-type-is-the-panel-title and REQ-dirt-type-testids —

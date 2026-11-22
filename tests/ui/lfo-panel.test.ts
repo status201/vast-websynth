@@ -2,14 +2,7 @@ import { describe, it, expect } from 'vitest';
 import { buildLfoPanel } from '../../src/ui/panels/lfo-panel';
 import { LFO_DEST_LABELS, ParamBus, registerDefaults } from '../../src/state/params';
 import { SYNC_LABELS } from '../../src/utils/tempo';
-
-/** Open the Dropdown at (or inside) `el` if it is not open: option buttons are
- *  built on open (dropdown.md REQ-options-are-built-when-the-menu-opens). */
-function openDd<T extends HTMLElement>(el: T): T {
-  const dd = el.classList.contains('dropdown') ? el : el.querySelector<HTMLElement>('.dropdown');
-  if (dd && !dd.classList.contains('open')) dd.querySelector<HTMLButtonElement>('button')!.click();
-  return el;
-}
+import { openDd } from './open-dropdown';
 
 /**
  * The two-page LFO panel: mutually exclusive destinations (lfo.md REQ-destinations-are-no-longer-exclusive) and

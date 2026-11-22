@@ -34,22 +34,14 @@
 //     `camelCase`) is an identifier the code still has (`staleNamesIn`)
 // `version` not being a positive integer is a warning, not a failure.
 
-import { execFileSync } from 'node:child_process';
 import { readFileSync, readdirSync, existsSync } from 'node:fs';
 import path from 'node:path';
 import { citationsIn, hasReq, staleNamesIn } from './lib/spec-xref.mjs';
 import { globToRegExp } from './lib/glob.mjs';
+import { git, readStdin, parseJson } from './lib/cli.mjs';
 import { checkSpecReqs, declaredReqs, duplicateSlugs } from './lib/spec-reqs.mjs';
 import { legacyCeiling } from './lib/req-legacy.mjs';
 import { checkSpecLean, danglingRelated } from './lib/spec-lean.mjs';
-
-function git(args, cwd) {
-  try {
-    return execFileSync('git', args, { cwd, encoding: 'utf8' }).trim();
-  } catch {
-    return '';
-  }
-}
 
 const ROOT = git(['rev-parse', '--show-toplevel'], process.cwd()) || process.cwd();
 const SPECS = path.join(ROOT, 'specs');
@@ -440,20 +432,6 @@ function lint(failExit) {
 }
 
 /** Did the working tree touch anything under specs/ this turn? */
-async function readStdin() {
-  const chunks = [];
-  for await (const c of process.stdin) chunks.push(c);
-  return Buffer.concat(chunks).toString('utf8');
-}
-
-function parseJson(json) {
-  try {
-    return JSON.parse(json);
-  } catch {
-    return {};
-  }
-}
-
 // Stop-hook mode: lint unconditionally (a changed-this-turn gate misses turns
 // that end after `git commit` — the tree is clean by then), but never loop on
 // ourselves; block (exit 2) on failure so the agent fixes the spec before finishing.

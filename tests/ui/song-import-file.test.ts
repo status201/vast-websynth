@@ -1,5 +1,6 @@
 // @vitest-environment jsdom
 import { describe, it, expect, afterEach, vi } from 'vitest';
+import { anything } from './song-panel-harness';
 import { buildSongPanel } from '../../src/ui/panels/song-panel';
 import { ParamBus, registerDefaults } from '../../src/state/params';
 import { UiBridge } from '../../src/ui/ui-bridge';
@@ -17,20 +18,6 @@ import { MAX_SONG_JSON_BYTES, MAX_ZIP_TOTAL_BYTES } from '../../src/state/limits
  * every call returns one, and it reads as 0 / '' where a primitive is wanted.
  * The refusal path under test never gets as far as the engine.
  */
-function anything(): unknown {
-  const fn = function () { /* stub */ };
-  const proxy: unknown = new Proxy(fn, {
-    get: (_t, key) => {
-      if (key === Symbol.toPrimitive) return () => 0;
-      if (key === Symbol.iterator) return function* () { /* empty */ };
-      if (key === 'then') return undefined; // never a thenable
-      return proxy;
-    },
-    apply: () => proxy,
-  });
-  return proxy;
-}
-
 function panel() {
   const bus = new ParamBus();
   registerDefaults(bus);

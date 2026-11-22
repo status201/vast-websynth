@@ -1,5 +1,5 @@
 import { test, expect, type Page } from '@playwright/test';
-import { sessionDisplay, startAudio } from './helpers';
+import { sessionDisplay, startAudio, playing } from './helpers';
 
 /**
  * The empty-play hint (specs/features/empty-play-hint.md): pressing Play with
@@ -22,9 +22,6 @@ async function boot(page: Page): Promise<void> {
   await page.goto('/');
   await startAudio(page);
 }
-
-const playing = (page: Page) =>
-  page.evaluate(() => (window as any).__synth.engine.clock.playing as boolean);
 
 test.describe('empty-play hint', () => {
   test('Play on an empty boot shows the modal; Play a demo starts sound', async ({ page }) => {

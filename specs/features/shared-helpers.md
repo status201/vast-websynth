@@ -21,6 +21,8 @@ source:
   - src/audio/transport/lane-meter.ts
   - src/audio/effects/effect.ts
   - src/state/validate-utils.ts
+  - src/ui/dom.ts
+  - src/audio/recorder/buffer-dsp.ts
 ```
 
 ## Background / Why
@@ -214,10 +216,32 @@ gate: `public/params.json` and `public/params.md` must regenerate byte-identical
 
 The four payload validators share `state/validate-utils.ts`
 (`isObject`, `describeValue`, `MAX_ERRORS`, `AddError`) — `isObject` is a
-security predicate under ADR-015, and it had four copies. `checkUnit` /
-`checkRatchet` keep one copy each in `song-validate.ts` and `song-author.ts`:
-same names, different signatures, because the canonical validator refuses what
-the dialect coerces (ADR-013).
+security predicate under ADR-015, and it had four copies. The per-step checks
+`checkUnit` / `checkRatchet` / `checkMicro` / `checkBool` / `readBend` are
+exported by `state/song-validate.ts`, which the dialect already imports (only
+the two song parsers use them): each reports a bad value and returns the good
+one. The canonical validator ignores the return and
+refuses on any report; the dialect keeps the return and imports the rest of the
+song (ADR-013). Refusing versus coercing is the caller's decision, so the range
+and the message are written once and the two parsers cannot quote different
+bounds.
+
+Four smaller bodies follow the same rule:
+
+- **`el(tag, className?, text?)`** (`ui/dom.ts`) — the element factory five
+  hand-built surfaces (the song panel, its chain lanes, the sample studio, the
+  pairing modal, the signal-flow map) each declared privately. Text only, never
+  markup; the help widgets keep their own because theirs takes HTML.
+- **`peakOf(...channels)`** (`audio/recorder/buffer-dsp.ts`) — the recorder's
+  per-batch meter, the vocoder's gain staging and the normalizer each looped
+  for the largest absolute sample.
+- **`startDevServer` / `bootApp`** (`scripts/lib/bench-app.mjs`) — the two
+  benches *and* `readme-screenshots.mjs` spawn vite and get past the start gate
+  through these; the screenshot script's copy had kept `localhost`, which can
+  resolve to the address family vite is not listening on.
+- **`scripts/lib/cli.mjs`** — `flag` / `flags` (the scripts' argument parsing),
+  `git`, `readStdin` and `parseJson` (what the two hooks, `sdd-guard.mjs` and
+  `spec-lint.mjs`, each read their input with).
 
 ## Tests & verification
 

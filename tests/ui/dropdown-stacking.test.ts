@@ -25,10 +25,8 @@
 // select a dropdown root among its siblings — the v10 mod matrix regression —
 // so every stylesheet is checked for that form.
 import { describe, it, expect } from 'vitest';
-import { readdirSync, readFileSync } from 'node:fs';
-import { fileURLToPath } from 'node:url';
+import { readRules } from '../css-source';
 
-const STYLE_DIRS = ['../../src/ui/styles', '../../src/styles'];
 const DROPDOWN_CSS = 'dropdown.module.css';
 
 /** Classes that land on the Dropdown root element itself:
@@ -50,31 +48,6 @@ const STACKING_PROPS = [
   'mix-blend-mode',
   'z-index',
 ];
-
-interface Rule {
-  file: string;
-  selector: string;
-  body: string;
-}
-
-/** Every top-level rule in the app's stylesheets. Same deliberately dumb parser
- *  as `typography.test.ts`: a drift pin, not a CSS engine. */
-function readRules(): Rule[] {
-  const rules: Rule[] = [];
-  for (const dir of STYLE_DIRS) {
-    const path = fileURLToPath(new URL(`${dir}/`, import.meta.url));
-    for (const file of readdirSync(path).filter((n) => n.endsWith('.css')).sort()) {
-      const css = readFileSync(path + file, 'utf8').replace(/\/\*[\s\S]*?\*\//g, '');
-      for (const m of css.matchAll(/([^{}]+)\{([^{}]*)\}/g)) {
-        for (const selector of m[1]!.split(',')) {
-          const s = selector.trim().replace(/\s+/g, ' ');
-          if (s) rules.push({ file, selector: s, body: m[2]! });
-        }
-      }
-    }
-  }
-  return rules;
-}
 
 /** A selector's *subject* — the element the rule actually styles, i.e. its
  *  rightmost compound. */
@@ -101,7 +74,7 @@ function mayHitDropdownRoot(selector: string): boolean {
 const declares = (body: string, prop: string) =>
   new RegExp(`(^|[;{\\s])${prop}\\s*:`).test(body);
 
-const rules = readRules();
+const rules = readRules({ splitSelectors: true });
 const dropdownRules = rules.filter((r) => r.file === DROPDOWN_CSS);
 
 describe('Dropdown stacking contexts (specs/features/dropdown.md REQ-a-dropdown-can-be-dimmed)', () => {

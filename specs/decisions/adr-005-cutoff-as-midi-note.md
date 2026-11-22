@@ -11,9 +11,6 @@ related:
   - ../features/envelopes
 ```
 
-> ADR `status` is its own decision lifecycle (`proposed | accepted | superseded
-> by adr-XXX | deprecated`), distinct from a feature spec's lifecycle.
-
 ## Context / Forces
 
 The ladder filter's cutoff is modulated from several sources at once — the filter

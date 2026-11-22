@@ -1,4 +1,5 @@
-import { describe, it, expect, beforeAll, vi } from 'vitest';
+import { describe, it, expect, beforeAll } from 'vitest';
+import { loadWorklet } from '../worklet-harness';
 import { LFO_DEST_SCALE } from '../../src/state/lfo-routing';
 import { MOD_DEST_SCALE, MOD_DST, MOD_ROWS } from '../../src/state/mod-routing';
 import { BEND_MAX } from '../../src/state/limits';
@@ -32,14 +33,7 @@ interface Descriptor { name: string; defaultValue: number }
 let Processor: (new (opts?: unknown) => ProcessorLike) & { parameterDescriptors: Descriptor[] };
 
 beforeAll(async () => {
-  vi.stubGlobal('sampleRate', SR);
-  vi.stubGlobal('AudioWorkletProcessor', class {
-    port = { onmessage: null, postMessage: () => {} };
-  });
-  vi.stubGlobal('registerProcessor', (_name: string, cls: unknown) => {
-    Processor = cls as typeof Processor;
-  });
-  await import('../../public/worklets/sync-osc.js' as string);
+  Processor = await loadWorklet<typeof Processor>('sync-osc', { sampleRate: SR });
 });
 
 const HARD = 1;

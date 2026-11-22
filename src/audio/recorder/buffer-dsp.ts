@@ -57,13 +57,25 @@ export function normalize(a: CapturedAudio, targetPeak = 0.99): CapturedAudio {
   return gain(a, targetPeak / peak);
 }
 
-/** Largest absolute sample across both channels. */
-function peakAbs(a: CapturedAudio): number {
+/**
+ * Largest absolute sample across any number of channels — a plain loop, since the
+ * recorder runs it per batch on the main thread. A NaN sample is skipped (it fails
+ * the comparison), so one bad sample cannot poison a gain computed from this.
+ */
+export function peakOf(...channels: Float32Array[]): number {
   let peak = 0;
-  for (const v of a.left) { const av = v < 0 ? -v : v; if (av > peak) peak = av; }
-  for (const v of a.right) { const av = v < 0 ? -v : v; if (av > peak) peak = av; }
+  for (const ch of channels) {
+    for (let i = 0; i < ch.length; i++) {
+      const v = ch[i]!;
+      const av = v < 0 ? -v : v;
+      if (av > peak) peak = av;
+    }
+  }
   return peak;
 }
+
+/** Largest absolute sample across both channels. */
+const peakAbs = (a: CapturedAudio): number => peakOf(a.left, a.right);
 
 /** Multiply every sample by `factor` (Boost uses ~2 ≈ +6 dB). Clamping is
  * deferred to the WAV/MP3 encoder, matching the rest of the pipeline. */

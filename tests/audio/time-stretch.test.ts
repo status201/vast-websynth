@@ -1,63 +1,18 @@
 import { describe, it, expect } from 'vitest';
+import { SR, cap, sine, estimateHz, allFinite } from './signal';
 import { timeStretch, fitToFrames, type StretchMode } from '../../src/audio/recorder/time-stretch';
 import {
   MAX_STRETCH_OUTPUT_FRAMES,
   MIN_STRETCH_RATIO,
   MAX_STRETCH_RATIO,
 } from '../../src/state/limits';
-import type { CapturedAudio } from '../../src/audio/recorder/node';
 
-const SR = 48000;
 const MODES: StretchMode[] = ['rhythmic', 'tonal'];
-
-function cap(left: Float32Array, right?: Float32Array, sampleRate = SR): CapturedAudio {
-  return { left, right: right ?? left.slice(), sampleRate };
-}
-
-/** A steady sine of `hz`, `frames` long. */
-function sine(hz: number, frames: number, sampleRate = SR): Float32Array {
-  const out = new Float32Array(frames);
-  for (let i = 0; i < frames; i++) out[i] = Math.sin((2 * Math.PI * hz * i) / sampleRate);
-  return out;
-}
-
-/**
- * Fundamental frequency by autocorrelation, over the buffer's steady middle.
- *
- * Zero-crossing counting is cheaper but rides on DC and on the amplitude ripple an
- * overlap-add leaves behind; autocorrelation measures the period the signal
- * actually repeats at, which is the thing "pitch is preserved" is a claim about.
- */
-function estimateHz(x: Float32Array, sampleRate = SR): number {
-  const from = Math.floor(x.length * 0.25);
-  const to = Math.floor(x.length * 0.75);
-  const n = to - from;
-  const minLag = Math.floor(sampleRate / 2000);   // 2 kHz ceiling
-  const maxLag = Math.floor(sampleRate / 50);     // 50 Hz floor
-  let bestLag = minLag;
-  let best = -Infinity;
-  for (let lag = minLag; lag <= maxLag && lag < n; lag++) {
-    let dot = 0;
-    let energy = 0;
-    for (let i = 0; i + lag < n; i++) {
-      dot += x[from + i]! * x[from + i + lag]!;
-      energy += x[from + i + lag]! * x[from + i + lag]!;
-    }
-    const score = energy > 1e-12 ? dot / Math.sqrt(energy) : 0;
-    if (score > best) { best = score; bestLag = lag; }
-  }
-  return sampleRate / bestLag;
-}
 
 function peak(x: Float32Array): number {
   let p = 0;
   for (const v of x) { const a = Math.abs(v); if (a > p) p = a; }
   return p;
-}
-
-function allFinite(x: Float32Array): boolean {
-  for (const v of x) if (!Number.isFinite(v)) return false;
-  return true;
 }
 
 describe('fitToFrames — length', () => {

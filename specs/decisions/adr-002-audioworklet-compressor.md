@@ -10,9 +10,6 @@ related:
   - ../recipes/add-an-audioworklet
 ```
 
-> ADR `status` is its own decision lifecycle (`proposed | accepted | superseded
-> by adr-XXX | deprecated`), distinct from a feature spec's lifecycle.
-
 ## Context / Forces
 
 The drum bus and the master bus each want a compressor with **recognisable

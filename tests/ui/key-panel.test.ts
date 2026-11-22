@@ -4,6 +4,7 @@ import { resolve } from 'node:path';
 import { buildKeyPanel } from '../../src/ui/panels/key-panel';
 import { ParamBus, registerDefaults } from '../../src/state/params';
 import { SCALE_LABELS, CHORD_LABELS, EXTRA_LABELS } from '../../src/utils/music';
+import { openDd } from './open-dropdown';
 
 /**
  * The KEY tab: the three controls and the one line of prose that says what they
@@ -28,13 +29,6 @@ const byId = (el: HTMLElement, id: string) =>
   el.querySelector<HTMLElement>(`[data-testid="${id}"]`)!;
 
 /** The chord dropdown's option buttons, by label. */
-/** Open a Dropdown (its root, by testid) if it is not open: option buttons are
- *  built on open (dropdown.md REQ-options-are-built-when-the-menu-opens). */
-function openDd(dd: HTMLElement): HTMLElement {
-  if (!dd.classList.contains('open')) dd.querySelector<HTMLButtonElement>('button')!.click();
-  return dd;
-}
-
 function chordOption(el: HTMLElement, label: string): HTMLButtonElement {
   const dd = openDd(byId(el, 'key-chord'));
   return [...dd.querySelectorAll<HTMLButtonElement>('button')]

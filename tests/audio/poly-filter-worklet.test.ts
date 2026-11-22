@@ -1,4 +1,5 @@
-import { describe, it, expect, beforeAll, vi } from 'vitest';
+import { describe, it, expect, beforeAll } from 'vitest';
+import { loadWorklet } from '../worklet-harness';
 
 /**
  * The POLY filter model (`specs/features/filter-models.md`), driven through the
@@ -28,14 +29,7 @@ interface ProcessorLike {
 let Processor: new () => ProcessorLike;
 
 beforeAll(async () => {
-  vi.stubGlobal('sampleRate', SR);
-  vi.stubGlobal('AudioWorkletProcessor', class {
-    port = { onmessage: null, postMessage: () => {} };
-  });
-  vi.stubGlobal('registerProcessor', (_name: string, cls: unknown) => {
-    Processor = cls as typeof Processor;
-  });
-  await import('../../public/worklets/ladder-filter.js' as string);
+  Processor = await loadWorklet<typeof Processor>('ladder-filter', { sampleRate: SR });
 });
 
 function makeParams(over: Record<string, number> = {}): Record<string, Float32Array> {

@@ -1,4 +1,5 @@
 import { describe, it, expect, beforeAll, vi } from 'vitest';
+import { loadWorklet } from '../worklet-harness';
 
 /**
  * Drives the real `public/worklets/compressor.js` processor under Node by
@@ -22,17 +23,7 @@ interface ProcessorLike {
 let Processor: new (options: { processorOptions: { mode: 'fet' | 'vca' } }) => ProcessorLike;
 
 beforeAll(async () => {
-  vi.stubGlobal('sampleRate', SR);
-  vi.stubGlobal(
-    'AudioWorkletProcessor',
-    class {
-      port = { postMessage: vi.fn(), onmessage: null };
-    },
-  );
-  vi.stubGlobal('registerProcessor', (_name: string, cls: unknown) => {
-    Processor = cls as typeof Processor;
-  });
-  await import('../../public/worklets/compressor.js' as string);
+  Processor = await loadWorklet<typeof Processor>('compressor', { sampleRate: SR });
 });
 
 function makeParams(over: Record<string, number> = {}): Record<string, Float32Array> {

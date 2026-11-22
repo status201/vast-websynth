@@ -11,9 +11,6 @@ related:
   - ../recipes/add-an-audioworklet
 ```
 
-> ADR `status` is its own decision lifecycle (`proposed | accepted | superseded
-> by adr-XXX | deprecated`), distinct from a feature spec's lifecycle.
-
 ## Context / Forces
 
 We run custom DSP on the audio thread — the **ladder filter** and the **FET/VCA

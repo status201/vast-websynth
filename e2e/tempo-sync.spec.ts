@@ -1,5 +1,5 @@
 import { test, expect } from '@playwright/test';
-import { startAudio } from './helpers';
+import { gotoAndStart } from './helpers';
 
 /**
  * The BPM-aware "sweet spots" info badges (tempo-sync-help feature). Toggle the
@@ -10,15 +10,7 @@ import { startAudio } from './helpers';
 type Bridge = { __synth: { bus: { get(id: string): number; set(id: string, v: number): void } } };
 
 test('Delay Time badge lists BPM sweet spots and snaps the knob', async ({ page }) => {
-  await page.addInitScript(() => {
-    try {
-      localStorage.setItem('websynth.onboarding.done', '1'); // suppress auto-tour
-    } catch {
-      /* ignore */
-    }
-  });
-  await page.goto('/');
-  await startAudio(page);
+  await gotoAndStart(page);
   await expect(page.getByTestId('tour-callout')).toBeHidden();
 
   // Pin a known tempo so the ms values are deterministic.

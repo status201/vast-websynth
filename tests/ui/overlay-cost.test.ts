@@ -15,10 +15,7 @@
 // `backdrop-filter` because it is copying the one above it. That is exactly how
 // the tour's centred step acquired its copy of the modal backdrop's blur.
 import { describe, it, expect } from 'vitest';
-import { readdirSync, readFileSync } from 'node:fs';
-import { fileURLToPath } from 'node:url';
-
-const STYLE_DIRS = ['../../src/ui/styles', '../../src/styles'];
+import { readRules } from '../css-source';
 
 /**
  * Selectors permitted to declare `backdrop-filter`.
@@ -30,33 +27,6 @@ const STYLE_DIRS = ['../../src/ui/styles', '../../src/styles'];
  * viewport — and the reviewer would then be reading REQ-no-viewport-scaled-compositing-on-hot-surfaces while doing it.
  */
 const VIEWPORT_EFFECT_OK: string[] = [];
-
-interface Rule {
-  file: string;
-  selector: string;
-  body: string;
-}
-
-/** Every top-level rule in the app's stylesheets. Deliberately a dumb parser:
- *  this is a drift pin, not a CSS engine — the same one `typography.test.ts`
- *  uses, kept identical so the two pins cannot disagree about what a rule is. */
-function readRules(): Rule[] {
-  const rules: Rule[] = [];
-  for (const dir of STYLE_DIRS) {
-    const path = fileURLToPath(new URL(`${dir}/`, import.meta.url));
-    for (const file of readdirSync(path).filter((n) => n.endsWith('.css')).sort()) {
-      const css = readFileSync(path + file, 'utf8').replace(/\/\*[\s\S]*?\*\//g, '');
-      for (const m of css.matchAll(/([^{}]+)\{([^{}]*)\}/g)) {
-        rules.push({
-          file,
-          selector: m[1]!.trim().replace(/\s+/g, ' '),
-          body: m[2]!,
-        });
-      }
-    }
-  }
-  return rules;
-}
 
 const rules = readRules();
 const find = (file: string, selector: string) =>

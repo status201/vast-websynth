@@ -52,6 +52,7 @@ import { createRecordWindowLauncher } from '../components/record-window';
 import { createSongSession, type SlotPicker } from './song-session';
 import { createSongIo } from './song-io';
 import { createDemoLoader } from './demo-loader';
+import { el } from '../dom';
 
 /** Demo buttons shown inline; the rest hide behind "All Demos" (song-mode.md REQ-the-demo-row-overflows-into-a-menu).
  *  Was 6, which hid most of a growing library; 10 is what fits a desktop row. */
@@ -72,13 +73,6 @@ function describeDemo(btn: HTMLElement, name: string, blurb?: string): void {
   // The title alone is invisible to a screen reader on a button that already
   // has a text label, so the same sentence goes on aria-label.
   btn.setAttribute('aria-label', `${name}. ${summary}`);
-}
-
-function el(tag: string, cls?: string, text?: string): HTMLElement {
-  const e = document.createElement(tag);
-  if (cls) e.className = cls;
-  if (text !== undefined) e.textContent = text;
-  return e;
 }
 
 export interface SongPanel {
@@ -213,7 +207,7 @@ export function buildSongPanel(bus: ParamBus, engine: StudioApi, session: Preset
 
   // Delete acts on the picked slot, and only a stored one (song-mode.md
   // REQ-a-saved-song-can-be-deleted) — so its state follows every way the pick changes.
-  const deleteBtn = el('button', `${switchStyles.root!} ${styles.ctl!}`, 'Delete') as HTMLButtonElement;
+  const deleteBtn = el('button', `${switchStyles.root!} ${styles.ctl!}`, 'Delete');
   deleteBtn.dataset.testid = 'song-delete';
   const syncDelete = (): void => {
     const stored = Song.hasSlot(dropdown.value);
@@ -238,7 +232,7 @@ export function buildSongPanel(bus: ParamBus, engine: StudioApi, session: Preset
   const io = createSongIo({ engine, bridge, song, picker });
   const demos = createDemoLoader({ bridge, song, picker, io });
 
-  const loadBtn = el('button', `${switchStyles.root!} ${styles.ctl!}`, 'Load') as HTMLButtonElement;
+  const loadBtn = el('button', `${switchStyles.root!} ${styles.ctl!}`, 'Load');
   loadBtn.dataset.testid = 'song-load';
   loadBtn.addEventListener('click', () => {
     const f = Song.loadSlot(dropdown.value);
@@ -261,7 +255,7 @@ export function buildSongPanel(bus: ParamBus, engine: StudioApi, session: Preset
     if (isDemoName(dropdown.value)) void demos.loadDemo(dropdown.value);
   });
 
-  const saveBtn = el('button', `${switchStyles.root!} ${styles.ctl!}`, 'Save') as HTMLButtonElement;
+  const saveBtn = el('button', `${switchStyles.root!} ${styles.ctl!}`, 'Save');
   saveBtn.dataset.testid = 'song-save';
   saveBtn.addEventListener('click', async () => {
     const name = await promptName({
@@ -328,7 +322,7 @@ export function buildSongPanel(bus: ParamBus, engine: StudioApi, session: Preset
     fileInput.value = '';
     await io.importFile(f);
   });
-  const importBtn = el('button', `${switchStyles.root!} ${styles.ctl!}`, 'Import') as HTMLButtonElement;
+  const importBtn = el('button', `${switchStyles.root!} ${styles.ctl!}`, 'Import');
   importBtn.dataset.testid = 'song-import';
   importBtn.addEventListener('click', () => fileInput.click());
 
@@ -339,7 +333,7 @@ export function buildSongPanel(bus: ParamBus, engine: StudioApi, session: Preset
     onPresets: (parse: PresetParse) => bridge.openPresetImport(parse),
     bus, // so a pasted preset is checked against the registry too (REQ-deserialized-state-is-validated-never-cast)
   };
-  const pasteBtn = el('button', `${switchStyles.root!} ${styles.ctl!}`, 'Paste') as HTMLButtonElement;
+  const pasteBtn = el('button', `${switchStyles.root!} ${styles.ctl!}`, 'Paste');
   pasteBtn.dataset.testid = 'song-paste';
   pasteBtn.title = 'Paste song or preset JSON (e.g. an AI reply)';
   const openPaste = async (): Promise<void> => {
@@ -352,7 +346,7 @@ export function buildSongPanel(bus: ParamBus, engine: StudioApi, session: Preset
   // to the browser, which would navigate away from the session.
   installFileDrop(pasteRoutes);
 
-  const exportBtn = el('button', `${switchStyles.root!} ${styles.ctl!}`, 'Export') as HTMLButtonElement;
+  const exportBtn = el('button', `${switchStyles.root!} ${styles.ctl!}`, 'Export');
   exportBtn.dataset.testid = 'song-export';
   const openExportSong = async (): Promise<void> => {
     const m = await loadSurface('the export dialog', () => import('../components/export-song-modal'), () => void openExportSong());
@@ -365,7 +359,7 @@ export function buildSongPanel(bus: ParamBus, engine: StudioApi, session: Preset
   };
   exportBtn.addEventListener('click', () => void openExportSong());
 
-  const newBtn = el('button', `${switchStyles.root!} ${styles.ctl!}`, 'New') as HTMLButtonElement;
+  const newBtn = el('button', `${switchStyles.root!} ${styles.ctl!}`, 'New');
   newBtn.dataset.testid = 'song-new';
   newBtn.addEventListener('click', async () => {
     const ok = await confirmDialog({
@@ -399,7 +393,7 @@ export function buildSongPanel(bus: ParamBus, engine: StudioApi, session: Preset
   demosLabel.dataset.help = 'song.demos';
   ioRow.appendChild(demosLabel);
   const mkDemoBtn = (name: string, onClick: () => void): HTMLButtonElement => {
-    const d = el('button', `${switchStyles.root!} ${styles.demo!}`, name) as HTMLButtonElement;
+    const d = el('button', `${switchStyles.root!} ${styles.demo!}`, name);
     d.dataset.testid = `song-demo-${name}`;
     describeDemo(d, name);
     d.addEventListener('click', onClick);
@@ -458,7 +452,7 @@ export function buildSongPanel(bus: ParamBus, engine: StudioApi, session: Preset
   for (const d of demoButtons.slice(0, DEMO_ROW_LIMIT)) ioRow.appendChild(d);
   const overflowDemos = demoButtons.slice(DEMO_ROW_LIMIT);
   if (overflowDemos.length > 0) {
-    const moreBtn = el('button', `${switchStyles.root!} ${styles.ctl!}`, 'All Demos') as HTMLButtonElement;
+    const moreBtn = el('button', `${switchStyles.root!} ${styles.ctl!}`, 'All Demos');
     moreBtn.dataset.testid = 'song-demo-more';
     // display: contents while open, so the revealed buttons flow in the same row.
     const overflow = el('span', styles.demoOverflow!);
@@ -494,7 +488,7 @@ export function buildSongPanel(bus: ParamBus, engine: StudioApi, session: Preset
   // Names the format even though the modal can still override it: this button
   // sits a few pixels from the Song panel's other `Export` (the .json one), and
   // "as WAV" is what tells them apart at a glance (audio-export.md REQ-labels-echo-the-chosen-format).
-  const expSongBtn = el('button', `${switchStyles.root!} ${styles.ctl!}`) as HTMLButtonElement;
+  const expSongBtn = el('button', `${switchStyles.root!} ${styles.ctl!}`);
   expSongBtn.dataset.testid = 'song-export-audio';
   expSongBtn.title = 'Render the arrangement to audio — choose runs and format';
   expSongBtn.addEventListener('click', () => void openExportAudioModal(engine, fmt));

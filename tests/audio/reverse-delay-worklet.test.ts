@@ -1,4 +1,5 @@
-import { describe, it, expect, beforeAll, vi } from 'vitest';
+import { describe, it, expect, beforeAll } from 'vitest';
+import { loadWorklet } from '../worklet-harness';
 import { REVERSE_MAX_TIME_S, REVERSE_MIN_TIME_S } from '../../src/audio/effects/delay-cores';
 
 /**
@@ -19,13 +20,8 @@ let Processor: new () => ProcessorLike;
 let descriptors: Array<{ name: string; minValue: number; maxValue: number }>;
 
 beforeAll(async () => {
-  vi.stubGlobal('sampleRate', SR);
-  vi.stubGlobal('AudioWorkletProcessor', class { port = { postMessage: vi.fn(), onmessage: null }; });
-  vi.stubGlobal('registerProcessor', (_name: string, cls: unknown) => {
-    Processor = cls as typeof Processor;
-    descriptors = (cls as { parameterDescriptors: typeof descriptors }).parameterDescriptors;
-  });
-  await import('../../public/worklets/reverse-delay.js' as string);
+  Processor = await loadWorklet<typeof Processor>('reverse-delay', { sampleRate: SR });
+  descriptors = (Processor as unknown as { parameterDescriptors: typeof descriptors }).parameterDescriptors;
 });
 
 const params = (p: { time?: number; feedback?: number; char?: number }): Record<string, Float32Array> => ({

@@ -1,19 +1,7 @@
 import { test, expect, type Page } from '@playwright/test';
-import { gotoAndStart, makeWavBuffer } from './helpers';
+import { gotoAndStart, makeWavBuffer, slotName, slotLoaded, pickOption } from './helpers';
 
 /* eslint-disable @typescript-eslint/no-explicit-any */
-const slotName = (page: Page, slot: number): Promise<string | null> =>
-  page.evaluate((s) => (window as any).__synth.patterns.sampleNames[s] ?? null, slot);
-const slotLoaded = (page: Page, slot: number): Promise<boolean> =>
-  page.evaluate((s) => (window as any).__synth.engine.sampler.buffers[s] != null, slot);
-
-/** Pick a Dropdown option by its `dropdown-option` bridge class, not by accessible
- *  name — the toggle and the option carry the same one (dropdown.md REQ-an-option-carries-the-bridge-class). */
-async function pick(page: Page, testId: string, label: RegExp): Promise<void> {
-  const dd = page.getByTestId(testId);
-  await dd.click();
-  await dd.locator('.dropdown-option', { hasText: label }).click();
-}
 
 /**
  * Load a clip into `slot`, open it in the editor via the ✎ button, and unfold the
@@ -74,7 +62,7 @@ test.describe('sample chop', () => {
     await openEditor(page, 0);
 
     // S7 is the seventh slot, so two slices fit below it and eight do not.
-    await pick(page, 'mic-slot-select', /^S7 —/);
+    await pickOption(page, 'mic-slot-select', /^S7 —/);
     const counts = page.getByTestId('chop-count');
     await counts.click();
     await expect(counts.locator('.dropdown-option', { hasText: /^2 slices$/ })).toBeVisible();
@@ -82,7 +70,7 @@ test.describe('sample chop', () => {
     await counts.click(); // close it again
 
     // The last slot has no room at all, and says so rather than offering nothing.
-    await pick(page, 'mic-slot-select', /^S8 —/);
+    await pickOption(page, 'mic-slot-select', /^S8 —/);
     await expect(page.getByTestId('chop-row')).toContainText('no room below S8');
     await expect(page.getByTestId('chop-equal')).toBeDisabled();
   });
@@ -99,13 +87,13 @@ test.describe('sample chop', () => {
     await expect(page.getByTestId('chop-row')).toContainText('4 slices → S1–S4');
 
     // Four slices need four slots; S6 leaves three.
-    await pick(page, 'mic-slot-select', /^S6 —/);
+    await pickOption(page, 'mic-slot-select', /^S6 —/);
     await expect(page.getByTestId('chop-row')).toContainText('4 slices need 4 slots');
     await expect(page.getByTestId('chop-row')).not.toContainText('S9');
     await expect(page.getByTestId('chop-spread')).toBeDisabled();
 
     // Moving back to where they fit re-enables it, unchanged.
-    await pick(page, 'mic-slot-select', /^S4 —/);
+    await pickOption(page, 'mic-slot-select', /^S4 —/);
     await expect(page.getByTestId('chop-row')).toContainText('4 slices → S4–S7');
     await expect(page.getByTestId('chop-spread')).toBeEnabled();
 

@@ -11,9 +11,6 @@ related:
   - adr-010-musical-stable-cheap-dsp
 ```
 
-> ADR `status` is its own decision lifecycle (`proposed | accepted | superseded
-> by adr-XXX | deprecated`), distinct from a feature spec's lifecycle.
-
 ## Context / Forces
 
 `BypassWrapper` originally kept the processed path **permanently connected** and

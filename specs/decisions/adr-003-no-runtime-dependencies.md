@@ -10,9 +10,6 @@ related:
   - ../recipes/add-a-ui-component
 ```
 
-> ADR `status` is its own decision lifecycle (`proposed | accepted | superseded
-> by adr-XXX | deprecated`), distinct from a feature spec's lifecycle.
-
 ## Context / Forces
 
 This is a long-lived hobby/portfolio synth that should still build and run years

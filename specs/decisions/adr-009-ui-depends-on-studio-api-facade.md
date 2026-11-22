@@ -10,9 +10,6 @@ related:
   - adr-008-components-self-wire-params
 ```
 
-> ADR `status` is its own decision lifecycle (`proposed | accepted | superseded
-> by adr-XXX | deprecated`), distinct from a feature spec's lifecycle.
-
 ## Context / Forces
 
 The hard UI/audio separation (architecture REQ-ui-and-audio-never-call-each-other) only governs *scalar params*:

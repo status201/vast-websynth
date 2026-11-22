@@ -2,10 +2,11 @@
  * Minimal, dependency-free ZIP writer — shared by `release.mjs` (the `dist/`
  * artifact) and `pack-mcp.mjs` (the MCP server bundle).
  *
- * Extracted from release.mjs when a second caller appeared. There is exactly one
- * zip implementation in this repo and this is it: a second one would be a second
- * chance to get the central directory subtly wrong, which is the kind of bug that
- * only shows up in somebody else's unzip tool.
+ * Extracted from release.mjs when a second caller appeared. The app has its own
+ * codec, `src/utils/zip.ts` (project export, ADR-003), and the two stay apart on
+ * purpose: that one is async (the browser's `CompressionStream`), reads as well
+ * as writes, and is TypeScript with extensionless imports, which a plain `node`
+ * script cannot load. This one is synchronous over `node:zlib` and only writes.
  */
 import { readdirSync, readFileSync, statSync } from 'node:fs';
 import { deflateRawSync } from 'node:zlib';

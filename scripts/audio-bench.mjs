@@ -83,6 +83,7 @@ import { mkdirSync, existsSync, readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { chromium, firefox } from 'playwright';
 import { startDevServer, bootApp } from './lib/bench-app.mjs';
+import { flag, flags } from './lib/cli.mjs';
 
 const root = fileURLToPath(new URL('../', import.meta.url));
 const benchDir = `${root}bench`;
@@ -91,11 +92,6 @@ const PORT = 5199; // off the dev server's default so both can run at once
 // ------------------------------------------------------------------- args
 
 const argv = process.argv.slice(2);
-const flag = (name, def = null) => {
-  const i = argv.indexOf(`--${name}`);
-  return i >= 0 && argv[i + 1] && !argv[i + 1].startsWith('--') ? argv[i + 1] : def;
-};
-const flags = (name) => argv.reduce((acc, a, i) => (a === `--${name}` ? [...acc, argv[i + 1]] : acc), []);
 
 const opts = {
   name: flag('name'),

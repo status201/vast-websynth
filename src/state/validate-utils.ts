@@ -8,10 +8,9 @@
  * REQ-reserved-keys-are-refused's reserved-key refusal and every shape check stand on it — and four
  * copies is four chances to drift apart without anyone noticing.
  *
- * Note what is deliberately NOT here: `checkUnit`/`checkRatchet` share a name
- * across `song-validate.ts` and `song-author.ts` but not a signature, because
- * the canonical validator refuses what the dialect coerces. That divergence is
- * the whole point of having two parsers (ADR-013), so it stays per-file.
+ * The per-step field checks (`checkUnit`, `checkRatchet`, …) are not here:
+ * only the two song parsers use them, so they are exported by
+ * `song-validate.ts`, which the dialect already imports.
  */
 import { reservedKeyIn } from './limits';
 

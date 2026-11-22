@@ -1,27 +1,11 @@
 import { test, expect, type Page } from '@playwright/test';
-import { gotoAndStart, startAudio } from './helpers';
+import { gotoAndStart, startAudio, playing, setSeqChain, recordTicks, ticks } from './helpers';
 
 /* eslint-disable @typescript-eslint/no-explicit-any */
 const clockStep = (page: Page): Promise<number> =>
   page.evaluate(() => (window as any).__synth.engine.clock.step);
-const playing = (page: Page): Promise<boolean> =>
-  page.evaluate(() => (window as any).__synth.engine.clock.playing);
-const setSeqChain = (page: Page, steps: number[]): Promise<void> =>
-  page.evaluate((s) => (window as any).__synth.engine.arrangement.setSeqChain(s, true), steps);
 
 const SEQ_LENGTH = 16;
-
-/** Record every emitted step, so a test can read where playback (re)started. */
-const recordTicks = (page: Page): Promise<void> =>
-  page.evaluate(() => {
-    const w = window as any;
-    w.__ticks = [];
-    if (!w.__tickRecorder) {
-      w.__tickRecorder = w.__synth.engine.clock.onTick((s: number) => { w.__ticks.push(s); });
-    }
-  });
-const ticks = (page: Page): Promise<number[]> =>
-  page.evaluate(() => (window as any).__ticks as number[]);
 
 /**
  * The Song panel's transport row and the TRANSPORT floating window

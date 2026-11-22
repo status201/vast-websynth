@@ -17,7 +17,8 @@ import { openMicSession, MicCaptureError, type MicSession } from '../../audio/re
 import { capturedFrames, crop } from '../../audio/recorder/buffer-dsp';
 import { createButton } from './button';
 import { UI_ICONS } from './ui-icons';
-import { el, fitCanvas, drawMidline, fmtTime, waveColours } from './studio-kit';
+import { el } from '../dom';
+import { fitCanvas, drawMidline, fmtTime, waveColours } from './studio-kit';
 
 /** A take stops itself here (REQ-a-take-is-bounded). Sizes memory, not trust. */
 export const MAX_TAKE_SECONDS = 120;

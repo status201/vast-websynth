@@ -1,12 +1,8 @@
 import { readFileSync } from 'node:fs';
 import { test, expect } from '@playwright/test';
-import { gotoAndStart, makeWavBuffer } from './helpers';
+import { gotoAndStart, makeWavBuffer, slotName, slotLoaded } from './helpers';
 
 /* eslint-disable @typescript-eslint/no-explicit-any */
-const slotLoaded = (page: import('@playwright/test').Page, slot: number): Promise<boolean> =>
-  page.evaluate((s) => (window as any).__synth.engine.sampler.buffers[s] != null, slot);
-const slotName = (page: import('@playwright/test').Page, slot: number): Promise<string | null> =>
-  page.evaluate((s) => (window as any).__synth.patterns.sampleNames[s], slot);
 
 test.describe('project export', () => {
   test('fresh boot: Project row disabled with note; JSON export still downloads', async ({ page }) => {

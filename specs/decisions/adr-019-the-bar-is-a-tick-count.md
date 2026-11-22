@@ -15,11 +15,6 @@ related:
   - ../features/motion-sequencer
 ```
 
-> ADR `status` is its own decision lifecycle and is **not** the feature-spec
-> `draft | active | implemented`. A decision is `proposed`, then `accepted`; a
-> later ADR can mark it `superseded by adr-XXX` or `deprecated`. Records are
-> append-only — supersede, don't rewrite.
-
 ## Context / Forces
 
 The instrument was locked to 4/4, but not by a decision: `SEQ_LENGTH = 16`

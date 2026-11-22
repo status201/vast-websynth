@@ -12,9 +12,6 @@ related:
   - ../recipes/evolve-the-song-format
 ```
 
-> ADR `status` is its own decision lifecycle (`proposed | accepted | superseded
-> by adr-XXX | deprecated`), distinct from a feature spec's lifecycle.
-
 ## Context / Forces
 
 Songs and presets persist as JSON. Knob/slider drags map a 0..1 position back

@@ -5,14 +5,7 @@ import { TEMPO_LOCKS, syncIdFor, tempoLockFor } from '../../src/state/tempo-lock
 import { DIVISION_LABELS } from '../../src/ui/components/tempo-lock';
 import { DIVISIONS, SYNC_LABELS, nearestDivision } from '../../src/utils/tempo';
 import knobStyles from '../../src/ui/styles/knob.module.css';
-
-/** Open the Dropdown at (or inside) `el` if it is not open: option buttons are
- *  built on open (dropdown.md REQ-options-are-built-when-the-menu-opens). */
-function openDd<T extends HTMLElement>(el: T): T {
-  const dd = el.classList.contains('dropdown') ? el : el.querySelector<HTMLElement>('.dropdown');
-  if (dd && !dd.classList.contains('open')) dd.querySelector<HTMLButtonElement>('button')!.click();
-  return el;
-}
+import { openDd } from './open-dropdown';
 
 /**
  * The tempo lock a Knob grows on a lockable param (tempo-lock.md).

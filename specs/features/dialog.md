@@ -42,9 +42,9 @@ backdrop-click-to-close) rather than reinventing it.
 - **REQ-dialog-promise-settles-once** — The returned promise **settles exactly
   once**. The affirmative action resolves the *confirm* value; **any** dismissal
   — the Cancel button, Escape, or a backdrop click — resolves the *cancel*
-  value. A `settled` latch makes double-close (e.g. affirmative →
-  `modal.close()` → `onClose`) resolve a single time, mirroring `Modal.onClose`
-  firing once.
+  value. A double close (e.g. affirmative → `modal.close()` → `onClose`)
+  resolves a single time because a Promise ignores every `resolve` after the
+  first; no latch of its own, mirroring `Modal.onClose` firing once.
 - **REQ-cancel-mirrors-the-native-dialogs** — Cancel semantics mirror the
   natives they replace so callers are a drop-in: `confirmDialog` cancel →
   `false`; `promptDialog` cancel → `null`; `promptDialog` confirm → the input's
@@ -183,10 +183,10 @@ DOM (inside Modal.body): [ <p .message>,        # dialog.module.css, not modal's
                          # choose: <div .actions> [ dialog-cancel?, dialog-choice-<id>... ]
 lifecycle: new Modal({ title, onClose: () => resolveOnce(cancelValue) }); modal.open()
 resolve:
-  affirmative btn -> resolveOnce(confirmValue); modal.close()
+  affirmative btn -> resolve(confirmValue); modal.close()
   cancel btn      -> modal.close()   # its onClose resolves cancelValue
-  Escape / backdrop -> Modal.close() -> onClose -> resolveOnce(cancelValue)
-  settled latch   -> resolveOnce ignores all calls after the first
+  Escape / backdrop -> Modal.close() -> onClose -> resolve(cancelValue)
+  settles once    -> the Promise ignores every resolve after the first
 focus/keys: after open(), affirmative btn.focus() (confirm/alert/choose) or input.focus()+select()
             (prompt); prompt input keydown Enter -> affirmative path
 alert:      no copyable -> single full-width affirmative button (reuse Modal.closeBtnClass)

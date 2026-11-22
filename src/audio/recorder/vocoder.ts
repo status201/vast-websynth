@@ -13,7 +13,7 @@
  * scratch arrays, never as `bands × frames` at once.
  */
 import type { CapturedAudio } from './node';
-import { capturedFrames, cloneCaptured } from './buffer-dsp';
+import { capturedFrames, cloneCaptured, peakOf } from './buffer-dsp';
 import { MAX_VOCODER_FRAMES, VOCODER_BANDS, MAX_VOCODER_FORMANT } from '../../state/limits';
 
 export interface VocoderSettings {
@@ -154,17 +154,6 @@ function finiteCopy(src: Float32Array, n: number): Float32Array {
   return out;
 }
 
-function peakOf(...chs: Float32Array[]): number {
-  let p = 0;
-  for (const ch of chs) {
-    for (let i = 0; i < ch.length; i++) {
-      const v = ch[i]!;
-      const a = v < 0 ? -v : v;
-      if (a > p) p = a;
-    }
-  }
-  return p;
-}
 
 /**
  * Vocode `carrier` with `voice` (REQ-vocoding-is-pure). The result is exactly

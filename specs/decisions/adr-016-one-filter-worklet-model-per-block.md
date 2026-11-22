@@ -11,11 +11,6 @@ related:
   - ../decisions/adr-010-musical-stable-cheap-dsp
 ```
 
-> ADR `status` is its own decision lifecycle and is **not** the feature-spec
-> `draft | active | implemented`. A decision is `proposed`, then `accepted`; a
-> later ADR can mark it `superseded by adr-XXX` or `deprecated`. Records are
-> append-only — supersede, don't rewrite.
-
 ## Context / Forces
 
 Adding a second, user-selectable filter model ([filter-models.md](../features/filter-models.md))

@@ -36,8 +36,12 @@ export function frameScheduler() {
   };
 }
 
-/** A 2D context that records the calls made against it. */
-export function recordingCtx() {
+/**
+ * A 2D context that records the calls made against it. Every method is a no-op
+ * returning `undefined` — `measureText` included, which is why the scope's axis
+ * estimates label widths — unless `textWidth` gives `measureText` an answer.
+ */
+export function recordingCtx({ textWidth }: { textWidth?: number } = {}) {
   const calls: string[] = [];
   const grad = { addColorStop: () => undefined };
   const target: Record<string, unknown> = {};
@@ -45,6 +49,7 @@ export function recordingCtx() {
   const ctx = new Proxy(target, {
     get(t, prop: string) {
       if (prop === 'createLinearGradient') return () => grad;
+      if (prop === 'measureText' && textWidth !== undefined) return () => ({ width: textWidth });
       if (prop in t) return t[prop];
       return (...args: unknown[]) => {
         calls.push(prop);

@@ -1,4 +1,5 @@
 import { describe, it, expect, vi, afterEach } from 'vitest';
+import { recordingCtx } from './scope-harness';
 import {
   Scope,
   SPECTRUM_F_MIN,
@@ -223,25 +224,10 @@ describe('SPECTRUM_ZONES — the problem bands (REQ-a-zones-toggle)', () => {
 });
 
 /**
- * Component-level behaviour. Driven over a recording 2D context the way
- * `scope-lifecycle.test.ts` does — the point of the proxy is that a `measureText`
- * would return `undefined` here, which is exactly why `visibleTicks` estimates.
+ * Component-level behaviour, driven over the harness's recording 2D context the
+ * way `scope-lifecycle.test.ts` is. Its `measureText` returns `undefined` — which
+ * is exactly why `visibleTicks` estimates.
  */
-function recordingCtx() {
-  const calls: string[] = [];
-  const grad = { addColorStop: () => undefined };
-  const target: Record<string, unknown> = {};
-  const ctx = new Proxy(target, {
-    get(t, prop: string) {
-      if (prop === 'createLinearGradient') return () => grad;
-      if (prop in t) return t[prop];
-      return (...args: unknown[]) => { calls.push(prop); return args.length ? undefined : undefined; };
-    },
-    set(t, prop: string, v) { t[prop] = v; return true; },
-  });
-  return { ctx: ctx as unknown as CanvasRenderingContext2D, calls };
-}
-
 const fakeAnalyser = (): AnalyserNode => ({
   fftSize: 1024,
   frequencyBinCount: 512,

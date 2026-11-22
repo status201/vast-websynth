@@ -17,19 +17,11 @@
 // modes, and exit code 1 for ci. Anything unexpected fails open (exit 0) so the
 // guard can never wedge a session on its own bug.
 
-import { execFileSync } from 'node:child_process';
 import { existsSync } from 'node:fs';
 import path from 'node:path';
+import { git, readStdin, parseJson } from './lib/cli.mjs';
 
 const mode = process.argv[2] ?? '';
-
-function git(args, cwd) {
-  try {
-    return execFileSync('git', args, { cwd, encoding: 'utf8' }).trim();
-  } catch {
-    return '';
-  }
-}
 
 const ROOT = git(['rev-parse', '--show-toplevel'], process.cwd()) || process.cwd();
 
@@ -115,20 +107,6 @@ function changedProductionBranch() {
   return out.split('\n').map((s) => s.trim()).filter(isProductionPath);
 }
 
-async function readStdin() {
-  const chunks = [];
-  for await (const c of process.stdin) chunks.push(c);
-  return Buffer.concat(chunks).toString('utf8');
-}
-
-function parse(json) {
-  try {
-    return JSON.parse(json);
-  } catch {
-    return {};
-  }
-}
-
 const PROCEDURE = `SDD is enforced in this repo (see specs/README.md → "Procedure by change type").
 Spec-before-code: a change that edits production code (src/**, public/worklets/**)
 must also create/update a spec under specs/ in the same change.
@@ -149,7 +127,7 @@ function denyPretool(rel) {
 }
 
 async function runPretool() {
-  const input = parse(await readStdin());
+  const input = parseJson(await readStdin());
   const file = input?.tool_input?.file_path;
   const rel = toRel(file);
   if (!rel || !isProductionPath(rel)) process.exit(0);
@@ -158,7 +136,7 @@ async function runPretool() {
 }
 
 async function runStop() {
-  const input = parse(await readStdin());
+  const input = parseJson(await readStdin());
   if (input?.stop_hook_active) process.exit(0); // never loop on ourselves
   const changed = changedProductionWorkingTree();
   if (changed.length === 0) process.exit(0);

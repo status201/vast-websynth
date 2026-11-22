@@ -1,17 +1,13 @@
 import { test, expect, type Page } from '@playwright/test';
-import { gotoAndStart } from './helpers';
+import { gotoAndStart, playing, setSeqChain } from './helpers';
 
 /* eslint-disable @typescript-eslint/no-explicit-any */
 const clockStep = (page: Page): Promise<number> =>
   page.evaluate(() => (window as any).__synth.engine.clock.step);
 const clockCue = (page: Page): Promise<number> =>
   page.evaluate(() => (window as any).__synth.engine.clock.cue);
-const playing = (page: Page): Promise<boolean> =>
-  page.evaluate(() => (window as any).__synth.engine.clock.playing);
 const seqPlayBank = (page: Page): Promise<number> =>
   page.evaluate(() => (window as any).__synth.engine.arrangement.seqPlayBank);
-const setSeqChain = (page: Page, steps: number[]): Promise<void> =>
-  page.evaluate((s) => (window as any).__synth.engine.arrangement.setSeqChain(s, true), steps);
 
 const SEQ_LENGTH = 16;
 

@@ -1,26 +1,7 @@
 import { test, expect, type Page } from '@playwright/test';
-import { gotoAndStart, makeWavBuffer } from './helpers';
+import { gotoAndStart, makeWavBuffer, slotDuration, slotName, barSeconds, pickOption } from './helpers';
 
 /* eslint-disable @typescript-eslint/no-explicit-any */
-const slotDuration = (page: Page, slot: number): Promise<number | null> =>
-  page.evaluate((s) => (window as any).__synth.engine.sampler.buffers[s]?.duration ?? null, slot);
-const slotName = (page: Page, slot: number): Promise<string | null> =>
-  page.evaluate((s) => (window as any).__synth.patterns.sampleNames[s] ?? null, slot);
-
-/** One bar in seconds, measured the way the transport measures it (meter.md REQ-bar-exact-capture-follows-bar-ticks). */
-const barSeconds = (page: Page): Promise<number> =>
-  page.evaluate(() => {
-    const s = (window as any).__synth;
-    return s.engine.barTicks * s.engine.clock.sixteenthDuration();
-  });
-
-/** Pick a Dropdown option by its `dropdown-option` bridge class, not by accessible
- *  name — the toggle and the option carry the same one. */
-async function pick(page: Page, testId: string, label: RegExp): Promise<void> {
-  const dd = page.getByTestId(testId);
-  await dd.click();
-  await dd.locator('.dropdown-option', { hasText: label }).click();
-}
 
 async function loadClip(page: Page, slot = 0, name = 'break.wav'): Promise<void> {
   await gotoAndStart(page);
@@ -56,8 +37,8 @@ test.describe('scratch', () => {
 
     // The row preselects the length nearest the clip, which for 1.7 s at 120 BPM
     // is 14 sixteenths — so asking for one bar is a real choice, not the default.
-    await pick(page, 'scratch-length', /^16 · 1 bar$/);
-    await pick(page, 'scratch-preset', /^Baby/);
+    await pickOption(page, 'scratch-length', /^16 · 1 bar$/);
+    await pickOption(page, 'scratch-preset', /^Baby/);
     await page.getByTestId('scratch-apply').click();
 
     await page.getByTestId('mic-load').click();
@@ -69,7 +50,7 @@ test.describe('scratch', () => {
   test('undo restores the audio and never the name (REQ-applying-goes-through-run-op, REQ-a-scratched-clip-is-not-renamed)', async ({ page }) => {
     await loadClip(page);
     await openScratch(page);
-    await pick(page, 'scratch-length', /^8 · ½ bar$/);
+    await pickOption(page, 'scratch-length', /^8 · ½ bar$/);
     await page.getByTestId('scratch-apply').click();
     await page.getByTestId('mic-undo').click();
     await page.getByTestId('mic-load').click();

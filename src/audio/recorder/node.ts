@@ -1,3 +1,5 @@
+import { peakOf } from './buffer-dsp';
+
 /**
  * Thin wrapper around the `recorder` AudioWorklet (mirrors LadderFilterNode).
  * Tap it off `master`; it has zero outputs so it never reaches the
@@ -52,7 +54,7 @@ export class RecorderNode {
         this.chunksL.push(d.l);
         this.chunksR.push(d.r);
         this._capturedFrames += d.l.length;
-        this._peak = Math.max(this._peak, peakOf(d.l), peakOf(d.r));
+        this._peak = Math.max(this._peak, peakOf(d.l, d.r));
       }
       // The flush reply lands after its own frames are appended above, so a
       // waiter always sees the complete take (audio-export.md REQ-chunks-are-batched-then-flushed).
@@ -198,12 +200,3 @@ function concat(chunks: Float32Array[]): Float32Array {
   return out;
 }
 
-/** Largest absolute sample — a plain loop: this runs per batch on the main thread. */
-function peakOf(a: Float32Array): number {
-  let m = 0;
-  for (let i = 0; i < a.length; i++) {
-    const v = Math.abs(a[i]!);
-    if (v > m) m = v;
-  }
-  return m;
-}

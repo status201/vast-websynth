@@ -1,29 +1,13 @@
 import { test, expect, type Page } from '@playwright/test';
-import { gotoAndStart, busSet, pickDemo, clickDemo } from './helpers';
+import { gotoAndStart, busSet, pickDemo, clickDemo, playing, setSeqChain, recordTicks, ticks } from './helpers';
 
 /* eslint-disable @typescript-eslint/no-explicit-any */
 const SEQ_LENGTH = 16;
 
-const setSeqChain = (page: Page, steps: number[]): Promise<void> =>
-  page.evaluate((s) => (window as any).__synth.engine.arrangement.setSeqChain(s, true), steps);
-const playing = (page: Page): Promise<boolean> =>
-  page.evaluate(() => (window as any).__synth.engine.clock.playing);
 const cue = (page: Page): Promise<number> =>
   page.evaluate(() => (window as any).__synth.engine.clock.cue);
 const loopRange = (page: Page): Promise<{ start: number; end: number } | null> =>
   page.evaluate(() => (window as any).__synth.engine.loop.range);
-
-/** Record every emitted step from here on. */
-const recordTicks = (page: Page): Promise<void> =>
-  page.evaluate(() => {
-    const w = window as any;
-    w.__ticks = [];
-    if (!w.__tickRecorder) {
-      w.__tickRecorder = w.__synth.engine.clock.onTick((s: number) => { w.__ticks.push(s); });
-    }
-  });
-const ticks = (page: Page): Promise<number[]> =>
-  page.evaluate(() => (window as any).__ticks as number[]);
 
 const inLoop = (page: Page): Promise<boolean[]> =>
   page.locator('[data-testid="transport-scrub"] button')

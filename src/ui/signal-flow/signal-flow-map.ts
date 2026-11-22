@@ -19,6 +19,7 @@ import {
   ancestors, childrenOf, hotspotsFor, resolveLink, tourIndex, tourStep, zoneById,
   type Spot, type Zone, type ZoneManifest,
 } from './zones';
+import { el } from '../dom';
 
 const SVG_NS = 'http://www.w3.org/2000/svg';
 /** A press that moves less than this (px) is a tap, not a drag. */
@@ -554,13 +555,6 @@ function parsePoster(text: string): SVGSVGElement {
   svg.removeAttribute('height');
   svg.setAttribute('preserveAspectRatio', 'xMidYMid meet');
   return svg;
-}
-
-function el<K extends keyof HTMLElementTagNameMap>(tag: K, className?: string, text?: string): HTMLElementTagNameMap[K] {
-  const e = document.createElement(tag);
-  if (className) e.className = className;
-  if (text !== undefined) e.textContent = text;
-  return e;
 }
 
 function reducedMotion(): boolean {

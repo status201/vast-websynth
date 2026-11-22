@@ -1,5 +1,5 @@
 import { test, expect } from '@playwright/test';
-import { gotoAndStart } from './helpers';
+import { gotoAndStart, playing } from './helpers';
 
 /**
  * Arpeggiator transport ownership. With the arp engaged, holding a key should
@@ -10,8 +10,6 @@ import { gotoAndStart } from './helpers';
  */
 
 /* eslint-disable @typescript-eslint/no-explicit-any */
-const playing = (page: import('@playwright/test').Page) =>
-  page.evaluate(() => (window as any).__synth.engine.clock.playing as boolean);
 const noteOn = (page: import('@playwright/test').Page, n: number) =>
   page.evaluate((note) => (window as any).__synth.bus.noteOn(note), n);
 const noteOff = (page: import('@playwright/test').Page, n: number) =>

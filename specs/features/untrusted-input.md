@@ -106,10 +106,9 @@ decision and the alternatives. This spec is the contract.
   bound cannot leave `public/schema/websynth-song.schema.json` rejecting files the
   runtime accepts.
 
-  Deliberate: `checkUnit` / `checkRatchet` stay separate in `song-validate.ts` and
-  `song-author.ts` — same names, different signatures — because the canonical
-  validator rejects while the dialect coerces-and-reports. Unifying them would
-  change a trust boundary, not deduplicate.
+  The per-step field checks are one copy, in `song-validate.ts`: the canonical
+  validator refuses on any report, the dialect keeps what they return — the
+  trust boundary is the caller's ([shared-helpers](shared-helpers.md)).
 
 - **REQ-payload-values-are-bounded** — **Bounded values.** `SeqStep.note` is an
   integer `0..127` in **both** the canonical validator and the dialect. Chain `steps` is `1..MAX_CHAIN_STEPS`. `params` carries at most

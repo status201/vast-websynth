@@ -13,10 +13,7 @@
 // makes each use deliberate — a new one fails this test until someone adds it,
 // which is the moment they read the spec.
 import { describe, it, expect } from 'vitest';
-import { readdirSync, readFileSync } from 'node:fs';
-import { fileURLToPath } from 'node:url';
-
-const STYLE_DIRS = ['../../src/ui/styles', '../../src/styles'];
+import { readRules, type Rule } from '../css-source';
 
 /** Selectors that may render in `--serif` — display type only (REQ-serif-is-display-type-only). */
 const DISPLAY_TYPE = [
@@ -55,34 +52,6 @@ const DISPLAY_TYPE = [
   'tabs.module.css .tab',
   'xy-pad.module.css .fieldLabel',
 ];
-
-interface Rule {
-  file: string;
-  selector: string;
-  body: string;
-}
-
-/** Every top-level rule in the app's stylesheets. Deliberately a dumb parser:
- *  this is a drift pin, not a CSS engine. Comments are stripped, and an
- *  `@media` wrapper is skipped over rather than parsed (its inner rules still
- *  match, since only innermost brace-free blocks can). */
-function readRules(): Rule[] {
-  const rules: Rule[] = [];
-  for (const dir of STYLE_DIRS) {
-    const path = fileURLToPath(new URL(`${dir}/`, import.meta.url));
-    for (const file of readdirSync(path).filter((n) => n.endsWith('.css')).sort()) {
-      const css = readFileSync(path + file, 'utf8').replace(/\/\*[\s\S]*?\*\//g, '');
-      for (const m of css.matchAll(/([^{}]+)\{([^{}]*)\}/g)) {
-        rules.push({
-          file,
-          selector: m[1]!.trim().replace(/\s+/g, ' '),
-          body: m[2]!,
-        });
-      }
-    }
-  }
-  return rules;
-}
 
 const rules = readRules();
 const faceOf = (r: Rule) => /font-family:\s*([^;]+);/.exec(r.body)?.[1]?.trim();

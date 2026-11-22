@@ -13,9 +13,6 @@ related:
   - ../features/voicing
 ```
 
-> ADR `status` is its own decision lifecycle (`proposed | accepted | superseded
-> by adr-XXX | deprecated`), distinct from a feature spec's lifecycle.
-
 ## Context / Forces
 
 The `Engine` applies every scalar param to the audio graph (architecture.md REQ-ui-and-audio-never-call-each-other: UI and audio

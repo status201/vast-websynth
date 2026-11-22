@@ -2,7 +2,7 @@ import { vi } from 'vitest';
 
 /**
  * jsdom's localStorage isn't reliably wired under Vitest, so suites that touch
- * it install a tiny in-memory Storage (same approach as `state/song.test.ts`).
+ * it install a tiny in-memory Storage.
  * Call from `beforeEach`; returns the backing map for direct inspection.
  */
 function installStorageMock(globalName: 'localStorage' | 'sessionStorage'): Map<string, string> {

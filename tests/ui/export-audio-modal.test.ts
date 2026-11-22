@@ -3,14 +3,7 @@ import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { openExportAudioModal } from '../../src/ui/components/export-audio-modal';
 import { MAX_RUNS, type RecorderPhase } from '../../src/audio/recorder/recorder-controller';
 import type { StudioApi } from '../../src/ui/studio-api';
-
-/** Open the Dropdown at (or inside) `el` if it is not open: option buttons are
- *  built on open (dropdown.md REQ-options-are-built-when-the-menu-opens). */
-function openDd<T extends HTMLElement>(el: T): T {
-  const dd = el.classList.contains('dropdown') ? el : el.querySelector<HTMLElement>('.dropdown');
-  if (dd && !dd.classList.contains('open')) dd.querySelector<HTMLButtonElement>('button')!.click();
-  return el;
-}
+import { openDd } from './open-dropdown';
 
 /** The export options modal, and the render surface it becomes (REQ-export-opens-an-options-modal/REQ-the-modal-is-the-renders-own-surface). */
 

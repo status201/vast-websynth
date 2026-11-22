@@ -30,20 +30,16 @@
 //
 // Framing is judged by eye — look at every shot before committing it.
 
-import { spawn } from 'node:child_process';
-import { existsSync, statSync, writeFileSync } from 'node:fs';
+import { statSync, writeFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { chromium } from 'playwright';
+import { startDevServer, bootApp } from './lib/bench-app.mjs';
+import { flag } from './lib/cli.mjs';
 
 const root = fileURLToPath(new URL('../', import.meta.url));
 const publicDir = root + 'public/';
 const PORT = 5191;
 
-const args = process.argv.slice(2);
-const flag = (name, fallback) => {
-  const i = args.indexOf(`--${name}`);
-  return i >= 0 && args[i + 1] !== undefined ? args[i + 1] : fallback;
-};
 const DEMO = flag('demo', 'Nocturne');
 /** The two theme shots play their own demo: busy on every lane, so both tabs move. */
 const THEME_DEMO = 'Bunk';
@@ -66,51 +62,9 @@ const WINDOWS = [
 
 // ------------------------------------------------------------- dev server
 
-async function waitForServer(url, timeoutMs = 60_000) {
-  const deadline = Date.now() + timeoutMs;
-  while (Date.now() < deadline) {
-    try {
-      const res = await fetch(url);
-      if (res.ok) return;
-    } catch {
-      /* not up yet */
-    }
-    await new Promise((r) => setTimeout(r, 250));
-  }
-  throw new Error(`server did not come up at ${url}`);
-}
-
-let server = null;
-// Kill once, from wherever we leave. An orphaned vite holds node_modules' native
-// rolldown binding open (see audio-bench.mjs).
-const stopServer = () => {
-  const s = server;
-  server = null;
-  if (s) s.kill();
-};
-process.on('exit', stopServer);
-for (const sig of ['SIGINT', 'SIGTERM', 'SIGHUP']) {
-  process.on(sig, () => {
-    stopServer();
-    process.exit(130);
-  });
-}
-
-let url = flag('url', null);
-if (!url) {
-  url = `http://localhost:${PORT}/`;
-  const viteBin = `${root}node_modules/vite/bin/vite.js`;
-  if (!existsSync(viteBin)) {
-    console.error(`readme-screenshots: ${viteBin} is missing — run \`npm install\` first.`);
-    process.exit(1);
-  }
-  server = spawn(process.execPath, [viteBin, '--port', String(PORT), '--strictPort'], {
-    cwd: root,
-    stdio: 'ignore',
-  });
-  console.log(`readme-screenshots: starting vite on ${url}`);
-  await waitForServer(url);
-}
+const urlFlag = flag('url', null);
+const server = urlFlag ? null : await startDevServer({ root, port: PORT, tag: 'readme-screenshots' });
+const url = urlFlag ?? server.url;
 
 // ------------------------------------------------------------------ steps
 
@@ -119,28 +73,12 @@ if (!url) {
  *  theme is Dark unless they say otherwise. */
 async function openApp(browser, prefs = {}, demo = DEMO) {
   const page = await browser.newPage({ viewport: VIEWPORT, deviceScaleFactor: 1 });
-  await page.addInitScript((extra) => {
-    try {
-      localStorage.setItem('websynth.onboarding.done', '1');
-      localStorage.setItem('websynth.perf', 'off');
-      localStorage.setItem('websynth.hint.emptyplay', '1');
-      localStorage.setItem('websynth.ui.collapsed.pattern', '0');
-      localStorage.setItem('websynth.ui.theme', 'dark');
-      for (const [k, v] of Object.entries(extra)) localStorage.setItem(k, v);
-    } catch { /* ignore */ }
-  }, prefs);
-  await page.goto(url);
-
-  // Whichever start gate this browser gets (audio-lifecycle.md REQ-the-gesture-is-required-only-when-required).
-  await page.waitForFunction(() =>
-    Boolean(document.querySelector('.start-btn'))
-    || window.__synth?.engine.ctx.state === 'running');
-  const start = page.getByRole('button', { name: 'Tap to start' });
-  if (await start.count() > 0) {
-    await start.click();
-    await start.waitFor({ state: 'hidden' });
-  }
-  await page.waitForFunction(() => window.__synth?.engine.ctx.state === 'running');
+  // The bench boot, with Performance mode off, the pattern row open and the
+  // Dark theme unless `prefs` say otherwise.
+  await bootApp(page, url, {
+    tier: 'off',
+    storage: { 'websynth.ui.collapsed.pattern': '0', 'websynth.ui.theme': 'dark', ...prefs },
+  });
 
   await page.getByTestId('tab-song').click();
   const btn = page.getByTestId(`song-demo-${demo}`);
@@ -405,5 +343,5 @@ try {
   }
 } finally {
   await browser.close();
-  stopServer();
+  server?.stop();
 }

@@ -17,7 +17,7 @@ import { confirmDialog } from './dialog';
 import { showToast } from './toast';
 import { ScratchGraph } from './scratch-graph';
 import { UI_ICONS } from './ui-icons';
-import { el } from './studio-kit';
+import { el } from '../dom';
 import {
   crop, reverse, normalize, gain, fadeIn, fadeOut, computePeaks,
   sliceEqual, sliceRanges, detectOnsets,

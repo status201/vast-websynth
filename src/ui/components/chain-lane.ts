@@ -21,13 +21,7 @@ import styles from '../styles/song-panel.module.css';
 import { UI_ICONS } from './ui-icons';
 import { plural } from '../../utils/format';
 import { createWheelStepper } from '../wheel-steps';
-
-function el(tag: string, cls?: string, text?: string): HTMLElement {
-  const e = document.createElement(tag);
-  if (cls) e.className = cls;
-  if (text !== undefined) e.textContent = text;
-  return e;
-}
+import { el } from '../dom';
 
 export function buildChainLane(
   title: string,
@@ -129,7 +123,7 @@ export function buildChainLane(
   const renderAddRow = (): void => {
     addRow.replaceChildren();
     BANK_LABELS.slice(0, engine.patterns.bankCount(prefix)).forEach((label, i) => {
-      const a = el('button', `${bankStyles.btn!} ${styles.add!}`, '') as HTMLButtonElement;
+      const a = el('button', `${bankStyles.btn!} ${styles.add!}`, '');
       a.dataset.testid = `chain-add-${prefix}-${i}`;
       a.title = `Add bank ${label}`;
       a.innerHTML = `<span class="${bankStyles.letter!}">${label}</span>`;
@@ -140,7 +134,7 @@ export function buildChainLane(
     // index, so a lane can sit out a bar without spending a bank at all — still
     // the right tool for that even now banks are no longer scarce
     // (arrangement-rest.md REQ-rest-is-a-negative-sentinel). Always last.
-    const rest = el('button', `${bankStyles.btn!} ${styles.add!} ${styles.addRest!}`, '') as HTMLButtonElement;
+    const rest = el('button', `${bankStyles.btn!} ${styles.add!} ${styles.addRest!}`, '');
     rest.dataset.testid = `chain-add-rest-${prefix}`;
     rest.title = 'Add a rest (an empty bar)';
     rest.innerHTML = restIcon();
@@ -154,7 +148,7 @@ export function buildChainLane(
   controls.appendChild(addRow);
 
   const mk = (label: string, fn: () => void) => {
-    const b = el('button', `${switchStyles.root!} ${styles.ctl!}`, label) as HTMLButtonElement;
+    const b = el('button', `${switchStyles.root!} ${styles.ctl!}`, label);
     b.addEventListener('click', fn);
     return b;
   };
@@ -291,7 +285,7 @@ export function buildChainLane(
     chips.innerHTML = '';
     chipEls = lane.steps.map((b, idx) => {
       const isRest = b === REST;
-      const c = el('button', isRest ? `${styles.chip!} ${styles.rest!}` : styles.chip!) as HTMLButtonElement;
+      const c = el('button', isRest ? `${styles.chip!} ${styles.rest!}` : styles.chip!);
       c.dataset.testid = `chain-chip-${prefix}-${idx}`;
       // Every chip says how to move it: the drag has no other affordance, and
       // a gesture with none of the discoverability triple does not exist for

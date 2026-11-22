@@ -15,7 +15,7 @@
  * demo registration.
  */
 import type { SongFile, ChainData } from './song';
-import type { SeqStep, TriggerCell, MotionStep, MotionAssign, MotionTrack, BendShape } from './patterns';
+import type { SeqStep, TriggerCell, MotionStep, MotionAssign, MotionTrack } from './patterns';
 import {
   MIN_BANK_COUNT,
   MAX_BANK_COUNT,
@@ -34,8 +34,10 @@ import {
   makeMotionTrack,
   highestChainBank,
 } from './patterns';
-import { validateSongFile, type SongValidation } from './song-validate';
-import { MAX_CHAIN_STEPS, MAX_CHAIN_DEPTH, MAX_CHAIN_TRANSPOSE, MICRO_MAX, MAX_RATCHET, BEND_MAX} from './limits';
+import {
+  validateSongFile, checkUnit, checkRatchet, checkMicro, checkBool, readBend, type SongValidation,
+} from './song-validate';
+import { MAX_CHAIN_STEPS, MAX_CHAIN_DEPTH, MAX_CHAIN_TRANSPOSE } from './limits';
 import {
   MAX_ERRORS, isObject, describeValue as describe, type AddError,
 } from './validate-utils';
@@ -128,74 +130,8 @@ function parseNote(path: string, v: unknown, add: AddError): number | null {
 
 /* ---------------- per-step settings ---------------- */
 
-/**
- * The dialect's unit check: reports *and returns* the accepted value, because an
- * authored field is coerced into a cell rather than refused. `song-validate.ts`
- * has the same name returning `void` — it rejects instead. Same name, different
- * contract, deliberately not shared (untrusted-input.md REQ-the-limits-are-one-module, ADR-013).
- */
-function checkUnit(path: string, v: unknown, add: AddError): number | undefined {
-  if (v === undefined) return undefined;
-  if (typeof v !== 'number' || !Number.isFinite(v) || v < 0 || v > 1) {
-    add(`${path} must be a number 0..1 (got ${describe(v)})`);
-    return undefined;
-  }
-  return v;
-}
-
-function checkRatchet(path: string, v: unknown, add: AddError): number | undefined {
-  if (v === undefined) return undefined;
-  if (typeof v !== 'number' || !Number.isInteger(v) || v < 1 || v > MAX_RATCHET) {
-    add(`${path} must be an integer 1..${MAX_RATCHET} (got ${describe(v)})`);
-    return undefined;
-  }
-  return v;
-}
-
-/** Signed integer notches, -MICRO_MAX..+MICRO_MAX (step-settings.md REQ-a-step-carries-a-micro-offset). The
- *  canonical validator has a same-named check that REFUSES; this one reports and
- *  drops the value so the rest of the song still imports (ADR-013). */
-function checkMicro(path: string, v: unknown, add: AddError): number | undefined {
-  if (v === undefined) return undefined;
-  if (typeof v !== 'number' || !Number.isInteger(v) || v < -MICRO_MAX || v > MICRO_MAX) {
-    add(`${path} must be an integer ${-MICRO_MAX}..${MICRO_MAX} (got ${describe(v)})`);
-    return undefined;
-  }
-  return v;
-}
-
-/**
- * A seq step's bend (step-settings.md REQ-a-seq-step-carries-a-bend): integer
- * semitones within ±BEND_MAX and a scoop/fall shape. Read on a seq step object
- * only — a drum or sampler hit has no pitched voice to bend. Reports and drops a
- * bad value, as {@link checkMicro} does; the canonical twin refuses (ADR-013).
- */
-function readBend(path: string, o: Record<string, unknown>, add: AddError): Partial<Pick<SeqStep, 'bend' | 'bendShape'>> {
-  const out: Partial<Pick<SeqStep, 'bend' | 'bendShape'>> = {};
-  const v = o.bend;
-  if (v !== undefined) {
-    if (typeof v !== 'number' || !Number.isInteger(v) || v < -BEND_MAX || v > BEND_MAX) {
-      add(`${path}.bend must be an integer ${-BEND_MAX}..${BEND_MAX} (got ${describe(v)})`);
-    } else {
-      out.bend = v;
-    }
-  }
-  const s = o.bendShape;
-  if (s !== undefined) {
-    if (s === 'scoop' || s === 'fall') out.bendShape = s satisfies BendShape;
-    else add(`${path}.bendShape must be "scoop" or "fall" (got ${describe(s)})`);
-  }
-  return out;
-}
-
-function checkTie(path: string, v: unknown, add: AddError): boolean | undefined {
-  if (v === undefined) return undefined;
-  if (typeof v !== 'boolean') {
-    add(`${path} must be a boolean (got ${describe(v)})`);
-    return undefined;
-  }
-  return v;
-}
+// The field checks are the canonical validator's own (song-validate.ts):
+// the dialect keeps what they return and drops what they report (ADR-013).
 
 interface StepOverrides {
   velocity?: number;
@@ -226,7 +162,7 @@ function readOverrides(path: string, o: Record<string, unknown>, add: AddError):
   if (prob !== undefined) out.prob = prob;
   const ratchet = checkRatchet(`${path}.ratchet`, o.ratchet, add);
   if (ratchet !== undefined) out.ratchet = ratchet;
-  const tie = checkTie(`${path}.tie`, o.tie, add);
+  const tie = checkBool(`${path}.tie`, o.tie, add, true);
   if (tie !== undefined) out.tie = tie;
   const micro = checkMicro(`${path}.micro`, o.micro, add);
   if (micro !== undefined) out.micro = micro;

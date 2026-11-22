@@ -1,4 +1,5 @@
-import { describe, it, expect, beforeEach, vi } from 'vitest';
+import { describe, it, expect, beforeEach } from 'vitest';
+import { installLocalStorageMock } from '../storage-mock';
 import {
   Song, DEMO_SONGS, JSON_DEMOS, ZIP_DEMOS, demoNames, isDemoName, resolveDemoName,
   compareSongNames,
@@ -23,25 +24,9 @@ import {
  */
 const demo = (): SongFile => fixtureSong();
 
-/** Minimal Arrangement stand-in: only the surface Song.capture/apply touch. */
-// jsdom's localStorage isn't reliably wired here; a tiny in-memory Storage
-// keeps the slot tests deterministic and version-independent.
-const store = new Map<string, string>();
-const localStorageMock: Storage = {
-  getItem: (k) => store.get(k) ?? null,
-  setItem: (k, v) => void store.set(k, String(v)),
-  removeItem: (k) => void store.delete(k),
-  clear: () => store.clear(),
-  key: (i) => [...store.keys()][i] ?? null,
-  get length() {
-    return store.size;
-  },
-};
-
 describe('Song', () => {
   beforeEach(() => {
-    store.clear();
-    vi.stubGlobal('localStorage', localStorageMock);
+    installLocalStorageMock();
   });
 
   it('round-trips through toJSON/fromJSON', () => {

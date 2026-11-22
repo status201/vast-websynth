@@ -35,7 +35,8 @@ import { isEditableTarget, isTopModal } from '../modal-stack';
 import { EditHistory } from '../../state/edit-history';
 import { createStudioTransport } from './studio-transport';
 import { samplerSlotFilled, snapshotSamplerSlot, writeSamplerSlot } from '../panels/step-panel-scaffold';
-import { el, fmtClip } from './studio-kit';
+import { el } from '../dom';
+import { fmtClip } from './studio-kit';
 import { createWaveform } from './studio-waveform';
 import { buildRecordScreen, type RecordScreen } from './record-screen';
 import {

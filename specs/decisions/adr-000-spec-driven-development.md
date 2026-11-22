@@ -10,10 +10,6 @@ related:
   - ../architecture
 ```
 
-> ADR `status` is its own decision lifecycle (`proposed | accepted | superseded
-> by adr-XXX | deprecated`), distinct from a feature spec's `draft | active |
-> implemented`.
-
 ## Context / Forces
 
 This codebase is built largely by AI agents acting on a current, authoritative

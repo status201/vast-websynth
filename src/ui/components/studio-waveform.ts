@@ -13,7 +13,8 @@ import recStyles from '../styles/record-sound.module.css';
 import type { CapturedAudio } from '../../audio/recorder/node';
 import { capturedFrames, createPeakCache } from '../../audio/recorder/buffer-dsp';
 import { toLocal } from '../ui-scale';
-import { el, fitCanvas, drawMidline, waveColours } from './studio-kit';
+import { el } from '../dom';
+import { fitCanvas, drawMidline, waveColours } from './studio-kit';
 
 export interface WaveformDeps {
   working(): CapturedAudio | null;

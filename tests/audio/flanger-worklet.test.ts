@@ -1,4 +1,5 @@
-import { describe, it, expect, beforeAll, vi } from 'vitest';
+import { describe, it, expect, beforeAll } from 'vitest';
+import { loadWorklet } from '../worklet-harness';
 import {
   FLANGER_MIN_DELAY_S, FLANGER_SPAN_OCTAVES, FLANGER_MAX_FEEDBACK,
 } from '../../src/audio/effects/flanger-live';
@@ -25,13 +26,8 @@ let Processor: new () => ProcessorLike;
 let descriptors: Array<{ name: string; maxValue: number }>;
 
 beforeAll(async () => {
-  vi.stubGlobal('sampleRate', SR);
-  vi.stubGlobal('AudioWorkletProcessor', class { port = { postMessage: vi.fn(), onmessage: null }; });
-  vi.stubGlobal('registerProcessor', (_name: string, cls: unknown) => {
-    Processor = cls as typeof Processor;
-    descriptors = (cls as { parameterDescriptors: typeof descriptors }).parameterDescriptors;
-  });
-  await import('../../public/worklets/flanger.js' as string);
+  Processor = await loadWorklet<typeof Processor>('flanger', { sampleRate: SR });
+  descriptors = (Processor as unknown as { parameterDescriptors: typeof descriptors }).parameterDescriptors;
 });
 
 const params = (p: { rate?: number; depth?: number; feedback?: number }): Record<string, Float32Array> => ({

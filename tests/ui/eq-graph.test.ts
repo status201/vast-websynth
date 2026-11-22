@@ -3,6 +3,7 @@ import { EqGraph } from '../../src/ui/components/eq-graph';
 import { ParamBus, registerDefaults } from '../../src/state/params';
 import { EQ_BANDS, EQ_BAND_COUNT } from '../../src/state/eq';
 import { freqToFrac } from '../../src/ui/components/scope';
+import { recordingCtx } from './scope-harness';
 
 /**
  * The drawable curve — `specs/features/equalizer.md` REQ-the-curve-is-drawn-by-dragging/REQ-the-graph-computes-from-bus-values.
@@ -36,28 +37,8 @@ function frameScheduler() {
   };
 }
 
-/** A 2D context that records the calls made against it. */
-function recordingCtx() {
-  const calls: string[] = [];
-  const target: Record<string, unknown> = {};
-  const ctx = new Proxy(target, {
-    get(t, prop: string) {
-      if (prop === 'createLinearGradient') return () => ({ addColorStop: () => undefined });
-      if (prop === 'measureText') return () => ({ width: 10 });
-      if (prop in t) return t[prop];
-      return (...args: unknown[]) => { calls.push(prop); void args; };
-    },
-    set(t, prop: string, v) { t[prop] = v; return true; },
-  });
-  return {
-    ctx: ctx as unknown as CanvasRenderingContext2D,
-    drew: () => calls.includes('clearRect'),
-    reset: () => { calls.length = 0; },
-  };
-}
-
 function mount(prefix = 'fx.eq') {
-  const painter = recordingCtx();
+  const painter = recordingCtx({ textWidth: 10 });
   vi.spyOn(HTMLCanvasElement.prototype, 'getContext').mockReturnValue(
     painter.ctx as unknown as RenderingContext,
   );

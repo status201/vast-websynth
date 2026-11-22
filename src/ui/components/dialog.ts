@@ -13,7 +13,8 @@ import styles from '../styles/dialog.module.css';
  * layer over the shared {@link Modal} (backdrop / centred card / fade /
  * Escape-to-close / backdrop-click) that adds only the layout + a resolved
  * promise. Escape and a backdrop click both count as **cancel**; the promise
- * settles exactly once (a `settled` latch), mirroring `Modal.onClose`.
+ * settles exactly once (a Promise ignores every later `resolve`), mirroring
+ * `Modal.onClose`.
  *
  * See `specs/features/dialog.md`.
  */
@@ -118,14 +119,7 @@ function actionButton(
  */
 export function confirmDialog(opts: ConfirmOptions): Promise<boolean> {
   return new Promise((resolve) => {
-    let settled = false;
-    const resolveOnce = (v: boolean): void => {
-      if (settled) return;
-      settled = true;
-      resolve(v);
-    };
-
-    const modal = new Modal({ title: opts.title, onClose: () => resolveOnce(false) });
+    const modal = new Modal({ title: opts.title, onClose: () => resolve(false) });
     modal.body.appendChild(messagePara(opts.message));
     if (opts.detail) modal.body.appendChild(detailPara(opts.detail));
 
@@ -134,7 +128,7 @@ export function confirmDialog(opts: ConfirmOptions): Promise<boolean> {
     const confirm = actionButton(
       opts.confirmLabel ?? 'OK',
       'dialog-confirm',
-      () => { resolveOnce(true); modal.close(); },
+      () => { resolve(true); modal.close(); },
       opts.danger,
     );
     row.appendChild(confirm);
@@ -152,14 +146,7 @@ export function confirmDialog(opts: ConfirmOptions): Promise<boolean> {
  */
 export function promptDialog(opts: PromptOptions): Promise<string | null> {
   return new Promise((resolve) => {
-    let settled = false;
-    const resolveOnce = (v: string | null): void => {
-      if (settled) return;
-      settled = true;
-      resolve(v);
-    };
-
-    const modal = new Modal({ title: opts.title, onClose: () => resolveOnce(null) });
+    const modal = new Modal({ title: opts.title, onClose: () => resolve(null) });
     if (opts.message) modal.body.appendChild(messagePara(opts.message));
 
     const input = document.createElement('input');
@@ -176,7 +163,7 @@ export function promptDialog(opts: PromptOptions): Promise<string | null> {
     }
     if (opts.placeholder) input.placeholder = opts.placeholder;
 
-    const submit = (): void => { resolveOnce(input.value); modal.close(); };
+    const submit = (): void => { resolve(input.value); modal.close(); };
     // Enter confirms. Escape is owned by Modal's capture-phase handler.
     input.addEventListener('keydown', (e) => {
       if (e.key === 'Enter') { e.preventDefault(); submit(); }
@@ -215,14 +202,7 @@ export async function promptName(opts: Omit<PromptOptions, 'maxLength'>): Promis
  */
 export function alertDialog(opts: AlertOptions): Promise<void> {
   return new Promise((resolve) => {
-    let settled = false;
-    const resolveOnce = (): void => {
-      if (settled) return;
-      settled = true;
-      resolve();
-    };
-
-    const modal = new Modal({ title: opts.title, onClose: () => resolveOnce() });
+    const modal = new Modal({ title: opts.title, onClose: () => resolve() });
     modal.body.appendChild(messagePara(opts.message));
 
     const copyable = opts.copyable;
@@ -234,7 +214,7 @@ export function alertDialog(opts: AlertOptions): Promise<void> {
         ? `${switchStyles.root!} ${Modal.closeBtnClass}`
         : switchStyles.root!,
       testId: 'dialog-confirm',
-      onClick: () => { resolveOnce(); modal.close(); },
+      onClick: () => { resolve(); modal.close(); },
     });
 
     if (copyable === undefined) {
@@ -274,14 +254,7 @@ export function alertDialog(opts: AlertOptions): Promise<void> {
  */
 export function chooseDialog(opts: ChooseOptions): Promise<string | null> {
   return new Promise((resolve) => {
-    let settled = false;
-    const resolveOnce = (v: string | null): void => {
-      if (settled) return;
-      settled = true;
-      resolve(v);
-    };
-
-    const modal = new Modal({ title: opts.title, onClose: () => resolveOnce(null) });
+    const modal = new Modal({ title: opts.title, onClose: () => resolve(null) });
     modal.body.appendChild(messagePara(opts.message));
     if (opts.detail) modal.body.appendChild(detailPara(opts.detail));
 
@@ -294,7 +267,7 @@ export function chooseDialog(opts: ChooseOptions): Promise<string | null> {
       affirmative = actionButton(
         choice.label,
         `dialog-choice-${choice.id}`,
-        () => { resolveOnce(choice.id); modal.close(); },
+        () => { resolve(choice.id); modal.close(); },
         choice.danger,
       );
       row.appendChild(affirmative);

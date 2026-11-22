@@ -1,5 +1,6 @@
-// What the two benches (`audio-bench.mjs`, `perf-bench.mjs`) share: a dev server
-// of their own and an app booted past onboarding and the start gate.
+// What the scripts that drive the app share (`audio-bench.mjs`, `perf-bench.mjs`,
+// `readme-screenshots.mjs`): a dev server of their own and an app booted past
+// onboarding and the start gate.
 
 import { spawn } from 'node:child_process';
 import { existsSync } from 'node:fs';
@@ -60,14 +61,15 @@ export async function startDevServer({ root, port, tag }) {
  * usually there is none. Waiting for the button alone times out on that path;
  * wait for either outcome, as `e2e/helpers.ts` startAudio does.
  */
-export async function bootApp(page, url, { tier = 'medium' } = {}) {
-  await page.addInitScript((t) => {
+export async function bootApp(page, url, { tier = 'medium', storage = {} } = {}) {
+  await page.addInitScript(({ t, extra }) => {
     try {
       localStorage.setItem('websynth.onboarding.done', '1');
       localStorage.setItem('websynth.perf', t);
       localStorage.setItem('websynth.hint.emptyplay', '1');
+      for (const [k, v] of Object.entries(extra)) localStorage.setItem(k, v);
     } catch { /* ignore */ }
-  }, tier);
+  }, { t: tier, extra: storage });
   await page.goto(url);
   await page.waitForFunction(() =>
     Boolean(document.querySelector('.start-btn'))

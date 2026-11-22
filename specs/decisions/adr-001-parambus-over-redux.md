@@ -10,9 +10,6 @@ related:
   - ../recipes/add-a-parameter
 ```
 
-> ADR `status` is its own decision lifecycle (`proposed | accepted | superseded
-> by adr-XXX | deprecated`), distinct from a feature spec's lifecycle.
-
 ## Context / Forces
 
 Every scalar parameter (oscillator mix, filter cutoff, FX amounts, …) needs a

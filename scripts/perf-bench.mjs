@@ -38,6 +38,7 @@ import { mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { chromium } from 'playwright';
 import { startDevServer, bootApp } from './lib/bench-app.mjs';
+import { flag, flags } from './lib/cli.mjs';
 
 const root = fileURLToPath(new URL('../', import.meta.url));
 const benchDir = `${root}bench`;
@@ -46,11 +47,6 @@ const PORT = 5197; // off the dev server's and bench:audio's ports so all three 
 // ------------------------------------------------------------------- args
 
 const argv = process.argv.slice(2);
-const flag = (name, def = null) => {
-  const i = argv.indexOf(`--${name}`);
-  return i >= 0 && argv[i + 1] && !argv[i + 1].startsWith('--') ? argv[i + 1] : def;
-};
-const flags = (name) => argv.reduce((acc, a, i) => (a === `--${name}` ? [...acc, argv[i + 1]] : acc), []);
 
 // ---------------------------------------------------------------- compare
 

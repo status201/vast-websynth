@@ -10,9 +10,6 @@ related:
   - ../features/presets
 ```
 
-> ADR `status` is its own decision lifecycle (`proposed | accepted | superseded
-> by adr-XXX | deprecated`), distinct from a feature spec's lifecycle.
-
 ## Context / Forces
 
 Presets and songs are `ParamBus` snapshots ([ADR-001](adr-001-parambus-over-redux.md)):

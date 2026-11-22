@@ -3,6 +3,7 @@ import { createModMatrixWindowController } from '../../src/ui/components/mod-mat
 import { ParamBus, registerDefaults } from '../../src/state/params';
 import { MOD_SRC, MOD_DST, MOD_ROWS, MOD_SOURCE_LABELS, MOD_DEST_LABELS } from '../../src/state/mod-routing';
 import dropdownStyles from '../../src/ui/styles/dropdown.module.css';
+import { openDd } from './open-dropdown';
 
 /**
  * specs/features/mod-matrix.md — the window.
@@ -28,13 +29,6 @@ const byId = (root: HTMLElement, id: string) =>
   root.querySelector<HTMLElement>(`[data-testid="${id}"]`)!;
 
 /** An option button inside a row's destination picker, by label. */
-/** Open a Dropdown (its root, by testid) if it is not open: option buttons are
- *  built on open (dropdown.md REQ-options-are-built-when-the-menu-opens). */
-function openDd(dd: HTMLElement): HTMLElement {
-  if (!dd.classList.contains('open')) dd.querySelector<HTMLButtonElement>('button')!.click();
-  return dd;
-}
-
 function destOption(root: HTMLElement, row: number, label: string): HTMLButtonElement {
   return [...openDd(byId(root, `mod-dst-${row}`)).querySelectorAll<HTMLButtonElement>('button')]
     .find((b) => b.textContent === label)!;

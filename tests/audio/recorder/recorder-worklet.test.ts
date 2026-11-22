@@ -1,4 +1,5 @@
 import { describe, it, expect, beforeAll, beforeEach, vi } from 'vitest';
+import { loadWorklet } from '../../worklet-harness';
 
 /**
  * Drives the real `public/worklets/recorder.js` under Node by stubbing the
@@ -28,15 +29,7 @@ interface ProcessorLike {
 let Processor: new () => ProcessorLike;
 
 beforeAll(async () => {
-  vi.stubGlobal('sampleRate', SR);
-  vi.stubGlobal('currentFrame', 0);
-  vi.stubGlobal('AudioWorkletProcessor', class {
-    port = { onmessage: null, postMessage: () => {} };
-  });
-  vi.stubGlobal('registerProcessor', (_name: string, cls: unknown) => {
-    Processor = cls as typeof Processor;
-  });
-  await import('../../../public/worklets/recorder.js' as string);
+  Processor = await loadWorklet<typeof Processor>('recorder', { sampleRate: SR, globals: { currentFrame: 0 } });
 });
 
 function rig() {

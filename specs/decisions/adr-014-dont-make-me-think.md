@@ -11,9 +11,6 @@ related:
   - ../recipes/design-an-interaction
 ```
 
-> ADR `status` is its own decision lifecycle (`proposed | accepted | superseded
-> by adr-XXX | deprecated`), distinct from a feature spec's lifecycle.
-
 ## Context / Forces
 
 The UI is hand-built DOM with no framework and no design system, and it grew

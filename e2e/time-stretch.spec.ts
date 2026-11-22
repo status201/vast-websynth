@@ -1,26 +1,7 @@
 import { test, expect, type Page } from '@playwright/test';
-import { gotoAndStart, makeWavBuffer } from './helpers';
+import { gotoAndStart, makeWavBuffer, slotDuration, slotName, barSeconds, pickOption } from './helpers';
 
 /* eslint-disable @typescript-eslint/no-explicit-any */
-const slotDuration = (page: Page, slot: number): Promise<number | null> =>
-  page.evaluate((s) => (window as any).__synth.engine.sampler.buffers[s]?.duration ?? null, slot);
-const slotName = (page: Page, slot: number): Promise<string | null> =>
-  page.evaluate((s) => (window as any).__synth.patterns.sampleNames[s] ?? null, slot);
-
-/** One bar in seconds, measured the way the transport measures it (meter.md REQ-bar-exact-capture-follows-bar-ticks). */
-const barSeconds = (page: Page): Promise<number> =>
-  page.evaluate(() => {
-    const s = (window as any).__synth;
-    return s.engine.barTicks * s.engine.clock.sixteenthDuration();
-  });
-
-/** Pick a Dropdown option by its `dropdown-option` bridge class, not by accessible
- *  name — the toggle and the option carry the same one (dropdown.md REQ-an-option-carries-the-bridge-class). */
-async function pick(page: Page, testId: string, label: RegExp): Promise<void> {
-  const dd = page.getByTestId(testId);
-  await dd.click();
-  await dd.locator('.dropdown-option', { hasText: label }).click();
-}
 
 /**
  * Load a clip that is deliberately NOT a whole number of bars.
@@ -67,7 +48,7 @@ test.describe('time-stretch', () => {
 
     // The row preselects the nearest target, which for a 1.7 s clip is 14
     // sixteenths — so picking one bar is a real choice, not the default.
-    await pick(page, 'fit-target', /^16 · 1 bar$/);
+    await pickOption(page, 'fit-target', /^16 · 1 bar$/);
     await expect(page.getByTestId('fit-hint')).toContainText('1.70 s → 2.00 s');
 
     await page.getByTestId('fit-apply').click();
@@ -86,7 +67,7 @@ test.describe('time-stretch', () => {
 
     // Disabled at 0 semitones, and it says why.
     await expect(page.getByTestId('shift-apply')).toBeDisabled();
-    await pick(page, 'shift-amount', /^\+7 st$/);
+    await pickOption(page, 'shift-amount', /^\+7 st$/);
     await expect(page.getByTestId('shift-apply')).toBeEnabled();
 
     await page.getByTestId('shift-apply').click();

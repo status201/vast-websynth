@@ -1,4 +1,4 @@
-import { readFileSync } from 'node:fs';
+import { readdirSync, readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 
 /**
@@ -26,4 +26,42 @@ export function cssDecl(css: string, selector: string, prop: string): string | n
     return line.slice(i + 1).replace(';', '').trim();
   }
   return null;
+}
+
+/** One top-level rule of an app stylesheet. */
+export interface Rule {
+  file: string;
+  selector: string;
+  body: string;
+}
+
+/** The app's stylesheet folders: the modules and the global sheets. */
+const STYLE_DIRS = ['src/ui/styles', 'src/styles'];
+
+/**
+ * Every rule in the app's stylesheets, file by file in name order. Deliberately
+ * a dumb parser — a drift pin, not a CSS engine. Comments are stripped, and an
+ * `@media` / `@layer` wrapper is skipped over rather than parsed (its inner rules
+ * still match, since only innermost brace-free blocks can). One parser for every
+ * pin, so two of them cannot disagree about what a rule is.
+ *
+ * With `splitSelectors`, a selector list `a, b { … }` yields one rule per
+ * selector.
+ */
+export function readRules({ splitSelectors = false } = {}): Rule[] {
+  const rules: Rule[] = [];
+  for (const dir of STYLE_DIRS) {
+    const path = resolve(process.cwd(), dir);
+    for (const file of readdirSync(path).filter((n) => n.endsWith('.css')).sort()) {
+      const css = readFileSync(resolve(path, file), 'utf8').replace(/\/\*[\s\S]*?\*\//g, '');
+      for (const m of css.matchAll(/([^{}]+)\{([^{}]*)\}/g)) {
+        const selectors = splitSelectors ? m[1]!.split(',') : [m[1]!];
+        for (const selector of selectors) {
+          const s = selector.trim().replace(/\s+/g, ' ');
+          if (s) rules.push({ file, selector: s, body: m[2]! });
+        }
+      }
+    }
+  }
+  return rules;
 }

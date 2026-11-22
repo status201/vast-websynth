@@ -74,6 +74,55 @@ export const busSet = (page: Page, id: string, value: number): Promise<void> =>
 export const sessionDisplay = (page: Page): Promise<string> =>
   page.evaluate(() => (window as any).__synth.session.display as string);
 
+/** Whether the transport clock is running. */
+export const playing = (page: Page): Promise<boolean> =>
+  page.evaluate(() => (window as any).__synth.engine.clock.playing as boolean);
+
+/** Set the seq chain (and switch chain play on). */
+export const setSeqChain = (page: Page, steps: number[]): Promise<void> =>
+  page.evaluate((s) => (window as any).__synth.engine.arrangement.setSeqChain(s, true), steps);
+
+/** Record every emitted step from here on, so a test can read where playback (re)started. */
+export const recordTicks = (page: Page): Promise<void> =>
+  page.evaluate(() => {
+    const w = window as any;
+    w.__ticks = [];
+    if (!w.__tickRecorder) {
+      w.__tickRecorder = w.__synth.engine.clock.onTick((s: number) => { w.__ticks.push(s); });
+    }
+  });
+
+/** The steps recorded since {@link recordTicks}. */
+export const ticks = (page: Page): Promise<number[]> =>
+  page.evaluate(() => (window as any).__ticks as number[]);
+
+/** One bar in seconds, measured the way the transport measures it (meter.md REQ-bar-exact-capture-follows-bar-ticks). */
+export const barSeconds = (page: Page): Promise<number> =>
+  page.evaluate(() => {
+    const s = (window as any).__synth;
+    return s.engine.barTicks * s.engine.clock.sixteenthDuration();
+  });
+
+/** A sampler slot's clip name, or null when it holds none. */
+export const slotName = (page: Page, slot: number): Promise<string | null> =>
+  page.evaluate((s) => (window as any).__synth.patterns.sampleNames[s] ?? null, slot);
+
+/** Whether a sampler slot holds decoded audio. */
+export const slotLoaded = (page: Page, slot: number): Promise<boolean> =>
+  page.evaluate((s) => (window as any).__synth.engine.sampler.buffers[s] != null, slot);
+
+/** A sampler slot's clip length in seconds, or null when it holds none. */
+export const slotDuration = (page: Page, slot: number): Promise<number | null> =>
+  page.evaluate((s) => (window as any).__synth.engine.sampler.buffers[s]?.duration ?? null, slot);
+
+/** Pick a Dropdown option by its `dropdown-option` bridge class, not by accessible
+ *  name — the toggle and the option carry the same one (dropdown.md REQ-an-option-carries-the-bridge-class). */
+export async function pickOption(page: Page, testId: string, label: RegExp): Promise<void> {
+  const dd = page.getByTestId(testId);
+  await dd.click();
+  await dd.locator('.dropdown-option', { hasText: label }).click();
+}
+
 /** Drag a knob upward (= increase) by its testid. */
 export async function dragKnobUp(page: Page, testid: string): Promise<void> {
   const root = page.getByTestId(testid);

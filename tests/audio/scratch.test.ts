@@ -1,11 +1,11 @@
 import { describe, it, expect } from 'vitest';
+import { SR, cap, sine, estimateHz, allFinite } from './signal';
 import { renderScratch } from '../../src/audio/recorder/scratch';
 import { scratchPreset, type ScratchCurve } from '../../src/audio/recorder/scratch-curve';
 import { reverse } from '../../src/audio/recorder/buffer-dsp';
 import { MAX_STRETCH_OUTPUT_FRAMES } from '../../src/state/limits';
 import type { CapturedAudio } from '../../src/audio/recorder/node';
 
-const SR = 48000;
 
 type Row = [t: number, v: number, cut?: boolean, hold?: boolean];
 
@@ -17,16 +17,6 @@ function curve(rows: readonly Row[], steps = 16, cue = 0): ScratchCurve {
   };
 }
 
-function cap(left: Float32Array, right?: Float32Array, sampleRate = SR): CapturedAudio {
-  return { left, right: right ?? left.slice(), sampleRate };
-}
-
-function sine(hz: number, frames: number, sampleRate = SR): Float32Array {
-  const out = new Float32Array(frames);
-  for (let i = 0; i < frames; i++) out[i] = Math.sin((2 * Math.PI * hz * i) / sampleRate);
-  return out;
-}
-
 /** Deterministic broadband noise — a scratch's real material is not a sine. */
 function noise(frames: number, seed = 1): Float32Array {
   const out = new Float32Array(frames);
@@ -36,33 +26,6 @@ function noise(frames: number, seed = 1): Float32Array {
     out[i] = (s / 0x7fffffff) * 2 - 1;
   }
   return out;
-}
-
-/**
- * Fundamental by autocorrelation over the steady middle — the same estimator
- * `time-stretch.test.ts` justifies: zero-crossing counting rides on DC and on
- * ripple, while autocorrelation measures the period the signal repeats at, which
- * is what a claim about pitch is a claim about.
- */
-function estimateHz(x: Float32Array, sampleRate = SR): number {
-  const from = Math.floor(x.length * 0.25);
-  const to = Math.floor(x.length * 0.75);
-  const n = to - from;
-  const minLag = Math.floor(sampleRate / 4000);
-  const maxLag = Math.floor(sampleRate / 50);
-  let bestLag = minLag;
-  let best = -Infinity;
-  for (let lag = minLag; lag <= maxLag && lag < n; lag++) {
-    let dot = 0;
-    let energy = 0;
-    for (let i = 0; i + lag < n; i++) {
-      dot += x[from + i]! * x[from + i + lag]!;
-      energy += x[from + i + lag]! * x[from + i + lag]!;
-    }
-    const score = energy > 1e-12 ? dot / Math.sqrt(energy) : 0;
-    if (score > best) { best = score; bestLag = lag; }
-  }
-  return sampleRate / bestLag;
 }
 
 function rms(x: Float32Array, from = 0, to = x.length): number {
@@ -91,11 +54,6 @@ function maxStep(x: Float32Array, from = 0, to = x.length): number {
   return m;
 }
 
-function allFinite(x: Float32Array): boolean {
-  for (const v of x) if (!Number.isFinite(v)) return false;
-  return true;
-}
-
 describe('renderScratch — length', () => {
   it('is exactly the frame count it was given', () => {
     const src = cap(noise(20_000));
@@ -121,21 +79,21 @@ describe('renderScratch — pitch rides speed', () => {
   it('a double-rate stroke is an octave up', () => {
     const src = cap(sine(440, SR));
     const r = renderScratch(src, curve([[0, 2]]), SR / 2);
-    expect(estimateHz(r.left)).toBeGreaterThan(830);
-    expect(estimateHz(r.left)).toBeLessThan(930);
+    expect(estimateHz(r.left, { maxHz: 4000 })).toBeGreaterThan(830);
+    expect(estimateHz(r.left, { maxHz: 4000 })).toBeLessThan(930);
   });
 
   it('a half-rate stroke is an octave down', () => {
     const src = cap(sine(440, SR / 2));
     const r = renderScratch(src, curve([[0, 0.5]]), SR / 2);
-    expect(estimateHz(r.left)).toBeGreaterThan(205);
-    expect(estimateHz(r.left)).toBeLessThan(235);
+    expect(estimateHz(r.left, { maxHz: 4000 })).toBeGreaterThan(205);
+    expect(estimateHz(r.left, { maxHz: 4000 })).toBeLessThan(235);
   });
 
   it('is not a time-stretch — the pitch moved, which is the whole point', () => {
     const src = cap(sine(440, SR));
     const r = renderScratch(src, curve([[0, 2]]), SR / 2);
-    expect(Math.abs(estimateHz(r.left) - 440)).toBeGreaterThan(200);
+    expect(Math.abs(estimateHz(r.left, { maxHz: 4000 }) - 440)).toBeGreaterThan(200);
   });
 });
 
