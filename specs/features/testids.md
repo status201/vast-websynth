@@ -314,8 +314,8 @@ audio capture:
     mic-fx-<name> · mic-meter · mic-timer · mic-state · mic-countin · mic-status ·
     mic-load-toast · mic-retry · rec-restore · rec-screen-<record|edit> ·
     rec-transport-toggle · rec-beat-led · rec-bpm · rec-click   # features/sample-recorder.md
-    # The four tools are `createPanelTabs({ prefix: 'sample' })` pages, so they
-    # mint ptab-sample-<effects|chop|stretch|scratch> and
+    # The five tools are `createPanelTabs({ prefix: 'sample' })` pages, so they
+    # mint ptab-sample-<effects|chop|stretch|scratch|vocoder> and
     # ppage-sample-<…> (features/panel-tabs.md REQ-panel-tab-testids-are-prefixed).
   chop-row · chop-count · chop-equal · chop-detect · chop-spread ·
     chop-toast                                        # features/sample-chop.md
@@ -333,6 +333,9 @@ audio capture:
     # elements — the same rule the chop boundaries above follow. A scratch is
     # asserted through the buffer it produces (its exact frame count), never
     # through a handle per breakpoint, which would mint an id per user gesture.
+  voc-page · voc-source · voc-record · voc-state · voc-lane · voc-offset ·
+    voc-stretch · voc-bands · voc-formant · voc-smooth · voc-clarity ·
+    voc-sibilance · voc-dry · voc-audition · voc-apply · voc-hint   # features/vocoder.md
 
 presets:                                            # features/presets.md
   preset-manager · preset-mgr-save · preset-mgr-export-preset ·

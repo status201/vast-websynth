@@ -2,14 +2,14 @@ import { test, expect, type Page } from '@playwright/test';
 import { gotoAndStart, makeWavBuffer } from './helpers';
 
 /**
- * sample-recorder.md REQ-the-tools-are-tabs — the studio's tools are four tabs
+ * sample-recorder.md REQ-the-tools-are-tabs — the studio's tools are five tabs
  * under an always-visible waveform: one page at a time, Effects first.
  *
  * This is the only spec that asserts the tabs themselves; `sample-chop.spec.ts`,
  * `time-stretch.spec.ts` and `scratch.spec.ts` pick their tab and get on with
  * their own feature.
  */
-const PAGES = ['effects', 'chop', 'stretch', 'scratch'] as const;
+const PAGES = ['effects', 'chop', 'stretch', 'scratch', 'vocoder'] as const;
 
 /** Load a clip into slot 0 and open it in the editor. */
 async function openEditor(page: Page): Promise<void> {

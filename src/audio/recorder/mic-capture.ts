@@ -26,6 +26,13 @@ export interface MicSession {
   /** The context time `start()` armed the take at — what a count-in crops to
    *  (sample-recorder.md REQ-count-in-lands-the-take-on-a-downbeat). 0 before. */
   readonly startedAt: number;
+  /** The absolute context frame of the take's first sample — `RecorderNode.firstFrame`
+   *  (audio-export REQ-each-chunk-is-frame-tagged). Exact where `startedAt` is off by
+   *  the port's delay; null until the first chunk arrives (vocoder.md
+   *  REQ-the-voice-take-is-cropped-frame-exact). */
+  readonly firstFrame: number | null;
+  /** The mic track's reported input latency in seconds, or 0 where the browser reports none. */
+  inputLatency(): number;
   /** The input's level over the last ~43 ms, read from an analyser on the mic. */
   level(): MicLevel;
   /** Async because the recorder waits for the worklet's flush (audio-export REQ-chunks-are-batched-then-flushed). */
@@ -89,6 +96,12 @@ export async function openMicSession(ctx: AudioContext): Promise<MicSession> {
 
   return {
     get startedAt(): number { return startedAt; },
+    get firstFrame(): number | null { return recorder.firstFrame; },
+    inputLatency(): number {
+      const track = stream.getAudioTracks()[0];
+      const reported = (track?.getSettings() as { latency?: unknown } | undefined)?.latency;
+      return typeof reported === 'number' && Number.isFinite(reported) && reported > 0 ? reported : 0;
+    },
     start(): void {
       if (disposed || armed) return;
       armed = true;

@@ -1,5 +1,6 @@
 /**
- * The sample studio's four tool pages (sample-recorder.md REQ-the-tools-are-tabs):
+ * Four of the sample studio's five tool pages (sample-recorder.md REQ-the-tools-are-tabs;
+ * the fifth, the Vocoder, is studio-vocoder.ts):
  * Effects, Chop (sample-chop.md), Fit & Shift (time-stretch.md) and Scratch
  * (scratch.md). Each is a builder over a narrow `ToolContext` the editor hands
  * it — the material, the selection, the marks, and the one edit path `runOp`
@@ -86,6 +87,13 @@ export interface ToolContext {
   own<T extends { destroy(): void }>(d: T): T;
   /** Audition a clip through the studio's one preview player. */
   playClip(c: CapturedAudio): void;
+  /** Stop that player (with its fade). */
+  stopPreview(): void;
+  /** Override where the waveform draws the playhead — frames into the selection,
+   *  or null for none — while a clip longer than the selection plays (the
+   *  vocoder's cue pass, vocoder.md REQ-the-voice-take-follows-the-carrier). Null
+   *  puts the preview's own playhead back. */
+  setPlayhead(fn: (() => number | null) | null): void;
   music: MusicLengths;
 }
 
@@ -482,7 +490,7 @@ export interface ScratchPage extends ToolPage {
  * A page rather than a second modal: it edits the same selection, and it
  * applies through the same `runOp`, so undo, the busy latch and the crop reset
  * are inherited. The costliest page — a 210 px canvas plus a 512-column peak scan
- * — and the only one whose visibility also gates work (runtime-performance.md).
+ * — and, with the Vocoder, one whose visibility also gates work (runtime-performance.md).
  */
 export function buildScratchPage(ctx: ToolContext, opts: ScratchPageOptions): ScratchPage {
   const { engine } = ctx;

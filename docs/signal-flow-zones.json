@@ -132,11 +132,11 @@
       "id": "notes-studio",
       "parent": "notes",
       "title": "Sample studio",
-      "blurb": "Edits a recording before it becomes a sampler slot: crop, normalize, fade, filter, pitch, time-stretch, scratch and chop. Its clip preview goes straight to the output.",
+      "blurb": "Edits a recording before it becomes a sampler slot: crop, normalize, fade, filter, pitch, time-stretch, scratch, chop, and a vocoder that lets a voice take shape the clip. Its clip preview goes straight to the output.",
       "x": 628,
       "y": 2588,
       "w": 534,
-      "h": 234
+      "h": 252
     },
     {
       "id": "seqs",
@@ -182,7 +182,7 @@
       "id": "drum-channel",
       "parent": "drums",
       "title": "Drum channel",
-      "blurb": "Every drum track has its own DRIVE, TONE, LEVEL and PAN, then all eight sum on the DRUM BUS.",
+      "blurb": "Every drum track has its own DRIVE, TONE, LEVEL and PAN, then all eight sum on the DRUM BUS. The lane MUTE and SOLO silence the pattern ahead of each channel, so an audition still plays.",
       "x": 2160,
       "y": 1897,
       "w": 1628,
@@ -202,7 +202,7 @@
       "id": "sampler-channel",
       "parent": "sampler",
       "title": "Sampler channel",
-      "blurb": "Each slot plays a window of its recording at a pitch, shaped by a hit envelope, a tone filter, its level and pan, then sums on the SAMPLER BUS.",
+      "blurb": "Each slot plays a window of its recording at a pitch, shaped by a hit envelope, a tone filter, its level and pan, then sums on the SAMPLER BUS. The lane MUTE and SOLO silence the pattern ahead of each channel, so an audition or a MIDI pad still plays.",
       "x": 2160,
       "y": 2687,
       "w": 1628,
@@ -495,7 +495,7 @@
       "x": 640,
       "y": 2600,
       "w": 510,
-      "h": 210
+      "h": 228
     },
     {
       "id": "seq",

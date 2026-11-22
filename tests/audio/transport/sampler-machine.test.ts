@@ -687,3 +687,49 @@ describe('choke groups, mono and the voice cap (v9, REQ-a-slot-can-cut-another-s
     expect(after).toBe(before);
   });
 });
+
+/**
+ * song-mode.md REQ-a-lane-mute-silences-the-pattern-not-the-hands. The lane
+ * mixer's mute/solo closes a gate only the pattern's hits pass through; an
+ * audition (the slot's name, a MIDI pad) enters the channel past it, so a slot
+ * clicked under a solo elsewhere still sounds.
+ */
+describe('the lane gate (REQ-a-lane-mute-silences-the-pattern-not-the-hands, regression)', () => {
+  type Node = { connect: { mock: { calls: unknown[][] } }; gain: { setTargetAtTime: ReturnType<typeof vi.fn> } };
+  /** Where the last hit's own gain is wired: the gate, or the channel's input. */
+  const lastHitDest = (ctx: MockAudioContext): Node =>
+    ctx.createGain.mock.results.at(-1)!.value.connect.mock.calls[0]![0] as Node;
+  /** The channel's input feeds the tone filter; a gate feeds the input. */
+  const feedsFilter = (n: Node): boolean => 'frequency' in (n.connect.mock.calls[0]![0] as object);
+
+  it('sends a pattern hit through the gate, and an audition past it', () => {
+    const { ctx, clock, patterns, sm } = build();
+    sm.setBuffer(0, longBuf());
+    sm.setEnabled(true);
+    patterns.setSamplerCell(0, 0, { on: true, velocity: 0.8 });
+    clock.fireTick(0);
+    const viaPattern = lastHitDest(ctx);
+    expect(feedsFilter(viaPattern)).toBe(false);
+    expect(feedsFilter(viaPattern.connect.mock.calls[0]![0] as Node)).toBe(true);
+
+    sm.triggerSlot(0);
+    expect(feedsFilter(lastHitDest(ctx))).toBe(true);
+  });
+
+  it('closes and opens the slot gates on the verdict, and leaves the channel alone', () => {
+    const { ctx, clock, patterns, sm } = build();
+    sm.setBuffer(0, longBuf());
+    sm.setEnabled(true);
+    patterns.setSamplerCell(0, 0, { on: true });
+    clock.fireTick(0);
+    const gate = lastHitDest(ctx);
+    sm.triggerSlot(0);
+    const input = lastHitDest(ctx);
+
+    sm.setLaneAudible(false);
+    expect(gate.gain.setTargetAtTime).toHaveBeenLastCalledWith(0, expect.any(Number), expect.any(Number));
+    expect(input.gain.setTargetAtTime).not.toHaveBeenCalled();
+    sm.setLaneAudible(true);
+    expect(gate.gain.setTargetAtTime).toHaveBeenLastCalledWith(1, expect.any(Number), expect.any(Number));
+  });
+});

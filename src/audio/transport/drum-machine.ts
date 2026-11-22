@@ -62,6 +62,14 @@ export class DrumMachine {
   private readonly trackDriveShapers: WaveShaperNode[] = [];
   private readonly trackDrivePost: GainNode[] = [];
   readonly muted: boolean[] = Array(DRUM_TRACK_COUNT).fill(false);
+  /** The lane mixer's mute/solo, one per track, between the pattern voice and its
+   *  channel. The audition voice joins the channel past it
+   *  (song-mode.md REQ-a-lane-mute-silences-the-pattern-not-the-hands). */
+  private readonly laneGates: GainNode[] = [];
+  /** One per track, built on its first audition: a voice's hits all share its
+   *  output, so an audition needs a voice of its own to reach the channel past
+   *  the lane gate. Dropped on a model swap and rebuilt on the next audition. */
+  private readonly auditionVoices: (DrumSynth | null)[] = Array(DRUM_TRACK_COUNT).fill(null);
   // Current model per track + cached tune/decay, replayed onto a swapped-in voice.
   private readonly trackModels: number[] = Array.from({ length: DRUM_TRACK_COUNT }, (_, i) => i);
   private readonly trackTunes: number[] = Array(DRUM_TRACK_COUNT).fill(0);
@@ -114,7 +122,9 @@ export class DrumMachine {
       g.gain.value = 0.85;
       const pan = this.ctx.createStereoPanner();
 
-      t.output
+      const gate = this.ctx.createGain();
+      t.output.connect(gate);
+      gate
         .connect(drivePre)
         .connect(shaper)
         .connect(drivePost)
@@ -123,6 +133,7 @@ export class DrumMachine {
         .connect(pan)
         .connect(this.drumBus);
 
+      this.laneGates.push(gate);
       this.trackDrivePre.push(drivePre);
       this.trackDriveShapers.push(shaper);
       this.trackDrivePost.push(drivePost);
@@ -153,6 +164,7 @@ export class DrumMachine {
    */
   setLaneAudible(on: boolean): void {
     this.laneAudible = on;
+    for (const gate of this.laneGates) rampTo(gate.gain, on ? 1 : 0, this.ctx, RAMP_MEDIUM);
   }
 
   /**
@@ -160,13 +172,29 @@ export class DrumMachine {
    * hit, so no trigger path — pattern sweep, fill or manual audition — can
    * report a hit that did not sound or forget one that did.
    */
-  private fire(track: number, when: number, velocity: number, choke?: number): void {
-    const voice = this.tracks[track];
+  private fire(track: number, when: number, velocity: number, choke?: number, live = false): void {
+    const voice = live ? this.auditionVoice(track) : this.tracks[track];
     if (!voice) return;
     voice.trigger(when, velocity, choke);
-    // Play but stay quiet about it: the bus is silenced, so nothing sounds.
-    if (!this.laneAudible) return;
+    // A pattern hit behind a closed lane gate plays but stays quiet about it:
+    // nothing sounds. An audition plays past the gate, so it always sounds.
+    if (!live && !this.laneAudible) return;
     this.hitListeners.emit(track, when, velocity);
+  }
+
+  /** The track's audition voice, built on first use with the pattern voice's model, tune and decay. */
+  private auditionVoice(track: number): DrumSynth | null {
+    const have = this.auditionVoices[track];
+    if (have) return have;
+    const builder = MODEL_BUILDERS[this.trackModels[track] ?? -1];
+    const drivePre = this.trackDrivePre[track];
+    if (!builder || !drivePre) return null;
+    const voice = builder(this.ctx, this.noise);
+    voice.setTune(this.trackTunes[track]!);
+    voice.setDecay(this.trackDecays[track]!);
+    voice.output.connect(drivePre);
+    this.auditionVoices[track] = voice;
+    return voice;
   }
 
   setTrackVolume(track: number, v: number): void {
@@ -181,11 +209,13 @@ export class DrumMachine {
   setTrackTune(track: number, semi: number): void {
     this.trackTunes[track] = semi;
     this.tracks[track]?.setTune(semi);
+    this.auditionVoices[track]?.setTune(semi);
   }
 
   setTrackDecay(track: number, sec: number): void {
     this.trackDecays[track] = sec;
     this.tracks[track]?.setDecay(sec);
+    this.auditionVoices[track]?.setDecay(sec);
   }
 
   /**
@@ -208,24 +238,29 @@ export class DrumMachine {
   setTrackModel(track: number, model: number): void {
     const m = Math.round(model);
     const builder = MODEL_BUILDERS[m];
-    const drivePre = this.trackDrivePre[track];
-    if (!builder || !drivePre || this.trackModels[track] === m) return;
+    const gate = this.laneGates[track];
+    if (!builder || !gate || this.trackModels[track] === m) return;
     this.trackModels[track] = m;
 
-    const old = this.tracks[track];
-    if (old) {
+    // No generation guard here, deliberately: unlike `ModMatrix.patch`, which
+    // rewires one shared row, every pending timer owns a *different* discarded
+    // voice. Guarding would cancel an earlier voice's teardown and leak it,
+    // still connected, for the life of the context.
+    const retire = (old: DrumSynth): void => {
       rampTo(old.output.gain, 0, this.ctx, RAMP_MEDIUM);
-      // No generation guard here, deliberately: unlike `ModMatrix.patch`, which
-      // rewires one shared row, every pending timer owns a *different* discarded
-      // voice. Guarding would cancel an earlier voice's teardown and leak it,
-      // still connected, for the life of the context.
       window.setTimeout(() => old.output.disconnect(), MODEL_SWAP_FADE_MS);
-    }
+    };
+    const old = this.tracks[track];
+    if (old) retire(old);
+    // The audition voice follows on the next audition, built on the new model.
+    const oldAudition = this.auditionVoices[track];
+    if (oldAudition) retire(oldAudition);
+    this.auditionVoices[track] = null;
 
     const voice = builder(this.ctx, this.noise);
     voice.setTune(this.trackTunes[track]!);
     voice.setDecay(this.trackDecays[track]!);
-    voice.output.connect(drivePre);
+    voice.output.connect(gate);
     this.tracks[track] = voice;
   }
 
@@ -261,7 +296,9 @@ export class DrumMachine {
   /** Manual trigger (for UI auditioning), one render burst ahead so its
    *  attack is never anchored in the past (live-trigger-timing.md REQ-a-live-trigger-starts-ahead-of-the-render). */
   triggerTrack(track: number, velocity = 0.9): void {
-    this.fire(track, liveStartTime(this.ctx), velocity);
+    // On the audition voice, past the lane gate: an audition sounds on a muted
+    // lane (song-mode.md REQ-a-lane-mute-silences-the-pattern-not-the-hands).
+    this.fire(track, liveStartTime(this.ctx), velocity, undefined, true);
   }
 
   private onTick(step: number, when: number): void {

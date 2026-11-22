@@ -2,8 +2,8 @@
  * The sample studio — "Record a sound" / "Edit sample" (sample-recorder.md).
  *
  * One near-full-screen frame (REQ-the-studio-fills-the-screen) with two screens:
- * **Record** (record-screen.ts) and **Edit** (the waveform, the edit bar, the four
- * tool tabs from studio-tools.ts, and one primary action). The transport and a
+ * **Record** (record-screen.ts) and **Edit** (the waveform, the edit bar, the five
+ * tool tabs from studio-tools.ts and studio-vocoder.ts, and one primary action). The transport and a
  * metronome sit in the frame's toolbar (studio-transport.ts), so a song playing
  * under a take can be stopped without leaving (REQ-the-transport-is-in-reach),
  * and nothing the user recorded is dropped without asking
@@ -42,6 +42,8 @@ import {
   musicLengths, buildEffectsPage, buildChopPage, buildStretchPage, buildScratchPage,
   type ToolContext, type ToolPage, type ScratchPage,
 } from './studio-tools';
+import { buildVocoderPage, type VocoderPage, type VoiceState } from './studio-vocoder';
+import { DEFAULT_VOCODER, type VocoderSettings } from '../../audio/recorder/vocoder';
 
 export { MAX_TAKE_SECONDS } from './record-screen';
 
@@ -60,7 +62,7 @@ export interface RecordSoundOptions {
   toggleTransport: () => void;
 }
 
-type ToolTab = 'effects' | 'chop' | 'stretch' | 'scratch';
+type ToolTab = 'effects' | 'chop' | 'stretch' | 'scratch' | 'vocoder';
 
 /**
  * Studio memory that outlives one open, for the rest of the session — module
@@ -120,6 +122,12 @@ export function openRecordSoundModal(engine: StudioApi, opts: RecordSoundOptions
   /** The drawn scratch: studio-lifetime, so a re-record keeps it (scratch.md REQ-scratch-registers-no-params). */
   let scratch: ScratchCurve = scratchPreset('Baby', 16);
   let activeTab: ToolTab = memory.tab;
+  /** The vocoder's settings and voice: studio-lifetime, so a re-record or an
+   *  undo keeps them (vocoder.md REQ-vocoder-registers-no-params). */
+  let vocoderSettings: VocoderSettings = { ...DEFAULT_VOCODER };
+  let voiceState: VoiceState = { source: 'mic', take: null, offsetMs: 0, stretch: false };
+  /** Where the waveform draws the playhead while the vocoder's cue pass plays (ToolContext.setPlayhead). */
+  let playheadOverride: (() => number | null) | null = null;
 
   /** The audition player — the audio layer's, with the slot's edges (sample-recorder.md
    *  REQ-the-preview-fades-like-the-slot). */
@@ -135,7 +143,7 @@ export function openRecordSoundModal(engine: StudioApi, opts: RecordSoundOptions
   /** The Record screen while it shows — the guard and the `R` key ask it. */
   let recScreen: RecordScreen | null = null;
   /** The Edit screen's tool pages, re-synced when the material or the busy latch moves. */
-  let pages: { chop: ToolPage; stretch: ToolPage; scratch: ScratchPage } | null = null;
+  let pages: { chop: ToolPage; stretch: ToolPage; scratch: ScratchPage; vocoder: VocoderPage } | null = null;
   let syncHistory: (() => void) | null = null;
 
   /**
@@ -174,7 +182,11 @@ export function openRecordSoundModal(engine: StudioApi, opts: RecordSoundOptions
     // The scratch graph owns a ResizeObserver and, mid-drag, listeners on its
     // own canvas plus the shared value bubble — none of which `owned` can see.
     pages?.scratch.destroy();
+    // A voice take in flight holds the mic, a watch interval and the click
+    // (vocoder.md REQ-the-voice-take-owns-its-teardown).
+    pages?.vocoder.destroy();
     pages = null;
+    playheadOverride = null;
     syncHistory = null;
     for (const d of owned) d.destroy();
     owned.length = 0;
@@ -351,11 +363,15 @@ export function openRecordSoundModal(engine: StudioApi, opts: RecordSoundOptions
         cropEnd = end;
         pages?.stretch.sync();
         pages?.scratch.sync();
+        pages?.vocoder.sync();
       },
       marks: () => marks,
-      playhead: () => (working && preview.playing && preview.samples > 0
-        ? (engine.ctx.currentTime - preview.startTime) * working.sampleRate
-        : null),
+      playhead: () => {
+        if (playheadOverride) return preview.playing ? playheadOverride() : null;
+        return working && preview.playing && preview.samples > 0
+          ? (engine.ctx.currentTime - preview.startTime) * working.sampleRate
+          : null;
+      },
       onPaint: () => { if (working) refreshStatus(working); },
     });
     owned.push(wave);
@@ -403,6 +419,7 @@ export function openRecordSoundModal(engine: StudioApi, opts: RecordSoundOptions
       pages?.chop.sync();
       pages?.stretch.sync();
       pages?.scratch.sync();
+      pages?.vocoder.sync();
       syncHistory?.();
     };
 
@@ -417,6 +434,7 @@ export function openRecordSoundModal(engine: StudioApi, opts: RecordSoundOptions
       pages?.chop.sync();
       pages?.stretch.sync(true);
       pages?.scratch.sync(true);
+      pages?.vocoder.sync();
       syncHistory?.();
       lastAction = action;
       redraw();
@@ -469,6 +487,8 @@ export function openRecordSoundModal(engine: StudioApi, opts: RecordSoundOptions
       track: (...btns) => { tracked.push(...btns); },
       own,
       playClip,
+      stopPreview: () => stopPreview(),
+      setPlayhead: (fn) => { playheadOverride = fn; redraw(); },
       music: musicLengths(engine, () => working, () => cropStart, () => cropEnd),
     };
 
@@ -528,7 +548,7 @@ export function openRecordSoundModal(engine: StudioApi, opts: RecordSoundOptions
     picker.el.dataset.testid = 'mic-slot-select';
     const pickedSlot = (): number => Math.max(0, slotOptions.indexOf(picker.value));
 
-    // ---- the four tool pages (studio-tools.ts) ----
+    // ---- the five tool pages (studio-tools.ts; the Vocoder in studio-vocoder.ts) ----
     const effects = buildEffectsPage(ctx);
     autoPlay = effects.autoPlay;
     const chop = buildChopPage(ctx, {
@@ -543,7 +563,15 @@ export function openRecordSoundModal(engine: StudioApi, opts: RecordSoundOptions
       autoPlay: () => effects.autoPlay(),
       visible: () => activeTab === 'scratch',
     });
-    pages = { chop, stretch, scratch: scratchPage };
+    const vocoder = buildVocoderPage(ctx, {
+      toggleTransport: opts.toggleTransport,
+      metronome,
+      settings: { get: () => vocoderSettings, set: (s) => { vocoderSettings = s; } },
+      voice: { get: () => voiceState, set: (v) => { voiceState = v; } },
+      autoPlay: () => effects.autoPlay(),
+      visible: () => activeTab === 'vocoder',
+    });
+    pages = { chop, stretch, scratch: scratchPage, vocoder };
 
     // ---- the tabs (REQ-the-tools-are-tabs) ----
     const tabs: PanelTabs = own(createPanelTabs({
@@ -553,6 +581,7 @@ export function openRecordSoundModal(engine: StudioApi, opts: RecordSoundOptions
         { id: 'chop', label: 'Chop', content: chop.el },
         { id: 'stretch', label: 'Fit & Shift', content: stretch.el },
         { id: 'scratch', label: 'Scratch', content: scratchPage.el },
+        { id: 'vocoder', label: 'Vocoder', content: vocoder.el },
       ],
       initialId: activeTab,
     }));
@@ -568,6 +597,8 @@ export function openRecordSoundModal(engine: StudioApi, opts: RecordSoundOptions
       if (id === 'chop') chop.sync();
       if (id === 'stretch') stretch.sync();
       if (id === 'scratch') scratchPage.sync();
+      // The lane is a canvas with no box until its page shows.
+      if (id === 'vocoder') vocoder.sync();
     });
     screen.append(tabs.bar, tabs.body);
 

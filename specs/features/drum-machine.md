@@ -3,7 +3,7 @@
 ```yaml
 id: drum-machine
 status: implemented
-version: 16
+version: 17
 owner: core
 related:
   - architecture
@@ -112,9 +112,17 @@ asks. Bulk tweaks (factory kits, randomize) are [drum-kits](drum-kits.md).
   the playhead, with no time). Its consumer is [sidechain-ducking](sidechain-ducking.md)
   REQ-on-hit-reports-only-sounded-hits.
   - **Reported ⇔ audible.** A per-track mute stops the hit outright. A **lane** mute,
-    or a solo elsewhere, silences the bus while the voices still fire (so un-mute is
-    instant); `LaneMixer.apply` pushes the `audibleLanes` verdict through
-    `setLaneAudible`, so those hits are not reported either.
+    or a solo elsewhere, closes the pattern voices' lane gates while they still fire
+    (so un-mute is instant); `LaneMixer.apply` pushes the `audibleLanes` verdict
+    through `setLaneAudible`, so those hits are not reported either. An audition
+    plays past the gate ([song-mode](song-mode.md)
+    REQ-a-lane-mute-silences-the-pattern-not-the-hands), so it sounds and is
+    reported whatever the lane's state.
+  - The audition plays on its own **audition voice** per track, wired into the
+    channel after the gate, because a voice's hits all share its one output. It is
+    built on the track's first audition and replaced with the pattern voice on a
+    model swap, carrying the same tune and decay. A track never auditioned costs
+    nothing. A closed hat chokes only the pattern's open hat.
   - A mute does not retract reports already made up to one look-ahead ago.
     Deliberate: every consumer's envelope decays to rest within a release
     ([sidechain-ducking](sidechain-ducking.md) REQ-the-resting-duck-state-is-unity).
@@ -164,8 +172,8 @@ DrumMachine:  # src/audio/transport/drum-machine.ts
   setTrackVolume(i, v) / setTrackTune(i, semis) / setTrackDecay(i, s) / setTrackMute(i, b)
   setTrackTone(i, amt) / setTrackDrive(i, amt) / setTrackPan(i, p)
   setTrackModel(i, model)              # swap the voice (REQ-swapping-a-model-never-severs-a-voice)
-  setLaneAudible(on)                   # the lane mixer's mute/solo verdict
-  triggerTrack(i, velocity)            # UI audition, one render burst ahead (live-trigger-timing.md)
+  setLaneAudible(on)                   # the lane mixer's verdict: ramps the pattern's lane gates, gates its reports
+  triggerTrack(i, velocity)            # UI audition on the track's audition voice, past the gate; one render burst ahead (live-trigger-timing.md)
   onStep(fn) -> unsubscribe
   onHit(fn: (track, when, velocity) => void) -> unsubscribe
 MODEL_BUILDERS: ((ctx, noise) => DrumSynth)[]   # drum-machine.ts, index = model value
@@ -372,14 +380,14 @@ Scenario: A hit that does not sound is not reported (REQ-every-sounded-hit-is-re
 
 Scenario: A lane mute stops the reports too (REQ-every-sounded-hit-is-reported, regression)
   Given an active drum pattern being reported through onHit
-  When the drum LANE is muted, silencing the bus without stopping the pattern
+  When the drum LANE is muted, closing its lane gates without stopping the pattern
   Then onHit stops firing, so a trigger-keyed effect stops pumping
    And it resumes on un-mute
 # pinned by: tests/audio/transport/drum-machine.test.ts, tests/audio/lane-mixer.test.ts
 
 Scenario: Soloing another lane stops them as well (REQ-every-sounded-hit-is-reported, regression)
   Given an active drum pattern being reported through onHit
-  When the sequencer lane is soloed, so the drum bus is silenced
+  When the sequencer lane is soloed, so the drum lane gates close
   Then onHit stops firing, because audibility — not the mute flag — is the rule
 # pinned by: tests/audio/lane-mixer.test.ts
 
