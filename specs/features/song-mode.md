@@ -3,7 +3,7 @@
 ```yaml
 id: song-mode
 status: implemented
-version: 33
+version: 34
 owner: core
 related:
   - architecture
@@ -35,6 +35,7 @@ source:
   - src/audio/transport/arrangement.ts        # 4 chain lanes
   - src/audio/transport/performance.ts        # live DJ FX
   - src/audio/transport/lane-mix.ts           # audibleLanes (pure mute/solo rule)
+  - src/audio/lane-mixer.ts                   # LaneMixer: the verdict onto the lane gates
   - src/audio/transport/sampler-machine.ts    # sampler lane playback
   - src/ui/panels/song-panel.ts               # the Song tab
   - src/ui/panels/song-session.ts             # the loaded song: apply, slot provenance, the undo net
@@ -88,6 +89,13 @@ never embedded) are [song-file](song-file.md)'s.
   hold a sampler pass it (`SongSession.apply` and the boot restore in `main.ts`); unit tests without an audio graph omit it.
 - **REQ-mute-and-solo-share-one-rule** — Mute/solo audibility follows one shared
   pure rule (solo wins over mute), used by both the engine and the UI.
+- **REQ-a-lane-mute-silences-the-pattern-not-the-hands** (v34) — Mute, or a solo
+  elsewhere, silences a lane's **pattern**, never the hands: the sequencer stops
+  triggering (live keys still sound), and drums and sampler close one *lane gate*
+  per track/slot, ahead of its channel, through `setLaneAudible`. Only pattern
+  hits pass a gate; an audition (a track's or slot's name) or a MIDI pad enters
+  the channel past it. The lane volume stays on the bus, so it applies to both,
+  and a ringing pattern hit is gated too, so un-mute stays instant.
 - **REQ-play-banks-settle-before-the-machines-read** — Play banks must be
   settled **before** the machines read them on a given tick (construction
   ordering).
@@ -359,7 +367,7 @@ why: Arrangement's clock.onTick runs first, so seq/drum/samplerPlayBank are
      (e.g. sampler-machine reads patterns.samplerBank(arrangement.samplerPlayBank))
 edit-vs-play bank: a DISABLED lane's play bank tracks that machine's EDIT bank
 lane mix: audibleLanes(mute, solo) — solo wins; shared by LaneMixer
-          (cuts bus gain / StepSequencer.setMuted) and the panel's dim visual
+          (closes the drum/sampler lane gates / StepSequencer.setMuted) and the panel's dim visual
 ui dialogs (song-panel): Save/New/Import + the per-lane Clear route through the
           shared confirm/prompt/alert helpers (see dialog.md), NOT native
           prompt/confirm/alert. The per-lane Clear (testid chain-clear-<lane>)
@@ -508,6 +516,13 @@ Scenario: Solo overrides mute (lane mixer)
   Given the drum lane is muted and the seq lane is soloed
   Then only the seq lane is audible
 # pinned by: tests/audio/transport/lane-mix.test.ts, e2e/song-mixer.spec.ts
+
+Scenario: An audition sounds on a silenced lane (REQ-a-lane-mute-silences-the-pattern-not-the-hands, regression)
+  Given the sequencer lane is soloed
+  When the user auditions a slot or a drum track, or hits a MIDI pad
+  Then it sounds past the closed lane gate, and the pattern's hits stay silent
+# pinned by: tests/audio/lane-mixer.test.ts, tests/audio/transport/sampler-machine.test.ts,
+#            tests/audio/transport/drum-machine.test.ts
 
 Scenario: Stale param reverts on load (failure guard)
   Given param P was edited live but the loaded song omits P

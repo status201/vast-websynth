@@ -3,7 +3,7 @@
 ```yaml
 id: sampler
 status: implemented
-version: 17
+version: 18
 owner: core
 related:
   - architecture
@@ -203,7 +203,9 @@ SamplerMachine:  # src/audio/transport/sampler-machine.ts
   setSlotPitch(slot, semitones) / setSlotStart(slot, f) / setSlotEnd(slot, f)              # read at trigger
   setSlotRev(slot, on) / setSlotAttack(slot, s) / setSlotDecay(slot, s)
   setSlotChokeGroup(slot, group) / setSlotMono(slot, on)   # 0 = no group
-  triggerSlot(slot, velocity?)     # manual audition — same play(), reproduces a voice bug stopped; one render burst ahead (live-trigger-timing.md)
+  triggerSlot(slot, velocity?)     # manual audition / MIDI pad — same play(), reproduces a voice bug stopped; one render burst ahead (live-trigger-timing.md)
+                                   #   past the slot's lane gate, so it sounds on a muted lane (song-mode.md REQ-a-lane-mute-silences-the-pattern-not-the-hands)
+  setLaneAudible(on)               # the lane mixer's verdict: ramps every slot's lane gate (pattern hits only)
   onStep(fn) -> unsubscribe
   onBufferChange(fn) -> unsubscribe   # slot's buffer replaced/cleared
   stopAll()                        # fade + stop every in-flight hit (through cutHit)

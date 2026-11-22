@@ -94,7 +94,11 @@ export class SamplerMachine {
   readonly buffers: (AudioBuffer | null)[] = Array(SAMPLER_SLOT_COUNT).fill(null);
   readonly muted: boolean[] = Array(SAMPLER_SLOT_COUNT).fill(false);
 
-  // ---- Per-slot channel (REQ-each-slot-has-a-channel): in -> tone -> vol -> pan -> samplerBus ----
+  // ---- Per-slot channel (REQ-each-slot-has-a-channel): [lane gate ->] in -> tone -> vol -> pan -> samplerBus ----
+  /** The lane mixer's mute/solo, one per slot, ahead of the channel. Pattern hits
+   *  enter here; a manual trigger enters `slotIn` past it, so an audition sounds on
+   *  a silenced lane (song-mode.md REQ-a-lane-mute-silences-the-pattern-not-the-hands). */
+  private readonly laneGates: GainNode[] = [];
   /** Unity and inert today. It is the node REQ-a-slot-can-cut-another-slot's group choke will cut, and it
    *  sits *upstream* of the filter so a cut tail cannot ring on through resonance. */
   private readonly slotIn: GainNode[] = [];
@@ -155,6 +159,9 @@ export class SamplerMachine {
       const pan = this.ctx.createStereoPanner();
 
       input.connect(tone).connect(g).connect(pan).connect(this.samplerBus);
+      const gate = this.ctx.createGain();
+      gate.connect(input);
+      this.laneGates.push(gate);
       this.slotIn.push(input);
       this.slotTones.push(tone);
       this.slotGains.push(g);
@@ -165,6 +172,12 @@ export class SamplerMachine {
   }
 
   setEnabled(on: boolean): void { this.enabled = on; }
+
+  /** The lane mixer's verdict: open or close every slot's lane gate. Pattern hits
+   *  only — `triggerSlot` plays past it (song-mode.md REQ-a-lane-mute-silences-the-pattern-not-the-hands). */
+  setLaneAudible(on: boolean): void {
+    for (const gate of this.laneGates) rampTo(gate.gain, on ? 1 : 0, this.ctx, RAMP_MEDIUM);
+  }
 
   onStep(fn: SamplerStepListener): () => void {
     return this.stepListeners.add(fn);
@@ -289,14 +302,17 @@ export class SamplerMachine {
   }
 
   /** Manual trigger (UI audition, MIDI pads), one render burst ahead so its
-   *  attack is never anchored in the past (live-trigger-timing.md REQ-a-live-trigger-starts-ahead-of-the-render). */
+   *  attack is never anchored in the past (live-trigger-timing.md REQ-a-live-trigger-starts-ahead-of-the-render).
+   *  It plays past the slot's lane gate, so it sounds on a muted lane
+   *  (song-mode.md REQ-a-lane-mute-silences-the-pattern-not-the-hands). */
   triggerSlot(slot: number, velocity = 0.9): void {
-    this.play(slot, liveStartTime(this.ctx), velocity);
+    this.play(slot, liveStartTime(this.ctx), velocity, undefined, true);
   }
 
-  private play(slot: number, when: number, velocity: number, chokeAt?: number): void {
+  /** `manual`: a manual trigger, which enters the channel past the lane gate. */
+  private play(slot: number, when: number, velocity: number, chokeAt?: number, manual = false): void {
     const buf = this.buffers[slot];
-    const out = this.slotIn[slot];
+    const out = manual ? this.slotIn[slot] : this.laneGates[slot];
     if (!buf || !out) return;
     const src = this.ctx.createBufferSource();
     const g = this.ctx.createGain();

@@ -466,9 +466,10 @@ export class Engine {
       this.samplerFx.fx.duck.onDrumHit(track, when);
     });
 
-    // Lane mixer — needs the sequencer (mute = stop triggering) + the drum/
-    // sampler buses (mute = cut bus gain), so it is built after the machines.
-    this.laneMixer = new LaneMixer(this.ctx, this.seq, this.drumBus, this.samplerBus, this.drums);
+    // Lane mixer — needs the sequencer (mute = stop triggering), the drum/sampler
+    // buses (the lane volume) and the two machines (mute = close their pattern
+    // lane gates), so it is built after the machines.
+    this.laneMixer = new LaneMixer(this.ctx, this.seq, this.drumBus, this.samplerBus, this.drums, this.sampler);
 
     // Audio capture: tap master (post master-volume). The recorder node has
     // zero outputs so it is a pure sink and never doubles into destination.

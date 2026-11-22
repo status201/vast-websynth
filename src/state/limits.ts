@@ -260,6 +260,27 @@ export const MAX_SCRATCH_RATE = 4;
  */
 export const MAX_SCRATCH_STEPS = 64;
 
+/* --------------------------------------------------------------- vocoder */
+/*
+ * vocoder.md REQ-vocoder-bounds-live-in-limits. The vocoder is a filter bank run
+ * on the main thread behind the busy latch, and its cost grows with the clip and
+ * the band count — so the frame cap sizes main-thread time, not trust. The other
+ * three are control ranges the studio's sliders and dropdown expose; `vocode()`
+ * clamps to them whatever it is handed.
+ */
+
+/** Longest carrier the vocoder will render: 30 s at 48 kHz. */
+export const MAX_VOCODER_FRAMES = 48_000 * 30;
+
+/** The band counts on offer. 16 is the classic; 32 is the most a hand-written bank renders in a blink. */
+export const VOCODER_BANDS: readonly number[] = [8, 16, 24, 32];
+
+/** Formant shift, in whole bands either way. Past four the voice stops reading as a voice. */
+export const MAX_VOCODER_FORMANT = 4;
+
+/** How far Offset slides the voice against the carrier, in ms either way — past any device's round trip but Bluetooth's. */
+export const MAX_VOICE_OFFSET_MS = 150;
+
 /**
  * Keys a payload may never carry. `PatternStore.restore` does
  * `Object.assign(cell, DEFAULTS, parsedCell)`, and `Object.assign` uses [[Set]] —

@@ -328,6 +328,8 @@ voices ─(spread)→ voiceBus ─→ eq → dirt → wah → phaser → flanger
 
 - The **drum bus and the sampler bus join at `preMaster`**, bypassing the synth FX
   chain.
+- Lane mute/solo gates tracks/slots, not the bus (song-mode.md
+  REQ-a-lane-mute-silences-the-pattern-not-the-hands).
 - The **eq heads every chain** ([features/equalizer.md](features/equalizer.md)).
   Head rather than tail on all three: it shapes what Dirt drives and
   what the drum compressor reacts to, and on the synth bus it is also the cheap

@@ -448,11 +448,13 @@ describe('DrumMachine.onHit', () => {
     expect(seen).toEqual([[0, 0, 0.7]]);
   });
 
-  it('stops reporting auditions while the lane is inaudible', () => {
-    const { dm, seen } = hits();
+  // An audition plays past the lane gate, so it sounds, and so it is reported
+  // (song-mode.md REQ-a-lane-mute-silences-the-pattern-not-the-hands).
+  it('reports an audition while the lane is inaudible, because it still sounds', () => {
+    const { ctx, dm, seen } = hits();
     dm.setLaneAudible(false);
     dm.triggerTrack(0, 0.9);
-    expect(seen).toEqual([]);
+    expect(seen).toEqual([[0, 128 / ctx.sampleRate, 0.9]]);
   });
 
   it('stops reporting once the listener is disposed', () => {
@@ -540,5 +542,57 @@ describe('DrumMachine — meter (meter.md)', () => {
     expect(spies[5]!.mock.calls.map((c) => c[0])).toEqual([13]);
     expect(spies[6]!.mock.calls.map((c) => c[0])).toEqual([14, 15]);
     expect(spies[7]!.mock.calls.map((c) => c[0])).toEqual([15]);
+  });
+});
+
+/**
+ * song-mode.md REQ-a-lane-mute-silences-the-pattern-not-the-hands. A voice's
+ * hits all share its one output, so an audition plays on a voice of its own,
+ * wired into the channel past the lane gate the pattern voice goes through.
+ */
+describe('DrumMachine lane gate and audition voice (REQ-a-lane-mute-silences-the-pattern-not-the-hands, regression)', () => {
+  type Node = { connect: { mock: { calls: unknown[][] } }; gain: { setTargetAtTime: ReturnType<typeof vi.fn> } };
+  type Voice = { output: Node; setTune(s: number): void };
+  const target = (n: Node): Node => n.connect.mock.calls[0]![0] as Node;
+  const auditionVoices = (dm: unknown): Array<Voice | null> =>
+    (dm as { auditionVoices: Array<Voice | null> }).auditionVoices;
+
+  it('auditions on a voice of its own, wired past the gate, built once', () => {
+    const { dm, spies } = build();
+    const gate = target((dm.tracks[0] as unknown as Voice).output);
+    const drivePre = target(gate);
+
+    dm.triggerTrack(0, 0.9);
+    dm.triggerTrack(0, 0.9);
+    // Not the pattern voice: that one plays behind the gate.
+    expect(spies[0]).not.toHaveBeenCalled();
+    expect(target(auditionVoices(dm)[0]!.output)).toBe(drivePre);
+    expect(auditionVoices(dm).filter(Boolean)).toHaveLength(1);
+  });
+
+  it('closes every gate on the verdict and opens it again', () => {
+    const { dm } = build();
+    const gates = dm.tracks.map((t) => target((t as unknown as Voice).output));
+    dm.setLaneAudible(false);
+    for (const g of gates) expect(g.gain.setTargetAtTime).toHaveBeenLastCalledWith(0, expect.any(Number), expect.any(Number));
+    dm.setLaneAudible(true);
+    for (const g of gates) expect(g.gain.setTargetAtTime).toHaveBeenLastCalledWith(1, expect.any(Number), expect.any(Number));
+  });
+
+  it('carries the track tune to the audition voice, and rebuilds it on a model swap', () => {
+    const { dm } = build();
+    const gateBefore = target((dm.tracks[0] as unknown as Voice).output);
+    dm.triggerTrack(0, 0.9);
+    const first = auditionVoices(dm)[0]!;
+    const tune = vi.spyOn(first, 'setTune');
+    dm.setTrackTune(0, 3);
+    expect(tune).toHaveBeenCalledWith(3);
+
+    dm.setTrackModel(0, 1);
+    expect(auditionVoices(dm)[0]).toBeNull();
+    dm.triggerTrack(0, 0.9);
+    expect(auditionVoices(dm)[0]).not.toBe(first);
+    // The swapped-in pattern voice goes through the same gate the old one did.
+    expect(target((dm.tracks[0] as unknown as Voice).output)).toBe(gateBefore);
   });
 });

@@ -3,7 +3,7 @@
 ```yaml
 id: sample-recorder
 status: implemented
-version: 11
+version: 12
 owner: core
 related:
   - architecture
@@ -11,6 +11,7 @@ related:
   - sample-chop            # the Chop tab this studio hosts
   - time-stretch           # the Fit & Shift tab this studio hosts
   - scratch                # the Scratch tab this studio hosts
+  - vocoder                # the Vocoder tab this studio hosts
   - metronome              # the beat light, the click and the count-in
   - transport-window       # Play goes through the header's own button
   - panel-tabs             # the tab strip, reused unchanged
@@ -25,7 +26,8 @@ source:
   - src/ui/components/record-sound-modal.ts  # the frame, the guard, the material, the Edit screen
   - src/ui/components/record-screen.ts      # the Record screen: mic, meter, count-in, bound
   - src/ui/components/studio-waveform.ts    # the waveform, crop handles and boundary drags
-  - src/ui/components/studio-tools.ts       # the four tool pages over a ToolContext
+  - src/ui/components/studio-tools.ts       # four of the tool pages, and the ToolContext they share
+  - src/ui/components/studio-vocoder.ts     # the fifth page: the Vocoder and its voice take
   - src/ui/components/studio-kit.ts         # inks, canvas sizing, readouts the screens share
   - src/ui/components/studio-transport.ts  # the toolbar's Play / beat light / BPM / CLICK
   - src/state/edit-history.ts              # EditHistory, the undo stack
@@ -120,19 +122,29 @@ asks first or leaves a way back.
 - **REQ-the-recorder-modal-hosts-scratch** — (v4) The studio hosts the Scratch
   tab ([scratch](scratch.md)
   REQ-the-scratch-editor-is-a-modal-section/REQ-applying-goes-through-run-op),
-  applied through `runOp`. Its 210 px canvas makes it the costliest tab, and the
-  only one whose visibility also gates work (the peak scan). The sixteenth-count
+  applied through `runOp`. Its 210 px canvas makes it the costliest tab, and its
+  visibility gates work (the peak scan), as the Vocoder's does
+  (REQ-the-recorder-modal-hosts-the-vocoder). The sixteenth-count
   arithmetic is shared by Fit and Scratch, and `playClip` auditions an uncommitted
   render.
-- **REQ-the-tools-are-tabs** — (v11) Under the waveform, the tools are **four
+- **REQ-the-recorder-modal-hosts-the-vocoder** — (v12) The studio hosts the
+  Vocoder tab ([vocoder](vocoder.md) REQ-the-studio-hosts-a-vocoder-tab). Apply
+  goes through `runOp`. The page's voice take plays its cue through the same
+  `playClip`, and moves the waveform's playhead through `ToolContext.setPlayhead`,
+  because the cue pass is longer than the selection it sweeps. The take's mic
+  session is the page's own, released in `teardownScreen` like the scratch graph
+  (REQ-the-editor-owns-its-teardown). Its voice lane scans peaks, so it paints
+  only while the tab shows, and waits `LANE_SETTLE_MS` for a crop drag to settle:
+  a Stretch to fit voice is re-stretched whenever the selection's length moves.
+- **REQ-the-tools-are-tabs** — (v12) Under the waveform, the tools are **five
   tabs**: **Effects** (cutoff, the effect buttons, auto-play), **Chop**, **Fit &
-  Shift** and **Scratch**, from `createPanelTabs` with prefix `sample`
+  Shift**, **Scratch** and **Vocoder**, from `createPanelTabs` with prefix `sample`
   ([panel-tabs](panel-tabs.md)). One page shows at a time, so opening a tool
   never pushes the waveform, the edit bar or the footer out of view. **Effects**
   is selected on a first open, and the selected tab is remembered for the session
   only, never persisted ([panel-tabs](panel-tabs.md)
   REQ-selected-page-is-session-only). A tab change re-runs that page's `sync`
-  (`ToolPage.sync`, studio-tools.ts), so a page is never shown with a stale hint. The `sampler` help topic names the four tabs.
+  (`ToolPage.sync`, studio-tools.ts), so a page is never shown with a stale hint. The `sampler` help topic names the five tabs.
 - **REQ-the-studio-fills-the-screen** — (v11) The studio is a near-full-screen
   card: 16 px inside the viewport on desktop, edge to edge at ≤720 px. It is a
   column of three bands:
@@ -262,6 +274,7 @@ A `—` is a decision. Nothing is momentary: the button toggles, and
 mic-capture.ts:
   openMicSession(ctx): Promise<MicSession>
   MicSession: start() · stop(): Promise<CapturedAudio> · dispose() · level(): {peak, rms} · startedAt: number
+    · firstFrame: number | null · inputLatency(): number   # the vocoder's frame-exact crop
   MicError = 'insecure-context' | 'unsupported' | 'denied' | 'no-device' | 'unknown'
   MicCaptureError extends Error
 buffer-dsp.ts (pure, CapturedAudio in/out):
@@ -281,7 +294,10 @@ record-screen.ts:
   buildRecordScreen(deps) -> { state: RecState, press(), destroy() }   # owns the mic session
 studio-tools.ts:
   buildEffectsPage / buildChopPage / buildStretchPage / buildScratchPage (ctx: ToolContext)
-    # ToolContext: the material, the selection, the marks, runOp — no page holds the audio
+    # ToolContext: the material, the selection, the marks, runOp, playClip / stopPreview,
+    #   setPlayhead — no page holds the audio
+studio-vocoder.ts:
+  buildVocoderPage(ctx, opts) -> ToolPage & { destroy() }   # vocoder.md
 studio-waveform.ts:
   createWaveform(deps) -> { el, redraw(), destroy() }   # writes a dragged crop back via setCrop
 studio-transport.ts:
@@ -322,7 +338,7 @@ secure context: openMicSession returns MicCaptureError('insecure-context') off H
 │ ┌─────────────── waveform (grows with the card) ────────────────────┐ │
 │ └────────────────────────────────────────────────────────────────────┘ │
 │ [▶ Play] [Undo] [Redo] [Reset]        Recorded — selection 0.82 s · …  │
-│  EFFECTS ┆ chop ┆ fit & shift ┆ scratch                                │
+│  EFFECTS ┆ chop ┆ fit & shift ┆ scratch ┆ vocoder                      │
 │  …the one page that is selected…                                       │
 │ [Re-record] [↓ WAV] [↓ MP3]               Slot [S3 ▾] [LOAD INTO S3]  │
 └────────────────────────────────────────────────────────────────────────┘
@@ -418,7 +434,7 @@ Scenario: The edit screen never scrolls sideways (REQ-the-studio-fills-the-scree
 Scenario: One tool page at a time, Effects first (REQ-the-tools-are-tabs)
   Given a slot holding audio
   When the user opens it in the editor
-  Then the Effects page is showing and Chop, Fit & Shift and Scratch are not
+  Then the Effects page is showing and Chop, Fit & Shift, Scratch and Vocoder are not
   When the user picks the Fit & Shift tab
   Then the Fit row and the Shift row show and the waveform is still in view
 # pinned by: e2e/sample-editor-tabs.spec.ts

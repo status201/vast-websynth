@@ -163,7 +163,7 @@ function drawNotes({ stack, mk }) {
       pills: [['', '⟿ moves any knob, anywhere', 'auto']] }],
   ]);
   mk('studio', { x: NX, y: 2600, w: NW, cat: 'sampler', title: 'SAMPLE STUDIO', icon: 'studio', iconH: 46, tag: 'offline edits',
-    lines: ['CROP · REVERSE · NORMALIZE · GAIN · FADE', 'FILTER · OCTAVE · PITCH SHIFT', 'TIME-STRETCH to tempo (WSOLA / vocoder)', 'SCRATCH · CHOP across the pads'],
+    lines: ['CROP · REVERSE · NORMALIZE · GAIN · FADE', 'FILTER · OCTAVE · PITCH SHIFT', 'TIME-STRETCH to tempo (WSOLA / phase)', 'SCRATCH · CHOP across the pads', 'VOCODER: a voice take shapes the clip'],
     pills: [['D', 'CLIP PREVIEW → DIRECT OUT', 'audio']] });
 }
 
@@ -253,7 +253,7 @@ function drawDrums(c) {
     lines: ['8 TRACKS × 16 steps · banks A–P', '13 synthesized models · 7 kits', 'VEL · GATE · PROB · RATCHET · MICRO', 'CHOKE: closed hat cuts the open hat', 'FILL from LIVE FX'] });
   tiles(c, 'dt', 1730, [['kick', 'KICK'], ['snare', 'SNARE'], ['hatc', 'CLOSED HAT'], ['hato', 'OPEN HAT'], ['tom', 'LOW TOM'], ['tom', 'MID TOM'], ['tom', 'HIGH TOM'], ['clap', 'CLAP']],
     'drum', 'TUNE ±24 st · DECAY · model');
-  strip(c, 'dstrip', 1922 + 118, 'CHANNEL  ×8 — one per drum track', [
+  strip(c, 'dstrip', 1922 + 118, 'CHANNEL  ×8 — one per drum track  ·  lane MUTE / SOLO gates the pattern here, never an audition', [
     { title: 'DRIVE', icon: 'dirt', iconH: 40, tag: 'tanh', lines: ['soft saturation', '~2× oversampled when driven'] },
     { title: 'TONE', icon: 'filter', iconH: 40, lines: ['low-pass', 'darkens the hit'] },
     { title: 'LEVEL', icon: 'fader', iconH: 40, lines: ['VOL per track', 'MUTE per track'] },
@@ -266,7 +266,7 @@ function drawSampler(c) {
   c.mk('sampler', { x: MX, y: 2540, w: MW, cat: 'sampler', title: 'SAMPLER', icon: 'pads', iconH: 46,
     lines: ['8 SLOTS × 16 steps · banks A–P', 'MIDI channel 10 · notes 36–43', 'up to 16 voices per slot', 'CHOKE groups 1–4 · POLY or MONO'] });
   tiles(c, 'st', 2520, Array.from({ length: 8 }, (_, i) => ['wavesm', `SLOT S${i + 1}`]), 'sampler', 'one-shot buffer');
-  strip(c, 'sstrip', 2712 + 118, 'CHANNEL  ×8 — one per slot', [
+  strip(c, 'sstrip', 2712 + 118, 'CHANNEL  ×8 — one per slot  ·  lane MUTE / SOLO gates the pattern here, never an audition or a pad', [
     { title: 'PLAY WINDOW', icon: 'wavesm', iconW: 56, iconH: 40, lines: ['PITCH ±24 st (speed)', 'START · END · REVERSE'] },
     { title: 'HIT ENV', icon: 'adsr', iconH: 40, lines: ['ATTACK · DECAY', 'choke cuts it short'] },
     { title: 'TONE', icon: 'filter', iconH: 40, lines: ['low-pass + RES'] },
@@ -488,13 +488,13 @@ function wireDrumsAndSampler({ P, B, wire, sum }) {
   fan(B.drums, 'dt', 1768, 'TRIG');
   merge('dt', B.dstrip, 2136, 'audio');
   chain('dstrip', 4, DB);
-  sum(DB.x, DB.y, DB.r, 'Σ', P.wire.audio, ['DRUM BUS', 'MASTER · MUTE · SOLO']);
+  sum(DB.x, DB.y, DB.r, 'Σ', P.wire.audio, ['DRUM BUS', 'MASTER volume']);
 
   // Sampler
   fan(B.sampler, 'st', 1768, 'TRIG');
   merge('st', B.sstrip, 2136, 'audio');
   chain('sstrip', 5, SB);
-  sum(SB.x, SB.y, SB.r, 'Σ', P.wire.audio, ['SAMPLER BUS', 'MASTER · MUTE · SOLO']);
+  sum(SB.x, SB.y, SB.r, 'Σ', P.wire.audio, ['SAMPLER BUS', 'MASTER volume']);
 }
 
 // ── the rack rows, the master chain, the speakers ─────────────────────────

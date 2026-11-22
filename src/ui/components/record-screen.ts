@@ -58,7 +58,8 @@ export interface RecordScreen {
   destroy(): void;
 }
 
-function errorText(code: string): string {
+/** The mic's refusals in words — the Record screen's, and the vocoder's voice take's. */
+export function micErrorText(code: string): string {
   switch (code) {
     case 'insecure-context':
       return 'Microphone needs HTTPS or localhost. The network/LAN address is plain HTTP and is blocked — open the app on the host machine via http://localhost, or serve it over HTTPS.';
@@ -289,7 +290,7 @@ export function buildRecordScreen(deps: RecordScreenDeps): RecordScreen {
       if (destroyed) return;
       state = 'error';
       paint();
-      stateLine.textContent = errorText(err instanceof MicCaptureError ? err.code : 'unknown');
+      stateLine.textContent = micErrorText(err instanceof MicCaptureError ? err.code : 'unknown');
       retry = createButton({ label: 'Try again', testId: 'mic-retry', onClick: () => { void openMic(); } });
       recArea.appendChild(retry);
       return;

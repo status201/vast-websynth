@@ -503,3 +503,22 @@ describe('help-content chorus', () => {
     expect(body).toContain('dim');
   });
 });
+
+describe('help-content vocoder (vocoder.md REQ-the-studio-hosts-a-vocoder-tab)', () => {
+  it('names the fifth tab and how a voice take runs', () => {
+    const body = bodyOf('sampler');
+    expect(body).toContain('five tabs');
+    expect(body).toContain('<strong>Vocoder</strong>');
+    expect(body).toContain('<strong>Record voice</strong>');
+    expect(body).toContain('headphones');
+    expect(body).toContain('<strong>Offset</strong>');
+  });
+});
+
+describe('help-content auditions on a silenced lane (song-mode.md REQ-a-lane-mute-silences-the-pattern-not-the-hands)', () => {
+  it('says an audition still plays on a muted or soloed-away lane', () => {
+    expect(bodyOf('drums')).toContain('even while the drum lane is muted');
+    expect(bodyOf('sampler')).toContain('even while the sampler lane is muted');
+    expect(bodyOf('sampler')).toContain('MIDI pad');
+  });
+});

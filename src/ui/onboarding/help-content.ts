@@ -134,7 +134,8 @@ export const TOUR_STEPS: TourStep[] = [
     body:
       'Each machine gets a <strong>chain</strong> — a running order of banks (A B C D), one bar ' +
       'each, so your patterns become a track with an intro, a drop and a breakdown. Mute, solo ' +
-      'and level every lane right here, like a DJ mixer.',
+      'and level every lane right here, like a DJ mixer. Mute silences a lane\'s pattern, not ' +
+      'what you play by hand.',
     placement: 'top',
     precondition: () => clickTestId('tab-song'),
   },
@@ -1066,7 +1067,8 @@ export const HELP_TOPICS: Record<TopicId, HelpTopic> = {
     body:
       '<p>A classic 16-step drum grid with eight tracks (kick, snare, hats, toms, clap). Click ' +
       'cells to place hits; each track has a <strong>mute</strong> and you can audition a sound ' +
-      'by clicking its name. Runs while the transport plays.</p>' +
+      'by clicking its name, even while the drum lane is muted or another lane is soloed. Runs ' +
+      'while the transport plays.</p>' +
       GRID_GESTURES +
       '<p><strong>MASTER</strong> sets the kit volume, and there are dedicated drum effects. It ' +
       `starts with ${BANK_GROWTH} — which chain together in Song mode.</p>`,
@@ -1077,7 +1079,9 @@ export const HELP_TOPICS: Record<TopicId, HelpTopic> = {
       '<p>Eight slots that each play your own sound as a one-shot on a 16-step grid. ' +
       '<strong>Load</strong> a WAV/MP3 into a slot, or use <strong>Record a sound</strong> ' +
       '(top right of the tab) to capture from your mic and edit it. The ' + g('edit', 'Edit') +
-      ' button re-opens a loaded sound in the editor. <strong>Del</strong> takes a slot\'s file ' +
+      ' button re-opens a loaded sound in the editor. Click a loaded slot\'s name to hear it — ' +
+      'it plays even while the sampler lane is muted or another lane is soloed, and so does a ' +
+      'MIDI pad. <strong>Del</strong> takes a slot\'s file ' +
       'out again and leaves its steps where they are, ready for another sound; the toast ' +
       'offers <strong>Undo</strong>.</p>' +
       '<p>With a MIDI pad controller, <strong>channel 10</strong> plays the slots: C1 (note 36) ' +
@@ -1094,9 +1098,9 @@ export const HELP_TOPICS: Record<TopicId, HelpTopic> = {
       'turns on a metronome click (use headphones, or the mic hears it too) that is never part of an export. Nothing ' +
       'you record is thrown away without asking, and a discarded take can be restored the ' +
       'next time you open it.</p>' +
-      '<p>The editor keeps its tools on four tabs under the waveform — ' +
-      '<strong>Effects</strong>, <strong>Chop</strong>, <strong>Fit &amp; Shift</strong> and ' +
-      '<strong>Scratch</strong>. <strong>Undo</strong> and <strong>Redo</strong> step through ' +
+      '<p>The editor keeps its tools on five tabs under the waveform — ' +
+      '<strong>Effects</strong>, <strong>Chop</strong>, <strong>Fit &amp; Shift</strong>, ' +
+      '<strong>Scratch</strong> and <strong>Vocoder</strong>. <strong>Undo</strong> and <strong>Redo</strong> step through ' +
       'every edit, and <strong>Load into</strong> puts the result in the slot you pick.</p>' +
       '<p>Open <strong>Chop</strong> to cut a break into slices and spread them ' +
       'across the slots — the classic way to turn one bar of drums into eight playable hits.</p>' +
@@ -1117,6 +1121,14 @@ export const HELP_TOPICS: Record<TopicId, HelpTopic> = {
       'turns a wobble into a scratch. Start from a preset (<em>Baby</em> is the classic short, ' +
       'short, long), roll a random one, hit <strong>Preview</strong> to hear it, and ' +
       '<strong>Scratch</strong> to print it into the clip. Undo takes it straight back.</p>' +
+      '<p>The <strong>Vocoder</strong> tab makes the clip talk. Press <strong>Record voice</strong>: ' +
+      'the clip plays once to count you in (its last bar, if it is longer), then plays again ' +
+      'while you sing or speak, and the recording stops by itself. Put headphones on, or the mic ' +
+      'hears the clip too. Or pick a sampler slot as the voice instead. <strong>Offset</strong> ' +
+      'slides the voice earlier or later until the words land where you want them. ' +
+      '<strong>Bands</strong>, <strong>Formant</strong>, <strong>Smooth</strong>, ' +
+      '<strong>Clarity</strong>, <strong>Sibilance</strong> and <strong>Dry</strong> shape the sound. ' +
+      '<strong>Audition</strong> to hear it, and <strong>Apply</strong> to print it. Undo takes it back.</p>' +
       '<p>Plays while the transport runs, with its own master and effects. A saved ' +
       '<strong>song</strong> stores only the slots\' filenames, so you re-load the audio after ' +
       'opening one (click a slot\'s name to pick its file); export a <strong>project</strong> ' +

@@ -6,21 +6,35 @@ function build() {
   const ctx = makeMockAudioContext();
   const seq = { setMuted: vi.fn() };
   const drums = { setLaneAudible: vi.fn() };
+  const sampler = { setLaneAudible: vi.fn() };
   const drumBus = ctx.createGain() as unknown as GainNode;
   const samplerBus = ctx.createGain() as unknown as GainNode;
-  const mix = new LaneMixer(ctx as unknown as AudioContext, seq, drumBus, samplerBus, drums);
-  return { ctx, seq, drums, drumBus, samplerBus, mix };
+  const mix = new LaneMixer(ctx as unknown as AudioContext, seq, drumBus, samplerBus, drums, sampler);
+  return { ctx, seq, drums, sampler, drumBus, samplerBus, mix };
 }
 
 const gainOf = (bus: GainNode) => bus.gain as unknown as { setTargetAtTime: ReturnType<typeof vi.fn> };
 
 describe('LaneMixer', () => {
-  it('muting drums ramps the drum bus to 0; the sampler bus stays up', () => {
-    const { drumBus, samplerBus, mix } = build();
+  // song-mode.md REQ-a-lane-mute-silences-the-pattern-not-the-hands: a mute closes
+  // the lane's gate (pattern hits only); the bus keeps the volume, so an audition
+  // still sounds at the lane's level.
+  it('muting drums closes the drum gate; both buses keep their volume', () => {
+    const { drums, sampler, drumBus, samplerBus, mix } = build();
     mix.setMute('drum', true);
-    expect(gainOf(drumBus).setTargetAtTime).toHaveBeenLastCalledWith(0, 0, expect.any(Number));
-    // sampler stays at its volume (0.85), not cut
+    expect(drums.setLaneAudible).toHaveBeenLastCalledWith(false);
+    expect(sampler.setLaneAudible).toHaveBeenLastCalledWith(true);
+    expect(gainOf(drumBus).setTargetAtTime).toHaveBeenLastCalledWith(0.85, 0, expect.any(Number));
     expect(gainOf(samplerBus).setTargetAtTime).toHaveBeenLastCalledWith(0.85, 0, expect.any(Number));
+  });
+
+  it('a solo elsewhere closes the sampler gate but never cuts its bus (regression)', () => {
+    const { sampler, samplerBus, mix } = build();
+    mix.setSolo('seq', true);
+    expect(sampler.setLaneAudible).toHaveBeenLastCalledWith(false);
+    expect(gainOf(samplerBus).setTargetAtTime).toHaveBeenLastCalledWith(0.85, 0, expect.any(Number));
+    mix.setSolo('seq', false);
+    expect(sampler.setLaneAudible).toHaveBeenLastCalledWith(true);
   });
 
   it('mutes the sequencer by suppressing triggering (not its bus)', () => {
@@ -30,17 +44,16 @@ describe('LaneMixer', () => {
   });
 
   it('solo wins over mute on the same lane (drum soloed + muted → audible)', () => {
-    const { drumBus, mix } = build();
+    const { drums, mix } = build();
     mix.setMute('drum', true);
     mix.setSolo('drum', true);
-    // drum is soloed → audible at its volume despite the mute
-    expect(gainOf(drumBus).setTargetAtTime).toHaveBeenLastCalledWith(0.85, 0, expect.any(Number));
+    expect(drums.setLaneAudible).toHaveBeenLastCalledWith(true);
   });
 
-  it('a solo on another lane silences the non-soloed drum bus', () => {
-    const { drumBus, mix } = build();
+  it('a solo on another lane closes the non-soloed drum gate', () => {
+    const { drums, mix } = build();
     mix.setSolo('seq', true);
-    expect(gainOf(drumBus).setTargetAtTime).toHaveBeenLastCalledWith(0, 0, expect.any(Number));
+    expect(drums.setLaneAudible).toHaveBeenLastCalledWith(false);
   });
 
   it('the drum volume knob drives the audible bus gain', () => {

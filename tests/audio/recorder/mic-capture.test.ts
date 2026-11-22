@@ -226,6 +226,25 @@ describe('a live mic session', () => {
     expect(session.startedAt).toBe(3.25);
   });
 
+  // vocoder.md REQ-the-voice-take-is-cropped-frame-exact: the take's first frame
+  // comes from the recorder's frame tag, and the input latency from the track.
+  it('firstFrame is the recorder frame tag, and inputLatency() reads the track or 0', async () => {
+    const tracks = [{ stop: vi.fn(), getSettings: () => ({ latency: 0.012 }) }];
+    const stream = { getTracks: () => tracks, getAudioTracks: () => tracks } as unknown as MediaStream;
+    stubMediaDevices({ getUserMedia: vi.fn(async () => stream) });
+    (recorderStub as unknown as { firstFrame: number | null }).firstFrame = 12345;
+
+    const session = await openMicSession(makeCtx());
+    expect(session.firstFrame).toBe(12345);
+    expect(session.inputLatency()).toBeCloseTo(0.012);
+
+    tracks[0]!.getSettings = () => ({ latency: Number.NaN });
+    expect(session.inputLatency()).toBe(0);
+    tracks[0]!.getSettings = () => ({}) as { latency: number };
+    expect(session.inputLatency()).toBe(0);
+    (recorderStub as unknown as { firstFrame: number | null }).firstFrame = null;
+  });
+
   it('start() is idempotent while armed, so a double tap records one take', async () => {
     const { stream } = fakeStream();
     stubMediaDevices({ getUserMedia: vi.fn(async () => stream) });

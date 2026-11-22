@@ -18,6 +18,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ### Added
 
+- **A vocoder in the sample studio.** The editor's new **Vocoder** tab makes the
+  clip talk. Press *Record voice*: the clip plays once to count you in, then again
+  while you sing or speak, and the take stops by itself, lined up with the clip.
+  A sampler slot can be the voice instead. *Offset* nudges the timing, and
+  *Bands*, *Formant*, *Smooth*, *Clarity*, *Sibilance* and *Dry* shape the sound.
+  *Audition* first; *Apply* is undoable like every other edit.
+
 - **A signal-flow poster.** `docs/signal-flow-light.svg` and
   `docs/signal-flow-dark.svg` draw every path from a key press to the
   speakers: inputs, notes and clock, the machines, the synth voice and its
@@ -33,6 +40,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
   the filter, an envelope, the delay, the master compressor and some eighty
   more — has a button that opens the signal-flow map right there, with that
   block ringed.
+
+### Changed
+
+- **Auditions sound on a muted lane.** Clicking a sampler slot's or a drum
+  track's name, or hitting a MIDI pad, now plays even while that lane is muted
+  or another lane is soloed. Mute and solo silence the pattern, not what you
+  play by hand, as the sequencer's live keys already did.
 
 ## [2.22.2] - 2026-11-20
 
