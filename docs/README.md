@@ -16,4 +16,4 @@ no `<style>` element, no `style=""` attribute, no external reference, and every
 
 The poster is an illustration. The source of truth for the audio graph is
 `specs/architecture.md` → "Audio graph"; when the engine changes, update the
-layout in the script to match.
+layout (`scripts/diagram/signal-flow/layout.mjs`) to match.

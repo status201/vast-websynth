@@ -425,8 +425,7 @@
 <text x="7100" y="1603" font-weight="800" font-size="46" fill="#1d1a15">L</text>
 <text x="7100" y="1833" font-weight="800" font-size="46" fill="#1d1a15">R</text>
 <text x="6940" y="1922" font-weight="800" font-size="30" letter-spacing="3" fill="#1d1a15">STEREO OUT</text>
-<text x="6940" y="1948" font-style="italic" font-size="13" fill="#8b8274">speakers · headphones · audio interface</text>
-<text x="6800" y="1400" font-style="italic" font-size="13" fill="#8b8274" text-anchor="start"></text></g>
+<text x="6940" y="1948" font-style="italic" font-size="13" fill="#8b8274">speakers · headphones · audio interface</text></g>
 <g id="sf-header"><text x="40" y="104" font-weight="900" font-size="78" letter-spacing="3" fill="#1d1a15">VAST<tspan font-weight="400"> G1-J8</tspan></text>
 <text x="640" y="104" font-weight="300" font-size="64" letter-spacing="14" fill="#1d1a15">WEBSYNTH · SIGNAL FLOW</text>
 <text x="42" y="150" font-size="21" fill="#4f473d">Every path from a key press to the speakers: notes and clock, the machines, eight synth voices, the drum machine and sampler, three insert chains and the master section.</text>

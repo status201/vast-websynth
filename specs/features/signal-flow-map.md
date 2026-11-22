@@ -27,6 +27,7 @@ source:
   - src/ui/styles/signal-flow.module.css
   - src/ui/components/about-modal.ts     # the About door
   - scripts/diagram/signal-flow.mjs      # the posters and the zone manifest
+  - scripts/diagram/signal-flow/         # its parts; layout.mjs is the poster
   - docs/signal-flow-zones.json          # generated
 ```
 
