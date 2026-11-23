@@ -605,8 +605,8 @@ Scenario: a theme change repaints a canvas once, and a destroyed one is not told
   Captures are in Dark (`--theme <id>` for another).
 - By eye, Firefox first then Chrome: each theme across synth, drums, sampler,
   song, a modal, an open menu, the EQ, the scope and the sample waveform.
-- README art: `node scripts/readme-screenshots.mjs --only pastel,vibrant` retakes
-  the two theme shots (the other four are pinned to Dark).
+- README art: `node scripts/readme-screenshots.mjs --only <shot>`; each shot
+  pins its own theme.
 
 ## Open questions / future
 

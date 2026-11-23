@@ -9,22 +9,23 @@
 // --only takes shot names (hero, machines, eq, pastel, classic, help) and retakes just
 // those, so adding one shot does not churn every committed PNG.
 //
-// Outputs (public/), each 1920×1080. The first four are in the Dark theme,
-// pinned: the app's default look follows the system (Auto), and a retake must not change look
+// Outputs (public/), each 1920×1080. Every shot pins its theme: the app's
+// default look follows the system (Auto), and a retake must not change look
 // because a default did (ui-themes.md).
-//   vast-websynth.png               the demo playing, pattern row folded, scope on
-//                                   Wave caught at a full swing, keys lit by the notes
-//   vast-websynth-drum-machine.png  stopped at --bar, Drum Machine tab, with the
-//                                   Transport (widened to the whole song), Live FX
-//                                   and XY pad windows open
-//   vast-websynth-song-tab.png      the same, on the Song tab
-//   vast-websynth-eq-scope.png      the demo playing, machines folded, the scope
-//                                   at its full height on Spectrum, and the
+//   vast-websynth.png               Classic: the demo playing, pattern row folded,
+//                                   scope on Wave caught at a full swing, keys lit
+//                                   by the notes
+//   vast-websynth-drum-machine.png  Vibrant: stopped at --bar, Drum Machine tab,
+//                                   with the Transport (widened to the whole song),
+//                                   Live FX and XY pad windows open
+//   vast-websynth-song-tab.png      Race: the same, on the Song tab
+//   vast-websynth-eq-scope.png      Dark: the demo playing, machines folded, the
+//                                   scope at its full height on Spectrum, and the
 //                                   EQUALIZER unfolded on its Sequencer tab
 //   vast-websynth-theme-pastel.png  Pastel: Bunk playing, FX open, the Sequencer
 //                                   tab following the playhead
-//   vast-websynth-theme-classic.png Classic: Bunk playing, FX folded, the Motion
-//                                   tab following the playhead
+//   vast-websynth-theme-classic.png Classic: Gankogui stopped at bar 1, FX folded,
+//                                   the Motion tab with its XY pad and A/B lanes
 //   vast-websynth-help-badges.png   Race: Bunk stopped, FX folded, the Sequencer
 //                                   tab, info badges on and AMP ENV's help open
 //
@@ -41,8 +42,10 @@ const publicDir = root + 'public/';
 const PORT = 5191;
 
 const DEMO = flag('demo', 'Nocturne');
-/** The two theme shots play their own demo: busy on every lane, so both tabs move. */
+/** The Pastel and help shots load their own demo: busy on every lane. */
 const THEME_DEMO = 'Bunk';
+/** The Motion shot's demo: its bar-1 bank fills the XY pad and two lanes. */
+const MOTION_DEMO = 'Gankogui';
 const ONLY = flag('only', null)?.split(',');
 const wanted = (name) => !ONLY || ONLY.includes(name);
 const BAR = Number(flag('bar', '9'));
@@ -165,7 +168,9 @@ async function catchChord(page) {
 /** How full a Wave trace looks *in a screenshot*, and whether keys are lit:
  *  decoded in the page, since Node has no PNG decoder here. `swing` is the
  *  trace's vertical extent per 24px block, averaged, as a fraction of the
- *  scope's height; `lit` is the share of the keyboard that is note-orange. */
+ *  scope's height; `lit` is the share of the keyboard in the lit-key colours.
+ *  Both colours are read from the page's theme tokens (ui-themes.md), so the
+ *  judge works in whatever theme the shot pins. */
 async function judgeShot(page, png, scope, keys) {
   return page.evaluate(async ({ b64, scope, keys }) => {
     const img = new Image();
@@ -177,7 +182,33 @@ async function judgeShot(page, png, scope, keys) {
     const ctx = c.getContext('2d');
     ctx.drawImage(img, 0, 0);
     const px = (r) => ctx.getImageData(Math.round(r.x), Math.round(r.y), Math.round(r.width), Math.round(r.height));
-    const trace = (d, i) => d[i] > 150 && d[i + 1] > 50 && d[i + 2] < 90;
+
+    // Resolve a token through a probe: a colour, or a gradient's colour stops.
+    const probe = document.createElement('div');
+    document.body.appendChild(probe);
+    const rgbs = (s) => [...s.matchAll(/rgba?\(([^)]+)\)/g)].map((m) => m[1].split(',').slice(0, 3).map(Number));
+    const colour = (token) => { probe.style.color = `var(${token})`; return rgbs(getComputedStyle(probe).color)[0]; };
+    const stops = (token) => { probe.style.backgroundImage = `var(${token})`; return rgbs(getComputedStyle(probe).backgroundImage); };
+    const traceRgb = colour('--screen-trace');
+    const segs = (tokens) => tokens.map(stops).filter((s) => s.length >= 2).map((s) => [s[0], s[s.length - 1]]);
+    const litSegs = segs(['--key-white-active', '--key-black-active']);
+    const unlitSegs = segs(['--key-white', '--key-black']);
+    probe.remove();
+
+    /** Distance from a pixel to the nearest point of a gradient's segment. */
+    const segDist = (p, [a, b]) => {
+      const ab = [b[0] - a[0], b[1] - a[1], b[2] - a[2]];
+      const len2 = ab[0] ** 2 + ab[1] ** 2 + ab[2] ** 2 || 1;
+      const t = Math.max(0, Math.min(1, ((p[0] - a[0]) * ab[0] + (p[1] - a[1]) * ab[1] + (p[2] - a[2]) * ab[2]) / len2));
+      return Math.hypot(p[0] - a[0] - t * ab[0], p[1] - a[1] - t * ab[1], p[2] - a[2] - t * ab[2]);
+    };
+    const nearest = (p, list) => Math.min(...list.map((s) => segDist(p, s)));
+    const trace = (d, i) => Math.hypot(d[i] - traceRgb[0], d[i + 1] - traceRgb[1], d[i + 2] - traceRgb[2]) < 70;
+    const isLit = (d, i) => {
+      const p = [d[i], d[i + 1], d[i + 2]];
+      const l = nearest(p, litSegs);
+      return l < 24 && l < nearest(p, unlitSegs);
+    };
     const s = px(scope);
     let sum = 0;
     let n = 0;
@@ -192,11 +223,11 @@ async function judgeShot(page, png, scope, keys) {
       if (hi >= 0) { sum += (hi - lo) / s.height; n++; }
     }
     const k = px(keys);
-    let orange = 0;
+    let lit = 0;
     for (let i = 0; i < k.data.length; i += 16) {
-      if (k.data[i] > 200 && k.data[i + 1] > 80 && k.data[i + 1] < 180 && k.data[i + 2] < 110) orange++;
+      if (isLit(k.data, i)) lit++;
     }
-    return { swing: n ? sum / n : 0, lit: orange / (k.data.length / 16) };
+    return { swing: n ? sum / n : 0, lit: lit / (k.data.length / 16) };
   }, { b64: png.toString('base64'), scope, keys });
 }
 
@@ -205,7 +236,7 @@ async function judgeShot(page, png, scope, keys) {
  * scope with keys lit — a full trace lasts only a few hundred ms, and the scope
  * redraws every frame, so a check before the screenshot proves nothing about
  * it. Nocturne's swing is ~0.13 median and reaches 0.5 a few times a minute.
- * `minLit` (~2% of the keyboard orange) means a key is lit: two lit keys and a
+ * `minLit` (~2% of the keyboard in the lit colours) means a key is lit: two lit keys and a
  * full swing rarely coincide in Nocturne (best 0.27 in 120 s). Keeps
  * the best qualifying take if none reaches `minSwing` in time.
  */
@@ -242,7 +273,7 @@ try {
   // 1 — the hero: playing, at the top, pattern row folded, scope on Wave (its
   // default) — shot 4 shows the Spectrum, so between them both views are seen.
   if (wanted('hero')) {
-    const page = await openApp(browser);
+    const page = await openApp(browser, { 'websynth.ui.theme': 'classic' });
     await page.locator('[data-testid="pattern-row"] [aria-label="Collapse panel"]').first().click();
     await page.getByTestId('transport-play').click();
     await page.waitForTimeout(4000);
@@ -251,9 +282,14 @@ try {
     await page.close();
   }
 
-  // 2 + 3 — stopped at BAR, the three windows open, scrolled to the machine panel.
-  if (wanted('machines')) {
-    const page = await openApp(browser);
+  // 2 + 3 — stopped at BAR, the three windows open, scrolled to the machine
+  // panel. Each in its own theme, so each gets its own page.
+  const MACHINE_SHOTS = [
+    { tab: 'drums', theme: 'vibrant', file: 'vast-websynth-drum-machine.png' },
+    { tab: 'song', theme: 'race', file: 'vast-websynth-song-tab.png' },
+  ];
+  for (const m of wanted('machines') ? MACHINE_SHOTS : []) {
+    const page = await openApp(browser, { 'websynth.ui.theme': m.theme });
     await page.getByTestId('transport-open').click();
     await placeWindow(page, transportWin);
     if (transportWin.fitStrip) await fitStrip(page, transportWin.testId);
@@ -265,11 +301,9 @@ try {
     await page.getByTestId('perf-xypad').click();
     await placeWindow(page, xyWin);
 
-    for (const [tab, file] of [['drums', 'vast-websynth-drum-machine.png'], ['song', 'vast-websynth-song-tab.png']]) {
-      await page.getByTestId(`tab-${tab}`).click();
-      await scrollBottomTo(page, 'pattern-row', PANEL_BOTTOM_Y);
-      await shoot(page, file);
-    }
+    await page.getByTestId(`tab-${m.tab}`).click();
+    await scrollBottomTo(page, 'pattern-row', PANEL_BOTTOM_Y);
+    await shoot(page, m.file);
     await page.close();
   }
 
@@ -292,31 +326,27 @@ try {
     await page.close();
   }
 
-  // 5 + 6 — the themes (ui-themes.md): Bunk playing, a machine tab following the
-  // playhead (FOLLOW is on by default), scrolled so the machine panel's bottom
-  // edge sits where it does in shots 2 and 3. Pastel shows the FX row above its
-  // painted sections; Classic folds it, so the Motion lanes get the room, and
-  // waits for motion Bank B (Bunk's bars 13–14), whose lanes are lit at both ends.
+  // 5 + 6 — the themes (ui-themes.md), scrolled so the machine panel's bottom
+  // edge sits where it does in shots 2 and 3. Pastel: Bunk playing, the
+  // Sequencer tab following the playhead (FOLLOW is on by default), the FX row
+  // open above its painted sections. Classic: Gankogui as loaded — stopped at
+  // bar 1 — on the Motion tab with FX folded, so the lanes get the room; bar 1's
+  // bank fills the XY pad and both A and B lanes.
   const THEME_SHOTS = [
-    { name: 'pastel', tab: 'seq', fxFolded: false, file: 'vast-websynth-theme-pastel.png' },
-    { name: 'classic', tab: 'motion', fxFolded: true, bank: 1, file: 'vast-websynth-theme-classic.png' },
+    { name: 'pastel', demo: THEME_DEMO, tab: 'seq', fxFolded: false, play: true, file: 'vast-websynth-theme-pastel.png' },
+    { name: 'classic', demo: MOTION_DEMO, tab: 'motion', fxFolded: true, play: false, file: 'vast-websynth-theme-classic.png' },
   ];
   for (const t of THEME_SHOTS) {
     if (!wanted(t.name)) continue;
     const page = await openApp(browser, {
       'websynth.ui.theme': t.name,
       'websynth.ui.collapsed.fx': t.fxFolded ? '1' : '0',
-    }, THEME_DEMO);
+    }, t.demo);
     await page.getByTestId(`tab-${t.tab}`).click();
-    await page.getByTestId('transport-play').click();
-    // Into the song, past the intro bars, so every lane is playing.
-    await page.waitForTimeout(6000);
-    if (t.bank !== undefined) {
-      // FOLLOW shows the bank that plays, so wait for this one to come round
-      // (a 14-bar song at 96 BPM loops in ~35 s), then a beat into its bar.
-      await page.locator(`[data-testid="bank-${t.tab}-${t.bank}"].playing.active`)
-        .waitFor({ state: 'attached', timeout: 60_000 });
-      await page.waitForTimeout(800);
+    if (t.play) {
+      await page.getByTestId('transport-play').click();
+      // Into the song, past the intro bars, so every lane is playing.
+      await page.waitForTimeout(6000);
     }
     await scrollBottomTo(page, 'pattern-row', PANEL_BOTTOM_Y);
     await shoot(page, t.file);
