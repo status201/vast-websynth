@@ -43,6 +43,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ### Changed
 
+- **A new app icon.** The knob made way for a little synth studio: two knobs
+  and a power LED, a scope with a sine wave, and a few piano keys. It is the
+  icon in your browser tab and on your home screen or taskbar, with a version
+  shaped for Android's round icons. The link preview card is redrawn around it
+  and now reads *G1-J8 WebSynth*.
 - **Auditions sound on a muted lane.** Clicking a sampler slot's or a drum
   track's name, or hitting a MIDI pad, now plays even while that lane is muted
   or another lane is soloed. Mute and solo silence the pattern, not what you

@@ -96,6 +96,7 @@ var CORE_ASSETS = [
   '/theme-boot.js',
   '/icon-192.png',
   '/icon-512.png',
+  '/icon-maskable-512.png',
   '/worklets/ladder-filter.js',
   '/worklets/compressor.js',
   '/worklets/recorder.js',
