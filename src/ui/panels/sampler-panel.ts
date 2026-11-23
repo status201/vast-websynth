@@ -101,9 +101,9 @@ export function buildSamplerPanel(
     () => [samplerSlotClearRow(engine, undo, cursor.selRow)],
     () => laneGrid(bus, 'sampler').cells));
 
-  // Not a header item: it holds the tab's top-right corner however the header
-  // wraps, and becomes the last full-width row on a phone
-  // (responsive-machine-header.md REQ-the-record-button-holds-the-top-right).
+  // The FX cluster's last child, pushed right: it ends the header's last line
+  // without reserving a column beside the rows above it, and becomes the last
+  // full-width row on a phone (responsive-machine-header.md REQ-the-record-button-ends-the-header).
   const recBtn = document.createElement('button');
   recBtn.type = 'button';
   recBtn.className = `${samplerStyles.rec!}`;
@@ -115,7 +115,7 @@ export function buildSamplerPanel(
   // One cluster so the header breaks between machine controls and FX rather
   // than mid-cluster (responsive-machine-header.md).
   const fx = document.createElement('div');
-  fx.className = panelStyles.fxCluster!;
+  fx.className = `${panelStyles.fxCluster!} ${samplerStyles.fxCluster!}`;
   fx.appendChild(dirtFxGroup(bus, 'fx.sampler.dist'));
   // PHASER, FLANGER and CHORUS share one group's place, chosen from a caret by
   // the title, in chain order (fx-slot-picker.md REQ-the-slot-lists-its-effects-in-chain-order).
@@ -158,13 +158,9 @@ export function buildSamplerPanel(
     { id: 'fx.sampler.duck.release', label: 'REL' },
     { id: 'fx.sampler.duck.src', label: 'SRC' },
   ]));
+  fx.appendChild(recBtn);
   header.appendChild(fx);
-
-  const headerRow = document.createElement('div');
-  headerRow.className = samplerStyles.headerRow!;
-  header.classList.add(samplerStyles.headerMain!);
-  headerRow.append(header, recBtn);
-  root.appendChild(headerRow);
+  root.appendChild(header);
 
   // Declared here rather than beside wirePlayhead below, because the ruler is
   // built before the grid and needs the same gate.

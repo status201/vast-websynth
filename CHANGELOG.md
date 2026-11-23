@@ -53,6 +53,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
   or another lane is soloed. Mute and solo silence the pattern, not what you
   play by hand, as the sequencer's live keys already did.
 
+### Fixed
+
+- **The Sampler's Record a sound button no longer eats a column.** It now ends the
+  tab's controls at the right, just above the grid, so on tablets and laptops the
+  rows above it use the full width instead of stopping short of it.
+
 ## [2.22.2] - 2026-11-20
 
 ### Fixed

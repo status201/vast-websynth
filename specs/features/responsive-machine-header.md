@@ -3,7 +3,7 @@
 ```yaml
 id: responsive-machine-header
 status: implemented
-version: 6
+version: 7
 owner: ui
 related:
   - responsive-header
@@ -16,7 +16,7 @@ related:
 source:
   - src/ui/styles/panel.module.css   # .patternPanelHeader wrap + .fxCluster
   - src/ui/panels/sampler-panel.ts    # DIRT / PHASER·FLANGER·CHORUS / DELAY / REVERB / DUCK cluster; the record button
-  - src/ui/styles/sampler.module.css  # .headerRow / .rec
+  - src/ui/styles/sampler.module.css  # .fxCluster (grow) / .rec
   - src/ui/panels/drum-panel.ts       # COMP (+GR meter) / PHASER / DELAY / REVERB cluster
 ```
 
@@ -85,7 +85,8 @@ somewhere predictable rather than mid-cluster.
 - **REQ-effect-groups-share-one-cluster** — The effect groups of a machine are
   wrapped in a single **`.fxCluster`** container, so the row has two structural
   units: the machine controls (direct children, as before) and the FX cluster
-  (one child). Panels with no effect groups (Sequencer, Motion, Arpeggiator)
+  (one child). The Sampler's cluster also ends with its record button
+  (REQ-the-record-button-ends-the-header). Panels with no effect groups (Sequencer, Motion, Arpeggiator)
   have no `.fxCluster` and are unchanged apart from
   REQ-machine-header-wraps-at-every-width.
 
@@ -150,17 +151,25 @@ somewhere predictable rather than mid-cluster.
   (`.addRow`) wraps the same way for the same reason. No bank is hidden, paged or
   collapsed ([banks](banks.md) REQ-the-bank-bar-wraps-rather-than-pages).
 
-- **REQ-the-record-button-holds-the-top-right** (v6) — **The Sampler's `Record a
-  sound` button is not a header item.** It is a prominent button (mic icon +
-  label, at least 32 px tall, the secondary accent) beside the header, in a
-  `.headerRow` wrapper: the header takes `flex: 1; min-width: 0` and the button
-  `flex: none`, aligned to the top. So it holds the **top-right corner of the
-  Sampler tab** at any width above 720 px, however many rows the header wraps
-  onto. At ≤720 px the wrapper turns into a column and the button becomes the
-  header's **last, full-width row**, a thumb-sized target under everything
-  else. It keeps its `sampler-record` testid
-  (REQ-machine-header-testids-are-preserved), and the row never overflows
-  (REQ-machine-header-wraps-at-every-width).
+- **REQ-the-record-button-ends-the-header** (v7) — **The Sampler's `Record a
+  sound` button ends the header, flush right, and reserves no column.** It is a
+  prominent button (mic icon + label, at least 32 px tall, the secondary accent)
+  and the **last child of the Sampler's `.fxCluster`**, with `margin-left: auto`.
+  So it sits at the right end of the header's last line, just above the grid,
+  and every header row above it runs the panel's full width. A column beside the
+  header would cut short every wrapped row, and wrapping is the ordinary case
+  below 1140 px. It lives *inside* the cluster because below 1140 px the cluster
+  fills its own line (REQ-below-1140-the-cluster-takes-its-own-row): a button
+  after it could never share the FX line and would cost a line of its own. The
+  cluster wraps internally (REQ-fx-cluster-wraps-internally), so the button moves
+  onto a right-aligned line of its own only when the last FX line is full. The
+  Sampler's cluster also takes `flex-grow: 1`, so above 1140 px the button reaches
+  the panel's right edge. When the whole header fits on one line that is the
+  top-right corner. Its computed `flex-basis` stays `auto`
+  (REQ-above-1140-the-cluster-is-content-sized). At ≤720 px the button is the
+  header's **last, full-width row**, a thumb-sized target under everything else.
+  It keeps its `sampler-record` testid (REQ-machine-header-testids-are-preserved),
+  and the row never overflows (REQ-machine-header-wraps-at-every-width).
 
 ## Technical design
 
@@ -236,17 +245,17 @@ no `ParamBus` param or `SongFile` field is involved.
 ## Visual aids
 
 ```
- WIDE (>1140px) — one row, record button pinned top-right:
+ WIDE (>1140px) — one row, so the record button ends it top-right:
 ┌──────────────────────────────────────────────────────────────┐
 │ [SAMPLER] (M) [FOLLOW][A B C D][COPY] [UNDO] [CLEAR] │DIRT ● │ [● RECORD A SOUND] │
 └──────────────────────────────────────────────────────────────┘
 
- NARROW (≤1140px) — deterministic two units, button still top-right:
+ NARROW (≤1140px) — deterministic two units, button ends the FX line:
 ┌───────────────────────────────────────────────────────┐
-│ [SAMPLER] (M) [FOLLOW][A B C D]     │ [● RECORD A SOUND] │
-│ [COPY] [UNDO] [CLEAR]               │                    │
-├─────────────────────────────────────┤                    │
-│ │DIRT ● ○ ○ ○   │PHASER ● ○ ○ ○ ○   │                    │
+│ [SAMPLER] (M) [FOLLOW][A B C D]                        │
+│ [COPY] [UNDO] [CLEAR]                                  │
+├───────────────────────────────────────────────────────┤
+│ │DIRT ● │PHASER ● │DELAY ● │REVERB ● │DUCK ●  [● RECORD A SOUND] │
 └───────────────────────────────────────────────────────┘
 
  PHONE (≤720px) — the button is the last, full-width row:
@@ -298,11 +307,13 @@ Scenario: A sixteen-bank machine still fits a phone (v5, REQ-the-bank-segment-wr
   And bank P is visible below bank A's row
 # pinned by: e2e/banks.spec.ts
 
-Scenario: The record button holds the top-right corner (REQ-the-record-button-holds-the-top-right)
-  Given the Sampler tab is selected
+Scenario: The record button ends the header and reserves no column (REQ-the-record-button-ends-the-header)
+  Given the Sampler tab is selected with every effect bypassed
   When the viewport is 1280px or 1024px wide
-  Then the sampler-record button's right edge is the header row's right edge
-  And its top is level with the machine switch's row
+  Then the sampler-record button's right edge is the header's right edge
+  And the header's right edge is the pattern panel's right edge
+  When the viewport is 1024px wide
+  Then the button shares the last FX group's (DUCK) line
   When the viewport is 375px wide
   Then the button sits below every other header control and spans the row
   And the panel does not scroll horizontally

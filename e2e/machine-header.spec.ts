@@ -23,9 +23,9 @@ const TABLET = { width: 1024, height: 768 };
 // sidechain-ducking.md REQ-ducking-adds-no-new-gesture) moved it: five collapsed groups need 1580px
 // before the row fits under Windows metrics, ~110px more than four did. CI's
 // fonts need more still — 1600px, which used to clear four groups by 20px,
-// wrapped there on all three attempts. The Sampler's record button
-// (REQ-the-record-button-holds-the-top-right) then took ~200px beside the header,
-// leaving it 1606px of a 1900px viewport — which CI's fonts wrapped. This is
+// wrapped there on all three attempts. The Sampler's record button, which now
+// ends the FX cluster (REQ-the-record-button-ends-the-header), adds ~200px more to
+// that one row, and 1900px was once seen to wrap under CI's fonts. This is
 // deliberately far past all of that, since nothing but a headless viewport is
 // being spent: the assertion is "given room to spare", so the width should not
 // be a number the next group can creep up on.
@@ -112,34 +112,57 @@ test.describe('responsive machine header', () => {
     expect(await horizontalOverflow(page)).toBe(0);
   });
 
-  // REQ-the-record-button-holds-the-top-right: the way into the sample studio is
-  // not a header item — it keeps the tab's top-right corner however the header
-  // wraps, and on a phone it is the header's last, full-width row.
-  test('pins the record button top-right, and last and full-width on a phone', async ({ page }) => {
+  // REQ-the-record-button-ends-the-header: the way into the sample studio ends the
+  // header flush right, so no row above it is cut short by a reserved column, and
+  // on a phone it is the header's last, full-width row.
+  test('ends the header with the record button, reserving no column', async ({ page }) => {
     await gotoAndStart(page);
     await page.getByTestId('tab-sampler').click();
     const rec = page.getByTestId('sampler-record');
     const header = page.getByTestId('switch-sampler.on').locator('xpath=..');
+    // The panel's content box: the header spanning it is what "no column" means.
+    const panelContentRight = () => header.locator('xpath=..').evaluate((el) => {
+      const cs = getComputedStyle(el);
+      return el.getBoundingClientRect().right
+        - parseFloat(cs.paddingRight) - parseFloat(cs.borderRightWidth);
+    });
 
     for (const size of [DESKTOP, TABLET]) {
       await page.setViewportSize(size);
       const r = (await rec.boundingBox())!;
-      const row = (await rec.locator('xpath=..').boundingBox())!;
-      const machine = (await page.getByTestId('switch-sampler.on').boundingBox())!;
-      // Its right edge is the row's right edge…
-      expect(Math.abs((row.x + row.width) - (r.x + r.width))).toBeLessThanOrEqual(1);
-      // …and it sits on the machine switch's row, at the top.
-      expect(r.y).toBeLessThan(machine.y + machine.height);
-      expect(r.y + r.height).toBeGreaterThan(machine.y);
+      const h = (await header.boundingBox())!;
+      // Its right edge is the header's right edge…
+      expect(Math.abs((h.x + h.width) - (r.x + r.width))).toBeLessThanOrEqual(1);
+      // …and the header spans the whole panel: nothing sits beside it.
+      expect(Math.abs((h.x + h.width) - await panelContentRight())).toBeLessThanOrEqual(1);
       expect(r.height).toBeGreaterThanOrEqual(32);
       expect(await horizontalOverflow(page)).toBe(0);
     }
 
-    await page.setViewportSize({ width: 375, height: 812 });
+    // Below the wrap step, with every effect bypassed, it shares the last FX
+    // group's line rather than costing a line of its own.
+    await page.setViewportSize(TABLET);
     const r = (await rec.boundingBox())!;
+    const duck = (await page.getByTestId(fxId('duck')).boundingBox())!;
+    expect(r.y).toBeLessThan(duck.y + duck.height);
+    expect(r.y + r.height).toBeGreaterThan(duck.y);
+
+    // A phone: the last row, and the full width of it. "Below every other
+    // control" is measured against everything else the header holds.
+    await page.setViewportSize({ width: 375, height: 812 });
+    const phone = (await rec.boundingBox())!;
     const h = (await header.boundingBox())!;
-    expect(r.y).toBeGreaterThanOrEqual(h.y + h.height - 1);
-    expect(r.width).toBeGreaterThanOrEqual(h.width - 2);
+    const othersBottom = await header.evaluate((el, recId) => {
+      let bottom = -Infinity;
+      for (const c of el.querySelectorAll<HTMLElement>('[data-testid]')) {
+        if (c.dataset.testid === recId || c.contains(document.querySelector(`[data-testid="${recId}"]`))) continue;
+        const b = c.getBoundingClientRect();
+        if (b.width > 0 && b.height > 0) bottom = Math.max(bottom, b.bottom);
+      }
+      return bottom;
+    }, 'sampler-record');
+    expect(phone.y).toBeGreaterThanOrEqual(othersBottom - 1);
+    expect(phone.width).toBeGreaterThanOrEqual(h.width - 2);
     expect(await horizontalOverflow(page)).toBe(0);
   });
 

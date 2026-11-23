@@ -1078,7 +1078,7 @@ export const HELP_TOPICS: Record<TopicId, HelpTopic> = {
     body:
       '<p>Eight slots that each play your own sound as a one-shot on a 16-step grid. ' +
       '<strong>Load</strong> a WAV/MP3 into a slot, or use <strong>Record a sound</strong> ' +
-      '(top right of the tab) to capture from your mic and edit it. The ' + g('edit', 'Edit') +
+      '(at the right end of the tab\'s controls, just above the grid) to capture from your mic and edit it. The ' + g('edit', 'Edit') +
       ' button re-opens a loaded sound in the editor. Click a loaded slot\'s name to hear it — ' +
       'it plays even while the sampler lane is muted or another lane is soloed, and so does a ' +
       'MIDI pad. <strong>Del</strong> takes a slot\'s file ' +
