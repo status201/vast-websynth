@@ -2,7 +2,7 @@
   "format": "websynth-params",
   "version": 1,
   "songVersion": 9,
-  "count": 440,
+  "count": 445,
   "params": [
     {
       "id": "voicing.mode",
@@ -4589,6 +4589,71 @@
         "1/4 T",
         "1/8 D",
         "1/4"
+      ]
+    },
+    {
+      "id": "motion.xy.mute",
+      "min": 0,
+      "max": 1,
+      "default": 0,
+      "patch": false,
+      "step": 1,
+      "taper": "discrete",
+      "labels": [
+        "on",
+        "mute"
+      ]
+    },
+    {
+      "id": "motion.t0.mute",
+      "min": 0,
+      "max": 1,
+      "default": 0,
+      "patch": false,
+      "step": 1,
+      "taper": "discrete",
+      "labels": [
+        "on",
+        "mute"
+      ]
+    },
+    {
+      "id": "motion.t1.mute",
+      "min": 0,
+      "max": 1,
+      "default": 0,
+      "patch": false,
+      "step": 1,
+      "taper": "discrete",
+      "labels": [
+        "on",
+        "mute"
+      ]
+    },
+    {
+      "id": "motion.t2.mute",
+      "min": 0,
+      "max": 1,
+      "default": 0,
+      "patch": false,
+      "step": 1,
+      "taper": "discrete",
+      "labels": [
+        "on",
+        "mute"
+      ]
+    },
+    {
+      "id": "motion.t3.mute",
+      "min": 0,
+      "max": 1,
+      "default": 0,
+      "patch": false,
+      "step": 1,
+      "taper": "discrete",
+      "labels": [
+        "on",
+        "mute"
       ]
     }
   ]

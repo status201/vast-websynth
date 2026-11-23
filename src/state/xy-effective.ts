@@ -1,6 +1,7 @@
 import type { ParamBus } from './params';
 import type { PatternStore } from './patterns';
 import type { XyAssign, XyPadStore } from './xy-pad';
+import { MOTION_XY_LANE, motionLaneMuteId } from './motion-lanes';
 
 /**
  * The *effective* XY axis assignment: what the motion sequencer is actually
@@ -75,6 +76,8 @@ export function motionAxesMatch(
   return (ov?.x ?? base.x) === axes.x && (ov?.y ?? base.y) === axes.y;
 }
 
+const XY_LANE_MUTE = motionLaneMuteId(MOTION_XY_LANE);
+
 export function createEffectiveXy(
   xy: XyPadStore,
   patterns: PatternStore,
@@ -85,6 +88,8 @@ export function createEffectiveXy(
     const base = xy.get();
     // A muted machine is inactive (motion-sequencer.md REQ-motion-mute-is-an-ordinary-param) — base axes apply.
     if (bus.get('motion.on') < 0.5 || bus.get('motion.mute') >= 0.5) return base;
+    // So is a muted XY lane, for the pad's axes (REQ-each-motion-lane-has-its-own-mute).
+    if (bus.get(XY_LANE_MUTE) >= 0.5) return base;
     return motionAxesFor(patterns, arrangement.motionPlayBank, base);
   };
 
@@ -106,6 +111,7 @@ export function createEffectiveXy(
   patterns.onMotionBankChange(refresh);
   bus.subscribe('motion.on', refresh);
   bus.subscribe('motion.mute', refresh);
+  bus.subscribe(XY_LANE_MUTE, refresh);
 
   return {
     get: () => ({ ...resolve() }),

@@ -18,6 +18,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ### Added
 
+- **Mute each Motion lane on its own.** The XY lane and lanes A–D each have a
+  **mute** in their header. A muted lane's knobs go back to where you left them
+  while the other lanes keep moving, and the lane stays editable. A mute is a
+  parameter like any other, so one lane can switch another on and off as the bar
+  plays — point lane A at `motion.t1.mute` in STEP mode. Muting lane A leaves B as
+  A left it, and Stop puts every mute back. A lane cannot mute itself; a song that
+  asks for that loads with a warning, and the lane's picker shows it dimmed.
+
 - **A vocoder in the sample studio.** The editor's new **Vocoder** tab makes the
   clip talk. Press *Record voice*: the clip plays once to count you in, then again
   while you sing or speak, and the take stops by itself, lined up with the clip.

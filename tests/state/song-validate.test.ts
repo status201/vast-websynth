@@ -450,6 +450,24 @@ describe('validateSongFile — unresolvable automation targets warn (REQ-motion-
     expect(warningsOf(f)).toHaveLength(3);
   });
 
+  // motion-lane-mute.md REQ-a-lane-cannot-target-the-machine-or-itself: the machine refuses these
+  // writes, so a song naming one has a dead lane exactly like a typo does.
+  it("warns on a target the lane is not allowed, and not on another lane's mute", () => {
+    const f = clone(captureValid()) as Record<string, unknown>;
+    const lane = (p: string): unknown =>
+      ({ param: p, steps: Array.from({ length: SEQ_LENGTH }, () => ({ on: false })) });
+    f.motionTracks = [
+      [lane('motion.t0.mute'), lane('motion.t0.mute')], // A's own mute: refused; B muting A: fine
+      [lane('motion.on'), null], [null, null], [null, null],
+    ];
+    f.xy = { x: 'motion.xy.mute', y: 'motion.t2.mute' };
+    const w = warningsOf(f);
+    expect(w).toHaveLength(3);
+    expect(w.some((m) => m.startsWith('motionTracks[0][0].param') && m.includes('motion.t0.mute'))).toBe(true);
+    expect(w.some((m) => m.startsWith('motionTracks[1][0].param') && m.includes('motion.on'))).toBe(true);
+    expect(w.some((m) => m.startsWith('xy.x'))).toBe(true);
+  });
+
   it('omits warnings entirely when every target resolves', () => {
     const f = clone(captureValid()) as Record<string, unknown>;
     f.xy = { x: 'filter.cutoff', y: 'filter.resonance' };

@@ -27,6 +27,9 @@ import {
   type MotionStep, type MotionTrackStep,
 } from '../../state/patterns';
 import { ALL_CELLS, bindLaneGrid, laneGrid, onLaneGridChange } from '../lane-grid';
+import {
+  MOTION_XY_LANE, motionLaneMuteId, motionTargetAllowed, motionTrackLane,
+} from '../../state/motion-lanes';
 import panelStyles from '../styles/panel.module.css';
 import switchStyles from '../styles/switch.module.css';
 import drumStyles from '../styles/drum.module.css';
@@ -67,6 +70,19 @@ export function buildMotionPanel(
   header.appendChild(laneControlsFor(bus, engine, 'motion', bridge).el);
   header.appendChild(laneMeterControlsFor(bus, 'motion').el);
 
+  // ---- Lane mutes (motion-panel.md REQ-a-motion-lane-header-carries-its-mute) ----
+  /** A lane's mute: the drum/seq row's own `Switch`, minting `switch-<id>`. */
+  const laneMuteSwitch = (lane: number): HTMLElement =>
+    new Switch(bus, motionLaneMuteId(lane), 'mute').el;
+  /**
+   * Fade `body` while its lane is muted. It follows the bus rather than the
+   * switch, so a mute another lane writes (REQ-a-lane-can-mute-another-lane)
+   * shows too. Faded, not inert: a muted lane is still authored.
+   */
+  const dimWhileMuted = (lane: number, body: HTMLElement): void => {
+    bus.subscribe(motionLaneMuteId(lane), (v) => body.classList.toggle(styles.laneMuted!, v >= 0.5));
+  };
+
   // ---- XY lane header (REQ-each-motion-step-is-a-mini-xy-pad) ----
   // Everything that belongs to the XY lane rather than the machine: its
   // launcher, its graph projection toggle, its interpolation mode, the axes it
@@ -98,6 +114,7 @@ export function buildMotionPanel(
   });
   xyHeader.appendChild(viewSel);
   xyHeader.appendChild(new Segmented(bus, 'motion.slide', ['STEP', 'SLIDE']).el);
+  xyHeader.appendChild(laneMuteSwitch(MOTION_XY_LANE));
 
   // ---- Per-lane value readout (REQ-a-motion-steps-value-is-readable-without-hovering) ----
   // The pads are ~40px wide and there are 48 of them, so a step's value cannot
@@ -257,6 +274,7 @@ export function buildMotionPanel(
   const { el: gridWrap, restOverlay } =
     wrapGridWithRestOverlay(engine, 'motion', bankBar, cells, graph);
   root.appendChild(gridWrap);
+  dimWhileMuted(MOTION_XY_LANE, gridWrap);
 
   /**
    * The banks the edit bank's bar sits between in the chain — what its bar-line
@@ -343,13 +361,17 @@ export function buildMotionPanel(
   // Appended into the XY lane header above, so the dropdowns and the "graph:"
   // hint sit beside the view toggle that drives them (REQ-each-motion-step-is-a-mini-xy-pad).
   const paramIds = bus.ids().slice().sort();
+  /** What `lane`'s pickers offer: everything it may drive
+   *  (motion-lane-mute.md REQ-a-lane-cannot-target-the-machine-or-itself). */
+  const targetsFor = (lane: number): string[] => paramIds.filter((id) => motionTargetAllowed(lane, id));
+  const xyTargets = targetsFor(MOTION_XY_LANE);
 
   const mkAxis = (axis: 'x' | 'y'): Dropdown => {
     const label = document.createElement('span');
     label.className = styles.axisLabel!;
     label.textContent = axis.toUpperCase();
     xyHeader.appendChild(label);
-    const sel = new Dropdown(paramIds, xy.get()[axis]);
+    const sel = new Dropdown(xyTargets, xy.get()[axis]);
     sel.el.dataset.testid = `motion-assign-${axis}`;
     sel.onChange((id) => {
       const ov = patterns.motionAssign(patterns.motionEditBank) ?? {};
@@ -429,7 +451,7 @@ export function buildMotionPanel(
     const ctrls = document.createElement('div');
     ctrls.className = styles.trackHeader!;
 
-    const picker = new Dropdown([NONE, ...paramIds], NONE);
+    const picker = new Dropdown([NONE, ...targetsFor(motionTrackLane(track))], NONE);
     picker.el.dataset.testid = `motion-trk-${track}-param`;
     picker.onChange((id) => {
       patterns.setMotionTrackParam(track, id === NONE ? null : id);
@@ -443,6 +465,8 @@ export function buildMotionPanel(
     // This lane's own interpolation mode (REQ-set-steps-are-anchors/REQ-single-param-lanes-below-the-xy-lane). Segmented mints
     // `seg-motion.t<i>.slide` itself, so there is no testid to hand-maintain.
     ctrls.appendChild(new Segmented(bus, `motion.t${track}.slide`, ['STEP', 'SLIDE']).el);
+    // In the header, so a folded lane can still be muted (REQ-a-motion-lane-header-carries-its-mute).
+    ctrls.appendChild(laneMuteSwitch(motionTrackLane(track)));
     const readout = makeReadout(`motion-readout-trk-${track}`);
     ctrls.appendChild(readout);
     row.appendChild(ctrls);
@@ -500,6 +524,7 @@ export function buildMotionPanel(
     // above them (lane-fold.md REQ-a-lane-fold-hides-the-body-not-the-header).
     gridWrap.classList.add(styles.trackBody!);
     row.appendChild(gridWrap);
+    dimWhileMuted(motionTrackLane(track), gridWrap);
     root.appendChild(row);
 
     /**
@@ -513,6 +538,12 @@ export function buildMotionPanel(
       if (!t) return;
       const assigned = !!t.param;
       picker.setValue(t.param ?? NONE);
+      // A loaded song can name a target this lane may not drive; the machine
+      // refuses it, so the picker says so rather than reading as a live lane
+      // (REQ-a-motion-lane-header-carries-its-mute).
+      const refused = assigned && !motionTargetAllowed(motionTrackLane(track), t.param!);
+      picker.setDimmed(refused);
+      picker.el.title = refused ? `${t.param} cannot be driven by this lane — pick another parameter` : '';
       // Only the CELLS go inert — never the row, which holds the param picker.
       // Disabling that is the one thing that would make an unassigned track
       // impossible to assign (ADR-014 law 2: no dead ends).

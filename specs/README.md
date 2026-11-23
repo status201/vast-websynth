@@ -309,6 +309,7 @@ specs/
     arrangement.md     ·  the four chain lanes
     motion-sequencer.md ·  XY param automation machine (anchors, slide/step) + four single-param lanes
     motion-panel.md    ·  the Motion tab: step pads (peek/snap/fine), lane headers, fold, the curve graph
+    motion-lane-mute.md ·  one mute per motion lane (XY, A–D); a lane can mute another, never itself
     arrangement-rest.md ·  the always-empty "rest" chain slot
     performance.md     ·  live DJ FX (DJ filter/stutter/fill/drop/tape-stop)
     midi-clock-sync.md ·  master/slave transport sync over MIDI real-time (24 PPQN)

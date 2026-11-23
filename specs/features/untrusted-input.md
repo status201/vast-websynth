@@ -3,7 +3,7 @@
 ```yaml
 id: untrusted-input
 status: implemented
-version: 17
+version: 18
 owner: core
 related:
   - architecture
@@ -306,7 +306,9 @@ decision and the alternatives. This spec is the contract.
      pointer resolves to nothing and the lane is dead.
 
   So `validateSongFile` returns `warnings: string[]` alongside `ok: true`, one
-  per unresolvable target, named by path
+  per unresolvable target — unknown, or a known id its lane may not drive
+  ([motion-lane-mute](motion-lane-mute.md) REQ-a-lane-cannot-target-the-machine-or-itself)
+  — named by path
   (`motionTracks[0][1].param: unknown parameter "not.a.param"`). The song loads
   unchanged — behaviour is byte-for-byte what it was — but every authoring
   surface can now say what will not move. `warnings` is **advisory and

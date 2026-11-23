@@ -7,6 +7,9 @@ import { ParamBus, registerDefaults } from '../../../src/state/params';
 import { XyPadStore } from '../../../src/state/xy-pad';
 import { Song } from '../../../src/state/song';
 import { fromNorm, toNorm } from '../../../src/utils/taper';
+import {
+  MOTION_LANE_COUNT, MOTION_XY_LANE, motionLaneMuteId, motionTrackLane,
+} from '../../../src/state/motion-lanes';
 import { TestClock } from './test-clock';
 
 /**
@@ -1131,5 +1134,389 @@ describe('MotionMachine frame driver', () => {
 
     expect(h.timer.starts).toEqual([1000 / 60]);
     expect(h.rafCbs.length).toBe(0);
+  });
+});
+
+/**
+ * Per-lane mutes (motion-lane-mute.md). `build()` leaves the bus →
+ * machine binding to the Engine, so `wired()` adds the one these need: a lane
+ * mute reaching `setLaneMuted` synchronously through the bus — the path a
+ * lane-to-lane mute takes from inside a frame.
+ *
+ * A muted lane's params are released by the sweep at the end of the first
+ * whole frame it sits out, after every unmuted lane has written — so these
+ * tests run a frame after a mute before asserting the release.
+ */
+describe('MotionMachine — per-lane mutes (motion-lane-mute.md REQ-each-motion-lane-has-its-own-mute)', () => {
+  const MUTE_A = motionLaneMuteId(motionTrackLane(0));
+  const MUTE_B = motionLaneMuteId(motionTrackLane(1));
+  const MUTE_XY = motionLaneMuteId(MOTION_XY_LANE);
+
+  function wired() {
+    const r = build();
+    for (let l = 0; l < MOTION_LANE_COUNT; l++) {
+      const lane = l;
+      r.bus.subscribe(motionLaneMuteId(lane), (v) => r.machine.setLaneMuted(lane, v >= 0.5));
+    }
+    r.machine.setEnabled(true);
+    return r;
+  }
+  const setupTrack = (patterns: PatternStore, track: number, param: string,
+    anchors: Record<number, number>): void => {
+    patterns.setMotionTrackParam(track, param);
+    for (const [step, v] of Object.entries(anchors)) {
+      patterns.setMotionTrackStep(track, Number(step), { on: true, v });
+    }
+  };
+  const at = (bus: ParamBus, id: string, n: number): number => fromNorm(bus.def(id)!, n);
+  /** Every value `id` takes from here on — a blip to the baseline shows up in it. */
+  const record = (bus: ParamBus, id: string): number[] => {
+    const seen: number[] = [];
+    bus.subscribe(id, (v) => seen.push(v));
+    seen.length = 0; // subscribe replays the current value; only changes count
+    return seen;
+  };
+
+  it('muting one lane returns its param to baseline while the others keep moving', () => {
+    const { bus, patterns, clock, machine } = wired();
+    setupTrack(patterns, 0, 'fx.delay.mix', { 0: 1, 15: 1 });
+    setupTrack(patterns, 1, 'fx.reverb.mix', { 0: 0, 15: 1 });
+    const delay0 = bus.get('fx.delay.mix');
+    clock.fireStart();
+    clock.fireTick(0);
+    machine.frame(3 * STEP_DUR);
+    expect(bus.get('fx.delay.mix')).toBeCloseTo(at(bus, 'fx.delay.mix', 1), 6);
+
+    bus.set(MUTE_A, 1);
+    machine.frame(4 * STEP_DUR); // released once the other lanes have written
+    expect(bus.get('fx.delay.mix')).toBe(delay0);
+    machine.frame(6 * STEP_DUR);
+    expect(bus.get('fx.delay.mix')).toBe(delay0); // and nothing writes it after
+    expect(bus.get('fx.reverb.mix')).toBeCloseTo(at(bus, 'fx.reverb.mix', 6 / 15), 6);
+
+    bus.set(MUTE_A, 0);
+    machine.frame(7 * STEP_DUR); // resumes on the next frame
+    expect(bus.get('fx.delay.mix')).toBeCloseTo(at(bus, 'fx.delay.mix', 1), 6);
+    clock.fireStop();
+    expect(bus.get('fx.delay.mix')).toBe(delay0); // its baseline survived the round trip
+  });
+
+  it('muting the XY lane restores both axes and leaves the tracks running', () => {
+    const { bus, patterns, clock, machine } = wired();
+    anchor(patterns, 0, 1, 1); // the XY defaults: cutoff + resonance
+    setupTrack(patterns, 0, 'fx.delay.mix', { 0: 1 });
+    const cutoff0 = bus.get('filter.cutoff');
+    const res0 = bus.get('filter.resonance');
+    clock.fireStart();
+    clock.fireTick(0);
+    machine.frame(0);
+    expect(bus.get('filter.cutoff')).not.toBe(cutoff0);
+
+    bus.set(MUTE_XY, 1);
+    machine.frame(STEP_DUR);
+    expect(bus.get('filter.cutoff')).toBe(cutoff0);
+    expect(bus.get('filter.resonance')).toBe(res0);
+    expect(bus.get('fx.delay.mix')).toBeCloseTo(at(bus, 'fx.delay.mix', 1), 6);
+  });
+
+  it('a param two lanes share never blips to its baseline when one of them mutes', () => {
+    const { bus, patterns, clock, machine } = wired();
+    anchor(patterns, 0, 0.5, 1);                                 // XY's y = filter.resonance at 1
+    setupTrack(patterns, 0, 'filter.resonance', { 0: 0.25 });     // A drives it too, and writes last
+    const res0 = bus.get('filter.resonance');
+    clock.fireStart();
+    clock.fireTick(0);
+    machine.frame(0);
+    expect(bus.get('filter.resonance')).toBeCloseTo(at(bus, 'filter.resonance', 0.25), 6);
+
+    const seen = record(bus, 'filter.resonance');
+    bus.set(MUTE_A, 1);
+    machine.frame(STEP_DUR);
+    machine.frame(2 * STEP_DUR);
+    expect(bus.get('filter.resonance')).toBeCloseTo(at(bus, 'filter.resonance', 1), 6);
+    expect(seen).not.toContain(res0); // the XY lane took it over; no frame at the baseline
+    clock.fireStop();
+    expect(bus.get('filter.resonance')).toBe(res0);
+  });
+
+  // Review regression: protection went by assignment, so an assigned lane
+  // with no anchors kept the muted lane's param stuck until Stop.
+  it('a lane that is assigned but writes nothing does not keep a muted lane\'s param', () => {
+    const { bus, patterns, clock, machine } = wired();
+    // No XY anchors, so the XY lane writes nothing — but its axes still NAME
+    // filter.resonance (the default), the most common track target.
+    setupTrack(patterns, 1, 'filter.resonance', { 0: 0.9 });
+    const res0 = bus.get('filter.resonance');
+    clock.fireStart();
+    clock.fireTick(0);
+    machine.frame(0);
+    expect(bus.get('filter.resonance')).not.toBe(res0);
+
+    bus.set(MUTE_B, 1);
+    machine.frame(STEP_DUR);
+    expect(bus.get('filter.resonance')).toBe(res0);
+  });
+
+  // Review regression: when both lanes sharing a param muted, neither released it.
+  it('a param shared by two lanes is released when both of them mute', () => {
+    const { bus, patterns, clock, machine } = wired();
+    machine.setSlide(false);
+    // The XY lane mutes A and B on step 4 — after both have written the shared param.
+    patterns.setMotionAssign({ x: MUTE_B, y: MUTE_A });
+    anchor(patterns, 0, 0, 0);
+    anchor(patterns, 4, 1, 1);
+    setupTrack(patterns, 0, 'fx.delay.mix', { 0: 0.3 });
+    setupTrack(patterns, 1, 'fx.delay.mix', { 0: 0.9 });
+    const delay0 = bus.get('fx.delay.mix');
+    clock.fireStart();
+    clock.fireTick(0);
+    machine.frame(0);
+    expect(bus.get('fx.delay.mix')).toBeCloseTo(at(bus, 'fx.delay.mix', 0.9), 6);
+
+    for (let i = 1; i <= 4; i++) clock.fireTick(i * STEP_DUR);
+    machine.frame(4 * STEP_DUR); // both muted mid-frame…
+    machine.frame(5 * STEP_DUR); // …and released after a frame they both sat out
+    expect(bus.get(MUTE_A)).toBe(1);
+    expect(bus.get(MUTE_B)).toBe(1);
+    expect(bus.get('fx.delay.mix')).toBe(delay0);
+  });
+
+  // Review regression: the release read the bank the chain was leaving.
+  describe('at a handover, the incoming bank decides', () => {
+    function handover(bank1DrivesIt: boolean) {
+      const r = wired();
+      const { patterns, arrangement } = r;
+      setupTrack(patterns, 1, 'fx.delay.mix', { 0: 0.9 }); // bank A: lane B
+      if (bank1DrivesIt) {
+        patterns.setMotionEditBank(1);
+        setupTrack(patterns, 0, 'fx.delay.mix', { 0: 0.6 }); // bank B: lane A takes it over
+        patterns.setMotionEditBank(0);
+      }
+      arrangement.setMotionChain([0, 1], true);
+      const delay0 = r.bus.get('fx.delay.mix');
+      r.clock.fireStart();
+      for (let i = 0; i <= 15; i++) r.clock.fireTick(i * STEP_DUR);
+      r.machine.frame(15.5 * STEP_DUR);
+      const seen = record(r.bus, 'fx.delay.mix');
+      r.bus.set(MUTE_B, 1); // muted just before the bar line
+      r.clock.fireTick(16 * STEP_DUR);
+      r.machine.frame(16 * STEP_DUR);
+      return { ...r, delay0, seen };
+    }
+
+    it('a param the incoming bank writes passes straight to it, with no stop at the baseline', () => {
+      const { bus, delay0, seen } = handover(true);
+      expect(delay0).not.toBeCloseTo(at(bus, 'fx.delay.mix', 0.6), 6); // a baseline stop would be visible
+      expect(bus.get('fx.delay.mix')).toBeCloseTo(at(bus, 'fx.delay.mix', 0.6), 6);
+      expect(seen).not.toContain(delay0);
+    });
+
+    it('a param the incoming bank leaves alone goes home', () => {
+      const { bus, delay0 } = handover(false);
+      expect(bus.get('fx.delay.mix')).toBe(delay0);
+    });
+  });
+
+  // Review regression: after a seek the old release saw no bank and freed shared params.
+  it('a mute just after a seek waits for a frame that evaluates, so a shared param does not blip', () => {
+    const { bus, patterns, clock, machine } = wired();
+    anchor(patterns, 0, 0.5, 1);
+    setupTrack(patterns, 0, 'filter.resonance', { 0: 0.25 });
+    const res0 = bus.get('filter.resonance');
+    clock.fireStart();
+    clock.fireTick(0);
+    machine.frame(0);
+
+    const seen = record(bus, 'filter.resonance');
+    clock.fireSeek(8);
+    bus.set(MUTE_A, 1);
+    machine.frame(STEP_DUR);         // no cell latched yet: nothing evaluates, nothing is released
+    clock.fireTick(2 * STEP_DUR);
+    machine.frame(2 * STEP_DUR);
+    expect(bus.get('filter.resonance')).toBeCloseTo(at(bus, 'filter.resonance', 1), 6);
+    expect(seen).not.toContain(res0);
+  });
+
+  it('a muted lane does not park at a handover', () => {
+    const { bus, patterns, clock, arrangement, machine } = wired();
+    machine.setTrackSlide(0, false);
+    setupTrack(patterns, 0, 'fx.delay.mix', { 0: 0.9, 15: 0.7 }); // bank A only; B drives nothing
+    arrangement.setMotionChain([0, 1], true);
+    const delay0 = bus.get('fx.delay.mix');
+    clock.fireStart();
+    for (let i = 0; i <= 15; i++) clock.fireTick(i * STEP_DUR);
+    machine.frame(15.5 * STEP_DUR);
+    expect(bus.get('fx.delay.mix')).toBeCloseTo(at(bus, 'fx.delay.mix', 0.7), 6);
+
+    bus.set(MUTE_A, 1);
+    clock.fireTick(16 * STEP_DUR);
+    machine.frame(16 * STEP_DUR); // the chain hands bank A over to bank B
+    // Unmuted, the park would have written bank A's step-15 anchor here; muted,
+    // the sweep sends it home.
+    expect(bus.get('fx.delay.mix')).toBe(delay0);
+  });
+
+  describe('one lane muting another (REQ-a-lane-can-mute-another-lane)', () => {
+    it('a STEP lane switches another lane off and on within the bar', () => {
+      const { bus, patterns, clock, machine } = wired();
+      machine.setTrackSlide(0, false);
+      setupTrack(patterns, 0, MUTE_B, { 0: 1, 8: 0 });             // A: B muted for steps 0–7
+      setupTrack(patterns, 1, 'fx.reverb.mix', { 0: 0.8, 15: 0.8 });
+      const reverb0 = bus.get('fx.reverb.mix');
+      clock.fireStart();
+      clock.fireTick(0);
+      machine.frame(2 * STEP_DUR);
+      expect(bus.get(MUTE_B)).toBe(1);
+      expect(bus.get('fx.reverb.mix')).toBe(reverb0); // B wrote nothing
+
+      for (let i = 1; i <= 8; i++) clock.fireTick(i * STEP_DUR);
+      machine.frame(9 * STEP_DUR);
+      expect(bus.get(MUTE_B)).toBe(0);
+      // Unmuted earlier in the same frame, so B — a later lane — writes in it.
+      expect(bus.get('fx.reverb.mix')).toBeCloseTo(at(bus, 'fx.reverb.mix', 0.8), 6);
+
+      for (let i = 9; i <= 15; i++) clock.fireTick(i * STEP_DUR);
+      clock.fireTick(16 * STEP_DUR);
+      machine.frame(16 * STEP_DUR);   // the bar repeats: B muted again mid-frame…
+      expect(bus.get(MUTE_B)).toBe(1);
+      machine.frame(16.5 * STEP_DUR); // …and released after the frame it sat out
+      expect(bus.get('fx.reverb.mix')).toBe(reverb0);
+    });
+
+    it('a lane muted mid-frame keeps a shared param until the lanes have had a whole frame', () => {
+      // XY and A share filter.resonance, A writing last; B mutes A on step 4,
+      // AFTER A has written. Releasing at the end of that frame would put the
+      // baseline in front of the XY lane's next write: one frame at the wrong value.
+      const { bus, patterns, clock, machine } = wired();
+      machine.setTrackSlide(1, false);
+      anchor(patterns, 0, 0.5, 1);
+      setupTrack(patterns, 0, 'filter.resonance', { 0: 0.25 });
+      setupTrack(patterns, 1, MUTE_A, { 0: 0, 4: 1 });
+      const res0 = bus.get('filter.resonance');
+      clock.fireStart();
+      clock.fireTick(0);
+      machine.frame(0);
+      const seen = record(bus, 'filter.resonance');
+      for (let i = 1; i <= 4; i++) clock.fireTick(i * STEP_DUR);
+      machine.frame(4 * STEP_DUR);
+      expect(bus.get(MUTE_A)).toBe(1);
+      machine.frame(5 * STEP_DUR);
+      expect(bus.get('filter.resonance')).toBeCloseTo(at(bus, 'filter.resonance', 1), 6);
+      expect(seen).not.toContain(res0);
+    });
+
+    it('stopping puts the mute back to what the user set', () => {
+      const { bus, patterns, clock, machine } = wired();
+      setupTrack(patterns, 0, MUTE_B, { 0: 0 });       // A unmutes B…
+      bus.set(MUTE_B, 1);                               // …which the user had muted
+      clock.fireStart();
+      clock.fireTick(0);
+      machine.frame(0);
+      expect(bus.get(MUTE_B)).toBe(0);
+      clock.fireStop();
+      expect(bus.get(MUTE_B)).toBe(1);
+    });
+
+    it('two lanes muting each other settle in lane order, and the frame ends', () => {
+      const { bus, patterns, clock, machine } = wired();
+      setupTrack(patterns, 0, MUTE_B, { 0: 1 });
+      setupTrack(patterns, 1, MUTE_A, { 0: 1 });
+      clock.fireStart();
+      clock.fireTick(0);
+      machine.frame(0);
+      machine.frame(STEP_DUR);
+      // A writes first and mutes B, so B never gets to mute A.
+      expect(bus.get(MUTE_B)).toBe(1);
+      expect(bus.get(MUTE_A)).toBe(0);
+      clock.fireStop();
+      expect(bus.get(MUTE_B)).toBe(0);
+    });
+
+    it('a muted lane leaves the mutes it set: its sounds go home, its switches hold', () => {
+      // B mutes A for the first half-bar; then C mutes B at step 4, while A is muted.
+      const { bus, patterns, clock, machine } = wired();
+      machine.setTrackSlide(1, false);
+      machine.setTrackSlide(2, false);
+      setupTrack(patterns, 0, 'fx.delay.mix', { 0: 0.9 });
+      setupTrack(patterns, 1, MUTE_A, { 0: 1, 8: 0 });
+      setupTrack(patterns, 2, MUTE_B, { 0: 0, 4: 1 });
+      const delay0 = bus.get('fx.delay.mix');
+      clock.fireStart();
+      clock.fireTick(0);
+      machine.frame(0);              // A wrote, then B muted it mid-frame
+      machine.frame(STEP_DUR);       // A sat this one out: its sound goes home
+      expect(bus.get(MUTE_A)).toBe(1);
+      expect(bus.get('fx.delay.mix')).toBe(delay0);
+
+      for (let i = 1; i <= 4; i++) clock.fireTick(i * STEP_DUR);
+      machine.frame(4 * STEP_DUR);   // C mutes B…
+      machine.frame(5 * STEP_DUR);
+      // …and the mute B set on A is HELD, not released: A stays muted, even past
+      // step 8 where B (now muted) would have let it go.
+      for (let i = 5; i <= 10; i++) clock.fireTick(i * STEP_DUR);
+      machine.frame(10 * STEP_DUR);
+      expect(bus.get(MUTE_B)).toBe(1);
+      expect(bus.get(MUTE_A)).toBe(1);
+      expect(bus.get('fx.delay.mix')).toBe(delay0);
+      clock.fireStop();               // Stop is what returns every switch
+      expect(bus.get(MUTE_A)).toBe(0);
+      expect(bus.get(MUTE_B)).toBe(0);
+    });
+
+    // Review regression: releasing mute switches made two lanes driving each
+    // other's mutes flap at frame rate (a release re-muting the other lane, whose
+    // release un-muted the first, and round again).
+    it("two lanes driving each other's mutes settle instead of flapping", () => {
+      const { bus, patterns, clock, machine } = wired();
+      setupTrack(patterns, 0, MUTE_B, { 0: 1 }); // A mutes B
+      setupTrack(patterns, 1, MUTE_A, { 0: 0 }); // B unmutes A
+      bus.set(MUTE_A, 1);                         // the user had muted A
+      const flipsA = record(bus, MUTE_A);
+      const flipsB = record(bus, MUTE_B);
+      clock.fireStart();
+      clock.fireTick(0);
+      for (let f = 0; f < 24; f++) machine.frame(f * 0.001);
+      // B unmutes A once; A then mutes B once; nothing moves after that.
+      expect(flipsA).toEqual([0]);
+      expect(flipsB).toEqual([1]);
+      clock.fireStop();
+      expect(bus.get(MUTE_A)).toBe(1); // the user's own value
+      expect(bus.get(MUTE_B)).toBe(0);
+    });
+  });
+
+  describe('the target fence (REQ-a-lane-cannot-target-the-machine-or-itself)', () => {
+    it('a lane aimed at its own mute or the machine switches writes nothing', () => {
+      for (const target of [MUTE_A, 'motion.mute', 'motion.on']) {
+        const { bus, patterns, clock, machine } = wired();
+        setupTrack(patterns, 0, target, { 0: 1 });
+        setupTrack(patterns, 1, 'fx.reverb.mix', { 0: 1 });
+        const before = bus.get(target);
+        clock.fireStart();
+        clock.fireTick(0);
+        machine.frame(0);
+        expect(bus.get(target), target).toBe(before);
+        // …and the machine keeps running: the next lane still writes.
+        expect(bus.get('fx.reverb.mix'), target).toBeCloseTo(at(bus, 'fx.reverb.mix', 1), 6);
+      }
+    });
+
+    it('the XY lane cannot drive its own mute through an axis override', () => {
+      const { bus, patterns, clock, machine } = wired();
+      patterns.setMotionAssign({ x: MUTE_XY });
+      anchor(patterns, 0, 1, 1);
+      clock.fireStart();
+      clock.fireTick(0);
+      machine.frame(0);
+      expect(bus.get(MUTE_XY)).toBe(0);
+      expect(bus.get('filter.resonance')).toBeCloseTo(at(bus, 'filter.resonance', 1), 6);
+    });
+  });
+
+  it('a lane mute while stopped is a no-op, and setLaneMuted ignores an unknown lane (edge)', () => {
+    const { bus, machine } = wired();
+    expect(() => { bus.set(MUTE_A, 1); }).not.toThrow();
+    expect(() => { machine.setLaneMuted(99, true); }).not.toThrow();
+    expect(() => { machine.setLaneMuted(-1, true); }).not.toThrow();
   });
 });

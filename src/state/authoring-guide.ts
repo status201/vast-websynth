@@ -361,6 +361,12 @@ TOP-LEVEL SHAPE
   // A lane is { "param": "<ParamBus id>", "steps": [{ "step": 0-15, "v": 0-1 }] }
   // or null. Same slide/step curve rules as the XY anchors, but each lane has
   // its OWN mode param: "motion.t0.slide" … "motion.t${MOTION_TRACK_COUNT - 1}.slide" (1 = slide, default).
+  // Each lane can be muted on its own: "motion.xy.mute" (the XY lane) and "motion.t0.mute" …
+  // "motion.t${MOTION_TRACK_COUNT - 1}.mute" (1 = mute, default 0). A muted lane writes nothing and its
+  // params return to their saved values. A lane mute is an ordinary target, so a lane whose
+  // "param" is another lane's mute switches that lane on and off (muting the switching lane
+  // leaves the other as it was; Stop restores every mute); a lane may not target its
+  // own mute, "motion.on" or "motion.mute" (those writes are ignored, and validation warns).
   // Trailing unused lanes may be omitted; a bank carrying more than ${MIN_MOTION_TRACK_COUNT} makes the
   // file v8, so a song that uses only A and B still emits v5 exactly as before.
   "motionTracks": ((Track | null)[${MIN_MOTION_TRACK_COUNT}..${MOTION_TRACK_COUNT}])[${MIN_BANK_COUNT}..${MAX_BANK_COUNT}],

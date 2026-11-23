@@ -27,6 +27,7 @@ import {
   SAMPLER_SLOT_COUNT, MOTION_TRACK_COUNT, BEND_SHAPES,
 } from './patterns';
 import { paramIds } from './params';
+import { MOTION_XY_LANE, motionTargetAllowed, motionTrackLane } from './motion-lanes';
 import {
   MAX_ERRORS, isObject, describeValue as describe, type AddError, checkKeys,
 } from './validate-utils';
@@ -60,23 +61,28 @@ export type SongValidation =
 export function unresolvedTargets(file: Pick<SongFile, 'xy' | 'motionAssigns' | 'motionTracks'>): string[] {
   const known = paramIds();
   const out: string[] = [];
-  const check = (path: string, id: unknown): void => {
+  /** `lane` is the motion lane the target drives: a known id that lane may not
+   *  target is as dead as an unknown one (motion-lane-mute.md REQ-a-lane-cannot-target-the-machine-or-itself). */
+  const check = (path: string, id: unknown, lane: number): void => {
     if (typeof id !== 'string' || id.length === 0) return;
     if (!known.has(id)) out.push(`${path}: unknown parameter "${id}" — that lane will not move`);
+    else if (!motionTargetAllowed(lane, id)) {
+      out.push(`${path}: "${id}" is off limits to this lane (motion.on, motion.mute and its own mute are) — it will not move`);
+    }
   };
 
   if (file.xy) {
-    check('xy.x', file.xy.x);
-    check('xy.y', file.xy.y);
+    check('xy.x', file.xy.x, MOTION_XY_LANE);
+    check('xy.y', file.xy.y, MOTION_XY_LANE);
   }
   file.motionAssigns?.forEach((a, i) => {
     if (!a) return;
-    check(`motionAssigns[${i}].x`, a.x);
-    check(`motionAssigns[${i}].y`, a.y);
+    check(`motionAssigns[${i}].x`, a.x, MOTION_XY_LANE);
+    check(`motionAssigns[${i}].y`, a.y, MOTION_XY_LANE);
   });
   file.motionTracks?.forEach((bank, b) => {
     bank?.forEach((t, i) => {
-      if (t) check(`motionTracks[${b}][${i}].param`, t.param);
+      if (t) check(`motionTracks[${b}][${i}].param`, t.param, motionTrackLane(i));
     });
   });
   return out;

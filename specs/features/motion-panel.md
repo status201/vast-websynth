@@ -3,7 +3,7 @@
 ```yaml
 id: motion-panel
 status: implemented
-version: 1
+version: 2
 owner: core
 related:
   - motion-sequencer      # the machine these controls edit
@@ -94,6 +94,24 @@ a graph of the curve that will play, and a fold.
   - Four open lanes **scroll** with the page rather than sharing a fixed height, so
     every pad keeps its 64 px.
 
+- **REQ-a-motion-lane-header-carries-its-mute** — Every lane header carries its own
+  mute ([motion-lane-mute](motion-lane-mute.md) REQ-each-motion-lane-has-its-own-mute):
+  `switch-motion.xy.mute` after the XY lane's Slide/Step, and `switch-motion.t<i>.mute`
+  after each track's. It is the drum/seq row's `Switch(bus, id, 'mute')`, so it reads
+  and behaves like every other track mute.
+  - It lives in the **header**, so a folded lane can still be muted
+    ([lane-fold](lane-fold.md) REQ-a-lane-fold-hides-the-body-not-the-header).
+  - A muted lane's **body dims** (`.laneMuted`) but stays **editable**: authoring a
+    lane before letting it play is the point of muting it. Only an *unassigned* lane
+    goes inert (REQ-single-param-lanes-below-the-xy-lane). The dim follows the bus,
+    so a mute written by another lane shows too.
+  - The lane's param pickers (the track picker, the XY axis pickers) leave out the
+    ids `motionTargetAllowed` refuses ([motion-lane-mute](motion-lane-mute.md)
+    REQ-a-lane-cannot-target-the-machine-or-itself). The other lanes' mutes are offered.
+    A track whose loaded target is refused shows its picker **dimmed**, titled with
+    why, so a dead lane never reads as a live one.
+  - The Song tab's Motion card keeps only the machine-wide `motion.mute`.
+
 - **REQ-the-ab-lane-repaint-is-gated-on-visibility** — `arrangement.onChange` fires
   every bar, and a lane repaint rebuilds an SVG and re-levels 16 pads. So track
   repaints share the XY graph's visibility gate
@@ -115,7 +133,7 @@ a graph of the curve that will play, and a fold.
   drag/wheel targets) follow the *effective* assignment: `createEffectiveXy`
   (`state/xy-effective.ts`) resolves the play bank's override per axis while motion is
   active, falling back to `XyPadStore`. It re-resolves on chain moves, override edits,
-  base reassignment and `motion.on`/`motion.mute`. The pad's gear pickers edit the
+  base reassignment and `motion.on`/`motion.mute`/`motion.xy.mute`. The pad's gear pickers edit the
   **base** assignment (the store's single writer).
 
 - **REQ-a-motion-steps-value-is-readable-without-hovering** — The value shows in two
@@ -205,6 +223,16 @@ The **fold button** is a plain `<button type="button">`:
 | double-tap | — a second tap toggles back | — |
 | long-press / right-click / drag / wheel | — the pads below already own all four | — |
 | — | picking a parameter in this lane's picker | Opens the lane: a second route, not a gesture on the button. |
+
+The **lane mute** is the shared `Switch` (a `<button>`), with the same inventory as
+every track mute:
+
+| Gesture | Outcome | Precedent |
+| --- | --- | --- |
+| tap / click | mute or unmute this lane | drum/seq/sampler track mutes; Elektron track mute |
+| `Enter` / `Space` | same as tap | native |
+| double-tap | — a second tap toggles back | — |
+| long-press / right-click / drag / wheel | — nothing to inspect or scrub on a two-state switch | — |
 
 ## Scenarios (BDD)
 
@@ -320,6 +348,29 @@ Scenario: Clearing a lane's param leaves it open (REQ-an-empty-motion-lane-start
   Given an open lane with a param chosen
   When the param is set back to none
   Then the lane stays open, so the next param can be picked in the same place
+# pinned by: tests/ui/motion-panel.test.ts
+
+Scenario: Each lane header carries its own mute (REQ-a-motion-lane-header-carries-its-mute)
+  Given the Motion tab is open
+  Then the XY lane header holds switch-motion.xy.mute and each track header its
+    switch-motion.t<i>.mute
+  When lane B is folded
+  Then its mute switch is still in its header and still toggles motion.t1.mute
+  When motion.t1.mute is set — by the switch or by another lane writing it
+  Then lane B's body is dimmed and its pads still take an edit
+# pinned by: tests/ui/motion-panel.test.ts, e2e/motion.spec.ts
+
+Scenario: A loaded lane aimed at a refused target reads as dead (REQ-a-motion-lane-header-carries-its-mute)
+  Given a song assigns lane A its own mute, motion.t0.mute
+  Then lane A's picker shows it dimmed, with a title naming the param
+  And picking another lane's mute or a sound param clears the dim
+# pinned by: tests/ui/motion-panel.test.ts
+
+Scenario: A lane's picker offers the other lanes' mutes but not its own (REQ-a-motion-lane-header-carries-its-mute)
+  Given the Motion tab is open
+  Then lane A's param picker offers motion.t1.mute and motion.xy.mute
+  And it offers neither motion.t0.mute, motion.on nor motion.mute
+  And the XY axis pickers do not offer motion.xy.mute
 # pinned by: tests/ui/motion-panel.test.ts
 
 Scenario: A song that uses lanes C and D does not arrive with them hidden (REQ-an-empty-motion-lane-starts-folded)

@@ -6,6 +6,7 @@ import { toNorm, fromNorm } from '../../utils/taper';
 import { clamp01 } from '../../utils/math';
 import styles from '../styles/xy-pad.module.css';
 import { UI_ICONS } from './ui-icons';
+import { MOTION_XY_LANE, motionTargetAllowed } from '../../state/motion-lanes';
 
 /**
  * XY Pad surface — a Kaoss-pad-style square whose two axes each drive an
@@ -35,7 +36,9 @@ export function createXyPad(
   xy: XyPadStore,
   effective?: EffectiveXy,
 ): { el: HTMLElement; gear: HTMLElement; destroy(): void; endGesture(): void } {
-  const ids = bus.ids().slice().sort();
+  // The base assignment is also what the motion XY lane drives, so it offers
+  // only what that lane may target (motion-lane-mute.md REQ-a-lane-cannot-target-the-machine-or-itself).
+  const ids = bus.ids().filter((id) => motionTargetAllowed(MOTION_XY_LANE, id)).sort();
   // The axes source: the effective assignment when provided, else the store.
   const axes: EffectiveXy = effective ?? {
     get: () => xy.get(),

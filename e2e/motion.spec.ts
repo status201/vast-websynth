@@ -687,3 +687,47 @@ test('lanes C and D drive their own params alongside A and B', async ({ page }) 
       .toBeCloseTo(before[t]!, 4);
   }
 });
+
+test('a lane mute in its header silences that lane alone and fades it (REQ-each-motion-lane-has-its-own-mute)', async ({ page }) => {
+  await gotoAndStart(page);
+  await openMotionTab(page);
+  const bus = (id: string) => page.evaluate((i) => (window as any).__synth.bus.get(i), id);
+
+  // Lane A on fx.delay.mix, lane B on fx.reverb.mix, both anchored high.
+  for (const [track, param] of [[0, 'fx.delay.mix'], [1, 'fx.reverb.mix']] as const) {
+    const picker = page.getByTestId(`motion-trk-${track}-param`);
+    await picker.click();
+    await picker.getByText(param, { exact: true }).click();
+    for (const s of [0, 4, 8, 12]) await setTrackLevel(page, track, s, 1);
+  }
+  const delay0 = await bus('fx.delay.mix');
+  const reverb0 = await bus('fx.reverb.mix');
+  await page.evaluate(() => (window as any).__synth.bus.set('motion.on', 1));
+
+  await page.getByTestId('transport-play').click();
+  await expect.poll(() => bus('fx.delay.mix')).toBeGreaterThan(delay0);
+  await expect.poll(() => bus('fx.reverb.mix')).toBeGreaterThan(reverb0);
+
+  /** Lane A's effective opacity: the product down from its graph to the root. */
+  const fadeOfA = () => page.getByTestId('motion-trk-0-graph').evaluate((g) => {
+    let o = 1;
+    for (let el: Element | null = g; el; el = el.parentElement) o *= Number(getComputedStyle(el).opacity);
+    return o;
+  });
+  const playingFade = await fadeOfA();
+
+  // The header switch mutes lane A: its param returns while B keeps going.
+  await page.getByTestId('switch-motion.t0.mute').click();
+  await expect.poll(() => bus('motion.t0.mute')).toBe(1);
+  await expect.poll(() => bus('fx.delay.mix')).toBeCloseTo(delay0, 4);
+  expect(await bus('fx.reverb.mix')).toBeGreaterThan(reverb0);
+  // The muted lane's body fades; its cells stay on screen to edit.
+  await expect(page.getByTestId('motion-trk-0-step-0')).toBeVisible();
+  expect(await fadeOfA()).toBeLessThan(playingFade);
+
+  await page.getByTestId('switch-motion.t0.mute').click(); // unmute: back on its curve
+  await expect.poll(() => bus('fx.delay.mix')).toBeGreaterThan(delay0);
+
+  await page.getByTestId('transport-play').click();
+  await expect.poll(() => bus('fx.delay.mix')).toBeCloseTo(delay0, 4);
+});

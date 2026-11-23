@@ -252,6 +252,13 @@
      than left to lose (ADR-014 law 6: a control has to feel like one). */
   .trackDim .trackFold:hover { opacity: 1; }
 
+  /* A muted lane (motion-panel.md REQ-a-motion-lane-header-carries-its-mute): its
+     body fades but stays editable — no .inert, since authoring a lane before
+     letting it play is the point of muting it. Only the body, never the header,
+     which holds the very switch that unmutes it and a picker whose fixed menu a
+     faded ancestor would fade too. */
+  .laneMuted { opacity: 0.4; }
+
   /* A level cell is one-dimensional: `onSet` discards x, so its horizontal
      position carries no meaning. The vertical centre line would advertise an axis
      that does not exist and make the cell read as a mini XY pad — drop it. The

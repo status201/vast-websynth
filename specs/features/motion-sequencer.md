@@ -3,7 +3,7 @@
 ```yaml
 id: motion-sequencer
 status: implemented
-version: 20
+version: 21
 owner: core
 related:
   - xy-pad
@@ -19,6 +19,7 @@ related:
   - song-authoring-dialect
   - dropdown
   - motion-panel          # the Motion tab: step pads, lanes, fold, graph
+  - motion-lane-mute
 source:
   - src/audio/transport/motion-curve.ts     # pure anchor/interpolation math
   - src/audio/transport/motion-machine.ts   # transport-driven param writer
@@ -136,8 +137,9 @@ playing. The tab sits between Sampler and Song.
   `<lane>.mute`) is toggled from the Song-tab Motion card (`switch-motion.mute`). The
   machine is active only while `motion.on ≥ 0.5 && motion.mute < 0.5`
   (`MotionMachine.setMuted`). Muting stops writes and restores every baseline;
-  unmuting mid-play resumes next frame. Motion stays outside `audibleLanes`.
-- **REQ-an-unresolved-motion-target-is-reported** — `write(id, norm)` returns early on
+  unmuting mid-play resumes next frame. Per-lane mutes:
+  [motion-lane-mute](motion-lane-mute.md).
+- **REQ-an-unresolved-motion-target-is-reported** — `write(id, norm, lane)` returns early on
   an unknown id, so it never throws into the clock. A misspelled
   `motionTracks[].param` / `motionAssigns[].x` is reported instead:
   [untrusted-input](untrusted-input.md) REQ-an-unresolvable-target-warns owns
@@ -265,7 +267,7 @@ The Motion tab — the step pads, the lanes, folding, the graph and their gestur
   above the anchor, clamped to the viewport, `pointer-events: none`). It writes
   `textContent` only on change; `opts.peek` marks a read-only gesture.
 - `MotionMachine` (`src/audio/transport/motion-machine.ts`): `setEnabled(on)`,
-  `setMuted(m)`, `setSlide(on)`, `setTrackSlide(track, on)`, `onStep(cb)`; a
+  `setMuted(m)`, `setLaneMuted(lane, m)`, `setSlide(on)`, `setTrackSlide(track, on)`, `onStep(cb)`; a
   `clock.onStop` restore and a `clock.onSeek` latch-clear. Latch state `held` (the bank
   whose writes are live, `-1` while resting) drives the park, cleared wherever the
   latch is and by every restore. The baseline map is registered as the bus's snapshot

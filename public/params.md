@@ -462,3 +462,8 @@ Schemas: [`llms.txt`](llms.txt).
 - "motion.t3.slide": number  // range 0..1, default 1, step 1, values 0=step 1=slide
 - "motion.len": number  // range 0..16, default 0, step 1
 - "motion.rate": number  // range 0..8, default 2, step 1, values 0=1/32 1=1/16 T 2=1/16 3=1/8 T 4=1/16 D 5=1/8 6=1/4 T 7=1/8 D 8=1/4
+- "motion.xy.mute": number  // range 0..1, default 0, step 1, values 0=on 1=mute
+- "motion.t0.mute": number  // range 0..1, default 0, step 1, values 0=on 1=mute
+- "motion.t1.mute": number  // range 0..1, default 0, step 1, values 0=on 1=mute
+- "motion.t2.mute": number  // range 0..1, default 0, step 1, values 0=on 1=mute
+- "motion.t3.mute": number  // range 0..1, default 0, step 1, values 0=on 1=mute

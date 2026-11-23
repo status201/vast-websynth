@@ -3,7 +3,7 @@
 ```yaml
 id: xy-pad
 status: implemented
-version: 5
+version: 6
 owner: core
 related:
   - architecture
@@ -106,7 +106,8 @@ subscribes to the assigned params.
   `aria-expanded`) when toggled, and its `pointerdown` is stopped so clicking it
   never starts a window drag. The collapse state is in-memory only (not
   persisted, not in songs) but survives close/reopen because the pad instance is
-  kept alive across closes.
+  kept alive across closes. The dropdowns offer what the motion XY lane may drive
+  ([motion-lane-mute](motion-lane-mute.md) REQ-a-lane-cannot-target-the-machine-or-itself).
 
 - **REQ-the-pad-is-resizable** (v5) — **The pad can be dragged bigger** from a
   corner grip at the window's bottom right ([floating-window](floating-window.md)

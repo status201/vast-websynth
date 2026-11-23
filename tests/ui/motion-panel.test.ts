@@ -9,6 +9,8 @@ import type { XyPadWindowController } from '../../src/ui/components/xy-pad-windo
 import type { PatternUndo } from '../../src/state/pattern-undo';
 import type { UiBridge } from '../../src/ui/ui-bridge';
 import { installLocalStorageMock } from '../storage-mock';
+import motionStyles from '../../src/ui/styles/motion.module.css';
+import dropdownStyles from '../../src/ui/styles/dropdown.module.css';
 
 /**
  * The Motion panel's cost gate — motion-panel.md REQ-the-ab-lane-repaint-is-gated-on-visibility,
@@ -380,5 +382,76 @@ describe('Motion panel folded-lane cost (REQ-a-folded-motion-lane-does-no-repain
     const touched = observers.map((o) => o.takeRecords().length > 0);
     for (const o of observers) o.disconnect();
     expect(touched).toEqual([false, true, false, false]);
+  });
+});
+
+describe('Motion panel lane mutes (REQ-a-motion-lane-header-carries-its-mute)', () => {
+  const muteSwitch = (el: HTMLElement, id: string): HTMLButtonElement =>
+    el.querySelector<HTMLButtonElement>(`[data-testid="switch-${id}"]`)!;
+  /** The faded body around a lane's graph, or null while the lane plays. */
+  const mutedBody = (el: HTMLElement, graphTestId: string): Element | null =>
+    el.querySelector(`[data-testid="${graphTestId}"]`)!.closest(`.${motionStyles.laneMuted!}`);
+
+  it('every lane header carries its own mute, and a folded lane keeps it', () => {
+    const { bus, panel } = harness();
+    expect(muteSwitch(panel.el, 'motion.xy.mute')).not.toBeNull();
+    for (let t = 0; t < MOTION_TRACK_COUNT; t++) {
+      expect(isFolded(panel.el, t)).toBe(true); // empty lanes arrive folded
+      const sw = muteSwitch(panel.el, `motion.t${t}.mute`);
+      expect(foldBtn(panel.el, t).closest('div')!.contains(sw)).toBe(true);
+    }
+    muteSwitch(panel.el, 'motion.t1.mute').click();
+    expect(bus.get('motion.t1.mute')).toBe(1);
+  });
+
+  it('a muted lane fades but stays editable, whoever muted it', () => {
+    const { bus, patterns, panel } = harness();
+    patterns.setMotionTrackParam(1, 'filter.cutoff');
+    expect(mutedBody(panel.el, 'motion-trk-1-graph')).toBeNull();
+
+    bus.set('motion.t1.mute', 1); // as another lane's write would
+    expect(mutedBody(panel.el, 'motion-trk-1-graph')).not.toBeNull();
+    const pad = panel.el.querySelector('[data-testid="motion-trk-1-step-0"]')!;
+    expect(pad.classList.contains(motionStyles.inert!)).toBe(false);
+    expect(mutedBody(panel.el, 'motion-trk-0-graph')).toBeNull(); // only that lane
+
+    bus.set('motion.xy.mute', 1);
+    expect(mutedBody(panel.el, 'motion-graph')).not.toBeNull();
+    bus.set('motion.t1.mute', 0);
+    expect(mutedBody(panel.el, 'motion-trk-1-graph')).toBeNull();
+  });
+
+  it('a loaded lane aimed at a target it may not drive reads as dead, not live', () => {
+    const { patterns, panel } = harness();
+    const toggle = () => panel.el.querySelector(`[data-testid="motion-trk-0-param"] .${dropdownStyles.toggle!}`)!;
+    patterns.setMotionTrackParam(0, 'motion.t1.mute');      // another lane's mute: fine
+    expect(toggle().classList.contains(dropdownStyles.dimmed!)).toBe(false);
+    patterns.setMotionTrackParam(0, 'motion.t0.mute');      // its own, as a hand-edited song could
+    expect(toggle().classList.contains(dropdownStyles.dimmed!)).toBe(true);
+    expect(picker(panel.el, 0).title).toContain('motion.t0.mute');
+    patterns.setMotionTrackParam(0, 'filter.cutoff');
+    expect(toggle().classList.contains(dropdownStyles.dimmed!)).toBe(false);
+  });
+
+  it("a lane's picker offers the other lanes' mutes but not its own or the machine's", () => {
+    const { panel } = harness();
+    document.body.appendChild(panel.el);
+    const optionsOf = (testId: string): string[] => {
+      const dd = panel.el.querySelector<HTMLElement>(`[data-testid="${testId}"]`)!;
+      dd.querySelector('button')!.click(); // options are built on open
+      const opts = Array.from(dd.querySelectorAll('.dropdown-option')).map((o) => o.textContent ?? '');
+      dd.querySelector('button')!.click();
+      return opts;
+    };
+    const a = optionsOf('motion-trk-0-param');
+    expect(a).toContain('motion.t1.mute');
+    expect(a).toContain('motion.xy.mute');
+    expect(a).not.toContain('motion.t0.mute');
+    expect(a).not.toContain('motion.on');
+    expect(a).not.toContain('motion.mute');
+    const x = optionsOf('motion-assign-x');
+    expect(x).toContain('motion.t0.mute');
+    expect(x).not.toContain('motion.xy.mute');
+    panel.el.remove();
   });
 });

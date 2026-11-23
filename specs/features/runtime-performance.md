@@ -503,8 +503,9 @@ Scenario: a worklet speed rewrite changes no samples
   surfaces), `tests/ui/overlay-cost.test.ts` (REQ-no-viewport-scaled-compositing-on-hot-surfaces's drift pin) — `npm test`
 - E2E: `e2e/session.spec.ts`, `e2e/motion.spec.ts`, `e2e/patterns.spec.ts` — `npm run e2e`
 - Typecheck: `npm run typecheck`
-- Audio-thread cost: `npm run bench:perf` (`scripts/perf-bench.mjs`). Eleven fixed
-  scenarios (idle, held notes, all synth FX, the heavy per-voice path, two demos,
+- Audio-thread cost: `npm run bench:perf` (`scripts/perf-bench.mjs`). Twelve fixed
+  scenarios (idle, held notes, all synth FX, the heavy per-voice path, three demos — the
+  third the first with motion on, so the motion frame loop is measured —
   the weak tier, the window resizing across the layout breakpoints), each repeated, read from Blink's `webaudio` trace: load per
   render callback (mean, p95, max), the worst 128-frame block against its budget,
   plus main-thread busy %, style recalcs, and main-thread frames and displayed
