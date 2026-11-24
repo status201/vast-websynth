@@ -6,7 +6,7 @@
 //   node scripts/readme-screenshots.mjs [--demo <name>] [--bar <n>] [--url <app url>]
 //                                       [--only <shot,shot>]
 //
-// --only takes shot names (hero, machines, eq, pastel, classic, help) and retakes just
+// --only takes shot names (hero, machines, eq, pastel, motion, help) and retakes just
 // those, so adding one shot does not churn every committed PNG.
 //
 // Outputs (public/), each 1920×1080. Every shot pins its theme: the app's
@@ -24,7 +24,7 @@
 //                                   EQUALIZER unfolded on its Sequencer tab
 //   vast-websynth-theme-pastel.png  Pastel: Bunk playing, FX open, the Sequencer
 //                                   tab following the playhead
-//   vast-websynth-theme-classic.png Classic: Gankogui stopped at bar 1, FX folded,
+//   vast-websynth-motion-machine.png Light: Gankogui stopped at bar 1, FX folded,
 //                                   the Motion tab with its XY pad and A/B lanes
 //   vast-websynth-help-badges.png   Race: Bunk stopped, FX folded, the Sequencer
 //                                   tab, info badges on and AMP ENV's help open
@@ -326,20 +326,20 @@ try {
     await page.close();
   }
 
-  // 5 + 6 — the themes (ui-themes.md), scrolled so the machine panel's bottom
-  // edge sits where it does in shots 2 and 3. Pastel: Bunk playing, the
-  // Sequencer tab following the playhead (FOLLOW is on by default), the FX row
-  // open above its painted sections. Classic: Gankogui as loaded — stopped at
-  // bar 1 — on the Motion tab with FX folded, so the lanes get the room; bar 1's
-  // bank fills the XY pad and both A and B lanes.
+  // 5 + 6 — Pastel and the Motion tab (ui-themes.md), scrolled so the machine
+  // panel's bottom edge sits where it does in shots 2 and 3. Pastel: Bunk
+  // playing, the Sequencer tab following the playhead (FOLLOW is on by
+  // default), the FX row open above its painted sections. Motion, in Light:
+  // Gankogui as loaded — stopped at bar 1 — on the Motion tab with FX folded, so
+  // the lanes get the room; bar 1's bank fills the XY pad and both A and B lanes.
   const THEME_SHOTS = [
-    { name: 'pastel', demo: THEME_DEMO, tab: 'seq', fxFolded: false, play: true, file: 'vast-websynth-theme-pastel.png' },
-    { name: 'classic', demo: MOTION_DEMO, tab: 'motion', fxFolded: true, play: false, file: 'vast-websynth-theme-classic.png' },
+    { name: 'pastel', theme: 'pastel', demo: THEME_DEMO, tab: 'seq', fxFolded: false, play: true, file: 'vast-websynth-theme-pastel.png' },
+    { name: 'motion', theme: 'light', demo: MOTION_DEMO, tab: 'motion', fxFolded: true, play: false, file: 'vast-websynth-motion-machine.png' },
   ];
   for (const t of THEME_SHOTS) {
     if (!wanted(t.name)) continue;
     const page = await openApp(browser, {
-      'websynth.ui.theme': t.name,
+      'websynth.ui.theme': t.theme,
       'websynth.ui.collapsed.fx': t.fxFolded ? '1' : '0',
     }, t.demo);
     await page.getByTestId(`tab-${t.tab}`).click();

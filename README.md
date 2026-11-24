@@ -49,7 +49,7 @@ Vanilla TypeScript + Vite, zero runtime dependencies.
 
 <p align="center">
   <a href="https://vast.status201.com/">
-    <img src="public/vast-websynth-theme-classic.png" alt="VAST G1-J8 in the Classic theme — deep teal and sage, the motion sequencer on Gankogui’s first bar, its XY pad and two lanes drawn" width="960">
+    <img src="public/vast-websynth-motion-machine.png" alt="VAST G1-J8 in the Light theme — warm cream and burnt orange, the motion sequencer on Gankogui’s first bar, its XY pad and two lanes drawn" width="960">
   </a>
 </p>
 
