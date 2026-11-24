@@ -65,17 +65,17 @@
   }
   .graph polyline {
     fill: none;
-    stroke: color-mix(in srgb, var(--motion) 55%, transparent);
-    stroke-width: 1.5;
+    stroke: var(--motion-curve);
+    stroke-width: 2;
     vector-effect: non-scaling-stroke;
   }
   .graph circle {
-    fill: color-mix(in srgb, var(--motion) 90%, transparent);
+    fill: var(--motion-curve);
   }
   /* The bar-line carry: what the curve does between this bar and its neighbours
      (motion-sequencer.md REQ-cross-bank-carry). Dashed + dimmer so it reads as "leaving the bar". */
   .graph polyline.carry {
-    stroke: color-mix(in srgb, var(--motion) 32%, transparent);
+    stroke: color-mix(in srgb, var(--motion-curve) 55%, transparent);
     stroke-dasharray: 3 3;
   }
 
@@ -149,10 +149,10 @@
     pointer-events: none;
   }
 
-  /* Unlit cells still show a faint bar at their level, so a row reads as a bar
-     strip. Clearing resets a cell to the default level (motion-panel.ts onClear),
-     so a cleared cell matches an untouched one instead of keeping its old height. */
-  .levelPad .bar { opacity: 0.22; }
+  /* A cell with no anchor shows a faint bar at the curve's value there, so every
+     cell reads what the lane plays (motion-panel.md REQ-an-unset-level-cell-shows-the-curve);
+     an anchored one is lit. */
+  .levelPad .bar { opacity: 0.38; }
   .levelPad:global(.on) .bar { opacity: 1; }
 
   .inert {

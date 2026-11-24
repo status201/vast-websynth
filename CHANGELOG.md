@@ -51,6 +51,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ### Changed
 
+- **Every Motion lane step reads its value.** A step without a value of its own
+  used to show a half-height ghost bar whatever the lane was doing. It now fills
+  (faded) to the value the lane plays there: the held value in STEP, the ramp in
+  SLIDE. Holding or hovering it reads that value too, and the curve line is drawn
+  in high contrast so it stands out over the bars on every theme.
+
 - **A new app icon.** The knob made way for a little synth studio: two knobs
   and a power LED, a scope with a sine wave, and a few piano keys. It is the
   icon in your browser tab and on your home screen or taskbar, with a version

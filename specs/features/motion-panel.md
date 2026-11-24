@@ -78,6 +78,19 @@ a graph of the curve that will play, and a fold.
   REQ-clear-menu-clears-in-bulk). Axis overrides and track params survive every
   clear.
 
+- **REQ-an-unset-level-cell-shows-the-curve** — Every level cell reads the value the
+  lane plays there, set or not. A cell holding an anchor fills (solid) to its own
+  value. A cell without one fills (faded) to the curve's value at the cell's centre:
+  the held value in STEP, the ramp in SLIDE, the dashed carry before the first anchor
+  and after the last. That value comes from `motionLevels1D`, which reads the height
+  of the drawn line itself (`motionGraphPoints1D`, carry included), so a fill can
+  only ever sit on the line above it. A lane with no anchors
+  writes nothing, so its cells fill nothing. Peek, the header readout and Shift's
+  anchor read that same value, so holding an unset cell reads what will play, and a
+  Shift-drag from it starts where the fill is. Every motion graph line, the XY
+  lane's included, is drawn in `--motion-curve` (the text colour), 2 px wide, so it
+  reads over both the empty well and the lit fills on every theme.
+
 - **REQ-an-empty-motion-lane-starts-folded** — A track with **no `param` and no set
   steps** starts folded: header kept, cells and graph collapsed
   ([lane-fold](lane-fold.md)).
@@ -335,6 +348,14 @@ Scenario: A lane with no parameter has nothing to convert (REQ-a-motion-steps-va
   Given track B has no parameter chosen
   Then its readout shows "—" rather than a bare normalized number
 # pinned by: e2e/motion.spec.ts
+
+Scenario: An unset cell shows the value the lane plays there (REQ-an-unset-level-cell-shows-the-curve)
+  Given lane A in STEP with an anchor of 1.0 on step 1 and 0.2 on step 9
+  Then steps 2–8 fill (faded) to 1.0 and steps 10–16 to 0.2, level with the line
+  And in SLIDE the same cells fill to the ramp's value at their centres
+  And holding an unset cell, or hovering it, reads that value — not the stored default
+  And a lane with no anchors fills nothing
+# pinned by: tests/ui/motion-graph.test.ts, tests/ui/motion-panel.test.ts
 
 Scenario: An empty lane arrives folded and picking a param opens it (REQ-an-empty-motion-lane-starts-folded)
   Given no stored fold preference and the Motion tab open

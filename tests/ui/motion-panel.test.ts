@@ -455,3 +455,32 @@ describe('Motion panel lane mutes (REQ-a-motion-lane-header-carries-its-mute)', 
     panel.el.remove();
   });
 });
+
+describe('Motion panel unset cells (REQ-an-unset-level-cell-shows-the-curve)', () => {
+  const bar = (el: HTMLElement, step: number): HTMLElement =>
+    el.querySelector<HTMLElement>(`[data-testid="motion-trk-0-step-${step}"] .${motionStyles.bar!}`)!;
+  const hover = (el: HTMLElement, step: number): string => {
+    const pad = el.querySelector(`[data-testid="motion-trk-0-step-${step}"]`)!;
+    pad.dispatchEvent(Object.assign(new Event('pointerenter'), { pointerType: 'mouse' }));
+    return el.querySelector('[data-testid="motion-readout-trk-0"]')!.textContent ?? '';
+  };
+
+  it('an unset cell fills to the value held from the anchor before it, and reads it', () => {
+    const { bus, patterns, panel } = harness();
+    bus.set('motion.t0.slide', 0); // STEP
+    patterns.setMotionTrackParam(0, 'fx.delay.mix');
+    patterns.setMotionTrackStep(0, 0, { on: true, v: 1 });
+    patterns.setMotionTrackStep(0, 8, { on: true, v: 0.2 });
+    expect(parseFloat(bar(panel.el, 3).style.height)).toBeCloseTo(100, 6);
+    expect(parseFloat(bar(panel.el, 11).style.height)).toBeCloseTo(20, 6);
+    // Not the 0.50 the store keeps for an untouched cell.
+    expect(hover(panel.el, 11)).toContain('12 · 0.20');
+  });
+
+  it('a lane with no anchors fills nothing and reads no value', () => {
+    const { patterns, panel } = harness();
+    patterns.setMotionTrackParam(0, 'fx.delay.mix');
+    expect(parseFloat(bar(panel.el, 3).style.height)).toBe(0);
+    expect(hover(panel.el, 3)).toBe('04 · —');
+  });
+});

@@ -12,7 +12,7 @@ import { MotionStepPad, type MotionGesture } from '../components/motion-step-pad
 import { showValueBubble, hideValueBubble } from '../components/value-bubble';
 import { formatParam } from '../format-param';
 import { fromNorm } from '../../utils/taper';
-import { motionGraphPoints, motionGraphPoints1D } from '../components/motion-graph';
+import { motionGraphPoints, motionGraphPoints1D, motionLevels1D } from '../components/motion-graph';
 import { createLaneFold } from '../components/lane-fold';
 import {
   bankBarFor, wrapGridWithRestOverlay, wirePlayhead, playheadRulerFor, laneControlsFor, laneMeterControlsFor, clearMenuFor,
@@ -483,6 +483,9 @@ export function buildMotionPanel(
     // so the tracks read as a distinct lane (REQ-each-motion-step-is-a-mini-xy-pad/REQ-single-param-lanes-below-the-xy-lane).
     cells.className = styles.trackCells!;
     const pads: MotionStepPad[] = [];
+    /** What each cell shows: its anchor, or the curve there (null: nothing plays).
+     *  Refilled by `paintBody`, read by hover (REQ-an-unset-level-cell-shows-the-curve). */
+    let shown: ReadonlyArray<number | null> = [];
     for (let sIdx = 0; sIdx < ALL_CELLS; sIdx++) {
       const step = sIdx;
       const pad = new MotionStepPad({
@@ -498,8 +501,8 @@ export function buildMotionPanel(
       });
       pad.el.dataset.testid = `motion-trk-${track}-step-${sIdx}`;
       wireHover(pad.el, readout, () => {
-        const cell = patterns.motionTrack(track)?.steps[step];
-        return cell ? readoutText(step, cell.v) : EMPTY_READOUT;
+        const v = shown[step];
+        return v == null ? `${stepLabel(step)} · ${EMPTY_READOUT}` : readoutText(step, v);
       });
       cells.appendChild(pad.el);
       pads.push(pad);
@@ -560,15 +563,18 @@ export function buildMotionPanel(
       const t = patterns.motionTrack(track);
       if (!t) return;
       const assigned = !!t.param;
+      const mode = bus.get(`motion.t${track}.slide`) >= 0.5 ? 'slide' : 'step';
+      const neighbours = trackNeighbours(track, t.param);
+      const laneCells = motionCells();
+      // An unset cell fills to the curve, from the same samples the line is
+      // drawn through (REQ-an-unset-level-cell-shows-the-curve).
+      shown = motionLevels1D(t.steps, mode, neighbours, laneCells);
       for (let i = 0; i < ALL_CELLS; i++) {
-        const cell = t.steps[i]!;
-        pads[i]!.setLevel(cell.on, cell.v, t.param);
+        pads[i]!.setLevel(t.steps[i]!.on, shown[i] ?? 0, t.param);
         pads[i]!.setInert(!assigned);
       }
       graph.innerHTML = '';
-      const mode = bus.get(`motion.t${track}.slide`) >= 0.5 ? 'slide' : 'step';
-      const { line, dots, carry } =
-        motionGraphPoints1D(t.steps, mode, trackNeighbours(track, t.param), motionCells());
+      const { line, dots, carry } = motionGraphPoints1D(t.steps, mode, neighbours, laneCells);
       for (const seg of carry) strokePolylineIn(graph, seg, styles.carry!);
       if (line.length > 1) strokePolylineIn(graph, line);
       for (const [px, py] of dots) {

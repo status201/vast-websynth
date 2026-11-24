@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
-import { motionGraphPoints } from '../../src/ui/components/motion-graph';
-import type { MotionStep } from '../../src/state/patterns';
+import { motionGraphPoints, motionGraphPoints1D, motionLevels1D } from '../../src/ui/components/motion-graph';
+import type { MotionStep, MotionTrackStep } from '../../src/state/patterns';
 
 /** A 16-step bank with anchors at the given steps (x = y = value). */
 function bank(anchors: Record<number, { x: number; y: number }>): MotionStep[] {
@@ -134,5 +134,64 @@ describe('motionGraphPoints (motion-panel.md REQ-each-motion-step-is-a-mini-xy-p
       expect(motionGraphPoints(swept, 'y', 'step', {}, 16)).toEqual(full);
       expect(motionGraphPoints(swept, 'y', 'step', {}, 99)).toEqual(full);
     });
+  });
+});
+
+/** A 16-cell level lane with anchors at the given steps. */
+function track(anchors: Record<number, number>): MotionTrackStep[] {
+  return Array.from({ length: 16 }, (_, s) =>
+    (anchors[s] !== undefined ? { on: true, v: anchors[s]! } : { on: false, v: 0.5 }));
+}
+
+/** The y (0..1, up) of a polyline at viewBox x — the line the panel strokes. */
+function lineAt(line: Array<[number, number]>, x: number): number {
+  for (let i = 1; i < line.length; i++) {
+    const [x0, y0] = line[i - 1]!;
+    const [x1, y1] = line[i]!;
+    if (x >= x0 && x <= x1 && x1 > x0) return 1 - (y0 + ((x - x0) / (x1 - x0)) * (y1 - y0)) / 100;
+  }
+  throw new Error(`x ${x} is off the line`);
+}
+
+describe('motionLevels1D (motion-panel.md REQ-an-unset-level-cell-shows-the-curve)', () => {
+  it('STEP: an unset cell shows the value held from the anchor before it', () => {
+    const lv = motionLevels1D(track({ 0: 1, 8: 0.2 }), 'step');
+    lv.forEach((v, s) => expect(v, `cell ${s}`).toBeCloseTo(s < 8 ? 1 : 0.2, 9));
+  });
+
+  it('SLIDE: an unset cell shows the ramp at its centre', () => {
+    const lv = motionLevels1D(track({ 0: 0, 8: 1 }), 'slide');
+    expect(lv[0]).toBe(0);
+    expect(lv[4]).toBeCloseTo(0.5, 9);
+    expect(lv[8]).toBe(1);
+  });
+
+  it('an anchored cell shows its own value, not the default the store keeps for it', () => {
+    const t = track({ 3: 0.9 });
+    expect(motionLevels1D(t, 'step')[3]).toBe(0.9);
+    expect(motionLevels1D(t, 'step')[7]).toBe(0.9); // a lone anchor holds across the bar
+  });
+
+  it('a lane with no anchors shows nothing, and cells past the lane show nothing', () => {
+    expect(motionLevels1D(track({}), 'slide').every((v) => v === null)).toBe(true);
+    const lv = motionLevels1D(track({ 0: 0.4 }), 'step', {}, 9);
+    lv.slice(0, 9).forEach((v) => expect(v).toBeCloseTo(0.4, 9));
+    expect(lv.slice(9).every((v) => v === null)).toBe(true);
+  });
+
+  it('every fill sits exactly on the line drawn above it, in both modes and with a carry', () => {
+    const t = track({ 2: 0.8, 6: 0.1, 11: 0.6 });
+    const prev = track({ 15: 0.3 });
+    for (const mode of ['step', 'slide'] as const) {
+      const nb = { prev, next: prev };
+      const lv = motionLevels1D(t, mode, nb);
+      const { line, carry } = motionGraphPoints1D(t, mode, nb);
+      const drawn = mode === 'slide' ? [...carry[0]!, ...line.slice(1), ...carry[1]!.slice(1)] : line;
+      for (let s = 0; s < 16; s++) {
+        // A STEP jump sits at its anchor's centre: read the cell just after it.
+        const x = ((s + 0.5) / 16) * 100 + (mode === 'step' ? 1e-6 : 0);
+        expect(lv[s], `${mode} cell ${s}`).toBeCloseTo(lineAt(drawn, x), 9);
+      }
+    }
   });
 });
