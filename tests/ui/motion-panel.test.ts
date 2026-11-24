@@ -179,9 +179,14 @@ describe('Motion panel lane repaint (REQ-the-ab-lane-repaint-is-gated-on-visibil
 /** The XY lane's graph — the overlay `redrawGraph` rebuilds. */
 const xyGraph = (el: HTMLElement): SVGElement =>
   el.querySelector<SVGElement>('[data-testid="motion-graph"]')!;
-/** Where the first anchor's dot lands, as a fraction of a lane of `cells`. */
-const dotCx = (el: SVGElement): string | null =>
-  el.querySelector('circle')!.getAttribute('cx');
+/** The anchor marks a graph draws, each as its [centre x, y] in viewBox units. */
+const anchorMarks = (el: SVGElement): Array<[number, number]> =>
+  Array.from(el.querySelectorAll('polyline[data-anchor]')).map((m) => {
+    const [[x0, y], [x1]] = m.getAttribute('points')!.split(' ').map((p) => p.split(',').map(Number)) as number[][];
+    return [(x0! + x1!) / 2, y!];
+  });
+/** Where the first anchor's mark is centred, as a fraction of a lane of `cells`. */
+const dotCx = (el: SVGElement): string => String(anchorMarks(el)[0]![0]);
 const centre = (step: number, cells: number): string => String(((step + 0.5) / cells) * 100);
 
 describe('Motion panel draws on the lane, not the bank (REQ-the-motion-graph-follows-the-lane)', () => {
@@ -482,5 +487,22 @@ describe('Motion panel unset cells (REQ-an-unset-level-cell-shows-the-curve)', (
     patterns.setMotionTrackParam(0, 'fx.delay.mix');
     expect(parseFloat(bar(panel.el, 3).style.height)).toBe(0);
     expect(hover(panel.el, 3)).toBe('04 · —');
+  });
+});
+
+describe('Motion panel anchor marks (REQ-each-motion-step-is-a-mini-xy-pad)', () => {
+  it('marks each set value once, centred on its cell, in both graphs — and never an unset cell', () => {
+    const { patterns, panel } = harness();
+    patterns.setMotionTrackParam(0, 'fx.delay.mix');
+    patterns.setMotionTrackStep(0, 0, { on: true, v: 1 });
+    patterns.setMotionTrackStep(0, 8, { on: true, v: 0 });
+    const marks = anchorMarks(laneGraph(panel.el));
+    expect(marks).toHaveLength(2);
+    expect(marks[0]![0]).toBeCloseTo(Number(centre(0, 16)), 9);
+    expect(marks[0]![1]).toBe(0);   // 1.0 draws on the top edge…
+    expect(marks[1]![0]).toBeCloseTo(Number(centre(8, 16)), 9);
+    expect(marks[1]![1]).toBe(100); // …and 0.0 on the bottom one
+    patterns.setMotionStep(4, { on: true, x: 0.5, y: 0.75 });
+    expect(anchorMarks(xyGraph(panel.el))).toHaveLength(1);
   });
 });

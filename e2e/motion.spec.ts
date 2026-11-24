@@ -188,12 +188,15 @@ test('the graph traces the selected axis and the view toggle switches it', async
 
   await setAnchor(page, 0, 0.1, 0.9);
   await setAnchor(page, 4, 0.9, 0.1);
-  const circles = page.getByTestId('motion-graph').locator('circle');
-  await expect(circles).toHaveCount(2);
-  const yFirst = Number(await circles.first().getAttribute('cy'));
+  const marks = page.getByTestId('motion-graph').locator('polyline[data-anchor]');
+  await expect(marks).toHaveCount(2);
+  /** The y of the first anchor mark (a level segment: both points share it). */
+  const markY = async (): Promise<number> =>
+    Number((await marks.first().getAttribute('points'))!.split(' ')[0]!.split(',')[1]);
+  const yFirst = await markY();
 
   await page.getByTestId('motion-view-x').click();
-  const xFirst = Number(await circles.first().getAttribute('cy'));
+  const xFirst = await markY();
   // y=0.9 plots high (cy 10), x=0.1 plots low (cy 90) — the line re-drew.
   expect(Math.abs(xFirst - yFirst)).toBeGreaterThan(50);
 });

@@ -10,9 +10,9 @@ import {
  * y-down (an anchor value of 1 draws at y=0).
  *
  * Dots always sit at the anchor centres — geometry, not the visible anchor
- * marker: the panel strokes each as a circle that the overlay's non-uniform
- * viewBox flattens into a tick on the line, and the round dot a reader sees at an
- * anchor belongs to the pad underneath (motion-panel.md REQ-each-motion-step-is-a-mini-xy-pad). The line is
+ * marker: the panel marks each with a short level segment on the line (a circle
+ * would be flattened by the overlay's non-uniform viewBox), and the round dot a
+ * reader sees at an XY anchor belongs to the pad underneath (motion-panel.md REQ-each-motion-step-is-a-mini-xy-pad). The line is
  * mode-aware:
  *   - 'slide' — the anchor-to-anchor polyline (the panel only strokes it when
  *     there are ≥ 2 points, matching the machine's constant-value single-anchor

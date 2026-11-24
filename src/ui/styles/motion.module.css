@@ -55,12 +55,18 @@
 
   /* The connecting graph for the selected axis, drawn over the whole grid.
      Explicit width/height: an absolutely-positioned SVG is a replaced element,
-     so `inset: 0` alone leaves it at its intrinsic 300x150. */
+     so insets alone leave it at its intrinsic 300x150.
+     It covers the pads' INNER box — 1px in from top and bottom, the pad border —
+     because that is the box the fills are drawn in, so the line lands on a fill's
+     top; and it overflows, so a value of 0 or 1 is drawn whole instead of half
+     clipped on the border (motion-panel.md REQ-an-unset-level-cell-shows-the-curve). */
   .graph {
     position: absolute;
-    inset: 0;
+    left: 0;
+    top: 1px;
     width: 100%;
-    height: 100%;
+    height: calc(100% - 2px);
+    overflow: visible;
     pointer-events: none;
   }
   .graph polyline {
@@ -69,8 +75,11 @@
     stroke-width: 2;
     vector-effect: non-scaling-stroke;
   }
-  .graph circle {
-    fill: var(--motion-curve);
+  /* An anchor: a short level mark on the line, thicker and in the motion amber so a
+     set value reads apart from the curve (REQ-each-motion-step-is-a-mini-xy-pad). */
+  .graph polyline.anchor {
+    stroke: var(--motion);
+    stroke-width: 4;
   }
   /* The bar-line carry: what the curve does between this bar and its neighbours
      (motion-sequencer.md REQ-cross-bank-carry). Dashed + dimmer so it reads as "leaving the bar". */

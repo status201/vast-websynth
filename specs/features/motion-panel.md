@@ -37,9 +37,11 @@ a graph of the curve that will play, and a fold.
   Commit timing and modifiers are REQ-the-pads-gesture-set-peek-snap-fine. An SVG
   overlay traces the **selected axis** across the cells (view toggle Y/X, default Y,
   local view state). **The pad owns the dot and the graph owns the line**: the overlay
-  is a 0–100 `viewBox` with `preserveAspectRatio="none"`, so each anchor's `<circle>`
-  draws as a short tick on the line at the cell's *centre*. That is deliberate, not a
-  misplaced dot; the pad's dot sits at its *x value*. The line is mode-aware (the
+  is a 0–100 `viewBox` with `preserveAspectRatio="none"`, and each anchor is marked by
+  a short horizontal segment at the cell's *centre*, about a third of a cell wide, in
+  `--motion` and thicker than the line, drawn over it so a set value reads apart from
+  the curve. That is deliberate, not a misplaced dot: one value, so a level mark; the
+  pad's dot sits at its *x value*. The line is mode-aware (the
   slide polyline, or a full-width staircase in step mode). It draws the **carry** as
   dashed edge segments at the values REQ-cross-bank-carry will play, resolving
   neighbours from the chain around the edit bank. The geometry is the pure
@@ -89,7 +91,10 @@ a graph of the curve that will play, and a fold.
   anchor read that same value, so holding an unset cell reads what will play, and a
   Shift-drag from it starts where the fill is. Every motion graph line, the XY
   lane's included, is drawn in `--motion-curve` (the text colour), 2 px wide, so it
-  reads over both the empty well and the lit fills on every theme.
+  reads over both the empty well and the lit fills on every theme. The overlay covers
+  the pads' **inner** box, the box the fills are drawn in, with `overflow: visible`:
+  a value of 0 or 1 lands on the fill's edge and is drawn whole, not half clipped on
+  the pad's border.
 
 - **REQ-an-empty-motion-lane-starts-folded** — A track with **no `param` and no set
   steps** starts folded: header kept, cells and graph collapsed
@@ -356,6 +361,12 @@ Scenario: An unset cell shows the value the lane plays there (REQ-an-unset-level
   And holding an unset cell, or hovering it, reads that value — not the stored default
   And a lane with no anchors fills nothing
 # pinned by: tests/ui/motion-graph.test.ts, tests/ui/motion-panel.test.ts
+
+Scenario: A set value reads apart from the line, at 0 and 1 too (REQ-an-unset-level-cell-shows-the-curve)
+  Given lane A in STEP with anchors of 1.0 on step 1 and 0.0 on step 9
+  Then each anchor has one mark, centred on its cell, and an unset cell has none
+  And the marks and the line at 1.0 and 0.0 are drawn whole, on the fill's edge
+# pinned by: tests/ui/motion-panel.test.ts (the marks); by eye, screenshots in four themes (the drawing)
 
 Scenario: An empty lane arrives folded and picking a param opens it (REQ-an-empty-motion-lane-starts-folded)
   Given no stored fold preference and the Motion tab open

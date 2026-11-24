@@ -299,14 +299,28 @@ export function buildMotionPanel(
     return { prev: at(slot - 1), next: at(slot + 1) };
   };
 
-  const strokePolylineIn = (svg: SVGElement, pts: Array<[number, number]>, cls?: string): void => {
+  const strokePolylineIn = (svg: SVGElement, pts: Array<[number, number]>, cls?: string): SVGPolylineElement => {
     const poly = document.createElementNS(SVG_NS, 'polyline');
     poly.setAttribute('points', pts.map(([px, py]) => `${px},${py}`).join(' '));
     if (cls) poly.setAttribute('class', cls);
     svg.appendChild(poly);
+    return poly;
   };
-  const strokePolyline = (pts: Array<[number, number]>, cls?: string): void =>
+  const strokePolyline = (pts: Array<[number, number]>, cls?: string): SVGPolylineElement =>
     strokePolylineIn(graph, pts, cls);
+
+  /**
+   * One mark per anchor, for both graphs: a short level segment centred on the
+   * cell, about a third of it wide, styled apart from the line it sits on
+   * (REQ-each-motion-step-is-a-mini-xy-pad). A segment, not a circle: the overlay
+   * stretches its viewBox to the lane, which flattened a circle into a dash.
+   */
+  const markAnchorsIn = (svg: SVGElement, dots: ReadonlyArray<[number, number]>, cells: number): void => {
+    const half = (0.175 * 100) / cells;
+    for (const [px, py] of dots) {
+      strokePolylineIn(svg, [[px - half, py], [px + half, py]], styles.anchor!).dataset.anchor = '';
+    }
+  };
 
   /**
    * The neighbouring bars' same-index track, for an extra track's bar-line carry
@@ -348,13 +362,7 @@ export function buildMotionPanel(
     // Dashed first, so the solid in-bar line wins where they meet.
     for (const seg of carry) strokePolyline(seg, styles.carry!);
     if (line.length > 1) strokePolyline(line);
-    for (const [px, py] of dots) {
-      const c = document.createElementNS(SVG_NS, 'circle');
-      c.setAttribute('cx', String(px));
-      c.setAttribute('cy', String(py));
-      c.setAttribute('r', '1.1');
-      graph.appendChild(c);
-    }
+    markAnchorsIn(graph, dots, motionCells());
   };
 
   // ---- Axes: the edit bank's effective assignment (override or inherit) ----
@@ -577,13 +585,7 @@ export function buildMotionPanel(
       const { line, dots, carry } = motionGraphPoints1D(t.steps, mode, neighbours, laneCells);
       for (const seg of carry) strokePolylineIn(graph, seg, styles.carry!);
       if (line.length > 1) strokePolylineIn(graph, line);
-      for (const [px, py] of dots) {
-        const c = document.createElementNS(SVG_NS, 'circle');
-        c.setAttribute('cx', String(px));
-        c.setAttribute('cy', String(py));
-        c.setAttribute('r', '1.1');
-        graph.appendChild(c);
-      }
+      markAnchorsIn(graph, dots, laneCells);
     };
 
     // The per-lane half of the repaint gate (REQ-a-folded-motion-lane-does-no-repaint). A folded lane has

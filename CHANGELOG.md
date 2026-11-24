@@ -55,7 +55,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
   used to show a half-height ghost bar whatever the lane was doing. It now fills
   (faded) to the value the lane plays there: the held value in STEP, the ramp in
   SLIDE. Holding or hovering it reads that value too, and the curve line is drawn
-  in high contrast so it stands out over the bars on every theme.
+  in high contrast so it stands out over the bars on every theme. A set value is
+  marked by a short amber bar on the line, and values of 0 and 1 are drawn in
+  full instead of half hidden on the step's border.
 
 - **A new app icon.** The knob made way for a little synth studio: two knobs
   and a power LED, a scope with a sine wave, and a few piano keys. It is the
