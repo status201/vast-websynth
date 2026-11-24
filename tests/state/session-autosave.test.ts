@@ -360,6 +360,71 @@ describe('SessionAutosave per-tab isolation (v8, REQ-each-tab-autosaves-to-its-o
     SessionAutosave.clear();
     expect(sessionKeys(store)).toEqual([]);
   });
+
+  // sample-persistence.md REQ-clips-go-with-their-session: every removal is
+  // announced, so the session's sampler clips can go with it.
+  it('announces every session key it removes — the prune included', () => {
+    for (let i = 0; i < 5; i++) {
+      store.set(`websynth.session.old${i}`, JSON.stringify({ v: 1, savedAt: i + 1, file: {} }));
+    }
+    const removed: string[] = [];
+    const off = SessionAutosave.onRemoved((key) => removed.push(key));
+    try {
+      const { bus } = build();
+      bus.set('filter.cutoff', 42);
+      vi.advanceTimersByTime(1500);
+    } finally {
+      off();
+    }
+    // Three kept (ours + the two newest); the three oldest went, and were announced.
+    expect(removed.sort()).toEqual(['websynth.session.old0', 'websynth.session.old1', 'websynth.session.old2']);
+  });
+
+  it('announces an invalid session it drops while picking one to restore', () => {
+    store.set('websynth.session.broken', '{not json');
+    const removed: string[] = [];
+    const off = SessionAutosave.onRemoved((key) => removed.push(key));
+    try {
+      expect(SessionAutosave.loadSession()).toBeNull();
+    } finally {
+      off();
+    }
+    expect(removed).toEqual(['websynth.session.broken']);
+  });
+
+  // sample-persistence.md REQ-a-session-is-written-before-its-clips
+  it('onWritten says whether this tab\'s key was new — again after a prune removed it', () => {
+    const { bus, autosave } = build();
+    const seen: boolean[] = [];
+    autosave.onWritten((fresh) => seen.push(fresh));
+    bus.set('filter.cutoff', 42);
+    vi.advanceTimersByTime(1500);
+    bus.set('filter.cutoff', 43);
+    vi.advanceTimersByTime(1500);
+    store.delete(ownKey()); // pruned by another tab
+    bus.set('filter.cutoff', 44);
+    vi.advanceTimersByTime(1500);
+    expect(seen).toEqual([true, false, true]);
+  });
+
+  it('loadSession names the key it restored; ownKey and liveKeys name the stored ones', () => {
+    asOtherTab(() => {
+      const other = build();
+      other.bus.set('filter.cutoff', 77);
+      vi.advanceTimersByTime(1500);
+    });
+    const foreign = SessionAutosave.loadSession()!;
+    expect(foreign.key).toBe('websynth.session.othertab');
+    expect(foreign.file.params['filter.cutoff']).toBe(77);
+    expect(SessionAutosave.liveKeys()).toEqual(['websynth.session.othertab']);
+
+    const { bus } = build();
+    bus.set('filter.cutoff', 42);
+    vi.advanceTimersByTime(1500);
+    expect(SessionAutosave.ownKey()).toBe(ownKey());
+    expect(SessionAutosave.loadSession()!.key).toBe(ownKey());
+    expect(SessionAutosave.liveKeys().sort()).toEqual([ownKey(), 'websynth.session.othertab'].sort());
+  });
 });
 
 // Type-level check that the injected capture matches Song.capture's output.

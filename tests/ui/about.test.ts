@@ -4,6 +4,8 @@ import { createAboutButton } from '../../src/ui/components/about-button';
 import { anyModalOpen } from '../../src/ui/modal-stack';
 import { formatOfflineState } from '../../src/ui/components/about-debug';
 import { setClipStatsSource } from '../../src/state/debug-sources';
+import { SampleAutosave } from '../../src/state/sample-autosave';
+import { SessionAutosave } from '../../src/state/session-autosave';
 import { restoreFactorySettings } from '../../src/state/factory-reset';
 import { installLocalStorageMock } from '../storage-mock';
 import modalStyles from '../../src/ui/styles/modal.module.css';
@@ -520,6 +522,8 @@ describe('About modal — Debug section', () => {
   it('clears the sampler slots when the clip clear is confirmed', async () => {
     const { engine, api } = stubEngine('running');
     setClipStatsSource(() => ({ count: 2, bytes: 1000 }));
+    const dropSession = vi.spyOn(SampleAutosave, 'dropSession').mockResolvedValue();
+    const clear = vi.spyOn(SampleAutosave, 'clear').mockResolvedValue();
     await openAbout(engine);
 
     byId<HTMLButtonElement>('debug-clips-clear').click();
@@ -527,6 +531,11 @@ describe('About modal — Debug section', () => {
     await Promise.resolve();
     expect(api.sampler.setBuffer).toHaveBeenCalledTimes(8);
     expect(api.sampler.setBuffer).toHaveBeenCalledWith(0, null);
+    // This tab's clips only — other tabs' are theirs (sample-persistence.md v3).
+    expect(dropSession).toHaveBeenCalledWith(SessionAutosave.ownKey());
+    expect(clear).not.toHaveBeenCalled();
+    dropSession.mockRestore();
+    clear.mockRestore();
   });
 
   it('reports storage, session and platform rows', async () => {

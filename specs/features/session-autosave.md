@@ -3,7 +3,7 @@
 ```yaml
 id: session-autosave
 status: implemented
-version: 9
+version: 10
 owner: websynth
 related:
   - architecture
@@ -149,6 +149,12 @@ happy path.
   - **Storage disabled.** With no `sessionStorage` the id falls back to a
     constant, which is exactly the old single-key behaviour — degraded, not
     broken.
+- **REQ-a-sessions-clips-follow-it** (v10) — Every removal of a session key
+  (the prune, the quota retry, an invalid payload, a clear) is announced
+  (`onRemoved`), and every write of this tab's key says whether the key was new
+  (`onWritten`). Through those two hooks a session's sampler clips live and die
+  with it ([sample-persistence](sample-persistence.md)
+  REQ-clips-go-with-their-session, REQ-a-session-is-written-before-its-clips).
 - **REQ-stats-never-parses-the-payload** — **`stats()` never parses the
   payload.** It is called from the [debug panel](debug-panel.md)'s poll, and the
   payload is the entire session — megabytes once samples are in play — so
@@ -231,6 +237,11 @@ export class SessionAutosave {
   touch(): void;             // arm/re-arm the debounce
   flush(): void;             // synchronous write if a save is pending
   static load(): SongFile | null;  // validated; clears the key on corrupt payloads
+  static loadSession(): { key: string; file: SongFile } | null;  // load() plus which key it came from
+  static ownKey(): string;         // this tab's key
+  static liveKeys(): string[];     // every stored session key, newest first
+  static onRemoved(fn: (key: string) => void): () => void;  // any session key removed (REQ-each-tab-autosaves-to-its-own-key)
+  onWritten(fn: (fresh: boolean) => void): () => void;      // this tab's key written; fresh = it was absent
   static clear(): void;
   static stats(): { bytes: number; savedAt: number | null } | null;  // REQ-stats-never-parses-the-payload's debug row
 }

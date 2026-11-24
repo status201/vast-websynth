@@ -460,8 +460,8 @@ sessionStorage:
                          # survives its reload (features/session-autosave.md REQ-each-tab-autosaves-to-its-own-key)
   websynth.offline.redownload : "1" — a factory reset's one write-back, consumed at the next boot
                          # (features/play-offline.md REQ-the-copy-is-fetched-again-after-a-reset)
-indexedDB:               # db `websynth`, store `clips` — state/idb-clip-kv.ts
-  clips[<slot>]       : one sampler clip as 16-bit WAV bytes, keyed by slot index
+indexedDB:               # db `websynth`, store `sessionClips` — state/idb-clip-kv.ts
+  sessionClips[<session>,<slot>] : one clip as 16-bit WAV bytes, per session
                         # (features/sample-persistence.md). Names are NOT stored —
                         # the autosaved session's `sampleNames` is the source of truth.
 not_persisted:

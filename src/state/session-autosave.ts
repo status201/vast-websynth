@@ -83,11 +83,22 @@ function storedSessions(): { key: string; savedAt: number }[] {
   return out.sort((a, b) => b.savedAt - a.savedAt);
 }
 
+/**
+ * Told about every session key this module removes — the prune, the quota retry,
+ * an invalid payload, a clear — so what belongs to a session can go with it
+ * (sample-persistence.md REQ-clips-go-with-their-session). Module-level because
+ * the static `load()`/`clear()` remove keys too, with no instance in sight.
+ */
+const removedListeners = new Set<(key: string) => void>();
+
 function removeKey(key: string): void {
   try {
     localStorage.removeItem(key);
   } catch {
     // storage unavailable - nothing to remove
+  }
+  for (const fn of removedListeners) {
+    try { fn(key); } catch { /* a listener's failure is its own */ }
   }
 }
 
@@ -95,7 +106,9 @@ export class SessionAutosave {
   private timer: ReturnType<typeof setTimeout> | undefined;
   private readonly debounceMs: number;
   /** This tab's own key - the only one this instance ever writes (REQ-each-tab-autosaves-to-its-own-key). */
-  private readonly key = SESSION_PREFIX + tabId();
+  private readonly key = SessionAutosave.ownKey();
+  /** Told after each write of this tab's key (sample-persistence.md REQ-a-session-is-written-before-its-clips). */
+  private readonly writtenListeners = new Set<(fresh: boolean) => void>();
 
   constructor(
     private readonly capture: () => SongFile,
@@ -182,6 +195,14 @@ export class SessionAutosave {
     } catch {
       return; // capture/serialize failed - nothing to store
     }
+    // Was the key absent before this write? Then whatever belongs to this
+    // session (its sampler clips) is not stored under it yet.
+    let fresh = true;
+    try {
+      fresh = localStorage.getItem(this.key) === null;
+    } catch {
+      // unreadable: the setItem below fails too, and nothing is announced
+    }
     try {
       localStorage.setItem(this.key, json);
     } catch {
@@ -195,6 +216,31 @@ export class SessionAutosave {
       }
     }
     this.prune();
+    for (const fn of this.writtenListeners) {
+      try { fn(fresh); } catch { /* a listener's failure is its own */ }
+    }
+  }
+
+  /** Told after each write of this tab's key; `fresh` = the key was absent before it. */
+  onWritten(fn: (fresh: boolean) => void): () => void {
+    this.writtenListeners.add(fn);
+    return () => { this.writtenListeners.delete(fn); };
+  }
+
+  /** Told whenever any session key is removed (sample-persistence.md REQ-clips-go-with-their-session). */
+  static onRemoved(fn: (key: string) => void): () => void {
+    removedListeners.add(fn);
+    return () => { removedListeners.delete(fn); };
+  }
+
+  /** This tab's session key. */
+  static ownKey(): string {
+    return SESSION_PREFIX + tabId();
+  }
+
+  /** Every stored session key, newest first (the legacy single key included). */
+  static liveKeys(): string[] {
+    return storedSessions().map((e) => e.key);
   }
 
   /** Keep at most MAX_SESSIONS, newest first, never dropping our own. */
@@ -211,6 +257,15 @@ export class SessionAutosave {
    * invalid payload clears the key so it can't wedge every future boot.
    */
   static load(): SongFile | null {
+    return SessionAutosave.loadSession()?.file ?? null;
+  }
+
+  /**
+   * `load()`, plus which key won — the session the restored song belongs to,
+   * so what else belongs to it (its sampler clips) can follow
+   * (sample-persistence.md REQ-clips-belong-to-a-session).
+   */
+  static loadSession(): { key: string; file: SongFile } | null {
     // This tab's own session first, so a reload lands exactly where it was; then
     // the most recent of anyone else's, which is what keeps "tab close loses
     // nothing" true once the tab that did the work is gone (REQ-each-tab-autosaves-to-its-own-key).
@@ -218,7 +273,7 @@ export class SessionAutosave {
     const rest = storedSessions().map((e) => e.key).filter((k) => k !== own);
     for (const key of [own, ...rest]) {
       const file = readSession(key);
-      if (file) return file;
+      if (file) return { key, file };
     }
     return null;
   }

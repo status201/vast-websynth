@@ -147,7 +147,7 @@ decision and the alternatives. This spec is the contract.
   - sampler slot names: `PatternStore.setSampleName` and `restore` clean every
     name at `MAX_SAMPLE_NAME_CHARS` (120 — a file name runs longer than a title),
     so a song's `sampleNames` or a picked file can never put an unbounded string
-    in the strip, the dropdowns or the chips. Clips are keyed by slot index, so a
+    in the strip, the dropdowns or the chips. Clips are never keyed by name, so a
     shortened name breaks no match.
   Presets already stored under a longer name are not renamed (a storage-key
   migration); the selector's width cap holds them.

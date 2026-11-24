@@ -181,14 +181,16 @@ export function buildDebugSection(engine: StudioApi): {
     danger: true,
     confirm: {
       title: 'Clear stored sampler clips',
-      message: 'Empty every sampler slot and delete the audio kept on this device. The song itself is not touched.',
+      message: 'Empty every sampler slot and delete the audio this tab keeps on this device. The song itself is not touched.',
       confirmLabel: 'Clear clips',
     },
     onClick: () => {
       // Nulling the slots is what the autosaver watches, so it deletes them
-      // too; the explicit wipe also clears any orphan the session never named.
+      // too; the explicit drop also clears any orphan the session never named.
+      // This tab's session only: other tabs' clips are theirs
+      // (sample-persistence.md REQ-debug-shows-the-clip-store-size).
       for (let i = 0; i < SAMPLER_SLOT_COUNT; i++) engine.sampler.setBuffer(i, null);
-      void SampleAutosave.clear();
+      void SampleAutosave.dropSession(SessionAutosave.ownKey());
     },
   };
   const clipsVal = addRow('Sampler clips', clipsClear);

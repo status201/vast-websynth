@@ -86,6 +86,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
   or when you pressed Stop or the loop wrapped. Each sequenced note is now let go
   once, when its own gate ends, so it only ever stops itself.
 
+- **Two tabs no longer swap their sampler audio.** The sampler clips kept for a
+  reload were shared by every tab, so reloading one tab could bring back the
+  other tab's sounds under its own sample names, and lose its own. Each tab's
+  clips now belong to its own session, like its song, and go when that session
+  does. Clips saved before this update are picked up once by the next session
+  restored. The Debug panel's **Clear** for sampler clips now clears this tab's
+  only.
+
 ## [2.22.2] - 2026-11-20
 
 ### Fixed
