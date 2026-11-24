@@ -86,9 +86,18 @@ export function outlinedText(t, d) {
 const xmlEscape = (s) =>
   s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
 
-/** The inner markup of an `<svg>` document, minus its comments. */
+/**
+ * The inner markup of an `<svg>` document, minus its comments. Stripped to a
+ * fixed point, since one pass can splice a new `<!--` out of the pieces it
+ * leaves (`<!<!---->--`); one still left is unterminated, and that throws.
+ */
 function innerOf(svg) {
-  const s = svg.replace(/\r\n/g, '\n').replace(/<!--[\s\S]*?-->\n?/g, '');
+  let s = svg.replace(/\r\n/g, '\n');
+  for (let prev = ''; s !== prev; ) {
+    prev = s;
+    s = s.replace(/<!--[\s\S]*?-->\n?/g, '');
+  }
+  if (s.includes('<!--')) throw new Error('og-card: unterminated <!-- comment in the icon SVG');
   return s.slice(s.indexOf('>', s.indexOf('<svg')) + 1, s.lastIndexOf('</svg>')).trim();
 }
 
