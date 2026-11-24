@@ -914,7 +914,7 @@ describe('SongFile v8/v9 — MIN..MAX_BANK_COUNT banks per machine (song-file.md
   });
 });
 
-// input-control.md REQ-cc11-is-expression — the performer's hands are never saved.
+// midi-input.md REQ-cc11-is-expression — the performer's hands are never saved.
 describe('captures leave out the performer\'s hands (expression pedal, pitch wheel)', () => {
   it('Song.capture and Presets.capture omit master.expression', async () => {
     const { Presets } = await import('../../src/state/preset');
@@ -927,7 +927,7 @@ describe('captures leave out the performer\'s hands (expression pedal, pitch whe
     expect(Presets.capture(bus)).not.toHaveProperty('master.expression');
   });
 
-  // input-control.md REQ-the-pitch-wheel-is-never-saved (regression): a wheel held, or a
+  // midi-input.md REQ-the-pitch-wheel-is-never-saved (regression): a wheel held, or a
   // Tape Stop dive under way, at Save time produced a song that loaded detuned.
   it('Song.capture and Presets.capture omit a held master.pitchBend but keep a step bend', async () => {
     const { Presets } = await import('../../src/state/preset');

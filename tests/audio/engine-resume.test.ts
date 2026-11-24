@@ -59,7 +59,7 @@ function engineLike(
   const engine = Object.assign(Object.create(AudioLifecycle.prototype) as object, {
     ctx,
     master: { gain },
-    // Per id: the master level is volume² × expression² (input-control.md
+    // Per id: the master level is volume² × expression² (midi-input.md
     // REQ-cc11-is-expression), and expression's default 1 keeps it volume².
     bus: { get: vi.fn((id: string) => (id === 'master.expression' ? over.expression ?? 1 : over.volume ?? 0.8)) },
     iosSession,
@@ -109,7 +109,7 @@ describe('AudioLifecycle.resume fade-in (click-free start)', () => {
     expect(ctx.resume).toHaveBeenCalled();
   });
 
-  // input-control.md REQ-cc11-is-expression — the fade lands where volume AND expression say.
+  // midi-input.md REQ-cc11-is-expression — the fade lands where volume AND expression say.
   it('fades to volume² × expression², so a held-back pedal is not overridden at start', async () => {
     const { ctx, gain, resume } = engineLike({ volume: 0.8, expression: 0.5 });
     ctx.resume.mockImplementation(() => { ctx.state = 'running'; return Promise.resolve(); });

@@ -529,5 +529,5 @@ Scenario: The last file picked into a slot wins (REQ-slots-are-filled-by-load-or
 - **Per-slot drive**: the sampler bus already has Dirt, and eight waveshapers are a
   real idle cost.
 - **QWERTY pads** would need a mode, since every letter row is the synth keyboard. MIDI
-  channel 10 already plays the slots ([input-control](input-control.md)
+  channel 10 already plays the slots ([midi-input](midi-input.md)
   REQ-channel-ten-plays-the-sampler).

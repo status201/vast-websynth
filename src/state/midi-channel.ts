@@ -1,4 +1,4 @@
-// Which MIDI channel plays the synth (input-control.md REQ-the-midi-input-channel-is-selectable).
+// Which MIDI channel plays the synth (midi-input.md REQ-the-midi-input-channel-is-selectable).
 //
 // Device-scoped, like the sync mode: it describes the rig this browser is
 // plugged into, not the song, so it is a remembered setting rather than a bus

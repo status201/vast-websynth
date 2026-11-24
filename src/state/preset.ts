@@ -518,7 +518,7 @@ export const Presets = {
 
   capture(bus: ParamBus): Snapshot {
     // The sound only (presets.md REQ-a-preset-is-only-a-sound), and never the
-    // performer's hands (input-control.md REQ-cc11-is-expression).
+    // performer's hands (midi-input.md REQ-cc11-is-expression).
     return patchSnapshot(savedParams(bus.snapshot()));
   },
 

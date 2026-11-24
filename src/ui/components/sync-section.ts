@@ -58,7 +58,7 @@ export function buildSyncSection(sync: SyncController, rtc: WifiLink): HTMLEleme
   status.dataset.testid = 'sync-status';
   root.appendChild(status);
 
-  // Which channel plays the synth (input-control.md REQ-the-midi-input-channel-is-selectable).
+  // Which channel plays the synth (midi-input.md REQ-the-midi-input-channel-is-selectable).
   // 10 is not offered: it is the sampler's pads (REQ-channel-ten-plays-the-sampler).
   const chLabel = document.createElement('span');
   chLabel.className = styles.ioLabel!;

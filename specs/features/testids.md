@@ -271,7 +271,7 @@ song panel — lanes, chains & live FX:
   livefx-open · livefx-window · livefx-xypad + the same five under the `livefx`
     prefix                                          # features/live-fx-window.md
   sync-mode-<off|master|slave> · sync-status · sync-wifi-link   # features/midi-clock-sync.md
-  sync-midi-channel                                 # features/input-control.md (v18)
+  sync-midi-channel                                 # features/midi-input.md
   sync-pair-<create|join|generate|scan|next|back|apply|close|qr|status|error|insecure|debug>
   sync-pair-<offer|answer> · sync-pair-<offer|answer>-copy   # the blob textareas +
                                                     #   their copy buttons

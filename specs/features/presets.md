@@ -52,7 +52,7 @@ can do with a sound ([ADR-014](../decisions/adr-014-dont-make-me-think.md) law 1
 - **REQ-a-preset-is-a-snapshot** — A preset is a `Snapshot` (`Record<string,
   number>`) = `patchSnapshot(savedParams(bus.snapshot()))` — every sound param
   (REQ-a-preset-is-only-a-sound) except the `UNSAVED_PARAMS` (`master.expression`, `master.pitchBend`;
-  [input-control](input-control.md) REQ-cc11-is-expression, REQ-the-pitch-wheel-is-never-saved), so a
+  [midi-input](midi-input.md) REQ-cc11-is-expression, REQ-the-pitch-wheel-is-never-saved), so a
   pedal left heel-down or a wheel held off-centre never saves into a sound.
 - **REQ-factory-presets-span-the-instrument-families** — The 25 factory presets (`acid`, `b3`,
   `basic`, `bass`, `bells`, `brass`, `chime`, `clang`, `ember`, `growl`, `lead`,

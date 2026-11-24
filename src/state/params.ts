@@ -267,7 +267,7 @@ const fmtPan = (v: number) =>
   Math.abs(v) < 0.005 ? 'C' : `${v < 0 ? 'L' : 'R'}${Math.round(Math.abs(v) * 100)}`;
 const fmtCent = (v: number) => `${v >= 0 ? '+' : ''}${v.toFixed(0)}c`;
 /** The dB of the gain the volume applies, not of the knob position — the law is
- *  squared (input-control.md REQ-the-volume-knob-reads-the-gain-it-applies). The
+ *  squared (midi-input.md REQ-the-volume-knob-reads-the-gain-it-applies). The
  *  1e-6 floor is the old 0.001-of-travel floor in gain terms: 0 reads −120 dB. */
 const fmtVolumeDb = (v: number) => `${(20 * Math.log10(Math.max(masterLevel(v, 1), 1e-6))).toFixed(1)}dB`;
 const fmtDbRaw = (v: number) => `${v.toFixed(0)}dB`;
@@ -328,10 +328,10 @@ const fmtFilterShape = (v: number) =>
 /**
  * Params that describe the performer's hands rather than the song or the sound,
  * and so are never written into a song, a session autosave or a preset
- * (input-control.md REQ-cc11-is-expression). An expression pedal resting heel-down
+ * (midi-input.md REQ-cc11-is-expression). An expression pedal resting heel-down
  * when Save is pressed must not produce a song that loads silent — nor a held
  * pitch wheel or a Tape Stop dive one that loads detuned
- * (input-control.md REQ-the-pitch-wheel-is-never-saved). A sequencer step's own
+ * (midi-input.md REQ-the-pitch-wheel-is-never-saved). A sequencer step's own
  * `bend` is pattern data, not this param, and saves as ever.
  */
 const UNSAVED_PARAMS: ReadonlySet<ParamId> = new Set(['master.expression', 'master.pitchBend']);
@@ -527,7 +527,7 @@ export function registerDefaults(bus: ParamBus): void {
     { id: 'master.volume', min: 0, max: 1, default: 0.8, format: fmtVolumeDb },
     { id: 'master.pitchBend', min: -1, max: 1, default: 0, format: fmtSemi },
     { id: 'master.modWheel', min: 0, max: 1, default: 0, format: fmtPct },
-    // CC11 (input-control.md REQ-cc11-is-expression). Default 1 = full: a no-op (ADR-006).
+    // CC11 (midi-input.md REQ-cc11-is-expression). Default 1 = full: a no-op (ADR-006).
     { id: 'master.expression', min: 0, max: 1, default: 1, format: fmtPct },
     { id: 'keyboard.transpose', min: -2, max: 2, default: 0, step: 1, taper: 'discrete', format: (v) => v >= 0 ? `+${v}` : `${v}` },
 

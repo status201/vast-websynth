@@ -8,6 +8,7 @@ owner: core
 related:
   - architecture
   - input-control
+  - midi-input
   - transport
   - transport-position
   - transport-loop
@@ -388,7 +389,7 @@ inverse), so the core never touches `performance`/`ctx` (unit-testable).
   `this.rtcSync = new WifiSyncTransport()` (the lazy facade,
   [webrtc-sync](webrtc-sync.md) REQ-the-wifi-transport-loads-at-pairing), calls
   `addTransport('wifi', …)`, and wires `this.perf.clockRampAllowed`.
-- `initMIDI(engine, bus)` runs post-gesture (input-control
+- `initMIDI(engine, bus)` runs post-gesture (midi-input
   REQ-midi-access-follows-a-gesture). It builds `MidiSyncTransport(access)` and calls
   `engine.sync.addTransport('midi', sync)`. `onstatechange` calls
   `sync.refreshPorts()`.

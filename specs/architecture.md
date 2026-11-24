@@ -150,7 +150,7 @@ ParamBus:        # src/state/params.ts
                                  #   stop). Per-param listeners still fire.
   snapshot() / restore(snap)     # bulk save/load (restore suppresses onChange)
                                  #   a song stores savedParams(snapshot()), which drops
-                                 #   UNSAVED_PARAMS (master.expression, master.pitchBend — input-control.md
+                                 #   UNSAVED_PARAMS (master.expression, master.pitchBend — midi-input.md
                                  #   REQ-cc11-is-expression, REQ-the-pitch-wheel-is-never-saved);
                                  #   a preset keeps only its sound params (presets.md REQ-a-preset-is-only-a-sound)
   addSnapshotOverlay(map) -> unsub  # snapshot() reports map's ids at map's values, not live —

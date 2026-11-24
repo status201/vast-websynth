@@ -880,7 +880,7 @@ export class Engine {
       if (!this.lifecycle.hasRun) return;
       rampTo(this.master.gain, masterLevel(x, this.bus.get('master.expression')), this.ctx, RAMP_MEDIUM);
     });
-    // CC11 rides inside the volume (input-control.md REQ-cc11-is-expression) —
+    // CC11 rides inside the volume (midi-input.md REQ-cc11-is-expression) —
     // the same gain, the same gate, the same law.
     bus.subscribe('master.expression', (e) => {
       if (!this.lifecycle.hasRun) return;

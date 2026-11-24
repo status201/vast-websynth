@@ -13,7 +13,7 @@ interface ModSources { wheel: number; pressure: number }
 
 /**
  * What each input port is holding, so its notes are released however they end
- * (input-control.md REQ-a-midi-note-is-released-by-whatever-ended-it): by a note-off on a channel the filter
+ * (midi-input.md REQ-a-midi-note-is-released-by-whatever-ended-it): by a note-off on a channel the filter
  * has since dropped, or by the port going away. Keys are `channel * 128 + note`.
  */
 interface PortHolds {
@@ -134,7 +134,7 @@ function handleMessage(
   const d1 = data[1] ?? 0;
   const d2 = data[2] ?? 0;
 
-  // Channel 10 is the sampler's pads and nothing else (input-control.md
+  // Channel 10 is the sampler's pads and nothing else (midi-input.md
   // REQ-channel-ten-plays-the-sampler): C1 upward are slots 1..8, velocity-sensitive.
   if (channel === DRUM_CHANNEL) {
     if (status === 0x90 && d2 > 0) {
@@ -193,7 +193,7 @@ function handleMessage(
   }
 }
 
-/** A note-off routed through the sustain pedal (input-control.md REQ-the-sustain-pedal-is-midi-layer):
+/** A note-off routed through the sustain pedal (midi-input.md REQ-the-sustain-pedal-is-midi-layer):
  *  deferred while the pedal is down, delivered otherwise. */
 function noteOff(note: number, bus: ParamBus, pedal: SustainPedal): void {
   if (pedal.noteOff(note)) bus.noteOff(note);

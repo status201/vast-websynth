@@ -255,7 +255,7 @@ sparse cells (drop fields equal to the cell's restore default):
 params:  every param except UNSAVED_PARAMS kept (rounded) — not default-omitted (forward-compat:
          a future default change must not silently move old songs). capture() stores
          savedParams(snapshot), so a live-only param such as master.expression or
-         master.pitchBend never reaches a file (input-control.md REQ-cc11-is-expression,
+         master.pitchBend never reaches a file (midi-input.md REQ-cc11-is-expression,
          REQ-the-pitch-wheel-is-never-saved)
 whitespace: download() -> pretty (2-space indent + trailing \n) — byte-identical to
             clean:demos output, so an export dropped into src/state/demos/ diffs

@@ -1,6 +1,6 @@
 /**
  * The master volume law and the knob readout that must agree with it
- * (input-control.md REQ-cc11-is-expression, REQ-the-volume-knob-reads-the-gain-it-applies).
+ * (midi-input.md REQ-cc11-is-expression, REQ-the-volume-knob-reads-the-gain-it-applies).
  */
 import { describe, it, expect } from 'vitest';
 import { masterLevel } from '../../src/state/master-level';

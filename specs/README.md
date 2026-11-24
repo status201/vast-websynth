@@ -372,7 +372,8 @@ specs/
     knob-keyboard-access.md ·  every knob is a focusable slider: arrows, Page, Home/End, Delete
     wheel-steps.md ·  a scroll gesture moves a stepped value by notches, not per event
     machine-status.md  ·  on/muted/off LEDs in the tab bar + Song-tab title links
-    input-control.md   ·  keyboard, computer-key shortcuts, MIDI
+    input-control.md   ·  on-screen keyboard, computer-key shortcuts, the note funnel
+    midi-input.md      ·  Web MIDI: notes, sustain pedal, channels (10 = sampler), CC11 expression, aftertouch
     keyboard-layout.md ·  QWERTY/AZERTY/QWERTZ/Dvorak note-key mapping + picker
     keyboard-range.md  ·  on-screen keyboard size: octaves follow its width, key height is bounded by key width
     testids.md         ·  the stable `data-testid` contract + full catalogue

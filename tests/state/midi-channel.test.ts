@@ -1,4 +1,4 @@
-// input-control.md REQ-the-midi-input-channel-is-selectable — a remembered, device-scoped
+// midi-input.md REQ-the-midi-input-channel-is-selectable — a remembered, device-scoped
 // setting whose stored value is untrusted.
 import { describe, it, expect, beforeEach } from 'vitest';
 import {

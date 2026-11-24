@@ -9,7 +9,7 @@ import type { Engine } from '../../src/audio/engine';
 import type { SyncMessage } from '../../src/audio/transport/sync/sync-types';
 
 /**
- * `midi.ts` — the raw-byte ingest surface (input-control.md REQ-midi-maps-note-on-and-off/REQ-one-module-owns-the-midi-access/REQ-the-sustain-pedal-is-midi-layer,
+ * `midi.ts` — the raw-byte ingest surface (midi-input.md REQ-midi-maps-note-on-and-off/REQ-one-module-owns-the-midi-access/REQ-the-sustain-pedal-is-midi-layer,
  * midi-clock-sync.md REQ-song-position-pointer-jumps-the-slave). `handleMessage` is module-private on purpose, so
  * every case here drives it the way a device does: through `initMIDI`, which
  * assigns `onmidimessage` on each port, then feeding bytes into that handler.
@@ -28,7 +28,7 @@ interface Rig {
   midi: FakeMidiAccess;
   input: FakeMidiInput;
   addTransport: ReturnType<typeof vi.fn>;
-  /** Sampler slot triggers from channel 10 (input-control.md REQ-channel-ten-plays-the-sampler). */
+  /** Sampler slot triggers from channel 10 (midi-input.md REQ-channel-ten-plays-the-sampler). */
   pads: Array<[slot: number, velocity: number]>;
 }
 
@@ -86,7 +86,7 @@ afterEach(() => {
   vi.restoreAllMocks();
 });
 
-describe('initMIDI wiring (input-control.md REQ-one-module-owns-the-midi-access)', () => {
+describe('initMIDI wiring (midi-input.md REQ-one-module-owns-the-midi-access)', () => {
   it('registers exactly one sync transport, bound to the shared access', async () => {
     const r = await makeRig(2);
     expect(r.addTransport).toHaveBeenCalledTimes(1);
@@ -150,7 +150,7 @@ describe('channel-voice messages', () => {
     expect(r.notes).toEqual([{ on: true, note: 72, velocity: 1 }]);
   });
 
-  // input-control.md REQ-midi-maps-note-on-and-off — the edge every controller relies on.
+  // midi-input.md REQ-midi-maps-note-on-and-off — the edge every controller relies on.
   it('note-on with velocity 0 is a note-off', async () => {
     const r = await makeRig();
     r.input.receive([0x90, 60, 0]);
@@ -206,7 +206,7 @@ describe('control change map', () => {
     expect(r.notes).toEqual([]);
   });
 
-  // input-control.md REQ-the-sustain-pedal-is-midi-layer — the pedal integrated *through* midi.ts, which the
+  // midi-input.md REQ-the-sustain-pedal-is-midi-layer — the pedal integrated *through* midi.ts, which the
   // SustainPedal unit test cannot see: the note-off never reaches the bus until
   // CC64 is released.
   it('CC64 defers a note-off until the pedal comes up, then flushes it once', async () => {
@@ -220,7 +220,7 @@ describe('control change map', () => {
     expect(r.notes.filter((n) => !n.on)).toEqual([{ on: false, note: 60, velocity: 0 }]);
   });
 
-  // input-control.md: a velocity-0 note-on is a note-off *in disguise*, so it
+  // midi-input.md: a velocity-0 note-on is a note-off *in disguise*, so it
   // has to take the deferral path too — the two are one branch in midi.ts, and
   // the pedal helper alone cannot show that they meet.
   it('a velocity-0 note-on obeys the pedal exactly like an 0x80 note-off', async () => {
@@ -298,7 +298,7 @@ describe('malformed input', () => {
   });
 });
 
-// input-control.md v18 — channel 10, the input channel, CC11 and aftertouch.
+// midi-input.md — channel 10, the input channel, CC11 and aftertouch.
 describe('channel 10 plays the sampler (REQ-channel-ten-plays-the-sampler)', () => {
   it('maps C1 upward onto slots 1..8 at the note velocity, and never the synth', async () => {
     const r = await makeRig();
@@ -342,7 +342,7 @@ describe('the synth input channel (REQ-the-midi-input-channel-is-selectable)', (
   });
 });
 
-// input-control.md REQ-a-midi-note-is-released-by-whatever-ended-it (v21, regression).
+// midi-input.md REQ-a-midi-note-is-released-by-whatever-ended-it (regression).
 describe('a MIDI note is always released', () => {
   it('after the input channel changes with the key down', async () => {
     setMidiInputChannel(1);
