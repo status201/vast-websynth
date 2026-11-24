@@ -248,8 +248,8 @@ only while its own grid is on screen ([sequencer](sequencer.md) REQ-step-input-a
     role tint steps aside — enforced in CSS, so no JS ordering can get it wrong.
 
 - **REQ-a-lit-white-key-sits-lower** (v22) — **A lit white key sits lower than its
-  neighbours.** A lit black key already reads as pressed: it loses its outer drop
-  shadow and sinks. A lit white key
+  neighbours.** A lit black key already reads as pressed: its cast shadow shrinks
+  and it sinks (REQ-a-black-key-casts-a-shadow-from-the-top-left). A lit white key
   (`active` or `seq`) carries a thin inset shade on its left and right edges, as if
   the raised keys beside it cast it.
   - **Where two lit white keys meet there is no shade.** They sit at the same depth,
@@ -261,6 +261,17 @@ only while its own grid is on screen ([sequencer](sequencer.md) REQ-step-input-a
     overlay comes after them), so `+` and `:has(+ …)` find the neighbour. Each side's
     shade is a custom property that the adjacency rules blank out, and `keyboard.ts`
     knows nothing about it.
+  - **Its glow stays on the board.** A lit white key's halo spreads sideways onto its
+    neighbours but is clipped flush at the key's top and bottom, and at the board's
+    outer ends, so no light reaches the bed around the keys.
+
+- **REQ-a-black-key-casts-a-shadow-from-the-top-left** — **A black key casts a soft
+  shadow down-right onto the whites**, lit from the top-left like the faceplate. Lit
+  (`active` or `seq`), it keeps a shorter one, so it reads as pressed.
+  - **The shadow starts at the board's top edge**, as if the keys ran on under a
+    fallboard: it is cast by a `::after` that reaches above the key, and the
+    black-key overlay clips to the board (`overflow: clip`), so the offset never
+    leaves a gap at the top and nothing spills onto the bed above.
 
 ### Channels, expression, pressure
 
@@ -478,7 +489,15 @@ Scenario: Two lit white keys side by side read as one pressed span (REQ-a-lit-wh
   Given C4 and D4 are both lit, by a finger, a computer key, MIDI or the sequencer
   Then C4 is shaded on its left edge only and D4 on its right edge only
   And a lone lit white key is shaded on both edges
+  And no lit key's glow reaches the bed above, below or beside the keys
 # pinned by: keyboard.module.css sibling rules; appearance by eye (jsdom computes no box-shadow)
+
+Scenario: A pressed black key casts less shadow than a resting one (REQ-a-black-key-casts-a-shadow-from-the-top-left)
+  Given a black key at rest, it casts a soft shadow down-right onto the whites
+  When it is lit, by any source
+  Then its shadow is shorter and tighter
+  And either way the shadow runs right up to the top edge of the board
+# pinned by: keyboard.module.css; appearance by eye (jsdom computes no box-shadow)
 
 Scenario: Moving OCT while a key is held does not hang the voice (REQ-a-note-off-names-the-pressed-note)
   Given a key on the on-screen keyboard is held down

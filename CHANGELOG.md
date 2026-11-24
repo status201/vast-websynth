@@ -51,6 +51,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ### Changed
 
+- **Black keys cast a shadow.** The on-screen keyboard's black keys throw a
+  soft shadow down and to the right onto the white keys, lit from the top-left
+  like the knobs. A pressed key's shadow shrinks, so it looks pushed down. The
+  shadow runs right up to the top of the board, and a lit key's glow stays on
+  the keys instead of spilling onto the frame around them.
+
 - **Every Motion lane step reads its value.** A step without a value of its own
   used to show a half-height ghost bar whatever the lane was doing. It now fills
   (faded) to the value the lane plays there: the held value in STEP, the ramp in

@@ -120,9 +120,7 @@ export class Keyboard {
 
     // Black keys (absolutely positioned via JS so they align across responsive widths)
     const blackOverlay = document.createElement('div');
-    blackOverlay.style.position = 'absolute';
-    blackOverlay.style.inset = '6px'; // align with .keyboard padding so x% matches white keys
-    blackOverlay.style.pointerEvents = 'none';
+    blackOverlay.className = styles.blackRow!;
     this.el.appendChild(blackOverlay);
 
     for (let o = 0; o < octaves; o++) {
