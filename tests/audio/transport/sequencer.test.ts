@@ -41,7 +41,10 @@ describe('StepSequencer', () => {
     expect(playNote).not.toHaveBeenCalled();
   });
 
-  it('releases the previous note before playing the next', () => {
+  // sequencer.md REQ-a-released-note-is-not-released-again: each note is released
+  // once, at its own gate end. The next step used to release the previous pitch
+  // again, which reached whoever held that pitch by then.
+  it('releases each note once, at its gate end — never again at the next step', () => {
     const { clock, patterns, arrangement, perf } = makeTransportRig();
     const playNote = vi.fn();
     const releaseNote = vi.fn();
@@ -53,15 +56,15 @@ describe('StepSequencer', () => {
     patterns.setSeqStep(0, 1, { on: true, note: 64, velocity: 0.7, gate: 0.5 });
 
     clock.fireTick(0); // plays note 60 (released at 0 + 0.125*0.5 = 0.0625)
-    clock.fireTick(0.125); // when = 0.125 → release 60, then play 64
-    expect(releaseNote).toHaveBeenCalledWith(60, 0.125);
+    clock.fireTick(0.125); // plays 64; 60 is not released a second time
     expect(playNote).toHaveBeenCalledWith(64, 0.7, 0.125, { pan: 0, panGroup: 0 });
+    expect(releaseNote.mock.calls).toEqual([[60, 0.0625], [64, 0.1875]]);
   });
 
   // step-settings.md REQ-micro-is-one-pure-offset — the sequencer applies micro ITSELF (rather than
-  // letting stepHits do it) precisely because the mono release below has to move
-  // with the attack.
-  it('nudges a step early and releases the previous note at the NUDGED time (v3)', () => {
+  // letting stepHits do it) precisely because the tied note's release below has
+  // to move with the attack.
+  it('nudges a step early and releases the note tied into it at the NUDGED time (v3)', () => {
     const { clock, patterns, arrangement, perf } = makeTransportRig();
     const playNote = vi.fn();
     const releaseNote = vi.fn();
@@ -69,7 +72,10 @@ describe('StepSequencer', () => {
 
     const seq = new StepSequencer(output, clock, patterns, arrangement, perf);
     seq.setEnabled(true);
-    patterns.setSeqStep(0, 0, { on: true, note: 60, velocity: 0.8, gate: 0.5 });
+    // Re-strike: a tie into a different pitch releases the tied note at the new
+    // attack — the one release of a previous note the sequencer still makes.
+    seq.setRestrikeTies(true);
+    patterns.setSeqStep(0, 0, { on: true, note: 60, velocity: 0.8, gate: 0.5, tie: true });
     // -6 notches = a quarter of a 16th early. A 16th is 0.125 s, so -0.03125 s.
     patterns.setSeqStep(0, 1, { on: true, note: 64, velocity: 0.7, gate: 0.5, micro: -6 });
 
@@ -1089,5 +1095,73 @@ describe('StepSequencer — meter (meter.md)', () => {
     clock.fireTick(0.125);
     expect(playNote).toHaveBeenCalledTimes(1);
     expect((playNote.mock.calls[0]![3] as { bend?: unknown }).bend).toBeUndefined();
+  });
+});
+
+// sequencer.md REQ-a-released-note-is-not-released-again — through the REAL pool,
+// because the bug lived between the two: the pool forgets a pitch when it is told
+// to release it, so a second release of that pitch reached a live key holding it.
+describe('a released note is not released again (regression)', () => {
+  function fakeVoice() {
+    const v = {
+      state: 'idle' as 'idle' | 'playing' | 'releasing',
+      noteOnAt: 0,
+      noteOffAt: 0,
+      osc1: { detuneParam: {} },
+      osc2: { detuneParam: {} },
+      sub: { detuneParam: {} },
+      noteOn: vi.fn(() => { v.state = 'playing'; }),
+      noteOff: vi.fn(() => { v.state = 'releasing'; }),
+      kill: vi.fn(() => { v.state = 'idle'; }),
+      setGroupPan: vi.fn(),
+    };
+    return v;
+  }
+
+  /** The sequencer plays C4 (not tied), its voice finishes, then a live key holds C4. */
+  function liveKeyAfterSeqNote() {
+    const rig = makeTransportRig();
+    const voices = Array.from({ length: 4 }, fakeVoice);
+    const pool = new Polyphony(makeMockAudioContext() as unknown as AudioContext, voices as unknown as Voice[]);
+    const seq = new StepSequencer(pool, rig.clock, rig.patterns, rig.arrangement, rig.perf);
+    seq.setEnabled(true);
+    rig.patterns.setSeqStep(0, 0, { on: true, note: 60, gate: 0.5 });
+    rig.patterns.setSeqStep(0, 1, { on: true, note: 64, gate: 0.5 });
+    rig.clock.fireTick(0);
+    voices[0]!.state = 'idle'; // its release has run its course
+    pool.playNote(60, 0.8, 0.09); // the player holds C4
+    const live = voices.find((v) => v.state === 'playing')!;
+    live.noteOff.mockClear();
+    return { ...rig, live };
+  }
+
+  it('the next step does not cut a live key on the previous pitch', () => {
+    const { clock, live } = liveKeyAfterSeqNote();
+    clock.fireTick(0.125);
+    expect(live.noteOff).not.toHaveBeenCalled();
+  });
+
+  it('a stop does not cut it either', () => {
+    const { clock, live } = liveKeyAfterSeqNote();
+    clock.fireStop();
+    expect(live.noteOff).not.toHaveBeenCalled();
+  });
+
+  it('nor does a seek (a loop wrap is one)', () => {
+    const { clock, live } = liveKeyAfterSeqNote();
+    clock.fireSeek(0);
+    expect(live.noteOff).not.toHaveBeenCalled();
+  });
+
+  it('a tied note is still released by a stop (REQ-a-stop-releases-every-tracks-note)', () => {
+    const rig = makeTransportRig();
+    const releaseNote = vi.fn();
+    const seq = new StepSequencer({ playNote: vi.fn(), releaseNote }, rig.clock, rig.patterns, rig.arrangement, rig.perf);
+    seq.setEnabled(true);
+    rig.patterns.setSeqStep(0, 0, { on: true, note: 60, gate: 0.5, tie: true });
+    rig.clock.fireTick(0);
+    expect(releaseNote).not.toHaveBeenCalled(); // the tie holds it
+    rig.clock.fireStop();
+    expect(releaseNote).toHaveBeenCalledWith(60, 0.0625); // its own gate end
   });
 });

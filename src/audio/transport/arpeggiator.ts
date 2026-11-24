@@ -40,9 +40,6 @@ export class Arpeggiator {
   private direction = 1; // for up-down
   private cursor = 0;
 
-  /** The note the arp last struck — released before the next one sounds. */
-  private lastNote: number | null = null;
-
   /** True while the transport is running because the arp auto-started it. */
   private startedTransport = false;
 
@@ -71,7 +68,6 @@ export class Arpeggiator {
         const idx = this.heldOrder.indexOf(note);
         if (idx >= 0) this.heldOrder.splice(idx, 1);
         if (this.heldOrder.length === 0) {
-          this.lastNote = null;
           this.cursor = 0;
           this.maybeStopTransport();
         }
@@ -107,7 +103,6 @@ export class Arpeggiator {
     if (!on) {
       this.heldOrder = [];
       this.heldSet.clear();
-      this.lastNote = null;
       this.maybeStopTransport(); // relinquish a transport the arp auto-started
     }
   }
@@ -189,13 +184,12 @@ export class Arpeggiator {
         note = pool[0]!;
     }
 
-    // Release the previous arp note before triggering the next
-    if (this.lastNote !== null) this.output.releaseNote(this.lastNote, when);
-
+    // Released once, here, with its note-on (REQ-each-arp-note-is-released-once).
+    // The gate is at most 1, so that is never after the next onset — releasing
+    // the previous pitch again before this one would cut whatever holds it now.
     const gateLen = stepDur * this.gate;
     this.output.playNote(note, 0.85, when);
     this.output.releaseNote(note, when + gateLen);
-    this.lastNote = note;
   }
 
   /**

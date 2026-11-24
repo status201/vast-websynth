@@ -81,6 +81,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
   tab's controls at the right, just above the grid, so on tablets and laptops the
   rows above it use the full width instead of stopping short of it.
 
+- **Playing along no longer cuts your held notes.** Hold a key on a pitch the
+  sequencer or the arp has just played, and it used to stop at their next step,
+  or when you pressed Stop or the loop wrapped. Each sequenced note is now let go
+  once, when its own gate ends, so it only ever stops itself.
+
 ## [2.22.2] - 2026-11-20
 
 ### Fixed

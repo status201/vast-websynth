@@ -93,10 +93,12 @@ pitch the step means: highlighted, quantized and transposed.
 - **REQ-micro-is-one-pure-offset** — `microOffset(step, cellDur)` in `step-hits.ts`
   is the single definition. It is applied in two places:
   - `forEachActiveHit` adds it inside the lane loop (drum machine and sampler);
-  - `Sequencer.tickTrack` computes it **explicitly**, because the previous mono
-    note's release, the `stepHits` base and the note viz must all move with it. An
-    un-nudged release would cut the early attack. A tie-into-a-rest release keeps
-    grid time.
+  - `Sequencer.tickTrack` computes it **explicitly**, because the release of a note
+    tied into this step (Re-strike into a different pitch), the `stepHits` base and
+    the note viz must all move with it. An un-nudged release would cut the early
+    attack. A tie-into-a-rest release keeps grid time. A previous note that did not
+    tie is not released here at all ([sequencer](sequencer.md)
+    REQ-a-released-note-is-not-released-again).
 
   `gateEnd`, `holds` and `chokeAt` derive from the hit time, so they follow. **Not**
   offset: the playhead (`stepListeners.emit`) and the MIDI clock. `clock.ts`,
@@ -301,10 +303,10 @@ Scenario: An early nudge is capped, a late one is not (REQ-an-early-offset-is-ca
   And micro +12 at the same tempo is a full half-cell, uncapped
 # pinned by: tests/audio/transport/step-hits.test.ts
 
-Scenario: A nudged seq step releases the previous note at the nudged time (REQ-micro-is-one-pure-offset)
-  Given a monophonic seq track whose step is on with micro -12
+Scenario: A nudged seq step releases the note tied into it at the nudged time (REQ-micro-is-one-pure-offset)
+  Given seq.tieMode is Re-strike and a tied step is followed by a different pitch with micro -12
   When that step fires
-  Then the previous note's release is scheduled at the nudged attack time
+  Then the tied note's release is scheduled at the nudged attack time
   And not at the un-nudged grid time, which would cut the new note
 # pinned by: tests/audio/transport/sequencer.test.ts
 

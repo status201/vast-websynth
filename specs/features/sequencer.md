@@ -73,6 +73,18 @@ scoped to its own visible grid and pinned to one bank.
 - **REQ-the-note-releases-at-gate-end** — Release the held note at `gateEnd`; `tie`
   holds the last ratchet sub-hit into the next step, which then decides how the held
   note goes on (REQ-a-tie-continues-the-note-without-retriggering).
+- **REQ-a-released-note-is-not-released-again** — A note-off names a **pitch**, and
+  the voice pool forgets a pitch's voices the moment it is told to release them
+  ([voicing](voicing.md) REQ-a-stolen-voice-leaves-the-held-list), even though the
+  release itself is scheduled at `gateEnd`. So a second release of a pitch the
+  sequencer already let go reaches **whoever holds that pitch next**: a live key, the
+  arp, another track. The sequencer releases `lastPlayedNote` again only while the
+  track's last step **tied**, so the note is still held (`prevTied`): on the next
+  step (Re-strike into a different pitch), on a rest, on mute, and on stop and seek.
+  A step that did not tie was released at its own gate end and is never released
+  again. There used to be an unconditional "release the previous note" before every
+  attack. It never reached the sequencer's own voice, whose entry was already gone,
+  so its only effect was to cut a held live key on that pitch at the next step.
 - **REQ-a-tie-continues-the-note-without-retriggering** — While `seq.tieMode` is
   **Legato** (0, the default), a step that sounds after a tied step on the same track
   **continues** that track's held note instead of striking a new one. Its first
@@ -144,8 +156,8 @@ scoped to its own visible grid and pinned to one bank.
   `chromatic` the call returns early.
 - **REQ-a-stop-releases-every-tracks-note** — A tied step schedules **no** release,
   since the next tick does that, and after a stop that tick never comes.
-  `StepSequencer` subscribes `clock.onStop` and releases each track at its **own last
-  gate end** (`SeqTrackState.lastReleaseAt`), not at `now`:
+  `StepSequencer` subscribes `clock.onStop` and releases each track **still holding a
+  tied note** (REQ-a-released-note-is-not-released-again) at its **own last gate end** (`SeqTrackState.lastReleaseAt`), not at `now`:
   - a note-on may still be in the look-ahead, and a release before its attack is
     overwritten by it;
   - the note ends where its gate said it would;
@@ -272,6 +284,7 @@ StepSequencer:  # src/audio/transport/sequencer.ts
   # reads patterns.seqBank(arrangement.seqPlayBank) each tick via clock.onTick
   # per-track held-note/tie state lives in one SeqTrackState[]
   # subscribes clock.onSeek and clock.onStop to release each track at its lastReleaseAt
+  # releases lastPlayedNote only while prevTied (REQ-a-released-note-is-not-released-again)
 
 PatternStore:          # src/state/patterns.ts
   seqBanks[bank][track][step]
@@ -476,6 +489,15 @@ Scenario: An old song with no tieMode plays Legato (REQ-re-strike-keeps-the-old-
   Then seq.tieMode is 0 and its ties continue their notes
   And only a song that names seq.tieMode 1 re-strikes
 # pinned by: tests/state/params.test.ts
+
+Scenario: A live key on the sequence's last pitch is not cut by the next step (REQ-a-released-note-is-not-released-again, regression)
+  Given the sequencer played C4 on a step that did not tie, and its gate has ended
+  And the player now holds C4 on the keyboard
+  When the next step plays E4, the transport stops, or the playhead is seeked
+  Then the player's C4 keeps sounding until the key is released
+  # the bug: every step released the previous pitch again, and the pool had
+  # already handed that pitch to the live key
+# pinned by: tests/audio/transport/sequencer.test.ts
 
 Scenario: The stop release is never scheduled before the note-on (edge)
   Given a note-on is still sitting in the transport look-ahead when the user stops
