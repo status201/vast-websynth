@@ -155,8 +155,9 @@ describe('isPatchParam', () => {
     // `motion.` was missing from the prefix list: loading a sound reapplied
     // `motion.on` = 0 from the patch defaults and silently killed a song's
     // automation. It is a song-level machine like seq/drum/sampler.
+    // The lane mutes too (motion-lane-mute.md REQ-each-motion-lane-has-its-own-mute).
     for (const id of ['motion.on', 'motion.mute', 'motion.slide', 'motion.t0.slide',
-      'motion.len', 'motion.rate']) {
+      'motion.len', 'motion.rate', 'motion.xy.mute', 'motion.t0.mute', 'motion.t3.mute']) {
       expect(isPatchParam(id), id).toBe(false);
     }
   });

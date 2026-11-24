@@ -80,6 +80,20 @@ describe('createXyPad', () => {
     expect(pad.gear.getAttribute('aria-expanded')).toBe('false');
   });
 
+  // motion-lane-mute.md REQ-a-lane-cannot-target-the-machine-or-itself: the base assignment is what
+  // the motion XY lane drives, so the pickers offer only what that lane may target.
+  it('the assign pickers leave out the motion switches and the XY lane\'s own mute', () => {
+    const bus = mkBus();
+    const { pad } = mountPad(bus, new XyPadStore());
+    pads.push(pad);
+    const dd = pad.el.querySelector('[data-testid="xypad-assign-x"]') as HTMLElement;
+    dd.querySelector('button')!.click(); // options are built on open
+    const opts = Array.from(dd.querySelectorAll('.dropdown-option')).map((o) => o.textContent);
+    expect(opts).toContain('filter.cutoff');
+    expect(opts).toContain('motion.t0.mute');
+    for (const refused of ['motion.on', 'motion.mute', 'motion.xy.mute']) expect(opts).not.toContain(refused);
+  });
+
   it('labels each axis with the assigned param short name and updates on reassign', () => {
     const bus = mkBus();
     const xy = new XyPadStore();

@@ -1,6 +1,9 @@
 import type { Arrangement } from './arrangement';
 import type { MotionStep, MotionTrackStep, PatternStore } from '../../state/patterns';
 import { MOTION_TRACK_COUNT } from '../../state/patterns';
+import {
+  MOTION_LANE_COUNT, MOTION_XY_LANE, isMotionLaneMuteId, motionTargetAllowed, motionTrackLane,
+} from '../../state/motion-lanes';
 import { LaneMeter } from './lane-meter';
 import type { ParamBus } from '../../state/params';
 import type { XyAssign, XyPadStore } from '../../state/xy-pad';
@@ -125,6 +128,23 @@ export class MotionMachine {
    */
   private held = -1;
   private readonly baselines = new Map<string, number>();
+  /**
+   * The lane that last wrote each baselined param, parks included
+   * (REQ-each-motion-lane-has-its-own-mute). A write hands the param over, so
+   * a param still owned by a muted lane is one no unmuted lane has written
+   * since — exactly what the sweep releases. An entry exists only beside a
+   * baseline; `release` drops both.
+   */
+  private readonly owner = new Map<string, number>();
+  /** Per-lane mute (`motionLaneMuteId(lane)`), lane 0 = XY. */
+  private readonly laneMuted: boolean[] = Array.from({ length: MOTION_LANE_COUNT }, () => false);
+  /** The evaluated-frame count when each lane last muted — the sweep waits for
+   *  a whole frame after it, so every unmuted lane has written first. */
+  private readonly mutedAt: number[] = Array.from({ length: MOTION_LANE_COUNT }, () => 0);
+  /** Evaluated frames so far; a frame that found no cell to evaluate does not count. */
+  private frameSeq = 0;
+  /** A muted lane may still own params: sweep at the end of the next frame. */
+  private sweepPending = false;
   private readonly stepListeners = new ListenerSet<[number, number]>();
   /** Anchor-index memo for the frame loop; dropped on any bank mutation. */
   private readonly anchors = createAnchorCache();
@@ -291,6 +311,46 @@ export class MotionMachine {
     }
   }
 
+  /**
+   * One lane's mute (REQ-each-motion-lane-has-its-own-mute). It releases
+   * nothing here: a muted lane's params go back to their baselines in the
+   * sweep at the end of the first whole frame it sits out (`sweepMuted`), so a
+   * param another lane writes in that frame changes owner first and never
+   * blips. Unmuting needs nothing — the next frame writes and re-baselines.
+   * Reached synchronously from inside a frame when another lane writes this
+   * mute (REQ-a-lane-can-mute-another-lane), which is why it only marks.
+   */
+  setLaneMuted(lane: number, m: boolean): void {
+    if (lane < 0 || lane >= MOTION_LANE_COUNT || this.laneMuted[lane] === m) return;
+    this.laneMuted[lane] = m;
+    if (!m) return;
+    this.mutedAt[lane] = this.frameSeq;
+    this.sweepPending = true;
+  }
+
+  /**
+   * Release every param a muted lane still owns, once a whole frame has run
+   * since it muted (REQ-each-motion-lane-has-its-own-mute). Ownership is
+   * the last *write*, so this goes by what the lanes actually did, not by
+   * what they are assigned: an assigned lane with no anchors protects
+   * nothing, two muted lanes sharing a param both let it go, and a handover
+   * or a seek needs no special case.
+   *
+   * A lane mute it set is **held**, never released (REQ-a-lane-can-mute-another-lane):
+   * releasing one would mute or unmute a lane from here, whose own release
+   * would flip another back, and two lanes muting each other would flap at
+   * frame rate. Held, a mute only ever changes by a write, and Stop still
+   * returns it to its baseline. So the sweep releases sounds only, in one pass.
+   */
+  private sweepMuted(): void {
+    this.sweepPending = false;
+    for (const [id, lane] of this.owner) {
+      if (!this.laneMuted[lane] || isMotionLaneMuteId(id)) continue;
+      if (this.mutedAt[lane]! < this.frameSeq) this.release(id);
+      else this.sweepPending = true; // muted during this frame: next one
+    }
+  }
+
   /** The XY lane's mode (`motion.slide`). */
   setSlide(on: boolean): void {
     this.mode = on ? 'slide' : 'step';
@@ -323,15 +383,22 @@ export class MotionMachine {
 
   private frameAt = 0;
   private readonly runFrame = (): void => {
-    const nowS = this.frameAt;
-    if (!this.active || !this.clock.playing) return;
+    if (!this.evaluate(this.frameAt)) return;
+    // After every lane has written, never before (REQ-each-motion-lane-has-its-own-mute).
+    if (this.sweepPending) this.sweepMuted();
+  };
+
+  /** The frame's lanes; false when there was no cell to evaluate, so nothing wrote. */
+  private evaluate(nowS: number): boolean {
+    if (!this.active || !this.clock.playing) return false;
     // Evaluate against the cell whose *audible* window contains now: cells
     // arrive (with their arrangement state) up to scheduleAheadS early, so a
     // queued one governs only once now crosses its `when` — rests and bank
     // switches land on the heard bar boundary, at any tempo
     // (REQ-the-governing-cell-is-the-latest-heard).
     const tick = this.governing(nowS);
-    if (!tick || tick.span <= 0) return;
+    if (!tick || tick.span <= 0) return false;
+    this.frameSeq++;
 
     // The chain has moved on — park the bank it left at its last anchor before
     // this bar writes anything (REQ-a-bank-parks-at-its-last-anchor). A rest holds nothing of its own, so it
@@ -339,8 +406,25 @@ export class MotionMachine {
     const live = tick.resting ? -1 : tick.playBank;
     if (this.held >= 0 && this.held !== live) this.parkBank(this.held, tick);
     this.held = live;
-    if (tick.resting) return;
+    if (tick.resting) return true; // a rest writes nothing, which the sweep needs to know
 
+    // True playhead position in step units: the governing cell's index plus
+    // the fraction of its span elapsed since (negative while that cell is still
+    // ahead of now — valueAt wraps, matching the loop seam). Over the *span*,
+    // not the cell duration: under swing the cells are not evenly spaced, and
+    // only the span reaches `idx + 1` exactly when the next cell sounds
+    // (REQ-the-motion-playhead-follows-the-swung-grid).
+    const pos = tick.idx + (nowS - tick.when) / tick.span;
+    // A muted XY lane skips its axes and carry too, not just its writes
+    // (REQ-each-motion-lane-has-its-own-mute). Nothing else can mute it mid-way:
+    // it may not write its own mute, and no lane is muted by a release.
+    if (!this.laneMuted[MOTION_XY_LANE]) this.frameXy(tick, pos);
+    this.frameTracks(tick, pos);
+    return true;
+  }
+
+  /** The XY lane's two axes at `pos` (REQ-motion-drives-the-xy-assignment/REQ-cross-bank-carry). */
+  private frameXy(tick: LatchedTick, pos: number): void {
     const bank = this.patterns.motionBank(tick.playBank);
     // Read into the frame's reusable holders rather than taking three fresh
     // objects per frame (runtime-performance.md REQ-no-allocation-in-a-hot-loop) — the same reason
@@ -349,25 +433,16 @@ export class MotionMachine {
     const axes = this.axes;
     this.xy.readAssignInto(base);
     motionAxesInto(this.patterns, tick.playBank, base, axes);
-    // True playhead position in step units: the governing cell's index plus
-    // the fraction of its span elapsed since (negative while that cell is still
-    // ahead of now — valueAt wraps, matching the loop seam). Over the *span*,
-    // not the cell duration: under swing the cells are not evenly spaced, and
-    // only the span reaches `idx + 1` exactly when the next cell sounds
-    // (REQ-the-motion-playhead-follows-the-swung-grid).
-    const pos = tick.idx + (nowS - tick.when) / tick.span;
     // `neighbours` is reused rather than rebuilt: this runs up to 60x/s
     // (runtime-performance.md REQ-no-allocation-in-a-hot-loop), and valueAt only reads it.
     this.neighbours.prev = this.carryBank(tick.prevBank, tick.prevResting, axes, base);
     this.neighbours.next = this.carryBank(tick.nextBank, tick.nextResting, axes, base);
     const cells = this.lane.cells;
     if (valueAtInto(bank, pos / cells, this.mode, this.neighbours, this.anchors, this.xyOut, cells)) {
-      this.write(axes.x, this.xyOut.x);
-      this.write(axes.y, this.xyOut.y);
+      this.write(axes.x, this.xyOut.x, MOTION_XY_LANE);
+      this.write(axes.y, this.xyOut.y, MOTION_XY_LANE);
     }
-
-    this.frameTracks(tick, pos);
-  };
+  }
 
   /**
    * Frame scratch, refilled each frame rather than rebuilt (runtime-performance.md REQ-no-allocation-in-a-hot-loop): the XY Pad's
@@ -421,33 +496,45 @@ export class MotionMachine {
     // the bank's *opening* value instead of its last anchor.
     const seam = (cells - 1e-6) / cells;
     const bank = this.patterns.motionBank(outBank);
-    if (valueAtInto(bank, seam, this.mode, NO_CARRY, this.anchors, this.xyOut, cells)) {
-      if (!this.driven.has(axes.x)) this.write(axes.x, this.xyOut.x);
-      if (!this.driven.has(axes.y)) this.write(axes.y, this.xyOut.y);
+    // A muted lane parks nothing (REQ-each-motion-lane-has-its-own-mute). The
+    // tracks' check below is read per lane, since a park write can mute a later one.
+    if (
+      !this.laneMuted[MOTION_XY_LANE] &&
+      valueAtInto(bank, seam, this.mode, NO_CARRY, this.anchors, this.xyOut, cells)
+    ) {
+      if (!this.driven.has(axes.x)) this.write(axes.x, this.xyOut.x, MOTION_XY_LANE);
+      if (!this.driven.has(axes.y)) this.write(axes.y, this.xyOut.y, MOTION_XY_LANE);
     }
     const tracks = this.patterns.motionTracks(outBank);
     for (let t = 0; t < MOTION_TRACK_COUNT; t++) {
+      const lane = motionTrackLane(t);
       const track = tracks[t];
       const id = track?.param;
-      if (!track || !id || this.driven.has(id)) continue;
+      if (this.laneMuted[lane] || !track || !id || this.driven.has(id)) continue;
       const v = valueAt1D(track.steps, seam, this.trackModes[t]!, NO_CARRY, this.anchors, cells);
-      if (v !== null) this.write(id, v);
+      if (v !== null) this.write(id, v, lane);
     }
   }
 
-  /** Every param id the incoming bar drives itself — a rest drives none. */
+  /**
+   * Every param id the incoming bar drives itself through an **unmuted** lane —
+   * a rest drives none, and a muted lane shields nothing from the park
+   * (REQ-each-motion-lane-has-its-own-mute).
+   */
   private fillDriven(tick: LatchedTick, base: XyAssign): void {
     const ids = this.driven;
     ids.clear();
     if (tick.resting) return;
-    const axes = this.axes;
-    motionAxesInto(this.patterns, tick.playBank, base, axes);
-    ids.add(axes.x);
-    ids.add(axes.y);
+    if (!this.laneMuted[MOTION_XY_LANE]) {
+      const axes = this.axes;
+      motionAxesInto(this.patterns, tick.playBank, base, axes);
+      ids.add(axes.x);
+      ids.add(axes.y);
+    }
     const tracks = this.patterns.motionTracks(tick.playBank);
     for (let t = 0; t < MOTION_TRACK_COUNT; t++) {
       const id = tracks[t]?.param;
-      if (id) ids.add(id);
+      if (id && !this.laneMuted[motionTrackLane(t)]) ids.add(id);
     }
   }
 
@@ -461,16 +548,19 @@ export class MotionMachine {
   private frameTracks(tick: LatchedTick, pos: number): void {
     const tracks = this.patterns.motionTracks(tick.playBank);
     for (let t = 0; t < MOTION_TRACK_COUNT; t++) {
+      const lane = motionTrackLane(t);
       const track = tracks[t];
       const id = track?.param;
-      if (!track || !id) continue;
+      // Read per lane, not once per frame: an earlier lane's write may have just
+      // muted this one (REQ-a-lane-can-mute-another-lane).
+      if (this.laneMuted[lane] || !track || !id) continue;
       this.trackNeighbours.prev = this.carryTrack(tick.prevBank, tick.prevResting, t, id);
       this.trackNeighbours.next = this.carryTrack(tick.nextBank, tick.nextResting, t, id);
       const cells = this.lane.cells;
       const v = valueAt1D(
         track.steps, pos / cells, this.trackModes[t]!, this.trackNeighbours, this.anchors, cells,
       );
-      if (v !== null) this.write(id, v);
+      if (v !== null) this.write(id, v, lane);
     }
   }
 
@@ -511,11 +601,31 @@ export class MotionMachine {
     return this.patterns.motionBank(bank);
   }
 
-  private write(id: string, norm: number): void {
+  /**
+   * One automation write by `lane`. The lane must be allowed the target
+   * (REQ-a-lane-cannot-target-the-machine-or-itself). Writing makes it the
+   * param's owner, which is what keeps a param another lane still drives out
+   * of a muted lane's sweep (REQ-each-motion-lane-has-its-own-mute).
+   */
+  private write(id: string, norm: number, lane: number): void {
+    if (!motionTargetAllowed(lane, id)) return;
     const def = this.bus.def(id);
     if (!def) return;
     if (!this.baselines.has(id)) this.baselines.set(id, this.bus.get(id));
+    if (this.owner.get(id) !== lane) this.owner.set(id, lane);
     this.bus.set(id, fromNorm(def, norm));
+  }
+
+  /**
+   * Put one param back at its baseline. Both entries go **before** the set: the
+   * set may mute or unmute a lane (REQ-a-lane-can-mute-another-lane), and
+   * the restore loop and the sweep both iterate these maps while it runs.
+   */
+  private release(id: string): void {
+    const v = this.baselines.get(id);
+    this.baselines.delete(id);
+    this.owner.delete(id);
+    if (v !== undefined) this.bus.set(id, v);
   }
 
   /** Return every automated param to its pre-automation value. Suppressed like
@@ -525,8 +635,9 @@ export class MotionMachine {
   }
 
   private readonly runRestoreBaselines = (): void => {
-    for (const [id, v] of this.baselines) this.bus.set(id, v);
-    this.baselines.clear();
+    // One restore path with the sweep's; deleting under iteration is safe.
+    for (const id of this.baselines.keys()) this.release(id);
+    this.sweepPending = false;
     // Nothing is live any more, so the next frame must not park what this just
     // undid (REQ-a-bank-parks-at-its-last-anchor) — a stop, a mute or motion.on → 0 is not a handover.
     this.held = -1;

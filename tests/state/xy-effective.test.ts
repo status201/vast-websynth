@@ -79,6 +79,21 @@ describe('createEffectiveXy (motion-panel.md REQ-the-xy-window-axes-follow-motio
     expect(cb).toHaveBeenLastCalledWith({ x: 'fx.delay.time', y: XY_DEFAULT_ASSIGN.y });
   });
 
+  it('a muted XY lane falls back to the base assignment too (motion-lane-mute.md REQ-each-motion-lane-has-its-own-mute)', () => {
+    const { bus, patterns, eff } = build();
+    bus.set('motion.on', 1);
+    patterns.setMotionAssign({ x: 'fx.delay.time' });
+    const cb = vi.fn();
+    eff.onChange(cb);
+    bus.set('motion.t0.mute', 1); // a track's mute leaves the pad's axes alone
+    expect(cb).not.toHaveBeenCalled();
+    bus.set('motion.xy.mute', 1);
+    expect(cb).toHaveBeenLastCalledWith(XY_DEFAULT_ASSIGN);
+    expect(eff.get()).toEqual(XY_DEFAULT_ASSIGN);
+    bus.set('motion.xy.mute', 0);
+    expect(cb).toHaveBeenLastCalledWith({ x: 'fx.delay.time', y: XY_DEFAULT_ASSIGN.y });
+  });
+
   it('does not emit when a change leaves the effective pair identical', () => {
     const { lane, eff } = build();
     const cb = vi.fn();

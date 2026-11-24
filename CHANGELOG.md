@@ -18,6 +18,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ### Added
 
+- **Mute each Motion lane on its own.** The XY lane and lanes A–D each have a
+  **mute** in their header. A muted lane's knobs go back to where you left them
+  while the other lanes keep moving, and the lane stays editable. A mute is a
+  parameter like any other, so one lane can switch another on and off as the bar
+  plays — point lane A at `motion.t1.mute` in STEP mode. Muting lane A leaves B as
+  A left it, and Stop puts every mute back. A lane cannot mute itself; a song that
+  asks for that loads with a warning, and the lane's picker shows it dimmed.
+
 - **A vocoder in the sample studio.** The editor's new **Vocoder** tab makes the
   clip talk. Press *Record voice*: the clip plays once to count you in, then again
   while you sing or speak, and the take stops by itself, lined up with the clip.
@@ -42,6 +50,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
   block ringed.
 
 ### Changed
+
+- **Every Motion lane step reads its value.** A step without a value of its own
+  used to show a half-height ghost bar whatever the lane was doing. It now fills
+  (faded) to the value the lane plays there: the held value in STEP, the ramp in
+  SLIDE. Holding or hovering it reads that value too, and the curve line is drawn
+  in high contrast so it stands out over the bars on every theme. A set value is
+  marked by a short amber bar on the line, and values of 0 and 1 are drawn in
+  full instead of half hidden on the step's border.
 
 - **A new app icon.** The knob made way for a little synth studio: two knobs
   and a power LED, a scope with a sine wave, and a few piano keys. It is the

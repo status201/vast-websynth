@@ -227,6 +227,7 @@ motion tab:                                         # features/motion-sequencer.
   motion-trk-<0..3>-param · motion-trk-<0..3>-step-<s> · motion-trk-<0..3>-graph
   motion-trk-<0..3>-fold                         # the lane fold caret (v17, features/lane-fold.md)
   seg-motion.t<0..3>.slide
+  switch-motion.xy.mute · switch-motion.t<0..3>.mute  # per-lane mutes (features/motion-panel.md)
   motion-readout-xy · motion-readout-trk-<0..3>  # per-lane value readout (v11)
   motion-value-bubble                            # the drag bubble; absent when idle
 

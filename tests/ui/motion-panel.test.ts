@@ -9,6 +9,8 @@ import type { XyPadWindowController } from '../../src/ui/components/xy-pad-windo
 import type { PatternUndo } from '../../src/state/pattern-undo';
 import type { UiBridge } from '../../src/ui/ui-bridge';
 import { installLocalStorageMock } from '../storage-mock';
+import motionStyles from '../../src/ui/styles/motion.module.css';
+import dropdownStyles from '../../src/ui/styles/dropdown.module.css';
 
 /**
  * The Motion panel's cost gate — motion-panel.md REQ-the-ab-lane-repaint-is-gated-on-visibility,
@@ -177,9 +179,14 @@ describe('Motion panel lane repaint (REQ-the-ab-lane-repaint-is-gated-on-visibil
 /** The XY lane's graph — the overlay `redrawGraph` rebuilds. */
 const xyGraph = (el: HTMLElement): SVGElement =>
   el.querySelector<SVGElement>('[data-testid="motion-graph"]')!;
-/** Where the first anchor's dot lands, as a fraction of a lane of `cells`. */
-const dotCx = (el: SVGElement): string | null =>
-  el.querySelector('circle')!.getAttribute('cx');
+/** The anchor marks a graph draws, each as its [centre x, y] in viewBox units. */
+const anchorMarks = (el: SVGElement): Array<[number, number]> =>
+  Array.from(el.querySelectorAll('polyline[data-anchor]')).map((m) => {
+    const [[x0, y], [x1]] = m.getAttribute('points')!.split(' ').map((p) => p.split(',').map(Number)) as number[][];
+    return [(x0! + x1!) / 2, y!];
+  });
+/** Where the first anchor's mark is centred, as a fraction of a lane of `cells`. */
+const dotCx = (el: SVGElement): string => String(anchorMarks(el)[0]![0]);
 const centre = (step: number, cells: number): string => String(((step + 0.5) / cells) * 100);
 
 describe('Motion panel draws on the lane, not the bank (REQ-the-motion-graph-follows-the-lane)', () => {
@@ -380,5 +387,122 @@ describe('Motion panel folded-lane cost (REQ-a-folded-motion-lane-does-no-repain
     const touched = observers.map((o) => o.takeRecords().length > 0);
     for (const o of observers) o.disconnect();
     expect(touched).toEqual([false, true, false, false]);
+  });
+});
+
+describe('Motion panel lane mutes (REQ-a-motion-lane-header-carries-its-mute)', () => {
+  const muteSwitch = (el: HTMLElement, id: string): HTMLButtonElement =>
+    el.querySelector<HTMLButtonElement>(`[data-testid="switch-${id}"]`)!;
+  /** The faded body around a lane's graph, or null while the lane plays. */
+  const mutedBody = (el: HTMLElement, graphTestId: string): Element | null =>
+    el.querySelector(`[data-testid="${graphTestId}"]`)!.closest(`.${motionStyles.laneMuted!}`);
+
+  it('every lane header carries its own mute, and a folded lane keeps it', () => {
+    const { bus, panel } = harness();
+    expect(muteSwitch(panel.el, 'motion.xy.mute')).not.toBeNull();
+    for (let t = 0; t < MOTION_TRACK_COUNT; t++) {
+      expect(isFolded(panel.el, t)).toBe(true); // empty lanes arrive folded
+      const sw = muteSwitch(panel.el, `motion.t${t}.mute`);
+      expect(foldBtn(panel.el, t).closest('div')!.contains(sw)).toBe(true);
+    }
+    muteSwitch(panel.el, 'motion.t1.mute').click();
+    expect(bus.get('motion.t1.mute')).toBe(1);
+  });
+
+  it('a muted lane fades but stays editable, whoever muted it', () => {
+    const { bus, patterns, panel } = harness();
+    patterns.setMotionTrackParam(1, 'filter.cutoff');
+    expect(mutedBody(panel.el, 'motion-trk-1-graph')).toBeNull();
+
+    bus.set('motion.t1.mute', 1); // as another lane's write would
+    expect(mutedBody(panel.el, 'motion-trk-1-graph')).not.toBeNull();
+    const pad = panel.el.querySelector('[data-testid="motion-trk-1-step-0"]')!;
+    expect(pad.classList.contains(motionStyles.inert!)).toBe(false);
+    expect(mutedBody(panel.el, 'motion-trk-0-graph')).toBeNull(); // only that lane
+
+    bus.set('motion.xy.mute', 1);
+    expect(mutedBody(panel.el, 'motion-graph')).not.toBeNull();
+    bus.set('motion.t1.mute', 0);
+    expect(mutedBody(panel.el, 'motion-trk-1-graph')).toBeNull();
+  });
+
+  it('a loaded lane aimed at a target it may not drive reads as dead, not live', () => {
+    const { patterns, panel } = harness();
+    const toggle = () => panel.el.querySelector(`[data-testid="motion-trk-0-param"] .${dropdownStyles.toggle!}`)!;
+    patterns.setMotionTrackParam(0, 'motion.t1.mute');      // another lane's mute: fine
+    expect(toggle().classList.contains(dropdownStyles.dimmed!)).toBe(false);
+    patterns.setMotionTrackParam(0, 'motion.t0.mute');      // its own, as a hand-edited song could
+    expect(toggle().classList.contains(dropdownStyles.dimmed!)).toBe(true);
+    expect(picker(panel.el, 0).title).toContain('motion.t0.mute');
+    patterns.setMotionTrackParam(0, 'filter.cutoff');
+    expect(toggle().classList.contains(dropdownStyles.dimmed!)).toBe(false);
+  });
+
+  it("a lane's picker offers the other lanes' mutes but not its own or the machine's", () => {
+    const { panel } = harness();
+    document.body.appendChild(panel.el);
+    const optionsOf = (testId: string): string[] => {
+      const dd = panel.el.querySelector<HTMLElement>(`[data-testid="${testId}"]`)!;
+      dd.querySelector('button')!.click(); // options are built on open
+      const opts = Array.from(dd.querySelectorAll('.dropdown-option')).map((o) => o.textContent ?? '');
+      dd.querySelector('button')!.click();
+      return opts;
+    };
+    const a = optionsOf('motion-trk-0-param');
+    expect(a).toContain('motion.t1.mute');
+    expect(a).toContain('motion.xy.mute');
+    expect(a).not.toContain('motion.t0.mute');
+    expect(a).not.toContain('motion.on');
+    expect(a).not.toContain('motion.mute');
+    const x = optionsOf('motion-assign-x');
+    expect(x).toContain('motion.t0.mute');
+    expect(x).not.toContain('motion.xy.mute');
+    panel.el.remove();
+  });
+});
+
+describe('Motion panel unset cells (REQ-an-unset-level-cell-shows-the-curve)', () => {
+  const bar = (el: HTMLElement, step: number): HTMLElement =>
+    el.querySelector<HTMLElement>(`[data-testid="motion-trk-0-step-${step}"] .${motionStyles.bar!}`)!;
+  const hover = (el: HTMLElement, step: number): string => {
+    const pad = el.querySelector(`[data-testid="motion-trk-0-step-${step}"]`)!;
+    pad.dispatchEvent(Object.assign(new Event('pointerenter'), { pointerType: 'mouse' }));
+    return el.querySelector('[data-testid="motion-readout-trk-0"]')!.textContent ?? '';
+  };
+
+  it('an unset cell fills to the value held from the anchor before it, and reads it', () => {
+    const { bus, patterns, panel } = harness();
+    bus.set('motion.t0.slide', 0); // STEP
+    patterns.setMotionTrackParam(0, 'fx.delay.mix');
+    patterns.setMotionTrackStep(0, 0, { on: true, v: 1 });
+    patterns.setMotionTrackStep(0, 8, { on: true, v: 0.2 });
+    expect(parseFloat(bar(panel.el, 3).style.height)).toBeCloseTo(100, 6);
+    expect(parseFloat(bar(panel.el, 11).style.height)).toBeCloseTo(20, 6);
+    // Not the 0.50 the store keeps for an untouched cell.
+    expect(hover(panel.el, 11)).toContain('12 · 0.20');
+  });
+
+  it('a lane with no anchors fills nothing and reads no value', () => {
+    const { patterns, panel } = harness();
+    patterns.setMotionTrackParam(0, 'fx.delay.mix');
+    expect(parseFloat(bar(panel.el, 3).style.height)).toBe(0);
+    expect(hover(panel.el, 3)).toBe('04 · —');
+  });
+});
+
+describe('Motion panel anchor marks (REQ-each-motion-step-is-a-mini-xy-pad)', () => {
+  it('marks each set value once, centred on its cell, in both graphs — and never an unset cell', () => {
+    const { patterns, panel } = harness();
+    patterns.setMotionTrackParam(0, 'fx.delay.mix');
+    patterns.setMotionTrackStep(0, 0, { on: true, v: 1 });
+    patterns.setMotionTrackStep(0, 8, { on: true, v: 0 });
+    const marks = anchorMarks(laneGraph(panel.el));
+    expect(marks).toHaveLength(2);
+    expect(marks[0]![0]).toBeCloseTo(Number(centre(0, 16)), 9);
+    expect(marks[0]![1]).toBe(0);   // 1.0 draws on the top edge…
+    expect(marks[1]![0]).toBeCloseTo(Number(centre(8, 16)), 9);
+    expect(marks[1]![1]).toBe(100); // …and 0.0 on the bottom one
+    patterns.setMotionStep(4, { on: true, x: 0.5, y: 0.75 });
+    expect(anchorMarks(xyGraph(panel.el))).toHaveLength(1);
   });
 });

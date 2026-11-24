@@ -3,7 +3,7 @@
 ```yaml
 id: motion-panel
 status: implemented
-version: 1
+version: 2
 owner: core
 related:
   - motion-sequencer      # the machine these controls edit
@@ -37,9 +37,11 @@ a graph of the curve that will play, and a fold.
   Commit timing and modifiers are REQ-the-pads-gesture-set-peek-snap-fine. An SVG
   overlay traces the **selected axis** across the cells (view toggle Y/X, default Y,
   local view state). **The pad owns the dot and the graph owns the line**: the overlay
-  is a 0–100 `viewBox` with `preserveAspectRatio="none"`, so each anchor's `<circle>`
-  draws as a short tick on the line at the cell's *centre*. That is deliberate, not a
-  misplaced dot; the pad's dot sits at its *x value*. The line is mode-aware (the
+  is a 0–100 `viewBox` with `preserveAspectRatio="none"`, and each anchor is marked by
+  a short horizontal segment at the cell's *centre*, about a third of a cell wide, in
+  `--motion` and thicker than the line, drawn over it so a set value reads apart from
+  the curve. That is deliberate, not a misplaced dot: one value, so a level mark; the
+  pad's dot sits at its *x value*. The line is mode-aware (the
   slide polyline, or a full-width staircase in step mode). It draws the **carry** as
   dashed edge segments at the values REQ-cross-bank-carry will play, resolving
   neighbours from the chain around the edit bank. The geometry is the pure
@@ -78,6 +80,22 @@ a graph of the curve that will play, and a fold.
   REQ-clear-menu-clears-in-bulk). Axis overrides and track params survive every
   clear.
 
+- **REQ-an-unset-level-cell-shows-the-curve** — Every level cell reads the value the
+  lane plays there, set or not. A cell holding an anchor fills (solid) to its own
+  value. A cell without one fills (faded) to the curve's value at the cell's centre:
+  the held value in STEP, the ramp in SLIDE, the dashed carry before the first anchor
+  and after the last. That value comes from `motionLevels1D`, which reads the height
+  of the drawn line itself (`motionGraphPoints1D`, carry included), so a fill can
+  only ever sit on the line above it. A lane with no anchors
+  writes nothing, so its cells fill nothing. Peek, the header readout and Shift's
+  anchor read that same value, so holding an unset cell reads what will play, and a
+  Shift-drag from it starts where the fill is. Every motion graph line, the XY
+  lane's included, is drawn in `--motion-curve` (the text colour), 2 px wide, so it
+  reads over both the empty well and the lit fills on every theme. The overlay covers
+  the pads' **inner** box, the box the fills are drawn in, with `overflow: visible`:
+  a value of 0 or 1 lands on the fill's edge and is drawn whole, not half clipped on
+  the pad's border.
+
 - **REQ-an-empty-motion-lane-starts-folded** — A track with **no `param` and no set
   steps** starts folded: header kept, cells and graph collapsed
   ([lane-fold](lane-fold.md)).
@@ -93,6 +111,24 @@ a graph of the curve that will play, and a fold.
   - The XY lane never folds.
   - Four open lanes **scroll** with the page rather than sharing a fixed height, so
     every pad keeps its 64 px.
+
+- **REQ-a-motion-lane-header-carries-its-mute** — Every lane header carries its own
+  mute ([motion-lane-mute](motion-lane-mute.md) REQ-each-motion-lane-has-its-own-mute):
+  `switch-motion.xy.mute` after the XY lane's Slide/Step, and `switch-motion.t<i>.mute`
+  after each track's. It is the drum/seq row's `Switch(bus, id, 'mute')`, so it reads
+  and behaves like every other track mute.
+  - It lives in the **header**, so a folded lane can still be muted
+    ([lane-fold](lane-fold.md) REQ-a-lane-fold-hides-the-body-not-the-header).
+  - A muted lane's **body dims** (`.laneMuted`) but stays **editable**: authoring a
+    lane before letting it play is the point of muting it. Only an *unassigned* lane
+    goes inert (REQ-single-param-lanes-below-the-xy-lane). The dim follows the bus,
+    so a mute written by another lane shows too.
+  - The lane's param pickers (the track picker, the XY axis pickers) leave out the
+    ids `motionTargetAllowed` refuses ([motion-lane-mute](motion-lane-mute.md)
+    REQ-a-lane-cannot-target-the-machine-or-itself). The other lanes' mutes are offered.
+    A track whose loaded target is refused shows its picker **dimmed**, titled with
+    why, so a dead lane never reads as a live one.
+  - The Song tab's Motion card keeps only the machine-wide `motion.mute`.
 
 - **REQ-the-ab-lane-repaint-is-gated-on-visibility** — `arrangement.onChange` fires
   every bar, and a lane repaint rebuilds an SVG and re-levels 16 pads. So track
@@ -115,7 +151,7 @@ a graph of the curve that will play, and a fold.
   drag/wheel targets) follow the *effective* assignment: `createEffectiveXy`
   (`state/xy-effective.ts`) resolves the play bank's override per axis while motion is
   active, falling back to `XyPadStore`. It re-resolves on chain moves, override edits,
-  base reassignment and `motion.on`/`motion.mute`. The pad's gear pickers edit the
+  base reassignment and `motion.on`/`motion.mute`/`motion.xy.mute`. The pad's gear pickers edit the
   **base** assignment (the store's single writer).
 
 - **REQ-a-motion-steps-value-is-readable-without-hovering** — The value shows in two
@@ -205,6 +241,16 @@ The **fold button** is a plain `<button type="button">`:
 | double-tap | — a second tap toggles back | — |
 | long-press / right-click / drag / wheel | — the pads below already own all four | — |
 | — | picking a parameter in this lane's picker | Opens the lane: a second route, not a gesture on the button. |
+
+The **lane mute** is the shared `Switch` (a `<button>`), with the same inventory as
+every track mute:
+
+| Gesture | Outcome | Precedent |
+| --- | --- | --- |
+| tap / click | mute or unmute this lane | drum/seq/sampler track mutes; Elektron track mute |
+| `Enter` / `Space` | same as tap | native |
+| double-tap | — a second tap toggles back | — |
+| long-press / right-click / drag / wheel | — nothing to inspect or scrub on a two-state switch | — |
 
 ## Scenarios (BDD)
 
@@ -308,6 +354,20 @@ Scenario: A lane with no parameter has nothing to convert (REQ-a-motion-steps-va
   Then its readout shows "—" rather than a bare normalized number
 # pinned by: e2e/motion.spec.ts
 
+Scenario: An unset cell shows the value the lane plays there (REQ-an-unset-level-cell-shows-the-curve)
+  Given lane A in STEP with an anchor of 1.0 on step 1 and 0.2 on step 9
+  Then steps 2–8 fill (faded) to 1.0 and steps 10–16 to 0.2, level with the line
+  And in SLIDE the same cells fill to the ramp's value at their centres
+  And holding an unset cell, or hovering it, reads that value — not the stored default
+  And a lane with no anchors fills nothing
+# pinned by: tests/ui/motion-graph.test.ts, tests/ui/motion-panel.test.ts
+
+Scenario: A set value reads apart from the line, at 0 and 1 too (REQ-an-unset-level-cell-shows-the-curve)
+  Given lane A in STEP with anchors of 1.0 on step 1 and 0.0 on step 9
+  Then each anchor has one mark, centred on its cell, and an unset cell has none
+  And the marks and the line at 1.0 and 0.0 are drawn whole, on the fill's edge
+# pinned by: tests/ui/motion-panel.test.ts (the marks); by eye, screenshots in four themes (the drawing)
+
 Scenario: An empty lane arrives folded and picking a param opens it (REQ-an-empty-motion-lane-starts-folded)
   Given no stored fold preference and the Motion tab open
   Then lanes with no param and no steps are folded, and their cells are not shown
@@ -320,6 +380,29 @@ Scenario: Clearing a lane's param leaves it open (REQ-an-empty-motion-lane-start
   Given an open lane with a param chosen
   When the param is set back to none
   Then the lane stays open, so the next param can be picked in the same place
+# pinned by: tests/ui/motion-panel.test.ts
+
+Scenario: Each lane header carries its own mute (REQ-a-motion-lane-header-carries-its-mute)
+  Given the Motion tab is open
+  Then the XY lane header holds switch-motion.xy.mute and each track header its
+    switch-motion.t<i>.mute
+  When lane B is folded
+  Then its mute switch is still in its header and still toggles motion.t1.mute
+  When motion.t1.mute is set — by the switch or by another lane writing it
+  Then lane B's body is dimmed and its pads still take an edit
+# pinned by: tests/ui/motion-panel.test.ts, e2e/motion.spec.ts
+
+Scenario: A loaded lane aimed at a refused target reads as dead (REQ-a-motion-lane-header-carries-its-mute)
+  Given a song assigns lane A its own mute, motion.t0.mute
+  Then lane A's picker shows it dimmed, with a title naming the param
+  And picking another lane's mute or a sound param clears the dim
+# pinned by: tests/ui/motion-panel.test.ts
+
+Scenario: A lane's picker offers the other lanes' mutes but not its own (REQ-a-motion-lane-header-carries-its-mute)
+  Given the Motion tab is open
+  Then lane A's param picker offers motion.t1.mute and motion.xy.mute
+  And it offers neither motion.t0.mute, motion.on nor motion.mute
+  And the XY axis pickers do not offer motion.xy.mute
 # pinned by: tests/ui/motion-panel.test.ts
 
 Scenario: A song that uses lanes C and D does not arrive with them hidden (REQ-an-empty-motion-lane-starts-folded)

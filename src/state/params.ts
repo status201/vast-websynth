@@ -1,4 +1,5 @@
 import { DRUM_TRACK_COUNT, DRUM_TRACKS, SEQ_TRACK_COUNT, MOTION_TRACK_COUNT, SAMPLER_SLOT_COUNT } from './patterns';
+import { MOTION_LANE_COUNT, motionLaneMuteId } from './motion-lanes';
 import {
   GRID_CELLS, LEN_FOLLOW, LANE_RATE_LABELS, DEFAULT_LANE_RATE,
   BEAT_UNIT_LABELS, MIN_BEATS, MAX_BEATS, DEFAULT_BEATS, DEFAULT_BEAT_UNIT,
@@ -629,6 +630,12 @@ export function registerDefaults(bus: ParamBus): void {
       taper: 'discrete' as const, labels: ['step', 'slide'],
     })),
     ...laneMeterParams('motion'),
+    // One mute per lane, the XY lane's first (motion-lane-mute.md REQ-each-motion-lane-has-its-own-mute).
+    // Default 0 is the no-op (ADR-006); ids and count come from motion-lanes.ts.
+    ...Array.from({ length: MOTION_LANE_COUNT }, (_, lane) => ({
+      id: motionLaneMuteId(lane), min: 0, max: 1, default: 0, step: 1,
+      taper: 'discrete' as const, labels: ['on', 'mute'],
+    })),
   ]);
 }
 

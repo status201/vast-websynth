@@ -12,7 +12,7 @@ import { MotionStepPad, type MotionGesture } from '../components/motion-step-pad
 import { showValueBubble, hideValueBubble } from '../components/value-bubble';
 import { formatParam } from '../format-param';
 import { fromNorm } from '../../utils/taper';
-import { motionGraphPoints, motionGraphPoints1D } from '../components/motion-graph';
+import { motionGraphPoints, motionGraphPoints1D, motionLevels1D } from '../components/motion-graph';
 import { createLaneFold } from '../components/lane-fold';
 import {
   bankBarFor, wrapGridWithRestOverlay, wirePlayhead, playheadRulerFor, laneControlsFor, laneMeterControlsFor, clearMenuFor,
@@ -27,6 +27,9 @@ import {
   type MotionStep, type MotionTrackStep,
 } from '../../state/patterns';
 import { ALL_CELLS, bindLaneGrid, laneGrid, onLaneGridChange } from '../lane-grid';
+import {
+  MOTION_XY_LANE, motionLaneMuteId, motionTargetAllowed, motionTrackLane,
+} from '../../state/motion-lanes';
 import panelStyles from '../styles/panel.module.css';
 import switchStyles from '../styles/switch.module.css';
 import drumStyles from '../styles/drum.module.css';
@@ -67,6 +70,19 @@ export function buildMotionPanel(
   header.appendChild(laneControlsFor(bus, engine, 'motion', bridge).el);
   header.appendChild(laneMeterControlsFor(bus, 'motion').el);
 
+  // ---- Lane mutes (motion-panel.md REQ-a-motion-lane-header-carries-its-mute) ----
+  /** A lane's mute: the drum/seq row's own `Switch`, minting `switch-<id>`. */
+  const laneMuteSwitch = (lane: number): HTMLElement =>
+    new Switch(bus, motionLaneMuteId(lane), 'mute').el;
+  /**
+   * Fade `body` while its lane is muted. It follows the bus rather than the
+   * switch, so a mute another lane writes (REQ-a-lane-can-mute-another-lane)
+   * shows too. Faded, not inert: a muted lane is still authored.
+   */
+  const dimWhileMuted = (lane: number, body: HTMLElement): void => {
+    bus.subscribe(motionLaneMuteId(lane), (v) => body.classList.toggle(styles.laneMuted!, v >= 0.5));
+  };
+
   // ---- XY lane header (REQ-each-motion-step-is-a-mini-xy-pad) ----
   // Everything that belongs to the XY lane rather than the machine: its
   // launcher, its graph projection toggle, its interpolation mode, the axes it
@@ -98,6 +114,7 @@ export function buildMotionPanel(
   });
   xyHeader.appendChild(viewSel);
   xyHeader.appendChild(new Segmented(bus, 'motion.slide', ['STEP', 'SLIDE']).el);
+  xyHeader.appendChild(laneMuteSwitch(MOTION_XY_LANE));
 
   // ---- Per-lane value readout (REQ-a-motion-steps-value-is-readable-without-hovering) ----
   // The pads are ~40px wide and there are 48 of them, so a step's value cannot
@@ -257,6 +274,7 @@ export function buildMotionPanel(
   const { el: gridWrap, restOverlay } =
     wrapGridWithRestOverlay(engine, 'motion', bankBar, cells, graph);
   root.appendChild(gridWrap);
+  dimWhileMuted(MOTION_XY_LANE, gridWrap);
 
   /**
    * The banks the edit bank's bar sits between in the chain — what its bar-line
@@ -281,14 +299,28 @@ export function buildMotionPanel(
     return { prev: at(slot - 1), next: at(slot + 1) };
   };
 
-  const strokePolylineIn = (svg: SVGElement, pts: Array<[number, number]>, cls?: string): void => {
+  const strokePolylineIn = (svg: SVGElement, pts: Array<[number, number]>, cls?: string): SVGPolylineElement => {
     const poly = document.createElementNS(SVG_NS, 'polyline');
     poly.setAttribute('points', pts.map(([px, py]) => `${px},${py}`).join(' '));
     if (cls) poly.setAttribute('class', cls);
     svg.appendChild(poly);
+    return poly;
   };
-  const strokePolyline = (pts: Array<[number, number]>, cls?: string): void =>
+  const strokePolyline = (pts: Array<[number, number]>, cls?: string): SVGPolylineElement =>
     strokePolylineIn(graph, pts, cls);
+
+  /**
+   * One mark per anchor, for both graphs: a short level segment centred on the
+   * cell, about a third of it wide, styled apart from the line it sits on
+   * (REQ-each-motion-step-is-a-mini-xy-pad). A segment, not a circle: the overlay
+   * stretches its viewBox to the lane, which flattened a circle into a dash.
+   */
+  const markAnchorsIn = (svg: SVGElement, dots: ReadonlyArray<[number, number]>, cells: number): void => {
+    const half = (0.175 * 100) / cells;
+    for (const [px, py] of dots) {
+      strokePolylineIn(svg, [[px - half, py], [px + half, py]], styles.anchor!).dataset.anchor = '';
+    }
+  };
 
   /**
    * The neighbouring bars' same-index track, for an extra track's bar-line carry
@@ -330,26 +362,24 @@ export function buildMotionPanel(
     // Dashed first, so the solid in-bar line wins where they meet.
     for (const seg of carry) strokePolyline(seg, styles.carry!);
     if (line.length > 1) strokePolyline(line);
-    for (const [px, py] of dots) {
-      const c = document.createElementNS(SVG_NS, 'circle');
-      c.setAttribute('cx', String(px));
-      c.setAttribute('cy', String(py));
-      c.setAttribute('r', '1.1');
-      graph.appendChild(c);
-    }
+    markAnchorsIn(graph, dots, motionCells());
   };
 
   // ---- Axes: the edit bank's effective assignment (override or inherit) ----
   // Appended into the XY lane header above, so the dropdowns and the "graph:"
   // hint sit beside the view toggle that drives them (REQ-each-motion-step-is-a-mini-xy-pad).
   const paramIds = bus.ids().slice().sort();
+  /** What `lane`'s pickers offer: everything it may drive
+   *  (motion-lane-mute.md REQ-a-lane-cannot-target-the-machine-or-itself). */
+  const targetsFor = (lane: number): string[] => paramIds.filter((id) => motionTargetAllowed(lane, id));
+  const xyTargets = targetsFor(MOTION_XY_LANE);
 
   const mkAxis = (axis: 'x' | 'y'): Dropdown => {
     const label = document.createElement('span');
     label.className = styles.axisLabel!;
     label.textContent = axis.toUpperCase();
     xyHeader.appendChild(label);
-    const sel = new Dropdown(paramIds, xy.get()[axis]);
+    const sel = new Dropdown(xyTargets, xy.get()[axis]);
     sel.el.dataset.testid = `motion-assign-${axis}`;
     sel.onChange((id) => {
       const ov = patterns.motionAssign(patterns.motionEditBank) ?? {};
@@ -429,7 +459,7 @@ export function buildMotionPanel(
     const ctrls = document.createElement('div');
     ctrls.className = styles.trackHeader!;
 
-    const picker = new Dropdown([NONE, ...paramIds], NONE);
+    const picker = new Dropdown([NONE, ...targetsFor(motionTrackLane(track))], NONE);
     picker.el.dataset.testid = `motion-trk-${track}-param`;
     picker.onChange((id) => {
       patterns.setMotionTrackParam(track, id === NONE ? null : id);
@@ -443,6 +473,8 @@ export function buildMotionPanel(
     // This lane's own interpolation mode (REQ-set-steps-are-anchors/REQ-single-param-lanes-below-the-xy-lane). Segmented mints
     // `seg-motion.t<i>.slide` itself, so there is no testid to hand-maintain.
     ctrls.appendChild(new Segmented(bus, `motion.t${track}.slide`, ['STEP', 'SLIDE']).el);
+    // In the header, so a folded lane can still be muted (REQ-a-motion-lane-header-carries-its-mute).
+    ctrls.appendChild(laneMuteSwitch(motionTrackLane(track)));
     const readout = makeReadout(`motion-readout-trk-${track}`);
     ctrls.appendChild(readout);
     row.appendChild(ctrls);
@@ -459,6 +491,9 @@ export function buildMotionPanel(
     // so the tracks read as a distinct lane (REQ-each-motion-step-is-a-mini-xy-pad/REQ-single-param-lanes-below-the-xy-lane).
     cells.className = styles.trackCells!;
     const pads: MotionStepPad[] = [];
+    /** What each cell shows: its anchor, or the curve there (null: nothing plays).
+     *  Refilled by `paintBody`, read by hover (REQ-an-unset-level-cell-shows-the-curve). */
+    let shown: ReadonlyArray<number | null> = [];
     for (let sIdx = 0; sIdx < ALL_CELLS; sIdx++) {
       const step = sIdx;
       const pad = new MotionStepPad({
@@ -474,8 +509,8 @@ export function buildMotionPanel(
       });
       pad.el.dataset.testid = `motion-trk-${track}-step-${sIdx}`;
       wireHover(pad.el, readout, () => {
-        const cell = patterns.motionTrack(track)?.steps[step];
-        return cell ? readoutText(step, cell.v) : EMPTY_READOUT;
+        const v = shown[step];
+        return v == null ? `${stepLabel(step)} · ${EMPTY_READOUT}` : readoutText(step, v);
       });
       cells.appendChild(pad.el);
       pads.push(pad);
@@ -500,6 +535,7 @@ export function buildMotionPanel(
     // above them (lane-fold.md REQ-a-lane-fold-hides-the-body-not-the-header).
     gridWrap.classList.add(styles.trackBody!);
     row.appendChild(gridWrap);
+    dimWhileMuted(motionTrackLane(track), gridWrap);
     root.appendChild(row);
 
     /**
@@ -513,6 +549,12 @@ export function buildMotionPanel(
       if (!t) return;
       const assigned = !!t.param;
       picker.setValue(t.param ?? NONE);
+      // A loaded song can name a target this lane may not drive; the machine
+      // refuses it, so the picker says so rather than reading as a live lane
+      // (REQ-a-motion-lane-header-carries-its-mute).
+      const refused = assigned && !motionTargetAllowed(motionTrackLane(track), t.param!);
+      picker.setDimmed(refused);
+      picker.el.title = refused ? `${t.param} cannot be driven by this lane — pick another parameter` : '';
       // Only the CELLS go inert — never the row, which holds the param picker.
       // Disabling that is the one thing that would make an unassigned track
       // impossible to assign (ADR-014 law 2: no dead ends).
@@ -529,24 +571,21 @@ export function buildMotionPanel(
       const t = patterns.motionTrack(track);
       if (!t) return;
       const assigned = !!t.param;
+      const mode = bus.get(`motion.t${track}.slide`) >= 0.5 ? 'slide' : 'step';
+      const neighbours = trackNeighbours(track, t.param);
+      const laneCells = motionCells();
+      // An unset cell fills to the curve, from the same samples the line is
+      // drawn through (REQ-an-unset-level-cell-shows-the-curve).
+      shown = motionLevels1D(t.steps, mode, neighbours, laneCells);
       for (let i = 0; i < ALL_CELLS; i++) {
-        const cell = t.steps[i]!;
-        pads[i]!.setLevel(cell.on, cell.v, t.param);
+        pads[i]!.setLevel(t.steps[i]!.on, shown[i] ?? 0, t.param);
         pads[i]!.setInert(!assigned);
       }
       graph.innerHTML = '';
-      const mode = bus.get(`motion.t${track}.slide`) >= 0.5 ? 'slide' : 'step';
-      const { line, dots, carry } =
-        motionGraphPoints1D(t.steps, mode, trackNeighbours(track, t.param), motionCells());
+      const { line, dots, carry } = motionGraphPoints1D(t.steps, mode, neighbours, laneCells);
       for (const seg of carry) strokePolylineIn(graph, seg, styles.carry!);
       if (line.length > 1) strokePolylineIn(graph, line);
-      for (const [px, py] of dots) {
-        const c = document.createElementNS(SVG_NS, 'circle');
-        c.setAttribute('cx', String(px));
-        c.setAttribute('cy', String(py));
-        c.setAttribute('r', '1.1');
-        graph.appendChild(c);
-      }
+      markAnchorsIn(graph, dots, laneCells);
     };
 
     // The per-lane half of the repaint gate (REQ-a-folded-motion-lane-does-no-repaint). A folded lane has

@@ -71,7 +71,7 @@ Scripts are in `package.json`. Only the non-obvious ones need saying:
   audibly, and the mock param can't model it, so a change touching automation
   gets both.
 - `npm run bench:perf` measures the **audio thread** (render-callback load, from
-  Blink's trace) and the main thread across eleven fixed scenarios; `--name` saves a
+  Blink's trace) and the main thread across twelve fixed scenarios; `--name` saves a
   run, `--compare a b` diffs two. A change that should cost less is shown with a
   before/after pair, not argued. → `features/runtime-performance.md`.
 - Tests: `specs/recipes/write-a-test.md` (Vitest + Playwright, the mock

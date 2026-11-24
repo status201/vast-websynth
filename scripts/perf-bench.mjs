@@ -90,6 +90,18 @@ const ALL_SYNTH_FX = ['fx.eq.on', 'fx.dist.on', 'fx.wah.on', 'fx.phaser.on', 'fx
 /** Demos by KIND, never by name (e2e/CLAUDE.md): the first zip and the first JSON in the index. */
 const index = JSON.parse(readFileSync(`${root}src/state/demos-index.json`, 'utf8'));
 const firstDemo = (ext) => Object.entries(index).filter(([f]) => f.endsWith(ext)).map(([, d]) => d.name).sort()[0];
+/**
+ * The first JSON demo the index says USES motion — the motion frame loop's cost
+ * shows only there (`motion.on` alone can be stage-setting, moving nothing).
+ * Throws rather than quietly benching an empty transport under this name.
+ */
+const firstMotionDemo = () => {
+  const name = Object.entries(index)
+    .filter(([f, d]) => f.endsWith('.json') && d.uses?.includes('motion'))
+    .map(([, d]) => d.name).sort()[0];
+  if (!name) throw new Error('perf-bench: no JSON demo uses motion — the motion scenario has nothing to play');
+  return name;
+};
 
 const SCENARIOS = [
   { name: 'idle', notes: [] },
@@ -102,6 +114,7 @@ const SCENARIOS = [
     params: { 'filter.model': 1, 'osc2.sync': 1, 'osc1.fm': 2, 'osc1.ring': 0.5, 'osc2.level': 0.5 } },
   { name: 'zip demo playing', demo: firstDemo('.zip'), play: true },
   { name: 'json demo playing', demo: firstDemo('.json'), play: true },
+  { name: 'motion demo playing', demo: firstMotionDemo(), play: true },
   { name: 'weak tier idle', tier: 'weak', notes: [] },
   // Crosses the 1630/1320/1280/1140/1030 px breakpoints every 250 ms: the cost of re-matching them
   // (ui-scale.md REQ-breakpoints-follow-the-effective-width) shows here, if anywhere.

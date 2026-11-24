@@ -100,6 +100,10 @@
        motion lane never reads as a step lane; and its beat-step dot. */
     --motion: #ffb051;
     --motion-beat: #ff7a4d;
+    /* The motion lanes' curve line. It is drawn over both the empty well and the
+       lit fills, so it takes the text colour, which every theme already keeps
+       legible on its wells (motion-panel.md REQ-an-unset-level-cell-shows-the-curve). */
+    --motion-curve: var(--text);
 
     /* ===== Control surfaces =====
        well   — the bed a button sits in (step buttons, switches, toggles)

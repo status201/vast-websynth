@@ -55,27 +55,36 @@
 
   /* The connecting graph for the selected axis, drawn over the whole grid.
      Explicit width/height: an absolutely-positioned SVG is a replaced element,
-     so `inset: 0` alone leaves it at its intrinsic 300x150. */
+     so insets alone leave it at its intrinsic 300x150.
+     It covers the pads' INNER box — 1px in from top and bottom, the pad border —
+     because that is the box the fills are drawn in, so the line lands on a fill's
+     top; and it overflows, so a value of 0 or 1 is drawn whole instead of half
+     clipped on the border (motion-panel.md REQ-an-unset-level-cell-shows-the-curve). */
   .graph {
     position: absolute;
-    inset: 0;
+    left: 0;
+    top: 1px;
     width: 100%;
-    height: 100%;
+    height: calc(100% - 2px);
+    overflow: visible;
     pointer-events: none;
   }
   .graph polyline {
     fill: none;
-    stroke: color-mix(in srgb, var(--motion) 55%, transparent);
-    stroke-width: 1.5;
+    stroke: var(--motion-curve);
+    stroke-width: 2;
     vector-effect: non-scaling-stroke;
   }
-  .graph circle {
-    fill: color-mix(in srgb, var(--motion) 90%, transparent);
+  /* An anchor: a short level mark on the line, thicker and in the motion amber so a
+     set value reads apart from the curve (REQ-each-motion-step-is-a-mini-xy-pad). */
+  .graph polyline.anchor {
+    stroke: var(--motion);
+    stroke-width: 4;
   }
   /* The bar-line carry: what the curve does between this bar and its neighbours
      (motion-sequencer.md REQ-cross-bank-carry). Dashed + dimmer so it reads as "leaving the bar". */
   .graph polyline.carry {
-    stroke: color-mix(in srgb, var(--motion) 32%, transparent);
+    stroke: color-mix(in srgb, var(--motion-curve) 55%, transparent);
     stroke-dasharray: 3 3;
   }
 
@@ -149,10 +158,10 @@
     pointer-events: none;
   }
 
-  /* Unlit cells still show a faint bar at their level, so a row reads as a bar
-     strip. Clearing resets a cell to the default level (motion-panel.ts onClear),
-     so a cleared cell matches an untouched one instead of keeping its old height. */
-  .levelPad .bar { opacity: 0.22; }
+  /* A cell with no anchor shows a faint bar at the curve's value there, so every
+     cell reads what the lane plays (motion-panel.md REQ-an-unset-level-cell-shows-the-curve);
+     an anchored one is lit. */
+  .levelPad .bar { opacity: 0.38; }
   .levelPad:global(.on) .bar { opacity: 1; }
 
   .inert {
@@ -251,6 +260,13 @@
      by source order at equal specificity, so the hover is restated here rather
      than left to lose (ADR-014 law 6: a control has to feel like one). */
   .trackDim .trackFold:hover { opacity: 1; }
+
+  /* A muted lane (motion-panel.md REQ-a-motion-lane-header-carries-its-mute): its
+     body fades but stays editable — no .inert, since authoring a lane before
+     letting it play is the point of muting it. Only the body, never the header,
+     which holds the very switch that unmutes it and a picker whose fixed menu a
+     faded ancestor would fade too. */
+  .laneMuted { opacity: 0.4; }
 
   /* A level cell is one-dimensional: `onSet` discards x, so its horizontal
      position carries no meaning. The vertical centre line would advertise an axis

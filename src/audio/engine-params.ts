@@ -22,6 +22,7 @@ import type { SamplerMachine } from './transport/sampler-machine';
 import type { MotionMachine } from './transport/motion-machine';
 import type { LaneMixer } from './lane-mixer';
 import { DRUM_TRACK_COUNT, SEQ_TRACK_COUNT, MOTION_TRACK_COUNT, SAMPLER_SLOT_COUNT } from '../state/patterns';
+import { MOTION_LANE_COUNT, motionLaneMuteId } from '../state/motion-lanes';
 
 export interface VoiceParamTargets {
   voices: readonly Voice[];
@@ -224,5 +225,10 @@ export function bindMachineParams(bus: ParamBus, t: MachineParamTargets): void {
   for (let i = 0; i < MOTION_TRACK_COUNT; i++) {
     const track = i;
     bus.subscribe(`motion.t${i}.slide`, (v) => motion.setTrackSlide(track, v >= 0.5));
+  }
+  // One mute per lane, XY first (motion-lane-mute.md REQ-each-motion-lane-has-its-own-mute).
+  for (let l = 0; l < MOTION_LANE_COUNT; l++) {
+    const lane = l;
+    bus.subscribe(motionLaneMuteId(lane), (v) => motion.setLaneMuted(lane, v >= 0.5));
   }
 }

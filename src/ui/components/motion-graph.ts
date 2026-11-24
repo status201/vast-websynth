@@ -10,9 +10,9 @@ import {
  * y-down (an anchor value of 1 draws at y=0).
  *
  * Dots always sit at the anchor centres — geometry, not the visible anchor
- * marker: the panel strokes each as a circle that the overlay's non-uniform
- * viewBox flattens into a tick on the line, and the round dot a reader sees at an
- * anchor belongs to the pad underneath (motion-panel.md REQ-each-motion-step-is-a-mini-xy-pad). The line is
+ * marker: the panel marks each with a short level segment on the line (a circle
+ * would be flattened by the overlay's non-uniform viewBox), and the round dot a
+ * reader sees at an XY anchor belongs to the pad underneath (motion-panel.md REQ-each-motion-step-is-a-mini-xy-pad). The line is
  * mode-aware:
  *   - 'slide' — the anchor-to-anchor polyline (the panel only strokes it when
  *     there are ≥ 2 points, matching the machine's constant-value single-anchor
@@ -46,6 +46,12 @@ export interface MotionGraph {
   carry: Array<Array<[number, number]>>;
 }
 
+/** The lane's played length, clamped exactly as `scalarAt` clamps it, so the
+ *  geometry and the curve agree on it for every input the panel can hand them. */
+function laneLength(bank: readonly unknown[], cells?: number): number {
+  return cells === undefined ? bank.length : Math.max(1, Math.min(bank.length, cells));
+}
+
 function graphPoints<T extends { on: boolean }>(
   bank: readonly T[],
   get: (s: T) => number,
@@ -53,9 +59,7 @@ function graphPoints<T extends { on: boolean }>(
   neighbours: Neighbours<T>,
   cells?: number,
 ): MotionGraph {
-  // Clamped exactly as `scalarAt` clamps it, so the two agree on the lane's
-  // length for every input the panel can hand them.
-  const n = cells === undefined ? bank.length : Math.max(1, Math.min(bank.length, cells));
+  const n = laneLength(bank, cells);
   const dots: Array<[number, number]> = [];
   // Anchors past the lane are skipped, not drawn off the right edge: the curve
   // cannot see them either (REQ-the-automation-lane-follows-the-meter), and their cells are dark.
@@ -112,6 +116,41 @@ export function motionGraphPoints(
   cells?: number,
 ): MotionGraph {
   return graphPoints(bank, view === 'x' ? getX : getY, mode, neighbours, cells);
+}
+
+/**
+ * The level each cell of an extra track shows (motion-panel.md REQ-an-unset-level-cell-shows-the-curve):
+ * its own value where it holds an anchor, otherwise the height of the drawn line
+ * at the cell's centre — read off `motionGraphPoints1D`'s own geometry, carry
+ * included, so a fill can only ever sit on the line above it. `null` past the
+ * lane, and everywhere when the lane has no anchors (it writes nothing).
+ */
+export function motionLevels1D(
+  steps: readonly MotionTrackStep[],
+  mode: MotionMode,
+  neighbours: MotionTrackNeighbours = {},
+  cells?: number,
+): Array<number | null> {
+  const n = laneLength(steps, cells);
+  const { line, carry } = motionGraphPoints1D(steps, mode, neighbours, cells);
+  if (line.length === 0) return steps.map(() => null);
+  // SLIDE strokes the anchors and the two dashed carries apart; STEP's
+  // staircase already runs edge to edge.
+  const path = mode === 'slide' ? [carry[0]![0]!, ...line, carry[1]![1]!] : line;
+  return steps.map((step, s) => {
+    if (s >= n) return null;
+    return step.on ? step.v : heightAt(path, ((s + 0.5) / n) * 100);
+  });
+}
+
+/** A path's value (0..1, up) at viewBox `x`; vertical segments (STEP's jumps) are skipped. */
+function heightAt(path: ReadonlyArray<readonly [number, number]>, x: number): number {
+  for (let i = 1; i < path.length; i++) {
+    const [x0, y0] = path[i - 1]!;
+    const [x1, y1] = path[i]!;
+    if (x1 > x0 && x >= x0 && x <= x1) return 1 - (y0 + ((x - x0) / (x1 - x0)) * (y1 - y0)) / 100;
+  }
+  return 1 - path[path.length - 1]![1] / 100;
 }
 
 /** An extra single-param track's graph (REQ-single-param-lanes-below-the-xy-lane). */

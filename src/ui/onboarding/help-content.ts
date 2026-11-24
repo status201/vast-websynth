@@ -1223,7 +1223,8 @@ export const HELP_TOPICS: Record<TopicId, HelpTopic> = {
       'the line is re-projected. The row above the pads shows which parameter each axis ' +
       'drives.</p>' +
       '<p>In Song mode the Motion card chains banks like the other machines, and its ' +
-      '<strong>Mute</strong> pauses automation — every driven knob returns to its resting value.</p>',
+      '<strong>Mute</strong> pauses automation — every driven knob returns to its resting value. ' +
+      'Each lane also has its own <strong>mute</strong> in its header, to silence just that lane.</p>',
   },
   'motion.xy': {
     title: 'XY Pad lane',
@@ -1236,7 +1237,9 @@ export const HELP_TOPICS: Record<TopicId, HelpTopic> = {
       '<strong>Hold a pad still</strong> to read what is in it without changing it.</p>' +
       '<p><strong>SLIDE</strong> ramps smoothly between anchors, <strong>STEP</strong> jumps at ' +
       'each and holds. The <strong>Y / X</strong> toggle only picks which axis the overlay line ' +
-      'traces — the dots never move.</p>',
+      'traces — the dots never move.</p>' +
+      '<p><strong>mute</strong> silences this lane alone: both knobs return to where you left ' +
+      'them and the XY Pad goes back to its own assignment, while lanes A-D keep moving.</p>',
   },
   'motion.tracks': {
     title: 'Motion lanes A-D',
@@ -1256,7 +1259,12 @@ export const HELP_TOPICS: Record<TopicId, HelpTopic> = {
       '<strong>steps of 0.05</strong> and each lane shows its value in the readout at the end of ' +
       'its row (plus a bubble above the cell while you drag). <strong>Hold a cell still</strong> ' +
       'to read it without changing it — that is how you check A before setting B. Hold ' +
-      '<strong>Shift</strong> while dragging for fine, unsnapped control.</p>',
+      '<strong>Shift</strong> while dragging for fine, unsnapped control.</p>' +
+      '<p>Each lane’s <strong>mute</strong> silences it alone — its knob returns to where you ' +
+      'left it — and the lane stays editable while muted. A mute is a parameter like any other, ' +
+      'so one lane can <strong>mute another</strong>: point lane A at <em>motion.t1.mute</em> in ' +
+      'STEP mode and it switches lane B on and off as the bar plays. Mute lane A and B stays ' +
+      'as A left it; <strong>Stop</strong> puts every mute back. A lane cannot mute itself.</p>',
   },
   // One body, four ids — see RULER_HELP.
   'transport.ruler.seq': RULER_HELP,
