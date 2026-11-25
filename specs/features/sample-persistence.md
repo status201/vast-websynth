@@ -98,8 +98,10 @@ worse than none.
 - **REQ-boot-restores-clips-before-the-ui** — Boot restores clips **before the
   UI mounts**, so the sampler panel constructs already seeing the buffers: no
   `.needs-reload` flash, and no race with the share-link / launchQueue importers
-  (registered after `mountApp`). The IndexedDB read is started **before** `await
-  engine.init()` so its I/O overlaps worklet loading; clips then decode
+  (registered after `mountApp`). The store is a lazy chunk, off the entry
+  ([runtime-performance](runtime-performance.md) REQ-boot-cost-matches-the-request), and
+  both its fetch and the IndexedDB read are started **before** `await
+  engine.init()` so they overlap worklet loading; clips then decode
   sequentially (peak-memory rationale of [project-export](project-export.md)
   REQ-clip-codec-is-memory-aware).
 - **REQ-clips-restore-only-with-a-session** — Clips are restored **only
@@ -126,7 +128,8 @@ worse than none.
   reset](factory-reset.md) clears this store too, capped by a short timeout so a
   wedged IndexedDB can never block the reload.
 - **REQ-every-clip-storage-failure-is-survivable** — Every storage failure (no
-  IndexedDB, private mode, quota, a blocked upgrade) is a silent no-op — the app
+  IndexedDB, private mode, quota, a blocked upgrade, the store's lazy chunk not
+  loading) is a silent no-op — the app
   never breaks because clips could not be persisted or read. Same contract as
   session-autosave REQ-autosave-storage-failures-are-silent.
 - **REQ-a-pending-clip-write-cannot-be-flushed** — IndexedDB cannot be flushed
@@ -230,7 +233,7 @@ upgrade 1 -> 2:
 main.ts boot order:
   SessionAutosave.onRemoved(key -> SampleAutosave.dropSession(key))   # before anything can remove a key
   SessionAutosave.loadSession()     # pure localStorage: which session restores, and its file
-  SampleAutosave.loadFor(restored.key)   # kicked off before engine.init — no ctx needed
+  import('./state/sample-autosave') -> SampleAutosave.loadFor(restored.key)   # lazy chunk + read, before engine.init
   await engine.init()               # worklet load hides the IDB I/O
   preset seed
   Song.apply(restored.file)         # names land here
