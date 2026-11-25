@@ -117,6 +117,8 @@ can do with a sound ([ADR-014](../decisions/adr-014-dont-make-me-think.md) law 1
   - A slot that differs on any value is left alone. An edit and a factory value
     retuned between releases cannot be told apart, and keeping a user's sound
     wins.
+  - A seed the storage refuses is skipped, never thrown out of the boot
+    ([storage-failures](storage-failures.md) REQ-seeding-never-fails-the-boot).
 - **REQ-list-merges-factory-and-user-names** — `list()` merges factory names
   with stored user names, sorted.
 - **REQ-loading-a-preset-is-a-bulk-apply** — Loading a preset restores params

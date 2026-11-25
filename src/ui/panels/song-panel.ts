@@ -19,6 +19,7 @@ import {
   buildTransportControls, createTransportWindowLauncher, bindSeekAvailability, transportRowClass,
 } from '../components/transport-controls';
 import { confirmDialog, promptName } from '../components/dialog';
+import { alertStorageFailure } from '../storage-failure';
 import type { PresetParse } from '../../state/preset-file';
 // The Paste dialog loads on its click (runtime-performance.md REQ-boot-cost-matches-the-request).
 import { showToast } from '../components/toast';
@@ -282,7 +283,20 @@ export function buildSongPanel(bus: ParamBus, engine: StudioApi, session: Preset
       });
       if (!ok) return;
     }
-    Song.saveSlot(name, file);
+    try {
+      Song.saveSlot(name, file);
+    } catch (e) {
+      // Refused by the browser (storage-failures.md REQ-a-failed-save-says-so):
+      // the download still lands, so the work is safe; the slot, picker and
+      // session stay as they were, and the user is told.
+      Song.download(file);
+      await alertStorageFailure({
+        title: 'Song not saved in this browser',
+        message: `"${name}" was downloaded as a file, but could not be kept with your saved songs`,
+        error: e,
+      });
+      return;
+    }
     song.slot = name;
     // The saved song's params become the new double-tap reset target.
     bus.setBaselines(file.params);

@@ -109,6 +109,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
   because whichever download finished last won. A demo that is still downloading
   now gives way to any newer choice: another demo, a saved song, an import or New.
 
+- **A full browser storage no longer fails in silence, or stops the app.**
+  Saving a song or preset when the browser's storage was full did nothing and
+  said nothing. Now Save says so — and a song still downloads as a file, so the
+  work is safe. An imported song that could not also be saved says that, instead
+  of claiming the import failed. And the app no longer refuses to start after an
+  update when storage is full or blocked: the built-in presets still play.
+
 ## [2.22.2] - 2026-11-20
 
 ### Fixed

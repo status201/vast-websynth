@@ -87,12 +87,18 @@ export class SlotStore {
     return this.prefix + (/^_*index$/.test(name) ? `_${name}` : name);
   }
 
-  /** The stored JSON for `name`, or null when the slot is empty. */
+  /** The stored JSON for `name`, or null when the slot is empty — or when the
+   *  storage cannot be read at all (storage-failures.md REQ-a-slot-read-never-throws). */
   readRaw(name: string): string | null {
-    return localStorage.getItem(this.keyFor(name));
+    try {
+      return localStorage.getItem(this.keyFor(name));
+    } catch {
+      return null;
+    }
   }
 
-  /** Write the slot value only — the index is the caller's concern. */
+  /** Write the slot value only — the index is the caller's concern. Throws when
+   *  the browser refuses it, for the caller to report (storage-failures.md REQ-a-failed-save-says-so). */
   writeRaw(name: string, json: string): void {
     localStorage.setItem(this.keyFor(name), json);
   }

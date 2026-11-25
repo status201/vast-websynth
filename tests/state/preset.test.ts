@@ -1,4 +1,4 @@
-import { describe, it, expect, beforeEach } from 'vitest';
+import { describe, it, expect, beforeEach, vi } from 'vitest';
 import { Presets } from '../../src/state/preset';
 import { ParamBus, registerDefaults } from '../../src/state/params';
 import { installLocalStorageMock } from '../storage-mock';
@@ -450,5 +450,31 @@ describe('Presets.remove', () => {
     expect(Presets.modified()).not.toContain(name);
     expect(Presets.isFactory(name)).toBe(true);
     expect(Presets.isFactory('Mine')).toBe(false);
+  });
+});
+
+// storage-failures.md REQ-seeding-never-fails-the-boot (regression): the seed runs at
+// boot, before the UI, and a refused write used to stop the app at "failed to start".
+describe('Presets.ensureFactoryPresets with storage that refuses', () => {
+  const refuse = (name: string) => () => { throw new DOMException('refused', name); };
+
+  it('does not throw when every write is refused (full quota), and the bank still loads', () => {
+    installLocalStorageMock();
+    vi.spyOn(localStorage, 'setItem').mockImplementation(refuse('QuotaExceededError'));
+    expect(() => Presets.ensureFactoryPresets()).not.toThrow();
+    for (const name of Object.keys(Presets.factory())) expect(Presets.load(name)).toEqual(Presets.factory()[name]);
+    vi.restoreAllMocks();
+  });
+
+  it('does not throw when storage throws on every access (blocked)', () => {
+    vi.stubGlobal('localStorage', {
+      getItem: refuse('SecurityError'), setItem: refuse('SecurityError'), removeItem: refuse('SecurityError'),
+      clear: refuse('SecurityError'), key: refuse('SecurityError'), get length(): number { throw new DOMException('refused', 'SecurityError'); },
+    });
+    expect(() => Presets.ensureFactoryPresets()).not.toThrow();
+    const first = Object.keys(Presets.factory())[0]!;
+    expect(Presets.load(first)).toEqual(Presets.factory()[first]);
+    expect(Presets.list()).toEqual(expect.arrayContaining(Object.keys(Presets.factory())));
+    vi.unstubAllGlobals();
   });
 });

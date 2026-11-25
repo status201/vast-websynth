@@ -482,8 +482,8 @@ The two **named-slot** stores (presets and saved songs) share one implementation
 `<prefix>index`, with `readIndex`/`writeIndex`/`addToIndex`/`removeFromIndex` and
 opaque-JSON `readRaw`/`writeRaw`/`remove`. Serialization stays with the caller —
 `Presets.save` rounds params, `Song.saveSlot` writes the canonical compact form —
-so the store never knows either schema. A corrupt or absent index reads as empty
-rather than throwing. One name needs escaping: `index` would address the index
+so the store never knows either schema. Reads never throw (a bad or blocked
+store is empty); writes do. One name needs escaping: `index` would address the index
 key itself, so `/^_*index$/` gains a leading `_` at the single point where a name
 becomes a key ([untrusted-input](features/untrusted-input.md)
 REQ-a-slot-name-cannot-reach-the-index). Project **zips** are not slot-storable (localStorage is
