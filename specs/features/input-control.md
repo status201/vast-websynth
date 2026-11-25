@@ -143,10 +143,13 @@ only while its own grid is on screen ([sequencer](sequencer.md) REQ-step-input-a
     - the **on-screen keyboard** stores the sounding note alongside the element at
       `pointerdown` and releases *that*, so moving OCT while a key is held cannot
       send `noteOff` for a different MIDI number;
-    - **`installShortcuts`** keys its held-note map by the *case-folded key* and
+    - **`installShortcuts`** keys its held-note map by the **physical key**
+      (`e.code`; the case-folded `e.key` only where a browser reports no code) and
       stores the note it pressed, so neither the octave shift (`-`/`=`) nor a Shift
-      press mid-hold (`z` ↔ `Z`) can make `keyup` miss the map and skip
-      `release()`.
+      press mid-hold can make `keyup` miss the map and skip `release()`. Matching
+      by character is what the note rows do; *holding* by character stranded the
+      digit-row notes, where Shift does not change case but the character
+      (`2` ↔ `@`, `5` ↔ `%`).
   This is the input-layer twin of [sequencer](sequencer.md) REQ-a-stop-releases-every-tracks-note: nothing may
   hold a note whose release depends on state that is free to change underneath it.
 
@@ -156,9 +159,9 @@ only while its own grid is on screen ([sequencer](sequencer.md) REQ-step-input-a
   retriggers it, and the first release must not end it while the other key is
   still down. `installShortcuts` counts the keys holding each note. The first
   key sounds the note, a further key does nothing, and only the last key up
-  sends `noteOff`. This applies to the computer keyboard only: a MIDI note-off,
-  or one from the on-screen keyboard, still ends the note, which is the MIDI
-  convention.
+  sends `noteOff`. Across sources (a finger on the on-screen key, MIDI) the
+  same holds one level up: the note ends when the last *source* lets go
+  ([voicing](voicing.md) REQ-a-note-sounds-while-any-source-holds-it).
 
 - **REQ-pitch-bend-is-quote-and-slash** — **Pitch bend is `'` up and `/`
   down, chosen for where the keys sit.** Both write `master.pitchBend` (+1 / −1)
@@ -342,6 +345,13 @@ Scenario: Shifting octave while a computer key is held releases it (REQ-a-note-o
   When they press the octave-up key (`=`) and then release 'z'
   Then exactly one bus.noteOff fires, for the note 'z' originally played
   And the on-screen key un-lights
+# pinned by: tests/ui/shortcuts.test.ts
+
+Scenario: Shift pressed while a digit-row note is held still releases it (REQ-a-note-off-names-the-pressed-note, regression)
+  Given the user holds '2', which plays C#5
+  When they press Shift, so the key now reads '@', and release '2'
+  Then exactly one bus.noteOff fires, for C#5, and the on-screen key un-lights
+  # the bug: the held map was keyed by the character, and '@' was never pressed
 # pinned by: tests/ui/shortcuts.test.ts
 
 Scenario: Two keys on one note release it with the last key (REQ-a-note-off-names-the-pressed-note, regression)

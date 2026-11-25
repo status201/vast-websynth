@@ -100,6 +100,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
   keeps such a key in its pattern the same way. A MIDI keyboard that repeats a
   note-on still ends the note with its one note-off, as before.
 
+- **Shift no longer strands a note on the number row.** Holding 2, 3, 5, 6 or 7
+  (the black keys of the upper octave) and then pressing Shift, say for
+  Shift+Space, left the note ringing after you let go.
+
 ## [2.22.2] - 2026-11-20
 
 ### Fixed

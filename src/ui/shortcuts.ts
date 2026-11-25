@@ -54,11 +54,15 @@ const KEYS_SOURCE = 'keys';
 
 export function installShortcuts(engine: StudioApi, bus: ParamBus, bridge: UiBridge): void {
   let baseOctave = 4; // bottom row starts at C4
-  // key → the note it PRESSED, never the note the current baseOctave now names
-  // (input-control.md REQ-a-note-off-names-the-pressed-note): an octave shift mid-hold used to make keyup miss
-  // this map entirely, so the note was never released and its key stayed lit
-  // until the window lost focus.
+  // physical key → the note it PRESSED, never the note the current baseOctave now
+  // names (input-control.md REQ-a-note-off-names-the-pressed-note): an octave shift mid-hold used to make
+  // keyup miss this map entirely, so the note was never released and its key
+  // stayed lit until the window lost focus. Keyed by `e.code`, not the character:
+  // Shift turns the digit-row note keys into symbols ('2' → '@'), and a keyup
+  // reporting a key that was never pressed stranded the note the same way.
   const held = new Map<string, number>();
+  /** The physical key, or the case-folded character where a browser reports no code. */
+  const holdId = (e: KeyboardEvent): string => e.code || keyId(e.key);
   let fillHeld = false;
   let bendHeld = false;
 
@@ -248,7 +252,7 @@ export function installShortcuts(engine: StudioApi, bus: ParamBus, bridge: UiBri
 
     const note = keyToMidi(k);
     if (note === null) return;
-    const id = keyId(k);
+    const id = holdId(e);
     if (held.has(id)) return;
     held.set(id, note);
     press(note);
@@ -259,9 +263,8 @@ export function installShortcuts(engine: StudioApi, bus: ParamBus, bridge: UiBri
   // released inside it, and a key typed in a field was never recorded as held,
   // so its keyup releases nothing (input-control REQ-shortcuts-are-suppressed-in-a-field).
   window.addEventListener('keyup', (e: KeyboardEvent) => {
-    const k = e.key;
     // Same `e.code` the press used, so a Shift pressed or released mid-hold
-    // cannot strand the bend (REQ-the-look-ahead-horizon-is-not-cancelled; the note-key twin of this is REQ-home-and-shift-arrows-seek).
+    // cannot strand the bend (REQ-pitch-bend-is-quote-and-slash; the note-key twin of this is REQ-a-note-off-names-the-pressed-note).
     if (e.code === 'Quote' || e.code === 'Slash') {
       if (bendHeld) { bendHeld = false; bus.set('master.pitchBend', 0); }
       return;
@@ -270,8 +273,8 @@ export function installShortcuts(engine: StudioApi, bus: ParamBus, bridge: UiBri
       if (fillHeld) { fillHeld = false; engine.perf.setFill(false); }
       return;
     }
-    // Deliberately NOT keyToMidi(k) — baseOctave may have shifted since keydown.
-    const id = keyId(k);
+    // Deliberately NOT keyToMidi(e.key) — baseOctave may have shifted since keydown.
+    const id = holdId(e);
     const note = held.get(id);
     if (note === undefined) return;
     held.delete(id);
