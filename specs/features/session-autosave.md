@@ -107,7 +107,10 @@ happy path.
 - **REQ-superseded-async-work-must-not-leak** — In-flight async work from a
   superseded apply must not leak into the current session: a monotonically
   increasing apply token invalidates project-zip clip decodes still pending when
-  another apply (or Undo) lands.
+  another apply (or Undo) lands. A demo still downloading is such work too: it
+  is dropped, unapplied and unreported, when another demo is asked for or any
+  apply lands before it arrives, so the last thing the user chose is what
+  loads ([song-mode](song-mode.md) REQ-drop-in-demos-are-fetched-on-click).
 - **REQ-the-autosave-carries-names-not-clips** — This key carries `sampleNames`
   only; binary clips don't fit localStorage. Sampler *audio* is persisted
   separately in IndexedDB and restored alongside this session at boot — see
@@ -430,6 +433,14 @@ Scenario: undo mid-import cancels stale clip decodes
   When the user clicks Undo before decoding finishes
   Then remaining clips never overwrite the restored session's slots
 # pinned by: apply-token guard in song-io.ts (applyProjectBundle)
+
+Scenario: The last demo clicked is the one that loads (REQ-superseded-async-work-must-not-leak, regression)
+  Given a fetched demo is still downloading
+  When another demo is clicked, or a song is loaded, imported or started blank, before it arrives
+  Then the first download is dropped when it lands: not applied, no picker change, no error dialog
+  And the song on screen is the one chosen last
+  # the bug: whichever download finished last won, so a slow zip demo replaced the demo clicked after it
+# pinned by: tests/ui/demo-loader.test.ts
 ```
 
 ## Tests & verification

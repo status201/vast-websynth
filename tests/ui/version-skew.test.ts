@@ -121,7 +121,11 @@ describe('a demo that fails under a newer release (version-skew.md REQ-a-stale-f
     expect(src).toContain('reportIfNewerVersion(`Couldn\'t load "${name}"`)');
     expect(src).toMatch(/const showDemoFailure = [^;]*reportDemoFailure\(/);
     for (const fn of ['loadZipDemo', 'loadJsonDemo']) {
-      expect(body(fn)).toMatch(/catch \(e\) \{\s*await reportDemoFailure\(name, \(\) => thrownAlert\(/);
+      // A download the user has since replaced reports nothing at all
+      // (session-autosave.md REQ-superseded-async-work-must-not-leak); every other one goes through the probe.
+      expect(body(fn)).toMatch(
+        /catch \(e\) \{\s*if \(superseded\(req\)\) return;[^\n]*\n\s*await reportDemoFailure\(name, \(\) => thrownAlert\(/,
+      );
     }
   });
 

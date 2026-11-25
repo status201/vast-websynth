@@ -104,6 +104,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
   (the black keys of the upper octave) and then pressing Shift, say for
   Shift+Space, left the note ringing after you let go.
 
+- **The demo you clicked last is the one that loads.** Clicking a second demo
+  while the first was still downloading could end with the first one on screen,
+  because whichever download finished last won. A demo that is still downloading
+  now gives way to any newer choice: another demo, a saved song, an import or New.
+
 ## [2.22.2] - 2026-11-20
 
 ### Fixed
