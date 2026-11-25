@@ -61,8 +61,8 @@ for, and the boot.
     were: no "Saved" toast.
   - **Preset Import** stores what fits and reports how many could not be stored.
   - **Song Import** (its slot write) keeps the song applied, which it already
-    is, and says it was not saved to this browser. It used to say the import
-    "failed to apply", which was untrue.
+    is, and says it was not saved to this browser, never that the import
+    failed.
 
 ## Technical design
 

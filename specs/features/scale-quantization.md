@@ -69,8 +69,9 @@ which belongs to the melody, not the harmony. It plays as written but is not a s
   *before* quantization, so a `+5` bar lands back in key. Reversed, it would preserve
   the drift.
 - **REQ-resolve-once-release-the-stored-note** — A note-off must release the note the
-  note-on resolved, or a key change while holding strands the voice. The sequencer and
-  arp store the resolved note (`st.lastPlayedNote`, `arp.lastNote`). The
+  note-on resolved, or a key change while holding strands the voice. The sequencer
+  stores the resolved note (`st.lastPlayedNote`); the arp schedules each note's
+  release with its note-on, naming the note it played. The
   passthrough uses `Engine.heldIn` ([voicing](voicing.md)
   REQ-passthrough-remembers-what-it-played), cleared by panic / `killAll`.
 - **REQ-the-scale-mapping-is-a-lookup-table** — A 128-entry `Uint8Array` (**not**

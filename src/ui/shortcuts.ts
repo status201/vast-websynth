@@ -74,9 +74,9 @@ export function installShortcuts(engine: StudioApi, bus: ParamBus, bridge: UiBri
     return fIsNote ? e.code === 'KeyF' : keyId(e.key) === 'f';
   };
 
-  /** Case-folded key identity. Shift can be pressed or released mid-hold, which
-   *  flips `e.key` between 'z' and 'Z' — keying `held` on the raw value would
-   *  strand the note exactly like the octave shift did. */
+  /** Case-folded key identity, for matching a key to its note: Shift flips `e.key`
+   *  between 'z' and 'Z', and both are the same note. What is *held* is keyed by
+   *  the physical key instead (`holdId`), since Shift turns '2' into '@'. */
   const keyId = (k: string): string => (k.length === 1 ? k.toLowerCase() : k);
 
   function keyToMidi(k: string): number | null {

@@ -146,10 +146,9 @@ only while its own grid is on screen ([sequencer](sequencer.md) REQ-step-input-a
     - **`installShortcuts`** keys its held-note map by the **physical key**
       (`e.code`; the case-folded `e.key` only where a browser reports no code) and
       stores the note it pressed, so neither the octave shift (`-`/`=`) nor a Shift
-      press mid-hold can make `keyup` miss the map and skip `release()`. Matching
-      by character is what the note rows do; *holding* by character stranded the
-      digit-row notes, where Shift does not change case but the character
-      (`2` ↔ `@`, `5` ↔ `%`).
+      press mid-hold can make `keyup` miss the map and skip `release()`. The note
+      rows *match* by character (the layout decides it), but *hold* by key: on
+      the digit row Shift changes the character itself (`2` ↔ `@`), not its case.
   This is the input-layer twin of [sequencer](sequencer.md) REQ-a-stop-releases-every-tracks-note: nothing may
   hold a note whose release depends on state that is free to change underneath it.
 

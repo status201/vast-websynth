@@ -58,8 +58,8 @@ a version bump is [evolve-the-song-format](../recipes/evolve-the-song-format.md)
   intact ([ADR-007](../decisions/adr-007-songfile-additive-versioning.md),
   [untrusted-input](untrusted-input.md)). It drives nothing here, and a load
   starts from `resetDefaults`, which drops such keys, so one song's never reach
-  the next. The bus used to keep the **first** value an unknown key was given,
-  so a newer preset loaded over a newer song saved the song's value, not its own.
+  the next. A newer preset loaded over a newer song therefore saves the preset's
+  value, not the song's.
 - **REQ-legacy-step-cells-still-sound-right** — Legacy step cells (plain `{on,
   velocity}`) must load and **sound unchanged** (gain defaults filled in).
 

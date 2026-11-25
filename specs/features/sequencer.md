@@ -82,9 +82,8 @@ scoped to its own visible grid and pinned to one bank.
   track's last step **tied**, so the note is still held (`prevTied`): on the next
   step (Re-strike into a different pitch), on a rest, on mute, and on stop and seek.
   A step that did not tie was released at its own gate end and is never released
-  again. There used to be an unconditional "release the previous note" before every
-  attack. It never reached the sequencer's own voice, whose entry was already gone,
-  so its only effect was to cut a held live key on that pitch at the next step.
+  again. Deliberate: no "release the previous note" before an attack. That pitch's
+  entry is already gone, so such a release can only reach someone else's voice.
 - **REQ-a-tie-continues-the-note-without-retriggering** — While `seq.tieMode` is
   **Legato** (0, the default), a step that sounds after a tied step on the same track
   **continues** that track's held note instead of striking a new one. Its first

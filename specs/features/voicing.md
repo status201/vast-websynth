@@ -121,9 +121,8 @@ for bass and leads, poly for chords, unison for a fat stack, and per-voice
   the pedal does too ([midi-input](midi-input.md)); a counter would hang those
   notes. A note-off from a source that is not holding the key changes nothing.
   A re-strike plays the notes the key is already sounding, never a fresh mapping,
-  so a key change mid-hold cannot strand the first ones. The on-screen key looked
-  pressed until the last finger lifted while the note had already stopped at the
-  first.
+  so a key change mid-hold cannot strand the first ones. The sound and the lit
+  key therefore end together, with the last hold.
 - **REQ-a-stolen-voice-leaves-the-held-list** — (v4) `heldNotes` maps a sounding
   note to its voices. When the pool is full, `pickVoice` steals the oldest playing
   voice. So taking a voice **evicts it from whatever note holds it**, and an empty
