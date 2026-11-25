@@ -394,6 +394,7 @@ one behind; delete the row when you remove it.**
 | Shim | Since | Why it exists | Safe to drop when |
 | --- | --- | --- | --- |
 | `websynth.session` read fallback (`state/session-autosave.ts`) | 2.9 | Sessions moved to one key per browser tab ([session-autosave](specs/features/session-autosave.md) REQ-each-tab-autosaves-to-its-own-key). The old single key is still read once so an in-progress session survives the upgrade; it is never written. | Anyone who has opened the app since 2.9 has been migrated by their first autosave. Dropping it only costs a user who has not opened it since — their unsaved session, not their saved songs. |
+| Legacy sampler-clip adoption (`state/idb-clip-kv.ts` upgrade, `state/sample-autosave.ts` `LEGACY_CLIP_SESSION`) | 2.23 | Clips moved from one browser-wide store to one per tab session ([sample-persistence](specs/features/sample-persistence.md) REQ-legacy-clips-are-adopted-once). The database upgrade moves the old records under a `legacy` session, and the next restored session adopts them once. | Anyone who has opened the app since 2.23 has been upgraded. Dropping it only costs a user who has not opened it since — the audio of their last session's slots (names still restore, as a `.needs-reload` hint). |
 
 Song *file* versions are not on this list: they are additive by design and every
 version from v1 still loads with no migration step (ADR-007), so a major bump is
