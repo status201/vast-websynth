@@ -107,8 +107,10 @@ since v3 a clip belongs to a session, the way the song does.
 - **REQ-clips-restore-only-with-a-session** — Clips are restored **only
   alongside a restored session, only that session's (REQ-clips-belong-to-a-session),
   and only for slots that session names**. No session ⇒ the whole store is
-  cleared; an orphaned clip (no name for its slot) is deleted rather than
-  restored. This keeps the "a named slot is either loaded
+  cleared; an orphaned clip (no name for its slot) of this tab's own session (or the
+  legacy store) is deleted rather than
+  restored. Another session's orphan is only skipped: that tab may still
+  be about to save the session that names it. This keeps the "a named slot is either loaded
   or shows `.needs-reload`" invariant intact. Names and buffers are kept in step
   *while running* by [song-mode](song-mode.md) REQ-stale-sampler-audio-is-evicted (a load evicts audio it
   renames), so an orphan here means a lost race (a clip written but its session

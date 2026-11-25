@@ -11,7 +11,7 @@ import { initMIDI } from './audio/midi';
 import { Presets } from './state/preset';
 import { PresetSession, isPatchParam, pinAppliedSong } from './state/preset-session';
 import { SessionAutosave } from './state/session-autosave';
-import { SampleAutosave, type ClipRestore, type StoredClip } from './state/sample-autosave';
+import { SampleAutosave, LEGACY_CLIP_SESSION, type ClipRestore, type StoredClip } from './state/sample-autosave';
 import { PatternUndo } from './state/pattern-undo';
 import { Song } from './state/song';
 import { XyPadStore } from './state/xy-pad';
@@ -109,7 +109,7 @@ async function boot() {
   // importers wired further down. A clip is restored only for a slot the
   // session names (sample-persistence.md REQ-clips-restore-only-with-a-session); orphans are dropped, undecodable ones skipped
   // (sample-persistence.md REQ-an-undecodable-clip-is-skipped) so the slot simply keeps its hint.
-  const restoredClips = await restoreSamplerClips(engine, clipsPromise);
+  const restoredClips = await restoreSamplerClips(engine, clipsPromise, ownSession);
   // The boot's catch-all (REQ-clips-go-with-their-session): clips of a session
   // that is neither stored nor this tab's go. The v2 store's records stay only
   // while this boot is holding them (REQ-legacy-clips-are-adopted-once).
@@ -416,6 +416,7 @@ async function boot() {
 async function restoreSamplerClips(
   engine: Engine,
   clipsPromise: Promise<ClipRestore> | null,
+  ownSession: string,
 ): Promise<ClipRestore | null> {
   if (!clipsPromise) {
     void SampleAutosave.clear();
@@ -427,7 +428,10 @@ async function restoreSamplerClips(
   // is a needless memory spike (project-export.md REQ-clip-codec-is-memory-aware).
   for (const clip of clips) {
     if (engine.patterns.sampleNames[clip.slot] == null) {
-      void SampleAutosave.drop(from, clip.slot);
+      // Only this tab's own (or the legacy store's) orphans are ours to delete: another
+      // open tab may have written a clip its session has not caught up with yet
+      // (sample-persistence.md REQ-clips-belong-to-a-session).
+      if (from === ownSession || from === LEGACY_CLIP_SESSION) void SampleAutosave.drop(from, clip.slot);
       continue;
     }
     try {
