@@ -32,13 +32,11 @@ spec closes the asymmetry — after a reload a restored session's slots are
 audible immediately, without touching the song format (a `SongFile` still
 carries names only, so songs stay small and shareable).
 
-Until v3 the store held **one** clip per slot for the whole browser, while the
-session beside it is per tab ([session-autosave](session-autosave.md)
-REQ-each-tab-autosaves-to-its-own-key). With two tabs open, the tab that wrote
-last owned every slot: reloading the other one restored *its* song with the
-first tab's audio under its own sample names, and its own clips were gone.
-A safety net that swaps your audio for someone else's is worse than none. So
-since v3 a clip belongs to a session, the way the song does.
+A clip belongs to a session, the way the song does: the session is per tab
+([session-autosave](session-autosave.md) REQ-each-tab-autosaves-to-its-own-key),
+so each tab's reload brings back its own audio, never another tab's under its
+own sample names. A safety net that swaps your audio for someone else's is
+worse than none.
 
 ## Requirements
 
@@ -140,7 +138,8 @@ since v3 a clip belongs to a session, the way the song does.
   bookkeeping — never an extra IndexedDB read. It also offers a confirm-guarded
   **Clear** beside that row, which nulls every slot (the one `onBufferChange`
   hook then deletes them) and calls `SampleAutosave.dropSession()` for this tab's
-  session, for any orphan it never named. Other tabs' clips are theirs, and stay. With the stats source unbound, persistence never started
+  session and for the legacy clips, for any orphan it never named. Other tabs'
+  clips are theirs, and stay. With the stats source unbound, persistence never started
   and the action is disabled (debug-panel
   REQ-an-unbound-action-renders-disabled).
 

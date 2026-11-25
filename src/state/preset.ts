@@ -511,8 +511,7 @@ export const Presets = {
     const name = cleanName(rawName);
     // Round at the serialization boundary (same helper as song export) — clean
     // JSON, no audible change. capture() keeps live state full-precision.
-    store.writeRaw(name, JSON.stringify(roundParams(snap)));
-    store.addToIndex(name);
+    store.save(name, JSON.stringify(roundParams(snap)));
   },
 
   /**

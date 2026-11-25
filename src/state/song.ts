@@ -370,8 +370,7 @@ export const Song = {
   },
 
   saveSlot(name: string, file: SongFile): void {
-    store.writeRaw(name, Song.toJSON(file));
-    store.addToIndex(name);
+    store.save(name, Song.toJSON(file));
   },
 
   /**

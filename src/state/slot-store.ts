@@ -103,6 +103,28 @@ export class SlotStore {
     localStorage.setItem(this.keyFor(name), json);
   }
 
+  /**
+   * Write the slot and index it, or neither (storage-failures.md
+   * REQ-a-failed-save-says-so): when the index write is refused after the slot
+   * landed, the slot is taken back out — restored to what it held — so "not
+   * saved" is true, not a slot that exists but is missing from the list.
+   */
+  save(name: string, json: string): void {
+    const before = this.readRaw(name);
+    this.writeRaw(name, json);
+    try {
+      this.addToIndex(name);
+    } catch (e) {
+      try {
+        if (before === null) localStorage.removeItem(this.keyFor(name));
+        else localStorage.setItem(this.keyFor(name), before);
+      } catch {
+        // nothing more can be done; the error below still reaches the caller
+      }
+      throw e;
+    }
+  }
+
   /** Drop the slot and its index entry. */
   remove(name: string): void {
     localStorage.removeItem(this.keyFor(name));

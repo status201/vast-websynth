@@ -42,11 +42,12 @@ releasing the last key stops it again (only if the arp was what started it).
   holding it lets go, by the same rule as the passthrough ([voicing](voicing.md)
   REQ-a-note-sounds-while-any-source-holds-it).
 - **REQ-each-arp-note-is-released-once** — Each arp note is released exactly once,
-  at `when + cellDur × arp.gate`, scheduled with its note-on. With the gate at most
-  1 that is never after the next onset, so nothing has to release the previous note
-  again before the next one plays. A second release would name a pitch the voice
-  pool has already forgotten, and so cut whatever holds that pitch by then, such as
-  a sequencer note ([sequencer](sequencer.md) REQ-a-released-note-is-not-released-again).
+  at `when + cellDur × arp.gate`, scheduled with its note-on. The voice pool binds
+  that release to the note's own voices when it is scheduled, so it ends that note
+  and no other, even where swing brings the next onset earlier. A second release
+  would name a pitch the pool has already forgotten, and so cut whatever holds that
+  pitch by then, such as a sequencer note ([sequencer](sequencer.md)
+  REQ-a-released-note-is-not-released-again).
 - **REQ-the-cursor-is-bounded-by-the-live-pool** — (v5) **The pattern cursor is
   bounded by the pool it is about to read, not the one it last walked.**
   The pool is rebuilt every note from the held keys × octaves, so it **shrinks

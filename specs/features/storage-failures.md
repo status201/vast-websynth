@@ -42,7 +42,9 @@ for, and the boot.
 - **REQ-a-slot-read-never-throws** — Every `SlotStore` read treats storage that
   throws as empty: `readIndex` and `readRaw` return `[]` / `null`. A blocked
   store then looks like a fresh one, and every caller already handles that.
-  Writes still throw, so the caller can tell the user.
+  Writes still throw, so the caller can tell the user. `SlotStore.save` writes
+  a slot and its index entry or neither: if the index write is refused, the slot
+  is put back as it was, so a save reported as failed left nothing behind.
 - **REQ-seeding-never-fails-the-boot** — `Presets.ensureFactoryPresets()` runs
   before the UI exists. Each seed write, and the index write, is attempted on its
   own, and one the storage refuses is skipped. The factory bank still plays,
@@ -104,6 +106,12 @@ Scenario: A full or blocked storage cannot stop the boot (REQ-seeding-never-fail
 Scenario: A blocked store reads as empty (REQ-a-slot-read-never-throws)
   Given localStorage throws on every access
   Then readIndex is [] and readRaw is null
+# pinned by: tests/state/slot-store.test.ts
+
+Scenario: A save whose index write is refused leaves nothing behind (REQ-a-slot-read-never-throws, edge)
+  Given storage accepts a slot but refuses its index entry
+  When a song or preset is saved
+  Then the slot is put back as it was, so "not saved" is true
 # pinned by: tests/state/slot-store.test.ts
 
 Scenario: A song Save the browser refuses still downloads and says so (REQ-a-failed-save-says-so, regression)

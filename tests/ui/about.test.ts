@@ -4,7 +4,7 @@ import { createAboutButton } from '../../src/ui/components/about-button';
 import { anyModalOpen } from '../../src/ui/modal-stack';
 import { formatOfflineState } from '../../src/ui/components/about-debug';
 import { setClipStatsSource } from '../../src/state/debug-sources';
-import { SampleAutosave } from '../../src/state/sample-autosave';
+import { SampleAutosave, LEGACY_CLIP_SESSION } from '../../src/state/sample-autosave';
 import { SessionAutosave } from '../../src/state/session-autosave';
 import { restoreFactorySettings } from '../../src/state/factory-reset';
 import { installLocalStorageMock } from '../storage-mock';
@@ -533,6 +533,7 @@ describe('About modal — Debug section', () => {
     expect(api.sampler.setBuffer).toHaveBeenCalledWith(0, null);
     // This tab's clips only — other tabs' are theirs (sample-persistence.md v3).
     expect(dropSession).toHaveBeenCalledWith(SessionAutosave.ownKey());
+    expect(dropSession).toHaveBeenCalledWith(LEGACY_CLIP_SESSION); // adopted clips are this tab's too
     expect(clear).not.toHaveBeenCalled();
     dropSession.mockRestore();
     clear.mockRestore();

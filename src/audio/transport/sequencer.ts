@@ -164,7 +164,9 @@ export class StepSequencer {
   /**
    * Song-tab DJ mute: suppress note triggering while the pattern keeps running
    * (the playhead still advances). Live keyboard input is unaffected — it never
-   * routed through the sequencer. Releases any ringing sequenced note at once.
+   * routed through the sequencer. A note tied into the next step is released
+   * now; any other already has its release scheduled at its own gate end, bound
+   * to its voices, so it ends there (REQ-a-released-note-is-not-released-again).
    */
   setMuted(muted: boolean): void {
     this.muted = muted;

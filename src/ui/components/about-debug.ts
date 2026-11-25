@@ -14,7 +14,7 @@ import { copyText, flashCopied } from '../clipboard';
 import { isIOS } from '../../platform/ios';
 import { perfDiagnostics } from '../../state/perf-mode';
 import { SessionAutosave } from '../../state/session-autosave';
-import { SampleAutosave } from '../../state/sample-autosave';
+import { SampleAutosave, LEGACY_CLIP_SESSION } from '../../state/sample-autosave';
 import { storageUsage } from '../../state/slot-store';
 import { SAMPLER_SLOT_COUNT } from '../../state/patterns';
 import { clipStats, midiStats, scopeStats, wakeState } from '../../state/debug-sources';
@@ -191,6 +191,8 @@ export function buildDebugSection(engine: StudioApi): {
       // (sample-persistence.md REQ-debug-shows-the-clip-store-size).
       for (let i = 0; i < SAMPLER_SLOT_COUNT; i++) engine.sampler.setBuffer(i, null);
       void SampleAutosave.dropSession(SessionAutosave.ownKey());
+      // Clips adopted from before sessions owned them are this tab's too.
+      void SampleAutosave.dropSession(LEGACY_CLIP_SESSION);
     },
   };
   const clipsVal = addRow('Sampler clips', clipsClear);

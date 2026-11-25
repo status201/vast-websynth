@@ -194,9 +194,9 @@ export class Arpeggiator {
         note = pool[0]!;
     }
 
-    // Released once, here, with its note-on (REQ-each-arp-note-is-released-once).
-    // The gate is at most 1, so that is never after the next onset — releasing
-    // the previous pitch again before this one would cut whatever holds it now.
+    // Released once, here, with its note-on (REQ-each-arp-note-is-released-once):
+    // the pool binds the release to this note's voices now. Releasing the
+    // previous pitch again before the next note would cut whatever holds it then.
     const gateLen = stepDur * this.gate;
     this.output.playNote(note, 0.85, when);
     this.output.releaseNote(note, when + gateLen);
