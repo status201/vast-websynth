@@ -327,7 +327,8 @@ specs/
     midi-file-reader.md ·  pure SMF parser + an arranger's analysis (grid, repeats, parts) for read_midi
     project-export.md  ·  song + sampler audio in one .websynth.zip (zero-dep zip codec)
     session-autosave.md ·  working-session autosave + load-undo toast safety net
-    sample-persistence.md ·  sampler clips in IndexedDB, so audio survives a reload
+    storage-failures.md ·  a refused localStorage write never stops the boot, and a refused save says so
+    sample-persistence.md ·  sampler clips in IndexedDB, per session, so audio survives a reload
     presets.md         ·  sound snapshots (param-only)
     preset-authoring.md ·  AI preset/bank guide + validator + sparse→full expansion (MCP)
     param-catalogue.md ·  published param list (/params.json, /params.md) + format/version table

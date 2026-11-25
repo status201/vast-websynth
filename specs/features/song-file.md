@@ -52,6 +52,14 @@ a version bump is [evolve-the-song-format](../recipes/evolve-the-song-format.md)
   `capture()` writes the exported **`SONG_VERSION`**, not a literal; the published
   schema and `llms.txt` are pinned to it by `tests/state/authoring-docs.test.ts`.
 
+- **REQ-a-newer-builds-param-round-trips** — A `params` key this build does not
+  register is kept on the bus at the value **last written** and saved back
+  unchanged, so a song or preset from a newer build passes through this one
+  intact ([ADR-007](../decisions/adr-007-songfile-additive-versioning.md),
+  [untrusted-input](untrusted-input.md)). It drives nothing here, and a load
+  starts from `resetDefaults`, which drops such keys, so one song's never reach
+  the next. A newer preset loaded over a newer song therefore saves the preset's
+  value, not the song's.
 - **REQ-legacy-step-cells-still-sound-right** — Legacy step cells (plain `{on,
   velocity}`) must load and **sound unchanged** (gain defaults filled in).
 
@@ -281,6 +289,12 @@ Scenario: Export is the canonical compact form (round + default-sparse)
     `npm run clean:demos` byte-for-byte so demo drop-ins produce readable git diffs
 # pinned by: tests/state/serialize.test.ts, tests/state/song.test.ts,
 #            e2e/export-project.spec.ts (download formatting)
+
+Scenario: A newer build's param keeps its latest value (REQ-a-newer-builds-param-round-trips, regression)
+  Given a param id this build does not register, set to 0.7 by a loaded song
+  When a preset that sets the same id to 0.2 is loaded over it
+  Then the bus holds 0.2, and a song saved now stores 0.2
+# pinned by: tests/state/params.test.ts
 
 Scenario: A v1 file loads with empty sampler state (backward compat)
   Given a SongFile with version 1 and no sampler fields

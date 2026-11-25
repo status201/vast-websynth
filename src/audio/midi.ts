@@ -5,6 +5,10 @@ import { SustainPedal } from './sustain-pedal';
 import { SAMPLER_SLOT_COUNT } from '../state/patterns';
 import { DRUM_CHANNEL, midiInputChannel } from '../state/midi-channel';
 
+/** Every MIDI note-on and note-off is one source (voicing.md REQ-a-note-sounds-while-any-source-holds-it):
+ *  a retriggered note-on adds no hold, so its single note-off — or the pedal's — still ends it. */
+const MIDI_SOURCE = 'midi';
+
 /** The note that plays sampler slot 1 on channel 10 — C1, where GM kicks and pad banks start. */
 const PAD_BASE_NOTE = 36;
 
@@ -92,10 +96,10 @@ function releaseVanishedPorts(access: MIDIAccess, bus: ParamBus, pedal: SustainP
     // on a device still plugged in stays down, and goes on sustaining them.
     if (holds.pedal?.port === portId) {
       holds.pedal = null;
-      for (const note of pedal.setPedal(false)) bus.noteOff(note);
+      for (const note of pedal.setPedal(false)) bus.noteOff(note, MIDI_SOURCE);
     }
     for (const key of keys) {
-      if (pedal.noteOff(key % 128)) bus.noteOff(key % 128);
+      if (pedal.noteOff(key % 128)) bus.noteOff(key % 128, MIDI_SOURCE);
     }
     if (holds.bend?.port === portId) {
       holds.bend = null;
@@ -169,7 +173,7 @@ function handleMessage(
       else {
         held.add(holdKey(channel, d1));
         pedal.noteOn(d1);
-        bus.noteOn(d1, d2 / 127);
+        bus.noteOn(d1, d2 / 127, MIDI_SOURCE);
       }
       break;
     case 0x80: // Note off
@@ -196,7 +200,7 @@ function handleMessage(
 /** A note-off routed through the sustain pedal (midi-input.md REQ-the-sustain-pedal-is-midi-layer):
  *  deferred while the pedal is down, delivered otherwise. */
 function noteOff(note: number, bus: ParamBus, pedal: SustainPedal): void {
-  if (pedal.noteOff(note)) bus.noteOff(note);
+  if (pedal.noteOff(note)) bus.noteOff(note, MIDI_SOURCE);
 }
 
 function handleCC(cc: number, value: number, bus: ParamBus, pedal: SustainPedal, mod: ModSources): void {
@@ -209,7 +213,7 @@ function handleCC(cc: number, value: number, bus: ParamBus, pedal: SustainPedal,
     case 7: bus.set('master.volume', n); break;
     case 11: bus.set('master.expression', n); break; // REQ-cc11-is-expression
     case 64: // Sustain pedal: >= 64 down; release flushes deferred note-offs
-      for (const note of pedal.setPedal(value >= 64)) bus.noteOff(note);
+      for (const note of pedal.setPedal(value >= 64)) bus.noteOff(note, MIDI_SOURCE);
       break;
     case 71: bus.set('filter.resonance', n * 4.2); break;
     case 74: bus.set('filter.cutoff', 30 + n * 100); break;

@@ -37,7 +37,15 @@ export interface ParamDef {
   labels?: string[]; // for discrete taper
 }
 
-export type NoteListener = (on: boolean, note: number, velocity: number) => void;
+/**
+ * Who holds a note (input-control.md REQ-all-input-goes-through-the-bus): `keys`,
+ * `pointer:<id>`, `midi`. A pitch two sources hold sounds until both let go
+ * (voicing.md REQ-a-note-sounds-while-any-source-holds-it).
+ */
+export type NoteSource = string;
+export const DEFAULT_NOTE_SOURCE: NoteSource = 'default';
+
+export type NoteListener = (on: boolean, note: number, velocity: number, source: NoteSource) => void;
 
 export class ParamBus {
   private readonly defs = new Map<ParamId, ParamDef>();
@@ -69,7 +77,10 @@ export class ParamBus {
     if (!Number.isFinite(value)) return;
     const def = this.defs.get(id);
     if (!def) {
-      if (!this.values.has(id)) this.values.set(id, value);
+      // An id from a newer build: kept, at its latest value, so it saves back
+      // as written (song-file.md REQ-a-newer-builds-param-round-trips). Nothing
+      // here listens to it.
+      this.values.set(id, value);
       return;
     }
     const v = clamp(value, def.min, def.max);
@@ -156,12 +167,12 @@ export class ParamBus {
     };
   }
 
-  noteOn(note: number, velocity = 0.8): void {
-    for (const l of this.noteListeners) l(true, note, velocity);
+  noteOn(note: number, velocity = 0.8, source: NoteSource = DEFAULT_NOTE_SOURCE): void {
+    for (const l of this.noteListeners) l(true, note, velocity, source);
   }
 
-  noteOff(note: number): void {
-    for (const l of this.noteListeners) l(false, note, 0);
+  noteOff(note: number, source: NoteSource = DEFAULT_NOTE_SOURCE): void {
+    for (const l of this.noteListeners) l(false, note, 0, source);
   }
 
   /**

@@ -43,6 +43,17 @@ export function createDemoLoader(deps: DemoLoaderDeps): DemoLoader {
   const { bridge, song, picker, io } = deps;
 
   /**
+   * The latest demo asked for (session-autosave.md REQ-superseded-async-work-must-not-leak).
+   * A fetched demo is applied only if, when its bytes land, it is still the latest
+   * request AND no apply of any kind (Load, Import, New, Undo, another demo) has
+   * happened since it was asked for — so the last thing the user chose is what
+   * loads, not whichever download was slowest.
+   */
+  let latestRequest = 0;
+  interface DemoRequest { id: number; token: number }
+  const superseded = (r: DemoRequest): boolean => r.id !== latestRequest || r.token !== song.applyToken;
+
+  /**
    * A demo that failed between its fetch and its parse first asks whether a
    * deploy outran this tab: then the file is gone for good and the answer is
    * Reload, not a dialog (version-skew.md REQ-a-stale-failure-offers-reload). A
@@ -75,16 +86,18 @@ export function createDemoLoader(deps: DemoLoaderDeps): DemoLoader {
     bridge.cuePlay();   // a loaded song is silent until Play (play-button-blink.md REQ-silent-actions-arm-a-green-cue)
   };
 
-  const loadZipDemo = async (name: string, url: string): Promise<void> => {
+  const loadZipDemo = async (name: string, url: string, req: DemoRequest): Promise<void> => {
     let res: Awaited<ReturnType<typeof parseProjectZip>>;
     try {
       const resp = await fetch(url);
       if (!resp.ok) throw new Error(`fetch failed (${resp.status})`);
       res = await parseProjectZip(new Uint8Array(await resp.arrayBuffer()));
     } catch (e) {
+      if (superseded(req)) return; // nobody is waiting for this one any more
       await reportDemoFailure(name, () => thrownAlert('Demo failed to load', `Could not load "${name}": `, e, name));
       return;
     }
+    if (superseded(req)) return;
     if (!res.ok) {
       await showDemoFailure(name, res.errors.length > 0 ? res.errors : ['invalid project zip']);
       return;
@@ -98,7 +111,7 @@ export function createDemoLoader(deps: DemoLoaderDeps): DemoLoader {
     }
   };
 
-  const loadJsonDemo = async (name: string, url: string): Promise<void> => {
+  const loadJsonDemo = async (name: string, url: string, req: DemoRequest): Promise<void> => {
     let res: Awaited<ReturnType<typeof Song.parse>>;
     try {
       const resp = await fetch(url);
@@ -107,9 +120,11 @@ export function createDemoLoader(deps: DemoLoaderDeps): DemoLoader {
       // what is actually wrong with it rather than "not a song".
       res = await Song.parse(await resp.text());
     } catch (e) {
+      if (superseded(req)) return; // nobody is waiting for this one any more
       await reportDemoFailure(name, () => thrownAlert('Demo failed to load', `Could not load "${name}": `, e, name));
       return;
     }
+    if (superseded(req)) return;
     if (!res.ok) {
       await showDemoFailure(name, res.errors.length > 0 ? res.errors : ['not a valid song file']);
       return;
@@ -161,6 +176,9 @@ export function createDemoLoader(deps: DemoLoaderDeps): DemoLoader {
     // be orphaned by a rename that touches no code. Resolving BEFORE the shadow
     // question keeps the dialog naming the song that is actually loading.
     async loadDemo(name) {
+      // Taken first, so a click supersedes any demo still downloading even if
+      // this one ends up loading nothing (REQ-superseded-async-work-must-not-leak).
+      const id = ++latestRequest;
       const resolved = resolveDemoName(name);
       if (!resolved) return; // no demos at all
       if (!await demoWinsOverSavedSong(resolved)) return;
@@ -169,10 +187,13 @@ export function createDemoLoader(deps: DemoLoaderDeps): DemoLoader {
         applyDemo(resolved, file);
         return;
       }
+      // After the shadow question: answering it applies nothing, and the
+      // fetch has not started yet.
+      const req: DemoRequest = { id, token: song.applyToken };
       const jsonDemo = JSON_DEMOS.find((d) => d.name === resolved);
-      if (jsonDemo) return loadJsonDemo(jsonDemo.name, jsonDemo.url);
+      if (jsonDemo) return loadJsonDemo(jsonDemo.name, jsonDemo.url, req);
       const zipDemo = ZIP_DEMOS.find((d) => d.name === resolved);
-      if (zipDemo) return loadZipDemo(zipDemo.name, zipDemo.url);
+      if (zipDemo) return loadZipDemo(zipDemo.name, zipDemo.url, req);
     },
   };
 }

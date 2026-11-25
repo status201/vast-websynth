@@ -460,8 +460,8 @@ sessionStorage:
                          # survives its reload (features/session-autosave.md REQ-each-tab-autosaves-to-its-own-key)
   websynth.offline.redownload : "1" — a factory reset's one write-back, consumed at the next boot
                          # (features/play-offline.md REQ-the-copy-is-fetched-again-after-a-reset)
-indexedDB:               # db `websynth`, store `clips` — state/idb-clip-kv.ts
-  clips[<slot>]       : one sampler clip as 16-bit WAV bytes, keyed by slot index
+indexedDB:               # db `websynth`, store `sessionClips` — state/idb-clip-kv.ts
+  sessionClips[<session>,<slot>] : one clip as 16-bit WAV bytes, per session
                         # (features/sample-persistence.md). Names are NOT stored —
                         # the autosaved session's `sampleNames` is the source of truth.
 not_persisted:
@@ -482,8 +482,8 @@ The two **named-slot** stores (presets and saved songs) share one implementation
 `<prefix>index`, with `readIndex`/`writeIndex`/`addToIndex`/`removeFromIndex` and
 opaque-JSON `readRaw`/`writeRaw`/`remove`. Serialization stays with the caller —
 `Presets.save` rounds params, `Song.saveSlot` writes the canonical compact form —
-so the store never knows either schema. A corrupt or absent index reads as empty
-rather than throwing. One name needs escaping: `index` would address the index
+so the store never knows either schema. Reads never throw (a bad or blocked
+store is empty); writes do. One name needs escaping: `index` would address the index
 key itself, so `/^_*index$/` gains a leading `_` at the single point where a name
 becomes a key ([untrusted-input](features/untrusted-input.md)
 REQ-a-slot-name-cannot-reach-the-index). Project **zips** are not slot-storable (localStorage is

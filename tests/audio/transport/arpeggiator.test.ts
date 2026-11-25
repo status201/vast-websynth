@@ -5,6 +5,9 @@ import { TestClock } from './test-clock';
 import type { SynthOutput } from '../../../src/audio/transport/note-output';
 import { ScaleQuantizer } from '../../../src/audio/transport/scale-quantizer';
 import { SCALE_LABELS, CHORD_LABELS } from '../../../src/utils/music';
+import { Polyphony } from '../../../src/audio/polyphony';
+import type { Voice } from '../../../src/audio/voice';
+import { makeMockAudioContext } from '../mock-audio-context';
 
 function setup(scale = new ScaleQuantizer()) {
   const clock = new TestClock();
@@ -254,7 +257,9 @@ describe('Arpeggiator pattern generation', () => {
     expect(playNote).toHaveBeenCalledTimes(2);
   });
 
-  it('releases the previous note before triggering the next, and gates the note', () => {
+  // arpeggiator.md REQ-each-arp-note-is-released-once — the next note used to
+  // release the previous pitch a second time, cutting whatever held it by then.
+  it('gates each note and releases it once — never again before the next', () => {
     const { clock, bus, arp, playNote, releaseNote } = setup();
     arp.setEnabled(true);
     arp.setPattern(0);
@@ -266,9 +271,9 @@ describe('Arpeggiator pattern generation', () => {
     expect(playNote).toHaveBeenLastCalledWith(60, 0.85, 0);
     expect(releaseNote).toHaveBeenCalledWith(60, 0.0625);
 
-    clock.fireTick(0.125); // release the held 60 at `when`, then play 64
-    expect(releaseNote).toHaveBeenCalledWith(60, 0.125);
+    clock.fireTick(0.125); // play 64; 60 is not released again
     expect(playNote).toHaveBeenLastCalledWith(64, 0.85, 0.125);
+    expect(releaseNote.mock.calls).toEqual([[60, 0.0625], [64, 0.1875]]);
   });
 });
 
@@ -402,5 +407,75 @@ describe('Arpeggiator key + chord memory (REQ-arp-pool-is-expanded-then-quantize
     bus.noteOn(60);    // C held second -> C E G
     clock.fireTicks(6);
     expect(played(playNote)).toEqual([67, 71, 74, 60, 64, 67]);
+  });
+});
+
+// arpeggiator.md REQ-each-arp-note-is-released-once — through the REAL pool: the
+// pool forgets a pitch when told to release it, so the arp's old second release
+// of its previous pitch cut whatever held that pitch by then.
+describe('an arp note is released once (regression)', () => {
+  it('does not cut another source holding the previous pitch', () => {
+    const fakeVoice = () => {
+      const v = {
+        state: 'idle' as 'idle' | 'playing' | 'releasing',
+        noteOnAt: 0,
+        noteOffAt: 0,
+        osc1: { detuneParam: {} },
+        osc2: { detuneParam: {} },
+        sub: { detuneParam: {} },
+        noteOn: vi.fn(() => { v.state = 'playing'; }),
+        noteOff: vi.fn(() => { v.state = 'releasing'; }),
+        kill: vi.fn(() => { v.state = 'idle'; }),
+        setGroupPan: vi.fn(),
+      };
+      return v;
+    };
+    const voices = Array.from({ length: 4 }, fakeVoice);
+    const pool = new Polyphony(makeMockAudioContext() as unknown as AudioContext, voices as unknown as Voice[]);
+    const clock = new TestClock();
+    const bus = new ParamBus();
+    const arp = new Arpeggiator(pool, bus, clock, new ScaleQuantizer());
+    arp.setEnabled(true);
+    arp.setPattern(0);
+    arp.setGate(0.5);
+    bus.noteOn(60);
+    bus.noteOn(64);
+
+    clock.fireTick(0); // arp plays 60, released at 0.0625
+    voices[0]!.state = 'idle';
+    pool.playNote(60, 0.8, 0.09); // another source (the sequencer) now holds 60
+    const other = voices.find((v) => v.state === 'playing')!;
+    other.noteOff.mockClear();
+
+    clock.fireTick(0.125); // arp plays 64
+    expect(other.noteOff).not.toHaveBeenCalled();
+  });
+});
+
+// arpeggiator.md REQ-held-notes-keep-press-order (regression): a key two sources
+// hold left the pool at the first release.
+describe('Arpeggiator — a key held by two sources', () => {
+  it('stays in the pool until the last source lets go', () => {
+    const { clock, bus, arp, playNote } = setup();
+    arp.setEnabled(true);
+    bus.noteOn(60, 0.8, 'pointer:1');
+    bus.noteOn(60, 0.8, 'keys');
+    bus.noteOff(60, 'pointer:1');
+    clock.fireTick(0);
+    expect(playNote).toHaveBeenCalledTimes(1); // still held by the computer key
+
+    bus.noteOff(60, 'keys');
+    clock.fireTick(0.125);
+    expect(playNote).toHaveBeenCalledTimes(1); // gone now
+  });
+
+  it('a retriggering source still leaves with one note-off', () => {
+    const { clock, bus, arp, playNote } = setup();
+    arp.setEnabled(true);
+    bus.noteOn(60, 0.8, 'midi');
+    bus.noteOn(60, 0.8, 'midi');
+    bus.noteOff(60, 'midi');
+    clock.fireTick(0);
+    expect(playNote).not.toHaveBeenCalled();
   });
 });

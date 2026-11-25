@@ -106,7 +106,7 @@ export function buildTransportControls(
   syncPlay();
   out.push(play);
 
-  // Built empty, then drawn: `djButton` sets `textContent`, which would print
+  // Built empty, then drawn: `createDjButton` sets `textContent`, which would print
   // the SVG source rather than render it.
   const toStart = createDjButton('', `${p}-tostart`);
   toStart.innerHTML = UI_ICONS.toStart;

@@ -8,7 +8,7 @@ import { bindVoiceParams, bindMachineParams } from './engine-params';
 import { Compressor } from './effects/compressor';
 import { createSynthChain, createDrumChain, createSamplerChain } from './effects/fx-chain';
 import { CompressorNode } from './compressor/node';
-import { ParamBus, registerDefaults } from '../state/params';
+import { ParamBus, registerDefaults, DEFAULT_NOTE_SOURCE, type NoteSource } from '../state/params';
 import { masterLevel } from '../state/master-level';
 import { rampTo, RAMP_FAST, RAMP_MEDIUM } from './param-utils';
 import { forceStereo } from './stereo';
@@ -199,9 +199,11 @@ export class Engine {
   /**
    * Raw key/MIDI note → the notes it actually sounded, so a note-off releases exactly
    * what its note-on started even if the key or chord voicing changed mid-hold
-   * (voicing.md REQ-passthrough-remembers-what-it-played). Bounded at 128 keys × ≤4 notes, and cleared with the voices.
+   * (voicing.md REQ-passthrough-remembers-what-it-played), and who holds it, so it sounds until the last
+   * of them lets go (REQ-a-note-sounds-while-any-source-holds-it). Bounded at 128 keys × ≤4 notes
+   * × the sources holding one (keys, midi, a pointer per finger), and cleared with the voices.
    */
-  private readonly heldIn = new Map<number, number[]>();
+  private readonly heldIn = new Map<number, { notes: number[]; holders: Set<NoteSource> }>();
 
   /** True when the arpeggiator is suppressing direct note input — the only
    *  thing that gates the passthrough (arpeggiator.md; the sequencer never does). */
@@ -566,7 +568,7 @@ export class Engine {
     });
 
     this.subscribeParams();
-    this.bus.onNote((on, note, vel) => this.handleNote(on, note, vel));
+    this.bus.onNote((on, note, vel, source) => this.handleNote(on, note, vel, source));
 
     this.lifecycle.installContextRearm();
 
@@ -672,19 +674,36 @@ export class Engine {
    * A method rather than an inline closure so it can be exercised against a
    * structural stub, as `seekTo`/`canSeek` are.
    */
-  handleNote(on: boolean, note: number, velocity: number): void {
+  handleNote(on: boolean, note: number, velocity: number, source: NoteSource = DEFAULT_NOTE_SOURCE): void {
     const suppressed = this.arpPassthroughSuppressed;
+    const held = this.heldIn.get(note);
     if (on) {
       if (suppressed) return; // an engaged arp owns the note stream
+      // Already sounding for some source (voicing.md REQ-a-note-sounds-while-any-source-holds-it):
+      // re-strike the notes it IS sounding — never a fresh mapping, which a key
+      // change mid-hold would make different, stranding the first ones — and add
+      // the holder. A source already holding it (a MIDI retrigger) adds nothing,
+      // so its one note-off still ends its hold.
+      if (held) {
+        held.holders.add(source);
+        for (const n of held.notes) this.playNote(n, velocity);
+        return;
+      }
       const notes = this.scale.chord(note);
-      this.heldIn.set(note, notes);
+      this.heldIn.set(note, { notes, holders: new Set([source]) });
       for (const n of notes) this.playNote(n, velocity);
       return;
+    }
+    // Another source still holds the key: it keeps sounding until the last lets
+    // go — and a source that never pressed it releases nothing.
+    if (held) {
+      held.holders.delete(source);
+      if (held.holders.size > 0) return;
     }
     // Note-offs are NOT gated by the arp (voicing.md REQ-passthrough-remembers-what-it-played): a key held as
     // the arp came on already sounded through here, and dropping its release left
     // the voice ringing until Panic. What this path played, it always releases.
-    const played = this.heldIn.get(note);
+    const played = held?.notes;
     // A key pressed while the arp owned the stream was never played here; its
     // release is the arp's business.
     if (!played && suppressed) return;

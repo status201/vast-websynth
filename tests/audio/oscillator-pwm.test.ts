@@ -168,7 +168,7 @@ describe('the duty bank', () => {
     const { osc, waves } = build();
     osc.setWave(SQUARE);
     sweepWholeRange(osc);
-    // Entry 0 is duty 0.5 — `applyWidth` short-circuits to the native square
+    // Entry 0 is duty 0.5 — `applyShape` short-circuits to the native square
     // there, so it is the one entry that is never built at all.
     expect(waves.length).toBe(PWM_BANK_SIZE - 1);
   });

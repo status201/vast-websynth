@@ -15,6 +15,7 @@
 import type { StudioApi } from '../studio-api';
 import type { UiBridge } from '../ui-bridge';
 import { confirmDialog, alertDialog } from '../components/dialog';
+import { alertStorageFailure } from '../storage-failure';
 import {
   buildFailureReport, buildFailureReportFor, failureMessage, isCapped, thrownMessage,
 } from '../failure-report';
@@ -89,7 +90,18 @@ async function saveImportedSlot(file: SongFile): Promise<boolean> {
     });
     if (!ok) return false;
   }
-  Song.saveSlot(file.name, file);
+  try {
+    Song.saveSlot(file.name, file);
+  } catch (e) {
+    // The song is applied already; only the slot is missing
+    // (storage-failures.md REQ-a-failed-save-says-so) — never "failed to apply".
+    await alertStorageFailure({
+      title: 'Song not saved in this browser',
+      message: `"${file.name}" is loaded, but could not be kept with your saved songs`,
+      error: e,
+    });
+    return false;
+  }
   return true;
 }
 

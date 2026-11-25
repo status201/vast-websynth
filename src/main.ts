@@ -11,7 +11,8 @@ import { initMIDI } from './audio/midi';
 import { Presets } from './state/preset';
 import { PresetSession, isPatchParam, pinAppliedSong } from './state/preset-session';
 import { SessionAutosave } from './state/session-autosave';
-import { SampleAutosave, type StoredClip } from './state/sample-autosave';
+import type { ClipRestore, StoredClip } from './state/sample-autosave';
+type ClipModule = typeof import('./state/sample-autosave');
 import { PatternUndo } from './state/pattern-undo';
 import { Song } from './state/song';
 import { XyPadStore } from './state/xy-pad';
@@ -50,10 +51,27 @@ async function boot() {
   // (audio-lifecycle.md REQ-nothing-is-audible-before-the-first-start). Which of the two start paths runs is decided at
   // the end of boot from `engine.autoplayAllowed` (audio-lifecycle.md REQ-the-gesture-is-required-only-when-required).
   const bus = new ParamBus();
+  // The clip store is a lazy chunk (runtime-performance.md REQ-boot-cost-matches-the-request):
+  // requested here, so its fetch and the IndexedDB read both overlap the worklet
+  // loading in engine.init() below. A chunk that will not load (offline, or a
+  // deploy outran this tab) means no clip persistence this session, never a
+  // failed boot (sample-persistence.md REQ-every-clip-storage-failure-is-survivable).
+  const clipModule: Promise<ClipModule | null> = import('./state/sample-autosave').catch(() => null);
+  // A removed session takes its sampler clips with it (sample-persistence.md
+  // REQ-clips-go-with-their-session). First, before anything can remove one:
+  // picking the session to restore below drops an invalid one.
+  SessionAutosave.onRemoved((key) => { void clipModule.then((m) => m?.SampleAutosave.dropSession(key)); });
+  // Which session restores is pure localStorage, so it is decided up front: the
+  // clips to read are that session's (REQ-clips-belong-to-a-session). It is
+  // APPLIED further down, once the engine exists.
+  const restored = SessionAutosave.loadSession();
+  const ownSession = SessionAutosave.ownKey();
   // Persisted sampler clips (sample-persistence.md REQ-boot-restores-clips-before-the-ui): kick the IndexedDB
   // read off FIRST — it needs no AudioContext, so its I/O overlaps the worklet
   // loading in engine.init() below and costs the boot ~nothing.
-  const clipsPromise = SampleAutosave.loadAll();
+  const clipsPromise = restored
+    ? clipModule.then((m) => m ? m.SampleAutosave.loadFor(restored.key) : { from: restored.key, clips: [] })
+    : null;
   // Performance mode (device-aware, persisted outside the bus) trades a little
   // latency/polyphony/FX cost for a glitch-resistant graph on weak hardware.
   // The audio fields are read once here because they are fixed when the
@@ -86,13 +104,12 @@ async function boot() {
   // Silent session recovery (session-autosave.md REQ-boot-restores-an-autosave-silently): restore the autosaved
   // working session over the boot patch, BEFORE the UI mounts so every control
   // constructs already reading the restored values.
-  const restored = SessionAutosave.load();
   if (restored) {
-    Song.apply(restored, bus, engine.patterns, engine.arrangement, xy, engine.sampler);
+    Song.apply(restored.file, bus, engine.patterns, engine.arrangement, xy, engine.sampler);
     // Same pin SongSession.apply makes (presets.md REQ-a-songs-sound-is-a-selectable-entry) — which is
     // why the pinned sound needs no persistence of its own: restoring the song
     // restores it.
-    pinAppliedSong(session, restored.name, bus);
+    pinAppliedSong(session, restored.file.name, bus);
   }
 
   // …and its sampler audio (sample-persistence.md). Awaited here, still before
@@ -101,7 +118,15 @@ async function boot() {
   // importers wired further down. A clip is restored only for a slot the
   // session names (sample-persistence.md REQ-clips-restore-only-with-a-session); orphans are dropped, undecodable ones skipped
   // (sample-persistence.md REQ-an-undecodable-clip-is-skipped) so the slot simply keeps its hint.
-  const restoredClips = await restoreSamplerClips(engine, restored != null, clipsPromise);
+  const clips = await clipModule;
+  const restoredClips = clips ? await restoreSamplerClips(clips, engine, clipsPromise, ownSession) : null;
+  // The boot's catch-all (REQ-clips-go-with-their-session): clips of a session
+  // that is neither stored nor this tab's go. The v2 store's records stay only
+  // while this boot is holding them (REQ-legacy-clips-are-adopted-once).
+  if (clips && restoredClips) {
+    const adopted = restoredClips.clips.length > 0 ? [restoredClips.from] : [];
+    void clips.SampleAutosave.sweep(() => [...SessionAutosave.liveKeys(), ownSession, ...adopted]);
+  }
 
   // Per-machine step-grid undo — pure state like session/xy, so it lives here
   // (not on StudioApi) and threads into the machine panels via mountApp.
@@ -127,10 +152,18 @@ async function boot() {
   // The audio sibling: one hook (SamplerMachine.onBufferChange) covers every
   // slot-filling path. Seeded with what the restore just handed back, so those
   // clips are not immediately re-encoded and re-written.
-  const clipStore = new SampleAutosave(engine.sampler);
-  clipStore.noteRestored(restoredClips, engine.sampler.buffers);
-  clipStore.attach();
-  setClipStatsSource(() => clipStore.stats());
+  // Written under this tab's own session, and only once that session is stored
+  // (sample-persistence.md REQ-a-session-is-written-before-its-clips).
+  if (clips) {
+    const clipStore = new clips.SampleAutosave(engine.sampler, undefined, {
+      session: ownSession,
+      sessionExists: () => SessionAutosave.liveKeys().includes(ownSession),
+    });
+    if (restoredClips) clipStore.noteRestored(restoredClips, engine.sampler.buffers);
+    autosave.onWritten((fresh) => clipStore.sessionWritten(fresh));
+    clipStore.attach();
+    setClipStatsSource(() => clipStore.stats());
+  }
 
   // Keep the display awake exactly while the synth can make sound: the wake
   // lock follows the AudioContext state. Platform concern, so it lives here and
@@ -272,9 +305,10 @@ async function boot() {
     // song file (sample-persistence.md REQ-a-clip-restore-raises-a-toast). Deferred off boot only because it
     // would otherwise have appeared *under* the start modal — with no modal it
     // has nothing to hide behind, so it runs here either way.
-    if (restoredClips.length > 0) {
+    const restoredCount = restoredClips?.clips.length ?? 0;
+    if (restoredCount > 0) {
       showToast({
-        message: `Restored ${plural(restoredClips.length, 'sampler clip')}`,
+        message: `Restored ${plural(restoredCount, 'sampler clip')}`,
         testId: 'clips-restored-toast',
       });
     }
@@ -383,8 +417,8 @@ async function boot() {
  * Repopulate the sampler slots from the persisted clip store
  * (sample-persistence.md REQ-boot-restores-clips-before-the-ui,
  * sample-persistence.md REQ-clips-restore-only-with-a-session/REQ-an-undecodable-clip-is-skipped).
- * Returns the clips that actually landed,
- * so the autosaver can seed its identity table with them.
+ * Returns the clips that actually landed and whose session they came from, so
+ * the autosaver can seed its identity table with them — or null with no session.
  *
  * Clips only make sense next to the session that named them: with no restored
  * session the whole store is orphaned and dropped, and within one, a clip whose
@@ -392,20 +426,25 @@ async function boot() {
  * named slot is either loaded or shows `.needs-reload`.
  */
 async function restoreSamplerClips(
+  { SampleAutosave, LEGACY_CLIP_SESSION }: ClipModule,
   engine: Engine,
-  hasSession: boolean,
-  clipsPromise: Promise<StoredClip[]>,
-): Promise<StoredClip[]> {
-  if (!hasSession) {
+  clipsPromise: Promise<ClipRestore> | null,
+  ownSession: string,
+): Promise<ClipRestore | null> {
+  if (!clipsPromise) {
     void SampleAutosave.clear();
-    return [];
+    return null;
   }
+  const { from, clips } = await clipsPromise;
   const restored: StoredClip[] = [];
   // Sequentially, like the project-zip import: 8 × multi-MB decodes at once
   // is a needless memory spike (project-export.md REQ-clip-codec-is-memory-aware).
-  for (const clip of await clipsPromise) {
+  for (const clip of clips) {
     if (engine.patterns.sampleNames[clip.slot] == null) {
-      void SampleAutosave.drop(clip.slot);
+      // Only this tab's own (or the legacy store's) orphans are ours to delete: another
+      // open tab may have written a clip its session has not caught up with yet
+      // (sample-persistence.md REQ-clips-belong-to-a-session).
+      if (from === ownSession || from === LEGACY_CLIP_SESSION) void SampleAutosave.drop(from, clip.slot);
       continue;
     }
     try {
@@ -417,7 +456,7 @@ async function restoreSamplerClips(
       // Undecodable clip: skip it — the slot keeps its .needs-reload hint.
     }
   }
-  return restored;
+  return { from, clips: restored };
 }
 
 /** "Tap to start" shown as a modal layover the synth (same as About etc.). */

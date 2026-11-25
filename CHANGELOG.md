@@ -81,6 +81,46 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
   tab's controls at the right, just above the grid, so on tablets and laptops the
   rows above it use the full width instead of stopping short of it.
 
+- **Playing along no longer cuts your held notes.** Hold a key on a pitch the
+  sequencer or the arp has just played, and it used to stop at their next step,
+  or when you pressed Stop or the loop wrapped. Each sequenced note is now let go
+  once, when its own gate ends, so it only ever stops itself.
+
+- **Two tabs no longer swap their sampler audio.** The sampler clips kept for a
+  reload were shared by every tab, so reloading one tab could bring back the
+  other tab's sounds under its own sample names, and lose its own. Each tab's
+  clips now belong to its own session, like its song, and go when that session
+  does. Clips saved before this update are picked up once by the next session
+  restored. The Debug panel's **Clear** for sampler clips now clears this tab's
+  only.
+
+- **A key held twice keeps sounding until you let go of both.** Two fingers on
+  one on-screen key, or a finger and the computer key for the same note, used to
+  stop the note at the first release while the key still looked pressed. The arp
+  keeps such a key in its pattern the same way. A MIDI keyboard that repeats a
+  note-on still ends the note with its one note-off, as before.
+
+- **Shift no longer strands a note on the number row.** Holding 2, 3, 5, 6 or 7
+  (the black keys of the upper octave) and then pressing Shift, say for
+  Shift+Space, left the note ringing after you let go.
+
+- **The demo you clicked last is the one that loads.** Clicking a second demo
+  while the first was still downloading could end with the first one on screen,
+  because whichever download finished last won. A demo that is still downloading
+  now gives way to any newer choice: another demo, a saved song, an import or New.
+
+- **A full browser storage no longer fails in silence, or stops the app.**
+  Saving a song or preset when the browser's storage was full did nothing and
+  said nothing. Now Save says so — and a song still downloads as a file, so the
+  work is safe. An imported song that could not also be saved says that, instead
+  of claiming the import failed. And the app no longer refuses to start after an
+  update when storage is full or blocked: the built-in presets still play.
+
+- **Settings from a newer version survive a preset change.** A song or preset
+  made in a newer VAST can carry settings this version doesn't know; they ride
+  along untouched so nothing is lost when the file goes back. Loading a second
+  such preset kept the first one's value for them; it now keeps the latest.
+
 ## [2.22.2] - 2026-11-20
 
 ### Fixed

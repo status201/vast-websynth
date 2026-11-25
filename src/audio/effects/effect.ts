@@ -172,9 +172,8 @@ export interface DrainHooks {
 
 /**
  * Helper for bypass-able effects with a dry/wet crossfade.
- * Connect inputs to `inputGate`. The host wires `processedOut` into the
- * effect-specific DSP chain, which writes back into `wet`. `dry` is summed
- * with `wet` at `output`.
+ * Connect inputs to `input`. The host builds its DSP from `processedIn` to
+ * `processedOut`, which feeds `wet`; `dry` is summed with `wet` at `output`.
  *
  * True bypass (ADR-012): the renderer keeps computing any subgraph reachable
  * from the destination, so after the bypass crossfade settles the wrapper

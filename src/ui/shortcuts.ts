@@ -48,13 +48,21 @@ function rebuildNoteMaps(): void {
 rebuildNoteMaps();
 
 
+/** The computer keyboard's note source — one holder, however many keys share a
+ *  note, since `keysOn` already counts those (voicing.md REQ-a-note-sounds-while-any-source-holds-it). */
+const KEYS_SOURCE = 'keys';
+
 export function installShortcuts(engine: StudioApi, bus: ParamBus, bridge: UiBridge): void {
   let baseOctave = 4; // bottom row starts at C4
-  // key → the note it PRESSED, never the note the current baseOctave now names
-  // (input-control.md REQ-a-note-off-names-the-pressed-note): an octave shift mid-hold used to make keyup miss
-  // this map entirely, so the note was never released and its key stayed lit
-  // until the window lost focus.
+  // physical key → the note it PRESSED, never the note the current baseOctave now
+  // names (input-control.md REQ-a-note-off-names-the-pressed-note): an octave shift mid-hold used to make
+  // keyup miss this map entirely, so the note was never released and its key
+  // stayed lit until the window lost focus. Keyed by `e.code`, not the character:
+  // Shift turns the digit-row note keys into symbols ('2' → '@'), and a keyup
+  // reporting a key that was never pressed stranded the note the same way.
   const held = new Map<string, number>();
+  /** The physical key, or the case-folded character where a browser reports no code. */
+  const holdId = (e: KeyboardEvent): string => e.code || keyId(e.key);
   let fillHeld = false;
   let bendHeld = false;
 
@@ -66,9 +74,9 @@ export function installShortcuts(engine: StudioApi, bus: ParamBus, bridge: UiBri
     return fIsNote ? e.code === 'KeyF' : keyId(e.key) === 'f';
   };
 
-  /** Case-folded key identity. Shift can be pressed or released mid-hold, which
-   *  flips `e.key` between 'z' and 'Z' — keying `held` on the raw value would
-   *  strand the note exactly like the octave shift did. */
+  /** Case-folded key identity, for matching a key to its note: Shift flips `e.key`
+   *  between 'z' and 'Z', and both are the same note. What is *held* is keyed by
+   *  the physical key instead (`holdId`), since Shift turns '2' into '@'. */
   const keyId = (k: string): string => (k.length === 1 ? k.toLowerCase() : k);
 
   function keyToMidi(k: string): number | null {
@@ -88,20 +96,20 @@ export function installShortcuts(engine: StudioApi, bus: ParamBus, bridge: UiBri
     keysOn.set(note, n + 1);
     if (n > 0) return; // already sounding — a retrigger would just restart it
     bridge.pressKey(note);
-    bus.noteOn(note);
+    bus.noteOn(note, undefined, KEYS_SOURCE);
   }
   function release(note: number) {
     const n = keysOn.get(note) ?? 0;
     if (n > 1) { keysOn.set(note, n - 1); return; } // another key still holds it
     keysOn.delete(note);
     bridge.releaseKey(note);
-    bus.noteOff(note);
+    bus.noteOff(note, KEYS_SOURCE);
   }
   /** Release every held key's note, once each. */
   function releaseAll() {
     for (const note of keysOn.keys()) {
       bridge.releaseKey(note);
-      bus.noteOff(note);
+      bus.noteOff(note, KEYS_SOURCE);
     }
     keysOn.clear();
     held.clear();
@@ -244,7 +252,7 @@ export function installShortcuts(engine: StudioApi, bus: ParamBus, bridge: UiBri
 
     const note = keyToMidi(k);
     if (note === null) return;
-    const id = keyId(k);
+    const id = holdId(e);
     if (held.has(id)) return;
     held.set(id, note);
     press(note);
@@ -255,9 +263,8 @@ export function installShortcuts(engine: StudioApi, bus: ParamBus, bridge: UiBri
   // released inside it, and a key typed in a field was never recorded as held,
   // so its keyup releases nothing (input-control REQ-shortcuts-are-suppressed-in-a-field).
   window.addEventListener('keyup', (e: KeyboardEvent) => {
-    const k = e.key;
     // Same `e.code` the press used, so a Shift pressed or released mid-hold
-    // cannot strand the bend (REQ-the-look-ahead-horizon-is-not-cancelled; the note-key twin of this is REQ-home-and-shift-arrows-seek).
+    // cannot strand the bend (REQ-pitch-bend-is-quote-and-slash; the note-key twin of this is REQ-a-note-off-names-the-pressed-note).
     if (e.code === 'Quote' || e.code === 'Slash') {
       if (bendHeld) { bendHeld = false; bus.set('master.pitchBend', 0); }
       return;
@@ -266,8 +273,8 @@ export function installShortcuts(engine: StudioApi, bus: ParamBus, bridge: UiBri
       if (fillHeld) { fillHeld = false; engine.perf.setFill(false); }
       return;
     }
-    // Deliberately NOT keyToMidi(k) — baseOctave may have shifted since keydown.
-    const id = keyId(k);
+    // Deliberately NOT keyToMidi(e.key) — baseOctave may have shifted since keydown.
+    const id = holdId(e);
     const note = held.get(id);
     if (note === undefined) return;
     held.delete(id);

@@ -453,17 +453,31 @@ export const Presets = {
     return [...new Set([...Object.keys(FACTORY), ...store.readIndex()])].sort();
   },
 
+  /**
+   * Seed (or refresh) the factory slots. Runs at boot, before the UI exists, so
+   * it never throws (storage-failures.md REQ-seeding-never-fails-the-boot): a
+   * write the storage refuses is skipped, and `load()` falls back to `FACTORY`.
+   */
   ensureFactoryPresets(): void {
     for (const [name, snap] of Object.entries(FACTORY)) {
       const raw = store.readRaw(name);
-      if (!raw || isOlderSeed(raw, snap)) store.writeRaw(name, JSON.stringify(snap));
+      if (raw && !isOlderSeed(raw, snap)) continue;
+      try {
+        store.writeRaw(name, JSON.stringify(snap));
+      } catch {
+        // full or blocked: the built-in bank still plays
+      }
     }
     const ix = store.readIndex();
     let changed = false;
     for (const n of Object.keys(FACTORY)) {
       if (!ix.includes(n)) { ix.push(n); changed = true; }
     }
-    if (changed) store.writeIndex(ix);
+    try {
+      if (changed) store.writeIndex(ix);
+    } catch {
+      // full or blocked: list() merges the factory names anyway
+    }
   },
 
   /**
@@ -497,8 +511,7 @@ export const Presets = {
     const name = cleanName(rawName);
     // Round at the serialization boundary (same helper as song export) — clean
     // JSON, no audible change. capture() keeps live state full-precision.
-    store.writeRaw(name, JSON.stringify(roundParams(snap)));
-    store.addToIndex(name);
+    store.save(name, JSON.stringify(roundParams(snap)));
   },
 
   /**

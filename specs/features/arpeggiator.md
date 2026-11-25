@@ -38,7 +38,16 @@ releasing the last key stops it again (only if the arp was what started it).
 - **REQ-arp-takes-over-the-note-stream** — While enabled, key/MIDI presses are
   suppressed at the engine; the arp generates timed notes on `clock.onTick`.
 - **REQ-held-notes-keep-press-order** — Held notes are tracked in **press
-  order**; patterns reorder them.
+  order**; patterns reorder them. A note leaves the pool when the **last** source
+  holding it lets go, by the same rule as the passthrough ([voicing](voicing.md)
+  REQ-a-note-sounds-while-any-source-holds-it).
+- **REQ-each-arp-note-is-released-once** — Each arp note is released exactly once,
+  at `when + cellDur × arp.gate`, scheduled with its note-on. The voice pool binds
+  that release to the note's own voices when it is scheduled, so it ends that note
+  and no other, even where swing brings the next onset earlier. A second release
+  would name a pitch the pool has already forgotten, and so cut whatever holds that
+  pitch by then, such as a sequencer note ([sequencer](sequencer.md)
+  REQ-a-released-note-is-not-released-again).
 - **REQ-the-cursor-is-bounded-by-the-live-pool** — (v5) **The pattern cursor is
   bounded by the pool it is about to read, not the one it last walked.**
   The pool is rebuilt every note from the held keys × octaves, so it **shrinks
@@ -130,8 +139,9 @@ releasing the last key stops it again (only if the arp was what started it).
   notes. That duplication is the direct consequence of REQ-arp-takes-over-the-note-stream owning note triggering, and
   it is what lets one finger drive an arpeggiated progression.
 
-  Release safety comes free from the existing shape: `lastNote` already stores the
-  note that was played, so the quantized note is what gets released
+  Release safety comes free from the existing shape: each note's release is
+  scheduled with its note-on and names the note that was played, so the quantized
+  note is what gets released
   ([scale-quantization](scale-quantization.md) REQ-resolve-once-release-the-stored-note). Both transforms are early returns
   at their defaults (`chromatic`, `chord.voicing: off`), so v4 is inaudible until a key
   is chosen.
@@ -263,6 +273,19 @@ Scenario: A 1/8 arp swings its off-beat eighths (REQ-the-arp-runs-on-a-lanes-gri
   Then the second note lands half an eighth late, where a 1/8 sequencer lane's would
   And with swing at 0 it lands on the straight eighth, as before
   # the bug: the arp counted step % 2 and fired on the even ticks, which swing never moves
+# pinned by: tests/audio/transport/arpeggiator.test.ts
+
+Scenario: A key two sources hold stays in the pool until both let go (REQ-held-notes-keep-press-order, regression)
+  Given the arp is on and C4 is held by a finger and by the computer key
+  When the finger lifts
+  Then the arp keeps playing C4 until the computer key lets go too
+# pinned by: tests/audio/transport/arpeggiator.test.ts
+
+Scenario: The next arp note does not cut another source's note on the last pitch (REQ-each-arp-note-is-released-once, regression)
+  Given the arp played C4, its gate has ended, and the sequencer now holds C4
+  When the arp plays its next note
+  Then the arp releases nothing but the note it just played, at that note's gate end
+  And the sequencer's C4 keeps sounding
 # pinned by: tests/audio/transport/arpeggiator.test.ts
 ```
 

@@ -146,8 +146,9 @@ instead of transcribing it from a phone screen.
   `dialogStyles.danger` and **must** carry `confirm` copy: it runs only after
   `confirmDialog` ([dialog](dialog.md)) resolves true, so a stray click can
   never destroy state. Current row actions: **Sampler clips ▸ Clear**
-  (`debug-clips-clear`: nulls every sampler slot, then `SampleAutosave.clear()`
-  for orphans), **Session autosave ▸ Clear** (`debug-session-clear`:
+  (`debug-clips-clear`: nulls every sampler slot, then
+  `SampleAutosave.dropSession()` for this tab's session's orphans; other tabs'
+  clips stay, [sample-persistence](sample-persistence.md) REQ-debug-shows-the-clip-store-size), **Session autosave ▸ Clear** (`debug-session-clear`:
   `SessionAutosave.clear()` + reload) and **Service worker ▸ Unregister**
   (`debug-sw-unregister`: unregister all + reload). It does **not** delete
   the caches — the next registration of the same version reuses them — and its

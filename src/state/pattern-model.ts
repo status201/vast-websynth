@@ -244,7 +244,7 @@ export type Machine = 'seq' | 'drum' | 'sampler' | 'motion';
 /**
  * Sentinel for an arrangement-chain "rest" slot: an always-empty bar. It lives
  * only in `ChainLane.steps` (never as an edit/play bank), so it is a value < 0
- * that `clampChainStep` preserves while `clampBank` still squashes it to a real
+ * that `clampChainStep` preserves while `clampBankIn` still squashes it to a real
  * bank. See specs/features/arrangement-rest.md.
  */
 export const REST = -1;

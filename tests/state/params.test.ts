@@ -608,3 +608,25 @@ describe('seq.tieMode and the envelope triggers', () => {
     expect(isPatchParam('env.fil.trigger')).toBe(true);
   });
 });
+
+// song-file.md REQ-a-newer-builds-param-round-trips (regression): the bus kept the
+// FIRST value an unregistered id was given, so a newer preset loaded over a newer
+// song saved the song's value.
+describe('ParamBus — an id from a newer build', () => {
+  it('keeps the value last written, and snapshots it', () => {
+    const bus = new ParamBus();
+    registerDefaults(bus);
+    bus.restore({ 'future.param': 0.7 }); // a song from a newer build
+    bus.restore({ 'future.param': 0.2 }); // a preset from one, loaded over it
+    expect(bus.get('future.param')).toBe(0.2);
+    expect(bus.snapshot()['future.param']).toBe(0.2);
+  });
+
+  it('is dropped by a load that starts from the defaults', () => {
+    const bus = new ParamBus();
+    registerDefaults(bus);
+    bus.set('future.param', 0.7);
+    bus.resetDefaults();
+    expect('future.param' in bus.snapshot()).toBe(false);
+  });
+});

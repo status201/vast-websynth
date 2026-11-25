@@ -1,4 +1,5 @@
 import { Modal } from './modal';
+import { alertStorageFailure } from '../storage-failure';
 import { createButton } from './button';
 import { confirmDialog, promptName } from './dialog';
 import { showToast } from './toast';
@@ -172,7 +173,14 @@ export function openPresetManagerModal(opts: PresetManagerOptions): void {
       });
       if (!name) return;
       const snap = Presets.capture(opts.bus);
-      Presets.save(name, snap);
+      try {
+        Presets.save(name, snap);
+      } catch (e) {
+        // Refused by the browser (storage-failures.md REQ-a-failed-save-says-so):
+        // nothing changes, and no "Saved" toast claims otherwise.
+        await alertStorageFailure({ title: 'Preset not saved', message: `"${name}" could not be saved`, error: e });
+        return;
+      }
       // The saved patch becomes the new double-tap reset target — the pre-v4
       // behaviour, kept here so Save has exactly one implementation.
       opts.bus.setBaselines(snap);
@@ -445,13 +453,32 @@ export function openPresetManagerModal(opts: PresetManagerOptions): void {
   }
 
   function applyImport(): void {
+    // What fits is stored; what the browser refuses is counted and reported
+    // (storage-failures.md REQ-a-failed-save-says-so).
+    let refused: unknown = null;
+    let stored = 0;
     for (const w of plan.writes) {
       const snap = incoming[w.source];
-      if (snap) Presets.save(w.target, snap);
+      if (!snap) continue;
+      try {
+        Presets.save(w.target, snap);
+        stored++;
+      } catch (e) {
+        refused ??= e;
+      }
     }
-    const n = plan.writes.length;
     opts.onPresetsChanged();
     modal.close();
+    if (refused !== null) {
+      const missed = plan.writes.length - stored;
+      void alertStorageFailure({
+        title: 'Some presets not imported',
+        message: `${plural(stored, 'preset')} imported; ${plural(missed, 'preset')} could not be saved`,
+        error: refused,
+      });
+      return;
+    }
+    const n = stored;
     showToast({
       message: `Imported ${plural(n, 'preset')} — pick one from the Preset menu`,
       testId: 'preset-toast',

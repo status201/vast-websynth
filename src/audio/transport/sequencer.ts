@@ -139,11 +139,15 @@ export class StepSequencer {
     if (st) st.pan = pan;
   }
 
+  /**
+   * Let go of the track's note — only if it is still held, i.e. its step tied
+   * (sequencer.md REQ-a-released-note-is-not-released-again). A step that did not
+   * tie was released at its own gate end, and the pool forgot that pitch then; a
+   * second release would reach whoever holds the pitch now, such as a live key.
+   */
   private releaseTrack(st: SeqTrackState, when?: number): void {
-    if (st.lastPlayedNote >= 0) {
-      this.output.releaseNote(st.lastPlayedNote, when);
-      st.lastPlayedNote = -1;
-    }
+    if (st.prevTied && st.lastPlayedNote >= 0) this.output.releaseNote(st.lastPlayedNote, when);
+    st.lastPlayedNote = -1;
     st.prevTied = false;
   }
 
@@ -160,7 +164,9 @@ export class StepSequencer {
   /**
    * Song-tab DJ mute: suppress note triggering while the pattern keeps running
    * (the playhead still advances). Live keyboard input is unaffected — it never
-   * routed through the sequencer. Releases any ringing sequenced note at once.
+   * routed through the sequencer. A note tied into the next step is released
+   * now; any other already has its release scheduled at its own gate end, bound
+   * to its voices, so it ends there (REQ-a-released-note-is-not-released-again).
    */
   setMuted(muted: boolean): void {
     this.muted = muted;
@@ -226,12 +232,9 @@ export class StepSequencer {
     // the release below has to move with the attack.
     const at = when + microOffset(s, cellDur);
 
-    // Release the previous note before this attack — unless the previous step
-    // tied, in which case we leave its voice ringing so the engine's mono
-    // glide slurs into the new note (audible slide needs mixer.glide > 0).
-    // At `at`, not `when`: on a nudged-early step the grid time falls AFTER the
-    // new attack, so releasing there would cut the note that just started.
-    if (!st.prevTied && st.lastPlayedNote >= 0) this.output.releaseNote(st.lastPlayedNote, at);
+    // No "release the previous note" here (REQ-a-released-note-is-not-released-again):
+    // a step that did not tie already released at its gate end, and a tied one
+    // is continued or re-struck below, which owns its release.
 
     // The arrangement slot's transpose (sequencer.md REQ-every-note-is-shifted-by-the-slot-transpose). Resolved ONCE, and
     // `note` used everywhere `s.note` used to be — including what lands in

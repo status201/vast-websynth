@@ -87,14 +87,42 @@ export class SlotStore {
     return this.prefix + (/^_*index$/.test(name) ? `_${name}` : name);
   }
 
-  /** The stored JSON for `name`, or null when the slot is empty. */
+  /** The stored JSON for `name`, or null when the slot is empty — or when the
+   *  storage cannot be read at all (storage-failures.md REQ-a-slot-read-never-throws). */
   readRaw(name: string): string | null {
-    return localStorage.getItem(this.keyFor(name));
+    try {
+      return localStorage.getItem(this.keyFor(name));
+    } catch {
+      return null;
+    }
   }
 
-  /** Write the slot value only — the index is the caller's concern. */
+  /** Write the slot value only — the index is the caller's concern. Throws when
+   *  the browser refuses it, for the caller to report (storage-failures.md REQ-a-failed-save-says-so). */
   writeRaw(name: string, json: string): void {
     localStorage.setItem(this.keyFor(name), json);
+  }
+
+  /**
+   * Write the slot and index it, or neither (storage-failures.md
+   * REQ-a-failed-save-says-so): when the index write is refused after the slot
+   * landed, the slot is taken back out — restored to what it held — so "not
+   * saved" is true, not a slot that exists but is missing from the list.
+   */
+  save(name: string, json: string): void {
+    const before = this.readRaw(name);
+    this.writeRaw(name, json);
+    try {
+      this.addToIndex(name);
+    } catch (e) {
+      try {
+        if (before === null) localStorage.removeItem(this.keyFor(name));
+        else localStorage.setItem(this.keyFor(name), before);
+      } catch {
+        // nothing more can be done; the error below still reaches the caller
+      }
+      throw e;
+    }
   }
 
   /** Drop the slot and its index entry. */
