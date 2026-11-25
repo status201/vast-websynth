@@ -77,7 +77,10 @@ export class ParamBus {
     if (!Number.isFinite(value)) return;
     const def = this.defs.get(id);
     if (!def) {
-      if (!this.values.has(id)) this.values.set(id, value);
+      // An id from a newer build: kept, at its latest value, so it saves back
+      // as written (song-file.md REQ-a-newer-builds-param-round-trips). Nothing
+      // here listens to it.
+      this.values.set(id, value);
       return;
     }
     const v = clamp(value, def.min, def.max);

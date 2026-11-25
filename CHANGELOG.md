@@ -116,6 +116,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
   of claiming the import failed. And the app no longer refuses to start after an
   update when storage is full or blocked: the built-in presets still play.
 
+- **Settings from a newer version survive a preset change.** A song or preset
+  made in a newer VAST can carry settings this version doesn't know; they ride
+  along untouched so nothing is lost when the file goes back. Loading a second
+  such preset kept the first one's value for them; it now keeps the latest.
+
 ## [2.22.2] - 2026-11-20
 
 ### Fixed
