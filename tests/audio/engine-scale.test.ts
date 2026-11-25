@@ -18,7 +18,7 @@ function engineLike(scale = new ScaleQuantizer(), suppressed = false) {
   const releaseNote = vi.fn();
   const stub = {
     scale,
-    heldIn: new Map<number, number[]>(),
+    heldIn: new Map<number, unknown>(),
     arpPassthroughSuppressed: suppressed,
     playNote,
     releaseNote,
@@ -27,9 +27,9 @@ function engineLike(scale = new ScaleQuantizer(), suppressed = false) {
   return {
     playNote,
     releaseNote,
-    heldIn: (stub as unknown as { heldIn: Map<number, number[]> }).heldIn,
-    noteOn: (n: number, v = 0.8) => stub.handleNote(true, n, v),
-    noteOff: (n: number) => stub.handleNote(false, n, 0),
+    heldIn: (stub as unknown as { heldIn: Map<number, unknown> }).heldIn,
+    noteOn: (n: number, v = 0.8, source?: string) => stub.handleNote(true, n, v, source),
+    noteOff: (n: number, source?: string) => stub.handleNote(false, n, 0, source),
     /** Switch the arp's gate mid-test (voicing.md REQ-passthrough-remembers-what-it-played v8). */
     setSuppressed: (on: boolean) => { (stub as unknown as { arpPassthroughSuppressed: boolean }).arpPassthroughSuppressed = on; },
   };
@@ -206,5 +206,62 @@ describe('Engine.handleNote across the arp switching on', () => {
     e.noteOff(64);
     expect(e.playNote).not.toHaveBeenCalled();
     expect(e.releaseNote).not.toHaveBeenCalled();
+  });
+});
+
+// voicing.md REQ-a-note-sounds-while-any-source-holds-it (regression): the
+// on-screen key stayed lit until the last finger lifted, but the note stopped at
+// the first — one heldIn entry per key, released by whichever note-off came first.
+describe('Engine.handleNote with a key held by two sources', () => {
+  it('keeps sounding until the last source lets go', () => {
+    const e = engineLike();
+    e.noteOn(60, 0.8, 'pointer:1');
+    e.noteOn(60, 0.8, 'pointer:2'); // a second finger on the same key
+    e.noteOff(60, 'pointer:1');
+    expect(e.releaseNote).not.toHaveBeenCalled();
+    e.noteOff(60, 'pointer:2');
+    expect(notes(e.releaseNote)).toEqual([60]);
+    expect(e.heldIn.size).toBe(0);
+  });
+
+  it('a finger and the computer key work the same way', () => {
+    const e = engineLike();
+    e.noteOn(60, 0.8, 'keys');
+    e.noteOn(60, 0.8, 'pointer:7');
+    e.noteOff(60, 'keys');
+    expect(e.releaseNote).not.toHaveBeenCalled();
+    e.noteOff(60, 'pointer:7');
+    expect(notes(e.releaseNote)).toEqual([60]);
+  });
+
+  it('a source repeating its note-on (a MIDI retrigger) is released by its one note-off', () => {
+    const e = engineLike();
+    e.noteOn(60, 0.8, 'midi');
+    e.noteOn(60, 0.8, 'midi');
+    expect(notes(e.playNote)).toEqual([60, 60]); // re-struck, as before
+    e.noteOff(60, 'midi');
+    expect(notes(e.releaseNote)).toEqual([60]);
+    expect(e.heldIn.size).toBe(0);
+  });
+
+  it('a note-off from a source that never pressed the key releases nothing', () => {
+    const e = engineLike();
+    e.noteOn(60, 0.8, 'keys');
+    e.noteOff(60, 'midi');
+    expect(e.releaseNote).not.toHaveBeenCalled();
+    e.noteOff(60, 'keys');
+    expect(notes(e.releaseNote)).toEqual([60]);
+  });
+
+  it('a second press re-strikes what the key is sounding, even after a key change', () => {
+    const scale = new ScaleQuantizer();
+    const e = engineLike(scale);
+    e.noteOn(61, 0.8, 'pointer:1');          // chromatic: C#4
+    scale.setScale(SCALE_LABELS.indexOf('major')); // now C major would map 61 elsewhere
+    e.noteOn(61, 0.8, 'pointer:2');
+    expect(notes(e.playNote)).toEqual([61, 61]);
+    e.noteOff(61, 'pointer:1');
+    e.noteOff(61, 'pointer:2');
+    expect(notes(e.releaseNote)).toEqual([61]); // nothing stranded
   });
 });

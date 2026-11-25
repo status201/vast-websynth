@@ -98,16 +98,32 @@ for bass and leads, poly for chords, unison for a fat stack, and per-voice
   by the key or expanded into a chord ([scale-quantization](scale-quantization.md),
   [chord-tools](chord-tools.md)). `Polyphony.releaseNote` looks up by note number,
   so a note-off that re-derived the mapping after a change would strand a voice.
-  So `Engine.heldIn: Map<number, number[]>` maps raw key → notes actually sounded.
-  Note-on stores; note-off replays and deletes. This is the sequencer's rule
+  So `Engine.heldIn` maps raw key → the notes actually sounded, and who holds
+  them (REQ-a-note-sounds-while-any-source-holds-it). The first note-on stores;
+  the last holder's note-off replays and deletes. This is the sequencer's rule
   ([sequencer](sequencer.md) REQ-every-note-is-shifted-by-the-slot-transpose), and
   it lets a player change key or engage chord memory while holding a chord. The
   map is bounded (128 keys × ≤4 notes) and cleared with `killAll`.
   **A note the passthrough played is always released, arp or no arp**: the arp
   gate applies to note-on only. A note-off for a key the passthrough never played
-  (pressed while the arp owned the stream) is ignored. *Accepted:* two keys can
-  quantize onto one note, so releasing either stops it. That is how hardware
-  quantizers behave; refcounting would break a legato retrigger.
+  (pressed while the arp owned the stream) is ignored. *Accepted:* two
+  *different* keys can quantize onto one note, so releasing either stops it.
+  That is how hardware quantizers behave.
+- **REQ-a-note-sounds-while-any-source-holds-it** — One raw key can be held by
+  several sources at once: two fingers on one on-screen key, a finger and the
+  computer key, a MIDI keyboard and either (`source` on the bus,
+  [input-control](input-control.md) REQ-all-input-goes-through-the-bus). The
+  note sounds until the **last** of them lets go. A source holds a key **at most
+  once**: a second note-on from a source already holding it re-strikes the note
+  without adding a hold, so one note-off from that source still ends its hold.
+  That is the point of holding by source rather than counting presses. MIDI gear
+  repeats note-ons with a single note-off, and a sustained key re-pressed under
+  the pedal does too ([midi-input](midi-input.md)); a counter would hang those
+  notes. A note-off from a source that is not holding the key changes nothing.
+  A re-strike plays the notes the key is already sounding, never a fresh mapping,
+  so a key change mid-hold cannot strand the first ones. The on-screen key looked
+  pressed until the last finger lifted while the note had already stopped at the
+  first.
 - **REQ-a-stolen-voice-leaves-the-held-list** — (v4) `heldNotes` maps a sounding
   note to its voices. When the pool is full, `pickVoice` steals the oldest playing
   voice. So taking a voice **evicts it from whatever note holds it**, and an empty
@@ -384,6 +400,14 @@ Scenario: Glide defaults reproduce legacy behaviour (backward compat, edge)
   Given glide.mode is 'always' (1) and mixer.glide is 0
   Then notes retrigger with no audible portamento
 # pinned by: tests/state/preset.test.ts (existing presets unchanged)
+
+Scenario: A key two sources hold sounds until the last lets go (REQ-a-note-sounds-while-any-source-holds-it, regression)
+  Given a key is held by one source and then by a second
+  When the first source lets go
+  Then the note still sounds, and it is released when the second lets go
+  And a source repeating its note-on (a MIDI retrigger) is still released by its single note-off
+  And a note-off from a source that never pressed the key releases nothing
+# pinned by: tests/audio/engine-scale.test.ts
 
 Scenario: A key held as the arp comes on still releases (REQ-passthrough-remembers-what-it-played, regression)
   Given a key held and sounding through the passthrough

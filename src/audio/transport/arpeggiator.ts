@@ -1,4 +1,4 @@
-import type { ParamBus } from '../../state/params';
+import type { ParamBus, NoteSource } from '../../state/params';
 import type { SynthOutput } from './note-output';
 import type { TickSubscriber } from './tick-source';
 import { ScaleQuantizer } from './scale-quantizer';
@@ -36,7 +36,9 @@ export class Arpeggiator {
   private octaves = 1;
   private gate = 0.5;
   private heldOrder: number[] = []; // in press order
-  private heldSet = new Set<number>();
+  /** Who holds each note: it leaves the pool when the last of them lets go
+   *  (REQ-held-notes-keep-press-order, voicing.md REQ-a-note-sounds-while-any-source-holds-it). */
+  private readonly heldBy = new Map<number, Set<NoteSource>>();
   private direction = 1; // for up-down
   private cursor = 0;
 
@@ -53,20 +55,28 @@ export class Arpeggiator {
   ) {
     this.lane = new LaneMeter(clock);
     this.setRate(2); // 1/16, the param's default
-    bus.onNote((on, note) => {
+    bus.onNote((on, note, _velocity, source) => {
       if (!this.enabled) return;
       if (on) {
-        if (!this.heldSet.has(note)) {
+        const holders = this.heldBy.get(note);
+        if (holders) {
+          holders.add(source);
+        } else {
           this.heldOrder.push(note);
-          this.heldSet.add(note);
+          this.heldBy.set(note, new Set([source]));
         }
         // Holding a key with the arp engaged starts the transport itself, so
         // you hear the arpeggio without separately pressing Play.
         this.maybeStartTransport();
       } else {
-        this.heldSet.delete(note);
-        const idx = this.heldOrder.indexOf(note);
-        if (idx >= 0) this.heldOrder.splice(idx, 1);
+        const holders = this.heldBy.get(note);
+        if (holders) {
+          holders.delete(source);
+          if (holders.size > 0) return; // another source still holds it
+          this.heldBy.delete(note);
+          const idx = this.heldOrder.indexOf(note);
+          if (idx >= 0) this.heldOrder.splice(idx, 1);
+        }
         if (this.heldOrder.length === 0) {
           this.cursor = 0;
           this.maybeStopTransport();
@@ -102,7 +112,7 @@ export class Arpeggiator {
     this.passthroughSuppressed = on;
     if (!on) {
       this.heldOrder = [];
-      this.heldSet.clear();
+      this.heldBy.clear();
       this.maybeStopTransport(); // relinquish a transport the arp auto-started
     }
   }

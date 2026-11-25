@@ -48,6 +48,10 @@ function rebuildNoteMaps(): void {
 rebuildNoteMaps();
 
 
+/** The computer keyboard's note source — one holder, however many keys share a
+ *  note, since `keysOn` already counts those (voicing.md REQ-a-note-sounds-while-any-source-holds-it). */
+const KEYS_SOURCE = 'keys';
+
 export function installShortcuts(engine: StudioApi, bus: ParamBus, bridge: UiBridge): void {
   let baseOctave = 4; // bottom row starts at C4
   // key → the note it PRESSED, never the note the current baseOctave now names
@@ -88,20 +92,20 @@ export function installShortcuts(engine: StudioApi, bus: ParamBus, bridge: UiBri
     keysOn.set(note, n + 1);
     if (n > 0) return; // already sounding — a retrigger would just restart it
     bridge.pressKey(note);
-    bus.noteOn(note);
+    bus.noteOn(note, undefined, KEYS_SOURCE);
   }
   function release(note: number) {
     const n = keysOn.get(note) ?? 0;
     if (n > 1) { keysOn.set(note, n - 1); return; } // another key still holds it
     keysOn.delete(note);
     bridge.releaseKey(note);
-    bus.noteOff(note);
+    bus.noteOff(note, KEYS_SOURCE);
   }
   /** Release every held key's note, once each. */
   function releaseAll() {
     for (const note of keysOn.keys()) {
       bridge.releaseKey(note);
-      bus.noteOff(note);
+      bus.noteOff(note, KEYS_SOURCE);
     }
     keysOn.clear();
     held.clear();

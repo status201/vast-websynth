@@ -43,8 +43,12 @@ only while its own grid is on screen ([sequencer](sequencer.md) REQ-step-input-a
 ## Requirements
 
 - **REQ-all-input-goes-through-the-bus** — All input sources call
-  `bus.noteOn(note, velocity)` / `bus.noteOff(note)`; the engine handles the
-  rest.
+  `bus.noteOn(note, velocity, source)` / `bus.noteOff(note, source)`; the engine
+  handles the rest. `source` names who holds the note — `keys` (the computer
+  keyboard), `pointer:<id>` (one per finger or mouse on the on-screen keyboard),
+  `midi` — so a pitch two of them hold sounds until both let go
+  ([voicing](voicing.md) REQ-a-note-sounds-while-any-source-holds-it). Omitted,
+  it is `default`.
 
 - **REQ-a-key-emits-exactly-one-note-on** — A computer key emits **exactly one**
   `bus.noteOn`/`noteOff` (from `installShortcuts`).
@@ -346,6 +350,14 @@ Scenario: Two keys on one note release it with the last key (REQ-a-note-off-name
   Then the note keeps sounding: no bus.noteOff, and no second noteOn when 'q' went down
   And releasing 'q' sends the one noteOff
 # pinned by: tests/ui/shortcuts.test.ts
+
+Scenario: A key held by two fingers, or a finger and a computer key, sounds until both let go (REQ-all-input-goes-through-the-bus, regression)
+  Given C4 is held by one finger on the on-screen keyboard
+  And a second finger, or the computer key for C4, presses it too
+  When the first of them lets go
+  Then C4 keeps sounding, as the key keeps looking pressed
+  And it is released when the last one lets go
+# pinned by: tests/audio/engine-scale.test.ts, tests/ui/keyboard.test.ts
 
 Scenario: Pitch bend sits on the physical Quote and Slash keys (REQ-pitch-bend-is-quote-and-slash)
   Given no editable field has focus

@@ -154,6 +154,32 @@ describe('Keyboard pointer hold survives an OCT change', () => {
     expect(notes).toEqual([[true, 60], [false, 60]]); // not 48 — no hung voice
     expect(target.classList.contains('active')).toBe(false);
   });
+
+  // input-control.md REQ-all-input-goes-through-the-bus (regression): each finger is its
+  // own note source, so the engine keeps the note while the other finger holds it
+  // — matching the key, which stays lit (voicing.md REQ-a-note-sounds-while-any-source-holds-it).
+  it('tags each finger as its own note source', () => {
+    const { bus, kb, keyEl } = mount();
+    const events: Array<[boolean, number, string]> = [];
+    bus.onNote((on, note, _v, source) => events.push([on, note, source]));
+    const target = keyEl(60);
+    Object.defineProperty(document, 'elementFromPoint', { configurable: true, value: () => target });
+    const finger = (type: string, id: number): PointerEvent => {
+      const e = new MouseEvent(type, { clientX: 1, clientY: 1, bubbles: true, button: 0 });
+      Object.defineProperty(e, 'pointerId', { value: id });
+      return e as PointerEvent;
+    };
+
+    kb.el.dispatchEvent(finger('pointerdown', 1));
+    kb.el.dispatchEvent(finger('pointerdown', 2));
+    kb.el.dispatchEvent(finger('pointerup', 1));
+    expect(target.classList.contains('active')).toBe(true);
+    kb.el.dispatchEvent(finger('pointerup', 2));
+
+    expect(events).toEqual([
+      [true, 60, 'pointer:1'], [true, 60, 'pointer:2'], [false, 60, 'pointer:1'], [false, 60, 'pointer:2'],
+    ]);
+  });
 });
 
 /**

@@ -451,3 +451,31 @@ describe('an arp note is released once (regression)', () => {
     expect(other.noteOff).not.toHaveBeenCalled();
   });
 });
+
+// arpeggiator.md REQ-held-notes-keep-press-order (regression): a key two sources
+// hold left the pool at the first release.
+describe('Arpeggiator — a key held by two sources', () => {
+  it('stays in the pool until the last source lets go', () => {
+    const { clock, bus, arp, playNote } = setup();
+    arp.setEnabled(true);
+    bus.noteOn(60, 0.8, 'pointer:1');
+    bus.noteOn(60, 0.8, 'keys');
+    bus.noteOff(60, 'pointer:1');
+    clock.fireTick(0);
+    expect(playNote).toHaveBeenCalledTimes(1); // still held by the computer key
+
+    bus.noteOff(60, 'keys');
+    clock.fireTick(0.125);
+    expect(playNote).toHaveBeenCalledTimes(1); // gone now
+  });
+
+  it('a retriggering source still leaves with one note-off', () => {
+    const { clock, bus, arp, playNote } = setup();
+    arp.setEnabled(true);
+    bus.noteOn(60, 0.8, 'midi');
+    bus.noteOn(60, 0.8, 'midi');
+    bus.noteOff(60, 'midi');
+    clock.fireTick(0);
+    expect(playNote).not.toHaveBeenCalled();
+  });
+});

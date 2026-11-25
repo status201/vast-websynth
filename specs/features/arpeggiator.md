@@ -38,7 +38,9 @@ releasing the last key stops it again (only if the arp was what started it).
 - **REQ-arp-takes-over-the-note-stream** — While enabled, key/MIDI presses are
   suppressed at the engine; the arp generates timed notes on `clock.onTick`.
 - **REQ-held-notes-keep-press-order** — Held notes are tracked in **press
-  order**; patterns reorder them.
+  order**; patterns reorder them. A note leaves the pool when the **last** source
+  holding it lets go, by the same rule as the passthrough ([voicing](voicing.md)
+  REQ-a-note-sounds-while-any-source-holds-it).
 - **REQ-each-arp-note-is-released-once** — Each arp note is released exactly once,
   at `when + cellDur × arp.gate`, scheduled with its note-on. With the gate at most
   1 that is never after the next onset, so nothing has to release the previous note
@@ -270,6 +272,12 @@ Scenario: A 1/8 arp swings its off-beat eighths (REQ-the-arp-runs-on-a-lanes-gri
   Then the second note lands half an eighth late, where a 1/8 sequencer lane's would
   And with swing at 0 it lands on the straight eighth, as before
   # the bug: the arp counted step % 2 and fired on the even ticks, which swing never moves
+# pinned by: tests/audio/transport/arpeggiator.test.ts
+
+Scenario: A key two sources hold stays in the pool until both let go (REQ-held-notes-keep-press-order, regression)
+  Given the arp is on and C4 is held by a finger and by the computer key
+  When the finger lifts
+  Then the arp keeps playing C4 until the computer key lets go too
 # pinned by: tests/audio/transport/arpeggiator.test.ts
 
 Scenario: The next arp note does not cut another source's note on the last pitch (REQ-each-arp-note-is-released-once, regression)

@@ -94,6 +94,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
   restored. The Debug panel's **Clear** for sampler clips now clears this tab's
   only.
 
+- **A key held twice keeps sounding until you let go of both.** Two fingers on
+  one on-screen key, or a finger and the computer key for the same note, used to
+  stop the note at the first release while the key still looked pressed. The arp
+  keeps such a key in its pattern the same way. A MIDI keyboard that repeats a
+  note-on still ends the note with its one note-off, as before.
+
 ## [2.22.2] - 2026-11-20
 
 ### Fixed

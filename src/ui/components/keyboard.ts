@@ -3,6 +3,9 @@ import { type KeyState, keyRole } from '../key-roles';
 import type { ParamBus } from '../../state/params';
 import { type KeyboardRange, WHITES_PER_OCTAVE } from '../keyboard-range';
 
+/** One note source per finger or mouse (input-control.md REQ-all-input-goes-through-the-bus). */
+const pointerSource = (pointerId: number): string => `pointer:${pointerId}`;
+
 const WHITE_OFFSETS = [0, 2, 4, 5, 7, 9, 11];          // C D E F G A B
 const BLACK_OFFSETS: Array<{ semi: number; whiteIdx: number }> = [
   { semi: 1, whiteIdx: 0 }, // C#
@@ -197,7 +200,9 @@ export class Keyboard {
     // Through the same lit bookkeeping the computer keyboard uses, so a key held
     // by both a finger and a computer key stays lit until the last one lets go.
     this.setLit(this.litActive, 'active', sounding, true);
-    this.bus.noteOn(sounding);
+    // Each finger is a source of its own, so two on one key sound until both
+    // lift — the way the key stays lit (voicing.md REQ-a-note-sounds-while-any-source-holds-it).
+    this.bus.noteOn(sounding, undefined, pointerSource(pointerId));
   }
 
   private releasePointer(pointerId: number): void {
@@ -205,7 +210,7 @@ export class Keyboard {
     if (!held) return;
     this.activeByPointer.delete(pointerId);
     this.setLit(this.litActive, 'active', held.sounding, false);
-    this.bus.noteOff(held.sounding);
+    this.bus.noteOff(held.sounding, pointerSource(pointerId));
   }
 
   private onPointerDown = (e: PointerEvent): void => {
