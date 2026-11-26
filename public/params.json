@@ -282,8 +282,8 @@
       "step": 1,
       "taper": "discrete",
       "labels": [
-        "ladder",
-        "poly"
+        "growl",
+        "scream"
       ]
     },
     {

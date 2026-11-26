@@ -519,7 +519,7 @@ function padBlankDrum(a: DrumCell[][], b: DrumCell[][]): DrumCell[][][] {
   return out;
 }
 
-// --- Mordor: hypnotic mono octave-pulse bass through a resonant ladder ---
+// --- Mordor: hypnotic mono octave-pulse bass through the resonant GROWL filter ---
 const MOR_A = seqFromNotes(
   [45, 45, 57, 45, 45, 45, 57, 45, 45, 45, 57, 45, 45, 45, 57, 45], 0.5, 0.9);
 const MOR_B = seqFromNotes(

@@ -46,7 +46,7 @@ describe('Presets', () => {
 
     // Factory presets set the FULL sound (REQ-a-factory-preset-sets-the-full-sound), so a bank file says
     // everything it means. Before presets.md v15's loader reset, a param missing
-    // from one leaked the previous patch's value: load a LADDER patch after a POLY
+    // from one leaked the previous patch's value: load a GROWL patch after a SCREAM
     // one and it kept the wrong filter.
     it('sets the filter model, shape and keytrack in every bank', () => {
       for (const [name, snap] of Object.entries(Presets.factory())) {
@@ -149,8 +149,8 @@ describe('Presets', () => {
 
     it('names at least one bank per filter model', () => {
       const models = new Set(Object.values(Presets.factory()).map((s) => s['filter.model']));
-      expect(models).toContain(0); // LADDER
-      expect(models).toContain(1); // POLY
+      expect(models).toContain(0); // GROWL
+      expect(models).toContain(1); // SCREAM
     });
   });
 
@@ -165,7 +165,7 @@ describe('Presets', () => {
       return snap;
     };
 
-    it('leave an older preset on the ladder, sounding unchanged', () => {
+    it('leave an older preset on GROWL, sounding unchanged', () => {
       const bus = new ParamBus();
       registerDefaults(bus);
       Presets.apply(bus, legacy());
@@ -180,13 +180,13 @@ describe('Presets', () => {
 
     // presets.md REQ-loading-a-preset-starts-from-the-default-sound (v15). `restore` writes only the ids a
     // snapshot carries, so before v15 a preset that omitted a param inherited the
-    // previous patch's value — a POLY filter, or `tines`' FM and its route. The
+    // previous patch's value — a SCREAM filter, or `tines`' FM and its route. The
     // load now starts every omitted sound param from its no-op default, which is
     // how the preset sounded when it was saved.
     it('an older preset no longer inherits the previous patch', () => {
       const bus = new ParamBus();
       registerDefaults(bus);
-      bus.set('filter.model', 1); // a POLY patch was loaded first
+      bus.set('filter.model', 1); // a SCREAM patch was loaded first
       Presets.apply(bus, legacy());
       expect(bus.get('filter.model')).toBe(0);
 

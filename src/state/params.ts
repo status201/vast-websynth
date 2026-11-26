@@ -326,11 +326,11 @@ export const DRUM_TRACK_LABELS: string[] = [...DRUM_TRACKS];
 // and the order must match MODEL_BUILDERS in drum-machine.ts.
 export const DRUM_MODEL_LABELS = [...DRUM_TRACK_LABELS, 'Conga', 'Bongo', 'Cowbell', 'Clave', 'Shaker'];
 // Selectable filter models (filter-models.md REQ-filter-model-is-a-discrete-param). Append-only for the same
-// reason as LFO_DEST_LABELS. Index 0 is the ladder, so files that predate the
+// reason as LFO_DEST_LABELS. Index 0 is GROWL, so files that predate the
 // switch sound unchanged (ADR-006).
-export const FILTER_MODEL_LABELS = ['ladder', 'poly'];
+export const FILTER_MODEL_LABELS = ['growl', 'scream'];
 
-// The POLY pole-mix morph reads as four named anchors (filter-models.md REQ-shape-morphs-the-pole-mix);
+// The SCREAM pole-mix morph reads as four named anchors (filter-models.md REQ-shape-morphs-the-pole-mix);
 // the knob shows the one it is nearest, which is what a player needs to know.
 const SHAPE_LABELS = ['LP24', 'LP12', 'BP12', 'HP24'];
 const fmtFilterShape = (v: number) =>
@@ -411,7 +411,7 @@ export function registerDefaults(bus: ParamBus): void {
     // envelope always used — so no existing preset or song changes (ADR-006).
     { id: 'filter.velAmount', min: 0, max: 1, default: 0, format: fmtPct },
     // Model + its morph (filter-models.md). Both default to a no-op: index 0 is
-    // the ladder, shape 0 is a plain 4-pole low-pass.
+    // GROWL, shape 0 is a plain 4-pole low-pass.
     { id: 'filter.model', min: 0, max: FILTER_MODEL_LABELS.length - 1, default: 0, step: 1, taper: 'discrete', labels: FILTER_MODEL_LABELS },
     { id: 'filter.shape', min: 0, max: 1, default: 0, format: fmtFilterShape },
     // Note -> cutoff, in semitones (key-tracking.md). 0 = off.

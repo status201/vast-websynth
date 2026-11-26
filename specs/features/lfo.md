@@ -85,12 +85,12 @@ patch have a filter sweep *and* a vibrato.
   [oscillators](oscillators.md) REQ-width-swaps-a-precomputed-wave through
   oscillators.md REQ-a-background-tab-throttles-pwm. One LFO holds one
   destination, so its mirror and its own oscillator are never both in use.
-- **REQ-shape-destination-sweeps-the-pole-mix** — (v4) `shape` sweeps the POLY
+- **REQ-shape-destination-sweeps-the-pole-mix** — (v4) `shape` sweeps the SCREAM
   filter's pole-mix morph `filter.shape` by `±0.5` around the knob
   ([filter-models.md](filter-models.md)
   REQ-shape-morphs-the-pole-mix/REQ-shape-is-an-lfo-destination). It moves
-  coefficients, so it is smoothed like `amp`. It is a no-op under LADDER
-  (filter-models REQ-shape-is-poly-only).
+  coefficients, so it is smoothed like `amp`. It is a no-op under GROWL
+  (filter-models REQ-shape-is-scream-only).
 - **REQ-lfo-rate-is-exponentially-tapered** — (v5) `lfo.rate` has an `exp` taper
   over `0.05..20` Hz. Rate is heard in octaves, so equal turns are equal ratios and
   the knob's midpoint is 1 Hz. Stored values are Hz and unchanged. Motion anchors
@@ -269,7 +269,7 @@ Scenario: The smoother is critically damped in the unit Web Audio reads (regress
   And converted back to linear it is 0.5, so a step settles without overshoot
 # pinned by: tests/audio/lfo.test.ts
 
-Scenario: Selecting shape sweeps the POLY pole mix (REQ-shape-destination-sweeps-the-pole-mix)
+Scenario: Selecting shape sweeps the SCREAM pole mix (REQ-shape-destination-sweeps-the-pole-mix)
   Given lfo.dest is set to "shape" and lfo.amount is 1
   Then toShape's gain ramps to 0.5 and every other destination gain ramps to 0
   And toShape is fed through the smoothing lowpass, not the raw oscillator

@@ -74,7 +74,7 @@ How each worklet embodies it:
   `tests/audio/ladder-filter-worklet.test.ts`); low-level behaviour stays
   compatible, so presets/songs survive tuning changes.
 - **Trade-off:** not physically/circuit accurate — don't expect a measured
-  Moog/1176 transfer curve. Tuning constants (e.g. the ladder's `RES_MAKEUP` and
+  Moog/1176 transfer curve. Tuning constants (e.g. GROWL's `RES_MAKEUP` and
   resonance `curve`, the compressors' character) are dialled **by ear**, not
   derived, so changing them is a judgement call, not a bug fix. "Correct"
   improvements (ZDF, oversampling, thermal models) are **deliberately declined**

@@ -69,9 +69,9 @@ can do with a sound ([ADR-014](../decisions/adr-014-dont-make-me-think.md) law 1
   LFO 2 adds a light 1/16 tremolo, both tempo-locked. Velocity drives the filter,
   its envelope peak through `filter.velAmount` and its saturation through a
   matrix route to `drive`, so a hard note barks and a soft one stays round.
-  The remaining three — `ember`, `vellum`, `prism` — are the POLY-model
+  The remaining three — `ember`, `vellum`, `prism` — are the SCREAM-model
   showcases that arrived with [filter-models](filter-models.md); each leans on
-  something LADDER cannot do, so flipping the model switch on one is the A/B.
+  something GROWL cannot do, so flipping the model switch on one is the A/B.
   Five more are the [cross-modulation](cross-modulation.md) and
   [oscillator-sync](oscillator-sync.md) showcases, each built on something the
   plain oscillators cannot do. Each one's A/B is a single knob turned to 0:

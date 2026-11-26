@@ -265,12 +265,12 @@ const FACTORY: FactoryBank = {
     'master.volume': 0.75,
   },
 
-  // ---- POLY filter showcases (filter-models.md) ----
-  // Each one leans on something the LADDER model cannot do. Flip the FILTER
-  // model switch to LADDER on any of these to hear what it is buying.
+  // ---- SCREAM filter showcases (filter-models.md) ----
+  // Each one leans on something the GROWL model cannot do. Flip the FILTER
+  // model switch to GROWL on any of these to hear what it is buying.
 
   // The headline: an acid line at near-self-oscillating resonance that keeps
-  // its bottom end. Under LADDER the same settings hollow the note out.
+  // its bottom end. Under GROWL the same settings hollow the note out.
   ember: {
     ...PLAIN_VOICE,
     'osc1.wave': 2, 'osc1.octave': -1, 'osc1.level': 0.85,

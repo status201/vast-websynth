@@ -72,7 +72,7 @@ describe('LFO destination routing', () => {
     lfo.setDest(5); // pan — ±1.0, hard L↔R (REQ-pan-sweeps-a-stereo-panner)
     expect(depths(lfo)).toEqual({ ...none, pan: 1 });
 
-    lfo.setDest(6); // shape — ±0.5 of the POLY pole mix (REQ-shape-destination-sweeps-the-pole-mix)
+    lfo.setDest(6); // shape — ±0.5 of the SCREAM pole mix (REQ-shape-destination-sweeps-the-pole-mix)
     expect(depths(lfo)).toEqual({ ...none, shape: 0.5 });
 
     lfo.setDest(7); // sync — ±24 semitones of slave pitch (oscillator-sync.md REQ-sync-is-a-modulation-destination)

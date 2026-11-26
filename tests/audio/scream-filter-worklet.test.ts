@@ -2,7 +2,7 @@ import { describe, it, expect, beforeAll } from 'vitest';
 import { loadWorklet } from '../worklet-harness';
 
 /**
- * The POLY filter model (`specs/features/filter-models.md`), driven through the
+ * The SCREAM filter model (`specs/features/filter-models.md`), driven through the
  * real `public/worklets/ladder-filter.js` under Node — both models live in that
  * one file, selected by the `model` AudioParam (ADR-016).
  *
@@ -14,8 +14,8 @@ import { loadWorklet } from '../worklet-harness';
 const SR = 48000;
 const BLOCK = 128;
 
-const LADDER = 0;
-const POLY = 1;
+const GROWL = 0;
+const SCREAM = 1;
 
 interface ProcessorLike {
   port: { onmessage: ((e: { data: unknown }) => void) | null };
@@ -34,7 +34,7 @@ beforeAll(async () => {
 
 function makeParams(over: Record<string, number> = {}): Record<string, Float32Array> {
   const d: Record<string, number> = {
-    cutoffNote: 90, resonance: 0, drive: 1, model: POLY, shape: 0, active: 1, ...over,
+    cutoffNote: 90, resonance: 0, drive: 1, model: SCREAM, shape: 0, active: 1, ...over,
   };
   return Object.fromEntries(Object.entries(d).map(([k, v]) => [k, new Float32Array([v])]));
 }
@@ -91,38 +91,38 @@ function noise(): number {
   return seed / 0x3fffffff - 1;
 }
 
-describe('POLY filter model — bass preservation (REQ-poly-preserves-the-low-end)', () => {
-  it('holds its low end as resonance rises, where the ladder loses ~7 dB', () => {
+describe('SCREAM filter model — bass preservation (REQ-scream-preserves-the-low-end)', () => {
+  it('holds its low end as resonance rises, where GROWL loses ~7 dB', () => {
     // The headline claim, and the entire reason for a second model. Same input,
     // same cutoff, resonance swept from nothing to maximum.
-    const ladderLoss = dB(lowEnd(LADDER, 4.2) / lowEnd(LADDER, 0));
-    const polyChange = dB(lowEnd(POLY, 4.2) / lowEnd(POLY, 0));
+    const growlLoss = dB(lowEnd(GROWL, 4.2) / lowEnd(GROWL, 0));
+    const screamChange = dB(lowEnd(SCREAM, 4.2) / lowEnd(SCREAM, 0));
 
-    // The ladder's feedback subtraction costs it the bottom end.
-    expect(ladderLoss).toBeLessThan(-6);
-    // POLY does not merely hold — the saturating feedback under-subtracts, so
+    // GROWL's feedback subtraction costs it the bottom end.
+    expect(growlLoss).toBeLessThan(-6);
+    // SCREAM does not merely hold — the saturating feedback under-subtracts, so
     // it gains a little. What matters is that it never sags.
-    expect(polyChange).toBeGreaterThan(0);
+    expect(screamChange).toBeGreaterThan(0);
     // The two diverge by most of an order of magnitude in amplitude.
-    expect(polyChange - ladderLoss).toBeGreaterThan(6);
+    expect(screamChange - growlLoss).toBeGreaterThan(6);
   });
 
   it('rises monotonically with resonance rather than sagging', () => {
-    const steps = [0, 0.5, 1, 2, 3, 4.2].map((r) => lowEnd(POLY, r));
+    const steps = [0, 0.5, 1, 2, 3, 4.2].map((r) => lowEnd(SCREAM, r));
     for (let i = 1; i < steps.length; i++) {
       expect(steps[i]!).toBeGreaterThan(steps[i - 1]!);
     }
   });
 
-  it('is level-matched to the ladder at the default resonance (REQ-poly-trim-matches-the-levels)', () => {
-    // POLY_TRIM exists so that flipping the model switch on an untouched patch
+  it('is level-matched to GROWL at the default resonance (REQ-scream-trim-matches-the-levels)', () => {
+    // SCREAM_TRIM exists so that flipping the model switch on an untouched patch
     // is an A/B of character, not of loudness.
-    const diff = Math.abs(dB(lowEnd(POLY, 0.5) / lowEnd(LADDER, 0.5)));
+    const diff = Math.abs(dB(lowEnd(SCREAM, 0.5) / lowEnd(GROWL, 0.5)));
     expect(diff).toBeLessThan(0.5);
   });
 });
 
-describe('POLY filter model — stability (REQ-poly-output-is-finite-and-bounded)', () => {
+describe('SCREAM filter model — stability (REQ-scream-output-is-finite-and-bounded)', () => {
   it('stays finite and bounded under full-scale noise at every extreme', () => {
     // Worst case by construction: full-scale input, maximum drive, maximum
     // resonance, and each SHAPE anchor in turn (HP24 sums the widest mix).
@@ -150,7 +150,7 @@ describe('POLY filter model — stability (REQ-poly-output-is-finite-and-bounded
   });
 });
 
-describe('POLY filter model — SHAPE (REQ-shape-morphs-the-pole-mix)', () => {
+describe('SCREAM filter model — SHAPE (REQ-shape-morphs-the-pole-mix)', () => {
   // Cutoff note 84 ≈ 1046 Hz, with a probe tone two-and-a-bit octaves either
   // side of it, so each anchor's stop-band is unambiguous.
   const low = (n: number) => AMP * Math.sin((2 * Math.PI * 120 * n) / SR);
@@ -212,24 +212,24 @@ describe('POLY filter model — SHAPE (REQ-shape-morphs-the-pole-mix)', () => {
   });
 });
 
-describe('POLY filter model — model switching (REQ-switching-model-mid-note-is-safe)', () => {
+describe('SCREAM filter model — model switching (REQ-switching-model-mid-note-is-safe)', () => {
   const gen = (n: number) => 0.5 * Math.sin((2 * Math.PI * 220 * n) / SR);
   const opts = { resonance: 3, drive: 2, cutoffNote: 78 };
 
   it('stays finite across a switch in both directions', () => {
     const proc = new Processor();
-    for (const model of [LADDER, POLY, LADDER, POLY, LADDER]) {
+    for (const model of [GROWL, SCREAM, GROWL, SCREAM, GROWL]) {
       const out = run(proc, makeParams({ ...opts, model }), gen, 8);
       expect(allFinite(out), `model ${model}`).toBe(true);
       expect(peak(out), `model ${model}`).toBeLessThan(24);
     }
   });
 
-  it('resumes the ladder from its pole states, not from pre-POLY history', () => {
-    // POLY never reads the ladder-only sat() carries, so without the per-block
-    // re-prime the ladder would come back on carries left over from before the
-    // POLY episode. Give one processor a loud LADDER history and the other
-    // none, then settle both through the *same* silent POLY passage: the pole
+  it('resumes GROWL from its pole states, not from pre-SCREAM history', () => {
+    // SCREAM never reads the GROWL-only sat() carries, so without the per-block
+    // re-prime GROWL would come back on carries left over from before the
+    // SCREAM episode. Give one processor a loud GROWL history and the other
+    // none, then settle both through the *same* silent SCREAM passage: the pole
     // states decay to nothing either way, so if the carries are rebuilt from
     // those states the loud history is forgotten and the two agree. Without the
     // re-prime the first processor keeps carries near ±1 while the second holds
@@ -240,15 +240,15 @@ describe('POLY filter model — model switching (REQ-switching-model-mid-note-is
     const withHistory = new Processor();
     const fresh = new Processor();
 
-    run(withHistory, makeParams({ ...opts, model: LADDER }), loud, 20);
+    run(withHistory, makeParams({ ...opts, model: GROWL }), loud, 20);
 
     // Zero resonance so the states decay away rather than ringing on.
-    const settle = makeParams({ ...opts, model: POLY, resonance: 0 });
+    const settle = makeParams({ ...opts, model: SCREAM, resonance: 0 });
     run(withHistory, settle, silence, 200);
     run(fresh, settle, silence, 200);
 
-    const a = run(withHistory, makeParams({ ...opts, model: LADDER }), gen, 8);
-    const b = run(fresh, makeParams({ ...opts, model: LADDER }), gen, 8);
+    const a = run(withHistory, makeParams({ ...opts, model: GROWL }), gen, 8);
+    const b = run(fresh, makeParams({ ...opts, model: GROWL }), gen, 8);
     expect(peak(a)).toBeGreaterThan(0.01); // the comparison is on real signal
     // Verified to discriminate: dropping the re-prime moves these apart by
     // ~2.4e-2, some 6% of peak, so the threshold has five orders of margin.
@@ -260,7 +260,7 @@ describe('POLY filter model — model switching (REQ-switching-model-mid-note-is
   });
 
   it('keeps the idle gate working for both models (REQ-shared-worklet-contracts-cover-both-models)', () => {
-    const params = makeParams({ ...opts, model: POLY });
+    const params = makeParams({ ...opts, model: SCREAM });
     const proc = new Processor();
     expect(peak(run(proc, params, gen, 10))).toBeGreaterThan(0);
 
@@ -271,7 +271,7 @@ describe('POLY filter model — model switching (REQ-switching-model-mid-note-is
   });
 });
 
-describe('POLY filter model — the switch crossfades (REQ-a-model-switch-crossfades)', () => {
+describe('SCREAM filter model — the switch crossfades (REQ-a-model-switch-crossfades)', () => {
   /** A held 220 Hz tone with its own sample counter, so a run can be split. */
   const held = () => {
     let n = 0;
@@ -291,7 +291,7 @@ describe('POLY filter model — the switch crossfades (REQ-a-model-switch-crossf
     // passband levels from different internal states — and with it ~0.0013.
     const proc = new Processor();
     const gen = held();
-    const segs = [LADDER, POLY, LADDER].map((m) => run(proc, at(m), gen, 40));
+    const segs = [GROWL, SCREAM, GROWL].map((m) => run(proc, at(m), gen, 40));
     const all = new Float32Array(segs.length * 40 * BLOCK);
     segs.forEach((s, i) => all.set(s, i * 40 * BLOCK));
     const seg = 40 * BLOCK;
@@ -308,11 +308,11 @@ describe('POLY filter model — the switch crossfades (REQ-a-model-switch-crossf
     const plain = new Processor();
     const g1 = held();
     const g2 = held();
-    run(faded, at(LADDER), g1, 20);
-    run(plain, at(LADDER), g2, 20);
+    run(faded, at(GROWL), g1, 20);
+    run(plain, at(GROWL), g2, 20);
     (plain as unknown as { model: number }).model = -1;
-    const a = run(faded, at(POLY), g1, 8);
-    const b = run(plain, at(POLY), g2, 8);
+    const a = run(faded, at(SCREAM), g1, 8);
+    const b = run(plain, at(SCREAM), g2, 8);
     const xf = Math.round(SR * 0.005);
     let early = 0;
     for (let i = 0; i < xf; i++) early = Math.max(early, Math.abs(a[i]! - b[i]!));

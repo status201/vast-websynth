@@ -48,7 +48,7 @@ Schemas: [`llms.txt`](llms.txt).
 - "filter.drive": number  // range 0.5..6, default 1.2
 - "filter.envAmount": number  // range -48..48, default 24
 - "filter.velAmount": number  // range 0..1, default 0
-- "filter.model": number  // range 0..1, default 0, step 1, values 0=ladder 1=poly
+- "filter.model": number  // range 0..1, default 0, step 1, values 0=growl 1=scream
 - "filter.shape": number  // range 0..1, default 0
 - "filter.keytrack": number  // range 0..1, default 0
 - "env.amp.attack": number  // range 0.001..4, default 0.005

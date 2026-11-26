@@ -73,12 +73,12 @@ test.describe('control surface (testids + debug bridge)', () => {
     await expect.poll(() => busGet(page, 'filter.cutoff')).toBeCloseTo(60, 1);
   });
 
-  test('the filter model switch selects POLY and enables SHAPE', async ({ page }) => {
+  test('the filter model switch selects SCREAM and enables SHAPE', async ({ page }) => {
     await gotoAndStart(page);
-    expect(await busGet(page, 'filter.model')).toBe(0); // ladder by default
+    expect(await busGet(page, 'filter.model')).toBe(0); // GROWL by default
 
     const shape = page.getByTestId('knob-filter.shape');
-    // SHAPE belongs to POLY, so it is dimmed until the model is switched.
+    // SHAPE belongs to SCREAM, so it is dimmed until the model is switched.
     await expect(shape).toHaveAttribute('aria-disabled', 'true');
 
     await page.getByTestId('seg-filter.model-1').click();

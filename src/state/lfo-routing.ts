@@ -31,8 +31,8 @@ export const LFO_DEST_SCALE = {
   // Hard L↔R. StereoPannerNode.pan clamps to ±1, so this stays bounded whatever
   // the amount (lfo.md REQ-pan-sweeps-a-stereo-panner).
   pan: 1,
-  // Of the POLY pole-mix morph, summed onto the knob. A no-op under the LADDER
-  // model, which ignores shape (filter-models.md REQ-shape-is-poly-only).
+  // Of the SCREAM pole-mix morph, summed onto the knob. A no-op under the GROWL
+  // model, which ignores shape (filter-models.md REQ-shape-is-scream-only).
   shape: 0.5,
   // Semitones of slave pitch, summed onto the SYNC knob — the same reach as
   // cutoff (oscillator-sync.md REQ-sync-is-a-modulation-destination).

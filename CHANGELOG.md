@@ -16,6 +16,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+### Changed
+
+- **The FILTER's two models are now called GROWL and SCREAM** (were LADDER and
+  POLY). Both are ladder filters, so the old names said little about the
+  difference, and POLY read like the MONO / POLY voicing switch beside it. GROWL
+  saturates every stage and thins the bass as resonance rises; SCREAM keeps the
+  low end and lets the resonance scream over it, and has the SHAPE knob. Only the
+  names changed: every preset, song and share link sounds exactly as before.
+
 ## [2.23.0] - 2026-11-25
 
 ### Added

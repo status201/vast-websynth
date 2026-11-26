@@ -3,7 +3,7 @@
 ```yaml
 id: ladder-filter
 status: implemented
-version: 9
+version: 10
 owner: core
 related:
   - architecture
@@ -25,7 +25,11 @@ source:
   - src/ui/panels/synth-panels.ts         # the FILTER panel
 ```
 
-The resonant low-pass ladder filter, the synth's main tone shaper. It is also the
+The resonant low-pass ladder filter, the synth's main tone shaper — filter model
+`0`, labelled **GROWL** on the FILTER panel's model switch. Its sibling, **SCREAM**,
+is a ladder too, in the same worklet ([filter-models.md](filter-models.md)), which is
+why the models are named for what they sound like and the worklet keeps the
+topology's name. It is also the
 **canonical worked example** of the scalar-parameter pattern (`filter.cutoff`),
 referenced by the [add-a-parameter recipe](../recipes/add-a-parameter.md).
 
@@ -98,11 +102,11 @@ on-screen value is shown in Hz.
   differs from the previous block's **ramps linearly across the block** from the
   old value to the new one, in both models. A constant `drive` takes the
   unramped path, so the output stays bit-identical to the frozen reference.
-- **REQ-ladder-is-filter-model-zero** — This is filter model `0`. The worklet also
-  hosts POLY, selected by a k-rate `model` param ([filter-models.md](filter-models.md),
-  ADR-016). The branch sits **outside** the sample loop, so the ladder stays
-  bit-identical to its frozen reference. `filter.shape` is POLY-only
-  (filter-models REQ-shape-is-poly-only). `filter.keytrack`
+- **REQ-growl-is-filter-model-zero** — This is filter model `0`. The worklet also
+  hosts SCREAM, selected by a k-rate `model` param ([filter-models.md](filter-models.md),
+  ADR-016). The branch sits **outside** the sample loop, so GROWL stays
+  bit-identical to its frozen reference. `filter.shape` is SCREAM-only
+  (filter-models REQ-shape-is-scream-only). `filter.keytrack`
   ([key-tracking.md](key-tracking.md)) and the `setActive` flag serve both models.
 
 ## Technical design
@@ -133,7 +137,7 @@ filter.drive:     { range: 0.5..6,  default: 1.2, format: "x" }
 filter.envAmount: { range: -48..48, default: 24, unit: semitones }            # bipolar
 # also on the FILTER panel, owned by other specs:
 filter.model:     # filter-models.md — 0 = this model
-filter.shape:     # filter-models.md — POLY only
+filter.shape:     # filter-models.md — SCREAM only
 filter.keytrack:  # key-tracking.md  — both models
 ```
 
@@ -259,7 +263,7 @@ Scenario: A drive change ramps across the block instead of stepping (REQ-drive-m
   And a block whose drive did not change still equals the frozen reference
 # pinned by: tests/audio/ladder-filter-worklet.test.ts
 
-Scenario: Adding a second model left this one bit-identical (REQ-ladder-is-filter-model-zero, regression)
+Scenario: Adding a second model left this one bit-identical (REQ-growl-is-filter-model-zero, regression)
   Given the model param sits at its default 0
   When a driven, resonant block is processed
   Then every output sample equals the frozen naive ladder reference

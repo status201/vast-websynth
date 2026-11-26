@@ -203,8 +203,8 @@ count changes.
 
 - **REQ-selectors-pin-to-the-panel-edges** — (v10) **A synth panel body is three
   zones, and the selectors sit on its edges.** The wave / model selector opens
-  the body (OSC 1, OSC 2, SUB / UNI and LFO's wave pickers, FILTER's LADDER /
-  POLY); the mode control closes it (OSC 2's SYNC, MIXER's glide mode, the LFO
+  the body (OSC 1, OSC 2, SUB / UNI and LFO's wave pickers, FILTER's GROWL /
+  SCREAM); the mode control closes it (OSC 2's SYNC, MIXER's glide mode, the LFO
   destination dropdown); and the knobs sit in a zone that takes all the height
   between them and centres its contents. A panel with no selector at an edge has
   nothing there, so its knobs centre in what is left — AMP ENV and FILTER ENV

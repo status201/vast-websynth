@@ -269,7 +269,7 @@ specs/
     oscillator-sync.md ·  hard + soft (every slave edge rounded) sync: a per-voice worklet pair, band-limited, built on first use
     cross-modulation.md · ring mod + linear FM, OSC 1 modulating OSC 2; native, disconnected while unused, FM reaches the sync pair
     ladder-filter.md   ·  the resonant ladder filter (canonical scalar example)
-    filter-models.md   ·  LADDER/POLY model switch + the POLY multimode DSP
+    filter-models.md   ·  GROWL/SCREAM model switch + the SCREAM multimode DSP
     key-tracking.md    ·  note number -> cutoff, in semitones (both models)
     envelopes.md       ·  amp + filter ADSR
     lfo.md             ·  the two LFOs + mod wheel

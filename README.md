@@ -116,8 +116,8 @@ click through it area by area.
 - **Glide modes**: off / always / legato (only when notes overlap)
 - **Single or multi trigger, per envelope** (Mono): a legato line can keep its level and still re-sweep the filter
 - **Two filter models**, level-matched so switching changes the character, not the volume:
-  - **LADDER**: Moog-style 4-pole with resonance and drive; warm and growly, the bass thinning as resonance rises
-  - **POLY**: 4-pole that **keeps its low end** at any resonance (the Prophet-600 trick), with a **SHAPE** knob morphing LP24 → LP12 → BP12 → HP24, which can itself be modulated
+  - **GROWL**: Moog-style 4-pole ladder with resonance and drive; warm and saturated, the bass thinning as resonance rises
+  - **SCREAM**: a cleaner 4-pole ladder that **keeps its low end** at any resonance (the Prophet-600 trick), so the resonance screams over a full bottom, with a **SHAPE** knob morphing LP24 → LP12 → BP12 → HP24, which can itself be modulated
 - **Filter key tracking**: timbre stays even up the keyboard, and a self-oscillating filter plays in tune
 - **Two ADSR envelopes** (amp + filter), filter-envelope amount in semitones and a **VEL** knob for velocity-to-filter; their **ⓘ** badges draw the curve you have set, with its times, levels and the cutoff it reaches
 - **Two LFOs**, routable to cutoff, pitch, amp, pulse width (PWM), **stereo pan** (an auto-panner), filter **shape** or oscillator **sync**
@@ -166,7 +166,7 @@ click through it area by area.
 
 - **Songs**: save and load whole songs (every setting, bank and chain) as compact `.json` files or browser slots. A shelf of demos, with a **demo library** of each one's tempo, length and notes; drop a song or project file into `src/state/demos/` to add one
 - **Project export**: **Song (.json)** or **Project (.zip)**, which carries every loaded sample (WAV or MP3) so a sampled song travels as one file. Import takes either
-- **Presets**: 25 factory sounds across basses, keys, pads, leads and plucks, plus your own. **ember**, **vellum** and **prism** show off the POLY filter; **tines**, **chime**, **growl**, **clang** and **tear** show off FM, ring mod and sync. The **Preset** manager saves, exports a sound or a bank of what you have changed, deletes, restores factory sounds, and imports with a review step (new / identical / clashing)
+- **Presets**: 25 factory sounds across basses, keys, pads, leads and plucks, plus your own. **ember**, **vellum** and **prism** show off the SCREAM filter; **tines**, **chime**, **growl**, **clang** and **tear** show off FM, ring mod and sync. The **Preset** manager saves, exports a sound or a bank of what you have changed, deletes, restores factory sounds, and imports with a review step (new / identical / clashing)
 - **Share links**: Export → **Copy Link** puts the whole song in the URL, which never reaches a server; `#songUrl=` loads a hosted file
 - **Generate songs with AI**: **✨ AI Prompt** gives you a ready-to-paste prompt (add your idea in *Describe your song*) for a finished track with sections and an ending. **Paste** takes the reply as-is, chat chatter and code fences included, and shows what it found before applying; dropping a file on the window works too
 - **Formats for tools and agents**: a published [JSON Schema](public/schema/websynth-song.schema.json) for songs, a compact [authoring dialect](public/schema/websynth-song-author.schema.json) an LLM can write in ~40 lines (`"A2"`, `"kick": [0,4,8,12]`, `"AABA"`), and the full parameter list as [`/params.md`](public/params.md) and [`/params.json`](public/params.json). See **Formats & schemas** below
@@ -418,7 +418,7 @@ src/
                      keeping a hidden page's audio alive (or suspending it when it breaks up)
     polyphony.ts     voice pool + note allocation (poly/mono, unison, glide, drift)
     lane-mixer.ts    Song-tab mute / solo / volume across seq / drum / sampler
-    voice.ts         one voice: 2 osc + noise → filter (LADDER/POLY) → amp
+    voice.ts         one voice: 2 osc + noise → filter (GROWL/SCREAM) → amp
     oscillator.ts, envelope.ts, lfo.ts, pwm.ts, midi.ts
     frequency-line.ts  the note-by-note frequency + glide curve, shared by oscillators and the sync pair
     sync-osc/        AudioWorklet wrapper + engagement crossfade for oscillator sync

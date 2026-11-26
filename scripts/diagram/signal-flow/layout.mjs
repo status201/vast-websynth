@@ -195,7 +195,7 @@ function drawSynth({ P, L, B, mk, st, note, frame }) {
   mk('mixer', { x: 2710, y: 300, w: 140, h: 618, cat: 'voice', title: 'MIXER',
     marks: [{ y: oy(B.osc1), t: 'OSC 1' }, { y: RING.y, t: 'RING' }, { y: oy(B.osc2), t: 'OSC 2' }, { y: oy(B.sub), t: 'SUB' }, { y: oy(B.noise), t: 'NOISE' }] });
   mk('filter', { x: 2900, y: 470, w: 250, h: 300, cat: 'voice', title: 'FILTER', icon: 'filter', iconH: 44, tag: 'worklet',
-    lines: ['**LADDER', '4-pole low-pass · self-oscillates', '**POLY  (SHAPE morphs)', 'LP24 → LP12 → BP12 → HP24', 'CUTOFF as a MIDI note · RES', 'DRIVE · KEYTRACK · VEL AMT'] });
+    lines: ['**GROWL', '4-pole low-pass · self-oscillates', '**SCREAM  (SHAPE morphs)', 'LP24 → LP12 → BP12 → HP24', 'CUTOFF as a MIDI note · RES', 'DRIVE · KEYTRACK · VEL AMT'] });
   mk('spread', { x: 3480, y: 545, w: 180, h: 150, cat: 'voice', title: 'SPREAD',
     lines: ['per-track PAN', '~wired in only while', '~a track is off centre'], badge: '→ STEREO' });
   mk('fenv', { x: 2950, y: 822, w: 200, cat: 'mod', title: 'FILTER ENV', icon: 'adsr', iconH: 36,

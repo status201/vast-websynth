@@ -1,5 +1,5 @@
 /**
- * The voice filter. Hosts BOTH models — LADDER (`ladder-filter.md`) and POLY
+ * The voice filter. Hosts BOTH models — GROWL (`ladder-filter.md`) and SCREAM
  * (`filter-models.md`) — in one worklet, selected by the `model` AudioParam
  * rather than by swapping nodes (ADR-016). The name is historical: renaming it
  * would churn every import for no behavioural gain.
@@ -10,9 +10,9 @@ export class LadderFilterNode {
   readonly cutoffNote: AudioParam;
   readonly resonance: AudioParam;
   readonly drive: AudioParam;
-  /** Which model runs: 0 = LADDER, 1 = POLY (filter-models.md REQ-filter-model-is-a-discrete-param). */
+  /** Which model runs: 0 = GROWL, 1 = SCREAM (filter-models.md REQ-filter-model-is-a-discrete-param). */
   readonly model: AudioParam;
-  /** POLY pole-mix morph, 0 = LP24 … 1 = HP24. The LFO sums in here (filter-models.md REQ-shape-is-an-lfo-destination). */
+  /** SCREAM pole-mix morph, 0 = LP24 … 1 = HP24. The LFO sums in here (filter-models.md REQ-shape-is-an-lfo-destination). */
   readonly shape: AudioParam;
   /** The idle gate (ladder-filter.md REQ-the-filter-idles-when-gated); written only by `setActive`. */
   private readonly active: AudioParam;

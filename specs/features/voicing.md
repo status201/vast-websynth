@@ -174,8 +174,8 @@ for bass and leads, poly for chords, unison for a fat stack, and per-voice
 - **REQ-the-trigger-switches-dim-in-poly** — While `voicing.mode` is POLY both
   MULTI | SINGLE switches are **dimmed** (opacity 0.45, the `Knob` disabled look) and
   take no clicks, with a tooltip saying they are Mono only. They keep their place
-  rather than hiding, as SHAPE does under LADDER (filter-models.md
-  REQ-shape-is-poly-only, ADR-014): the switch reads as "not in play in this mode",
+  rather than hiding, as SHAPE does under GROWL (filter-models.md
+  REQ-shape-is-scream-only, ADR-014): the switch reads as "not in play in this mode",
   never as a layout that jumps. The stored value is untouched, so switching back to
   MONO brings the setting back as it was. `Segmented.setDisabled(on, why?)` does the
   dimming, and the native `disabled` on its buttons blocks the click and the

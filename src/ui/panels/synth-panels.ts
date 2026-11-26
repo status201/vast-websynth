@@ -22,7 +22,7 @@ const panel = createPanel;
  */
 export function buildSynthPanels(bus: ParamBus): HTMLElement {
   // The two MULTI | SINGLE switches only mean something to a mono voice: dimmed in
-  // POLY, not hidden, like SHAPE under LADDER (voicing.md REQ-the-trigger-switches-dim-in-poly).
+  // POLY, not hidden, like SHAPE under GROWL (voicing.md REQ-the-trigger-switches-dim-in-poly).
   const ampTrigger = new Segmented(bus, 'env.amp.trigger', ENV_TRIGGER_LABELS);
   const filTrigger = new Segmented(bus, 'env.fil.trigger', ENV_TRIGGER_LABELS);
 
@@ -106,8 +106,8 @@ export function buildSynthPanels(bus: ParamBus): HTMLElement {
         knob('filter.keytrack', 'KEYTRK'),
       ], panelStyles.hex!)],
     });
-    // SHAPE belongs to POLY — the ladder's saturated taps cannot make a clean
-    // high-pass, so the worklet ignores it there (filter-models.md REQ-shape-is-poly-only). Dim
+    // SHAPE belongs to SCREAM — GROWL's saturated taps cannot make a clean
+    // high-pass, so the worklet ignores it there (filter-models.md REQ-shape-is-scream-only). Dim
     // rather than hide: the control keeps its place, so the switch reads as
     // "this model has more to offer", not as a jumping layout (ADR-014).
     bus.subscribe('filter.model', (m) => shape.setDisabled(Math.round(m) === 0));

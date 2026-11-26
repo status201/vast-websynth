@@ -25,7 +25,7 @@ beforeAll(async () => {
   Processor = await loadWorklet<typeof Processor>('ladder-filter', { sampleRate: SR });
 });
 
-/** Defaults mirror the parameterDescriptors — `model: 0` is the LADDER path. */
+/** Defaults mirror the parameterDescriptors — `model: 0` is the GROWL path. */
 function makeParams(over: Record<string, number> = {}): Record<string, Float32Array> {
   const d: Record<string, number> = {
     cutoffNote: 90, resonance: 0, drive: 1, model: 0, shape: 0, active: 1, ...over,
@@ -260,10 +260,10 @@ describe('ladder-filter worklet DSP', () => {
     expect(run(proc, params, gen, 12)).toEqual(run(new Processor(), params, gen, 12));
   });
 
-  // REQ-ladder-is-filter-model-zero: the worklet now hosts a second model (filter-models.md), branched
-  // per block. That branch must be invisible from here — the ladder is model 0,
-  // and `shape` belongs to POLY.
-  it('is unchanged by the second model living in the same worklet (REQ-ladder-is-filter-model-zero)', () => {
+  // REQ-growl-is-filter-model-zero: the worklet now hosts a second model (filter-models.md), branched
+  // per block. That branch must be invisible from here — GROWL is model 0,
+  // and `shape` belongs to SCREAM.
+  it('is unchanged by the second model living in the same worklet (REQ-growl-is-filter-model-zero)', () => {
     let seed = 11;
     const noise = (): number => {
       seed = (seed * 1103515245 + 12345) & 0x7fffffff;
@@ -331,7 +331,7 @@ describe('ladder-filter worklet DSP', () => {
   });
 });
 
-describe('ladder-filter worklet state flush (filter-models.md REQ-poly-output-is-finite-and-bounded, regression)', () => {
+describe('ladder-filter worklet state flush (filter-models.md REQ-scream-output-is-finite-and-bounded, regression)', () => {
   for (const model of [0, 1]) {
     it(`a silent tail settles its pole states to exactly 0 (model ${model})`, () => {
       const proc = new Processor() as unknown as ProcessorLike & { state: Float64Array[] };

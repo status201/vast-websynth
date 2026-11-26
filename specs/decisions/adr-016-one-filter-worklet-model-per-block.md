@@ -30,12 +30,12 @@ single file holding two algorithms is a file that grows.
 by a k-rate `model` AudioParam, with the branch outside the sample loop.**
 
 `process()` reads `params.model[0]` once per render quantum and dispatches to one
-of two sample loops. The ladder loop's body is byte-for-byte what it was, so its
+of two sample loops. GROWL's loop body is byte-for-byte what it was, so its
 output stays bit-identical to the frozen reference that
 `tests/audio/ladder-filter-worklet.test.ts` pins — the standard
 `runtime-performance.md` REQ-a-worklet-optimisation-is-bit-exact bar ("bit-exact or it is a sound change"). The two
 models share the four pole states, which mean the same thing in both, so a switch
-carries state over as a character crossfade; the ladder's carried saturations are
+carries state over as a character crossfade; GROWL's carried saturations are
 re-primed on the switching block so its recurrence resumes self-consistent.
 
 Because model selection is an `AudioParam` rather than a `processorOptions` value
@@ -72,10 +72,10 @@ round-trip, no node lifecycle.
 - **Good:** the switch is free (one `if` per render quantum, not per sample); the
   idle gate, coefficient hoist and `sat()` carry keep working untouched; no graph
   surgery, no second `addModule`, no new failure mode if a module fails to load;
-  the ladder stays provably bit-identical; and a third model is an append to
+  GROWL stays provably bit-identical; and a third model is an append to
   `FILTER_MODEL_LABELS` plus one more loop.
 - **Trade-off:** one worklet file now holds two algorithms and will hold more, so
   it grows and its shared state array serves both. Duplicated loop bodies are
   deliberate — factoring the common arithmetic into a shared helper would break
-  the ladder's bit-exactness guarantee and add a call per sample. Read that
+  GROWL's bit-exactness guarantee and add a call per sample. Read that
   duplication as load-bearing, not as an invitation to DRY it up.

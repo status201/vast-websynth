@@ -4,7 +4,7 @@ import { ParamBus, registerDefaults, VOICING_LABELS } from '../../src/state/para
 
 /**
  * The two MULTI | SINGLE switches only mean something to a mono voice, so POLY
- * dims them in place, the way LADDER dims SHAPE (voicing.md
+ * dims them in place, the way GROWL dims SHAPE (voicing.md
  * REQ-the-trigger-switches-dim-in-poly).
  */
 const MONO = VOICING_LABELS.indexOf('mono');

@@ -96,8 +96,8 @@ supplements prose, it does not replace it.
 - **REQ-ceiling-is-for-inert-upper-travel** — A soft ceiling is for a param
   whose *upper travel* is inert. Where the **whole** control is inert in some
   state, the existing full-knob `setDisabled` dimming is the right treatment
-  instead (`filter.shape` on the ladder model, [filter-models](filter-models.md)
-  REQ-shape-is-poly-only). The two are not interchangeable and a knob should not use both to say
+  instead (`filter.shape` on the GROWL model, [filter-models](filter-models.md)
+  REQ-shape-is-scream-only). The two are not interchangeable and a knob should not use both to say
   the same thing.
 
 ## Technical design

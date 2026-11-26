@@ -297,13 +297,13 @@ describe('ParamBus', () => {
     const bus = new ParamBus();
     registerDefaults(bus);
 
-    expect(bus.get('filter.model')).toBe(0); // 0 = ladder, the pre-existing filter
+    expect(bus.get('filter.model')).toBe(0); // 0 = GROWL, the pre-existing filter
     expect(bus.get('filter.shape')).toBe(0); // 0 = LP24, a plain 4-pole low-pass
     expect(bus.get('filter.keytrack')).toBe(0);
 
     const model = bus.def('filter.model');
     expect(model?.taper).toBe('discrete');
-    expect(model?.labels).toEqual(['ladder', 'poly']);
+    expect(model?.labels).toEqual(['growl', 'scream']);
     expect(model?.max).toBe(1);
 
     bus.set('filter.model', 9);

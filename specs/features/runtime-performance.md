@@ -285,7 +285,7 @@ so a reviewer has something concrete to hold a new feature against.
   | ladder filter: `pow(2,x)` → `exp(x·ln2)` | 4.8× faster | **8/15 reps, t=0.3** | a coin flip; **discarded** |
   | compressor: `pow(10,y)` → `exp(y·k)` and `log10` → `log` | said `log10` was *faster* | **11/11 reps, t=34, 61% of the processor** | **taken** |
 
-  The ladder's per-sample path is heavy (four saturators in a recurrence), so its
+  GROWL's per-sample path is heavy (four saturators in a recurrence), so its
   transcendental hides in the shadow of work already in flight. The compressor's
   is light, so the same call really is the critical path there. That difference
   is invisible from outside the loop, which is the whole reason for the rule.

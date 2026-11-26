@@ -599,7 +599,7 @@ export class Voice {
     rampTo(this.filEnvScale.gain, semi, this.ctx, RAMP_MEDIUM);
   }
 
-  /** 0 = LADDER, 1 = POLY (filter-models.md REQ-filter-model-is-a-discrete-param). k-rate, so no ramp. */
+  /** 0 = GROWL, 1 = SCREAM (filter-models.md REQ-filter-model-is-a-discrete-param). k-rate, so no ramp. */
   setFilterModel(m: number): void {
     this.filter.model.setValueAtTime(Math.round(m), this.ctx.currentTime);
   }
