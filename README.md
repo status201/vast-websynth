@@ -36,15 +36,32 @@ Vanilla TypeScript + Vite, zero runtime dependencies.
 </p>
 
 <p align="center">
+  Eight synthesised drum voices, each with its own tune, decay, tone, drive, pan and volume, and a compressor, phaser, delay and reverb on the drum bus.<br>
+  Every step carries its own velocity, gate, probability, micro-timing and ratchets.<br>
+  Float the Transport, Live FX and XY pad windows over any tab: jump to any bar, punch in a fill, stutter or tape stop, or sweep two parameters at once — they spring back when you let go.
+</p>
+
+<p align="center">
   <a href="https://vast.status201.com/">
     <img src="public/vast-websynth-eq-scope.png" alt="VAST G1-J8 — free in-browser synthesizer, sequencer, drum machine and sampler" width="960">
   </a>
 </p>
 
 <p align="center">
+  A drawable 8-band EQ on each machine — sequencer, drum machine and sampler — with the problem zones the Spectrum names (mud, box, nasal, harsh) shaded on its graph.<br>
+  See the problem, then fix it in one click with De-Mud, De-Box, De-Nasal or De-Harsh.<br>
+  Want it all on one screen? Scale the interface from 50% to 150% in Settings; the keyboard grows extra octaves to fill the width.
+</p>
+
+<p align="center">
   <a href="https://vast.status201.com/">
     <img src="public/vast-websynth-theme-pastel.png" alt="VAST G1-J8 in the Pastel theme — each synth section its own painted colour, the sequencer following the playhead" width="960">
   </a>
+</p>
+
+<p align="center">
+  Four tracks per bank in the step sequencer: write a whole chord onto a step from the song's key, choose its inversion, and let any note scoop into its pitch or fall away from it.<br>
+  Then render the bar into a sampler slot and layer the synth over itself.
 </p>
 
 <p align="center">
