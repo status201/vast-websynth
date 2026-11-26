@@ -19,9 +19,10 @@
 //                                   with the Transport (widened to the whole song),
 //                                   Live FX and XY pad windows open
 //   vast-websynth-song-tab.png      Race: the same, on the Song tab
-//   vast-websynth-eq-scope.png      Dark: the demo playing, machines folded, the
-//                                   scope at its full height on Spectrum, and the
-//                                   EQUALIZER unfolded on its Sequencer tab
+//   vast-websynth-eq-scope.png      Dark at 67% UI scale: the demo playing,
+//                                   machines folded, the scope at its full height
+//                                   on Spectrum, and the EQUALIZER unfolded on its
+//                                   Sequencer tab
 //   vast-websynth-theme-pastel.png  Pastel: Bunk playing, FX open, the Sequencer
 //                                   tab following the playhead
 //   vast-websynth-motion-machine.png Light: Gankogui stopped at bar 1, FX folded,
@@ -165,14 +166,13 @@ async function catchChord(page) {
   ).catch(() => console.warn('readme-screenshots: no chord within 30 s — shooting anyway'));
 }
 
-/** How full a Wave trace looks *in a screenshot*, and whether keys are lit:
- *  decoded in the page, since Node has no PNG decoder here. `swing` is the
- *  trace's vertical extent per 24px block, averaged, as a fraction of the
- *  scope's height; `lit` is the share of the keyboard in the lit-key colours.
- *  Both colours are read from the page's theme tokens (ui-themes.md), so the
- *  judge works in whatever theme the shot pins. */
-async function judgeShot(page, png, scope, keys) {
-  return page.evaluate(async ({ b64, scope, keys }) => {
+/** How full a Wave trace looks *in a screenshot*: decoded in the page, since
+ *  Node has no PNG decoder here. The trace's vertical extent per 24px block,
+ *  averaged, as a fraction of the scope's height. The trace colour is read from
+ *  the page's theme token (ui-themes.md), so the judge works in whatever theme
+ *  the shot pins. */
+async function judgeSwing(page, png, scope) {
+  return page.evaluate(async ({ b64, scope }) => {
     const img = new Image();
     img.src = `data:image/png;base64,${b64}`;
     await img.decode();
@@ -183,32 +183,13 @@ async function judgeShot(page, png, scope, keys) {
     ctx.drawImage(img, 0, 0);
     const px = (r) => ctx.getImageData(Math.round(r.x), Math.round(r.y), Math.round(r.width), Math.round(r.height));
 
-    // Resolve a token through a probe: a colour, or a gradient's colour stops.
+    // Resolve the trace token through a probe.
     const probe = document.createElement('div');
     document.body.appendChild(probe);
-    const rgbs = (s) => [...s.matchAll(/rgba?\(([^)]+)\)/g)].map((m) => m[1].split(',').slice(0, 3).map(Number));
-    const colour = (token) => { probe.style.color = `var(${token})`; return rgbs(getComputedStyle(probe).color)[0]; };
-    const stops = (token) => { probe.style.backgroundImage = `var(${token})`; return rgbs(getComputedStyle(probe).backgroundImage); };
-    const traceRgb = colour('--screen-trace');
-    const segs = (tokens) => tokens.map(stops).filter((s) => s.length >= 2).map((s) => [s[0], s[s.length - 1]]);
-    const litSegs = segs(['--key-white-active', '--key-black-active']);
-    const unlitSegs = segs(['--key-white', '--key-black']);
+    probe.style.color = 'var(--screen-trace)';
+    const traceRgb = getComputedStyle(probe).color.match(/rgba?\(([^)]+)\)/)[1].split(',').slice(0, 3).map(Number);
     probe.remove();
-
-    /** Distance from a pixel to the nearest point of a gradient's segment. */
-    const segDist = (p, [a, b]) => {
-      const ab = [b[0] - a[0], b[1] - a[1], b[2] - a[2]];
-      const len2 = ab[0] ** 2 + ab[1] ** 2 + ab[2] ** 2 || 1;
-      const t = Math.max(0, Math.min(1, ((p[0] - a[0]) * ab[0] + (p[1] - a[1]) * ab[1] + (p[2] - a[2]) * ab[2]) / len2));
-      return Math.hypot(p[0] - a[0] - t * ab[0], p[1] - a[1] - t * ab[1], p[2] - a[2] - t * ab[2]);
-    };
-    const nearest = (p, list) => Math.min(...list.map((s) => segDist(p, s)));
     const trace = (d, i) => Math.hypot(d[i] - traceRgb[0], d[i + 1] - traceRgb[1], d[i + 2] - traceRgb[2]) < 70;
-    const isLit = (d, i) => {
-      const p = [d[i], d[i + 1], d[i + 2]];
-      const l = nearest(p, litSegs);
-      return l < 24 && l < nearest(p, unlitSegs);
-    };
     const s = px(scope);
     let sum = 0;
     let n = 0;
@@ -222,35 +203,38 @@ async function judgeShot(page, png, scope, keys) {
       }
       if (hi >= 0) { sum += (hi - lo) / s.height; n++; }
     }
-    const k = px(keys);
-    let lit = 0;
-    for (let i = 0; i < k.data.length; i += 16) {
-      if (isLit(k.data, i)) lit++;
-    }
-    return { swing: n ? sum / n : 0, lit: lit / (k.data.length / 16) };
-  }, { b64: png.toString('base64'), scope, keys });
+    return n ? sum / n : 0;
+  }, { b64: png.toString('base64'), scope });
 }
+
+/** Keys the playing notes light (keyboard.ts marks them `.seq`). */
+const litKeys = (page) => page.evaluate(
+  () => [...document.querySelectorAll('.seq')].filter((el) => /key/i.test(el.className)).length,
+);
 
 /**
  * Shoot the playing hero until the Wave trace in the *image* swings across the
- * scope with keys lit — a full trace lasts only a few hundred ms, and the scope
+ * scope with a key lit — a full trace lasts only a few hundred ms, and the scope
  * redraws every frame, so a check before the screenshot proves nothing about
  * it. Nocturne's swing is ~0.13 median and reaches 0.5 a few times a minute.
- * `minLit` (~2% of the keyboard in the lit colours) means a key is lit: two lit keys and a
- * full swing rarely coincide in Nocturne (best 0.27 in 120 s). Keeps
- * the best qualifying take if none reaches `minSwing` in time.
+ * A key counts as lit in the take when it is lit both before and after the
+ * screenshot (a note lasts far longer than one), read from the DOM: judging it
+ * from the image's colours mistook the black keys' drop shadow for a lit key.
+ * Two lit keys and a full swing rarely coincide in Nocturne, so one is enough.
+ * Keeps the best qualifying take if none reaches `minSwing` in time.
  */
-async function shootWave(page, file, { minSwing = 0.5, minLit = 0.02, timeoutMs = 120_000 } = {}) {
+async function shootWave(page, file, { minSwing = 0.5, timeoutMs = 120_000 } = {}) {
   const scope = await page.getByTestId('scope-canvas').boundingBox();
-  const keys = await page.getByTestId('keyboard').boundingBox();
-  if (!scope || !keys) throw new Error('scope or keyboard has no bounding box');
+  if (!scope) throw new Error('scope has no bounding box');
   const deadline = Date.now() + timeoutMs;
   let best = null;
   while (Date.now() < deadline) {
+    const before = await litKeys(page);
     const png = await page.screenshot();
-    const m = await judgeShot(page, png, scope, keys);
-    if (m.lit >= minLit && (!best || m.swing > best.swing)) best = { png, ...m };
-    if (best && best.swing >= minSwing) break;
+    if (before === 0 || await litKeys(page) === 0) continue;
+    const swing = await judgeSwing(page, png, scope);
+    if (!best || swing > best.swing) best = { png, swing };
+    if (best.swing >= minSwing) break;
   }
   if (!best) throw new Error('no take with lit keys');
   if (best.swing < minSwing) console.warn(`readme-screenshots: best wave swing ${best.swing.toFixed(2)} < ${minSwing}`);
@@ -310,9 +294,12 @@ try {
   // 4 — the analysis pair: playing, machines folded, the scope at its ceiling
   // (src/state/scope-height.ts SCOPE_H_MAX, seeded as the stored preference)
   // on Spectrum, and the EQUALIZER unfolded on its Sequencer tab, scrolled so
-  // the keyboard's bottom edge sits where the machine panel's does above.
+  // the keyboard's bottom edge sits where the machine panel's does above. At
+  // 67% UI scale (ui-scale.md, seeded as the stored preference) the whole rack
+  // fits the frame and the wider keyboard fills its foot.
   if (wanted('eq')) {
     const page = await openApp(browser, {
+      'websynth.ui.scale': '67',
       'websynth.ui.scope.height': '260',
       'websynth.ui.collapsed.eq': '0',
     });
