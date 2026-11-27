@@ -12,17 +12,19 @@
 // Outputs (public/), each 1920×1080. Every shot pins its theme: the app's
 // default look follows the system (Auto), and a retake must not change look
 // because a default did (ui-themes.md).
-//   vast-websynth.png               Classic: the demo playing, pattern row folded,
-//                                   scope on Wave caught at a full swing, keys lit
-//                                   by the notes
+//   vast-websynth.png               Classic: the demo loaded but stopped, Play's
+//                                   green cue caught lit, pattern row folded,
+//                                   C4 F4 G4 held from the computer keyboard and
+//                                   the scope on Wave at a full swing
 //   vast-websynth-drum-machine.png  Vibrant: stopped at --bar, Drum Machine tab,
 //                                   with the Transport (widened to the whole song),
 //                                   Live FX and XY pad windows open
 //   vast-websynth-song-tab.png      Race: the same, on the Song tab
 //   vast-websynth-eq-scope.png      Dark at 67% UI scale: the demo playing,
 //                                   machines folded, the scope at its full height
-//                                   on Spectrum, and the EQUALIZER unfolded on its
-//                                   Sequencer tab
+//                                   on Spectrum, the EQUALIZER unfolded on its
+//                                   Sequencer tab, and G4 D5 A5 A#5 shown lit
+//                                   (for the picture; the song feeds the scope)
 //   vast-websynth-theme-pastel.png  Pastel: Bunk playing, FX open, the Sequencer
 //                                   tab following the playhead
 //   vast-websynth-motion-machine.png Light: Gankogui stopped at bar 1, FX folded,
@@ -166,13 +168,41 @@ async function catchChord(page) {
   ).catch(() => console.warn('readme-screenshots: no chord within 30 s — shooting anyway'));
 }
 
-/** How full a Wave trace looks *in a screenshot*: decoded in the page, since
- *  Node has no PNG decoder here. The trace's vertical extent per 24px block,
- *  averaged, as a fraction of the scope's height. The trace colour is read from
- *  the page's theme token (ui-themes.md), so the judge works in whatever theme
- *  the shot pins. */
-async function judgeSwing(page, png, scope) {
-  return page.evaluate(async ({ b64, scope }) => {
+/** The EQ shot's lit keys — shown, not played: G4 D5 A5 A#5. */
+const EQ_KEYS = [67, 74, 81, 82];
+
+/**
+ * Light `notes` on the keyboard for the picture only: each gets the held-key
+ * class (`.active`, keyboard.ts) without a note being sounded, and the keys the
+ * playing song lights (`.seq`) are cleared and kept clear, so the keyboard
+ * shows exactly these. The song still feeds the scope and the EQ.
+ */
+async function showKeys(page, notes) {
+  const missing = await page.evaluate((notes) => {
+    const lost = notes.filter((n) => !document.querySelector(`[data-note="${n}"]`));
+    const unSeq = (el) => el.classList.contains('seq') && el.dataset.note !== undefined && el.classList.remove('seq');
+    document.querySelectorAll('[data-note]').forEach(unSeq);
+    new MutationObserver((records) => records.forEach((r) => unSeq(r.target)))
+      .observe(document.body, { subtree: true, attributes: true, attributeFilter: ['class'] });
+    for (const n of notes) document.querySelector(`[data-note="${n}"]`)?.classList.add('active');
+    return lost;
+  }, notes);
+  if (missing.length) throw new Error(`the keyboard has no key for note(s) ${missing.join(', ')}`);
+}
+
+/** Judge a hero take *in the screenshot*, decoded in the page since Node has
+ *  no PNG decoder here:
+ *  - `swing`: how far the Wave trace swings — its whole vertical extent, top to
+ *    bottom, as a fraction of the scope's height. A held chord draws a few
+ *    smooth cycles, which a per-column measure would score near zero however
+ *    tall they are.
+ *  - `ledLit`: whether Play's LED shows its green cue — the centre pixel of the
+ *    LED is the cue colour. The DOM can say the cue is frozen lit while a take
+ *    caught early under load still shows the dark LED, so only the image counts.
+ *  Both colours are read from the page's theme tokens (ui-themes.md), so the
+ *  judge works in whatever theme the shot pins. */
+async function judgeTake(page, png, { scope, led }) {
+  return page.evaluate(async ({ b64, scope, led }) => {
     const img = new Image();
     img.src = `data:image/png;base64,${b64}`;
     await img.decode();
@@ -183,60 +213,90 @@ async function judgeSwing(page, png, scope) {
     ctx.drawImage(img, 0, 0);
     const px = (r) => ctx.getImageData(Math.round(r.x), Math.round(r.y), Math.round(r.width), Math.round(r.height));
 
-    // Resolve the trace token through a probe.
-    const probe = document.createElement('div');
-    document.body.appendChild(probe);
-    probe.style.color = 'var(--screen-trace)';
-    const traceRgb = getComputedStyle(probe).color.match(/rgba?\(([^)]+)\)/)[1].split(',').slice(0, 3).map(Number);
-    probe.remove();
-    const trace = (d, i) => Math.hypot(d[i] - traceRgb[0], d[i + 1] - traceRgb[1], d[i + 2] - traceRgb[2]) < 70;
+    // Resolve a colour token through a probe.
+    const token = (name) => {
+      const probe = document.createElement('div');
+      document.body.appendChild(probe);
+      probe.style.color = `var(${name})`;
+      const rgb = getComputedStyle(probe).color.match(/rgba?\(([^)]+)\)/)[1].split(',').slice(0, 3).map(Number);
+      probe.remove();
+      return rgb;
+    };
+    const near = (d, i, rgb, tol) => Math.hypot(d[i] - rgb[0], d[i + 1] - rgb[1], d[i + 2] - rgb[2]) < tol;
+    const traceRgb = token('--screen-trace');
+    const trace = (d, i) => near(d, i, traceRgb, 70);
+    const centre = ctx.getImageData(Math.round(led.x + led.width / 2), Math.round(led.y + led.height / 2), 1, 1).data;
+    const ledLit = near(centre, 0, token('--led-good'), 60);
     const s = px(scope);
-    let sum = 0;
-    let n = 0;
-    for (let x0 = 0; x0 + 24 <= s.width; x0 += 24) {
-      let lo = s.height;
-      let hi = -1;
-      for (let x = x0; x < x0 + 24; x += 2) {
-        for (let y = 0; y < s.height; y++) {
-          if (trace(s.data, (y * s.width + x) * 4)) { lo = Math.min(lo, y); hi = Math.max(hi, y); }
-        }
+    let top = s.height;
+    let bottom = -1;
+    for (let x = 0; x < s.width; x += 2) {
+      for (let y = 0; y < s.height; y++) {
+        if (trace(s.data, (y * s.width + x) * 4)) { top = Math.min(top, y); bottom = Math.max(bottom, y); }
       }
-      if (hi >= 0) { sum += (hi - lo) / s.height; n++; }
     }
-    return n ? sum / n : 0;
-  }, { b64: png.toString('base64'), scope });
+    return { swing: bottom >= 0 ? (bottom - top) / s.height : 0, ledLit };
+  }, { b64: png.toString('base64'), scope, led });
 }
 
-/** Keys the playing notes light (keyboard.ts marks them `.seq`). */
-const litKeys = (page) => page.evaluate(
-  () => [...document.querySelectorAll('.seq')].filter((el) => /key/i.test(el.className)).length,
-);
+/** The hero's chord, held from the computer keyboard: the QWERTY bottom row
+ *  starts at C4 (shortcuts.ts `baseOctave`), so Z V B are C4 F4 G4. */
+const HERO_CHORD = [{ key: 'z', note: 60 }, { key: 'v', note: 65 }, { key: 'b', note: 67 }];
 
 /**
- * Shoot the playing hero until the Wave trace in the *image* swings across the
- * scope with a key lit — a full trace lasts only a few hundred ms, and the scope
- * redraws every frame, so a check before the screenshot proves nothing about
- * it. Nocturne's swing is ~0.13 median and reaches 0.5 a few times a minute.
- * A key counts as lit in the take when it is lit both before and after the
- * screenshot (a note lasts far longer than one), read from the DOM: judging it
- * from the image's colours mistook the black keys' drop shadow for a lit key.
- * Two lit keys and a full swing rarely coincide in Nocturne, so one is enough.
- * Keeps the best qualifying take if none reaches `minSwing` in time.
+ * Hold the chord and wait until the keyboard lights every key of it — a held
+ * key carries `.active` (keyboard.ts), read from the DOM: judging it from the
+ * image's colours mistook the black keys' drop shadow for a lit key. Nothing
+ * plays but the chord, so it stays lit for every take.
  */
-async function shootWave(page, file, { minSwing = 0.5, timeoutMs = 120_000 } = {}) {
+async function holdChord(page) {
+  for (const { key } of HERO_CHORD) await page.keyboard.down(key);
+  await page.waitForFunction(
+    (notes) => notes.every((n) => document.querySelector(`[data-note="${n}"]`)?.classList.contains('active')),
+    HERO_CHORD.map((c) => c.note), { timeout: 5000 },
+  );
+}
+
+/**
+ * Catch Play's green cue lit. While stopped with a demo freshly loaded, the
+ * LED's lit face flashes on a 0.4 s infinite animation (header.module.css
+ * `ledFlash`, lit for the first half) — far shorter than a full-page
+ * screenshot, so timing the take against it is a coin toss. Instead the
+ * animation is paused in its lit half: the take shows the cue exactly as it
+ * looks lit, and every retry below shows it the same.
+ */
+async function freezeCueLit(page) {
+  await page.locator('[data-testid="transport-play"].cue').waitFor({ timeout: 5000 });
+  const frozen = await page.evaluate(() => {
+    const flash = document.getAnimations().find((a) => /ledFlash/.test(a.animationName ?? ''));
+    if (!flash) return false;
+    flash.pause();
+    flash.currentTime = 100;
+    return true;
+  });
+  if (!frozen) throw new Error('Play has no green cue animation to catch lit');
+}
+
+/**
+ * Shoot the hero for `windowMs` and keep, of the takes that show Play's cue
+ * lit, the one whose Wave trace swings furthest *in the image* — the scope
+ * redraws every frame and the held chord still moves under the filter's LFO,
+ * so a check before the screenshot proves nothing about it. Held, Nocturne's
+ * chord spans 0.70–0.85 of the scope, so `minSwing` is a floor that warns, not
+ * a target that stops early.
+ */
+async function shootWave(page, file, { minSwing = 0.35, windowMs = 20_000 } = {}) {
   const scope = await page.getByTestId('scope-canvas').boundingBox();
-  if (!scope) throw new Error('scope has no bounding box');
-  const deadline = Date.now() + timeoutMs;
+  const led = await page.locator('[data-testid="transport-play"] .switch-led').boundingBox();
+  if (!scope || !led) throw new Error('the scope or the Play LED has no bounding box');
+  const deadline = Date.now() + windowMs;
   let best = null;
-  while (Date.now() < deadline) {
-    const before = await litKeys(page);
+  do {
     const png = await page.screenshot();
-    if (before === 0 || await litKeys(page) === 0) continue;
-    const swing = await judgeSwing(page, png, scope);
-    if (!best || swing > best.swing) best = { png, swing };
-    if (best.swing >= minSwing) break;
-  }
-  if (!best) throw new Error('no take with lit keys');
+    const { swing, ledLit } = await judgeTake(page, png, { scope, led });
+    if (ledLit && (!best || swing > best.swing)) best = { png, swing };
+  } while (Date.now() < deadline);
+  if (!best) throw new Error(`no take in ${windowMs / 1000} s showed Play's cue lit`);
   if (best.swing < minSwing) console.warn(`readme-screenshots: best wave swing ${best.swing.toFixed(2)} < ${minSwing}`);
   writeFileSync(publicDir + file, best.png);
   console.log(`wrote public/${file} (${best.png.length} bytes, swing ${best.swing.toFixed(2)})`);
@@ -254,15 +314,23 @@ async function shoot(page, file) {
 const [transportWin, liveFxWin, xyWin] = WINDOWS;
 const browser = await chromium.launch({ args: ['--autoplay-policy=no-user-gesture-required'] });
 try {
-  // 1 — the hero: playing, at the top, pattern row folded, scope on Wave (its
-  // default) — shot 4 shows the Spectrum, so between them both views are seen.
+  // 1 — the hero: the demo loaded but not played, so Play shows its green
+  // "press play" cue; at the top, pattern row folded, a C–F–G chord held by
+  // hand and the scope on Wave (its default) — shot 4 shows the Spectrum, so
+  // between them both views are seen.
   if (wanted('hero')) {
     const page = await openApp(browser, { 'websynth.ui.theme': 'classic' });
     await page.locator('[data-testid="pattern-row"] [aria-label="Collapse panel"]').first().click();
-    await page.getByTestId('transport-play').click();
-    await page.waitForTimeout(4000);
     await scrollTo(page, 0);
+    // The fold arrow just clicked keeps focus, and its ring would sit in the
+    // shot; the chord's keys reach the window either way.
+    await page.evaluate(() => document.activeElement?.blur());
+    await holdChord(page);
+    // Past the attack and decay, onto the sustain.
+    await page.waitForTimeout(1000);
+    await freezeCueLit(page);
     await shootWave(page, 'vast-websynth.png');
+    for (const { key } of HERO_CHORD) await page.keyboard.up(key);
     await page.close();
   }
 
@@ -308,6 +376,7 @@ try {
     await page.getByTestId('scope-toggle').click();
     await page.getByTestId('transport-play').click();
     await catchChord(page);
+    await showKeys(page, EQ_KEYS);
     await scrollBottomTo(page, 'keyboard', PANEL_BOTTOM_Y);
     await shoot(page, 'vast-websynth-eq-scope.png');
     await page.close();
