@@ -160,7 +160,8 @@ click through it area by area.
 - **XY Pad**: a Kaoss-style controller in a movable window; each axis drives **any** parameter (default cutoff × resonance) and springs back on release, so it colours a moment without editing the patch. Drag its corner to make it up to four times bigger; its assignment saves with the song
 - **Input**: on-screen keyboard (3 octaves, up to 6 on an ultrawide), computer keyboard (QWERTY, AZERTY, QWERTZ or Dvorak) and Web MIDI with velocity, pitch bend, mod wheel, aftertouch, **sustain pedal** (also an arp latch), **expression** (CC11) and volume/cutoff/resonance CCs. **Channel 10 plays the sampler** (pads from C1), and a **MIDI in** picker chooses the synth's channel
 - **Transport sync (MIDI + WiFi)**: one **Master**, one **Slave**, over MIDI clock (USB or any cable) or over **WiFi** with no cable and no server (pair by QR code or link). A slave joins mid-song at the right bar and rides out dropouts. The **Ageispolis-1** and **-2** demos are a matched pair to try it with
-- **Oscilloscope / spectrum** (mono or stereo, peak-hold): a log-frequency spectrum you can hover for the exact frequency, with **Zones** shading mud, boxy, nasal and harsh. Plus pitch-bend and mod wheels
+- **Oscilloscope / spectrum** (mono or stereo, peak-hold): a log-frequency spectrum you can hover for the exact frequency, with **Zones** shading mud, boxy, nasal and harsh
+- **Pitch-bend and mod wheels**
 
 ### Songs, sounds & sharing
 
