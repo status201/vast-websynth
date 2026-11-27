@@ -22,4 +22,10 @@
   @container viewport (max-width: 992px) {
     .main { grid-template-columns: repeat(2, minmax(0, 1fr)); }
   }
+
+  /* Each synth panel is screwed to the faceplate at its two top corners (the
+     screws are panel.module.css's). The face is the panel's own, restated. */
+  .main > * {
+    background: var(--screw-tl), var(--screw-tr), var(--panel-tint, var(--panel));
+  }
 }

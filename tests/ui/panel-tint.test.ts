@@ -60,9 +60,18 @@ describe('a tint is a token (REQ-pastel-tints-each-panel)', () => {
   });
 
   it('paints the panel and the FX group chrome from the tint, the plain panel its fallback', () => {
-    for (const [file, cls] of [['panel.module.css', 'panel'], ['fx-rack.module.css', 'fxPanel']] as const) {
-      const block = new RegExp(`\\.${cls}\\s*\\{([^{}]*)\\}`).exec(css(`src/ui/styles/${file}`))![1]!;
-      expect(block, file).toMatch(/background:\s*var\(--panel-tint,\s*var\(--panel\)\);/);
+    // The tint is the face: the LAST background layer, under any decoration laid
+    // over it (the faceplate screws, panel.module.css). Every rule that restates
+    // a panel's background is listed, so none can drop the tint.
+    const faces = [
+      ['panel.module.css', '\\.panel'],
+      ['fx-rack.module.css', '\\.fxPanel'],
+      ['fx-rack.module.css', '\\.fxPanel:nth-child\\(2\\)'],
+      ['synth-panels.module.css', '\\.main > \\*'],
+    ] as const;
+    for (const [file, selector] of faces) {
+      const block = new RegExp(`${selector}\\s*\\{([^{}]*)\\}`).exec(css(`src/ui/styles/${file}`))?.[1];
+      expect(block, `${file} ${selector}`).toMatch(/background:[^;]*var\(--panel-tint,\s*var\(--panel\)\);/);
     }
   });
 });

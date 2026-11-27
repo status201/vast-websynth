@@ -24,6 +24,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
   saturates every stage and thins the bass as resonance rises; SCREAM keeps the
   low end and lets the resonance scream over it, and has the SHAPE knob. Only the
   names changed: every preset, song and share link sounds exactly as before.
+- **The on-screen keyboard looks more like a real one.** Every key has rounder
+  corners; each black key shows its bevel — two sloped sides and a longer front
+  catching the light from the top left, meeting on soft diagonal corners; and a
+  pressed white key sinks deeper, shaded more on its left than its right.
+- **The synth and effect panels are screwed to the faceplate**, two small
+  Phillips screws each: at the top corners of the synth panels and the bottom
+  corners of the effects. The WAH has lost one.
 
 ## [2.23.0] - 2026-11-25
 

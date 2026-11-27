@@ -219,8 +219,11 @@ only while its own grid is on screen ([sequencer](sequencer.md) REQ-step-input-a
 - **REQ-a-lit-white-key-sits-lower** — **A lit white key sits lower than its
   neighbours.** A lit black key already reads as pressed: its cast shadow shrinks
   and it sinks (REQ-a-black-key-casts-a-shadow-from-the-top-left). A lit white key
-  (`active` or `seq`) carries a thin inset shade on its left and right edges, as if
-  the raised keys beside it cast it.
+  (`active` or `seq`) carries an inset shade on its left and right edges, as if
+  the raised keys beside it cast it — deep enough to read as a key's travel, and
+  deeper and darker on the left, since the light is top-left
+  (REQ-a-black-key-casts-a-shadow-from-the-top-left): the left neighbour's wall
+  shades the sunk key, the right one only narrowly.
   - **Where two lit white keys meet there is no shade.** They sit at the same depth,
     so there is no step between them. Hold C4 and D4 and C4 is shaded only on its left,
     D4 only on its right; in a run of three the middle key has no side shade at all.

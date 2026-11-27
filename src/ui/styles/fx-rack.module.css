@@ -57,8 +57,10 @@
     margin-top: -1px;
   }
 
+  /* Screwed in at the two bottom corners (the screws are panel.module.css's) —
+     the top edge hangs off the FX bar. */
   .fxPanel {
-    background: var(--panel-tint, var(--panel));
+    background: var(--screw-bl), var(--screw-br), var(--panel-tint, var(--panel));
     border: 1px solid var(--panel-border);
     border-radius: 6px;
     box-shadow: var(--panel-shadow);
@@ -76,6 +78,13 @@
   .fxPanel:nth-child(-n + 6) {
     border-top-left-radius: 0;
     border-top-right-radius: 0;
+  }
+
+  /* A little joke: the WAH lost its bottom-right screw, and only the hole is left.
+     Second in the rack because the rack is the chain (Dirt, then Wah —
+     fx-rack.ts RACK), so the joke follows the panel, not a class. */
+  .fxPanel:nth-child(2) {
+    background: var(--screw-bl), var(--screw-hole-br), var(--panel-tint, var(--panel));
   }
 
   .fxHeader {

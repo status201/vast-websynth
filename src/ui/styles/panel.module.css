@@ -5,6 +5,32 @@
    (css-cascade-layers.md). */
 
 @layer chrome {
+  /* Faceplate screws: a small domed Phillips head, two to a panel. The synth
+     panels (synth-panels.module.css) wear them at the top corners, the FX rack
+     (fx-rack.module.css) at the bottom ones, where the WAH is one short — its
+     hole is all that is left. Each is one background layer laid over a panel's
+     own face in its `background` list, so nothing is positioned and no layout
+     moves. An inline SVG rather than gradients: a gradient arm is cut off by its
+     box at a slant once it turns, which reads as a pinwheel; the SVG cross keeps
+     square ends at any angle. Lit from the top-left like the rest of the
+     faceplate, in neutral shine and shade only, so it sits on every theme's
+     panel; each corner's cross is turned its own way, as real ones are. No `;`
+     in the URLs: the theme-token test splits declarations on it. */
+  :root {
+    --screw-inset: 5px;
+    --screw-d: 9px;
+    --screw-size: var(--screw-d) var(--screw-d) no-repeat;
+    --screw-tl: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 18 18'%3E%3CradialGradient id='h' cx='0.38' cy='0.34' r='0.72'%3E%3Cstop offset='0' stop-color='rgba(255,255,255,0.32)'/%3E%3Cstop offset='0.55' stop-color='rgba(255,255,255,0.08)'/%3E%3Cstop offset='1' stop-color='rgba(0,0,0,0.3)'/%3E%3C/radialGradient%3E%3Ccircle cx='9' cy='9' r='8.3' fill='url(%23h)' stroke='rgba(0,0,0,0.5)' stroke-width='1.2'/%3E%3Cpath transform='rotate(15 9 9)' fill='rgba(0,0,0,0.62)' d='M7.9 3.6h2.2v4.3h4.3v2.2h-4.3v4.3h-2.2v-4.3h-4.3v-2.2h4.3z'/%3E%3C/svg%3E") left var(--screw-inset) top var(--screw-inset) / var(--screw-size);
+    --screw-tr: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 18 18'%3E%3CradialGradient id='h' cx='0.38' cy='0.34' r='0.72'%3E%3Cstop offset='0' stop-color='rgba(255,255,255,0.32)'/%3E%3Cstop offset='0.55' stop-color='rgba(255,255,255,0.08)'/%3E%3Cstop offset='1' stop-color='rgba(0,0,0,0.3)'/%3E%3C/radialGradient%3E%3Ccircle cx='9' cy='9' r='8.3' fill='url(%23h)' stroke='rgba(0,0,0,0.5)' stroke-width='1.2'/%3E%3Cpath transform='rotate(60 9 9)' fill='rgba(0,0,0,0.62)' d='M7.9 3.6h2.2v4.3h4.3v2.2h-4.3v4.3h-2.2v-4.3h-4.3v-2.2h4.3z'/%3E%3C/svg%3E") right var(--screw-inset) top var(--screw-inset) / var(--screw-size);
+    --screw-bl: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 18 18'%3E%3CradialGradient id='h' cx='0.38' cy='0.34' r='0.72'%3E%3Cstop offset='0' stop-color='rgba(255,255,255,0.32)'/%3E%3Cstop offset='0.55' stop-color='rgba(255,255,255,0.08)'/%3E%3Cstop offset='1' stop-color='rgba(0,0,0,0.3)'/%3E%3C/radialGradient%3E%3Ccircle cx='9' cy='9' r='8.3' fill='url(%23h)' stroke='rgba(0,0,0,0.5)' stroke-width='1.2'/%3E%3Cpath transform='rotate(30 9 9)' fill='rgba(0,0,0,0.62)' d='M7.9 3.6h2.2v4.3h4.3v2.2h-4.3v4.3h-2.2v-4.3h-4.3v-2.2h4.3z'/%3E%3C/svg%3E") left var(--screw-inset) bottom var(--screw-inset) / var(--screw-size);
+    --screw-br: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 18 18'%3E%3CradialGradient id='h' cx='0.38' cy='0.34' r='0.72'%3E%3Cstop offset='0' stop-color='rgba(255,255,255,0.32)'/%3E%3Cstop offset='0.55' stop-color='rgba(255,255,255,0.08)'/%3E%3Cstop offset='1' stop-color='rgba(0,0,0,0.3)'/%3E%3C/radialGradient%3E%3Ccircle cx='9' cy='9' r='8.3' fill='url(%23h)' stroke='rgba(0,0,0,0.5)' stroke-width='1.2'/%3E%3Cpath transform='rotate(75 9 9)' fill='rgba(0,0,0,0.62)' d='M7.9 3.6h2.2v4.3h4.3v2.2h-4.3v4.3h-2.2v-4.3h-4.3v-2.2h4.3z'/%3E%3C/svg%3E") right var(--screw-inset) bottom var(--screw-inset) / var(--screw-size);
+    /* The missing screw: a dark threaded hole, narrower than the head was,
+       deepest toward the light. Its lower-right lip catches that light in a thin
+       arc that fades out at both ends, which is what makes it read as a hole
+       rather than a dot. */
+    --screw-hole-br: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 18 18'%3E%3CradialGradient id='d' cx='0.4' cy='0.38' r='0.65'%3E%3Cstop offset='0' stop-color='rgba(0,0,0,0.85)'/%3E%3Cstop offset='0.7' stop-color='rgba(0,0,0,0.7)'/%3E%3Cstop offset='1' stop-color='rgba(0,0,0,0.45)'/%3E%3C/radialGradient%3E%3ClinearGradient id='r' x1='0' y1='0' x2='1' y2='1'%3E%3Cstop offset='0.45' stop-color='rgba(255,255,255,0)'/%3E%3Cstop offset='0.85' stop-color='rgba(255,255,255,0.4)'/%3E%3C/linearGradient%3E%3Ccircle cx='9' cy='9' r='5.6' fill='url(%23d)'/%3E%3Cpath d='M14.89 7.42A6.1 6.1 0 0 1 7.42 14.89' fill='none' stroke='url(%23r)' stroke-width='1' stroke-linecap='round'/%3E%3C/svg%3E") right var(--screw-inset) bottom var(--screw-inset) / var(--screw-size);
+  }
+
   .panel {
     /* A section's tint where a theme gives it one (ui-themes.md REQ-pastel-tints-each-panel). */
     background: var(--panel-tint, var(--panel));
