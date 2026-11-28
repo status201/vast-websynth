@@ -123,7 +123,7 @@ never call each other directly.
     ├─ Transport   — Clock, Arrangement, Performance, Sequencer,
     │                DrumMachine, SamplerMachine, MotionMachine, Arpeggiator
     ├─ Sync        — SyncController (+ MidiSyncTransport / WebRtcSyncTransport)
-    └─ Recorder    — RecorderController (audio export), taps master
+    └─ Recorder    — RecorderController (audio export), taps masterLimit
 ```
 
 `main.ts` constructs `ParamBus` then `Engine(bus)` and threads both everywhere;
@@ -323,7 +323,7 @@ voices ─(spread)→ voiceBus ─→ eq → dirt → wah → phaser → flanger
             drumBus ─→ eq → drumComp → drumPhaser → drumDelay → drumReverb ───────────────────────┤
             samplerBus ─→ eq (+ sampler dist/phaser/flanger/chorus/delay/reverb/duck) ────────────┤
                                                                                                   ▼
-        preMaster ─→ djLow ─→ djHigh ─→ masterComp ─→ analyser ─→ master ─→ destination
+        preMaster ─→ djLow ─→ djHigh ─→ masterComp ─→ analyser ─→ master ─→ masterLimit ─→ destination
 ```
 
 - The **drum bus and the sampler bus join at `preMaster`**, bypassing the synth FX
@@ -369,10 +369,10 @@ voices ─(spread)→ voiceBus ─→ eq → dirt → wah → phaser → flanger
   [`features/lfo.md`](features/lfo.md) REQ-pan-sweeps-a-stereo-panner). The bank
   render ([`features/render-to-sampler.md`](features/render-to-sampler.md)) taps
   `synthPan`, so a rendered bank captures the pan movement.
-- The **analyser taps pre-master**, so the scope is independent of the master
-  volume knob. The tap is a lossless `splitter → analyserL/analyserR → merger →
-  analyser` so the scope can also show per-channel L/R (see
-  [`features/scope.md`](features/scope.md)).
+- The **analyser taps pre-master**, so the scope ignores the master volume; a
+  lossless `splitter → analyserL/analyserR → merger → analyser` gives it L/R
+  ([scope](features/scope.md)). The recorder taps `masterLimit`
+  ([master-limiter](features/master-limiter.md)).
 - `drumComp` is a **FET**-mode compressor; `masterComp` is a **VCA**-mode
   compressor (see [`features/compressor.md`](features/compressor.md)).
 - The **duck** is the one chain member driven from outside its own chain: its
@@ -390,8 +390,8 @@ param **prefixes** and (for the drum comp) its **ratio table**, and exposes
 `fx` (named members, e.g. `drumFx.fx.comp`), `wire(input, output)` and `bind(bus)`; a
 tap point is a named Engine node (the bank render taps `synthPan`), not the chain. They are three explicit factories rather than one generic spec
 because the chains are alike but not identical: only the synth has a wah, only the
-drum bus has a compressor (right after its EQ). `masterComp` stays a flat Engine field — it is a master-bus insert
-(`djLow → djHigh → masterComp → analyser`), not a chain member — and `Engine.drumComp`
+drum bus has a compressor (right after its EQ). `masterComp` and `masterLimit` stay flat Engine fields — master-bus
+inserts, not chain members — and `Engine.drumComp`
 remains available as a getter onto `drumFx.fx.comp`, which is what `StudioApi`
 and the drum panel's GR meter read.
 

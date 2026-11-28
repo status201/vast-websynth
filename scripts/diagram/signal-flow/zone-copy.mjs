@@ -32,7 +32,7 @@ export const ZONE_TEXT = {
   'fx-drum': ['Drum effects', 'EQ, the FET COMP, PHASER, DELAY and REVERB. The drums are never ducked.'],
   'fx-sampler': ['Sampler effects', 'EQ, DIRT, PHASER, FLANGER, CHORUS, DELAY, REVERB and DUCK.'],
   master: ['Master & output', 'The three buses sum, pass the DJ FILTER, the MASTER COMP and the MASTER VOL, and leave as stereo.'],
-  'master-chain': ['Master chain', 'PRE-MASTER sum → DJ FILTER → MASTER COMP → MASTER VOL → OUTPUT → L / R. The SCOPE and RECORD / EXPORT tap the signal on the way; the metronome and clip preview go straight out.'],
+  'master-chain': ['Master chain', 'PRE-MASTER sum → DJ FILTER → MASTER COMP → MASTER VOL → LIMITER → OUTPUT → L / R. The SCOPE taps before the volume and RECORD / EXPORT after the limiter; the metronome and clip preview go straight out.'],
   'master-stereo': ['Where the signal turns stereo', 'The synth is mono until SPREAD, CHORUS, PING PONG, REVERB or SYNTH PAN; drums and sampler turn stereo at each channel\'s PAN.'],
   'master-offpath': ['Not on the audio path', 'Things that change the sound without being an effect: TAPE STOP, STUTTER, FILL, the microphone and RENDER TO SAMPLER.'],
   legend: ['Legend', 'How to read the map: what each wire carries, what the symbols mean, and which colour is which section.'],

@@ -46,6 +46,8 @@ export function iconSymbols() {
     + `<g fill="currentColor" font-family="${SANS}" font-size="10" font-weight="700" text-anchor="middle"><text x="12" y="42">L</text><text x="68" y="42">R</text></g>`];
   s.comp = ['0 0 80 48', `<path ${ST} d="M10 42 A30 30 0 0 1 70 42"/><path ${STT} d="M16 30 l4 3 M26 20 l3 4 M40 15 v5 M54 20 l-3 4 M64 30 l-4 3"/><path ${stroke(3)} d="M40 42 L28 20"/><circle cx="40" cy="42" r="3" fill="currentColor"/>`
     + `<text x="58" y="40" fill="currentColor" font-family="${SANS}" font-size="9" font-weight="700">GR</text>`];
+  s.limit = ['0 0 80 48', `<path ${STT} stroke-dasharray="3 4" d="M4 7 H76 M4 41 H76"/>`
+    + `<path ${ST} d="${fpath((t) => [4 + 72 * t, 24 - 16 * Math.min(1, 0.15 + 1.9 * t) * Math.sin(2 * Math.PI * 2.5 * t)], 80)}"/>`];
   s.dj = ['0 0 80 48', `<path ${STT} d="M4 45 H76"/><path ${ST} d="M4 12 H38 C48 12 50 34 56 44"/><path ${ST} stroke-opacity="0.55" d="M24 44 C30 34 32 12 42 12 H76"/>`];
   s.scope = ['0 0 80 48', `<rect x="3" y="3" width="74" height="42" rx="5" ${STT}/><path ${STT} stroke-opacity="0.4" d="M3 24 H77 M40 3 V45"/><path ${ST} d="${sine(8, 64, 24, 13, 2)}"/>`];
   s.speaker = ['0 0 64 64', `<path ${FILL} d="M8 22 H20 L36 8 V56 L20 42 H8 Z"/><path ${ST} d="M44 24 A12 12 0 0 1 44 40 M50 16 A22 22 0 0 1 50 48 M56 9 A32 32 0 0 1 56 55"/>`];

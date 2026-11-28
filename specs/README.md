@@ -284,6 +284,7 @@ specs/
     dirt-types.md      ·  Dirt, the drive effect: TYPE distortion/overdrive/fuzz, synth + sampler, one voicing table
     equalizer.md       ·  per-lane drawable 8-band EQ + HP/LP, first in each chain
     compressor.md      ·  the FET/VCA worklet compressors (message contract)
+    master-limiter.md  ·  lookahead brickwall limiter after the master volume, on by default (ADR-029)
     sidechain-ducking.md · trigger-keyed ducker on synth/sampler, keyed by drum hits
     fx-group.md        ·  shared header FX-group UI (knobs hide while bypassed)
     fx-slot-picker.md  ·  effects sharing one panel (Phaser · Flanger · Chorus), chosen from a caret by the title
@@ -452,6 +453,7 @@ specs/
     adr-026-oscillator-sync-is-a-per-voice-worklet-pair.md  ·  sync renders osc1 + osc2 in one worklet per voice, only while engaged
     adr-027-audioparam-automation-is-anchored.md  ·  continuous controls retarget, a cancel pins; never seed a ramp from .value
     adr-028-a-tie-never-re-strikes.md  ·  a tie continues its note; the old re-pluck is seq.tieMode Re-strike, not a version gate
+    adr-029-the-master-limiter-is-on-by-default.md  ·  a 0 dBFS ceiling after the volume is an identity in range, so ON is no ADR-006 break
 ```
 
 > Coverage note: the feature set above documents the current system. New features

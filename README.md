@@ -131,6 +131,7 @@ click through it area by area.
 - **Sidechain ducking**: the synth (and the sampler channel) pump with the drums. Pick the drum that keys it (**Kick**, or **Any**), how far, how fast and how long; it follows the pattern, ratchets and fills included, and ducks the reverb tail too. No threshold to set
 - **Tempo lock**: every rate and delay-time knob (wah, phaser, flanger, delay and both LFOs, wherever they appear; the chorus stays free) has a **note glyph**; tap it and the knob becomes a division (`1/8`, `1/8 D`, `1/4 T`) that follows the BPM, or an incoming MIDI clock. Locking picks the nearest division, so the sound never jumps
 - **Bus compressors** with gain-reduction meters: a 1176-style FET on the drum bus ("all buttons in" included) and an SSL-G-style VCA glue compressor on the master
+- **Master limiter**, the last stage and on from the start: a lookahead brickwall that turns what used to be a hard clip into a smooth dip, live and in every export, and leaves anything that fits untouched. **DRIVE** for loudness, **CEIL** for headroom
 
 ### Sampler
 
@@ -429,7 +430,8 @@ src/
     metronome.ts     the sample studio's beat source + click (straight to the speakers, never recorded)
     ladder-filter/   AudioWorklet wrapper — hosts both filter models (worklet in public/worklets/)
     compressor/      AudioWorklet wrapper for the 1176/SSL bus compressor
-    effects/         eq, dirt, wah, phaser, flanger, chorus, delay, reverb, ducker, compressor
+    limiter/         AudioWorklet wrapper for the master limiter
+    effects/         eq, dirt, wah, phaser, flanger, chorus, delay, reverb, ducker, compressor, limiter
     drums/           drum synthesis
     transport/       clock, arpeggiator, sequencer, drum-machine, sampler, motion,
                      arrangement (chain lanes), transport loop, performance (live DJ FX),
@@ -487,7 +489,7 @@ src/
                      layout.css (.app grid + responsive)
 public/              static files served as-is: sw.js (offline), theme-boot.js, the schemas,
                      params.{json,md} and llms.txt (generated), icons
-public/worklets/     ladder-filter.js, compressor.js, recorder.js, sync-osc.js, flanger.js, reverse-delay.js (audio thread)
+public/worklets/     ladder-filter.js, compressor.js, limiter.js, recorder.js, sync-osc.js, flanger.js, reverse-delay.js (audio thread)
 specs/               the architecture: architecture.md, features/, recipes/, decisions/ (ADRs)
 docs/                the signal-flow poster (light + dark SVG) and its zone manifest — generated
 scripts/             build and dev tooling: release, benches, generators, spec-lint, sdd-guard,

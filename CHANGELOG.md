@@ -16,6 +16,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+### Added
+
+- **A master limiter, LIMIT, on the Song panel beside COMP.** It is the very last
+  stage, after the master volume, and it is on from the start. A mix that used to
+  hard-clip, at the speakers and in WAV/MP3 exports, now gets a quick, smooth dip
+  in level instead, and the meter beside it shows how much. Anything that never
+  clipped sounds exactly as before. **DRIVE** pushes the mix into it for loudness;
+  **CEIL** sets the highest level that ever comes out (lower it to −1 dB for MP3
+  headroom).
+
 ### Changed
 
 - **The FILTER's two models are now called GROWL and SCREAM** (were LADDER and

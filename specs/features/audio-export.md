@@ -28,8 +28,9 @@ song pass or a free-form manual take.
 
 ## Background / Why
 
-Export taps a **zero-output `recorder` AudioWorklet** off `master` (post
-master-volume) as a pure sink. Encoding is **pure and AudioContext-free**
+Export taps a **zero-output `recorder` AudioWorklet** off the master limiter
+(post master-volume, the last stage: [master-limiter](master-limiter.md)
+REQ-the-limiter-is-the-last-stage) as a pure sink. Encoding is **pure and AudioContext-free**
 (`encode.ts`), so it is jsdom-testable: `encodeWav` has no dependencies and
 `encodeMp3` uses the vendored `lamejs`. The [sample recorder](sample-recorder.md)
 reuses it. `lamejs` is large and pre-minified, so it is a lazy chunk
