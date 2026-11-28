@@ -86,6 +86,7 @@ const ANCHORS: Anchor[] = [
   // compressor is bypassed (fx-group collapse) and help must stay reachable.
   { topic: 'fx.drum.comp', find: () => byTestId('fxgroup-fx.drum.comp') },
   { topic: 'fx.master.comp', find: () => byTestId('fxgroup-fx.master.comp') },
+  { topic: 'fx.master.limit', find: () => byTestId('fxgroup-fx.master.limit') },
   // The Equalizer (info-badges.md REQ-the-equalizer-carries-seven-badges). The section badge pins to the root, as
   // `fx` does, so it stays reachable while the section is folded. The page badges
   // are one id per lane: only the visible page's anchor has a box.

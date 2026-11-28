@@ -102,3 +102,37 @@ test.describe('master bus compressor (SSL G VCA style)', () => {
     expect(await busGet(page, 'fx.master.comp.threshold')).toBeGreaterThan(-12);
   });
 });
+
+test.describe('master limiter (master-limiter.md)', () => {
+  test.beforeEach(async ({ page }) => {
+    await gotoAndStart(page);
+    await page.getByTestId('tab-song').click();
+  });
+
+  test('the LIMIT group is engaged by default, with its knobs and GR meter', async ({ page }) => {
+    // On by default (ADR-029), so the group is not collapsed.
+    expect(await busGet(page, 'fx.master.limit.on')).toBe(1);
+    await expect(page.getByTestId('knob-fx.master.limit.drive')).toBeVisible();
+    await expect(page.getByTestId('knob-fx.master.limit.ceiling')).toBeVisible();
+    await expect(page.getByTestId('grmeter-fx.master.limit')).toBeVisible();
+    expect(await engineHas(page, 'masterLimit')).toBe(true);
+    expect(await page.evaluate(() => (window as any).__synth.engine.masterLimit.attached)).toBe(true);
+  });
+
+  test('the switch bypasses it, and DRIVE writes the bus', async ({ page }) => {
+    await dragKnobUp(page, 'knob-fx.master.limit.drive');
+    expect(await busGet(page, 'fx.master.limit.drive')).toBeGreaterThan(0);
+    await page.getByTestId('switch-fx.master.limit.on').click();
+    expect(await busGet(page, 'fx.master.limit.on')).toBe(0);
+    await expect(page.getByTestId('knob-fx.master.limit.drive')).toBeHidden();
+  });
+
+  test('its help badge opens the limiter explanation', async ({ page }) => {
+    await page.getByTestId('info-badges').click();
+    await page.getByTestId('fxgroup-fx.master.limit').scrollIntoViewIfNeeded();
+    const badge = page.getByTestId('info-badge-fx.master.limit');
+    await expect(badge).toBeVisible();
+    await badge.click();
+    await expect(page.getByRole('dialog', { name: 'Master Limiter' })).toBeVisible();
+  });
+});

@@ -534,6 +534,14 @@ export function registerDefaults(bus: ParamBus): void {
     { id: 'fx.master.comp.release', min: 0, max: 4, default: 4, step: 1, taper: 'discrete', labels: ['0.1s', '0.3s', '0.6s', '1.2s', 'auto'] },
     { id: 'fx.master.comp.makeup', min: 0, max: 12, default: 0, format: fmtDbRaw },
 
+    // ----- Master FX: Limiter (master-limiter.md) -----
+    // ON by default — the one `.on` that is. At a 0 dBFS ceiling after the volume
+    // it is an identity for every in-range sample, so a song that lacks the key
+    // still sounds as stored wherever it did not clip (ADR-029, consistent with ADR-006).
+    { id: 'fx.master.limit.on', min: 0, max: 1, default: 1, step: 1, taper: 'discrete', labels: ['off', 'on'] },
+    { id: 'fx.master.limit.drive', min: 0, max: 12, default: 0, format: fmtDbRaw },
+    { id: 'fx.master.limit.ceiling', min: -6, max: 0, default: 0, format: fmtDbRaw },
+
     // ----- Master -----
     { id: 'master.volume', min: 0, max: 1, default: 0.8, format: fmtVolumeDb },
     { id: 'master.pitchBend', min: -1, max: 1, default: 0, format: fmtSemi },

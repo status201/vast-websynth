@@ -6,6 +6,8 @@ import { PwmDriver } from './pwm';
 import { OscPairPolicy } from './osc-pair-policy';
 import { bindVoiceParams, bindMachineParams } from './engine-params';
 import { Compressor } from './effects/compressor';
+import { Limiter } from './effects/limiter';
+import { LimiterNode } from './limiter/node';
 import { createSynthChain, createDrumChain, createSamplerChain } from './effects/fx-chain';
 import { CompressorNode } from './compressor/node';
 import { ParamBus, registerDefaults, DEFAULT_NOTE_SOURCE, type NoteSource } from '../state/params';
@@ -122,6 +124,10 @@ export class Engine {
 
   /** Master-bus compressor — not a chain member; it sits djFilter → here → analyser. */
   readonly masterComp: Compressor;
+
+  /** The last stage: master volume → here → destination + recorder (master-limiter.md
+   *  REQ-the-limiter-is-the-last-stage). On by default (ADR-029). */
+  readonly masterLimit: Limiter;
 
   /** The drum-bus compressor. Kept as a named accessor for `StudioApi`. */
   get drumComp(): Compressor { return this.drumFx.fx.comp; }
@@ -257,6 +263,7 @@ export class Engine {
     this.drumFx = createDrumChain(this.ctx, chainOpts);
     this.samplerFx = createSamplerChain(this.ctx, chainOpts);
     this.masterComp = new Compressor(this.ctx, 'vca');
+    this.masterLimit = new Limiter(this.ctx);
 
     this.master = this.ctx.createGain();
     // Seeded SILENT (audio-lifecycle.md REQ-nothing-is-audible-before-the-first-start). An autoplay-permitted browser
@@ -346,7 +353,11 @@ export class Engine {
     this.analyserR.connect(scopeMerger, 0, 1);
     scopeMerger.connect(this.analyser);
     this.analyser.connect(this.master);
-    this.master.connect(this.ctx.destination);
+    // The limiter comes after the volume, where 0 dBFS is the clip point of the
+    // speakers and the export alike, so its 0 dBFS default only touches what
+    // would have clipped (master-limiter.md REQ-the-limiter-is-the-last-stage, ADR-029).
+    this.master.connect(this.masterLimit.input);
+    this.masterLimit.output.connect(this.ctx.destination);
 
     this.lfo = new LFO(this.ctx);
     this.lfo2 = new LFO(this.ctx);
@@ -392,11 +403,23 @@ export class Engine {
   }
 
   async init(): Promise<void> {
+    // The limiter's fetch starts alongside the others rather than after them,
+    // and settles into a boolean so a failure cannot reject unobserved meanwhile.
+    const limiterLoaded = LimiterNode.loadModule(this.ctx).then(
+      () => true,
+      (e: unknown) => {
+        console.error('master limiter failed to load; the master plays unlimited', e);
+        return false;
+      },
+    );
     await LadderFilterNode.loadModule(this.ctx);
     await RecorderNode.loadModule(this.ctx);
     await CompressorNode.loadModule(this.ctx);
     this.drumComp.attachWorklet();
     this.masterComp.attachWorklet();
+    // Until it attaches the limiter is a wire, so a failed load leaves the master
+    // playing unlimited rather than silent (master-limiter.md REQ-a-failed-load-never-mutes-the-master).
+    if (await limiterLoaded) this.masterLimit.attachWorklet();
 
     // Polyphony owns the voice pool + the analogue-drift source; it shares the
     // `this.voices` array (Engine fans per-voice params over the same array).
@@ -473,10 +496,11 @@ export class Engine {
     // lane gates), so it is built after the machines.
     this.laneMixer = new LaneMixer(this.ctx, this.seq, this.drumBus, this.samplerBus, this.drums, this.sampler);
 
-    // Audio capture: tap master (post master-volume). The recorder node has
+    // Audio capture: tap the limiter, the last stage (post master-volume), so
+    // an export is what was heard (master-limiter.md REQ-the-limiter-is-the-last-stage). The recorder node has
     // zero outputs so it is a pure sink and never doubles into destination.
     this.recorderNode = await RecorderNode.create(this.ctx);
-    this.master.connect(this.recorderNode.input);
+    this.masterLimit.output.connect(this.recorderNode.input);
     // A capture waits for a bank render (audio-export.md REQ-a-capture-waits-for-a-bank-render), the reverse of the
     // guard the renderer takes below. Read lazily: the renderer is built next.
     this.recorder = new RecorderController(
@@ -887,6 +911,8 @@ export class Engine {
 
     // Master FX: Compressor (SSL G bus VCA; release index past the table = auto)
     this.masterComp.bind(bus, 'fx.master.comp', [2, 4, 10], [0.1, 0.3, 0.6, 1.2]);
+    // Master limiter: the last stage, on by default (master-limiter.md, ADR-029)
+    this.masterLimit.bind(bus, 'fx.master.limit');
 
     // Master
     bus.subscribe('master.volume', (x) => {

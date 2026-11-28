@@ -57,7 +57,7 @@ const SB = { x: 3745, y: ROWS[2].y + RH / 2, r: 28 };
 // 5 · MASTER
 const MY = 1700;
 const PRE = { x: 5800, y: MY, r: 30 };
-const DEST = { x: 6760, y: MY, r: 28 };
+const DEST = { x: 6795, y: MY, r: 28 };
 const SPK = { x: 6950, L: 1530, R: 1760, s: 110 };
 
 // The legend along the bottom: wires · symbols · sections.
@@ -311,13 +311,15 @@ function drawRack({ P, L, mk, st }) {
 
 // ── 5 · MASTER ────────────────────────────────────────────────────────────
 function drawMaster({ mk }) {
-  mk('dj', { x: 5880, y: MY - 110, w: 230, h: 220, cat: 'master', title: 'DJ FILTER', icon: 'dj', iconH: 40,
+  mk('dj', { x: 5862, y: MY - 110, w: 200, h: 220, cat: 'master', title: 'DJ FILTER', icon: 'dj', iconH: 40,
     lines: ['LOW-PASS → HIGH-PASS', 'DJ FLT ±1 sweeps one', 'DROP: LP dives to 160 Hz'], pills: [['B', 'from LIVE FX', 'auto']] });
-  mk('mcomp', { x: 6160, y: MY - 110, w: 240, h: 220, cat: 'master', title: 'MASTER COMP', icon: 'comp', iconH: 40, tag: 'VCA',
+  mk('mcomp', { x: 6097, y: MY - 110, w: 210, h: 220, cat: 'master', title: 'MASTER COMP', icon: 'comp', iconH: 40, tag: 'VCA',
     lines: ['SSL-style bus compressor', 'THRESHOLD −40 – 0 dB', 'RATIO 2 · 4 · 10', 'ATTACK 0.1–30 ms', 'RELEASE / AUTO · MAKEUP'] });
-  mk('vol', { x: 6470, y: MY - 110, w: 210, h: 220, cat: 'master', title: 'MASTER VOL', icon: 'fader', iconH: 40,
+  mk('vol', { x: 6342, y: MY - 110, w: 180, h: 220, cat: 'master', title: 'MASTER VOL', icon: 'fader', iconH: 40,
     lines: ['VOLUME² × EXPRESSION²', 'MIDI CC7 · CC11', '~fades in at start-up'] });
-  mk('scope', { x: 6300, y: 1270, w: 260, cat: 'master', title: 'SCOPE', icon: 'scope', iconH: 40,
+  mk('mlimit', { x: 6557, y: MY - 110, w: 180, h: 220, cat: 'master', title: 'LIMITER', icon: 'limit', iconH: 40, tag: 'ON',
+    lines: ['lookahead brickwall', 'DRIVE 0 – +12 dB', 'CEILING −6 – 0 dB', '~holds the output under it'] });
+  mk('scope', { x: 6195, y: 1270, w: 260, cat: 'master', title: 'SCOPE', icon: 'scope', iconH: 40,
     lines: ['L / R analysers', 'before the master volume'] });
   mk('direct', { x: 6620, y: 1200, w: 280, cat: 'master', title: 'DIRECT OUT',
     lines: ['straight to the output:', 'no FX, no master, not exported'],
@@ -527,14 +529,15 @@ function wireRackAndMaster({ P, L, B, wire, note, sum, pill, st, useIcon }) {
   wire('stereo', [[PRE.x + PRE.r, MY], [B.dj.x, MY]]);
   wire('stereo', [[B.dj.x + B.dj.w, MY], [B.mcomp.x, MY]]);
   wire('stereo', [[B.mcomp.x + B.mcomp.w, MY], [B.vol.x, MY]]);
-  wire('stereo', [[B.scope.x + B.scope.w / 2, MY], [B.scope.x + B.scope.w / 2, B.scope.y + B.scope.h]], { from: 'bus', h0: 10, label: 'TAP', at: [B.scope.x + B.scope.w / 2 + 34, MY - 70] });
-  wire('stereo', [[B.vol.x + B.vol.w, MY], [DEST.x - DEST.r, MY]]);
-  wire('stereo', [[6720, MY], [6720, B.export.y]], { from: 'bus', h0: 10, label: 'TAP', at: [6756, MY + 110] });
+  wire('stereo', [[B.vol.x + B.vol.w, MY], [B.mlimit.x, MY]]);
+  wire('stereo', [[B.scope.x + B.scope.w / 2, MY], [B.scope.x + B.scope.w / 2, B.scope.y + B.scope.h]], { from: 'bus', h0: 10, label: 'TAP', at: [B.scope.x + B.scope.w / 2 + 34, MY - 170] });
+  wire('stereo', [[B.mlimit.x + B.mlimit.w, MY], [DEST.x - DEST.r, MY]]);
+  wire('stereo', [[6752, MY], [6752, B.export.y]], { from: 'bus', h0: 10, label: 'TAP', at: [6788, MY + 110] });
   wire('stereo', [[DEST.x, B.direct.y + B.direct.h], [DEST.x, DEST.y - DEST.r]]);
   sum(DEST.x, DEST.y, DEST.r, 'Σ', P.wire.audio, []);
   note(DEST.x + 6, DEST.y + DEST.r + 20, 'OUTPUT', 'sn', 'start');
   // L / R
-  const spl = 6840;
+  const spl = 6872;
   wire('audio', [[DEST.x + DEST.r, MY], [spl, MY], [spl, SPK.L + SPK.s / 2], [SPK.x, SPK.L + SPK.s / 2]]);
   wire('audio', [[spl, MY], [spl, SPK.R + SPK.s / 2], [SPK.x, SPK.R + SPK.s / 2]], { from: 'bus' });
   for (const [ch, y] of [['L', SPK.L], ['R', SPK.R]]) {
@@ -569,7 +572,7 @@ function drawCards({ card }) {
     'STUTTER re-maps which step every machine plays; FILL swaps in a drum fill.',
     'The MICROPHONE only reaches the sample studio — it is never monitored.',
     'RENDER TO SAMPLER records the synth after its FX into a sampler slot.',
-    'There is no limiter: MASTER COMP is the last dynamics stage.',
+    'RECORD / EXPORT taps after the LIMITER, so a take is what you heard.',
     'SCOPE reads the signal before MASTER VOL, so it does not shrink with the volume.',
   ], 'master');
   return { inserts, stereo, offpath };
@@ -653,7 +656,7 @@ function defineZones({ B, zones: { zone, around, checkTour } }, cards) {
   zone('fx-inserts', 'fx', around([cards.inserts]));
   zone('fx-drum', 'fx', rackRow(ROWS[1]));
   zone('fx-sampler', 'fx', rackRow(ROWS[2]));
-  zone('master-chain', 'master', around([{ x: PRE.x - 110, y: PRE.y - PRE.r, w: 110 + PRE.r, h: 2 * PRE.r }, 'dj', 'mcomp', 'vol', 'scope', 'direct', 'export',
+  zone('master-chain', 'master', around([{ x: PRE.x - 110, y: PRE.y - PRE.r, w: 110 + PRE.r, h: 2 * PRE.r }, 'dj', 'mcomp', 'vol', 'mlimit', 'scope', 'direct', 'export',
     { x: SPK.x - 10, y: SPK.L, w: 7250 - SPK.x, h: SPK.R + SPK.s + 90 - SPK.L }]));
   zone('master-stereo', 'master', around([cards.stereo]));
   zone('master-offpath', 'master', around([cards.offpath]));

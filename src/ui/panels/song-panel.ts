@@ -197,6 +197,13 @@ export function buildSongPanel(bus: ParamBus, engine: StudioApi, session: Preset
     { id: 'fx.master.comp.release', label: 'REL' },
     { id: 'fx.master.comp.makeup', label: 'GAIN' },
   ], { trailing: masterGr.el }));
+  // The last stage, after the master volume (master-limiter.md); on by default.
+  const limitGr = new GrMeter('grmeter-fx.master.limit');
+  engine.masterLimit.onGr((db) => limitGr.update(db));
+  fx.appendChild(fxGroup(bus, 'LIMIT', 'fx.master.limit', [
+    { id: 'fx.master.limit.drive', label: 'DRIVE' },
+    { id: 'fx.master.limit.ceiling', label: 'CEIL' },
+  ], { trailing: limitGr.el }));
   root.appendChild(fx);
 
   // ---- Song I/O ----

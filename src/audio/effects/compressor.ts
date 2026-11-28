@@ -23,6 +23,8 @@ export class Compressor extends WrappedEffect {
   private release = 0.3;
   private autoRelease = false;
   private makeup = 0;
+  /** Mirrors the wrapper's state: posts from a draining worklet are dropped while true. */
+  private bypassed = true;
 
   constructor(ctx: AudioContext, private readonly mode: CompressorMode) {
     super(ctx, 1);
@@ -34,7 +36,9 @@ export class Compressor extends WrappedEffect {
     const node = CompressorNode.create(this.ctx, this.mode);
     this.wrap.processedIn.connect(node.input);
     node.output.connect(this.wrap.processedOut);
-    node.onGr = (db) => this.grCb?.(db);
+    // The worklet keeps running through the bypass drain (ADR-012); its last
+    // post must not leave the meter stale (compressor.md REQ-worklet-posts-gain-reduction).
+    node.onGr = (db) => { if (!this.bypassed) this.grCb?.(db); };
     this.node = node;
     const t = this.ctx.currentTime;
     node.threshold.setValueAtTime(this.threshold, t);
@@ -51,6 +55,7 @@ export class Compressor extends WrappedEffect {
 
   /** Also clears the meter, so bypassing never leaves it frozen on a stale value. */
   override setBypass(b: boolean): void {
+    this.bypassed = b;
     super.setBypass(b);
     if (b) this.grCb?.(0);
   }

@@ -2,7 +2,7 @@
   "format": "websynth-params",
   "version": 1,
   "songVersion": 9,
-  "count": 445,
+  "count": 448,
   "params": [
     {
       "id": "voicing.mode",
@@ -2031,6 +2031,33 @@
       "id": "fx.master.comp.makeup",
       "min": 0,
       "max": 12,
+      "default": 0,
+      "patch": false
+    },
+    {
+      "id": "fx.master.limit.on",
+      "min": 0,
+      "max": 1,
+      "default": 1,
+      "patch": false,
+      "step": 1,
+      "taper": "discrete",
+      "labels": [
+        "off",
+        "on"
+      ]
+    },
+    {
+      "id": "fx.master.limit.drive",
+      "min": 0,
+      "max": 12,
+      "default": 0,
+      "patch": false
+    },
+    {
+      "id": "fx.master.limit.ceiling",
+      "min": -6,
+      "max": 0,
       "default": 0,
       "patch": false
     },

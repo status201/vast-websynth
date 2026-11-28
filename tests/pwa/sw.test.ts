@@ -189,6 +189,7 @@ describe('install', () => {
     const store = cacheStores.get('websynth-9.9.9')!;
     for (const asset of sw.CORE_ASSETS) expect(store.has(keyOf(asset))).toBe(true);
     expect(sw.CORE_ASSETS).toContain('/worklets/ladder-filter.js');
+    expect(sw.CORE_ASSETS).toContain('/worklets/limiter.js');
     // Loaded lazily, on first sync, but still precached so it works offline.
     expect(sw.CORE_ASSETS).toContain('/worklets/sync-osc.js');
     expect(sw.CORE_ASSETS).toContain('/worklets/flanger.js');

@@ -240,6 +240,9 @@ Schemas: [`llms.txt`](llms.txt).
 - "fx.master.comp.attack": number  // range 0.0001..0.03, default 0.01
 - "fx.master.comp.release": number  // range 0..4, default 4, step 1, values 0=0.1s 1=0.3s 2=0.6s 3=1.2s 4=auto
 - "fx.master.comp.makeup": number  // range 0..12, default 0
+- "fx.master.limit.on": number  // range 0..1, default 1, step 1, values 0=off 1=on
+- "fx.master.limit.drive": number  // range 0..12, default 0
+- "fx.master.limit.ceiling": number  // range -6..0, default 0
 - "master.pitchBend": number  // range -1..1, default 0
 - "master.modWheel": number  // range 0..1, default 0
 - "master.expression": number  // range 0..1, default 1

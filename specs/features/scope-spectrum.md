@@ -43,7 +43,8 @@ coarseness, so the renderer interpolates where columns outnumber bins.
   scale. `dbToFrac(db)` is the inverse, clamped to `[0,1]`, used to place the
   line on the same vertical scale as the bars (so it rides on top of the tallest
   visible bar). The dB text turns the red accent as the peak approaches 0 dB
-  (clip).
+  (full scale: the graph taps before the volume, so past it, at full volume, the
+  [master limiter](master-limiter.md) is what catches the peaks).
 
 - **REQ-a-taller-bar-pins-the-peak** — A taller bar pushes the held value up
   instantly and **pins** it for `PEAK_HOLD_SEC` (a hold plateau, so the max is
@@ -209,7 +210,7 @@ function visibleTicks(regionW: number, fMax?: number): SpectrumTick[]; // collis
 function columnBinEdges(cols: number, fftSize: number, sampleRate: number): Float32Array;
 
 // Pure, exported, canvas-free — the peak-hold dB math (REQ-zero-db-is-the-top-of-the-graph/REQ-a-taller-bar-pins-the-peak):
-const SPECTRUM_DB_TOP = 0;       // dB shown at the top of the graph (clip)
+const SPECTRUM_DB_TOP = 0;       // dB shown at the top of the graph (full scale)
 const SPECTRUM_DB_RANGE = 70;    // dB span to the bottom (matches analyser -100..-30)
 const PEAK_DECAY_DB_PER_SEC = …; // very slow fall rate (tuned by ear)
 const PEAK_HOLD_SEC = …;         // plateau the peak is pinned at a new max before it falls

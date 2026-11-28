@@ -371,8 +371,9 @@ shared UI:
   fxpick-<primary> · fxpick-<primary>-<prefix> ·
     fxview-<prefix>                                 # features/fx-slot-picker.md (v33)
   grmeter-<fxPrefix>                                # grmeter-fx.drum.comp,
-                                                    #   grmeter-fx.master.comp
-                                                    # features/compressor.md
+                                                    #   grmeter-fx.master.comp,
+                                                    #   grmeter-fx.master.limit
+                                                    # features/compressor.md, master-limiter.md
   clips-restored-toast                              # boot-time sampler restore
                                                     # features/sample-persistence.md
   audio-suspended-toast                             # "tap to resume" when every

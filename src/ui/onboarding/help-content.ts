@@ -363,6 +363,7 @@ export type TopicId =
   | 'fx.drum.delay.time'
   | 'fx.master.comp'
   | 'fx.master.comp.threshold'
+  | 'fx.master.limit'
   | 'fx.sampler.phaser.rate'
   | 'fx.sampler.flanger.rate'
   | 'fx.sampler.delay.time'
@@ -845,6 +846,23 @@ export const HELP_TOPICS: Record<TopicId, HelpTopic> = {
       '</ul>' +
       '<p>Use it subtly for a louder, denser, more “finished” mix — or hard, where it pumps ' +
       'musically with DJ filter sweeps and drops.</p>',
+  },
+  'fx.master.limit': {
+    title: 'Master Limiter',
+    body:
+      '<p>The very last stage, after the master volume: a <strong>brickwall limiter</strong> that ' +
+      'never lets the output past its ceiling. It is <strong>on from the start</strong>. At a 0 dB ' +
+      'ceiling it leaves every sound that fits untouched, and turns what used to be a harsh ' +
+      'digital clip into a quick, smooth dip in level. Recordings and exports go through it too.</p>' +
+      '<ul>' +
+      '<li><strong>DRIVE</strong> — pushes the mix into the limiter for a louder, denser sound. ' +
+      'Watch the bar: a few dB of reduction is loud, much more starts to flatten the beat.</li>' +
+      '<li><strong>CEIL</strong> — the highest level that ever comes out. Lower it a little ' +
+      '(−1 dB) for headroom when exporting MP3s.</li>' +
+      '</ul>' +
+      '<p>The bar shows live <strong>gain reduction</strong>. If it moves with DRIVE at 0, the mix ' +
+      'is hotter than the output can carry, so turn something down upstream or let the ' +
+      'limiter catch it.</p>',
   },
 
   // ---- BPM-aware "sweet spots" (delays show ms, rates show Hz) ----
@@ -1560,7 +1578,7 @@ export const HELP_TOPICS: Record<TopicId, HelpTopic> = {
       'the <strong>L</strong> and <strong>R</strong> channels separately, so you can see stereo ' +
       'effects (the reverb and the chorus) move the channels apart.</p>' +
       '<p>In <strong>Spectrum</strong> a dotted <strong>max-dB</strong> line is pushed up by the ' +
-      'bars to mark the loudest level reached (0 dB at the top = clipping) — handy when riding the ' +
+      'bars to mark the loudest level reached (0 dB at the top is full scale: past it, at full volume, the LIMITER has to catch the peaks) — handy when riding the ' +
       'compressors. It holds the peak briefly, then falls back very slowly; ' +
       '<strong>click the graph</strong> to reset it.</p>' +
       '<p>It taps the signal <em>before</em> the volume knob, so the display stays steady whatever ' +

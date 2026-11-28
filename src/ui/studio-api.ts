@@ -13,6 +13,7 @@ import type { ClipPreview } from '../audio/recorder/clip-preview';
 import type { SyncController } from '../audio/transport/sync/sync-controller';
 import type { WifiLink } from '../audio/transport/sync/wifi-sync';
 import type { Compressor } from '../audio/effects/compressor';
+import type { Limiter } from '../audio/effects/limiter';
 import type { IosAudioDiagnostics } from '../audio/ios-audio-session';
 import type { MediaSessionDiagnostics } from '../audio/media-session';
 import type { WatchdogDiagnostics } from '../audio/background-watchdog';
@@ -74,6 +75,8 @@ export interface StudioApi {
   readonly drumComp: Compressor;
   /** Master-bus compressor; UI reads its gain reduction via `onGr`. */
   readonly masterComp: Compressor;
+  /** Master limiter, the last stage (master-limiter.md); UI reads its gain reduction via `onGr`. */
+  readonly masterLimit: Limiter;
 
   /** iOS audio-session diagnostics (inert off iOS); read by the Debug panel. */
   readonly iosAudio: IosAudioDiagnostics;

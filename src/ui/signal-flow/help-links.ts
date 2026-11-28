@@ -107,6 +107,7 @@ export const SIGNAL_FLOW_LINKS: Partial<Record<TopicId, readonly string[]>> = {
   // Master
   'fx.master.comp': ['mcomp'],
   'fx.master.comp.threshold': ['mcomp'],
+  'fx.master.limit': ['mlimit'],
   scope: ['scope'],
   'song.exportAudio': ['export'],
   'song.record': ['export'],
