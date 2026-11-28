@@ -6,7 +6,7 @@
 //   node scripts/readme-screenshots.mjs [--demo <name>] [--bar <n>] [--url <app url>]
 //                                       [--only <shot,shot>]
 //
-// --only takes shot names (hero, machines, eq, pastel, motion, help) and retakes just
+// --only takes shot names (hero, machines, eq, pastel, motion, help, studio) and retakes just
 // those, so adding one shot does not churn every committed PNG.
 //
 // Outputs (public/), each 1920×1080. Every shot pins its theme: the app's
@@ -31,6 +31,8 @@
 //                                   the Motion tab with its XY pad and A/B lanes
 //   vast-websynth-help-badges.png   Race: Bunk stopped, FX folded, the Sequencer
 //                                   tab, info badges on and AMP ENV's help open
+//   vast-websynth-sample-studio.png Race: Take Me On stopped, slot 1's EDIT
+//                                   opening the sample studio on its Vocoder tool
 //
 // Framing is judged by eye — look at every shot before committing it.
 
@@ -49,6 +51,8 @@ const DEMO = flag('demo', 'Nocturne');
 const THEME_DEMO = 'Bunk';
 /** The Motion shot's demo: its bar-1 bank fills the XY pad and two lanes. */
 const MOTION_DEMO = 'Gankogui';
+/** The sample studio's demo: slot 1 holds a drum break to edit. */
+const STUDIO_DEMO = 'Take Me On';
 const ONLY = flag('only', null)?.split(',');
 const wanted = (name) => !ONLY || ONLY.includes(name);
 const BAR = Number(flag('bar', '9'));
@@ -425,6 +429,23 @@ try {
     // Let the modal's entrance settle before the frame is taken.
     await page.waitForTimeout(500);
     await shoot(page, 'vast-websynth-help-badges.png');
+    await page.close();
+  }
+
+  // 8 — the sample studio (sample-recorder.md, vocoder.md): Race, Take Me On
+  // loaded and stopped, the Sampler tab, slot 1's EDIT opening the studio on
+  // its Edit screen with the Vocoder tool picked.
+  if (wanted('studio')) {
+    const page = await openApp(browser, { 'websynth.ui.theme': 'race' }, STUDIO_DEMO);
+    await page.getByTestId('tab-sampler').click();
+    await page.getByTestId('sampler-edit-0').click();
+    await page.getByTestId('rec-screen-edit').waitFor({ state: 'visible' });
+    await page.getByTestId('ptab-sample-vocoder').click();
+    await page.getByTestId('voc-page').waitFor({ state: 'visible' });
+    // Clear the tab's focus ring and let the modal's entrance settle.
+    await page.evaluate(() => document.activeElement?.blur());
+    await page.waitForTimeout(500);
+    await shoot(page, 'vast-websynth-sample-studio.png');
     await page.close();
   }
 } finally {

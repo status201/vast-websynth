@@ -85,6 +85,18 @@ Vanilla TypeScript + Vite, zero runtime dependencies.
   Every control that isn't obvious gets its own help badge: tap ⓘ, then any badge, for what it does and how to use it — and, for anything on the signal path, <strong>Show in the signal flow</strong> to see where it sits in the whole instrument.
 </p>
 
+<p align="center">
+  <a href="https://vast.status201.com/">
+    <img src="public/vast-websynth-sample-studio.png" alt="VAST G1-J8 in the Race theme — the Edit Sample studio open on a drum break, its Vocoder tool picked" width="960">
+  </a>
+</p>
+
+<p align="center">
+  Record a sound from your mic, or open any sampler slot in the studio: trim it, add effects, and undo any step.<br>
+  Chop a break into slices across the slots, fit it to the tempo or shift its pitch without changing its length, scratch it like a record — or sing or speak into the Vocoder and make the sample talk.<br>
+  Then put it back in its slot, or save it as WAV or MP3.
+</p>
+
 ## Signal flow
 
 Every path from a key press to the speakers on one poster: the inputs, notes and
