@@ -214,6 +214,41 @@ describe('master limiter worklet', () => {
     expect(proc.boxSum).toBe(proc.len);
   });
 
+  it('never flat-tops a peak when the ceiling falls mid-limiting (REQ-the-output-never-exceeds-the-ceiling, regression)', () => {
+    const proc = new Processor();
+    const loud = fill(BLOCK, (i) => 3 * Math.sin(i * 0.2));
+    // Hold it limiting at 0 dBFS, then step the ceiling down a little every
+    // block, as a smoothed CEIL turn or a motion lane does, to -6 dBFS.
+    for (let b = 0; b < 40; b++) render(proc, loud, loud, params(0, 0));
+    let worst = 0;
+    for (let b = 0; b <= 60; b++) {
+      const ceiling = -6 * Math.min(1, b / 50);
+      const { outL } = render(proc, loud, loud, params(0, ceiling));
+      // The highest ceiling any sample in this block can have entered under.
+      const allowed = dbToLin(-6 * Math.min(1, Math.max(0, b - 1) / 50));
+      for (const v of outL) worst = Math.max(worst, Math.abs(v) / allowed);
+    }
+    expect(worst).toBeLessThanOrEqual(1 + 1e-7);
+    expect(proc.backstopHits).toBe(0);
+  });
+
+  it('a reset puts every state back to rest (REQ-re-engaging-starts-at-rest, regression)', () => {
+    const proc = new Processor();
+    const over = fill(SR, () => 4);
+    render(proc, over, over);
+    expect(proc.slow).toBeLessThan(0.5);
+    (proc.port as unknown as { onmessage: (e: { data: unknown }) => void }).onmessage({ data: 'reset' });
+    expect(proc.fast).toBe(1);
+    expect(proc.slow).toBe(1);
+    expect(proc.boxSum).toBe(proc.len);
+    // In-range audio right after passes at unity — not ducked and swelling back.
+    const tone = noise(BLOCK * 16, 0.9, 21);
+    const { outL } = render(proc, tone, tone);
+    let mismatches = 0;
+    for (let i = 0; i < tone.length; i++) if (outL[i] !== (i < L ? 0 : tone[i - L])) mismatches++;
+    expect(mismatches).toBe(0);
+  });
+
   it('reads NaN and Infinity as silence and stays clean after (REQ-non-finite-input-never-reaches-state)', () => {
     const proc = new Processor();
     const bad = fill(BLOCK, (i) => [NaN, Infinity, -Infinity, 0.5][i % 4]!);

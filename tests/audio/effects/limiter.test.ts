@@ -79,11 +79,37 @@ describe('Limiter (effect shell)', () => {
     expect(gr).toHaveBeenLastCalledWith(0);
   });
 
+  it('drops a draining worklet’s late post, and resets it before the disconnect (REQ-re-engaging-starts-at-rest)', () => {
+    vi.useFakeTimers();
+    try {
+      const { lim } = build();
+      const gr = vi.fn();
+      lim.onGr(gr);
+      lim.attachWorklet();
+      lim.setBypass(false);
+      const node = MockAudioWorkletNode.instances[0]!;
+      node.port.onmessage?.({ data: 4 });
+      expect(gr).toHaveBeenLastCalledWith(4);
+
+      lim.setBypass(true);
+      expect(gr).toHaveBeenLastCalledWith(0);
+      node.port.onmessage?.({ data: 4 }); // the worklet still runs through the drain
+      expect(gr).toHaveBeenLastCalledWith(0);
+
+      expect(node.port.postMessage).not.toHaveBeenCalled();
+      vi.advanceTimersByTime(1000); // past the input cut and the drain
+      expect(node.port.postMessage).toHaveBeenCalledWith('reset');
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
   it('relays the worklet’s gain reduction to the meter', () => {
     const { lim } = build();
     const gr = vi.fn();
     lim.onGr(gr);
     lim.attachWorklet();
+    lim.setBypass(false);
     const node = MockAudioWorkletNode.instances[0]!;
     node.port.onmessage?.({ data: 4.5 } as MessageEvent);
     expect(gr).toHaveBeenCalledWith(4.5);

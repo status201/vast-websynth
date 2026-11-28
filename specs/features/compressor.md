@@ -57,7 +57,10 @@ character over circuit accuracy (ADR-010) and are bounded and cheap.
   only after ~ten time constants. Threshold, attack, release and makeup are
   smoothed. `attachWorklet` seeds all six with `setValueAtTime`.
 - **REQ-worklet-posts-gain-reduction** — The worklet posts gain reduction (dB) on
-  its `port` at ~31 Hz. The `GrMeter` renders it.
+  its `port` at ~31 Hz. The `GrMeter` renders it. A bypass zeroes the meter, and
+  posts that arrive while bypassed are dropped: the worklet keeps running through
+  the bypass drain (ADR-012), and its last post would otherwise leave a stale
+  reading on the meter until the next switch-on.
 - **REQ-compressor-graph-is-wired-synchronously** — The graph is wired
   **synchronously** in `Engine`'s constructor. The worklet node is **spliced in
   after** `loadModule` via `attachWorklet()`, replaying cached setter values.
@@ -189,6 +192,12 @@ Scenario: Discrete ratio index maps to the real ratio
 Scenario: Master release index past the table means auto-release (edge)
   When fx.master.comp.release is set to index 4 (label 'auto')
   Then setAutoRelease(true) is called and no fixed release is applied
+# pinned by: tests/audio/effects/compressor.test.ts
+
+Scenario: A bypassed compressor's late posts never reach the meter (REQ-worklet-posts-gain-reduction, regression)
+  Given an attached compressor whose meter shows gain reduction
+  When it is bypassed and the draining worklet posts once more
+  Then the meter stays at 0
 # pinned by: tests/audio/effects/compressor.test.ts
 
 Scenario: DSP curve under signal (failure guard)

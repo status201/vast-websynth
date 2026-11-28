@@ -81,10 +81,25 @@ describe('Compressor (effect shell)', () => {
     const seen: number[] = [];
     comp.onGr((db) => seen.push(db));
     comp.attachWorklet();
+    comp.setBypass(false);
     const node = MockAudioWorkletNode.instances[0]!;
     node.port.onmessage?.({ data: 4.2 });
     expect(seen).toEqual([4.2]);
     comp.setBypass(true);
+    expect(seen).toEqual([4.2, 0]);
+  });
+
+  it('drops a post that arrives while bypassed (REQ-worklet-posts-gain-reduction, regression)', () => {
+    const { comp } = build();
+    const seen: number[] = [];
+    comp.onGr((db) => seen.push(db));
+    comp.attachWorklet();
+    comp.setBypass(false);
+    const node = MockAudioWorkletNode.instances[0]!;
+    node.port.onmessage?.({ data: 4.2 });
+    comp.setBypass(true);
+    // The worklet keeps running through the bypass drain and posts once more.
+    node.port.onmessage?.({ data: 4.2 });
     expect(seen).toEqual([4.2, 0]);
   });
 });

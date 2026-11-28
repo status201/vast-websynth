@@ -31,9 +31,16 @@ describe('the master limiter sits after the volume, before every listener', () =
   });
 
   it('a failed limiter load is caught, so the boot goes on (REQ-a-failed-load-never-mutes-the-master)', () => {
-    const at = engine.indexOf('await LimiterNode.loadModule(this.ctx)');
-    expect(at).toBeGreaterThan(-1);
-    const before = engine.slice(Math.max(0, at - 400), at);
-    expect(before).toContain('try {');
+    // The load settles into a boolean: a rejection is handled where it starts,
+    // and the node attaches only if the module came in.
+    expect(engine).toMatch(/LimiterNode\.loadModule\(this\.ctx\)\.then\(\s*\(\) => true,/);
+    expect(engine).toContain('if (await limiterLoaded) this.masterLimit.attachWorklet()');
+  });
+
+  it('the limiter fetch starts before the other worklet loads are awaited', () => {
+    const start = engine.indexOf('LimiterNode.loadModule(this.ctx)');
+    const ladder = engine.indexOf('await LadderFilterNode.loadModule(this.ctx)');
+    expect(start).toBeGreaterThan(-1);
+    expect(start).toBeLessThan(ladder);
   });
 });

@@ -42,6 +42,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
   Phillips screws each: at the top corners of the synth panels and the bottom
   corners of the effects. The WAH has lost one.
 
+### Fixed
+
+- **A compressor switched off no longer leaves its meter showing a reduction.**
+  For a moment after the switch the compressor still runs, and its last reading
+  could land on the meter after it had been cleared and stay there.
+
 ## [2.23.0] - 2026-11-25
 
 ### Added

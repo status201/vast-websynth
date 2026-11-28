@@ -10,7 +10,7 @@
 //   slow   = one-pole toward hold            300 ms down / 600 ms up
 //   fast   = min(hold, fast + (slow − fast)·kFast)   instant down, ~50 ms back up to slow
 //   g      = mean(fast) over L+1 samples     the attack: a ramp across the lookahead
-//   y      = delay_L(x) · g, clamped to ±ceil (a backstop that never engages)
+//   y      = delay_L(x) · g, clamped to the ceiling it entered under (a backstop that never engages)
 //
 // Why |y| ≤ ceil (REQ-the-output-never-exceeds-the-ceiling): the sample that
 // entered at t0 leaves at t0+L, times the mean of fast[t0 … t0+L]. Each of those
@@ -58,9 +58,14 @@ class MasterLimiterProcessor extends AudioWorkletProcessor {
     this.len = len;
     this.invLen = 1 / len;
 
-    // The audio delay line: L samples per channel, written then read in turn.
+    // The audio delay line: L samples per channel, written then read in turn,
+    // and beside each the ceiling it was gained for. A sample leaves under the
+    // ceiling it entered under, so a CEIL turned down mid-limiting never clamps
+    // (flat-tops) a peak that was gained for the old one
+    // (REQ-the-output-never-exceeds-the-ceiling).
     this.dL = new Float64Array(L);
     this.dR = new Float64Array(L);
+    this.dC = new Float64Array(L).fill(1);
     this.dPos = 0;
 
     // Sliding-window minimum of `target`: a deque of (time, value) in two
@@ -92,6 +97,31 @@ class MasterLimiterProcessor extends AudioWorkletProcessor {
     this.minG = 1;
     this.lastPosted = 0;
     this.backstopHits = 0;
+
+    // 'reset' is the effect's quiesce: a bypass drains and then disconnects
+    // the node (ADR-012), which would freeze it mid-release, so the next
+    // switch-on would start ducked (REQ-re-engaging-starts-at-rest).
+    this.port.onmessage = (e) => {
+      if (e.data === 'reset') this.reset();
+    };
+  }
+
+  /** Every state back to rest: unity gain, an empty delay line, an idle meter. */
+  reset() {
+    this.dL.fill(0);
+    this.dR.fill(0);
+    this.dC.fill(this.ceilLin);
+    this.dPos = 0;
+    this.qHead = 0;
+    this.qSize = 0;
+    this.box.fill(1);
+    this.boxPos = 0;
+    this.boxSum = this.len;
+    this.fast = 1;
+    this.slow = 1;
+    this.minG = 1;
+    this.blockCount = 0;
+    this.lastPosted = 0;
   }
 
   process(inputs, outputs, params) {
@@ -132,6 +162,7 @@ class MasterLimiterProcessor extends AudioWorkletProcessor {
     const invLen = this.invLen;
     const dL = this.dL;
     const dR = this.dR;
+    const dC = this.dC;
     const qT = this.qT;
     const qV = this.qV;
     const box = this.box;
@@ -193,8 +224,10 @@ class MasterLimiterProcessor extends AudioWorkletProcessor {
       // Delay line: read the sample from L ago, write this one in its place.
       const yl = dL[dPos] * g;
       const yr = dR[dPos] * g;
+      const cOut = dC[dPos];
       dL[dPos] = xl;
       dR[dPos] = xr;
+      dC[dPos] = ceil;
       dPos = dPos + 1 === L ? 0 : dPos + 1;
 
       // Backstop (REQ-the-output-never-exceeds-the-ceiling): the gain computer
@@ -202,10 +235,10 @@ class MasterLimiterProcessor extends AudioWorkletProcessor {
       // so a test can pin that it never engages. The count is off the hot path.
       const ml = yl < 0 ? -yl : yl;
       const mr = yr < 0 ? -yr : yr;
-      if (ml > ceil || mr > ceil) {
+      if (ml > cOut || mr > cOut) {
         this.backstopHits++;
-        outL[i] = ml > ceil ? (yl < 0 ? -ceil : ceil) : yl;
-        if (outR) outR[i] = mr > ceil ? (yr < 0 ? -ceil : ceil) : yr;
+        outL[i] = ml > cOut ? (yl < 0 ? -cOut : cOut) : yl;
+        if (outR) outR[i] = mr > cOut ? (yr < 0 ? -cOut : cOut) : yr;
       } else {
         outL[i] = yl;
         if (outR) outR[i] = yr;

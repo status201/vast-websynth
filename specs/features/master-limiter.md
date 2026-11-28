@@ -55,10 +55,15 @@ that was in range.
   The scope keeps its pre-master tap ([architecture](../architecture.md) "Audio
   graph"), so it shows the mix and not the limiting. The GR meter shows the limiting.
 - **REQ-the-output-never-exceeds-the-ceiling** — For any input, at any setting,
-  every output sample satisfies `|y| ≤ ceiling`. The gain that reaches a peak is
+  every output sample satisfies `|y| ≤ ceiling`, where `ceiling` is the CEILING in
+  force when that sample **entered** the limiter. The gain that reaches a peak is
   computed from that peak before it is output (lookahead), so the guarantee comes
-  from the gain computer, not from a clamp. A final clamp to ±ceiling exists as a
-  backstop against rounding, and engages on no test input.
+  from the gain computer, not from a clamp. A sample in the delay line was gained
+  for the ceiling it met on the way in, so a CEIL turn takes effect one lookahead
+  later, like everything else here. The worklet keeps each sample's ceiling beside
+  it in the delay line rather than clamping it to a lower one it never saw, which
+  would flat-top it. A final clamp to that stored ceiling is a backstop against
+  rounding. It engages on no test input, including a ceiling swept down mid-limiting.
 - **REQ-in-range-audio-passes-unchanged** — With DRIVE at 0 dB and a CEILING of
   0 dBFS, a signal that never exceeds ±1 comes out **bit-exact**, delayed by
   `LOOKAHEAD_S` (rounded to whole samples, `round(0.0015 · sampleRate)`). The gain is
@@ -89,7 +94,16 @@ that was in range.
   (dB ≥ 0, the deepest in the window) on its `port` at ~31 Hz. It posts nothing
   while idle, apart from one closing message that brings the meter back to 0.
   This is the same contract as [compressor](compressor.md)
-  REQ-worklet-posts-gain-reduction, rendered by the same `GrMeter`.
+  REQ-worklet-posts-gain-reduction, rendered by the same `GrMeter`. A bypass zeroes
+  the meter, and posts that arrive while bypassed are dropped. The worklet keeps
+  running for the bypass drain, so otherwise its last post would leave the meter
+  showing a stale reading.
+- **REQ-re-engaging-starts-at-rest** — A bypassed limiter is reset to rest before
+  it is disconnected: both envelopes, the hold window, the attack average and the
+  delay line. Otherwise the disconnect (ADR-012) freezes it mid-release, and a
+  later switch-on would resume at that old reduction, so in-range audio would come
+  in ducked and swell back over a second. The reset is the effect's `quiesce`,
+  posted to the worklet as a `reset` message once the wet path is already silent.
 - **REQ-silence-in-is-silence-out** — Silence in gives exact zeros out, and an
   envelope at rest stays at exactly 1. The envelopes snap to 1 at block end once
   within `1e-7`, so a recovery never crawls.
@@ -153,7 +167,8 @@ exactly `L+1`, and `g` is set to exactly 1 instead of being divided out
 
 ```yaml
 ctor (sync):  engine builds Limiter → passthrough wired; master → limiter → destination
-init (async): loadModule (caught; failure logged) → attachWorklet()
+init (async): loadModule starts with the other worklet loads, not after them;
+              awaited (caught; failure logged) → attachWorklet()
               → the recorder taps masterLimit.output, not master
 bindAll:      masterLimit.bind(bus, 'fx.master.limit') beside masterComp.bind
 ```
@@ -171,6 +186,7 @@ direction: worklet -> main (node.port.onmessage)
 payload:   number      # gain reduction in dB, >= 0
 rate:      ~31 Hz      # every 12 blocks
 when:      suppressed while idle, after one closing 0-ish message
+main -> worklet: 'reset'   # quiesce(true): every state back to rest (REQ-re-engaging-starts-at-rest)
 params (k-rate AudioParams): drive (dB), ceiling (dB)
 processorOptions: none; L comes from sampleRate at construction
 ```
@@ -251,6 +267,26 @@ Scenario: Silence in is exact silence out (REQ-silence-in-is-silence-out)
   Then from the first block after the lookahead the output is exactly 0
   And within twelve seconds both envelopes are exactly 1, not crawling toward it
 # pinned by: tests/audio/limiter-worklet.test.ts
+
+Scenario: A ceiling turned down mid-limiting never flat-tops a peak (REQ-the-output-never-exceeds-the-ceiling, regression)
+  Given a limiter holding a loud signal at 0 dBFS
+  When the ceiling falls to -6 dBFS over a few blocks
+  Then every output sample stays within the ceiling it entered under
+  And the backstop clamp never changes a sample
+# pinned by: tests/audio/limiter-worklet.test.ts
+
+Scenario: A reset puts the limiter back at rest (REQ-re-engaging-starts-at-rest, regression)
+  Given a limiter that has been held deep in reduction by a sustained overload
+  When it is sent 'reset'
+  Then the next in-range block passes bit-exact (after the lookahead) at unity gain
+# pinned by: tests/audio/limiter-worklet.test.ts
+
+Scenario: Bypassing resets the worklet and silences the meter (REQ-re-engaging-starts-at-rest, REQ-the-limiter-posts-gain-reduction)
+  Given an attached limiter showing gain reduction
+  When it is bypassed
+  Then the meter reads 0 and a later post from the draining worklet is dropped
+  And quiesce posts 'reset' to the worklet
+# pinned by: tests/audio/effects/limiter.test.ts
 
 Scenario: NaN and Infinity never poison the state (REQ-non-finite-input-never-reaches-state, failure guard)
   Given a block containing NaN, +Infinity and -Infinity samples

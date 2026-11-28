@@ -14,8 +14,10 @@ export class LimiterNode {
   readonly drive: AudioParam;
   readonly ceiling: AudioParam;
   onGr: ((db: number) => void) | null = null;
+  private readonly port: MessagePort;
 
   private constructor(node: AudioWorkletNode) {
+    this.port = node.port;
     this.input = node;
     this.output = node;
     this.drive = node.parameters.get('drive')!;
@@ -23,6 +25,11 @@ export class LimiterNode {
     node.port.onmessage = (e: MessageEvent) => {
       this.onGr?.(e.data as number);
     };
+  }
+
+  /** Put every state back to rest (master-limiter.md REQ-re-engaging-starts-at-rest). */
+  reset(): void {
+    this.port.postMessage('reset');
   }
 
   static create(ctx: AudioContext): LimiterNode {

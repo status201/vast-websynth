@@ -19,6 +19,8 @@ export class Limiter extends WrappedEffect {
   private grCb: ((db: number) => void) | null = null;
   private drive = 0;
   private ceiling = 0;
+  /** Mirrors the wrapper's state: posts from a draining worklet are dropped while true. */
+  private bypassed = true;
 
   constructor(ctx: AudioContext) {
     super(ctx, 1);
@@ -40,7 +42,9 @@ export class Limiter extends WrappedEffect {
     const t = this.ctx.currentTime;
     node.drive.setValueAtTime(this.drive, t);
     node.ceiling.setValueAtTime(this.ceiling, t);
-    node.onGr = (db) => this.grCb?.(db);
+    // A bypassed limiter still runs through its drain, and its last post must
+    // not leave the meter stale (REQ-the-limiter-posts-gain-reduction).
+    node.onGr = (db) => { if (!this.bypassed) this.grCb?.(db); };
     this.wrap.processedIn.disconnect(this.wrap.processedOut);
     this.wrap.processedIn.connect(node.input);
     node.output.connect(this.wrap.processedOut);
@@ -53,8 +57,19 @@ export class Limiter extends WrappedEffect {
 
   /** Also clears the meter, so bypassing never leaves it frozen on a stale value. */
   override setBypass(b: boolean): void {
+    this.bypassed = b;
     super.setBypass(b);
     if (b) this.grCb?.(0);
+  }
+
+  /**
+   * The wet path is silent by now, so reset the worklet to rest: the disconnect
+   * that follows would otherwise freeze it mid-release, and the next switch-on
+   * would start ducked (master-limiter.md REQ-re-engaging-starts-at-rest). Nothing
+   * to undo on the way back in, as rest is where it should resume.
+   */
+  protected override quiesce(on: boolean): void {
+    if (on) this.node?.reset();
   }
 
   setDrive(db: number): void {

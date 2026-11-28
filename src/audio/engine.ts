@@ -403,20 +403,23 @@ export class Engine {
   }
 
   async init(): Promise<void> {
+    // The limiter's fetch starts alongside the others rather than after them,
+    // and settles into a boolean so a failure cannot reject unobserved meanwhile.
+    const limiterLoaded = LimiterNode.loadModule(this.ctx).then(
+      () => true,
+      (e: unknown) => {
+        console.error('master limiter failed to load; the master plays unlimited', e);
+        return false;
+      },
+    );
     await LadderFilterNode.loadModule(this.ctx);
     await RecorderNode.loadModule(this.ctx);
     await CompressorNode.loadModule(this.ctx);
     this.drumComp.attachWorklet();
     this.masterComp.attachWorklet();
-    // Caught, not awaited into a throw: until it attaches the limiter is a wire,
-    // so a failed load leaves the master playing unlimited rather than silent
-    // (master-limiter.md REQ-a-failed-load-never-mutes-the-master).
-    try {
-      await LimiterNode.loadModule(this.ctx);
-      this.masterLimit.attachWorklet();
-    } catch (e) {
-      console.error('master limiter failed to load; the master plays unlimited', e);
-    }
+    // Until it attaches the limiter is a wire, so a failed load leaves the master
+    // playing unlimited rather than silent (master-limiter.md REQ-a-failed-load-never-mutes-the-master).
+    if (await limiterLoaded) this.masterLimit.attachWorklet();
 
     // Polyphony owns the voice pool + the analogue-drift source; it shares the
     // `this.voices` array (Engine fans per-voice params over the same array).
