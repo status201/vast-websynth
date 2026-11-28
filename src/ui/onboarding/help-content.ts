@@ -1578,7 +1578,7 @@ export const HELP_TOPICS: Record<TopicId, HelpTopic> = {
       'the <strong>L</strong> and <strong>R</strong> channels separately, so you can see stereo ' +
       'effects (the reverb and the chorus) move the channels apart.</p>' +
       '<p>In <strong>Spectrum</strong> a dotted <strong>max-dB</strong> line is pushed up by the ' +
-      'bars to mark the loudest level reached (0 dB at the top = clipping) — handy when riding the ' +
+      'bars to mark the loudest level reached (0 dB at the top is full scale: past it, at full volume, the LIMITER has to catch the peaks) — handy when riding the ' +
       'compressors. It holds the peak briefly, then falls back very slowly; ' +
       '<strong>click the graph</strong> to reset it.</p>' +
       '<p>It taps the signal <em>before</em> the volume knob, so the display stays steady whatever ' +

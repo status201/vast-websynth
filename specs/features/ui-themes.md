@@ -226,10 +226,10 @@ Fonts are system stacks only — the app bundles no font file
   `tint`, the FX rack), never per call site in CSS. The panel paints
   `var(--panel-tint, var(--panel))`, and `theme.css` maps each `data-tint` to its
   `--panel-tint-<section>` token. Those tokens are derived — `var(--panel)` on
-  `:root` — so every theme but Pastel is untouched; Pastel gives each
-  section its own flat colour. The header, the machine tabs, the scope, the
-  keyboard and the dialogs stay on `--panel`: a tint names a section of the
-  synth, and those are not one.
+  `:root` — so only Pastel changes: each section its own flat colour. The
+  header, machine tabs, scope, keyboard and dialogs stay on `--panel`: a tint
+  names a synth section, and those are not one. The tint stays the **last**
+  `background` layer, under any decoration (the screws).
 - **REQ-pastel-reads-on-every-tint** — Pastel is light pastel faceplates with dark
   legends on a black chassis between wood cheeks. Its body text reads at 4.5:1 or
   better and its small print and accents at 3:1 on every flat surface **and every

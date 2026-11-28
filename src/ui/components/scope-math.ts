@@ -46,7 +46,7 @@ export function scopeRegions(channels: ScopeChannels, w: number, h: number): Sco
   ];
 }
 
-/** dB shown at the very top of a spectrum region — i.e. "clip" (REQ-zero-db-is-the-top-of-the-graph). */
+/** dB shown at the very top of a spectrum region — full scale (REQ-zero-db-is-the-top-of-the-graph). */
 export const SPECTRUM_DB_TOP = 0;
 
 /**
